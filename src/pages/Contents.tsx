@@ -10,6 +10,7 @@ import { ContentEcosystem } from '../components/contents/ContentEcosystem';
 import { ContentTimeline } from '../components/contents/ContentTimeline';
 import { RecordingTab } from '../components/contents/RecordingTab';
 import { motion, AnimatePresence } from 'motion/react';
+import { PageGuide } from '../components/PageGuide';
 
 type SortField = keyof Content | 'seriesName';
 type SortDirection = 'asc' | 'desc';
@@ -164,6 +165,12 @@ export function Contents() {
 
   return (
     <div className="h-full flex flex-col bg-[var(--bg-primary)] transition-colors duration-200">
+      <PageGuide 
+        pageId="inventory"
+        title="O Coração da Operação"
+        description="Aqui você gerencia todos os seus roteiros. Use as abas para alternar entre a visão de Tabela, Ecossistema (visual) ou Linha do Tempo. Você também pode criar 'Blocos de Gravação' para produzir em lote."
+        icon={TableIcon}
+      />
       <header className="px-6 md:px-10 py-6 md:py-8 border-b border-[var(--border-color)] flex flex-col md:flex-row md:items-center justify-between bg-[var(--bg-secondary)] shadow-sm sticky top-0 z-20 gap-6">
         <div className="flex flex-col sm:flex-row sm:items-center gap-4 md:gap-6 w-full">
           <div className="flex bg-[var(--bg-hover)] p-1 rounded-2xl border border-[var(--border-color)] overflow-x-auto no-scrollbar shrink-0">

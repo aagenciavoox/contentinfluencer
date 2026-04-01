@@ -6,6 +6,7 @@ import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { PageGuide } from '../components/PageGuide';
 
 export function Results() {
   const { state, dispatch } = useAppContext();
@@ -23,6 +24,12 @@ export function Results() {
 
   return (
     <div className="max-w-7xl mx-auto py-10 md:py-16 px-6 md:px-10 transition-colors duration-200">
+      <PageGuide 
+        pageId="results"
+        title="O Loop de Feedback"
+        description="Aqui você registra o que funcionou e o que não funcionou. O Content OS usa esses dados para sugerir melhorias no seu DNA e nos seus pilares de conteúdo."
+        icon={TrendingUp}
+      />
       <header className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
           <h1 className="text-4xl md:text-5xl font-black text-[var(--text-primary)] mb-4 tracking-tight">Resultados</h1>

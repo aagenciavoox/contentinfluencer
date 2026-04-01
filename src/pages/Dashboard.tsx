@@ -23,6 +23,7 @@ import { generateUUID } from '../utils/uuid';
 import { BookAnnotation, Idea, Book } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 import { BookNotesModal } from '../components/BookNotesModal';
+import { PageGuide } from '../components/PageGuide';
 
 export function Dashboard() {
   const { state, dispatch } = useAppContext();
@@ -106,6 +107,12 @@ export function Dashboard() {
 
   return (
     <div className="max-w-7xl mx-auto py-8 md:py-12 px-6 md:px-10 space-y-8 md:space-y-12">
+      <PageGuide 
+        pageId="dashboard"
+        title="Command Center"
+        description="Esta é sua visão geral. Use o 'Quick Capture' para salvar ideias e notas de livros sem sair da tela. Acompanhe suas metas semanais e o progresso da sua leitura atual."
+        icon={LayoutDashboard}
+      />
       {/* ── HEADER OPERACIONAL ────────────────────────────────────────── */}
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>

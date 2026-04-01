@@ -56,6 +56,7 @@ export type AppAction =
   | { type: 'DELETE_CENARIO'; payload: string }
   // Onboarding
   | { type: 'SET_ONBOARDING_COMPLETO'; payload: boolean }
+  | { type: 'MARK_GUIDE_VIEWED'; payload: string }
   // Blocos de Gravação
   | { type: 'ADD_RECORDING_BLOCK'; payload: RecordingBlock }
   | { type: 'DELETE_RECORDING_BLOCK'; payload: string }
@@ -256,6 +257,11 @@ export function appReducer(state: AppState, action: AppAction): AppState {
     // ─── Onboarding ──────────────────────────────────────────────────────────
     case 'SET_ONBOARDING_COMPLETO':
       return { ...state, onboardingCompleto: action.payload };
+    case 'MARK_GUIDE_VIEWED':
+      return { 
+        ...state, 
+        viewedGuides: [...state.viewedGuides, action.payload] 
+      };
 
     // ─── Blocos de Gravação ──────────────────────────────────────────────────
     case 'ADD_RECORDING_BLOCK':

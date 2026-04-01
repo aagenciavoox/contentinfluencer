@@ -212,8 +212,10 @@ export async function fetchAllData(): Promise<Partial<AppState>> {
   if (config) {
     const onboarding = config.find((c: any) => c.key === 'onboarding_completo');
     const theme = config.find((c: any) => c.key === 'theme');
+    const viewedGuides = config.find((c: any) => c.key === 'viewed_guides');
     if (onboarding) state.onboardingCompleto = onboarding.value;
     if (theme) state.theme = theme.value;
+    if (viewedGuides) state.viewedGuides = viewedGuides.value || [];
   }
 
   if (dnaVoz) {
@@ -290,6 +292,7 @@ export async function saveToSupabase(state: AppState) {
     supabase.from('app_config').upsert([
       { key: 'onboarding_completo', value: state.onboardingCompleto, user_id: userId },
       { key: 'theme', value: state.theme, user_id: userId },
+      { key: 'viewed_guides', value: state.viewedGuides, user_id: userId },
     ]),
 
     // DNA da Voz

@@ -82,6 +82,7 @@ export function Sidebar({ isOpen, onClose, onOpenDNA }: SidebarProps) {
   );
 
   const settingsItems = [
+    { to: '/settings', icon: Settings, label: 'Configurações Gerais' },
     { to: '/settings/pilares', icon: Palette, label: 'Pilares' },
     { to: '/settings/looks', icon: Shirt, label: 'Looks & Cenários' },
     { to: '/settings/regras', icon: ShieldCheck, label: 'Regras de Ouro' },

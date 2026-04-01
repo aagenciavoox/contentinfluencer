@@ -7,6 +7,7 @@ import { ptBR } from 'date-fns/locale';
 import { Idea, Content } from '../types';
 import { cn } from '../lib/utils';
 import { BottomSheetModal } from '../components/BottomSheetModal';
+import { PageGuide } from '../components/PageGuide';
 
 export function Ideas() {
   const { state, dispatch } = useAppContext();
@@ -92,6 +93,12 @@ export function Ideas() {
 
   return (
     <div className="max-w-7xl mx-auto py-10 md:py-16 px-6 md:px-10 transition-colors duration-200">
+      <PageGuide 
+        pageId="ideas"
+        title="O Berçário de Insights"
+        description="Capture tudo o que vier à cabeça aqui. Não se preocupe com a perfeição. Quando uma ideia amadurecer, use o botão 'Promover' para transformá-la em um roteiro no inventário."
+        icon={Lightbulb}
+      />
       <header className="mb-12 md:mb-16 max-w-3xl">
         <h1 className="text-4xl md:text-5xl font-black text-[var(--text-primary)] mb-6 tracking-tight italic">Caixa de Ideias</h1>
         <p className="text-base text-[var(--text-tertiary)] font-medium">Capture tudo, sem julgamento. Promova quando estiver pronto.</p>

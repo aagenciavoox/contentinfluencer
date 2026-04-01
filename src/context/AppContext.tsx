@@ -33,6 +33,7 @@ export interface AppState {
   recordingBlocks: RecordingBlock[];
   goldenRules: GoldenRule[];
   onboardingCompleto: boolean;
+  viewedGuides: string[];
   theme: 'light' | 'dark';
   dnaVoz: {
     promessaCentral: string;
@@ -151,6 +152,7 @@ const initialState: AppState = {
   recordingBlocks: [],
   goldenRules: GOLDEN_RULES,
   onboardingCompleto: false,
+  viewedGuides: [],
   theme: 'light',
   dnaVoz: {
     promessaCentral: '',

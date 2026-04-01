@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Fingerprint, ArrowRight, ArrowLeft, Check, SkipForward, Rocket, Sparkles, Layout, Target, Zap, ChevronRight } from 'lucide-react';
+import { Fingerprint, ArrowRight, ArrowLeft, Check, SkipForward, Rocket, Sparkles, Layout, Target, Zap, ChevronRight, Lightbulb } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import { BottomSheetModal } from './BottomSheetModal';
 
@@ -156,56 +156,77 @@ export function Onboarding() {
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
-                className="space-y-6"
+                className="space-y-8"
               >
                 <div>
                   <div className="flex items-center gap-2 mb-2">
                     <Sparkles className="w-5 h-5 text-[var(--text-primary)]" />
                     <h3 className="text-2xl font-black text-[var(--text-primary)] uppercase italic tracking-tighter">O seu DNA</h3>
                   </div>
-                  <p className="text-sm text-[var(--text-secondary)] opacity-60 font-medium">
-                    Sem DNA, o conteúdo é commodity. Defina sua essência agora.
+                  <p className="text-sm text-[var(--text-secondary)] opacity-60 font-medium leading-relaxed">
+                    Sem DNA, o conteúdo é commodity. Defina sua essência agora para que o sistema possa validar seus roteiros futuramente.
                   </p>
                 </div>
 
-                <div className="space-y-4">
+                <div className="space-y-6">
+                  {/* Promessa */}
                   <div className="space-y-2">
-                    <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-primary)] opacity-40 ml-1">
-                      Promessa Central
-                    </label>
+                    <div className="flex justify-between items-end mb-1">
+                      <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-primary)] opacity-40 ml-1">
+                        Promessa Central
+                      </label>
+                      <span className="text-[8px] font-bold text-[var(--accent-blue)] opacity-60 uppercase italic tracking-widest">[Dica: O que eu ganho ao te seguir?]</span>
+                    </div>
                     <textarea
                       value={promessa}
                       onChange={e => setPromessa(e.target.value)}
                       placeholder="Ex: Faço você amar ler e rir da vida literária."
-                      className="w-full text-sm font-bold bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-2xl px-5 py-4 focus:border-[var(--text-primary)]/40 transition-all resize-none text-[var(--text-primary)] placeholder:opacity-20"
+                      className="w-full text-sm font-bold bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-[1.2rem] px-5 py-4 focus:border-[var(--text-primary)]/40 transition-all resize-none text-[var(--text-primary)] placeholder:opacity-20 leading-relaxed"
                       rows={2}
                     />
+                    <p className="text-[9px] text-[var(--text-secondary)] opacity-40 font-medium px-1">
+                      Sua promessa é o contrato emocional com a audiência. Ela deve ser curta e clara.
+                    </p>
                   </div>
 
+                  {/* Público */}
                   <div className="space-y-2">
-                    <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-primary)] opacity-40 ml-1">
-                      Público-Alvo
-                    </label>
+                    <div className="flex justify-between items-end mb-1">
+                      <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-primary)] opacity-40 ml-1">
+                        Público-Alvo
+                      </label>
+                      <span className="text-[8px] font-bold text-[var(--accent-blue)] opacity-60 uppercase italic tracking-widest">[Dica: Fale com UMA pessoa]</span>
+                    </div>
                     <textarea
                       value={publico}
                       onChange={e => setPublico(e.target.value)}
                       placeholder="Ex: Leitoras de Fantasy apaixonadas por dark romance."
-                      className="w-full text-sm font-bold bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-2xl px-5 py-4 focus:border-[var(--text-primary)]/40 transition-all resize-none text-[var(--text-primary)] placeholder:opacity-20"
+                      className="w-full text-sm font-bold bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-[1.2rem] px-5 py-4 focus:border-[var(--text-primary)]/40 transition-all resize-none text-[var(--text-primary)] placeholder:opacity-20 leading-relaxed"
                       rows={2}
                     />
+                    <p className="text-[9px] text-[var(--text-secondary)] opacity-40 font-medium px-1">
+                      Identifique as dores e desejos específicos. Não tente falar com todo mundo.
+                    </p>
                   </div>
 
+                  {/* Tom */}
                   <div className="space-y-2">
-                    <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-primary)] opacity-40 ml-1">
-                      Tom de Voz Principal
-                    </label>
+                    <div className="flex justify-between items-end mb-1">
+                      <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-primary)] opacity-40 ml-1">
+                        Tom de Voz
+                      </label>
+                      <span className="text-[8px] font-bold text-[var(--accent-blue)] opacity-60 uppercase italic tracking-widest">[Dica: Como você soa?]</span>
+                    </div>
                     <textarea
                       value={tom}
                       onChange={e => setTom(e.target.value)}
                       placeholder="Ex: Irônica, inteligente e viciada em detalhes."
-                      className="w-full text-sm font-bold bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-2xl px-5 py-4 focus:border-[var(--text-primary)]/40 transition-all resize-none text-[var(--text-primary)] placeholder:opacity-20"
+                      className="w-full text-sm font-bold bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-[1.2rem] px-5 py-4 focus:border-[var(--text-primary)]/40 transition-all resize-none text-[var(--text-primary)] placeholder:opacity-20 leading-relaxed"
                       rows={2}
                     />
+                    <p className="text-[9px] text-[var(--text-secondary)] opacity-40 font-medium px-1">
+                      O tom de voz cria conexão. Escolha 3 adjetivos que definem sua personalidade digital.
+                    </p>
                   </div>
                 </div>
               </motion.div>
@@ -218,24 +239,30 @@ export function Onboarding() {
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
-                className="space-y-5"
+                className="space-y-6"
               >
                 <div>
                    <div className="flex items-center gap-2 mb-2">
                     <Layout className="w-5 h-5 text-[var(--text-primary)]" />
                     <h3 className="text-2xl font-black text-[var(--text-primary)] uppercase italic tracking-tighter">Pilares de Ataque</h3>
                   </div>
-                  <p className="text-sm text-[var(--text-secondary)] opacity-60 font-medium">
-                    Ative os pilares que compõem sua grade semanal. Cada pilar tem hashtags e legenda próprias.
+                  <p className="text-sm text-[var(--text-secondary)] opacity-60 font-medium leading-relaxed">
+                    Pilares são os grandes temas que você aborda. Eles impedem que você fique "sem assunto" e garantem que o algoritmo entenda seu nicho.
                   </p>
                 </div>
 
-                <div className="space-y-2 max-h-[350px] overflow-y-auto pr-2 custom-scrollbar">
+                <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-4 mb-4">
+                   <p className="text-[10px] font-bold text-[var(--text-primary)] opacity-60 leading-relaxed italic">
+                     💡 <strong>Dica Estratégica:</strong> Selecione pelo menos 3 pilares: um de <strong>Autoridade</strong> (análise), um de <strong>Conexão</strong> (vlog/rotina) e um de <strong>Entretenimento</strong>.
+                   </p>
+                </div>
+
+                <div className="space-y-2 max-h-[250px] overflow-y-auto pr-2 custom-scrollbar">
                   {state.pilares.map(p => (
                     <button
                       key={p.id}
                       onClick={() => togglePilar(p.id)}
-                      className={`w-full flex items-center gap-5 px-5 py-4 rounded-3xl border transition-all text-left group ${
+                      className={`w-full flex items-center gap-5 px-5 py-4 rounded-[1.5rem] border transition-all text-left group ${
                         pilaresAtivos.has(p.id)
                           ? 'border-[var(--text-primary)] bg-[var(--bg-secondary)] shadow-sm'
                           : 'border-[var(--border-color)] opacity-40 grayscale hover:grayscale-0 hover:opacity-100'
@@ -266,24 +293,30 @@ export function Onboarding() {
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
-                className="space-y-5"
+                className="space-y-6"
               >
                 <div>
                   <div className="flex items-center gap-2 mb-2">
                     <Zap className="w-5 h-5 text-[var(--text-primary)]" />
                     <h3 className="text-2xl font-black text-[var(--text-primary)] uppercase italic tracking-tighter">Máquinas de Vídeo</h3>
                   </div>
-                  <p className="text-sm text-[var(--text-secondary)] opacity-60 font-medium">
-                    Séries são blocos de conteúdo recorrentes. Elas garantem sua constância.
+                  <p className="text-sm text-[var(--text-secondary)] opacity-60 font-medium leading-relaxed">
+                    Séries são blocos recorrentes que criam antecipação na audiência. São o segredo de perfis que crescem 10k+ por mês.
                   </p>
                 </div>
 
-                <div className="space-y-2 max-h-[350px] overflow-y-auto pr-2 custom-scrollbar">
+                <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-4 mb-4">
+                   <p className="text-[10px] font-bold text-[var(--text-primary)] opacity-60 leading-relaxed italic">
+                     💡 <strong>Pense Nisso:</strong> Uma série facilita sua vida porque você já sabe o roteiro base. Basta preencher com a ideia do dia.
+                   </p>
+                </div>
+
+                <div className="space-y-2 max-h-[250px] overflow-y-auto pr-2 custom-scrollbar">
                   {state.series.map(s => (
                     <button
                       key={s.id}
                       onClick={() => toggleSerie(s.id)}
-                      className={`w-full flex items-center gap-5 px-5 py-4 rounded-3xl border transition-all text-left ${
+                      className={`w-full flex items-center gap-5 px-5 py-4 rounded-[1.5rem] border transition-all text-left ${
                         seriesAtivas.has(s.id)
                           ? 'border-[var(--text-primary)] bg-[var(--bg-secondary)] shadow-sm'
                           : 'border-[var(--border-color)] opacity-40 grayscale hover:grayscale-0 hover:opacity-100'
@@ -311,41 +344,47 @@ export function Onboarding() {
             {step === 4 && (
               <motion.div
                 key="step4"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                className="text-center space-y-8"
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 1.1 }}
+                className="text-center space-y-8 py-4"
               >
                 <div className="relative inline-block">
                   <div className="absolute -inset-6 bg-[var(--accent-green)] opacity-[0.1] rounded-full blur-3xl animate-pulse" />
-                  <div className="w-20 h-20 bg-[var(--accent-green)] rounded-[2rem] flex items-center justify-center mx-auto relative z-10 shadow-xl shadow-[var(--accent-green)]/20 animate-bounce transition-all duration-1000">
-                    <Check className="w-10 h-10 text-white" />
+                  <div className="w-20 h-20 bg-[var(--text-primary)] rounded-[2.5rem] flex items-center justify-center mx-auto relative z-10 shadow-2xl transition-all duration-1000 group hover:rotate-12">
+                    <Rocket className="w-10 h-10 text-[var(--bg-primary)]" />
                   </div>
                 </div>
 
                 <div>
-                   <h3 className="text-3xl font-black text-[var(--text-primary)] uppercase italic leading-none tracking-tighter mb-4">
-                    Motor Preparado.
+                   <h3 className="text-3xl font-black text-[var(--text-primary)] uppercase italic leading-[0.9] tracking-tighter mb-4">
+                    Tudo pronto para <br /> começar a escala.
                   </h3>
-                  <p className="text-sm text-[var(--text-secondary)] opacity-60 leading-relaxed font-medium px-4">
-                    Sua estrutura base foi configurada. Agora você pode pular para o Inventário e começar a capturar ideias.
+                  <p className="text-sm text-[var(--text-secondary)] opacity-60 leading-relaxed font-medium px-6">
+                    Suas diretrizes estratégicas e DNA da voz foram configurados. Agora o sistema já conhece o seu tom e seus objetivos.
                   </p>
                 </div>
 
-                <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-[2.5rem] p-8 grid grid-cols-2 gap-y-6 gap-x-4">
-                   <div className="flex flex-col items-center">
-                     <p className="text-xl font-black text-[var(--text-primary)] tracking-tighter">{pilaresAtivos.size}</p>
-                     <p className="text-[8px] font-black uppercase tracking-widest opacity-30">Pilares Ativos</p>
+                <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-[2rem] p-6 space-y-4">
+                   <div className="flex items-center gap-4 text-left">
+                     <div className="w-8 h-8 rounded-xl bg-[var(--text-primary)]/5 flex items-center justify-center shrink-0">
+                        <Lightbulb className="w-4 h-4 text-[var(--text-primary)] opacity-60" />
+                     </div>
+                     <div>
+                       <p className="text-[10px] font-black uppercase tracking-widest text-[var(--text-primary)]">Próximo Passo:</p>
+                       <p className="text-[9px] text-[var(--text-secondary)] opacity-50 font-bold leading-tight">Vá para o Inventário e comece a capturar suas ideias para não perder o timing.</p>
+                     </div>
                    </div>
-                   <div className="flex flex-col items-center">
-                     <p className="text-xl font-black text-[var(--text-primary)] tracking-tighter">{seriesAtivas.size}</p>
-                     <p className="text-[8px] font-black uppercase tracking-widest opacity-30">Máquinas Ativas</p>
-                   </div>
-                   <div className="col-span-2 flex items-center justify-center gap-3 py-2 bg-[var(--bg-primary)] rounded-full border border-[var(--border-color)]">
+                   
+                   <div className="pt-4 border-t border-[var(--border-color)] flex items-center justify-center gap-3">
                       <ShieldCheck className="w-4 h-4 text-[var(--accent-green)] opacity-60" />
                       <p className="text-[9px] font-black uppercase tracking-widest opacity-40">Regras de Ouro Ativadas</p>
                    </div>
                 </div>
+
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-20 italic">
+                   Bora transformar conteúdo em autoridade?
+                </p>
               </motion.div>
             )}
           </AnimatePresence>

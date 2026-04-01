@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { Plus, BookOpen, X, Star, Search } from 'lucide-react';
+import { Plus, BookOpen, X, Star, Search, Library } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
+import { PageGuide } from '../components/PageGuide';
 import { Book, GeneroLivro, StatusLeitura } from '../types';
 import { generateUUID } from '../utils/uuid';
 import { BottomSheetModal } from '../components/BottomSheetModal';
@@ -92,6 +93,12 @@ export function Biblioteca() {
 
   return (
     <div className="min-h-screen bg-[var(--bg-secondary)]">
+      <PageGuide 
+        pageId="biblioteca"
+        title="Sua Central de Inteligência"
+        description="Catalogar seus livros é o primeiro passo para criar autoridade. Aqui você salva anotações e 'destila' insights que viram roteiros automaticamente."
+        icon={Library}
+      />
       <div className="max-w-7xl mx-auto px-6 md:px-12 py-12">
         {/* Header */}
         <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between gap-4 mb-10">
