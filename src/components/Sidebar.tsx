@@ -23,6 +23,7 @@ import {
   Home,
 } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
+import { useAuth } from '../context/AuthContext';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import { Series } from '../types';
@@ -35,6 +36,7 @@ interface SidebarProps {
 
 export function Sidebar({ isOpen, onClose, onOpenDNA }: SidebarProps) {
   const { state, dispatch } = useAppContext();
+  const { user, signOut } = useAuth();
   const [seriesExpanded, setSeriesExpanded] = React.useState(true);
   const [settingsExpanded, setSettingsExpanded] = React.useState(false);
   const location = useLocation();
@@ -86,7 +88,7 @@ export function Sidebar({ isOpen, onClose, onOpenDNA }: SidebarProps) {
   ];
 
   const sidebarContent = (
-    <div className="w-68 h-full bg-[var(--bg-primary)] border-r border-[var(--border-color)] flex flex-col py-8 select-none transition-colors duration-200">
+    <div className="w-72 h-full bg-[var(--bg-primary)] border-r border-[var(--border-color)] flex flex-col pt-14 pb-8 md:py-8 select-none transition-colors duration-200">
       {/* Logo */}
       <div className="px-6 mb-12 flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -99,13 +101,30 @@ export function Sidebar({ isOpen, onClose, onOpenDNA }: SidebarProps) {
         </div>
         <button
           onClick={onClose}
-          className="md:hidden p-2 hover:bg-[var(--bg-hover)] rounded-xl transition-all"
+          className="md:hidden p-3 -mr-2 bg-[var(--bg-hover)] rounded-2xl transition-all shadow-sm"
         >
-          <X className="w-5 h-5 text-[var(--text-primary)] opacity-40 hover:opacity-100" />
+          <X className="w-6 h-6 text-[var(--text-primary)] opacity-80 hover:opacity-100" />
         </button>
       </div>
 
-      <nav className="flex-1 px-3 space-y-1 overflow-y-auto custom-scrollbar">
+        {/* Perfil do Usuário */}
+        <div className="flex items-center gap-4 mb-10 px-2 py-4 border-b border-[var(--border-color)]">
+          <div className="w-10 h-10 rounded-2xl bg-[var(--text-primary)] flex items-center justify-center text-[var(--bg-primary)] shadow-lg shrink-0">
+             <span className="font-black text-sm uppercase">
+               {user?.user_metadata?.full_name?.charAt(0) || 'U'}
+             </span>
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-[10px] font-black uppercase tracking-widest text-[var(--text-primary)] truncate">
+              {user?.user_metadata?.full_name || 'Agente de Operações'}
+            </p>
+            <p className="text-[9px] font-bold opacity-30 text-[var(--text-primary)] truncate">
+              {user?.email}
+            </p>
+          </div>
+        </div>
+
+        <nav className="flex-1 space-y-1 mb-8 overflow-y-auto pr-2 custom-scrollbar">
         {/* Busca */}
         <button
           onClick={() =>
@@ -120,7 +139,7 @@ export function Sidebar({ isOpen, onClose, onOpenDNA }: SidebarProps) {
           </span>
         </button>
 
-        {/* Radar Central */}
+        {/* 1. Início */}
         <NavLink
           to="/"
           className={({ isActive }) =>
@@ -132,11 +151,14 @@ export function Sidebar({ isOpen, onClose, onOpenDNA }: SidebarProps) {
             )
           }
         >
-          <LayoutDashboard className="w-4 h-4" />
-          Radar Central
+          <Home className="w-4 h-4" />
+          Início
         </NavLink>
 
-        {/* Biblioteca */}
+        {/* 2. Editorial */}
+        {navLink('/editorial', Calendar, 'Editorial')}
+
+        {/* 3. Biblioteca */}
         <NavLink
           to="/biblioteca"
           className={({ isActive }) =>
@@ -157,88 +179,35 @@ export function Sidebar({ isOpen, onClose, onOpenDNA }: SidebarProps) {
           )}
         </NavLink>
 
-        {/* Ciclo de Produção */}
+        {/* 4. Inventário com Submenu Resultados */}
         <div className="py-2 space-y-1">
-          <h3 className="px-4 text-[9px] font-black text-[var(--text-primary)] opacity-30 uppercase tracking-[0.3em] mb-3 italic">
-            Ciclo de Produção
-          </h3>
           {navLink('/contents', Table, 'Inventário')}
-          {navLink('/shooting', Video, 'Gravação')}
-          {navLink('/harvest', Calendar, 'Agenda')}
-          {navLink('/ideas', Lightbulb, 'Ideias')}
+          <div className="ml-4 pl-4 border-l border-[var(--border-color)]">
+            <NavLink
+              to="/results"
+              className={({ isActive }) =>
+                cn(
+                  'flex items-center gap-3 px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all',
+                  isActive
+                    ? 'text-[var(--text-primary)] opacity-100 underline decoration-2 underline-offset-4'
+                    : 'text-[var(--text-primary)] opacity-50 hover:opacity-100 italic'
+                )
+              }
+            >
+              <BarChart3 className="w-3 h-3 shrink-0" /> Resultados
+            </NavLink>
+          </div>
         </div>
 
-        {/* Gestão de Marcas */}
-        <div className="py-2 space-y-1">
-          <h3 className="px-4 text-[9px] font-black text-[var(--text-primary)] opacity-30 uppercase tracking-[0.3em] mb-3 italic">
-            Gestão de Marcas
-          </h3>
-          {navLink('/partnerships', Briefcase, 'Projetos')}
-        </div>
+        {/* 5. Calendário (Agenda + Projetos) */}
+        {navLink('/calendar', Calendar, 'Calendário')}
 
-        {/* Arquivos de DNA (Séries) */}
-        <div className="pt-2 pb-2 space-y-1">
-          <button
-            onClick={() => setSeriesExpanded(!seriesExpanded)}
-            className="group w-full flex items-center gap-4 px-4 py-2.5 rounded-2xl text-[11px] font-black uppercase tracking-widest text-[var(--text-primary)] opacity-60 hover:opacity-100 hover:bg-[var(--bg-hover)] transition-all"
-          >
-            <Layers className="w-4 h-4" />
-            <span className="flex-1 text-left italic">Arquivos de DNA</span>
-            <div className="flex items-center gap-2">
-              <div
-                onClick={handleAddSeries}
-                className="p-1.5 hover:bg-[var(--bg-secondary)] rounded-lg opacity-0 group-hover:opacity-100 transition-all border border-transparent hover:border-[var(--border-color)]"
-              >
-                <Plus className="w-3.5 h-3.5" />
-              </div>
-              {seriesExpanded ? (
-                <ChevronDown className="w-4 h-4" />
-              ) : (
-                <ChevronRight className="w-4 h-4" />
-              )}
-            </div>
-          </button>
+        {/* 6. Ideias */}
+        {navLink('/ideas', Lightbulb, 'Ideias')}
 
-          <AnimatePresence>
-            {seriesExpanded && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                className="mt-1 ml-6 space-y-1 border-l border-[var(--border-color)] pl-3 overflow-hidden"
-              >
-                {state.series.map((s) => (
-                  <NavLink
-                    key={s.id}
-                    to={`/series/${s.id}`}
-                    className={({ isActive }) =>
-                      cn(
-                        'flex items-center gap-3 px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all',
-                        isActive
-                          ? 'text-[var(--text-primary)] opacity-100 underline decoration-2 underline-offset-4'
-                          : 'text-[var(--text-primary)] opacity-50 hover:opacity-100 italic'
-                      )
-                    }
-                  >
-                    <div
-                      className="w-1.5 h-1.5 rounded-full shrink-0"
-                      style={{ backgroundColor: s.cor || 'currentColor', opacity: s.cor ? 1 : 0.3 }}
-                    />
-                    {s.name}
-                  </NavLink>
-                ))}
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-
-        {/* Resultados & Planejamento */}
+        {/* Extras: Gestão e Produção Avançada */}
         <div className="pt-4 border-t border-[var(--border-color)] mt-4 space-y-1">
-          <h3 className="px-4 text-[9px] font-black text-[var(--text-primary)] opacity-30 uppercase tracking-[0.3em] mb-3 italic">
-            Resultados & Planner
-          </h3>
-          {navLink('/results', BarChart3, 'Resultados')}
-          {navLink('/editorial', Calendar, 'Editorial')}
+          {/* Outras áreas futuras de produção rápida podem entrar aqui */}
         </div>
 
         {/* Configurações */}
@@ -262,25 +231,87 @@ export function Sidebar({ isOpen, onClose, onOpenDNA }: SidebarProps) {
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: 'auto' }}
                 exit={{ opacity: 0, height: 0 }}
-                className="mt-1 ml-6 space-y-1 border-l border-[var(--border-color)] pl-3 overflow-hidden"
+                className="mt-2 ml-6 space-y-3 border-l border-[var(--border-color)] pl-3 overflow-hidden text-[10px] font-black uppercase tracking-widest"
               >
-                {settingsItems.map(({ to, icon: Icon, label }) => (
-                  <NavLink
-                    key={to}
-                    to={to}
-                    className={({ isActive }) =>
-                      cn(
-                        'flex items-center gap-3 px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all',
-                        isActive
-                          ? 'text-[var(--text-primary)] opacity-100 underline decoration-2 underline-offset-4'
-                          : 'text-[var(--text-primary)] opacity-50 hover:opacity-100 italic'
-                      )
-                    }
+                {/* Modos e Telas de Configurações */}
+                <div className="space-y-1">
+                  {settingsItems.map(({ to, icon: Icon, label }) => (
+                    <NavLink
+                      key={to}
+                      to={to}
+                      className={({ isActive }) =>
+                        cn(
+                          'flex items-center gap-3 px-3 py-2 rounded-xl transition-all',
+                          isActive
+                            ? 'text-[var(--text-primary)] opacity-100 underline decoration-2 underline-offset-4'
+                            : 'text-[var(--text-primary)] opacity-50 hover:opacity-100 italic'
+                        )
+                      }
+                    >
+                      <Icon className="w-3 h-3 shrink-0" />
+                      {label}
+                    </NavLink>
+                  ))}
+                </div>
+
+                <div className="border-t border-[var(--border-color)]/50 pt-2 space-y-1">
+                  {/* Arquivos de DNA / Séries */}
+                  <button
+                    onClick={() => setSeriesExpanded(!seriesExpanded)}
+                    className="flex w-full items-center gap-3 px-3 py-2 rounded-xl text-[var(--text-primary)] opacity-60 hover:opacity-100 transition-all italic hover:bg-[var(--bg-hover)]"
                   >
-                    <Icon className="w-3 h-3 shrink-0" />
-                    {label}
-                  </NavLink>
-                ))}
+                    <Layers className="w-3 h-3 shrink-0" />
+                    <span className="flex-1 text-left">Arquivos de DNA</span>
+                    <div className="flex items-center gap-2">
+                       <span onClick={handleAddSeries} className="p-1.5 hover:bg-[var(--bg-secondary)] rounded-lg opacity-80 hover:opacity-100 border border-transparent hover:border-[var(--border-color)] bg-white/5">
+                         <Plus className="w-3 h-3" />
+                       </span>
+                    </div>
+                  </button>
+
+                  <AnimatePresence>
+                    {seriesExpanded && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="ml-3 pl-3 border-l border-[var(--border-color)] overflow-hidden space-y-1 my-1"
+                      >
+                        {state.series.map((s) => (
+                          <NavLink
+                            key={s.id}
+                            to={`/series/${s.id}`}
+                            className={({ isActive }) =>
+                              cn(
+                                'flex items-center gap-3 px-3 py-2 rounded-xl transition-all text-[9.5px]',
+                                isActive
+                                  ? 'text-[var(--text-primary)] opacity-100 underline decoration-2 underline-offset-4'
+                                  : 'text-[var(--text-primary)] opacity-50 hover:opacity-100 italic'
+                              )
+                            }
+                          >
+                            <div
+                              className="w-1.5 h-1.5 rounded-full shrink-0"
+                              style={{ backgroundColor: s.cor || 'currentColor', opacity: s.cor ? 1 : 0.3 }}
+                            />
+                            <span className="truncate">{s.name}</span>
+                          </NavLink>
+                        ))}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+                
+                <div className="border-t border-[var(--border-color)]/50 pt-2">
+                   {/* Voz Única DNA */}
+                  <button
+                    onClick={onOpenDNA}
+                    className="w-full flex items-center gap-3 px-3 py-3 rounded-[1rem] text-[var(--bg-primary)] bg-[var(--text-primary)] transition-all shadow-md group hover:scale-[1.02] active:scale-[0.98]"
+                  >
+                    <Fingerprint className="w-4 h-4 shrink-0" />
+                    <span className="flex-1 text-left">Voz Única (DNA)</span>
+                  </button>
+                </div>
               </motion.div>
             )}
           </AnimatePresence>
@@ -300,12 +331,13 @@ export function Sidebar({ isOpen, onClose, onOpenDNA }: SidebarProps) {
         </button>
 
         <button
-          onClick={onOpenDNA}
-          className="w-full flex items-center gap-4 px-4 py-4 rounded-[2rem] text-[11px] font-black uppercase tracking-[0.2em] text-[var(--bg-primary)] bg-[var(--text-primary)] hover:scale-[1.05] active:scale-[0.98] transition-all shadow-xl group overflow-hidden relative"
+          onClick={signOut}
+          className="w-full flex items-center gap-4 px-4 py-3 rounded-2xl text-[11px] font-black uppercase tracking-widest text-red-500 opacity-60 hover:opacity-100 hover:bg-red-500/10 transition-all border border-transparent hover:border-red-500/20"
         >
-          <div className="absolute inset-0 bg-gradient-to-r from-orange-500/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-          <Fingerprint className="w-5 h-5 relative z-10" />
-          <span className="relative z-10">Voz Única (DNA)</span>
+          <div className="w-5 h-5 flex items-center justify-center">
+            <X className="w-4 h-4" />
+          </div>
+          Sair da Conta
         </button>
       </div>
     </div>

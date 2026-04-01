@@ -1,0 +1,160 @@
+import React, { useState } from 'react';
+import { X, Trash2, CheckCircle2, AlertCircle, Edit3 } from 'lucide-react';
+import { Partnership, PartnershipStatus } from '../../types';
+import { PARTNERSHIP_STAGES } from '../../constants';
+import { cn } from '../../lib/utils';
+import { format } from 'date-fns';
+
+interface PartnershipFormProps {
+  initialData: Partnership;
+  onSave: (p: Partnership) => void;
+  onClose: () => void;
+  onDelete: (id: string) => void;
+}
+
+export function PartnershipForm({ initialData, onSave, onClose, onDelete }: PartnershipFormProps) {
+  const [data, setData] = useState<Partnership>({ ...initialData });
+
+  const update = (updates: Partial<Partnership>) => setData(prev => ({ ...prev, ...updates }));
+
+  return (
+    <div className="flex flex-col h-full bg-[var(--bg-primary)] rounded-[3rem] overflow-hidden">
+      <div className="p-6 md:p-8 border-b border-[var(--border-color)] flex flex-col md:flex-row items-center justify-between bg-[var(--bg-secondary)] shrink-0 gap-6">
+        <div className="flex items-center justify-between w-full md:w-auto gap-6 transition-all">
+          <div className="flex items-center gap-2">
+            <button onClick={onClose} className="p-3 hover:bg-[var(--bg-hover)] rounded-full transition-all">
+              <X className="w-6 h-6 text-[var(--text-primary)] opacity-40 hover:opacity-100" />
+            </button>
+            <button 
+              onClick={() => {
+                if (window.confirm('Excluir este projeto?')) {
+                  onDelete(data.id);
+                }
+              }}
+              className="p-3 hover:bg-red-500/10 rounded-2xl transition-all group"
+              title="Excluir"
+            >
+              <Trash2 className="w-5 h-5 text-red-500 opacity-40 group-hover:opacity-100" />
+            </button>
+          </div>
+        </div>
+        <div className="flex items-center gap-4 px-4 py-3 bg-[var(--bg-hover)] w-full md:flex-1 md:ml-6 rounded-2xl border border-[var(--border-color)] shadow-sm">
+          <div className="w-3.5 h-3.5 rounded-full shadow-sm shrink-0" style={{ backgroundColor: data.brandColor }} />
+          <input 
+            type="text" 
+            placeholder="NOME DA MARCA..."
+            value={data.brand}
+            onChange={(e) => update({ brand: e.target.value })}
+            className="bg-transparent border-none text-[11px] font-black uppercase tracking-[0.2em] text-[var(--text-primary)] focus:ring-0 w-full p-0"
+          />
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-y-auto p-6 md:p-10 custom-scrollbar" style={{ minHeight: 0 }}>
+        <div className="mb-14">
+          <textarea 
+            value={data.title}
+            onChange={(e) => update({ title: e.target.value })}
+            rows={2}
+            className="text-4xl font-black text-[var(--text-primary)] bg-transparent border-none focus:ring-0 p-0 w-full mb-8 resize-none leading-tight tracking-tight placeholder:opacity-10"
+            placeholder="Título do Projeto..."
+          />
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 bg-[var(--bg-secondary)] p-6 md:p-10 rounded-[2.5rem] border border-[var(--border-color)] shadow-inner">
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-[var(--text-tertiary)] uppercase tracking-[0.2em] ml-1 opacity-60">Fase do Projeto</label>
+              <select 
+                value={data.status}
+                onChange={(e) => update({ status: e.target.value as PartnershipStatus })}
+                className="w-full text-xs bg-[var(--bg-hover)] border-none rounded-2xl px-5 py-4 focus:ring-2 focus:ring-[var(--accent-blue)] font-bold text-[var(--text-primary)] cursor-pointer shadow-sm"
+              >
+                {PARTNERSHIP_STAGES.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+            <div className="space-y-2">
+               <label className="text-[10px] font-black text-[var(--text-tertiary)] uppercase tracking-[0.2em] ml-1 opacity-60">Data / Prazo</label>
+              <input 
+                type="date" 
+                value={data.deadline || ''}
+                onChange={(e) => update({ deadline: e.target.value })}
+                className="w-full text-xs bg-[var(--bg-hover)] border-none rounded-2xl px-5 py-4 focus:ring-2 focus:ring-[var(--accent-blue)] font-bold text-[var(--text-primary)] shadow-sm"
+              />
+            </div>
+            <div className="space-y-2">
+               <label className="text-[10px] font-black text-[var(--text-tertiary)] uppercase tracking-[0.2em] ml-1 opacity-60">Observações Rápidas</label>
+               <input 
+                 type="text" 
+                 value={data.link || ''}
+                 onChange={(e) => update({ link: e.target.value })}
+                 placeholder="Link do drive, pasta..."
+                 className="w-full text-xs bg-[var(--bg-hover)] border-none rounded-2xl px-5 py-4 focus:ring-2 focus:ring-[var(--accent-blue)] font-bold text-[var(--text-primary)] shadow-sm"
+               />
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-[var(--text-tertiary)] uppercase tracking-[0.2em] ml-1 opacity-60">Identidade Visual</label>
+              <div className="flex items-center gap-4 bg-[var(--bg-hover)] rounded-2xl px-5 py-3 border border-[var(--border-color)] shadow-sm">
+                <input 
+                  type="color" 
+                  value={data.brandColor || '#ffffff'}
+                  onChange={(e) => update({ brandColor: e.target.value })}
+                  className="w-10 h-10 rounded-xl cursor-pointer border-none bg-transparent"
+                />
+                <span className="text-[10px] font-mono text-[var(--text-tertiary)] uppercase font-bold">{data.brandColor}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-12">
+          {data.status === 'Roteiro' && (
+            <section>
+              <div className="flex items-center gap-3 mb-6">
+                <div className="p-2 bg-[var(--accent-blue)]/10 rounded-xl">
+                  <AlertCircle className="w-4 h-4 text-[var(--accent-blue)]" />
+                </div>
+                <h3 className="text-[11px] uppercase tracking-[0.2em] font-black text-[var(--text-primary)]">Roteiro</h3>
+              </div>
+              <textarea 
+                value={data.script || ''}
+                onChange={(e) => update({ script: e.target.value })}
+                className="w-full min-h-[300px] text-base text-[var(--text-primary)] bg-transparent border border-[var(--border-color)] rounded-[2rem] focus:ring-2 focus:ring-[var(--accent-blue)] p-8 resize-none placeholder:italic placeholder:opacity-20 custom-scrollbar leading-relaxed font-medium"
+                placeholder="Desenvolva o roteiro do vídeo ou anotações..."
+              />
+            </section>
+          )}
+
+          <section className="pt-12 border-t border-[var(--border-color)]">
+            <div className="flex items-center gap-3 mb-6">
+               <div className="p-2 bg-[var(--text-tertiary)]/10 rounded-xl">
+                <Edit3 className="w-4 h-4 text-[var(--text-tertiary)]" />
+              </div>
+              <h3 className="text-[11px] uppercase tracking-[0.2em] font-black text-[var(--text-primary)]">Notas Gerais</h3>
+            </div>
+            <textarea 
+              value={data.notes || ''}
+              onChange={(e) => update({ notes: e.target.value })}
+              className="w-full min-h-[150px] text-base text-[var(--text-primary)] bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-[2rem] focus:ring-0 p-8 resize-none placeholder:italic placeholder:opacity-20 custom-scrollbar leading-relaxed font-medium shadow-inner"
+              placeholder="Lembretes internos..."
+            />
+          </section>
+        </div>
+      </div>
+
+      <div className="px-10 py-6 border-t border-[var(--border-color)] bg-[var(--bg-secondary)] shrink-0">
+        <button
+          onClick={() => {
+            if (!data.title || !data.brand) {
+               alert('Marca e Título são origatórios.');
+               return;
+            }
+            onSave(data);
+          }}
+          className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-[var(--text-primary)] text-[var(--bg-primary)] text-xs font-black uppercase tracking-widest rounded-2xl hover:scale-[1.01] active:scale-[0.99] transition-all shadow-lg"
+        >
+          <CheckCircle2 className="w-4 h-4" />
+          Salvar Evento / Projeto
+        </button>
+      </div>
+    </div>
+  );
+}

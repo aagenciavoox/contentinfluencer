@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
 import {
   X, ShieldAlert, MessageSquare, Target, Ban, Edit3, Save, Plus, Trash2, Zap, Users,
 } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
+import { BottomSheetModal } from './BottomSheetModal';
 
 export function DNAVozDrawer({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const { state, dispatch } = useAppContext();
@@ -32,23 +32,8 @@ export function DNAVozDrawer({ isOpen, onClose }: { isOpen: boolean; onClose: ()
   const dna = isEditing ? editData : state.dnaVoz;
 
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <>
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={onClose}
-            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40"
-          />
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[95%] md:w-[620px] h-[90vh] md:h-[85vh] bg-[var(--bg-secondary)] shadow-2xl z-50 rounded-3xl border border-[var(--border-color)] flex flex-col overflow-hidden"
-          >
-            <div className="p-8 md:p-12 flex-1 overflow-y-auto custom-scrollbar">
+    <BottomSheetModal open={isOpen} onClose={onClose} desktopMaxW="max-w-[620px]">
+            <div className="p-6 md:p-12 flex-1 overflow-y-auto custom-scrollbar">
               {/* Header */}
               <div className="flex items-center justify-between mb-10">
                 <h2 className="text-2xl font-black text-[var(--text-primary)]">DNA & Voz</h2>
@@ -245,9 +230,6 @@ export function DNAVozDrawer({ isOpen, onClose }: { isOpen: boolean; onClose: ()
                 </section>
               </div>
             </div>
-          </motion.div>
-        </>
-      )}
-    </AnimatePresence>
+    </BottomSheetModal>
   );
 }

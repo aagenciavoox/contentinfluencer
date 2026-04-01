@@ -27,6 +27,8 @@ import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import { AgendaItem } from '../types';
 import { ContentDetailModal } from '../components/ContentDetailModal';
+import { BottomSheetModal } from '../components/BottomSheetModal';
+import { useIsMobile } from '../hooks/useIsMobile';
 import { useNavigate } from 'react-router-dom';
 
 type ItemType = 'organico' | 'parceria' | 'reuniao' | 'entrega' | 'publicacao';
@@ -71,6 +73,7 @@ const TIPO_COR_MAP: Record<string, string> = {
 export function Harvest() {
   const { state, dispatch } = useAppContext();
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
 
   const [currentDate, setCurrentDate] = useState(new Date());
   const [filtros, setFiltros] = useState<FiltroAtivo>({
@@ -445,12 +448,22 @@ export function Harvest() {
               className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40"
             />
             <motion.div
-              initial={{ x: '100%', opacity: 0.5 }}
-              animate={{ x: 0, opacity: 1 }}
-              exit={{ x: '100%', opacity: 0.5 }}
+              initial={isMobile ? { y: '100%' } : { x: '100%', opacity: 0.5 }}
+              animate={isMobile ? { y: 0 } : { x: 0, opacity: 1 }}
+              exit={isMobile ? { y: '100%' } : { x: '100%', opacity: 0.5 }}
               transition={{ type: 'spring', damping: 30, stiffness: 260 }}
-              className="fixed top-0 right-0 h-full w-full md:w-[400px] bg-[var(--bg-primary)] border-l border-[var(--border-color)] shadow-2xl z-50 flex flex-col"
+              className={cn(
+                'fixed bg-[var(--bg-primary)] shadow-2xl z-50 flex flex-col',
+                isMobile
+                  ? 'bottom-0 left-0 right-0 rounded-t-3xl max-h-[92dvh] border-t border-[var(--border-color)]'
+                  : 'top-0 right-0 h-full w-[400px] border-l border-[var(--border-color)]'
+              )}
             >
+              {isMobile && (
+                <div className="flex justify-center pt-3 pb-1 shrink-0">
+                  <div className="w-10 h-1 rounded-full bg-[var(--text-primary)] opacity-20" />
+                </div>
+              )}
               {/* Header do painel */}
               <div className="p-6 border-b border-[var(--border-color)] bg-[var(--bg-secondary)] flex items-center justify-between shrink-0">
                 <div>
@@ -482,7 +495,7 @@ export function Harvest() {
               </div>
 
               {/* Lista de eventos do dia */}
-              <div className="flex-1 overflow-y-auto p-5 custom-scrollbar">
+              <div className="flex-1 overflow-y-auto p-5 custom-scrollbar pb-safe">
                 {itemsDodia.length === 0 ? (
                   <div className="flex flex-col items-center justify-center h-full gap-3 opacity-30">
                     <Calendar className="w-10 h-10 text-[var(--text-primary)]" />
@@ -555,229 +568,198 @@ export function Harvest() {
       )}
 
       {/* Parceria → modal compacto */}
-      <AnimatePresence>
+      <BottomSheetModal
+        open={selectedItem?.tipo === 'parceria'}
+        onClose={() => setSelectedItem(null)}
+        desktopMaxW="max-w-[480px]"
+        zIndex="z-[60]"
+      >
         {selectedItem?.tipo === 'parceria' && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setSelectedItem(null)}
-              className="fixed inset-0 bg-black/40 backdrop-blur-sm"
-            />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 16 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 16 }}
-              className="relative w-[95%] md:w-[480px] bg-[var(--bg-secondary)] rounded-3xl border border-[var(--border-color)] shadow-2xl p-8"
-            >
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-3">
-                  <div
-                    className="w-4 h-4 rounded-full shrink-0"
-                    style={{ backgroundColor: selectedItem.cor || '#888' }}
-                  />
-                  <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-primary)] opacity-50">
-                    {selectedItem.subtitulo}
-                  </span>
-                </div>
-                <button onClick={() => setSelectedItem(null)} className="p-2 hover:bg-[var(--bg-hover)] rounded-full">
-                  <X className="w-5 h-5 text-[var(--text-primary)] opacity-40" />
-                </button>
+          <div className="p-6 md:p-8 overflow-y-auto flex-1">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <div
+                  className="w-4 h-4 rounded-full shrink-0"
+                  style={{ backgroundColor: selectedItem.cor || '#888' }}
+                />
+                <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-primary)] opacity-50">
+                  {selectedItem.subtitulo}
+                </span>
               </div>
-
-              <h2 className="text-2xl font-black text-[var(--text-primary)] mb-6">{selectedItem.titulo}</h2>
-
-              <div className="space-y-3 text-sm">
-                {selectedItem.raw.status && (
-                  <div className="flex items-center justify-between py-2 border-b border-[var(--border-color)]">
-                    <span className="text-[var(--text-primary)] opacity-40 font-bold text-xs uppercase tracking-widest">Status</span>
-                    <span className="font-bold text-[var(--text-primary)]">{selectedItem.raw.status}</span>
-                  </div>
-                )}
-                {selectedItem.raw.deadline && (
-                  <div className="flex items-center justify-between py-2 border-b border-[var(--border-color)]">
-                    <span className="text-[var(--text-primary)] opacity-40 font-bold text-xs uppercase tracking-widest">Deadline</span>
-                    <span className="font-bold text-[var(--text-primary)]">
-                      {format(new Date(selectedItem.raw.deadline + 'T12:00:00'), "dd 'de' MMMM", { locale: ptBR })}
-                    </span>
-                  </div>
-                )}
-                {selectedItem.raw.value && (
-                  <div className="flex items-center justify-between py-2 border-b border-[var(--border-color)]">
-                    <span className="text-[var(--text-primary)] opacity-40 font-bold text-xs uppercase tracking-widest">Valor</span>
-                    <span className="font-bold text-[var(--text-primary)]">R$ {selectedItem.raw.value.toLocaleString('pt-BR')}</span>
-                  </div>
-                )}
-                {selectedItem.raw.notes && (
-                  <div className="py-2">
-                    <span className="text-[var(--text-primary)] opacity-40 font-bold text-xs uppercase tracking-widest block mb-2">Notas</span>
-                    <p className="text-sm text-[var(--text-primary)] opacity-70 leading-relaxed">{selectedItem.raw.notes}</p>
-                  </div>
-                )}
-              </div>
-
-              <button
-                onClick={() => { setSelectedItem(null); navigate('/partnerships'); }}
-                className="mt-6 w-full flex items-center justify-center gap-2 py-3 text-xs font-black uppercase tracking-widest border border-[var(--border-strong)] text-[var(--text-primary)] opacity-60 hover:opacity-100 rounded-2xl transition-all"
-              >
-                <ExternalLink className="w-3.5 h-3.5" />
-                Abrir em Parcerias
+              <button onClick={() => setSelectedItem(null)} className="p-2 hover:bg-[var(--bg-hover)] rounded-full">
+                <X className="w-5 h-5 text-[var(--text-primary)] opacity-40" />
               </button>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+            </div>
 
-      {/* Reunião / Entrega / Publicação → modal simples */}
-      <AnimatePresence>
-        {selectedItem && ['reuniao', 'entrega', 'publicacao'].includes(selectedItem.tipo) && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setSelectedItem(null)}
-              className="fixed inset-0 bg-black/40 backdrop-blur-sm"
-            />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 16 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 16 }}
-              className="relative w-[95%] md:w-[420px] bg-[var(--bg-secondary)] rounded-3xl border border-[var(--border-color)] shadow-2xl p-8"
-            >
-              <div className="flex items-center justify-between mb-6">
-                <span className={cn('text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full border', TIPO_COR_MAP[selectedItem.raw.type] || '')}>
-                  {selectedItem.raw.type}
-                </span>
-                <button onClick={() => setSelectedItem(null)} className="p-2 hover:bg-[var(--bg-hover)] rounded-full">
-                  <X className="w-5 h-5 text-[var(--text-primary)] opacity-40" />
-                </button>
-              </div>
+            <h2 className="text-2xl font-black text-[var(--text-primary)] mb-6">{selectedItem.titulo}</h2>
 
-              <h2 className="text-2xl font-black text-[var(--text-primary)] mb-6">{selectedItem.titulo}</h2>
-
-              <div className="py-3 border-b border-[var(--border-color)] flex items-center justify-between">
-                <span className="text-[var(--text-primary)] opacity-40 font-bold text-xs uppercase tracking-widest">Data</span>
-                <span className="font-bold text-[var(--text-primary)] text-sm">
-                  {format(new Date(selectedItem.raw.date + 'T12:00:00'), "EEEE, d 'de' MMMM", { locale: ptBR })}
-                </span>
-              </div>
-
-              {selectedItem.raw.slotType && (
-                <div className="py-3 border-b border-[var(--border-color)] flex items-center justify-between">
-                  <span className="text-[var(--text-primary)] opacity-40 font-bold text-xs uppercase tracking-widest">Slot</span>
-                  <span className="font-bold text-[var(--text-primary)] text-sm">{selectedItem.raw.slotType}</span>
+            <div className="space-y-3 text-sm">
+              {selectedItem.raw.status && (
+                <div className="flex items-center justify-between py-2 border-b border-[var(--border-color)]">
+                  <span className="text-[var(--text-primary)] opacity-40 font-bold text-xs uppercase tracking-widest">Status</span>
+                  <span className="font-bold text-[var(--text-primary)]">{selectedItem.raw.status}</span>
                 </div>
               )}
+              {selectedItem.raw.deadline && (
+                <div className="flex items-center justify-between py-2 border-b border-[var(--border-color)]">
+                  <span className="text-[var(--text-primary)] opacity-40 font-bold text-xs uppercase tracking-widest">Deadline</span>
+                  <span className="font-bold text-[var(--text-primary)]">
+                    {format(new Date(selectedItem.raw.deadline + 'T12:00:00'), "dd 'de' MMMM", { locale: ptBR })}
+                  </span>
+                </div>
+              )}
+              {selectedItem.raw.value && (
+                <div className="flex items-center justify-between py-2 border-b border-[var(--border-color)]">
+                  <span className="text-[var(--text-primary)] opacity-40 font-bold text-xs uppercase tracking-widest">Valor</span>
+                  <span className="font-bold text-[var(--text-primary)]">R$ {selectedItem.raw.value.toLocaleString('pt-BR')}</span>
+                </div>
+              )}
+              {selectedItem.raw.notes && (
+                <div className="py-2">
+                  <span className="text-[var(--text-primary)] opacity-40 font-bold text-xs uppercase tracking-widest block mb-2">Notas</span>
+                  <p className="text-sm text-[var(--text-primary)] opacity-70 leading-relaxed">{selectedItem.raw.notes}</p>
+                </div>
+              )}
+            </div>
 
-              <button
-                onClick={() => { handleDeleteAgenda(selectedItem.id); setSelectedItem(null); }}
-                className="mt-8 w-full flex items-center justify-center gap-2 py-3 text-xs font-black uppercase tracking-widest text-red-500 border border-red-200 hover:bg-red-50 rounded-2xl transition-all"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-                Excluir compromisso
-              </button>
-            </motion.div>
+            <button
+              onClick={() => { setSelectedItem(null); navigate('/partnerships'); }}
+              className="mt-6 w-full flex items-center justify-center gap-2 py-3 text-xs font-black uppercase tracking-widest border border-[var(--border-strong)] text-[var(--text-primary)] opacity-60 hover:opacity-100 rounded-2xl transition-all pb-safe"
+            >
+              <ExternalLink className="w-3.5 h-3.5" />
+              Abrir em Parcerias
+            </button>
           </div>
         )}
-      </AnimatePresence>
+      </BottomSheetModal>
+
+      {/* Reunião / Entrega / Publicação → modal simples */}
+      <BottomSheetModal
+        open={!!(selectedItem && ['reuniao', 'entrega', 'publicacao'].includes(selectedItem.tipo))}
+        onClose={() => setSelectedItem(null)}
+        desktopMaxW="max-w-[420px]"
+        zIndex="z-[60]"
+      >
+        {selectedItem && ['reuniao', 'entrega', 'publicacao'].includes(selectedItem.tipo) && (
+          <div className="p-6 md:p-8 overflow-y-auto flex-1">
+            <div className="flex items-center justify-between mb-6">
+              <span className={cn('text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full border', TIPO_COR_MAP[selectedItem.raw.type] || '')}>
+                {selectedItem.raw.type}
+              </span>
+              <button onClick={() => setSelectedItem(null)} className="p-2 hover:bg-[var(--bg-hover)] rounded-full">
+                <X className="w-5 h-5 text-[var(--text-primary)] opacity-40" />
+              </button>
+            </div>
+
+            <h2 className="text-2xl font-black text-[var(--text-primary)] mb-6">{selectedItem.titulo}</h2>
+
+            <div className="py-3 border-b border-[var(--border-color)] flex items-center justify-between">
+              <span className="text-[var(--text-primary)] opacity-40 font-bold text-xs uppercase tracking-widest">Data</span>
+              <span className="font-bold text-[var(--text-primary)] text-sm">
+                {format(new Date(selectedItem.raw.date + 'T12:00:00'), "EEEE, d 'de' MMMM", { locale: ptBR })}
+              </span>
+            </div>
+
+            {selectedItem.raw.slotType && (
+              <div className="py-3 border-b border-[var(--border-color)] flex items-center justify-between">
+                <span className="text-[var(--text-primary)] opacity-40 font-bold text-xs uppercase tracking-widest">Slot</span>
+                <span className="font-bold text-[var(--text-primary)] text-sm">{selectedItem.raw.slotType}</span>
+              </div>
+            )}
+
+            <button
+              onClick={() => { handleDeleteAgenda(selectedItem.id); setSelectedItem(null); }}
+              className="mt-8 w-full flex items-center justify-center gap-2 py-3 text-xs font-black uppercase tracking-widest text-red-500 border border-red-200 hover:bg-red-50 rounded-2xl transition-all pb-safe"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              Excluir compromisso
+            </button>
+          </div>
+        )}
+      </BottomSheetModal>
 
       {/* ── MODAL: ADICIONAR COMPROMISSO ──────────────────────────────────── */}
-      <AnimatePresence>
-        {formAberto && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setFormAberto(false)}
-              className="fixed inset-0 bg-black/40 backdrop-blur-sm"
+      <BottomSheetModal
+        open={formAberto}
+        onClose={() => setFormAberto(false)}
+        desktopMaxW="max-w-[420px]"
+        zIndex="z-[60]"
+      >
+        <div className="flex items-center justify-between p-5 md:p-6 border-b border-[var(--border-color)] shrink-0">
+          <h2 className="text-lg font-black text-[var(--text-primary)]">Novo Compromisso</h2>
+          <button onClick={() => setFormAberto(false)} className="p-2 hover:bg-[var(--bg-hover)] rounded-full">
+            <X className="w-5 h-5 text-[var(--text-primary)] opacity-40" />
+          </button>
+        </div>
+
+        <form onSubmit={handleAddAgenda} className="p-5 md:p-6 space-y-5 flex-1 overflow-y-auto">
+          <div>
+            <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-primary)] opacity-40 block mb-1.5">
+              O que é?
+            </label>
+            <input
+              type="text"
+              value={novoTitulo}
+              onChange={e => setNovoTitulo(e.target.value)}
+              placeholder="Reunião, gravação, entrega..."
+              autoFocus
+              className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-4 py-3 text-[var(--text-primary)] placeholder:opacity-30 focus:ring-2 focus:ring-[var(--text-primary)]/20"
             />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative w-[95%] md:w-[420px] bg-[var(--bg-secondary)] rounded-3xl border border-[var(--border-color)] shadow-2xl p-8"
-            >
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-lg font-black text-[var(--text-primary)]">Novo Compromisso</h2>
-                <button onClick={() => setFormAberto(false)} className="p-2 hover:bg-[var(--bg-hover)] rounded-full">
-                  <X className="w-5 h-5 text-[var(--text-primary)] opacity-40" />
-                </button>
-              </div>
-
-              <form onSubmit={handleAddAgenda} className="space-y-5">
-                <div>
-                  <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-primary)] opacity-40 block mb-1.5">
-                    O que é?
-                  </label>
-                  <input
-                    type="text"
-                    value={novoTitulo}
-                    onChange={e => setNovoTitulo(e.target.value)}
-                    placeholder="Reunião, gravação, entrega..."
-                    autoFocus
-                    className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-4 py-3 text-[var(--text-primary)] placeholder:opacity-30 focus:ring-2 focus:ring-[var(--text-primary)]/20"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-primary)] opacity-40 block mb-1.5">
-                    Quando?
-                  </label>
-                  <input
-                    type="date"
-                    value={novaData}
-                    onChange={e => setNovaData(e.target.value)}
-                    className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-4 py-3 text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--text-primary)]/20"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-primary)] opacity-40 block mb-2">
-                    Categoria
-                  </label>
-                  <div className="grid grid-cols-3 gap-2">
-                    {(['Reunião', 'Entrega', 'Publicação'] as const).map(t => (
-                      <button
-                        key={t}
-                        type="button"
-                        onClick={() => setNovoTipo(t)}
-                        className={cn(
-                          'py-2.5 text-[10px] font-black rounded-xl border transition-all uppercase tracking-widest',
-                          novoTipo === t
-                            ? 'bg-[var(--text-primary)] text-[var(--bg-primary)] border-[var(--text-primary)] shadow-sm'
-                            : 'bg-[var(--bg-hover)] text-[var(--text-primary)] border-[var(--border-color)] opacity-50 hover:opacity-80'
-                        )}
-                      >
-                        {t}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="flex gap-3 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => setFormAberto(false)}
-                    className="flex-1 py-3 rounded-2xl text-xs font-black border border-[var(--border-strong)] text-[var(--text-primary)] opacity-60 hover:opacity-100 transition-all"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={!novoTitulo.trim()}
-                    className="flex-1 py-3 rounded-2xl text-xs font-black bg-[var(--text-primary)] text-[var(--bg-primary)] hover:scale-[1.02] transition-all shadow-sm disabled:opacity-40"
-                  >
-                    Adicionar
-                  </button>
-                </div>
-              </form>
-            </motion.div>
           </div>
-        )}
-      </AnimatePresence>
+
+          <div>
+            <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-primary)] opacity-40 block mb-1.5">
+              Quando?
+            </label>
+            <input
+              type="date"
+              value={novaData}
+              onChange={e => setNovaData(e.target.value)}
+              className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-4 py-3 text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--text-primary)]/20"
+            />
+          </div>
+
+          <div>
+            <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-primary)] opacity-40 block mb-2">
+              Categoria
+            </label>
+            <div className="grid grid-cols-3 gap-2">
+              {(['Reunião', 'Entrega', 'Publicação'] as const).map(t => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => setNovoTipo(t)}
+                  className={cn(
+                    'py-2.5 text-[10px] font-black rounded-xl border transition-all uppercase tracking-widest',
+                    novoTipo === t
+                      ? 'bg-[var(--text-primary)] text-[var(--bg-primary)] border-[var(--text-primary)] shadow-sm'
+                      : 'bg-[var(--bg-hover)] text-[var(--text-primary)] border-[var(--border-color)] opacity-50 hover:opacity-80'
+                  )}
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex gap-3 pt-2 pb-safe">
+            <button
+              type="button"
+              onClick={() => setFormAberto(false)}
+              className="flex-1 py-3 rounded-2xl text-xs font-black border border-[var(--border-strong)] text-[var(--text-primary)] opacity-60 hover:opacity-100 transition-all"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              disabled={!novoTitulo.trim()}
+              className="flex-1 py-3 rounded-2xl text-xs font-black bg-[var(--text-primary)] text-[var(--bg-primary)] hover:scale-[1.02] transition-all shadow-sm disabled:opacity-40"
+            >
+              Adicionar
+            </button>
+          </div>
+        </form>
+      </BottomSheetModal>
     </div>
   );
 }

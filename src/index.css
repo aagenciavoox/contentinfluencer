@@ -66,3 +66,7 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--scrollbar-hover);
 }
+
+.pb-safe {
+  padding-bottom: max(1.25rem, env(safe-area-inset-bottom));
+}

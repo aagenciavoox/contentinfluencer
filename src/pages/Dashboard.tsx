@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useAppContext } from '../context/AppContext';
 import { format, isAfter, startOfToday, startOfWeek, endOfWeek, isWithinInterval } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -140,78 +140,85 @@ export function Dashboard() {
       </header>
 
       {/* ── QUICK CAPTURE (O FOCO OPERACIONAL) ──────────────────────────────── */}
-      <section className="relative">
+      <section className="relative mb-8">
+        <div className="flex items-center gap-4 md:gap-8 mb-4 px-4 overflow-x-auto no-scrollbar flex-nowrap whitespace-nowrap">
+          <button 
+            type="button"
+            onClick={() => setCaptureType('idea')}
+            className={cn(
+              "text-[10px] md:text-[11px] font-black uppercase tracking-[0.2em] pb-2 transition-all border-b-2 shrink-0", 
+              captureType === 'idea' ? "border-[var(--text-primary)] text-[var(--text-primary)]" : "border-transparent text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] opacity-60"
+            )}
+          >
+            Caixa de Ideias
+          </button>
+          <button 
+            type="button"
+            onClick={() => setCaptureType('annotation')}
+            className={cn(
+              "text-[10px] md:text-[11px] font-black uppercase tracking-[0.2em] pb-2 transition-all border-b-2 shrink-0", 
+              captureType === 'annotation' ? "border-[var(--text-primary)] text-[var(--text-primary)]" : "border-transparent text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] opacity-60"
+            )}
+          >
+            Anotação de Livro
+          </button>
+        </div>
+
         <form 
           onSubmit={handleQuickCapture}
-          className="bg-[var(--bg-secondary)] border-2 border-[var(--border-strong)] rounded-[2.5rem] p-4 md:p-6 shadow-2xl focus-within:border-[var(--accent-blue)] transition-all group"
+          className="bg-[var(--bg-secondary)] border-2 border-[var(--border-strong)] rounded-[2.5rem] p-6 shadow-xl focus-within:border-[var(--accent-blue)] transition-all group relative"
         >
-          <div className="flex flex-col md:flex-row items-center gap-4">
-            <div className="flex bg-[var(--bg-hover)] p-1 rounded-2xl shrink-0">
-              <button
-                type="button"
-                onClick={() => setCaptureType('idea')}
-                className={cn(
-                  "flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
-                  captureType === 'idea' ? "bg-[var(--bg-secondary)] text-[var(--text-primary)] shadow-sm" : "text-[var(--text-tertiary)] opacity-60"
-                )}
-              >
-                <Lightbulb className="w-3.5 h-3.5" /> IDEIA
-              </button>
-              <button
-                type="button"
-                onClick={() => setCaptureType('annotation')}
-                className={cn(
-                  "flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
-                  captureType === 'annotation' ? "bg-[var(--bg-secondary)] text-[var(--text-primary)] shadow-sm" : "text-[var(--text-tertiary)] opacity-60"
-                )}
-              >
-                <FileText className="w-3.5 h-3.5" /> NOTA
-              </button>
-            </div>
+          <div className="flex flex-col gap-4">
+            <textarea 
+              value={quickInput}
+              onChange={(e) => setQuickInput(e.target.value)}
+              placeholder={captureType === 'idea' ? "Escreva sua ideia aqui..." : "Destaque ou reação do livro..."}
+              className="w-full bg-transparent border-none focus:ring-0 text-base md:text-lg font-medium text-[var(--text-primary)] placeholder:opacity-30 px-2 min-h-[100px] resize-none custom-scrollbar"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                  handleQuickCapture(e);
+                }
+              }}
+            />
+            
+            <AnimatePresence>
+              {isSuccess && (
+                <motion.div 
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  className="absolute right-6 top-6 flex items-center gap-2 text-[var(--accent-green)] font-black text-[10px] uppercase tracking-widest"
+                >
+                  <CheckCircle2 className="w-4 h-4" /> SALVO
+                </motion.div>
+              )}
+            </AnimatePresence>
 
-            <div className="flex-1 w-full relative">
-              <input 
-                type="text" 
-                value={quickInput}
-                onChange={(e) => setQuickInput(e.target.value)}
-                placeholder={captureType === 'idea' ? "O que você está pensando?" : "Destaque ou reação do livro..."}
-                className="w-full bg-transparent border-none focus:ring-0 text-base md:text-lg font-medium text-[var(--text-primary)] placeholder:opacity-30 px-2"
-              />
-              <AnimatePresence>
-                {isSuccess && (
-                  <motion.div 
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0 }}
-                    className="absolute right-0 top-1/2 -translate-y-1/2 flex items-center gap-2 text-[var(--accent-green)] font-black text-[10px] uppercase tracking-widest"
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between border-t border-[var(--border-color)] pt-5 px-1 gap-5">
+              {captureType === 'annotation' && currentBooks.length > 0 ? (
+                <div className="flex-1 w-full">
+                  <select 
+                    value={selectedBookId}
+                    onChange={(e) => setSelectedBookId(e.target.value)}
+                    className="w-full bg-[var(--bg-hover)] border-none rounded-xl text-[10px] font-black uppercase tracking-widest px-4 py-3 text-[var(--text-primary)] cursor-pointer focus:ring-2 focus:ring-[var(--accent-blue)] shadow-sm"
                   >
-                    <CheckCircle2 className="w-4 h-4" /> SALVO
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
+                    <option value="">Selecione o Livro</option>
+                    {currentBooks.map(b => (
+                      <option key={b.id} value={b.id}>{b.titulo.slice(0, 30)}...</option>
+                    ))}
+                  </select>
+                </div>
+              ) : <div className="hidden sm:block flex-1" />}
 
-            {captureType === 'annotation' && currentBooks.length > 0 && (
-              <select 
-                value={selectedBookId}
-                onChange={(e) => setSelectedBookId(e.target.value)}
-                className="bg-[var(--bg-hover)] border-none rounded-xl text-[10px] font-black uppercase tracking-widest px-4 py-2 text-[var(--text-primary)] cursor-pointer focus:ring-1 focus:ring-[var(--accent-blue)]"
+              <button 
+                type="submit"
+                disabled={!quickInput.trim() || (captureType === 'annotation' && !selectedBookId)}
+                className="bg-[var(--text-primary)] text-[var(--bg-primary)] px-8 py-3.5 rounded-2xl flex items-center gap-2 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-20 shadow-lg justify-center sm:w-auto w-full shrink-0"
               >
-                <option value="">Selecione o Livro</option>
-                {currentBooks.map(b => (
-                  <option key={b.id} value={b.id}>{b.titulo.slice(0, 20)}...</option>
-                ))}
-              </select>
-            )}
-
-            <button 
-              type="submit"
-              disabled={!quickInput.trim() || (captureType === 'annotation' && !selectedBookId)}
-              className="bg-[var(--text-primary)] text-[var(--bg-primary)] p-3 md:px-6 rounded-2xl hover:scale-105 active:scale-95 transition-all disabled:opacity-20 shadow-lg group-hover:shadow-[var(--accent-blue)]/20"
-            >
-              <Plus className="w-5 h-5 md:hidden" />
-              <span className="hidden md:block text-[10px] font-black uppercase tracking-widest">Capturar</span>
-            </button>
+                <Plus className="w-4 h-4" />
+                <span className="text-[11px] font-black uppercase tracking-widest">Enviar</span>
+              </button>
+            </div>
           </div>
         </form>
       </section>
@@ -356,7 +363,7 @@ export function Dashboard() {
                 <CalendarIcon className="w-4 h-4 text-[var(--accent-orange)]" />
                 <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-[var(--text-secondary)]">Próximos Passos</h3>
               </div>
-              <Link to="/harvest" className="text-[9px] font-black uppercase tracking-widest text-[var(--accent-orange)] opacity-60 hover:opacity-100 flex items-center gap-1">
+              <Link to="/calendar" className="text-[9px] font-black uppercase tracking-widest text-[var(--accent-orange)] opacity-60 hover:opacity-100 flex items-center gap-1">
                 Agenda completa <ArrowRight className="w-3 h-3" />
               </Link>
             </div>
@@ -383,7 +390,7 @@ export function Dashboard() {
             </div>
 
             <Link 
-              to="/harvest" 
+              to="/calendar" 
               className="block w-full text-center py-4 rounded-2xl bg-[var(--bg-hover)] border border-[var(--border-strong)] text-[10px] font-black uppercase tracking-widest text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:border-[var(--text-primary)] transition-all"
             >
               Planejar Semana

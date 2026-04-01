@@ -13,6 +13,10 @@ export interface PendingDelete {
 export async function fetchAllData(): Promise<Partial<AppState>> {
   if (!supabase) return {};
 
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) return {};
+  const userId = session.user.id;
+
   const [
     { data: contents },
     { data: ideas },
@@ -26,7 +30,9 @@ export async function fetchAllData(): Promise<Partial<AppState>> {
     { data: looks },
     { data: cenarios },
     { data: config },
-    { data: dnaVoz }
+    { data: dnaVoz },
+    { data: recordingBlocks },
+    { data: goldenRules }
   ] = await Promise.all([
     supabase.from('contents').select('*').is('deleted_at', null).order('created_at', { ascending: false }),
     supabase.from('ideas').select('*').is('deleted_at', null).order('created_at', { ascending: false }),
@@ -40,7 +46,9 @@ export async function fetchAllData(): Promise<Partial<AppState>> {
     supabase.from('looks').select('*').is('deleted_at', null).order('numero'),
     supabase.from('cenarios').select('*').is('deleted_at', null).order('id'),
     supabase.from('app_config').select('*'),
-    supabase.from('dna_voz').select('*').eq('id', 1).single()
+    supabase.from('dna_voz').select('*').eq('id', userId).single(),
+    supabase.from('recording_blocks').select('*').is('deleted_at', null).order('created_at', { ascending: false }),
+    supabase.from('golden_rules').select('*').is('deleted_at', null).order('id')
   ]);
 
   const state: Partial<AppState> = {};
@@ -103,6 +111,7 @@ export async function fetchAllData(): Promise<Partial<AppState>> {
     contentId: r.content_id,
     partnershipId: r.partnership_id,
     metrics: r.metrics || '',
+    detailedMetrics: r.detailed_metrics,
     qualitativeNotes: r.qualitative_notes || '',
     worthIt: r.worth_it,
     engagement: r.engagement,
@@ -218,6 +227,24 @@ export async function fetchAllData(): Promise<Partial<AppState>> {
     };
   }
 
+  if (recordingBlocks) {
+    state.recordingBlocks = recordingBlocks.map(rb => ({
+      id: rb.id,
+      name: rb.name,
+      contentIds: rb.content_ids || [],
+      createdAt: rb.created_at
+    }));
+  }
+
+  if (goldenRules) {
+    state.goldenRules = goldenRules.map((gr: any) => ({
+      id: gr.id,
+      descricao: gr.descricao,
+      tipo: gr.tipo,
+      ativa: gr.ativa,
+    }));
+  }
+
   return state;
 }
 
@@ -254,18 +281,21 @@ export async function softDeleteFromSupabase(deletes: PendingDelete[]): Promise<
 // ─── Salvar state ativo no Supabase (upsert) ────────────────────────────────
 
 export async function saveToSupabase(state: AppState) {
-  if (!supabase) return;
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) return;
+  const userId = session.user.id;
 
   await Promise.allSettled([
     // App config
     supabase.from('app_config').upsert([
-      { key: 'onboarding_completo', value: state.onboardingCompleto },
-      { key: 'theme', value: state.theme },
+      { key: 'onboarding_completo', value: state.onboardingCompleto, user_id: userId },
+      { key: 'theme', value: state.theme, user_id: userId },
     ]),
 
     // DNA da Voz
     supabase.from('dna_voz').upsert({
-      id: 1,
+      id: userId,
+      user_id: userId,
       promessa_central: state.dnaVoz.promessaCentral,
       publico: state.dnaVoz.publico,
       tom: state.dnaVoz.tom,
@@ -300,6 +330,7 @@ export async function saveToSupabase(state: AppState) {
         livro_origem_id: c.livroOrigemId || null,
         legendas: c.legendas || {},
         created_at: c.createdAt,
+        user_id: userId,
       }))
     ),
 
@@ -314,6 +345,7 @@ export async function saveToSupabase(state: AppState) {
         archived: i.archived,
         livro_origem_id: i.livroOrigemId || null,
         created_at: i.createdAt,
+        user_id: userId,
       }))
     ),
 
@@ -333,6 +365,7 @@ export async function saveToSupabase(state: AppState) {
         cor: s.cor || null,
         ativa: s.ativa ?? true,
         frequencia_recomendada: s.frequenciaRecomendada || 'Sob demanda',
+        user_id: userId,
       }))
     ),
 
@@ -348,6 +381,7 @@ export async function saveToSupabase(state: AppState) {
         hashtags_youtube: p.hashtagsYouTube || '',
         template_legenda: p.templateLegenda || '',
         ativo: p.ativo ?? true,
+        user_id: userId,
       }))
     ),
 
@@ -359,6 +393,7 @@ export async function saveToSupabase(state: AppState) {
         descricao: l.descricao || '',
         cenario_associado_id: l.cenarioAssociadoId || null,
         ativo: l.ativo ?? true,
+        user_id: userId,
       }))
     ),
 
@@ -370,6 +405,7 @@ export async function saveToSupabase(state: AppState) {
         descricao: c.descricao || '',
         tempo_setup_minutos: c.tempoSetupMinutos ?? 0,
         ativo: c.ativo ?? true,
+        user_id: userId,
       }))
     ),
 
@@ -382,6 +418,7 @@ export async function saveToSupabase(state: AppState) {
         type: a.type,
         slot_type: a.slotType || null,
         external: a.external ?? false,
+        user_id: userId,
       }))
     ),
 
@@ -390,6 +427,7 @@ export async function saveToSupabase(state: AppState) {
       state.energyLogs.map(e => ({
         date: e.date,
         level: e.level,
+        user_id: userId,
       })),
       { onConflict: 'date' }
     ),
@@ -413,6 +451,7 @@ export async function saveToSupabase(state: AppState) {
         delivered_on_time: p.deliveredOnTime ?? null,
         relationship_quality: p.relationshipQuality || null,
         would_do_again: p.wouldDoAgain ?? null,
+        user_id: userId,
       }))
     ),
 
@@ -423,12 +462,14 @@ export async function saveToSupabase(state: AppState) {
         content_id: r.contentId || null,
         partnership_id: r.partnershipId || null,
         metrics: r.metrics || '',
+        detailed_metrics: r.detailedMetrics || null,
         qualitative_notes: r.qualitativeNotes || '',
         worth_it: r.worthIt,
         engagement: r.engagement || null,
         creative_satisfaction: r.creativeSatisfaction || null,
         learning_by_series: r.learningBySeries || null,
         created_at: r.createdAt,
+        user_id: userId,
       }))
     ),
 
@@ -448,6 +489,7 @@ export async function saveToSupabase(state: AppState) {
         paginas_lidas: b.paginasLidas ?? null,
         total_paginas: b.totalPaginas ?? null,
         created_at: b.createdAt,
+        user_id: userId,
       }))
     ),
   ]);
@@ -462,9 +504,36 @@ export async function saveToSupabase(state: AppState) {
       capitulo_ref: a.capituloRef || null,
       destilada: a.destilada ?? false,
       created_at: a.createdAt,
+      user_id: userId,
     }))
   );
   if (allAnnotations.length > 0) {
     await supabase.from('book_annotations').upsert(allAnnotations);
+  }
+
+  // Recording Blocks
+  if (state.recordingBlocks.length > 0) {
+    await supabase.from('recording_blocks').upsert(
+      state.recordingBlocks.map(rb => ({
+        id: rb.id,
+        name: rb.name,
+        content_ids: rb.contentIds,
+        created_at: rb.createdAt,
+        user_id: userId,
+      }))
+    );
+  }
+
+  // Golden Rules
+  if (state.goldenRules.length > 0) {
+    await supabase.from('golden_rules').upsert(
+      state.goldenRules.map(gr => ({
+        id: gr.id,
+        descricao: gr.descricao,
+        tipo: gr.tipo,
+        ativa: gr.ativa,
+        user_id: userId,
+      }))
+    );
   }
 }

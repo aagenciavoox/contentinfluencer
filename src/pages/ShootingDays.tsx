@@ -1,9 +1,9 @@
-import { useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useAppContext } from '../context/AppContext';
-import { Video, Clock, Shirt, MapPin, Play, CheckCircle2, Calendar as CalendarIcon, AlertCircle } from 'lucide-react';
+import { Video, Clock, Shirt, MapPin, Play, CheckCircle2, Calendar as CalendarIcon, AlertCircle, Layers, Trash2, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Content } from '../types';
+import { Content, RecordingBlock } from '../types';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -12,6 +12,8 @@ export function ShootingDays() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isBurstMode, setIsBurstMode] = useState(false);
   const [view, setView] = useState<'planning' | 'sessions'>('planning');
+  const [isCreatingBlock, setIsCreatingBlock] = useState(false);
+  const [blockName, setBlockName] = useState('');
 
   const readyToRecord = useMemo(() => {
     return state.contents.filter(c => c.status === 'Pronto para Gravar');
@@ -67,6 +69,33 @@ export function ShootingDays() {
     }
   };
 
+  const handleCreateBlock = () => {
+    if (!blockName.trim() || selectedIds.length === 0) return;
+    const newBlock: RecordingBlock = {
+      id: Math.random().toString(36).substr(2, 9),
+      name: blockName,
+      contentIds: selectedIds,
+      createdAt: new Date().toISOString(),
+    };
+    dispatch({ type: 'ADD_RECORDING_BLOCK', payload: newBlock });
+    setBlockName('');
+    setIsCreatingBlock(false);
+    setSelectedIds([]);
+    alert('Bloco de gravação criado!');
+  };
+
+  const handleStartBlock = (block: RecordingBlock) => {
+    setSelectedIds(block.contentIds);
+    setIsBurstMode(true);
+  };
+
+  const handleDeleteBlock = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (window.confirm('Tem certeza que deseja deletar este bloco de gravação?')) {
+      dispatch({ type: 'DELETE_RECORDING_BLOCK', payload: id });
+    }
+  };
+
   return (
     <div className="max-w-7xl mx-auto py-10 md:py-16 px-6 md:px-10 transition-colors duration-200">
       <AnimatePresence mode="wait">
@@ -115,6 +144,45 @@ export function ShootingDays() {
             {view === 'planning' ? (
               <div className="grid grid-cols-1 lg:grid-cols-4 gap-12 md:gap-16">
                 <div className="lg:col-span-3 space-y-10">
+                  {state.recordingBlocks.length > 0 && (
+                    <section>
+                      <div className="flex items-center gap-3 mb-8 text-[var(--accent-orange)]">
+                        <Layers className="w-5 h-5" />
+                        <span className="text-[11px] uppercase tracking-[0.2em] font-black italic">Blocos Salvos ({state.recordingBlocks.length})</span>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {state.recordingBlocks.map(block => (
+                          <div 
+                            key={block.id}
+                            className="bg-[var(--bg-secondary)] border border-[var(--accent-orange)]/40 p-6 rounded-[2rem] shadow-sm hover:shadow-xl transition-all group flex flex-col justify-between"
+                          >
+                            <div className="flex justify-between items-start mb-4">
+                              <h4 className="text-lg font-black tracking-tight">{block.name}</h4>
+                              <button 
+                                onClick={(e) => handleDeleteBlock(block.id, e)}
+                                className="p-2 opacity-40 hover:opacity-100 hover:text-red-500 transition-colors bg-[var(--bg-hover)] rounded-full"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                            <div className="flex items-center justify-between mt-4">
+                              <span className="text-xs font-black uppercase tracking-widest opacity-60">
+                                {block.contentIds.length} Vídeos
+                              </span>
+                              <button
+                                onClick={() => handleStartBlock(block)}
+                                className="flex items-center gap-2 bg-[var(--accent-orange)] text-white px-4 py-2 rounded-xl text-xs font-black shadow-lg hover:scale-[1.05] active:scale-[0.95] transition-transform"
+                              >
+                                <Play className="w-3.5 h-3.5 fill-current" /> EXPLODIR
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </section>
+                  )}
+
                   <section>
                     <div className="flex items-center gap-3 mb-8 text-[var(--text-tertiary)]">
                       <Video className="w-5 h-5 text-[var(--accent-blue)]" />
@@ -194,14 +262,53 @@ export function ShootingDays() {
                         <span className="text-3xl font-black text-[var(--text-primary)]">{totalDuration}<span className="text-xs ml-1 opacity-40 font-black">MIN</span></span>
                       </div>
 
-                      <div className="pt-8 border-t border-[var(--border-color)] space-y-4">
-                        <div className="flex items-start gap-4">
-                          <CheckCircle2 className="w-4 h-4 text-[var(--accent-green)] mt-1 shrink-0" />
-                          <p className="text-[10px] text-[var(--text-tertiary)] font-bold uppercase tracking-widest leading-relaxed">
-                            Otimizado por cenário e figurino para performance máxima.
-                          </p>
+                      {selectedIds.length > 0 && (
+                        <div className="pt-8 border-t border-[var(--border-color)] space-y-4">
+                          {isCreatingBlock ? (
+                            <div className="space-y-4">
+                              <input
+                                type="text"
+                                placeholder="Nome para este bloco..."
+                                value={blockName}
+                                onChange={e => setBlockName(e.target.value)}
+                                className="w-full text-sm font-bold bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[var(--accent-orange)] focus:border-transparent placeholder-opacity-50"
+                                autoFocus
+                              />
+                              <div className="flex gap-3">
+                                <button
+                                  onClick={handleCreateBlock}
+                                  disabled={!blockName.trim()}
+                                  className="flex-1 bg-[var(--accent-orange)] text-white px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest hover:scale-[1.02] active:scale-[0.98] transition-all shadow-md disabled:opacity-50 disabled:scale-100"
+                                >
+                                  Salvar Bloco
+                                </button>
+                                <button
+                                  onClick={() => setIsCreatingBlock(false)}
+                                  className="px-4 py-2.5 bg-[var(--bg-primary)] text-[var(--text-primary)] border border-[var(--border-color)] rounded-xl hover:bg-[var(--bg-hover)] transition-colors"
+                                  title="Cancelar"
+                                >
+                                  <X className="w-4 h-4 opacity-70" />
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => setIsCreatingBlock(true)}
+                              className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-[var(--bg-hover)] border border-[var(--border-color)] text-[var(--text-primary)] rounded-xl text-xs font-black uppercase tracking-widest hover:border-[var(--accent-orange)]/50 hover:bg-[var(--accent-orange)]/5 transition-colors"
+                            >
+                              <Layers className="w-4 h-4 text-[var(--accent-orange)]" /> 
+                              Salvar como Bloco
+                            </button>
+                          )}
+                          
+                          <div className="flex items-start gap-4 mt-6">
+                            <CheckCircle2 className="w-4 h-4 text-[var(--accent-green)] mt-1 shrink-0" />
+                            <p className="text-[10px] text-[var(--text-tertiary)] font-bold uppercase tracking-widest leading-relaxed">
+                              Otimizado por cenário e figurino para performance máxima.
+                            </p>
+                          </div>
                         </div>
-                      </div>
+                      )}
                     </div>
                   </section>
                 </div>
@@ -316,49 +423,42 @@ export function ShootingDays() {
                       </div>
                     )}
                     
-                    <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-[3rem] overflow-hidden shadow-2xl group transition-all hover:border-[var(--accent-orange)]/40 hover:-translate-y-1">
-                      <div className="p-6 md:p-14 border-b border-[var(--border-color)] bg-[var(--bg-hover)]/30 flex flex-col md:flex-row justify-between items-start md:items-center gap-6 md:gap-8">
-                        <div className="flex items-center gap-8">
-                          <span className="w-16 h-16 rounded-[2rem] bg-[var(--text-primary)] text-[var(--bg-primary)] flex items-center justify-center text-2xl font-black shadow-xl">
+                    <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-[3rem] overflow-hidden shadow-2xl group transition-all hover:border-[var(--accent-orange)]/40">
+                      <div className="p-6 md:p-10 border-b border-[var(--border-color)] bg-[var(--bg-hover)]/30 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
+                        <div className="flex items-center gap-6">
+                          <span className="w-12 h-12 rounded-[1.5rem] bg-[var(--text-primary)] text-[var(--bg-primary)] flex items-center justify-center text-xl font-black shadow-xl shrink-0">
                             {index + 1}
                           </span>
                           <div>
-                            <h3 className="text-xl md:text-3xl font-black text-[var(--text-primary)] tracking-tight mb-2 uppercase">{content.title}</h3>
-                            <div className="flex gap-4">
-                              <span className="text-xs font-black text-[var(--text-tertiary)] bg-[var(--bg-hover)] px-4 py-1 rounded-full uppercase tracking-widest border border-[var(--border-color)]">{content.estimatedDuration} MIN DE TELA</span>
-                              <span className="text-xs font-black text-purple-500 bg-purple-500/10 px-4 py-1 rounded-full uppercase tracking-widest border border-purple-500/20">
+                            <h3 className="text-lg md:text-2xl font-black text-[var(--text-primary)] tracking-tight mb-2 uppercase opacity-80">{content.title}</h3>
+                            <div className="flex gap-3">
+                              <span className="text-[10px] font-black text-purple-500 bg-purple-500/10 px-3 py-1 rounded-full uppercase tracking-widest border border-purple-500/20">
                                 {state.series.find(s => s.id === content.seriesId)?.name || 'Ecossistema'}
+                              </span>
+                              <span className="text-[10px] font-black text-[var(--text-tertiary)] bg-[var(--bg-hover)] px-3 py-1 rounded-full uppercase tracking-widest border border-[var(--border-color)]">
+                                {content.estimatedDuration} MIN
                               </span>
                             </div>
                           </div>
                         </div>
+                        
+                        {content.notes && (
+                          <div className="flex items-start gap-3 p-4 bg-[var(--bg-primary)] rounded-2xl border border-[var(--accent-orange)]/20 w-full lg:w-auto lg:max-w-md shrink-0">
+                            <AlertCircle className="w-5 h-5 text-[var(--accent-orange)] shrink-0 mt-0.5" />
+                            <div className="text-xs text-[var(--text-tertiary)] font-bold italic leading-relaxed">
+                              {content.notes}
+                            </div>
+                          </div>
+                        )}
                       </div>
-                      <div className="p-6 md:p-14 grid grid-cols-1 lg:grid-cols-2 gap-10 md:gap-24">
-                        <div className="space-y-8">
-                          <div className="flex items-center gap-3">
-                            <div className="p-2 bg-[var(--bg-hover)] rounded-xl border border-[var(--border-color)]">
-                              <CheckCircle2 className="w-5 h-5 text-[var(--accent-blue)]" />
-                            </div>
-                            <h4 className="text-[11px] uppercase tracking-[0.3em] font-black text-[var(--text-tertiary)] italic">Roteiro Principal</h4>
-                          </div>
-                          <div className="text-xl text-[var(--text-primary)] leading-relaxed font-medium bg-[var(--bg-hover)]/50 p-8 rounded-3xl border border-[var(--border-color)]/30 min-h-[300px]">
-                            {content.script ? (
-                              <div className="whitespace-pre-wrap select-text">{content.script}</div>
-                            ) : (
-                              <span className="italic opacity-20">Nenhum roteiro detalhado.</span>
-                            )}
-                          </div>
-                        </div>
-                        <div className="space-y-8">
-                          <div className="flex items-center gap-3">
-                            <div className="p-2 bg-[var(--bg-hover)] rounded-xl border border-[var(--border-color)]">
-                               <AlertCircle className="w-5 h-5 text-[var(--accent-orange)]" />
-                            </div>
-                            <h4 className="text-[11px] uppercase tracking-[0.3em] font-black text-[var(--text-tertiary)] italic">Instruções de Performance</h4>
-                          </div>
-                          <div className="text-lg text-[var(--text-tertiary)] leading-relaxed italic border-l-4 border-[var(--accent-orange)] pl-8 py-4 opacity-80">
-                            {content.notes || 'Foco no ritmo e clareza. Mantenha a energia alta.'}
-                          </div>
+
+                      <div className="p-6 md:p-12 lg:p-16">
+                        <div className="text-3xl md:text-5xl lg:text-6xl text-[var(--text-primary)] leading-[1.3] font-black tracking-tight whitespace-pre-wrap select-text min-h-[400px]">
+                          {content.script ? (
+                            content.script
+                          ) : (
+                            <span className="italic opacity-20">Nenhum roteiro escrito. Improviso total!</span>
+                          )}
                         </div>
                       </div>
                     </div>

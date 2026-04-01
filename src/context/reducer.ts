@@ -1,11 +1,12 @@
 import { AppState } from './AppContext';
-import { Book, BookAnnotation, Pilar, Look, Cenario } from '../types';
+import { Book, BookAnnotation, Pilar, Look, Cenario, RecordingBlock, GoldenRule } from '../types';
 
 export type AppAction =
   // Conteúdo
   | { type: 'ADD_CONTENT'; payload: any }
   | { type: 'UPDATE_CONTENT'; payload: any }
   | { type: 'DELETE_CONTENT'; payload: string }
+  | { type: 'DELETE_MULTIPLE_CONTENTS'; payload: string[] }
   // Ideia
   | { type: 'ADD_IDEA'; payload: any }
   | { type: 'UPDATE_IDEA'; payload: any }
@@ -13,6 +14,7 @@ export type AppAction =
   | { type: 'PROMOTE_IDEA'; payload: any }
   // Resultado
   | { type: 'ADD_RESULT'; payload: any }
+  | { type: 'UPDATE_RESULT'; payload: any }
   | { type: 'DELETE_RESULT'; payload: string }
   // Energia
   | { type: 'LOG_ENERGY'; payload: any }
@@ -54,6 +56,11 @@ export type AppAction =
   | { type: 'DELETE_CENARIO'; payload: string }
   // Onboarding
   | { type: 'SET_ONBOARDING_COMPLETO'; payload: boolean }
+  // Blocos de Gravação
+  | { type: 'ADD_RECORDING_BLOCK'; payload: RecordingBlock }
+  | { type: 'DELETE_RECORDING_BLOCK'; payload: string }
+  // Regras de Ouro
+  | { type: 'UPDATE_GOLDEN_RULES'; payload: GoldenRule[] }
   // Sincronização Supabase
   | { type: 'SET_STATE'; payload: Partial<AppState> };
 
@@ -71,6 +78,8 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       };
     case 'DELETE_CONTENT':
       return { ...state, contents: state.contents.filter(c => c.id !== action.payload) };
+    case 'DELETE_MULTIPLE_CONTENTS':
+      return { ...state, contents: state.contents.filter(c => !action.payload.includes(c.id)) };
 
     // ─── Ideia ───────────────────────────────────────────────────────────────
     case 'ADD_IDEA':
@@ -96,6 +105,11 @@ export function appReducer(state: AppState, action: AppAction): AppState {
     // ─── Resultado ───────────────────────────────────────────────────────────
     case 'ADD_RESULT':
       return { ...state, results: [action.payload, ...state.results] };
+    case 'UPDATE_RESULT':
+      return {
+        ...state,
+        results: state.results.map(r => r.id === action.payload.id ? action.payload : r),
+      };
     case 'DELETE_RESULT':
       return { ...state, results: state.results.filter(r => r.id !== action.payload) };
 
@@ -242,6 +256,16 @@ export function appReducer(state: AppState, action: AppAction): AppState {
     // ─── Onboarding ──────────────────────────────────────────────────────────
     case 'SET_ONBOARDING_COMPLETO':
       return { ...state, onboardingCompleto: action.payload };
+
+    // ─── Blocos de Gravação ──────────────────────────────────────────────────
+    case 'ADD_RECORDING_BLOCK':
+      return { ...state, recordingBlocks: [action.payload, ...state.recordingBlocks] };
+    case 'DELETE_RECORDING_BLOCK':
+      return { ...state, recordingBlocks: state.recordingBlocks.filter(b => b.id !== action.payload) };
+
+    // ─── Regras de Ouro ──────────────────────────────────────────────────────
+    case 'UPDATE_GOLDEN_RULES':
+      return { ...state, goldenRules: action.payload };
 
     default:
       return state;

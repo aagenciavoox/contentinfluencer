@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AppProvider } from './context/AppContext';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import { Sidebar } from './components/Sidebar';
 import { DNAVozDrawer } from './components/DNAVozDrawer';
 import { CommandPalette } from './components/CommandPalette';
@@ -10,9 +11,7 @@ import { Contents } from './pages/Contents';
 import { Ideas } from './pages/Ideas';
 import { SeriesDetail } from './pages/Series';
 import { Results } from './pages/Results';
-import { ShootingDays } from './pages/ShootingDays';
-import { Harvest } from './pages/Harvest';
-import { Partnerships } from './pages/Partnerships';
+import { ProjectCalendar } from './pages/ProjectCalendar';
 import { EditorialCalendar } from './pages/EditorialCalendar';
 import { Biblioteca } from './pages/Biblioteca';
 import { BookDetail } from './pages/BookDetail';
@@ -20,11 +19,13 @@ import { Settings } from './pages/Settings';
 import { PilaresSettings } from './pages/settings/Pilares';
 import { LooksSettings } from './pages/settings/LooksScenarios';
 import { RegrasDeOuro } from './pages/settings/RegrasDeOuro';
-import { Menu } from 'lucide-react';
+import { Login } from './pages/Login';
+import { Menu, Loader2 } from 'lucide-react';
 import { useAppContext } from './context/AppContext';
 
-function AppLayout() {
+function AppContent() {
   const { state } = useAppContext();
+  const { user, loading } = useAuth();
   const [isDNAOpen, setIsDNAOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
@@ -41,6 +42,23 @@ function AppLayout() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
+  if (loading) {
+    return (
+      <div className="h-screen w-full flex items-center justify-center bg-[var(--bg-primary)]">
+        <Loader2 className="w-10 h-10 animate-spin text-[var(--text-primary)]" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route path="*" element={<Navigate to="/login" replace />} />
+      </Routes>
+    );
+  }
+
   return (
     <div className="flex h-screen overflow-hidden flex-col md:flex-row bg-[var(--bg-primary)]">
       <CommandPalette
@@ -49,12 +67,20 @@ function AppLayout() {
       />
 
       {/* Mobile Top Bar */}
-      <div className="md:hidden flex items-center justify-between px-4 py-3 bg-[var(--bg-primary)] border-b border-[var(--border-color)] z-20">
-        <button onClick={() => setIsMobileMenuOpen(true)} className="p-1">
+      <div className="md:hidden flex items-center justify-between px-6 pt-12 pb-5 bg-[var(--bg-primary)] border-b border-[var(--border-color)] z-20 shadow-sm relative">
+        <button 
+          onClick={() => setIsMobileMenuOpen(true)} 
+          className="p-3 -ml-3 hover:bg-[var(--bg-hover)] rounded-2xl transition-colors active:scale-90"
+        >
           <Menu className="w-6 h-6 text-[var(--text-primary)]" />
         </button>
-        <span className="font-bold text-sm text-[var(--text-primary)]">Content OS</span>
-        <div className="w-8" />
+        <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2">
+           <div className="w-1.5 h-1.5 rounded-full bg-[var(--text-primary)] animate-pulse" />
+           <span className="font-black text-[10px] uppercase tracking-[0.4em] text-[var(--text-primary)] opacity-90">Content OS</span>
+        </div>
+        <div className="w-12 text-right">
+           {/* Espaço para balancear o menu ou colocar um mini-perfil futuramente */}
+        </div>
       </div>
 
       <Sidebar
@@ -73,9 +99,7 @@ function AppLayout() {
           <Route path="/ideas" element={<Ideas />} />
           <Route path="/series/:id" element={<SeriesDetail />} />
           <Route path="/results" element={<Results />} />
-          <Route path="/shooting" element={<ShootingDays />} />
-          <Route path="/harvest" element={<Harvest />} />
-          <Route path="/partnerships" element={<Partnerships />} />
+          <Route path="/calendar" element={<ProjectCalendar />} />
           <Route path="/editorial" element={<EditorialCalendar />} />
           {/* Biblioteca */}
           <Route path="/biblioteca" element={<Biblioteca />} />
@@ -85,6 +109,7 @@ function AppLayout() {
           <Route path="/settings/pilares" element={<PilaresSettings />} />
           <Route path="/settings/looks" element={<LooksSettings />} />
           <Route path="/settings/regras" element={<RegrasDeOuro />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
 
@@ -98,10 +123,12 @@ function AppLayout() {
 
 export default function App() {
   return (
-    <AppProvider>
-      <Router>
-        <AppLayout />
-      </Router>
-    </AppProvider>
+    <Router>
+      <AuthProvider>
+        <AppProvider>
+          <AppContent />
+        </AppProvider>
+      </AuthProvider>
+    </Router>
   );
 }

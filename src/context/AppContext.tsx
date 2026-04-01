@@ -11,8 +11,10 @@ import {
   Pilar,
   Look,
   Cenario,
+  RecordingBlock,
+  GoldenRule,
 } from '../types';
-import { INITIAL_SERIES, INITIAL_PILARES, mapLegacyFormatToPlataforma } from '../constants';
+import { INITIAL_SERIES, INITIAL_PILARES, GOLDEN_RULES, mapLegacyFormatToPlataforma } from '../constants';
 import { appReducer, AppAction } from './reducer';
 import { fetchAllData, saveToSupabase, softDeleteFromSupabase, PendingDelete } from '../lib/database';
 
@@ -28,6 +30,8 @@ export interface AppState {
   pilares: Pilar[];
   looks: Look[];
   cenarios: Cenario[];
+  recordingBlocks: RecordingBlock[];
+  goldenRules: GoldenRule[];
   onboardingCompleto: boolean;
   theme: 'light' | 'dark';
   dnaVoz: {
@@ -144,6 +148,8 @@ const initialState: AppState = {
   pilares: INITIAL_PILARES,
   looks: [],
   cenarios: [],
+  recordingBlocks: [],
+  goldenRules: GOLDEN_RULES,
   onboardingCompleto: false,
   theme: 'light',
   dnaVoz: {
@@ -177,6 +183,8 @@ function migrarDados(parsed: any): AppState {
     pilares: parsed.pilares || INITIAL_PILARES,
     looks: parsed.looks || [],
     cenarios: parsed.cenarios || [],
+    recordingBlocks: parsed.recordingBlocks || [],
+    goldenRules: parsed.goldenRules || GOLDEN_RULES,
     onboardingCompleto: parsed.onboardingCompleto ?? false,
     dnaVoz: {
       ...initialState.dnaVoz,
@@ -201,6 +209,8 @@ const DELETE_ACTION_TABLE_MAP: Record<string, string> = {
   DELETE_PILAR: 'pilares',
   DELETE_LOOK: 'looks',
   DELETE_CENARIO: 'cenarios',
+  DELETE_RECORDING_BLOCK: 'recording_blocks',
+  DELETE_GOLDEN_RULE: 'golden_rules',
 };
 
 export const AppContext = React.createContext<{

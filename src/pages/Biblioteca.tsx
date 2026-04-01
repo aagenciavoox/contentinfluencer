@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'motion/react';
-import { Plus, BookOpen, X, Star } from 'lucide-react';
+import { motion } from 'motion/react';
+import { Plus, BookOpen, X, Star, Search } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import { Book, GeneroLivro, StatusLeitura } from '../types';
-
 import { generateUUID } from '../utils/uuid';
+import { BottomSheetModal } from '../components/BottomSheetModal';
 
 const STATUS_CORES: Record<StatusLeitura, string> = {
   'Quero ler': 'bg-gray-100 text-gray-600',
@@ -35,6 +35,7 @@ export function Biblioteca() {
 
   const [filtroStatus, setFiltroStatus] = useState<StatusLeitura | 'Todos'>('Todos');
   const [filtroGenero, setFiltroGenero] = useState<string>('Todos');
+  const [searchTerm, setSearchTerm] = useState('');
   const [modalAberto, setModalAberto] = useState(false);
 
   const [form, setForm] = useState<NovoLivroForm>({
@@ -48,6 +49,12 @@ export function Biblioteca() {
   const livrosFiltrados = state.books.filter(b => {
     if (filtroStatus !== 'Todos' && b.statusLeitura !== filtroStatus) return false;
     if (filtroGenero !== 'Todos' && !b.generos.includes(filtroGenero as GeneroLivro)) return false;
+    if (searchTerm.trim()) {
+      const term = searchTerm.toLowerCase();
+      const matchTitulo = b.titulo.toLowerCase().includes(term);
+      const matchAutor = b.autor.toLowerCase().includes(term);
+      if (!matchTitulo && !matchAutor) return false;
+    }
     return true;
   });
 
@@ -109,37 +116,38 @@ export function Biblioteca() {
         </div>
 
         {/* Filtros */}
-        <div className="flex flex-wrap gap-3 mb-8">
-          <div className="flex gap-1.5 flex-wrap">
-            {(['Todos', ...STATUS_LEITURA] as (StatusLeitura | 'Todos')[]).map(s => (
-              <button
-                key={s}
-                onClick={() => setFiltroStatus(s)}
-                className={`text-[10px] font-bold px-3 py-1.5 rounded-full border transition-all ${
-                  filtroStatus === s
-                    ? 'bg-[var(--text-primary)] text-[var(--bg-secondary)] border-[var(--text-primary)]'
-                    : 'bg-transparent text-[var(--text-primary)] border-[var(--border-strong)] opacity-50 hover:opacity-80'
-                }`}
-              >
-                {s}
-              </button>
-            ))}
+        <div className="flex flex-col gap-4 mb-8">
+          <div className="relative w-full">
+            <input 
+              type="text"
+              placeholder="Buscar por título ou autor..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full text-sm font-bold bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-2xl pl-12 pr-4 py-3.5 focus:ring-0 focus:border-[var(--text-primary)] transition-all shadow-sm text-[var(--text-primary)] placeholder:opacity-40"
+            />
+            <Search className="w-5 h-5 text-[var(--text-tertiary)] absolute left-4 top-1/2 -translate-y-1/2 opacity-50" />
           </div>
-          <div className="w-px bg-[var(--border-color)]" />
-          <div className="flex gap-1.5 flex-wrap">
-            {(['Todos', ...GENEROS]).map(g => (
-              <button
-                key={g}
-                onClick={() => setFiltroGenero(g)}
-                className={`text-[10px] font-bold px-3 py-1.5 rounded-full border transition-all ${
-                  filtroGenero === g
-                    ? 'bg-[var(--accent-purple)] text-white border-[var(--accent-purple)]'
-                    : 'bg-transparent text-[var(--text-primary)] border-[var(--border-strong)] opacity-40 hover:opacity-70'
-                }`}
-              >
-                {g}
-              </button>
-            ))}
+          
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <select
+              value={filtroStatus}
+              onChange={(e) => setFiltroStatus(e.target.value as any)}
+              className="w-full text-sm font-bold bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-2xl px-4 py-3.5 focus:ring-0 focus:border-[var(--text-primary)] transition-all text-[var(--text-primary)] cursor-pointer shadow-sm"
+            >
+              {(['Todos', ...STATUS_LEITURA] as (StatusLeitura | 'Todos')[]).map(s => (
+                <option key={s} value={s}>{s === 'Todos' ? 'Qualquer Status' : s}</option>
+              ))}
+            </select>
+
+            <select
+              value={filtroGenero}
+              onChange={(e) => setFiltroGenero(e.target.value)}
+              className="w-full text-sm font-bold bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-2xl px-4 py-3.5 focus:ring-0 focus:border-[var(--text-primary)] transition-all text-[var(--text-primary)] cursor-pointer shadow-sm"
+            >
+              {(['Todos', ...GENEROS]).map(g => (
+                <option key={g} value={g}>{g === 'Todos' ? 'Qualquer Gênero' : g}</option>
+              ))}
+            </select>
           </div>
         </div>
 
@@ -228,30 +236,14 @@ export function Biblioteca() {
       </div>
 
       {/* Modal Novo Livro */}
-      <AnimatePresence>
-        {modalAberto && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setModalAberto(false)}
-              className="fixed inset-0 bg-black/40 backdrop-blur-sm"
-            />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative w-[95%] md:w-[520px] bg-[var(--bg-secondary)] rounded-3xl border border-[var(--border-color)] shadow-2xl p-8"
-            >
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-lg font-black text-[var(--text-primary)]">Adicionar Livro</h2>
-                <button onClick={() => setModalAberto(false)} className="p-2 hover:bg-[var(--bg-hover)] rounded-full">
-                  <X className="w-5 h-5 text-[var(--text-primary)] opacity-40" />
-                </button>
-              </div>
-
-              <div className="space-y-4">
+      <BottomSheetModal open={modalAberto} onClose={() => setModalAberto(false)} desktopMaxW="max-w-[520px]">
+        <div className="flex items-center justify-between px-6 py-5 border-b border-[var(--border-color)] shrink-0">
+          <h2 className="text-lg font-black text-[var(--text-primary)]">Adicionar Livro</h2>
+          <button onClick={() => setModalAberto(false)} className="p-2 hover:bg-[var(--bg-hover)] rounded-full">
+            <X className="w-5 h-5 text-[var(--text-primary)] opacity-40" />
+          </button>
+        </div>
+        <div className="flex-1 overflow-y-auto p-6 space-y-4">
                 <div>
                   <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)] opacity-40 block mb-1.5">
                     Título *
@@ -325,27 +317,24 @@ export function Biblioteca() {
                     className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-4 py-3 focus:ring-2 focus:ring-[var(--text-primary)]/20 text-[var(--text-primary)] placeholder:opacity-40"
                   />
                 </div>
-              </div>
 
-              <div className="flex gap-3 mt-8">
-                <button
-                  onClick={() => setModalAberto(false)}
-                  className="flex-1 py-3 rounded-2xl text-xs font-black uppercase tracking-widest text-[var(--text-primary)] border border-[var(--border-strong)] hover:bg-[var(--bg-hover)] transition-all opacity-60 hover:opacity-100"
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={handleCriarLivro}
-                  disabled={!form.titulo.trim()}
-                  className="flex-1 py-3 rounded-2xl text-xs font-black uppercase tracking-widest bg-[var(--text-primary)] text-[var(--bg-primary)] hover:scale-[1.02] transition-all shadow-lg disabled:opacity-40 disabled:cursor-not-allowed disabled:scale-100"
-                >
-                  Criar Livro
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+        </div>
+        <div className="flex gap-3 px-6 py-4 border-t border-[var(--border-color)] shrink-0 pb-safe">
+          <button
+            onClick={() => setModalAberto(false)}
+            className="flex-1 py-3 rounded-2xl text-xs font-black uppercase tracking-widest text-[var(--text-primary)] border border-[var(--border-strong)] hover:bg-[var(--bg-hover)] transition-all opacity-60 hover:opacity-100"
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={handleCriarLivro}
+            disabled={!form.titulo.trim()}
+            className="flex-1 py-3 rounded-2xl text-xs font-black uppercase tracking-widest bg-[var(--text-primary)] text-[var(--bg-primary)] hover:scale-[1.02] transition-all shadow-lg disabled:opacity-40 disabled:cursor-not-allowed disabled:scale-100"
+          >
+            Criar Livro
+          </button>
+        </div>
+      </BottomSheetModal>
     </div>
   );
 }

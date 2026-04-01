@@ -7,6 +7,7 @@ import { ptBR } from 'date-fns/locale';
 import { Partnership, PartnershipStatus } from '../types';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
+import { useIsMobile } from '../hooks/useIsMobile';
 
 export function Partnerships() {
   const { state, dispatch } = useAppContext();
@@ -77,6 +78,8 @@ export function Partnerships() {
       setSelectedPartnership(null);
     }
   };
+
+  const isMobile = useIsMobile();
 
   const SortIcon = ({ field }: { field: keyof Partnership }) => {
     if (sortField !== field) return <ArrowUpDown className="w-3 h-3 ml-1 opacity-20" />;

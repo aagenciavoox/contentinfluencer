@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { useAppContext } from '../context/AppContext';
 import { PILLARS } from '../constants';
-import { Plus, Archive, ArrowUpRight, Clock, Lightbulb, X, Trash2, Edit3, Save, BookOpen } from 'lucide-react';
+import { Plus, ArrowUpRight, Clock, Lightbulb, X, Trash2, Edit3, Save, BookOpen } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Idea, Content } from '../types';
 import { cn } from '../lib/utils';
-import { motion, AnimatePresence } from 'motion/react';
+import { BottomSheetModal } from '../components/BottomSheetModal';
 
 export function Ideas() {
   const { state, dispatch } = useAppContext();
@@ -18,7 +18,8 @@ export function Ideas() {
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState('');
 
-  const allIdeas = [...state.ideas]
+  const allIdeas = state.ideas
+    .filter(idea => !idea.archived)
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
   const handleAddIdea = (e: React.FormEvent) => {
@@ -103,19 +104,19 @@ export function Ideas() {
           placeholder="O que você está pensando?"
           className="w-full min-h-[120px] text-lg md:text-xl text-[var(--text-primary)] border-none focus:ring-0 p-0 resize-none placeholder:text-[var(--text-tertiary)] placeholder:opacity-30 mb-6 bg-transparent custom-scrollbar"
         />
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between pt-6 border-t border-[var(--border-color)] gap-6">
-          <div className="flex items-center gap-3">
+        <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between pt-6 border-t border-[var(--border-color)] gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:flex lg:flex-wrap items-center gap-3 flex-1">
             <select 
               value={selectedPillar}
               onChange={(e) => setSelectedPillar(e.target.value)}
-              className="text-xs bg-[var(--bg-hover)] border-none rounded-xl px-4 py-2 focus:ring-2 focus:ring-[var(--accent-blue)] font-black text-[var(--text-primary)] uppercase tracking-widest cursor-pointer"
+              className="w-full lg:w-auto text-xs bg-[var(--bg-hover)] border-none rounded-xl px-4 py-3 focus:ring-2 focus:ring-[var(--accent-blue)] font-black text-[var(--text-primary)] uppercase tracking-widest cursor-pointer shadow-sm"
             >
               {PILLARS.map(p => <option key={p}>{p}</option>)}
             </select>
             <select 
               value={selectedSeries}
               onChange={(e) => setSelectedSeries(e.target.value)}
-              className="text-xs bg-[var(--bg-hover)] border-none rounded-xl px-4 py-2 focus:ring-2 focus:ring-[var(--accent-blue)] font-black text-[var(--text-primary)] uppercase tracking-widest cursor-pointer"
+              className="w-full lg:w-auto text-xs bg-[var(--bg-hover)] border-none rounded-xl px-4 py-3 focus:ring-2 focus:ring-[var(--accent-blue)] font-black text-[var(--text-primary)] uppercase tracking-widest cursor-pointer shadow-sm"
             >
               <option value="">Série: Opcional</option>
               {state.series.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
@@ -124,17 +125,19 @@ export function Ideas() {
               <select 
                 value={selectedBook}
                 onChange={(e) => setSelectedBook(e.target.value)}
-                className="text-xs bg-[var(--bg-hover)] border-none rounded-xl px-4 py-2 focus:ring-2 focus:ring-[var(--accent-blue)] font-black text-[var(--text-primary)] uppercase tracking-widest cursor-pointer"
+                className="w-full lg:w-auto text-xs bg-[var(--bg-hover)] border-none rounded-xl px-4 py-3 focus:ring-2 focus:ring-[var(--accent-blue)] font-black text-[var(--text-primary)] uppercase tracking-widest cursor-pointer shadow-sm"
               >
                 <option value="">Livro: Opcional</option>
-                {state.books.map(b => <option key={b.id} value={b.id}>{b.titulo}</option>)}
+                {state.books.map(b => (
+                  <option key={b.id} value={b.id}>{b.titulo.slice(0, 30)}...</option>
+                ))}
               </select>
             )}
           </div>
           <button 
             type="submit"
             disabled={!newIdeaText.trim()}
-            className="flex items-center justify-center gap-3 bg-[var(--text-primary)] text-[var(--bg-primary)] px-8 py-3 rounded-2xl text-sm font-black hover:scale-105 active:scale-95 transition-all disabled:opacity-20 shadow-lg"
+            className="flex items-center justify-center gap-3 bg-[var(--text-primary)] text-[var(--bg-primary)] px-8 py-3.5 rounded-2xl text-xs font-black hover:scale-105 active:scale-95 transition-all disabled:opacity-20 shadow-lg shrink-0 w-full lg:w-auto"
           >
             <Plus className="w-5 h-5" /> CAPTURAR
           </button>
@@ -201,37 +204,29 @@ export function Ideas() {
         </div>
       )}
 
-      <AnimatePresence>
+      <BottomSheetModal
+        open={!!viewingIdea}
+        onClose={() => setViewingIdea(null)}
+        desktopMaxW="max-w-3xl"
+        zIndex="z-[100]"
+      >
         {viewingIdea && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setViewingIdea(null)}
-              className="absolute inset-0 bg-black/60 backdrop-blur-xl"
-            />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9, y: 30 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 30 }}
-              className="relative w-full max-w-3xl bg-[var(--bg-secondary)] rounded-[2.5rem] shadow-[0_32px_64px_-12px_rgba(0,0,0,0.5)] overflow-hidden flex flex-col max-h-[85vh] border border-[var(--border-color)]"
-            >
-              <div className="flex items-center justify-between p-5 md:p-8 border-b border-[var(--border-color)]">
-                <div className="flex items-center gap-4 text-[10px] text-[var(--text-tertiary)] font-black uppercase tracking-[0.2em]">
-                  <Clock className="w-4 h-4" />
-                  {format(new Date(viewingIdea.createdAt), "dd 'DE' MMMM 'ÀS' HH:mm", { locale: ptBR })}
-                </div>
-                <button 
-                  onClick={() => setViewingIdea(null)}
-                  className="p-3 hover:bg-[var(--bg-hover)] rounded-full transition-all text-[var(--text-primary)] opacity-40 hover:opacity-100"
-                >
-                  <X className="w-6 h-6" />
-                </button>
+          <>
+            <div className="flex items-center justify-between p-5 md:p-8 border-b border-[var(--border-color)] shrink-0">
+              <div className="flex items-center gap-4 text-[10px] text-[var(--text-tertiary)] font-black uppercase tracking-[0.2em]">
+                <Clock className="w-4 h-4" />
+                {format(new Date(viewingIdea.createdAt), "dd 'DE' MMMM 'ÀS' HH:mm", { locale: ptBR })}
               </div>
+              <button
+                onClick={() => setViewingIdea(null)}
+                className="p-3 hover:bg-[var(--bg-hover)] rounded-full transition-all text-[var(--text-primary)] opacity-40 hover:opacity-100"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
 
-              <div className="flex-1 overflow-y-auto p-6 md:p-14 custom-scrollbar">
-                <div className="flex flex-wrap gap-3 mb-10">
+            <div className="flex-1 overflow-y-auto p-5 md:p-14 custom-scrollbar">
+              <div className="flex flex-wrap gap-3 mb-8">
                   {viewingIdea.pillar && (
                     <span className="px-4 py-1.5 bg-[var(--accent-blue)]/10 text-[var(--accent-blue)] text-[10px] font-black uppercase tracking-[0.2em] rounded-full border border-[var(--accent-blue)]/20">
                       {viewingIdea.pillar}
@@ -260,7 +255,7 @@ export function Ideas() {
                     autoFocus
                     value={editValue}
                     onChange={(e) => setEditValue(e.target.value)}
-                    className="w-full min-h-[400px] text-xl md:text-2xl text-[var(--text-primary)] leading-relaxed border-none focus:ring-0 p-0 resize-none bg-transparent custom-scrollbar font-medium"
+                    className="w-full min-h-[120px] md:min-h-[400px] text-xl md:text-2xl text-[var(--text-primary)] leading-relaxed border-none focus:ring-0 p-0 resize-none bg-transparent custom-scrollbar font-medium"
                     placeholder="Desenvolva sua ideia..."
                   />
                 ) : (
@@ -270,46 +265,45 @@ export function Ideas() {
                 )}
               </div>
 
-              <div className="p-5 md:p-8 bg-[var(--bg-hover)] border-t border-[var(--border-color)] flex flex-wrap items-center justify-between gap-4 md:gap-6">
-                <div className="flex items-center gap-3">
+            <div className="p-4 md:p-8 bg-[var(--bg-hover)] border-t border-[var(--border-color)] flex flex-wrap items-center justify-between gap-3 shrink-0 pb-safe">
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => handleDelete(viewingIdea.id)}
+                  className="p-3 text-red-500 hover:bg-red-500/10 rounded-2xl transition-all"
+                  title="Excluir Definitivamente"
+                >
+                  <Trash2 className="w-5 h-5" />
+                </button>
+                {isEditing ? (
                   <button
-                    onClick={() => handleDelete(viewingIdea.id)}
-                    className="p-4 text-red-500 hover:bg-red-500/10 rounded-2xl transition-all"
-                    title="Excluir Definitivamente"
+                    onClick={handleUpdate}
+                    className="flex items-center gap-3 bg-[var(--accent-green)] text-white px-6 py-2.5 rounded-2xl text-sm font-black hover:scale-105 transition-all shadow-xl shadow-[var(--accent-green)]/20"
                   >
-                    <Trash2 className="w-6 h-6" />
+                    <Save className="w-4 h-4" /> SALVAR
                   </button>
-                  {isEditing ? (
-                    <button
-                      onClick={handleUpdate}
-                      className="flex items-center gap-3 bg-[var(--accent-green)] text-white px-8 py-3 rounded-2xl text-sm font-black hover:scale-105 transition-all shadow-xl shadow-[var(--accent-green)]/20"
-                    >
-                      <Save className="w-5 h-5" /> SALVAR ALTERAÇÕES
-                    </button>
-                  ) : (
-                    <button
-                      onClick={startEditing}
-                      className="p-4 text-[var(--text-primary)] opacity-30 hover:opacity-100 hover:bg-[var(--bg-secondary)] rounded-2xl transition-all"
-                      title="Editar Texto"
-                    >
-                      <Edit3 className="w-6 h-6" />
-                    </button>
-                  )}
-                </div>
-
-                {!viewingIdea.archived && !isEditing && (
+                ) : (
                   <button
-                    onClick={() => handlePromote(viewingIdea)}
-                    className="flex items-center justify-center gap-3 bg-[var(--text-primary)] text-[var(--bg-primary)] px-6 md:px-8 py-3 md:py-4 rounded-2xl text-sm font-black hover:scale-105 transition-all shadow-2xl shadow-black/20 w-full sm:w-auto"
+                    onClick={startEditing}
+                    className="p-3 text-[var(--text-primary)] opacity-30 hover:opacity-100 hover:bg-[var(--bg-secondary)] rounded-2xl transition-all"
+                    title="Editar Texto"
                   >
-                    PROMOVER PARA CONTEÚDO <ArrowUpRight className="w-5 h-5" />
+                    <Edit3 className="w-5 h-5" />
                   </button>
                 )}
               </div>
-            </motion.div>
-          </div>
+
+              {!viewingIdea.archived && !isEditing && (
+                <button
+                  onClick={() => handlePromote(viewingIdea)}
+                  className="flex items-center justify-center gap-2 bg-[var(--text-primary)] text-[var(--bg-primary)] px-5 py-3 rounded-2xl text-sm font-black hover:scale-105 transition-all shadow-2xl shadow-black/20 w-full sm:w-auto"
+                >
+                  PROMOVER <ArrowUpRight className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+          </>
         )}
-      </AnimatePresence>
+      </BottomSheetModal>
     </div>
   );
 }

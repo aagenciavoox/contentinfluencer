@@ -168,6 +168,15 @@ export interface Series {
   frequenciaRecomendada?: 'Semanal' | 'Quinzenal' | 'Mensal' | 'Sob demanda';
 }
 
+// ─── Bloco de Gravação ────────────────────────────────────────────────────────
+
+export interface RecordingBlock {
+  id: string;
+  name: string;
+  contentIds: string[];
+  createdAt: string;
+}
+
 // ─── Parceria ─────────────────────────────────────────────────────────────────
 
 export type PartnershipStatus =
@@ -193,19 +202,31 @@ export interface Partnership {
   notes?: string;
   script?: string;
   link?: string;
+  contentId?: string;
   createdAt: string;
   deliveredOnTime?: boolean;
   relationshipQuality?: 1 | 2 | 3 | 4 | 5;
   wouldDoAgain?: boolean;
 }
 
-// ─── Resultado ────────────────────────────────────────────────────────────────
+export interface DetailedMetrics {
+  views: number;
+  interactions: number;
+  likes: number;
+  comments: number;
+  saves: number;
+  shares: number;
+  newFollowers: number;
+  reposts: number;
+  accountsReached: number;
+}
 
 export interface Result {
   id: string;
   contentId?: string;
   partnershipId?: string;
   metrics: string;
+  detailedMetrics?: DetailedMetrics;
   qualitativeNotes: string;
   worthIt: 'Sim' | 'Não' | 'Mais ou menos';
   engagement?: string;

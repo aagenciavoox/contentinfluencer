@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
 import { X, Trash2, ExternalLink, BookOpen, Check } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import { STATUS_STAGES, CAPTION_TEMPLATES, PLATFORMS, VISUAL_FORMATS } from '../constants';
 import { Content, Platform, VisualFormat } from '../types';
 import { cn } from '../lib/utils';
+import { BottomSheetModal } from './BottomSheetModal';
 
 interface ContentDetailModalProps {
   content: Content;
@@ -98,23 +98,9 @@ export function ContentDetailModal({ content, onClose, initialLivroOrigemId }: C
     : null;
 
   return (
-    <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center">
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          onClick={onClose}
-          className="fixed inset-0 bg-black/40 backdrop-blur-sm"
-        />
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95, y: 20 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.95, y: 20 }}
-          className="relative w-[95%] md:w-[820px] h-[90vh] md:h-[87vh] bg-[var(--bg-secondary)] shadow-2xl rounded-3xl border border-[var(--border-color)] flex flex-col overflow-hidden"
-        >
+    <BottomSheetModal open={true} onClose={onClose} desktopMaxW="max-w-[820px]">
           {/* Área rolável */}
-          <div className="p-8 md:p-12 flex-1 overflow-y-auto custom-scrollbar">
+          <div className="p-6 md:p-12 flex-1 overflow-y-auto custom-scrollbar">
             {/* Cabeçalho */}
             <div className="flex items-center justify-between mb-8">
               <div className="flex gap-2">
@@ -154,24 +140,24 @@ export function ContentDetailModal({ content, onClose, initialLivroOrigemId }: C
             />
 
             {/* Metadados */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-8 mb-10 py-6 border-y border-[var(--border-color)]">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-5 gap-x-8 mb-10 py-6 border-y border-[var(--border-strong)]">
               {/* Status */}
-              <div className="flex items-center gap-4">
-                <span className="text-xs font-bold text-[var(--text-primary)] opacity-30 w-20 shrink-0">Status</span>
+              <div className="flex flex-col gap-1.5 md:flex-row md:items-center md:gap-4">
+                <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-primary)] opacity-50 md:w-20 md:shrink-0">Status</span>
                 <select
                   value={local.status}
                   onChange={(e) => updateLocal({ status: e.target.value as any })}
-                  className="text-xs bg-[var(--bg-hover)] border-none rounded px-2 py-1 focus:ring-0 text-[var(--text-primary)]"
+                  className="text-xs bg-[var(--bg-hover)] border border-[var(--border-strong)] rounded-lg px-3 py-2.5 focus:ring-0 text-[var(--text-primary)] w-full md:w-auto shadow-sm"
                 >
                   {STATUS_STAGES.map(s => <option key={s}>{s}</option>)}
                 </select>
               </div>
 
               {/* Série */}
-              <div className="flex items-center gap-4">
-                <span className="text-xs font-bold text-[var(--text-primary)] opacity-30 w-20 shrink-0">Série</span>
+              <div className="flex flex-col gap-1.5 md:flex-row md:items-center md:gap-4">
+                <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-primary)] opacity-50 md:w-20 md:shrink-0">Série</span>
                 <select
-                  value={local.seriesId}
+                  value={local.seriesId ?? ''}
                   onChange={(e) => {
                     if (e.target.value === 'new') {
                       const name = prompt('Nome da nova série:');
@@ -189,7 +175,7 @@ export function ContentDetailModal({ content, onClose, initialLivroOrigemId }: C
                       updateLocal({ seriesId: e.target.value });
                     }
                   }}
-                  className="text-xs bg-[var(--bg-hover)] border-none rounded px-2 py-1 focus:ring-0 text-[var(--text-primary)]"
+                  className={`text-xs bg-[var(--bg-hover)] border border-[var(--border-strong)] rounded-lg px-3 py-2.5 focus:ring-0 text-[var(--text-primary)] w-full md:w-auto shadow-sm ${!local.seriesId ? 'opacity-50' : ''}`}
                 >
                   <option value="">Sem Série</option>
                   {state.series.map(s => (
@@ -201,33 +187,35 @@ export function ContentDetailModal({ content, onClose, initialLivroOrigemId }: C
 
               {/* Livro de Origem */}
               {state.books.length > 0 && (
-                <div className="flex items-center gap-4 col-span-2">
-                  <span className="text-xs font-bold text-[var(--text-primary)] opacity-30 w-20 shrink-0 flex items-center gap-1">
+                <div className="flex flex-col gap-1.5 md:flex-row md:items-center md:gap-4 sm:col-span-2">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-primary)] opacity-50 md:w-20 md:shrink-0 flex items-center gap-1">
                     <BookOpen className="w-3 h-3" /> Livro
                   </span>
-                  <select
-                    value={local.livroOrigemId || ''}
-                    onChange={(e) => updateLocal({ livroOrigemId: e.target.value || undefined })}
-                    className="text-xs bg-[var(--bg-hover)] border-none rounded px-2 py-1 focus:ring-0 text-[var(--text-primary)]"
-                  >
-                    <option value="">Sem vínculo com livro</option>
-                    {state.books.map(b => (
-                      <option key={b.id} value={b.id}>{b.titulo} — {b.autor}</option>
-                    ))}
-                  </select>
-                  {livroOrigem && (
-                    <span className="text-[10px] text-[var(--accent-blue)] opacity-70">{livroOrigem.statusLeitura}</span>
-                  )}
+                  <div className="flex items-center gap-2 w-full md:w-auto">
+                    <select
+                      value={local.livroOrigemId || ''}
+                      onChange={(e) => updateLocal({ livroOrigemId: e.target.value || undefined })}
+                      className={`text-xs bg-[var(--bg-hover)] border border-[var(--border-strong)] rounded-lg px-3 py-2.5 focus:ring-0 text-[var(--text-primary)] flex-1 md:flex-none shadow-sm ${!local.livroOrigemId ? 'opacity-50' : ''}`}
+                    >
+                      <option value="">Sem vínculo com livro</option>
+                      {state.books.map(b => (
+                        <option key={b.id} value={b.id}>{b.titulo.slice(0, 30)} — {b.autor}</option>
+                      ))}
+                    </select>
+                    {livroOrigem && (
+                      <span className="text-[10px] text-[var(--accent-blue)] opacity-70 shrink-0 font-bold">{livroOrigem.statusLeitura}</span>
+                    )}
+                  </div>
                 </div>
               )}
 
               {/* Slot */}
-              <div className="flex items-center gap-4">
-                <span className="text-xs font-bold text-[var(--text-primary)] opacity-30 w-20 shrink-0">Slot</span>
+              <div className="flex flex-col gap-1.5 md:flex-row md:items-center md:gap-4">
+                <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-primary)] opacity-50 md:w-20 md:shrink-0">Slot</span>
                 <select
                   value={local.slotType || ''}
                   onChange={(e) => updateLocal({ slotType: e.target.value as any })}
-                  className="text-xs bg-[var(--bg-hover)] border-none rounded px-2 py-1 focus:ring-0 text-[var(--text-primary)]"
+                  className={`text-xs bg-[var(--bg-hover)] border border-[var(--border-strong)] rounded-lg px-3 py-2.5 focus:ring-0 text-[var(--text-primary)] w-full md:w-auto shadow-sm ${!local.slotType ? 'opacity-50' : ''}`}
                 >
                   <option value="">—</option>
                   <option value="Curto">Curto (Viral)</option>
@@ -237,12 +225,12 @@ export function ContentDetailModal({ content, onClose, initialLivroOrigemId }: C
               </div>
 
               {/* Pilar */}
-              <div className="flex items-center gap-4">
-                <span className="text-xs font-bold text-[var(--text-primary)] opacity-30 w-20 shrink-0">Pilar</span>
+              <div className="flex flex-col gap-1.5 md:flex-row md:items-center md:gap-4">
+                <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-primary)] opacity-50 md:w-20 md:shrink-0">Pilar</span>
                 <select
                   value={local.pillar}
                   onChange={(e) => updateLocal({ pillar: e.target.value })}
-                  className="text-xs bg-[var(--bg-hover)] border-none rounded px-2 py-1 focus:ring-0 text-[var(--text-primary)]"
+                  className={`text-xs bg-[var(--bg-hover)] border border-[var(--border-strong)] rounded-lg px-3 py-2.5 focus:ring-0 text-[var(--text-primary)] w-full md:w-auto shadow-sm ${!local.pillar ? 'opacity-50' : ''}`}
                 >
                   <option value="">Sem pilar</option>
                   {state.pilares.filter(p => p.ativo).map(p => (
@@ -255,12 +243,12 @@ export function ContentDetailModal({ content, onClose, initialLivroOrigemId }: C
               </div>
 
               {/* Formato Visual */}
-              <div className="flex items-center gap-4">
-                <span className="text-xs font-bold text-[var(--text-primary)] opacity-30 w-20 shrink-0">Visual</span>
+              <div className="flex flex-col gap-1.5 md:flex-row md:items-center md:gap-4">
+                <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-primary)] opacity-50 md:w-20 md:shrink-0">Visual</span>
                 <select
                   value={local.formatoVisual || ''}
                   onChange={(e) => updateLocal({ formatoVisual: e.target.value as VisualFormat || undefined })}
-                  className="text-xs bg-[var(--bg-hover)] border-none rounded px-2 py-1 focus:ring-0 text-[var(--text-primary)]"
+                  className={`text-xs bg-[var(--bg-hover)] border border-[var(--border-strong)] rounded-lg px-3 py-2.5 focus:ring-0 text-[var(--text-primary)] w-full md:w-auto shadow-sm ${!local.formatoVisual ? 'opacity-50' : ''}`}
                 >
                   <option value="">—</option>
                   {VISUAL_FORMATS.map(f => <option key={f}>{f}</option>)}
@@ -268,13 +256,13 @@ export function ContentDetailModal({ content, onClose, initialLivroOrigemId }: C
               </div>
 
               {/* Look */}
-              <div className="flex items-center gap-4">
-                <span className="text-xs font-bold text-[var(--text-primary)] opacity-30 w-20 shrink-0">Look #</span>
+              <div className="flex flex-col gap-1.5 md:flex-row md:items-center md:gap-4">
+                <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-primary)] opacity-50 md:w-20 md:shrink-0">Look #</span>
                 {state.looks.length > 0 ? (
                   <select
                     value={local.lookId || ''}
                     onChange={(e) => updateLocal({ lookId: e.target.value || undefined })}
-                    className="text-xs bg-[var(--bg-hover)] border-none rounded px-2 py-1 focus:ring-0 text-[var(--text-primary)]"
+                    className={`text-xs bg-[var(--bg-hover)] border border-[var(--border-strong)] rounded-lg px-3 py-2.5 focus:ring-0 text-[var(--text-primary)] w-full md:w-auto shadow-sm ${!local.lookId ? 'opacity-50' : ''}`}
                   >
                     <option value="">—</option>
                     {state.looks.filter(l => l.ativo).map(l => (
@@ -287,19 +275,19 @@ export function ContentDetailModal({ content, onClose, initialLivroOrigemId }: C
                     value={local.lookId || ''}
                     onChange={(e) => updateLocal({ lookId: e.target.value || undefined })}
                     placeholder="Ex: Look 1"
-                    className="text-xs bg-[var(--bg-hover)] border-none rounded px-2 py-1 focus:ring-0 text-[var(--text-primary)]"
+                    className="text-xs bg-[var(--bg-hover)] border border-[var(--border-strong)] rounded-lg px-3 py-2.5 focus:ring-0 text-[var(--text-primary)] placeholder:opacity-40 w-full md:w-auto shadow-sm"
                   />
                 )}
               </div>
 
               {/* Cenário */}
-              <div className="flex items-center gap-4">
-                <span className="text-xs font-bold text-[var(--text-primary)] opacity-30 w-20 shrink-0">Cenário</span>
+              <div className="flex flex-col gap-1.5 md:flex-row md:items-center md:gap-4">
+                <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-primary)] opacity-50 md:w-20 md:shrink-0">Cenário</span>
                 {state.cenarios.length > 0 ? (
                   <select
                     value={local.scenario || ''}
                     onChange={(e) => updateLocal({ scenario: e.target.value || undefined })}
-                    className="text-xs bg-[var(--bg-hover)] border-none rounded px-2 py-1 focus:ring-0 text-[var(--text-primary)]"
+                    className={`text-xs bg-[var(--bg-hover)] border border-[var(--border-strong)] rounded-lg px-3 py-2.5 focus:ring-0 text-[var(--text-primary)] w-full md:w-auto shadow-sm ${!local.scenario ? 'opacity-50' : ''}`}
                   >
                     <option value="">—</option>
                     {state.cenarios.filter(c => c.ativo).map(c => (
@@ -312,48 +300,48 @@ export function ContentDetailModal({ content, onClose, initialLivroOrigemId }: C
                     value={local.scenario || ''}
                     onChange={(e) => updateLocal({ scenario: e.target.value || undefined })}
                     placeholder="Ex: Mesa"
-                    className="text-xs bg-[var(--bg-hover)] border-none rounded px-2 py-1 focus:ring-0 text-[var(--text-primary)]"
+                    className="text-xs bg-[var(--bg-hover)] border border-[var(--border-strong)] rounded-lg px-3 py-2.5 focus:ring-0 text-[var(--text-primary)] placeholder:opacity-40 w-full md:w-auto shadow-sm"
                   />
                 )}
               </div>
 
               {/* Duração */}
-              <div className="flex items-center gap-4">
-                <span className="text-xs font-bold text-[var(--text-primary)] opacity-30 w-20 shrink-0">Duração</span>
+              <div className="flex flex-col gap-1.5 md:flex-row md:items-center md:gap-4">
+                <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-primary)] opacity-50 md:w-20 md:shrink-0">Duração</span>
                 <input
                   type="number"
                   value={local.estimatedDuration || ''}
                   onChange={(e) => updateLocal({ estimatedDuration: parseInt(e.target.value) || undefined })}
                   placeholder="Segundos"
-                  className="text-xs bg-[var(--bg-hover)] border-none rounded px-2 py-1 focus:ring-0 w-20 text-[var(--text-primary)]"
+                  className="text-xs bg-[var(--bg-hover)] border border-[var(--border-strong)] rounded-lg px-3 py-2.5 focus:ring-0 w-full md:w-28 text-[var(--text-primary)] placeholder:opacity-40 shadow-sm"
                 />
               </div>
 
               {/* Gravação */}
-              <div className="flex items-center gap-4">
-                <span className="text-xs font-bold text-[var(--text-primary)] opacity-30 w-20 shrink-0">Gravação</span>
+              <div className="flex flex-col gap-1.5 md:flex-row md:items-center md:gap-4">
+                <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-primary)] opacity-50 md:w-20 md:shrink-0">Gravação</span>
                 <input
                   type="date"
                   value={local.recordingDate || ''}
                   onChange={(e) => updateLocal({ recordingDate: e.target.value })}
-                  className="text-xs bg-[var(--bg-hover)] border-none rounded px-2 py-1 focus:ring-0 text-[var(--text-primary)]"
+                  className={`text-xs bg-[var(--bg-hover)] border border-[var(--border-strong)] rounded-lg px-3 py-2.5 focus:ring-0 w-full md:w-auto text-[var(--text-primary)] shadow-sm ${!local.recordingDate ? 'opacity-50' : ''}`}
                 />
               </div>
 
               {/* Postagem */}
-              <div className="flex items-center gap-4">
-                <span className="text-xs font-bold text-[var(--text-primary)] opacity-30 w-20 shrink-0">Postagem</span>
+              <div className="flex flex-col gap-1.5 md:flex-row md:items-center md:gap-4">
+                <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-primary)] opacity-50 md:w-20 md:shrink-0">Postagem</span>
                 <input
                   type="date"
                   value={local.publishDate || ''}
                   onChange={(e) => updateLocal({ publishDate: e.target.value })}
-                  className="text-xs bg-[var(--bg-hover)] border-none rounded px-2 py-1 focus:ring-0 text-[var(--text-primary)]"
+                  className={`text-xs bg-[var(--bg-hover)] border border-[var(--border-strong)] rounded-lg px-3 py-2.5 focus:ring-0 w-full md:w-auto text-[var(--text-primary)] shadow-sm ${!local.publishDate ? 'opacity-50' : ''}`}
                 />
               </div>
 
               {/* Plataformas */}
-              <div className="flex items-start gap-4 col-span-2">
-                <span className="text-xs font-bold text-[var(--text-primary)] opacity-30 w-20 shrink-0 pt-1">Plataformas</span>
+              <div className="flex flex-col gap-2 md:flex-row md:items-start md:gap-4 sm:col-span-2">
+                <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-primary)] opacity-50 md:w-20 md:shrink-0 md:pt-1">Plataformas</span>
                 <div className="flex gap-2 flex-wrap">
                   {PLATFORMS.map(plat => {
                     const ativo = activePlataformas.includes(plat);
@@ -361,7 +349,7 @@ export function ContentDetailModal({ content, onClose, initialLivroOrigemId }: C
                       <button
                         key={plat}
                         onClick={() => togglePlataforma(plat)}
-                        className={`text-[10px] font-bold px-2.5 py-1 rounded-full border transition-all ${
+                        className={`text-[10px] font-bold px-2.5 py-1.5 rounded-full border transition-all ${
                           ativo
                             ? 'bg-[var(--text-primary)] text-[var(--bg-secondary)] border-[var(--text-primary)]'
                             : 'bg-transparent text-[var(--text-primary)] border-[var(--border-strong)] opacity-40 hover:opacity-70'
@@ -379,21 +367,21 @@ export function ContentDetailModal({ content, onClose, initialLivroOrigemId }: C
             <div className="space-y-8">
               {/* Roteiro */}
               <section>
-                <h3 className="text-[10px] uppercase tracking-widest font-bold text-[var(--text-primary)] opacity-30 mb-3">
+                <h3 className="text-[10px] uppercase tracking-widest font-bold text-[var(--text-primary)] opacity-50 mb-3">
                   Roteiro
                 </h3>
                 <textarea
                   value={local.script || ''}
                   onChange={(e) => updateLocal({ script: e.target.value })}
-                  className="w-full min-h-[200px] text-sm text-[var(--text-primary)] border-none focus:ring-0 p-0 resize-none placeholder:italic bg-transparent"
+                  className="w-full min-h-[200px] text-sm text-[var(--text-primary)] border border-[var(--border-strong)] focus:ring-0 p-4 resize-none placeholder:italic placeholder:opacity-40 bg-[var(--bg-hover)] rounded-xl"
                   placeholder="Escreva o roteiro aqui..."
                 />
               </section>
 
               {/* Legendas por plataforma */}
-              <section className="pt-8 border-t border-[var(--border-color)]">
+              <section className="pt-8 border-t border-[var(--border-strong)]">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-[10px] uppercase tracking-widest font-bold text-[var(--text-primary)] opacity-30">
+                  <h3 className="text-[10px] uppercase tracking-widest font-bold text-[var(--text-primary)] opacity-50">
                     Legenda
                   </h3>
                   <button
@@ -466,41 +454,41 @@ export function ContentDetailModal({ content, onClose, initialLivroOrigemId }: C
               </section>
 
               {/* Tags */}
-              <section>
-                <h3 className="text-[10px] uppercase tracking-widest font-bold text-[var(--text-primary)] opacity-30 mb-3">
+              <section className="pt-8 border-t border-[var(--border-strong)]">
+                <h3 className="text-[10px] uppercase tracking-widest font-bold text-[var(--text-primary)] opacity-50 mb-3">
                   Tags & Hashtags
                 </h3>
                 <input
                   type="text"
                   value={local.tags || ''}
                   onChange={(e) => updateLocal({ tags: e.target.value })}
-                  className="w-full text-sm text-[var(--text-primary)] border-none focus:ring-0 p-0 placeholder:italic bg-transparent"
+                  className="w-full text-sm text-[var(--text-primary)] border border-[var(--border-strong)] focus:ring-0 px-4 py-3 placeholder:italic placeholder:opacity-40 bg-[var(--bg-hover)] rounded-xl"
                   placeholder="#livros #booktok #literatura"
                 />
               </section>
 
               {/* Notas de Gravação */}
-              <section>
-                <h3 className="text-[10px] uppercase tracking-widest font-bold text-[var(--text-primary)] opacity-30 mb-3">
+              <section className="pt-8 border-t border-[var(--border-strong)]">
+                <h3 className="text-[10px] uppercase tracking-widest font-bold text-[var(--text-primary)] opacity-50 mb-3">
                   Notas de Gravação
                 </h3>
                 <textarea
                   value={local.notes || ''}
                   onChange={(e) => updateLocal({ notes: e.target.value })}
-                  className="w-full min-h-[100px] text-sm text-[var(--text-primary)] border-none focus:ring-0 p-0 resize-none placeholder:italic bg-transparent"
+                  className="w-full min-h-[100px] text-sm text-[var(--text-primary)] border border-[var(--border-strong)] focus:ring-0 p-4 resize-none placeholder:italic placeholder:opacity-40 bg-[var(--bg-hover)] rounded-xl"
                   placeholder="Enquadramento, luz, roupa, lembretes..."
                 />
               </section>
 
               {/* Referências */}
-              <section>
-                <h3 className="text-[10px] uppercase tracking-widest font-bold text-[var(--text-primary)] opacity-30 mb-3">
+              <section className="pt-8 border-t border-[var(--border-strong)]">
+                <h3 className="text-[10px] uppercase tracking-widest font-bold text-[var(--text-primary)] opacity-50 mb-3">
                   Referências
                 </h3>
                 <textarea
                   value={local.references || ''}
                   onChange={(e) => updateLocal({ references: e.target.value })}
-                  className="w-full min-h-[100px] text-sm text-[var(--text-primary)] border-none focus:ring-0 p-0 resize-none placeholder:italic bg-transparent"
+                  className="w-full min-h-[100px] text-sm text-[var(--text-primary)] border border-[var(--border-strong)] focus:ring-0 p-4 resize-none placeholder:italic placeholder:opacity-40 bg-[var(--bg-hover)] rounded-xl"
                   placeholder="Links, inspirações, vídeos de referência..."
                 />
               </section>
@@ -508,7 +496,7 @@ export function ContentDetailModal({ content, onClose, initialLivroOrigemId }: C
           </div>
 
           {/* Footer fixo */}
-          <div className="px-8 md:px-12 py-5 border-t border-[var(--border-color)] bg-[var(--bg-secondary)] flex items-center justify-between gap-3 shrink-0">
+          <div className="px-6 md:px-12 py-4 border-t border-[var(--border-color)] bg-[var(--bg-secondary)] flex items-center justify-between gap-3 shrink-0 pb-safe">
             <button
               onClick={onClose}
               className="text-xs font-bold text-[var(--text-primary)] opacity-40 hover:opacity-80 transition-opacity"
@@ -523,8 +511,6 @@ export function ContentDetailModal({ content, onClose, initialLivroOrigemId }: C
               Salvar
             </button>
           </div>
-        </motion.div>
-      </div>
-    </AnimatePresence>
+    </BottomSheetModal>
   );
 }
