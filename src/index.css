@@ -1,0 +1,68 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+:root {
+  --bg-primary: #FBFBFA;
+  --bg-secondary: #FFFFFF;
+  --bg-hover: #F1F1EF;
+  --text-primary: #37352F;
+  --text-secondary: rgba(55, 53, 47, 0.6);
+  --text-tertiary: rgba(55, 53, 47, 0.4);
+  --border-color: #EDECE9;
+  --border-strong: #E1E1E0;
+  --accent-blue: #2EAADC;
+  --accent-purple: #9065B0;
+  --accent-pink: #D44C47;
+  --accent-orange: #D9730D;
+  --accent-green: #448361;
+  --scrollbar-thumb: #EDECE9;
+  --scrollbar-hover: #D3D1CB;
+}
+
+[data-theme='dark'] {
+  --bg-primary: #191919;
+  --bg-secondary: #202020;
+  --bg-hover: #2F2F2F;
+  --text-primary: #E3E3E3;
+  --text-secondary: rgba(227, 227, 227, 0.6);
+  --text-tertiary: rgba(227, 227, 227, 0.4);
+  --border-color: #2F2F2F;
+  --border-strong: #3F3F3F;
+  --accent-blue: #3694D1;
+  --accent-purple: #9A6DD7;
+  --accent-pink: #E94B4B;
+  --accent-orange: #FFA344;
+  --accent-green: #529E72;
+  --scrollbar-thumb: #3F3F3F;
+  --scrollbar-hover: #4F4F4F;
+}
+
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  @apply font-sans antialiased transition-colors duration-200;
+}
+
+/* Custom scrollbar for Notion feel */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-hover);
+}
