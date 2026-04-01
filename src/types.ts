@@ -103,6 +103,8 @@ export interface Book {
   notasGerais?: string;
   anotacoes: BookAnnotation[];
   createdAt: string;
+  paginasLidas?: number;
+  totalPaginas?: number;
 }
 
 // ─── Conteúdo ─────────────────────────────────────────────────────────────────

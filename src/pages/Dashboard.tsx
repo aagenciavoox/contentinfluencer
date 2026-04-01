@@ -269,12 +269,19 @@ export function Dashboard() {
                       <div className="flex-1 min-w-0">
                         <h4 className="text-sm font-black text-[var(--text-primary)] leading-snug line-clamp-2 italic">"{book.titulo}"</h4>
                         <p className="text-[10px] text-[var(--text-secondary)] opacity-60 mt-1 uppercase tracking-wider">{book.autor}</p>
+                        {book.totalPaginas && book.totalPaginas > 0 && (
                         <div className="mt-3 flex items-center gap-2">
-                           <div className="flex-1 h-1.5 bg-[var(--bg-hover)] rounded-full overflow-hidden">
-                              <div className="h-full bg-[var(--accent-purple)]" style={{ width: '35%' }} />
-                           </div>
-                           <span className="text-[8px] font-black opacity-30">35%</span>
+                          <div className="flex-1 h-1.5 bg-[var(--bg-hover)] rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-[var(--accent-purple)] transition-all duration-500"
+                              style={{ width: `${Math.min(100, Math.round(((book.paginasLidas || 0) / book.totalPaginas) * 100))}%` }}
+                            />
+                          </div>
+                          <span className="text-[8px] font-black opacity-30">
+                            {Math.min(100, Math.round(((book.paginasLidas || 0) / book.totalPaginas) * 100))}%
+                          </span>
                         </div>
+                      )}
                       </div>
                     </div>
                   </div>

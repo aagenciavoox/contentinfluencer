@@ -76,8 +76,8 @@ export function EditorialCalendar() {
       </header>
 
       {/* Golden Rules Cards */}
-      <section className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-20">
-        <div className="p-10 bg-[var(--bg-secondary)] rounded-[2.5rem] border border-[var(--border-color)] shadow-sm hover:shadow-xl transition-all group overflow-hidden relative">
+      <section className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12 md:mb-20">
+        <div className="p-6 md:p-10 bg-[var(--bg-secondary)] rounded-[2rem] md:rounded-[2.5rem] border border-[var(--border-color)] shadow-sm hover:shadow-xl transition-all group overflow-hidden relative">
           <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:opacity-20 transition-opacity">
             <RotateCcw className="w-12 h-12" />
           </div>
@@ -89,7 +89,7 @@ export function EditorialCalendar() {
           <p className="text-sm text-[var(--text-tertiary)] font-medium leading-relaxed">Cada formato de série deve aparecer apenas uma vez por semana (exceto Indicações).</p>
         </div>
         
-        <div className="p-10 bg-[var(--bg-secondary)] rounded-[2.5rem] border border-[var(--border-color)] shadow-sm hover:shadow-xl transition-all group overflow-hidden relative">
+        <div className="p-6 md:p-10 bg-[var(--bg-secondary)] rounded-[2rem] md:rounded-[2.5rem] border border-[var(--border-color)] shadow-sm hover:shadow-xl transition-all group overflow-hidden relative">
           <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:opacity-20 transition-opacity">
             <BookOpen className="w-12 h-12" />
           </div>
@@ -101,7 +101,7 @@ export function EditorialCalendar() {
           <p className="text-sm text-[var(--text-tertiary)] font-medium leading-relaxed">Máximo 2 posts de livros seguidos. Quebre com filme, comportamento ou ciência.</p>
         </div>
 
-        <div className="p-10 bg-[var(--bg-secondary)] rounded-[2.5rem] border border-[var(--border-color)] shadow-sm hover:shadow-xl transition-all group overflow-hidden relative">
+        <div className="p-6 md:p-10 bg-[var(--bg-secondary)] rounded-[2rem] md:rounded-[2.5rem] border border-[var(--border-color)] shadow-sm hover:shadow-xl transition-all group overflow-hidden relative">
            <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:opacity-20 transition-opacity">
             <Zap className="w-12 h-12" />
           </div>
@@ -213,7 +213,7 @@ export function EditorialCalendar() {
       </div>
 
       {/* Guidelines Section */}
-      <section className="mt-40 pt-24 border-t border-[var(--border-color)] flex flex-col md:flex-row gap-20">
+      <section className="mt-16 md:mt-40 pt-12 md:pt-24 border-t border-[var(--border-color)] flex flex-col md:flex-row gap-12 md:gap-20">
         <div className="flex-1 space-y-12">
           <div className="space-y-4">
             <h3 className="text-xs font-black uppercase tracking-[0.3em] text-[var(--accent-orange)] italic">O que evitar</h3>

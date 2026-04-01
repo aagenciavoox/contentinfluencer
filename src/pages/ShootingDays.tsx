@@ -270,22 +270,22 @@ export function ShootingDays() {
             exit={{ opacity: 0, scale: 1.02 }}
             className="space-y-16"
           >
-            <div className="flex items-center justify-between bg-[var(--accent-orange)] p-10 rounded-[3rem] border border-[var(--accent-orange)]/20 shadow-2xl shadow-[var(--accent-orange)]/20 relative overflow-hidden">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 bg-[var(--accent-orange)] p-6 md:p-10 rounded-[2rem] md:rounded-[3rem] border border-[var(--accent-orange)]/20 shadow-2xl shadow-[var(--accent-orange)]/20 relative overflow-hidden">
               <div className="absolute top-0 right-0 w-64 h-64 -mr-32 -mt-32 bg-white/20 blur-3xl rounded-full" />
               <div className="absolute bottom-0 left-0 w-32 h-32 -ml-16 -mb-16 bg-black/10 blur-2xl rounded-full" />
-              
-              <div className="flex items-center gap-8 relative z-10">
-                <div className="w-20 h-20 bg-white/20 backdrop-blur-xl rounded-full flex items-center justify-center text-white border border-white/40 shadow-xl animate-pulse">
-                  <Play className="w-8 h-8 fill-current ml-1" />
+
+              <div className="flex items-center gap-6 relative z-10">
+                <div className="w-14 h-14 md:w-20 md:h-20 bg-white/20 backdrop-blur-xl rounded-full flex items-center justify-center text-white border border-white/40 shadow-xl animate-pulse shrink-0">
+                  <Play className="w-6 h-6 md:w-8 md:h-8 fill-current ml-0.5" />
                 </div>
                 <div>
-                  <h2 className="text-3xl font-black text-white tracking-tight uppercase">Modo Explosão Ativo</h2>
+                  <h2 className="text-xl md:text-3xl font-black text-white tracking-tight uppercase">Modo Explosão Ativo</h2>
                   <p className="text-white/80 font-bold uppercase tracking-widest text-xs mt-1">Foco na Execução • {selectedIds.length} Vídeos na Fila</p>
                 </div>
               </div>
-              <button 
+              <button
                 onClick={handleFinishRecording}
-                className="bg-white text-[var(--accent-orange)] px-10 py-5 rounded-[2rem] text-sm font-black uppercase tracking-[0.2em] hover:scale-105 active:scale-95 transition-all shadow-xl relative z-10"
+                className="w-full sm:w-auto bg-white text-[var(--accent-orange)] px-8 md:px-10 py-4 md:py-5 rounded-[2rem] text-sm font-black uppercase tracking-[0.2em] hover:scale-105 active:scale-95 transition-all shadow-xl relative z-10 text-center"
               >
                 FINALIZAR TUDO
               </button>
@@ -317,13 +317,13 @@ export function ShootingDays() {
                     )}
                     
                     <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-[3rem] overflow-hidden shadow-2xl group transition-all hover:border-[var(--accent-orange)]/40 hover:-translate-y-1">
-                      <div className="p-10 md:p-14 border-b border-[var(--border-color)] bg-[var(--bg-hover)]/30 flex flex-col md:flex-row justify-between items-center gap-8">
+                      <div className="p-6 md:p-14 border-b border-[var(--border-color)] bg-[var(--bg-hover)]/30 flex flex-col md:flex-row justify-between items-start md:items-center gap-6 md:gap-8">
                         <div className="flex items-center gap-8">
                           <span className="w-16 h-16 rounded-[2rem] bg-[var(--text-primary)] text-[var(--bg-primary)] flex items-center justify-center text-2xl font-black shadow-xl">
                             {index + 1}
                           </span>
                           <div>
-                            <h3 className="text-3xl font-black text-[var(--text-primary)] tracking-tight mb-2 uppercase">{content.title}</h3>
+                            <h3 className="text-xl md:text-3xl font-black text-[var(--text-primary)] tracking-tight mb-2 uppercase">{content.title}</h3>
                             <div className="flex gap-4">
                               <span className="text-xs font-black text-[var(--text-tertiary)] bg-[var(--bg-hover)] px-4 py-1 rounded-full uppercase tracking-widest border border-[var(--border-color)]">{content.estimatedDuration} MIN DE TELA</span>
                               <span className="text-xs font-black text-purple-500 bg-purple-500/10 px-4 py-1 rounded-full uppercase tracking-widest border border-purple-500/20">
@@ -333,7 +333,7 @@ export function ShootingDays() {
                           </div>
                         </div>
                       </div>
-                      <div className="p-10 md:p-14 grid grid-cols-1 lg:grid-cols-2 gap-16 md:gap-24">
+                      <div className="p-6 md:p-14 grid grid-cols-1 lg:grid-cols-2 gap-10 md:gap-24">
                         <div className="space-y-8">
                           <div className="flex items-center gap-3">
                             <div className="p-2 bg-[var(--bg-hover)] rounded-xl border border-[var(--border-color)]">

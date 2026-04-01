@@ -157,6 +157,8 @@ export async function fetchAllData(): Promise<Partial<AppState>> {
     notasGerais: b.notas_gerais,
     createdAt: b.created_at,
     // Filtra anotações deletadas também
+    paginasLidas: b.paginas_lidas ?? undefined,
+    totalPaginas: b.total_paginas ?? undefined,
     anotacoes: (b.book_annotations || [])
       .filter((a: any) => !a.deleted_at)
       .map((a: any) => ({
@@ -443,6 +445,8 @@ export async function saveToSupabase(state: AppState) {
         data_fim: b.dataFim || null,
         avaliacao: b.avaliacao || null,
         notas_gerais: b.notasGerais || null,
+        paginas_lidas: b.paginasLidas ?? null,
+        total_paginas: b.totalPaginas ?? null,
         created_at: b.createdAt,
       }))
     ),

@@ -31,7 +31,7 @@ export function Settings() {
           <p className="text-[9px] font-black text-[var(--text-primary)] opacity-30 uppercase tracking-[0.4em] mb-2 italic">
             Sistema
           </p>
-          <h1 className="text-5xl font-black text-[var(--text-primary)] leading-none tracking-tight flex items-center gap-4">
+          <h1 className="text-4xl md:text-5xl font-black text-[var(--text-primary)] leading-none tracking-tight flex items-center gap-4">
             <SettingsIcon className="w-10 h-10 opacity-20" />
             Configurações
           </h1>

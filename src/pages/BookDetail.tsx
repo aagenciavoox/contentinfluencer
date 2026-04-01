@@ -62,6 +62,8 @@ export function BookDetail() {
     avaliacao: livro?.avaliacao as 1 | 2 | 3 | 4 | 5 | undefined,
     notasGerais: livro?.notasGerais ?? '',
     generos: livro?.generos ? [...livro.generos] : [] as GeneroLivro[],
+    paginasLidas: livro?.paginasLidas ?? ('' as number | ''),
+    totalPaginas: livro?.totalPaginas ?? ('' as number | ''),
   }));
   const [infoSalvo, setInfoSalvo] = useState(false);
 
@@ -122,7 +124,15 @@ export function BookDetail() {
   };
 
   const handleSalvarInfo = () => {
-    dispatch({ type: 'UPDATE_BOOK', payload: { ...livro, ...infoLocal } });
+    dispatch({
+      type: 'UPDATE_BOOK',
+      payload: {
+        ...livro,
+        ...infoLocal,
+        paginasLidas: infoLocal.paginasLidas === '' ? undefined : Number(infoLocal.paginasLidas),
+        totalPaginas: infoLocal.totalPaginas === '' ? undefined : Number(infoLocal.totalPaginas),
+      },
+    });
     setInfoSalvo(true);
     setTimeout(() => setInfoSalvo(false), 2000);
   };
@@ -184,18 +194,18 @@ export function BookDetail() {
             <p className="text-xs text-[var(--text-secondary)] opacity-60">{livro.autor}</p>
           </div>
           {/* Abas */}
-          <div className="flex gap-1">
+          <div className="flex gap-1 shrink-0">
             {(['info', 'anotacoes', 'ecossistema'] as Tab[]).map(t => (
               <button
                 key={t}
                 onClick={() => setTab(t)}
-                className={`text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg transition-all ${
+                className={`text-[10px] font-black uppercase tracking-widest px-2 sm:px-3 py-1.5 rounded-lg transition-all whitespace-nowrap ${
                   tab === t
                     ? 'bg-[var(--text-primary)] text-[var(--bg-secondary)]'
                     : 'text-[var(--text-primary)] opacity-40 hover:opacity-70 hover:bg-[var(--bg-hover)]'
                 }`}
               >
-                {t === 'info' ? 'Info' : t === 'anotacoes' ? `Anotações (${livro.anotacoes.length})` : `Ecossistema (${conteudosDoLivro.length})`}
+                {t === 'info' ? 'Info' : t === 'anotacoes' ? `Notas (${livro.anotacoes.length})` : `Eco (${conteudosDoLivro.length})`}
               </button>
             ))}
           </div>
@@ -232,7 +242,7 @@ export function BookDetail() {
 
             {/* Campos */}
             <div className="space-y-6">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-primary)] opacity-30 block mb-1.5">Título</label>
                   <input
@@ -289,7 +299,50 @@ export function BookDetail() {
                     className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)]"
                   />
                 </div>
+                <div>
+                  <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-primary)] opacity-30 block mb-1.5">Páginas Lidas</label>
+                  <input
+                    type="number"
+                    min={0}
+                    value={infoLocal.paginasLidas}
+                    onChange={e => setInfoLocal(prev => ({ ...prev, paginasLidas: e.target.value === '' ? '' : Number(e.target.value) }))}
+                    placeholder="Ex: 120"
+                    className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:opacity-30"
+                  />
+                </div>
+                <div>
+                  <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-primary)] opacity-30 block mb-1.5">Total de Páginas</label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={infoLocal.totalPaginas}
+                    onChange={e => setInfoLocal(prev => ({ ...prev, totalPaginas: e.target.value === '' ? '' : Number(e.target.value) }))}
+                    placeholder="Ex: 380"
+                    className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:opacity-30"
+                  />
+                </div>
               </div>
+
+              {/* Barra de progresso (só aparece se totalPaginas preenchido) */}
+              {(infoLocal.totalPaginas as number) > 0 && (
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-primary)] opacity-30">Progresso de Leitura</label>
+                    <span className="text-[10px] font-black text-[var(--accent-purple)]">
+                      {Math.min(100, Math.round(((infoLocal.paginasLidas as number || 0) / (infoLocal.totalPaginas as number)) * 100))}%
+                    </span>
+                  </div>
+                  <div className="h-2 w-full bg-[var(--bg-hover)] rounded-full overflow-hidden border border-[var(--border-color)]">
+                    <div
+                      className="h-full bg-[var(--accent-purple)] rounded-full transition-all duration-500"
+                      style={{ width: `${Math.min(100, Math.round(((infoLocal.paginasLidas as number || 0) / (infoLocal.totalPaginas as number)) * 100))}%` }}
+                    />
+                  </div>
+                  <p className="text-[9px] text-[var(--text-tertiary)] mt-1 opacity-50">
+                    {infoLocal.paginasLidas as number || 0} de {infoLocal.totalPaginas as number} páginas
+                  </p>
+                </div>
+              )}
 
               {/* Gêneros */}
               <div>

@@ -35,7 +35,7 @@ function PilarForm({
 
   return (
     <div className="bg-[var(--bg-primary)] rounded-2xl border border-[var(--border-color)] p-6 space-y-4">
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-primary)] opacity-40 block mb-1.5">Nome *</label>
           <input

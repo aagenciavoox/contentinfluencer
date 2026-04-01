@@ -217,7 +217,7 @@ export function Ideas() {
               exit={{ opacity: 0, scale: 0.9, y: 30 }}
               className="relative w-full max-w-3xl bg-[var(--bg-secondary)] rounded-[2.5rem] shadow-[0_32px_64px_-12px_rgba(0,0,0,0.5)] overflow-hidden flex flex-col max-h-[85vh] border border-[var(--border-color)]"
             >
-              <div className="flex items-center justify-between p-8 border-b border-[var(--border-color)]">
+              <div className="flex items-center justify-between p-5 md:p-8 border-b border-[var(--border-color)]">
                 <div className="flex items-center gap-4 text-[10px] text-[var(--text-tertiary)] font-black uppercase tracking-[0.2em]">
                   <Clock className="w-4 h-4" />
                   {format(new Date(viewingIdea.createdAt), "dd 'DE' MMMM 'ÀS' HH:mm", { locale: ptBR })}
@@ -230,7 +230,7 @@ export function Ideas() {
                 </button>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-10 md:p-14 custom-scrollbar">
+              <div className="flex-1 overflow-y-auto p-6 md:p-14 custom-scrollbar">
                 <div className="flex flex-wrap gap-3 mb-10">
                   {viewingIdea.pillar && (
                     <span className="px-4 py-1.5 bg-[var(--accent-blue)]/10 text-[var(--accent-blue)] text-[10px] font-black uppercase tracking-[0.2em] rounded-full border border-[var(--accent-blue)]/20">
@@ -270,7 +270,7 @@ export function Ideas() {
                 )}
               </div>
 
-              <div className="p-8 bg-[var(--bg-hover)] border-t border-[var(--border-color)] flex flex-wrap items-center justify-between gap-6">
+              <div className="p-5 md:p-8 bg-[var(--bg-hover)] border-t border-[var(--border-color)] flex flex-wrap items-center justify-between gap-4 md:gap-6">
                 <div className="flex items-center gap-3">
                   <button
                     onClick={() => handleDelete(viewingIdea.id)}
@@ -300,7 +300,7 @@ export function Ideas() {
                 {!viewingIdea.archived && !isEditing && (
                   <button
                     onClick={() => handlePromote(viewingIdea)}
-                    className="flex items-center gap-3 bg-[var(--text-primary)] text-[var(--bg-primary)] px-8 py-4 rounded-2xl text-sm font-black hover:scale-105 transition-all shadow-2xl shadow-black/20"
+                    className="flex items-center justify-center gap-3 bg-[var(--text-primary)] text-[var(--bg-primary)] px-6 md:px-8 py-3 md:py-4 rounded-2xl text-sm font-black hover:scale-105 transition-all shadow-2xl shadow-black/20 w-full sm:w-auto"
                   >
                     PROMOVER PARA CONTEÚDO <ArrowUpRight className="w-5 h-5" />
                   </button>

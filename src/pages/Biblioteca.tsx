@@ -87,12 +87,12 @@ export function Biblioteca() {
     <div className="min-h-screen bg-[var(--bg-secondary)]">
       <div className="max-w-7xl mx-auto px-6 md:px-12 py-12">
         {/* Header */}
-        <div className="flex items-end justify-between mb-10">
+        <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between gap-4 mb-10">
           <div>
             <p className="text-[9px] font-black text-[var(--text-primary)] opacity-30 uppercase tracking-[0.4em] mb-2 italic">
               Biblioteca
             </p>
-            <h1 className="text-5xl font-black text-[var(--text-primary)] leading-none tracking-tight">
+            <h1 className="text-4xl md:text-5xl font-black text-[var(--text-primary)] leading-none tracking-tight">
               Seus Livros
             </h1>
             <p className="text-sm text-[var(--text-secondary)] mt-2 opacity-60">
@@ -101,7 +101,7 @@ export function Biblioteca() {
           </div>
           <button
             onClick={() => setModalAberto(true)}
-            className="flex items-center gap-2 px-5 py-3 bg-[var(--text-primary)] text-[var(--bg-primary)] rounded-2xl text-xs font-black uppercase tracking-widest hover:scale-[1.03] transition-all shadow-lg"
+            className="flex items-center gap-2 px-5 py-3 bg-[var(--text-primary)] text-[var(--bg-primary)] rounded-2xl text-xs font-black uppercase tracking-widest hover:scale-[1.03] transition-all shadow-lg shrink-0"
           >
             <Plus className="w-4 h-4" />
             Adicionar Livro

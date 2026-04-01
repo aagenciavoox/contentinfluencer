@@ -58,7 +58,7 @@ export function Results() {
         </p>
       </header>
 
-      <div className="flex bg-[var(--bg-secondary)] p-1.5 rounded-2xl border border-[var(--border-color)] mb-12 shadow-sm w-fit">
+      <div className="flex bg-[var(--bg-secondary)] p-1.5 rounded-2xl border border-[var(--border-color)] mb-12 shadow-sm w-full sm:w-fit">
         <button 
           onClick={() => { setResultType('organic'); setSelectedId(''); }}
           className={cn(
@@ -79,10 +79,10 @@ export function Results() {
         </button>
       </div>
 
-      <motion.form 
+      <motion.form
         layout
-        onSubmit={handleAddResult} 
-        className="mb-20 md:mb-24 p-10 md:p-14 bg-[var(--bg-secondary)] rounded-[3rem] border border-[var(--border-color)] shadow-2xl relative overflow-hidden group"
+        onSubmit={handleAddResult}
+        className="mb-20 md:mb-24 p-6 md:p-14 bg-[var(--bg-secondary)] rounded-[2rem] md:rounded-[3rem] border border-[var(--border-color)] shadow-2xl relative overflow-hidden group"
       >
         <div className="absolute top-0 right-0 p-10 opacity-[0.03] group-hover:opacity-[0.06] transition-opacity pointer-events-none">
           <BarChart3 className="w-64 h-64" />
@@ -208,17 +208,17 @@ export function Results() {
             const type = result.contentId ? 'Orgânico' : 'Parceria';
 
             return (
-              <motion.div 
+              <motion.div
                 layout
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}
-                key={result.id} 
-                className="p-10 md:p-14 bg-[var(--bg-secondary)] rounded-[3rem] border border-[var(--border-color)] shadow-xl relative group hover:shadow-2xl transition-all overflow-hidden mb-10"
+                key={result.id}
+                className="p-6 md:p-14 bg-[var(--bg-secondary)] rounded-[2rem] md:rounded-[3rem] border border-[var(--border-color)] shadow-xl relative group hover:shadow-2xl transition-all overflow-hidden mb-10"
               >
                 <div className={`absolute left-0 top-0 w-2 h-full ${type === 'Orgânico' ? 'bg-[var(--accent-blue)]' : 'bg-[var(--accent-orange)]'} opacity-40`} />
 
-                <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-12 gap-8">
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-8 md:mb-12 gap-6 md:gap-8">
                   <div className="space-y-4">
                     <div className="flex items-center gap-4">
                       <span className={cn(

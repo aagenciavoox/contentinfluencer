@@ -154,7 +154,7 @@ export function ContentDetailModal({ content, onClose, initialLivroOrigemId }: C
             />
 
             {/* Metadados */}
-            <div className="grid grid-cols-2 gap-y-4 gap-x-8 mb-10 py-6 border-y border-[var(--border-color)]">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-8 mb-10 py-6 border-y border-[var(--border-color)]">
               {/* Status */}
               <div className="flex items-center gap-4">
                 <span className="text-xs font-bold text-[var(--text-primary)] opacity-30 w-20 shrink-0">Status</span>

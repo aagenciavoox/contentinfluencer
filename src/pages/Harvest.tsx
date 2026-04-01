@@ -304,7 +304,7 @@ export function Harvest() {
                 key={dateStr}
                 onClick={() => setSelectedDay(isSelected ? null : day)}
                 className={cn(
-                  'min-h-[130px] p-3 border-r border-b border-[var(--border-color)] transition-colors text-left w-full',
+                  'min-h-[60px] md:min-h-[130px] p-1.5 md:p-3 border-r border-b border-[var(--border-color)] transition-colors text-left w-full',
                   !isCurrentMonth && 'bg-[var(--bg-hover)]/20 opacity-30',
                   (i + 1) % 7 === 0 && 'border-r-0',
                   isSelected
@@ -331,30 +331,42 @@ export function Harvest() {
                   )}
                 </div>
 
-                {/* Itens do dia */}
+                {/* Itens do dia — labels on md+, dots on mobile */}
                 <div className="space-y-1">
-                  {items.slice(0, 3).map(item => (
-                    <div
-                      key={item.id}
-                      className={cn(
-                        'px-1.5 py-1 rounded-lg text-[8px] font-black leading-tight border truncate uppercase tracking-tight',
-                        ITEM_CLASSES[item.tipo](item.status)
-                      )}
-                      style={
-                        item.tipo === 'parceria' && item.cor
-                          ? { borderColor: item.cor }
-                          : {}
-                      }
-                      title={item.titulo}
-                    >
-                      <span className="truncate block">{item.titulo}</span>
-                    </div>
-                  ))}
-                  {items.length > 3 && (
-                    <p className="text-[8px] font-black text-[var(--text-primary)] opacity-30 pl-1">
-                      +{items.length - 3} mais
-                    </p>
-                  )}
+                  {/* Mobile: colored dots only */}
+                  <div className="flex flex-wrap gap-1 md:hidden">
+                    {items.slice(0, 4).map(item => (
+                      <div
+                        key={item.id}
+                        className={cn('w-2 h-2 rounded-full border', ITEM_CLASSES[item.tipo](item.status))}
+                        style={item.tipo === 'parceria' && item.cor ? { backgroundColor: item.cor } : {}}
+                      />
+                    ))}
+                    {items.length > 4 && (
+                      <span className="text-[7px] font-black text-[var(--text-primary)] opacity-40">+{items.length - 4}</span>
+                    )}
+                  </div>
+                  {/* Desktop: full labels */}
+                  <div className="hidden md:block space-y-1">
+                    {items.slice(0, 3).map(item => (
+                      <div
+                        key={item.id}
+                        className={cn(
+                          'px-1.5 py-1 rounded-lg text-[8px] font-black leading-tight border truncate uppercase tracking-tight',
+                          ITEM_CLASSES[item.tipo](item.status)
+                        )}
+                        style={item.tipo === 'parceria' && item.cor ? { borderColor: item.cor } : {}}
+                        title={item.titulo}
+                      >
+                        <span className="truncate block">{item.titulo}</span>
+                      </div>
+                    ))}
+                    {items.length > 3 && (
+                      <p className="text-[8px] font-black text-[var(--text-primary)] opacity-30 pl-1">
+                        +{items.length - 3} mais
+                      </p>
+                    )}
+                  </div>
                 </div>
               </button>
             );
