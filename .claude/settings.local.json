@@ -33,7 +33,11 @@
       "Bash(powershell -Command \"cd 'C:\\\\Users\\\\mente\\\\Downloads\\\\content-os'; npx pwa-assets-generator --help 2>&1 | Select-Object -First 20\")",
       "Bash(powershell -Command \"cd 'C:\\\\Users\\\\mente\\\\Downloads\\\\content-os'; npx pwa-assets-generator --preset minimal public/favicon.svg 2>&1\")",
       "Bash(powershell -Command \"cd 'C:\\\\Users\\\\mente\\\\Downloads\\\\content-os'; npm run build 2>&1\")",
-      "Bash(powershell -Command \"Remove-Item 'C:\\\\Users\\\\mente\\\\Downloads\\\\content-os\\\\generate-icons.mjs'\")"
+      "Bash(powershell -Command \"Remove-Item 'C:\\\\Users\\\\mente\\\\Downloads\\\\content-os\\\\generate-icons.mjs'\")",
+      "Bash(xargs grep:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m ':*)",
+      "Bash(git push:*)"
     ]
   }
 }
