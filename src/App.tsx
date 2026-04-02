@@ -3,13 +3,13 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AppProvider } from './context/AppContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { Sidebar } from './components/Sidebar';
-import { DNAVozDrawer } from './components/DNAVozDrawer';
 import { CommandPalette } from './components/CommandPalette';
 import { Onboarding } from './components/Onboarding';
 import { Dashboard } from './pages/Dashboard';
 import { Contents } from './pages/Contents';
 import { Ideas } from './pages/Ideas';
 import { SeriesDetail } from './pages/Series';
+import { Arquivos } from './pages/Arquivos';
 import { Results } from './pages/Results';
 import { ProjectCalendar } from './pages/ProjectCalendar';
 import { EditorialCalendar } from './pages/EditorialCalendar';
@@ -19,6 +19,7 @@ import { Settings } from './pages/Settings';
 import { PilaresSettings } from './pages/settings/Pilares';
 import { LooksSettings } from './pages/settings/LooksScenarios';
 import { RegrasDeOuro } from './pages/settings/RegrasDeOuro';
+import { DNAVozSettings } from './pages/settings/DNAVoz';
 import { Login } from './pages/Login';
 import { Menu, Loader2 } from 'lucide-react';
 import { useAppContext } from './context/AppContext';
@@ -26,7 +27,6 @@ import { useAppContext } from './context/AppContext';
 function AppContent() {
   const { state } = useAppContext();
   const { user, loading } = useAuth();
-  const [isDNAOpen, setIsDNAOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
 
@@ -86,10 +86,6 @@ function AppContent() {
       <Sidebar
         isOpen={isMobileMenuOpen}
         onClose={() => setIsMobileMenuOpen(false)}
-        onOpenDNA={() => {
-          setIsDNAOpen(true);
-          setIsMobileMenuOpen(false);
-        }}
       />
 
       <main className="flex-1 overflow-y-auto bg-[var(--bg-secondary)]">
@@ -97,6 +93,7 @@ function AppContent() {
           <Route path="/" element={<Dashboard />} />
           <Route path="/contents" element={<Contents />} />
           <Route path="/ideas" element={<Ideas />} />
+          <Route path="/arquivos" element={<Arquivos />} />
           <Route path="/series/:id" element={<SeriesDetail />} />
           <Route path="/results" element={<Results />} />
           <Route path="/calendar" element={<ProjectCalendar />} />
@@ -109,11 +106,10 @@ function AppContent() {
           <Route path="/settings/pilares" element={<PilaresSettings />} />
           <Route path="/settings/looks" element={<LooksSettings />} />
           <Route path="/settings/regras" element={<RegrasDeOuro />} />
+          <Route path="/settings/dna" element={<DNAVozSettings />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
-
-      <DNAVozDrawer isOpen={isDNAOpen} onClose={() => setIsDNAOpen(false)} />
 
       {/* Onboarding — aparece na primeira vez */}
       {!state.onboardingCompleto && <Onboarding />}

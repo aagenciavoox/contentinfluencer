@@ -12,7 +12,9 @@ function contarHashtags(texto: string): number {
   return (texto.match(/#\w+/g) || []).length;
 }
 
-export function validateWeeklyContent(contents: Content[], weekStart: Date): Violation[] {
+import { Pilar } from '../types';
+
+export function validateWeeklyContent(contents: Content[], weekStart: Date, pilares?: Pilar[]): Violation[] {
   const interval = getWeekInterval(weekStart);
 
   const semanais = contents.filter(c => {
@@ -131,6 +133,31 @@ export function validateWeeklyContent(contents: Content[], weekStart: Date): Vio
           type: 'warning',
           message: `Pilar "${pilar}" domina ${Math.round(pct * 100)}% da semana (máx. recomendado: 60%)`,
           affectedContentIds: semanais.filter(c => c.pillar === pilar).map(c => c.id),
+        });
+      }
+    });
+  }
+
+  // RG-MIX: Harmonia de Mix (Metas Semanais por Pilar)
+  if (pilares && pilares.length > 0) {
+    pilares.forEach(pilar => {
+      if (!pilar.metaSemanalMax || pilar.metaSemanalMax === 0) return;
+      
+      const count = semanais.filter(c => c.pillar === pilar.nome).length;
+      
+      if (count < (pilar.metaSemanalMin || 0)) {
+        violations.push({
+          ruleId: 'RG-MIX',
+          type: 'info',
+          message: `Mix Semanal: Pilar "${pilar.nome}" tem ${count} posts (meta mín: ${pilar.metaSemanalMin})`,
+          affectedContentIds: [],
+        });
+      } else if (count > pilar.metaSemanalMax) {
+        violations.push({
+          ruleId: 'RG-MIX',
+          type: 'warning',
+          message: `Mix Semanal: Pilar "${pilar.nome}" tem ${count} posts (meta máx: ${pilar.metaSemanalMax})`,
+          affectedContentIds: []
         });
       }
     });

@@ -181,7 +181,7 @@ export function Onboarding() {
                       value={promessa}
                       onChange={e => setPromessa(e.target.value)}
                       placeholder="Ex: Faço você amar ler e rir da vida literária."
-                      className="w-full text-sm font-bold bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-[1.2rem] px-5 py-4 focus:border-[var(--text-primary)]/40 transition-all resize-none text-[var(--text-primary)] placeholder:opacity-20 leading-relaxed"
+                      className="w-full"
                       rows={2}
                     />
                     <p className="text-[9px] text-[var(--text-secondary)] opacity-40 font-medium px-1">
@@ -201,7 +201,7 @@ export function Onboarding() {
                       value={publico}
                       onChange={e => setPublico(e.target.value)}
                       placeholder="Ex: Leitoras de Fantasy apaixonadas por dark romance."
-                      className="w-full text-sm font-bold bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-[1.2rem] px-5 py-4 focus:border-[var(--text-primary)]/40 transition-all resize-none text-[var(--text-primary)] placeholder:opacity-20 leading-relaxed"
+                      className="w-full"
                       rows={2}
                     />
                     <p className="text-[9px] text-[var(--text-secondary)] opacity-40 font-medium px-1">
@@ -221,7 +221,7 @@ export function Onboarding() {
                       value={tom}
                       onChange={e => setTom(e.target.value)}
                       placeholder="Ex: Irônica, inteligente e viciada em detalhes."
-                      className="w-full text-sm font-bold bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-[1.2rem] px-5 py-4 focus:border-[var(--text-primary)]/40 transition-all resize-none text-[var(--text-primary)] placeholder:opacity-20 leading-relaxed"
+                      className="w-full"
                       rows={2}
                     />
                     <p className="text-[9px] text-[var(--text-secondary)] opacity-40 font-medium px-1">

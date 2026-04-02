@@ -1,19 +1,25 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Palette, Shirt, ShieldCheck, ChevronRight, Settings as SettingsIcon, Rocket } from 'lucide-react';
+import { Palette, Shirt, ShieldCheck, ChevronRight, Settings as SettingsIcon, Rocket, Fingerprint } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
+import { ConfirmModal } from '../components/ConfirmModal';
 
 export function Settings() {
   const navigate = useNavigate();
   const { dispatch } = useAppContext();
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   const handleResetOnboarding = () => {
-    if (confirm('Deseja reiniciar o Guia de Configuração? Isso permitirá que você reavalie seus pilares e DNA da voz agora mesmo.')) {
-      dispatch({ type: 'SET_ONBOARDING_COMPLETO', payload: false });
-      navigate('/');
-    }
+    setConfirmOpen(true);
   };
 
   const items = [
+    {
+      to: '/settings/dna',
+      icon: Fingerprint,
+      title: 'DNA da Voz',
+      desc: 'Promessa central, público, tom de voz e limites do seu conteúdo',
+    },
     {
       to: '/settings/pilares',
       icon: Palette,
@@ -35,8 +41,9 @@ export function Settings() {
   ];
 
   return (
+    <>
     <div className="min-h-screen bg-[var(--bg-secondary)]">
-      <div className="max-w-3xl mx-auto px-6 md:px-12 py-12">
+      <div className="max-w-3xl mx-auto px-6 md:px-12 py-10 md:py-16">
         <div className="mb-10">
           <p className="text-[9px] font-black text-[var(--text-primary)] opacity-30 uppercase tracking-[0.4em] mb-2 italic">
             Sistema
@@ -83,5 +90,17 @@ export function Settings() {
         </div>
       </div>
     </div>
+    <ConfirmModal
+      open={confirmOpen}
+      message="Deseja reiniciar o Guia de Configuração? Isso permitirá que você reavalie seus pilares e DNA da voz agora mesmo."
+      confirmLabel="Reiniciar"
+      onConfirm={() => {
+        dispatch({ type: 'SET_ONBOARDING_COMPLETO', payload: false });
+        setConfirmOpen(false);
+        navigate('/');
+      }}
+      onCancel={() => setConfirmOpen(false)}
+    />
+    </>
   );
 }

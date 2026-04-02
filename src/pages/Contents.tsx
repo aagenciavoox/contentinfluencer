@@ -1,5 +1,7 @@
 import { useState, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
+import { ConfirmModal } from '../components/ConfirmModal';
 import { PILLARS, FORMATS, STATUS_STAGES } from '../constants';
 import { Plus, Table as TableIcon, Layers, Calendar, X, Check, Video, Trash2 } from 'lucide-react';
 import { Content, ContentStatus } from '../types';
@@ -17,7 +19,8 @@ type SortDirection = 'asc' | 'desc';
 
 export function Contents() {
   const { state, dispatch } = useAppContext();
-  const [filterStatus, setFilterStatus] = useState<string>('Todos');
+  const [searchParams] = useSearchParams();
+  const [filterStatus, setFilterStatus] = useState<string>(searchParams.get('status') || 'Todos');
   const [filterSeries, setFilterSeries] = useState<string>('Todas');
   const [filterPillar, setFilterPillar] = useState<string>('Todos');
   const [mainTab, setMainTab] = useState<'inventory' | 'recording'>('inventory');
@@ -31,6 +34,7 @@ export function Contents() {
   const [bulkStatus, setBulkStatus] = useState<ContentStatus>('Pronto para Gravar');
   const [isCreatingBlock, setIsCreatingBlock] = useState(false);
   const [blockName, setBlockName] = useState('');
+  const [confirm, setConfirm] = useState<{ message: string; onConfirm: () => void } | null>(null);
 
   const filteredContents = useMemo(() => {
     return state.contents.filter(c => {
@@ -129,12 +133,7 @@ export function Contents() {
   };
 
   const handleBulkDelete = () => {
-    if (window.confirm(`Tem certeza que deseja deletar ${selectedIds.size} itens?`)) {
-      selectedIds.forEach(id => {
-        dispatch({ type: 'DELETE_CONTENT', payload: id });
-      });
-      setSelectedIds(new Set());
-    }
+    setConfirm({ message: `Tem certeza que deseja deletar ${selectedIds.size} itens?`, onConfirm: () => { selectedIds.forEach(id => { dispatch({ type: 'DELETE_CONTENT', payload: id }); }); setSelectedIds(new Set()); } });
   };
 
   const handleCreateBlock = () => {
@@ -378,6 +377,12 @@ export function Contents() {
           onClose={() => setSelectedContent(null)}
         />
       )}
+      <ConfirmModal
+        open={!!confirm}
+        message={confirm?.message || ''}
+        onConfirm={() => { confirm?.onConfirm(); setConfirm(null); }}
+        onCancel={() => setConfirm(null)}
+      />
     </div>
   );
 }

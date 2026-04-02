@@ -7,6 +7,7 @@ import { ptBR } from 'date-fns/locale';
 import { Idea, Content } from '../types';
 import { cn } from '../lib/utils';
 import { BottomSheetModal } from '../components/BottomSheetModal';
+import { ConfirmModal } from '../components/ConfirmModal';
 import { PageGuide } from '../components/PageGuide';
 
 export function Ideas() {
@@ -18,6 +19,7 @@ export function Ideas() {
   const [viewingIdea, setViewingIdea] = useState<Idea | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState('');
+  const [confirm, setConfirm] = useState<{ message: string; onConfirm: () => void } | null>(null);
 
   const allIdeas = state.ideas
     .filter(idea => !idea.archived)
@@ -63,10 +65,7 @@ export function Ideas() {
   };
 
   const handleDelete = (id: string) => {
-    if (window.confirm('Tem certeza que deseja excluir esta ideia?')) {
-      dispatch({ type: 'DELETE_IDEA', payload: id });
-      setViewingIdea(null);
-    }
+    setConfirm({ message: 'Tem certeza que deseja excluir esta ideia?', onConfirm: () => { dispatch({ type: 'DELETE_IDEA', payload: id }); setViewingIdea(null); } });
   };
 
   const handleUpdate = () => {
@@ -276,7 +275,7 @@ export function Ideas() {
               <div className="flex items-center gap-3">
                 <button
                   onClick={() => handleDelete(viewingIdea.id)}
-                  className="p-3 text-red-500 hover:bg-red-500/10 rounded-2xl transition-all"
+                  className="p-3 text-[var(--accent-pink)] hover:bg-[var(--accent-pink)]/10 rounded-2xl transition-all"
                   title="Excluir Definitivamente"
                 >
                   <Trash2 className="w-5 h-5" />
@@ -311,6 +310,12 @@ export function Ideas() {
           </>
         )}
       </BottomSheetModal>
+      <ConfirmModal
+        open={!!confirm}
+        message={confirm?.message || ''}
+        onConfirm={() => { confirm?.onConfirm(); setConfirm(null); }}
+        onCancel={() => setConfirm(null)}
+      />
     </div>
   );
 }

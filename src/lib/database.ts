@@ -191,6 +191,8 @@ export async function fetchAllData(): Promise<Partial<AppState>> {
     hashtagsYouTube: p.hashtags_youtube || '',
     templateLegenda: p.template_legenda || '',
     ativo: p.ativo ?? true,
+    metaSemanalMin: p.meta_semanal_min ?? 0,
+    metaSemanalMax: p.meta_semanal_max ?? 0,
   }));
 
   if (looks) state.looks = looks.map(l => ({
@@ -384,6 +386,8 @@ export async function saveToSupabase(state: AppState) {
         hashtags_youtube: p.hashtagsYouTube || '',
         template_legenda: p.templateLegenda || '',
         ativo: p.ativo ?? true,
+        meta_semanal_min: p.metaSemanalMin ?? 0,
+        meta_semanal_max: p.metaSemanalMax ?? 0,
         user_id: userId,
       }))
     ),

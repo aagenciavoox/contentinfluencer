@@ -48,7 +48,7 @@ export function Results() {
             <div 
               key={content.id}
               onClick={() => openMetricsModal(content)}
-              className="p-6 md:p-8 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-[2rem] hover:shadow-2xl transition-all group flex flex-col justify-between cursor-pointer hover:-translate-y-1 hover:border-[var(--text-primary)]/30"
+              className="p-6 md:p-8 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-3xl hover:shadow-2xl transition-all group flex flex-col justify-between cursor-pointer hover:-translate-y-1 hover:border-[var(--text-primary)]/30"
             >
               <div>
                 <div className="flex justify-between items-start mb-6">
@@ -93,7 +93,7 @@ export function Results() {
         })}
 
         {postedContents.length === 0 && (
-          <div className="col-span-full py-32 text-center border-2 border-dashed border-[var(--border-color)] rounded-[3rem] opacity-30 flex flex-col items-center gap-6">
+          <div className="col-span-full py-32 text-center border-2 border-dashed border-[var(--border-color)] rounded-3xl opacity-30 flex flex-col items-center gap-6">
             <CheckCircle2 className="w-12 h-12" />
             <p className="text-sm font-black uppercase tracking-[0.3em] italic">Nenhum conteúdo postado ainda</p>
           </div>
@@ -164,7 +164,7 @@ function MetricsModal({ content, existingResult, onClose }: { content: Content, 
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 20 }}
-        className="fixed inset-x-4 top-[5%] md:inset-x-auto md:left-1/2 md:-translate-x-1/2 md:w-[800px] h-[90vh] bg-[var(--bg-primary)] border border-[var(--border-color)] shadow-2xl z-50 rounded-[2rem] overflow-hidden flex flex-col"
+        className="fixed inset-x-4 top-[5%] md:inset-x-auto md:left-1/2 md:-translate-x-1/2 md:w-[800px] h-[90vh] bg-[var(--bg-primary)] border border-[var(--border-color)] shadow-2xl z-50 rounded-3xl overflow-hidden flex flex-col"
       >
         <div className="p-6 md:p-8 border-b border-[var(--border-color)] bg-[var(--bg-secondary)] flex justify-between items-center shrink-0">
           <div>
@@ -238,7 +238,7 @@ function MetricsModal({ content, existingResult, onClose }: { content: Content, 
           <button 
             type="submit"
             form="metrics-form"
-            className="w-full md:w-auto bg-[var(--text-primary)] text-[var(--bg-primary)] px-10 py-4 md:py-5 rounded-[1.5rem] md:rounded-[2rem] text-xs font-black uppercase tracking-[0.2em] hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl"
+            className="w-full md:w-auto bg-[var(--text-primary)] text-[var(--bg-primary)] px-10 py-4 md:py-5 rounded-3xl text-xs font-black uppercase tracking-[0.2em] hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl"
           >
             {existingResult ? 'Atualizar Métricas' : 'Salvar Métricas'}
           </button>

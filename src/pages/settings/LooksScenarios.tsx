@@ -57,12 +57,12 @@ export function LooksSettings() {
 
   return (
     <div className="min-h-screen bg-[var(--bg-secondary)]">
-      <div className="max-w-3xl mx-auto px-6 md:px-12 py-12">
+      <div className="max-w-3xl mx-auto px-6 md:px-12 py-10 md:py-16">
         <div className="flex items-center gap-4 mb-10">
           <button onClick={() => navigate('/settings')} className="p-2 hover:bg-[var(--bg-hover)] rounded-xl">
             <ArrowLeft className="w-5 h-5 text-[var(--text-primary)] opacity-50" />
           </button>
-          <h1 className="text-3xl font-black text-[var(--text-primary)]">Looks & Cenários</h1>
+          <h1 className="text-4xl font-black text-[var(--text-primary)] tracking-tight">Looks & Cenários</h1>
         </div>
 
         {/* LOOKS */}
@@ -161,8 +161,8 @@ export function LooksSettings() {
                         <button onClick={() => setEditLookId(look.id)} className="p-1.5 hover:bg-[var(--bg-hover)] rounded-lg">
                           <Edit2 className="w-3.5 h-3.5 text-[var(--text-primary)] opacity-40" />
                         </button>
-                        <button onClick={() => dispatch({ type: 'DELETE_LOOK', payload: look.id })} className="p-1.5 hover:bg-red-50 rounded-lg">
-                          <Trash2 className="w-3.5 h-3.5 text-red-500 opacity-40 hover:opacity-100" />
+                        <button onClick={() => dispatch({ type: 'DELETE_LOOK', payload: look.id })} className="p-1.5 hover:bg-[var(--accent-pink)]/10 rounded-lg">
+                          <Trash2 className="w-3.5 h-3.5 text-[var(--accent-pink)] opacity-40 hover:opacity-100" />
                         </button>
                       </div>
                     </>
@@ -250,8 +250,8 @@ export function LooksSettings() {
                       : <ToggleLeft className="w-5 h-5 text-[var(--text-primary)] opacity-30" />
                     }
                   </button>
-                  <button onClick={() => dispatch({ type: 'DELETE_CENARIO', payload: cenario.id })} className="p-1.5 hover:bg-red-50 rounded-lg">
-                    <Trash2 className="w-3.5 h-3.5 text-red-500 opacity-40 hover:opacity-100" />
+                  <button onClick={() => dispatch({ type: 'DELETE_CENARIO', payload: cenario.id })} className="p-1.5 hover:bg-[var(--accent-pink)]/10 rounded-lg">
+                    <Trash2 className="w-3.5 h-3.5 text-[var(--accent-pink)] opacity-40 hover:opacity-100" />
                   </button>
                 </div>
               </div>

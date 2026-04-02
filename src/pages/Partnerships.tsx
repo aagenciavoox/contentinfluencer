@@ -8,6 +8,7 @@ import { Partnership, PartnershipStatus } from '../types';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import { useIsMobile } from '../hooks/useIsMobile';
+import { ConfirmModal } from '../components/ConfirmModal';
 
 export function Partnerships() {
   const { state, dispatch } = useAppContext();
@@ -17,6 +18,7 @@ export function Partnerships() {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [selectedPartnership, setSelectedPartnership] = useState<Partnership | null>(null);
   const [viewMode, setViewMode] = useState<'table' | 'pipeline'>('pipeline');
+  const [confirm, setConfirm] = useState<{ message: string; onConfirm: () => void } | null>(null);
 
   const filteredPartnerships = useMemo(() => {
     return state.partnerships.filter(p => {
@@ -73,10 +75,7 @@ export function Partnerships() {
   };
 
   const handleDeletePartnership = (id: string) => {
-    if (window.confirm('Tem certeza que deseja excluir esta parceria?')) {
-      dispatch({ type: 'DELETE_PARTNERSHIP', payload: id });
-      setSelectedPartnership(null);
-    }
+    setConfirm({ message: 'Tem certeza que deseja excluir esta parceria?', onConfirm: () => { dispatch({ type: 'DELETE_PARTNERSHIP', payload: id }); setSelectedPartnership(null); } });
   };
 
   const isMobile = useIsMobile();
@@ -291,10 +290,10 @@ export function Partnerships() {
                   <div className="flex gap-4">
                     <button 
                       onClick={() => handleDeletePartnership(selectedPartnership.id)}
-                      className="p-3 hover:bg-red-500/10 rounded-2xl transition-all group"
+                      className="p-3 hover:bg-[var(--accent-pink)]/10 rounded-2xl transition-all group"
                       title="Excluir Projeto"
                     >
-                      <Trash2 className="w-5 h-5 text-red-500 opacity-40 group-hover:opacity-100" />
+                      <Trash2 className="w-5 h-5 text-[var(--accent-pink)] opacity-40 group-hover:opacity-100" />
                     </button>
                   </div>
                 </div>
@@ -458,6 +457,12 @@ export function Partnerships() {
           </>
         )}
       </AnimatePresence>
+      <ConfirmModal
+        open={!!confirm}
+        message={confirm?.message || ''}
+        onConfirm={() => { confirm?.onConfirm(); setConfirm(null); }}
+        onCancel={() => setConfirm(null)}
+      />
     </div>
   );
 }

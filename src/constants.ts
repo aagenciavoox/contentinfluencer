@@ -84,6 +84,8 @@ export const INITIAL_PILARES: Pilar[] = [
     templateLegenda:
       'Gancho: [Situação absurda/engraçada]\n\nCorpo: [Desenvolvimento do humor]\n\nCTA: [Marca quem é assim / Salva pra mandar pra alguém]',
     ativo: true,
+    metaSemanalMin: 1,
+    metaSemanalMax: 2,
   },
   {
     id: 'pilar-analise',
@@ -108,6 +110,8 @@ export const INITIAL_PILARES: Pilar[] = [
     templateLegenda:
       'Gancho: [Situação que todo leitor já viveu]\n\nCorpo: [Desenvolvimento da identificação]\n\nCTA: [É sobre você sim / Marca quem precisa ver isso]',
     ativo: true,
+    metaSemanalMin: 1,
+    metaSemanalMax: 2,
   },
   {
     id: 'pilar-opiniao',
@@ -132,6 +136,8 @@ export const INITIAL_PILARES: Pilar[] = [
     templateLegenda:
       'Gancho: [Por que esse livro é diferente]\n\nCorpo: [O que você vai encontrar + para quem é]\n\nCTA: [Já leu? Me conta / Link na bio]',
     ativo: true,
+    metaSemanalMin: 2,
+    metaSemanalMax: 3,
   },
   {
     id: 'pilar-culturapop',
@@ -144,6 +150,8 @@ export const INITIAL_PILARES: Pilar[] = [
     templateLegenda:
       'Gancho: [Polêmica ou comparação provocativa]\n\nCorpo: [Análise e argumentos]\n\nCTA: [Qual lado você escolhe? / Comenta aí]',
     ativo: true,
+    metaSemanalMin: 1,
+    metaSemanalMax: 2,
   },
   {
     id: 'pilar-ciencia',
@@ -156,6 +164,8 @@ export const INITIAL_PILARES: Pilar[] = [
     templateLegenda:
       'Gancho: [Dado ou descoberta surpreendente]\n\nCorpo: [Explicação científica acessível]\n\nCTA: [Compartilha com quem precisa saber disso]',
     ativo: true,
+    metaSemanalMin: 1,
+    metaSemanalMax: 1,
   },
 ];
 
@@ -320,6 +330,12 @@ export const GOLDEN_RULES: GoldenRule[] = [
     id: 'RG-07',
     descricao: 'Pilar único dominando semana (>60% dos posts)',
     tipo: 'warning',
+    ativa: true,
+  },
+  {
+    id: 'RG-MIX',
+    descricao: 'Harmonia de Mix (Metas Semanais por Pilar)',
+    tipo: 'info',
     ativa: true,
   },
 ];

@@ -62,6 +62,8 @@ export type AppAction =
   | { type: 'DELETE_RECORDING_BLOCK'; payload: string }
   // Regras de Ouro
   | { type: 'UPDATE_GOLDEN_RULES'; payload: GoldenRule[] }
+  | { type: 'ADD_GOLDEN_RULE'; payload: GoldenRule }
+  | { type: 'DELETE_GOLDEN_RULE'; payload: string }
   // Sincronização Supabase
   | { type: 'SET_STATE'; payload: Partial<AppState> };
 
@@ -272,6 +274,12 @@ export function appReducer(state: AppState, action: AppAction): AppState {
     // ─── Regras de Ouro ──────────────────────────────────────────────────────
     case 'UPDATE_GOLDEN_RULES':
       return { ...state, goldenRules: action.payload };
+    case 'ADD_GOLDEN_RULE': {
+      const currentRules = state.goldenRules.length > 0 ? state.goldenRules : [];
+      return { ...state, goldenRules: [...currentRules, action.payload] };
+    }
+    case 'DELETE_GOLDEN_RULE':
+      return { ...state, goldenRules: state.goldenRules.filter(r => r.id !== action.payload) };
 
     default:
       return state;

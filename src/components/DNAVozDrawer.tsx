@@ -20,9 +20,12 @@ export function DNAVozDrawer({ isOpen, onClose }: { isOpen: boolean; onClose: ()
     setIsEditing(true);
   };
 
-  const addItem = (field: 'naoFaco' | 'alertas' | 'pilares', prompt_label: string) => {
-    const item = prompt(prompt_label);
-    if (item) setEditData(p => ({ ...p, [field]: [...p[field], item] }));
+  const [newInput, setNewInput] = useState<{ field: string; value: string }>({ field: '', value: '' });
+
+  const handleAddItem = (field: 'naoFaco' | 'alertas' | 'pilares') => {
+    if (!newInput.value.trim()) return;
+    setEditData(p => ({ ...p, [field]: [...p[field], newInput.value] }));
+    setNewInput({ field: '', value: '' });
   };
 
   const removeItem = (field: 'naoFaco' | 'alertas' | 'pilares', index: number) => {
@@ -36,12 +39,12 @@ export function DNAVozDrawer({ isOpen, onClose }: { isOpen: boolean; onClose: ()
             <div className="p-6 md:p-12 flex-1 overflow-y-auto custom-scrollbar">
               {/* Header */}
               <div className="flex items-center justify-between mb-10">
-                <h2 className="text-2xl font-black text-[var(--text-primary)]">DNA & Voz</h2>
+                <h2 className="text-2xl font-black text-[var(--text-primary)]">Séries</h2>
                 <div className="flex items-center gap-2">
                   {isEditing ? (
                     <button
                       onClick={handleSave}
-                      className="flex items-center gap-2 bg-green-600 text-white px-4 py-1.5 rounded-full text-xs font-bold hover:bg-green-700 transition-all"
+                      className="flex items-center gap-2 bg-[var(--accent-green)] text-white px-4 py-1.5 rounded-full text-xs font-bold hover:opacity-90 transition-all"
                     >
                       <Save className="w-3.5 h-3.5" /> Salvar
                     </button>
@@ -70,8 +73,8 @@ export function DNAVozDrawer({ isOpen, onClose }: { isOpen: boolean; onClose: ()
                     <textarea
                       value={editData.promessaCentral}
                       onChange={e => setEditData(p => ({ ...p, promessaCentral: e.target.value }))}
-                      placeholder="O que você entrega para quem te segue? Ex: 'Faço você amar ainda mais os livros e rir da sua própria vida de leitora.'"
-                      className="w-full min-h-[80px] text-sm text-[var(--text-primary)] bg-[var(--bg-hover)] border-none rounded-xl p-4 focus:ring-0 resize-none placeholder:opacity-30"
+                      placeholder="O que você entrega para quem te segue?"
+                      className="w-full"
                     />
                   ) : (
                     <p className="text-sm text-[var(--text-primary)] leading-relaxed font-medium opacity-80">
@@ -112,12 +115,22 @@ export function DNAVozDrawer({ isOpen, onClose }: { isOpen: boolean; onClose: ()
                       <span className="text-[10px] uppercase tracking-widest font-bold">Valores & Pilares</span>
                     </div>
                     {isEditing && (
-                      <button
-                        onClick={() => addItem('pilares', 'Novo pilar/valor:')}
-                        className="p-1 hover:bg-[var(--bg-hover)] rounded-full"
-                      >
-                        <Plus className="w-3.5 h-3.5 text-[var(--text-primary)] opacity-40" />
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <input 
+                          type="text" 
+                          placeholder="Novo..."
+                          className="text-[10px] py-1 px-3 border-none w-24"
+                          value={newInput.field === 'pilares' ? newInput.value : ''}
+                          onChange={e => setNewInput({ field: 'pilares', value: e.target.value })}
+                          onKeyDown={e => e.key === 'Enter' && handleAddItem('pilares')}
+                        />
+                        <button
+                          onClick={() => handleAddItem('pilares')}
+                          className="p-1 hover:bg-[var(--bg-hover)] rounded-full"
+                        >
+                          <Plus className="w-3.5 h-3.5 text-[var(--text-primary)] opacity-40" />
+                        </button>
+                      </div>
                     )}
                   </div>
                   <div className="flex flex-wrap gap-2">
@@ -166,25 +179,35 @@ export function DNAVozDrawer({ isOpen, onClose }: { isOpen: boolean; onClose: ()
                       <span className="text-[10px] uppercase tracking-widest font-bold">O que não faço</span>
                     </div>
                     {isEditing && (
-                      <button
-                        onClick={() => addItem('naoFaco', 'O que você não faz?')}
-                        className="p-1 hover:bg-[var(--bg-hover)] rounded-full"
-                      >
-                        <Plus className="w-3.5 h-3.5 text-[var(--text-primary)] opacity-40" />
-                      </button>
+                      <div className="flex items-center gap-2">
+                         <input 
+                          type="text" 
+                          placeholder="Novo proibido..."
+                          className="text-[10px] py-1 px-3 border-none w-32"
+                          value={newInput.field === 'naoFaco' ? newInput.value : ''}
+                          onChange={e => setNewInput({ field: 'naoFaco', value: e.target.value })}
+                          onKeyDown={e => e.key === 'Enter' && handleAddItem('naoFaco')}
+                        />
+                        <button
+                          onClick={() => handleAddItem('naoFaco')}
+                          className="p-1 hover:bg-[var(--bg-hover)] rounded-full"
+                        >
+                          <Plus className="w-3.5 h-3.5 text-[var(--text-primary)] opacity-40" />
+                        </button>
+                      </div>
                     )}
                   </div>
                   <ul className="space-y-3">
                     {dna.naoFaco.map((item, i) => (
                       <li key={i} className="flex items-start justify-between group">
                         <div className="flex items-start gap-3 text-sm text-[var(--text-primary)] opacity-80">
-                          <div className="w-1.5 h-1.5 rounded-full bg-red-400 mt-1.5 shrink-0" />
+                          <div className="w-1.5 h-1.5 rounded-full bg-[var(--accent-pink)] mt-1.5 shrink-0" />
                           {item}
                         </div>
                         {isEditing && (
                           <button
                             onClick={() => removeItem('naoFaco', i)}
-                            className="p-1 text-red-500 opacity-0 group-hover:opacity-100 shrink-0"
+                            className="p-1 text-[var(--accent-pink)] opacity-0 group-hover:opacity-100 shrink-0"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
@@ -202,12 +225,22 @@ export function DNAVozDrawer({ isOpen, onClose }: { isOpen: boolean; onClose: ()
                       <span className="text-[10px] uppercase tracking-widest font-bold">Alertas de Desvio</span>
                     </div>
                     {isEditing && (
-                      <button
-                        onClick={() => addItem('alertas', 'Novo alerta de desvio:')}
-                        className="p-1 hover:bg-[var(--bg-hover)] rounded-full"
-                      >
-                        <Plus className="w-3.5 h-3.5 text-[var(--text-primary)] opacity-40" />
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <input 
+                          type="text" 
+                          placeholder="Novo alerta..."
+                          className="text-[10px] py-1 px-3 border-none w-32"
+                          value={newInput.field === 'alertas' ? newInput.value : ''}
+                          onChange={e => setNewInput({ field: 'alertas', value: e.target.value })}
+                          onKeyDown={e => e.key === 'Enter' && handleAddItem('alertas')}
+                        />
+                        <button
+                          onClick={() => handleAddItem('alertas')}
+                          className="p-1 hover:bg-[var(--bg-hover)] rounded-full"
+                        >
+                          <Plus className="w-3.5 h-3.5 text-[var(--text-primary)] opacity-40" />
+                        </button>
+                      </div>
                     )}
                   </div>
                   <div className="space-y-3">

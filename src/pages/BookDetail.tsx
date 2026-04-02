@@ -16,14 +16,15 @@ import {
 import { useAppContext } from '../context/AppContext';
 import { BookAnnotation, TipoAnotacao, GeneroLivro, StatusLeitura, VisualFormat } from '../types';
 import { ContentDetailModal } from '../components/ContentDetailModal';
+import { ConfirmModal } from '../components/ConfirmModal';
 import { generateUUID } from '../utils/uuid';
 
 const TIPO_CORES: Record<TipoAnotacao, string> = {
-  Trecho: 'bg-blue-100 text-blue-700',
-  Reação: 'bg-pink-100 text-pink-700',
-  Análise: 'bg-purple-100 text-purple-700',
-  'Ideia de conteúdo': 'bg-green-100 text-green-700',
-  Pergunta: 'bg-orange-100 text-orange-700',
+  Trecho: 'bg-[var(--accent-blue)]/10 text-[var(--accent-blue)]',
+  Reação: 'bg-[var(--accent-pink)]/10 text-[var(--accent-pink)]',
+  Análise: 'bg-[var(--accent-purple)]/10 text-[var(--accent-purple)]',
+  'Ideia de conteúdo': 'bg-[var(--accent-green)]/10 text-[var(--accent-green)]',
+  Pergunta: 'bg-[var(--accent-orange)]/10 text-[var(--accent-orange)]',
 };
 
 const TIPOS: TipoAnotacao[] = ['Trecho', 'Reação', 'Análise', 'Ideia de conteúdo', 'Pergunta'];
@@ -50,6 +51,7 @@ export function BookDetail() {
   const [contentModalId, setContentModalId] = useState<string | null>(null);
   const [criandoConteudo, setCriandoConteudo] = useState(false);
   const [ecossistemaAgrupamento, setEcossistemaAgrupamento] = useState<'slot' | 'plataforma'>('slot');
+  const [confirm, setConfirm] = useState<{ message: string; onConfirm: () => void } | null>(null);
 
   // Estado local para a aba Info (salvo explicitamente)
   const [infoLocal, setInfoLocal] = useState(() => ({
@@ -382,13 +384,8 @@ export function BookDetail() {
               {/* Salvar / Deletar */}
               <div className="pt-4 border-t border-[var(--border-color)] flex items-center justify-between">
                 <button
-                  onClick={() => {
-                    if (window.confirm(`Excluir "${livro.titulo}"? Esta ação é irreversível.`)) {
-                      dispatch({ type: 'DELETE_BOOK', payload: livro.id });
-                      navigate('/biblioteca');
-                    }
-                  }}
-                  className="text-xs font-bold text-red-500 opacity-50 hover:opacity-100 transition-opacity"
+                  onClick={() => setConfirm({ message: `Excluir "${livro.titulo}"? Esta ação é irreversível.`, onConfirm: () => { dispatch({ type: 'DELETE_BOOK', payload: livro.id }); navigate('/biblioteca'); } })}
+                  className="text-xs font-bold text-[var(--accent-pink)] opacity-50 hover:opacity-100 transition-opacity"
                 >
                   Excluir livro
                 </button>
@@ -522,9 +519,9 @@ export function BookDetail() {
                         )}
                         <button
                           onClick={() => handleDeleteAnotacao(a.id)}
-                          className="p-1.5 hover:bg-red-50 rounded-lg transition-colors"
+                          className="p-1.5 hover:bg-[var(--accent-pink)]/10 rounded-lg transition-colors"
                         >
-                          <Trash2 className="w-4 h-4 text-red-500 opacity-60" />
+                          <Trash2 className="w-4 h-4 text-[var(--accent-pink)] opacity-60" />
                         </button>
                       </div>
                     </div>
@@ -641,6 +638,12 @@ export function BookDetail() {
           initialLivroOrigemId={livro.id}
         />
       )}
+      <ConfirmModal
+        open={!!confirm}
+        message={confirm?.message || ''}
+        onConfirm={() => { confirm?.onConfirm(); setConfirm(null); }}
+        onCancel={() => setConfirm(null)}
+      />
     </div>
   );
 }

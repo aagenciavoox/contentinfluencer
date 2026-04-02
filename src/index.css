@@ -70,3 +70,66 @@ body {
 .pb-safe {
   padding-bottom: max(1.25rem, env(safe-area-inset-bottom));
 }
+
+/* Global Input & Textarea Branding */
+input[type="text"],
+input[type="number"],
+input[type="password"],
+input[type="email"],
+input[type="date"],
+textarea,
+select {
+  background-color: var(--bg-hover);
+  border: 1px solid var(--border-color);
+  border-radius: 1rem;
+  padding: 0.75rem 1.25rem;
+  font-size: 0.825rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  outline: none;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+  width: 100%;
+}
+
+input:hover,
+textarea:hover,
+select:hover {
+  background-color: var(--bg-hover);
+  border-color: var(--border-strong);
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  background-color: var(--bg-secondary);
+  border-color: var(--accent-blue);
+  box-shadow: 0 0 0 2px var(--bg-primary), 0 0 0 4px color-mix(in srgb, var(--accent-blue), transparent 60%);
+}
+
+textarea {
+  min-height: 120px;
+  line-height: 1.6;
+  resize: vertical;
+}
+
+input::placeholder,
+textarea::placeholder {
+  opacity: 0.25;
+  font-weight: 500;
+  font-style: italic;
+  font-family: inherit;
+}
+
+select {
+  cursor: pointer;
+  appearance: none;
+}
+
+button {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+button:active {
+  transform: scale(0.97);
+}

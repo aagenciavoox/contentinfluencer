@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { X, Trash2, CheckCircle2, AlertCircle, Edit3 } from 'lucide-react';
+import { ConfirmModal } from '../ConfirmModal';
 import { Partnership, PartnershipStatus } from '../../types';
 import { PARTNERSHIP_STAGES } from '../../constants';
 import { cn } from '../../lib/utils';
@@ -14,6 +15,7 @@ interface PartnershipFormProps {
 
 export function PartnershipForm({ initialData, onSave, onClose, onDelete }: PartnershipFormProps) {
   const [data, setData] = useState<Partnership>({ ...initialData });
+  const [confirm, setConfirm] = useState<{ message: string; onConfirm: () => void } | null>(null);
 
   const update = (updates: Partial<Partnership>) => setData(prev => ({ ...prev, ...updates }));
 
@@ -25,16 +27,12 @@ export function PartnershipForm({ initialData, onSave, onClose, onDelete }: Part
             <button onClick={onClose} className="p-3 hover:bg-[var(--bg-hover)] rounded-full transition-all">
               <X className="w-6 h-6 text-[var(--text-primary)] opacity-40 hover:opacity-100" />
             </button>
-            <button 
-              onClick={() => {
-                if (window.confirm('Excluir este projeto?')) {
-                  onDelete(data.id);
-                }
-              }}
-              className="p-3 hover:bg-red-500/10 rounded-2xl transition-all group"
+            <button
+              onClick={() => setConfirm({ message: 'Excluir este projeto?', onConfirm: () => onDelete(data.id) })}
+              className="p-3 hover:bg-[var(--accent-pink)]/10 rounded-2xl transition-all group"
               title="Excluir"
             >
-              <Trash2 className="w-5 h-5 text-red-500 opacity-40 group-hover:opacity-100" />
+              <Trash2 className="w-5 h-5 text-[var(--accent-pink)] opacity-40 group-hover:opacity-100" />
             </button>
           </div>
         </div>
@@ -155,6 +153,12 @@ export function PartnershipForm({ initialData, onSave, onClose, onDelete }: Part
           Salvar Evento / Projeto
         </button>
       </div>
+      <ConfirmModal
+        open={!!confirm}
+        message={confirm?.message || ''}
+        onConfirm={() => { confirm?.onConfirm(); setConfirm(null); }}
+        onCancel={() => setConfirm(null)}
+      />
     </div>
   );
 }

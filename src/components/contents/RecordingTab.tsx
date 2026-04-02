@@ -5,19 +5,19 @@ import { RecordingBlock, Content } from '../../types';
 import { cn } from '../../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import { BottomSheetModal } from '../BottomSheetModal';
+import { ConfirmModal } from '../ConfirmModal';
 
 export function RecordingTab() {
   const { state, dispatch } = useAppContext();
   const [selectedBlock, setSelectedBlock] = useState<RecordingBlock | null>(null);
   const [isBurstMode, setIsBurstMode] = useState(false);
   const [sessionCompletedIds, setSessionCompletedIds] = useState<Set<string>>(new Set());
+  const [confirm, setConfirm] = useState<{ message: string; onConfirm: () => void } | null>(null);
 
   // Delete Block
   const handleDeleteBlock = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (window.confirm('Tem certeza que deseja deletar este bloco de gravação?')) {
-      dispatch({ type: 'DELETE_RECORDING_BLOCK', payload: id });
-    }
+    setConfirm({ message: 'Tem certeza que deseja deletar este bloco de gravação?', onConfirm: () => dispatch({ type: 'DELETE_RECORDING_BLOCK', payload: id }) });
   };
 
   // When block is clicked, we look at contents.
@@ -72,7 +72,7 @@ export function RecordingTab() {
                         </span>
                         <button
                           onClick={(e) => handleDeleteBlock(block.id, e)}
-                          className="p-2 text-red-500 opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-opacity rounded-full hover:bg-red-500/10"
+                          className="p-2 text-[var(--accent-pink)] opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-opacity rounded-full hover:bg-[var(--accent-pink)]/10"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -156,6 +156,12 @@ export function RecordingTab() {
           }}
         />
       )}
+      <ConfirmModal
+        open={!!confirm}
+        message={confirm?.message || ''}
+        onConfirm={() => { confirm?.onConfirm(); setConfirm(null); }}
+        onCancel={() => setConfirm(null)}
+      />
     </div>
   );
 }
@@ -228,6 +234,7 @@ function BlockAnalysis({ block, onClose, onStart }: { block: RecordingBlock, onC
 function BurstModeSession({ block, completedIds, setCompletedIds, onExit }: { block: RecordingBlock, completedIds: Set<string>, setCompletedIds: React.Dispatch<React.SetStateAction<Set<string>>>, onExit: () => void }) {
   const { state, dispatch } = useAppContext();
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [confirmBurst, setConfirmBurst] = useState<{ message: string; onConfirm: () => void } | null>(null);
 
   // We only load scripts that are "Pronto para Gravar" over the block
   const readyContents = useMemo(() => {
@@ -239,8 +246,7 @@ function BurstModeSession({ block, completedIds, setCompletedIds, onExit }: { bl
   const currentContent = readyContents[currentIndex];
 
   const handleFinishBlock = () => {
-    // Save state: mark selected content ids as "Gravado"
-    if (window.confirm('Salvar progresso do bloco de gravação? (Pausar e concluir o resto em outro dia não há problema)')) {
+    setConfirmBurst({ message: 'Salvar progresso do bloco de gravação? (Pausar e concluir o resto em outro dia não há problema)', onConfirm: () => {
       completedIds.forEach(id => {
         const content = state.contents.find(c => c.id === id);
         if (content) {
@@ -248,7 +254,7 @@ function BurstModeSession({ block, completedIds, setCompletedIds, onExit }: { bl
         }
       });
       onExit();
-    }
+    } });
   };
 
   const toggleComplete = (id: string) => {
@@ -266,12 +272,18 @@ function BurstModeSession({ block, completedIds, setCompletedIds, onExit }: { bl
          <CheckCircle2 className="w-24 h-24 text-[var(--accent-green)] mb-8 animate-bounce mx-auto" />
          <h1 className="text-4xl md:text-5xl font-black text-[var(--text-primary)] uppercase tracking-tight mb-4 italic">Parabéns!</h1>
          <p className="text-lg text-[var(--text-tertiary)] font-bold mb-12">Você finalizou (ou pausou) o bloco inteiro.</p>
-         <button 
+         <button
            onClick={handleFinishBlock}
-           className="bg-[var(--text-primary)] text-[var(--bg-primary)] px-12 py-5 rounded-[2rem] text-sm font-black uppercase tracking-widest shadow-2xl hover:scale-105 transition-all"
+           className="bg-[var(--text-primary)] text-[var(--bg-primary)] px-12 py-5 rounded-3xl text-sm font-black uppercase tracking-widest shadow-2xl hover:scale-105 transition-all"
          >
            Salvar e Fechar Sala
          </button>
+         <ConfirmModal
+           open={!!confirmBurst}
+           message={confirmBurst?.message || ''}
+           onConfirm={() => { confirmBurst?.onConfirm(); setConfirmBurst(null); }}
+           onCancel={() => setConfirmBurst(null)}
+         />
       </div>
     );
   }
@@ -400,6 +412,12 @@ function BurstModeSession({ block, completedIds, setCompletedIds, onExit }: { bl
           </div>
         </aside>
       </main>
+      <ConfirmModal
+        open={!!confirmBurst}
+        message={confirmBurst?.message || ''}
+        onConfirm={() => { confirmBurst?.onConfirm(); setConfirmBurst(null); }}
+        onCancel={() => setConfirmBurst(null)}
+      />
     </div>
   );
 }

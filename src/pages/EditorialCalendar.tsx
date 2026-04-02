@@ -77,7 +77,7 @@ export function EditorialCalendar() {
 
       {/* Golden Rules Cards */}
       <section className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12 md:mb-20">
-        <div className="p-6 md:p-10 bg-[var(--bg-secondary)] rounded-[2rem] md:rounded-[2.5rem] border border-[var(--border-color)] shadow-sm hover:shadow-xl transition-all group overflow-hidden relative">
+        <div className="p-6 md:p-10 bg-[var(--bg-secondary)] rounded-3xl border border-[var(--border-color)] shadow-sm hover:shadow-xl transition-all group overflow-hidden relative">
           <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:opacity-20 transition-opacity">
             <RotateCcw className="w-12 h-12" />
           </div>
@@ -89,7 +89,7 @@ export function EditorialCalendar() {
           <p className="text-sm text-[var(--text-tertiary)] font-medium leading-relaxed">Cada formato de série deve aparecer apenas uma vez por semana (exceto Indicações).</p>
         </div>
         
-        <div className="p-6 md:p-10 bg-[var(--bg-secondary)] rounded-[2rem] md:rounded-[2.5rem] border border-[var(--border-color)] shadow-sm hover:shadow-xl transition-all group overflow-hidden relative">
+        <div className="p-6 md:p-10 bg-[var(--bg-secondary)] rounded-3xl border border-[var(--border-color)] shadow-sm hover:shadow-xl transition-all group overflow-hidden relative">
           <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:opacity-20 transition-opacity">
             <BookOpen className="w-12 h-12" />
           </div>
@@ -101,7 +101,7 @@ export function EditorialCalendar() {
           <p className="text-sm text-[var(--text-tertiary)] font-medium leading-relaxed">Máximo 2 posts de livros seguidos. Quebre com filme, comportamento ou ciência.</p>
         </div>
 
-        <div className="p-6 md:p-10 bg-[var(--bg-secondary)] rounded-[2rem] md:rounded-[2.5rem] border border-[var(--border-color)] shadow-sm hover:shadow-xl transition-all group overflow-hidden relative">
+        <div className="p-6 md:p-10 bg-[var(--bg-secondary)] rounded-3xl border border-[var(--border-color)] shadow-sm hover:shadow-xl transition-all group overflow-hidden relative">
            <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:opacity-20 transition-opacity">
             <Zap className="w-12 h-12" />
           </div>
@@ -151,7 +151,7 @@ export function EditorialCalendar() {
                     layoutId={c.id}
                     key={c.id} 
                     onClick={() => setSelectedContent(c)}
-                    className="p-6 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-[2rem] hover:shadow-2xl hover:scale-[1.02] hover:-translate-y-1 transition-all flex flex-col justify-between cursor-pointer group shadow-sm overflow-hidden relative"
+                    className="p-6 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-3xl hover:shadow-2xl hover:scale-[1.02] hover:-translate-y-1 transition-all flex flex-col justify-between cursor-pointer group shadow-sm overflow-hidden relative"
                   >
                     {/* Background accent */}
                     <div className={cn(
@@ -184,7 +184,7 @@ export function EditorialCalendar() {
                 ))}
                 
                 {contents.length === 0 && (
-                  <div className="col-span-full py-16 text-center border-2 border-dashed border-[var(--border-color)] rounded-[2.5rem] opacity-30 flex flex-col items-center gap-4">
+                  <div className="col-span-full py-16 text-center border-2 border-dashed border-[var(--border-color)] rounded-3xl opacity-30 flex flex-col items-center gap-4">
                     <CalendarIcon className="w-8 h-8" />
                     <p className="text-xs text-[var(--text-tertiary)] font-black uppercase tracking-[0.3em] italic">Nenhum conteúdo nesta semana</p>
                   </div>
@@ -192,7 +192,7 @@ export function EditorialCalendar() {
               </div>
 
               {violations.length > 0 && (
-                <div className="mt-8 p-8 bg-red-400/5 border border-red-400/10 rounded-[2rem] space-y-4 animate-in zoom-in-95">
+                <div className="mt-8 p-8 bg-red-400/5 border border-red-400/10 rounded-3xl space-y-4 animate-in zoom-in-95">
                   <div className="flex items-center gap-3 text-red-500">
                     <AlertCircle className="w-5 h-5" />
                     <span className="text-[11px] font-black uppercase tracking-[0.2em]">Ajustes Estratégicos Necessários</span>

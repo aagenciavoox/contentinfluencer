@@ -9,10 +9,10 @@ import { generateUUID } from '../utils/uuid';
 import { BottomSheetModal } from '../components/BottomSheetModal';
 
 const STATUS_CORES: Record<StatusLeitura, string> = {
-  'Quero ler': 'bg-gray-100 text-gray-600',
-  'Lendo': 'bg-blue-100 text-blue-700',
-  'Pausado': 'bg-yellow-100 text-yellow-700',
-  'Lido': 'bg-green-100 text-green-700',
+  'Quero ler': 'bg-[var(--text-primary)]/5 text-[var(--text-primary)]/50',
+  'Lendo': 'bg-[var(--accent-blue)]/10 text-[var(--accent-blue)]',
+  'Pausado': 'bg-[var(--accent-orange)]/10 text-[var(--accent-orange)]',
+  'Lido': 'bg-[var(--accent-green)]/10 text-[var(--accent-green)]',
 };
 
 const GENEROS: GeneroLivro[] = [

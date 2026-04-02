@@ -3,8 +3,10 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
 import { Table, FileText, Edit3, Trash2, Pencil } from 'lucide-react';
 import { format } from 'date-fns';
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
+import { ConfirmModal } from '../components/ConfirmModal';
 
 export function SeriesDetail() {
   const { id } = useParams();
@@ -27,6 +29,7 @@ export function SeriesDetail() {
     </div>
   );
 
+  const [confirm, setConfirm] = useState<{ message: string; onConfirm: () => void } | null>(null);
   const seriesContents = state.contents.filter(c => c.seriesId === id);
 
   const updateSeries = (updates: Partial<typeof series>) => {
@@ -34,10 +37,7 @@ export function SeriesDetail() {
   };
 
   const handleDelete = () => {
-    if (window.confirm('Tem certeza que deseja desintegrar esta série? O ecossistema continuará, mas as conexões serão perdidas.')) {
-      dispatch({ type: 'DELETE_SERIES', payload: series.id });
-      navigate('/');
-    }
+    setConfirm({ message: 'Tem certeza que deseja desintegrar esta série? O ecossistema continuará, mas as conexões serão perdidas.', onConfirm: () => { dispatch({ type: 'DELETE_SERIES', payload: series.id }); navigate('/'); } });
   };
 
   const handleRename = () => {
@@ -73,7 +73,7 @@ export function SeriesDetail() {
         
         <button 
           onClick={handleDelete}
-          className="flex items-center gap-3 px-8 py-4 bg-red-500/5 hover:bg-red-500/10 text-red-500 border border-red-500/10 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all hover:border-red-500/20 shadow-sm"
+          className="flex items-center gap-3 px-8 py-4 bg-[var(--accent-pink)]/5 hover:bg-[var(--accent-pink)]/10 text-[var(--accent-pink)] border border-[var(--accent-pink)]/10 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all hover:border-[var(--accent-pink)]/20 shadow-sm"
         >
           <Trash2 className="w-4 h-4" />
           Desintegrar Série
@@ -175,6 +175,12 @@ export function SeriesDetail() {
           </motion.section>
         </div>
       </div>
+      <ConfirmModal
+        open={!!confirm}
+        message={confirm?.message || ''}
+        onConfirm={() => { confirm?.onConfirm(); setConfirm(null); }}
+        onCancel={() => setConfirm(null)}
+      />
     </div>
   );
 }

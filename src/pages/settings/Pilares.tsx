@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { ArrowLeft, Plus, Edit2, Trash2, X, Check, ToggleLeft, ToggleRight } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
+import { ConfirmModal } from '../../components/ConfirmModal';
 import { Pilar } from '../../types';
 import { generateUUID } from '../../utils/uuid';
 
@@ -31,6 +32,8 @@ function PilarForm({
     hashtagsYouTube: initial.hashtagsYouTube || '',
     templateLegenda: initial.templateLegenda || '',
     ativo: initial.ativo ?? true,
+    metaSemanalMin: initial.metaSemanalMin || 0,
+    metaSemanalMax: initial.metaSemanalMax || 0,
   });
 
   return (
@@ -43,7 +46,7 @@ function PilarForm({
             value={form.nome}
             onChange={e => setForm(p => ({ ...p, nome: e.target.value }))}
             placeholder="Ex: Humor"
-            className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:opacity-30"
+            className="w-full"
           />
         </div>
         <div>
@@ -53,7 +56,7 @@ function PilarForm({
             value={form.descricao}
             onChange={e => setForm(p => ({ ...p, descricao: e.target.value }))}
             placeholder="Em que conteúdos aparece?"
-            className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:opacity-30"
+            className="w-full"
           />
         </div>
       </div>
@@ -93,7 +96,7 @@ function PilarForm({
                 value={form[key] as string}
                 onChange={e => setForm(p => ({ ...p, [key]: e.target.value }))}
                 placeholder="#hashtag1 #hashtag2 ..."
-                className="flex-1 text-xs bg-[var(--bg-hover)] border-none rounded-lg px-3 py-2 text-[var(--text-primary)] placeholder:opacity-30"
+                className="flex-1"
               />
             </div>
           );
@@ -108,8 +111,38 @@ function PilarForm({
           onChange={e => setForm(p => ({ ...p, templateLegenda: e.target.value }))}
           rows={4}
           placeholder="Gancho: [...]&#10;&#10;Corpo: [...]&#10;&#10;CTA: [...]"
-          className="w-full text-xs bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] resize-none placeholder:opacity-30"
+          className="w-full"
         />
+      </div>
+
+      {/* Meta Semanal */}
+      <div className="p-4 bg-[var(--bg-hover)] rounded-2xl border border-[var(--border-color)]">
+        <label className="text-[9px] font-black uppercase tracking-widest text-[var(--accent-blue)] block mb-3">Harmonia de Mix (Meta Semanal)</label>
+        <div className="flex items-center gap-6">
+          <div className="flex-1">
+            <label className="text-[8px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] block mb-1">Mínimo</label>
+            <input 
+              type="number"
+              min="0"
+              value={form.metaSemanalMin}
+              onChange={e => setForm(p => ({ ...p, metaSemanalMin: parseInt(e.target.value) || 0 }))}
+              placeholder="0"
+              className="w-full"
+            />
+          </div>
+          <div className="flex-1">
+            <label className="text-[8px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] block mb-1">Máximo</label>
+            <input 
+              type="number"
+              min="0"
+              value={form.metaSemanalMax}
+              onChange={e => setForm(p => ({ ...p, metaSemanalMax: parseInt(e.target.value) || 0 }))}
+              placeholder="0"
+              className="w-full text-xs font-black bg-[var(--bg-primary)] border-none rounded-lg px-3 py-2 text-[var(--text-primary)] focus:ring-1 focus:ring-[var(--accent-blue)] shadow-sm"
+            />
+          </div>
+          <span className="text-[10px] font-black text-[var(--text-tertiary)] opacity-40 uppercase tracking-widest pt-5">POSTS / SEMANA</span>
+        </div>
       </div>
 
       <div className="flex gap-3 pt-2">
@@ -136,6 +169,7 @@ export function PilaresSettings() {
   const navigate = useNavigate();
   const [editandoId, setEditandoId] = useState<string | null>(null);
   const [criando, setCriando] = useState(false);
+  const [confirm, setConfirm] = useState<{ message: string; onConfirm: () => void } | null>(null);
 
   const handleSave = (p: Pilar) => {
     const existe = state.pilares.find(x => x.id === p.id);
@@ -153,20 +187,18 @@ export function PilaresSettings() {
   };
 
   const handleDelete = (id: string) => {
-    if (window.confirm('Excluir este pilar?')) {
-      dispatch({ type: 'DELETE_PILAR', payload: id });
-    }
+    setConfirm({ message: 'Excluir este pilar?', onConfirm: () => dispatch({ type: 'DELETE_PILAR', payload: id }) });
   };
 
   return (
     <div className="min-h-screen bg-[var(--bg-secondary)]">
-      <div className="max-w-3xl mx-auto px-6 md:px-12 py-12">
+      <div className="max-w-3xl mx-auto px-6 md:px-12 py-10 md:py-16">
         <div className="flex items-center gap-4 mb-10">
           <button onClick={() => navigate('/settings')} className="p-2 hover:bg-[var(--bg-hover)] rounded-xl transition-colors">
             <ArrowLeft className="w-5 h-5 text-[var(--text-primary)] opacity-50" />
           </button>
           <div className="flex-1">
-            <h1 className="text-3xl font-black text-[var(--text-primary)]">Pilares Editoriais</h1>
+            <h1 className="text-4xl font-black text-[var(--text-primary)] tracking-tight">Pilares Editoriais</h1>
             <p className="text-xs text-[var(--text-secondary)] opacity-50 mt-1">{state.pilares.length} pilares configurados</p>
           </div>
           <button
@@ -221,6 +253,13 @@ export function PilaresSettings() {
                         IG: {pilar.hashtagsInstagram}
                       </p>
                     )}
+                    {pilar.metaSemanalMax && pilar.metaSemanalMax > 0 && (
+                      <div className="flex items-center gap-1.5 mt-1">
+                        <span className="text-[8px] font-black bg-[var(--accent-blue)]/10 text-[var(--accent-blue)] px-2 py-0.5 rounded-full border border-[var(--accent-blue)]/20 uppercase tracking-widest">
+                          Goal: {pilar.metaSemanalMin}-{pilar.metaSemanalMax} posts/semana
+                        </span>
+                      </div>
+                    )}
                   </div>
 
                   {/* Ações */}
@@ -234,8 +273,8 @@ export function PilaresSettings() {
                     <button onClick={() => setEditandoId(pilar.id)} className="p-1.5 hover:bg-[var(--bg-hover)] rounded-lg transition-colors">
                       <Edit2 className="w-3.5 h-3.5 text-[var(--text-primary)] opacity-40" />
                     </button>
-                    <button onClick={() => handleDelete(pilar.id)} className="p-1.5 hover:bg-red-50 rounded-lg transition-colors">
-                      <Trash2 className="w-3.5 h-3.5 text-red-500 opacity-40 hover:opacity-100" />
+                    <button onClick={() => handleDelete(pilar.id)} className="p-1.5 hover:bg-[var(--accent-pink)]/10 rounded-lg transition-colors">
+                      <Trash2 className="w-3.5 h-3.5 text-[var(--accent-pink)] opacity-40 hover:opacity-100" />
                     </button>
                   </div>
                 </div>
@@ -244,6 +283,12 @@ export function PilaresSettings() {
           ))}
         </div>
       </div>
+      <ConfirmModal
+        open={!!confirm}
+        message={confirm?.message || ''}
+        onConfirm={() => { confirm?.onConfirm(); setConfirm(null); }}
+        onCancel={() => setConfirm(null)}
+      />
     </div>
   );
 }

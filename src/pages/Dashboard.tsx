@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useAppContext } from '../context/AppContext';
-import { format, isAfter, startOfToday, startOfWeek, endOfWeek, isWithinInterval } from 'date-fns';
+import { format, isAfter, isBefore, isToday, startOfToday, startOfWeek, endOfWeek, isWithinInterval } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { 
   Zap, 
@@ -64,10 +64,14 @@ export function Dashboard() {
     return { newIdeas, editedPieces, scheduledPieces };
   }, [state.ideas, state.contents, weekStart, weekEnd, today]);
 
+  const metaSemanal = state.pilares
+    .filter(p => p.ativo)
+    .reduce((acc, p) => acc + (p.metaSemanalMin || 0), 0);
+
   const upcomingAgenda = state.agenda
-    .filter(item => isAfter(new Date(item.date), startOfToday()))
+    .filter(item => !isBefore(new Date(item.date + 'T12:00:00'), startOfToday()))
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-    .slice(0, 2);
+    .slice(0, 3);
 
   const currentEnergy = state.energyLogs.find(l => l.date === todayStr)?.level || 0;
 
@@ -173,7 +177,7 @@ export function Dashboard() {
 
         <form 
           onSubmit={handleQuickCapture}
-          className="bg-[var(--bg-secondary)] border-2 border-[var(--border-strong)] rounded-[2.5rem] p-6 shadow-xl focus-within:border-[var(--accent-blue)] transition-all group relative"
+          className="bg-[var(--bg-secondary)] border-2 border-[var(--border-strong)] rounded-3xl p-6 shadow-xl focus-within:border-[var(--accent-blue)] transition-all group relative"
         >
           <div className="flex flex-col gap-4">
             <textarea 
@@ -202,19 +206,26 @@ export function Dashboard() {
             </AnimatePresence>
 
             <div className="flex flex-col sm:flex-row sm:items-center justify-between border-t border-[var(--border-color)] pt-5 px-1 gap-5">
-              {captureType === 'annotation' && currentBooks.length > 0 ? (
-                <div className="flex-1 w-full">
-                  <select 
-                    value={selectedBookId}
-                    onChange={(e) => setSelectedBookId(e.target.value)}
-                    className="w-full bg-[var(--bg-hover)] border-none rounded-xl text-[10px] font-black uppercase tracking-widest px-4 py-3 text-[var(--text-primary)] cursor-pointer focus:ring-2 focus:ring-[var(--accent-blue)] shadow-sm"
-                  >
-                    <option value="">Selecione o Livro</option>
-                    {currentBooks.map(b => (
-                      <option key={b.id} value={b.id}>{b.titulo.slice(0, 30)}...</option>
-                    ))}
-                  </select>
-                </div>
+              {captureType === 'annotation' ? (
+                currentBooks.length > 0 ? (
+                  <div className="flex-1 w-full">
+                    <select
+                      value={selectedBookId}
+                      onChange={(e) => setSelectedBookId(e.target.value)}
+                      className="w-full bg-[var(--bg-hover)] border-none rounded-xl text-[10px] font-black uppercase tracking-widest px-4 py-3 text-[var(--text-primary)] cursor-pointer focus:ring-2 focus:ring-[var(--accent-blue)] shadow-sm"
+                    >
+                      <option value="">Selecione o Livro</option>
+                      {currentBooks.map(b => (
+                        <option key={b.id} value={b.id}>{b.titulo.length > 30 ? b.titulo.slice(0, 30) + '...' : b.titulo}</option>
+                      ))}
+                    </select>
+                  </div>
+                ) : (
+                  <Link to="/biblioteca" className="flex-1 text-[10px] font-bold text-[var(--text-tertiary)] italic opacity-60 hover:opacity-100 transition-all flex items-center gap-1.5">
+                    <BookOpen className="w-3.5 h-3.5 shrink-0" />
+                    Adicione um livro em leitura na Biblioteca
+                  </Link>
+                )
               ) : <div className="hidden sm:block flex-1" />}
 
               <button 
@@ -245,9 +256,22 @@ export function Dashboard() {
                   <span className="text-xs font-bold text-[var(--text-secondary)]">Ideias</span>
                   <span className="text-xl font-black text-[var(--text-primary)]">{weeklyKpis.newIdeas}</span>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-[var(--text-secondary)]">Editados</span>
-                  <span className="text-xl font-black text-[var(--accent-green)]">{weeklyKpis.editedPieces}</span>
+                <div className="flex flex-col gap-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-[var(--text-secondary)]">Editados</span>
+                    <span className="text-xl font-black text-[var(--accent-green)]">
+                      {weeklyKpis.editedPieces}
+                      {metaSemanal > 0 && <span className="text-[11px] font-bold opacity-40">/{metaSemanal}</span>}
+                    </span>
+                  </div>
+                  {metaSemanal > 0 && (
+                    <div className="h-1 bg-[var(--bg-hover)] rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-[var(--accent-green)] transition-all duration-500"
+                        style={{ width: `${Math.min(100, Math.round((weeklyKpis.editedPieces / metaSemanal) * 100))}%` }}
+                      />
+                    </div>
+                  )}
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-[var(--text-secondary)]">Programados</span>
@@ -266,7 +290,7 @@ export function Dashboard() {
             
             {currentBooks.length > 0 ? (
               <div className="space-y-5">
-                {currentBooks.slice(0, 1).map(book => (
+                {currentBooks.map(book => (
                   <div 
                     key={book.id} 
                     onClick={() => setViewingNotesBook(book)}
@@ -352,12 +376,12 @@ export function Dashboard() {
             {/* No Escuro Alert (Contextual) */}
             {state.contents.some(c => c.status === 'Pronto para Gravar' && (!c.recordingDate || !c.lookId)) && (
               <Link to="/contents?status=No+Escuro" className="block">
-                <div className="p-4 bg-orange-500/5 border border-orange-500/20 rounded-2xl flex items-center justify-between group cursor-pointer hover:bg-orange-500/10 transition-all">
-                  <div className="flex items-center gap-3 text-orange-600 dark:text-orange-400">
+                <div className="p-4 bg-[var(--accent-orange)]/5 border border-[var(--accent-orange)]/20 rounded-2xl flex items-center justify-between group cursor-pointer hover:bg-[var(--accent-orange)]/10 transition-all">
+                  <div className="flex items-center gap-3 text-[var(--accent-orange)]">
                     <AlertCircle className="w-4 h-4 animate-pulse" />
                     <span className="text-[10px] font-black uppercase tracking-widest">Pendências "No Escuro"</span>
                   </div>
-                  <ArrowRight className="w-4 h-4 text-orange-600 dark:text-orange-400 group-hover:translate-x-1 transition-transform" />
+                  <ArrowRight className="w-4 h-4 text-[var(--accent-orange)] group-hover:translate-x-1 transition-transform" />
                 </div>
               </Link>
             )}
@@ -376,20 +400,31 @@ export function Dashboard() {
             </div>
 
             <div className="space-y-4">
-              {upcomingAgenda.length > 0 ? upcomingAgenda.map((item) => (
-                <div key={item.id} className="relative p-5 bg-[var(--bg-secondary)] rounded-2xl border border-[var(--border-color)] shadow-sm hover:border-[var(--border-strong)] transition-all overflow-hidden group">
-                  <div className="absolute top-0 left-0 w-1 h-full bg-[var(--accent-orange)] opacity-40 group-hover:opacity-100 transition-opacity" />
-                  <div className="flex flex-col">
-                    <span className="text-xs font-black text-[var(--text-primary)] mb-1">{item.title}</span>
-                    <div className="flex items-center gap-2">
-                       <Clock className="w-3 h-3 opacity-30" />
-                       <span className="text-[9px] font-bold text-[var(--text-tertiary)] uppercase tracking-widest">
-                        {format(new Date(item.date + 'T12:00:00'), "dd 'DE' MMMM", { locale: ptBR })}
-                      </span>
+              {upcomingAgenda.length > 0 ? upcomingAgenda.map((item) => {
+                const itemIsToday = isToday(new Date(item.date + 'T12:00:00'));
+                return (
+                  <div key={item.id} className="relative p-5 bg-[var(--bg-secondary)] rounded-2xl border border-[var(--border-color)] shadow-sm hover:border-[var(--border-strong)] transition-all overflow-hidden group">
+                    <div className={cn(
+                      "absolute top-0 left-0 w-1 h-full transition-opacity",
+                      itemIsToday ? "bg-[var(--accent-green)] opacity-100" : "bg-[var(--accent-orange)] opacity-40 group-hover:opacity-100"
+                    )} />
+                    <div className="flex flex-col">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs font-black text-[var(--text-primary)]">{item.title}</span>
+                        {itemIsToday && (
+                          <span className="text-[8px] font-black uppercase tracking-widest bg-[var(--accent-green)]/10 text-[var(--accent-green)] px-2 py-0.5 rounded-full shrink-0">Hoje</span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Clock className="w-3 h-3 opacity-30" />
+                        <span className="text-[9px] font-bold text-[var(--text-tertiary)] uppercase tracking-widest">
+                          {itemIsToday ? 'Hoje' : format(new Date(item.date + 'T12:00:00'), "dd 'DE' MMMM", { locale: ptBR })}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              )) : (
+                );
+              }) : (
                 <div className="py-12 text-center border-2 border-dashed border-[var(--border-color)] rounded-3xl opacity-20">
                   <p className="text-[10px] font-black uppercase tracking-widest italic">Nenhum marco planejado</p>
                 </div>

@@ -40,6 +40,8 @@ export interface Pilar {
   hashtagsYouTube: string;
   templateLegenda: string; // com variáveis {{titulo}} e {{cta}}
   ativo: boolean;
+  metaSemanalMin?: number;
+  metaSemanalMax?: number;
 }
 
 export interface Look {

@@ -1,19 +1,15 @@
 import React from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import {
-  LayoutDashboard,
   Table,
   Lightbulb,
   Layers,
   BarChart3,
   Calendar,
-  Video,
   ChevronDown,
   ChevronRight,
   Fingerprint,
-  Plus,
   X,
-  Briefcase,
   Search,
   BookOpen,
   Settings,
@@ -26,34 +22,17 @@ import { useAppContext } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
-import { Series } from '../types';
 
 interface SidebarProps {
   isOpen: boolean;
   onClose: () => void;
-  onOpenDNA: () => void;
 }
 
-export function Sidebar({ isOpen, onClose, onOpenDNA }: SidebarProps) {
+export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const { state, dispatch } = useAppContext();
   const { user, signOut } = useAuth();
-  const [seriesExpanded, setSeriesExpanded] = React.useState(true);
   const [settingsExpanded, setSettingsExpanded] = React.useState(false);
   const location = useLocation();
-
-  const handleAddSeries = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    const name = prompt('Nome da nova série:');
-    if (!name) return;
-
-    const newSeries: Series = {
-      id: Math.random().toString(36).substr(2, 9),
-      name,
-      template: '',
-      notes: '',
-    };
-    dispatch({ type: 'ADD_SERIES', payload: newSeries });
-  };
 
   React.useEffect(() => {
     onClose();
@@ -83,6 +62,7 @@ export function Sidebar({ isOpen, onClose, onOpenDNA }: SidebarProps) {
 
   const settingsItems = [
     { to: '/settings', icon: Settings, label: 'Configurações Gerais' },
+    { to: '/settings/dna', icon: Fingerprint, label: 'DNA da Voz' },
     { to: '/settings/pilares', icon: Palette, label: 'Pilares' },
     { to: '/settings/looks', icon: Shirt, label: 'Looks & Cenários' },
     { to: '/settings/regras', icon: ShieldCheck, label: 'Regras de Ouro' },
@@ -182,7 +162,28 @@ export function Sidebar({ isOpen, onClose, onOpenDNA }: SidebarProps) {
 
         {/* 4. Inventário com Submenu Resultados */}
         <div className="py-2 space-y-1">
-          {navLink('/contents', Table, 'Inventário')}
+          <NavLink
+            to="/contents"
+            className={({ isActive }) =>
+              cn(
+                'flex items-center gap-4 px-4 py-2.5 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all',
+                isActive
+                  ? 'bg-[var(--bg-hover)] text-[var(--text-primary)] shadow-sm border-l-4 border-[var(--text-primary)]'
+                  : 'text-[var(--text-primary)] hover:bg-[var(--bg-hover)] opacity-60 hover:opacity-100 italic'
+              )
+            }
+          >
+            <Table className="w-4 h-4" />
+            Inventário
+            {(() => {
+              const aEditar = state.contents.filter(c => c.status === 'A Editar').length;
+              return aEditar > 0 ? (
+                <span className="ml-auto text-[9px] bg-[var(--accent-orange)]/15 text-[var(--accent-orange)] px-2 py-0.5 rounded-full font-black">
+                  {aEditar}
+                </span>
+              ) : null;
+            })()}
+          </NavLink>
           <div className="ml-4 pl-4 border-l border-[var(--border-color)]">
             <NavLink
               to="/results"
@@ -195,10 +196,31 @@ export function Sidebar({ isOpen, onClose, onOpenDNA }: SidebarProps) {
                 )
               }
             >
-              <BarChart3 className="w-3 h-3 shrink-0" /> Resultados
+               <BarChart3 className="w-3 h-3 shrink-0" /> Resultados
             </NavLink>
           </div>
         </div>
+
+        {/* Séries */}
+        <NavLink
+          to="/arquivos"
+          className={({ isActive }) =>
+            cn(
+              'flex items-center gap-4 px-4 py-2.5 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all',
+              isActive
+                ? 'bg-[var(--bg-hover)] text-[var(--text-primary)] shadow-sm border-l-4 border-[var(--text-primary)]'
+                : 'text-[var(--text-primary)] hover:bg-[var(--bg-hover)] opacity-60 hover:opacity-100 italic'
+            )
+          }
+        >
+          <Layers className="w-4 h-4" />
+          Séries
+          {state.series.length > 0 && (
+            <span className="ml-auto text-[9px] bg-[var(--bg-hover)] px-2 py-0.5 rounded-full font-bold opacity-60">
+              {state.series.length}
+            </span>
+          )}
+        </NavLink>
 
         {/* 5. Calendário (Agenda + Projetos) */}
         {navLink('/calendar', Calendar, 'Calendário')}
@@ -253,65 +275,6 @@ export function Sidebar({ isOpen, onClose, onOpenDNA }: SidebarProps) {
                       {label}
                     </NavLink>
                   ))}
-                </div>
-
-                <div className="border-t border-[var(--border-color)]/50 pt-2 space-y-1">
-                  {/* Arquivos de DNA / Séries */}
-                  <button
-                    onClick={() => setSeriesExpanded(!seriesExpanded)}
-                    className="flex w-full items-center gap-3 px-3 py-2 rounded-xl text-[var(--text-primary)] opacity-60 hover:opacity-100 transition-all italic hover:bg-[var(--bg-hover)]"
-                  >
-                    <Layers className="w-3 h-3 shrink-0" />
-                    <span className="flex-1 text-left">Arquivos de DNA</span>
-                    <div className="flex items-center gap-2">
-                       <span onClick={handleAddSeries} className="p-1.5 hover:bg-[var(--bg-secondary)] rounded-lg opacity-80 hover:opacity-100 border border-transparent hover:border-[var(--border-color)] bg-white/5">
-                         <Plus className="w-3 h-3" />
-                       </span>
-                    </div>
-                  </button>
-
-                  <AnimatePresence>
-                    {seriesExpanded && (
-                      <motion.div
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: 'auto' }}
-                        exit={{ opacity: 0, height: 0 }}
-                        className="ml-3 pl-3 border-l border-[var(--border-color)] overflow-hidden space-y-1 my-1"
-                      >
-                        {state.series.map((s) => (
-                          <NavLink
-                            key={s.id}
-                            to={`/series/${s.id}`}
-                            className={({ isActive }) =>
-                              cn(
-                                'flex items-center gap-3 px-3 py-2 rounded-xl transition-all text-[9.5px]',
-                                isActive
-                                  ? 'text-[var(--text-primary)] opacity-100 underline decoration-2 underline-offset-4'
-                                  : 'text-[var(--text-primary)] opacity-50 hover:opacity-100 italic'
-                              )
-                            }
-                          >
-                            <div
-                              className="w-1.5 h-1.5 rounded-full shrink-0"
-                              style={{ backgroundColor: s.cor || 'currentColor', opacity: s.cor ? 1 : 0.3 }}
-                            />
-                            <span className="truncate">{s.name}</span>
-                          </NavLink>
-                        ))}
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-                
-                <div className="border-t border-[var(--border-color)]/50 pt-2">
-                   {/* Voz Única DNA */}
-                  <button
-                    onClick={onOpenDNA}
-                    className="w-full flex items-center gap-3 px-3 py-3 rounded-[1rem] text-[var(--bg-primary)] bg-[var(--text-primary)] transition-all shadow-md group hover:scale-[1.02] active:scale-[0.98]"
-                  >
-                    <Fingerprint className="w-4 h-4 shrink-0" />
-                    <span className="flex-1 text-left">Voz Única (DNA)</span>
-                  </button>
                 </div>
               </motion.div>
             )}

@@ -21,11 +21,11 @@ interface BookNotesModalProps {
 }
 
 const TIPO_CORES: Record<TipoAnotacao, string> = {
-  Trecho: 'bg-blue-100 text-blue-700',
-  Reação: 'bg-pink-100 text-pink-700',
-  Análise: 'bg-purple-100 text-purple-700',
-  'Ideia de conteúdo': 'bg-green-100 text-green-700',
-  Pergunta: 'bg-orange-100 text-orange-700',
+  Trecho: 'bg-[var(--accent-blue)]/10 text-[var(--accent-blue)]',
+  Reação: 'bg-[var(--accent-pink)]/10 text-[var(--accent-pink)]',
+  Análise: 'bg-[var(--accent-purple)]/10 text-[var(--accent-purple)]',
+  'Ideia de conteúdo': 'bg-[var(--accent-green)]/10 text-[var(--accent-green)]',
+  Pergunta: 'bg-[var(--accent-orange)]/10 text-[var(--accent-orange)]',
 };
 
 const TIPOS: TipoAnotacao[] = ['Trecho', 'Reação', 'Análise', 'Ideia de conteúdo', 'Pergunta'];
@@ -210,7 +210,7 @@ export function BookNotesModal({ book, onClose }: BookNotesModalProps) {
                       )}
                       <button
                         onClick={() => handleDeleteAnotacao(a.id)}
-                        className="p-1.5 text-red-500/40 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all"
+                        className="p-1.5 text-[var(--accent-pink)]/40 hover:text-[var(--accent-pink)] hover:bg-[var(--accent-pink)]/10 rounded-lg transition-all"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>

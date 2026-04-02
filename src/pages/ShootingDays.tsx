@@ -6,6 +6,7 @@ import { ptBR } from 'date-fns/locale';
 import { Content, RecordingBlock } from '../types';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
+import { ConfirmModal } from '../components/ConfirmModal';
 
 export function ShootingDays() {
   const { state, dispatch } = useAppContext();
@@ -13,6 +14,7 @@ export function ShootingDays() {
   const [isBurstMode, setIsBurstMode] = useState(false);
   const [view, setView] = useState<'planning' | 'sessions'>('planning');
   const [isCreatingBlock, setIsCreatingBlock] = useState(false);
+  const [confirm, setConfirm] = useState<{ message: string; onConfirm: () => void } | null>(null);
   const [blockName, setBlockName] = useState('');
 
   const readyToRecord = useMemo(() => {
@@ -54,19 +56,16 @@ export function ShootingDays() {
   };
 
   const handleFinishRecording = () => {
-    if (window.confirm('Finalizar gravação de todos os vídeos selecionados?')) {
+    setConfirm({ message: 'Finalizar gravação de todos os vídeos selecionados?', onConfirm: () => {
       selectedIds.forEach(id => {
         const content = state.contents.find(c => c.id === id);
         if (content) {
-          dispatch({ 
-            type: 'UPDATE_CONTENT', 
-            payload: { ...content, status: 'Gravado' } 
-          });
+          dispatch({ type: 'UPDATE_CONTENT', payload: { ...content, status: 'Gravado' } });
         }
       });
       setSelectedIds([]);
       setIsBurstMode(false);
-    }
+    } });
   };
 
   const handleCreateBlock = () => {
@@ -91,9 +90,7 @@ export function ShootingDays() {
 
   const handleDeleteBlock = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (window.confirm('Tem certeza que deseja deletar este bloco de gravação?')) {
-      dispatch({ type: 'DELETE_RECORDING_BLOCK', payload: id });
-    }
+    setConfirm({ message: 'Tem certeza que deseja deletar este bloco de gravação?', onConfirm: () => dispatch({ type: 'DELETE_RECORDING_BLOCK', payload: id }) });
   };
 
   return (
@@ -469,6 +466,12 @@ export function ShootingDays() {
           </motion.div>
         )}
       </AnimatePresence>
+      <ConfirmModal
+        open={!!confirm}
+        message={confirm?.message || ''}
+        onConfirm={() => { confirm?.onConfirm(); setConfirm(null); }}
+        onCancel={() => setConfirm(null)}
+      />
     </div>
   );
 }

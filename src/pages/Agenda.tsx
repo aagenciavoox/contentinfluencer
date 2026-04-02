@@ -33,7 +33,7 @@ export function Agenda() {
   };
 
   return (
-    <div className="max-w-6xl mx-auto py-10 md:py-16 px-6 md:px-10 transition-colors duration-200">
+    <div className="max-w-7xl mx-auto py-10 md:py-16 px-6 md:px-10 transition-colors duration-200">
       <header className="mb-12 md:mb-20 flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div className="max-w-xl">
           <h1 className="text-4xl md:text-5xl font-black text-[var(--text-primary)] mb-4 tracking-tight">Agenda de Filtro</h1>
@@ -67,7 +67,7 @@ export function Agenda() {
                 <div 
                   key={day.toString()} 
                   className={cn(
-                    "p-8 rounded-[2.5rem] border transition-all relative overflow-hidden group",
+                    "p-8 rounded-3xl border transition-all relative overflow-hidden group",
                     isToday 
                       ? "bg-[var(--bg-secondary)] border-[var(--text-primary)] shadow-2xl ring-4 ring-[var(--text-primary)]/5" 
                       : "bg-[var(--bg-secondary)] border-[var(--border-color)] hover:border-[var(--border-strong)] shadow-sm hover:shadow-xl hover:-translate-y-1"
@@ -151,7 +151,7 @@ export function Agenda() {
 
         {/* Form Column (Side on desktop) */}
         <div className="lg:col-span-1">
-          <section className="p-10 bg-[var(--bg-secondary)] rounded-[2.5rem] border border-[var(--border-color)] shadow-xl lg:sticky lg:top-10 transition-all hover:shadow-2xl">
+          <section className="p-10 bg-[var(--bg-secondary)] rounded-3xl border border-[var(--border-color)] shadow-xl lg:sticky lg:top-10 transition-all hover:shadow-2xl">
             <div className="flex items-center gap-3 mb-10 text-[var(--text-primary)]">
               <div className="p-2 bg-[var(--bg-hover)] rounded-xl border border-[var(--border-color)]">
                 <Plus className="w-5 h-5" />
