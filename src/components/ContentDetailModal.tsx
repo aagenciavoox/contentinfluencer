@@ -5,12 +5,15 @@ import { ConfirmModal } from './ConfirmModal';
 import { STATUS_STAGES, CAPTION_TEMPLATES, PLATFORMS, VISUAL_FORMATS } from '../constants';
 import { Content, Platform, VisualFormat } from '../types';
 import { cn } from '../lib/utils';
-import { BottomSheetModal } from './BottomSheetModal';
+import { FixedPanelModal } from './FixedPanelModal';
+import { RichTextEditor } from './RichTextEditor';
+import { useAuth } from '../context/AuthContext';
 
 interface ContentDetailModalProps {
   content: Content;
   onClose: () => void;
   initialLivroOrigemId?: string;
+  isNewContent?: boolean;
 }
 
 const STATUS_SHORT: Record<string, string> = {
@@ -29,8 +32,11 @@ const CHAR_LIMITS: Partial<Record<Platform, number>> = {
   YouTube: 5000,
 };
 
-export function ContentDetailModal({ content, onClose, initialLivroOrigemId }: ContentDetailModalProps) {
+export function ContentDetailModal({ content, onClose, initialLivroOrigemId, isNewContent = false }: ContentDetailModalProps) {
   const { state, dispatch } = useAppContext();
+  const { user } = useAuth();
+  const userName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Usuário';
+
 
   const [confirm, setConfirm] = useState<{ message: string; onConfirm: () => void } | null>(null);
   const [notesOpen, setNotesOpen] = useState(!!(content.notes));
@@ -73,7 +79,29 @@ export function ContentDetailModal({ content, onClose, initialLivroOrigemId }: C
       }
     }
 
+    // Auto-fill roteiro via template da série quando seriesId é definido
+    if (updates.seriesId) {
+      const serie = state.series.find(s => s.id === updates.seriesId);
+      const livroOrigem = local.livroOrigemId ? state.books.find(b => b.id === local.livroOrigemId) : null;
+      if (serie?.estruturaRoteiro && !local.script && livroOrigem) {
+        let scriptPreenchido = serie.estruturaRoteiro
+          .replace(/\{\{livro\}\}/g, livroOrigem.titulo)
+          .replace(/\{\{autor\}\}/g, livroOrigem.autor);
+        updates.script = scriptPreenchido;
+      }
+    }
+
     setLocal(prev => ({ ...prev, ...updates }));
+  };
+
+  const handleAplicarTemplateManual = () => {
+    const serie = state.series.find(s => s.id === local.seriesId);
+    const livroOrigem = local.livroOrigemId ? state.books.find(b => b.id === local.livroOrigemId) : null;
+    if (!serie?.estruturaRoteiro) return;
+    const scriptPreenchido = serie.estruturaRoteiro
+      .replace(/\{\{livro\}\}/g, livroOrigem?.titulo || '')
+      .replace(/\{\{autor\}\}/g, livroOrigem?.autor || '');
+    setLocal(prev => ({ ...prev, script: scriptPreenchido }));
   };
 
   const updateLegenda = (plataforma: Platform, texto: string) => {
@@ -89,6 +117,32 @@ export function ContentDetailModal({ content, onClose, initialLivroOrigemId }: C
       : [...atual, plat];
     if (novas.length === 0) return;
     updateLocal({ plataformas: novas });
+  };
+
+  const handleAddAnnotation = (text: string, selection: { from: number; to: number }, comment: string) => {
+    const newNote = {
+      id: Math.random().toString(36).substr(2, 9),
+      text,
+      selection,
+      comment,
+      authorName: userName,
+      createdAt: new Date().toISOString()
+    };
+    const currentNotes = local.scriptNotes || [];
+    setLocal(prev => ({ ...prev, scriptNotes: [...currentNotes, newNote] }));
+  };
+
+  const handleRemoveAnnotation = (id: string) => {
+    const currentNotes = local.scriptNotes || [];
+    setLocal(prev => ({ ...prev, scriptNotes: currentNotes.filter(n => n.id !== id) }));
+  };
+
+  const handleUpdateAnnotation = (id: string, comment: string, color?: string) => {
+    const currentNotes = local.scriptNotes || [];
+    setLocal(prev => ({
+      ...prev,
+      scriptNotes: currentNotes.map(n => n.id === id ? { ...n, comment, color } : n)
+    }));
   };
 
   const handleSave = () => {
@@ -144,7 +198,7 @@ export function ContentDetailModal({ content, onClose, initialLivroOrigemId }: C
 
   return (
     <>
-    <BottomSheetModal open={true} onClose={onClose} desktopMaxW="max-w-[820px]">
+    <FixedPanelModal open={true} onClose={onClose} desktopMaxW="md:max-w-[1100px]">
       {/* Área rolável */}
       <div className="p-6 md:p-12 flex-1 overflow-y-auto custom-scrollbar">
 
@@ -479,14 +533,34 @@ export function ContentDetailModal({ content, onClose, initialLivroOrigemId }: C
 
           {/* Roteiro — seção principal */}
           <section>
-            <span className="text-[10px] uppercase tracking-widest font-black text-[var(--text-primary)] opacity-50 mb-3 block">
-              Roteiro
-            </span>
-            <textarea
-              value={local.script || ''}
-              onChange={(e) => updateLocal({ script: e.target.value })}
-              className="w-full min-h-[320px] text-sm text-[var(--text-primary)] border border-[var(--border-color)] focus:ring-0 p-5 resize-none placeholder:italic placeholder:opacity-30 bg-[var(--bg-secondary)] rounded-2xl leading-relaxed"
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-[10px] uppercase tracking-widest font-black text-[var(--text-primary)] opacity-50">
+                Roteiro
+              </span>
+              {(() => {
+                const serie = state.series.find(s => s.id === local.seriesId);
+                if (serie?.estruturaRoteiro) {
+                  return (
+                    <button
+                      onClick={handleAplicarTemplateManual}
+                      className="text-[9px] font-bold text-[var(--accent-blue)] hover:underline opacity-60 hover:opacity-100 transition-opacity"
+                    >
+                      {local.script ? 'Reiniciar Template' : 'Usar template da série'}
+                    </button>
+                  );
+                }
+                return null;
+              })()}
+            </div>
+            <RichTextEditor
+              content={local.script || ''}
+              onChange={(html) => updateLocal({ script: html })}
               placeholder="Escreva o roteiro aqui..."
+              authorName={userName}
+              annotations={local.scriptNotes || []}
+              onAddAnnotation={handleAddAnnotation}
+              onRemoveAnnotation={handleRemoveAnnotation}
+              onUpdateAnnotation={handleUpdateAnnotation}
             />
           </section>
 
@@ -652,7 +726,7 @@ export function ContentDetailModal({ content, onClose, initialLivroOrigemId }: C
           Salvar
         </button>
       </div>
-    </BottomSheetModal>
+    </FixedPanelModal>
     <ConfirmModal
       open={!!confirm}
       message={confirm?.message || ''}

@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
 import { PILLARS } from '../constants';
 import { Plus, ArrowUpRight, Clock, Lightbulb, X, Trash2, Edit3, Save, BookOpen } from 'lucide-react';
@@ -12,11 +13,19 @@ import { PageGuide } from '../components/PageGuide';
 
 export function Ideas() {
   const { state, dispatch } = useAppContext();
+  const [searchParams] = useSearchParams();
   const [newIdeaText, setNewIdeaText] = useState('');
   const [selectedPillar, setSelectedPillar] = useState<any>(PILLARS[0]);
   const [selectedSeries, setSelectedSeries] = useState<string>('');
   const [selectedBook, setSelectedBook] = useState<string>('');
   const [viewingIdea, setViewingIdea] = useState<Idea | null>(null);
+
+  useEffect(() => {
+    const livroId = searchParams.get('livroId');
+    if (livroId) {
+      setSelectedBook(livroId);
+    }
+  }, [searchParams]);
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState('');
   const [confirm, setConfirm] = useState<{ message: string; onConfirm: () => void } | null>(null);

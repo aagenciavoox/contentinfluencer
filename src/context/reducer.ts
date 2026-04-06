@@ -1,5 +1,5 @@
 import { AppState } from './AppContext';
-import { Book, BookAnnotation, Pilar, Look, Cenario, RecordingBlock, GoldenRule } from '../types';
+import { Book, BookAnnotation, Pilar, Look, Cenario, RecordingBlock, GoldenRule, Campaign } from '../types';
 
 export type AppAction =
   // Conteúdo
@@ -64,6 +64,10 @@ export type AppAction =
   | { type: 'UPDATE_GOLDEN_RULES'; payload: GoldenRule[] }
   | { type: 'ADD_GOLDEN_RULE'; payload: GoldenRule }
   | { type: 'DELETE_GOLDEN_RULE'; payload: string }
+  // Campanhas
+  | { type: 'ADD_CAMPAIGN'; payload: Campaign }
+  | { type: 'UPDATE_CAMPAIGN'; payload: Campaign }
+  | { type: 'DELETE_CAMPAIGN'; payload: string }
   // Sincronização Supabase
   | { type: 'SET_STATE'; payload: Partial<AppState> };
 
@@ -280,6 +284,17 @@ export function appReducer(state: AppState, action: AppAction): AppState {
     }
     case 'DELETE_GOLDEN_RULE':
       return { ...state, goldenRules: state.goldenRules.filter(r => r.id !== action.payload) };
+
+    // ─── Campanhas ───────────────────────────────────────────────────────────
+    case 'ADD_CAMPAIGN':
+      return { ...state, campaigns: [action.payload, ...state.campaigns] };
+    case 'UPDATE_CAMPAIGN':
+      return {
+        ...state,
+        campaigns: state.campaigns.map(c => c.id === action.payload.id ? action.payload : c),
+      };
+    case 'DELETE_CAMPAIGN':
+      return { ...state, campaigns: state.campaigns.filter(c => c.id !== action.payload) };
 
     default:
       return state;

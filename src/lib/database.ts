@@ -46,7 +46,7 @@ export async function fetchAllData(): Promise<Partial<AppState>> {
     supabase.from('looks').select('*').is('deleted_at', null).order('numero'),
     supabase.from('cenarios').select('*').is('deleted_at', null).order('id'),
     supabase.from('app_config').select('*'),
-    supabase.from('dna_voz').select('*').eq('id', userId).single(),
+    supabase.from('dna_voz').select('*').eq('user_id', userId).maybeSingle(),
     supabase.from('recording_blocks').select('*').is('deleted_at', null).order('created_at', { ascending: false }),
     supabase.from('golden_rules').select('*').is('deleted_at', null).order('id')
   ]);
@@ -76,6 +76,7 @@ export async function fetchAllData(): Promise<Partial<AppState>> {
     formatoVisual: c.formato_visual,
     livroOrigemId: c.livro_origem_id,
     legendas: c.legendas || {},
+    scriptNotes: c.script_notes || [],
     createdAt: c.created_at,
   }));
 
@@ -168,6 +169,16 @@ export async function fetchAllData(): Promise<Partial<AppState>> {
     // Filtra anotações deletadas também
     paginasLidas: b.paginas_lidas ?? undefined,
     totalPaginas: b.total_paginas ?? undefined,
+    editora: b.editora ?? undefined,
+    anoPublicacao: b.ano_publicacao ?? undefined,
+    isbn: b.isbn ?? undefined,
+    idioma: b.idioma ?? undefined,
+    traducao: b.traducao ?? undefined,
+    serieColecao: b.serie_colecao ?? undefined,
+    quemIndicou: b.quem_indicou ?? undefined,
+    motivoEscolha: b.motivo_escolha ?? undefined,
+    potencialConteudo: b.potencial_conteudo ?? undefined,
+    capitulosCobertos: b.capitulos_cobertos ?? [],
     anotacoes: (b.book_annotations || [])
       .filter((a: any) => !a.deleted_at)
       .map((a: any) => ({
@@ -177,6 +188,7 @@ export async function fetchAllData(): Promise<Partial<AppState>> {
         tipo: a.tipo,
         capituloRef: a.capitulo_ref,
         destilada: a.destilada ?? false,
+        contentPotential: a.content_potential ?? false,
         createdAt: a.created_at,
       })),
   }));
@@ -290,16 +302,17 @@ export async function saveToSupabase(state: AppState) {
   const userId = session.user.id;
 
   await Promise.allSettled([
-    // App config
-    supabase.from('app_config').upsert([
+    // App config — upsert por linha para evitar conflito de constraint
+    ...([
       { key: 'onboarding_completo', value: state.onboardingCompleto, user_id: userId },
       { key: 'theme', value: state.theme, user_id: userId },
       { key: 'viewed_guides', value: state.viewedGuides, user_id: userId },
-    ]),
+    ].map(row => supabase.from('app_config').upsert(row, { onConflict: 'key' }).then(({ error }) => {
+      if (error) console.warn('[Supabase] app_config upsert skipped:', row.key, error.message);
+    }))),
 
     // DNA da Voz
     supabase.from('dna_voz').upsert({
-      id: userId,
       user_id: userId,
       promessa_central: state.dnaVoz.promessaCentral,
       publico: state.dnaVoz.publico,
@@ -334,6 +347,7 @@ export async function saveToSupabase(state: AppState) {
         formato_visual: c.formatoVisual || null,
         livro_origem_id: c.livroOrigemId || null,
         legendas: c.legendas || {},
+        script_notes: c.scriptNotes || [],
         created_at: c.createdAt,
         user_id: userId,
       }))
@@ -495,6 +509,16 @@ export async function saveToSupabase(state: AppState) {
         notas_gerais: b.notasGerais || null,
         paginas_lidas: b.paginasLidas ?? null,
         total_paginas: b.totalPaginas ?? null,
+        editora: b.editora || null,
+        ano_publicacao: b.anoPublicacao || null,
+        isbn: b.isbn || null,
+        idioma: b.idioma || null,
+        traducao: b.traducao || null,
+        serie_colecao: b.serieColecao || null,
+        quem_indicou: b.quemIndicou || null,
+        motivo_escolha: b.motivoEscolha || null,
+        potencial_conteudo: b.potencialConteudo || null,
+        capitulos_cobertos: b.capitulosCobertos || [],
         created_at: b.createdAt,
         user_id: userId,
       }))
@@ -510,6 +534,7 @@ export async function saveToSupabase(state: AppState) {
       tipo: a.tipo,
       capitulo_ref: a.capituloRef || null,
       destilada: a.destilada ?? false,
+      content_potential: a.contentPotential ?? false,
       created_at: a.createdAt,
       user_id: userId,
     }))

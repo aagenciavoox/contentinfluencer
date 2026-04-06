@@ -1,124 +1,162 @@
 import React, { useState, useMemo } from 'react';
 import { useAppContext } from '../context/AppContext';
-import { format, isAfter, isBefore, isToday, startOfToday, startOfWeek, endOfWeek, isWithinInterval } from 'date-fns';
+import {
+  format, isBefore, isToday, startOfToday, startOfWeek, endOfWeek,
+  isWithinInterval, addDays,
+} from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { 
-  Zap, 
-  Calendar as CalendarIcon, 
-  AlertCircle, 
-  Plus, 
-  BookOpen, 
-  CheckCircle2, 
-  Clock, 
-  LayoutDashboard,
-  ArrowRight,
-  TrendingUp,
-  FileText,
-  Lightbulb
+import {
+  Zap, Calendar as CalendarIcon, AlertCircle, Plus, BookOpen,
+  CheckCircle2, Clock, LayoutDashboard, ArrowRight, TrendingUp,
+  Lightbulb, ChevronDown, ChevronUp, Mic, Send, AlertTriangle,
+  Video,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { cn } from '../lib/utils';
-import { STATUS_STAGES } from '../constants';
 import { generateUUID } from '../utils/uuid';
-import { BookAnnotation, Idea, Book } from '../types';
+import { Idea, Book, Content } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 import { BookNotesModal } from '../components/BookNotesModal';
 import { PageGuide } from '../components/PageGuide';
+import { ContentDetailModal } from '../components/ContentDetailModal';
+
+const PIPELINE_STATUSES = ['Pronto para Gravar', 'Gravado', 'A Editar', 'Editado', 'Programado'] as const;
+
+const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; border: string; dot: string }> = {
+  'Pronto para Gravar': { label: 'Pronto p/ Gravar', color: 'text-orange-500', bg: 'bg-orange-500/10', border: 'border-orange-500/20', dot: 'bg-orange-500' },
+  'Gravado':            { label: 'Gravado',           color: 'text-purple-500', bg: 'bg-purple-500/10', border: 'border-purple-500/20', dot: 'bg-purple-500' },
+  'A Editar':           { label: 'A Editar',           color: 'text-amber-500',  bg: 'bg-amber-500/10',  border: 'border-amber-500/20',  dot: 'bg-amber-500'  },
+  'Editado':            { label: 'Editado',            color: 'text-blue-500',   bg: 'bg-blue-500/10',   border: 'border-blue-500/20',   dot: 'bg-blue-500'   },
+  'Programado':         { label: 'Programado',         color: 'text-green-500',  bg: 'bg-green-500/10',  border: 'border-green-500/20',  dot: 'bg-green-500'  },
+};
 
 export function Dashboard() {
   const { state, dispatch } = useAppContext();
   const today = new Date();
   const todayStr = format(today, 'yyyy-MM-dd');
-  
-  // Quick Capture State
+
+  // UI state
   const [quickInput, setQuickInput] = useState('');
-  const [captureType, setCaptureType] = useState<'idea' | 'annotation'>('idea');
-  const [selectedBookId, setSelectedBookId] = useState('');
+  const [isCaptureOpen, setIsCaptureOpen] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
-
-  // Book Modal State
   const [viewingNotesBook, setViewingNotesBook] = useState<Book | null>(null);
+  const [selectedContent, setSelectedContent] = useState<Content | null>(null);
 
-  // Current Week Interval
+  // Energy
+  const currentEnergy = state.energyLogs.find(l => l.date === todayStr)?.level || 0;
+  const handleEnergyLog = (level: number) => {
+    dispatch({ type: 'LOG_ENERGY', payload: { date: todayStr, level } });
+  };
+
+  // ── TODAY ────────────────────────────────────────────────────────
+  const todayRecordings = useMemo(() =>
+    state.contents.filter(c => c.recordingDate === todayStr && c.status !== 'Postado'),
+  [state.contents, todayStr]);
+
+  const todayPublications = useMemo(() =>
+    state.contents.filter(c => c.publishDate === todayStr && c.status !== 'Postado'),
+  [state.contents, todayStr]);
+
+  const hasAnythingToday = todayRecordings.length > 0 || todayPublications.length > 0;
+
+  // ── NEXT 3 DAYS ──────────────────────────────────────────────────
+  const next3DaysItems = useMemo(() => {
+    const items: Array<{ content: Content; type: 'recording' | 'publish'; dateStr: string }> = [];
+    for (let i = 1; i <= 3; i++) {
+      const dStr = format(addDays(today, i), 'yyyy-MM-dd');
+      state.contents.forEach(c => {
+        if (c.recordingDate === dStr && c.status !== 'Postado')
+          items.push({ content: c, type: 'recording', dateStr: dStr });
+        if (c.publishDate === dStr && c.status !== 'Postado')
+          items.push({ content: c, type: 'publish', dateStr: dStr });
+      });
+    }
+    return items;
+  }, [state.contents, todayStr]);
+
+  // ── ATTENTION ─────────────────────────────────────────────────────
+  const overduePublications = useMemo(() =>
+    state.contents.filter(c =>
+      c.publishDate &&
+      isBefore(new Date(c.publishDate + 'T00:00:00'), startOfToday()) &&
+      c.status !== 'Postado'
+    ),
+  [state.contents]);
+
+  const missingRecordDate = useMemo(() =>
+    state.contents.filter(c => c.status === 'Pronto para Gravar' && !c.recordingDate),
+  [state.contents]);
+
+  const totalAttention = overduePublications.length + missingRecordDate.length;
+
+  // ── PIPELINE ──────────────────────────────────────────────────────
+  const pipeline = useMemo(() =>
+    PIPELINE_STATUSES.map(status => ({
+      status,
+      items: state.contents.filter(c => c.status === status),
+    })),
+  [state.contents]);
+
+  // ── KPIs ─────────────────────────────────────────────────────────
   const weekStart = startOfWeek(today, { weekStartsOn: 0 });
-  const weekEnd = endOfWeek(today, { weekStartsOn: 0 });
+  const weekEnd   = endOfWeek(today,   { weekStartsOn: 0 });
 
-  // Filter books being read
+  const weeklyKpis = useMemo(() => ({
+    ideas:     state.ideas.filter(i => isWithinInterval(new Date(i.createdAt), { start: weekStart, end: weekEnd })).length,
+    posted:    state.contents.filter(c => c.status === 'Postado' && c.publishDate && isWithinInterval(new Date(c.publishDate + 'T12:00:00'), { start: weekStart, end: weekEnd })).length,
+    scheduled: state.contents.filter(c => c.status === 'Programado').length,
+  }), [state.ideas, state.contents, weekStart, weekEnd]);
+
+  const metaSemanal = state.pilares.filter(p => p.ativo).reduce((acc, p) => acc + (p.metaSemanalMin || 0), 0);
+
+  // ── ENERGY RECS (only when today is empty) ───────────────────────
+  const energyRecs = useMemo(() => {
+    if (hasAnythingToday || currentEnergy === 0) return [];
+    return state.contents
+      .filter(c => c.status === 'Pronto para Gravar' && c.slotType === String(currentEnergy))
+      .slice(0, 3);
+  }, [hasAnythingToday, state.contents, currentEnergy]);
+
+  // ── BOOKS ─────────────────────────────────────────────────────────
   const currentBooks = state.books.filter(b => b.statusLeitura === 'Lendo');
 
-  // KPIs
-  const weeklyKpis = useMemo(() => {
-    const newIdeas = state.ideas.filter(i => 
-      isWithinInterval(new Date(i.createdAt), { start: weekStart, end: weekEnd })
-    ).length;
-
-    const editedPieces = state.contents.filter(c => 
-      ['Editado', 'Programado', 'Postado'].includes(c.status) && 
-      isWithinInterval(new Date(c.createdAt), { start: weekStart, end: weekEnd })
-    ).length;
-
-    const scheduledPieces = state.contents.filter(c => 
-      c.status === 'Programado' || (c.publishDate && isAfter(new Date(c.publishDate), today))
-    ).length;
-
-    return { newIdeas, editedPieces, scheduledPieces };
-  }, [state.ideas, state.contents, weekStart, weekEnd, today]);
-
-  const metaSemanal = state.pilares
-    .filter(p => p.ativo)
-    .reduce((acc, p) => acc + (p.metaSemanalMin || 0), 0);
-
-  const upcomingAgenda = state.agenda
-    .filter(item => !isBefore(new Date(item.date + 'T12:00:00'), startOfToday()))
-    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-    .slice(0, 3);
-
-  const currentEnergy = state.energyLogs.find(l => l.date === todayStr)?.level || 0;
-
+  // ── QUICK CAPTURE ─────────────────────────────────────────────────
   const handleQuickCapture = (e: React.FormEvent) => {
     e.preventDefault();
     if (!quickInput.trim()) return;
-
-    if (captureType === 'idea') {
-      const newIdea: Idea = {
-        id: generateUUID(),
-        text: quickInput,
-        createdAt: new Date().toISOString(),
-        archived: false,
-      };
-      dispatch({ type: 'ADD_IDEA', payload: newIdea });
-    } else {
-      if (!selectedBookId) return;
-      const newAnnotation: BookAnnotation = {
-        id: generateUUID(),
-        livroId: selectedBookId,
-        texto: quickInput,
-        tipo: 'Reação', // Default
-        destilada: false,
-        createdAt: new Date().toISOString(),
-      };
-      dispatch({ type: 'ADD_ANNOTATION', payload: newAnnotation });
-    }
-
+    const newIdea: Idea = {
+      id: generateUUID(),
+      text: quickInput,
+      createdAt: new Date().toISOString(),
+      archived: false,
+    };
+    dispatch({ type: 'ADD_IDEA', payload: newIdea });
     setQuickInput('');
     setIsSuccess(true);
     setTimeout(() => setIsSuccess(false), 2000);
   };
 
-  const handleEnergyLog = (level: number) => {
-    dispatch({ type: 'LOG_ENERGY', payload: { date: todayStr, level } });
+  // ── HELPERS ───────────────────────────────────────────────────────
+  const formatDateLabel = (dateStr: string) => {
+    const d = new Date(dateStr + 'T12:00:00');
+    if (isToday(d)) return 'Hoje';
+    const diff = Math.round((d.getTime() - startOfToday().getTime()) / 86400000);
+    if (diff === 1) return 'Amanhã';
+    return format(d, "EEE, dd/MM", { locale: ptBR });
   };
 
+  // ─────────────────────────────────────────────────────────────────
   return (
-    <div className="max-w-7xl mx-auto py-8 md:py-12 px-6 md:px-10 space-y-8 md:space-y-12">
-      <PageGuide 
+    <div className="max-w-7xl mx-auto py-8 md:py-12 px-6 md:px-10 space-y-10">
+      <PageGuide
         pageId="dashboard"
         title="Command Center"
-        description="Esta é sua visão geral. Use o 'Quick Capture' para salvar ideias e notas de livros sem sair da tela. Acompanhe suas metas semanais e o progresso da sua leitura atual."
+        description="Visão operacional da sua produção: o que gravar/postar hoje, o que vem nos próximos dias, o que precisa de atenção e o estado geral do pipeline."
         icon={LayoutDashboard}
       />
-      {/* ── HEADER OPERACIONAL ────────────────────────────────────────── */}
-      <header className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+
+      {/* ── HEADER ──────────────────────────────────────────────────── */}
+      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl md:text-4xl font-black text-[var(--text-primary)] tracking-tight italic">
             Command Center
@@ -128,18 +166,19 @@ export function Dashboard() {
           </p>
         </div>
 
-        {/* Mini Energy Log (Compacto) */}
-        <div className="flex items-center gap-3 bg-[var(--bg-secondary)] p-3 rounded-2xl border border-[var(--border-color)]">
-          <Zap className={cn("w-4 h-4", currentEnergy > 0 ? "text-[var(--accent-orange)]" : "opacity-30")} />
+        {/* Energy log */}
+        <div className="flex items-center gap-3 bg-[var(--bg-secondary)] px-4 py-3 rounded-2xl border border-[var(--border-color)] self-start sm:self-auto">
+          <Zap className={cn("w-4 h-4 shrink-0", currentEnergy > 0 ? "text-orange-400" : "opacity-30")} />
+          <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-tertiary)] opacity-60 hidden sm:block">Energia</span>
           <div className="flex gap-1.5">
-            {[1, 2, 3, 4, 5].map((level) => (
+            {[1, 2, 3, 4, 5].map(level => (
               <button
                 key={level}
                 onClick={() => handleEnergyLog(level)}
                 className={cn(
-                  "w-8 h-8 rounded-lg text-[10px] font-black transition-all",
-                  currentEnergy === level 
-                    ? 'bg-[var(--text-primary)] text-[var(--bg-primary)] shadow-lg scale-110' 
+                  "w-7 h-7 rounded-lg text-[10px] font-black transition-all",
+                  currentEnergy === level
+                    ? 'bg-[var(--text-primary)] text-[var(--bg-primary)] shadow-lg scale-110'
                     : 'bg-[var(--bg-hover)] text-[var(--text-tertiary)] hover:bg-[var(--border-strong)]'
                 )}
               >
@@ -150,306 +189,454 @@ export function Dashboard() {
         </div>
       </header>
 
-      {/* ── QUICK CAPTURE (O FOCO OPERACIONAL) ──────────────────────────────── */}
-      <section className="relative mb-8">
-        <div className="flex items-center gap-4 md:gap-8 mb-4 px-4 overflow-x-auto no-scrollbar flex-nowrap whitespace-nowrap">
-          <button 
-            type="button"
-            onClick={() => setCaptureType('idea')}
-            className={cn(
-              "text-[10px] md:text-[11px] font-black uppercase tracking-[0.2em] pb-2 transition-all border-b-2 shrink-0", 
-              captureType === 'idea' ? "border-[var(--text-primary)] text-[var(--text-primary)]" : "border-transparent text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] opacity-60"
-            )}
-          >
-            Caixa de Ideias
-          </button>
-          <button 
-            type="button"
-            onClick={() => setCaptureType('annotation')}
-            className={cn(
-              "text-[10px] md:text-[11px] font-black uppercase tracking-[0.2em] pb-2 transition-all border-b-2 shrink-0", 
-              captureType === 'annotation' ? "border-[var(--text-primary)] text-[var(--text-primary)]" : "border-transparent text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] opacity-60"
-            )}
-          >
-            Anotação de Livro
-          </button>
+      {/* ── HOJE ────────────────────────────────────────────────────── */}
+      <section>
+        <div className="flex items-center gap-3 mb-5">
+          <div className="w-2 h-2 rounded-full bg-[var(--accent-green)] shadow-[0_0_8px_var(--accent-green)]" />
+          <h2 className="text-[11px] font-black uppercase tracking-[0.2em] text-[var(--text-secondary)]">Hoje</h2>
+          {hasAnythingToday && (
+            <span className="text-[9px] font-black uppercase tracking-widest bg-[var(--accent-green)]/10 text-[var(--accent-green)] px-2 py-0.5 rounded-full">
+              {todayRecordings.length + todayPublications.length} tarefa{todayRecordings.length + todayPublications.length !== 1 ? 's' : ''}
+            </span>
+          )}
         </div>
 
-        <form 
-          onSubmit={handleQuickCapture}
-          className="bg-[var(--bg-secondary)] border-2 border-[var(--border-strong)] rounded-3xl p-6 shadow-xl focus-within:border-[var(--accent-blue)] transition-all group relative"
-        >
-          <div className="flex flex-col gap-4">
-            <textarea 
-              value={quickInput}
-              onChange={(e) => setQuickInput(e.target.value)}
-              placeholder={captureType === 'idea' ? "Escreva sua ideia aqui..." : "Destaque ou reação do livro..."}
-              className="w-full bg-transparent border-none focus:ring-0 text-base md:text-lg font-medium text-[var(--text-primary)] placeholder:opacity-30 px-2 min-h-[100px] resize-none custom-scrollbar"
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-                  handleQuickCapture(e);
-                }
-              }}
-            />
-            
-            <AnimatePresence>
-              {isSuccess && (
-                <motion.div 
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0 }}
-                  className="absolute right-6 top-6 flex items-center gap-2 text-[var(--accent-green)] font-black text-[10px] uppercase tracking-widest"
-                >
-                  <CheckCircle2 className="w-4 h-4" /> SALVO
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between border-t border-[var(--border-color)] pt-5 px-1 gap-5">
-              {captureType === 'annotation' ? (
-                currentBooks.length > 0 ? (
-                  <div className="flex-1 w-full">
-                    <select
-                      value={selectedBookId}
-                      onChange={(e) => setSelectedBookId(e.target.value)}
-                      className="w-full bg-[var(--bg-hover)] border-none rounded-xl text-[10px] font-black uppercase tracking-widest px-4 py-3 text-[var(--text-primary)] cursor-pointer focus:ring-2 focus:ring-[var(--accent-blue)] shadow-sm"
-                    >
-                      <option value="">Selecione o Livro</option>
-                      {currentBooks.map(b => (
-                        <option key={b.id} value={b.id}>{b.titulo.length > 30 ? b.titulo.slice(0, 30) + '...' : b.titulo}</option>
-                      ))}
-                    </select>
-                  </div>
-                ) : (
-                  <Link to="/biblioteca" className="flex-1 text-[10px] font-bold text-[var(--text-tertiary)] italic opacity-60 hover:opacity-100 transition-all flex items-center gap-1.5">
-                    <BookOpen className="w-3.5 h-3.5 shrink-0" />
-                    Adicione um livro em leitura na Biblioteca
-                  </Link>
-                )
-              ) : <div className="hidden sm:block flex-1" />}
-
-              <button 
-                type="submit"
-                disabled={!quickInput.trim() || (captureType === 'annotation' && !selectedBookId)}
-                className="bg-[var(--text-primary)] text-[var(--bg-primary)] px-8 py-3.5 rounded-2xl flex items-center gap-2 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-20 shadow-lg justify-center sm:w-auto w-full shrink-0"
-              >
-                <Plus className="w-4 h-4" />
-                <span className="text-[11px] font-black uppercase tracking-widest">Enviar</span>
-              </button>
-            </div>
+        {hasAnythingToday ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {todayRecordings.map(c => (
+              <TodayCard key={`rec-${c.id}`} content={c} type="recording" onClick={() => setSelectedContent(c)} />
+            ))}
+            {todayPublications.map(c => (
+              <TodayCard key={`pub-${c.id}`} content={c} type="publish" onClick={() => setSelectedContent(c)} />
+            ))}
           </div>
-        </form>
+        ) : (
+          <div className="rounded-3xl border border-[var(--border-color)] bg-[var(--bg-secondary)] p-6">
+            {energyRecs.length > 0 ? (
+              <>
+                <div className="flex items-center gap-2 mb-4">
+                  <Zap className="w-4 h-4 text-orange-400" />
+                  <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-tertiary)]">
+                    Sugestões para energia {currentEnergy}
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {energyRecs.map(c => (
+                    <button
+                      key={c.id}
+                      onClick={() => setSelectedContent(c)}
+                      className="text-left p-4 rounded-2xl bg-[var(--bg-hover)] border border-[var(--border-color)] hover:border-orange-500/40 transition-all group"
+                    >
+                      <span className="text-[9px] font-black uppercase tracking-widest text-orange-400 block mb-2">{c.pillar}</span>
+                      <span className="text-sm font-bold text-[var(--text-primary)] line-clamp-2 leading-snug">{c.title}</span>
+                      <ArrowRight className="w-3.5 h-3.5 text-orange-400 mt-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </button>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <div className="flex flex-col sm:flex-row items-center gap-5 text-center sm:text-left">
+                <div className="w-12 h-12 rounded-2xl bg-[var(--bg-hover)] flex items-center justify-center shrink-0">
+                  <CalendarIcon className="w-5 h-5 opacity-20" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-black text-[var(--text-primary)] mb-1">Nenhuma tarefa agendada para hoje</p>
+                  <p className="text-[11px] text-[var(--text-tertiary)] opacity-60">Defina sua energia e planeje gravações ou publicações pelo calendário.</p>
+                </div>
+                <Link to="/calendar" className="shrink-0 px-5 py-2.5 bg-[var(--text-primary)] text-[var(--bg-primary)] rounded-xl text-[10px] font-black uppercase tracking-widest hover:opacity-80 transition-all">
+                  Planejar
+                </Link>
+              </div>
+            )}
+          </div>
+        )}
       </section>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-        {/* ── LEFT COLUMN: FOCUS & STATS ──────────────────────────────────── */}
-        <div className="lg:col-span-1 space-y-8">
-          {/* Micro KPIs */}
-          <div className="grid grid-cols-1 gap-4">
-            <div className="p-5 bg-[var(--bg-secondary)] rounded-3xl border border-[var(--border-color)] shadow-sm">
-              <div className="flex items-center justify-between mb-4">
-                <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[var(--text-tertiary)] opacity-60 italic">Metas Semanais</span>
-                <TrendingUp className="w-3.5 h-3.5 text-[var(--accent-blue)]" />
-              </div>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-[var(--text-secondary)]">Ideias</span>
-                  <span className="text-xl font-black text-[var(--text-primary)]">{weeklyKpis.newIdeas}</span>
+      {/* ── PRÓXIMOS DIAS ────────────────────────────────────────────── */}
+      {next3DaysItems.length > 0 && (
+        <section>
+          <div className="flex items-center gap-3 mb-5">
+            <Clock className="w-4 h-4 text-[var(--accent-blue)] opacity-70" />
+            <h2 className="text-[11px] font-black uppercase tracking-[0.2em] text-[var(--text-secondary)]">Próximos 3 dias</h2>
+          </div>
+          <div className="space-y-2">
+            {next3DaysItems.map(({ content: c, type, dateStr }) => (
+              <button
+                key={`${type}-${c.id}`}
+                onClick={() => setSelectedContent(c)}
+                className="w-full flex items-center gap-4 p-4 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-color)] hover:border-[var(--border-strong)] transition-all group text-left"
+              >
+                <div className={cn(
+                  "w-8 h-8 rounded-xl flex items-center justify-center shrink-0",
+                  type === 'recording' ? 'bg-orange-500/10' : 'bg-blue-500/10'
+                )}>
+                  {type === 'recording'
+                    ? <Mic className="w-4 h-4 text-orange-500" />
+                    : <Send className="w-4 h-4 text-blue-500" />
+                  }
                 </div>
-                <div className="flex flex-col gap-1.5">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-[var(--text-secondary)]">Editados</span>
-                    <span className="text-xl font-black text-[var(--accent-green)]">
-                      {weeklyKpis.editedPieces}
-                      {metaSemanal > 0 && <span className="text-[11px] font-bold opacity-40">/{metaSemanal}</span>}
-                    </span>
-                  </div>
-                  {metaSemanal > 0 && (
-                    <div className="h-1 bg-[var(--bg-hover)] rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-[var(--accent-green)] transition-all duration-500"
-                        style={{ width: `${Math.min(100, Math.round((weeklyKpis.editedPieces / metaSemanal) * 100))}%` }}
-                      />
-                    </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold text-[var(--text-primary)] truncate">{c.title}</p>
+                  <p className="text-[9px] font-black uppercase tracking-widest text-[var(--text-tertiary)] opacity-60 mt-0.5">
+                    {c.pillar}{c.formatoVisual ? ` · ${c.formatoVisual}` : ''}
+                  </p>
+                </div>
+                <div className="flex items-center gap-3 shrink-0">
+                  <span className={cn(
+                    "text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full",
+                    type === 'recording' ? 'bg-orange-500/10 text-orange-500' : 'bg-blue-500/10 text-blue-500'
+                  )}>
+                    {type === 'recording' ? 'Gravar' : 'Postar'} · {formatDateLabel(dateStr)}
+                  </span>
+                  <ArrowRight className="w-4 h-4 text-[var(--text-tertiary)] opacity-0 group-hover:opacity-60 transition-opacity" />
+                </div>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* ── ATENÇÃO ───────────────────────────────────────────────────── */}
+      {totalAttention > 0 && (
+        <section>
+          <div className="flex items-center gap-3 mb-5">
+            <AlertTriangle className="w-4 h-4 text-[var(--accent-pink)] opacity-80" />
+            <h2 className="text-[11px] font-black uppercase tracking-[0.2em] text-[var(--text-secondary)]">Atenção necessária</h2>
+            <span className="text-[9px] font-black bg-[var(--accent-pink)]/10 text-[var(--accent-pink)] px-2 py-0.5 rounded-full">{totalAttention}</span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {overduePublications.length > 0 && (
+              <div className="p-5 rounded-2xl border border-[var(--accent-pink)]/20 bg-[var(--accent-pink)]/5">
+                <div className="flex items-center gap-2 mb-3">
+                  <AlertCircle className="w-4 h-4 text-[var(--accent-pink)]" />
+                  <span className="text-[10px] font-black uppercase tracking-widest text-[var(--accent-pink)]">
+                    {overduePublications.length} publicação{overduePublications.length !== 1 ? 'ões' : ''} atrasada{overduePublications.length !== 1 ? 's' : ''}
+                  </span>
+                </div>
+                <div className="space-y-2">
+                  {overduePublications.slice(0, 3).map(c => (
+                    <button
+                      key={c.id}
+                      onClick={() => setSelectedContent(c)}
+                      className="w-full text-left flex items-center gap-2 group"
+                    >
+                      <div className="w-1 h-1 rounded-full bg-[var(--accent-pink)] opacity-60 shrink-0" />
+                      <span className="text-xs font-medium text-[var(--text-primary)] truncate group-hover:underline">{c.title}</span>
+                      <span className="text-[9px] text-[var(--accent-pink)] opacity-70 shrink-0">
+                        {c.publishDate ? format(new Date(c.publishDate + 'T12:00:00'), 'dd/MM') : ''}
+                      </span>
+                    </button>
+                  ))}
+                  {overduePublications.length > 3 && (
+                    <Link to="/contents" className="text-[9px] font-black text-[var(--accent-pink)] opacity-60 hover:opacity-100">
+                      + {overduePublications.length - 3} mais
+                    </Link>
                   )}
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-[var(--text-secondary)]">Programados</span>
-                  <span className="text-xl font-black text-[var(--accent-blue)]">{weeklyKpis.scheduledPieces}</span>
+              </div>
+            )}
+            {missingRecordDate.length > 0 && (
+              <div className="p-5 rounded-2xl border border-amber-500/20 bg-amber-500/5">
+                <div className="flex items-center gap-2 mb-3">
+                  <Mic className="w-4 h-4 text-amber-500" />
+                  <span className="text-[10px] font-black uppercase tracking-widest text-amber-600">
+                    {missingRecordDate.length} pronto{missingRecordDate.length !== 1 ? 's' : ''} sem data de gravação
+                  </span>
+                </div>
+                <div className="space-y-2">
+                  {missingRecordDate.slice(0, 3).map(c => (
+                    <button
+                      key={c.id}
+                      onClick={() => setSelectedContent(c)}
+                      className="w-full text-left flex items-center gap-2 group"
+                    >
+                      <div className="w-1 h-1 rounded-full bg-amber-400 shrink-0" />
+                      <span className="text-xs font-medium text-[var(--text-primary)] truncate group-hover:underline">{c.title}</span>
+                    </button>
+                  ))}
+                  {missingRecordDate.length > 3 && (
+                    <Link to="/contents" className="text-[9px] font-black text-amber-500 opacity-60 hover:opacity-100">
+                      + {missingRecordDate.length - 3} mais
+                    </Link>
+                  )}
                 </div>
               </div>
-            </div>
-          </div>
-
-          {/* Current Reading Section */}
-          <div className="p-6 bg-[var(--bg-secondary)] rounded-3xl border border-[var(--border-color)] shadow-sm overflow-hidden relative group">
-            <div className="flex items-center gap-3 mb-6">
-              <BookOpen className="w-4 h-4 text-[var(--accent-purple)]" />
-              <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-tertiary)]">Livro Atual</span>
-            </div>
-            
-            {currentBooks.length > 0 ? (
-              <div className="space-y-5">
-                {currentBooks.map(book => (
-                  <div 
-                    key={book.id} 
-                    onClick={() => setViewingNotesBook(book)}
-                    className="block group/item cursor-pointer"
-                  >
-                    <div className="flex gap-4 items-start">
-                      {book.capaUrl ? (
-                        <img src={book.capaUrl} alt={book.titulo} className="w-16 aspect-[2/3] object-cover rounded-xl shadow-md group-hover/item:scale-105 transition-transform" />
-                      ) : (
-                        <div className="w-16 aspect-[2/3] bg-[var(--bg-hover)] rounded-xl flex items-center justify-center border border-[var(--border-strong)]">
-                          <BookOpen className="w-6 h-6 opacity-10" />
-                        </div>
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <h4 className="text-sm font-black text-[var(--text-primary)] leading-snug line-clamp-2 italic">"{book.titulo}"</h4>
-                        <p className="text-[10px] text-[var(--text-secondary)] opacity-60 mt-1 uppercase tracking-wider">{book.autor}</p>
-                        {book.totalPaginas && book.totalPaginas > 0 && (
-                        <div className="mt-3 flex items-center gap-2">
-                          <div className="flex-1 h-1.5 bg-[var(--bg-hover)] rounded-full overflow-hidden">
-                            <div
-                              className="h-full bg-[var(--accent-purple)] transition-all duration-500"
-                              style={{ width: `${Math.min(100, Math.round(((book.paginasLidas || 0) / book.totalPaginas) * 100))}%` }}
-                            />
-                          </div>
-                          <span className="text-[8px] font-black opacity-30">
-                            {Math.min(100, Math.round(((book.paginasLidas || 0) / book.totalPaginas) * 100))}%
-                          </span>
-                        </div>
-                      )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <Link to="/biblioteca" className="flex flex-col items-center justify-center py-6 border-2 border-dashed border-[var(--border-color)] rounded-2xl opacity-40 hover:opacity-100 transition-all">
-                <Plus className="w-6 h-6 mb-2" />
-                <span className="text-[9px] font-black uppercase tracking-widest">Abrir Biblioteca</span>
-              </Link>
             )}
-            
-            <Link to="/biblioteca" className="mt-6 flex items-center justify-center gap-2 text-[9px] font-black uppercase tracking-widest text-[var(--accent-purple)] opacity-60 hover:opacity-100 transition-all border-t border-[var(--border-color)] pt-4">
-              Gerenciar Biblioteca <ArrowRight className="w-3 h-3" />
-            </Link>
           </div>
+        </section>
+      )}
+
+      {/* ── PIPELINE ──────────────────────────────────────────────────── */}
+      <section>
+        <div className="flex items-center justify-between mb-5">
+          <div className="flex items-center gap-3">
+            <LayoutDashboard className="w-4 h-4 text-[var(--accent-blue)] opacity-70" />
+            <h2 className="text-[11px] font-black uppercase tracking-[0.2em] text-[var(--text-secondary)]">Pipeline</h2>
+          </div>
+          <Link to="/contents" className="text-[9px] font-black uppercase tracking-widest text-[var(--accent-blue)] opacity-60 hover:opacity-100 flex items-center gap-1 transition-opacity">
+            Ver inventário <ArrowRight className="w-3 h-3" />
+          </Link>
         </div>
 
-        {/* ── RIGHT COLUMN: PIPELINE & AGENDA ──────────────────────────────── */}
-        <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-2 gap-8">
-          {/* Active Pipeline (Operational Focus) */}
-          <section className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <LayoutDashboard className="w-4 h-4 text-[var(--accent-blue)]" />
-                <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-[var(--text-secondary)]">Operação Conteúdo</h3>
-              </div>
-              <Link to="/contents" className="text-[9px] font-black uppercase tracking-widest text-[var(--accent-blue)] opacity-60 hover:opacity-100 flex items-center gap-1">
-                Ver Tudo <ArrowRight className="w-3 h-3" />
-              </Link>
-            </div>
-
-            <div className="space-y-3">
-              {STATUS_STAGES.filter(s => !['Postado', 'Ideia', 'Gravado'].includes(s)).map(status => {
-                const count = state.contents.filter(c => c.status === status).length;
-                return (
-                  <div 
-                    key={status}
-                    className={cn(
-                      "flex items-center justify-between p-4 rounded-2xl border transition-all",
-                      count > 0 ? "bg-[var(--bg-secondary)] border-[var(--border-color)] shadow-sm" : "bg-[var(--bg-hover)]/30 border-transparent opacity-40"
-                    )}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className={cn("w-1.5 h-1.5 rounded-full", count > 0 ? "bg-[var(--accent-blue)]" : "bg-[var(--text-tertiary)]")} />
-                      <span className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-wider">{status}</span>
-                    </div>
-                    <span className="text-lg font-black text-[var(--text-primary)]">{count}</span>
-                  </div>
-                );
-              })}
-            </div>
-            
-            {/* No Escuro Alert (Contextual) */}
-            {state.contents.some(c => c.status === 'Pronto para Gravar' && (!c.recordingDate || !c.lookId)) && (
-              <Link to="/contents?status=No+Escuro" className="block">
-                <div className="p-4 bg-[var(--accent-orange)]/5 border border-[var(--accent-orange)]/20 rounded-2xl flex items-center justify-between group cursor-pointer hover:bg-[var(--accent-orange)]/10 transition-all">
-                  <div className="flex items-center gap-3 text-[var(--accent-orange)]">
-                    <AlertCircle className="w-4 h-4 animate-pulse" />
-                    <span className="text-[10px] font-black uppercase tracking-widest">Pendências "No Escuro"</span>
-                  </div>
-                  <ArrowRight className="w-4 h-4 text-[var(--accent-orange)] group-hover:translate-x-1 transition-transform" />
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+          {pipeline.map(({ status, items }) => {
+            const cfg = STATUS_CONFIG[status];
+            const visible = items.slice(0, 4);
+            const extra = items.length - 4;
+            return (
+              <div key={status} className={cn("rounded-2xl border p-4 flex flex-col gap-3", cfg.bg, cfg.border)}>
+                <div className="flex items-center justify-between">
+                  <span className={cn("text-[9px] font-black uppercase tracking-widest", cfg.color)}>{cfg.label}</span>
+                  <span className={cn("text-lg font-black", cfg.color)}>{items.length}</span>
                 </div>
-              </Link>
-            )}
-          </section>
-
-          {/* Upcoming Milestones */}
-          <section className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <CalendarIcon className="w-4 h-4 text-[var(--accent-orange)]" />
-                <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-[var(--text-secondary)]">Próximos Passos</h3>
+                <div className="space-y-1.5 flex-1">
+                  {visible.length === 0 && (
+                    <p className="text-[9px] text-[var(--text-tertiary)] opacity-40 italic">Vazio</p>
+                  )}
+                  {visible.map(c => (
+                    <button
+                      key={c.id}
+                      onClick={() => setSelectedContent(c)}
+                      className="w-full text-left text-[10px] font-medium text-[var(--text-primary)] leading-tight line-clamp-1 hover:underline opacity-80 hover:opacity-100 transition-opacity"
+                    >
+                      {c.title}
+                    </button>
+                  ))}
+                  {extra > 0 && (
+                    <Link to="/contents" className={cn("text-[9px] font-black opacity-60 hover:opacity-100 transition-opacity", cfg.color)}>
+                      + {extra} mais
+                    </Link>
+                  )}
+                </div>
               </div>
-              <Link to="/calendar" className="text-[9px] font-black uppercase tracking-widest text-[var(--accent-orange)] opacity-60 hover:opacity-100 flex items-center gap-1">
-                Agenda completa <ArrowRight className="w-3 h-3" />
-              </Link>
-            </div>
+            );
+          })}
+        </div>
+      </section>
 
-            <div className="space-y-4">
-              {upcomingAgenda.length > 0 ? upcomingAgenda.map((item) => {
-                const itemIsToday = isToday(new Date(item.date + 'T12:00:00'));
-                return (
-                  <div key={item.id} className="relative p-5 bg-[var(--bg-secondary)] rounded-2xl border border-[var(--border-color)] shadow-sm hover:border-[var(--border-strong)] transition-all overflow-hidden group">
-                    <div className={cn(
-                      "absolute top-0 left-0 w-1 h-full transition-opacity",
-                      itemIsToday ? "bg-[var(--accent-green)] opacity-100" : "bg-[var(--accent-orange)] opacity-40 group-hover:opacity-100"
-                    )} />
-                    <div className="flex flex-col">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-xs font-black text-[var(--text-primary)]">{item.title}</span>
-                        {itemIsToday && (
-                          <span className="text-[8px] font-black uppercase tracking-widest bg-[var(--accent-green)]/10 text-[var(--accent-green)] px-2 py-0.5 rounded-full shrink-0">Hoje</span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Clock className="w-3 h-3 opacity-30" />
-                        <span className="text-[9px] font-bold text-[var(--text-tertiary)] uppercase tracking-widest">
-                          {itemIsToday ? 'Hoje' : format(new Date(item.date + 'T12:00:00'), "dd 'DE' MMMM", { locale: ptBR })}
-                        </span>
-                      </div>
-                    </div>
+      {/* ── BOTTOM ROW ────────────────────────────────────────────────── */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+        {/* Quick Capture */}
+        <div className="md:col-span-1 bg-[var(--bg-secondary)] rounded-3xl border border-[var(--border-color)] overflow-hidden">
+          <button
+            onClick={() => setIsCaptureOpen(v => !v)}
+            className="w-full flex items-center justify-between px-5 py-4 hover:bg-[var(--bg-hover)] transition-colors"
+          >
+            <div className="flex items-center gap-3">
+              <Plus className="w-4 h-4 text-[var(--text-primary)] opacity-60" />
+              <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">Capturar Ideia</span>
+            </div>
+            {isCaptureOpen
+              ? <ChevronUp className="w-4 h-4 opacity-40" />
+              : <ChevronDown className="w-4 h-4 opacity-40" />
+            }
+          </button>
+
+          <AnimatePresence>
+            {isCaptureOpen && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="overflow-hidden"
+              >
+                <form onSubmit={handleQuickCapture} className="px-5 pb-5 space-y-3">
+                  <div className="relative">
+                    <textarea
+                      value={quickInput}
+                      onChange={e => setQuickInput(e.target.value)}
+                      placeholder="Escreva sua ideia..."
+                      className="w-full bg-[var(--bg-hover)] border border-[var(--border-color)] focus:border-[var(--accent-blue)] focus:ring-1 focus:ring-[var(--accent-blue)] rounded-xl px-4 py-3 text-sm text-[var(--text-primary)] placeholder:opacity-30 resize-none focus:outline-none transition-all min-h-[80px]"
+                      onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handleQuickCapture(e); }}
+                    />
+                    <AnimatePresence>
+                      {isSuccess && (
+                        <motion.div
+                          initial={{ opacity: 0, scale: 0.8 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          exit={{ opacity: 0 }}
+                          className="absolute inset-0 flex items-center justify-center bg-[var(--bg-hover)] rounded-xl"
+                        >
+                          <div className="flex items-center gap-2 text-[var(--accent-green)]">
+                            <CheckCircle2 className="w-5 h-5" />
+                            <span className="text-[11px] font-black uppercase tracking-widest">Salvo!</span>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </div>
-                );
-              }) : (
-                <div className="py-12 text-center border-2 border-dashed border-[var(--border-color)] rounded-3xl opacity-20">
-                  <p className="text-[10px] font-black uppercase tracking-widest italic">Nenhum marco planejado</p>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[9px] text-[var(--text-tertiary)] opacity-40">⌘ + Enter para salvar</span>
+                    <button
+                      type="submit"
+                      disabled={!quickInput.trim()}
+                      className="px-5 py-2 bg-[var(--text-primary)] text-[var(--bg-primary)] rounded-xl text-[10px] font-black uppercase tracking-widest disabled:opacity-20 transition-all hover:opacity-80 active:scale-95"
+                    >
+                      Salvar
+                    </button>
+                  </div>
+                </form>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+        {/* KPIs compactos */}
+        <div className="bg-[var(--bg-secondary)] rounded-3xl border border-[var(--border-color)] p-5 flex flex-col justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <TrendingUp className="w-4 h-4 text-[var(--accent-blue)] opacity-70" />
+            <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-tertiary)] opacity-60">Esta semana</span>
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <div className="text-center">
+              <p className="text-2xl font-black text-[var(--accent-green)]">
+                {weeklyKpis.posted}
+                {metaSemanal > 0 && <span className="text-sm opacity-40">/{metaSemanal}</span>}
+              </p>
+              <p className="text-[9px] font-black uppercase tracking-widest text-[var(--text-tertiary)] opacity-60 mt-0.5">Postados</p>
+              {metaSemanal > 0 && (
+                <div className="h-1 bg-[var(--bg-hover)] rounded-full overflow-hidden mt-1.5">
+                  <div
+                    className="h-full bg-[var(--accent-green)] transition-all"
+                    style={{ width: `${Math.min(100, Math.round((weeklyKpis.posted / metaSemanal) * 100))}%` }}
+                  />
                 </div>
               )}
             </div>
+            <div className="text-center">
+              <p className="text-2xl font-black text-[var(--accent-blue)]">{weeklyKpis.scheduled}</p>
+              <p className="text-[9px] font-black uppercase tracking-widest text-[var(--text-tertiary)] opacity-60 mt-0.5">Prog.</p>
+            </div>
+            <div className="text-center">
+              <p className="text-2xl font-black text-[var(--accent-purple)]">{weeklyKpis.ideas}</p>
+              <p className="text-[9px] font-black uppercase tracking-widest text-[var(--text-tertiary)] opacity-60 mt-0.5">Ideias</p>
+            </div>
+          </div>
+        </div>
 
-            <Link 
-              to="/calendar" 
-              className="block w-full text-center py-4 rounded-2xl bg-[var(--bg-hover)] border border-[var(--border-strong)] text-[10px] font-black uppercase tracking-widest text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:border-[var(--text-primary)] transition-all"
-            >
-              Planejar Semana
+        {/* Livro atual (mini) */}
+        <div className="bg-[var(--bg-secondary)] rounded-3xl border border-[var(--border-color)] p-5 flex flex-col gap-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <BookOpen className="w-4 h-4 text-[var(--accent-purple)] opacity-70" />
+              <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-tertiary)] opacity-60">Lendo agora</span>
+            </div>
+            <Link to="/biblioteca" className="text-[9px] font-black uppercase tracking-widest text-[var(--accent-purple)] opacity-60 hover:opacity-100 transition-opacity">
+              Biblioteca
             </Link>
-          </section>
+          </div>
+
+          {currentBooks.length > 0 ? (
+            <div className="flex gap-3 items-start">
+              {currentBooks[0].capaUrl ? (
+                <img
+                  src={currentBooks[0].capaUrl}
+                  alt={currentBooks[0].titulo}
+                  onClick={() => setViewingNotesBook(currentBooks[0])}
+                  className="w-12 aspect-[2/3] object-cover rounded-lg shadow-md cursor-pointer hover:scale-105 transition-transform shrink-0"
+                />
+              ) : (
+                <div className="w-12 aspect-[2/3] bg-[var(--bg-hover)] rounded-lg flex items-center justify-center border border-[var(--border-strong)] shrink-0">
+                  <BookOpen className="w-4 h-4 opacity-20" />
+                </div>
+              )}
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-black text-[var(--text-primary)] leading-snug line-clamp-2 italic">"{currentBooks[0].titulo}"</p>
+                <p className="text-[9px] uppercase tracking-wider text-[var(--text-tertiary)] opacity-60 mt-1">{currentBooks[0].autor}</p>
+                {currentBooks[0].totalPaginas && currentBooks[0].totalPaginas > 0 && (
+                  <div className="mt-2 flex items-center gap-2">
+                    <div className="flex-1 h-1 bg-[var(--bg-hover)] rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-[var(--accent-purple)] transition-all"
+                        style={{ width: `${Math.min(100, Math.round(((currentBooks[0].paginasLidas || 0) / currentBooks[0].totalPaginas) * 100))}%` }}
+                      />
+                    </div>
+                    <span className="text-[8px] font-black opacity-30">
+                      {Math.min(100, Math.round(((currentBooks[0].paginasLidas || 0) / currentBooks[0].totalPaginas) * 100))}%
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : (
+            <Link
+              to="/biblioteca"
+              className="flex-1 flex flex-col items-center justify-center py-4 border-2 border-dashed border-[var(--border-color)] rounded-2xl opacity-40 hover:opacity-100 transition-all"
+            >
+              <Plus className="w-5 h-5 mb-1" />
+              <span className="text-[9px] font-black uppercase tracking-widest">Adicionar livro</span>
+            </Link>
+          )}
         </div>
       </div>
 
-      {/* ── MODALS ────────────────────────────────────────────────────────── */}
+      {/* ── MODALS ────────────────────────────────────────────────────── */}
       <AnimatePresence>
         {viewingNotesBook && (
-          <BookNotesModal 
-            book={viewingNotesBook} 
-            onClose={() => setViewingNotesBook(null)} 
-          />
+          <BookNotesModal book={viewingNotesBook} onClose={() => setViewingNotesBook(null)} />
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {selectedContent && (
+          <ContentDetailModal content={selectedContent} onClose={() => setSelectedContent(null)} />
         )}
       </AnimatePresence>
     </div>
+  );
+}
+
+// ── TodayCard ──────────────────────────────────────────────────────────────────
+function TodayCard({
+  content,
+  type,
+  onClick,
+}: {
+  content: Content;
+  type: 'recording' | 'publish';
+  onClick: () => void;
+}) {
+  const isRec = type === 'recording';
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        "w-full text-left rounded-2xl border overflow-hidden hover:scale-[1.02] active:scale-[0.98] transition-all group shadow-sm",
+        isRec ? 'border-orange-500/20 bg-orange-500/5' : 'border-blue-500/20 bg-blue-500/5'
+      )}
+    >
+      <div className={cn("h-1", isRec ? 'bg-orange-500' : 'bg-blue-500')} />
+      <div className="p-5">
+        <div className="flex items-center gap-2 mb-3">
+          {isRec
+            ? <Mic className="w-4 h-4 text-orange-500" />
+            : <Send className="w-4 h-4 text-blue-500" />
+          }
+          <span className={cn("text-[9px] font-black uppercase tracking-widest", isRec ? 'text-orange-500' : 'text-blue-500')}>
+            {isRec ? 'Gravar hoje' : 'Postar hoje'}
+          </span>
+        </div>
+        <h3 className="text-sm font-bold text-[var(--text-primary)] line-clamp-2 leading-snug">{content.title}</h3>
+        <div className="flex items-center gap-2 mt-3 flex-wrap">
+          {content.pillar && (
+            <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-tertiary)] opacity-60">{content.pillar}</span>
+          )}
+          {content.formatoVisual && (
+            <>
+              <span className="text-[var(--text-tertiary)] opacity-30">·</span>
+              <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-tertiary)] opacity-60">{content.formatoVisual}</span>
+            </>
+          )}
+        </div>
+      </div>
+      <div className={cn(
+        "px-5 py-3 border-t flex items-center justify-between",
+        isRec ? 'border-orange-500/10' : 'border-blue-500/10'
+      )}>
+        <span className="text-[9px] font-bold text-[var(--text-tertiary)] uppercase tracking-widest opacity-60">{content.status}</span>
+        <ArrowRight className={cn("w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity", isRec ? 'text-orange-500' : 'text-blue-500')} />
+      </div>
+    </button>
   );
 }

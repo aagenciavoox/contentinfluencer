@@ -3,10 +3,11 @@ import { useSearchParams } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { PILLARS, FORMATS, STATUS_STAGES } from '../constants';
-import { Plus, Table as TableIcon, Layers, Calendar, X, Check, Video, Trash2 } from 'lucide-react';
+import { Plus, Table as TableIcon, Layers, Calendar, X, Check, Video, Trash2, Upload } from 'lucide-react';
 import { Content, ContentStatus } from '../types';
 import { cn } from '../lib/utils';
 import { ContentDetailModal } from '../components/ContentDetailModal';
+import { CSVUploadModal } from '../components/CSVUploadModal';
 import { ContentTable } from '../components/contents/ContentTable';
 import { ContentEcosystem } from '../components/contents/ContentEcosystem';
 import { ContentTimeline } from '../components/contents/ContentTimeline';
@@ -26,6 +27,8 @@ export function Contents() {
   const [mainTab, setMainTab] = useState<'inventory' | 'recording'>('inventory');
   const [viewMode, setViewMode] = useState<'table' | 'ecosystem' | 'timeline'>('table');
   const [selectedContent, setSelectedContent] = useState<Content | null>(null);
+  const [isNewModal, setIsNewModal] = useState(false);
+  const [isCSVUploadOpen, setIsCSVUploadOpen] = useState(false);
   const [sortField, setSortField] = useState<SortField>('createdAt');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
 
@@ -94,14 +97,13 @@ export function Contents() {
       id: Math.random().toString(36).substr(2, 9),
       title: 'Novo Conteúdo',
       seriesId: '',
-      pillar: PILLARS[0],
+      pillar: state.pilares[0]?.nome || 'Sem Pilar',
       format: FORMATS[0],
       status: 'Ideia',
-      slotType: 'Série',
       createdAt: new Date().toISOString(),
     };
-    dispatch({ type: 'ADD_CONTENT', payload: newContent });
     setSelectedContent(newContent);
+    setIsNewModal(true);
   };
 
   // Multi-select handlers
@@ -170,80 +172,111 @@ export function Contents() {
         description="Aqui você gerencia todos os seus roteiros. Use as abas para alternar entre a visão de Tabela, Ecossistema (visual) ou Linha do Tempo. Você também pode criar 'Blocos de Gravação' para produzir em lote."
         icon={TableIcon}
       />
-      <header className="px-6 md:px-10 py-6 md:py-8 border-b border-[var(--border-color)] flex flex-col md:flex-row md:items-center justify-between bg-[var(--bg-secondary)] shadow-sm sticky top-0 z-20 gap-6">
-        <div className="flex flex-col sm:flex-row sm:items-center gap-4 md:gap-6 w-full">
-          <div className="flex bg-[var(--bg-hover)] p-1 rounded-2xl border border-[var(--border-color)] overflow-x-auto no-scrollbar shrink-0">
-             <button 
-               onClick={() => setMainTab('inventory')}
-               className={cn("px-5 sm:px-6 py-2 text-[11px] font-black uppercase tracking-widest rounded-xl transition-all whitespace-nowrap", mainTab === 'inventory' ? "bg-[var(--text-primary)] text-[var(--bg-primary)] shadow-md" : "text-[var(--text-tertiary)] opacity-60 hover:opacity-100")}
-             >
-               Todos os Roteiros
-             </button>
-             <button 
-               onClick={() => setMainTab('recording')}
-               className={cn("px-5 sm:px-6 py-2 text-[11px] font-black uppercase tracking-widest rounded-xl transition-all flex items-center gap-2 whitespace-nowrap", mainTab === 'recording' ? "bg-[var(--accent-blue)] text-white shadow-md focus:ring-0" : "text-[var(--text-tertiary)] opacity-60 hover:opacity-100")}
-             >
-               <Video className="w-3.5 h-3.5" /> Blocos de Gravação
-             </button>
-           </div>
-          
-          <div className="hidden sm:block h-6 w-[2px] bg-[var(--border-color)] opacity-50 shrink-0" />
-          
-          {mainTab === 'inventory' && (
-            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1 flex-1">
-              <select
-                value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value)}
-                className="text-xs bg-[var(--bg-hover)] text-[var(--text-primary)] font-bold border-none rounded-lg px-3 py-2 focus:ring-2 focus:ring-[var(--accent-blue)] cursor-pointer whitespace-nowrap"
-              >
-                <option>Todos</option>
-                <option value="No Escuro">No Escuro 🔦</option>
-                {['Ideia', 'Pronto para Gravar', 'Gravado', 'A Editar', 'Editado', 'Programado', 'Postado'].map(s => (
-                  <option key={s}>{s}</option>
-                ))}
-              </select>
-              <select
-                value={filterSeries}
-                onChange={(e) => setFilterSeries(e.target.value)}
-                className="text-xs bg-[var(--bg-hover)] text-[var(--text-primary)] font-bold border-none rounded-lg px-3 py-2 focus:ring-2 focus:ring-[var(--accent-blue)] cursor-pointer whitespace-nowrap"
-              >
-                <option value="Todas">Série: Todas</option>
-                {state.series.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-              </select>
+      <header className="px-6 md:px-10 py-6 md:py-8 border-b border-[var(--border-color)] flex flex-col bg-[var(--bg-secondary)] shadow-sm sticky top-0 z-20 gap-4">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-4 md:gap-6 w-full">
+            <div className="flex bg-[var(--bg-hover)] p-1 rounded-2xl border border-[var(--border-color)] overflow-x-auto no-scrollbar shrink-0">
+               <button 
+                 onClick={() => setMainTab('inventory')}
+                 className={cn("px-5 sm:px-6 py-2 text-[11px] font-black uppercase tracking-widest rounded-xl transition-all whitespace-nowrap", mainTab === 'inventory' ? "bg-[var(--text-primary)] text-[var(--bg-primary)] shadow-md" : "text-[var(--text-tertiary)] opacity-60 hover:opacity-100")}
+               >
+                 Todos os Roteiros
+               </button>
+               <button 
+                 onClick={() => setMainTab('recording')}
+                 className={cn("px-5 sm:px-6 py-2 text-[11px] font-black uppercase tracking-widest rounded-xl transition-all flex items-center gap-2 whitespace-nowrap", mainTab === 'recording' ? "bg-[var(--accent-blue)] text-white shadow-md focus:ring-0" : "text-[var(--text-tertiary)] opacity-60 hover:opacity-100")}
+               >
+                 <Video className="w-3.5 h-3.5" /> Blocos de Gravação
+               </button>
+             </div>
+            
+            <div className="hidden sm:block h-6 w-[2px] bg-[var(--border-color)] opacity-50 shrink-0" />
+            
+            {mainTab === 'inventory' && (
+              <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1 flex-1">
+                <select
+                  value={filterStatus}
+                  onChange={(e) => setFilterStatus(e.target.value)}
+                  className="md:hidden text-xs bg-[var(--bg-hover)] text-[var(--text-primary)] font-bold border-none rounded-lg px-3 py-2 focus:ring-2 focus:ring-[var(--accent-blue)] cursor-pointer whitespace-nowrap"
+                >
+                  <option>Todos</option>
+                  <option value="No Escuro">No Escuro 🔦</option>
+                  {STATUS_STAGES.map(s => (
+                    <option key={s}>{s}</option>
+                  ))}
+                </select>
 
-              <div className="flex bg-[var(--bg-hover)] rounded-lg p-1 border border-[var(--border-color)] ml-auto">
-                <button
-                  onClick={() => { setViewMode('table'); setSelectedIds(new Set()); }}
-                  className={cn("p-1.5 rounded-md transition-all", viewMode === 'table' ? "bg-white dark:bg-[var(--bg-secondary)] shadow-sm text-[var(--accent-blue)]" : "opacity-40 text-[var(--text-primary)]")}
-                  title="Tabela"
+                <select
+                  value={filterSeries}
+                  onChange={(e) => setFilterSeries(e.target.value)}
+                  className="text-xs bg-[var(--bg-hover)] text-[var(--text-primary)] font-bold border-none rounded-lg px-3 py-2 focus:ring-2 focus:ring-[var(--accent-blue)] cursor-pointer whitespace-nowrap"
                 >
-                  <TableIcon className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => { setViewMode('ecosystem'); setSelectedIds(new Set()); }}
-                  className={cn("p-1.5 rounded-md transition-all", viewMode === 'ecosystem' ? "bg-white dark:bg-[var(--bg-secondary)] shadow-sm text-[var(--accent-blue)]" : "opacity-40 text-[var(--text-primary)]")}
-                  title="Ecossistema"
-                >
-                  <Layers className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => { setViewMode('timeline'); setSelectedIds(new Set()); }}
-                  className={cn("p-1.5 rounded-md transition-all", viewMode === 'timeline' ? "bg-white dark:bg-[var(--bg-secondary)] shadow-sm text-[var(--accent-blue)]" : "opacity-40 text-[var(--text-primary)]")}
-                  title="Linha do Tempo"
-                >
-                  <Calendar className="w-4 h-4" />
-                </button>
+                  <option value="Todas">Série: Todas</option>
+                  {state.series.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                </select>
+  
+                <div className="flex bg-[var(--bg-hover)] rounded-lg p-1 border border-[var(--border-color)] ml-auto">
+                  <button
+                    onClick={() => { setViewMode('table'); setSelectedIds(new Set()); }}
+                    className={cn("p-1.5 rounded-md transition-all", viewMode === 'table' ? "bg-white dark:bg-[var(--bg-secondary)] shadow-sm text-[var(--accent-blue)]" : "opacity-40 text-[var(--text-primary)]")}
+                    title="Tabela"
+                  >
+                    <TableIcon className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => { setViewMode('ecosystem'); setSelectedIds(new Set()); }}
+                    className={cn("p-1.5 rounded-md transition-all", viewMode === 'ecosystem' ? "bg-white dark:bg-[var(--bg-secondary)] shadow-sm text-[var(--accent-blue)]" : "opacity-40 text-[var(--text-primary)]")}
+                    title="Ecossistema"
+                  >
+                    <Layers className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => { setViewMode('timeline'); setSelectedIds(new Set()); }}
+                    className={cn("p-1.5 rounded-md transition-all", viewMode === 'timeline' ? "bg-white dark:bg-[var(--bg-secondary)] shadow-sm text-[var(--accent-blue)]" : "opacity-40 text-[var(--text-primary)]")}
+                    title="Linha do Tempo"
+                  >
+                    <Calendar className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
+            )}
+          </div>
+          {mainTab === 'inventory' && (
+            <div className="flex items-center gap-3 w-full md:w-auto">
+              <button
+                onClick={() => setIsCSVUploadOpen(true)}
+                className="flex items-center justify-center gap-2 bg-[var(--bg-hover)] text-[var(--text-primary)] px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-[var(--border-color)] transition-all border border-[var(--border-color)] shadow-sm shrink-0"
+              >
+                <Upload className="w-3 h-3" /> Importar CSV
+              </button>
+              <button
+                onClick={handleAddContent}
+                className="flex items-center justify-center gap-2 bg-[var(--text-primary)] text-[var(--bg-primary)] px-6 py-2.5 rounded-xl text-sm font-black hover:scale-105 active:scale-95 transition-all shadow-lg flex-1 md:flex-none shrink-0"
+              >
+                <Plus className="w-4 h-4" /> Novo Conteúdo
+              </button>
             </div>
           )}
         </div>
+
         {mainTab === 'inventory' && (
-          <button
-            onClick={handleAddContent}
-            className="flex items-center justify-center gap-2 bg-[var(--text-primary)] text-[var(--bg-primary)] px-6 py-2.5 rounded-xl text-sm font-black hover:scale-105 active:scale-95 transition-all shadow-lg w-full md:w-auto shrink-0"
-          >
-            <Plus className="w-4 h-4" /> Novo Conteúdo
-          </button>
+          <div className="hidden md:flex flex-wrap items-center gap-1.5 pt-2 w-full border-t border-[var(--border-color)]/50 mt-2">
+            <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-tertiary)] opacity-50 mr-2">Status:</span>
+            {['Todos', 'No Escuro', ...STATUS_STAGES].map(s => (
+               <button
+                 key={s}
+                 onClick={() => setFilterStatus(s)}
+                 className={cn(
+                   "px-3 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all whitespace-nowrap border",
+                   filterStatus === s 
+                     ? "bg-[var(--text-primary)] text-[var(--bg-primary)] shadow-md border-[var(--text-primary)]"
+                     : "bg-transparent text-[var(--text-secondary)] border-[var(--border-color)] hover:border-[var(--text-primary)] opacity-70 hover:opacity-100 shadow-sm"
+                 )}
+               >
+                 {s === 'No Escuro' ? 'No Escuro 🔦' : s}
+               </button>
+            ))}
+          </div>
         )}
       </header>
 
@@ -374,8 +407,12 @@ export function Contents() {
       {selectedContent && (
         <ContentDetailModal
           content={state.contents.find(c => c.id === selectedContent.id) || selectedContent}
-          onClose={() => setSelectedContent(null)}
+          isNewContent={isNewModal}
+          onClose={() => { setSelectedContent(null); setIsNewModal(false); }}
         />
+      )}
+      {isCSVUploadOpen && (
+        <CSVUploadModal onClose={() => setIsCSVUploadOpen(false)} />
       )}
       <ConfirmModal
         open={!!confirm}

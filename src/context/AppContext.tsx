@@ -13,6 +13,7 @@ import {
   Cenario,
   RecordingBlock,
   GoldenRule,
+  Campaign,
 } from '../types';
 import { INITIAL_SERIES, INITIAL_PILARES, GOLDEN_RULES, mapLegacyFormatToPlataforma } from '../constants';
 import { appReducer, AppAction } from './reducer';
@@ -32,6 +33,7 @@ export interface AppState {
   cenarios: Cenario[];
   recordingBlocks: RecordingBlock[];
   goldenRules: GoldenRule[];
+  campaigns: Campaign[];
   onboardingCompleto: boolean;
   viewedGuides: string[];
   theme: 'light' | 'dark';
@@ -151,6 +153,7 @@ const initialState: AppState = {
   cenarios: [],
   recordingBlocks: [],
   goldenRules: GOLDEN_RULES,
+  campaigns: [],
   onboardingCompleto: false,
   viewedGuides: [],
   theme: 'light',
@@ -187,6 +190,7 @@ function migrarDados(parsed: any): AppState {
     cenarios: parsed.cenarios || [],
     recordingBlocks: parsed.recordingBlocks || [],
     goldenRules: parsed.goldenRules || GOLDEN_RULES,
+    campaigns: parsed.campaigns || [],
     onboardingCompleto: parsed.onboardingCompleto ?? false,
     dnaVoz: {
       ...initialState.dnaVoz,

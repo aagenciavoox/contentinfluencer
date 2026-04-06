@@ -28,6 +28,15 @@ interface NovoLivroForm {
   generos: GeneroLivro[];
   capaUrl: string;
   statusLeitura: StatusLeitura;
+  editora: string;
+  anoPublicacao: string;
+  isbn: string;
+  idioma: string;
+  traducao: string;
+  serieColecao: string;
+  quemIndicou: string;
+  motivoEscolha: string;
+  potencialConteudo: '' | '1' | '2' | '3';
 }
 
 export function Biblioteca() {
@@ -38,6 +47,8 @@ export function Biblioteca() {
   const [filtroGenero, setFiltroGenero] = useState<string>('Todos');
   const [searchTerm, setSearchTerm] = useState('');
   const [modalAberto, setModalAberto] = useState(false);
+  const [showTechnical, setShowTechnical] = useState(false);
+  const [showParaVoce, setShowParaVoce] = useState(false);
 
   const [form, setForm] = useState<NovoLivroForm>({
     titulo: '',
@@ -45,6 +56,15 @@ export function Biblioteca() {
     generos: [],
     capaUrl: '',
     statusLeitura: 'Quero ler',
+    editora: '',
+    anoPublicacao: '',
+    isbn: '',
+    idioma: '',
+    traducao: '',
+    serieColecao: '',
+    quemIndicou: '',
+    motivoEscolha: '',
+    potencialConteudo: '',
   });
 
   const livrosFiltrados = state.books.filter(b => {
@@ -74,11 +94,23 @@ export function Biblioteca() {
       statusLeitura: form.statusLeitura,
       anotacoes: [],
       createdAt: new Date().toISOString(),
+      editora: form.editora.trim() || undefined,
+      anoPublicacao: form.anoPublicacao ? Number(form.anoPublicacao) : undefined,
+      isbn: form.isbn.trim() || undefined,
+      idioma: form.idioma.trim() || undefined,
+      traducao: form.traducao.trim() || undefined,
+      serieColecao: form.serieColecao.trim() || undefined,
+      quemIndicou: form.quemIndicou.trim() || undefined,
+      motivoEscolha: form.motivoEscolha.trim() || undefined,
+      potencialConteudo: form.potencialConteudo ? (Number(form.potencialConteudo) as 1 | 2 | 3) : undefined,
+      capitulosCobertos: [],
     };
 
     dispatch({ type: 'ADD_BOOK', payload: novoLivro });
     setModalAberto(false);
-    setForm({ titulo: '', autor: '', generos: [], capaUrl: '', statusLeitura: 'Quero ler' });
+    setForm({ titulo: '', autor: '', generos: [], capaUrl: '', statusLeitura: 'Quero ler', editora: '', anoPublicacao: '', isbn: '', idioma: '', traducao: '', serieColecao: '', quemIndicou: '', motivoEscolha: '', potencialConteudo: '' });
+    setShowTechnical(false);
+    setShowParaVoce(false);
     navigate(`/biblioteca/${novoLivro.id}`);
   };
 
@@ -121,6 +153,24 @@ export function Biblioteca() {
             Adicionar Livro
           </button>
         </div>
+
+        {/* KPIs rápidos */}
+        {state.books.length > 0 && (
+          <div className="flex gap-6 flex-wrap mb-6">
+            {[
+              { emoji: '📚', label: 'lidos', value: state.books.filter(b => b.statusLeitura === 'Lido').length },
+              { emoji: '📖', label: 'lendo', value: state.books.filter(b => b.statusLeitura === 'Lendo').length },
+              { emoji: '🎬', label: 'conteúdos gerados', value: state.contents.filter(c => c.livroOrigemId).length },
+              { emoji: '💡', label: 'anotações', value: state.books.reduce((acc, b) => acc + b.anotacoes.length, 0) },
+            ].map(stat => (
+              <div key={stat.label} className="flex items-center gap-2 px-4 py-2 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-2xl">
+                <span className="text-base">{stat.emoji}</span>
+                <span className="text-xs font-black text-[var(--text-primary)]">{stat.value}</span>
+                <span className="text-[10px] text-[var(--text-secondary)] opacity-50">{stat.label}</span>
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* Filtros */}
         <div className="flex flex-col gap-4 mb-8">
@@ -234,6 +284,11 @@ export function Biblioteca() {
                         ))}
                       </div>
                     )}
+                    {livro.statusLeitura === 'Quero ler' && livro.potencialConteudo && (
+                      <div className="mt-1 text-[10px]">
+                        {'🔥'.repeat(livro.potencialConteudo)}
+                      </div>
+                    )}
                   </div>
                 </motion.div>
               );
@@ -251,80 +306,165 @@ export function Biblioteca() {
           </button>
         </div>
         <div className="flex-1 overflow-y-auto p-6 space-y-4">
-                <div>
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)] opacity-40 block mb-1.5">
-                    Título *
-                  </label>
-                  <input
-                    type="text"
-                    value={form.titulo}
-                    onChange={e => setForm(p => ({ ...p, titulo: e.target.value }))}
-                    placeholder="Nome do livro"
-                    autoFocus
-                    className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-4 py-3 focus:ring-2 focus:ring-[var(--text-primary)]/20 text-[var(--text-primary)] placeholder:opacity-40"
-                  />
-                </div>
+          {/* ── Essencial ── */}
+          <p className="text-[9px] font-black uppercase tracking-widest text-[var(--text-primary)] opacity-30">Essencial</p>
 
-                <div>
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)] opacity-40 block mb-1.5">
-                    Autor
-                  </label>
-                  <input
-                    type="text"
-                    value={form.autor}
-                    onChange={e => setForm(p => ({ ...p, autor: e.target.value }))}
-                    placeholder="Nome do autor"
-                    className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-4 py-3 focus:ring-2 focus:ring-[var(--text-primary)]/20 text-[var(--text-primary)] placeholder:opacity-40"
-                  />
-                </div>
+          <div>
+            <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)] opacity-40 block mb-1.5">
+              Título *
+            </label>
+            <input
+              type="text"
+              value={form.titulo}
+              onChange={e => setForm(p => ({ ...p, titulo: e.target.value }))}
+              placeholder="Nome do livro"
+              autoFocus
+              className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-4 py-3 focus:ring-2 focus:ring-[var(--text-primary)]/20 text-[var(--text-primary)] placeholder:opacity-40"
+            />
+          </div>
 
+          <div>
+            <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)] opacity-40 block mb-1.5">
+              Autor
+            </label>
+            <input
+              type="text"
+              value={form.autor}
+              onChange={e => setForm(p => ({ ...p, autor: e.target.value }))}
+              placeholder="Nome do autor"
+              className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-4 py-3 focus:ring-2 focus:ring-[var(--text-primary)]/20 text-[var(--text-primary)] placeholder:opacity-40"
+            />
+          </div>
+
+          <div>
+            <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)] opacity-40 block mb-1.5">
+              URL da Capa (opcional)
+            </label>
+            <input
+              type="url"
+              value={form.capaUrl}
+              onChange={e => setForm(p => ({ ...p, capaUrl: e.target.value }))}
+              placeholder="https://..."
+              className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-4 py-3 focus:ring-2 focus:ring-[var(--text-primary)]/20 text-[var(--text-primary)] placeholder:opacity-40"
+            />
+          </div>
+
+          <div>
+            <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)] opacity-40 block mb-2">
+              Gêneros
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {GENEROS.map(g => (
+                <button
+                  key={g}
+                  onClick={() => toggleGeneroForm(g)}
+                  className={`text-[10px] font-bold px-2.5 py-1 rounded-full border transition-all ${
+                    form.generos.includes(g)
+                      ? 'bg-[var(--text-primary)] text-[var(--bg-secondary)] border-[var(--text-primary)]'
+                      : 'bg-transparent text-[var(--text-primary)] border-[var(--border-strong)] opacity-50 hover:opacity-80'
+                  }`}
+                >
+                  {g}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)] opacity-40 block mb-1.5">
+              Status de Leitura
+            </label>
+            <select
+              value={form.statusLeitura}
+              onChange={e => setForm(p => ({ ...p, statusLeitura: e.target.value as StatusLeitura }))}
+              className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-4 py-3 focus:ring-2 focus:ring-[var(--text-primary)]/20 text-[var(--text-primary)]"
+            >
+              {STATUS_LEITURA.map(s => <option key={s}>{s}</option>)}
+            </select>
+          </div>
+
+          {/* ── Detalhes Técnicos (colapsável) ── */}
+          <div className="pt-2 border-t border-[var(--border-color)]">
+            <button
+              type="button"
+              onClick={() => setShowTechnical(v => !v)}
+              className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-[var(--text-primary)] opacity-50 hover:opacity-80 transition-opacity mb-3"
+            >
+              <span>{showTechnical ? '▴' : '▾'}</span>
+              Detalhes Técnicos
+            </button>
+            {showTechnical && (
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)] opacity-40 block mb-1">Editora</label>
+                    <input type="text" value={form.editora} onChange={e => setForm(p => ({ ...p, editora: e.target.value }))} placeholder="Ex: Rocco" className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:opacity-40" />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)] opacity-40 block mb-1">Ano</label>
+                    <input type="number" value={form.anoPublicacao} onChange={e => setForm(p => ({ ...p, anoPublicacao: e.target.value }))} placeholder="2024" className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:opacity-40" />
+                  </div>
+                </div>
                 <div>
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)] opacity-40 block mb-2">
-                    Gêneros
-                  </label>
-                  <div className="flex flex-wrap gap-2">
-                    {GENEROS.map(g => (
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)] opacity-40 block mb-1">ISBN</label>
+                  <input type="text" value={form.isbn} onChange={e => setForm(p => ({ ...p, isbn: e.target.value }))} placeholder="978-..." className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:opacity-40" />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)] opacity-40 block mb-1">Idioma</label>
+                    <input type="text" value={form.idioma} onChange={e => setForm(p => ({ ...p, idioma: e.target.value }))} placeholder="Português" className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:opacity-40" />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)] opacity-40 block mb-1">Tradução</label>
+                    <input type="text" value={form.traducao} onChange={e => setForm(p => ({ ...p, traducao: e.target.value }))} placeholder="Tradutor" className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:opacity-40" />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)] opacity-40 block mb-1">Série / Coleção</label>
+                  <input type="text" value={form.serieColecao} onChange={e => setForm(p => ({ ...p, serieColecao: e.target.value }))} placeholder="Ex: Série Trono de Vidro" className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:opacity-40" />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* ── Para você (colapsável) ── */}
+          <div className="pt-2 border-t border-[var(--border-color)]">
+            <button
+              type="button"
+              onClick={() => setShowParaVoce(v => !v)}
+              className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-[var(--text-primary)] opacity-50 hover:opacity-80 transition-opacity mb-3"
+            >
+              <span>{showParaVoce ? '▴' : '▾'}</span>
+              Para você
+            </button>
+            {showParaVoce && (
+              <div className="space-y-3">
+                <div>
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)] opacity-40 block mb-1">Quem Indicou</label>
+                  <input type="text" value={form.quemIndicou} onChange={e => setForm(p => ({ ...p, quemIndicou: e.target.value }))} placeholder="Ex: Podcast X, amiga Y..." className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:opacity-40" />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)] opacity-40 block mb-1">Por que Quer Ler</label>
+                  <textarea value={form.motivoEscolha} onChange={e => setForm(p => ({ ...p, motivoEscolha: e.target.value }))} placeholder="Motivação, contexto..." rows={2} className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] resize-none placeholder:opacity-40" />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)] opacity-40 block mb-2">Potencial de Conteúdo</label>
+                  <div className="flex gap-2">
+                    {(['1', '2', '3'] as const).map(v => (
                       <button
-                        key={g}
-                        onClick={() => toggleGeneroForm(g)}
-                        className={`text-[10px] font-bold px-2.5 py-1 rounded-full border transition-all ${
-                          form.generos.includes(g)
-                            ? 'bg-[var(--text-primary)] text-[var(--bg-secondary)] border-[var(--text-primary)]'
-                            : 'bg-transparent text-[var(--text-primary)] border-[var(--border-strong)] opacity-50 hover:opacity-80'
-                        }`}
+                        key={v}
+                        type="button"
+                        onClick={() => setForm(p => ({ ...p, potencialConteudo: p.potencialConteudo === v ? '' : v }))}
+                        className={`text-base px-3 py-1.5 rounded-xl border transition-all ${form.potencialConteudo === v ? 'bg-[var(--text-primary)] border-[var(--text-primary)]' : 'border-[var(--border-strong)] opacity-50 hover:opacity-80'}`}
                       >
-                        {g}
+                        {'🔥'.repeat(Number(v))}
                       </button>
                     ))}
                   </div>
                 </div>
-
-                <div>
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)] opacity-40 block mb-1.5">
-                    Status de Leitura
-                  </label>
-                  <select
-                    value={form.statusLeitura}
-                    onChange={e => setForm(p => ({ ...p, statusLeitura: e.target.value as StatusLeitura }))}
-                    className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-4 py-3 focus:ring-2 focus:ring-[var(--text-primary)]/20 text-[var(--text-primary)]"
-                  >
-                    {STATUS_LEITURA.map(s => <option key={s}>{s}</option>)}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)] opacity-40 block mb-1.5">
-                    URL da Capa (opcional)
-                  </label>
-                  <input
-                    type="url"
-                    value={form.capaUrl}
-                    onChange={e => setForm(p => ({ ...p, capaUrl: e.target.value }))}
-                    placeholder="https://..."
-                    className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-4 py-3 focus:ring-2 focus:ring-[var(--text-primary)]/20 text-[var(--text-primary)] placeholder:opacity-40"
-                  />
-                </div>
-
+              </div>
+            )}
+          </div>
         </div>
         <div className="flex gap-3 px-6 py-4 border-t border-[var(--border-color)] shrink-0 pb-safe">
           <button

@@ -17,10 +17,13 @@ import { ContentDetailModal } from '../components/ContentDetailModal';
 import { Content } from '../types';
 import { motion } from 'motion/react';
 
+type ViewFilter = 'todos' | 'organico' | 'pago';
+
 export function EditorialCalendar() {
   const { state } = useAppContext();
   const [selectedContent, setSelectedContent] = useState<Content | null>(null);
-  
+  const [viewFilter, setViewFilter] = useState<ViewFilter>('todos');
+
   // April 2026 reference
   const aprilStart = new Date(2026, 3, 1);
   const weeks = [0, 1, 2, 3].map(w => {
@@ -30,9 +33,20 @@ export function EditorialCalendar() {
   });
 
   const getContentsInInterval = (start: Date, end: Date) => {
+    if (viewFilter === 'pago') return [];
     return state.contents.filter(c => {
       if (!c.publishDate) return false;
       const date = parseISO(c.publishDate);
+      return isWithinInterval(date, { start, end });
+    });
+  };
+
+  const getPartnershipsInInterval = (start: Date, end: Date) => {
+    if (viewFilter === 'organico') return [];
+    return state.partnerships.filter(p => {
+      const dateStr = p.publishDate || p.deadline;
+      if (!dateStr) return false;
+      const date = parseISO(dateStr);
       return isWithinInterval(date, { start, end });
     });
   };
@@ -69,9 +83,27 @@ export function EditorialCalendar() {
             Gestão de slots baseada em energia e regra de rotação de formatos. A lógica por trás do ecossistema.
           </p>
         </div>
-        <div className="flex items-center gap-3 px-6 py-3 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl shadow-sm">
-           <CalendarIcon className="w-5 h-5 text-[var(--accent-blue)]" />
-           <span className="text-[11px] font-black uppercase tracking-[0.2em] text-[var(--text-tertiary)]">Abril 2026</span>
+        <div className="flex items-center gap-3 flex-wrap">
+          {/* Toggle Orgânico/Pago */}
+          <div className="flex gap-1 p-1 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl">
+            {([['todos', 'Todos'], ['organico', 'Orgânico'], ['pago', 'Pago']] as [ViewFilter, string][]).map(([val, label]) => (
+              <button
+                key={val}
+                onClick={() => setViewFilter(val)}
+                className={`text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-xl transition-all ${
+                  viewFilter === val
+                    ? 'bg-[var(--text-primary)] text-[var(--bg-primary)]'
+                    : 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <div className="flex items-center gap-3 px-6 py-3 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl shadow-sm">
+             <CalendarIcon className="w-5 h-5 text-[var(--accent-blue)]" />
+             <span className="text-[11px] font-black uppercase tracking-[0.2em] text-[var(--text-tertiary)]">Abril 2026</span>
+          </div>
         </div>
       </header>
 
@@ -118,6 +150,7 @@ export function EditorialCalendar() {
       <div className="space-y-20 md:space-y-32">
         {weeks.map((week, idx) => {
           const contents = getContentsInInterval(week.start, week.end);
+          const partnerships = getPartnershipsInInterval(week.start, week.end);
           const violations = getRotationStatus(contents);
           
           return (
@@ -147,9 +180,9 @@ export function EditorialCalendar() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 {contents.map(c => (
-                  <motion.div 
+                  <motion.div
                     layoutId={c.id}
-                    key={c.id} 
+                    key={c.id}
                     onClick={() => setSelectedContent(c)}
                     className="p-6 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-3xl hover:shadow-2xl hover:scale-[1.02] hover:-translate-y-1 transition-all flex flex-col justify-between cursor-pointer group shadow-sm overflow-hidden relative"
                   >
@@ -182,8 +215,34 @@ export function EditorialCalendar() {
                     </div>
                   </motion.div>
                 ))}
-                
-                {contents.length === 0 && (
+
+                {/* Parcerias (pago) */}
+                {partnerships.map(p => (
+                  <div
+                    key={p.id}
+                    className="p-6 bg-amber-50 border border-amber-200 rounded-3xl shadow-sm flex flex-col justify-between overflow-hidden relative"
+                  >
+                    <div className="absolute -top-4 -right-4 w-20 h-20 blur-3xl opacity-20 bg-amber-400" />
+                    <div className="relative z-10">
+                      <div className="flex items-center justify-between mb-6">
+                        <span className="text-[9px] font-black px-2.5 py-1 rounded-full uppercase tracking-widest border bg-amber-100 text-amber-700 border-amber-300 flex items-center gap-1">
+                          $ Pago
+                        </span>
+                        <span className="text-[10px] font-black text-amber-600 opacity-60 uppercase tracking-widest">
+                          {p.publishDate ? format(parseISO(p.publishDate), 'iii, dd', { locale: ptBR }) : p.deadline ? format(parseISO(p.deadline), 'iii, dd', { locale: ptBR }) : ''}
+                        </span>
+                      </div>
+                      <h4 className="text-base font-bold text-amber-900 leading-tight mb-8 line-clamp-3">{p.title}</h4>
+                    </div>
+                    <div className="relative z-10 pt-6 border-t border-amber-200">
+                      <span className="text-[10px] font-black text-amber-600 uppercase tracking-[0.2em] opacity-60 block">
+                        {p.brand}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+
+                {contents.length === 0 && partnerships.length === 0 && (
                   <div className="col-span-full py-16 text-center border-2 border-dashed border-[var(--border-color)] rounded-3xl opacity-30 flex flex-col items-center gap-4">
                     <CalendarIcon className="w-8 h-8" />
                     <p className="text-xs text-[var(--text-tertiary)] font-black uppercase tracking-[0.3em] italic">Nenhum conteúdo nesta semana</p>

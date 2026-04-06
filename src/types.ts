@@ -89,6 +89,20 @@ export interface BookAnnotation {
   tipo: TipoAnotacao;
   capituloRef?: string;
   destilada: boolean;
+  contentPotential?: boolean;
+  createdAt: string;
+}
+
+export type CampaignStatus = 'Planejando' | 'Em Execução' | 'Concluída';
+
+export interface Campaign {
+  id: string;
+  nome: string;
+  livroId: string;
+  dataInicio?: string;
+  dataFim?: string;
+  metaConteudos: number;
+  status: CampaignStatus;
   createdAt: string;
 }
 
@@ -107,6 +121,16 @@ export interface Book {
   createdAt: string;
   paginasLidas?: number;
   totalPaginas?: number;
+  editora?: string;
+  anoPublicacao?: number;
+  isbn?: string;
+  idioma?: string;
+  traducao?: string;
+  serieColecao?: string;
+  quemIndicou?: string;
+  motivoEscolha?: string;
+  potencialConteudo?: 1 | 2 | 3;
+  capitulosCobertos?: string[];
 }
 
 // ─── Conteúdo ─────────────────────────────────────────────────────────────────
@@ -136,6 +160,15 @@ export interface Content {
   formatoVisual?: VisualFormat;
   livroOrigemId?: string;
   legendas?: Partial<Record<Platform, string>>;
+  scriptNotes?: {
+    id: string;
+    text: string;
+    selection: { from: number; to: number };
+    comment: string;
+    authorName?: string;
+    color?: string;
+    createdAt: string;
+  }[];
 }
 
 // ─── Ideia ────────────────────────────────────────────────────────────────────
