@@ -131,14 +131,14 @@ export function Biblioteca() {
         description="Catalogar seus livros é o primeiro passo para criar autoridade. Aqui você salva anotações e 'destila' insights que viram roteiros automaticamente."
         icon={Library}
       />
-      <div className="max-w-7xl mx-auto px-6 md:px-12 py-12">
+      <div className="content-wide mx-auto px-6 md:px-12 py-12">
         {/* Header */}
         <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between gap-4 mb-10">
           <div>
-            <p className="text-[9px] font-black text-[var(--text-primary)] opacity-30 uppercase tracking-[0.4em] mb-2 italic">
+            <p className="text-[9px] font-black text-[var(--text-tertiary)] uppercase tracking-[0.4em] mb-2 italic">
               Biblioteca
             </p>
-            <h1 className="text-4xl md:text-5xl font-black text-[var(--text-primary)] leading-none tracking-tight">
+            <h1 className="text-4xl font-black text-[var(--text-primary)] tracking-tight italic">
               Seus Livros
             </h1>
             <p className="text-sm text-[var(--text-secondary)] mt-2 opacity-60">
@@ -212,7 +212,7 @@ export function Biblioteca() {
         {livrosFiltrados.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-32 gap-4 text-center">
             <BookOpen className="w-12 h-12 text-[var(--text-primary)] opacity-10" />
-            <p className="text-[var(--text-primary)] opacity-30 font-bold text-sm uppercase tracking-widest">
+            <p className="text-[var(--text-tertiary)] font-bold text-sm uppercase tracking-widest">
               {state.books.length === 0
                 ? 'Nenhum livro ainda. Adicione o primeiro!'
                 : 'Nenhum livro com esses filtros'}
@@ -244,8 +244,8 @@ export function Biblioteca() {
                       />
                     ) : (
                       <div className="w-full h-full flex flex-col items-center justify-center p-3 gap-2">
-                        <BookOpen className="w-8 h-8 text-[var(--text-primary)] opacity-20" />
-                        <span className="text-[9px] font-bold text-[var(--text-primary)] opacity-30 text-center leading-tight">
+                        <BookOpen className="w-8 h-8 text-[var(--text-tertiary)]" />
+                        <span className="text-[9px] font-bold text-[var(--text-tertiary)] text-center leading-tight">
                           {livro.titulo}
                         </span>
                       </div>
@@ -271,7 +271,7 @@ export function Biblioteca() {
                     <p className="text-xs font-bold text-[var(--text-primary)] leading-tight line-clamp-2 mb-0.5">
                       {livro.titulo}
                     </p>
-                    <p className="text-[10px] text-[var(--text-secondary)] opacity-60 truncate">
+                    <p className="text-[10px] text-[var(--text-secondary)] truncate">
                       {livro.autor}
                     </p>
                     {livro.avaliacao && (
@@ -302,15 +302,15 @@ export function Biblioteca() {
         <div className="flex items-center justify-between px-6 py-5 border-b border-[var(--border-color)] shrink-0">
           <h2 className="text-lg font-black text-[var(--text-primary)]">Adicionar Livro</h2>
           <button onClick={() => setModalAberto(false)} className="p-2 hover:bg-[var(--bg-hover)] rounded-full">
-            <X className="w-5 h-5 text-[var(--text-primary)] opacity-40" />
+            <X className="w-5 h-5 text-[var(--text-tertiary)]" />
           </button>
         </div>
         <div className="flex-1 overflow-y-auto p-6 space-y-4">
           {/* ── Essencial ── */}
-          <p className="text-[9px] font-black uppercase tracking-widest text-[var(--text-primary)] opacity-30">Essencial</p>
+          <p className="text-[9px] font-black uppercase tracking-widest text-[var(--text-tertiary)]">Essencial</p>
 
           <div>
-            <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)] opacity-40 block mb-1.5">
+            <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1.5">
               Título *
             </label>
             <input
@@ -324,7 +324,7 @@ export function Biblioteca() {
           </div>
 
           <div>
-            <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)] opacity-40 block mb-1.5">
+            <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1.5">
               Autor
             </label>
             <input
@@ -337,7 +337,7 @@ export function Biblioteca() {
           </div>
 
           <div>
-            <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)] opacity-40 block mb-1.5">
+            <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1.5">
               URL da Capa (opcional)
             </label>
             <input
@@ -350,7 +350,7 @@ export function Biblioteca() {
           </div>
 
           <div>
-            <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)] opacity-40 block mb-2">
+            <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-2">
               Gêneros
             </label>
             <div className="flex flex-wrap gap-2">
@@ -371,7 +371,7 @@ export function Biblioteca() {
           </div>
 
           <div>
-            <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)] opacity-40 block mb-1.5">
+            <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1.5">
               Status de Leitura
             </label>
             <select
@@ -397,30 +397,30 @@ export function Biblioteca() {
               <div className="space-y-3">
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)] opacity-40 block mb-1">Editora</label>
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1">Editora</label>
                     <input type="text" value={form.editora} onChange={e => setForm(p => ({ ...p, editora: e.target.value }))} placeholder="Ex: Rocco" className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:opacity-40" />
                   </div>
                   <div>
-                    <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)] opacity-40 block mb-1">Ano</label>
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1">Ano</label>
                     <input type="number" value={form.anoPublicacao} onChange={e => setForm(p => ({ ...p, anoPublicacao: e.target.value }))} placeholder="2024" className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:opacity-40" />
                   </div>
                 </div>
                 <div>
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)] opacity-40 block mb-1">ISBN</label>
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1">ISBN</label>
                   <input type="text" value={form.isbn} onChange={e => setForm(p => ({ ...p, isbn: e.target.value }))} placeholder="978-..." className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:opacity-40" />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)] opacity-40 block mb-1">Idioma</label>
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1">Idioma</label>
                     <input type="text" value={form.idioma} onChange={e => setForm(p => ({ ...p, idioma: e.target.value }))} placeholder="Português" className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:opacity-40" />
                   </div>
                   <div>
-                    <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)] opacity-40 block mb-1">Tradução</label>
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1">Tradução</label>
                     <input type="text" value={form.traducao} onChange={e => setForm(p => ({ ...p, traducao: e.target.value }))} placeholder="Tradutor" className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:opacity-40" />
                   </div>
                 </div>
                 <div>
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)] opacity-40 block mb-1">Série / Coleção</label>
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1">Série / Coleção</label>
                   <input type="text" value={form.serieColecao} onChange={e => setForm(p => ({ ...p, serieColecao: e.target.value }))} placeholder="Ex: Série Trono de Vidro" className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:opacity-40" />
                 </div>
               </div>
@@ -440,15 +440,15 @@ export function Biblioteca() {
             {showParaVoce && (
               <div className="space-y-3">
                 <div>
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)] opacity-40 block mb-1">Quem Indicou</label>
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1">Quem Indicou</label>
                   <input type="text" value={form.quemIndicou} onChange={e => setForm(p => ({ ...p, quemIndicou: e.target.value }))} placeholder="Ex: Podcast X, amiga Y..." className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:opacity-40" />
                 </div>
                 <div>
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)] opacity-40 block mb-1">Por que Quer Ler</label>
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1">Por que Quer Ler</label>
                   <textarea value={form.motivoEscolha} onChange={e => setForm(p => ({ ...p, motivoEscolha: e.target.value }))} placeholder="Motivação, contexto..." rows={2} className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] resize-none placeholder:opacity-40" />
                 </div>
                 <div>
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)] opacity-40 block mb-2">Potencial de Conteúdo</label>
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-2">Potencial de Conteúdo</label>
                   <div className="flex gap-2">
                     {(['1', '2', '3'] as const).map(v => (
                       <button

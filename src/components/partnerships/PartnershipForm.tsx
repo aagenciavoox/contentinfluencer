@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { X, Trash2, CheckCircle2, AlertCircle, Edit3 } from 'lucide-react';
+import { X, Trash2, CheckCircle2, AlertCircle, Edit3, CalendarRange, Archive, ArchiveRestore } from 'lucide-react';
 import { ConfirmModal } from '../ConfirmModal';
 import { Partnership, PartnershipStatus } from '../../types';
 import { PARTNERSHIP_STAGES } from '../../constants';
 import { cn } from '../../lib/utils';
-import { format } from 'date-fns';
+import { differenceInCalendarDays, parseISO } from 'date-fns';
 
 interface PartnershipFormProps {
   initialData: Partnership;
@@ -19,23 +19,19 @@ export function PartnershipForm({ initialData, onSave, onClose, onDelete }: Part
 
   const update = (updates: Partial<Partnership>) => setData(prev => ({ ...prev, ...updates }));
 
+  // Calcula duração em dias quando ambas as datas estão preenchidas
+  const durationDays = data.startDate && data.deadline
+    ? differenceInCalendarDays(parseISO(data.deadline), parseISO(data.startDate)) + 1
+    : null;
+
   return (
     <div className="flex flex-col h-full bg-[var(--bg-primary)] rounded-[3rem] overflow-hidden">
       <div className="p-6 md:p-8 border-b border-[var(--border-color)] flex flex-col md:flex-row items-center justify-between bg-[var(--bg-secondary)] shrink-0 gap-6">
-        <div className="flex items-center justify-between w-full md:w-auto gap-6 transition-all">
           <div className="flex items-center gap-2">
             <button onClick={onClose} className="p-3 hover:bg-[var(--bg-hover)] rounded-full transition-all">
               <X className="w-6 h-6 text-[var(--text-primary)] opacity-40 hover:opacity-100" />
             </button>
-            <button
-              onClick={() => setConfirm({ message: 'Excluir este projeto?', onConfirm: () => onDelete(data.id) })}
-              className="p-3 hover:bg-[var(--accent-pink)]/10 rounded-2xl transition-all group"
-              title="Excluir"
-            >
-              <Trash2 className="w-5 h-5 text-[var(--accent-pink)] opacity-40 group-hover:opacity-100" />
-            </button>
           </div>
-        </div>
         <div className="flex items-center gap-4 px-4 py-3 bg-[var(--bg-hover)] w-full md:flex-1 md:ml-6 rounded-2xl border border-[var(--border-color)] shadow-sm">
           <div className="w-3.5 h-3.5 rounded-full shadow-sm shrink-0" style={{ backgroundColor: data.brandColor }} />
           <input 
@@ -50,6 +46,11 @@ export function PartnershipForm({ initialData, onSave, onClose, onDelete }: Part
 
       <div className="flex-1 overflow-y-auto p-6 md:p-10 custom-scrollbar" style={{ minHeight: 0 }}>
         <div className="mb-14">
+          <div className="flex items-center gap-2 mb-6">
+            <span className="text-[8px] font-black bg-[var(--accent-blue)]/20 text-[var(--accent-blue)] px-3 py-1.5 rounded-xl uppercase tracking-[0.2em] border border-[var(--accent-blue)]/30">
+              Editando Evento (Entrega)
+            </span>
+          </div>
           <textarea 
             value={data.title}
             onChange={(e) => update({ title: e.target.value })}
@@ -59,6 +60,7 @@ export function PartnershipForm({ initialData, onSave, onClose, onDelete }: Part
           />
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 bg-[var(--bg-secondary)] p-6 md:p-10 rounded-[2.5rem] border border-[var(--border-color)] shadow-inner">
+            {/* Status */}
             <div className="space-y-2">
               <label className="text-[10px] font-black text-[var(--text-tertiary)] uppercase tracking-[0.2em] ml-1 opacity-60">Fase do Projeto</label>
               <select 
@@ -69,27 +71,10 @@ export function PartnershipForm({ initialData, onSave, onClose, onDelete }: Part
                 {PARTNERSHIP_STAGES.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
             </div>
+
+            {/* Identidade Visual */}
             <div className="space-y-2">
-               <label className="text-[10px] font-black text-[var(--text-tertiary)] uppercase tracking-[0.2em] ml-1 opacity-60">Data / Prazo</label>
-              <input 
-                type="date" 
-                value={data.deadline || ''}
-                onChange={(e) => update({ deadline: e.target.value })}
-                className="w-full text-xs bg-[var(--bg-hover)] border-none rounded-2xl px-5 py-4 focus:ring-2 focus:ring-[var(--accent-blue)] font-bold text-[var(--text-primary)] shadow-sm"
-              />
-            </div>
-            <div className="space-y-2">
-               <label className="text-[10px] font-black text-[var(--text-tertiary)] uppercase tracking-[0.2em] ml-1 opacity-60">Observações Rápidas</label>
-               <input 
-                 type="text" 
-                 value={data.link || ''}
-                 onChange={(e) => update({ link: e.target.value })}
-                 placeholder="Link do drive, pasta..."
-                 className="w-full text-xs bg-[var(--bg-hover)] border-none rounded-2xl px-5 py-4 focus:ring-2 focus:ring-[var(--accent-blue)] font-bold text-[var(--text-primary)] shadow-sm"
-               />
-            </div>
-            <div className="space-y-2">
-              <label className="text-[10px] font-black text-[var(--text-tertiary)] uppercase tracking-[0.2em] ml-1 opacity-60">Identidade Visual</label>
+              <label className="text-[10px] font-black text-[var(--text-tertiary)] uppercase tracking-[0.2em] ml-1 opacity-60">Cor Identidade (Marca Global)</label>
               <div className="flex items-center gap-4 bg-[var(--bg-hover)] rounded-2xl px-5 py-3 border border-[var(--border-color)] shadow-sm">
                 <input 
                   type="color" 
@@ -99,6 +84,64 @@ export function PartnershipForm({ initialData, onSave, onClose, onDelete }: Part
                 />
                 <span className="text-[10px] font-mono text-[var(--text-tertiary)] uppercase font-bold">{data.brandColor}</span>
               </div>
+            </div>
+
+            {/* ── Range de Datas ── */}
+            <div className="md:col-span-2 space-y-3">
+              <div className="flex items-center gap-2">
+                <CalendarRange className="w-4 h-4 text-[var(--text-tertiary)]" />
+                <label className="text-[10px] font-black text-[var(--text-tertiary)] uppercase tracking-[0.2em] opacity-60">
+                  Período do Evento
+                </label>
+                {durationDays !== null && durationDays > 0 && (
+                  <span className="ml-auto text-[10px] font-black px-3 py-1 rounded-full bg-[var(--accent-blue)]/10 text-[var(--accent-blue)] border border-[var(--accent-blue)]/20">
+                    {durationDays} {durationDays === 1 ? 'dia' : 'dias'}
+                  </span>
+                )}
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-[9px] font-black text-[var(--text-tertiary)] uppercase tracking-widest ml-1 opacity-50">Início</label>
+                  <input 
+                    type="date"
+                    value={data.startDate || ''}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      update({ startDate: val });
+                      // Se deadline não definido, inicializa igual
+                      if (!data.deadline) update({ startDate: val, deadline: val });
+                    }}
+                    className="w-full text-xs bg-[var(--bg-hover)] border-none rounded-2xl px-5 py-4 focus:ring-2 focus:ring-[var(--accent-blue)] font-bold text-[var(--text-primary)] shadow-sm"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[9px] font-black text-[var(--text-tertiary)] uppercase tracking-widest ml-1 opacity-50">Fim / Prazo</label>
+                  <input 
+                    type="date"
+                    value={data.deadline || ''}
+                    min={data.startDate || undefined}
+                    onChange={(e) => update({ deadline: e.target.value })}
+                    className="w-full text-xs bg-[var(--bg-hover)] border-none rounded-2xl px-5 py-4 focus:ring-2 focus:ring-[var(--accent-blue)] font-bold text-[var(--text-primary)] shadow-sm"
+                  />
+                </div>
+              </div>
+              {durationDays !== null && durationDays > 1 && (
+                <p className="text-[9px] text-[var(--text-tertiary)] opacity-60 font-bold uppercase tracking-widest px-1">
+                  ↳ O evento aparecerá em todos os {durationDays} dias no calendário
+                </p>
+              )}
+            </div>
+
+            {/* Link */}
+            <div className="space-y-2 md:col-span-2">
+               <label className="text-[10px] font-black text-[var(--text-tertiary)] uppercase tracking-[0.2em] ml-1 opacity-60">Link / Referência</label>
+               <input 
+                 type="text" 
+                 value={data.link || ''}
+                 onChange={(e) => update({ link: e.target.value })}
+                 placeholder="Link do drive, pasta, briefing..."
+                 className="w-full text-xs bg-[var(--bg-hover)] border-none rounded-2xl px-5 py-4 focus:ring-2 focus:ring-[var(--accent-blue)] font-bold text-[var(--text-primary)] shadow-sm"
+               />
             </div>
           </div>
         </div>
@@ -135,22 +178,97 @@ export function PartnershipForm({ initialData, onSave, onClose, onDelete }: Part
               placeholder="Lembretes internos..."
             />
           </section>
+
+          {/* ── SEÇÃO DE GESTÃO ── */}
+          <section className="pt-12 border-t border-[var(--border-color)]">
+            <h3 className="text-[11px] uppercase tracking-[0.2em] font-black text-[var(--text-primary)] mb-6">Gestão do Evento</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <button
+                onClick={() => update({ status: 'Finalizado' })}
+                disabled={data.status === 'Finalizado'}
+                className={cn(
+                  "flex items-center justify-center gap-2 p-4 rounded-2xl text-[10px] font-black uppercase tracking-widest border transition-all",
+                  data.status === 'Finalizado'
+                    ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-600 cursor-default"
+                    : "border-[var(--border-color)] text-[var(--text-primary)] hover:bg-emerald-500/10 hover:border-emerald-500/30 hover:text-emerald-600"
+                )}
+              >
+                <CheckCircle2 className="w-4 h-4" />
+                {data.status === 'Finalizado' ? 'Evento Finalizado' : 'Finalizar Evento'}
+              </button>
+
+              <button
+                onClick={() => update({ archived: !data.archived })}
+                className={cn(
+                  "flex items-center justify-center gap-2 p-4 rounded-2xl text-[10px] font-black uppercase tracking-widest border transition-all",
+                  data.archived
+                    ? "bg-amber-500/10 border-amber-500/20 text-amber-600"
+                    : "border-[var(--border-color)] text-[var(--text-primary)] hover:bg-amber-500/10 hover:border-amber-500/30 hover:text-amber-600"
+                )}
+              >
+                {data.archived ? <ArchiveRestore className="w-4 h-4" /> : <Archive className="w-4 h-4" />}
+                {data.archived ? 'Desarquivar' : 'Arquivar'}
+              </button>
+
+              <button
+                onClick={() => setConfirm({ message: 'Excluir permanentemente?', onConfirm: () => onDelete(data.id) })}
+                className="flex items-center justify-center gap-2 p-4 rounded-2xl text-[10px] font-black uppercase tracking-widest border border-red-500/10 text-red-500 hover:bg-red-500/10 transition-all"
+              >
+                <Trash2 className="w-4 h-4" />
+                Excluir
+              </button>
+            </div>
+            {data.status === 'Finalizado' && (
+              <p className="mt-4 text-[9px] text-emerald-600 font-bold uppercase tracking-widest text-center opacity-60">
+                ↳ Este evento está na aba de "Encerrados"
+              </p>
+            )}
+          </section>
         </div>
       </div>
 
-      <div className="px-10 py-6 border-t border-[var(--border-color)] bg-[var(--bg-secondary)] shrink-0">
+      <div className="px-10 py-8 border-t border-[var(--border-color)] bg-[var(--bg-secondary)] shrink-0 space-y-4">
         <button
           onClick={() => {
             if (!data.title || !data.brand) {
-               alert('Marca e Título são origatórios.');
+               alert('Marca e Título são obrigatórios.');
                return;
             }
             onSave(data);
           }}
-          className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-[var(--text-primary)] text-[var(--bg-primary)] text-xs font-black uppercase tracking-widest rounded-2xl hover:scale-[1.01] active:scale-[0.99] transition-all shadow-lg"
+          className="w-full flex items-center justify-center gap-2 px-6 py-5 bg-[var(--text-primary)] text-[var(--bg-primary)] text-xs font-black uppercase tracking-widest rounded-2xl hover:scale-[1.01] active:scale-[0.99] transition-all shadow-lg"
         >
           <CheckCircle2 className="w-4 h-4" />
-          Salvar Evento / Projeto
+          Salvar este Evento
+        </button>
+
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            onClick={() => update({ archived: !data.archived })}
+            className={cn(
+              "flex items-center justify-center gap-2 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest border transition-all",
+              data.archived 
+                ? "bg-amber-500 text-white border-amber-500 shadow-md" 
+                : "border-[var(--border-color)] text-[var(--text-tertiary)] hover:bg-[var(--bg-hover)]"
+            )}
+          >
+            {data.archived ? <ArchiveRestore className="w-4 h-4" /> : <Archive className="w-4 h-4" />}
+            {data.archived ? 'Desarquivar' : 'Arquivar'}
+          </button>
+          <button
+            onClick={() => setConfirm({ message: 'Excluir permanentemente?', onConfirm: () => onDelete(data.id) })}
+            className="flex items-center justify-center gap-2 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest border border-red-500/20 text-red-500 hover:bg-red-500/10 transition-all"
+          >
+            <Trash2 className="w-4 h-4" />
+            Excluir
+          </button>
+        </div>
+
+        <button
+          onClick={onClose}
+          className="w-full py-4 text-[10px] font-black uppercase tracking-widest text-[var(--text-tertiary)] opacity-40 hover:opacity-100 transition-all"
+        >
+          Cancelar / Fechar
         </button>
       </div>
       <ConfirmModal

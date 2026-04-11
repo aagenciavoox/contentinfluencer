@@ -105,6 +105,7 @@ export async function fetchAllData(): Promise<Partial<AppState>> {
     cor: s.cor,
     ativa: s.ativa ?? true,
     frequenciaRecomendada: s.frequencia_recomendada,
+    hashtagsPorPlataforma: s.hashtags_por_plataforma || {},
   }));
 
   if (results) state.results = results.map(r => ({
@@ -141,6 +142,7 @@ export async function fetchAllData(): Promise<Partial<AppState>> {
     brandColor: p.brand_color,
     title: p.title,
     status: p.status,
+    startDate: p.start_date,
     deadline: p.deadline,
     publishDate: p.publish_date,
     recordingDate: p.recording_date,
@@ -307,7 +309,7 @@ export async function saveToSupabase(state: AppState) {
       { key: 'onboarding_completo', value: state.onboardingCompleto, user_id: userId },
       { key: 'theme', value: state.theme, user_id: userId },
       { key: 'viewed_guides', value: state.viewedGuides, user_id: userId },
-    ].map(row => supabase.from('app_config').upsert(row, { onConflict: 'key' }).then(({ error }) => {
+    ].map(row => supabase.from('app_config').upsert(row, { onConflict: 'user_id, key' }).then(({ error }) => {
       if (error) console.warn('[Supabase] app_config upsert skipped:', row.key, error.message);
     }))),
 
@@ -384,6 +386,7 @@ export async function saveToSupabase(state: AppState) {
         cor: s.cor || null,
         ativa: s.ativa ?? true,
         frequencia_recomendada: s.frequenciaRecomendada || 'Sob demanda',
+        hashtags_por_plataforma: s.hashtagsPorPlataforma || {},
         user_id: userId,
       }))
     ),
@@ -461,6 +464,7 @@ export async function saveToSupabase(state: AppState) {
         brand_color: p.brandColor,
         title: p.title,
         status: p.status,
+        start_date: p.startDate || null,
         deadline: p.deadline || null,
         publish_date: p.publishDate || null,
         recording_date: p.recordingDate || null,

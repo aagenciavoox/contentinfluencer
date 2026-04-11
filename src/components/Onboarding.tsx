@@ -130,7 +130,7 @@ export function Onboarding() {
                   <h3 className="text-3xl font-black text-[var(--text-primary)] uppercase italic leading-none tracking-tighter mb-4">
                     Seu Content OS <br /> está pronto.
                   </h3>
-                  <p className="text-sm text-[var(--text-secondary)] opacity-60 leading-relaxed font-medium">
+                  <p className="text-sm text-[var(--text-secondary)] leading-relaxed font-medium">
                     Transformamos caos em escala. Este guia rápido vai configurar os pilares da sua estratégia para você começar com autoridade máxima.
                   </p>
                 </div>
@@ -163,7 +163,7 @@ export function Onboarding() {
                     <Sparkles className="w-5 h-5 text-[var(--text-primary)]" />
                     <h3 className="text-2xl font-black text-[var(--text-primary)] uppercase italic tracking-tighter">O seu DNA</h3>
                   </div>
-                  <p className="text-sm text-[var(--text-secondary)] opacity-60 font-medium leading-relaxed">
+                  <p className="text-sm text-[var(--text-secondary)] font-medium leading-relaxed">
                     Sem DNA, o conteúdo é commodity. Defina sua essência agora para que o sistema possa validar seus roteiros futuramente.
                   </p>
                 </div>
@@ -172,7 +172,7 @@ export function Onboarding() {
                   {/* Promessa */}
                   <div className="space-y-2">
                     <div className="flex justify-between items-end mb-1">
-                      <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-primary)] opacity-40 ml-1">
+                      <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-tertiary)] ml-1">
                         Promessa Central
                       </label>
                       <span className="text-[8px] font-bold text-[var(--accent-blue)] opacity-60 uppercase italic tracking-widest">[Dica: O que eu ganho ao te seguir?]</span>
@@ -192,7 +192,7 @@ export function Onboarding() {
                   {/* Público */}
                   <div className="space-y-2">
                     <div className="flex justify-between items-end mb-1">
-                      <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-primary)] opacity-40 ml-1">
+                      <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-tertiary)] ml-1">
                         Público-Alvo
                       </label>
                       <span className="text-[8px] font-bold text-[var(--accent-blue)] opacity-60 uppercase italic tracking-widest">[Dica: Fale com UMA pessoa]</span>
@@ -212,7 +212,7 @@ export function Onboarding() {
                   {/* Tom */}
                   <div className="space-y-2">
                     <div className="flex justify-between items-end mb-1">
-                      <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-primary)] opacity-40 ml-1">
+                      <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-tertiary)] ml-1">
                         Tom de Voz
                       </label>
                       <span className="text-[8px] font-bold text-[var(--accent-blue)] opacity-60 uppercase italic tracking-widest">[Dica: Como você soa?]</span>
@@ -246,13 +246,13 @@ export function Onboarding() {
                     <Layout className="w-5 h-5 text-[var(--text-primary)]" />
                     <h3 className="text-2xl font-black text-[var(--text-primary)] uppercase italic tracking-tighter">Pilares de Ataque</h3>
                   </div>
-                  <p className="text-sm text-[var(--text-secondary)] opacity-60 font-medium leading-relaxed">
+                  <p className="text-sm text-[var(--text-secondary)] font-medium leading-relaxed">
                     Pilares são os grandes temas que você aborda. Eles impedem que você fique "sem assunto" e garantem que o algoritmo entenda seu nicho.
                   </p>
                 </div>
 
                 <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-4 mb-4">
-                   <p className="text-[10px] font-bold text-[var(--text-primary)] opacity-60 leading-relaxed italic">
+                   <p className="text-[10px] font-bold text-[var(--text-secondary)] leading-relaxed italic">
                      💡 <strong>Dica Estratégica:</strong> Selecione pelo menos 3 pilares: um de <strong>Autoridade</strong> (análise), um de <strong>Conexão</strong> (vlog/rotina) e um de <strong>Entretenimento</strong>.
                    </p>
                 </div>
@@ -300,13 +300,13 @@ export function Onboarding() {
                     <Zap className="w-5 h-5 text-[var(--text-primary)]" />
                     <h3 className="text-2xl font-black text-[var(--text-primary)] uppercase italic tracking-tighter">Máquinas de Vídeo</h3>
                   </div>
-                  <p className="text-sm text-[var(--text-secondary)] opacity-60 font-medium leading-relaxed">
+                  <p className="text-sm text-[var(--text-secondary)] font-medium leading-relaxed">
                     Séries são blocos recorrentes que criam antecipação na audiência. São o segredo de perfis que crescem 10k+ por mês.
                   </p>
                 </div>
 
                 <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-4 mb-4">
-                   <p className="text-[10px] font-bold text-[var(--text-primary)] opacity-60 leading-relaxed italic">
+                   <p className="text-[10px] font-bold text-[var(--text-secondary)] leading-relaxed italic">
                      💡 <strong>Pense Nisso:</strong> Uma série facilita sua vida porque você já sabe o roteiro base. Basta preencher com a ideia do dia.
                    </p>
                 </div>
@@ -360,7 +360,7 @@ export function Onboarding() {
                    <h3 className="text-3xl font-black text-[var(--text-primary)] uppercase italic leading-[0.9] tracking-tighter mb-4">
                     Tudo pronto para <br /> começar a escala.
                   </h3>
-                  <p className="text-sm text-[var(--text-secondary)] opacity-60 leading-relaxed font-medium px-6">
+                  <p className="text-sm text-[var(--text-secondary)] leading-relaxed font-medium px-6">
                     Suas diretrizes estratégicas e DNA da voz foram configurados. Agora o sistema já conhece o seu tom e seus objetivos.
                   </p>
                 </div>
@@ -368,7 +368,7 @@ export function Onboarding() {
                 <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-[2rem] p-6 space-y-4">
                    <div className="flex items-center gap-4 text-left">
                      <div className="w-8 h-8 rounded-xl bg-[var(--text-primary)]/5 flex items-center justify-center shrink-0">
-                        <Lightbulb className="w-4 h-4 text-[var(--text-primary)] opacity-60" />
+                        <Lightbulb className="w-4 h-4 text-[var(--text-secondary)]" />
                      </div>
                      <div>
                        <p className="text-[10px] font-black uppercase tracking-widest text-[var(--text-primary)]">Próximo Passo:</p>

@@ -172,110 +172,129 @@ export function Contents() {
         description="Aqui você gerencia todos os seus roteiros. Use as abas para alternar entre a visão de Tabela, Ecossistema (visual) ou Linha do Tempo. Você também pode criar 'Blocos de Gravação' para produzir em lote."
         icon={TableIcon}
       />
-      <header className="px-6 md:px-10 py-6 md:py-8 border-b border-[var(--border-color)] flex flex-col bg-[var(--bg-secondary)] shadow-sm sticky top-0 z-20 gap-4">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="flex flex-col sm:flex-row sm:items-center gap-4 md:gap-6 w-full">
-            <div className="flex bg-[var(--bg-hover)] p-1 rounded-2xl border border-[var(--border-color)] overflow-x-auto no-scrollbar shrink-0">
-               <button 
-                 onClick={() => setMainTab('inventory')}
-                 className={cn("px-5 sm:px-6 py-2 text-[11px] font-black uppercase tracking-widest rounded-xl transition-all whitespace-nowrap", mainTab === 'inventory' ? "bg-[var(--text-primary)] text-[var(--bg-primary)] shadow-md" : "text-[var(--text-tertiary)] opacity-60 hover:opacity-100")}
-               >
-                 Todos os Roteiros
-               </button>
-               <button 
-                 onClick={() => setMainTab('recording')}
-                 className={cn("px-5 sm:px-6 py-2 text-[11px] font-black uppercase tracking-widest rounded-xl transition-all flex items-center gap-2 whitespace-nowrap", mainTab === 'recording' ? "bg-[var(--accent-blue)] text-white shadow-md focus:ring-0" : "text-[var(--text-tertiary)] opacity-60 hover:opacity-100")}
-               >
-                 <Video className="w-3.5 h-3.5" /> Blocos de Gravação
-               </button>
-             </div>
-            
-            <div className="hidden sm:block h-6 w-[2px] bg-[var(--border-color)] opacity-50 shrink-0" />
-            
-            {mainTab === 'inventory' && (
-              <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1 flex-1">
-                <select
-                  value={filterStatus}
-                  onChange={(e) => setFilterStatus(e.target.value)}
-                  className="md:hidden text-xs bg-[var(--bg-hover)] text-[var(--text-primary)] font-bold border-none rounded-lg px-3 py-2 focus:ring-2 focus:ring-[var(--accent-blue)] cursor-pointer whitespace-nowrap"
-                >
-                  <option>Todos</option>
-                  <option value="No Escuro">No Escuro 🔦</option>
-                  {STATUS_STAGES.map(s => (
-                    <option key={s}>{s}</option>
-                  ))}
-                </select>
+      
+      <header className="px-6 md:px-10 pt-8 pb-4 border-b border-[var(--border-color)] bg-[var(--bg-secondary)]/50 backdrop-blur-md sticky top-0 z-20 flex flex-col gap-6">
+        {/* ROW 1: Navegação Principal e Ações Primárias */}
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+          <div className="flex items-center gap-6">
+            <div className="flex bg-[var(--bg-hover)] p-1 rounded-2xl border border-[var(--border-color)] shrink-0">
+              <button 
+                onClick={() => setMainTab('inventory')}
+                className={cn(
+                  "px-6 py-2.5 text-[10px] font-black uppercase tracking-[0.2em] rounded-xl transition-all whitespace-nowrap", 
+                  mainTab === 'inventory' ? "bg-[var(--text-primary)] text-[var(--bg-primary)] shadow-lg" : "text-[var(--text-tertiary)] opacity-60 hover:opacity-100"
+                )}
+              >
+                Inventário
+              </button>
+              <button 
+                onClick={() => setMainTab('recording')}
+                className={cn(
+                  "px-6 py-2.5 text-[10px] font-black uppercase tracking-[0.2em] rounded-xl transition-all flex items-center gap-2 whitespace-nowrap", 
+                  mainTab === 'recording' ? "bg-[var(--text-primary)] text-[var(--bg-primary)] shadow-sm" : "text-[var(--text-tertiary)] opacity-60 hover:opacity-100"
+                )}
+              >
+                <Video className="w-3.5 h-3.5" /> Blocos
+              </button>
+            </div>
 
-                <select
-                  value={filterSeries}
-                  onChange={(e) => setFilterSeries(e.target.value)}
-                  className="text-xs bg-[var(--bg-hover)] text-[var(--text-primary)] font-bold border-none rounded-lg px-3 py-2 focus:ring-2 focus:ring-[var(--accent-blue)] cursor-pointer whitespace-nowrap"
+            <div className="hidden lg:block w-px h-8 bg-[var(--border-color)]" />
+
+            {/* View Modes (Só no inventário) */}
+            {mainTab === 'inventory' && (
+              <div className="flex bg-[var(--bg-hover)] rounded-xl p-1 border border-[var(--border-color)] shrink-0">
+                <button
+                  onClick={() => { setViewMode('table'); setSelectedIds(new Set()); }}
+                  className={cn("p-2 rounded-lg transition-all", viewMode === 'table' ? "bg-[var(--bg-primary)] shadow-sm text-[var(--accent-blue)]" : "opacity-40 text-[var(--text-primary)] hover:opacity-100")}
+                  title="Tabela"
                 >
-                  <option value="Todas">Série: Todas</option>
-                  {state.series.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                </select>
-  
-                <div className="flex bg-[var(--bg-hover)] rounded-lg p-1 border border-[var(--border-color)] ml-auto">
-                  <button
-                    onClick={() => { setViewMode('table'); setSelectedIds(new Set()); }}
-                    className={cn("p-1.5 rounded-md transition-all", viewMode === 'table' ? "bg-white dark:bg-[var(--bg-secondary)] shadow-sm text-[var(--accent-blue)]" : "opacity-40 text-[var(--text-primary)]")}
-                    title="Tabela"
-                  >
-                    <TableIcon className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => { setViewMode('ecosystem'); setSelectedIds(new Set()); }}
-                    className={cn("p-1.5 rounded-md transition-all", viewMode === 'ecosystem' ? "bg-white dark:bg-[var(--bg-secondary)] shadow-sm text-[var(--accent-blue)]" : "opacity-40 text-[var(--text-primary)]")}
-                    title="Ecossistema"
-                  >
-                    <Layers className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => { setViewMode('timeline'); setSelectedIds(new Set()); }}
-                    className={cn("p-1.5 rounded-md transition-all", viewMode === 'timeline' ? "bg-white dark:bg-[var(--bg-secondary)] shadow-sm text-[var(--accent-blue)]" : "opacity-40 text-[var(--text-primary)]")}
-                    title="Linha do Tempo"
-                  >
-                    <Calendar className="w-4 h-4" />
-                  </button>
-                </div>
+                  <TableIcon className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => { setViewMode('ecosystem'); setSelectedIds(new Set()); }}
+                  className={cn("p-2 rounded-lg transition-all", viewMode === 'ecosystem' ? "bg-[var(--bg-primary)] shadow-sm text-[var(--accent-blue)]" : "opacity-40 text-[var(--text-primary)] hover:opacity-100")}
+                  title="Ecossistema"
+                >
+                  <Layers className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => { setViewMode('timeline'); setSelectedIds(new Set()); }}
+                  className={cn("p-2 rounded-lg transition-all", viewMode === 'timeline' ? "bg-[var(--bg-primary)] shadow-sm text-[var(--accent-blue)]" : "opacity-40 text-[var(--text-primary)] hover:opacity-100")}
+                  title="Linha do Tempo"
+                >
+                  <Calendar className="w-4 h-4" />
+                </button>
               </div>
             )}
           </div>
-          {mainTab === 'inventory' && (
-            <div className="flex items-center gap-3 w-full md:w-auto">
-              <button
-                onClick={() => setIsCSVUploadOpen(true)}
-                className="flex items-center justify-center gap-2 bg-[var(--bg-hover)] text-[var(--text-primary)] px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-[var(--border-color)] transition-all border border-[var(--border-color)] shadow-sm shrink-0"
-              >
-                <Upload className="w-3 h-3" /> Importar CSV
-              </button>
-              <button
-                onClick={handleAddContent}
-                className="flex items-center justify-center gap-2 bg-[var(--text-primary)] text-[var(--bg-primary)] px-6 py-2.5 rounded-xl text-sm font-black hover:scale-105 active:scale-95 transition-all shadow-lg flex-1 md:flex-none shrink-0"
-              >
-                <Plus className="w-4 h-4" /> Novo Conteúdo
-              </button>
-            </div>
-          )}
+
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setIsCSVUploadOpen(true)}
+              className="group flex-1 lg:flex-none flex items-center justify-center gap-2 bg-[var(--bg-hover)] text-[var(--text-primary)] px-5 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-[var(--border-color)] transition-all border border-[var(--border-color)]"
+            >
+              <Upload className="w-3.5 h-3.5 opacity-40 group-hover:opacity-100" /> Importar
+            </button>
+            <button
+              onClick={handleAddContent}
+              className="flex-1 lg:flex-none flex items-center justify-center gap-2 bg-[var(--text-primary)] text-[var(--bg-primary)] px-8 py-3 rounded-xl text-sm font-black hover:scale-105 active:scale-95 transition-all shadow-xl"
+            >
+              <Plus className="w-4 h-4" /> Novo Conteúdo
+            </button>
+          </div>
         </div>
 
+        {/* ROW 2: Barra de Ferramentas e Filtros */}
         {mainTab === 'inventory' && (
-          <div className="hidden md:flex flex-wrap items-center gap-1.5 pt-2 w-full border-t border-[var(--border-color)]/50 mt-2">
-            <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-tertiary)] opacity-50 mr-2">Status:</span>
-            {['Todos', 'No Escuro', ...STATUS_STAGES].map(s => (
-               <button
-                 key={s}
-                 onClick={() => setFilterStatus(s)}
-                 className={cn(
-                   "px-3 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all whitespace-nowrap border",
-                   filterStatus === s 
-                     ? "bg-[var(--text-primary)] text-[var(--bg-primary)] shadow-md border-[var(--text-primary)]"
-                     : "bg-transparent text-[var(--text-secondary)] border-[var(--border-color)] hover:border-[var(--text-primary)] opacity-70 hover:opacity-100 shadow-sm"
-                 )}
-               >
-                 {s === 'No Escuro' ? 'No Escuro 🔦' : s}
-               </button>
-            ))}
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-wrap items-center gap-4">
+              <div className="flex items-center gap-2 flex-1 md:flex-none min-w-[200px]">
+                <select
+                  value={filterSeries}
+                  onChange={(e) => setFilterSeries(e.target.value)}
+                  className="w-full text-[10px] font-black uppercase tracking-widest bg-[var(--bg-hover)] text-[var(--text-primary)] border border-[var(--border-color)] rounded-xl px-4 py-3 focus:ring-2 focus:ring-[var(--accent-blue)]/20 cursor-pointer appearance-none shadow-sm"
+                >
+                  <option value="Todas">Todas as Séries</option>
+                  {state.series.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                </select>
+              </div>
+
+               <div className="flex items-center gap-2 flex-1 md:flex-none min-w-[160px]">
+                <select
+                  value={filterPillar}
+                  onChange={(e) => setFilterPillar(e.target.value)}
+                  className="w-full text-[10px] font-black uppercase tracking-widest bg-[var(--bg-hover)] text-[var(--text-primary)] border border-[var(--border-color)] rounded-xl px-4 py-3 focus:ring-2 focus:ring-[var(--accent-blue)]/20 cursor-pointer appearance-none shadow-sm"
+                >
+                  <option value="Todos">Todos os Pilares</option>
+                  {state.pilares.map(p => <option key={p.id} value={p.nome}>{p.nome}</option>)}
+                </select>
+              </div>
+
+              <div className="h-4 w-px bg-[var(--border-color)] hidden md:block mx-2" />
+
+              {/* Status Bar (Compacta) */}
+              <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1">
+                {['Todos', 'No Escuro', ...STATUS_STAGES].map(s => {
+                  const isActive = filterStatus === s;
+                  const isSpecial = s === 'No Escuro';
+                  return (
+                    <button
+                      key={s}
+                      onClick={() => setFilterStatus(s)}
+                      className={cn(
+                        "px-4 py-2.5 text-[9px] font-black uppercase tracking-[0.15em] rounded-full transition-all whitespace-nowrap border flex items-center gap-2",
+                        isActive 
+                          ? "bg-[var(--text-primary)] text-[var(--bg-primary)] border-[var(--text-primary)] shadow-lg"
+                          : "bg-[var(--bg-hover)] text-[var(--text-tertiary)] border-[var(--border-color)] hover:border-[var(--text-primary)]/30 opacity-70 hover:opacity-100"
+                      )}
+                    >
+                      {isSpecial && <span className={cn("w-1.5 h-1.5 rounded-full bg-orange-500", isActive && "bg-white")} />}
+                      {s === 'No Escuro' ? 'No Escuro' : s}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           </div>
         )}
       </header>

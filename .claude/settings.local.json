@@ -39,7 +39,11 @@
       "Bash(git commit -m ':*)",
       "Bash(git push:*)",
       "Bash(python3:*)",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "Bash(find:*)",
+      "Bash(grep -rn \"ProjectCalendar\\\\|EditorialCalendar\" src/App.tsx src/main.tsx src/router*)",
+      "Bash(node -e ':*)",
+      "Bash(grep -v \"\\\\.tsx:[0-9]*:.*//\\\\|//.*italic\")"
     ]
   }
 }

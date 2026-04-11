@@ -57,18 +57,18 @@ export function LooksSettings() {
 
   return (
     <div className="min-h-screen bg-[var(--bg-secondary)]">
-      <div className="max-w-3xl mx-auto px-6 md:px-12 py-10 md:py-16">
+      <div className="content-narrow mx-auto px-6 md:px-12 py-10 md:py-16">
         <div className="flex items-center gap-4 mb-10">
           <button onClick={() => navigate('/settings')} className="p-2 hover:bg-[var(--bg-hover)] rounded-xl">
             <ArrowLeft className="w-5 h-5 text-[var(--text-primary)] opacity-50" />
           </button>
-          <h1 className="text-4xl font-black text-[var(--text-primary)] tracking-tight">Looks & Cenários</h1>
+          <h1 className="text-4xl font-black text-[var(--text-primary)] tracking-tight italic">Looks & Cenários</h1>
         </div>
 
         {/* LOOKS */}
         <section className="mb-12">
           <div className="flex items-center justify-between mb-5">
-            <h2 className="text-[10px] font-black uppercase tracking-widest text-[var(--text-primary)] opacity-40">
+            <h2 className="text-[10px] font-black uppercase tracking-widest text-[var(--text-tertiary)]">
               Looks ({activeLooks.length})
             </h2>
             <button
@@ -87,7 +87,7 @@ export function LooksSettings() {
             <div className="mb-4 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-2xl p-5 space-y-3">
               <div className="flex gap-3">
                 <div>
-                  <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-primary)] opacity-40 block mb-1">Nº</label>
+                  <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1">Nº</label>
                   <input
                     type="number"
                     value={lookForm.numero}
@@ -96,7 +96,7 @@ export function LooksSettings() {
                   />
                 </div>
                 <div className="flex-1">
-                  <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-primary)] opacity-40 block mb-1">Descrição</label>
+                  <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1">Descrição</label>
                   <input
                     type="text"
                     value={lookForm.descricao}
@@ -107,7 +107,7 @@ export function LooksSettings() {
                 </div>
               </div>
               <div>
-                <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-primary)] opacity-40 block mb-1">Cenário Associado</label>
+                <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1">Cenário Associado</label>
                 <select
                   value={lookForm.cenarioAssociadoId || ''}
                   onChange={e => setLookForm(p => ({ ...p, cenarioAssociadoId: e.target.value || undefined }))}
@@ -126,7 +126,7 @@ export function LooksSettings() {
 
           <div className="space-y-2">
             {activeLooks.length === 0 ? (
-              <p className="text-xs text-[var(--text-primary)] opacity-25 text-center py-8 font-bold">Nenhum look cadastrado ainda</p>
+              <p className="text-xs text-[var(--text-tertiary)] text-center py-8 font-bold">Nenhum look cadastrado ainda</p>
             ) : activeLooks.map(look => {
               const cenario = look.cenarioAssociadoId ? state.cenarios.find(c => c.id === look.cenarioAssociadoId) : null;
               return (
@@ -146,7 +146,7 @@ export function LooksSettings() {
                     </div>
                   ) : (
                     <>
-                      <span className="text-xs font-black text-[var(--text-primary)] opacity-40 w-12 shrink-0">Look {look.numero}</span>
+                      <span className="text-xs font-black text-[var(--text-tertiary)] w-12 shrink-0">Look {look.numero}</span>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-bold text-[var(--text-primary)] truncate">{look.descricao || '—'}</p>
                         {cenario && <p className="text-[10px] text-[var(--text-secondary)] opacity-50">{cenario.nome}</p>}
@@ -155,11 +155,11 @@ export function LooksSettings() {
                         <button onClick={() => dispatch({ type: 'UPDATE_LOOK', payload: { ...look, ativo: !look.ativo } })}>
                           {look.ativo
                             ? <ToggleRight className="w-5 h-5 text-[var(--accent-green)]" />
-                            : <ToggleLeft className="w-5 h-5 text-[var(--text-primary)] opacity-30" />
+                            : <ToggleLeft className="w-5 h-5 text-[var(--text-tertiary)]" />
                           }
                         </button>
                         <button onClick={() => setEditLookId(look.id)} className="p-1.5 hover:bg-[var(--bg-hover)] rounded-lg">
-                          <Edit2 className="w-3.5 h-3.5 text-[var(--text-primary)] opacity-40" />
+                          <Edit2 className="w-3.5 h-3.5 text-[var(--text-tertiary)]" />
                         </button>
                         <button onClick={() => dispatch({ type: 'DELETE_LOOK', payload: look.id })} className="p-1.5 hover:bg-[var(--accent-pink)]/10 rounded-lg">
                           <Trash2 className="w-3.5 h-3.5 text-[var(--accent-pink)] opacity-40 hover:opacity-100" />
@@ -176,7 +176,7 @@ export function LooksSettings() {
         {/* CENÁRIOS */}
         <section>
           <div className="flex items-center justify-between mb-5">
-            <h2 className="text-[10px] font-black uppercase tracking-widest text-[var(--text-primary)] opacity-40">
+            <h2 className="text-[10px] font-black uppercase tracking-widest text-[var(--text-tertiary)]">
               Cenários ({activeCenarios.length})
             </h2>
             <button
@@ -192,7 +192,7 @@ export function LooksSettings() {
             <div className="mb-4 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-2xl p-5 space-y-3">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-primary)] opacity-40 block mb-1">Nome *</label>
+                  <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1">Nome *</label>
                   <input
                     type="text"
                     value={cenarioForm.nome}
@@ -202,7 +202,7 @@ export function LooksSettings() {
                   />
                 </div>
                 <div>
-                  <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-primary)] opacity-40 block mb-1">Setup (min)</label>
+                  <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1">Setup (min)</label>
                   <input
                     type="number"
                     value={cenarioForm.tempoSetupMinutos}
@@ -212,7 +212,7 @@ export function LooksSettings() {
                 </div>
               </div>
               <div>
-                <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-primary)] opacity-40 block mb-1">Descrição</label>
+                <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1">Descrição</label>
                 <input
                   type="text"
                   value={cenarioForm.descricao}
@@ -234,7 +234,7 @@ export function LooksSettings() {
 
           <div className="space-y-2">
             {activeCenarios.length === 0 ? (
-              <p className="text-xs text-[var(--text-primary)] opacity-25 text-center py-8 font-bold">Nenhum cenário cadastrado ainda</p>
+              <p className="text-xs text-[var(--text-tertiary)] text-center py-8 font-bold">Nenhum cenário cadastrado ainda</p>
             ) : activeCenarios.map(cenario => (
               <div key={cenario.id} className={`flex items-center gap-4 px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-2xl ${!cenario.ativo ? 'opacity-40' : ''}`}>
                 <div className="flex-1 min-w-0">
@@ -247,7 +247,7 @@ export function LooksSettings() {
                   <button onClick={() => dispatch({ type: 'UPDATE_CENARIO', payload: { ...cenario, ativo: !cenario.ativo } })}>
                     {cenario.ativo
                       ? <ToggleRight className="w-5 h-5 text-[var(--accent-green)]" />
-                      : <ToggleLeft className="w-5 h-5 text-[var(--text-primary)] opacity-30" />
+                      : <ToggleLeft className="w-5 h-5 text-[var(--text-tertiary)]" />
                     }
                   </button>
                   <button onClick={() => dispatch({ type: 'DELETE_CENARIO', payload: cenario.id })} className="p-1.5 hover:bg-[var(--accent-pink)]/10 rounded-lg">

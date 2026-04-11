@@ -2,7 +2,7 @@ import React from 'react';
 import { Content } from '../../types';
 import { useAppContext } from '../../context/AppContext';
 import { format } from 'date-fns';
-import { ExternalLink, Zap, ArrowUp, ArrowDown, ArrowUpDown, BookOpen } from 'lucide-react';
+import { ExternalLink, Zap, ArrowUp, ArrowDown, ArrowUpDown, BookOpen, Check } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
 interface ContentTableProps {
@@ -41,171 +41,180 @@ export function ContentTable({
   };
 
   return (
-    <div className="min-w-full inline-block align-middle transition-colors duration-200">
-      <div className="overflow-x-auto border border-[var(--border-color)] rounded-xl bg-[var(--bg-secondary)] shadow-sm">
-        <table className="w-full text-left border-collapse min-w-[900px]">
+    <div className="w-full overflow-hidden border border-[var(--border-color)] rounded-2xl bg-[var(--bg-secondary)] shadow-sm transition-all duration-300">
+      <div className="overflow-x-auto custom-scrollbar">
+        <table className="w-full text-left border-collapse min-w-[1000px]">
           <thead>
-            <tr className="text-[11px] uppercase tracking-wider text-[var(--text-tertiary)] font-bold border-b border-[var(--border-color)]">
+            <tr className="text-[10px] uppercase tracking-[0.2em] text-[var(--text-tertiary)] font-black border-b border-[var(--border-color)] bg-[var(--bg-hover)]/30">
               {/* Checkbox select-all */}
-              <th className="py-4 pl-5 pr-2 w-10">
+              <th className="py-5 pl-6 pr-2 w-12 text-center">
                 <button
                   onClick={onSelectAll}
                   className={cn(
-                    'w-4 h-4 rounded border-2 flex items-center justify-center transition-all shrink-0',
+                    'w-4.5 h-4.5 rounded-md border-2 flex items-center justify-center transition-all shrink-0 mx-auto',
                     allSelected
                       ? 'bg-[var(--text-primary)] border-[var(--text-primary)]'
                       : someSelected
-                        ? 'bg-[var(--text-primary)]/30 border-[var(--text-primary)]/50'
-                        : 'border-[var(--border-strong)] hover:border-[var(--text-primary)]/50'
+                        ? 'bg-[var(--text-primary)]/40 border-[var(--text-primary)]/60'
+                        : 'border-[var(--border-color)] hover:border-[var(--text-primary)]/40'
                   )}
                 >
-                  {(allSelected || someSelected) && (
-                    <svg className="w-2.5 h-2.5 text-[var(--bg-primary)]" fill="currentColor" viewBox="0 0 12 12">
-                      {allSelected
-                        ? <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-                        : <path d="M2 6h8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                      }
-                    </svg>
-                  )}
+                  {allSelected && <Check className="w-3 h-3 text-[var(--bg-primary)] stroke-[4px]" />}
+                  {someSelected && !allSelected && <div className="w-2 h-0.5 bg-[var(--bg-primary)] rounded-full" />}
                 </button>
               </th>
-              <th className="py-4 px-6 font-bold cursor-pointer hover:bg-[var(--bg-hover)] transition-colors" onClick={() => onSort('title')}>
-                <div className="flex items-center">Título <SortIcon field="title" /></div>
+              <th className="py-5 px-6 cursor-pointer hover:text-[var(--text-primary)] transition-colors group" onClick={() => onSort('title')}>
+                <div className="flex items-center gap-1">Título <SortIcon field="title" /></div>
               </th>
-              <th className="py-4 px-6 font-bold cursor-pointer hover:bg-[var(--bg-hover)] transition-colors" onClick={() => onSort('seriesName')}>
-                <div className="flex items-center">Série <SortIcon field="seriesName" /></div>
+              <th className="py-5 px-6 cursor-pointer hover:text-[var(--text-primary)] transition-colors" onClick={() => onSort('seriesName')}>
+                <div className="flex items-center gap-1">Série <SortIcon field="seriesName" /></div>
               </th>
-              <th className="py-4 px-6 font-bold cursor-pointer hover:bg-[var(--bg-hover)] transition-colors" onClick={() => onSort('pillar')}>
-                <div className="flex items-center">Pilar <SortIcon field="pillar" /></div>
+              <th className="py-5 px-6 cursor-pointer hover:text-[var(--text-primary)] transition-colors" onClick={() => onSort('pillar')}>
+                <div className="flex items-center gap-1">Pilar <SortIcon field="pillar" /></div>
               </th>
-              <th className="py-4 px-6 font-bold cursor-pointer hover:bg-[var(--bg-hover)] transition-colors" onClick={() => onSort('format')}>
-                <div className="flex items-center">Formato <SortIcon field="format" /></div>
+              <th className="py-5 px-6 cursor-pointer hover:text-[var(--text-primary)] transition-colors" onClick={() => onSort('format')}>
+                <div className="flex items-center gap-1">Formato <SortIcon field="format" /></div>
               </th>
-              <th className="py-4 px-6 font-bold cursor-pointer hover:bg-[var(--bg-hover)] transition-colors" onClick={() => onSort('status')}>
-                <div className="flex items-center">Status <SortIcon field="status" /></div>
+              <th className="py-5 px-6 cursor-pointer hover:text-[var(--text-primary)] transition-colors" onClick={() => onSort('status')}>
+                <div className="flex items-center gap-1 text-center">Status <SortIcon field="status" /></div>
               </th>
-              <th className="py-4 px-6 font-bold cursor-pointer hover:bg-[var(--bg-hover)] transition-colors" onClick={() => onSort('slotType')}>
-                <div className="flex items-center">Slot <SortIcon field="slotType" /></div>
+              <th className="py-5 px-6 cursor-pointer hover:text-[var(--text-primary)] transition-colors" onClick={() => onSort('slotType')}>
+                <div className="flex items-center gap-1">Slot <SortIcon field="slotType" /></div>
               </th>
-              <th className="py-4 px-6 font-bold">Postagem</th>
-              {state.books.length > 0 && (
-                <th className="py-4 px-6 font-bold">Livro</th>
-              )}
-              <th className="py-4 px-6 font-bold">Link</th>
+              <th className="py-5 px-6">Livro</th>
+              <th className="py-5 px-6 text-center">Link</th>
             </tr>
           </thead>
           <tbody className="text-sm">
             {contents.map((content) => {
               const isSelected = selectedIds.has(content.id);
+              const statusVars: Record<string, string> = {
+                'Ideia':              '--status-idea',
+                'Pronto para Gravar': '--status-ready',
+                'Gravado':            '--status-recorded',
+                'A Editar':           '--status-editing',
+                'Editado':            '--status-edited',
+                'Programado':         '--status-scheduled',
+                'Postado':            '--status-posted',
+              };
+
               return (
                 <tr
                   key={content.id}
                   onClick={() => onSelect(content)}
                   className={cn(
-                    'group border-b border-[var(--border-color)] cursor-pointer transition-colors',
+                    'group border-b border-[var(--border-color)]/50 cursor-pointer transition-all duration-200',
                     isSelected
-                      ? 'bg-[var(--text-primary)]/5'
-                      : 'hover:bg-[var(--bg-hover)]'
+                      ? 'bg-[var(--accent-blue)]/5'
+                      : 'hover:bg-[var(--bg-hover)] md:hover:translate-x-0.5'
                   )}
                 >
                   {/* Checkbox */}
-                  <td className="py-4 pl-5 pr-2" onClick={e => { e.stopPropagation(); onToggleSelect(content.id); }}>
+                  <td className="py-5 pl-6 pr-2 text-center" onClick={e => { e.stopPropagation(); onToggleSelect(content.id); }}>
                     <div
                       className={cn(
-                        'w-4 h-4 rounded border-2 flex items-center justify-center transition-all shrink-0',
+                        'w-4.5 h-4.5 rounded-md border-2 flex items-center justify-center transition-all shrink-0 mx-auto',
                         isSelected
                           ? 'bg-[var(--text-primary)] border-[var(--text-primary)]'
-                          : 'border-[var(--border-strong)] group-hover:border-[var(--text-primary)]/40'
+                          : 'border-[var(--border-color)] group-hover:border-[var(--text-primary)]/30'
                       )}
                     >
-                      {isSelected && (
-                        <svg className="w-2.5 h-2.5 text-[var(--bg-primary)]" fill="currentColor" viewBox="0 0 12 12">
-                          <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
-                      )}
+                      {isSelected && <Check className="w-3 h-3 text-[var(--bg-primary)] stroke-[4px]" />}
                     </div>
                   </td>
-                  <td className="py-4 px-6">
-                    <div className="flex flex-col">
-                      <span className="font-semibold text-[var(--text-primary)] group-hover:text-black dark:group-hover:text-white transition-colors">
+                  
+                  <td className="py-5 px-6">
+                    <div className="flex flex-col gap-1">
+                      <span className="font-bold text-[var(--text-primary)] group-hover:text-[var(--accent-blue)] transition-colors line-clamp-1">
                         {content.title}
                       </span>
                       {lookAlerts[content.id] && (
-                        <span className="text-[9px] text-[var(--accent-orange)] font-bold flex items-center gap-1 mt-1 animate-pulse">
-                          <Zap className="w-2.5 h-2.5" /> {lookAlerts[content.id]}
-                        </span>
+                        <div className="flex items-center gap-1.5 px-2 py-0.5 bg-orange-500/10 rounded overflow-hidden w-fit">
+                           <Zap className="w-2.5 h-2.5 text-orange-500 animate-pulse" />
+                           <span className="text-[8px] font-black uppercase tracking-widest text-orange-600">{lookAlerts[content.id]}</span>
+                        </div>
                       )}
                     </div>
                   </td>
-                  <td className="py-4 px-6 text-[var(--text-secondary)]">
-                    {content.seriesId && state.series.find(s => s.id === content.seriesId)?.name
-                      ? state.series.find(s => s.id === content.seriesId)?.name
-                      : <span className="text-[var(--text-tertiary)] opacity-40 italic text-xs">Sem Série</span>
-                    }
+
+                  <td className="py-5 px-6">
+                    {content.seriesId && state.series.find(s => s.id === content.seriesId)?.name ? (
+                      <span className="t-meta text-[var(--text-tertiary)] bg-[var(--bg-hover)] px-2 py-1 rounded-lg border border-[var(--border-color)]/30">
+                        {state.series.find(s => s.id === content.seriesId)?.name}
+                      </span>
+                    ) : (
+                      <span className="t-meta text-[var(--text-tertiary)] italic">Global</span>
+                    )}
                   </td>
-                  <td className="py-4 px-6">
-                    <span className="px-2 py-0.5 bg-[var(--bg-hover)] text-[var(--text-secondary)] text-[10px] font-bold rounded uppercase border border-transparent group-hover:border-[var(--border-color)]">
+
+                  <td className="py-5 px-6">
+                    <span className="t-meta text-[var(--text-secondary)]">
                       {content.pillar}
                     </span>
                   </td>
-                  <td className="py-4 px-6">
+
+                  <td className="py-5 px-6">
                     <span className={cn(
-                      "px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-widest",
-                      content.format === 'Reels' && "bg-pink-100/50 text-pink-700",
-                      content.format === 'Stories' && "bg-orange-100/50 text-orange-700",
-                      content.format === 'YouTube' && "bg-red-100/50 text-red-700",
-                      content.format === 'Newsletter' && "bg-blue-100/50 text-blue-700",
-                      content.format === 'Post' && "bg-indigo-100/50 text-indigo-700"
+                      "px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border shadow-sm",
+                      content.format === 'Reels' && "bg-pink-500/5 text-pink-600 border-pink-500/10",
+                      content.format === 'Stories' && "bg-orange-500/5 text-orange-600 border-orange-500/10",
+                      content.format === 'YouTube' && "bg-red-500/5 text-red-600 border-red-500/10",
+                      content.format === 'Newsletter' && "bg-blue-500/5 text-blue-600 border-blue-500/10",
+                      content.format === 'Post' && "bg-indigo-500/5 text-indigo-600 border-indigo-500/10"
                     )}>
                       {content.format}
                     </span>
                   </td>
-                  <td className="py-4 px-6">
+
+                  <td className="py-5 px-6">
+                    <div className="flex items-center gap-2">
+                       <div
+                         className="w-1.5 h-1.5 rounded-full"
+                         style={{ background: `var(${statusVars[content.status] || '--status-idea'})` }}
+                       />
+                       <span className="t-tag text-[var(--text-primary)] opacity-80">
+                         {content.status}
+                       </span>
+                    </div>
+                  </td>
+
+                  <td className="py-5 px-6">
                     <span className={cn(
-                      "px-2 py-0.5 text-[10px] font-bold rounded uppercase",
-                      content.status === 'Postado' ? 'bg-green-100/50 text-green-700' : 'bg-orange-100/50 text-orange-700'
+                      "text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded-lg",
+                      content.slotType === 'Curto' && 'text-yellow-600 bg-yellow-500/5',
+                      content.slotType === 'Série' && 'text-purple-600 bg-purple-500/5',
+                      content.slotType === 'Janela' && 'text-teal-600 bg-teal-500/5',
+                      !content.slotType && 'text-[var(--text-tertiary)] opacity-30'
                     )}>
-                      {content.status}
+                      {content.slotType || '—'}
                     </span>
                   </td>
-                  <td className="py-4 px-6">
-                    <span className={cn(
-                      "px-2 py-0.5 text-[10px] font-bold rounded uppercase",
-                      content.slotType === 'Curto' && 'bg-yellow-100/50 text-yellow-700',
-                      content.slotType === 'Série' && 'bg-purple-100/50 text-purple-700',
-                      content.slotType === 'Janela' && 'bg-teal-100/50 text-teal-700',
-                      !content.slotType && 'text-[var(--text-tertiary)]'
-                    )}>
-                      {content.slotType || '-'}
-                    </span>
+
+                  <td className="py-5 px-6">
+                    {content.livroOrigemId ? (
+                      <div className="flex items-center gap-2 text-[10px] font-black text-[var(--accent-orange)] bg-[var(--accent-orange)]/5 px-3 py-1.5 rounded-xl border border-[var(--accent-orange)]/10 w-fit max-w-[120px]" title={state.books.find(b => b.id === content.livroOrigemId)?.titulo}>
+                        <BookOpen className="w-3 h-3 shrink-0" />
+                        <span className="truncate">{state.books.find(b => b.id === content.livroOrigemId)?.titulo}</span>
+                      </div>
+                    ) : (
+                      <span className="text-[var(--text-tertiary)] opacity-10">—</span>
+                    )}
                   </td>
-                  <td className="py-4 px-6 text-[var(--text-tertiary)] text-xs">
-                    {content.publishDate ? format(new Date(content.publishDate), 'dd/MM/yy') : '-'}
-                  </td>
-                  {state.books.length > 0 && (
-                    <td className="py-4 px-6">
-                      {content.livroOrigemId ? (
-                        <span className="flex items-center gap-1.5 text-[10px] font-bold text-[var(--accent-orange)] bg-[var(--accent-orange)]/8 px-2 py-1 rounded-lg max-w-[140px] truncate" title={state.books.find(b => b.id === content.livroOrigemId)?.titulo}>
-                          <BookOpen className="w-3 h-3 shrink-0" />
-                          {state.books.find(b => b.id === content.livroOrigemId)?.titulo}
-                        </span>
-                      ) : (
-                        <span className="text-[var(--text-tertiary)] opacity-30">-</span>
-                      )}
-                    </td>
-                  )}
-                  <td className="py-4 px-6">
+
+                  <td className="py-5 px-6 text-center">
                     {content.link ? (
                       <a
                         href={content.link}
                         target="_blank"
                         rel="noopener noreferrer"
                         onClick={(e) => e.stopPropagation()}
-                        className="text-[var(--accent-blue)] hover:text-blue-800 transition-colors"
+                        className="inline-flex p-2 bg-[var(--accent-blue)]/10 text-[var(--accent-blue)] rounded-xl hover:bg-[var(--accent-blue)] hover:text-white transition-all shadow-sm"
                       >
-                        <ExternalLink className="w-4 h-4" />
+                        <ExternalLink className="w-3.5 h-3.5" />
                       </a>
-                    ) : '-'}
+                    ) : (
+                      <span className="text-[var(--text-tertiary)] opacity-10">—</span>
+                    )}
                   </td>
                 </tr>
               );

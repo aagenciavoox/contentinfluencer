@@ -20,6 +20,7 @@ export type AppAction =
   | { type: 'LOG_ENERGY'; payload: any }
   // Agenda
   | { type: 'ADD_AGENDA'; payload: any }
+  | { type: 'UPDATE_AGENDA'; payload: any }
   | { type: 'DELETE_AGENDA'; payload: string }
   // DNA da Voz
   | { type: 'UPDATE_DNA_VOZ'; payload: any }
@@ -129,6 +130,11 @@ export function appReducer(state: AppState, action: AppAction): AppState {
     // ─── Agenda ──────────────────────────────────────────────────────────────
     case 'ADD_AGENDA':
       return { ...state, agenda: [...state.agenda, action.payload] };
+    case 'UPDATE_AGENDA':
+      return {
+        ...state,
+        agenda: state.agenda.map(a => a.id === action.payload.id ? action.payload : a),
+      };
     case 'DELETE_AGENDA':
       return { ...state, agenda: state.agenda.filter(a => a.id !== action.payload) };
 

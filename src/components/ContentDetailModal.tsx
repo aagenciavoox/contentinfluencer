@@ -1,9 +1,9 @@
-import { useState } from 'react';
-import { X, Trash2, ExternalLink, BookOpen, Check, ChevronDown, ChevronUp, Plus } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { X, Trash2, ExternalLink, BookOpen, Check, ChevronDown, ChevronUp, Plus, BarChart3, Eye, Heart, MessageCircle, Bookmark, Share2, Users, Repeat, Radio, FileText, Clapperboard, Award, TrendingUp } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import { ConfirmModal } from './ConfirmModal';
 import { STATUS_STAGES, CAPTION_TEMPLATES, PLATFORMS, VISUAL_FORMATS } from '../constants';
-import { Content, Platform, VisualFormat } from '../types';
+import { Content, Platform, VisualFormat, DetailedMetrics, Result } from '../types';
 import { cn } from '../lib/utils';
 import { FixedPanelModal } from './FixedPanelModal';
 import { RichTextEditor } from './RichTextEditor';
@@ -37,7 +37,7 @@ export function ContentDetailModal({ content, onClose, initialLivroOrigemId, isN
   const { user } = useAuth();
   const userName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Usuário';
 
-
+  const [activeTab, setActiveTab] = useState<'roteiro' | 'producao' | 'resultados'>('roteiro');
   const [confirm, setConfirm] = useState<{ message: string; onConfirm: () => void } | null>(null);
   const [notesOpen, setNotesOpen] = useState(!!(content.notes));
   const [refsOpen, setRefsOpen] = useState(!!(content.references));
@@ -50,6 +50,18 @@ export function ContentDetailModal({ content, onClose, initialLivroOrigemId, isN
       return { ...base, livroOrigemId: initialLivroOrigemId };
     }
     return base;
+  });
+
+  const existingResult = useMemo(() => state.results.find(r => r.contentId === local.id), [state.results, local.id]);
+  
+  const [localResult, setLocalResult] = useState<Partial<Result>>(() => existingResult || {
+    contentId: local.id,
+    detailedMetrics: {
+      views: 0, interactions: 0, likes: 0, comments: 0,
+      saves: 0, shares: 0, newFollowers: 0, reposts: 0, accountsReached: 0
+    },
+    qualitativeNotes: '',
+    worthIt: 'Sim'
   });
 
   const [legendaTab, setLegendaTab] = useState<Platform>(() => {
@@ -110,6 +122,18 @@ export function ContentDetailModal({ content, onClose, initialLivroOrigemId, isN
     setLocal(prev => ({ ...prev, legendas }));
   };
 
+  const updateResultMetrics = (field: keyof DetailedMetrics, value: string) => {
+    const num = parseInt(value.replace(/\D/g, ''), 10);
+    const val = isNaN(num) ? 0 : num;
+    setLocalResult(prev => ({
+      ...prev,
+      detailedMetrics: {
+        ...(prev.detailedMetrics as DetailedMetrics),
+        [field]: val
+      }
+    }));
+  };
+
   const togglePlataforma = (plat: Platform) => {
     const atual = local.plataformas || [];
     const novas = atual.includes(plat)
@@ -146,7 +170,20 @@ export function ContentDetailModal({ content, onClose, initialLivroOrigemId, isN
   };
 
   const handleSave = () => {
-    dispatch({ type: 'UPDATE_CONTENT', payload: local });
+    dispatch({ type: isNewContent ? 'ADD_CONTENT' : 'UPDATE_CONTENT', payload: local });
+    
+    // Save Result if we have any data (or if it existed)
+    if (existingResult) {
+      dispatch({ type: 'UPDATE_RESULT', payload: { ...existingResult, ...localResult } as Result });
+    } else if (localResult.detailedMetrics && Object.values(localResult.detailedMetrics).some(v => v > 0)) {
+      dispatch({ type: 'ADD_RESULT', payload: { 
+        ...localResult, 
+        id: Math.random().toString(36).substr(2, 9),
+        contentId: local.id,
+        createdAt: new Date().toISOString() 
+      } as Result });
+    }
+
     onClose();
   };
 
@@ -190,543 +227,577 @@ export function ContentDetailModal({ content, onClose, initialLivroOrigemId, isN
   const charLimit = CHAR_LIMITS[legendaTab];
   const charCount = legendaAtual.length;
 
-  const sectionLabel = 'text-[10px] uppercase tracking-widest font-black text-[var(--text-primary)] opacity-40 mb-3 block';
-  const groupTitle = 'text-[9px] uppercase tracking-[0.2em] font-black text-[var(--text-primary)] opacity-25 mb-4';
+  const sectionLabel = 'text-[10px] uppercase tracking-widest font-black text-[var(--text-tertiary)] mb-3 block';
+  const groupTitle = 'text-[9px] uppercase tracking-[0.2em] font-black text-[var(--text-tertiary)] mb-4';
   const fieldLabel = 'text-[10px] font-black uppercase tracking-widest text-[var(--text-primary)] opacity-50 md:w-24 md:shrink-0';
   const selectClass = 'text-xs bg-[var(--bg-hover)] border border-[var(--border-color)] rounded-xl px-3 py-2.5 focus:ring-0 text-[var(--text-primary)] w-full md:w-auto shadow-sm';
   const textareaClass = 'w-full text-sm text-[var(--text-primary)] border border-[var(--border-color)] focus:ring-0 p-4 resize-none placeholder:italic placeholder:opacity-30 bg-[var(--bg-hover)] rounded-xl';
 
   return (
     <>
-    <FixedPanelModal open={true} onClose={onClose} desktopMaxW="md:max-w-[1100px]">
-      {/* Área rolável */}
-      <div className="p-6 md:p-12 flex-1 overflow-y-auto custom-scrollbar">
-
-        {/* Cabeçalho */}
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex gap-2">
-            <button
-              onClick={handleDeleteContent}
-              className="flex items-center gap-1.5 px-3 py-1.5 hover:bg-[var(--accent-pink)]/10 rounded-xl transition-colors group"
-            >
-              <Trash2 className="w-3.5 h-3.5 text-[var(--accent-pink)] opacity-40 group-hover:opacity-100" />
-              <span className="text-[10px] font-black uppercase tracking-widest text-[var(--accent-pink)] opacity-40 group-hover:opacity-100">Excluir</span>
-            </button>
-            {local.link && (
-              <a
-                href={local.link}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="p-2 hover:bg-[var(--bg-hover)] rounded-full"
-              >
-                <ExternalLink className="w-4 h-4 text-[var(--text-primary)] opacity-40" />
-              </a>
-            )}
-          </div>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-[var(--bg-hover)] rounded-full transition-colors"
-          >
-            <X className="w-5 h-5 text-[var(--text-primary)] opacity-40" />
-          </button>
-        </div>
-
-        {/* Título */}
-        <input
-          type="text"
-          value={local.title}
-          onChange={(e) => updateLocal({ title: e.target.value })}
-          className="w-full text-3xl md:text-4xl font-bold text-[var(--text-primary)] border-none focus:ring-0 p-0 mb-8 placeholder:opacity-20 bg-transparent"
-          placeholder="Título sem título"
-        />
-
-        {/* Status Stepper */}
-        <div className="mb-10">
-          <span className={sectionLabel}>Status</span>
-          <div className="flex items-center gap-0 overflow-x-auto pb-1">
-            {STATUS_STAGES.map((stage, i) => {
-              const currentIdx = STATUS_STAGES.indexOf(local.status);
-              const isDone = i < currentIdx;
-              const isActive = i === currentIdx;
-              return (
-                <button
-                  key={stage}
-                  onClick={() => updateLocal({ status: stage })}
-                  className="flex items-center group shrink-0"
-                >
-                  <div className={cn(
-                    'px-3 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all',
-                    isActive
-                      ? 'bg-[var(--text-primary)] text-[var(--bg-primary)] shadow-sm'
-                      : isDone
-                      ? 'text-[var(--text-primary)] opacity-40 hover:opacity-70'
-                      : 'text-[var(--text-primary)] opacity-20 hover:opacity-50'
-                  )}>
-                    {STATUS_SHORT[stage]}
-                  </div>
-                  {i < STATUS_STAGES.length - 1 && (
+    <FixedPanelModal open={true} onClose={onClose} desktopMaxW="md:max-w-[1240px]">
+      <div className="flex h-full md:h-[85vh] flex-col md:flex-row overflow-hidden bg-[var(--bg-primary)]">
+        
+        {/* LADO ESQUERDO: STATUS (Responsivo) */}
+        <aside className="w-full md:w-[220px] shrink-0 border-b md:border-b-0 md:border-r border-[var(--border-color)] bg-[var(--bg-secondary)] flex flex-col pt-4 md:pt-8">
+          <div className="px-6 md:px-8 mb-4 md:mb-8">
+            <span className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-tertiary)] mb-4 md:mb-6 block">Fluxo de Vida</span>
+            <div className="flex flex-row md:flex-col gap-3 md:gap-1 overflow-x-auto md:overflow-x-visible no-scrollbar pb-2 md:pb-0">
+              {STATUS_STAGES.map((stage, i) => {
+                const currentIdx = STATUS_STAGES.indexOf(local.status);
+                const isDone = i < currentIdx;
+                const isActive = i === currentIdx;
+                return (
+                  <button
+                    key={stage}
+                    onClick={() => updateLocal({ status: stage })}
+                    className="flex items-center gap-2 md:gap-3 group py-1.5 md:py-2 text-left shrink-0"
+                  >
                     <div className={cn(
-                      'w-4 h-px mx-0.5 shrink-0',
-                      i < currentIdx ? 'bg-[var(--text-primary)] opacity-40' : 'bg-[var(--border-color)]'
-                    )} />
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Metadados em 3 grupos */}
-        <div className="mb-10 space-y-8 py-6 border-y border-[var(--border-color)]">
-
-          {/* Grupo 1: Classificação */}
-          <div>
-            <p className={groupTitle}>Classificação</p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-8">
-              {/* Série */}
-              <div className="flex flex-col gap-1.5 md:flex-row md:items-center md:gap-4">
-                <span className={fieldLabel}>Série</span>
-                <div className="flex-1 md:flex-none">
-                  <select
-                    value={isCreatingSeries ? 'new' : (local.seriesId ?? '')}
-                    onChange={(e) => {
-                      if (e.target.value === 'new') {
-                        setIsCreatingSeries(true);
-                      } else {
-                        updateLocal({ seriesId: e.target.value });
-                      }
-                    }}
-                    className={cn(selectClass, !local.seriesId && 'opacity-50')}
-                  >
-                    <option value="">Sem Série</option>
-                    {state.series.map(s => (
-                      <option key={s.id} value={s.id}>{s.name}</option>
-                    ))}
-                    <option value="new">+ Nova Série…</option>
-                  </select>
-                  {isCreatingSeries && (
-                    <div className="flex items-center gap-2 mt-2">
-                      <input
-                        autoFocus
-                        type="text"
-                        value={newSeriesName}
-                        onChange={e => setNewSeriesName(e.target.value)}
-                        onKeyDown={e => {
-                          if (e.key === 'Enter') handleConfirmNewSeries();
-                          if (e.key === 'Escape') { setIsCreatingSeries(false); setNewSeriesName(''); }
-                        }}
-                        placeholder="Nome da série..."
-                        className="flex-1 text-xs bg-[var(--bg-hover)] border border-[var(--border-color)] rounded-xl px-3 py-2 focus:ring-0 text-[var(--text-primary)] placeholder:opacity-30"
-                      />
-                      <button
-                        onClick={handleConfirmNewSeries}
-                        disabled={!newSeriesName.trim()}
-                        className="p-2 bg-[var(--text-primary)] text-[var(--bg-primary)] rounded-xl disabled:opacity-30 hover:scale-105 transition-all"
-                      >
-                        <Plus className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        onClick={() => { setIsCreatingSeries(false); setNewSeriesName(''); }}
-                        className="p-2 hover:bg-[var(--bg-hover)] rounded-xl transition-colors"
-                      >
-                        <X className="w-3.5 h-3.5 text-[var(--text-primary)] opacity-40" />
-                      </button>
+                      "w-4 h-4 md:w-5 md:h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all",
+                      isActive ? "border-[var(--text-primary)] bg-[var(--text-primary)]" : 
+                      isDone ? "border-[var(--accent-green)] bg-[var(--accent-green)]" : "border-[var(--border-color)] group-hover:border-[var(--text-primary)]/40"
+                    )}>
+                      {isDone && <Check className="w-2.5 h-2.5 md:w-3 md:h-3 text-[var(--bg-primary)]" />}
+                      {isActive && <div className="w-1 md:w-1.5 h-1 md:h-1.5 rounded-full bg-[var(--bg-primary)]" />}
                     </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Pilar */}
-              <div className="flex flex-col gap-1.5 md:flex-row md:items-center md:gap-4">
-                <span className={fieldLabel}>Pilar</span>
-                <select
-                  value={local.pillar}
-                  onChange={(e) => updateLocal({ pillar: e.target.value })}
-                  className={cn(selectClass, !local.pillar && 'opacity-50')}
-                >
-                  <option value="">Sem pilar</option>
-                  {state.pilares.filter(p => p.ativo).map(p => (
-                    <option key={p.id} value={p.nome}>{p.nome}</option>
-                  ))}
-                  {local.pillar && !state.pilares.find(p => p.nome === local.pillar) && (
-                    <option value={local.pillar}>{local.pillar} (legado)</option>
-                  )}
-                </select>
-              </div>
-
-              {/* Slot */}
-              <div className="flex flex-col gap-1.5 md:flex-row md:items-center md:gap-4">
-                <span className={fieldLabel}>Slot</span>
-                <select
-                  value={local.slotType || ''}
-                  onChange={(e) => updateLocal({ slotType: e.target.value as any })}
-                  className={cn(selectClass, !local.slotType && 'opacity-50')}
-                >
-                  <option value="">—</option>
-                  <option value="Curto">Curto (Viral)</option>
-                  <option value="Série">Série (Identidade)</option>
-                  <option value="Janela">Janela (Presença)</option>
-                </select>
-              </div>
-
-              {/* Formato Visual */}
-              <div className="flex flex-col gap-1.5 md:flex-row md:items-center md:gap-4">
-                <span className={fieldLabel}>Visual</span>
-                <select
-                  value={local.formatoVisual || ''}
-                  onChange={(e) => updateLocal({ formatoVisual: e.target.value as VisualFormat || undefined })}
-                  className={cn(selectClass, !local.formatoVisual && 'opacity-50')}
-                >
-                  <option value="">—</option>
-                  {VISUAL_FORMATS.map(f => <option key={f}>{f}</option>)}
-                </select>
-              </div>
+                    <span className={cn(
+                      "text-[9px] md:text-[10px] font-black uppercase tracking-widest transition-all",
+                      isActive ? "text-[var(--text-primary)] opacity-100" :
+                      isDone ? "text-[var(--accent-green)] opacity-70" : "text-[var(--text-primary)] opacity-30 group-hover:opacity-60"
+                    )}>
+                      {STATUS_SHORT[stage]}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
           </div>
 
-          {/* Grupo 2: Produção */}
-          <div>
-            <p className={groupTitle}>Produção</p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-8">
-              {/* Look */}
-              <div className="flex flex-col gap-1.5 md:flex-row md:items-center md:gap-4">
-                <span className={fieldLabel}>Look #</span>
-                {state.looks.length > 0 ? (
-                  <select
-                    value={local.lookId || ''}
-                    onChange={(e) => updateLocal({ lookId: e.target.value || undefined })}
-                    className={cn(selectClass, !local.lookId && 'opacity-50')}
-                  >
-                    <option value="">—</option>
-                    {state.looks.filter(l => l.ativo).map(l => (
-                      <option key={l.id} value={l.id}>Look {l.numero}{l.descricao ? ` — ${l.descricao}` : ''}</option>
-                    ))}
-                  </select>
-                ) : (
-                  <input
-                    type="text"
-                    value={local.lookId || ''}
-                    onChange={(e) => updateLocal({ lookId: e.target.value || undefined })}
-                    placeholder="Ex: Look 1"
-                    className={cn(selectClass, 'placeholder:opacity-40')}
-                  />
-                )}
-              </div>
-
-              {/* Cenário */}
-              <div className="flex flex-col gap-1.5 md:flex-row md:items-center md:gap-4">
-                <span className={fieldLabel}>Cenário</span>
-                {state.cenarios.length > 0 ? (
-                  <select
-                    value={local.scenario || ''}
-                    onChange={(e) => updateLocal({ scenario: e.target.value || undefined })}
-                    className={cn(selectClass, !local.scenario && 'opacity-50')}
-                  >
-                    <option value="">—</option>
-                    {state.cenarios.filter(c => c.ativo).map(c => (
-                      <option key={c.id} value={c.id}>{c.nome}</option>
-                    ))}
-                  </select>
-                ) : (
-                  <input
-                    type="text"
-                    value={local.scenario || ''}
-                    onChange={(e) => updateLocal({ scenario: e.target.value || undefined })}
-                    placeholder="Ex: Mesa"
-                    className={cn(selectClass, 'placeholder:opacity-40')}
-                  />
-                )}
-              </div>
-
-              {/* Duração */}
-              <div className="flex flex-col gap-1.5 md:flex-row md:items-center md:gap-4">
-                <span className={fieldLabel}>Duração</span>
-                <input
-                  type="number"
-                  value={local.estimatedDuration || ''}
-                  onChange={(e) => updateLocal({ estimatedDuration: parseInt(e.target.value) || undefined })}
-                  placeholder="Segundos"
-                  className={cn(selectClass, 'w-full md:w-28 placeholder:opacity-40')}
-                />
-              </div>
-            </div>
+          <div className="mt-auto p-4 md:p-8 border-t border-[var(--border-color)] flex md:flex-col gap-2">
+             <button
+                onClick={handleDeleteContent}
+                className="flex-1 md:w-full flex items-center gap-2 px-4 py-2 hover:bg-[var(--accent-pink)]/10 rounded-xl transition-colors group"
+              >
+                <Trash2 className="w-4 h-4 text-[var(--accent-pink)] opacity-40 group-hover:opacity-100" />
+                <span className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-[var(--accent-pink)] opacity-40 group-hover:opacity-100">Excluir</span>
+              </button>
+              {local.link && (
+                <a
+                  href={local.link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 md:w-full flex items-center gap-2 px-4 py-2 hover:bg-[var(--bg-hover)] rounded-xl transition-colors group"
+                >
+                  <ExternalLink className="w-4 h-4 text-[var(--text-primary)] opacity-40 group-hover:opacity-100" />
+                  <span className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-[var(--text-primary)] opacity-40 group-hover:opacity-100">Ver Link</span>
+                </a>
+              )}
           </div>
+        </aside>
 
-          {/* Grupo 3: Publicação */}
-          <div>
-            <p className={groupTitle}>Publicação</p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-8">
-              {/* Gravação */}
-              <div className="flex flex-col gap-1.5 md:flex-row md:items-center md:gap-4">
-                <span className={fieldLabel}>Gravação</span>
-                <input
-                  type="date"
-                  value={local.recordingDate || ''}
-                  onChange={(e) => updateLocal({ recordingDate: e.target.value })}
-                  className={cn(selectClass, !local.recordingDate && 'opacity-50')}
-                />
-              </div>
+        {/* ÁREA PRINCIPAL */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+          
+          {/* HEADER (Fixo) */}
+          <header className="px-6 md:px-10 py-6 border-b border-[var(--border-color)] flex items-center justify-between gap-6 shrink-0 bg-[var(--bg-primary)] z-10">
+            <div className="flex-1 min-w-0">
+               <input
+                type="text"
+                value={local.title}
+                onChange={(e) => updateLocal({ title: e.target.value })}
+                className="w-full text-xl md:text-3xl font-black text-[var(--text-primary)] border-none focus:ring-0 p-0 placeholder:opacity-10 bg-transparent tracking-tight truncate"
+                placeholder="Título sem nome..."
+              />
+            </div>
+            
+            <button
+              onClick={onClose}
+              className="p-2 hover:bg-[var(--bg-hover)] rounded-full transition-colors shrink-0"
+            >
+              <X className="w-6 h-6 text-[var(--text-tertiary)]" />
+            </button>
+          </header>
 
-              {/* Postagem */}
-              <div className="flex flex-col gap-1.5 md:flex-row md:items-center md:gap-4">
-                <span className={fieldLabel}>Postagem</span>
-                <input
-                  type="date"
-                  value={local.publishDate || ''}
-                  onChange={(e) => updateLocal({ publishDate: e.target.value })}
-                  className={cn(selectClass, !local.publishDate && 'opacity-50')}
-                />
-              </div>
+          {/* BARRA DE ABAS */}
+          <nav className="px-6 md:px-10 py-4 bg-[var(--bg-secondary)] border-b border-[var(--border-color)] flex gap-1 shrink-0">
+            {[
+              { id: 'roteiro', label: 'Roteiro', icon: FileText },
+              { id: 'producao', label: 'Produção', icon: Clapperboard },
+              { id: 'resultados', label: 'Resultados', icon: Award }
+            ].map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as any)}
+                className={cn(
+                  "flex items-center gap-2 px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
+                  activeTab === tab.id 
+                    ? "bg-[var(--text-primary)] text-[var(--bg-primary)] shadow-md"
+                    : "text-[var(--text-primary)] opacity-40 hover:opacity-100 hover:bg-[var(--bg-hover)]"
+                )}
+              >
+                <tab.icon className="w-3.5 h-3.5" />
+                {tab.label}
+              </button>
+            ))}
+          </nav>
 
-              {/* Livro de Origem */}
-              {state.books.length > 0 && (
-                <div className="flex flex-col gap-1.5 md:flex-row md:items-center md:gap-4 sm:col-span-2">
-                  <span className={cn(fieldLabel, 'flex items-center gap-1')}>
-                    <BookOpen className="w-3 h-3" /> Livro
-                  </span>
-                  <div className="flex items-center gap-2 flex-1 md:flex-none">
-                    <select
-                      value={local.livroOrigemId || ''}
-                      onChange={(e) => updateLocal({ livroOrigemId: e.target.value || undefined })}
-                      className={cn(selectClass, 'flex-1 md:flex-none', !local.livroOrigemId && 'opacity-50')}
-                    >
-                      <option value="">Sem vínculo com livro</option>
-                      {state.books.map(b => (
-                        <option key={b.id} value={b.id}>{b.titulo.slice(0, 30)} — {b.autor}</option>
-                      ))}
-                    </select>
-                    {livroOrigem && (
-                      <span className="text-[10px] text-[var(--accent-blue)] opacity-70 shrink-0 font-bold">{livroOrigem.statusLeitura}</span>
+          {/* CONTEÚDO SCROLLABLE */}
+          <main className="flex-1 overflow-y-auto p-6 md:p-10 custom-scrollbar bg-[var(--bg-primary)]">
+            
+            {activeTab === 'roteiro' && (
+              <div className="space-y-12 animate-in fade-in duration-300">
+                {/* Metadados Roteiro */}
+                <section>
+                  <p className={groupTitle}>Classificação</p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-6">
+                    {/* Série */}
+                    <div className="flex flex-col gap-2">
+                      <span className={fieldLabel}>Série</span>
+                      <div className="relative">
+                        <select
+                          value={isCreatingSeries ? 'new' : (local.seriesId ?? '')}
+                          onChange={(e) => {
+                            if (e.target.value === 'new') setIsCreatingSeries(true);
+                            else updateLocal({ seriesId: e.target.value });
+                          }}
+                          className={cn(selectClass, "pr-10")}
+                        >
+                          <option value="">Sem Série</option>
+                          {state.series.map(s => (
+                            <option key={s.id} value={s.id}>{s.name}</option>
+                          ))}
+                          <option value="new">+ Nova Série…</option>
+                        </select>
+                        {isCreatingSeries && (
+                          <div className="mt-2 flex items-center gap-2">
+                             <input
+                              autoFocus
+                              type="text"
+                              value={newSeriesName}
+                              onChange={e => setNewSeriesName(e.target.value)}
+                              onKeyDown={e => {
+                                if (e.key === 'Enter') handleConfirmNewSeries();
+                                if (e.key === 'Escape') { setIsCreatingSeries(false); setNewSeriesName(''); }
+                              }}
+                              placeholder="Nome da série..."
+                              className="flex-1 text-xs bg-[var(--bg-hover)] border border-[var(--border-color)] rounded-xl px-3 py-2 text-[var(--text-primary)]"
+                            />
+                            <button onClick={handleConfirmNewSeries} className="p-2 bg-[var(--text-primary)] text-[var(--bg-primary)] rounded-xl"><Plus className="w-3.5 h-3.5" /></button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Pilar */}
+                    <div className="flex flex-col gap-2">
+                      <span className={fieldLabel}>Pilar</span>
+                      <select
+                        value={local.pillar}
+                        onChange={(e) => updateLocal({ pillar: e.target.value })}
+                        className={selectClass}
+                      >
+                        <option value="">Sem pilar</option>
+                        {state.pilares.filter(p => p.ativo).map(p => (
+                          <option key={p.id} value={p.nome}>{p.nome}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Slot */}
+                    <div className="flex flex-col gap-2">
+                      <span className={fieldLabel}>Slot</span>
+                      <select
+                        value={local.slotType || ''}
+                        onChange={(e) => updateLocal({ slotType: e.target.value as any })}
+                        className={selectClass}
+                      >
+                        <option value="">—</option>
+                        <option value="Curto">Curto (Viral)</option>
+                        <option value="Série">Série (Identidade)</option>
+                        <option value="Janela">Janela (Presença)</option>
+                      </select>
+                    </div>
+
+                    {/* Formato Visual */}
+                    <div className="flex flex-col gap-2">
+                      <span className={fieldLabel}>Visual</span>
+                      <select
+                        value={local.formatoVisual || ''}
+                        onChange={(e) => updateLocal({ formatoVisual: e.target.value as VisualFormat || undefined })}
+                        className={selectClass}
+                      >
+                        <option value="">—</option>
+                        {VISUAL_FORMATS.map(f => <option key={f}>{f}</option>)}
+                      </select>
+                    </div>
+
+                    {/* Plataformas */}
+                    <div className="flex flex-col gap-2 md:col-span-1">
+                      <span className={fieldLabel}>Plataformas</span>
+                      <div className="flex gap-2 flex-wrap">
+                        {PLATFORMS.map(plat => {
+                          const ativo = activePlataformas.includes(plat);
+                          return (
+                            <button
+                              key={plat}
+                              onClick={() => togglePlataforma(plat)}
+                              className={cn(
+                                "text-[9px] font-bold px-3 py-1.5 rounded-full border transition-all",
+                                ativo ? "bg-[var(--text-primary)] text-[var(--bg-secondary)] border-[var(--text-primary)]" : "opacity-40 border-[var(--border-color)] hover:opacity-100"
+                              )}
+                            >
+                              {plat}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Livro */}
+                    {state.books.length > 0 && (
+                      <div className="flex flex-col gap-4 md:col-span-2 pt-6 border-t border-[var(--border-color)]">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                             <BookOpen className="w-3.5 h-3.5 text-[var(--accent-blue)]" />
+                             <span className={fieldLabel}>Vínculo com Livro</span>
+                          </div>
+                          <button
+                            onClick={() => {
+                              if (local.livroOrigemId) updateLocal({ livroOrigemId: undefined });
+                              else updateLocal({ livroOrigemId: state.books[0].id });
+                            }}
+                            className={cn(
+                              "w-8 h-4 rounded-full relative transition-all duration-300",
+                              local.livroOrigemId ? "bg-[var(--accent-blue)]" : "bg-[var(--bg-hover)]"
+                            )}
+                          >
+                            <div className={cn(
+                              "absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all duration-300",
+                              local.livroOrigemId ? "left-4.5" : "left-0.5 shadow-sm"
+                            )} />
+                          </button>
+                        </div>
+                        
+                        {local.livroOrigemId && (
+                          <div className="animate-in slide-in-from-top-2 duration-300">
+                            <select
+                              value={local.livroOrigemId}
+                              onChange={(e) => updateLocal({ livroOrigemId: e.target.value })}
+                              className={cn(selectClass, "w-full text-xs font-bold py-3.5 h-auto bg-[var(--bg-secondary)] border-2 border-[var(--accent-blue)]/20")}
+                            >
+                              {state.books.map(b => (
+                                <option key={b.id} value={b.id}>
+                                  {b.titulo} {b.autor ? `— ${b.autor}` : ''}
+                                </option>
+                              ))}
+                            </select>
+                            {livroOrigem && (
+                               <div className="mt-2 flex items-center gap-2 px-1">
+                                 <div className="w-1.5 h-1.5 rounded-full bg-[var(--accent-blue)] animate-pulse" />
+                                 <span className="text-[10px] font-black uppercase tracking-widest text-[var(--accent-blue)] opacity-60">Status: {livroOrigem.statusLeitura}</span>
+                               </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     )}
                   </div>
-                </div>
-              )}
+                </section>
 
-              {/* Plataformas */}
-              <div className="flex flex-col gap-2 md:flex-row md:items-start md:gap-4 sm:col-span-2">
-                <span className={cn(fieldLabel, 'md:pt-1')}>Plataformas</span>
-                <div className="flex gap-2 flex-wrap">
-                  {PLATFORMS.map(plat => {
-                    const ativo = activePlataformas.includes(plat);
-                    return (
+                <section>
+                  <div className="flex items-center justify-between mb-4 border-b border-[var(--border-color)] pb-4">
+                    <span className={sectionLabel}>Roteiro Final</span>
+                    {(() => {
+                      const serie = state.series.find(s => s.id === local.seriesId);
+                      if (serie?.estruturaRoteiro) {
+                        return (
+                          <button
+                            onClick={handleAplicarTemplateManual}
+                            className="text-[9px] font-bold text-[var(--accent-blue)] hover:underline opacity-60 hover:opacity-100"
+                          >
+                            {local.script ? 'Reiniciar Template' : 'Usar template da série'}
+                          </button>
+                        );
+                      }
+                      return null;
+                    })()}
+                  </div>
+                  <RichTextEditor
+                    content={local.script || ''}
+                    onChange={(html) => updateLocal({ script: html })}
+                    placeholder="Abra o seu coração e escreva o roteiro..."
+                    authorName={userName}
+                    annotations={local.scriptNotes || []}
+                    onAddAnnotation={handleAddAnnotation}
+                    onRemoveAnnotation={handleRemoveAnnotation}
+                    onUpdateAnnotation={handleUpdateAnnotation}
+                  />
+                </section>
+
+                <section>
+                   <div className="flex items-center justify-between mb-4">
+                    <span className={sectionLabel}>Legenda & Copy</span>
+                    <button
+                      onClick={() =>
+                        setConfirm({
+                          message: 'Substituir a legenda atual pelo template do pilar?',
+                          onConfirm: () => {
+                            const template = CAPTION_TEMPLATES[local.pillar] || '';
+                            const legendas = { ...(local.legendas || {}) };
+                            legendas[legendaTab] = template;
+                            setLocal(prev => ({ ...prev, legendas }));
+                          },
+                        })
+                      }
+                      className="text-[9px] font-bold text-[var(--accent-blue)] hover:underline opacity-60 hover:opacity-100"
+                    >
+                      Resetar p/ Template
+                    </button>
+                  </div>
+
+                  <div className="flex gap-1 mb-3">
+                    {activePlataformas.map(plat => (
                       <button
                         key={plat}
-                        onClick={() => togglePlataforma(plat)}
-                        className={`text-[10px] font-bold px-2.5 py-1.5 rounded-full border transition-all ${
-                          ativo
-                            ? 'bg-[var(--text-primary)] text-[var(--bg-secondary)] border-[var(--text-primary)]'
-                            : 'bg-transparent text-[var(--text-primary)] border-[var(--border-color)] opacity-40 hover:opacity-70'
-                        }`}
+                        onClick={() => setLegendaTab(plat)}
+                        className={cn(
+                          "text-[9px] font-black px-3 py-1.5 rounded-lg transition-all",
+                          legendaTab === plat ? "bg-[var(--text-primary)] text-[var(--bg-secondary)]" : "bg-[var(--bg-hover)] text-[var(--text-tertiary)]"
+                        )}
                       >
                         {plat}
                       </button>
-                    );
-                  })}
-                </div>
+                    ))}
+                  </div>
+
+                  <textarea
+                    value={legendaAtual}
+                    onChange={(e) => updateLegenda(legendaTab, e.target.value)}
+                    className={cn(textareaClass, "min-h-[200px]", charLimit && charCount > charLimit && 'border-[var(--accent-pink)]')}
+                    placeholder={`Copy matadora para ${legendaTab}...`}
+                  />
+
+                  <div className="mt-2 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      {hashtagSugestao[legendaTab] && (
+                        <button
+                          onClick={() => {
+                            const hashtags = hashtagSugestao[legendaTab]!;
+                            if (!legendaAtual.includes(hashtags.split(' ')[0])) {
+                              updateLegenda(legendaTab, legendaAtual + '\n\n' + hashtags);
+                            }
+                          }}
+                          className="text-[9px] font-black text-[var(--accent-green)] p-1.5 bg-[var(--accent-green)]/5 rounded-md hover:bg-[var(--accent-green)]/10 transition-colors uppercase tracking-widest"
+                        >
+                          + Adicionar Hashtags do Pilar
+                        </button>
+                      )}
+                    </div>
+                    {charLimit && (
+                      <span className={cn('text-[10px] font-black tabular-nums opacity-30', charCount > charLimit && 'text-[var(--accent-pink)] opacity-100')}>
+                        {charCount}/{charLimit}
+                      </span>
+                    )}
+                  </div>
+                </section>
+
+                <section>
+                  <button onClick={() => setRefsOpen(v => !v)} className="w-full flex items-center justify-between group">
+                    <span className={sectionLabel}>Referências / Observações</span>
+                    {refsOpen ? <ChevronUp className="w-4 h-4 opacity-30" /> : <ChevronDown className="w-4 h-4 opacity-30" />}
+                  </button>
+                  {refsOpen && (
+                    <textarea
+                      value={local.references || ''}
+                      onChange={(e) => updateLocal({ references: e.target.value })}
+                      className="input-inline w-full mt-4 min-h-[100px] resize-none text-sm text-[var(--text-primary)] placeholder:italic placeholder:opacity-30"
+                      placeholder="Links, inspirações, vídeos de referência..."
+                    />
+                  )}
+                </section>
               </div>
-            </div>
-          </div>
-        </div>
+            )}
 
-        {/* Seções de texto */}
-        <div className="space-y-8">
+            {activeTab === 'producao' && (
+              <div className="max-w-3xl space-y-12 animate-in slide-in-from-right-4 duration-300">
+                <section>
+                  <p className={groupTitle}>Cronograma</p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-8">
+                    <div className="flex flex-col gap-2">
+                       <span className={fieldLabel}>Gravação</span>
+                       <input
+                        type="date"
+                        value={local.recordingDate || ''}
+                        onChange={(e) => updateLocal({ recordingDate: e.target.value })}
+                        className={selectClass}
+                      />
+                    </div>
+                    <div className="flex flex-col gap-2">
+                       <span className={fieldLabel}>Postagem</span>
+                       <input
+                        type="date"
+                        value={local.publishDate || ''}
+                        onChange={(e) => updateLocal({ publishDate: e.target.value })}
+                        className={selectClass}
+                      />
+                    </div>
+                  </div>
+                </section>
 
-          {/* Roteiro — seção principal */}
-          <section>
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-[10px] uppercase tracking-widest font-black text-[var(--text-primary)] opacity-50">
-                Roteiro
-              </span>
-              {(() => {
-                const serie = state.series.find(s => s.id === local.seriesId);
-                if (serie?.estruturaRoteiro) {
-                  return (
-                    <button
-                      onClick={handleAplicarTemplateManual}
-                      className="text-[9px] font-bold text-[var(--accent-blue)] hover:underline opacity-60 hover:opacity-100 transition-opacity"
-                    >
-                      {local.script ? 'Reiniciar Template' : 'Usar template da série'}
-                    </button>
-                  );
-                }
-                return null;
-              })()}
-            </div>
-            <RichTextEditor
-              content={local.script || ''}
-              onChange={(html) => updateLocal({ script: html })}
-              placeholder="Escreva o roteiro aqui..."
-              authorName={userName}
-              annotations={local.scriptNotes || []}
-              onAddAnnotation={handleAddAnnotation}
-              onRemoveAnnotation={handleRemoveAnnotation}
-              onUpdateAnnotation={handleUpdateAnnotation}
-            />
-          </section>
+                <section>
+                  <p className={groupTitle}>Set & Look</p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-8">
+                    <div className="flex flex-col gap-2">
+                      <span className={fieldLabel}>Look #</span>
+                      {state.looks.length > 0 ? (
+                        <select
+                          value={local.lookId || ''}
+                          onChange={(e) => updateLocal({ lookId: e.target.value || undefined })}
+                          className={selectClass}
+                        >
+                          <option value="">— Sem look —</option>
+                          {state.looks.filter(l => l.ativo).map(l => (
+                            <option key={l.id} value={l.id}>Look {l.numero}{l.descricao ? ` — ${l.descricao}` : ''}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <input
+                          type="text"
+                          value={local.lookId || ''}
+                          onChange={(e) => updateLocal({ lookId: e.target.value || undefined })}
+                          placeholder="Ex: Look 1"
+                          className={selectClass}
+                        />
+                      )}
+                    </div>
 
-          {/* Legendas por plataforma */}
-          <section className="pt-8 border-t border-[var(--border-color)]">
-            <div className="flex items-center justify-between mb-4">
-              <span className="text-[10px] uppercase tracking-widest font-black text-[var(--text-primary)] opacity-50">
-                Legenda
-              </span>
-              <button
-                onClick={() =>
-                  setConfirm({
-                    message: 'Substituir a legenda atual pelo template do pilar?',
-                    onConfirm: () => {
-                      const template = CAPTION_TEMPLATES[local.pillar] || '';
-                      const legendas = { ...(local.legendas || {}) };
-                      legendas[legendaTab] = template;
-                      setLocal(prev => ({ ...prev, legendas }));
-                    },
-                  })
-                }
-                className="text-[9px] font-bold text-[var(--accent-blue)] hover:underline opacity-60 hover:opacity-100 transition-opacity"
-              >
-                Resetar p/ Template
-              </button>
-            </div>
+                    <div className="flex flex-col gap-2">
+                      <span className={fieldLabel}>Cenário</span>
+                      {state.cenarios.length > 0 ? (
+                        <select
+                          value={local.scenario || ''}
+                          onChange={(e) => updateLocal({ scenario: e.target.value || undefined })}
+                          className={selectClass}
+                        >
+                          <option value="">— Sem cenário —</option>
+                          {state.cenarios.filter(c => c.ativo).map(c => (
+                            <option key={c.id} value={c.id}>{c.nome}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <input
+                          type="text"
+                          value={local.scenario || ''}
+                          onChange={(e) => updateLocal({ scenario: e.target.value || undefined })}
+                          placeholder="Ex: Mesa"
+                          className={selectClass}
+                        />
+                      )}
+                    </div>
 
-            {/* Abas de plataforma */}
-            <div className="flex gap-1 mb-3">
-              {activePlataformas.map(plat => (
-                <button
-                  key={plat}
-                  onClick={() => setLegendaTab(plat)}
-                  className={`text-[10px] font-bold px-3 py-1.5 rounded-lg transition-all ${
-                    legendaTab === plat
-                      ? 'bg-[var(--text-primary)] text-[var(--bg-secondary)]'
-                      : 'bg-[var(--bg-hover)] text-[var(--text-primary)] opacity-50 hover:opacity-80'
-                  }`}
-                >
-                  {plat}
-                </button>
-              ))}
-            </div>
+                    <div className="flex flex-col gap-2">
+                      <span className={fieldLabel}>Duração Est.</span>
+                      <input
+                        type="number"
+                        value={local.estimatedDuration || ''}
+                        onChange={(e) => updateLocal({ estimatedDuration: parseInt(e.target.value) || undefined })}
+                        placeholder="Segundos"
+                        className={selectClass}
+                      />
+                    </div>
+                  </div>
+                </section>
 
-            <textarea
-              value={legendaAtual}
-              onChange={(e) => updateLegenda(legendaTab, e.target.value)}
-              className={cn(
-                textareaClass,
-                legendaTab === 'YouTube' ? 'min-h-[400px]' : 'min-h-[150px]',
-                charLimit && charCount > charLimit && 'border-[var(--accent-pink)]'
-              )}
-              placeholder={
-                legendaTab === 'YouTube'
-                  ? 'Descrição do vídeo para YouTube...\n\n📌 Sobre este vídeo:\n[Resumo do conteúdo]\n\n⏱ Capítulos:\n0:00 — Intro\n\n🔗 Me encontre aqui:\n→ Instagram: @\n→ TikTok: @\n\n📚 Livros mencionados:\n→ [Título] — [Autor]\n\n#hashtags'
-                  : `Legenda para ${legendaTab}...`
-              }
-            />
-
-            {/* Contador de caracteres + hashtags */}
-            <div className="mt-2 flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                {hashtagSugestao[legendaTab] && (
-                  <>
-                    <span className="text-[9px] uppercase tracking-widest font-bold text-[var(--text-primary)] opacity-30">
-                      Hashtags do Pilar
-                    </span>
-                    <button
-                      onClick={() => {
-                        const hashtags = hashtagSugestao[legendaTab]!;
-                        if (!legendaAtual.includes(hashtags.split(' ')[0])) {
-                          updateLegenda(legendaTab, legendaAtual + '\n\n' + hashtags);
-                        }
-                      }}
-                      className="text-[9px] font-bold text-[var(--accent-green)] hover:underline"
-                    >
-                      + Inserir
-                    </button>
-                    <span className="text-[9px] text-[var(--text-secondary)] opacity-50 truncate max-w-[200px]">
-                      {hashtagSugestao[legendaTab]}
-                    </span>
-                  </>
-                )}
+                <section>
+                  <button onClick={() => setNotesOpen(v => !v)} className="w-full flex items-center justify-between group">
+                    <span className={sectionLabel}>Notas de Gravação</span>
+                    {notesOpen ? <ChevronUp className="w-4 h-4 opacity-30" /> : <ChevronDown className="w-4 h-4 opacity-30" />}
+                  </button>
+                  {notesOpen && (
+                    <textarea
+                      value={local.notes || ''}
+                      onChange={(e) => updateLocal({ notes: e.target.value })}
+                      className="input-inline w-full mt-4 min-h-[120px] resize-vertical text-sm text-[var(--text-primary)] placeholder:italic placeholder:opacity-30"
+                      placeholder="Enquadramento, luz, roupa, lembretes..."
+                    />
+                  )}
+                </section>
               </div>
-              {charLimit && (
-                <span className={cn(
-                  'text-[9px] font-bold shrink-0 tabular-nums',
-                  charCount > charLimit
-                    ? 'text-[var(--accent-pink)]'
-                    : charCount > charLimit * 0.9
-                    ? 'text-[var(--accent-orange)]'
-                    : 'text-[var(--text-primary)] opacity-25'
-                )}>
-                  {charCount}/{charLimit}
-                </span>
-              )}
-            </div>
-          </section>
-
-          {/* Notas de Gravação — colapsável */}
-          <section className="pt-8 border-t border-[var(--border-color)]">
-            <button
-              onClick={() => setNotesOpen(v => !v)}
-              className="w-full flex items-center justify-between mb-3 group"
-            >
-              <span className="text-[10px] uppercase tracking-widest font-black text-[var(--text-primary)] opacity-40 group-hover:opacity-70 transition-opacity">
-                Notas de Gravação
-              </span>
-              {notesOpen
-                ? <ChevronUp className="w-3.5 h-3.5 text-[var(--text-primary)] opacity-30" />
-                : <ChevronDown className="w-3.5 h-3.5 text-[var(--text-primary)] opacity-30" />
-              }
-            </button>
-            {notesOpen && (
-              <textarea
-                value={local.notes || ''}
-                onChange={(e) => updateLocal({ notes: e.target.value })}
-                className={cn(textareaClass, 'min-h-[100px]')}
-                placeholder="Enquadramento, luz, roupa, lembretes..."
-              />
             )}
-          </section>
 
-          {/* Referências — colapsável */}
-          <section className="pt-8 border-t border-[var(--border-color)]">
-            <button
-              onClick={() => setRefsOpen(v => !v)}
-              className="w-full flex items-center justify-between mb-3 group"
-            >
-              <span className="text-[10px] uppercase tracking-widest font-black text-[var(--text-primary)] opacity-40 group-hover:opacity-70 transition-opacity">
-                Referências
-              </span>
-              {refsOpen
-                ? <ChevronUp className="w-3.5 h-3.5 text-[var(--text-primary)] opacity-30" />
-                : <ChevronDown className="w-3.5 h-3.5 text-[var(--text-primary)] opacity-30" />
-              }
-            </button>
-            {refsOpen && (
-              <textarea
-                value={local.references || ''}
-                onChange={(e) => updateLocal({ references: e.target.value })}
-                className={cn(textareaClass, 'min-h-[100px]')}
-                placeholder="Links, inspirações, vídeos de referência..."
-              />
+            {activeTab === 'resultados' && (
+              <div className="space-y-12 animate-in slide-in-from-right-4 duration-300">
+                <section>
+                  <h3 className="text-[11px] font-black uppercase tracking-[0.3em] text-[var(--accent-orange)] mb-8 flex items-center gap-3">
+                    <BarChart3 className="w-4 h-4" /> Hard Metrics
+                  </h3>
+                  
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    <MetricInput icon={Eye} label="Views" value={localResult.detailedMetrics?.views || 0} onChange={(v) => updateResultMetrics('views', v)} />
+                    <MetricInput icon={Users} label="Interações" value={localResult.detailedMetrics?.interactions || 0} onChange={(v) => updateResultMetrics('interactions', v)} />
+                    <MetricInput icon={Heart} label="Likes" value={localResult.detailedMetrics?.likes || 0} onChange={(v) => updateResultMetrics('likes', v)} />
+                    <MetricInput icon={MessageCircle} label="Coments" value={localResult.detailedMetrics?.comments || 0} onChange={(v) => updateResultMetrics('comments', v)} />
+                    <MetricInput icon={Bookmark} label="Saves" value={localResult.detailedMetrics?.saves || 0} onChange={(v) => updateResultMetrics('saves', v)} />
+                    <MetricInput icon={Share2} label="Shares" value={localResult.detailedMetrics?.shares || 0} onChange={(v) => updateResultMetrics('shares', v)} />
+                    <MetricInput icon={TrendingUp} label="Novos Seg." value={localResult.detailedMetrics?.newFollowers || 0} onChange={(v) => updateResultMetrics('newFollowers', v)} />
+                    <MetricInput icon={Radio} label="Alcance" value={localResult.detailedMetrics?.accountsReached || 0} onChange={(v) => updateResultMetrics('accountsReached', v)} />
+                  </div>
+                </section>
+
+                <section className="space-y-8">
+                  <div>
+                    <h3 className={sectionLabel}>Veredito Qualitativo</h3>
+                    <textarea 
+                      value={localResult.qualitativeNotes || ''}
+                      onChange={(e) => setLocalResult(prev => ({ ...prev, qualitativeNotes: e.target.value }))}
+                      placeholder="O que aprendemos com a performance deste conteúdo?"
+                      className={textareaClass}
+                    />
+                  </div>
+
+                  <div>
+                    <h3 className={sectionLabel}>Valeu a pena o esforço?</h3>
+                    <div className="grid grid-cols-3 gap-4">
+                      {['Sim', 'Não', 'Mais ou menos'].map((option) => (
+                        <button
+                          key={option}
+                          type="button"
+                          onClick={() => setLocalResult(prev => ({ ...prev, worthIt: option as any }))}
+                          className={cn(
+                            "py-3 text-[10px] font-black uppercase tracking-widest rounded-xl border-2 transition-all",
+                            localResult.worthIt === option 
+                              ? 'bg-[var(--text-primary)] text-[var(--bg-primary)] border-[var(--text-primary)]' 
+                              : 'bg-[var(--bg-secondary)] text-[var(--text-tertiary)] border-[var(--border-color)] opacity-60'
+                          )}
+                        >
+                          {option}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </section>
+              </div>
             )}
-          </section>
+          </main>
+
+          {/* FOOTER (Fixo) */}
+          <footer className="px-6 md:px-10 py-5 border-t border-[var(--border-color)] bg-[var(--bg-secondary)] flex items-center justify-between gap-4 shrink-0">
+            <button onClick={onClose} className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-primary)] opacity-30 hover:opacity-100 transition-opacity">
+              Descartar
+            </button>
+            <button
+              onClick={handleSave}
+              className="px-10 py-3.5 bg-[var(--text-primary)] text-[var(--bg-primary)] text-[10px] font-black uppercase tracking-[0.2em] rounded-2xl hover:scale-[1.02] active:scale-[0.98] transition-all shadow-lg flex items-center gap-2"
+            >
+              <Check className="w-3.5 h-3.5" />
+              Salvar Alterações
+            </button>
+          </footer>
         </div>
-      </div>
-
-      {/* Footer fixo */}
-      <div className="px-6 md:px-12 py-4 border-t border-[var(--border-color)] bg-[var(--bg-secondary)] flex items-center justify-between gap-3 shrink-0 pb-safe">
-        <button
-          onClick={onClose}
-          className="text-xs font-bold text-[var(--text-primary)] opacity-40 hover:opacity-80 transition-opacity"
-        >
-          Fechar
-        </button>
-        <button
-          onClick={handleSave}
-          className="flex items-center gap-2 px-6 py-2.5 bg-[var(--text-primary)] text-[var(--bg-primary)] text-xs font-black uppercase tracking-widest rounded-xl hover:scale-[1.02] active:scale-[0.98] transition-all shadow-md"
-        >
-          <Check className="w-3.5 h-3.5" />
-          Salvar
-        </button>
       </div>
     </FixedPanelModal>
+
     <ConfirmModal
       open={!!confirm}
       message={confirm?.message || ''}
@@ -734,5 +805,24 @@ export function ContentDetailModal({ content, onClose, initialLivroOrigemId, isN
       onCancel={() => setConfirm(null)}
     />
     </>
+  );
+}
+
+function MetricInput({ icon: Icon, label, value, onChange }: { icon: any, label: string, value: number, onChange: (v: string) => void }) {
+  return (
+    <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl p-4 transition-all focus-within:border-[var(--text-primary)]/40">
+      <div className="flex items-center gap-2 mb-2 opacity-40">
+        <Icon className="w-3.5 h-3.5 text-[var(--text-primary)]" />
+        <label className="text-[9px] uppercase tracking-[0.1em] font-black text-[var(--text-primary)]">{label}</label>
+      </div>
+      <input 
+        type="text"
+        inputMode="numeric"
+        value={value === 0 ? '' : value.toLocaleString('pt-BR')}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="0"
+        className="w-full text-xl font-black bg-transparent border-none p-0 text-[var(--text-primary)] focus:ring-0 placeholder:opacity-10"
+      />
+    </div>
   );
 }

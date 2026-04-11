@@ -65,7 +65,7 @@ export function DNAVozDrawer({ isOpen, onClose }: { isOpen: boolean; onClose: ()
               <div className="space-y-10">
                 {/* Promessa Central — NOVO */}
                 <section>
-                  <div className="flex items-center gap-2 mb-4 text-[var(--text-primary)] opacity-40">
+                  <div className="flex items-center gap-2 mb-4 text-[var(--text-tertiary)]">
                     <Zap className="w-4 h-4" />
                     <span className="text-[10px] uppercase tracking-widest font-bold">Promessa Central</span>
                   </div>
@@ -87,7 +87,7 @@ export function DNAVozDrawer({ isOpen, onClose }: { isOpen: boolean; onClose: ()
 
                 {/* Público — NOVO */}
                 <section>
-                  <div className="flex items-center gap-2 mb-4 text-[var(--text-primary)] opacity-40">
+                  <div className="flex items-center gap-2 mb-4 text-[var(--text-tertiary)]">
                     <Users className="w-4 h-4" />
                     <span className="text-[10px] uppercase tracking-widest font-bold">Público</span>
                   </div>
@@ -110,7 +110,7 @@ export function DNAVozDrawer({ isOpen, onClose }: { isOpen: boolean; onClose: ()
                 {/* Pilares */}
                 <section>
                   <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-2 text-[var(--text-primary)] opacity-40">
+                    <div className="flex items-center gap-2 text-[var(--text-tertiary)]">
                       <Target className="w-4 h-4" />
                       <span className="text-[10px] uppercase tracking-widest font-bold">Valores & Pilares</span>
                     </div>
@@ -128,7 +128,7 @@ export function DNAVozDrawer({ isOpen, onClose }: { isOpen: boolean; onClose: ()
                           onClick={() => handleAddItem('pilares')}
                           className="p-1 hover:bg-[var(--bg-hover)] rounded-full"
                         >
-                          <Plus className="w-3.5 h-3.5 text-[var(--text-primary)] opacity-40" />
+                          <Plus className="w-3.5 h-3.5 text-[var(--text-tertiary)]" />
                         </button>
                       </div>
                     )}
@@ -154,7 +154,7 @@ export function DNAVozDrawer({ isOpen, onClose }: { isOpen: boolean; onClose: ()
 
                 {/* Tom de Voz */}
                 <section>
-                  <div className="flex items-center gap-2 mb-4 text-[var(--text-primary)] opacity-40">
+                  <div className="flex items-center gap-2 mb-4 text-[var(--text-tertiary)]">
                     <MessageSquare className="w-4 h-4" />
                     <span className="text-[10px] uppercase tracking-widest font-bold">Tom de Voz</span>
                   </div>
@@ -174,7 +174,7 @@ export function DNAVozDrawer({ isOpen, onClose }: { isOpen: boolean; onClose: ()
                 {/* O que não faço */}
                 <section>
                   <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-2 text-[var(--text-primary)] opacity-40">
+                    <div className="flex items-center gap-2 text-[var(--text-tertiary)]">
                       <Ban className="w-4 h-4" />
                       <span className="text-[10px] uppercase tracking-widest font-bold">O que não faço</span>
                     </div>
@@ -192,7 +192,7 @@ export function DNAVozDrawer({ isOpen, onClose }: { isOpen: boolean; onClose: ()
                           onClick={() => handleAddItem('naoFaco')}
                           className="p-1 hover:bg-[var(--bg-hover)] rounded-full"
                         >
-                          <Plus className="w-3.5 h-3.5 text-[var(--text-primary)] opacity-40" />
+                          <Plus className="w-3.5 h-3.5 text-[var(--text-tertiary)]" />
                         </button>
                       </div>
                     )}
@@ -220,7 +220,7 @@ export function DNAVozDrawer({ isOpen, onClose }: { isOpen: boolean; onClose: ()
                 {/* Alertas de Desvio */}
                 <section>
                   <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-2 text-[var(--text-primary)] opacity-40">
+                    <div className="flex items-center gap-2 text-[var(--text-tertiary)]">
                       <ShieldAlert className="w-4 h-4" />
                       <span className="text-[10px] uppercase tracking-widest font-bold">Alertas de Desvio</span>
                     </div>
@@ -238,7 +238,7 @@ export function DNAVozDrawer({ isOpen, onClose }: { isOpen: boolean; onClose: ()
                           onClick={() => handleAddItem('alertas')}
                           className="p-1 hover:bg-[var(--bg-hover)] rounded-full"
                         >
-                          <Plus className="w-3.5 h-3.5 text-[var(--text-primary)] opacity-40" />
+                          <Plus className="w-3.5 h-3.5 text-[var(--text-tertiary)]" />
                         </button>
                       </div>
                     )}

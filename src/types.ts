@@ -201,6 +201,7 @@ export interface Series {
   cor?: string;
   ativa?: boolean;
   frequenciaRecomendada?: 'Semanal' | 'Quinzenal' | 'Mensal' | 'Sob demanda';
+  hashtagsPorPlataforma?: Partial<Record<Platform, string>>;
 }
 
 // ─── Bloco de Gravação ────────────────────────────────────────────────────────
@@ -222,7 +223,8 @@ export type PartnershipStatus =
   | 'Edição'
   | 'Aprovação'
   | 'Postagem'
-  | 'Métricas';
+  | 'Métricas'
+  | 'Finalizado';
 
 export interface Partnership {
   id: string;
@@ -230,11 +232,13 @@ export interface Partnership {
   brandColor: string;
   title: string;
   status: PartnershipStatus;
-  deadline?: string;
+  startDate?: string;       // inicio do range (multi-day)
+  deadline?: string;        // fim do range / prazo
   publishDate?: string;
   recordingDate?: string;
   value?: number;
   notes?: string;
+  description?: string;
   script?: string;
   link?: string;
   contentId?: string;
@@ -242,6 +246,7 @@ export interface Partnership {
   deliveredOnTime?: boolean;
   relationshipQuality?: 1 | 2 | 3 | 4 | 5;
   wouldDoAgain?: boolean;
+  archived?: boolean;
 }
 
 export interface DetailedMetrics {
@@ -279,6 +284,8 @@ export interface AgendaItem {
   type: 'Reunião' | 'Entrega' | 'Publicação';
   slotType?: SlotType;
   external: boolean;
+  partnershipId?: string;
+  brandColor?: string;
 }
 
 // ─── Energia ──────────────────────────────────────────────────────────────────

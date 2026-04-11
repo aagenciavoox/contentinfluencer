@@ -45,7 +45,7 @@ export function BottomSheetModal({
               isMobile
                 ? 'absolute bottom-0 left-0 right-0 rounded-t-3xl max-h-[92dvh] bg-[var(--bg-secondary)] border border-[var(--border-color)] shadow-2xl flex flex-col overflow-hidden'
                 : cn(
-                    'absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-3xl w-[95%] max-h-[90vh] bg-[var(--bg-secondary)] border border-[var(--border-color)] shadow-2xl flex flex-col overflow-hidden',
+                    'absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-2xl w-[95%] max-h-[90vh] bg-[var(--bg-secondary)] border border-[var(--border-color)] shadow-2xl flex flex-col overflow-hidden',
                     desktopMaxW
                   )
             }

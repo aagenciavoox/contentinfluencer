@@ -83,13 +83,13 @@ export function BookNotesModal({ book, onClose }: BookNotesModalProps) {
                 <img src={book.capaUrl} alt={book.titulo} className="w-full h-full object-cover" />
               ) : (
                 <div className="w-full h-full flex items-center justify-center">
-                  <BookOpen className="w-6 h-6 text-[var(--text-primary)] opacity-20" />
+                  <BookOpen className="w-6 h-6 text-[var(--text-tertiary)]" />
                 </div>
               )}
             </div>
             <div>
               <h2 className="text-xl font-black text-[var(--text-primary)] line-clamp-1 italic">"{book.titulo}"</h2>
-              <p className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] opacity-60 mt-0.5">Anotações e Insights</p>
+              <p className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] mt-0.5">Anotações e Insights</p>
             </div>
           </div>
           <button 
@@ -103,7 +103,7 @@ export function BookNotesModal({ book, onClose }: BookNotesModalProps) {
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6 md:p-10 custom-scrollbar" style={{ minHeight: 0 }}>
           {/* Form nova anotação */}
-          <div className="bg-[var(--bg-primary)] rounded-3xl p-6 border-2 border-[var(--border-strong)] shadow-lg space-y-4 focus-within:border-[var(--accent-purple)] transition-all">
+          <div className="bg-[var(--bg-primary)] rounded-2xl p-6 border-2 border-[var(--border-strong)] shadow-lg space-y-4 focus-within:border-[var(--accent-purple)] transition-all">
             <div className="flex flex-col sm:flex-row gap-3">
               <select
                 value={novoTipo}
@@ -175,7 +175,7 @@ export function BookNotesModal({ book, onClose }: BookNotesModalProps) {
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     className={cn(
-                      "group relative p-6 rounded-3xl border transition-all h-fit",
+                      "group relative p-6 rounded-2xl border transition-all h-fit",
                       a.destilada 
                         ? "bg-[var(--accent-green)]/5 border-[var(--accent-green)]/30" 
                         : "bg-[var(--bg-primary)] border-[var(--border-color)] hover:border-[var(--border-strong)] shadow-sm"

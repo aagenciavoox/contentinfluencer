@@ -228,7 +228,7 @@ function CalendarView({ onSelectProject }: { onSelectProject: (p: Partnership) =
       
       {/* Brands Legend */}
       <div className="flex flex-wrap items-center gap-6 px-6 py-3 border-b border-[var(--border-color)] bg-[var(--bg-primary)] shrink-0">
-          <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[var(--text-tertiary)] opacity-60">Marcas:</span>
+          <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[var(--text-tertiary)]">Marcas:</span>
           {Array.from(new Set(state.partnerships.map(p => p.brand))).map(brand => {
              const p = state.partnerships.find(pr => pr.brand === brand);
              if (!p) return null;
@@ -264,7 +264,7 @@ function CalendarView({ onSelectProject }: { onSelectProject: (p: Partnership) =
               
               <div className="grid grid-cols-7 border-b border-[var(--border-color)] bg-[var(--bg-primary)]/50">
                 {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(d => (
-                  <div key={d} className="py-4 text-center text-[10px] font-black uppercase tracking-[0.3em] text-[var(--text-tertiary)] opacity-60 italic">
+                  <div key={d} className="py-4 text-center text-[10px] font-black uppercase tracking-[0.3em] text-[var(--text-tertiary)] italic">
                     {d}
                   </div>
                 ))}
@@ -337,7 +337,7 @@ function TimelineView({ projects, onSelect }: { projects: Partnership[], onSelec
   
   return (
     <div className="max-w-4xl mx-auto py-12 px-6">
-      <h2 className="text-[10px] font-black uppercase tracking-[0.4em] text-[var(--text-primary)] opacity-40 mb-10 text-center italic">Próximas Tarefas</h2>
+      <h2 className="text-[10px] font-black uppercase tracking-[0.4em] text-[var(--text-tertiary)] mb-10 text-center italic">Próximas Tarefas</h2>
       <div className="space-y-4 relative border-l-2 border-[var(--border-color)] ml-4 pl-8">
          {sorted.map(project => (
            <div key={project.id} onClick={() => onSelect(project)} className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-5 cursor-pointer hover:bg-[var(--bg-hover)] transition-all relative group shadow-sm">

@@ -48,10 +48,10 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       to={to}
       className={({ isActive }) =>
         cn(
-          'flex items-center gap-4 px-4 py-2.5 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all',
+          'flex items-center gap-4 px-4 py-2.5 rounded-lg text-[11px] font-black uppercase tracking-widest transition-all',
           isActive
-            ? 'bg-[var(--bg-hover)] text-[var(--text-primary)] shadow-sm border-l-4 border-[var(--text-primary)]'
-            : 'text-[var(--text-primary)] hover:bg-[var(--bg-hover)] opacity-60 hover:opacity-100 italic'
+            ? 'bg-[var(--bg-hover)] text-[var(--text-primary)] border-l-2 border-[var(--text-primary)]'
+            : 'text-[var(--text-primary)] opacity-50 hover:opacity-80 hover:bg-[var(--bg-hover)] italic'
         )
       }
     >
@@ -69,7 +69,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
   ];
 
   const sidebarContent = (
-    <div className="w-72 h-full bg-[var(--bg-primary)] border-r border-[var(--border-color)] flex flex-col pt-14 pb-8 md:py-8 select-none transition-colors duration-200">
+    <div className="w-full h-full bg-[var(--bg-primary)] border-r border-[var(--border-color)] flex flex-col pt-14 pb-8 md:py-8 select-none transition-colors duration-200">
       {/* Logo */}
       <div className="px-6 mb-12 flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -125,10 +125,10 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           to="/"
           className={({ isActive }) =>
             cn(
-              'flex items-center gap-4 px-4 py-3 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all mb-2',
+              'flex items-center gap-4 px-4 py-3 rounded-lg text-[11px] font-black uppercase tracking-widest transition-all mb-2',
               isActive
-                ? 'bg-[var(--text-primary)] text-[var(--bg-primary)] shadow-xl scale-[1.02]'
-                : 'text-[var(--text-primary)] hover:bg-[var(--bg-hover)] opacity-60 hover:opacity-100 italic'
+                ? 'bg-[var(--bg-hover)] text-[var(--text-primary)] border-l-2 border-[var(--text-primary)]'
+                : 'text-[var(--text-primary)] opacity-50 hover:opacity-80 hover:bg-[var(--bg-hover)] italic'
             )
           }
         >
@@ -136,18 +136,16 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           Início
         </NavLink>
 
-        {/* 2. Editorial */}
-        {navLink('/editorial', Calendar, 'Editorial')}
 
         {/* 3. Biblioteca */}
         <NavLink
           to="/biblioteca"
           className={({ isActive }) =>
             cn(
-              'flex items-center gap-4 px-4 py-3 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all mb-4',
+              'flex items-center gap-4 px-4 py-3 rounded-lg text-[11px] font-black uppercase tracking-widest transition-all mb-4',
               isActive
-                ? 'bg-[var(--text-primary)] text-[var(--bg-primary)] shadow-xl scale-[1.02]'
-                : 'text-[var(--text-primary)] hover:bg-[var(--bg-hover)] opacity-60 hover:opacity-100 italic'
+                ? 'bg-[var(--bg-hover)] text-[var(--text-primary)] border-l-2 border-[var(--text-primary)]'
+                : 'text-[var(--text-primary)] opacity-50 hover:opacity-80 hover:bg-[var(--bg-hover)] italic'
             )
           }
         >
@@ -166,10 +164,10 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
             to="/contents"
             className={({ isActive }) =>
               cn(
-                'flex items-center gap-4 px-4 py-2.5 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all',
+                'flex items-center gap-4 px-4 py-2.5 rounded-lg text-[11px] font-black uppercase tracking-widest transition-all',
                 isActive
-                  ? 'bg-[var(--bg-hover)] text-[var(--text-primary)] shadow-sm border-l-4 border-[var(--text-primary)]'
-                  : 'text-[var(--text-primary)] hover:bg-[var(--bg-hover)] opacity-60 hover:opacity-100 italic'
+                  ? 'bg-[var(--bg-hover)] text-[var(--text-primary)] border-l-2 border-[var(--text-primary)]'
+                  : 'text-[var(--text-primary)] opacity-50 hover:opacity-80 hover:bg-[var(--bg-hover)] italic'
               )
             }
           >
@@ -189,10 +187,10 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
               to="/results"
               className={({ isActive }) =>
                 cn(
-                  'flex items-center gap-3 px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all',
+                  'flex items-center gap-3 px-3 py-2 rounded-md text-[10px] font-black uppercase tracking-widest transition-all',
                   isActive
-                    ? 'text-[var(--text-primary)] opacity-100 underline decoration-2 underline-offset-4'
-                    : 'text-[var(--text-primary)] opacity-50 hover:opacity-100 italic'
+                    ? 'text-[var(--text-primary)] opacity-100 bg-[var(--bg-hover)]'
+                    : 'text-[var(--text-primary)] opacity-50 hover:opacity-80 italic'
                 )
               }
             >
@@ -206,10 +204,10 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           to="/arquivos"
           className={({ isActive }) =>
             cn(
-              'flex items-center gap-4 px-4 py-2.5 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all',
+              'flex items-center gap-4 px-4 py-2.5 rounded-lg text-[11px] font-black uppercase tracking-widest transition-all',
               isActive
-                ? 'bg-[var(--bg-hover)] text-[var(--text-primary)] shadow-sm border-l-4 border-[var(--text-primary)]'
-                : 'text-[var(--text-primary)] hover:bg-[var(--bg-hover)] opacity-60 hover:opacity-100 italic'
+                ? 'bg-[var(--bg-hover)] text-[var(--text-primary)] border-l-2 border-[var(--text-primary)]'
+                : 'text-[var(--text-primary)] opacity-50 hover:opacity-80 hover:bg-[var(--bg-hover)] italic'
             )
           }
         >
@@ -223,7 +221,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         </NavLink>
 
         {/* 5. Calendário (Agenda + Projetos) */}
-        {navLink('/calendar', Calendar, 'Calendário')}
+        {navLink('/editorial', Calendar, 'Calendário')}
 
         {/* 6. Ideias */}
         {navLink('/ideas', Lightbulb, 'Ideias')}
@@ -237,7 +235,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         <div className="pt-4 border-t border-[var(--border-color)] mt-4 space-y-1">
           <button
             onClick={() => setSettingsExpanded(!settingsExpanded)}
-            className="w-full flex items-center gap-4 px-4 py-2.5 rounded-2xl text-[11px] font-black uppercase tracking-widest text-[var(--text-primary)] opacity-50 hover:opacity-100 hover:bg-[var(--bg-hover)] transition-all"
+            className="w-full flex items-center gap-4 px-4 py-2.5 rounded-lg text-[11px] font-black uppercase tracking-widest text-[var(--text-primary)] opacity-50 hover:opacity-80 hover:bg-[var(--bg-hover)] transition-all"
           >
             <Settings className="w-4 h-4" />
             <span className="flex-1 text-left italic">Configurações</span>
@@ -264,10 +262,10 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                       to={to}
                       className={({ isActive }) =>
                         cn(
-                          'flex items-center gap-3 px-3 py-2 rounded-xl transition-all',
+                          'flex items-center gap-3 px-3 py-2 rounded-md transition-all',
                           isActive
-                            ? 'text-[var(--text-primary)] opacity-100 underline decoration-2 underline-offset-4'
-                            : 'text-[var(--text-primary)] opacity-50 hover:opacity-100 italic'
+                            ? 'text-[var(--text-primary)] opacity-100 bg-[var(--bg-hover)]'
+                            : 'text-[var(--text-primary)] opacity-50 hover:opacity-80 italic'
                         )
                       }
                     >
@@ -286,7 +284,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       <div className="px-4 mt-auto space-y-3 pt-6 border-t border-[var(--border-color)]">
         <button
           onClick={toggleTheme}
-          className="w-full flex items-center gap-4 px-4 py-3 rounded-2xl text-[11px] font-black uppercase tracking-widest text-[var(--text-primary)] opacity-60 hover:opacity-100 hover:bg-[var(--bg-hover)] transition-all bg-[var(--bg-secondary)]/50 border border-transparent hover:border-[var(--border-color)]"
+          className="w-full flex items-center gap-4 px-4 py-3 rounded-lg text-[11px] font-black uppercase tracking-widest text-[var(--text-primary)] opacity-60 hover:opacity-80 hover:bg-[var(--bg-hover)] transition-all bg-[var(--bg-secondary)]/50 border border-transparent hover:border-[var(--border-color)]"
         >
           <div className="w-5 h-5 flex items-center justify-center text-lg">
             {state.theme === 'light' ? '☾' : '☼'}
@@ -296,7 +294,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
 
         <button
           onClick={signOut}
-          className="w-full flex items-center gap-4 px-4 py-3 rounded-2xl text-[11px] font-black uppercase tracking-widest text-red-500 opacity-60 hover:opacity-100 hover:bg-red-500/10 transition-all border border-transparent hover:border-red-500/20"
+          className="w-full flex items-center gap-4 px-4 py-3 rounded-lg text-[11px] font-black uppercase tracking-widest text-red-500 opacity-60 hover:opacity-80 hover:bg-red-500/10 transition-all border border-transparent hover:border-red-500/20"
         >
           <div className="w-5 h-5 flex items-center justify-center">
             <X className="w-4 h-4" />
@@ -309,7 +307,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
 
   return (
     <>
-      <div className="hidden md:block h-screen">{sidebarContent}</div>
+      <div className="hidden md:block h-screen w-72 shrink-0">{sidebarContent}</div>
 
       <AnimatePresence>
         {isOpen && (
@@ -319,16 +317,18 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={onClose}
-              className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40 md:hidden"
+              className="fixed inset-0 bg-black/40 backdrop-blur-md z-40 md:hidden"
             />
             <motion.div
               initial={{ x: '-100%' }}
               animate={{ x: 0 }}
               exit={{ x: '-100%' }}
-              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed top-0 left-0 h-full z-50 md:hidden"
+              transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+              className="fixed top-0 left-0 h-full w-[85vw] max-w-sm z-50 md:hidden bg-[var(--bg-primary)] shadow-2xl overflow-hidden"
             >
-              {sidebarContent}
+              <div className="h-full flex flex-col w-full">
+                {sidebarContent}
+              </div>
             </motion.div>
           </>
         )}

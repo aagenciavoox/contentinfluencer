@@ -33,15 +33,15 @@ export function Agenda() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto py-10 md:py-16 px-6 md:px-10 transition-colors duration-200">
+    <div className="content-wide mx-auto py-10 md:py-16 px-6 md:px-10">
       <header className="mb-12 md:mb-20 flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div className="max-w-xl">
-          <h1 className="text-4xl md:text-5xl font-black text-[var(--text-primary)] mb-4 tracking-tight">Agenda de Filtro</h1>
-          <p className="text-base text-[var(--text-tertiary)] font-medium">Apenas o que é real e externo. Sem ruído, apenas contexto.</p>
+          <h1 className="text-4xl font-black text-[var(--text-primary)] tracking-tight italic mb-2">Agenda</h1>
+          <p className="text-sm text-[var(--text-secondary)] font-medium">Apenas o que é real e externo. Sem ruído, apenas contexto.</p>
         </div>
         <div className="flex items-center gap-3 px-4 py-2 bg-[var(--bg-hover)] border border-[var(--border-color)] rounded-2xl shadow-sm">
            <CalendarIcon className="w-4 h-4 text-[var(--accent-blue)]" />
-           <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-tertiary)] opacity-60">Visualização Semanal</span>
+           <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-tertiary)]">Visualização Semanal</span>
         </div>
       </header>
 
@@ -139,7 +139,7 @@ export function Agenda() {
                       </div>
                     )) : (
                       <div className="py-6 border-2 border-dashed border-[var(--border-color)] rounded-2xl opacity-30 flex items-center justify-center">
-                        <p className="text-[10px] text-[var(--text-tertiary)] font-black uppercase tracking-[0.3em] italic">Vazio</p>
+                        <p className="text-[10px] text-[var(--text-tertiary)] font-black uppercase tracking-[0.3em]">Vazio</p>
                       </div>
                     )}
                   </div>

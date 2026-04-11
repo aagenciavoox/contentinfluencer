@@ -30,13 +30,13 @@ export function Arquivos() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-6 md:px-10 py-10 md:py-16">
+    <div className="content-wide mx-auto px-6 md:px-10 py-10 md:py-16">
       <div className="flex items-end justify-between mb-12 gap-6">
         <div>
-          <p className="text-[9px] font-black text-[var(--text-primary)] opacity-30 uppercase tracking-[0.4em] mb-2 italic">
+          <p className="text-[9px] font-black text-[var(--text-tertiary)] uppercase tracking-[0.4em] mb-2 italic">
             Estrutura de Formatos
           </p>
-          <h1 className="text-4xl md:text-5xl font-black text-[var(--text-primary)] tracking-tight">
+          <h1 className="text-4xl font-black text-[var(--text-primary)] tracking-tight italic">
             Arquivos
           </h1>
         </div>
@@ -57,7 +57,7 @@ export function Arquivos() {
             exit={{ opacity: 0, y: -8 }}
             className="mb-8 flex gap-3 items-center bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-2xl p-4"
           >
-            <Layers className="w-4 h-4 text-[var(--text-primary)] opacity-30 shrink-0" />
+            <Layers className="w-4 h-4 text-[var(--text-tertiary)] shrink-0" />
             <input
               autoFocus
               type="text"
@@ -89,7 +89,7 @@ export function Arquivos() {
 
       {state.series.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-40 gap-6 opacity-30">
-          <div className="p-8 bg-[var(--bg-secondary)] rounded-3xl border border-[var(--border-color)]">
+          <div className="p-8 bg-[var(--bg-secondary)] rounded-2xl border border-[var(--border-color)]">
             <Layers className="w-12 h-12 text-[var(--text-primary)]" />
           </div>
           <p className="text-sm font-black uppercase tracking-[0.3em] text-[var(--text-primary)] italic">

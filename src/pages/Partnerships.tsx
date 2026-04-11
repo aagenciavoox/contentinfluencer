@@ -172,7 +172,7 @@ export function Partnerships() {
                           />
                           
                           <div className="flex items-center justify-between mb-4">
-                            <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-tertiary)] opacity-60">{partnership.brand}</span>
+                            <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-tertiary)]">{partnership.brand}</span>
                             {partnership.deadline && (
                               <div className="flex items-center gap-1.5 text-[10px] font-black text-[var(--accent-orange)]">
                                 <Calendar className="w-3.5 h-3.5" />

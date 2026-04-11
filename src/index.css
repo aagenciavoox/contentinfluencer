@@ -22,6 +22,15 @@
   --accent-green: #448361;
   --scrollbar-thumb: #EDECE9;
   --scrollbar-hover: #D3D1CB;
+
+  /* STATUS TOKENS */
+  --status-idea:      rgba(156,163,175,1);
+  --status-ready:     var(--accent-orange);
+  --status-recorded:  var(--accent-purple);
+  --status-editing:   #F59E0B;
+  --status-edited:    var(--accent-blue);
+  --status-scheduled: #06B6D4;
+  --status-posted:    var(--accent-green);
 }
 
 [data-theme='dark'] {
@@ -40,6 +49,15 @@
   --accent-green: #529E72;
   --scrollbar-thumb: #3F3F3F;
   --scrollbar-hover: #4F4F4F;
+
+  /* STATUS TOKENS — dark (accent vars já ajustam automaticamente) */
+  --status-idea:      rgba(156,163,175,0.8);
+  --status-ready:     var(--accent-orange);
+  --status-recorded:  var(--accent-purple);
+  --status-editing:   #FBBF24;
+  --status-edited:    var(--accent-blue);
+  --status-scheduled: #22D3EE;
+  --status-posted:    var(--accent-green);
 }
 
 body {
@@ -81,7 +99,7 @@ textarea,
 select {
   background-color: var(--bg-hover);
   border: 1px solid var(--border-color);
-  border-radius: 1rem;
+  border-radius: 0.5rem;
   padding: 0.75rem 1.25rem;
   font-size: 0.825rem;
   font-weight: 700;
@@ -132,4 +150,82 @@ button {
 
 button:active {
   transform: scale(0.97);
+}
+
+/* ── FIX 1 · transition-all restrita ────────────────────────────── */
+.transition-all {
+  transition-property: color, background-color, border-color, opacity !important;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1) !important;
+  transition-duration: 150ms !important;
+}
+
+/* ── FIX 2 · dois padrões de hover, não dez ─────────────────────── */
+.hover-card:hover  { background-color: var(--bg-hover); }
+.hover-action:hover  { transform: scale(1.02); }
+.hover-action:active { transform: scale(0.97); }
+
+/* ── FIX 3 · sistema de elevação em 3 níveis ────────────────────── */
+.elevation-1 { box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04); }
+.elevation-2 { box-shadow: 0 4px 12px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.04); }
+.elevation-3 { box-shadow: 0 20px 40px rgba(0,0,0,0.12), 0 8px 16px rgba(0,0,0,0.06); }
+
+/* ── FIX 7 · dois containers, não doze ──────────────────────────── */
+.content-narrow { max-width: 48rem;  /* 768px  — formulários, leituras */ }
+.content-wide   { max-width: 80rem;  /* 1280px — tabelas, dashboards  */ }
+
+/* ── TYPE SCALE ──────────────────────────────────────────────────── */
+
+.t-display {
+  font-size: 1.75rem;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  font-style: italic;
+}
+
+.t-heading {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.t-body {
+  font-size: 0.875rem;
+  font-weight: 400;
+  line-height: 1.6;
+}
+
+.t-label {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.t-meta {
+  font-size: 0.75rem;
+  font-weight: 400;
+  opacity: 0.5;
+}
+
+.t-tag {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* ── INPUT INLINE — variante para modais ─────────────────────────── */
+
+.input-inline {
+  background: transparent !important;
+  border: none !important;
+  border-bottom: 1px solid var(--border-color) !important;
+  border-radius: 0 !important;
+  padding: 0.375rem 0 !important;
+  font-weight: 500 !important;
+  box-shadow: none !important;
+}
+.input-inline:focus {
+  border-bottom-color: var(--accent-blue) !important;
+  box-shadow: none !important;
 }

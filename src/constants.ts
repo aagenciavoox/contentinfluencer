@@ -29,7 +29,21 @@ export const PARTNERSHIP_STAGES: PartnershipStatus[] = [
   'Aprovação',
   'Postagem',
   'Métricas',
+  'Finalizado',
 ];
+
+export const STATUS_CONFIG: Record<string, { color: string; icon: any; label: string }> = {
+  'Leitura': { color: '#4A90D9', icon: 'BookOpen', label: 'LEI' },
+  'Roteiro': { color: '#F5C543', icon: 'PenTool', label: 'ROT' },
+  'Envio de Roteiro': { color: '#E8A0BF', icon: 'Send', label: 'ENV' },
+  'Gravação': { color: '#D44C47', icon: 'Video', label: 'GRA' },
+  'Edição': { color: '#9065B0', icon: 'Edit3', label: 'EDI' },
+  'Aprovação': { color: '#448361', icon: 'CheckCircle', label: 'APR' },
+  'Postagem': { color: '#2EAADC', icon: 'ExternalLink', label: 'POS' },
+  'Métricas': { color: '#333333', icon: 'BarChart2', label: 'MET' },
+  'Finalizado': { color: '#448361', icon: 'CheckCircle2', label: 'FIN' },
+};
+
 
 // ─── Plataformas e Formatos Visuais ──────────────────────────────────────────
 

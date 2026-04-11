@@ -85,7 +85,7 @@ export function Login() {
                 <div className="w-12 h-12 bg-green-500/10 text-green-500 rounded-full flex items-center justify-center mx-auto mb-4 border border-green-500/20">
                   <ArrowRight className="w-6 h-6" />
                 </div>
-                <h2 className="text-lg font-black italic uppercase tracking-wider text-[var(--text-primary)] mb-2">
+                <h2 className="text-lg font-black uppercase tracking-wider text-[var(--text-primary)] mb-2">
                   Quase Lá, {name.split(' ')[0]}!
                 </h2>
                 <p className="text-xs opacity-60 px-4 leading-relaxed">
@@ -101,7 +101,7 @@ export function Login() {
             ) : (
               <motion.div key="form">
                 <div className="mb-8">
-                  <h2 className="text-xl font-black italic uppercase tracking-wider text-[var(--text-primary)]">
+                  <h2 className="text-xl font-black uppercase tracking-wider text-[var(--text-primary)]">
                     {isRegister ? 'Nova Operação' : 'Acesse seu Brain'}
                   </h2>
                   <div className="w-8 h-1 bg-[var(--text-primary)] mt-3 opacity-20 rounded-full" />

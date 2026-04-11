@@ -36,7 +36,7 @@ export function RecordingTab() {
             {state.recordingBlocks.length === 0 ? (
               <div className="col-span-full py-32 text-center border-2 border-dashed border-[var(--border-color)] rounded-[3rem] opacity-30 flex flex-col items-center gap-6 mt-8">
                 <Video className="w-12 h-12" />
-                <p className="text-sm font-black uppercase tracking-[0.3em] italic">Nenhum bloco montado</p>
+                <p className="text-sm font-black uppercase tracking-[0.3em]">Nenhum bloco montado</p>
                 <span className="text-xs uppercase font-bold tracking-widest text-center mt-2 opacity-70">
                   Selecione os roteiros "Pronto para Gravar" e clique em "Criar Bloco"
                 </span>
@@ -81,14 +81,14 @@ export function RecordingTab() {
                         {block.name}
                       </h3>
                       {first && (
-                        <p className="text-xs font-bold text-[var(--text-tertiary)] opacity-70 line-clamp-1 italic mb-6">
+                        <p className="text-xs font-bold text-[var(--text-tertiary)] line-clamp-1 mb-6">
                           Ex: {first.title}
                         </p>
                       )}
 
                       {/* Barra de Progresso */}
                       <div className="mt-2 space-y-2">
-                        <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-widest text-[var(--text-tertiary)] opacity-80">
+                        <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
                           <span>Progresso</span>
                           <span>{completedCount} de {totalCount} Gravados ({progressPercentage}%)</span>
                         </div>
@@ -103,19 +103,19 @@ export function RecordingTab() {
 
                     <div className="grid grid-cols-2 gap-3 mt-6 pt-6 border-t border-[var(--border-color)]">
                       <div className="space-y-2">
-                        <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-[var(--text-tertiary)] opacity-60">
+                        <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-[var(--text-tertiary)]">
                            <Layers className="w-3 h-3" /> Vídeos
                         </div>
                         <p className="text-lg font-black text-[var(--text-primary)]">{contents.length}</p>
                       </div>
                       <div className="space-y-2">
-                        <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-[var(--text-tertiary)] opacity-60">
+                        <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-[var(--text-tertiary)]">
                           <Shirt className="w-3 h-3" /> Roupa
                         </div>
                         <p className="text-xs font-bold text-[var(--text-primary)] truncate">{first?.lookId || 'N/A'}</p>
                       </div>
                       <div className="space-y-2">
-                        <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-[var(--text-tertiary)] opacity-60">
+                        <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-[var(--text-tertiary)]">
                           <MapPin className="w-3 h-3" /> Cenário
                         </div>
                         <p className="text-xs font-bold text-[var(--text-primary)] truncate">{first?.scenario || 'N/A'}</p>
@@ -201,7 +201,7 @@ function BlockAnalysis({ block, onClose, onStart }: { block: RecordingBlock, onC
                     </span>
                   )}
                 </div>
-                <div className="flex flex-wrap items-center gap-3 text-[10px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] opacity-80 mb-4">
+                <div className="flex flex-wrap items-center gap-3 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-4">
                   {content.lookId && <span className="flex items-center gap-1"><Shirt className="w-3 h-3" /> {content.lookId}</span>}
                   {content.scenario && <span className="flex items-center gap-1"><MapPin className="w-3 h-3" /> {content.scenario}</span>}
                   {content.estimatedDuration && <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {content.estimatedDuration}m</span>}
@@ -274,7 +274,7 @@ function BurstModeSession({ block, completedIds, setCompletedIds, onExit }: { bl
          <p className="text-lg text-[var(--text-tertiary)] font-bold mb-12">Você finalizou (ou pausou) o bloco inteiro.</p>
          <button
            onClick={handleFinishBlock}
-           className="bg-[var(--text-primary)] text-[var(--bg-primary)] px-12 py-5 rounded-3xl text-sm font-black uppercase tracking-widest shadow-2xl hover:scale-105 transition-all"
+           className="bg-[var(--text-primary)] text-[var(--bg-primary)] px-12 py-5 rounded-2xl text-sm font-black uppercase tracking-widest shadow-2xl hover:scale-105 transition-all"
          >
            Salvar e Fechar Sala
          </button>
@@ -314,7 +314,7 @@ function BurstModeSession({ block, completedIds, setCompletedIds, onExit }: { bl
         </div>
 
         <div className="flex items-center gap-4 z-10">
-          <div className="text-[9px] font-black uppercase tracking-widest text-[var(--text-tertiary)] opacity-60">
+          <div className="text-[9px] font-black uppercase tracking-widest text-[var(--text-tertiary)]">
              {currentIndex + 1} / {readyContents.length}
           </div>
         </div>
@@ -342,7 +342,7 @@ function BurstModeSession({ block, completedIds, setCompletedIds, onExit }: { bl
             <button
                onClick={() => toggleComplete(currentContent.id)}
                className={cn(
-                 "w-full p-6 text-left rounded-3xl border-2 transition-all group flex flex-col gap-4 ",
+                 "w-full p-6 text-left rounded-2xl border-2 transition-all group flex flex-col gap-4 ",
                  isCurrentCompleted 
                    ? "bg-[var(--accent-green)]/10 border-[var(--accent-green)] text-[var(--accent-green)] shadow-[0_0_20px_rgba(34,197,94,0.15)]" 
                    : "bg-[var(--bg-primary)] border-[var(--border-strong)] text-[var(--text-primary)] hover:border-[var(--text-primary)]/40"

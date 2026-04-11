@@ -94,7 +94,7 @@ export function ShootingDays() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto py-10 md:py-16 px-6 md:px-10 transition-colors duration-200">
+    <div className="content-wide mx-auto py-10 md:py-16 px-6 md:px-10 transition-colors duration-200">
       <AnimatePresence mode="wait">
         {!isBurstMode ? (
           <motion.div 
@@ -105,7 +105,7 @@ export function ShootingDays() {
           >
             <header className="mb-16 flex flex-col md:flex-row md:items-end justify-between gap-8">
               <div className="space-y-6">
-                <h1 className="text-4xl md:text-5xl font-black text-[var(--text-primary)] mb-6 tracking-tight">Crono-Gravação</h1>
+                <h1 className="text-4xl font-black text-[var(--text-primary)] tracking-tight italic">Crono-Gravação</h1>
                 <div className="flex bg-[var(--bg-secondary)] p-1 rounded-2xl border border-[var(--border-color)] w-fit shadow-sm">
                   <button 
                     onClick={() => setView('planning')}
@@ -320,7 +320,7 @@ export function ShootingDays() {
                       </h3>
                       <div className="h-[2px] flex-1 bg-[var(--border-color)] opacity-50" />
                       <div className="flex items-center gap-4">
-                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-tertiary)] opacity-60">
+                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-tertiary)]">
                           {contents.length} vídeos • {contents.reduce((acc, c) => acc + (c.estimatedDuration || 0), 0)} MIN
                         </span>
                       </div>
@@ -346,7 +346,7 @@ export function ShootingDays() {
                             <h4 className="text-lg font-bold text-[var(--text-primary)] mb-8 leading-tight group-hover:text-black dark:group-hover:text-white transition-colors">{content.title}</h4>
                           </div>
                           <div className="flex items-center justify-between pt-6 border-t border-[var(--border-color)]">
-                            <div className="flex items-center gap-3 text-[var(--text-tertiary)] opacity-60">
+                            <div className="flex items-center gap-3 text-[var(--text-tertiary)]">
                               <MapPin className="w-4 h-4" />
                               <span className="text-[10px] font-black uppercase tracking-widest">{content.scenario || 'Padrão'}</span>
                             </div>

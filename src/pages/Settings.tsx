@@ -43,9 +43,9 @@ export function Settings() {
   return (
     <>
     <div className="min-h-screen bg-[var(--bg-secondary)]">
-      <div className="max-w-3xl mx-auto px-6 md:px-12 py-10 md:py-16">
+      <div className="content-narrow mx-auto px-6 md:px-12 py-10 md:py-16">
         <div className="mb-10">
-          <p className="text-[9px] font-black text-[var(--text-primary)] opacity-30 uppercase tracking-[0.4em] mb-2 italic">
+          <p className="text-[9px] font-black text-[var(--text-tertiary)] uppercase tracking-[0.4em] mb-2 italic">
             Sistema
           </p>
           <h1 className="text-4xl md:text-5xl font-black text-[var(--text-primary)] leading-none tracking-tight flex items-center gap-4">

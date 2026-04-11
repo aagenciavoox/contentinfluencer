@@ -23,7 +23,7 @@ export function Results() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto py-10 md:py-16 px-6 md:px-10 transition-colors duration-200">
+    <div className="content-wide mx-auto py-10 md:py-16 px-6 md:px-10">
       <PageGuide 
         pageId="results"
         title="O Loop de Feedback"
@@ -32,8 +32,8 @@ export function Results() {
       />
       <header className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
-          <h1 className="text-4xl md:text-5xl font-black text-[var(--text-primary)] mb-4 tracking-tight">Resultados</h1>
-          <p className="text-lg text-[var(--text-tertiary)] font-bold max-w-2xl opacity-80">
+          <h1 className="text-4xl font-black text-[var(--text-primary)] tracking-tight italic mb-2">Resultados</h1>
+          <p className="text-sm text-[var(--text-secondary)] font-medium">
             Apenas conteúdos postados. Preencha as métricas para retroalimentar o sistema.
           </p>
         </div>
@@ -48,7 +48,7 @@ export function Results() {
             <div 
               key={content.id}
               onClick={() => openMetricsModal(content)}
-              className="p-6 md:p-8 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-3xl hover:shadow-2xl transition-all group flex flex-col justify-between cursor-pointer hover:-translate-y-1 hover:border-[var(--text-primary)]/30"
+              className="p-6 md:p-8 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl hover:shadow-2xl transition-all group flex flex-col justify-between cursor-pointer hover:-translate-y-1 hover:border-[var(--text-primary)]/30"
             >
               <div>
                 <div className="flex justify-between items-start mb-6">
@@ -70,15 +70,15 @@ export function Results() {
                 {result?.detailedMetrics ? (
                   <div className="grid grid-cols-3 gap-4">
                      <div className="text-center">
-                       <p className="text-[10px] uppercase font-black tracking-widest text-[var(--text-tertiary)] opacity-60">Views</p>
+                       <p className="text-[10px] uppercase font-black tracking-widest text-[var(--text-tertiary)]">Views</p>
                        <p className="text-sm font-black text-[var(--text-primary)]">{result.detailedMetrics.views.toLocaleString('pt-BR')}</p>
                      </div>
                      <div className="text-center">
-                       <p className="text-[10px] uppercase font-black tracking-widest text-[var(--text-tertiary)] opacity-60">Likes</p>
+                       <p className="text-[10px] uppercase font-black tracking-widest text-[var(--text-tertiary)]">Likes</p>
                        <p className="text-sm font-black text-[var(--text-primary)]">{result.detailedMetrics.likes.toLocaleString('pt-BR')}</p>
                      </div>
                      <div className="text-center">
-                       <p className="text-[10px] uppercase font-black tracking-widest text-[var(--text-tertiary)] opacity-60">Salvos</p>
+                       <p className="text-[10px] uppercase font-black tracking-widest text-[var(--text-tertiary)]">Salvos</p>
                        <p className="text-sm font-black text-[var(--text-primary)]">{result.detailedMetrics.saves.toLocaleString('pt-BR')}</p>
                      </div>
                   </div>
@@ -93,7 +93,7 @@ export function Results() {
         })}
 
         {postedContents.length === 0 && (
-          <div className="col-span-full py-32 text-center border-2 border-dashed border-[var(--border-color)] rounded-3xl opacity-30 flex flex-col items-center gap-6">
+          <div className="col-span-full py-32 text-center border-2 border-dashed border-[var(--border-color)] rounded-2xl opacity-30 flex flex-col items-center gap-6">
             <CheckCircle2 className="w-12 h-12" />
             <p className="text-sm font-black uppercase tracking-[0.3em] italic">Nenhum conteúdo postado ainda</p>
           </div>
@@ -164,7 +164,7 @@ function MetricsModal({ content, existingResult, onClose }: { content: Content, 
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 20 }}
-        className="fixed inset-x-4 top-[5%] md:inset-x-auto md:left-1/2 md:-translate-x-1/2 md:w-[800px] h-[90vh] bg-[var(--bg-primary)] border border-[var(--border-color)] shadow-2xl z-50 rounded-3xl overflow-hidden flex flex-col"
+        className="fixed inset-x-4 top-[5%] md:inset-x-auto md:left-1/2 md:-translate-x-1/2 md:w-[800px] h-[90vh] bg-[var(--bg-primary)] border border-[var(--border-color)] shadow-2xl z-50 rounded-2xl overflow-hidden flex flex-col"
       >
         <div className="p-6 md:p-8 border-b border-[var(--border-color)] bg-[var(--bg-secondary)] flex justify-between items-center shrink-0">
           <div>
@@ -238,7 +238,7 @@ function MetricsModal({ content, existingResult, onClose }: { content: Content, 
           <button 
             type="submit"
             form="metrics-form"
-            className="w-full md:w-auto bg-[var(--text-primary)] text-[var(--bg-primary)] px-10 py-4 md:py-5 rounded-3xl text-xs font-black uppercase tracking-[0.2em] hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl"
+            className="w-full md:w-auto bg-[var(--text-primary)] text-[var(--bg-primary)] px-10 py-4 md:py-5 rounded-2xl text-xs font-black uppercase tracking-[0.2em] hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl"
           >
             {existingResult ? 'Atualizar Métricas' : 'Salvar Métricas'}
           </button>
@@ -252,8 +252,8 @@ function MetricInput({ icon: Icon, label, value, onChange }: { icon: any, label:
   return (
     <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-4 md:p-5 focus-within:border-[var(--accent-orange)] focus-within:ring-1 focus-within:ring-[var(--accent-orange)] transition-all">
       <div className="flex items-center gap-2 mb-3">
-        <Icon className="w-4 h-4 text-[var(--text-tertiary)] opacity-60" />
-        <label className="text-[9px] uppercase tracking-[0.2em] font-black text-[var(--text-tertiary)] opacity-80">{label}</label>
+        <Icon className="w-4 h-4 text-[var(--text-tertiary)]" />
+        <label className="text-[9px] uppercase tracking-[0.2em] font-black text-[var(--text-secondary)]">{label}</label>
       </div>
       <input 
         type="text"

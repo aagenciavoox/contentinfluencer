@@ -27,13 +27,13 @@ export function DNAVozSettings() {
 
   return (
     <div className="min-h-screen bg-[var(--bg-secondary)]">
-      <div className="max-w-3xl mx-auto px-6 md:px-12 py-10 md:py-16">
+      <div className="content-narrow mx-auto px-6 md:px-12 py-10 md:py-16">
         <div className="flex items-center gap-4 mb-10">
           <button onClick={() => navigate('/settings')} className="p-2 hover:bg-[var(--bg-hover)] rounded-xl">
             <ArrowLeft className="w-5 h-5 text-[var(--text-primary)] opacity-50" />
           </button>
           <div className="flex-1">
-            <h1 className="text-4xl font-black text-[var(--text-primary)] tracking-tight">DNA da Voz</h1>
+            <h1 className="text-4xl font-black text-[var(--text-primary)] tracking-tight italic">DNA da Voz</h1>
             <p className="text-xs text-[var(--text-secondary)] opacity-50 mt-1">
               Identidade editorial, tom e limites do seu conteúdo
             </p>
@@ -51,7 +51,7 @@ export function DNAVozSettings() {
         <div className="space-y-10">
           {/* Promessa Central */}
           <section className="bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-2xl p-6">
-            <div className="flex items-center gap-2 mb-4 text-[var(--text-primary)] opacity-40">
+            <div className="flex items-center gap-2 mb-4 text-[var(--text-tertiary)]">
               <Zap className="w-4 h-4" />
               <span className="text-[10px] uppercase tracking-widest font-bold">Promessa Central</span>
             </div>
@@ -65,7 +65,7 @@ export function DNAVozSettings() {
 
           {/* Público */}
           <section className="bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-2xl p-6">
-            <div className="flex items-center gap-2 mb-4 text-[var(--text-primary)] opacity-40">
+            <div className="flex items-center gap-2 mb-4 text-[var(--text-tertiary)]">
               <Users className="w-4 h-4" />
               <span className="text-[10px] uppercase tracking-widest font-bold">Público</span>
             </div>
@@ -80,7 +80,7 @@ export function DNAVozSettings() {
           {/* Valores & Pilares */}
           <section className="bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-2xl p-6">
             <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2 text-[var(--text-primary)] opacity-40">
+              <div className="flex items-center gap-2 text-[var(--text-tertiary)]">
                 <Target className="w-4 h-4" />
                 <span className="text-[10px] uppercase tracking-widest font-bold">Valores & Pilares</span>
               </div>
@@ -97,7 +97,7 @@ export function DNAVozSettings() {
                   onClick={() => handleAddItem('pilares')}
                   className="p-1.5 hover:bg-[var(--bg-hover)] rounded-full transition-colors"
                 >
-                  <Plus className="w-3.5 h-3.5 text-[var(--text-primary)] opacity-40" />
+                  <Plus className="w-3.5 h-3.5 text-[var(--text-tertiary)]" />
                 </button>
               </div>
             </div>
@@ -116,14 +116,14 @@ export function DNAVozSettings() {
                 </div>
               ))}
               {editData.pilares.length === 0 && (
-                <p className="text-xs text-[var(--text-primary)] opacity-25 italic">Nenhum pilar adicionado ainda.</p>
+                <p className="text-xs text-[var(--text-tertiary)] italic">Nenhum pilar adicionado ainda.</p>
               )}
             </div>
           </section>
 
           {/* Tom de Voz */}
           <section className="bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-2xl p-6">
-            <div className="flex items-center gap-2 mb-4 text-[var(--text-primary)] opacity-40">
+            <div className="flex items-center gap-2 mb-4 text-[var(--text-tertiary)]">
               <MessageSquare className="w-4 h-4" />
               <span className="text-[10px] uppercase tracking-widest font-bold">Tom de Voz</span>
             </div>
@@ -138,7 +138,7 @@ export function DNAVozSettings() {
           {/* O que não faço */}
           <section className="bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-2xl p-6">
             <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2 text-[var(--text-primary)] opacity-40">
+              <div className="flex items-center gap-2 text-[var(--text-tertiary)]">
                 <Ban className="w-4 h-4" />
                 <span className="text-[10px] uppercase tracking-widest font-bold">O que não faço</span>
               </div>
@@ -155,7 +155,7 @@ export function DNAVozSettings() {
                   onClick={() => handleAddItem('naoFaco')}
                   className="p-1.5 hover:bg-[var(--bg-hover)] rounded-full transition-colors"
                 >
-                  <Plus className="w-3.5 h-3.5 text-[var(--text-primary)] opacity-40" />
+                  <Plus className="w-3.5 h-3.5 text-[var(--text-tertiary)]" />
                 </button>
               </div>
             </div>
@@ -175,7 +175,7 @@ export function DNAVozSettings() {
                 </li>
               ))}
               {editData.naoFaco.length === 0 && (
-                <p className="text-xs text-[var(--text-primary)] opacity-25 italic">Nenhum item adicionado ainda.</p>
+                <p className="text-xs text-[var(--text-tertiary)] italic">Nenhum item adicionado ainda.</p>
               )}
             </ul>
           </section>
@@ -183,7 +183,7 @@ export function DNAVozSettings() {
           {/* Alertas de Desvio */}
           <section className="bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-2xl p-6">
             <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2 text-[var(--text-primary)] opacity-40">
+              <div className="flex items-center gap-2 text-[var(--text-tertiary)]">
                 <ShieldAlert className="w-4 h-4" />
                 <span className="text-[10px] uppercase tracking-widest font-bold">Alertas de Desvio</span>
               </div>
@@ -200,7 +200,7 @@ export function DNAVozSettings() {
                   onClick={() => handleAddItem('alertas')}
                   className="p-1.5 hover:bg-[var(--bg-hover)] rounded-full transition-colors"
                 >
-                  <Plus className="w-3.5 h-3.5 text-[var(--text-primary)] opacity-40" />
+                  <Plus className="w-3.5 h-3.5 text-[var(--text-tertiary)]" />
                 </button>
               </div>
             </div>
@@ -219,7 +219,7 @@ export function DNAVozSettings() {
                 </div>
               ))}
               {editData.alertas.length === 0 && (
-                <p className="text-xs text-[var(--text-primary)] opacity-25 italic">Nenhum alerta adicionado ainda.</p>
+                <p className="text-xs text-[var(--text-tertiary)] italic">Nenhum alerta adicionado ainda.</p>
               )}
             </div>
           </section>

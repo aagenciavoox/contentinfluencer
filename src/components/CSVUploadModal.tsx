@@ -109,10 +109,10 @@ export function CSVUploadModal({ onClose }: CSVUploadModalProps) {
               <Upload className="w-5 h-5 text-[var(--accent-blue)]" />
               <h2 className="text-2xl font-black text-[var(--text-primary)] uppercase">Importar Roteiros</h2>
             </div>
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-primary)] opacity-40">Adicione múltiplos conteúdos de uma vez</p>
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-tertiary)]">Adicione múltiplos conteúdos de uma vez</p>
           </div>
           <button onClick={onClose} className="p-2 hover:bg-[var(--bg-hover)] rounded-full transition-colors">
-            <X className="w-5 h-5 text-[var(--text-primary)] opacity-40" />
+            <X className="w-5 h-5 text-[var(--text-tertiary)]" />
           </button>
         </div>
 
@@ -132,7 +132,7 @@ export function CSVUploadModal({ onClose }: CSVUploadModalProps) {
               <section>
                 <div className="flex items-center gap-2 mb-4">
                   <Info className="w-4 h-4 text-[var(--accent-blue)]" />
-                  <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-primary)] opacity-60">Instruções do Arquivo</span>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">Instruções do Arquivo</span>
                 </div>
                 <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-6 shadow-sm">
                   <p className="text-sm text-[var(--text-tertiary)] mb-6 leading-relaxed">
@@ -149,7 +149,7 @@ export function CSVUploadModal({ onClose }: CSVUploadModalProps) {
                     </div>
                   </div>
                   <div className="mt-6">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-[var(--text-primary)] opacity-30 mb-3">Exemplo de Conteúdo</p>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-[var(--text-tertiary)] mb-3">Exemplo de Conteúdo</p>
                     <pre className="bg-black/5 dark:bg-white/5 p-4 rounded-xl text-[10px] font-mono opacity-60 overflow-x-auto whitespace-pre">
                       titulo,roteiro{'\n'}
                       Como ler mais rápido,"Dica 1: Pare de subvocalizar..."{'\n'}
@@ -165,7 +165,7 @@ export function CSVUploadModal({ onClose }: CSVUploadModalProps) {
                   <label className="flex flex-col items-center justify-center p-12 border-2 border-dashed border-[var(--border-color)] rounded-[2.5rem] bg-[var(--bg-secondary)]/30 hover:bg-[var(--bg-hover)] transition-all cursor-pointer group">
                     <input ref={fileInputRef} type="file" accept=".csv" onChange={handleFileChange} className="hidden" />
                     <div className="w-16 h-16 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-2xl mb-6 flex items-center justify-center group-hover:scale-110 transition-transform shadow-sm">
-                      <FileText className="w-8 h-8 text-[var(--text-primary)] opacity-30" />
+                      <FileText className="w-8 h-8 text-[var(--text-tertiary)]" />
                     </div>
                     <span className="text-sm font-black text-[var(--text-primary)] uppercase tracking-widest mb-2">Clique para selecionar</span>
                     <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] opacity-50 tracking-widest">Apenas arquivos .csv são suportados</span>

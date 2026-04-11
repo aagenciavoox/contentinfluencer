@@ -88,7 +88,7 @@ export function ContentEcosystem({ contents, onSelect, lookAlerts, filterSeries 
               ))}
               {seriesContents.length === 0 && (
                 <div className="py-10 text-center border-2 border-dashed border-[var(--border-color)] rounded-2xl opacity-40">
-                  <span className="text-[10px] text-[var(--text-tertiary)] font-bold uppercase tracking-widest italic">Vazio</span>
+                  <span className="text-[10px] text-[var(--text-tertiary)] font-bold uppercase tracking-widest">Vazio</span>
                 </div>
               )}
             </div>

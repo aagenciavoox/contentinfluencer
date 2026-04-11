@@ -122,7 +122,7 @@ export function BookDetail() {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <p className="text-[var(--text-primary)] opacity-30 font-bold mb-4">Livro não encontrado</p>
+          <p className="text-[var(--text-tertiary)] font-bold mb-4">Livro não encontrado</p>
           <button onClick={() => navigate('/biblioteca')} className="text-xs font-bold text-[var(--accent-blue)] hover:underline">
             Voltar à Biblioteca
           </button>
@@ -387,7 +387,7 @@ export function BookDetail() {
           </button>
           <div className="flex-1 min-w-0">
             <h1 className="text-lg font-black text-[var(--text-primary)] line-clamp-1 leading-tight">{livro.titulo}</h1>
-            <p className="text-xs text-[var(--text-secondary)] opacity-60">{livro.autor}</p>
+            <p className="text-xs text-[var(--text-secondary)]">{livro.autor}</p>
           </div>
         </div>
       </div>
@@ -423,12 +423,12 @@ export function BookDetail() {
                   <img src={livro.capaUrl} alt={livro.titulo} className="w-full h-full object-cover" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center">
-                    <BookOpen className="w-10 h-10 text-[var(--text-primary)] opacity-20" />
+                    <BookOpen className="w-10 h-10 text-[var(--text-tertiary)]" />
                   </div>
                 )}
               </div>
               <div>
-                <p className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-primary)] opacity-30 mb-2">Avaliação</p>
+                <p className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] mb-2">Avaliação</p>
                 <div className="flex gap-1">
                   {[1, 2, 3, 4, 5].map(n => (
                     <button key={n} onClick={() => setInfoLocal(prev => ({ ...prev, avaliacao: n as 1 | 2 | 3 | 4 | 5 }))}>
@@ -447,16 +447,16 @@ export function BookDetail() {
                 <span className={SECTION_LABEL}>Identificação</span>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-primary)] opacity-30 block mb-1.5">Título</label>
+                    <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1.5">Título</label>
                     <input type="text" value={infoLocal.titulo} onChange={e => setInfoLocal(prev => ({ ...prev, titulo: e.target.value }))} className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)]" />
                   </div>
                   <div>
-                    <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-primary)] opacity-30 block mb-1.5">Autor</label>
+                    <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1.5">Autor</label>
                     <input type="text" value={infoLocal.autor} onChange={e => setInfoLocal(prev => ({ ...prev, autor: e.target.value }))} className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)]" />
                   </div>
                 </div>
                 <div className="mt-4">
-                  <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-primary)] opacity-30 block mb-2">Gêneros</label>
+                  <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-2">Gêneros</label>
                   <div className="flex flex-wrap gap-2">
                     {GENEROS.map(g => (
                       <button
@@ -483,36 +483,36 @@ export function BookDetail() {
                 <span className={SECTION_LABEL}>Leitura</span>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-primary)] opacity-30 block mb-1.5">Status</label>
+                    <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1.5">Status</label>
                     <select value={infoLocal.statusLeitura} onChange={e => setInfoLocal(prev => ({ ...prev, statusLeitura: e.target.value as StatusLeitura }))} className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)]">
                       {STATUS_LEITURA.map(s => <option key={s}>{s}</option>)}
                     </select>
                   </div>
                   <div>
-                    <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-primary)] opacity-30 block mb-1.5">URL da Capa</label>
+                    <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1.5">URL da Capa</label>
                     <input type="url" value={infoLocal.capaUrl} onChange={e => setInfoLocal(prev => ({ ...prev, capaUrl: e.target.value }))} placeholder="https://..." className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:opacity-30" />
                   </div>
                   <div>
-                    <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-primary)] opacity-30 block mb-1.5">Início da Leitura</label>
+                    <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1.5">Início da Leitura</label>
                     <input type="date" value={infoLocal.dataInicio} onChange={e => setInfoLocal(prev => ({ ...prev, dataInicio: e.target.value }))} className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)]" />
                   </div>
                   <div>
-                    <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-primary)] opacity-30 block mb-1.5">Fim da Leitura</label>
+                    <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1.5">Fim da Leitura</label>
                     <input type="date" value={infoLocal.dataFim} onChange={e => setInfoLocal(prev => ({ ...prev, dataFim: e.target.value }))} className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)]" />
                   </div>
                   <div>
-                    <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-primary)] opacity-30 block mb-1.5">Páginas Lidas</label>
+                    <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1.5">Páginas Lidas</label>
                     <input type="number" min={0} value={infoLocal.paginasLidas} onChange={e => setInfoLocal(prev => ({ ...prev, paginasLidas: e.target.value === '' ? '' : Number(e.target.value) }))} placeholder="Ex: 120" className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:opacity-30" />
                   </div>
                   <div>
-                    <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-primary)] opacity-30 block mb-1.5">Total de Páginas</label>
+                    <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1.5">Total de Páginas</label>
                     <input type="number" min={1} value={infoLocal.totalPaginas} onChange={e => setInfoLocal(prev => ({ ...prev, totalPaginas: e.target.value === '' ? '' : Number(e.target.value) }))} placeholder="Ex: 380" className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:opacity-30" />
                   </div>
                 </div>
                 {(infoLocal.totalPaginas as number) > 0 && (
                   <div className="mt-4">
                     <div className="flex items-center justify-between mb-1.5">
-                      <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-primary)] opacity-30">Progresso</label>
+                      <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)]">Progresso</label>
                       <span className="text-[10px] font-black text-[var(--accent-purple)]">
                         {Math.min(100, Math.round(((infoLocal.paginasLidas as number || 0) / (infoLocal.totalPaginas as number)) * 100))}%
                       </span>
@@ -531,32 +531,32 @@ export function BookDetail() {
                   className="flex items-center gap-2 w-full text-left mb-3"
                 >
                   <span className={SECTION_LABEL + ' mb-0'}>Detalhes Técnicos</span>
-                  {showTechnical ? <ChevronUp className="w-3.5 h-3.5 text-[var(--text-primary)] opacity-30" /> : <ChevronDown className="w-3.5 h-3.5 text-[var(--text-primary)] opacity-30" />}
+                  {showTechnical ? <ChevronUp className="w-3.5 h-3.5 text-[var(--text-tertiary)]" /> : <ChevronDown className="w-3.5 h-3.5 text-[var(--text-tertiary)]" />}
                 </button>
                 {showTechnical && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-primary)] opacity-30 block mb-1.5">Editora</label>
+                      <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1.5">Editora</label>
                       <input type="text" value={infoLocal.editora} onChange={e => setInfoLocal(prev => ({ ...prev, editora: e.target.value }))} placeholder="Ex: Rocco" className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:opacity-30" />
                     </div>
                     <div>
-                      <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-primary)] opacity-30 block mb-1.5">Ano de Publicação</label>
+                      <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1.5">Ano de Publicação</label>
                       <input type="number" value={infoLocal.anoPublicacao} onChange={e => setInfoLocal(prev => ({ ...prev, anoPublicacao: e.target.value }))} placeholder="2024" className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:opacity-30" />
                     </div>
                     <div>
-                      <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-primary)] opacity-30 block mb-1.5">ISBN</label>
+                      <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1.5">ISBN</label>
                       <input type="text" value={infoLocal.isbn} onChange={e => setInfoLocal(prev => ({ ...prev, isbn: e.target.value }))} placeholder="978-..." className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:opacity-30" />
                     </div>
                     <div>
-                      <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-primary)] opacity-30 block mb-1.5">Idioma</label>
+                      <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1.5">Idioma</label>
                       <input type="text" value={infoLocal.idioma} onChange={e => setInfoLocal(prev => ({ ...prev, idioma: e.target.value }))} placeholder="Português" className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:opacity-30" />
                     </div>
                     <div>
-                      <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-primary)] opacity-30 block mb-1.5">Tradução</label>
+                      <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1.5">Tradução</label>
                       <input type="text" value={infoLocal.traducao} onChange={e => setInfoLocal(prev => ({ ...prev, traducao: e.target.value }))} placeholder="Tradutor" className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:opacity-30" />
                     </div>
                     <div>
-                      <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-primary)] opacity-30 block mb-1.5">Série / Coleção</label>
+                      <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1.5">Série / Coleção</label>
                       <input type="text" value={infoLocal.serieColecao} onChange={e => setInfoLocal(prev => ({ ...prev, serieColecao: e.target.value }))} placeholder="Ex: Trono de Vidro" className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:opacity-30" />
                     </div>
                   </div>
@@ -570,20 +570,20 @@ export function BookDetail() {
                   className="flex items-center gap-2 w-full text-left mb-3"
                 >
                   <span className={SECTION_LABEL + ' mb-0'}>Para você</span>
-                  {showParaVoce ? <ChevronUp className="w-3.5 h-3.5 text-[var(--text-primary)] opacity-30" /> : <ChevronDown className="w-3.5 h-3.5 text-[var(--text-primary)] opacity-30" />}
+                  {showParaVoce ? <ChevronUp className="w-3.5 h-3.5 text-[var(--text-tertiary)]" /> : <ChevronDown className="w-3.5 h-3.5 text-[var(--text-tertiary)]" />}
                 </button>
                 {showParaVoce && (
                   <div className="space-y-4">
                     <div>
-                      <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-primary)] opacity-30 block mb-1.5">Quem Indicou</label>
+                      <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1.5">Quem Indicou</label>
                       <input type="text" value={infoLocal.quemIndicou} onChange={e => setInfoLocal(prev => ({ ...prev, quemIndicou: e.target.value }))} placeholder="Ex: Podcast X, amiga Y..." className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:opacity-30" />
                     </div>
                     <div>
-                      <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-primary)] opacity-30 block mb-1.5">Por que Escolheu</label>
+                      <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1.5">Por que Escolheu</label>
                       <textarea value={infoLocal.motivoEscolha} onChange={e => setInfoLocal(prev => ({ ...prev, motivoEscolha: e.target.value }))} rows={3} placeholder="Motivação, contexto..." className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] resize-none placeholder:opacity-30" />
                     </div>
                     <div>
-                      <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-primary)] opacity-30 block mb-2">Potencial de Conteúdo</label>
+                      <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-2">Potencial de Conteúdo</label>
                       <div className="flex gap-2">
                         {([1, 2, 3] as const).map(v => (
                           <button
@@ -662,7 +662,7 @@ export function BookDetail() {
                 className="w-full text-sm bg-transparent border-none focus:ring-0 p-0 resize-none text-[var(--text-primary)] placeholder:opacity-30"
               />
               <div className="flex justify-between items-center">
-                <span className="text-[9px] text-[var(--text-primary)] opacity-25">⌘↩ para adicionar</span>
+                <span className="text-[9px] text-[var(--text-tertiary)]">⌘↩ para adicionar</span>
                 <button
                   onClick={handleAddAnotacao}
                   disabled={!novaAnotacao.trim()}
@@ -693,7 +693,7 @@ export function BookDetail() {
             {/* Lista de anotações */}
             {anotacoesFiltradas.length === 0 ? (
               <div className="text-center py-16">
-                <p className="text-[var(--text-primary)] opacity-20 font-bold text-sm uppercase tracking-widest">Nenhuma anotação ainda</p>
+                <p className="text-[var(--text-tertiary)] font-bold text-sm uppercase tracking-widest">Nenhuma anotação ainda</p>
               </div>
             ) : (
               <div className="space-y-3">
@@ -841,16 +841,16 @@ export function BookDetail() {
                   />
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-primary)] opacity-30 block mb-1">Início</label>
+                      <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1">Início</label>
                       <input type="date" value={campForm.dataInicio} onChange={e => setCampForm(p => ({ ...p, dataInicio: e.target.value }))} className="w-full text-sm bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl px-3 py-2 text-[var(--text-primary)]" />
                     </div>
                     <div>
-                      <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-primary)] opacity-30 block mb-1">Fim</label>
+                      <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1">Fim</label>
                       <input type="date" value={campForm.dataFim} onChange={e => setCampForm(p => ({ ...p, dataFim: e.target.value }))} className="w-full text-sm bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl px-3 py-2 text-[var(--text-primary)]" />
                     </div>
                   </div>
                   <div>
-                    <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-primary)] opacity-30 block mb-1">Meta de peças</label>
+                    <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1">Meta de peças</label>
                     <input type="number" min={1} value={campForm.metaConteudos} onChange={e => setCampForm(p => ({ ...p, metaConteudos: e.target.value }))} className="w-full text-sm bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl px-3 py-2 text-[var(--text-primary)]" />
                   </div>
                   <div className="flex gap-2">
@@ -861,7 +861,7 @@ export function BookDetail() {
               )}
 
               {campanhasDoLivro.length === 0 ? (
-                <p className="text-xs text-[var(--text-primary)] opacity-30 text-center py-4">Nenhuma campanha ainda</p>
+                <p className="text-xs text-[var(--text-tertiary)] text-center py-4">Nenhuma campanha ainda</p>
               ) : (
                 <div className="space-y-3">
                   {campanhasDoLivro.map(camp => {
@@ -871,12 +871,12 @@ export function BookDetail() {
                       <div key={camp.id} className="space-y-2">
                         <div className="flex items-center justify-between">
                           <span className="text-sm font-bold text-[var(--text-primary)]">{camp.nome}</span>
-                          <span className="text-[10px] font-black text-[var(--text-primary)] opacity-40">{criados}/{camp.metaConteudos} peças</span>
+                          <span className="text-[10px] font-black text-[var(--text-tertiary)]">{criados}/{camp.metaConteudos} peças</span>
                         </div>
                         <div className="h-2 w-full bg-[var(--bg-hover)] rounded-full overflow-hidden">
                           <div className="h-full bg-[var(--accent-blue)] rounded-full transition-all" style={{ width: `${progresso}%` }} />
                         </div>
-                        <p className="text-[9px] text-[var(--text-primary)] opacity-30">{camp.status}</p>
+                        <p className="text-[9px] text-[var(--text-tertiary)]">{camp.status}</p>
                       </div>
                     );
                   })}
@@ -887,7 +887,7 @@ export function BookDetail() {
             {/* ── Ideias deste livro ── */}
             {ideiasDeLivro.length > 0 && (
               <div className="bg-[var(--bg-primary)] rounded-2xl border border-[var(--border-color)] p-5">
-                <h3 className="text-[10px] font-black uppercase tracking-widest text-[var(--text-primary)] opacity-40 mb-3">
+                <h3 className="text-[10px] font-black uppercase tracking-widest text-[var(--text-tertiary)] mb-3">
                   Ideias deste livro ({ideiasDeLivro.length})
                 </h3>
                 <div className="space-y-2">
@@ -931,7 +931,7 @@ export function BookDetail() {
                     ecossistemaAgrupamento === 'slot' ? conteudosPorSlot : conteudosPorPlataforma
                   ) as [string, typeof conteudosDoLivro][]).map(([grupo, conteudos]) => (
                     <div key={grupo}>
-                      <h3 className="text-[10px] font-black uppercase tracking-widest text-[var(--text-primary)] opacity-30 mb-3">{grupo}</h3>
+                      <h3 className="text-[10px] font-black uppercase tracking-widest text-[var(--text-tertiary)] mb-3">{grupo}</h3>
                       <div className="space-y-2">
                         {conteudos.map(c => (
                           <button
@@ -962,7 +962,7 @@ export function BookDetail() {
             {conteudosDoLivro.length === 0 && (
               <div className="text-center py-12">
                 <BookOpen className="w-10 h-10 text-[var(--text-primary)] opacity-10 mx-auto mb-3" />
-                <p className="text-[var(--text-primary)] opacity-20 font-bold text-sm uppercase tracking-widest">
+                <p className="text-[var(--text-tertiary)] font-bold text-sm uppercase tracking-widest">
                   Nenhum conteúdo criado a partir deste livro ainda
                 </p>
               </div>
@@ -989,7 +989,7 @@ export function BookDetail() {
                 </button>
               </div>
               {(livro.capitulosCobertos || []).length === 0 ? (
-                <p className="text-xs text-[var(--text-primary)] opacity-30">Nenhum capítulo marcado ainda</p>
+                <p className="text-xs text-[var(--text-tertiary)]">Nenhum capítulo marcado ainda</p>
               ) : (
                 <div className="flex flex-wrap gap-2">
                   {(livro.capitulosCobertos || []).map(cap => (
@@ -1010,7 +1010,7 @@ export function BookDetail() {
                 onClick={() => setHashtagsAberto(v => !v)}
                 className="flex items-center gap-2 w-full text-left"
               >
-                <Hash className="w-4 h-4 text-[var(--text-primary)] opacity-40" />
+                <Hash className="w-4 h-4 text-[var(--text-tertiary)]" />
                 <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-primary)] opacity-50 hover:opacity-80 transition-opacity flex-1">
                   {hashtagsAberto ? 'Ocultar hashtags sugeridas ▴' : 'Ver hashtags sugeridas ▾'}
                 </span>
@@ -1040,11 +1040,11 @@ export function BookDetail() {
                         className="absolute top-2 right-2 p-1.5 hover:bg-[var(--bg-secondary)] rounded-lg transition-colors"
                         title="Copiar hashtags"
                       >
-                        {hashtagCopiado ? <Check className="w-4 h-4 text-[var(--accent-green)]" /> : <Copy className="w-4 h-4 text-[var(--text-primary)] opacity-40" />}
+                        {hashtagCopiado ? <Check className="w-4 h-4 text-[var(--accent-green)]" /> : <Copy className="w-4 h-4 text-[var(--text-tertiary)]" />}
                       </button>
                     </div>
                   ) : (
-                    <p className="text-xs text-[var(--text-primary)] opacity-30">Nenhuma hashtag configurada nos pilares dos conteúdos deste livro.</p>
+                    <p className="text-xs text-[var(--text-tertiary)]">Nenhuma hashtag configurada nos pilares dos conteúdos deste livro.</p>
                   )}
                 </div>
               )}
@@ -1059,12 +1059,12 @@ export function BookDetail() {
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div className="bg-[var(--bg-hover)] rounded-xl p-3">
-                    <p className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-primary)] opacity-30 mb-1">Total Views</p>
+                    <p className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] mb-1">Total Views</p>
                     <p className="text-xl font-black text-[var(--text-primary)]">{totalViews.toLocaleString()}</p>
                   </div>
                   {melhorPorViews && (
                     <div className="bg-[var(--bg-hover)] rounded-xl p-3">
-                      <p className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-primary)] opacity-30 mb-1">Melhor Views</p>
+                      <p className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] mb-1">Melhor Views</p>
                       <p className="text-sm font-bold text-[var(--text-primary)] line-clamp-2">
                         {state.contents.find(c => c.id === melhorPorViews.contentId)?.title || '—'}
                       </p>
@@ -1073,7 +1073,7 @@ export function BookDetail() {
                   )}
                   {melhorPorSaves && (
                     <div className="bg-[var(--bg-hover)] rounded-xl p-3">
-                      <p className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-primary)] opacity-30 mb-1">Mais Saves</p>
+                      <p className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] mb-1">Mais Saves</p>
                       <p className="text-sm font-bold text-[var(--text-primary)] line-clamp-2">
                         {state.contents.find(c => c.id === melhorPorSaves.contentId)?.title || '—'}
                       </p>
@@ -1103,11 +1103,11 @@ export function BookDetail() {
               className="bg-[var(--bg-primary)] rounded-3xl p-8 max-w-lg w-full shadow-2xl"
             >
               <div className="flex items-center justify-between mb-6">
-                <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-primary)] opacity-30">
+                <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-tertiary)]">
                   Brainstorm — {brainstormIdx + 1}/{anotacoesDestaque.length}
                 </span>
                 <button onClick={() => setBrainstormMode(false)} className="p-2 hover:bg-[var(--bg-hover)] rounded-full transition-colors">
-                  <X className="w-5 h-5 text-[var(--text-primary)] opacity-40" />
+                  <X className="w-5 h-5 text-[var(--text-tertiary)]" />
                 </button>
               </div>
               <p className="text-lg font-medium text-[var(--text-primary)] leading-relaxed mb-8">

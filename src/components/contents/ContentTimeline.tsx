@@ -23,8 +23,8 @@ export function ContentTimeline({ contents, onSelect }: ContentTimelineProps) {
 
   if (sortedByDate.length === 0) {
     return (
-      <div className="py-32 text-center border-2 border-dashed border-[var(--border-color)] rounded-3xl opacity-30">
-        <p className="text-sm font-bold uppercase tracking-widest text-[var(--text-tertiary)] italic">Defina datas de gravação ou postagem para ver a linha do tempo.</p>
+      <div className="py-32 text-center border-2 border-dashed border-[var(--border-color)] rounded-2xl opacity-30">
+        <p className="text-sm font-bold uppercase tracking-widest text-[var(--text-tertiary)]">Defina datas de gravação ou postagem para ver a linha do tempo.</p>
       </div>
     );
   }
@@ -51,7 +51,7 @@ export function ContentTimeline({ contents, onSelect }: ContentTimelineProps) {
             
             <div 
               onClick={() => onSelect(content)}
-              className="p-8 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-3xl hover:shadow-2xl hover:-translate-x-1 transition-all cursor-pointer group shadow-sm overflow-hidden relative"
+              className="p-8 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl hover:shadow-2xl hover:-translate-x-1 transition-all cursor-pointer group shadow-sm overflow-hidden relative"
             >
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
                 <div>

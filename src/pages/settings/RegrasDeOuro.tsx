@@ -62,13 +62,13 @@ export function RegrasDeOuro() {
 
   return (
     <div className="min-h-screen bg-[var(--bg-secondary)]">
-      <div className="max-w-3xl mx-auto px-6 md:px-12 py-10 md:py-16">
+      <div className="content-narrow mx-auto px-6 md:px-12 py-10 md:py-16">
         <div className="flex items-center gap-4 mb-10">
           <button onClick={() => navigate('/settings')} className="p-2 hover:bg-[var(--bg-hover)] rounded-xl">
             <ArrowLeft className="w-5 h-5 text-[var(--text-primary)] opacity-50" />
           </button>
           <div className="flex-1">
-            <h1 className="text-4xl font-black text-[var(--text-primary)] tracking-tight">Regras de Ouro</h1>
+            <h1 className="text-4xl font-black text-[var(--text-primary)] tracking-tight italic">Regras de Ouro</h1>
             <p className="text-xs text-[var(--text-secondary)] opacity-50 mt-1">
               Validações editoriais aplicadas automaticamente na grade
             </p>
@@ -164,7 +164,7 @@ export function RegrasDeOuro() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-0.5">
-                    <span className="text-[10px] font-black text-[var(--text-primary)] opacity-30">{regra.id}</span>
+                    <span className="text-[10px] font-black text-[var(--text-tertiary)]">{regra.id}</span>
                     {violacoes.length > 0 && (
                       <span className="text-[9px] font-black bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full">
                         {violacoes.length} violação{violacoes.length > 1 ? 'ões' : ''}
@@ -187,7 +187,7 @@ export function RegrasDeOuro() {
                   >
                     {regra.ativa
                       ? <ToggleRight className="w-6 h-6 text-[var(--accent-green)]" />
-                      : <ToggleLeft className="w-6 h-6 text-[var(--text-primary)] opacity-30" />
+                      : <ToggleLeft className="w-6 h-6 text-[var(--text-tertiary)]" />
                     }
                   </button>
                 </div>

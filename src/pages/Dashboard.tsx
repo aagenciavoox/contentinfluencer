@@ -7,8 +7,8 @@ import {
 import { ptBR } from 'date-fns/locale';
 import {
   Zap, Calendar as CalendarIcon, AlertCircle, Plus, BookOpen,
-  CheckCircle2, Clock, LayoutDashboard, ArrowRight, TrendingUp,
-  Lightbulb, ChevronDown, ChevronUp, Mic, Send, AlertTriangle,
+  CheckCircle2, LayoutDashboard, ArrowRight, TrendingUp,
+  Lightbulb, ChevronDown, ChevronUp, Mic, Send,
   Video,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -22,13 +22,25 @@ import { ContentDetailModal } from '../components/ContentDetailModal';
 
 const PIPELINE_STATUSES = ['Pronto para Gravar', 'Gravado', 'A Editar', 'Editado', 'Programado'] as const;
 
-const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; border: string; dot: string }> = {
-  'Pronto para Gravar': { label: 'Pronto p/ Gravar', color: 'text-orange-500', bg: 'bg-orange-500/10', border: 'border-orange-500/20', dot: 'bg-orange-500' },
-  'Gravado':            { label: 'Gravado',           color: 'text-purple-500', bg: 'bg-purple-500/10', border: 'border-purple-500/20', dot: 'bg-purple-500' },
-  'A Editar':           { label: 'A Editar',           color: 'text-amber-500',  bg: 'bg-amber-500/10',  border: 'border-amber-500/20',  dot: 'bg-amber-500'  },
-  'Editado':            { label: 'Editado',            color: 'text-blue-500',   bg: 'bg-blue-500/10',   border: 'border-blue-500/20',   dot: 'bg-blue-500'   },
-  'Programado':         { label: 'Programado',         color: 'text-green-500',  bg: 'bg-green-500/10',  border: 'border-green-500/20',  dot: 'bg-green-500'  },
+const STATUS_CONFIG: Record<string, { label: string; cssVar: string }> = {
+  'Pronto para Gravar': { label: 'Pronto p/ Gravar', cssVar: '--status-ready'     },
+  'Gravado':            { label: 'Gravado',           cssVar: '--status-recorded'  },
+  'A Editar':           { label: 'A Editar',           cssVar: '--status-editing'   },
+  'Editado':            { label: 'Editado',            cssVar: '--status-edited'    },
+  'Programado':         { label: 'Programado',         cssVar: '--status-scheduled' },
 };
+
+function SectionLabel({ label, action }: { label: string; action?: React.ReactNode }) {
+  return (
+    <div className="flex items-center gap-3 mb-4">
+      <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-tertiary)] opacity-50 shrink-0">
+        {label}
+      </span>
+      <div className="flex-1 h-px bg-[var(--border-color)]" />
+      {action}
+    </div>
+  );
+}
 
 export function Dashboard() {
   const { state, dispatch } = useAppContext();
@@ -147,7 +159,7 @@ export function Dashboard() {
 
   // ─────────────────────────────────────────────────────────────────
   return (
-    <div className="max-w-7xl mx-auto py-8 md:py-12 px-6 md:px-10 space-y-10">
+    <div className="content-wide mx-auto py-8 md:py-12 px-6 md:px-10 space-y-10">
       <PageGuide
         pageId="dashboard"
         title="Command Center"
@@ -158,10 +170,10 @@ export function Dashboard() {
       {/* ── HEADER ──────────────────────────────────────────────────── */}
       <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl md:text-4xl font-black text-[var(--text-primary)] tracking-tight italic">
+          <h1 className="text-4xl font-black text-[var(--text-primary)] tracking-tight italic">
             Command Center
           </h1>
-          <p className="text-[var(--text-secondary)] text-sm font-medium opacity-60 uppercase tracking-widest">
+          <p className="mt-1 text-sm text-[var(--text-secondary)] font-medium uppercase tracking-widest">
             {format(today, "EEEE, d 'de' MMMM", { locale: ptBR })}
           </p>
         </div>
@@ -169,7 +181,7 @@ export function Dashboard() {
         {/* Energy log */}
         <div className="flex items-center gap-3 bg-[var(--bg-secondary)] px-4 py-3 rounded-2xl border border-[var(--border-color)] self-start sm:self-auto">
           <Zap className={cn("w-4 h-4 shrink-0", currentEnergy > 0 ? "text-orange-400" : "opacity-30")} />
-          <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-tertiary)] opacity-60 hidden sm:block">Energia</span>
+          <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-tertiary)] hidden sm:block">Energia</span>
           <div className="flex gap-1.5">
             {[1, 2, 3, 4, 5].map(level => (
               <button
@@ -211,7 +223,7 @@ export function Dashboard() {
             ))}
           </div>
         ) : (
-          <div className="rounded-3xl border border-[var(--border-color)] bg-[var(--bg-secondary)] p-6">
+          <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-secondary)] p-6">
             {energyRecs.length > 0 ? (
               <>
                 <div className="flex items-center gap-2 mb-4">
@@ -241,7 +253,7 @@ export function Dashboard() {
                 </div>
                 <div className="flex-1">
                   <p className="text-sm font-black text-[var(--text-primary)] mb-1">Nenhuma tarefa agendada para hoje</p>
-                  <p className="text-[11px] text-[var(--text-tertiary)] opacity-60">Defina sua energia e planeje gravações ou publicações pelo calendário.</p>
+                  <p className="text-[11px] text-[var(--text-tertiary)]">Defina sua energia e planeje gravações ou publicações pelo calendário.</p>
                 </div>
                 <Link to="/calendar" className="shrink-0 px-5 py-2.5 bg-[var(--text-primary)] text-[var(--bg-primary)] rounded-xl text-[10px] font-black uppercase tracking-widest hover:opacity-80 transition-all">
                   Planejar
@@ -255,10 +267,7 @@ export function Dashboard() {
       {/* ── PRÓXIMOS DIAS ────────────────────────────────────────────── */}
       {next3DaysItems.length > 0 && (
         <section>
-          <div className="flex items-center gap-3 mb-5">
-            <Clock className="w-4 h-4 text-[var(--accent-blue)] opacity-70" />
-            <h2 className="text-[11px] font-black uppercase tracking-[0.2em] text-[var(--text-secondary)]">Próximos 3 dias</h2>
-          </div>
+          <SectionLabel label="Próximos 3 dias" />
           <div className="space-y-2">
             {next3DaysItems.map(({ content: c, type, dateStr }) => (
               <button
@@ -277,7 +286,7 @@ export function Dashboard() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-bold text-[var(--text-primary)] truncate">{c.title}</p>
-                  <p className="text-[9px] font-black uppercase tracking-widest text-[var(--text-tertiary)] opacity-60 mt-0.5">
+                  <p className="text-[9px] font-black uppercase tracking-widest text-[var(--text-tertiary)] mt-0.5">
                     {c.pillar}{c.formatoVisual ? ` · ${c.formatoVisual}` : ''}
                   </p>
                 </div>
@@ -299,11 +308,12 @@ export function Dashboard() {
       {/* ── ATENÇÃO ───────────────────────────────────────────────────── */}
       {totalAttention > 0 && (
         <section>
-          <div className="flex items-center gap-3 mb-5">
-            <AlertTriangle className="w-4 h-4 text-[var(--accent-pink)] opacity-80" />
-            <h2 className="text-[11px] font-black uppercase tracking-[0.2em] text-[var(--text-secondary)]">Atenção necessária</h2>
-            <span className="text-[9px] font-black bg-[var(--accent-pink)]/10 text-[var(--accent-pink)] px-2 py-0.5 rounded-full">{totalAttention}</span>
-          </div>
+          <SectionLabel
+            label="Atenção necessária"
+            action={
+              <span className="text-[9px] font-black bg-[var(--accent-pink)]/10 text-[var(--accent-pink)] px-2 py-0.5 rounded-full shrink-0">{totalAttention}</span>
+            }
+          />
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {overduePublications.length > 0 && (
               <div className="p-5 rounded-2xl border border-[var(--accent-pink)]/20 bg-[var(--accent-pink)]/5">
@@ -368,15 +378,14 @@ export function Dashboard() {
 
       {/* ── PIPELINE ──────────────────────────────────────────────────── */}
       <section>
-        <div className="flex items-center justify-between mb-5">
-          <div className="flex items-center gap-3">
-            <LayoutDashboard className="w-4 h-4 text-[var(--accent-blue)] opacity-70" />
-            <h2 className="text-[11px] font-black uppercase tracking-[0.2em] text-[var(--text-secondary)]">Pipeline</h2>
-          </div>
-          <Link to="/contents" className="text-[9px] font-black uppercase tracking-widest text-[var(--accent-blue)] opacity-60 hover:opacity-100 flex items-center gap-1 transition-opacity">
-            Ver inventário <ArrowRight className="w-3 h-3" />
-          </Link>
-        </div>
+        <SectionLabel
+          label="Pipeline"
+          action={
+            <Link to="/contents" className="text-[9px] font-black uppercase tracking-widest text-[var(--accent-blue)] opacity-60 hover:opacity-100 flex items-center gap-1 transition-opacity shrink-0">
+              Ver inventário <ArrowRight className="w-3 h-3" />
+            </Link>
+          }
+        />
 
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
           {pipeline.map(({ status, items }) => {
@@ -384,14 +393,24 @@ export function Dashboard() {
             const visible = items.slice(0, 4);
             const extra = items.length - 4;
             return (
-              <div key={status} className={cn("rounded-2xl border p-4 flex flex-col gap-3", cfg.bg, cfg.border)}>
+              <div
+                key={status}
+                className="rounded-2xl border p-4 flex flex-col gap-3"
+                style={{
+                  background: `color-mix(in srgb, var(${cfg.cssVar}), transparent 92%)`,
+                  borderColor: `color-mix(in srgb, var(${cfg.cssVar}), transparent 80%)`,
+                }}
+              >
                 <div className="flex items-center justify-between">
-                  <span className={cn("text-[9px] font-black uppercase tracking-widest", cfg.color)}>{cfg.label}</span>
-                  <span className={cn("text-lg font-black", cfg.color)}>{items.length}</span>
+                  <span className="text-[9px] font-black uppercase tracking-widest" style={{ color: `var(${cfg.cssVar})` }}>{cfg.label}</span>
+                  <span className="text-lg font-black" style={{ color: `var(${cfg.cssVar})` }}>{items.length}</span>
                 </div>
                 <div className="space-y-1.5 flex-1">
                   {visible.length === 0 && (
-                    <p className="text-[9px] text-[var(--text-tertiary)] opacity-40 italic">Vazio</p>
+                    <div className="flex flex-col items-center gap-1.5 py-3 opacity-25">
+                      <div className="w-4 h-4 rounded-full border-2 border-dashed border-[var(--text-tertiary)]" />
+                      <p className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)]">Vazio</p>
+                    </div>
                   )}
                   {visible.map(c => (
                     <button
@@ -403,7 +422,7 @@ export function Dashboard() {
                     </button>
                   ))}
                   {extra > 0 && (
-                    <Link to="/contents" className={cn("text-[9px] font-black opacity-60 hover:opacity-100 transition-opacity", cfg.color)}>
+                    <Link to="/contents" className="text-[9px] font-black opacity-60 hover:opacity-100 transition-opacity" style={{ color: `var(${cfg.cssVar})` }}>
                       + {extra} mais
                     </Link>
                   )}
@@ -415,16 +434,17 @@ export function Dashboard() {
       </section>
 
       {/* ── BOTTOM ROW ────────────────────────────────────────────────── */}
+      <SectionLabel label="KPIs" />
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
 
         {/* Quick Capture */}
-        <div className="md:col-span-1 bg-[var(--bg-secondary)] rounded-3xl border border-[var(--border-color)] overflow-hidden">
+        <div className="md:col-span-1 bg-[var(--bg-secondary)] rounded-2xl border border-[var(--border-color)] overflow-hidden">
           <button
             onClick={() => setIsCaptureOpen(v => !v)}
             className="w-full flex items-center justify-between px-5 py-4 hover:bg-[var(--bg-hover)] transition-colors"
           >
             <div className="flex items-center gap-3">
-              <Plus className="w-4 h-4 text-[var(--text-primary)] opacity-60" />
+              <Plus className="w-4 h-4 text-[var(--text-secondary)]" />
               <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">Capturar Ideia</span>
             </div>
             {isCaptureOpen
@@ -484,10 +504,10 @@ export function Dashboard() {
         </div>
 
         {/* KPIs compactos */}
-        <div className="bg-[var(--bg-secondary)] rounded-3xl border border-[var(--border-color)] p-5 flex flex-col justify-between gap-4">
+        <div className="bg-[var(--bg-secondary)] rounded-2xl border border-[var(--border-color)] p-5 flex flex-col justify-between gap-4">
           <div className="flex items-center gap-2">
             <TrendingUp className="w-4 h-4 text-[var(--accent-blue)] opacity-70" />
-            <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-tertiary)] opacity-60">Esta semana</span>
+            <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-tertiary)]">Esta semana</span>
           </div>
           <div className="grid grid-cols-3 gap-3">
             <div className="text-center">
@@ -495,7 +515,7 @@ export function Dashboard() {
                 {weeklyKpis.posted}
                 {metaSemanal > 0 && <span className="text-sm opacity-40">/{metaSemanal}</span>}
               </p>
-              <p className="text-[9px] font-black uppercase tracking-widest text-[var(--text-tertiary)] opacity-60 mt-0.5">Postados</p>
+              <p className="text-[9px] font-black uppercase tracking-widest text-[var(--text-tertiary)] mt-0.5">Postados</p>
               {metaSemanal > 0 && (
                 <div className="h-1 bg-[var(--bg-hover)] rounded-full overflow-hidden mt-1.5">
                   <div
@@ -507,21 +527,21 @@ export function Dashboard() {
             </div>
             <div className="text-center">
               <p className="text-2xl font-black text-[var(--accent-blue)]">{weeklyKpis.scheduled}</p>
-              <p className="text-[9px] font-black uppercase tracking-widest text-[var(--text-tertiary)] opacity-60 mt-0.5">Prog.</p>
+              <p className="text-[9px] font-black uppercase tracking-widest text-[var(--text-tertiary)] mt-0.5">Prog.</p>
             </div>
             <div className="text-center">
               <p className="text-2xl font-black text-[var(--accent-purple)]">{weeklyKpis.ideas}</p>
-              <p className="text-[9px] font-black uppercase tracking-widest text-[var(--text-tertiary)] opacity-60 mt-0.5">Ideias</p>
+              <p className="text-[9px] font-black uppercase tracking-widest text-[var(--text-tertiary)] mt-0.5">Ideias</p>
             </div>
           </div>
         </div>
 
         {/* Livro atual (mini) */}
-        <div className="bg-[var(--bg-secondary)] rounded-3xl border border-[var(--border-color)] p-5 flex flex-col gap-4">
+        <div className="bg-[var(--bg-secondary)] rounded-2xl border border-[var(--border-color)] p-5 flex flex-col gap-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <BookOpen className="w-4 h-4 text-[var(--accent-purple)] opacity-70" />
-              <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-tertiary)] opacity-60">Lendo agora</span>
+              <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-tertiary)]">Lendo agora</span>
             </div>
             <Link to="/biblioteca" className="text-[9px] font-black uppercase tracking-widest text-[var(--accent-purple)] opacity-60 hover:opacity-100 transition-opacity">
               Biblioteca
@@ -544,7 +564,7 @@ export function Dashboard() {
               )}
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-black text-[var(--text-primary)] leading-snug line-clamp-2 italic">"{currentBooks[0].titulo}"</p>
-                <p className="text-[9px] uppercase tracking-wider text-[var(--text-tertiary)] opacity-60 mt-1">{currentBooks[0].autor}</p>
+                <p className="text-[9px] uppercase tracking-wider text-[var(--text-tertiary)] mt-1">{currentBooks[0].autor}</p>
                 {currentBooks[0].totalPaginas && currentBooks[0].totalPaginas > 0 && (
                   <div className="mt-2 flex items-center gap-2">
                     <div className="flex-1 h-1 bg-[var(--bg-hover)] rounded-full overflow-hidden">
@@ -620,12 +640,12 @@ function TodayCard({
         <h3 className="text-sm font-bold text-[var(--text-primary)] line-clamp-2 leading-snug">{content.title}</h3>
         <div className="flex items-center gap-2 mt-3 flex-wrap">
           {content.pillar && (
-            <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-tertiary)] opacity-60">{content.pillar}</span>
+            <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-tertiary)]">{content.pillar}</span>
           )}
           {content.formatoVisual && (
             <>
               <span className="text-[var(--text-tertiary)] opacity-30">·</span>
-              <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-tertiary)] opacity-60">{content.formatoVisual}</span>
+              <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-tertiary)]">{content.formatoVisual}</span>
             </>
           )}
         </div>

@@ -203,11 +203,11 @@ export function Harvest() {
       : null;
 
   return (
-    <div className="max-w-7xl mx-auto py-10 md:py-16 px-6 md:px-10 transition-colors duration-200">
+    <div className="content-wide mx-auto py-10 md:py-16 px-6 md:px-10 transition-colors duration-200">
       {/* Header */}
       <header className="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
-          <p className="text-[9px] font-black text-[var(--text-primary)] opacity-30 uppercase tracking-[0.4em] mb-2 italic">
+          <p className="text-[9px] font-black text-[var(--text-tertiary)] uppercase tracking-[0.4em] mb-2 italic">
             Calendário
           </p>
           <h1 className="text-4xl md:text-5xl font-black text-[var(--text-primary)] tracking-tight leading-none">
@@ -286,7 +286,7 @@ export function Harvest() {
           {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(d => (
             <div
               key={d}
-              className="py-5 text-center text-[10px] font-black uppercase tracking-[0.3em] text-[var(--text-tertiary)] opacity-60 italic"
+              className="py-5 text-center text-[10px] font-black uppercase tracking-[0.3em] text-[var(--text-tertiary)] italic"
             >
               {d}
             </div>
@@ -328,7 +328,7 @@ export function Harvest() {
                     {format(day, 'd')}
                   </span>
                   {items.length > 2 && (
-                    <span className="text-[8px] font-black text-[var(--text-primary)] opacity-30">
+                    <span className="text-[8px] font-black text-[var(--text-tertiary)]">
                       +{items.length}
                     </span>
                   )}
@@ -346,7 +346,7 @@ export function Harvest() {
                       />
                     ))}
                     {items.length > 4 && (
-                      <span className="text-[7px] font-black text-[var(--text-primary)] opacity-40">+{items.length - 4}</span>
+                      <span className="text-[7px] font-black text-[var(--text-tertiary)]">+{items.length - 4}</span>
                     )}
                   </div>
                   {/* Desktop: full labels */}
@@ -365,7 +365,7 @@ export function Harvest() {
                       </div>
                     ))}
                     {items.length > 3 && (
-                      <p className="text-[8px] font-black text-[var(--text-primary)] opacity-30 pl-1">
+                      <p className="text-[8px] font-black text-[var(--text-tertiary)] pl-1">
                         +{items.length - 3} mais
                       </p>
                     )}
@@ -399,7 +399,7 @@ export function Harvest() {
       {/* Lista de compromissos */}
       {state.agenda.length > 0 && (
         <section className="mt-10">
-          <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-[var(--text-primary)] opacity-30 mb-4 italic">
+          <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-[var(--text-tertiary)] mb-4 italic">
             Compromissos cadastrados
           </h2>
           <div className="space-y-2">
@@ -423,7 +423,7 @@ export function Harvest() {
                     {item.type}
                   </span>
                   <p className="flex-1 text-sm font-bold text-[var(--text-primary)] line-clamp-2 leading-snug">{item.title}</p>
-                  <span className="text-[10px] text-[var(--text-primary)] opacity-30 font-bold shrink-0">
+                  <span className="text-[10px] text-[var(--text-tertiary)] font-bold shrink-0">
                     {format(new Date(item.date + 'T12:00:00'), "dd 'de' MMM", { locale: ptBR })}
                   </span>
                   <Trash2
@@ -467,7 +467,7 @@ export function Harvest() {
               {/* Header do painel */}
               <div className="p-6 border-b border-[var(--border-color)] bg-[var(--bg-secondary)] flex items-center justify-between shrink-0">
                 <div>
-                  <p className="text-[9px] font-black uppercase tracking-[0.3em] text-[var(--text-primary)] opacity-40">
+                  <p className="text-[9px] font-black uppercase tracking-[0.3em] text-[var(--text-tertiary)]">
                     {format(selectedDay, "EEEE", { locale: ptBR })}
                   </p>
                   <h2 className="text-xl font-black text-[var(--text-primary)] capitalize">
@@ -489,7 +489,7 @@ export function Harvest() {
                     onClick={() => setSelectedDay(null)}
                     className="p-2 hover:bg-[var(--bg-hover)] rounded-full transition-colors"
                   >
-                    <X className="w-5 h-5 text-[var(--text-primary)] opacity-40" />
+                    <X className="w-5 h-5 text-[var(--text-tertiary)]" />
                   </button>
                 </div>
               </div>
@@ -528,7 +528,7 @@ export function Harvest() {
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-bold text-[var(--text-primary)] line-clamp-2 leading-snug">{item.titulo}</p>
                           {item.subtitulo && (
-                            <p className="text-[10px] text-[var(--text-secondary)] opacity-60 mt-0.5">{item.subtitulo}</p>
+                            <p className="text-[10px] text-[var(--text-secondary)] mt-0.5">{item.subtitulo}</p>
                           )}
                         </div>
                         <span
@@ -587,7 +587,7 @@ export function Harvest() {
                 </span>
               </div>
               <button onClick={() => setSelectedItem(null)} className="p-2 hover:bg-[var(--bg-hover)] rounded-full">
-                <X className="w-5 h-5 text-[var(--text-primary)] opacity-40" />
+                <X className="w-5 h-5 text-[var(--text-tertiary)]" />
               </button>
             </div>
 
@@ -596,13 +596,13 @@ export function Harvest() {
             <div className="space-y-3 text-sm">
               {selectedItem.raw.status && (
                 <div className="flex items-center justify-between py-2 border-b border-[var(--border-color)]">
-                  <span className="text-[var(--text-primary)] opacity-40 font-bold text-xs uppercase tracking-widest">Status</span>
+                  <span className="text-[var(--text-tertiary)] font-bold text-xs uppercase tracking-widest">Status</span>
                   <span className="font-bold text-[var(--text-primary)]">{selectedItem.raw.status}</span>
                 </div>
               )}
               {selectedItem.raw.deadline && (
                 <div className="flex items-center justify-between py-2 border-b border-[var(--border-color)]">
-                  <span className="text-[var(--text-primary)] opacity-40 font-bold text-xs uppercase tracking-widest">Deadline</span>
+                  <span className="text-[var(--text-tertiary)] font-bold text-xs uppercase tracking-widest">Deadline</span>
                   <span className="font-bold text-[var(--text-primary)]">
                     {format(new Date(selectedItem.raw.deadline + 'T12:00:00'), "dd 'de' MMMM", { locale: ptBR })}
                   </span>
@@ -610,13 +610,13 @@ export function Harvest() {
               )}
               {selectedItem.raw.value && (
                 <div className="flex items-center justify-between py-2 border-b border-[var(--border-color)]">
-                  <span className="text-[var(--text-primary)] opacity-40 font-bold text-xs uppercase tracking-widest">Valor</span>
+                  <span className="text-[var(--text-tertiary)] font-bold text-xs uppercase tracking-widest">Valor</span>
                   <span className="font-bold text-[var(--text-primary)]">R$ {selectedItem.raw.value.toLocaleString('pt-BR')}</span>
                 </div>
               )}
               {selectedItem.raw.notes && (
                 <div className="py-2">
-                  <span className="text-[var(--text-primary)] opacity-40 font-bold text-xs uppercase tracking-widest block mb-2">Notas</span>
+                  <span className="text-[var(--text-tertiary)] font-bold text-xs uppercase tracking-widest block mb-2">Notas</span>
                   <p className="text-sm text-[var(--text-primary)] opacity-70 leading-relaxed">{selectedItem.raw.notes}</p>
                 </div>
               )}
@@ -647,14 +647,14 @@ export function Harvest() {
                 {selectedItem.raw.type}
               </span>
               <button onClick={() => setSelectedItem(null)} className="p-2 hover:bg-[var(--bg-hover)] rounded-full">
-                <X className="w-5 h-5 text-[var(--text-primary)] opacity-40" />
+                <X className="w-5 h-5 text-[var(--text-tertiary)]" />
               </button>
             </div>
 
             <h2 className="text-2xl font-black text-[var(--text-primary)] mb-6">{selectedItem.titulo}</h2>
 
             <div className="py-3 border-b border-[var(--border-color)] flex items-center justify-between">
-              <span className="text-[var(--text-primary)] opacity-40 font-bold text-xs uppercase tracking-widest">Data</span>
+              <span className="text-[var(--text-tertiary)] font-bold text-xs uppercase tracking-widest">Data</span>
               <span className="font-bold text-[var(--text-primary)] text-sm">
                 {format(new Date(selectedItem.raw.date + 'T12:00:00'), "EEEE, d 'de' MMMM", { locale: ptBR })}
               </span>
@@ -662,7 +662,7 @@ export function Harvest() {
 
             {selectedItem.raw.slotType && (
               <div className="py-3 border-b border-[var(--border-color)] flex items-center justify-between">
-                <span className="text-[var(--text-primary)] opacity-40 font-bold text-xs uppercase tracking-widest">Slot</span>
+                <span className="text-[var(--text-tertiary)] font-bold text-xs uppercase tracking-widest">Slot</span>
                 <span className="font-bold text-[var(--text-primary)] text-sm">{selectedItem.raw.slotType}</span>
               </div>
             )}
@@ -688,13 +688,13 @@ export function Harvest() {
         <div className="flex items-center justify-between p-5 md:p-6 border-b border-[var(--border-color)] shrink-0">
           <h2 className="text-lg font-black text-[var(--text-primary)]">Novo Compromisso</h2>
           <button onClick={() => setFormAberto(false)} className="p-2 hover:bg-[var(--bg-hover)] rounded-full">
-            <X className="w-5 h-5 text-[var(--text-primary)] opacity-40" />
+            <X className="w-5 h-5 text-[var(--text-tertiary)]" />
           </button>
         </div>
 
         <form onSubmit={handleAddAgenda} className="p-5 md:p-6 space-y-5 flex-1 overflow-y-auto">
           <div>
-            <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-primary)] opacity-40 block mb-1.5">
+            <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1.5">
               O que é?
             </label>
             <input
@@ -708,7 +708,7 @@ export function Harvest() {
           </div>
 
           <div>
-            <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-primary)] opacity-40 block mb-1.5">
+            <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1.5">
               Quando?
             </label>
             <input
@@ -720,7 +720,7 @@ export function Harvest() {
           </div>
 
           <div>
-            <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-primary)] opacity-40 block mb-2">
+            <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-2">
               Categoria
             </label>
             <div className="grid grid-cols-3 gap-2">

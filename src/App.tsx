@@ -11,7 +11,6 @@ import { Ideas } from './pages/Ideas';
 import { SeriesDetail } from './pages/Series';
 import { Arquivos } from './pages/Arquivos';
 import { Results } from './pages/Results';
-import { ProjectCalendar } from './pages/ProjectCalendar';
 import { EditorialCalendar } from './pages/EditorialCalendar';
 import { Biblioteca } from './pages/Biblioteca';
 import { BookDetail } from './pages/BookDetail';
@@ -96,7 +95,7 @@ function AppContent() {
           <Route path="/arquivos" element={<Arquivos />} />
           <Route path="/series/:id" element={<SeriesDetail />} />
           <Route path="/results" element={<Results />} />
-          <Route path="/calendar" element={<ProjectCalendar />} />
+          <Route path="/calendar" element={<Navigate to="/editorial" replace />} />
           <Route path="/editorial" element={<EditorialCalendar />} />
           {/* Biblioteca */}
           <Route path="/biblioteca" element={<Biblioteca />} />

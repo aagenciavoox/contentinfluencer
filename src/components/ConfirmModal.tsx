@@ -31,7 +31,7 @@ export function ConfirmModal({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.93, y: 8 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[88%] max-w-xs bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-3xl shadow-2xl p-6"
+            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[88%] max-w-xs bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl shadow-2xl p-6"
           >
             <p className="text-sm font-medium text-[var(--text-primary)] leading-relaxed mb-6 opacity-80">
               {message}

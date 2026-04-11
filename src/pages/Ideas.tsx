@@ -100,19 +100,19 @@ export function Ideas() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto py-10 md:py-16 px-6 md:px-10 transition-colors duration-200">
+    <div className="content-wide mx-auto py-10 md:py-16 px-6 md:px-10">
       <PageGuide 
         pageId="ideas"
         title="O Berçário de Insights"
         description="Capture tudo o que vier à cabeça aqui. Não se preocupe com a perfeição. Quando uma ideia amadurecer, use o botão 'Promover' para transformá-la em um roteiro no inventário."
         icon={Lightbulb}
       />
-      <header className="mb-12 md:mb-16 max-w-3xl">
-        <h1 className="text-4xl md:text-5xl font-black text-[var(--text-primary)] mb-6 tracking-tight italic">Caixa de Ideias</h1>
-        <p className="text-base text-[var(--text-tertiary)] font-medium">Capture tudo, sem julgamento. Promova quando estiver pronto.</p>
+      <header className="mb-12 md:mb-16 content-narrow">
+        <h1 className="text-4xl font-black text-[var(--text-primary)] tracking-tight italic mb-2">Caixa de Ideias</h1>
+        <p className="text-sm text-[var(--text-secondary)] font-medium">Capture tudo, sem julgamento. Promova quando estiver pronto.</p>
       </header>
 
-      <form onSubmit={handleAddIdea} className="mb-16 md:mb-24 p-8 bg-[var(--bg-secondary)] rounded-3xl border border-[var(--border-color)] shadow-xl max-w-3xl group focus-within:border-[var(--accent-blue)] transition-all">
+      <form onSubmit={handleAddIdea} className="mb-16 md:mb-24 p-8 bg-[var(--bg-secondary)] rounded-2xl border border-[var(--border-color)] elevation-1 content-narrow group focus-within:border-[var(--accent-blue)] transition-all">
         <textarea
           value={newIdeaText}
           onChange={(e) => setNewIdeaText(e.target.value)}
@@ -168,7 +168,7 @@ export function Ideas() {
               setIsEditing(false);
             }}
             className={cn(
-              "group p-6 md:p-8 rounded-3xl border transition-all overflow-hidden break-words cursor-pointer flex flex-col h-full relative",
+              "group p-6 md:p-8 rounded-2xl border transition-all overflow-hidden break-words cursor-pointer flex flex-col h-full relative",
               idea.archived 
                 ? "bg-[var(--bg-hover)]/30 border-transparent opacity-50 grayscale" 
                 : "bg-[var(--bg-secondary)] border-[var(--border-color)] hover:border-[var(--border-strong)] hover:shadow-2xl hover:-translate-y-1 shadow-sm"
