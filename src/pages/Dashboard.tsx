@@ -16,9 +16,8 @@ import { cn } from '../lib/utils';
 import { generateUUID } from '../utils/uuid';
 import { Idea, Book, Content } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
-import { BookNotesModal } from '../components/BookNotesModal';
-import { PageGuide } from '../components/PageGuide';
 import { ContentDetailModal } from '../components/ContentDetailModal';
+import { PageHeader } from '../components/PageHeader';
 
 const PIPELINE_STATUSES = ['Pronto para Gravar', 'Gravado', 'A Editar', 'Editado', 'Programado'] as const;
 
@@ -33,7 +32,7 @@ const STATUS_CONFIG: Record<string, { label: string; cssVar: string }> = {
 function SectionLabel({ label, action }: { label: string; action?: React.ReactNode }) {
   return (
     <div className="flex items-center gap-3 mb-4">
-      <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-tertiary)] opacity-50 shrink-0">
+      <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-tertiary)] shrink-0">
         {label}
       </span>
       <div className="flex-1 h-px bg-[var(--border-color)]" />
@@ -167,21 +166,15 @@ export function Dashboard() {
         icon={LayoutDashboard}
       />
 
-      {/* ── HEADER ──────────────────────────────────────────────────── */}
-      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-4xl font-black text-[var(--text-primary)] tracking-tight italic">
-            Command Center
-          </h1>
-          <p className="mt-1 text-sm text-[var(--text-secondary)] font-medium uppercase tracking-widest">
-            {format(today, "EEEE, d 'de' MMMM", { locale: ptBR })}
-          </p>
-        </div>
+      <PageHeader 
+        title="Command Center" 
+        subtitle={format(today, "EEEE, d 'de' MMMM", { locale: ptBR })}
+      />
 
         {/* Energy log */}
         <div className="flex items-center gap-3 bg-[var(--bg-secondary)] px-4 py-3 rounded-2xl border border-[var(--border-color)] self-start sm:self-auto">
-          <Zap className={cn("w-4 h-4 shrink-0", currentEnergy > 0 ? "text-orange-400" : "opacity-30")} />
-          <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-tertiary)] hidden sm:block">Energia</span>
+          <Zap className={cn("w-4 h-4 shrink-0", currentEnergy > 0 ? "text-orange-400" : "text-[var(--text-tertiary)]")} />
+          <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-tertiary)] hidden sm:block">Energia</span>
           <div className="flex gap-1.5">
             {[1, 2, 3, 4, 5].map(level => (
               <button
@@ -190,7 +183,7 @@ export function Dashboard() {
                 className={cn(
                   "w-7 h-7 rounded-lg text-[10px] font-black transition-all",
                   currentEnergy === level
-                    ? 'bg-[var(--text-primary)] text-[var(--bg-primary)] shadow-lg scale-110'
+                    ? 'bg-[var(--text-primary)] text-[var(--bg-primary)] shadow-lg'
                     : 'bg-[var(--bg-hover)] text-[var(--text-tertiary)] hover:bg-[var(--border-strong)]'
                 )}
               >
@@ -208,7 +201,7 @@ export function Dashboard() {
           <h2 className="text-[11px] font-black uppercase tracking-[0.2em] text-[var(--text-secondary)]">Hoje</h2>
           {hasAnythingToday && (
             <span className="text-[9px] font-black uppercase tracking-widest bg-[var(--accent-green)]/10 text-[var(--accent-green)] px-2 py-0.5 rounded-full">
-              {todayRecordings.length + todayPublications.length} tarefa{todayRecordings.length + todayPublications.length !== 1 ? 's' : ''}
+              {todayRecordings.length + todayPublications.length}
             </span>
           )}
         </div>
@@ -255,7 +248,7 @@ export function Dashboard() {
                   <p className="text-sm font-black text-[var(--text-primary)] mb-1">Nenhuma tarefa agendada para hoje</p>
                   <p className="text-[11px] text-[var(--text-tertiary)]">Defina sua energia e planeje gravações ou publicações pelo calendário.</p>
                 </div>
-                <Link to="/calendar" className="shrink-0 px-5 py-2.5 bg-[var(--text-primary)] text-[var(--bg-primary)] rounded-xl text-[10px] font-black uppercase tracking-widest hover:opacity-80 transition-all">
+                <Link to="/calendar" className="shrink-0 px-5 py-2.5 bg-[var(--text-primary)] text-[var(--bg-primary)] rounded-xl text-[10px] font-black uppercase tracking-widest hover-action">
                   Planejar
                 </Link>
               </div>
@@ -273,7 +266,7 @@ export function Dashboard() {
               <button
                 key={`${type}-${c.id}`}
                 onClick={() => setSelectedContent(c)}
-                className="w-full flex items-center gap-4 p-4 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-color)] hover:border-[var(--border-strong)] transition-all group text-left"
+                className="w-full flex items-center gap-4 p-4 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-color)] hover-card transition-all group text-left"
               >
                 <div className={cn(
                   "w-8 h-8 rounded-xl flex items-center justify-center shrink-0",
@@ -338,7 +331,7 @@ export function Dashboard() {
                     </button>
                   ))}
                   {overduePublications.length > 3 && (
-                    <Link to="/contents" className="text-[9px] font-black text-[var(--accent-pink)] opacity-60 hover:opacity-100">
+                    <Link to="/contents" className="text-[9px] font-black text-[var(--accent-pink)] opacity-80 hover:opacity-100">
                       + {overduePublications.length - 3} mais
                     </Link>
                   )}
@@ -381,7 +374,7 @@ export function Dashboard() {
         <SectionLabel
           label="Pipeline"
           action={
-            <Link to="/contents" className="text-[9px] font-black uppercase tracking-widest text-[var(--accent-blue)] opacity-60 hover:opacity-100 flex items-center gap-1 transition-opacity shrink-0">
+            <Link to="/contents" className="text-[9px] font-black uppercase tracking-widest text-[var(--accent-blue)] flex items-center gap-1 transition-opacity shrink-0">
               Ver inventário <ArrowRight className="w-3 h-3" />
             </Link>
           }
@@ -441,7 +434,7 @@ export function Dashboard() {
         <div className="md:col-span-1 bg-[var(--bg-secondary)] rounded-2xl border border-[var(--border-color)] overflow-hidden">
           <button
             onClick={() => setIsCaptureOpen(v => !v)}
-            className="w-full flex items-center justify-between px-5 py-4 hover:bg-[var(--bg-hover)] transition-colors"
+            className="w-full flex items-center justify-between px-5 py-4 hover-card transition-colors"
           >
             <div className="flex items-center gap-3">
               <Plus className="w-4 h-4 text-[var(--text-secondary)]" />
@@ -488,11 +481,11 @@ export function Dashboard() {
                     </AnimatePresence>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-[9px] text-[var(--text-tertiary)] opacity-40">⌘ + Enter para salvar</span>
+                    <span className="text-[9px] text-[var(--text-tertiary)] italic">⌘ + Enter para salvar</span>
                     <button
                       type="submit"
                       disabled={!quickInput.trim()}
-                      className="px-5 py-2 bg-[var(--text-primary)] text-[var(--bg-primary)] rounded-xl text-[10px] font-black uppercase tracking-widest disabled:opacity-20 transition-all hover:opacity-80 active:scale-95"
+                      className="px-5 py-2 bg-[var(--text-primary)] text-[var(--bg-primary)] rounded-xl text-[10px] font-black uppercase tracking-widest disabled:opacity-20 transition-all hover-action"
                     >
                       Salvar
                     </button>
@@ -540,10 +533,10 @@ export function Dashboard() {
         <div className="bg-[var(--bg-secondary)] rounded-2xl border border-[var(--border-color)] p-5 flex flex-col gap-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <BookOpen className="w-4 h-4 text-[var(--accent-purple)] opacity-70" />
+              <BookOpen className="w-4 h-4 text-[var(--accent-purple)]" />
               <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-tertiary)]">Lendo agora</span>
             </div>
-            <Link to="/biblioteca" className="text-[9px] font-black uppercase tracking-widest text-[var(--accent-purple)] opacity-60 hover:opacity-100 transition-opacity">
+            <Link to="/biblioteca" className="text-[9px] font-black uppercase tracking-widest text-[var(--accent-purple)] flex items-center transition-opacity">
               Biblioteca
             </Link>
           </div>
@@ -622,7 +615,7 @@ function TodayCard({
     <button
       onClick={onClick}
       className={cn(
-        "w-full text-left rounded-2xl border overflow-hidden hover:scale-[1.02] active:scale-[0.98] transition-all group shadow-sm",
+        "w-full text-left rounded-2xl border overflow-hidden transition-all group elevation-1",
         isRec ? 'border-orange-500/20 bg-orange-500/5' : 'border-blue-500/20 bg-blue-500/5'
       )}
     >

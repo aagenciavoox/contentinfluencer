@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
-import { FileText, Edit3, Trash2, Layers, Radio, MessageSquare, Settings2, Check, ChevronRight, Hash, Clapperboard } from 'lucide-react';
+import { FileText, Edit3, Trash2, Layers, Radio, MessageSquare, Settings2, Check, ChevronRight, Hash, Clapperboard, Plus } from 'lucide-react';
+import { PageHeader } from '../components/PageHeader';
 import { format } from 'date-fns';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
@@ -85,80 +86,12 @@ export function SeriesDetail() {
     : PLATFORMS;
 
   return (
-    <div className="max-w-5xl mx-auto py-10 md:py-14 px-6 md:px-10">
-
-      {/* ── HEADER ── */}
-      <motion.div initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }} className="mb-10">
-        {/* breadcrumb */}
-        <div className="flex items-center gap-2 mb-5 text-[var(--text-tertiary)] opacity-40">
-          <span className="text-[9px] font-black uppercase tracking-[0.4em]">Séries</span>
-          <ChevronRight className="w-3 h-3" />
-          <span className="text-[9px] font-black uppercase tracking-[0.4em]">{series.name}</span>
-        </div>
-
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-5">
-          {/* Nome */}
-          <div className="flex items-center gap-4 flex-wrap">
-            <div
-              className="w-3.5 h-3.5 rounded-full shrink-0"
-              style={{ backgroundColor: series.cor || 'var(--text-primary)' }}
-            />
-            {editingName ? (
-              <div className="flex items-center gap-2">
-                <input
-                  autoFocus
-                  value={nameValue}
-                  onChange={e => setNameValue(e.target.value)}
-                  onKeyDown={e => { if (e.key === 'Enter') handleNameSave(); if (e.key === 'Escape') setEditingName(false); }}
-                  className="text-2xl md:text-4xl font-black text-[var(--text-primary)] bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl px-4 py-2 focus:ring-0 tracking-tight uppercase italic"
-                />
-                <button onClick={handleNameSave} className="p-2 bg-[var(--accent-green)]/10 hover:bg-[var(--accent-green)]/20 rounded-xl">
-                  <Check className="w-4 h-4 text-[var(--accent-green)]" />
-                </button>
-              </div>
-            ) : (
-              <button onClick={() => { setNameValue(series.name); setEditingName(true); }} className="group flex items-center gap-3">
-                <h1 className="text-2xl md:text-4xl font-black text-[var(--text-primary)] tracking-tight italic uppercase">{series.name}</h1>
-                <Edit3 className="w-4 h-4 opacity-0 group-hover:opacity-30 transition-opacity" />
-              </button>
-            )}
-            <button
-              onClick={() => update({ ativa: !(series.ativa ?? true) })}
-              className={cn(
-                "px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border transition-all",
-                (series.ativa ?? true)
-                  ? 'bg-[var(--accent-green)]/10 text-[var(--accent-green)] border-[var(--accent-green)]/20'
-                  : 'bg-[var(--bg-hover)] text-[var(--text-tertiary)] border-[var(--border-color)] opacity-50'
-              )}
-            >
-              {(series.ativa ?? true) ? 'Ativa' : 'Pausada'}
-            </button>
-          </div>
-
-          <button
-            onClick={handleDelete}
-            className="self-start md:self-auto flex items-center gap-2 px-4 py-2.5 bg-[var(--accent-pink)]/5 hover:bg-[var(--accent-pink)]/10 text-[var(--accent-pink)] border border-[var(--accent-pink)]/10 hover:border-[var(--accent-pink)]/30 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-            Excluir
-          </button>
-        </div>
-
-        {/* Stats */}
-        <div className="mt-6 flex flex-wrap gap-2">
-          {[
-            { label: 'Conteúdos', value: seriesContents.length },
-            { label: 'Postados', value: postados, accent: 'text-[var(--accent-green)]' },
-            { label: 'Em Produção', value: emProd, accent: 'text-[var(--accent-orange)]' },
-            series.frequenciaRecomendada && { label: 'Frequência', value: series.frequenciaRecomendada },
-          ].filter(Boolean).map((s: any) => (
-            <div key={s.label} className="flex items-center gap-2 px-3 py-1.5 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl">
-              <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-tertiary)]">{s.label}</span>
-              <span className={cn("text-xs font-black", s.accent || 'text-[var(--text-primary)]')}>{s.value}</span>
-            </div>
-          ))}
-        </div>
-      </motion.div>
+    <div className="content-narrow mx-auto py-10 md:py-14 px-6 md:px-10">
+      <PageHeader 
+        title={series.name} 
+        subtitle="Série de Conteúdos"
+        className="mb-10"
+      />
 
       {/* ── ABAS ── */}
       <div className="flex gap-1 mb-8 p-1 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl w-fit">
@@ -210,7 +143,7 @@ export function SeriesDetail() {
               >
                 {/* ícone roteiro */}
                 <div className="shrink-0 w-8 h-8 rounded-xl bg-[var(--bg-hover)] flex items-center justify-center">
-                  <FileText className="w-4 h-4 text-[var(--text-primary)] opacity-30 group-hover:opacity-60 transition-opacity" />
+                  <FileText className="w-4 h-4 text-[var(--text-tertiary)] group-hover:text-[var(--text-primary)] transition-all" />
                 </div>
 
                 {/* info */}
@@ -218,15 +151,15 @@ export function SeriesDetail() {
                   <p className="text-sm font-black text-[var(--text-primary)] truncate uppercase italic">{content.title || 'Sem título'}</p>
                   <div className="flex items-center gap-3 mt-0.5">
                     {content.pillar && (
-                      <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-tertiary)] opacity-50">{content.pillar}</span>
+                      <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-tertiary)]">{content.pillar}</span>
                     )}
                     {content.plataformas?.length ? (
                       <span className="text-[9px] text-[var(--text-tertiary)] opacity-35">{content.plataformas.join(' · ')}</span>
                     ) : null}
                     {content.script ? (
-                      <span className="text-[9px] text-[var(--accent-green)] opacity-70 font-black uppercase tracking-widest">Com roteiro</span>
+                      <span className="text-[9px] text-[var(--accent-green)] font-black uppercase tracking-widest">Com roteiro</span>
                     ) : (
-                      <span className="text-[9px] text-[var(--text-tertiary)] opacity-25 italic">Sem roteiro</span>
+                      <span className="text-[9px] text-[var(--text-tertiary)] italic">Sem roteiro</span>
                     )}
                   </div>
                 </div>
@@ -377,8 +310,8 @@ export function SeriesDetail() {
                           className={cn(
                             "px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest border transition-all",
                             series.frequenciaRecomendada === f
-                              ? 'bg-[var(--text-primary)] text-[var(--bg-primary)] border-[var(--text-primary)]'
-                              : 'border-[var(--border-color)] opacity-40 hover:opacity-100'
+                              ? 'bg-[var(--bg-primary)] text-[var(--text-primary)] shadow-sm'
+                              : 'text-[var(--text-secondary)] italic hover:bg-[var(--bg-primary)]/50'
                           )}
                         >{f}</button>
                       ))}

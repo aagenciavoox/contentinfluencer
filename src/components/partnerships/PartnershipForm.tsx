@@ -29,7 +29,7 @@ export function PartnershipForm({ initialData, onSave, onClose, onDelete }: Part
       <div className="p-6 md:p-8 border-b border-[var(--border-color)] flex flex-col md:flex-row items-center justify-between bg-[var(--bg-secondary)] shrink-0 gap-6">
           <div className="flex items-center gap-2">
             <button onClick={onClose} className="p-3 hover:bg-[var(--bg-hover)] rounded-full transition-all">
-              <X className="w-6 h-6 text-[var(--text-primary)] opacity-40 hover:opacity-100" />
+              <X className="w-6 h-6 text-[var(--text-tertiary)] hover:text-[var(--text-primary)]" />
             </button>
           </div>
         <div className="flex items-center gap-4 px-4 py-3 bg-[var(--bg-hover)] w-full md:flex-1 md:ml-6 rounded-2xl border border-[var(--border-color)] shadow-sm">
@@ -55,14 +55,14 @@ export function PartnershipForm({ initialData, onSave, onClose, onDelete }: Part
             value={data.title}
             onChange={(e) => update({ title: e.target.value })}
             rows={2}
-            className="text-4xl font-black text-[var(--text-primary)] bg-transparent border-none focus:ring-0 p-0 w-full mb-8 resize-none leading-tight tracking-tight placeholder:opacity-10"
+            className="text-4xl font-black text-[var(--text-primary)] bg-transparent border-none focus:ring-0 p-0 w-full mb-8 resize-none leading-tight tracking-tight placeholder:text-[var(--text-primary)]/10"
             placeholder="Título do Projeto..."
           />
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 bg-[var(--bg-secondary)] p-6 md:p-10 rounded-[2.5rem] border border-[var(--border-color)] shadow-inner">
             {/* Status */}
             <div className="space-y-2">
-              <label className="text-[10px] font-black text-[var(--text-tertiary)] uppercase tracking-[0.2em] ml-1 opacity-60">Fase do Projeto</label>
+              <label className="text-[10px] font-black text-[var(--text-tertiary)] uppercase tracking-[0.2em] ml-1">Fase do Projeto</label>
               <select 
                 value={data.status}
                 onChange={(e) => update({ status: e.target.value as PartnershipStatus })}
@@ -74,7 +74,7 @@ export function PartnershipForm({ initialData, onSave, onClose, onDelete }: Part
 
             {/* Identidade Visual */}
             <div className="space-y-2">
-              <label className="text-[10px] font-black text-[var(--text-tertiary)] uppercase tracking-[0.2em] ml-1 opacity-60">Cor Identidade (Marca Global)</label>
+              <label className="text-[10px] font-black text-[var(--text-tertiary)] uppercase tracking-[0.2em] ml-1">Cor Identidade (Marca Global)</label>
               <div className="flex items-center gap-4 bg-[var(--bg-hover)] rounded-2xl px-5 py-3 border border-[var(--border-color)] shadow-sm">
                 <input 
                   type="color" 
@@ -90,7 +90,7 @@ export function PartnershipForm({ initialData, onSave, onClose, onDelete }: Part
             <div className="md:col-span-2 space-y-3">
               <div className="flex items-center gap-2">
                 <CalendarRange className="w-4 h-4 text-[var(--text-tertiary)]" />
-                <label className="text-[10px] font-black text-[var(--text-tertiary)] uppercase tracking-[0.2em] opacity-60">
+                <label className="text-[10px] font-black text-[var(--text-tertiary)] uppercase tracking-[0.2em]">
                   Período do Evento
                 </label>
                 {durationDays !== null && durationDays > 0 && (
@@ -101,7 +101,7 @@ export function PartnershipForm({ initialData, onSave, onClose, onDelete }: Part
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <label className="text-[9px] font-black text-[var(--text-tertiary)] uppercase tracking-widest ml-1 opacity-50">Início</label>
+                  <label className="text-[9px] font-black text-[var(--text-tertiary)] uppercase tracking-widest ml-1">Início</label>
                   <input 
                     type="date"
                     value={data.startDate || ''}
@@ -115,7 +115,7 @@ export function PartnershipForm({ initialData, onSave, onClose, onDelete }: Part
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-[9px] font-black text-[var(--text-tertiary)] uppercase tracking-widest ml-1 opacity-50">Fim / Prazo</label>
+                  <label className="text-[9px] font-black text-[var(--text-tertiary)] uppercase tracking-widest ml-1">Fim / Prazo</label>
                   <input 
                     type="date"
                     value={data.deadline || ''}
@@ -126,7 +126,7 @@ export function PartnershipForm({ initialData, onSave, onClose, onDelete }: Part
                 </div>
               </div>
               {durationDays !== null && durationDays > 1 && (
-                <p className="text-[9px] text-[var(--text-tertiary)] opacity-60 font-bold uppercase tracking-widest px-1">
+                <p className="text-[9px] text-[var(--text-tertiary)] font-bold uppercase tracking-widest px-1">
                   ↳ O evento aparecerá em todos os {durationDays} dias no calendário
                 </p>
               )}
@@ -134,7 +134,7 @@ export function PartnershipForm({ initialData, onSave, onClose, onDelete }: Part
 
             {/* Link */}
             <div className="space-y-2 md:col-span-2">
-               <label className="text-[10px] font-black text-[var(--text-tertiary)] uppercase tracking-[0.2em] ml-1 opacity-60">Link / Referência</label>
+               <label className="text-[10px] font-black text-[var(--text-tertiary)] uppercase tracking-[0.2em] ml-1">Link / Referência</label>
                <input 
                  type="text" 
                  value={data.link || ''}
@@ -158,7 +158,7 @@ export function PartnershipForm({ initialData, onSave, onClose, onDelete }: Part
               <textarea 
                 value={data.script || ''}
                 onChange={(e) => update({ script: e.target.value })}
-                className="w-full min-h-[300px] text-base text-[var(--text-primary)] bg-transparent border border-[var(--border-color)] rounded-[2rem] focus:ring-2 focus:ring-[var(--accent-blue)] p-8 resize-none placeholder:italic placeholder:opacity-20 custom-scrollbar leading-relaxed font-medium"
+                className="w-full min-h-[300px] text-base text-[var(--text-primary)] bg-transparent border border-[var(--border-color)] rounded-[2rem] focus:ring-2 focus:ring-[var(--accent-blue)] p-8 resize-none placeholder:italic placeholder:text-[var(--text-tertiary)] custom-scrollbar leading-relaxed font-medium"
                 placeholder="Desenvolva o roteiro do vídeo ou anotações..."
               />
             </section>
@@ -174,7 +174,7 @@ export function PartnershipForm({ initialData, onSave, onClose, onDelete }: Part
             <textarea 
               value={data.notes || ''}
               onChange={(e) => update({ notes: e.target.value })}
-              className="w-full min-h-[150px] text-base text-[var(--text-primary)] bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-[2rem] focus:ring-0 p-8 resize-none placeholder:italic placeholder:opacity-20 custom-scrollbar leading-relaxed font-medium shadow-inner"
+              className="w-full min-h-[150px] text-base text-[var(--text-primary)] bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-[2rem] focus:ring-0 p-8 resize-none placeholder:italic placeholder:text-[var(--text-tertiary)] custom-scrollbar leading-relaxed font-medium shadow-inner"
               placeholder="Lembretes internos..."
             />
           </section>
@@ -219,7 +219,7 @@ export function PartnershipForm({ initialData, onSave, onClose, onDelete }: Part
               </button>
             </div>
             {data.status === 'Finalizado' && (
-              <p className="mt-4 text-[9px] text-emerald-600 font-bold uppercase tracking-widest text-center opacity-60">
+              <p className="mt-4 text-[9px] text-emerald-600 font-bold uppercase tracking-widest text-center">
                 ↳ Este evento está na aba de "Encerrados"
               </p>
             )}
@@ -234,13 +234,13 @@ export function PartnershipForm({ initialData, onSave, onClose, onDelete }: Part
                alert('Marca e Título são obrigatórios.');
                return;
             }
-            onSave(data);
-          }}
-          className="w-full flex items-center justify-center gap-2 px-6 py-5 bg-[var(--text-primary)] text-[var(--bg-primary)] text-xs font-black uppercase tracking-widest rounded-2xl hover:scale-[1.01] active:scale-[0.99] transition-all shadow-lg"
-        >
-          <CheckCircle2 className="w-4 h-4" />
-          Salvar este Evento
-        </button>
+          onSave(data);
+        }}
+        className="w-full flex items-center justify-center gap-2 px-6 py-5 bg-[var(--text-primary)] text-[var(--bg-primary)] text-xs font-black uppercase tracking-widest rounded-2xl transition-all shadow-lg hover-action"
+      >
+        <CheckCircle2 className="w-4 h-4" />
+        Salvar este Evento
+      </button>
 
         <div className="grid grid-cols-2 gap-3">
           <button
@@ -266,7 +266,7 @@ export function PartnershipForm({ initialData, onSave, onClose, onDelete }: Part
 
         <button
           onClick={onClose}
-          className="w-full py-4 text-[10px] font-black uppercase tracking-widest text-[var(--text-tertiary)] opacity-40 hover:opacity-100 transition-all"
+          className="w-full py-4 text-[10px] font-black uppercase tracking-widest text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-all"
         >
           Cancelar / Fechar
         </button>

@@ -250,8 +250,8 @@ export function EditorialCalendar() {
                 className={cn(
                   'flex items-center gap-2 px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all',
                   activeTab === t.id
-                    ? 'bg-[var(--text-primary)] text-[var(--bg-primary)] shadow-md'
-                    : 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'
+                    ? 'bg-[var(--bg-primary)] text-[var(--text-primary)] shadow-sm'
+                    : 'text-[var(--text-secondary)] italic hover:bg-[var(--bg-primary)]/50'
                 )}
               >
                 <t.icon className="w-3.5 h-3.5" />
@@ -263,7 +263,7 @@ export function EditorialCalendar() {
           {activeTab === 'agenda' && (
             <button
               onClick={() => setIsAddAgendaOpen(true)}
-              className="flex items-center gap-2 bg-[var(--text-primary)] text-[var(--bg-primary)] px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-md"
+              className="flex items-center gap-2 bg-[var(--text-primary)] text-[var(--bg-primary)] px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-md hover-action"
             >
               <Plus className="w-3.5 h-3.5" />
               Novo Evento
@@ -273,7 +273,7 @@ export function EditorialCalendar() {
           {activeTab !== 'agenda' && (
             <button
               onClick={() => handleAddProject()}
-              className="flex items-center gap-2 bg-[var(--text-primary)] text-[var(--bg-primary)] px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-md"
+              className="flex items-center gap-2 bg-[var(--text-primary)] text-[var(--bg-primary)] px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-md hover-action"
             >
               <Plus className="w-3.5 h-3.5" />
               Novo Projeto
@@ -1332,7 +1332,7 @@ function BrandMiniCalendar({
               {occupied > 0 && isThisMonth && !isEventDay && (
                 <div className="absolute bottom-0.5 flex gap-0.5 z-20">
                   {Array.from({ length: Math.min(occupied, 3) }).map((_, i) => (
-                    <div key={i} className="w-[3px] h-[3px] rounded-full bg-[var(--text-tertiary)] opacity-35" />
+                    <div key={i} className="w-[3px] h-[3px] rounded-full bg-[var(--text-tertiary)]" />
                   ))}
                 </div>
               )}
@@ -1411,8 +1411,8 @@ function ProjectsView({
             className={cn(
               'px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all',
               view === 'marcas'
-                ? 'bg-[var(--text-primary)] text-[var(--bg-primary)] border-[var(--text-primary)]'
-                : 'border-[var(--border-color)] opacity-50 hover:opacity-100'
+                ? 'bg-[var(--bg-primary)] text-[var(--text-primary)] shadow-sm'
+                : 'text-[var(--text-secondary)] italic hover:bg-[var(--bg-primary)]/50'
             )}
           >
             Ativas
@@ -1569,7 +1569,7 @@ function ProjectsView({
                             <button
                               key={p.id}
                               onClick={() => onSelect(p)}
-                              className="w-full text-left flex items-center justify-between hover:bg-[var(--bg-hover)] p-2.5 -mx-2 rounded-xl transition-all group"
+                              className="w-full text-left flex items-center justify-between hover-card p-2.5 -mx-2 rounded-xl transition-all group"
                             >
                               <div className="flex items-center gap-3 flex-1 min-w-0">
                                 {stSet && Icon && (

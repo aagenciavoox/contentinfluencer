@@ -4,6 +4,7 @@ import { motion } from 'motion/react';
 import { Plus, BookOpen, X, Star, Search, Library } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import { PageGuide } from '../components/PageGuide';
+import { PageHeader } from '../components/PageHeader';
 import { Book, GeneroLivro, StatusLeitura } from '../types';
 import { generateUUID } from '../utils/uuid';
 import { BottomSheetModal } from '../components/BottomSheetModal';
@@ -132,22 +133,15 @@ export function Biblioteca() {
         icon={Library}
       />
       <div className="content-wide mx-auto px-6 md:px-12 py-12">
-        {/* Header */}
         <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between gap-4 mb-10">
-          <div>
-            <p className="text-[9px] font-black text-[var(--text-tertiary)] uppercase tracking-[0.4em] mb-2 italic">
-              Biblioteca
-            </p>
-            <h1 className="text-4xl font-black text-[var(--text-primary)] tracking-tight italic">
-              Seus Livros
-            </h1>
-            <p className="text-sm text-[var(--text-secondary)] mt-2 opacity-60">
-              {state.books.length} livro{state.books.length !== 1 ? 's' : ''} catalogado{state.books.length !== 1 ? 's' : ''}
-            </p>
-          </div>
+          <PageHeader 
+            title="Seus Livros" 
+            subtitle={`${state.books.length} livro${state.books.length !== 1 ? 's' : ''} catalogado${state.books.length !== 1 ? 's' : ''}`}
+            className="mb-0"
+          />
           <button
             onClick={() => setModalAberto(true)}
-            className="flex items-center gap-2 px-5 py-3 bg-[var(--text-primary)] text-[var(--bg-primary)] rounded-2xl text-xs font-black uppercase tracking-widest hover:scale-[1.03] transition-all shadow-lg shrink-0"
+            className="flex items-center gap-2 px-5 py-3 bg-[var(--text-primary)] text-[var(--bg-primary)] rounded-2xl text-xs font-black uppercase tracking-widest transition-all shadow-lg shrink-0 hover-action"
           >
             <Plus className="w-4 h-4" />
             Adicionar Livro
@@ -166,7 +160,7 @@ export function Biblioteca() {
               <div key={stat.label} className="flex items-center gap-2 px-4 py-2 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-2xl">
                 <span className="text-base">{stat.emoji}</span>
                 <span className="text-xs font-black text-[var(--text-primary)]">{stat.value}</span>
-                <span className="text-[10px] text-[var(--text-secondary)] opacity-50">{stat.label}</span>
+                <span className="text-[10px] text-[var(--text-secondary)]">{stat.label}</span>
               </div>
             ))}
           </div>
@@ -180,9 +174,9 @@ export function Biblioteca() {
               placeholder="Buscar por título ou autor..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full text-sm font-bold bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-2xl pl-12 pr-4 py-3.5 focus:ring-0 focus:border-[var(--text-primary)] transition-all shadow-sm text-[var(--text-primary)] placeholder:opacity-40"
+              className="w-full text-sm font-bold bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-2xl pl-12 pr-4 py-3.5 focus:ring-0 focus:border-[var(--text-primary)] transition-all shadow-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]"
             />
-            <Search className="w-5 h-5 text-[var(--text-tertiary)] absolute left-4 top-1/2 -translate-y-1/2 opacity-50" />
+            <Search className="w-5 h-5 text-[var(--text-tertiary)] absolute left-4 top-1/2 -translate-y-1/2" />
           </div>
           
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -227,12 +221,11 @@ export function Biblioteca() {
                   key={livro.id}
                   initial={{ opacity: 0, y: 12 }}
                   animate={{ opacity: 1, y: 0 }}
-                  whileHover={{ y: -4 }}
                   onClick={() => navigate(`/biblioteca/${livro.id}`)}
-                  className="cursor-pointer group"
+                  className="cursor-pointer group flex flex-col"
                 >
                   {/* Capa */}
-                  <div className="relative aspect-[2/3] rounded-2xl overflow-hidden bg-[var(--bg-hover)] mb-3 shadow-md group-hover:shadow-xl transition-shadow">
+                  <div className="relative aspect-[2/3] rounded-2xl overflow-hidden bg-[var(--bg-hover)] mb-3 elevation-1 group-hover:elevation-2 hover-card transition-all">
                     {livro.capaUrl ? (
                       <img
                         src={livro.capaUrl}
@@ -469,14 +462,14 @@ export function Biblioteca() {
         <div className="flex gap-3 px-6 py-4 border-t border-[var(--border-color)] shrink-0 pb-safe">
           <button
             onClick={() => setModalAberto(false)}
-            className="flex-1 py-3 rounded-2xl text-xs font-black uppercase tracking-widest text-[var(--text-primary)] border border-[var(--border-strong)] hover:bg-[var(--bg-hover)] transition-all opacity-60 hover:opacity-100"
+            className="flex-1 py-3 rounded-2xl text-xs font-black uppercase tracking-widest text-[var(--text-secondary)] border border-[var(--border-color)] hover:bg-[var(--bg-hover)] transition-all"
           >
             Cancelar
           </button>
           <button
             onClick={handleCriarLivro}
             disabled={!form.titulo.trim()}
-            className="flex-1 py-3 rounded-2xl text-xs font-black uppercase tracking-widest bg-[var(--text-primary)] text-[var(--bg-primary)] hover:scale-[1.02] transition-all shadow-lg disabled:opacity-40 disabled:cursor-not-allowed disabled:scale-100"
+            className="flex-1 py-3 rounded-2xl text-xs font-black uppercase tracking-widest bg-[var(--text-primary)] text-[var(--bg-primary)] transition-all shadow-lg disabled:opacity-40 disabled:cursor-not-allowed hover-action"
           >
             Criar Livro
           </button>

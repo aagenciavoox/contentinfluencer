@@ -182,7 +182,7 @@ export function Contents() {
                 onClick={() => setMainTab('inventory')}
                 className={cn(
                   "px-6 py-2.5 text-[10px] font-black uppercase tracking-[0.2em] rounded-xl transition-all whitespace-nowrap", 
-                  mainTab === 'inventory' ? "bg-[var(--text-primary)] text-[var(--bg-primary)] shadow-lg" : "text-[var(--text-tertiary)] opacity-60 hover:opacity-100"
+                  mainTab === 'inventory' ? "bg-[var(--bg-primary)] text-[var(--text-primary)] shadow-sm" : "text-[var(--text-secondary)] italic hover:bg-[var(--bg-primary)]/50"
                 )}
               >
                 Inventário
@@ -191,7 +191,7 @@ export function Contents() {
                 onClick={() => setMainTab('recording')}
                 className={cn(
                   "px-6 py-2.5 text-[10px] font-black uppercase tracking-[0.2em] rounded-xl transition-all flex items-center gap-2 whitespace-nowrap", 
-                  mainTab === 'recording' ? "bg-[var(--text-primary)] text-[var(--bg-primary)] shadow-sm" : "text-[var(--text-tertiary)] opacity-60 hover:opacity-100"
+                  mainTab === 'recording' ? "bg-[var(--bg-primary)] text-[var(--text-primary)] shadow-sm" : "text-[var(--text-secondary)] italic hover:bg-[var(--bg-primary)]/50"
                 )}
               >
                 <Video className="w-3.5 h-3.5" /> Blocos
@@ -205,21 +205,21 @@ export function Contents() {
               <div className="flex bg-[var(--bg-hover)] rounded-xl p-1 border border-[var(--border-color)] shrink-0">
                 <button
                   onClick={() => { setViewMode('table'); setSelectedIds(new Set()); }}
-                  className={cn("p-2 rounded-lg transition-all", viewMode === 'table' ? "bg-[var(--bg-primary)] shadow-sm text-[var(--accent-blue)]" : "opacity-40 text-[var(--text-primary)] hover:opacity-100")}
+                  className={cn("p-2 rounded-lg transition-all", viewMode === 'table' ? "bg-[var(--bg-primary)] shadow-sm text-[var(--accent-blue)]" : "text-[var(--text-tertiary)] hover:text-[var(--text-primary)]")}
                   title="Tabela"
                 >
                   <TableIcon className="w-4 h-4" />
                 </button>
                 <button
                   onClick={() => { setViewMode('ecosystem'); setSelectedIds(new Set()); }}
-                  className={cn("p-2 rounded-lg transition-all", viewMode === 'ecosystem' ? "bg-[var(--bg-primary)] shadow-sm text-[var(--accent-blue)]" : "opacity-40 text-[var(--text-primary)] hover:opacity-100")}
+                  className={cn("p-2 rounded-lg transition-all", viewMode === 'ecosystem' ? "bg-[var(--bg-primary)] shadow-sm text-[var(--accent-blue)]" : "text-[var(--text-tertiary)] hover:text-[var(--text-primary)]")}
                   title="Ecossistema"
                 >
                   <Layers className="w-4 h-4" />
                 </button>
                 <button
                   onClick={() => { setViewMode('timeline'); setSelectedIds(new Set()); }}
-                  className={cn("p-2 rounded-lg transition-all", viewMode === 'timeline' ? "bg-[var(--bg-primary)] shadow-sm text-[var(--accent-blue)]" : "opacity-40 text-[var(--text-primary)] hover:opacity-100")}
+                  className={cn("p-2 rounded-lg transition-all", viewMode === 'timeline' ? "bg-[var(--bg-primary)] shadow-sm text-[var(--accent-blue)]" : "text-[var(--text-tertiary)] hover:text-[var(--text-primary)]")}
                   title="Linha do Tempo"
                 >
                   <Calendar className="w-4 h-4" />
@@ -231,13 +231,13 @@ export function Contents() {
           <div className="flex items-center gap-3">
             <button
               onClick={() => setIsCSVUploadOpen(true)}
-              className="group flex-1 lg:flex-none flex items-center justify-center gap-2 bg-[var(--bg-hover)] text-[var(--text-primary)] px-5 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-[var(--border-color)] transition-all border border-[var(--border-color)]"
+              className="group flex-1 lg:flex-none flex items-center justify-center gap-2 bg-[var(--bg-hover)] text-[var(--text-primary)] px-5 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border border-[var(--border-color)]"
             >
-              <Upload className="w-3.5 h-3.5 opacity-40 group-hover:opacity-100" /> Importar
+              <Upload className="w-3.5 h-3.5 text-[var(--text-tertiary)] group-hover:text-[var(--text-primary)]" /> Importar
             </button>
             <button
               onClick={handleAddContent}
-              className="flex-1 lg:flex-none flex items-center justify-center gap-2 bg-[var(--text-primary)] text-[var(--bg-primary)] px-8 py-3 rounded-xl text-sm font-black hover:scale-105 active:scale-95 transition-all shadow-xl"
+              className="flex-1 lg:flex-none flex items-center justify-center gap-2 bg-[var(--text-primary)] text-[var(--bg-primary)] px-8 py-3 rounded-xl text-sm font-black transition-all shadow-xl hover-action"
             >
               <Plus className="w-4 h-4" /> Novo Conteúdo
             </button>
@@ -285,7 +285,7 @@ export function Contents() {
                         "px-4 py-2.5 text-[9px] font-black uppercase tracking-[0.15em] rounded-full transition-all whitespace-nowrap border flex items-center gap-2",
                         isActive 
                           ? "bg-[var(--text-primary)] text-[var(--bg-primary)] border-[var(--text-primary)] shadow-lg"
-                          : "bg-[var(--bg-hover)] text-[var(--text-tertiary)] border-[var(--border-color)] hover:border-[var(--text-primary)]/30 opacity-70 hover:opacity-100"
+                          : "bg-[var(--bg-hover)] text-[var(--text-tertiary)] border-[var(--border-color)] hover:border-[var(--text-primary)]/30 hover:text-[var(--text-primary)]"
                       )}
                     >
                       {isSpecial && <span className={cn("w-1.5 h-1.5 rounded-full bg-orange-500", isActive && "bg-white")} />}
@@ -299,7 +299,7 @@ export function Contents() {
         )}
       </header>
 
-      <div className="flex-1 overflow-auto px-6 md:px-10 py-10 custom-scrollbar">
+      <div className="flex-1 overflow-auto px-6 md:px-10 py-10 custom-scrollbar content-wide mx-auto w-full">
         {mainTab === 'recording' ? (
           <RecordingTab />
         ) : viewMode === 'table' ? (
@@ -358,7 +358,7 @@ export function Contents() {
                 <button
                   onClick={handleCreateBlock}
                   disabled={!blockName.trim()}
-                  className="px-3 py-1.5 bg-[var(--accent-blue)] text-white text-[9px] font-black uppercase tracking-widest rounded-lg hover:scale-[1.04] active:scale-[0.97] transition-all disabled:opacity-50 disabled:scale-100"
+                  className="px-3 py-1.5 bg-[var(--accent-blue)] text-white text-[9px] font-black uppercase tracking-widest rounded-lg transition-all disabled:opacity-50 hover-action"
                 >
                   Salvar
                 </button>
@@ -395,7 +395,7 @@ export function Contents() {
 
                 <button
                   onClick={() => setIsCreatingBlock(true)}
-                  className="px-3 py-1.5 bg-[var(--accent-blue)] text-white text-[9px] font-black uppercase tracking-widest rounded-lg hover:scale-105 transition-all whitespace-nowrap"
+                  className="px-3 py-1.5 bg-[var(--accent-blue)] text-white text-[9px] font-black uppercase tracking-widest rounded-lg transition-all whitespace-nowrap hover-action"
                 >
                   Criar Bloco
                 </button>

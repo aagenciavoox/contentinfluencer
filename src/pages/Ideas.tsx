@@ -10,6 +10,7 @@ import { cn } from '../lib/utils';
 import { BottomSheetModal } from '../components/BottomSheetModal';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { PageGuide } from '../components/PageGuide';
+import { PageHeader } from '../components/PageHeader';
 
 export function Ideas() {
   const { state, dispatch } = useAppContext();
@@ -107,17 +108,19 @@ export function Ideas() {
         description="Capture tudo o que vier à cabeça aqui. Não se preocupe com a perfeição. Quando uma ideia amadurecer, use o botão 'Promover' para transformá-la em um roteiro no inventário."
         icon={Lightbulb}
       />
-      <header className="mb-12 md:mb-16 content-narrow">
-        <h1 className="text-4xl font-black text-[var(--text-primary)] tracking-tight italic mb-2">Caixa de Ideias</h1>
-        <p className="text-sm text-[var(--text-secondary)] font-medium">Capture tudo, sem julgamento. Promova quando estiver pronto.</p>
-      </header>
+      <div className="content-narrow">
+        <PageHeader 
+          title="Caixa de Ideias" 
+          subtitle="Capture tudo, sem julgamento. Promova quando estiver pronto."
+        />
+      </div>
 
       <form onSubmit={handleAddIdea} className="mb-16 md:mb-24 p-8 bg-[var(--bg-secondary)] rounded-2xl border border-[var(--border-color)] elevation-1 content-narrow group focus-within:border-[var(--accent-blue)] transition-all">
         <textarea
           value={newIdeaText}
           onChange={(e) => setNewIdeaText(e.target.value)}
           placeholder="O que você está pensando?"
-          className="w-full min-h-[120px] text-lg md:text-xl text-[var(--text-primary)] border-none focus:ring-0 p-0 resize-none placeholder:text-[var(--text-tertiary)] placeholder:opacity-30 mb-6 bg-transparent custom-scrollbar"
+          className="w-full min-h-[120px] text-lg md:text-xl text-[var(--text-primary)] border-none focus:ring-0 p-0 resize-none placeholder:text-[var(--text-tertiary)] mb-6 bg-transparent custom-scrollbar"
         />
         <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between pt-6 border-t border-[var(--border-color)] gap-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:flex lg:flex-wrap items-center gap-3 flex-1">
@@ -152,7 +155,7 @@ export function Ideas() {
           <button 
             type="submit"
             disabled={!newIdeaText.trim()}
-            className="flex items-center justify-center gap-3 bg-[var(--text-primary)] text-[var(--bg-primary)] px-8 py-3.5 rounded-2xl text-xs font-black hover:scale-105 active:scale-95 transition-all disabled:opacity-20 shadow-lg shrink-0 w-full lg:w-auto"
+            className="flex items-center justify-center gap-3 bg-[var(--text-primary)] text-[var(--bg-primary)] px-8 py-3.5 rounded-2xl text-xs font-black transition-all disabled:opacity-20 shadow-lg shrink-0 w-full lg:w-auto hover-action"
           >
             <Plus className="w-5 h-5" /> CAPTURAR
           </button>
@@ -170,8 +173,8 @@ export function Ideas() {
             className={cn(
               "group p-6 md:p-8 rounded-2xl border transition-all overflow-hidden break-words cursor-pointer flex flex-col h-full relative",
               idea.archived 
-                ? "bg-[var(--bg-hover)]/30 border-transparent opacity-50 grayscale" 
-                : "bg-[var(--bg-secondary)] border-[var(--border-color)] hover:border-[var(--border-strong)] hover:shadow-2xl hover:-translate-y-1 shadow-sm"
+                ? "bg-[var(--bg-hover)]/30 border-transparent grayscale" 
+                : "bg-[var(--bg-secondary)] border-[var(--border-color)] hover-card elevation-1"
             )}
           >
             <div className="flex items-start justify-between mb-6 gap-4">
@@ -186,7 +189,7 @@ export function Ideas() {
               )}
             </div>
             
-            <p className="text-base text-[var(--text-primary)] leading-relaxed whitespace-pre-wrap break-words flex-1 font-medium italic opacity-90 group-hover:opacity-100 transition-opacity">
+            <p className="text-base text-[var(--text-primary)] leading-relaxed whitespace-pre-wrap break-words flex-1 font-medium italic group-hover:text-black dark:group-hover:text-white transition-opacity">
               "{truncateText(idea.text)}"
             </p>
 
@@ -214,7 +217,7 @@ export function Ideas() {
 
       {allIdeas.length === 0 && (
         <div className="text-center py-32 border-2 border-dashed border-[var(--border-color)] rounded-[3rem] opacity-30">
-          <Lightbulb className="w-16 h-16 text-[var(--text-primary)] mx-auto mb-6 opacity-20" />
+          <Lightbulb className="w-16 h-16 text-[var(--text-primary)] mx-auto mb-6 opacity-10" />
           <p className="text-sm font-black uppercase tracking-[0.3em] text-[var(--text-tertiary)] italic">Aguardando sua próxima faísca criativa...</p>
         </div>
       )}
@@ -234,7 +237,7 @@ export function Ideas() {
               </div>
               <button
                 onClick={() => setViewingIdea(null)}
-                className="p-3 hover:bg-[var(--bg-hover)] rounded-full transition-all text-[var(--text-primary)] opacity-40 hover:opacity-100"
+                className="p-3 hover:bg-[var(--bg-hover)] rounded-full transition-all text-[var(--text-tertiary)] hover:text-[var(--text-primary)]"
               >
                 <X className="w-6 h-6" />
               </button>
@@ -274,7 +277,7 @@ export function Ideas() {
                     placeholder="Desenvolva sua ideia..."
                   />
                 ) : (
-                  <p className="text-xl md:text-2xl text-[var(--text-primary)] leading-relaxed whitespace-pre-wrap break-words font-medium italic opacity-90">
+                  <p className="text-xl md:text-2xl text-[var(--text-primary)] leading-relaxed whitespace-pre-wrap break-words font-medium italic">
                     "{viewingIdea.text}"
                   </p>
                 )}
@@ -299,7 +302,7 @@ export function Ideas() {
                 ) : (
                   <button
                     onClick={startEditing}
-                    className="p-3 text-[var(--text-primary)] opacity-30 hover:opacity-100 hover:bg-[var(--bg-secondary)] rounded-2xl transition-all"
+                    className="p-3 text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] rounded-2xl transition-all"
                     title="Editar Texto"
                   >
                     <Edit3 className="w-5 h-5" />
@@ -310,7 +313,7 @@ export function Ideas() {
               {!viewingIdea.archived && !isEditing && (
                 <button
                   onClick={() => handlePromote(viewingIdea)}
-                  className="flex items-center justify-center gap-2 bg-[var(--text-primary)] text-[var(--bg-primary)] px-5 py-3 rounded-2xl text-sm font-black hover:scale-105 transition-all shadow-2xl shadow-black/20 w-full sm:w-auto"
+                  className="flex items-center justify-center gap-2 bg-[var(--text-primary)] text-[var(--bg-primary)] px-5 py-3 rounded-2xl text-sm font-black transition-all shadow-2xl shadow-black/20 w-full sm:w-auto hover-action"
                 >
                   PROMOVER <ArrowUpRight className="w-4 h-4" />
                 </button>
