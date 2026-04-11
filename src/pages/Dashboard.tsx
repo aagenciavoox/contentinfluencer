@@ -17,7 +17,9 @@ import { generateUUID } from '../utils/uuid';
 import { Idea, Book, Content } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 import { ContentDetailModal } from '../components/ContentDetailModal';
+import { BookNotesModal } from '../components/BookNotesModal';
 import { PageHeader } from '../components/PageHeader';
+import { PageGuide } from '../components/PageGuide';
 
 const PIPELINE_STATUSES = ['Pronto para Gravar', 'Gravado', 'A Editar', 'Editado', 'Programado'] as const;
 
@@ -166,10 +168,12 @@ export function Dashboard() {
         icon={LayoutDashboard}
       />
 
-      <PageHeader 
-        title="Command Center" 
-        subtitle={format(today, "EEEE, d 'de' MMMM", { locale: ptBR })}
-      />
+      <header className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-6 mb-12">
+        <PageHeader 
+          title="Command Center" 
+          subtitle={format(today, "EEEE, d 'de' MMMM", { locale: ptBR })}
+          className="mb-0"
+        />
 
         {/* Energy log */}
         <div className="flex items-center gap-3 bg-[var(--bg-secondary)] px-4 py-3 rounded-2xl border border-[var(--border-color)] self-start sm:self-auto">
