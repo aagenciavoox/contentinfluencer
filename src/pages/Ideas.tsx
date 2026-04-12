@@ -11,6 +11,8 @@ import { BottomSheetModal } from '../components/BottomSheetModal';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { PageGuide } from '../components/PageGuide';
 import { PageHeader } from '../components/PageHeader';
+import { useIsMobile } from '../hooks/useIsMobile';
+import { useScrollDirection } from '../hooks/useScrollDirection';
 
 export function Ideas() {
   const { state, dispatch } = useAppContext();
@@ -20,6 +22,8 @@ export function Ideas() {
   const [selectedSeries, setSelectedSeries] = useState<string>('');
   const [selectedBook, setSelectedBook] = useState<string>('');
   const [viewingIdea, setViewingIdea] = useState<Idea | null>(null);
+  const isMobile = useIsMobile();
+  const scrollDirection = useScrollDirection();
 
   useEffect(() => {
     const livroId = searchParams.get('livroId');
@@ -101,21 +105,24 @@ export function Ideas() {
   };
 
   return (
-    <div className="content-wide mx-auto py-10 md:py-16 px-6 md:px-10">
+    <div className="page-container mx-auto py-10 md:py-16">
       <PageGuide 
         pageId="ideas"
         title="O Berçário de Insights"
         description="Capture tudo o que vier à cabeça aqui. Não se preocupe com a perfeição. Quando uma ideia amadurecer, use o botão 'Promover' para transformá-la em um roteiro no inventário."
         icon={Lightbulb}
       />
-      <div className="content-narrow">
-        <PageHeader 
-          title="Caixa de Ideias" 
-          subtitle="Capture tudo, sem julgamento. Promova quando estiver pronto."
-        />
-      </div>
+      <header className="px-5 md:px-10 py-8 border-b border-[var(--border-color)] bg-[var(--bg-secondary)]/50 backdrop-blur-md sticky top-0 z-20 transition-colors duration-300">
+        <div className="max-w-3xl mx-auto w-full">
+          <PageHeader 
+            title="Caixa de Ideias" 
+            subtitle="Capture tudo, sem julgamento. Promova quando estiver pronto."
+            className="!mb-0"
+          />
+        </div>
+      </header>
 
-      <form onSubmit={handleAddIdea} className="mb-16 md:mb-24 p-8 bg-[var(--bg-secondary)] rounded-2xl border border-[var(--border-color)] elevation-1 content-narrow group focus-within:border-[var(--accent-blue)] transition-all">
+      <form onSubmit={handleAddIdea} className="mb-16 md:mb-24 p-5 md:p-8 bg-[var(--bg-secondary)] rounded-2xl border border-[var(--border-color)] elevation-1 max-w-3xl mx-auto group focus-within:border-[var(--accent-blue)] transition-all">
         <textarea
           value={newIdeaText}
           onChange={(e) => setNewIdeaText(e.target.value)}
@@ -162,7 +169,7 @@ export function Ideas() {
         </div>
       </form>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
         {allIdeas.map((idea) => (
           <div 
             key={idea.id} 

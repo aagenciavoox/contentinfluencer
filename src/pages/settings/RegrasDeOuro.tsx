@@ -68,14 +68,14 @@ export function RegrasDeOuro() {
             <ArrowLeft className="w-5 h-5 text-[var(--text-primary)] opacity-50" />
           </button>
           <div className="flex-1">
-            <h1 className="text-4xl font-black text-[var(--text-primary)] tracking-tight italic">Regras de Ouro</h1>
+            <h1 className="t-display">Regras de Ouro</h1>
             <p className="text-xs text-[var(--text-secondary)] opacity-50 mt-1">
               Validações editoriais aplicadas automaticamente na grade
             </p>
           </div>
           <button 
             onClick={() => setShowAddForm(!showAddForm)}
-            className="flex items-center gap-2 bg-[var(--text-primary)] text-[var(--bg-primary)] px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-all shadow-lg"
+            className="flex items-center gap-2 bg-[var(--text-primary)] text-[var(--bg-primary)] px-4 py-2.5 rounded-xl t-label hover:scale-105 transition-all shadow-lg"
           >
             <Plus className="w-4 h-4" /> Nova Regra
           </button>
@@ -84,10 +84,10 @@ export function RegrasDeOuro() {
         {/* Form para nova regra */}
         {showAddForm && (
           <div className="mb-10 p-6 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-2xl shadow-xl animate-in fade-in slide-in-from-top-4">
-            <h3 className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] mb-4">Configurar Nova Regra</h3>
+            <h3 className="t-label text-[var(--text-secondary)] mb-4">Configurar Nova Regra</h3>
             <form onSubmit={handleAddRule} className="space-y-4">
               <div>
-                <label className="block text-[10px] font-black uppercase tracking-widest text-[var(--text-tertiary)] mb-2 opacity-60">Descrição/Instrução</label>
+                <label className="block t-label text-[var(--text-tertiary)] mb-2 opacity-60">Descrição/Instrução</label>
                 <input 
                   type="text"
                   value={newRuleDesc}
@@ -98,14 +98,14 @@ export function RegrasDeOuro() {
                 />
               </div>
               <div>
-                <label className="block text-[10px] font-black uppercase tracking-widest text-[var(--text-tertiary)] mb-2 opacity-60">Severidade</label>
+                <label className="block t-label text-[var(--text-tertiary)] mb-2 opacity-60">Severidade</label>
                 <div className="grid grid-cols-3 gap-3">
                   {['info', 'warning', 'error'].map((t) => (
                     <button
                       key={t}
                       type="button"
                       onClick={() => setNewRuleType(t as any)}
-                      className={`py-3 text-[10px] font-black uppercase tracking-widest rounded-xl border-2 transition-all ${newRuleType === t ? 'bg-[var(--text-primary)] text-[var(--bg-primary)] border-[var(--text-primary)]' : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)] border-[var(--border-color)]'}`}
+                      className={`py-3 t-label rounded-xl border-2 transition-all ${newRuleType === t ? 'bg-[var(--text-primary)] text-[var(--bg-primary)] border-[var(--text-primary)]' : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)] border-[var(--border-color)]'}`}
                     >
                       {t}
                     </button>

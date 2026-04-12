@@ -33,7 +33,7 @@ export function DNAVozSettings() {
             <ArrowLeft className="w-5 h-5 text-[var(--text-primary)] opacity-50" />
           </button>
           <div className="flex-1">
-            <h1 className="text-4xl font-black text-[var(--text-primary)] tracking-tight italic">DNA da Voz</h1>
+            <h1 className="t-display">DNA da Voz</h1>
             <p className="text-xs text-[var(--text-secondary)] opacity-50 mt-1">
               Identidade editorial, tom e limites do seu conteúdo
             </p>
@@ -41,7 +41,7 @@ export function DNAVozSettings() {
           {isDirty && (
             <button
               onClick={handleSave}
-              className="flex items-center gap-2 bg-[var(--accent-green)] text-white px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:opacity-90 transition-all shadow-sm"
+              className="flex items-center gap-2 bg-[var(--accent-green)] text-white px-5 py-2.5 rounded-xl t-label hover:opacity-90 transition-all shadow-sm"
             >
               Salvar
             </button>
@@ -53,7 +53,7 @@ export function DNAVozSettings() {
           <section className="bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-2xl p-6">
             <div className="flex items-center gap-2 mb-4 text-[var(--text-tertiary)]">
               <Zap className="w-4 h-4" />
-              <span className="text-[10px] uppercase tracking-widest font-bold">Promessa Central</span>
+              <span className="t-label">Promessa Central</span>
             </div>
             <textarea
               value={editData.promessaCentral}
@@ -67,7 +67,7 @@ export function DNAVozSettings() {
           <section className="bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-2xl p-6">
             <div className="flex items-center gap-2 mb-4 text-[var(--text-tertiary)]">
               <Users className="w-4 h-4" />
-              <span className="text-[10px] uppercase tracking-widest font-bold">Público</span>
+              <span className="t-label">Público</span>
             </div>
             <textarea
               value={editData.publico}
@@ -82,7 +82,7 @@ export function DNAVozSettings() {
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2 text-[var(--text-tertiary)]">
                 <Target className="w-4 h-4" />
-                <span className="text-[10px] uppercase tracking-widest font-bold">Valores & Pilares</span>
+                <span className="t-label">Valores & Pilares</span>
               </div>
               <div className="flex items-center gap-2">
                 <input
@@ -125,7 +125,7 @@ export function DNAVozSettings() {
           <section className="bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-2xl p-6">
             <div className="flex items-center gap-2 mb-4 text-[var(--text-tertiary)]">
               <MessageSquare className="w-4 h-4" />
-              <span className="text-[10px] uppercase tracking-widest font-bold">Tom de Voz</span>
+              <span className="t-label">Tom de Voz</span>
             </div>
             <textarea
               value={editData.tom}
@@ -140,7 +140,7 @@ export function DNAVozSettings() {
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2 text-[var(--text-tertiary)]">
                 <Ban className="w-4 h-4" />
-                <span className="text-[10px] uppercase tracking-widest font-bold">O que não faço</span>
+                <span className="t-label">O que não faço</span>
               </div>
               <div className="flex items-center gap-2">
                 <input
@@ -185,7 +185,7 @@ export function DNAVozSettings() {
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2 text-[var(--text-tertiary)]">
                 <ShieldAlert className="w-4 h-4" />
-                <span className="text-[10px] uppercase tracking-widest font-bold">Alertas de Desvio</span>
+                <span className="t-label">Alertas de Desvio</span>
               </div>
               <div className="flex items-center gap-2">
                 <input
@@ -228,7 +228,7 @@ export function DNAVozSettings() {
             <div className="flex justify-end">
               <button
                 onClick={handleSave}
-                className="flex items-center gap-2 bg-[var(--accent-green)] text-white px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest hover:opacity-90 transition-all shadow-sm"
+                className="flex items-center gap-2 bg-[var(--accent-green)] text-white px-6 py-3 rounded-xl t-label hover:opacity-90 transition-all shadow-sm"
               >
                 Salvar Alterações
               </button>

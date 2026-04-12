@@ -4,6 +4,8 @@ import {
   format, isBefore, isToday, startOfToday, startOfWeek, endOfWeek,
   isWithinInterval, addDays,
 } from 'date-fns';
+import { useIsMobile } from '../hooks/useIsMobile';
+import { useScrollDirection } from '../hooks/useScrollDirection';
 import { ptBR } from 'date-fns/locale';
 import {
   Zap, Calendar as CalendarIcon, AlertCircle, Plus, BookOpen,
@@ -34,7 +36,7 @@ const STATUS_CONFIG: Record<string, { label: string; cssVar: string }> = {
 function SectionLabel({ label, action }: { label: string; action?: React.ReactNode }) {
   return (
     <div className="flex items-center gap-3 mb-4">
-      <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-tertiary)] shrink-0">
+      <span className="t-label shrink-0">
         {label}
       </span>
       <div className="flex-1 h-px bg-[var(--border-color)]" />
@@ -54,6 +56,8 @@ export function Dashboard() {
   const [isSuccess, setIsSuccess] = useState(false);
   const [viewingNotesBook, setViewingNotesBook] = useState<Book | null>(null);
   const [selectedContent, setSelectedContent] = useState<Content | null>(null);
+  const isMobile = useIsMobile();
+  const scrollDirection = useScrollDirection();
 
   // Energy
   const currentEnergy = state.energyLogs.find(l => l.date === todayStr)?.level || 0;
@@ -160,7 +164,7 @@ export function Dashboard() {
 
   // ─────────────────────────────────────────────────────────────────
   return (
-    <div className="content-wide mx-auto py-8 md:py-12 px-6 md:px-10 space-y-10">
+    <div className="page-container mx-auto py-8 md:py-12 space-y-10 max-w-[80rem] overflow-x-hidden">
       <PageGuide
         pageId="dashboard"
         title="Command Center"
@@ -168,7 +172,7 @@ export function Dashboard() {
         icon={LayoutDashboard}
       />
 
-      <header className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-6 mb-12">
+      <header className="px-5 md:px-10 py-8 border-b border-[var(--border-color)] bg-[var(--bg-secondary)]/50 backdrop-blur-md sticky top-0 z-20 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-6 transition-colors duration-300">
         <PageHeader 
           title="Command Center" 
           subtitle={format(today, "EEEE, d 'de' MMMM", { locale: ptBR })}
@@ -176,16 +180,16 @@ export function Dashboard() {
         />
 
         {/* Energy log */}
-        <div className="flex items-center gap-3 bg-[var(--bg-secondary)] px-4 py-3 rounded-2xl border border-[var(--border-color)] self-start sm:self-auto">
+        <div className="flex items-center gap-3 bg-[var(--bg-secondary)] px-3 md:px-4 py-3 rounded-2xl border border-[var(--border-color)] self-start sm:self-auto max-w-full overflow-hidden">
           <Zap className={cn("w-4 h-4 shrink-0", currentEnergy > 0 ? "text-orange-400" : "text-[var(--text-tertiary)]")} />
-          <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-tertiary)] hidden sm:block">Energia</span>
-          <div className="flex gap-1.5">
+          <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-tertiary)] hidden xs:block">Energia</span>
+          <div className="flex gap-1 md:gap-1.5 overflow-x-auto no-scrollbar">
             {[1, 2, 3, 4, 5].map(level => (
               <button
                 key={level}
                 onClick={() => handleEnergyLog(level)}
                 className={cn(
-                  "w-7 h-7 rounded-lg text-[10px] font-black transition-all",
+                  "w-7 h-7 md:w-8 md:h-8 rounded-lg text-[10px] font-black transition-all shrink-0",
                   currentEnergy === level
                     ? 'bg-[var(--text-primary)] text-[var(--bg-primary)] shadow-lg'
                     : 'bg-[var(--bg-hover)] text-[var(--text-tertiary)] hover:bg-[var(--border-strong)]'

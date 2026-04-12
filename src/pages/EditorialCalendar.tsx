@@ -44,12 +44,15 @@ import { Content, Partnership, AgendaItem } from '../types';
 import { PARTNERSHIP_STAGES, STATUS_CONFIG } from '../constants';
 import { motion, AnimatePresence } from 'motion/react';
 import { CalendarGrid } from '../components/calendar/CalendarGrid';
+import { CalendarAgendaView } from '../components/calendar/CalendarAgendaView';
 import { ContentQuickPreview } from '../components/calendar/ContentQuickPreview';
 import { CalendarLayerToggle } from '../components/calendar/CalendarLayerToggle';
 import { ContentDetailModal } from '../components/ContentDetailModal';
 import { BottomSheetModal } from '../components/BottomSheetModal';
 import { PartnershipForm } from '../components/partnerships/PartnershipForm';
 import { PageGuide } from '../components/PageGuide';
+import { useIsMobile } from '../hooks/useIsMobile';
+import { useScrollDirection } from '../hooks/useScrollDirection';
 
 type MainTab = 'agenda' | 'cronograma' | 'projetos' | 'visao-geral';
 
@@ -73,6 +76,8 @@ export const getStatusIcon = (name: string) => {
 export function EditorialCalendar() {
   const { state, dispatch } = useAppContext();
   const [activeTab, setActiveTab] = useState<MainTab>('agenda');
+  const isMobile = useIsMobile();
+  const scrollDirection = useScrollDirection();
 
   // ── Agenda state ──
   const [selectedItem, setSelectedItem] = useState<Content | Partnership | AgendaItem | null>(null);
@@ -222,10 +227,10 @@ export function EditorialCalendar() {
   ];
 
   return (
-    <div className="h-full flex flex-col bg-[var(--bg-primary)] transition-colors duration-200">
+    <div className="min-h-full flex flex-col bg-[var(--bg-primary)] transition-colors duration-200">
 
       {/* ── HEADER FIXO ── */}
-      <header className="px-6 md:px-10 py-5 border-b border-[var(--border-color)] bg-[var(--bg-secondary)] sticky top-0 z-20 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm">
+      <header className="px-5 md:px-10 py-5 border-b border-[var(--border-color)] bg-[var(--bg-secondary)] sticky top-0 z-20 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm transition-colors duration-300">
         <div className="flex items-center gap-5">
           <div className="p-2.5 bg-[var(--text-primary)]/10 rounded-2xl">
             <CalendarIcon className="w-5 h-5 text-[var(--text-primary)]" />
@@ -296,7 +301,7 @@ export function EditorialCalendar() {
               transition={{ duration: 0.15 }}
               className="h-full overflow-y-auto custom-scrollbar"
             >
-              <div className="max-w-[1600px] mx-auto py-8 px-6 md:px-10 space-y-8">
+              <div className="max-w-[1600px] mx-auto py-8 px-5 md:px-10 space-y-8">
                 <PageGuide
                   pageId="calendar"
                   title="Calendário de Comando"
@@ -325,7 +330,17 @@ export function EditorialCalendar() {
                     <CalendarLayerToggle activeLayers={activeLayers} onChange={setActiveLayers} />
                   </div>
                   <div className="lg:col-span-3">
-                    <CalendarGrid activeLayers={activeLayers} onItemClick={handleItemClick} />
+                    {isMobile ? (
+                      <CalendarAgendaView 
+                        contents={state.contents}
+                        partnerships={state.partnerships}
+                        externalEvents={state.agenda}
+                        activeLayers={activeLayers}
+                        onSelectContent={handleItemClick}
+                      />
+                    ) : (
+                      <CalendarGrid activeLayers={activeLayers} onItemClick={handleItemClick} />
+                    )}
                   </div>
                 </div>
               </div>

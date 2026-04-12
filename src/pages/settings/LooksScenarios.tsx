@@ -62,13 +62,13 @@ export function LooksSettings() {
           <button onClick={() => navigate('/settings')} className="p-2 hover:bg-[var(--bg-hover)] rounded-xl">
             <ArrowLeft className="w-5 h-5 text-[var(--text-primary)] opacity-50" />
           </button>
-          <h1 className="text-4xl font-black text-[var(--text-primary)] tracking-tight italic">Looks & Cenários</h1>
+          <h1 className="t-display">Looks & Cenários</h1>
         </div>
 
         {/* LOOKS */}
         <section className="mb-12">
           <div className="flex items-center justify-between mb-5">
-            <h2 className="text-[10px] font-black uppercase tracking-widest text-[var(--text-tertiary)]">
+            <h2 className="t-label">
               Looks ({activeLooks.length})
             </h2>
             <button
@@ -76,7 +76,7 @@ export function LooksSettings() {
                 setCriandoLook(true);
                 setLookForm({ numero: Math.max(...state.looks.map(l => l.numero), 0) + 1, descricao: '', ativo: true });
               }}
-              className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest px-3 py-2 bg-[var(--text-primary)] text-[var(--bg-primary)] rounded-xl hover:scale-[1.02] transition-all shadow-sm"
+              className="flex items-center gap-1.5 t-label px-3 py-2 bg-[var(--text-primary)] text-[var(--bg-primary)] rounded-xl hover:scale-[1.02] transition-all shadow-sm"
             >
               <Plus className="w-3.5 h-3.5" />
               Novo Look
@@ -176,12 +176,12 @@ export function LooksSettings() {
         {/* CENÁRIOS */}
         <section>
           <div className="flex items-center justify-between mb-5">
-            <h2 className="text-[10px] font-black uppercase tracking-widest text-[var(--text-tertiary)]">
+            <h2 className="t-label">
               Cenários ({activeCenarios.length})
             </h2>
             <button
               onClick={() => setCriandoCenario(true)}
-              className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest px-3 py-2 bg-[var(--text-primary)] text-[var(--bg-primary)] rounded-xl hover:scale-[1.02] transition-all shadow-sm"
+              className="flex items-center gap-1.5 t-label px-3 py-2 bg-[var(--text-primary)] text-[var(--bg-primary)] rounded-xl hover:scale-[1.02] transition-all shadow-sm"
             >
               <Plus className="w-3.5 h-3.5" />
               Novo Cenário
@@ -192,7 +192,7 @@ export function LooksSettings() {
             <div className="mb-4 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-2xl p-5 space-y-3">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1">Nome *</label>
+                  <label className="t-label block mb-1">Nome *</label>
                   <input
                     type="text"
                     value={cenarioForm.nome}
@@ -202,7 +202,7 @@ export function LooksSettings() {
                   />
                 </div>
                 <div>
-                  <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1">Setup (min)</label>
+                  <label className="t-label block mb-1">Setup (min)</label>
                   <input
                     type="number"
                     value={cenarioForm.tempoSetupMinutos}
@@ -212,7 +212,7 @@ export function LooksSettings() {
                 </div>
               </div>
               <div>
-                <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1">Descrição</label>
+                <label className="t-label block mb-1">Descrição</label>
                 <input
                   type="text"
                   value={cenarioForm.descricao}

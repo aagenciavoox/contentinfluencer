@@ -40,7 +40,7 @@ function PilarForm({
     <div className="bg-[var(--bg-primary)] rounded-2xl border border-[var(--border-color)] p-6 space-y-4">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
-          <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1.5">Nome *</label>
+          <label className="t-label block mb-1.5">Nome *</label>
           <input
             type="text"
             value={form.nome}
@@ -50,7 +50,7 @@ function PilarForm({
           />
         </div>
         <div>
-          <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1.5">Descrição</label>
+          <label className="t-label block mb-1.5">Descrição</label>
           <input
             type="text"
             value={form.descricao}
@@ -63,7 +63,7 @@ function PilarForm({
 
       {/* Cor */}
       <div>
-        <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-2">Cor</label>
+        <label className="t-label block mb-2">Cor</label>
         <div className="flex items-center gap-3 flex-wrap">
           {PRESET_CORES.map(c => (
             <button
@@ -198,7 +198,7 @@ export function PilaresSettings() {
             <ArrowLeft className="w-5 h-5 text-[var(--text-primary)] opacity-50" />
           </button>
           <div className="flex-1">
-            <h1 className="text-4xl font-black text-[var(--text-primary)] tracking-tight italic">Pilares Editoriais</h1>
+            <h1 className="t-display">Pilares Editoriais</h1>
             <p className="text-xs text-[var(--text-secondary)] opacity-50 mt-1">{state.pilares.length} pilares configurados</p>
           </div>
           <button

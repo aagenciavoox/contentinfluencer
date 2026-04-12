@@ -303,18 +303,18 @@ export async function saveToSupabase(state: AppState) {
   if (!session) return;
   const userId = session.user.id;
 
-  await Promise.allSettled([
+  const results = await Promise.allSettled([
     // App config — upsert por linha para evitar conflito de constraint
     ...([
       { key: 'onboarding_completo', value: state.onboardingCompleto, user_id: userId },
       { key: 'theme', value: state.theme, user_id: userId },
       { key: 'viewed_guides', value: state.viewedGuides, user_id: userId },
-    ].map(row => supabase.from('app_config').upsert(row, { onConflict: 'user_id, key' }).then(({ error }) => {
-      if (error) console.warn('[Supabase] app_config upsert skipped:', row.key, error.message);
+    ].map(row => supabase!.from('app_config').upsert(row, { onConflict: 'user_id, key' }).then(({ error }) => {
+      if (error) throw new Error(`app_config (${row.key}): ${error.message}`);
     }))),
 
     // DNA da Voz
-    supabase.from('dna_voz').upsert({
+    supabase!.from('dna_voz').upsert({
       user_id: userId,
       promessa_central: state.dnaVoz.promessaCentral,
       publico: state.dnaVoz.publico,
@@ -322,92 +322,108 @@ export async function saveToSupabase(state: AppState) {
       pilares: state.dnaVoz.pilares,
       nao_faco: state.dnaVoz.naoFaco,
       alertas: state.dnaVoz.alertas,
-    }),
+    }).then(({ error }) => { if (error) throw new Error(`dna_voz: ${error.message}`); }),
 
     // Contents
-    state.contents.length > 0 && supabase.from('contents').upsert(
-      state.contents.map(c => ({
-        id: c.id,
-        title: c.title,
-        series_id: c.seriesId || null,
-        pillar: c.pillar || 'Ideia',
-        format: c.format || '',
-        status: c.status || 'Ideia',
-        slot_type: c.slotType || null,
-        publish_date: c.publishDate || null,
-        recording_date: c.recordingDate || null,
-        look_id: c.lookId || null,
-        scenario: c.scenario || null,
-        estimated_duration: c.estimatedDuration ?? null,
-        link: c.link || null,
-        script: c.script || null,
-        caption: c.caption || null,
-        tags: c.tags || null,
-        notes: c.notes || null,
-        references: c.references || null,
-        plataformas: c.plataformas || [],
-        formato_visual: c.formatoVisual || null,
-        livro_origem_id: c.livroOrigemId || null,
-        legendas: c.legendas || {},
-        script_notes: c.scriptNotes || [],
-        created_at: c.createdAt,
-        user_id: userId,
-      }))
-    ),
+    (async () => {
+      if (state.contents.length === 0) return;
+      const { error } = await supabase!.from('contents').upsert(
+        state.contents.map(c => ({
+          id: c.id,
+          title: c.title,
+          series_id: c.seriesId && c.seriesId !== 'none' ? c.seriesId : null,
+          pillar: c.pillar || 'Ideia',
+          format: c.format || '',
+          status: c.status || 'Ideia',
+          slot_type: c.slotType || null,
+          publish_date: c.publishDate || null,
+          recording_date: c.recordingDate || null,
+          look_id: c.lookId || null,
+          scenario: c.scenario || null,
+          estimated_duration: c.estimatedDuration ?? null,
+          link: c.link || null,
+          script: c.script || null,
+          caption: c.caption || null,
+          tags: c.tags || null,
+          notes: c.notes || null,
+          references: c.references || null,
+          plataformas: c.plataformas || [],
+          formato_visual: c.formatoVisual || null,
+          livro_origem_id: c.livroOrigemId || null,
+          legendas: c.legendas || {},
+          script_notes: c.scriptNotes || [],
+          created_at: c.createdAt,
+          user_id: userId,
+        }))
+      );
+      if (error) throw new Error(`contents: ${error.message}`);
+    })(),
 
     // Ideas
-    state.ideas.length > 0 && supabase.from('ideas').upsert(
-      state.ideas.map(i => ({
-        id: i.id,
-        text: i.text,
-        pillar: i.pillar || null,
-        series_id: i.seriesId || null,
-        promoted_to_content_id: i.promotedToContentId || null,
-        archived: i.archived,
-        livro_origem_id: i.livroOrigemId || null,
-        created_at: i.createdAt,
-        user_id: userId,
-      }))
-    ),
+    (async () => {
+      if (state.ideas.length === 0) return;
+      const { error } = await supabase!.from('ideas').upsert(
+        state.ideas.map(i => ({
+          id: i.id,
+          text: i.text,
+          pillar: i.pillar || null,
+          series_id: i.seriesId || null,
+          promoted_to_content_id: i.promotedToContentId || null,
+          archived: i.archived,
+          livro_origem_id: i.livroOrigemId || null,
+          created_at: i.createdAt,
+          user_id: userId,
+        }))
+      );
+      if (error) throw new Error(`ideas: ${error.message}`);
+    })(),
 
     // Series
-    state.series.length > 0 && supabase.from('series').upsert(
-      state.series.map(s => ({
-        id: s.id,
-        name: s.name,
-        template: s.template || '',
-        notes: s.notes || '',
-        pilar_id: s.pilarId || null,
-        slot_padrao: s.slotPadrao || null,
-        plataformas_principais: s.plataformasPrincipais || [],
-        formato_visual_padrao: s.formatoVisualPadrao || null,
-        estrutura_roteiro: s.estruturaRoteiro || null,
-        bordao: s.bordao || null,
-        cor: s.cor || null,
-        ativa: s.ativa ?? true,
-        frequencia_recomendada: s.frequenciaRecomendada || 'Sob demanda',
-        hashtags_por_plataforma: s.hashtagsPorPlataforma || {},
-        user_id: userId,
-      }))
-    ),
+    (async () => {
+      if (state.series.length === 0) return;
+      const { error } = await supabase!.from('series').upsert(
+        state.series.map(s => ({
+          id: s.id,
+          name: s.name,
+          template: s.template || '',
+          notes: s.notes || '',
+          pilar_id: s.pilarId || null,
+          slot_padrao: s.slotPadrao || null,
+          plataformas_principais: s.plataformasPrincipais || [],
+          formato_visual_padrao: s.formatoVisualPadrao || null,
+          estrutura_roteiro: s.estruturaRoteiro || null,
+          bordao: s.bordao || null,
+          cor: s.cor || null,
+          ativa: s.ativa ?? true,
+          frequencia_recomendada: s.frequenciaRecomendada || 'Sob demanda',
+          hashtags_por_plataforma: s.hashtagsPorPlataforma || {},
+          user_id: userId,
+        }))
+      );
+      if (error) throw new Error(`series: ${error.message}`);
+    })(),
 
     // Pilares
-    state.pilares.length > 0 && supabase.from('pilares').upsert(
-      state.pilares.map(p => ({
-        id: p.id,
-        nome: p.nome,
-        descricao: p.descricao || '',
-        cor: p.cor,
-        hashtags_instagram: p.hashtagsInstagram || '',
-        hashtags_tiktok: p.hashtagsTikTok || '',
-        hashtags_youtube: p.hashtagsYouTube || '',
-        template_legenda: p.templateLegenda || '',
-        ativo: p.ativo ?? true,
-        meta_semanal_min: p.metaSemanalMin ?? 0,
-        meta_semanal_max: p.metaSemanalMax ?? 0,
-        user_id: userId,
-      }))
-    ),
+    (async () => {
+      if (state.pilares.length === 0) return;
+      const { error } = await supabase!.from('pilares').upsert(
+        state.pilares.map(p => ({
+          id: p.id,
+          nome: p.nome,
+          descricao: p.descricao || '',
+          cor: p.cor,
+          hashtags_instagram: p.hashtagsInstagram || '',
+          hashtags_tiktok: p.hashtagsTikTok || '',
+          hashtags_youtube: p.hashtagsYouTube || '',
+          template_legenda: p.templateLegenda || '',
+          ativo: p.ativo ?? true,
+          meta_semanal_min: p.metaSemanalMin ?? 0,
+          meta_semanal_max: p.metaSemanalMax ?? 0,
+          user_id: userId,
+        }))
+      );
+      if (error) throw new Error(`pilares: ${error.message}`);
+    })(),
 
     // Looks
     state.looks.length > 0 && supabase.from('looks').upsert(

@@ -7,10 +7,15 @@ import { motion, AnimatePresence } from 'motion/react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { PageGuide } from '../components/PageGuide';
+import { PageHeader } from '../components/PageHeader';
+import { useIsMobile } from '../hooks/useIsMobile';
+import { useScrollDirection } from '../hooks/useScrollDirection';
 
 export function Results() {
   const { state, dispatch } = useAppContext();
   const [selectedContent, setSelectedContent] = useState<Content | null>(null);
+  const isMobile = useIsMobile();
+  const scrollDirection = useScrollDirection();
 
   const postedContents = state.contents.filter(c => c.status === 'Postado');
 
@@ -23,20 +28,19 @@ export function Results() {
   };
 
   return (
-    <div className="content-wide mx-auto py-10 md:py-16 px-6 md:px-10">
+    <div className="page-container mx-auto py-10 md:py-16">
       <PageGuide 
         pageId="results"
         title="O Loop de Feedback"
         description="Aqui você registra o que funcionou e o que não funcionou. O Content OS usa esses dados para sugerir melhorias no seu DNA e nos seus pilares de conteúdo."
         icon={TrendingUp}
       />
-      <header className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-6">
-        <div>
-          <h1 className="text-4xl font-black text-[var(--text-primary)] tracking-tight italic mb-2">Resultados</h1>
-          <p className="text-sm text-[var(--text-secondary)] font-medium">
-            Apenas conteúdos postados. Preencha as métricas para retroalimentar o sistema.
-          </p>
-        </div>
+      <header className="px-5 md:px-10 py-8 border-b border-[var(--border-color)] bg-[var(--bg-secondary)]/50 backdrop-blur-md sticky top-0 z-20 transition-colors duration-300">
+        <PageHeader 
+          title="Resultados" 
+          subtitle="Apenas conteúdos postados. Preencha as métricas para retroalimentar o sistema."
+          className="!mb-0"
+        />
       </header>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

@@ -14,6 +14,9 @@ import { ContentTimeline } from '../components/contents/ContentTimeline';
 import { RecordingTab } from '../components/contents/RecordingTab';
 import { motion, AnimatePresence } from 'motion/react';
 import { PageGuide } from '../components/PageGuide';
+import { PageHeader } from '../components/PageHeader';
+import { useIsMobile } from '../hooks/useIsMobile';
+import { useScrollDirection } from '../hooks/useScrollDirection';
 
 type SortField = keyof Content | 'seriesName';
 type SortDirection = 'asc' | 'desc';
@@ -38,6 +41,8 @@ export function Contents() {
   const [isCreatingBlock, setIsCreatingBlock] = useState(false);
   const [blockName, setBlockName] = useState('');
   const [confirm, setConfirm] = useState<{ message: string; onConfirm: () => void } | null>(null);
+  const isMobile = useIsMobile();
+  const scrollDirection = useScrollDirection();
 
   const filteredContents = useMemo(() => {
     return state.contents.filter(c => {
@@ -165,7 +170,7 @@ export function Contents() {
   };
 
   return (
-    <div className="h-full flex flex-col bg-[var(--bg-primary)] transition-colors duration-200">
+    <div className="h-full flex flex-col bg-[var(--bg-primary)] transition-colors duration-200 w-full overflow-x-hidden">
       <PageGuide 
         pageId="inventory"
         title="O Coração da Operação"
@@ -173,15 +178,15 @@ export function Contents() {
         icon={TableIcon}
       />
       
-      <header className="px-6 md:px-10 pt-8 pb-4 border-b border-[var(--border-color)] bg-[var(--bg-secondary)]/50 backdrop-blur-md sticky top-0 z-20 flex flex-col gap-6">
+      <header className="px-5 md:px-10 pt-8 pb-4 border-b border-[var(--border-color)] bg-[var(--bg-secondary)]/50 backdrop-blur-md sticky top-0 z-20 flex flex-col gap-4 md:gap-6 transition-colors duration-300">
         {/* ROW 1: Navegação Principal e Ações Primárias */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-          <div className="flex items-center gap-6">
-            <div className="flex bg-[var(--bg-hover)] p-1 rounded-2xl border border-[var(--border-color)] shrink-0">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 md:gap-6">
+          <div className="flex flex-wrap items-center gap-3 md:gap-6">
+            <div className="flex bg-[var(--bg-hover)] p-1 rounded-2xl border border-[var(--border-color)] shrink-0 max-w-full">
               <button 
                 onClick={() => setMainTab('inventory')}
                 className={cn(
-                  "px-6 py-2.5 text-[10px] font-black uppercase tracking-[0.2em] rounded-xl transition-all whitespace-nowrap", 
+                  "px-4 md:px-6 py-2 md:py-2.5 text-[9px] md:text-[10px] font-black uppercase tracking-[0.15em] md:tracking-[0.2em] rounded-xl transition-all whitespace-nowrap", 
                   mainTab === 'inventory' ? "bg-[var(--bg-primary)] text-[var(--text-primary)] shadow-sm" : "text-[var(--text-secondary)] italic hover:bg-[var(--bg-primary)]/50"
                 )}
               >
@@ -190,11 +195,11 @@ export function Contents() {
               <button 
                 onClick={() => setMainTab('recording')}
                 className={cn(
-                  "px-6 py-2.5 text-[10px] font-black uppercase tracking-[0.2em] rounded-xl transition-all flex items-center gap-2 whitespace-nowrap", 
+                  "px-4 md:px-6 py-2 md:py-2.5 text-[9px] md:text-[10px] font-black uppercase tracking-[0.15em] md:tracking-[0.2em] rounded-xl transition-all flex items-center gap-2 whitespace-nowrap", 
                   mainTab === 'recording' ? "bg-[var(--bg-primary)] text-[var(--text-primary)] shadow-sm" : "text-[var(--text-secondary)] italic hover:bg-[var(--bg-primary)]/50"
                 )}
               >
-                <Video className="w-3.5 h-3.5" /> Blocos
+                <Video className="w-3 md:w-3.5 h-3 md:h-3.5" /> Blocos
               </button>
             </div>
 
@@ -228,18 +233,18 @@ export function Contents() {
             )}
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 md:gap-3">
             <button
               onClick={() => setIsCSVUploadOpen(true)}
-              className="group flex-1 lg:flex-none flex items-center justify-center gap-2 bg-[var(--bg-hover)] text-[var(--text-primary)] px-5 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border border-[var(--border-color)]"
+              className="group flex-1 lg:flex-none flex items-center justify-center gap-2 bg-[var(--bg-hover)] text-[var(--text-primary)] px-3 md:px-5 py-2.5 md:py-3 rounded-xl text-[9px] md:text-[10px] font-black uppercase tracking-widest transition-all border border-[var(--border-color)]"
             >
-              <Upload className="w-3.5 h-3.5 text-[var(--text-tertiary)] group-hover:text-[var(--text-primary)]" /> Importar
+              <Upload className="w-3 h-3 md:w-3.5 md:h-3.5 text-[var(--text-tertiary)] group-hover:text-[var(--text-primary)]" /> <span className="hidden xs:inline">Importar</span>
             </button>
             <button
               onClick={handleAddContent}
-              className="flex-1 lg:flex-none flex items-center justify-center gap-2 bg-[var(--text-primary)] text-[var(--bg-primary)] px-8 py-3 rounded-xl text-sm font-black transition-all shadow-xl hover-action"
+              className="flex-1 lg:flex-none flex items-center justify-center gap-2 bg-[var(--text-primary)] text-[var(--bg-primary)] px-4 md:px-8 py-2.5 md:py-3 rounded-xl text-[11px] md:text-sm font-black transition-all shadow-xl hover-action"
             >
-              <Plus className="w-4 h-4" /> Novo Conteúdo
+              <Plus className="w-3.5 md:w-4 h-3.5 md:h-4" /> <span className="whitespace-nowrap">Novo Conteúdo</span>
             </button>
           </div>
         </div>
@@ -247,25 +252,25 @@ export function Contents() {
         {/* ROW 2: Barra de Ferramentas e Filtros */}
         {mainTab === 'inventory' && (
           <div className="flex flex-col gap-4">
-            <div className="flex flex-wrap items-center gap-4">
-              <div className="flex items-center gap-2 flex-1 md:flex-none min-w-[200px]">
+            <div className="flex flex-wrap items-center gap-2 md:gap-4">
+              <div className="flex items-center gap-2 flex-1 min-w-[140px] md:min-w-[200px]">
                 <select
                   value={filterSeries}
                   onChange={(e) => setFilterSeries(e.target.value)}
-                  className="w-full text-[10px] font-black uppercase tracking-widest bg-[var(--bg-hover)] text-[var(--text-primary)] border border-[var(--border-color)] rounded-xl px-4 py-3 focus:ring-2 focus:ring-[var(--accent-blue)]/20 cursor-pointer appearance-none shadow-sm"
+                  className="w-full text-[9px] md:text-[10px] font-black uppercase tracking-widest bg-[var(--bg-hover)] text-[var(--text-primary)] border border-[var(--border-color)] rounded-xl px-3 md:px-4 py-2 md:py-3 focus:ring-2 focus:ring-[var(--accent-blue)]/20 cursor-pointer appearance-none shadow-sm"
                 >
-                  <option value="Todas">Todas as Séries</option>
+                  <option value="Todas">Séries</option>
                   {state.series.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                 </select>
               </div>
 
-               <div className="flex items-center gap-2 flex-1 md:flex-none min-w-[160px]">
+               <div className="flex items-center gap-2 flex-1 min-w-[120px] md:min-w-[160px]">
                 <select
                   value={filterPillar}
                   onChange={(e) => setFilterPillar(e.target.value)}
-                  className="w-full text-[10px] font-black uppercase tracking-widest bg-[var(--bg-hover)] text-[var(--text-primary)] border border-[var(--border-color)] rounded-xl px-4 py-3 focus:ring-2 focus:ring-[var(--accent-blue)]/20 cursor-pointer appearance-none shadow-sm"
+                  className="w-full text-[9px] md:text-[10px] font-black uppercase tracking-widest bg-[var(--bg-hover)] text-[var(--text-primary)] border border-[var(--border-color)] rounded-xl px-3 md:px-4 py-2 md:py-3 focus:ring-2 focus:ring-[var(--accent-blue)]/20 cursor-pointer appearance-none shadow-sm"
                 >
-                  <option value="Todos">Todos os Pilares</option>
+                  <option value="Todos">Pilares</option>
                   {state.pilares.map(p => <option key={p.id} value={p.nome}>{p.nome}</option>)}
                 </select>
               </div>
@@ -273,7 +278,7 @@ export function Contents() {
               <div className="h-4 w-px bg-[var(--border-color)] hidden md:block mx-2" />
 
               {/* Status Bar (Compacta) */}
-              <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1">
+              <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1 w-full md:w-auto -mx-4 px-4 md:mx-0 md:px-0">
                 {['Todos', 'No Escuro', ...STATUS_STAGES].map(s => {
                   const isActive = filterStatus === s;
                   const isSpecial = s === 'No Escuro';
@@ -282,14 +287,14 @@ export function Contents() {
                       key={s}
                       onClick={() => setFilterStatus(s)}
                       className={cn(
-                        "px-4 py-2.5 text-[9px] font-black uppercase tracking-[0.15em] rounded-full transition-all whitespace-nowrap border flex items-center gap-2",
+                        "px-3 md:px-4 py-2 md:py-2.5 text-[8px] md:text-[9px] font-black uppercase tracking-[0.1em] md:tracking-[0.15em] rounded-full transition-all whitespace-nowrap border flex items-center gap-1.5 md:gap-2",
                         isActive 
                           ? "bg-[var(--text-primary)] text-[var(--bg-primary)] border-[var(--text-primary)] shadow-lg"
                           : "bg-[var(--bg-hover)] text-[var(--text-tertiary)] border-[var(--border-color)] hover:border-[var(--text-primary)]/30 hover:text-[var(--text-primary)]"
                       )}
                     >
-                      {isSpecial && <span className={cn("w-1.5 h-1.5 rounded-full bg-orange-500", isActive && "bg-white")} />}
-                      {s === 'No Escuro' ? 'No Escuro' : s}
+                      {isSpecial && <span className={cn("w-1 h-1 md:w-1.5 md:h-1.5 rounded-full bg-orange-500", isActive && "bg-white")} />}
+                      {s}
                     </button>
                   );
                 })}
@@ -299,7 +304,7 @@ export function Contents() {
         )}
       </header>
 
-      <div className="flex-1 overflow-auto px-6 md:px-10 py-10 custom-scrollbar content-wide mx-auto w-full">
+      <div className="flex-1 overflow-auto px-5 md:px-10 py-10 custom-scrollbar max-w-[80rem] mx-auto w-full">
         {mainTab === 'recording' ? (
           <RecordingTab />
         ) : viewMode === 'table' ? (

@@ -3,6 +3,10 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AppProvider } from './context/AppContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { Sidebar } from './components/Sidebar';
+import { MobileNavBar } from './components/MobileNavBar';
+import { useScrollDirection } from './hooks/useScrollDirection';
+import { useIsMobile } from './hooks/useIsMobile';
+import { cn } from './lib/utils';
 import { CommandPalette } from './components/CommandPalette';
 import { Onboarding } from './components/Onboarding';
 import { Dashboard } from './pages/Dashboard';
@@ -28,6 +32,8 @@ function AppContent() {
   const { user, loading } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+  const isMobile = useIsMobile();
+  const scrollDirection = useScrollDirection();
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -65,8 +71,18 @@ function AppContent() {
         onClose={() => setIsCommandPaletteOpen(false)}
       />
 
-      {/* Mobile Top Bar */}
-      <div className="md:hidden flex items-center justify-between px-6 pt-12 pb-5 bg-[var(--bg-primary)] border-b border-[var(--border-color)] z-20 shadow-sm relative">
+      <Sidebar
+        isOpen={isMobileMenuOpen}
+        onClose={() => setIsMobileMenuOpen(false)}
+      />
+
+      {/* Mobile Top Bar — Collapsible */}
+      <div 
+        className={cn(
+          "md:hidden fixed top-0 left-0 right-0 flex items-center justify-between px-5 pt-10 pb-4 bg-[var(--bg-primary)]/80 backdrop-blur-md border-b border-[var(--border-color)] z-[60] shadow-sm transition-transform duration-300 ease-in-out h-24",
+          scrollDirection === 'down' ? "-translate-y-full" : "translate-y-0"
+        )}
+      >
         <button 
           onClick={() => setIsMobileMenuOpen(true)} 
           className="p-3 -ml-3 hover:bg-[var(--bg-hover)] rounded-2xl transition-colors active:scale-90"
@@ -75,20 +91,17 @@ function AppContent() {
         </button>
         <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2">
            <div className="w-1.5 h-1.5 rounded-full bg-[var(--text-primary)] animate-pulse" />
-           <span className="font-black text-[10px] uppercase tracking-[0.4em] text-[var(--text-primary)] opacity-90">Content OS</span>
+           <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-primary)] opacity-90">Content OS</span>
         </div>
-        <div className="w-12 text-right">
-           {/* Espaço para balancear o menu ou colocar um mini-perfil futuramente */}
-        </div>
+        <div className="w-12" />
       </div>
 
-      <Sidebar
-        isOpen={isMobileMenuOpen}
-        onClose={() => setIsMobileMenuOpen(false)}
-      />
-
-      <main className="flex-1 overflow-y-auto bg-[var(--bg-secondary)]">
-        <Routes>
+      <main className={cn(
+        "flex-1 overflow-y-auto bg-[var(--bg-secondary)] pb-24 md:pb-0 relative pt-24 md:pt-0 transition-transform duration-300 ease-in-out",
+        isMobile && scrollDirection === 'down' ? "-translate-y-24" : "translate-y-0"
+      )}>
+        <div className="min-h-full">
+          <Routes>
           <Route path="/" element={<Dashboard />} />
           <Route path="/contents" element={<Contents />} />
           <Route path="/ideas" element={<Ideas />} />
@@ -108,7 +121,10 @@ function AppContent() {
           <Route path="/settings/dna" element={<DNAVozSettings />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        </div>
       </main>
+
+      <MobileNavBar />
 
       {/* Onboarding — aparece na primeira vez */}
       {!state.onboardingCompleto && <Onboarding />}
