@@ -1,4 +1,6 @@
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
+import { useBodyScrollLock } from '../hooks/useBodyScrollLock';
 
 interface ConfirmModalProps {
   open: boolean;
@@ -15,7 +17,9 @@ export function ConfirmModal({
   onConfirm,
   onCancel,
 }: ConfirmModalProps) {
-  return (
+  useBodyScrollLock(open);
+
+  const content = (
     <AnimatePresence>
       {open && (
         <div className="fixed inset-0 z-[200]">
@@ -55,4 +59,6 @@ export function ConfirmModal({
       )}
     </AnimatePresence>
   );
+
+  return createPortal(content, document.body);
 }

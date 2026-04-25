@@ -4,10 +4,12 @@ import { Layers, Plus, ChevronRight, FileText } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import { Series } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
+import { useIsMobile } from '../hooks/useIsMobile';
 
 export function Arquivos() {
   const { state, dispatch } = useAppContext();
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const [isAdding, setIsAdding] = useState(false);
   const [newName, setNewName] = useState('');
 
@@ -72,67 +74,49 @@ export function Arquivos() {
             />
             <button
               onClick={submitNewSeries}
-              disabled={!newName.trim()}
-              className="px-4 py-2 bg-[var(--text-primary)] text-[var(--bg-primary)] rounded-xl text-[10px] font-black uppercase tracking-widest disabled:opacity-30 hover:scale-[1.02] transition-all"
+              className="px-4 py-2 bg-[var(--text-primary)] text-[var(--bg-primary)] rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
             >
               Criar
-            </button>
-            <button
-              onClick={() => { setIsAdding(false); setNewName(''); }}
-              className="px-4 py-2 border border-[var(--border-color)] rounded-xl text-[10px] font-black uppercase tracking-widest text-[var(--text-primary)] opacity-50 hover:opacity-100 transition-all"
-            >
-              Cancelar
             </button>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {state.series.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-40 gap-6 opacity-30">
-          <div className="p-8 bg-[var(--bg-secondary)] rounded-2xl border border-[var(--border-color)]">
-            <Layers className="w-12 h-12 text-[var(--text-primary)]" />
-          </div>
-          <p className="text-sm font-black uppercase tracking-[0.3em] text-[var(--text-primary)] italic">
-            Nenhuma série criada ainda
-          </p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {state.series.map(series => {
-            const contentsCount = state.contents.filter(c => c.seriesId === series.id).length;
-            return (
-              <motion.button
-                key={series.id}
-                layout
-                initial={{ opacity: 0, scale: 0.97 }}
-                animate={{ opacity: 1, scale: 1 }}
-                onClick={() => navigate(`/series/${series.id}`)}
-                className="flex items-center gap-5 px-6 py-5 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-2xl hover:border-[var(--text-primary)]/30 hover:shadow-md transition-all text-left group"
+      <div className="grid grid-cols-2 md:grid-cols-2 xl:grid-cols-3 gap-3 md:gap-4">
+        {state.series.map(series => {
+          const contentsCount = state.contents.filter(c => c.seriesId === series.id).length;
+          return (
+            <motion.button
+              key={series.id}
+              layout
+              initial={{ opacity: 0, scale: 0.97 }}
+              animate={{ opacity: 1, scale: 1 }}
+              onClick={() => navigate(`/series/${series.id}`)}
+              className="flex flex-col md:flex-row md:items-center gap-3 md:gap-5 px-4 py-4 md:px-6 md:py-5 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-2xl hover:border-[var(--text-primary)]/30 transition-all text-left group"
+            >
+              <div
+                className="w-8 h-8 md:w-10 md:h-10 rounded-xl md:rounded-2xl shrink-0 flex items-center justify-center"
+                style={{ backgroundColor: (series.cor || '#F5C543') + '22' }}
               >
                 <div
-                  className="w-10 h-10 rounded-2xl shrink-0 flex items-center justify-center"
-                  style={{ backgroundColor: (series.cor || '#F5C543') + '22' }}
-                >
-                  <div
-                    className="w-3 h-3 rounded-full"
-                    style={{ backgroundColor: series.cor || '#F5C543' }}
-                  />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-black text-[var(--text-primary)] truncate uppercase italic tracking-tight">
-                    {series.name}
-                  </p>
-                  <p className="text-[10px] text-[var(--text-secondary)] opacity-40 mt-0.5 flex items-center gap-1.5">
-                    <FileText className="w-3 h-3" />
-                    {contentsCount} conteúdo{contentsCount !== 1 ? 's' : ''}
-                  </p>
-                </div>
-                <ChevronRight className="w-4 h-4 text-[var(--text-primary)] opacity-20 group-hover:opacity-50 transition-opacity shrink-0" />
-              </motion.button>
-            );
-          })}
-        </div>
-      )}
+                  className="w-2 h-2 md:w-3 md:h-3 rounded-full"
+                  style={{ backgroundColor: series.cor || '#F5C543' }}
+                />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs md:text-sm font-black text-[var(--text-primary)] truncate uppercase italic tracking-tight">
+                  {series.name}
+                </p>
+                <p className="text-[9px] md:text-[10px] text-[var(--text-secondary)] opacity-40 mt-0.5 flex items-center gap-1.5">
+                  <FileText className="w-2.5 h-2.5 md:w-3 h-3" />
+                  {contentsCount} <span className="hidden xs:inline">itens</span>
+                </p>
+              </div>
+              {!isMobile && <ChevronRight className="w-4 h-4 text-[var(--text-primary)] opacity-20 group-hover:opacity-50 transition-opacity shrink-0" />}
+            </motion.button>
+          );
+        })}
+      </div>
     </div>
   );
 }

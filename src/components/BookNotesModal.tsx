@@ -127,38 +127,47 @@ export function BookNotesModal({ book, onClose }: BookNotesModalProps) {
               rows={4}
               className="w-full text-base font-medium bg-transparent border-none focus:ring-0 p-0 resize-none text-[var(--text-primary)] placeholder:opacity-30 custom-scrollbar"
             />
-            <div className="flex justify-between items-center pt-2 border-t border-[var(--border-color)]">
-              <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-tertiary)] opacity-30 italic">Pense, capture, extraia o valor.</span>
+            <div className="flex items-center justify-between gap-4 pt-4 border-t border-[var(--border-color)]">
+              <span className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-[var(--text-tertiary)] opacity-30 italic leading-relaxed flex-1">
+                Pense, capture, extraia o valor.
+              </span>
               <button
                 onClick={handleAddAnotacao}
                 disabled={!novaAnotacao.trim()}
-                className="flex items-center gap-2 px-6 py-2.5 bg-[var(--text-primary)] text-[var(--bg-primary)] rounded-xl text-[10px] font-black uppercase tracking-widest disabled:opacity-30 hover:scale-105 active:scale-95 transition-all shadow-md"
+                className="flex items-center justify-center gap-1.5 px-4 md:px-6 py-3 md:py-2.5 bg-[var(--text-primary)] text-[var(--bg-primary)] rounded-xl text-[9px] md:text-[10px] font-black uppercase tracking-widest disabled:opacity-30 hover:scale-[1.02] active:scale-95 transition-all shadow-md shrink-0 whitespace-nowrap"
               >
-                <Plus className="w-4 h-4" /> Adicionar Nota
+                <Plus className="w-3.5 h-3.5" /> Adicionar Nota
               </button>
             </div>
           </div>
 
           {/* Filtros e Lista */}
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
+          <div className="space-y-6 mt-4">
+            <div className="flex flex-col gap-4">
+               <div className="flex items-center justify-between">
+                 <span className="text-[9px] font-black text-[var(--text-tertiary)] opacity-50 uppercase tracking-widest whitespace-nowrap shrink-0">
+                   Filtros
+                 </span>
+                 <span className="text-[9px] font-black text-[var(--text-tertiary)] opacity-50 uppercase tracking-widest whitespace-nowrap shrink-0">
+                   {anotacoesFiltradas.length} {anotacoesFiltradas.length === 1 ? 'nota' : 'notas'}
+                 </span>
+               </div>
                <div className="flex gap-2 flex-wrap">
                 {(['Todos', ...TIPOS] as (TipoAnotacao | 'Todos')[]).map(t => (
                   <button
                     key={t}
                     onClick={() => setFiltroTipo(t)}
                     className={cn(
-                      "text-[9px] font-black uppercase tracking-[0.15em] px-3.5 py-1.5 rounded-full border transition-all",
+                      "text-[8.5px] font-black uppercase tracking-[0.15em] px-3.5 py-1.5 rounded-full border transition-all shrink-0 whitespace-nowrap",
                       filtroTipo === t
-                        ? "bg-[var(--text-primary)] text-[var(--bg-secondary)] border-[var(--text-primary)]"
-                        : "bg-transparent text-[var(--text-primary)] border-[var(--border-strong)] opacity-40 hover:opacity-100"
+                        ? "bg-[var(--text-primary)] text-[var(--bg-secondary)] border-[var(--text-primary)] shadow-sm"
+                        : "bg-transparent text-[var(--text-primary)] border-[var(--border-strong)] opacity-50 hover:opacity-100"
                     )}
                   >
                     {t}
                   </button>
                 ))}
               </div>
-              <span className="text-[10px] font-black text-[var(--text-tertiary)] opacity-40 uppercase tracking-widest">{anotacoesFiltradas.length} notas</span>
             </div>
 
             {anotacoesFiltradas.length === 0 ? (

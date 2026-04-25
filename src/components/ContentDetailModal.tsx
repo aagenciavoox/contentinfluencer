@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { X, Trash2, ExternalLink, BookOpen, Check, ChevronDown, ChevronUp, Plus, BarChart3, Eye, Heart, MessageCircle, Bookmark, Share2, Users, Repeat, Radio, FileText, Clapperboard, Award, TrendingUp } from 'lucide-react';
+import { X, Trash2, ExternalLink, BookOpen, Check, ChevronDown, ChevronUp, Plus, BarChart3, Eye, Heart, MessageCircle, Bookmark, Share2, Users, Repeat, Radio, FileText, Clapperboard, Award, TrendingUp, Settings2 } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import { ConfirmModal } from './ConfirmModal';
 import { STATUS_STAGES, CAPTION_TEMPLATES, PLATFORMS, VISUAL_FORMATS } from '../constants';
@@ -8,6 +8,7 @@ import { cn } from '../lib/utils';
 import { FixedPanelModal } from './FixedPanelModal';
 import { RichTextEditor } from './RichTextEditor';
 import { useAuth } from '../context/AuthContext';
+import { useIsMobile } from '../hooks/useIsMobile';
 
 interface ContentDetailModalProps {
   content: Content;
@@ -15,16 +16,6 @@ interface ContentDetailModalProps {
   initialLivroOrigemId?: string;
   isNewContent?: boolean;
 }
-
-const STATUS_SHORT: Record<string, string> = {
-  'Ideia': 'Ideia',
-  'Pronto para Gravar': 'P/ Gravar',
-  'Gravado': 'Gravado',
-  'A Editar': 'A Editar',
-  'Editado': 'Editado',
-  'Programado': 'Program.',
-  'Postado': 'Postado',
-};
 
 const CHAR_LIMITS: Partial<Record<Platform, number>> = {
   Instagram: 2200,
@@ -35,12 +26,14 @@ const CHAR_LIMITS: Partial<Record<Platform, number>> = {
 export function ContentDetailModal({ content, onClose, initialLivroOrigemId, isNewContent = false }: ContentDetailModalProps) {
   const { state, dispatch } = useAppContext();
   const { user } = useAuth();
+  const isMobile = useIsMobile();
   const userName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Usuário';
 
   const [activeTab, setActiveTab] = useState<'roteiro' | 'producao' | 'resultados'>('roteiro');
   const [confirm, setConfirm] = useState<{ message: string; onConfirm: () => void } | null>(null);
   const [notesOpen, setNotesOpen] = useState(!!(content.notes));
   const [refsOpen, setRefsOpen] = useState(!!(content.references));
+  const [metaOpen, setMetaOpen] = useState(false);
   const [isCreatingSeries, setIsCreatingSeries] = useState(false);
   const [newSeriesName, setNewSeriesName] = useState('');
 
@@ -238,89 +231,108 @@ export function ContentDetailModal({ content, onClose, initialLivroOrigemId, isN
     <FixedPanelModal open={true} onClose={onClose} desktopMaxW="md:max-w-[1240px]">
       <div className="flex h-full md:h-[85vh] flex-col md:flex-row overflow-hidden bg-[var(--bg-primary)]">
         
-        {/* LADO ESQUERDO: STATUS (Responsivo) */}
-        <aside className="w-full md:w-[220px] shrink-0 border-b md:border-b-0 md:border-r border-[var(--border-color)] bg-[var(--bg-secondary)] flex flex-col pt-4 md:pt-8">
-          <div className="px-6 md:px-8 mb-4 md:mb-8">
-            <span className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-tertiary)] mb-4 md:mb-6 block">Fluxo de Vida</span>
-            <div className="flex flex-row md:flex-col gap-3 md:gap-1 overflow-x-auto md:overflow-x-visible no-scrollbar pb-2 md:pb-0">
-              {STATUS_STAGES.map((stage, i) => {
-                const currentIdx = STATUS_STAGES.indexOf(local.status);
-                const isDone = i < currentIdx;
-                const isActive = i === currentIdx;
-                return (
-                  <button
-                    key={stage}
-                    onClick={() => updateLocal({ status: stage })}
-                    className="flex items-center gap-2 md:gap-3 group py-1.5 md:py-2 text-left shrink-0"
-                  >
-                    <div className={cn(
-                      "w-4 h-4 md:w-5 md:h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all",
-                      isActive ? "border-[var(--text-primary)] bg-[var(--text-primary)]" : 
-                      isDone ? "border-[var(--accent-green)] bg-[var(--accent-green)]" : "border-[var(--border-color)] group-hover:border-[var(--text-primary)]/40"
-                    )}>
-                      {isDone && <Check className="w-2.5 h-2.5 md:w-3 md:h-3 text-[var(--bg-primary)]" />}
-                      {isActive && <div className="w-1 md:w-1.5 h-1 md:h-1.5 rounded-full bg-[var(--bg-primary)]" />}
-                    </div>
-                    <span className={cn(
-                      "text-[9px] md:text-[10px] font-black uppercase tracking-widest transition-all",
-                      isActive ? "text-[var(--text-primary)] opacity-100" :
-                      isDone ? "text-[var(--accent-green)] opacity-70" : "text-[var(--text-primary)] opacity-30 group-hover:opacity-60"
-                    )}>
-                      {STATUS_SHORT[stage]}
-                    </span>
-                  </button>
-                );
-              })}
+        {/* SIDEBAR STATUS (PC Only) */}
+        {!isMobile && (
+          <aside className="w-[220px] shrink-0 border-r border-[var(--border-color)] bg-[var(--bg-secondary)] flex flex-col pt-8">
+            <div className="px-8 mb-8">
+              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-tertiary)] mb-6 block">Fluxo de Vida</span>
+              <div className="flex flex-col gap-1">
+                {STATUS_STAGES.map((stage, i) => {
+                  const currentIdx = STATUS_STAGES.indexOf(local.status);
+                  const isDone = i < currentIdx;
+                  const isActive = i === currentIdx;
+                  return (
+                    <button
+                      key={stage}
+                      onClick={() => updateLocal({ status: stage })}
+                      className="flex items-center gap-3 group py-2 text-left shrink-0"
+                    >
+                      <div className={cn(
+                        "w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all",
+                        isActive ? "border-[var(--text-primary)] bg-[var(--text-primary)]" : 
+                        isDone ? "border-[var(--accent-green)] bg-[var(--accent-green)]" : "border-[var(--border-color)] group-hover:border-[var(--text-primary)]/40"
+                      )}>
+                        {isDone && <Check className="w-3.5 h-3.5 text-[var(--bg-primary)]" />}
+                        {isActive && <div className="w-1.5 h-1.5 rounded-full bg-[var(--bg-primary)]" />}
+                      </div>
+                      <span className={cn(
+                        "text-[10px] font-black uppercase tracking-widest transition-all",
+                        isActive ? "text-[var(--text-primary)] opacity-100" :
+                        isDone ? "text-[var(--accent-green)] opacity-70" : "text-[var(--text-primary)] opacity-30 group-hover:opacity-60"
+                      )}>
+                        {stage}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-          </div>
+            
+            <div className="mt-auto p-8 border-t border-[var(--border-color)] flex flex-col gap-2">
+               <button onClick={() => setConfirm({ message: 'Excluir definitivamente?', onConfirm: () => { dispatch({ type: 'DELETE_CONTENT', payload: local.id }); onClose(); } })} className="w-full flex items-center gap-2 px-4 py-2 hover:bg-[var(--accent-pink)]/10 rounded-xl transition-colors group">
+                  <Trash2 className="w-4 h-4 text-[var(--accent-pink)] opacity-40 group-hover:opacity-100" />
+                  <span className="text-[10px] font-black uppercase text-[var(--accent-pink)] opacity-40 group-hover:opacity-100">Excluir</span>
+               </button>
+            </div>
+          </aside>
+        )}
 
-          <div className="mt-auto p-4 md:p-8 border-t border-[var(--border-color)] flex md:flex-col gap-2">
-             <button
-                onClick={handleDeleteContent}
-                className="flex-1 md:w-full flex items-center gap-2 px-4 py-2 hover:bg-[var(--accent-pink)]/10 rounded-xl transition-colors group"
-              >
-                <Trash2 className="w-4 h-4 text-[var(--accent-pink)] opacity-40 group-hover:opacity-100" />
-                <span className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-[var(--accent-pink)] opacity-40 group-hover:opacity-100">Excluir</span>
-              </button>
-              {local.link && (
-                <a
-                  href={local.link}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex-1 md:w-full flex items-center gap-2 px-4 py-2 hover:bg-[var(--bg-hover)] rounded-xl transition-colors group"
-                >
-                  <ExternalLink className="w-4 h-4 text-[var(--text-primary)] opacity-40 group-hover:opacity-100" />
-                  <span className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-[var(--text-primary)] opacity-40 group-hover:opacity-100">Ver Link</span>
-                </a>
-              )}
-          </div>
-        </aside>
-
-        {/* ÁREA PRINCIPAL */}
         <div className="flex-1 flex flex-col overflow-hidden">
           
-          {/* HEADER (Fixo) */}
-          <header className="px-6 md:px-10 py-6 border-b border-[var(--border-color)] flex items-center justify-between gap-6 shrink-0 bg-[var(--bg-primary)] z-10">
-            <div className="flex-1 min-w-0">
+          {/* HEADER MINIMALISTA */}
+          <header className={cn(
+            "px-4 md:px-10 py-3 md:py-6 border-b border-[var(--border-color)] flex flex-col md:flex-row md:items-center justify-between gap-3 shrink-0 bg-[var(--bg-primary)] z-10",
+            isMobile && "pt-5"
+          )}>
+            {isMobile && (
+              <div className="flex items-center justify-between w-full gap-2">
+                 <select
+                   value={local.status}
+                   onChange={(e) => updateLocal({ status: e.target.value as any })}
+                   className="text-[9px] font-black uppercase tracking-widest bg-[var(--bg-hover)] text-[var(--text-primary)] border border-[var(--border-color)] rounded-lg px-2.5 py-1.5 focus:ring-0 flex-1"
+                 >
+                   {STATUS_STAGES.map(s => <option key={s} value={s}>{s}</option>)}
+                 </select>
+                 
+                 <div className="flex items-center gap-1.5 shrink-0">
+                   <button onClick={handleSave} className="p-1.5 bg-[var(--text-primary)] text-[var(--bg-primary)] rounded-lg transition-all active:scale-95">
+                     <Check className="w-4 h-4" />
+                   </button>
+                   <button onClick={onClose} className="p-1.5 bg-[var(--bg-hover)] rounded-lg text-[var(--text-primary)] border border-[var(--border-color)]">
+                     <X className="w-4 h-4" />
+                   </button>
+                 </div>
+              </div>
+            )}
+
+            <div className="flex-1 min-w-0 w-full">
                <input
                 type="text"
                 value={local.title}
                 onChange={(e) => updateLocal({ title: e.target.value })}
-                className="w-full text-xl md:text-3xl font-black text-[var(--text-primary)] border-none focus:ring-0 p-0 placeholder:opacity-10 bg-transparent tracking-tight truncate"
-                placeholder="Título sem nome..."
+                className={cn(
+                  "w-full font-black text-[var(--text-primary)] focus:ring-0 placeholder:opacity-30 tracking-tight",
+                  isMobile ? "text-xs bg-[var(--bg-hover)] border border-[var(--border-color)] rounded-lg px-2.5 py-1.5" : "text-3xl bg-transparent border-none p-0 truncate"
+                )}
+                placeholder="Título..."
               />
             </div>
             
-            <button
-              onClick={onClose}
-              className="p-2 hover:bg-[var(--bg-hover)] rounded-full transition-colors shrink-0"
-            >
-              <X className="w-6 h-6 text-[var(--text-tertiary)]" />
-            </button>
+            {!isMobile && (
+              <div className="flex items-center gap-2 shrink-0">
+                <button onClick={handleSave} className="px-6 py-2.5 bg-[var(--text-primary)] text-[var(--bg-primary)] rounded-2xl transition-all active:scale-95 flex items-center gap-2">
+                  <Check className="w-4 h-4" />
+                  <span className="text-[10px] font-black uppercase tracking-widest">Salvar</span>
+                </button>
+                <button onClick={onClose} className="p-2 hover:bg-[var(--bg-hover)] rounded-full text-[var(--text-tertiary)]">
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+            )}
           </header>
 
-          {/* BARRA DE ABAS */}
-          <nav className="px-6 md:px-10 py-4 bg-[var(--bg-secondary)] border-b border-[var(--border-color)] flex gap-1 shrink-0">
+          {/* ABAS COMPACTAS */}
+          <nav className="px-4 md:px-10 py-2 bg-[var(--bg-secondary)] border-b border-[var(--border-color)] flex gap-1 overflow-x-auto no-scrollbar shrink-0">
             {[
               { id: 'roteiro', label: 'Roteiro', icon: FileText },
               { id: 'producao', label: 'Produção', icon: Clapperboard },
@@ -330,27 +342,27 @@ export function ContentDetailModal({ content, onClose, initialLivroOrigemId, isN
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as any)}
                 className={cn(
-                  "flex items-center gap-2 px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
+                  "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[9px] md:text-[10px] font-black uppercase tracking-widest transition-all shrink-0",
                   activeTab === tab.id 
-                    ? "bg-[var(--text-primary)] text-[var(--bg-primary)] shadow-md"
-                    : "text-[var(--text-primary)] opacity-40 hover:opacity-100 hover:bg-[var(--bg-hover)]"
+                    ? "bg-[var(--text-primary)] text-[var(--bg-primary)] border border-[var(--border-strong)]"
+                    : "text-[var(--text-primary)] opacity-40 hover:opacity-100"
                 )}
               >
-                <tab.icon className="w-3.5 h-3.5" />
+                <tab.icon className="w-3 h-3" />
                 {tab.label}
               </button>
             ))}
           </nav>
 
           {/* CONTEÚDO SCROLLABLE */}
-          <main className="flex-1 overflow-y-auto p-6 md:p-10 custom-scrollbar bg-[var(--bg-primary)]">
+          <main className="flex-1 overflow-y-auto p-4 md:p-10 custom-scrollbar bg-[var(--bg-primary)]">
             
             {activeTab === 'roteiro' && (
-              <div className="space-y-12 animate-in fade-in duration-300">
+              <div className="space-y-8 md:space-y-12 animate-in fade-in duration-300">
                 {/* Metadados Roteiro */}
                 <section>
                   <p className={groupTitle}>Classificação</p>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-5 md:gap-y-6">
                     {/* Série */}
                     <div className="flex flex-col gap-2">
                       <span className={fieldLabel}>Série</span>

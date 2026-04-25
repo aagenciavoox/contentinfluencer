@@ -317,14 +317,14 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={onClose}
-              className="fixed inset-0 bg-black/40 backdrop-blur-md z-40 md:hidden"
+              className="fixed inset-0 bg-black/40 backdrop-blur-md z-[105] md:hidden"
             />
             <motion.div
               initial={{ x: '-100%' }}
               animate={{ x: 0 }}
               exit={{ x: '-100%' }}
               transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-              className="fixed top-0 left-0 h-full w-[85vw] max-w-sm z-50 md:hidden bg-[var(--bg-primary)] shadow-2xl overflow-hidden"
+              className="fixed top-0 left-0 h-full w-[85vw] max-w-sm z-[110] md:hidden bg-[var(--bg-primary)] shadow-2xl overflow-hidden"
             >
               <div className="h-full flex flex-col w-full">
                 {sidebarContent}

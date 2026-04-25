@@ -90,36 +90,18 @@ export function EditorialCalendar() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [previewProject, setPreviewProject] = useState<Partnership | null>(null);
   const [isProjectFormOpen, setIsProjectFormOpen] = useState(false);
+  const [formTab, setFormTab] = useState<'config' | 'agenda'>('agenda');
   const [editingBrand, setEditingBrand] = useState<{ name: string; color: string; description?: string } | null>(null);
 
   const openProjectEdit = (brandName: string) => {
     const firstProject = state.partnerships.find(p => p.brand === brandName);
     if (firstProject) {
-      setEditingBrand({
-        name: firstProject.brand,
-        color: firstProject.brandColor,
-        description: firstProject.description || ''
-      });
-      setIsProjectFormOpen(true);
+      setSelectedProject(firstProject);
+      setFormTab('config');
+      setIsFormOpen(true);
     }
   };
 
-  const saveProjectGlobal = (oldName: string, updates: { name: string; color: string; description?: string }) => {
-    state.partnerships.forEach(p => {
-      if (p.brand === oldName) {
-        dispatch({
-          type: 'UPDATE_PARTNERSHIP',
-          payload: {
-            ...p,
-            brand: updates.name,
-            brandColor: updates.color,
-            description: updates.description
-          }
-        });
-      }
-    });
-    setIsProjectFormOpen(false);
-  };
 
   // ── Agenda handlers ──
   const handleItemClick = (item: any) => {
@@ -160,6 +142,16 @@ export function EditorialCalendar() {
 
   // ── Projetos handlers ──
   const handleAddProject = (prefillBrand?: string, prefillColor?: string) => {
+    if (prefillBrand) {
+      const existing = state.partnerships.find(p => p.brand === prefillBrand);
+      if (existing) {
+        setSelectedProject(existing);
+        setFormTab('agenda');
+        setIsFormOpen(true);
+        return;
+      }
+    }
+
     setSelectedProject({
       id: Math.random().toString(36).substr(2, 9),
       brand: prefillBrand || '',
@@ -168,6 +160,7 @@ export function EditorialCalendar() {
       status: PARTNERSHIP_STAGES[0],
       createdAt: new Date().toISOString(),
     } as Partnership);
+    setFormTab('agenda');
     setIsFormOpen(true);
   };
 
@@ -216,6 +209,7 @@ export function EditorialCalendar() {
     if (!previewProject) return;
     setSelectedProject(previewProject);
     setPreviewProject(null);
+    setFormTab('agenda');
     setIsFormOpen(true);
   };
 
@@ -468,6 +462,7 @@ export function EditorialCalendar() {
         {selectedProject && (
           <PartnershipForm
             initialData={selectedProject}
+            initialTab={formTab}
             onSave={saveProject}
             onClose={() => setIsFormOpen(false)}
             onDelete={(id) => { 
@@ -482,113 +477,6 @@ export function EditorialCalendar() {
         )}
       </BottomSheetModal>
 
-      {/* ── Modal de Edição Global do Projeto (Marca) ── */}
-      <BottomSheetModal
-        open={isProjectFormOpen}
-        onClose={() => setIsProjectFormOpen(false)}
-      >
-        {editingBrand && (
-          <div className="flex flex-col h-full bg-[var(--bg-primary)] rounded-[3rem] overflow-hidden">
-            <div className="p-8 border-b border-[var(--border-color)] bg-[var(--bg-secondary)] flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-[var(--text-primary)] text-[var(--bg-primary)] rounded-2xl">
-                  <Settings className="w-5 h-5" />
-                </div>
-                <div>
-                  <h2 className="text-xl font-black text-[var(--text-primary)] uppercase tracking-tight">Editar Projeto</h2>
-                  <p className="text-[10px] font-black uppercase text-[var(--text-tertiary)] opacity-50 tracking-widest mt-1">Configurações globais da marca</p>
-                </div>
-              </div>
-              <button onClick={() => setIsProjectFormOpen(false)} className="p-3 hover:bg-[var(--bg-hover)] rounded-full transition-all">
-                <X className="w-6 h-6 opacity-40 hover:opacity-100" />
-              </button>
-            </div>
-
-            <div className="flex-1 overflow-y-auto p-10 space-y-10 custom-scrollbar">
-              <div className="space-y-3">
-                <label className="text-[10px] font-black text-[var(--text-tertiary)] uppercase tracking-[0.2em] ml-1 opacity-60">Nome do Projeto / Marca</label>
-                <input 
-                  type="text"
-                  value={editingBrand.name}
-                  onChange={(e) => setEditingBrand(prev => prev ? { ...prev, name: e.target.value } : null)}
-                  className="w-full text-lg font-black text-[var(--text-primary)] bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl px-6 py-5 focus:ring-2 focus:ring-[var(--accent-blue)]"
-                />
-              </div>
-
-              <div className="space-y-3">
-                <label className="text-[10px] font-black text-[var(--text-tertiary)] uppercase tracking-[0.2em] ml-1 opacity-60">Cor de Identificação</label>
-                <div className="flex items-center gap-4 bg-[var(--bg-secondary)] p-4 rounded-2xl border border-[var(--border-color)] shadow-inner">
-                  <input 
-                    type="color"
-                    value={editingBrand.color}
-                    onChange={(e) => setEditingBrand(prev => prev ? { ...prev, color: e.target.value } : null)}
-                    className="w-12 h-12 rounded-xl cursor-pointer border-none bg-transparent"
-                  />
-                  <span className="text-xs font-mono font-bold text-[var(--text-tertiary)] uppercase">{editingBrand.color}</span>
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                <label className="text-[10px] font-black text-[var(--text-tertiary)] uppercase tracking-[0.2em] ml-1 opacity-60">Descrição do Projeto</label>
-                <textarea 
-                  value={editingBrand.description}
-                  onChange={(e) => setEditingBrand(prev => prev ? { ...prev, description: e.target.value } : null)}
-                  className="w-full min-h-[150px] text-base text-[var(--text-primary)] bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-[2rem] p-8 resize-none shadow-inner"
-                  placeholder="Informações gerais do projeto, briefing macro, objetivos..."
-                />
-              </div>
-
-              <section className="pt-10 border-t border-[var(--border-color)]">
-                <h3 className="text-[10px] font-black text-red-500 uppercase tracking-widest mb-6">Ações Críticas</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <button
-                    onClick={() => {
-                      if (window.confirm(`Tem certeza que deseja ARQUIVAR o projeto "${editingBrand.name}" e TODOS os seus eventos?`)) {
-                        state.partnerships.forEach(p => {
-                          if (p.brand === editingBrand.name) dispatch({ type: 'UPDATE_PARTNERSHIP', payload: { ...p, archived: true } });
-                        });
-                        setIsProjectFormOpen(false);
-                      }
-                    }}
-                    className="flex items-center justify-center gap-2 p-4 rounded-2xl text-[10px] font-black uppercase tracking-widest border border-amber-500/20 text-amber-600 hover:bg-amber-500/5 transition-all"
-                  >
-                    <Archive className="w-4 h-4" />
-                    Arquivar Projeto Inteiro
-                  </button>
-                  <button
-                    onClick={() => {
-                      if (window.confirm(`ATENÇÃO: Isso excluirá o projeto "${editingBrand.name}" e TODOS os eventos associados. Esta ação não pode ser desfeita.`)) {
-                        state.partnerships.forEach(p => {
-                          if (p.brand === editingBrand.name) dispatch({ type: 'DELETE_PARTNERSHIP', payload: p.id });
-                        });
-                        setIsProjectFormOpen(false);
-                      }
-                    }}
-                    className="flex items-center justify-center gap-2 p-4 rounded-2xl text-[10px] font-black uppercase tracking-widest border border-red-500/20 text-red-500 hover:bg-red-500/5 transition-all"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                    Excluir Projeto Inteiro
-                  </button>
-                </div>
-              </section>
-            </div>
-
-            <div className="p-8 border-t border-[var(--border-color)] bg-[var(--bg-secondary)]">
-              <button
-                onClick={() => {
-                  const firstBrand = state.partnerships.find(p => p.id === editingBrand.name); // wait, name is the key
-                  // actually, we use the original name from editingBrand
-                  const oldName = state.partnerships.find(p => p.brandColor === editingBrand.color || p.brand === editingBrand.name)?.brand || editingBrand.name;
-                  saveProjectGlobal(oldName, editingBrand);
-                }}
-                className="w-full py-5 bg-[var(--text-primary)] text-[var(--bg-primary)] rounded-2xl text-xs font-black uppercase tracking-[0.2em] shadow-lg hover:scale-[1.01] transition-all"
-              >
-                Salvar Configurações do Projeto
-              </button>
-            </div>
-          </div>
-        )}
-      </BottomSheetModal>
     </div>
   );
 }
@@ -947,9 +835,6 @@ function MiniCalendar({
 // ── MODAL DE VISUALIZAÇÃO DO EVENTO ──────────────────────────────────────────
 function EventPreviewModal({
   project,
-  allProjects,
-  allContents,
-  allAgenda,
   onClose,
   onEdit,
   onDelete,
@@ -972,7 +857,7 @@ function EventPreviewModal({
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+      className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
       onClick={onClose}
     >
       <motion.div
@@ -980,153 +865,87 @@ function EventPreviewModal({
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 16 }}
         transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-        className="bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-[2.5rem] shadow-2xl w-full max-w-sm overflow-hidden max-h-[90vh] overflow-y-auto custom-scrollbar flex flex-col"
+        className="bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-[2.5rem] shadow-2xl w-full max-w-sm overflow-hidden flex flex-col"
         onClick={e => e.stopPropagation()}
       >
-        {/* Faixa de cor */}
         <div className="h-1.5 w-full shrink-0" style={{ backgroundColor: project.brandColor }} />
 
-        {/* Header */}
-        <div className="px-7 pt-6 pb-5 border-b border-[var(--border-color)] flex items-start justify-between gap-4 shrink-0">
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-[8px] font-black bg-blue-500/10 text-blue-600 px-2 py-0.5 rounded-full uppercase tracking-widest border border-blue-500/20">
-                Evento / Entrega
+        <div className="p-8 space-y-8">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1 min-w-0">
+              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-tertiary)] opacity-60 block mb-2">
+                {project.brand}
               </span>
-              {project.archived && (
-                <span className="text-[8px] font-black bg-[var(--text-tertiary)]/10 text-[var(--text-tertiary)] px-2 py-0.5 rounded-full uppercase tracking-widest border border-[var(--border-color)]">
-                  Arquivado
-                </span>
-              )}
+              <h2 className="text-2xl font-black text-[var(--text-primary)] uppercase tracking-tight leading-tight">
+                {project.title}
+              </h2>
             </div>
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-tertiary)] mb-1 opacity-60">Projeto: {project.brand}</p>
-            <h2 className="text-xl font-black text-[var(--text-primary)] uppercase tracking-tight leading-tight">{project.title}</h2>
-          </div>
-          <button onClick={onClose} className="p-2 hover:bg-[var(--bg-hover)] rounded-full transition-all shrink-0">
-            <X className="w-5 h-5 text-[var(--text-tertiary)]" />
-          </button>
-        </div>
-
-        {/* Body */}
-        <div className="flex-1 p-7 pt-5 pb-5 space-y-6">
-          {/* Calendário do Evento */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[var(--text-tertiary)] opacity-60">Visualização no Tempo</span>
-              <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-[var(--bg-hover)] border border-[var(--border-color)]">
-                <CalendarDays className="w-2.5 h-2.5 text-[var(--text-tertiary)]" />
-                <span className="text-[8px] font-black text-[var(--text-tertiary)] uppercase">{durationDays} {durationDays === 1 ? 'dia' : 'dias'}</span>
-              </div>
-            </div>
-            <MiniCalendar 
-              project={project}
-              allProjects={allProjects}
-              allContents={allContents}
-              allAgenda={allAgenda}
-            />
-          </div>
-
-          <div className="space-y-5">
-            {/* Status */}
-          <div className="flex items-center gap-3">
-            <Tag className="w-4 h-4 text-[var(--text-tertiary)]" />
-            <div>
-              <span className="text-[8px] font-black uppercase tracking-widest text-[var(--text-tertiary)] block mb-0.5">Fase</span>
-              <span className="text-xs font-bold text-[var(--text-primary)]">{project.status}</span>
-            </div>
-          </div>
-
-          {/* Período */}
-          {(project.startDate || project.deadline) && (
-            <div className="flex items-center gap-3">
-              <CalendarDays className="w-4 h-4 text-[var(--text-tertiary)]" />
-              <div>
-                <span className="text-[8px] font-black uppercase tracking-widest text-[var(--text-tertiary)] block mb-0.5">Período</span>
-                <span className="text-xs font-bold text-[var(--text-primary)]">
-                  {project.startDate && project.deadline && project.startDate !== project.deadline
-                    ? `${format(parseISO(project.startDate + 'T12:00:00'), "dd MMM", { locale: ptBR })} → ${format(parseISO(project.deadline + 'T12:00:00'), "dd MMM yyyy", { locale: ptBR })}`
-                    : project.deadline
-                    ? format(parseISO(project.deadline + 'T12:00:00'), "dd 'de' MMM 'de' yyyy", { locale: ptBR })
-                    : '—'
-                  }
-                  {durationDays > 1 && (
-                    <span className="ml-2 text-[9px] font-black px-2 py-0.5 rounded-full inline-flex items-center"
-                      style={{ backgroundColor: `${project.brandColor}20`, color: project.brandColor }}>
-                      {durationDays}d
-                    </span>
-                  )}
-                </span>
-              </div>
-            </div>
-          )}
-
-          {/* Link */}
-          {project.link && (
-            <div className="flex items-center gap-3">
-              <ExternalLink className="w-4 h-4 text-[var(--text-tertiary)]" />
-              <div className="flex-1 min-w-0">
-                <span className="text-[8px] font-black uppercase tracking-widest text-[var(--text-tertiary)] block mb-0.5">Link</span>
-                <a href={project.link} target="_blank" rel="noopener noreferrer"
-                  className="text-xs font-bold text-[var(--accent-blue)] hover:underline truncate block">
-                  {project.link}
-                </a>
-              </div>
-            </div>
-          )}
-
-          {/* Notas */}
-          {project.notes && (
-            <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-5 mt-2">
-              <span className="text-[8px] font-black uppercase tracking-widest text-[var(--text-tertiary)] block mb-2 opacity-60">Notas</span>
-              <p className="text-xs text-[var(--text-secondary)] leading-relaxed">{project.notes}</p>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Footer */}
-      <div className="px-7 pb-6 pt-2 shrink-0 flex flex-col gap-3">
-          <button
-            onClick={onEdit}
-            className="w-full flex items-center justify-center gap-2.5 py-4 bg-[var(--text-primary)] text-[var(--bg-primary)] rounded-2xl text-xs font-black uppercase tracking-widest hover:scale-[1.01] active:scale-[0.99] transition-all shadow-lg"
-          >
-            <Edit3 className="w-4 h-4" />
-            Editar Evento
-          </button>
-          
-          <div className="grid grid-cols-2 gap-3">
-            <button
-              onClick={() => onArchive({ ...project, archived: !project.archived })}
-              className={cn(
-                "flex items-center justify-center gap-2 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all",
-                project.archived 
-                  ? "bg-amber-500 text-white border-amber-500 shadow-lg" 
-                  : "border-[var(--border-color)] text-[var(--text-tertiary)] hover:bg-[var(--bg-hover)]"
-              )}
-            >
-              <Archive className="w-3.5 h-3.5" />
-              {project.archived ? 'Desarquivar' : 'Arquivar'}
+            <button onClick={onClose} className="p-2 hover:bg-[var(--bg-hover)] rounded-full transition-all shrink-0">
+              <X className="w-5 h-5 text-[var(--text-tertiary)]" />
             </button>
-            <button
-              onClick={() => {
-                if (window.confirm('Excluir este projeto permanentemente?')) {
-                  onDelete(project.id);
-                  onClose();
+          </div>
+
+          <div className="grid grid-cols-2 gap-6">
+            <div className="space-y-1.5">
+              <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-tertiary)] opacity-60">Fase</span>
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: project.brandColor }} />
+                <span className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-wider">{project.status}</span>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-tertiary)] opacity-60">Duração</span>
+              <span className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-wider">{durationDays} {durationDays === 1 ? 'dia' : 'dias'}</span>
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-tertiary)] opacity-60">Período</span>
+            <div className="flex items-center gap-2 text-xs font-bold text-[var(--text-primary)] bg-[var(--bg-secondary)] p-4 rounded-2xl border border-[var(--border-color)]">
+              <CalendarDays className="w-4 h-4 opacity-30" />
+              <span>
+                {project.startDate && project.deadline && project.startDate !== project.deadline
+                  ? `${format(parseISO(project.startDate + 'T12:00:00'), "dd MMM", { locale: ptBR })} → ${format(parseISO(project.deadline + 'T12:00:00'), "dd MMM yyyy", { locale: ptBR })}`
+                  : project.deadline
+                  ? format(parseISO(project.deadline + 'T12:00:00'), "dd 'de' MMM 'de' yyyy", { locale: ptBR })
+                  : '—'
                 }
-              }}
-              className="flex items-center justify-center gap-2 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest border border-red-500/20 text-red-500 hover:bg-red-500/10 transition-all"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-              Excluir
-            </button>
+              </span>
+            </div>
           </div>
 
-          <button
-            onClick={onClose}
-            className="w-full py-2 text-[10px] font-black uppercase tracking-widest text-[var(--text-tertiary)] opacity-30 hover:opacity-100 transition-all mt-2"
-          >
-            Fechar Visualização
-          </button>
+          <div className="flex flex-col gap-3 pt-2">
+            <button
+              onClick={onEdit}
+              className="w-full flex items-center justify-center gap-2.5 py-4 bg-[var(--text-primary)] text-[var(--bg-primary)] rounded-2xl text-xs font-black uppercase tracking-widest hover:scale-[1.02] transition-all shadow-md"
+            >
+              <Edit3 className="w-4 h-4" />
+              Editar Evento
+            </button>
+            
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={() => onArchive({ ...project, archived: !project.archived })}
+                className="flex items-center justify-center gap-2 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest border border-[var(--border-color)] text-[var(--text-tertiary)] hover:bg-[var(--bg-hover)] transition-all"
+              >
+                <Archive className="w-3.5 h-3.5" />
+                {project.archived ? 'Desarquivar' : 'Arquivar'}
+              </button>
+              <button
+                onClick={() => {
+                  if (window.confirm('Excluir este projeto permanentemente?')) {
+                    onDelete(project.id);
+                    onClose();
+                  }
+                }}
+                className="flex items-center justify-center gap-2 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest border border-red-500/10 text-red-500 hover:bg-red-500/10 transition-all"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                Excluir
+              </button>
+            </div>
+          </div>
         </div>
       </motion.div>
     </motion.div>

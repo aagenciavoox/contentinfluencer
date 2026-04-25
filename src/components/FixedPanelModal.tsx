@@ -1,6 +1,8 @@
 import { ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { useIsMobile } from '../hooks/useIsMobile';
+import { useBodyScrollLock } from '../hooks/useBodyScrollLock';
 import { cn } from '../lib/utils';
 
 interface FixedPanelModalProps {
@@ -18,11 +20,12 @@ export function FixedPanelModal({
   onClose,
   children,
   desktopMaxW = 'md:max-w-[1200px]',
-  zIndex = 'z-50',
+  zIndex = 'z-[100]',
 }: FixedPanelModalProps) {
   const isMobile = useIsMobile();
+  useBodyScrollLock(open);
 
-  return (
+  const content = (
     <AnimatePresence>
       {open && (
         <div className={cn('fixed inset-0 flex items-end md:items-center justify-center p-0 md:p-6', zIndex)}>
@@ -66,4 +69,6 @@ export function FixedPanelModal({
       )}
     </AnimatePresence>
   );
+
+  return createPortal(content, document.body);
 }

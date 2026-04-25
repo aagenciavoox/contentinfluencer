@@ -222,11 +222,11 @@ export function PilaresSettings() {
           )}
         </AnimatePresence>
 
-        <div className="space-y-4">
+        <div className="grid grid-cols-2 md:grid-cols-1 gap-3 md:gap-4">
           {state.pilares.map(pilar => (
             <div key={pilar.id}>
               {editandoId === pilar.id ? (
-                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="col-span-2 md:col-span-1">
                   <PilarForm
                     initial={pilar}
                     onSave={handleSave}
@@ -235,35 +235,37 @@ export function PilaresSettings() {
                 </motion.div>
               ) : (
                 <div
-                  className={`flex items-center gap-4 px-5 py-4 bg-[var(--bg-primary)] border rounded-2xl transition-all ${
+                  className={`flex flex-col md:flex-row md:items-center gap-3 md:gap-4 px-4 py-4 md:px-5 md:py-4 bg-[var(--bg-primary)] border rounded-2xl transition-all h-full ${
                     pilar.ativo ? 'border-[var(--border-color)]' : 'border-[var(--border-color)] opacity-40'
                   }`}
                 >
-                  {/* Cor */}
-                  <div className="w-4 h-4 rounded-full shrink-0" style={{ backgroundColor: pilar.cor }} />
+                  <div className="flex items-center justify-between md:contents">
+                    {/* Cor */}
+                    <div className="w-3.5 h-3.5 md:w-4 md:h-4 rounded-full shrink-0" style={{ backgroundColor: pilar.cor }} />
+                    
+                    {/* Ações Mobile Top */}
+                    <div className="flex md:hidden items-center gap-1 shrink-0">
+                      <button onClick={() => handleToggleAtivo(pilar)}>
+                        {pilar.ativo ? <ToggleRight className="w-4 h-4 text-[var(--accent-green)]" /> : <ToggleLeft className="w-4 h-4 text-[var(--text-tertiary)]" />}
+                      </button>
+                      <button onClick={() => setEditandoId(pilar.id)} className="p-1"><Edit2 className="w-3 h-3 text-[var(--text-tertiary)]" /></button>
+                    </div>
+                  </div>
 
                   {/* Info */}
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-black text-[var(--text-primary)]">{pilar.nome}</p>
-                    {pilar.descricao && (
-                      <p className="text-xs text-[var(--text-secondary)] opacity-50 truncate">{pilar.descricao}</p>
-                    )}
-                    {pilar.hashtagsInstagram && (
-                      <p className="text-[10px] text-[var(--accent-blue)] opacity-60 mt-0.5 truncate">
-                        IG: {pilar.hashtagsInstagram}
-                      </p>
-                    )}
+                    <p className="text-xs md:text-sm font-black text-[var(--text-primary)] truncate uppercase md:normal-case">{pilar.nome}</p>
                     {pilar.metaSemanalMax && pilar.metaSemanalMax > 0 && (
-                      <div className="flex items-center gap-1.5 mt-1">
-                        <span className="text-[8px] font-black bg-[var(--accent-blue)]/10 text-[var(--accent-blue)] px-2 py-0.5 rounded-full border border-[var(--accent-blue)]/20 uppercase tracking-widest">
-                          Goal: {pilar.metaSemanalMin}-{pilar.metaSemanalMax} posts/semana
+                      <div className="mt-1">
+                        <span className="text-[7px] md:text-[8px] font-black bg-[var(--accent-blue)]/10 text-[var(--accent-blue)] px-1.5 py-0.5 rounded-full border border-[var(--accent-blue)]/20 uppercase tracking-widest whitespace-nowrap">
+                          {pilar.metaSemanalMin}-{pilar.metaSemanalMax} posts/wk
                         </span>
                       </div>
                     )}
                   </div>
 
-                  {/* Ações */}
-                  <div className="flex items-center gap-2 shrink-0">
+                  {/* Ações Desktop */}
+                  <div className="hidden md:flex items-center gap-2 shrink-0">
                     <button onClick={() => handleToggleAtivo(pilar)} title={pilar.ativo ? 'Desativar' : 'Ativar'}>
                       {pilar.ativo
                         ? <ToggleRight className="w-5 h-5 text-[var(--accent-green)]" />
@@ -277,6 +279,11 @@ export function PilaresSettings() {
                       <Trash2 className="w-3.5 h-3.5 text-[var(--accent-pink)] opacity-40 hover:opacity-100" />
                     </button>
                   </div>
+                  
+                  {/* Delete Mobile (Bottom right discreet) */}
+                  <button onClick={() => handleDelete(pilar.id)} className="md:hidden absolute bottom-2 right-2 p-1 opacity-20 hover:opacity-100">
+                    <Trash2 className="w-3 h-3 text-[var(--accent-pink)]" />
+                  </button>
                 </div>
               )}
             </div>

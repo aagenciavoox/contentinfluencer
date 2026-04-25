@@ -4,15 +4,21 @@ import {
   Calendar, Clock, CheckCircle2, ChevronRight, Plus, AlertCircle, LayoutDashboard,
   Briefcase,
   ListTodo,
-  Columns
+  Columns,
+  X,
+  Edit3,
+  Archive,
+  Trash2,
+  CalendarDays
 } from 'lucide-react';
-import { format, isSameMonth, isSameDay, addMonths, startOfMonth, startOfWeek, endOfWeek, eachDayOfInterval } from 'date-fns';
+import { format, isSameMonth, isSameDay, addMonths, startOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '../lib/utils';
 import { Partnership, PartnershipStatus } from '../types';
 import { PARTNERSHIP_STAGES } from '../constants';
 import { BottomSheetModal } from '../components/BottomSheetModal';
 import { PartnershipForm } from '../components/partnerships/PartnershipForm';
+import { motion, AnimatePresence } from 'motion/react';
 
 type ViewMode = 'calendar' | 'timeline' | 'projects' | 'dashboard';
 
@@ -20,7 +26,9 @@ export function ProjectCalendar() {
   const { state, dispatch } = useAppContext();
   const [viewMode, setViewMode] = useState<ViewMode>('calendar');
   const [selectedProject, setSelectedProject] = useState<Partnership | null>(null);
+  const [previewProject, setPreviewProject] = useState<Partnership | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [formTab, setFormTab] = useState<'config' | 'agenda'>('config');
 
   const handleAddProject = () => {
     setSelectedProject({
@@ -31,6 +39,7 @@ export function ProjectCalendar() {
       status: PARTNERSHIP_STAGES[0],
       createdAt: new Date().toISOString()
     } as Partnership);
+    setFormTab('config');
     setIsFormOpen(true);
   };
 
@@ -77,15 +86,13 @@ export function ProjectCalendar() {
 
   const openProjectModal = (p: Partnership) => {
     let proj = { ...p };
-    // Mantenha sincronizado se o roteiro foi editado pelo Inventário
     if (proj.contentId) {
       const linkedContent = state.contents.find(c => c.id === proj.contentId);
       if (linkedContent) {
          proj.script = linkedContent.script;
       }
     }
-    setSelectedProject(proj);
-    setIsFormOpen(true);
+    setPreviewProject(proj);
   };
 
   return (
@@ -144,17 +151,178 @@ export function ProjectCalendar() {
         {viewMode === 'dashboard' && <DashboardOverview projects={state.partnerships} onSelect={openProjectModal} />}
       </div>
 
+      {/* ── Modal de Visualização do Evento ── */}
+      <AnimatePresence>
+        {previewProject && (
+          <EventPreviewModal
+            project={previewProject}
+            onClose={() => setPreviewProject(null)}
+            onEdit={() => {
+              setSelectedProject(previewProject);
+              setPreviewProject(null);
+              setFormTab('agenda');
+              setIsFormOpen(true);
+            }}
+            onDelete={(id) => {
+              dispatch({ type: 'DELETE_PARTNERSHIP', payload: id });
+              state.agenda.filter(a => a.partnershipId === id).forEach(a => dispatch({ type: 'DELETE_AGENDA', payload: a.id }));
+              setPreviewProject(null);
+            }}
+            onArchive={(p) => {
+              dispatch({ type: 'UPDATE_PARTNERSHIP', payload: p });
+              setPreviewProject(null);
+            }}
+          />
+        )}
+      </AnimatePresence>
+
       <BottomSheetModal open={isFormOpen} onClose={() => setIsFormOpen(false)} desktopMaxW="max-w-2xl">
          {selectedProject && (
            <PartnershipForm 
              initialData={selectedProject} 
+             initialTab={formTab}
              onSave={saveProject} 
              onClose={() => setIsFormOpen(false)} 
-             onDelete={(id) => { dispatch({ type: 'DELETE_PARTNERSHIP', payload: id }); setIsFormOpen(false); }}
+             onDelete={(id) => { 
+               dispatch({ type: 'DELETE_PARTNERSHIP', payload: id }); 
+               state.agenda.filter(a => a.partnershipId === id).forEach(a => dispatch({ type: 'DELETE_AGENDA', payload: a.id }));
+               setIsFormOpen(false); 
+             }}
            />
          )}
       </BottomSheetModal>
     </div>
+  );
+}
+
+// ── UTILS ──────────────────────────────────────────────────────────────────
+function getEventDates(p: Partnership): string[] {
+  if (!p.deadline) return [];
+  if (!p.startDate || p.startDate === p.deadline) return [p.deadline];
+  try {
+    const start = new Date(p.startDate + 'T12:00:00');
+    const end = new Date(p.deadline + 'T12:00:00');
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) return [p.deadline];
+    return eachDayOfInterval({ start, end }).map(d => format(d, 'yyyy-MM-dd'));
+  } catch {
+    return [p.deadline];
+  }
+}
+
+// ── MODAL DE VISUALIZAÇÃO DO EVENTO ──────────────────────────────────────────
+function EventPreviewModal({
+  project,
+  onClose,
+  onEdit,
+  onDelete,
+  onArchive,
+}: {
+  project: Partnership;
+  onClose: () => void;
+  onEdit: () => void;
+  onDelete: (id: string) => void;
+  onArchive: (p: Partnership) => void;
+}) {
+  const eventDates = getEventDates(project);
+  const durationDays = eventDates.length;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95, y: 16 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 16 }}
+        transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+        className="bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-[2.5rem] shadow-2xl w-full max-w-sm overflow-hidden flex flex-col"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="h-1.5 w-full shrink-0" style={{ backgroundColor: project.brandColor }} />
+
+        <div className="p-8 space-y-8">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1 min-w-0">
+              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-tertiary)] opacity-60 block mb-2">
+                {project.brand}
+              </span>
+              <h2 className="text-2xl font-black text-[var(--text-primary)] uppercase tracking-tight leading-tight">
+                {project.title}
+              </h2>
+            </div>
+            <button onClick={onClose} className="p-2 hover:bg-[var(--bg-hover)] rounded-full transition-all shrink-0">
+              <X className="w-5 h-5 text-[var(--text-tertiary)]" />
+            </button>
+          </div>
+
+          <div className="grid grid-cols-2 gap-6">
+            <div className="space-y-1.5">
+              <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-tertiary)] opacity-60">Fase</span>
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: project.brandColor }} />
+                <span className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-wider">{project.status}</span>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-tertiary)] opacity-60">Duração</span>
+              <span className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-wider">{durationDays} {durationDays === 1 ? 'dia' : 'dias'}</span>
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-tertiary)] opacity-60">Período</span>
+            <div className="flex items-center gap-2 text-xs font-bold text-[var(--text-primary)] bg-[var(--bg-secondary)] p-4 rounded-2xl border border-[var(--border-color)]">
+              <CalendarDays className="w-4 h-4 opacity-30" />
+              <span>
+                {project.startDate && project.deadline && project.startDate !== project.deadline
+                  ? `${format(parseISO(project.startDate + 'T12:00:00'), "dd MMM", { locale: ptBR })} → ${format(parseISO(project.deadline + 'T12:00:00'), "dd MMM yyyy", { locale: ptBR })}`
+                  : project.deadline
+                  ? format(parseISO(project.deadline + 'T12:00:00'), "dd 'de' MMM 'de' yyyy", { locale: ptBR })
+                  : '—'
+                }
+              </span>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-3 pt-2">
+            <button
+              onClick={onEdit}
+              className="w-full flex items-center justify-center gap-2.5 py-4 bg-[var(--text-primary)] text-[var(--bg-primary)] rounded-2xl text-xs font-black uppercase tracking-widest hover:scale-[1.02] transition-all shadow-md"
+            >
+              <Edit3 className="w-4 h-4" />
+              Editar Evento
+            </button>
+            
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={() => onArchive({ ...project, archived: !project.archived })}
+                className="flex items-center justify-center gap-2 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest border border-[var(--border-color)] text-[var(--text-tertiary)] hover:bg-[var(--bg-hover)] transition-all"
+              >
+                <Archive className="w-3.5 h-3.5" />
+                {project.archived ? 'Desarquivar' : 'Arquivar'}
+              </button>
+              <button
+                onClick={() => {
+                  if (window.confirm('Excluir este projeto permanentemente?')) {
+                    onDelete(project.id);
+                    onClose();
+                  }
+                }}
+                className="flex items-center justify-center gap-2 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest border border-red-500/10 text-red-500 hover:bg-red-500/10 transition-all"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                Excluir
+              </button>
+            </div>
+          </div>
+        </div>
+      </motion.div>
+    </motion.div>
   );
 }// 1. Calendário (Vista Principal) - Master Agenda
 function CalendarView({ onSelectProject }: { onSelectProject: (p: Partnership) => void }) {
@@ -182,7 +350,20 @@ function CalendarView({ onSelectProject }: { onSelectProject: (p: Partnership) =
     }
     if (filters.projetos) {
       state.partnerships.forEach(p => {
-         if (p.deadline) add(p.deadline, { ...p, __type: 'projeto' });
+         if (p.startDate && p.deadline) {
+           const start = new Date(p.startDate + 'T12:00:00');
+           const end = new Date(p.deadline + 'T12:00:00');
+           if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
+             const days = eachDayOfInterval({ start, end });
+             days.forEach(d => add(format(d, 'yyyy-MM-dd'), { ...p, __type: 'projeto' }));
+           } else {
+             add(p.deadline, { ...p, __type: 'projeto' });
+           }
+         } else if (p.deadline) {
+           add(p.deadline, { ...p, __type: 'projeto' });
+         } else if (p.startDate) {
+           add(p.startDate, { ...p, __type: 'projeto' });
+         }
       });
     }
     if (filters.agenda) {
@@ -312,6 +493,21 @@ function CalendarView({ onSelectProject }: { onSelectProject: (p: Partnership) =
                              )
                           }
                           if (item.__type === 'agenda') {
+                             if (item.partnershipId) {
+                               return (
+                                 <div 
+                                   key={idx} 
+                                   className="px-1.5 py-1 text-[8px] font-black uppercase truncate tracking-widest border rounded"
+                                   style={{ 
+                                     borderColor: item.brandColor,
+                                     color: item.brandColor,
+                                     backgroundColor: `${item.brandColor}10` 
+                                   }}
+                                 >
+                                   {item.title}
+                                 </div>
+                               );
+                             }
                              const cor = item.type === 'Reunião' ? 'text-purple-600 bg-purple-100 dark:bg-purple-900/40 dark:text-purple-300' : 'text-orange-600 bg-orange-100 dark:bg-orange-900/40 dark:text-orange-300';
                              return <div key={idx} className={cn("px-1.5 py-1 text-[8px] font-black uppercase truncate tracking-widest rounded", cor)}>{item.title}</div>
                           }

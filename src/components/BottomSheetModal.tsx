@@ -1,6 +1,8 @@
 import { ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { useIsMobile } from '../hooks/useIsMobile';
+import { useBodyScrollLock } from '../hooks/useBodyScrollLock';
 import { cn } from '../lib/utils';
 
 interface BottomSheetModalProps {
@@ -18,11 +20,12 @@ export function BottomSheetModal({
   onClose,
   children,
   desktopMaxW = 'max-w-2xl',
-  zIndex = 'z-50',
+  zIndex = 'z-[100]',
 }: BottomSheetModalProps) {
   const isMobile = useIsMobile();
+  useBodyScrollLock(open);
 
-  return (
+  const content = (
     <AnimatePresence>
       {open && (
         <div className={cn('fixed inset-0', zIndex)}>
@@ -62,4 +65,6 @@ export function BottomSheetModal({
       )}
     </AnimatePresence>
   );
+
+  return createPortal(content, document.body);
 }
