@@ -1,74 +1,34 @@
 import React, { useMemo, useState } from 'react';
-import { useAppContext } from '../context/AppContext';
 import {
-  ChevronLeft,
-  ChevronRight,
-  Plus,
-  Trash2,
-  Zap,
-  X,
-  Calendar,
-  ExternalLink,
-} from 'lucide-react';
-import {
-  format,
-  startOfMonth,
-  endOfMonth,
-  eachDayOfInterval,
-  isToday,
-  startOfWeek,
-  endOfWeek,
   addMonths,
-  subMonths,
+  eachDayOfInterval,
+  endOfMonth,
+  endOfWeek,
+  format,
   isSameDay,
+  startOfMonth,
+  startOfWeek,
+  subMonths,
 } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { ExternalLink, Trash2, X } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { useAppContext } from '../context/AppContext';
 import { cn } from '../lib/utils';
-import { motion, AnimatePresence } from 'motion/react';
 import { AgendaItem } from '../types';
 import { ContentDetailModal } from '../components/ContentDetailModal';
 import { BottomSheetModal } from '../components/BottomSheetModal';
 import { useIsMobile } from '../hooks/useIsMobile';
-import { useNavigate } from 'react-router-dom';
-
-type ItemType = 'organico' | 'parceria' | 'reuniao' | 'entrega' | 'publicacao';
-
-interface CalendarItem {
-  id: string;
-  tipo: ItemType;
-  titulo: string;
-  subtitulo?: string;
-  cor?: string;
-  status?: string;
-  raw: any;
-}
-
-type FiltroAtivo = Record<ItemType, boolean>;
-
-const FILTRO_LABELS: Record<ItemType, string> = {
-  organico: 'Orgânico',
-  parceria: 'Parceria',
-  reuniao: 'Reunião',
-  entrega: 'Entrega',
-  publicacao: 'Publicação',
-};
-
-const ITEM_CLASSES: Record<ItemType, (status?: string) => string> = {
-  organico: (status) =>
-    status === 'Postado'
-      ? 'bg-[var(--accent-green)]/10 border-[var(--accent-green)] text-[var(--accent-green)]'
-      : 'bg-[var(--accent-blue)]/10 border-[var(--accent-blue)] text-[var(--accent-blue)]',
-  parceria: () => 'bg-[var(--bg-secondary)] border-2 text-[var(--text-primary)]',
-  reuniao: () => 'bg-purple-50 border-purple-400 text-purple-700',
-  entrega: () => 'bg-orange-50 border-orange-400 text-orange-700',
-  publicacao: () => 'bg-teal-50 border-teal-400 text-teal-700',
-};
-
-const TIPO_COR_MAP: Record<string, string> = {
-  Reunião: 'bg-purple-50 text-purple-700 border-purple-200',
-  Entrega: 'bg-orange-50 text-orange-700 border-orange-200',
-  Publicação: 'bg-teal-50 text-teal-700 border-teal-200',
-};
+import { HarvestDayPanel } from '../features/harvest/HarvestDayPanel';
+import { HarvestHeader } from '../features/harvest/HarvestHeader';
+import { HarvestMonthGrid } from '../features/harvest/HarvestMonthGrid';
+import {
+  AgendaTipo,
+  CalendarItem,
+  FiltroAtivo,
+  ItemType,
+  TIPO_COR_MAP,
+} from '../features/harvest/types';
 
 export function Harvest() {
   const { state, dispatch } = useAppContext();
@@ -83,18 +43,12 @@ export function Harvest() {
     entrega: true,
     publicacao: true,
   });
-
-  // Painel do dia
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
-
-  // Detalhe do evento
   const [selectedItem, setSelectedItem] = useState<CalendarItem | null>(null);
-
-  // Form novo compromisso
   const [formAberto, setFormAberto] = useState(false);
   const [novoTitulo, setNovoTitulo] = useState('');
   const [novaData, setNovaData] = useState(format(new Date(), 'yyyy-MM-dd'));
-  const [novoTipo, setNovoTipo] = useState<'Reunião' | 'Entrega' | 'Publicação'>('Reunião');
+  const [novoTipo, setNovoTipo] = useState<AgendaTipo>('Reunião');
 
   const monthStart = startOfMonth(currentDate);
   const monthEnd = endOfMonth(monthStart);
@@ -104,69 +58,72 @@ export function Harvest() {
 
   const itemsByDate = useMemo(() => {
     const map: Record<string, CalendarItem[]> = {};
+
     const add = (date: string, item: CalendarItem) => {
       if (!map[date]) map[date] = [];
       map[date].push(item);
     };
 
     if (filtros.organico) {
-      state.contents.forEach(c => {
-        if (c.publishDate) {
-          add(c.publishDate, {
-            id: c.id,
+      state.contents.forEach((content) => {
+        if (content.publishDate) {
+          add(content.publishDate, {
+            id: content.id,
             tipo: 'organico',
-            titulo: c.title,
-            subtitulo: c.pillar,
-            status: c.status,
-            raw: c,
+            titulo: content.title,
+            subtitulo: content.pillar,
+            status: content.status,
+            raw: content,
           });
         }
       });
     }
 
     if (filtros.parceria) {
-      state.partnerships.forEach(p => {
-        if (p.deadline) {
-          add(p.deadline, {
-            id: p.id,
+      state.partnerships.forEach((partnership) => {
+        if (partnership.deadline) {
+          add(partnership.deadline, {
+            id: partnership.id,
             tipo: 'parceria',
-            titulo: p.title,
-            subtitulo: p.brand,
-            cor: p.brandColor,
-            raw: p,
+            titulo: partnership.title,
+            subtitulo: partnership.brand,
+            cor: partnership.brandColor,
+            raw: partnership,
           });
         }
       });
     }
 
-    state.agenda.forEach(a => {
+    state.agenda.forEach((agendaItem) => {
       const tipoMap: Record<string, ItemType> = {
         Reunião: 'reuniao',
         Entrega: 'entrega',
         Publicação: 'publicacao',
       };
-      const tipo = tipoMap[a.type];
+
+      const tipo = tipoMap[agendaItem.type];
       if (filtros[tipo]) {
-        add(a.date, {
-          id: a.id,
+        add(agendaItem.date, {
+          id: agendaItem.id,
           tipo,
-          titulo: a.title,
-          subtitulo: a.type,
-          raw: a,
+          titulo: agendaItem.title,
+          subtitulo: agendaItem.type,
+          raw: agendaItem,
         });
       }
     });
 
     return map;
-  }, [state.contents, state.partnerships, state.agenda, filtros]);
+  }, [filtros, state.agenda, state.contents, state.partnerships]);
 
   const toggleFiltro = (tipo: ItemType) => {
-    setFiltros(f => ({ ...f, [tipo]: !f[tipo] }));
+    setFiltros((prev) => ({ ...prev, [tipo]: !prev[tipo] }));
   };
 
-  const handleAddAgenda = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleAddAgenda = (event: React.FormEvent) => {
+    event.preventDefault();
     if (!novoTitulo.trim()) return;
+
     const item: AgendaItem = {
       id: Math.random().toString(36).substr(2, 9),
       title: novoTitulo.trim(),
@@ -174,6 +131,7 @@ export function Harvest() {
       type: novoTipo,
       external: true,
     };
+
     dispatch({ type: 'ADD_AGENDA', payload: item });
     setNovoTitulo('');
     setFormAberto(false);
@@ -184,7 +142,7 @@ export function Harvest() {
     if (selectedItem?.id === id) setSelectedItem(null);
   };
 
-  const energiaHoje = state.energyLogs.find(l => isSameDay(new Date(l.date), new Date()));
+  const energiaHoje = state.energyLogs.find((log) => isSameDay(new Date(log.date), new Date()));
   const sugestaoHoje = energiaHoje
     ? energiaHoje.level >= 4
       ? 'Alta Energia: Gravar Séries'
@@ -196,188 +154,31 @@ export function Harvest() {
   const selectedDayStr = selectedDay ? format(selectedDay, 'yyyy-MM-dd') : null;
   const itemsDodia = selectedDayStr ? (itemsByDate[selectedDayStr] || []) : [];
 
-  // Conteúdo orgânico selecionado para abrir no ContentDetailModal
   const contentSelecionado =
     selectedItem?.tipo === 'organico'
-      ? state.contents.find(c => c.id === selectedItem.id) ?? null
+      ? state.contents.find((content) => content.id === selectedItem.id) ?? null
       : null;
 
   return (
     <div className="content-wide mx-auto py-10 md:py-16 px-6 md:px-10 transition-colors duration-200">
-      {/* Header */}
-      <header className="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-6">
-        <div>
-          <p className="text-[9px] font-black text-[var(--text-tertiary)] uppercase tracking-[0.4em] mb-2 italic">
-            Calendário
-          </p>
-          <h1 className="text-4xl md:text-5xl font-black text-[var(--text-primary)] tracking-tight leading-none">
-            Agenda
-          </h1>
-          {sugestaoHoje && (
-            <div className="inline-flex items-center gap-2 mt-3 bg-[var(--accent-blue)]/10 text-[var(--accent-blue)] px-3 py-1.5 rounded-full border border-[var(--accent-blue)]/20">
-              <Zap className="w-3 h-3 fill-current" />
-              <span className="text-[10px] font-black uppercase tracking-widest">{sugestaoHoje}</span>
-            </div>
-          )}
-        </div>
+      <HarvestHeader
+        currentDate={currentDate}
+        filtros={filtros}
+        sugestaoHoje={sugestaoHoje}
+        onPrevMonth={() => setCurrentDate(subMonths(currentDate, 1))}
+        onNextMonth={() => setCurrentDate(addMonths(currentDate, 1))}
+        onToggleFiltro={toggleFiltro}
+        onAddCompromisso={() => setFormAberto(true)}
+      />
 
-        {/* Navegação de mês */}
-        <div className="flex items-center gap-4 bg-[var(--bg-secondary)] p-2 rounded-[2rem] border border-[var(--border-color)] shadow-xl shrink-0">
-          <button
-            onClick={() => setCurrentDate(subMonths(currentDate, 1))}
-            className="p-3 hover:bg-[var(--bg-hover)] rounded-2xl transition-all hover:scale-105 active:scale-95"
-          >
-            <ChevronLeft className="w-5 h-5 text-[var(--text-primary)]" />
-          </button>
-          <span className="text-sm font-black text-[var(--text-primary)] uppercase tracking-[0.2em] min-w-[160px] text-center">
-            {format(currentDate, 'MMMM yyyy', { locale: ptBR })}
-          </span>
-          <button
-            onClick={() => setCurrentDate(addMonths(currentDate, 1))}
-            className="p-3 hover:bg-[var(--bg-hover)] rounded-2xl transition-all hover:scale-105 active:scale-95"
-          >
-            <ChevronRight className="w-5 h-5 text-[var(--text-primary)]" />
-          </button>
-        </div>
-      </header>
+      <HarvestMonthGrid
+        currentDate={currentDate}
+        days={days}
+        itemsByDate={itemsByDate}
+        selectedDay={selectedDay}
+        onSelectDay={setSelectedDay}
+      />
 
-      {/* Filtros + botão adicionar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
-        <div className="flex flex-wrap gap-2">
-          {(Object.keys(FILTRO_LABELS) as ItemType[]).map(tipo => {
-            const ativo = filtros[tipo];
-            const corMap: Record<ItemType, string> = {
-              organico: 'border-[var(--accent-blue)] text-[var(--accent-blue)]',
-              parceria: 'border-[var(--text-primary)] text-[var(--text-primary)]',
-              reuniao: 'border-purple-400 text-purple-700',
-              entrega: 'border-orange-400 text-orange-700',
-              publicacao: 'border-teal-400 text-teal-700',
-            };
-            return (
-              <button
-                key={tipo}
-                onClick={() => toggleFiltro(tipo)}
-                className={cn(
-                  'text-[10px] font-black px-3 py-1.5 rounded-full border-2 transition-all',
-                  ativo
-                    ? corMap[tipo] + ' bg-transparent'
-                    : 'border-[var(--border-color)] text-[var(--text-primary)] opacity-30 hover:opacity-60'
-                )}
-              >
-                {FILTRO_LABELS[tipo]}
-              </button>
-            );
-          })}
-        </div>
-
-        <button
-          onClick={() => setFormAberto(true)}
-          className="flex items-center gap-2 px-4 py-2.5 bg-[var(--text-primary)] text-[var(--bg-primary)] rounded-2xl text-[10px] font-black uppercase tracking-widest hover:scale-[1.03] transition-all shadow-sm shrink-0"
-        >
-          <Plus className="w-3.5 h-3.5" />
-          Compromisso
-        </button>
-      </div>
-
-      {/* Calendário */}
-      <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-[2.5rem] overflow-hidden shadow-xl">
-        {/* Cabeçalho dos dias */}
-        <div className="grid grid-cols-7 border-b border-[var(--border-color)] bg-[var(--bg-hover)]/30">
-          {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(d => (
-            <div
-              key={d}
-              className="py-5 text-center text-[10px] font-black uppercase tracking-[0.3em] text-[var(--text-tertiary)] italic"
-            >
-              {d}
-            </div>
-          ))}
-        </div>
-
-        {/* Grade */}
-        <div className="grid grid-cols-7">
-          {days.map((day, i) => {
-            const dateStr = format(day, 'yyyy-MM-dd');
-            const items = itemsByDate[dateStr] || [];
-            const isCurrentMonth = day.getMonth() === currentDate.getMonth();
-            const isTodayDay = isToday(day);
-            const isSelected = selectedDay ? isSameDay(day, selectedDay) : false;
-
-            return (
-              <button
-                key={dateStr}
-                onClick={() => setSelectedDay(isSelected ? null : day)}
-                className={cn(
-                  'min-h-[60px] md:min-h-[130px] p-1.5 md:p-3 border-r border-b border-[var(--border-color)] transition-colors text-left w-full',
-                  !isCurrentMonth && 'bg-[var(--bg-hover)]/20 opacity-30',
-                  (i + 1) % 7 === 0 && 'border-r-0',
-                  isSelected
-                    ? 'bg-[var(--text-primary)]/5 ring-2 ring-inset ring-[var(--text-primary)]/20'
-                    : 'hover:bg-[var(--bg-hover)]/40 cursor-pointer'
-                )}
-              >
-                {/* Número do dia */}
-                <div className="flex items-center justify-between mb-2">
-                  <span
-                    className={cn(
-                      'text-xs font-black w-7 h-7 flex items-center justify-center rounded-xl',
-                      isTodayDay
-                        ? 'bg-[var(--text-primary)] text-[var(--bg-primary)] shadow-md'
-                        : 'text-[var(--text-tertiary)]'
-                    )}
-                  >
-                    {format(day, 'd')}
-                  </span>
-                  {items.length > 2 && (
-                    <span className="text-[8px] font-black text-[var(--text-tertiary)]">
-                      +{items.length}
-                    </span>
-                  )}
-                </div>
-
-                {/* Itens do dia — labels on md+, dots on mobile */}
-                <div className="space-y-1">
-                  {/* Mobile: colored dots only */}
-                  <div className="flex flex-wrap gap-1 md:hidden">
-                    {items.slice(0, 4).map(item => (
-                      <div
-                        key={item.id}
-                        className={cn('w-2 h-2 rounded-full border', ITEM_CLASSES[item.tipo](item.status))}
-                        style={item.tipo === 'parceria' && item.cor ? { backgroundColor: item.cor } : {}}
-                      />
-                    ))}
-                    {items.length > 4 && (
-                      <span className="text-[7px] font-black text-[var(--text-tertiary)]">+{items.length - 4}</span>
-                    )}
-                  </div>
-                  {/* Desktop: full labels */}
-                  <div className="hidden md:block space-y-1">
-                    {items.slice(0, 3).map(item => (
-                      <div
-                        key={item.id}
-                        className={cn(
-                          'px-1.5 py-1 rounded-lg text-[8px] font-black leading-tight border truncate uppercase tracking-tight',
-                          ITEM_CLASSES[item.tipo](item.status)
-                        )}
-                        style={item.tipo === 'parceria' && item.cor ? { borderColor: item.cor } : {}}
-                        title={item.titulo}
-                      >
-                        <span className="truncate block">{item.titulo}</span>
-                      </div>
-                    ))}
-                    {items.length > 3 && (
-                      <p className="text-[8px] font-black text-[var(--text-tertiary)] pl-1">
-                        +{items.length - 3} mais
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Legenda */}
       <div className="mt-6 flex flex-wrap gap-4">
         {[
           { cor: 'bg-[var(--accent-blue)]', label: 'Orgânico agendado' },
@@ -396,7 +197,6 @@ export function Harvest() {
         ))}
       </div>
 
-      {/* Lista de compromissos */}
       {state.agenda.length > 0 && (
         <section className="mt-10">
           <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-[var(--text-tertiary)] mb-4 italic">
@@ -405,9 +205,10 @@ export function Harvest() {
           <div className="space-y-2">
             {state.agenda
               .sort((a, b) => a.date.localeCompare(b.date))
-              .map(item => (
+              .map((item) => (
                 <button
                   key={item.id}
+                  type="button"
                   onClick={() => {
                     setSelectedItem({
                       id: item.id,
@@ -424,11 +225,14 @@ export function Harvest() {
                   </span>
                   <p className="flex-1 text-sm font-bold text-[var(--text-primary)] line-clamp-2 leading-snug">{item.title}</p>
                   <span className="text-[10px] text-[var(--text-tertiary)] font-bold shrink-0">
-                    {format(new Date(item.date + 'T12:00:00'), "dd 'de' MMM", { locale: ptBR })}
+                    {format(new Date(`${item.date}T12:00:00`), "dd 'de' MMM", { locale: ptBR })}
                   </span>
                   <Trash2
                     className="w-4 h-4 text-red-500 opacity-0 group-hover:opacity-40 hover:!opacity-100 transition-all shrink-0"
-                    onClick={e => { e.stopPropagation(); handleDeleteAgenda(item.id); }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteAgenda(item.id);
+                    }}
                   />
                 </button>
               ))}
@@ -436,130 +240,19 @@ export function Harvest() {
         </section>
       )}
 
-      {/* ── PAINEL DO DIA ─────────────────────────────────────────────────── */}
-      <AnimatePresence>
-        {selectedDay && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setSelectedDay(null)}
-              className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40"
-            />
-            <motion.div
-              initial={isMobile ? { y: '100%' } : { x: '100%', opacity: 0.5 }}
-              animate={isMobile ? { y: 0 } : { x: 0, opacity: 1 }}
-              exit={isMobile ? { y: '100%' } : { x: '100%', opacity: 0.5 }}
-              transition={{ type: 'spring', damping: 30, stiffness: 260 }}
-              className={cn(
-                'fixed bg-[var(--bg-primary)] shadow-2xl z-50 flex flex-col',
-                isMobile
-                  ? 'bottom-0 left-0 right-0 rounded-t-3xl max-h-[92dvh] border-t border-[var(--border-color)]'
-                  : 'top-0 right-0 h-full w-[400px] border-l border-[var(--border-color)]'
-              )}
-            >
-              {isMobile && (
-                <div className="flex justify-center pt-3 pb-1 shrink-0">
-                  <div className="w-10 h-1 rounded-full bg-[var(--text-primary)] opacity-20" />
-                </div>
-              )}
-              {/* Header do painel */}
-              <div className="p-6 border-b border-[var(--border-color)] bg-[var(--bg-secondary)] flex items-center justify-between shrink-0">
-                <div>
-                  <p className="text-[9px] font-black uppercase tracking-[0.3em] text-[var(--text-tertiary)]">
-                    {format(selectedDay, "EEEE", { locale: ptBR })}
-                  </p>
-                  <h2 className="text-xl font-black text-[var(--text-primary)] capitalize">
-                    {format(selectedDay, "d 'de' MMMM", { locale: ptBR })}
-                  </h2>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => {
-                      setNovaData(format(selectedDay, 'yyyy-MM-dd'));
-                      setFormAberto(true);
-                    }}
-                    className="flex items-center gap-1.5 px-3 py-2 bg-[var(--text-primary)] text-[var(--bg-primary)] text-[10px] font-black uppercase tracking-widest rounded-xl hover:scale-[1.03] transition-all"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    Novo
-                  </button>
-                  <button
-                    onClick={() => setSelectedDay(null)}
-                    className="p-2 hover:bg-[var(--bg-hover)] rounded-full transition-colors"
-                  >
-                    <X className="w-5 h-5 text-[var(--text-tertiary)]" />
-                  </button>
-                </div>
-              </div>
+      <HarvestDayPanel
+        isMobile={isMobile}
+        selectedDay={selectedDay}
+        itemsDodia={itemsDodia}
+        onClose={() => setSelectedDay(null)}
+        onNewItem={() => {
+          if (!selectedDay) return;
+          setNovaData(format(selectedDay, 'yyyy-MM-dd'));
+          setFormAberto(true);
+        }}
+        onSelectItem={setSelectedItem}
+      />
 
-              {/* Lista de eventos do dia */}
-              <div className="flex-1 overflow-y-auto p-5 custom-scrollbar pb-safe">
-                {itemsDodia.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center h-full gap-3 opacity-30">
-                    <Calendar className="w-10 h-10 text-[var(--text-primary)]" />
-                    <p className="text-sm font-bold text-[var(--text-primary)] uppercase tracking-widest">
-                      Nenhum evento
-                    </p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {itemsDodia.map(item => (
-                      <button
-                        key={item.id}
-                        onClick={() => setSelectedItem(item)}
-                        className={cn(
-                          'w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl border-l-4 text-left hover:scale-[1.01] transition-all shadow-sm',
-                          item.tipo === 'organico' && item.status === 'Postado'
-                            ? 'bg-[var(--accent-green)]/5 border-[var(--accent-green)]'
-                            : item.tipo === 'organico'
-                              ? 'bg-[var(--accent-blue)]/5 border-[var(--accent-blue)]'
-                              : item.tipo === 'parceria'
-                                ? 'bg-[var(--bg-secondary)] border-[var(--text-primary)]/30'
-                                : item.tipo === 'reuniao'
-                                  ? 'bg-purple-50 border-purple-400'
-                                  : item.tipo === 'entrega'
-                                    ? 'bg-orange-50 border-orange-400'
-                                    : 'bg-teal-50 border-teal-400'
-                        )}
-                        style={item.tipo === 'parceria' && item.cor ? { borderColor: item.cor } : {}}
-                      >
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-bold text-[var(--text-primary)] line-clamp-2 leading-snug">{item.titulo}</p>
-                          {item.subtitulo && (
-                            <p className="text-[10px] text-[var(--text-secondary)] mt-0.5">{item.subtitulo}</p>
-                          )}
-                        </div>
-                        <span
-                          className={cn(
-                            'text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border shrink-0',
-                            item.tipo === 'organico'
-                              ? 'border-[var(--accent-blue)] text-[var(--accent-blue)] bg-[var(--accent-blue)]/10'
-                              : item.tipo === 'parceria'
-                                ? 'border-[var(--text-primary)]/30 text-[var(--text-primary)]'
-                                : item.tipo === 'reuniao'
-                                  ? 'border-purple-300 text-purple-700 bg-purple-50'
-                                  : item.tipo === 'entrega'
-                                    ? 'border-orange-300 text-orange-700 bg-orange-50'
-                                    : 'border-teal-300 text-teal-700 bg-teal-50'
-                          )}
-                        >
-                          {FILTRO_LABELS[item.tipo]}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
-
-      {/* ── DETALHE DO EVENTO ──────────────────────────────────────────────── */}
-
-      {/* Orgânico → ContentDetailModal completo */}
       {selectedItem?.tipo === 'organico' && contentSelecionado && (
         <ContentDetailModal
           content={contentSelecionado}
@@ -567,7 +260,6 @@ export function Harvest() {
         />
       )}
 
-      {/* Parceria → modal compacto */}
       <BottomSheetModal
         open={selectedItem?.tipo === 'parceria'}
         onClose={() => setSelectedItem(null)}
@@ -586,7 +278,7 @@ export function Harvest() {
                   {selectedItem.subtitulo}
                 </span>
               </div>
-              <button onClick={() => setSelectedItem(null)} className="p-2 hover:bg-[var(--bg-hover)] rounded-full">
+              <button type="button" onClick={() => setSelectedItem(null)} className="p-2 hover:bg-[var(--bg-hover)] rounded-full">
                 <X className="w-5 h-5 text-[var(--text-tertiary)]" />
               </button>
             </div>
@@ -604,7 +296,7 @@ export function Harvest() {
                 <div className="flex items-center justify-between py-2 border-b border-[var(--border-color)]">
                   <span className="text-[var(--text-tertiary)] font-bold text-xs uppercase tracking-widest">Deadline</span>
                   <span className="font-bold text-[var(--text-primary)]">
-                    {format(new Date(selectedItem.raw.deadline + 'T12:00:00'), "dd 'de' MMMM", { locale: ptBR })}
+                    {format(new Date(`${selectedItem.raw.deadline}T12:00:00`), "dd 'de' MMMM", { locale: ptBR })}
                   </span>
                 </div>
               )}
@@ -623,7 +315,11 @@ export function Harvest() {
             </div>
 
             <button
-              onClick={() => { setSelectedItem(null); navigate('/partnerships'); }}
+              type="button"
+              onClick={() => {
+                setSelectedItem(null);
+                navigate('/partnerships');
+              }}
               className="mt-6 w-full flex items-center justify-center gap-2 py-3 text-xs font-black uppercase tracking-widest border border-[var(--border-strong)] text-[var(--text-primary)] opacity-60 hover:opacity-100 rounded-2xl transition-all pb-safe"
             >
               <ExternalLink className="w-3.5 h-3.5" />
@@ -633,7 +329,6 @@ export function Harvest() {
         )}
       </BottomSheetModal>
 
-      {/* Reunião / Entrega / Publicação → modal simples */}
       <BottomSheetModal
         open={!!(selectedItem && ['reuniao', 'entrega', 'publicacao'].includes(selectedItem.tipo))}
         onClose={() => setSelectedItem(null)}
@@ -646,7 +341,7 @@ export function Harvest() {
               <span className={cn('text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full border', TIPO_COR_MAP[selectedItem.raw.type] || '')}>
                 {selectedItem.raw.type}
               </span>
-              <button onClick={() => setSelectedItem(null)} className="p-2 hover:bg-[var(--bg-hover)] rounded-full">
+              <button type="button" onClick={() => setSelectedItem(null)} className="p-2 hover:bg-[var(--bg-hover)] rounded-full">
                 <X className="w-5 h-5 text-[var(--text-tertiary)]" />
               </button>
             </div>
@@ -656,7 +351,7 @@ export function Harvest() {
             <div className="py-3 border-b border-[var(--border-color)] flex items-center justify-between">
               <span className="text-[var(--text-tertiary)] font-bold text-xs uppercase tracking-widest">Data</span>
               <span className="font-bold text-[var(--text-primary)] text-sm">
-                {format(new Date(selectedItem.raw.date + 'T12:00:00'), "EEEE, d 'de' MMMM", { locale: ptBR })}
+                {format(new Date(`${selectedItem.raw.date}T12:00:00`), "EEEE, d 'de' MMMM", { locale: ptBR })}
               </span>
             </div>
 
@@ -668,7 +363,11 @@ export function Harvest() {
             )}
 
             <button
-              onClick={() => { handleDeleteAgenda(selectedItem.id); setSelectedItem(null); }}
+              type="button"
+              onClick={() => {
+                handleDeleteAgenda(selectedItem.id);
+                setSelectedItem(null);
+              }}
               className="mt-8 w-full flex items-center justify-center gap-2 py-3 text-xs font-black uppercase tracking-widest text-red-500 border border-red-200 hover:bg-red-50 rounded-2xl transition-all pb-safe"
             >
               <Trash2 className="w-3.5 h-3.5" />
@@ -678,7 +377,6 @@ export function Harvest() {
         )}
       </BottomSheetModal>
 
-      {/* ── MODAL: ADICIONAR COMPROMISSO ──────────────────────────────────── */}
       <BottomSheetModal
         open={formAberto}
         onClose={() => setFormAberto(false)}
@@ -687,7 +385,7 @@ export function Harvest() {
       >
         <div className="flex items-center justify-between p-5 md:p-6 border-b border-[var(--border-color)] shrink-0">
           <h2 className="text-lg font-black text-[var(--text-primary)]">Novo Compromisso</h2>
-          <button onClick={() => setFormAberto(false)} className="p-2 hover:bg-[var(--bg-hover)] rounded-full">
+          <button type="button" onClick={() => setFormAberto(false)} className="p-2 hover:bg-[var(--bg-hover)] rounded-full">
             <X className="w-5 h-5 text-[var(--text-tertiary)]" />
           </button>
         </div>
@@ -700,7 +398,7 @@ export function Harvest() {
             <input
               type="text"
               value={novoTitulo}
-              onChange={e => setNovoTitulo(e.target.value)}
+              onChange={(e) => setNovoTitulo(e.target.value)}
               placeholder="Reunião, gravação, entrega..."
               autoFocus
               className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-4 py-3 text-[var(--text-primary)] placeholder:opacity-30 focus:ring-2 focus:ring-[var(--text-primary)]/20"
@@ -714,7 +412,7 @@ export function Harvest() {
             <input
               type="date"
               value={novaData}
-              onChange={e => setNovaData(e.target.value)}
+              onChange={(e) => setNovaData(e.target.value)}
               className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-4 py-3 text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--text-primary)]/20"
             />
           </div>
@@ -724,19 +422,19 @@ export function Harvest() {
               Categoria
             </label>
             <div className="grid grid-cols-3 gap-2">
-              {(['Reunião', 'Entrega', 'Publicação'] as const).map(t => (
+              {(['Reunião', 'Entrega', 'Publicação'] as const).map((tipo) => (
                 <button
-                  key={t}
+                  key={tipo}
                   type="button"
-                  onClick={() => setNovoTipo(t)}
+                  onClick={() => setNovoTipo(tipo)}
                   className={cn(
                     'py-2.5 text-[10px] font-black rounded-xl border transition-all uppercase tracking-widest',
-                    novoTipo === t
+                    novoTipo === tipo
                       ? 'bg-[var(--text-primary)] text-[var(--bg-primary)] border-[var(--text-primary)] shadow-sm'
                       : 'bg-[var(--bg-hover)] text-[var(--text-primary)] border-[var(--border-color)] opacity-50 hover:opacity-80'
                   )}
                 >
-                  {t}
+                  {tipo}
                 </button>
               ))}
             </div>

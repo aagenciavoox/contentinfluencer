@@ -2,8 +2,6 @@ import React, { useMemo, useState } from 'react';
 import { useAppContext } from '../context/AppContext';
 import {
   Calendar as CalendarIcon,
-  RotateCcw,
-  Zap,
   BookOpen,
   Clock,
   Briefcase,
@@ -43,18 +41,12 @@ import { cn, getEventDates } from '../lib/utils';
 import { Content, Partnership, AgendaItem } from '../types';
 import { PARTNERSHIP_STAGES, STATUS_CONFIG } from '../constants';
 import { motion, AnimatePresence } from 'motion/react';
-import { CalendarGrid } from '../components/calendar/CalendarGrid';
-import { CalendarAgendaView } from '../components/calendar/CalendarAgendaView';
-import { ContentQuickPreview } from '../components/calendar/ContentQuickPreview';
-import { CalendarLayerToggle } from '../components/calendar/CalendarLayerToggle';
-import { ContentDetailModal } from '../components/ContentDetailModal';
 import { BottomSheetModal } from '../components/BottomSheetModal';
 import { PartnershipForm } from '../components/partnerships/PartnershipForm';
-import { PageGuide } from '../components/PageGuide';
 import { useIsMobile } from '../hooks/useIsMobile';
-import { useScrollDirection } from '../hooks/useScrollDirection';
-
-type MainTab = 'agenda' | 'cronograma' | 'projetos' | 'visao-geral';
+import { EditorialAgendaTabView } from '../features/editorial-calendar/EditorialAgendaTabView';
+import { EditorialCalendarHeader } from '../features/editorial-calendar/EditorialCalendarHeader';
+import { EditorialMainTab } from '../features/editorial-calendar/types';
 
 // Helper para pegar o componente do ícone pelo nome
 export const getStatusIcon = (name: string) => {
@@ -75,9 +67,8 @@ export const getStatusIcon = (name: string) => {
 
 export function EditorialCalendar() {
   const { state, dispatch } = useAppContext();
-  const [activeTab, setActiveTab] = useState<MainTab>('agenda');
+  const [activeTab, setActiveTab] = useState<EditorialMainTab>('agenda');
   const isMobile = useIsMobile();
-  const scrollDirection = useScrollDirection();
 
   // ── Agenda state ──
   const [selectedItem, setSelectedItem] = useState<Content | Partnership | AgendaItem | null>(null);
@@ -89,9 +80,7 @@ export function EditorialCalendar() {
   const [selectedProject, setSelectedProject] = useState<Partnership | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [previewProject, setPreviewProject] = useState<Partnership | null>(null);
-  const [isProjectFormOpen, setIsProjectFormOpen] = useState(false);
   const [formTab, setFormTab] = useState<'config' | 'agenda'>('agenda');
-  const [editingBrand, setEditingBrand] = useState<{ name: string; color: string; description?: string } | null>(null);
 
   const openProjectEdit = (brandName: string) => {
     const firstProject = state.partnerships.find(p => p.brand === brandName);
@@ -127,16 +116,6 @@ export function EditorialCalendar() {
 
   const activeProjects = useMemo(() => 
     state.partnerships.filter(p => !p.archived && p.status !== 'Finalizado'), 
-    [state.partnerships]
-  );
-
-  const closedProjects = useMemo(() => 
-    state.partnerships.filter(p => !p.archived && p.status === 'Finalizado'),
-    [state.partnerships]
-  );
-
-  const archivedProjects = useMemo(() => 
-    state.partnerships.filter(p => p.archived),
     [state.partnerships]
   );
 
@@ -213,7 +192,7 @@ export function EditorialCalendar() {
     setIsFormOpen(true);
   };
 
-  const tabs: { id: MainTab; label: string; icon: React.ElementType }[] = [
+  const tabs: { id: EditorialMainTab; label: string; icon: React.ElementType }[] = [
     { id: 'agenda', label: 'Agenda', icon: CalendarIcon },
     { id: 'cronograma', label: 'Cronograma', icon: Clock },
     { id: 'projetos', label: 'Projetos', icon: Briefcase },
@@ -223,63 +202,13 @@ export function EditorialCalendar() {
   return (
     <div className="min-h-full flex flex-col bg-[var(--bg-primary)] transition-colors duration-200">
 
-      {/* ── HEADER FIXO ── */}
-      <header className="px-5 md:px-10 py-5 border-b border-[var(--border-color)] bg-[var(--bg-secondary)] sticky top-0 z-20 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm transition-colors duration-300">
-        <div className="flex items-center gap-5">
-          <div className="p-2.5 bg-[var(--text-primary)]/10 rounded-2xl">
-            <CalendarIcon className="w-5 h-5 text-[var(--text-primary)]" />
-          </div>
-          <div>
-            <h1 className="text-xl font-black text-[var(--text-primary)] tracking-tight">Calendário</h1>
-            <p className="text-[9px] text-[var(--text-tertiary)] uppercase tracking-[0.25em] font-black italic">
-              {activeTab === 'agenda' && 'Agenda Editorial'}
-              {activeTab === 'cronograma' && 'Cronograma de Projetos'}
-              {activeTab === 'projetos' && 'Diretório de Marcas'}
-              {activeTab === 'visao-geral' && 'Kanban de Parcerias'}
-            </p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-3 flex-wrap">
-          <div className="flex bg-[var(--bg-hover)] p-1 rounded-xl">
-            {tabs.map(t => (
-              <button
-                key={t.id}
-                onClick={() => setActiveTab(t.id)}
-                className={cn(
-                  'flex items-center gap-2 px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all',
-                  activeTab === t.id
-                    ? 'bg-[var(--bg-primary)] text-[var(--text-primary)] shadow-sm'
-                    : 'text-[var(--text-secondary)] italic hover:bg-[var(--bg-primary)]/50'
-                )}
-              >
-                <t.icon className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">{t.label}</span>
-              </button>
-            ))}
-          </div>
-
-          {activeTab === 'agenda' && (
-            <button
-              onClick={() => setIsAddAgendaOpen(true)}
-              className="flex items-center gap-2 bg-[var(--text-primary)] text-[var(--bg-primary)] px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-md hover-action"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              Novo Evento
-            </button>
-          )}
-
-          {activeTab !== 'agenda' && (
-            <button
-              onClick={() => handleAddProject()}
-              className="flex items-center gap-2 bg-[var(--text-primary)] text-[var(--bg-primary)] px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-md hover-action"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              Novo Projeto
-            </button>
-          )}
-        </div>
-      </header>
+      <EditorialCalendarHeader
+        activeTab={activeTab}
+        tabs={tabs}
+        onTabChange={setActiveTab}
+        onAddAgenda={() => setIsAddAgendaOpen(true)}
+        onAddProject={() => handleAddProject()}
+      />
 
       {/* ── CONTEÚDO DAS ABAS ── */}
       <div className="flex-1 overflow-hidden">
@@ -287,82 +216,29 @@ export function EditorialCalendar() {
 
           {/* ABA: AGENDA */}
           {activeTab === 'agenda' && (
-            <motion.div
-              key="agenda"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.15 }}
-              className="h-full overflow-y-auto custom-scrollbar"
-            >
-              <div className="max-w-[1600px] mx-auto py-8 px-5 md:px-10 space-y-8">
-                <PageGuide
-                  pageId="calendar"
-                  title="Calendário de Comando"
-                  description="Visão integrada do ecossistema. Controle camadas e valide regras de ouro."
-                  icon={CalendarIcon}
-                />
-
-                <div className="flex flex-wrap gap-3">
-                  {[
-                    { label: 'Rotação', text: 'Max 1x/Sem', icon: RotateCcw, color: 'text-orange-500' },
-                    { label: 'Energia', text: 'Mix Ideal', icon: Zap, color: 'text-blue-500' },
-                    { label: 'Temas', text: 'Mix Pilares', icon: BookOpen, color: 'text-purple-500' },
-                  ].map(rule => (
-                    <div key={rule.label} className="flex items-center gap-3 px-4 py-3 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl shadow-sm">
-                      <rule.icon className={cn('w-4 h-4 shrink-0', rule.color)} />
-                      <div>
-                        <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-tertiary)] block">{rule.label}</span>
-                        <span className="text-xs font-bold text-[var(--text-primary)]">{rule.text}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
-                  <div className="lg:col-span-1 lg:sticky lg:top-6">
-                    <CalendarLayerToggle activeLayers={activeLayers} onChange={setActiveLayers} />
-                  </div>
-                  <div className="lg:col-span-3">
-                    {isMobile ? (
-                      <CalendarAgendaView 
-                        contents={state.contents}
-                        partnerships={state.partnerships}
-                        externalEvents={state.agenda}
-                        activeLayers={activeLayers}
-                        onSelectContent={handleItemClick}
-                      />
-                    ) : (
-                      <CalendarGrid activeLayers={activeLayers} onItemClick={handleItemClick} />
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {selectedItem && !isFullEditOpen && (
-                <ContentQuickPreview
-                  item={selectedItem}
-                  onClose={() => setSelectedItem(null)}
-                  onEdit={() => {
-                    if (selectedItem && 'brand' in selectedItem) {
-                      setSelectedProject(selectedItem as Partnership);
-                      setSelectedItem(null);
-                      setIsFormOpen(true);
-                    } else {
-                      setIsFullEditOpen(true);
-                    }
-                  }}
-                  onMove={handleMove}
-                />
-              )}
-
-              {isFullEditOpen && selectedItem && (
-                <ContentDetailModal
-                  content={selectedItem as Content}
-                  onClose={() => { setIsFullEditOpen(false); setSelectedItem(null); }}
-                />
-              )}
-            </motion.div>
+            <EditorialAgendaTabView
+              isMobile={isMobile}
+              contents={state.contents}
+              partnerships={state.partnerships}
+              agenda={state.agenda}
+              activeLayers={activeLayers}
+              selectedItem={selectedItem}
+              isFullEditOpen={isFullEditOpen}
+              onLayersChange={setActiveLayers}
+              onSelectItem={handleItemClick}
+              onClosePreview={() => setSelectedItem(null)}
+              onOpenProjectFromPreview={(project) => {
+                setSelectedProject(project);
+                setSelectedItem(null);
+                setIsFormOpen(true);
+              }}
+              onOpenFullEdit={() => setIsFullEditOpen(true)}
+              onMoveItem={handleMove}
+              onCloseFullEdit={() => {
+                setIsFullEditOpen(false);
+                setSelectedItem(null);
+              }}
+            />
           )}
 
           {/* ABA: CRONOGRAMA */}

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Trash2, CheckCircle2, AlertCircle, Edit3, CalendarRange, Archive, ArchiveRestore, Plus, Calendar as CalendarIcon, Clock } from 'lucide-react';
+import { X, Trash2, CheckCircle2, AlertCircle, Edit3, CalendarRange, Archive, ArchiveRestore, Plus, Calendar as CalendarIcon, Clock, Settings } from 'lucide-react';
 import { ConfirmModal } from '../ConfirmModal';
 import { Partnership, PartnershipStatus, AgendaItem } from '../../types';
 import { PARTNERSHIP_STAGES } from '../../constants';

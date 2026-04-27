@@ -32,7 +32,8 @@ export async function fetchAllData(): Promise<Partial<AppState>> {
     { data: config },
     { data: dnaVoz },
     { data: recordingBlocks },
-    { data: goldenRules }
+    { data: goldenRules },
+    { data: campaigns }
   ] = await Promise.all([
     supabase.from('contents').select('*').is('deleted_at', null).order('created_at', { ascending: false }),
     supabase.from('ideas').select('*').is('deleted_at', null).order('created_at', { ascending: false }),
@@ -48,7 +49,8 @@ export async function fetchAllData(): Promise<Partial<AppState>> {
     supabase.from('app_config').select('*'),
     supabase.from('dna_voz').select('*').eq('user_id', userId).maybeSingle(),
     supabase.from('recording_blocks').select('*').is('deleted_at', null).order('created_at', { ascending: false }),
-    supabase.from('golden_rules').select('*').is('deleted_at', null).order('id')
+    supabase.from('golden_rules').select('*').is('deleted_at', null).order('id'),
+    supabase.from('campaigns').select('*').is('deleted_at', null).order('created_at', { ascending: false })
   ]);
 
   const state: Partial<AppState> = {};
@@ -263,6 +265,19 @@ export async function fetchAllData(): Promise<Partial<AppState>> {
     }));
   }
 
+  if (campaigns) {
+    state.campaigns = campaigns.map((c: any) => ({
+      id: c.id,
+      nome: c.nome,
+      livroId: c.livro_id,
+      dataInicio: c.data_inicio ?? undefined,
+      dataFim: c.data_fim ?? undefined,
+      metaConteudos: c.meta_conteudos ?? 0,
+      status: c.status,
+      createdAt: c.created_at,
+    }));
+  }
+
   return state;
 }
 
@@ -299,9 +314,18 @@ export async function softDeleteFromSupabase(deletes: PendingDelete[]): Promise<
 // ─── Salvar state ativo no Supabase (upsert) ────────────────────────────────
 
 export async function saveToSupabase(state: AppState) {
+  if (!supabase) return;
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) return;
   const userId = session.user.id;
+
+  const runUpsert = async (
+    label: string,
+    operation: PromiseLike<{ error: { message: string } | null }>
+  ) => {
+    const { error } = await operation;
+    if (error) throw new Error(`${label}: ${error.message}`);
+  };
 
   const results = await Promise.allSettled([
     // App config — upsert por linha para evitar conflito de constraint
@@ -309,12 +333,15 @@ export async function saveToSupabase(state: AppState) {
       { key: 'onboarding_completo', value: state.onboardingCompleto, user_id: userId },
       { key: 'theme', value: state.theme, user_id: userId },
       { key: 'viewed_guides', value: state.viewedGuides, user_id: userId },
-    ].map(row => supabase!.from('app_config').upsert(row, { onConflict: 'user_id, key' }).then(({ error }) => {
-      if (error) throw new Error(`app_config (${row.key}): ${error.message}`);
-    }))),
+    ].map(row =>
+      runUpsert(
+        `app_config (${row.key})`,
+        supabase.from('app_config').upsert(row, { onConflict: 'user_id, key' })
+      )
+    )),
 
     // DNA da Voz
-    supabase!.from('dna_voz').upsert({
+    runUpsert('dna_voz', supabase.from('dna_voz').upsert({
       user_id: userId,
       promessa_central: state.dnaVoz.promessaCentral,
       publico: state.dnaVoz.publico,
@@ -322,12 +349,12 @@ export async function saveToSupabase(state: AppState) {
       pilares: state.dnaVoz.pilares,
       nao_faco: state.dnaVoz.naoFaco,
       alertas: state.dnaVoz.alertas,
-    }).then(({ error }) => { if (error) throw new Error(`dna_voz: ${error.message}`); }),
+    }, { onConflict: 'user_id' })),
 
     // Contents
     (async () => {
       if (state.contents.length === 0) return;
-      const { error } = await supabase!.from('contents').upsert(
+      await runUpsert('contents', supabase.from('contents').upsert(
         state.contents.map(c => ({
           id: c.id,
           title: c.title,
@@ -355,14 +382,13 @@ export async function saveToSupabase(state: AppState) {
           created_at: c.createdAt,
           user_id: userId,
         }))
-      );
-      if (error) throw new Error(`contents: ${error.message}`);
+      ));
     })(),
 
     // Ideas
     (async () => {
       if (state.ideas.length === 0) return;
-      const { error } = await supabase!.from('ideas').upsert(
+      await runUpsert('ideas', supabase.from('ideas').upsert(
         state.ideas.map(i => ({
           id: i.id,
           text: i.text,
@@ -374,14 +400,13 @@ export async function saveToSupabase(state: AppState) {
           created_at: i.createdAt,
           user_id: userId,
         }))
-      );
-      if (error) throw new Error(`ideas: ${error.message}`);
+      ));
     })(),
 
     // Series
     (async () => {
       if (state.series.length === 0) return;
-      const { error } = await supabase!.from('series').upsert(
+      await runUpsert('series', supabase.from('series').upsert(
         state.series.map(s => ({
           id: s.id,
           name: s.name,
@@ -399,14 +424,13 @@ export async function saveToSupabase(state: AppState) {
           hashtags_por_plataforma: s.hashtagsPorPlataforma || {},
           user_id: userId,
         }))
-      );
-      if (error) throw new Error(`series: ${error.message}`);
+      ));
     })(),
 
     // Pilares
     (async () => {
       if (state.pilares.length === 0) return;
-      const { error } = await supabase!.from('pilares').upsert(
+      await runUpsert('pilares', supabase.from('pilares').upsert(
         state.pilares.map(p => ({
           id: p.id,
           nome: p.nome,
@@ -421,131 +445,175 @@ export async function saveToSupabase(state: AppState) {
           meta_semanal_max: p.metaSemanalMax ?? 0,
           user_id: userId,
         }))
-      );
-      if (error) throw new Error(`pilares: ${error.message}`);
+      ));
     })(),
 
     // Looks
-    state.looks.length > 0 && supabase.from('looks').upsert(
-      state.looks.map(l => ({
-        id: l.id,
-        numero: l.numero,
-        descricao: l.descricao || '',
-        cenario_associado_id: l.cenarioAssociadoId || null,
-        ativo: l.ativo ?? true,
-        user_id: userId,
-      }))
-    ),
+    (async () => {
+      if (state.looks.length === 0) return;
+      await runUpsert('looks', supabase.from('looks').upsert(
+        state.looks.map(l => ({
+          id: l.id,
+          numero: l.numero,
+          descricao: l.descricao || '',
+          cenario_associado_id: l.cenarioAssociadoId || null,
+          ativo: l.ativo ?? true,
+          user_id: userId,
+        }))
+      ));
+    })(),
 
     // Cenários
-    state.cenarios.length > 0 && supabase.from('cenarios').upsert(
-      state.cenarios.map(c => ({
-        id: c.id,
-        nome: c.nome,
-        descricao: c.descricao || '',
-        tempo_setup_minutos: c.tempoSetupMinutos ?? 0,
-        ativo: c.ativo ?? true,
-        user_id: userId,
-      }))
-    ),
+    (async () => {
+      if (state.cenarios.length === 0) return;
+      await runUpsert('cenarios', supabase.from('cenarios').upsert(
+        state.cenarios.map(c => ({
+          id: c.id,
+          nome: c.nome,
+          descricao: c.descricao || '',
+          tempo_setup_minutos: c.tempoSetupMinutos ?? 0,
+          ativo: c.ativo ?? true,
+          user_id: userId,
+        }))
+      ));
+    })(),
 
     // Agenda
-    state.agenda.length > 0 && supabase.from('agenda_items').upsert(
-      state.agenda.map(a => ({
-        id: a.id,
-        title: a.title,
-        date: a.date,
-        type: a.type,
-        slot_type: a.slotType || null,
-        external: a.external ?? false,
-        user_id: userId,
-      }))
-    ),
+    (async () => {
+      if (state.agenda.length === 0) return;
+      await runUpsert('agenda_items', supabase.from('agenda_items').upsert(
+        state.agenda.map(a => ({
+          id: a.id,
+          title: a.title,
+          date: a.date,
+          type: a.type,
+          slot_type: a.slotType || null,
+          external: a.external ?? false,
+          user_id: userId,
+        }))
+      ));
+    })(),
 
     // Energy logs
-    state.energyLogs.length > 0 && supabase.from('energy_logs').upsert(
-      state.energyLogs.map(e => ({
-        date: e.date,
-        level: e.level,
-        user_id: userId,
-      })),
-      { onConflict: 'date' }
-    ),
+    (async () => {
+      if (state.energyLogs.length === 0) return;
+      await runUpsert('energy_logs', supabase.from('energy_logs').upsert(
+        state.energyLogs.map(e => ({
+          date: e.date,
+          level: e.level,
+          user_id: userId,
+        })),
+        { onConflict: 'user_id, date' }
+      ));
+    })(),
 
     // Partnerships
-    state.partnerships.length > 0 && supabase.from('partnerships').upsert(
-      state.partnerships.map(p => ({
-        id: p.id,
-        brand: p.brand,
-        brand_color: p.brandColor,
-        title: p.title,
-        status: p.status,
-        start_date: p.startDate || null,
-        deadline: p.deadline || null,
-        publish_date: p.publishDate || null,
-        recording_date: p.recordingDate || null,
-        value: p.value || 0,
-        notes: p.notes || null,
-        script: p.script || null,
-        link: p.link || null,
-        created_at: p.createdAt,
-        delivered_on_time: p.deliveredOnTime ?? null,
-        relationship_quality: p.relationshipQuality || null,
-        would_do_again: p.wouldDoAgain ?? null,
-        user_id: userId,
-      }))
-    ),
+    (async () => {
+      if (state.partnerships.length === 0) return;
+      await runUpsert('partnerships', supabase.from('partnerships').upsert(
+        state.partnerships.map(p => ({
+          id: p.id,
+          brand: p.brand,
+          brand_color: p.brandColor,
+          title: p.title,
+          status: p.status,
+          start_date: p.startDate || null,
+          deadline: p.deadline || null,
+          publish_date: p.publishDate || null,
+          recording_date: p.recordingDate || null,
+          value: p.value || 0,
+          notes: p.notes || null,
+          script: p.script || null,
+          link: p.link || null,
+          created_at: p.createdAt,
+          delivered_on_time: p.deliveredOnTime ?? null,
+          relationship_quality: p.relationshipQuality || null,
+          would_do_again: p.wouldDoAgain ?? null,
+          user_id: userId,
+        }))
+      ));
+    })(),
 
     // Results
-    state.results.length > 0 && supabase.from('results').upsert(
-      state.results.map(r => ({
-        id: r.id,
-        content_id: r.contentId || null,
-        partnership_id: r.partnershipId || null,
-        metrics: r.metrics || '',
-        detailed_metrics: r.detailedMetrics || null,
-        qualitative_notes: r.qualitativeNotes || '',
-        worth_it: r.worthIt,
-        engagement: r.engagement || null,
-        creative_satisfaction: r.creativeSatisfaction || null,
-        learning_by_series: r.learningBySeries || null,
-        created_at: r.createdAt,
-        user_id: userId,
-      }))
-    ),
+    (async () => {
+      if (state.results.length === 0) return;
+      await runUpsert('results', supabase.from('results').upsert(
+        state.results.map(r => ({
+          id: r.id,
+          content_id: r.contentId || null,
+          partnership_id: r.partnershipId || null,
+          metrics: r.metrics || '',
+          detailed_metrics: r.detailedMetrics || null,
+          qualitative_notes: r.qualitativeNotes || '',
+          worth_it: r.worthIt,
+          engagement: r.engagement || null,
+          creative_satisfaction: r.creativeSatisfaction || null,
+          learning_by_series: r.learningBySeries || null,
+          created_at: r.createdAt,
+          user_id: userId,
+        }))
+      ));
+    })(),
 
-    // Books
-    state.books.length > 0 && supabase.from('books').upsert(
-      state.books.map(b => ({
-        id: b.id,
-        titulo: b.titulo,
-        autor: b.autor,
-        generos: b.generos || [],
-        capa_url: b.capaUrl || null,
-        status_leitura: b.statusLeitura,
-        data_inicio: b.dataInicio || null,
-        data_fim: b.dataFim || null,
-        avaliacao: b.avaliacao || null,
-        notas_gerais: b.notasGerais || null,
-        paginas_lidas: b.paginasLidas ?? null,
-        total_paginas: b.totalPaginas ?? null,
-        editora: b.editora || null,
-        ano_publicacao: b.anoPublicacao || null,
-        isbn: b.isbn || null,
-        idioma: b.idioma || null,
-        traducao: b.traducao || null,
-        serie_colecao: b.serieColecao || null,
-        quem_indicou: b.quemIndicou || null,
-        motivo_escolha: b.motivoEscolha || null,
-        potencial_conteudo: b.potencialConteudo || null,
-        capitulos_cobertos: b.capitulosCobertos || [],
-        created_at: b.createdAt,
-        user_id: userId,
-      }))
-    ),
+    // Books — com tratamento de erro explícito
+    (async () => {
+      if (state.books.length === 0) return;
+      await runUpsert('books', supabase.from('books').upsert(
+        state.books.map(b => ({
+          id: b.id,
+          titulo: b.titulo,
+          autor: b.autor,
+          generos: b.generos || [],
+          capa_url: b.capaUrl || null,
+          status_leitura: b.statusLeitura,
+          data_inicio: b.dataInicio || null,
+          data_fim: b.dataFim || null,
+          avaliacao: b.avaliacao || null,
+          notas_gerais: b.notasGerais || null,
+          paginas_lidas: b.paginasLidas ?? null,
+          total_paginas: b.totalPaginas ?? null,
+          editora: b.editora || null,
+          ano_publicacao: b.anoPublicacao || null,
+          isbn: b.isbn || null,
+          idioma: b.idioma || null,
+          traducao: b.traducao || null,
+          serie_colecao: b.serieColecao || null,
+          quem_indicou: b.quemIndicou || null,
+          motivo_escolha: b.motivoEscolha || null,
+          potencial_conteudo: b.potencialConteudo || null,
+          capitulos_cobertos: b.capitulosCobertos || [],
+          created_at: b.createdAt,
+          user_id: userId,
+        }))
+      ));
+    })(),
+
+    // Campaigns
+    (async () => {
+      if (state.campaigns.length === 0) return;
+      await runUpsert('campaigns', supabase.from('campaigns').upsert(
+        state.campaigns.map(c => ({
+          id: c.id,
+          nome: c.nome,
+          livro_id: c.livroId,
+          data_inicio: c.dataInicio || null,
+          data_fim: c.dataFim || null,
+          meta_conteudos: c.metaConteudos ?? 0,
+          status: c.status,
+          created_at: c.createdAt,
+          user_id: userId,
+        }))
+      ));
+    })(),
   ]);
 
-  // Book annotations — upsert separately after books
+  results.forEach((result) => {
+    if (result.status === 'rejected') {
+      console.error('[Supabase] Upsert failed:', result.reason);
+    }
+  });
+
+  // Book annotations - upsert separado apos books (dependencia de FK)
   const allAnnotations = state.books.flatMap(b =>
     (b.anotacoes || []).map(a => ({
       id: a.id,
@@ -560,12 +628,15 @@ export async function saveToSupabase(state: AppState) {
     }))
   );
   if (allAnnotations.length > 0) {
-    await supabase.from('book_annotations').upsert(allAnnotations);
+    const { error } = await supabase.from('book_annotations').upsert(allAnnotations);
+    if (error) {
+      console.error('[Supabase] book_annotations upsert failed:', error.message, 'execute migrations/book_annotations_migration.sql no Supabase.');
+    }
   }
 
   // Recording Blocks
   if (state.recordingBlocks.length > 0) {
-    await supabase.from('recording_blocks').upsert(
+    const { error } = await supabase.from('recording_blocks').upsert(
       state.recordingBlocks.map(rb => ({
         id: rb.id,
         name: rb.name,
@@ -574,11 +645,12 @@ export async function saveToSupabase(state: AppState) {
         user_id: userId,
       }))
     );
+    if (error) console.error('[Supabase] recording_blocks upsert failed:', error.message);
   }
 
   // Golden Rules
   if (state.goldenRules.length > 0) {
-    await supabase.from('golden_rules').upsert(
+    const { error } = await supabase.from('golden_rules').upsert(
       state.goldenRules.map(gr => ({
         id: gr.id,
         descricao: gr.descricao,
@@ -587,5 +659,6 @@ export async function saveToSupabase(state: AppState) {
         user_id: userId,
       }))
     );
+    if (error) console.error('[Supabase] golden_rules upsert failed:', error.message);
   }
-}
+}

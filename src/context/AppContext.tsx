@@ -1,4 +1,5 @@
 import React, { useReducer, useEffect, useRef, useCallback } from 'react';
+import { supabase } from '../lib/supabase';
 import {
   Content,
   Idea,
@@ -53,9 +54,9 @@ const initialState: AppState = {
   contents: [
     {
       id: 'mock-1',
-      title: 'Calma eu te explico: Por que lemos ficção?',
+      title: 'Calma eu te explico: Por que lemos ficcao?',
       seriesId: 'calma-explico',
-      pillar: 'Análise',
+      pillar: 'Analise',
       format: 'Reels',
       status: 'Postado',
       slotType: 'Série',
@@ -81,7 +82,7 @@ const initialState: AppState = {
       id: 'mock-3',
       title: 'Minha leitura atual',
       seriesId: '',
-      pillar: 'Indicação',
+      pillar: 'Indicacao',
       format: 'Stories',
       status: 'Pronto para Gravar',
       slotType: 'Janela',
@@ -94,23 +95,23 @@ const initialState: AppState = {
   ideas: [
     {
       id: 'idea-1',
-      text: 'Por que todo mundo ama livros com vilões carismáticos?',
+      text: 'Por que todo mundo ama livros com viloes carismaticos?',
       createdAt: '2026-03-25T18:00:00Z',
-      pillar: 'Análise',
+      pillar: 'Analise',
       archived: false,
     },
     {
       id: 'idea-2',
-      text: 'Como lidar com o bloqueio de leitura em dias difíceis',
+      text: 'Como lidar com o bloqueio de leitura em dias dificeis',
       createdAt: '2026-03-26T08:00:00Z',
-      pillar: 'Identificação',
+      pillar: 'Identificacao',
       archived: false,
     },
     {
       id: 'idea-3',
-      text: 'Top 5 livros que parecem Dark Romance mas não são',
+      text: 'Top 5 livros que parecem Dark Romance mas nao sao',
       createdAt: '2026-03-26T15:00:00Z',
-      pillar: 'Indicação',
+      pillar: 'Indicacao',
       archived: false,
     },
   ],
@@ -119,14 +120,14 @@ const initialState: AppState = {
   agenda: [
     {
       id: 'agenda-1',
-      title: 'Reunião de Planejamento Mensal',
+      title: 'Reuniao de Planejamento Mensal',
       date: '2026-03-27',
       type: 'Reunião',
       external: true,
     },
     {
       id: 'agenda-2',
-      title: 'Sessão de Gravação — Série GSA',
+      title: 'Sessao de Gravacao — Serie GSA',
       date: '2026-03-30',
       type: 'Entrega',
       external: false,
@@ -161,13 +162,13 @@ const initialState: AppState = {
     promessaCentral: '',
     publico: '',
     pilares: ['Autenticidade', 'Clareza', 'Humor'],
-    tom: 'Direta, engraçada e inteligente. Fala como a melhor amiga leitora.',
-    naoFaco: ['Clickbait sem entrega', 'Fingir que leu', 'Conteúdo sem ponto de vista'],
-    alertas: ['Cuidado com o excesso de análise sem humor', 'Mantenha o ponto de vista forte'],
+    tom: 'Direta, engracada e inteligente. Fala como a melhor amiga leitora.',
+    naoFaco: ['Clickbait sem entrega', 'Fingir que leu', 'Conteudo sem ponto de vista'],
+    alertas: ['Cuidado com o excesso de analise sem humor', 'Mantenha o ponto de vista forte'],
   },
 };
 
-// Migração de dados legados para o novo formato
+// Migracao de dados legados para o novo formato
 function migrarDados(parsed: any): AppState {
   return {
     ...initialState,
@@ -201,8 +202,7 @@ function migrarDados(parsed: any): AppState {
   } as AppState;
 }
 
-// ─── Mapeamento: action type → tabela no Supabase ──────────────────────────
-
+// Mapeamento: action type -> tabela no Supabase
 const DELETE_ACTION_TABLE_MAP: Record<string, string> = {
   DELETE_CONTENT: 'contents',
   DELETE_IDEA: 'ideas',
@@ -217,6 +217,7 @@ const DELETE_ACTION_TABLE_MAP: Record<string, string> = {
   DELETE_CENARIO: 'cenarios',
   DELETE_RECORDING_BLOCK: 'recording_blocks',
   DELETE_GOLDEN_RULE: 'golden_rules',
+  DELETE_CAMPAIGN: 'campaigns',
 };
 
 export const AppContext = React.createContext<{
@@ -239,27 +240,41 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const initialLoadDone = useRef(false);
   const pendingDeletes = useRef<PendingDelete[]>([]);
 
-  // Wrapped dispatch que intercepta DELETE actions para rastrear soft deletes
   const wrappedDispatch = useCallback((action: AppAction) => {
     const table = DELETE_ACTION_TABLE_MAP[action.type];
 
     if (table) {
-      // DELETE_ANNOTATION tem payload especial: { livroId, annotationId }
       if (action.type === 'DELETE_ANNOTATION') {
         const payload = action.payload as { livroId: string; annotationId: string };
         pendingDeletes.current.push({ table, id: payload.annotationId });
       } else {
-        // Todos os outros DELETEs usam payload: string (o ID)
         pendingDeletes.current.push({ table, id: action.payload as string });
       }
+    }
+
+    if (action.type === 'DELETE_MULTIPLE_CONTENTS') {
+      const ids = action.payload as string[];
+      ids.forEach(id => pendingDeletes.current.push({ table: 'contents', id }));
     }
 
     dispatch(action);
   }, []);
 
-  // 1. Fetch data from Supabase on mount — BEFORE enabling saves
+  // 1. Carrega dados do Supabase via onAuthStateChange
+  // Razao: no PWA (iOS), o token pode ainda estar sendo restaurado quando o
+  // componente monta. getSession() retornaria null prematuramente.
+  // onAuthStateChange so dispara depois que a sessao esta confirmada e valida.
   useEffect(() => {
+    if (!supabase) {
+      initialLoadDone.current = true;
+      return;
+    }
+
+    let loaded = false;
+
     async function loadData() {
+      if (loaded) return;
+      loaded = true;
       try {
         const dbData = await fetchAllData();
         if (Object.keys(dbData).length > 0) {
@@ -271,28 +286,32 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         initialLoadDone.current = true;
       }
     }
-    loadData();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (session && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED')) {
+        loadData();
+      } else if (event === 'SIGNED_OUT' || (event === 'INITIAL_SESSION' && !session)) {
+        initialLoadDone.current = true;
+      }
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
-  // 2. Persist state changes — only runs AFTER initial Supabase load
+  // 2. Persiste mudancas de estado — so roda APOS o load inicial do Supabase
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 
-    // Don't save to Supabase until we've loaded from it first
     if (!initialLoadDone.current) return;
 
-    // Debounce Supabase sync — wait 2s after last change before sending
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     saveTimerRef.current = setTimeout(async () => {
       try {
-        // 1. Processar soft deletes pendentes
         if (pendingDeletes.current.length > 0) {
           const deletesToProcess = [...pendingDeletes.current];
           pendingDeletes.current = [];
           await softDeleteFromSupabase(deletesToProcess);
         }
-
-        // 2. Upsert state ativo
         await saveToSupabase(state);
       } catch (err) {
         console.error('[Supabase] Failed to sync:', err);
@@ -315,4 +334,5 @@ export function useAppContext() {
   const context = React.useContext(AppContext);
   if (!context) throw new Error('useAppContext must be used within AppProvider');
   return context;
+}
 }
