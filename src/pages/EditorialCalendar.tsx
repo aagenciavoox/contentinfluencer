@@ -38,11 +38,13 @@ import {
 } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn, getEventDates } from '../lib/utils';
-import { Content, Partnership, AgendaItem } from '../types';
-import { PARTNERSHIP_STAGES, STATUS_CONFIG } from '../constants';
+import { Content, Projeto, AgendaItem } from '../lib/database';
+type Partnership = Projeto;
+import { STATUS_CONFIG } from '../constants';
 import { motion, AnimatePresence } from 'motion/react';
 import { BottomSheetModal } from '../components/BottomSheetModal';
-import { PartnershipForm } from '../components/partnerships/PartnershipForm';
+
+const PARTNERSHIP_STAGES = ['Leitura', 'Roteiro', 'Envio de Roteiro', 'Gravação', 'Edição', 'Aprovação', 'Postagem', 'Métricas', 'Finalizado'];
 import { useIsMobile } from '../hooks/useIsMobile';
 import { EditorialAgendaTabView } from '../features/editorial-calendar/EditorialAgendaTabView';
 import { EditorialCalendarHeader } from '../features/editorial-calendar/EditorialCalendarHeader';
@@ -83,7 +85,7 @@ export function EditorialCalendar() {
   const [formTab, setFormTab] = useState<'config' | 'agenda'>('agenda');
 
   const openProjectEdit = (brandName: string) => {
-    const firstProject = state.partnerships.find(p => p.brand === brandName);
+    const firstProject = state.projetos.find(p => p.brand === brandName);
     if (firstProject) {
       setSelectedProject(firstProject);
       setFormTab('config');
@@ -103,26 +105,26 @@ export function EditorialCalendar() {
 
   const handleMove = (newDate: string) => {
     if (!selectedItem || !newDate) return;
-    if ('status' in selectedItem && 'pillar' in selectedItem) {
+    if ('pilarId' in selectedItem) {
       const isPost = !!(selectedItem as Content).publishDate;
       dispatch({ type: 'UPDATE_CONTENT', payload: { ...selectedItem, [isPost ? 'publishDate' : 'recordingDate']: newDate } });
     } else if ('brand' in selectedItem) {
-      dispatch({ type: 'UPDATE_PARTNERSHIP', payload: { ...selectedItem, publishDate: newDate, deadline: newDate } });
-    } else if ('external' in selectedItem) {
-      dispatch({ type: 'UPDATE_AGENDA', payload: { ...selectedItem, date: newDate } });
+      dispatch({ type: 'UPDATE_PARTNERSHIP', payload: { ...selectedItem, dataFim: newDate } });
+    } else {
+      dispatch({ type: 'UPDATE_AGENDA_ITEM', payload: { ...(selectedItem as AgendaItem), date: newDate } });
     }
     setSelectedItem(null);
   };
 
-  const activeProjects = useMemo(() => 
-    state.partnerships.filter(p => !p.archived && p.status !== 'Finalizado'), 
-    [state.partnerships]
+  const activeProjects = useMemo(() =>
+    state.projetos.filter(p => !p.deletedAt && p.status !== 'Finalizado'),
+    [state.projetos]
   );
 
   // ── Projetos handlers ──
   const handleAddProject = (prefillBrand?: string, prefillColor?: string) => {
     if (prefillBrand) {
-      const existing = state.partnerships.find(p => p.brand === prefillBrand);
+      const existing = state.projetos.find(p => p.brand === prefillBrand);
       if (existing) {
         setSelectedProject(existing);
         setFormTab('agenda');
@@ -133,55 +135,38 @@ export function EditorialCalendar() {
 
     setSelectedProject({
       id: Math.random().toString(36).substr(2, 9),
+      userId: '',
+      nome: '',
+      tipo: 'publi' as const,
       brand: prefillBrand || '',
       brandColor: prefillColor || '#' + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0'),
-      title: '',
       status: PARTNERSHIP_STAGES[0],
+      dataInicio: null,
+      dataFim: null,
+      metaConteudos: null,
+      bibliotecaItemId: null,
+      value: null,
+      currency: 'BRL',
+      notes: null,
+      deletedAt: null,
+      etapas: [],
+      contentIds: [],
       createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     } as Partnership);
     setFormTab('agenda');
     setIsFormOpen(true);
   };
 
   const saveProject = (project: Partnership) => {
-    let finalProject = { ...project };
-    if (finalProject.status === 'Roteiro') {
-      if (!finalProject.contentId) {
-        const newContentId = Math.random().toString(36).substr(2, 9);
-        dispatch({
-          type: 'ADD_CONTENT', payload: {
-            id: newContentId,
-            title: `[PUB ${finalProject.brand}] ${finalProject.title}`,
-            seriesId: 'none',
-            pillar: 'pilar-indicacao',
-            format: 'Reels',
-            status: 'Pronto para Gravar',
-            script: finalProject.script || '',
-            notes: finalProject.notes || '',
-            createdAt: new Date().toISOString(),
-          } as any
-        });
-        finalProject.contentId = newContentId;
-      } else {
-        const existing = state.contents.find(c => c.id === finalProject.contentId);
-        if (existing && existing.script !== finalProject.script) {
-          dispatch({ type: 'UPDATE_CONTENT', payload: { ...existing, script: finalProject.script, notes: finalProject.notes } });
-        }
-      }
-    }
-    const exists = state.partnerships.find(p => p.id === finalProject.id);
-    dispatch({ type: exists ? 'UPDATE_PARTNERSHIP' : 'ADD_PARTNERSHIP', payload: finalProject });
+    const exists = state.projetos.find(p => p.id === project.id);
+    dispatch({ type: exists ? 'UPDATE_PARTNERSHIP' : 'ADD_PARTNERSHIP', payload: project });
     setIsFormOpen(false);
     setPreviewProject(null);
   };
 
   const openProjectModal = (p: Partnership) => {
-    let proj = { ...p };
-    if (proj.contentId) {
-      const linked = state.contents.find(c => c.id === proj.contentId);
-      if (linked) proj.script = linked.script;
-    }
-    setPreviewProject(proj);
+    setPreviewProject({ ...p });
   };
 
   const openEditFromPreview = () => {
@@ -219,7 +204,7 @@ export function EditorialCalendar() {
             <EditorialAgendaTabView
               isMobile={isMobile}
               contents={state.contents}
-              partnerships={state.partnerships}
+              partnerships={state.projetos}
               agenda={state.agenda}
               activeLayers={activeLayers}
               selectedItem={selectedItem}
@@ -266,7 +251,7 @@ export function EditorialCalendar() {
               className="h-full overflow-y-auto custom-scrollbar"
             >
               <ProjectsView
-                projects={state.partnerships} // Here we keep all to allow viewing archived via filter (will add later if needed)
+                projects={state.projetos} // Here we keep all to allow viewing archived via filter (will add later if needed)
                 contents={state.contents}
                 agenda={state.agenda}
                 onSelect={openProjectModal}
@@ -305,10 +290,9 @@ export function EditorialCalendar() {
             onEdit={openEditFromPreview}
             onDelete={(id) => {
               dispatch({ type: 'DELETE_PARTNERSHIP', payload: id });
-              // Remove agenda vinculada ao EVENTO
-              state.agenda
-                .filter(a => a.partnershipId === id)
-                .forEach(a => dispatch({ type: 'DELETE_AGENDA', payload: a.id }));
+              state.agendaItems
+                .filter(a => a.projetoId === id)
+                .forEach(a => dispatch({ type: 'DELETE_AGENDA_ITEM', payload: a.id }));
               setPreviewProject(null);
             }}
             onArchive={(p) => {
@@ -323,9 +307,9 @@ export function EditorialCalendar() {
       <AnimatePresence>
         {isAddAgendaOpen && (
           <AddAgendaModal
-            projects={state.partnerships}
+            projects={state.projetos}
             onSave={(item) => {
-              dispatch({ type: 'ADD_AGENDA', payload: item });
+              dispatch({ type: 'ADD_AGENDA_ITEM', payload: item });
               setIsAddAgendaOpen(false);
             }}
             onClose={() => setIsAddAgendaOpen(false)}
@@ -333,25 +317,7 @@ export function EditorialCalendar() {
         )}
       </AnimatePresence>
 
-      {/* Modal de Formulário de Parceria (edição completa) */}
-      <BottomSheetModal open={isFormOpen} onClose={() => setIsFormOpen(false)} desktopMaxW="max-w-2xl">
-        {selectedProject && (
-          <PartnershipForm
-            initialData={selectedProject}
-            initialTab={formTab}
-            onSave={saveProject}
-            onClose={() => setIsFormOpen(false)}
-            onDelete={(id) => { 
-              dispatch({ type: 'DELETE_PARTNERSHIP', payload: id }); 
-              // Também remove eventos da agenda vinculados
-              state.agenda
-                .filter(a => a.partnershipId === id)
-                .forEach(a => dispatch({ type: 'DELETE_AGENDA', payload: a.id }));
-              setIsFormOpen(false); 
-            }}
-          />
-        )}
-      </BottomSheetModal>
+      {/* PartnershipForm removed — project editing via dedicated settings page */}
 
     </div>
   );
@@ -369,20 +335,20 @@ function AddAgendaModal({
 }) {
   const [title, setTitle] = useState('');
   const [date, setDate] = useState(format(new Date(), 'yyyy-MM-dd'));
-  const [type, setType] = useState<AgendaItem['type']>('Reunião');
-  const [external, setExternal] = useState(false);
+  const [agendaType, setAgendaType] = useState<AgendaItem['tipo']>('Reunião');
   const [linkedProjectId, setLinkedProjectId] = useState<string>('');
 
   const handleSave = () => {
     if (!title.trim() || !date) return;
     const item: AgendaItem = {
       id: Math.random().toString(36).substr(2, 9),
+      userId: '',
       title: title.trim(),
       date,
-      type,
-      external,
-      partnershipId: linkedProjectId || undefined,
-      brandColor: selectedProject?.brandColor,
+      time: null,
+      tipo: agendaType,
+      projetoId: linkedProjectId || null,
+      createdAt: new Date().toISOString(),
     };
     onSave(item);
   };
@@ -446,13 +412,13 @@ function AddAgendaModal({
           <div className="space-y-2">
             <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-tertiary)] opacity-60">Tipo</label>
             <div className="grid grid-cols-3 gap-2">
-              {(['Reunião', 'Entrega', 'Publicação'] as AgendaItem['type'][]).map(t => (
+              {(['Reunião', 'Entrega', 'Publicação'] as AgendaItem['tipo'][]).map(t => (
                 <button
                   key={t}
-                  onClick={() => setType(t)}
+                  onClick={() => setAgendaType(t)}
                   className={cn(
                     'py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all',
-                    type === t
+                    agendaType === t
                       ? 'bg-[var(--text-primary)] text-[var(--bg-primary)] border-[var(--text-primary)]'
                       : 'border-[var(--border-color)] text-[var(--text-tertiary)] hover:border-[var(--text-primary)]'
                   )}
@@ -478,7 +444,7 @@ function AddAgendaModal({
                 <option value="">— Sem vínculo —</option>
                 {projects.map(p => (
                   <option key={p.id} value={p.id}>
-                    {p.brand} · {p.title || 'Sem título'}
+                    {p.brand} · {p.nome || 'Sem título'}
                   </option>
                 ))}
               </select>
@@ -491,28 +457,6 @@ function AddAgendaModal({
             </div>
           )}
 
-          {/* Compromisso Externo */}
-          <button
-            onClick={() => setExternal(prev => !prev)}
-            className={cn(
-              'w-full flex items-center gap-3 px-5 py-3.5 rounded-2xl border text-left transition-all',
-              external
-                ? 'border-purple-400 bg-purple-500/5'
-                : 'border-[var(--border-color)] hover:border-[var(--text-primary)]'
-            )}
-          >
-            <div className={cn(
-              'w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all',
-              external ? 'border-purple-400 bg-purple-400' : 'border-[var(--border-color)]'
-            )}>
-              {external && <div className="w-1.5 h-1.5 bg-white rounded-full" />}
-            </div>
-            <div>
-              <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-primary)] block">Compromisso Externo</span>
-              <span className="text-[9px] text-[var(--text-tertiary)] opacity-60">Aparece destacado como evento fora da rotina</span>
-            </div>
-            <Users className={cn('w-4 h-4 ml-auto', external ? 'text-purple-400' : 'text-[var(--text-tertiary)] opacity-30')} />
-          </button>
         </div>
 
         {/* Footer */}
@@ -544,8 +488,8 @@ function MiniCalendar({
   allAgenda: any[];
 }) {
   const [currentDate, setCurrentDate] = useState(
-    project.startDate ? parseISO(project.startDate) :
-    project.deadline ? parseISO(project.deadline) : new Date()
+    project.dataInicio ? parseISO(project.dataInicio) :
+    project.dataFim ? parseISO(project.dataFim) : new Date()
   );
 
   const eventDates = new Set(getEventDates(project));
@@ -619,8 +563,8 @@ function MiniCalendar({
           const dateStr = format(day, 'yyyy-MM-dd');
           const isThisMonth = isSameMonth(day, monthStart);
           const isEventDay = eventDates.has(dateStr);
-          const isStart = dateStr === project.startDate || (dateStr === project.deadline && !project.startDate);
-          const isEnd = dateStr === project.deadline;
+          const isStart = dateStr === project.dataInicio || (dateStr === project.dataFim && !project.dataInicio);
+          const isEnd = dateStr === project.dataFim;
           const data = occupiedDates[dateStr] || { count: 0, statuses: [] };
           const occupied = data.count;
           const currentStatus = data.statuses[0];
@@ -753,7 +697,7 @@ function EventPreviewModal({
                 {project.brand}
               </span>
               <h2 className="text-2xl font-black text-[var(--text-primary)] uppercase tracking-tight leading-tight">
-                {project.title}
+                {project.nome}
               </h2>
             </div>
             <button onClick={onClose} className="p-2 hover:bg-[var(--bg-hover)] rounded-full transition-all shrink-0">
@@ -781,10 +725,10 @@ function EventPreviewModal({
             <div className="flex items-center gap-2 text-xs font-bold text-[var(--text-primary)] bg-[var(--bg-secondary)] p-4 rounded-2xl border border-[var(--border-color)]">
               <CalendarDays className="w-4 h-4 opacity-30" />
               <span>
-                {project.startDate && project.deadline && project.startDate !== project.deadline
-                  ? `${format(parseISO(project.startDate + 'T12:00:00'), "dd MMM", { locale: ptBR })} → ${format(parseISO(project.deadline + 'T12:00:00'), "dd MMM yyyy", { locale: ptBR })}`
-                  : project.deadline
-                  ? format(parseISO(project.deadline + 'T12:00:00'), "dd 'de' MMM 'de' yyyy", { locale: ptBR })
+                {project.dataInicio && project.dataFim && project.dataInicio !== project.dataFim
+                  ? `${format(parseISO(project.dataInicio + 'T12:00:00'), "dd MMM", { locale: ptBR })} → ${format(parseISO(project.dataFim + 'T12:00:00'), "dd MMM yyyy", { locale: ptBR })}`
+                  : project.dataFim
+                  ? format(parseISO(project.dataFim + 'T12:00:00'), "dd 'de' MMM 'de' yyyy", { locale: ptBR })
                   : '—'
                 }
               </span>
@@ -802,11 +746,11 @@ function EventPreviewModal({
             
             <div className="grid grid-cols-2 gap-3">
               <button
-                onClick={() => onArchive({ ...project, archived: !project.archived })}
+                onClick={() => onArchive({ ...project, deletedAt: project.deletedAt ? null : new Date().toISOString() })}
                 className="flex items-center justify-center gap-2 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest border border-[var(--border-color)] text-[var(--text-tertiary)] hover:bg-[var(--bg-hover)] transition-all"
               >
                 <Archive className="w-3.5 h-3.5" />
-                {project.archived ? 'Desarquivar' : 'Arquivar'}
+                {project.deletedAt ? 'Desarquivar' : 'Arquivar'}
               </button>
               <button
                 onClick={() => {
@@ -831,8 +775,8 @@ function EventPreviewModal({
 // ── CRONOGRAMA ──────────────────────────────────────────────────────────────
 function TimelineView({ projects, onSelect }: { projects: Partnership[]; onSelect: (p: Partnership) => void }) {
   const sorted = [...projects]
-    .filter(p => p.deadline)
-    .sort((a, b) => new Date(a.deadline!).getTime() - new Date(b.deadline!).getTime());
+    .filter(p => p.dataFim)
+    .sort((a, b) => new Date(a.dataFim!).getTime() - new Date(b.dataFim!).getTime());
 
   if (sorted.length === 0) return (
     <div className="flex flex-col items-center justify-center py-32 opacity-25 gap-4">
@@ -863,7 +807,7 @@ function TimelineView({ projects, onSelect }: { projects: Partnership[]; onSelec
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
                 <div>
                   <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-tertiary)]">{project.brand}</span>
-                  <h3 className="text-sm font-black text-[var(--text-primary)] mt-1">{project.title || 'Sem título'}</h3>
+                  <h3 className="text-sm font-black text-[var(--text-primary)] mt-1">{project.nome || 'Sem título'}</h3>
                   {duration > 1 && (
                     <span className="text-[8px] font-black uppercase tracking-widest opacity-50">{duration} dias</span>
                   )}
@@ -873,7 +817,7 @@ function TimelineView({ projects, onSelect }: { projects: Partnership[]; onSelec
                     {project.status}
                   </span>
                   <span className="text-xs font-black text-[var(--text-tertiary)] whitespace-nowrap">
-                    {format(new Date(project.deadline + 'T12:00:00'), "dd 'de' MMM", { locale: ptBR })}
+                    {format(new Date(project.dataFim + 'T12:00:00'), "dd 'de' MMM", { locale: ptBR })}
                   </span>
                   <ChevronRight className="w-4 h-4 opacity-0 group-hover:opacity-40 transition-opacity" />
                 </div>
@@ -907,8 +851,8 @@ function BrandMiniCalendar({
   // Todas as datas que têm evento DESTA marca
   const eventDates = new Set(brandProjects.flatMap(p => getEventDates(p)));
   // Inícios e fins reais (para arredondar bordas)
-  const startDates = new Set(brandProjects.map(p => p.startDate || p.deadline).filter(Boolean));
-  const endDates = new Set(brandProjects.map(p => p.deadline).filter(Boolean));
+  const startDates = new Set(brandProjects.map(p => p.dataInicio || p.dataFim).filter(Boolean));
+  const endDates = new Set(brandProjects.map(p => p.dataFim).filter(Boolean));
 
   const monthStart = startOfMonth(currentDate);
   const monthEnd = endOfMonth(monthStart);
@@ -1103,9 +1047,9 @@ function ProjectsView({
   }, [contents, projects, agenda, filters]);
 
   const filteredProjects = useMemo(() => {
-    if (view === 'marcas') return projects.filter(p => !p.archived && p.status !== 'Finalizado');
-    if (view === 'marcas_arquivadas') return projects.filter(p => p.archived);
-    if (view === 'marcas_encerradas') return projects.filter(p => !p.archived && p.status === 'Finalizado');
+    if (view === 'marcas') return projects.filter(p => !p.deletedAt && p.status !== 'Finalizado');
+    if (view === 'marcas_arquivadas') return projects.filter(p => !!p.deletedAt);
+    if (view === 'marcas_encerradas') return projects.filter(p => !p.deletedAt && p.status === 'Finalizado');
     return projects;
   }, [projects, view]);
 
@@ -1274,7 +1218,7 @@ function ProjectsView({
                         {brandProjects.slice(0, 4).map(p => {
                           const dur = getEventDates(p).length;
                           const stSet = STATUS_CONFIG[p.status];
-                          const Icon = stSet ? getStatusIcon(stSet.icon) : null;
+                          const Icon = stSet ? getStatusIcon('Star') : null;
                           return (
                             <button
                               key={p.id}
@@ -1288,7 +1232,7 @@ function ProjectsView({
                                   </div>
                                 )}
                                 <div className="flex-1 min-w-0">
-                                  <span className="text-xs font-bold text-[var(--text-primary)] line-clamp-1">{p.title || 'Sem título'}</span>
+                                  <span className="text-xs font-bold text-[var(--text-primary)] line-clamp-1">{p.nome || 'Sem título'}</span>
                                   <div className="flex items-center gap-2 mt-0.5">
                                     {dur > 1 && <span className="text-[8px] font-black text-[var(--text-tertiary)] opacity-50 uppercase tracking-widest">{dur} dias</span>}
                                     {stSet && <span className="text-[8px] font-black uppercase tracking-widest" style={{ color: stSet.color }}>{p.status}</span>}
@@ -1414,10 +1358,10 @@ function DashboardOverview({ projects, onSelect }: { projects: Partnership[]; on
                 >
                   <div className="absolute top-0 left-0 right-0 h-1" style={{ backgroundColor: p.brandColor }} />
                   <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-tertiary)] block mb-1 mt-1">{p.brand}</span>
-                  <h4 className="text-xs font-bold text-[var(--text-primary)] mb-3 leading-snug line-clamp-2">{p.title || 'Sem título'}</h4>
-                  {p.deadline && (
+                  <h4 className="text-xs font-bold text-[var(--text-primary)] mb-3 leading-snug line-clamp-2">{p.nome || 'Sem título'}</h4>
+                  {p.dataFim && (
                     <span className="text-[9px] font-black uppercase tracking-widest bg-[var(--bg-hover)] px-2 py-1 rounded-lg border border-[var(--border-color)] text-[var(--text-primary)]">
-                      {format(new Date(p.deadline + 'T12:00:00'), 'dd/MM')}
+                      {format(new Date(p.dataFim + 'T12:00:00'), 'dd/MM')}
                     </span>
                   )}
                 </button>

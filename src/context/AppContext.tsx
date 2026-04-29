@@ -1,338 +1,267 @@
 import React, { useReducer, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
-import {
-  Content,
-  Idea,
-  Series,
-  Result,
-  AgendaItem,
-  EnergyLog,
-  Partnership,
-  Book,
-  Pilar,
-  Look,
-  Cenario,
-  RecordingBlock,
-  GoldenRule,
-  Campaign,
-} from '../types';
-import { INITIAL_SERIES, INITIAL_PILARES, GOLDEN_RULES, mapLegacyFormatToPlataforma } from '../constants';
+import * as db from '../lib/database';
 import { appReducer, AppAction } from './reducer';
-import { fetchAllData, saveToSupabase, softDeleteFromSupabase, PendingDelete } from '../lib/database';
+import { useAuth } from './AuthContext';
 
-export interface AppState {
-  contents: Content[];
-  ideas: Idea[];
-  series: Series[];
-  results: Result[];
-  agenda: AgendaItem[];
-  energyLogs: EnergyLog[];
-  partnerships: Partnership[];
-  books: Book[];
-  pilares: Pilar[];
-  looks: Look[];
-  cenarios: Cenario[];
-  recordingBlocks: RecordingBlock[];
-  goldenRules: GoldenRule[];
-  campaigns: Campaign[];
-  onboardingCompleto: boolean;
-  viewedGuides: string[];
+// ============================================================================
+// STATE
+// ============================================================================
+
+export interface AppState extends db.AppData {
   theme: 'light' | 'dark';
-  dnaVoz: {
-    promessaCentral: string;
-    publico: string;
-    pilares: string[];
-    tom: string;
-    naoFaco: string[];
-    alertas: string[];
-  };
+  isLoaded: boolean;
 }
 
-const STORAGE_KEY = 'content_os_data';
-
-const initialState: AppState = {
-  contents: [
-    {
-      id: 'mock-1',
-      title: 'Calma eu te explico: Por que lemos ficcao?',
-      seriesId: 'calma-explico',
-      pillar: 'Analise',
-      format: 'Reels',
-      status: 'Postado',
-      slotType: 'Série',
-      publishDate: '2026-03-25',
-      plataformas: ['Instagram'],
-      formatoVisual: 'Talking Head',
-      createdAt: '2026-03-15T10:00:00Z',
-    },
-    {
-      id: 'mock-2',
-      title: 'POV: Leitor de suspense tentando dormir',
-      seriesId: 'tipos-leitores',
-      pillar: 'Humor',
-      format: 'Reels',
-      status: 'A Editar',
-      slotType: 'Curto',
-      publishDate: '2026-03-27',
-      plataformas: ['Instagram', 'TikTok'],
-      formatoVisual: 'POV Texto',
-      createdAt: '2026-03-18T14:30:00Z',
-    },
-    {
-      id: 'mock-3',
-      title: 'Minha leitura atual',
-      seriesId: '',
-      pillar: 'Indicacao',
-      format: 'Stories',
-      status: 'Pronto para Gravar',
-      slotType: 'Janela',
-      publishDate: '2026-03-29',
-      plataformas: ['Instagram'],
-      formatoVisual: 'Talking Head',
-      createdAt: '2026-03-22T09:15:00Z',
-    },
-  ],
-  ideas: [
-    {
-      id: 'idea-1',
-      text: 'Por que todo mundo ama livros com viloes carismaticos?',
-      createdAt: '2026-03-25T18:00:00Z',
-      pillar: 'Analise',
-      archived: false,
-    },
-    {
-      id: 'idea-2',
-      text: 'Como lidar com o bloqueio de leitura em dias dificeis',
-      createdAt: '2026-03-26T08:00:00Z',
-      pillar: 'Identificacao',
-      archived: false,
-    },
-    {
-      id: 'idea-3',
-      text: 'Top 5 livros que parecem Dark Romance mas nao sao',
-      createdAt: '2026-03-26T15:00:00Z',
-      pillar: 'Indicacao',
-      archived: false,
-    },
-  ],
-  series: INITIAL_SERIES,
-  results: [],
-  agenda: [
-    {
-      id: 'agenda-1',
-      title: 'Reuniao de Planejamento Mensal',
-      date: '2026-03-27',
-      type: 'Reunião',
-      external: true,
-    },
-    {
-      id: 'agenda-2',
-      title: 'Sessao de Gravacao — Serie GSA',
-      date: '2026-03-30',
-      type: 'Entrega',
-      external: false,
-    },
-  ],
-  energyLogs: [
-    { date: '2026-03-25', level: 4 },
-    { date: '2026-03-26', level: 3 },
-  ],
-  partnerships: [
-    {
-      id: 'p-1',
-      brand: 'Kobo',
-      brandColor: '#1D4ED8',
-      title: 'Campanha Kobo Libra Colour 2026',
-      status: 'Roteiro',
-      deadline: '2026-04-15',
-      createdAt: new Date().toISOString(),
-    },
-  ],
-  books: [],
-  pilares: INITIAL_PILARES,
-  looks: [],
+export const initialState: AppState = {
+  platforms: [],
+  preferences: {},
+  dnaVoz: null,
+  pilares: [],
+  series: [],
   cenarios: [],
+  looks: [],
+  bibliotecaItems: [],
+  contents: [],
+  ideas: [],
+  projetos: [],
   recordingBlocks: [],
-  goldenRules: GOLDEN_RULES,
-  campaigns: [],
-  onboardingCompleto: false,
-  viewedGuides: [],
-  theme: 'light',
-  dnaVoz: {
-    promessaCentral: '',
-    publico: '',
-    pilares: ['Autenticidade', 'Clareza', 'Humor'],
-    tom: 'Direta, engracada e inteligente. Fala como a melhor amiga leitora.',
-    naoFaco: ['Clickbait sem entrega', 'Fingir que leu', 'Conteudo sem ponto de vista'],
-    alertas: ['Cuidado com o excesso de analise sem humor', 'Mantenha o ponto de vista forte'],
-  },
+  templates: [],
+  agendaItems: [],
+  goldenRules: [],
+  contentMetrics: [],
+  
+  // Legacy aliases
+  books: [],
+  partnerships: [],
+  results: [],
+  agenda: [],
+
+  theme: 'dark',
+  isLoaded: false,
 };
 
-// Migracao de dados legados para o novo formato
-function migrarDados(parsed: any): AppState {
-  return {
-    ...initialState,
-    ...parsed,
-    theme: parsed.theme || initialState.theme,
-    contents: (parsed.contents || initialState.contents).map((c: any) => ({
-      ...c,
-      legendas: c.legendas || (c.caption ? { Instagram: c.caption } : undefined),
-      plataformas: c.plataformas || (c.format ? mapLegacyFormatToPlataforma(c.format) : ['Instagram']),
-    })),
-    ideas: parsed.ideas || initialState.ideas,
-    series: parsed.series || initialState.series,
-    results: parsed.results || initialState.results,
-    agenda: parsed.agenda || initialState.agenda,
-    energyLogs: parsed.energyLogs || initialState.energyLogs,
-    partnerships: parsed.partnerships || initialState.partnerships,
-    books: parsed.books || [],
-    pilares: parsed.pilares || INITIAL_PILARES,
-    looks: parsed.looks || [],
-    cenarios: parsed.cenarios || [],
-    recordingBlocks: parsed.recordingBlocks || [],
-    goldenRules: parsed.goldenRules || GOLDEN_RULES,
-    campaigns: parsed.campaigns || [],
-    onboardingCompleto: parsed.onboardingCompleto ?? false,
-    dnaVoz: {
-      ...initialState.dnaVoz,
-      ...(parsed.dnaVoz || {}),
-      promessaCentral: parsed.dnaVoz?.promessaCentral || '',
-      publico: parsed.dnaVoz?.publico || '',
-    },
-  } as AppState;
-}
-
-// Mapeamento: action type -> tabela no Supabase
-const DELETE_ACTION_TABLE_MAP: Record<string, string> = {
-  DELETE_CONTENT: 'contents',
-  DELETE_IDEA: 'ideas',
-  DELETE_SERIES: 'series',
-  DELETE_RESULT: 'results',
-  DELETE_AGENDA: 'agenda_items',
-  DELETE_PARTNERSHIP: 'partnerships',
-  DELETE_BOOK: 'books',
-  DELETE_ANNOTATION: 'book_annotations',
-  DELETE_PILAR: 'pilares',
-  DELETE_LOOK: 'looks',
-  DELETE_CENARIO: 'cenarios',
-  DELETE_RECORDING_BLOCK: 'recording_blocks',
-  DELETE_GOLDEN_RULE: 'golden_rules',
-  DELETE_CAMPAIGN: 'campaigns',
-};
+// ============================================================================
+// CONTEXT
+// ============================================================================
 
 export const AppContext = React.createContext<{
   state: AppState;
   dispatch: React.Dispatch<AppAction>;
 } | null>(null);
 
+// ============================================================================
+// PROVIDER
+// ============================================================================
+
 export function AppProvider({ children }: { children: React.ReactNode }) {
-  const [state, dispatch] = useReducer(appReducer, undefined, () => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (!saved) return initialState;
-    try {
-      return migrarDados(JSON.parse(saved));
-    } catch {
-      return initialState;
-    }
-  });
+  const [state, dispatch] = useReducer(appReducer, initialState);
+  const loadDone = useRef(false);
 
-  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const initialLoadDone = useRef(false);
-  const pendingDeletes = useRef<PendingDelete[]>([]);
-
-  const wrappedDispatch = useCallback((action: AppAction) => {
-    const table = DELETE_ACTION_TABLE_MAP[action.type];
-
-    if (table) {
-      if (action.type === 'DELETE_ANNOTATION') {
-        const payload = action.payload as { livroId: string; annotationId: string };
-        pendingDeletes.current.push({ table, id: payload.annotationId });
-      } else {
-        pendingDeletes.current.push({ table, id: action.payload as string });
-      }
-    }
-
-    if (action.type === 'DELETE_MULTIPLE_CONTENTS') {
-      const ids = action.payload as string[];
-      ids.forEach(id => pendingDeletes.current.push({ table: 'contents', id }));
-    }
-
-    dispatch(action);
-  }, []);
-
-  // 1. Carrega dados do Supabase via onAuthStateChange
-  // Razao: no PWA (iOS), o token pode ainda estar sendo restaurado quando o
-  // componente monta. getSession() retornaria null prematuramente.
-  // onAuthStateChange so dispara depois que a sessao esta confirmada e valida.
   useEffect(() => {
     if (!supabase) {
-      initialLoadDone.current = true;
+      dispatch({ type: 'SET_LOADED' });
       return;
     }
 
-    let loaded = false;
+    let done = false;
 
-    async function loadData() {
-      if (loaded) return;
-      loaded = true;
+    async function load() {
+      if (done) return;
+      done = true;
       try {
-        const dbData = await fetchAllData();
-        if (Object.keys(dbData).length > 0) {
-          dispatch({ type: 'SET_STATE', payload: dbData });
-        }
+        const data = await db.fetchAllData();
+        dispatch({ type: 'SET_DATA', payload: data });
       } catch (err) {
-        console.error('[Supabase] Failed to fetch initial data:', err);
+        console.error('[DB] fetchAllData failed:', err);
       } finally {
-        initialLoadDone.current = true;
+        dispatch({ type: 'SET_LOADED' });
+        loadDone.current = true;
       }
     }
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (session && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED')) {
-        loadData();
+      if (session && ['SIGNED_IN', 'INITIAL_SESSION', 'TOKEN_REFRESHED'].includes(event)) {
+        load();
       } else if (event === 'SIGNED_OUT' || (event === 'INITIAL_SESSION' && !session)) {
-        initialLoadDone.current = true;
+        dispatch({ type: 'SET_DATA', payload: {} });
+        dispatch({ type: 'SET_LOADED' });
+        loadDone.current = true;
       }
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
-  // 2. Persiste mudancas de estado — so roda APOS o load inicial do Supabase
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  const { user } = useAuth();
 
-    if (!initialLoadDone.current) return;
+  const enhancedDispatch = useCallback(async (action: AppAction) => {
+    // 1. Update local state immediately (Optimistic UI)
+    dispatch(action);
 
-    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-    saveTimerRef.current = setTimeout(async () => {
-      try {
-        if (pendingDeletes.current.length > 0) {
-          const deletesToProcess = [...pendingDeletes.current];
-          pendingDeletes.current = [];
-          await softDeleteFromSupabase(deletesToProcess);
-        }
-        await saveToSupabase(state);
-      } catch (err) {
-        console.error('[Supabase] Failed to sync:', err);
+    // 2. Persist to Supabase
+    if (!user) return;
+    const userId = user.id;
+
+    try {
+      switch (action.type) {
+        // --- Biblioteca & Books ---
+        case 'ADD_BOOK':
+        case 'UPDATE_BOOK':
+        case 'ADD_BIBLIOTECA_ITEM':
+        case 'UPDATE_BIBLIOTECA_ITEM':
+          await db.saveBibliotecaItem({ ...action.payload, userId });
+          break;
+        case 'DELETE_BOOK':
+        case 'DELETE_BIBLIOTECA_ITEM':
+          await db.deleteBibliotecaItem(action.payload);
+          break;
+
+        // --- Annotations ---
+        case 'ADD_ANNOTATION':
+        case 'UPDATE_ANNOTATION':
+        case 'ADD_ANOTACAO':
+        case 'UPDATE_ANOTACAO':
+          // Support both payload formats
+          const ann = (action.payload as any).anotacao || action.payload;
+          const lid = (action.payload as any).livroId || (action.payload as any).itemId;
+          await db.saveAnotacao({ ...ann, itemId: lid, userId });
+          break;
+        case 'DELETE_ANNOTATION':
+        case 'DELETE_ANOTACAO':
+          const aid = (action.payload as any).annotationId || (action.payload as any).anotacaoId || action.payload;
+          await db.deleteAnotacao(aid as string);
+          break;
+        case 'DISTILL_ANNOTATION':
+          const book = state.bibliotecaItems.find(b => b.id === action.payload.livroId);
+          const note = book?.anotacoes.find(a => a.id === action.payload.annotationId);
+          if (note) {
+            await db.saveAnotacao({ ...note, destilada: true, itemId: action.payload.livroId, userId });
+          }
+          break;
+
+        // --- Contents & Ideas ---
+        case 'ADD_CONTENT':
+        case 'UPDATE_CONTENT':
+          await db.saveContent({ ...action.payload, userId });
+          break;
+        case 'DELETE_CONTENT':
+          await db.deleteContent(action.payload);
+          break;
+        case 'ADD_IDEA':
+        case 'UPDATE_IDEA':
+          await db.saveIdea({ ...action.payload, userId });
+          break;
+        case 'DELETE_IDEA':
+          await db.deleteIdea(action.payload);
+          break;
+
+        // --- Projetos ---
+        case 'ADD_PARTNERSHIP':
+        case 'UPDATE_PARTNERSHIP':
+        case 'ADD_PROJETO':
+        case 'UPDATE_PROJETO':
+          await db.saveProjeto({ ...action.payload, userId });
+          break;
+        case 'DELETE_PARTNERSHIP':
+        case 'DELETE_PROJETO':
+          await db.deleteProjeto(action.payload);
+          break;
+
+        // --- Pillars & Series ---
+        case 'ADD_PILAR':
+        case 'UPDATE_PILAR':
+          await db.savePilar({ ...action.payload, userId });
+          break;
+        case 'DELETE_PILAR':
+          await db.deletePilar(action.payload);
+          break;
+        case 'ADD_SERIE':
+        case 'UPDATE_SERIE':
+        case 'ADD_SERIES':
+          await db.saveSerie({ ...action.payload, userId });
+          break;
+        case 'DELETE_SERIE':
+          await db.deleteSerie(action.payload);
+          break;
+
+        // --- Metrics ---
+        case 'ADD_RESULT':
+        case 'UPDATE_RESULT':
+          await db.saveContentMetric({ ...action.payload, userId });
+          break;
+
+        // --- Agenda ---
+        case 'ADD_AGENDA':
+        case 'UPDATE_AGENDA':
+        case 'ADD_AGENDA_ITEM':
+        case 'UPDATE_AGENDA_ITEM':
+          await db.saveAgendaItem({ ...action.payload, userId });
+          break;
+        case 'DELETE_AGENDA':
+        case 'DELETE_AGENDA_ITEM':
+          await db.deleteAgendaItem(action.payload);
+          break;
+
+        // --- Recording & Blocks ---
+        case 'ADD_RECORDING_BLOCK':
+        case 'UPDATE_RECORDING_BLOCK':
+          await db.saveRecordingBlock({ ...action.payload, userId });
+          break;
+        case 'DELETE_RECORDING_BLOCK':
+          await db.deleteRecordingBlock(action.payload);
+          break;
+
+        // --- Preferences & DNA ---
+        case 'UPDATE_PREFERENCE':
+          await db.savePreference(action.payload.key, action.payload.value);
+          break;
+        case 'SET_DNA_VOZ':
+          await db.saveDnaVoz(action.payload);
+          break;
+
+        // --- Energy ---
+        case 'LOG_ENERGY':
+          // Table removed in new schema, but we keep the action for local state if needed
+          break;
+
+        default:
+          break;
       }
-    }, 2000);
-  }, [state]);
+    } catch (err) {
+      console.error('[Sync] Error persisting action:', action.type, err);
+    }
+  }, [user, state.bibliotecaItems]);
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', state.theme);
   }, [state.theme]);
 
+  // Provide aliases for state properties to match what the UI expects
+  const contextValue = React.useMemo(() => ({
+    state: {
+      ...state,
+      books: state.bibliotecaItems,
+      partnerships: state.projetos,
+      results: state.contentMetrics,
+      agenda: state.agendaItems,
+    },
+    dispatch: enhancedDispatch
+  }), [state, enhancedDispatch]);
+
   return (
-    <AppContext.Provider value={{ state, dispatch: wrappedDispatch }}>
+    <AppContext.Provider value={contextValue}>
       {children}
     </AppContext.Provider>
   );
 }
 
+// ============================================================================
+// HOOK
+// ============================================================================
+
 export function useAppContext() {
-  const context = React.useContext(AppContext);
-  if (!context) throw new Error('useAppContext must be used within AppProvider');
-  return context;
-}
+  const ctx = React.useContext(AppContext);
+  if (!ctx) throw new Error('useAppContext must be used within AppProvider');
+  return ctx;
 }

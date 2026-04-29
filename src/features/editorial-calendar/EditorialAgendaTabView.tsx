@@ -1,6 +1,7 @@
 import { Calendar as CalendarIcon, BookOpen, RotateCcw, Zap } from 'lucide-react';
 import { motion } from 'motion/react';
-import { AgendaItem, Content, Partnership } from '../../types';
+import { AgendaItem, Content, Projeto } from '../../lib/database';
+type Partnership = Projeto;
 import { cn } from '../../lib/utils';
 import { CalendarAgendaView } from '../../components/calendar/CalendarAgendaView';
 import { CalendarGrid } from '../../components/calendar/CalendarGrid';
@@ -110,7 +111,7 @@ export function EditorialAgendaTabView({
         />
       )}
 
-      {isFullEditOpen && selectedItem && !('brand' in selectedItem) && !('external' in selectedItem && !('status' in selectedItem)) && (
+      {isFullEditOpen && selectedItem && !('brand' in selectedItem) && ('pilarId' in selectedItem) && (
         <ContentDetailModal
           content={selectedItem as Content}
           onClose={onCloseFullEdit}

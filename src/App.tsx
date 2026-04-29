@@ -9,12 +9,8 @@ import { useIsMobile } from './hooks/useIsMobile';
 import { cn } from './lib/utils';
 import { CommandPalette } from './components/CommandPalette';
 import { Onboarding } from './components/Onboarding';
-import { Dashboard } from './pages/Dashboard';
 import { Contents } from './pages/Contents';
 import { Ideas } from './pages/Ideas';
-import { SeriesDetail } from './pages/Series';
-import { Arquivos } from './pages/Arquivos';
-import { Results } from './pages/Results';
 import { EditorialCalendar } from './pages/EditorialCalendar';
 import { Biblioteca } from './pages/Biblioteca';
 import { BookDetail } from './pages/BookDetail';
@@ -23,6 +19,14 @@ import { PilaresSettings } from './pages/settings/Pilares';
 import { LooksSettings } from './pages/settings/LooksScenarios';
 import { RegrasDeOuro } from './pages/settings/RegrasDeOuro';
 import { DNAVozSettings } from './pages/settings/DNAVoz';
+import { SeriesSettings } from './pages/settings/Series';
+import { PlataformasSettings } from './pages/settings/Plataformas';
+import { TemplatesSettings } from './pages/settings/Templates';
+import { Projetos } from './pages/Projetos';
+import { ProjetoDetalhe } from './pages/ProjetoDetalhe';
+import { Gravacao } from './pages/Gravacao';
+import { GravacaoBloco } from './pages/GravacaoBloco';
+import { Analise } from './pages/Analise';
 import { Login } from './pages/Login';
 import { Menu, Loader2 } from 'lucide-react';
 import { useAppContext } from './context/AppContext';
@@ -91,7 +95,7 @@ function AppContent() {
         </button>
         <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2">
            <div className="w-1.5 h-1.5 rounded-full bg-[var(--text-primary)] animate-pulse" />
-           <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-primary)] opacity-90">Content OS</span>
+           <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-primary)] opacity-90">Core Creator</span>
         </div>
         <div className="w-12" />
       </div>
@@ -102,24 +106,43 @@ function AppContent() {
       )}>
         <div className="min-h-full">
           <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/contents" element={<Contents />} />
-          <Route path="/ideas" element={<Ideas />} />
-          <Route path="/arquivos" element={<Arquivos />} />
-          <Route path="/series/:id" element={<SeriesDetail />} />
-          <Route path="/results" element={<Results />} />
-          <Route path="/calendar" element={<Navigate to="/editorial" replace />} />
-          <Route path="/editorial" element={<EditorialCalendar />} />
-          {/* Biblioteca */}
+          <Route path="/" element={<Navigate to="/conteudos" replace />} />
+          <Route path="/conteudos" element={<Contents />} />
+          <Route path="/ideias" element={<Ideas />} />
+          <Route path="/calendario" element={<EditorialCalendar />} />
           <Route path="/biblioteca" element={<Biblioteca />} />
           <Route path="/biblioteca/:id" element={<BookDetail />} />
+          
+          {/* Projetos */}
+          <Route path="/projetos" element={<Projetos />} />
+          <Route path="/projetos/:id" element={<ProjetoDetalhe />} />
+
+          {/* Gravação */}
+          <Route path="/gravacao" element={<Gravacao />} />
+          <Route path="/gravacao/:id" element={<GravacaoBloco />} />
+
+          {/* Análise */}
+          <Route path="/analise" element={<Analise />} />
+          
           {/* Configurações */}
-          <Route path="/settings" element={<Settings />} />
-          <Route path="/settings/pilares" element={<PilaresSettings />} />
-          <Route path="/settings/looks" element={<LooksSettings />} />
-          <Route path="/settings/regras" element={<RegrasDeOuro />} />
-          <Route path="/settings/dna" element={<DNAVozSettings />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="/configuracoes" element={<Settings />} />
+          <Route path="/configuracoes/pilares" element={<PilaresSettings />} />
+          <Route path="/configuracoes/looks" element={<LooksSettings />} />
+          <Route path="/configuracoes/regras" element={<RegrasDeOuro />} />
+          <Route path="/configuracoes/dna" element={<DNAVozSettings />} />
+          <Route path="/configuracoes/series" element={<SeriesSettings />} />
+          <Route path="/configuracoes/plataformas" element={<PlataformasSettings />} />
+          <Route path="/configuracoes/templates" element={<TemplatesSettings />} />
+
+          {/* Legacy Redirects */}
+          <Route path="/contents" element={<Navigate to="/conteudos" replace />} />
+          <Route path="/ideas" element={<Navigate to="/ideias" replace />} />
+          <Route path="/editorial" element={<Navigate to="/calendario" replace />} />
+          <Route path="/calendar" element={<Navigate to="/calendario" replace />} />
+          <Route path="/results" element={<Navigate to="/analise" replace />} />
+          <Route path="/settings/*" element={<Navigate to="/configuracoes" replace />} />
+          
+          <Route path="*" element={<Navigate to="/conteudos" replace />} />
         </Routes>
         </div>
       </main>
@@ -127,7 +150,7 @@ function AppContent() {
       <MobileNavBar />
 
       {/* Onboarding — aparece na primeira vez */}
-      {!state.onboardingCompleto && <Onboarding />}
+      {state.preferences['onboarding_completo'] !== 'true' && <Onboarding />}
     </div>
   );
 }

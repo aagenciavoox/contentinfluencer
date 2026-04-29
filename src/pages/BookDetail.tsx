@@ -21,12 +21,19 @@ import {
   TrendingUp,
 } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
-import { BookAnnotation, TipoAnotacao, GeneroLivro, StatusLeitura, Content, Campaign } from '../types';
+import { Anotacao, BibliotecaItem, Content, Idea } from '../lib/database';
+import { generateUUID as _uuid } from '../utils/uuid';
+type BookAnnotation = Anotacao;
+type TipoAnotacao = Anotacao['tipo'];
+type StatusLeitura = BibliotecaItem['status'];
+type GeneroLivro = string;
+type Campaign = any;
 import { ContentDetailModal } from '../components/ContentDetailModal';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { generateUUID } from '../utils/uuid';
 
 const TIPO_CORES: Record<TipoAnotacao, string> = {
+  Anotação: 'bg-[var(--text-tertiary)]/10 text-[var(--text-tertiary)]',
   Trecho: 'bg-[var(--accent-blue)]/10 text-[var(--accent-blue)]',
   Reação: 'bg-[var(--accent-pink)]/10 text-[var(--accent-pink)]',
   Análise: 'bg-[var(--accent-purple)]/10 text-[var(--accent-purple)]',
@@ -45,7 +52,7 @@ const STATUS_CORES: Record<string, string> = {
 };
 
 const TIPOS: TipoAnotacao[] = ['Trecho', 'Reação', 'Análise', 'Ideia de conteúdo', 'Pergunta'];
-const STATUS_LEITURA: StatusLeitura[] = ['Quero ler', 'Lendo', 'Pausado', 'Lido'];
+const STATUS_LEITURA: StatusLeitura[] = ['Quero consumir', 'Consumindo', 'Pausado', 'Concluído'];
 const GENEROS: GeneroLivro[] = [
   'Fantasy', 'Dark Romance', 'Ficção Científica', 'Clássico',
   'Não-ficção', 'Romance', 'Thriller', 'Horror', 'Outro',
@@ -95,26 +102,27 @@ export function BookDetail() {
   const [infoSalvo, setInfoSalvo] = useState(false);
   const [confirm, setConfirm] = useState<{ message: string; onConfirm: () => void } | null>(null);
 
+  const _livro = livro as any;
   const [infoLocal, setInfoLocal] = useState(() => ({
     titulo: livro?.titulo ?? '',
-    autor: livro?.autor ?? '',
-    statusLeitura: livro?.statusLeitura ?? ('Quero ler' as StatusLeitura),
+    autor: livro?.autorDiretor ?? '',
+    statusLeitura: livro?.status ?? ('Quero consumir' as StatusLeitura),
     capaUrl: livro?.capaUrl ?? '',
     dataInicio: livro?.dataInicio ?? '',
     dataFim: livro?.dataFim ?? '',
     avaliacao: livro?.avaliacao as 1 | 2 | 3 | 4 | 5 | undefined,
     notasGerais: livro?.notasGerais ?? '',
-    generos: livro?.generos ? [...livro.generos] : [] as GeneroLivro[],
+    generos: livro?.generoIds ? [...livro.generoIds] : [] as GeneroLivro[],
     paginasLidas: livro?.paginasLidas ?? ('' as number | ''),
     totalPaginas: livro?.totalPaginas ?? ('' as number | ''),
-    editora: livro?.editora ?? '',
-    anoPublicacao: livro?.anoPublicacao ? String(livro.anoPublicacao) : '',
-    isbn: livro?.isbn ?? '',
-    idioma: livro?.idioma ?? '',
-    traducao: livro?.traducao ?? '',
-    serieColecao: livro?.serieColecao ?? '',
-    quemIndicou: livro?.quemIndicou ?? '',
-    motivoEscolha: livro?.motivoEscolha ?? '',
+    editora: _livro?.editora ?? '',
+    anoPublicacao: _livro?.anoPublicacao ? String(_livro.anoPublicacao) : '',
+    isbn: _livro?.isbn ?? '',
+    idioma: _livro?.idioma ?? '',
+    traducao: _livro?.traducao ?? '',
+    serieColecao: _livro?.serieColecao ?? '',
+    quemIndicou: _livro?.quemIndicou ?? '',
+    motivoEscolha: _livro?.motivoEscolha ?? '',
     potencialConteudo: livro?.potencialConteudo as 1 | 2 | 3 | undefined,
   }));
 
@@ -139,12 +147,12 @@ export function BookDetail() {
     })
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
-  const conteudosDoLivro = state.contents.filter(c => c.livroOrigemId === livro.id);
-  const ideiasDeLivro = state.ideas.filter(i => i.livroOrigemId === livro.id && !i.archived);
-  const campanhasDoLivro = (state.campaigns || []).filter(c => c.livroId === livro.id);
+  const conteudosDoLivro = state.contents.filter(c => c.bibliotecaItemId === livro.id);
+  const ideiasDeLivro = state.ideas.filter(i => i.origemId === livro.id && !i.archived);
+  const campanhasDoLivro: Campaign[] = [];
 
   const alertaEcossistema =
-    livro.statusLeitura === 'Lido' &&
+    livro.status === 'Concluído' &&
     conteudosDoLivro.filter(c => c.status === 'Postado').length === 0;
 
   const conteudosPorSlot = conteudosDoLivro.reduce<Record<string, typeof conteudosDoLivro>>((acc, c) => {
@@ -155,7 +163,7 @@ export function BookDetail() {
   }, {});
 
   const conteudosPorPlataforma = conteudosDoLivro.reduce<Record<string, typeof conteudosDoLivro>>((acc, c) => {
-    const plats = c.plataformas?.length ? c.plataformas : ['Geral'];
+    const plats = c.plataformas?.length ? c.plataformas.map(pp => pp.platformId) : ['Geral'];
     plats.forEach(p => {
       if (!acc[p]) acc[p] = [];
       if (!acc[p].find(x => x.id === c.id)) acc[p].push(c);
@@ -171,11 +179,14 @@ export function BookDetail() {
     Instagram: [], TikTok: [], YouTube: [],
   };
   conteudosDoLivro.forEach(c => {
-    const pilar = state.pilares.find(p => p.nome === c.pillar);
+    const pilar = state.pilares.find(p => p.id === c.pilarId);
     if (pilar) {
-      if (pilar.hashtagsInstagram) hashtagsAgregadas.Instagram.push(...pilar.hashtagsInstagram.split(' ').filter(Boolean));
-      if (pilar.hashtagsTikTok) hashtagsAgregadas.TikTok.push(...pilar.hashtagsTikTok.split(' ').filter(Boolean));
-      if (pilar.hashtagsYouTube) hashtagsAgregadas.YouTube.push(...pilar.hashtagsYouTube.split(' ').filter(Boolean));
+      pilar.plataformas.forEach(pp => {
+        const key = pp.platformId as 'Instagram' | 'TikTok' | 'YouTube';
+        if (hashtagsAgregadas[key] && pp.hashtags) {
+          hashtagsAgregadas[key].push(...pp.hashtags.split(' ').filter(Boolean));
+        }
+      });
     }
   });
   const hashtagsUnicas: Record<'Instagram' | 'TikTok' | 'YouTube', string> = {
@@ -187,30 +198,32 @@ export function BookDetail() {
   // Performance data
   const conteudosPostados = conteudosDoLivro.filter(c => c.status === 'Postado');
   const resultadosDoLivro = state.results.filter(r =>
-    r.contentId && conteudosDoLivro.some(c => c.id === r.contentId) && r.detailedMetrics
+    r.contentId && conteudosDoLivro.some(c => c.id === r.contentId)
   );
-  const totalViews = resultadosDoLivro.reduce((sum, r) => sum + (r.detailedMetrics?.views || 0), 0);
+  const totalViews = resultadosDoLivro.reduce((sum, r) => sum + (r.views || 0), 0);
   const melhorPorViews = resultadosDoLivro.reduce((best, r) =>
-    (r.detailedMetrics?.views || 0) > (best?.detailedMetrics?.views || 0) ? r : best,
+    (r.views || 0) > (best?.views || 0) ? r : best,
     resultadosDoLivro[0]
   );
   const melhorPorSaves = resultadosDoLivro.reduce((best, r) =>
-    (r.detailedMetrics?.saves || 0) > (best?.detailedMetrics?.saves || 0) ? r : best,
+    (r.saves || 0) > (best?.saves || 0) ? r : best,
     resultadosDoLivro[0]
   );
 
   // Handlers
   const handleAddAnotacao = () => {
     if (!novaAnotacao.trim()) return;
-    const anotacao: BookAnnotation = {
+    const anotacao: Anotacao = {
       id: generateUUID(),
-      livroId: livro.id,
+      userId: '',
+      itemId: livro.id,
       texto: novaAnotacao.trim(),
       tipo: novoTipo,
-      capituloRef: novoCapitulo.trim() || undefined,
+      capituloRef: novoCapitulo.trim() || null,
       destilada: false,
       contentPotential: false,
       createdAt: new Date().toISOString(),
+      deletedAt: null,
     };
     dispatch({ type: 'ADD_ANNOTATION', payload: anotacao });
     setNovaAnotacao('');
@@ -218,12 +231,16 @@ export function BookDetail() {
   };
 
   const handleTransformarEmIdeia = (anotacao: BookAnnotation) => {
-    const ideia = {
+    const ideia: Idea = {
       id: generateUUID(),
+      userId: '',
       text: anotacao.texto,
-      createdAt: new Date().toISOString(),
-      livroOrigemId: livro.id,
+      pilarId: null,
+      seriesId: null,
+      origemId: livro.id,
+      promotedToContentId: null,
       archived: false,
+      createdAt: new Date().toISOString(),
     };
     dispatch({ type: 'ADD_IDEA', payload: ideia });
     dispatch({ type: 'DISTILL_ANNOTATION', payload: { livroId: livro.id, annotationId: anotacao.id } });
@@ -232,15 +249,29 @@ export function BookDetail() {
   const handleTransformarEmConteudo = (anotacao: BookAnnotation) => {
     const novoConteudo: Content = {
       id: generateUUID(),
+      userId: '',
       title: anotacao.texto.slice(0, 60),
-      seriesId: '',
-      pillar: '',
-      format: 'Instagram',
       status: 'Ideia',
-      plataformas: ['Instagram'],
-      livroOrigemId: livro.id,
+      slotType: null,
+      seriesId: null,
+      pilarId: null,
+      lookId: null,
+      cenarioId: null,
+      bibliotecaItemId: livro.id,
+      formatoVisual: null,
+      energiaNecessaria: null,
+      publishDate: null,
+      recordingDate: null,
+      link: null,
+      script: null,
+      scriptNotes: [],
+      tags: [],
       notes: anotacao.texto,
+      referencias: null,
       createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      deletedAt: null,
+      plataformas: [],
     };
     dispatch({ type: 'ADD_CONTENT', payload: novoConteudo });
     setContentModalId(novoConteudo.id);
@@ -261,10 +292,19 @@ export function BookDetail() {
       type: 'UPDATE_BOOK',
       payload: {
         ...livro,
-        ...infoLocal,
-        paginasLidas: infoLocal.paginasLidas === '' ? undefined : Number(infoLocal.paginasLidas),
-        totalPaginas: infoLocal.totalPaginas === '' ? undefined : Number(infoLocal.totalPaginas),
-        anoPublicacao: infoLocal.anoPublicacao ? Number(infoLocal.anoPublicacao) : undefined,
+        titulo: infoLocal.titulo,
+        autorDiretor: infoLocal.autor,
+        status: infoLocal.statusLeitura,
+        capaUrl: infoLocal.capaUrl || null,
+        dataInicio: infoLocal.dataInicio || null,
+        dataFim: infoLocal.dataFim || null,
+        avaliacao: infoLocal.avaliacao ?? null,
+        notasGerais: infoLocal.notasGerais || null,
+        generoIds: infoLocal.generos,
+        paginasLidas: infoLocal.paginasLidas === '' ? null : Number(infoLocal.paginasLidas),
+        totalPaginas: infoLocal.totalPaginas === '' ? null : Number(infoLocal.totalPaginas),
+        potencialConteudo: infoLocal.potencialConteudo ?? null,
+        updatedAt: new Date().toISOString(),
       },
     });
     setInfoSalvo(true);
@@ -274,14 +314,29 @@ export function BookDetail() {
   const handleCriarConteudo = () => {
     const novoConteudo: Content = {
       id: generateUUID(),
+      userId: '',
       title: `Conteúdo de "${livro.titulo}"`,
-      seriesId: '',
-      pillar: '',
-      format: 'Instagram',
       status: 'Ideia',
-      plataformas: ['Instagram'],
-      livroOrigemId: livro.id,
+      slotType: null,
+      seriesId: null,
+      pilarId: null,
+      lookId: null,
+      cenarioId: null,
+      bibliotecaItemId: livro.id,
+      formatoVisual: null,
+      energiaNecessaria: null,
+      publishDate: null,
+      recordingDate: null,
+      link: null,
+      script: null,
+      scriptNotes: [],
+      tags: [],
+      notes: null,
+      referencias: null,
       createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      deletedAt: null,
+      plataformas: [],
     };
     dispatch({ type: 'ADD_CONTENT', payload: novoConteudo });
     setContentModalId(novoConteudo.id);
@@ -290,30 +345,46 @@ export function BookDetail() {
   const handlePromoteIdeia = (ideiaId: string, ideiaText: string) => {
     const novoConteudo: Content = {
       id: generateUUID(),
+      userId: '',
       title: ideiaText.slice(0, 60),
-      seriesId: '',
-      pillar: '',
-      format: 'Instagram',
       status: 'Ideia',
-      plataformas: ['Instagram'],
-      livroOrigemId: livro.id,
+      slotType: null,
+      seriesId: null,
+      pilarId: null,
+      lookId: null,
+      cenarioId: null,
+      bibliotecaItemId: livro.id,
+      formatoVisual: null,
+      energiaNecessaria: null,
+      publishDate: null,
+      recordingDate: null,
+      link: null,
+      script: null,
+      scriptNotes: [],
+      tags: [],
       notes: ideiaText,
+      referencias: null,
       createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      deletedAt: null,
+      plataformas: [],
     };
-    dispatch({ type: 'PROMOTE_IDEA', payload: { ideaId: ideiaId, contentId: novoConteudo.id, content: novoConteudo } });
+    dispatch({ type: 'ADD_CONTENT', payload: novoConteudo });
+    const ideia = state.ideas.find(i => i.id === ideiaId);
+    if (ideia) dispatch({ type: 'UPDATE_IDEA', payload: { ...ideia, promotedToContentId: novoConteudo.id } });
     setContentModalId(novoConteudo.id);
   };
 
   const handleAdicionarCapitulo = () => {
     if (!novoCapituloCoberto.trim()) return;
-    const atual = livro.capitulosCobertos || [];
-    dispatch({ type: 'UPDATE_BOOK', payload: { ...livro, capitulosCobertos: [...atual, novoCapituloCoberto.trim()] } });
+    const atual: string[] = (livro as any).capitulosCobertos || [];
+    dispatch({ type: 'UPDATE_BOOK', payload: { ...livro, capitulosCobertos: [...atual, novoCapituloCoberto.trim()] } as any });
     setNovoCapituloCoberto('');
   };
 
   const handleRemoverCapitulo = (cap: string) => {
-    const atual = livro.capitulosCobertos || [];
-    dispatch({ type: 'UPDATE_BOOK', payload: { ...livro, capitulosCobertos: atual.filter(c => c !== cap) } });
+    const atual: string[] = (livro as any).capitulosCobertos || [];
+    dispatch({ type: 'UPDATE_BOOK', payload: { ...livro, capitulosCobertos: atual.filter(c => c !== cap) } as any });
   };
 
   const handleSalvarCampanha = () => {
@@ -328,7 +399,7 @@ export function BookDetail() {
       status: 'Planejando',
       createdAt: new Date().toISOString(),
     };
-    dispatch({ type: 'ADD_CAMPAIGN', payload: nova });
+    (dispatch as any)({ type: 'ADD_CAMPAIGN', payload: nova });
     setCampForm({ nome: '', dataInicio: '', dataFim: '', metaConteudos: '5' });
     setNovaCampanhaAberta(false);
   };
@@ -387,7 +458,7 @@ export function BookDetail() {
           </button>
           <div className="flex-1 min-w-0">
             <h1 className="text-lg font-black text-[var(--text-primary)] line-clamp-1 leading-tight">{livro.titulo}</h1>
-            <p className="text-xs text-[var(--text-secondary)]">{livro.autor}</p>
+            <p className="text-xs text-[var(--text-secondary)]">{livro.autorDiretor}</p>
           </div>
         </div>
       </div>
@@ -942,7 +1013,7 @@ export function BookDetail() {
                             <div className="flex-1 min-w-0">
                               <p className="text-sm font-bold text-[var(--text-primary)] line-clamp-2 leading-snug">{c.title}</p>
                               <div className="flex items-center gap-2 mt-1 flex-wrap">
-                                <p className="text-[10px] text-[var(--text-secondary)] opacity-50">{c.pillar}</p>
+                                <p className="text-[10px] text-[var(--text-secondary)] opacity-50">{c.pilarId}</p>
                                 {c.publishDate && <p className="text-[9px] text-[var(--text-secondary)] opacity-40">📅 {c.publishDate}</p>}
                                 {c.recordingDate && <p className="text-[9px] text-[var(--text-secondary)] opacity-40">🎙️ {c.recordingDate}</p>}
                               </div>
@@ -988,11 +1059,11 @@ export function BookDetail() {
                   Adicionar
                 </button>
               </div>
-              {(livro.capitulosCobertos || []).length === 0 ? (
+              {((livro as any).capitulosCobertos || []).length === 0 ? (
                 <p className="text-xs text-[var(--text-tertiary)]">Nenhum capítulo marcado ainda</p>
               ) : (
                 <div className="flex flex-wrap gap-2">
-                  {(livro.capitulosCobertos || []).map(cap => (
+                  {((livro as any).capitulosCobertos || []).map((cap: string) => (
                     <div key={cap} className="flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-full bg-[var(--bg-hover)] text-[var(--text-primary)] border border-[var(--border-color)]">
                       <span>{cap}</span>
                       <button onClick={() => handleRemoverCapitulo(cap)} className="opacity-40 hover:opacity-100 transition-opacity ml-1">
@@ -1068,7 +1139,7 @@ export function BookDetail() {
                       <p className="text-sm font-bold text-[var(--text-primary)] line-clamp-2">
                         {state.contents.find(c => c.id === melhorPorViews.contentId)?.title || '—'}
                       </p>
-                      <p className="text-xs text-[var(--accent-green)] font-bold">{melhorPorViews.detailedMetrics?.views?.toLocaleString()} views</p>
+                      <p className="text-xs text-[var(--accent-green)] font-bold">{melhorPorViews.views?.toLocaleString()} views</p>
                     </div>
                   )}
                   {melhorPorSaves && (
@@ -1077,7 +1148,7 @@ export function BookDetail() {
                       <p className="text-sm font-bold text-[var(--text-primary)] line-clamp-2">
                         {state.contents.find(c => c.id === melhorPorSaves.contentId)?.title || '—'}
                       </p>
-                      <p className="text-xs text-[var(--accent-blue)] font-bold">{melhorPorSaves.detailedMetrics?.saves?.toLocaleString()} saves</p>
+                      <p className="text-xs text-[var(--accent-blue)] font-bold">{melhorPorSaves.saves?.toLocaleString()} saves</p>
                     </div>
                   )}
                 </div>

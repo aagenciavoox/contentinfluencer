@@ -1,4 +1,4 @@
-import { Content } from '../../types';
+import { Content } from '../../lib/database';
 import { ContentTable } from '../../components/contents/ContentTable';
 import { ContentEcosystem } from '../../components/contents/ContentEcosystem';
 import { ContentTimeline } from '../../components/contents/ContentTimeline';

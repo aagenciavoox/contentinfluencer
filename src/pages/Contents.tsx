@@ -9,8 +9,8 @@ import { ContentDetailModal } from '../components/ContentDetailModal';
 import { RecordingTab } from '../components/contents/RecordingTab';
 import { PageScaffold } from '../components/shell/PageScaffold';
 import { useIsMobile } from '../hooks/useIsMobile';
-import { FORMATS, STATUS_STAGES } from '../constants';
-import { Content } from '../types';
+import { STATUS_STAGES } from '../constants';
+import { Content } from '../lib/database';
 import { ContentsDesktopView } from '../features/contents/ContentsDesktopView';
 import { ContentsHeader } from '../features/contents/ContentsHeader';
 import { ContentsMobileView } from '../features/contents/ContentsMobileView';
@@ -41,7 +41,7 @@ export function Contents() {
       }
 
       const seriesMatch = filterSeries === 'Todas' || content.seriesId === filterSeries;
-      const pillarMatch = filterPillar === 'Todos' || content.pillar === filterPillar;
+      const pillarMatch = filterPillar === 'Todos' || content.pilarId === filterPillar;
 
       return statusMatch && seriesMatch && pillarMatch;
     });
@@ -91,12 +91,29 @@ export function Contents() {
   const handleAddContent = () => {
     const newContent: Content = {
       id: Math.random().toString(36).substr(2, 9),
+      userId: '',
       title: 'Novo Conteúdo',
-      seriesId: '',
-      pillar: state.pilares[0]?.nome || 'Sem Pilar',
-      format: FORMATS[0],
       status: 'Ideia',
+      slotType: null,
+      seriesId: null,
+      pilarId: state.pilares[0]?.id || null,
+      cenarioId: null,
+      lookId: null,
+      formatoVisual: null,
+      script: null,
+      scriptNotes: [],
+      tags: [],
+      notes: null,
+      referencias: null,
+      energiaNecessaria: null,
+      publishDate: null,
+      recordingDate: null,
+      link: null,
+      bibliotecaItemId: null,
       createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      deletedAt: null,
+      plataformas: [],
     };
 
     setSelectedContent(newContent);

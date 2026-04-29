@@ -16,7 +16,8 @@ import {
 import { ptBR } from 'date-fns/locale';
 import { Video, Send, Star, Calendar as CalendarIcon, ChevronRight, Zap } from 'lucide-react';
 import { cn, getEventDates } from '../../lib/utils';
-import { Content, Partnership, AgendaItem } from '../../types';
+import { Content, Projeto, AgendaItem } from '../../lib/database';
+type Partnership = Projeto;
 
 interface AgendaViewProps {
   contents: Content[];
@@ -66,7 +67,7 @@ export function CalendarAgendaView({
     }
 
     if (activeLayers.includes('partnerships')) {
-      partnerships.filter(p => !p.archived && getEventDates(p).includes(dateStr))
+      partnerships.filter(p => !p.deletedAt && getEventDates(p).includes(dateStr))
         .forEach(p => items.push({ ...p, __type: 'partnership' }));
     }
 

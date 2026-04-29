@@ -2,11 +2,11 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Plus, Trash2, Edit2, ToggleLeft, ToggleRight, Check, X } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
-import { Look, Cenario } from '../../types';
+import { Look, Cenario } from '../../lib/database';
 import { generateUUID } from '../../utils/uuid';
 
-type EditingLook = Omit<Look, 'id'> & { id?: string };
-type EditingCenario = Omit<Cenario, 'id'> & { id?: string };
+type EditingLook = Partial<Look> & { numero: number; descricao: string; ativo: boolean };
+type EditingCenario = Partial<Cenario> & { nome: string; descricao: string; tempoSetupMinutos: number; ativo: boolean };
 
 export function LooksSettings() {
   const { state, dispatch } = useAppContext();
@@ -20,6 +20,7 @@ export function LooksSettings() {
   const [lookForm, setLookForm] = useState<EditingLook>({
     numero: (state.looks.length > 0 ? Math.max(...state.looks.map(l => l.numero)) + 1 : 1),
     descricao: '',
+    cenarioId: null,
     ativo: true,
   });
 
@@ -38,7 +39,8 @@ export function LooksSettings() {
     }
     setCriandoLook(false);
     setEditLookId(null);
-    setLookForm({ numero: Math.max(...state.looks.map(l => l.numero), 0) + 2, descricao: '', ativo: true });
+    setLookForm({ numero: Math.max(...state.looks.map(l => l.numero), 0) + 2, descricao: '', cenarioId: null, ativo: true });
+
   };
 
   const saveCenario = (form: EditingCenario) => {
@@ -109,8 +111,8 @@ export function LooksSettings() {
               <div>
                 <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1">Cenário Associado</label>
                 <select
-                  value={lookForm.cenarioAssociadoId || ''}
-                  onChange={e => setLookForm(p => ({ ...p, cenarioAssociadoId: e.target.value || undefined }))}
+                  value={lookForm.cenarioId || ''}
+                  onChange={e => setLookForm(p => ({ ...p, cenarioId: e.target.value || undefined }))}
                   className="text-sm bg-[var(--bg-hover)] border-none rounded-lg px-3 py-2 text-[var(--text-primary)]"
                 >
                   <option value="">—</option>
@@ -128,7 +130,7 @@ export function LooksSettings() {
             {activeLooks.length === 0 ? (
               <p className="text-xs text-[var(--text-tertiary)] text-center py-8 font-bold">Nenhum look cadastrado ainda</p>
             ) : activeLooks.map(look => {
-              const cenario = look.cenarioAssociadoId ? state.cenarios.find(c => c.id === look.cenarioAssociadoId) : null;
+              const cenario = look.cenarioId ? state.cenarios.find(c => c.id === look.cenarioId) : null;
               return (
                 <div key={look.id} className={`flex items-center gap-4 px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-2xl ${!look.ativo ? 'opacity-40' : ''}`}>
                   {editLookId === look.id ? (

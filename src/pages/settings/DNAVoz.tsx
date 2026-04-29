@@ -13,14 +13,14 @@ export function DNAVozSettings() {
     dispatch({ type: 'UPDATE_DNA_VOZ', payload: editData });
   };
 
-  const handleAddItem = (field: 'naoFaco' | 'alertas' | 'pilares') => {
+  const handleAddItem = (field: 'naoFaco' | 'alertas') => {
     if (!newInput.value.trim()) return;
-    setEditData(p => ({ ...p, [field]: [...p[field], newInput.value] }));
+    setEditData(p => ({ ...p, [field]: [...(p?.[field] || []), newInput.value] }));
     setNewInput({ field: '', value: '' });
   };
 
-  const removeItem = (field: 'naoFaco' | 'alertas' | 'pilares', index: number) => {
-    setEditData(p => ({ ...p, [field]: p[field].filter((_, i) => i !== index) }));
+  const removeItem = (field: 'naoFaco' | 'alertas', index: number) => {
+    setEditData(p => ({ ...p, [field]: (p?.[field] || []).filter((_: unknown, i: number) => i !== index) }));
   };
 
   const isDirty = JSON.stringify(editData) !== JSON.stringify(state.dnaVoz);
@@ -77,46 +77,20 @@ export function DNAVozSettings() {
             />
           </section>
 
-          {/* Valores & Pilares */}
+          {/* Pilares — read-only, managed in Pilares settings */}
           <section className="bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-2xl p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2 text-[var(--text-tertiary)]">
-                <Target className="w-4 h-4" />
-                <span className="t-label">Valores & Pilares</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <input
-                  type="text"
-                  placeholder="Novo..."
-                  className="text-[10px] py-1 px-3 border-none w-24 bg-[var(--bg-hover)] rounded-lg text-[var(--text-primary)] placeholder:opacity-30"
-                  value={newInput.field === 'pilares' ? newInput.value : ''}
-                  onChange={e => setNewInput({ field: 'pilares', value: e.target.value })}
-                  onKeyDown={e => e.key === 'Enter' && handleAddItem('pilares')}
-                />
-                <button
-                  onClick={() => handleAddItem('pilares')}
-                  className="p-1.5 hover:bg-[var(--bg-hover)] rounded-full transition-colors"
-                >
-                  <Plus className="w-3.5 h-3.5 text-[var(--text-tertiary)]" />
-                </button>
-              </div>
+            <div className="flex items-center gap-2 mb-4 text-[var(--text-tertiary)]">
+              <Target className="w-4 h-4" />
+              <span className="t-label">Pilares de Conteúdo</span>
             </div>
             <div className="flex flex-wrap gap-2">
-              {editData.pilares.map((p, i) => (
-                <div key={i} className="flex items-center gap-1">
-                  <span className="px-3 py-1 text-xs rounded-full bg-[var(--text-primary)] text-[var(--bg-secondary)] font-bold">
-                    {p}
-                  </span>
-                  <button
-                    onClick={() => removeItem('pilares', i)}
-                    className="text-[var(--text-primary)] opacity-30 hover:opacity-100 transition-opacity"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                </div>
+              {state.pilares.filter(p => p.ativo).map(p => (
+                <span key={p.id} className="px-3 py-1 text-xs rounded-full bg-[var(--text-primary)] text-[var(--bg-secondary)] font-bold">
+                  {p.nome}
+                </span>
               ))}
-              {editData.pilares.length === 0 && (
-                <p className="text-xs text-[var(--text-tertiary)] italic">Nenhum pilar adicionado ainda.</p>
+              {state.pilares.length === 0 && (
+                <p className="text-xs text-[var(--text-tertiary)] italic opacity-50">Configure seus pilares em Configurações → Pilares.</p>
               )}
             </div>
           </section>

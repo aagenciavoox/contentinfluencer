@@ -44,15 +44,15 @@ export function Onboarding() {
     state.series.forEach(s => {
       const deveAtiva = seriesAtivas.has(s.id);
       if ((s.ativa !== false) !== deveAtiva) {
-        dispatch({ type: 'UPDATE_SERIES', payload: { ...s, ativa: deveAtiva } });
+        dispatch({ type: 'UPDATE_SERIE', payload: { ...s, ativa: deveAtiva } });
       }
     });
 
-    dispatch({ type: 'SET_ONBOARDING_COMPLETO', payload: true });
+    dispatch({ type: 'SET_PREFERENCE', payload: { key: 'onboardingCompleto', value: 'true' } });
   };
 
   const pular = () => {
-    dispatch({ type: 'SET_ONBOARDING_COMPLETO', payload: true });
+    dispatch({ type: 'SET_PREFERENCE', payload: { key: 'onboardingCompleto', value: 'true' } });
   };
 
   const togglePilar = (id: string) => {

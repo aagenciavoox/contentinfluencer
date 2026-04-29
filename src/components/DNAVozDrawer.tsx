@@ -22,14 +22,14 @@ export function DNAVozDrawer({ isOpen, onClose }: { isOpen: boolean; onClose: ()
 
   const [newInput, setNewInput] = useState<{ field: string; value: string }>({ field: '', value: '' });
 
-  const handleAddItem = (field: 'naoFaco' | 'alertas' | 'pilares') => {
+  const handleAddItem = (field: 'naoFaco' | 'alertas') => {
     if (!newInput.value.trim()) return;
-    setEditData(p => ({ ...p, [field]: [...p[field], newInput.value] }));
+    setEditData(p => ({ ...p, [field]: [...(p?.[field] || []), newInput.value] }));
     setNewInput({ field: '', value: '' });
   };
 
-  const removeItem = (field: 'naoFaco' | 'alertas' | 'pilares', index: number) => {
-    setEditData(p => ({ ...p, [field]: p[field].filter((_, i) => i !== index) }));
+  const removeItem = (field: 'naoFaco' | 'alertas', index: number) => {
+    setEditData(p => ({ ...p, [field]: (p?.[field] || []).filter((_: unknown, i: number) => i !== index) }));
   };
 
   const dna = isEditing ? editData : state.dnaVoz;
@@ -109,45 +109,15 @@ export function DNAVozDrawer({ isOpen, onClose }: { isOpen: boolean; onClose: ()
 
                 {/* Pilares */}
                 <section>
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-2 text-[var(--text-tertiary)]">
-                      <Target className="w-4 h-4" />
-                      <span className="text-[10px] uppercase tracking-widest font-bold">Valores & Pilares</span>
-                    </div>
-                    {isEditing && (
-                      <div className="flex items-center gap-2">
-                        <input 
-                          type="text" 
-                          placeholder="Novo..."
-                          className="text-[10px] py-1 px-3 border-none w-24"
-                          value={newInput.field === 'pilares' ? newInput.value : ''}
-                          onChange={e => setNewInput({ field: 'pilares', value: e.target.value })}
-                          onKeyDown={e => e.key === 'Enter' && handleAddItem('pilares')}
-                        />
-                        <button
-                          onClick={() => handleAddItem('pilares')}
-                          className="p-1 hover:bg-[var(--bg-hover)] rounded-full"
-                        >
-                          <Plus className="w-3.5 h-3.5 text-[var(--text-tertiary)]" />
-                        </button>
-                      </div>
-                    )}
+                  <div className="flex items-center gap-2 mb-4 text-[var(--text-tertiary)]">
+                    <Target className="w-4 h-4" />
+                    <span className="text-[10px] uppercase tracking-widest font-bold">Pilares de Conteúdo</span>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    {dna.pilares.map((p, i) => (
-                      <div key={i} className="flex items-center gap-1">
-                        <span className="px-3 py-1 text-xs rounded-full bg-[var(--text-primary)] text-[var(--bg-secondary)] font-bold">
-                          {p}
-                        </span>
-                        {isEditing && (
-                          <button
-                            onClick={() => removeItem('pilares', i)}
-                            className="text-[var(--text-primary)] opacity-30 hover:opacity-100"
-                          >
-                            <X className="w-3 h-3" />
-                          </button>
-                        )}
-                      </div>
+                    {state.pilares.filter(p => p.ativo).map(p => (
+                      <span key={p.id} className="px-3 py-1 text-xs rounded-full bg-[var(--text-primary)] text-[var(--bg-secondary)] font-bold">
+                        {p.nome}
+                      </span>
                     ))}
                   </div>
                 </section>

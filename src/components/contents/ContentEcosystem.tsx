@@ -1,5 +1,5 @@
 import React from 'react';
-import { Content } from '../../types';
+import { Content } from '../../lib/database';
 import { useAppContext } from '../../context/AppContext';
 import { format } from 'date-fns';
 import { Zap } from 'lucide-react';
@@ -39,9 +39,9 @@ export function ContentEcosystem({ contents, onSelect, lookAlerts, filterSeries 
                   {/* Decorative accent based on format */}
                   <div className={cn(
                     "absolute top-0 right-0 w-24 h-24 -mr-12 -mt-12 opacity-5 blur-2xl rounded-full",
-                    content.format === 'Reels' && "bg-pink-500",
-                    content.format === 'Stories' && "bg-orange-500",
-                    content.format === 'YouTube' && "bg-red-500"
+                    content.formatoVisual === 'Reels' && "bg-pink-500",
+                    content.formatoVisual === 'Stories' && "bg-orange-500",
+                    content.formatoVisual === 'YouTube' && "bg-red-500"
                   )} />
 
                   <div className="flex justify-between items-start mb-4">
@@ -61,16 +61,16 @@ export function ContentEcosystem({ contents, onSelect, lookAlerts, filterSeries 
                     <div className="flex gap-2 items-center">
                       <span className={cn(
                         "px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-widest border border-transparent",
-                        content.format === 'Reels' && "bg-pink-50 text-pink-700",
-                        content.format === 'Stories' && "bg-orange-50 text-orange-700",
-                        content.format === 'YouTube' && "bg-red-50 text-red-700",
-                        content.format === 'Newsletter' && "bg-blue-50 text-blue-700",
-                        content.format === 'Post' && "bg-indigo-50 text-indigo-700"
+                        content.formatoVisual === 'Reels' && "bg-pink-50 text-pink-700",
+                        content.formatoVisual === 'Stories' && "bg-orange-50 text-orange-700",
+                        content.formatoVisual === 'YouTube' && "bg-red-50 text-red-700",
+                        content.formatoVisual === 'Newsletter' && "bg-blue-50 text-blue-700",
+                        content.formatoVisual === 'Post' && "bg-indigo-50 text-indigo-700"
                       )}>
-                        {content.format}
+                        {content.formatoVisual}
                       </span>
-                      {content.scenario && (
-                        <span className="text-[9px] text-[var(--text-tertiary)] font-medium">• {content.scenario}</span>
+                      {content.cenarioId && (
+                        <span className="text-[9px] text-[var(--text-tertiary)] font-medium">• {content.cenarioId}</span>
                       )}
                     </div>
                     {content.publishDate && (

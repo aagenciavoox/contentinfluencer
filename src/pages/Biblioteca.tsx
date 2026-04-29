@@ -5,15 +5,18 @@ import { Plus, BookOpen, X, Star, Search, Library } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import { PageGuide } from '../components/PageGuide';
 import { PageHeader } from '../components/PageHeader';
-import { Book, GeneroLivro, StatusLeitura } from '../types';
+import { BibliotecaItem } from '../lib/database';
 import { generateUUID } from '../utils/uuid';
 import { BottomSheetModal } from '../components/BottomSheetModal';
 
-const STATUS_CORES: Record<StatusLeitura, string> = {
-  'Quero ler': 'bg-[var(--text-primary)]/5 text-[var(--text-primary)]/50',
-  'Lendo': 'bg-[var(--accent-blue)]/10 text-[var(--accent-blue)]',
+type StatusLeitura = BibliotecaItem['status'];
+type GeneroLivro = string;
+
+const STATUS_CORES: Record<string, string> = {
+  'Quero consumir': 'bg-[var(--text-primary)]/5 text-[var(--text-primary)]/50',
+  'Consumindo': 'bg-[var(--accent-blue)]/10 text-[var(--accent-blue)]',
   'Pausado': 'bg-[var(--accent-orange)]/10 text-[var(--accent-orange)]',
-  'Lido': 'bg-[var(--accent-green)]/10 text-[var(--accent-green)]',
+  'Concluído': 'bg-[var(--accent-green)]/10 text-[var(--accent-green)]',
 };
 
 const GENEROS: GeneroLivro[] = [
@@ -21,7 +24,7 @@ const GENEROS: GeneroLivro[] = [
   'Não-ficção', 'Romance', 'Thriller', 'Horror', 'Outro',
 ];
 
-const STATUS_LEITURA: StatusLeitura[] = ['Quero ler', 'Lendo', 'Pausado', 'Lido'];
+const STATUS_LEITURA: StatusLeitura[] = ['Quero consumir', 'Consumindo', 'Pausado', 'Concluído'];
 
 interface NovoLivroForm {
   titulo: string;
@@ -56,7 +59,7 @@ export function Biblioteca() {
     autor: '',
     generos: [],
     capaUrl: '',
-    statusLeitura: 'Quero ler',
+    statusLeitura: 'Quero consumir',
     editora: '',
     anoPublicacao: '',
     isbn: '',
@@ -69,47 +72,48 @@ export function Biblioteca() {
   });
 
   const livrosFiltrados = state.books.filter(b => {
-    if (filtroStatus !== 'Todos' && b.statusLeitura !== filtroStatus) return false;
-    if (filtroGenero !== 'Todos' && !b.generos.includes(filtroGenero as GeneroLivro)) return false;
+    if (filtroStatus !== 'Todos' && b.status !== filtroStatus) return false;
+    if (filtroGenero !== 'Todos' && !b.generoIds.includes(filtroGenero)) return false;
     if (searchTerm.trim()) {
       const term = searchTerm.toLowerCase();
       const matchTitulo = b.titulo.toLowerCase().includes(term);
-      const matchAutor = b.autor.toLowerCase().includes(term);
+      const matchAutor = b.autorDiretor.toLowerCase().includes(term);
       if (!matchTitulo && !matchAutor) return false;
     }
     return true;
   });
 
   const contarConteudos = (livroId: string) =>
-    state.contents.filter(c => c.livroOrigemId === livroId).length;
+    state.contents.filter(c => c.bibliotecaItemId === livroId).length;
 
   const handleCriarLivro = () => {
     if (!form.titulo.trim()) return;
 
-    const novoLivro: Book = {
+    const novoLivro: BibliotecaItem = {
       id: generateUUID(),
+      userId: '',
+      tipo: 'livro',
       titulo: form.titulo.trim(),
-      autor: form.autor.trim(),
-      generos: form.generos,
-      capaUrl: form.capaUrl.trim() || undefined,
-      statusLeitura: form.statusLeitura,
+      autorDiretor: form.autor.trim(),
+      generoIds: form.generos,
+      capaUrl: form.capaUrl.trim() || null,
+      status: form.statusLeitura,
+      dataInicio: null,
+      dataFim: null,
+      avaliacao: null,
+      notasGerais: null,
+      potencialConteudo: form.potencialConteudo ? Number(form.potencialConteudo) : null,
+      totalPaginas: null,
+      paginasLidas: null,
       anotacoes: [],
       createdAt: new Date().toISOString(),
-      editora: form.editora.trim() || undefined,
-      anoPublicacao: form.anoPublicacao ? Number(form.anoPublicacao) : undefined,
-      isbn: form.isbn.trim() || undefined,
-      idioma: form.idioma.trim() || undefined,
-      traducao: form.traducao.trim() || undefined,
-      serieColecao: form.serieColecao.trim() || undefined,
-      quemIndicou: form.quemIndicou.trim() || undefined,
-      motivoEscolha: form.motivoEscolha.trim() || undefined,
-      potencialConteudo: form.potencialConteudo ? (Number(form.potencialConteudo) as 1 | 2 | 3) : undefined,
-      capitulosCobertos: [],
+      updatedAt: new Date().toISOString(),
+      deletedAt: null,
     };
 
     dispatch({ type: 'ADD_BOOK', payload: novoLivro });
     setModalAberto(false);
-    setForm({ titulo: '', autor: '', generos: [], capaUrl: '', statusLeitura: 'Quero ler', editora: '', anoPublicacao: '', isbn: '', idioma: '', traducao: '', serieColecao: '', quemIndicou: '', motivoEscolha: '', potencialConteudo: '' });
+    setForm({ titulo: '', autor: '', generos: [], capaUrl: '', statusLeitura: 'Quero consumir', editora: '', anoPublicacao: '', isbn: '', idioma: '', traducao: '', serieColecao: '', quemIndicou: '', motivoEscolha: '', potencialConteudo: '' });
     setShowTechnical(false);
     setShowParaVoce(false);
     navigate(`/biblioteca/${novoLivro.id}`);
@@ -152,9 +156,9 @@ export function Biblioteca() {
         {state.books.length > 0 && (
           <div className="flex gap-6 flex-wrap mb-6">
             {[
-              { emoji: '📚', label: 'lidos', value: state.books.filter(b => b.statusLeitura === 'Lido').length },
-              { emoji: '📖', label: 'lendo', value: state.books.filter(b => b.statusLeitura === 'Lendo').length },
-              { emoji: '🎬', label: 'conteúdos gerados', value: state.contents.filter(c => c.livroOrigemId).length },
+              { emoji: '📚', label: 'lidos', value: state.books.filter(b => b.status === 'Concluído').length },
+              { emoji: '📖', label: 'lendo', value: state.books.filter(b => b.status === 'Consumindo').length },
+              { emoji: '🎬', label: 'conteúdos gerados', value: state.contents.filter(c => c.bibliotecaItemId).length },
               { emoji: '💡', label: 'anotações', value: state.books.reduce((acc, b) => acc + b.anotacoes.length, 0) },
             ].map(stat => (
               <div key={stat.label} className="flex items-center gap-2 px-4 py-2 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-2xl">
@@ -246,8 +250,8 @@ export function Biblioteca() {
 
                     {/* Badge de status */}
                     <div className="absolute bottom-2 left-2">
-                      <span className={`text-[8px] font-black px-2 py-0.5 rounded-full ${STATUS_CORES[livro.statusLeitura]}`}>
-                        {livro.statusLeitura}
+                      <span className={`text-[8px] font-black px-2 py-0.5 rounded-full ${STATUS_CORES[livro.status] || ''}`}>
+                        {livro.status}
                       </span>
                     </div>
 
@@ -265,7 +269,7 @@ export function Biblioteca() {
                       {livro.titulo}
                     </p>
                     <p className="text-[10px] text-[var(--text-secondary)] truncate">
-                      {livro.autor}
+                      {livro.autorDiretor}
                     </p>
                     {livro.avaliacao && (
                       <div className="flex gap-0.5 mt-1">
@@ -277,7 +281,7 @@ export function Biblioteca() {
                         ))}
                       </div>
                     )}
-                    {livro.statusLeitura === 'Quero ler' && livro.potencialConteudo && (
+                    {livro.status === 'Quero consumir' && livro.potencialConteudo && (
                       <div className="mt-1 text-[10px]">
                         {'🔥'.repeat(livro.potencialConteudo)}
                       </div>

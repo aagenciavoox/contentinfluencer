@@ -1,664 +1,943 @@
 import { supabase } from './supabase';
-import { AppState } from '../context/AppContext';
 
-// ─── Tipo para rastrear exclusões pendentes ──────────────────────────────────
+// ============================================================================
+// TYPES
+// ============================================================================
 
-export interface PendingDelete {
-  table: string;
+export interface Platform {
   id: string;
+  userId: string | null;
+  nome: string;
+  ativo: boolean;
+  createdAt: string;
 }
 
-// ─── Buscar dados ativos (ignora soft-deleted) ──────────────────────────────
+export interface DnaVoz {
+  id: string;
+  userId: string;
+  promessaCentral: string;
+  publico: string;
+  tom: string;
+  naoFaco: string[];
+  alertas: string[];
+  updatedAt: string;
+}
 
-export async function fetchAllData(): Promise<Partial<AppState>> {
-  if (!supabase) return {};
+export interface PilarPlataforma {
+  pilarId: string;
+  platformId: string;
+  hashtags: string;
+}
 
+export interface Pilar {
+  id: string;
+  userId: string;
+  nome: string;
+  descricao: string;
+  cor: string;
+  ativo: boolean;
+  createdAt: string;
+  updatedAt: string;
+  plataformas: PilarPlataforma[];
+}
+
+export interface SeriePlataforma {
+  serieId: string;
+  platformId: string;
+  hashtags: string;
+}
+
+export interface Serie {
+  id: string;
+  userId: string;
+  name: string;
+  template: string;
+  notes: string;
+  slotPadrao: string | null;
+  formatoVisualPadrao: string | null;
+  estruturaRoteiro: string | null;
+  bordao: string | null;
+  cor: string | null;
+  ativa: boolean;
+  frequenciaRecomendada: string | null;
+  createdAt: string;
+  updatedAt: string;
+  pilarIds: string[];
+  plataformas: SeriePlataforma[];
+}
+
+export interface Cenario {
+  id: string;
+  userId: string;
+  nome: string;
+  descricao: string;
+  tempoSetupMinutos: number;
+  ativo: boolean;
+  createdAt: string;
+}
+
+export interface Look {
+  id: string;
+  userId: string;
+  numero: number;
+  descricao: string;
+  cenarioId: string | null;
+  ativo: boolean;
+  createdAt: string;
+}
+
+export interface BibliotecaGenero {
+  id: string;
+  userId: string;
+  nome: string;
+  tipo: string | null;
+  createdAt: string;
+}
+
+export interface Anotacao {
+  id: string;
+  userId: string;
+  itemId: string;
+  texto: string;
+  tipo: 'Anotação' | 'Trecho' | 'Reação' | 'Análise' | 'Ideia de conteúdo' | 'Pergunta';
+  capituloRef: string | null;
+  contentPotential: boolean;
+  destilada?: boolean;
+  createdAt: string;
+  deletedAt: string | null;
+}
+
+export interface BibliotecaItem {
+  id: string;
+  userId: string;
+  tipo: 'livro' | 'filme' | 'série' | 'outro';
+  titulo: string;
+  autorDiretor: string;
+  capaUrl: string | null;
+  status: 'Quero consumir' | 'Consumindo' | 'Pausado' | 'Concluído';
+  dataInicio: string | null;
+  dataFim: string | null;
+  avaliacao: number | null;
+  notasGerais: string | null;
+  potencialConteudo: number | null;
+  totalPaginas: number | null;
+  paginasLidas: number | null;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt: string | null;
+  generoIds: string[];
+  anotacoes: Anotacao[];
+}
+
+export interface ScriptNote {
+  id: string;
+  text: string;
+  selection: { from: number; to: number };
+  comment: string;
+  color: string;
+  createdAt: string;
+}
+
+export interface ContentPlataforma {
+  id: string;
+  contentId: string;
+  platformId: string;
+  legenda: string;
+  hashtags: string;
+  publishDate: string | null;
+}
+
+export interface Content {
+  id: string;
+  userId: string;
+  title: string;
+  status: string;
+  slotType: 'ÚNICO' | 'SÉRIE' | 'JANELA' | null;
+  seriesId: string | null;
+  pilarId: string | null;
+  lookId: string | null;
+  cenarioId: string | null;
+  bibliotecaItemId: string | null;
+  formatoVisual: string | null;
+  energiaNecessaria: 'baixa' | 'média' | 'alta' | null;
+  publishDate: string | null;
+  recordingDate: string | null;
+  link: string | null;
+  script: string | null;
+  scriptNotes: ScriptNote[];
+  tags: string[];
+  notes: string | null;
+  referencias: string | null;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt: string | null;
+  plataformas: ContentPlataforma[];
+}
+
+export interface Idea {
+  id: string;
+  userId: string;
+  text: string;
+  pilarId: string | null;
+  seriesId: string | null;
+  origemId: string | null;
+  promotedToContentId: string | null;
+  archived: boolean;
+  createdAt: string;
+}
+
+export interface ProjetoEtapa {
+  id: string;
+  projetoId: string;
+  nome: string;
+  ordem: number;
+  status: 'pendente' | 'em_andamento' | 'concluída';
+  dataPrazo: string | null;
+  createdAt: string;
+}
+
+export interface Projeto {
+  id: string;
+  userId: string;
+  nome: string;
+  tipo: 'campanha' | 'publi' | 'producao' | 'outro';
+  status: string;
+  dataInicio: string | null;
+  dataFim: string | null;
+  metaConteudos: number | null;
+  bibliotecaItemId: string | null;
+  brand: string | null;
+  brandColor: string | null;
+  value: number | null;
+  currency: string;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt: string | null;
+  etapas: ProjetoEtapa[];
+  contentIds: string[];
+}
+
+export interface RecordingBlockContent {
+  blockId: string;
+  contentId: string;
+  ordem: number;
+  gravado: boolean;
+}
+
+export interface RecordingBlock {
+  id: string;
+  userId: string;
+  name: string;
+  createdAt: string;
+  contents: RecordingBlockContent[];
+}
+
+export interface TemplateBloco {
+  id: string;
+  tipo: 'fixo' | 'variavel';
+  label: string;
+  conteudo: string;
+  placeholder: string;
+}
+
+export interface Template {
+  id: string;
+  userId: string;
+  nome: string;
+  platformId: string | null;
+  seriesId: string | null;
+  estrutura: TemplateBloco[];
+  ativo: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AgendaItem {
+  id: string;
+  userId: string;
+  title: string;
+  date: string;
+  time: string | null;
+  tipo: 'Reunião' | 'Entrega' | 'Publicação' | 'Outro';
+  projetoId: string | null;
+  createdAt: string;
+}
+
+export interface GoldenRule {
+  id: string;
+  userId: string;
+  descricao: string;
+  tipo: 'pilar' | 'série' | 'formato' | 'publi' | 'plataforma';
+  condicao: 'max' | 'min' | 'recomendado';
+  periodo: 'dia' | 'semana' | 'mês';
+  valor: number;
+  ativa: boolean;
+  createdAt: string;
+}
+
+export interface ContentMetric {
+  id: string;
+  userId: string;
+  contentId: string;
+  platformId: string;
+  views: number | null;
+  likes: number | null;
+  comments: number | null;
+  saves: number | null;
+  shares: number | null;
+  reposts: number | null;
+  newFollowers: number | null;
+  accountsReached: number | null;
+  watchTime: number | null;
+  retentionRate: number | null;
+  completionRate: number | null;
+  qualitativeNotes: string | null;
+  registeredAt: string;
+  createdAt: string;
+}
+
+export interface AppData {
+  platforms: Platform[];
+  preferences: Record<string, any>;
+  dnaVoz: DnaVoz | null;
+  pilares: Pilar[];
+  series: Serie[];
+  cenarios: Cenario[];
+  looks: Look[];
+  bibliotecaItems: BibliotecaItem[];
+  contents: Content[];
+  ideas: Idea[];
+  projetos: Projeto[];
+  recordingBlocks: RecordingBlock[];
+  templates: Template[];
+  agendaItems: AgendaItem[];
+  goldenRules: GoldenRule[];
+  contentMetrics: ContentMetric[];
+
+  // Aliases for legacy support (will be mapped in AppContext)
+  books: BibliotecaItem[];
+  partnerships: Projeto[];
+  results: ContentMetric[];
+  agenda: AgendaItem[];
+}
+
+export interface EnergyLog {
+  id: string;
+  userId: string;
+  date: string;
+  level: number;
+  notes?: string;
+  createdAt?: string;
+}
+
+// ============================================================================
+// HELPERS
+// ============================================================================
+
+function empty(): AppData {
+  return {
+    platforms: [], preferences: {}, dnaVoz: null, pilares: [], series: [],
+    cenarios: [], looks: [], bibliotecaItems: [],
+    contents: [], ideas: [], projetos: [], recordingBlocks: [], templates: [],
+    agendaItems: [], goldenRules: [], contentMetrics: [],
+    books: [], partnerships: [], results: [], agenda: [],
+  };
+}
+
+async function currentUserId(): Promise<string | null> {
+  if (!supabase) return null;
   const { data: { session } } = await supabase.auth.getSession();
-  if (!session) return {};
-  const userId = session.user.id;
+  return session?.user.id ?? null;
+}
+
+// ============================================================================
+// MAPPERS (DB row → app type)
+// ============================================================================
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type Row = any;
+
+const mp = {
+  platform: (r: Row): Platform => ({
+    id: r.id, userId: r.user_id, nome: r.nome, ativo: r.ativo, createdAt: r.created_at,
+  }),
+  dnaVoz: (r: Row): DnaVoz => ({
+    id: r.id, userId: r.user_id,
+    promessaCentral: r.promessa_central || '', publico: r.publico || '', tom: r.tom || '',
+    naoFaco: r.nao_faco || [], alertas: r.alertas || [], updatedAt: r.updated_at,
+  }),
+  pilar: (r: Row): Pilar => ({
+    id: r.id, userId: r.user_id, nome: r.nome, descricao: r.descricao || '',
+    cor: r.cor, ativo: r.ativo, createdAt: r.created_at, updatedAt: r.updated_at,
+    plataformas: (r.pilar_plataformas || []).map((p: Row) => ({
+      pilarId: p.pilar_id, platformId: p.platform_id, hashtags: p.hashtags || '',
+    })),
+  }),
+  serie: (r: Row): Serie => ({
+    id: r.id, userId: r.user_id, name: r.name, template: r.template || '',
+    notes: r.notes || '', slotPadrao: r.slot_padrao, formatoVisualPadrao: r.formato_visual_padrao,
+    estruturaRoteiro: r.estrutura_roteiro, bordao: r.bordao, cor: r.cor,
+    ativa: r.ativa ?? true, frequenciaRecomendada: r.frequencia_recomendada,
+    createdAt: r.created_at, updatedAt: r.updated_at,
+    pilarIds: (r.serie_pilares || []).map((sp: Row) => sp.pilar_id),
+    plataformas: (r.serie_plataformas || []).map((sp: Row) => ({
+      serieId: sp.serie_id, platformId: sp.platform_id, hashtags: sp.hashtags || '',
+    })),
+  }),
+  cenario: (r: Row): Cenario => ({
+    id: r.id, userId: r.user_id, nome: r.nome, descricao: r.descricao || '',
+    tempoSetupMinutos: r.tempo_setup_minutos ?? 0, ativo: r.ativo, createdAt: r.created_at,
+  }),
+  look: (r: Row): Look => ({
+    id: r.id, userId: r.user_id, numero: r.numero, descricao: r.descricao || '',
+    cenarioId: r.cenario_id, ativo: r.ativo, createdAt: r.created_at,
+  }),
+  genero: (r: Row): BibliotecaGenero => ({
+    id: r.id, userId: r.user_id, nome: r.nome, tipo: r.tipo, createdAt: r.created_at,
+  }),
+  anotacao: (r: Row): Anotacao => ({
+    id: r.id, userId: r.user_id, itemId: r.item_id, texto: r.texto, tipo: r.tipo,
+    capituloRef: r.capitulo_ref, contentPotential: r.content_potential ?? false,
+    createdAt: r.created_at, deletedAt: r.deleted_at,
+  }),
+  bibliotecaItem: (r: Row): BibliotecaItem => ({
+    id: r.id, userId: r.user_id, tipo: r.tipo, titulo: r.titulo,
+    autorDiretor: r.autor_diretor || '', capaUrl: r.capa_url, status: r.status,
+    dataInicio: r.data_inicio, dataFim: r.data_fim, avaliacao: r.avaliacao,
+    notasGerais: r.notas_gerais, potencialConteudo: r.potencial_conteudo,
+    totalPaginas: r.total_paginas, paginasLidas: r.paginas_lidas,
+    createdAt: r.created_at, updatedAt: r.updated_at, deletedAt: r.deleted_at,
+    generoIds: (r.item_generos || []).map((g: Row) => g.genero_id),
+    anotacoes: (r.anotacoes || []).filter((a: Row) => !a.deleted_at).map(mp.anotacao),
+  }),
+  content: (r: Row): Content => ({
+    id: r.id, userId: r.user_id, title: r.title, status: r.status,
+    slotType: r.slot_type, seriesId: r.series_id, pilarId: r.pilar_id,
+    lookId: r.look_id, cenarioId: r.cenario_id, bibliotecaItemId: r.biblioteca_item_id,
+    formatoVisual: r.formato_visual, energiaNecessaria: r.energia_necessaria,
+    publishDate: r.publish_date, recordingDate: r.recording_date, link: r.link,
+    script: r.script, scriptNotes: r.script_notes || [], tags: r.tags || [],
+    notes: r.notes, referencias: r.referencias,
+    createdAt: r.created_at, updatedAt: r.updated_at, deletedAt: r.deleted_at,
+    plataformas: (r.content_plataformas || []).map((p: Row) => ({
+      id: p.id, contentId: p.content_id, platformId: p.platform_id,
+      legenda: p.legenda || '', hashtags: p.hashtags || '', publishDate: p.publish_date,
+    })),
+  }),
+  idea: (r: Row): Idea => ({
+    id: r.id, userId: r.user_id, text: r.text, pilarId: r.pilar_id,
+    seriesId: r.series_id, origemId: r.origem_id,
+    promotedToContentId: r.promoted_to_content_id, archived: r.archived,
+    createdAt: r.created_at,
+  }),
+  projeto: (r: Row): Projeto => ({
+    id: r.id, userId: r.user_id, nome: r.nome, tipo: r.tipo, status: r.status,
+    dataInicio: r.data_inicio, dataFim: r.data_fim, metaConteudos: r.meta_conteudos,
+    bibliotecaItemId: r.biblioteca_item_id, brand: r.brand, brandColor: r.brand_color,
+    value: r.value, currency: r.currency || 'BRL', notes: r.notes,
+    createdAt: r.created_at, updatedAt: r.updated_at, deletedAt: r.deleted_at,
+    etapas: (r.projeto_etapas || []).map((e: Row) => ({
+      id: e.id, projetoId: e.projeto_id, nome: e.nome, ordem: e.ordem,
+      status: e.status, dataPrazo: e.data_prazo, createdAt: e.created_at,
+    })),
+    contentIds: (r.projeto_conteudos || []).map((pc: Row) => pc.content_id),
+  }),
+  recordingBlock: (r: Row): RecordingBlock => ({
+    id: r.id, userId: r.user_id, name: r.name, createdAt: r.created_at,
+    contents: (r.recording_block_contents || []).map((c: Row) => ({
+      blockId: c.block_id, contentId: c.content_id, ordem: c.ordem, gravado: c.gravado,
+    })),
+  }),
+  template: (r: Row): Template => ({
+    id: r.id, userId: r.user_id, nome: r.nome, platformId: r.platform_id,
+    seriesId: r.series_id, estrutura: r.estrutura || [], ativo: r.ativo,
+    createdAt: r.created_at, updatedAt: r.updated_at,
+  }),
+  agendaItem: (r: Row): AgendaItem => ({
+    id: r.id, userId: r.user_id, title: r.title, date: r.date, time: r.time,
+    tipo: r.tipo, projetoId: r.projeto_id, createdAt: r.created_at,
+  }),
+  goldenRule: (r: Row): GoldenRule => ({
+    id: r.id, userId: r.user_id, descricao: r.descricao, tipo: r.tipo,
+    condicao: r.condicao, periodo: r.periodo, valor: r.valor, ativa: r.ativa,
+    createdAt: r.created_at,
+  }),
+  contentMetric: (r: Row): ContentMetric => ({
+    id: r.id, userId: r.user_id, contentId: r.content_id, platformId: r.platform_id,
+    views: r.views, likes: r.likes, comments: r.comments, saves: r.saves,
+    shares: r.shares, reposts: r.reposts, newFollowers: r.new_followers,
+    accountsReached: r.accounts_reached, watchTime: r.watch_time,
+    retentionRate: r.retention_rate, completionRate: r.completion_rate,
+    qualitativeNotes: r.qualitative_notes, registeredAt: r.registered_at,
+    createdAt: r.created_at,
+  }),
+};
+
+// ============================================================================
+// FETCH
+// ============================================================================
+
+export async function fetchAllData(): Promise<AppData> {
+  if (!supabase) return empty();
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) return empty();
+  const uid = session.user.id;
 
   const [
-    { data: contents },
-    { data: ideas },
-    { data: series },
-    { data: results },
-    { data: agenda },
-    { data: energyLogs },
-    { data: partnerships },
-    { data: books },
-    { data: pilares },
-    { data: looks },
-    { data: cenarios },
-    { data: config },
-    { data: dnaVoz },
-    { data: recordingBlocks },
-    { data: goldenRules },
-    { data: campaigns }
+    { data: platforms },
+    { data: prefs },
+    { data: dnaVozRow },
+    { data: pilaresRows },
+    { data: seriesRows },
+    { data: cenariosRows },
+    { data: looksRows },
+    { data: bibliotecaRows },
+    { data: contentsRows },
+    { data: ideasRows },
+    { data: projetosRows },
+    { data: blocksRows },
+    { data: templatesRows },
+    { data: agendaRows },
+    { data: rulesRows },
+    { data: metricsRows },
   ] = await Promise.all([
-    supabase.from('contents').select('*').is('deleted_at', null).order('created_at', { ascending: false }),
-    supabase.from('ideas').select('*').is('deleted_at', null).order('created_at', { ascending: false }),
-    supabase.from('series').select('*').is('deleted_at', null).order('id'),
-    supabase.from('results').select('*').is('deleted_at', null).order('created_at', { ascending: false }),
-    supabase.from('agenda_items').select('*').is('deleted_at', null).order('date'),
-    supabase.from('energy_logs').select('*').is('deleted_at', null).order('date'),
-    supabase.from('partnerships').select('*').is('deleted_at', null).order('created_at', { ascending: false }),
-    supabase.from('books').select('*, book_annotations(*)').is('deleted_at', null).order('created_at', { ascending: false }),
-    supabase.from('pilares').select('*').is('deleted_at', null).order('id'),
-    supabase.from('looks').select('*').is('deleted_at', null).order('numero'),
-    supabase.from('cenarios').select('*').is('deleted_at', null).order('id'),
-    supabase.from('app_config').select('*'),
-    supabase.from('dna_voz').select('*').eq('user_id', userId).maybeSingle(),
-    supabase.from('recording_blocks').select('*').is('deleted_at', null).order('created_at', { ascending: false }),
-    supabase.from('golden_rules').select('*').is('deleted_at', null).order('id'),
-    supabase.from('campaigns').select('*').is('deleted_at', null).order('created_at', { ascending: false })
+    supabase.from('platforms').select('*').or(`user_id.is.null,user_id.eq.${uid}`).eq('ativo', true),
+    supabase.from('user_preferences').select('*').eq('user_id', uid),
+    supabase.from('dna_voz').select('*').eq('user_id', uid).maybeSingle(),
+    supabase.from('pilares').select('*, pilar_plataformas(*)').eq('user_id', uid),
+    supabase.from('series').select('*, serie_pilares(pilar_id), serie_plataformas(*)').eq('user_id', uid),
+    supabase.from('cenarios').select('*').eq('user_id', uid),
+    supabase.from('looks').select('*').eq('user_id', uid).order('numero'),
+    supabase.from('biblioteca_items')
+      .select('*, item_generos(genero_id), anotacoes(*)')
+      .eq('user_id', uid).is('deleted_at', null)
+      .order('created_at', { ascending: false }),
+    supabase.from('contents')
+      .select('*, content_plataformas(*)')
+      .eq('user_id', uid).is('deleted_at', null)
+      .order('created_at', { ascending: false }),
+    supabase.from('ideas').select('*').eq('user_id', uid).order('created_at', { ascending: false }),
+    supabase.from('projetos')
+      .select('*, projeto_etapas(*), projeto_conteudos(content_id)')
+      .eq('user_id', uid).is('deleted_at', null)
+      .order('created_at', { ascending: false }),
+    supabase.from('recording_blocks')
+      .select('*, recording_block_contents(*)')
+      .eq('user_id', uid)
+      .order('created_at', { ascending: false }),
+    supabase.from('templates').select('*').eq('user_id', uid),
+    supabase.from('agenda_items').select('*').eq('user_id', uid).order('date'),
+    supabase.from('golden_rules').select('*').eq('user_id', uid),
+    supabase.from('content_metrics').select('*').eq('user_id', uid),
   ]);
 
-  const state: Partial<AppState> = {};
-
-  if (contents) state.contents = contents.map(c => ({
-    id: c.id,
-    title: c.title,
-    seriesId: c.series_id,
-    pillar: c.pillar,
-    format: c.format || '',
-    status: c.status,
-    slotType: c.slot_type,
-    publishDate: c.publish_date,
-    recordingDate: c.recording_date,
-    lookId: c.look_id,
-    scenario: c.scenario,
-    estimatedDuration: c.estimated_duration,
-    link: c.link,
-    script: c.script,
-    caption: c.caption,
-    tags: c.tags,
-    notes: c.notes,
-    references: c.references,
-    plataformas: c.plataformas || [],
-    formatoVisual: c.formato_visual,
-    livroOrigemId: c.livro_origem_id,
-    legendas: c.legendas || {},
-    scriptNotes: c.script_notes || [],
-    createdAt: c.created_at,
-  }));
-
-  if (ideas) state.ideas = ideas.map(i => ({
-    id: i.id,
-    text: i.text,
-    pillar: i.pillar,
-    seriesId: i.series_id,
-    promotedToContentId: i.promoted_to_content_id,
-    archived: i.archived,
-    livroOrigemId: i.livro_origem_id,
-    createdAt: i.created_at,
-  }));
-
-  if (series) state.series = series.map(s => ({
-    id: s.id,
-    name: s.name,
-    template: s.template || '',
-    notes: s.notes || '',
-    pilarId: s.pilar_id,
-    slotPadrao: s.slot_padrao,
-    plataformasPrincipais: s.plataformas_principais || [],
-    formatoVisualPadrao: s.formato_visual_padrao,
-    estruturaRoteiro: s.estrutura_roteiro,
-    bordao: s.bordao,
-    cor: s.cor,
-    ativa: s.ativa ?? true,
-    frequenciaRecomendada: s.frequencia_recomendada,
-    hashtagsPorPlataforma: s.hashtags_por_plataforma || {},
-  }));
-
-  if (results) state.results = results.map(r => ({
-    id: r.id,
-    contentId: r.content_id,
-    partnershipId: r.partnership_id,
-    metrics: r.metrics || '',
-    detailedMetrics: r.detailed_metrics,
-    qualitativeNotes: r.qualitative_notes || '',
-    worthIt: r.worth_it,
-    engagement: r.engagement,
-    creativeSatisfaction: r.creative_satisfaction,
-    learningBySeries: r.learning_by_series,
-    createdAt: r.created_at,
-  }));
-
-  if (agenda) state.agenda = agenda.map(a => ({
-    id: a.id,
-    title: a.title,
-    date: a.date,
-    type: a.type,
-    slotType: a.slot_type,
-    external: a.external ?? false,
-  }));
-
-  if (energyLogs) state.energyLogs = energyLogs.map(e => ({
-    date: e.date,
-    level: e.level,
-  }));
-
-  if (partnerships) state.partnerships = partnerships.map(p => ({
-    id: p.id,
-    brand: p.brand,
-    brandColor: p.brand_color,
-    title: p.title,
-    status: p.status,
-    startDate: p.start_date,
-    deadline: p.deadline,
-    publishDate: p.publish_date,
-    recordingDate: p.recording_date,
-    value: p.value,
-    notes: p.notes,
-    script: p.script,
-    link: p.link,
-    createdAt: p.created_at,
-    deliveredOnTime: p.delivered_on_time,
-    relationshipQuality: p.relationship_quality,
-    wouldDoAgain: p.would_do_again,
-  }));
-
-  if (books) state.books = books.map(b => ({
-    id: b.id,
-    titulo: b.titulo,
-    autor: b.autor,
-    generos: b.generos || [],
-    capaUrl: b.capa_url,
-    statusLeitura: b.status_leitura,
-    dataInicio: b.data_inicio,
-    dataFim: b.data_fim,
-    avaliacao: b.avaliacao,
-    notasGerais: b.notas_gerais,
-    createdAt: b.created_at,
-    // Filtra anotações deletadas também
-    paginasLidas: b.paginas_lidas ?? undefined,
-    totalPaginas: b.total_paginas ?? undefined,
-    editora: b.editora ?? undefined,
-    anoPublicacao: b.ano_publicacao ?? undefined,
-    isbn: b.isbn ?? undefined,
-    idioma: b.idioma ?? undefined,
-    traducao: b.traducao ?? undefined,
-    serieColecao: b.serie_colecao ?? undefined,
-    quemIndicou: b.quem_indicou ?? undefined,
-    motivoEscolha: b.motivo_escolha ?? undefined,
-    potencialConteudo: b.potencial_conteudo ?? undefined,
-    capitulosCobertos: b.capitulos_cobertos ?? [],
-    anotacoes: (b.book_annotations || [])
-      .filter((a: any) => !a.deleted_at)
-      .map((a: any) => ({
-        id: a.id,
-        livroId: a.livro_id,
-        texto: a.texto,
-        tipo: a.tipo,
-        capituloRef: a.capitulo_ref,
-        destilada: a.destilada ?? false,
-        contentPotential: a.content_potential ?? false,
-        createdAt: a.created_at,
-      })),
-  }));
-
-  if (pilares) state.pilares = pilares.map(p => ({
-    id: p.id,
-    nome: p.nome,
-    descricao: p.descricao || '',
-    cor: p.cor,
-    hashtagsInstagram: p.hashtags_instagram || '',
-    hashtagsTikTok: p.hashtags_tiktok || '',
-    hashtagsYouTube: p.hashtags_youtube || '',
-    templateLegenda: p.template_legenda || '',
-    ativo: p.ativo ?? true,
-    metaSemanalMin: p.meta_semanal_min ?? 0,
-    metaSemanalMax: p.meta_semanal_max ?? 0,
-  }));
-
-  if (looks) state.looks = looks.map(l => ({
-    id: l.id,
-    numero: l.numero,
-    descricao: l.descricao || '',
-    cenarioAssociadoId: l.cenario_associado_id,
-    ativo: l.ativo ?? true,
-  }));
-
-  if (cenarios) state.cenarios = cenarios.map(c => ({
-    id: c.id,
-    nome: c.nome,
-    descricao: c.descricao || '',
-    tempoSetupMinutos: c.tempo_setup_minutos ?? 0,
-    ativo: c.ativo ?? true,
-  }));
-
-  if (config) {
-    const onboarding = config.find((c: any) => c.key === 'onboarding_completo');
-    const theme = config.find((c: any) => c.key === 'theme');
-    const viewedGuides = config.find((c: any) => c.key === 'viewed_guides');
-    if (onboarding) state.onboardingCompleto = onboarding.value;
-    if (theme) state.theme = theme.value;
-    if (viewedGuides) state.viewedGuides = viewedGuides.value || [];
-  }
-
-  if (dnaVoz) {
-    state.dnaVoz = {
-      promessaCentral: dnaVoz.promessa_central || '',
-      publico: dnaVoz.publico || '',
-      tom: dnaVoz.tom || '',
-      pilares: dnaVoz.pilares || [],
-      naoFaco: dnaVoz.nao_faco || [],
-      alertas: dnaVoz.alertas || [],
-    };
-  }
-
-  if (recordingBlocks) {
-    state.recordingBlocks = recordingBlocks.map(rb => ({
-      id: rb.id,
-      name: rb.name,
-      contentIds: rb.content_ids || [],
-      createdAt: rb.created_at
-    }));
-  }
-
-  if (goldenRules) {
-    state.goldenRules = goldenRules.map((gr: any) => ({
-      id: gr.id,
-      descricao: gr.descricao,
-      tipo: gr.tipo,
-      ativa: gr.ativa,
-    }));
-  }
-
-  if (campaigns) {
-    state.campaigns = campaigns.map((c: any) => ({
-      id: c.id,
-      nome: c.nome,
-      livroId: c.livro_id,
-      dataInicio: c.data_inicio ?? undefined,
-      dataFim: c.data_fim ?? undefined,
-      metaConteudos: c.meta_conteudos ?? 0,
-      status: c.status,
-      createdAt: c.created_at,
-    }));
-  }
-
-  return state;
-}
-
-// ─── Soft Delete: marca registros com deleted_at (nunca apaga de verdade) ────
-
-export async function softDeleteFromSupabase(deletes: PendingDelete[]): Promise<void> {
-  if (!supabase || deletes.length === 0) return;
-
-  const now = new Date().toISOString();
-
-  // Agrupa por tabela para fazer batch updates
-  const byTable = deletes.reduce((acc, del) => {
-    if (!acc[del.table]) acc[del.table] = [];
-    acc[del.table].push(del.id);
-    return acc;
-  }, {} as Record<string, string[]>);
-
-  const operations = Object.entries(byTable).map(([table, ids]) =>
-    supabase!
-      .from(table)
-      .update({ deleted_at: now })
-      .in('id', ids)
-  );
-
-  const results = await Promise.allSettled(operations);
-
-  results.forEach((result, i) => {
-    if (result.status === 'rejected') {
-      console.error(`[Supabase] Soft delete failed for table ${Object.keys(byTable)[i]}:`, result.reason);
-    }
-  });
-}
-
-// ─── Salvar state ativo no Supabase (upsert) ────────────────────────────────
-
-export async function saveToSupabase(state: AppState) {
-  if (!supabase) return;
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) return;
-  const userId = session.user.id;
-
-  const runUpsert = async (
-    label: string,
-    operation: PromiseLike<{ error: { message: string } | null }>
-  ) => {
-    const { error } = await operation;
-    if (error) throw new Error(`${label}: ${error.message}`);
+  return {
+    platforms:        (platforms       || []).map(mp.platform),
+    preferences:      (prefs           || []).reduce((acc: Record<string, any>, p: Row) => ({ ...acc, [p.key]: p.value }), {}),
+    dnaVoz:           dnaVozRow ? mp.dnaVoz(dnaVozRow) : null,
+    pilares:          (pilaresRows     || []).map(mp.pilar),
+    series:           (seriesRows      || []).map(mp.serie),
+    cenarios:         (cenariosRows    || []).map(mp.cenario),
+    looks:            (looksRows       || []).map(mp.look),
+    bibliotecaItems:  (bibliotecaRows  || []).map(mp.bibliotecaItem),
+    contents:         (contentsRows    || []).map(mp.content),
+    ideas:            (ideasRows       || []).map(mp.idea),
+    projetos:         (projetosRows    || []).map(mp.projeto),
+    recordingBlocks:  (blocksRows      || []).map(mp.recordingBlock),
+    templates:        (templatesRows || []).map(mp.template),
+    agendaItems:      (agendaRows    || []).map(mp.agendaItem),
+    goldenRules:      (rulesRows     || []).map(mp.goldenRule),
+    contentMetrics:   (metricsRows   || []).map(mp.contentMetric),
+    // Legacy aliases
+    books:            (bibliotecaRows  || []).map(mp.bibliotecaItem),
+    partnerships:     (projetosRows    || []).map(mp.projeto),
+    results:          (metricsRows     || []).map(mp.contentMetric),
+    agenda:           (agendaRows      || []).map(mp.agendaItem),
   };
+}
 
-  const results = await Promise.allSettled([
-    // App config — upsert por linha para evitar conflito de constraint
-    ...([
-      { key: 'onboarding_completo', value: state.onboardingCompleto, user_id: userId },
-      { key: 'theme', value: state.theme, user_id: userId },
-      { key: 'viewed_guides', value: state.viewedGuides, user_id: userId },
-    ].map(row =>
-      runUpsert(
-        `app_config (${row.key})`,
-        supabase.from('app_config').upsert(row, { onConflict: 'user_id, key' })
-      )
-    )),
+// ============================================================================
+// PREFERENCES
+// ============================================================================
 
-    // DNA da Voz
-    runUpsert('dna_voz', supabase.from('dna_voz').upsert({
-      user_id: userId,
-      promessa_central: state.dnaVoz.promessaCentral,
-      publico: state.dnaVoz.publico,
-      tom: state.dnaVoz.tom,
-      pilares: state.dnaVoz.pilares,
-      nao_faco: state.dnaVoz.naoFaco,
-      alertas: state.dnaVoz.alertas,
-    }, { onConflict: 'user_id' })),
+export async function savePreference(key: string, value: any): Promise<void> {
+  if (!supabase) return;
+  const uid = await currentUserId();
+  if (!uid) return;
+  const { error } = await supabase.from('user_preferences')
+    .upsert({ user_id: uid, key, value }, { onConflict: 'user_id,key' });
+  if (error) throw new Error(`preferences: ${error.message}`);
+}
 
-    // Contents
-    (async () => {
-      if (state.contents.length === 0) return;
-      await runUpsert('contents', supabase.from('contents').upsert(
-        state.contents.map(c => ({
-          id: c.id,
-          title: c.title,
-          series_id: c.seriesId && c.seriesId !== 'none' ? c.seriesId : null,
-          pillar: c.pillar || 'Ideia',
-          format: c.format || '',
-          status: c.status || 'Ideia',
-          slot_type: c.slotType || null,
-          publish_date: c.publishDate || null,
-          recording_date: c.recordingDate || null,
-          look_id: c.lookId || null,
-          scenario: c.scenario || null,
-          estimated_duration: c.estimatedDuration ?? null,
-          link: c.link || null,
-          script: c.script || null,
-          caption: c.caption || null,
-          tags: c.tags || null,
-          notes: c.notes || null,
-          references: c.references || null,
-          plataformas: c.plataformas || [],
-          formato_visual: c.formatoVisual || null,
-          livro_origem_id: c.livroOrigemId || null,
-          legendas: c.legendas || {},
-          script_notes: c.scriptNotes || [],
-          created_at: c.createdAt,
-          user_id: userId,
-        }))
-      ));
-    })(),
+// ============================================================================
+// DNA DA VOZ
+// ============================================================================
 
-    // Ideas
-    (async () => {
-      if (state.ideas.length === 0) return;
-      await runUpsert('ideas', supabase.from('ideas').upsert(
-        state.ideas.map(i => ({
-          id: i.id,
-          text: i.text,
-          pillar: i.pillar || null,
-          series_id: i.seriesId || null,
-          promoted_to_content_id: i.promotedToContentId || null,
-          archived: i.archived,
-          livro_origem_id: i.livroOrigemId || null,
-          created_at: i.createdAt,
-          user_id: userId,
-        }))
-      ));
-    })(),
+export async function saveDnaVoz(
+  dna: Pick<DnaVoz, 'promessaCentral' | 'publico' | 'tom' | 'naoFaco' | 'alertas'>
+): Promise<void> {
+  if (!supabase) return;
+  const uid = await currentUserId();
+  if (!uid) return;
+  const { error } = await supabase.from('dna_voz').upsert({
+    user_id: uid,
+    promessa_central: dna.promessaCentral,
+    publico: dna.publico,
+    tom: dna.tom,
+    nao_faco: dna.naoFaco,
+    alertas: dna.alertas,
+  }, { onConflict: 'user_id' });
+  if (error) throw new Error(`dna_voz: ${error.message}`);
+}
 
-    // Series
-    (async () => {
-      if (state.series.length === 0) return;
-      await runUpsert('series', supabase.from('series').upsert(
-        state.series.map(s => ({
-          id: s.id,
-          name: s.name,
-          template: s.template || '',
-          notes: s.notes || '',
-          pilar_id: s.pilarId || null,
-          slot_padrao: s.slotPadrao || null,
-          plataformas_principais: s.plataformasPrincipais || [],
-          formato_visual_padrao: s.formatoVisualPadrao || null,
-          estrutura_roteiro: s.estruturaRoteiro || null,
-          bordao: s.bordao || null,
-          cor: s.cor || null,
-          ativa: s.ativa ?? true,
-          frequencia_recomendada: s.frequenciaRecomendada || 'Sob demanda',
-          hashtags_por_plataforma: s.hashtagsPorPlataforma || {},
-          user_id: userId,
-        }))
-      ));
-    })(),
+// ============================================================================
+// PILARES
+// ============================================================================
 
-    // Pilares
-    (async () => {
-      if (state.pilares.length === 0) return;
-      await runUpsert('pilares', supabase.from('pilares').upsert(
-        state.pilares.map(p => ({
-          id: p.id,
-          nome: p.nome,
-          descricao: p.descricao || '',
-          cor: p.cor,
-          hashtags_instagram: p.hashtagsInstagram || '',
-          hashtags_tiktok: p.hashtagsTikTok || '',
-          hashtags_youtube: p.hashtagsYouTube || '',
-          template_legenda: p.templateLegenda || '',
-          ativo: p.ativo ?? true,
-          meta_semanal_min: p.metaSemanalMin ?? 0,
-          meta_semanal_max: p.metaSemanalMax ?? 0,
-          user_id: userId,
-        }))
-      ));
-    })(),
-
-    // Looks
-    (async () => {
-      if (state.looks.length === 0) return;
-      await runUpsert('looks', supabase.from('looks').upsert(
-        state.looks.map(l => ({
-          id: l.id,
-          numero: l.numero,
-          descricao: l.descricao || '',
-          cenario_associado_id: l.cenarioAssociadoId || null,
-          ativo: l.ativo ?? true,
-          user_id: userId,
-        }))
-      ));
-    })(),
-
-    // Cenários
-    (async () => {
-      if (state.cenarios.length === 0) return;
-      await runUpsert('cenarios', supabase.from('cenarios').upsert(
-        state.cenarios.map(c => ({
-          id: c.id,
-          nome: c.nome,
-          descricao: c.descricao || '',
-          tempo_setup_minutos: c.tempoSetupMinutos ?? 0,
-          ativo: c.ativo ?? true,
-          user_id: userId,
-        }))
-      ));
-    })(),
-
-    // Agenda
-    (async () => {
-      if (state.agenda.length === 0) return;
-      await runUpsert('agenda_items', supabase.from('agenda_items').upsert(
-        state.agenda.map(a => ({
-          id: a.id,
-          title: a.title,
-          date: a.date,
-          type: a.type,
-          slot_type: a.slotType || null,
-          external: a.external ?? false,
-          user_id: userId,
-        }))
-      ));
-    })(),
-
-    // Energy logs
-    (async () => {
-      if (state.energyLogs.length === 0) return;
-      await runUpsert('energy_logs', supabase.from('energy_logs').upsert(
-        state.energyLogs.map(e => ({
-          date: e.date,
-          level: e.level,
-          user_id: userId,
-        })),
-        { onConflict: 'user_id, date' }
-      ));
-    })(),
-
-    // Partnerships
-    (async () => {
-      if (state.partnerships.length === 0) return;
-      await runUpsert('partnerships', supabase.from('partnerships').upsert(
-        state.partnerships.map(p => ({
-          id: p.id,
-          brand: p.brand,
-          brand_color: p.brandColor,
-          title: p.title,
-          status: p.status,
-          start_date: p.startDate || null,
-          deadline: p.deadline || null,
-          publish_date: p.publishDate || null,
-          recording_date: p.recordingDate || null,
-          value: p.value || 0,
-          notes: p.notes || null,
-          script: p.script || null,
-          link: p.link || null,
-          created_at: p.createdAt,
-          delivered_on_time: p.deliveredOnTime ?? null,
-          relationship_quality: p.relationshipQuality || null,
-          would_do_again: p.wouldDoAgain ?? null,
-          user_id: userId,
-        }))
-      ));
-    })(),
-
-    // Results
-    (async () => {
-      if (state.results.length === 0) return;
-      await runUpsert('results', supabase.from('results').upsert(
-        state.results.map(r => ({
-          id: r.id,
-          content_id: r.contentId || null,
-          partnership_id: r.partnershipId || null,
-          metrics: r.metrics || '',
-          detailed_metrics: r.detailedMetrics || null,
-          qualitative_notes: r.qualitativeNotes || '',
-          worth_it: r.worthIt,
-          engagement: r.engagement || null,
-          creative_satisfaction: r.creativeSatisfaction || null,
-          learning_by_series: r.learningBySeries || null,
-          created_at: r.createdAt,
-          user_id: userId,
-        }))
-      ));
-    })(),
-
-    // Books — com tratamento de erro explícito
-    (async () => {
-      if (state.books.length === 0) return;
-      await runUpsert('books', supabase.from('books').upsert(
-        state.books.map(b => ({
-          id: b.id,
-          titulo: b.titulo,
-          autor: b.autor,
-          generos: b.generos || [],
-          capa_url: b.capaUrl || null,
-          status_leitura: b.statusLeitura,
-          data_inicio: b.dataInicio || null,
-          data_fim: b.dataFim || null,
-          avaliacao: b.avaliacao || null,
-          notas_gerais: b.notasGerais || null,
-          paginas_lidas: b.paginasLidas ?? null,
-          total_paginas: b.totalPaginas ?? null,
-          editora: b.editora || null,
-          ano_publicacao: b.anoPublicacao || null,
-          isbn: b.isbn || null,
-          idioma: b.idioma || null,
-          traducao: b.traducao || null,
-          serie_colecao: b.serieColecao || null,
-          quem_indicou: b.quemIndicou || null,
-          motivo_escolha: b.motivoEscolha || null,
-          potencial_conteudo: b.potencialConteudo || null,
-          capitulos_cobertos: b.capitulosCobertos || [],
-          created_at: b.createdAt,
-          user_id: userId,
-        }))
-      ));
-    })(),
-
-    // Campaigns
-    (async () => {
-      if (state.campaigns.length === 0) return;
-      await runUpsert('campaigns', supabase.from('campaigns').upsert(
-        state.campaigns.map(c => ({
-          id: c.id,
-          nome: c.nome,
-          livro_id: c.livroId,
-          data_inicio: c.dataInicio || null,
-          data_fim: c.dataFim || null,
-          meta_conteudos: c.metaConteudos ?? 0,
-          status: c.status,
-          created_at: c.createdAt,
-          user_id: userId,
-        }))
-      ));
-    })(),
-  ]);
-
-  results.forEach((result) => {
-    if (result.status === 'rejected') {
-      console.error('[Supabase] Upsert failed:', result.reason);
-    }
+export async function savePilar(pilar: Omit<Pilar, 'plataformas' | 'createdAt' | 'updatedAt'>): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase.from('pilares').upsert({
+    id: pilar.id, user_id: pilar.userId, nome: pilar.nome,
+    descricao: pilar.descricao, cor: pilar.cor, ativo: pilar.ativo,
   });
+  if (error) throw new Error(`pilares: ${error.message}`);
+}
 
-  // Book annotations - upsert separado apos books (dependencia de FK)
-  const allAnnotations = state.books.flatMap(b =>
-    (b.anotacoes || []).map(a => ({
-      id: a.id,
-      livro_id: b.id,
-      texto: a.texto,
-      tipo: a.tipo,
-      capitulo_ref: a.capituloRef || null,
-      destilada: a.destilada ?? false,
-      content_potential: a.contentPotential ?? false,
-      created_at: a.createdAt,
-      user_id: userId,
+export async function savePilarPlataformas(pilarId: string, plataformas: PilarPlataforma[]): Promise<void> {
+  if (!supabase) return;
+  await supabase.from('pilar_plataformas').delete().eq('pilar_id', pilarId);
+  if (plataformas.length === 0) return;
+  const { error } = await supabase.from('pilar_plataformas').insert(
+    plataformas.map(p => ({ pilar_id: pilarId, platform_id: p.platformId, hashtags: p.hashtags }))
+  );
+  if (error) throw new Error(`pilar_plataformas: ${error.message}`);
+}
+
+export async function deletePilar(id: string): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase.from('pilares').delete().eq('id', id);
+  if (error) throw new Error(`delete pilar: ${error.message}`);
+}
+
+// ============================================================================
+// SÉRIES
+// ============================================================================
+
+export async function saveSerie(serie: Omit<Serie, 'pilarIds' | 'plataformas' | 'createdAt' | 'updatedAt'>): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase.from('series').upsert({
+    id: serie.id, user_id: serie.userId, name: serie.name, template: serie.template,
+    notes: serie.notes, slot_padrao: serie.slotPadrao, formato_visual_padrao: serie.formatoVisualPadrao,
+    estrutura_roteiro: serie.estruturaRoteiro, bordao: serie.bordao, cor: serie.cor,
+    ativa: serie.ativa, frequencia_recomendada: serie.frequenciaRecomendada,
+  });
+  if (error) throw new Error(`series: ${error.message}`);
+}
+
+export async function saveSeriePilares(serieId: string, pilarIds: string[]): Promise<void> {
+  if (!supabase) return;
+  await supabase.from('serie_pilares').delete().eq('serie_id', serieId);
+  if (pilarIds.length === 0) return;
+  const { error } = await supabase.from('serie_pilares').insert(
+    pilarIds.map(pid => ({ serie_id: serieId, pilar_id: pid }))
+  );
+  if (error) throw new Error(`serie_pilares: ${error.message}`);
+}
+
+export async function deleteSerie(id: string): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase.from('series').delete().eq('id', id);
+  if (error) throw new Error(`delete serie: ${error.message}`);
+}
+
+// ============================================================================
+// CENÁRIOS
+// ============================================================================
+
+export async function saveCenario(cenario: Omit<Cenario, 'createdAt'>): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase.from('cenarios').upsert({
+    id: cenario.id, user_id: cenario.userId, nome: cenario.nome,
+    descricao: cenario.descricao, tempo_setup_minutos: cenario.tempoSetupMinutos, ativo: cenario.ativo,
+  });
+  if (error) throw new Error(`cenarios: ${error.message}`);
+}
+
+export async function deleteCenario(id: string): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase.from('cenarios').delete().eq('id', id);
+  if (error) throw new Error(`delete cenario: ${error.message}`);
+}
+
+// ============================================================================
+// LOOKS
+// ============================================================================
+
+export async function saveLook(look: Omit<Look, 'createdAt'>): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase.from('looks').upsert({
+    id: look.id, user_id: look.userId, numero: look.numero,
+    descricao: look.descricao, cenario_id: look.cenarioId, ativo: look.ativo,
+  });
+  if (error) throw new Error(`looks: ${error.message}`);
+}
+
+export async function deleteLook(id: string): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase.from('looks').delete().eq('id', id);
+  if (error) throw new Error(`delete look: ${error.message}`);
+}
+
+// ============================================================================
+// BIBLIOTECA
+// ============================================================================
+
+export async function saveBibliotecaItem(
+  item: Omit<BibliotecaItem, 'anotacoes' | 'generoIds' | 'createdAt' | 'updatedAt' | 'deletedAt'>
+): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase.from('biblioteca_items').upsert({
+    id: item.id, user_id: item.userId, tipo: item.tipo, titulo: item.titulo,
+    autor_diretor: item.autorDiretor, capa_url: item.capaUrl, status: item.status,
+    data_inicio: item.dataInicio, data_fim: item.dataFim, avaliacao: item.avaliacao,
+    notas_gerais: item.notasGerais, potencial_conteudo: item.potencialConteudo,
+    total_paginas: item.totalPaginas, paginas_lidas: item.paginasLidas,
+  });
+  if (error) throw new Error(`biblioteca_items: ${error.message}`);
+}
+
+export async function saveItemGeneros(itemId: string, generoIds: string[]): Promise<void> {
+  if (!supabase) return;
+  await supabase.from('item_generos').delete().eq('item_id', itemId);
+  if (generoIds.length === 0) return;
+  const { error } = await supabase.from('item_generos').insert(
+    generoIds.map(gid => ({ item_id: itemId, genero_id: gid }))
+  );
+  if (error) throw new Error(`item_generos: ${error.message}`);
+}
+
+export async function deleteBibliotecaItem(id: string): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase.from('biblioteca_items')
+    .update({ deleted_at: new Date().toISOString() }).eq('id', id);
+  if (error) throw new Error(`delete biblioteca_item: ${error.message}`);
+}
+
+export async function saveAnotacao(anotacao: Omit<Anotacao, 'createdAt' | 'deletedAt'>): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase.from('anotacoes').upsert({
+    id: anotacao.id, user_id: anotacao.userId, item_id: anotacao.itemId,
+    texto: anotacao.texto, tipo: anotacao.tipo, capitulo_ref: anotacao.capituloRef,
+    content_potential: anotacao.contentPotential,
+  });
+  if (error) throw new Error(`anotacoes: ${error.message}`);
+}
+
+export async function deleteAnotacao(id: string): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase.from('anotacoes')
+    .update({ deleted_at: new Date().toISOString() }).eq('id', id);
+  if (error) throw new Error(`delete anotacao: ${error.message}`);
+}
+
+// ============================================================================
+// CONTEÚDOS
+// ============================================================================
+
+export async function saveContent(
+  content: Omit<Content, 'plataformas' | 'updatedAt' | 'deletedAt'>
+): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase.from('contents').upsert({
+    id: content.id, user_id: content.userId, title: content.title,
+    status: content.status, slot_type: content.slotType, series_id: content.seriesId,
+    pilar_id: content.pilarId, look_id: content.lookId, cenario_id: content.cenarioId,
+    biblioteca_item_id: content.bibliotecaItemId, formato_visual: content.formatoVisual,
+    energia_necessaria: content.energiaNecessaria, publish_date: content.publishDate,
+    recording_date: content.recordingDate, link: content.link, script: content.script,
+    script_notes: content.scriptNotes, tags: content.tags,
+    notes: content.notes, referencias: content.referencias,
+  });
+  if (error) throw new Error(`contents: ${error.message}`);
+}
+
+export async function saveContentPlataformas(
+  contentId: string,
+  plataformas: Omit<ContentPlataforma, 'id' | 'contentId'>[]
+): Promise<void> {
+  if (!supabase) return;
+  await supabase.from('content_plataformas').delete().eq('content_id', contentId);
+  if (plataformas.length === 0) return;
+  const { error } = await supabase.from('content_plataformas').insert(
+    plataformas.map(p => ({
+      content_id: contentId, platform_id: p.platformId,
+      legenda: p.legenda, hashtags: p.hashtags, publish_date: p.publishDate,
     }))
   );
-  if (allAnnotations.length > 0) {
-    const { error } = await supabase.from('book_annotations').upsert(allAnnotations);
-    if (error) {
-      console.error('[Supabase] book_annotations upsert failed:', error.message, 'execute migrations/book_annotations_migration.sql no Supabase.');
-    }
-  }
+  if (error) throw new Error(`content_plataformas: ${error.message}`);
+}
 
-  // Recording Blocks
-  if (state.recordingBlocks.length > 0) {
-    const { error } = await supabase.from('recording_blocks').upsert(
-      state.recordingBlocks.map(rb => ({
-        id: rb.id,
-        name: rb.name,
-        content_ids: rb.contentIds,
-        created_at: rb.createdAt,
-        user_id: userId,
-      }))
-    );
-    if (error) console.error('[Supabase] recording_blocks upsert failed:', error.message);
-  }
+export async function deleteContent(id: string): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase.from('contents')
+    .update({ deleted_at: new Date().toISOString() }).eq('id', id);
+  if (error) throw new Error(`delete content: ${error.message}`);
+}
 
-  // Golden Rules
-  if (state.goldenRules.length > 0) {
-    const { error } = await supabase.from('golden_rules').upsert(
-      state.goldenRules.map(gr => ({
-        id: gr.id,
-        descricao: gr.descricao,
-        tipo: gr.tipo,
-        ativa: gr.ativa,
-        user_id: userId,
-      }))
-    );
-    if (error) console.error('[Supabase] golden_rules upsert failed:', error.message);
-  }
-}
+// ============================================================================
+// IDEIAS
+// ============================================================================
+
+export async function saveIdea(idea: Omit<Idea, 'createdAt'>): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase.from('ideas').upsert({
+    id: idea.id, user_id: idea.userId, text: idea.text, pilar_id: idea.pilarId,
+    series_id: idea.seriesId, origem_id: idea.origemId,
+    promoted_to_content_id: idea.promotedToContentId, archived: idea.archived,
+  });
+  if (error) throw new Error(`ideas: ${error.message}`);
+}
+
+export async function deleteIdea(id: string): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase.from('ideas').delete().eq('id', id);
+  if (error) throw new Error(`delete idea: ${error.message}`);
+}
+
+// ============================================================================
+// PROJETOS
+// ============================================================================
+
+export async function saveProjeto(
+  projeto: Omit<Projeto, 'etapas' | 'contentIds' | 'updatedAt' | 'deletedAt'>
+): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase.from('projetos').upsert({
+    id: projeto.id, user_id: projeto.userId, nome: projeto.nome, tipo: projeto.tipo,
+    status: projeto.status, data_inicio: projeto.dataInicio, data_fim: projeto.dataFim,
+    meta_conteudos: projeto.metaConteudos, biblioteca_item_id: projeto.bibliotecaItemId,
+    brand: projeto.brand, brand_color: projeto.brandColor, value: projeto.value,
+    currency: projeto.currency, notes: projeto.notes,
+  });
+  if (error) throw new Error(`projetos: ${error.message}`);
+}
+
+export async function deleteProjeto(id: string): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase.from('projetos')
+    .update({ deleted_at: new Date().toISOString() }).eq('id', id);
+  if (error) throw new Error(`delete projeto: ${error.message}`);
+}
+
+// ============================================================================
+// GRAVAÇÃO
+// ============================================================================
+
+export async function saveRecordingBlock(block: Omit<RecordingBlock, 'contents' | 'createdAt'>): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase.from('recording_blocks').upsert({
+    id: block.id, user_id: block.userId, name: block.name,
+  });
+  if (error) throw new Error(`recording_blocks: ${error.message}`);
+}
+
+export async function saveRecordingBlockContents(blockId: string, contents: RecordingBlockContent[]): Promise<void> {
+  if (!supabase) return;
+  await supabase.from('recording_block_contents').delete().eq('block_id', blockId);
+  if (contents.length === 0) return;
+  const { error } = await supabase.from('recording_block_contents').insert(
+    contents.map(c => ({
+      block_id: blockId, content_id: c.contentId, ordem: c.ordem, gravado: c.gravado,
+    }))
+  );
+  if (error) throw new Error(`recording_block_contents: ${error.message}`);
+}
+
+export async function deleteRecordingBlock(id: string): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase.from('recording_blocks').delete().eq('id', id);
+  if (error) throw new Error(`delete recording_block: ${error.message}`);
+}
+
+// ============================================================================
+// TEMPLATES
+// ============================================================================
+
+export async function saveTemplate(template: Omit<Template, 'createdAt' | 'updatedAt'>): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase.from('templates').upsert({
+    id: template.id, user_id: template.userId, nome: template.nome,
+    platform_id: template.platformId, series_id: template.seriesId,
+    estrutura: template.estrutura, ativo: template.ativo,
+  });
+  if (error) throw new Error(`templates: ${error.message}`);
+}
+
+export async function deleteTemplate(id: string): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase.from('templates').delete().eq('id', id);
+  if (error) throw new Error(`delete template: ${error.message}`);
+}
+
+// ============================================================================
+// AGENDA
+// ============================================================================
+
+export async function saveAgendaItem(item: Omit<AgendaItem, 'createdAt'>): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase.from('agenda_items').upsert({
+    id: item.id, user_id: item.userId, title: item.title, date: item.date,
+    time: item.time, tipo: item.tipo, projeto_id: item.projetoId,
+  });
+  if (error) throw new Error(`agenda_items: ${error.message}`);
+}
+
+export async function deleteAgendaItem(id: string): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase.from('agenda_items').delete().eq('id', id);
+  if (error) throw new Error(`delete agenda_item: ${error.message}`);
+}
+
+// ============================================================================
+// REGRAS DE OURO
+// ============================================================================
+
+export async function saveGoldenRule(rule: Omit<GoldenRule, 'createdAt'>): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase.from('golden_rules').upsert({
+    id: rule.id, user_id: rule.userId, descricao: rule.descricao, tipo: rule.tipo,
+    condicao: rule.condicao, periodo: rule.periodo, valor: rule.valor, ativa: rule.ativa,
+  });
+  if (error) throw new Error(`golden_rules: ${error.message}`);
+}
+
+export async function deleteGoldenRule(id: string): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase.from('golden_rules').delete().eq('id', id);
+  if (error) throw new Error(`delete golden_rule: ${error.message}`);
+}
+
+// ============================================================================
+// MÉTRICAS
+// ============================================================================
+
+export async function saveContentMetric(metric: Omit<ContentMetric, 'id' | 'createdAt'>): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase.from('content_metrics').upsert({
+    user_id: metric.userId, content_id: metric.contentId, platform_id: metric.platformId,
+    views: metric.views, likes: metric.likes, comments: metric.comments,
+    saves: metric.saves, shares: metric.shares, reposts: metric.reposts,
+    new_followers: metric.newFollowers, accounts_reached: metric.accountsReached,
+    watch_time: metric.watchTime, retention_rate: metric.retentionRate,
+    completion_rate: metric.completionRate, qualitative_notes: metric.qualitativeNotes,
+    registered_at: metric.registeredAt,
+  }, { onConflict: 'content_id,platform_id' });
+  if (error) throw new Error(`content_metrics: ${error.message}`);
+}
+
+export async function deleteContentMetric(id: string): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase.from('content_metrics').delete().eq('id', id);
+  if (error) throw new Error(`delete content_metric: ${error.message}`);
+}

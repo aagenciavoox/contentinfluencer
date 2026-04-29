@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
 import { X, Upload, FileText, Check, AlertCircle, Info } from 'lucide-react';
 import { FixedPanelModal } from './FixedPanelModal';
-import { Content } from '../types';
+import { Content } from '../lib/database';
 import { useAppContext } from '../context/AppContext';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
@@ -65,11 +65,18 @@ export function CSVUploadModal({ onClose }: CSVUploadModalProps) {
           if (cleanRow[titleIdx] && cleanRow[scriptIdx]) {
             data.push({
               id: Math.random().toString(36).substr(2, 9),
+              userId: '',
               title: cleanRow[titleIdx],
               script: cleanRow[scriptIdx],
               status: 'Ideia',
-              pillar: state.pilares[0]?.nome || 'Sem Pilar',
-              createdAt: new Date().toISOString()
+              pilarId: state.pilares[0]?.id || null,
+              slotType: null, seriesId: null, cenarioId: null, lookId: null,
+              formatoVisual: null, scriptNotes: [], tags: [], notes: null,
+              referencias: null, energiaNecessaria: null, publishDate: null,
+              recordingDate: null, link: null, bibliotecaItemId: null,
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+              deletedAt: null, plataformas: [],
             });
           }
         }

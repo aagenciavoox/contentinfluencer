@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { Content, Partnership } from '../../types';
+import { Content, Projeto } from '../../lib/database';
+type Partnership = Projeto;
 import { cn } from '../../lib/utils';
 import { Layers, Film, FileText, User } from 'lucide-react';
 
@@ -10,9 +11,9 @@ interface HoverCardProps {
 }
 
 export function CalendarHoverCard({ item, isVisible }: HoverCardProps) {
-  const isContent = 'status' in item && 'pillar' in item;
-  const targetLabel = isContent ? item.pillar : item.brand || 'Parceria';
-  const formatLabel = isContent ? item.format || item.formatoVisual : 'Padrão';
+  const isContent = 'status' in item && 'pilarId' in item;
+  const targetLabel = isContent ? item.pilarId : item.brand || 'Parceria';
+  const formatLabel = isContent ? item.formatoVisual : 'Padrão';
 
   return (
     <motion.div

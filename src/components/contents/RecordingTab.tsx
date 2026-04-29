@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useAppContext } from '../../context/AppContext';
 import { Plus, Table as TableIcon, Layers, Calendar, X, Check, Video, Trash2, Clock, Shirt, MapPin, Play, CheckCircle2, Pause, SkipForward } from 'lucide-react';
-import { RecordingBlock, Content } from '../../types';
+import { RecordingBlock, Content } from '../../lib/database';
 import { cn } from '../../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import { BottomSheetModal } from '../BottomSheetModal';
@@ -23,8 +23,8 @@ export function RecordingTab() {
   // When block is clicked, we look at contents.
   // We only care about contentIds for this block.
   const getContentsForBlock = (block: RecordingBlock) => {
-    return block.contentIds
-      .map(id => state.contents.find(c => c.id === id))
+    return block.contents
+      .map(bc => state.contents.find(c => c.id === bc.contentId))
       .filter(Boolean) as Content[];
   };
 
@@ -118,7 +118,7 @@ export function RecordingTab() {
                         <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-[var(--text-tertiary)]">
                           <MapPin className="w-3 h-3" /> Cenário
                         </div>
-                        <p className="text-xs font-bold text-[var(--text-primary)] truncate">{first?.scenario || 'N/A'}</p>
+                        <p className="text-xs font-bold text-[var(--text-primary)] truncate">{first?.cenarioId || 'N/A'}</p>
                       </div>
                     </div>
                   </div>
@@ -169,7 +169,7 @@ export function RecordingTab() {
 // Subcomponent: Block Analysis Modal
 function BlockAnalysis({ block, onClose, onStart }: { block: RecordingBlock, onClose: () => void, onStart: () => void }) {
   const { state } = useAppContext();
-  const contents = block.contentIds.map(id => state.contents.find(c => c.id === id)).filter(Boolean) as Content[];
+  const contents = block.contents.map(bc => state.contents.find(c => c.id === bc.contentId)).filter(Boolean) as Content[];
   const readyContents = contents.filter(c => c.status === 'Pronto para Gravar');
 
   return (
@@ -203,8 +203,7 @@ function BlockAnalysis({ block, onClose, onStart }: { block: RecordingBlock, onC
                 </div>
                 <div className="flex flex-wrap items-center gap-3 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-4">
                   {content.lookId && <span className="flex items-center gap-1"><Shirt className="w-3 h-3" /> {content.lookId}</span>}
-                  {content.scenario && <span className="flex items-center gap-1"><MapPin className="w-3 h-3" /> {content.scenario}</span>}
-                  {content.estimatedDuration && <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {content.estimatedDuration}m</span>}
+                  {content.cenarioId && <span className="flex items-center gap-1"><MapPin className="w-3 h-3" /> {content.cenarioId}</span>}
                 </div>
                 <div className="bg-[var(--bg-hover)] p-4 rounded-xl border border-[var(--border-strong)]">
                   <p className="text-sm font-medium text-[var(--text-tertiary)] whitespace-pre-wrap leading-relaxed line-clamp-3 italic">
@@ -238,10 +237,10 @@ function BurstModeSession({ block, completedIds, setCompletedIds, onExit }: { bl
 
   // We only load scripts that are "Pronto para Gravar" over the block
   const readyContents = useMemo(() => {
-    return block.contentIds
-      .map(id => state.contents.find(c => c.id === id))
+    return block.contents
+      .map(bc => state.contents.find(c => c.id === bc.contentId))
       .filter(c => c && c.status === 'Pronto para Gravar') as Content[];
-  }, [state.contents, block.contentIds]);
+  }, [state.contents, block.contents]);
 
   const currentContent = readyContents[currentIndex];
 
@@ -364,12 +363,12 @@ function BurstModeSession({ block, completedIds, setCompletedIds, onExit }: { bl
                    <span className="text-xs font-bold text-[var(--text-primary)]">{currentContent.lookId}</span>
                  </div>
                )}
-               {currentContent.scenario && (
+               {currentContent.cenarioId && (
                  <div className="flex items-center justify-between p-4 bg-[var(--bg-primary)] rounded-2xl border border-[var(--border-color)]">
                    <span className="text-[9px] uppercase font-black tracking-widest text-[var(--text-tertiary)] flex items-center gap-2">
                      <MapPin className="w-3 h-3" /> Cenario
                    </span>
-                   <span className="text-xs font-bold text-[var(--text-primary)]">{currentContent.scenario}</span>
+                   <span className="text-xs font-bold text-[var(--text-primary)]">{currentContent.cenarioId}</span>
                  </div>
                )}
             </div>
@@ -394,10 +393,10 @@ function BurstModeSession({ block, completedIds, setCompletedIds, onExit }: { bl
                    <span className="text-[9px] font-black text-[var(--text-primary)] uppercase">{currentContent.lookId}</span>
                 </div>
              )}
-              {currentContent.scenario && (
+              {currentContent.cenarioId && (
                 <div className="px-3 py-2 bg-[var(--bg-hover)] rounded-xl border border-[var(--border-color)] flex items-center gap-2 shrink-0">
                    <MapPin className="w-3 h-3 text-[var(--text-tertiary)]" />
-                   <span className="text-[9px] font-black text-[var(--text-primary)] uppercase">{currentContent.scenario}</span>
+                   <span className="text-[9px] font-black text-[var(--text-primary)] uppercase">{currentContent.cenarioId}</span>
                 </div>
              )}
           </div>

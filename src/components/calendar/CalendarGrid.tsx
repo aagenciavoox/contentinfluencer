@@ -35,7 +35,8 @@ import {
   Plus
 } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
-import { Content, Partnership, AgendaItem, Look, Cenario } from '../../types';
+import { Content, Projeto, AgendaItem, Look, Cenario } from '../../lib/database';
+type Partnership = Projeto;
 import { cn, getEventDates } from '../../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import { STATUS_CONFIG } from '../../constants';
@@ -92,13 +93,13 @@ export function CalendarGrid({ activeLayers, onItemClick }: CalendarGridProps) {
 
     // 3. Publicidades (Partnerships)
     if (activeLayers.includes('partnerships')) {
-      state.partnerships
-        .filter(p => !p.archived)
+      state.projetos
+        .filter(p => !p.deletedAt)
         .forEach(p => {
           const pDates = getEventDates(p);
           if (pDates.includes(dayStr)) {
             const stSet = STATUS_CONFIG[p.status];
-            const IconComponent = stSet ? getStatusIcon(stSet.icon) : Star;
+            const IconComponent = Star;
             items.push({ 
               ...p, 
               type: 'partnership', 
@@ -112,18 +113,18 @@ export function CalendarGrid({ activeLayers, onItemClick }: CalendarGridProps) {
     if (activeLayers.includes('agenda')) {
       state.agenda
         .filter(a => {
-          if (a.partnershipId) {
-            const p = state.partnerships.find(proj => proj.id === a.partnershipId);
-            return !p?.archived && p?.status !== 'Finalizado';
+          if (a.projetoId) {
+            const p = state.projetos.find(proj => proj.id === a.projetoId);
+            return !p?.deletedAt && p?.status !== 'Finalizado';
           }
           return true;
         })
         .forEach(a => {
         if (a.date === dayStr) {
-          items.push({ 
-            ...a, 
-            type: 'agenda', 
-            icon: a.external ? <Star className="w-2.5 h-2.5" /> : <CalendarIcon className="w-2.5 h-2.5" /> 
+          items.push({
+            ...a,
+            type: 'agenda',
+            icon: <CalendarIcon className="w-2.5 h-2.5" />
           });
         }
       });
@@ -184,7 +185,7 @@ export function CalendarGrid({ activeLayers, onItemClick }: CalendarGridProps) {
           const isCurrentMonth = isSameMonth(day, monthStart);
           const activeToday = isToday(day);
           const dayId = format(day, 'yyyy-MM-dd');
-          const energy = state.energyLogs.find(l => l.date === dayId)?.level || 0;
+          const energy = 0;
           const loadWarn = energy > 0 && items.length > energy + 2;
 
           return (

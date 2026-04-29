@@ -10,7 +10,8 @@ import {
   User,
   CalendarDays,
 } from 'lucide-react';
-import { Content, Partnership, AgendaItem } from '../../types';
+import { Content, Projeto, AgendaItem } from '../../lib/database';
+type Partnership = Projeto;
 import { cn } from '../../lib/utils';
 import { format, parseISO, isValid } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -23,12 +24,12 @@ interface QuickPreviewProps {
 }
 
 export function ContentQuickPreview({ item, onClose, onEdit, onMove }: QuickPreviewProps) {
-  const isContent = item ? ('status' in item && 'pillar' in item) : false;
+  const isContent = item ? ('status' in item && 'pilarId' in item) : false;
   const isPartnership = item ? ('brand' in item) : false;
   const title = item ? ((item as any).title || (item as any).text) : '';
 
   const dateStr = item
-    ? ((item as any).publishDate || (item as any).recordingDate || (item as any).date || (item as any).deadline)
+    ? ((item as any).publishDate || (item as any).recordingDate || (item as any).date || (item as any).dataFim)
     : null;
   let formattedDate = 'Sem data';
   if (dateStr) {
@@ -136,13 +137,13 @@ export function ContentQuickPreview({ item, onClose, onEdit, onMove }: QuickPrev
                     <div className="p-4 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl">
                       <span className="text-[8px] font-black uppercase tracking-widest text-[var(--text-tertiary)] opacity-50 block mb-1.5">Pilar / Cliente</span>
                       <span className="text-sm font-bold text-[var(--text-primary)]">
-                        {(item as any).pillar || (item as any).brand || 'Geral'}
+                        {(item as any).pilarId || (item as any).brand || 'Geral'}
                       </span>
                     </div>
                     <div className="p-4 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl">
                       <span className="text-[8px] font-black uppercase tracking-widest text-[var(--text-tertiary)] opacity-50 block mb-1.5">Formato</span>
                       <span className="text-sm font-bold text-[var(--text-primary)]">
-                        {(item as Content).format || (item as Content).formatoVisual || 'Padrão'}
+                        {(item as Content).formatoVisual || 'Padrão'}
                       </span>
                     </div>
                   </div>

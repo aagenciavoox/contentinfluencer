@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { ArrowLeft, Plus, Edit2, Trash2, X, Check, ToggleLeft, ToggleRight } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
 import { ConfirmModal } from '../../components/ConfirmModal';
-import { Pilar } from '../../types';
+import { Pilar } from '../../lib/database';
 import { generateUUID } from '../../utils/uuid';
 
 const PRESET_CORES = [
@@ -12,6 +12,8 @@ const PRESET_CORES = [
   '#448361', '#9065B0', '#2EAADC', '#D9730D',
   '#F5F0E4', '#37352F',
 ];
+
+const HASHTAG_PLATFORMS = ['Instagram', 'TikTok', 'YouTube'];
 
 function PilarForm({
   initial,
@@ -22,19 +24,33 @@ function PilarForm({
   onSave: (p: Pilar) => void;
   onCancel: () => void;
 }) {
-  const [form, setForm] = useState<Pilar>({
-    id: initial.id || generateUUID(),
+  const id = initial.id || generateUUID();
+  const [form, setForm] = useState<Omit<Pilar, 'plataformas' | 'createdAt' | 'updatedAt'>>({
+    id,
+    userId: initial.userId || '',
     nome: initial.nome || '',
     descricao: initial.descricao || '',
     cor: initial.cor || '#F5C543',
-    hashtagsInstagram: initial.hashtagsInstagram || '',
-    hashtagsTikTok: initial.hashtagsTikTok || '',
-    hashtagsYouTube: initial.hashtagsYouTube || '',
-    templateLegenda: initial.templateLegenda || '',
     ativo: initial.ativo ?? true,
-    metaSemanalMin: initial.metaSemanalMin || 0,
-    metaSemanalMax: initial.metaSemanalMax || 0,
   });
+  const [hashtags, setHashtags] = useState<Record<string, string>>(() => {
+    const map: Record<string, string> = {};
+    (initial.plataformas || []).forEach(p => { map[p.platformId] = p.hashtags; });
+    return map;
+  });
+
+  const handleSave = () => {
+    if (!form.nome.trim()) return;
+    const plataformas = HASHTAG_PLATFORMS
+      .filter(plat => hashtags[plat]?.trim())
+      .map(plat => ({ pilarId: id, platformId: plat, hashtags: hashtags[plat].trim() }));
+    onSave({
+      ...form,
+      plataformas,
+      createdAt: initial.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+  };
 
   return (
     <div className="bg-[var(--bg-primary)] rounded-2xl border border-[var(--border-color)] p-6 space-y-4">
@@ -86,63 +102,18 @@ function PilarForm({
       {/* Hashtags */}
       <div className="space-y-3">
         <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block">Hashtag Combos</label>
-        {['Instagram', 'TikTok', 'YouTube'].map(plat => {
-          const key = `hashtags${plat}` as keyof Pilar;
-          return (
-            <div key={plat} className="flex items-center gap-3">
-              <span className="text-[10px] font-bold text-[var(--text-primary)] opacity-50 w-20 shrink-0">{plat}</span>
-              <input
-                type="text"
-                value={form[key] as string}
-                onChange={e => setForm(p => ({ ...p, [key]: e.target.value }))}
-                placeholder="#hashtag1 #hashtag2 ..."
-                className="flex-1"
-              />
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Template de Legenda */}
-      <div>
-        <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1.5">Template de Legenda</label>
-        <textarea
-          value={form.templateLegenda}
-          onChange={e => setForm(p => ({ ...p, templateLegenda: e.target.value }))}
-          rows={4}
-          placeholder="Gancho: [...]&#10;&#10;Corpo: [...]&#10;&#10;CTA: [...]"
-          className="w-full"
-        />
-      </div>
-
-      {/* Meta Semanal */}
-      <div className="p-4 bg-[var(--bg-hover)] rounded-2xl border border-[var(--border-color)]">
-        <label className="text-[9px] font-black uppercase tracking-widest text-[var(--accent-blue)] block mb-3">Harmonia de Mix (Meta Semanal)</label>
-        <div className="flex items-center gap-6">
-          <div className="flex-1">
-            <label className="text-[8px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] block mb-1">Mínimo</label>
-            <input 
-              type="number"
-              min="0"
-              value={form.metaSemanalMin}
-              onChange={e => setForm(p => ({ ...p, metaSemanalMin: parseInt(e.target.value) || 0 }))}
-              placeholder="0"
-              className="w-full"
+        {HASHTAG_PLATFORMS.map(plat => (
+          <div key={plat} className="flex items-center gap-3">
+            <span className="text-[10px] font-bold text-[var(--text-primary)] opacity-50 w-20 shrink-0">{plat}</span>
+            <input
+              type="text"
+              value={hashtags[plat] || ''}
+              onChange={e => setHashtags(h => ({ ...h, [plat]: e.target.value }))}
+              placeholder="#hashtag1 #hashtag2 ..."
+              className="flex-1"
             />
           </div>
-          <div className="flex-1">
-            <label className="text-[8px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] block mb-1">Máximo</label>
-            <input 
-              type="number"
-              min="0"
-              value={form.metaSemanalMax}
-              onChange={e => setForm(p => ({ ...p, metaSemanalMax: parseInt(e.target.value) || 0 }))}
-              placeholder="0"
-              className="w-full text-xs font-black bg-[var(--bg-primary)] border-none rounded-lg px-3 py-2 text-[var(--text-primary)] focus:ring-1 focus:ring-[var(--accent-blue)] shadow-sm"
-            />
-          </div>
-          <span className="text-[10px] font-black text-[var(--text-tertiary)] opacity-40 uppercase tracking-widest pt-5">POSTS / SEMANA</span>
-        </div>
+        ))}
       </div>
 
       <div className="flex gap-3 pt-2">
@@ -153,7 +124,7 @@ function PilarForm({
           Cancelar
         </button>
         <button
-          onClick={() => form.nome.trim() && onSave(form)}
+          onClick={handleSave}
           disabled={!form.nome.trim()}
           className="flex-1 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest bg-[var(--text-primary)] text-[var(--bg-primary)] disabled:opacity-40 hover:scale-[1.02] transition-all"
         >
@@ -255,10 +226,10 @@ export function PilaresSettings() {
                   {/* Info */}
                   <div className="flex-1 min-w-0">
                     <p className="text-xs md:text-sm font-black text-[var(--text-primary)] truncate uppercase md:normal-case">{pilar.nome}</p>
-                    {pilar.metaSemanalMax && pilar.metaSemanalMax > 0 && (
+                    {pilar.plataformas?.length > 0 && (
                       <div className="mt-1">
                         <span className="text-[7px] md:text-[8px] font-black bg-[var(--accent-blue)]/10 text-[var(--accent-blue)] px-1.5 py-0.5 rounded-full border border-[var(--accent-blue)]/20 uppercase tracking-widest whitespace-nowrap">
-                          {pilar.metaSemanalMin}-{pilar.metaSemanalMax} posts/wk
+                          {pilar.plataformas.length} plataforma{pilar.plataformas.length !== 1 ? 's' : ''}
                         </span>
                       </div>
                     )}

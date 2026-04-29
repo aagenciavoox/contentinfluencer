@@ -19,17 +19,17 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
   const inputRef = useRef<HTMLInputElement>(null);
 
   const navigation = [
-    { id: 'nav-1', title: 'Dashboard', path: '/', icon: <Search className="w-4 h-4" />, category: 'Navegação' },
-    { id: 'nav-2', title: 'Inventário', path: '/contents', icon: <FileText className="w-4 h-4" />, category: 'Navegação' },
-    { id: 'nav-3', title: 'Agenda', path: '/agenda', icon: <Search className="w-4 h-4" />, category: 'Navegação' },
-    { id: 'nav-4', title: 'Calendário Editorial', path: '/editorial', icon: <Search className="w-4 h-4" />, category: 'Navegação' },
+    { id: 'nav-1', title: 'Conteúdos', path: '/conteudos', icon: <FileText className="w-4 h-4" />, category: 'Navegação' },
+    { id: 'nav-2', title: 'Calendário', path: '/calendario', icon: <Search className="w-4 h-4" />, category: 'Navegação' },
+    { id: 'nav-3', title: 'Ideias', path: '/ideias', icon: <Lightbulb className="w-4 h-4" />, category: 'Navegação' },
+    { id: 'nav-4', title: 'Projetos', path: '/projetos', icon: <Handshake className="w-4 h-4" />, category: 'Navegação' },
   ];
 
   const filteredResults = [
     ...navigation,
-    ...state.contents.map(c => ({ id: c.id, title: c.title, path: '/contents', icon: <FileText className="w-4 h-4" />, category: 'Conteúdo', data: c })),
-    ...state.ideas.map(i => ({ id: i.id, title: i.text, path: '/ideas', icon: <Lightbulb className="w-4 h-4" />, category: 'Ideias', data: i })),
-    ...state.partnerships.map(p => ({ id: p.id, title: `${p.brand}: ${p.title}`, path: '/partnerships', icon: <Handshake className="w-4 h-4" />, category: 'Parcerias', data: p })),
+    ...state.contents.map(c => ({ id: c.id, title: c.title, path: `/conteudos`, icon: <FileText className="w-4 h-4" />, category: 'Conteúdo', data: c })),
+    ...state.ideas.map(i => ({ id: i.id, title: i.text, path: '/ideias', icon: <Lightbulb className="w-4 h-4" />, category: 'Ideias', data: i })),
+    ...(state.partnerships || []).map(p => ({ id: p.id, title: p.brand ? `${p.brand}: ${p.nome}` : p.nome, path: `/projetos`, icon: <Handshake className="w-4 h-4" />, category: 'Projetos', data: p })),
   ].filter(item => 
     item.title.toLowerCase().includes(search.toLowerCase()) || 
     item.category.toLowerCase().includes(search.toLowerCase())

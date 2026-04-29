@@ -17,6 +17,11 @@ import {
   ShieldCheck,
   Shirt,
   Home,
+  Handshake,
+  Video,
+  BarChart2,
+  Layout,
+  MonitorSpeaker,
 } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
@@ -61,11 +66,14 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
   );
 
   const settingsItems = [
-    { to: '/settings', icon: Settings, label: 'Configurações Gerais' },
-    { to: '/settings/dna', icon: Fingerprint, label: 'DNA da Voz' },
-    { to: '/settings/pilares', icon: Palette, label: 'Pilares' },
-    { to: '/settings/looks', icon: Shirt, label: 'Looks & Cenários' },
-    { to: '/settings/regras', icon: ShieldCheck, label: 'Regras de Ouro' },
+    { to: '/configuracoes', icon: Settings, label: 'Configurações Gerais' },
+    { to: '/configuracoes/dna', icon: Fingerprint, label: 'DNA da Voz' },
+    { to: '/configuracoes/pilares', icon: Palette, label: 'Pilares' },
+    { to: '/configuracoes/looks', icon: Shirt, label: 'Looks & Cenários' },
+    { to: '/configuracoes/regras', icon: ShieldCheck, label: 'Regras de Ouro' },
+    { to: '/configuracoes/series', icon: Layers, label: 'Séries' },
+    { to: '/configuracoes/templates', icon: Layout, label: 'Templates' },
+    { to: '/configuracoes/plataformas', icon: MonitorSpeaker, label: 'Plataformas' },
   ];
 
   const sidebarContent = (
@@ -77,7 +85,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
             <Fingerprint className="w-5 h-5" />
           </div>
           <h1 className="text-[11px] font-black text-[var(--text-primary)] uppercase tracking-[0.4em] italic leading-none">
-            Content OS
+            Core Creator
           </h1>
         </div>
         <button
@@ -120,9 +128,9 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           </span>
         </button>
 
-        {/* 1. Início */}
+        {/* 1. Conteúdos */}
         <NavLink
-          to="/"
+          to="/conteudos"
           className={({ isActive }) =>
             cn(
               'flex items-center gap-4 px-4 py-3 rounded-lg text-[11px] font-black uppercase tracking-widest transition-all mb-2',
@@ -132,8 +140,16 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
             )
           }
         >
-          <Home className="w-4 h-4" />
-          Início
+          <Table className="w-4 h-4" />
+          Conteúdos
+          {(() => {
+              const aEditar = state.contents.filter(c => c.status === 'A Editar').length;
+              return aEditar > 0 ? (
+                <span className="ml-auto text-[9px] bg-[var(--accent-orange)]/15 text-[var(--accent-orange)] px-2 py-0.5 rounded-full font-black">
+                  {aEditar}
+                </span>
+              ) : null;
+          })()}
         </NavLink>
 
 
@@ -151,80 +167,27 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         >
           <BookOpen className="w-4 h-4" />
           Biblioteca
-          {state.books.length > 0 && (
+          {state.bibliotecaItems.length > 0 && (
             <span className="ml-auto text-[9px] bg-[var(--bg-hover)] px-2 py-0.5 rounded-full font-bold opacity-60">
-              {state.books.length}
+              {state.bibliotecaItems.length}
             </span>
           )}
         </NavLink>
 
-        {/* 4. Inventário com Submenu Resultados */}
-        <div className="py-2 space-y-1">
-          <NavLink
-            to="/contents"
-            className={({ isActive }) =>
-              cn(
-                'flex items-center gap-4 px-4 py-2.5 rounded-lg text-[11px] font-black uppercase tracking-widest transition-all',
-                isActive
-                  ? 'bg-[var(--bg-hover)] text-[var(--text-primary)] border-l-2 border-[var(--text-primary)]'
-                  : 'text-[var(--text-primary)] opacity-50 hover:opacity-80 hover:bg-[var(--bg-hover)] italic'
-              )
-            }
-          >
-            <Table className="w-4 h-4" />
-            Inventário
-            {(() => {
-              const aEditar = state.contents.filter(c => c.status === 'A Editar').length;
-              return aEditar > 0 ? (
-                <span className="ml-auto text-[9px] bg-[var(--accent-orange)]/15 text-[var(--accent-orange)] px-2 py-0.5 rounded-full font-black">
-                  {aEditar}
-                </span>
-              ) : null;
-            })()}
-          </NavLink>
-          <div className="ml-4 pl-4 border-l border-[var(--border-color)]">
-            <NavLink
-              to="/results"
-              className={({ isActive }) =>
-                cn(
-                  'flex items-center gap-3 px-3 py-2 rounded-md text-[10px] font-black uppercase tracking-widest transition-all',
-                  isActive
-                    ? 'text-[var(--text-primary)] opacity-100 bg-[var(--bg-hover)]'
-                    : 'text-[var(--text-primary)] opacity-50 hover:opacity-80 italic'
-                )
-              }
-            >
-               <BarChart3 className="w-3 h-3 shrink-0" /> Resultados
-            </NavLink>
-          </div>
-        </div>
+        {/* 2. Calendário */}
+        {navLink('/calendario', Calendar, 'Calendário')}
 
-        {/* Séries */}
-        <NavLink
-          to="/arquivos"
-          className={({ isActive }) =>
-            cn(
-              'flex items-center gap-4 px-4 py-2.5 rounded-lg text-[11px] font-black uppercase tracking-widest transition-all',
-              isActive
-                ? 'bg-[var(--bg-hover)] text-[var(--text-primary)] border-l-2 border-[var(--text-primary)]'
-                : 'text-[var(--text-primary)] opacity-50 hover:opacity-80 hover:bg-[var(--bg-hover)] italic'
-            )
-          }
-        >
-          <Layers className="w-4 h-4" />
-          Séries
-          {state.series.length > 0 && (
-            <span className="ml-auto text-[9px] bg-[var(--bg-hover)] px-2 py-0.5 rounded-full font-bold opacity-60">
-              {state.series.length}
-            </span>
-          )}
-        </NavLink>
+        {/* 4. Ideias */}
+        {navLink('/ideias', Lightbulb, 'Ideias')}
 
-        {/* 5. Calendário (Agenda + Projetos) */}
-        {navLink('/editorial', Calendar, 'Calendário')}
+        {/* 5. Projetos */}
+        {navLink('/projetos', Handshake, 'Projetos')}
 
-        {/* 6. Ideias */}
-        {navLink('/ideas', Lightbulb, 'Ideias')}
+        {/* 6. Gravação */}
+        {navLink('/gravacao', Video, 'Gravação')}
+
+        {/* 7. Análise */}
+        {navLink('/analise', BarChart3, 'Análise')}
 
         {/* Extras: Gestão e Produção Avançada */}
         <div className="pt-4 border-t border-[var(--border-color)] mt-4 space-y-1">

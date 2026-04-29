@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { Trash2, ArrowLeft, ShieldCheck, ShieldAlert, Info, ToggleLeft, ToggleRight, Plus } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
 import { ConfirmModal } from '../../components/ConfirmModal';
-import { GOLDEN_RULES } from '../../constants';
 import { validateWeeklyContent } from '../../utils/goldenRules';
 import { startOfWeek } from 'date-fns';
 
@@ -31,25 +30,29 @@ export function RegrasDeOuro() {
   const violations = validateWeeklyContent(state.contents, weekStart, state.pilares);
 
   const toggleRegra = (id: string, ativa: boolean) => {
-    const regras = state.goldenRules || GOLDEN_RULES;
-    dispatch({
-      type: 'UPDATE_GOLDEN_RULES',
-      payload: (regras as any).map((r: any) => r.id === id ? { ...r, ativa } : r),
-    });
+    const regra = state.goldenRules.find(r => r.id === id);
+    if (!regra) return;
+    dispatch({ type: 'UPDATE_GOLDEN_RULE', payload: { ...regra, ativa } });
   };
 
   const handleAddRule = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newRuleDesc.trim()) return;
 
-    const newRule = {
-      id: `USR-${Math.random().toString(36).substr(2, 4).toUpperCase()}`,
-      descricao: newRuleDesc,
-      tipo: newRuleType,
-      ativa: true,
-    };
-
-    dispatch({ type: 'ADD_GOLDEN_RULE', payload: newRule });
+    dispatch({
+      type: 'ADD_GOLDEN_RULE',
+      payload: {
+        id: `USR-${Math.random().toString(36).substr(2, 4).toUpperCase()}`,
+        userId: '',
+        descricao: newRuleDesc,
+        tipo: 'formato' as const,
+        condicao: 'recomendado' as const,
+        periodo: 'semana',
+        valor: 1,
+        ativa: true,
+        createdAt: new Date().toISOString(),
+      },
+    });
     setNewRuleDesc('');
     setShowAddForm(false);
   };
@@ -58,7 +61,7 @@ export function RegrasDeOuro() {
     setConfirm({ message: 'Excluir esta regra permanentemente?', onConfirm: () => dispatch({ type: 'DELETE_GOLDEN_RULE', payload: id }) });
   };
 
-  const regras = state.goldenRules || GOLDEN_RULES;
+  const regras = state.goldenRules;
 
   return (
     <div className="min-h-screen bg-[var(--bg-secondary)]">

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Palette, Shirt, ShieldCheck, ChevronRight, Settings as SettingsIcon, Rocket, Fingerprint } from 'lucide-react';
+import { Palette, Shirt, ShieldCheck, ChevronRight, Settings as SettingsIcon, Rocket, Fingerprint, Layers, Layout, MonitorSpeaker } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import { ConfirmModal } from '../components/ConfirmModal';
 
@@ -15,28 +15,46 @@ export function Settings() {
 
   const items = [
     {
-      to: '/settings/dna',
+      to: '/configuracoes/dna',
       icon: Fingerprint,
       title: 'DNA da Voz',
       desc: 'Promessa central, público, tom de voz e limites do seu conteúdo',
     },
     {
-      to: '/settings/pilares',
+      to: '/configuracoes/pilares',
       icon: Palette,
       title: 'Pilares Editoriais',
       desc: 'Gerencie os pilares de conteúdo, cores e hashtag combos por plataforma',
     },
     {
-      to: '/settings/looks',
+      to: '/configuracoes/looks',
       icon: Shirt,
       title: 'Looks & Cenários',
       desc: 'Catálogo de looks de gravação e cenários disponíveis',
     },
     {
-      to: '/settings/regras',
+      to: '/configuracoes/regras',
       icon: ShieldCheck,
       title: 'Regras de Ouro',
       desc: 'Validações editoriais que garantem consistência e qualidade da grade',
+    },
+    {
+      to: '/configuracoes/series',
+      icon: Layers,
+      title: 'Séries',
+      desc: 'Gerencie séries editoriais recorrentes com estrutura e frequência definidas',
+    },
+    {
+      to: '/configuracoes/plataformas',
+      icon: MonitorSpeaker,
+      title: 'Plataformas',
+      desc: 'Ative ou desative as plataformas onde você publica conteúdo',
+    },
+    {
+      to: '/configuracoes/templates',
+      icon: Layout,
+      title: 'Templates de Roteiro',
+      desc: 'Modelos de roteiro reutilizáveis por série ou formato',
     },
   ];
 
@@ -95,7 +113,7 @@ export function Settings() {
       message="Deseja reiniciar o Guia de Configuração? Isso permitirá que você reavalie seus pilares e DNA da voz agora mesmo."
       confirmLabel="Reiniciar"
       onConfirm={() => {
-        dispatch({ type: 'SET_ONBOARDING_COMPLETO', payload: false });
+        dispatch({ type: 'SET_PREFERENCE', payload: { key: 'onboardingCompleto', value: 'false' } });
         setConfirmOpen(false);
         navigate('/');
       }}

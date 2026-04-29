@@ -1,5 +1,5 @@
 import React from 'react';
-import { Content } from '../../types';
+import { Content } from '../../lib/database';
 import { useAppContext } from '../../context/AppContext';
 import { Zap, ArrowUp, ArrowDown, ArrowUpDown, Check, Layers } from 'lucide-react';
 import { cn } from '../../lib/utils';
@@ -128,7 +128,7 @@ export function ContentTable({
 
               <div className="flex flex-wrap gap-1.5">
                 <span className="text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 bg-[var(--bg-hover)] rounded text-[var(--text-secondary)] border border-[var(--border-color)]/50">
-                  {content.pillar}
+                  {content.pilarId}
                 </span>
                 {series && (
                   <span className="text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 bg-[var(--bg-hover)] rounded text-[var(--accent-blue)] border border-[var(--accent-blue)]/10 flex items-center gap-1">
@@ -235,7 +235,7 @@ export function ContentTable({
 
                   <td className="py-5 px-6">
                     <span className="t-meta text-[var(--text-secondary)]">
-                      {content.pillar}
+                      {content.pilarId}
                     </span>
                   </td>
 

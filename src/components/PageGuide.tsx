@@ -19,12 +19,12 @@ export function PageGuide({
   position = 'bottom-right' 
 }: PageGuideProps) {
   const { state, dispatch } = useAppContext();
-  const isViewed = state.viewedGuides.includes(pageId);
+  const isViewed = state.preferences[`guide_${pageId}`] === 'viewed';
 
   if (isViewed) return null;
 
   const handleDismiss = () => {
-    dispatch({ type: 'MARK_GUIDE_VIEWED', payload: pageId });
+    dispatch({ type: 'SET_PREFERENCE', payload: { key: `guide_${pageId}`, value: 'viewed' } });
   };
 
   const containerVariants = {

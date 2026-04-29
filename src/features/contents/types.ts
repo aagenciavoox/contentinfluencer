@@ -1,4 +1,4 @@
-import { Content } from '../../types';
+import { Content } from '../../lib/database';
 
 export type ContentsMainTab = 'inventory' | 'recording';
 export type ContentsViewMode = 'table' | 'ecosystem' | 'timeline';

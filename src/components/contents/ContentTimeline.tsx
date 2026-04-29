@@ -1,5 +1,5 @@
 import React from 'react';
-import { Content } from '../../types';
+import { Content } from '../../lib/database';
 import { useAppContext } from '../../context/AppContext';
 import { format } from 'date-fns';
 import { Shirt, MapPin } from 'lucide-react';
@@ -83,7 +83,7 @@ export function ContentTimeline({ contents, onSelect }: ContentTimelineProps) {
                 </div>
                 <div className="flex items-center gap-3">
                   <MapPin className="w-4 h-4 text-[var(--text-tertiary)]" />
-                  <span className="text-xs font-bold text-[var(--text-secondary)]">{content.scenario || 'Sem Cenário'}</span>
+                  <span className="text-xs font-bold text-[var(--text-secondary)]">{content.cenarioId || 'Sem Cenário'}</span>
                 </div>
               </div>
             </div>
