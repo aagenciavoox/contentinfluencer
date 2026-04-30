@@ -93,7 +93,8 @@ export function TemplatesSettings() {
 
   return (
     <div className="min-h-screen bg-[var(--bg-secondary)]">
-      <div className="desktop-header-frame">
+      <header className="desktop-header-sticky transition-colors duration-300">
+        <div className="desktop-header-frame">
         <DesktopPageHeader
           section="Configurações"
           title="Templates"
@@ -111,7 +112,8 @@ export function TemplatesSettings() {
             </button>
           )}
         />
-      </div>
+        </div>
+      </header>
 
       <div className="desktop-content-frame">
 

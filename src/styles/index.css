@@ -7,6 +7,10 @@
 }
 
 :root {
+  --space-8: 8px;
+  --space-16: 16px;
+  --space-24: 24px;
+  --space-32: 32px;
   --font-size-page-title-mobile: clamp(1.75rem, 5vw, 2rem);
   --font-size-page-title-desktop: clamp(2rem, 3vw, 2.5rem);
   --font-size-section-title-mobile: 1rem;
@@ -422,6 +426,73 @@ textarea {
   border-color: transparent;
 }
 
+.filter-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.filter-bar-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  background: var(--bg-primary);
+  padding: 0 12px;
+}
+
+.filter-bar-search-input {
+  width: 100%;
+  min-height: 40px;
+  border: none;
+  background: transparent;
+  padding: 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+  outline: none;
+  box-shadow: none;
+}
+
+.filter-bar-search-input::placeholder {
+  color: var(--text-tertiary);
+}
+
+.filter-bar-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  width: 100%;
+}
+
+.filter-bar-select {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  background: var(--bg-primary);
+  padding: 0 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.filter-bar-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 30;
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  background: var(--bg-secondary);
+  padding: 12px;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.12);
+}
+
 .desktop-header-frame,
 .desktop-content-frame,
 .desktop-content-frame-wide,
@@ -433,32 +504,51 @@ textarea {
 
 .desktop-header-frame {
   max-width: none;
-  padding: 1.5rem 1rem 1rem;
+  padding: 24px;
 }
 
 .desktop-content-frame {
   max-width: none;
-  padding: 1.5rem 1rem 3rem;
+  padding: 24px 16px 32px;
 }
 
 .desktop-content-frame-wide {
   max-width: none;
-  padding: 1.5rem 1rem 3rem;
+  padding: 24px 16px 32px;
 }
 
 .desktop-content-frame-book {
   max-width: none;
-  padding: 1.5rem 1rem 3rem;
+  padding: 24px 16px 32px;
 }
 
 @media (min-width: 769px) {
   .desktop-header-frame {
-    padding: 2.5rem 3rem 1.5rem;
+    padding: 24px;
   }
 
   .desktop-content-frame,
   .desktop-content-frame-wide,
   .desktop-content-frame-book {
-    padding: 2rem 3rem 4rem;
+    padding: 24px 24px 32px;
+  }
+
+  .filter-bar {
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+  }
+
+  .filter-bar-search {
+    flex: 1 1 280px;
+    min-width: 280px;
+  }
+
+  .filter-bar-controls {
+    flex: 0 0 auto;
+    flex-wrap: nowrap;
+    width: auto;
   }
 }

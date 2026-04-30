@@ -5,6 +5,7 @@ import { useAppContext } from '../../context/AppContext';
 import { Look, Cenario } from '../../lib/database';
 import { generateUUID } from '../../utils/uuid';
 import { DesktopPageHeader } from '../../components/layout/DesktopPageHeader';
+import { AppButton } from '../../components/common/AppButton';
 
 type EditingLook = Partial<Look> & { numero: number; descricao: string; ativo: boolean };
 type EditingCenario = Partial<Cenario> & { nome: string; descricao: string; tempoSetupMinutos: number; ativo: boolean };
@@ -60,16 +61,18 @@ export function LooksSettings() {
 
   return (
     <div className="min-h-screen bg-[var(--bg-secondary)]">
-      <div className="desktop-header-frame">
+      <header className="desktop-header-sticky transition-colors duration-300">
+        <div className="desktop-header-frame">
         <DesktopPageHeader
           section="Configurações"
           title="Looks & Cenários"
-          subtitle="Organize combinações visuais e bases de gravação para acelerar sua operação."
+          subtitle="Organize combinações visuais e bases de gravação para acelerar a operação."
           icon={Shirt}
           backLabel="Configurações"
           onBack={() => navigate('/configuracoes')}
         />
-      </div>
+        </div>
+      </header>
 
       <div className="desktop-content-frame">
 
@@ -79,16 +82,16 @@ export function LooksSettings() {
             <h2 className="t-section-title">
               Looks ({activeLooks.length})
             </h2>
-            <button
+            <AppButton
               onClick={() => {
                 setCriandoLook(true);
                 setLookForm({ numero: Math.max(...state.looks.map(l => l.numero), 0) + 1, descricao: '', ativo: true });
               }}
-              className="t-button t-button-uppercase flex items-center gap-1.5 rounded-xl bg-[var(--text-primary)] px-3 py-2 text-[var(--bg-primary)] shadow-sm transition-all hover:scale-[1.02]"
+              variant="primary"
+              leftIcon={<Plus className="w-3.5 h-3.5" />}
             >
-              <Plus className="w-3.5 h-3.5" />
               Novo Look
-            </button>
+            </AppButton>
           </div>
 
           {criandoLook && (
@@ -125,9 +128,13 @@ export function LooksSettings() {
                   {activeCenarios.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
                 </select>
               </div>
-              <div className="flex gap-3">
-                <button onClick={() => setCriandoLook(false)} className="flex-1 py-2 rounded-xl text-xs font-black border border-[var(--border-strong)] opacity-60 hover:opacity-100 transition-all">Cancelar</button>
-                <button onClick={() => saveLook(lookForm)} className="flex-1 py-2 rounded-xl text-xs font-black bg-[var(--text-primary)] text-[var(--bg-primary)] hover:scale-[1.02] transition-all">Salvar</button>
+              <div className="flex items-center justify-end gap-3">
+                <AppButton onClick={() => setCriandoLook(false)} variant="secondary">
+                  Cancelar
+                </AppButton>
+                <AppButton onClick={() => saveLook(lookForm)} variant="primary">
+                  Salvar
+                </AppButton>
               </div>
             </div>
           )}

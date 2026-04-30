@@ -16,7 +16,7 @@ export default defineConfig(({mode}) => {
         manifest: {
           name: 'Content OS',
           short_name: 'Content OS',
-          description: 'Seu sistema operacional de conteúdo — planeje, produza e distribua com clareza.',
+          description: 'Seu sistema operacional de conteudo - planeje, produza e distribua com clareza.',
           theme_color: '#191919',
           background_color: '#191919',
           display: 'standalone',
@@ -55,7 +55,7 @@ export default defineConfig(({mode}) => {
               icons: [{src: 'pwa-192x192.png', sizes: '192x192'}],
             },
             {
-              name: 'Conteúdos',
+              name: 'Conteudos',
               url: '/contents',
               icons: [{src: 'pwa-192x192.png', sizes: '192x192'}],
             },
@@ -68,7 +68,8 @@ export default defineConfig(({mode}) => {
         },
         workbox: {
           globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
-          // Cache first para assets estáticos
+          // Cache apenas para assets estaticos/publicos.
+          // Dados autenticados do Supabase nao devem ser servidos pelo SW.
           runtimeCaching: [
             {
               // Google Fonts
@@ -89,17 +90,6 @@ export default defineConfig(({mode}) => {
                 cacheableResponse: {statuses: [0, 200]},
               },
             },
-            {
-              // Supabase API — NetworkFirst para dados sempre frescos
-              urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,
-              handler: 'NetworkFirst',
-              options: {
-                cacheName: 'supabase-api-cache',
-                expiration: {maxEntries: 50, maxAgeSeconds: 60 * 60 * 24},
-                cacheableResponse: {statuses: [0, 200]},
-                networkTimeoutSeconds: 10,
-              },
-            },
           ],
         },
         devOptions: {
@@ -118,7 +108,7 @@ export default defineConfig(({mode}) => {
     },
     server: {
       // HMR is disabled in AI Studio via DISABLE_HMR env var.
-      // Do not modify — file watching is disabled to prevent flickering during agent edits.
+      // Do not modify - file watching is disabled to prevent flickering during agent edits.
       hmr: process.env.DISABLE_HMR !== 'true',
     },
   };

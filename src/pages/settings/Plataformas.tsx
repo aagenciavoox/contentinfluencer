@@ -6,6 +6,7 @@ import { useAuth } from '../../context/AuthContext';
 import type { Platform } from '../../lib/database';
 import { cn } from '../../lib/utils';
 import { DesktopPageHeader } from '../../components/layout/DesktopPageHeader';
+import { AppButton } from '../../components/common/AppButton';
 
 const PADROES = ['Instagram', 'TikTok', 'YouTube', 'Blog'];
 
@@ -40,31 +41,33 @@ export function PlataformasSettings() {
 
   return (
     <div className="min-h-screen bg-[var(--bg-secondary)]">
-      <div className="desktop-header-frame">
+      <header className="desktop-header-sticky transition-colors duration-300">
+        <div className="desktop-header-frame">
         <DesktopPageHeader
           section="Configurações"
           title="Plataformas"
-          subtitle="Ative os canais da sua operação e controle onde cada conteúdo pode existir."
+          subtitle="Ative os canais da operação e controle onde cada conteúdo pode existir."
           icon={MonitorSpeaker}
           backLabel="Configurações"
           onBack={() => navigate('/configuracoes')}
           actions={(
-            <button
+            <AppButton
               onClick={() => setShowForm(true)}
-              className="flex items-center gap-2 px-5 py-3 bg-[var(--text-primary)] text-[var(--bg-primary)] rounded-2xl text-[11px] font-black uppercase tracking-widest hover:opacity-90 shrink-0"
+              variant="primary"
+              leftIcon={<Plus className="w-4 h-4" />}
             >
-              <Plus className="w-4 h-4" />
               Adicionar
-            </button>
+            </AppButton>
           )}
         />
-      </div>
+        </div>
+      </header>
 
       <div className="desktop-content-frame">
 
         {/* Form adicionar */}
         {showForm && (
-          <div className="mb-6 flex gap-3 p-5 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-2xl">
+          <div className="mb-6 flex flex-wrap items-center gap-3 p-5 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-2xl">
             <input
               autoFocus
               value={novoNome}
@@ -73,7 +76,7 @@ export function PlataformasSettings() {
               placeholder="Nome da plataforma"
               className="flex-1 px-4 py-2.5 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:opacity-30 focus:outline-none"
             />
-            <button onClick={handleAdd} disabled={!novoNome.trim()} className="px-6 py-2.5 bg-[var(--text-primary)] text-[var(--bg-primary)] rounded-xl text-[11px] font-black uppercase tracking-widest hover:opacity-90 disabled:opacity-30">Criar</button>
+            <AppButton onClick={handleAdd} disabled={!novoNome.trim()} variant="primary">Criar</AppButton>
             <button onClick={() => setShowForm(false)} className="px-4 py-2.5 border border-[var(--border-color)] rounded-xl text-[11px] font-black uppercase tracking-widest opacity-50 hover:opacity-80">✕</button>
           </div>
         )}

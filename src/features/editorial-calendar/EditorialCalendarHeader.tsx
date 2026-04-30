@@ -13,13 +13,6 @@ interface EditorialCalendarHeaderProps {
   onAddProject: () => void;
 }
 
-const subtitleByTab: Record<EditorialMainTab, string> = {
-  agenda: 'Agenda Editorial',
-  cronograma: 'Cronograma de Projetos',
-  projetos: 'Diretório de Marcas',
-  'visao-geral': 'Kanban de Parcerias',
-};
-
 export function EditorialCalendarHeader({
   activeTab,
   tabs,
@@ -34,33 +27,32 @@ export function EditorialCalendarHeader({
       <div className="desktop-header-frame">
         <DesktopPageHeader
           section="Planejamento"
-          title="Calendário"
-          subtitle={subtitleByTab[activeTab]}
+          title="Calendario"
+          subtitle="Visualize agenda, cronograma e projetos em uma unica camada de planejamento."
           icon={CalendarIcon}
           className="mb-0"
-          actions={
-            activeTab === 'agenda' ? (
-              <AppButton
-                variant="primary"
-                size={isMobile ? 'sm' : 'md'}
-                onClick={onAddAgenda}
-                leftIcon={<Plus className="w-3.5 h-3.5" />}
-                className="uppercase tracking-widest"
-              >
-                Novo Evento
-              </AppButton>
-            ) : (
-              <AppButton
-                variant="primary"
-                size={isMobile ? 'sm' : 'md'}
-                onClick={onAddProject}
-                leftIcon={<Plus className="w-3.5 h-3.5" />}
-                className="uppercase tracking-widest"
-              >
-                Novo Projeto
-              </AppButton>
-            )
-          }
+          actions={[
+            <AppButton
+              key="agenda"
+              variant="secondary"
+              size={isMobile ? 'sm' : 'md'}
+              onClick={onAddAgenda}
+              leftIcon={<Plus className="w-3.5 h-3.5" />}
+              className="uppercase tracking-widest"
+            >
+              Novo evento
+            </AppButton>,
+            <AppButton
+              key="project"
+              variant="primary"
+              size={isMobile ? 'sm' : 'md'}
+              onClick={onAddProject}
+              leftIcon={<Plus className="w-3.5 h-3.5" />}
+              className="uppercase tracking-widest"
+            >
+              Novo projeto
+            </AppButton>,
+          ]}
         >
           <div className="flex items-center gap-3 flex-wrap">
             {isMobile ? (

@@ -24,6 +24,8 @@ interface AgendaViewProps {
   partnerships: Partnership[];
   externalEvents: AgendaItem[];
   activeLayers: string[];
+  searchTerm: string;
+  sortValue: string;
   onSelectContent: (content: Content) => void;
 }
 
@@ -32,6 +34,8 @@ export function CalendarAgendaView({
   partnerships, 
   externalEvents, 
   activeLayers,
+  searchTerm,
+  sortValue,
   onSelectContent 
 }: AgendaViewProps) {
   const [monthsToShow, setMonthsToShow] = useState(3); // Começa com 3 meses
@@ -76,7 +80,33 @@ export function CalendarAgendaView({
         .forEach(e => items.push({ ...e, __type: 'external' }));
     }
 
-    return items;
+    const normalizedSearch = searchTerm.trim().toLowerCase();
+    const filteredItems = normalizedSearch
+      ? items.filter(item => {
+          const haystacks = [
+            item.title,
+            item.text,
+            item.brand,
+            item.nome,
+          ].filter(Boolean);
+          return haystacks.some(value => String(value).toLowerCase().includes(normalizedSearch));
+        })
+      : items;
+
+    return filteredItems.sort((left, right) => {
+      if (sortValue === 'tipo:asc') {
+        return String(left.__type || '').localeCompare(String(right.__type || ''), 'pt-BR');
+      }
+
+      if (sortValue === 'titulo:asc') {
+        return String(left.title || left.text || left.nome || '').localeCompare(
+          String(right.title || right.text || right.nome || ''),
+          'pt-BR'
+        );
+      }
+
+      return 0;
+    });
   };
 
   // Handler para scroll infinito usando IntersectionObserver

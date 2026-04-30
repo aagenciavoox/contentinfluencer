@@ -1,13 +1,14 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { Plus, BookOpen, Film, Tv, X, Star, Search } from 'lucide-react';
+import { Plus, BookOpen, Film, Tv, X, Star } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import { BibliotecaItem, BibliotecaItemMeta } from '../lib/database';
 import { generateUUID } from '../utils/uuid';
 import { BottomSheetModal } from '../components/modals/BottomSheetModal';
 import { DesktopPageHeader } from '../components/layout/DesktopPageHeader';
 import { AppButton } from '../components/common/AppButton';
+import { FilterBar } from '../components/common/FilterBar';
 
 type StatusLeitura = BibliotecaItem['status'];
 type GeneroLivro = string;
@@ -53,6 +54,7 @@ export function Biblioteca() {
   const [filtroStatus, setFiltroStatus] = useState<StatusLeitura | 'Todos'>('Todos');
   const [filtroGenero, setFiltroGenero] = useState<string>('Todos');
   const [searchTerm, setSearchTerm] = useState('');
+  const [sortValue, setSortValue] = useState('recentes');
   const [modalAberto, setModalAberto] = useState(false);
   const [showTechnical, setShowTechnical] = useState(false);
   const [showParaVoce, setShowParaVoce] = useState(false);
@@ -75,18 +77,31 @@ export function Biblioteca() {
     potencialConteudo: '',
   });
 
-  const livrosFiltrados = state.books.filter(b => {
-    if (filtroTipo !== 'Todos' && b.tipo !== filtroTipo) return false;
-    if (filtroStatus !== 'Todos' && b.status !== filtroStatus) return false;
-    if (filtroGenero !== 'Todos' && !b.generoIds.includes(filtroGenero)) return false;
-    if (searchTerm.trim()) {
-      const term = searchTerm.toLowerCase();
-      const matchTitulo = b.titulo.toLowerCase().includes(term);
-      const matchAutor = b.autorDiretor.toLowerCase().includes(term);
-      if (!matchTitulo && !matchAutor) return false;
-    }
-    return true;
-  });
+  const livrosFiltrados = [...state.books]
+    .filter(b => {
+      if (filtroTipo !== 'Todos' && b.tipo !== filtroTipo) return false;
+      if (filtroStatus !== 'Todos' && b.status !== filtroStatus) return false;
+      if (filtroGenero !== 'Todos' && !b.generoIds.includes(filtroGenero)) return false;
+      if (searchTerm.trim()) {
+        const term = searchTerm.toLowerCase();
+        const haystacks = [b.titulo, b.autorDiretor, ...b.generoIds].filter(Boolean);
+        if (!haystacks.some(value => value.toLowerCase().includes(term))) return false;
+      }
+      return true;
+    })
+    .sort((left, right) => {
+      switch (sortValue) {
+        case 'titulo:asc':
+          return left.titulo.localeCompare(right.titulo, 'pt-BR');
+        case 'autor:asc':
+          return left.autorDiretor.localeCompare(right.autorDiretor, 'pt-BR');
+        case 'status:asc':
+          return left.status.localeCompare(right.status, 'pt-BR');
+        case 'recentes':
+        default:
+          return new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime();
+      }
+    });
 
   const contarConteudos = (livroId: string) =>
     state.contents.filter(c => c.bibliotecaItemId === livroId).length;
@@ -184,7 +199,7 @@ export function Biblioteca() {
           <DesktopPageHeader
             section="Biblioteca"
             title="Biblioteca"
-            subtitle={totalItensLabel}
+            subtitle={`Organize livros, filmes e séries em um único acervo de referência. ${totalItensLabel}`}
             icon={BookOpen}
             className="mb-0"
             actions={(
@@ -195,7 +210,7 @@ export function Biblioteca() {
                 leftIcon={<Plus className="w-4 h-4" />}
                 className="text-xs uppercase tracking-widest shrink-0"
               >
-                Adicionar Item
+                Adicionar item
               </AppButton>
             )}
           />
@@ -203,6 +218,55 @@ export function Biblioteca() {
       </header>
 
       <div className="desktop-content-frame-wide">
+        <FilterBar
+          className="mb-6"
+          searchValue={searchTerm}
+          onSearchChange={setSearchTerm}
+          searchPlaceholder="Buscar por título, autor, diretor ou criador"
+          filters={[
+            {
+              id: 'tipo',
+              label: 'Tipo',
+              value: filtroTipo,
+              onChange: value => setFiltroTipo(value as BibliotecaTipo | 'Todos'),
+              options: [
+                { label: 'Tipo', value: 'Todos' },
+                { label: 'Livro', value: 'livro' },
+                { label: 'Filme', value: 'filme' },
+                { label: 'Série', value: 'série' },
+              ],
+            },
+            {
+              id: 'status',
+              label: 'Status',
+              value: filtroStatus,
+              onChange: value => setFiltroStatus(value as StatusLeitura | 'Todos'),
+              options: [
+                { label: 'Status', value: 'Todos' },
+                ...STATUS_LEITURA.map(status => ({ label: status, value: status })),
+              ],
+            },
+            {
+              id: 'genero',
+              label: 'Gênero',
+              value: filtroGenero,
+              onChange: setFiltroGenero,
+              options: [
+                { label: 'Gênero', value: 'Todos' },
+                ...GENEROS.map(genero => ({ label: genero, value: genero })),
+              ],
+            },
+          ]}
+          sortValue={sortValue}
+          onSortChange={setSortValue}
+          sortOptions={[
+            { label: 'Recentes', value: 'recentes' },
+            { label: 'Título A-Z', value: 'titulo:asc' },
+            { label: 'Autor A-Z', value: 'autor:asc' },
+            { label: 'Status A-Z', value: 'status:asc' },
+          ]}
+        />
+
 
         {/* KPIs rápidos */}
         {state.books.length > 0 && (
@@ -221,54 +285,6 @@ export function Biblioteca() {
             ))}
           </div>
         )}
-
-        {/* Filtros */}
-        <div className="desktop-toolbar-surface mb-8 flex flex-col gap-4 p-4 md:p-5">
-              <div className="relative w-full">
-            <input 
-              type="text"
-              placeholder="Buscar por título, autor, diretor ou criador..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full text-sm font-bold bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-2xl pl-12 pr-4 py-3.5 focus:ring-0 focus:border-[var(--text-primary)] transition-all shadow-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]"
-            />
-            <Search className="w-5 h-5 text-[var(--text-tertiary)] absolute left-4 top-1/2 -translate-y-1/2" />
-          </div>
-          
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <select
-              value={filtroTipo}
-              onChange={(e) => setFiltroTipo(e.target.value as BibliotecaTipo | 'Todos')}
-              className="filter-select w-full"
-            >
-              {(['Todos', 'livro', 'filme', 'série'] as (BibliotecaTipo | 'Todos')[]).map(tipo => (
-                <option key={tipo} value={tipo}>
-                  {tipo === 'Todos' ? 'Qualquer Tipo' : getTipoLabel(tipo)}
-                </option>
-              ))}
-            </select>
-
-            <select
-              value={filtroStatus}
-              onChange={(e) => setFiltroStatus(e.target.value as any)}
-              className="filter-select w-full"
-            >
-              {(['Todos', ...STATUS_LEITURA] as (StatusLeitura | 'Todos')[]).map(s => (
-                <option key={s} value={s}>{s === 'Todos' ? 'Qualquer Status' : s}</option>
-              ))}
-            </select>
-
-            <select
-              value={filtroGenero}
-              onChange={(e) => setFiltroGenero(e.target.value)}
-              className="filter-select w-full"
-            >
-              {(['Todos', ...GENEROS]).map(g => (
-                <option key={g} value={g}>{g === 'Todos' ? 'Qualquer Gênero' : g}</option>
-              ))}
-            </select>
-          </div>
-        </div>
 
         {/* Grid de Itens */}
         {livrosFiltrados.length === 0 ? (

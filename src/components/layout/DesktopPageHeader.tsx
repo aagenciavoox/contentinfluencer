@@ -1,13 +1,12 @@
-import { ReactNode } from 'react';
-import { ArrowLeft, LucideIcon } from 'lucide-react';
-import { cn } from '../../lib/utils';
+import {Children, ReactNode} from 'react';
+import {cn} from '../../lib/utils';
 
 interface DesktopPageHeaderProps {
   section: string;
   title: string;
   subtitle?: string;
   meta?: string;
-  icon?: LucideIcon;
+  icon?: unknown;
   actions?: ReactNode;
   children?: ReactNode;
   className?: string;
@@ -20,61 +19,60 @@ export function DesktopPageHeader({
   title,
   subtitle,
   meta,
-  icon: Icon,
+  icon: _icon,
   actions,
   children,
   className,
   backLabel,
-  onBack,
+  onBack: _onBack,
 }: DesktopPageHeaderProps) {
+  const breadcrumbItems = [backLabel || section, title].filter(
+    (item, index, array) => item && array.indexOf(item) === index
+  );
+  const actionItems = Children.toArray(actions).slice(0, 2);
+
   return (
-    <header className={cn('mb-8 md:mb-10', className)}>
-      {backLabel && onBack ? (
-        <button
-          type="button"
-          onClick={onBack}
-          className="t-button t-button-uppercase mb-5 hidden items-center gap-2 text-[var(--text-primary)] opacity-45 transition-opacity hover:opacity-80 md:flex"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          {backLabel}
-        </button>
-      ) : null}
-
-      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between md:gap-6">
-        <div className="min-w-0">
-          <p className="t-label mb-2 text-[var(--text-tertiary)]">
-            {section}
-          </p>
-
-          <div className="flex items-center gap-4">
-            {Icon ? (
-              <div className="hidden h-14 w-14 items-center justify-center rounded-[1.35rem] border border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] shadow-sm md:flex">
-                <Icon className="h-6 w-6 opacity-70" />
+    <header className={cn('w-full', className)}>
+      <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2 text-[12px] font-medium leading-[1.4] text-[#8A8F98]">
+            {breadcrumbItems.map((item, index) => (
+              <div key={`${item}-${index}`} className="flex items-center gap-2">
+                {index > 0 ? <span>/</span> : null}
+                <span className="truncate">{item}</span>
               </div>
+            ))}
+          </div>
+
+          <div className="mt-2 min-w-0">
+            <h1 className="text-[24px] font-semibold leading-[1.25] text-[#0F172A]">
+              {title}
+            </h1>
+
+            {subtitle ? (
+              <p className="mt-1 max-w-[720px] text-[14px] font-normal leading-[1.5] text-[#6B7280]">
+                {subtitle}
+              </p>
             ) : null}
 
-            <div className="min-w-0">
-              <h1 className="t-page-title text-[var(--text-primary)]">
-                {title}
-              </h1>
-              {subtitle ? (
-                <p className="t-body-strong mt-2 max-w-2xl text-[var(--text-secondary)] md:mt-3">
-                  {subtitle}
-                </p>
-              ) : null}
-              {meta ? (
-                <p className="t-label mt-2 text-[var(--text-tertiary)]">
-                  {meta}
-                </p>
-              ) : null}
-            </div>
+            {meta ? (
+              <p className="mt-1.5 text-[12px] font-medium text-[#8A8F98]">
+                {meta}
+              </p>
+            ) : null}
           </div>
         </div>
 
-        {actions ? <div className="md:shrink-0">{actions}</div> : null}
+        {actionItems.length > 0 ? (
+          <div className="flex shrink-0 items-center justify-end gap-2 self-start max-lg:w-full max-lg:flex-wrap">
+            {actionItems}
+          </div>
+        ) : null}
       </div>
 
-      {children ? <div className="mt-6 md:mt-7">{children}</div> : null}
+      <div className="mt-4 border-t border-[#E5E7EB]" />
+
+      {children ? <div className="pt-6">{children}</div> : null}
     </header>
   );
 }

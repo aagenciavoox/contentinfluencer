@@ -1,4 +1,5 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
+import { Dashboard } from '../pages/Dashboard';
 import { Contents } from '../pages/Contents';
 import { Ideas } from '../pages/Ideas';
 import { EditorialCalendar } from '../pages/EditorialCalendar';
@@ -21,7 +22,8 @@ import { Analise } from '../pages/Analise';
 export function AppRoutes() {
   return (
     <Routes>
-      <Route path="/" element={<Navigate to="/conteudos" replace />} />
+      <Route path="/" element={<Navigate to="/dashboard" replace />} />
+      <Route path="/dashboard" element={<Dashboard />} />
       <Route path="/conteudos" element={<Contents />} />
       <Route path="/ideias" element={<Ideas />} />
       <Route path="/calendario" element={<EditorialCalendar />} />
@@ -52,7 +54,7 @@ export function AppRoutes() {
       <Route path="/results" element={<Navigate to="/analise" replace />} />
       <Route path="/settings/*" element={<Navigate to="/configuracoes" replace />} />
 
-      <Route path="*" element={<Navigate to="/conteudos" replace />} />
+      <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
   );
 }

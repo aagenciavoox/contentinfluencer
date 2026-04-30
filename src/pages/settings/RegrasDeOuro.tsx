@@ -69,11 +69,12 @@ export function RegrasDeOuro() {
 
   return (
     <div className="min-h-screen bg-[var(--bg-secondary)]">
-      <div className="desktop-header-frame">
+      <header className="desktop-header-sticky transition-colors duration-300">
+        <div className="desktop-header-frame">
         <DesktopPageHeader
           section="Configurações"
           title="Regras de Ouro"
-          subtitle="Validações editoriais aplicadas automaticamente para proteger consistência e cadência."
+          subtitle="Aplique validações editoriais para proteger consistência, cadência e distribuição."
           icon={ShieldCheck}
           backLabel="Configurações"
           onBack={() => navigate('/configuracoes')}
@@ -86,7 +87,8 @@ export function RegrasDeOuro() {
             </button>
           )}
         />
-      </div>
+        </div>
+      </header>
 
       <div className="desktop-content-frame">
         {showAddForm && (

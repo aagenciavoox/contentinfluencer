@@ -132,8 +132,7 @@ export type AppAction =
 // ============================================================================
 
 function deriveTheme(_prefs: Record<string, string>): 'light' | 'dark' {
-  const theme = _prefs.theme;
-  return theme === 'dark' ? 'dark' : 'light';
+  return 'light';
 }
 
 // ============================================================================

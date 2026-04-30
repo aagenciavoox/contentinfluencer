@@ -68,11 +68,12 @@ export function SeriesSettings() {
 
   return (
     <div className="min-h-screen bg-[var(--bg-secondary)]">
-      <div className="desktop-header-frame">
+      <header className="desktop-header-sticky transition-colors duration-300">
+        <div className="desktop-header-frame">
         <DesktopPageHeader
           section="Configurações"
           title="Séries"
-          subtitle="Estruture quadros recorrentes com identidade, frequência e roteiro-base."
+          subtitle="Estruture quadros recorrentes com identidade, frequência e roteiro-base claros."
           icon={Layers}
           backLabel="Configurações"
           onBack={() => navigate('/configuracoes')}
@@ -86,7 +87,8 @@ export function SeriesSettings() {
             </button>
           )}
         />
-      </div>
+        </div>
+      </header>
 
       <div className="desktop-content-frame">
 

@@ -1,41 +1,74 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Video, Plus, Trash2, ChevronRight, Filter } from 'lucide-react';
-import { useAppContext } from '../../../context/AppContext';
-import { useAuth } from '../../../context/AuthContext';
-import type { RecordingBlock, RecordingBlockContent } from '../../../lib/database';
-import { cn } from '../../../lib/utils';
-import { DesktopPageHeader } from '../../../components/layout/DesktopPageHeader';
+import {useState} from 'react';
+import {Plus, Video} from 'lucide-react';
+import {useAppContext} from '../../../context/AppContext';
+import {useAuth} from '../../../context/AuthContext';
+import type {RecordingBlock, RecordingBlockContent} from '../../../lib/database';
+import {cn} from '../../../lib/utils';
+import {DesktopPageHeader} from '../../../components/layout/DesktopPageHeader';
+import {RecordingTab} from '../../contents/components/RecordingTab';
+import {FilterBar} from '../../../components/common/FilterBar';
+
+type RecordingPageTab = 'queue' | 'blocks';
 
 export function Gravacao() {
-  const { state, dispatch } = useAppContext();
-  const { user } = useAuth();
-  const navigate = useNavigate();
+  const {state, dispatch} = useAppContext();
+  const {user} = useAuth();
 
+  const [activeTab, setActiveTab] = useState<RecordingPageTab>('queue');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [blockName, setBlockName] = useState('');
   const [showBlockForm, setShowBlockForm] = useState(false);
 
-  // Filtros
   const [filterPilar, setFilterPilar] = useState('');
   const [filterSerie, setFilterSerie] = useState('');
   const [filterLook, setFilterLook] = useState('');
   const [filterCenario, setFilterCenario] = useState('');
   const [filterEnergia, setFilterEnergia] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortValue, setSortValue] = useState('recentes');
 
-  const prontos = state.contents.filter(c => {
-    if (c.status !== 'Pronto para Gravar') return false;
-    if (filterPilar && c.pilarId !== filterPilar) return false;
-    if (filterSerie && c.seriesId !== filterSerie) return false;
-    if (filterLook && c.lookId !== filterLook) return false;
-    if (filterCenario && c.cenarioId !== filterCenario) return false;
-    if (filterEnergia && c.energiaNecessaria !== filterEnergia) return false;
-    return true;
-  });
+  const prontos = [...state.contents]
+    .filter(content => {
+      if (content.status !== 'Pronto para Gravar') return false;
+      if (filterPilar && content.pilarId !== filterPilar) return false;
+      if (filterSerie && content.seriesId !== filterSerie) return false;
+      if (filterLook && content.lookId !== filterLook) return false;
+      if (filterCenario && content.cenarioId !== filterCenario) return false;
+      if (filterEnergia && content.energiaNecessaria !== filterEnergia) return false;
+      if (searchTerm.trim()) {
+        const term = searchTerm.toLowerCase();
+        const haystacks = [
+          content.title,
+          state.pilares.find(pilar => pilar.id === content.pilarId)?.nome ?? '',
+          state.series.find(serie => serie.id === content.seriesId)?.name ?? '',
+          state.cenarios.find(cenario => cenario.id === content.cenarioId)?.nome ?? '',
+        ];
+        if (!haystacks.some(value => value.toLowerCase().includes(term))) return false;
+      }
+      return true;
+    })
+    .sort((left, right) => {
+      switch (sortValue) {
+        case 'titulo:asc':
+          return (left.title || '').localeCompare(right.title || '', 'pt-BR');
+        case 'pilar:asc': {
+          const leftPilar = state.pilares.find(pilar => pilar.id === left.pilarId)?.nome ?? '';
+          const rightPilar = state.pilares.find(pilar => pilar.id === right.pilarId)?.nome ?? '';
+          return leftPilar.localeCompare(rightPilar, 'pt-BR');
+        }
+        case 'energia:desc': {
+          const energyRank: Record<string, number> = {alta: 3, média: 2, baixa: 1};
+          return (energyRank[right.energiaNecessaria ?? ''] ?? 0) - (energyRank[left.energiaNecessaria ?? ''] ?? 0);
+        }
+        case 'recentes':
+        default:
+          return new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime();
+      }
+    });
 
   const toggleSelect = (id: string) => {
-    setSelectedIds(prev => {
-      const next = new Set(prev);
+    setSelectedIds(previous => {
+      const next = new Set(previous);
       if (next.has(id)) next.delete(id);
       else next.add(id);
       return next;
@@ -53,226 +86,260 @@ export function Gravacao() {
       contents: [],
     };
 
-    const blockContents: RecordingBlockContent[] = Array.from(selectedIds).map((contentId, idx) => ({
+    const blockContents: RecordingBlockContent[] = Array.from(selectedIds).map((contentId, index) => ({
       blockId: block.id,
       contentId,
-      ordem: idx,
+      ordem: index,
       gravado: false,
     }));
 
-    dispatch({ type: 'ADD_RECORDING_BLOCK', payload: block });
-    dispatch({ type: 'UPDATE_BLOCK_CONTENTS', payload: { blockId: block.id, contents: blockContents } });
+    dispatch({type: 'ADD_RECORDING_BLOCK', payload: block});
+    dispatch({type: 'UPDATE_BLOCK_CONTENTS', payload: {blockId: block.id, contents: blockContents}});
 
     setSelectedIds(new Set());
     setBlockName('');
     setShowBlockForm(false);
-  };
-
-  const handleDeleteBlock = (blockId: string) => {
-    if (!window.confirm('Excluir este bloco de gravação?')) return;
-    dispatch({ type: 'DELETE_RECORDING_BLOCK', payload: blockId });
+    setActiveTab('blocks');
   };
 
   const getPilarNome = (pilarId: string | null) =>
-    state.pilares.find(p => p.id === pilarId)?.nome || '';
-
-  const getProgresso = (block: RecordingBlock) => {
-    const total = block.contents.length;
-    const gravados = block.contents.filter(c => c.gravado).length;
-    return { total, gravados };
-  };
+    state.pilares.find(pilar => pilar.id === pilarId)?.nome || '';
 
   return (
     <div className="min-h-screen bg-[var(--bg-secondary)]">
       <header className="desktop-header-sticky transition-colors duration-300">
         <div className="desktop-header-frame">
-        <DesktopPageHeader
-          section="Produção"
-          title="Gravação"
-          subtitle="Monte blocos inteligentes e organize a fila de conteúdos prontos para sair do papel."
-          icon={Video}
-          className="mb-0"
-        />
+          <DesktopPageHeader
+            section="Produção"
+            title="Gravação"
+            subtitle="Monte blocos e execute a fila dos roteiros que já estão prontos para gravar."
+            icon={Video}
+            className="mb-0"
+          />
         </div>
       </header>
 
-      <div className="desktop-content-frame">
+      <div className="desktop-content-frame space-y-8">
+        <div
+          role="tablist"
+          aria-label="Areas de gravacao"
+          className="grid grid-cols-2 rounded-xl border border-[var(--border-color)] bg-[var(--bg-hover)] p-0.5 md:max-w-md"
+        >
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'queue'}
+            onClick={() => setActiveTab('queue')}
+            className={cn(
+              't-label rounded-lg px-3 py-2 text-center transition-all md:px-6 md:py-2.5',
+              activeTab === 'queue'
+                ? 'bg-[var(--bg-primary)] text-[var(--text-primary)] shadow-sm'
+                : 'text-[var(--text-secondary)] italic'
+            )}
+          >
+            Para Gravar
+          </button>
 
-        {/* SEÇÃO 1 — Planejamento */}
-        <section className="mb-12">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-[11px] font-black uppercase tracking-widest opacity-40">
-              Prontos para Gravar
-              {prontos.length > 0 && <span className="ml-2 opacity-70">({prontos.length})</span>}
-            </h2>
-          </div>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'blocks'}
+            onClick={() => setActiveTab('blocks')}
+            className={cn(
+              't-label rounded-lg px-3 py-2 text-center transition-all md:px-6 md:py-2.5',
+              activeTab === 'blocks'
+                ? 'bg-[var(--bg-primary)] text-[var(--text-primary)] shadow-sm'
+                : 'text-[var(--text-secondary)] italic'
+            )}
+          >
+            Blocos
+          </button>
+        </div>
 
-          {/* Filtros */}
-          <div className="desktop-toolbar-surface mb-4 flex flex-wrap items-center gap-2 p-4 md:p-5">
-            <div className="flex items-center gap-1.5 px-1 text-[10px] font-black uppercase tracking-widest opacity-30">
-              <Filter className="w-3 h-3" />
-              Filtrar:
-            </div>
-            <select
-              value={filterPilar}
-              onChange={e => setFilterPilar(e.target.value)}
-              className="filter-select"
-            >
-              <option value="">Pilar</option>
-              {state.pilares.map(p => <option key={p.id} value={p.id}>{p.nome}</option>)}
-            </select>
-            <select
-              value={filterSerie}
-              onChange={e => setFilterSerie(e.target.value)}
-              className="filter-select"
-            >
-              <option value="">Série</option>
-              {state.series.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-            </select>
-            <select
-              value={filterLook}
-              onChange={e => setFilterLook(e.target.value)}
-              className="filter-select"
-            >
-              <option value="">Look</option>
-              {state.looks.map(l => <option key={l.id} value={l.id}>Look {l.numero}</option>)}
-            </select>
-            <select
-              value={filterCenario}
-              onChange={e => setFilterCenario(e.target.value)}
-              className="filter-select"
-            >
-              <option value="">Cenário</option>
-              {state.cenarios.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
-            </select>
-            <select
-              value={filterEnergia}
-              onChange={e => setFilterEnergia(e.target.value)}
-              className="filter-select"
-            >
-              <option value="">Energia</option>
-              <option value="baixa">Baixa</option>
-              <option value="média">Média</option>
-              <option value="alta">Alta</option>
-            </select>
-          </div>
+        {activeTab === 'queue' ? (
+          <section className="space-y-6">
+            <FilterBar
+              searchValue={searchTerm}
+              onSearchChange={setSearchTerm}
+              searchPlaceholder="Buscar por roteiro, pilar, série ou cenário"
+              filters={[
+                {
+                  id: 'pilar',
+                  label: 'Pilar',
+                  value: filterPilar,
+                  onChange: setFilterPilar,
+                  options: [
+                    {label: 'Pilar', value: ''},
+                    ...state.pilares.map(pilar => ({label: pilar.nome, value: pilar.id})),
+                  ],
+                },
+                {
+                  id: 'serie',
+                  label: 'Série',
+                  value: filterSerie,
+                  onChange: setFilterSerie,
+                  options: [
+                    {label: 'Série', value: ''},
+                    ...state.series.map(serie => ({label: serie.name, value: serie.id})),
+                  ],
+                },
+                {
+                  id: 'look',
+                  label: 'Look',
+                  value: filterLook,
+                  onChange: setFilterLook,
+                  options: [
+                    {label: 'Look', value: ''},
+                    ...state.looks.map(look => ({label: `Look ${look.numero}`, value: look.id})),
+                  ],
+                },
+                {
+                  id: 'cenario',
+                  label: 'Cenário',
+                  value: filterCenario,
+                  onChange: setFilterCenario,
+                  options: [
+                    {label: 'Cenário', value: ''},
+                    ...state.cenarios.map(cenario => ({label: cenario.nome, value: cenario.id})),
+                  ],
+                },
+                {
+                  id: 'energia',
+                  label: 'Energia',
+                  value: filterEnergia,
+                  onChange: setFilterEnergia,
+                  options: [
+                    {label: 'Energia', value: ''},
+                    {label: 'Baixa', value: 'baixa'},
+                    {label: 'Média', value: 'média'},
+                    {label: 'Alta', value: 'alta'},
+                  ],
+                },
+              ]}
+              sortValue={sortValue}
+              onSortChange={setSortValue}
+              sortOptions={[
+                {label: 'Recentes', value: 'recentes'},
+                {label: 'Título A-Z', value: 'titulo:asc'},
+                {label: 'Pilar A-Z', value: 'pilar:asc'},
+                {label: 'Energia alta', value: 'energia:desc'},
+              ]}
+            />
 
-          {prontos.length === 0 ? (
-            <div className="text-center py-12">
-              <Video className="w-10 h-10 mx-auto opacity-10 mb-3" />
-              <p className="text-sm font-black uppercase tracking-widest opacity-30">Nenhum conteúdo pronto para gravar</p>
-            </div>
-          ) : (
             <div className="space-y-2">
-              {prontos.map(c => (
-                <button
-                  key={c.id}
-                  onClick={() => toggleSelect(c.id)}
-                  className={cn(
-                    'w-full flex items-center gap-4 px-5 py-4 rounded-2xl border transition-all text-left',
-                    selectedIds.has(c.id)
-                      ? 'border-[var(--text-primary)] bg-[var(--bg-hover)]'
-                      : 'border-[var(--border-color)] bg-[var(--bg-primary)] hover:border-[var(--text-primary)]/30'
-                  )}
-                >
-                  <div className={cn(
-                    'w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-all',
-                    selectedIds.has(c.id) ? 'border-[var(--text-primary)] bg-[var(--text-primary)]' : 'border-[var(--border-color)]'
-                  )}>
-                    {selectedIds.has(c.id) && <div className="w-2 h-2 rounded-sm bg-[var(--bg-primary)]" />}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-black text-[var(--text-primary)] truncate">{c.title || '(sem título)'}</p>
-                    <div className="flex gap-3 mt-0.5 flex-wrap">
-                      {c.pilarId && <span className="text-[10px] font-bold opacity-40">{getPilarNome(c.pilarId)}</span>}
-                      {c.energiaNecessaria && <span className="text-[10px] font-bold opacity-40 capitalize">⚡ {c.energiaNecessaria}</span>}
+              <h2 className="text-[11px] font-black uppercase tracking-widest opacity-40">
+                Videos prontos para gravar
+                {prontos.length > 0 && <span className="ml-2 opacity-70">({prontos.length})</span>}
+              </h2>
+              <p className="text-sm text-[var(--text-secondary)]">
+                Selecione os roteiros finalizados e monte um bloco. Quando criar, ele aparece na aba `Blocos`.
+              </p>
+            </div>
+
+            {prontos.length === 0 ? (
+              <div className="py-12 text-center">
+                <Video className="mx-auto mb-3 h-10 w-10 opacity-10" />
+                <p className="text-sm font-black uppercase tracking-widest opacity-30">
+                  Nenhum conteudo pronto para gravar
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {prontos.map(content => (
+                  <button
+                    key={content.id}
+                    onClick={() => toggleSelect(content.id)}
+                    className={cn(
+                      'flex w-full items-center gap-4 rounded-2xl border px-5 py-4 text-left transition-all',
+                      selectedIds.has(content.id)
+                        ? 'border-[var(--text-primary)] bg-[var(--bg-hover)]'
+                        : 'border-[var(--border-color)] bg-[var(--bg-primary)] hover:border-[var(--text-primary)]/30'
+                    )}
+                  >
+                    <div
+                      className={cn(
+                        'flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 transition-all',
+                        selectedIds.has(content.id)
+                          ? 'border-[var(--text-primary)] bg-[var(--text-primary)]'
+                          : 'border-[var(--border-color)]'
+                      )}
+                    >
+                      {selectedIds.has(content.id) && (
+                        <div className="h-2 w-2 rounded-sm bg-[var(--bg-primary)]" />
+                      )}
                     </div>
-                  </div>
-                </button>
-              ))}
-            </div>
-          )}
-
-          {selectedIds.size > 0 && (
-            <div className="mt-4">
-              {showBlockForm ? (
-                <div className="flex gap-3">
-                  <input
-                    autoFocus
-                    value={blockName}
-                    onChange={e => setBlockName(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && handleCriarBloco()}
-                    placeholder={`Nome do bloco (${selectedIds.size} selecionados)`}
-                    className="flex-1 px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:opacity-30 focus:outline-none focus:border-[var(--text-primary)]/40"
-                  />
-                  <button
-                    onClick={handleCriarBloco}
-                    disabled={!blockName.trim()}
-                    className="px-6 py-3 bg-[var(--text-primary)] text-[var(--bg-primary)] rounded-xl text-[11px] font-black uppercase tracking-widest hover:opacity-90 disabled:opacity-30"
-                  >
-                    Criar
-                  </button>
-                  <button
-                    onClick={() => setShowBlockForm(false)}
-                    className="px-4 py-3 border border-[var(--border-color)] rounded-xl text-[11px] font-black uppercase tracking-widest opacity-50 hover:opacity-80"
-                  >
-                    Cancelar
-                  </button>
-                </div>
-              ) : (
-                <button
-                  onClick={() => setShowBlockForm(true)}
-                  className="flex items-center gap-2 px-6 py-3 bg-[var(--text-primary)] text-[var(--bg-primary)] rounded-2xl text-[11px] font-black uppercase tracking-widest hover:opacity-90 transition-opacity"
-                >
-                  <Plus className="w-4 h-4" />
-                  Criar bloco ({selectedIds.size})
-                </button>
-              )}
-            </div>
-          )}
-        </section>
-
-        {/* SEÇÃO 2 — Blocos existentes */}
-        {state.recordingBlocks.length > 0 && (
-          <section>
-            <h2 className="text-[11px] font-black uppercase tracking-widest opacity-40 mb-4">Blocos de Gravação</h2>
-            <div className="space-y-3">
-              {state.recordingBlocks.map(block => {
-                const { total, gravados } = getProgresso(block);
-                const pct = total > 0 ? Math.round((gravados / total) * 100) : 0;
-                return (
-                  <div key={block.id} className="flex items-center gap-4 px-5 py-4 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-2xl">
-                    <button
-                      onClick={() => navigate(`/gravacao/${block.id}`)}
-                      className="flex-1 text-left"
-                    >
-                      <p className="text-sm font-black text-[var(--text-primary)]">{block.name}</p>
-                      <div className="flex items-center gap-3 mt-1.5">
-                        <div className="flex-1 h-1.5 bg-[var(--bg-hover)] rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-[var(--text-primary)] rounded-full transition-all"
-                            style={{ width: `${pct}%` }}
-                          />
-                        </div>
-                        <span className="text-[10px] font-black opacity-40 shrink-0">{gravados}/{total}</span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-black text-[var(--text-primary)]">
+                        {content.title || '(sem titulo)'}
+                      </p>
+                      <div className="mt-0.5 flex flex-wrap gap-3">
+                        {content.pilarId && (
+                          <span className="text-[10px] font-bold opacity-40">
+                            {getPilarNome(content.pilarId)}
+                          </span>
+                        )}
+                        {content.energiaNecessaria && (
+                          <span className="text-[10px] font-bold capitalize opacity-40">
+                            {`⚡ ${content.energiaNecessaria}`}
+                          </span>
+                        )}
                       </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {selectedIds.size > 0 && (
+              <div className="mt-4">
+                {showBlockForm ? (
+                  <div className="flex gap-3">
+                    <input
+                      autoFocus
+                      value={blockName}
+                      onChange={event => setBlockName(event.target.value)}
+                      onKeyDown={event => event.key === 'Enter' && handleCriarBloco()}
+                      placeholder={`Nome do bloco (${selectedIds.size} selecionados)`}
+                      className="flex-1 rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] placeholder:opacity-30 focus:outline-none focus:border-[var(--text-primary)]/40"
+                    />
+                    <button
+                      onClick={handleCriarBloco}
+                      disabled={!blockName.trim()}
+                      className="rounded-xl bg-[var(--text-primary)] px-6 py-3 text-[11px] font-black uppercase tracking-widest text-[var(--bg-primary)] hover:opacity-90 disabled:opacity-30"
+                    >
+                      Criar
                     </button>
                     <button
-                      onClick={() => navigate(`/gravacao/${block.id}`)}
-                      className="p-2 opacity-30 hover:opacity-80 transition-opacity"
+                      onClick={() => setShowBlockForm(false)}
+                      className="rounded-xl border border-[var(--border-color)] px-4 py-3 text-[11px] font-black uppercase tracking-widest opacity-50 hover:opacity-80"
                     >
-                      <ChevronRight className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => handleDeleteBlock(block.id)}
-                      className="p-2 opacity-20 hover:opacity-60 hover:text-red-400 transition-all"
-                    >
-                      <Trash2 className="w-4 h-4" />
+                      Cancelar
                     </button>
                   </div>
-                );
-              })}
+                ) : (
+                  <button
+                    onClick={() => setShowBlockForm(true)}
+                    className="flex items-center gap-2 rounded-2xl bg-[var(--text-primary)] px-6 py-3 text-[11px] font-black uppercase tracking-widest text-[var(--bg-primary)] transition-opacity hover:opacity-90"
+                  >
+                    <Plus className="h-4 w-4" />
+                    {`Criar bloco (${selectedIds.size})`}
+                  </button>
+                )}
+              </div>
+            )}
+          </section>
+        ) : (
+          <section className="space-y-4">
+            <div>
+              <h2 className="text-[11px] font-black uppercase tracking-widest opacity-40">
+                Blocos de gravacao
+              </h2>
+              <p className="mt-2 text-sm text-[var(--text-secondary)]">
+                Aqui ficam os blocos montados para revisar lineup, validar os roteiros e iniciar o modo explosao.
+              </p>
             </div>
+
+            <RecordingTab />
           </section>
         )}
       </div>

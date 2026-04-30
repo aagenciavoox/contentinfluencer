@@ -943,17 +943,21 @@ export function ContentDetailModal({ content, onClose, initialLivroOrigemId, isN
             isDesktopNewContent && 'md:px-8 md:py-6 md:bg-[#fbfaf7]'
           )}>
             {isDesktopNewContent ? (
-              <>
-                <button
-                  onClick={isNewContent ? onClose : handleDeleteContent}
+              <div className="flex w-full items-center justify-between gap-6">
+                <div className="flex items-center gap-5">
+                  {!isNewContent ? (
+                    <button
+                      onClick={handleDeleteContent}
                   className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.16em] text-[var(--accent-pink)] opacity-70 hover:opacity-100 transition-opacity"
                 >
                   <Trash2 className="w-4 h-4" />
                   Excluir Conteúdo
-                </button>
-                <button onClick={onClose} className="text-[11px] font-black uppercase tracking-[0.16em] text-[var(--text-primary)] opacity-45 hover:opacity-100 transition-opacity">
-                  Descartar Alterações
-                </button>
+                    </button>
+                  ) : null}
+                  <button onClick={onClose} className="text-[11px] font-black uppercase tracking-[0.16em] text-[var(--text-primary)] opacity-45 hover:opacity-100 transition-opacity">
+                    {isNewContent ? 'Cancelar' : 'Descartar Alterações'}
+                  </button>
+                </div>
                 <button
                   onClick={handleSave}
                   disabled={loading}
@@ -962,7 +966,7 @@ export function ContentDetailModal({ content, onClose, initialLivroOrigemId, isN
                   {loading ? <div className="w-4 h-4 border-2 border-[var(--bg-primary)] border-t-transparent rounded-full animate-spin" /> : <Check className="w-3.5 h-3.5" />}
                   {loading ? 'Salvando...' : saveSuccess ? 'Salvo!' : 'Salvar Alterações'}
                 </button>
-              </>
+              </div>
             ) : (
               <>
             <button onClick={onClose} className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-primary)] opacity-30 hover:opacity-100 transition-opacity">

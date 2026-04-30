@@ -1,15 +1,10 @@
-import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Palette, Shirt, ShieldCheck, ChevronRight, Settings as SettingsIcon, Fingerprint, Layers, Layout, MonitorSpeaker } from 'lucide-react';
 import { DesktopPageHeader } from '../components/layout/DesktopPageHeader';
 import { AppButton } from '../components/common/AppButton';
-import { useAppContext } from '../context/AppContext';
-import { ConfirmModal } from '../components/modals/ConfirmModal';
 
 export function Settings() {
   const navigate = useNavigate();
-  const { dispatch } = useAppContext();
-  const [confirmReset, setConfirmReset] = useState(false);
 
   const items = [
     {
@@ -57,7 +52,6 @@ export function Settings() {
   ];
 
   return (
-    <>
     <div className="min-h-screen bg-[var(--bg-secondary)]">
       <div className="desktop-header-frame">
         <DesktopPageHeader
@@ -75,10 +69,10 @@ export function Settings() {
             <AppButton
               key={to}
               onClick={() => navigate(to)}
-              variant="tertiary"
+              variant="ghost"
               size="lg"
               fullWidth
-              className="group h-auto justify-start gap-5 px-5 py-4 text-left normal-case tracking-normal"
+              className="group h-auto justify-start gap-5 border border-[#E5E7EB] px-5 py-4 text-left normal-case tracking-normal"
             >
               <div className="w-10 h-10 rounded-2xl bg-[var(--bg-hover)] flex items-center justify-center shrink-0">
                 <Icon className="w-5 h-5 text-[var(--text-primary)] opacity-50 group-hover:opacity-100 transition-opacity" />
@@ -90,37 +84,8 @@ export function Settings() {
               <ChevronRight className="w-4 h-4 text-[var(--text-primary)] opacity-20 group-hover:opacity-50 transition-opacity shrink-0" />
             </AppButton>
           ))}
-
-          <AppButton
-            onClick={() => setConfirmReset(true)}
-            variant="tertiary"
-            size="lg"
-            fullWidth
-            className="group h-auto justify-start gap-5 px-5 py-4 text-left normal-case tracking-normal"
-          >
-            <div className="w-10 h-10 rounded-2xl bg-[var(--bg-hover)] flex items-center justify-center shrink-0">
-              <SettingsIcon className="w-5 h-5 text-[var(--text-primary)] opacity-50 group-hover:opacity-100 transition-opacity" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-black text-[var(--text-primary)]">Reiniciar Guia de Operacao</p>
-              <p className="text-xs text-[var(--text-secondary)] opacity-50 mt-0.5">Mostra novamente a apresentacao inicial do sistema.</p>
-            </div>
-            <ChevronRight className="w-4 h-4 text-[var(--text-primary)] opacity-20 group-hover:opacity-50 transition-opacity shrink-0" />
-          </AppButton>
         </div>
       </div>
     </div>
-
-    <ConfirmModal
-      open={confirmReset}
-      message="Deseja reiniciar o guia de operacao?"
-      onConfirm={() => {
-        dispatch({ type: 'SET_PREFERENCE', payload: { key: 'onboarding_completo', value: 'false' } });
-        setConfirmReset(false);
-        navigate('/');
-      }}
-      onCancel={() => setConfirmReset(false)}
-    />
-    </>
   );
 }

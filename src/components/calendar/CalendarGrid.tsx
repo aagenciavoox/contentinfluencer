@@ -45,10 +45,12 @@ import { CalendarHoverCard } from './CalendarHoverCard';
 
 interface CalendarGridProps {
   activeLayers: string[];
+  searchTerm: string;
+  sortValue: string;
   onItemClick: (item: any) => void;
 }
 
-export function CalendarGrid({ activeLayers, onItemClick }: CalendarGridProps) {
+export function CalendarGrid({ activeLayers, searchTerm, sortValue, onItemClick }: CalendarGridProps) {
   const { state } = useAppContext();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [hoveredItemId, setHoveredItemId] = useState<string | null>(null);
@@ -130,7 +132,33 @@ export function CalendarGrid({ activeLayers, onItemClick }: CalendarGridProps) {
       });
     }
 
-    return items;
+    const normalizedSearch = searchTerm.trim().toLowerCase();
+    const filteredItems = normalizedSearch
+      ? items.filter(item => {
+          const haystacks = [
+            item.title,
+            item.text,
+            item.brand,
+            item.nome,
+          ].filter(Boolean);
+          return haystacks.some(value => String(value).toLowerCase().includes(normalizedSearch));
+        })
+      : items;
+
+    return filteredItems.sort((left, right) => {
+      if (sortValue === 'tipo:asc') {
+        return String(left.type || '').localeCompare(String(right.type || ''), 'pt-BR');
+      }
+
+      if (sortValue === 'titulo:asc') {
+        return String(left.title || left.text || left.nome || '').localeCompare(
+          String(right.title || right.text || right.nome || ''),
+          'pt-BR'
+        );
+      }
+
+      return 0;
+    });
   };
 
   return (

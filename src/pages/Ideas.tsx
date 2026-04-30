@@ -127,8 +127,8 @@ export function Ideas() {
         <div className="desktop-header-frame">
           <DesktopPageHeader
             section="Inventário Criativo"
-            title="Caixa de Ideias"
-            subtitle="Capture tudo sem julgamento e promova o que amadurecer para o inventário."
+            title="Ideias"
+            subtitle="Capture, organize e promova temas que ainda vão virar conteúdo."
             icon={Lightbulb}
             className="mb-0"
           />

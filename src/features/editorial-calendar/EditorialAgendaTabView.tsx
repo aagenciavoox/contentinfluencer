@@ -1,13 +1,14 @@
 import { BookOpen, RotateCcw, Zap } from 'lucide-react';
 import { motion } from 'motion/react';
+import { useState } from 'react';
 import { AgendaItem, Content, Projeto } from '../../lib/database';
 type Partnership = Projeto;
 import { cn } from '../../lib/utils';
 import { CalendarAgendaView } from '../../components/calendar/CalendarAgendaView';
 import { CalendarGrid } from '../../components/calendar/CalendarGrid';
-import { CalendarLayerToggle } from '../../components/calendar/CalendarLayerToggle';
 import { ContentDetailModal } from '../../components/ContentDetailModal';
 import { ContentQuickPreview } from '../../components/calendar/ContentQuickPreview';
+import { FilterBar } from '../../components/common/FilterBar';
 
 interface EditorialAgendaTabViewProps {
   isMobile: boolean;
@@ -42,6 +43,25 @@ export function EditorialAgendaTabView({
   onMoveItem,
   onCloseFullEdit,
 }: EditorialAgendaTabViewProps) {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortValue, setSortValue] = useState('proximos');
+  const layerOptions = [
+    { id: 'recordings', label: 'Gravações' },
+    { id: 'posts', label: 'Postagens' },
+    { id: 'partnerships', label: 'Projetos' },
+    { id: 'agenda', label: 'Agenda' },
+    { id: 'rules', label: 'Regras' },
+  ];
+
+  const toggleLayer = (layerId: string) => {
+    if (activeLayers.includes(layerId)) {
+      onLayersChange(activeLayers.filter(layer => layer !== layerId));
+      return;
+    }
+
+    onLayersChange([...activeLayers, layerId]);
+  };
+
   return (
     <motion.div
       key="agenda"
@@ -52,6 +72,49 @@ export function EditorialAgendaTabView({
       className="h-full overflow-y-auto custom-scrollbar"
     >
       <div className="max-w-[1600px] mx-auto py-8 px-5 md:px-10 space-y-8">
+        <FilterBar
+          searchValue={searchTerm}
+          onSearchChange={setSearchTerm}
+          searchPlaceholder="Buscar por conteúdo, evento ou projeto"
+          filters={[
+            {
+              id: 'camadas',
+              label: `Camadas (${activeLayers.length})`,
+              type: 'custom',
+              renderContent: () => (
+                <div className="flex min-w-[240px] flex-col gap-2">
+                  {layerOptions.map(option => {
+                    const active = activeLayers.includes(option.id);
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => toggleLayer(option.id)}
+                        className={cn(
+                          'flex items-center justify-between rounded-xl border px-3 py-2 text-left text-sm transition-all',
+                          active
+                            ? 'border-[var(--text-primary)] bg-[var(--bg-hover)] text-[var(--text-primary)]'
+                            : 'border-[var(--border-color)] text-[var(--text-secondary)]'
+                        )}
+                      >
+                        <span>{option.label}</span>
+                        <span className="text-xs">{active ? 'Ativo' : 'Oculto'}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              ),
+            },
+          ]}
+          sortValue={sortValue}
+          onSortChange={setSortValue}
+          sortOptions={[
+            { label: 'Próximos', value: 'proximos' },
+            { label: 'Título A-Z', value: 'titulo:asc' },
+            { label: 'Tipo A-Z', value: 'tipo:asc' },
+          ]}
+        />
+
         <div className="flex flex-wrap gap-3">
           {[
             { label: 'Rotação', text: 'Max 1x/Sem', icon: RotateCcw, color: 'text-orange-500' },
@@ -68,23 +131,25 @@ export function EditorialAgendaTabView({
           ))}
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
-          <div className="lg:col-span-1 lg:sticky lg:top-6">
-            <CalendarLayerToggle activeLayers={activeLayers} onChange={onLayersChange} />
-          </div>
-          <div className="lg:col-span-3">
-            {isMobile ? (
-              <CalendarAgendaView
-                contents={contents}
-                partnerships={partnerships}
-                externalEvents={agenda}
-                activeLayers={activeLayers}
-                onSelectContent={onSelectItem}
-              />
-            ) : (
-              <CalendarGrid activeLayers={activeLayers} onItemClick={onSelectItem} />
-            )}
-          </div>
+        <div>
+          {isMobile ? (
+            <CalendarAgendaView
+              contents={contents}
+              partnerships={partnerships}
+              externalEvents={agenda}
+              activeLayers={activeLayers}
+              searchTerm={searchTerm}
+              sortValue={sortValue}
+              onSelectContent={onSelectItem}
+            />
+          ) : (
+            <CalendarGrid
+              activeLayers={activeLayers}
+              searchTerm={searchTerm}
+              sortValue={sortValue}
+              onItemClick={onSelectItem}
+            />
+          )}
         </div>
       </div>
 

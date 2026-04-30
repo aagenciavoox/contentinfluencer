@@ -7,6 +7,7 @@ import { ConfirmModal } from '../../components/modals/ConfirmModal';
 import { Pilar } from '../../lib/database';
 import { generateUUID } from '../../utils/uuid';
 import { DesktopPageHeader } from '../../components/layout/DesktopPageHeader';
+import { AppButton } from '../../components/common/AppButton';
 
 const PRESET_CORES = [
   '#F5C543', '#4A90D9', '#E8A0BF', '#D44C47',
@@ -117,20 +118,17 @@ function PilarForm({
         ))}
       </div>
 
-      <div className="flex gap-3 pt-2">
-        <button
-          onClick={onCancel}
-          className="flex-1 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest text-[var(--text-primary)] border border-[var(--border-strong)] opacity-60 hover:opacity-100 transition-all"
-        >
+      <div className="flex items-center justify-end gap-3 pt-2">
+        <AppButton onClick={onCancel} variant="secondary">
           Cancelar
-        </button>
-        <button
+        </AppButton>
+        <AppButton
           onClick={handleSave}
           disabled={!form.nome.trim()}
-          className="flex-1 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest bg-[var(--text-primary)] text-[var(--bg-primary)] disabled:opacity-40 hover:scale-[1.02] transition-all"
+          variant="primary"
         >
           Salvar
-        </button>
+        </AppButton>
       </div>
     </div>
   );
@@ -173,13 +171,13 @@ export function PilaresSettings() {
           backLabel="Configurações"
           onBack={() => navigate('/configuracoes')}
           actions={(
-            <button
+            <AppButton
               onClick={() => setCriando(true)}
-              className="flex items-center gap-2 px-4 py-2.5 bg-[var(--text-primary)] text-[var(--bg-primary)] rounded-2xl text-xs font-black uppercase tracking-widest hover:scale-[1.02] transition-all shadow-sm"
+              variant="primary"
+              leftIcon={<Plus className="w-4 h-4" />}
             >
-              <Plus className="w-4 h-4" />
               Novo
-            </button>
+            </AppButton>
           )}
         />
       </div>

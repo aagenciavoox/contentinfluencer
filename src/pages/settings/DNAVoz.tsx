@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Zap, Users, Target, MessageSquare, Ban, ShieldAlert, Plus, X, Trash2 } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
 import { DesktopPageHeader } from '../../components/layout/DesktopPageHeader';
+import { AppButton } from '../../components/common/AppButton';
 
 export function DNAVozSettings() {
   const { state, dispatch } = useAppContext();
@@ -28,24 +29,26 @@ export function DNAVozSettings() {
 
   return (
     <div className="min-h-screen bg-[var(--bg-secondary)]">
-      <div className="desktop-header-frame">
+      <header className="desktop-header-sticky transition-colors duration-300">
+        <div className="desktop-header-frame">
         <DesktopPageHeader
           section="Configurações"
           title="DNA da Voz"
-          subtitle="Identidade editorial, tom e limites que definem a sua assinatura de conteúdo."
+          subtitle="Defina identidade editorial, tom e limites para manter a assinatura do conteúdo."
           icon={MessageSquare}
           backLabel="Configurações"
           onBack={() => navigate('/configuracoes')}
           actions={isDirty ? (
-            <button
+            <AppButton
               onClick={handleSave}
-              className="t-button t-button-uppercase flex items-center gap-2 rounded-xl bg-[var(--accent-green)] px-5 py-2.5 text-white shadow-sm transition-all hover:opacity-90"
+              variant="primary"
             >
               Salvar
-            </button>
+            </AppButton>
           ) : null}
         />
-      </div>
+        </div>
+      </header>
 
       <div className="desktop-content-frame">
 
@@ -201,12 +204,12 @@ export function DNAVozSettings() {
 
           {isDirty && (
             <div className="flex justify-end">
-              <button
+              <AppButton
                 onClick={handleSave}
-                className="t-button t-button-uppercase flex items-center gap-2 rounded-xl bg-[var(--accent-green)] px-6 py-3 text-white shadow-sm transition-all hover:opacity-90"
+                variant="primary"
               >
                 Salvar Alterações
-              </button>
+              </AppButton>
             </div>
           )}
         </div>

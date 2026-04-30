@@ -7,6 +7,7 @@ import type { Projeto } from '../lib/database';
 import { cn } from '../lib/utils';
 import { DesktopPageHeader } from '../components/layout/DesktopPageHeader';
 import { AppButton } from '../components/common/AppButton';
+import { FilterBar } from '../components/common/FilterBar';
 
 import { useIsMobile } from '../hooks/useIsMobile';
 
@@ -43,6 +44,8 @@ export function Projetos() {
 
   const [tipoFilter, setTipoFilter] = useState<TipoFilter>('todos');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('todos');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortValue, setSortValue] = useState('deadline:asc');
   const [showForm, setShowForm] = useState(false);
 
   const [nome, setNome] = useState('');
@@ -53,15 +56,31 @@ export function Projetos() {
 
   const projetos = state.projetos
     .filter(p => {
+      const normalizedSearch = searchTerm.trim().toLowerCase();
       if (tipoFilter !== 'todos' && p.tipo !== tipoFilter) return false;
       if (statusFilter !== 'todos' && calcularStatus(p) !== statusFilter) return false;
+      if (normalizedSearch) {
+        const haystack = [p.nome, p.brand || '', p.notes || ''].join(' ').toLowerCase();
+        if (!haystack.includes(normalizedSearch)) return false;
+      }
       return true;
     })
     .sort((a, b) => {
-      if (!a.dataFim && !b.dataFim) return 0;
-      if (!a.dataFim) return 1;
-      if (!b.dataFim) return -1;
-      return a.dataFim.localeCompare(b.dataFim);
+      if (sortValue === 'deadline:asc') {
+        if (!a.dataFim && !b.dataFim) return 0;
+        if (!a.dataFim) return 1;
+        if (!b.dataFim) return -1;
+        return a.dataFim.localeCompare(b.dataFim);
+      }
+      if (sortValue === 'deadline:desc') {
+        if (!a.dataFim && !b.dataFim) return 0;
+        if (!a.dataFim) return 1;
+        if (!b.dataFim) return -1;
+        return b.dataFim.localeCompare(a.dataFim);
+      }
+      if (sortValue === 'name:asc') return a.nome.localeCompare(b.nome);
+      if (sortValue === 'value:desc') return (b.value || 0) - (a.value || 0);
+      return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
     });
 
   const handleCreate = () => {
@@ -103,7 +122,7 @@ export function Projetos() {
           <DesktopPageHeader
             section="Gestão"
             title="Projetos"
-            subtitle="Acompanhe campanhas, publis e produções com filtros e prazos em um só fluxo."
+            subtitle="Centralize campanhas, publis e produções com status, prazo e valor no mesmo fluxo."
             icon={Handshake}
             className="mb-0"
             actions={(
@@ -123,62 +142,49 @@ export function Projetos() {
 
       <div className="desktop-content-frame">
 
-        {/* Filtros */}
-        <div className="desktop-toolbar-surface mb-6 flex flex-wrap gap-2 p-4 md:p-5">
-          {isMobile ? (
-            <div className="flex flex-wrap gap-2 w-full">
-              <select
-                value={tipoFilter}
-                onChange={(e) => setTipoFilter(e.target.value as TipoFilter)}
-                className="filter-select t-label flex-1"
-              >
-                {(['todos', 'campanha', 'publi', 'producao', 'outro'] as TipoFilter[]).map(t => (
-                  <option key={t} value={t}>{t === 'todos' ? 'Todos os Tipos' : TIPO_LABELS[t]}</option>
-                ))}
-              </select>
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
-                className="filter-select t-label flex-1"
-              >
-                {(['todos', 'pendente', 'em_andamento', 'concluído'] as StatusFilter[]).map(s => (
-                  <option key={s} value={s}>{s === 'todos' ? 'Todos os Status' : s.replace('_', ' ')}</option>
-                ))}
-              </select>
-            </div>
-          ) : (
-            <>
-              {(['todos', 'campanha', 'publi', 'producao', 'outro'] as TipoFilter[]).map(t => (
-                <button
-                  key={t}
-                  onClick={() => setTipoFilter(t)}
-                  className={cn(
-                    'filter-chip',
-                    tipoFilter === t
-                      ? 'filter-chip-active'
-                      : ''
-                  )}
-                >
-                  {t === 'todos' ? 'Todos' : TIPO_LABELS[t]}
-                </button>
-              ))}
-              <div className="mx-1 hidden w-px self-stretch bg-[var(--border-color)] md:block" />
-              {(['todos', 'pendente', 'em_andamento', 'concluído'] as StatusFilter[]).map(s => (
-                <button
-                  key={s}
-                  onClick={() => setStatusFilter(s)}
-                  className={cn(
-                    'filter-chip',
-                    statusFilter === s
-                      ? 'filter-chip-active'
-                      : ''
-                  )}
-                >
-                  {s === 'todos' ? 'Todos' : s.replace('_', ' ')}
-                </button>
-              ))}
-            </>
-          )}
+        <div className="desktop-toolbar-surface mb-6 p-4 md:p-5">
+          <FilterBar
+            searchValue={searchTerm}
+            onSearchChange={setSearchTerm}
+            searchPlaceholder="Buscar projeto ou marca"
+            filters={[
+              {
+                id: 'tipo',
+                label: 'Tipo',
+                value: tipoFilter,
+                options: [
+                  {label: 'Tipo', value: 'todos'},
+                  ...(['campanha', 'publi', 'producao', 'outro'] as TipoFilter[]).map(tipo => ({
+                    label: TIPO_LABELS[tipo],
+                    value: tipo,
+                  })),
+                ],
+                onChange: value => setTipoFilter(value as TipoFilter),
+              },
+              {
+                id: 'status',
+                label: 'Status',
+                value: statusFilter,
+                options: [
+                  {label: 'Status', value: 'todos'},
+                  ...(['pendente', 'em_andamento', 'concluído'] as StatusFilter[]).map(status => ({
+                    label: status.replace('_', ' '),
+                    value: status,
+                  })),
+                ],
+                onChange: value => setStatusFilter(value as StatusFilter),
+              },
+            ]}
+            sortValue={sortValue}
+            sortOptions={[
+              {label: 'Prazo crescente', value: 'deadline:asc'},
+              {label: 'Prazo decrescente', value: 'deadline:desc'},
+              {label: 'Nome A-Z', value: 'name:asc'},
+              {label: 'Maior valor', value: 'value:desc'},
+              {label: 'Atualizados', value: 'updatedAt:desc'},
+            ]}
+            onSortChange={setSortValue}
+          />
         </div>
 
         {/* Form novo projeto */}

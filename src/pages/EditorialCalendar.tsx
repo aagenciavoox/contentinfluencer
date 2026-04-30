@@ -43,6 +43,7 @@ type Partnership = Projeto;
 import { STATUS_CONFIG } from '../constants';
 import { motion, AnimatePresence } from 'motion/react';
 import { BottomSheetModal } from '../components/modals/BottomSheetModal';
+import { FilterBar } from '../components/common/FilterBar';
 
 const PARTNERSHIP_STAGES = ['Leitura', 'Roteiro', 'Envio de Roteiro', 'Gravação', 'Edição', 'Aprovação', 'Postagem', 'Métricas', 'Finalizado'];
 import { useIsMobile } from '../hooks/useIsMobile';
@@ -1025,10 +1026,20 @@ function ProjectsView({
   const [filters, setFilters] = useState({ conteudos: true, agenda: true, projetos: true });
   const [view, setView] = useState<'marcas' | 'marcas_arquivadas' | 'marcas_encerradas' | 'calendario'>('marcas');
   const [expandedCals, setExpandedCals] = useState<Record<string, boolean>>({});
-  const isMobile = useIsMobile();
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortValue, setSortValue] = useState('marca:asc');
 
   const toggleCal = (brand: string) => {
     setExpandedCals(prev => ({ ...prev, [brand]: !prev[brand] }));
+  };
+
+  const matchesSearch = (values: Array<string | null | undefined>) => {
+    const normalizedSearch = searchTerm.trim().toLowerCase();
+    if (!normalizedSearch) return true;
+
+    return values
+      .filter(Boolean)
+      .some(value => String(value).toLowerCase().includes(normalizedSearch));
   };
 
   const currentMonthStart = startOfMonth(new Date());
@@ -1044,127 +1055,113 @@ function ProjectsView({
     };
     if (filters.conteudos) {
       contents.forEach(c => {
+        if (!matchesSearch([c.title, c.notes])) return;
         if (c.publishDate) add(c.publishDate, { ...c, __type: 'conteudo_pub' });
         if (c.recordingDate) add(c.recordingDate, { ...c, __type: 'conteudo_rec' });
       });
     }
     if (filters.projetos) {
       projects.forEach(p => {
+        if (!matchesSearch([p.brand, p.nome, p.notes])) return;
         // replicar em todos os dias do range
         getEventDates(p).forEach(d => add(d, { ...p, __type: 'projeto' }));
       });
     }
     if (filters.agenda) {
-      agenda.forEach(a => add(a.date, { ...a, __type: 'agenda' }));
+      agenda.forEach(a => {
+        if (!matchesSearch([a.title])) return;
+        add(a.date, { ...a, __type: 'agenda' });
+      });
     }
     return map;
-  }, [contents, projects, agenda, filters]);
+  }, [contents, projects, agenda, filters, searchTerm]);
 
   const filteredProjects = useMemo(() => {
-    if (view === 'marcas') return projects.filter(p => !p.deletedAt && p.status !== 'Finalizado');
-    if (view === 'marcas_arquivadas') return projects.filter(p => !!p.deletedAt);
-    if (view === 'marcas_encerradas') return projects.filter(p => !p.deletedAt && p.status === 'Finalizado');
-    return projects;
-  }, [projects, view]);
+    const visibleProjects = projects.filter(project => {
+      if (view === 'marcas' && (project.deletedAt || project.status === 'Finalizado')) return false;
+      if (view === 'marcas_arquivadas' && !project.deletedAt) return false;
+      if (view === 'marcas_encerradas' && (project.deletedAt || project.status !== 'Finalizado')) return false;
+      return matchesSearch([project.brand, project.nome, project.notes]);
+    });
+
+    return visibleProjects.sort((left, right) => {
+      switch (sortValue) {
+        case 'prazo:asc':
+          return new Date(left.dataFim || '9999-12-31').getTime() - new Date(right.dataFim || '9999-12-31').getTime();
+        case 'status:asc':
+          return left.status.localeCompare(right.status, 'pt-BR');
+        case 'recentes':
+          return new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime();
+        case 'marca:asc':
+        default:
+          return left.brand.localeCompare(right.brand, 'pt-BR');
+      }
+    });
+  }, [projects, searchTerm, sortValue, view]);
 
   const brands = Array.from(new Set(filteredProjects.map(p => p.brand))).filter(Boolean);
 
   return (
     <div className="flex flex-col h-full">
-      {/* Barra de controles */}
-      <div className="flex flex-col sm:flex-row gap-4 justify-between items-center p-6 border-b border-[var(--border-color)] bg-[var(--bg-secondary)] shrink-0">
-        {isMobile ? (
-          <select
-            value={view}
-            onChange={(e) => setView(e.target.value as any)}
-            className="filter-select t-label w-full"
-          >
-            <option value="marcas">Marcas Ativas</option>
-            <option value="marcas_encerradas">Marcas Encerradas</option>
-            <option value="marcas_arquivadas">Marcas Arquivadas</option>
-            <option value="calendario">Calendário</option>
-          </select>
-        ) : (
-          <div className="flex gap-2">
-            <button
-              onClick={() => setView('marcas')}
-              className={cn(
-                'px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all',
-                view === 'marcas'
-                  ? 'bg-[var(--bg-primary)] text-[var(--text-primary)] shadow-sm'
-                  : 'text-[var(--text-secondary)] italic hover:bg-[var(--bg-primary)]/50'
-              )}
-            >
-              Ativas
-            </button>
-            <button
-              onClick={() => setView('marcas_encerradas')}
-              className={cn(
-                'px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all',
-                view === 'marcas_encerradas'
-                  ? 'bg-emerald-500 text-white border-emerald-500 shadow-md'
-                  : 'border-[var(--border-color)] opacity-50 hover:opacity-100'
-              )}
-            >
-              Encerradas
-            </button>
-            <button
-              onClick={() => setView('marcas_arquivadas')}
-              className={cn(
-                'px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all',
-                view === 'marcas_arquivadas'
-                  ? 'bg-amber-500 text-white border-amber-500 shadow-md'
-                  : 'border-[var(--border-color)] opacity-50 hover:opacity-100'
-              )}
-            >
-              Arquivadas
-            </button>
-            <button
-              onClick={() => setView('calendario')}
-              className={cn(
-                'px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ml-4',
-                view === 'calendario'
-                  ? 'bg-[var(--text-primary)] text-[var(--bg-primary)] border-[var(--text-primary)]'
-                  : 'border-[var(--border-color)] opacity-50 hover:opacity-100'
-              )}
-            >
-              Calendário
-            </button>
-          </div>
-        )}
-
-        {view === 'calendario' && (
-          <div className="flex flex-wrap gap-2">
-            {[
-              { key: 'conteudos', label: 'Conteúdos', active: 'border-[var(--accent-blue)] text-[var(--accent-blue)] bg-[var(--accent-blue)]/5' },
-              { key: 'agenda', label: 'Agenda', active: 'border-purple-400 text-purple-600 bg-purple-500/5 dark:text-purple-400' },
-              { key: 'projetos', label: 'Projetos', active: 'border-[var(--text-primary)] text-[var(--text-primary)] bg-[var(--text-primary)]/5' },
-            ].map(f => (
-              <button
-                key={f.key}
-                onClick={() => setFilters(prev => ({ ...prev, [f.key]: !prev[f.key as keyof typeof prev] }))}
-                className={cn(
-                  'px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border transition-all',
-                  filters[f.key as keyof typeof filters] ? f.active : 'border-[var(--border-color)] text-[var(--text-tertiary)] opacity-50'
-                )}
-              >{f.label}</button>
-            ))}
-          </div>
-        )}
-
-        {!isMobile && brands.length > 0 && (
-          <div className="flex flex-wrap items-center gap-4">
-            {brands.map(brand => {
-              const p = projects.find(pr => pr.brand === brand);
-              return p ? (
-                <div key={brand} className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: p.brandColor }} />
-                  <span className="text-[9px] font-bold text-[var(--text-primary)] uppercase tracking-widest opacity-60">{brand}</span>
-                </div>
-              ) : null;
-            })}
-          </div>
-        )}
+      <div className="px-6 pb-6">
+        <FilterBar
+          className="mt-6"
+          searchValue={searchTerm}
+          onSearchChange={setSearchTerm}
+          searchPlaceholder="Buscar por marca, projeto ou evento"
+          filters={[
+            {
+              id: 'view',
+              label: 'Visualização',
+              value: view,
+              onChange: value => setView(value as typeof view),
+              options: [
+                { label: 'Marcas ativas', value: 'marcas' },
+                { label: 'Marcas encerradas', value: 'marcas_encerradas' },
+                { label: 'Marcas arquivadas', value: 'marcas_arquivadas' },
+                { label: 'Calendário', value: 'calendario' },
+              ],
+            },
+            {
+              id: 'conteudos',
+              label: 'Conteúdos',
+              value: filters.conteudos ? 'on' : 'off',
+              onChange: value => setFilters(prev => ({ ...prev, conteudos: value === 'on' })),
+              options: [
+                { label: 'Conteúdos: ativos', value: 'on' },
+                { label: 'Conteúdos: ocultos', value: 'off' },
+              ],
+            },
+            {
+              id: 'agenda',
+              label: 'Agenda',
+              value: filters.agenda ? 'on' : 'off',
+              onChange: value => setFilters(prev => ({ ...prev, agenda: value === 'on' })),
+              options: [
+                { label: 'Agenda: ativa', value: 'on' },
+                { label: 'Agenda: oculta', value: 'off' },
+              ],
+            },
+            {
+              id: 'projetos',
+              label: 'Projetos',
+              value: filters.projetos ? 'on' : 'off',
+              onChange: value => setFilters(prev => ({ ...prev, projetos: value === 'on' })),
+              options: [
+                { label: 'Projetos: ativos', value: 'on' },
+                { label: 'Projetos: ocultos', value: 'off' },
+              ],
+            },
+          ]}
+          sortValue={sortValue}
+          onSortChange={setSortValue}
+          sortOptions={[
+            { label: 'Marca A-Z', value: 'marca:asc' },
+            { label: 'Prazo crescente', value: 'prazo:asc' },
+            { label: 'Status A-Z', value: 'status:asc' },
+            { label: 'Recentes', value: 'recentes' },
+          ]}
+        />
       </div>
 
       <div className="flex-1 overflow-y-auto custom-scrollbar">
