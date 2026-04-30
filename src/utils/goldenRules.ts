@@ -1,4 +1,4 @@
-import { Content, Pilar } from '../lib/database';
+import type { Content, Pilar } from '../lib/database.ts';
 import { addDays, isWithinInterval, startOfDay } from 'date-fns';
 
 export interface Violation {
@@ -103,6 +103,15 @@ export function validateWeeklyContent(contents: Content[], weekStart: Date, pila
           affectedContentIds: [c.id],
         });
       }
+
+      if (plat === 'YouTube' && (n < 8 || n > 10)) {
+        violations.push({
+          ruleId: 'RG-06',
+          type: 'info',
+          message: `"${c.title}" — YouTube tem ${n} hashtags (recomendado: 8-10)`,
+          affectedContentIds: [c.id],
+        });
+      }
     });
   });
 
@@ -127,10 +136,9 @@ export function validateWeeklyContent(contents: Content[], weekStart: Date, pila
     });
   }
 
-  // RG-MIX: Harmonia de Mix (via GoldenRules — a lógica numérica fica no componente de Análise)
+  // RG-MIX: Harmonia de Mix (via GoldenRules - a lógica numérica fica no componente de Análise)
   // Por ora não calculamos sem acesso às regras ativas
 
-  // Deduplica
   const seen = new Set<string>();
   return violations.filter(v => {
     const key = `${v.ruleId}-${v.affectedContentIds.sort().join(',')}`;
