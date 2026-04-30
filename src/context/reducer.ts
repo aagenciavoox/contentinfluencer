@@ -16,8 +16,8 @@ export type AppAction =
   | { type: 'SET_DATA';    payload: Partial<AppData> }
   | { type: 'SET_LOADED' }
   | { type: 'SET_THEME';   payload: 'light' | 'dark' }
-  | { type: 'SET_PREFERENCE'; payload: { key: string; value: string } }
-  | { type: 'UPDATE_PREFERENCE'; payload: { key: string; value: string } }
+  | { type: 'SET_PREFERENCE'; payload: { key: string; value: any } }
+  | { type: 'UPDATE_PREFERENCE'; payload: { key: string; value: any } }
 
   // ─── Conteúdos ──────────────────────────────────────────────────────────────
   | { type: 'ADD_CONTENT';              payload: Content }
@@ -131,9 +131,9 @@ export type AppAction =
 // HELPERS
 // ============================================================================
 
-function deriveTheme(prefs: Record<string, string>): 'light' | 'dark' {
-  try { return JSON.parse(prefs['theme'] ?? '"dark"') as 'light' | 'dark'; }
-  catch { return 'dark'; }
+function deriveTheme(_prefs: Record<string, string>): 'light' | 'dark' {
+  const theme = _prefs.theme;
+  return theme === 'dark' ? 'dark' : 'light';
 }
 
 // ============================================================================
@@ -153,6 +153,7 @@ export function appReducer(state: AppState, action: AppAction): AppState {
     case 'SET_THEME':
       return { ...state, theme: action.payload };
     case 'SET_PREFERENCE':
+    case 'UPDATE_PREFERENCE':
       return { ...state, preferences: { ...state.preferences, [action.payload.key]: action.payload.value } };
 
     // ─── Conteúdos ──────────────────────────────────────────────────────────
@@ -241,11 +242,13 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         ),
       };
     case 'ADD_ANNOTATION':
+      const addedAnnotation = (action.payload as any).anotacao || action.payload;
+      const addLivroId = (action.payload as any).livroId || (action.payload as any).itemId;
       return {
         ...state,
         bibliotecaItems: state.bibliotecaItems.map(b =>
-          b.id === action.payload.livroId
-            ? { ...b, anotacoes: [...b.anotacoes, action.payload] }
+          b.id === addLivroId
+            ? { ...b, anotacoes: [...b.anotacoes, addedAnnotation] }
             : b
         ),
       };
@@ -259,11 +262,13 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         ),
       };
     case 'UPDATE_ANNOTATION':
+      const updatedAnnotation = (action.payload as any).anotacao || action.payload;
+      const updateLivroId = (action.payload as any).livroId || (action.payload as any).itemId;
       return {
         ...state,
         bibliotecaItems: state.bibliotecaItems.map(b =>
-          b.id === action.payload.livroId
-            ? { ...b, anotacoes: b.anotacoes.map(a => a.id === action.payload.id ? action.payload : a) }
+          b.id === updateLivroId
+            ? { ...b, anotacoes: b.anotacoes.map(a => a.id === updatedAnnotation.id ? updatedAnnotation : a) }
             : b
         ),
       };
@@ -335,12 +340,6 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       };
 
     // ─── Resultados ──────────────────────────────────────────────────────────
-    case 'ADD_RESULT':
-      return { ...state, contentMetrics: [action.payload, ...state.contentMetrics] };
-    case 'UPDATE_RESULT':
-      return { ...state, contentMetrics: state.contentMetrics.map(r => r.id === action.payload.id ? action.payload : r) };
-    case 'DELETE_RESULT':
-      return { ...state, contentMetrics: state.contentMetrics.filter(r => r.id !== action.payload) };
 
     // ─── Gravação ───────────────────────────────────────────────────────────
     case 'ADD_RECORDING_BLOCK':
@@ -391,14 +390,6 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       return { ...state, platforms: state.platforms.filter(p => p.id !== action.payload) };
 
     // ─── DNA da Voz ─────────────────────────────────────────────────────────
-    case 'UPDATE_DNA_VOZ':
-      return {
-        ...state,
-        dnaVoz: state.dnaVoz
-          ? { ...state.dnaVoz, ...action.payload }
-          : null,
-      };
-
     // ─── Resultados / Métricas ──────────────────────────────────────────────────
     case 'ADD_RESULT':
     case 'ADD_CONTENT_METRIC':

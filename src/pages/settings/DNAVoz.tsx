@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Zap, Users, Target, MessageSquare, Ban, ShieldAlert, Plus, X, Trash2 } from 'lucide-react';
+import { Zap, Users, Target, MessageSquare, Ban, ShieldAlert, Plus, X, Trash2 } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
+import { DesktopPageHeader } from '../../components/layout/DesktopPageHeader';
 
 export function DNAVozSettings() {
   const { state, dispatch } = useAppContext();
@@ -27,26 +28,26 @@ export function DNAVozSettings() {
 
   return (
     <div className="min-h-screen bg-[var(--bg-secondary)]">
-      <div className="content-narrow mx-auto px-6 md:px-12 py-10 md:py-16">
-        <div className="flex items-center gap-4 mb-10">
-          <button onClick={() => navigate('/settings')} className="p-2 hover:bg-[var(--bg-hover)] rounded-xl">
-            <ArrowLeft className="w-5 h-5 text-[var(--text-primary)] opacity-50" />
-          </button>
-          <div className="flex-1">
-            <h1 className="t-display">DNA da Voz</h1>
-            <p className="text-xs text-[var(--text-secondary)] opacity-50 mt-1">
-              Identidade editorial, tom e limites do seu conteúdo
-            </p>
-          </div>
-          {isDirty && (
+      <div className="desktop-header-frame">
+        <DesktopPageHeader
+          section="Configurações"
+          title="DNA da Voz"
+          subtitle="Identidade editorial, tom e limites que definem a sua assinatura de conteúdo."
+          icon={MessageSquare}
+          backLabel="Configurações"
+          onBack={() => navigate('/configuracoes')}
+          actions={isDirty ? (
             <button
               onClick={handleSave}
-              className="flex items-center gap-2 bg-[var(--accent-green)] text-white px-5 py-2.5 rounded-xl t-label hover:opacity-90 transition-all shadow-sm"
+              className="t-button t-button-uppercase flex items-center gap-2 rounded-xl bg-[var(--accent-green)] px-5 py-2.5 text-white shadow-sm transition-all hover:opacity-90"
             >
               Salvar
             </button>
-          )}
-        </div>
+          ) : null}
+        />
+      </div>
+
+      <div className="desktop-content-frame">
 
         <div className="space-y-10">
           {/* Promessa Central */}
@@ -120,7 +121,7 @@ export function DNAVozSettings() {
                 <input
                   type="text"
                   placeholder="Novo proibido..."
-                  className="text-[10px] py-1 px-3 border-none w-32 bg-[var(--bg-hover)] rounded-lg text-[var(--text-primary)] placeholder:opacity-30"
+                className="t-secondary w-32 rounded-lg border-none bg-[var(--bg-hover)] px-3 py-1 text-[var(--text-primary)] placeholder:opacity-30"
                   value={newInput.field === 'naoFaco' ? newInput.value : ''}
                   onChange={e => setNewInput({ field: 'naoFaco', value: e.target.value })}
                   onKeyDown={e => e.key === 'Enter' && handleAddItem('naoFaco')}
@@ -165,7 +166,7 @@ export function DNAVozSettings() {
                 <input
                   type="text"
                   placeholder="Novo alerta..."
-                  className="text-[10px] py-1 px-3 border-none w-32 bg-[var(--bg-hover)] rounded-lg text-[var(--text-primary)] placeholder:opacity-30"
+                className="t-secondary w-32 rounded-lg border-none bg-[var(--bg-hover)] px-3 py-1 text-[var(--text-primary)] placeholder:opacity-30"
                   value={newInput.field === 'alertas' ? newInput.value : ''}
                   onChange={e => setNewInput({ field: 'alertas', value: e.target.value })}
                   onKeyDown={e => e.key === 'Enter' && handleAddItem('alertas')}
@@ -202,7 +203,7 @@ export function DNAVozSettings() {
             <div className="flex justify-end">
               <button
                 onClick={handleSave}
-                className="flex items-center gap-2 bg-[var(--accent-green)] text-white px-6 py-3 rounded-xl t-label hover:opacity-90 transition-all shadow-sm"
+                className="t-button t-button-uppercase flex items-center gap-2 rounded-xl bg-[var(--accent-green)] px-6 py-3 text-white shadow-sm transition-all hover:opacity-90"
               >
                 Salvar Alterações
               </button>

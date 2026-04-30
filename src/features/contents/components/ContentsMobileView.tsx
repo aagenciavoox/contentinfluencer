@@ -1,6 +1,6 @@
-import { Content } from '../../lib/database';
-import { ContentTable } from '../../components/contents/ContentTable';
-import { SortDirection, SortField } from './types';
+import { Content } from '../../../lib/database';
+import { ContentTable } from './ContentTable';
+import { SortDirection, SortField } from '../types';
 
 interface ContentsMobileViewProps {
   contents: Content[];

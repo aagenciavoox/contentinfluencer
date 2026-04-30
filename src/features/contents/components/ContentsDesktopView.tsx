@@ -1,8 +1,8 @@
-import { Content } from '../../lib/database';
-import { ContentTable } from '../../components/contents/ContentTable';
-import { ContentEcosystem } from '../../components/contents/ContentEcosystem';
-import { ContentTimeline } from '../../components/contents/ContentTimeline';
-import { ContentsViewMode, SortDirection, SortField } from './types';
+import { Content } from '../../../lib/database';
+import { ContentTable } from './ContentTable';
+import { ContentEcosystem } from './ContentEcosystem';
+import { ContentTimeline } from './ContentTimeline';
+import { ContentsViewMode, SortDirection, SortField } from '../types';
 
 interface ContentsDesktopViewProps {
   viewMode: ContentsViewMode;

@@ -1,9 +1,9 @@
 import { ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { useIsMobile } from '../hooks/useIsMobile';
-import { useBodyScrollLock } from '../hooks/useBodyScrollLock';
-import { cn } from '../lib/utils';
+import { useIsMobile } from '../../hooks/useIsMobile';
+import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
+import { cn } from '../../lib/utils';
 
 interface BottomSheetModalProps {
   open: boolean;

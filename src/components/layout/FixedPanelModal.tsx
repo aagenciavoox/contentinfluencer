@@ -1,9 +1,9 @@
 import { ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { useIsMobile } from '../hooks/useIsMobile';
-import { useBodyScrollLock } from '../hooks/useBodyScrollLock';
-import { cn } from '../lib/utils';
+import { useIsMobile } from '../../hooks/useIsMobile';
+import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
+import { cn } from '../../lib/utils';
 
 interface FixedPanelModalProps {
   open: boolean;
@@ -11,6 +11,8 @@ interface FixedPanelModalProps {
   children: ReactNode;
   /** Tailwind max-w class for desktop, e.g. "md:max-w-[1200px]" */
   desktopMaxW?: string;
+  /** Extra desktop panel classes, e.g. fixed width/height overrides */
+  desktopPanelClassName?: string;
   /** Tailwind z-index class, e.g. "z-50" or "z-[100]" */
   zIndex?: string;
 }
@@ -20,6 +22,7 @@ export function FixedPanelModal({
   onClose,
   children,
   desktopMaxW = 'md:max-w-[1200px]',
+  desktopPanelClassName,
   zIndex = 'z-[100]',
 }: FixedPanelModalProps) {
   const isMobile = useIsMobile();
@@ -49,7 +52,8 @@ export function FixedPanelModal({
                 ? 'absolute bottom-0 left-0 right-0 rounded-t-3xl max-h-[92dvh] bg-[var(--bg-secondary)] border border-[var(--border-color)] shadow-2xl flex flex-col overflow-hidden'
                 : cn(
                     'relative w-full max-h-[90dvh] bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-2xl shadow-2xl flex flex-col overflow-hidden',
-                    desktopMaxW
+                    desktopMaxW,
+                    desktopPanelClassName
                   )
             }
           >

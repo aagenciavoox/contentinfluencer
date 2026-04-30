@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import {
-  ArrowLeft,
   BookOpen,
   Star,
   Plus,
@@ -21,16 +20,17 @@ import {
   TrendingUp,
 } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
-import { Anotacao, BibliotecaItem, Content, Idea } from '../lib/database';
+import { Anotacao, BibliotecaItem, BibliotecaItemMeta, Content, Idea, Projeto } from '../lib/database';
 import { generateUUID as _uuid } from '../utils/uuid';
 type BookAnnotation = Anotacao;
 type TipoAnotacao = Anotacao['tipo'];
 type StatusLeitura = BibliotecaItem['status'];
 type GeneroLivro = string;
-type Campaign = any;
+type Campaign = Projeto;
 import { ContentDetailModal } from '../components/ContentDetailModal';
-import { ConfirmModal } from '../components/ConfirmModal';
+import { ConfirmModal } from '../components/modals/ConfirmModal';
 import { generateUUID } from '../utils/uuid';
+import { DesktopPageHeader } from '../components/layout/DesktopPageHeader';
 
 const TIPO_CORES: Record<TipoAnotacao, string> = {
   Anotação: 'bg-[var(--text-tertiary)]/10 text-[var(--text-tertiary)]',
@@ -61,6 +61,81 @@ const GENEROS: GeneroLivro[] = [
 type Tab = 'info' | 'anotacoes' | 'conteudos';
 
 const SECTION_LABEL = 'text-[9px] font-black uppercase tracking-widest opacity-30 mb-4 block text-[var(--text-primary)]';
+
+function getItemTypeLabel(tipo: BibliotecaItem['tipo']) {
+  if (tipo === 'filme') return 'Filme';
+  if (tipo === 'série') return 'Série';
+  return 'Livro';
+}
+
+function getCreatorLabel(tipo: BibliotecaItem['tipo']) {
+  if (tipo === 'filme') return 'Diretor';
+  if (tipo === 'série') return 'Criador(a)';
+  return 'Autor';
+}
+
+function getProgressLabels(tipo: BibliotecaItem['tipo']) {
+  if (tipo === 'filme') return { current: 'Minutos vistos', total: 'Duração total', unit: 'min' };
+  if (tipo === 'série') return { current: 'Episódios vistos', total: 'Total de episódios', unit: 'eps' };
+  return { current: 'Páginas lidas', total: 'Total de páginas', unit: 'páginas' };
+}
+
+function getTechnicalLabels(tipo: BibliotecaItem['tipo']) {
+  if (tipo === 'filme') {
+    return {
+      publisher: 'Estúdio / Distribuidora',
+      publisherPlaceholder: 'Ex: Warner Bros.',
+      translation: 'Dublagem / Localização',
+      translationPlaceholder: 'Ex: PT-BR / versão legendada',
+      collection: 'Franquia / Universo',
+      collectionPlaceholder: 'Ex: Duna',
+    };
+  }
+
+  if (tipo === 'série') {
+    return {
+      publisher: 'Plataforma / Estúdio',
+      publisherPlaceholder: 'Ex: Netflix',
+      translation: 'Dublagem / Localização',
+      translationPlaceholder: 'Ex: PT-BR / versão legendada',
+      collection: 'Saga / Universo',
+      collectionPlaceholder: 'Ex: Bridgerton',
+    };
+  }
+
+  return {
+    publisher: 'Editora',
+    publisherPlaceholder: 'Ex: Rocco',
+    translation: 'Tradução',
+    translationPlaceholder: 'Tradutor',
+    collection: 'Série / Coleção',
+    collectionPlaceholder: 'Ex: Trono de Vidro',
+  };
+}
+
+function getCoverageLabels(tipo: BibliotecaItem['tipo']) {
+  if (tipo === 'filme') {
+    return {
+      section: 'Cenas / Partes cobertas',
+      placeholder: 'Ex: Abertura no deserto',
+      empty: 'Nenhuma cena marcada ainda',
+    };
+  }
+
+  if (tipo === 'série') {
+    return {
+      section: 'Episódios / Arcos cobertos',
+      placeholder: 'Ex: T1E03 - Baile',
+      empty: 'Nenhum episódio marcado ainda',
+    };
+  }
+
+  return {
+    section: 'Capítulos / Partes cobertos',
+    placeholder: 'Ex: Cap. 3 - O Vilão',
+    empty: 'Nenhum capítulo marcado ainda',
+  };
+}
 
 export function BookDetail() {
   const { id } = useParams<{ id: string }>();
@@ -103,6 +178,14 @@ export function BookDetail() {
   const [confirm, setConfirm] = useState<{ message: string; onConfirm: () => void } | null>(null);
 
   const _livro = livro as any;
+  const itemType = livro?.tipo ?? 'livro';
+  const metadata = ((livro && (state.preferences[`item_meta:${livro.id}`] || state.preferences[`book_meta:${livro.id}`])) || {}) as BibliotecaItemMeta;
+  const itemTypeLabel = getItemTypeLabel(itemType);
+  const creatorLabel = getCreatorLabel(itemType);
+  const progressLabels = getProgressLabels(itemType);
+  const technicalLabels = getTechnicalLabels(itemType);
+  const coverageLabels = getCoverageLabels(itemType);
+  const ItemIcon = itemType === 'livro' ? BookOpen : Film;
   const [infoLocal, setInfoLocal] = useState(() => ({
     titulo: livro?.titulo ?? '',
     autor: livro?.autorDiretor ?? '',
@@ -115,14 +198,14 @@ export function BookDetail() {
     generos: livro?.generoIds ? [...livro.generoIds] : [] as GeneroLivro[],
     paginasLidas: livro?.paginasLidas ?? ('' as number | ''),
     totalPaginas: livro?.totalPaginas ?? ('' as number | ''),
-    editora: _livro?.editora ?? '',
-    anoPublicacao: _livro?.anoPublicacao ? String(_livro.anoPublicacao) : '',
-    isbn: _livro?.isbn ?? '',
-    idioma: _livro?.idioma ?? '',
-    traducao: _livro?.traducao ?? '',
-    serieColecao: _livro?.serieColecao ?? '',
-    quemIndicou: _livro?.quemIndicou ?? '',
-    motivoEscolha: _livro?.motivoEscolha ?? '',
+    editora: metadata.editora ?? '',
+    anoPublicacao: metadata.anoPublicacao ?? '',
+    isbn: metadata.isbn ?? '',
+    idioma: metadata.idioma ?? '',
+    traducao: metadata.traducao ?? '',
+    serieColecao: metadata.serieColecao ?? '',
+    quemIndicou: metadata.quemIndicou ?? '',
+    motivoEscolha: metadata.motivoEscolha ?? '',
     potencialConteudo: livro?.potencialConteudo as 1 | 2 | 3 | undefined,
   }));
 
@@ -130,7 +213,7 @@ export function BookDetail() {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <p className="text-[var(--text-tertiary)] font-bold mb-4">Livro não encontrado</p>
+          <p className="text-[var(--text-tertiary)] font-bold mb-4">Item não encontrado</p>
           <button onClick={() => navigate('/biblioteca')} className="text-xs font-bold text-[var(--accent-blue)] hover:underline">
             Voltar à Biblioteca
           </button>
@@ -149,7 +232,10 @@ export function BookDetail() {
 
   const conteudosDoLivro = state.contents.filter(c => c.bibliotecaItemId === livro.id);
   const ideiasDeLivro = state.ideas.filter(i => i.origemId === livro.id && !i.archived);
-  const campanhasDoLivro: Campaign[] = [];
+  const campanhasDoLivro = state.projetos.filter(
+    projeto => projeto.bibliotecaItemId === livro.id && projeto.tipo === 'campanha'
+  );
+  const capitulosCobertos = metadata.capitulosCobertos || [];
 
   const alertaEcossistema =
     livro.status === 'Concluído' &&
@@ -307,6 +393,24 @@ export function BookDetail() {
         updatedAt: new Date().toISOString(),
       },
     });
+    dispatch({
+      type: 'SET_PREFERENCE',
+      payload: {
+        key: `item_meta:${livro.id}`,
+        value: {
+          ...metadata,
+          editora: infoLocal.editora,
+          anoPublicacao: infoLocal.anoPublicacao,
+          isbn: infoLocal.isbn,
+          idioma: infoLocal.idioma,
+          traducao: infoLocal.traducao,
+          serieColecao: infoLocal.serieColecao,
+          quemIndicou: infoLocal.quemIndicou,
+          motivoEscolha: infoLocal.motivoEscolha,
+          capitulosCobertos,
+        } satisfies BibliotecaItemMeta,
+      },
+    });
     setInfoSalvo(true);
     setTimeout(() => setInfoSalvo(false), 2000);
   };
@@ -377,29 +481,56 @@ export function BookDetail() {
 
   const handleAdicionarCapitulo = () => {
     if (!novoCapituloCoberto.trim()) return;
-    const atual: string[] = (livro as any).capitulosCobertos || [];
-    dispatch({ type: 'UPDATE_BOOK', payload: { ...livro, capitulosCobertos: [...atual, novoCapituloCoberto.trim()] } as any });
+    dispatch({
+      type: 'SET_PREFERENCE',
+      payload: {
+        key: `item_meta:${livro.id}`,
+        value: {
+          ...metadata,
+          capitulosCobertos: [...capitulosCobertos, novoCapituloCoberto.trim()],
+        } satisfies BibliotecaItemMeta,
+      },
+    });
     setNovoCapituloCoberto('');
   };
 
   const handleRemoverCapitulo = (cap: string) => {
-    const atual: string[] = (livro as any).capitulosCobertos || [];
-    dispatch({ type: 'UPDATE_BOOK', payload: { ...livro, capitulosCobertos: atual.filter(c => c !== cap) } as any });
+    dispatch({
+      type: 'SET_PREFERENCE',
+      payload: {
+        key: `item_meta:${livro.id}`,
+        value: {
+          ...metadata,
+          capitulosCobertos: capitulosCobertos.filter(c => c !== cap),
+        } satisfies BibliotecaItemMeta,
+      },
+    });
   };
 
   const handleSalvarCampanha = () => {
     if (!campForm.nome.trim()) return;
     const nova: Campaign = {
       id: generateUUID(),
+      userId: '',
       nome: campForm.nome.trim(),
-      livroId: livro.id,
-      dataInicio: campForm.dataInicio || undefined,
-      dataFim: campForm.dataFim || undefined,
-      metaConteudos: Number(campForm.metaConteudos) || 5,
+      tipo: 'campanha',
       status: 'Planejando',
+      dataInicio: campForm.dataInicio || null,
+      dataFim: campForm.dataFim || null,
+      metaConteudos: Number(campForm.metaConteudos) || 5,
+      bibliotecaItemId: livro.id,
+      brand: null,
+      brandColor: null,
+      value: null,
+      currency: 'BRL',
+      notes: null,
       createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      deletedAt: null,
+      etapas: [],
+      contentIds: [],
     };
-    (dispatch as any)({ type: 'ADD_CAMPAIGN', payload: nova });
+    dispatch({ type: 'ADD_PROJETO', payload: nova });
     setCampForm({ nome: '', dataInicio: '', dataFim: '', metaConteudos: '5' });
     setNovaCampanhaAberta(false);
   };
@@ -447,23 +578,22 @@ export function BookDetail() {
 
   return (
     <div className="min-h-screen bg-[var(--bg-secondary)]">
-      {/* Header sticky (sem tabs) */}
-      <div className="sticky top-0 z-10 bg-[var(--bg-secondary)]/90 backdrop-blur-sm border-b border-[var(--border-color)]">
-        <div className="max-w-5xl mx-auto px-6 md:px-12 py-4 flex items-center gap-4">
-          <button
-            onClick={() => navigate('/biblioteca')}
-            className="p-2 hover:bg-[var(--bg-hover)] rounded-xl transition-colors"
-          >
-            <ArrowLeft className="w-5 h-5 text-[var(--text-primary)] opacity-50" />
-          </button>
-          <div className="flex-1 min-w-0">
-            <h1 className="text-lg font-black text-[var(--text-primary)] line-clamp-1 leading-tight">{livro.titulo}</h1>
-            <p className="text-xs text-[var(--text-secondary)]">{livro.autorDiretor}</p>
-          </div>
+      <div className="desktop-header-sticky">
+        <div className="desktop-header-frame">
+          <DesktopPageHeader
+            section="Biblioteca"
+            title={livro.titulo}
+            subtitle={livro.autorDiretor}
+            meta={`${itemTypeLabel} · ${livro.status}`}
+            icon={ItemIcon}
+            backLabel="Biblioteca"
+            onBack={() => navigate('/biblioteca')}
+            className="mb-0"
+          />
         </div>
       </div>
 
-      <div className="max-w-5xl mx-auto px-6 md:px-12">
+      <div className="desktop-content-frame-book">
         {/* Barra de tabs separada */}
         <div className="flex border-b border-[var(--border-color)] mb-8 mt-2">
           {(['info', 'anotacoes', 'conteudos'] as Tab[]).map(t => (
@@ -494,7 +624,7 @@ export function BookDetail() {
                   <img src={livro.capaUrl} alt={livro.titulo} className="w-full h-full object-cover" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center">
-                    <BookOpen className="w-10 h-10 text-[var(--text-tertiary)]" />
+                    <ItemIcon className="w-10 h-10 text-[var(--text-tertiary)]" />
                   </div>
                 )}
               </div>
@@ -522,7 +652,7 @@ export function BookDetail() {
                     <input type="text" value={infoLocal.titulo} onChange={e => setInfoLocal(prev => ({ ...prev, titulo: e.target.value }))} className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)]" />
                   </div>
                   <div>
-                    <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1.5">Autor</label>
+                    <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1.5">{creatorLabel}</label>
                     <input type="text" value={infoLocal.autor} onChange={e => setInfoLocal(prev => ({ ...prev, autor: e.target.value }))} className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)]" />
                   </div>
                 </div>
@@ -549,9 +679,9 @@ export function BookDetail() {
                 </div>
               </section>
 
-              {/* Seção 2 — Leitura */}
+              {/* Seção 2 — Consumo */}
               <section className="border-t border-[var(--border-color)] pt-6">
-                <span className={SECTION_LABEL}>Leitura</span>
+                <span className={SECTION_LABEL}>Consumo</span>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1.5">Status</label>
@@ -564,20 +694,20 @@ export function BookDetail() {
                     <input type="url" value={infoLocal.capaUrl} onChange={e => setInfoLocal(prev => ({ ...prev, capaUrl: e.target.value }))} placeholder="https://..." className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:opacity-30" />
                   </div>
                   <div>
-                    <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1.5">Início da Leitura</label>
+                    <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1.5">Início</label>
                     <input type="date" value={infoLocal.dataInicio} onChange={e => setInfoLocal(prev => ({ ...prev, dataInicio: e.target.value }))} className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)]" />
                   </div>
                   <div>
-                    <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1.5">Fim da Leitura</label>
+                    <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1.5">Fim</label>
                     <input type="date" value={infoLocal.dataFim} onChange={e => setInfoLocal(prev => ({ ...prev, dataFim: e.target.value }))} className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)]" />
                   </div>
                   <div>
-                    <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1.5">Páginas Lidas</label>
-                    <input type="number" min={0} value={infoLocal.paginasLidas} onChange={e => setInfoLocal(prev => ({ ...prev, paginasLidas: e.target.value === '' ? '' : Number(e.target.value) }))} placeholder="Ex: 120" className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:opacity-30" />
+                    <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1.5">{progressLabels.current}</label>
+                    <input type="number" min={0} value={infoLocal.paginasLidas} onChange={e => setInfoLocal(prev => ({ ...prev, paginasLidas: e.target.value === '' ? '' : Number(e.target.value) }))} placeholder={livro.tipo === 'filme' ? 'Ex: 95' : livro.tipo === 'série' ? 'Ex: 8' : 'Ex: 120'} className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:opacity-30" />
                   </div>
                   <div>
-                    <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1.5">Total de Páginas</label>
-                    <input type="number" min={1} value={infoLocal.totalPaginas} onChange={e => setInfoLocal(prev => ({ ...prev, totalPaginas: e.target.value === '' ? '' : Number(e.target.value) }))} placeholder="Ex: 380" className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:opacity-30" />
+                    <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1.5">{progressLabels.total}</label>
+                    <input type="number" min={1} value={infoLocal.totalPaginas} onChange={e => setInfoLocal(prev => ({ ...prev, totalPaginas: e.target.value === '' ? '' : Number(e.target.value) }))} placeholder={livro.tipo === 'filme' ? 'Ex: 130' : livro.tipo === 'série' ? 'Ex: 10' : 'Ex: 380'} className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:opacity-30" />
                   </div>
                 </div>
                 {(infoLocal.totalPaginas as number) > 0 && (
@@ -585,7 +715,7 @@ export function BookDetail() {
                     <div className="flex items-center justify-between mb-1.5">
                       <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)]">Progresso</label>
                       <span className="text-[10px] font-black text-[var(--accent-purple)]">
-                        {Math.min(100, Math.round(((infoLocal.paginasLidas as number || 0) / (infoLocal.totalPaginas as number)) * 100))}%
+                        {(infoLocal.paginasLidas as number || 0)}/{infoLocal.totalPaginas} {progressLabels.unit} · {Math.min(100, Math.round(((infoLocal.paginasLidas as number || 0) / (infoLocal.totalPaginas as number)) * 100))}%
                       </span>
                     </div>
                     <div className="h-2 w-full bg-[var(--bg-hover)] rounded-full overflow-hidden border border-[var(--border-color)]">
@@ -607,28 +737,30 @@ export function BookDetail() {
                 {showTechnical && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1.5">Editora</label>
-                      <input type="text" value={infoLocal.editora} onChange={e => setInfoLocal(prev => ({ ...prev, editora: e.target.value }))} placeholder="Ex: Rocco" className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:opacity-30" />
+                      <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1.5">{technicalLabels.publisher}</label>
+                      <input type="text" value={infoLocal.editora} onChange={e => setInfoLocal(prev => ({ ...prev, editora: e.target.value }))} placeholder={technicalLabels.publisherPlaceholder} className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:opacity-30" />
                     </div>
                     <div>
                       <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1.5">Ano de Publicação</label>
                       <input type="number" value={infoLocal.anoPublicacao} onChange={e => setInfoLocal(prev => ({ ...prev, anoPublicacao: e.target.value }))} placeholder="2024" className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:opacity-30" />
                     </div>
-                    <div>
-                      <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1.5">ISBN</label>
-                      <input type="text" value={infoLocal.isbn} onChange={e => setInfoLocal(prev => ({ ...prev, isbn: e.target.value }))} placeholder="978-..." className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:opacity-30" />
-                    </div>
+                    {livro.tipo === 'livro' && (
+                      <div>
+                        <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1.5">ISBN</label>
+                        <input type="text" value={infoLocal.isbn} onChange={e => setInfoLocal(prev => ({ ...prev, isbn: e.target.value }))} placeholder="978-..." className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:opacity-30" />
+                      </div>
+                    )}
                     <div>
                       <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1.5">Idioma</label>
                       <input type="text" value={infoLocal.idioma} onChange={e => setInfoLocal(prev => ({ ...prev, idioma: e.target.value }))} placeholder="Português" className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:opacity-30" />
                     </div>
                     <div>
-                      <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1.5">Tradução</label>
-                      <input type="text" value={infoLocal.traducao} onChange={e => setInfoLocal(prev => ({ ...prev, traducao: e.target.value }))} placeholder="Tradutor" className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:opacity-30" />
+                      <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1.5">{technicalLabels.translation}</label>
+                      <input type="text" value={infoLocal.traducao} onChange={e => setInfoLocal(prev => ({ ...prev, traducao: e.target.value }))} placeholder={technicalLabels.translationPlaceholder} className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:opacity-30" />
                     </div>
                     <div>
-                      <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1.5">Série / Coleção</label>
-                      <input type="text" value={infoLocal.serieColecao} onChange={e => setInfoLocal(prev => ({ ...prev, serieColecao: e.target.value }))} placeholder="Ex: Trono de Vidro" className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:opacity-30" />
+                      <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1.5">{technicalLabels.collection}</label>
+                      <input type="text" value={infoLocal.serieColecao} onChange={e => setInfoLocal(prev => ({ ...prev, serieColecao: e.target.value }))} placeholder={technicalLabels.collectionPlaceholder} className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:opacity-30" />
                     </div>
                   </div>
                 )}
@@ -689,7 +821,7 @@ export function BookDetail() {
                   onClick={() => setConfirm({ message: `Excluir "${livro.titulo}"? Esta ação é irreversível.`, onConfirm: () => { dispatch({ type: 'DELETE_BOOK', payload: livro.id }); navigate('/biblioteca'); } })}
                   className="text-xs font-bold text-[var(--accent-pink)] opacity-50 hover:opacity-100 transition-opacity"
                 >
-                  Excluir livro
+                  Excluir item
                 </button>
                 <button
                   onClick={handleSalvarInfo}
@@ -847,7 +979,7 @@ export function BookDetail() {
             {alertaEcossistema && (
               <div className="flex items-center gap-3 bg-orange-50 border border-orange-200 rounded-2xl px-5 py-4">
                 <AlertCircle className="w-5 h-5 text-orange-500 shrink-0" />
-                <p className="text-sm text-orange-700 font-medium">Você já terminou esse livro mas ainda não postou nenhum conteúdo sobre ele.</p>
+                <p className="text-sm text-orange-700 font-medium">Você já concluiu esse {itemTypeLabel.toLowerCase()} mas ainda não postou nenhum conteúdo sobre ele.</p>
               </div>
             )}
 
@@ -959,7 +1091,7 @@ export function BookDetail() {
             {ideiasDeLivro.length > 0 && (
               <div className="bg-[var(--bg-primary)] rounded-2xl border border-[var(--border-color)] p-5">
                 <h3 className="text-[10px] font-black uppercase tracking-widest text-[var(--text-tertiary)] mb-3">
-                  Ideias deste livro ({ideiasDeLivro.length})
+                  Ideias deste {itemTypeLabel.toLowerCase()} ({ideiasDeLivro.length})
                 </h3>
                 <div className="space-y-2">
                   {ideiasDeLivro.map(ideia => (
@@ -1032,23 +1164,23 @@ export function BookDetail() {
 
             {conteudosDoLivro.length === 0 && (
               <div className="text-center py-12">
-                <BookOpen className="w-10 h-10 text-[var(--text-primary)] opacity-10 mx-auto mb-3" />
+                <ItemIcon className="w-10 h-10 text-[var(--text-primary)] opacity-10 mx-auto mb-3" />
                 <p className="text-[var(--text-tertiary)] font-bold text-sm uppercase tracking-widest">
-                  Nenhum conteúdo criado a partir deste livro ainda
+                  Nenhum conteúdo criado a partir deste {itemTypeLabel.toLowerCase()} ainda
                 </p>
               </div>
             )}
 
             {/* ── Capítulos/Partes cobertos ── */}
             <section className="bg-[var(--bg-primary)] rounded-2xl border border-[var(--border-color)] p-5">
-              <span className={SECTION_LABEL}>Capítulos / Partes cobertos</span>
+              <span className={SECTION_LABEL}>{coverageLabels.section}</span>
               <div className="flex gap-2 mb-4">
                 <input
                   type="text"
                   value={novoCapituloCoberto}
                   onChange={e => setNovoCapituloCoberto(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter') handleAdicionarCapitulo(); }}
-                  placeholder="Ex: Cap. 3 — O Vilão"
+                  placeholder={coverageLabels.placeholder}
                   className="flex-1 text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:opacity-40"
                 />
                 <button
@@ -1059,11 +1191,11 @@ export function BookDetail() {
                   Adicionar
                 </button>
               </div>
-              {((livro as any).capitulosCobertos || []).length === 0 ? (
-                <p className="text-xs text-[var(--text-tertiary)]">Nenhum capítulo marcado ainda</p>
+              {capitulosCobertos.length === 0 ? (
+                <p className="text-xs text-[var(--text-tertiary)]">{coverageLabels.empty}</p>
               ) : (
                 <div className="flex flex-wrap gap-2">
-                  {((livro as any).capitulosCobertos || []).map((cap: string) => (
+                  {capitulosCobertos.map((cap: string) => (
                     <div key={cap} className="flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-full bg-[var(--bg-hover)] text-[var(--text-primary)] border border-[var(--border-color)]">
                       <span>{cap}</span>
                       <button onClick={() => handleRemoverCapitulo(cap)} className="opacity-40 hover:opacity-100 transition-opacity ml-1">
@@ -1115,7 +1247,7 @@ export function BookDetail() {
                       </button>
                     </div>
                   ) : (
-                    <p className="text-xs text-[var(--text-tertiary)]">Nenhuma hashtag configurada nos pilares dos conteúdos deste livro.</p>
+                    <p className="text-xs text-[var(--text-tertiary)]">Nenhuma hashtag configurada nos pilares dos conteúdos deste item.</p>
                   )}
                 </div>
               )}

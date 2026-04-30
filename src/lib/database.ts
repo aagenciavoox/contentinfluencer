@@ -129,6 +129,18 @@ export interface BibliotecaItem {
   anotacoes: Anotacao[];
 }
 
+export interface BibliotecaItemMeta {
+  editora?: string;
+  anoPublicacao?: string;
+  isbn?: string;
+  idioma?: string;
+  traducao?: string;
+  serieColecao?: string;
+  quemIndicou?: string;
+  motivoEscolha?: string;
+  capitulosCobertos?: string[];
+}
+
 export interface ScriptNote {
   id: string;
   text: string;
@@ -305,6 +317,7 @@ export interface AppData {
   series: Serie[];
   cenarios: Cenario[];
   looks: Look[];
+  bibliotecaGeneros: BibliotecaGenero[];
   bibliotecaItems: BibliotecaItem[];
   contents: Content[];
   ideas: Idea[];
@@ -338,7 +351,7 @@ export interface EnergyLog {
 function empty(): AppData {
   return {
     platforms: [], preferences: {}, dnaVoz: null, pilares: [], series: [],
-    cenarios: [], looks: [], bibliotecaItems: [],
+    cenarios: [], looks: [], bibliotecaGeneros: [], bibliotecaItems: [],
     contents: [], ideas: [], projetos: [], recordingBlocks: [], templates: [],
     agendaItems: [], goldenRules: [], contentMetrics: [],
     books: [], partnerships: [], results: [], agenda: [],
@@ -357,6 +370,26 @@ async function currentUserId(): Promise<string | null> {
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Row = any;
+
+function parsePreferenceValue(value: string) {
+  try {
+    return JSON.parse(value);
+  } catch {
+    return value;
+  }
+}
+
+function serializePreferenceValue(value: unknown) {
+  return typeof value === 'string' ? value : JSON.stringify(value);
+}
+
+function looksLikeUuid(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
+function normalizePlatformRef(platformId: string, platformNameById: Map<string, string>) {
+  return platformNameById.get(platformId) || platformId;
+}
 
 const mp = {
   platform: (r: Row): Platform => ({
@@ -408,7 +441,7 @@ const mp = {
     notasGerais: r.notas_gerais, potencialConteudo: r.potencial_conteudo,
     totalPaginas: r.total_paginas, paginasLidas: r.paginas_lidas,
     createdAt: r.created_at, updatedAt: r.updated_at, deletedAt: r.deleted_at,
-    generoIds: (r.item_generos || []).map((g: Row) => g.genero_id),
+    generoIds: (r.item_generos || []).map((g: Row) => g.biblioteca_generos?.nome || g.genero_id),
     anotacoes: (r.anotacoes || []).filter((a: Row) => !a.deleted_at).map(mp.anotacao),
   }),
   content: (r: Row): Content => ({
@@ -492,6 +525,7 @@ export async function fetchAllData(): Promise<AppData> {
     { data: seriesRows },
     { data: cenariosRows },
     { data: looksRows },
+    { data: generosRows },
     { data: bibliotecaRows },
     { data: contentsRows },
     { data: ideasRows },
@@ -509,8 +543,9 @@ export async function fetchAllData(): Promise<AppData> {
     supabase.from('series').select('*, serie_pilares(pilar_id), serie_plataformas(*)').eq('user_id', uid),
     supabase.from('cenarios').select('*').eq('user_id', uid),
     supabase.from('looks').select('*').eq('user_id', uid).order('numero'),
+    supabase.from('biblioteca_generos').select('*').eq('user_id', uid).order('nome'),
     supabase.from('biblioteca_items')
-      .select('*, item_generos(genero_id), anotacoes(*)')
+      .select('*, item_generos(genero_id, biblioteca_generos(nome)), anotacoes(*)')
       .eq('user_id', uid).is('deleted_at', null)
       .order('created_at', { ascending: false }),
     supabase.from('contents')
@@ -532,29 +567,84 @@ export async function fetchAllData(): Promise<AppData> {
     supabase.from('content_metrics').select('*').eq('user_id', uid),
   ]);
 
+  const platformNameById = new Map((platforms || []).map((platform: Row) => [platform.id, platform.nome]));
+
   return {
     platforms:        (platforms       || []).map(mp.platform),
-    preferences:      (prefs           || []).reduce((acc: Record<string, any>, p: Row) => ({ ...acc, [p.key]: p.value }), {}),
+    preferences:      (prefs           || []).reduce((acc: Record<string, any>, p: Row) => ({ ...acc, [p.key]: parsePreferenceValue(p.value) }), {}),
     dnaVoz:           dnaVozRow ? mp.dnaVoz(dnaVozRow) : null,
-    pilares:          (pilaresRows     || []).map(mp.pilar),
-    series:           (seriesRows      || []).map(mp.serie),
+    pilares:          (pilaresRows     || []).map((row: Row) => ({
+      ...mp.pilar(row),
+      plataformas: (row.pilar_plataformas || []).map((p: Row) => ({
+        pilarId: p.pilar_id,
+        platformId: normalizePlatformRef(p.platform_id, platformNameById),
+        hashtags: p.hashtags || '',
+      })),
+    })),
+    series:           (seriesRows      || []).map((row: Row) => ({
+      ...mp.serie(row),
+      plataformas: (row.serie_plataformas || []).map((p: Row) => ({
+        serieId: p.serie_id,
+        platformId: normalizePlatformRef(p.platform_id, platformNameById),
+        hashtags: p.hashtags || '',
+      })),
+    })),
     cenarios:         (cenariosRows    || []).map(mp.cenario),
     looks:            (looksRows       || []).map(mp.look),
+    bibliotecaGeneros:(generosRows     || []).map(mp.genero),
     bibliotecaItems:  (bibliotecaRows  || []).map(mp.bibliotecaItem),
-    contents:         (contentsRows    || []).map(mp.content),
+    contents:         (contentsRows    || []).map((row: Row) => ({
+      ...mp.content(row),
+      plataformas: (row.content_plataformas || []).map((p: Row) => ({
+        id: p.id,
+        contentId: p.content_id,
+        platformId: normalizePlatformRef(p.platform_id, platformNameById),
+        legenda: p.legenda || '',
+        hashtags: p.hashtags || '',
+        publishDate: p.publish_date,
+      })),
+    })),
     ideas:            (ideasRows       || []).map(mp.idea),
     projetos:         (projetosRows    || []).map(mp.projeto),
     recordingBlocks:  (blocksRows      || []).map(mp.recordingBlock),
     templates:        (templatesRows || []).map(mp.template),
     agendaItems:      (agendaRows    || []).map(mp.agendaItem),
     goldenRules:      (rulesRows     || []).map(mp.goldenRule),
-    contentMetrics:   (metricsRows   || []).map(mp.contentMetric),
+    contentMetrics:   (metricsRows   || []).map((row: Row) => ({
+      ...mp.contentMetric(row),
+      platformId: normalizePlatformRef(row.platform_id, platformNameById),
+    })),
     // Legacy aliases
     books:            (bibliotecaRows  || []).map(mp.bibliotecaItem),
     partnerships:     (projetosRows    || []).map(mp.projeto),
-    results:          (metricsRows     || []).map(mp.contentMetric),
+    results:          (metricsRows     || []).map((row: Row) => ({
+      ...mp.contentMetric(row),
+      platformId: normalizePlatformRef(row.platform_id, platformNameById),
+    })),
     agenda:           (agendaRows      || []).map(mp.agendaItem),
   };
+}
+
+async function resolvePlatformIds(platformRefs: string[]): Promise<Map<string, string>> {
+  const resolved = new Map<string, string>();
+  const refs = [...new Set(platformRefs.filter(Boolean))];
+  if (!supabase || refs.length === 0) return resolved;
+
+  refs.forEach(ref => {
+    if (looksLikeUuid(ref)) resolved.set(ref, ref);
+  });
+
+  const unresolvedRefs = refs.filter(ref => !resolved.has(ref));
+  if (unresolvedRefs.length === 0) return resolved;
+
+  const uid = await currentUserId();
+  const query = supabase.from('platforms').select('id, nome').in('nome', unresolvedRefs);
+  const scopedQuery = uid ? query.or(`user_id.is.null,user_id.eq.${uid}`) : query.is('user_id', null);
+  const { data, error } = await scopedQuery;
+  if (error) throw new Error(`platforms resolve: ${error.message}`);
+
+  (data || []).forEach((platform: Row) => resolved.set(platform.nome, platform.id));
+  return resolved;
 }
 
 // ============================================================================
@@ -566,8 +656,25 @@ export async function savePreference(key: string, value: any): Promise<void> {
   const uid = await currentUserId();
   if (!uid) return;
   const { error } = await supabase.from('user_preferences')
-    .upsert({ user_id: uid, key, value }, { onConflict: 'user_id,key' });
+    .upsert({ user_id: uid, key, value: serializePreferenceValue(value) }, { onConflict: 'user_id,key' });
   if (error) throw new Error(`preferences: ${error.message}`);
+}
+
+export async function savePlatform(platform: Omit<Platform, 'createdAt'>): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase.from('platforms').upsert({
+    id: platform.id,
+    user_id: platform.userId,
+    nome: platform.nome,
+    ativo: platform.ativo,
+  });
+  if (error) throw new Error(`platforms: ${error.message}`);
+}
+
+export async function deletePlatform(id: string): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase.from('platforms').delete().eq('id', id);
+  if (error) throw new Error(`delete platform: ${error.message}`);
 }
 
 // ============================================================================
@@ -608,8 +715,11 @@ export async function savePilarPlataformas(pilarId: string, plataformas: PilarPl
   if (!supabase) return;
   await supabase.from('pilar_plataformas').delete().eq('pilar_id', pilarId);
   if (plataformas.length === 0) return;
+  const platformIds = await resolvePlatformIds(plataformas.map(p => p.platformId));
   const { error } = await supabase.from('pilar_plataformas').insert(
-    plataformas.map(p => ({ pilar_id: pilarId, platform_id: p.platformId, hashtags: p.hashtags }))
+    plataformas
+      .map(p => ({ pilar_id: pilarId, platform_id: platformIds.get(p.platformId), hashtags: p.hashtags }))
+      .filter((row): row is { pilar_id: string; platform_id: string; hashtags: string } => !!row.platform_id)
   );
   if (error) throw new Error(`pilar_plataformas: ${error.message}`);
 }
@@ -643,6 +753,21 @@ export async function saveSeriePilares(serieId: string, pilarIds: string[]): Pro
     pilarIds.map(pid => ({ serie_id: serieId, pilar_id: pid }))
   );
   if (error) throw new Error(`serie_pilares: ${error.message}`);
+}
+
+export async function saveSeriePlataformas(serieId: string, plataformas: SeriePlataforma[]): Promise<void> {
+  if (!supabase) return;
+  await supabase.from('serie_plataformas').delete().eq('serie_id', serieId);
+  if (plataformas.length === 0) return;
+  const platformIds = await resolvePlatformIds(plataformas.map(plataforma => plataforma.platformId));
+  const { error } = await supabase.from('serie_plataformas').insert(
+    plataformas.map(plataforma => ({
+      serie_id: serieId,
+      platform_id: platformIds.get(plataforma.platformId),
+      hashtags: plataforma.hashtags,
+    })).filter((row): row is { serie_id: string; platform_id: string; hashtags: string } => !!row.platform_id)
+  );
+  if (error) throw new Error(`serie_plataformas: ${error.message}`);
 }
 
 export async function deleteSerie(id: string): Promise<void> {
@@ -709,10 +834,36 @@ export async function saveBibliotecaItem(
 
 export async function saveItemGeneros(itemId: string, generoIds: string[]): Promise<void> {
   if (!supabase) return;
+  const uid = await currentUserId();
+  if (!uid) return;
+
   await supabase.from('item_generos').delete().eq('item_id', itemId);
   if (generoIds.length === 0) return;
+
+  const { data: existingGeneros, error: fetchError } = await supabase
+    .from('biblioteca_generos')
+    .select('id, nome')
+    .eq('user_id', uid)
+    .in('nome', generoIds);
+  if (fetchError) throw new Error(`biblioteca_generos fetch: ${fetchError.message}`);
+
+  const existingByName = new Map((existingGeneros || []).map((genero: Row) => [genero.nome, genero.id]));
+  const missingNames = generoIds.filter(nome => !existingByName.has(nome));
+
+  if (missingNames.length > 0) {
+    const { data: insertedGeneros, error: insertGeneroError } = await supabase
+      .from('biblioteca_generos')
+      .insert(missingNames.map(nome => ({ user_id: uid, nome, tipo: null })))
+      .select('id, nome');
+    if (insertGeneroError) throw new Error(`biblioteca_generos insert: ${insertGeneroError.message}`);
+    (insertedGeneros || []).forEach((genero: Row) => existingByName.set(genero.nome, genero.id));
+  }
+
   const { error } = await supabase.from('item_generos').insert(
-    generoIds.map(gid => ({ item_id: itemId, genero_id: gid }))
+    generoIds
+      .map(nome => existingByName.get(nome))
+      .filter((generoId): generoId is string => !!generoId)
+      .map(generoId => ({ item_id: itemId, genero_id: generoId }))
   );
   if (error) throw new Error(`item_generos: ${error.message}`);
 }
@@ -769,11 +920,12 @@ export async function saveContentPlataformas(
   if (!supabase) return;
   await supabase.from('content_plataformas').delete().eq('content_id', contentId);
   if (plataformas.length === 0) return;
+  const platformIds = await resolvePlatformIds(plataformas.map(p => p.platformId));
   const { error } = await supabase.from('content_plataformas').insert(
     plataformas.map(p => ({
-      content_id: contentId, platform_id: p.platformId,
+      content_id: contentId, platform_id: platformIds.get(p.platformId),
       legenda: p.legenda, hashtags: p.hashtags, publish_date: p.publishDate,
-    }))
+    })).filter((row): row is { content_id: string; platform_id: string; legenda: string; hashtags: string; publish_date: string | null } => !!row.platform_id)
   );
   if (error) throw new Error(`content_plataformas: ${error.message}`);
 }
@@ -821,6 +973,35 @@ export async function saveProjeto(
     currency: projeto.currency, notes: projeto.notes,
   });
   if (error) throw new Error(`projetos: ${error.message}`);
+}
+
+export async function saveProjetoEtapa(etapa: Omit<ProjetoEtapa, 'createdAt'>): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase.from('projeto_etapas').upsert({
+    id: etapa.id,
+    projeto_id: etapa.projetoId,
+    nome: etapa.nome,
+    ordem: etapa.ordem,
+    status: etapa.status,
+    data_prazo: etapa.dataPrazo,
+  });
+  if (error) throw new Error(`projeto_etapas: ${error.message}`);
+}
+
+export async function deleteProjetoEtapa(id: string): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase.from('projeto_etapas').delete().eq('id', id);
+  if (error) throw new Error(`delete projeto_etapa: ${error.message}`);
+}
+
+export async function saveProjetoConteudos(projetoId: string, contentIds: string[]): Promise<void> {
+  if (!supabase) return;
+  await supabase.from('projeto_conteudos').delete().eq('projeto_id', projetoId);
+  if (contentIds.length === 0) return;
+  const { error } = await supabase.from('projeto_conteudos').insert(
+    contentIds.map(contentId => ({ projeto_id: projetoId, content_id: contentId }))
+  );
+  if (error) throw new Error(`projeto_conteudos: ${error.message}`);
 }
 
 export async function deleteProjeto(id: string): Promise<void> {
@@ -924,8 +1105,11 @@ export async function deleteGoldenRule(id: string): Promise<void> {
 
 export async function saveContentMetric(metric: Omit<ContentMetric, 'id' | 'createdAt'>): Promise<void> {
   if (!supabase) return;
+  const platformIds = await resolvePlatformIds([metric.platformId]);
+  const platformId = platformIds.get(metric.platformId);
+  if (!platformId) throw new Error(`content_metrics: platform not found for "${metric.platformId}"`);
   const { error } = await supabase.from('content_metrics').upsert({
-    user_id: metric.userId, content_id: metric.contentId, platform_id: metric.platformId,
+    user_id: metric.userId, content_id: metric.contentId, platform_id: platformId,
     views: metric.views, likes: metric.likes, comments: metric.comments,
     saves: metric.saves, shares: metric.shares, reposts: metric.reposts,
     new_followers: metric.newFollowers, accounts_reached: metric.accountsReached,

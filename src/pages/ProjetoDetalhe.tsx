@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, ChevronUp, ChevronDown, Trash2, Plus, Check, X } from 'lucide-react';
+import { ChevronUp, ChevronDown, Trash2, Plus, Check, X, Briefcase } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
-import type { Projeto, ProjetoEtapa, AgendaItem } from '../lib/database';
+import type { Projeto, ProjetoEtapa, AgendaItem, Content } from '../lib/database';
 import { cn } from '../lib/utils';
+import { DesktopPageHeader } from '../components/layout/DesktopPageHeader';
 
 type Aba = 'visao-geral' | 'etapas' | 'conteudos' | 'agenda';
 
@@ -143,13 +144,28 @@ export function ProjetoDetalhe() {
     dispatch({ type: 'DELETE_PROJETO_ETAPA', payload: { projetoId: projeto.id, etapaId } });
   };
 
-  const projetoContents = state.contents.filter(c => (c as any).projetoId === projeto.id);
-  const disponiveisParaVincular = state.contents.filter(c => !(c as any).projetoId);
+  const projetoContents = state.contents.filter(c => projeto.contentIds.includes(c.id));
+  const disponiveisParaVincular = state.contents.filter(c => !projeto.contentIds.includes(c.id));
 
   const vincularContent = (contentId: string) => {
-    const content = state.contents.find(c => c.id === contentId);
-    if (!content) return;
-    dispatch({ type: 'UPDATE_CONTENT', payload: { ...content, updatedAt: new Date().toISOString() } } as any);
+    if (projeto.contentIds.includes(contentId)) return;
+    const selectedContent = state.contents.find(content => content.id === contentId);
+    if (!selectedContent) return;
+    dispatch({
+      type: 'UPDATE_PROJETO',
+      payload: {
+        ...projeto,
+        contentIds: [...projeto.contentIds, contentId],
+        updatedAt: new Date().toISOString(),
+      },
+    });
+    dispatch({
+      type: 'UPDATE_CONTENT',
+      payload: {
+        ...selectedContent,
+        updatedAt: new Date().toISOString(),
+      } satisfies Content,
+    });
   };
 
   const agendaItems = state.agendaItems.filter(a => a.projetoId === projeto.id);
@@ -182,23 +198,19 @@ export function ProjetoDetalhe() {
 
   return (
     <div className="min-h-screen bg-[var(--bg-secondary)]">
-      <div className="content-narrow mx-auto px-6 md:px-12 py-10 md:py-16">
-        {/* Header */}
-        <div className="mb-8">
-          <button
-            onClick={() => navigate('/projetos')}
-            className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest opacity-40 hover:opacity-80 transition-opacity mb-6"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Projetos
-          </button>
-          <h1 className="text-3xl md:text-4xl font-black text-[var(--text-primary)] leading-none tracking-tight">
-            {projeto.nome}
-          </h1>
-          <p className="text-[10px] font-black uppercase tracking-widest opacity-40 mt-2">
-            {projeto.tipo} {projeto.brand ? `· ${projeto.brand}` : ''}
-          </p>
-        </div>
+      <div className="desktop-header-frame">
+        <DesktopPageHeader
+          section="Projetos"
+          title={projeto.nome}
+          subtitle="Acompanhe etapas, agenda, conteúdos vinculados e informações da parceria em um único lugar."
+          meta={`${projeto.tipo}${projeto.brand ? ` · ${projeto.brand}` : ''}`}
+          icon={Briefcase}
+          backLabel="Projetos"
+          onBack={() => navigate('/projetos')}
+        />
+      </div>
+
+      <div className="desktop-content-frame">
 
         {/* Abas */}
         <div className="flex gap-1 mb-8 border-b border-[var(--border-color)] overflow-x-auto">

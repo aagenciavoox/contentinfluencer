@@ -1,17 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
 import { Plus, ArrowUpRight, Clock, Lightbulb, X, Trash2, Edit3, Save, BookOpen } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Idea, Content } from '../lib/database';
-import { cn } from '../lib/utils';
-import { BottomSheetModal } from '../components/BottomSheetModal';
-import { ConfirmModal } from '../components/ConfirmModal';
-import { PageGuide } from '../components/PageGuide';
-import { PageHeader } from '../components/PageHeader';
-import { useIsMobile } from '../hooks/useIsMobile';
-import { useScrollDirection } from '../hooks/useScrollDirection';
+import { BottomSheetModal } from '../components/modals/BottomSheetModal';
+import { ConfirmModal } from '../components/modals/ConfirmModal';
+import { DesktopPageHeader } from '../components/layout/DesktopPageHeader';
+import { generateUUID } from '../utils/uuid';
 
 export function Ideas() {
   const { state, dispatch } = useAppContext();
@@ -21,8 +18,6 @@ export function Ideas() {
   const [selectedSeries, setSelectedSeries] = useState<string>('');
   const [selectedBibliotecaId, setSelectedBibliotecaId] = useState<string>('');
   const [viewingIdea, setViewingIdea] = useState<Idea | null>(null);
-  const isMobile = useIsMobile();
-  const scrollDirection = useScrollDirection();
 
   useEffect(() => {
     const itemId = searchParams.get('itemId');
@@ -42,7 +37,7 @@ export function Ideas() {
     if (!newIdeaText.trim()) return;
 
     const newIdea: Omit<Idea, 'createdAt'> = {
-      id: Math.random().toString(36).substr(2, 9),
+      id: generateUUID(),
       userId: '',
       text: newIdeaText,
       pilarId: selectedPilarId || null,
@@ -59,7 +54,7 @@ export function Ideas() {
 
   const handlePromote = (idea: Idea) => {
     const newContent: Omit<Content, 'createdAt' | 'deletedAt' | 'plataformas' | 'scriptNotes'> = {
-      id: Math.random().toString(36).substr(2, 9),
+      id: generateUUID(),
       userId: '',
       title: idea.text.split('\n')[0].slice(0, 50),
       status: 'Ideia',
@@ -127,23 +122,20 @@ export function Ideas() {
   const consumindo = state.bibliotecaItems.filter(b => b.status === 'Consumindo');
 
   return (
-    <div className="page-container mx-auto py-6 md:py-16">
-      <PageGuide
-        pageId="ideas"
-        title="O Berçário de Insights"
-        description="Capture tudo o que vier à cabeça aqui. Não se preocupe com a perfeição. Quando uma ideia amadurecer, use o botão 'Promover' para transformá-la em um roteiro no inventário."
-        icon={Lightbulb}
-      />
-      <header className="px-4 md:px-10 py-6 md:py-8 border-b border-[var(--border-color)] bg-[var(--bg-secondary)]/50 backdrop-blur-md sticky top-0 z-20 transition-colors duration-300">
-        <div className="max-w-3xl mx-auto w-full">
-          <PageHeader
+    <div className="min-h-screen bg-[var(--bg-secondary)]">
+      <header className="desktop-header-sticky transition-colors duration-300">
+        <div className="desktop-header-frame">
+          <DesktopPageHeader
+            section="Inventário Criativo"
             title="Caixa de Ideias"
-            subtitle="Capture tudo, sem julgamento. Promova quando estiver pronto."
-            className="!mb-0"
+            subtitle="Capture tudo sem julgamento e promova o que amadurecer para o inventário."
+            icon={Lightbulb}
+            className="mb-0"
           />
         </div>
       </header>
 
+      <div className="desktop-content-frame">
       <form onSubmit={handleAddIdea} className="mb-8 md:mb-24 p-3 md:p-8 bg-[var(--bg-secondary)] rounded-2xl border border-[var(--border-color)] elevation-1 max-w-3xl mx-auto group focus-within:border-[var(--accent-blue)] transition-all">
         <textarea
           value={newIdeaText}
@@ -317,6 +309,7 @@ export function Ideas() {
         )}
       </BottomSheetModal>
       <ConfirmModal open={!!confirm} message={confirm?.message || ''} onConfirm={() => { confirm?.onConfirm(); setConfirm(null); }} onCancel={() => setConfirm(null)} />
+      </div>
     </div>
   );
 }

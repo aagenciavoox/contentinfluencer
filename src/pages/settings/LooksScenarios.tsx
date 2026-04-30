@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus, Trash2, Edit2, ToggleLeft, ToggleRight, Check, X } from 'lucide-react';
+import { Plus, Trash2, Edit2, ToggleLeft, ToggleRight, Check, X, Shirt } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
 import { Look, Cenario } from '../../lib/database';
 import { generateUUID } from '../../utils/uuid';
+import { DesktopPageHeader } from '../../components/layout/DesktopPageHeader';
 
 type EditingLook = Partial<Look> & { numero: number; descricao: string; ativo: boolean };
 type EditingCenario = Partial<Cenario> & { nome: string; descricao: string; tempoSetupMinutos: number; ativo: boolean };
@@ -59,18 +60,23 @@ export function LooksSettings() {
 
   return (
     <div className="min-h-screen bg-[var(--bg-secondary)]">
-      <div className="content-narrow mx-auto px-6 md:px-12 py-10 md:py-16">
-        <div className="flex items-center gap-4 mb-10">
-          <button onClick={() => navigate('/settings')} className="p-2 hover:bg-[var(--bg-hover)] rounded-xl">
-            <ArrowLeft className="w-5 h-5 text-[var(--text-primary)] opacity-50" />
-          </button>
-          <h1 className="t-display">Looks & Cenários</h1>
-        </div>
+      <div className="desktop-header-frame">
+        <DesktopPageHeader
+          section="Configurações"
+          title="Looks & Cenários"
+          subtitle="Organize combinações visuais e bases de gravação para acelerar sua operação."
+          icon={Shirt}
+          backLabel="Configurações"
+          onBack={() => navigate('/configuracoes')}
+        />
+      </div>
+
+      <div className="desktop-content-frame">
 
         {/* LOOKS */}
         <section className="mb-12">
           <div className="flex items-center justify-between mb-5">
-            <h2 className="t-label">
+            <h2 className="t-section-title">
               Looks ({activeLooks.length})
             </h2>
             <button
@@ -78,7 +84,7 @@ export function LooksSettings() {
                 setCriandoLook(true);
                 setLookForm({ numero: Math.max(...state.looks.map(l => l.numero), 0) + 1, descricao: '', ativo: true });
               }}
-              className="flex items-center gap-1.5 t-label px-3 py-2 bg-[var(--text-primary)] text-[var(--bg-primary)] rounded-xl hover:scale-[1.02] transition-all shadow-sm"
+              className="t-button t-button-uppercase flex items-center gap-1.5 rounded-xl bg-[var(--text-primary)] px-3 py-2 text-[var(--bg-primary)] shadow-sm transition-all hover:scale-[1.02]"
             >
               <Plus className="w-3.5 h-3.5" />
               Novo Look
@@ -178,12 +184,12 @@ export function LooksSettings() {
         {/* CENÁRIOS */}
         <section>
           <div className="flex items-center justify-between mb-5">
-            <h2 className="t-label">
+            <h2 className="t-section-title">
               Cenários ({activeCenarios.length})
             </h2>
             <button
               onClick={() => setCriandoCenario(true)}
-              className="flex items-center gap-1.5 t-label px-3 py-2 bg-[var(--text-primary)] text-[var(--bg-primary)] rounded-xl hover:scale-[1.02] transition-all shadow-sm"
+              className="t-button t-button-uppercase flex items-center gap-1.5 rounded-xl bg-[var(--text-primary)] px-3 py-2 text-[var(--bg-primary)] shadow-sm transition-all hover:scale-[1.02]"
             >
               <Plus className="w-3.5 h-3.5" />
               Novo Cenário

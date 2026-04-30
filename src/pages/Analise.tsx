@@ -4,6 +4,8 @@ import { useNavigate } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
 import type { GoldenRule, Content } from '../lib/database';
 import { cn } from '../lib/utils';
+import { DesktopPageHeader } from '../components/layout/DesktopPageHeader';
+import { useIsMobile } from '../hooks/useIsMobile';
 
 type Aba = 'regras' | 'mix' | 'performance';
 
@@ -62,6 +64,7 @@ function avaliarRegra(regra: GoldenRule, contents: Content[]): RuleResult {
 export function Analise() {
   const { state } = useAppContext();
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const [aba, setAba] = useState<Aba>('regras');
   const [mixPeriodo, setMixPeriodo] = useState<30 | 90>(30);
   const [perfPlatforma, setPerfPlatforma] = useState('');
@@ -137,17 +140,16 @@ export function Analise() {
 
   return (
     <div className="min-h-screen bg-[var(--bg-secondary)]">
-      <div className="content-narrow mx-auto px-6 md:px-12 py-10 md:py-16">
-        {/* Header */}
-        <div className="mb-8">
-          <p className="text-[9px] font-black text-[var(--text-tertiary)] uppercase tracking-[0.4em] mb-2 italic">
-            Inteligência
-          </p>
-          <h1 className="text-4xl md:text-5xl font-black text-[var(--text-primary)] leading-none tracking-tight flex items-center gap-4">
-            <BarChart3 className="w-10 h-10 opacity-20" />
-            Análise
-          </h1>
-        </div>
+      <div className="desktop-header-frame">
+        <DesktopPageHeader
+          section="Inteligência"
+          title="Análise"
+          subtitle="Monitore consistência editorial, equilíbrio entre pilares e resultados de performance."
+          icon={BarChart3}
+        />
+      </div>
+
+      <div className="desktop-content-frame">
 
         {/* Abas */}
         <div className="flex gap-1 mb-8 border-b border-[var(--border-color)] overflow-x-auto">
@@ -224,22 +226,33 @@ export function Analise() {
         {aba === 'mix' && (
           <div className="space-y-4">
             {/* Filtro de período */}
-            <div className="flex gap-2">
-              {([30, 90] as const).map(d => (
-                <button
-                  key={d}
-                  onClick={() => setMixPeriodo(d)}
-                  className={cn(
-                    'px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border transition-all',
-                    mixPeriodo === d
-                      ? 'bg-[var(--text-primary)] text-[var(--bg-primary)] border-transparent'
-                      : 'border-[var(--border-color)] opacity-50 hover:opacity-80'
-                  )}
-                >
-                  {d} dias
-                </button>
-              ))}
-            </div>
+            {isMobile ? (
+              <select
+                value={mixPeriodo}
+                onChange={(e) => setMixPeriodo(Number(e.target.value) as 30 | 90)}
+                className="filter-select t-label w-full"
+              >
+                <option value={30}>Últimos 30 dias</option>
+                <option value={90}>Últimos 90 dias</option>
+              </select>
+            ) : (
+              <div className="flex gap-2">
+                {([30, 90] as const).map(d => (
+                  <button
+                    key={d}
+                    onClick={() => setMixPeriodo(d)}
+                    className={cn(
+                      'px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border transition-all',
+                      mixPeriodo === d
+                        ? 'bg-[var(--text-primary)] text-[var(--bg-primary)] border-transparent'
+                        : 'border-[var(--border-color)] opacity-50 hover:opacity-80'
+                    )}
+                  >
+                    {d} dias
+                  </button>
+                ))}
+              </div>
+            )}
 
             {/* Alertas de pilares sem posts */}
             {semPostar.length > 0 && (

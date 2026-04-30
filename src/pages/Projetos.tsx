@@ -5,6 +5,10 @@ import { useAppContext } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
 import type { Projeto } from '../lib/database';
 import { cn } from '../lib/utils';
+import { DesktopPageHeader } from '../components/layout/DesktopPageHeader';
+import { AppButton } from '../components/common/AppButton';
+
+import { useIsMobile } from '../hooks/useIsMobile';
 
 type TipoFilter = 'todos' | 'campanha' | 'publi' | 'producao' | 'outro';
 type StatusFilter = 'todos' | 'pendente' | 'em_andamento' | 'concluído';
@@ -35,6 +39,7 @@ export function Projetos() {
   const { state, dispatch } = useAppContext();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
 
   const [tipoFilter, setTipoFilter] = useState<TipoFilter>('todos');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('todos');
@@ -93,58 +98,87 @@ export function Projetos() {
 
   return (
     <div className="min-h-screen bg-[var(--bg-secondary)]">
-      <div className="content-narrow mx-auto px-6 md:px-12 py-10 md:py-16">
-        {/* Header */}
-        <div className="mb-8 flex items-start justify-between gap-4">
-          <div>
-            <p className="text-[9px] font-black text-[var(--text-tertiary)] uppercase tracking-[0.4em] mb-2 italic">
-              Gestão
-            </p>
-            <h1 className="text-4xl md:text-5xl font-black text-[var(--text-primary)] leading-none tracking-tight flex items-center gap-4">
-              <Handshake className="w-10 h-10 opacity-20" />
-              Projetos
-            </h1>
-          </div>
-          <button
-            onClick={() => setShowForm(true)}
-            className="flex items-center gap-2 px-5 py-3 bg-[var(--text-primary)] text-[var(--bg-primary)] rounded-2xl text-[11px] font-black uppercase tracking-widest hover:opacity-90 transition-opacity shrink-0 mt-2"
-          >
-            <Plus className="w-4 h-4" />
-            Novo projeto
-          </button>
+      <header className="desktop-header-sticky transition-colors duration-300">
+        <div className="desktop-header-frame">
+          <DesktopPageHeader
+            section="Gestão"
+            title="Projetos"
+            subtitle="Acompanhe campanhas, publis e produções com filtros e prazos em um só fluxo."
+            icon={Handshake}
+            className="mb-0"
+            actions={(
+              <AppButton
+                onClick={() => setShowForm(true)}
+                variant="primary"
+                size="md"
+                leftIcon={<Plus className="w-4 h-4" />}
+                className="uppercase tracking-widest shrink-0"
+              >
+                Novo projeto
+              </AppButton>
+            )}
+          />
         </div>
+      </header>
+
+      <div className="desktop-content-frame">
 
         {/* Filtros */}
-        <div className="flex flex-wrap gap-2 mb-6">
-          {(['todos', 'campanha', 'publi', 'producao', 'outro'] as TipoFilter[]).map(t => (
-            <button
-              key={t}
-              onClick={() => setTipoFilter(t)}
-              className={cn(
-                'px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all border',
-                tipoFilter === t
-                  ? 'bg-[var(--text-primary)] text-[var(--bg-primary)] border-transparent'
-                  : 'border-[var(--border-color)] text-[var(--text-secondary)] opacity-60 hover:opacity-100'
-              )}
-            >
-              {t === 'todos' ? 'Todos' : TIPO_LABELS[t]}
-            </button>
-          ))}
-          <div className="w-px bg-[var(--border-color)] mx-1" />
-          {(['todos', 'pendente', 'em_andamento', 'concluído'] as StatusFilter[]).map(s => (
-            <button
-              key={s}
-              onClick={() => setStatusFilter(s)}
-              className={cn(
-                'px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all border',
-                statusFilter === s
-                  ? 'bg-[var(--text-primary)] text-[var(--bg-primary)] border-transparent'
-                  : 'border-[var(--border-color)] text-[var(--text-secondary)] opacity-60 hover:opacity-100'
-              )}
-            >
-              {s === 'todos' ? 'Todos' : s.replace('_', ' ')}
-            </button>
-          ))}
+        <div className="desktop-toolbar-surface mb-6 flex flex-wrap gap-2 p-4 md:p-5">
+          {isMobile ? (
+            <div className="flex flex-wrap gap-2 w-full">
+              <select
+                value={tipoFilter}
+                onChange={(e) => setTipoFilter(e.target.value as TipoFilter)}
+                className="filter-select t-label flex-1"
+              >
+                {(['todos', 'campanha', 'publi', 'producao', 'outro'] as TipoFilter[]).map(t => (
+                  <option key={t} value={t}>{t === 'todos' ? 'Todos os Tipos' : TIPO_LABELS[t]}</option>
+                ))}
+              </select>
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
+                className="filter-select t-label flex-1"
+              >
+                {(['todos', 'pendente', 'em_andamento', 'concluído'] as StatusFilter[]).map(s => (
+                  <option key={s} value={s}>{s === 'todos' ? 'Todos os Status' : s.replace('_', ' ')}</option>
+                ))}
+              </select>
+            </div>
+          ) : (
+            <>
+              {(['todos', 'campanha', 'publi', 'producao', 'outro'] as TipoFilter[]).map(t => (
+                <button
+                  key={t}
+                  onClick={() => setTipoFilter(t)}
+                  className={cn(
+                    'filter-chip',
+                    tipoFilter === t
+                      ? 'filter-chip-active'
+                      : ''
+                  )}
+                >
+                  {t === 'todos' ? 'Todos' : TIPO_LABELS[t]}
+                </button>
+              ))}
+              <div className="mx-1 hidden w-px self-stretch bg-[var(--border-color)] md:block" />
+              {(['todos', 'pendente', 'em_andamento', 'concluído'] as StatusFilter[]).map(s => (
+                <button
+                  key={s}
+                  onClick={() => setStatusFilter(s)}
+                  className={cn(
+                    'filter-chip',
+                    statusFilter === s
+                      ? 'filter-chip-active'
+                      : ''
+                  )}
+                >
+                  {s === 'todos' ? 'Todos' : s.replace('_', ' ')}
+                </button>
+              ))}
+            </>
+          )}
         </div>
 
         {/* Form novo projeto */}

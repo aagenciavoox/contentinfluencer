@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { X, Upload, FileText, Check, AlertCircle, Info } from 'lucide-react';
-import { FixedPanelModal } from './FixedPanelModal';
+import { FixedPanelModal } from './layout/FixedPanelModal';
 import { Content } from '../lib/database';
 import { useAppContext } from '../context/AppContext';
 import { cn } from '../lib/utils';

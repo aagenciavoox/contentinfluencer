@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus, MonitorSpeaker } from 'lucide-react';
+import { Plus, MonitorSpeaker } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
 import { useAuth } from '../../context/AuthContext';
 import type { Platform } from '../../lib/database';
 import { cn } from '../../lib/utils';
+import { DesktopPageHeader } from '../../components/layout/DesktopPageHeader';
 
 const PADROES = ['Instagram', 'TikTok', 'YouTube', 'Blog'];
 
@@ -31,6 +32,7 @@ export function PlataformasSettings() {
   };
 
   const toggleAtivo = (platform: Platform) => {
+    if (isPadrao(platform.nome)) return;
     dispatch({ type: 'UPDATE_PLATFORM', payload: { ...platform, ativo: !platform.ativo } });
   };
 
@@ -38,35 +40,27 @@ export function PlataformasSettings() {
 
   return (
     <div className="min-h-screen bg-[var(--bg-secondary)]">
-      <div className="content-narrow mx-auto px-6 md:px-12 py-10 md:py-16">
-        {/* Header */}
-        <div className="mb-8">
-          <button
-            onClick={() => navigate('/configuracoes')}
-            className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest opacity-40 hover:opacity-80 mb-6"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Configurações
-          </button>
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="text-[9px] font-black text-[var(--text-tertiary)] uppercase tracking-[0.4em] mb-2 italic">
-                Configurações
-              </p>
-              <h1 className="text-4xl font-black text-[var(--text-primary)] leading-none tracking-tight flex items-center gap-3">
-                <MonitorSpeaker className="w-9 h-9 opacity-20" />
-                Plataformas
-              </h1>
-            </div>
+      <div className="desktop-header-frame">
+        <DesktopPageHeader
+          section="Configurações"
+          title="Plataformas"
+          subtitle="Ative os canais da sua operação e controle onde cada conteúdo pode existir."
+          icon={MonitorSpeaker}
+          backLabel="Configurações"
+          onBack={() => navigate('/configuracoes')}
+          actions={(
             <button
               onClick={() => setShowForm(true)}
-              className="flex items-center gap-2 px-5 py-3 bg-[var(--text-primary)] text-[var(--bg-primary)] rounded-2xl text-[11px] font-black uppercase tracking-widest hover:opacity-90 shrink-0 mt-2"
+              className="flex items-center gap-2 px-5 py-3 bg-[var(--text-primary)] text-[var(--bg-primary)] rounded-2xl text-[11px] font-black uppercase tracking-widest hover:opacity-90 shrink-0"
             >
               <Plus className="w-4 h-4" />
               Adicionar
             </button>
-          </div>
-        </div>
+          )}
+        />
+      </div>
+
+      <div className="desktop-content-frame">
 
         {/* Form adicionar */}
         {showForm && (
@@ -105,9 +99,11 @@ export function PlataformasSettings() {
               </div>
               <button
                 onClick={() => toggleAtivo(platform)}
+                disabled={isPadrao(platform.nome)}
                 className={cn(
                   'px-4 py-2 rounded-full text-[9px] font-black uppercase tracking-widest transition-all',
-                  platform.ativo ? 'bg-green-400/10 text-green-400' : 'bg-zinc-800 text-zinc-500'
+                  platform.ativo ? 'bg-green-400/10 text-green-400' : 'bg-zinc-800 text-zinc-500',
+                  isPadrao(platform.nome) && 'cursor-not-allowed opacity-50'
                 )}
               >
                 {platform.ativo ? 'Ativa' : 'Inativa'}

@@ -3,7 +3,7 @@ import {
   X, ShieldAlert, MessageSquare, Target, Ban, Edit3, Save, Plus, Trash2, Zap, Users,
 } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
-import { BottomSheetModal } from './BottomSheetModal';
+import { BottomSheetModal } from './modals/BottomSheetModal';
 
 export function DNAVozDrawer({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const { state, dispatch } = useAppContext();

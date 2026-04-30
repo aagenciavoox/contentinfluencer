@@ -7,7 +7,7 @@ import { BibliotecaItem, Anotacao } from '../lib/database';
 type TipoAnotacao = Anotacao['tipo'];
 import { generateUUID } from '../utils/uuid';
 import { cn } from '../lib/utils';
-import { BottomSheetModal } from './BottomSheetModal';
+import { BottomSheetModal } from './modals/BottomSheetModal';
 
 interface BookNotesModalProps {
   book: BibliotecaItem;

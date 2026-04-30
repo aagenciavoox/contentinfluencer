@@ -1,4 +1,4 @@
-import { Calendar as CalendarIcon, BookOpen, RotateCcw, Zap } from 'lucide-react';
+import { BookOpen, RotateCcw, Zap } from 'lucide-react';
 import { motion } from 'motion/react';
 import { AgendaItem, Content, Projeto } from '../../lib/database';
 type Partnership = Projeto;
@@ -8,7 +8,6 @@ import { CalendarGrid } from '../../components/calendar/CalendarGrid';
 import { CalendarLayerToggle } from '../../components/calendar/CalendarLayerToggle';
 import { ContentDetailModal } from '../../components/ContentDetailModal';
 import { ContentQuickPreview } from '../../components/calendar/ContentQuickPreview';
-import { PageGuide } from '../../components/PageGuide';
 
 interface EditorialAgendaTabViewProps {
   isMobile: boolean;
@@ -53,13 +52,6 @@ export function EditorialAgendaTabView({
       className="h-full overflow-y-auto custom-scrollbar"
     >
       <div className="max-w-[1600px] mx-auto py-8 px-5 md:px-10 space-y-8">
-        <PageGuide
-          pageId="calendar"
-          title="Calendário de Comando"
-          description="Visão integrada do ecossistema. Controle camadas e valide regras de ouro."
-          icon={CalendarIcon}
-        />
-
         <div className="flex flex-wrap gap-3">
           {[
             { label: 'Rotação', text: 'Max 1x/Sem', icon: RotateCcw, color: 'text-orange-500' },

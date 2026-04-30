@@ -1,13 +1,13 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { X, Trash2, ExternalLink, BookOpen, Check, ChevronDown, ChevronUp, Plus, BarChart3, Eye, Heart, MessageCircle, Bookmark, Share2, Users, Radio, FileText, Clapperboard, Award, TrendingUp, Settings2 } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
-import { ConfirmModal } from './ConfirmModal';
+import { ConfirmModal } from './modals/ConfirmModal';
 import { STATUS_STAGES, VISUAL_FORMATS, DEFAULT_PLATFORMS } from '../constants';
 import { Content, ContentPlataforma, ContentMetric } from '../lib/database';
 
 type LocalMetric = Partial<ContentMetric> & { contentId: string; qualitativeNotes?: string; worthIt?: string };
 import { cn } from '../lib/utils';
-import { FixedPanelModal } from './FixedPanelModal';
+import { FixedPanelModal } from './layout/FixedPanelModal';
 import { RichTextEditor } from './RichTextEditor';
 import { useAuth } from '../context/AuthContext';
 import { useIsMobile } from '../hooks/useIsMobile';
@@ -26,9 +26,10 @@ const CHAR_LIMITS: Record<string, number> = {
 };
 
 export function ContentDetailModal({ content, onClose, initialLivroOrigemId, isNewContent = false }: ContentDetailModalProps) {
-  const { state, dispatch } = useAppContext();
+  const { state, dispatch, createContent, updateContent } = useAppContext();
   const { user } = useAuth();
   const isMobile = useIsMobile();
+  const isDesktopNewContent = isNewContent && !isMobile;
   const userName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Usuário';
 
   const [activeTab, setActiveTab] = useState<'roteiro' | 'producao' | 'resultados'>('roteiro');
@@ -37,6 +38,10 @@ export function ContentDetailModal({ content, onClose, initialLivroOrigemId, isN
   const [refsOpen, setRefsOpen] = useState(!!(content.referencias));
   const [isCreatingSeries, setIsCreatingSeries] = useState(false);
   const [newSeriesName, setNewSeriesName] = useState('');
+  
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [saveSuccess, setSaveSuccess] = useState(false);
 
   const [local, setLocal] = useState<Content>(() => {
     const base = state.contents.find(c => c.id === content.id) || content;
@@ -46,9 +51,16 @@ export function ContentDetailModal({ content, onClose, initialLivroOrigemId, isN
     return base;
   });
 
+  const [legendaTab, setLegendaTab] = useState<string>(() => {
+    const plats = local.plataformas;
+    if (!plats?.length) return 'Instagram';
+    const first = plats[0];
+    return typeof first === 'string' ? first : (first?.platformId || 'Instagram');
+  });
+
   const existingResult = useMemo(
-    () => state.contentMetrics.find(r => r.contentId === local.id),
-    [state.contentMetrics, local.id]
+    () => state.contentMetrics.find(r => r.contentId === local.id && r.platformId === legendaTab),
+    [state.contentMetrics, local.id, legendaTab]
   );
 
   const [localResult, setLocalResult] = useState<LocalMetric>(() => existingResult || {
@@ -58,12 +70,20 @@ export function ContentDetailModal({ content, onClose, initialLivroOrigemId, isN
     qualitativeNotes: '',
   });
 
-  const [legendaTab, setLegendaTab] = useState<string>(() => {
-    const plats = local.plataformas;
-    if (!plats?.length) return 'Instagram';
-    const first = plats[0];
-    return typeof first === 'string' ? first : (first?.platformId || 'Instagram');
-  });
+  useEffect(() => {
+    setLocalResult(existingResult || {
+      contentId: local.id,
+      platformId: legendaTab,
+      views: 0,
+      likes: 0,
+      comments: 0,
+      saves: 0,
+      shares: 0,
+      newFollowers: 0,
+      accountsReached: 0,
+      qualitativeNotes: '',
+    });
+  }, [existingResult, legendaTab, local.id]);
 
   const updateLocal = (updates: Record<string, unknown>) => {
     let merged = { ...updates };
@@ -155,30 +175,45 @@ export function ContentDetailModal({ content, onClose, initialLivroOrigemId, isN
     }));
   };
 
-  const handleSave = () => {
-    dispatch({ type: isNewContent ? 'ADD_CONTENT' : 'UPDATE_CONTENT', payload: local as Content });
+  const handleSave = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      if (isNewContent) {
+        await createContent(local as Content);
+      } else {
+        await updateContent(local as Content);
+      }
 
-    const hasMetrics = (localResult.views || 0) > 0 || (localResult.likes || 0) > 0 ||
-      (localResult.saves || 0) > 0 || (localResult.comments || 0) > 0 || !!localResult.qualitativeNotes;
+      const hasMetrics = (localResult.views || 0) > 0 || (localResult.likes || 0) > 0 ||
+        (localResult.saves || 0) > 0 || (localResult.comments || 0) > 0 || !!localResult.qualitativeNotes;
 
-    if (existingResult) {
-      dispatch({ type: 'UPDATE_RESULT', payload: { ...existingResult, ...localResult } });
-    } else if (hasMetrics) {
-      dispatch({
-        type: 'ADD_RESULT',
-        payload: {
-          ...localResult,
-          id: Math.random().toString(36).substr(2, 9),
-          userId: '',
-          contentId: local.id,
-          platformId: legendaTab,
-          registeredAt: new Date().toISOString(),
-          createdAt: new Date().toISOString(),
-        },
-      });
+      if (existingResult) {
+        await dispatch({ type: 'UPDATE_RESULT', payload: { ...existingResult, ...localResult } });
+      } else if (hasMetrics) {
+        await dispatch({
+          type: 'ADD_RESULT',
+          payload: {
+            ...localResult,
+            id: Math.random().toString(36).substr(2, 9),
+            userId: user?.id || '',
+            contentId: local.id,
+            platformId: legendaTab,
+            registeredAt: new Date().toISOString().slice(0, 10),
+            createdAt: new Date().toISOString(),
+          },
+        });
+      }
+
+      setSaveSuccess(true);
+      setTimeout(() => {
+        onClose();
+      }, 500);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao salvar conteúdo');
+    } finally {
+      setLoading(false);
     }
-
-    onClose();
   };
 
   const handleDeleteContent = () => {
@@ -192,7 +227,7 @@ export function ContentDetailModal({ content, onClose, initialLivroOrigemId, isN
     if (!newSeriesName.trim()) { setIsCreatingSeries(false); return; }
     const newSeries = {
       id: Math.random().toString(36).substr(2, 9),
-      userId: '',
+      userId: user?.id || '',
       name: newSeriesName.trim(),
       template: '',
       notes: '',
@@ -244,40 +279,77 @@ export function ContentDetailModal({ content, onClose, initialLivroOrigemId, isN
   const fieldLabel = 'text-[10px] font-black uppercase tracking-widest text-[var(--text-primary)] opacity-50 md:w-24 md:shrink-0';
   const selectClass = 'text-xs bg-[var(--bg-hover)] border border-[var(--border-color)] rounded-xl px-3 py-2.5 focus:ring-0 text-[var(--text-primary)] w-full md:w-auto shadow-sm';
   const textareaClass = 'w-full text-sm text-[var(--text-primary)] border border-[var(--border-color)] focus:ring-0 p-4 resize-none placeholder:italic placeholder:opacity-30 bg-[var(--bg-hover)] rounded-xl';
+  const sidebarStages = STATUS_STAGES.map((stage, i) => {
+    const currentIdx = STATUS_STAGES.indexOf(local.status);
+    return {
+      stage,
+      index: i,
+      isDone: i < currentIdx,
+      isActive: i === currentIdx,
+    };
+  });
 
   return (
     <>
-    <FixedPanelModal open={true} onClose={onClose} desktopMaxW="md:max-w-[1240px]">
-      <div className="flex h-full md:h-[85vh] flex-col md:flex-row overflow-hidden bg-[var(--bg-primary)]">
+    <FixedPanelModal
+      open={true}
+      onClose={onClose}
+      desktopMaxW="md:max-w-[1240px]"
+      desktopPanelClassName={isDesktopNewContent ? 'md:w-[1360px] md:h-[1080px] md:max-w-[calc(100vw-32px)] md:max-h-[calc(100dvh-32px)] md:rounded-[32px]' : undefined}
+    >
+      <div
+        className={cn(
+          'flex h-full flex-col md:flex-row overflow-hidden bg-[var(--bg-primary)]',
+          isDesktopNewContent ? 'md:h-[1080px] md:bg-[#fbfaf7]' : 'md:h-[85vh]'
+        )}
+      >
 
         {/* SIDEBAR STATUS (PC Only) */}
         {!isMobile && (
-          <aside className="w-[220px] shrink-0 border-r border-[var(--border-color)] bg-[var(--bg-secondary)] flex flex-col pt-8">
-            <div className="px-8 mb-8">
-              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-tertiary)] mb-6 block">Fluxo de Vida</span>
+          <aside className={cn(
+            'shrink-0 border-r border-[var(--border-color)] bg-[var(--bg-secondary)] flex flex-col pt-8',
+            isDesktopNewContent ? 'w-[255px] bg-[#f8f6f1]' : 'w-[220px]'
+          )}>
+            <div className={cn('mb-8', isDesktopNewContent ? 'px-9 pt-2' : 'px-8')}>
+              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-tertiary)] mb-6 block">
+                {isDesktopNewContent ? 'Fluxo de Criação' : 'Fluxo de Vida'}
+              </span>
               <div className="flex flex-col gap-1">
-                {STATUS_STAGES.map((stage, i) => {
-                  const currentIdx = STATUS_STAGES.indexOf(local.status);
-                  const isDone = i < currentIdx;
-                  const isActive = i === currentIdx;
+                {sidebarStages.map(({ stage, index, isDone, isActive }) => {
                   return (
                     <button
                       key={stage}
                       onClick={() => updateLocal({ status: stage })}
-                      className="flex items-center gap-3 group py-2 text-left shrink-0"
+                      className={cn(
+                        'flex items-center gap-3 group text-left shrink-0',
+                        isDesktopNewContent ? 'py-3.5' : 'py-2'
+                      )}
                     >
                       <div className={cn(
-                        "w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all",
-                        isActive ? "border-[var(--text-primary)] bg-[var(--text-primary)]" :
-                        isDone ? "border-[var(--accent-green)] bg-[var(--accent-green)]" : "border-[var(--border-color)] group-hover:border-[var(--text-primary)]/40"
+                        'rounded-full border flex items-center justify-center shrink-0 transition-all',
+                        isDesktopNewContent ? 'w-7 h-7' : 'w-5 h-5 border-2',
+                        isActive ? 'border-[var(--text-primary)] bg-[var(--text-primary)]' :
+                        isDone ? 'border-[var(--accent-green)] bg-[var(--accent-green)]' : 'border-[var(--border-color)] group-hover:border-[var(--text-primary)]/40'
                       )}>
-                        {isDone && <Check className="w-3.5 h-3.5 text-[var(--bg-primary)]" />}
-                        {isActive && <div className="w-1.5 h-1.5 rounded-full bg-[var(--bg-primary)]" />}
+                        {isDesktopNewContent ? (
+                          <span className={cn(
+                            'text-[11px] font-black',
+                            isActive || isDone ? 'text-[var(--bg-primary)]' : 'text-[var(--text-tertiary)]'
+                          )}>
+                            {index + 1}
+                          </span>
+                        ) : (
+                          <>
+                            {isDone && <Check className="w-3.5 h-3.5 text-[var(--bg-primary)]" />}
+                            {isActive && <div className="w-1.5 h-1.5 rounded-full bg-[var(--bg-primary)]" />}
+                          </>
+                        )}
                       </div>
                       <span className={cn(
-                        "text-[10px] font-black uppercase tracking-widest transition-all",
-                        isActive ? "text-[var(--text-primary)] opacity-100" :
-                        isDone ? "text-[var(--accent-green)] opacity-70" : "text-[var(--text-primary)] opacity-30 group-hover:opacity-60"
+                        'font-black uppercase tracking-widest transition-all',
+                        isDesktopNewContent ? 'text-[11px]' : 'text-[10px]',
+                        isActive ? 'text-[var(--text-primary)] opacity-100' :
+                        isDone ? 'text-[var(--accent-green)] opacity-70' : 'text-[var(--text-primary)] opacity-30 group-hover:opacity-60'
                       )}>
                         {stage}
                       </span>
@@ -287,7 +359,10 @@ export function ContentDetailModal({ content, onClose, initialLivroOrigemId, isN
               </div>
             </div>
 
-            <div className="mt-auto p-8 border-t border-[var(--border-color)] flex flex-col gap-2">
+            <div className={cn(
+              'mt-auto border-t border-[var(--border-color)] flex flex-col gap-2',
+              isDesktopNewContent ? 'p-10' : 'p-8'
+            )}>
               <button
                 onClick={() => setConfirm({ message: 'Excluir definitivamente?', onConfirm: () => { dispatch({ type: 'DELETE_CONTENT', payload: local.id }); onClose(); } })}
                 className="w-full flex items-center gap-2 px-4 py-2 hover:bg-[var(--accent-pink)]/10 rounded-xl transition-colors group"
@@ -303,8 +378,9 @@ export function ContentDetailModal({ content, onClose, initialLivroOrigemId, isN
 
           {/* HEADER */}
           <header className={cn(
-            "px-4 md:px-10 py-3 md:py-6 border-b border-[var(--border-color)] flex flex-col md:flex-row md:items-center justify-between gap-3 shrink-0 bg-[var(--bg-primary)] z-10",
-            isMobile && "pt-5"
+            'px-4 md:px-10 py-3 md:py-6 border-b border-[var(--border-color)] flex flex-col md:flex-row md:items-center justify-between gap-3 shrink-0 bg-[var(--bg-primary)] z-10',
+            isDesktopNewContent && 'md:px-8 md:py-5 md:bg-[#fbfaf7]',
+            isMobile && 'pt-5'
           )}>
             {isMobile && (
               <div className="flex items-center justify-between w-full gap-2">
@@ -316,8 +392,16 @@ export function ContentDetailModal({ content, onClose, initialLivroOrigemId, isN
                   {STATUS_STAGES.map(s => <option key={s} value={s}>{s}</option>)}
                 </select>
                 <div className="flex items-center gap-1.5 shrink-0">
-                  <button onClick={handleSave} className="p-1.5 bg-[var(--text-primary)] text-[var(--bg-primary)] rounded-lg transition-all active:scale-95">
-                    <Check className="w-4 h-4" />
+                  <button 
+                    onClick={handleSave} 
+                    disabled={loading}
+                    className={cn(
+                      "p-1.5 bg-[var(--text-primary)] text-[var(--bg-primary)] rounded-lg transition-all active:scale-95 disabled:opacity-50",
+                      saveSuccess && "bg-[var(--accent-green)]"
+                    )}
+                  >
+                    {loading ? <div className="w-4 h-4 border-2 border-[var(--bg-primary)] border-t-transparent rounded-full animate-spin" /> : 
+                     saveSuccess ? <Check className="w-4 h-4" /> : <Check className="w-4 h-4" />}
                   </button>
                   <button onClick={onClose} className="p-1.5 bg-[var(--bg-hover)] rounded-lg text-[var(--text-primary)] border border-[var(--border-color)]">
                     <X className="w-4 h-4" />
@@ -332,8 +416,12 @@ export function ContentDetailModal({ content, onClose, initialLivroOrigemId, isN
                 value={local.title}
                 onChange={(e) => updateLocal({ title: e.target.value })}
                 className={cn(
-                  "w-full font-black text-[var(--text-primary)] focus:ring-0 placeholder:opacity-30 tracking-tight",
-                  isMobile ? "text-xs bg-[var(--bg-hover)] border border-[var(--border-color)] rounded-lg px-2.5 py-1.5" : "text-3xl bg-transparent border-none p-0 truncate"
+                  'w-full font-black text-[var(--text-primary)] focus:ring-0 placeholder:opacity-30 tracking-tight',
+                  isMobile
+                    ? 'text-xs bg-[var(--bg-hover)] border border-[var(--border-color)] rounded-lg px-2.5 py-1.5'
+                    : isDesktopNewContent
+                      ? 'h-13 text-[16px] bg-white border border-[#ddd7cf] rounded-2xl px-5 truncate shadow-[0_1px_2px_rgba(17,24,39,0.04)]'
+                      : 'text-3xl bg-transparent border-none p-0 truncate'
                 )}
                 placeholder="Título..."
               />
@@ -341,19 +429,49 @@ export function ContentDetailModal({ content, onClose, initialLivroOrigemId, isN
 
             {!isMobile && (
               <div className="flex items-center gap-2 shrink-0">
-                <button onClick={handleSave} className="px-6 py-2.5 bg-[var(--text-primary)] text-[var(--bg-primary)] rounded-2xl transition-all active:scale-95 flex items-center gap-2">
-                  <Check className="w-4 h-4" />
-                  <span className="text-[10px] font-black uppercase tracking-widest">Salvar</span>
+                <button
+                  onClick={handleSave}
+                  disabled={loading}
+                  className={cn(
+                    'bg-[var(--text-primary)] text-[var(--bg-primary)] transition-all active:scale-95 flex items-center gap-2 disabled:opacity-50',
+                    isDesktopNewContent ? 'px-8 h-12 rounded-2xl shadow-[0_10px_30px_rgba(15,23,42,0.14)]' : 'px-6 py-2.5 rounded-2xl',
+                    saveSuccess && "bg-[var(--accent-green)]"
+                  )}
+                >
+                  {loading ? (
+                    <div className="w-4 h-4 border-2 border-[var(--bg-primary)] border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <Check className="w-4 h-4" />
+                  )}
+                  <span className="text-[10px] font-black uppercase tracking-widest">
+                    {loading ? 'Salvando...' : saveSuccess ? 'Salvo!' : 'Salvar'}
+                  </span>
                 </button>
-                <button onClick={onClose} className="p-2 hover:bg-[var(--bg-hover)] rounded-full text-[var(--text-tertiary)]">
+                <button
+                  onClick={onClose}
+                  className={cn(
+                    'text-[var(--text-tertiary)]',
+                    isDesktopNewContent ? 'p-3 hover:bg-white rounded-2xl border border-transparent hover:border-[#ddd7cf]' : 'p-2 hover:bg-[var(--bg-hover)] rounded-full'
+                  )}
+                >
                   <X className="w-6 h-6" />
                 </button>
               </div>
             )}
           </header>
 
+          {/* MENSAGEM DE ERRO */}
+          {error && (
+            <div className="px-4 md:px-10 py-3 bg-[var(--accent-pink)]/10 border-b border-[var(--accent-pink)]/20 text-[var(--accent-pink)] text-xs font-bold animate-in slide-in-from-top-1 duration-300">
+              {error}
+            </div>
+          )}
+
           {/* ABAS */}
-          <nav className="px-4 md:px-10 py-2 bg-[var(--bg-secondary)] border-b border-[var(--border-color)] flex gap-1 overflow-x-auto no-scrollbar shrink-0">
+          <nav className={cn(
+            'px-4 md:px-10 py-2 bg-[var(--bg-secondary)] border-b border-[var(--border-color)] flex gap-1 overflow-x-auto no-scrollbar shrink-0',
+            isDesktopNewContent && 'md:px-8 md:py-0 md:bg-[#fbfaf7]'
+          )}>
             {[
               { id: 'roteiro', label: 'Roteiro', icon: FileText },
               { id: 'producao', label: 'Produção', icon: Clapperboard },
@@ -363,10 +481,15 @@ export function ContentDetailModal({ content, onClose, initialLivroOrigemId, isN
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as 'roteiro' | 'producao' | 'resultados')}
                 className={cn(
-                  "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[9px] md:text-[10px] font-black uppercase tracking-widest transition-all shrink-0",
+                  'flex items-center gap-1.5 text-[9px] md:text-[10px] font-black uppercase tracking-widest transition-all shrink-0',
+                  isDesktopNewContent ? 'px-4 py-4 rounded-none border-b-2 -mb-px' : 'px-3 py-1.5 rounded-lg',
                   activeTab === tab.id
-                    ? "bg-[var(--text-primary)] text-[var(--bg-primary)] border border-[var(--border-strong)]"
-                    : "text-[var(--text-primary)] opacity-40 hover:opacity-100"
+                    ? isDesktopNewContent
+                      ? 'text-[var(--text-primary)] border-[var(--text-primary)]'
+                      : 'bg-[var(--text-primary)] text-[var(--bg-primary)] border border-[var(--border-strong)]'
+                    : isDesktopNewContent
+                      ? 'text-[var(--text-primary)] opacity-35 border-transparent hover:opacity-100'
+                      : 'text-[var(--text-primary)] opacity-40 hover:opacity-100'
                 )}
               >
                 <tab.icon className="w-3 h-3" />
@@ -376,13 +499,22 @@ export function ContentDetailModal({ content, onClose, initialLivroOrigemId, isN
           </nav>
 
           {/* CONTEÚDO SCROLLABLE */}
-          <main className="flex-1 overflow-y-auto p-4 md:p-10 custom-scrollbar bg-[var(--bg-primary)]">
+          <main className={cn(
+            'flex-1 overflow-y-auto p-4 md:p-10 custom-scrollbar bg-[var(--bg-primary)]',
+            isDesktopNewContent && 'md:px-8 md:py-7 md:bg-[#fbfaf7]'
+          )}>
 
             {activeTab === 'roteiro' && (
-              <div className="space-y-8 md:space-y-12 animate-in fade-in duration-300">
-                <section>
+              <div className={cn(
+                'space-y-8 md:space-y-12 animate-in fade-in duration-300',
+                isDesktopNewContent && 'md:space-y-6'
+              )}>
+                <section className={cn(isDesktopNewContent && 'rounded-[24px] border border-[#e5dfd6] bg-white p-5 shadow-[0_8px_30px_rgba(15,23,42,0.04)]')}>
                   <p className={groupTitle}>Classificação</p>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-5 md:gap-y-6">
+                  <div className={cn(
+                    'grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-5 md:gap-y-6',
+                    isDesktopNewContent && 'md:grid-cols-4 md:gap-4'
+                  )}>
                     {/* Série */}
                     <div className="flex flex-col gap-2">
                       <span className={fieldLabel}>Série</span>
@@ -393,7 +525,7 @@ export function ContentDetailModal({ content, onClose, initialLivroOrigemId, isN
                             if (e.target.value === 'new') setIsCreatingSeries(true);
                             else updateLocal({ seriesId: e.target.value || null });
                           }}
-                          className={cn(selectClass, "pr-10")}
+                          className={cn(selectClass, isDesktopNewContent ? 'pr-10 md:w-full md:h-12 md:rounded-2xl md:bg-[#faf8f4]' : 'pr-10')}
                         >
                           <option value="">Sem Série</option>
                           {state.series.map(s => (
@@ -541,8 +673,11 @@ export function ContentDetailModal({ content, onClose, initialLivroOrigemId, isN
                   </div>
                 </section>
 
-                <section>
-                  <div className="flex items-center justify-between mb-4 border-b border-[var(--border-color)] pb-4">
+                <section className={cn(isDesktopNewContent && 'rounded-[24px] border border-[#e5dfd6] bg-white shadow-[0_8px_30px_rgba(15,23,42,0.04)] overflow-hidden')}>
+                  <div className={cn(
+                    'flex items-center justify-between mb-4 border-b border-[var(--border-color)] pb-4',
+                    isDesktopNewContent && 'mb-0 px-5 pt-4 pb-3'
+                  )}>
                     <span className={sectionLabel}>Roteiro Final</span>
                     {(() => {
                       const serie = state.series.find(s => s.id === local.seriesId);
@@ -564,6 +699,10 @@ export function ContentDetailModal({ content, onClose, initialLivroOrigemId, isN
                     onChange={(html) => updateLocal({ script: html })}
                     placeholder="Abra o seu coração e escreva o roteiro..."
                     authorName={userName}
+                    documentTitle={local.title?.trim() || 'Novo roteiro'}
+                    className={cn(isDesktopNewContent && 'min-h-[520px] rounded-none border-0')}
+                    editorViewportClassName={cn(isDesktopNewContent && 'p-0 bg-white')}
+                    editorCanvasClassName={cn(isDesktopNewContent && 'min-h-[420px] rounded-none border-0 p-6 md:p-6 shadow-none')}
                     annotations={local.scriptNotes || []}
                     onAddAnnotation={handleAddAnnotation}
                     onRemoveAnnotation={handleRemoveAnnotation}
@@ -799,17 +938,46 @@ export function ContentDetailModal({ content, onClose, initialLivroOrigemId, isN
           </main>
 
           {/* FOOTER */}
-          <footer className="px-6 md:px-10 py-5 border-t border-[var(--border-color)] bg-[var(--bg-secondary)] flex items-center justify-between gap-4 shrink-0">
+          <footer className={cn(
+            'px-6 md:px-10 py-5 border-t border-[var(--border-color)] bg-[var(--bg-secondary)] flex items-center justify-between gap-4 shrink-0',
+            isDesktopNewContent && 'md:px-8 md:py-6 md:bg-[#fbfaf7]'
+          )}>
+            {isDesktopNewContent ? (
+              <>
+                <button
+                  onClick={isNewContent ? onClose : handleDeleteContent}
+                  className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.16em] text-[var(--accent-pink)] opacity-70 hover:opacity-100 transition-opacity"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Excluir Conteúdo
+                </button>
+                <button onClick={onClose} className="text-[11px] font-black uppercase tracking-[0.16em] text-[var(--text-primary)] opacity-45 hover:opacity-100 transition-opacity">
+                  Descartar Alterações
+                </button>
+                <button
+                  onClick={handleSave}
+                  disabled={loading}
+                  className="px-9 h-[52px] bg-[var(--text-primary)] text-[var(--bg-primary)] text-[10px] font-black uppercase tracking-[0.2em] rounded-2xl hover:scale-[1.02] active:scale-[0.98] transition-all shadow-[0_14px_30px_rgba(15,23,42,0.18)] flex items-center gap-2 disabled:opacity-50"
+                >
+                  {loading ? <div className="w-4 h-4 border-2 border-[var(--bg-primary)] border-t-transparent rounded-full animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                  {loading ? 'Salvando...' : saveSuccess ? 'Salvo!' : 'Salvar Alterações'}
+                </button>
+              </>
+            ) : (
+              <>
             <button onClick={onClose} className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-primary)] opacity-30 hover:opacity-100 transition-opacity">
               Descartar
             </button>
             <button
               onClick={handleSave}
-              className="px-10 py-3.5 bg-[var(--text-primary)] text-[var(--bg-primary)] text-[10px] font-black uppercase tracking-[0.2em] rounded-2xl hover:scale-[1.02] active:scale-[0.98] transition-all shadow-lg flex items-center gap-2"
+              disabled={loading}
+              className="px-10 py-3.5 bg-[var(--text-primary)] text-[var(--bg-primary)] text-[10px] font-black uppercase tracking-[0.2em] rounded-2xl hover:scale-[1.02] active:scale-[0.98] transition-all shadow-lg flex items-center gap-2 disabled:opacity-50"
             >
-              <Check className="w-3.5 h-3.5" />
-              Salvar Alterações
+              {loading ? <div className="w-4 h-4 border-2 border-[var(--bg-primary)] border-t-transparent rounded-full animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+              {loading ? 'Salvando...' : saveSuccess ? 'Salvo!' : 'Salvar Alterações'}
             </button>
+              </>
+            )}
           </footer>
         </div>
       </div>

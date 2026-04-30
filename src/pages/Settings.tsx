@@ -1,17 +1,15 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Palette, Shirt, ShieldCheck, ChevronRight, Settings as SettingsIcon, Rocket, Fingerprint, Layers, Layout, MonitorSpeaker } from 'lucide-react';
+import { Palette, Shirt, ShieldCheck, ChevronRight, Settings as SettingsIcon, Fingerprint, Layers, Layout, MonitorSpeaker } from 'lucide-react';
+import { DesktopPageHeader } from '../components/layout/DesktopPageHeader';
+import { AppButton } from '../components/common/AppButton';
 import { useAppContext } from '../context/AppContext';
-import { ConfirmModal } from '../components/ConfirmModal';
+import { ConfirmModal } from '../components/modals/ConfirmModal';
 
 export function Settings() {
   const navigate = useNavigate();
   const { dispatch } = useAppContext();
-  const [confirmOpen, setConfirmOpen] = useState(false);
-
-  const handleResetOnboarding = () => {
-    setConfirmOpen(true);
-  };
+  const [confirmReset, setConfirmReset] = useState(false);
 
   const items = [
     {
@@ -61,23 +59,26 @@ export function Settings() {
   return (
     <>
     <div className="min-h-screen bg-[var(--bg-secondary)]">
-      <div className="content-narrow mx-auto px-6 md:px-12 py-10 md:py-16">
-        <div className="mb-10">
-          <p className="text-[9px] font-black text-[var(--text-tertiary)] uppercase tracking-[0.4em] mb-2 italic">
-            Sistema
-          </p>
-          <h1 className="text-4xl md:text-5xl font-black text-[var(--text-primary)] leading-none tracking-tight flex items-center gap-4">
-            <SettingsIcon className="w-10 h-10 opacity-20" />
-            Configurações
-          </h1>
-        </div>
+      <div className="desktop-header-frame">
+        <DesktopPageHeader
+          section="Sistema"
+          title="Configurações"
+          subtitle="Centralize as regras e definições que moldam o comportamento do seu sistema."
+          icon={SettingsIcon}
+        />
+      </div>
+
+      <div className="desktop-content-frame">
 
         <div className="space-y-3">
           {items.map(({ to, icon: Icon, title, desc }) => (
-            <button
+            <AppButton
               key={to}
               onClick={() => navigate(to)}
-              className="w-full flex items-center gap-5 px-6 py-5 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-2xl hover:border-[var(--text-primary)]/30 hover:shadow-sm transition-all text-left group"
+              variant="tertiary"
+              size="lg"
+              fullWidth
+              className="group h-auto justify-start gap-5 px-5 py-4 text-left normal-case tracking-normal"
             >
               <div className="w-10 h-10 rounded-2xl bg-[var(--bg-hover)] flex items-center justify-center shrink-0">
                 <Icon className="w-5 h-5 text-[var(--text-primary)] opacity-50 group-hover:opacity-100 transition-opacity" />
@@ -87,37 +88,38 @@ export function Settings() {
                 <p className="text-xs text-[var(--text-secondary)] opacity-50 mt-0.5">{desc}</p>
               </div>
               <ChevronRight className="w-4 h-4 text-[var(--text-primary)] opacity-20 group-hover:opacity-50 transition-opacity shrink-0" />
-            </button>
+            </AppButton>
           ))}
 
-          <div className="pt-6 border-t border-[var(--border-color)] mt-8">
-            <button
-              onClick={handleResetOnboarding}
-              className="w-full flex items-center gap-5 px-6 py-5 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-2xl hover:border-[var(--accent-blue)]/30 hover:shadow-sm transition-all text-left group"
-            >
-              <div className="w-10 h-10 rounded-2xl bg-[var(--accent-blue)]/5 flex items-center justify-center shrink-0">
-                <Rocket className="w-5 h-5 text-[var(--accent-blue)] opacity-60 group-hover:opacity-100 transition-opacity" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-black text-[var(--accent-blue)] uppercase tracking-tight italic">Reiniciar Guia de Operação</p>
-                <p className="text-[10px] text-[var(--text-secondary)] opacity-40 font-bold mt-0.5 uppercase tracking-widest">Teste o tutorial de primeiro acesso agora</p>
-              </div>
-              <ChevronRight className="w-4 h-4 text-[var(--accent-blue)] opacity-20 group-hover:opacity-50 transition-opacity shrink-0" />
-            </button>
-          </div>
+          <AppButton
+            onClick={() => setConfirmReset(true)}
+            variant="tertiary"
+            size="lg"
+            fullWidth
+            className="group h-auto justify-start gap-5 px-5 py-4 text-left normal-case tracking-normal"
+          >
+            <div className="w-10 h-10 rounded-2xl bg-[var(--bg-hover)] flex items-center justify-center shrink-0">
+              <SettingsIcon className="w-5 h-5 text-[var(--text-primary)] opacity-50 group-hover:opacity-100 transition-opacity" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-black text-[var(--text-primary)]">Reiniciar Guia de Operacao</p>
+              <p className="text-xs text-[var(--text-secondary)] opacity-50 mt-0.5">Mostra novamente a apresentacao inicial do sistema.</p>
+            </div>
+            <ChevronRight className="w-4 h-4 text-[var(--text-primary)] opacity-20 group-hover:opacity-50 transition-opacity shrink-0" />
+          </AppButton>
         </div>
       </div>
     </div>
+
     <ConfirmModal
-      open={confirmOpen}
-      message="Deseja reiniciar o Guia de Configuração? Isso permitirá que você reavalie seus pilares e DNA da voz agora mesmo."
-      confirmLabel="Reiniciar"
+      open={confirmReset}
+      message="Deseja reiniciar o guia de operacao?"
       onConfirm={() => {
-        dispatch({ type: 'SET_PREFERENCE', payload: { key: 'onboardingCompleto', value: 'false' } });
-        setConfirmOpen(false);
+        dispatch({ type: 'SET_PREFERENCE', payload: { key: 'onboarding_completo', value: 'false' } });
+        setConfirmReset(false);
         navigate('/');
       }}
-      onCancel={() => setConfirmOpen(false)}
+      onCancel={() => setConfirmReset(false)}
     />
     </>
   );

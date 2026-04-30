@@ -1,6 +1,6 @@
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { useBodyScrollLock } from '../hooks/useBodyScrollLock';
+import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
 
 interface ConfirmModalProps {
   open: boolean;

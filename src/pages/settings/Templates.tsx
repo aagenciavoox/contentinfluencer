@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus, Trash2, ChevronUp, ChevronDown, Layout, Check, X } from 'lucide-react';
+import { Plus, Trash2, ChevronUp, ChevronDown, Layout, Check, X } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
 import { useAuth } from '../../context/AuthContext';
 import type { Template, TemplateBloco } from '../../lib/database';
 import { cn } from '../../lib/utils';
+import { DesktopPageHeader } from '../../components/layout/DesktopPageHeader';
 
 export function TemplatesSettings() {
   const { state, dispatch } = useAppContext();
@@ -92,35 +93,27 @@ export function TemplatesSettings() {
 
   return (
     <div className="min-h-screen bg-[var(--bg-secondary)]">
-      <div className="content-narrow mx-auto px-6 md:px-12 py-10 md:py-16">
-        {/* Header */}
-        <div className="mb-8">
-          <button
-            onClick={() => navigate('/configuracoes')}
-            className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest opacity-40 hover:opacity-80 mb-6"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Configurações
-          </button>
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="text-[9px] font-black text-[var(--text-tertiary)] uppercase tracking-[0.4em] mb-2 italic">
-                Configurações
-              </p>
-              <h1 className="text-4xl font-black text-[var(--text-primary)] leading-none tracking-tight flex items-center gap-3">
-                <Layout className="w-9 h-9 opacity-20" />
-                Templates
-              </h1>
-            </div>
+      <div className="desktop-header-frame">
+        <DesktopPageHeader
+          section="Configurações"
+          title="Templates"
+          subtitle="Crie estruturas reutilizáveis para acelerar a produção de roteiros e formatos."
+          icon={Layout}
+          backLabel="Configurações"
+          onBack={() => navigate('/configuracoes')}
+          actions={(
             <button
               onClick={() => setShowNewForm(true)}
-              className="flex items-center gap-2 px-5 py-3 bg-[var(--text-primary)] text-[var(--bg-primary)] rounded-2xl text-[11px] font-black uppercase tracking-widest hover:opacity-90 shrink-0 mt-2"
+              className="flex items-center gap-2 px-5 py-3 bg-[var(--text-primary)] text-[var(--bg-primary)] rounded-2xl text-[11px] font-black uppercase tracking-widest hover:opacity-90 shrink-0"
             >
               <Plus className="w-4 h-4" />
               Novo
             </button>
-          </div>
-        </div>
+          )}
+        />
+      </div>
+
+      <div className="desktop-content-frame">
 
         {/* Form novo template */}
         {showNewForm && (

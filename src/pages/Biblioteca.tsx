@@ -1,16 +1,17 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { Plus, BookOpen, X, Star, Search, Library } from 'lucide-react';
+import { Plus, BookOpen, Film, Tv, X, Star, Search } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
-import { PageGuide } from '../components/PageGuide';
-import { PageHeader } from '../components/PageHeader';
-import { BibliotecaItem } from '../lib/database';
+import { BibliotecaItem, BibliotecaItemMeta } from '../lib/database';
 import { generateUUID } from '../utils/uuid';
-import { BottomSheetModal } from '../components/BottomSheetModal';
+import { BottomSheetModal } from '../components/modals/BottomSheetModal';
+import { DesktopPageHeader } from '../components/layout/DesktopPageHeader';
+import { AppButton } from '../components/common/AppButton';
 
 type StatusLeitura = BibliotecaItem['status'];
 type GeneroLivro = string;
+type BibliotecaTipo = BibliotecaItem['tipo'];
 
 const STATUS_CORES: Record<string, string> = {
   'Quero consumir': 'bg-[var(--text-primary)]/5 text-[var(--text-primary)]/50',
@@ -27,6 +28,7 @@ const GENEROS: GeneroLivro[] = [
 const STATUS_LEITURA: StatusLeitura[] = ['Quero consumir', 'Consumindo', 'Pausado', 'Concluído'];
 
 interface NovoLivroForm {
+  tipo: BibliotecaTipo;
   titulo: string;
   autor: string;
   generos: GeneroLivro[];
@@ -47,6 +49,7 @@ export function Biblioteca() {
   const { state, dispatch } = useAppContext();
   const navigate = useNavigate();
 
+  const [filtroTipo, setFiltroTipo] = useState<BibliotecaTipo | 'Todos'>('Todos');
   const [filtroStatus, setFiltroStatus] = useState<StatusLeitura | 'Todos'>('Todos');
   const [filtroGenero, setFiltroGenero] = useState<string>('Todos');
   const [searchTerm, setSearchTerm] = useState('');
@@ -55,6 +58,7 @@ export function Biblioteca() {
   const [showParaVoce, setShowParaVoce] = useState(false);
 
   const [form, setForm] = useState<NovoLivroForm>({
+    tipo: 'livro',
     titulo: '',
     autor: '',
     generos: [],
@@ -72,6 +76,7 @@ export function Biblioteca() {
   });
 
   const livrosFiltrados = state.books.filter(b => {
+    if (filtroTipo !== 'Todos' && b.tipo !== filtroTipo) return false;
     if (filtroStatus !== 'Todos' && b.status !== filtroStatus) return false;
     if (filtroGenero !== 'Todos' && !b.generoIds.includes(filtroGenero)) return false;
     if (searchTerm.trim()) {
@@ -86,13 +91,41 @@ export function Biblioteca() {
   const contarConteudos = (livroId: string) =>
     state.contents.filter(c => c.bibliotecaItemId === livroId).length;
 
+  const getTipoLabel = (tipo: BibliotecaTipo) => {
+    if (tipo === 'filme') return 'Filme';
+    if (tipo === 'série') return 'Série';
+    return 'Livro';
+  };
+
+  const getPrimaryCreatorLabel = (tipo: BibliotecaTipo) => {
+    if (tipo === 'filme') return 'Diretor';
+    if (tipo === 'série') return 'Criador(a)';
+    return 'Autor';
+  };
+
+  const getTipoIcon = (tipo: BibliotecaTipo) => {
+    if (tipo === 'filme') return Film;
+    if (tipo === 'série') return Tv;
+    return BookOpen;
+  };
+
+  const getItemCountLabel = (tipo: BibliotecaTipo, total: number) => {
+    const singular = getTipoLabel(tipo).toLowerCase();
+    if (total === 1) return `1 ${singular}`;
+    if (tipo === 'série') return `${total} séries`;
+    if (tipo === 'filme') return `${total} filmes`;
+    return `${total} livros`;
+  };
+
+  const totalItensLabel = `${state.books.length} item${state.books.length === 1 ? '' : 's'} catalogado${state.books.length === 1 ? '' : 's'}`;
+
   const handleCriarLivro = () => {
     if (!form.titulo.trim()) return;
 
     const novoLivro: BibliotecaItem = {
       id: generateUUID(),
       userId: '',
-      tipo: 'livro',
+      tipo: form.tipo,
       titulo: form.titulo.trim(),
       autorDiretor: form.autor.trim(),
       generoIds: form.generos,
@@ -112,8 +145,24 @@ export function Biblioteca() {
     };
 
     dispatch({ type: 'ADD_BOOK', payload: novoLivro });
+    const metadata: BibliotecaItemMeta = {
+      editora: form.editora,
+      anoPublicacao: form.anoPublicacao,
+      isbn: form.isbn,
+      idioma: form.idioma,
+      traducao: form.traducao,
+      serieColecao: form.serieColecao,
+      quemIndicou: form.quemIndicou,
+      motivoEscolha: form.motivoEscolha,
+    };
+    if (Object.values(metadata).some(value => value)) {
+      dispatch({
+        type: 'SET_PREFERENCE',
+        payload: { key: `item_meta:${novoLivro.id}`, value: metadata },
+      });
+    }
     setModalAberto(false);
-    setForm({ titulo: '', autor: '', generos: [], capaUrl: '', statusLeitura: 'Quero consumir', editora: '', anoPublicacao: '', isbn: '', idioma: '', traducao: '', serieColecao: '', quemIndicou: '', motivoEscolha: '', potencialConteudo: '' });
+    setForm({ tipo: 'livro', titulo: '', autor: '', generos: [], capaUrl: '', statusLeitura: 'Quero consumir', editora: '', anoPublicacao: '', isbn: '', idioma: '', traducao: '', serieColecao: '', quemIndicou: '', motivoEscolha: '', potencialConteudo: '' });
     setShowTechnical(false);
     setShowParaVoce(false);
     navigate(`/biblioteca/${novoLivro.id}`);
@@ -130,34 +179,37 @@ export function Biblioteca() {
 
   return (
     <div className="min-h-screen bg-[var(--bg-secondary)]">
-      <PageGuide 
-        pageId="biblioteca"
-        title="Sua Central de Inteligência"
-        description="Catalogar seus livros é o primeiro passo para criar autoridade. Aqui você salva anotações e 'destila' insights que viram roteiros automaticamente."
-        icon={Library}
-      />
-      <div className="content-wide mx-auto px-6 md:px-12 py-12">
-        <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between gap-4 mb-10">
-          <PageHeader 
-            title="Seus Livros" 
-            subtitle={`${state.books.length} livro${state.books.length !== 1 ? 's' : ''} catalogado${state.books.length !== 1 ? 's' : ''}`}
+      <header className="desktop-header-sticky transition-colors duration-300">
+        <div className="desktop-header-frame">
+          <DesktopPageHeader
+            section="Biblioteca"
+            title="Biblioteca"
+            subtitle={totalItensLabel}
+            icon={BookOpen}
             className="mb-0"
+            actions={(
+              <AppButton
+                onClick={() => setModalAberto(true)}
+                variant="primary"
+                size="md"
+                leftIcon={<Plus className="w-4 h-4" />}
+                className="text-xs uppercase tracking-widest shrink-0"
+              >
+                Adicionar Item
+              </AppButton>
+            )}
           />
-          <button
-            onClick={() => setModalAberto(true)}
-            className="flex items-center gap-2 px-5 py-3 bg-[var(--text-primary)] text-[var(--bg-primary)] rounded-2xl text-xs font-black uppercase tracking-widest transition-all shadow-lg shrink-0 hover-action"
-          >
-            <Plus className="w-4 h-4" />
-            Adicionar Livro
-          </button>
         </div>
+      </header>
+
+      <div className="desktop-content-frame-wide">
 
         {/* KPIs rápidos */}
         {state.books.length > 0 && (
           <div className="flex gap-6 flex-wrap mb-6">
             {[
-              { emoji: '📚', label: 'lidos', value: state.books.filter(b => b.status === 'Concluído').length },
-              { emoji: '📖', label: 'lendo', value: state.books.filter(b => b.status === 'Consumindo').length },
+              { emoji: '📚', label: 'concluídos', value: state.books.filter(b => b.status === 'Concluído').length },
+              { emoji: '📖', label: 'consumindo', value: state.books.filter(b => b.status === 'Consumindo').length },
               { emoji: '🎬', label: 'conteúdos gerados', value: state.contents.filter(c => c.bibliotecaItemId).length },
               { emoji: '💡', label: 'anotações', value: state.books.reduce((acc, b) => acc + b.anotacoes.length, 0) },
             ].map(stat => (
@@ -171,11 +223,11 @@ export function Biblioteca() {
         )}
 
         {/* Filtros */}
-        <div className="flex flex-col gap-4 mb-8">
-          <div className="relative w-full">
+        <div className="desktop-toolbar-surface mb-8 flex flex-col gap-4 p-4 md:p-5">
+              <div className="relative w-full">
             <input 
               type="text"
-              placeholder="Buscar por título ou autor..."
+              placeholder="Buscar por título, autor, diretor ou criador..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full text-sm font-bold bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-2xl pl-12 pr-4 py-3.5 focus:ring-0 focus:border-[var(--text-primary)] transition-all shadow-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]"
@@ -183,11 +235,23 @@ export function Biblioteca() {
             <Search className="w-5 h-5 text-[var(--text-tertiary)] absolute left-4 top-1/2 -translate-y-1/2" />
           </div>
           
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <select
+              value={filtroTipo}
+              onChange={(e) => setFiltroTipo(e.target.value as BibliotecaTipo | 'Todos')}
+              className="filter-select w-full"
+            >
+              {(['Todos', 'livro', 'filme', 'série'] as (BibliotecaTipo | 'Todos')[]).map(tipo => (
+                <option key={tipo} value={tipo}>
+                  {tipo === 'Todos' ? 'Qualquer Tipo' : getTipoLabel(tipo)}
+                </option>
+              ))}
+            </select>
+
             <select
               value={filtroStatus}
               onChange={(e) => setFiltroStatus(e.target.value as any)}
-              className="w-full text-sm font-bold bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-2xl px-4 py-3.5 focus:ring-0 focus:border-[var(--text-primary)] transition-all text-[var(--text-primary)] cursor-pointer shadow-sm"
+              className="filter-select w-full"
             >
               {(['Todos', ...STATUS_LEITURA] as (StatusLeitura | 'Todos')[]).map(s => (
                 <option key={s} value={s}>{s === 'Todos' ? 'Qualquer Status' : s}</option>
@@ -197,7 +261,7 @@ export function Biblioteca() {
             <select
               value={filtroGenero}
               onChange={(e) => setFiltroGenero(e.target.value)}
-              className="w-full text-sm font-bold bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-2xl px-4 py-3.5 focus:ring-0 focus:border-[var(--text-primary)] transition-all text-[var(--text-primary)] cursor-pointer shadow-sm"
+              className="filter-select w-full"
             >
               {(['Todos', ...GENEROS]).map(g => (
                 <option key={g} value={g}>{g === 'Todos' ? 'Qualquer Gênero' : g}</option>
@@ -206,20 +270,21 @@ export function Biblioteca() {
           </div>
         </div>
 
-        {/* Grid de Livros */}
+        {/* Grid de Itens */}
         {livrosFiltrados.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-32 gap-4 text-center">
             <BookOpen className="w-12 h-12 text-[var(--text-primary)] opacity-10" />
             <p className="text-[var(--text-tertiary)] font-bold text-sm uppercase tracking-widest">
               {state.books.length === 0
-                ? 'Nenhum livro ainda. Adicione o primeiro!'
-                : 'Nenhum livro com esses filtros'}
+                ? 'Nenhum item ainda. Adicione o primeiro!'
+                : 'Nenhum item com esses filtros'}
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-5">
+          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-4">
             {livrosFiltrados.map((livro) => {
               const nConteudos = contarConteudos(livro.id);
+              const TipoIcon = getTipoIcon(livro.tipo);
               return (
                 <motion.div
                   key={livro.id}
@@ -229,7 +294,7 @@ export function Biblioteca() {
                   className="cursor-pointer group flex flex-col"
                 >
                   {/* Capa */}
-                  <div className="relative aspect-[2/3] rounded-2xl overflow-hidden bg-[var(--bg-hover)] mb-3 elevation-1 group-hover:elevation-2 hover-card transition-all">
+                  <div className="relative aspect-[0.74] rounded-xl overflow-hidden bg-[var(--bg-hover)] mb-2.5 elevation-1 group-hover:elevation-2 hover-card transition-all">
                     {livro.capaUrl ? (
                       <img
                         src={livro.capaUrl}
@@ -241,7 +306,7 @@ export function Biblioteca() {
                       />
                     ) : (
                       <div className="w-full h-full flex flex-col items-center justify-center p-3 gap-2">
-                        <BookOpen className="w-8 h-8 text-[var(--text-tertiary)]" />
+                        <TipoIcon className="w-8 h-8 text-[var(--text-tertiary)]" />
                         <span className="text-[9px] font-bold text-[var(--text-tertiary)] text-center leading-tight">
                           {livro.titulo}
                         </span>
@@ -249,7 +314,10 @@ export function Biblioteca() {
                     )}
 
                     {/* Badge de status */}
-                    <div className="absolute bottom-2 left-2">
+                    <div className="absolute bottom-2 left-2 flex flex-col gap-1">
+                      <span className="text-[7px] font-black px-2 py-0.5 rounded-full bg-black/60 text-white backdrop-blur-sm">
+                        {getTipoLabel(livro.tipo)}
+                      </span>
                       <span className={`text-[8px] font-black px-2 py-0.5 rounded-full ${STATUS_CORES[livro.status] || ''}`}>
                         {livro.status}
                       </span>
@@ -265,10 +333,10 @@ export function Biblioteca() {
 
                   {/* Info */}
                   <div>
-                    <p className="text-xs font-bold text-[var(--text-primary)] leading-tight line-clamp-2 mb-0.5">
+                    <p className="text-[11px] font-bold text-[var(--text-primary)] leading-tight line-clamp-2 mb-0.5">
                       {livro.titulo}
                     </p>
-                    <p className="text-[10px] text-[var(--text-secondary)] truncate">
+                    <p className="text-[9px] text-[var(--text-secondary)] truncate">
                       {livro.autorDiretor}
                     </p>
                     {livro.avaliacao && (
@@ -294,10 +362,10 @@ export function Biblioteca() {
         )}
       </div>
 
-      {/* Modal Novo Livro */}
+      {/* Modal Novo Item */}
       <BottomSheetModal open={modalAberto} onClose={() => setModalAberto(false)} desktopMaxW="max-w-[520px]">
         <div className="flex items-center justify-between px-6 py-5 border-b border-[var(--border-color)] shrink-0">
-          <h2 className="text-lg font-black text-[var(--text-primary)]">Adicionar Livro</h2>
+          <h2 className="text-lg font-black text-[var(--text-primary)]">Adicionar Item</h2>
           <button onClick={() => setModalAberto(false)} className="p-2 hover:bg-[var(--bg-hover)] rounded-full">
             <X className="w-5 h-5 text-[var(--text-tertiary)]" />
           </button>
@@ -308,13 +376,28 @@ export function Biblioteca() {
 
           <div>
             <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1.5">
+              Tipo
+            </label>
+            <select
+              value={form.tipo}
+              onChange={e => setForm(p => ({ ...p, tipo: e.target.value as BibliotecaTipo }))}
+              className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-4 py-3 focus:ring-2 focus:ring-[var(--text-primary)]/20 text-[var(--text-primary)]"
+            >
+              <option value="livro">Livro</option>
+              <option value="filme">Filme</option>
+              <option value="série">Série</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1.5">
               Título *
             </label>
             <input
               type="text"
               value={form.titulo}
               onChange={e => setForm(p => ({ ...p, titulo: e.target.value }))}
-              placeholder="Nome do livro"
+              placeholder={form.tipo === 'filme' ? 'Nome do filme' : form.tipo === 'série' ? 'Nome da série' : 'Nome do livro'}
               autoFocus
               className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-4 py-3 focus:ring-2 focus:ring-[var(--text-primary)]/20 text-[var(--text-primary)] placeholder:opacity-40"
             />
@@ -322,13 +405,13 @@ export function Biblioteca() {
 
           <div>
             <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1.5">
-              Autor
+              {getPrimaryCreatorLabel(form.tipo)}
             </label>
             <input
               type="text"
               value={form.autor}
               onChange={e => setForm(p => ({ ...p, autor: e.target.value }))}
-              placeholder="Nome do autor"
+              placeholder={form.tipo === 'filme' ? 'Nome do diretor' : form.tipo === 'série' ? 'Nome do criador(a)' : 'Nome do autor'}
               className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-4 py-3 focus:ring-2 focus:ring-[var(--text-primary)]/20 text-[var(--text-primary)] placeholder:opacity-40"
             />
           </div>
@@ -369,7 +452,7 @@ export function Biblioteca() {
 
           <div>
             <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1.5">
-              Status de Leitura
+              Status de Consumo
             </label>
             <select
               value={form.statusLeitura}
@@ -394,18 +477,20 @@ export function Biblioteca() {
               <div className="space-y-3">
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1">Editora</label>
-                    <input type="text" value={form.editora} onChange={e => setForm(p => ({ ...p, editora: e.target.value }))} placeholder="Ex: Rocco" className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:opacity-40" />
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1">{form.tipo === 'livro' ? 'Editora' : form.tipo === 'filme' ? 'Estúdio / Distribuidora' : 'Plataforma / Estúdio'}</label>
+                    <input type="text" value={form.editora} onChange={e => setForm(p => ({ ...p, editora: e.target.value }))} placeholder={form.tipo === 'livro' ? 'Ex: Rocco' : form.tipo === 'filme' ? 'Ex: Warner Bros.' : 'Ex: Netflix'} className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:opacity-40" />
                   </div>
                   <div>
                     <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1">Ano</label>
                     <input type="number" value={form.anoPublicacao} onChange={e => setForm(p => ({ ...p, anoPublicacao: e.target.value }))} placeholder="2024" className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:opacity-40" />
                   </div>
                 </div>
-                <div>
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1">ISBN</label>
-                  <input type="text" value={form.isbn} onChange={e => setForm(p => ({ ...p, isbn: e.target.value }))} placeholder="978-..." className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:opacity-40" />
-                </div>
+                {form.tipo === 'livro' && (
+                  <div>
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1">ISBN</label>
+                    <input type="text" value={form.isbn} onChange={e => setForm(p => ({ ...p, isbn: e.target.value }))} placeholder="978-..." className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:opacity-40" />
+                  </div>
+                )}
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1">Idioma</label>
@@ -417,8 +502,8 @@ export function Biblioteca() {
                   </div>
                 </div>
                 <div>
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1">Série / Coleção</label>
-                  <input type="text" value={form.serieColecao} onChange={e => setForm(p => ({ ...p, serieColecao: e.target.value }))} placeholder="Ex: Série Trono de Vidro" className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:opacity-40" />
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1">{form.tipo === 'livro' ? 'Série / Coleção' : form.tipo === 'filme' ? 'Franquia / Universo' : 'Saga / Universo'}</label>
+                  <input type="text" value={form.serieColecao} onChange={e => setForm(p => ({ ...p, serieColecao: e.target.value }))} placeholder={form.tipo === 'livro' ? 'Ex: Série Trono de Vidro' : form.tipo === 'filme' ? 'Ex: Duna' : 'Ex: Bridgerton'} className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:opacity-40" />
                 </div>
               </div>
             )}
@@ -475,7 +560,7 @@ export function Biblioteca() {
             disabled={!form.titulo.trim()}
             className="flex-1 py-3 rounded-2xl text-xs font-black uppercase tracking-widest bg-[var(--text-primary)] text-[var(--bg-primary)] transition-all shadow-lg disabled:opacity-40 disabled:cursor-not-allowed hover-action"
           >
-            Criar Livro
+            Criar Item
           </button>
         </div>
       </BottomSheetModal>

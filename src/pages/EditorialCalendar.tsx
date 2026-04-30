@@ -42,7 +42,7 @@ import { Content, Projeto, AgendaItem } from '../lib/database';
 type Partnership = Projeto;
 import { STATUS_CONFIG } from '../constants';
 import { motion, AnimatePresence } from 'motion/react';
-import { BottomSheetModal } from '../components/BottomSheetModal';
+import { BottomSheetModal } from '../components/modals/BottomSheetModal';
 
 const PARTNERSHIP_STAGES = ['Leitura', 'Roteiro', 'Envio de Roteiro', 'Gravação', 'Edição', 'Aprovação', 'Postagem', 'Métricas', 'Finalizado'];
 import { useIsMobile } from '../hooks/useIsMobile';
@@ -337,6 +337,7 @@ function AddAgendaModal({
   const [date, setDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [agendaType, setAgendaType] = useState<AgendaItem['tipo']>('Reunião');
   const [linkedProjectId, setLinkedProjectId] = useState<string>('');
+  const isMobile = useIsMobile();
 
   const handleSave = () => {
     if (!title.trim() || !date) return;
@@ -411,22 +412,34 @@ function AddAgendaModal({
           {/* Tipo */}
           <div className="space-y-2">
             <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-tertiary)] opacity-60">Tipo</label>
-            <div className="grid grid-cols-3 gap-2">
-              {(['Reunião', 'Entrega', 'Publicação'] as AgendaItem['tipo'][]).map(t => (
-                <button
-                  key={t}
-                  onClick={() => setAgendaType(t)}
-                  className={cn(
-                    'py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all',
-                    agendaType === t
-                      ? 'bg-[var(--text-primary)] text-[var(--bg-primary)] border-[var(--text-primary)]'
-                      : 'border-[var(--border-color)] text-[var(--text-tertiary)] hover:border-[var(--text-primary)]'
-                  )}
-                >
-                  {t}
-                </button>
-              ))}
-            </div>
+            {isMobile ? (
+              <select
+                value={agendaType}
+                onChange={(e) => setAgendaType(e.target.value as any)}
+                className="filter-select t-label w-full"
+              >
+                {(['Reunião', 'Entrega', 'Publicação'] as AgendaItem['tipo'][]).map(t => (
+                  <option key={t} value={t}>{t}</option>
+                ))}
+              </select>
+            ) : (
+              <div className="grid grid-cols-3 gap-2">
+                {(['Reunião', 'Entrega', 'Publicação'] as AgendaItem['tipo'][]).map(t => (
+                  <button
+                    key={t}
+                    onClick={() => setAgendaType(t)}
+                    className={cn(
+                      'py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all',
+                      agendaType === t
+                        ? 'bg-[var(--text-primary)] text-[var(--bg-primary)] border-[var(--text-primary)]'
+                        : 'border-[var(--border-color)] text-[var(--text-tertiary)] hover:border-[var(--text-primary)]'
+                    )}
+                  >
+                    {t}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Vínculo com Projeto */}
@@ -1012,6 +1025,7 @@ function ProjectsView({
   const [filters, setFilters] = useState({ conteudos: true, agenda: true, projetos: true });
   const [view, setView] = useState<'marcas' | 'marcas_arquivadas' | 'marcas_encerradas' | 'calendario'>('marcas');
   const [expandedCals, setExpandedCals] = useState<Record<string, boolean>>({});
+  const isMobile = useIsMobile();
 
   const toggleCal = (brand: string) => {
     setExpandedCals(prev => ({ ...prev, [brand]: !prev[brand] }));
@@ -1059,52 +1073,65 @@ function ProjectsView({
     <div className="flex flex-col h-full">
       {/* Barra de controles */}
       <div className="flex flex-col sm:flex-row gap-4 justify-between items-center p-6 border-b border-[var(--border-color)] bg-[var(--bg-secondary)] shrink-0">
-        <div className="flex gap-2">
-          <button
-            onClick={() => setView('marcas')}
-            className={cn(
-              'px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all',
-              view === 'marcas'
-                ? 'bg-[var(--bg-primary)] text-[var(--text-primary)] shadow-sm'
-                : 'text-[var(--text-secondary)] italic hover:bg-[var(--bg-primary)]/50'
-            )}
+        {isMobile ? (
+          <select
+            value={view}
+            onChange={(e) => setView(e.target.value as any)}
+            className="filter-select t-label w-full"
           >
-            Ativas
-          </button>
-          <button
-            onClick={() => setView('marcas_encerradas')}
-            className={cn(
-              'px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all',
-              view === 'marcas_encerradas'
-                ? 'bg-emerald-500 text-white border-emerald-500 shadow-md'
-                : 'border-[var(--border-color)] opacity-50 hover:opacity-100'
-            )}
-          >
-            Encerradas
-          </button>
-          <button
-            onClick={() => setView('marcas_arquivadas')}
-            className={cn(
-              'px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all',
-              view === 'marcas_arquivadas'
-                ? 'bg-amber-500 text-white border-amber-500 shadow-md'
-                : 'border-[var(--border-color)] opacity-50 hover:opacity-100'
-            )}
-          >
-            Arquivadas
-          </button>
-          <button
-            onClick={() => setView('calendario')}
-            className={cn(
-              'px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ml-4',
-              view === 'calendario'
-                ? 'bg-[var(--text-primary)] text-[var(--bg-primary)] border-[var(--text-primary)]'
-                : 'border-[var(--border-color)] opacity-50 hover:opacity-100'
-            )}
-          >
-            Calendário
-          </button>
-        </div>
+            <option value="marcas">Marcas Ativas</option>
+            <option value="marcas_encerradas">Marcas Encerradas</option>
+            <option value="marcas_arquivadas">Marcas Arquivadas</option>
+            <option value="calendario">Calendário</option>
+          </select>
+        ) : (
+          <div className="flex gap-2">
+            <button
+              onClick={() => setView('marcas')}
+              className={cn(
+                'px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all',
+                view === 'marcas'
+                  ? 'bg-[var(--bg-primary)] text-[var(--text-primary)] shadow-sm'
+                  : 'text-[var(--text-secondary)] italic hover:bg-[var(--bg-primary)]/50'
+              )}
+            >
+              Ativas
+            </button>
+            <button
+              onClick={() => setView('marcas_encerradas')}
+              className={cn(
+                'px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all',
+                view === 'marcas_encerradas'
+                  ? 'bg-emerald-500 text-white border-emerald-500 shadow-md'
+                  : 'border-[var(--border-color)] opacity-50 hover:opacity-100'
+              )}
+            >
+              Encerradas
+            </button>
+            <button
+              onClick={() => setView('marcas_arquivadas')}
+              className={cn(
+                'px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all',
+                view === 'marcas_arquivadas'
+                  ? 'bg-amber-500 text-white border-amber-500 shadow-md'
+                  : 'border-[var(--border-color)] opacity-50 hover:opacity-100'
+              )}
+            >
+              Arquivadas
+            </button>
+            <button
+              onClick={() => setView('calendario')}
+              className={cn(
+                'px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ml-4',
+                view === 'calendario'
+                  ? 'bg-[var(--text-primary)] text-[var(--bg-primary)] border-[var(--text-primary)]'
+                  : 'border-[var(--border-color)] opacity-50 hover:opacity-100'
+              )}
+            >
+              Calendário
+            </button>
+          </div>
+        )}
 
         {view === 'calendario' && (
           <div className="flex flex-wrap gap-2">
@@ -1125,7 +1152,7 @@ function ProjectsView({
           </div>
         )}
 
-        {brands.length > 0 && (
+        {!isMobile && brands.length > 0 && (
           <div className="flex flex-wrap items-center gap-4">
             {brands.map(brand => {
               const p = projects.find(pr => pr.brand === brand);

@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { ArrowLeft, Plus, Edit2, Trash2, X, Check, ToggleLeft, ToggleRight } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, Check, ToggleLeft, ToggleRight, Palette } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
-import { ConfirmModal } from '../../components/ConfirmModal';
+import { ConfirmModal } from '../../components/modals/ConfirmModal';
 import { Pilar } from '../../lib/database';
 import { generateUUID } from '../../utils/uuid';
+import { DesktopPageHeader } from '../../components/layout/DesktopPageHeader';
 
 const PRESET_CORES = [
   '#F5C543', '#4A90D9', '#E8A0BF', '#D44C47',
@@ -163,23 +164,27 @@ export function PilaresSettings() {
 
   return (
     <div className="min-h-screen bg-[var(--bg-secondary)]">
-      <div className="content-narrow mx-auto px-6 md:px-12 py-10 md:py-16">
-        <div className="flex items-center gap-4 mb-10">
-          <button onClick={() => navigate('/settings')} className="p-2 hover:bg-[var(--bg-hover)] rounded-xl transition-colors">
-            <ArrowLeft className="w-5 h-5 text-[var(--text-primary)] opacity-50" />
-          </button>
-          <div className="flex-1">
-            <h1 className="t-display">Pilares Editoriais</h1>
-            <p className="text-xs text-[var(--text-secondary)] opacity-50 mt-1">{state.pilares.length} pilares configurados</p>
-          </div>
-          <button
-            onClick={() => setCriando(true)}
-            className="flex items-center gap-2 px-4 py-2.5 bg-[var(--text-primary)] text-[var(--bg-primary)] rounded-2xl text-xs font-black uppercase tracking-widest hover:scale-[1.02] transition-all shadow-sm"
-          >
-            <Plus className="w-4 h-4" />
-            Novo
-          </button>
-        </div>
+      <div className="desktop-header-frame">
+        <DesktopPageHeader
+          section="Configurações"
+          title="Pilares Editoriais"
+          subtitle={`${state.pilares.length} pilares configurados`}
+          icon={Palette}
+          backLabel="Configurações"
+          onBack={() => navigate('/configuracoes')}
+          actions={(
+            <button
+              onClick={() => setCriando(true)}
+              className="flex items-center gap-2 px-4 py-2.5 bg-[var(--text-primary)] text-[var(--bg-primary)] rounded-2xl text-xs font-black uppercase tracking-widest hover:scale-[1.02] transition-all shadow-sm"
+            >
+              <Plus className="w-4 h-4" />
+              Novo
+            </button>
+          )}
+        />
+      </div>
+
+      <div className="desktop-content-frame">
 
         <AnimatePresence>
           {criando && (

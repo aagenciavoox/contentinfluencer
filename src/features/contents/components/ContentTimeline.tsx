@@ -1,9 +1,9 @@
 import React from 'react';
-import { Content } from '../../lib/database';
-import { useAppContext } from '../../context/AppContext';
+import { Content } from '../../../lib/database';
+import { useAppContext } from '../../../context/AppContext';
 import { format } from 'date-fns';
 import { Shirt, MapPin } from 'lucide-react';
-import { cn } from '../../lib/utils';
+import { cn } from '../../../lib/utils';
 
 interface ContentTimelineProps {
   contents: Content[];
