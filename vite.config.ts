@@ -12,6 +12,7 @@ export default defineConfig(({mode}) => {
       tailwindcss(),
       VitePWA({
         registerType: 'autoUpdate',
+        injectRegister: 'auto',
         includeAssets: ['favicon.ico', 'favicon.svg', 'apple-touch-icon-180x180.png'],
         manifest: {
           name: 'Content OS',
@@ -68,6 +69,10 @@ export default defineConfig(({mode}) => {
         },
         workbox: {
           globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+          cleanupOutdatedCaches: true,
+          clientsClaim: true,
+          skipWaiting: true,
+          navigateFallback: '/index.html',
           // Cache apenas para assets estaticos/publicos.
           // Dados autenticados do Supabase nao devem ser servidos pelo SW.
           runtimeCaching: [
@@ -93,7 +98,7 @@ export default defineConfig(({mode}) => {
           ],
         },
         devOptions: {
-          enabled: true,
+          enabled: false,
           type: 'module',
         },
       }),

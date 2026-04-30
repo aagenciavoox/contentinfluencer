@@ -5,18 +5,29 @@ import App from './App.tsx';
 import './styles/index.css';
 
 // Registra o service worker — atualiza automaticamente em segundo plano
-registerSW({
+const updateSW = registerSW({
+  immediate: true,
+
   onNeedRefresh() {
-    // Atualização disponível: recarrega silenciosamente
-    // (registerType: 'autoUpdate' já faz isso, mas mantemos para log)
     if (import.meta.env.DEV) {
       console.log('[PWA] Nova versão disponível, atualizando...');
     }
+
+    updateSW(true);
   },
+
   onOfflineReady() {
     if (import.meta.env.DEV) {
       console.log('[PWA] App pronto para uso offline.');
     }
+  },
+
+  onRegisteredSW(swUrl, registration) {
+    if (import.meta.env.DEV) {
+      console.log('[PWA] Service Worker registrado:', swUrl);
+    }
+
+    registration?.update();
   },
 });
 
