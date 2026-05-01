@@ -1,1 +1,2 @@
-export { Gravacao } from '../features/recording/pages/Gravacao';
+export { RecordingPage as Gravacao } from '../features/recording/pages/RecordingPage';
+

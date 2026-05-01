@@ -292,13 +292,11 @@ textarea {
 .t-heading { font-size: clamp(1.1rem, 4vw, 2rem); font-weight: 800; line-height: 1.1; }
 
 .desktop-header-sticky {
-  position: sticky;
-  top: 0;
-  z-index: 20;
-  border-bottom: 1px solid var(--border-color);
-  background: color-mix(in srgb, var(--bg-secondary) 92%, transparent);
-  backdrop-filter: blur(14px);
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.04);
+  position: static;
+  border-bottom: 0;
+  background: transparent;
+  backdrop-filter: none;
+  box-shadow: none;
 }
 
 .desktop-toolbar-surface {
@@ -504,7 +502,7 @@ textarea {
 
 .desktop-header-frame {
   max-width: none;
-  padding: 24px;
+  padding: 32px 24px 24px;
 }
 
 .desktop-content-frame {
@@ -523,6 +521,16 @@ textarea {
 }
 
 @media (min-width: 769px) {
+  .desktop-header-sticky {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    border-bottom: 1px solid var(--border-color);
+    background: color-mix(in srgb, var(--bg-secondary) 92%, transparent);
+    backdrop-filter: blur(14px);
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.04);
+  }
+
   .desktop-header-frame {
     padding: 24px;
   }

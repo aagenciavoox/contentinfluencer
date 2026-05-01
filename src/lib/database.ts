@@ -110,11 +110,22 @@ export interface Anotacao {
 export interface BibliotecaItem {
   id: string;
   userId: string;
-  tipo: 'livro' | 'filme' | 'série' | 'outro';
+  tipo: 'livro' | 'filme' | 'série' | 'anime' | 'manga' | 'outro';
   titulo: string;
   autorDiretor: string;
   capaUrl: string | null;
-  status: 'Quero consumir' | 'Consumindo' | 'Pausado' | 'Concluído';
+  status:
+    | 'Quero consumir'
+    | 'Consumindo'
+    | 'Pausado'
+    | 'Concluído'
+    | 'Quero ler'
+    | 'Lendo'
+    | 'Lido'
+    | 'Abandonado'
+    | 'Quero ver'
+    | 'Assistindo'
+    | 'Assistido';
   dataInicio: string | null;
   dataFim: string | null;
   avaliacao: number | null;
@@ -136,6 +147,22 @@ export interface BibliotecaItemMeta {
   idioma?: string;
   traducao?: string;
   serieColecao?: string;
+  colecaoStatus?: 'sim' | 'nao';
+  colecaoNome?: string;
+  generoAutor?: string;
+  paisAutor?: string;
+  racaAutor?: string;
+  duracao?: string;
+  episodios?: string;
+  duracaoPorEpisodio?: string;
+  roteirista?: string;
+  distribuidora?: string;
+  plataforma?: string;
+  dataLancamento?: string;
+  paisOrigem?: string;
+  fazParteDeSerie?: 'sim' | 'nao';
+  nomeDaSerie?: string;
+  tagsPersonalizadas?: string[];
   quemIndicou?: string;
   motivoEscolha?: string;
   capitulosCobertos?: string[];
@@ -157,6 +184,7 @@ export interface ContentPlataforma {
   legenda: string;
   hashtags: string;
   publishDate: string | null;
+  publishDateEnabled?: boolean;
 }
 
 export interface Content {
@@ -164,6 +192,7 @@ export interface Content {
   userId: string;
   title: string;
   status: string;
+  classificacao?: string | null;
   slotType: 'ÚNICO' | 'SÉRIE' | 'JANELA' | null;
   seriesId: string | null;
   pilarId: string | null;
@@ -174,6 +203,8 @@ export interface Content {
   energiaNecessaria: 'baixa' | 'média' | 'alta' | null;
   publishDate: string | null;
   recordingDate: string | null;
+  publishDateEnabled?: boolean;
+  recordingDateEnabled?: boolean;
   link: string | null;
   script: string | null;
   scriptNotes: ScriptNote[];
@@ -241,6 +272,10 @@ export interface RecordingBlock {
   id: string;
   userId: string;
   name: string;
+  lookLabel?: string | null;
+  cenarioLabel?: string | null;
+  productionNotes?: string | null;
+  metadata?: Record<string, unknown>;
   createdAt: string;
   contents: RecordingBlockContent[];
 }
@@ -257,6 +292,7 @@ export interface Template {
   id: string;
   userId: string;
   nome: string;
+  type?: 'roteiro' | 'legenda' | 'outro';
   platformId: string | null;
   seriesId: string | null;
   estrutura: TemplateBloco[];
@@ -280,10 +316,13 @@ export interface GoldenRule {
   id: string;
   userId: string;
   descricao: string;
+  titulo?: string | null;
   tipo: 'pilar' | 'série' | 'formato' | 'publi' | 'plataforma';
   condicao: 'max' | 'min' | 'recomendado';
   periodo: 'dia' | 'semana' | 'mês';
   valor: number;
+  minimo?: number | null;
+  maximo?: number | null;
   ativa: boolean;
   createdAt: string;
 }
@@ -446,16 +485,20 @@ const mp = {
   }),
   content: (r: Row): Content => ({
     id: r.id, userId: r.user_id, title: r.title, status: r.status,
+    classificacao: r.classificacao,
     slotType: r.slot_type, seriesId: r.series_id, pilarId: r.pilar_id,
     lookId: r.look_id, cenarioId: r.cenario_id, bibliotecaItemId: r.biblioteca_item_id,
     formatoVisual: r.formato_visual, energiaNecessaria: r.energia_necessaria,
     publishDate: r.publish_date, recordingDate: r.recording_date, link: r.link,
+    publishDateEnabled: r.publish_date_enabled ?? (r.publish_date != null),
+    recordingDateEnabled: r.recording_date_enabled ?? (r.recording_date != null),
     script: r.script, scriptNotes: r.script_notes || [], tags: r.tags || [],
     notes: r.notes, referencias: r.referencias,
     createdAt: r.created_at, updatedAt: r.updated_at, deletedAt: r.deleted_at,
     plataformas: (r.content_plataformas || []).map((p: Row) => ({
       id: p.id, contentId: p.content_id, platformId: p.platform_id,
       legenda: p.legenda || '', hashtags: p.hashtags || '', publishDate: p.publish_date,
+      publishDateEnabled: p.publish_date_enabled ?? (p.publish_date != null),
     })),
   }),
   idea: (r: Row): Idea => ({
@@ -477,14 +520,17 @@ const mp = {
     contentIds: (r.projeto_conteudos || []).map((pc: Row) => pc.content_id),
   }),
   recordingBlock: (r: Row): RecordingBlock => ({
-    id: r.id, userId: r.user_id, name: r.name, createdAt: r.created_at,
+    id: r.id, userId: r.user_id, name: r.name,
+    lookLabel: r.look_label, cenarioLabel: r.cenario_label,
+    productionNotes: r.production_notes, metadata: r.metadata || {},
+    createdAt: r.created_at,
     contents: (r.recording_block_contents || []).map((c: Row) => ({
       blockId: c.block_id, contentId: c.content_id, ordem: c.ordem, gravado: c.gravado,
     })),
   }),
   template: (r: Row): Template => ({
     id: r.id, userId: r.user_id, nome: r.nome, platformId: r.platform_id,
-    seriesId: r.series_id, estrutura: r.estrutura || [], ativo: r.ativo,
+    type: r.type || 'roteiro', seriesId: r.series_id, estrutura: r.estrutura || [], ativo: r.ativo,
     createdAt: r.created_at, updatedAt: r.updated_at,
   }),
   agendaItem: (r: Row): AgendaItem => ({
@@ -492,8 +538,9 @@ const mp = {
     tipo: r.tipo, projetoId: r.projeto_id, createdAt: r.created_at,
   }),
   goldenRule: (r: Row): GoldenRule => ({
-    id: r.id, userId: r.user_id, descricao: r.descricao, tipo: r.tipo,
-    condicao: r.condicao, periodo: r.periodo, valor: r.valor, ativa: r.ativa,
+    id: r.id, userId: r.user_id, descricao: r.descricao, titulo: r.titulo, tipo: r.tipo,
+    condicao: r.condicao, periodo: r.periodo, valor: r.valor,
+    minimo: r.minimo, maximo: r.maximo, ativa: r.ativa,
     createdAt: r.created_at,
   }),
   contentMetric: (r: Row): ContentMetric => ({
@@ -536,7 +583,7 @@ export async function fetchAllData(): Promise<AppData> {
     { data: rulesRows },
     { data: metricsRows },
   ] = await Promise.all([
-    supabase.from('platforms').select('*').or(`user_id.is.null,user_id.eq.${uid}`).eq('ativo', true),
+    supabase.from('platforms').select('*').or(`user_id.is.null,user_id.eq.${uid}`),
     supabase.from('user_preferences').select('*').eq('user_id', uid),
     supabase.from('dna_voz').select('*').eq('user_id', uid).maybeSingle(),
     supabase.from('pilares').select('*, pilar_plataformas(*)').eq('user_id', uid),
@@ -902,11 +949,15 @@ export async function saveContent(
   if (!supabase) return;
   const { error } = await supabase.from('contents').upsert({
     id: content.id, user_id: content.userId, title: content.title,
-    status: content.status, slot_type: content.slotType, series_id: content.seriesId,
+    status: content.status, classificacao: content.classificacao,
+    slot_type: content.slotType, series_id: content.seriesId,
     pilar_id: content.pilarId, look_id: content.lookId, cenario_id: content.cenarioId,
     biblioteca_item_id: content.bibliotecaItemId, formato_visual: content.formatoVisual,
     energia_necessaria: content.energiaNecessaria, publish_date: content.publishDate,
-    recording_date: content.recordingDate, link: content.link, script: content.script,
+    publish_date_enabled: content.publishDateEnabled ?? (content.publishDate != null),
+    recording_date: content.recordingDate,
+    recording_date_enabled: content.recordingDateEnabled ?? (content.recordingDate != null),
+    link: content.link, script: content.script,
     script_notes: content.scriptNotes, tags: content.tags,
     notes: content.notes, referencias: content.referencias,
   });
@@ -925,7 +976,15 @@ export async function saveContentPlataformas(
     plataformas.map(p => ({
       content_id: contentId, platform_id: platformIds.get(p.platformId),
       legenda: p.legenda, hashtags: p.hashtags, publish_date: p.publishDate,
-    })).filter((row): row is { content_id: string; platform_id: string; legenda: string; hashtags: string; publish_date: string | null } => !!row.platform_id)
+      publish_date_enabled: p.publishDateEnabled ?? (p.publishDate != null),
+    })).filter((row): row is {
+      content_id: string;
+      platform_id: string;
+      legenda: string;
+      hashtags: string;
+      publish_date: string | null;
+      publish_date_enabled: boolean;
+    } => !!row.platform_id)
   );
   if (error) throw new Error(`content_plataformas: ${error.message}`);
 }
@@ -1019,6 +1078,8 @@ export async function saveRecordingBlock(block: Omit<RecordingBlock, 'contents' 
   if (!supabase) return;
   const { error } = await supabase.from('recording_blocks').upsert({
     id: block.id, user_id: block.userId, name: block.name,
+    look_label: block.lookLabel, cenario_label: block.cenarioLabel,
+    production_notes: block.productionNotes, metadata: block.metadata || {},
   });
   if (error) throw new Error(`recording_blocks: ${error.message}`);
 }
@@ -1050,7 +1111,7 @@ export async function saveTemplate(template: Omit<Template, 'createdAt' | 'updat
   const { error } = await supabase.from('templates').upsert({
     id: template.id, user_id: template.userId, nome: template.nome,
     platform_id: template.platformId, series_id: template.seriesId,
-    estrutura: template.estrutura, ativo: template.ativo,
+    type: template.type || 'roteiro', estrutura: template.estrutura, ativo: template.ativo,
   });
   if (error) throw new Error(`templates: ${error.message}`);
 }
@@ -1087,8 +1148,9 @@ export async function deleteAgendaItem(id: string): Promise<void> {
 export async function saveGoldenRule(rule: Omit<GoldenRule, 'createdAt'>): Promise<void> {
   if (!supabase) return;
   const { error } = await supabase.from('golden_rules').upsert({
-    id: rule.id, user_id: rule.userId, descricao: rule.descricao, tipo: rule.tipo,
-    condicao: rule.condicao, periodo: rule.periodo, valor: rule.valor, ativa: rule.ativa,
+    id: rule.id, user_id: rule.userId, descricao: rule.descricao, titulo: rule.titulo,
+    tipo: rule.tipo, condicao: rule.condicao, periodo: rule.periodo, valor: rule.valor,
+    minimo: rule.minimo, maximo: rule.maximo, ativa: rule.ativa,
   });
   if (error) throw new Error(`golden_rules: ${error.message}`);
 }

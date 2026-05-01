@@ -1,4 +1,6 @@
 import React, { useReducer, useEffect, useRef, useCallback } from 'react';
+import type { AppState } from '../app/providers/appState';
+import { initialState } from '../app/providers/appState';
 import { supabase } from '../lib/supabase';
 import * as db from '../lib/database';
 import { appReducer, AppAction } from './reducer';
@@ -6,50 +8,12 @@ import { useAuth } from './AuthContext';
 import { generateUUID, isUUID } from '../utils/uuid';
 
 // ============================================================================
-// STATE
-// ============================================================================
-
-export interface AppState extends db.AppData {
-  theme: 'light' | 'dark';
-  isLoaded: boolean;
-}
-
-export const initialState: AppState = {
-  platforms: [],
-  preferences: {},
-  dnaVoz: null,
-  pilares: [],
-  series: [],
-  cenarios: [],
-  looks: [],
-  bibliotecaGeneros: [],
-  bibliotecaItems: [],
-  contents: [],
-  ideas: [],
-  projetos: [],
-  recordingBlocks: [],
-  templates: [],
-  agendaItems: [],
-  goldenRules: [],
-  contentMetrics: [],
-  
-  // Legacy aliases
-  books: [],
-  partnerships: [],
-  results: [],
-  agenda: [],
-
-  theme: 'light',
-  isLoaded: false,
-};
-
-// ============================================================================
 // CONTEXT
 // ============================================================================
 
 export const AppContext = React.createContext<{
   state: AppState;
-  dispatch: React.Dispatch<AppAction>;
+  dispatch: (action: AppAction) => Promise<void>;
   createContent: (content: db.Content) => Promise<void>;
   updateContent: (content: db.Content) => Promise<void>;
 } | null>(null);
@@ -70,13 +34,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(appReducer, initialState);
   const loadDone = useRef(false);
   const { user } = useAuth();
+  const realtimeRefreshTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const refreshFromServer = useCallback(async () => {
+    if (!supabase || !user) return;
+
+    try {
+      const data = await db.fetchAllData();
+      dispatch({ type: 'SET_DATA', payload: data });
+      dispatch({ type: 'SET_LOADED' });
+      loadDone.current = true;
+    } catch (err) {
+      console.error('[Sync] Realtime refresh failed:', err);
+    }
+  }, [user]);
 
   useEffect(() => {
-    if (!supabase) {
-      dispatch({ type: 'SET_LOADED' });
-      return;
-    }
-
     let done = false;
 
     async function load() {
@@ -106,6 +79,70 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
+  useEffect(() => {
+    if (!supabase || !user) return;
+
+    const relevantTables = new Set([
+      'agenda_items',
+      'anotacoes',
+      'biblioteca_generos',
+      'biblioteca_items',
+      'cenarios',
+      'content_metrics',
+      'content_plataformas',
+      'contents',
+      'dna_voz',
+      'golden_rules',
+      'ideas',
+      'item_generos',
+      'looks',
+      'pilar_plataformas',
+      'pilares',
+      'platforms',
+      'projeto_conteudos',
+      'projeto_etapas',
+      'projetos',
+      'recording_block_contents',
+      'recording_blocks',
+      'serie_pilares',
+      'serie_plataformas',
+      'series',
+      'templates',
+      'user_preferences',
+    ]);
+
+    const scheduleRefresh = () => {
+      if (realtimeRefreshTimeout.current) {
+        clearTimeout(realtimeRefreshTimeout.current);
+      }
+
+      realtimeRefreshTimeout.current = setTimeout(() => {
+        void refreshFromServer();
+      }, 120);
+    };
+
+    const channel = supabase
+      .channel(`content-os-realtime:${user.id}`)
+      .on('postgres_changes', { event: '*', schema: 'public' }, payload => {
+        if (!payload.table || !relevantTables.has(payload.table)) return;
+        scheduleRefresh();
+      })
+      .subscribe(status => {
+        if (import.meta.env.DEV) {
+          console.log('[Realtime] Channel status:', status);
+        }
+      });
+
+    return () => {
+      if (realtimeRefreshTimeout.current) {
+        clearTimeout(realtimeRefreshTimeout.current);
+        realtimeRefreshTimeout.current = null;
+      }
+
+      void supabase.removeChannel(channel);
+    };
+  }, [refreshFromServer, user]);
+
   const createContent = useCallback(async (content: db.Content) => {
     if (!user) throw new Error('Usuário não autenticado');
     if (!supabase) throw new Error('Supabase não inicializado');
@@ -120,9 +157,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       dispatch({ type: 'ADD_CONTENT', payload: normalizedContent });
     } catch (err) {
       console.error('[AppContext] createContent failed:', err);
+      await refreshFromServer();
       throw err;
     }
-  }, [user]);
+  }, [refreshFromServer, user]);
 
   const updateContent = useCallback(async (content: db.Content) => {
     if (!user) throw new Error('Usuário não autenticado');
@@ -138,9 +176,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       dispatch({ type: 'UPDATE_CONTENT', payload: normalizedContent });
     } catch (err) {
       console.error('[AppContext] updateContent failed:', err);
+      await refreshFromServer();
       throw err;
     }
-  }, [user]);
+  }, [refreshFromServer, user]);
 
   const enhancedDispatch = useCallback(async (action: AppAction) => {
     // 1. Update local state immediately (Optimistic UI)
@@ -365,8 +404,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }
     } catch (err) {
       console.error('[Sync] Error persisting action:', action.type, err);
+      await refreshFromServer();
     }
-  }, [user, state.bibliotecaItems, state.dnaVoz]);
+  }, [refreshFromServer, user, state.bibliotecaItems, state.dnaVoz]);
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', state.theme);

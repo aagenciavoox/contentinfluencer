@@ -1,1 +1,1 @@
-export { Contents } from '../features/contents/pages/Contents';
+export { ContentsPage as Contents } from '../features/contents/pages/ContentsPage';

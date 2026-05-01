@@ -1,5 +1,5 @@
-import type { Content, Pilar } from '../lib/database.ts';
-import { addDays, isWithinInterval, startOfDay } from 'date-fns';
+import type {Content, GoldenRule} from '../lib/database.ts';
+import {addDays, isWithinInterval, startOfDay} from 'date-fns';
 
 export interface Violation {
   ruleId: string;
@@ -15,133 +15,162 @@ function getWeekInterval(weekStart: Date) {
   };
 }
 
-function contarHashtags(texto: string): number {
-  return (texto.match(/#\w+/g) || []).length;
+function countHashtags(text: string): number {
+  return (text.match(/#\w+/g) || []).length;
 }
 
-export function validateWeeklyContent(contents: Content[], weekStart: Date, pilares?: Pilar[]): Violation[] {
+function getViolationType(rule: GoldenRule): Violation['type'] {
+  if (rule.condicao === 'max') return 'error';
+  if (rule.condicao === 'min') return 'warning';
+  return 'info';
+}
+
+function compareRule(
+  current: number,
+  rule: GoldenRule
+): {matched: boolean; detail: string} {
+  const minimo = rule.minimo ?? (rule.condicao === 'min' ? rule.valor : null);
+  const maximo = rule.maximo ?? (rule.condicao === 'max' ? rule.valor : null);
+
+  if (minimo != null && current < minimo) {
+    return {matched: true, detail: `${current} abaixo do mínimo ${minimo}`};
+  }
+
+  if (maximo != null && current > maximo) {
+    return {matched: true, detail: `${current} acima do máximo ${maximo}`};
+  }
+
+  if (rule.condicao === 'recomendado' && rule.valor > 0 && current !== rule.valor) {
+    return {matched: true, detail: `${current} fora do recomendado ${rule.valor}`};
+  }
+
+  return {matched: false, detail: ''};
+}
+
+export function validateWeeklyContent(
+  contents: Content[],
+  weekStart: Date,
+  _legacyPilares?: unknown,
+  rules: GoldenRule[] = []
+): Violation[] {
   const interval = getWeekInterval(weekStart);
 
-  const semanais = contents.filter(c => {
-    if (!c.publishDate) return false;
+  const publishedThisWeek = contents.filter(content => {
+    if (!content.publishDate) return false;
     try {
-      return isWithinInterval(new Date(c.publishDate), interval);
+      return isWithinInterval(new Date(content.publishDate), interval);
     } catch {
       return false;
     }
   });
 
+  const activeRules = rules.filter(rule => rule.ativa);
   const violations: Violation[] = [];
 
-  // RG-01 / RG-02: Mesma série: máx. 2 na semana / máx. 1 episódio por semana
-  const porSerie: Record<string, Content[]> = {};
-  semanais.forEach(c => {
-    if (!c.seriesId) return;
-    if (!porSerie[c.seriesId]) porSerie[c.seriesId] = [];
-    porSerie[c.seriesId].push(c);
-  });
+  activeRules.forEach(rule => {
+    if (rule.tipo === 'publi') {
+      const result = compareRule(publishedThisWeek.length, rule);
+      if (result.matched) {
+        violations.push({
+          ruleId: rule.id,
+          type: getViolationType(rule),
+          message: `${rule.titulo || rule.descricao}: ${result.detail}`,
+          affectedContentIds: publishedThisWeek.map(content => content.id),
+        });
+      }
+      return;
+    }
 
-  Object.entries(porSerie).forEach(([serieId, conteudos]) => {
-    if (conteudos.length > 2) {
-      violations.push({
-        ruleId: 'RG-01',
-        type: 'warning',
-        message: `Série "${serieId}" aparece ${conteudos.length}x esta semana (máx. recomendado: 2)`,
-        affectedContentIds: conteudos.map(c => c.id),
+    if (rule.tipo === 'série') {
+      const bySeries = new Map<string, Content[]>();
+      publishedThisWeek.forEach(content => {
+        if (!content.seriesId) return;
+        const current = bySeries.get(content.seriesId) || [];
+        current.push(content);
+        bySeries.set(content.seriesId, current);
+      });
+
+      bySeries.forEach((seriesContents, seriesId) => {
+        const result = compareRule(seriesContents.length, rule);
+        if (result.matched) {
+          violations.push({
+            ruleId: rule.id,
+            type: getViolationType(rule),
+            message: `${rule.titulo || rule.descricao} — série ${seriesId}: ${result.detail}`,
+            affectedContentIds: seriesContents.map(content => content.id),
+          });
+        }
+      });
+      return;
+    }
+
+    if (rule.tipo === 'formato') {
+      const byFormat = new Map<string, Content[]>();
+      publishedThisWeek.forEach(content => {
+        if (!content.formatoVisual) return;
+        const current = byFormat.get(content.formatoVisual) || [];
+        current.push(content);
+        byFormat.set(content.formatoVisual, current);
+      });
+
+      byFormat.forEach((formatContents, formatName) => {
+        const result = compareRule(formatContents.length, rule);
+        if (result.matched) {
+          violations.push({
+            ruleId: rule.id,
+            type: getViolationType(rule),
+            message: `${rule.titulo || rule.descricao} — formato ${formatName}: ${result.detail}`,
+            affectedContentIds: formatContents.map(content => content.id),
+          });
+        }
+      });
+      return;
+    }
+
+    if (rule.tipo === 'plataforma') {
+      publishedThisWeek.forEach(content => {
+        (content.plataformas || []).forEach(plataforma => {
+          const hashtagsCount = countHashtags(plataforma.legenda || '');
+          const result = compareRule(hashtagsCount, rule);
+          if (result.matched) {
+            violations.push({
+              ruleId: rule.id,
+              type: getViolationType(rule),
+              message: `${rule.titulo || rule.descricao} — ${plataforma.platformId}: ${result.detail}`,
+              affectedContentIds: [content.id],
+            });
+          }
+        });
+      });
+      return;
+    }
+
+    if (rule.tipo === 'pilar') {
+      const byPillar = new Map<string, Content[]>();
+      publishedThisWeek.forEach(content => {
+        if (!content.pilarId) return;
+        const current = byPillar.get(content.pilarId) || [];
+        current.push(content);
+        byPillar.set(content.pilarId, current);
+      });
+
+      byPillar.forEach((pillarContents, pillarId) => {
+        const result = compareRule(pillarContents.length, rule);
+        if (result.matched) {
+          violations.push({
+            ruleId: rule.id,
+            type: getViolationType(rule),
+            message: `${rule.titulo || rule.descricao} — pilar ${pillarId}: ${result.detail}`,
+            affectedContentIds: pillarContents.map(content => content.id),
+          });
+        }
       });
     }
-    if (conteudos.length > 1) {
-      violations.push({
-        ruleId: 'RG-02',
-        type: 'warning',
-        message: `Série "${serieId}" tem ${conteudos.length} episódios esta semana (máx. 1 por semana)`,
-        affectedContentIds: conteudos.map(c => c.id),
-      });
-    }
   });
-
-  // RG-03: Mesmo formato visual: máx. 1 por dia
-  const porDia: Record<string, Content[]> = {};
-  semanais.forEach(c => {
-    if (!c.publishDate) return;
-    if (!porDia[c.publishDate]) porDia[c.publishDate] = [];
-    porDia[c.publishDate].push(c);
-  });
-
-  Object.entries(porDia).forEach(([dia, conteudos]) => {
-    const porFormato: Record<string, Content[]> = {};
-    conteudos.forEach(c => {
-      if (!c.formatoVisual) return;
-      if (!porFormato[c.formatoVisual]) porFormato[c.formatoVisual] = [];
-      porFormato[c.formatoVisual].push(c);
-    });
-    Object.entries(porFormato).forEach(([formato, cs]) => {
-      if (cs.length > 1) {
-        violations.push({
-          ruleId: 'RG-03',
-          type: 'info',
-          message: `Formato visual "${formato}" aparece ${cs.length}x no dia ${dia} (máx. 1/dia)`,
-          affectedContentIds: cs.map(c => c.id),
-        });
-      }
-    });
-  });
-
-  // RG-05 / RG-06: Hashtags por plataforma (via content_plataformas)
-  semanais.forEach(c => {
-    (c.plataformas || []).forEach(cp => {
-      const legenda = cp.legenda || '';
-      if (!legenda) return;
-      const n = contarHashtags(legenda);
-      const plat = cp.platformId;
-
-      if (n > 5) {
-        violations.push({
-          ruleId: 'RG-05',
-          type: 'error',
-          message: `"${c.title}" — ${plat} tem ${n} hashtags (máx. 5)`,
-          affectedContentIds: [c.id],
-        });
-      }
-
-      if (plat === 'YouTube' && (n < 8 || n > 10)) {
-        violations.push({
-          ruleId: 'RG-06',
-          type: 'info',
-          message: `"${c.title}" — YouTube tem ${n} hashtags (recomendado: 8-10)`,
-          affectedContentIds: [c.id],
-        });
-      }
-    });
-  });
-
-  // RG-07: Pilar dominante (>60%)
-  if (semanais.length >= 3) {
-    const porPilar: Record<string, number> = {};
-    semanais.forEach(c => {
-      if (!c.pilarId) return;
-      porPilar[c.pilarId] = (porPilar[c.pilarId] || 0) + 1;
-    });
-
-    Object.entries(porPilar).forEach(([pilarId, count]) => {
-      const pct = count / semanais.length;
-      if (pct > 0.6) {
-        violations.push({
-          ruleId: 'RG-07',
-          type: 'warning',
-          message: `Pilar domina ${Math.round(pct * 100)}% da semana (máx. recomendado: 60%)`,
-          affectedContentIds: semanais.filter(c => c.pilarId === pilarId).map(c => c.id),
-        });
-      }
-    });
-  }
-
-  // RG-MIX: Harmonia de Mix (via GoldenRules - a lógica numérica fica no componente de Análise)
-  // Por ora não calculamos sem acesso às regras ativas
 
   const seen = new Set<string>();
-  return violations.filter(v => {
-    const key = `${v.ruleId}-${v.affectedContentIds.sort().join(',')}`;
+  return violations.filter(violation => {
+    const key = `${violation.ruleId}-${violation.affectedContentIds.sort().join(',')}-${violation.message}`;
     if (seen.has(key)) return false;
     seen.add(key);
     return true;

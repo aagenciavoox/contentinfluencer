@@ -1,11 +1,12 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { User, Session } from '@supabase/supabase-js';
-import { supabase } from '../lib/supabase';
+import { Session, User } from '@supabase/supabase-js';
+import { isSupabaseConfigured, supabase } from '../lib/supabase';
 
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
+  backendReady: boolean;
   signOut: () => Promise<void>;
 }
 
@@ -17,19 +18,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // 1. Verificar sessão atual
-    supabase?.auth.getSession().then(({ data: { session } }) => {
+    if (!supabase || !isSupabaseConfigured) {
+      setLoading(false);
+      return;
+    }
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
     });
 
-    // 2. Escutar mudanças na autenticação
-    const { data: { subscription } } = supabase?.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      setUser(session?.user ?? null);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      setSession(nextSession);
+      setUser(nextSession?.user ?? null);
       setLoading(false);
-    }) ?? { data: { subscription: { unsubscribe: () => {} } } };
+    });
 
     return () => subscription.unsubscribe();
   }, []);
@@ -39,7 +43,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, signOut }}>
+    <AuthContext.Provider value={{ user, session, loading, backendReady: isSupabaseConfigured, signOut }}>
       {children}
     </AuthContext.Provider>
   );

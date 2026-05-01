@@ -1,18 +1,34 @@
+import { AlertTriangle, Loader2 } from 'lucide-react';
 import { BrowserRouter as Router, Navigate, Route, Routes } from 'react-router-dom';
-import { Loader2 } from 'lucide-react';
-import { AppProvider } from './context/AppContext';
-import { AuthProvider, useAuth } from './context/AuthContext';
-import { AppRoutes } from './app/routes';
-import { AppLayout } from './components/layout/AppLayout';
+import { AppProviders } from './app/providers/AppProviders';
+import { AppRoutes } from './app/router/AppRoutes';
+import { AppShell } from './layouts/app/AppShell';
+import { useAuth } from './context/AuthContext';
 import { Login } from './pages/Login';
 
 function AppContent() {
-  const { user, loading } = useAuth();
+  const { user, loading, backendReady } = useAuth();
 
   if (loading) {
     return (
       <div className="h-screen w-full flex items-center justify-center bg-[var(--bg-primary)]">
         <Loader2 className="w-10 h-10 animate-spin text-[var(--text-primary)]" />
+      </div>
+    );
+  }
+
+  if (!backendReady) {
+    return (
+      <div className="min-h-screen w-full bg-[var(--bg-primary)] text-[var(--text-primary)] flex items-center justify-center p-6">
+        <div className="w-full max-w-lg rounded-[2rem] border border-red-500/20 bg-[var(--bg-secondary)] p-8 shadow-2xl">
+          <div className="mb-5 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-red-500/10 text-red-500">
+            <AlertTriangle className="h-7 w-7" />
+          </div>
+          <h1 className="text-2xl font-black uppercase tracking-[0.2em]">Backend obrigatorio</h1>
+          <p className="mt-4 text-sm leading-6 text-[var(--text-secondary)]">
+            Este app nao opera mais em modo offline. Configure <code>VITE_SUPABASE_URL</code> e <code>VITE_SUPABASE_ANON_KEY</code> para carregar autenticacao, persistencia e sincronizacao em tempo real.
+          </p>
+        </div>
       </div>
     );
   }
@@ -27,20 +43,18 @@ function AppContent() {
   }
 
   return (
-    <AppLayout>
+    <AppShell>
       <AppRoutes />
-    </AppLayout>
+    </AppShell>
   );
 }
 
 export default function App() {
   return (
     <Router>
-      <AuthProvider>
-        <AppProvider>
-          <AppContent />
-        </AppProvider>
-      </AuthProvider>
+      <AppProviders>
+        <AppContent />
+      </AppProviders>
     </Router>
   );
 }

@@ -1,4 +1,4 @@
-import { AppState } from './AppContext';
+import type { AppState } from '../app/providers/appState';
 import {
   AppData,
   Content, Idea, Pilar, Serie, Cenario, Look,

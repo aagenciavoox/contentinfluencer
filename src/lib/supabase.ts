@@ -4,9 +4,7 @@ import {createClient, SupabaseClient} from '@supabase/supabase-js';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.warn('[Supabase] VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY not set - running in offline mode.');
-}
+export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey);
 
 const fetchWithoutHttpCache: typeof fetch = (input, init) =>
   fetch(input, {
@@ -15,7 +13,7 @@ const fetchWithoutHttpCache: typeof fetch = (input, init) =>
   });
 
 export const supabase: SupabaseClient | null =
-  supabaseUrl && supabaseAnonKey
+  isSupabaseConfigured
     ? createClient(supabaseUrl, supabaseAnonKey, {
         auth: {
           persistSession: true,
