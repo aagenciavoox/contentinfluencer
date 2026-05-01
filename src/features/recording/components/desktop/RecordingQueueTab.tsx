@@ -1,4 +1,4 @@
-import React, {useMemo, useState} from 'react';
+import React, {useEffect, useMemo, useState} from 'react';
 import {useNavigate} from 'react-router-dom';
 import {
   CheckCircle2,
@@ -71,10 +71,23 @@ function getScriptLabel(script: string | null | undefined, fallback: string) {
 export function RecordingQueueTab() {
   const {state, dispatch} = useAppContext();
   const navigate = useNavigate();
-  const [selectedBlock, setSelectedBlock] = useState<RecordingBlock | null>(null);
+  const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
   const [isBurstMode, setIsBurstMode] = useState(false);
   const [sessionCompletedIds, setSessionCompletedIds] = useState<Set<string>>(new Set());
   const [confirm, setConfirm] = useState<ConfirmState>(null);
+
+  const selectedBlock = useMemo(
+    () => state.recordingBlocks.find(block => block.id === selectedBlockId) ?? null,
+    [selectedBlockId, state.recordingBlocks]
+  );
+
+  useEffect(() => {
+    if (selectedBlockId && !selectedBlock) {
+      setSelectedBlockId(null);
+      setIsBurstMode(false);
+      setSessionCompletedIds(new Set());
+    }
+  }, [selectedBlock, selectedBlockId]);
 
   const handleDeleteBlock = (id: string, event: React.MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation();
@@ -103,7 +116,7 @@ export function RecordingQueueTab() {
                   key={block.id}
                   block={block}
                   contents={getBlockContents(block, state.contents)}
-                  onOpen={() => setSelectedBlock(block)}
+                  onOpen={() => setSelectedBlockId(block.id)}
                   onDelete={handleDeleteBlock}
                 />
               ))
@@ -112,7 +125,7 @@ export function RecordingQueueTab() {
 
           <BottomSheetModal
             open={!!selectedBlock}
-            onClose={() => setSelectedBlock(null)}
+            onClose={() => setSelectedBlockId(null)}
             desktopMaxW="max-w-4xl"
             zIndex="z-50"
           >
@@ -120,7 +133,7 @@ export function RecordingQueueTab() {
               <BlockAnalysisModal
                 block={selectedBlock}
                 contents={getBlockContents(selectedBlock, state.contents)}
-                onClose={() => setSelectedBlock(null)}
+                onClose={() => setSelectedBlockId(null)}
                 onStart={() => setIsBurstMode(true)}
               />
             )}
@@ -136,7 +149,7 @@ export function RecordingQueueTab() {
           onExit={() => {
             setIsBurstMode(false);
             setSessionCompletedIds(new Set());
-            setSelectedBlock(null);
+            setSelectedBlockId(null);
             navigate('/conteudos/historico');
           }}
         />
