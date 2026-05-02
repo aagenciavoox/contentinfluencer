@@ -3,13 +3,16 @@ import {BarChart3, BookOpen, CalendarClock, FileText, FolderKanban, Lightbulb, S
 import {DesktopPageHeader} from '../../../layouts/page/DesktopPageHeader';
 import {PageScaffold} from '../../../layouts/page/PageScaffold';
 import {useAppContext} from '../../../context/AppContext';
+import {useIsMobile} from '../../../hooks/useIsMobile';
 import {STATUS_STAGES} from '../../../constants';
 import {cn} from '../../../lib/utils';
+import {DashboardMobileScreen} from '../../../mobile/screens/dashboard/DashboardMobileScreen';
 
 const READY_TO_RECORD = 'Pronto para Gravar';
 
 export function DashboardPage() {
   const {state} = useAppContext();
+  const isMobile = useIsMobile();
 
   const totalContents = state.contents.length;
   const readyToRecord = state.contents.filter(content => content.status === READY_TO_RECORD).length;
@@ -36,6 +39,19 @@ export function DashboardPage() {
     .filter(item => item.date >= new Date().toISOString().slice(0, 10))
     .sort((a, b) => `${a.date}${a.time || ''}`.localeCompare(`${b.date}${b.time || ''}`))
     .slice(0, 4);
+
+  if (isMobile) {
+    return (
+      <div className="min-h-full bg-[var(--bg-primary)]">
+        <DashboardMobileScreen
+          contents={state.contents}
+          ideas={state.ideas}
+          projetos={state.projetos}
+          agendaItems={state.agendaItems}
+        />
+      </div>
+    );
+  }
 
   return (
     <PageScaffold

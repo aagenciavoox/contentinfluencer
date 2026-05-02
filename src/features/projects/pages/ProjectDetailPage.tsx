@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { ChevronUp, ChevronDown, Trash2, Plus, Check, X, Briefcase } from 'lucide-react';
 import { useAppContext } from '../../../context/AppContext';
 import { useAuth } from '../../../context/AuthContext';
-import type { Projeto, ProjetoEtapa, AgendaItem, Content } from '../../../lib/database';
+import { normalizeProjetoTipo, type Projeto, type ProjetoEtapa, type AgendaItem, type Content } from '../../../lib/database';
 import { cn } from '../../../lib/utils';
 import { DesktopPageHeader } from '../../../layouts/page/DesktopPageHeader';
 
@@ -30,11 +30,12 @@ export function ProjectDetailPage() {
   const navigate = useNavigate();
 
   const projeto = state.projetos.find(p => p.id === id);
+  const projetoTipoNormalizado = projeto ? normalizeProjetoTipo(projeto.tipo) : 'publi';
   const [aba, setAba] = useState<Aba>('visao-geral');
 
   // Visão Geral — edição inline
   const [editNome, setEditNome] = useState('');
-  const [editTipo, setEditTipo] = useState<Projeto['tipo']>('campanha');
+  const [editTipo, setEditTipo] = useState<Projeto['tipo']>('publi');
   const [editBrand, setEditBrand] = useState('');
   const [editDataInicio, setEditDataInicio] = useState('');
   const [editDataFim, setEditDataFim] = useState('');
@@ -69,7 +70,7 @@ export function ProjectDetailPage() {
 
   const startEditing = () => {
     setEditNome(projeto.nome);
-    setEditTipo(projeto.tipo);
+    setEditTipo(normalizeProjetoTipo(projeto.tipo));
     setEditBrand(projeto.brand || '');
     setEditDataInicio(projeto.dataInicio || '');
     setEditDataFim(projeto.dataFim || '');
@@ -84,7 +85,7 @@ export function ProjectDetailPage() {
       payload: {
         ...projeto,
         nome: editNome.trim() || projeto.nome,
-        tipo: editTipo,
+        tipo: normalizeProjetoTipo(editTipo),
         brand: editTipo === 'publi' ? editBrand.trim() || null : null,
         dataInicio: editDataInicio || null,
         dataFim: editDataFim || null,
@@ -203,7 +204,7 @@ export function ProjectDetailPage() {
           section="Projetos"
           title={projeto.nome}
           subtitle="Acompanhe etapas, agenda, conteúdos vinculados e informações da parceria em um único lugar."
-          meta={`${projeto.tipo}${projeto.brand ? ` · ${projeto.brand}` : ''}`}
+          meta={`${projetoTipoNormalizado}${projeto.brand ? ` · ${projeto.brand}` : ''}`}
           icon={Briefcase}
           backLabel="Projetos"
           onBack={() => navigate('/projetos')}
@@ -237,10 +238,10 @@ export function ProjectDetailPage() {
               <div className="space-y-4">
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                   {[
-                    { label: 'Tipo', value: projeto.tipo },
+                    { label: 'Tipo', value: projetoTipoNormalizado },
                     { label: 'Início', value: projeto.dataInicio ? new Date(projeto.dataInicio).toLocaleDateString('pt-BR') : '—' },
                     { label: 'Prazo', value: projeto.dataFim ? new Date(projeto.dataFim).toLocaleDateString('pt-BR') : '—' },
-                    ...(projeto.tipo === 'publi' ? [{ label: 'Marca', value: projeto.brand || '—' }] : []),
+                    ...(projetoTipoNormalizado === 'publi' ? [{ label: 'Marca', value: projeto.brand || '—' }] : []),
                     { label: 'Valor', value: projeto.value ? projeto.value.toLocaleString('pt-BR', { style: 'currency', currency: projeto.currency || 'BRL' }) : '—' },
                   ].map(({ label, value }) => (
                     <div key={label} className="px-5 py-4 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-2xl">
@@ -284,7 +285,6 @@ export function ProjectDetailPage() {
                     onChange={e => setEditTipo(e.target.value as Projeto['tipo'])}
                     className="flex-1 min-w-[120px] px-4 py-2.5 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl text-[11px] font-black uppercase text-[var(--text-primary)] focus:outline-none"
                   >
-                    <option value="campanha">Campanha</option>
                     <option value="publi">Publi</option>
                     <option value="producao">Produção</option>
                     <option value="outro">Outro</option>

@@ -18,7 +18,6 @@ import {
   Palette,
   Search,
   ShieldCheck,
-  Shirt,
   Sun,
   Video,
   X,
@@ -142,7 +141,6 @@ export function Sidebar({isOpen, onClose}: SidebarProps) {
       title: 'configuracoes',
       items: [
         {to: '/configuracoes/dna', label: 'DNA da Voz', icon: Fingerprint},
-        {to: '/configuracoes/looks', label: 'Looks e Cenarios', icon: Shirt},
         {to: '/configuracoes/plataformas', label: 'Plataformas', icon: Globe},
       ],
     },

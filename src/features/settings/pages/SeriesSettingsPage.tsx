@@ -7,7 +7,9 @@ import {SidePanel} from '../../../components/layout/SidePanel';
 import {AppButton} from '../../../components/ui/AppButton';
 import {useAppContext} from '../../../context/AppContext';
 import {useAuth} from '../../../context/AuthContext';
+import {useIsMobile} from '../../../hooks/useIsMobile';
 import {DesktopPageHeader} from '../../../layouts/page/DesktopPageHeader';
+import {SeriesMobileScreen} from '../../../mobile/screens/settings/SeriesMobileScreen';
 import type {Serie} from '../../../lib/database';
 
 const FREQUENCIAS = ['Semanal', 'Quinzenal', 'Mensal', 'Sob demanda'] as const;
@@ -166,6 +168,7 @@ export function SeriesSettingsPage() {
   const {state, dispatch} = useAppContext();
   const {user} = useAuth();
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const [panelMode, setPanelMode] = useState<'create' | 'edit' | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<{message: string; onConfirm: () => void} | null>(null);
@@ -208,6 +211,31 @@ export function SeriesSettingsPage() {
   };
 
   const platformNames = state.platforms.filter(platform => platform.ativo).map(platform => platform.nome);
+
+  if (isMobile) {
+    return (
+      <>
+        <div className="min-h-full bg-[var(--bg-primary)]">
+          <SeriesMobileScreen
+            series={state.series}
+            onSave={handleSave}
+            onToggle={handleToggleActive}
+            onDelete={(serieId) => handleDelete(serieId)}
+          />
+        </div>
+
+        <ConfirmModal
+          open={!!confirm}
+          message={confirm?.message || ''}
+          onConfirm={() => {
+            confirm?.onConfirm();
+            setConfirm(null);
+          }}
+          onCancel={() => setConfirm(null)}
+        />
+      </>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[var(--bg-secondary)]">

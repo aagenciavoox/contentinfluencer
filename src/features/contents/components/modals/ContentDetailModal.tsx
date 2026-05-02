@@ -52,6 +52,7 @@ type ProductionDraft = Pick<
   | 'recordingDateEnabled'
   | 'publishDate'
   | 'publishDateEnabled'
+  | 'tags'
   | 'lookId'
   | 'cenarioId'
 >;
@@ -60,6 +61,10 @@ const CHAR_LIMITS: Record<string, number> = {
   Instagram: 2200,
   TikTok: 2200,
   YouTube: 5000,
+};
+
+type DateInputWithPicker = HTMLInputElement & {
+  showPicker?: () => void;
 };
 
 export function ContentDetailModal({
@@ -120,6 +125,7 @@ export function ContentDetailModal({
     recordingDateEnabled: baseContent.recordingDateEnabled ?? (baseContent.recordingDate != null),
     publishDate: baseContent.publishDate,
     publishDateEnabled: baseContent.publishDateEnabled ?? (baseContent.publishDate != null),
+    tags: baseContent.tags || [],
     lookId: baseContent.lookId,
     cenarioId: baseContent.cenarioId,
   }));
@@ -196,6 +202,26 @@ export function ContentDetailModal({
 
   const updateProductionDraft = (updates: Partial<ProductionDraft>) => {
     setProductionDraft(previous => ({...previous, ...updates}));
+  };
+
+  const updateRecordingTags = (value: string) => {
+    updateProductionDraft({
+      tags: value
+        .split(/[,\n]/)
+        .map(tag => tag.trim())
+        .filter(Boolean),
+    });
+  };
+
+  const openMobileDatePicker = (
+    event:
+      | React.MouseEvent<HTMLInputElement>
+      | React.FocusEvent<HTMLInputElement>
+  ) => {
+    if (!isMobile) return;
+    const input = event.currentTarget as DateInputWithPicker;
+    if (input.disabled) return;
+    input.showPicker?.();
   };
 
   const handleAplicarTemplateManual = () => {
@@ -311,6 +337,7 @@ export function ContentDetailModal({
     ...baseContent,
     ...scriptDraft,
     ...productionDraft,
+    tags: productionDraft.tags,
     recordingDate:
       productionDraft.recordingDateEnabled ? productionDraft.recordingDate || null : null,
     publishDate: productionDraft.publishDateEnabled ? productionDraft.publishDate || null : null,
@@ -524,28 +551,12 @@ export function ContentDetailModal({
                       </option>
                     ))}
                   </select>
-                  <div className="flex shrink-0 items-center gap-1.5">
-                    <button
-                      onClick={handleSave}
-                      disabled={loading}
-                      className={cn(
-                        'rounded-lg bg-[var(--text-primary)] p-1.5 text-[var(--bg-primary)] transition-all active:scale-95 disabled:opacity-50',
-                        saveSuccess && 'bg-[var(--accent-green)]'
-                      )}
-                    >
-                      {loading ? (
-                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-[var(--bg-primary)] border-t-transparent" />
-                      ) : (
-                        <Check className="h-4 w-4" />
-                      )}
-                    </button>
-                    <button
-                      onClick={onClose}
-                      className="rounded-lg border border-[var(--border-color)] bg-[var(--bg-hover)] p-1.5 text-[var(--text-primary)]"
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
-                  </div>
+                  <button
+                    onClick={onClose}
+                    className="shrink-0 rounded-lg border border-[var(--border-color)] bg-[var(--bg-hover)] p-1.5 text-[var(--text-primary)]"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
                 </div>
               )}
 
@@ -1050,6 +1061,8 @@ export function ContentDetailModal({
                               recordingDateEnabled: true,
                             })
                           }
+                          onClick={openMobileDatePicker}
+                          onFocus={openMobileDatePicker}
                           disabled={!productionDraft.recordingDateEnabled}
                           className={cn(
                             selectClass,
@@ -1093,6 +1106,8 @@ export function ContentDetailModal({
                           onChange={event =>
                             syncPublishDate(event.target.value || null, true)
                           }
+                          onClick={openMobileDatePicker}
+                          onFocus={openMobileDatePicker}
                           disabled={!productionDraft.publishDateEnabled}
                           className={cn(
                             selectClass,
@@ -1105,72 +1120,18 @@ export function ContentDetailModal({
                   </section>
 
                   <section>
-                    <p className={groupTitle}>Set & Look</p>
-                    <div className="grid grid-cols-1 gap-x-12 gap-y-8 md:grid-cols-2">
-                      <div className="flex flex-col gap-2">
-                        <span className={fieldLabel}>Look #</span>
-                        {state.looks.length > 0 ? (
-                          <select
-                            value={productionDraft.lookId || ''}
-                            onChange={event =>
-                              updateProductionDraft({lookId: event.target.value || null})
-                            }
-                            className={selectClass}
-                          >
-                            <option value="">— Sem look —</option>
-                            {state.looks
-                              .filter(look => look.ativo)
-                              .map(look => (
-                                <option key={look.id} value={look.id}>
-                                  Look {look.numero}
-                                  {look.descricao ? ` — ${look.descricao}` : ''}
-                                </option>
-                              ))}
-                          </select>
-                        ) : (
-                          <input
-                            type="text"
-                            value={productionDraft.lookId || ''}
-                            onChange={event =>
-                              updateProductionDraft({lookId: event.target.value || null})
-                            }
-                            placeholder="Ex: Look 1"
-                            className={selectClass}
-                          />
-                        )}
-                      </div>
-
-                      <div className="flex flex-col gap-2">
-                        <span className={fieldLabel}>Cenário</span>
-                        {state.cenarios.length > 0 ? (
-                          <select
-                            value={productionDraft.cenarioId || ''}
-                            onChange={event =>
-                              updateProductionDraft({cenarioId: event.target.value || null})
-                            }
-                            className={selectClass}
-                          >
-                            <option value="">— Sem cenário —</option>
-                            {state.cenarios
-                              .filter(cenario => cenario.ativo)
-                              .map(cenario => (
-                                <option key={cenario.id} value={cenario.id}>
-                                  {cenario.nome}
-                                </option>
-                              ))}
-                          </select>
-                        ) : (
-                          <input
-                            type="text"
-                            value={productionDraft.cenarioId || ''}
-                            onChange={event =>
-                              updateProductionDraft({cenarioId: event.target.value || null})
-                            }
-                            placeholder="Ex: Mesa"
-                            className={selectClass}
-                          />
-                        )}
-                      </div>
+                    <p className={groupTitle}>Marcadores de Gravacao</p>
+                    <div className="space-y-3">
+                      <span className={fieldLabel}>Variacao visual</span>
+                      <textarea
+                        value={(productionDraft.tags || []).join(', ')}
+                        onChange={event => updateRecordingTags(event.target.value)}
+                        className={cn(textareaClass, 'min-h-[110px]')}
+                        placeholder="Ex: roupa preta, estante, caneca vermelha, luz quente, livro na mao"
+                      />
+                      <p className="text-xs leading-relaxed text-[var(--text-secondary)]">
+                        Use marcadores livres para separar gravacoes em lote e distribuir a publicacao sem parecer tudo gravado no mesmo dia.
+                      </p>
                     </div>
                   </section>
                 </div>

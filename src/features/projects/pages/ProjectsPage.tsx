@@ -3,15 +3,16 @@ import { useNavigate } from 'react-router-dom';
 import { Plus, Handshake, ChevronRight, Calendar, DollarSign } from 'lucide-react';
 import { useAppContext } from '../../../context/AppContext';
 import { useAuth } from '../../../context/AuthContext';
-import type { Projeto } from '../../../lib/database';
+import { normalizeProjetoTipo, type Projeto } from '../../../lib/database';
 import { cn } from '../../../lib/utils';
 import { DesktopPageHeader } from '../../../layouts/page/DesktopPageHeader';
 import { AppButton } from '../../../components/ui/AppButton';
 import { FilterBar } from '../../../components/ui/FilterBar';
-
 import { useIsMobile } from '../../../hooks/useIsMobile';
+import { BottomSheetModal } from '../../../components/feedback/modals/BottomSheetModal';
+import { ProjectsMobileScreen } from '../../../mobile/screens/projects/ProjectsMobileScreen';
 
-type TipoFilter = 'todos' | 'campanha' | 'publi' | 'producao' | 'outro';
+type TipoFilter = 'todos' | 'publi' | 'producao' | 'outro';
 type StatusFilter = 'todos' | 'pendente' | 'em_andamento' | 'concluído';
 
 function calcularStatus(projeto: Projeto): 'pendente' | 'em_andamento' | 'concluído' {
@@ -24,7 +25,6 @@ function calcularStatus(projeto: Projeto): 'pendente' | 'em_andamento' | 'conclu
 }
 
 const TIPO_LABELS: Record<string, string> = {
-  campanha: 'Campanha',
   publi: 'Publi',
   producao: 'Produção',
   outro: 'Outro',
@@ -49,7 +49,7 @@ export function ProjectsPage() {
   const [showForm, setShowForm] = useState(false);
 
   const [nome, setNome] = useState('');
-  const [tipo, setTipo] = useState<Projeto['tipo']>('campanha');
+  const [tipo, setTipo] = useState<Projeto['tipo']>('publi');
   const [dataFim, setDataFim] = useState('');
   const [brand, setBrand] = useState('');
   const [value, setValue] = useState('');
@@ -57,7 +57,7 @@ export function ProjectsPage() {
   const projetos = state.projetos
     .filter(p => {
       const normalizedSearch = searchTerm.trim().toLowerCase();
-      if (tipoFilter !== 'todos' && p.tipo !== tipoFilter) return false;
+      if (tipoFilter !== 'todos' && normalizeProjetoTipo(p.tipo) !== tipoFilter) return false;
       if (statusFilter !== 'todos' && calcularStatus(p) !== statusFilter) return false;
       if (normalizedSearch) {
         const haystack = [p.nome, p.brand || '', p.notes || ''].join(' ').toLowerCase();
@@ -89,7 +89,7 @@ export function ProjectsPage() {
       id: crypto.randomUUID(),
       userId: user?.id || '',
       nome: nome.trim(),
-      tipo,
+      tipo: normalizeProjetoTipo(tipo),
       status: 'pendente',
       dataInicio: null,
       dataFim: dataFim || null,
@@ -108,12 +108,91 @@ export function ProjectsPage() {
     };
     dispatch({ type: 'ADD_PROJETO', payload: projeto });
     setNome('');
-    setTipo('campanha');
+    setTipo('publi');
     setDataFim('');
     setBrand('');
     setValue('');
     setShowForm(false);
   };
+
+  if (isMobile) {
+    return (
+      <>
+        <div className="min-h-full bg-[var(--bg-primary)]">
+          <ProjectsMobileScreen
+            projetos={state.projetos}
+            onOpenProject={(projectId) => navigate(`/projetos/${projectId}`)}
+            onCreateProject={() => setShowForm(true)}
+          />
+        </div>
+
+        <BottomSheetModal open={showForm} onClose={() => setShowForm(false)} desktopMaxW="max-w-xl" zIndex="z-[110]">
+          <div className="flex h-full flex-col bg-[var(--bg-primary)]">
+            <div className="border-b border-[var(--border-color)] px-5 py-4">
+              <p className="t-section-title text-[var(--text-primary)]">Novo projeto</p>
+              <p className="t-secondary mt-1">Crie um item leve para acompanhar no mobile.</p>
+            </div>
+
+            <div className="flex-1 space-y-4 overflow-y-auto p-5">
+              <input
+                autoFocus
+                value={nome}
+                onChange={e => setNome(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleCreate()}
+                placeholder="Nome do projeto"
+                className="w-full"
+              />
+
+              <div className="grid grid-cols-2 gap-3">
+                <select value={tipo} onChange={e => setTipo(e.target.value as Projeto['tipo'])}>
+                  <option value="publi">Publi</option>
+                  <option value="producao">Producao</option>
+                  <option value="outro">Outro</option>
+                </select>
+
+                <input type="date" value={dataFim} onChange={e => setDataFim(e.target.value)} />
+              </div>
+
+              <input
+                value={value}
+                onChange={e => setValue(e.target.value)}
+                type="number"
+                placeholder="Valor (R$)"
+                className="w-full"
+              />
+
+              {tipo === 'publi' ? (
+                <input
+                  value={brand}
+                  onChange={e => setBrand(e.target.value)}
+                  placeholder="Nome da marca"
+                  className="w-full"
+                />
+              ) : null}
+            </div>
+
+            <div className="flex gap-3 border-t border-[var(--border-color)] px-5 py-4 pb-safe">
+              <button
+                type="button"
+                onClick={() => setShowForm(false)}
+                className="flex-1 rounded-[1.25rem] border border-[var(--border-color)] py-3 text-xs font-black uppercase tracking-widest text-[var(--text-secondary)]"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleCreate}
+                disabled={!nome.trim()}
+                className="button-primary flex-1 disabled:opacity-40"
+              >
+                Criar projeto
+              </button>
+            </div>
+          </div>
+        </BottomSheetModal>
+      </>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[var(--bg-secondary)]">
@@ -122,7 +201,7 @@ export function ProjectsPage() {
           <DesktopPageHeader
             section="Gestão"
             title="Projetos"
-            subtitle="Centralize campanhas, publis e produções com status, prazo e valor no mesmo fluxo."
+            subtitle="Centralize publis, produções e outros projetos com status, prazo e valor no mesmo fluxo."
             icon={Handshake}
             className="mb-0"
             actions={(
@@ -154,7 +233,7 @@ export function ProjectsPage() {
                 value: tipoFilter,
                 options: [
                   {label: 'Tipo', value: 'todos'},
-                  ...(['campanha', 'publi', 'producao', 'outro'] as TipoFilter[]).map(tipo => ({
+                  ...(['publi', 'producao', 'outro'] as TipoFilter[]).map(tipo => ({
                     label: TIPO_LABELS[tipo],
                     value: tipo,
                   })),
@@ -205,7 +284,6 @@ export function ProjectsPage() {
                 onChange={e => setTipo(e.target.value as Projeto['tipo'])}
                 className="flex-1 min-w-[120px] px-4 py-2.5 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl text-[11px] font-black uppercase tracking-widest text-[var(--text-primary)] focus:outline-none"
               >
-                <option value="campanha">Campanha</option>
                 <option value="publi">Publi</option>
                 <option value="producao">Produção</option>
                 <option value="outro">Outro</option>
@@ -276,14 +354,14 @@ export function ProjectsPage() {
                     <div className="flex items-center gap-3 mb-1.5 flex-wrap">
                       <p className="text-sm font-black text-[var(--text-primary)] truncate">{projeto.nome}</p>
                       <span className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full bg-[var(--bg-hover)] opacity-60">
-                        {TIPO_LABELS[projeto.tipo]}
+                        {TIPO_LABELS[normalizeProjetoTipo(projeto.tipo)]}
                       </span>
                       <span className={cn('text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full', STATUS_COLORS[status])}>
                         {status.replace('_', ' ')}
                       </span>
                     </div>
                     <div className="flex items-center gap-4 flex-wrap">
-                      {projeto.tipo === 'publi' && projeto.brand && (
+                      {normalizeProjetoTipo(projeto.tipo) === 'publi' && projeto.brand && (
                         <span className="text-[10px] font-bold text-[var(--text-secondary)] opacity-60">
                           {projeto.brand}
                         </span>

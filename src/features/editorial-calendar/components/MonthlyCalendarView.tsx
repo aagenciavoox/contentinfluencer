@@ -10,52 +10,135 @@ import {
   startOfWeek,
 } from 'date-fns';
 import {ptBR} from 'date-fns/locale';
-import {CalendarDays, Clock3, Mic2, Send} from 'lucide-react';
-import {AgendaItem, Content} from '../../../lib/database';
+import {BriefcaseBusiness, CalendarDays, Clock3, Mic2, Send} from 'lucide-react';
+import {AgendaItem, Content, Projeto} from '../../../lib/database';
 import {cn} from '../../../lib/utils';
 
 type MonthlyCalendarViewProps = {
   contents: Content[];
   agendaItems: AgendaItem[];
+  projetos: Projeto[];
+  activeLayers: string[];
+  searchTerm: string;
+  sortValue: string;
   monthsToShow: number;
 };
 
 type CalendarEntry = {
   id: string;
-  type: 'recording' | 'publish' | 'agenda';
+  type: 'recording' | 'publish' | 'agenda' | 'project';
   label: string;
+  secondary?: string;
 };
 
-function buildEntries(contents: Content[], agendaItems: AgendaItem[]) {
+function buildEntries(
+  contents: Content[],
+  agendaItems: AgendaItem[],
+  projetos: Projeto[],
+  activeLayers: string[],
+  searchTerm: string,
+  sortValue: string
+) {
   const map = new Map<string, CalendarEntry[]>();
+  const normalizedSearch = searchTerm.trim().toLowerCase();
 
   const push = (date: string | null | undefined, entry: CalendarEntry) => {
     if (!date) return;
+
+    if (normalizedSearch) {
+      const haystack = [entry.label, entry.secondary || ''].join(' ').toLowerCase();
+      if (!haystack.includes(normalizedSearch)) return;
+    }
+
     const key = date.slice(0, 10);
     const current = map.get(key) || [];
     current.push(entry);
     map.set(key, current);
   };
 
-  contents.forEach(content => {
-    push(content.recordingDate, {
-      id: `${content.id}-rec`,
-      type: 'recording',
-      label: content.title || '(sem título)',
+  if (activeLayers.includes('recordings')) {
+    contents.forEach(content => {
+      push(content.recordingDate, {
+        id: `${content.id}-rec`,
+        type: 'recording',
+        label: content.title || '(sem titulo)',
+        secondary: content.status || 'Gravacao',
+      });
     });
-    push(content.publishDate, {
-      id: `${content.id}-pub`,
-      type: 'publish',
-      label: content.title || '(sem título)',
-    });
-  });
+  }
 
-  agendaItems.forEach(item => {
-    push(item.date, {
-      id: item.id,
-      type: 'agenda',
-      label: item.title,
+  if (activeLayers.includes('posts')) {
+    contents.forEach(content => {
+      push(content.publishDate, {
+        id: `${content.id}-pub`,
+        type: 'publish',
+        label: content.title || '(sem titulo)',
+        secondary: content.status || 'Publicacao',
+      });
     });
+  }
+
+  if (activeLayers.includes('agenda')) {
+    agendaItems.forEach(item => {
+      push(item.date, {
+        id: item.id,
+        type: 'agenda',
+        label: item.title,
+        secondary: item.tipo,
+      });
+    });
+  }
+
+  if (activeLayers.includes('projects')) {
+    projetos
+      .filter(projeto => !projeto.deletedAt)
+      .forEach(projeto => {
+        push(projeto.dataInicio, {
+          id: `${projeto.id}-start`,
+          type: 'project',
+          label: projeto.nome,
+          secondary: 'Inicio do projeto',
+        });
+
+        push(projeto.dataFim, {
+          id: `${projeto.id}-deadline`,
+          type: 'project',
+          label: projeto.nome,
+          secondary: 'Prazo final',
+        });
+
+        projeto.etapas.forEach(etapa => {
+          push(etapa.dataPrazo, {
+            id: etapa.id,
+            type: 'project',
+            label: projeto.nome,
+            secondary: `Etapa: ${etapa.nome}`,
+          });
+        });
+      });
+  }
+
+  const typeOrder: Record<CalendarEntry['type'], number> = {
+    recording: 0,
+    publish: 1,
+    project: 2,
+    agenda: 3,
+  };
+
+  map.forEach((entries, key) => {
+    const sortedEntries = [...entries].sort((left, right) => {
+      if (sortValue === 'titulo:asc') {
+        return left.label.localeCompare(right.label, 'pt-BR');
+      }
+
+      if (sortValue === 'tipo:asc') {
+        return typeOrder[left.type] - typeOrder[right.type] || left.label.localeCompare(right.label, 'pt-BR');
+      }
+
+      return typeOrder[left.type] - typeOrder[right.type] || left.label.localeCompare(right.label, 'pt-BR');
+    });
+
+    map.set(key, sortedEntries);
   });
 
   return map;
@@ -64,17 +147,22 @@ function buildEntries(contents: Content[], agendaItems: AgendaItem[]) {
 const ENTRY_STYLES: Record<CalendarEntry['type'], string> = {
   recording: 'border border-[var(--accent-orange)]/30 text-[var(--accent-orange)] bg-[var(--accent-orange)]/5',
   publish: 'bg-[var(--accent-blue)]/10 text-[var(--accent-blue)]',
+  project: 'bg-[var(--accent-purple)]/10 text-[var(--accent-purple)]',
   agenda: 'bg-[var(--accent-green)]/10 text-[var(--accent-green)]',
 };
 
 export function MonthlyCalendarView({
   contents,
   agendaItems,
+  projetos,
+  activeLayers,
+  searchTerm,
+  sortValue,
   monthsToShow,
 }: MonthlyCalendarViewProps) {
   const today = new Date();
   const months = Array.from({length: monthsToShow}, (_, index) => addMonths(today, index));
-  const entriesByDate = buildEntries(contents, agendaItems);
+  const entriesByDate = buildEntries(contents, agendaItems, projetos, activeLayers, searchTerm, sortValue);
 
   return (
     <div className="grid grid-cols-1 gap-6">
@@ -99,13 +187,13 @@ export function MonthlyCalendarView({
                   {format(monthDate, 'MMMM yyyy', {locale: ptBR})}
                 </h2>
                 <p className="text-[10px] font-black uppercase tracking-widest text-[var(--text-tertiary)] opacity-50">
-                  Gravações, posts e agenda
+                  Gravacoes, publis, projetos e agenda
                 </p>
               </div>
             </div>
 
             <div className="grid grid-cols-7 border-b border-[var(--border-color)] bg-[var(--bg-hover)]/40">
-              {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(label => (
+              {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab'].map(label => (
                 <div
                   key={label}
                   className="py-3 text-center text-[9px] font-black uppercase tracking-widest text-[var(--text-tertiary)] opacity-60"
@@ -150,12 +238,15 @@ export function MonthlyCalendarView({
                             'rounded-lg px-2 py-1 text-[8px] font-black uppercase tracking-wide',
                             ENTRY_STYLES[entry.type]
                           )}
+                          title={entry.secondary ? `${entry.label} - ${entry.secondary}` : entry.label}
                         >
                           <div className="flex items-center gap-1">
                             {entry.type === 'recording' ? (
                               <Mic2 className="h-2.5 w-2.5 shrink-0" />
                             ) : entry.type === 'publish' ? (
                               <Send className="h-2.5 w-2.5 shrink-0" />
+                            ) : entry.type === 'project' ? (
+                              <BriefcaseBusiness className="h-2.5 w-2.5 shrink-0" />
                             ) : (
                               <Clock3 className="h-2.5 w-2.5 shrink-0" />
                             )}

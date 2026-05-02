@@ -3,39 +3,84 @@ import {format} from 'date-fns';
 import {Plus} from 'lucide-react';
 import {BottomSheetModal} from '../../../components/feedback/modals/BottomSheetModal';
 import {useAppContext} from '../../../context/AppContext';
-import {AgendaItem} from '../../../lib/database';
+import {AgendaItem, Projeto} from '../../../lib/database';
 import {useIsMobile} from '../../../hooks/useIsMobile';
+import {AgendaMobileScreen} from '../../../mobile/screens/agenda/AgendaMobileScreen';
+import {EditorialAgendaFilters} from '../components/filters/EditorialAgendaFilters';
 import {EditorialCalendarHeader} from '../components/EditorialCalendarHeader';
 import {MonthlyCalendarView} from '../components/MonthlyCalendarView';
+
+export function getStatusIcon() {
+  return null;
+}
 
 export function EditorialCalendarPage() {
   const {state, dispatch} = useAppContext();
   const isMobile = useIsMobile();
   const [isAddAgendaOpen, setIsAddAgendaOpen] = useState(false);
+  const [activeLayers, setActiveLayers] = useState<string[]>(['recordings', 'posts', 'projects', 'agenda']);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortValue, setSortValue] = useState('proximos');
+
+  if (isMobile) {
+    return (
+      <>
+        <div className="min-h-full bg-[var(--bg-primary)]">
+          <AgendaMobileScreen
+            contents={state.contents}
+            agendaItems={state.agendaItems}
+            projetos={state.projetos}
+            onAddAgenda={() => setIsAddAgendaOpen(true)}
+          />
+        </div>
+
+        <BottomSheetModal
+          open={isAddAgendaOpen}
+          onClose={() => setIsAddAgendaOpen(false)}
+          desktopMaxW="max-w-md"
+        >
+          <AddAgendaModal
+            projetos={state.projetos}
+            onClose={() => setIsAddAgendaOpen(false)}
+            onSave={item => {
+              dispatch({type: 'ADD_AGENDA_ITEM', payload: item});
+              setIsAddAgendaOpen(false);
+            }}
+          />
+        </BottomSheetModal>
+      </>
+    );
+  }
 
   return (
     <div className="min-h-full bg-[var(--bg-primary)] transition-colors duration-200">
       <EditorialCalendarHeader onAddAgenda={() => setIsAddAgendaOpen(true)} />
 
       <div className="h-[calc(100vh-120px)] overflow-y-auto custom-scrollbar">
-        <div className="mx-auto max-w-[1600px] space-y-8 px-5 py-8 md:px-10">
-          <div className="max-w-3xl space-y-2">
-            <p className="text-[10px] font-black uppercase tracking-[0.24em] text-[var(--text-tertiary)] opacity-60">
-              Agenda continua
-            </p>
-            <h2 className="text-2xl font-black tracking-tight text-[var(--text-primary)]">
-              Scroll unico com gravacoes, postagens e agenda editorial pelos proximos meses
-            </h2>
-            <p className="text-sm text-[var(--text-secondary)]">
-              A visao mensal saiu. A agenda principal agora concentra todo o calendario em uma unica
-              sequencia vertical.
-            </p>
-          </div>
+        <div className="mx-auto max-w-[1600px] space-y-6 px-5 py-8 md:px-10">
+          <EditorialAgendaFilters
+            activeLayers={activeLayers}
+            searchTerm={searchTerm}
+            sortValue={sortValue}
+            onSearchChange={setSearchTerm}
+            onSortChange={setSortValue}
+            onToggleLayer={layerId =>
+              setActiveLayers(current =>
+                current.includes(layerId)
+                  ? current.filter(layer => layer !== layerId)
+                  : [...current, layerId]
+              )
+            }
+          />
 
           <MonthlyCalendarView
             contents={state.contents}
             agendaItems={state.agendaItems}
-            monthsToShow={isMobile ? 6 : 8}
+            projetos={state.projetos}
+            activeLayers={activeLayers}
+            searchTerm={searchTerm}
+            sortValue={sortValue}
+            monthsToShow={8}
           />
         </div>
       </div>
@@ -46,6 +91,7 @@ export function EditorialCalendarPage() {
         desktopMaxW="max-w-md"
       >
         <AddAgendaModal
+          projetos={state.projetos}
           onClose={() => setIsAddAgendaOpen(false)}
           onSave={item => {
             dispatch({type: 'ADD_AGENDA_ITEM', payload: item});
@@ -58,15 +104,18 @@ export function EditorialCalendarPage() {
 }
 
 function AddAgendaModal({
+  projetos,
   onSave,
   onClose,
 }: {
+  projetos: Projeto[];
   onSave: (item: AgendaItem) => void;
   onClose: () => void;
 }) {
   const [title, setTitle] = useState('');
   const [date, setDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [agendaType, setAgendaType] = useState<AgendaItem['tipo']>('Reunião');
+  const [projetoId, setProjetoId] = useState('');
 
   const handleSave = () => {
     if (!title.trim() || !date) return;
@@ -78,7 +127,7 @@ function AddAgendaModal({
       date,
       time: null,
       tipo: agendaType,
-      projetoId: null,
+      projetoId: projetoId || null,
       createdAt: new Date().toISOString(),
     });
   };
@@ -144,6 +193,26 @@ function AddAgendaModal({
               </button>
             ))}
           </div>
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-tertiary)] opacity-60">
+            Projeto vinculado
+          </label>
+          <select
+            value={projetoId}
+            onChange={event => setProjetoId(event.target.value)}
+            className="w-full rounded-2xl border border-[var(--border-color)] bg-[var(--bg-hover)] px-5 py-3.5 text-sm font-bold text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--accent-blue)]"
+          >
+            <option value="">Sem projeto</option>
+            {projetos
+              .filter(projeto => !projeto.deletedAt)
+              .map(projeto => (
+                <option key={projeto.id} value={projeto.id}>
+                  {projeto.nome}
+                </option>
+              ))}
+          </select>
         </div>
       </div>
 

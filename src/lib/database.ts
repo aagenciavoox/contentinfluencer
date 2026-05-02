@@ -261,6 +261,10 @@ export interface Projeto {
   contentIds: string[];
 }
 
+export function normalizeProjetoTipo(tipo: Projeto['tipo'] | string): Projeto['tipo'] {
+  return tipo === 'campanha' ? 'publi' : (tipo as Projeto['tipo']);
+}
+
 export interface RecordingBlockContent {
   blockId: string;
   contentId: string;
@@ -508,7 +512,7 @@ const mp = {
     createdAt: r.created_at,
   }),
   projeto: (r: Row): Projeto => ({
-    id: r.id, userId: r.user_id, nome: r.nome, tipo: r.tipo, status: r.status,
+    id: r.id, userId: r.user_id, nome: r.nome, tipo: normalizeProjetoTipo(r.tipo), status: r.status,
     dataInicio: r.data_inicio, dataFim: r.data_fim, metaConteudos: r.meta_conteudos,
     bibliotecaItemId: r.biblioteca_item_id, brand: r.brand, brandColor: r.brand_color,
     value: r.value, currency: r.currency || 'BRL', notes: r.notes,
@@ -1025,7 +1029,7 @@ export async function saveProjeto(
 ): Promise<void> {
   if (!supabase) return;
   const { error } = await supabase.from('projetos').upsert({
-    id: projeto.id, user_id: projeto.userId, nome: projeto.nome, tipo: projeto.tipo,
+    id: projeto.id, user_id: projeto.userId, nome: projeto.nome, tipo: normalizeProjetoTipo(projeto.tipo),
     status: projeto.status, data_inicio: projeto.dataInicio, data_fim: projeto.dataFim,
     meta_conteudos: projeto.metaConteudos, biblioteca_item_id: projeto.bibliotecaItemId,
     brand: projeto.brand, brand_color: projeto.brandColor, value: projeto.value,

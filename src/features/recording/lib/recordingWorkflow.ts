@@ -10,8 +10,10 @@ type MarkContentRecordedParams = {
 type RecordingBlockLabelsParams = {
   block?: RecordingBlock | null;
   content?: Content | null;
-  looks?: Array<{id: string; numero: number; descricao: string | null}>;
-  cenarios?: Array<{id: string; nome: string}>;
+};
+
+type RecordingTagMetadata = {
+  recordingTags?: unknown;
 };
 
 export function buildMarkContentRecordedTransition({
@@ -55,32 +57,39 @@ export function buildSaveRecordingSessionTransition(
   return {updatedContents, updatedBlockContents};
 }
 
-export function resolveRecordingBlockLookLabel({
-  block,
-  content,
-  looks = [],
-}: RecordingBlockLabelsParams) {
-  if (block?.lookLabel?.trim()) return block.lookLabel.trim();
-  if (!content?.lookId) return 'Não definido';
+export function normalizeRecordingTags(tags: Array<string | null | undefined> = []) {
+  const seen = new Set<string>();
 
-  const look = looks.find(item => item.id === content.lookId);
-  if (!look) return content.lookId;
-
-  return `Look ${look.numero}${look.descricao ? ` — ${look.descricao}` : ''}`;
+  return tags
+    .map(tag => tag?.trim() || '')
+    .filter(Boolean)
+    .filter(tag => {
+      const key = tag.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
 }
 
-export function resolveRecordingBlockScenarioLabel({
-  block,
-  content,
-  cenarios = [],
-}: RecordingBlockLabelsParams) {
-  if (block?.cenarioLabel?.trim()) return block.cenarioLabel.trim();
-  if (!content?.cenarioId) return 'Não definido';
+export function getRecordingBlockTags(block?: RecordingBlock | null) {
+  const metadata = (block?.metadata || {}) as RecordingTagMetadata;
+  if (!Array.isArray(metadata.recordingTags)) return [];
+  return normalizeRecordingTags(metadata.recordingTags.filter(tag => typeof tag === 'string') as string[]);
+}
 
-  const cenario = cenarios.find(item => item.id === content.cenarioId);
-  if (!cenario) return content.cenarioId;
+export function resolveRecordingContextTags({block, content}: RecordingBlockLabelsParams) {
+  const blockTags = getRecordingBlockTags(block);
+  if (blockTags.length > 0) return blockTags;
 
-  return cenario.nome;
+  const contentTags = normalizeRecordingTags(content?.tags || []);
+  if (contentTags.length > 0) return contentTags;
+
+  return [];
+}
+
+export function resolveRecordingContextSummary(params: RecordingBlockLabelsParams) {
+  const tags = resolveRecordingContextTags(params);
+  return tags.length > 0 ? tags.join(' · ') : 'Sem marcadores';
 }
 
 export function isRecordingBlockTeleprompterEnabled(block?: RecordingBlock | null) {

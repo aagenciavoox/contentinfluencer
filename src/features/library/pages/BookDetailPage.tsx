@@ -30,6 +30,7 @@ type GeneroLivro = string;
 type Campaign = Projeto;
 import { ContentDetailModal } from '../../contents/components/modals/ContentDetailModal';
 import { ConfirmModal } from '../../../components/feedback/modals/ConfirmModal';
+import { BookAnnotationComposerSheet } from '../components/modals/BookAnnotationComposerSheet';
 import { generateUUID } from '../../../utils/uuid';
 import { DesktopPageHeader } from '../../../layouts/page/DesktopPageHeader';
 
@@ -162,6 +163,7 @@ export function BookDetailPage() {
   const [novaAnotacao, setNovaAnotacao] = useState('');
   const [novoTipo, setNovoTipo] = useState<TipoAnotacao>('Reação');
   const [novoCapitulo, setNovoCapitulo] = useState('');
+  const [mobileNoteComposerOpen, setMobileNoteComposerOpen] = useState(false);
 
   // Conteúdos state
   const [contentModalId, setContentModalId] = useState<string | null>(null);
@@ -250,7 +252,9 @@ export function BookDetailPage() {
   const conteudosDoLivro = state.contents.filter(c => c.bibliotecaItemId === livro.id);
   const ideiasDeLivro = state.ideas.filter(i => i.origemId === livro.id && !i.archived);
   const campanhasDoLivro = state.projetos.filter(
-    projeto => projeto.bibliotecaItemId === livro.id && projeto.tipo === 'campanha'
+    projeto =>
+      projeto.bibliotecaItemId === livro.id &&
+      (projeto.tipo === 'producao' || projeto.tipo === 'campanha')
   );
   const capitulosCobertos = metadata.capitulosCobertos || [];
 
@@ -331,6 +335,7 @@ export function BookDetailPage() {
     dispatch({ type: 'ADD_ANNOTATION', payload: anotacao });
     setNovaAnotacao('');
     setNovoCapitulo('');
+    setMobileNoteComposerOpen(false);
   };
 
   const handleTransformarEmIdeia = (anotacao: BookAnnotation) => {
@@ -535,7 +540,7 @@ export function BookDetailPage() {
       id: generateUUID(),
       userId: '',
       nome: campForm.nome.trim(),
-      tipo: 'campanha',
+      tipo: 'producao',
       status: 'Planejando',
       dataInicio: campForm.dataInicio || null,
       dataFim: campForm.dataFim || null,
@@ -1090,40 +1095,20 @@ export function BookDetailPage() {
         {/* ════ ABA: ANOTAÇÕES ════ */}
         {tab === 'anotacoes' && (
           <div className="space-y-6 pb-10">
-            {/* Form nova anotação */}
-            <div className="rounded-[28px] border border-[var(--border-color)] bg-[var(--bg-primary)] p-5 space-y-4">
-              <div className="flex gap-3">
-                <select
-                  value={novoTipo}
-                  onChange={e => setNovoTipo(e.target.value as TipoAnotacao)}
-                  className="shrink-0 rounded-2xl border-none bg-[var(--bg-hover)] px-5 py-3 text-[11px] font-bold text-[var(--text-primary)]"
-                >
-                  {TIPOS.map(t => <option key={t}>{t}</option>)}
-                </select>
-                <input
-                  type="text"
-                  value={novoCapitulo}
-                  onChange={e => setNovoCapitulo(e.target.value)}
-                  placeholder="Cap. / Página (opcional)"
-                  className="w-40 rounded-2xl border-none bg-[var(--bg-hover)] px-4 py-3 text-[11px] text-[var(--text-primary)] placeholder:opacity-40"
-                />
-              </div>
-              <textarea
-                value={novaAnotacao}
-                onChange={e => setNovaAnotacao(e.target.value)}
-                placeholder="Escreva uma anotação, trecho ou ideia..."
-                rows={5}
-                onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handleAddAnotacao(); }}
-                className="w-full resize-none rounded-[22px] border border-[var(--border-color)] bg-transparent px-5 py-4 text-[14px] leading-6 text-[var(--text-primary)] placeholder:opacity-30 focus:ring-0"
-              />
-              <div className="flex items-center justify-between">
-                <span className="text-[9px] text-[var(--text-tertiary)]">⌘↩ para adicionar</span>
+            <div className="rounded-[28px] border border-[var(--border-color)] bg-[var(--bg-primary)] p-5">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--text-tertiary)] opacity-60">Nova nota</p>
+                  <p className="mt-2 text-sm leading-6 text-[var(--text-primary)] opacity-65">
+                    Abra um composer rapido para registrar uma anotação sem misturar com a lista existente.
+                  </p>
+                </div>
                 <button
-                  onClick={handleAddAnotacao}
-                  disabled={!novaAnotacao.trim()}
-                  className="rounded-2xl bg-[var(--text-primary)] px-5 py-2.5 text-[10px] font-black uppercase tracking-[0.18em] text-[var(--bg-primary)] transition-all hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-30"
+                  onClick={() => setMobileNoteComposerOpen(true)}
+                  className="flex shrink-0 items-center gap-2 rounded-2xl bg-[var(--text-primary)] px-4 py-3 text-[10px] font-black uppercase tracking-[0.18em] text-[var(--bg-primary)] transition-all hover:scale-[1.02]"
                 >
-                  Adicionar
+                  <Plus className="h-4 w-4" />
+                  Nova anotação
                 </button>
               </div>
             </div>
@@ -1274,12 +1259,12 @@ export function BookDetailPage() {
             {/* ── Campanhas ── */}
             <section className="bg-[var(--bg-primary)] rounded-2xl border border-[var(--border-color)] p-5">
               <div className="flex items-center justify-between mb-4">
-                <span className={SECTION_LABEL + ' mb-0'}>Campanhas</span>
+                <span className={SECTION_LABEL + ' mb-0'}>ProduÃ§Ã£o Editorial</span>
                 <button
                   onClick={() => setNovaCampanhaAberta(v => !v)}
                   className="text-[10px] font-black uppercase tracking-widest text-[var(--accent-blue)] hover:underline"
                 >
-                  + Nova Campanha
+                  + Nova ProduÃ§Ã£o
                 </button>
               </div>
 
@@ -1289,7 +1274,7 @@ export function BookDetailPage() {
                     type="text"
                     value={campForm.nome}
                     onChange={e => setCampForm(p => ({ ...p, nome: e.target.value }))}
-                    placeholder="Nome da campanha"
+                    placeholder="Nome da produÃ§Ã£o editorial"
                     className="w-full text-sm bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:opacity-40"
                   />
                   <div className="grid grid-cols-2 gap-3">
@@ -1314,7 +1299,7 @@ export function BookDetailPage() {
               )}
 
               {campanhasDoLivro.length === 0 ? (
-                <p className="text-xs text-[var(--text-tertiary)] text-center py-4">Nenhuma campanha ainda</p>
+                <p className="text-xs text-[var(--text-tertiary)] text-center py-4">Nenhuma produÃ§Ã£o editorial ainda</p>
               ) : (
                 <div className="space-y-3">
                   {campanhasDoLivro.map(camp => {
@@ -1604,6 +1589,11 @@ export function BookDetailPage() {
         message={confirm?.message || ''}
         onConfirm={() => { confirm?.onConfirm(); setConfirm(null); }}
         onCancel={() => setConfirm(null)}
+      />
+      <BookAnnotationComposerSheet
+        book={livro}
+        open={mobileNoteComposerOpen}
+        onClose={() => setMobileNoteComposerOpen(false)}
       />
     </div>
   );

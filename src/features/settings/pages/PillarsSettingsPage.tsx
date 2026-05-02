@@ -6,7 +6,9 @@ import {ConfirmModal} from '../../../components/feedback/modals/ConfirmModal';
 import {SidePanel} from '../../../components/layout/SidePanel';
 import {AppButton} from '../../../components/ui/AppButton';
 import {useAppContext} from '../../../context/AppContext';
+import {useIsMobile} from '../../../hooks/useIsMobile';
 import {DesktopPageHeader} from '../../../layouts/page/DesktopPageHeader';
+import {PillarsMobileScreen} from '../../../mobile/screens/settings/PillarsMobileScreen';
 import {Pilar} from '../../../lib/database';
 import {generateUUID} from '../../../utils/uuid';
 
@@ -153,6 +155,7 @@ function PilarForm({
 export function PillarsSettingsPage() {
   const {state, dispatch} = useAppContext();
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const [panelMode, setPanelMode] = useState<'create' | 'edit' | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<{message: string; onConfirm: () => void} | null>(null);
@@ -189,6 +192,31 @@ export function PillarsSettingsPage() {
       onConfirm: () => dispatch({type: 'DELETE_PILAR', payload: id}),
     });
   };
+
+  if (isMobile) {
+    return (
+      <>
+        <div className="min-h-full bg-[var(--bg-primary)]">
+          <PillarsMobileScreen
+            pilares={state.pilares}
+            onSave={handleSave}
+            onToggle={handleToggleActive}
+            onDelete={(pilarId) => handleDelete(pilarId)}
+          />
+        </div>
+
+        <ConfirmModal
+          open={!!confirm}
+          message={confirm?.message || ''}
+          onConfirm={() => {
+            confirm?.onConfirm();
+            setConfirm(null);
+          }}
+          onCancel={() => setConfirm(null)}
+        />
+      </>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[var(--bg-secondary)]">

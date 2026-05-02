@@ -327,20 +327,33 @@ export function RichTextEditor({
     }
   };
 
-  const handleEditorAreaClick = useCallback(
-    (event: React.MouseEvent) => {
-      if (isFullscreen || !editor) return;
+  const handleEditorAreaPointerDown = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      if (!editor) return;
+
+      const target = event.target as HTMLElement | null;
+      if (target?.closest('button, a, input, textarea, select')) {
+        return;
+      }
+
       const pos = editor.view.posAtCoords({ left: event.clientX, top: event.clientY });
-      if (!pos) return;
-      const clicked = annotations.find(
-        (note) => pos.pos >= note.selection.from && pos.pos <= note.selection.to,
-      );
-      if (clicked) {
+      const clicked = pos
+        ? annotations.find((note) => pos.pos >= note.selection.from && pos.pos <= note.selection.to)
+        : null;
+
+      if (!isFullscreen && clicked) {
         event.preventDefault();
         setActiveAnnotationModal(clicked);
+        return;
       }
+
+      requestAnimationFrame(() => {
+        if (!editor.isDestroyed) {
+          editor.chain().focus(pos?.pos ?? 'end').run();
+        }
+      });
     },
-    [isFullscreen, editor, annotations],
+    [annotations, editor, isFullscreen],
   );
 
   const requestLink = useCallback(() => {
@@ -770,9 +783,9 @@ export function RichTextEditor({
           >
             <div
               ref={editorContainerRef}
-              onClick={handleEditorAreaClick}
+              onPointerDown={handleEditorAreaPointerDown}
               className={cn(
-                'relative w-full flex-1 bg-white transition-all',
+                'relative w-full flex-1 cursor-text bg-white transition-all',
                 isFullscreen
                   ? cn(
                       isMobile ? 'min-h-[calc(100vh-112px)] px-4 py-6 pb-28' : 'min-h-[760px] px-8 py-8',

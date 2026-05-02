@@ -6,6 +6,7 @@ import type { GoldenRule, Content } from '../../../lib/database';
 import { cn } from '../../../lib/utils';
 import { DesktopPageHeader } from '../../../layouts/page/DesktopPageHeader';
 import { useIsMobile } from '../../../hooks/useIsMobile';
+import { AnalyticsMobileScreen } from '../../../mobile/screens/analytics/AnalyticsMobileScreen';
 
 type Aba = 'regras' | 'mix' | 'performance';
 
@@ -137,6 +138,24 @@ export function AnalyticsPage() {
     { key: 'mix', label: 'Mix de Conteúdo' },
     { key: 'performance', label: 'Performance' },
   ];
+
+  if (isMobile) {
+    return (
+      <div className="min-h-full bg-[var(--bg-primary)]">
+        <AnalyticsMobileScreen
+          resultados={resultados}
+          score={score}
+          mixPeriodo={mixPeriodo}
+          onMixPeriodoChange={setMixPeriodo}
+          mixData={mixData}
+          semPostar={semPostar}
+          totais={totais}
+          topViews={topViews}
+          topSaves={topSaves}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[var(--bg-secondary)]">

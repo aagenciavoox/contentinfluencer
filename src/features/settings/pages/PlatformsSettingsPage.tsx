@@ -3,10 +3,12 @@ import {useNavigate} from 'react-router-dom';
 import {MonitorSpeaker, Plus} from 'lucide-react';
 import {useAppContext} from '../../../context/AppContext';
 import {useAuth} from '../../../context/AuthContext';
+import {useIsMobile} from '../../../hooks/useIsMobile';
 import type {Platform} from '../../../lib/database';
 import {cn} from '../../../lib/utils';
 import {DesktopPageHeader} from '../../../layouts/page/DesktopPageHeader';
 import {AppButton} from '../../../components/ui/AppButton';
+import {PlatformsMobileScreen} from '../../../mobile/screens/settings/PlatformsMobileScreen';
 
 const PADROES = ['Instagram', 'TikTok', 'YouTube', 'Blog'];
 
@@ -14,6 +16,7 @@ export function PlatformsSettingsPage() {
   const {state, dispatch} = useAppContext();
   const {user} = useAuth();
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
 
   const [novoNome, setNovoNome] = useState('');
   const [showForm, setShowForm] = useState(false);
@@ -38,6 +41,29 @@ export function PlatformsSettingsPage() {
   };
 
   const isPadrao = (nome: string) => PADROES.includes(nome);
+
+  if (isMobile) {
+    return (
+      <div className="min-h-full bg-[var(--bg-primary)]">
+        <PlatformsMobileScreen
+          platforms={state.platforms}
+          isPadrao={isPadrao}
+          onAdd={(platformName) => {
+            const platform: Platform = {
+              id: crypto.randomUUID(),
+              userId: user?.id || null,
+              nome: platformName,
+              ativo: true,
+              createdAt: new Date().toISOString(),
+            };
+            dispatch({type: 'ADD_PLATFORM', payload: platform});
+          }}
+          onToggle={toggleAtivo}
+          onDelete={(platformId) => dispatch({type: 'DELETE_PLATFORM', payload: platformId})}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[var(--bg-secondary)]">

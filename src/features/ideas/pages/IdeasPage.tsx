@@ -8,11 +8,14 @@ import { Idea, Content } from '../../../lib/database';
 import { BottomSheetModal } from '../../../components/feedback/modals/BottomSheetModal';
 import { ConfirmModal } from '../../../components/feedback/modals/ConfirmModal';
 import { DesktopPageHeader } from '../../../layouts/page/DesktopPageHeader';
+import { useIsMobile } from '../../../hooks/useIsMobile';
+import { IdeasMobileScreen } from '../../../mobile/screens/ideas/IdeasMobileScreen';
 import { generateUUID } from '../../../utils/uuid';
 
 export function IdeasPage() {
   const { state, dispatch } = useAppContext();
   const [searchParams] = useSearchParams();
+  const isMobile = useIsMobile();
   const [newIdeaText, setNewIdeaText] = useState('');
   const [selectedPilarId, setSelectedPilarId] = useState<string>('');
   const [selectedSeries, setSelectedSeries] = useState<string>('');
@@ -28,9 +31,9 @@ export function IdeasPage() {
   const [editValue, setEditValue] = useState('');
   const [confirm, setConfirm] = useState<{ message: string; onConfirm: () => void } | null>(null);
 
-  const allIdeas = state.ideas
-    .filter(idea => !idea.archived)
+  const allIdeas = [...state.ideas]
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  const activeIdeas = allIdeas.filter(idea => !idea.archived);
 
   const handleAddIdea = (e: React.FormEvent) => {
     e.preventDefault();
@@ -121,6 +124,108 @@ export function IdeasPage() {
 
   const consumindo = state.bibliotecaItems.filter(b => ['Consumindo', 'Lendo', 'Assistindo'].includes(b.status));
 
+  if (isMobile) {
+    return (
+      <>
+        <IdeasMobileScreen
+          newIdeaText={newIdeaText}
+          selectedPilarId={selectedPilarId}
+          selectedSeries={selectedSeries}
+          selectedBibliotecaId={selectedBibliotecaId}
+          ideas={allIdeas}
+          state={state}
+          onNewIdeaTextChange={setNewIdeaText}
+          onSelectedPilarIdChange={setSelectedPilarId}
+          onSelectedSeriesChange={setSelectedSeries}
+          onSelectedBibliotecaIdChange={setSelectedBibliotecaId}
+          onSubmit={handleAddIdea}
+          onOpenIdea={(idea) => {
+            setViewingIdea(idea);
+            setIsEditing(false);
+          }}
+        />
+        <BottomSheetModal open={!!viewingIdea} onClose={() => setViewingIdea(null)} desktopMaxW="max-w-3xl" zIndex="z-[100]">
+          {viewingIdea && (
+            <>
+              <div className="flex items-center justify-between border-b border-[var(--border-color)] p-4 shrink-0">
+                <div className="flex items-center gap-3 text-[9px] text-[var(--text-tertiary)] font-black uppercase tracking-[0.2em]">
+                  <Clock className="h-3.5 w-3.5" />
+                  {format(new Date(viewingIdea.createdAt), "dd 'DE' MMMM 'AS' HH:mm", { locale: ptBR })}
+                </div>
+                <button onClick={() => setViewingIdea(null)} className="rounded-full p-2 text-[var(--text-tertiary)] transition-all hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]">
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-5 custom-scrollbar">
+                <div className="mb-6 flex flex-wrap gap-2">
+                  {viewingIdea.pilarId && getPilarNome(viewingIdea.pilarId) && (
+                    <span className="rounded-full border border-[var(--accent-blue)]/20 bg-[var(--accent-blue)]/10 px-3 py-1 text-[9px] font-black uppercase tracking-[0.2em] text-[var(--accent-blue)]">
+                      {getPilarNome(viewingIdea.pilarId)}
+                    </span>
+                  )}
+                  {viewingIdea.seriesId && (
+                    <span className="rounded-full border border-[var(--accent-green)]/20 bg-[var(--accent-green)]/10 px-3 py-1 text-[9px] font-black uppercase tracking-[0.2em] text-[var(--accent-green)]">
+                      {state.series.find(s => s.id === viewingIdea.seriesId)?.name}
+                    </span>
+                  )}
+                  {viewingIdea.origemId && getBibliotecaTitulo(viewingIdea.origemId) && (
+                    <span className="flex items-center gap-1.5 rounded-full border border-[var(--accent-orange)]/20 bg-[var(--accent-orange)]/10 px-3 py-1 text-[9px] font-black uppercase tracking-[0.2em] text-[var(--accent-orange)]">
+                      <BookOpen className="h-3 w-3" />
+                      {getBibliotecaTitulo(viewingIdea.origemId)}
+                    </span>
+                  )}
+                  {viewingIdea.archived && (
+                    <span className="rounded-full border border-[var(--accent-orange)]/20 bg-[var(--accent-orange)]/10 px-3 py-1 text-[9px] font-black uppercase tracking-[0.2em] text-[var(--accent-orange)]">
+                      Promovido
+                    </span>
+                  )}
+                </div>
+
+                {isEditing ? (
+                  <textarea
+                    autoFocus
+                    value={editValue}
+                    onChange={(e) => setEditValue(e.target.value)}
+                    className="min-h-[220px] w-full resize-none border-none bg-transparent p-0 text-lg font-medium leading-relaxed text-[var(--text-primary)] custom-scrollbar"
+                    placeholder="Desenvolva sua ideia..."
+                  />
+                ) : (
+                  <p className="text-lg font-medium italic leading-relaxed text-[var(--text-primary)] whitespace-pre-wrap break-words">
+                    "{viewingIdea.text}"
+                  </p>
+                )}
+              </div>
+
+              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--border-color)] bg-[var(--bg-hover)] p-4 pb-safe shrink-0">
+                <div className="flex flex-1 items-center gap-3">
+                  <button onClick={() => handleDelete(viewingIdea.id)} className="rounded-2xl p-3 text-[var(--accent-pink)] transition-all hover:bg-[var(--accent-pink)]/10" title="Excluir">
+                    <Trash2 className="h-5 w-5" />
+                  </button>
+                  {isEditing ? (
+                    <button onClick={handleUpdate} className="flex flex-1 items-center justify-center gap-3 rounded-2xl bg-[var(--accent-green)] px-6 py-2.5 text-sm font-black text-white shadow-xl shadow-[var(--accent-green)]/20 transition-all">
+                      <Save className="h-4 w-4" /> SALVAR
+                    </button>
+                  ) : (
+                    <button onClick={startEditing} className="rounded-2xl p-3 text-[var(--text-tertiary)] transition-all hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)]" title="Editar">
+                      <Edit3 className="h-5 w-5" />
+                    </button>
+                  )}
+                </div>
+                {!viewingIdea.archived && !isEditing && (
+                  <button onClick={() => handlePromote(viewingIdea)} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[var(--text-primary)] px-5 py-3 text-sm font-black text-[var(--bg-primary)] shadow-2xl shadow-black/20 transition-all">
+                    PROMOVER <ArrowUpRight className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+            </>
+          )}
+        </BottomSheetModal>
+        <ConfirmModal open={!!confirm} message={confirm?.message || ''} onConfirm={() => { confirm?.onConfirm(); setConfirm(null); }} onCancel={() => setConfirm(null)} />
+      </>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[var(--bg-secondary)]">
       <header className="desktop-header-sticky transition-colors duration-300">
@@ -185,7 +290,7 @@ export function IdeasPage() {
       </form>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-8">
-        {allIdeas.map((idea) => (
+        {activeIdeas.map((idea) => (
           <div
             key={idea.id}
             onClick={() => { setViewingIdea(idea); setIsEditing(false); }}
@@ -224,7 +329,7 @@ export function IdeasPage() {
         ))}
       </div>
 
-      {allIdeas.length === 0 && (
+      {activeIdeas.length === 0 && (
         <div className="text-center py-20 md:py-32 border-2 border-dashed border-[var(--border-color)] rounded-[2rem] md:rounded-[3rem] opacity-30">
           <Lightbulb className="w-12 md:w-16 h-12 md:h-16 text-[var(--text-primary)] mx-auto mb-4 md:mb-6 opacity-10" />
           <p className="text-[10px] md:text-sm font-black uppercase tracking-[0.3em] text-[var(--text-tertiary)] italic px-6">Aguardando sua próxima faísca criativa...</p>

@@ -9,11 +9,12 @@ import {
   Palette,
   Settings as SettingsIcon,
   ShieldCheck,
-  Shirt,
 } from 'lucide-react';
 import {DesktopPageHeader} from '../../../layouts/page/DesktopPageHeader';
 import {AppButton} from '../../../components/ui/AppButton';
 import {useAppContext} from '../../../context/AppContext';
+import {useIsMobile} from '../../../hooks/useIsMobile';
+import {SettingsMobileScreen} from '../../../mobile/screens/settings/SettingsMobileScreen';
 import {
   DEFAULT_MODULE_FLAGS,
   getModuleFlags,
@@ -24,6 +25,7 @@ import {
 export function SettingsPage() {
   const navigate = useNavigate();
   const {state, dispatch} = useAppContext();
+  const isMobile = useIsMobile();
   const moduleFlags = getModuleFlags(state.preferences);
 
   const items = [
@@ -38,12 +40,6 @@ export function SettingsPage() {
       icon: Palette,
       title: 'Pilares Editoriais',
       desc: 'Gerencie os pilares de conteúdo, cores e hashtag combos por plataforma',
-    },
-    {
-      to: '/configuracoes/looks',
-      icon: Shirt,
-      title: 'Looks & Cenários',
-      desc: 'Catálogo de looks de gravação e cenários disponíveis',
     },
     {
       to: '/configuracoes/regras',
@@ -96,6 +92,26 @@ export function SettingsPage() {
       },
     });
   };
+
+  if (isMobile) {
+    return (
+      <div className="min-h-full bg-[var(--bg-primary)]">
+        <SettingsMobileScreen
+          moduleCards={moduleCards.map(({key, title, desc}) => ({
+            key,
+            title,
+            desc,
+            enabled: moduleFlags[key],
+            onToggle: () => toggleModuleFlag(key),
+          }))}
+          items={items.map((item) => ({
+            ...item,
+            onOpen: () => navigate(item.to),
+          }))}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[var(--bg-secondary)]">

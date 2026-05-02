@@ -5,8 +5,13 @@ import { useIsMobile } from '../../../hooks/useIsMobile';
 import { useBodyScrollLock } from '../../../hooks/useBodyScrollLock';
 import { cn } from '../../../lib/utils';
 
-const MOBILE_BOTTOM_NAV_CLEARANCE = 'calc(env(safe-area-inset-bottom, 0px) + 88px)';
-const MOBILE_BOTTOM_SHEET_MAX_HEIGHT = 'calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 104px)';
+const MOBILE_MODAL_EDGE_PADDING = '8px';
+const MOBILE_MODAL_MAX_HEIGHT = 'calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 16px)';
+const MOBILE_PANEL_INITIAL = { opacity: 0, scale: 0.985, y: 24 };
+const MOBILE_PANEL_ANIMATE = { opacity: 1, scale: 1, y: 0 };
+const MOBILE_PANEL_EXIT = { opacity: 0, scale: 0.985, y: 16 };
+const MOBILE_PANEL_TRANSITION = { type: 'tween' as const, duration: 0.2, ease: [0.22, 1, 0.36, 1] as const };
+const DESKTOP_PANEL_TRANSITION = { type: 'spring' as const, damping: 30, stiffness: 300 };
 
 interface BottomSheetModalProps {
   open: boolean;
@@ -31,33 +36,50 @@ export function BottomSheetModal({
   const content = (
     <AnimatePresence>
       {open && (
-        <div className={cn('fixed inset-0', zIndex)}>
+        <div
+          className={cn(
+            'fixed inset-0 flex justify-center',
+            isMobile ? 'items-center' : 'items-end md:items-center',
+            zIndex
+          )}
+          style={
+            isMobile
+              ? {
+                  paddingTop: `calc(env(safe-area-inset-top, 0px) + ${MOBILE_MODAL_EDGE_PADDING})`,
+                  paddingRight: MOBILE_MODAL_EDGE_PADDING,
+                  paddingBottom: `calc(env(safe-area-inset-bottom, 0px) + ${MOBILE_MODAL_EDGE_PADDING})`,
+                  paddingLeft: MOBILE_MODAL_EDGE_PADDING,
+                }
+              : undefined
+          }
+        >
           {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
+            transition={{ duration: 0.16, ease: 'easeOut' }}
             onClick={onClose}
             className="absolute inset-0 bg-black/60 backdrop-blur-sm"
           />
 
           {/* Panel */}
           <motion.div
-            initial={isMobile ? { y: '100%' } : { opacity: 0, scale: 0.95, y: 20 }}
-            animate={isMobile ? { y: 0 } : { opacity: 1, scale: 1, y: 0 }}
-            exit={isMobile ? { y: '100%' } : { opacity: 0, scale: 0.95, y: 20 }}
-            transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+            initial={isMobile ? MOBILE_PANEL_INITIAL : { opacity: 0, scale: 0.95, y: 20 }}
+            animate={isMobile ? MOBILE_PANEL_ANIMATE : { opacity: 1, scale: 1, y: 0 }}
+            exit={isMobile ? MOBILE_PANEL_EXIT : { opacity: 0, scale: 0.95, y: 20 }}
+            transition={isMobile ? MOBILE_PANEL_TRANSITION : DESKTOP_PANEL_TRANSITION}
             style={
               isMobile
                 ? {
-                    bottom: MOBILE_BOTTOM_NAV_CLEARANCE,
-                    maxHeight: MOBILE_BOTTOM_SHEET_MAX_HEIGHT,
+                    width: 'min(100%, 720px)',
+                    maxHeight: MOBILE_MODAL_MAX_HEIGHT,
                   }
                 : undefined
             }
             className={
               isMobile
-                ? 'absolute left-0 right-0 rounded-t-3xl bg-[var(--bg-secondary)] border border-[var(--border-color)] shadow-2xl flex flex-col overflow-hidden'
+                ? 'relative w-full rounded-3xl bg-[var(--bg-secondary)] border border-[var(--border-color)] shadow-2xl flex flex-col overflow-hidden will-change-transform'
                 : cn(
                     'absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-2xl w-[95%] max-h-[90vh] bg-[var(--bg-secondary)] border border-[var(--border-color)] shadow-2xl flex flex-col overflow-hidden',
                     desktopMaxW

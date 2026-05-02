@@ -12,8 +12,10 @@ import {
 import {startOfWeek} from 'date-fns';
 import {useAppContext} from '../../../context/AppContext';
 import {ConfirmModal} from '../../../components/feedback/modals/ConfirmModal';
+import {useIsMobile} from '../../../hooks/useIsMobile';
 import {validateWeeklyContent} from '../../../utils/goldenRules';
 import {DesktopPageHeader} from '../../../layouts/page/DesktopPageHeader';
+import {GoldenRulesMobileScreen} from '../../../mobile/screens/settings/GoldenRulesMobileScreen';
 import {generateUUID} from '../../../utils/uuid';
 import {GoldenRule} from '../../../lib/database';
 
@@ -36,6 +38,7 @@ const STYLE_BY_CONDITION: Record<string, string> = {
 export function GoldenRulesSettingsPage() {
   const {state, dispatch} = useAppContext();
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const [showAddForm, setShowAddForm] = useState(false);
   const [confirm, setConfirm] = useState<{message: string; onConfirm: () => void} | null>(null);
   const [draft, setDraft] = useState({
@@ -57,8 +60,8 @@ export function GoldenRulesSettingsPage() {
     dispatch({type: 'UPDATE_GOLDEN_RULE', payload: {...regra, ativa}});
   };
 
-  const handleAddRule = (event: React.FormEvent) => {
-    event.preventDefault();
+  const handleAddRule = (event?: React.FormEvent) => {
+    event?.preventDefault();
     if (!draft.titulo.trim()) return;
 
     dispatch({
@@ -97,6 +100,34 @@ export function GoldenRulesSettingsPage() {
       onConfirm: () => dispatch({type: 'DELETE_GOLDEN_RULE', payload: id}),
     });
   };
+
+  if (isMobile) {
+    return (
+      <>
+        <div className="min-h-full bg-[var(--bg-primary)]">
+          <GoldenRulesMobileScreen
+            rules={state.goldenRules}
+            violations={violations}
+            draft={draft}
+            onDraftChange={setDraft}
+            onCreate={handleAddRule}
+            onToggle={rule => toggleRegra(rule.id, !rule.ativa)}
+            onDelete={handleDeleteRule}
+          />
+        </div>
+
+        <ConfirmModal
+          open={!!confirm}
+          message={confirm?.message || ''}
+          onConfirm={() => {
+            confirm?.onConfirm();
+            setConfirm(null);
+          }}
+          onCancel={() => setConfirm(null)}
+        />
+      </>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[var(--bg-secondary)]">

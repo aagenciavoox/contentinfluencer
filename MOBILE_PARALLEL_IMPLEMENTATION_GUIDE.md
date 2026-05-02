@@ -30,6 +30,22 @@ Se voce for implementar esta iniciativa, siga estas regras sem negociar:
 
 ---
 
+## Auditoria de Realidade 2026-05-02
+
+Estado atual confirmado no codigo:
+
+- A arvore real de rotas esta em [src/app/router/AppRoutes.tsx](/C:/Users/mente/Desktop/CODING/content-os/src/app/router/AppRoutes.tsx).
+- O shell global real esta em [src/layouts/app/AppShell.tsx](/C:/Users/mente/Desktop/CODING/content-os/src/layouts/app/AppShell.tsx).
+- A fundacao mobile global ja esta ativa com `MobileAppShell`, `MobileHeaderIOS`, `MobileBottomNav` e `MobileActionMenu`.
+- A camada mobile dedicada ja existe para `Ideias`, `Agenda`, `Projetos` e `Acervo`.
+- A fase seguinte agora e atacar os fluxos operacionais leves: `Conteudos`, `Gravacao`, `Dashboard` e `Analise`.
+
+Observacao importante:
+
+- Partes desta documentacao nasceram antes da reorganizacao de pastas. Sempre considere os caminhos acima como a referencia atual.
+
+---
+
 ## Auditoria do Sistema Atual
 
 ### 1. Acoplamento global atual
@@ -39,15 +55,15 @@ Hoje o app usa uma unica arvore de rotas e um unico layout global para desktop e
 Arquivos-chave:
 
 - [src/App.tsx](/C:/Users/mente/Desktop/CODING/content-os/src/App.tsx)
-- [src/app/routes.tsx](/C:/Users/mente/Desktop/CODING/content-os/src/app/routes.tsx)
-- [src/components/layout/AppLayout.tsx](/C:/Users/mente/Desktop/CODING/content-os/src/components/layout/AppLayout.tsx)
-- [src/components/layout/PageScaffold.tsx](/C:/Users/mente/Desktop/CODING/content-os/src/components/layout/PageScaffold.tsx)
+- [src/app/router/AppRoutes.tsx](/C:/Users/mente/Desktop/CODING/content-os/src/app/router/AppRoutes.tsx)
+- [src/layouts/app/AppShell.tsx](/C:/Users/mente/Desktop/CODING/content-os/src/layouts/app/AppShell.tsx)
+- [src/layouts/page/PageScaffold.tsx](/C:/Users/mente/Desktop/CODING/content-os/src/layouts/page/PageScaffold.tsx)
 
 Diagnostico:
 
-- `AppLayout` injeta `MobileHeader` e `MobileNavBar` globalmente, mas o conteudo das paginas continua majoritariamente desktop-first.
-- `PageScaffold` ainda renderiza o `header` da pagina no mobile, apenas mudando a posicao visual.
-- O sistema hoje diferencia mobile principalmente com `useIsMobile()`, e nao com uma camada de experiencia separada.
+- `AppShell` ja injeta o novo shell mobile, mas a maioria das paginas ainda precisa trocar a view mobile antiga por telas dedicadas.
+- `PageScaffold` continua sendo uma superficie desktop/shared e nao deve virar base de composicao mobile.
+- O sistema ainda diferencia mobile principalmente com `useIsMobile()`, mas agora ja existe uma arquitetura paralela em andamento.
 
 Conclusao:
 
@@ -57,7 +73,7 @@ Conclusao:
 
 O componente abaixo esta amplamente usado:
 
-- [src/components/layout/DesktopPageHeader.tsx](/C:/Users/mente/Desktop/CODING/content-os/src/components/layout/DesktopPageHeader.tsx)
+- [src/layouts/page/DesktopPageHeader.tsx](/C:/Users/mente/Desktop/CODING/content-os/src/layouts/page/DesktopPageHeader.tsx)
 
 Ele aparece em Dashboard, Biblioteca, Ideias, Projetos, Analise, Configuracoes e telas de settings.
 
@@ -70,7 +86,7 @@ Conclusao:
 
 Arquivo:
 
-- [src/components/common/FilterBar.tsx](/C:/Users/mente/Desktop/CODING/content-os/src/components/common/FilterBar.tsx)
+- [src/components/ui/FilterBar.tsx](/C:/Users/mente/Desktop/CODING/content-os/src/components/ui/FilterBar.tsx)
 
 Uso forte em:
 
@@ -89,8 +105,8 @@ Conclusao:
 
 Arquivos:
 
-- [src/components/navigation/MobileHeader.tsx](/C:/Users/mente/Desktop/CODING/content-os/src/components/navigation/MobileHeader.tsx)
-- [src/components/navigation/MobileNavBar.tsx](/C:/Users/mente/Desktop/CODING/content-os/src/components/navigation/MobileNavBar.tsx)
+- [src/layouts/navigation/MobileHeader.tsx](/C:/Users/mente/Desktop/CODING/content-os/src/layouts/navigation/MobileHeader.tsx)
+- [src/layouts/navigation/MobileNavBar.tsx](/C:/Users/mente/Desktop/CODING/content-os/src/layouts/navigation/MobileNavBar.tsx)
 - [src/features/contents/components/ContentsMobileView.tsx](/C:/Users/mente/Desktop/CODING/content-os/src/features/contents/components/ContentsMobileView.tsx)
 
 Diagnostico:
@@ -516,13 +532,14 @@ Mobile:
 - formulario em etapas ou sections
 - nunca um formulario gigante na mesma tela
 
-### Looks & Cenarios
+### Marcadores de Gravacao
 
-Mobile:
+Nova direcao:
 
-- duas listas simples
-- Looks
-- Cenarios
+- nao usar catalogo rigido de looks e cenarios
+- usar marcadores livres por conteudo e por bloco de gravacao
+- exemplos: roupa preta, estante, caneca vermelha, luz quente, livro na mao
+- o objetivo e separar lotes gravados no mesmo dia para publicar em dias diferentes sem parecer repeticao obvia
 
 ### Plataformas
 
@@ -691,8 +708,12 @@ Ordem sugerida:
 4. Series
 5. Plataformas
 6. Regras de Ouro
-7. Looks & Cenarios
-8. DNA da Voz
+7. DNA da Voz
+
+Mudanca de produto em 2026-05-02:
+
+- `Looks & Cenarios` saiu do roadmap como modulo dedicado
+- a substituicao aprovada e `Marcadores de Gravacao` dentro de `Conteudos` e `Gravacao`
 
 Estrategia:
 
@@ -796,4 +817,3 @@ A ordem mais segura e:
 5. polimento
 
 Se a IA seguir essa ordem, a chance de quebrar desktop cai bastante e a chance de produzir um mobile realmente nativo sobe muito.
-

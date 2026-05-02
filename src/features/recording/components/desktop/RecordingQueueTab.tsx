@@ -3,11 +3,10 @@ import {useNavigate} from 'react-router-dom';
 import {
   CheckCircle2,
   Layers,
-  MapPin,
   Pause,
   Play,
-  Shirt,
   SkipForward,
+  Tags,
   Trash2,
   Video,
   X,
@@ -22,8 +21,7 @@ import {RECORDING_READY_STATUS} from '../../../contents/lib/contentWorkflow';
 import {
   buildSaveRecordingSessionTransition,
   isRecordingBlockTeleprompterEnabled,
-  resolveRecordingBlockLookLabel,
-  resolveRecordingBlockScenarioLabel,
+  resolveRecordingContextSummary,
 } from '../../lib/recordingWorkflow';
 
 type ConfirmState = {message: string; onConfirm: () => void} | null;
@@ -262,26 +260,12 @@ function RecordingBlockCard({block, contents, onOpen, onDelete}: RecordingBlockC
 
         <div className="space-y-2">
           <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-[var(--text-tertiary)]">
-            <Shirt className="h-3 w-3" /> Look
+            <Tags className="h-3 w-3" /> Marcadores
           </div>
           <p className="truncate text-xs font-bold text-[var(--text-primary)]">
-            {resolveRecordingBlockLookLabel({
+            {resolveRecordingContextSummary({
               block,
               content: firstContent,
-              looks: state.looks,
-            })}
-          </p>
-        </div>
-
-        <div className="space-y-2">
-          <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-[var(--text-tertiary)]">
-            <MapPin className="h-3 w-3" /> Cenário
-          </div>
-          <p className="truncate text-xs font-bold text-[var(--text-primary)]">
-            {resolveRecordingBlockScenarioLabel({
-              block,
-              content: firstContent,
-              cenarios: state.cenarios,
             })}
           </p>
         </div>
@@ -409,22 +393,11 @@ function BlockAnalysisModal({block, contents, onClose, onStart}: BlockAnalysisMo
 
                   <div className="mb-4 flex flex-wrap items-center gap-3 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                     <span className="flex min-w-0 items-center gap-1">
-                      <Shirt className="h-3 w-3 shrink-0" />
+                      <Tags className="h-3 w-3 shrink-0" />
                       <span className="truncate">
-                        {resolveRecordingBlockLookLabel({
+                        {resolveRecordingContextSummary({
                           block,
                           content,
-                          looks: state.looks,
-                        })}
-                      </span>
-                    </span>
-                    <span className="flex min-w-0 items-center gap-1">
-                      <MapPin className="h-3 w-3 shrink-0" />
-                      <span className="truncate">
-                        {resolveRecordingBlockScenarioLabel({
-                          block,
-                          content,
-                          cenarios: state.cenarios,
                         })}
                       </span>
                     </span>
@@ -734,26 +707,12 @@ function BurstSidebar({
       <div className="space-y-4">
         <div className="flex items-center justify-between gap-4 rounded-2xl border border-[var(--border-color)] bg-[var(--bg-primary)] p-4">
           <span className="flex items-center gap-2 text-[9px] font-black uppercase tracking-widest text-[var(--text-tertiary)]">
-            <Shirt className="h-3 w-3" /> Look
+            <Tags className="h-3 w-3" /> Marcadores
           </span>
           <span className="max-w-[9rem] truncate text-right text-xs font-bold text-[var(--text-primary)]">
-            {resolveRecordingBlockLookLabel({
+            {resolveRecordingContextSummary({
               block,
               content: currentContent,
-              looks: state.looks,
-            })}
-          </span>
-        </div>
-
-        <div className="flex items-center justify-between gap-4 rounded-2xl border border-[var(--border-color)] bg-[var(--bg-primary)] p-4">
-          <span className="flex items-center gap-2 text-[9px] font-black uppercase tracking-widest text-[var(--text-tertiary)]">
-            <MapPin className="h-3 w-3" /> Cenário
-          </span>
-          <span className="max-w-[9rem] truncate text-right text-xs font-bold text-[var(--text-primary)]">
-            {resolveRecordingBlockScenarioLabel({
-              block,
-              content: currentContent,
-              cenarios: state.cenarios,
             })}
           </span>
         </div>
@@ -807,23 +766,11 @@ function BurstMobileControls({
         </button>
 
         <div className="flex min-w-0 max-w-full items-center gap-2 rounded-xl border border-[var(--border-color)] bg-[var(--bg-hover)] px-3 py-2">
-          <Shirt className="h-3 w-3 shrink-0 text-[var(--text-tertiary)]" />
+          <Tags className="h-3 w-3 shrink-0 text-[var(--text-tertiary)]" />
           <span className="max-w-[7rem] truncate text-[9px] font-black uppercase text-[var(--text-primary)]">
-            {resolveRecordingBlockLookLabel({
+            {resolveRecordingContextSummary({
               block,
               content: currentContent,
-              looks: state.looks,
-            })}
-          </span>
-        </div>
-
-        <div className="flex min-w-0 max-w-full items-center gap-2 rounded-xl border border-[var(--border-color)] bg-[var(--bg-hover)] px-3 py-2">
-          <MapPin className="h-3 w-3 shrink-0 text-[var(--text-tertiary)]" />
-          <span className="max-w-[7rem] truncate text-[9px] font-black uppercase text-[var(--text-primary)]">
-            {resolveRecordingBlockScenarioLabel({
-              block,
-              content: currentContent,
-              cenarios: state.cenarios,
             })}
           </span>
         </div>

@@ -8,10 +8,11 @@ import {useIsMobile} from '../../../hooks/useIsMobile';
 import {DesktopPageHeader} from '../../../layouts/page/DesktopPageHeader';
 import {PageScaffold} from '../../../layouts/page/PageScaffold';
 import {Content} from '../../../lib/database';
+import {ContentsMobileScreen} from '../../../mobile/screens/contents/ContentsMobileScreen';
 import {generateUUID} from '../../../utils/uuid';
 import {ContentsDesktop} from '../components/desktop/ContentsDesktop';
 import {ContentsToolbar} from '../components/filters/ContentsToolbar';
-import {ContentsMobile} from '../components/mobile/ContentsMobile';
+import {normalizeRecordingTags} from '../../recording/lib/recordingWorkflow';
 import {
   getContentStatusOptions,
   getEditorialContents,
@@ -42,12 +43,15 @@ function ModalFallback() {
   );
 }
 
-function createEmptyContent(state: ReturnType<typeof useAppContext>['state']): Content {
+function createEmptyContent(
+  state: ReturnType<typeof useAppContext>['state'],
+  status: Content['status'] = 'Ideia'
+): Content {
   return {
     id: generateUUID(),
     userId: '',
     title: 'Novo Conteudo',
-    status: 'Ideia',
+    status,
     slotType: null,
     seriesId: null,
     pilarId: state.pilares[0]?.id || null,
@@ -131,7 +135,9 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
 
       let statusMatch = filterStatus === 'Todos' || content.status === filterStatus;
       if (mode === 'editorial' && filterStatus === 'No Escuro') {
-        statusMatch = content.status === RECORDING_READY_STATUS && (!content.recordingDate || !content.lookId);
+        statusMatch =
+          content.status === RECORDING_READY_STATUS &&
+          (!content.recordingDate || normalizeRecordingTags(content.tags || []).length === 0);
       }
 
       const seriesMatch = filterSeries === 'Todas' || content.seriesId === filterSeries;
@@ -178,6 +184,14 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
     });
   }, [filteredContents, sortDirection, sortField, state.pilares, state.series]);
 
+  const mobileContents = useMemo(() => {
+    if (isEditorialMode && isMobile) {
+      return sortedContents.filter(content => content.status === 'Roteiro');
+    }
+
+    return sortedContents;
+  }, [isEditorialMode, isMobile, sortedContents]);
+
   const lookAlerts = useMemo(() => {
     if (!isEditorialMode && postingTab !== 'postagem') return {};
 
@@ -188,8 +202,12 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
       const next1 = sortedContents[i + 1];
       const next2 = sortedContents[i + 2];
 
-      if (current.lookId && current.lookId === next1.lookId && current.lookId === next2.lookId) {
-        alerts[current.id] = `3 videos seguidos com ${current.lookId}`;
+      const currentKey = normalizeRecordingTags(current.tags || []).sort().join('|');
+      const nextKey1 = normalizeRecordingTags(next1.tags || []).sort().join('|');
+      const nextKey2 = normalizeRecordingTags(next2.tags || []).sort().join('|');
+
+      if (currentKey && currentKey === nextKey1 && currentKey === nextKey2) {
+        alerts[current.id] = `3 videos seguidos com os mesmos marcadores: ${normalizeRecordingTags(current.tags || []).join(', ')}`;
       }
     }
 
@@ -210,7 +228,7 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
     setFilterStatus('Todos');
     setFilterSeries('Todas');
     setFilterPillar('Todos');
-    setSelectedContent(createEmptyContent(state));
+    setSelectedContent(createEmptyContent(state, isEditorialMode && isMobile ? 'Roteiro' : 'Ideia'));
     setIsNewModal(true);
   };
 
@@ -258,6 +276,84 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
       : 'Concentre plataforma, legenda, datas e publicacao sem misturar com a criacao do roteiro.';
   const surfaceMode = isEditorialMode ? 'editorial' : isPostingHistory ? 'historico' : 'postagem';
 
+  if (isMobile) {
+    return (
+      <div className="min-h-full bg-[var(--bg-primary)]">
+        <ContentsMobileScreen
+          mode={surfaceMode}
+          contents={mobileContents}
+          allContents={state.contents}
+          series={state.series}
+          pilares={state.pilares}
+          onSelect={content => {
+            if (isPostingHistory) {
+              setHistoryPreviewContent(content);
+              return;
+            }
+            setSelectedContent(content);
+          }}
+          onPreview={setPreviewContent}
+          onCreate={handleAddContent}
+        />
+
+        {activeContent && (
+          <Suspense fallback={<ModalFallback />}>
+            <ContentDetailModal
+              content={activeContent}
+              isNewContent={isNewModal}
+              initialTab={isEditorialMode ? 'roteiro' : 'producao'}
+              visibleTabs={isEditorialMode ? ['roteiro'] : ['producao']}
+              onClose={() => {
+                setSelectedContent(null);
+                setIsNewModal(false);
+              }}
+            />
+          </Suspense>
+        )}
+
+        {previewContent && (
+          <Suspense fallback={<ModalFallback />}>
+            <ScriptPreviewModal
+              content={state.contents.find(content => content.id === previewContent.id) || previewContent}
+              onClose={() => setPreviewContent(null)}
+            />
+          </Suspense>
+        )}
+
+        {historyPreviewContent && (
+          <Suspense fallback={<ModalFallback />}>
+            <PostedContentPreviewModal
+              content={
+                state.contents.find(content => content.id === historyPreviewContent.id) || historyPreviewContent
+              }
+              onClose={() => setHistoryPreviewContent(null)}
+              onOpenScript={() => {
+                setPreviewContent(historyPreviewContent);
+                setHistoryPreviewContent(null);
+              }}
+            />
+          </Suspense>
+        )}
+
+        {mode === 'editorial' && isCSVUploadOpen && (
+          <Suspense fallback={<ModalFallback />}>
+            <CSVUploadModal onClose={() => setIsCSVUploadOpen(false)} />
+          </Suspense>
+        )}
+
+        <ConfirmModal
+          open={!!confirm}
+          message={confirm?.message || ''}
+          onConfirm={() => {
+            confirm?.onConfirm();
+            setConfirm(null);
+          }}
+          onCancel={() => setConfirm(null)}
+        />
+      </div>
+    );
+  }
+
   return (
     <PageScaffold
       contentWidth="full"
@@ -301,48 +397,26 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
         />
       }
     >
-      {isMobile ? (
-        <ContentsMobile
-          mode={surfaceMode}
-          contents={sortedContents}
-          lookAlerts={lookAlerts}
-          sortField={sortField}
-          sortDirection={sortDirection}
-          selectedIds={selectedIds}
-          onSelect={content => {
-            if (isPostingHistory) {
-              setHistoryPreviewContent(content);
-              return;
-            }
-            setSelectedContent(content);
-          }}
-          onPreview={setPreviewContent}
-          onSort={handleSort}
-          onToggleSelect={handleToggleSelect}
-          onSelectAll={handleSelectAll}
-        />
-      ) : (
-        <ContentsDesktop
-          mode={surfaceMode}
-          viewMode={effectiveViewMode}
-          contents={sortedContents}
-          lookAlerts={lookAlerts}
-          sortField={sortField}
-          sortDirection={sortDirection}
-          selectedIds={selectedIds}
-          onSelect={content => {
-            if (isPostingHistory) {
-              setHistoryPreviewContent(content);
-              return;
-            }
-            setSelectedContent(content);
-          }}
-          onPreview={setPreviewContent}
-          onSort={handleSort}
-          onToggleSelect={handleToggleSelect}
-          onSelectAll={handleSelectAll}
-        />
-      )}
+      <ContentsDesktop
+        mode={surfaceMode}
+        viewMode={effectiveViewMode}
+        contents={sortedContents}
+        lookAlerts={lookAlerts}
+        sortField={sortField}
+        sortDirection={sortDirection}
+        selectedIds={selectedIds}
+        onSelect={content => {
+          if (isPostingHistory) {
+            setHistoryPreviewContent(content);
+            return;
+          }
+          setSelectedContent(content);
+        }}
+        onPreview={setPreviewContent}
+        onSort={handleSort}
+        onToggleSelect={handleToggleSelect}
+        onSelectAll={handleSelectAll}
+      />
 
       <AnimatePresence>
         {!isPostingHistory && selectedIds.size > 0 && (

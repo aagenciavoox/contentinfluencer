@@ -16,7 +16,7 @@ export function EditorialCalendarHeader({onAddAgenda}: EditorialCalendarHeaderPr
         <DesktopPageHeader
           section="Planejamento"
           title="Calendario"
-          subtitle="A agenda principal agora desce pelos proximos meses em uma unica superficie."
+          subtitle="Uma unica visao para agenda, projetos, gravacoes e publicacoes, com camadas independentes."
           icon={CalendarIcon}
           className="mb-0"
           actions={[

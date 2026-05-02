@@ -1,18 +1,23 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, ArrowRight, CheckCircle, Video } from 'lucide-react';
+import { ArrowLeft, ArrowRight, CheckCircle, CheckCircle2, Mic, Video } from 'lucide-react';
 import { useAppContext } from '../../../context/AppContext';
+import { useIsMobile } from '../../../hooks/useIsMobile';
 import { cn, htmlToReadableText } from '../../../lib/utils';
-import {buildMarkContentRecordedTransition} from '../lib/recordingWorkflow';
+import {buildMarkContentRecordedTransition, isRecordingBlockTeleprompterEnabled, resolveRecordingContextSummary} from '../lib/recordingWorkflow';
+import { BurstModeMobileScreen } from '../../../mobile/screens/recording/BurstModeMobileScreen';
+import type { Content } from '../../../lib/database';
 
 export function RecordingBlockPage() {
   const { id } = useParams<{ id: string }>();
   const { state, dispatch } = useAppContext();
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
 
   const block = state.recordingBlocks.find(b => b.id === id);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [done, setDone] = useState(false);
+  const [isMobileBurstOpen, setIsMobileBurstOpen] = useState(false);
 
   if (!block) {
     return (
@@ -36,6 +41,202 @@ export function RecordingBlockPage() {
   const currentContent = currentBlockContent
     ? state.contents.find(c => c.id === currentBlockContent.contentId)
     : null;
+
+  const mobileEntries = useMemo(
+    () =>
+      blockContents
+        .map(blockContent => {
+          const content = state.contents.find(item => item.id === blockContent.contentId);
+          if (!content) return null;
+
+          return {
+            content,
+            gravado: blockContent.gravado,
+          };
+        })
+        .filter((entry): entry is { content: Content; gravado: boolean } => entry !== null),
+    [blockContents, state.contents]
+  );
+
+  const teleprompterEnabled = isRecordingBlockTeleprompterEnabled(block);
+
+  const handleMobileTeleprompterToggle = () => {
+    void dispatch({
+      type: 'UPDATE_RECORDING_BLOCK',
+      payload: {
+        ...block,
+        metadata: {
+          ...(block.metadata || {}),
+          teleprompterEnabled: !teleprompterEnabled,
+        },
+      },
+    });
+  };
+
+  if (isMobile) {
+    const readyCount = mobileEntries.filter(entry => !entry.gravado).length;
+
+    return (
+      <>
+        <div className="space-y-4">
+          <section className="rounded-[1.75rem] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4 shadow-sm">
+            <button
+              type="button"
+              onClick={() => navigate('/gravacao')}
+              className="inline-flex items-center gap-2 rounded-full border border-[var(--border-color)] px-3 py-2 text-[11px] font-black uppercase tracking-[0.16em] text-[var(--text-secondary)]"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Voltar
+            </button>
+
+            <p className="mt-4 text-[11px] font-black uppercase tracking-[0.22em] text-[var(--text-tertiary)]">
+              Bloco de gravacao
+            </p>
+            <h1 className="mt-2 text-2xl font-black leading-tight text-[var(--text-primary)]">{block.name}</h1>
+            <p className="mt-2 text-sm text-[var(--text-secondary)]">
+              Revise os roteiros, escolha o modo de leitura e inicie o modo explosao quando quiser sobrepor o app inteiro.
+            </p>
+
+            <div className="mt-4 grid grid-cols-3 gap-2">
+              <div className="rounded-[1.15rem] bg-[var(--bg-hover)] px-3 py-3">
+                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--text-tertiary)]">Fila</p>
+                <p className="mt-1 text-base font-black text-[var(--text-primary)]">{mobileEntries.length}</p>
+              </div>
+              <div className="rounded-[1.15rem] bg-[var(--bg-hover)] px-3 py-3">
+                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--text-tertiary)]">Prontos</p>
+                <p className="mt-1 text-base font-black text-[var(--text-primary)]">{readyCount}</p>
+              </div>
+              <div className="rounded-[1.15rem] bg-[var(--bg-hover)] px-3 py-3">
+                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--text-tertiary)]">Feitos</p>
+                <p className="mt-1 text-base font-black text-[var(--text-primary)]">{mobileEntries.length - readyCount}</p>
+              </div>
+            </div>
+          </section>
+
+          <section className="rounded-[1.75rem] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4 shadow-sm">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-tertiary)]">
+                  Teleprompter
+                </p>
+                <h2 className="mt-2 text-base font-black text-[var(--text-primary)]">
+                  {teleprompterEnabled ? 'Ativado para este bloco' : 'Desativado para este bloco'}
+                </h2>
+                <p className="mt-2 text-sm leading-relaxed text-[var(--text-secondary)]">
+                  Com teleprompter ligado, o roteiro rola automaticamente. Desligado, o modo explosao abre em leitura estatica limpa.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleMobileTeleprompterToggle}
+                className={cn(
+                  'inline-flex items-center justify-center rounded-2xl border px-4 py-3 text-[11px] font-black uppercase tracking-[0.18em] transition-all',
+                  teleprompterEnabled
+                    ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-[var(--bg-primary)]'
+                    : 'border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)]'
+                )}
+              >
+                <Mic className="mr-2 h-4 w-4" />
+                {teleprompterEnabled ? 'Desativar' : 'Ativar'}
+              </button>
+            </div>
+          </section>
+
+          <section className="rounded-[1.75rem] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4 shadow-sm">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-tertiary)]">
+                  Roteiros do bloco
+                </p>
+                <h2 className="mt-2 text-base font-black text-[var(--text-primary)]">
+                  Ordem de execucao
+                </h2>
+              </div>
+
+              <span className="rounded-full bg-[var(--bg-hover)] px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-[var(--text-secondary)]">
+                {resolveRecordingContextSummary({ block, content: mobileEntries[0]?.content ?? null })}
+              </span>
+            </div>
+
+            <div className="mt-4 space-y-3">
+              {mobileEntries.map((entry, index) => (
+                <div
+                  key={entry.content.id}
+                  className={cn(
+                    'rounded-[1.4rem] border px-4 py-4',
+                    entry.gravado
+                      ? 'border-emerald-500/20 bg-emerald-500/8'
+                      : 'border-[var(--border-color)] bg-[var(--bg-primary)]'
+                  )}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[var(--border-color)] bg-[var(--bg-hover)] text-xs font-black text-[var(--text-primary)]">
+                      {index + 1}
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-black text-[var(--text-primary)]">{entry.content.title || 'Conteudo sem titulo'}</p>
+                      <p className="mt-1 text-sm text-[var(--text-secondary)]">
+                        {htmlToReadableText(entry.content.script) ? 'Roteiro pronto para leitura.' : 'Sem roteiro escrito.'}
+                      </p>
+                    </div>
+
+                    {entry.gravado ? (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-emerald-500">
+                        <CheckCircle2 className="h-3 w-3" />
+                        Gravado
+                      </span>
+                    ) : null}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <button
+            type="button"
+            onClick={() => setIsMobileBurstOpen(true)}
+            disabled={readyCount === 0}
+            className="button-primary w-full disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <Video className="h-4 w-4" />
+            Iniciar modo explosao
+          </button>
+        </div>
+
+        {isMobileBurstOpen && (
+          <BurstModeMobileScreen
+            block={block}
+            entries={mobileEntries}
+            onClose={() => setIsMobileBurstOpen(false)}
+            onMarkRecorded={(contentId) => {
+              const transition = buildMarkContentRecordedTransition({
+                block,
+                contentId,
+                contents: state.contents,
+              });
+              if (!transition) return;
+
+              dispatch({
+                type: 'UPDATE_CONTENT',
+                payload: transition.updatedContent,
+              } as any);
+
+              dispatch({
+                type: 'UPDATE_BLOCK_CONTENTS',
+                payload: {blockId: block.id, contents: transition.updatedBlockContents},
+              });
+            }}
+            onFinish={() => {
+              setIsMobileBurstOpen(false);
+              navigate('/conteudos/historico');
+            }}
+          />
+        )}
+      </>
+    );
+  }
 
   const marcarGravado = () => {
     if (!currentContent || !currentBlockContent) return;

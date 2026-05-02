@@ -9,6 +9,8 @@ import { BottomSheetModal } from '../../../components/feedback/modals/BottomShee
 import { DesktopPageHeader } from '../../../layouts/page/DesktopPageHeader';
 import { AppButton } from '../../../components/ui/AppButton';
 import { FilterBar } from '../../../components/ui/FilterBar';
+import { useIsMobile } from '../../../hooks/useIsMobile';
+import { LibraryMobileScreen } from '../../../mobile/screens/library/LibraryMobileScreen';
 import { LibraryAnalyticsTab } from '../components/LibraryAnalyticsTab';
 
 type StatusLeitura = BibliotecaItem['status'];
@@ -315,6 +317,7 @@ function ChipField({
 export function LibraryPage() {
   const { state, dispatch } = useAppContext();
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
 
   const [activeTab, setActiveTab] = useState<LibraryTab>('acervo');
   const [filtroTipo, setFiltroTipo] = useState<BibliotecaTipo | 'Todos'>('Todos');
@@ -507,6 +510,179 @@ export function LibraryPage() {
       },
     });
   };
+
+  const getItemMeta = (itemId: string) =>
+    ((state.preferences[`item_meta:${itemId}`] || {}) as BibliotecaItemMeta);
+
+  if (isMobile) {
+    return (
+      <>
+        <div className="min-h-full bg-[var(--bg-primary)]">
+          <LibraryMobileScreen
+            items={state.books}
+            mobilePrimaryBookId={mobilePrimaryBookId}
+            getItemMeta={getItemMeta}
+            countContents={contarConteudos}
+            onOpenItem={(itemId) => navigate(`/biblioteca/${itemId}`)}
+            onOpenCreate={handleOpenModal}
+            onTogglePrimary={handleSetPrimaryMobileBook}
+          />
+        </div>
+
+        <BottomSheetModal
+          open={modalAberto}
+          onClose={() => setModalAberto(false)}
+          desktopMaxW="max-w-xl"
+          zIndex="z-[110]"
+        >
+          <div className="flex h-full flex-col bg-[var(--bg-primary)]">
+            <div className="border-b border-[var(--border-color)] px-5 py-4">
+              <p className="t-section-title text-[var(--text-primary)]">Novo item do acervo</p>
+              <p className="t-secondary mt-1">Cadastro rapido para consulta e captura no mobile.</p>
+            </div>
+
+            <div className="flex-1 space-y-4 overflow-y-auto p-5">
+              <div className="grid grid-cols-2 gap-2">
+                {(Object.entries(TYPE_CONFIG) as [BibliotecaTipo, BibliotecaTypeConfig][])
+                  .filter(([tipo]) => tipo !== 'outro')
+                  .map(([tipo, config]) => {
+                    const Icon = config.icon;
+                    const active = form.tipo === tipo;
+
+                    return (
+                      <button
+                        key={tipo}
+                        type="button"
+                        onClick={() => updateTipo(tipo)}
+                        className={`flex items-center justify-center gap-2 rounded-[1.1rem] border px-3 py-3 text-[11px] font-black uppercase tracking-[0.14em] ${
+                          active
+                            ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-[var(--bg-primary)]'
+                            : 'border-[var(--border-color)] bg-[var(--bg-secondary)] text-[var(--text-primary)]'
+                        }`}
+                      >
+                        <Icon className="h-4 w-4" />
+                        {config.label}
+                      </button>
+                    );
+                  })}
+              </div>
+
+              <input
+                type="text"
+                value={form.titulo}
+                onChange={event => setForm(prev => ({ ...prev, titulo: event.target.value }))}
+                placeholder={selectedTypeConfig.titlePlaceholder}
+                autoFocus
+                className="w-full"
+              />
+
+              <input
+                type="text"
+                value={form.autor}
+                onChange={event => setForm(prev => ({ ...prev, autor: event.target.value }))}
+                placeholder={selectedTypeConfig.creatorPlaceholder}
+                className="w-full"
+              />
+
+              {selectedTypeConfig.showCover ? (
+                <input
+                  type="url"
+                  value={form.capaUrl}
+                  onChange={event => setForm(prev => ({ ...prev, capaUrl: event.target.value }))}
+                  placeholder="URL da capa"
+                  className="w-full"
+                />
+              ) : null}
+
+              <label className="block space-y-2">
+                <span className="t-label text-[var(--text-tertiary)]">Status</span>
+                <select
+                  value={form.statusLeitura}
+                  onChange={event => setForm(prev => ({ ...prev, statusLeitura: event.target.value as StatusLeitura }))}
+                >
+                  {selectedStatusOptions.map(status => (
+                    <option key={status} value={status}>
+                      {status}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <input
+                type="text"
+                value={form.generoInput}
+                onChange={event => setForm(prev => ({ ...prev, generoInput: event.target.value }))}
+                onBlur={() => {
+                  if (!form.generoInput.trim()) return;
+                  updateGenreList(form.generoInput);
+                  setForm(prev => ({ ...prev, generoInput: '' }));
+                }}
+                placeholder="Genero principal"
+                className="w-full"
+              />
+
+              <input
+                type="text"
+                value={form.tagInput}
+                onChange={event => setForm(prev => ({ ...prev, tagInput: event.target.value }))}
+                onBlur={() => {
+                  if (!form.tagInput.trim()) return;
+                  updateTagList(form.tagInput);
+                  setForm(prev => ({ ...prev, tagInput: '' }));
+                }}
+                placeholder="Tag pessoal"
+                className="w-full"
+              />
+
+              {form.generos.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {form.generos.map(genero => (
+                    <span
+                      key={genero}
+                      className="rounded-full bg-[var(--bg-hover)] px-3 py-1 text-[11px] font-semibold text-[var(--text-secondary)]"
+                    >
+                      {genero}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+
+              {form.tagsPersonalizadas.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {form.tagsPersonalizadas.map(tag => (
+                    <span
+                      key={tag}
+                      className="rounded-full bg-[var(--accent-orange)]/10 px-3 py-1 text-[11px] font-semibold text-[var(--accent-orange)]"
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+
+            <div className="flex gap-3 border-t border-[var(--border-color)] px-5 py-4 pb-safe">
+              <button
+                type="button"
+                onClick={() => setModalAberto(false)}
+                className="flex-1 rounded-[1.25rem] border border-[var(--border-color)] py-3 text-xs font-black uppercase tracking-widest text-[var(--text-secondary)]"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleCriarLivro}
+                disabled={!form.titulo.trim()}
+                className="button-primary flex-1 disabled:opacity-40"
+              >
+                Criar item
+              </button>
+            </div>
+          </div>
+        </BottomSheetModal>
+      </>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[var(--bg-secondary)]">

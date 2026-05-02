@@ -624,7 +624,6 @@ export function BurstModeExperience({
               <button
                 type="button"
                 onClick={() => setIsSettingsOpen(previous => !previous)}
-                disabled={!teleprompterEnabled}
                 className={cn('rounded-2xl border px-4 py-3 text-sm font-black transition-colors', themeStyle.panelBorder, themeStyle.panel)}
               >
                 <span className="inline-flex items-center gap-2">
@@ -847,7 +846,6 @@ export function BurstModeExperience({
                 <button
                   type="button"
                   onClick={() => updateSetting('fontSize', clamp(settings.fontSize - 2, 24, 96))}
-                  disabled={!teleprompterEnabled}
                   className="rounded-xl border p-2"
                 >
                   <Minus className="h-3.5 w-3.5" />
@@ -859,7 +857,6 @@ export function BurstModeExperience({
                 <button
                   type="button"
                   onClick={() => updateSetting('fontSize', clamp(settings.fontSize + 2, 24, 96))}
-                  disabled={!teleprompterEnabled}
                   className="rounded-xl border p-2"
                 >
                   <Plus className="h-3.5 w-3.5" />
@@ -923,6 +920,18 @@ export function BurstModeExperience({
             </div>
 
             <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 md:px-8 md:py-6">
+              {!teleprompterEnabled && (
+                <div className="mb-5 rounded-[1.5rem] border border-amber-400/30 bg-amber-400/10 px-4 py-4">
+                  <p className="text-sm font-black uppercase tracking-[0.18em] text-amber-500">
+                    Leitura estÃ¡tica ativa
+                  </p>
+                  <p className="mt-2 text-sm leading-relaxed text-current/80">
+                    Os ajustes visuais continuam funcionando aqui. Controles de rolagem, velocidade e contagem regressiva
+                    ficam salvos para quando o teleprompter do bloco for reativado.
+                  </p>
+                </div>
+              )}
+
               <div className="grid grid-cols-1 gap-4 pb-2 md:grid-cols-2 xl:grid-cols-4">
                 <SettingsGroup title="Aparência">
                   <RangeSetting label="Tamanho da fonte" value={`${settings.fontSize}px`}>

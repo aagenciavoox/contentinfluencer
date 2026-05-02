@@ -12,7 +12,6 @@ const Biblioteca = lazy(() => import('../../pages/Biblioteca').then(module => ({
 const BookDetail = lazy(() => import('../../pages/BookDetail').then(module => ({ default: module.BookDetail })));
 const Settings = lazy(() => import('../../pages/Settings').then(module => ({ default: module.Settings })));
 const PilaresSettings = lazy(() => import('../../pages/settings/Pilares').then(module => ({ default: module.PilaresSettings })));
-const LooksSettings = lazy(() => import('../../pages/settings/LooksScenarios').then(module => ({ default: module.LooksSettings })));
 const RegrasDeOuro = lazy(() => import('../../pages/settings/RegrasDeOuro').then(module => ({ default: module.RegrasDeOuro })));
 const DNAVozSettings = lazy(() => import('../../pages/settings/DNAVoz').then(module => ({ default: module.DNAVozSettings })));
 const SeriesSettings = lazy(() => import('../../pages/settings/Series').then(module => ({ default: module.SeriesSettings })));
@@ -84,7 +83,7 @@ export function AppRoutes() {
 
         <Route path="/configuracoes" element={<Settings />} />
         <Route path="/configuracoes/pilares" element={<PilaresSettings />} />
-        <Route path="/configuracoes/looks" element={<LooksSettings />} />
+        <Route path="/configuracoes/looks" element={<Navigate to="/configuracoes" replace />} />
         <Route path="/configuracoes/regras" element={<RegrasDeOuro />} />
         <Route path="/configuracoes/dna" element={<DNAVozSettings />} />
         <Route path="/configuracoes/series" element={<SeriesSettings />} />

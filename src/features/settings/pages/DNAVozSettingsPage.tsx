@@ -1,18 +1,21 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Zap, Users, Target, MessageSquare, Ban, ShieldAlert, Plus, X, Trash2 } from 'lucide-react';
-import { useAppContext } from '../../../context/AppContext';
-import { DesktopPageHeader } from '../../../layouts/page/DesktopPageHeader';
-import { AppButton } from '../../../components/ui/AppButton';
+import React, {useState} from 'react';
+import {useNavigate} from 'react-router-dom';
+import {Zap, Users, Target, MessageSquare, Ban, ShieldAlert, Plus, Trash2} from 'lucide-react';
+import {useAppContext} from '../../../context/AppContext';
+import {useIsMobile} from '../../../hooks/useIsMobile';
+import {DesktopPageHeader} from '../../../layouts/page/DesktopPageHeader';
+import {DNAVozMobileScreen} from '../../../mobile/screens/settings/DNAVozMobileScreen';
+import {AppButton} from '../../../components/ui/AppButton';
 
 export function DNAVozSettingsPage() {
-  const { state, dispatch } = useAppContext();
+  const {state, dispatch} = useAppContext();
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const [editData, setEditData] = useState(state.dnaVoz);
-  const [newInput, setNewInput] = useState<{ field: string; value: string }>({ field: '', value: '' });
+  const [newInput, setNewInput] = useState<{field: string; value: string}>({field: '', value: ''});
 
   const handleSave = () => {
-    dispatch({ type: 'UPDATE_DNA_VOZ', payload: editData });
+    dispatch({type: 'UPDATE_DNA_VOZ', payload: editData});
   };
 
   const handleAddItem = (field: 'naoFaco' | 'alertas') => {
@@ -26,6 +29,20 @@ export function DNAVozSettingsPage() {
   };
 
   const isDirty = JSON.stringify(editData) !== JSON.stringify(state.dnaVoz);
+
+  if (isMobile) {
+    return (
+      <div className="min-h-full bg-[var(--bg-primary)]">
+        <DNAVozMobileScreen
+          data={editData}
+          pilares={state.pilares.filter(pilar => pilar.ativo)}
+          isDirty={isDirty}
+          onChange={setEditData}
+          onSave={handleSave}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[var(--bg-secondary)]">

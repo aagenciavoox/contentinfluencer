@@ -14,9 +14,8 @@ interface EditorialAgendaFiltersProps {
 const LAYER_OPTIONS = [
   { id: 'recordings', label: 'Gravacoes' },
   { id: 'posts', label: 'Postagens' },
-  { id: 'partnerships', label: 'Projetos' },
+  { id: 'projects', label: 'Projetos' },
   { id: 'agenda', label: 'Agenda' },
-  { id: 'rules', label: 'Regras' },
 ];
 
 export function EditorialAgendaFilters({
@@ -32,7 +31,7 @@ export function EditorialAgendaFilters({
       <FilterBar
         searchValue={searchTerm}
         onSearchChange={onSearchChange}
-        searchPlaceholder="Buscar por conteudo, evento ou projeto"
+        searchPlaceholder="Buscar por conteudo, evento, projeto ou entrega"
         filters={[
           {
             id: 'camadas',
@@ -74,9 +73,9 @@ export function EditorialAgendaFilters({
 
       <div className="flex flex-wrap gap-3">
         {[
-          { label: 'Rotacao', text: 'Max 1x/Sem', icon: RotateCcw, color: 'text-orange-500' },
-          { label: 'Energia', text: 'Mix Ideal', icon: Zap, color: 'text-blue-500' },
-          { label: 'Temas', text: 'Mix Pilares', icon: BookOpen, color: 'text-purple-500' },
+          { label: 'Gravacoes', text: 'Planejado para gravar', icon: RotateCcw, color: 'text-orange-500' },
+          { label: 'Publicacoes', text: 'Datas de publi e entrega', icon: Zap, color: 'text-blue-500' },
+          { label: 'Projetos', text: 'Prazos e etapas no mesmo mapa', icon: BookOpen, color: 'text-purple-500' },
         ].map(rule => (
           <div
             key={rule.label}

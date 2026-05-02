@@ -1,23 +1,27 @@
 import {useState} from 'react';
-import {Plus, Video} from 'lucide-react';
+import {useNavigate} from 'react-router-dom';
+import {Eye, Plus, Video} from 'lucide-react';
 import {useAppContext} from '../../../context/AppContext';
 import {useAuth} from '../../../context/AuthContext';
+import {useIsMobile} from '../../../hooks/useIsMobile';
 import type {RecordingBlock, RecordingBlockContent} from '../../../lib/database';
 import {getRecordingQueueContents} from '../../contents/lib/contentWorkflow';
 import {cn} from '../../../lib/utils';
 import {DesktopPageHeader} from '../../../layouts/page/DesktopPageHeader';
+import {RecordingMobileScreen} from '../../../mobile/screens/recording/RecordingMobileScreen';
 import {RecordingQueueTab} from '../components/desktop/RecordingQueueTab';
 import {FilterBar} from '../../../components/ui/FilterBar';
-import {
-  resolveRecordingBlockLookLabel,
-  resolveRecordingBlockScenarioLabel,
-} from '../lib/recordingWorkflow';
+import {normalizeRecordingTags} from '../lib/recordingWorkflow';
+import {ScriptPreviewModal} from '../../contents/components/modals/ScriptPreviewModal';
+import type {Content} from '../../../lib/database';
 
 type RecordingPageTab = 'queue' | 'blocks';
 
 export function RecordingPage() {
   const {state, dispatch} = useAppContext();
   const {user} = useAuth();
+  const navigate = useNavigate();
+  const isMobile = useIsMobile();
 
   const [activeTab, setActiveTab] = useState<RecordingPageTab>('queue');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -26,18 +30,24 @@ export function RecordingPage() {
 
   const [filterPilar, setFilterPilar] = useState('');
   const [filterSerie, setFilterSerie] = useState('');
-  const [filterLook, setFilterLook] = useState('');
-  const [filterCenario, setFilterCenario] = useState('');
+  const [filterTag, setFilterTag] = useState('');
   const [filterEnergia, setFilterEnergia] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [sortValue, setSortValue] = useState('recentes');
+  const [blockTagsInput, setBlockTagsInput] = useState('');
+  const [previewContent, setPreviewContent] = useState<Content | null>(null);
+
+  const availableRecordingTags = Array.from(
+    new Set(
+      getRecordingQueueContents(state.contents).flatMap(content => normalizeRecordingTags(content.tags || []))
+    )
+  ).sort((left, right) => left.localeCompare(right, 'pt-BR'));
 
   const prontos = [...getRecordingQueueContents(state.contents)]
     .filter(content => {
       if (filterPilar && content.pilarId !== filterPilar) return false;
       if (filterSerie && content.seriesId !== filterSerie) return false;
-      if (filterLook && content.lookId !== filterLook) return false;
-      if (filterCenario && content.cenarioId !== filterCenario) return false;
+      if (filterTag && !normalizeRecordingTags(content.tags || []).includes(filterTag)) return false;
       if (filterEnergia && content.energiaNecessaria !== filterEnergia) return false;
       if (searchTerm.trim()) {
         const term = searchTerm.toLowerCase();
@@ -45,7 +55,7 @@ export function RecordingPage() {
           content.title,
           state.pilares.find(pilar => pilar.id === content.pilarId)?.nome ?? '',
           state.series.find(serie => serie.id === content.seriesId)?.name ?? '',
-          state.cenarios.find(cenario => cenario.id === content.cenarioId)?.nome ?? '',
+          ...(content.tags || []),
         ];
         if (!haystacks.some(value => value.toLowerCase().includes(term))) return false;
       }
@@ -83,20 +93,21 @@ export function RecordingPage() {
     if (!blockName.trim() || selectedIds.size === 0) return;
 
     const orderedSelectedContents = prontos.filter(content => selectedIds.has(content.id));
-    const firstSelectedContent = orderedSelectedContents[0] ?? null;
+    const manualTags = blockTagsInput.split(/[,\n]/).map(tag => tag.trim()).filter(Boolean);
+    const recordingTags = normalizeRecordingTags(
+      manualTags.length > 0 ? manualTags : orderedSelectedContents.flatMap(content => content.tags || [])
+    );
 
     const block: RecordingBlock = {
       id: crypto.randomUUID(),
       userId: user?.id || '',
       name: blockName.trim(),
-      lookLabel: resolveRecordingBlockLookLabel({
-        content: firstSelectedContent,
-        looks: state.looks,
-      }),
-      cenarioLabel: resolveRecordingBlockScenarioLabel({
-        content: firstSelectedContent,
-        cenarios: state.cenarios,
-      }),
+      lookLabel: null,
+      cenarioLabel: null,
+      metadata: {
+        recordingTags,
+        sourceContentIds: orderedSelectedContents.map(content => content.id),
+      },
       createdAt: new Date().toISOString(),
       contents: [],
     };
@@ -113,12 +124,80 @@ export function RecordingPage() {
 
     setSelectedIds(new Set());
     setBlockName('');
+    setBlockTagsInput('');
     setShowBlockForm(false);
     setActiveTab('blocks');
   };
 
   const getPilarNome = (pilarId: string | null) =>
     state.pilares.find(pilar => pilar.id === pilarId)?.nome || '';
+
+  const handleCreateBlockFromMobile = ({
+    name,
+    contentIds,
+    tagsText,
+  }: {
+    name: string;
+    contentIds: string[];
+    tagsText: string;
+  }) => {
+    if (!name.trim() || contentIds.length === 0) return;
+
+    const orderedSelectedContents = state.contents.filter(content => contentIds.includes(content.id));
+    const manualTags = tagsText.split(/[,\n]/).map(tag => tag.trim()).filter(Boolean);
+    const recordingTags = normalizeRecordingTags(
+      manualTags.length > 0 ? manualTags : orderedSelectedContents.flatMap(content => content.tags || [])
+    );
+
+    const block: RecordingBlock = {
+      id: crypto.randomUUID(),
+      userId: user?.id || '',
+      name: name.trim(),
+      lookLabel: null,
+      cenarioLabel: null,
+      metadata: {
+        recordingTags,
+        sourceContentIds: contentIds,
+      },
+      createdAt: new Date().toISOString(),
+      contents: [],
+    };
+
+    const blockContents: RecordingBlockContent[] = contentIds.map((contentId, index) => ({
+      blockId: block.id,
+      contentId,
+      ordem: index,
+      gravado: false,
+    }));
+
+    dispatch({type: 'ADD_RECORDING_BLOCK', payload: block});
+    dispatch({type: 'UPDATE_BLOCK_CONTENTS', payload: {blockId: block.id, contents: blockContents}});
+  };
+
+  if (isMobile) {
+    return (
+      <div className="min-h-full bg-[var(--bg-primary)]">
+        <RecordingMobileScreen
+          readyContents={getRecordingQueueContents(state.contents)}
+          recordingBlocks={state.recordingBlocks}
+          allContents={state.contents}
+          pilares={state.pilares}
+          series={state.series}
+          availableTags={availableRecordingTags}
+          onCreateBlock={handleCreateBlockFromMobile}
+          onOpenBlock={(blockId) => navigate(`/gravacao/${blockId}`)}
+          onPreviewScript={setPreviewContent}
+        />
+
+        {previewContent && (
+          <ScriptPreviewModal
+            content={state.contents.find(content => content.id === previewContent.id) || previewContent}
+            onClose={() => setPreviewContent(null)}
+          />
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[var(--bg-secondary)]">
@@ -176,7 +255,7 @@ export function RecordingPage() {
             <FilterBar
               searchValue={searchTerm}
               onSearchChange={setSearchTerm}
-              searchPlaceholder="Buscar por roteiro, pilar, série ou cenário"
+              searchPlaceholder="Buscar por roteiro, pilar, serie ou marcador"
               filters={[
                 {
                   id: 'pilar',
@@ -199,23 +278,13 @@ export function RecordingPage() {
                   ],
                 },
                 {
-                  id: 'look',
-                  label: 'Look',
-                  value: filterLook,
-                  onChange: setFilterLook,
+                  id: 'tag',
+                  label: 'Marcador',
+                  value: filterTag,
+                  onChange: setFilterTag,
                   options: [
-                    {label: 'Look', value: ''},
-                    ...state.looks.map(look => ({label: `Look ${look.numero}`, value: look.id})),
-                  ],
-                },
-                {
-                  id: 'cenario',
-                  label: 'Cenário',
-                  value: filterCenario,
-                  onChange: setFilterCenario,
-                  options: [
-                    {label: 'Cenário', value: ''},
-                    ...state.cenarios.map(cenario => ({label: cenario.nome, value: cenario.id})),
+                    {label: 'Marcador', value: ''},
+                    ...availableRecordingTags.map(tag => ({label: tag, value: tag})),
                   ],
                 },
                 {
@@ -261,9 +330,17 @@ export function RecordingPage() {
             ) : (
               <div className="space-y-2">
                 {prontos.map(content => (
-                  <button
+                  <div
                     key={content.id}
+                    role="button"
+                    tabIndex={0}
                     onClick={() => toggleSelect(content.id)}
+                    onKeyDown={event => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        toggleSelect(content.id);
+                      }
+                    }}
                     className={cn(
                       'flex w-full items-center gap-4 rounded-2xl border px-5 py-4 text-left transition-all',
                       selectedIds.has(content.id)
@@ -300,7 +377,18 @@ export function RecordingPage() {
                         )}
                       </div>
                     </div>
-                  </button>
+                    <button
+                      type="button"
+                      onClick={event => {
+                        event.stopPropagation();
+                        setPreviewContent(content);
+                      }}
+                      className="rounded-full bg-[var(--bg-hover)] p-2 text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-secondary)]"
+                      aria-label="Visualizar roteiro"
+                    >
+                      <Eye className="h-4 w-4" />
+                    </button>
+                  </div>
                 ))}
               </div>
             )}
@@ -317,6 +405,12 @@ export function RecordingPage() {
                       placeholder={`Nome do bloco (${selectedIds.size} selecionados)`}
                       className="flex-1 rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] placeholder:opacity-30 focus:outline-none focus:border-[var(--text-primary)]/40"
                     />
+                    <input
+                      value={blockTagsInput}
+                      onChange={event => setBlockTagsInput(event.target.value)}
+                      placeholder="Marcadores: roupa preta, estante, caneca"
+                      className="flex-[1.2] rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] placeholder:opacity-30 focus:outline-none focus:border-[var(--text-primary)]/40"
+                    />
                     <button
                       onClick={handleCriarBloco}
                       disabled={!blockName.trim()}
@@ -325,7 +419,10 @@ export function RecordingPage() {
                       Criar
                     </button>
                     <button
-                      onClick={() => setShowBlockForm(false)}
+                      onClick={() => {
+                        setShowBlockForm(false);
+                        setBlockTagsInput('');
+                      }}
                       className="rounded-xl border border-[var(--border-color)] px-4 py-3 text-[11px] font-black uppercase tracking-widest opacity-50 hover:opacity-80"
                     >
                       Cancelar
@@ -358,6 +455,13 @@ export function RecordingPage() {
           </section>
         )}
       </div>
+
+      {previewContent && (
+        <ScriptPreviewModal
+          content={state.contents.find(content => content.id === previewContent.id) || previewContent}
+          onClose={() => setPreviewContent(null)}
+        />
+      )}
     </div>
   );
 }
