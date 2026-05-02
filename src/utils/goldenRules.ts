@@ -20,30 +20,19 @@ function countHashtags(text: string): number {
 }
 
 function getViolationType(rule: GoldenRule): Violation['type'] {
-  if (rule.condicao === 'max') return 'error';
-  if (rule.condicao === 'min') return 'warning';
-  return 'info';
+  return rule.condicao === 'impedir' ? 'error' : 'warning';
 }
 
 function compareRule(
   current: number,
   rule: GoldenRule
 ): {matched: boolean; detail: string} {
-  const minimo = rule.minimo ?? (rule.condicao === 'min' ? rule.valor : null);
-  const maximo = rule.maximo ?? (rule.condicao === 'max' ? rule.valor : null);
-
-  if (minimo != null && current < minimo) {
-    return {matched: true, detail: `${current} abaixo do mínimo ${minimo}`};
+  if (rule.minimo != null && current < rule.minimo) {
+    return {matched: true, detail: `${current} abaixo do mínimo ${rule.minimo}`};
   }
-
-  if (maximo != null && current > maximo) {
-    return {matched: true, detail: `${current} acima do máximo ${maximo}`};
+  if (rule.maximo != null && current > rule.maximo) {
+    return {matched: true, detail: `${current} acima do máximo ${rule.maximo}`};
   }
-
-  if (rule.condicao === 'recomendado' && rule.valor > 0 && current !== rule.valor) {
-    return {matched: true, detail: `${current} fora do recomendado ${rule.valor}`};
-  }
-
   return {matched: false, detail: ''};
 }
 

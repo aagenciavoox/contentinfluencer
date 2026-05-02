@@ -2,13 +2,13 @@ import {useNavigate} from 'react-router-dom';
 import {
   ChevronRight,
   Fingerprint,
-  Globe,
   Layers,
   Layout,
   MonitorSpeaker,
   Palette,
   Settings as SettingsIcon,
   ShieldCheck,
+  UserCircle2,
 } from 'lucide-react';
 import {DesktopPageHeader} from '../../../layouts/page/DesktopPageHeader';
 import {AppButton} from '../../../components/ui/AppButton';
@@ -29,6 +29,12 @@ export function SettingsPage() {
   const moduleFlags = getModuleFlags(state.preferences);
 
   const items = [
+    {
+      to: '/configuracoes/perfil',
+      icon: UserCircle2,
+      title: 'Perfil e Seguranca',
+      desc: 'Atualize nome, email da conta e senha para desktop e mobile',
+    },
     {
       to: '/configuracoes/dna',
       icon: Fingerprint,

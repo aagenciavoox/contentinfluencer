@@ -1,12 +1,12 @@
-import {useState} from 'react';
-import {useNavigate} from 'react-router-dom';
+import {useEffect, useState} from 'react';
+import {useNavigate, useSearchParams} from 'react-router-dom';
 import {Eye, Plus, Video} from 'lucide-react';
 import {useAppContext} from '../../../context/AppContext';
 import {useAuth} from '../../../context/AuthContext';
 import {useIsMobile} from '../../../hooks/useIsMobile';
 import type {RecordingBlock, RecordingBlockContent} from '../../../lib/database';
 import {getRecordingQueueContents} from '../../contents/lib/contentWorkflow';
-import {cn} from '../../../lib/utils';
+import {cn, getEntityTagStyle} from '../../../lib/utils';
 import {DesktopPageHeader} from '../../../layouts/page/DesktopPageHeader';
 import {RecordingMobileScreen} from '../../../mobile/screens/recording/RecordingMobileScreen';
 import {RecordingQueueTab} from '../components/desktop/RecordingQueueTab';
@@ -17,13 +17,18 @@ import type {Content} from '../../../lib/database';
 
 type RecordingPageTab = 'queue' | 'blocks';
 
+function resolveRecordingTab(tab: string | null): RecordingPageTab {
+  return tab === 'blocks' ? 'blocks' : 'queue';
+}
+
 export function RecordingPage() {
   const {state, dispatch} = useAppContext();
   const {user} = useAuth();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const isMobile = useIsMobile();
 
-  const [activeTab, setActiveTab] = useState<RecordingPageTab>('queue');
+  const [activeTab, setActiveTab] = useState<RecordingPageTab>(() => resolveRecordingTab(searchParams.get('tab')));
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [blockName, setBlockName] = useState('');
   const [showBlockForm, setShowBlockForm] = useState(false);
@@ -36,6 +41,21 @@ export function RecordingPage() {
   const [sortValue, setSortValue] = useState('recentes');
   const [blockTagsInput, setBlockTagsInput] = useState('');
   const [previewContent, setPreviewContent] = useState<Content | null>(null);
+
+  useEffect(() => {
+    const nextTab = resolveRecordingTab(searchParams.get('tab'));
+    setActiveTab(previous => (previous === nextTab ? previous : nextTab));
+  }, [searchParams]);
+
+  const handleTabChange = (tab: RecordingPageTab) => {
+    setActiveTab(tab);
+    setSearchParams(previous => {
+      const next = new URLSearchParams(previous);
+      if (tab === 'blocks') next.set('tab', 'blocks');
+      else next.delete('tab');
+      return next;
+    }, {replace: true});
+  };
 
   const availableRecordingTags = Array.from(
     new Set(
@@ -126,11 +146,17 @@ export function RecordingPage() {
     setBlockName('');
     setBlockTagsInput('');
     setShowBlockForm(false);
-    setActiveTab('blocks');
+    handleTabChange('blocks');
   };
 
   const getPilarNome = (pilarId: string | null) =>
     state.pilares.find(pilar => pilar.id === pilarId)?.nome || '';
+
+  const getPilar = (pilarId: string | null) =>
+    state.pilares.find(pilar => pilar.id === pilarId) || null;
+
+  const getSerie = (serieId: string | null) =>
+    state.series.find(serie => serie.id === serieId) || null;
 
   const handleCreateBlockFromMobile = ({
     name,
@@ -185,7 +211,7 @@ export function RecordingPage() {
           series={state.series}
           availableTags={availableRecordingTags}
           onCreateBlock={handleCreateBlockFromMobile}
-          onOpenBlock={(blockId) => navigate(`/gravacao/${blockId}`)}
+          onOpenBlock={(blockId) => navigate(`/gravacao/${blockId}?tab=blocks`)}
           onPreviewScript={setPreviewContent}
         />
 
@@ -223,7 +249,7 @@ export function RecordingPage() {
             type="button"
             role="tab"
             aria-selected={activeTab === 'queue'}
-            onClick={() => setActiveTab('queue')}
+            onClick={() => handleTabChange('queue')}
             className={cn(
               't-label rounded-lg px-3 py-2 text-center transition-all md:px-6 md:py-2.5',
               activeTab === 'queue'
@@ -238,7 +264,7 @@ export function RecordingPage() {
             type="button"
             role="tab"
             aria-selected={activeTab === 'blocks'}
-            onClick={() => setActiveTab('blocks')}
+            onClick={() => handleTabChange('blocks')}
             className={cn(
               't-label rounded-lg px-3 py-2 text-center transition-all md:px-6 md:py-2.5',
               activeTab === 'blocks'
@@ -366,8 +392,19 @@ export function RecordingPage() {
                       </p>
                       <div className="mt-0.5 flex flex-wrap gap-3">
                         {content.pilarId && (
-                          <span className="text-[10px] font-bold opacity-40">
+                          <span
+                            className="rounded-full border px-2 py-0.5 text-[10px] font-bold"
+                            style={getEntityTagStyle(getPilar(content.pilarId)?.cor)}
+                          >
                             {getPilarNome(content.pilarId)}
+                          </span>
+                        )}
+                        {content.seriesId && getSerie(content.seriesId)?.name && (
+                          <span
+                            className="rounded-full border px-2 py-0.5 text-[10px] font-bold"
+                            style={getEntityTagStyle(getSerie(content.seriesId)?.cor)}
+                          >
+                            {getSerie(content.seriesId)?.name}
                           </span>
                         )}
                         {content.energiaNecessaria && (

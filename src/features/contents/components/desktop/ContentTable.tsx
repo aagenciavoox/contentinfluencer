@@ -2,7 +2,7 @@ import React from 'react';
 import { Content } from '../../../../lib/database';
 import { useAppContext } from '../../../../context/AppContext';
 import { Zap, ArrowUp, ArrowDown, ArrowUpDown, Check, Layers, Eye } from 'lucide-react';
-import { cn } from '../../../../lib/utils';
+import { cn, getEntityTagStyle } from '../../../../lib/utils';
 import { useIsMobile } from '../../../../hooks/useIsMobile';
 
 interface ContentTableProps {
@@ -122,12 +122,18 @@ export function ContentTable({
 
               <div className="flex flex-wrap gap-1.5">
                 {pillar && (
-                  <span className="rounded-full border border-[var(--border-color)]/60 bg-[var(--bg-hover)] px-2 py-1 text-[8px] font-black uppercase tracking-[0.14em] text-[var(--text-secondary)]">
+                  <span
+                    className="rounded-full border px-2 py-1 text-[8px] font-black uppercase tracking-[0.14em]"
+                    style={getEntityTagStyle(pillar.cor)}
+                  >
                     {pillar.nome}
                   </span>
                 )}
                 {series && (
-                  <span className="flex items-center gap-1 rounded-full border border-[var(--accent-blue)]/10 bg-[var(--bg-hover)] px-2 py-1 text-[8px] font-black uppercase tracking-[0.14em] text-[var(--accent-blue)]">
+                  <span
+                    className="flex items-center gap-1 rounded-full border px-2 py-1 text-[8px] font-black uppercase tracking-[0.14em]"
+                    style={getEntityTagStyle(series.cor)}
+                  >
                     <Layers className="h-2.5 w-2.5" /> {series.name}
                   </span>
                 )}
@@ -236,7 +242,10 @@ export function ContentTable({
 
                   <td className="px-6 py-5">
                     {series?.name ? (
-                      <span className="t-meta rounded-lg border border-[var(--border-color)]/30 bg-[var(--bg-hover)] px-2 py-1 text-[var(--text-tertiary)]">
+                      <span
+                        className="t-meta rounded-lg border px-2 py-1"
+                        style={getEntityTagStyle(series.cor)}
+                      >
                         {series.name}
                       </span>
                     ) : (
@@ -246,7 +255,10 @@ export function ContentTable({
 
                   <td className="px-6 py-5">
                     {pillar?.nome ? (
-                      <span className="t-meta text-[var(--text-secondary)]">
+                      <span
+                        className="t-meta rounded-lg border px-2 py-1"
+                        style={getEntityTagStyle(pillar.cor)}
+                      >
                         {pillar.nome}
                       </span>
                     ) : (

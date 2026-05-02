@@ -64,7 +64,7 @@ export function AppShell({ children }: AppShellProps) {
               isHidden={isHidden}
               onLeftAction={() => {
                 if (routeMeta.mode === 'back') {
-                  navigate(-1);
+                  navigate(routeMeta.backTo ?? -1);
                   return;
                 }
 

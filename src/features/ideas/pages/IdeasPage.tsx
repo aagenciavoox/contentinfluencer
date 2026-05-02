@@ -10,6 +10,7 @@ import { ConfirmModal } from '../../../components/feedback/modals/ConfirmModal';
 import { DesktopPageHeader } from '../../../layouts/page/DesktopPageHeader';
 import { useIsMobile } from '../../../hooks/useIsMobile';
 import { IdeasMobileScreen } from '../../../mobile/screens/ideas/IdeasMobileScreen';
+import { getEntityTagStyle } from '../../../lib/utils';
 import { generateUUID } from '../../../utils/uuid';
 
 export function IdeasPage() {
@@ -60,7 +61,7 @@ export function IdeasPage() {
       id: generateUUID(),
       userId: '',
       title: idea.text.split('\n')[0].slice(0, 50),
-      status: 'Ideia',
+      status: 'Roteiro',
       slotType: null,
       seriesId: idea.seriesId,
       pilarId: idea.pilarId,
@@ -119,6 +120,12 @@ export function IdeasPage() {
   const getPilarNome = (pilarId: string | null) =>
     state.pilares.find(p => p.id === pilarId)?.nome ?? null;
 
+  const getPilar = (pilarId: string | null) =>
+    state.pilares.find(p => p.id === pilarId) ?? null;
+
+  const getSerie = (seriesId: string | null) =>
+    state.series.find(s => s.id === seriesId) ?? null;
+
   const getBibliotecaTitulo = (itemId: string | null) =>
     state.bibliotecaItems.find(b => b.id === itemId)?.titulo ?? null;
 
@@ -160,13 +167,19 @@ export function IdeasPage() {
               <div className="flex-1 overflow-y-auto p-5 custom-scrollbar">
                 <div className="mb-6 flex flex-wrap gap-2">
                   {viewingIdea.pilarId && getPilarNome(viewingIdea.pilarId) && (
-                    <span className="rounded-full border border-[var(--accent-blue)]/20 bg-[var(--accent-blue)]/10 px-3 py-1 text-[9px] font-black uppercase tracking-[0.2em] text-[var(--accent-blue)]">
+                    <span
+                      className="rounded-full border px-3 py-1 text-[9px] font-black uppercase tracking-[0.2em]"
+                      style={getEntityTagStyle(getPilar(viewingIdea.pilarId)?.cor)}
+                    >
                       {getPilarNome(viewingIdea.pilarId)}
                     </span>
                   )}
                   {viewingIdea.seriesId && (
-                    <span className="rounded-full border border-[var(--accent-green)]/20 bg-[var(--accent-green)]/10 px-3 py-1 text-[9px] font-black uppercase tracking-[0.2em] text-[var(--accent-green)]">
-                      {state.series.find(s => s.id === viewingIdea.seriesId)?.name}
+                    <span
+                      className="rounded-full border px-3 py-1 text-[9px] font-black uppercase tracking-[0.2em]"
+                      style={getEntityTagStyle(getSerie(viewingIdea.seriesId)?.cor)}
+                    >
+                      {getSerie(viewingIdea.seriesId)?.name}
                     </span>
                   )}
                   {viewingIdea.origemId && getBibliotecaTitulo(viewingIdea.origemId) && (
@@ -309,13 +322,19 @@ export function IdeasPage() {
 
             <div className="mt-6 md:mt-8 pt-4 md:pt-6 border-t border-[var(--border-color)] flex flex-wrap items-center gap-2 md:gap-3">
               {idea.pilarId && getPilarNome(idea.pilarId) && (
-                <span className="text-[8px] md:text-[9px] font-black uppercase tracking-[0.15em] text-[var(--accent-blue)] bg-[var(--accent-blue)]/10 px-2 md:px-3 py-1 rounded-full border border-[var(--accent-blue)]/20">
+                <span
+                  className="rounded-full border px-2 py-1 text-[8px] font-black uppercase tracking-[0.15em] md:px-3 md:text-[9px]"
+                  style={getEntityTagStyle(getPilar(idea.pilarId)?.cor)}
+                >
                   {getPilarNome(idea.pilarId)}
                 </span>
               )}
               {idea.seriesId && (
-                <span className="text-[8px] md:text-[9px] font-black uppercase tracking-[0.15em] text-[var(--accent-green)] bg-[var(--accent-green)]/10 px-2 md:px-3 py-1 rounded-full border border-[var(--accent-green)]/20">
-                  {state.series.find(s => s.id === idea.seriesId)?.name}
+                <span
+                  className="rounded-full border px-2 py-1 text-[8px] font-black uppercase tracking-[0.15em] md:px-3 md:text-[9px]"
+                  style={getEntityTagStyle(getSerie(idea.seriesId)?.cor)}
+                >
+                  {getSerie(idea.seriesId)?.name}
                 </span>
               )}
               {idea.origemId && getBibliotecaTitulo(idea.origemId) && (
@@ -352,13 +371,19 @@ export function IdeasPage() {
             <div className="flex-1 overflow-y-auto p-5 md:p-14 custom-scrollbar">
               <div className="flex flex-wrap gap-2 md:gap-3 mb-6 md:mb-8">
                 {viewingIdea.pilarId && getPilarNome(viewingIdea.pilarId) && (
-                  <span className="px-3 md:px-4 py-1 md:py-1.5 bg-[var(--accent-blue)]/10 text-[var(--accent-blue)] text-[9px] md:text-[10px] font-black uppercase tracking-[0.2em] rounded-full border border-[var(--accent-blue)]/20">
+                  <span
+                    className="rounded-full border px-3 py-1 text-[9px] font-black uppercase tracking-[0.2em] md:px-4 md:py-1.5 md:text-[10px]"
+                    style={getEntityTagStyle(getPilar(viewingIdea.pilarId)?.cor)}
+                  >
                     {getPilarNome(viewingIdea.pilarId)}
                   </span>
                 )}
                 {viewingIdea.seriesId && (
-                  <span className="px-3 md:px-4 py-1 md:py-1.5 bg-[var(--accent-green)]/10 text-[var(--accent-green)] text-[9px] md:text-[10px] font-black uppercase tracking-[0.2em] rounded-full border border-[var(--accent-green)]/20">
-                    {state.series.find(s => s.id === viewingIdea.seriesId)?.name}
+                  <span
+                    className="rounded-full border px-3 py-1 text-[9px] font-black uppercase tracking-[0.2em] md:px-4 md:py-1.5 md:text-[10px]"
+                    style={getEntityTagStyle(getSerie(viewingIdea.seriesId)?.cor)}
+                  >
+                    {getSerie(viewingIdea.seriesId)?.name}
                   </span>
                 )}
                 {viewingIdea.origemId && getBibliotecaTitulo(viewingIdea.origemId) && (

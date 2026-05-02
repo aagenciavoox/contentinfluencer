@@ -1,6 +1,6 @@
 import { Content } from '../../../lib/database';
 
-export const EDITORIAL_CONTENT_STATUSES = ['Ideia', 'Roteiro', 'Pronto para Gravar'] as const;
+export const EDITORIAL_CONTENT_STATUSES = ['Roteiro'] as const;
 export const PRODUCTION_CONTENT_STATUSES = ['Gravado', 'A Editar', 'Editado', 'Programado', 'Postado'] as const;
 export const RECORDING_READY_STATUS = 'Pronto para Gravar';
 export const RECORDED_STATUS = 'Gravado';
@@ -41,6 +41,6 @@ export function getRecordingQueueContents(contents: Content[]) {
 
 export function getContentStatusOptions(mode: 'editorial' | 'history') {
   return mode === 'editorial'
-    ? ['Todos', 'No Escuro', ...EDITORIAL_CONTENT_STATUSES]
+    ? ['Todos', ...EDITORIAL_CONTENT_STATUSES]
     : ['Todos', ...PRODUCTION_CONTENT_STATUSES];
 }

@@ -1,4 +1,4 @@
-import { supabase } from './supabase';
+import { supabase } from './supabase.ts';
 
 // ============================================================================
 // TYPES
@@ -321,9 +321,10 @@ export interface GoldenRule {
   userId: string;
   descricao: string;
   titulo?: string | null;
+  cor?: string | null;
   tipo: 'pilar' | 'série' | 'formato' | 'publi' | 'plataforma';
-  condicao: 'max' | 'min' | 'recomendado';
-  periodo: 'dia' | 'semana' | 'mês';
+  condicao: 'recomendado' | 'impedir';
+  periodo: 'semana' | 'quinzena' | 'mensal';
   valor: number;
   minimo?: number | null;
   maximo?: number | null;
@@ -542,8 +543,8 @@ const mp = {
     tipo: r.tipo, projetoId: r.projeto_id, createdAt: r.created_at,
   }),
   goldenRule: (r: Row): GoldenRule => ({
-    id: r.id, userId: r.user_id, descricao: r.descricao, titulo: r.titulo, tipo: r.tipo,
-    condicao: r.condicao, periodo: r.periodo, valor: r.valor,
+    id: r.id, userId: r.user_id, descricao: r.descricao, titulo: r.titulo, cor: r.cor,
+    tipo: r.tipo, condicao: r.condicao, periodo: r.periodo, valor: r.valor,
     minimo: r.minimo, maximo: r.maximo, ativa: r.ativa,
     createdAt: r.created_at,
   }),
@@ -1153,8 +1154,8 @@ export async function saveGoldenRule(rule: Omit<GoldenRule, 'createdAt'>): Promi
   if (!supabase) return;
   const { error } = await supabase.from('golden_rules').upsert({
     id: rule.id, user_id: rule.userId, descricao: rule.descricao, titulo: rule.titulo,
-    tipo: rule.tipo, condicao: rule.condicao, periodo: rule.periodo, valor: rule.valor,
-    minimo: rule.minimo, maximo: rule.maximo, ativa: rule.ativa,
+    cor: rule.cor, tipo: rule.tipo, condicao: rule.condicao, periodo: rule.periodo,
+    valor: rule.valor, minimo: rule.minimo, maximo: rule.maximo, ativa: rule.ativa,
   });
   if (error) throw new Error(`golden_rules: ${error.message}`);
 }

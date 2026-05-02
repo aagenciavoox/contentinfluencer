@@ -1,10 +1,12 @@
-import {useEffect, useMemo, useState} from 'react';
+import {useEffect, useMemo, useRef, useState} from 'react';
+import {useNavigate} from 'react-router-dom';
 import {
   BookOpen,
   Check,
   ChevronDown,
   ChevronUp,
   Clapperboard,
+  Copy,
   FileText,
   Plus,
   Trash2,
@@ -19,6 +21,7 @@ import {useIsMobile} from '../../../../hooks/useIsMobile';
 import {Content, ContentPlataforma} from '../../../../lib/database';
 import {cn} from '../../../../lib/utils';
 import {DEFAULT_PLATFORMS, STATUS_STAGES, VISUAL_FORMATS} from '../../../../constants';
+import {generateUUID} from '../../../../utils/uuid';
 
 interface ContentDetailModalProps {
   content: Content;
@@ -57,6 +60,27 @@ type ProductionDraft = Pick<
   | 'cenarioId'
 >;
 
+interface ContentDraftSnapshot {
+  title: string;
+  status: Content['status'];
+  seriesId: Content['seriesId'];
+  pilarId: Content['pilarId'];
+  slotType: Content['slotType'];
+  formatoVisual: Content['formatoVisual'];
+  bibliotecaItemId: Content['bibliotecaItemId'];
+  script: Content['script'];
+  scriptNotes: Content['scriptNotes'];
+  referencias: Content['referencias'];
+  plataformas: Content['plataformas'];
+  recordingDate: Content['recordingDate'];
+  recordingDateEnabled: boolean;
+  publishDate: Content['publishDate'];
+  publishDateEnabled: boolean;
+  tags: Content['tags'];
+  lookId: Content['lookId'];
+  cenarioId: Content['cenarioId'];
+}
+
 const CHAR_LIMITS: Record<string, number> = {
   Instagram: 2200,
   TikTok: 2200,
@@ -66,6 +90,32 @@ const CHAR_LIMITS: Record<string, number> = {
 type DateInputWithPicker = HTMLInputElement & {
   showPicker?: () => void;
 };
+
+function buildDraftSnapshot(
+  scriptDraft: ScriptDraft,
+  productionDraft: ProductionDraft
+): ContentDraftSnapshot {
+  return {
+    title: scriptDraft.title,
+    status: scriptDraft.status,
+    seriesId: scriptDraft.seriesId,
+    pilarId: scriptDraft.pilarId,
+    slotType: scriptDraft.slotType,
+    formatoVisual: scriptDraft.formatoVisual,
+    bibliotecaItemId: scriptDraft.bibliotecaItemId,
+    script: scriptDraft.script,
+    scriptNotes: scriptDraft.scriptNotes || [],
+    referencias: scriptDraft.referencias,
+    plataformas: productionDraft.plataformas,
+    recordingDate: productionDraft.recordingDate,
+    recordingDateEnabled: productionDraft.recordingDateEnabled ?? false,
+    publishDate: productionDraft.publishDate,
+    publishDateEnabled: productionDraft.publishDateEnabled ?? false,
+    tags: productionDraft.tags || [],
+    lookId: productionDraft.lookId,
+    cenarioId: productionDraft.cenarioId,
+  };
+}
 
 export function ContentDetailModal({
   content,
@@ -78,6 +128,7 @@ export function ContentDetailModal({
   const {state, dispatch, createContent, updateContent} = useAppContext();
   const {user} = useAuth();
   const isMobile = useIsMobile();
+  const navigate = useNavigate();
   const isDesktopNewContent = isNewContent && !isMobile;
   const userName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Usuário';
 
@@ -98,9 +149,12 @@ export function ContentDetailModal({
   const [refsOpen, setRefsOpen] = useState(!!baseContent.referencias);
   const [isCreatingSeries, setIsCreatingSeries] = useState(false);
   const [newSeriesName, setNewSeriesName] = useState('');
+  const [isCreatingPillar, setIsCreatingPillar] = useState(false);
+  const [newPillarName, setNewPillarName] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [copiedLegendaPlatform, setCopiedLegendaPlatform] = useState<string | null>(null);
 
   const [scriptDraft, setScriptDraft] = useState<ScriptDraft>(() => ({
     title: baseContent.title,
@@ -129,6 +183,41 @@ export function ContentDetailModal({
     lookId: baseContent.lookId,
     cenarioId: baseContent.cenarioId,
   }));
+  const initialDraftSnapshot = useMemo(
+    () =>
+      JSON.stringify(
+        buildDraftSnapshot(
+          {
+            title: baseContent.title,
+            status: baseContent.status,
+            seriesId: baseContent.seriesId,
+            pilarId: baseContent.pilarId,
+            slotType: baseContent.slotType,
+            formatoVisual: baseContent.formatoVisual,
+            bibliotecaItemId: baseContent.bibliotecaItemId,
+            script: baseContent.script,
+            scriptNotes: baseContent.scriptNotes || [],
+            referencias: baseContent.referencias,
+          },
+          {
+            plataformas: (baseContent.plataformas || []).map(plataforma => ({
+              ...plataforma,
+              publishDateEnabled:
+                plataforma.publishDateEnabled ?? (plataforma.publishDate != null) ?? false,
+            })),
+            recordingDate: baseContent.recordingDate,
+            recordingDateEnabled: baseContent.recordingDateEnabled ?? (baseContent.recordingDate != null),
+            publishDate: baseContent.publishDate,
+            publishDateEnabled: baseContent.publishDateEnabled ?? (baseContent.publishDate != null),
+            tags: baseContent.tags || [],
+            lookId: baseContent.lookId,
+            cenarioId: baseContent.cenarioId,
+          }
+        )
+      ),
+    [baseContent]
+  );
+  const lastSavedSnapshotRef = useRef(initialDraftSnapshot);
 
   const [legendaTab, setLegendaTab] = useState<string>(() => {
     const first = baseContent.plataformas?.[0];
@@ -156,10 +245,31 @@ export function ContentDetailModal({
 
   const charLimit = CHAR_LIMITS[legendaTab];
   const charCount = legendaAtual.length;
+  const draftSnapshot = useMemo(
+    () => JSON.stringify(buildDraftSnapshot(scriptDraft, productionDraft)),
+    [productionDraft, scriptDraft]
+  );
+  const isDirty = draftSnapshot !== lastSavedSnapshotRef.current;
 
   useEffect(() => {
     setActiveTab(availableTabs.includes(initialTab) ? initialTab : availableTabs[0]);
   }, [availableTabsKey, initialTab]);
+
+  useEffect(() => {
+    lastSavedSnapshotRef.current = initialDraftSnapshot;
+  }, [initialDraftSnapshot]);
+
+  useEffect(() => {
+    if (!isDirty) return;
+
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = '';
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [isDirty]);
 
   const sectionLabel =
     'mb-3 block text-[10px] font-black uppercase tracking-widest text-[var(--text-tertiary)]';
@@ -367,7 +477,34 @@ export function ContentDetailModal({
     setError(null);
 
     try {
+      const payload = buildContentPayload();
       await persistContentDraft();
+      lastSavedSnapshotRef.current = JSON.stringify(
+        buildDraftSnapshot(
+          {
+            title: payload.title,
+            status: payload.status,
+            seriesId: payload.seriesId,
+            pilarId: payload.pilarId,
+            slotType: payload.slotType,
+            formatoVisual: payload.formatoVisual,
+            bibliotecaItemId: payload.bibliotecaItemId,
+            script: payload.script,
+            scriptNotes: payload.scriptNotes || [],
+            referencias: payload.referencias,
+          },
+          {
+            plataformas: payload.plataformas,
+            recordingDate: payload.recordingDate,
+            recordingDateEnabled: payload.recordingDateEnabled ?? (payload.recordingDate != null),
+            publishDate: payload.publishDate,
+            publishDateEnabled: payload.publishDateEnabled ?? (payload.publishDate != null),
+            tags: payload.tags || [],
+            lookId: payload.lookId,
+            cenarioId: payload.cenarioId,
+          }
+        )
+      );
       setSaveSuccess(true);
       setTimeout(() => onClose(), 500);
     } catch (err) {
@@ -394,7 +531,7 @@ export function ContentDetailModal({
     }
 
     const newSeries = {
-      id: Math.random().toString(36).slice(2, 11),
+      id: generateUUID(),
       userId: user?.id || '',
       name: newSeriesName.trim(),
       template: '',
@@ -418,11 +555,64 @@ export function ContentDetailModal({
     setIsCreatingSeries(false);
   };
 
+  const handleConfirmNewPillar = () => {
+    if (!newPillarName.trim()) {
+      setIsCreatingPillar(false);
+      return;
+    }
+
+    const newPillar = {
+      id: generateUUID(),
+      userId: user?.id || '',
+      nome: newPillarName.trim(),
+      descricao: '',
+      cor: '#F5C543',
+      ativo: true,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      plataformas: [],
+    };
+
+    void dispatch({type: 'ADD_PILAR', payload: newPillar});
+    updateScriptDraft({pilarId: newPillar.id});
+    setNewPillarName('');
+    setIsCreatingPillar(false);
+  };
+
+  const requestClose = () => {
+    if (loading) return;
+    if (!isDirty) {
+      onClose();
+      return;
+    }
+
+    setConfirm({
+      message: isNewContent
+        ? 'Descartar este novo conteúdo? As alterações ainda não foram salvas.'
+        : 'Descartar alterações não salvas?',
+      onConfirm: onClose,
+    });
+  };
+
+  const handleCopyLegenda = async () => {
+    if (!legendaAtual.trim()) return;
+
+    try {
+      await navigator.clipboard.writeText(legendaAtual);
+      setCopiedLegendaPlatform(legendaTab);
+      window.setTimeout(() => {
+        setCopiedLegendaPlatform(current => (current === legendaTab ? null : current));
+      }, 2000);
+    } catch {
+      setError('Nao foi possivel copiar a legenda para a area de transferencia.');
+    }
+  };
+
   return (
     <>
       <FixedPanelModal
         open
-        onClose={onClose}
+        onClose={requestClose}
         desktopMaxW="md:max-w-[1240px]"
         desktopPanelClassName={
           isDesktopNewContent
@@ -552,7 +742,7 @@ export function ContentDetailModal({
                     ))}
                   </select>
                   <button
-                    onClick={onClose}
+                    onClick={requestClose}
                     className="shrink-0 rounded-lg border border-[var(--border-color)] bg-[var(--bg-hover)] p-1.5 text-[var(--text-primary)]"
                   >
                     <X className="h-4 w-4" />
@@ -600,7 +790,7 @@ export function ContentDetailModal({
                     </span>
                   </button>
                   <button
-                    onClick={onClose}
+                    onClick={requestClose}
                     className={cn(
                       'text-[var(--text-tertiary)]',
                       isDesktopNewContent
@@ -688,6 +878,8 @@ export function ContentDetailModal({
                                 setIsCreatingSeries(true);
                                 return;
                               }
+                              setIsCreatingSeries(false);
+                              setNewSeriesName('');
                               updateScriptDraft({seriesId: event.target.value || null});
                             }}
                             className={cn(
@@ -721,6 +913,7 @@ export function ContentDetailModal({
                                 className="flex-1 rounded-xl border border-[var(--border-color)] bg-[var(--bg-hover)] px-3 py-2 text-xs text-[var(--text-primary)]"
                               />
                               <button
+                                type="button"
                                 onClick={handleConfirmNewSeries}
                                 className="rounded-xl bg-[var(--text-primary)] p-2 text-[var(--bg-primary)]"
                               >
@@ -729,31 +922,86 @@ export function ContentDetailModal({
                             </div>
                           )}
                         </div>
+                        <button
+                          type="button"
+                          onClick={() => navigate('/configuracoes/series')}
+                          className="self-start text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--text-tertiary)] transition hover:text-[var(--text-primary)]"
+                        >
+                          Configurar serie no painel
+                        </button>
                       </div>
 
                       <div className="flex flex-col gap-2">
                         <span className={fieldLabel}>Pilar</span>
-                        <select
-                          value={scriptDraft.pilarId || ''}
-                          onChange={event => updateScriptDraft({pilarId: event.target.value || null})}
-                          className={selectClass}
+                        <div className="relative">
+                          <select
+                            value={isCreatingPillar ? 'new' : (scriptDraft.pilarId ?? '')}
+                            onChange={event => {
+                              if (event.target.value === 'new') {
+                                setIsCreatingPillar(true);
+                                return;
+                              }
+                              setIsCreatingPillar(false);
+                              setNewPillarName('');
+                              updateScriptDraft({pilarId: event.target.value || null});
+                            }}
+                            className={cn(selectClass, 'pr-10')}
+                          >
+                            <option value="">Sem pilar</option>
+                            {state.pilares
+                              .filter(pilar => pilar.ativo)
+                              .map(pilar => (
+                                <option key={pilar.id} value={pilar.id}>
+                                  {pilar.nome}
+                                </option>
+                              ))}
+                            <option value="new">+ Novo pilar...</option>
+                          </select>
+                          {isCreatingPillar && (
+                            <div className="mt-2 flex items-center gap-2">
+                              <input
+                                autoFocus
+                                type="text"
+                                value={newPillarName}
+                                onChange={event => setNewPillarName(event.target.value)}
+                                onKeyDown={event => {
+                                  if (event.key === 'Enter') handleConfirmNewPillar();
+                                  if (event.key === 'Escape') {
+                                    setIsCreatingPillar(false);
+                                    setNewPillarName('');
+                                  }
+                                }}
+                                placeholder="Nome do pilar..."
+                                className="flex-1 rounded-xl border border-[var(--border-color)] bg-[var(--bg-hover)] px-3 py-2 text-xs text-[var(--text-primary)]"
+                              />
+                              <button
+                                type="button"
+                                onClick={handleConfirmNewPillar}
+                                className="rounded-xl bg-[var(--text-primary)] p-2 text-[var(--bg-primary)]"
+                              >
+                                <Plus className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => navigate('/configuracoes/pilares')}
+                          className="self-start text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--text-tertiary)] transition hover:text-[var(--text-primary)]"
                         >
-                          <option value="">Sem pilar</option>
-                          {state.pilares
-                            .filter(pilar => pilar.ativo)
-                            .map(pilar => (
-                              <option key={pilar.id} value={pilar.id}>
-                                {pilar.nome}
-                              </option>
-                            ))}
-                        </select>
+                          Configurar pilar no painel
+                        </button>
                       </div>
 
                       <div className="flex flex-col gap-2">
                         <span className={fieldLabel}>Slot</span>
                         <select
                           value={scriptDraft.slotType || ''}
-                          onChange={event => updateScriptDraft({slotType: event.target.value || null})}
+                          onChange={event =>
+                            updateScriptDraft({
+                              slotType: (event.target.value || null) as Content['slotType'],
+                            })
+                          }
                           className={selectClass}
                         >
                           <option value="">—</option>
@@ -943,21 +1191,37 @@ export function ContentDetailModal({
                         </div>
                       </div>
 
-                      <div>
-                        <div className="mb-4 flex items-center justify-between">
-                          <span className={sectionLabel}>Legenda & Copy</span>
-                          <button
-                            onClick={() =>
-                              setConfirm({
-                                message: 'Limpar a legenda atual?',
-                                onConfirm: () => updateLegenda(legendaTab, ''),
-                              })
-                            }
-                            className="text-[9px] font-bold text-[var(--accent-blue)] opacity-60 hover:opacity-100 hover:underline"
-                          >
-                            Limpar
-                          </button>
-                        </div>
+                        <div>
+                          <div className="mb-4 flex items-center justify-between">
+                            <span className={sectionLabel}>Legenda & Copy</span>
+                            <div className="flex items-center gap-3">
+                              <button
+                                type="button"
+                                onClick={handleCopyLegenda}
+                                disabled={!legendaAtual.trim()}
+                                className="inline-flex items-center gap-1 rounded-md bg-[var(--accent-green)]/5 px-2 py-1 text-[9px] font-black uppercase tracking-widest text-[var(--accent-green)] transition-colors hover:bg-[var(--accent-green)]/10 disabled:cursor-not-allowed disabled:opacity-35"
+                                title="Copiar legenda"
+                              >
+                                {copiedLegendaPlatform === legendaTab ? (
+                                  <Check className="h-3.5 w-3.5" />
+                                ) : (
+                                  <Copy className="h-3.5 w-3.5" />
+                                )}
+                                {copiedLegendaPlatform === legendaTab ? 'Copiado' : 'Copiar'}
+                              </button>
+                              <button
+                                onClick={() =>
+                                  setConfirm({
+                                    message: 'Limpar a legenda atual?',
+                                    onConfirm: () => updateLegenda(legendaTab, ''),
+                                  })
+                                }
+                                className="text-[9px] font-bold text-[var(--accent-blue)] opacity-60 hover:opacity-100 hover:underline"
+                              >
+                                Limpar
+                              </button>
+                            </div>
+                          </div>
 
                         <div className="mb-3 flex gap-1">
                           {activePlataformaIds.map(platform => (
@@ -1157,7 +1421,7 @@ export function ContentDetailModal({
                       </button>
                     )}
                     <button
-                      onClick={onClose}
+                      onClick={requestClose}
                       className="text-[11px] font-black uppercase tracking-[0.16em] text-[var(--text-primary)] opacity-45 transition-opacity hover:opacity-100"
                     >
                       {isNewContent ? 'Cancelar' : 'Descartar Alterações'}
@@ -1179,7 +1443,7 @@ export function ContentDetailModal({
               ) : (
                 <>
                   <button
-                    onClick={onClose}
+                    onClick={requestClose}
                     className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-primary)] opacity-30 transition-opacity hover:opacity-100"
                   >
                     Descartar

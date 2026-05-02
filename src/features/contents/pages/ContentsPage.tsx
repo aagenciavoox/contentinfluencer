@@ -22,6 +22,9 @@ import {
 } from '../lib/contentWorkflow';
 import {ContentsViewMode, PostingTab, SortDirection, SortField} from '../types';
 
+const DESKTOP_PAGE_SIZE = 12;
+const MOBILE_PAGE_SIZE = 8;
+
 const ContentDetailModal = lazy(() =>
   import('../components/modals/ContentDetailModal').then(module => ({default: module.ContentDetailModal}))
 );
@@ -45,7 +48,7 @@ function ModalFallback() {
 
 function createEmptyContent(
   state: ReturnType<typeof useAppContext>['state'],
-  status: Content['status'] = 'Ideia'
+  status: Content['status'] = 'Roteiro'
 ): Content {
   return {
     id: generateUUID(),
@@ -54,7 +57,7 @@ function createEmptyContent(
     status,
     slotType: null,
     seriesId: null,
-    pilarId: state.pilares[0]?.id || null,
+    pilarId: null,
     cenarioId: null,
     lookId: null,
     formatoVisual: null,
@@ -96,6 +99,7 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [confirm, setConfirm] = useState<{message: string; onConfirm: () => void} | null>(null);
+  const [desktopPage, setDesktopPage] = useState(1);
 
   const isEditorialMode = mode === 'editorial';
   const isPostingHistory = mode === 'history' && postingTab === 'historico';
@@ -133,12 +137,7 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
         );
       }
 
-      let statusMatch = filterStatus === 'Todos' || content.status === filterStatus;
-      if (mode === 'editorial' && filterStatus === 'No Escuro') {
-        statusMatch =
-          content.status === RECORDING_READY_STATUS &&
-          (!content.recordingDate || normalizeRecordingTags(content.tags || []).length === 0);
-      }
+      const statusMatch = filterStatus === 'Todos' || content.status === filterStatus;
 
       const seriesMatch = filterSeries === 'Todas' || content.seriesId === filterSeries;
       const pillarMatch = filterPillar === 'Todos' || content.pilarId === filterPillar;
@@ -185,12 +184,25 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
   }, [filteredContents, sortDirection, sortField, state.pilares, state.series]);
 
   const mobileContents = useMemo(() => {
-    if (isEditorialMode && isMobile) {
-      return sortedContents.filter(content => content.status === 'Roteiro');
-    }
-
     return sortedContents;
-  }, [isEditorialMode, isMobile, sortedContents]);
+  }, [sortedContents]);
+
+  const totalDesktopPages = Math.max(1, Math.ceil(sortedContents.length / DESKTOP_PAGE_SIZE));
+
+  const paginatedDesktopContents = useMemo(() => {
+    const start = (desktopPage - 1) * DESKTOP_PAGE_SIZE;
+    return sortedContents.slice(start, start + DESKTOP_PAGE_SIZE);
+  }, [desktopPage, sortedContents]);
+
+  useEffect(() => {
+    setDesktopPage(1);
+  }, [mode, postingTab, filterStatus, filterSeries, filterPillar, searchTerm, sortField, sortDirection, viewMode]);
+
+  useEffect(() => {
+    if (desktopPage > totalDesktopPages) {
+      setDesktopPage(totalDesktopPages);
+    }
+  }, [desktopPage, totalDesktopPages]);
 
   const lookAlerts = useMemo(() => {
     if (!isEditorialMode && postingTab !== 'postagem') return {};
@@ -228,7 +240,7 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
     setFilterStatus('Todos');
     setFilterSeries('Todas');
     setFilterPillar('Todos');
-    setSelectedContent(createEmptyContent(state, isEditorialMode && isMobile ? 'Roteiro' : 'Ideia'));
+    setSelectedContent(createEmptyContent(state, isEditorialMode ? 'Roteiro' : 'Gravado'));
     setIsNewModal(true);
   };
 
@@ -246,12 +258,20 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
   const handleSelectAll = () => {
     if (isPostingHistory) return;
 
-    if (selectedIds.size === sortedContents.length) {
-      setSelectedIds(new Set());
-      return;
-    }
+    setSelectedIds(previous => {
+      const pageIds = paginatedDesktopContents.map(content => content.id);
+      const everyVisibleSelected = pageIds.every(id => previous.has(id));
 
-    setSelectedIds(new Set(sortedContents.map(content => content.id)));
+      if (everyVisibleSelected) {
+        const next = new Set(previous);
+        pageIds.forEach(id => next.delete(id));
+        return next;
+      }
+
+      const next = new Set(previous);
+      pageIds.forEach(id => next.add(id));
+      return next;
+    });
   };
 
   const handleBulkDelete = () => {
@@ -282,6 +302,7 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
         <ContentsMobileScreen
           mode={surfaceMode}
           contents={mobileContents}
+          pageSize={MOBILE_PAGE_SIZE}
           allContents={state.contents}
           series={state.series}
           pilares={state.pilares}
@@ -400,7 +421,10 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
       <ContentsDesktop
         mode={surfaceMode}
         viewMode={effectiveViewMode}
-        contents={sortedContents}
+        contents={paginatedDesktopContents}
+        totalItems={sortedContents.length}
+        currentPage={desktopPage}
+        totalPages={totalDesktopPages}
         lookAlerts={lookAlerts}
         sortField={sortField}
         sortDirection={sortDirection}
@@ -416,6 +440,7 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
         onSort={handleSort}
         onToggleSelect={handleToggleSelect}
         onSelectAll={handleSelectAll}
+        onPageChange={setDesktopPage}
       />
 
       <AnimatePresence>

@@ -19,20 +19,23 @@ import {GoldenRulesMobileScreen} from '../../../mobile/screens/settings/GoldenRu
 import {generateUUID} from '../../../utils/uuid';
 import {GoldenRule} from '../../../lib/database';
 
-const CONDITION_OPTIONS: GoldenRule['condicao'][] = ['min', 'recomendado', 'max'];
-const PERIOD_OPTIONS: GoldenRule['periodo'][] = ['dia', 'semana', 'mês'];
+const CONDITION_OPTIONS: GoldenRule['condicao'][] = ['recomendado', 'impedir'];
+const PERIOD_OPTIONS: GoldenRule['periodo'][] = ['semana', 'quinzena', 'mensal'];
 const TYPE_OPTIONS: GoldenRule['tipo'][] = ['pilar', 'série', 'formato', 'publi', 'plataforma'];
 
-const ICON_BY_CONDITION = {
-  max: ShieldAlert,
+const CONDITION_LABEL: Record<GoldenRule['condicao'], string> = {
+  recomendado: 'Recomendado',
+  impedir: 'Impedir agendamento',
+};
+
+const ICON_BY_CONDITION: Record<GoldenRule['condicao'], React.ElementType> = {
+  impedir: ShieldAlert,
   recomendado: Info,
-  min: ShieldCheck,
 };
 
 const STYLE_BY_CONDITION: Record<string, string> = {
-  max: 'text-[var(--accent-pink)] bg-[var(--accent-pink)]/5',
+  impedir: 'text-[var(--accent-pink)] bg-[var(--accent-pink)]/5',
   recomendado: 'text-[var(--accent-orange)] bg-[var(--accent-orange)]/5',
-  min: 'text-[var(--accent-blue)] bg-[var(--accent-blue)]/5',
 };
 
 export function GoldenRulesSettingsPage() {
@@ -44,6 +47,7 @@ export function GoldenRulesSettingsPage() {
   const [draft, setDraft] = useState({
     titulo: '',
     descricao: '',
+    cor: '',
     tipo: 'publi' as GoldenRule['tipo'],
     condicao: 'recomendado' as GoldenRule['condicao'],
     periodo: 'semana' as GoldenRule['periodo'],
@@ -71,6 +75,7 @@ export function GoldenRulesSettingsPage() {
         userId: '',
         titulo: draft.titulo.trim(),
         descricao: draft.descricao.trim() || draft.titulo.trim(),
+        cor: draft.cor || null,
         tipo: draft.tipo,
         condicao: draft.condicao,
         periodo: draft.periodo,
@@ -85,6 +90,7 @@ export function GoldenRulesSettingsPage() {
     setDraft({
       titulo: '',
       descricao: '',
+      cor: '',
       tipo: 'publi',
       condicao: 'recomendado',
       periodo: 'semana',
@@ -191,6 +197,25 @@ export function GoldenRulesSettingsPage() {
                 </div>
               </div>
 
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div>
+                  <label className="mb-2 block text-[10px] font-black uppercase tracking-widest text-[var(--text-tertiary)] opacity-60">
+                    Cor
+                  </label>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="color"
+                      value={draft.cor || '#6366f1'}
+                      onChange={event => setDraft(prev => ({...prev, cor: event.target.value}))}
+                      className="h-11 w-16 cursor-pointer rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] p-1"
+                    />
+                    <span className="text-sm font-bold text-[var(--text-tertiary)]">
+                      {draft.cor || 'Sem cor'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
               <div>
                 <label className="mb-2 block text-[10px] font-black uppercase tracking-widest text-[var(--text-tertiary)] opacity-60">
                   Descrição
@@ -218,7 +243,7 @@ export function GoldenRulesSettingsPage() {
                   >
                     {CONDITION_OPTIONS.map(option => (
                       <option key={option} value={option}>
-                        {option}
+                        {CONDITION_LABEL[option]}
                       </option>
                     ))}
                   </select>
@@ -320,8 +345,9 @@ export function GoldenRulesSettingsPage() {
               >
                 <div
                   className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${
-                    STYLE_BY_CONDITION[rule.condicao] || STYLE_BY_CONDITION.recomendado
+                    rule.cor ? '' : STYLE_BY_CONDITION[rule.condicao] || STYLE_BY_CONDITION.recomendado
                   }`}
+                  style={rule.cor ? {backgroundColor: `${rule.cor}18`, color: rule.cor} : undefined}
                 >
                   <Icon className="h-4 w-4" />
                 </div>
@@ -335,6 +361,13 @@ export function GoldenRulesSettingsPage() {
                     </span>
                     <span className="rounded-full bg-[var(--bg-hover)] px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-[var(--text-tertiary)]">
                       {rule.periodo}
+                    </span>
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-widest ${
+                        STYLE_BY_CONDITION[rule.condicao] || STYLE_BY_CONDITION.recomendado
+                      }`}
+                    >
+                      {CONDITION_LABEL[rule.condicao]}
                     </span>
                     {matchingViolations.length > 0 && (
                       <span className="rounded-full bg-orange-100 px-2 py-0.5 text-[9px] font-black text-orange-700">

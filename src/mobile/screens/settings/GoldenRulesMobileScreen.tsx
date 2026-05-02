@@ -5,22 +5,26 @@ import type {Violation} from '../../../utils/goldenRules';
 import {MobileEmptyState} from '../../components/MobileEmptyState';
 import {MobileListCard} from '../../components/MobileListCard';
 import {MobileSegmentTabs} from '../../components/MobileSegmentTabs';
+import React from 'react';
 import {AlertTriangle, Info, Plus, ShieldAlert, ShieldCheck, ToggleLeft, ToggleRight, Trash2} from 'lucide-react';
 
-const CONDITION_OPTIONS: GoldenRule['condicao'][] = ['min', 'recomendado', 'max'];
-const PERIOD_OPTIONS: GoldenRule['periodo'][] = ['dia', 'semana', 'mÃªs'];
-const TYPE_OPTIONS: GoldenRule['tipo'][] = ['pilar', 'sÃ©rie', 'formato', 'publi', 'plataforma'];
+const CONDITION_OPTIONS: GoldenRule['condicao'][] = ['recomendado', 'impedir'];
+const PERIOD_OPTIONS: GoldenRule['periodo'][] = ['semana', 'quinzena', 'mensal'];
+const TYPE_OPTIONS: GoldenRule['tipo'][] = ['pilar', 'série', 'formato', 'publi', 'plataforma'];
 
-const ICON_BY_CONDITION = {
-  max: ShieldAlert,
+const CONDITION_LABEL: Record<GoldenRule['condicao'], string> = {
+  recomendado: 'Recomendado',
+  impedir: 'Impedir agendamento',
+};
+
+const ICON_BY_CONDITION: Record<GoldenRule['condicao'], React.ElementType> = {
+  impedir: ShieldAlert,
   recomendado: Info,
-  min: ShieldCheck,
 };
 
 const TONE_BY_CONDITION: Record<GoldenRule['condicao'], string> = {
-  max: 'text-[var(--accent-pink)] bg-[var(--accent-pink)]/10',
+  impedir: 'text-[var(--accent-pink)] bg-[var(--accent-pink)]/10',
   recomendado: 'text-[var(--accent-orange)] bg-[var(--accent-orange)]/10',
-  min: 'text-[var(--accent-blue)] bg-[var(--accent-blue)]/10',
 };
 
 type RuleFilter = 'ativas' | 'violacoes' | 'inativas';
@@ -28,6 +32,7 @@ type RuleFilter = 'ativas' | 'violacoes' | 'inativas';
 interface GoldenRulesDraft {
   titulo: string;
   descricao: string;
+  cor: string;
   tipo: GoldenRule['tipo'];
   condicao: GoldenRule['condicao'];
   periodo: GoldenRule['periodo'];
@@ -83,6 +88,7 @@ export function GoldenRulesMobileScreen({
     onDraftChange({
       titulo: '',
       descricao: '',
+      cor: '',
       tipo: 'publi',
       condicao: 'recomendado',
       periodo: 'semana',
@@ -195,9 +201,10 @@ export function GoldenRulesMobileScreen({
                     <>
                       <span
                         className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-[11px] font-semibold ${TONE_BY_CONDITION[rule.condicao]}`}
+                        style={rule.cor ? {backgroundColor: `${rule.cor}18`, color: rule.cor} : undefined}
                       >
                         <Icon className="h-3.5 w-3.5" />
-                        {rule.condicao}
+                        {CONDITION_LABEL[rule.condicao]}
                       </span>
                       <span className="rounded-full bg-[var(--bg-hover)] px-3 py-1 text-[11px] font-semibold text-[var(--text-secondary)]">
                         min {rule.minimo ?? '-'}
@@ -278,6 +285,18 @@ export function GoldenRulesMobileScreen({
               className="w-full"
             />
 
+            <div className="flex items-center gap-3">
+              <input
+                type="color"
+                value={draft.cor || '#6366f1'}
+                onChange={event => onDraftChange({...draft, cor: event.target.value})}
+                className="h-11 w-16 cursor-pointer rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] p-1"
+              />
+              <span className="text-sm font-bold text-[var(--text-tertiary)]">
+                {draft.cor || 'Cor da regra'}
+              </span>
+            </div>
+
             <select
               value={draft.tipo}
               onChange={event => onDraftChange({...draft, tipo: event.target.value as GoldenRule['tipo']})}
@@ -300,7 +319,7 @@ export function GoldenRulesMobileScreen({
               >
                 {CONDITION_OPTIONS.map(option => (
                   <option key={option} value={option}>
-                    {option}
+                    {CONDITION_LABEL[option]}
                   </option>
                 ))}
               </select>

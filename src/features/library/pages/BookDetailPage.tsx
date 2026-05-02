@@ -359,7 +359,7 @@ export function BookDetailPage() {
       id: generateUUID(),
       userId: '',
       title: anotacao.texto.slice(0, 60),
-      status: 'Ideia',
+      status: 'Roteiro',
       slotType: null,
       seriesId: null,
       pilarId: null,
@@ -447,7 +447,7 @@ export function BookDetailPage() {
       id: generateUUID(),
       userId: '',
       title: `Conteúdo de "${livro.titulo}"`,
-      status: 'Ideia',
+      status: 'Roteiro',
       slotType: null,
       seriesId: null,
       pilarId: null,
@@ -478,7 +478,7 @@ export function BookDetailPage() {
       id: generateUUID(),
       userId: '',
       title: ideiaText.slice(0, 60),
-      status: 'Ideia',
+      status: 'Roteiro',
       slotType: null,
       seriesId: null,
       pilarId: null,
@@ -1259,12 +1259,12 @@ export function BookDetailPage() {
             {/* ── Campanhas ── */}
             <section className="bg-[var(--bg-primary)] rounded-2xl border border-[var(--border-color)] p-5">
               <div className="flex items-center justify-between mb-4">
-                <span className={SECTION_LABEL + ' mb-0'}>ProduÃ§Ã£o Editorial</span>
+                <span className={SECTION_LABEL + ' mb-0'}>Produção Editorial</span>
                 <button
                   onClick={() => setNovaCampanhaAberta(v => !v)}
                   className="text-[10px] font-black uppercase tracking-widest text-[var(--accent-blue)] hover:underline"
                 >
-                  + Nova ProduÃ§Ã£o
+                  + Nova Produção
                 </button>
               </div>
 
@@ -1274,7 +1274,7 @@ export function BookDetailPage() {
                     type="text"
                     value={campForm.nome}
                     onChange={e => setCampForm(p => ({ ...p, nome: e.target.value }))}
-                    placeholder="Nome da produÃ§Ã£o editorial"
+                    placeholder="Nome da produção editorial"
                     className="w-full text-sm bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:opacity-40"
                   />
                   <div className="grid grid-cols-2 gap-3">
@@ -1299,7 +1299,7 @@ export function BookDetailPage() {
               )}
 
               {campanhasDoLivro.length === 0 ? (
-                <p className="text-xs text-[var(--text-tertiary)] text-center py-4">Nenhuma produÃ§Ã£o editorial ainda</p>
+                <p className="text-xs text-[var(--text-tertiary)] text-center py-4">Nenhuma produção editorial ainda</p>
               ) : (
                 <div className="space-y-3">
                   {campanhasDoLivro.map(camp => {

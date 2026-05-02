@@ -11,6 +11,7 @@ const EditorialCalendar = lazy(() => import('../../pages/EditorialCalendar').the
 const Biblioteca = lazy(() => import('../../pages/Biblioteca').then(module => ({ default: module.Biblioteca })));
 const BookDetail = lazy(() => import('../../pages/BookDetail').then(module => ({ default: module.BookDetail })));
 const Settings = lazy(() => import('../../pages/Settings').then(module => ({ default: module.Settings })));
+const PerfilSettings = lazy(() => import('../../pages/settings/Perfil').then(module => ({ default: module.PerfilSettings })));
 const PilaresSettings = lazy(() => import('../../pages/settings/Pilares').then(module => ({ default: module.PilaresSettings })));
 const RegrasDeOuro = lazy(() => import('../../pages/settings/RegrasDeOuro').then(module => ({ default: module.RegrasDeOuro })));
 const DNAVozSettings = lazy(() => import('../../pages/settings/DNAVoz').then(module => ({ default: module.DNAVozSettings })));
@@ -82,6 +83,7 @@ export function AppRoutes() {
         />
 
         <Route path="/configuracoes" element={<Settings />} />
+        <Route path="/configuracoes/perfil" element={<PerfilSettings />} />
         <Route path="/configuracoes/pilares" element={<PilaresSettings />} />
         <Route path="/configuracoes/looks" element={<Navigate to="/configuracoes" replace />} />
         <Route path="/configuracoes/regras" element={<RegrasDeOuro />} />

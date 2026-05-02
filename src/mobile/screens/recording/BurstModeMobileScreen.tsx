@@ -7,6 +7,7 @@ import {
   Play,
   Settings2,
   SkipForward,
+  Video,
   X,
 } from 'lucide-react';
 import { BottomSheetModal } from '../../../components/feedback/modals/BottomSheetModal';

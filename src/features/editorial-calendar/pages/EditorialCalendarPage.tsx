@@ -1,14 +1,22 @@
-import {useState} from 'react';
+import {useCallback, useState} from 'react';
 import {format} from 'date-fns';
 import {Plus} from 'lucide-react';
 import {BottomSheetModal} from '../../../components/feedback/modals/BottomSheetModal';
 import {useAppContext} from '../../../context/AppContext';
 import {AgendaItem, Projeto} from '../../../lib/database';
 import {useIsMobile} from '../../../hooks/useIsMobile';
+import {readStoredJson, writeStoredJson} from '../../../lib/browserStorage';
 import {AgendaMobileScreen} from '../../../mobile/screens/agenda/AgendaMobileScreen';
 import {EditorialAgendaFilters} from '../components/filters/EditorialAgendaFilters';
 import {EditorialCalendarHeader} from '../components/EditorialCalendarHeader';
 import {MonthlyCalendarView} from '../components/MonthlyCalendarView';
+
+const STORAGE_KEY = 'content-os:calendar-layers';
+const DEFAULT_LAYERS = ['recordings', 'posts', 'projects', 'agenda'];
+
+function loadLayers(): string[] {
+  return readStoredJson(STORAGE_KEY, DEFAULT_LAYERS);
+}
 
 export function getStatusIcon() {
   return null;
@@ -18,9 +26,17 @@ export function EditorialCalendarPage() {
   const {state, dispatch} = useAppContext();
   const isMobile = useIsMobile();
   const [isAddAgendaOpen, setIsAddAgendaOpen] = useState(false);
-  const [activeLayers, setActiveLayers] = useState<string[]>(['recordings', 'posts', 'projects', 'agenda']);
+  const [activeLayers, setActiveLayersRaw] = useState<string[]>(loadLayers);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortValue, setSortValue] = useState('proximos');
+
+  const setActiveLayers = useCallback((updater: string[] | ((prev: string[]) => string[])) => {
+    setActiveLayersRaw(prev => {
+      const next = typeof updater === 'function' ? updater(prev) : updater;
+      writeStoredJson(STORAGE_KEY, next);
+      return next;
+    });
+  }, []);
 
   if (isMobile) {
     return (

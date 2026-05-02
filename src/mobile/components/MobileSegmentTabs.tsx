@@ -7,7 +7,7 @@ interface MobileSegmentTab<T extends string> {
 }
 
 interface MobileSegmentTabsProps<T extends string> {
-  tabs: MobileSegmentTab<T>[];
+  tabs: readonly MobileSegmentTab<T>[];
   value: T;
   onChange: (value: T) => void;
 }

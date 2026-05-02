@@ -1,19 +1,26 @@
-import {useMemo, useState} from 'react';
+import {useCallback, useMemo, useState} from 'react';
 import {
   addDays,
+  addMonths,
+  eachDayOfInterval,
   endOfDay,
+  endOfMonth,
   endOfWeek,
   format,
   isSameDay,
+  isSameMonth,
   isWithinInterval,
   parseISO,
   startOfDay,
+  startOfMonth,
   startOfWeek,
+  subMonths,
 } from 'date-fns';
 import {ptBR} from 'date-fns/locale';
 import {
   BriefcaseBusiness,
-  CalendarClock,
+  ChevronLeft,
+  ChevronRight,
   Clapperboard,
   Mic2,
   Plus,
@@ -21,14 +28,13 @@ import {
   SearchCheck,
 } from 'lucide-react';
 import type {AgendaItem, Content, Projeto} from '../../../lib/database';
+import {readStoredJson, writeStoredJson} from '../../../lib/browserStorage';
+import {cn} from '../../../lib/utils';
 import {MobileEmptyState} from '../../components/MobileEmptyState';
-import {MobileFilterSheet} from '../../components/MobileFilterSheet';
 import {MobileListCard} from '../../components/MobileListCard';
 import {MobileSearchBar} from '../../components/MobileSearchBar';
-import {MobileSegmentTabs} from '../../components/MobileSegmentTabs';
 
 type AgendaTimelineKind = 'agenda' | 'recording' | 'publish' | 'project';
-type AgendaMobileTab = 'today' | 'week' | 'upcoming';
 
 interface AgendaMobileScreenProps {
   contents: Content[];
@@ -60,8 +66,15 @@ const KIND_ACCENTS: Record<AgendaTimelineKind, string> = {
   project: 'var(--accent-purple)',
 };
 
+const MOBILE_STORAGE_KEY = 'content-os:calendar-mobile-kinds';
+const ALL_KINDS: AgendaTimelineKind[] = ['agenda', 'recording', 'publish', 'project'];
+
+function loadMobileKinds(): AgendaTimelineKind[] {
+  return readStoredJson(MOBILE_STORAGE_KEY, ALL_KINDS);
+}
+
 function buildTimelineEntries(contents: Content[], agendaItems: AgendaItem[], projetos: Projeto[]) {
-  const projectNameById = new Map(projetos.map(projeto => [projeto.id, projeto.nome]));
+  const projectNameById = new Map(projetos.map(p => [p.id, p.nome]));
   const entries: AgendaTimelineEntry[] = [];
 
   agendaItems.forEach(item => {
@@ -85,7 +98,6 @@ function buildTimelineEntries(contents: Content[], agendaItems: AgendaItem[], pr
         secondary: content.status || 'Fila de gravacao',
       });
     }
-
     if (content.publishDate) {
       entries.push({
         id: `${content.id}:publish`,
@@ -98,7 +110,7 @@ function buildTimelineEntries(contents: Content[], agendaItems: AgendaItem[], pr
   });
 
   projetos
-    .filter(projeto => !projeto.deletedAt)
+    .filter(p => !p.deletedAt)
     .forEach(projeto => {
       if (projeto.dataInicio) {
         entries.push({
@@ -109,7 +121,6 @@ function buildTimelineEntries(contents: Content[], agendaItems: AgendaItem[], pr
           secondary: 'Inicio do projeto',
         });
       }
-
       if (projeto.dataFim) {
         entries.push({
           id: `${projeto.id}:deadline`,
@@ -119,10 +130,8 @@ function buildTimelineEntries(contents: Content[], agendaItems: AgendaItem[], pr
           secondary: 'Prazo final',
         });
       }
-
       projeto.etapas.forEach(etapa => {
         if (!etapa.dataPrazo) return;
-
         entries.push({
           id: etapa.id,
           kind: 'project',
@@ -133,15 +142,10 @@ function buildTimelineEntries(contents: Content[], agendaItems: AgendaItem[], pr
       });
     });
 
-  return entries.sort((left, right) => {
-    const leftTime = new Date(left.date).getTime();
-    const rightTime = new Date(right.date).getTime();
-
-    if (leftTime !== rightTime) {
-      return leftTime - rightTime;
-    }
-
-    return (left.time || '').localeCompare(right.time || '');
+  return entries.sort((a, b) => {
+    const diff = new Date(a.date).getTime() - new Date(b.date).getTime();
+    if (diff !== 0) return diff;
+    return (a.time || '').localeCompare(b.time || '');
   });
 }
 
@@ -152,168 +156,281 @@ export function AgendaMobileScreen({
   onAddAgenda,
 }: AgendaMobileScreenProps) {
   const [search, setSearch] = useState('');
-  const [activeTab, setActiveTab] = useState<AgendaMobileTab>('week');
-  const [activeKinds, setActiveKinds] = useState<AgendaTimelineKind[]>([
-    'agenda',
-    'recording',
-    'publish',
-    'project',
-  ]);
-  const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
+  const [activeKinds, setActiveKindsRaw] = useState<AgendaTimelineKind[]>(loadMobileKinds);
+  const [calendarMonth, setCalendarMonth] = useState(() => startOfMonth(new Date()));
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+
+  const setActiveKinds = useCallback(
+    (updater: AgendaTimelineKind[] | ((prev: AgendaTimelineKind[]) => AgendaTimelineKind[])) => {
+      setActiveKindsRaw(prev => {
+        const next = typeof updater === 'function' ? updater(prev) : updater;
+        writeStoredJson(MOBILE_STORAGE_KEY, next);
+        return next;
+      });
+    },
+    []
+  );
+
+  const handleSelectDate = useCallback((day: Date) => {
+    setSelectedDate(prev => (prev && isSameDay(prev, day) ? null : day));
+  }, []);
 
   const today = startOfDay(new Date());
-  const weekStart = startOfWeek(today, {weekStartsOn: 1});
-  const weekEnd = endOfWeek(today, {weekStartsOn: 1});
-  const upcomingEnd = endOfDay(addDays(today, 30));
+  const upcomingEnd = endOfDay(addDays(today, 60));
 
   const timeline = useMemo(
     () => buildTimelineEntries(contents, agendaItems, projetos),
     [agendaItems, contents, projetos]
   );
 
-  const tabCounts = useMemo(
-    () => ({
-      today: timeline.filter(entry => isSameDay(parseISO(entry.date), today)).length,
-      week: timeline.filter(entry =>
-        isWithinInterval(parseISO(entry.date), {start: weekStart, end: weekEnd})
-      ).length,
-      upcoming: timeline.filter(entry =>
-        isWithinInterval(parseISO(entry.date), {start: today, end: upcomingEnd})
-      ).length,
-    }),
-    [timeline, today, upcomingEnd, weekEnd, weekStart]
-  );
+  // dots per date for calendar grid
+  const kindsByDate = useMemo(() => {
+    const map = new Map<string, Set<AgendaTimelineKind>>();
+    timeline.forEach(entry => {
+      if (!activeKinds.includes(entry.kind)) return;
+      const key = entry.date.slice(0, 10);
+      if (!map.has(key)) map.set(key, new Set());
+      map.get(key)!.add(entry.kind);
+    });
+    return map;
+  }, [timeline, activeKinds]);
 
   const filteredEntries = useMemo(() => {
-    const normalizedSearch = search.trim().toLowerCase();
-
+    const q = search.trim().toLowerCase();
     return timeline
       .filter(entry => {
-        const entryDate = parseISO(entry.date);
-
-        if (activeTab === 'today') {
-          return isSameDay(entryDate, today);
-        }
-
-        if (activeTab === 'week') {
-          return isWithinInterval(entryDate, {start: weekStart, end: weekEnd});
-        }
-
-        return isWithinInterval(entryDate, {start: today, end: upcomingEnd});
+        const d = parseISO(entry.date);
+        if (selectedDate) return isSameDay(d, selectedDate);
+        return isWithinInterval(d, {start: today, end: upcomingEnd});
       })
       .filter(entry => activeKinds.includes(entry.kind))
       .filter(entry => {
-        if (!normalizedSearch) return true;
+        if (!q) return true;
         return [entry.title, entry.secondary || '', KIND_LABELS[entry.kind]]
-          .join(' ')
-          .toLowerCase()
-          .includes(normalizedSearch);
+          .join(' ').toLowerCase().includes(q);
       });
-  }, [activeKinds, activeTab, search, timeline, today, upcomingEnd, weekEnd, weekStart]);
+  }, [activeKinds, search, selectedDate, timeline, today, upcomingEnd]);
 
   const groupedEntries = useMemo(() => {
     return filteredEntries.reduce<Array<{label: string; items: AgendaTimelineEntry[]}>>((acc, entry) => {
       const label = format(parseISO(entry.date), "EEEE, dd 'de' MMMM", {locale: ptBR});
-      const existing = acc.find(group => group.label === label);
-
+      const existing = acc.find(g => g.label === label);
       if (existing) {
         existing.items.push(entry);
         return acc;
       }
-
       acc.push({label, items: [entry]});
       return acc;
     }, []);
   }, [filteredEntries]);
 
-  const focusAction = (
-    <button type="button" onClick={onAddAgenda} className="button-primary w-full">
-      <Plus className="h-4 w-4" />
-      Novo evento
-    </button>
-  );
+  // Calendar grid data
+  const monthStart = startOfMonth(calendarMonth);
+  const monthEnd = endOfMonth(calendarMonth);
+  const gridStart = startOfWeek(monthStart, {weekStartsOn: 0});
+  const gridEnd = endOfWeek(monthEnd, {weekStartsOn: 0});
+  const days = eachDayOfInterval({start: gridStart, end: gridEnd});
 
   return (
-    <div className="space-y-5">
-      <section className="rounded-[1.75rem] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4 shadow-sm">
-        <div className="mb-4 flex items-center gap-3">
-          <div className="rounded-2xl bg-[var(--accent-blue)]/12 p-3 text-[var(--accent-blue)]">
-            <CalendarClock className="h-5 w-5" />
+    <div className="space-y-4">
+      {/* ── Calendar card ─────────────────────────────── */}
+      <section className="overflow-hidden rounded-[1.75rem] border border-[var(--border-color)] bg-[var(--bg-secondary)] shadow-sm">
+
+        {/* Header: nav + add button */}
+        <div className="flex items-center justify-between gap-3 px-4 pt-4 pb-3">
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => setCalendarMonth(m => subMonths(m, 1))}
+              className="flex h-8 w-8 items-center justify-center rounded-xl transition-all active:scale-90 hover:bg-[var(--bg-hover)]"
+            >
+              <ChevronLeft className="h-4 w-4 text-[var(--text-tertiary)]" />
+            </button>
+            <span className="min-w-[120px] text-center text-sm font-black uppercase tracking-wider text-[var(--text-primary)]">
+              {format(calendarMonth, 'MMM yyyy', {locale: ptBR})}
+            </span>
+            <button
+              type="button"
+              onClick={() => setCalendarMonth(m => addMonths(m, 1))}
+              className="flex h-8 w-8 items-center justify-center rounded-xl transition-all active:scale-90 hover:bg-[var(--bg-hover)]"
+            >
+              <ChevronRight className="h-4 w-4 text-[var(--text-tertiary)]" />
+            </button>
           </div>
-          <div>
-            <p className="t-section-title text-[var(--text-primary)]">Radar da semana</p>
-            <p className="t-secondary">Gravacoes, publicacoes, projetos e compromissos em uma fila objetiva.</p>
-          </div>
+
+          <button
+            type="button"
+            onClick={onAddAgenda}
+            className="flex items-center gap-1.5 rounded-xl bg-[var(--text-primary)] px-3 py-2 text-[11px] font-black uppercase tracking-widest text-[var(--bg-primary)] transition-all active:scale-95"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            Novo
+          </button>
         </div>
 
-        <div className="grid grid-cols-3 gap-2">
-          <div className="rounded-[1.2rem] bg-[var(--bg-hover)] px-3 py-3">
-            <p className="t-label text-[var(--text-tertiary)]">Hoje</p>
-            <p className="mt-1 text-xl font-black text-[var(--text-primary)]">{tabCounts.today}</p>
-          </div>
-          <div className="rounded-[1.2rem] bg-[var(--bg-hover)] px-3 py-3">
-            <p className="t-label text-[var(--text-tertiary)]">7 dias</p>
-            <p className="mt-1 text-xl font-black text-[var(--text-primary)]">{tabCounts.week}</p>
-          </div>
-          <div className="rounded-[1.2rem] bg-[var(--bg-hover)] px-3 py-3">
-            <p className="t-label text-[var(--text-tertiary)]">Projetos</p>
-            <p className="mt-1 text-xl font-black text-[var(--text-primary)]">
-              {timeline.filter(entry => entry.kind === 'project').length}
-            </p>
-          </div>
+        {/* Layer filter chips */}
+        <div className="flex gap-2 overflow-x-auto px-4 pb-3">
+          {ALL_KINDS.map(kind => {
+            const active = activeKinds.includes(kind);
+            return (
+              <button
+                key={kind}
+                type="button"
+                onClick={() =>
+                  setActiveKinds(current =>
+                    current.includes(kind)
+                      ? current.length === 1 ? current : current.filter(k => k !== kind)
+                      : [...current, kind]
+                  )
+                }
+                className={cn(
+                  'flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[10px] font-bold whitespace-nowrap transition-all shrink-0',
+                  'cursor-pointer active:scale-95 select-none',
+                  active
+                    ? 'border-[var(--border-strong)] bg-[var(--bg-hover)] text-[var(--text-primary)]'
+                    : 'border-[var(--border-color)] text-[var(--text-tertiary)] opacity-40'
+                )}
+              >
+                <span
+                  className="h-1.5 w-1.5 rounded-full shrink-0"
+                  style={{backgroundColor: active ? KIND_ACCENTS[kind] : 'currentColor'}}
+                />
+                {KIND_LABELS[kind]}
+              </button>
+            );
+          })}
         </div>
 
-        <button type="button" onClick={onAddAgenda} className="button-primary mt-4 w-full">
-          <Plus className="h-4 w-4" />
-          Adicionar evento
-        </button>
+        {/* Day-of-week labels */}
+        <div className="grid grid-cols-7 border-t border-[var(--border-color)] bg-[var(--bg-hover)]/30">
+          {['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map((label, i) => (
+            <div key={i} className="py-1.5 text-center text-[9px] font-black uppercase tracking-widest text-[var(--text-tertiary)] opacity-50">
+              {label}
+            </div>
+          ))}
+        </div>
+
+        {/* Day grid */}
+        <div className="grid grid-cols-7 border-t border-[var(--border-color)]">
+          {days.map((day, index) => {
+            const dateKey = format(day, 'yyyy-MM-dd');
+            const kinds = kindsByDate.get(dateKey);
+            const kindsArray = kinds ? [...kinds] : [];
+            const isCurrentMonth = isSameMonth(day, calendarMonth);
+            const isToday = isSameDay(day, today);
+            const isSelected = selectedDate ? isSameDay(day, selectedDate) : false;
+            const isLastCol = (index + 1) % 7 === 0;
+
+            return (
+              <button
+                key={dateKey}
+                type="button"
+                onClick={() => handleSelectDate(day)}
+                className={cn(
+                  'flex flex-col items-center gap-1 border-b border-r border-[var(--border-color)] py-2 transition-all',
+                  'cursor-pointer active:scale-95 select-none',
+                  !isCurrentMonth && 'opacity-20',
+                  isLastCol && 'border-r-0',
+                  isSelected && 'bg-[var(--bg-hover)]'
+                )}
+              >
+                <div
+                  className={cn(
+                    'flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-black',
+                    isSelected && 'bg-[var(--accent-blue)] text-white',
+                    isToday && !isSelected && 'bg-[var(--text-primary)] text-[var(--bg-primary)]',
+                    !isToday && !isSelected && 'text-[var(--text-primary)]'
+                  )}
+                >
+                  {format(day, 'd')}
+                </div>
+
+                <div className="flex gap-0.5 min-h-[5px]">
+                  {kindsArray.slice(0, 3).map(kind => (
+                    <span
+                      key={kind}
+                      className="h-[5px] w-[5px] rounded-full shrink-0"
+                      style={{backgroundColor: KIND_ACCENTS[kind]}}
+                    />
+                  ))}
+                </div>
+              </button>
+            );
+          })}
+        </div>
       </section>
 
-      <section className="space-y-4">
+      {/* ── Agenda list ────────────────────────────────── */}
+      <section className="space-y-3">
+
+        {/* Search */}
         <MobileSearchBar
           value={search}
           onChange={setSearch}
-          placeholder="Buscar por titulo, tipo, projeto ou entrega"
-          onFilterClick={() => setIsFilterSheetOpen(true)}
+          placeholder="Buscar evento, gravacao, projeto..."
         />
 
-        <MobileSegmentTabs
-          tabs={[
-            {value: 'today', label: 'Hoje', count: tabCounts.today},
-            {value: 'week', label: 'Semana', count: tabCounts.week},
-            {value: 'upcoming', label: '30 dias', count: tabCounts.upcoming},
-          ]}
-          value={activeTab}
-          onChange={value => setActiveTab(value)}
-        />
+        {/* Context header */}
+        <div className="flex items-center justify-between px-1">
+          {selectedDate ? (
+            <>
+              <p className="text-xs font-black uppercase tracking-widest text-[var(--text-primary)]">
+                {format(selectedDate, "EEEE, dd 'de' MMMM", {locale: ptBR})}
+                <span className="ml-2 font-bold text-[var(--text-tertiary)]">
+                  · {filteredEntries.length}
+                </span>
+              </p>
+              <button
+                type="button"
+                onClick={() => setSelectedDate(null)}
+                className="text-[10px] font-black uppercase tracking-widest text-[var(--text-tertiary)] transition-all active:opacity-50"
+              >
+                Ver todos
+              </button>
+            </>
+          ) : (
+            <p className="text-xs font-black uppercase tracking-widest text-[var(--text-tertiary)]">
+              Proximos 60 dias
+              <span className="ml-2 text-[var(--text-primary)]">· {filteredEntries.length}</span>
+            </p>
+          )}
+        </div>
 
+        {/* Entries */}
         {groupedEntries.length === 0 ? (
           <MobileEmptyState
-            title="Nada nessa faixa de agenda"
-            description="Ajuste as camadas ou crie um novo evento para preencher a fila mobile."
-            action={focusAction}
+            title="Nada por aqui"
+            description={
+              selectedDate
+                ? 'Nenhum evento nesse dia. Toque em Novo para adicionar.'
+                : 'Nenhum evento nos proximos 60 dias com as camadas ativas.'
+            }
+            action={
+              <button type="button" onClick={onAddAgenda} className="button-primary w-full">
+                <Plus className="h-4 w-4" />
+                Novo evento
+              </button>
+            }
             icon={<SearchCheck className="h-8 w-8" />}
           />
         ) : (
           <div className="space-y-5">
             {groupedEntries.map(group => (
-              <section key={group.label} className="space-y-3">
-                <div className="px-1">
-                  <p className="t-label text-[var(--text-tertiary)]">{group.label}</p>
-                </div>
+              <div key={group.label} className="space-y-2">
+                <p className="px-1 t-label text-[var(--text-tertiary)]">{group.label}</p>
 
-                <div className="space-y-3">
+                <div className="space-y-2">
                   {group.items.map(entry => (
                     <MobileListCard
                       key={entry.id}
                       eyebrow={KIND_LABELS[entry.kind]}
                       title={entry.title}
-                      description={entry.secondary || 'Sem contexto adicional'}
+                      description={entry.secondary || ''}
                       meta={
                         <span
-                          className="rounded-full px-3 py-1 text-[11px] font-semibold"
+                          className="rounded-full px-2.5 py-1 text-[11px] font-semibold"
                           style={{
-                            backgroundColor: `${KIND_ACCENTS[entry.kind]}1A`,
+                            backgroundColor: `${KIND_ACCENTS[entry.kind]}18`,
                             color: KIND_ACCENTS[entry.kind],
                           }}
                         >
@@ -335,60 +452,11 @@ export function AgendaMobileScreen({
                     />
                   ))}
                 </div>
-              </section>
+              </div>
             ))}
           </div>
         )}
       </section>
-
-      <MobileFilterSheet
-        open={isFilterSheetOpen}
-        title="Filtrar agenda"
-        onClose={() => setIsFilterSheetOpen(false)}
-      >
-        <label className="block space-y-2">
-          <span className="t-label text-[var(--text-tertiary)]">Camadas visiveis</span>
-          <div className="grid grid-cols-2 gap-2">
-            {(['agenda', 'recording', 'publish', 'project'] as AgendaTimelineKind[]).map(kind => {
-              const active = activeKinds.includes(kind);
-
-              return (
-                <button
-                  key={kind}
-                  type="button"
-                  onClick={() =>
-                    setActiveKinds(current => {
-                      if (current.includes(kind)) {
-                        return current.length === 1 ? current : current.filter(item => item !== kind);
-                      }
-
-                      return [...current, kind];
-                    })
-                  }
-                  className={`rounded-[1rem] border px-3 py-3 text-sm font-semibold transition-all ${
-                    active
-                      ? 'border-[var(--text-primary)] bg-[var(--bg-hover)] text-[var(--text-primary)]'
-                      : 'border-[var(--border-color)] text-[var(--text-secondary)]'
-                  }`}
-                >
-                  {KIND_LABELS[kind]}
-                </button>
-              );
-            })}
-          </div>
-        </label>
-
-        <button
-          type="button"
-          onClick={() => {
-            setActiveKinds(['agenda', 'recording', 'publish', 'project']);
-            setIsFilterSheetOpen(false);
-          }}
-          className="button-primary w-full"
-        >
-          Limpar filtros
-        </button>
-      </MobileFilterSheet>
     </div>
   );
 }

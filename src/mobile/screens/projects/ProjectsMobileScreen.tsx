@@ -168,7 +168,7 @@ export function ProjectsMobileScreen({
             { value: 'deadline', label: 'Prazo', count: getDueSoonCount(projetos) },
           ]}
           value={activeTab}
-          onChange={setActiveTab}
+          onChange={(value) => setActiveTab(value)}
         />
 
         {filteredProjects.length === 0 ? (

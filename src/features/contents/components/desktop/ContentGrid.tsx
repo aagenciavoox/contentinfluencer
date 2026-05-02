@@ -1,7 +1,7 @@
 import { Eye, Layers, Zap } from 'lucide-react';
 import { Content } from '../../../../lib/database';
 import { useAppContext } from '../../../../context/AppContext';
-import { cn } from '../../../../lib/utils';
+import { cn, getEntityTagStyle } from '../../../../lib/utils';
 
 interface ContentGridProps {
   contents: Content[];
@@ -102,12 +102,18 @@ export function ContentGrid({
               {mode !== 'historico' && (
                 <div className="flex flex-wrap gap-2">
                   {pillar && (
-                    <span className="rounded-full border border-[var(--border-color)] px-2 py-1 text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
+                    <span
+                      className="rounded-full border px-2 py-1 text-[9px] font-black uppercase tracking-widest"
+                      style={getEntityTagStyle(pillar.cor)}
+                    >
                       {pillar.nome}
                     </span>
                   )}
                   {series && (
-                    <span className="inline-flex items-center gap-1 rounded-full border border-[var(--accent-blue)]/20 bg-[var(--accent-blue)]/5 px-2 py-1 text-[9px] font-black uppercase tracking-widest text-[var(--accent-blue)]">
+                    <span
+                      className="inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[9px] font-black uppercase tracking-widest"
+                      style={getEntityTagStyle(series.cor)}
+                    >
                       <Layers className="h-3 w-3" />
                       {series.name}
                     </span>

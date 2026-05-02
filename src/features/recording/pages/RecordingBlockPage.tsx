@@ -82,7 +82,7 @@ export function RecordingBlockPage() {
           <section className="rounded-[1.75rem] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4 shadow-sm">
             <button
               type="button"
-              onClick={() => navigate('/gravacao')}
+              onClick={() => navigate('/gravacao?tab=blocks')}
               className="inline-flex items-center gap-2 rounded-full border border-[var(--border-color)] px-3 py-2 text-[11px] font-black uppercase tracking-[0.16em] text-[var(--text-secondary)]"
             >
               <ArrowLeft className="h-4 w-4" />

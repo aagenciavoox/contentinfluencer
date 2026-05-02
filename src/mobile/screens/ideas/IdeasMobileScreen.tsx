@@ -10,6 +10,7 @@ import { MobileListCard } from '../../components/MobileListCard';
 import { MobileSearchBar } from '../../components/MobileSearchBar';
 import { MobileSegmentTabs } from '../../components/MobileSegmentTabs';
 import type { Idea } from '../../../lib/database';
+import { getEntityTagStyle } from '../../../lib/utils';
 
 type MobileIdeasTab = 'active' | 'promoted';
 
@@ -74,6 +75,12 @@ export function IdeasMobileScreen({
 
   const getSerieNome = (seriesId: string | null) =>
     state.series.find((serie) => serie.id === seriesId)?.name ?? null;
+
+  const getPilar = (pilarId: string | null) =>
+    state.pilares.find((pilar) => pilar.id === pilarId) ?? null;
+
+  const getSerie = (seriesId: string | null) =>
+    state.series.find((serie) => serie.id === seriesId) ?? null;
 
   const getBibliotecaTitulo = (itemId: string | null) =>
     state.bibliotecaItems.find((item) => item.id === itemId)?.titulo ?? null;
@@ -148,7 +155,7 @@ export function IdeasMobileScreen({
             { value: 'promoted', label: 'Promovidas', count: tabCounts.promoted },
           ]}
           value={activeTab}
-          onChange={setActiveTab}
+          onChange={(value) => setActiveTab(value)}
         />
 
         {filteredIdeas.length === 0 ? (
@@ -173,12 +180,18 @@ export function IdeasMobileScreen({
                 meta={
                   <>
                     {idea.pilarId && getPilarNome(idea.pilarId) ? (
-                      <span className="rounded-full bg-[var(--accent-blue)]/10 px-3 py-1 text-[11px] font-semibold text-[var(--accent-blue)]">
+                      <span
+                        className="rounded-full border px-3 py-1 text-[11px] font-semibold"
+                        style={getEntityTagStyle(getPilar(idea.pilarId)?.cor)}
+                      >
                         {getPilarNome(idea.pilarId)}
                       </span>
                     ) : null}
                     {idea.seriesId && getSerieNome(idea.seriesId) ? (
-                      <span className="rounded-full bg-[var(--accent-green)]/10 px-3 py-1 text-[11px] font-semibold text-[var(--accent-green)]">
+                      <span
+                        className="rounded-full border px-3 py-1 text-[11px] font-semibold"
+                        style={getEntityTagStyle(getSerie(idea.seriesId)?.cor)}
+                      >
                         {getSerieNome(idea.seriesId)}
                       </span>
                     ) : null}

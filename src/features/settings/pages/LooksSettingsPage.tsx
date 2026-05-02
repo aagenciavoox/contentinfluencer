@@ -56,7 +56,7 @@ export function LooksSettingsPage() {
     setCenarioForm({ nome: '', descricao: '', tempoSetupMinutos: 5, ativo: true });
   };
 
-  const activeLooks = state.looks.sort((a, b) => a.numero - b.numero);
+  const activeLooks = [...state.looks].sort((a, b) => a.numero - b.numero);
   const activeCenarios = state.cenarios;
 
   return (

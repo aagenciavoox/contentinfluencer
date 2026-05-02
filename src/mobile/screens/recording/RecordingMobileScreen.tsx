@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Clapperboard, Eye, Layers3, Plus, SearchCheck, Tags, Video } from 'lucide-react';
-import type { Content, Pilar, RecordingBlock, Series } from '../../../lib/database';
+import type { Content, Pilar, RecordingBlock, Serie } from '../../../lib/database';
 import { MobileEmptyState } from '../../components/MobileEmptyState';
 import { MobileFilterSheet } from '../../components/MobileFilterSheet';
 import { MobileListCard } from '../../components/MobileListCard';
@@ -10,13 +10,14 @@ import {
   normalizeRecordingTags,
   resolveRecordingContextSummary,
 } from '../../../features/recording/lib/recordingWorkflow';
+import { getEntityTagStyle } from '../../../lib/utils';
 
 interface RecordingMobileScreenProps {
   readyContents: Content[];
   recordingBlocks: RecordingBlock[];
   allContents: Content[];
   pilares: Pilar[];
-  series: Series[];
+  series: Serie[];
   availableTags: string[];
   onCreateBlock: (payload: { name: string; contentIds: string[]; tagsText: string }) => void;
   onOpenBlock: (blockId: string) => void;
@@ -139,7 +140,7 @@ export function RecordingMobileScreen({
             { value: 'blocks', label: 'Blocos', count: recordingBlocks.length },
           ]}
           value={activeTab}
-          onChange={setActiveTab}
+          onChange={(value) => setActiveTab(value)}
         />
 
         {activeTab === 'queue' ? (
@@ -160,8 +161,10 @@ export function RecordingMobileScreen({
             ) : (
               <div className="space-y-3">
                 {filteredQueue.map((content) => {
-                  const pilarName = pilares.find((item) => item.id === content.pilarId)?.nome;
-                  const seriesName = series.find((item) => item.id === content.seriesId)?.name;
+                  const pilar = pilares.find((item) => item.id === content.pilarId) || null;
+                  const serie = series.find((item) => item.id === content.seriesId) || null;
+                  const pilarName = pilar?.nome;
+                  const seriesName = serie?.name;
                   const selected = selectedIds.has(content.id);
                   const recordingTags = normalizeRecordingTags(content.tags || []);
 
@@ -175,12 +178,18 @@ export function RecordingMobileScreen({
                       meta={
                         <>
                           {pilarName ? (
-                            <span className="rounded-full bg-[var(--bg-hover)] px-3 py-1 text-[11px] font-semibold text-[var(--text-secondary)]">
+                            <span
+                              className="rounded-full border px-3 py-1 text-[11px] font-semibold"
+                              style={getEntityTagStyle(pilar?.cor)}
+                            >
                               {pilarName}
                             </span>
                           ) : null}
                           {seriesName ? (
-                            <span className="rounded-full bg-[var(--accent-blue)]/10 px-3 py-1 text-[11px] font-semibold text-[var(--accent-blue)]">
+                            <span
+                              className="rounded-full border px-3 py-1 text-[11px] font-semibold"
+                              style={getEntityTagStyle(serie?.cor)}
+                            >
                               {seriesName}
                             </span>
                           ) : null}

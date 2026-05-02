@@ -58,7 +58,7 @@ export function AnalyticsMobileScreen({
             { value: 'performance', label: 'Perf.', count: topViews.length },
           ]}
           value={activeTab}
-          onChange={setActiveTab}
+          onChange={(value) => setActiveTab(value)}
         />
       </section>
 

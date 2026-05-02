@@ -13,8 +13,8 @@ type Aba = 'regras' | 'mix' | 'performance';
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function periodoDias(periodo: GoldenRule['periodo']): number {
-  if (periodo === 'dia') return 1;
   if (periodo === 'semana') return 7;
+  if (periodo === 'quinzena') return 14;
   return 30;
 }
 
@@ -42,22 +42,17 @@ function avaliarRegra(regra: GoldenRule, contents: Content[]): RuleResult {
     count = janela.length;
   }
 
-  const { condicao, valor } = regra;
+  const { condicao, minimo, maximo } = regra;
+  const violacao = (minimo != null && count < minimo) || (maximo != null && count > maximo);
+  const detalheRange = `${count} (mín. ${minimo ?? '—'} · máx. ${maximo ?? '—'})`;
 
-  if (condicao === 'max') {
-    if (count > valor) return { regra, status: 'violacao', detalhe: `${count} (máx. ${valor})` };
-    return { regra, status: 'ok', detalhe: `${count} / máx. ${valor}` };
-  }
-  if (condicao === 'min') {
-    if (count < valor) return { regra, status: 'violacao', detalhe: `${count} (mín. ${valor})` };
-    return { regra, status: 'ok', detalhe: `${count} / mín. ${valor}` };
-  }
-  if (condicao === 'recomendado') {
-    if (count !== valor) return { regra, status: 'aviso', detalhe: `${count} (recomendado: ${valor})` };
+  if (condicao === 'impedir') {
+    if (violacao) return { regra, status: 'violacao', detalhe: detalheRange };
     return { regra, status: 'ok', detalhe: `${count} ✓` };
   }
 
-  return { regra, status: 'ok', detalhe: `${count}` };
+  if (violacao) return { regra, status: 'aviso', detalhe: detalheRange };
+  return { regra, status: 'ok', detalhe: `${count} ✓` };
 }
 
 // ─── Componente ───────────────────────────────────────────────────────────────

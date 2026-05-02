@@ -7,6 +7,7 @@ import {
   Palette,
   Settings as SettingsIcon,
   ShieldCheck,
+  UserCircle2,
 } from 'lucide-react';
 import { MobileListCard } from '../../components/MobileListCard';
 
@@ -27,6 +28,7 @@ interface SettingsMobileScreenProps {
 }
 
 const ICON_BY_ROUTE: Record<string, React.ElementType> = {
+  '/configuracoes/perfil': UserCircle2,
   '/configuracoes/dna': Fingerprint,
   '/configuracoes/pilares': Palette,
   '/configuracoes/regras': ShieldCheck,

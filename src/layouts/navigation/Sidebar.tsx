@@ -40,6 +40,7 @@ type NavItem = {
   icon: React.ElementType;
   badge?: number;
   hidden?: boolean;
+  end?: boolean;
 };
 
 type NavSection = {
@@ -146,10 +147,11 @@ export function Sidebar({isOpen, onClose}: SidebarProps) {
     },
   ];
 
-  const renderNavItem = ({to, label, icon: Icon, badge}: NavItem) => (
+  const renderNavItem = ({to, label, icon: Icon, badge, end = true}: NavItem) => (
     <NavLink
       key={`${to}-${label}`}
       to={to}
+      end={end}
       className={({isActive}) =>
         cn(
           'group relative flex items-center gap-3 rounded-[16px] px-3 py-3 transition-all duration-200',

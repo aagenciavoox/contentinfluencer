@@ -8,6 +8,9 @@ interface AuthContextType {
   loading: boolean;
   backendReady: boolean;
   signOut: () => Promise<void>;
+  updateProfile: (input: { fullName: string }) => Promise<void>;
+  updateEmail: (email: string) => Promise<void>;
+  updatePassword: (password: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -42,8 +45,72 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await supabase?.auth.signOut();
   };
 
+  const ensureAuthAvailable = () => {
+    if (!supabase || !isSupabaseConfigured) {
+      throw new Error('Serviço de autenticação indisponível.');
+    }
+  };
+
+  const updateProfile = async ({ fullName }: { fullName: string }) => {
+    ensureAuthAvailable();
+
+    const { data, error } = await supabase.auth.updateUser({
+      data: {
+        ...(user?.user_metadata ?? {}),
+        full_name: fullName.trim(),
+      },
+    });
+
+    if (error) throw error;
+
+    if (data.user) {
+      setUser(data.user);
+      setSession((currentSession) =>
+        currentSession ? { ...currentSession, user: data.user } : currentSession
+      );
+    }
+  };
+
+  const updateEmail = async (email: string) => {
+    ensureAuthAvailable();
+
+    const { data, error } = await supabase.auth.updateUser({
+      email: email.trim(),
+    });
+
+    if (error) throw error;
+
+    if (data.user) {
+      setUser(data.user);
+      setSession((currentSession) =>
+        currentSession ? { ...currentSession, user: data.user } : currentSession
+      );
+    }
+  };
+
+  const updatePassword = async (password: string) => {
+    ensureAuthAvailable();
+
+    const { error } = await supabase.auth.updateUser({
+      password,
+    });
+
+    if (error) throw error;
+  };
+
   return (
-    <AuthContext.Provider value={{ user, session, loading, backendReady: isSupabaseConfigured, signOut }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        session,
+        loading,
+        backendReady: isSupabaseConfigured,
+        signOut,
+        updateProfile,
+        updateEmail,
+        updatePassword,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

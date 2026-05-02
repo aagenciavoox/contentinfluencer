@@ -163,7 +163,7 @@ export function LibraryMobileScreen({
             { value: 'done', label: 'Feitos', count: tabCounts.done },
           ]}
           value={activeTab}
-          onChange={setActiveTab}
+          onChange={(value) => setActiveTab(value)}
         />
 
         {filteredItems.length === 0 ? (

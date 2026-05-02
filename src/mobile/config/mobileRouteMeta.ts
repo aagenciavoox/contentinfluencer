@@ -2,6 +2,7 @@ interface MobileRouteMeta {
   title: string;
   subtitle: string;
   mode?: 'menu' | 'back';
+  backTo?: string;
 }
 
 export function getMobileRouteMeta(pathname: string): MobileRouteMeta {
@@ -10,6 +11,7 @@ export function getMobileRouteMeta(pathname: string): MobileRouteMeta {
       title: 'Leitura',
       subtitle: 'Consulta e anotacoes do item atual.',
       mode: 'back',
+      backTo: '/biblioteca',
     };
   }
 
@@ -18,6 +20,7 @@ export function getMobileRouteMeta(pathname: string): MobileRouteMeta {
       title: 'Projeto',
       subtitle: 'Status, prazo e proximas acoes.',
       mode: 'back',
+      backTo: '/projetos',
     };
   }
 
@@ -26,6 +29,7 @@ export function getMobileRouteMeta(pathname: string): MobileRouteMeta {
       title: 'Modo Explosao',
       subtitle: 'Leitura e execucao do bloco em camada mobile.',
       mode: 'back',
+      backTo: '/gravacao?tab=blocks',
     };
   }
 
@@ -34,6 +38,7 @@ export function getMobileRouteMeta(pathname: string): MobileRouteMeta {
       title: 'Configuracao',
       subtitle: 'Ajustes em fluxo dedicado para mobile.',
       mode: 'back',
+      backTo: '/configuracoes',
     };
   }
 

@@ -1,6 +1,8 @@
-import { useMemo, useState } from 'react';
-import { Calendar, Clapperboard, Eye, FileText, SearchCheck, Sparkles } from 'lucide-react';
-import type { Content, Pilar, Series } from '../../../lib/database';
+import { useEffect, useMemo, useState } from 'react';
+import { Calendar, ChevronDown, Clapperboard, Eye, FileText, SearchCheck, Sparkles } from 'lucide-react';
+import type { Content, Pilar, Serie } from '../../../lib/database';
+import { getEntityTagStyle } from '../../../lib/utils';
+import { AppButton } from '../../../components/ui/AppButton';
 import { MobileEmptyState } from '../../components/MobileEmptyState';
 import { MobileListCard } from '../../components/MobileListCard';
 import { MobileSearchBar } from '../../components/MobileSearchBar';
@@ -11,8 +13,9 @@ type ContentsMobileMode = 'editorial' | 'postagem' | 'historico';
 interface ContentsMobileScreenProps {
   mode: ContentsMobileMode;
   contents: Content[];
+  pageSize: number;
   allContents: Content[];
-  series: Series[];
+  series: Serie[];
   pilares: Pilar[];
   onSelect: (content: Content) => void;
   onPreview: (content: Content) => void;
@@ -33,6 +36,7 @@ const STATUS_ACCENTS: Record<string, string> = {
 export function ContentsMobileScreen({
   mode,
   contents,
+  pageSize,
   allContents,
   series,
   pilares,
@@ -58,6 +62,13 @@ export function ContentsMobileScreen({
   }, [allContents, contents.length, mode]);
 
   const [activeTab, setActiveTab] = useState<string>(tabs[0]?.value || 'all');
+  const [visibleCount, setVisibleCount] = useState(pageSize);
+
+  useEffect(() => {
+    if (!tabs.some((tab) => tab.value === activeTab)) {
+      setActiveTab(tabs[0]?.value || 'all');
+    }
+  }, [activeTab, tabs]);
 
   const filteredContents = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
@@ -77,6 +88,13 @@ export function ContentsMobileScreen({
       })
       .sort((left, right) => new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime());
   }, [activeTab, contents, mode, pilares, search, series]);
+
+  useEffect(() => {
+    setVisibleCount(pageSize);
+  }, [activeTab, mode, pageSize, search, contents]);
+
+  const visibleContents = useMemo(() => filteredContents.slice(0, visibleCount), [filteredContents, visibleCount]);
+  const hasMore = visibleContents.length < filteredContents.length;
 
   const focusAction = (
     <button type="button" onClick={onCreate} className="button-primary w-full">
@@ -134,10 +152,12 @@ export function ContentsMobileScreen({
           />
         ) : (
           <div className="space-y-3">
-            {filteredContents.map((content) => {
+            {visibleContents.map((content) => {
               const seriesName = series.find((item) => item.id === content.seriesId)?.name;
               const pillarName = pilares.find((item) => item.id === content.pilarId)?.nome;
               const accent = STATUS_ACCENTS[content.status] || 'var(--text-primary)';
+              const seriesItem = series.find((item) => item.id === content.seriesId) || null;
+              const pillarItem = pilares.find((item) => item.id === content.pilarId) || null;
 
               return (
                 <MobileListCard
@@ -149,12 +169,18 @@ export function ContentsMobileScreen({
                   meta={
                     <>
                       {seriesName ? (
-                        <span className="rounded-full px-3 py-1 text-[11px] font-semibold" style={{ backgroundColor: `${accent}14`, color: accent }}>
+                        <span
+                          className="rounded-full border px-3 py-1 text-[11px] font-semibold"
+                          style={getEntityTagStyle(seriesItem?.cor) || { backgroundColor: `${accent}14`, color: accent }}
+                        >
                           {seriesName}
                         </span>
                       ) : null}
                       {pillarName ? (
-                        <span className="rounded-full bg-[var(--bg-hover)] px-3 py-1 text-[11px] font-semibold text-[var(--text-secondary)]">
+                        <span
+                          className="rounded-full border px-3 py-1 text-[11px] font-semibold"
+                          style={getEntityTagStyle(pillarItem?.cor)}
+                        >
                           {pillarName}
                         </span>
                       ) : null}
@@ -188,6 +214,18 @@ export function ContentsMobileScreen({
                 />
               );
             })}
+
+            {hasMore ? (
+              <AppButton
+                variant="secondary"
+                fullWidth
+                leftIcon={<ChevronDown className="h-4 w-4" />}
+                onClick={() => setVisibleCount((current) => current + pageSize)}
+                className="mt-2"
+              >
+                Carregar para ver mais
+              </AppButton>
+            ) : null}
           </div>
         )}
       </section>

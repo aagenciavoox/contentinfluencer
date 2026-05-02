@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import type { Content } from '../lib/database.ts';
+import type { Content, GoldenRule } from '../lib/database.ts';
 import { validateWeeklyContent } from './goldenRules.ts';
 
 function buildContent(overrides: Partial<Content> = {}): Content {
@@ -48,7 +48,22 @@ function testYoutubeHashtagRange() {
     ],
   });
 
-  const violations = validateWeeklyContent([content], new Date('2026-04-27'));
+  const rules: GoldenRule[] = [{
+    id: 'RG-06',
+    userId: 'user-1',
+    titulo: 'Faixa de hashtags YouTube',
+    descricao: 'Hashtags por legenda',
+    tipo: 'plataforma',
+    valor: 0,
+    periodo: 'semana',
+    condicao: 'impedir',
+    minimo: 5,
+    maximo: 7,
+    ativa: true,
+    createdAt: '2026-04-27T00:00:00.000Z',
+  }];
+
+  const violations = validateWeeklyContent([content], new Date('2026-04-27'), undefined, rules);
 
   assert.deepEqual(violations.map(v => v.ruleId), ['RG-06']);
   assert.equal(violations[0]?.affectedContentIds[0], 'youtube-content');
@@ -92,14 +107,31 @@ function testInWeekPlatformCaptionsOnly() {
     ],
   });
 
+  const rules: GoldenRule[] = [{
+    id: 'RG-05',
+    userId: 'user-1',
+    titulo: 'Limite de hashtags',
+    descricao: 'Hashtags por legenda',
+    tipo: 'plataforma',
+    valor: 0,
+    periodo: 'semana',
+    condicao: 'impedir',
+    minimo: null,
+    maximo: 5,
+    ativa: true,
+    createdAt: '2026-04-27T00:00:00.000Z',
+  }];
+
   const violations = validateWeeklyContent(
     [instagramContent, nextWeekContent],
     new Date('2026-04-27'),
+    undefined,
+    rules,
   );
 
-  assert.equal(violations.length, 1);
-  assert.equal(violations[0]?.ruleId, 'RG-05');
-  assert.equal(violations[0]?.affectedContentIds[0], 'instagram-content');
+  assert.equal(violations.length, 2);
+  assert.ok(violations.every((violation) => violation.ruleId === 'RG-05'));
+  assert.ok(violations.every((violation) => violation.affectedContentIds[0] === 'instagram-content'));
 }
 
 const tests: Array<[string, () => void]> = [

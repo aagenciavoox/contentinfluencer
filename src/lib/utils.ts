@@ -1,3 +1,4 @@
+import { type CSSProperties } from 'react';
 import { type ClassValue, clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { format, parseISO, eachDayOfInterval } from 'date-fns';
@@ -5,6 +6,16 @@ import { Projeto } from '../lib/database';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
+}
+
+export function getEntityTagStyle(color?: string | null): CSSProperties | undefined {
+  if (!color) return undefined;
+
+  return {
+    backgroundColor: `color-mix(in srgb, ${color} 12%, transparent)`,
+    borderColor: `color-mix(in srgb, ${color} 24%, transparent)`,
+    color,
+  };
 }
 
 export function htmlToReadableText(content: string | null | undefined) {
