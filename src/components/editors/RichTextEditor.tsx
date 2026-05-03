@@ -60,6 +60,7 @@ interface RichTextEditorProps {
   onUpdateAnnotation?: (id: string, comment: string, color?: string) => void;
   authorName?: string;
   documentTitle?: string;
+  compactMobileComposer?: boolean;
 }
 
 type FormattingAction = {
@@ -106,6 +107,7 @@ export function RichTextEditor({
   onUpdateAnnotation,
   authorName = 'Você',
   documentTitle = 'Novo roteiro',
+  compactMobileComposer = false,
 }: RichTextEditorProps) {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [selectionMenu, setSelectionMenu] = useState<{ x: number; y: number } | null>(null);
@@ -186,7 +188,7 @@ export function RichTextEditor({
     editorProps: {
       attributes: {
         class:
-          'tiptap focus:outline-none min-h-[inherit] max-w-none text-[var(--text-primary)] transition-all duration-300',
+          'tiptap focus:outline-none min-h-[inherit] max-w-none text-base md:text-[inherit] text-[var(--text-primary)] transition-all duration-300',
       },
       decorations: (state) => {
         const decorations: Decoration[] = [];
@@ -585,7 +587,7 @@ export function RichTextEditor({
               )}
             </div>
           </div>
-        ) : (
+        ) : compactMobileComposer ? null : (
           <button
             onClick={() => setIsFullscreen(true)}
             className="absolute right-4 top-4 z-20 rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] p-2 shadow-sm transition hover:bg-[var(--bg-hover)]"
@@ -595,13 +597,14 @@ export function RichTextEditor({
           </button>
         )}
 
-        <div
-          className={cn(
-            'relative flex items-center border-b border-[#e5e7eb] bg-white',
-            isMobile ? 'h-12 px-2' : 'h-12 px-3',
-            !isFullscreen && 'rounded-t-xl bg-[var(--bg-secondary)]',
-          )}
-        >
+        {compactMobileComposer ? null : (
+          <div
+            className={cn(
+              'relative flex items-center border-b border-[#e5e7eb] bg-white',
+              isMobile ? 'h-12 px-2' : 'h-12 px-3',
+              !isFullscreen && 'rounded-t-xl bg-[var(--bg-secondary)]',
+            )}
+          >
           <div className="flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto">
             {topToolbarActions.slice(0, 2).map((action, index) => {
               const Icon = action.icon;
@@ -691,7 +694,8 @@ export function RichTextEditor({
               </AnimatePresence>
             </div>
           </div>
-        </div>
+          </div>
+        )}
 
         <AnimatePresence>
           {selectionMenu && editor && !activeDraft && (
@@ -837,7 +841,7 @@ export function RichTextEditor({
                         value={draftCommentText}
                         onChange={(event) => setDraftCommentText(event.target.value)}
                         placeholder="O que você quer comentar?"
-                        className="mb-4 min-h-[80px] w-full resize-none rounded-xl border border-gray-200 bg-white px-4 py-3 text-xs transition-all focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500/10"
+                        className="mb-4 min-h-[80px] w-full resize-none rounded-xl border border-gray-200 bg-white px-4 py-3 text-base transition-all focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500/10 md:text-xs"
                         onKeyDown={(event) => {
                           if (event.key === 'Enter' && !event.shiftKey) {
                             event.preventDefault();
@@ -961,7 +965,7 @@ export function RichTextEditor({
           </div>
         </div>
 
-        {isFullscreen && isMobile && (
+        {isFullscreen && isMobile && !compactMobileComposer && (
           <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[120] bg-gradient-to-t from-white via-white to-transparent px-4 pb-safe pt-6">
             <div className="pointer-events-auto rounded-[20px] border border-[#eef1f5] bg-white/95 p-2 shadow-[0_10px_30px_rgba(0,0,0,0.08)] backdrop-blur">
               <div className="flex items-center gap-2 overflow-x-auto">
@@ -1135,7 +1139,7 @@ export function RichTextEditor({
                 value={draftCommentText}
                 onChange={(event) => setDraftCommentText(event.target.value)}
                 placeholder="O que você quer comentar?"
-                className="mb-4 min-h-[80px] w-full resize-none rounded-xl border border-gray-200 bg-white px-4 py-3 text-xs transition-all focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500/10"
+                className="mb-4 min-h-[80px] w-full resize-none rounded-xl border border-gray-200 bg-white px-4 py-3 text-base transition-all focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500/10 md:text-xs"
                 onKeyDown={(event) => {
                   if (event.key === 'Enter' && !event.shiftKey) {
                     event.preventDefault();

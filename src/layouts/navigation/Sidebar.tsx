@@ -5,6 +5,7 @@ import {
   BookOpen,
   Calendar,
   Camera,
+  ChevronRight,
   FileText,
   Fingerprint,
   FolderKanban,
@@ -19,6 +20,7 @@ import {
   Search,
   ShieldCheck,
   Sun,
+  User,
   Video,
   X,
 } from 'lucide-react';
@@ -50,7 +52,7 @@ type NavSection = {
 
 export function Sidebar({isOpen, onClose}: SidebarProps) {
   const {state, dispatch} = useAppContext();
-  const {signOut} = useAuth();
+  const {signOut, user} = useAuth();
   const location = useLocation();
   const previousPathname = React.useRef(location.pathname);
   const moduleFlags = getModuleFlags(state.preferences);
@@ -147,6 +149,12 @@ export function Sidebar({isOpen, onClose}: SidebarProps) {
     },
   ];
 
+  const userName =
+    user?.user_metadata?.full_name?.trim() ||
+    user?.email?.split('@')[0] ||
+    'Utilizador';
+  const userEmail = user?.email || 'user@exemplo.com';
+
   const renderNavItem = ({to, label, icon: Icon, badge, end = true}: NavItem) => (
     <NavLink
       key={`${to}-${label}`}
@@ -154,38 +162,36 @@ export function Sidebar({isOpen, onClose}: SidebarProps) {
       end={end}
       className={({isActive}) =>
         cn(
-          'group relative flex items-center gap-3 rounded-[16px] px-3 py-3 transition-all duration-200',
+          'group relative flex items-center gap-3 rounded-[12px] border px-3 py-1.5 transition-all duration-200',
           isActive
-            ? 'bg-[linear-gradient(180deg,#f6f7ff_0%,#f1f3ff_100%)] text-[#1f2430] shadow-[0_10px_24px_rgba(80,92,140,0.08)]'
-            : 'text-[#1f2430] hover:bg-[#f7f8fc]'
+            ? 'border-[#f0f2f6] bg-white text-[#1f2430] shadow-sm'
+            : 'border-transparent text-[#64748b] hover:bg-[#f7f8fc] hover:text-[#1f2430]'
         )
       }
     >
       {({isActive}) => (
         <>
-          {isActive ? (
-            <span className="absolute bottom-2 left-0 top-2 w-[3px] rounded-full bg-[#4c63ff]" />
-          ) : null}
           <div
             className={cn(
-              'ml-1 flex h-8 w-8 items-center justify-center rounded-xl transition-colors',
-              isActive ? 'text-[#1d2332]' : 'text-[#202532]'
+              'flex h-7 w-7 items-center justify-center rounded-lg transition-all',
+              isActive ? 'bg-[#4c63ff] text-white' : 'text-[#94a3b8] group-hover:text-[#4c63ff]'
             )}
           >
-            <Icon className="h-[18px] w-[18px] stroke-[2.2]" />
+            <Icon className="h-4 w-4 stroke-[2.2]" />
           </div>
-          <span className="flex-1 truncate text-[14px] font-semibold">{label}</span>
+          <span className={cn('flex-1 truncate text-[13px]', isActive ? 'font-bold' : 'font-medium')}>
+            {label}
+          </span>
           {badge ? (
-            <span
-              className={cn(
-                'min-w-6 rounded-full px-2 py-0.5 text-center text-[10px] font-bold',
-                isActive
-                  ? 'bg-white text-[#7a8293] shadow-[0_4px_10px_rgba(80,92,140,0.08)]'
-                  : 'bg-[#f0f2f6] text-[#7a8293]'
-              )}
-            >
+            <span className="text-[9px] font-bold text-[#94a3b8]">
               {badge}
             </span>
+          ) : null}
+          {isActive ? (
+            <motion.div
+              layoutId="active-pill"
+              className="absolute left-0 h-4 w-1 rounded-r-full bg-[#4c63ff]"
+            />
           ) : null}
         </>
       )}
@@ -193,23 +199,21 @@ export function Sidebar({isOpen, onClose}: SidebarProps) {
   );
 
   const sidebarContent = (
-    <div className="flex h-full w-full flex-col border-r border-[#edf0f6] bg-[linear-gradient(180deg,#fdfdff_0%,#fbfbfd_100%)] px-4 py-4 text-[#1f2430] md:px-4 md:py-4">
-      <div className="mb-5 flex items-start justify-between">
-        <div className="flex items-center gap-4">
-          <div className="flex h-[54px] w-[54px] items-center justify-center rounded-[18px] bg-[#18233f] text-white shadow-[0_14px_24px_rgba(24,35,63,0.18)]">
-            <Fingerprint className="h-6 w-6" />
+    <div className="flex h-full w-full flex-col overflow-hidden border-r border-[#edf0f6] bg-[linear-gradient(180deg,#fdfdff_0%,#fbfbfd_100%)] px-4 py-4 text-[#1f2430]">
+      <div className="mb-4 flex items-start justify-between shrink-0">
+        <div className="flex items-center gap-3">
+          <div className="flex h-12 w-12 items-center justify-center rounded-[16px] bg-[#18233f] text-white shadow-lg">
+            <Fingerprint className="h-5 w-5" />
           </div>
           <div>
-            <p className="text-[1rem] font-black uppercase tracking-[0.34em] text-[#202635]">Core</p>
-            <p className="mt-0.5 text-[0.72rem] font-bold uppercase tracking-[0.28em] text-[#9caed8]">
-              Creator
-            </p>
+            <p className="text-[0.9rem] font-black uppercase tracking-[0.3em] text-[#202635]">Core</p>
+            <p className="text-[0.65rem] font-bold uppercase tracking-[0.2em] text-[#9caed8]">Creator</p>
           </div>
         </div>
 
         <button
           onClick={onClose}
-          className="rounded-2xl border border-[#e8ebf3] bg-white p-3 text-[#7e8798] shadow-sm transition-colors hover:text-[#1f2430] md:hidden"
+          className="rounded-xl border border-[#e8ebf3] bg-white p-2 text-[#7e8798] transition-colors hover:text-[#1f2430] active:scale-90 md:hidden"
           aria-label="Fechar menu"
         >
           <X className="h-5 w-5" />
@@ -218,49 +222,67 @@ export function Sidebar({isOpen, onClose}: SidebarProps) {
 
       <button
         onClick={openCommandPalette}
-        className="mb-5 flex w-full items-center gap-3 rounded-[18px] border border-[#e8ebf3] bg-white px-4 py-2.5 text-left text-[#8a92a4] shadow-[0_8px_18px_rgba(17,24,39,0.04)] transition-colors hover:border-[#dbe1ee] hover:text-[#1f2430]"
+        className="group mb-4 flex w-full items-center gap-3 rounded-[16px] border border-[#e8ebf3] bg-white px-4 py-2 text-left text-[#8a92a4] shadow-sm transition-all hover:border-[#4c63ff]/30"
       >
-        <Search className="h-4 w-4 shrink-0" />
-        <span className="flex-1 text-[14px] font-semibold">Buscar...</span>
-        <span className="rounded-xl bg-[#f3f5f8] px-3 py-1 text-[11px] font-black uppercase tracking-[0.16em] text-[#7e8798]">
+        <Search className="h-4 w-4 shrink-0 transition-colors group-hover:text-[#4c63ff]" />
+        <span className="flex-1 text-[13px] font-semibold">Procurar...</span>
+        <span className="rounded-xl bg-[#f3f5f8] px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-[#7e8798]">
           Ctrl K
         </span>
       </button>
 
-      <nav className="custom-scrollbar flex-1 overflow-y-auto pr-1">
-        <div className="space-y-5">
+      <nav className="flex flex-1 flex-col" role="navigation" aria-label="Principal">
+        <div className="custom-scrollbar flex-1 space-y-4 overflow-y-auto pr-1">
           {sections.map(section => {
             const visibleItems = section.items.filter(item => !item.hidden);
             if (visibleItems.length === 0) return null;
 
             return (
               <section key={section.title}>
-                <p className="mb-2 px-2 text-[10px] font-black uppercase tracking-[0.24em] text-[#9cadcf]">
+                <p className="mb-1.5 px-2 text-[9px] font-black uppercase tracking-[0.2em] text-[#9cadcf]">
                   {section.title}
                 </p>
-                <div className="space-y-1.5">{visibleItems.map(renderNavItem)}</div>
+                <div className="space-y-0.5">{visibleItems.map(renderNavItem)}</div>
               </section>
             );
           })}
         </div>
       </nav>
 
-      <div className="mt-3 border-t border-[#eef1f6] pt-4">
-        <div className="flex items-center justify-center gap-5">
+      <div className="mt-auto shrink-0 pb-2 pt-4">
+        <button
+          className="flex w-full items-center gap-3 rounded-2xl border border-transparent bg-[#f8faff] p-2 text-left transition-all hover:border-[#e7ebf3] hover:shadow-sm"
+          aria-label="Abrir perfil"
+        >
+          <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#4c63ff] to-[#18233f] text-white shadow-sm">
+            <User className="h-5 w-5" />
+            <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white bg-green-500" />
+          </div>
+          <div className="flex min-w-0 flex-1 flex-col items-start overflow-hidden">
+            <span className="w-full truncate text-[13px] font-bold text-[#202635]">{userName}</span>
+            <span className="w-full truncate text-[10px] font-medium text-[#94a3b8]">{userEmail}</span>
+          </div>
+          <ChevronRight className="h-4 w-4 text-[#94a3b8]" />
+        </button>
+      </div>
+
+      <div className="shrink-0 border-t border-[#eef1f6] pt-3">
+        <div className="flex items-center justify-between gap-3">
           <button
             onClick={toggleTheme}
             aria-label={state.theme === 'light' ? 'Ativar modo noturno' : 'Ativar modo claro'}
-            className="flex h-[54px] w-[54px] items-center justify-center rounded-[18px] border border-[#e7ebf3] bg-white text-[#667287] shadow-[0_10px_22px_rgba(17,24,39,0.04)] transition-colors hover:bg-[#f8faff] hover:text-[#1f2430]"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#e7ebf3] bg-white text-[#667287] shadow-sm transition-colors hover:text-[#4c63ff]"
           >
-            {state.theme === 'light' ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
+            {state.theme === 'light' ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
           </button>
 
           <button
             onClick={signOut}
             aria-label="Finalizar sessao"
-            className="flex h-[54px] w-[54px] items-center justify-center rounded-[18px] border border-[#e7ebf3] bg-white text-[#667287] shadow-[0_10px_22px_rgba(17,24,39,0.04)] transition-colors hover:bg-[#fff8f8] hover:text-[#d96a6a]"
+            className="flex h-9 flex-1 items-center justify-center gap-2 rounded-xl border border-[#e7ebf3] bg-white text-[11px] font-semibold text-[#667287] shadow-sm transition-all hover:border-red-100 hover:bg-red-50 hover:text-red-500"
           >
-            <LogOut className="h-5 w-5" />
+            <LogOut className="h-3.5 w-3.5" />
+            Sair
           </button>
         </div>
       </div>

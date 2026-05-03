@@ -1,5 +1,5 @@
 import type { ElementType } from 'react';
-import { BookOpen, Calendar, Lightbulb, Plus, BriefcaseBusiness } from 'lucide-react';
+import { Calendar, FileText, Plus, Video, Clapperboard } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import { cn } from '../../lib/utils';
 
@@ -16,9 +16,9 @@ interface MobileNavItemConfig {
 
 const navItems: MobileNavItemConfig[] = [
   { to: '/calendario', label: 'Agenda', icon: Calendar },
-  { to: '/projetos', label: 'Projetos', icon: BriefcaseBusiness },
-  { to: '/ideias', label: 'Ideias', icon: Lightbulb },
-  { to: '/biblioteca', label: 'Acervo', icon: BookOpen },
+  { to: '/conteudos', label: 'Conteudos', icon: FileText },
+  { to: '/gravacao', label: 'Gravacao', icon: Video },
+  { to: '/conteudos/historico', label: 'Postagem', icon: Clapperboard },
 ];
 
 function MobileBottomNavItem({ to, label, icon: Icon }: MobileNavItemConfig) {

@@ -269,6 +269,9 @@ export function MobileNavBar() {
         <ContentDetailModal
           content={selectedContent}
           isNewContent={true}
+          initialTab="roteiro"
+          visibleTabs={['roteiro']}
+          compactMobileComposer={true}
           onClose={() => setSelectedContent(null)}
         />
       )}

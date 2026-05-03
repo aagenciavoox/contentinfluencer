@@ -1,8 +1,9 @@
 import {Suspense, lazy, useEffect, useMemo, useState} from 'react';
 import {useSearchParams} from 'react-router-dom';
-import {Table as TableIcon, Trash2, X} from 'lucide-react';
+import {Check, Loader2, Table as TableIcon, Trash2, X} from 'lucide-react';
 import {AnimatePresence, motion} from 'motion/react';
 import {ConfirmModal} from '../../../components/feedback/modals/ConfirmModal';
+import {AppButton} from '../../../components/ui/AppButton';
 import {useAppContext} from '../../../context/AppContext';
 import {useIsMobile} from '../../../hooks/useIsMobile';
 import {DesktopPageHeader} from '../../../layouts/page/DesktopPageHeader';
@@ -14,16 +15,20 @@ import {ContentsDesktop} from '../components/desktop/ContentsDesktop';
 import {ContentsToolbar} from '../components/filters/ContentsToolbar';
 import {normalizeRecordingTags} from '../../recording/lib/recordingWorkflow';
 import {
+  EDITORIAL_CONTENT_STATUSES,
   getContentStatusOptions,
   getEditorialContents,
   getPostedContents,
   getPostingContents,
+  PRODUCTION_CONTENT_STATUSES,
   RECORDING_READY_STATUS,
 } from '../lib/contentWorkflow';
 import {ContentsViewMode, PostingTab, SortDirection, SortField} from '../types';
 
 const DESKTOP_PAGE_SIZE = 12;
 const MOBILE_PAGE_SIZE = 8;
+const KEEP_VALUE = '__KEEP__';
+const EMPTY_VALUE = '__EMPTY__';
 
 const ContentDetailModal = lazy(() =>
   import('../components/modals/ContentDetailModal').then(module => ({default: module.ContentDetailModal}))
@@ -79,7 +84,7 @@ function createEmptyContent(
 }
 
 export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'history'}) {
-  const {state, dispatch} = useAppContext();
+  const {state, dispatch, updateContent} = useAppContext();
   const [searchParams] = useSearchParams();
   const isMobile = useIsMobile();
   const [postingTab, setPostingTab] = useState<PostingTab>('postagem');
@@ -98,6 +103,12 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
   const [sortField, setSortField] = useState<SortField>('createdAt');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkSeriesValue, setBulkSeriesValue] = useState(KEEP_VALUE);
+  const [bulkPillarValue, setBulkPillarValue] = useState(KEEP_VALUE);
+  const [bulkStatusValue, setBulkStatusValue] = useState(KEEP_VALUE);
+  const [bulkUpdateMessage, setBulkUpdateMessage] = useState<string | null>(null);
+  const [bulkUpdateError, setBulkUpdateError] = useState<string | null>(null);
+  const [isBulkUpdating, setIsBulkUpdating] = useState(false);
   const [confirm, setConfirm] = useState<{message: string; onConfirm: () => void} | null>(null);
   const [desktopPage, setDesktopPage] = useState(1);
 
@@ -112,6 +123,16 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
       setSelectedIds(new Set());
     }
   }, [isPostingHistory]);
+
+  useEffect(() => {
+    if (selectedIds.size === 0) {
+      setBulkSeriesValue(KEEP_VALUE);
+      setBulkPillarValue(KEEP_VALUE);
+      setBulkStatusValue(KEEP_VALUE);
+      setBulkUpdateMessage(null);
+      setBulkUpdateError(null);
+    }
+  }, [selectedIds]);
 
   const sourceContents = useMemo(() => {
     if (mode === 'editorial') return getEditorialContents(state.contents);
@@ -186,6 +207,16 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
   const mobileContents = useMemo(() => {
     return sortedContents;
   }, [sortedContents]);
+
+  const bulkStatusOptions = useMemo(() => {
+    const uniqueStatuses = new Set<string>([
+      ...EDITORIAL_CONTENT_STATUSES,
+      RECORDING_READY_STATUS,
+      ...PRODUCTION_CONTENT_STATUSES,
+    ]);
+
+    return Array.from(uniqueStatuses);
+  }, []);
 
   const totalDesktopPages = Math.max(1, Math.ceil(sortedContents.length / DESKTOP_PAGE_SIZE));
 
@@ -284,6 +315,52 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
     });
   };
 
+  const hasBulkChanges =
+    bulkSeriesValue !== KEEP_VALUE || bulkPillarValue !== KEEP_VALUE || bulkStatusValue !== KEEP_VALUE;
+
+  const handleBulkApply = async () => {
+    if (!hasBulkChanges || selectedIds.size === 0 || isBulkUpdating) return;
+
+    const selectedContents = state.contents.filter(content => selectedIds.has(content.id));
+    if (selectedContents.length === 0) return;
+
+    setIsBulkUpdating(true);
+    setBulkUpdateMessage(null);
+    setBulkUpdateError(null);
+
+    try {
+      await Promise.all(
+        selectedContents.map(content =>
+          updateContent({
+            ...content,
+            seriesId:
+              bulkSeriesValue === KEEP_VALUE
+                ? content.seriesId
+                : bulkSeriesValue === EMPTY_VALUE
+                  ? null
+                  : bulkSeriesValue,
+            pilarId:
+              bulkPillarValue === KEEP_VALUE
+                ? content.pilarId
+                : bulkPillarValue === EMPTY_VALUE
+                  ? null
+                  : bulkPillarValue,
+            status: bulkStatusValue === KEEP_VALUE ? content.status : bulkStatusValue,
+            updatedAt: new Date().toISOString(),
+          })
+        )
+      );
+
+      setBulkUpdateMessage(`${selectedContents.length} conteudos atualizados.`);
+      setSelectedIds(new Set());
+    } catch (error) {
+      console.error('[ContentsPage] bulk update failed:', error);
+      setBulkUpdateError('Nao foi possivel aplicar as alteracoes em massa.');
+    } finally {
+      setIsBulkUpdating(false);
+    }
+  };
+
   const activeContent = selectedContent
     ? state.contents.find(content => content.id === selectedContent.id) || selectedContent
     : null;
@@ -319,16 +396,16 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
 
         {activeContent && (
           <Suspense fallback={<ModalFallback />}>
-            <ContentDetailModal
-              content={activeContent}
-              isNewContent={isNewModal}
-              initialTab={isEditorialMode ? 'roteiro' : 'producao'}
-              visibleTabs={isEditorialMode ? ['roteiro'] : ['producao']}
-              onClose={() => {
-                setSelectedContent(null);
-                setIsNewModal(false);
-              }}
-            />
+          <ContentDetailModal
+            content={activeContent}
+            isNewContent={isNewModal}
+            initialTab={isEditorialMode ? 'roteiro' : 'producao'}
+            visibleTabs={isEditorialMode ? ['roteiro'] : ['producao']}
+            onClose={() => {
+              setSelectedContent(null);
+              setIsNewModal(false);
+            }}
+          />
           </Suspense>
         )}
 
@@ -449,15 +526,79 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
             initial={{y: 80}}
             animate={{y: 0}}
             exit={{y: 80}}
-            className="fixed bottom-6 left-1/2 z-30 flex -translate-x-1/2 items-center gap-2 rounded-full bg-[var(--text-primary)] px-6 py-3 text-[var(--bg-primary)] shadow-2xl"
+            className="fixed bottom-6 left-1/2 z-30 w-[min(1100px,calc(100vw-2rem))] -translate-x-1/2 rounded-[28px] bg-[var(--text-primary)] px-4 py-4 text-[var(--bg-primary)] shadow-2xl"
           >
-            <span className="text-[10px] font-black uppercase">{selectedIds.size} selecionados</span>
-            <button type="button" onClick={handleBulkDelete} className="rounded-lg bg-red-500/20 p-2 text-red-300">
-              <Trash2 className="h-4 w-4" />
-            </button>
-            <button type="button" onClick={() => setSelectedIds(new Set())} className="p-2">
-              <X className="h-4 w-4" />
-            </button>
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="rounded-full bg-white/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em]">
+                  {selectedIds.size} selecionados
+                </span>
+                <span className="text-xs text-white/70">Aplique pilar, serie e status de uma vez.</span>
+              </div>
+
+              <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto]">
+                <BulkSelect
+                  label="Pilar"
+                  value={bulkPillarValue}
+                  onChange={setBulkPillarValue}
+                  options={[
+                    {label: 'Manter pilar atual', value: KEEP_VALUE},
+                    {label: 'Sem pilar', value: EMPTY_VALUE},
+                    ...state.pilares.map(pillar => ({label: pillar.nome, value: pillar.id})),
+                  ]}
+                />
+                <BulkSelect
+                  label="Serie"
+                  value={bulkSeriesValue}
+                  onChange={setBulkSeriesValue}
+                  options={[
+                    {label: 'Manter serie atual', value: KEEP_VALUE},
+                    {label: 'Sem serie', value: EMPTY_VALUE},
+                    ...state.series.map(series => ({label: series.name, value: series.id})),
+                  ]}
+                />
+                <BulkSelect
+                  label="Status"
+                  value={bulkStatusValue}
+                  onChange={setBulkStatusValue}
+                  options={[
+                    {label: 'Manter status atual', value: KEEP_VALUE},
+                    ...bulkStatusOptions.map(status => ({label: status, value: status})),
+                  ]}
+                />
+
+                <div className="flex flex-wrap items-end gap-2">
+                  <AppButton
+                    variant="primary"
+                    onClick={handleBulkApply}
+                    disabled={!hasBulkChanges || isBulkUpdating}
+                    leftIcon={isBulkUpdating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                    className="bg-white text-[#0F172A] hover:bg-white/90"
+                  >
+                    Aplicar
+                  </AppButton>
+                  <button
+                    type="button"
+                    onClick={handleBulkDelete}
+                    className="rounded-xl bg-red-500/20 p-3 text-red-200 transition-colors hover:bg-red-500/30"
+                    aria-label="Excluir selecionados"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedIds(new Set())}
+                    className="rounded-xl bg-white/10 p-3 text-white transition-colors hover:bg-white/15"
+                    aria-label="Limpar selecao"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+
+              {bulkUpdateError ? <p className="text-xs text-red-200">{bulkUpdateError}</p> : null}
+              {bulkUpdateMessage ? <p className="text-xs text-emerald-200">{bulkUpdateMessage}</p> : null}
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -517,5 +658,31 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
         onCancel={() => setConfirm(null)}
       />
     </PageScaffold>
+  );
+}
+
+interface BulkSelectProps {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: Array<{label: string; value: string}>;
+}
+
+function BulkSelect({label, value, onChange, options}: BulkSelectProps) {
+  return (
+    <label className="flex min-w-0 flex-col gap-2">
+      <span className="text-[10px] font-black uppercase tracking-[0.18em] text-white/70">{label}</span>
+      <select
+        value={value}
+        onChange={event => onChange(event.target.value)}
+        className="h-11 rounded-2xl border border-white/10 bg-white px-4 text-sm font-semibold text-[#0F172A] outline-none transition-colors focus:border-white/40"
+      >
+        {options.map(option => (
+          <option key={`${label}-${option.value}`} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    </label>
   );
 }

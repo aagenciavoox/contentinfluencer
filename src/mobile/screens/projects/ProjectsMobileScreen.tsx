@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Calendar, CircleDollarSign, FolderKanban, Plus, SearchCheck, TimerReset } from 'lucide-react';
+import { CircleDollarSign, FolderKanban, Plus, SearchCheck, TimerReset } from 'lucide-react';
 import { normalizeProjetoTipo, type Projeto } from '../../../lib/database';
 import { MobileEmptyState } from '../../components/MobileEmptyState';
 import { MobileFilterSheet } from '../../components/MobileFilterSheet';
@@ -193,12 +193,6 @@ export function ProjectsMobileScreen({
                   description={projeto.brand || projeto.notes || 'Sem observacoes adicionais'}
                   meta={
                     <>
-                      {projeto.dataFim ? (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-[var(--accent-blue)]/10 px-3 py-1 text-[11px] font-semibold text-[var(--accent-blue)]">
-                          <Calendar className="h-3 w-3" />
-                          {new Date(projeto.dataFim).toLocaleDateString('pt-BR')}
-                        </span>
-                      ) : null}
                       {projeto.value ? (
                         <span className="inline-flex items-center gap-1 rounded-full bg-[var(--accent-orange)]/10 px-3 py-1 text-[11px] font-semibold text-[var(--accent-orange)]">
                           <CircleDollarSign className="h-3 w-3" />

@@ -347,6 +347,12 @@ textarea {
     font-size: 16px !important;
   }
 
+  .tiptap,
+  .tiptap p,
+  .ProseMirror {
+    font-size: 16px !important;
+  }
+
   input:focus,
   textarea:focus,
   .input:focus,

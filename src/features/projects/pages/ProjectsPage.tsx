@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Handshake, ChevronRight, Calendar, DollarSign } from 'lucide-react';
+import { Plus, Handshake, ChevronRight, DollarSign } from 'lucide-react';
 import { useAppContext } from '../../../context/AppContext';
 import { useAuth } from '../../../context/AuthContext';
 import { normalizeProjetoTipo, type Projeto } from '../../../lib/database';
@@ -50,7 +50,6 @@ export function ProjectsPage() {
 
   const [nome, setNome] = useState('');
   const [tipo, setTipo] = useState<Projeto['tipo']>('publi');
-  const [dataFim, setDataFim] = useState('');
   const [brand, setBrand] = useState('');
   const [value, setValue] = useState('');
 
@@ -92,7 +91,7 @@ export function ProjectsPage() {
       tipo: normalizeProjetoTipo(tipo),
       status: 'pendente',
       dataInicio: null,
-      dataFim: dataFim || null,
+      dataFim: null,
       metaConteudos: null,
       bibliotecaItemId: null,
       brand: tipo === 'publi' ? brand.trim() || null : null,
@@ -109,7 +108,6 @@ export function ProjectsPage() {
     dispatch({ type: 'ADD_PROJETO', payload: projeto });
     setNome('');
     setTipo('publi');
-    setDataFim('');
     setBrand('');
     setValue('');
     setShowForm(false);
@@ -143,14 +141,12 @@ export function ProjectsPage() {
                 className="w-full"
               />
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3">
                 <select value={tipo} onChange={e => setTipo(e.target.value as Projeto['tipo'])}>
                   <option value="publi">Publi</option>
                   <option value="producao">Producao</option>
                   <option value="outro">Outro</option>
                 </select>
-
-                <input type="date" value={dataFim} onChange={e => setDataFim(e.target.value)} />
               </div>
 
               <input
@@ -289,12 +285,6 @@ export function ProjectsPage() {
                 <option value="outro">Outro</option>
               </select>
               <input
-                type="date"
-                value={dataFim}
-                onChange={e => setDataFim(e.target.value)}
-                className="flex-1 min-w-[140px] px-4 py-2.5 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl text-[11px] font-black text-[var(--text-primary)] focus:outline-none"
-              />
-              <input
                 value={value}
                 onChange={e => setValue(e.target.value)}
                 type="number"
@@ -364,12 +354,6 @@ export function ProjectsPage() {
                       {normalizeProjetoTipo(projeto.tipo) === 'publi' && projeto.brand && (
                         <span className="text-[10px] font-bold text-[var(--text-secondary)] opacity-60">
                           {projeto.brand}
-                        </span>
-                      )}
-                      {projeto.dataFim && (
-                        <span className="flex items-center gap-1 text-[10px] font-bold text-[var(--text-secondary)] opacity-50">
-                          <Calendar className="w-3 h-3" />
-                          {new Date(projeto.dataFim).toLocaleDateString('pt-BR')}
                         </span>
                       )}
                       {projeto.value && (

@@ -18,7 +18,7 @@ export function getMobileRouteMeta(pathname: string): MobileRouteMeta {
   if (pathname.startsWith('/projetos/')) {
     return {
       title: 'Projeto',
-      subtitle: 'Status, prazo e proximas acoes.',
+      subtitle: 'Status, eventos e proximas acoes.',
       mode: 'back',
       backTo: '/projetos',
     };
@@ -56,7 +56,7 @@ export function getMobileRouteMeta(pathname: string): MobileRouteMeta {
     case '/conteudos/historico':
       return {
         title: 'Postagem',
-        subtitle: 'Historico e producao publicados.',
+        subtitle: 'Historico e pipeline de postagem.',
       };
     case '/ideias':
       return {

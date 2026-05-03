@@ -30,6 +30,7 @@ interface ContentDetailModalProps {
   isNewContent?: boolean;
   initialTab?: ContentTab;
   visibleTabs?: ContentTab[];
+  compactMobileComposer?: boolean;
 }
 
 type ContentTab = 'roteiro' | 'producao';
@@ -124,12 +125,14 @@ export function ContentDetailModal({
   isNewContent = false,
   initialTab = 'roteiro',
   visibleTabs = ['roteiro', 'producao'],
+  compactMobileComposer = false,
 }: ContentDetailModalProps) {
   const {state, dispatch, createContent, updateContent} = useAppContext();
   const {user} = useAuth();
   const isMobile = useIsMobile();
   const navigate = useNavigate();
   const isDesktopNewContent = isNewContent && !isMobile;
+  const isCompactMobileComposer = compactMobileComposer && isMobile && isNewContent;
   const userName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Usuário';
 
   const baseContent = useMemo(() => {
@@ -280,7 +283,7 @@ export function ContentDetailModal({
   const selectClass =
     'w-full md:w-auto rounded-xl border border-[var(--border-color)] bg-[var(--bg-hover)] px-3 py-2.5 text-xs text-[var(--text-primary)] shadow-sm focus:ring-0';
   const textareaClass =
-    'w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-hover)] p-4 text-sm text-[var(--text-primary)] placeholder:italic placeholder:opacity-30 focus:ring-0 resize-none';
+    'w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-hover)] p-4 text-base text-[var(--text-primary)] placeholder:italic placeholder:opacity-30 focus:ring-0 resize-none md:text-sm';
 
   const sidebarStages = STATUS_STAGES.map((stage, index) => {
     const currentIndex = STATUS_STAGES.indexOf(scriptDraft.status);
@@ -728,7 +731,7 @@ export function ContentDetailModal({
                 isMobile && 'pt-5'
               )}
             >
-              {isMobile && (
+              {isMobile && !isCompactMobileComposer && (
                 <div className="flex w-full items-center justify-between gap-2">
                   <select
                     value={scriptDraft.status}
@@ -758,7 +761,10 @@ export function ContentDetailModal({
                   className={cn(
                     'w-full font-black tracking-tight text-[var(--text-primary)] placeholder:opacity-30 focus:ring-0',
                     isMobile
-                      ? 'rounded-lg border border-[var(--border-color)] bg-[var(--bg-hover)] px-2.5 py-1.5 text-xs'
+                      ? cn(
+                          'rounded-lg border border-[var(--border-color)] bg-[var(--bg-hover)]',
+                          isCompactMobileComposer ? 'px-3 py-2 text-base' : 'px-2.5 py-1.5 text-xs'
+                        )
                       : isDesktopNewContent
                         ? 'h-13 truncate rounded-2xl border border-[#ddd7cf] bg-white px-5 text-[16px] shadow-[0_1px_2px_rgba(17,24,39,0.04)]'
                         : 'truncate border-none bg-transparent p-0 text-3xl'
@@ -855,14 +861,14 @@ export function ContentDetailModal({
                     isDesktopNewContent && 'md:space-y-6'
                   )}
                 >
-                  <section
+                  {!isCompactMobileComposer && <section
                     className={cn(
                       isDesktopNewContent &&
                         'rounded-[24px] border border-[#e5dfd6] bg-white p-5 shadow-[0_8px_30px_rgba(15,23,42,0.04)]'
                     )}
                   >
                     <p className={groupTitle}>Classificação</p>
-                    <div
+                    {!isCompactMobileComposer && <div
                       className={cn(
                         'grid grid-cols-1 gap-x-12 gap-y-5 md:grid-cols-2 md:gap-y-6',
                         isDesktopNewContent && 'md:grid-cols-4 md:gap-4'
@@ -1091,8 +1097,8 @@ export function ContentDetailModal({
                           )}
                         </div>
                       )}
-                    </div>
-                  </section>
+                    </div>}
+                  </section>}
 
                   <section
                     className={cn(
@@ -1130,16 +1136,18 @@ export function ContentDetailModal({
                       editorViewportClassName={cn(isDesktopNewContent && 'bg-white p-0')}
                       editorCanvasClassName={cn(
                         isDesktopNewContent &&
-                          'min-h-[420px] rounded-none border-0 p-6 shadow-none md:p-6'
+                          'min-h-[420px] rounded-none border-0 p-6 shadow-none md:p-6',
+                        isCompactMobileComposer && 'min-h-[52dvh] rounded-2xl border border-[var(--border-color)] p-4 shadow-none'
                       )}
                       annotations={scriptDraft.scriptNotes || []}
                       onAddAnnotation={handleAddAnnotation}
                       onRemoveAnnotation={handleRemoveAnnotation}
                       onUpdateAnnotation={handleUpdateAnnotation}
+                      compactMobileComposer={isCompactMobileComposer}
                     />
                   </section>
 
-                  <section>
+                  {!isCompactMobileComposer && <section>
                     <button
                       onClick={() => setRefsOpen(open => !open)}
                       className="group flex w-full items-center justify-between"
@@ -1155,11 +1163,11 @@ export function ContentDetailModal({
                       <textarea
                         value={scriptDraft.referencias || ''}
                         onChange={event => updateScriptDraft({referencias: event.target.value})}
-                        className="input-inline mt-4 min-h-[100px] w-full resize-none text-sm text-[var(--text-primary)] placeholder:italic placeholder:opacity-30"
+                        className="input-inline mt-4 min-h-[100px] w-full resize-none text-base text-[var(--text-primary)] placeholder:italic placeholder:opacity-30 md:text-sm"
                         placeholder="Links, inspirações, vídeos de referência..."
                       />
                     )}
-                  </section>
+                  </section>}
                 </div>
               )}
 
@@ -1446,7 +1454,7 @@ export function ContentDetailModal({
                     onClick={requestClose}
                     className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-primary)] opacity-30 transition-opacity hover:opacity-100"
                   >
-                    Descartar
+                    {isCompactMobileComposer ? 'Cancelar' : 'Descartar'}
                   </button>
                   <button
                     onClick={handleSave}

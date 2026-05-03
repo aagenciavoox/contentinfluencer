@@ -50,6 +50,8 @@ export function ContentsDesktop({
           contents={contents}
           onSelect={onSelect}
           onPreview={onPreview}
+          onToggleSelect={onToggleSelect}
+          selectedIds={selectedIds}
           lookAlerts={lookAlerts}
           mode={mode}
         />

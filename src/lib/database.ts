@@ -404,8 +404,9 @@ function empty(): AppData {
 
 async function currentUserId(): Promise<string | null> {
   if (!supabase) return null;
-  const { data: { session } } = await supabase.auth.getSession();
-  return session?.user.id ?? null;
+  const { data, error } = await supabase.auth.getUser();
+  if (error) return null;
+  return data.user?.id ?? null;
 }
 
 // ============================================================================
@@ -565,9 +566,8 @@ const mp = {
 
 export async function fetchAllData(): Promise<AppData> {
   if (!supabase) return empty();
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) return empty();
-  const uid = session.user.id;
+  const uid = await currentUserId();
+  if (!uid) return empty();
 
   const [
     { data: platforms },
@@ -1029,8 +1029,12 @@ export async function saveProjeto(
   projeto: Omit<Projeto, 'etapas' | 'contentIds' | 'updatedAt' | 'deletedAt'>
 ): Promise<void> {
   if (!supabase) return;
+  const uid = await currentUserId();
+  if (!uid) {
+    throw new Error('projetos: authenticated session unavailable');
+  }
   const { error } = await supabase.from('projetos').upsert({
-    id: projeto.id, user_id: projeto.userId, nome: projeto.nome, tipo: normalizeProjetoTipo(projeto.tipo),
+    id: projeto.id, user_id: uid, nome: projeto.nome, tipo: normalizeProjetoTipo(projeto.tipo),
     status: projeto.status, data_inicio: projeto.dataInicio, data_fim: projeto.dataFim,
     meta_conteudos: projeto.metaConteudos, biblioteca_item_id: projeto.bibliotecaItemId,
     brand: projeto.brand, brand_color: projeto.brandColor, value: projeto.value,

@@ -1,4 +1,4 @@
-import { Eye, Layers, Zap } from 'lucide-react';
+import { Check, Eye, Layers, Zap } from 'lucide-react';
 import { Content } from '../../../../lib/database';
 import { useAppContext } from '../../../../context/AppContext';
 import { cn, getEntityTagStyle } from '../../../../lib/utils';
@@ -8,6 +8,8 @@ interface ContentGridProps {
   lookAlerts: Record<string, string>;
   onSelect: (content: Content) => void;
   onPreview: (content: Content) => void;
+  onToggleSelect: (id: string) => void;
+  selectedIds: Set<string>;
   mode?: 'editorial' | 'postagem' | 'historico';
 }
 
@@ -27,9 +29,12 @@ export function ContentGrid({
   lookAlerts,
   onSelect,
   onPreview,
+  onToggleSelect,
+  selectedIds,
   mode = 'editorial',
 }: ContentGridProps) {
   const { state } = useAppContext();
+  const enableSelection = mode !== 'historico';
 
   if (contents.length === 0) {
     return (
@@ -46,11 +51,17 @@ export function ContentGrid({
       {contents.map(content => {
         const series = content.seriesId ? state.series.find(item => item.id === content.seriesId) : null;
         const pillar = content.pilarId ? state.pilares.find(item => item.id === content.pilarId) : null;
+        const isSelected = selectedIds.has(content.id);
 
         return (
           <article
             key={content.id}
-            className="relative flex min-h-[220px] flex-col rounded-2xl border border-[var(--border-color)] bg-[var(--bg-primary)] p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-lg"
+            className={cn(
+              'relative flex min-h-[220px] flex-col rounded-2xl border bg-[var(--bg-primary)] p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-lg',
+              isSelected
+                ? 'border-[var(--text-primary)] ring-2 ring-[var(--text-primary)]/10'
+                : 'border-[var(--border-color)]'
+            )}
           >
             <div className="mb-4 flex items-start justify-between gap-3">
               <div className="min-w-0">
@@ -75,16 +86,34 @@ export function ContentGrid({
                 </h3>
               </div>
 
-              {mode !== 'historico' ? (
-                <button
-                  type="button"
-                  onClick={() => onPreview(content)}
-                  className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[var(--border-color)] bg-[var(--bg-hover)] text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-primary)]"
-                  aria-label={`Visualizar roteiro de ${content.title}`}
-                >
-                  <Eye className="h-4 w-4" />
-                </button>
-              ) : null}
+              <div className="flex items-center gap-2">
+                {enableSelection ? (
+                  <button
+                    type="button"
+                    onClick={() => onToggleSelect(content.id)}
+                    className={cn(
+                      'inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border-2 transition-all',
+                      isSelected
+                        ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-[var(--bg-primary)]'
+                        : 'border-[var(--border-color)] bg-[var(--bg-hover)] text-[var(--text-primary)]'
+                    )}
+                    aria-label={isSelected ? `Desmarcar ${content.title}` : `Selecionar ${content.title}`}
+                  >
+                    {isSelected ? <Check className="h-4 w-4 stroke-[3px]" /> : null}
+                  </button>
+                ) : null}
+
+                {mode !== 'historico' ? (
+                  <button
+                    type="button"
+                    onClick={() => onPreview(content)}
+                    className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[var(--border-color)] bg-[var(--bg-hover)] text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-primary)]"
+                    aria-label={`Visualizar roteiro de ${content.title}`}
+                  >
+                    <Eye className="h-4 w-4" />
+                  </button>
+                ) : null}
+              </div>
             </div>
 
             <div

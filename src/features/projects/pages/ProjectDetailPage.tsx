@@ -1,27 +1,76 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ChevronUp, ChevronDown, Trash2, Plus, Check, X, Briefcase } from 'lucide-react';
+import {
+  Briefcase,
+  CalendarDays,
+  Check,
+  ChevronUp,
+  ChevronDown,
+  ClipboardList,
+  Link2,
+  Pencil,
+  Plus,
+  Trash2,
+  X,
+} from 'lucide-react';
 import { useAppContext } from '../../../context/AppContext';
 import { useAuth } from '../../../context/AuthContext';
-import { normalizeProjetoTipo, type Projeto, type ProjetoEtapa, type AgendaItem, type Content } from '../../../lib/database';
+import {
+  normalizeProjetoTipo,
+  type AgendaItem,
+  type Content,
+  type Projeto,
+  type ProjetoEtapa,
+} from '../../../lib/database';
 import { cn } from '../../../lib/utils';
 import { DesktopPageHeader } from '../../../layouts/page/DesktopPageHeader';
 
-type Aba = 'visao-geral' | 'etapas' | 'conteudos' | 'agenda';
+const STATUS_CONCLUIDA = 'conclu\u00edda' as ProjetoEtapa['status'];
+const TIPO_REUNIAO = 'Reuni\u00e3o' as AgendaItem['tipo'];
+const TIPO_PUBLICACAO = 'Publica\u00e7\u00e3o' as AgendaItem['tipo'];
 
-const STATUS_ETAPA: ProjetoEtapa['status'][] = ['pendente', 'em_andamento', 'concluída'];
+const STATUS_ETAPA: ProjetoEtapa['status'][] = ['pendente', 'em_andamento', STATUS_CONCLUIDA];
 const STATUS_LABELS: Record<ProjetoEtapa['status'], string> = {
   pendente: 'Pendente',
   em_andamento: 'Em andamento',
-  concluída: 'Concluída',
+  [STATUS_CONCLUIDA]: 'Concluida',
 };
 const STATUS_COLORS: Record<ProjetoEtapa['status'], string> = {
   pendente: 'bg-zinc-800 text-zinc-400',
   em_andamento: 'bg-yellow-400/10 text-yellow-400',
-  concluída: 'bg-green-400/10 text-green-400',
+  [STATUS_CONCLUIDA]: 'bg-green-400/10 text-green-400',
 };
+const TIPO_AGENDA: AgendaItem['tipo'][] = [TIPO_REUNIAO, 'Entrega', TIPO_PUBLICACAO, 'Outro'];
 
-const TIPO_AGENDA: AgendaItem['tipo'][] = ['Reunião', 'Entrega', 'Publicação', 'Outro'];
+function formatDate(value: string | null) {
+  if (!value) return '--';
+  return new Date(value).toLocaleDateString('pt-BR');
+}
+
+function SectionCard({
+  title,
+  eyebrow,
+  action,
+  children,
+}: {
+  title: string;
+  eyebrow?: string;
+  action?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="rounded-[28px] border border-[var(--border-color)] bg-[var(--bg-primary)] p-5 md:p-6">
+      <div className="mb-5 flex items-start justify-between gap-4">
+        <div>
+          {eyebrow && <p className="mb-2 text-[9px] font-black uppercase tracking-[0.35em] opacity-40">{eyebrow}</p>}
+          <h2 className="text-base font-black uppercase tracking-[0.18em] text-[var(--text-primary)]">{title}</h2>
+        </div>
+        {action}
+      </div>
+      {children}
+    </section>
+  );
+}
 
 export function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -31,9 +80,7 @@ export function ProjectDetailPage() {
 
   const projeto = state.projetos.find(p => p.id === id);
   const projetoTipoNormalizado = projeto ? normalizeProjetoTipo(projeto.tipo) : 'publi';
-  const [aba, setAba] = useState<Aba>('visao-geral');
 
-  // Visão Geral — edição inline
   const [editNome, setEditNome] = useState('');
   const [editTipo, setEditTipo] = useState<Projeto['tipo']>('publi');
   const [editBrand, setEditBrand] = useState('');
@@ -43,23 +90,21 @@ export function ProjectDetailPage() {
   const [editNotes, setEditNotes] = useState('');
   const [isEditing, setIsEditing] = useState(false);
 
-  // Etapas
   const [novaEtapaNome, setNovaEtapaNome] = useState('');
   const [novaEtapaPrazo, setNovaEtapaPrazo] = useState('');
   const [showEtapaForm, setShowEtapaForm] = useState(false);
 
-  // Agenda
   const [agendaTitle, setAgendaTitle] = useState('');
   const [agendaDate, setAgendaDate] = useState('');
   const [agendaTime, setAgendaTime] = useState('');
-  const [agendaTipo, setAgendaTipo] = useState<AgendaItem['tipo']>('Reunião');
+  const [agendaTipo, setAgendaTipo] = useState<AgendaItem['tipo']>(TIPO_REUNIAO);
   const [showAgendaForm, setShowAgendaForm] = useState(false);
 
   if (!projeto) {
     return (
       <div className="min-h-screen bg-[var(--bg-secondary)] flex items-center justify-center">
         <div className="text-center space-y-4">
-          <p className="text-sm font-black uppercase tracking-widest opacity-30">Projeto não encontrado</p>
+          <p className="text-sm font-black uppercase tracking-widest opacity-30">Projeto nao encontrado</p>
           <button onClick={() => navigate('/projetos')} className="text-[11px] font-black uppercase tracking-widest underline opacity-50">
             Voltar
           </button>
@@ -67,6 +112,23 @@ export function ProjectDetailPage() {
       </div>
     );
   }
+
+  const sortedEtapas = [...projeto.etapas].sort((a, b) => a.ordem - b.ordem);
+  const agendaItems = [...state.agendaItems]
+    .filter(item => item.projetoId === projeto.id)
+    .sort((a, b) => `${a.date}${a.time || ''}`.localeCompare(`${b.date}${b.time || ''}`));
+  const projetoContents = state.contents.filter(content => projeto.contentIds.includes(content.id));
+  const disponiveisParaVincular = state.contents.filter(content => !projeto.contentIds.includes(content.id));
+  const etapasConcluidas = sortedEtapas.filter(etapa => etapa.status === STATUS_CONCLUIDA).length;
+
+  const proximaEntrega = useMemo(() => {
+    const candidates = [...sortedEtapas]
+      .filter(etapa => etapa.dataPrazo && etapa.status !== STATUS_CONCLUIDA)
+      .sort((a, b) => (a.dataPrazo || '').localeCompare(b.dataPrazo || ''));
+    return candidates[0] ?? null;
+  }, [sortedEtapas]);
+
+  const proximoEvento = agendaItems[0] ?? null;
 
   const startEditing = () => {
     setEditNome(projeto.nome);
@@ -133,25 +195,29 @@ export function ProjectDetailPage() {
   };
 
   const moveEtapa = (etapa: ProjetoEtapa, dir: -1 | 1) => {
-    const sorted = [...projeto.etapas].sort((a, b) => a.ordem - b.ordem);
-    const idx = sorted.findIndex(e => e.id === etapa.id);
+    const idx = sortedEtapas.findIndex(item => item.id === etapa.id);
     const swapIdx = idx + dir;
-    if (swapIdx < 0 || swapIdx >= sorted.length) return;
-    dispatch({ type: 'UPDATE_PROJETO_ETAPA', payload: { projetoId: projeto.id, etapa: { ...etapa, ordem: sorted[swapIdx].ordem } } });
-    dispatch({ type: 'UPDATE_PROJETO_ETAPA', payload: { projetoId: projeto.id, etapa: { ...sorted[swapIdx], ordem: etapa.ordem } } });
+    if (swapIdx < 0 || swapIdx >= sortedEtapas.length) return;
+
+    dispatch({
+      type: 'UPDATE_PROJETO_ETAPA',
+      payload: { projetoId: projeto.id, etapa: { ...etapa, ordem: sortedEtapas[swapIdx].ordem } },
+    });
+    dispatch({
+      type: 'UPDATE_PROJETO_ETAPA',
+      payload: { projetoId: projeto.id, etapa: { ...sortedEtapas[swapIdx], ordem: etapa.ordem } },
+    });
   };
 
   const deleteEtapa = (etapaId: string) => {
     dispatch({ type: 'DELETE_PROJETO_ETAPA', payload: { projetoId: projeto.id, etapaId } });
   };
 
-  const projetoContents = state.contents.filter(c => projeto.contentIds.includes(c.id));
-  const disponiveisParaVincular = state.contents.filter(c => !projeto.contentIds.includes(c.id));
-
   const vincularContent = (contentId: string) => {
     if (projeto.contentIds.includes(contentId)) return;
     const selectedContent = state.contents.find(content => content.id === contentId);
     if (!selectedContent) return;
+
     dispatch({
       type: 'UPDATE_PROJETO',
       payload: {
@@ -160,6 +226,7 @@ export function ProjectDetailPage() {
         updatedAt: new Date().toISOString(),
       },
     });
+
     dispatch({
       type: 'UPDATE_CONTENT',
       payload: {
@@ -168,8 +235,6 @@ export function ProjectDetailPage() {
       } satisfies Content,
     });
   };
-
-  const agendaItems = state.agendaItems.filter(a => a.projetoId === projeto.id);
 
   const handleAddAgenda = () => {
     if (!agendaTitle.trim() || !agendaDate) return;
@@ -190,11 +255,19 @@ export function ProjectDetailPage() {
     setShowAgendaForm(false);
   };
 
-  const abas: { key: Aba; label: string }[] = [
-    { key: 'visao-geral', label: 'Visão Geral' },
-    { key: 'etapas', label: `Etapas${projeto.etapas.length > 0 ? ` (${projeto.etapas.length})` : ''}` },
-    { key: 'conteudos', label: `Conteúdos${projetoContents.length > 0 ? ` (${projetoContents.length})` : ''}` },
-    { key: 'agenda', label: `Agenda${agendaItems.length > 0 ? ` (${agendaItems.length})` : ''}` },
+  const summaryCards = [
+    { label: 'Etapas', value: `${sortedEtapas.length}`, helper: `${etapasConcluidas} concluidas` },
+    { label: 'Eventos', value: `${agendaItems.length}`, helper: proximoEvento ? formatDate(proximoEvento.date) : 'Sem agenda' },
+    {
+      label: 'Conteudos',
+      value: `${projetoContents.length}`,
+      helper: disponiveisParaVincular.length > 0 ? `${disponiveisParaVincular.length} disponiveis para vincular` : 'Todos vinculados',
+    },
+    {
+      label: 'Prazo',
+      value: projeto.dataFim ? formatDate(projeto.dataFim) : 'Sem prazo',
+      helper: proximaEntrega ? `Proxima etapa: ${proximaEntrega.nome}` : 'Nenhuma entrega aberta',
+    },
   ];
 
   return (
@@ -203,7 +276,7 @@ export function ProjectDetailPage() {
         <DesktopPageHeader
           section="Projetos"
           title={projeto.nome}
-          subtitle="Acompanhe etapas, agenda, conteúdos vinculados e informações da parceria em um único lugar."
+          subtitle="Tudo do projeto em uma unica tela: contexto, prazos, eventos e conteudos vinculados."
           meta={`${projetoTipoNormalizado}${projeto.brand ? ` · ${projeto.brand}` : ''}`}
           icon={Briefcase}
           backLabel="Projetos"
@@ -211,268 +284,407 @@ export function ProjectDetailPage() {
         />
       </div>
 
-      <div className="desktop-content-frame">
-
-        {/* Abas */}
-        <div className="flex gap-1 mb-8 border-b border-[var(--border-color)] overflow-x-auto">
-          {abas.map(({ key, label }) => (
-            <button
-              key={key}
-              onClick={() => setAba(key)}
-              className={cn(
-                'px-5 py-3 text-[11px] font-black uppercase tracking-widest whitespace-nowrap transition-all border-b-2 -mb-px',
-                aba === key
-                  ? 'border-[var(--text-primary)] text-[var(--text-primary)]'
-                  : 'border-transparent opacity-40 hover:opacity-70'
-              )}
-            >
-              {label}
-            </button>
+      <div className="desktop-content-frame space-y-6">
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          {summaryCards.map(card => (
+            <div key={card.label} className="rounded-[24px] border border-[var(--border-color)] bg-[var(--bg-primary)] px-5 py-4">
+              <p className="text-[9px] font-black uppercase tracking-[0.35em] opacity-40">{card.label}</p>
+              <p className="mt-3 text-xl font-black text-[var(--text-primary)]">{card.value}</p>
+              <p className="mt-1 text-xs text-[var(--text-secondary)]">{card.helper}</p>
+            </div>
           ))}
         </div>
 
-        {/* ABA 1 — Visão Geral */}
-        {aba === 'visao-geral' && (
-          <div className="space-y-4">
-            {!isEditing ? (
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                  {[
-                    { label: 'Tipo', value: projetoTipoNormalizado },
-                    { label: 'Início', value: projeto.dataInicio ? new Date(projeto.dataInicio).toLocaleDateString('pt-BR') : '—' },
-                    { label: 'Prazo', value: projeto.dataFim ? new Date(projeto.dataFim).toLocaleDateString('pt-BR') : '—' },
-                    ...(projetoTipoNormalizado === 'publi' ? [{ label: 'Marca', value: projeto.brand || '—' }] : []),
-                    { label: 'Valor', value: projeto.value ? projeto.value.toLocaleString('pt-BR', { style: 'currency', currency: projeto.currency || 'BRL' }) : '—' },
-                  ].map(({ label, value }) => (
-                    <div key={label} className="px-5 py-4 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-2xl">
-                      <p className="text-[9px] font-black uppercase tracking-widest opacity-40 mb-1">{label}</p>
-                      <p className="text-sm font-black text-[var(--text-primary)] capitalize">{value}</p>
-                    </div>
-                  ))}
-                </div>
-                {projeto.notes && (
-                  <div className="px-5 py-4 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-2xl">
-                    <p className="text-[9px] font-black uppercase tracking-widest opacity-40 mb-2">Notas</p>
-                    <p className="text-sm text-[var(--text-secondary)] whitespace-pre-wrap">{projeto.notes}</p>
+        <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+          <div className="space-y-6">
+            <SectionCard
+              eyebrow="Operacao"
+              title="Etapas do projeto"
+              action={
+                !showEtapaForm ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowEtapaForm(true)}
+                    className="inline-flex items-center gap-2 rounded-xl border border-[var(--border-color)] px-4 py-2 text-[10px] font-black uppercase tracking-[0.25em] opacity-70 transition-opacity hover:opacity-100"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Nova etapa
+                  </button>
+                ) : null
+              }
+            >
+              <div className="space-y-3">
+                {sortedEtapas.length === 0 && (
+                  <div className="rounded-2xl border border-dashed border-[var(--border-color)] px-5 py-8 text-center">
+                    <p className="text-sm font-black uppercase tracking-widest opacity-30">Nenhuma etapa criada</p>
+                    <p className="mt-2 text-sm text-[var(--text-secondary)]">Comece estruturando as entregas e checkpoints deste projeto.</p>
                   </div>
                 )}
-                <div className="flex gap-3 pt-2">
+
+                {sortedEtapas.map((etapa, idx) => (
+                  <div key={etapa.id} className="flex items-center gap-3 rounded-2xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-4">
+                    <div className="flex flex-col gap-0.5">
+                      <button type="button" onClick={() => moveEtapa(etapa, -1)} disabled={idx === 0} className="p-0.5 opacity-30 transition-opacity hover:opacity-80 disabled:opacity-10">
+                        <ChevronUp className="h-3 w-3" />
+                      </button>
+                      <button type="button" onClick={() => moveEtapa(etapa, 1)} disabled={idx === sortedEtapas.length - 1} className="p-0.5 opacity-30 transition-opacity hover:opacity-80 disabled:opacity-10">
+                        <ChevronDown className="h-3 w-3" />
+                      </button>
+                    </div>
+
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-black text-[var(--text-primary)]">{etapa.nome}</p>
+                      <p className="mt-1 text-[11px] text-[var(--text-secondary)]">
+                        {etapa.dataPrazo ? `Prazo em ${formatDate(etapa.dataPrazo)}` : 'Sem prazo definido'}
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => toggleEtapaStatus(etapa)}
+                      className={cn('rounded-full px-3 py-1.5 text-[9px] font-black uppercase tracking-widest transition-all', STATUS_COLORS[etapa.status])}
+                    >
+                      {STATUS_LABELS[etapa.status]}
+                    </button>
+
+                    <button type="button" onClick={() => deleteEtapa(etapa.id)} className="p-2 opacity-20 transition-all hover:text-red-400 hover:opacity-60">
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                ))}
+
+                {showEtapaForm && (
+                  <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4">
+                    <div className="grid gap-3 md:grid-cols-[1fr_180px_auto_auto]">
+                      <input
+                        autoFocus
+                        value={novaEtapaNome}
+                        onChange={event => setNovaEtapaNome(event.target.value)}
+                        onKeyDown={event => event.key === 'Enter' && handleAddEtapa()}
+                        placeholder="Nome da etapa"
+                        className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] placeholder:opacity-30 focus:outline-none"
+                      />
+                      <input
+                        type="date"
+                        value={novaEtapaPrazo}
+                        onChange={event => setNovaEtapaPrazo(event.target.value)}
+                        className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] px-4 py-3 text-[11px] text-[var(--text-primary)] focus:outline-none"
+                      />
+                      <button type="button" onClick={handleAddEtapa} className="rounded-xl bg-[var(--text-primary)] px-4 py-3 text-[var(--bg-primary)] transition-opacity hover:opacity-90">
+                        <Check className="h-4 w-4" />
+                      </button>
+                      <button type="button" onClick={() => setShowEtapaForm(false)} className="rounded-xl border border-[var(--border-color)] px-4 py-3 opacity-60 transition-opacity hover:opacity-100">
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </SectionCard>
+
+            <SectionCard
+              eyebrow="Agenda"
+              title="Eventos e compromissos"
+              action={
+                !showAgendaForm ? (
                   <button
-                    onClick={startEditing}
-                    className="px-6 py-2.5 bg-[var(--text-primary)] text-[var(--bg-primary)] rounded-xl text-[11px] font-black uppercase tracking-widest hover:opacity-90 transition-opacity"
+                    type="button"
+                    onClick={() => setShowAgendaForm(true)}
+                    className="inline-flex items-center gap-2 rounded-xl border border-[var(--border-color)] px-4 py-2 text-[10px] font-black uppercase tracking-[0.25em] opacity-70 transition-opacity hover:opacity-100"
                   >
+                    <CalendarDays className="h-4 w-4" />
+                    Novo evento
+                  </button>
+                ) : null
+              }
+            >
+              <div className="space-y-3">
+                {showAgendaForm && (
+                  <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4">
+                    <div className="space-y-3">
+                      <input
+                        autoFocus
+                        value={agendaTitle}
+                        onChange={event => setAgendaTitle(event.target.value)}
+                        placeholder="Titulo do evento"
+                        className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] placeholder:opacity-30 focus:outline-none"
+                      />
+                      <div className="grid gap-3 md:grid-cols-3">
+                        <input
+                          type="date"
+                          value={agendaDate}
+                          onChange={event => setAgendaDate(event.target.value)}
+                          className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] px-4 py-3 text-[11px] text-[var(--text-primary)] focus:outline-none"
+                        />
+                        <input
+                          type="time"
+                          value={agendaTime}
+                          onChange={event => setAgendaTime(event.target.value)}
+                          className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] px-4 py-3 text-[11px] text-[var(--text-primary)] focus:outline-none"
+                        />
+                        <select
+                          value={agendaTipo}
+                          onChange={event => setAgendaTipo(event.target.value as AgendaItem['tipo'])}
+                          className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] px-4 py-3 text-[11px] font-black uppercase text-[var(--text-primary)] focus:outline-none"
+                        >
+                          {TIPO_AGENDA.map(tipo => (
+                            <option key={tipo} value={tipo}>
+                              {tipo}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="flex flex-wrap gap-3">
+                        <button type="button" onClick={handleAddAgenda} className="rounded-xl bg-[var(--text-primary)] px-5 py-3 text-[11px] font-black uppercase tracking-widest text-[var(--bg-primary)] transition-opacity hover:opacity-90">
+                          Adicionar evento
+                        </button>
+                        <button type="button" onClick={() => setShowAgendaForm(false)} className="rounded-xl border border-[var(--border-color)] px-5 py-3 text-[11px] font-black uppercase tracking-widest opacity-60 transition-opacity hover:opacity-100">
+                          Cancelar
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {agendaItems.length === 0 && !showAgendaForm && (
+                  <div className="rounded-2xl border border-dashed border-[var(--border-color)] px-5 py-8 text-center">
+                    <p className="text-sm font-black uppercase tracking-widest opacity-30">Nenhum evento cadastrado</p>
+                    <p className="mt-2 text-sm text-[var(--text-secondary)]">Crie reunioes, entregas e publicacoes sem sair da tela do projeto.</p>
+                  </div>
+                )}
+
+                {agendaItems.map(item => (
+                  <div key={item.id} className="flex items-center gap-4 rounded-2xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-4">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[var(--bg-primary)] text-[var(--text-primary)]">
+                      <CalendarDays className="h-5 w-5" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-black text-[var(--text-primary)]">{item.title}</p>
+                      <p className="mt-1 text-[11px] text-[var(--text-secondary)]">
+                        {formatDate(item.date)}{item.time ? ` · ${item.time}` : ''} · {item.tipo}
+                      </p>
+                    </div>
+                    <button type="button" onClick={() => dispatch({ type: 'DELETE_AGENDA_ITEM', payload: item.id })} className="p-2 opacity-20 transition-all hover:text-red-400 hover:opacity-60">
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </SectionCard>
+          </div>
+
+          <div className="space-y-6">
+            <SectionCard
+              eyebrow="Contexto"
+              title="Resumo do projeto"
+              action={
+                !isEditing ? (
+                  <button
+                    type="button"
+                    onClick={startEditing}
+                    className="inline-flex items-center gap-2 rounded-xl border border-[var(--border-color)] px-4 py-2 text-[10px] font-black uppercase tracking-[0.25em] opacity-70 transition-opacity hover:opacity-100"
+                  >
+                    <Pencil className="h-4 w-4" />
                     Editar
                   </button>
+                ) : null
+              }
+            >
+              {!isEditing ? (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-3">
+                    {[
+                      { label: 'Tipo', value: projetoTipoNormalizado },
+                      { label: 'Marca', value: projeto.brand || '--' },
+                      { label: 'Inicio', value: formatDate(projeto.dataInicio) },
+                      { label: 'Prazo final', value: formatDate(projeto.dataFim) },
+                      {
+                        label: 'Valor',
+                        value: projeto.value
+                          ? projeto.value.toLocaleString('pt-BR', { style: 'currency', currency: projeto.currency || 'BRL' })
+                          : '--',
+                      },
+                      { label: 'Meta de conteudos', value: projeto.metaConteudos ? String(projeto.metaConteudos) : '--' },
+                    ].map(item => (
+                      <div key={item.label} className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-4">
+                        <p className="text-[9px] font-black uppercase tracking-[0.3em] opacity-40">{item.label}</p>
+                        <p className="mt-2 text-sm font-black capitalize text-[var(--text-primary)]">{item.value}</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-4">
+                    <p className="text-[9px] font-black uppercase tracking-[0.3em] opacity-40">Proximos sinais</p>
+                    <div className="mt-3 space-y-2 text-sm text-[var(--text-secondary)]">
+                      <p>{proximaEntrega ? `Proxima etapa: ${proximaEntrega.nome} ate ${formatDate(proximaEntrega.dataPrazo)}` : 'Nenhuma etapa pendente com prazo.'}</p>
+                      <p>{proximoEvento ? `Proximo evento: ${proximoEvento.title} em ${formatDate(proximoEvento.date)}` : 'Nenhum evento futuro vinculado ao projeto.'}</p>
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-4">
+                    <p className="text-[9px] font-black uppercase tracking-[0.3em] opacity-40">Notas</p>
+                    <p className="mt-3 whitespace-pre-wrap text-sm text-[var(--text-secondary)]">
+                      {projeto.notes || 'Sem notas por enquanto.'}
+                    </p>
+                  </div>
+
                   <button
+                    type="button"
                     onClick={handleDeleteProjeto}
-                    className="px-6 py-2.5 border border-red-500/30 text-red-400 rounded-xl text-[11px] font-black uppercase tracking-widest hover:bg-red-500/10 transition-colors"
+                    className="w-full rounded-xl border border-red-500/30 px-5 py-3 text-[11px] font-black uppercase tracking-widest text-red-400 transition-colors hover:bg-red-500/10"
                   >
                     Excluir projeto
                   </button>
                 </div>
-              </div>
-            ) : (
-              <div className="space-y-4 p-6 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-2xl">
-                <input
-                  value={editNome}
-                  onChange={e => setEditNome(e.target.value)}
-                  placeholder="Nome"
-                  className="w-full px-4 py-3 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl text-sm font-bold text-[var(--text-primary)] focus:outline-none"
-                />
-                <div className="flex flex-wrap gap-3">
-                  <select
-                    value={editTipo}
-                    onChange={e => setEditTipo(e.target.value as Projeto['tipo'])}
-                    className="flex-1 min-w-[120px] px-4 py-2.5 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl text-[11px] font-black uppercase text-[var(--text-primary)] focus:outline-none"
-                  >
-                    <option value="publi">Publi</option>
-                    <option value="producao">Produção</option>
-                    <option value="outro">Outro</option>
-                  </select>
-                  <input type="date" value={editDataInicio} onChange={e => setEditDataInicio(e.target.value)} className="flex-1 min-w-[140px] px-4 py-2.5 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl text-[11px] text-[var(--text-primary)] focus:outline-none" />
-                  <input type="date" value={editDataFim} onChange={e => setEditDataFim(e.target.value)} className="flex-1 min-w-[140px] px-4 py-2.5 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl text-[11px] text-[var(--text-primary)] focus:outline-none" />
-                  <input type="number" value={editValue} onChange={e => setEditValue(e.target.value)} placeholder="Valor (R$)" className="flex-1 min-w-[100px] px-4 py-2.5 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl text-[11px] text-[var(--text-primary)] placeholder:opacity-30 focus:outline-none" />
-                </div>
-                {editTipo === 'publi' && (
-                  <input value={editBrand} onChange={e => setEditBrand(e.target.value)} placeholder="Marca" className="w-full px-4 py-3 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl text-sm text-[var(--text-primary)] placeholder:opacity-30 focus:outline-none" />
-                )}
-                <textarea
-                  value={editNotes}
-                  onChange={e => setEditNotes(e.target.value)}
-                  placeholder="Notas..."
-                  rows={3}
-                  className="w-full px-4 py-3 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl text-sm text-[var(--text-primary)] placeholder:opacity-30 focus:outline-none resize-none"
-                />
-                <div className="flex gap-3">
-                  <button onClick={saveEdit} className="px-6 py-2.5 bg-[var(--text-primary)] text-[var(--bg-primary)] rounded-xl text-[11px] font-black uppercase tracking-widest hover:opacity-90">Salvar</button>
-                  <button onClick={() => setIsEditing(false)} className="px-6 py-2.5 border border-[var(--border-color)] rounded-xl text-[11px] font-black uppercase tracking-widest opacity-50 hover:opacity-80">Cancelar</button>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ABA 2 — Etapas */}
-        {aba === 'etapas' && (
-          <div className="space-y-3">
-            {[...projeto.etapas].sort((a, b) => a.ordem - b.ordem).map((etapa, idx, arr) => (
-              <div key={etapa.id} className="flex items-center gap-3 px-5 py-4 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-2xl">
-                <div className="flex flex-col gap-0.5">
-                  <button onClick={() => moveEtapa(etapa, -1)} disabled={idx === 0} className="p-0.5 opacity-30 hover:opacity-80 disabled:opacity-10 transition-opacity">
-                    <ChevronUp className="w-3 h-3" />
-                  </button>
-                  <button onClick={() => moveEtapa(etapa, 1)} disabled={idx === arr.length - 1} className="p-0.5 opacity-30 hover:opacity-80 disabled:opacity-10 transition-opacity">
-                    <ChevronDown className="w-3 h-3" />
-                  </button>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-black text-[var(--text-primary)]">{etapa.nome}</p>
-                  {etapa.dataPrazo && (
-                    <p className="text-[10px] font-bold opacity-40 mt-0.5">{new Date(etapa.dataPrazo).toLocaleDateString('pt-BR')}</p>
+              ) : (
+                <div className="space-y-4">
+                  <input
+                    value={editNome}
+                    onChange={event => setEditNome(event.target.value)}
+                    placeholder="Nome"
+                    className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] focus:outline-none"
+                  />
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <select
+                      value={editTipo}
+                      onChange={event => setEditTipo(event.target.value as Projeto['tipo'])}
+                      className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-3 text-[11px] font-black uppercase text-[var(--text-primary)] focus:outline-none"
+                    >
+                      <option value="publi">Publi</option>
+                      <option value="producao">Producao</option>
+                      <option value="outro">Outro</option>
+                    </select>
+                    <input
+                      type="number"
+                      value={editValue}
+                      onChange={event => setEditValue(event.target.value)}
+                      placeholder="Valor (R$)"
+                      className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-3 text-[11px] text-[var(--text-primary)] placeholder:opacity-30 focus:outline-none"
+                    />
+                    <input
+                      type="date"
+                      value={editDataInicio}
+                      onChange={event => setEditDataInicio(event.target.value)}
+                      className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-3 text-[11px] text-[var(--text-primary)] focus:outline-none"
+                    />
+                    <input
+                      type="date"
+                      value={editDataFim}
+                      onChange={event => setEditDataFim(event.target.value)}
+                      className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-3 text-[11px] text-[var(--text-primary)] focus:outline-none"
+                    />
+                  </div>
+                  {editTipo === 'publi' && (
+                    <input
+                      value={editBrand}
+                      onChange={event => setEditBrand(event.target.value)}
+                      placeholder="Marca"
+                      className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-3 text-sm text-[var(--text-primary)] placeholder:opacity-30 focus:outline-none"
+                    />
                   )}
+                  <textarea
+                    value={editNotes}
+                    onChange={event => setEditNotes(event.target.value)}
+                    placeholder="Notas do projeto"
+                    rows={4}
+                    className="w-full resize-none rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-3 text-sm text-[var(--text-primary)] placeholder:opacity-30 focus:outline-none"
+                  />
+                  <div className="flex flex-wrap gap-3">
+                    <button type="button" onClick={saveEdit} className="rounded-xl bg-[var(--text-primary)] px-5 py-3 text-[11px] font-black uppercase tracking-widest text-[var(--bg-primary)] transition-opacity hover:opacity-90">
+                      Salvar
+                    </button>
+                    <button type="button" onClick={() => setIsEditing(false)} className="rounded-xl border border-[var(--border-color)] px-5 py-3 text-[11px] font-black uppercase tracking-widest opacity-60 transition-opacity hover:opacity-100">
+                      Cancelar
+                    </button>
+                  </div>
                 </div>
-                <button
-                  onClick={() => toggleEtapaStatus(etapa)}
-                  className={cn('px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all', STATUS_COLORS[etapa.status])}
-                >
-                  {STATUS_LABELS[etapa.status]}
-                </button>
-                <button onClick={() => deleteEtapa(etapa.id)} className="p-2 opacity-20 hover:opacity-60 hover:text-red-400 transition-all">
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
-            ))}
-
-            {showEtapaForm ? (
-              <div className="flex flex-wrap gap-3 p-5 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-2xl">
-                <input
-                  autoFocus
-                  value={novaEtapaNome}
-                  onChange={e => setNovaEtapaNome(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && handleAddEtapa()}
-                  placeholder="Nome da etapa"
-                  className="flex-1 min-w-[160px] px-4 py-2.5 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:opacity-30 focus:outline-none"
-                />
-                <input type="date" value={novaEtapaPrazo} onChange={e => setNovaEtapaPrazo(e.target.value)} className="px-4 py-2.5 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl text-[11px] text-[var(--text-primary)] focus:outline-none" />
-                <button onClick={handleAddEtapa} className="p-2.5 bg-[var(--text-primary)] text-[var(--bg-primary)] rounded-xl hover:opacity-90">
-                  <Check className="w-4 h-4" />
-                </button>
-                <button onClick={() => setShowEtapaForm(false)} className="p-2.5 border border-[var(--border-color)] rounded-xl opacity-50 hover:opacity-80">
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-            ) : (
-              <button
-                onClick={() => setShowEtapaForm(true)}
-                className="w-full flex items-center justify-center gap-2 px-5 py-4 border border-dashed border-[var(--border-color)] rounded-2xl text-[11px] font-black uppercase tracking-widest opacity-40 hover:opacity-70 transition-opacity"
-              >
-                <Plus className="w-4 h-4" />
-                Adicionar etapa
-              </button>
-            )}
-          </div>
-        )}
-
-        {/* ABA 3 — Conteúdos */}
-        {aba === 'conteudos' && (
-          <div className="space-y-3">
-            {projetoContents.length === 0 && (
-              <p className="text-center text-sm opacity-30 py-8 font-black uppercase tracking-widest">Nenhum conteúdo vinculado</p>
-            )}
-            {projetoContents.map(c => (
-              <div key={c.id} className="flex items-center gap-4 px-5 py-4 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-2xl">
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-black text-[var(--text-primary)] truncate">{c.title || '(sem título)'}</p>
-                  <p className="text-[10px] font-bold opacity-40 mt-0.5">{c.status}</p>
-                </div>
-              </div>
-            ))}
-            <div className="flex gap-3 pt-2">
-              {disponiveisParaVincular.length > 0 && (
-                <select
-                  defaultValue=""
-                  onChange={e => { if (e.target.value) vincularContent(e.target.value); }}
-                  className="flex-1 px-4 py-2.5 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-xl text-[11px] font-bold text-[var(--text-primary)] focus:outline-none"
-                >
-                  <option value="">Vincular conteúdo existente...</option>
-                  {disponiveisParaVincular.map(c => (
-                    <option key={c.id} value={c.id}>{c.title || '(sem título)'}</option>
-                  ))}
-                </select>
               )}
-              <button
-                onClick={() => navigate('/conteudos')}
-                className="px-5 py-2.5 bg-[var(--text-primary)] text-[var(--bg-primary)] rounded-xl text-[11px] font-black uppercase tracking-widest hover:opacity-90 whitespace-nowrap"
-              >
-                Criar novo
-              </button>
-            </div>
-          </div>
-        )}
+            </SectionCard>
 
-        {/* ABA 4 — Agenda */}
-        {aba === 'agenda' && (
-          <div className="space-y-3">
-            {agendaItems.length === 0 && (
-              <p className="text-center text-sm opacity-30 py-8 font-black uppercase tracking-widest">Nenhum evento na agenda</p>
-            )}
-            {agendaItems.map(item => (
-              <div key={item.id} className="flex items-center gap-4 px-5 py-4 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-2xl">
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-black text-[var(--text-primary)]">{item.title}</p>
-                  <p className="text-[10px] font-bold opacity-40 mt-0.5">
-                    {new Date(item.date).toLocaleDateString('pt-BR')} {item.time ? `· ${item.time}` : ''} · {item.tipo}
-                  </p>
-                </div>
+            <SectionCard
+              eyebrow="Conteudo"
+              title="Conteudos vinculados"
+              action={
                 <button
-                  onClick={() => dispatch({ type: 'DELETE_AGENDA_ITEM', payload: item.id })}
-                  className="p-2 opacity-20 hover:opacity-60 hover:text-red-400 transition-all"
+                  type="button"
+                  onClick={() => navigate('/conteudos')}
+                  className="inline-flex items-center gap-2 rounded-xl bg-[var(--text-primary)] px-4 py-2 text-[10px] font-black uppercase tracking-[0.25em] text-[var(--bg-primary)] transition-opacity hover:opacity-90"
                 >
-                  <Trash2 className="w-4 h-4" />
+                  <Plus className="h-4 w-4" />
+                  Criar conteudo
                 </button>
-              </div>
-            ))}
+              }
+            >
+              <div className="space-y-4">
+                {disponiveisParaVincular.length > 0 && (
+                  <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4">
+                    <p className="mb-3 text-[9px] font-black uppercase tracking-[0.3em] opacity-40">Vincular existente</p>
+                    <select
+                      defaultValue=""
+                      onChange={event => {
+                        if (!event.target.value) return;
+                        vincularContent(event.target.value);
+                        event.target.value = '';
+                      }}
+                      className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] px-4 py-3 text-[11px] font-bold text-[var(--text-primary)] focus:outline-none"
+                    >
+                      <option value="">Escolha um conteudo para vincular...</option>
+                      {disponiveisParaVincular.map(content => (
+                        <option key={content.id} value={content.id}>
+                          {content.title || '(sem titulo)'}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
 
-            {showAgendaForm ? (
-              <div className="p-5 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-2xl space-y-3">
-                <input
-                  autoFocus
-                  value={agendaTitle}
-                  onChange={e => setAgendaTitle(e.target.value)}
-                  placeholder="Título do evento"
-                  className="w-full px-4 py-2.5 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:opacity-30 focus:outline-none"
-                />
-                <div className="flex flex-wrap gap-3">
-                  <input type="date" value={agendaDate} onChange={e => setAgendaDate(e.target.value)} className="flex-1 min-w-[140px] px-4 py-2.5 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl text-[11px] text-[var(--text-primary)] focus:outline-none" />
-                  <input type="time" value={agendaTime} onChange={e => setAgendaTime(e.target.value)} className="flex-1 min-w-[120px] px-4 py-2.5 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl text-[11px] text-[var(--text-primary)] focus:outline-none" />
-                  <select
-                    value={agendaTipo}
-                    onChange={e => setAgendaTipo(e.target.value as AgendaItem['tipo'])}
-                    className="flex-1 min-w-[120px] px-4 py-2.5 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl text-[11px] font-black uppercase text-[var(--text-primary)] focus:outline-none"
-                  >
-                    {TIPO_AGENDA.map(t => <option key={t} value={t}>{t}</option>)}
-                  </select>
-                </div>
-                <div className="flex gap-3">
-                  <button onClick={handleAddAgenda} className="px-6 py-2.5 bg-[var(--text-primary)] text-[var(--bg-primary)] rounded-xl text-[11px] font-black uppercase tracking-widest hover:opacity-90">Adicionar</button>
-                  <button onClick={() => setShowAgendaForm(false)} className="px-6 py-2.5 border border-[var(--border-color)] rounded-xl text-[11px] font-black uppercase tracking-widest opacity-50 hover:opacity-80">Cancelar</button>
-                </div>
+                {projetoContents.length === 0 ? (
+                  <div className="rounded-2xl border border-dashed border-[var(--border-color)] px-5 py-8 text-center">
+                    <p className="text-sm font-black uppercase tracking-widest opacity-30">Nenhum conteudo vinculado</p>
+                    <p className="mt-2 text-sm text-[var(--text-secondary)]">Vincule ideias ja existentes ou crie novos conteudos para este projeto.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {projetoContents.map(content => (
+                      <div key={content.id} className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-4">
+                        <div className="flex items-start gap-3">
+                          <div className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-2xl bg-[var(--bg-primary)] text-[var(--text-primary)]">
+                            <ClipboardList className="h-4 w-4" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-black text-[var(--text-primary)]">{content.title || '(sem titulo)'}</p>
+                            <p className="mt-1 text-[11px] text-[var(--text-secondary)]">{content.status}</p>
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              {content.publishDate && (
+                                <span className="rounded-full bg-[var(--bg-primary)] px-3 py-1 text-[10px] font-bold text-[var(--text-secondary)]">
+                                  Publicacao: {formatDate(content.publishDate)}
+                                </span>
+                              )}
+                              {content.recordingDate && (
+                                <span className="rounded-full bg-[var(--bg-primary)] px-3 py-1 text-[10px] font-bold text-[var(--text-secondary)]">
+                                  Gravacao: {formatDate(content.recordingDate)}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => navigate('/conteudos')}
+                            className="inline-flex items-center gap-2 rounded-xl border border-[var(--border-color)] px-3 py-2 text-[10px] font-black uppercase tracking-widest opacity-70 transition-opacity hover:opacity-100"
+                          >
+                            <Link2 className="h-3.5 w-3.5" />
+                            Abrir
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
-            ) : (
-              <button
-                onClick={() => setShowAgendaForm(true)}
-                className="w-full flex items-center justify-center gap-2 px-5 py-4 border border-dashed border-[var(--border-color)] rounded-2xl text-[11px] font-black uppercase tracking-widest opacity-40 hover:opacity-70 transition-opacity"
-              >
-                <Plus className="w-4 h-4" />
-                Adicionar evento
-              </button>
-            )}
+            </SectionCard>
           </div>
-        )}
+        </div>
       </div>
     </div>
   );
 }
-
-
-

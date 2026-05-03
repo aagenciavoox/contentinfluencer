@@ -184,6 +184,9 @@ export function MobileActionMenu({ open, onClose }: MobileActionMenuProps) {
         <ContentDetailModal
           content={selectedContent}
           isNewContent={true}
+          initialTab="roteiro"
+          visibleTabs={['roteiro']}
+          compactMobileComposer={true}
           onClose={() => setSelectedContent(null)}
         />
       ) : null}
