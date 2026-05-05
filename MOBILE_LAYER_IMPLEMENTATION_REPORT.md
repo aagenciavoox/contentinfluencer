@@ -6,7 +6,7 @@ Isolar a camada mobile da camada desktop em todas as paginas principais, compart
 
 ## Snapshot Atual
 
-Data da auditoria ativa: 2026-05-02
+Data da auditoria ativa: 2026-05-05
 
 Panorama validado no codigo:
 
@@ -21,10 +21,13 @@ Panorama validado no codigo:
 - `Templates` agora tambem possui camada mobile dedicada em `src/mobile/screens`.
 - `Regras de Ouro` agora tambem possui camada mobile dedicada em `src/mobile/screens`.
 - `DNA da Voz` agora tambem possui camada mobile dedicada em `src/mobile/screens`.
+- `Detalhe de Conteudo` agora tambem possui camada mobile dedicada em `src/mobile/screens`.
 - `Looks & Cenarios` saiu do roadmap como modulo proprio.
 - A nova direcao passa a usar `marcadores de gravacao` em `Conteudos` e `Gravacao`, sem catalogo rigido de looks e cenarios.
 - `DesktopPageHeader` segue espalhado nas telas desktop, mas nao vaza mais para `Ideias`, `Agenda` e `Projetos` no mobile.
 - `FilterBar` segue presente nas superficies desktop de `Acervo`, `Projetos`, `Gravacao` e `Conteudos`, porem `Projetos` e `Acervo` agora usam filtros mobile proprios.
+- `BookDetailPage` e `ProjectDetailPage` seguem desktop-first em viewport pequena e agora concentram o backlog principal de isolamento.
+- `PageScaffold` nao renderiza mais `header` e `toolbar` no mobile por padrao.
 
 ## Auditoria Atual
 
@@ -171,6 +174,23 @@ Status atualizado:
 - O realtime deixou de observar as tabelas `looks` e `cenarios` no fluxo principal do app.
 - O detalhe mobile do `Acervo` agora abre `Nova anotacao` em um composer dedicado via bottom sheet, sem misturar a captura com a listagem existente.
 - O botao `+` da bottom nav mobile agora reutiliza o mesmo composer dedicado de anotacao, substituindo a abertura do modal amplo legado de notas.
+
+### Fase 5 - Detalhes e guardrails finais
+
+Status: iniciada em 2026-05-05
+
+Entregas concluidas ate agora:
+
+- `src/mobile/screens/contents/ContentDetailMobileScreen.tsx`
+- `src/features/contents/pages/ContentDetailPage.tsx` agora bifurca desktop/mobile de forma explicita
+- `src/features/contents/components/detail/ContentDetailShell.tsx` agora suporta superficies desktop e mobile compartilhando a mesma logica
+- `src/layouts/page/PageScaffold.tsx` deixou de vazar `header` e `toolbar` para mobile por padrao
+
+Resultado parcial:
+
+- `Detalhe de Conteudo` saiu do scaffold compartilhado como experiencia mobile e ganhou composicao propria com resumo, tabs e CTA de salvamento.
+- O guardrail estrutural ficou mais forte para impedir que novas paginas mobile herdem chrome desktop sem perceber.
+- O backlog de isolamento agora fica concentrado em `BookDetailPage` e `ProjectDetailPage`.
 
 ## Verificacao
 

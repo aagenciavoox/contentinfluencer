@@ -5,7 +5,7 @@ import { getModuleFlags } from '../../features/settings/lib/moduleFlags';
 
 const Dashboard = lazy(() => import('../../pages/Dashboard').then(module => ({ default: module.Dashboard })));
 const Contents = lazy(() => import('../../pages/Contents').then(module => ({ default: module.Contents })));
-const ContentHistory = lazy(() => import('../../pages/ContentHistory').then(module => ({ default: module.ContentHistory })));
+const ContentDetail = lazy(() => import('../../pages/ContentDetail').then(module => ({ default: module.ContentDetail })));
 const Ideas = lazy(() => import('../../pages/Ideas').then(module => ({ default: module.Ideas })));
 const EditorialCalendar = lazy(() => import('../../pages/EditorialCalendar').then(module => ({ default: module.EditorialCalendar })));
 const Biblioteca = lazy(() => import('../../pages/Biblioteca').then(module => ({ default: module.Biblioteca })));
@@ -44,7 +44,8 @@ export function AppRoutes() {
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/conteudos" element={<Contents />} />
-        <Route path="/conteudos/historico" element={<ContentHistory />} />
+        <Route path="/conteudos/historico" element={<Navigate to="/conteudos?view=postagem" replace />} />
+        <Route path="/conteudos/:id" element={<ContentDetail />} />
         <Route path="/ideias" element={<Ideas />} />
         <Route
           path="/calendario"

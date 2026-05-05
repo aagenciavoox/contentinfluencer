@@ -30,15 +30,16 @@ Se voce for implementar esta iniciativa, siga estas regras sem negociar:
 
 ---
 
-## Auditoria de Realidade 2026-05-02
+## Auditoria de Realidade 2026-05-05
 
 Estado atual confirmado no codigo:
 
 - A arvore real de rotas esta em [src/app/router/AppRoutes.tsx](/C:/Users/mente/Desktop/CODING/content-os/src/app/router/AppRoutes.tsx).
 - O shell global real esta em [src/layouts/app/AppShell.tsx](/C:/Users/mente/Desktop/CODING/content-os/src/layouts/app/AppShell.tsx).
 - A fundacao mobile global ja esta ativa com `MobileAppShell`, `MobileHeaderIOS`, `MobileBottomNav` e `MobileActionMenu`.
-- A camada mobile dedicada ja existe para `Ideias`, `Agenda`, `Projetos` e `Acervo`.
-- A fase seguinte agora e atacar os fluxos operacionais leves: `Conteudos`, `Gravacao`, `Dashboard` e `Analise`.
+- A camada mobile dedicada ja existe para `Ideias`, `Agenda`, `Projetos`, `Acervo`, `Conteudos`, `Gravacao`, `Dashboard`, `Analise` e o hub principal de `Configuracoes`.
+- `Detalhe de Conteudo` agora tambem possui superficie mobile dedicada.
+- O backlog remanescente de isolamento mais relevante esta nas telas de detalhe de `Projetos` e `Acervo`.
 
 Observacao importante:
 
@@ -61,13 +62,13 @@ Arquivos-chave:
 
 Diagnostico:
 
-- `AppShell` ja injeta o novo shell mobile, mas a maioria das paginas ainda precisa trocar a view mobile antiga por telas dedicadas.
-- `PageScaffold` continua sendo uma superficie desktop/shared e nao deve virar base de composicao mobile.
-- O sistema ainda diferencia mobile principalmente com `useIsMobile()`, mas agora ja existe uma arquitetura paralela em andamento.
+- `AppShell` ja injeta o novo shell mobile e as paginas principais ja trocam para telas dedicadas nas rotas centrais.
+- `PageScaffold` continua sendo uma superficie desktop/shared, mas agora nao renderiza mais `header` nem `toolbar` no mobile por padrao.
+- O sistema ainda diferencia mobile principalmente com `useIsMobile()`, mas a arquitetura paralela ja esta consolidada no fluxo principal.
 
 Conclusao:
 
-- A base ja possui um "casco mobile", mas nao uma arquitetura mobile paralela real.
+- A base saiu do estagio de casco mobile e entrou em consolidacao de rotas de detalhe e guardrails finais.
 
 ### 2. DesktopPageHeader esta espalhado pela aplicacao
 
@@ -161,6 +162,22 @@ Antidoto:
 
 - Separar apresentacao mobile por pasta, componente e contrato.
 - Tratar desktop e mobile como dois produtos dentro da mesma aplicacao.
+
+### 8. Backlog atual de maior impacto
+
+Arquivos:
+
+- [src/features/projects/pages/ProjectDetailPage.tsx](/C:/Users/mente/Desktop/CODING/content-os/src/features/projects/pages/ProjectDetailPage.tsx)
+- [src/features/library/pages/BookDetailPage.tsx](/C:/Users/mente/Desktop/CODING/content-os/src/features/library/pages/BookDetailPage.tsx)
+
+Diagnostico:
+
+- As listagens principais de `Projetos` e `Acervo` ja estao isoladas, mas suas telas de detalhe ainda operam como paginas desktop completas em viewport pequena.
+- Essas duas rotas concentram o maior risco de regressao de UX mobile no estado atual.
+
+Conclusao:
+
+- A proxima fase deve atacar detalhes de `Projetos` e `Acervo` antes de qualquer polimento cosmetico.
 
 ---
 

@@ -50,6 +50,7 @@ interface AgendaTimelineEntry {
   date: string;
   time?: string | null;
   secondary?: string | null;
+  color?: string | null;
 }
 
 const KIND_LABELS: Record<AgendaTimelineKind, string> = {
@@ -74,17 +75,19 @@ function loadMobileKinds(): AgendaTimelineKind[] {
 }
 
 function buildTimelineEntries(contents: Content[], agendaItems: AgendaItem[], projetos: Projeto[]) {
-  const projectNameById = new Map(projetos.map(p => [p.id, p.nome]));
+  const projectById = new Map(projetos.map(p => [p.id, p]));
   const entries: AgendaTimelineEntry[] = [];
 
   agendaItems.forEach(item => {
+    const linkedProjeto = item.projetoId ? projectById.get(item.projetoId) : null;
     entries.push({
       id: item.id,
       kind: 'agenda',
       title: item.title,
       date: item.date,
       time: item.time,
-      secondary: item.projetoId ? projectNameById.get(item.projetoId) ?? item.tipo : item.tipo,
+      secondary: linkedProjeto ? linkedProjeto.nome : item.tipo,
+      color: linkedProjeto?.color,
     });
   });
 
@@ -119,6 +122,7 @@ function buildTimelineEntries(contents: Content[], agendaItems: AgendaItem[], pr
           title: projeto.nome,
           date: projeto.dataInicio,
           secondary: 'Inicio do projeto',
+          color: projeto.color,
         });
       }
       if (projeto.dataFim) {
@@ -128,6 +132,7 @@ function buildTimelineEntries(contents: Content[], agendaItems: AgendaItem[], pr
           title: projeto.nome,
           date: projeto.dataFim,
           secondary: 'Prazo final',
+          color: projeto.color,
         });
       }
       projeto.etapas.forEach(etapa => {
@@ -138,6 +143,7 @@ function buildTimelineEntries(contents: Content[], agendaItems: AgendaItem[], pr
           title: projeto.nome,
           date: etapa.dataPrazo,
           secondary: `Etapa: ${etapa.nome}`,
+          color: projeto.color,
         });
       });
     });
@@ -420,37 +426,40 @@ export function AgendaMobileScreen({
                 <p className="px-1 t-label text-[var(--text-tertiary)]">{group.label}</p>
 
                 <div className="space-y-2">
-                  {group.items.map(entry => (
-                    <MobileListCard
-                      key={entry.id}
-                      eyebrow={KIND_LABELS[entry.kind]}
-                      title={entry.title}
-                      description={entry.secondary || ''}
-                      meta={
-                        <span
-                          className="rounded-full px-2.5 py-1 text-[11px] font-semibold"
-                          style={{
-                            backgroundColor: `${KIND_ACCENTS[entry.kind]}18`,
-                            color: KIND_ACCENTS[entry.kind],
-                          }}
-                        >
-                          {entry.time ? `${entry.time} · ` : ''}
-                          {format(parseISO(entry.date), 'dd/MM')}
-                        </span>
-                      }
-                      trailing={
-                        entry.kind === 'recording' ? (
-                          <Mic2 className="h-4 w-4 text-[var(--accent-orange)]" />
-                        ) : entry.kind === 'publish' ? (
-                          <Radio className="h-4 w-4 text-[var(--accent-blue)]" />
-                        ) : entry.kind === 'project' ? (
-                          <BriefcaseBusiness className="h-4 w-4 text-[var(--accent-purple)]" />
-                        ) : (
-                          <Clapperboard className="h-4 w-4 text-[var(--accent-green)]" />
-                        )
-                      }
-                    />
-                  ))}
+                  {group.items.map(entry => {
+                    const accentColor = entry.color || KIND_ACCENTS[entry.kind];
+                    return (
+                      <MobileListCard
+                        key={entry.id}
+                        eyebrow={KIND_LABELS[entry.kind]}
+                        title={entry.title}
+                        description={entry.secondary || ''}
+                        meta={
+                          <span
+                            className="rounded-full px-2.5 py-1 text-[11px] font-semibold"
+                            style={{
+                              backgroundColor: `${accentColor}18`,
+                              color: accentColor,
+                            }}
+                          >
+                            {entry.time ? `${entry.time} · ` : ''}
+                            {format(parseISO(entry.date), 'dd/MM')}
+                          </span>
+                        }
+                        trailing={
+                          entry.kind === 'recording' ? (
+                            <Mic2 className="h-4 w-4 text-[var(--accent-orange)]" />
+                          ) : entry.kind === 'publish' ? (
+                            <Radio className="h-4 w-4 text-[var(--accent-blue)]" />
+                          ) : entry.kind === 'project' ? (
+                            <BriefcaseBusiness className="h-4 w-4" style={entry.color ? { color: entry.color } : { color: 'var(--accent-purple)' }} />
+                          ) : (
+                            <Clapperboard className="h-4 w-4 text-[var(--accent-green)]" />
+                          )
+                        }
+                      />
+                    );
+                  })}
                 </div>
               </div>
             ))}

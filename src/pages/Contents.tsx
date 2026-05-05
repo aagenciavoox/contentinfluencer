@@ -1,1 +1,5 @@
-export { ContentsPage as Contents } from '../features/contents/pages/ContentsPage';
+import {ContentsPage} from '../features/contents/pages/ContentsPage';
+
+export function Contents() {
+  return <ContentsPage mode="auto" />;
+}

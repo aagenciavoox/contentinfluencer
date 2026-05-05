@@ -1,28 +1,14 @@
 import React, {useEffect, useMemo, useState} from 'react';
 import {useNavigate} from 'react-router-dom';
-import {
-  CheckCircle2,
-  Layers,
-  Pause,
-  Play,
-  SkipForward,
-  Tags,
-  Trash2,
-  Video,
-  X,
-} from 'lucide-react';
+import {CheckCircle2, Layers, Play, Tags, Trash2, Video, X} from 'lucide-react';
 import {BottomSheetModal} from '../../../../components/feedback/modals/BottomSheetModal';
 import {ConfirmModal} from '../../../../components/feedback/modals/ConfirmModal';
 import {useAppContext} from '../../../../context/AppContext';
-import {BurstModeExperience} from '../../../contents/components/burst-mode/BurstModeExperience';
 import {Content, RecordingBlock} from '../../../../lib/database';
 import {cn, htmlToReadableText} from '../../../../lib/utils';
+import {buildContentDetailRoute} from '../../../contents/lib/contentDetailRoute';
 import {RECORDING_READY_STATUS} from '../../../contents/lib/contentWorkflow';
-import {
-  buildSaveRecordingSessionTransition,
-  isRecordingBlockTeleprompterEnabled,
-  resolveRecordingContextSummary,
-} from '../../lib/recordingWorkflow';
+import {isRecordingBlockTeleprompterEnabled, resolveRecordingContextSummary} from '../../lib/recordingWorkflow';
 
 type ConfirmState = {message: string; onConfirm: () => void} | null;
 
@@ -70,8 +56,6 @@ export function RecordingQueueTab() {
   const {state, dispatch} = useAppContext();
   const navigate = useNavigate();
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
-  const [isBurstMode, setIsBurstMode] = useState(false);
-  const [sessionCompletedIds, setSessionCompletedIds] = useState<Set<string>>(new Set());
   const [confirm, setConfirm] = useState<ConfirmState>(null);
 
   const selectedBlock = useMemo(
@@ -82,76 +66,60 @@ export function RecordingQueueTab() {
   useEffect(() => {
     if (selectedBlockId && !selectedBlock) {
       setSelectedBlockId(null);
-      setIsBurstMode(false);
-      setSessionCompletedIds(new Set());
     }
   }, [selectedBlock, selectedBlockId]);
 
   const handleDeleteBlock = (id: string, event: React.MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation();
     setConfirm({
-      message: 'Tem certeza que deseja deletar este bloco de gravação?',
+      message: 'Tem certeza que deseja deletar este bloco de gravacao?',
       onConfirm: () => dispatch({type: 'DELETE_RECORDING_BLOCK', payload: id}),
     });
   };
 
   return (
     <div className="space-y-8">
-      {!isBurstMode && (
-        <>
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {state.recordingBlocks.length === 0 ? (
-              <div className="col-span-full mt-8 flex flex-col items-center gap-6 rounded-[3rem] border-2 border-dashed border-[var(--border-color)] py-32 text-center opacity-30">
-                <Video className="h-12 w-12" />
-                <p className="text-sm font-black uppercase tracking-[0.3em]">Nenhum bloco montado</p>
-                <span className="mt-2 text-center text-xs font-bold uppercase tracking-widest opacity-70">
-                  Selecione os roteiros &quot;{RECORDING_READY_STATUS}&quot; e clique em &quot;Criar Bloco&quot;
-                </span>
-              </div>
-            ) : (
-              state.recordingBlocks.map(block => (
-                <RecordingBlockCard
-                  key={block.id}
-                  block={block}
-                  contents={getBlockContents(block, state.contents)}
-                  onOpen={() => setSelectedBlockId(block.id)}
-                  onDelete={handleDeleteBlock}
-                />
-              ))
-            )}
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+        {state.recordingBlocks.length === 0 ? (
+          <div className="col-span-full mt-8 flex flex-col items-center gap-6 rounded-[3rem] border-2 border-dashed border-[var(--border-color)] py-32 text-center opacity-30">
+            <Video className="h-12 w-12" />
+            <p className="text-sm font-black uppercase tracking-[0.3em]">Nenhum bloco montado</p>
+            <span className="mt-2 text-center text-xs font-bold uppercase tracking-widest opacity-70">
+              Selecione os roteiros &quot;{RECORDING_READY_STATUS}&quot; e clique em &quot;Criar Bloco&quot;
+            </span>
           </div>
+        ) : (
+          state.recordingBlocks.map(block => (
+            <RecordingBlockCard
+              key={block.id}
+              block={block}
+              contents={getBlockContents(block, state.contents)}
+              onOpen={() => setSelectedBlockId(block.id)}
+              onDelete={handleDeleteBlock}
+            />
+          ))
+        )}
+      </div>
 
-          <BottomSheetModal
-            open={!!selectedBlock}
+      <BottomSheetModal
+        open={!!selectedBlock}
+        onClose={() => setSelectedBlockId(null)}
+        desktopMaxW="max-w-4xl"
+        zIndex="z-50"
+      >
+        {selectedBlock && (
+          <BlockAnalysisModal
+            block={selectedBlock}
+            contents={getBlockContents(selectedBlock, state.contents)}
             onClose={() => setSelectedBlockId(null)}
-            desktopMaxW="max-w-4xl"
-            zIndex="z-50"
-          >
-            {selectedBlock && (
-              <BlockAnalysisModal
-                block={selectedBlock}
-                contents={getBlockContents(selectedBlock, state.contents)}
-                onClose={() => setSelectedBlockId(null)}
-                onStart={() => setIsBurstMode(true)}
-              />
-            )}
-          </BottomSheetModal>
-        </>
-      )}
-
-      {isBurstMode && selectedBlock && (
-        <BurstModeExperience
-          block={selectedBlock}
-          completedIds={sessionCompletedIds}
-          setCompletedIds={setSessionCompletedIds}
-          onExit={() => {
-            setIsBurstMode(false);
-            setSessionCompletedIds(new Set());
-            setSelectedBlockId(null);
-            navigate('/conteudos/historico');
-          }}
-        />
-      )}
+                    onOpenContent={contentId => navigate(buildContentDetailRoute(contentId, 'gravacao'))}
+            onStart={() => {
+              setSelectedBlockId(null);
+              navigate(`/gravacao/${selectedBlock.id}`);
+            }}
+          />
+        )}
+      </BottomSheetModal>
 
       <ConfirmModal
         open={!!confirm}
@@ -174,7 +142,6 @@ type RecordingBlockCardProps = {
 };
 
 function RecordingBlockCard({block, contents, onOpen, onDelete}: RecordingBlockCardProps) {
-  const {state} = useAppContext();
   const {firstContent, completedCount, isCompleted, progressPercentage, totalCount} =
     getBlockSummary(contents);
 
@@ -201,11 +168,11 @@ function RecordingBlockCard({block, contents, onOpen, onDelete}: RecordingBlockC
             className={cn(
               'rounded-full border px-3 py-1 text-[9px] font-black uppercase tracking-widest',
               isCompleted
-                ? 'border-[var(--accent-green)]/20 bg-[var(--accent-green)]/10 text-[var(--accent-green)] shadow-[0_0_15px_rgba(34,197,94,0.1)]'
+                ? 'border-[var(--accent-green)]/20 bg-[var(--accent-green)]/10 text-[var(--accent-green)]'
                 : 'border-[var(--accent-blue)]/20 bg-[var(--accent-blue)]/10 text-[var(--accent-blue)]'
             )}
           >
-            {isCompleted ? 'Finalizado' : 'Aguardando Câmera'}
+            {isCompleted ? 'Finalizado' : 'Aguardando camera'}
           </span>
 
           <button
@@ -222,11 +189,11 @@ function RecordingBlockCard({block, contents, onOpen, onDelete}: RecordingBlockC
           {block.name}
         </h3>
 
-        {firstContent && (
+        {firstContent ? (
           <p className="mb-6 line-clamp-1 text-xs font-bold text-[var(--text-tertiary)]">
             Ex: {firstContent.title}
           </p>
-        )}
+        ) : null}
 
         <div className="mt-2 space-y-2">
           <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
@@ -240,9 +207,7 @@ function RecordingBlockCard({block, contents, onOpen, onDelete}: RecordingBlockC
             <div
               className={cn(
                 'h-full rounded-full transition-all duration-500',
-                isCompleted
-                  ? 'bg-[var(--accent-green)] shadow-[0_0_10px_rgba(34,197,94,0.5)]'
-                  : 'bg-[var(--text-primary)]'
+                isCompleted ? 'bg-[var(--accent-green)]' : 'bg-[var(--text-primary)]'
               )}
               style={{width: `${progressPercentage}%`}}
             />
@@ -253,7 +218,7 @@ function RecordingBlockCard({block, contents, onOpen, onDelete}: RecordingBlockC
       <div className="mt-6 grid grid-cols-2 gap-3 border-t border-[var(--border-color)] pt-6">
         <div className="space-y-2">
           <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-[var(--text-tertiary)]">
-            <Layers className="h-3 w-3" /> Vídeos
+            <Layers className="h-3 w-3" /> Videos
           </div>
           <p className="text-lg font-black text-[var(--text-primary)]">{contents.length}</p>
         </div>
@@ -263,10 +228,7 @@ function RecordingBlockCard({block, contents, onOpen, onDelete}: RecordingBlockC
             <Tags className="h-3 w-3" /> Marcadores
           </div>
           <p className="truncate text-xs font-bold text-[var(--text-primary)]">
-            {resolveRecordingContextSummary({
-              block,
-              content: firstContent,
-            })}
+            {resolveRecordingContextSummary({block, content: firstContent})}
           </p>
         </div>
       </div>
@@ -279,10 +241,17 @@ type BlockAnalysisModalProps = {
   contents: Content[];
   onClose: () => void;
   onStart: () => void;
+  onOpenContent: (contentId: string) => void;
 };
 
-function BlockAnalysisModal({block, contents, onClose, onStart}: BlockAnalysisModalProps) {
-  const {state, dispatch} = useAppContext();
+function BlockAnalysisModal({
+  block,
+  contents,
+  onClose,
+  onStart,
+  onOpenContent,
+}: BlockAnalysisModalProps) {
+  const {dispatch} = useAppContext();
   const {readyContents} = getBlockSummary(contents);
   const teleprompterEnabled = isRecordingBlockTeleprompterEnabled(block);
 
@@ -333,8 +302,7 @@ function BlockAnalysisModal({block, contents, onClose, onStart}: BlockAnalysisMo
                   {teleprompterEnabled ? 'Ativado para este bloco' : 'Desativado para este bloco'}
                 </h3>
                 <p className="mt-2 max-w-2xl text-sm font-medium leading-relaxed text-[var(--text-secondary)]">
-                  Quando ativado, o modo explosão usa rolagem guiada no mobile e no desktop. Quando desativado,
-                  o bloco abre em leitura estática do roteiro.
+                  A execucao agora sempre segue para a pagina do bloco, com persistencia imediata do progresso.
                 </p>
               </div>
 
@@ -359,10 +327,10 @@ function BlockAnalysisModal({block, contents, onClose, onStart}: BlockAnalysisMo
             <Video className="h-10 w-10 text-[var(--text-tertiary)] opacity-50" />
             <div className="space-y-2">
               <p className="text-sm font-black uppercase tracking-[0.2em] text-[var(--text-primary)]">
-                Nenhum conteúdo neste bloco
+                Nenhum conteudo neste bloco
               </p>
               <p className="text-sm font-medium text-[var(--text-tertiary)]">
-                Este bloco ainda não possui roteiros disponíveis para análise.
+                Este bloco ainda nao possui roteiros disponiveis para analise.
               </p>
             </div>
           </div>
@@ -381,25 +349,26 @@ function BlockAnalysisModal({block, contents, onClose, onStart}: BlockAnalysisMo
 
                 <div className="min-w-0 flex-1">
                   <div className="mb-2 flex items-center justify-between gap-4">
-                    <h4 className="text-lg font-black uppercase italic leading-tight text-[var(--text-primary)]">
-                      {content.title}
-                    </h4>
-                    {isDone && (
+                    <button
+                      type="button"
+                      onClick={() => onOpenContent(content.id)}
+                      className="text-left"
+                    >
+                      <h4 className="text-lg font-black uppercase italic leading-tight text-[var(--text-primary)]">
+                        {content.title}
+                      </h4>
+                    </button>
+                    {isDone ? (
                       <span className="flex shrink-0 items-center gap-1.5 rounded-full border border-green-500/20 bg-green-500/10 px-3 py-1 text-[9px] font-black uppercase tracking-widest text-green-500">
                         <CheckCircle2 className="h-3 w-3" /> Gravado
                       </span>
-                    )}
+                    ) : null}
                   </div>
 
                   <div className="mb-4 flex flex-wrap items-center gap-3 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                     <span className="flex min-w-0 items-center gap-1">
                       <Tags className="h-3 w-3 shrink-0" />
-                      <span className="truncate">
-                        {resolveRecordingContextSummary({
-                          block,
-                          content,
-                        })}
-                      </span>
+                      <span className="truncate">{resolveRecordingContextSummary({block, content})}</span>
                     </span>
                   </div>
 
@@ -427,353 +396,10 @@ function BlockAnalysisModal({block, contents, onClose, onStart}: BlockAnalysisMo
           ) : (
             <>
               <Play className="h-5 w-5 fill-current" />
-              Iniciar Modo Explosão
+              Iniciar execucao
             </>
           )}
         </button>
-      </div>
-    </div>
-  );
-}
-
-type BurstModeSessionProps = {
-  block: RecordingBlock;
-  completedIds: Set<string>;
-  setCompletedIds: React.Dispatch<React.SetStateAction<Set<string>>>;
-  onExit: () => void;
-};
-
-function BurstModeSession({block, completedIds, setCompletedIds, onExit}: BurstModeSessionProps) {
-  const {state, dispatch} = useAppContext();
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [confirmBurst, setConfirmBurst] = useState<ConfirmState>(null);
-
-  const readyContents = useMemo(
-    () => getReadyContents(getBlockContents(block, state.contents)),
-    [block, state.contents]
-  );
-
-  const currentContent = readyContents[currentIndex] ?? null;
-
-  const saveSessionProgress = () => {
-    const transition = buildSaveRecordingSessionTransition(block, state.contents, completedIds);
-
-    transition.updatedContents.forEach(content => {
-      dispatch({
-        type: 'UPDATE_CONTENT',
-        payload: content,
-      });
-    });
-
-    dispatch({
-      type: 'UPDATE_BLOCK_CONTENTS',
-      payload: {
-        blockId: block.id,
-        contents: transition.updatedBlockContents,
-      },
-    });
-  };
-
-  const handleFinishBlock = () => {
-    setConfirmBurst({
-      message: 'Salvar progresso do bloco de gravação? Pausar agora não perde o que foi marcado nesta sessão.',
-      onConfirm: () => {
-        saveSessionProgress();
-        onExit();
-      },
-    });
-  };
-
-  const toggleComplete = (id: string) => {
-    setCompletedIds(previous => {
-      const next = new Set(previous);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
-
-  if (!currentContent) {
-    return (
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label={`Sessão de gravação do bloco ${block.name}`}
-        className="fixed inset-0 z-[100] flex min-h-screen flex-col items-center justify-center bg-[var(--bg-primary)] p-6 text-center"
-      >
-        <CheckCircle2 className="mx-auto mb-8 h-24 w-24 animate-bounce text-[var(--accent-green)]" />
-        <h1 className="mb-4 text-4xl font-black uppercase italic tracking-tight text-[var(--text-primary)] md:text-5xl">
-          Parabéns!
-        </h1>
-        <p className="mb-4 text-lg font-bold text-[var(--text-tertiary)]">
-          Você finalizou ou pausou a sessão deste bloco.
-        </p>
-        <p className="mb-12 max-w-xl text-sm font-medium text-[var(--text-secondary)]">
-          Os itens marcados como gravados nesta sessão ainda precisam ser salvos para atualizar o bloco.
-        </p>
-        <button
-          type="button"
-          aria-label="Salvar e fechar sala"
-          onClick={handleFinishBlock}
-          className="rounded-2xl bg-[var(--text-primary)] px-12 py-5 text-sm font-black uppercase tracking-widest text-[var(--bg-primary)] shadow-2xl transition-all hover:scale-105"
-        >
-          Salvar e Fechar Sala
-        </button>
-        <ConfirmModal
-          open={!!confirmBurst}
-          message={confirmBurst?.message || ''}
-          onConfirm={() => {
-            confirmBurst?.onConfirm();
-            setConfirmBurst(null);
-          }}
-          onCancel={() => setConfirmBurst(null)}
-        />
-      </div>
-    );
-  }
-
-  const isCurrentCompleted = completedIds.has(currentContent.id);
-  const pendingCount = completedIds.size;
-
-  return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label={`Sessão de gravação do bloco ${block.name}`}
-      className="fixed inset-0 z-[100] flex min-h-screen flex-col overflow-hidden bg-[var(--bg-primary)]"
-    >
-      <header className="relative flex shrink-0 items-center justify-between border-b border-[var(--border-color)] bg-[var(--bg-secondary)] p-4 md:p-8">
-        <div className="z-10 flex items-center gap-3">
-          <button
-            type="button"
-            aria-label="Pausar rotina"
-            onClick={handleFinishBlock}
-            className="group flex items-center gap-2 rounded-full border border-[var(--border-color)] bg-[var(--bg-hover)] px-4 py-2.5 text-[9px] font-black uppercase tracking-widest text-[var(--text-primary)] transition-all hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black"
-          >
-            <Pause className="h-3.5 w-3.5 fill-current" />
-            <span className="hidden sm:inline">Pausar Rotina</span>
-            <span className="sm:hidden">Sair</span>
-          </button>
-        </div>
-
-        <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-          <div className="flex items-center gap-2">
-            <div className="h-1.5 w-1.5 animate-pulse rounded-full bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.8)]" />
-            <span className="text-[10px] font-black uppercase tracking-[0.4em] text-[var(--text-primary)]">
-              Modo Explosão
-            </span>
-          </div>
-        </div>
-
-        <div className="z-10 flex items-center gap-4">
-          <div className="text-[9px] font-black uppercase tracking-widest text-[var(--text-tertiary)]">
-            {currentIndex + 1} / {readyContents.length}
-          </div>
-        </div>
-      </header>
-
-      <main className="flex flex-1 flex-col overflow-hidden md:flex-row">
-        <div className="custom-scrollbar relative flex-1 overflow-y-auto px-5 pb-36 pt-6 md:p-16 lg:px-24 lg:py-20">
-          <div className="mx-auto mb-6 flex max-w-5xl flex-col items-center gap-3 text-center md:mb-10">
-            <div className="flex flex-wrap items-center justify-center gap-2">
-              <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-amber-500">
-                {pendingCount} marcado{pendingCount === 1 ? '' : 's'} na sessão
-              </span>
-              <span className="rounded-full border border-[var(--border-color)] px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-[var(--text-tertiary)]">
-                Salve ao sair para confirmar o progresso
-              </span>
-            </div>
-
-            <h1 className="max-w-5xl break-words text-2xl font-black uppercase italic leading-[1.1] tracking-tight text-[var(--text-primary)] md:text-5xl lg:text-6xl">
-              {currentContent.title}
-            </h1>
-          </div>
-
-          <div className="mx-auto max-w-4xl">
-            <div className="relative rounded-2xl border border-transparent bg-[var(--bg-hover)]/30 p-4 text-left text-lg font-black leading-[1.6] text-[var(--text-primary)] shadow-sm md:rounded-none md:border-none md:bg-transparent md:p-0 md:text-4xl md:tracking-tight md:shadow-none lg:text-5xl">
-              {getScriptLabel(currentContent.script, 'Sem roteiro. Grave no freestyle.')}
-            </div>
-          </div>
-        </div>
-
-        <aside className="z-20 flex w-full shrink-0 flex-col border-t border-[var(--border-color)] bg-[var(--bg-secondary)] md:w-80 md:border-l md:border-t-0">
-          <BurstSidebar
-            block={block}
-            currentContent={currentContent}
-            isCurrentCompleted={isCurrentCompleted}
-            pendingCount={pendingCount}
-            onToggleComplete={() => toggleComplete(currentContent.id)}
-          />
-
-          <BurstMobileControls
-            block={block}
-            currentContent={currentContent}
-            isCurrentCompleted={isCurrentCompleted}
-            pendingCount={pendingCount}
-            onToggleComplete={() => toggleComplete(currentContent.id)}
-          />
-
-          <div className="sticky bottom-0 border-t border-[var(--border-color)] bg-[var(--bg-secondary)] p-4 shadow-[0_-12px_30px_rgba(0,0,0,0.08)] md:static md:border-t-0 md:p-8 md:shadow-none">
-            <button
-              type="button"
-              aria-label="Próximo vídeo"
-              onClick={() => setCurrentIndex(previous => Math.min(previous + 1, readyContents.length))}
-              className="flex w-full items-center justify-center gap-3 rounded-2xl bg-[var(--text-primary)] px-6 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-[var(--bg-primary)] shadow-xl transition-all hover:scale-[1.03] md:rounded-[2rem] md:py-5 md:text-xs"
-            >
-              Próximo Vídeo <SkipForward className="h-4 w-4 fill-current" />
-            </button>
-          </div>
-        </aside>
-      </main>
-
-      <ConfirmModal
-        open={!!confirmBurst}
-        message={confirmBurst?.message || ''}
-        onConfirm={() => {
-          confirmBurst?.onConfirm();
-          setConfirmBurst(null);
-        }}
-        onCancel={() => setConfirmBurst(null)}
-      />
-    </div>
-  );
-}
-
-type BurstSidebarProps = {
-  block: RecordingBlock;
-  currentContent: Content;
-  isCurrentCompleted: boolean;
-  pendingCount: number;
-  onToggleComplete: () => void;
-};
-
-function BurstSidebar({
-  block,
-  currentContent,
-  isCurrentCompleted,
-  pendingCount,
-  onToggleComplete,
-}: BurstSidebarProps) {
-  const {state} = useAppContext();
-
-  return (
-    <div className="custom-scrollbar hidden flex-1 flex-col space-y-8 overflow-y-auto p-8 md:flex">
-      <div className="space-y-3">
-        <h3 className="text-[11px] font-black uppercase tracking-widest text-[var(--text-tertiary)] opacity-50">
-          Controle de Progresso
-        </h3>
-        <p className="text-xs font-medium leading-relaxed text-[var(--text-secondary)]">
-          {pendingCount === 0
-            ? 'Nenhum item marcado nesta sessão ainda.'
-            : `${pendingCount} item(ns) marcado(s) nesta sessão. O progresso será salvo ao sair.`}
-        </p>
-      </div>
-
-      <button
-        type="button"
-        aria-label="Marcar como gravado"
-        onClick={onToggleComplete}
-        className={cn(
-          'group flex w-full flex-col gap-4 rounded-2xl border-2 p-6 text-left transition-all',
-          isCurrentCompleted
-            ? 'border-[var(--accent-green)] bg-[var(--accent-green)]/10 text-[var(--accent-green)] shadow-[0_0_20px_rgba(34,197,94,0.15)]'
-            : 'border-[var(--border-strong)] bg-[var(--bg-primary)] text-[var(--text-primary)] hover:border-[var(--text-primary)]/40'
-        )}
-      >
-        <div className="flex items-center justify-between gap-3">
-          <span className="text-[10px] font-black uppercase tracking-widest">
-            {isCurrentCompleted ? 'Marcado na sessão' : 'Marcar como gravado'}
-          </span>
-          <CheckCircle2
-            className={cn(
-              'h-6 w-6 transition-transform group-hover:scale-110',
-              isCurrentCompleted ? 'fill-current' : 'opacity-40'
-            )}
-          />
-        </div>
-        <p className="text-xs font-medium leading-relaxed">
-          {isCurrentCompleted
-            ? 'Este vídeo está marcado nesta sessão e será salvo ao fechar a sala.'
-            : 'Use este atalho para marcar o vídeo atual antes de avançar.'}
-        </p>
-      </button>
-
-      <div className="h-px w-full bg-[var(--border-strong)] opacity-50" />
-
-      <h3 className="text-[11px] font-black uppercase tracking-widest text-[var(--text-tertiary)] opacity-50">
-        Neste Script
-      </h3>
-
-      <div className="space-y-4">
-        <div className="flex items-center justify-between gap-4 rounded-2xl border border-[var(--border-color)] bg-[var(--bg-primary)] p-4">
-          <span className="flex items-center gap-2 text-[9px] font-black uppercase tracking-widest text-[var(--text-tertiary)]">
-            <Tags className="h-3 w-3" /> Marcadores
-          </span>
-          <span className="max-w-[9rem] truncate text-right text-xs font-bold text-[var(--text-primary)]">
-            {resolveRecordingContextSummary({
-              block,
-              content: currentContent,
-            })}
-          </span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-type BurstMobileControlsProps = {
-  block: RecordingBlock;
-  currentContent: Content;
-  isCurrentCompleted: boolean;
-  pendingCount: number;
-  onToggleComplete: () => void;
-};
-
-function BurstMobileControls({
-  block,
-  currentContent,
-  isCurrentCompleted,
-  pendingCount,
-  onToggleComplete,
-}: BurstMobileControlsProps) {
-  const {state} = useAppContext();
-
-  return (
-    <div className="border-b border-[var(--border-color)] p-4 md:hidden">
-      <div className="mb-3 flex flex-wrap items-center gap-2">
-        <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-[9px] font-black uppercase tracking-widest text-amber-500">
-          {pendingCount} na sessão
-        </span>
-        <span className="text-[10px] font-medium text-[var(--text-secondary)]">
-          Salve ao sair para persistir
-        </span>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          aria-label="Marcar como gravado"
-          onClick={onToggleComplete}
-          className={cn(
-            'flex min-w-0 items-center gap-2 rounded-xl border-2 px-4 py-2.5 text-[9px] font-black uppercase tracking-widest transition-all',
-            isCurrentCompleted
-              ? 'border-[var(--accent-green)] bg-[var(--accent-green)] text-white shadow-lg'
-              : 'border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)]'
-          )}
-        >
-          <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
-          <span className="truncate">{isCurrentCompleted ? 'Marcado na sessão' : 'Marcar gravado'}</span>
-        </button>
-
-        <div className="flex min-w-0 max-w-full items-center gap-2 rounded-xl border border-[var(--border-color)] bg-[var(--bg-hover)] px-3 py-2">
-          <Tags className="h-3 w-3 shrink-0 text-[var(--text-tertiary)]" />
-          <span className="max-w-[7rem] truncate text-[9px] font-black uppercase text-[var(--text-primary)]">
-            {resolveRecordingContextSummary({
-              block,
-              content: currentContent,
-            })}
-          </span>
-        </div>
       </div>
     </div>
   );

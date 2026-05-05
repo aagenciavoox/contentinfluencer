@@ -64,7 +64,7 @@ export function ContentsToolbar({
             <div className="flex rounded-xl bg-[var(--bg-hover)] p-1">
               {([
                 {id: 'postagem', label: 'Postagem'},
-                {id: 'historico', label: 'Historico'},
+                {id: 'historico', label: 'Publicados'},
               ] as const).map(tab => (
                 <button
                   key={tab.id}
@@ -129,8 +129,8 @@ export function ContentsToolbar({
           isEditorialMode
             ? 'Buscar conteudo, serie ou pilar'
             : postingTab === 'historico'
-              ? 'Buscar postagem ou data'
-              : 'Buscar postagem, serie ou pilar'
+              ? 'Buscar publicado ou data'
+              : 'Buscar postagem, serie, pilar ou data'
         }
         filters={
           showFilters

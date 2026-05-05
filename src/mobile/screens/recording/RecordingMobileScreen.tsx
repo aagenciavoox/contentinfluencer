@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Clapperboard, Eye, Layers3, Plus, SearchCheck, Tags, Video } from 'lucide-react';
+import { Clapperboard, Layers3, Plus, SearchCheck, Tags, Video } from 'lucide-react';
 import type { Content, Pilar, RecordingBlock, Serie } from '../../../lib/database';
 import { MobileEmptyState } from '../../components/MobileEmptyState';
 import { MobileFilterSheet } from '../../components/MobileFilterSheet';
@@ -21,7 +21,7 @@ interface RecordingMobileScreenProps {
   availableTags: string[];
   onCreateBlock: (payload: { name: string; contentIds: string[]; tagsText: string }) => void;
   onOpenBlock: (blockId: string) => void;
-  onPreviewScript: (content: Content) => void;
+  onOpenContent: (contentId: string) => void;
 }
 
 type RecordingMobileTab = 'queue' | 'blocks';
@@ -35,9 +35,9 @@ export function RecordingMobileScreen({
   availableTags,
   onCreateBlock,
   onOpenBlock,
-  onPreviewScript,
+  onOpenContent,
 }: RecordingMobileScreenProps) {
-  const [activeTab, setActiveTab] = useState<RecordingMobileTab>('queue');
+  const [activeTab, setActiveTab] = useState<RecordingMobileTab>('blocks');
   const [search, setSearch] = useState('');
   const [pilarFilter, setPilarFilter] = useState('all');
   const [seriesFilter, setSeriesFilter] = useState('all');
@@ -112,14 +112,14 @@ export function RecordingMobileScreen({
             <Video className="h-5 w-5" />
           </div>
           <div>
-            <p className="t-section-title text-[var(--text-primary)]">Fila de gravacao</p>
-            <p className="t-secondary">Selecione roteiros prontos, monte blocos e siga para execucao.</p>
+            <p className="t-section-title text-[var(--text-primary)]">Gravacao</p>
+            <p className="t-secondary">Gerencie blocos e use a fila sem bloco quando precisar montar uma nova sessao.</p>
           </div>
         </div>
 
         <div className="grid grid-cols-3 gap-2">
           <div className="rounded-[1.2rem] bg-[var(--bg-hover)] px-3 py-3">
-            <p className="t-label text-[var(--text-tertiary)]">Fila</p>
+            <p className="t-label text-[var(--text-tertiary)]">Sem bloco</p>
             <p className="mt-1 text-xl font-black text-[var(--text-primary)]">{readyContents.length}</p>
           </div>
           <div className="rounded-[1.2rem] bg-[var(--bg-hover)] px-3 py-3">
@@ -136,7 +136,7 @@ export function RecordingMobileScreen({
       <section className="space-y-4">
         <MobileSegmentTabs
           tabs={[
-            { value: 'queue', label: 'Fila', count: readyContents.length },
+            { value: 'queue', label: 'Sem bloco', count: readyContents.length },
             { value: 'blocks', label: 'Blocos', count: recordingBlocks.length },
           ]}
           value={activeTab}
@@ -154,8 +154,8 @@ export function RecordingMobileScreen({
 
             {filteredQueue.length === 0 ? (
               <MobileEmptyState
-                title="Nada pronto para gravar"
-                description="Ajuste os filtros ou finalize mais roteiros para alimentar essa fila."
+                title="Nada sem bloco"
+                description="Ajuste os filtros ou finalize mais roteiros para montar um novo bloco."
                 icon={<SearchCheck className="h-8 w-8" />}
               />
             ) : (
@@ -171,8 +171,8 @@ export function RecordingMobileScreen({
                   return (
                     <MobileListCard
                       key={content.id}
-                      onClick={() => toggleSelect(content.id)}
-                      eyebrow={selected ? 'Selecionado' : 'Pronto para gravar'}
+                      onClick={() => onOpenContent(content.id)}
+                      eyebrow={selected ? 'Selecionado' : 'Sem bloco'}
                       title={content.title || 'Conteudo sem titulo'}
                       description={content.notes || 'Sem observacoes adicionais'}
                       meta={
@@ -210,22 +210,20 @@ export function RecordingMobileScreen({
                             type="button"
                             onClick={(event) => {
                               event.stopPropagation();
-                              onPreviewScript(content);
+                              toggleSelect(content.id);
                             }}
-                            className="rounded-full bg-[var(--bg-hover)] p-2 text-[var(--text-secondary)]"
-                            aria-label="Visualizar roteiro"
-                          >
-                            <Eye className="h-4 w-4" />
-                          </button>
-                          <div
-                            className={`flex h-6 w-6 items-center justify-center rounded-md border-2 ${
+                            className={`flex h-8 w-8 items-center justify-center rounded-full border-2 ${
                               selected
                                 ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-[var(--bg-primary)]'
-                                : 'border-[var(--border-color)] text-transparent'
+                                : 'border-[var(--border-color)] bg-[var(--bg-hover)] text-[var(--text-secondary)]'
                             }`}
+                            aria-label={selected ? 'Remover da selecao' : 'Selecionar para bloco'}
                           >
                             <div className="h-2 w-2 rounded-sm bg-current" />
-                          </div>
+                          </button>
+                          <span className="rounded-full bg-[var(--bg-hover)] px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-[var(--text-secondary)]">
+                            Detalhe
+                          </span>
                         </div>
                       }
                     />

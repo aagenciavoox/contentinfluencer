@@ -1,9 +1,10 @@
 import { motion } from 'motion/react';
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { AgendaItem, Content, Projeto } from '../../../lib/database';
+import { buildContentDetailRoute } from '../../contents/lib/contentDetailRoute';
 import { CalendarAgendaView } from './CalendarAgendaView';
 import { CalendarGrid } from './CalendarGrid';
-import { ContentDetailModal } from '../../contents/components/modals/ContentDetailModal';
 import { ContentQuickPreview } from './modals/ContentQuickPreview';
 import { EditorialAgendaFilters } from './filters/EditorialAgendaFilters';
 
@@ -42,6 +43,7 @@ export function EditorialAgendaTabView({
   onMoveItem,
   onCloseFullEdit,
 }: EditorialAgendaTabViewProps) {
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [sortValue, setSortValue] = useState('proximos');
 
@@ -103,15 +105,12 @@ export function EditorialAgendaTabView({
             if ('brand' in selectedItem) {
               onOpenProjectFromPreview(selectedItem as Partnership);
             } else {
-              onOpenFullEdit();
+              navigate(buildContentDetailRoute((selectedItem as Content).id));
+              onCloseFullEdit();
             }
           }}
           onMove={onMoveItem}
         />
-      )}
-
-      {isFullEditOpen && selectedItem && !('brand' in selectedItem) && 'pilarId' in selectedItem && (
-        <ContentDetailModal content={selectedItem as Content} onClose={onCloseFullEdit} />
       )}
     </motion.div>
   );

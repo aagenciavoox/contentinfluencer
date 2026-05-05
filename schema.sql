@@ -255,6 +255,7 @@ CREATE TABLE public.projetos (
   biblioteca_item_id uuid,
   brand text,
   brand_color text,
+  color text,
   value numeric,
   currency text NOT NULL DEFAULT 'BRL'::text,
   notes text,

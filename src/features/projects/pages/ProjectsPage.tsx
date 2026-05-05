@@ -15,6 +15,12 @@ import { ProjectsMobileScreen } from '../../../mobile/screens/projects/ProjectsM
 type TipoFilter = 'todos' | 'publi' | 'producao' | 'outro';
 type StatusFilter = 'todos' | 'pendente' | 'em_andamento' | 'concluído';
 
+const PROJECT_COLORS = [
+  '#ef4444', '#f97316', '#f59e0b', '#84cc16', '#22c55e',
+  '#14b8a6', '#06b6d4', '#3b82f6', '#6366f1', '#8b5cf6',
+  '#a855f7', '#ec4899', '#f43f5e', '#78716c',
+];
+
 function calcularStatus(projeto: Projeto): 'pendente' | 'em_andamento' | 'concluído' {
   if (projeto.etapas.length === 0) return 'pendente';
   const todas = projeto.etapas.length;
@@ -52,6 +58,7 @@ export function ProjectsPage() {
   const [tipo, setTipo] = useState<Projeto['tipo']>('publi');
   const [brand, setBrand] = useState('');
   const [value, setValue] = useState('');
+  const [color, setColor] = useState(PROJECT_COLORS[Math.floor(Math.random() * PROJECT_COLORS.length)]);
 
   const projetos = state.projetos
     .filter(p => {
@@ -96,6 +103,7 @@ export function ProjectsPage() {
       bibliotecaItemId: null,
       brand: tipo === 'publi' ? brand.trim() || null : null,
       brandColor: null,
+      color,
       value: value ? parseFloat(value) : null,
       currency: 'BRL',
       notes: null,
@@ -110,6 +118,7 @@ export function ProjectsPage() {
     setTipo('publi');
     setBrand('');
     setValue('');
+    setColor(PROJECT_COLORS[Math.floor(Math.random() * PROJECT_COLORS.length)]);
     setShowForm(false);
   };
 
@@ -165,6 +174,21 @@ export function ProjectsPage() {
                   className="w-full"
                 />
               ) : null}
+
+              <div>
+                <p className="mb-2 text-[9px] font-black uppercase tracking-widest text-[var(--text-tertiary)] opacity-60">Cor do projeto</p>
+                <div className="flex flex-wrap gap-2">
+                  {PROJECT_COLORS.map(c => (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => setColor(c)}
+                      className={cn('h-8 w-8 rounded-full border-2 transition-all', color === c ? 'border-white scale-110' : 'border-transparent opacity-60')}
+                      style={{ backgroundColor: c }}
+                    />
+                  ))}
+                </div>
+              </div>
             </div>
 
             <div className="flex gap-3 border-t border-[var(--border-color)] px-5 py-4 pb-safe">
@@ -300,6 +324,20 @@ export function ProjectsPage() {
                 className="w-full px-4 py-3 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:opacity-30 focus:outline-none focus:border-[var(--text-primary)]/40"
               />
             )}
+            <div>
+              <p className="mb-2 text-[9px] font-black uppercase tracking-widest opacity-40">Cor do projeto</p>
+              <div className="flex flex-wrap gap-2">
+                {PROJECT_COLORS.map(c => (
+                  <button
+                    key={c}
+                    type="button"
+                    onClick={() => setColor(c)}
+                    className={cn('h-7 w-7 rounded-full border-2 transition-all', color === c ? 'border-[var(--text-primary)] scale-110' : 'border-transparent opacity-50 hover:opacity-80')}
+                    style={{ backgroundColor: c }}
+                  />
+                ))}
+              </div>
+            </div>
             <div className="flex gap-3 pt-1">
               <button
                 onClick={handleCreate}
@@ -340,6 +378,7 @@ export function ProjectsPage() {
                   onClick={() => navigate(`/projetos/${projeto.id}`)}
                   className="w-full flex items-center gap-5 px-6 py-5 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-2xl hover:border-[var(--text-primary)]/30 hover:shadow-sm transition-all text-left group"
                 >
+                  <div className="h-10 w-1.5 rounded-full shrink-0" style={{ backgroundColor: projeto.color || '#78716c' }} />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-3 mb-1.5 flex-wrap">
                       <p className="text-sm font-black text-[var(--text-primary)] truncate">{projeto.nome}</p>

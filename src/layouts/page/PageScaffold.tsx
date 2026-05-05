@@ -5,6 +5,8 @@ import { PageContainer } from './PageContainer';
 interface PageScaffoldProps {
   header?: ReactNode;
   toolbar?: ReactNode;
+  mobileHeader?: ReactNode;
+  mobileToolbar?: ReactNode;
   children: ReactNode;
   className?: string;
   contentClassName?: string;
@@ -14,6 +16,8 @@ interface PageScaffoldProps {
 export function PageScaffold({
   header,
   toolbar,
+  mobileHeader,
+  mobileToolbar,
   children,
   className,
   contentClassName,
@@ -31,14 +35,14 @@ export function PageScaffold({
       )}
 
       <main className="flex-1 overflow-auto">
-        {header ? (
+        {mobileHeader ? (
           <div className="desktop-header-frame md:hidden">
-            {header}
+            {mobileHeader}
           </div>
         ) : null}
 
         <PageContainer width={contentWidth} className={contentClassName}>
-          {toolbar ? <div className="mb-6 md:hidden">{toolbar}</div> : null}
+          {mobileToolbar ? <div className="mb-6 md:hidden">{mobileToolbar}</div> : null}
           {children}
         </PageContainer>
       </main>

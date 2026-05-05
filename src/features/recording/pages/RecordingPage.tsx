@@ -1,10 +1,11 @@
 import {useEffect, useState} from 'react';
 import {useNavigate, useSearchParams} from 'react-router-dom';
-import {Eye, Plus, Video} from 'lucide-react';
+import {Plus, Video} from 'lucide-react';
 import {useAppContext} from '../../../context/AppContext';
 import {useAuth} from '../../../context/AuthContext';
 import {useIsMobile} from '../../../hooks/useIsMobile';
 import type {RecordingBlock, RecordingBlockContent} from '../../../lib/database';
+import {buildContentDetailRoute} from '../../contents/lib/contentDetailRoute';
 import {getRecordingQueueContents} from '../../contents/lib/contentWorkflow';
 import {cn, getEntityTagStyle} from '../../../lib/utils';
 import {DesktopPageHeader} from '../../../layouts/page/DesktopPageHeader';
@@ -12,13 +13,11 @@ import {RecordingMobileScreen} from '../../../mobile/screens/recording/Recording
 import {RecordingQueueTab} from '../components/desktop/RecordingQueueTab';
 import {FilterBar} from '../../../components/ui/FilterBar';
 import {normalizeRecordingTags} from '../lib/recordingWorkflow';
-import {ScriptPreviewModal} from '../../contents/components/modals/ScriptPreviewModal';
-import type {Content} from '../../../lib/database';
 
 type RecordingPageTab = 'queue' | 'blocks';
 
 function resolveRecordingTab(tab: string | null): RecordingPageTab {
-  return tab === 'blocks' ? 'blocks' : 'queue';
+  return tab === 'queue' ? 'queue' : 'blocks';
 }
 
 export function RecordingPage() {
@@ -40,7 +39,8 @@ export function RecordingPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortValue, setSortValue] = useState('recentes');
   const [blockTagsInput, setBlockTagsInput] = useState('');
-  const [previewContent, setPreviewContent] = useState<Content | null>(null);
+
+  const openContentDetail = (contentId: string) => navigate(buildContentDetailRoute(contentId, 'gravacao'));
 
   useEffect(() => {
     const nextTab = resolveRecordingTab(searchParams.get('tab'));
@@ -132,9 +132,9 @@ export function RecordingPage() {
       contents: [],
     };
 
-    const blockContents: RecordingBlockContent[] = Array.from(selectedIds).map((contentId, index) => ({
+    const blockContents: RecordingBlockContent[] = orderedSelectedContents.map((content, index) => ({
       blockId: block.id,
-      contentId,
+      contentId: content.id,
       ordem: index,
       gravado: false,
     }));
@@ -169,7 +169,9 @@ export function RecordingPage() {
   }) => {
     if (!name.trim() || contentIds.length === 0) return;
 
-    const orderedSelectedContents = state.contents.filter(content => contentIds.includes(content.id));
+    const orderedSelectedContents = contentIds
+      .map(contentId => state.contents.find(content => content.id === contentId) || null)
+      .filter((content): content is (typeof state.contents)[number] => content !== null);
     const manualTags = tagsText.split(/[,\n]/).map(tag => tag.trim()).filter(Boolean);
     const recordingTags = normalizeRecordingTags(
       manualTags.length > 0 ? manualTags : orderedSelectedContents.flatMap(content => content.tags || [])
@@ -212,15 +214,8 @@ export function RecordingPage() {
           availableTags={availableRecordingTags}
           onCreateBlock={handleCreateBlockFromMobile}
           onOpenBlock={(blockId) => navigate(`/gravacao/${blockId}?tab=blocks`)}
-          onPreviewScript={setPreviewContent}
+          onOpenContent={(contentId) => openContentDetail(contentId)}
         />
-
-        {previewContent && (
-          <ScriptPreviewModal
-            content={state.contents.find(content => content.id === previewContent.id) || previewContent}
-            onClose={() => setPreviewContent(null)}
-          />
-        )}
       </div>
     );
   }
@@ -232,7 +227,7 @@ export function RecordingPage() {
           <DesktopPageHeader
             section="Produção"
             title="Gravação"
-            subtitle="Monte blocos e execute a fila dos roteiros que já estão prontos para gravar."
+            subtitle="Monte blocos, acompanhe a operacao e entre direto na execucao."
             icon={Video}
             className="mb-0"
           />
@@ -257,7 +252,7 @@ export function RecordingPage() {
                 : 'text-[var(--text-secondary)] italic'
             )}
           >
-            Para Gravar
+            Sem bloco
           </button>
 
           <button
@@ -338,11 +333,11 @@ export function RecordingPage() {
 
             <div className="space-y-2">
               <h2 className="text-[11px] font-black uppercase tracking-widest opacity-40">
-                Videos prontos para gravar
+                Conteudos sem bloco
                 {prontos.length > 0 && <span className="ml-2 opacity-70">({prontos.length})</span>}
               </h2>
               <p className="text-sm text-[var(--text-secondary)]">
-                Selecione os roteiros finalizados e monte um bloco. Quando criar, ele aparece na aba `Blocos`.
+                Selecione os conteudos disponiveis e monte um bloco. Quando criar, ele aparece na aba `Blocos`.
               </p>
             </div>
 
@@ -350,7 +345,7 @@ export function RecordingPage() {
               <div className="py-12 text-center">
                 <Video className="mx-auto mb-3 h-10 w-10 opacity-10" />
                 <p className="text-sm font-black uppercase tracking-widest opacity-30">
-                  Nenhum conteudo pronto para gravar
+                  Nenhum conteudo sem bloco
                 </p>
               </div>
             ) : (
@@ -360,11 +355,11 @@ export function RecordingPage() {
                     key={content.id}
                     role="button"
                     tabIndex={0}
-                    onClick={() => toggleSelect(content.id)}
+                    onClick={() => openContentDetail(content.id)}
                     onKeyDown={event => {
                       if (event.key === 'Enter' || event.key === ' ') {
                         event.preventDefault();
-                        toggleSelect(content.id);
+                        openContentDetail(content.id);
                       }
                     }}
                     className={cn(
@@ -375,16 +370,26 @@ export function RecordingPage() {
                     )}
                   >
                     <div
-                      className={cn(
-                        'flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 transition-all',
-                        selectedIds.has(content.id)
-                          ? 'border-[var(--text-primary)] bg-[var(--text-primary)]'
-                          : 'border-[var(--border-color)]'
-                      )}
+                      className="shrink-0"
                     >
-                      {selectedIds.has(content.id) && (
-                        <div className="h-2 w-2 rounded-sm bg-[var(--bg-primary)]" />
-                      )}
+                      <button
+                        type="button"
+                        onClick={event => {
+                          event.stopPropagation();
+                          toggleSelect(content.id);
+                        }}
+                        className={cn(
+                          'flex h-5 w-5 items-center justify-center rounded-md border-2 transition-all',
+                          selectedIds.has(content.id)
+                            ? 'border-[var(--text-primary)] bg-[var(--text-primary)]'
+                            : 'border-[var(--border-color)] bg-[var(--bg-primary)]'
+                        )}
+                        aria-label={selectedIds.has(content.id) ? 'Remover da selecao' : 'Selecionar para bloco'}
+                      >
+                        {selectedIds.has(content.id) ? (
+                          <div className="h-2 w-2 rounded-sm bg-[var(--bg-primary)]" />
+                        ) : null}
+                      </button>
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-black text-[var(--text-primary)]">
@@ -414,17 +419,9 @@ export function RecordingPage() {
                         )}
                       </div>
                     </div>
-                    <button
-                      type="button"
-                      onClick={event => {
-                        event.stopPropagation();
-                        setPreviewContent(content);
-                      }}
-                      className="rounded-full bg-[var(--bg-hover)] p-2 text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-secondary)]"
-                      aria-label="Visualizar roteiro"
-                    >
-                      <Eye className="h-4 w-4" />
-                    </button>
+                    <span className="rounded-full bg-[var(--bg-hover)] px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-[var(--text-secondary)]">
+                      Abrir detalhe
+                    </span>
                   </div>
                 ))}
               </div>
@@ -492,13 +489,6 @@ export function RecordingPage() {
           </section>
         )}
       </div>
-
-      {previewContent && (
-        <ScriptPreviewModal
-          content={state.contents.find(content => content.id === previewContent.id) || previewContent}
-          onClose={() => setPreviewContent(null)}
-        />
-      )}
     </div>
   );
 }

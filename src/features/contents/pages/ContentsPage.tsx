@@ -1,5 +1,5 @@
 import {Suspense, lazy, useEffect, useMemo, useState} from 'react';
-import {useSearchParams} from 'react-router-dom';
+import {useNavigate, useSearchParams} from 'react-router-dom';
 import {Check, Loader2, Table as TableIcon, Trash2, X} from 'lucide-react';
 import {AnimatePresence, motion} from 'motion/react';
 import {ConfirmModal} from '../../../components/feedback/modals/ConfirmModal';
@@ -10,9 +10,11 @@ import {DesktopPageHeader} from '../../../layouts/page/DesktopPageHeader';
 import {PageScaffold} from '../../../layouts/page/PageScaffold';
 import {Content} from '../../../lib/database';
 import {ContentsMobileScreen} from '../../../mobile/screens/contents/ContentsMobileScreen';
-import {generateUUID} from '../../../utils/uuid';
 import {ContentsDesktop} from '../components/desktop/ContentsDesktop';
 import {ContentsToolbar} from '../components/filters/ContentsToolbar';
+import {createContentDraft} from '../lib/createContentDraft';
+import {buildContentDetailRoute} from '../lib/contentDetailRoute';
+import {CONTENT_STATUS} from '../lib/contentPipeline';
 import {normalizeRecordingTags} from '../../recording/lib/recordingWorkflow';
 import {
   EDITORIAL_CONTENT_STATUSES,
@@ -30,17 +32,6 @@ const MOBILE_PAGE_SIZE = 8;
 const KEEP_VALUE = '__KEEP__';
 const EMPTY_VALUE = '__EMPTY__';
 
-const ContentDetailModal = lazy(() =>
-  import('../components/modals/ContentDetailModal').then(module => ({default: module.ContentDetailModal}))
-);
-const ScriptPreviewModal = lazy(() =>
-  import('../components/modals/ScriptPreviewModal').then(module => ({default: module.ScriptPreviewModal}))
-);
-const PostedContentPreviewModal = lazy(() =>
-  import('../components/modals/PostedContentPreviewModal').then(module => ({
-    default: module.PostedContentPreviewModal,
-  }))
-);
 const CSVUploadModal = lazy(() =>
   import('../components/modals/CSVUploadModal').then(module => ({default: module.CSVUploadModal}))
 );
@@ -51,43 +42,19 @@ function ModalFallback() {
   );
 }
 
-function createEmptyContent(
-  state: ReturnType<typeof useAppContext>['state'],
-  status: Content['status'] = 'Roteiro'
-): Content {
-  return {
-    id: generateUUID(),
-    userId: '',
-    title: 'Novo Conteudo',
-    status,
-    slotType: null,
-    seriesId: null,
-    pilarId: null,
-    cenarioId: null,
-    lookId: null,
-    formatoVisual: null,
-    script: null,
-    scriptNotes: [],
-    tags: [],
-    notes: null,
-    referencias: null,
-    energiaNecessaria: null,
-    publishDate: null,
-    recordingDate: null,
-    link: null,
-    bibliotecaItemId: null,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    deletedAt: null,
-    plataformas: [],
-  };
-}
-
-export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'history'}) {
+export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'history' | 'auto'}) {
   const {state, dispatch, updateContent} = useAppContext();
-  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const isMobile = useIsMobile();
-  const [postingTab, setPostingTab] = useState<PostingTab>('postagem');
+  const requestedView = searchParams.get('view');
+  const resolvedMode =
+    mode === 'auto'
+      ? requestedView === 'postagem' || requestedView === 'historico'
+        ? 'history'
+        : 'editorial'
+      : mode;
+  const [postingTab, setPostingTab] = useState<PostingTab>(requestedView === 'historico' ? 'historico' : 'postagem');
   const [filterStatus, setFilterStatus] = useState<string>(
     searchParams.get('status') === RECORDING_READY_STATUS ? 'Todos' : searchParams.get('status') || 'Todos'
   );
@@ -95,10 +62,6 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
   const [filterSeries, setFilterSeries] = useState<string>('Todas');
   const [filterPillar, setFilterPillar] = useState<string>('Todos');
   const [viewMode, setViewMode] = useState<ContentsViewMode>('table');
-  const [selectedContent, setSelectedContent] = useState<Content | null>(null);
-  const [previewContent, setPreviewContent] = useState<Content | null>(null);
-  const [historyPreviewContent, setHistoryPreviewContent] = useState<Content | null>(null);
-  const [isNewModal, setIsNewModal] = useState(false);
   const [isCSVUploadOpen, setIsCSVUploadOpen] = useState(false);
   const [sortField, setSortField] = useState<SortField>('createdAt');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
@@ -112,10 +75,20 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
   const [confirm, setConfirm] = useState<{message: string; onConfirm: () => void} | null>(null);
   const [desktopPage, setDesktopPage] = useState(1);
 
-  const isEditorialMode = mode === 'editorial';
-  const isPostingHistory = mode === 'history' && postingTab === 'historico';
+  const isEditorialMode = resolvedMode === 'editorial';
+  const isPostingHistory = resolvedMode === 'history' && postingTab === 'historico';
   const effectiveViewMode = isPostingHistory ? 'grid' : viewMode;
-  const statusOptions = useMemo(() => getContentStatusOptions(mode), [mode]);
+  const statusOptions = useMemo(() => getContentStatusOptions(resolvedMode), [resolvedMode]);
+
+  useEffect(() => {
+    if (resolvedMode !== 'history') {
+      if (postingTab !== 'postagem') setPostingTab('postagem');
+      return;
+    }
+
+    const nextPostingTab = requestedView === 'historico' ? 'historico' : 'postagem';
+    setPostingTab(previous => (previous === nextPostingTab ? previous : nextPostingTab));
+  }, [postingTab, requestedView, resolvedMode]);
 
   useEffect(() => {
     if (isPostingHistory) {
@@ -135,11 +108,11 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
   }, [selectedIds]);
 
   const sourceContents = useMemo(() => {
-    if (mode === 'editorial') return getEditorialContents(state.contents);
+    if (resolvedMode === 'editorial') return getEditorialContents(state.contents);
     return postingTab === 'historico'
       ? getPostedContents(state.contents)
       : getPostingContents(state.contents);
-  }, [mode, postingTab, state.contents]);
+  }, [postingTab, resolvedMode, state.contents]);
 
   const filteredContents = useMemo(() => {
     return sourceContents.filter(content => {
@@ -176,7 +149,6 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
     filterSeries,
     filterStatus,
     isPostingHistory,
-    mode,
     searchTerm,
     sourceContents,
     state.pilares,
@@ -227,7 +199,7 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
 
   useEffect(() => {
     setDesktopPage(1);
-  }, [mode, postingTab, filterStatus, filterSeries, filterPillar, searchTerm, sortField, sortDirection, viewMode]);
+  }, [resolvedMode, postingTab, filterStatus, filterSeries, filterPillar, searchTerm, sortField, sortDirection, viewMode]);
 
   useEffect(() => {
     if (desktopPage > totalDesktopPages) {
@@ -271,8 +243,12 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
     setFilterStatus('Todos');
     setFilterSeries('Todas');
     setFilterPillar('Todos');
-    setSelectedContent(createEmptyContent(state, isEditorialMode ? 'Roteiro' : 'Gravado'));
-    setIsNewModal(true);
+    const newContent = createContentDraft({
+      title: 'Novo Conteudo',
+      status: isEditorialMode ? CONTENT_STATUS.ROTEIRO : CONTENT_STATUS.GRAVADO,
+    });
+    void dispatch({type: 'ADD_CONTENT', payload: newContent});
+    navigate(buildContentDetailRoute(newContent.id));
   };
 
   const handleToggleSelect = (id: string) => {
@@ -361,17 +337,21 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
     }
   };
 
-  const activeContent = selectedContent
-    ? state.contents.find(content => content.id === selectedContent.id) || selectedContent
-    : null;
-
-  const pageTitle = isEditorialMode ? 'Conteudo' : 'Postagem';
+  const pageTitle = isEditorialMode ? 'Roteiro' : postingTab === 'historico' ? 'Publicados' : 'Postagem';
   const pageSubtitle = isEditorialMode
     ? 'Gerencie o estoque editorial antes de cada roteiro seguir para gravacao.'
     : postingTab === 'historico'
-      ? 'Consulte o historico do que ja foi postado e abra cada item em visualizacao.'
-      : 'Concentre plataforma, legenda, datas e publicacao sem misturar com a criacao do roteiro.';
+      ? 'Consulte o que ja foi publicado sem sair da fila principal de conteudos.'
+      : 'Concentre agendamento, plataformas e alertas sem separar a postagem do detalhe do conteudo.';
   const surfaceMode = isEditorialMode ? 'editorial' : isPostingHistory ? 'historico' : 'postagem';
+
+  const openUnifiedDetail = (content: Content, tab: 'roteiro' | 'postagem' | 'historico') => {
+    navigate(buildContentDetailRoute(content.id, tab));
+  };
+
+  const openScriptDetail = (content: Content) => {
+    navigate(buildContentDetailRoute(content.id));
+  };
 
   if (isMobile) {
     return (
@@ -385,55 +365,23 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
           pilares={state.pilares}
           onSelect={content => {
             if (isPostingHistory) {
-              setHistoryPreviewContent(content);
+              openUnifiedDetail(content, 'historico');
               return;
             }
-            setSelectedContent(content);
+            if (isEditorialMode) {
+              openUnifiedDetail(content, 'roteiro');
+              return;
+            }
+            if (postingTab === 'postagem') {
+              openUnifiedDetail(content, 'postagem');
+              return;
+            }
           }}
-          onPreview={setPreviewContent}
+          onPreview={openScriptDetail}
           onCreate={handleAddContent}
         />
 
-        {activeContent && (
-          <Suspense fallback={<ModalFallback />}>
-          <ContentDetailModal
-            content={activeContent}
-            isNewContent={isNewModal}
-            initialTab={isEditorialMode ? 'roteiro' : 'producao'}
-            visibleTabs={isEditorialMode ? ['roteiro'] : ['producao']}
-            onClose={() => {
-              setSelectedContent(null);
-              setIsNewModal(false);
-            }}
-          />
-          </Suspense>
-        )}
-
-        {previewContent && (
-          <Suspense fallback={<ModalFallback />}>
-            <ScriptPreviewModal
-              content={state.contents.find(content => content.id === previewContent.id) || previewContent}
-              onClose={() => setPreviewContent(null)}
-            />
-          </Suspense>
-        )}
-
-        {historyPreviewContent && (
-          <Suspense fallback={<ModalFallback />}>
-            <PostedContentPreviewModal
-              content={
-                state.contents.find(content => content.id === historyPreviewContent.id) || historyPreviewContent
-              }
-              onClose={() => setHistoryPreviewContent(null)}
-              onOpenScript={() => {
-                setPreviewContent(historyPreviewContent);
-                setHistoryPreviewContent(null);
-              }}
-            />
-          </Suspense>
-        )}
-
-        {mode === 'editorial' && isCSVUploadOpen && (
+        {isEditorialMode && isCSVUploadOpen && (
           <Suspense fallback={<ModalFallback />}>
             <CSVUploadModal onClose={() => setIsCSVUploadOpen(false)} />
           </Suspense>
@@ -467,7 +415,7 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
       }
       toolbar={
         <ContentsToolbar
-          mode={mode}
+          mode={resolvedMode}
           postingTab={postingTab}
           isMobile={isMobile}
           viewMode={effectiveViewMode}
@@ -491,7 +439,14 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
           }}
           onImportClick={() => setIsCSVUploadOpen(true)}
           onCreateClick={handleAddContent}
-          onPostingTabChange={setPostingTab}
+          onPostingTabChange={tab => {
+            setPostingTab(tab);
+            setSearchParams(previous => {
+              const next = new URLSearchParams(previous);
+              next.set('view', tab);
+              return next;
+            }, {replace: true});
+          }}
         />
       }
     >
@@ -508,12 +463,19 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
         selectedIds={selectedIds}
         onSelect={content => {
           if (isPostingHistory) {
-            setHistoryPreviewContent(content);
+            openUnifiedDetail(content, 'historico');
             return;
           }
-          setSelectedContent(content);
+          if (isEditorialMode) {
+            openUnifiedDetail(content, 'roteiro');
+            return;
+          }
+          if (postingTab === 'postagem') {
+            openUnifiedDetail(content, 'postagem');
+            return;
+          }
         }}
-        onPreview={setPreviewContent}
+        onPreview={openScriptDetail}
         onSort={handleSort}
         onToggleSelect={handleToggleSelect}
         onSelectAll={handleSelectAll}
@@ -603,46 +565,7 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
         )}
       </AnimatePresence>
 
-      {activeContent && (
-        <Suspense fallback={<ModalFallback />}>
-          <ContentDetailModal
-            content={activeContent}
-            isNewContent={isNewModal}
-            initialTab={isEditorialMode ? 'roteiro' : 'producao'}
-            visibleTabs={isEditorialMode ? ['roteiro'] : ['producao']}
-            onClose={() => {
-              setSelectedContent(null);
-              setIsNewModal(false);
-            }}
-          />
-        </Suspense>
-      )}
-
-      {previewContent && (
-        <Suspense fallback={<ModalFallback />}>
-          <ScriptPreviewModal
-            content={state.contents.find(content => content.id === previewContent.id) || previewContent}
-            onClose={() => setPreviewContent(null)}
-          />
-        </Suspense>
-      )}
-
-      {historyPreviewContent && (
-        <Suspense fallback={<ModalFallback />}>
-          <PostedContentPreviewModal
-            content={
-              state.contents.find(content => content.id === historyPreviewContent.id) || historyPreviewContent
-            }
-            onClose={() => setHistoryPreviewContent(null)}
-            onOpenScript={() => {
-              setPreviewContent(historyPreviewContent);
-              setHistoryPreviewContent(null);
-            }}
-          />
-        </Suspense>
-      )}
-
-      {mode === 'editorial' && isCSVUploadOpen && (
+      {isEditorialMode && isCSVUploadOpen && (
         <Suspense fallback={<ModalFallback />}>
           <CSVUploadModal onClose={() => setIsCSVUploadOpen(false)} />
         </Suspense>

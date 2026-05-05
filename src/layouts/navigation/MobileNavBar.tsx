@@ -13,39 +13,9 @@ import {
 import { cn } from '../../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAppContext } from '../../context/AppContext';
-import { ContentDetailModal } from '../../features/contents/components/modals/ContentDetailModal';
 import { BookNotesModal } from '../../features/library/components/modals/BookNotesModal';
-import { Content } from '../../lib/database';
-import { generateUUID } from '../../utils/uuid';
-
-function createEmptyContent(state: ReturnType<typeof useAppContext>['state']): Content {
-  return {
-    id: generateUUID(),
-    userId: '',
-    title: '',
-    status: 'Roteiro',
-    slotType: null,
-    seriesId: null,
-    pilarId: null,
-    cenarioId: null,
-    lookId: null,
-    formatoVisual: null,
-    script: null,
-    scriptNotes: [],
-    tags: [],
-    notes: null,
-    referencias: null,
-    energiaNecessaria: null,
-    publishDate: null,
-    recordingDate: null,
-    link: null,
-    bibliotecaItemId: null,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    deletedAt: null,
-    plataformas: [],
-  };
-}
+import { createContentDraft } from '../../features/contents/lib/createContentDraft';
+import { buildContentDetailRoute } from '../../features/contents/lib/contentDetailRoute';
 
 type MobileNavItemProps = {
   to: string;
@@ -73,12 +43,11 @@ function MobileNavItem({ to, icon: Icon, label }: MobileNavItemProps) {
 }
 
 export function MobileNavBar() {
-  const { state } = useAppContext();
+  const { state, dispatch } = useAppContext();
   const navigate = useNavigate();
   const location = useLocation();
 
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [selectedContent, setSelectedContent] = useState<Content | null>(null);
   const [isBookModalOpen, setIsBookModalOpen] = useState(false);
 
   const preferredBookId = typeof state.preferences.mobile_notes_primary_book_id === 'string'
@@ -113,9 +82,10 @@ export function MobileNavBar() {
   }, [isMenuOpen]);
 
   const handleNewContent = () => {
-    const newContent = createEmptyContent(state);
+    const newContent = createContentDraft();
 
-    setSelectedContent(newContent);
+    void dispatch({ type: 'ADD_CONTENT', payload: newContent });
+    navigate(buildContentDetailRoute(newContent.id));
     setIsMenuOpen(false);
   };
 
@@ -189,7 +159,7 @@ export function MobileNavBar() {
         </div>
 
         <MobileNavItem to="/gravacao" icon={Video} label="Gravacao" />
-        <MobileNavItem to="/conteudos/historico" icon={FileText} label="Postagem" />
+        <MobileNavItem to="/ideias" icon={Lightbulb} label="Ideias" />
       </nav>
 
       <AnimatePresence>
@@ -264,17 +234,6 @@ export function MobileNavBar() {
           </>
         )}
       </AnimatePresence>
-
-      {selectedContent && (
-        <ContentDetailModal
-          content={selectedContent}
-          isNewContent={true}
-          initialTab="roteiro"
-          visibleTabs={['roteiro']}
-          compactMobileComposer={true}
-          onClose={() => setSelectedContent(null)}
-        />
-      )}
 
       {isBookModalOpen && currentBook && (
         <BookNotesModal

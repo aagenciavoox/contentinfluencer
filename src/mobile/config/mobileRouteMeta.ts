@@ -24,6 +24,15 @@ export function getMobileRouteMeta(pathname: string): MobileRouteMeta {
     };
   }
 
+  if (pathname.startsWith('/conteudos/')) {
+    return {
+      title: 'Conteudo',
+      subtitle: 'Pipeline continuo em um unico detalhe.',
+      mode: 'back',
+      backTo: '/conteudos',
+    };
+  }
+
   if (pathname.startsWith('/gravacao/')) {
     return {
       title: 'Modo Explosao',
@@ -51,12 +60,7 @@ export function getMobileRouteMeta(pathname: string): MobileRouteMeta {
     case '/conteudos':
       return {
         title: 'Conteudos',
-        subtitle: 'Pipeline editorial para operacao rapida.',
-      };
-    case '/conteudos/historico':
-      return {
-        title: 'Postagem',
-        subtitle: 'Historico e pipeline de postagem.',
+        subtitle: 'Roteiro, postagem e historico em uma mesma fila.',
       };
     case '/ideias':
       return {

@@ -1,10 +1,17 @@
-import { Content } from '../../../lib/database';
+import {Content} from '../../../lib/database';
+import {CONTENT_STATUS} from './contentPipeline';
 
-export const EDITORIAL_CONTENT_STATUSES = ['Roteiro'] as const;
-export const PRODUCTION_CONTENT_STATUSES = ['Gravado', 'A Editar', 'Editado', 'Programado', 'Postado'] as const;
-export const RECORDING_READY_STATUS = 'Pronto para Gravar';
-export const RECORDED_STATUS = 'Gravado';
-export const POSTED_STATUS = 'Postado';
+export const EDITORIAL_CONTENT_STATUSES = [CONTENT_STATUS.ROTEIRO] as const;
+export const PRODUCTION_CONTENT_STATUSES = [
+  CONTENT_STATUS.GRAVADO,
+  CONTENT_STATUS.A_EDITAR,
+  CONTENT_STATUS.EDITADO,
+  CONTENT_STATUS.PROGRAMADO,
+  CONTENT_STATUS.POSTADO,
+] as const;
+export const RECORDING_READY_STATUS = CONTENT_STATUS.PRONTO_PARA_GRAVAR;
+export const RECORDED_STATUS = CONTENT_STATUS.GRAVADO;
+export const POSTED_STATUS = CONTENT_STATUS.POSTADO;
 
 export type EditorialContentStatus = typeof EDITORIAL_CONTENT_STATUSES[number];
 export type ProductionContentStatus = typeof PRODUCTION_CONTENT_STATUSES[number];

@@ -251,6 +251,7 @@ export interface Projeto {
   bibliotecaItemId: string | null;
   brand: string | null;
   brandColor: string | null;
+  color: string | null;
   value: number | null;
   currency: string;
   notes: string | null;
@@ -517,7 +518,7 @@ const mp = {
     id: r.id, userId: r.user_id, nome: r.nome, tipo: normalizeProjetoTipo(r.tipo), status: r.status,
     dataInicio: r.data_inicio, dataFim: r.data_fim, metaConteudos: r.meta_conteudos,
     bibliotecaItemId: r.biblioteca_item_id, brand: r.brand, brandColor: r.brand_color,
-    value: r.value, currency: r.currency || 'BRL', notes: r.notes,
+    color: r.color || null, value: r.value, currency: r.currency || 'BRL', notes: r.notes,
     createdAt: r.created_at, updatedAt: r.updated_at, deletedAt: r.deleted_at,
     etapas: (r.projeto_etapas || []).map((e: Row) => ({
       id: e.id, projetoId: e.projeto_id, nome: e.nome, ordem: e.ordem,
@@ -1037,8 +1038,8 @@ export async function saveProjeto(
     id: projeto.id, user_id: uid, nome: projeto.nome, tipo: normalizeProjetoTipo(projeto.tipo),
     status: projeto.status, data_inicio: projeto.dataInicio, data_fim: projeto.dataFim,
     meta_conteudos: projeto.metaConteudos, biblioteca_item_id: projeto.bibliotecaItemId,
-    brand: projeto.brand, brand_color: projeto.brandColor, value: projeto.value,
-    currency: projeto.currency, notes: projeto.notes,
+    brand: projeto.brand, brand_color: projeto.brandColor, color: projeto.color,
+    value: projeto.value, currency: projeto.currency, notes: projeto.notes,
   });
   if (error) throw new Error(`projetos: ${error.message}`);
 }

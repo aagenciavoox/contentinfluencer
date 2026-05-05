@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Calendar, ChevronDown, Clapperboard, Eye, FileText, SearchCheck, Sparkles } from 'lucide-react';
 import type { Content, Pilar, Serie } from '../../../lib/database';
+import { CONTENT_STATUS } from '../../../features/contents/lib/contentPipeline';
 import { getEntityTagStyle } from '../../../lib/utils';
 import { AppButton } from '../../../components/ui/AppButton';
 import { MobileEmptyState } from '../../components/MobileEmptyState';
@@ -23,14 +24,14 @@ interface ContentsMobileScreenProps {
 }
 
 const STATUS_ACCENTS: Record<string, string> = {
-  Ideia: 'var(--accent-orange)',
-  Roteiro: 'var(--accent-blue)',
-  'Pronto para Gravar': 'var(--accent-green)',
-  Gravado: 'var(--accent-orange)',
-  'A Editar': 'var(--accent-purple)',
-  Editado: 'var(--accent-blue)',
-  Programado: 'var(--accent-purple)',
-  Postado: 'var(--accent-green)',
+  [CONTENT_STATUS.IDEIA]: 'var(--accent-orange)',
+  [CONTENT_STATUS.ROTEIRO]: 'var(--accent-blue)',
+  [CONTENT_STATUS.PRONTO_PARA_GRAVAR]: 'var(--accent-green)',
+  [CONTENT_STATUS.GRAVADO]: 'var(--accent-orange)',
+  [CONTENT_STATUS.A_EDITAR]: 'var(--accent-purple)',
+  [CONTENT_STATUS.EDITADO]: 'var(--accent-blue)',
+  [CONTENT_STATUS.PROGRAMADO]: 'var(--accent-purple)',
+  [CONTENT_STATUS.POSTADO]: 'var(--accent-green)',
 };
 
 export function ContentsMobileScreen({
@@ -49,14 +50,14 @@ export function ContentsMobileScreen({
   const tabs = useMemo(() => {
     if (mode === 'postagem') {
       return [
-        { value: 'Gravado', label: 'Gravado', count: allContents.filter((content) => content.status === 'Gravado').length },
-        { value: 'A Editar', label: 'Editar', count: allContents.filter((content) => content.status === 'A Editar').length },
-        { value: 'Programado', label: 'Agendado', count: allContents.filter((content) => content.status === 'Programado').length },
+        { value: CONTENT_STATUS.GRAVADO, label: 'Gravado', count: allContents.filter((content) => content.status === CONTENT_STATUS.GRAVADO).length },
+        { value: CONTENT_STATUS.A_EDITAR, label: 'Editar', count: allContents.filter((content) => content.status === CONTENT_STATUS.A_EDITAR).length },
+        { value: CONTENT_STATUS.PROGRAMADO, label: 'Agendado', count: allContents.filter((content) => content.status === CONTENT_STATUS.PROGRAMADO).length },
       ] as const;
     }
 
     return [
-      { value: 'Postado', label: 'Postados', count: allContents.filter((content) => content.status === 'Postado').length },
+      { value: CONTENT_STATUS.POSTADO, label: 'Postados', count: allContents.filter((content) => content.status === CONTENT_STATUS.POSTADO).length },
       { value: 'recent', label: 'Recentes', count: contents.length },
     ] as const;
   }, [allContents, contents.length, mode]);
@@ -78,7 +79,7 @@ export function ContentsMobileScreen({
         if (mode === 'editorial') return true;
         if (mode === 'historico' && activeTab === 'recent') return true;
         if (mode !== 'historico') return content.status === activeTab;
-        return content.status === 'Postado';
+        return content.status === CONTENT_STATUS.POSTADO;
       })
       .filter((content) => {
         if (!normalizedSearch) return true;
@@ -206,7 +207,7 @@ export function ContentsMobileScreen({
                         onPreview(content);
                       }}
                       className="rounded-full bg-[var(--bg-hover)] p-2 text-[var(--text-secondary)]"
-                      aria-label="Previsualizar roteiro"
+                      aria-label="Abrir detalhe do conteudo"
                     >
                       <Eye className="h-4 w-4" />
                     </button>

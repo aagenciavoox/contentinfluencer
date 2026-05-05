@@ -123,9 +123,11 @@ export function CalendarGrid({ activeLayers, searchTerm, sortValue, onItemClick 
         })
         .forEach(a => {
         if (a.date === dayStr) {
+          const linkedProjeto = a.projetoId ? state.projetos.find(proj => proj.id === a.projetoId) : null;
           items.push({
             ...a,
             type: 'agenda',
+            projetoColor: linkedProjeto?.color || null,
             icon: <CalendarIcon className="w-2.5 h-2.5" />
           });
         }
@@ -256,13 +258,21 @@ export function CalendarGrid({ activeLayers, searchTerm, sortValue, onItemClick 
                         item.type === 'recording' && "bg-orange-500/5 text-orange-600 hover:bg-orange-500/10 hover:border-orange-500/20",
                         item.type === 'post' && "bg-blue-500/5 text-blue-600 hover:bg-blue-500/10 hover:border-blue-500/20",
                         item.type === 'partnership' && "hover:border-current",
-                        item.type === 'agenda' && !item.brandColor && "bg-purple-500/5 text-purple-600 hover:bg-purple-500/10 hover:border-purple-500/20",
+                        item.type === 'agenda' && !item.brandColor && !item.projetoColor && "bg-purple-500/5 text-purple-600 hover:bg-purple-500/10 hover:border-purple-500/20",
                         item.status === 'Postado' && "opacity-40 grayscale"
                       )}
                       style={
-                        item.type === 'partnership' ? {
+                        item.type === 'partnership' && item.color ? {
+                          backgroundColor: `${item.color}15`,
+                          color: item.color,
+                          borderColor: `${item.color}30`
+                        } : item.type === 'partnership' ? {
                           backgroundColor: `${STATUS_CONFIG[item.status]?.color || '#f59e0b'}15`,
                           color: STATUS_CONFIG[item.status]?.color || '#d97706'
+                        } : item.type === 'agenda' && item.projetoColor ? {
+                          backgroundColor: `${item.projetoColor}15`,
+                          color: item.projetoColor,
+                          borderColor: `${item.projetoColor}30`
                         } : item.type === 'agenda' && item.brandColor ? {
                           backgroundColor: `${item.brandColor}15`,
                           color: item.brandColor,

@@ -28,8 +28,10 @@ type TipoAnotacao = Anotacao['tipo'];
 type StatusLeitura = BibliotecaItem['status'];
 type GeneroLivro = string;
 type Campaign = Projeto;
-import { ContentDetailModal } from '../../contents/components/modals/ContentDetailModal';
 import { ConfirmModal } from '../../../components/feedback/modals/ConfirmModal';
+import { createContentDraft } from '../../contents/lib/createContentDraft';
+import { buildContentDetailRoute } from '../../contents/lib/contentDetailRoute';
+import { CONTENT_STATUS } from '../../contents/lib/contentPipeline';
 import { BookAnnotationComposerSheet } from '../components/modals/BookAnnotationComposerSheet';
 import { generateUUID } from '../../../utils/uuid';
 import { DesktopPageHeader } from '../../../layouts/page/DesktopPageHeader';
@@ -166,7 +168,6 @@ export function BookDetailPage() {
   const [mobileNoteComposerOpen, setMobileNoteComposerOpen] = useState(false);
 
   // Conteúdos state
-  const [contentModalId, setContentModalId] = useState<string | null>(null);
   const [ecossistemaAgrupamento, setEcossistemaAgrupamento] = useState<'slot' | 'plataforma'>('slot');
 
   // Campanhas state
@@ -355,34 +356,14 @@ export function BookDetailPage() {
   };
 
   const handleTransformarEmConteudo = (anotacao: BookAnnotation) => {
-    const novoConteudo: Content = {
-      id: generateUUID(),
-      userId: '',
+    const novoConteudo = createContentDraft({
       title: anotacao.texto.slice(0, 60),
-      status: 'Roteiro',
-      slotType: null,
-      seriesId: null,
-      pilarId: null,
-      lookId: null,
-      cenarioId: null,
+      status: CONTENT_STATUS.ROTEIRO,
       bibliotecaItemId: livro.id,
-      formatoVisual: null,
-      energiaNecessaria: null,
-      publishDate: null,
-      recordingDate: null,
-      link: null,
-      script: null,
-      scriptNotes: [],
-      tags: [],
       notes: anotacao.texto,
-      referencias: null,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      deletedAt: null,
-      plataformas: [],
-    };
+    });
     dispatch({ type: 'ADD_CONTENT', payload: novoConteudo });
-    setContentModalId(novoConteudo.id);
+    navigate(buildContentDetailRoute(novoConteudo.id));
     dispatch({ type: 'DISTILL_ANNOTATION', payload: { livroId: livro.id, annotationId: anotacao.id } });
   };
 
@@ -443,11 +424,11 @@ export function BookDetailPage() {
   };
 
   const handleCriarConteudo = () => {
-    const novoConteudo: Content = {
+    const novoConteudo = createContentDraft({
       id: generateUUID(),
       userId: '',
       title: `Conteúdo de "${livro.titulo}"`,
-      status: 'Roteiro',
+      status: CONTENT_STATUS.ROTEIRO,
       slotType: null,
       seriesId: null,
       pilarId: null,
@@ -468,17 +449,17 @@ export function BookDetailPage() {
       updatedAt: new Date().toISOString(),
       deletedAt: null,
       plataformas: [],
-    };
+    });
     dispatch({ type: 'ADD_CONTENT', payload: novoConteudo });
-    setContentModalId(novoConteudo.id);
+    navigate(buildContentDetailRoute(novoConteudo.id));
   };
 
   const handlePromoteIdeia = (ideiaId: string, ideiaText: string) => {
-    const novoConteudo: Content = {
+    const novoConteudo = createContentDraft({
       id: generateUUID(),
       userId: '',
       title: ideiaText.slice(0, 60),
-      status: 'Roteiro',
+      status: CONTENT_STATUS.ROTEIRO,
       slotType: null,
       seriesId: null,
       pilarId: null,
@@ -499,11 +480,11 @@ export function BookDetailPage() {
       updatedAt: new Date().toISOString(),
       deletedAt: null,
       plataformas: [],
-    };
+    });
     dispatch({ type: 'ADD_CONTENT', payload: novoConteudo });
     const ideia = state.ideas.find(i => i.id === ideiaId);
     if (ideia) dispatch({ type: 'UPDATE_IDEA', payload: { ...ideia, promotedToContentId: novoConteudo.id } });
-    setContentModalId(novoConteudo.id);
+    navigate(buildContentDetailRoute(novoConteudo.id));
   };
 
   const handleAdicionarCapitulo = () => {
@@ -548,6 +529,7 @@ export function BookDetailPage() {
       bibliotecaItemId: livro.id,
       brand: null,
       brandColor: null,
+      color: null,
       value: null,
       currency: 'BRL',
       notes: null,
@@ -594,8 +576,6 @@ export function BookDetailPage() {
       setBrainstormMode(false);
     }
   };
-
-  const contentModal = contentModalId ? state.contents.find(c => c.id === contentModalId) : null;
 
   const tabCounts: Record<Tab, number | null> = {
     info: null,
@@ -1374,7 +1354,7 @@ export function BookDetailPage() {
                         {conteudos.map(c => (
                           <button
                             key={c.id}
-                            onClick={() => setContentModalId(c.id)}
+                            onClick={() => navigate(buildContentDetailRoute(c.id))}
                             className="w-full flex items-center gap-4 px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-2xl hover:border-[var(--text-primary)]/30 transition-all text-left group"
                           >
                             <div className="flex-1 min-w-0">
@@ -1577,13 +1557,6 @@ export function BookDetailPage() {
       </AnimatePresence>
 
       {/* Modal de conteúdo */}
-      {contentModal && (
-        <ContentDetailModal
-          content={contentModal}
-          onClose={() => setContentModalId(null)}
-          initialLivroOrigemId={livro.id}
-        />
-      )}
       <ConfirmModal
         open={!!confirm}
         message={confirm?.message || ''}

@@ -21,13 +21,12 @@ import {
   ShieldCheck,
   Sun,
   User,
-  Video,
   X,
 } from 'lucide-react';
 import {AnimatePresence, motion} from 'motion/react';
 import {useAppContext} from '../../context/AppContext';
 import {useAuth} from '../../context/AuthContext';
-import {getEditorialContents, getPostingContents} from '../../features/contents/lib/contentWorkflow';
+import {getEditorialContents} from '../../features/contents/lib/contentWorkflow';
 import {getModuleFlags} from '../../features/settings/lib/moduleFlags';
 import {cn} from '../../lib/utils';
 
@@ -105,21 +104,15 @@ export function Sidebar({isOpen, onClose}: SidebarProps) {
         {to: '/ideias', label: 'Ideias', icon: Lightbulb},
         {
           to: '/conteudos',
-          label: 'Conteudo',
+          label: 'Roteiro',
           icon: FileText,
           badge: getEditorialContents(state.contents).length || undefined,
         },
         {
-          to: '/gravacao',
+          to: '/gravacao?tab=blocks',
           label: 'Gravacao',
           icon: Camera,
           hidden: !moduleFlags.recording,
-        },
-        {
-          to: '/conteudos/historico',
-          label: 'Postagem',
-          icon: Video,
-          badge: getPostingContents(state.contents).length || undefined,
         },
       ],
     },

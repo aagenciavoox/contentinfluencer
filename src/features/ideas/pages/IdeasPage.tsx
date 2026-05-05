@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAppContext } from '../../../context/AppContext';
 import { Plus, ArrowUpRight, Clock, Lightbulb, X, Trash2, Edit3, Save, BookOpen } from 'lucide-react';
 import { format } from 'date-fns';
@@ -12,9 +12,13 @@ import { useIsMobile } from '../../../hooks/useIsMobile';
 import { IdeasMobileScreen } from '../../../mobile/screens/ideas/IdeasMobileScreen';
 import { getEntityTagStyle } from '../../../lib/utils';
 import { generateUUID } from '../../../utils/uuid';
+import { createContentDraft } from '../../contents/lib/createContentDraft';
+import { buildContentDetailRoute } from '../../contents/lib/contentDetailRoute';
+import { CONTENT_STATUS } from '../../contents/lib/contentPipeline';
 
 export function IdeasPage() {
   const { state, dispatch } = useAppContext();
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const isMobile = useIsMobile();
   const [newIdeaText, setNewIdeaText] = useState('');
@@ -57,38 +61,25 @@ export function IdeasPage() {
   };
 
   const handlePromote = (idea: Idea) => {
-    const newContent: Omit<Content, 'createdAt' | 'deletedAt' | 'plataformas' | 'scriptNotes'> = {
-      id: generateUUID(),
-      userId: '',
+    const newContent = createContentDraft({
       title: idea.text.split('\n')[0].slice(0, 50),
-      status: 'Roteiro',
-      slotType: null,
+      status: CONTENT_STATUS.ROTEIRO,
       seriesId: idea.seriesId,
       pilarId: idea.pilarId,
-      cenarioId: null,
-      lookId: null,
-      formatoVisual: null,
-      script: null,
-      tags: [],
       notes: idea.text,
-      referencias: null,
-      energiaNecessaria: null,
-      publishDate: null,
-      recordingDate: null,
-      link: null,
       bibliotecaItemId: idea.origemId,
-      updatedAt: new Date().toISOString(),
-    };
+    });
 
     dispatch({
       type: 'PROMOTE_IDEA',
       payload: {
         ideaId: idea.id,
         contentId: newContent.id,
-        content: { ...newContent, createdAt: new Date().toISOString(), deletedAt: null, plataformas: [], scriptNotes: [] },
+        content: newContent,
       },
     });
     setViewingIdea(null);
+    navigate(buildContentDetailRoute(newContent.id));
   };
 
   const handleDelete = (id: string) => {

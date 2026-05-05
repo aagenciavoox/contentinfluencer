@@ -29,6 +29,7 @@ type CalendarEntry = {
   type: 'recording' | 'publish' | 'agenda' | 'project';
   label: string;
   secondary?: string;
+  color?: string | null;
 };
 
 function buildEntries(
@@ -80,11 +81,13 @@ function buildEntries(
 
   if (activeLayers.includes('agenda')) {
     agendaItems.forEach(item => {
+      const linkedProjeto = item.projetoId ? projetos.find(p => p.id === item.projetoId) : null;
       push(item.date, {
         id: item.id,
         type: 'agenda',
         label: item.title,
         secondary: item.tipo,
+        color: linkedProjeto?.color,
       });
     });
   }
@@ -98,6 +101,7 @@ function buildEntries(
           type: 'project',
           label: projeto.nome,
           secondary: 'Inicio do projeto',
+          color: projeto.color,
         });
 
         push(projeto.dataFim, {
@@ -105,6 +109,7 @@ function buildEntries(
           type: 'project',
           label: projeto.nome,
           secondary: 'Prazo final',
+          color: projeto.color,
         });
 
         projeto.etapas.forEach(etapa => {
@@ -113,6 +118,7 @@ function buildEntries(
             type: 'project',
             label: projeto.nome,
             secondary: `Etapa: ${etapa.nome}`,
+            color: projeto.color,
           });
         });
       });
@@ -231,29 +237,33 @@ export function MonthlyCalendarView({
                     </div>
 
                     <div className="space-y-1">
-                      {entries.slice(0, 3).map(entry => (
-                        <div
-                          key={entry.id}
-                          className={cn(
-                            'rounded-lg px-2 py-1 text-[8px] font-black uppercase tracking-wide',
-                            ENTRY_STYLES[entry.type]
-                          )}
-                          title={entry.secondary ? `${entry.label} - ${entry.secondary}` : entry.label}
-                        >
-                          <div className="flex items-center gap-1">
-                            {entry.type === 'recording' ? (
-                              <Mic2 className="h-2.5 w-2.5 shrink-0" />
-                            ) : entry.type === 'publish' ? (
-                              <Send className="h-2.5 w-2.5 shrink-0" />
-                            ) : entry.type === 'project' ? (
-                              <BriefcaseBusiness className="h-2.5 w-2.5 shrink-0" />
-                            ) : (
-                              <Clock3 className="h-2.5 w-2.5 shrink-0" />
+                      {entries.slice(0, 3).map(entry => {
+                        const useCustomColor = entry.color && (entry.type === 'project' || entry.type === 'agenda');
+                        return (
+                          <div
+                            key={entry.id}
+                            className={cn(
+                              'rounded-lg px-2 py-1 text-[8px] font-black uppercase tracking-wide',
+                              !useCustomColor && ENTRY_STYLES[entry.type]
                             )}
-                            <span className="truncate">{entry.label}</span>
+                            style={useCustomColor ? { backgroundColor: `${entry.color}15`, color: entry.color! } : undefined}
+                            title={entry.secondary ? `${entry.label} - ${entry.secondary}` : entry.label}
+                          >
+                            <div className="flex items-center gap-1">
+                              {entry.type === 'recording' ? (
+                                <Mic2 className="h-2.5 w-2.5 shrink-0" />
+                              ) : entry.type === 'publish' ? (
+                                <Send className="h-2.5 w-2.5 shrink-0" />
+                              ) : entry.type === 'project' ? (
+                                <BriefcaseBusiness className="h-2.5 w-2.5 shrink-0" />
+                              ) : (
+                                <Clock3 className="h-2.5 w-2.5 shrink-0" />
+                              )}
+                              <span className="truncate">{entry.label}</span>
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
 
                       {entries.length > 3 && (
                         <div className="text-center text-[8px] font-black uppercase tracking-widest text-[var(--text-tertiary)] opacity-50">

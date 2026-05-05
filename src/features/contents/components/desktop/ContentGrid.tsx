@@ -2,6 +2,7 @@ import { Check, Eye, Layers, Zap } from 'lucide-react';
 import { Content } from '../../../../lib/database';
 import { useAppContext } from '../../../../context/AppContext';
 import { cn, getEntityTagStyle } from '../../../../lib/utils';
+import { CONTENT_STATUS } from '../../lib/contentPipeline';
 
 interface ContentGridProps {
   contents: Content[];
@@ -14,14 +15,14 @@ interface ContentGridProps {
 }
 
 const STATUS_CLASSES: Record<string, string> = {
-  Ideia: 'bg-zinc-100 text-zinc-700',
-  Roteiro: 'bg-amber-100 text-amber-700',
-  'Pronto para Gravar': 'bg-orange-100 text-orange-700',
-  Gravado: 'bg-sky-100 text-sky-700',
-  'A Editar': 'bg-violet-100 text-violet-700',
-  Editado: 'bg-cyan-100 text-cyan-700',
-  Programado: 'bg-emerald-100 text-emerald-700',
-  Postado: 'bg-green-100 text-green-700',
+  [CONTENT_STATUS.IDEIA]: 'bg-zinc-100 text-zinc-700',
+  [CONTENT_STATUS.ROTEIRO]: 'bg-amber-100 text-amber-700',
+  [CONTENT_STATUS.PRONTO_PARA_GRAVAR]: 'bg-orange-100 text-orange-700',
+  [CONTENT_STATUS.GRAVADO]: 'bg-sky-100 text-sky-700',
+  [CONTENT_STATUS.A_EDITAR]: 'bg-violet-100 text-violet-700',
+  [CONTENT_STATUS.EDITADO]: 'bg-cyan-100 text-cyan-700',
+  [CONTENT_STATUS.PROGRAMADO]: 'bg-emerald-100 text-emerald-700',
+  [CONTENT_STATUS.POSTADO]: 'bg-green-100 text-green-700',
 };
 
 export function ContentGrid({
@@ -108,7 +109,7 @@ export function ContentGrid({
                     type="button"
                     onClick={() => onPreview(content)}
                     className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[var(--border-color)] bg-[var(--bg-hover)] text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-primary)]"
-                    aria-label={`Visualizar roteiro de ${content.title}`}
+                    aria-label={`Abrir detalhe de ${content.title}`}
                   >
                     <Eye className="h-4 w-4" />
                   </button>

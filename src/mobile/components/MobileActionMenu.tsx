@@ -4,49 +4,18 @@ import { AnimatePresence, motion } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
 import { useAppContext } from '../../context/AppContext';
 import { BookAnnotationComposerSheet } from '../../features/library/components/modals/BookAnnotationComposerSheet';
-import { ContentDetailModal } from '../../features/contents/components/modals/ContentDetailModal';
-import type { Content } from '../../lib/database';
+import { createContentDraft } from '../../features/contents/lib/createContentDraft';
+import { buildContentDetailRoute } from '../../features/contents/lib/contentDetailRoute';
 import { cn } from '../../lib/utils';
-import { generateUUID } from '../../utils/uuid';
 
 interface MobileActionMenuProps {
   open: boolean;
   onClose: () => void;
 }
 
-function createEmptyContent(state: ReturnType<typeof useAppContext>['state']): Content {
-  return {
-    id: generateUUID(),
-    userId: '',
-    title: '',
-    status: 'Roteiro',
-    slotType: null,
-    seriesId: null,
-    pilarId: null,
-    cenarioId: null,
-    lookId: null,
-    formatoVisual: null,
-    script: null,
-    scriptNotes: [],
-    tags: [],
-    notes: null,
-    referencias: null,
-    energiaNecessaria: null,
-    publishDate: null,
-    recordingDate: null,
-    link: null,
-    bibliotecaItemId: null,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    deletedAt: null,
-    plataformas: [],
-  };
-}
-
 export function MobileActionMenu({ open, onClose }: MobileActionMenuProps) {
-  const { state } = useAppContext();
+  const { state, dispatch } = useAppContext();
   const navigate = useNavigate();
-  const [selectedContent, setSelectedContent] = useState<Content | null>(null);
   const [isBookComposerOpen, setIsBookComposerOpen] = useState(false);
 
   const preferredBookId = typeof state.preferences.mobile_notes_primary_book_id === 'string'
@@ -75,7 +44,9 @@ export function MobileActionMenu({ open, onClose }: MobileActionMenuProps) {
   };
 
   const handleNewContent = () => {
-    setSelectedContent(createEmptyContent(state));
+    const newContent = createContentDraft();
+    void dispatch({ type: 'ADD_CONTENT', payload: newContent });
+    navigate(buildContentDetailRoute(newContent.id));
     onClose();
   };
 
@@ -179,17 +150,6 @@ export function MobileActionMenu({ open, onClose }: MobileActionMenuProps) {
           </>
         ) : null}
       </AnimatePresence>
-
-      {selectedContent ? (
-        <ContentDetailModal
-          content={selectedContent}
-          isNewContent={true}
-          initialTab="roteiro"
-          visibleTabs={['roteiro']}
-          compactMobileComposer={true}
-          onClose={() => setSelectedContent(null)}
-        />
-      ) : null}
 
       {currentBook ? (
         <BookAnnotationComposerSheet

@@ -1,5 +1,6 @@
 import { CalendarClock, FileText, FolderKanban, Lightbulb, Sparkles, Video } from 'lucide-react';
 import type { AgendaItem, Content, Idea, Projeto } from '../../../lib/database';
+import { CONTENT_STATUS } from '../../../features/contents/lib/contentPipeline';
 import { MobileEmptyState } from '../../components/MobileEmptyState';
 import { MobileListCard } from '../../components/MobileListCard';
 
@@ -10,15 +11,13 @@ interface DashboardMobileScreenProps {
   agendaItems: AgendaItem[];
 }
 
-const READY_TO_RECORD = 'Pronto para Gravar';
-
 export function DashboardMobileScreen({
   contents,
   ideas,
   projetos,
   agendaItems,
 }: DashboardMobileScreenProps) {
-  const readyToRecord = contents.filter((content) => content.status === READY_TO_RECORD);
+  const readyToRecord = contents.filter((content) => content.status === CONTENT_STATUS.PRONTO_PARA_GRAVAR);
   const activeIdeas = ideas.filter((idea) => !idea.archived);
   const activeProjects = projetos.filter((project) => project.status !== 'Concluido');
   const upcomingAgenda = [...agendaItems]

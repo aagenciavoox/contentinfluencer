@@ -7,15 +7,14 @@ import {useIsMobile} from '../../../hooks/useIsMobile';
 import {STATUS_STAGES} from '../../../constants';
 import {cn} from '../../../lib/utils';
 import {DashboardMobileScreen} from '../../../mobile/screens/dashboard/DashboardMobileScreen';
-
-const READY_TO_RECORD = 'Pronto para Gravar';
+import {CONTENT_STATUS} from '../../contents/lib/contentPipeline';
 
 export function DashboardPage() {
   const {state} = useAppContext();
   const isMobile = useIsMobile();
 
   const totalContents = state.contents.length;
-  const readyToRecord = state.contents.filter(content => content.status === READY_TO_RECORD).length;
+  const readyToRecord = state.contents.filter(content => content.status === CONTENT_STATUS.PRONTO_PARA_GRAVAR).length;
   const activeIdeas = state.ideas.filter(idea => !idea.archived).length;
   const activeProjects = state.projetos.filter(project => project.status !== 'Concluido').length;
 

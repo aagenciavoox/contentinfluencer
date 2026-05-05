@@ -116,7 +116,7 @@ export function ContentTable({
                   className="inline-flex items-center gap-1.5 rounded-full border border-[var(--border-color)] bg-[var(--bg-hover)] px-3 py-1.5 text-[8px] font-black uppercase tracking-[0.16em] text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-primary)]"
                 >
                   <Eye className="h-3 w-3" />
-                  Ver roteiro
+                  Abrir detalhe
                 </button>
               </div>
 
@@ -287,10 +287,10 @@ export function ContentTable({
                           onPreview(content);
                         }}
                         className="inline-flex items-center gap-2 rounded-full border border-[var(--border-color)] bg-[var(--bg-hover)] px-3 py-2 text-[10px] font-black uppercase tracking-widest text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-primary)]"
-                        aria-label={`Visualizar roteiro de ${content.title}`}
+                        aria-label={`Abrir detalhe de ${content.title}`}
                       >
                         <Eye className="h-3.5 w-3.5" />
-                        Ver
+                        Abrir
                       </button>
                     </div>
                   </td>

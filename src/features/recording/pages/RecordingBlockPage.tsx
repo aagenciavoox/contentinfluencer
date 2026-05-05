@@ -230,7 +230,7 @@ export function RecordingBlockPage() {
             }}
             onFinish={() => {
               setIsMobileBurstOpen(false);
-              navigate('/conteudos/historico');
+              navigate('/conteudos?view=postagem');
             }}
           />
         )}
@@ -282,7 +282,7 @@ export function RecordingBlockPage() {
           <h1 className="text-3xl font-black text-[var(--text-primary)] tracking-tight">Bloco concluído!</h1>
           <p className="text-sm font-bold opacity-40">{block.name} · {total} conteúdos gravados</p>
           <button
-            onClick={() => navigate('/conteudos/historico')}
+            onClick={() => navigate('/conteudos?view=postagem')}
             className="px-8 py-4 bg-[var(--text-primary)] text-[var(--bg-primary)] rounded-2xl text-[11px] font-black uppercase tracking-widest hover:opacity-90 transition-opacity"
           >
             Ir para Produção

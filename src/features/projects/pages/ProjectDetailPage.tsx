@@ -42,6 +42,12 @@ const STATUS_COLORS: Record<ProjetoEtapa['status'], string> = {
 };
 const TIPO_AGENDA: AgendaItem['tipo'][] = [TIPO_REUNIAO, 'Entrega', TIPO_PUBLICACAO, 'Outro'];
 
+const PROJECT_COLORS = [
+  '#ef4444', '#f97316', '#f59e0b', '#84cc16', '#22c55e',
+  '#14b8a6', '#06b6d4', '#3b82f6', '#6366f1', '#8b5cf6',
+  '#a855f7', '#ec4899', '#f43f5e', '#78716c',
+];
+
 function formatDate(value: string | null) {
   if (!value) return '--';
   return new Date(value).toLocaleDateString('pt-BR');
@@ -88,6 +94,7 @@ export function ProjectDetailPage() {
   const [editDataFim, setEditDataFim] = useState('');
   const [editValue, setEditValue] = useState('');
   const [editNotes, setEditNotes] = useState('');
+  const [editColor, setEditColor] = useState('');
   const [isEditing, setIsEditing] = useState(false);
 
   const [novaEtapaNome, setNovaEtapaNome] = useState('');
@@ -138,6 +145,7 @@ export function ProjectDetailPage() {
     setEditDataFim(projeto.dataFim || '');
     setEditValue(projeto.value?.toString() || '');
     setEditNotes(projeto.notes || '');
+    setEditColor(projeto.color || '#78716c');
     setIsEditing(true);
   };
 
@@ -149,6 +157,7 @@ export function ProjectDetailPage() {
         nome: editNome.trim() || projeto.nome,
         tipo: normalizeProjetoTipo(editTipo),
         brand: editTipo === 'publi' ? editBrand.trim() || null : null,
+        color: editColor || null,
         dataInicio: editDataInicio || null,
         dataFim: editDataFim || null,
         value: editValue ? parseFloat(editValue) : null,
@@ -582,6 +591,20 @@ export function ProjectDetailPage() {
                       className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-3 text-sm text-[var(--text-primary)] placeholder:opacity-30 focus:outline-none"
                     />
                   )}
+                  <div>
+                    <p className="mb-2 text-[9px] font-black uppercase tracking-[0.3em] opacity-40">Cor do projeto</p>
+                    <div className="flex flex-wrap gap-2">
+                      {PROJECT_COLORS.map(c => (
+                        <button
+                          key={c}
+                          type="button"
+                          onClick={() => setEditColor(c)}
+                          className={cn('h-7 w-7 rounded-full border-2 transition-all', editColor === c ? 'border-[var(--text-primary)] scale-110' : 'border-transparent opacity-50 hover:opacity-80')}
+                          style={{ backgroundColor: c }}
+                        />
+                      ))}
+                    </div>
+                  </div>
                   <textarea
                     value={editNotes}
                     onChange={event => setEditNotes(event.target.value)}
