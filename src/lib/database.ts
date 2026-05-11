@@ -184,6 +184,7 @@ export interface ContentPlataforma {
   legenda: string;
   hashtags: string;
   publishDate: string | null;
+  publishTime?: string | null;
   publishDateEnabled?: boolean;
 }
 
@@ -202,6 +203,7 @@ export interface Content {
   formatoVisual: string | null;
   energiaNecessaria: 'baixa' | 'média' | 'alta' | null;
   publishDate: string | null;
+  publishTime?: string | null;
   recordingDate: string | null;
   publishDateEnabled?: boolean;
   recordingDateEnabled?: boolean;
@@ -437,6 +439,10 @@ function normalizePlatformRef(platformId: string, platformNameById: Map<string, 
   return platformNameById.get(platformId) || platformId;
 }
 
+function isMissingPublishTimeColumn(error: {message?: string} | null | undefined) {
+  return !!error?.message?.includes("'publish_time' column");
+}
+
 const mp = {
   platform: (r: Row): Platform => ({
     id: r.id, userId: r.user_id, nome: r.nome, ativo: r.ativo, createdAt: r.created_at,
@@ -496,7 +502,7 @@ const mp = {
     slotType: r.slot_type, seriesId: r.series_id, pilarId: r.pilar_id,
     lookId: r.look_id, cenarioId: r.cenario_id, bibliotecaItemId: r.biblioteca_item_id,
     formatoVisual: r.formato_visual, energiaNecessaria: r.energia_necessaria,
-    publishDate: r.publish_date, recordingDate: r.recording_date, link: r.link,
+    publishDate: r.publish_date, publishTime: r.publish_time, recordingDate: r.recording_date, link: r.link,
     publishDateEnabled: r.publish_date_enabled ?? (r.publish_date != null),
     recordingDateEnabled: r.recording_date_enabled ?? (r.recording_date != null),
     script: r.script, scriptNotes: r.script_notes || [], tags: r.tags || [],
@@ -505,6 +511,7 @@ const mp = {
     plataformas: (r.content_plataformas || []).map((p: Row) => ({
       id: p.id, contentId: p.content_id, platformId: p.platform_id,
       legenda: p.legenda || '', hashtags: p.hashtags || '', publishDate: p.publish_date,
+      publishTime: p.publish_time,
       publishDateEnabled: p.publish_date_enabled ?? (p.publish_date != null),
     })),
   }),
@@ -655,6 +662,7 @@ export async function fetchAllData(): Promise<AppData> {
         legenda: p.legenda || '',
         hashtags: p.hashtags || '',
         publishDate: p.publish_date,
+        publishTime: p.publish_time,
       })),
     })),
     ideas:            (ideasRows       || []).map(mp.idea),
@@ -924,7 +932,7 @@ export async function saveItemGeneros(itemId: string, generoIds: string[]): Prom
 export async function deleteBibliotecaItem(id: string): Promise<void> {
   if (!supabase) return;
   const { error } = await supabase.from('biblioteca_items')
-    .update({ deleted_at: new Date().toISOString() }).eq('id', id);
+    .delete().eq('id', id);
   if (error) throw new Error(`delete biblioteca_item: ${error.message}`);
 }
 
@@ -941,7 +949,7 @@ export async function saveAnotacao(anotacao: Omit<Anotacao, 'createdAt' | 'delet
 export async function deleteAnotacao(id: string): Promise<void> {
   if (!supabase) return;
   const { error } = await supabase.from('anotacoes')
-    .update({ deleted_at: new Date().toISOString() }).eq('id', id);
+    .delete().eq('id', id);
   if (error) throw new Error(`delete anotacao: ${error.message}`);
 }
 
@@ -953,20 +961,28 @@ export async function saveContent(
   content: Omit<Content, 'plataformas' | 'updatedAt' | 'deletedAt'>
 ): Promise<void> {
   if (!supabase) return;
-  const { error } = await supabase.from('contents').upsert({
+  const row = {
     id: content.id, user_id: content.userId, title: content.title,
     status: content.status, classificacao: content.classificacao,
     slot_type: content.slotType, series_id: content.seriesId,
     pilar_id: content.pilarId, look_id: content.lookId, cenario_id: content.cenarioId,
     biblioteca_item_id: content.bibliotecaItemId, formato_visual: content.formatoVisual,
     energia_necessaria: content.energiaNecessaria, publish_date: content.publishDate,
+    publish_time: content.publishTime,
     publish_date_enabled: content.publishDateEnabled ?? (content.publishDate != null),
     recording_date: content.recordingDate,
     recording_date_enabled: content.recordingDateEnabled ?? (content.recordingDate != null),
     link: content.link, script: content.script,
     script_notes: content.scriptNotes, tags: content.tags,
     notes: content.notes, referencias: content.referencias,
-  });
+  };
+  const { error } = await supabase.from('contents').upsert(row);
+  if (isMissingPublishTimeColumn(error)) {
+    const { publish_time: _publishTime, ...rowWithoutPublishTime } = row;
+    const retry = await supabase.from('contents').upsert(rowWithoutPublishTime);
+    if (retry.error) throw new Error(`contents: ${retry.error.message}`);
+    return;
+  }
   if (error) throw new Error(`contents: ${error.message}`);
 }
 
@@ -978,10 +994,10 @@ export async function saveContentPlataformas(
   await supabase.from('content_plataformas').delete().eq('content_id', contentId);
   if (plataformas.length === 0) return;
   const platformIds = await resolvePlatformIds(plataformas.map(p => p.platformId));
-  const { error } = await supabase.from('content_plataformas').insert(
-    plataformas.map(p => ({
+  const rows = plataformas.map(p => ({
       content_id: contentId, platform_id: platformIds.get(p.platformId),
       legenda: p.legenda, hashtags: p.hashtags, publish_date: p.publishDate,
+      publish_time: p.publishTime,
       publish_date_enabled: p.publishDateEnabled ?? (p.publishDate != null),
     })).filter((row): row is {
       content_id: string;
@@ -989,16 +1005,23 @@ export async function saveContentPlataformas(
       legenda: string;
       hashtags: string;
       publish_date: string | null;
+      publish_time: string | null | undefined;
       publish_date_enabled: boolean;
-    } => !!row.platform_id)
-  );
+    } => !!row.platform_id);
+  const { error } = await supabase.from('content_plataformas').insert(rows);
+  if (isMissingPublishTimeColumn(error)) {
+    const rowsWithoutPublishTime = rows.map(({publish_time: _publishTime, ...row}) => row);
+    const retry = await supabase.from('content_plataformas').insert(rowsWithoutPublishTime);
+    if (retry.error) throw new Error(`content_plataformas: ${retry.error.message}`);
+    return;
+  }
   if (error) throw new Error(`content_plataformas: ${error.message}`);
 }
 
 export async function deleteContent(id: string): Promise<void> {
   if (!supabase) return;
   const { error } = await supabase.from('contents')
-    .update({ deleted_at: new Date().toISOString() }).eq('id', id);
+    .delete().eq('id', id);
   if (error) throw new Error(`delete content: ${error.message}`);
 }
 
@@ -1076,7 +1099,7 @@ export async function saveProjetoConteudos(projetoId: string, contentIds: string
 export async function deleteProjeto(id: string): Promise<void> {
   if (!supabase) return;
   const { error } = await supabase.from('projetos')
-    .update({ deleted_at: new Date().toISOString() }).eq('id', id);
+    .delete().eq('id', id);
   if (error) throw new Error(`delete projeto: ${error.message}`);
 }
 

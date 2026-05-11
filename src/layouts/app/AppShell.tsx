@@ -64,7 +64,12 @@ export function AppShell({ children }: AppShellProps) {
               isHidden={isHidden}
               onLeftAction={() => {
                 if (routeMeta.mode === 'back') {
-                  navigate(routeMeta.backTo ?? -1);
+                  if (routeMeta.backTo) {
+                    navigate(routeMeta.backTo, {replace: true});
+                    return;
+                  }
+
+                  navigate(-1);
                   return;
                 }
 
@@ -95,7 +100,7 @@ export function AppShell({ children }: AppShellProps) {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden flex-col md:flex-row bg-[var(--bg-primary)]">
+    <div className="flex h-screen overflow-hidden flex-col md:flex-row bg-transparent">
       <CommandPalette
         isOpen={isCommandPaletteOpen}
         onClose={() => setIsCommandPaletteOpen(false)}
@@ -108,7 +113,7 @@ export function AppShell({ children }: AppShellProps) {
 
       <main
         onScroll={handleScroll}
-        className="relative flex-1 overflow-y-auto bg-[var(--bg-secondary)] pb-24 transition-transform duration-300 ease-in-out md:pb-0 md:pt-0"
+        className="relative flex-1 overflow-y-auto bg-transparent pb-24 transition-transform duration-300 ease-in-out md:pb-0 md:pt-0"
         style={
           isMobile
             ? {

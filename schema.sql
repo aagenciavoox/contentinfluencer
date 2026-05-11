@@ -99,6 +99,7 @@ CREATE TABLE public.content_plataformas (
   legenda text NOT NULL DEFAULT ''::text,
   hashtags text NOT NULL DEFAULT ''::text,
   publish_date date,
+  publish_time time without time zone,
   CONSTRAINT content_plataformas_pkey PRIMARY KEY (id),
   CONSTRAINT content_plataformas_content_id_fkey FOREIGN KEY (content_id) REFERENCES public.contents(id),
   CONSTRAINT content_plataformas_platform_id_fkey FOREIGN KEY (platform_id) REFERENCES public.platforms(id)
@@ -117,6 +118,7 @@ CREATE TABLE public.contents (
   formato_visual text,
   energia_necessaria text,
   publish_date date,
+  publish_time time without time zone,
   recording_date date,
   link text,
   script text,

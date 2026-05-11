@@ -1,7 +1,7 @@
 import { Check, Eye, Layers, Zap } from 'lucide-react';
 import { Content } from '../../../../lib/database';
 import { useAppContext } from '../../../../context/AppContext';
-import { cn, getEntityTagStyle } from '../../../../lib/utils';
+import { cn, getEntityTagStyle, htmlToReadableText } from '../../../../lib/utils';
 import { CONTENT_STATUS } from '../../lib/contentPipeline';
 
 interface ContentGridProps {
@@ -53,6 +53,7 @@ export function ContentGrid({
         const series = content.seriesId ? state.series.find(item => item.id === content.seriesId) : null;
         const pillar = content.pilarId ? state.pilares.find(item => item.id === content.pilarId) : null;
         const isSelected = selectedIds.has(content.id);
+        const excerpt = htmlToReadableText(content.notes || content.script);
 
         return (
           <article
@@ -82,7 +83,7 @@ export function ContentGrid({
                       : 'Sem data'}
                   </span>
                 )}
-                <h3 className="mt-3 line-clamp-2 text-lg font-black leading-tight text-[var(--text-primary)]">
+                <h3 className="mt-3 line-clamp-2 text-lg font-semibold leading-tight text-[var(--text-primary)]">
                   {content.title || '(sem titulo)'}
                 </h3>
               </div>
@@ -93,10 +94,10 @@ export function ContentGrid({
                     type="button"
                     onClick={() => onToggleSelect(content.id)}
                     className={cn(
-                      'inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border-2 transition-all',
+                      'inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border transition-all',
                       isSelected
                         ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-[var(--bg-primary)]'
-                        : 'border-[var(--border-color)] bg-[var(--bg-hover)] text-[var(--text-primary)]'
+                        : 'border-[var(--border-color)] bg-[color-mix(in_srgb,var(--bg-elevated),transparent_8%)] text-[var(--text-secondary)]'
                     )}
                     aria-label={isSelected ? `Desmarcar ${content.title}` : `Selecionar ${content.title}`}
                   >
@@ -108,7 +109,7 @@ export function ContentGrid({
                   <button
                     type="button"
                     onClick={() => onPreview(content)}
-                    className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[var(--border-color)] bg-[var(--bg-hover)] text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-primary)]"
+                    className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[var(--border-color)] bg-[color-mix(in_srgb,var(--bg-elevated),transparent_8%)] text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
                     aria-label={`Abrir detalhe de ${content.title}`}
                   >
                     <Eye className="h-4 w-4" />
@@ -133,7 +134,7 @@ export function ContentGrid({
                 <div className="flex flex-wrap gap-2">
                   {pillar && (
                     <span
-                      className="rounded-full border px-2 py-1 text-[9px] font-black uppercase tracking-widest"
+                      className="rounded-full border px-2.5 py-1 text-[11px] font-semibold"
                       style={getEntityTagStyle(pillar.cor)}
                     >
                       {pillar.nome}
@@ -141,7 +142,7 @@ export function ContentGrid({
                   )}
                   {series && (
                     <span
-                      className="inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[9px] font-black uppercase tracking-widest"
+                      className="inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-semibold"
                       style={getEntityTagStyle(series.cor)}
                     >
                       <Layers className="h-3 w-3" />
@@ -151,9 +152,9 @@ export function ContentGrid({
                 </div>
               )}
 
-              {(mode !== 'historico' ? content.notes || content.script : false) && (
+              {(mode !== 'historico' ? excerpt : false) && (
                 <p className="mt-4 line-clamp-4 text-sm leading-relaxed text-[var(--text-secondary)]">
-                  {content.notes || content.script}
+                  {excerpt}
                 </p>
               )}
             </div>

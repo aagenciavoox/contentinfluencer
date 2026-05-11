@@ -298,7 +298,7 @@ export function IdeasPage() {
           <div
             key={idea.id}
             onClick={() => { setViewingIdea(idea); setIsEditing(false); }}
-            className="group p-5 md:p-8 rounded-2xl border transition-all overflow-hidden break-words cursor-pointer flex flex-col h-full relative bg-[var(--bg-secondary)] border-[var(--border-color)] hover-card elevation-1"
+            className="group p-5 md:p-8 rounded-2xl border transition-all overflow-hidden break-words cursor-pointer flex flex-col h-full relative bg-[var(--bg-secondary)] border-[var(--border-color)] elevation-1 hover:-translate-y-0.5 hover:border-[var(--border-strong)] hover:bg-[var(--surface-subtle)] hover:shadow-[var(--shadow-editorial)]"
           >
             <div className="flex items-start justify-between mb-4 md:mb-6 gap-4">
               <div className="flex flex-wrap items-center gap-2 md:gap-3 text-[9px] md:text-[10px] text-[var(--text-tertiary)] font-black uppercase tracking-[0.2em]">
@@ -307,7 +307,7 @@ export function IdeasPage() {
               </div>
             </div>
 
-            <p className="text-sm md:text-base text-[var(--text-primary)] leading-relaxed whitespace-pre-wrap break-words flex-1 font-medium italic group-hover:text-black dark:group-hover:text-white transition-opacity">
+            <p className="text-sm md:text-base text-[var(--text-primary)] leading-relaxed whitespace-pre-wrap break-words flex-1 font-medium italic transition-colors">
               "{truncateText(idea.text)}"
             </p>
 

@@ -19,28 +19,10 @@ export function RecordingBlockPage() {
   const [done, setDone] = useState(false);
   const [isMobileBurstOpen, setIsMobileBurstOpen] = useState(false);
 
-  if (!block) {
-    return (
-      <div className="min-h-screen bg-[var(--bg-secondary)] flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <p className="text-sm font-black uppercase tracking-widest opacity-30">Bloco não encontrado</p>
-          <button onClick={() => navigate('/gravacao')} className="text-[11px] font-black uppercase tracking-widest underline opacity-50">
-            Voltar
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  const blockContents = [...block.contents].sort((a, b) => a.ordem - b.ordem);
-  const total = blockContents.length;
-  const gravados = blockContents.filter(c => c.gravado).length;
-  const pct = total > 0 ? Math.round((gravados / total) * 100) : 0;
-
-  const currentBlockContent = blockContents[currentIndex];
-  const currentContent = currentBlockContent
-    ? state.contents.find(c => c.id === currentBlockContent.contentId)
-    : null;
+  const blockContents = useMemo(
+    () => (block ? [...block.contents].sort((a, b) => a.ordem - b.ordem) : []),
+    [block]
+  );
 
   const mobileEntries = useMemo(
     () =>
@@ -57,6 +39,28 @@ export function RecordingBlockPage() {
         .filter((entry): entry is { content: Content; gravado: boolean } => entry !== null),
     [blockContents, state.contents]
   );
+
+  if (!block) {
+    return (
+      <div className="min-h-screen bg-[var(--bg-secondary)] flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <p className="text-sm font-black uppercase tracking-widest opacity-30">Bloco não encontrado</p>
+          <button onClick={() => navigate('/gravacao')} className="text-[11px] font-black uppercase tracking-widest underline opacity-50">
+            Voltar
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const total = blockContents.length;
+  const gravados = blockContents.filter(c => c.gravado).length;
+  const pct = total > 0 ? Math.round((gravados / total) * 100) : 0;
+
+  const currentBlockContent = blockContents[currentIndex];
+  const currentContent = currentBlockContent
+    ? state.contents.find(c => c.id === currentBlockContent.contentId)
+    : null;
 
   const teleprompterEnabled = isRecordingBlockTeleprompterEnabled(block);
 

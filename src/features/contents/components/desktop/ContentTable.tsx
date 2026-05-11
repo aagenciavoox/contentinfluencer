@@ -159,12 +159,12 @@ export function ContentTable({
   }
 
   return (
-    <div className="w-full overflow-hidden rounded-2xl border border-[var(--border-color)] bg-[var(--bg-secondary)] shadow-sm transition-all duration-300">
+    <div className="editorial-surface w-full overflow-hidden rounded-lg transition-all duration-300">
       <div className="overflow-x-auto custom-scrollbar">
-        <table className="min-w-[800px] w-full border-collapse text-left">
+        <table className="min-w-[800px] w-full border-separate border-spacing-0 text-left">
           <thead>
-            <tr className="border-b border-[var(--border-color)] bg-[var(--bg-hover)]/30 text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-tertiary)]">
-              <th className="w-12 py-5 pl-6 pr-2 text-center">
+            <tr className="bg-[color-mix(in_srgb,var(--surface-subtle),transparent_14%)] text-[12px] font-medium tracking-normal text-[var(--text-tertiary)]">
+              <th className="w-12 border-b border-[var(--border-color)] py-4 pl-6 pr-2 text-center">
                 <button
                   onClick={onSelectAll}
                   disabled={!enableSelection}
@@ -183,19 +183,19 @@ export function ContentTable({
                   {someSelected && !allSelected && <div className="h-0.5 w-2 rounded-full bg-[var(--bg-primary)]" />}
                 </button>
               </th>
-              <th className="group w-auto cursor-pointer px-6 py-5 transition-colors hover:text-[var(--text-primary)]" onClick={() => onSort('title')}>
+              <th className="group w-auto cursor-pointer border-b border-[var(--border-color)] px-6 py-4 transition-colors hover:text-[var(--text-primary)]" onClick={() => onSort('title')}>
                 <div className="flex items-center gap-1">Título <SortIcon field="title" /></div>
               </th>
-              <th className="w-40 cursor-pointer px-6 py-5 transition-colors hover:text-[var(--text-primary)]" onClick={() => onSort('seriesName')}>
+              <th className="w-56 cursor-pointer border-b border-[var(--border-color)] px-6 py-4 transition-colors hover:text-[var(--text-primary)]" onClick={() => onSort('seriesName')}>
                 <div className="flex items-center gap-1">Série <SortIcon field="seriesName" /></div>
               </th>
-              <th className="w-32 cursor-pointer px-6 py-5 transition-colors hover:text-[var(--text-primary)]" onClick={() => onSort('pillarName')}>
+              <th className="w-32 cursor-pointer border-b border-[var(--border-color)] px-6 py-4 transition-colors hover:text-[var(--text-primary)]" onClick={() => onSort('pillarName')}>
                 <div className="flex items-center gap-1">Pilar <SortIcon field="pillar" /></div>
               </th>
-              <th className="w-40 cursor-pointer px-6 py-5 transition-colors hover:text-[var(--text-primary)]" onClick={() => onSort('status')}>
+              <th className="w-40 cursor-pointer border-b border-[var(--border-color)] px-6 py-4 transition-colors hover:text-[var(--text-primary)]" onClick={() => onSort('status')}>
                 <div className="flex items-center gap-1 text-center">Status <SortIcon field="status" /></div>
               </th>
-              <th className="w-28 px-6 py-5 text-right">
+              <th className="w-28 border-b border-[var(--border-color)] px-6 py-4 text-right">
                 <div className="flex justify-end">Visualizar</div>
               </th>
             </tr>
@@ -211,13 +211,13 @@ export function ContentTable({
                   key={content.id}
                   onClick={() => onSelect(content)}
                   className={cn(
-                    'group cursor-pointer border-b border-[var(--border-color)]/50 transition-all duration-200',
+                    'group cursor-pointer transition-all duration-200',
                     isSelected
-                      ? 'bg-[var(--accent-blue)]/5'
-                      : 'hover:bg-[var(--bg-hover)] md:hover:translate-x-0.5'
+                      ? 'bg-[color-mix(in_srgb,var(--accent-blue),transparent_92%)]'
+                      : 'hover:bg-[color-mix(in_srgb,var(--surface-subtle),transparent_12%)]'
                   )}
                 >
-                  <td className="py-5 pl-6 pr-2 text-center" onClick={e => { if (!enableSelection) return; e.stopPropagation(); onToggleSelect(content.id); }}>
+                  <td className="border-b border-[var(--border-color)]/55 py-5 pl-6 pr-2 text-center" onClick={e => { if (!enableSelection) return; e.stopPropagation(); onToggleSelect(content.id); }}>
                     <div
                       className={cn(
                         'mx-auto flex h-4.5 w-4.5 shrink-0 items-center justify-center rounded-md border-2 transition-all',
@@ -232,53 +232,54 @@ export function ContentTable({
                     </div>
                   </td>
 
-                  <td className="px-6 py-5">
+                  <td className="border-b border-[var(--border-color)]/55 px-6 py-5">
                     <div className="flex flex-col gap-1">
-                      <span className="text-base font-black text-[var(--text-primary)] transition-colors group-hover:text-[var(--accent-blue)]">
+                      <span className="text-[15px] font-semibold leading-snug text-[var(--text-primary)] transition-colors group-hover:text-[var(--accent-blue)]">
                         {content.title}
                       </span>
                     </div>
                   </td>
 
-                  <td className="px-6 py-5">
+                  <td className="border-b border-[var(--border-color)]/55 px-6 py-5">
                     {series?.name ? (
                       <span
-                        className="t-meta rounded-lg border px-2 py-1"
+                        className="inline-flex max-w-[12rem] items-center truncate whitespace-nowrap rounded-full border px-2.5 py-1 text-[12px] font-medium leading-none"
                         style={getEntityTagStyle(series.cor)}
+                        title={series.name}
                       >
                         {series.name}
                       </span>
                     ) : (
-                      <span className="t-meta italic text-[var(--text-tertiary)]">Global</span>
+                      <span className="text-[12px] italic text-[var(--text-tertiary)]">Global</span>
                     )}
                   </td>
 
-                  <td className="px-6 py-5">
+                  <td className="border-b border-[var(--border-color)]/55 px-6 py-5">
                     {pillar?.nome ? (
                       <span
-                        className="t-meta rounded-lg border px-2 py-1"
+                        className="rounded-full border px-2.5 py-1 text-[12px] font-medium"
                         style={getEntityTagStyle(pillar.cor)}
                       >
                         {pillar.nome}
                       </span>
                     ) : (
-                      <span className="t-meta italic text-[var(--text-tertiary)]">Sem pilar</span>
+                      <span className="text-[12px] italic text-[var(--text-tertiary)]">Sem pilar</span>
                     )}
                   </td>
 
-                  <td className="px-6 py-5">
-                    <div className="flex items-center gap-2">
+                  <td className="border-b border-[var(--border-color)]/55 px-6 py-5">
+                    <div className="status-pill border-transparent bg-[color-mix(in_srgb,var(--bg-elevated),transparent_8%)]">
                       <div
                         className="h-1.5 w-1.5 rounded-full"
                         style={{ background: `var(${getStatusVar(content.status)})` }}
                       />
-                      <span className="t-tag text-[var(--text-primary)] opacity-80">
+                      <span>
                         {content.status}
                       </span>
                     </div>
                   </td>
 
-                  <td className="px-6 py-5">
+                  <td className="border-b border-[var(--border-color)]/55 px-6 py-5">
                     <div className="flex justify-end">
                       <button
                         type="button"
@@ -286,7 +287,7 @@ export function ContentTable({
                           e.stopPropagation();
                           onPreview(content);
                         }}
-                        className="inline-flex items-center gap-2 rounded-full border border-[var(--border-color)] bg-[var(--bg-hover)] px-3 py-2 text-[10px] font-black uppercase tracking-widest text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-primary)]"
+                        className="inline-flex items-center gap-2 rounded-lg border border-transparent bg-transparent px-3 py-2 text-[12px] font-medium text-[var(--text-secondary)] transition-all hover:border-[var(--border-color)] hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)]"
                         aria-label={`Abrir detalhe de ${content.title}`}
                       >
                         <Eye className="h-3.5 w-3.5" />

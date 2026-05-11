@@ -1,13 +1,14 @@
-import {Calendar as CalendarIcon, Plus} from 'lucide-react';
+import {Calendar as CalendarIcon, Plus, Radio} from 'lucide-react';
 import {AppButton} from '../../../components/ui/AppButton';
 import {useIsMobile} from '../../../hooks/useIsMobile';
 import {DesktopPageHeader} from '../../../layouts/page/DesktopPageHeader';
 
 interface EditorialCalendarHeaderProps {
   onAddAgenda: () => void;
+  onAddPostedVideo: () => void;
 }
 
-export function EditorialCalendarHeader({onAddAgenda}: EditorialCalendarHeaderProps) {
+export function EditorialCalendarHeader({onAddAgenda, onAddPostedVideo}: EditorialCalendarHeaderProps) {
   const isMobile = useIsMobile();
 
   return (
@@ -15,18 +16,28 @@ export function EditorialCalendarHeader({onAddAgenda}: EditorialCalendarHeaderPr
       <div className="desktop-header-frame">
         <DesktopPageHeader
           section="Planejamento"
-          title="Calendario"
-          subtitle="Uma unica visao para agenda, projetos, gravacoes e publicacoes, com camadas independentes."
+          title="Calendario Editorial"
+          subtitle="Visao unica para agenda, projetos, gravacoes e publicacoes."
           icon={CalendarIcon}
           className="mb-0"
           actions={[
+            <AppButton
+              key="posted-video"
+              variant="secondary"
+              size={isMobile ? 'sm' : 'md'}
+              onClick={onAddPostedVideo}
+              leftIcon={<Radio className="h-3.5 w-3.5" />}
+              className="tracking-normal"
+            >
+              Video postado
+            </AppButton>,
             <AppButton
               key="agenda"
               variant="primary"
               size={isMobile ? 'sm' : 'md'}
               onClick={onAddAgenda}
               leftIcon={<Plus className="h-3.5 w-3.5" />}
-              className="uppercase tracking-widest"
+              className="tracking-normal"
             >
               Novo evento
             </AppButton>,

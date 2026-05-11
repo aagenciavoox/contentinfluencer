@@ -119,6 +119,12 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
       const normalizedSearch = searchTerm.trim().toLowerCase();
       const seriesName = state.series.find(series => series.id === content.seriesId)?.name || '';
       const pillarName = state.pilares.find(pillar => pillar.id === content.pilarId)?.nome || '';
+      const bibliotecaItem = content.bibliotecaItemId
+        ? state.bibliotecaItems.find(item => item.id === content.bibliotecaItemId)
+        : null;
+      const bibliotecaLabel = bibliotecaItem
+        ? `${bibliotecaItem.titulo} ${bibliotecaItem.autorDiretor}`
+        : '';
 
       if (isPostingHistory) {
         const dateLabel = content.publishDate
@@ -140,7 +146,8 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
         content.title.toLowerCase().includes(normalizedSearch) ||
         (content.notes || '').toLowerCase().includes(normalizedSearch) ||
         seriesName.toLowerCase().includes(normalizedSearch) ||
-        pillarName.toLowerCase().includes(normalizedSearch);
+        pillarName.toLowerCase().includes(normalizedSearch) ||
+        bibliotecaLabel.toLowerCase().includes(normalizedSearch);
 
       return statusMatch && seriesMatch && pillarMatch && searchMatch;
     });
@@ -151,6 +158,7 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
     isPostingHistory,
     searchTerm,
     sourceContents,
+    state.bibliotecaItems,
     state.pilares,
     state.series,
   ]);
@@ -248,7 +256,7 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
       status: isEditorialMode ? CONTENT_STATUS.ROTEIRO : CONTENT_STATUS.GRAVADO,
     });
     void dispatch({type: 'ADD_CONTENT', payload: newContent});
-    navigate(buildContentDetailRoute(newContent.id));
+    navigate(buildContentDetailRoute(newContent.id), {replace: true});
   };
 
   const handleToggleSelect = (id: string) => {
@@ -346,11 +354,11 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
   const surfaceMode = isEditorialMode ? 'editorial' : isPostingHistory ? 'historico' : 'postagem';
 
   const openUnifiedDetail = (content: Content, tab: 'roteiro' | 'postagem' | 'historico') => {
-    navigate(buildContentDetailRoute(content.id, tab));
+    navigate(buildContentDetailRoute(content.id, tab), {replace: true});
   };
 
   const openScriptDetail = (content: Content) => {
-    navigate(buildContentDetailRoute(content.id));
+    navigate(buildContentDetailRoute(content.id), {replace: true});
   };
 
   if (isMobile) {

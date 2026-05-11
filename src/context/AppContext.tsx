@@ -206,6 +206,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     if (!user) return;
 
+    lastLocalMutationAt.current = Date.now();
+
     try {
       await persistAction({ action: normalizedAction, userId: user.id, state });
       lastLocalMutationAt.current = Date.now();

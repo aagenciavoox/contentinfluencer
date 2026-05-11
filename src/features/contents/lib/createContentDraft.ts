@@ -25,6 +25,7 @@ export function createContentDraft(overrides: CreateContentDraftOverrides = {}):
     referencias: null,
     energiaNecessaria: null,
     publishDate: null,
+    publishTime: null,
     recordingDate: null,
     link: null,
     bibliotecaItemId: null,

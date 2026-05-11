@@ -35,18 +35,18 @@ export function DesktopPageHeader({
     <header className={cn('w-full', className)}>
       <div className="md:hidden">
         <div className="min-w-0">
-          <h1 className="text-[36px] font-[900] leading-[1.05] tracking-[-0.04em] text-[#0F172A]">
+          <h1 className="text-[30px] font-semibold leading-[1.14] tracking-normal text-[var(--text-primary)]">
             {title}
           </h1>
 
           {subtitle ? (
-            <p className="mt-1.5 max-w-[36rem] text-[17px] font-normal leading-[1.35] text-[#8A8A8E]">
+            <p className="mt-2 max-w-[36rem] text-[15px] font-normal leading-[1.55] text-[var(--text-secondary)]">
               {subtitle}
             </p>
           ) : null}
 
           {meta ? (
-            <p className="mt-3 text-[12px] font-semibold uppercase tracking-[0.12em] text-[#8A8F98]">
+            <p className="mt-3 text-[12px] font-medium tracking-normal text-[var(--text-tertiary)]">
               {meta}
             </p>
           ) : null}
@@ -64,28 +64,28 @@ export function DesktopPageHeader({
       <div className="hidden md:block">
         <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
           <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2 text-[12px] font-medium leading-[1.4] text-[#8A8F98]">
+            <div className="flex flex-wrap items-center gap-2 text-[12px] font-medium leading-[1.4] text-[var(--text-tertiary)]">
               {breadcrumbItems.map((item, index) => (
                 <div key={`${item}-${index}`} className="flex items-center gap-2">
-                  {index > 0 ? <span>/</span> : null}
+                  {index > 0 ? <span className="text-[var(--border-strong)]">/</span> : null}
                   <span className="truncate">{item}</span>
                 </div>
               ))}
             </div>
 
             <div className="mt-2 min-w-0">
-              <h1 className="text-[24px] font-semibold leading-[1.25] text-[#0F172A]">
+              <h1 className="text-[30px] font-semibold leading-[1.16] tracking-normal text-[var(--text-primary)]">
                 {title}
               </h1>
 
               {subtitle ? (
-                <p className="mt-1 max-w-[720px] text-[14px] font-normal leading-[1.5] text-[#6B7280]">
+                <p className="mt-2 max-w-[720px] text-[14px] font-normal leading-[1.55] text-[var(--text-secondary)]">
                   {subtitle}
                 </p>
               ) : null}
 
               {meta ? (
-                <p className="mt-1.5 text-[12px] font-medium text-[#8A8F98]">
+                <p className="mt-1.5 text-[12px] font-medium text-[var(--text-tertiary)]">
                   {meta}
                 </p>
               ) : null}
@@ -99,7 +99,7 @@ export function DesktopPageHeader({
           ) : null}
         </div>
 
-        <div className="mt-4 border-t border-[#E5E7EB]" />
+        <div className="mt-6 h-px bg-gradient-to-r from-transparent via-[var(--border-color)] to-transparent" />
 
         {children ? <div className="pt-6">{children}</div> : null}
       </div>

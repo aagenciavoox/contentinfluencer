@@ -255,12 +255,19 @@ export function PillarsSettingsPage() {
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
           {state.pilares.map(pilar => (
-            <motion.button
+            <motion.div
               key={pilar.id}
-              type="button"
+              role="button"
+              tabIndex={0}
               initial={{opacity: 0, y: 8}}
               animate={{opacity: 1, y: 0}}
               onClick={() => {
+                setEditingId(pilar.id);
+                setPanelMode('edit');
+              }}
+              onKeyDown={event => {
+                if (event.key !== 'Enter' && event.key !== ' ') return;
+                event.preventDefault();
                 setEditingId(pilar.id);
                 setPanelMode('edit');
               }}
@@ -323,7 +330,7 @@ export function PillarsSettingsPage() {
                   <Trash2 className="h-4 w-4 text-[var(--accent-pink)] opacity-60 hover:opacity-100" />
                 </button>
               </div>
-            </motion.button>
+            </motion.div>
           ))}
         </div>
       </div>

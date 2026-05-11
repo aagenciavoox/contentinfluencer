@@ -6,12 +6,12 @@ interface PageHeaderProps {
 
 export function PageHeader({ title, subtitle, className = "" }: PageHeaderProps) {
   return (
-    <header className={`mb-8 md:mb-12 ${className}`}>
+    <header className={`mb-8 md:mb-10 ${className}`}>
       <h1 className="t-page-title">
         {title}
       </h1>
       {subtitle && (
-        <p className="t-secondary mt-2 max-w-2xl md:mt-4">
+        <p className="t-secondary mt-2 max-w-2xl md:mt-3">
           {subtitle}
         </p>
       )}

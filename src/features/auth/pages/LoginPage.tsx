@@ -15,13 +15,44 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../../../lib/utils';
 
-function normalizeAuthError(message: string) {
-  const msg = message.toLowerCase();
+type AuthFailure = {
+  message?: string;
+  status?: number;
+  code?: string;
+  name?: string;
+};
 
-  if (msg.includes('invalid login')) return 'E-mail ou senha inválidos.';
-  if (msg.includes('email not confirmed')) return 'Confirme seu e-mail antes de entrar.';
-  if (msg.includes('already registered')) return 'Este e-mail já está cadastrado.';
-  if (msg.includes('password')) return 'A senha deve ter pelo menos 6 caracteres.';
+function normalizeAuthError(error: AuthFailure | null | undefined) {
+  const msg = (error?.message ?? '').toLowerCase();
+  const code = (error?.code ?? '').toLowerCase();
+
+  if (code === 'invalid_credentials' || msg.includes('invalid login')) {
+    return 'E-mail ou senha inválidos.';
+  }
+
+  if (code === 'email_not_confirmed' || msg.includes('email not confirmed')) {
+    return 'Confirme seu e-mail antes de entrar.';
+  }
+
+  if (code === 'user_already_exists' || msg.includes('already registered')) {
+    return 'Este e-mail já está cadastrado.';
+  }
+
+  if (code === 'signup_disabled') {
+    return 'Cadastro desativado no Supabase para este projeto.';
+  }
+
+  if (code === 'email_address_invalid' || code === 'validation_failed') {
+    return 'Verifique o e-mail informado e tente novamente.';
+  }
+
+  if (code === 'weak_password' || msg.includes('password')) {
+    return 'A senha deve ter pelo menos 6 caracteres.';
+  }
+
+  if (code === 'over_email_send_rate_limit') {
+    return 'Muitas tentativas de e-mail agora. Aguarde um pouco e tente novamente.';
+  }
 
   return 'Não foi possível concluir a autenticação.';
 }
@@ -99,8 +130,8 @@ export function LoginPage() {
 
         if (error) throw error;
       }
-    } catch (err: any) {
-      setError(normalizeAuthError(err.message || ''));
+    } catch (err) {
+      setError(normalizeAuthError(err as AuthFailure));
     } finally {
       setLoading(false);
     }
@@ -111,9 +142,7 @@ export function LoginPage() {
   return (
     <div className="min-h-screen w-full bg-[var(--bg-primary)] flex items-center justify-center p-6 relative overflow-hidden">
 
-      {/* Background */}
-      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-[var(--text-primary)] opacity-[0.03] rounded-full blur-[100px]" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-[var(--text-primary)] opacity-[0.03] rounded-full blur-[100px]" />
+      <div className="absolute inset-x-0 top-0 h-24 border-b border-[var(--border-color)] bg-[var(--bg-secondary)]/70 backdrop-blur-xl" />
 
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -122,20 +151,20 @@ export function LoginPage() {
         className="w-full max-w-md relative z-10"
       >
         {/* Logo */}
-        <div className="flex flex-col items-center mb-10">
-          <div className="w-16 h-16 bg-[var(--text-primary)] rounded-[2rem] flex items-center justify-center text-[var(--bg-primary)] shadow-2xl mb-6">
-            <Fingerprint className="w-9 h-9 animate-pulse" />
+        <div className="flex flex-col items-center mb-8">
+          <div className="w-12 h-12 bg-[var(--text-primary)] rounded-lg flex items-center justify-center text-[var(--bg-primary)] shadow-[var(--shadow-soft)] mb-5">
+            <Fingerprint className="w-7 h-7" />
           </div>
-          <h1 className="text-[14px] font-black uppercase tracking-[0.8em] italic text-[var(--text-primary)] mb-2">
+          <h1 className="text-[18px] font-semibold tracking-normal text-[var(--text-primary)] mb-1">
             Content OS
           </h1>
-          <p className="text-[10px] uppercase tracking-widest font-bold opacity-40 text-center">
+          <p className="text-[13px] font-normal tracking-normal text-[var(--text-secondary)] text-center">
             A sua Central de Produção Inteligente
           </p>
         </div>
 
         {/* Card */}
-        <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] p-8 rounded-[2.5rem] shadow-2xl backdrop-blur-xl bg-opacity-80">
+        <div className="bg-[var(--bg-elevated)] border border-[var(--border-color)] p-8 rounded-lg shadow-[var(--shadow-soft)] backdrop-blur-xl">
 
           <AnimatePresence mode="wait">
             {success ? (
@@ -144,11 +173,11 @@ export function LoginPage() {
                   <ArrowRight className="w-6 h-6" />
                 </div>
 
-                <h2 className="text-lg font-black uppercase tracking-wider text-[var(--text-primary)] mb-2">
+                <h2 className="text-lg font-semibold tracking-normal text-[var(--text-primary)] mb-2">
                   Quase lá, {firstName}!
                 </h2>
 
-                <p className="text-xs opacity-60 px-4 leading-relaxed">
+                <p className="text-sm text-[var(--text-secondary)] px-4 leading-relaxed">
                   Enviamos um link para <span className="font-bold">{email}</span>.
                   Confirme para entrar.
                 </p>
@@ -156,7 +185,7 @@ export function LoginPage() {
                 <button
                   type="button"
                   onClick={() => setSuccess(false)}
-                  className="mt-8 touch-target interactive-press text-[10px] font-black uppercase tracking-widest underline"
+                  className="mt-8 touch-target interactive-press text-sm font-medium tracking-normal underline"
                 >
                   Voltar ao login
                 </button>
@@ -165,7 +194,7 @@ export function LoginPage() {
               <motion.div key="form">
 
                 <div className="mb-8">
-                  <h2 className="text-xl font-black uppercase tracking-wider text-[var(--text-primary)]">
+                  <h2 className="text-xl font-semibold tracking-normal text-[var(--text-primary)]">
                     {isRegister ? 'Criar Conta' : 'Entrar'}
                   </h2>
                 </div>
@@ -174,7 +203,7 @@ export function LoginPage() {
 
                   {isRegister && (
                     <div>
-                      <label htmlFor="name" className="text-[9px] uppercase opacity-40">
+                      <label htmlFor="name" className="text-[12px] font-medium text-[var(--text-tertiary)]">
                         Nome
                       </label>
                       <input
@@ -189,7 +218,7 @@ export function LoginPage() {
                   )}
 
                   <div>
-                    <label htmlFor="email" className="text-[9px] uppercase opacity-40">
+                    <label htmlFor="email" className="text-[12px] font-medium text-[var(--text-tertiary)]">
                       E-mail
                     </label>
                     <input
@@ -204,7 +233,7 @@ export function LoginPage() {
                   </div>
 
                   <div>
-                    <label htmlFor="password" className="text-[9px] uppercase opacity-40">
+                    <label htmlFor="password" className="text-[12px] font-medium text-[var(--text-tertiary)]">
                       Senha
                     </label>
                     <div className="relative">

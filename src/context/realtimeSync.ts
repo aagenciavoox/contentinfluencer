@@ -1,4 +1,4 @@
-export const LOCAL_REALTIME_SUPPRESSION_MS = 1200;
+export const LOCAL_REALTIME_SUPPRESSION_MS = 3000;
 
 export function shouldSkipRealtimeRefresh(
   lastLocalMutationAt: number | null,

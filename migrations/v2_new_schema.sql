@@ -85,6 +85,7 @@ ALTER TABLE public.contents
   ADD COLUMN IF NOT EXISTS biblioteca_item_id text,
   ADD COLUMN IF NOT EXISTS energia_necessaria text,
   ADD COLUMN IF NOT EXISTS classificacao text,
+  ADD COLUMN IF NOT EXISTS publish_time time,
   ADD COLUMN IF NOT EXISTS publish_date_enabled boolean NOT NULL DEFAULT false,
   ADD COLUMN IF NOT EXISTS recording_date_enabled boolean NOT NULL DEFAULT false,
   ADD COLUMN IF NOT EXISTS referencias text,
@@ -308,6 +309,7 @@ CREATE TABLE IF NOT EXISTS public.content_plataformas (
   legenda text NOT NULL DEFAULT '',
   hashtags text NOT NULL DEFAULT '',
   publish_date date,
+  publish_time time,
   publish_date_enabled boolean NOT NULL DEFAULT false,
   CONSTRAINT content_plataformas_pkey PRIMARY KEY (id)
 );

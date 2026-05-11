@@ -1,6 +1,6 @@
 import {isAfter, isBefore, startOfDay} from 'date-fns';
 import type {Content, RecordingBlock} from '../../../lib/database';
-import {htmlToReadableText} from '../../../lib/utils';
+import {htmlToReadableText} from '../../../lib/utils.ts';
 
 export const CONTENT_STATUS = {
   IDEIA: 'Ideia',
@@ -13,16 +13,18 @@ export const CONTENT_STATUS = {
   POSTADO: 'Postado',
 } as const;
 
-export enum ContentStage {
-  IDEIA = 'IDEIA',
-  ROTEIRO = 'ROTEIRO',
-  PRONTO_PARA_GRAVAR = 'PRONTO_PARA_GRAVAR',
-  EM_BLOCO = 'EM_BLOCO',
-  GRAVADO = 'GRAVADO',
-  PRODUCAO = 'PRODUCAO',
-  PROGRAMADO = 'PROGRAMADO',
-  POSTADO = 'POSTADO',
-}
+export const ContentStage = {
+  IDEIA: 'IDEIA',
+  ROTEIRO: 'ROTEIRO',
+  PRONTO_PARA_GRAVAR: 'PRONTO_PARA_GRAVAR',
+  EM_BLOCO: 'EM_BLOCO',
+  GRAVADO: 'GRAVADO',
+  PRODUCAO: 'PRODUCAO',
+  PROGRAMADO: 'PROGRAMADO',
+  POSTADO: 'POSTADO',
+} as const;
+
+export type ContentStage = typeof ContentStage[keyof typeof ContentStage];
 
 export type ContentDetailTab = 'roteiro' | 'gravacao' | 'producao' | 'postagem' | 'historico';
 

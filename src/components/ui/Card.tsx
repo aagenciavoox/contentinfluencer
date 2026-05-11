@@ -22,9 +22,9 @@ export function Card({
   return (
     <div
       className={cn(
-        'rounded-2xl border border-[#E5E7EB] bg-white',
+        'editorial-card rounded-lg',
         paddingClasses[padding],
-        interactive && 'transition-colors hover:bg-[#FAFAFB]',
+        interactive && 'editorial-card-interactive',
         className
       )}
     >

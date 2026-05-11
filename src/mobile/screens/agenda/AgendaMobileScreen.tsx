@@ -27,7 +27,8 @@ import {
   Radio,
   SearchCheck,
 } from 'lucide-react';
-import type {AgendaItem, Content, Projeto} from '../../../lib/database';
+import type {AgendaItem, Content, Platform, Projeto} from '../../../lib/database';
+import type {CalendarEntry} from '../../../features/editorial-calendar/components/MonthlyCalendarView';
 import {readStoredJson, writeStoredJson} from '../../../lib/browserStorage';
 import {cn} from '../../../lib/utils';
 import {MobileEmptyState} from '../../components/MobileEmptyState';
@@ -38,9 +39,12 @@ type AgendaTimelineKind = 'agenda' | 'recording' | 'publish' | 'project';
 
 interface AgendaMobileScreenProps {
   contents: Content[];
+  platforms: Platform[];
   agendaItems: AgendaItem[];
   projetos: Projeto[];
   onAddAgenda: () => void;
+  onAddPostedVideo: () => void;
+  onSelectEntry?: (entry: CalendarEntry) => void;
 }
 
 interface AgendaTimelineEntry {
@@ -51,6 +55,10 @@ interface AgendaTimelineEntry {
   time?: string | null;
   secondary?: string | null;
   color?: string | null;
+  contentId?: string;
+  plataformaId?: string;
+  agendaId?: string;
+  projetoId?: string;
 }
 
 const KIND_LABELS: Record<AgendaTimelineKind, string> = {
@@ -74,8 +82,9 @@ function loadMobileKinds(): AgendaTimelineKind[] {
   return readStoredJson(MOBILE_STORAGE_KEY, ALL_KINDS);
 }
 
-function buildTimelineEntries(contents: Content[], agendaItems: AgendaItem[], projetos: Projeto[]) {
+function buildTimelineEntries(contents: Content[], platforms: Platform[], agendaItems: AgendaItem[], projetos: Projeto[]) {
   const projectById = new Map(projetos.map(p => [p.id, p]));
+  const platformNameById = new Map(platforms.map(platform => [platform.id, platform.nome]));
   const entries: AgendaTimelineEntry[] = [];
 
   agendaItems.forEach(item => {
@@ -86,6 +95,7 @@ function buildTimelineEntries(contents: Content[], agendaItems: AgendaItem[], pr
       title: item.title,
       date: item.date,
       time: item.time,
+      agendaId: item.id,
       secondary: linkedProjeto ? linkedProjeto.nome : item.tipo,
       color: linkedProjeto?.color,
     });
@@ -98,15 +108,33 @@ function buildTimelineEntries(contents: Content[], agendaItems: AgendaItem[], pr
         kind: 'recording',
         title: content.title || 'Conteudo sem titulo',
         date: content.recordingDate,
+        contentId: content.id,
         secondary: content.status || 'Fila de gravacao',
       });
     }
-    if (content.publishDate) {
+    if (content.plataformas.length > 0) {
+      content.plataformas.forEach(plataforma => {
+        const publishDate = plataforma.publishDate || content.publishDate;
+        if (!publishDate) return;
+        entries.push({
+          id: `${content.id}:${plataforma.id}:publish`,
+          kind: 'publish',
+          title: content.title || 'Conteudo sem titulo',
+          date: publishDate,
+          time: plataforma.publishTime || content.publishTime,
+          contentId: content.id,
+          plataformaId: plataforma.id,
+          secondary: `${platformNameById.get(plataforma.platformId) || plataforma.platformId} - ${content.status || 'Publicado'}`,
+        });
+      });
+    } else if (content.publishDate) {
       entries.push({
         id: `${content.id}:publish`,
         kind: 'publish',
         title: content.title || 'Conteudo sem titulo',
         date: content.publishDate,
+        time: content.publishTime,
+        contentId: content.id,
         secondary: content.status || 'Planejado para publicar',
       });
     }
@@ -121,6 +149,7 @@ function buildTimelineEntries(contents: Content[], agendaItems: AgendaItem[], pr
           kind: 'project',
           title: projeto.nome,
           date: projeto.dataInicio,
+          projetoId: projeto.id,
           secondary: 'Inicio do projeto',
           color: projeto.color,
         });
@@ -131,6 +160,7 @@ function buildTimelineEntries(contents: Content[], agendaItems: AgendaItem[], pr
           kind: 'project',
           title: projeto.nome,
           date: projeto.dataFim,
+          projetoId: projeto.id,
           secondary: 'Prazo final',
           color: projeto.color,
         });
@@ -142,6 +172,7 @@ function buildTimelineEntries(contents: Content[], agendaItems: AgendaItem[], pr
           kind: 'project',
           title: projeto.nome,
           date: etapa.dataPrazo,
+          projetoId: projeto.id,
           secondary: `Etapa: ${etapa.nome}`,
           color: projeto.color,
         });
@@ -157,9 +188,12 @@ function buildTimelineEntries(contents: Content[], agendaItems: AgendaItem[], pr
 
 export function AgendaMobileScreen({
   contents,
+  platforms,
   agendaItems,
   projetos,
   onAddAgenda,
+  onAddPostedVideo,
+  onSelectEntry,
 }: AgendaMobileScreenProps) {
   const [search, setSearch] = useState('');
   const [activeKinds, setActiveKindsRaw] = useState<AgendaTimelineKind[]>(loadMobileKinds);
@@ -185,8 +219,8 @@ export function AgendaMobileScreen({
   const upcomingEnd = endOfDay(addDays(today, 60));
 
   const timeline = useMemo(
-    () => buildTimelineEntries(contents, agendaItems, projetos),
-    [agendaItems, contents, projetos]
+    () => buildTimelineEntries(contents, platforms, agendaItems, projetos),
+    [agendaItems, contents, platforms, projetos]
   );
 
   // dots per date for calendar grid
@@ -263,6 +297,15 @@ export function AgendaMobileScreen({
               <ChevronRight className="h-4 w-4 text-[var(--text-tertiary)]" />
             </button>
           </div>
+
+          <button
+            type="button"
+            onClick={onAddPostedVideo}
+            className="flex items-center gap-1.5 rounded-xl border border-[var(--border-color)] px-3 py-2 text-[11px] font-black uppercase tracking-widest text-[var(--text-primary)] transition-all active:scale-95"
+          >
+            <Radio className="h-3.5 w-3.5" />
+            Postado
+          </button>
 
           <button
             type="button"
@@ -428,12 +471,35 @@ export function AgendaMobileScreen({
                 <div className="space-y-2">
                   {group.items.map(entry => {
                     const accentColor = entry.color || KIND_ACCENTS[entry.kind];
+                    const calendarType =
+                      entry.kind === 'recording'
+                        ? 'recording'
+                        : entry.kind === 'publish'
+                          ? 'publish'
+                          : entry.kind === 'agenda'
+                            ? 'agenda'
+                            : 'project';
                     return (
                       <MobileListCard
                         key={entry.id}
                         eyebrow={KIND_LABELS[entry.kind]}
                         title={entry.title}
                         description={entry.secondary || ''}
+                        onClick={() =>
+                          onSelectEntry?.({
+                            id: entry.id,
+                            type: calendarType,
+                            label: entry.title,
+                            date: entry.date,
+                            time: entry.time,
+                            secondary: entry.secondary || undefined,
+                            color: entry.color,
+                            contentId: entry.contentId,
+                            plataformaId: entry.plataformaId,
+                            agendaId: entry.agendaId,
+                            projetoId: entry.projetoId,
+                          })
+                        }
                         meta={
                           <span
                             className="rounded-full px-2.5 py-1 text-[11px] font-semibold"

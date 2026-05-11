@@ -1,7 +1,15 @@
-import {Content} from '../../../lib/database';
-import {CONTENT_STATUS} from './contentPipeline';
+import type {Content} from '../../../lib/database.ts';
+import {CONTENT_STATUS} from './contentPipeline.ts';
 
-export const EDITORIAL_CONTENT_STATUSES = [CONTENT_STATUS.ROTEIRO] as const;
+export const EDITORIAL_CONTENT_STATUSES = [
+  CONTENT_STATUS.IDEIA,
+  CONTENT_STATUS.ROTEIRO,
+  CONTENT_STATUS.PRONTO_PARA_GRAVAR,
+  CONTENT_STATUS.GRAVADO,
+  CONTENT_STATUS.A_EDITAR,
+  CONTENT_STATUS.EDITADO,
+  CONTENT_STATUS.PROGRAMADO,
+] as const;
 export const PRODUCTION_CONTENT_STATUSES = [
   CONTENT_STATUS.GRAVADO,
   CONTENT_STATUS.A_EDITAR,
@@ -25,7 +33,7 @@ export function isProductionContentStatus(status: string): status is ProductionC
 }
 
 export function getEditorialContents(contents: Content[]) {
-  return contents.filter(content => isEditorialContentStatus(content.status));
+  return contents.filter(content => content.status !== POSTED_STATUS);
 }
 
 export function getProductionContents(contents: Content[]) {

@@ -86,7 +86,7 @@ export function Sidebar({isOpen, onClose}: SidebarProps) {
 
   const sections: NavSection[] = [
     {
-      title: 'central',
+      title: 'Criar',
       items: [
         {to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard},
         {
@@ -99,7 +99,7 @@ export function Sidebar({isOpen, onClose}: SidebarProps) {
       ],
     },
     {
-      title: 'fluxo',
+      title: 'Planejar',
       items: [
         {to: '/ideias', label: 'Ideias', icon: Lightbulb},
         {
@@ -117,25 +117,25 @@ export function Sidebar({isOpen, onClose}: SidebarProps) {
       ],
     },
     {
-      title: 'organizacao',
+      title: 'Executar',
       items: [
         {to: '/calendario', label: 'Calendario', icon: Calendar, hidden: !moduleFlags.calendar},
         {to: '/projetos', label: 'Projetos', icon: FolderKanban, hidden: !moduleFlags.projects},
       ],
     },
     {
-      title: 'marketing',
+      title: 'Analisar',
       items: [
         {to: '/analise', label: 'Analise', icon: BarChart3, hidden: !moduleFlags.analytics},
+      ],
+    },
+    {
+      title: 'Sistema',
+      items: [
         {to: '/configuracoes/templates', label: 'Templates', icon: LayoutTemplate},
         {to: '/configuracoes/pilares', label: 'Pilares Editoriais', icon: Layers},
         {to: '/configuracoes/regras', label: 'Regras de Ouro', icon: ShieldCheck},
         {to: '/configuracoes/series', label: 'Series', icon: Palette},
-      ],
-    },
-    {
-      title: 'configuracoes',
-      items: [
         {to: '/configuracoes/dna', label: 'DNA da Voz', icon: Fingerprint},
         {to: '/configuracoes/plataformas', label: 'Plataformas', icon: Globe},
       ],
@@ -155,10 +155,10 @@ export function Sidebar({isOpen, onClose}: SidebarProps) {
       end={end}
       className={({isActive}) =>
         cn(
-          'group relative flex items-center gap-3 rounded-[12px] border px-3 py-1.5 transition-all duration-200',
+          'group relative flex items-center gap-3 rounded-lg border px-3 py-2.5 transition-all duration-200',
           isActive
-            ? 'border-[#f0f2f6] bg-white text-[#1f2430] shadow-sm'
-            : 'border-transparent text-[#64748b] hover:bg-[#f7f8fc] hover:text-[#1f2430]'
+            ? 'border-[color-mix(in_srgb,var(--accent-blue),var(--border-color)_58%)] bg-[color-mix(in_srgb,var(--accent-blue),transparent_90%)] text-[var(--text-primary)] shadow-[0_1px_0_rgba(255,255,255,0.56)_inset]'
+            : 'border-transparent text-[var(--text-secondary)] hover:bg-[color-mix(in_srgb,var(--bg-hover),transparent_18%)] hover:text-[var(--text-primary)]'
         )
       }
     >
@@ -166,24 +166,26 @@ export function Sidebar({isOpen, onClose}: SidebarProps) {
         <>
           <div
             className={cn(
-              'flex h-7 w-7 items-center justify-center rounded-lg transition-all',
-              isActive ? 'bg-[#4c63ff] text-white' : 'text-[#94a3b8] group-hover:text-[#4c63ff]'
+              'flex h-7 w-7 items-center justify-center rounded-lg transition-all duration-200',
+              isActive
+                ? 'bg-[color-mix(in_srgb,var(--accent-blue),var(--accent-purple)_18%)] text-white'
+                : 'text-[var(--text-tertiary)] group-hover:text-[var(--accent-blue)]'
             )}
           >
             <Icon className="h-4 w-4 stroke-[2.2]" />
           </div>
-          <span className={cn('flex-1 truncate text-[13px]', isActive ? 'font-bold' : 'font-medium')}>
+          <span className={cn('flex-1 truncate text-[13px]', isActive ? 'font-semibold' : 'font-medium')}>
             {label}
           </span>
           {badge ? (
-            <span className="text-[9px] font-bold text-[#94a3b8]">
+            <span className="text-[11px] font-medium text-[var(--text-tertiary)]">
               {badge}
             </span>
           ) : null}
           {isActive ? (
             <motion.div
               layoutId="active-pill"
-              className="absolute left-0 h-4 w-1 rounded-r-full bg-[#4c63ff]"
+              className="absolute left-0 h-5 w-1 rounded-r-full bg-[var(--accent-blue)]"
             />
           ) : null}
         </>
@@ -192,21 +194,21 @@ export function Sidebar({isOpen, onClose}: SidebarProps) {
   );
 
   const sidebarContent = (
-    <div className="flex h-full w-full flex-col overflow-hidden border-r border-[#edf0f6] bg-[linear-gradient(180deg,#fdfdff_0%,#fbfbfd_100%)] px-4 py-4 text-[#1f2430]">
-      <div className="mb-4 flex items-start justify-between shrink-0">
+    <div className="flex h-full w-full flex-col overflow-hidden border-r border-[var(--border-color)] bg-[color-mix(in_srgb,var(--bg-secondary)_88%,transparent)] px-4 py-4 text-[var(--text-primary)] backdrop-blur-xl">
+      <div className="mb-6 flex items-start justify-between shrink-0">
         <div className="flex items-center gap-3">
-          <div className="flex h-12 w-12 items-center justify-center rounded-[16px] bg-[#18233f] text-white shadow-lg">
+          <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-[color-mix(in_srgb,var(--accent-blue),var(--accent-purple)_22%)] text-white shadow-[0_12px_28px_color-mix(in_srgb,var(--accent-blue),transparent_82%)]">
             <Fingerprint className="h-5 w-5" />
           </div>
           <div>
-            <p className="text-[0.9rem] font-black uppercase tracking-[0.3em] text-[#202635]">Core</p>
-            <p className="text-[0.65rem] font-bold uppercase tracking-[0.2em] text-[#9caed8]">Creator</p>
+            <p className="text-[0.95rem] font-semibold leading-tight text-[var(--text-primary)]">Core Creator</p>
+            <p className="text-[0.78rem] font-medium leading-tight text-[var(--text-secondary)]">Editorial OS</p>
           </div>
         </div>
 
         <button
           onClick={onClose}
-          className="rounded-xl border border-[#e8ebf3] bg-white p-2 text-[#7e8798] transition-colors hover:text-[#1f2430] active:scale-90 md:hidden"
+          className="rounded-lg border border-[var(--border-color)] bg-[var(--bg-elevated)] p-2 text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)] active:scale-95 md:hidden"
           aria-label="Fechar menu"
         >
           <X className="h-5 w-5" />
@@ -215,24 +217,24 @@ export function Sidebar({isOpen, onClose}: SidebarProps) {
 
       <button
         onClick={openCommandPalette}
-        className="group mb-4 flex w-full items-center gap-3 rounded-[16px] border border-[#e8ebf3] bg-white px-4 py-2 text-left text-[#8a92a4] shadow-sm transition-all hover:border-[#4c63ff]/30"
+        className="group mb-6 flex w-full items-center gap-3 rounded-lg border border-[var(--border-color)] bg-[color-mix(in_srgb,var(--bg-elevated),transparent_8%)] px-3 py-2.5 text-left text-[var(--text-secondary)] shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-[color-mix(in_srgb,var(--accent-blue),var(--border-color)_46%)] hover:bg-[var(--bg-elevated)]"
       >
-        <Search className="h-4 w-4 shrink-0 transition-colors group-hover:text-[#4c63ff]" />
-        <span className="flex-1 text-[13px] font-semibold">Procurar...</span>
-        <span className="rounded-xl bg-[#f3f5f8] px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-[#7e8798]">
+        <Search className="h-4 w-4 shrink-0 transition-colors group-hover:text-[var(--accent-blue)]" />
+        <span className="flex-1 text-[13px] font-medium">Procurar...</span>
+        <span className="rounded-md bg-[var(--bg-hover)] px-2 py-1 text-[11px] font-medium text-[var(--text-tertiary)]">
           Ctrl K
         </span>
       </button>
 
       <nav className="flex flex-1 flex-col" role="navigation" aria-label="Principal">
-        <div className="custom-scrollbar flex-1 space-y-4 overflow-y-auto pr-1">
+        <div className="custom-scrollbar flex-1 space-y-5 overflow-y-auto pr-1">
           {sections.map(section => {
             const visibleItems = section.items.filter(item => !item.hidden);
             if (visibleItems.length === 0) return null;
 
             return (
               <section key={section.title}>
-                <p className="mb-1.5 px-2 text-[9px] font-black uppercase tracking-[0.2em] text-[#9cadcf]">
+                <p className="mb-2 px-2 text-[11px] font-semibold text-[var(--text-tertiary)]">
                   {section.title}
                 </p>
                 <div className="space-y-0.5">{visibleItems.map(renderNavItem)}</div>
@@ -244,27 +246,27 @@ export function Sidebar({isOpen, onClose}: SidebarProps) {
 
       <div className="mt-auto shrink-0 pb-2 pt-4">
         <button
-          className="flex w-full items-center gap-3 rounded-2xl border border-transparent bg-[#f8faff] p-2 text-left transition-all hover:border-[#e7ebf3] hover:shadow-sm"
+          className="flex w-full items-center gap-3 rounded-lg border border-transparent bg-[var(--surface-subtle)] p-2 text-left transition-all hover:border-[var(--border-color)] hover:shadow-sm"
           aria-label="Abrir perfil"
         >
-          <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#4c63ff] to-[#18233f] text-white shadow-sm">
+          <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[color-mix(in_srgb,var(--accent-purple),var(--accent-blue)_34%)] text-white shadow-sm">
             <User className="h-5 w-5" />
             <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white bg-green-500" />
           </div>
           <div className="flex min-w-0 flex-1 flex-col items-start overflow-hidden">
-            <span className="w-full truncate text-[13px] font-bold text-[#202635]">{userName}</span>
-            <span className="w-full truncate text-[10px] font-medium text-[#94a3b8]">{userEmail}</span>
+            <span className="w-full truncate text-[13px] font-semibold text-[var(--text-primary)]">{userName}</span>
+            <span className="w-full truncate text-[11px] font-normal text-[var(--text-secondary)]">{userEmail}</span>
           </div>
-          <ChevronRight className="h-4 w-4 text-[#94a3b8]" />
+          <ChevronRight className="h-4 w-4 text-[var(--text-tertiary)]" />
         </button>
       </div>
 
-      <div className="shrink-0 border-t border-[#eef1f6] pt-3">
+      <div className="shrink-0 border-t border-[var(--border-color)] pt-3">
         <div className="flex items-center justify-between gap-3">
           <button
             onClick={toggleTheme}
             aria-label={state.theme === 'light' ? 'Ativar modo noturno' : 'Ativar modo claro'}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#e7ebf3] bg-white text-[#667287] shadow-sm transition-colors hover:text-[#4c63ff]"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[var(--border-color)] bg-[var(--bg-elevated)] text-[var(--text-secondary)] shadow-sm transition-colors hover:text-[var(--accent-blue)]"
           >
             {state.theme === 'light' ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
           </button>
@@ -272,7 +274,7 @@ export function Sidebar({isOpen, onClose}: SidebarProps) {
           <button
             onClick={signOut}
             aria-label="Finalizar sessao"
-            className="flex h-9 flex-1 items-center justify-center gap-2 rounded-xl border border-[#e7ebf3] bg-white text-[11px] font-semibold text-[#667287] shadow-sm transition-all hover:border-red-100 hover:bg-red-50 hover:text-red-500"
+            className="flex h-9 flex-1 items-center justify-center gap-2 rounded-lg border border-[var(--border-color)] bg-[var(--bg-elevated)] text-[12px] font-medium text-[var(--text-secondary)] shadow-sm transition-all hover:border-red-200 hover:bg-red-50 hover:text-red-500"
           >
             <LogOut className="h-3.5 w-3.5" />
             Sair

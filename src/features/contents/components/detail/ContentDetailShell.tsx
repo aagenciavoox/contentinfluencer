@@ -228,6 +228,7 @@ export function ContentDetailShell({content, mode = 'desktop'}: ContentDetailShe
         }
         primaryAction={primaryAction}
         onPrimaryAction={() => void handlePrimaryAction()}
+        onStatusChange={status => void persist({status})}
         isSaving={isSaving}
         postingAlerts={postingAlerts}
         stageLabel={stageLabel[stage]}
@@ -248,7 +249,7 @@ export function ContentDetailShell({content, mode = 'desktop'}: ContentDetailShe
     <PageScaffold contentWidth="full" contentClassName="pb-12 md:pb-10">
       <div className="mx-auto flex max-w-[1400px] flex-col gap-5">
         <div className="flex items-center justify-between gap-3 pt-4 md:pt-8">
-          <AppButton variant="ghost" leftIcon={<ArrowLeft className="h-4 w-4" />} onClick={() => navigate(-1)}>
+          <AppButton variant="ghost" leftIcon={<ArrowLeft className="h-4 w-4" />} onClick={() => navigate('/conteudos', {replace: true})}>
             Voltar
           </AppButton>
           <div className="text-right">
@@ -263,6 +264,7 @@ export function ContentDetailShell({content, mode = 'desktop'}: ContentDetailShe
           content={{...liveContent, ...draft}}
           primaryAction={primaryAction}
           onPrimaryAction={() => void handlePrimaryAction()}
+          onStatusChange={status => void persist({status})}
           isSaving={isSaving}
           seriesName={series?.name}
           seriesColor={series?.cor}
