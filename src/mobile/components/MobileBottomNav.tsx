@@ -27,7 +27,7 @@ function MobileBottomNavItem({ to, label, icon: Icon }: MobileNavItemConfig) {
       to={to}
       className={({ isActive }) =>
         cn(
-          'flex min-w-0 flex-1 flex-col items-center gap-1 py-1 text-center transition-all duration-200',
+          'flex min-h-11 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 px-1 text-center transition-all duration-200',
           isActive ? 'text-[var(--text-primary)]' : 'text-[var(--text-tertiary)]'
         )
       }
@@ -42,9 +42,9 @@ export function MobileBottomNav({ isActionOpen, onActionToggle }: MobileBottomNa
   return (
     <nav
       aria-label="Navegacao principal mobile"
-      className="fixed inset-x-0 bottom-0 z-[80] border-t border-[var(--border-color)] bg-[color-mix(in_srgb,var(--bg-primary)_94%,transparent)] px-3 pb-safe pt-3 backdrop-blur-xl md:hidden"
+      className="fixed inset-x-0 bottom-0 z-[80] border-t border-[var(--border-color)] bg-[color-mix(in_srgb,var(--bg-primary)_94%,transparent)] px-3 pb-safe pt-2 backdrop-blur-xl md:hidden"
     >
-      <div className="grid grid-cols-[1fr_1fr_auto_1fr_1fr] items-end gap-1">
+      <div className="grid min-h-11 grid-cols-[1fr_1fr_auto_1fr_1fr] items-end gap-1">
         <MobileBottomNavItem {...navItems[0]} />
         <MobileBottomNavItem {...navItems[1]} />
 

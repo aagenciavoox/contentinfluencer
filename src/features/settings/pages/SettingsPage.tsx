@@ -14,6 +14,7 @@ import {DesktopPageHeader} from '../../../layouts/page/DesktopPageHeader';
 import {AppButton} from '../../../components/ui/AppButton';
 import {useAppContext} from '../../../context/AppContext';
 import {useIsMobile} from '../../../hooks/useIsMobile';
+import {MobileToggleSwitch} from '../../../mobile/components/MobileToggleSwitch';
 import {SettingsMobileScreen} from '../../../mobile/screens/settings/SettingsMobileScreen';
 import {
   DEFAULT_MODULE_FLAGS,
@@ -152,20 +153,11 @@ export function SettingsPage() {
                   <p className="mt-0.5 text-xs text-[var(--text-secondary)] opacity-60">{desc}</p>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => toggleModuleFlag(key)}
-                  className={`relative h-7 w-12 rounded-full transition-colors ${
-                    moduleFlags[key] ? 'bg-[var(--text-primary)]' : 'bg-[var(--bg-hover)]'
-                  }`}
-                  aria-label={`${moduleFlags[key] ? 'Desativar' : 'Ativar'} módulo ${title}`}
-                >
-                  <span
-                    className={`absolute top-1 h-5 w-5 rounded-full bg-white transition-all ${
-                      moduleFlags[key] ? 'left-6' : 'left-1'
-                    }`}
-                  />
-                </button>
+                <MobileToggleSwitch
+                  enabled={moduleFlags[key]}
+                  onToggle={() => toggleModuleFlag(key)}
+                  label={`módulo ${title}`}
+                />
               </div>
             ))}
           </div>

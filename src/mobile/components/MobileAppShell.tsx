@@ -23,7 +23,7 @@ export function MobileAppShell({
       {header}
       <main
         onScroll={onScroll}
-        className="min-h-screen overflow-y-auto px-4 pb-[calc(env(safe-area-inset-bottom)+7rem)] pt-[calc(env(safe-area-inset-top)+8.5rem)]"
+        className="min-h-screen overflow-y-auto px-4 pb-[calc(env(safe-area-inset-bottom)+6.75rem)] max-[390px]:pb-[calc(env(safe-area-inset-bottom)+6.25rem)] pt-[calc(env(safe-area-inset-top)+8.5rem)] max-[390px]:pt-[calc(env(safe-area-inset-top)+7.5rem)]"
       >
         <div className="min-h-[calc(100vh-12rem)]">{children}</div>
       </main>

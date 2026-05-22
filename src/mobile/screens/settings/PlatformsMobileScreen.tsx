@@ -4,6 +4,7 @@ import type { Platform } from '../../../lib/database';
 import { BottomSheetModal } from '../../../components/feedback/modals/BottomSheetModal';
 import { MobileEmptyState } from '../../components/MobileEmptyState';
 import { MobileListCard } from '../../components/MobileListCard';
+import { MobilePillButton } from '../../components/MobilePillButton';
 
 interface PlatformsMobileScreenProps {
   platforms: Platform[];
@@ -70,34 +71,28 @@ export function PlatformsMobileScreen({
               }
               trailing={
                 !isPadrao(platform.nome) ? (
-                  <button
-                    type="button"
+                  <MobilePillButton
+                    tone="danger"
                     onClick={(event) => {
                       event.stopPropagation();
                       onDelete(platform.id);
                     }}
-                    className="rounded-full bg-[var(--accent-pink)]/10 px-3 py-2 text-[11px] font-black uppercase tracking-[0.14em] text-[var(--accent-pink)]"
                   >
                     Excluir
-                  </button>
+                  </MobilePillButton>
                 ) : undefined
               }
               meta={
-                <button
-                  type="button"
+                <MobilePillButton
+                  tone={platform.ativo ? 'success' : 'muted'}
+                  disabled={isPadrao(platform.nome)}
                   onClick={(event) => {
                     event.stopPropagation();
                     if (!isPadrao(platform.nome)) onToggle(platform);
                   }}
-                  disabled={isPadrao(platform.nome)}
-                  className={`rounded-full px-3 py-1 text-[11px] font-semibold ${
-                    platform.ativo
-                      ? 'bg-[var(--accent-green)]/10 text-[var(--accent-green)]'
-                      : 'bg-[var(--bg-hover)] text-[var(--text-secondary)]'
-                  } ${isPadrao(platform.nome) ? 'opacity-50' : ''}`}
                 >
                   {platform.ativo ? 'Ativa' : 'Inativa'}
-                </button>
+                </MobilePillButton>
               }
             />
           ))
@@ -118,7 +113,7 @@ export function PlatformsMobileScreen({
               onChange={(event) => setName(event.target.value)}
               onKeyDown={(event) => event.key === 'Enter' && handleAdd()}
               placeholder="Nome da plataforma"
-              className="w-full"
+              className="min-h-11 w-full"
             />
           </div>
 
@@ -126,11 +121,16 @@ export function PlatformsMobileScreen({
             <button
               type="button"
               onClick={() => setShowForm(false)}
-              className="flex-1 rounded-[1.25rem] border border-[var(--border-color)] py-3 text-xs font-black uppercase tracking-widest text-[var(--text-secondary)]"
+              className="flex min-h-11 flex-1 items-center justify-center rounded-[1.25rem] border border-[var(--border-color)] text-xs font-black uppercase tracking-widest text-[var(--text-secondary)]"
             >
               Cancelar
             </button>
-            <button type="button" onClick={handleAdd} disabled={!name.trim()} className="button-primary flex-1 disabled:opacity-40">
+            <button
+              type="button"
+              onClick={handleAdd}
+              disabled={!name.trim()}
+              className="button-primary flex min-h-11 flex-1 items-center justify-center disabled:opacity-40"
+            >
               Criar
             </button>
           </div>

@@ -256,7 +256,7 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
       status: isEditorialMode ? CONTENT_STATUS.ROTEIRO : CONTENT_STATUS.GRAVADO,
     });
     void dispatch({type: 'ADD_CONTENT', payload: newContent});
-    navigate(buildContentDetailRoute(newContent.id), {replace: true});
+    navigate(`${buildContentDetailRoute(newContent.id)}&focus=script`, {replace: true});
   };
 
   const handleToggleSelect = (id: string) => {

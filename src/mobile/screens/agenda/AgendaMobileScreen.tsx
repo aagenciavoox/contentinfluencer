@@ -276,13 +276,14 @@ export function AgendaMobileScreen({
       {/* ── Calendar card ─────────────────────────────── */}
       <section className="overflow-hidden rounded-[1.75rem] border border-[var(--border-color)] bg-[var(--bg-secondary)] shadow-sm">
 
-        {/* Header: nav + add button */}
-        <div className="flex items-center justify-between gap-3 px-4 pt-4 pb-3">
-          <div className="flex items-center gap-1">
+        {/* Header: month nav + actions on second row */}
+        <div className="space-y-3 px-4 pt-4 pb-3">
+          <div className="flex items-center justify-center gap-1">
             <button
               type="button"
               onClick={() => setCalendarMonth(m => subMonths(m, 1))}
-              className="flex h-8 w-8 items-center justify-center rounded-xl transition-all active:scale-90 hover:bg-[var(--bg-hover)]"
+              aria-label="Mes anterior"
+              className="flex min-h-11 min-w-11 items-center justify-center rounded-xl transition-all active:scale-90 hover:bg-[var(--bg-hover)]"
             >
               <ChevronLeft className="h-4 w-4 text-[var(--text-tertiary)]" />
             </button>
@@ -292,29 +293,33 @@ export function AgendaMobileScreen({
             <button
               type="button"
               onClick={() => setCalendarMonth(m => addMonths(m, 1))}
-              className="flex h-8 w-8 items-center justify-center rounded-xl transition-all active:scale-90 hover:bg-[var(--bg-hover)]"
+              aria-label="Proximo mes"
+              className="flex min-h-11 min-w-11 items-center justify-center rounded-xl transition-all active:scale-90 hover:bg-[var(--bg-hover)]"
             >
               <ChevronRight className="h-4 w-4 text-[var(--text-tertiary)]" />
             </button>
           </div>
 
-          <button
-            type="button"
-            onClick={onAddPostedVideo}
-            className="flex items-center gap-1.5 rounded-xl border border-[var(--border-color)] px-3 py-2 text-[11px] font-black uppercase tracking-widest text-[var(--text-primary)] transition-all active:scale-95"
-          >
-            <Radio className="h-3.5 w-3.5" />
-            Postado
-          </button>
+          <div className="flex items-center justify-end gap-2">
+            <button
+              type="button"
+              onClick={onAddPostedVideo}
+              aria-label="Marcar como postado"
+              className="flex min-h-11 min-w-11 items-center justify-center rounded-xl border border-[var(--border-color)] transition-all active:scale-95"
+            >
+              <Radio className="h-4 w-4 text-[var(--text-primary)]" />
+            </button>
 
-          <button
-            type="button"
-            onClick={onAddAgenda}
-            className="flex items-center gap-1.5 rounded-xl bg-[var(--text-primary)] px-3 py-2 text-[11px] font-black uppercase tracking-widest text-[var(--bg-primary)] transition-all active:scale-95"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            Novo
-          </button>
+            <button
+              type="button"
+              onClick={onAddAgenda}
+              aria-label="Novo evento"
+              className="flex min-h-11 items-center gap-1.5 rounded-xl bg-[var(--text-primary)] px-4 text-[11px] font-black uppercase tracking-widest text-[var(--bg-primary)] transition-all active:scale-95"
+            >
+              <Plus className="h-4 w-4" />
+              Novo
+            </button>
+          </div>
         </div>
 
         {/* Layer filter chips */}
@@ -333,7 +338,7 @@ export function AgendaMobileScreen({
                   )
                 }
                 className={cn(
-                  'flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[10px] font-bold whitespace-nowrap transition-all shrink-0',
+                  'flex min-h-11 items-center gap-1.5 rounded-lg border px-3 text-[10px] font-bold whitespace-nowrap transition-all shrink-0',
                   'cursor-pointer active:scale-95 select-none',
                   active
                     ? 'border-[var(--border-strong)] bg-[var(--bg-hover)] text-[var(--text-primary)]'

@@ -4,7 +4,9 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite --port=3030 --host=0.0.0.0",
+    "env:check": "node scripts/check-supabase-env.mjs",
+    "db:setup": "node -e \"console.log('\\n1. Abra: https://supabase.com/dashboard/project/aftffcaychrfffefkeoj/sql/new\\n2. Cole o arquivo scripts/setup-supabase.sql e execute (Run)\\n3. Recarregue o app (npm run dev)\\n')\"",
+    "dev": "node scripts/check-supabase-env.mjs && vite --port=3030 --host=0.0.0.0",
     "build": "vite build",
     "preview": "vite preview",
     "clean": "rm -rf dist",

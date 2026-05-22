@@ -1,6 +1,7 @@
 import {ArrowLeft, AlertTriangle, CheckCircle2, Clock3} from 'lucide-react';
-import {useMemo, useState} from 'react';
+import {useEffect, useMemo, useState} from 'react';
 import {useNavigate, useSearchParams} from 'react-router-dom';
+import {SendToRecordingSheet} from '../../../../mobile/components/SendToRecordingSheet';
 import {AppButton} from '../../../../components/ui/AppButton';
 import {useAppContext} from '../../../../context/AppContext';
 import {useAuth} from '../../../../context/AuthContext';
@@ -68,7 +69,21 @@ export function ContentDetailShell({content, mode = 'desktop'}: ContentDetailShe
     plataformas: content.plataformas || [],
   }));
   const [isSaving, setIsSaving] = useState(false);
+  const [isRecordingSheetOpen, setIsRecordingSheetOpen] = useState(false);
   const activeTab = getInitialTabForContext(searchParams.get('tab'));
+
+  useEffect(() => {
+    if (mode !== 'mobile' || searchParams.get('focus') !== 'script') return;
+    const timer = window.setTimeout(() => {
+      setSearchParams(previous => {
+        if (!previous.get('focus')) return previous;
+        const next = new URLSearchParams(previous);
+        next.delete('focus');
+        return next;
+      }, { replace: true });
+    }, 400);
+    return () => window.clearTimeout(timer);
+  }, [content.id, mode, searchParams, setSearchParams]);
 
   const liveContent = state.contents.find(item => item.id === content.id) || content;
   const series = state.series.find(item => item.id === draft.seriesId) || null;
@@ -131,7 +146,23 @@ export function ContentDetailShell({content, mode = 'desktop'}: ContentDetailShe
   const handlePrimaryAction = async () => {
     switch (primaryAction.id) {
       case 'advance_to_recording':
+        if (mode === 'mobile') {
+          await persist();
+          setIsRecordingSheetOpen(true);
+          return;
+        }
         await persist({}, {advanceToReady: true});
+        return;
+      case 'add_to_block':
+        if (mode === 'mobile') {
+          setIsRecordingSheetOpen(true);
+          return;
+        }
+        setSearchParams(previous => {
+          const next = new URLSearchParams(previous);
+          next.set('tab', 'gravacao');
+          return next;
+        });
         return;
       case 'send_to_posting':
         setSearchParams(previous => {
@@ -183,6 +214,8 @@ export function ContentDetailShell({content, mode = 'desktop'}: ContentDetailShe
         pilares={state.pilares}
         authorName={user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Usuario'}
         onChange={updates => setDraft(previous => ({...previous, ...updates}))}
+        mobileComposer={mode === 'mobile'}
+        autoFocusScript={mode === 'mobile' && searchParams.get('focus') === 'script'}
       />
     ) : activeTab === 'gravacao' ? (
       <RecordingSection
@@ -216,6 +249,7 @@ export function ContentDetailShell({content, mode = 'desktop'}: ContentDetailShe
 
   if (mode === 'mobile') {
     return (
+      <>
       <ContentDetailMobileScreen
         content={{...liveContent, ...draft}}
         activeTab={activeTab}
@@ -242,6 +276,16 @@ export function ContentDetailShell({content, mode = 'desktop'}: ContentDetailShe
         section={detailSection}
         onSave={() => void persist()}
       />
+
+      <SendToRecordingSheet
+        open={isRecordingSheetOpen}
+        onClose={() => setIsRecordingSheetOpen(false)}
+        content={{...liveContent, ...draft}}
+        recordingBlocks={state.recordingBlocks}
+        onPersist={persist}
+        onDispatch={dispatch}
+      />
+      </>
     );
   }
 

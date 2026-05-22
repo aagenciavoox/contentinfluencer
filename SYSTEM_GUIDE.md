@@ -803,7 +803,7 @@ Templates são estruturas reutilizáveis para roteiros e publicações.
 ---
 
 ### 9.1 — Banco de dados
-> Schema completo criado em `schema.sql` e executado no Supabase (projeto `njrjqwuphzkdpwqtgubv`).
+> Schema completo criado em `schema.sql` e executado no Supabase (projeto `aftffcaychrfffefkeoj`).
 
 - ✅ Adicionar `user_id` em todas as tabelas + RLS total
 - ✅ Criar tabela `platforms` (4 defaults + customizável por usuário)

@@ -61,6 +61,7 @@ interface RichTextEditorProps {
   authorName?: string;
   documentTitle?: string;
   compactMobileComposer?: boolean;
+  autoFocus?: boolean;
 }
 
 type FormattingAction = {
@@ -108,6 +109,7 @@ export function RichTextEditor({
   authorName = 'Você',
   documentTitle = 'Novo roteiro',
   compactMobileComposer = false,
+  autoFocus = false,
 }: RichTextEditorProps) {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [selectionMenu, setSelectionMenu] = useState<{ x: number; y: number } | null>(null);
@@ -216,6 +218,18 @@ export function RichTextEditor({
       editor.commands.setContent(content);
     }
   }, [content, editor]);
+
+  useEffect(() => {
+    if (!editor || !autoFocus) return;
+
+    const frame = window.requestAnimationFrame(() => {
+      if (!editor.isDestroyed) {
+        editor.chain().focus('end').run();
+      }
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [autoFocus, editor]);
 
   useEffect(() => {
     if (!isFullscreen) {
@@ -521,7 +535,9 @@ export function RichTextEditor({
             ? isMobile
               ? 'fixed inset-0 z-[100] flex flex-col rounded-none border-0 bg-white shadow-none'
               : 'fixed left-1/2 top-1/2 z-[100] flex h-[min(1120px,calc(100dvh-56px))] w-[min(1420px,calc(100vw-56px))] -translate-x-1/2 -translate-y-1/2 flex-col rounded-[28px] border border-[#e5e7eb] bg-white shadow-[0_24px_80px_rgba(15,23,42,0.18)]'
-            : 'flex min-h-[400px] flex-col bg-[var(--bg-secondary)]/50',
+            : compactMobileComposer
+              ? 'flex min-h-[56dvh] flex-col bg-white'
+              : 'flex min-h-[400px] flex-col bg-[var(--bg-secondary)]/50',
           className,
         )}
       >
@@ -775,7 +791,11 @@ export function RichTextEditor({
           ref={editorViewportRef}
           className={cn(
             'flex-1 overflow-y-auto custom-scrollbar transition-all duration-500',
-            isFullscreen ? 'bg-white' : 'bg-[var(--bg-secondary)]/30 p-4 md:p-8 lg:p-12',
+            isFullscreen
+              ? 'bg-white'
+              : compactMobileComposer
+                ? 'bg-white p-0'
+                : 'bg-[var(--bg-secondary)]/30 p-4 md:p-8 lg:p-12',
             editorViewportClassName,
           )}
         >
@@ -794,7 +814,9 @@ export function RichTextEditor({
                   ? cn(
                       isMobile ? 'min-h-[calc(100vh-112px)] px-4 py-6 pb-28' : 'min-h-[760px] px-8 py-8',
                     )
-                  : 'min-h-[800px] rounded-[4px] border border-[#e5e7eb] p-12 shadow-[0_2px_15px_rgba(0,0,0,0.02)] md:p-24',
+                  : compactMobileComposer
+                    ? 'min-h-[56dvh] rounded-[1.35rem] border border-[var(--border-color)] px-4 py-4 shadow-sm'
+                    : 'min-h-[800px] rounded-[4px] border border-[#e5e7eb] p-12 shadow-[0_2px_15px_rgba(0,0,0,0.02)] md:p-24',
                 editorCanvasClassName,
               )}
             >

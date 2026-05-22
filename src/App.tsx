@@ -4,6 +4,7 @@ import { AppProviders } from './app/providers/AppProviders';
 import { AppRoutes } from './app/router/AppRoutes';
 import { AppShell } from './layouts/app/AppShell';
 import { useAuth } from './context/AuthContext';
+import { supabaseConfigStatus } from './lib/supabase';
 import { Login } from './pages/Login';
 
 function AppContent() {
@@ -26,8 +27,30 @@ function AppContent() {
           </div>
           <h1 className="text-2xl font-black uppercase tracking-[0.2em]">Backend obrigatorio</h1>
           <p className="mt-4 text-sm leading-6 text-[var(--text-secondary)]">
-            Este app nao opera mais em modo offline. Configure <code>VITE_SUPABASE_URL</code> e <code>VITE_SUPABASE_ANON_KEY</code> para carregar autenticacao, persistencia e sincronizacao em tempo real.
+            Este app nao opera mais em modo offline. Preencha o arquivo <code>.env.local</code> na raiz do projeto e reinicie o servidor (<code>npm run dev</code>).
           </p>
+          <ul className="mt-4 space-y-2 text-sm font-mono">
+            <li className={supabaseConfigStatus.url ? 'text-emerald-500' : 'text-red-400'}>
+              {supabaseConfigStatus.url ? '✓' : '✗'} VITE_SUPABASE_URL
+            </li>
+            <li className={supabaseConfigStatus.anonKey ? 'text-emerald-500' : 'text-red-400'}>
+              {supabaseConfigStatus.anonKey ? '✓' : '✗'} VITE_SUPABASE_ANON_KEY
+            </li>
+          </ul>
+          {!supabaseConfigStatus.anonKey && (
+            <p className="mt-4 text-xs leading-5 text-[var(--text-secondary)]">
+              Copie a chave <strong>anon public</strong> em{' '}
+              <a
+                href="https://supabase.com/dashboard/project/aftffcaychrfffefkeoj/settings/api"
+                target="_blank"
+                rel="noreferrer"
+                className="underline"
+              >
+                Supabase → Settings → API
+              </a>
+              .
+            </p>
+          )}
         </div>
       </div>
     );

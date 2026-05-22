@@ -3,6 +3,7 @@ import {BottomSheetModal} from '../../../components/feedback/modals/BottomSheetM
 import type {GoldenRule} from '../../../lib/database';
 import type {Violation} from '../../../utils/goldenRules';
 import {MobileEmptyState} from '../../components/MobileEmptyState';
+import {MobileIconButton} from '../../components/MobileIconButton';
 import {MobileListCard} from '../../components/MobileListCard';
 import {MobileSegmentTabs} from '../../components/MobileSegmentTabs';
 import React from 'react';
@@ -232,27 +233,24 @@ export function GoldenRulesMobileScreen({
                   }
                   trailing={
                     <div className="flex flex-col items-end gap-2">
-                      <button
-                        type="button"
+                      <MobileIconButton
+                        label={rule.ativa ? 'Desativar regra' : 'Ativar regra'}
                         onClick={() => onToggle(rule)}
-                        className="rounded-full bg-[var(--bg-primary)] p-2"
-                        aria-label={rule.ativa ? 'Desativar regra' : 'Ativar regra'}
                       >
                         {rule.ativa ? (
                           <ToggleRight className="h-5 w-5 text-[var(--accent-green)]" />
                         ) : (
                           <ToggleLeft className="h-5 w-5 text-[var(--text-tertiary)]" />
                         )}
-                      </button>
+                      </MobileIconButton>
 
-                      <button
-                        type="button"
+                      <MobileIconButton
+                        label="Excluir regra"
                         onClick={() => onDelete(rule.id)}
-                        className="rounded-full bg-[var(--accent-pink)]/10 p-2 text-[var(--accent-pink)]"
-                        aria-label="Excluir regra"
+                        className="border-[var(--accent-pink)]/20 text-[var(--accent-pink)]"
                       >
                         <Trash2 className="h-4 w-4" />
-                      </button>
+                      </MobileIconButton>
                     </div>
                   }
                 />

@@ -79,24 +79,16 @@ where status = 'Ideia'
 -- - posting date toggle in production/posting flow
 -- ============================================================================
 
-do $$
-begin
-  if exists (
-    select 1 from information_schema.tables
-    where table_schema = 'public' and table_name = 'content_plataformas'
-  ) then
-    alter table public.content_plataformas
-      add column if not exists publish_date_enabled boolean not null default false;
+alter table public.content_plataformas
+  add column if not exists publish_date_enabled boolean not null default false;
 
-    update public.content_plataformas
-    set publish_date_enabled = true
-    where publish_date is not null
-      and publish_date_enabled = false;
+update public.content_plataformas
+set publish_date_enabled = true
+where publish_date is not null
+  and publish_date_enabled = false;
 
-    create index if not exists idx_content_plataformas_content_platform
-      on public.content_plataformas (content_id, platform_id);
-  end if;
-end $$;
+create index if not exists idx_content_plataformas_content_platform
+  on public.content_plataformas (content_id, platform_id);
 
 -- ============================================================================
 -- RECORDING BLOCKS

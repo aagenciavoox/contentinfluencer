@@ -29,6 +29,7 @@ import {useAuth} from '../../context/AuthContext';
 import {getEditorialContents} from '../../features/contents/lib/contentWorkflow';
 import {getModuleFlags} from '../../features/settings/lib/moduleFlags';
 import {cn} from '../../lib/utils';
+import {MobileSidebarDrawer} from '../../mobile/components/MobileSidebarDrawer';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -303,9 +304,9 @@ export function Sidebar({isOpen, onClose}: SidebarProps) {
               animate={{x: 0}}
               exit={{x: '-100%'}}
               transition={{type: 'spring', damping: 30, stiffness: 280}}
-              className="fixed left-0 top-0 z-[110] h-full w-[88vw] max-w-sm overflow-hidden bg-[#fcfcfd] shadow-2xl md:hidden"
+              className="fixed left-0 top-0 z-[110] h-full w-[min(88vw,320px)] overflow-hidden shadow-2xl md:hidden"
             >
-              {sidebarContent}
+              <MobileSidebarDrawer onClose={onClose} />
             </motion.div>
           </>
         )}

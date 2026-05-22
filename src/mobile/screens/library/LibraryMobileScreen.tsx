@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react';
 import { BookOpen, Film, Pin, Plus, SearchCheck, Star, Tv } from 'lucide-react';
 import type { BibliotecaItem, BibliotecaItemMeta } from '../../../lib/database';
+import { cn } from '../../../lib/utils';
 import { MobileEmptyState } from '../../components/MobileEmptyState';
 import { MobileFilterSheet } from '../../components/MobileFilterSheet';
-import { MobileGridCard } from '../../components/MobileGridCard';
 import { MobileSearchBar } from '../../components/MobileSearchBar';
 import { MobileSegmentTabs } from '../../components/MobileSegmentTabs';
 
@@ -49,6 +49,21 @@ function isCurrentStatus(status: StatusLeitura) {
 
 function isDoneStatus(status: StatusLeitura) {
   return status === 'Concluído' || status === 'Lido' || status === 'Assistido' || status === 'Abandonado';
+}
+
+function LibraryBadge({ children, tone = 'neutral' }: { children: React.ReactNode; tone?: 'neutral' | 'blue' | 'green' }) {
+  return (
+    <span
+      className={cn(
+        'inline-flex max-w-full truncate rounded-md px-1.5 py-0.5 text-[9px] font-semibold leading-tight',
+        tone === 'blue' && 'bg-[var(--accent-blue)]/10 text-[var(--accent-blue)]',
+        tone === 'green' && 'bg-[var(--accent-green)]/10 text-[var(--accent-green)]',
+        tone === 'neutral' && 'bg-[var(--bg-hover)] text-[var(--text-secondary)]'
+      )}
+    >
+      {children}
+    </span>
+  );
 }
 
 export function LibraryMobileScreen({
@@ -115,152 +130,138 @@ export function LibraryMobileScreen({
   );
 
   return (
-    <div className="space-y-5">
-      <section className="rounded-[1.75rem] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4 shadow-sm">
-        <div className="mb-4 flex items-center gap-3">
-          <div className="rounded-2xl bg-[var(--accent-orange)]/12 p-3 text-[var(--accent-orange)]">
-            <BookOpen className="h-5 w-5" />
-          </div>
-          <div>
-            <p className="t-section-title text-[var(--text-primary)]">Acervo em fluxo leve</p>
-            <p className="t-secondary">Consumo atual, fila futura e itens concluídos sem carregar a grade densa.</p>
-          </div>
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-sm font-black text-[var(--text-primary)]">Biblioteca</p>
+          <p className="text-xs text-[var(--text-secondary)]">{items.length} itens no acervo</p>
         </div>
-
-        <div className="grid grid-cols-3 gap-2">
-          <div className="rounded-[1.2rem] bg-[var(--bg-hover)] px-3 py-3">
-            <p className="t-label text-[var(--text-tertiary)]">Agora</p>
-            <p className="mt-1 text-xl font-black text-[var(--text-primary)]">{tabCounts.current}</p>
-          </div>
-          <div className="rounded-[1.2rem] bg-[var(--bg-hover)] px-3 py-3">
-            <p className="t-label text-[var(--text-tertiary)]">Fila</p>
-            <p className="mt-1 text-xl font-black text-[var(--text-primary)]">{tabCounts.wishlist}</p>
-          </div>
-          <div className="rounded-[1.2rem] bg-[var(--bg-hover)] px-3 py-3">
-            <p className="t-label text-[var(--text-tertiary)]">Feitos</p>
-            <p className="mt-1 text-xl font-black text-[var(--text-primary)]">{tabCounts.done}</p>
-          </div>
-        </div>
-
-        <button type="button" onClick={onOpenCreate} className="button-primary mt-4 w-full">
+        <button
+          type="button"
+          onClick={onOpenCreate}
+          className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-lg border border-[var(--border-color)] bg-[var(--bg-secondary)] px-3 text-[11px] font-black uppercase tracking-[0.12em] text-[var(--text-primary)]"
+        >
           <Plus className="h-4 w-4" />
-          Adicionar item
+          Novo
         </button>
-      </section>
+      </div>
 
-      <section className="space-y-4">
-        <MobileSearchBar
-          value={search}
-          onChange={setSearch}
-          placeholder="Buscar por titulo, autoria, genero ou tag"
-          onFilterClick={() => setIsFilterSheetOpen(true)}
+      <MobileSearchBar
+        value={search}
+        onChange={setSearch}
+        placeholder="Buscar titulo, autoria ou tag"
+        onFilterClick={() => setIsFilterSheetOpen(true)}
+        rounded="tight"
+      />
+
+      <MobileSegmentTabs
+        rounded="tight"
+        tabs={[
+          { value: 'current', label: 'Agora', count: tabCounts.current },
+          { value: 'wishlist', label: 'Fila', count: tabCounts.wishlist },
+          { value: 'done', label: 'Feitos', count: tabCounts.done },
+        ]}
+        value={activeTab}
+        onChange={(value) => setActiveTab(value)}
+      />
+
+      {filteredItems.length === 0 ? (
+        <MobileEmptyState
+          title="Nada nessa visao do acervo"
+          description="Ajuste os filtros ou adicione um novo item."
+          action={focusAction}
+          icon={<SearchCheck className="h-8 w-8" />}
         />
+      ) : (
+        <div className="grid grid-cols-3 gap-2.5">
+          {filteredItems.map((item) => {
+            const ItemIcon = TYPE_ICONS[item.tipo] || BookOpen;
+            const metadata = getItemMeta(item.id);
+            const relatedContents = countContents(item.id);
+            const isPrimary = mobilePrimaryBookId === item.id;
 
-        <MobileSegmentTabs
-          tabs={[
-            { value: 'current', label: 'Agora', count: tabCounts.current },
-            { value: 'wishlist', label: 'Fila', count: tabCounts.wishlist },
-            { value: 'done', label: 'Feitos', count: tabCounts.done },
-          ]}
-          value={activeTab}
-          onChange={(value) => setActiveTab(value)}
-        />
-
-        {filteredItems.length === 0 ? (
-          <MobileEmptyState
-            title="Nada nessa visão do acervo"
-            description="Ajuste os filtros ou adicione um novo item para alimentar essa camada mobile."
-            action={focusAction}
-            icon={<SearchCheck className="h-8 w-8" />}
-          />
-        ) : (
-          <div className="grid grid-cols-3 gap-2">
-            {filteredItems.map((item) => {
-              const ItemIcon = TYPE_ICONS[item.tipo] || BookOpen;
-              const metadata = getItemMeta(item.id);
-              const relatedContents = countContents(item.id);
-              const isPrimary = mobilePrimaryBookId === item.id;
-
-              return (
-                <div key={item.id} className="space-y-2">
+            return (
+              <article
+                key={item.id}
+                className="flex flex-col overflow-hidden rounded-lg border border-[var(--border-color)] bg-[var(--bg-secondary)] shadow-sm"
+              >
+                <button
+                  type="button"
+                  onClick={() => onOpenItem(item.id)}
+                  className="block w-full text-left active:opacity-90"
+                >
                   {item.capaUrl ? (
-                    <button
-                      type="button"
-                      onClick={() => onOpenItem(item.id)}
-                      className="block w-full overflow-hidden rounded-[1.2rem] border border-[var(--border-color)] bg-[var(--bg-secondary)] shadow-sm active:scale-[0.99]"
-                    >
-                      <img src={item.capaUrl} alt={item.titulo} className="aspect-[0.76] w-full object-cover" />
-                    </button>
-                  ) : null}
+                    <img
+                      src={item.capaUrl}
+                      alt=""
+                      className="aspect-[0.76] w-full object-cover"
+                    />
+                  ) : (
+                    <div className="flex aspect-[0.76] w-full items-center justify-center bg-[var(--bg-hover)] text-[var(--text-tertiary)]">
+                      <ItemIcon className="h-6 w-6" />
+                    </div>
+                  )}
 
-                  <MobileGridCard
-                    onClick={() => onOpenItem(item.id)}
-                    icon={!item.capaUrl ? <ItemIcon className="h-5 w-5" /> : undefined}
-                    title={item.titulo}
-                    subtitle={item.autorDiretor || TYPE_LABELS[item.tipo]}
-                    className="min-h-[7.5rem] rounded-[1.2rem] p-3"
-                    titleClassName="line-clamp-2 text-[11px] leading-[1.15rem]"
-                    subtitleClassName="line-clamp-1 text-[10px]"
-                    footerClassName="mt-3"
-                    footer={
-                      <div className="space-y-2">
-                        <div className="flex flex-wrap gap-1">
-                          <span className="rounded-full bg-[var(--bg-hover)] px-2 py-1 text-[9px] font-semibold text-[var(--text-secondary)]">
-                            {TYPE_LABELS[item.tipo]}
-                          </span>
-                          <span className="rounded-full bg-[var(--accent-blue)]/10 px-2 py-1 text-[9px] font-semibold text-[var(--accent-blue)]">
-                            {item.status}
-                          </span>
-                        </div>
+                  <div className="space-y-2 p-2.5">
+                    <div>
+                      <p className="line-clamp-2 text-[11px] font-black leading-snug text-[var(--text-primary)]">
+                        {item.titulo}
+                      </p>
+                      <p className="mt-0.5 line-clamp-1 text-[10px] text-[var(--text-secondary)]">
+                        {item.autorDiretor || TYPE_LABELS[item.tipo]}
+                      </p>
+                    </div>
 
-                        {item.avaliacao ? (
-                          <div className="flex gap-0.5">
-                            {Array.from({ length: 5 }).map((_, index) => (
-                              <Star
-                                key={index}
-                                className={`h-2.5 w-2.5 ${index < item.avaliacao ? 'fill-yellow-400 text-yellow-400' : 'text-[var(--border-strong)]'}`}
-                              />
-                            ))}
-                          </div>
-                        ) : null}
+                    <div className="flex flex-wrap gap-1">
+                      <LibraryBadge>{TYPE_LABELS[item.tipo]}</LibraryBadge>
+                      <LibraryBadge tone="blue">{item.status}</LibraryBadge>
+                      {relatedContents > 0 ? (
+                        <LibraryBadge tone="green">{relatedContents} cont.</LibraryBadge>
+                      ) : null}
+                    </div>
 
-                        <div className="flex flex-wrap gap-1">
-                          {relatedContents > 0 ? (
-                            <span className="rounded-full bg-[var(--accent-green)]/10 px-2 py-1 text-[9px] font-semibold text-[var(--accent-green)]">
-                              {relatedContents} cont.
-                            </span>
-                          ) : null}
-                          {metadata.tagsPersonalizadas?.slice(0, 1).map((tag) => (
-                            <span
-                              key={tag}
-                              className="max-w-full truncate rounded-full bg-[var(--bg-hover)] px-2 py-1 text-[9px] font-semibold text-[var(--text-secondary)]"
-                            >
-                              {tag}
-                            </span>
-                          ))}
-                        </div>
+                    {item.avaliacao ? (
+                      <div className="flex gap-0.5">
+                        {Array.from({ length: 5 }).map((_, index) => (
+                          <Star
+                            key={index}
+                            className={cn(
+                              'h-2.5 w-2.5',
+                              index < item.avaliacao!
+                                ? 'fill-yellow-400 text-yellow-400'
+                                : 'text-[var(--border-strong)]'
+                            )}
+                          />
+                        ))}
                       </div>
-                    }
-                  />
+                    ) : null}
 
+                    {metadata.tagsPersonalizadas?.[0] ? (
+                      <LibraryBadge>{metadata.tagsPersonalizadas[0]}</LibraryBadge>
+                    ) : null}
+                  </div>
+                </button>
+
+                <div className="border-t border-[var(--border-color)] p-2">
                   <button
                     type="button"
                     onClick={() => onTogglePrimary(item.id)}
-                    className={`inline-flex w-full items-center justify-center gap-1.5 rounded-[1rem] border px-2 py-2 text-[9px] font-black uppercase tracking-[0.1em] ${
+                    className={cn(
+                      'inline-flex min-h-9 w-full items-center justify-center gap-1 rounded-md border text-[9px] font-black uppercase tracking-[0.1em] transition-colors',
                       isPrimary
                         ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-[var(--bg-primary)]'
-                        : 'border-[var(--border-color)] bg-[var(--bg-secondary)] text-[var(--text-secondary)]'
-                    }`}
+                        : 'border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-secondary)]'
+                    )}
                   >
                     <Pin className="h-3 w-3" />
                     {isPrimary ? 'Principal' : 'Fixar'}
                   </button>
                 </div>
-              );
-            })}
-          </div>
-        )}
-      </section>
+              </article>
+            );
+          })}
+        </div>
+      )}
 
       <MobileFilterSheet
         open={isFilterSheetOpen}
@@ -269,7 +270,11 @@ export function LibraryMobileScreen({
       >
         <label className="block space-y-2">
           <span className="t-label text-[var(--text-tertiary)]">Tipo</span>
-          <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value as 'all' | BibliotecaTipo)}>
+          <select
+            value={typeFilter}
+            onChange={(event) => setTypeFilter(event.target.value as 'all' | BibliotecaTipo)}
+            className="min-h-11 w-full rounded-lg"
+          >
             <option value="all">Todos</option>
             <option value="livro">Livro</option>
             <option value="filme">Filme</option>
@@ -282,7 +287,11 @@ export function LibraryMobileScreen({
 
         <label className="block space-y-2">
           <span className="t-label text-[var(--text-tertiary)]">Status</span>
-          <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as 'all' | StatusLeitura)}>
+          <select
+            value={statusFilter}
+            onChange={(event) => setStatusFilter(event.target.value as 'all' | StatusLeitura)}
+            className="min-h-11 w-full rounded-lg"
+          >
             <option value="all">Todos</option>
             {statusOptions.map((status) => (
               <option key={status} value={status}>

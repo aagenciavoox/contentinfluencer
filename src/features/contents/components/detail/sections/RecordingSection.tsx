@@ -2,6 +2,7 @@ import {CheckCircle2, Clapperboard, Plus, Video} from 'lucide-react';
 import {useMemo, useState} from 'react';
 import {useNavigate} from 'react-router-dom';
 import {AppButton} from '../../../../../components/ui/AppButton';
+import {useIsMobile} from '../../../../../hooks/useIsMobile';
 import type {Content, RecordingBlock, RecordingBlockContent} from '../../../../../lib/database';
 import {cn} from '../../../../../lib/utils';
 import {
@@ -28,6 +29,7 @@ export function RecordingSection({
   onDispatch,
 }: RecordingSectionProps) {
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const [blockName, setBlockName] = useState('');
   const [selectedBlockId, setSelectedBlockId] = useState('');
   const [feedback, setFeedback] = useState<string | null>(null);
@@ -92,6 +94,9 @@ export function RecordingSection({
 
       setBlockName('');
       setFeedback(`Bloco criado: ${block.name}. Este conteudo entrou na ordem 1.`);
+      if (isMobile) {
+        navigate(`/gravacao/${blockId}`);
+      }
     } finally {
       setIsBusy(false);
     }
@@ -130,6 +135,9 @@ export function RecordingSection({
 
       setSelectedBlockId('');
       setFeedback(`Conteudo adicionado ao bloco ${block.name} na ordem ${nextOrder + 1}.`);
+      if (isMobile) {
+        navigate(`/gravacao/${block.id}`);
+      }
     } finally {
       setIsBusy(false);
     }

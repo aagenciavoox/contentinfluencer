@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, CheckCircle, CheckCircle2, Mic, Video } from 'lucide-react';
 import { useAppContext } from '../../../context/AppContext';
 import { useIsMobile } from '../../../hooks/useIsMobile';
@@ -10,6 +10,7 @@ import type { Content } from '../../../lib/database';
 
 export function RecordingBlockPage() {
   const { id } = useParams<{ id: string }>();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { state, dispatch } = useAppContext();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
@@ -18,6 +19,18 @@ export function RecordingBlockPage() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [done, setDone] = useState(false);
   const [isMobileBurstOpen, setIsMobileBurstOpen] = useState(false);
+
+  const burstLaunch = searchParams.get('burst') === '1';
+
+  useEffect(() => {
+    if (!isMobile || !burstLaunch) return;
+    setIsMobileBurstOpen(true);
+    setSearchParams(previous => {
+      const next = new URLSearchParams(previous);
+      next.delete('burst');
+      return next;
+    }, { replace: true });
+  }, [burstLaunch, isMobile, setSearchParams]);
 
   const blockContents = useMemo(
     () => (block ? [...block.contents].sort((a, b) => a.ordem - b.ordem) : []),

@@ -10,6 +10,7 @@ import {
   UserCircle2,
 } from 'lucide-react';
 import { MobileListCard } from '../../components/MobileListCard';
+import { MobileToggleSwitch } from '../../components/MobileToggleSwitch';
 
 interface SettingsMobileScreenProps {
   moduleCards: Array<{
@@ -71,20 +72,11 @@ export function SettingsMobileScreen({
                 <p className="mt-1 text-xs text-[var(--text-secondary)]">{item.desc}</p>
               </div>
 
-              <button
-                type="button"
-                onClick={item.onToggle}
-                className={`relative h-7 w-12 shrink-0 rounded-full transition-colors ${
-                  item.enabled ? 'bg-[var(--text-primary)]' : 'bg-[var(--bg-hover)]'
-                }`}
-                aria-label={`${item.enabled ? 'Desativar' : 'Ativar'} módulo ${item.title}`}
-              >
-                <span
-                  className={`absolute top-1 h-5 w-5 rounded-full bg-white transition-all ${
-                    item.enabled ? 'left-6' : 'left-1'
-                  }`}
-                />
-              </button>
+              <MobileToggleSwitch
+                enabled={item.enabled}
+                onToggle={item.onToggle}
+                label={`módulo ${item.title}`}
+              />
             </div>
           ))}
         </div>

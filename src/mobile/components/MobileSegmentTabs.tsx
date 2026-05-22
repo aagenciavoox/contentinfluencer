@@ -10,16 +10,23 @@ interface MobileSegmentTabsProps<T extends string> {
   tabs: readonly MobileSegmentTab<T>[];
   value: T;
   onChange: (value: T) => void;
+  rounded?: 'default' | 'tight';
 }
 
 export function MobileSegmentTabs<T extends string>({
   tabs,
   value,
   onChange,
+  rounded = 'default',
 }: MobileSegmentTabsProps<T>) {
+  const isTight = rounded === 'tight';
+
   return (
     <div
-      className="grid gap-2 rounded-[1.4rem] bg-[var(--bg-hover)] p-1"
+      className={cn(
+        'grid gap-1 bg-[var(--bg-hover)] p-1',
+        isTight ? 'rounded-lg' : 'gap-2 rounded-[1.4rem]'
+      )}
       style={{ gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))` }}
     >
       {tabs.map((tab) => {
@@ -31,13 +38,21 @@ export function MobileSegmentTabs<T extends string>({
             type="button"
             onClick={() => onChange(tab.value)}
             className={cn(
-              'flex min-h-11 items-center justify-center gap-2 rounded-[1rem] px-3 transition-colors',
+              'flex min-h-11 items-center justify-center gap-1.5 px-2 transition-colors',
+              isTight ? 'rounded-md' : 'gap-2 rounded-[1rem] px-3',
               active ? 'bg-[var(--bg-secondary)] text-[var(--text-primary)] shadow-sm' : 'text-[var(--text-tertiary)]'
             )}
           >
-            <span className="t-button t-button-uppercase">{tab.label}</span>
+            <span className={cn('font-black uppercase', isTight ? 'text-[10px] tracking-[0.12em]' : 't-button t-button-uppercase')}>
+              {tab.label}
+            </span>
             {typeof tab.count === 'number' ? (
-              <span className="rounded-full bg-[var(--bg-hover)] px-2 py-0.5 text-[11px] font-semibold text-[var(--text-secondary)]">
+              <span
+                className={cn(
+                  'bg-[var(--bg-hover)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--text-secondary)]',
+                  isTight ? 'rounded' : 'rounded-full text-[11px]'
+                )}
+              >
                 {tab.count}
               </span>
             ) : null}

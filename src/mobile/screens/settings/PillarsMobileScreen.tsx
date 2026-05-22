@@ -3,6 +3,7 @@ import { BottomSheetModal } from '../../../components/feedback/modals/BottomShee
 import type { Pilar } from '../../../lib/database';
 import { MobileEmptyState } from '../../components/MobileEmptyState';
 import { MobileListCard } from '../../components/MobileListCard';
+import { MobilePillButton } from '../../components/MobilePillButton';
 import { Palette, Plus } from 'lucide-react';
 
 interface PillarsMobileScreenProps {
@@ -102,29 +103,23 @@ export function PillarsMobileScreen({
                 </>
               }
               trailing={
-                <button
-                  type="button"
+                <MobilePillButton
+                  tone="danger"
                   onClick={(event) => {
                     event.stopPropagation();
                     onDelete(pilar.id);
                   }}
-                  className="rounded-full bg-[var(--accent-pink)]/10 px-3 py-2 text-[11px] font-black uppercase tracking-[0.14em] text-[var(--accent-pink)]"
                 >
                   Excluir
-                </button>
+                </MobilePillButton>
               }
               status={
-                <button
-                  type="button"
+                <MobilePillButton
+                  tone={pilar.ativo ? 'success' : 'muted'}
                   onClick={() => onToggle(pilar)}
-                  className={`rounded-full px-3 py-1 text-[11px] font-semibold ${
-                    pilar.ativo
-                      ? 'bg-[var(--accent-green)]/10 text-[var(--accent-green)]'
-                      : 'bg-[var(--bg-hover)] text-[var(--text-secondary)]'
-                  }`}
                 >
                   {pilar.ativo ? 'Ativo' : 'Inativo'}
-                </button>
+                </MobilePillButton>
               }
             />
           ))

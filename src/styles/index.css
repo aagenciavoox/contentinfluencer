@@ -113,6 +113,16 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
+body.mobile-burst-open #root {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+body.mobile-burst-open > [data-burst-portal] {
+  visibility: visible;
+  pointer-events: auto;
+}
+
 /* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 8px;

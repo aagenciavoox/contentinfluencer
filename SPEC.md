@@ -12,7 +12,7 @@
 - **Isolamento:** RLS ativo em todas as 26 tabelas — sem exceção
 - **PWA/Offline:** não — webapp normal
 - **Tema:** dark mode como padrão
-- **Supabase project:** `njrjqwuphzkdpwqtgubv`
+- **Supabase project:** `aftffcaychrfffefkeoj`
 - **Tipos TS centralizados em:** `src/lib/database.ts`
 - **Estado global:** `src/context/AppContext.tsx` + `src/context/reducer.ts`
 

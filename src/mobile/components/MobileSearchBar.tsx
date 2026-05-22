@@ -1,4 +1,5 @@
 import { Search, SlidersHorizontal } from 'lucide-react';
+import { cn } from '../../lib/utils';
 
 interface MobileSearchBarProps {
   value: string;
@@ -6,6 +7,7 @@ interface MobileSearchBarProps {
   placeholder?: string;
   onFilterClick?: () => void;
   filterLabel?: string;
+  rounded?: 'default' | 'tight';
 }
 
 export function MobileSearchBar({
@@ -14,10 +16,18 @@ export function MobileSearchBar({
   placeholder = 'Buscar',
   onFilterClick,
   filterLabel = 'Abrir filtros',
+  rounded = 'default',
 }: MobileSearchBarProps) {
+  const radius = rounded === 'tight' ? 'rounded-lg' : 'rounded-[1.25rem]';
+
   return (
-    <div className="flex items-center gap-3">
-      <label className="flex min-h-12 flex-1 items-center gap-3 rounded-[1.25rem] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 shadow-sm">
+    <div className="flex items-center gap-2">
+      <label
+        className={cn(
+          'flex min-h-11 flex-1 items-center gap-2 border border-[var(--border-color)] bg-[var(--bg-secondary)] px-3 shadow-sm',
+          radius
+        )}
+      >
         <Search className="h-4 w-4 text-[var(--text-tertiary)]" />
         <input
           type="text"
@@ -33,7 +43,10 @@ export function MobileSearchBar({
           type="button"
           aria-label={filterLabel}
           onClick={onFilterClick}
-          className="flex h-12 w-12 items-center justify-center rounded-[1.25rem] border border-[var(--border-color)] bg-[var(--bg-secondary)] text-[var(--text-primary)] shadow-sm active:scale-95"
+          className={cn(
+            'flex min-h-11 min-w-11 items-center justify-center border border-[var(--border-color)] bg-[var(--bg-secondary)] text-[var(--text-primary)] shadow-sm active:scale-95',
+            radius
+          )}
         >
           <SlidersHorizontal className="h-4 w-4" />
         </button>
