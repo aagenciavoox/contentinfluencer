@@ -123,6 +123,7 @@ export function ContentsToolbar({
       </div>
 
       <FilterBar
+        compact
         searchValue={searchTerm}
         onSearchChange={onSearchChange}
         searchPlaceholder={

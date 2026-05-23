@@ -72,10 +72,9 @@ export function PlatformsSettingsPage() {
           <DesktopPageHeader
             section="Configurações"
             title="Plataformas"
-            subtitle="Ative os canais da operação e preserve referências históricas mesmo quando uma plataforma sair do fluxo de criação."
             icon={MonitorSpeaker}
             backLabel="Configurações"
-            onBack={() => navigate('/configuracoes')}
+            backTo="/configuracoes"
             actions={
               <AppButton
                 onClick={() => setShowForm(true)}

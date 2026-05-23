@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Search } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -11,6 +11,10 @@ import { MobileAppShell } from '../../mobile/components/MobileAppShell';
 import { MobileBottomNav } from '../../mobile/components/MobileBottomNav';
 import { MobileHeaderIOS } from '../../mobile/components/MobileHeaderIOS';
 import { getMobileRouteMeta } from '../../mobile/config/mobileRouteMeta';
+import { resolveRouteBack } from '../../lib/navigation/detailBack';
+import { SaveFeedbackToast } from '../../components/ui/SaveFeedbackToast';
+import { useAppContext } from '../../context/AppContext';
+import { forceMobileRefresh } from '../../lib/pwaRefresh';
 
 interface AppShellProps {
   children: ReactNode;
@@ -25,6 +29,11 @@ export function AppShell({ children }: AppShellProps) {
   const navigate = useNavigate();
   const { isHidden, handleScroll } = useHideOnScroll(isMobile);
   const routeMeta = getMobileRouteMeta(location.pathname);
+  const { syncFromServer } = useAppContext();
+
+  const handlePullRefresh = useCallback(async () => {
+    await forceMobileRefresh(() => syncFromServer({ silent: true }));
+  }, [syncFromServer]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -56,20 +65,22 @@ export function AppShell({ children }: AppShellProps) {
         />
 
         <MobileAppShell
+          compactHeader={routeMeta.titleVariant === 'compact-center'}
           header={(
             <MobileHeaderIOS
               title={routeMeta.title}
               subtitle={routeMeta.subtitle}
+              titleVariant={routeMeta.titleVariant}
               mode={routeMeta.mode}
               isHidden={isHidden}
               onLeftAction={() => {
                 if (routeMeta.mode === 'back') {
-                  if (routeMeta.backTo) {
-                    navigate(routeMeta.backTo, {replace: true});
-                    return;
-                  }
-
-                  navigate(-1);
+                  const target = resolveRouteBack(
+                    location.pathname,
+                    location.state as { from?: string } | null,
+                    routeMeta.backTo ?? '/dashboard',
+                  );
+                  navigate(target);
                   return;
                 }
 
@@ -92,9 +103,11 @@ export function AppShell({ children }: AppShellProps) {
             />
           )}
           onScroll={handleScroll}
+          onPullRefresh={handlePullRefresh}
         >
           {children}
         </MobileAppShell>
+        <SaveFeedbackToast />
       </div>
     );
   }
@@ -125,6 +138,7 @@ export function AppShell({ children }: AppShellProps) {
       >
         <div className="min-h-full">{children}</div>
       </main>
+      <SaveFeedbackToast />
     </div>
   );
 }

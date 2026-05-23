@@ -2,6 +2,7 @@ import {useNavigate} from 'react-router-dom';
 import {
   ChevronRight,
   Fingerprint,
+  FolderKanban,
   Layers,
   Layout,
   MonitorSpeaker,
@@ -72,6 +73,16 @@ export function SettingsPage() {
       title: 'Templates de Roteiro',
       desc: 'Modelos de roteiro reutilizáveis por série ou formato',
     },
+    ...(moduleFlags.projects
+      ? [
+          {
+            to: '/projetos',
+            icon: FolderKanban,
+            title: 'Projetos',
+            desc: 'Campanhas, publis e produções editoriais',
+          },
+        ]
+      : []),
   ];
 
   const moduleCards: Array<{
@@ -126,7 +137,6 @@ export function SettingsPage() {
         <DesktopPageHeader
           section="Sistema"
           title="Configurações"
-          subtitle="Centralize as regras e definições que moldam o comportamento do seu sistema."
           icon={SettingsIcon}
         />
       </div>

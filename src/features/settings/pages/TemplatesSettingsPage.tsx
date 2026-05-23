@@ -265,10 +265,9 @@ export function TemplatesSettingsPage() {
           <DesktopPageHeader
             section="Configurações"
             title="Templates"
-            subtitle="Um catálogo único de estruturas reutilizáveis, com tipo definido por tag."
             icon={Layout}
             backLabel="Configurações"
-            onBack={() => navigate('/configuracoes')}
+            backTo="/configuracoes"
             actions={
               <button
                 onClick={() => setShowNewForm(true)}

@@ -3,6 +3,8 @@ import { X, Upload, FileText, Check, AlertCircle, Info } from 'lucide-react';
 import { FixedPanelModal } from '../../../../components/overlays/FixedPanelModal';
 import { Content } from '../../../../lib/database';
 import { useAppContext } from '../../../../context/AppContext';
+import { broadcastDataSync } from '../../../../lib/syncBroadcast';
+import { notifySaveFeedback } from '../../../../lib/saveFeedback';
 import { cn } from '../../../../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -93,17 +95,35 @@ export function CSVUploadModal({ onClose }: CSVUploadModalProps) {
     reader.readAsText(file);
   };
 
-  const handleImport = () => {
+  const handleImport = async () => {
     if (preview.length === 0) return;
-    
-    preview.forEach(content => {
-      dispatch({ type: 'ADD_CONTENT', payload: content as Content });
+
+    notifySaveFeedback({
+      status: 'saving',
+      message: `Importando ${preview.length} conteudos...`,
     });
-    
-    setIsSuccess(true);
-    setTimeout(() => {
-      onClose();
-    }, 2000);
+
+    try {
+      for (const content of preview) {
+        await dispatch(
+          { type: 'ADD_CONTENT', payload: content as Content },
+          { silent: true, skipBroadcast: true }
+        );
+      }
+
+      broadcastDataSync();
+      notifySaveFeedback({
+        status: 'success',
+        message: `${preview.length} conteudos importados`,
+      });
+      setIsSuccess(true);
+      setTimeout(() => {
+        onClose();
+      }, 2000);
+    } catch (err) {
+      console.error('[CSVUploadModal] import failed:', err);
+      setError('Nao foi possivel importar todos os roteiros. Tente novamente.');
+    }
   };
 
   return (

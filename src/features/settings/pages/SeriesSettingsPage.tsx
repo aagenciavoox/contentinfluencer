@@ -243,10 +243,9 @@ export function SeriesSettingsPage() {
         <DesktopPageHeader
           section="Configuracoes"
           title="Series"
-          subtitle="Estruture quadros recorrentes com identidade, frequencia, roteiro-base e hashtags por plataforma."
           icon={Layers}
           backLabel="Configuracoes"
-          onBack={() => navigate('/configuracoes')}
+          backTo="/configuracoes"
           actions={
             <AppButton
               onClick={() => {

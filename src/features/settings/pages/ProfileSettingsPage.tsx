@@ -240,10 +240,9 @@ export function ProfileSettingsPage() {
           <DesktopPageHeader
             section="Configurações"
             title="Perfil"
-            subtitle="Gerencie identificação da conta, e-mail de acesso e credenciais em um único lugar."
             icon={UserCircle2}
             backLabel="Configurações"
-            onBack={() => navigate('/configuracoes')}
+            backTo="/configuracoes"
           />
         </div>
       </header>

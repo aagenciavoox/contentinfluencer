@@ -17,7 +17,6 @@ export function EditorialCalendarHeader({onAddAgenda, onAddPostedVideo}: Editori
         <DesktopPageHeader
           section="Planejamento"
           title="Calendario Editorial"
-          subtitle="Visao unica para agenda, projetos, gravacoes e publicacoes."
           icon={CalendarIcon}
           className="mb-0"
           actions={[

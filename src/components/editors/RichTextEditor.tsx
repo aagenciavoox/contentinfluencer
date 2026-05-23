@@ -62,6 +62,7 @@ interface RichTextEditorProps {
   documentTitle?: string;
   compactMobileComposer?: boolean;
   autoFocus?: boolean;
+  variant?: 'default' | 'workspace';
 }
 
 type FormattingAction = {
@@ -110,7 +111,9 @@ export function RichTextEditor({
   documentTitle = 'Novo roteiro',
   compactMobileComposer = false,
   autoFocus = false,
+  variant = 'default',
 }: RichTextEditorProps) {
+  const isWorkspace = variant === 'workspace';
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [selectionMenu, setSelectionMenu] = useState<{ x: number; y: number } | null>(null);
   const [marginMenu, setMarginMenu] = useState<{ x: number; y: number } | null>(null);
@@ -530,14 +533,17 @@ export function RichTextEditor({
       <motion.div
         layout
         className={cn(
-          'relative border border-[var(--border-color)] rounded-2xl transition-all duration-500 overflow-hidden',
+          'relative border border-[var(--border-color)] transition-all duration-500 overflow-hidden',
+          isWorkspace ? 'flex min-h-[calc(100vh-280px)] flex-col rounded-[var(--radius-card)] bg-[var(--bg-elevated)]' : 'rounded-2xl',
           isFullscreen
             ? isMobile
               ? 'fixed inset-0 z-[100] flex flex-col rounded-none border-0 bg-white shadow-none'
               : 'fixed left-1/2 top-1/2 z-[100] flex h-[min(1120px,calc(100dvh-56px))] w-[min(1420px,calc(100vw-56px))] -translate-x-1/2 -translate-y-1/2 flex-col rounded-[28px] border border-[#e5e7eb] bg-white shadow-[0_24px_80px_rgba(15,23,42,0.18)]'
             : compactMobileComposer
               ? 'flex min-h-[56dvh] flex-col bg-white'
-              : 'flex min-h-[400px] flex-col bg-[var(--bg-secondary)]/50',
+              : isWorkspace
+                ? ''
+                : 'flex min-h-[400px] flex-col bg-[var(--bg-secondary)]/50',
           className,
         )}
       >
@@ -795,7 +801,9 @@ export function RichTextEditor({
               ? 'bg-white'
               : compactMobileComposer
                 ? 'bg-white p-0'
-                : 'bg-[var(--bg-secondary)]/30 p-4 md:p-8 lg:p-12',
+                : isWorkspace
+                  ? 'bg-[var(--bg-elevated)] p-3 md:p-5'
+                  : 'bg-[var(--bg-secondary)]/30 p-4 md:p-8 lg:p-12',
             editorViewportClassName,
           )}
         >
@@ -816,7 +824,9 @@ export function RichTextEditor({
                     )
                   : compactMobileComposer
                     ? 'min-h-[56dvh] rounded-[1.35rem] border border-[var(--border-color)] px-4 py-4 shadow-sm'
-                    : 'min-h-[800px] rounded-[4px] border border-[#e5e7eb] p-12 shadow-[0_2px_15px_rgba(0,0,0,0.02)] md:p-24',
+                    : isWorkspace
+                      ? 'min-h-[calc(100vh-340px)] rounded-[var(--radius-input)] border border-[var(--border-color)] px-5 py-6 md:px-8 md:py-10'
+                      : 'min-h-[800px] rounded-[4px] border border-[#e5e7eb] p-12 shadow-[0_2px_15px_rgba(0,0,0,0.02)] md:p-24',
                 editorCanvasClassName,
               )}
             >

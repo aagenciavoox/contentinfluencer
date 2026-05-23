@@ -60,7 +60,6 @@ export function DashboardPage() {
         <DesktopPageHeader
           section="Central"
           title="Dashboard"
-          subtitle="Acompanhe o panorama da operacao, os gargalos do pipeline e o que pede acao agora."
           icon={Sparkles}
           className="mb-0"
         />

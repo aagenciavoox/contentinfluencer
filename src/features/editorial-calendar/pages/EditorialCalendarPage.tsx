@@ -1,7 +1,9 @@
-import {useCallback, useMemo, useState} from 'react';
+import {useCallback, useEffect, useMemo, useState} from 'react';
+import {useNavigate} from 'react-router-dom';
 import {addMonths, addWeeks, eachDayOfInterval, endOfWeek, format, isSameDay, startOfWeek, subMonths, subWeeks} from 'date-fns';
 import {ptBR} from 'date-fns/locale';
-import {BookOpen, CalendarDays, ChevronLeft, ChevronRight, Filter, Layers, Mic2, Plus, Send, Target, X, Zap} from 'lucide-react';
+import {BookOpen, CalendarDays, ChevronLeft, ChevronRight, Mic2, PanelRight, Plus, Radio, Send, Target, X, Zap} from 'lucide-react';
+import {AppButton} from '../../../components/ui/AppButton';
 import {BottomSheetModal} from '../../../components/feedback/modals/BottomSheetModal';
 import {useAppContext} from '../../../context/AppContext';
 import {AgendaItem, Content, Platform, Projeto} from '../../../lib/database';
@@ -9,17 +11,22 @@ import {useIsMobile} from '../../../hooks/useIsMobile';
 import {readStoredJson, writeStoredJson} from '../../../lib/browserStorage';
 import {cn} from '../../../lib/utils';
 import {AgendaMobileScreen} from '../../../mobile/screens/agenda/AgendaMobileScreen';
-import {CONTENT_STATUS} from '../../contents/lib/contentPipeline';
+import {CONTENT_STATUS, ContentStage, getContentStage} from '../../contents/lib/contentPipeline';
+import {buildContentDetailRoute} from '../../contents/lib/contentDetailRoute';
 import {createContentDraft} from '../../contents/lib/createContentDraft';
-import {EditorialCalendarHeader} from '../components/EditorialCalendarHeader';
 import {buildCalendarEntries, CalendarEntry, MonthlyCalendarView} from '../components/MonthlyCalendarView';
 
 const STORAGE_KEY = 'content-os:calendar-layers';
+const PANEL_STORAGE_KEY = 'content-os:calendar-day-panel';
 const DEFAULT_LAYERS = ['recordings', 'posts', 'projects', 'agenda'];
 type CalendarViewMode = 'month' | 'week' | 'agenda' | 'timeline';
 
 function loadLayers(): string[] {
   return readStoredJson(STORAGE_KEY, DEFAULT_LAYERS);
+}
+
+function loadDayPanelOpen(): boolean {
+  return readStoredJson(PANEL_STORAGE_KEY, true);
 }
 
 export function getStatusIcon() {
@@ -38,6 +45,12 @@ export function EditorialCalendarPage() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<CalendarViewMode>('month');
+  const [dayPanelOpen, setDayPanelOpenRaw] = useState(loadDayPanelOpen);
+
+  const setDayPanelOpen = useCallback((value: boolean) => {
+    setDayPanelOpenRaw(value);
+    writeStoredJson(PANEL_STORAGE_KEY, value);
+  }, []);
 
   const setActiveLayers = useCallback((updater: string[] | ((prev: string[]) => string[])) => {
     setActiveLayersRaw(prev => {
@@ -64,6 +77,22 @@ export function EditorialCalendarPage() {
   const allCalendarEntries = Array.from(entriesByDate.values()).flat();
   const weeklyRecordings = allCalendarEntries.filter(entry => entry.type === 'recording').length;
   const weeklyPosts = allCalendarEntries.filter(entry => entry.type === 'publish').length;
+
+  useEffect(() => {
+    if (viewMode === 'agenda' || viewMode === 'timeline') {
+      setDayPanelOpen(false);
+    }
+  }, [viewMode, setDayPanelOpen]);
+
+  const handleViewChange = useCallback(
+    (next: CalendarViewMode) => {
+      setViewMode(next);
+      if (next === 'agenda' || next === 'timeline') {
+        setDayPanelOpen(false);
+      }
+    },
+    [setDayPanelOpen]
+  );
 
   if (isMobile) {
     return (
@@ -141,25 +170,28 @@ export function EditorialCalendarPage() {
 
   return (
     <div className="min-h-full bg-[var(--bg-primary)] transition-colors duration-200">
-      <EditorialCalendarHeader
-        onAddAgenda={() => setIsAddAgendaOpen(true)}
-        onAddPostedVideo={() => setIsAddPostedVideoOpen(true)}
-      />
-
-      <div className="h-[calc(100vh-120px)] overflow-y-auto custom-scrollbar">
-        <div className="mx-auto max-w-[1760px] px-5 py-5 md:px-8">
-          <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
-            <div className="min-w-0 space-y-3">
+      <div className="h-[calc(100vh-64px)] overflow-y-auto custom-scrollbar">
+        <div className="mx-auto max-w-[1760px] px-5 py-4 md:px-8">
+          <div
+            className={cn(
+              'grid gap-4',
+              dayPanelOpen ? 'xl:grid-cols-[minmax(0,1fr)_320px]' : 'grid-cols-1'
+            )}
+          >
+            <div className="relative min-w-0 space-y-2">
               <CalendarCommandBar
                 month={currentMonth}
                 viewMode={viewMode}
-                pillars={state.pilares}
-                platforms={state.platforms}
                 searchTerm={searchTerm}
                 sortValue={sortValue}
+                dayPanelOpen={dayPanelOpen}
+                selectedEntriesCount={selectedEntries.length}
                 onSearchChange={setSearchTerm}
                 onSortChange={setSortValue}
-                onViewChange={setViewMode}
+                onViewChange={handleViewChange}
+                onToggleDayPanel={() => setDayPanelOpen(!dayPanelOpen)}
+                onAddAgenda={() => setIsAddAgendaOpen(true)}
+                onAddPostedVideo={() => setIsAddPostedVideoOpen(true)}
                 onPrevMonth={() => {
                   setCurrentMonth(date => viewMode === 'week' ? subWeeks(date, 1) : subMonths(date, 1));
                   if (viewMode === 'week') setSelectedDate(date => subWeeks(date, 1));
@@ -220,13 +252,36 @@ export function EditorialCalendarPage() {
               />
             </div>
 
-            <CalendarDayPanel
-              selectedDate={selectedDate}
-              entries={selectedEntries}
-              onClose={() => setSelectedDate(new Date())}
-              onSelectEntry={setSelectedCalendarEntry}
-              onAddAgenda={() => setIsAddAgendaOpen(true)}
-            />
+            {dayPanelOpen ? (
+              <CalendarDayPanel
+                selectedDate={selectedDate}
+                entries={selectedEntries}
+                onClose={() => setDayPanelOpen(false)}
+                onSelectEntry={setSelectedCalendarEntry}
+                onAddAgenda={() => setIsAddAgendaOpen(true)}
+              />
+            ) : (
+              <button
+                type="button"
+                onClick={() => setDayPanelOpen(true)}
+                className="fixed bottom-6 right-6 z-30 flex items-center gap-2 rounded-[var(--radius-pill)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-4 py-2.5 text-sm font-semibold text-[var(--text-primary)] shadow-[var(--shadow-soft)] hover:bg-[var(--bg-hover)] xl:hidden"
+                aria-label="Abrir painel do dia"
+              >
+                <PanelRight className="h-4 w-4" />
+                Dia · {selectedEntries.length}
+              </button>
+            )}
+
+            {!dayPanelOpen ? (
+              <button
+                type="button"
+                onClick={() => setDayPanelOpen(true)}
+                className="fixed bottom-6 right-6 z-30 hidden items-center gap-2 rounded-[var(--radius-pill)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-4 py-2.5 text-sm font-semibold text-[var(--text-primary)] shadow-[var(--shadow-soft)] hover:bg-[var(--bg-hover)] xl:flex"
+              >
+                <PanelRight className="h-4 w-4" />
+                {format(selectedDate, 'd MMM', {locale: ptBR})} · {selectedEntries.length} eventos
+              </button>
+            ) : null}
           </div>
         </div>
       </div>
@@ -293,25 +348,31 @@ export function EditorialCalendarPage() {
 function CalendarCommandBar({
   month,
   viewMode,
-  pillars,
-  platforms,
   searchTerm,
   sortValue,
+  dayPanelOpen,
+  selectedEntriesCount,
   onSearchChange,
   onSortChange,
   onViewChange,
+  onToggleDayPanel,
+  onAddAgenda,
+  onAddPostedVideo,
   onPrevMonth,
   onNextMonth,
 }: {
   month: Date;
   viewMode: CalendarViewMode;
-  pillars: {id: string; nome: string}[];
-  platforms: {id: string; nome: string; ativo: boolean}[];
   searchTerm: string;
   sortValue: string;
+  dayPanelOpen: boolean;
+  selectedEntriesCount: number;
   onSearchChange: (value: string) => void;
   onSortChange: (value: string) => void;
   onViewChange: (value: CalendarViewMode) => void;
+  onToggleDayPanel: () => void;
+  onAddAgenda: () => void;
+  onAddPostedVideo: () => void;
   onPrevMonth: () => void;
   onNextMonth: () => void;
 }) {
@@ -326,82 +387,74 @@ function CalendarCommandBar({
   ];
 
   return (
-    <div className="rounded-lg border border-[var(--border-color)] bg-[color-mix(in_srgb,var(--bg-elevated),transparent_4%)] px-3 py-3 shadow-[var(--shadow-soft)]">
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="flex rounded-lg bg-[var(--surface-subtle)] p-1">
-          {views.map(view => (
-            <button
-              key={view.id}
-              type="button"
-              onClick={() => onViewChange(view.id)}
-              className={cn(
-                'h-9 rounded-md px-4 text-[13px] font-semibold transition-all',
-                viewMode === view.id
-                  ? 'bg-[color-mix(in_srgb,var(--accent-purple),transparent_88%)] text-[var(--accent-purple)] shadow-sm'
-                  : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-              )}
-            >
-              {view.label}
-            </button>
-          ))}
-        </div>
+    <div className="ds-card flex flex-wrap items-center gap-2 bg-[var(--bg-elevated)] px-3 py-2">
+      <p className="mr-1 hidden text-sm font-semibold text-[var(--text-primary)] lg:block">Calendario</p>
 
-        <div className="flex items-center gap-2 rounded-lg border border-[var(--border-color)] bg-[var(--bg-elevated)] px-2 py-1.5">
-          <button type="button" onClick={onPrevMonth} className="flex h-8 w-8 items-center justify-center rounded-full hover:bg-[var(--bg-hover)]">
-            <ChevronLeft className="h-4 w-4" />
+      <div className="flex rounded-[var(--radius-input)] bg-[var(--surface-subtle)] p-0.5">
+        {views.map(view => (
+          <button
+            key={view.id}
+            type="button"
+            onClick={() => onViewChange(view.id)}
+            className={cn(
+              'h-8 rounded-[var(--radius-input)] px-3 text-xs font-semibold transition-all',
+              viewMode === view.id
+                ? 'bg-[var(--bg-elevated)] text-[var(--text-primary)] shadow-sm'
+                : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+            )}
+          >
+            {view.label}
           </button>
-          <div className="flex min-w-[150px] items-center justify-center gap-2 text-[14px] font-semibold text-[var(--text-primary)]">
-            <CalendarDays className="h-4 w-4 text-[var(--text-secondary)]" />
-            {navLabel}
-          </div>
-          <button type="button" onClick={onNextMonth} className="flex h-8 w-8 items-center justify-center rounded-full hover:bg-[var(--bg-hover)]">
-            <ChevronRight className="h-4 w-4" />
-          </button>
-        </div>
+        ))}
+      </div>
 
-        <select className="h-10 min-w-[170px] rounded-lg">
-          <option value="">Pilares: Todos</option>
-          {pillars.map(pillar => (
-            <option key={pillar.id} value={pillar.id}>
-              {pillar.nome}
-            </option>
-          ))}
-        </select>
-
-        <select className="h-10 min-w-[190px] rounded-lg">
-          <option value="">Plataformas: Todas</option>
-          {platforms.filter(platform => platform.ativo).map(platform => (
-            <option key={platform.id} value={platform.id}>
-              {platform.nome}
-            </option>
-          ))}
-        </select>
-
-        <input
-          type="text"
-          value={searchTerm}
-          onChange={event => onSearchChange(event.target.value)}
-          placeholder="Buscar"
-          className="h-10 min-w-[150px] flex-1 rounded-lg"
-        />
-
-        <select
-          value={sortValue}
-          onChange={event => onSortChange(event.target.value)}
-          className="h-10 min-w-[150px] rounded-lg"
-        >
-          <option value="proximos">Proximos</option>
-          <option value="titulo:asc">Titulo A-Z</option>
-          <option value="tipo:asc">Tipo</option>
-        </select>
-
-        <button type="button" className="flex h-10 items-center gap-2 rounded-lg border border-[var(--border-color)] bg-[var(--bg-elevated)] px-4 text-[13px] font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-hover)]">
-          <Filter className="h-4 w-4" />
-          Filtros
-          <span className="rounded-full bg-[color-mix(in_srgb,var(--accent-purple),transparent_86%)] px-2 py-0.5 text-[11px] text-[var(--accent-purple)]">
-            2
-          </span>
+      <div className="flex items-center gap-1 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-primary)] px-1.5 py-1">
+        <button type="button" onClick={onPrevMonth} className="flex h-7 w-7 items-center justify-center rounded-full hover:bg-[var(--bg-hover)]">
+          <ChevronLeft className="h-4 w-4" />
         </button>
+        <div className="flex min-w-[120px] items-center justify-center gap-1.5 text-sm font-semibold text-[var(--text-primary)]">
+          <CalendarDays className="h-3.5 w-3.5 text-[var(--text-secondary)]" />
+          {navLabel}
+        </div>
+        <button type="button" onClick={onNextMonth} className="flex h-7 w-7 items-center justify-center rounded-full hover:bg-[var(--bg-hover)]">
+          <ChevronRight className="h-4 w-4" />
+        </button>
+      </div>
+
+      <input
+        type="text"
+        value={searchTerm}
+        onChange={event => onSearchChange(event.target.value)}
+        placeholder="Buscar"
+        className="h-8 min-w-[120px] flex-1"
+      />
+
+      <select
+        value={sortValue}
+        onChange={event => onSortChange(event.target.value)}
+        className="h-8 min-w-[110px]"
+      >
+        <option value="proximos">Proximos</option>
+        <option value="titulo:asc">Titulo A-Z</option>
+        <option value="tipo:asc">Tipo</option>
+      </select>
+
+      <div className="ml-auto flex items-center gap-2">
+        <AppButton
+          variant="ghost"
+          size="sm"
+          onClick={onToggleDayPanel}
+          leftIcon={<PanelRight className="h-3.5 w-3.5" />}
+          className={dayPanelOpen ? 'bg-[var(--bg-hover)]' : ''}
+        >
+          Dia ({selectedEntriesCount})
+        </AppButton>
+        <AppButton variant="secondary" size="sm" onClick={onAddPostedVideo} leftIcon={<Radio className="h-3.5 w-3.5" />}>
+          Postado
+        </AppButton>
+        <AppButton variant="primary" size="sm" onClick={onAddAgenda} leftIcon={<Plus className="h-3.5 w-3.5" />}>
+          Evento
+        </AppButton>
       </div>
     </div>
   );
@@ -431,34 +484,26 @@ function CalendarLayerBar({
   onToggleLayer: (layerId: string) => void;
 }) {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3">
-      <div className="flex flex-wrap gap-2">
-        {CALENDAR_LAYERS.map(layer => {
-          const Icon = layer.icon;
-          const active = activeLayers.includes(layer.id);
+    <div className="flex flex-wrap gap-1.5">
+      {CALENDAR_LAYERS.map(layer => {
+        const Icon = layer.icon;
+        const active = activeLayers.includes(layer.id);
 
-          return (
-            <button
-              key={layer.id}
-              type="button"
-              onClick={() => onToggleLayer(layer.id)}
-              className={cn(
-                'flex h-9 items-center gap-2 rounded-lg border px-3 text-[12px] font-semibold transition-all hover:-translate-y-0.5',
-                active ? layerToneClass[layer.tone] : 'border-[var(--border-color)] bg-[var(--bg-elevated)] text-[var(--text-tertiary)] opacity-65'
-              )}
-            >
-              <Icon className="h-3.5 w-3.5" />
-              {layer.label}
-              <span className={cn('h-1.5 w-1.5 rounded-full', active ? 'bg-current' : 'bg-[var(--text-tertiary)]')} />
-            </button>
-          );
-        })}
-      </div>
-
-      <button type="button" className="flex h-9 items-center gap-2 rounded-lg border border-[var(--border-color)] bg-[var(--bg-elevated)] px-3 text-[12px] font-semibold text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]">
-        <Layers className="h-4 w-4" />
-        Camadas
-      </button>
+        return (
+          <button
+            key={layer.id}
+            type="button"
+            onClick={() => onToggleLayer(layer.id)}
+            className={cn(
+              'flex h-7 items-center gap-1.5 rounded-[var(--radius-pill)] border px-2.5 text-[11px] font-semibold transition-all',
+              active ? layerToneClass[layer.tone] : 'border-[var(--border-color)] bg-[var(--bg-elevated)] text-[var(--text-tertiary)]'
+            )}
+          >
+            <Icon className="h-3 w-3" />
+            {layer.label}
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -669,9 +714,11 @@ function CalendarDayPanel({
   onAddAgenda: () => void;
 }) {
   const primaryEntry = entries[0];
+  const [eventsOpen, setEventsOpen] = useState(true);
+  const [focusOpen, setFocusOpen] = useState(false);
 
   return (
-    <aside className="sticky top-5 h-fit rounded-lg border border-[var(--border-color)] bg-[var(--bg-elevated)] p-4 shadow-[var(--shadow-soft)]">
+    <aside className="sticky top-4 h-fit max-h-[calc(100vh-96px)] overflow-y-auto rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-elevated)] p-3 shadow-[var(--shadow-soft)]">
       <div className="mb-4 flex items-start justify-between gap-3">
         <div>
           <h2 className="text-[20px] font-semibold text-[var(--text-primary)]">
@@ -700,71 +747,67 @@ function CalendarDayPanel({
         </button>
       ) : null}
 
-      <div className="rounded-lg border border-[var(--border-color)] p-3">
-        <div className="mb-3 flex items-center justify-between">
-          <p className="text-[11px] font-semibold uppercase tracking-normal text-[var(--text-tertiary)]">Eventos do dia</p>
-          <button type="button" onClick={onAddAgenda} className="text-[12px] font-semibold text-[var(--accent-blue)]">
-            + Adicionar
-          </button>
-        </div>
-
-        <div className="space-y-2">
-          {entries.length === 0 ? (
-            <p className="rounded-lg bg-[var(--surface-subtle)] px-3 py-4 text-[13px] text-[var(--text-secondary)]">
-              Nenhuma operacao planejada para este dia.
-            </p>
-          ) : (
-            entries.map(entry => (
-              <button
-                key={entry.id}
-                type="button"
-                onClick={() => onSelectEntry(entry)}
-                className={cn(
-                  'w-full rounded-lg border px-3 py-3 text-left transition-all hover:-translate-y-0.5',
-                  entry.type === 'recording' && 'border-red-100 bg-red-50/70',
-                  entry.type === 'publish' && 'border-purple-100 bg-purple-50/70',
-                  entry.type === 'project' && 'border-blue-100 bg-blue-50/70',
-                  entry.type === 'agenda' && 'border-green-100 bg-green-50/70'
-                )}
-              >
-                <p className="text-[12px] font-semibold text-[var(--text-primary)]">{entry.label}</p>
-                <p className="mt-1 text-[11px] text-[var(--text-secondary)]">
-                  {[entry.time, entry.secondary].filter(Boolean).join(' - ') || 'Sem horario'}
-                </p>
-              </button>
-            ))
-          )}
-        </div>
+      <div className="rounded-[var(--radius-input)] border border-[var(--border-color)]">
+        <button
+          type="button"
+          onClick={() => setEventsOpen(prev => !prev)}
+          className="flex w-full items-center justify-between px-3 py-2 text-left"
+        >
+          <p className="ds-meta">Eventos do dia</p>
+          <span className="text-xs text-[var(--text-tertiary)]">{entries.length}</span>
+        </button>
+        {eventsOpen ? (
+          <div className="space-y-2 border-t border-[var(--border-color)] p-2">
+            <button type="button" onClick={onAddAgenda} className="text-xs font-semibold text-[var(--accent-blue)]">
+              + Adicionar
+            </button>
+            {entries.length === 0 ? (
+              <p className="rounded-[var(--radius-input)] bg-[var(--surface-subtle)] px-3 py-3 text-xs text-[var(--text-secondary)]">
+                Nenhuma operacao planejada para este dia.
+              </p>
+            ) : (
+              entries.map(entry => (
+                <button
+                  key={entry.id}
+                  type="button"
+                  onClick={() => onSelectEntry(entry)}
+                  className={cn(
+                    'w-full rounded-[var(--radius-input)] border px-3 py-2 text-left transition-all hover:-translate-y-0.5',
+                    entry.type === 'recording' && 'border-red-100 bg-red-50/70',
+                    entry.type === 'publish' && 'border-purple-100 bg-purple-50/70',
+                    entry.type === 'project' && 'border-blue-100 bg-blue-50/70',
+                    entry.type === 'agenda' && 'border-green-100 bg-green-50/70'
+                  )}
+                >
+                  <p className="text-xs font-semibold text-[var(--text-primary)]">{entry.label}</p>
+                  <p className="mt-0.5 text-[11px] text-[var(--text-secondary)]">
+                    {[entry.time, entry.secondary].filter(Boolean).join(' - ') || 'Sem horario'}
+                  </p>
+                </button>
+              ))
+            )}
+          </div>
+        ) : null}
       </div>
 
-      <div className="mt-4 space-y-3">
-        <div className="rounded-lg border border-[var(--border-color)] p-3">
-          <div className="mb-2 flex items-center gap-2 text-[12px] font-semibold text-[var(--accent-purple)]">
-            <Target className="h-4 w-4" />
+      <div className="mt-3">
+        <div className="rounded-[var(--radius-input)] border border-[var(--border-color)]">
+          <button
+            type="button"
+            onClick={() => setFocusOpen(prev => !prev)}
+            className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-semibold text-[var(--accent-purple)]"
+          >
+            <Target className="h-3.5 w-3.5" />
             Foco do dia
-          </div>
-          <p className="text-[13px] text-[var(--text-primary)]">Entregar roteiro e gravar 1 bloco</p>
-          <div className="mt-3 h-1.5 rounded-full bg-[var(--bg-hover)]">
-            <div className="h-full w-[72%] rounded-full bg-[var(--accent-purple)]" />
-          </div>
-        </div>
-
-        <div className="rounded-lg border border-[var(--border-color)] p-3">
-          <p className="text-[11px] font-semibold text-[var(--text-tertiary)]">Observacoes</p>
-          <p className="mt-2 text-[13px] leading-5 text-[var(--text-secondary)]">
-            Verificar referencias e dependencias antes da gravacao.
-          </p>
-        </div>
-
-        <div className="rounded-lg border border-[var(--border-color)] p-3">
-          <p className="text-[11px] font-semibold text-[var(--text-tertiary)]">Arquivos</p>
-          <div className="mt-3 rounded-lg border border-[var(--border-color)] bg-[var(--surface-subtle)] px-3 py-3">
-            <p className="text-[12px] font-semibold text-[var(--text-primary)]">roteiro_colab.docx</p>
-            <p className="mt-0.5 text-[11px] text-[var(--text-secondary)]">2.4 MB</p>
-          </div>
-          <button type="button" className="mt-3 h-10 w-full rounded-lg border border-[var(--border-color)] text-[12px] font-semibold text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-hover)]">
-            Ver projeto completo
           </button>
+          {focusOpen ? (
+            <div className="border-t border-[var(--border-color)] p-3">
+              <p className="text-xs text-[var(--text-primary)]">Entregar roteiro e gravar 1 bloco</p>
+              <div className="mt-2 h-1.5 rounded-full bg-[var(--bg-hover)]">
+                <div className="h-full w-[72%] rounded-full bg-[var(--accent-purple)]" />
+              </div>
+            </div>
+          ) : null}
         </div>
       </div>
     </aside>
@@ -840,6 +883,7 @@ function CalendarEntryDetailModal({
   onSaveContent: (content: Content) => void;
   onSaveAgenda: (item: AgendaItem) => void;
 }) {
+  const navigate = useNavigate();
   const content = entry.contentId ? contents.find(item => item.id === entry.contentId) : null;
   const agendaItem = entry.agendaId ? agendaItems.find(item => item.id === entry.agendaId) : null;
   const projeto = entry.projetoId ? projetos.find(item => item.id === entry.projetoId) : null;
@@ -849,6 +893,11 @@ function CalendarEntryDetailModal({
     ? platforms.find(platform => platform.id === plataforma.platformId)?.nome || plataforma.platformId
     : '';
   const canEdit = Boolean(content || agendaItem);
+  const contentStage = content ? getContentStage(content) : null;
+  const canSchedulePosting =
+    Boolean(content) &&
+    contentStage !== ContentStage.POSTADO &&
+    contentStage !== ContentStage.IDEIA;
 
   const [isEditing, setIsEditing] = useState(false);
   const [title, setTitle] = useState(content?.title || agendaItem?.title || projeto?.nome || entry.label);
@@ -1151,7 +1200,30 @@ function CalendarEntryDetailModal({
             >
               Fechar
             </button>
-            {canEdit ? (
+            {content ? (
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  navigate(buildContentDetailRoute(content.id, 'roteiro'));
+                }}
+                className="flex-1 rounded-2xl border border-[var(--border-color)] py-3 text-xs font-black uppercase tracking-widest text-[var(--text-primary)] transition-all hover:bg-[var(--bg-hover)]"
+              >
+                Abrir roteiro
+              </button>
+            ) : null}
+            {canSchedulePosting && content ? (
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  navigate(buildContentDetailRoute(content.id, 'postagem'));
+                }}
+                className="flex-1 rounded-2xl bg-[var(--text-primary)] py-3 text-xs font-black uppercase tracking-widest text-[var(--bg-primary)] transition-all hover:scale-[1.01]"
+              >
+                Agendar postagem
+              </button>
+            ) : canEdit ? (
               <button
                 type="button"
                 onClick={() => setIsEditing(true)}

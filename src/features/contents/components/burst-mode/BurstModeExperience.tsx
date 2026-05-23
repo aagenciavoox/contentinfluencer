@@ -16,6 +16,8 @@ import {
 import { ConfirmModal } from '../../../../components/feedback/modals/ConfirmModal';
 import { FixedPanelModal } from '../../../../components/overlays/FixedPanelModal';
 import { useAppContext } from '../../../../context/AppContext';
+import { broadcastDataSync } from '../../../../lib/syncBroadcast';
+import { notifySaveFeedback } from '../../../../lib/saveFeedback';
 import { Content, RecordingBlock } from '../../../../lib/database';
 import { cn, htmlToReadableText } from '../../../../lib/utils';
 import { isRecordingBlockTeleprompterEnabled } from '../../../recording/lib/recordingWorkflow';
@@ -212,7 +214,7 @@ export function BurstModeExperience({
   setCompletedIds,
   onExit,
 }: BurstModeExperienceProps) {
-  const { state, dispatch } = useAppContext();
+  const { state, dispatch, updateContent } = useAppContext();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [confirmBurst, setConfirmBurst] = useState<ConfirmState>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -447,21 +449,33 @@ export function BurstModeExperience({
 
   const speedStep = Math.max(5, Math.round(settings.speedSensitivity * 10));
 
-  const saveSessionProgress = () => {
-    completedIds.forEach(id => {
-      const content = state.contents.find(item => item.id === id);
-      if (content) {
-        dispatch({ type: 'UPDATE_CONTENT', payload: { ...content, status: RECORDED_STATUS } });
-      }
-    });
+  const saveSessionProgress = async () => {
+    const updates = completedIds
+      .map(id => state.contents.find(item => item.id === id))
+      .filter((content): content is Content => Boolean(content));
+
+    if (updates.length === 0) return;
+
+    notifySaveFeedback({ status: 'saving', message: 'Salvando progresso da sessao...' });
+
+    await Promise.all(
+      updates.map(content =>
+        updateContent(
+          { ...content, status: RECORDED_STATUS, updatedAt: new Date().toISOString() },
+          { silent: true, skipBroadcast: true }
+        )
+      )
+    );
+
+    broadcastDataSync();
+    notifySaveFeedback({ status: 'success', message: 'Progresso da sessao salvo' });
   };
 
   const handleFinishBlock = () => {
     setConfirmBurst({
       message: 'Salvar progresso do bloco de gravação? Pausar agora não perde o que foi marcado nesta sessão.',
       onConfirm: () => {
-        saveSessionProgress();
-        onExit();
+        void saveSessionProgress().finally(() => onExit());
       },
     });
   };

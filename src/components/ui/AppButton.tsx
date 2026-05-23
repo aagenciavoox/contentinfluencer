@@ -63,7 +63,7 @@ export const AppButton = React.forwardRef<HTMLButtonElement, AppButtonProps>(
         type={type}
         disabled={disabled}
         className={cn(
-          'inline-flex shrink-0 items-center justify-center gap-2 rounded-lg text-[13px] font-semibold tracking-normal transition-[background-color,border-color,color,box-shadow,transform,opacity,filter] duration-150',
+          'inline-flex shrink-0 items-center justify-center gap-2 rounded-[var(--radius-input)] text-[13px] font-semibold tracking-normal transition-[background-color,border-color,color,box-shadow,transform,opacity,filter] duration-150',
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-blue)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-secondary)]',
           'disabled:pointer-events-none disabled:opacity-45',
           iconOnly ? iconOnlySizeClasses[size] : sizeClasses[size],

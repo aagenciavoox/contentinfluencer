@@ -1,17 +1,18 @@
 import { KeyboardEvent, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'motion/react';
-import { BookOpen, Clapperboard, Film, LucideIcon, Pin, Plus, Star, Tags, Tv, X } from 'lucide-react';
+import { BookOpen, Clapperboard, Film, LucideIcon, Plus, Tags, Tv, X } from 'lucide-react';
 import { useAppContext } from '../../../context/AppContext';
-import { BibliotecaItem, BibliotecaItemMeta } from '../../../lib/database';
+import { BibliotecaItem, BibliotecaItemMeta, Idea } from '../../../lib/database';
 import { generateUUID } from '../../../utils/uuid';
 import { BottomSheetModal } from '../../../components/feedback/modals/BottomSheetModal';
-import { DesktopPageHeader } from '../../../layouts/page/DesktopPageHeader';
-import { AppButton } from '../../../components/ui/AppButton';
-import { FilterBar } from '../../../components/ui/FilterBar';
 import { useIsMobile } from '../../../hooks/useIsMobile';
+import { PageScaffold } from '../../../layouts/page/PageScaffold';
+import { PipelineActionBar } from '../../../components/pipeline/PipelineActionBar';
 import { LibraryMobileScreen } from '../../../mobile/screens/library/LibraryMobileScreen';
 import { LibraryAnalyticsTab } from '../components/LibraryAnalyticsTab';
+import { LibraryItemCard } from '../components/LibraryItemCard';
+import { LibraryToolbar } from '../components/LibraryToolbar';
+import { COMPLETED_STATUS_BY_TYPE } from '../lib/libraryStatus';
 
 type StatusLeitura = BibliotecaItem['status'];
 type GeneroLivro = string;
@@ -214,10 +215,6 @@ function removeToken(list: string[], value: string) {
   return list.filter(item => item !== value);
 }
 
-function isWishlistStatus(status: StatusLeitura) {
-  return status === 'Quero consumir' || status === 'Quero ler' || status === 'Quero ver';
-}
-
 function ChipField({
   label,
   values,
@@ -381,18 +378,37 @@ export function LibraryPage() {
       });
   }, [filtroGenero, filtroStatus, filtroTipo, searchTerm, sortValue, state.books, state.preferences]);
 
-  const totalsByType = useMemo(() => {
-    return state.books.reduce<Record<string, number>>((acc, item) => {
-      const label = TYPE_CONFIG[item.tipo]?.label ?? TYPE_CONFIG.outro.label;
-      acc[label] = (acc[label] ?? 0) + 1;
-      return acc;
-    }, {});
-  }, [state.books]);
-
-  const totalItensLabel = `${state.books.length} item${state.books.length === 1 ? '' : 's'} catalogado${state.books.length === 1 ? '' : 's'}`;
-
   const contarConteudos = (livroId: string) =>
     state.contents.filter(content => content.bibliotecaItemId === livroId).length;
+
+  const handleMarkComplete = (item: BibliotecaItem) => {
+    dispatch({
+      type: 'UPDATE_BOOK',
+      payload: {
+        ...item,
+        status: COMPLETED_STATUS_BY_TYPE[item.tipo],
+        dataFim: item.dataFim || new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+    });
+  };
+
+  const handleTurnIntoIdea = (item: BibliotecaItem) => {
+    const ideia: Idea = {
+      id: generateUUID(),
+      userId: '',
+      text: item.notasGerais?.trim()
+        || `Conteúdo sobre "${item.titulo}"${item.autorDiretor ? ` — ${item.autorDiretor}` : ''}`,
+      pilarId: null,
+      seriesId: null,
+      origemId: item.id,
+      promotedToContentId: null,
+      archived: false,
+      createdAt: new Date().toISOString(),
+    };
+
+    dispatch({ type: 'ADD_IDEA', payload: ideia });
+  };
 
   const resetForm = () => {
     setForm(INITIAL_FORM);
@@ -685,251 +701,79 @@ export function LibraryPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[var(--bg-secondary)]">
-      <header className="desktop-header-sticky transition-colors duration-300">
-        <div className="desktop-header-frame">
-          <DesktopPageHeader
-            section="Biblioteca"
-            title="Biblioteca"
-            subtitle={`Organize livros, filmes, séries, animes e mangás em um único acervo de referência. ${totalItensLabel}`}
-            icon={BookOpen}
-            className="mb-0"
-            actions={(
-              <AppButton
-                onClick={handleOpenModal}
-                variant="primary"
-                size="md"
-                leftIcon={<Plus className="h-4 w-4" />}
-                className="shrink-0 text-xs uppercase tracking-widest"
-              >
-                Adicionar item
-              </AppButton>
-            )}
-          />
+    <PageScaffold
+      contentWidth="wide"
+      contentClassName="pb-10 pt-2"
+      toolbar={
+        <LibraryToolbar
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          searchValue={searchTerm}
+          onSearchChange={setSearchTerm}
+          filtroTipo={filtroTipo}
+          onFiltroTipoChange={setFiltroTipo}
+          filtroStatus={filtroStatus}
+          onFiltroStatusChange={setFiltroStatus}
+          filtroGenero={filtroGenero}
+          onFiltroGeneroChange={setFiltroGenero}
+          sortValue={sortValue}
+          onSortChange={setSortValue}
+          statusOptions={STATUS_OPTIONS}
+          genreOptions={availableGenreFilters}
+          onAddClick={handleOpenModal}
+        />
+      }
+    >
+
+      {activeTab !== 'analises' ? (
+        <PipelineActionBar
+          className="mb-4"
+          title="Proximo passo do pipeline"
+          description="Transforme um item da biblioteca em ideia editorial."
+          primaryLabel="Transformar em ideia"
+          onPrimary={() => {
+            const first = livrosFiltrados[0];
+            if (first) handleTurnIntoIdea(first);
+          }}
+          disabled={livrosFiltrados.length === 0}
+        />
+      ) : null}
+
+      {activeTab === 'analises' ? (
+        <LibraryAnalyticsTab items={state.books} contents={state.contents} />
+      ) : livrosFiltrados.length === 0 ? (
+        <div className="flex flex-col items-center justify-center gap-3 py-20 text-center">
+          <BookOpen className="h-10 w-10 text-[var(--text-primary)] opacity-10" />
+          <p className="text-sm font-bold uppercase tracking-widest text-[var(--text-tertiary)]">
+            {state.books.length === 0
+              ? 'Nenhum item ainda. Adicione o primeiro.'
+              : 'Nenhum item com esses filtros'}
+          </p>
         </div>
-      </header>
+      ) : (
+        <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7">
+          {livrosFiltrados.map(livro => {
+            const typeConfig = TYPE_CONFIG[livro.tipo] ?? TYPE_CONFIG.outro;
 
-      <div className="desktop-content-frame-wide">
-        <div className="mb-6 rounded-3xl border border-[var(--border-color)] bg-[var(--bg-primary)] p-5">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.24em] text-[var(--text-tertiary)]">
-                Superfícies
-              </p>
-              <p className="mt-2 max-w-2xl text-sm text-[var(--text-secondary)]">
-                O acervo fica focado em navegação e cadastro. As leituras agregadas agora vivem em uma aba separada.
-              </p>
-            </div>
-
-            <div className="flex gap-2 rounded-full bg-[var(--bg-secondary)] p-1">
-              {([
-                { key: 'acervo', label: 'Acervo' },
-                { key: 'analises', label: 'Análises' },
-              ] as const).map(tab => (
-                <button
-                  key={tab.key}
-                  type="button"
-                  onClick={() => setActiveTab(tab.key)}
-                  className={`rounded-full px-4 py-2 text-xs font-black uppercase tracking-[0.2em] transition-all ${
-                    activeTab === tab.key
-                      ? 'bg-[var(--text-primary)] text-[var(--bg-primary)]'
-                      : 'text-[var(--text-secondary)]'
-                  }`}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="mt-4 flex flex-wrap gap-2">
-            {Object.entries(totalsByType).map(([label, total]) => (
-              <span
-                key={label}
-                className="rounded-full border border-[var(--border-color)] bg-[var(--bg-secondary)] px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-secondary)]"
-              >
-                {label}: {total}
-              </span>
-            ))}
-          </div>
+            return (
+              <LibraryItemCard
+                key={livro.id}
+                item={livro}
+                typeConfig={typeConfig}
+                metadata={getItemMeta(livro.id)}
+                contentsCount={contarConteudos(livro.id)}
+                isPrimaryMobileBook={mobilePrimaryBookId === livro.id}
+                statusClassName={STATUS_CORES[livro.status] || ''}
+                onOpen={() => navigate(`/biblioteca/${livro.id}`)}
+                onEdit={() => navigate(`/biblioteca/${livro.id}?tab=info`)}
+                onMarkComplete={() => handleMarkComplete(livro)}
+                onTurnIntoIdea={() => handleTurnIntoIdea(livro)}
+                onTogglePrimary={() => handleSetPrimaryMobileBook(livro.id)}
+              />
+            );
+          })}
         </div>
-
-        {activeTab === 'analises' ? (
-          <LibraryAnalyticsTab items={state.books} contents={state.contents} />
-        ) : (
-          <>
-            <FilterBar
-              className="mb-6"
-              searchValue={searchTerm}
-              onSearchChange={setSearchTerm}
-              searchPlaceholder="Buscar por título, autoria, direção, gênero ou tag"
-              filters={[
-                {
-                  id: 'tipo',
-                  label: 'Tipo',
-                  value: filtroTipo,
-                  onChange: value => setFiltroTipo(value as BibliotecaTipo | 'Todos'),
-                  options: [
-                    { label: 'Tipo', value: 'Todos' },
-                    { label: 'Livro', value: 'livro' },
-                    { label: 'Filme', value: 'filme' },
-                    { label: 'Série', value: 'série' },
-                    { label: 'Anime', value: 'anime' },
-                    { label: 'Mangá', value: 'manga' },
-                  ],
-                },
-                {
-                  id: 'status',
-                  label: 'Status',
-                  value: filtroStatus,
-                  onChange: value => setFiltroStatus(value as StatusLeitura | 'Todos'),
-                  options: [
-                    { label: 'Status', value: 'Todos' },
-                    ...STATUS_OPTIONS.map(status => ({ label: status, value: status })),
-                  ],
-                },
-                {
-                  id: 'genero',
-                  label: 'Gênero',
-                  value: filtroGenero,
-                  onChange: setFiltroGenero,
-                  options: [
-                    { label: 'Gênero', value: 'Todos' },
-                    ...availableGenreFilters.map(genero => ({ label: genero, value: genero })),
-                  ],
-                },
-              ]}
-              sortValue={sortValue}
-              onSortChange={setSortValue}
-              sortOptions={[
-                { label: 'Recentes', value: 'recentes' },
-                { label: 'Título A-Z', value: 'titulo:asc' },
-                { label: 'Autor A-Z', value: 'autor:asc' },
-                { label: 'Status A-Z', value: 'status:asc' },
-              ]}
-            />
-
-            {livrosFiltrados.length === 0 ? (
-              <div className="flex flex-col items-center justify-center gap-4 py-32 text-center">
-                <BookOpen className="h-12 w-12 text-[var(--text-primary)] opacity-10" />
-                <p className="text-sm font-bold uppercase tracking-widest text-[var(--text-tertiary)]">
-                  {state.books.length === 0
-                    ? 'Nenhum item ainda. Adicione o primeiro.'
-                    : 'Nenhum item com esses filtros'}
-                </p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-3 gap-4 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7">
-                {livrosFiltrados.map(livro => {
-                  const conteudosCount = contarConteudos(livro.id);
-                  const TypeIcon = TYPE_CONFIG[livro.tipo]?.icon ?? BookOpen;
-                  const typeLabel = TYPE_CONFIG[livro.tipo]?.label ?? TYPE_CONFIG.outro.label;
-                  const metadata = (state.preferences[`item_meta:${livro.id}`] || {}) as BibliotecaItemMeta;
-                  const isPrimaryMobileBook = mobilePrimaryBookId === livro.id;
-
-                  return (
-                    <motion.div
-                      key={livro.id}
-                      initial={{ opacity: 0, y: 12 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      onClick={() => navigate(`/biblioteca/${livro.id}`)}
-                      className="group flex cursor-pointer flex-col"
-                    >
-                      <div className="relative mb-2.5 aspect-[0.74] overflow-hidden rounded-xl bg-[var(--bg-hover)] transition-all hover-card elevation-1 group-hover:elevation-2">
-                        {livro.capaUrl ? (
-                          <img
-                            src={livro.capaUrl}
-                            alt={livro.titulo}
-                            className="h-full w-full object-cover"
-                            onError={event => {
-                              (event.target as HTMLImageElement).style.display = 'none';
-                            }}
-                          />
-                        ) : (
-                          <div className="flex h-full w-full flex-col items-center justify-center gap-2 p-3">
-                            <TypeIcon className="h-8 w-8 text-[var(--text-tertiary)]" />
-                            <span className="text-center text-[9px] font-bold leading-tight text-[var(--text-tertiary)]">
-                              {livro.titulo}
-                            </span>
-                          </div>
-                        )}
-
-                        <div className="absolute bottom-2 left-2 flex flex-col gap-1">
-                          <span className="rounded-full bg-black/60 px-2 py-0.5 text-[7px] font-black text-white backdrop-blur-sm">
-                            {typeLabel}
-                          </span>
-                          <span className={`rounded-full px-2 py-0.5 text-[8px] font-black ${STATUS_CORES[livro.status] || ''}`}>
-                            {livro.status}
-                          </span>
-                        </div>
-
-                        <button
-                          type="button"
-                          onClick={event => {
-                            event.stopPropagation();
-                            handleSetPrimaryMobileBook(livro.id);
-                          }}
-                          className={`absolute left-2 top-2 inline-flex items-center gap-1 rounded-full px-2 py-1 text-[8px] font-black uppercase tracking-[0.15em] backdrop-blur-sm transition-all ${
-                            isPrimaryMobileBook
-                              ? 'bg-[var(--text-primary)] text-[var(--bg-primary)]'
-                              : 'bg-black/60 text-white hover:bg-black/80'
-                          }`}
-                          aria-label={isPrimaryMobileBook ? 'Remover como principal no mobile' : 'Definir como principal no mobile'}
-                        >
-                          <Pin className="h-3 w-3" />
-                          {isPrimaryMobileBook ? 'Principal' : 'No + mobile'}
-                        </button>
-
-                        {conteudosCount > 0 ? (
-                          <div className="absolute right-2 top-2 flex h-5 w-5 items-center justify-center rounded-full bg-[var(--text-primary)] text-[9px] font-black text-[var(--bg-primary)]">
-                            {conteudosCount}
-                          </div>
-                        ) : null}
-                      </div>
-
-                      <div>
-                        <p className="mb-0.5 line-clamp-2 text-[11px] font-bold leading-tight text-[var(--text-primary)]">
-                          {livro.titulo}
-                        </p>
-                        <p className="truncate text-[9px] text-[var(--text-secondary)]">
-                          {livro.autorDiretor}
-                        </p>
-                        {livro.avaliacao ? (
-                          <div className="mt-1 flex gap-0.5">
-                            {Array.from({ length: 5 }).map((_, index) => (
-                              <Star
-                                key={index}
-                                className={`h-2.5 w-2.5 ${index < livro.avaliacao! ? 'fill-yellow-400 text-yellow-400' : 'text-[var(--border-strong)]'}`}
-                              />
-                            ))}
-                          </div>
-                        ) : null}
-                        {isWishlistStatus(livro.status) && livro.potencialConteudo ? (
-                          <div className="mt-1 text-[10px] text-[var(--text-secondary)]">
-                            Potencial {livro.potencialConteudo}/3
-                          </div>
-                        ) : null}
-                        {metadata.tagsPersonalizadas?.length ? (
-                          <div className="mt-1.5 flex flex-wrap gap-1">
-                            {metadata.tagsPersonalizadas.slice(0, 2).map(tag => (
-                              <span
-                                key={tag}
-                                className="rounded-full bg-[var(--bg-hover)] px-2 py-0.5 text-[8px] font-bold text-[var(--text-secondary)]"
-                              >
-                                {tag}
-                              </span>
-                            ))}
-                          </div>
-                        ) : null}
-                      </div>
-                    </motion.div>
-                  );
-                })}
-              </div>
-            )}
-          </>
-        )}
-      </div>
+      )}
 
       <BottomSheetModal
         open={modalAberto}
@@ -1458,6 +1302,6 @@ export function LibraryPage() {
           </button>
         </div>
       </BottomSheetModal>
-    </div>
+    </PageScaffold>
   );
 }

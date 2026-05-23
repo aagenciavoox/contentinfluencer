@@ -142,10 +142,9 @@ export function GoldenRulesSettingsPage() {
           <DesktopPageHeader
             section="Configurações"
             title="Regras de Ouro"
-            subtitle="Defina faixas mínimas e máximas por período para orientar a operação editorial."
             icon={ShieldCheck}
             backLabel="Configurações"
-            onBack={() => navigate('/configuracoes')}
+            backTo="/configuracoes"
             actions={
               <button
                 onClick={() => setShowAddForm(!showAddForm)}

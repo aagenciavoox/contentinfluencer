@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   BookOpen,
@@ -35,15 +35,8 @@ import { CONTENT_STATUS } from '../../contents/lib/contentPipeline';
 import { BookAnnotationComposerSheet } from '../components/modals/BookAnnotationComposerSheet';
 import { generateUUID } from '../../../utils/uuid';
 import { DesktopPageHeader } from '../../../layouts/page/DesktopPageHeader';
-
-const TIPO_CORES: Record<TipoAnotacao, string> = {
-  Anotação: 'bg-[var(--text-tertiary)]/10 text-[var(--text-tertiary)]',
-  Trecho: 'bg-[var(--accent-blue)]/10 text-[var(--accent-blue)]',
-  Reação: 'bg-[var(--accent-pink)]/10 text-[var(--accent-pink)]',
-  Análise: 'bg-[var(--accent-purple)]/10 text-[var(--accent-purple)]',
-  'Ideia de conteúdo': 'bg-[var(--accent-green)]/10 text-[var(--accent-green)]',
-  Pergunta: 'bg-[var(--accent-orange)]/10 text-[var(--accent-orange)]',
-};
+import { PipelineActionBar } from '../../../components/pipeline/PipelineActionBar';
+import { AnnotationNoteCard } from '../components/AnnotationNoteCard';
 
 const STATUS_CORES: Record<string, string> = {
   'Ideia': 'bg-[var(--accent-orange)]/10 text-[var(--accent-orange)]',
@@ -155,10 +148,12 @@ function getCoverageLabels(tipo: BibliotecaItem['tipo']) {
 export function BookDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { state, dispatch } = useAppContext();
 
   const livro = state.books.find(b => b.id === id);
-  const [tab, setTab] = useState<Tab>('anotacoes');
+  const initialTab = (searchParams.get('tab') as Tab | null);
+  const [tab, setTab] = useState<Tab>(initialTab === 'info' || initialTab === 'conteudos' ? initialTab : 'anotacoes');
 
   // Anotações state
   const [filtroTipo, setFiltroTipo] = useState<TipoAnotacao | 'Todos' | 'Destaques'>('Todos');
@@ -481,9 +476,14 @@ export function BookDetailPage() {
       deletedAt: null,
       plataformas: [],
     });
-    dispatch({ type: 'ADD_CONTENT', payload: novoConteudo });
-    const ideia = state.ideas.find(i => i.id === ideiaId);
-    if (ideia) dispatch({ type: 'UPDATE_IDEA', payload: { ...ideia, promotedToContentId: novoConteudo.id } });
+    void dispatch({
+      type: 'PROMOTE_IDEA',
+      payload: {
+        ideaId: ideiaId,
+        contentId: novoConteudo.id,
+        content: novoConteudo,
+      },
+    });
     navigate(buildContentDetailRoute(novoConteudo.id));
   };
 
@@ -614,14 +614,38 @@ export function BookDetailPage() {
           <DesktopPageHeader
             section="Biblioteca"
             title={livro.titulo}
-            subtitle={livro.autorDiretor}
-            meta={`${itemTypeLabel} · ${livro.status}`}
+            meta={[livro.autorDiretor, itemTypeLabel, livro.status].filter(Boolean).join(' · ')}
             icon={ItemIcon}
             backLabel="Biblioteca"
-            onBack={() => navigate('/biblioteca')}
+            backTo="/biblioteca"
             className="mb-0"
           />
         </div>
+      </div>
+
+      <div className="desktop-content-frame hidden md:block">
+        <PipelineActionBar
+          className="mb-4"
+          title="Transformar leitura em conteudo"
+          description="Crie uma ideia editorial a partir deste item da biblioteca."
+          primaryLabel="Transformar em ideia"
+          onPrimary={() => {
+            const ideia: Idea = {
+              id: generateUUID(),
+              userId: '',
+              text: livro.notasGerais?.trim()
+                || `Conteudo sobre "${livro.titulo}"${livro.autorDiretor ? ` — ${livro.autorDiretor}` : ''}`,
+              pilarId: null,
+              seriesId: null,
+              origemId: livro.id,
+              promotedToContentId: null,
+              archived: false,
+              createdAt: new Date().toISOString(),
+            };
+            dispatch({ type: 'ADD_IDEA', payload: ideia });
+            navigate('/ideias');
+          }}
+        />
       </div>
 
       <div className="md:hidden bg-[var(--bg-primary)] px-4 pb-10 pt-3">
@@ -646,8 +670,8 @@ export function BookDetailPage() {
 
         {tab === 'info' && (
           <div className="space-y-4">
-            <div className="rounded-[28px] border border-[var(--border-color)] bg-[var(--bg-primary)] p-5">
-              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--text-tertiary)] opacity-60">Info</p>
+            <div className="rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-primary)] p-4">
+              <p className="text-[9px] font-semibold uppercase tracking-[0.12em] text-[var(--text-tertiary)]">Info</p>
               <div className="mt-4 space-y-3 text-sm text-[var(--text-primary)]">
                 <div>
                   <span className="block text-[10px] font-black uppercase tracking-[0.16em] text-[var(--text-tertiary)] opacity-55">Título</span>
@@ -668,7 +692,7 @@ export function BookDetailPage() {
 
         {tab === 'anotacoes' && (
           <div className="space-y-5">
-            <div className="rounded-[26px] border border-[var(--border-color)] bg-[var(--bg-primary)] p-4 space-y-4">
+            <div className="rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-primary)] p-3 space-y-3">
               <div className="flex gap-3">
                 <select
                   value={novoTipo}
@@ -728,61 +752,16 @@ export function BookDetailPage() {
                 <p className="text-[var(--text-tertiary)] font-bold text-sm uppercase tracking-widest">Nenhuma anotação ainda</p>
               </div>
             ) : (
-              <div className="space-y-4">
+              <div className="grid grid-cols-1 gap-2 md:grid-cols-2 lg:grid-cols-3">
                 {anotacoesFiltradas.map(a => (
-                  <motion.div
+                  <AnnotationNoteCard
                     key={a.id}
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="rounded-[26px] border border-[var(--border-color)] bg-[var(--bg-primary)]"
-                  >
-                    <div className="flex items-start justify-between gap-3 px-4 pt-4">
-                      <div className="min-w-0 flex items-center gap-2">
-                        <span className={`text-[8px] font-black uppercase tracking-[0.18em] px-2.5 py-1 rounded-full ${TIPO_CORES[a.tipo]}`}>
-                          {a.tipo}
-                        </span>
-                        {a.capituloRef && (
-                          <span className="truncate text-[10px] text-[var(--text-secondary)] opacity-60 font-bold">{a.capituloRef}</span>
-                        )}
-                      </div>
-
-                      <div className="flex shrink-0 items-center gap-1">
-                        <button
-                          onClick={() => handleToggleContentPotential(a)}
-                          title={a.contentPotential ? 'Remover destaque' : 'Destacar'}
-                          className={`rounded-full p-2 ${a.contentPotential ? 'text-yellow-500' : 'text-[var(--text-primary)] opacity-35'}`}
-                        >
-                          <Star className={`h-4 w-4 ${a.contentPotential ? 'fill-yellow-400 text-yellow-400' : ''}`} />
-                        </button>
-                        {!a.destilada && (
-                          <button
-                            onClick={() => handleTransformarEmIdeia(a)}
-                            title="Transformar em Ideia"
-                            className="rounded-full p-2 text-green-600"
-                          >
-                            <Lightbulb className="w-4 h-4 text-green-600" />
-                          </button>
-                        )}
-                        <button
-                          onClick={() => handleTransformarEmConteudo(a)}
-                          title="Criar Conteúdo"
-                          className="rounded-full p-2"
-                        >
-                          <Film className="w-4 h-4 text-[var(--accent-blue)] opacity-60" />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteAnotacao(a.id)}
-                          className="rounded-full p-2"
-                        >
-                          <Trash2 className="w-4 h-4 text-[var(--accent-pink)] opacity-60" />
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="px-4 pb-5 pt-5">
-                      <p className="text-[13px] leading-7 text-[var(--text-primary)]">{a.texto}</p>
-                    </div>
-                  </motion.div>
+                    anotacao={a}
+                    onToggleHighlight={() => handleToggleContentPotential(a)}
+                    onTransformIdea={() => handleTransformarEmIdeia(a)}
+                    onTransformContent={() => handleTransformarEmConteudo(a)}
+                    onDelete={() => handleDeleteAnotacao(a.id)}
+                  />
                 ))}
               </div>
             )}
@@ -791,7 +770,7 @@ export function BookDetailPage() {
 
         {tab === 'conteudos' && (
           <div className="space-y-4">
-            <div className="rounded-[28px] border border-[var(--border-color)] bg-[var(--bg-primary)] p-5">
+            <div className="rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-primary)] p-4">
               <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--text-tertiary)] opacity-60">Conteúdos</p>
               <p className="mt-4 text-sm text-[var(--text-secondary)]">
                 {conteudosDoLivro.length === 0 ? 'Nenhum conteúdo criado ainda.' : `${conteudosDoLivro.length} conteúdo(s) vinculados a este item.`}
@@ -1075,11 +1054,11 @@ export function BookDetailPage() {
         {/* ════ ABA: ANOTAÇÕES ════ */}
         {tab === 'anotacoes' && (
           <div className="space-y-6 pb-10">
-            <div className="rounded-[28px] border border-[var(--border-color)] bg-[var(--bg-primary)] p-5">
+            <div className="rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-primary)] p-4">
               <div className="flex items-center justify-between gap-4">
                 <div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--text-tertiary)] opacity-60">Nova nota</p>
-                  <p className="mt-2 text-sm leading-6 text-[var(--text-primary)] opacity-65">
+                  <p className="text-[9px] font-semibold uppercase tracking-[0.12em] text-[var(--text-tertiary)]">Nova nota</p>
+                  <p className="mt-1 text-xs leading-relaxed text-[var(--text-primary)] opacity-65">
                     Abra um composer rapido para registrar uma anotação sem misturar com a lista existente.
                   </p>
                 </div>
@@ -1116,71 +1095,17 @@ export function BookDetailPage() {
                 <p className="text-[var(--text-tertiary)] font-bold text-sm uppercase tracking-widest">Nenhuma anotação ainda</p>
               </div>
             ) : (
-              <div className="space-y-3">
+              <div className="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-3">
                 {anotacoesFiltradas.map(a => (
-                  <motion.div
+                  <AnnotationNoteCard
                     key={a.id}
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="rounded-[28px] border border-[var(--border-color)] bg-[var(--bg-primary)]"
-                  >
-                    <div className="flex items-start justify-between gap-3 px-5 pt-4">
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className={`text-[8px] font-black uppercase tracking-[0.18em] px-2.5 py-1 rounded-full ${TIPO_CORES[a.tipo]}`}>
-                            {a.tipo}
-                          </span>
-                          {a.capituloRef && (
-                            <span className="text-[10px] text-[var(--text-secondary)] opacity-60 font-bold">{a.capituloRef}</span>
-                          )}
-                          {a.contentPotential && (
-                            <span className="text-[9px] text-yellow-500 font-bold flex items-center gap-1">⭐ Destaque</span>
-                          )}
-                          {a.destilada && (
-                            <span className="text-[9px] text-[var(--accent-green)] font-bold flex items-center gap-1">
-                              <CheckCircle2 className="w-3 h-3" /> Destilada
-                            </span>
-                          )}
-                        </div>
-                        <p className="mt-3 text-[16px] leading-7 tracking-[-0.01em] text-[#1f1b16]">{a.texto}</p>
-                      </div>
-                      <div className="flex gap-1 shrink-0 transition-opacity md:opacity-0 md:group-hover:opacity-100">
-                        {/* ⭐ Toggle destaque */}
-                        <button
-                          onClick={() => handleToggleContentPotential(a)}
-                          title={a.contentPotential ? 'Remover destaque' : 'Destacar'}
-                          className={`p-1.5 rounded-lg transition-colors ${a.contentPotential ? 'bg-yellow-100 text-yellow-500' : 'hover:bg-yellow-50 text-[var(--text-primary)] opacity-40 hover:opacity-80'}`}
-                        >
-                          <span className="text-xs">⭐</span>
-                        </button>
-                        {/* 💡 Virar Ideia */}
-                        {!a.destilada && (
-                          <button
-                            onClick={() => handleTransformarEmIdeia(a)}
-                            title="Transformar em Ideia"
-                            className="p-1.5 hover:bg-green-50 rounded-lg transition-colors"
-                          >
-                            <Lightbulb className="w-4 h-4 text-green-600" />
-                          </button>
-                        )}
-                        {/* 🎬 Virar Conteúdo direto */}
-                        <button
-                          onClick={() => handleTransformarEmConteudo(a)}
-                          title="Criar Conteúdo"
-                          className="p-1.5 hover:bg-[var(--accent-blue)]/10 rounded-lg transition-colors"
-                        >
-                          <Film className="w-4 h-4 text-[var(--accent-blue)] opacity-60" />
-                        </button>
-                        {/* 🗑️ Excluir */}
-                        <button
-                          onClick={() => handleDeleteAnotacao(a.id)}
-                          className="p-1.5 hover:bg-[var(--accent-pink)]/10 rounded-lg transition-colors"
-                        >
-                          <Trash2 className="w-4 h-4 text-[var(--accent-pink)] opacity-60" />
-                        </button>
-                      </div>
-                    </div>
-                  </motion.div>
+                    anotacao={a}
+                    onToggleHighlight={() => handleToggleContentPotential(a)}
+                    onTransformIdea={() => handleTransformarEmIdeia(a)}
+                    onTransformContent={() => handleTransformarEmConteudo(a)}
+                    onDelete={() => handleDeleteAnotacao(a.id)}
+                    actionsClassName="opacity-100 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 transition-opacity"
+                  />
                 ))}
               </div>
             )}

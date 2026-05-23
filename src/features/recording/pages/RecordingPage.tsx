@@ -227,7 +227,6 @@ export function RecordingPage() {
           <DesktopPageHeader
             section="Produção"
             title="Gravação"
-            subtitle="Monte blocos, acompanhe a operacao e entre direto na execucao."
             icon={Video}
             className="mb-0"
           />

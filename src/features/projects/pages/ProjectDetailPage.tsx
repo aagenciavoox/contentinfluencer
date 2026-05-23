@@ -285,11 +285,10 @@ export function ProjectDetailPage() {
         <DesktopPageHeader
           section="Projetos"
           title={projeto.nome}
-          subtitle="Tudo do projeto em uma unica tela: contexto, prazos, eventos e conteudos vinculados."
           meta={`${projetoTipoNormalizado}${projeto.brand ? ` · ${projeto.brand}` : ''}`}
           icon={Briefcase}
           backLabel="Projetos"
-          onBack={() => navigate('/projetos')}
+          backTo="/projetos"
         />
       </div>
 

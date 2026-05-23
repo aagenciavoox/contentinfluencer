@@ -4,6 +4,7 @@ import { ArrowLeft, ArrowRight, CheckCircle, CheckCircle2, Mic, Video } from 'lu
 import { useAppContext } from '../../../context/AppContext';
 import { useIsMobile } from '../../../hooks/useIsMobile';
 import { cn, htmlToReadableText } from '../../../lib/utils';
+import { PipelineActionBar } from '../../../components/pipeline/PipelineActionBar';
 import {buildMarkContentRecordedTransition, isRecordingBlockTeleprompterEnabled, resolveRecordingContextSummary} from '../lib/recordingWorkflow';
 import { BurstModeMobileScreen } from '../../../mobile/screens/recording/BurstModeMobileScreen';
 import type { Content } from '../../../lib/database';
@@ -360,8 +361,17 @@ export function RecordingBlockPage() {
             </div>
           )}
 
+          <PipelineActionBar
+            className="mt-6"
+            title="Proximo passo"
+            description="Finalize a gravacao deste roteiro para seguir para edicao e postagem."
+            primaryLabel="Marcar como gravado"
+            onPrimary={marcarGravado}
+            disabled={Boolean(currentBlockContent?.gravado)}
+          />
+
           {/* Controles */}
-          <div className="flex gap-3 mt-6 flex-wrap">
+          <div className="flex gap-3 mt-4 flex-wrap">
             <button
               onClick={recuar}
               disabled={currentIndex === 0}

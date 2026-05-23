@@ -1,5 +1,7 @@
 import {ArrowLeft, AlertTriangle, CheckCircle2, Clock3} from 'lucide-react';
-import {useEffect, useMemo, useState} from 'react';
+import {useCallback, useEffect, useMemo, useRef, useState} from 'react';
+import {getSaveFeedbackState, subscribeSaveFeedback, type SaveFeedbackState} from '../../../../lib/saveFeedback';
+import {useContentDetailBack} from '../../../../lib/navigation/useContentDetailBack';
 import {useNavigate, useSearchParams} from 'react-router-dom';
 import {SendToRecordingSheet} from '../../../../mobile/components/SendToRecordingSheet';
 import {AppButton} from '../../../../components/ui/AppButton';
@@ -11,6 +13,7 @@ import {ContentDetailMobileScreen} from '../../../../mobile/screens/contents/Con
 import {
   CONTENT_STATUS,
   getContentBlockSummary,
+  ContentStage,
   getContentStage,
   getInitialTabForContext,
   getPostingAutomationStatus,
@@ -19,11 +22,13 @@ import {
   type ContentDetailTab,
 } from '../../lib/contentPipeline';
 import {ContentDetailHeader} from './ContentDetailHeader';
+import {ContentPipelineStepper} from './ContentPipelineStepper';
 import {ContentDetailTabs} from './ContentDetailTabs';
 import {HistorySection} from './sections/HistorySection';
 import {PostingSection} from './sections/PostingSection';
 import {ProductionSection} from './sections/ProductionSection';
 import {RecordingSection} from './sections/RecordingSection';
+import {ContentOperationalPanel} from './ContentOperationalPanel';
 import {RoteiroSection} from './sections/RoteiroSection';
 
 interface ContentDetailShellProps {
@@ -52,6 +57,7 @@ export function ContentDetailShell({content, mode = 'desktop'}: ContentDetailShe
   const {state, dispatch, updateContent} = useAppContext();
   const {user} = useAuth();
   const navigate = useNavigate();
+  const goBackToConteudos = useContentDetailBack();
   const [searchParams, setSearchParams] = useSearchParams();
   const [draft, setDraft] = useState<ContentDraft>(() => ({
     title: content.title,
@@ -69,8 +75,14 @@ export function ContentDetailShell({content, mode = 'desktop'}: ContentDetailShe
     plataformas: content.plataformas || [],
   }));
   const [isSaving, setIsSaving] = useState(false);
+  const [saveFeedback, setSaveFeedback] = useState<SaveFeedbackState>(() => getSaveFeedbackState());
   const [isRecordingSheetOpen, setIsRecordingSheetOpen] = useState(false);
+  const draftDirtyRef = useRef(false);
+  const [draftDirty, setDraftDirty] = useState(false);
+  const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const activeTab = getInitialTabForContext(searchParams.get('tab'));
+
+  useEffect(() => subscribeSaveFeedback(() => setSaveFeedback(getSaveFeedbackState())), []);
 
   useEffect(() => {
     if (mode !== 'mobile' || searchParams.get('focus') !== 'script') return;
@@ -86,6 +98,48 @@ export function ContentDetailShell({content, mode = 'desktop'}: ContentDetailShe
   }, [content.id, mode, searchParams, setSearchParams]);
 
   const liveContent = state.contents.find(item => item.id === content.id) || content;
+
+  useEffect(() => {
+    if (draftDirtyRef.current) return;
+
+    setDraft({
+      title: liveContent.title,
+      seriesId: liveContent.seriesId,
+      pilarId: liveContent.pilarId,
+      slotType: liveContent.slotType,
+      formatoVisual: liveContent.formatoVisual,
+      script: liveContent.script,
+      scriptNotes: liveContent.scriptNotes || [],
+      referencias: liveContent.referencias,
+      notes: liveContent.notes,
+      status: liveContent.status,
+      publishDate: liveContent.publishDate,
+      recordingDate: liveContent.recordingDate,
+      plataformas: liveContent.plataformas || [],
+    });
+  }, [
+    liveContent.id,
+    liveContent.updatedAt,
+    liveContent.title,
+    liveContent.script,
+    liveContent.status,
+    liveContent.seriesId,
+    liveContent.pilarId,
+    liveContent.slotType,
+    liveContent.formatoVisual,
+    liveContent.scriptNotes,
+    liveContent.referencias,
+    liveContent.notes,
+    liveContent.publishDate,
+    liveContent.recordingDate,
+    liveContent.plataformas,
+  ]);
+
+  const handleDraftChange = useCallback((updates: Partial<ContentDraft>) => {
+    draftDirtyRef.current = true;
+    setDraftDirty(true);
+    setDraft(previous => ({...previous, ...updates}));
+  }, []);
   const series = state.series.find(item => item.id === draft.seriesId) || null;
   const pillar = state.pilares.find(item => item.id === draft.pilarId) || null;
   const blockSummary = getContentBlockSummary(content.id, state.recordingBlocks);
@@ -105,7 +159,10 @@ export function ContentDetailShell({content, mode = 'desktop'}: ContentDetailShe
     [draft.publishDate, draft.status]
   );
 
-  const persist = async (updates?: Partial<Content>, options?: {advanceToReady?: boolean}) => {
+  const persist = useCallback(async (
+    updates?: Partial<Content>,
+    options?: {advanceToReady?: boolean; silent?: boolean}
+  ) => {
     setIsSaving(true);
 
     try {
@@ -128,7 +185,9 @@ export function ContentDetailShell({content, mode = 'desktop'}: ContentDetailShe
         updatedAt: new Date().toISOString(),
       };
 
-      await updateContent(payload);
+      await updateContent(payload, {silent: options?.silent});
+      draftDirtyRef.current = false;
+      setDraftDirty(false);
       setDraft(previous => ({...previous, ...updates, status: nextStatus}));
 
       if (options?.advanceToReady) {
@@ -141,7 +200,40 @@ export function ContentDetailShell({content, mode = 'desktop'}: ContentDetailShe
     } finally {
       setIsSaving(false);
     }
-  };
+  }, [draft, liveContent, setSearchParams, updateContent]);
+
+  const persistRef = useRef(persist);
+  persistRef.current = persist;
+
+  useEffect(() => {
+    if (!draftDirtyRef.current) return;
+    if (activeTab !== 'roteiro') return;
+
+    if (autosaveTimerRef.current) {
+      clearTimeout(autosaveTimerRef.current);
+    }
+
+    autosaveTimerRef.current = setTimeout(() => {
+      void persistRef.current(undefined, {silent: true});
+    }, 1800);
+
+    return () => {
+      if (autosaveTimerRef.current) {
+        clearTimeout(autosaveTimerRef.current);
+        autosaveTimerRef.current = null;
+      }
+    };
+  }, [activeTab, draft.script, draft.title, draft.notes, draft.referencias]);
+
+  const saveHint = isSaving || saveFeedback.status === 'saving'
+    ? 'Salvando no servidor...'
+    : saveFeedback.status === 'error'
+      ? saveFeedback.detail || saveFeedback.message
+      : saveFeedback.status === 'success'
+        ? saveFeedback.message
+        : draftDirty
+          ? 'Salvamento automatico em breve'
+          : 'Sincronizado';
 
   const handlePrimaryAction = async () => {
     switch (primaryAction.id) {
@@ -186,6 +278,10 @@ export function ContentDetailShell({content, mode = 'desktop'}: ContentDetailShe
         await persist();
         return;
       default:
+        if (primaryAction.id === 'none' && stage === ContentStage.POSTADO) {
+          navigate('/analise');
+          return;
+        }
         setSearchParams(previous => {
           const next = new URLSearchParams(previous);
           next.set('tab', primaryAction.targetTab);
@@ -206,6 +302,10 @@ export function ContentDetailShell({content, mode = 'desktop'}: ContentDetailShe
     POSTADO: 'Postado',
   };
 
+  const tabAlertCounts = {
+    postagem: postingAlerts.length,
+  };
+
   const detailSection =
     activeTab === 'roteiro' ? (
       <RoteiroSection
@@ -213,9 +313,11 @@ export function ContentDetailShell({content, mode = 'desktop'}: ContentDetailShe
         series={state.series}
         pilares={state.pilares}
         authorName={user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Usuario'}
-        onChange={updates => setDraft(previous => ({...previous, ...updates}))}
+        onChange={handleDraftChange}
+        onStatusChange={status => void persist({status})}
         mobileComposer={mode === 'mobile'}
         autoFocusScript={mode === 'mobile' && searchParams.get('focus') === 'script'}
+        layout={mode === 'desktop' ? 'workspace' : 'stack'}
       />
     ) : activeTab === 'gravacao' ? (
       <RecordingSection
@@ -229,13 +331,13 @@ export function ContentDetailShell({content, mode = 'desktop'}: ContentDetailShe
       <ProductionSection
         draft={draft}
         pilar={pillar}
-        onChange={updates => setDraft(previous => ({...previous, ...updates}))}
+        onChange={handleDraftChange}
       />
     ) : activeTab === 'postagem' ? (
       <PostingSection
         draft={draft}
         alerts={postingAlerts}
-        onChange={updates => setDraft(previous => ({...previous, ...updates}))}
+        onChange={handleDraftChange}
       />
     ) : activeTab === 'historico' ? (
       <HistorySection content={{...liveContent, ...draft}} />
@@ -266,15 +368,21 @@ export function ContentDetailShell({content, mode = 'desktop'}: ContentDetailShe
         isSaving={isSaving}
         postingAlerts={postingAlerts}
         stageLabel={stageLabel[stage]}
-        seriesName={series?.name}
-        seriesColor={series?.cor}
-        pillarName={pillar?.nome}
-        pillarColor={pillar?.cor}
+        operationalPanel={
+          <ContentOperationalPanel
+            draft={draft}
+            series={state.series}
+            pilares={state.pilares}
+            onChange={handleDraftChange}
+            onStatusChange={status => void persist({status})}
+            density="compact"
+          />
+        }
         blockName={blockSummary?.block.name ?? null}
         blockOrder={blockSummary?.order ?? null}
-        blockProgress={blockSummary?.progressPercentage ?? null}
         section={detailSection}
         onSave={() => void persist()}
+        saveHint={saveHint}
       />
 
       <SendToRecordingSheet
@@ -293,7 +401,7 @@ export function ContentDetailShell({content, mode = 'desktop'}: ContentDetailShe
     <PageScaffold contentWidth="full" contentClassName="pb-12 md:pb-10">
       <div className="mx-auto flex max-w-[1400px] flex-col gap-5">
         <div className="flex items-center justify-between gap-3 pt-4 md:pt-8">
-          <AppButton variant="ghost" leftIcon={<ArrowLeft className="h-4 w-4" />} onClick={() => navigate('/conteudos', {replace: true})}>
+          <AppButton variant="ghost" leftIcon={<ArrowLeft className="h-4 w-4" />} onClick={goBackToConteudos}>
             Voltar
           </AppButton>
           <div className="text-right">
@@ -306,17 +414,27 @@ export function ContentDetailShell({content, mode = 'desktop'}: ContentDetailShe
 
         <ContentDetailHeader
           content={{...liveContent, ...draft}}
+          title={draft.title}
+          onTitleChange={value => handleDraftChange({title: value})}
           primaryAction={primaryAction}
           onPrimaryAction={() => void handlePrimaryAction()}
           onStatusChange={status => void persist({status})}
           isSaving={isSaving}
-          seriesName={series?.name}
-          seriesColor={series?.cor}
-          pillarName={pillar?.nome}
-          pillarColor={pillar?.cor}
           blockName={blockSummary?.block.name ?? null}
           blockOrder={blockSummary?.order ?? null}
-          blockProgress={blockSummary?.progressPercentage ?? null}
+          saveHint={saveHint}
+        />
+
+        <ContentPipelineStepper
+          content={{...liveContent, ...draft}}
+          activeTab={activeTab}
+          onTabChange={tab =>
+            setSearchParams(previous => {
+              const next = new URLSearchParams(previous);
+              next.set('tab', tab);
+              return next;
+            })
+          }
         />
 
         {postingAlerts.length > 0 ? (
@@ -324,7 +442,7 @@ export function ContentDetailShell({content, mode = 'desktop'}: ContentDetailShe
             {postingAlerts.map(alert => (
               <article
                 key={alert.id}
-                className="flex items-start gap-3 rounded-[22px] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-4"
+                className="ds-card flex items-start gap-3 bg-[var(--bg-secondary)] px-4 py-4"
               >
                 {alert.tone === 'warning' ? (
                   <AlertTriangle className="mt-0.5 h-5 w-5 text-amber-500" />
@@ -339,6 +457,7 @@ export function ContentDetailShell({content, mode = 'desktop'}: ContentDetailShe
 
         <ContentDetailTabs
           activeTab={activeTab}
+          alertCounts={tabAlertCounts}
           onTabChange={tab =>
             setSearchParams(previous => {
               const next = new URLSearchParams(previous);
@@ -349,22 +468,6 @@ export function ContentDetailShell({content, mode = 'desktop'}: ContentDetailShe
         />
 
         {detailSection}
-
-        <section className="rounded-[24px] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-5 shadow-sm md:p-6">
-          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--text-tertiary)]">
-                Salvamento
-              </p>
-              <p className="mt-2 text-sm text-[var(--text-secondary)]">
-                Roteiro, gravacao, producao, postagem e historico agora compartilham a mesma fonte de verdade nesta rota unica.
-              </p>
-            </div>
-            <AppButton variant="secondary" onClick={() => void persist()}>
-              {isSaving ? 'Salvando...' : 'Salvar rascunho'}
-            </AppButton>
-          </div>
-        </section>
       </div>
     </PageScaffold>
   );
@@ -407,7 +510,7 @@ function PlaceholderSection({
   const copy = copyByTab[tab];
 
   return (
-    <section className="rounded-[28px] border border-dashed border-[var(--border-color)] bg-[var(--bg-secondary)] p-8 text-center shadow-sm">
+    <section className="ds-card border-dashed bg-[var(--bg-secondary)] p-8 text-center">
       <CheckCircle2 className="mx-auto h-10 w-10 text-[var(--accent-green)]" />
       <h2 className="mt-4 text-2xl font-black text-[var(--text-primary)]">{copy.title}</h2>
       <p className="mx-auto mt-3 max-w-2xl text-sm font-semibold leading-relaxed text-[var(--text-secondary)]">

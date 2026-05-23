@@ -1,3 +1,5 @@
+import { setPwaUpdateHandler } from './pwaRefresh';
+
 /**
  * PWA instalável, mas online-first: dados vêm sempre da rede (Supabase).
  * autoUpdate recarrega quando um novo build é publicado.
@@ -22,5 +24,7 @@ export function registerPwaUpdates(): void {
         // App exige Supabase — não promovemos modo offline.
       },
     });
+
+    setPwaUpdateHandler(updateSW);
   });
 }

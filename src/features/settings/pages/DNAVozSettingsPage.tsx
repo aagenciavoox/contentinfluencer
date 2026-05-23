@@ -51,10 +51,9 @@ export function DNAVozSettingsPage() {
         <DesktopPageHeader
           section="Configurações"
           title="DNA da Voz"
-          subtitle="Defina identidade editorial, tom e limites para manter a assinatura do conteúdo."
           icon={MessageSquare}
           backLabel="Configurações"
-          onBack={() => navigate('/configuracoes')}
+          backTo="/configuracoes"
           actions={isDirty ? (
             <AppButton
               onClick={handleSave}

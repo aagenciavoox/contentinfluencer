@@ -27,7 +27,7 @@ export function PageScaffold({
     <div className={cn('h-full flex flex-col bg-[var(--bg-primary)] transition-colors duration-200 w-full overflow-x-hidden', className)}>
       {(header || toolbar) && (
         <header className="desktop-header-sticky hidden md:block">
-          <div className="desktop-header-frame flex flex-col gap-6">
+          <div className="desktop-header-frame flex flex-col gap-3">
             {header}
             {toolbar}
           </div>

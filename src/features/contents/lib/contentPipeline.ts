@@ -157,7 +157,7 @@ export function getPrimaryAction(content: Content, options: StageOptions = {}): 
     case ContentStage.ROTEIRO:
       return {
         id: 'advance_to_recording',
-        label: 'Salvar e enviar para gravacao',
+        label: 'Enviar para gravacao',
         targetTab: 'roteiro',
         disabled: !canAdvanceToRecording(content),
         reason: !canAdvanceToRecording(content) ? 'Preencha titulo e roteiro antes de avancar.' : undefined,
@@ -171,27 +171,27 @@ export function getPrimaryAction(content: Content, options: StageOptions = {}): 
     case ContentStage.EM_BLOCO:
       return {
         id: 'go_to_execution',
-        label: 'Ir para execucao',
+        label: 'Marcar como gravado',
         targetTab: 'gravacao',
       };
     case ContentStage.GRAVADO:
     case ContentStage.PRODUCAO:
       return {
         id: 'send_to_posting',
-        label: 'Enviar para postagem',
+        label: 'Agendar postagem',
         targetTab: 'postagem',
       };
     case ContentStage.PROGRAMADO:
       return {
         id: 'save_schedule',
-        label: 'Salvar agendamento',
+        label: 'Confirmar agendamento',
         targetTab: 'postagem',
         disabled: !canSchedulePosting(content),
       };
     case ContentStage.POSTADO:
       return {
         id: 'none',
-        label: 'Ver historico',
+        label: 'Ver analise editorial',
         targetTab: 'historico',
       };
     default:

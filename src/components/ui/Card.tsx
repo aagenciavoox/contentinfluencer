@@ -22,7 +22,7 @@ export function Card({
   return (
     <div
       className={cn(
-        'editorial-card rounded-lg',
+        'editorial-card',
         paddingClasses[padding],
         interactive && 'editorial-card-interactive',
         className

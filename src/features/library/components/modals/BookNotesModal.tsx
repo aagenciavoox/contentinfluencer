@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { motion } from 'motion/react';
-import { X, Plus, Trash2, Lightbulb, MessageSquare, Star } from 'lucide-react';
+import { X, Plus, MessageSquare } from 'lucide-react';
+import { AnnotationNoteCard } from '../AnnotationNoteCard';
 import { useAppContext } from '../../../../context/AppContext';
 import { BibliotecaItem, Anotacao } from '../../../../lib/database';
 import { generateUUID } from '../../../../utils/uuid';
@@ -13,15 +13,6 @@ interface BookNotesModalProps {
   book: BibliotecaItem;
   onClose: () => void;
 }
-
-const TIPO_CORES: Record<string, string> = {
-  'Anotação': 'bg-[rgba(148,163,184,0.14)] text-[rgb(100,116,139)]',
-  Trecho: 'bg-[rgba(59,130,246,0.12)] text-[rgb(37,99,235)]',
-  Reação: 'bg-[rgba(244,114,182,0.12)] text-[rgb(225,29,72)]',
-  Análise: 'bg-[rgba(168,85,247,0.12)] text-[rgb(126,34,206)]',
-  'Ideia de conteúdo': 'bg-[rgba(34,197,94,0.12)] text-[rgb(22,163,74)]',
-  Pergunta: 'bg-[rgba(249,115,22,0.12)] text-[rgb(234,88,12)]',
-};
 
 const TIPOS: TipoAnotacao[] = ['Anotação', 'Trecho', 'Reação', 'Análise', 'Ideia de conteúdo', 'Pergunta'];
 
@@ -193,73 +184,25 @@ export function BookNotesModal({ book, onClose }: BookNotesModalProps) {
               </p>
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
               {anotacoesFiltradas.map(anotacao => (
-                <motion.div
+                <AnnotationNoteCard
                   key={anotacao.id}
-                  layout
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="rounded-[24px] border border-[var(--border-color)] bg-[var(--bg-primary)]"
-                >
-                  <div className="flex items-start justify-between gap-3 px-4 pt-4">
-                    <div className="min-w-0 flex items-center gap-2">
-                      <span
-                        className={cn(
-                          'rounded-full px-2.5 py-1 text-[8px] font-black uppercase tracking-[0.18em]',
-                          TIPO_CORES[anotacao.tipo] || TIPO_CORES['Anotação']
-                        )}
-                      >
-                        {anotacao.tipo}
-                      </span>
-
-                      {anotacao.capituloRef && (
-                        <span className="truncate text-[10px] font-bold text-[var(--text-secondary)] opacity-60">
-                          {anotacao.capituloRef}
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="flex shrink-0 items-center gap-1">
-                      {anotacao.contentPotential && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-1 text-[8px] font-black uppercase tracking-[0.15em] text-amber-700">
-                          <Star className="h-3 w-3 fill-current" />
-                          Destaque
-                        </span>
-                      )}
-
-                      {!anotacao.contentPotential && (
-                        <button
-                          onClick={() => handleTransformarEmIdeia(anotacao)}
-                          className="rounded-full p-2 text-[var(--accent-green)] transition-all hover:bg-[var(--accent-green)]/10"
-                          aria-label="Transformar em ideia"
-                        >
-                          <Lightbulb className="h-4 w-4" />
-                        </button>
-                      )}
-
-                      <button
-                        onClick={() => handleDeleteAnotacao(anotacao.id)}
-                        className="rounded-full p-2 text-[var(--accent-pink)]/60 transition-all hover:bg-[var(--accent-pink)]/10 hover:text-[var(--accent-pink)]"
-                        aria-label="Excluir nota"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="px-4 pb-4 pt-3">
-                    <p className="text-[14px] leading-6 text-[var(--text-primary)]">
-                    {anotacao.texto}
-                    </p>
-
-                    <div className="mt-3 flex items-center justify-end border-t border-[var(--border-color)] pt-2">
-                      <span className="text-[10px] font-bold text-[var(--text-tertiary)] opacity-60">
+                  anotacao={anotacao}
+                  showHighlight={false}
+                  showTransformContent={false}
+                  onTransformIdea={
+                    anotacao.contentPotential ? undefined : () => handleTransformarEmIdeia(anotacao)
+                  }
+                  onDelete={() => handleDeleteAnotacao(anotacao.id)}
+                  footer={
+                    <div className="mt-2 flex items-center justify-end border-t border-[var(--border-color)] pt-2">
+                      <span className="text-[10px] font-medium text-[var(--text-tertiary)]">
                         {formatNoteDate(anotacao.createdAt)}
                       </span>
                     </div>
-                  </div>
-                </motion.div>
+                  }
+                />
               ))}
             </div>
           )}

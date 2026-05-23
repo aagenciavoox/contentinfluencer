@@ -66,10 +66,9 @@ export function LooksSettingsPage() {
         <DesktopPageHeader
           section="Configurações"
           title="Looks & Cenários"
-          subtitle="Organize combinações visuais e bases de gravação para acelerar a operação."
           icon={Shirt}
           backLabel="Configurações"
-          onBack={() => navigate('/configuracoes')}
+          backTo="/configuracoes"
         />
         </div>
       </header>

@@ -3,6 +3,8 @@ interface MobileRouteMeta {
   subtitle: string;
   mode?: 'menu' | 'back';
   backTo?: string;
+  /** Titulo pequeno centralizado na barra superior (ex.: Ideias). */
+  titleVariant?: 'default' | 'compact-center';
 }
 
 export function getMobileRouteMeta(pathname: string): MobileRouteMeta {
@@ -65,7 +67,8 @@ export function getMobileRouteMeta(pathname: string): MobileRouteMeta {
     case '/ideias':
       return {
         title: 'Ideias',
-        subtitle: 'Capture, refine e promova rapidamente.',
+        subtitle: '',
+        titleVariant: 'compact-center',
       };
     case '/calendario':
       return {

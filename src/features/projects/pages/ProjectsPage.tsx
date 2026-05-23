@@ -221,7 +221,6 @@ export function ProjectsPage() {
           <DesktopPageHeader
             section="Gestão"
             title="Projetos"
-            subtitle="Centralize publis, produções e outros projetos com status, prazo e valor no mesmo fluxo."
             icon={Handshake}
             className="mb-0"
             actions={(

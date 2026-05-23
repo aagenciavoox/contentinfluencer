@@ -1,10 +1,12 @@
 import {Suspense, lazy, useEffect, useMemo, useState} from 'react';
-import {useNavigate, useSearchParams} from 'react-router-dom';
+import {useLocation, useNavigate, useSearchParams} from 'react-router-dom';
 import {Check, Loader2, Table as TableIcon, Trash2, X} from 'lucide-react';
 import {AnimatePresence, motion} from 'motion/react';
 import {ConfirmModal} from '../../../components/feedback/modals/ConfirmModal';
 import {AppButton} from '../../../components/ui/AppButton';
 import {useAppContext} from '../../../context/AppContext';
+import {broadcastDataSync} from '../../../lib/syncBroadcast';
+import {notifySaveFeedback} from '../../../lib/saveFeedback';
 import {useIsMobile} from '../../../hooks/useIsMobile';
 import {DesktopPageHeader} from '../../../layouts/page/DesktopPageHeader';
 import {PageScaffold} from '../../../layouts/page/PageScaffold';
@@ -12,6 +14,7 @@ import {Content} from '../../../lib/database';
 import {ContentsMobileScreen} from '../../../mobile/screens/contents/ContentsMobileScreen';
 import {ContentsDesktop} from '../components/desktop/ContentsDesktop';
 import {ContentsToolbar} from '../components/filters/ContentsToolbar';
+import {buildDetailBackState} from '../../../lib/navigation/detailBack';
 import {createContentDraft} from '../lib/createContentDraft';
 import {buildContentDetailRoute} from '../lib/contentDetailRoute';
 import {CONTENT_STATUS} from '../lib/contentPipeline';
@@ -45,6 +48,7 @@ function ModalFallback() {
 export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'history' | 'auto'}) {
   const {state, dispatch, updateContent} = useAppContext();
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const isMobile = useIsMobile();
   const requestedView = searchParams.get('view');
@@ -247,6 +251,8 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
     setSortDirection('asc');
   };
 
+  const conteudosListPath = `${location.pathname}${location.search}`;
+
   const handleAddContent = () => {
     setFilterStatus('Todos');
     setFilterSeries('Todas');
@@ -256,7 +262,7 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
       status: isEditorialMode ? CONTENT_STATUS.ROTEIRO : CONTENT_STATUS.GRAVADO,
     });
     void dispatch({type: 'ADD_CONTENT', payload: newContent});
-    navigate(`${buildContentDetailRoute(newContent.id)}&focus=script`, {replace: true});
+    navigate(`${buildContentDetailRoute(newContent.id)}&focus=script`, buildDetailBackState(conteudosListPath));
   };
 
   const handleToggleSelect = (id: string) => {
@@ -313,28 +319,41 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
     setBulkUpdateError(null);
 
     try {
+      notifySaveFeedback({
+        status: 'saving',
+        message: `Atualizando ${selectedContents.length} conteudos...`,
+      });
+
       await Promise.all(
         selectedContents.map(content =>
-          updateContent({
-            ...content,
-            seriesId:
-              bulkSeriesValue === KEEP_VALUE
-                ? content.seriesId
-                : bulkSeriesValue === EMPTY_VALUE
-                  ? null
-                  : bulkSeriesValue,
-            pilarId:
-              bulkPillarValue === KEEP_VALUE
-                ? content.pilarId
-                : bulkPillarValue === EMPTY_VALUE
-                  ? null
-                  : bulkPillarValue,
-            status: bulkStatusValue === KEEP_VALUE ? content.status : bulkStatusValue,
-            updatedAt: new Date().toISOString(),
-          })
+          updateContent(
+            {
+              ...content,
+              seriesId:
+                bulkSeriesValue === KEEP_VALUE
+                  ? content.seriesId
+                  : bulkSeriesValue === EMPTY_VALUE
+                    ? null
+                    : bulkSeriesValue,
+              pilarId:
+                bulkPillarValue === KEEP_VALUE
+                  ? content.pilarId
+                  : bulkPillarValue === EMPTY_VALUE
+                    ? null
+                    : bulkPillarValue,
+              status: bulkStatusValue === KEEP_VALUE ? content.status : bulkStatusValue,
+              updatedAt: new Date().toISOString(),
+            },
+            { silent: true, skipBroadcast: true }
+          )
         )
       );
 
+      broadcastDataSync();
+      notifySaveFeedback({
+        status: 'success',
+        message: `${selectedContents.length} conteudos atualizados`,
+      });
       setBulkUpdateMessage(`${selectedContents.length} conteudos atualizados.`);
       setSelectedIds(new Set());
     } catch (error) {
@@ -346,19 +365,14 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
   };
 
   const pageTitle = isEditorialMode ? 'Roteiro' : postingTab === 'historico' ? 'Publicados' : 'Postagem';
-  const pageSubtitle = isEditorialMode
-    ? 'Gerencie o estoque editorial antes de cada roteiro seguir para gravacao.'
-    : postingTab === 'historico'
-      ? 'Consulte o que ja foi publicado sem sair da fila principal de conteudos.'
-      : 'Concentre agendamento, plataformas e alertas sem separar a postagem do detalhe do conteudo.';
   const surfaceMode = isEditorialMode ? 'editorial' : isPostingHistory ? 'historico' : 'postagem';
 
   const openUnifiedDetail = (content: Content, tab: 'roteiro' | 'postagem' | 'historico') => {
-    navigate(buildContentDetailRoute(content.id, tab), {replace: true});
+    navigate(buildContentDetailRoute(content.id, tab), buildDetailBackState(conteudosListPath));
   };
 
   const openScriptDetail = (content: Content) => {
-    navigate(buildContentDetailRoute(content.id), {replace: true});
+    navigate(buildContentDetailRoute(content.id), buildDetailBackState(conteudosListPath));
   };
 
   if (isMobile) {
@@ -416,7 +430,6 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
         <DesktopPageHeader
           section="Operacao"
           title={pageTitle}
-          subtitle={pageSubtitle}
           icon={TableIcon}
           className="mb-0"
         />

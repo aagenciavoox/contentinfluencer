@@ -35,6 +35,7 @@ interface FilterBarProps {
   onSortChange: (value: string) => void;
   className?: string;
   maxVisibleFilters?: number;
+  compact?: boolean;
 }
 
 function useOutsideClose(open: boolean, onClose: () => void) {
@@ -59,9 +60,11 @@ function useOutsideClose(open: boolean, onClose: () => void) {
 function FilterBarDropdown({
   label,
   children,
+  compact = false,
 }: {
   label: string;
   children: (close: () => void) => ReactNode;
+  compact?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const close = () => setOpen(false);
@@ -72,7 +75,7 @@ function FilterBarDropdown({
       <button
         type="button"
         onClick={() => setOpen(previous => !previous)}
-        className="filter-bar-select w-[148px] justify-between"
+        className={cn('filter-bar-select justify-between', compact ? 'w-[104px]' : 'w-[148px]')}
       >
         <span className="truncate">{label}</span>
         <ChevronDown className="h-4 w-4 shrink-0" />
@@ -87,10 +90,12 @@ function FilterBarDropdown({
   );
 }
 
-function FilterControl({filter}: {filter: FilterBarFilter}) {
+function FilterControl({filter, compact = false}: {filter: FilterBarFilter; compact?: boolean}) {
+  const selectWidth = compact ? 'w-[104px]' : 'w-[148px]';
+
   if (filter.type === 'custom') {
     return (
-      <FilterBarDropdown label={filter.label}>
+      <FilterBarDropdown label={filter.label} compact={compact}>
         {close => filter.renderContent(close)}
       </FilterBarDropdown>
     );
@@ -102,7 +107,7 @@ function FilterControl({filter}: {filter: FilterBarFilter}) {
         aria-label={filter.label}
         value={filter.value}
         onChange={event => filter.onChange(event.target.value)}
-        className="filter-bar-select w-[148px] appearance-none pr-10"
+        className={cn('filter-bar-select appearance-none pr-10', selectWidth)}
       >
         {filter.options.map(option => (
           <option key={option.value} value={option.value}>
@@ -125,12 +130,14 @@ export function FilterBar({
   onSortChange,
   className,
   maxVisibleFilters = 4,
+  compact = false,
 }: FilterBarProps) {
+  const selectWidth = compact ? 'w-[104px]' : 'w-[148px]';
   const visibleFilters = filters.slice(0, maxVisibleFilters);
   const overflowFilters = filters.slice(maxVisibleFilters);
 
   return (
-    <div className={cn('filter-bar', className)}>
+    <div className={cn('filter-bar', compact && 'filter-bar--compact', className)}>
       <div className="filter-bar-search">
         <Search className="h-4 w-4 shrink-0 text-[var(--text-tertiary)]" />
         <input
@@ -144,11 +151,11 @@ export function FilterBar({
 
       <div className="filter-bar-controls">
         {visibleFilters.map(filter => (
-          <FilterControl key={filter.id} filter={filter} />
+          <FilterControl key={filter.id} filter={filter} compact={compact} />
         ))}
 
         {overflowFilters.length > 0 ? (
-          <FilterBarDropdown label="Mais filtros">
+          <FilterBarDropdown label="Mais filtros" compact={compact}>
             {close => (
               <div className="flex min-w-[240px] flex-col gap-3">
                 {overflowFilters.map(filter => (
@@ -182,7 +189,7 @@ export function FilterBar({
             aria-label="Ordenar"
             value={sortValue}
             onChange={event => onSortChange(event.target.value)}
-            className="filter-bar-select w-[148px] appearance-none pr-10"
+            className={cn('filter-bar-select appearance-none pr-10', selectWidth)}
           >
             {sortOptions.map(option => (
               <option key={option.value} value={option.value}>

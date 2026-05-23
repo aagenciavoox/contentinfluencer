@@ -4,6 +4,7 @@ import type { Pilar } from '../../../lib/database';
 import { MobileEmptyState } from '../../components/MobileEmptyState';
 import { MobileListCard } from '../../components/MobileListCard';
 import { MobilePillButton } from '../../components/MobilePillButton';
+import { PilarForm } from '../../../features/settings/components/PilarForm';
 import { Palette, Plus } from 'lucide-react';
 
 interface PillarsMobileScreenProps {
@@ -13,63 +14,46 @@ interface PillarsMobileScreenProps {
   onDelete: (pilarId: string) => void;
 }
 
-const PRESET_CORES = [
-  '#F5C543',
-  '#4A90D9',
-  '#E8A0BF',
-  '#D44C47',
-  '#448361',
-  '#9065B0',
-  '#2EAADC',
-  '#D9730D',
-];
-
 export function PillarsMobileScreen({
   pilares,
   onSave,
   onToggle,
   onDelete,
 }: PillarsMobileScreenProps) {
-  const [showForm, setShowForm] = useState(false);
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  const [color, setColor] = useState(PRESET_CORES[0]);
+  const [panelMode, setPanelMode] = useState<'create' | 'edit' | null>(null);
+  const [editingPilar, setEditingPilar] = useState<Pilar | null>(null);
 
-  const handleCreate = () => {
-    if (!name.trim()) return;
+  const closePanel = () => {
+    setPanelMode(null);
+    setEditingPilar(null);
+  };
 
-    onSave({
-      id: crypto.randomUUID(),
-      userId: '',
-      nome: name.trim(),
-      descricao: description.trim(),
-      cor: color,
-      ativo: true,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      plataformas: [],
-    });
-
-    setName('');
-    setDescription('');
-    setColor(PRESET_CORES[0]);
-    setShowForm(false);
+  const handleSave = (pilar: Pilar) => {
+    onSave(pilar);
+    closePanel();
   };
 
   return (
     <div className="space-y-5">
-      <section className="rounded-[1.75rem] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4 shadow-sm">
+      <section className="rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4 shadow-sm">
         <div className="mb-4 flex items-center gap-3">
-          <div className="rounded-2xl bg-[var(--accent-orange)]/12 p-3 text-[var(--accent-orange)]">
+          <div className="rounded-[var(--radius-input)] bg-[var(--accent-orange)]/12 p-3 text-[var(--accent-orange)]">
             <Palette className="h-5 w-5" />
           </div>
           <div>
-            <p className="t-section-title text-[var(--text-primary)]">Pilares editoriais</p>
-            <p className="t-secondary">Gerencie nome, descrição, cor e ativação em fluxo mobile dedicado.</p>
+            <p className="ds-h3 text-[var(--text-primary)]">Pilares editoriais</p>
+            <p className="ds-body text-[var(--text-secondary)]">Nome, distribuicao e hashtags por plataforma.</p>
           </div>
         </div>
 
-        <button type="button" onClick={() => setShowForm(true)} className="button-primary w-full">
+        <button
+          type="button"
+          onClick={() => {
+            setEditingPilar(null);
+            setPanelMode('create');
+          }}
+          className="button-primary w-full"
+        >
           <Plus className="h-4 w-4" />
           Novo pilar
         </button>
@@ -83,11 +67,15 @@ export function PillarsMobileScreen({
             icon={<Palette className="h-8 w-8" />}
           />
         ) : (
-          pilares.map((pilar) => (
+          pilares.map(pilar => (
             <MobileListCard
               key={pilar.id}
               title={pilar.nome}
-              description={pilar.descricao || 'Sem descrição ainda.'}
+              description={pilar.descricao || 'Sem descricao ainda.'}
+              onClick={() => {
+                setEditingPilar(pilar);
+                setPanelMode('edit');
+              }}
               meta={
                 <>
                   <span
@@ -105,7 +93,7 @@ export function PillarsMobileScreen({
               trailing={
                 <MobilePillButton
                   tone="danger"
-                  onClick={(event) => {
+                  onClick={event => {
                     event.stopPropagation();
                     onDelete(pilar.id);
                   }}
@@ -116,7 +104,10 @@ export function PillarsMobileScreen({
               status={
                 <MobilePillButton
                   tone={pilar.ativo ? 'success' : 'muted'}
-                  onClick={() => onToggle(pilar)}
+                  onClick={event => {
+                    event.stopPropagation();
+                    onToggle(pilar);
+                  }}
                 >
                   {pilar.ativo ? 'Ativo' : 'Inativo'}
                 </MobilePillButton>
@@ -126,56 +117,37 @@ export function PillarsMobileScreen({
         )}
       </section>
 
-      <BottomSheetModal open={showForm} onClose={() => setShowForm(false)} desktopMaxW="max-w-xl" zIndex="z-[110]">
+      <BottomSheetModal
+        open={panelMode !== null}
+        onClose={closePanel}
+        desktopMaxW="max-w-xl"
+        zIndex="z-[110]"
+      >
         <div className="flex h-full flex-col bg-[var(--bg-primary)]">
           <div className="border-b border-[var(--border-color)] px-5 py-4">
-            <p className="t-section-title text-[var(--text-primary)]">Novo pilar</p>
-            <p className="t-secondary mt-1">Cadastro rápido de tema editorial com cor e descrição.</p>
-          </div>
-
-          <div className="flex-1 space-y-4 overflow-y-auto p-5">
-            <input
-              autoFocus
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              placeholder="Nome do pilar"
-              className="w-full"
-            />
-
-            <input
-              value={description}
-              onChange={(event) => setDescription(event.target.value)}
-              placeholder="Descrição curta"
-              className="w-full"
-            />
-
-            <div className="space-y-2">
-              <span className="t-label text-[var(--text-tertiary)]">Cor</span>
-              <div className="flex flex-wrap gap-3">
-                {PRESET_CORES.map((preset) => (
-                  <button
-                    key={preset}
-                    type="button"
-                    onClick={() => setColor(preset)}
-                    className={`h-8 w-8 rounded-full border-2 ${color === preset ? 'border-[var(--text-primary)] scale-110' : 'border-transparent'}`}
-                    style={{ backgroundColor: preset }}
-                  />
-                ))}
+            <div className="flex items-center gap-3">
+              <span
+                className="h-10 w-10 shrink-0 rounded-[var(--radius-card)] border border-[var(--border-color)]"
+                style={{ backgroundColor: editingPilar?.cor || '#F5C543' }}
+              />
+              <div className="min-w-0">
+                <p className="ds-h3 truncate text-[var(--text-primary)]">
+                  {panelMode === 'edit' ? editingPilar?.nome : 'Novo pilar'}
+                </p>
+                <p className="ds-meta text-[var(--text-secondary)]">
+                  Identidade, distribuicao e hashtags
+                </p>
               </div>
             </div>
           </div>
 
-          <div className="flex gap-3 border-t border-[var(--border-color)] px-5 py-4 pb-safe">
-            <button
-              type="button"
-              onClick={() => setShowForm(false)}
-              className="flex-1 rounded-[1.25rem] border border-[var(--border-color)] py-3 text-xs font-black uppercase tracking-widest text-[var(--text-secondary)]"
-            >
-              Cancelar
-            </button>
-            <button type="button" onClick={handleCreate} disabled={!name.trim()} className="button-primary flex-1 disabled:opacity-40">
-              Criar
-            </button>
+          <div className="flex-1 overflow-y-auto p-5">
+            <PilarForm
+              key={editingPilar?.id || 'new'}
+              initial={editingPilar ?? {}}
+              onSave={handleSave}
+              onCancel={closePanel}
+            />
           </div>
         </div>
       </BottomSheetModal>
