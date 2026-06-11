@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
-import { Search } from 'lucide-react';
+import { Lightbulb, Search, X } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Sidebar } from '../navigation/Sidebar';
 import { CommandPalette } from '../../components/overlays/CommandPalette';
@@ -15,6 +15,9 @@ import { resolveRouteBack } from '../../lib/navigation/detailBack';
 import { SaveFeedbackToast } from '../../components/ui/SaveFeedbackToast';
 import { useAppContext } from '../../context/AppContext';
 import { forceMobileRefresh } from '../../lib/pwaRefresh';
+import { IdeaQuickCapture } from '../../features/ideas/components/IdeaQuickCapture';
+import { generateUUID } from '../../utils/uuid';
+import type { Idea } from '../../lib/database';
 
 interface AppShellProps {
   children: ReactNode;
@@ -24,16 +27,43 @@ export function AppShell({ children }: AppShellProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [isActionMenuOpen, setIsActionMenuOpen] = useState(false);
+  const [isQuickNoteOpen, setIsQuickNoteOpen] = useState(false);
+  const [quickNoteText, setQuickNoteText] = useState('');
+  const [quickNotePilarId, setQuickNotePilarId] = useState('');
+  const [quickNoteSeries, setQuickNoteSeries] = useState('');
+  const [quickNoteBibliotecaId, setQuickNoteBibliotecaId] = useState('');
+
   const isMobile = useIsMobile();
   const location = useLocation();
   const navigate = useNavigate();
   const { isHidden, handleScroll } = useHideOnScroll(isMobile);
   const routeMeta = getMobileRouteMeta(location.pathname);
-  const { syncFromServer } = useAppContext();
+  const { state, dispatch, syncFromServer } = useAppContext();
 
   const handlePullRefresh = useCallback(async () => {
     await forceMobileRefresh(() => syncFromServer({ silent: true }));
   }, [syncFromServer]);
+
+  const saveQuickNote = useCallback(() => {
+    if (!quickNoteText.trim()) return;
+    const newIdea: Idea = {
+      id: generateUUID(),
+      userId: '',
+      text: quickNoteText.trim(),
+      pilarId: quickNotePilarId || null,
+      seriesId: quickNoteSeries || null,
+      origemId: quickNoteBibliotecaId || null,
+      promotedToContentId: null,
+      archived: false,
+      createdAt: new Date().toISOString(),
+    };
+    dispatch({ type: 'ADD_IDEA', payload: newIdea });
+    setQuickNoteText('');
+    setQuickNotePilarId('');
+    setQuickNoteSeries('');
+    setQuickNoteBibliotecaId('');
+    setIsQuickNoteOpen(false);
+  }, [quickNoteText, quickNotePilarId, quickNoteSeries, quickNoteBibliotecaId, dispatch]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -41,11 +71,13 @@ export function AppShell({ children }: AppShellProps) {
         event.preventDefault();
         setIsCommandPaletteOpen((previous) => !previous);
       }
+      if (event.key === 'Escape' && isQuickNoteOpen) {
+        setIsQuickNoteOpen(false);
+      }
     };
-
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [isQuickNoteOpen]);
 
   useEffect(() => {
     setIsActionMenuOpen(false);
@@ -58,12 +90,10 @@ export function AppShell({ children }: AppShellProps) {
           isOpen={isCommandPaletteOpen}
           onClose={() => setIsCommandPaletteOpen(false)}
         />
-
         <Sidebar
           isOpen={isMobileMenuOpen}
           onClose={() => setIsMobileMenuOpen(false)}
         />
-
         <MobileAppShell
           compactHeader={routeMeta.titleVariant === 'compact-center'}
           header={(
@@ -83,7 +113,6 @@ export function AppShell({ children }: AppShellProps) {
                   navigate(target);
                   return;
                 }
-
                 setIsMobileMenuOpen(true);
               }}
               onRightAction={() => setIsCommandPaletteOpen(true)}
@@ -118,26 +147,61 @@ export function AppShell({ children }: AppShellProps) {
         isOpen={isCommandPaletteOpen}
         onClose={() => setIsCommandPaletteOpen(false)}
       />
-
       <Sidebar
         isOpen={isMobileMenuOpen}
         onClose={() => setIsMobileMenuOpen(false)}
       />
-
       <main
         onScroll={handleScroll}
         className="relative flex-1 overflow-y-auto bg-transparent pb-24 transition-transform duration-300 ease-in-out md:pb-0 md:pt-0"
-        style={
-          isMobile
-            ? {
-                paddingTop: 'calc(env(safe-area-inset-top) + 88px)',
-                transform: isHidden ? 'translateY(calc(-1 * (env(safe-area-inset-top) + 88px)))' : undefined,
-              }
-            : undefined
-        }
       >
         <div className="min-h-full">{children}</div>
       </main>
+
+      {/* Botao flutuante de nota rapida */}
+      <button
+        onClick={() => setIsQuickNoteOpen(true)}
+        title="Nova ideia"
+        className="fixed bottom-6 right-6 z-40 flex h-12 w-12 items-center justify-center rounded-full border border-[var(--border-color)] bg-[var(--bg-secondary)] text-[var(--text-secondary)] shadow-lg transition-all hover:scale-105 hover:border-[var(--text-primary)] hover:text-[var(--text-primary)]"
+      >
+        <Lightbulb className="h-5 w-5" />
+      </button>
+
+      {/* Modal de nota rapida */}
+      {isQuickNoteOpen && (
+        <div className="fixed inset-0 z-50 flex items-end justify-end p-6">
+          <div
+            className="absolute inset-0 bg-black/20 backdrop-blur-[2px]"
+            onClick={() => setIsQuickNoteOpen(false)}
+          />
+          <div className="relative z-10 w-full max-w-md">
+            <div className="mb-2 flex items-center justify-between px-1">
+              <span className="text-[10px] font-black uppercase tracking-[0.22em] text-[var(--text-tertiary)]">
+                Nova ideia
+              </span>
+              <button
+                onClick={() => setIsQuickNoteOpen(false)}
+                className="rounded-lg p-1 text-[var(--text-tertiary)] hover:text-[var(--text-primary)]"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+            <IdeaQuickCapture
+              text={quickNoteText}
+              selectedPilarId={quickNotePilarId}
+              selectedSeries={quickNoteSeries}
+              selectedBibliotecaId={quickNoteBibliotecaId}
+              state={state}
+              onTextChange={setQuickNoteText}
+              onSelectedPilarIdChange={setQuickNotePilarId}
+              onSelectedSeriesChange={setQuickNoteSeries}
+              onSelectedBibliotecaIdChange={setQuickNoteBibliotecaId}
+              onSave={saveQuickNote}
+            />
+          </div>
+        </div>
+      )}
+
       <SaveFeedbackToast />
     </div>
   );

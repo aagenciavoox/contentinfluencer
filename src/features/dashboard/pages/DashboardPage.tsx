@@ -1,43 +1,67 @@
 import React from 'react';
-import {BarChart3, BookOpen, CalendarClock, FileText, FolderKanban, Lightbulb, Sparkles, Video} from 'lucide-react';
+import {
+  AlertTriangle,
+  ArrowRight,
+  BookOpen,
+  CalendarDays,
+  Clapperboard,
+  FolderKanban,
+  Lightbulb,
+  Plus,
+  Scissors,
+  Sparkles,
+  Video,
+} from 'lucide-react';
+import {startOfWeek} from 'date-fns';
+import {useNavigate} from 'react-router-dom';
 import {DesktopPageHeader} from '../../../layouts/page/DesktopPageHeader';
 import {PageScaffold} from '../../../layouts/page/PageScaffold';
 import {useAppContext} from '../../../context/AppContext';
 import {useIsMobile} from '../../../hooks/useIsMobile';
-import {STATUS_STAGES} from '../../../constants';
 import {cn} from '../../../lib/utils';
 import {DashboardMobileScreen} from '../../../mobile/screens/dashboard/DashboardMobileScreen';
 import {CONTENT_STATUS} from '../../contents/lib/contentPipeline';
+import {buildContentDetailRoute} from '../../contents/lib/contentDetailRoute';
+import {getGentleExperienceSettings} from '../../settings/lib/gentleExperience';
+import {validateWeeklyContent} from '../../../utils/goldenRules';
 
 export function DashboardPage() {
   const {state} = useAppContext();
   const isMobile = useIsMobile();
+  const navigate = useNavigate();
+  const gentleExperience = getGentleExperienceSettings(state.preferences);
 
-  const totalContents = state.contents.length;
-  const readyToRecord = state.contents.filter(content => content.status === CONTENT_STATUS.PRONTO_PARA_GRAVAR).length;
-  const activeIdeas = state.ideas.filter(idea => !idea.archived).length;
-  const activeProjects = state.projetos.filter(project => project.status !== 'Concluido').length;
-
-  const pipeline = STATUS_STAGES.map(status => ({
-    status,
-    count: state.contents.filter(content => content.status === status).length,
-  }));
-
-  const maxPipelineCount = Math.max(...pipeline.map(item => item.count), 1);
-
-  const recentContents = [...state.contents]
-    .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
-    .slice(0, 5);
-
-  const recentIdeas = [...state.ideas]
-    .filter(idea => !idea.archived)
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-    .slice(0, 4);
-
+  // Listas operacionais
+  const readyToRecord = state.contents.filter(c => c.status === CONTENT_STATUS.PRONTO_PARA_GRAVAR);
+  const inProduction = state.contents.filter(
+    c =>
+      c.status === CONTENT_STATUS.GRAVADO ||
+      c.status === CONTENT_STATUS.A_EDITAR ||
+      c.status === CONTENT_STATUS.EDITADO,
+  );
   const upcomingAgenda = [...state.agendaItems]
     .filter(item => item.date >= new Date().toISOString().slice(0, 10))
     .sort((a, b) => `${a.date}${a.time || ''}`.localeCompare(`${b.date}${b.time || ''}`))
-    .slice(0, 4);
+    .slice(0, 5);
+
+  // Regras de Ouro: violacoes da semana atual
+  const weekStart = startOfWeek(new Date(), {weekStartsOn: 1});
+  const goldenRuleViolations = validateWeeklyContent(
+    state.contents,
+    weekStart,
+    state.pilares,
+    state.goldenRules,
+  );
+
+  // Projetos com deadline nos proximos 7 dias
+  const today = new Date().toISOString().slice(0, 10);
+  const in7days = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const urgentProjects = state.projetos
+    .filter(p => p.status !== 'Concluido' && p.dataFim && p.dataFim >= today && p.dataFim <= in7days)
+    .sort((a, b) => (a.dataFim! > b.dataFim! ? 1 : -1));
+
+  // Bloco de destaque
+  const spotlight = resolveSpotlight({readyToRecord, inProduction, upcomingAgenda});
 
   if (isMobile) {
     return (
@@ -47,6 +71,7 @@ export function DashboardPage() {
           ideas={state.ideas}
           projetos={state.projetos}
           agendaItems={state.agendaItems}
+          gentleExperience={gentleExperience}
         />
       </div>
     );
@@ -59,242 +84,376 @@ export function DashboardPage() {
       header={
         <DesktopPageHeader
           section="Central"
-          title="Dashboard"
+          title="Inicio"
           icon={Sparkles}
           className="mb-0"
         />
       }
     >
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <StatCard
-          label="Conteudos no sistema"
-          value={totalContents}
-          helper="Tudo que esta em circulacao no pipeline"
-          icon={FileText}
-        />
-        <StatCard
-          label="Prontos para gravar"
-          value={readyToRecord}
-          helper="Fila que ja pode entrar na pagina Gravacao"
-          icon={Video}
-          tone="amber"
-        />
-        <StatCard
-          label="Ideias ativas"
-          value={activeIdeas}
-          helper="Banco de temas ainda nao promovidos"
-          icon={Lightbulb}
-          tone="blue"
-        />
-        <StatCard
-          label="Projetos em andamento"
-          value={activeProjects}
-          helper="Campanhas e entregas em curso"
-          icon={FolderKanban}
-          tone="green"
-        />
-      </section>
+      {/* Bloco de destaque */}
+      <SpotlightBlock spotlight={spotlight} onNavigate={navigate} />
 
-      <section className="grid gap-6 xl:grid-cols-[1.3fr_0.7fr]">
-        <div className="rounded-[2rem] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-6 md:p-8">
-          <div className="mb-6 flex items-center justify-between gap-4">
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[var(--text-tertiary)]">
-                Pipeline
-              </p>
-              <h2 className="mt-2 text-2xl font-black text-[var(--text-primary)]">
-                Distribuicao por etapa
-              </h2>
-            </div>
-            <BarChart3 className="h-5 w-5 text-[var(--text-tertiary)]" />
+      {/* Alerta de Regras de Ouro */}
+      {goldenRuleViolations.length > 0 && (
+        <button
+          onClick={() => navigate('/configuracoes/regras')}
+          className="group flex w-full items-center justify-between gap-4 rounded-[1.5rem] border border-amber-500/30 bg-amber-500/5 px-5 py-4 text-left transition-opacity hover:opacity-80"
+        >
+          <div className="flex items-center gap-3">
+            <AlertTriangle className="h-4 w-4 shrink-0 text-amber-500" />
+            <p className="text-sm font-black text-[var(--text-primary)]">
+              {goldenRuleViolations.length === 1
+                ? '1 regra editorial precisa de atencao esta semana'
+                : `${goldenRuleViolations.length} regras editoriais precisam de atencao esta semana`}
+            </p>
           </div>
+          <span className="flex shrink-0 items-center gap-1 text-[11px] font-black uppercase tracking-[0.18em] text-amber-500">
+            Ver regras <ArrowRight className="h-3 w-3" />
+          </span>
+        </button>
+      )}
 
-          <div className="space-y-4">
-            {pipeline.map(item => (
-              <div key={item.status} className="space-y-2">
-                <div className="flex items-center justify-between gap-4">
-                  <span className="text-sm font-black text-[var(--text-primary)]">{item.status}</span>
-                  <span className="text-[11px] font-black uppercase tracking-[0.18em] text-[var(--text-tertiary)]">
-                    {item.count}
-                  </span>
+      {/* Projetos com deadline proximo */}
+      {urgentProjects.length > 0 && (
+        <section>
+          <div className="mb-3 flex items-center gap-2">
+            <FolderKanban className="h-4 w-4 text-[var(--text-tertiary)]" />
+            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[var(--text-tertiary)]">
+              Deadline nos proximos 7 dias
+            </p>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {urgentProjects.map(project => (
+              <button
+                key={project.id}
+                onClick={() => navigate(`/projetos/${project.id}`)}
+                className="group flex items-center justify-between gap-4 rounded-[1.5rem] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-5 py-4 text-left transition-opacity hover:opacity-70"
+              >
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-black text-[var(--text-primary)]">{project.nome}</p>
+                  <p className="mt-0.5 text-xs text-[var(--text-secondary)]">
+                    {project.brand ? `${project.brand} · ` : ''}{project.dataFim}
+                  </p>
                 </div>
-                <div className="h-2 overflow-hidden rounded-full bg-[var(--bg-hover)]">
-                  <div
-                    className="h-full rounded-full bg-[var(--text-primary)] transition-all"
-                    style={{width: `${(item.count / maxPipelineCount) * 100}%`}}
-                  />
-                </div>
-              </div>
+                <ArrowRight className="h-3.5 w-3.5 shrink-0 text-[var(--text-tertiary)]" />
+              </button>
             ))}
           </div>
-        </div>
+        </section>
+      )}
 
-        <div className="rounded-[2rem] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-6 md:p-8">
-          <div className="mb-6 flex items-center justify-between gap-4">
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[var(--text-tertiary)]">
-                Proximas acoes
-              </p>
-              <h2 className="mt-2 text-2xl font-black text-[var(--text-primary)]">
-                Foco do dia
-              </h2>
-            </div>
-            <CalendarClock className="h-5 w-5 text-[var(--text-tertiary)]" />
-          </div>
-
-          <div className="space-y-3">
-            <ActionCard
-              title="Montar blocos de gravacao"
-              value={`${readyToRecord} roteiros prontos`}
-              helper="Tudo que ja saiu de Conteudos e entrou na fila de Gravacao."
-            />
-            <ActionCard
-              title="Revisar ideias recentes"
-              value={`${recentIdeas.length} ideias novas`}
-              helper="Boas candidatas para virar roteiro ou serie."
-            />
-            <ActionCard
-              title="Acompanhar agenda"
-              value={`${upcomingAgenda.length} compromissos proximos`}
-              helper="Use calendario e projetos para manter a operacao alinhada."
-            />
-          </div>
-        </div>
+      {/* Acoes rapidas */}
+      <section className="flex flex-wrap gap-3">
+        <QuickAction label="Novo conteudo" icon={Plus} onClick={() => navigate('/conteudos')} />
+        <QuickAction label="Nova ideia" icon={Lightbulb} onClick={() => navigate('/ideias')} />
+        <QuickAction label="Ir para gravacao" icon={Video} onClick={() => navigate('/gravacao')} />
+        <QuickAction label="Ver calendario" icon={CalendarDays} onClick={() => navigate('/calendario')} />
       </section>
 
+      {/* Listas operacionais */}
       <section className="grid gap-6 xl:grid-cols-3">
-        <Panel
-          title="Conteudos recentes"
-          icon={FileText}
-          empty="Nenhum conteudo cadastrado ainda."
+        <OperationalList
+          title="Fila de gravacao"
+          icon={Video}
+          empty="Nenhum roteiro pronto para gravar."
+          seeAllHref="/gravacao"
+          seeAllLabel="Abrir gravacao"
         >
-          {recentContents.map(content => (
-            <RowItem
+          {readyToRecord.slice(0, 5).map(content => (
+            <ContentRow
               key={content.id}
               title={content.title || '(sem titulo)'}
-              subtitle={content.status}
+              meta={content.status}
+              onClick={() => navigate(buildContentDetailRoute(content.id))}
             />
           ))}
-        </Panel>
+        </OperationalList>
 
-        <Panel
-          title="Ideias em aberto"
-          icon={Lightbulb}
-          empty="Nenhuma ideia ativa no momento."
+        <OperationalList
+          title="Em producao"
+          icon={Scissors}
+          empty="Nenhum conteudo em edicao ou gravado."
+          seeAllHref="/conteudos"
+          seeAllLabel="Ver conteudos"
         >
-          {recentIdeas.map(idea => (
-            <RowItem
-              key={idea.id}
-              title={idea.text}
-              subtitle={new Date(idea.createdAt).toLocaleDateString('pt-BR')}
+          {inProduction.slice(0, 5).map(content => (
+            <ContentRow
+              key={content.id}
+              title={content.title || '(sem titulo)'}
+              meta={content.status}
+              onClick={() => navigate(buildContentDetailRoute(content.id))}
             />
           ))}
-        </Panel>
+        </OperationalList>
 
-        <Panel
+        <OperationalList
           title="Agenda proxima"
           icon={BookOpen}
           empty="Nenhum item futuro na agenda."
+          seeAllHref="/calendario"
+          seeAllLabel="Ver calendario"
         >
           {upcomingAgenda.map(item => (
-            <RowItem
+            <ContentRow
               key={item.id}
               title={item.title}
-              subtitle={[item.date, item.time].filter(Boolean).join(' · ')}
+              meta={[item.date, item.time].filter(Boolean).join(' · ')}
+              onClick={() => navigate('/calendario')}
             />
           ))}
-        </Panel>
+        </OperationalList>
       </section>
     </PageScaffold>
   );
 }
 
-function StatCard({
-  label,
-  value,
-  helper,
-  icon: Icon,
-  tone = 'default',
-}: {
-  label: string;
-  value: number;
-  helper: string;
-  icon: React.ElementType;
-  tone?: 'default' | 'amber' | 'blue' | 'green';
-}) {
-  const toneClass =
-    tone === 'amber'
-      ? 'bg-amber-500/10 text-amber-500'
-      : tone === 'blue'
-        ? 'bg-sky-500/10 text-sky-500'
-        : tone === 'green'
-          ? 'bg-emerald-500/10 text-emerald-500'
-          : 'bg-[var(--bg-hover)] text-[var(--text-primary)]';
+// --- Spotlight ---
 
-  return (
-    <div className="rounded-[2rem] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-6">
-      <div className="mb-5 flex items-start justify-between gap-4">
+type SpotlightData =
+  | {type: 'record'; count: number; firstId: string; firstTitle: string}
+  | {type: 'edit'; count: number; firstId: string; firstTitle: string}
+  | {type: 'agenda'; title: string; date: string; time?: string}
+  | {type: 'empty'};
+
+function resolveSpotlight({
+  readyToRecord,
+  inProduction,
+  upcomingAgenda,
+}: {
+  readyToRecord: {id: string; title?: string | null}[];
+  inProduction: {id: string; title?: string | null; status: string}[];
+  upcomingAgenda: {title: string; date: string; time?: string}[];
+}): SpotlightData {
+  if (readyToRecord.length > 0) {
+    return {
+      type: 'record',
+      count: readyToRecord.length,
+      firstId: readyToRecord[0].id,
+      firstTitle: readyToRecord[0].title || '(sem titulo)',
+    };
+  }
+  const editing = inProduction.filter(
+    c => c.status === CONTENT_STATUS.A_EDITAR || c.status === CONTENT_STATUS.GRAVADO,
+  );
+  if (editing.length > 0) {
+    return {
+      type: 'edit',
+      count: editing.length,
+      firstId: editing[0].id,
+      firstTitle: editing[0].title || '(sem titulo)',
+    };
+  }
+  if (upcomingAgenda.length > 0) {
+    return {
+      type: 'agenda',
+      title: upcomingAgenda[0].title,
+      date: upcomingAgenda[0].date,
+      time: upcomingAgenda[0].time,
+    };
+  }
+  return {type: 'empty'};
+}
+
+function SpotlightBlock({
+  spotlight,
+  onNavigate,
+}: {
+  spotlight: SpotlightData;
+  onNavigate: (path: string) => void;
+}) {
+  if (spotlight.type === 'empty') {
+    return (
+      <div className="flex items-center justify-between gap-6 rounded-[2rem] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-8">
         <div>
           <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[var(--text-tertiary)]">
-            {label}
+            Proximo passo
           </p>
-          <p className="mt-4 text-4xl font-black tracking-tight text-[var(--text-primary)]">{value}</p>
+          <h2 className="mt-3 text-2xl font-black text-[var(--text-primary)]">Tudo em dia</h2>
+          <p className="mt-2 text-sm text-[var(--text-secondary)]">
+            Nenhuma acao pendente no momento. Comece criando um conteudo ou capturando uma ideia.
+          </p>
         </div>
-        <div className={cn('rounded-2xl p-3', toneClass)}>
-          <Icon className="h-5 w-5" />
-        </div>
+        <Sparkles className="h-10 w-10 shrink-0 text-[var(--text-tertiary)]" />
       </div>
-      <p className="text-sm text-[var(--text-secondary)]">{helper}</p>
-    </div>
-  );
-}
+    );
+  }
 
-function ActionCard({title, value, helper}: {title: string; value: string; helper: string}) {
+  if (spotlight.type === 'record') {
+    return (
+      <button
+        onClick={() => onNavigate('/gravacao')}
+        className="group flex w-full items-center justify-between gap-6 rounded-[2rem] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-8 text-left transition-opacity hover:opacity-80"
+      >
+        <div className="min-w-0">
+          <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[var(--text-tertiary)]">
+            Proximo passo
+          </p>
+          <h2 className="mt-3 truncate text-2xl font-black text-[var(--text-primary)]">
+            {spotlight.count === 1
+              ? `Gravar: ${spotlight.firstTitle}`
+              : `${spotlight.count} roteiros prontos para gravar`}
+          </h2>
+          <p className="mt-2 text-sm text-[var(--text-secondary)]">
+            {spotlight.count === 1
+              ? 'Este roteiro ja pode entrar em sessao de gravacao.'
+              : `Comece pelo primeiro: ${spotlight.firstTitle}`}
+          </p>
+          <span className="mt-4 inline-flex items-center gap-1.5 text-[11px] font-black uppercase tracking-[0.18em] text-[var(--text-primary)]">
+            Abrir gravacao <ArrowRight className="h-3 w-3" />
+          </span>
+        </div>
+        <div className="rounded-[1.5rem] bg-amber-500/10 p-5">
+          <Clapperboard className="h-8 w-8 text-amber-500" />
+        </div>
+      </button>
+    );
+  }
+
+  if (spotlight.type === 'edit') {
+    return (
+      <button
+        onClick={() => onNavigate(buildContentDetailRoute(spotlight.firstId))}
+        className="group flex w-full items-center justify-between gap-6 rounded-[2rem] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-8 text-left transition-opacity hover:opacity-80"
+      >
+        <div className="min-w-0">
+          <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[var(--text-tertiary)]">
+            Proximo passo
+          </p>
+          <h2 className="mt-3 truncate text-2xl font-black text-[var(--text-primary)]">
+            {spotlight.count === 1
+              ? `Editar: ${spotlight.firstTitle}`
+              : `${spotlight.count} conteudos aguardando edicao`}
+          </h2>
+          <p className="mt-2 text-sm text-[var(--text-secondary)]">
+            {spotlight.count === 1
+              ? 'Pronto para entrar em edicao.'
+              : `Continue pelo: ${spotlight.firstTitle}`}
+          </p>
+          <span className="mt-4 inline-flex items-center gap-1.5 text-[11px] font-black uppercase tracking-[0.18em] text-[var(--text-primary)]">
+            Abrir conteudo <ArrowRight className="h-3 w-3" />
+          </span>
+        </div>
+        <div className="rounded-[1.5rem] bg-violet-500/10 p-5">
+          <Scissors className="h-8 w-8 text-violet-500" />
+        </div>
+      </button>
+    );
+  }
+
+  // agenda
   return (
-    <div className="rounded-[1.5rem] border border-[var(--border-color)] bg-[var(--bg-primary)] p-4">
-      <p className="text-sm font-black text-[var(--text-primary)]">{title}</p>
-      <p className="mt-2 text-[11px] font-black uppercase tracking-[0.18em] text-[var(--text-tertiary)]">
-        {value}
-      </p>
-      <p className="mt-2 text-sm text-[var(--text-secondary)]">{helper}</p>
-    </div>
+    <button
+      onClick={() => onNavigate('/calendario')}
+      className="group flex w-full items-center justify-between gap-6 rounded-[2rem] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-8 text-left transition-opacity hover:opacity-80"
+    >
+      <div className="min-w-0">
+        <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[var(--text-tertiary)]">
+          Proximo passo
+        </p>
+        <h2 className="mt-3 truncate text-2xl font-black text-[var(--text-primary)]">
+          {spotlight.title}
+        </h2>
+        <p className="mt-2 text-sm text-[var(--text-secondary)]">
+          {[spotlight.date, spotlight.time].filter(Boolean).join(' · ')}
+        </p>
+        <span className="mt-4 inline-flex items-center gap-1.5 text-[11px] font-black uppercase tracking-[0.18em] text-[var(--text-primary)]">
+          Ver calendario <ArrowRight className="h-3 w-3" />
+        </span>
+      </div>
+      <div className="rounded-[1.5rem] bg-sky-500/10 p-5">
+        <CalendarDays className="h-8 w-8 text-sky-500" />
+      </div>
+    </button>
   );
 }
 
-function Panel({
+// --- Componentes ---
+
+function QuickAction({
+  label,
+  icon: Icon,
+  onClick,
+}: {
+  label: string;
+  icon: React.ElementType;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className="flex items-center gap-2 rounded-[1.2rem] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-2.5 text-[11px] font-black uppercase tracking-[0.18em] text-[var(--text-secondary)] transition-opacity hover:opacity-70"
+    >
+      <Icon className="h-3.5 w-3.5" />
+      {label}
+    </button>
+  );
+}
+
+function OperationalList({
   title,
   icon: Icon,
   empty,
+  seeAllHref,
+  seeAllLabel,
   children,
 }: {
   title: string;
   icon: React.ElementType;
   empty: string;
+  seeAllHref: string;
+  seeAllLabel: string;
   children: React.ReactNode;
 }) {
+  const navigate = useNavigate();
   const items = React.Children.toArray(children);
 
   return (
     <div className="rounded-[2rem] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-6">
       <div className="mb-5 flex items-center justify-between gap-4">
-        <h2 className="text-xl font-black text-[var(--text-primary)]">{title}</h2>
+        <h2 className="text-lg font-black text-[var(--text-primary)]">{title}</h2>
         <Icon className="h-4 w-4 text-[var(--text-tertiary)]" />
       </div>
 
-      <div className="space-y-3">
-        {items.length > 0 ? items : <p className="text-sm text-[var(--text-secondary)]">{empty}</p>}
+      <div className="space-y-2">
+        {items.length > 0 ? (
+          items
+        ) : (
+          <p className="rounded-[1.2rem] border border-[var(--border-color)] bg-[var(--bg-primary)] px-4 py-3 text-sm text-[var(--text-secondary)]">
+            {empty}
+          </p>
+        )}
       </div>
+
+      <button
+        onClick={() => navigate(seeAllHref)}
+        className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-[1.2rem] border border-[var(--border-color)] py-2.5 text-[11px] font-black uppercase tracking-[0.18em] text-[var(--text-tertiary)] transition-opacity hover:opacity-70"
+      >
+        {seeAllLabel}
+        <ArrowRight className="h-3 w-3" />
+      </button>
     </div>
   );
 }
 
-function RowItem({title, subtitle}: {title: string; subtitle: string}) {
+function ContentRow({
+  title,
+  meta,
+  onClick,
+}: {
+  title: string;
+  meta: string;
+  onClick: () => void;
+}) {
   return (
-    <div className="rounded-[1.2rem] border border-[var(--border-color)] bg-[var(--bg-primary)] px-4 py-3">
-      <p className="line-clamp-2 text-sm font-black text-[var(--text-primary)]">{title}</p>
-      <p className="mt-1 text-xs text-[var(--text-secondary)]">{subtitle}</p>
-    </div>
+    <button
+      onClick={onClick}
+      className="group flex w-full items-center justify-between gap-3 rounded-[1.2rem] border border-[var(--border-color)] bg-[var(--bg-primary)] px-4 py-3 text-left transition-opacity hover:opacity-70"
+    >
+      <div className="min-w-0">
+        <p className="truncate text-sm font-black text-[var(--text-primary)]">{title}</p>
+        <p className="mt-0.5 text-xs text-[var(--text-secondary)]">{meta}</p>
+      </div>
+      <ArrowRight className="h-3.5 w-3.5 shrink-0 text-[var(--text-tertiary)]" />
+    </button>
   );
 }
-
-
