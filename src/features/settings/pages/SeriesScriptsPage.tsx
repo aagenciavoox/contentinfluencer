@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowUpRight, ChevronLeft, ChevronRight, FileText, Layers } from 'lucide-react';
+import { ArrowUpRight, FileText, Layers } from 'lucide-react';
 import { SettingsPageScaffold } from '../../../components/settings/SettingsPageScaffold';
 import { AppButton } from '../../../components/ui/AppButton';
 import { useAppContext } from '../../../context/AppContext';
@@ -9,8 +9,6 @@ import { cn, htmlToReadableText } from '../../../lib/utils';
 import { broadcastDataSync } from '../../../lib/syncBroadcast';
 import { notifySaveFeedback } from '../../../lib/saveFeedback';
 import { SeriesBulkComposer } from '../components/SeriesBulkComposer';
-
-const LINKED_CONTENTS_PAGE_SIZE = 5;
 
 function scriptWordCount(script: string | null) {
   if (!script) return 0;
@@ -24,7 +22,6 @@ export function SeriesScriptsPage() {
   const { serieId } = useParams<{ serieId: string }>();
   const navigate = useNavigate();
   const { state, dispatch } = useAppContext();
-  const [currentPage, setCurrentPage] = useState(1);
 
   const serie = state.series.find(item => item.id === serieId) ?? null;
   const platformNames = state.platforms.filter(platform => platform.ativo).map(platform => platform.nome);
@@ -36,23 +33,6 @@ export function SeriesScriptsPage() {
         .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || '')),
     [serieId, state.contents]
   );
-
-  const totalPages = Math.max(1, Math.ceil(linkedContents.length / LINKED_CONTENTS_PAGE_SIZE));
-  const pageStart = (currentPage - 1) * LINKED_CONTENTS_PAGE_SIZE;
-  const pageEnd = pageStart + LINKED_CONTENTS_PAGE_SIZE;
-  const paginatedContents = linkedContents.slice(pageStart, pageEnd);
-  const visibleStart = linkedContents.length === 0 ? 0 : pageStart + 1;
-  const visibleEnd = Math.min(pageEnd, linkedContents.length);
-
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [serieId]);
-
-  useEffect(() => {
-    if (currentPage > totalPages) {
-      setCurrentPage(totalPages);
-    }
-  }, [currentPage, totalPages]);
 
   const handleCreateBulkContents = async (contents: Content[]) => {
     if (contents.length === 0) return;
@@ -154,9 +134,8 @@ export function SeriesScriptsPage() {
               </p>
             </div>
           ) : (
-            <div className="space-y-3">
-              <div className="grid grid-cols-1 gap-3">
-              {paginatedContents.map(content => {
+            <div className="grid grid-cols-1 gap-3 overflow-y-auto pr-1 max-h-[70vh] xl:max-h-[calc(100vh-9rem)]">
+              {linkedContents.map(content => {
                 const words = scriptWordCount(content.script);
                 const hasCaption = content.plataformas.some(item => item.legenda?.trim());
 
@@ -202,38 +181,6 @@ export function SeriesScriptsPage() {
                   </button>
                 );
               })}
-              </div>
-
-              <div className="flex flex-wrap items-center justify-between gap-2 rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-primary)] px-3 py-2">
-                <span className="text-xs font-medium text-[var(--text-tertiary)]">
-                  {visibleStart}-{visibleEnd} de {linkedContents.length}
-                </span>
-                <div className="flex items-center gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => setCurrentPage(page => Math.max(1, page - 1))}
-                    disabled={currentPage === 1}
-                    className="inline-flex h-8 w-8 items-center justify-center rounded-[var(--radius-input)] border border-[var(--border-color)] text-[var(--text-secondary)] transition-colors hover:border-[var(--border-strong)] hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-40"
-                    aria-label="Pagina anterior"
-                    title="Pagina anterior"
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                  </button>
-                  <span className="min-w-[3.5rem] text-center text-xs font-semibold text-[var(--text-secondary)]">
-                    {currentPage}/{totalPages}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setCurrentPage(page => Math.min(totalPages, page + 1))}
-                    disabled={currentPage === totalPages}
-                    className="inline-flex h-8 w-8 items-center justify-center rounded-[var(--radius-input)] border border-[var(--border-color)] text-[var(--text-secondary)] transition-colors hover:border-[var(--border-strong)] hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-40"
-                    aria-label="Proxima pagina"
-                    title="Proxima pagina"
-                  >
-                    <ChevronRight className="h-4 w-4" />
-                  </button>
-                </div>
-              </div>
             </div>
           )}
         </section>
