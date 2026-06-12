@@ -1,6 +1,7 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowUpRight, FileText, Layers } from 'lucide-react';
+import { ArrowUpRight, FileText, Layers, X } from 'lucide-react';
 import { SettingsPageScaffold } from '../../../components/settings/SettingsPageScaffold';
 import { AppButton } from '../../../components/ui/AppButton';
 import { useAppContext } from '../../../context/AppContext';
@@ -9,6 +10,7 @@ import { cn, htmlToReadableText } from '../../../lib/utils';
 import { broadcastDataSync } from '../../../lib/syncBroadcast';
 import { notifySaveFeedback } from '../../../lib/saveFeedback';
 import { SeriesBulkComposer } from '../components/SeriesBulkComposer';
+import { useBodyScrollLock } from '../../../hooks/useBodyScrollLock';
 
 function scriptWordCount(script: string | null) {
   if (!script) return 0;
@@ -22,6 +24,7 @@ export function SeriesScriptsPage() {
   const { serieId } = useParams<{ serieId: string }>();
   const navigate = useNavigate();
   const { state, dispatch } = useAppContext();
+  const [previewContent, setPreviewContent] = useState<Content | null>(null);
 
   const serie = state.series.find(item => item.id === serieId) ?? null;
   const platformNames = state.platforms.filter(platform => platform.ativo).map(platform => platform.nome);
@@ -33,6 +36,17 @@ export function SeriesScriptsPage() {
         .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || '')),
     [serieId, state.contents]
   );
+
+  useBodyScrollLock(previewContent !== null);
+
+  useEffect(() => {
+    if (!previewContent) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setPreviewContent(null);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [previewContent]);
 
   const handleCreateBulkContents = async (contents: Content[]) => {
     if (contents.length === 0) return;
@@ -143,7 +157,7 @@ export function SeriesScriptsPage() {
                   <button
                     key={content.id}
                     type="button"
-                    onClick={() => navigate(`/conteudos/${content.id}`)}
+                    onClick={() => setPreviewContent(content)}
                     className="group rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-primary)] p-4 text-left shadow-sm transition-colors hover:border-[var(--border-strong)] hover:bg-[var(--bg-hover)]"
                     style={{ borderLeftColor: serie.cor || undefined, borderLeftWidth: 3 }}
                   >
@@ -185,6 +199,99 @@ export function SeriesScriptsPage() {
           )}
         </section>
       </div>
+
+      {previewContent ? (
+        <>
+          <div
+            className="fixed inset-0 z-[9998] bg-black/60"
+            onClick={() => setPreviewContent(null)}
+          />
+          <div className="pointer-events-none fixed inset-0 z-[9999] flex items-center justify-center p-4">
+            <div
+              className="pointer-events-auto flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-primary)] shadow-xl"
+              role="dialog"
+              aria-modal="true"
+            >
+              <div
+                className="h-1 w-full shrink-0"
+                style={{ backgroundColor: serie.cor || 'var(--accent-green)' }}
+              />
+
+              <div className="flex shrink-0 items-start justify-between gap-3 border-b border-[var(--border-color)] bg-[var(--bg-secondary)] px-6 py-4">
+                <div className="min-w-0">
+                  <h3 className="truncate text-base font-semibold text-[var(--text-primary)]">
+                    {previewContent.title || 'Sem título'}
+                  </h3>
+                  <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                    <span className="rounded-full bg-[var(--bg-hover)] px-2 py-0.5 text-xs font-semibold text-[var(--text-secondary)]">
+                      {previewContent.status}
+                    </span>
+                    <span className="rounded-full bg-[var(--bg-hover)] px-2 py-0.5 text-xs font-semibold text-[var(--text-tertiary)]">
+                      {scriptWordCount(previewContent.script)} palavras
+                    </span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setPreviewContent(null)}
+                  className="rounded-full p-2 text-[var(--text-tertiary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
+                  aria-label="Fechar"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              <div className="flex-1 space-y-5 overflow-y-auto px-6 py-5">
+                <div>
+                  <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-[var(--text-tertiary)]">
+                    <FileText className="h-3.5 w-3.5" />
+                    Roteiro
+                  </div>
+                  {previewContent.script ? (
+                    <p className="whitespace-pre-wrap text-sm leading-relaxed text-[var(--text-secondary)]">
+                      {htmlToReadableText(previewContent.script)}
+                    </p>
+                  ) : (
+                    <p className="text-sm italic text-[var(--text-tertiary)]">
+                      Este roteiro ainda não tem texto.
+                    </p>
+                  )}
+                </div>
+
+                {previewContent.plataformas.some(item => item.legenda?.trim()) ? (
+                  <div>
+                    <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-[var(--text-tertiary)]">
+                      Legenda
+                    </div>
+                    {previewContent.plataformas
+                      .filter(item => item.legenda?.trim())
+                      .map(item => (
+                        <div
+                          key={item.plataforma}
+                          className="mb-2 rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4"
+                        >
+                          <span className="mb-1 block text-xs font-semibold text-[var(--text-tertiary)]">
+                            {item.plataforma}
+                          </span>
+                          <p className="whitespace-pre-wrap text-sm leading-relaxed text-[var(--text-secondary)]">
+                            {htmlToReadableText(item.legenda)}
+                          </p>
+                        </div>
+                      ))}
+                  </div>
+                ) : null}
+              </div>
+
+              <div className="flex shrink-0 justify-end border-t border-[var(--border-color)] bg-[var(--bg-secondary)] px-6 py-4">
+                <AppButton onClick={() => navigate(`/conteudos/${previewContent.id}`)}>
+                  <ArrowUpRight className="h-4 w-4" />
+                  Abrir no pipeline
+                </AppButton>
+              </div>
+            </div>
+          </div>
+        </>
+      ) : null}
     </SettingsPageScaffold>
   );
 }
