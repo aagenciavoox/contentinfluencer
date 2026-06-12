@@ -1,0 +1,1194 @@
+{
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\anotacoes_rows.sql": {
+    "mtime": 1779415080.8916533,
+    "hash": "05dccd5518b7661c9b8e328b6ee83810"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\biblioteca_items_rows.sql": {
+    "mtime": 1779415018.6908803,
+    "hash": "62320d325068abc33cb53c3d21c772a6"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\contents_rows (1).sql": {
+    "mtime": 1779415062.4950414,
+    "hash": "85d387400f409742fdf6ab0184535cf1"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\schema.sql": {
+    "mtime": 1778342848.4923856,
+    "hash": "a3bb0d0d92a49d20853caf38b745fa66"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\vite.config.ts": {
+    "mtime": 1781202302.251132,
+    "hash": "c8c4b5f7505d2902d9dc2b8cb1bcc62c"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\dev-dist\\sw.js": {
+    "mtime": 1777573586.6785762,
+    "hash": "cac931eac36417b2cccd6d7d1b39ee0e"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\dev-dist\\workbox-21a80088.js": {
+    "mtime": 1777559203.4775858,
+    "hash": "b2d2418608ee75596983af8153982380"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\dev-dist\\workbox-ca84f546.js": {
+    "mtime": 1777573586.7024963,
+    "hash": "03284f76986080bc16c460bd2d6e543b"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\migrations\\2026-04-30_pre_implementation_foundation.sql": {
+    "mtime": 1779414174.322828,
+    "hash": "574c9f53c41db31e9f27265d4137dcd0"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\migrations\\2026-05-02_fix_project_rls.sql": {
+    "mtime": 1777772801.0487833,
+    "hash": "dd0e0adc800b5bf9355ea094e902f6e7"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\migrations\\2026-05-09_add_publish_time.sql": {
+    "mtime": 1778342874.3373556,
+    "hash": "ab9354f317885b97bc1ac3e45a1f19b3"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\migrations\\20260521140000_enable_realtime.sql": {
+    "mtime": 1779676248.8941483,
+    "hash": "dd0629b9283f196949739c636216e4b1"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\migrations\\book_annotations_migration.sql": {
+    "mtime": 1777212535.2555919,
+    "hash": "0601e7db30e94a19a9174fcb0af72486"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\migrations\\campaigns_table.sql": {
+    "mtime": 1777212242.5904636,
+    "hash": "6f9db3d8e4dc86c285e599aa86a60cdf"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\migrations\\v2_new_schema.sql": {
+    "mtime": 1779413801.8162274,
+    "hash": "fe0918c0853fd64a0d490a1cb59c464c"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\scripts\\audit-product-voice.mjs": {
+    "mtime": 1779746873.7359242,
+    "hash": "4eb0c6896d093440dc8c11416e52568f"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\scripts\\check-supabase-env.mjs": {
+    "mtime": 1779413138.2968645,
+    "hash": "a896657cb2bfb5b951c38b9e83674b15"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\scripts\\design-migrate.mjs": {
+    "mtime": 1781197638.440423,
+    "hash": "56387a8ebf6a240345ca8e350659af47"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\scripts\\import-exported-rows.sql": {
+    "mtime": 1779415860.9647193,
+    "hash": "383228ce80087d4427984f5c311ad225"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\scripts\\lint-design.mjs": {
+    "mtime": 1781197972.5856013,
+    "hash": "1be51aa043e7797c1658a4aa9a8ce937"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\scripts\\migrate-books-to-biblioteca.sql": {
+    "mtime": 1779414420.9395554,
+    "hash": "ecd49cf7f2e4546d235fce1d8bcf8af3"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\scripts\\setup-supabase-continue.sql": {
+    "mtime": 1779414183.589792,
+    "hash": "adb846b847a22b2ddbbb5a6aa99fc135"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\scripts\\setup-supabase-resume.sql": {
+    "mtime": 1779413945.4020126,
+    "hash": "6b4a2cf888223c576d7329e99353ce78"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\scripts\\setup-supabase.sql": {
+    "mtime": 1779413971.664603,
+    "hash": "de2b4c3596af6eca5319904f0b6b0e2d"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\scripts\\wrap-page-layout.mjs": {
+    "mtime": 1781197720.6402926,
+    "hash": "9adc7470521700703385ae624b8944e3"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\App.tsx": {
+    "mtime": 1781197642.9930146,
+    "hash": "f4b7356b36c2fd75eee4add963d1ae57"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\constants.ts": {
+    "mtime": 1777829060.0142286,
+    "hash": "c01fbe686d77c7ca7d4da18015e06a71"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\main.tsx": {
+    "mtime": 1779416911.8981986,
+    "hash": "d1d5fdd67f55e6e58a0a942e075a57db"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\test-runner.ts": {
+    "mtime": 1779725801.8239796,
+    "hash": "3c12a892891acffcc6eb0e35dee17c7d"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\vite-env.d.ts": {
+    "mtime": 1774998901.7852411,
+    "hash": "11ecfcbd6f7344db8ce9e9ae76e70a6c"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\app\\providers\\AppProviders.tsx": {
+    "mtime": 1777588220.9316154,
+    "hash": "99f069e8f831c3711f716ede5b5611d1"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\app\\providers\\appState.ts": {
+    "mtime": 1777591292.398558,
+    "hash": "8aec2f8f4161cfdc3ec9c742aa3a506e"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\app\\router\\AppRoutes.tsx": {
+    "mtime": 1781279581.5057454,
+    "hash": "a5616960d6b09f0c35a63e66a9ff6b48"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\components\\charts\\DonutChart.tsx": {
+    "mtime": 1781197642.993681,
+    "hash": "39992bca6d89663ffb841e1ee2952b6d"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\components\\charts\\HeatmapGrid.tsx": {
+    "mtime": 1781197642.9948597,
+    "hash": "1d441ad628ab8c019966175b76590914"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\components\\charts\\HorizontalBarChart.tsx": {
+    "mtime": 1779562743.0445876,
+    "hash": "9bd9a26d92eb599fa4fba0dbe4e85a90"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\components\\editors\\RichTextEditor.tsx": {
+    "mtime": 1781201615.049245,
+    "hash": "778ac8f30416438912780e892db5049a"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\components\\feedback\\modals\\BottomSheetModal.tsx": {
+    "mtime": 1781197554.5858293,
+    "hash": "62a924003571e56b829bfaded5fa2ebc"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\components\\feedback\\modals\\ConfirmModal.tsx": {
+    "mtime": 1781197573.0386841,
+    "hash": "136f60c77b855fdf39abd1075bed1d85"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\components\\layout\\SidePanel.tsx": {
+    "mtime": 1781197569.3272905,
+    "hash": "4f24fba8bde2dd700007d65e3835e6ea"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\components\\overlays\\BottomSheet.tsx": {
+    "mtime": 1781197548.7501667,
+    "hash": "1dfc8bda17dbe4603de690ed7973dce1"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\components\\overlays\\CommandPalette.tsx": {
+    "mtime": 1781197642.998499,
+    "hash": "1a5ea4d6fa97ee9fed71c2d5cf31657c"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\components\\overlays\\Dialog.tsx": {
+    "mtime": 1781197544.8407216,
+    "hash": "e60ec7b7651bebd0d9804256e0be6fdf"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\components\\overlays\\Drawer.tsx": {
+    "mtime": 1781197552.5101945,
+    "hash": "d87cb2813bef562c3338ca1f4f108e12"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\components\\overlays\\FixedPanelModal.tsx": {
+    "mtime": 1781197556.7224998,
+    "hash": "6e29772977a9973205ee225b322d167d"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\components\\overlays\\OverlayBody.tsx": {
+    "mtime": 1781197533.622552,
+    "hash": "7fb6da226be780e9c5db8d453716a165"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\components\\overlays\\overlayConstants.ts": {
+    "mtime": 1781197527.1319687,
+    "hash": "e3966431dbf7a4b617eda8f18b34a0d8"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\components\\overlays\\OverlayFooter.tsx": {
+    "mtime": 1781197534.4354374,
+    "hash": "353aca339b06c20d103cc74b8a92e5ee"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\components\\overlays\\OverlayHeader.tsx": {
+    "mtime": 1781197533.1183665,
+    "hash": "be20e9b5bc47e4b6686e44338d848760"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\components\\overlays\\OverlayRoot.tsx": {
+    "mtime": 1781197869.3032925,
+    "hash": "44a3a7b387c8e9c40174537406030975"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\components\\overlays\\useOverlayBehavior.ts": {
+    "mtime": 1781197530.798765,
+    "hash": "52e10943c27ce36bf0540a8b33a4adab"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\components\\pipeline\\PipelineActionBar.tsx": {
+    "mtime": 1779562746.7161222,
+    "hash": "5c69fad72f5dde0694ea3447db055d8b"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\components\\settings\\SettingsArrayInput.tsx": {
+    "mtime": 1781196467.3926413,
+    "hash": "8749da3f9d720fe3c35a07e815cf72fd"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\components\\settings\\SettingsGridCard.tsx": {
+    "mtime": 1781198526.7818873,
+    "hash": "7a70883a15efcb93180811d1a2625915"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\components\\settings\\SettingsPageScaffold.tsx": {
+    "mtime": 1781198528.6652877,
+    "hash": "cdd79a693d81387e0838b57abc6a804c"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\components\\settings\\SettingsSectionCard.tsx": {
+    "mtime": 1781197511.8458726,
+    "hash": "d22320b181a2a39731b4d36932d5194f"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\components\\ui\\AppButton.tsx": {
+    "mtime": 1781196858.3116362,
+    "hash": "cea7960902515a7c9eb818db9363cb53"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\components\\ui\\Badge.tsx": {
+    "mtime": 1781197488.9440606,
+    "hash": "37798a0567a64cdb976e3f8890a91559"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\components\\ui\\Card.tsx": {
+    "mtime": 1781197502.6644163,
+    "hash": "0ad2719b1e0ebc5aef85fe9eee3afd77"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\components\\ui\\EmptyState.tsx": {
+    "mtime": 1781197643.0021567,
+    "hash": "33d7fd0a103177cffd7c9f3849668089"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\components\\ui\\FilterBar.tsx": {
+    "mtime": 1781197643.003843,
+    "hash": "70928d40372bdad7b104bd21ebd69287"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\components\\ui\\FormField.tsx": {
+    "mtime": 1781197500.5487351,
+    "hash": "e3a8c36a26090ccd1fc2abd79d8118a2"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\components\\ui\\IconButton.tsx": {
+    "mtime": 1781197493.0155284,
+    "hash": "0938172b722ad317df06a391c1f23f0c"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\components\\ui\\index.ts": {
+    "mtime": 1781197497.1218085,
+    "hash": "0e56aed7b9d3c9c82b253c70ddde1479"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\components\\ui\\ListItem.tsx": {
+    "mtime": 1781197486.6121051,
+    "hash": "bf92b81b2b8c2b9c218b3c4f6caf4b98"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\components\\ui\\ListRow.tsx": {
+    "mtime": 1781197516.2136798,
+    "hash": "58bc986e9c9826c731ecc47fd5bb9c9b"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\components\\ui\\SaveFeedbackToast.tsx": {
+    "mtime": 1781197643.0533705,
+    "hash": "eaecfcb4d050ccbab6da70eca087de92"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\components\\ui\\Section.tsx": {
+    "mtime": 1781197509.7013843,
+    "hash": "d0ca0201b344d7e53c9f816ab7212545"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\components\\ui\\Surface.tsx": {
+    "mtime": 1781197478.510262,
+    "hash": "846b3850c7912346d27b81b025722a7c"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\components\\ui\\TagSelect.tsx": {
+    "mtime": 1781196858.3166351,
+    "hash": "91d2d4f8f248758e3dafcd660f8cc2e8"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\components\\ui\\Text.tsx": {
+    "mtime": 1781197473.7238255,
+    "hash": "86a784328ac7ab8cb04395a9e88bee64"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\components\\ui\\Tooltip.tsx": {
+    "mtime": 1779558349.2290237,
+    "hash": "a37aa934052e3e3f809b0dbc0fa0c00d"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\components\\ui\\ViewModeToggle.tsx": {
+    "mtime": 1777214439.0281012,
+    "hash": "e95493bf4d72aecba34c686aa8639bfe"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\context\\AppContext.tsx": {
+    "mtime": 1781211141.6619043,
+    "hash": "df1d7737aee3751917f639c78c7aa0d7"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\context\\AuthContext.tsx": {
+    "mtime": 1777772595.454836,
+    "hash": "84fc036444560700ed48c76e4a46091f"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\context\\persistAction.test.ts": {
+    "mtime": 1777759117.4808822,
+    "hash": "cd4bdc538ef94946984ca619c2cc6a4f"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\context\\persistAction.ts": {
+    "mtime": 1777759375.3599885,
+    "hash": "ca46fd9542b9bf9563818c71b6e4f2c8"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\context\\realtimeSync.test.ts": {
+    "mtime": 1779542713.4404218,
+    "hash": "5aa67b5d9c234d590c404fcc8cd89ef5"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\context\\realtimeSync.ts": {
+    "mtime": 1779542707.0928519,
+    "hash": "ebda96445b0b434c2db9ac3d7dc1d2f0"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\context\\reducer.ts": {
+    "mtime": 1777591292.5562139,
+    "hash": "1027391c5184e225bc0ddd5d35e09ecf"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\features\\analytics\\components\\AnalyticsCategoryCards.tsx": {
+    "mtime": 1779728773.8435197,
+    "hash": "a0eeedd0a762a002a29891d9927d2279"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\features\\analytics\\pages\\AnalyticsPage.tsx": {
+    "mtime": 1781197689.27941,
+    "hash": "6bc495cb10e45378ccc7cdc6ecd927b0"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\features\\auth\\pages\\LoginPage.tsx": {
+    "mtime": 1781197967.1543636,
+    "hash": "971f7bb66d3f16b4eb9256e3f6a44b64"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\features\\contents\\components\\ContentEntityTags.tsx": {
+    "mtime": 1781200310.4284813,
+    "hash": "8cccfe951ad89ab57829b551a6372c36"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\features\\contents\\components\\burst-mode\\BurstModeExperience.tsx": {
+    "mtime": 1781202209.3153987,
+    "hash": "325b39379dae342f126e4ce81963766f"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\features\\contents\\components\\desktop\\ContentGrid.tsx": {
+    "mtime": 1781200317.8101163,
+    "hash": "4775b7dcebad085da3cb222d61e3c2c6"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\features\\contents\\components\\desktop\\ContentKanban.tsx": {
+    "mtime": 1781200320.8587382,
+    "hash": "4064c88fbe3899835be1e71bb8399058"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\features\\contents\\components\\desktop\\ContentPreviewSheet.tsx": {
+    "mtime": 1781199835.9585307,
+    "hash": "bb972448bdec72d1d6397b5fef87607e"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\features\\contents\\components\\desktop\\ContentsDesktop.tsx": {
+    "mtime": 1781201164.8882172,
+    "hash": "de3cf3ed92aa6edc3e40794f97b35912"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\features\\contents\\components\\desktop\\ContentTable.tsx": {
+    "mtime": 1781199882.7586482,
+    "hash": "b2a6d92b7e9440ee04e0c610d88b2070"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\features\\contents\\components\\detail\\ContentDetailHeader.tsx": {
+    "mtime": 1781201847.679924,
+    "hash": "e6dee98904a7f0d14c758b51c3b82ab6"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\features\\contents\\components\\detail\\ContentDetailShell.tsx": {
+    "mtime": 1781278098.3876376,
+    "hash": "5ad8927f904e1459dd7f9eba8c324caa"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\features\\contents\\components\\detail\\ContentDetailTabs.tsx": {
+    "mtime": 1781197643.1746612,
+    "hash": "46fd5c9482a6bda12556887a90d64d75"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\features\\contents\\components\\detail\\ContentHistoryPanel.tsx": {
+    "mtime": 1781197643.175657,
+    "hash": "ee51f3cb03937b5d862f5494fab36360"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\features\\contents\\components\\detail\\ContentOperationalPanel.tsx": {
+    "mtime": 1781278090.9986744,
+    "hash": "26999c9a6758603c225921a47cef5373"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\features\\contents\\components\\detail\\ContentPipelineStepper.tsx": {
+    "mtime": 1781201599.6767697,
+    "hash": "d1001aafeb11e7cee84152ec24a04482"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\features\\contents\\components\\detail\\ContentScriptWorkspace.tsx": {
+    "mtime": 1781201614.861096,
+    "hash": "b4c1baf78c6325da91604d10378e1756"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\features\\contents\\components\\detail\\sections\\HistorySection.tsx": {
+    "mtime": 1781197643.1775932,
+    "hash": "8d927143088cca4abbd749800459f207"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\features\\contents\\components\\detail\\sections\\PublishingSection.tsx": {
+    "mtime": 1781197643.1797497,
+    "hash": "45c82326e6feccee8383ae7d8377a100"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\features\\contents\\components\\detail\\sections\\RecordingSection.tsx": {
+    "mtime": 1781202305.0220942,
+    "hash": "1e41c0dc3a3592f6f8142b7006362924"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\features\\contents\\components\\detail\\sections\\RoteiroSection.tsx": {
+    "mtime": 1781201601.748812,
+    "hash": "ec251fad7155f9ddc79d17b938dd1ef6"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\features\\contents\\components\\filters\\ContentsToolbar.tsx": {
+    "mtime": 1781199693.001564,
+    "hash": "6d487907d75defd3f7fd31ae6c5bfef0"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\features\\contents\\components\\mobile\\ContentsMobile.tsx": {
+    "mtime": 1779676248.8941483,
+    "hash": "4d0ae692b136c0e9a1f5396b38d77b9e"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\features\\contents\\components\\modals\\CSVUploadModal.tsx": {
+    "mtime": 1781197643.182448,
+    "hash": "15caa16842e652c8b37c4796cc9ca21f"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\features\\contents\\lib\\contentCardMeta.ts": {
+    "mtime": 1781200943.96832,
+    "hash": "d51a122d6fe73443ef92036058d2e657"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\features\\contents\\lib\\contentDetailRoute.ts": {
+    "mtime": 1777834490.069623,
+    "hash": "1fbabd04ea14c21f21c0d72123357ca8"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\features\\contents\\lib\\contentPipeline.ts": {
+    "mtime": 1781202334.5933802,
+    "hash": "50e030feb90dea07f3ff1a1b3ce1bce8"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\features\\contents\\lib\\contentWorkflow.test.ts": {
+    "mtime": 1781202272.2360928,
+    "hash": "fa8aa34eefb783965ca20f561f0408e8"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\features\\contents\\lib\\contentWorkflow.ts": {
+    "mtime": 1781202255.3081186,
+    "hash": "bc55978ddd5a2f846d9320a9375be7a9"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\features\\contents\\lib\\createContentDraft.ts": {
+    "mtime": 1778342814.5832758,
+    "hash": "99216be7f0ef557aa496af1f73507b8b"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\features\\contents\\lib\\pipelinePreferences.ts": {
+    "mtime": 1781199547.465146,
+    "hash": "a284dd1064f6234a5e897aacce037c68"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\features\\contents\\pages\\ContentDetailPage.tsx": {
+    "mtime": 1779576623.9884582,
+    "hash": "944bd544f8c74f2db466145bae016143"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\features\\contents\\pages\\ContentsPage.tsx": {
+    "mtime": 1781201162.9330604,
+    "hash": "215821c20819fc624f6c602faca4e2a2"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\features\\contents\\types\\index.ts": {
+    "mtime": 1781201161.112391,
+    "hash": "1e0718fed589dacee11114a63b0da828"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\features\\dashboard\\pages\\DashboardPage.tsx": {
+    "mtime": 1781198144.9472635,
+    "hash": "6326cfc6e42548e90fec6abdcadf29c9"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\features\\editorial-calendar\\components\\CalendarAgendaView.tsx": {
+    "mtime": 1781197643.186443,
+    "hash": "ae87fe394398e72a13074658f7d829bc"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\features\\editorial-calendar\\components\\CalendarGrid.tsx": {
+    "mtime": 1781197643.187444,
+    "hash": "ac6dc98bd0fd65099441c795c68c8df0"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\features\\editorial-calendar\\components\\CalendarHoverCard.tsx": {
+    "mtime": 1781197643.187444,
+    "hash": "8ec4f56a27d6e6bf36f092d30b70ac35"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\features\\editorial-calendar\\components\\CalendarLayerToggle.tsx": {
+    "mtime": 1781197643.1884458,
+    "hash": "41301ef301929b1a8241f2a26d7386bb"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\features\\editorial-calendar\\components\\EditorialAgendaTabView.tsx": {
+    "mtime": 1777834503.0901744,
+    "hash": "6ff2679cd84f251e6cd700f0b7725645"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\features\\editorial-calendar\\components\\EditorialCalendarHeader.tsx": {
+    "mtime": 1779558473.727517,
+    "hash": "173471948ce554f6a6e059aac815af5c"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\features\\editorial-calendar\\components\\MonthlyCalendarView.tsx": {
+    "mtime": 1781197643.1910143,
+    "hash": "7e64713bb3c26f8ccadabe95a4475d11"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\features\\editorial-calendar\\components\\filters\\EditorialAgendaFilters.tsx": {
+    "mtime": 1781157186.8423972,
+    "hash": "87a93443a89f7d1d538e742d96b8aa27"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\features\\editorial-calendar\\components\\modals\\ContentQuickPreview.tsx": {
+    "mtime": 1781197643.1905513,
+    "hash": "65100678b6f4c7ccab3fa703dd7f3ffe"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\features\\editorial-calendar\\pages\\EditorialCalendarPage.tsx": {
+    "mtime": 1781205391.0184388,
+    "hash": "e92325be2c645ec934566eb1ec50048d"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\features\\editorial-calendar\\types\\index.ts": {
+    "mtime": 1777612478.608351,
+    "hash": "8fa77fa701ebbdf216afa7eee7f394c5"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\features\\ideas\\components\\IdeaInboxCard.tsx": {
+    "mtime": 1781197643.1945891,
+    "hash": "d1d5a2dfad4009ab637f7dab4e02059e"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\features\\ideas\\components\\IdeaQuickCapture.tsx": {
+    "mtime": 1781197643.1950269,
+    "hash": "493032ff459cce1e0d78075bf38f8eaf"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\features\\ideas\\pages\\IdeasPage.tsx": {
+    "mtime": 1781197768.13892,
+    "hash": "7ef9a4e8c0989c85f174826283a17a3d"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\features\\library\\components\\AnnotationNoteCard.tsx": {
+    "mtime": 1781197643.1972282,
+    "hash": "33a947e82ab1b276b2d58b1a11d3c7c0"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\features\\library\\components\\LibraryAnalyticsTab.tsx": {
+    "mtime": 1781197643.1982281,
+    "hash": "d605db22ff296eaab85820dc19217198"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\features\\library\\components\\LibraryItemCard.tsx": {
+    "mtime": 1781197643.1992307,
+    "hash": "114e1f203a1ea21f343bbd61ab78e9f3"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\features\\library\\components\\LibraryToolbar.tsx": {
+    "mtime": 1781197643.2005746,
+    "hash": "29ae5d7cb3c1f614643d27a31efac977"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\features\\library\\components\\modals\\BookAnnotationComposerSheet.tsx": {
+    "mtime": 1781197643.2017107,
+    "hash": "a64c9415b7382cf32e84b1ebdab16635"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\features\\library\\components\\modals\\BookNotesModal.tsx": {
+    "mtime": 1781197643.2021818,
+    "hash": "5b614847757a2c5291940feebc6eb71a"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\features\\library\\lib\\libraryAnalytics.ts": {
+    "mtime": 1777615534.5613172,
+    "hash": "67819b309b07664c066879bccd7c1ca5"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\features\\library\\lib\\libraryStatus.ts": {
+    "mtime": 1779558479.2645085,
+    "hash": "c95004e2e1ce186e4c906a43c8d01d67"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\features\\library\\pages\\BookDetailPage.tsx": {
+    "mtime": 1781202477.184225,
+    "hash": "d6ca358b976206a9d5f79b7029f3ed93"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\features\\library\\pages\\LibraryPage.tsx": {
+    "mtime": 1781198152.0399158,
+    "hash": "e97d65ef3ac957fca8806194cf37246e"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\features\\programacao\\lib\\programacao.ts": {
+    "mtime": 1781291648.0578134,
+    "hash": "6147a33bc8db4d7def52ecf9b47956ff"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\features\\programacao\\pages\\ProgramacaoPage.tsx": {
+    "mtime": 1781291737.5507162,
+    "hash": "7746a8c25bd4586893ba70667f25bb91"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\features\\projects\\pages\\ProjectDetailPage.tsx": {
+    "mtime": 1781205390.3180833,
+    "hash": "a16162aa896c2b69ca6e2504755ddb1d"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\features\\projects\\pages\\ProjectsPage.tsx": {
+    "mtime": 1781205389.3269067,
+    "hash": "9441390c6ccee05ca20705d605dfaab4"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\features\\recording\\components\\RecordingBlockEditor.tsx": {
+    "mtime": 1781202244.250245,
+    "hash": "1a5513efde86b850da86fb0ca478cebc"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\features\\recording\\components\\desktop\\RecordingQueueGrid.tsx": {
+    "mtime": 1781202620.320011,
+    "hash": "f551e5dda42c392b3ceae107748792cf"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\features\\recording\\components\\desktop\\RecordingQueueTab.tsx": {
+    "mtime": 1781204218.3785672,
+    "hash": "41362240141aea5837e7532034632554"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\features\\recording\\components\\desktop\\RecordingSelectionBar.tsx": {
+    "mtime": 1781202628.7580736,
+    "hash": "3fb54f701f5d3aa58cf423bac0a7a828"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\features\\recording\\lib\\recordingWorkflow.ts": {
+    "mtime": 1781202046.5855477,
+    "hash": "1551c8cd2eee0d6206752e35a366bab7"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\features\\recording\\pages\\RecordingBlockPage.tsx": {
+    "mtime": 1781202334.3627737,
+    "hash": "4352a3d5dadd64fc09e222762710b285"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\features\\recording\\pages\\RecordingPage.tsx": {
+    "mtime": 1781205250.5899882,
+    "hash": "64d17c8c5edb06f2ff3d34c5e3c69ab8"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\features\\settings\\components\\PilarForm.tsx": {
+    "mtime": 1781157186.8770478,
+    "hash": "f4e96487252c16725718ab5ad71b9450"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\features\\settings\\components\\PostingTimeSuggestions.tsx": {
+    "mtime": 1781197643.2170634,
+    "hash": "62fe6cd0e45095dddcfa8238d8100b75"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\features\\settings\\components\\SeriesBulkComposer.tsx": {
+    "mtime": 1781292202.2693427,
+    "hash": "b50a96ac3d921a074a815a24bacc26e5"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\features\\settings\\components\\modals\\DNAVozDrawer.tsx": {
+    "mtime": 1781197643.215871,
+    "hash": "9b294904b4fb32346ca3dced84cec6a1"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\features\\settings\\lib\\gentleExperience.test.ts": {
+    "mtime": 1779745355.1258428,
+    "hash": "0be8ea4e080ca3ee7933745f3087216b"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\features\\settings\\lib\\gentleExperience.ts": {
+    "mtime": 1779745354.9989412,
+    "hash": "79f185054af8b3607e81ecebbf21db5d"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\features\\settings\\lib\\moduleFlags.ts": {
+    "mtime": 1777601050.4096415,
+    "hash": "f2247c22fb7b824993b36f13cc4a1591"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\features\\settings\\lib\\postingTimes.ts": {
+    "mtime": 1781192612.9239626,
+    "hash": "927a4f53cab41953c06c2d1468cc5f06"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\features\\settings\\lib\\profileAuth.ts": {
+    "mtime": 1779743837.129414,
+    "hash": "be641bda05b6aaf32608b26c611f7f23"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\features\\settings\\pages\\DNAVozSettingsPage.tsx": {
+    "mtime": 1781198599.5090265,
+    "hash": "b4b77ab82dfff1466c177eff35bc5036"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\features\\settings\\pages\\GoldenRulesSettingsPage.tsx": {
+    "mtime": 1781198587.1900427,
+    "hash": "e90444dc9b352651bfb0f47fcf1970ac"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\features\\settings\\pages\\LooksSettingsPage.tsx": {
+    "mtime": 1781197910.24488,
+    "hash": "dcdedfb7635e3d0cd0a9ccf2c5abb6e0"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\features\\settings\\pages\\PillarsSettingsPage.tsx": {
+    "mtime": 1781198565.83388,
+    "hash": "fd5635940bd7f8de6a4b9dbd954b34eb"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\features\\settings\\pages\\PlatformsSettingsPage.tsx": {
+    "mtime": 1781205388.5163648,
+    "hash": "a313b7bfc2ddc19d7564da5b8ddf92b7"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\features\\settings\\pages\\PostingTimesSettingsPage.tsx": {
+    "mtime": 1781197905.5109189,
+    "hash": "24c9b7d9d5fc92bf369e39010cdfd48f"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\features\\settings\\pages\\ProfileSettingsPage.tsx": {
+    "mtime": 1781197934.6729448,
+    "hash": "18b218ea9c5e592f9fdb20c4f6f748f5"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\features\\settings\\pages\\SeriesScriptsPage.tsx": {
+    "mtime": 1781291813.2195787,
+    "hash": "87ed6f37e7a11dd4b214fecd42c69c1b"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\features\\settings\\pages\\SeriesSettingsPage.tsx": {
+    "mtime": 1781211273.2168202,
+    "hash": "4e8b3fc2642427153587ae75af7e2a12"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\features\\settings\\pages\\SettingsPage.tsx": {
+    "mtime": 1781197734.4513893,
+    "hash": "c6c487556f19a9bda3d5daabc089b04a"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\features\\settings\\pages\\TemplatesSettingsPage.tsx": {
+    "mtime": 1781205330.6131008,
+    "hash": "56ba0af5fcd57f217ac346b0eeae1019"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\hooks\\useBodyScrollLock.ts": {
+    "mtime": 1777066990.6899922,
+    "hash": "fb31764961cd9b12dafc66df10ce2ae8"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\hooks\\useHideOnScroll.ts": {
+    "mtime": 1777512273.4446528,
+    "hash": "27e7f8a158cc907a18eb975c70748fbb"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\hooks\\useIsMobile.ts": {
+    "mtime": 1781202302.7121987,
+    "hash": "68215cb6254684775eb36ea4535010f0"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\hooks\\usePullToRefresh.ts": {
+    "mtime": 1779569986.971967,
+    "hash": "e0ecf5b2d1e9404901aa7f33f4c48a7b"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\hooks\\useScrollDirection.ts": {
+    "mtime": 1776011509.208955,
+    "hash": "ad31cc0cecdd95c7e2155b86d0eaaca0"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\layouts\\app\\AppShell.tsx": {
+    "mtime": 1781205251.8728185,
+    "hash": "7385f2751929355ac700ed3af13ee7e5"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\layouts\\navigation\\Sidebar.tsx": {
+    "mtime": 1781279581.5057454,
+    "hash": "60eee0232b714c6cf096248ad6703583"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\layouts\\page\\DesktopPageHeader.tsx": {
+    "mtime": 1781197593.1234188,
+    "hash": "6a581505ffce06d50672cea473f2b001"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\layouts\\page\\PageContainer.tsx": {
+    "mtime": 1777566085.041142,
+    "hash": "15d8b8b4f2e230fc475b21d8a0a4fecb"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\layouts\\page\\PageHeader.tsx": {
+    "mtime": 1779558488.4005117,
+    "hash": "51f9fe269db9c0f817796fc0c8b5980e"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\layouts\\page\\PageLayout.tsx": {
+    "mtime": 1781197581.7881403,
+    "hash": "c67a5b4ca12a9fd6ca2589a73340cab0"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\layouts\\page\\PageScaffold.tsx": {
+    "mtime": 1781197581.7471433,
+    "hash": "52a28054ad404866146240051e25be4f"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\layouts\\settings\\SettingsSubSidebar.tsx": {
+    "mtime": 1781196167.052431,
+    "hash": "b27e048fac339f3e50341653c880e315"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\lib\\browserStorage.ts": {
+    "mtime": 1777757914.7272146,
+    "hash": "526b4dd176949641a4c803cd49aef2e3"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\lib\\database.ts": {
+    "mtime": 1781200307.985662,
+    "hash": "95985810f0e39fdac08f788279ec88c3"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\lib\\pwaRefresh.ts": {
+    "mtime": 1779569957.466357,
+    "hash": "de21ff87fbd7df34af4bd641574a059d"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\lib\\pwaRegister.ts": {
+    "mtime": 1779569962.7950542,
+    "hash": "bd1c7277de6b4eeb114be96da0aacd70"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\lib\\saveFeedback.ts": {
+    "mtime": 1779540480.8706684,
+    "hash": "c86ecb1849a5579d87014b113c6d7e38"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\lib\\supabase.ts": {
+    "mtime": 1779412812.9699695,
+    "hash": "a5e81bd1eef7cf2c0fbaf02cd43785cd"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\lib\\syncBroadcast.ts": {
+    "mtime": 1779540477.4351037,
+    "hash": "75996ac140b45c00381523c74e632743"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\lib\\utils.ts": {
+    "mtime": 1778341495.2003088,
+    "hash": "45a4af8a4dcf8e5da2d4cbe4365cbf8e"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\lib\\navigation\\detailBack.ts": {
+    "mtime": 1779575160.2291741,
+    "hash": "0c38489f70984bbe5a24e2b91788d7e4"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\lib\\navigation\\useContentDetailBack.ts": {
+    "mtime": 1779576622.441981,
+    "hash": "a747a3afa53b90c597edf23c0bd73d97"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\mobile\\components\\MobileActionMenu.tsx": {
+    "mtime": 1781197643.326021,
+    "hash": "a5dd0adf2a4968c90e13fdf81262e45a"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\mobile\\components\\MobileAppShell.tsx": {
+    "mtime": 1779570057.6573665,
+    "hash": "5464948999839594e832988ef0138979"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\mobile\\components\\MobileBottomNav.tsx": {
+    "mtime": 1781205251.233708,
+    "hash": "c1448bdd0b61560042102159b572988b"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\mobile\\components\\MobileEmptyState.tsx": {
+    "mtime": 1777630020.591535,
+    "hash": "2537325f17fcf92bc7b458474cfae98e"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\mobile\\components\\MobileFilterSheet.tsx": {
+    "mtime": 1777630020.6256032,
+    "hash": "7cd7e979ec71cb5cb402ff956d42ebd9"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\mobile\\components\\MobileGridCard.tsx": {
+    "mtime": 1781197963.739784,
+    "hash": "983a7525e4a62eb69c17640e0d414053"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\mobile\\components\\MobileHeaderIOS.tsx": {
+    "mtime": 1781197643.3288822,
+    "hash": "1394eb6a081c10a54793dcd50c68b26f"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\mobile\\components\\MobileIconButton.tsx": {
+    "mtime": 1781197961.015836,
+    "hash": "c73e183a8779871544e0cb351499b137"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\mobile\\components\\MobileListCard.tsx": {
+    "mtime": 1781205275.766408,
+    "hash": "486c12aab5d3129c9f4a00d7222cf237"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\mobile\\components\\MobilePillButton.tsx": {
+    "mtime": 1781197643.3298812,
+    "hash": "360307ecfed88b3882a3dc42da3ec235"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\mobile\\components\\MobileScriptEditor.tsx": {
+    "mtime": 1781197643.3308825,
+    "hash": "fc6802c8c516b924bd7945c97736e6d8"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\mobile\\components\\MobileScriptReader.tsx": {
+    "mtime": 1781197643.3318794,
+    "hash": "c6b0af49cfbe14daed93b4b664217097"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\mobile\\components\\MobileSearchBar.tsx": {
+    "mtime": 1779416238.7387652,
+    "hash": "567cd908d7f3d24f9ed327a86ec947ef"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\mobile\\components\\MobileSegmentTabs.tsx": {
+    "mtime": 1781197643.3328812,
+    "hash": "81b07f6d6cfd5a5b3f92c458061c5af8"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\mobile\\components\\MobileSidebarDrawer.tsx": {
+    "mtime": 1781197643.3328812,
+    "hash": "9e2a2b120f65bfe158c9ea1d3465536b"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\mobile\\components\\MobileToggleSwitch.tsx": {
+    "mtime": 1779415913.791623,
+    "hash": "a950aeb8fd5ed8bf6959b37990288ac9"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\mobile\\components\\SendToRecordingSheet.tsx": {
+    "mtime": 1781203494.5969944,
+    "hash": "9956f429f6a51b00fdce05dafd2d5f3f"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\mobile\\config\\mobileRouteMeta.ts": {
+    "mtime": 1779729191.2529514,
+    "hash": "448a55e542aff1c3cb858c0a513be88a"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\mobile\\screens\\agenda\\AgendaMobileScreen.tsx": {
+    "mtime": 1781197643.336949,
+    "hash": "709d8fd0841e884ef93d9765720c78c9"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\mobile\\screens\\analytics\\AnalyticsMobileScreen.tsx": {
+    "mtime": 1779726736.6408148,
+    "hash": "b220dd20aa9e01cf3e62916018248d5f"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\mobile\\screens\\contents\\ContentDetailMobileScreen.tsx": {
+    "mtime": 1781197643.336949,
+    "hash": "e8faa0a11ff68c6241be5cfef4522cd7"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\mobile\\screens\\contents\\ContentsMobileScreen.tsx": {
+    "mtime": 1781200332.3918903,
+    "hash": "297af3fa4cc39c96028e85d65c5df5b0"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\mobile\\screens\\dashboard\\DashboardMobileScreen.tsx": {
+    "mtime": 1781197643.341518,
+    "hash": "d7d28500289e9db436f2fbe8f0bd83d0"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\mobile\\screens\\ideas\\IdeasMobileScreen.tsx": {
+    "mtime": 1781197643.3425176,
+    "hash": "a025e72062af1b736489a69e3f041f8f"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\mobile\\screens\\library\\BookDetailMobileScreen.tsx": {
+    "mtime": 1781202477.184225,
+    "hash": "dd21af07b29bdbcf6c8941af20f22ad6"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\mobile\\screens\\library\\LibraryMobileScreen.tsx": {
+    "mtime": 1781197643.3425176,
+    "hash": "3eb3e5dd4fbeea9c6f9c5cae1687650a"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\mobile\\screens\\projects\\ProjectDetailMobileScreen.tsx": {
+    "mtime": 1781202413.797172,
+    "hash": "5d971c7aa99b5266451e46422569fd41"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\mobile\\screens\\projects\\ProjectsMobileScreen.tsx": {
+    "mtime": 1781197643.3447545,
+    "hash": "f5022c81bf6f46436b6a1abbd658f947"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\mobile\\screens\\recording\\BurstModeMobileScreen.tsx": {
+    "mtime": 1781197643.345755,
+    "hash": "d974ccd4ffb4a387b197f74a16ce5a22"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\mobile\\screens\\recording\\RecordingMobileScreen.tsx": {
+    "mtime": 1781205250.3165557,
+    "hash": "71ddc50334ef52572db3d52b505edcc1"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\mobile\\screens\\settings\\DNAVozMobileScreen.tsx": {
+    "mtime": 1781197643.3477564,
+    "hash": "4441e01808f5a820a3bc51484ba6f78c"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\mobile\\screens\\settings\\GoldenRulesMobileScreen.tsx": {
+    "mtime": 1781197643.3484,
+    "hash": "d67beb96f31d20f7a7688843c48399bd"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\mobile\\screens\\settings\\PillarsMobileScreen.tsx": {
+    "mtime": 1781197643.3484,
+    "hash": "1e275fc38b469497bedaab9b92901aec"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\mobile\\screens\\settings\\PlatformsMobileScreen.tsx": {
+    "mtime": 1781197643.3504088,
+    "hash": "70af6268ee0a3536ce402d8d204ef931"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\mobile\\screens\\settings\\ProfileMobileScreen.tsx": {
+    "mtime": 1781197643.3504088,
+    "hash": "bed6ff323b8983da85e26a827c8c9331"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\mobile\\screens\\settings\\SeriesMobileScreen.tsx": {
+    "mtime": 1781208591.935509,
+    "hash": "2d9153cc0e3c223720eccf68dc62260d"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\mobile\\screens\\settings\\SettingsMobileScreen.tsx": {
+    "mtime": 1781197643.3524208,
+    "hash": "968a93eb3b202653381bde333b365df1"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\mobile\\screens\\settings\\TemplatesMobileScreen.tsx": {
+    "mtime": 1781205249.394511,
+    "hash": "f236658bab7151f7347c8d6079c85ea5"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\pages\\Analise.tsx": {
+    "mtime": 1777588144.5426686,
+    "hash": "aab64a5dc81a3974b7713baa08923ab5"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\pages\\Biblioteca.tsx": {
+    "mtime": 1777588144.534082,
+    "hash": "bcb07d7560e2a9d156c0f186603abedc"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\pages\\BookDetail.tsx": {
+    "mtime": 1777588144.5368352,
+    "hash": "de4e415a0c9d6389bd495897ded4c08c"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\pages\\ContentDetail.tsx": {
+    "mtime": 1777829265.1461108,
+    "hash": "68970e6be8002a50746314bf07ec10f3"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\pages\\Contents.tsx": {
+    "mtime": 1777844299.397323,
+    "hash": "96c7659d64808beca75986b0a5dfafef"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\pages\\Dashboard.tsx": {
+    "mtime": 1777588144.5295615,
+    "hash": "6cf1cfaacf57a5baedea08b8edc79067"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\pages\\EditorialCalendar.tsx": {
+    "mtime": 1777588144.5669065,
+    "hash": "a3350cfd034e8cdeb27264ed4697cf62"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\pages\\Gravacao.tsx": {
+    "mtime": 1777588144.576702,
+    "hash": "05dfb7a8144e01713ccdd6c03196c9e1"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\pages\\GravacaoBloco.tsx": {
+    "mtime": 1777588144.5679157,
+    "hash": "8aa4b85ca667b82c8049c3284a8b51ff"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\pages\\Ideas.tsx": {
+    "mtime": 1777588144.5320868,
+    "hash": "413d9e677d1c6ecb8f749da907040bcd"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\pages\\Login.tsx": {
+    "mtime": 1777588144.5451758,
+    "hash": "2eca89cc3e070222547b9018c7737ee7"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\pages\\Programacao.tsx": {
+    "mtime": 1781279395.4226842,
+    "hash": "45ce9ea38cfea08b6180bb3eb1ce5e5a"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\pages\\ProjetoDetalhe.tsx": {
+    "mtime": 1777588144.5401547,
+    "hash": "8a76f0e4174cee1f3372467ff7bc924f"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\pages\\Projetos.tsx": {
+    "mtime": 1777588144.5389657,
+    "hash": "2be57c8ae5daaffdb3f672b8f6800b74"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\pages\\Settings.tsx": {
+    "mtime": 1777588144.5483317,
+    "hash": "6640b3006211fcebf91c08933ee01e29"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\pages\\settings\\DNAVoz.tsx": {
+    "mtime": 1777588144.5503788,
+    "hash": "2dfae7fca38e444ad02db8481d20bb90"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\pages\\settings\\LooksScenarios.tsx": {
+    "mtime": 1777588144.552654,
+    "hash": "120a1d4d92d0f2d96ffe99bd0a00e90b"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\pages\\settings\\Perfil.tsx": {
+    "mtime": 1777760960.4999945,
+    "hash": "113aa598a0b9af8280473a48a7692177"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\pages\\settings\\Pilares.tsx": {
+    "mtime": 1777588144.5541697,
+    "hash": "be1583ff40cc6b327ee76c43824b1b0c"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\pages\\settings\\Plataformas.tsx": {
+    "mtime": 1777588144.5561776,
+    "hash": "faa60be0bef151260f3f24025cc24c75"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\pages\\settings\\PostingTimes.tsx": {
+    "mtime": 1781192656.244625,
+    "hash": "f4558b6b452210741fccd7087127291c"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\pages\\settings\\RegrasDeOuro.tsx": {
+    "mtime": 1777588144.5586882,
+    "hash": "555ab107910fdc8ea1ee96b68f4a4ef5"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\pages\\settings\\Series.tsx": {
+    "mtime": 1777588144.561365,
+    "hash": "30e8cb2dde9755ad5716e37a0bde9089"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\pages\\settings\\SeriesRoteiros.tsx": {
+    "mtime": 1781211218.9084415,
+    "hash": "4a0142317f186fddc93e3bef4094cfd0"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\pages\\settings\\Templates.tsx": {
+    "mtime": 1777588144.563882,
+    "hash": "ff1a3dd5c43c182d43a79be6d216f4a5"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\utils\\goldenRules.test.ts": {
+    "mtime": 1779728773.7220802,
+    "hash": "2400da0ae44e0efa826bed45d3989b73"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\utils\\goldenRules.ts": {
+    "mtime": 1779728804.9677968,
+    "hash": "d5e251f5fbd7996c6a1e50e33ddd11cb"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\src\\utils\\uuid.ts": {
+    "mtime": 1777514719.0978217,
+    "hash": "d9df975920ead84aed2d9d1c3aeddc30"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\supabase\\migrations\\20260521130000_v2_new_schema.sql": {
+    "mtime": 1779413804.803251,
+    "hash": "fe0918c0853fd64a0d490a1cb59c464c"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\supabase\\migrations\\20260521130100_pre_implementation_foundation.sql": {
+    "mtime": 1779413940.5795455,
+    "hash": "25ed34fbb7dbec85e4419a6e5d76bc9d"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\supabase\\migrations\\20260521130200_add_publish_time.sql": {
+    "mtime": 1778342874.3373556,
+    "hash": "ab9354f317885b97bc1ac3e45a1f19b3"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\supabase\\migrations\\20260521130300_fix_project_rls.sql": {
+    "mtime": 1777772801.0487833,
+    "hash": "dd0e0adc800b5bf9355ea094e902f6e7"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\supabase\\migrations\\20260521140000_enable_realtime.sql": {
+    "mtime": 1779542709.3622246,
+    "hash": "dd0629b9283f196949739c636216e4b1"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\AGENTS.md": {
+    "mtime": 1779414458.8026776,
+    "hash": "2ed67c68f28bc1ef95ac24167431d7e8"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\AUDIT-PROGRAMACAO.md": {
+    "mtime": 1781278853.7666676,
+    "hash": "e294da28c49d65a079e7cc7771be0e03"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\AUDIT-SIDEBAR.md": {
+    "mtime": 1781283667.5562942,
+    "hash": "b894485bab7dedd31dab339f5eac23be"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\AUDIT.md": {
+    "mtime": 1777305519.4198384,
+    "hash": "bbc62a6aa02607c4cb9de0dc46c5c047"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\auditoria-ux-pipeline-roteiro.md": {
+    "mtime": 1781194538.3190656,
+    "hash": "41d28efe9fcacf51741e2370c7c859af"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\briefing dev \u2014 configura\u00e7\u00f5es do sistema.md": {
+    "mtime": 1774883609.740583,
+    "hash": "fe6e4220a90ad699f59135d3520a367a"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\briefing dev \u2014 content os.md": {
+    "mtime": 1774883631.6149817,
+    "hash": "1373bb4f32e9369fd36c315fba6c6e55"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\BUTTON_SYSTEM.md": {
+    "mtime": 1777568203.857085,
+    "hash": "c99d58fd0214d47eecbe960e3253a16e"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\CLAUDE.md": {
+    "mtime": 1777826906.6119256,
+    "hash": "2ed67c68f28bc1ef95ac24167431d7e8"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\compile.txt": {
+    "mtime": 1775070019.815638,
+    "hash": "1fff56b257211dd3cb45a5587f72a78d"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\compile2.txt": {
+    "mtime": 1775070149.5192778,
+    "hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\compile_errors.txt": {
+    "mtime": 1775069890.7856612,
+    "hash": "5280bea2668ff7d0ab6aac5aac81fbcb"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\DATABASE.md": {
+    "mtime": 1777484434.119771,
+    "hash": "2531b2671a389d1bc2e3693824601a2f"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\DESIGN_FIXES.md": {
+    "mtime": 1775777475.057751,
+    "hash": "ffd0147fc69bea9285487f554923d3ac"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\DESIGN_FIXES_2.md": {
+    "mtime": 1775777888.3837955,
+    "hash": "2cd5c1eefa3386e4a8f08693c4531b36"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\DOCUMENTACAO_TELAS.md": {
+    "mtime": 1777515805.1194687,
+    "hash": "bd36017f811aeed27adec165fceacdbb"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\FRONTEND_ARCHITECTURE_AUDIT.md": {
+    "mtime": 1777594473.8131912,
+    "hash": "9ba696e7e113ca8f36caf9319ea9a42c"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\IMPLEMENTATION_PLAN_2026-04-30.md": {
+    "mtime": 1777611028.8782744,
+    "hash": "70d95cd25aa4d4739ed90b06d838c197"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\index.html": {
+    "mtime": 1779416913.2671487,
+    "hash": "c4aa39f5198caf293f904d90327461e6"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\MOBILE_LAYER_IMPLEMENTATION_REPORT.md": {
+    "mtime": 1777981597.4116855,
+    "hash": "a7f95c3a6d056e945a47b5c986d44ba0"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\MOBILE_PARALLEL_IMPLEMENTATION_GUIDE.md": {
+    "mtime": 1777981597.4782379,
+    "hash": "9a7a4b7e284ea1ac9db67ff5df352ed8"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\PLAYBOOK.md": {
+    "mtime": 1777425720.2753854,
+    "hash": "9eaf17d41233d5f6bd9f2c2e25a5bfab"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\PRODUCT_VOICE.md": {
+    "mtime": 1779745401.5247605,
+    "hash": "bc564c2c1e305402d45ffe064fbf2f0f"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\QUESTIONNAIRE.md": {
+    "mtime": 1777306130.2076552,
+    "hash": "4aeb2b1c73bda21a33f7df301233b06e"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\README.md": {
+    "mtime": 1779746906.4089983,
+    "hash": "9bdb5aa4aac22ccd08afecc4afe588de"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\RESPOSTAS QUESTIONNAIRE.md": {
+    "mtime": 1777324560.325148,
+    "hash": "64d7242a4d900c7ec1f854549a438110"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\SPEC.md": {
+    "mtime": 1779746873.3261814,
+    "hash": "8ecc98e5ec918c4d5e727816a32d7dbe"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\SYSTEM_GUIDE.md": {
+    "mtime": 1781198002.0628588,
+    "hash": "5b6e0786b8440d3b75ef3eea32a33820"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\public\\apple-touch-icon-180x180.png": {
+    "mtime": 1777085384.9571323,
+    "hash": "91aaffbd2ecb831dbb66c126ca68a8b5"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\public\\favicon.svg": {
+    "mtime": 1777085349.0543902,
+    "hash": "6f0dc5f2459cc7f498f67a2aea2ff635"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\public\\maskable-icon-512x512.png": {
+    "mtime": 1777085384.9437027,
+    "hash": "f139a0d706225fd7cfcd085f7c8d69fa"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\public\\pwa-192x192.png": {
+    "mtime": 1777085384.8797026,
+    "hash": "6ea755dae42536e3b299119b82c87d97"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\public\\pwa-512x512.png": {
+    "mtime": 1777085384.9052546,
+    "hash": "cf44b30b1ebcbeedb947298225c5b460"
+  },
+  "C:\\Users\\mente\\Desktop\\CODING\\content-os\\public\\pwa-64x64.png": {
+    "mtime": 1777085384.8767345,
+    "hash": "cceaa1c75b5fff7db624d1e83a4a5503"
+  }
+}

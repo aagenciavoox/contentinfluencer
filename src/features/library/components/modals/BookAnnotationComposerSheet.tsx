@@ -62,7 +62,7 @@ export function BookAnnotationComposerSheet({
         <div className="flex items-start justify-between gap-4 border-b border-[var(--border-color)] px-1 pb-4">
           <div>
             <p className="text-sm font-bold text-[var(--text-primary)] opacity-45">{book.titulo}</p>
-            <span className="mt-1 block text-[10px] font-black uppercase tracking-[0.18em] text-[var(--text-tertiary)]">
+            <span className="mt-1 block text-xs font-semibold  text-[var(--text-tertiary)]">
               Notas
             </span>
           </div>
@@ -75,12 +75,12 @@ export function BookAnnotationComposerSheet({
           </button>
         </div>
 
-        <div className="mt-5 rounded-[28px] border border-[var(--border-color)] bg-[var(--bg-primary)] p-4">
+        <div className="mt-5 rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-primary)] p-4">
           <div className="space-y-4">
             <select
               value={novoTipo}
               onChange={event => setNovoTipo(event.target.value as TipoAnotacao)}
-              className="w-full rounded-2xl border border-[var(--border-color)] bg-[var(--bg-hover)] px-4 py-4 text-[12px] font-black uppercase tracking-[0.18em] text-[var(--text-primary)]"
+              className="w-full rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-hover)] px-4 py-4 text-[12px] font-semibold  text-[var(--text-primary)]"
             >
               {TIPOS.map(tipo => <option key={tipo}>{tipo}</option>)}
             </select>
@@ -90,7 +90,7 @@ export function BookAnnotationComposerSheet({
               value={novoCapitulo}
               onChange={event => setNovoCapitulo(event.target.value)}
               placeholder="Cap. / página"
-              className="w-full rounded-2xl border border-[var(--border-color)] bg-[var(--bg-hover)] px-4 py-4 text-sm text-[var(--text-primary)] placeholder:opacity-35"
+              className="w-full rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-hover)] px-4 py-4 text-sm text-[var(--text-primary)] placeholder:opacity-35"
             />
 
             <textarea
@@ -108,13 +108,13 @@ export function BookAnnotationComposerSheet({
           </div>
 
           <div className="mt-5 flex items-center justify-between border-t border-[var(--border-color)] px-1 pt-4">
-            <span className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--text-tertiary)] opacity-45">
+            <span className="text-xs font-semibold  text-[var(--text-tertiary)] opacity-45">
               Nova nota
             </span>
             <button
               onClick={handleAddAnotacao}
               disabled={!novaAnotacao.trim()}
-              className="rounded-2xl bg-[var(--text-primary)] px-5 py-3 text-[10px] font-black uppercase tracking-[0.18em] text-[var(--bg-primary)] transition-all hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-30"
+              className="rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] bg-[var(--text-primary)] px-5 py-3 text-xs font-semibold  text-[var(--bg-primary)] transition-all hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-30"
             >
               <span className="inline-flex items-center gap-1.5">
                 <Plus className="h-3.5 w-3.5" />

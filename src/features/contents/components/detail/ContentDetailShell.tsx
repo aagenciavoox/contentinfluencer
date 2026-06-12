@@ -1,13 +1,11 @@
-import {ArrowLeft, AlertTriangle, CheckCircle2, Clock3} from 'lucide-react';
 import {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {getSaveFeedbackState, subscribeSaveFeedback, type SaveFeedbackState} from '../../../../lib/saveFeedback';
-import {useContentDetailBack} from '../../../../lib/navigation/useContentDetailBack';
 import {useNavigate, useSearchParams} from 'react-router-dom';
 import {SendToRecordingSheet} from '../../../../mobile/components/SendToRecordingSheet';
-import {AppButton} from '../../../../components/ui/AppButton';
 import {useAppContext} from '../../../../context/AppContext';
 import {useAuth} from '../../../../context/AuthContext';
 import type {Content} from '../../../../lib/database';
+import {cn} from '../../../../lib/utils';
 import {PageScaffold} from '../../../../layouts/page/PageScaffold';
 import {ContentDetailMobileScreen} from '../../../../mobile/screens/contents/ContentDetailMobileScreen';
 import {
@@ -19,14 +17,14 @@ import {
   getPostingAutomationStatus,
   getPostingAlerts,
   getPrimaryAction,
+  getVisibleTabsForContent,
+  isTabLocked,
+  shouldShowPublishingSection,
   type ContentDetailTab,
 } from '../../lib/contentPipeline';
 import {ContentDetailHeader} from './ContentDetailHeader';
 import {ContentPipelineStepper} from './ContentPipelineStepper';
-import {ContentDetailTabs} from './ContentDetailTabs';
-import {HistorySection} from './sections/HistorySection';
-import {PostingSection} from './sections/PostingSection';
-import {ProductionSection} from './sections/ProductionSection';
+import {PublishingSection} from './sections/PublishingSection';
 import {RecordingSection} from './sections/RecordingSection';
 import {ContentOperationalPanel} from './ContentOperationalPanel';
 import {RoteiroSection} from './sections/RoteiroSection';
@@ -49,6 +47,7 @@ type ContentDraft = Pick<
   | 'notes'
   | 'status'
   | 'publishDate'
+  | 'publishTime'
   | 'recordingDate'
   | 'plataformas'
 >;
@@ -57,7 +56,6 @@ export function ContentDetailShell({content, mode = 'desktop'}: ContentDetailShe
   const {state, dispatch, updateContent} = useAppContext();
   const {user} = useAuth();
   const navigate = useNavigate();
-  const goBackToConteudos = useContentDetailBack();
   const [searchParams, setSearchParams] = useSearchParams();
   const [draft, setDraft] = useState<ContentDraft>(() => ({
     title: content.title,
@@ -71,6 +69,7 @@ export function ContentDetailShell({content, mode = 'desktop'}: ContentDetailShe
     notes: content.notes,
     status: content.status,
     publishDate: content.publishDate,
+    publishTime: content.publishTime,
     recordingDate: content.recordingDate,
     plataformas: content.plataformas || [],
   }));
@@ -98,6 +97,27 @@ export function ContentDetailShell({content, mode = 'desktop'}: ContentDetailShe
   }, [content.id, mode, searchParams, setSearchParams]);
 
   const liveContent = state.contents.find(item => item.id === content.id) || content;
+  const blockSummary = getContentBlockSummary(content.id, state.recordingBlocks, state.contents);
+  const mergedContent = {...liveContent, ...draft};
+  const stage = getContentStage(mergedContent, {block: blockSummary?.block});
+  const showPublishingSection = shouldShowPublishingSection(stage);
+  const stageOptions = useMemo(
+    () => ({block: blockSummary?.block ?? null}),
+    [blockSummary?.block]
+  );
+  const visibleTabs = getVisibleTabsForContent(mergedContent, stageOptions);
+
+  useEffect(() => {
+    const tabAvailable = visibleTabs.includes(activeTab);
+    const tabLocked = isTabLocked(activeTab, mergedContent, stageOptions);
+    if (tabAvailable && !tabLocked) return;
+
+    setSearchParams(previous => {
+      const next = new URLSearchParams(previous);
+      next.set('tab', visibleTabs[0] ?? 'roteiro');
+      return next;
+    });
+  }, [activeTab, mergedContent, setSearchParams, stageOptions, visibleTabs]);
 
   useEffect(() => {
     if (draftDirtyRef.current) return;
@@ -114,6 +134,7 @@ export function ContentDetailShell({content, mode = 'desktop'}: ContentDetailShe
       notes: liveContent.notes,
       status: liveContent.status,
       publishDate: liveContent.publishDate,
+      publishTime: liveContent.publishTime,
       recordingDate: liveContent.recordingDate,
       plataformas: liveContent.plataformas || [],
     });
@@ -131,6 +152,7 @@ export function ContentDetailShell({content, mode = 'desktop'}: ContentDetailShe
     liveContent.referencias,
     liveContent.notes,
     liveContent.publishDate,
+    liveContent.publishTime,
     liveContent.recordingDate,
     liveContent.plataformas,
   ]);
@@ -140,16 +162,10 @@ export function ContentDetailShell({content, mode = 'desktop'}: ContentDetailShe
     setDraftDirty(true);
     setDraft(previous => ({...previous, ...updates}));
   }, []);
-  const series = state.series.find(item => item.id === draft.seriesId) || null;
+
   const pillar = state.pilares.find(item => item.id === draft.pilarId) || null;
-  const blockSummary = getContentBlockSummary(content.id, state.recordingBlocks);
-  const primaryAction = getPrimaryAction(
-    {
-      ...liveContent,
-      ...draft,
-    },
-    {block: blockSummary?.block}
-  );
+  const serie = state.series.find(item => item.id === draft.seriesId) || null;
+  const primaryAction = getPrimaryAction(mergedContent, {block: blockSummary?.block});
   const postingAlerts = useMemo(
     () =>
       getPostingAlerts({
@@ -235,44 +251,34 @@ export function ContentDetailShell({content, mode = 'desktop'}: ContentDetailShe
           ? 'Salvamento automatico em breve'
           : 'Sincronizado';
 
+  const setTab = (tab: ContentDetailTab) => {
+    if (isTabLocked(tab, mergedContent, stageOptions)) return;
+
+    setSearchParams(previous => {
+      const next = new URLSearchParams(previous);
+      next.set('tab', tab);
+      return next;
+    });
+  };
+
   const handlePrimaryAction = async () => {
     switch (primaryAction.id) {
       case 'advance_to_recording':
-        if (mode === 'mobile') {
-          await persist();
-          setIsRecordingSheetOpen(true);
-          return;
-        }
         await persist({}, {advanceToReady: true});
+        setIsRecordingSheetOpen(true);
         return;
       case 'add_to_block':
-        if (mode === 'mobile') {
-          setIsRecordingSheetOpen(true);
-          return;
-        }
-        setSearchParams(previous => {
-          const next = new URLSearchParams(previous);
-          next.set('tab', 'gravacao');
-          return next;
-        });
+        setIsRecordingSheetOpen(true);
         return;
       case 'send_to_posting':
-        setSearchParams(previous => {
-          const next = new URLSearchParams(previous);
-          next.set('tab', 'postagem');
-          return next;
-        });
+        setTab('publicacao');
         return;
       case 'go_to_execution':
         if (blockSummary?.block) {
           navigate(`/gravacao/${blockSummary.block.id}`);
           return;
         }
-        setSearchParams(previous => {
-          const next = new URLSearchParams(previous);
-          next.set('tab', 'gravacao');
-          return next;
-        });
+        navigate('/gravacao?tab=queue');
         return;
       case 'save_schedule':
         await persist();
@@ -282,28 +288,23 @@ export function ContentDetailShell({content, mode = 'desktop'}: ContentDetailShe
           navigate('/analise');
           return;
         }
-        setSearchParams(previous => {
-          const next = new URLSearchParams(previous);
-          next.set('tab', primaryAction.targetTab);
-          return next;
-        });
+        setTab(primaryAction.targetTab);
     }
   };
 
-  const stage = getContentStage({...liveContent, ...draft}, {block: blockSummary?.block});
   const stageLabel: Record<string, string> = {
     IDEIA: 'Ideia',
     ROTEIRO: 'Roteiro',
     PRONTO_PARA_GRAVAR: 'Pronto para gravacao',
     EM_BLOCO: 'Em bloco',
     GRAVADO: 'Gravado',
-    PRODUCAO: 'Producao',
+    PRODUCAO: 'Publicacao',
     PROGRAMADO: 'Programado',
     POSTADO: 'Postado',
   };
 
   const tabAlertCounts = {
-    postagem: postingAlerts.length,
+    publicacao: postingAlerts.length,
   };
 
   const detailSection =
@@ -319,203 +320,136 @@ export function ContentDetailShell({content, mode = 'desktop'}: ContentDetailShe
         autoFocusScript={mode === 'mobile' && searchParams.get('focus') === 'script'}
         layout={mode === 'desktop' ? 'workspace' : 'stack'}
       />
-    ) : activeTab === 'gravacao' ? (
+    ) : activeTab === 'gravacao' || !showPublishingSection ? (
       <RecordingSection
-        content={{...liveContent, ...draft}}
+        content={mergedContent}
         stage={stage}
         recordingBlocks={state.recordingBlocks}
+        allContents={state.contents}
         onPersist={persist}
         onDispatch={dispatch}
+        onOpenBlockSheet={() => setIsRecordingSheetOpen(true)}
       />
-    ) : activeTab === 'producao' ? (
-      <ProductionSection
+    ) : (
+      <PublishingSection
         draft={draft}
         pilar={pillar}
-        onChange={handleDraftChange}
-      />
-    ) : activeTab === 'postagem' ? (
-      <PostingSection
-        draft={draft}
+        serie={serie}
         alerts={postingAlerts}
         onChange={handleDraftChange}
-      />
-    ) : activeTab === 'historico' ? (
-      <HistorySection content={{...liveContent, ...draft}} />
-    ) : (
-      <PlaceholderSection
-        tab={activeTab}
-        blockName={blockSummary?.block.name ?? null}
-        progress={blockSummary?.progressPercentage ?? null}
+        isSaving={isSaving}
+        onMarkPosted={() => void persist({status: CONTENT_STATUS.POSTADO})}
       />
     );
 
   if (mode === 'mobile') {
     return (
       <>
-      <ContentDetailMobileScreen
-        content={{...liveContent, ...draft}}
-        activeTab={activeTab}
-        onTabChange={tab =>
-          setSearchParams(previous => {
-            const next = new URLSearchParams(previous);
-            next.set('tab', tab);
-            return next;
-          })
-        }
-        primaryAction={primaryAction}
-        onPrimaryAction={() => void handlePrimaryAction()}
-        onStatusChange={status => void persist({status})}
-        isSaving={isSaving}
-        postingAlerts={postingAlerts}
-        stageLabel={stageLabel[stage]}
-        operationalPanel={
-          <ContentOperationalPanel
-            draft={draft}
-            series={state.series}
-            pilares={state.pilares}
-            onChange={handleDraftChange}
-            onStatusChange={status => void persist({status})}
-            density="compact"
-          />
-        }
-        blockName={blockSummary?.block.name ?? null}
-        blockOrder={blockSummary?.order ?? null}
-        section={detailSection}
-        onSave={() => void persist()}
-        saveHint={saveHint}
-      />
+        <ContentDetailMobileScreen
+          content={mergedContent}
+          activeTab={activeTab}
+          visibleTabs={visibleTabs}
+          onTabChange={setTab}
+          primaryAction={primaryAction}
+          onPrimaryAction={() => void handlePrimaryAction()}
+          isSaving={isSaving}
+          postingAlerts={postingAlerts}
+          stageLabel={stageLabel[stage]}
+          operationalPanel={
+            <ContentOperationalPanel
+              draft={draft}
+              series={state.series}
+              pilares={state.pilares}
+              onChange={handleDraftChange}
+              onStatusChange={status => void persist({status})}
+              density="compact"
+            />
+          }
+          blockName={blockSummary?.block.name ?? null}
+          blockOrder={blockSummary?.order ?? null}
+          section={detailSection}
+          onSave={() => void persist()}
+          saveHint={saveHint}
+        />
 
-      <SendToRecordingSheet
-        open={isRecordingSheetOpen}
-        onClose={() => setIsRecordingSheetOpen(false)}
-        content={{...liveContent, ...draft}}
-        recordingBlocks={state.recordingBlocks}
-        onPersist={persist}
-        onDispatch={dispatch}
-      />
+        <SendToRecordingSheet
+          open={isRecordingSheetOpen}
+          onClose={() => setIsRecordingSheetOpen(false)}
+          content={mergedContent}
+          recordingBlocks={state.recordingBlocks}
+          onPersist={persist}
+          onDispatch={dispatch}
+        />
       </>
     );
   }
 
   return (
     <PageScaffold contentWidth="full" contentClassName="pb-12 md:pb-10">
-      <div className="mx-auto flex max-w-[1400px] flex-col gap-5">
-        <div className="flex items-center justify-between gap-3 pt-4 md:pt-8">
-          <AppButton variant="ghost" leftIcon={<ArrowLeft className="h-4 w-4" />} onClick={goBackToConteudos}>
-            Voltar
-          </AppButton>
-          <div className="text-right">
-            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--text-tertiary)]">
-              Etapa atual
-            </p>
-            <p className="text-sm font-black text-[var(--text-primary)]">{stageLabel[stage]}</p>
-          </div>
+      <div
+        className={cn(
+          'mx-auto flex max-w-[1280px] flex-col px-4 md:px-8',
+          activeTab === 'roteiro' ? 'gap-2 md:pt-4' : 'gap-6 md:pt-8',
+        )}
+      >
+        <div className={activeTab === 'roteiro' ? 'space-y-1.5' : 'contents'}>
+          <ContentDetailHeader
+            content={mergedContent}
+            title={draft.title}
+            onTitleChange={value => handleDraftChange({title: value})}
+            primaryAction={primaryAction}
+            onPrimaryAction={() => void handlePrimaryAction()}
+            onSaveDraft={() => void persist()}
+            onStatusChange={status => void persist({status})}
+            isSaving={isSaving}
+            blockName={blockSummary?.block.name ?? null}
+            blockOrder={blockSummary?.order ?? null}
+            saveHint={saveHint}
+            pilar={pillar}
+            authorName={user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Usuario'}
+            compact={activeTab === 'roteiro'}
+          />
+
+          <ContentPipelineStepper
+            content={mergedContent}
+            activeTab={activeTab}
+            stageOptions={stageOptions}
+            onTabChange={setTab}
+            compact={activeTab === 'roteiro'}
+          />
         </div>
 
-        <ContentDetailHeader
-          content={{...liveContent, ...draft}}
-          title={draft.title}
-          onTitleChange={value => handleDraftChange({title: value})}
-          primaryAction={primaryAction}
-          onPrimaryAction={() => void handlePrimaryAction()}
-          onStatusChange={status => void persist({status})}
-          isSaving={isSaving}
-          blockName={blockSummary?.block.name ?? null}
-          blockOrder={blockSummary?.order ?? null}
-          saveHint={saveHint}
-        />
-
-        <ContentPipelineStepper
-          content={{...liveContent, ...draft}}
-          activeTab={activeTab}
-          onTabChange={tab =>
-            setSearchParams(previous => {
-              const next = new URLSearchParams(previous);
-              next.set('tab', tab);
-              return next;
-            })
-          }
-        />
-
-        {postingAlerts.length > 0 ? (
-          <section className="grid gap-3">
-            {postingAlerts.map(alert => (
-              <article
-                key={alert.id}
-                className="ds-card flex items-start gap-3 bg-[var(--bg-secondary)] px-4 py-4"
-              >
-                {alert.tone === 'warning' ? (
-                  <AlertTriangle className="mt-0.5 h-5 w-5 text-amber-500" />
-                ) : (
-                  <Clock3 className="mt-0.5 h-5 w-5 text-sky-500" />
-                )}
-                <p className="text-sm font-semibold text-[var(--text-primary)]">{alert.message}</p>
-              </article>
-            ))}
-          </section>
-        ) : null}
-
-        <ContentDetailTabs
-          activeTab={activeTab}
-          alertCounts={tabAlertCounts}
-          onTabChange={tab =>
-            setSearchParams(previous => {
-              const next = new URLSearchParams(previous);
-              next.set('tab', tab);
-              return next;
-            })
-          }
-        />
-
-        {detailSection}
+        <div className={cn(activeTab === 'roteiro' ? 'gap-3' : 'gap-6', 'grid')}>
+          {activeTab === 'roteiro' ? (
+            detailSection
+          ) : (
+            <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
+              <div>{detailSection}</div>
+              <aside className="space-y-4">
+                <ContentOperationalPanel
+                  draft={draft}
+                  series={state.series}
+                  pilares={state.pilares}
+                  authorName={user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Usuario'}
+                  onChange={handleDraftChange}
+                  onStatusChange={status => void persist({status})}
+                  density="compact"
+                  showTitle={false}
+                />
+              </aside>
+            </div>
+          )}
+        </div>
       </div>
+
+      <SendToRecordingSheet
+        open={isRecordingSheetOpen}
+        onClose={() => setIsRecordingSheetOpen(false)}
+        content={mergedContent}
+        recordingBlocks={state.recordingBlocks}
+        onPersist={persist}
+        onDispatch={dispatch}
+      />
     </PageScaffold>
-  );
-}
-
-function PlaceholderSection({
-  tab,
-  blockName,
-  progress,
-}: {
-  tab: ContentDetailTab;
-  blockName: string | null;
-  progress: number | null;
-}) {
-  const copyByTab: Record<ContentDetailTab, {title: string; body: string}> = {
-    roteiro: {
-      title: 'Roteiro',
-      body: 'A escrita central do conteudo ja foi migrada para o shell novo.',
-    },
-    gravacao: {
-      title: 'Gravacao',
-      body: blockName
-        ? `Este conteudo ja esta no bloco "${blockName}" com progresso atual de ${progress ?? 0}%.`
-        : 'A gravacao agora vive na aba dedicada deste mesmo detalhe.',
-    },
-    producao: {
-      title: 'Producao',
-      body: 'Assets, copy e preparacao de distribuicao entram nesta aba na proxima fase.',
-    },
-    postagem: {
-      title: 'Postagem',
-      body: 'Plataformas, datas, alertas e agendamento vao viver aqui no mesmo detalhe.',
-    },
-    historico: {
-      title: 'Historico',
-      body: 'A timeline com mudancas e eventos sera derivada dos campos atuais na fase seguinte.',
-    },
-  };
-
-  const copy = copyByTab[tab];
-
-  return (
-    <section className="ds-card border-dashed bg-[var(--bg-secondary)] p-8 text-center">
-      <CheckCircle2 className="mx-auto h-10 w-10 text-[var(--accent-green)]" />
-      <h2 className="mt-4 text-2xl font-black text-[var(--text-primary)]">{copy.title}</h2>
-      <p className="mx-auto mt-3 max-w-2xl text-sm font-semibold leading-relaxed text-[var(--text-secondary)]">
-        {copy.body}
-      </p>
-    </section>
   );
 }

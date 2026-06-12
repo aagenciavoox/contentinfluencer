@@ -53,6 +53,22 @@ PLANEJAMENTO → Calendário + Projetos
 CONTROLE     → Análise
 ```
 
+### Filosofia de produto: experiencia gentil
+
+Core Creator ajuda a lembrar, organizar e escolher. O sistema nao deve envergonhar, cobrar ou medir valor pessoal por volume de producao.
+
+Regras:
+- Sugestoes sao opcionais e podem ser desligadas.
+- Modo pausa oculta sugestoes proativas e preserva contexto sem empurrar proximos movimentos.
+- Numeros no dashboard podem ser ocultados.
+- Prazos reais devem ser separados de datas desejadas.
+- Destaque forte deve ficar restrito a compromissos externos, publis, entregas combinadas ou trabalho pago.
+- Analise deve gerar aprendizado, nao julgamento.
+- Textos devem preferir "em aberto", "disponivel", "data combinada", "para lembrar", "pode ser retomado" e "talvez util".
+- Evitar linguagem de cobranca ou julgamento; a lista de frases bloqueadas fica em `PRODUCT_VOICE.md`.
+
+Implementacao: configuracao em `src/features/settings/lib/gentleExperience.ts`; guia de voz em `PRODUCT_VOICE.md`.
+
 ---
 
 ## 3. ENTIDADES E SCHEMA
@@ -429,8 +445,8 @@ Preenchimento é opcional — o usuário decide se quer registrar métricas.
 - Série (nome)
 - Plataformas
 - Datas (se houver)
-- Indicador de alerta (violação de regra de ouro)
-- Próxima ação sugerida baseada no status
+- Indicador de ponto fora do combinado (regra de ouro)
+- Caminho sugerido baseado no status
 - Indicador de energia necessária
 
 **Menu do item (ação rápida):**
@@ -439,7 +455,7 @@ Preenchimento é opcional — o usuário decide se quer registrar métricas.
 - Adicionar a projeto
 - Adicionar a bloco de gravação
 
-**Ordenação padrão:** prioridade automática (status + data)
+**Ordenação padrão:** leitura assistida por status + data
 
 **Mobile:** cards 2 colunas estilo Keep  
 **Desktop:** lista ou grid maior + sidebar de filtros
@@ -618,19 +634,19 @@ O objetivo não é cadastrar looks, mas usá-los como filtros para agrupar conte
 
 ---
 
-### `/analise` — Análise
-**O que faz:** Leitura estratégica do conteúdo. Substitui `results` como tela.
+### `/analise` -- Analise
+**O que faz:** Leitura estrategica do conteudo sem julgamento. Substitui `results` como tela.
 
 **Abas:**
-1. **Regras de Ouro** — score semanal, lista de violações, insights acionáveis
-2. **Mix de Conteúdo** — distribuição por pilar, série, plataforma vs. meta
-3. **Performance** — métricas agregadas dos conteúdos postados
+1. **Leitura editorial** -- combinados ativos, pontos fora do padrao esperado e contexto para revisar
+2. **Mix de Conteudo** -- distribuicao por pilar, serie e plataforma como mapa de presenca
+3. **Resposta do publico** -- metricas agregadas dos conteudos postados para aprendizado
 
-**O que é automático:**
-- Score geral da semana/mês
-- Detecção de violações de regras
-- Sugestão de mix ("você precisa de conteúdo de Humor ou Opinião")
-- Comparação meta vs. real (pilares, frequência)
+**O que e automatico:**
+- Indicador de harmonia editorial da semana/mes
+- Deteccao de pontos que talvez merecam revisao
+- Sugestao de mix ("Humor ou Opiniao ficaram mais quietos neste periodo")
+- Leitura entre intencao e realidade publicada (pilares, frequencia)
 
 **Mobile:** visual simplificado (cards + blocos)  
 **Desktop:** mais dados simultâneos
@@ -671,36 +687,36 @@ O objetivo não é cadastrar looks, mas usá-los como filtros para agrupar conte
 4. Verificar planejamento (datas e distribuição)  
 **Output:** "Você pode gravar 3 conteúdos hoje" + lista sugerida
 
-### 5.2 — Alerta de Inconsistência
+### 5.2 -- Ponto para revisar
 **Trigger:** ao salvar/planejar conteúdo  
 **Lógica:** cruzar contra regras de ouro ativas  
-**Output:** alertas em tempo real (⚠️ aviso, ❌ violação) — nunca bloqueia ação
+**Output:** avisos gentis em tempo real -- nunca bloqueiam ação
 
-### 5.3 — Sugestão de Mix
-**Trigger:** ao abrir Análise ou Calendário  
-**Lógica:** analisar últimos N conteúdos postados → distribuição por pilar  
-**Output:** "Você precisa de conteúdo de [Pilar X]" quando desequilíbrio detectado
+### 5.3 -- Sugestao de Mix
+**Trigger:** ao abrir Analise ou Calendario  
+**Logica:** analisar ultimos N conteudos postados -> distribuicao por pilar  
+**Output:** "[Pilar X] ficou mais quieto neste periodo" quando houver assimetria de presenca
 
 ### 5.4 — Pré-preenchimento de Hashtags
 **Trigger:** ao criar conteúdo / selecionar pilar ou série  
 **Lógica:** hashtags do pilar (base) + hashtags da série (adicionais) = sugestão editável  
 **Output:** campo de hashtags pré-preenchido, editável manualmente
 
-### 5.5 — Score de Análise
-**Trigger:** automático, calculado sobre os dados existentes  
-**Lógica:**
-- % de equilíbrio de pilares vs. meta
-- Frequência de publicação vs. meta
-- Nº de violações de regras ativas  
-**Output:** score visual na tela de Análise
+### 5.5 -- Leitura de Analise
+**Trigger:** automatico, calculado sobre os dados existentes  
+**Logica:**
+- % de equilibrio de pilares vs. intencao configurada
+- Frequencia de publicacao vs. ritmo desejado
+- Pontos fora dos combinados ativos  
+**Output:** indicador visual de harmonia editorial na tela de Analise
 
-### 5.6 — Recomendação de Próxima Ação
+### 5.6 -- Caminhos possiveis
 **Trigger:** ao abrir a tela de Conteúdos ou o Dashboard  
 **Lógica baseada em regras simples:**
 - energia baixa + conteúdos disponíveis → sugerir conteúdos leves
-- agenda vazia + prontos para gravar → sugerir iniciar gravação
-- muitos editados + datas chegando → sugerir postar  
-**Output:** indicador visual "Próxima ação" por conteúdo
+- agenda aberta + prontos para gravar → sugerir separar gravação
+- muitos editados + datas combinadas chegando → sugerir revisar publicação  
+**Output:** indicador visual "Caminho possível" por conteúdo
 
 ---
 
@@ -931,7 +947,7 @@ Usa `lib/database`, `state.bibliotecaItems`, Content shape correto, 0 erros TS.
 - `src/types.ts`
 - `src/constants.ts` — mock data já removido; arquivo está limpo
 
-**🔲 Ainda existem, deletar:**
+**🔲 Ainda existem, remover:**
 - `schema.new.sql` — arquivo intermediário de migração
 
 ---
@@ -941,7 +957,7 @@ Usa `lib/database`, `state.bibliotecaItems`, Content shape correto, 0 erros TS.
 > Ordem sugerida por valor entregue e dependências técnicas.
 
 #### Fase A — Limpeza rápida *(~1h)*
-1. Deletar `schema.new.sql`
+1. Remover `schema.new.sql`
 2. Corrigir links internos em `Settings.tsx` (`/settings/*` → `/configuracoes/*`)
 3. Atualizar `Sidebar.tsx`: adicionar Projetos, Gravação, Análise; adicionar sublinks de Config
 
@@ -993,14 +1009,32 @@ Dispatch: `ADD_RECORDING_BLOCK`, `UPDATE_RECORDING_BLOCK`, `DELETE_RECORDING_BLO
 #### Fase E — `/analise` *(~1 dia)*
 Criar `src/pages/Analise.tsx` com 3 abas:
 
-1. **Regras de Ouro** — listar `state.goldenRules` ativas; para cada regra, calcular violações contra `state.contents` dos últimos N dias; score geral (% de regras cumpridas)
-2. **Mix de Conteúdo** — distribuição de conteúdos postados por pilar (últimos 30/90 dias); comparação com meta implícita (equilíbrio); sugestão "você precisa de mais [Pilar X]"
-3. **Performance** — agregar `state.contentMetrics` por conteúdo; top 5 por views, saves, comentários; total geral; filtro por plataforma
+1. **Leitura editorial** — listar `state.goldenRules` ativas; para cada regra, calcular pontos fora dos combinados contra `state.contents` dos últimos N dias; indicador de harmonia editorial
+2. **Mix de Conteúdo** — distribuição de conteúdos postados por pilar (últimos 30/90 dias); comparação com intenção de equilíbrio; sugestão "[Pilar X] ficou mais quieto neste período"
+3. **Resposta do público** — agregar `state.contentMetrics` por conteúdo; top 5 por views, saves, comentários; total geral; filtro por plataforma
 
 #### Fase F — Configurações faltando *(~0.5 dia cada)*
 - `/configuracoes/series` — CRUD de séries: form com nome, template de roteiro, frequência, cor, bordão; listagem
 - `/configuracoes/plataformas` — listar plataformas do usuário; toggle ativo/inativo; adicionar plataforma custom
 - `/configuracoes/templates` — CRUD de templates de roteiro; estrutura de blocos fixos + variáveis
+
+## Design System Editorial (Notion)
+
+Componentes canônicos em `src/components/ui/` e `src/components/overlays/`:
+
+| Componente | Uso |
+|------------|-----|
+| `PageLayout` | Todas as páginas desktop — header, toolbar, largura de conteúdo |
+| `Text` | Hierarquia tipográfica (`pageTitle`, `sectionTitle`, `body`, `meta`, `label`) |
+| `Surface` | Cards e blocos (`plain`, `outlined`, `interactive`, `elevated`) |
+| `Section` | Título + descrição + ação + conteúdo |
+| `ListItem` | Linhas operacionais e listas |
+| `Badge` | Status curtos (único uppercase por default) |
+| `OverlayRoot` / `Dialog` / `Drawer` / `BottomSheet` | Modais e painéis |
+
+Tokens em `src/styles/index.css`: `--radius-card` (10px desktop), `--radius-card-mobile` (12px), sem `font-black` nem tamanhos arbitrários `9–11px`.
+
+Verificação: `npm run lint:design`
 
 #### Fase G — Dívida técnica *(quando houver tempo)*
 - `ContentDetailModal.tsx` — substituir `LegacyContent = any` (29 ocorrências) por tipos corretos de `Content` e `ContentPlataforma`

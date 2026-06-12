@@ -20,7 +20,7 @@ export function getMobileRouteMeta(pathname: string): MobileRouteMeta {
   if (pathname.startsWith('/projetos/')) {
     return {
       title: 'Projeto',
-      subtitle: 'Status, eventos e proximas acoes.',
+      subtitle: 'Contexto, eventos e caminhos possiveis.',
       mode: 'back',
       backTo: '/projetos',
     };
@@ -40,7 +40,7 @@ export function getMobileRouteMeta(pathname: string): MobileRouteMeta {
       title: 'Modo Explosao',
       subtitle: 'Leitura e execucao do bloco em camada mobile.',
       mode: 'back',
-      backTo: '/gravacao?tab=blocks',
+      backTo: '/gravacao?tab=queue',
     };
   }
 
@@ -56,13 +56,13 @@ export function getMobileRouteMeta(pathname: string): MobileRouteMeta {
   switch (pathname) {
     case '/dashboard':
       return {
-        title: 'Foco do dia',
-        subtitle: 'Resumo curto das prioridades em andamento.',
+        title: 'Talvez util hoje',
+        subtitle: 'Resumo leve para escolher sem pressa.',
       };
     case '/conteudos':
       return {
         title: 'Conteudos',
-        subtitle: 'Roteiro, postagem e historico em uma mesma fila.',
+        subtitle: 'Pipeline ativo e conteudos publicados.',
       };
     case '/ideias':
       return {
@@ -83,7 +83,7 @@ export function getMobileRouteMeta(pathname: string): MobileRouteMeta {
     case '/projetos':
       return {
         title: 'Projetos',
-        subtitle: 'Lista enxuta com prazo e progresso.',
+        subtitle: 'Lista leve com contexto e datas combinadas.',
       };
     case '/gravacao':
       return {
@@ -93,7 +93,7 @@ export function getMobileRouteMeta(pathname: string): MobileRouteMeta {
     case '/analise':
       return {
         title: 'Insights',
-        subtitle: 'Alertas e leituras resumidas.',
+        subtitle: 'Leituras e pontos para revisar.',
       };
     case '/configuracoes':
       return {

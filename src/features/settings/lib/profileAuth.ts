@@ -6,7 +6,7 @@ export function normalizeProfileAuthError(message: string) {
   }
 
   if (normalizedMessage.includes('password')) {
-    return 'A nova senha deve ter pelo menos 6 caracteres.';
+    return 'Use uma nova senha com pelo menos 6 caracteres.';
   }
 
   if (normalizedMessage.includes('email')) {

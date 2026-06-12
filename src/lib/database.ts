@@ -382,6 +382,29 @@ export interface AppData {
   agenda: AgendaItem[];
 }
 
+export type AppDataDomain =
+  | 'bootstrap'
+  | 'content'
+  | 'ideas'
+  | 'library'
+  | 'projects'
+  | 'recording'
+  | 'templates'
+  | 'agenda'
+  | 'analytics'
+  | 'rules'
+  | 'voice'
+  | 'production';
+
+export const BOOTSTRAP_DATA_DOMAINS: AppDataDomain[] = [
+  'bootstrap',
+  'production',
+  'content',
+  'ideas',
+  'projects',
+  'agenda',
+];
+
 export interface EnergyLog {
   id: string;
   userId: string;
@@ -429,6 +452,13 @@ function parsePreferenceValue(value: string) {
 
 function serializePreferenceValue(value: unknown) {
   return typeof value === 'string' ? value : JSON.stringify(value);
+}
+
+function assertQuerySuccess<T>(label: string, result: { data: T; error: { message?: string } | null }): T {
+  if (result.error) {
+    throw new Error(`${label}: ${result.error.message || 'unknown database error'}`);
+  }
+  return result.data;
 }
 
 function looksLikeUuid(value: string) {
@@ -573,87 +603,104 @@ const mp = {
 // ============================================================================
 
 export async function fetchAllData(): Promise<AppData> {
+  return {
+    ...empty(),
+    ...(await fetchDataDomains([
+      'bootstrap',
+      'content',
+      'ideas',
+      'library',
+      'projects',
+      'recording',
+      'templates',
+      'agenda',
+      'analytics',
+      'rules',
+      'voice',
+      'production',
+    ])),
+  };
+}
+
+export async function fetchDataDomains(domains: readonly AppDataDomain[]): Promise<Partial<AppData>> {
   if (!supabase) return empty();
   const uid = await currentUserId();
   if (!uid) return empty();
+  const requested = new Set(domains);
+  const payload: Partial<AppData> = {};
 
-  const [
-    { data: platforms },
-    { data: prefs },
-    { data: dnaVozRow },
-    { data: pilaresRows },
-    { data: seriesRows },
-    { data: cenariosRows },
-    { data: looksRows },
-    { data: generosRows },
-    { data: bibliotecaRows },
-    { data: contentsRows },
-    { data: ideasRows },
-    { data: projetosRows },
-    { data: blocksRows },
-    { data: templatesRows },
-    { data: agendaRows },
-    { data: rulesRows },
-    { data: metricsRows },
-  ] = await Promise.all([
-    supabase.from('platforms').select('*').or(`user_id.is.null,user_id.eq.${uid}`),
-    supabase.from('user_preferences').select('*').eq('user_id', uid),
-    supabase.from('dna_voz').select('*').eq('user_id', uid).maybeSingle(),
-    supabase.from('pilares').select('*, pilar_plataformas(*)').eq('user_id', uid),
-    supabase.from('series').select('*, serie_pilares(pilar_id), serie_plataformas(*)').eq('user_id', uid),
-    supabase.from('cenarios').select('*').eq('user_id', uid),
-    supabase.from('looks').select('*').eq('user_id', uid).order('numero'),
-    supabase.from('biblioteca_generos').select('*').eq('user_id', uid).order('nome'),
-    supabase.from('biblioteca_items')
-      .select('*, item_generos(genero_id, biblioteca_generos(nome)), anotacoes(*)')
-      .eq('user_id', uid).is('deleted_at', null)
-      .order('created_at', { ascending: false }),
-    supabase.from('contents')
-      .select('*, content_plataformas(*)')
-      .eq('user_id', uid).is('deleted_at', null)
-      .order('created_at', { ascending: false }),
-    supabase.from('ideas').select('*').eq('user_id', uid).order('created_at', { ascending: false }),
-    supabase.from('projetos')
-      .select('*, projeto_etapas(*), projeto_conteudos(content_id)')
-      .eq('user_id', uid).is('deleted_at', null)
-      .order('created_at', { ascending: false }),
-    supabase.from('recording_blocks')
-      .select('*, recording_block_contents(*)')
-      .eq('user_id', uid)
-      .order('created_at', { ascending: false }),
-    supabase.from('templates').select('*').eq('user_id', uid),
-    supabase.from('agenda_items').select('*').eq('user_id', uid).order('date'),
-    supabase.from('golden_rules').select('*').eq('user_id', uid),
-    supabase.from('content_metrics').select('*').eq('user_id', uid),
-  ]);
+  const platformsResult = await supabase.from('platforms').select('*').or(`user_id.is.null,user_id.eq.${uid}`);
+  const platforms = assertQuerySuccess('platforms fetch', platformsResult) || [];
+  const platformNameById = new Map(platforms.map((platform: Row) => [platform.id, platform.nome]));
 
-  const platformNameById = new Map((platforms || []).map((platform: Row) => [platform.id, platform.nome]));
+  if (requested.has('bootstrap')) {
+    const prefs = assertQuerySuccess(
+      'preferences fetch',
+      await supabase.from('user_preferences').select('*').eq('user_id', uid)
+    ) || [];
+    payload.platforms = platforms.map(mp.platform);
+    payload.preferences = prefs.reduce((acc: Record<string, any>, p: Row) => ({ ...acc, [p.key]: parsePreferenceValue(p.value) }), {});
+  }
 
-  return {
-    platforms:        (platforms       || []).map(mp.platform),
-    preferences:      (prefs           || []).reduce((acc: Record<string, any>, p: Row) => ({ ...acc, [p.key]: parsePreferenceValue(p.value) }), {}),
-    dnaVoz:           dnaVozRow ? mp.dnaVoz(dnaVozRow) : null,
-    pilares:          (pilaresRows     || []).map((row: Row) => ({
+  if (requested.has('voice')) {
+    const dnaVozRow = assertQuerySuccess(
+      'dna_voz fetch',
+      await supabase.from('dna_voz').select('*').eq('user_id', uid).maybeSingle()
+    );
+    payload.dnaVoz = dnaVozRow ? mp.dnaVoz(dnaVozRow) : null;
+  }
+
+  if (requested.has('production')) {
+    const [pilaresResult, seriesResult, cenariosResult, looksResult] = await Promise.all([
+      supabase.from('pilares').select('*, pilar_plataformas(*)').eq('user_id', uid).is('deleted_at', null),
+      supabase.from('series').select('*, serie_pilares(pilar_id), serie_plataformas(*)').eq('user_id', uid).is('deleted_at', null),
+      supabase.from('cenarios').select('*').eq('user_id', uid).is('deleted_at', null),
+      supabase.from('looks').select('*').eq('user_id', uid).is('deleted_at', null).order('numero'),
+    ]);
+    const pilaresRows = assertQuerySuccess('pilares fetch', pilaresResult) || [];
+    const seriesRows = assertQuerySuccess('series fetch', seriesResult) || [];
+    payload.pilares = pilaresRows.map((row: Row) => ({
       ...mp.pilar(row),
       plataformas: (row.pilar_plataformas || []).map((p: Row) => ({
         pilarId: p.pilar_id,
         platformId: normalizePlatformRef(p.platform_id, platformNameById),
         hashtags: p.hashtags || '',
       })),
-    })),
-    series:           (seriesRows      || []).map((row: Row) => ({
+    }));
+    payload.series = seriesRows.map((row: Row) => ({
       ...mp.serie(row),
       plataformas: (row.serie_plataformas || []).map((p: Row) => ({
         serieId: p.serie_id,
         platformId: normalizePlatformRef(p.platform_id, platformNameById),
         hashtags: p.hashtags || '',
       })),
-    })),
-    cenarios:         (cenariosRows    || []).map(mp.cenario),
-    looks:            (looksRows       || []).map(mp.look),
-    bibliotecaGeneros:(generosRows     || []).map(mp.genero),
-    bibliotecaItems:  (bibliotecaRows  || []).map(mp.bibliotecaItem),
-    contents:         (contentsRows    || []).map((row: Row) => ({
+    }));
+    payload.cenarios = (assertQuerySuccess('cenarios fetch', cenariosResult) || []).map(mp.cenario);
+    payload.looks = (assertQuerySuccess('looks fetch', looksResult) || []).map(mp.look);
+  }
+
+  if (requested.has('library')) {
+    const [generosResult, bibliotecaResult] = await Promise.all([
+      supabase.from('biblioteca_generos').select('*').eq('user_id', uid).order('nome'),
+      supabase.from('biblioteca_items')
+      .select('*, item_generos(genero_id, biblioteca_generos(nome)), anotacoes(*)')
+      .eq('user_id', uid).is('deleted_at', null)
+      .order('created_at', { ascending: false }),
+    ]);
+    payload.bibliotecaGeneros = (assertQuerySuccess('biblioteca_generos fetch', generosResult) || []).map(mp.genero);
+    payload.bibliotecaItems = (assertQuerySuccess('biblioteca_items fetch', bibliotecaResult) || []).map(mp.bibliotecaItem);
+    payload.books = payload.bibliotecaItems;
+  }
+
+  if (requested.has('content')) {
+    const contentsRows = assertQuerySuccess(
+      'contents fetch',
+      await supabase.from('contents')
+      .select('*, content_plataformas(*)')
+      .eq('user_id', uid).is('deleted_at', null)
+      .order('created_at', { ascending: false })
+    ) || [];
+    payload.contents = contentsRows.map((row: Row) => ({
       ...mp.content(row),
       plataformas: (row.content_plataformas || []).map((p: Row) => ({
         id: p.id,
@@ -664,26 +711,71 @@ export async function fetchAllData(): Promise<AppData> {
         publishDate: p.publish_date,
         publishTime: p.publish_time,
       })),
-    })),
-    ideas:            (ideasRows       || []).map(mp.idea),
-    projetos:         (projetosRows    || []).map(mp.projeto),
-    recordingBlocks:  (blocksRows      || []).map(mp.recordingBlock),
-    templates:        (templatesRows || []).map(mp.template),
-    agendaItems:      (agendaRows    || []).map(mp.agendaItem),
-    goldenRules:      (rulesRows     || []).map(mp.goldenRule),
-    contentMetrics:   (metricsRows   || []).map((row: Row) => ({
+    }));
+  }
+
+  if (requested.has('ideas')) {
+    payload.ideas = (assertQuerySuccess(
+      'ideas fetch',
+      await supabase.from('ideas').select('*').eq('user_id', uid).order('created_at', { ascending: false })
+    ) || []).map(mp.idea);
+  }
+
+  if (requested.has('projects')) {
+    payload.projetos = (assertQuerySuccess(
+      'projetos fetch',
+      await supabase.from('projetos')
+      .select('*, projeto_etapas(*), projeto_conteudos(content_id)')
+      .eq('user_id', uid).is('deleted_at', null)
+      .order('created_at', { ascending: false })
+    ) || []).map(mp.projeto);
+    payload.partnerships = payload.projetos;
+  }
+
+  if (requested.has('recording')) {
+    payload.recordingBlocks = (assertQuerySuccess(
+      'recording_blocks fetch',
+      await supabase.from('recording_blocks')
+      .select('*, recording_block_contents(*)')
+      .eq('user_id', uid)
+      .order('created_at', { ascending: false })
+    ) || []).map(mp.recordingBlock);
+  }
+
+  if (requested.has('templates')) {
+    payload.templates = (assertQuerySuccess(
+      'templates fetch',
+      await supabase.from('templates').select('*').eq('user_id', uid)
+    ) || []).map(mp.template);
+  }
+
+  if (requested.has('agenda')) {
+    payload.agendaItems = (assertQuerySuccess(
+      'agenda_items fetch',
+      await supabase.from('agenda_items').select('*').eq('user_id', uid).order('date')
+    ) || []).map(mp.agendaItem);
+    payload.agenda = payload.agendaItems;
+  }
+
+  if (requested.has('rules')) {
+    payload.goldenRules = (assertQuerySuccess(
+      'golden_rules fetch',
+      await supabase.from('golden_rules').select('*').eq('user_id', uid)
+    ) || []).map(mp.goldenRule);
+  }
+
+  if (requested.has('analytics')) {
+    payload.contentMetrics = (assertQuerySuccess(
+      'content_metrics fetch',
+      await supabase.from('content_metrics').select('*').eq('user_id', uid)
+    ) || []).map((row: Row) => ({
       ...mp.contentMetric(row),
       platformId: normalizePlatformRef(row.platform_id, platformNameById),
-    })),
-    // Legacy aliases
-    books:            (bibliotecaRows  || []).map(mp.bibliotecaItem),
-    partnerships:     (projetosRows    || []).map(mp.projeto),
-    results:          (metricsRows     || []).map((row: Row) => ({
-      ...mp.contentMetric(row),
-      platformId: normalizePlatformRef(row.platform_id, platformNameById),
-    })),
-    agenda:           (agendaRows      || []).map(mp.agendaItem),
-  };
+    }));
+    payload.results = payload.contentMetrics;
+  }
+
+  return payload;
 }
 
 async function resolvePlatformIds(platformRefs: string[]): Promise<Map<string, string>> {

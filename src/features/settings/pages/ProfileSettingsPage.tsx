@@ -5,6 +5,7 @@ import { AppButton } from '../../../components/ui/AppButton';
 import { useAuth } from '../../../context/AuthContext';
 import { useIsMobile } from '../../../hooks/useIsMobile';
 import { DesktopPageHeader } from '../../../layouts/page/DesktopPageHeader';
+import { PageLayout } from '../../../layouts/page/PageLayout';
 import { ProfileMobileScreen } from '../../../mobile/screens/settings/ProfileMobileScreen';
 import { normalizeProfileAuthError } from '../lib/profileAuth';
 
@@ -20,7 +21,7 @@ function Feedback({
       ? 'border-[var(--accent-green)]/20 bg-[var(--accent-green)]/8 text-[var(--accent-green)]'
       : 'border-[var(--accent-pink)]/20 bg-[var(--accent-pink)]/8 text-[var(--accent-pink)]';
 
-  return <p className={`rounded-2xl border px-4 py-3 text-sm ${classes}`}>{message}</p>;
+  return <p className={`rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border px-4 py-3 text-sm ${classes}`}>{message}</p>;
 }
 
 function SectionCard({
@@ -39,14 +40,14 @@ function SectionCard({
   return (
     <section className="rounded-[1.75rem] border border-[var(--border-color)] bg-[var(--bg-primary)] p-6">
       <div className="mb-5 flex items-start gap-4">
-        <div className="rounded-2xl bg-[var(--bg-hover)] p-3 text-[var(--text-primary)]">
+        <div className="rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] bg-[var(--bg-hover)] p-3 text-[var(--text-primary)]">
           <Icon className="h-5 w-5" />
         </div>
         <div className="min-w-0">
-          <p className="text-[10px] font-black uppercase tracking-[0.24em] text-[var(--text-tertiary)]">
+          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--text-tertiary)]">
             {eyebrow}
           </p>
-          <h2 className="mt-2 text-xl font-black tracking-tight text-[var(--text-primary)]">{title}</h2>
+          <h2 className="mt-2 text-xl font-semibold tracking-tight text-[var(--text-primary)]">{title}</h2>
           <p className="mt-1 text-sm text-[var(--text-secondary)]">{description}</p>
         </div>
       </div>
@@ -167,7 +168,7 @@ export function ProfileSettingsPage() {
     }
 
     if (password.length < 6) {
-      setPasswordError('A nova senha deve ter pelo menos 6 caracteres.');
+      setPasswordError('Use uma nova senha com pelo menos 6 caracteres.');
       return;
     }
 
@@ -234,20 +235,19 @@ export function ProfileSettingsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[var(--bg-secondary)]">
-      <header className="desktop-header-sticky transition-colors duration-300">
-        <div className="desktop-header-frame">
-          <DesktopPageHeader
-            section="Configurações"
-            title="Perfil"
-            icon={UserCircle2}
-            backLabel="Configurações"
-            backTo="/configuracoes"
-          />
-        </div>
-      </header>
-
-      <div className="desktop-content-frame space-y-6">
+    <PageLayout
+      variant="settings"
+      contentClassName="space-y-6"
+      header={
+        <DesktopPageHeader
+          section="Configurações"
+          title="Perfil"
+          icon={UserCircle2}
+          backLabel="Configurações"
+          backTo="/configuracoes"
+        />
+      }
+    >
         {!backendReady ? (
           <Feedback
             message="Conecte o Supabase para habilitar alterações de perfil, e-mail e senha."
@@ -264,7 +264,7 @@ export function ProfileSettingsPage() {
           >
             <div className="space-y-4">
               <div>
-                <label htmlFor="profile-full-name" className="mb-2 block text-xs font-black uppercase tracking-[0.16em] text-[var(--text-tertiary)]">
+                <label htmlFor="profile-full-name" className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-[var(--text-tertiary)]">
                   Nome
                 </label>
                 <input
@@ -299,14 +299,14 @@ export function ProfileSettingsPage() {
             description="Troque o endereço principal usado no login."
           >
             <div className="space-y-4">
-              <div className="rounded-2xl bg-[var(--bg-hover)] px-4 py-3">
-                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-tertiary)]">
+              <div className="rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] bg-[var(--bg-hover)] px-4 py-3">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--text-tertiary)]">
                   E-mail atual
                 </p>
                 <p className="mt-1 text-sm font-semibold text-[var(--text-primary)]">{initialEmail || 'Sem e-mail identificado'}</p>
               </div>
               <div>
-                <label htmlFor="profile-email" className="mb-2 block text-xs font-black uppercase tracking-[0.16em] text-[var(--text-tertiary)]">
+                <label htmlFor="profile-email" className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-[var(--text-tertiary)]">
                   Novo e-mail
                 </label>
                 <input
@@ -345,7 +345,7 @@ export function ProfileSettingsPage() {
           >
             <div className="space-y-4">
               <div>
-                <label htmlFor="profile-password" className="mb-2 block text-xs font-black uppercase tracking-[0.16em] text-[var(--text-tertiary)]">
+                <label htmlFor="profile-password" className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-[var(--text-tertiary)]">
                   Nova senha
                 </label>
                 <input
@@ -362,7 +362,7 @@ export function ProfileSettingsPage() {
                 />
               </div>
               <div>
-                <label htmlFor="profile-password-confirm" className="mb-2 block text-xs font-black uppercase tracking-[0.16em] text-[var(--text-tertiary)]">
+                <label htmlFor="profile-password-confirm" className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-[var(--text-tertiary)]">
                   Confirmar senha
                 </label>
                 <input
@@ -378,7 +378,7 @@ export function ProfileSettingsPage() {
                   className="input"
                 />
               </div>
-              <div className="rounded-2xl bg-[var(--bg-hover)] px-4 py-3 text-xs text-[var(--text-secondary)]">
+              <div className="rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] bg-[var(--bg-hover)] px-4 py-3 text-xs text-[var(--text-secondary)]">
                 <div className="flex items-center gap-2">
                   <ShieldCheck className="h-4 w-4 text-[var(--accent-green)]" />
                   <span>Use pelo menos 6 caracteres e prefira uma combinação exclusiva.</span>
@@ -396,7 +396,6 @@ export function ProfileSettingsPage() {
             </div>
           </SectionCard>
         </div>
-      </div>
-    </div>
+    </PageLayout>
   );
 }

@@ -1,4 +1,7 @@
 import type { ReactNode } from 'react';
+import { Surface } from '../../components/ui/Surface';
+import { Text } from '../../components/ui/Text';
+import { cn } from '../../lib/utils';
 
 interface MobileGridCardProps {
   title: string;
@@ -24,24 +27,35 @@ export function MobileGridCard({
   footerClassName,
 }: MobileGridCardProps) {
   const content = (
-    <div className={`flex min-h-36 flex-col justify-between rounded-[1.5rem] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4 shadow-sm ${className ?? ''}`}>
+    <div className={cn('flex min-h-36 flex-col justify-between', className)}>
       <div className="space-y-3">
         {icon ? <div className="text-[var(--text-secondary)]">{icon}</div> : null}
         <div className="space-y-1">
-          <p className={`t-section-title text-[var(--text-primary)] ${titleClassName ?? ''}`}>{title}</p>
-          {subtitle ? <p className={`t-secondary ${subtitleClassName ?? ''}`}>{subtitle}</p> : null}
+          <Text variant="sectionTitle" as="p" className={titleClassName}>
+            {title}
+          </Text>
+          {subtitle ? (
+            <Text variant="meta" className={subtitleClassName}>
+              {subtitle}
+            </Text>
+          ) : null}
         </div>
       </div>
-
       {footer ? <div className={footerClassName ?? 'mt-4'}>{footer}</div> : null}
     </div>
   );
 
-  if (!onClick) return content;
+  if (onClick) {
+    return (
+      <Surface variant="interactive" padding="md" onClick={onClick}>
+        {content}
+      </Surface>
+    );
+  }
 
   return (
-    <button type="button" onClick={onClick} className="w-full text-left active:scale-[0.99]">
+    <Surface variant="outlined" padding="md">
       {content}
-    </button>
+    </Surface>
   );
 }

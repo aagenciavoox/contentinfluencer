@@ -3,7 +3,7 @@ import { ContentTable } from '../desktop/ContentTable';
 import { SortDirection, SortField } from '../../types';
 
 interface ContentsMobileProps {
-  mode?: 'editorial' | 'postagem' | 'historico';
+  mode?: 'pipeline' | 'publicados';
   contents: Content[];
   lookAlerts: Record<string, string>;
   sortField: SortField;

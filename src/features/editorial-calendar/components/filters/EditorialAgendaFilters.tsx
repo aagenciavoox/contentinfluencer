@@ -38,13 +38,13 @@ export function EditorialAgendaFilters({
       <FilterBar
         searchValue={searchTerm}
         onSearchChange={onSearchChange}
-        searchPlaceholder="Buscar por conteudo, evento, projeto ou entrega"
+        searchPlaceholder="Buscar por conteúdo, evento, projeto ou entrega"
         filters={[]}
         sortValue={sortValue}
         onSortChange={onSortChange}
         sortOptions={[
-          {label: 'Proximos', value: 'proximos'},
-          {label: 'Titulo A-Z', value: 'titulo:asc'},
+          {label: 'Próximos', value: 'proximos'},
+          {label: 'Título A-Z', value: 'titulo:asc'},
           {label: 'Tipo A-Z', value: 'tipo:asc'},
         ]}
       />

@@ -43,14 +43,14 @@ export function MobileSegmentTabs<T extends string>({
               active ? 'bg-[var(--bg-secondary)] text-[var(--text-primary)] shadow-sm' : 'text-[var(--text-tertiary)]'
             )}
           >
-            <span className={cn('font-black uppercase', isTight ? 'text-[10px] tracking-[0.12em]' : 't-button t-button-uppercase')}>
+            <span className={cn('font-semibold uppercase', isTight ? 'text-xs tracking-[0.12em]' : 't-button t-button-uppercase')}>
               {tab.label}
             </span>
             {typeof tab.count === 'number' ? (
               <span
                 className={cn(
-                  'bg-[var(--bg-hover)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--text-secondary)]',
-                  isTight ? 'rounded' : 'rounded-full text-[11px]'
+                  'bg-[var(--bg-hover)] px-1.5 py-0.5 text-xs font-semibold text-[var(--text-secondary)]',
+                  isTight ? 'rounded' : 'rounded-full text-xs'
                 )}
               >
                 {tab.count}

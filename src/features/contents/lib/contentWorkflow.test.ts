@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import type {Content} from '../../../lib/database.ts';
 import {CONTENT_STATUS} from './contentPipeline.ts';
-import {getEditorialContents} from './contentWorkflow.ts';
+import {getEditorialContents, getRecordingQueueContents} from './contentWorkflow.ts';
 
 function createContent(overrides: Partial<Content> = {}): Content {
   return {
@@ -70,8 +70,26 @@ function testEditorialContentsShowAllExceptPosted() {
   assert.deepEqual(visibleIds, ['roteiro', 'ideia', 'linked-ready', 'linked-recorded', 'unlinked-ready']);
 }
 
+function testRecordingQueueExcludesBlockedContents() {
+  const ready = createContent({id: 'ready-1', status: CONTENT_STATUS.PRONTO_PARA_GRAVAR});
+  const blocked = createContent({id: 'ready-2', status: CONTENT_STATUS.PRONTO_PARA_GRAVAR});
+  const blocks = [
+    {
+      id: 'block-1',
+      userId: 'user-1',
+      name: 'Bloco',
+      createdAt: '2026-05-01T00:00:00.000Z',
+      contents: [{blockId: 'block-1', contentId: 'ready-2', ordem: 0, gravado: false}],
+    },
+  ];
+
+  const visibleIds = getRecordingQueueContents([ready, blocked], blocks).map(content => content.id);
+  assert.deepEqual(visibleIds, ['ready-1']);
+}
+
 const tests: Array<[string, () => void]> = [
   ['editorial contents show all except posted', testEditorialContentsShowAllExceptPosted],
+  ['recording queue excludes blocked contents', testRecordingQueueExcludesBlockedContents],
 ];
 
 for (const [name, fn] of tests) {

@@ -66,6 +66,7 @@ function testYoutubeHashtagRange() {
   const violations = validateWeeklyContent([content], new Date('2026-04-27'), undefined, rules);
 
   assert.deepEqual(violations.map(v => v.ruleId), ['RG-06']);
+  assert.equal(violations[0]?.type, 'warning');
   assert.equal(violations[0]?.affectedContentIds[0], 'youtube-content');
 }
 

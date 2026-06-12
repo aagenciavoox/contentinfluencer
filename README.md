@@ -1,20 +1,59 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# Core Creator
 
-# Run and deploy your AI Studio app
+Core Creator is a creator operations app for organizing ideas, content, recording, calendar, projects, library, and analytics.
 
-This contains everything you need to run your app locally.
-
-View your app in AI Studio: https://ai.studio/apps/5a885f67-891e-4cd0-80fb-09861869bd56
+The product voice is intentionally gentle: the system helps creators remember, organize, and choose without pressure. See [PRODUCT_VOICE.md](./PRODUCT_VOICE.md).
 
 ## Run Locally
 
-**Prerequisites:**  Node.js
-
+Prerequisites:
+- Node.js
+- Supabase project credentials
 
 1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
+
+```bash
+npm install
+```
+
+2. Create `.env.local` from `.env.example` and set:
+
+```bash
+VITE_SUPABASE_URL="..."
+VITE_SUPABASE_ANON_KEY="..."
+```
+
 3. Run the app:
-   `npm run dev`
+
+```bash
+npm run dev
+```
+
+The dev server uses port `3030`.
+
+## Validation
+
+Run the full local gate:
+
+```bash
+npm run check
+```
+
+This runs:
+- `npm run voice:audit`
+- `npm run lint`
+- `npm test`
+- `npm run build`
+
+## Product Voice Guardrail
+
+`npm run voice:audit` scans app source and core docs for pressure-oriented copy. The blocked phrase list lives in `PRODUCT_VOICE.md`.
+
+When adding new proactive UI, prefer calm optional language:
+- "Talvez util hoje"
+- "Caminhos possiveis"
+- "Data combinada"
+- "Para lembrar"
+- "Pode ser retomado"
+
+The app also supports a "Modo pausa" preference for moments when the creator wants the system to hold context without suggesting next moves.

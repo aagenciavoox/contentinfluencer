@@ -1,23 +1,18 @@
-import React, {useState} from 'react';
-import {useNavigate} from 'react-router-dom';
-import {
-  Info,
-  Plus,
-  ShieldAlert,
-  ShieldCheck,
-  ToggleLeft,
-  ToggleRight,
-  Trash2,
-} from 'lucide-react';
-import {startOfWeek} from 'date-fns';
-import {useAppContext} from '../../../context/AppContext';
-import {ConfirmModal} from '../../../components/feedback/modals/ConfirmModal';
-import {useIsMobile} from '../../../hooks/useIsMobile';
-import {validateWeeklyContent} from '../../../utils/goldenRules';
-import {DesktopPageHeader} from '../../../layouts/page/DesktopPageHeader';
-import {GoldenRulesMobileScreen} from '../../../mobile/screens/settings/GoldenRulesMobileScreen';
-import {generateUUID} from '../../../utils/uuid';
-import {GoldenRule} from '../../../lib/database';
+import React, { useState } from 'react';
+import { Info, Plus, ShieldAlert, ShieldCheck } from 'lucide-react';
+import { startOfWeek } from 'date-fns';
+import { useAppContext } from '../../../context/AppContext';
+import { ConfirmModal } from '../../../components/feedback/modals/ConfirmModal';
+import { useIsMobile } from '../../../hooks/useIsMobile';
+import { validateWeeklyContent } from '../../../utils/goldenRules';
+import { GoldenRulesMobileScreen } from '../../../mobile/screens/settings/GoldenRulesMobileScreen';
+import { generateUUID } from '../../../utils/uuid';
+import { GoldenRule } from '../../../lib/database';
+import { SettingsPageScaffold } from '../../../components/settings/SettingsPageScaffold';
+import { SettingsGridCard, SETTINGS_ENTITY_GRID_CLASS } from '../../../components/settings/SettingsGridCard';
+import { SidePanel } from '../../../components/layout/SidePanel';
+import { AppButton } from '../../../components/ui/AppButton';
+import { cn } from '../../../lib/utils';
 
 const CONDITION_OPTIONS: GoldenRule['condicao'][] = ['recomendado', 'impedir'];
 const PERIOD_OPTIONS: GoldenRule['periodo'][] = ['semana', 'quinzena', 'mensal'];
@@ -25,7 +20,7 @@ const TYPE_OPTIONS: GoldenRule['tipo'][] = ['pilar', 'série', 'formato', 'publi
 
 const CONDITION_LABEL: Record<GoldenRule['condicao'], string> = {
   recomendado: 'Recomendado',
-  impedir: 'Impedir agendamento',
+  impedir: 'Avisar antes de agendar',
 };
 
 const ICON_BY_CONDITION: Record<GoldenRule['condicao'], React.ElementType> = {
@@ -38,72 +33,197 @@ const STYLE_BY_CONDITION: Record<string, string> = {
   recomendado: 'text-[var(--accent-orange)] bg-[var(--accent-orange)]/5',
 };
 
-export function GoldenRulesSettingsPage() {
-  const {state, dispatch} = useAppContext();
-  const navigate = useNavigate();
-  const isMobile = useIsMobile();
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [confirm, setConfirm] = useState<{message: string; onConfirm: () => void} | null>(null);
+function GoldenRuleForm({
+  initial,
+  onSave,
+  onCancel,
+}: {
+  initial: Partial<GoldenRule>;
+  onSave: (rule: GoldenRule) => void;
+  onCancel: () => void;
+}) {
   const [draft, setDraft] = useState({
-    titulo: '',
-    descricao: '',
-    cor: '',
-    tipo: 'publi' as GoldenRule['tipo'],
-    condicao: 'recomendado' as GoldenRule['condicao'],
-    periodo: 'semana' as GoldenRule['periodo'],
-    minimo: '',
-    maximo: '',
+    titulo: initial.titulo || '',
+    descricao: initial.descricao || '',
+    cor: initial.cor || '#6366f1',
+    tipo: initial.tipo || 'publi' as GoldenRule['tipo'],
+    condicao: initial.condicao || 'recomendado' as GoldenRule['condicao'],
+    periodo: initial.periodo || 'semana' as GoldenRule['periodo'],
+    minimo: initial.minimo?.toString() || '',
+    maximo: initial.maximo?.toString() || '',
   });
 
-  const weekStart = startOfWeek(new Date(), {weekStartsOn: 1});
+  const handleSave = () => {
+    if (!draft.titulo.trim()) return;
+    onSave({
+      id: initial.id || generateUUID(),
+      userId: initial.userId || '',
+      titulo: draft.titulo.trim(),
+      descricao: draft.descricao.trim() || draft.titulo.trim(),
+      cor: draft.cor || null,
+      tipo: draft.tipo,
+      condicao: draft.condicao,
+      periodo: draft.periodo,
+      valor: Number(draft.maximo || draft.minimo || 0),
+      minimo: draft.minimo ? Number(draft.minimo) : null,
+      maximo: draft.maximo ? Number(draft.maximo) : null,
+      ativa: initial.ativa ?? true,
+      createdAt: initial.createdAt || new Date().toISOString(),
+    });
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div className="space-y-1.5">
+          <label className="text-xs font-semibold  text-[var(--text-tertiary)] opacity-60">Título</label>
+          <input
+            type="text"
+            value={draft.titulo}
+            onChange={event => setDraft(prev => ({ ...prev, titulo: event.target.value }))}
+            placeholder="Ex: Limite de hashtags"
+            className="w-full h-11 rounded-xl border border-[var(--border-color)] bg-[var(--bg-hover)] px-4 text-sm font-bold text-[var(--text-primary)] focus:ring-1 focus:ring-[var(--border-strong)]"
+          />
+        </div>
+        <div className="space-y-1.5">
+          <label className="text-xs font-semibold  text-[var(--text-tertiary)] opacity-60">Tipo</label>
+          <select
+            value={draft.tipo}
+            onChange={event => setDraft(prev => ({ ...prev, tipo: event.target.value as GoldenRule['tipo'] }))}
+            className="w-full h-11 rounded-xl border border-[var(--border-color)] bg-[var(--bg-hover)] px-4 text-sm font-bold text-[var(--text-primary)] focus:ring-1 focus:ring-[var(--border-strong)]"
+          >
+            {TYPE_OPTIONS.map(tipo => (
+              <option key={tipo} value={tipo}>
+                {tipo}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      <div className="space-y-1.5">
+        <label className="text-xs font-semibold  text-[var(--text-tertiary)] opacity-60">Descrição</label>
+        <textarea
+          rows={3}
+          value={draft.descricao}
+          onChange={event => setDraft(prev => ({ ...prev, descricao: event.target.value }))}
+          placeholder="Contexto e orientação da regra..."
+          className="w-full resize-none rounded-xl border border-[var(--border-color)] bg-[var(--bg-hover)] p-4 text-sm font-medium text-[var(--text-primary)] focus:ring-1 focus:ring-[var(--border-strong)]"
+        />
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div className="space-y-1.5">
+          <label className="text-xs font-semibold  text-[var(--text-tertiary)] opacity-60">Condição</label>
+          <select
+            value={draft.condicao}
+            onChange={event => setDraft(prev => ({ ...prev, condicao: event.target.value as GoldenRule['condicao'] }))}
+            className="w-full h-11 rounded-xl border border-[var(--border-color)] bg-[var(--bg-hover)] px-4 text-sm font-bold text-[var(--text-primary)] focus:ring-1 focus:ring-[var(--border-strong)]"
+          >
+            {CONDITION_OPTIONS.map(option => (
+              <option key={option} value={option}>
+                {CONDITION_LABEL[option]}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="space-y-1.5">
+          <label className="text-xs font-semibold  text-[var(--text-tertiary)] opacity-60">Período</label>
+          <select
+            value={draft.periodo}
+            onChange={event => setDraft(prev => ({ ...prev, periodo: event.target.value as GoldenRule['periodo'] }))}
+            className="w-full h-11 rounded-xl border border-[var(--border-color)] bg-[var(--bg-hover)] px-4 text-sm font-bold text-[var(--text-primary)] focus:ring-1 focus:ring-[var(--border-strong)]"
+          >
+            {PERIOD_OPTIONS.map(option => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-1.5">
+          <label className="text-xs font-semibold  text-[var(--text-tertiary)] opacity-60">Mínimo</label>
+          <input
+            type="number"
+            value={draft.minimo}
+            onChange={event => setDraft(prev => ({ ...prev, minimo: event.target.value }))}
+            className="w-full h-11 rounded-xl border border-[var(--border-color)] bg-[var(--bg-hover)] px-4 text-sm font-bold text-[var(--text-primary)] focus:ring-1 focus:ring-[var(--border-strong)]"
+          />
+        </div>
+
+        <div className="space-y-1.5">
+          <label className="text-xs font-semibold  text-[var(--text-tertiary)] opacity-60">Máximo</label>
+          <input
+            type="number"
+            value={draft.maximo}
+            onChange={event => setDraft(prev => ({ ...prev, maximo: event.target.value }))}
+            className="w-full h-11 rounded-xl border border-[var(--border-color)] bg-[var(--bg-hover)] px-4 text-sm font-bold text-[var(--text-primary)] focus:ring-1 focus:ring-[var(--border-strong)]"
+          />
+        </div>
+      </div>
+
+      <div className="space-y-1.5">
+        <label className="text-xs font-semibold  text-[var(--text-tertiary)] opacity-60">Cor</label>
+        <div className="flex items-center gap-3">
+          <input
+            type="color"
+            value={draft.cor}
+            onChange={event => setDraft(prev => ({ ...prev, cor: event.target.value }))}
+            className="h-11 w-16 cursor-pointer rounded-xl border border-[var(--border-color)] bg-transparent p-1"
+          />
+          <span className="text-xs font-bold text-[var(--text-secondary)] opacity-60">{draft.cor}</span>
+        </div>
+      </div>
+
+      <div className="flex gap-3 pt-4">
+        <AppButton onClick={onCancel} variant="secondary" className="flex-1">
+          Cancelar
+        </AppButton>
+        <AppButton onClick={handleSave} disabled={!draft.titulo.trim()} variant="primary" className="flex-1">
+          Salvar
+        </AppButton>
+      </div>
+    </div>
+  );
+}
+
+export function GoldenRulesSettingsPage() {
+  const { state, dispatch } = useAppContext();
+  const isMobile = useIsMobile();
+  const [panelMode, setPanelMode] = useState<'create' | 'edit' | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [confirm, setConfirm] = useState<{ message: string; onConfirm: () => void } | null>(null);
+
+  const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
   const violations = validateWeeklyContent(state.contents, weekStart, state.pilares, state.goldenRules);
+
+  const editingRule = state.goldenRules.find(rule => rule.id === editingId) ?? null;
 
   const toggleRegra = (id: string, ativa: boolean) => {
     const regra = state.goldenRules.find(rule => rule.id === id);
     if (!regra) return;
-    dispatch({type: 'UPDATE_GOLDEN_RULE', payload: {...regra, ativa}});
+    dispatch({ type: 'UPDATE_GOLDEN_RULE', payload: { ...regra, ativa } });
   };
 
-  const handleAddRule = (event?: React.FormEvent) => {
-    event?.preventDefault();
-    if (!draft.titulo.trim()) return;
-
-    dispatch({
-      type: 'ADD_GOLDEN_RULE',
-      payload: {
-        id: generateUUID(),
-        userId: '',
-        titulo: draft.titulo.trim(),
-        descricao: draft.descricao.trim() || draft.titulo.trim(),
-        cor: draft.cor || null,
-        tipo: draft.tipo,
-        condicao: draft.condicao,
-        periodo: draft.periodo,
-        valor: Number(draft.maximo || draft.minimo || 0),
-        minimo: draft.minimo ? Number(draft.minimo) : null,
-        maximo: draft.maximo ? Number(draft.maximo) : null,
-        ativa: true,
-        createdAt: new Date().toISOString(),
-      },
-    });
-
-    setDraft({
-      titulo: '',
-      descricao: '',
-      cor: '',
-      tipo: 'publi',
-      condicao: 'recomendado',
-      periodo: 'semana',
-      minimo: '',
-      maximo: '',
-    });
-    setShowAddForm(false);
+  const handleSave = (rule: GoldenRule) => {
+    const exists = state.goldenRules.find(item => item.id === rule.id);
+    if (exists) {
+      dispatch({ type: 'UPDATE_GOLDEN_RULE', payload: rule });
+    } else {
+      dispatch({ type: 'ADD_GOLDEN_RULE', payload: rule });
+    }
+    setPanelMode(null);
+    setEditingId(null);
   };
 
   const handleDeleteRule = (id: string) => {
     setConfirm({
-      message: 'Excluir esta regra permanentemente?',
-      onConfirm: () => dispatch({type: 'DELETE_GOLDEN_RULE', payload: id}),
+      message: 'Remover esta regra dos combinados editoriais?',
+      onConfirm: () => dispatch({ type: 'DELETE_GOLDEN_RULE', payload: id }),
     });
   };
 
@@ -114,14 +234,13 @@ export function GoldenRulesSettingsPage() {
           <GoldenRulesMobileScreen
             rules={state.goldenRules}
             violations={violations}
-            draft={draft}
-            onDraftChange={setDraft}
-            onCreate={handleAddRule}
+            draft={{}}
+            onDraftChange={() => {}}
+            onCreate={() => setPanelMode('create')}
             onToggle={rule => toggleRegra(rule.id, !rule.ativa)}
             onDelete={handleDeleteRule}
           />
         </div>
-
         <ConfirmModal
           open={!!confirm}
           message={confirm?.message || ''}
@@ -136,269 +255,112 @@ export function GoldenRulesSettingsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[var(--bg-secondary)]">
-      <header className="desktop-header-sticky transition-colors duration-300">
-        <div className="desktop-header-frame">
-          <DesktopPageHeader
-            section="Configurações"
-            title="Regras de Ouro"
-            icon={ShieldCheck}
-            backLabel="Configurações"
-            backTo="/configuracoes"
-            actions={
-              <button
-                onClick={() => setShowAddForm(!showAddForm)}
-                className="t-button t-button-uppercase flex items-center gap-2 rounded-xl bg-[var(--text-primary)] px-4 py-2.5 text-[var(--bg-primary)] shadow-lg transition-all hover:scale-105"
-              >
-                <Plus className="h-4 w-4" /> Nova Regra
-              </button>
-            }
-          />
+    <SettingsPageScaffold
+      compact
+      title="Regras de Ouro"
+      icon={ShieldCheck}
+      actions={
+        <AppButton
+          onClick={() => {
+            setEditingId(null);
+            setPanelMode('create');
+          }}
+          variant="primary"
+          leftIcon={<Plus className="h-4 w-4" />}
+        >
+          Nova Regra
+        </AppButton>
+      }
+    >
+      {violations.length > 0 && (
+        <div className="mb-3 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-orange-200 bg-orange-50/50 p-3">
+          <p className="mb-3 text-xs font-semibold  text-orange-700">
+            {violations.length} alerta{violations.length > 1 ? 's' : ''} para revisar esta semana
+          </p>
+          <div className="space-y-1.5">
+            {violations.map((violation, index) => (
+              <div key={index} className="flex items-start gap-3">
+                <ShieldAlert className="mt-0.5 h-3.5 w-3.5 text-orange-500" />
+                <p className="text-xs font-bold text-orange-800">{violation.message}</p>
+              </div>
+            ))}
+          </div>
         </div>
-      </header>
+      )}
 
-      <div className="desktop-content-frame">
-        {showAddForm && (
-          <div className="mb-10 animate-in fade-in slide-in-from-top-4 rounded-2xl border border-[var(--border-color)] bg-[var(--bg-primary)] p-6 shadow-xl">
-            <h3 className="mb-4 text-sm font-black uppercase tracking-widest text-[var(--text-secondary)]">
-              Configurar Nova Regra
-            </h3>
-            <form onSubmit={handleAddRule} className="space-y-4">
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <div>
-                  <label className="mb-2 block text-[10px] font-black uppercase tracking-widest text-[var(--text-tertiary)] opacity-60">
-                    Título
-                  </label>
-                  <input
-                    type="text"
-                    value={draft.titulo}
-                    onChange={event => setDraft(prev => ({...prev, titulo: event.target.value}))}
-                    placeholder="Ex: Limite de hashtags por plataforma"
-                    className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] focus:outline-none"
-                    autoFocus
-                  />
-                </div>
-                <div>
-                  <label className="mb-2 block text-[10px] font-black uppercase tracking-widest text-[var(--text-tertiary)] opacity-60">
-                    Tipo
-                  </label>
-                  <select
-                    value={draft.tipo}
-                    onChange={event => setDraft(prev => ({...prev, tipo: event.target.value as GoldenRule['tipo']}))}
-                    className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] focus:outline-none"
-                  >
-                    {TYPE_OPTIONS.map(tipo => (
-                      <option key={tipo} value={tipo}>
-                        {tipo}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <div>
-                  <label className="mb-2 block text-[10px] font-black uppercase tracking-widest text-[var(--text-tertiary)] opacity-60">
-                    Cor
-                  </label>
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="color"
-                      value={draft.cor || '#6366f1'}
-                      onChange={event => setDraft(prev => ({...prev, cor: event.target.value}))}
-                      className="h-11 w-16 cursor-pointer rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] p-1"
-                    />
-                    <span className="text-sm font-bold text-[var(--text-tertiary)]">
-                      {draft.cor || 'Sem cor'}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <label className="mb-2 block text-[10px] font-black uppercase tracking-widest text-[var(--text-tertiary)] opacity-60">
-                  Descrição
-                </label>
-                <input
-                  type="text"
-                  value={draft.descricao}
-                  onChange={event => setDraft(prev => ({...prev, descricao: event.target.value}))}
-                  placeholder="Contexto e orientação da regra"
-                  className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] focus:outline-none"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-                <div>
-                  <label className="mb-2 block text-[10px] font-black uppercase tracking-widest text-[var(--text-tertiary)] opacity-60">
-                    Condição
-                  </label>
-                  <select
-                    value={draft.condicao}
-                    onChange={event =>
-                      setDraft(prev => ({...prev, condicao: event.target.value as GoldenRule['condicao']}))
-                    }
-                    className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] focus:outline-none"
-                  >
-                    {CONDITION_OPTIONS.map(option => (
-                      <option key={option} value={option}>
-                        {CONDITION_LABEL[option]}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="mb-2 block text-[10px] font-black uppercase tracking-widest text-[var(--text-tertiary)] opacity-60">
-                    Período
-                  </label>
-                  <select
-                    value={draft.periodo}
-                    onChange={event =>
-                      setDraft(prev => ({...prev, periodo: event.target.value as GoldenRule['periodo']}))
-                    }
-                    className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] focus:outline-none"
-                  >
-                    {PERIOD_OPTIONS.map(option => (
-                      <option key={option} value={option}>
-                        {option}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="mb-2 block text-[10px] font-black uppercase tracking-widest text-[var(--text-tertiary)] opacity-60">
-                    Mínimo
-                  </label>
-                  <input
-                    type="number"
-                    value={draft.minimo}
-                    onChange={event => setDraft(prev => ({...prev, minimo: event.target.value}))}
-                    className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] focus:outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="mb-2 block text-[10px] font-black uppercase tracking-widest text-[var(--text-tertiary)] opacity-60">
-                    Máximo
-                  </label>
-                  <input
-                    type="number"
-                    value={draft.maximo}
-                    onChange={event => setDraft(prev => ({...prev, maximo: event.target.value}))}
-                    className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] focus:outline-none"
-                  />
-                </div>
-              </div>
-
-              <div className="flex gap-3 pt-2">
-                <button
-                  type="submit"
-                  disabled={!draft.titulo.trim()}
-                  className="flex-1 rounded-xl bg-[var(--accent-blue)] py-3 text-[10px] font-black uppercase tracking-widest text-white transition-all hover:opacity-90 disabled:opacity-20"
-                >
-                  Salvar Regra
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowAddForm(false)}
-                  className="rounded-xl border border-[var(--border-color)] px-6 py-3 text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] transition-all hover:bg-[var(--bg-hover)]"
-                >
-                  Cancelar
-                </button>
-              </div>
-            </form>
+      <div className={SETTINGS_ENTITY_GRID_CLASS}>
+        {state.goldenRules.length === 0 ? (
+          <div className="col-span-full py-10 text-center">
+            <ShieldCheck className="mx-auto mb-2 h-8 w-8 opacity-10" />
+            <p className="text-sm font-medium opacity-40">Nenhuma regra configurada</p>
           </div>
-        )}
-
-        {violations.length > 0 && (
-          <div className="mb-8 rounded-2xl border border-orange-200 bg-orange-50 p-5">
-            <p className="mb-3 text-xs font-black uppercase tracking-widest text-orange-700">
-              {violations.length} violação{violations.length > 1 ? 'ões' : ''} esta semana
-            </p>
-            <div className="space-y-2">
-              {violations.map((violation, index) => (
-                <div key={index} className="flex items-start gap-3">
-                  <span className="w-20 shrink-0 text-[10px] font-black text-[var(--accent-orange)]">
-                    {violation.ruleId}
-                  </span>
-                  <p className="text-xs text-orange-700">{violation.message}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        <div className="space-y-3">
-          {state.goldenRules.map(rule => {
+        ) : (
+          state.goldenRules.map(rule => {
             const Icon = ICON_BY_CONDITION[rule.condicao] || Info;
             const matchingViolations = violations.filter(item => item.ruleId === rule.id);
 
             return (
-              <div
+              <SettingsGridCard
                 key={rule.id}
-                className={`flex items-start gap-4 rounded-2xl border border-[var(--border-color)] bg-[var(--bg-primary)] px-5 py-4 ${
-                  !rule.ativa ? 'opacity-40' : ''
-                }`}
-              >
-                <div
-                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${
-                    rule.cor ? '' : STYLE_BY_CONDITION[rule.condicao] || STYLE_BY_CONDITION.recomendado
-                  }`}
-                  style={rule.cor ? {backgroundColor: `${rule.cor}18`, color: rule.cor} : undefined}
-                >
-                  <Icon className="h-4 w-4" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="mb-1 flex flex-wrap items-center gap-2">
-                    <span className="text-sm font-black text-[var(--text-primary)]">
-                      {rule.titulo || rule.descricao}
-                    </span>
-                    <span className="rounded-full bg-[var(--bg-hover)] px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-[var(--text-tertiary)]">
+                title={rule.titulo || rule.descricao}
+                description={rule.descricao}
+                active={rule.ativa}
+                dimmed={!rule.ativa}
+                leading={
+                  <div
+                    className={cn(
+                      'flex h-7 w-7 items-center justify-center rounded-[var(--radius-input)]',
+                      !rule.cor && (STYLE_BY_CONDITION[rule.condicao] || STYLE_BY_CONDITION.recomendado)
+                    )}
+                    style={rule.cor ? { backgroundColor: `${rule.cor}15`, color: rule.cor } : undefined}
+                  >
+                    <Icon className="h-3.5 w-3.5" />
+                  </div>
+                }
+                onToggle={() => toggleRegra(rule.id, !rule.ativa)}
+                onEdit={() => {
+                  setEditingId(rule.id);
+                  setPanelMode('edit');
+                }}
+                onDelete={() => handleDeleteRule(rule.id)}
+                badges={
+                  <>
+                    <span className="rounded-full bg-[var(--bg-hover)] px-2 py-0.5 text-xs font-medium text-[var(--text-tertiary)]">
                       {rule.tipo}
                     </span>
-                    <span className="rounded-full bg-[var(--bg-hover)] px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-[var(--text-tertiary)]">
+                    <span className="rounded-full bg-[var(--bg-hover)] px-2 py-0.5 text-xs font-medium text-[var(--text-tertiary)]">
                       {rule.periodo}
                     </span>
-                    <span
-                      className={`rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-widest ${
-                        STYLE_BY_CONDITION[rule.condicao] || STYLE_BY_CONDITION.recomendado
-                      }`}
-                    >
-                      {CONDITION_LABEL[rule.condicao]}
-                    </span>
-                    {matchingViolations.length > 0 && (
-                      <span className="rounded-full bg-orange-100 px-2 py-0.5 text-[9px] font-black text-orange-700">
-                        {matchingViolations.length} violação{matchingViolations.length > 1 ? 'ões' : ''}
+                    {matchingViolations.length > 0 ? (
+                      <span className="rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-700">
+                        {matchingViolations.length} alerta{matchingViolations.length > 1 ? 's' : ''}
                       </span>
-                    )}
-                  </div>
-                  <p className="text-sm font-bold text-[var(--text-secondary)] opacity-80">{rule.descricao}</p>
-                  <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-[var(--text-tertiary)] opacity-60">
-                    min {rule.minimo ?? '—'} · max {rule.maximo ?? '—'}
-                  </p>
-                </div>
-                <div className="flex shrink-0 items-center gap-4">
-                  <button
-                    onClick={() => handleDeleteRule(rule.id)}
-                    className="p-1 text-[var(--accent-pink)] opacity-20 transition-opacity hover:opacity-100"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                  <button onClick={() => toggleRegra(rule.id, !rule.ativa)}>
-                    {rule.ativa ? (
-                      <ToggleRight className="h-6 w-6 text-[var(--accent-green)]" />
-                    ) : (
-                      <ToggleLeft className="h-6 w-6 text-[var(--text-tertiary)]" />
-                    )}
-                  </button>
-                </div>
-              </div>
+                    ) : null}
+                  </>
+                }
+              />
             );
-          })}
-        </div>
+          })
+        )}
       </div>
+
+      <SidePanel
+        open={panelMode !== null}
+        title={panelMode === 'edit' ? 'Editar regra' : 'Nova regra de ouro'}
+        onClose={() => {
+          setPanelMode(null);
+          setEditingId(null);
+        }}
+      >
+        <GoldenRuleForm
+          initial={editingRule ?? {}}
+          onSave={handleSave}
+          onCancel={() => {
+            setPanelMode(null);
+            setEditingId(null);
+          }}
+        />
+      </SidePanel>
 
       <ConfirmModal
         open={!!confirm}
@@ -409,6 +371,6 @@ export function GoldenRulesSettingsPage() {
         }}
         onCancel={() => setConfirm(null)}
       />
-    </div>
+    </SettingsPageScaffold>
   );
 }

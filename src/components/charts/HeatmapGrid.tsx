@@ -24,7 +24,7 @@ export function HeatmapGrid({cells, columns = 7, maxValue}: HeatmapGridProps) {
           <div
             key={cell.key}
             title={`${cell.label}: ${cell.value}`}
-            className="flex aspect-square flex-col items-center justify-center rounded-[4px] border border-[var(--border-color)] text-[9px] font-medium"
+            className="flex aspect-square flex-col items-center justify-center rounded-[4px] border border-[var(--border-color)] text-xs font-medium"
             style={{
               backgroundColor: `color-mix(in srgb, var(--accent-blue) ${Math.round(intensity * 72)}%, var(--bg-hover))`,
             }}

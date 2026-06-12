@@ -164,22 +164,22 @@ export function CalendarGrid({ activeLayers, searchTerm, sortValue, onItemClick 
   };
 
   return (
-    <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-[1.5rem] md:rounded-[2.5rem] overflow-hidden shadow-xl shadow-black/5 animate-in zoom-in-95 duration-500">
+    <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-[var(--radius-card-mobile)] md:rounded-[2.5rem] overflow-hidden shadow-xl shadow-black/5 animate-in zoom-in-95 duration-500">
       <div className="overflow-x-auto no-scrollbar">
       <div className="min-w-[800px] md:min-w-0">
       {/* Calendar Header */}
       <div className="p-4 md:p-8 border-b border-[var(--border-color)] flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div className="flex items-center gap-3 md:gap-6 w-full md:w-auto">
-           <div className="flex items-center gap-2 px-4 md:px-6 py-2 md:py-3 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-2xl shadow-sm flex-1 md:flex-none justify-center md:justify-start">
+           <div className="flex items-center gap-2 px-4 md:px-6 py-2 md:py-3 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] shadow-sm flex-1 md:flex-none justify-center md:justify-start">
              <CalendarIcon className="w-4 h-4 md:w-5 md:h-5 text-[var(--accent-blue)]" />
-             <span className="text-[11px] md:text-sm font-black uppercase tracking-[0.1em] md:tracking-[0.2em] text-[var(--text-primary)]">
+             <span className="text-xs md:text-sm font-semibold uppercase tracking-[0.1em] md:tracking-[0.2em] text-[var(--text-primary)]">
                {format(currentDate, 'MMMM yyyy', { locale: ptBR })}
              </span>
            </div>
            
-           <div className="flex gap-1 md:gap-2 p-1 bg-[var(--bg-hover)] border border-[var(--border-color)] rounded-2xl">
+           <div className="flex gap-1 md:gap-2 p-1 bg-[var(--bg-hover)] border border-[var(--border-color)] rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)]">
              <button onClick={prevMonth} className="p-1.5 md:p-2 hover:bg-[var(--border-color)] rounded-xl transition-colors"><ChevronLeft className="w-4 h-4 md:w-5 md:h-5" /></button>
-             <button onClick={() => setCurrentDate(new Date())} className="px-3 md:px-5 py-1.5 md:py-2 text-[8px] md:text-[10px] font-black uppercase tracking-widest hover:bg-[var(--border-color)] rounded-xl transition-colors">Hoje</button>
+             <button onClick={() => setCurrentDate(new Date())} className="px-3 md:px-5 py-1.5 md:py-2 text-[8px] md:text-xs font-semibold  hover:bg-[var(--border-color)] rounded-xl transition-colors">Hoje</button>
              <button onClick={nextMonth} className="p-1.5 md:p-2 hover:bg-[var(--border-color)] rounded-xl transition-colors"><ChevronRight className="w-4 h-4 md:w-5 md:h-5" /></button>
            </div>
         </div>
@@ -190,7 +190,7 @@ export function CalendarGrid({ activeLayers, searchTerm, sortValue, onItemClick 
            <div className="flex items-center gap-2 shrink-0"><Star className="w-3.5 h-3.5 text-amber-500" /><span className="text-[8px] font-bold uppercase tracking-wider opacity-60">Publicidade</span></div>
         </div>
 
-        <div className="hidden md:flex items-center gap-4 text-[var(--text-tertiary)] text-[9px] font-black uppercase tracking-widest opacity-60">
+        <div className="hidden md:flex items-center gap-4 text-[var(--text-tertiary)] text-xs font-semibold  opacity-60">
            <div className="flex items-center gap-2"><Video className="w-3 h-3 text-[var(--accent-orange)]" /> Gravação</div>
            <div className="h-1 w-1 bg-gray-400 rounded-full" />
            <div className="flex items-center gap-2"><Send className="w-3 h-3 text-[var(--accent-blue)]" /> Postagens</div>
@@ -202,7 +202,7 @@ export function CalendarGrid({ activeLayers, searchTerm, sortValue, onItemClick 
       {/* Week Day Labels */}
       <div className="grid grid-cols-7 border-b border-[var(--border-color)] bg-[var(--bg-hover)]/30">
         {['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'].map(d => (
-          <div key={d} className="py-2 md:py-4 text-center text-[9px] md:text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-tertiary)]">
+          <div key={d} className="py-2 md:py-4 text-center text-xs md:text-xs font-semibold uppercase tracking-[0.2em] text-[var(--text-tertiary)]">
             {d}
           </div>
         ))}
@@ -230,7 +230,7 @@ export function CalendarGrid({ activeLayers, searchTerm, sortValue, onItemClick 
               {/* Day Header */}
               <div className="flex items-center justify-between p-2 mb-1">
                 <span className={cn(
-                  "text-[11px] font-black w-6 h-6 flex items-center justify-center rounded-full transition-all",
+                  "text-xs font-semibold w-6 h-6 flex items-center justify-center rounded-full transition-all",
                   activeToday ? "bg-[var(--accent-blue)] text-white shadow-lg" : "text-[var(--text-tertiary)] group-hover:text-[var(--text-primary)]"
                 )}>
                   {format(day, 'd')}
@@ -281,7 +281,7 @@ export function CalendarGrid({ activeLayers, searchTerm, sortValue, onItemClick 
                       }
                     >
                       <span className="shrink-0">{item.icon}</span>
-                      <span className="text-[10px] font-bold truncate leading-tight flex-1">
+                      <span className="text-xs font-bold truncate leading-tight flex-1">
                         {item.title || item.text}
                       </span>
                     </button>
@@ -296,7 +296,7 @@ export function CalendarGrid({ activeLayers, searchTerm, sortValue, onItemClick 
                 <div className="mt-auto pt-2" title="Cuidado, carga excessiva para sua energia atual">
                    <div className="flex items-center gap-1.5 px-3 py-1 bg-red-400/10 rounded-full border border-red-400/20 animate-pulse">
                       <AlertTriangle className="w-3 h-3 text-red-500" />
-                      <span className="text-[8px] font-black uppercase tracking-widest text-red-500">Carga Excessiva</span>
+                      <span className="text-[8px] font-semibold  text-red-500">Carga Excessiva</span>
                    </div>
                 </div>
               )}

@@ -22,8 +22,8 @@ const FIELD_META: Record<ListField, {title: string; placeholder: string; accent:
     icon: Ban,
   },
   alertas: {
-    title: 'Alertas de desvio',
-    placeholder: 'Adicionar alerta de consistencia',
+    title: 'Cuidados de voz',
+    placeholder: 'Adicionar cuidado de consistencia',
     accent: 'var(--accent-orange)',
     icon: ShieldAlert,
   },
@@ -55,7 +55,7 @@ export function DNAVozMobileScreen({data, pilares, isDirty, onChange, onSave}: D
     <div className="space-y-5">
       <section className="rounded-[1.75rem] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4 shadow-sm">
         <div className="mb-4 flex items-start gap-3">
-          <div className="rounded-2xl bg-[var(--accent-orange)]/12 p-3 text-[var(--accent-orange)]">
+          <div className="rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] bg-[var(--accent-orange)]/12 p-3 text-[var(--accent-orange)]">
             <MessageSquare className="h-5 w-5" />
           </div>
           <div className="min-w-0">
@@ -114,7 +114,7 @@ export function DNAVozMobileScreen({data, pilares, isDirty, onChange, onSave}: D
             {pilares.map(pilar => (
               <span
                 key={pilar.id}
-                className="inline-flex items-center gap-2 rounded-full px-3 py-1 text-[11px] font-semibold text-[var(--text-primary)]"
+                className="inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold text-[var(--text-primary)]"
                 style={{backgroundColor: `${pilar.cor}22`}}
               >
                 <span className="h-2 w-2 rounded-full" style={{backgroundColor: pilar.cor}} />
@@ -232,7 +232,7 @@ export function DNAVozMobileScreen({data, pilares, isDirty, onChange, onSave}: D
                 setListField(null);
                 setListValue('');
               }}
-              className="flex-1 rounded-[1.25rem] border border-[var(--border-color)] py-3 text-xs font-black uppercase tracking-widest text-[var(--text-secondary)]"
+              className="flex-1 rounded-[1.25rem] border border-[var(--border-color)] py-3 text-xs font-semibold  text-[var(--text-secondary)]"
             >
               Cancelar
             </button>

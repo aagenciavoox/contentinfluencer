@@ -2,6 +2,7 @@ import { BarChart3 } from 'lucide-react';
 import type { Content } from '../../../lib/database';
 import { AnalyticsCategoryCards, type RuleResult } from '../../../features/analytics/components/AnalyticsCategoryCards';
 import type { Pilar } from '../../../lib/database';
+import type { GentleExperienceSettings } from '../../../features/settings/lib/gentleExperience';
 
 interface AnalyticsMobileScreenProps {
   resultados: RuleResult[];
@@ -19,9 +20,11 @@ interface AnalyticsMobileScreenProps {
   perfPlatforma: string;
   onPerfPlatformaChange: (value: string) => void;
   platforms: Array<{ id: string; nome: string; ativo: boolean }>;
+  gentleExperience: GentleExperienceSettings;
 }
 
 export function AnalyticsMobileScreen(props: AnalyticsMobileScreenProps) {
+  const useGentleLanguage = props.gentleExperience.enabled;
   return (
     <div className="space-y-4 pb-8">
       <section className="ds-card bg-[var(--bg-secondary)] p-4">
@@ -32,7 +35,9 @@ export function AnalyticsMobileScreen(props: AnalyticsMobileScreenProps) {
           <div>
             <p className="text-base font-semibold text-[var(--text-primary)]">Analise editorial</p>
             <p className="text-xs text-[var(--text-secondary)]">
-              Consistencia, mix e performance em um fluxo unico.
+              {useGentleLanguage
+                ? 'Mix, resposta e aprendizados em uma leitura tranquila.'
+                : 'Consistencia, mix e resposta do publico em um fluxo unico.'}
             </p>
           </div>
         </div>

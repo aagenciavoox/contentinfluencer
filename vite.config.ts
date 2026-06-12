@@ -1,11 +1,10 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
-import {defineConfig, loadEnv} from 'vite';
+import {defineConfig} from 'vite';
 import {VitePWA} from 'vite-plugin-pwa';
 
-export default defineConfig(({mode}) => {
-  const env = loadEnv(mode, '.', '');
+export default defineConfig(() => {
   return {
     plugins: [
       react(),
@@ -28,7 +27,7 @@ export default defineConfig(({mode}) => {
           description:
             'Seu sistema operacional de conteudo - planeje, produza e distribua com clareza.',
           theme_color: '#191919',
-          background_color: '#191919',
+          background_color: '#FBFBFA',
           display: 'standalone',
           orientation: 'portrait-primary',
           scope: '/',
@@ -60,6 +59,11 @@ export default defineConfig(({mode}) => {
             {
               name: 'Ideias',
               url: '/ideias',
+              icons: [{src: 'pwa-192x192.png', sizes: '192x192'}],
+            },
+            {
+              name: 'Gravacao',
+              url: '/gravacao',
               icons: [{src: 'pwa-192x192.png', sizes: '192x192'}],
             },
           ],
@@ -112,9 +116,6 @@ export default defineConfig(({mode}) => {
         },
       }),
     ],
-    define: {
-      'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),
-    },
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),

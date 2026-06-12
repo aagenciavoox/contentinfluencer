@@ -5,6 +5,7 @@ import { useAppContext } from '../../../context/AppContext';
 import { Look, Cenario } from '../../../lib/database';
 import { generateUUID } from '../../../utils/uuid';
 import { DesktopPageHeader } from '../../../layouts/page/DesktopPageHeader';
+import { PageLayout } from '../../../layouts/page/PageLayout';
 import { AppButton } from '../../../components/ui/AppButton';
 
 type EditingLook = Partial<Look> & { numero: number; descricao: string; ativo: boolean };
@@ -60,9 +61,9 @@ export function LooksSettingsPage() {
   const activeCenarios = state.cenarios;
 
   return (
-    <div className="min-h-screen bg-[var(--bg-secondary)]">
-      <header className="desktop-header-sticky transition-colors duration-300">
-        <div className="desktop-header-frame">
+    <PageLayout
+      variant="settings"
+      header={
         <DesktopPageHeader
           section="Configurações"
           title="Looks & Cenários"
@@ -70,10 +71,8 @@ export function LooksSettingsPage() {
           backLabel="Configurações"
           backTo="/configuracoes"
         />
-        </div>
-      </header>
-
-      <div className="desktop-content-frame">
+      }
+    >
 
         {/* LOOKS */}
         <section className="mb-12">
@@ -94,10 +93,10 @@ export function LooksSettingsPage() {
           </div>
 
           {criandoLook && (
-            <div className="mb-4 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-2xl p-5 space-y-3">
+            <div className="mb-4 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] p-5 space-y-3">
               <div className="flex gap-3">
                 <div>
-                  <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1">Nº</label>
+                  <label className="text-xs font-bold  text-[var(--text-tertiary)] block mb-1">Nº</label>
                   <input
                     type="number"
                     value={lookForm.numero}
@@ -106,7 +105,7 @@ export function LooksSettingsPage() {
                   />
                 </div>
                 <div className="flex-1">
-                  <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1">Descrição</label>
+                  <label className="text-xs font-bold  text-[var(--text-tertiary)] block mb-1">Descrição</label>
                   <input
                     type="text"
                     value={lookForm.descricao}
@@ -117,7 +116,7 @@ export function LooksSettingsPage() {
                 </div>
               </div>
               <div>
-                <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1">Cenário Associado</label>
+                <label className="text-xs font-bold  text-[var(--text-tertiary)] block mb-1">Cenário Associado</label>
                 <select
                   value={lookForm.cenarioId || ''}
                   onChange={e => setLookForm(p => ({ ...p, cenarioId: e.target.value || undefined }))}
@@ -144,7 +143,7 @@ export function LooksSettingsPage() {
             ) : activeLooks.map(look => {
               const cenario = look.cenarioId ? state.cenarios.find(c => c.id === look.cenarioId) : null;
               return (
-                <div key={look.id} className={`flex items-center gap-4 px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-2xl ${!look.ativo ? 'opacity-40' : ''}`}>
+                <div key={look.id} className={`flex items-center gap-4 px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] ${!look.ativo ? 'opacity-40' : ''}`}>
                   {editLookId === look.id ? (
                     <div className="flex-1 flex gap-2">
                       <input
@@ -160,10 +159,10 @@ export function LooksSettingsPage() {
                     </div>
                   ) : (
                     <>
-                      <span className="text-xs font-black text-[var(--text-tertiary)] w-12 shrink-0">Look {look.numero}</span>
+                      <span className="text-xs font-semibold text-[var(--text-tertiary)] w-12 shrink-0">Look {look.numero}</span>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-bold text-[var(--text-primary)] truncate">{look.descricao || '—'}</p>
-                        {cenario && <p className="text-[10px] text-[var(--text-secondary)] opacity-50">{cenario.nome}</p>}
+                        {cenario && <p className="text-xs text-[var(--text-secondary)] opacity-50">{cenario.nome}</p>}
                       </div>
                       <div className="flex items-center gap-1.5 shrink-0">
                         <button onClick={() => dispatch({ type: 'UPDATE_LOOK', payload: { ...look, ativo: !look.ativo } })}>
@@ -203,7 +202,7 @@ export function LooksSettingsPage() {
           </div>
 
           {criandoCenario && (
-            <div className="mb-4 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-2xl p-5 space-y-3">
+            <div className="mb-4 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] p-5 space-y-3">
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="t-label block mb-1">Nome *</label>
@@ -236,11 +235,11 @@ export function LooksSettingsPage() {
                 />
               </div>
               <div className="flex gap-3">
-                <button onClick={() => setCriandoCenario(false)} className="flex-1 py-2 rounded-xl text-xs font-black border border-[var(--border-strong)] opacity-60 hover:opacity-100 transition-all">Cancelar</button>
+                <button onClick={() => setCriandoCenario(false)} className="flex-1 py-2 rounded-xl text-xs font-semibold border border-[var(--border-strong)] opacity-60 hover:opacity-100 transition-all">Cancelar</button>
                 <button
                   onClick={() => cenarioForm.nome.trim() && saveCenario(cenarioForm)}
                   disabled={!cenarioForm.nome.trim()}
-                  className="flex-1 py-2 rounded-xl text-xs font-black bg-[var(--text-primary)] text-[var(--bg-primary)] disabled:opacity-40 hover:scale-[1.02] transition-all"
+                  className="flex-1 py-2 rounded-xl text-xs font-semibold bg-[var(--text-primary)] text-[var(--bg-primary)] disabled:opacity-40 hover:scale-[1.02] transition-all"
                 >Salvar</button>
               </div>
             </div>
@@ -250,10 +249,10 @@ export function LooksSettingsPage() {
             {activeCenarios.length === 0 ? (
               <p className="text-xs text-[var(--text-tertiary)] text-center py-8 font-bold">Nenhum cenário cadastrado ainda</p>
             ) : activeCenarios.map(cenario => (
-              <div key={cenario.id} className={`flex items-center gap-4 px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-2xl ${!cenario.ativo ? 'opacity-40' : ''}`}>
+              <div key={cenario.id} className={`flex items-center gap-4 px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] ${!cenario.ativo ? 'opacity-40' : ''}`}>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-bold text-[var(--text-primary)]">{cenario.nome}</p>
-                  <p className="text-[10px] text-[var(--text-secondary)] opacity-50">
+                  <p className="text-xs text-[var(--text-secondary)] opacity-50">
                     {cenario.descricao}{cenario.descricao && ' · '}{cenario.tempoSetupMinutos}min de setup
                   </p>
                 </div>
@@ -272,8 +271,7 @@ export function LooksSettingsPage() {
             ))}
           </div>
         </section>
-      </div>
-    </div>
+    </PageLayout>
   );
 }
 

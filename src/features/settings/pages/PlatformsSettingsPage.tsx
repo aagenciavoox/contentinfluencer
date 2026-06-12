@@ -7,8 +7,10 @@ import {useIsMobile} from '../../../hooks/useIsMobile';
 import type {Platform} from '../../../lib/database';
 import {cn} from '../../../lib/utils';
 import {DesktopPageHeader} from '../../../layouts/page/DesktopPageHeader';
+import {PageLayout} from '../../../layouts/page/PageLayout';
 import {AppButton} from '../../../components/ui/AppButton';
 import {PlatformsMobileScreen} from '../../../mobile/screens/settings/PlatformsMobileScreen';
+import {generateUUID} from '../../../utils/uuid';
 
 const PADROES = ['Instagram', 'TikTok', 'YouTube', 'Blog'];
 
@@ -24,7 +26,7 @@ export function PlatformsSettingsPage() {
   const handleAdd = () => {
     if (!novoNome.trim()) return;
     const platform: Platform = {
-      id: crypto.randomUUID(),
+      id: generateUUID(),
       userId: user?.id || null,
       nome: novoNome.trim(),
       ativo: true,
@@ -50,7 +52,7 @@ export function PlatformsSettingsPage() {
           isPadrao={isPadrao}
           onAdd={(platformName) => {
             const platform: Platform = {
-              id: crypto.randomUUID(),
+              id: generateUUID(),
               userId: user?.id || null,
               nome: platformName,
               ativo: true,
@@ -66,31 +68,29 @@ export function PlatformsSettingsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[var(--bg-secondary)]">
-      <header className="desktop-header-sticky transition-colors duration-300">
-        <div className="desktop-header-frame">
-          <DesktopPageHeader
-            section="Configurações"
-            title="Plataformas"
-            icon={MonitorSpeaker}
-            backLabel="Configurações"
-            backTo="/configuracoes"
-            actions={
-              <AppButton
-                onClick={() => setShowForm(true)}
-                variant="primary"
-                leftIcon={<Plus className="h-4 w-4" />}
-              >
-                Adicionar
-              </AppButton>
-            }
-          />
-        </div>
-      </header>
-
-      <div className="desktop-content-frame">
+    <PageLayout
+      variant="settings"
+      header={
+        <DesktopPageHeader
+          section="Configurações"
+          title="Plataformas"
+          icon={MonitorSpeaker}
+          backLabel="Configurações"
+          backTo="/configuracoes"
+          actions={
+            <AppButton
+              onClick={() => setShowForm(true)}
+              variant="primary"
+              leftIcon={<Plus className="h-4 w-4" />}
+            >
+              Adicionar
+            </AppButton>
+          }
+        />
+      }
+    >
         {showForm && (
-          <div className="mb-6 flex flex-wrap items-center gap-3 rounded-2xl border border-[var(--border-color)] bg-[var(--bg-primary)] p-5">
+          <div className="mb-6 flex flex-wrap items-center gap-3 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-primary)] p-5">
             <input
               autoFocus
               value={novoNome}
@@ -104,7 +104,7 @@ export function PlatformsSettingsPage() {
             </AppButton>
             <button
               onClick={() => setShowForm(false)}
-              className="rounded-xl border border-[var(--border-color)] px-4 py-2.5 text-[11px] font-black uppercase tracking-widest opacity-50 hover:opacity-80"
+              className="rounded-xl border border-[var(--border-color)] px-4 py-2.5 text-xs font-semibold  opacity-50 hover:opacity-80"
             >
               ✕
             </button>
@@ -112,8 +112,8 @@ export function PlatformsSettingsPage() {
         )}
 
         <div className="space-y-3">
-          <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-primary)] px-5 py-4">
-            <p className="text-[10px] font-black uppercase tracking-widest text-[var(--text-tertiary)] opacity-50">
+          <div className="rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-primary)] px-5 py-4">
+            <p className="text-xs font-semibold  text-[var(--text-tertiary)] opacity-50">
               Leitura histórica
             </p>
             <p className="mt-2 text-sm text-[var(--text-secondary)]">
@@ -124,22 +124,22 @@ export function PlatformsSettingsPage() {
           {state.platforms.length === 0 && (
             <div className="py-16 text-center">
               <MonitorSpeaker className="mx-auto mb-3 h-10 w-10 opacity-10" />
-              <p className="text-sm font-black uppercase tracking-widest opacity-30">Nenhuma plataforma ainda</p>
+              <p className="text-sm font-semibold  opacity-30">Nenhuma plataforma ainda</p>
             </div>
           )}
 
           {state.platforms.map(platform => (
             <div
               key={platform.id}
-              className="flex items-center gap-4 rounded-2xl border border-[var(--border-color)] bg-[var(--bg-primary)] px-5 py-4"
+              className="flex items-center gap-4 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-primary)] px-5 py-4"
             >
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-black text-[var(--text-primary)]">{platform.nome}</p>
+                <p className="text-sm font-semibold text-[var(--text-primary)]">{platform.nome}</p>
                 {isPadrao(platform.nome) && (
-                  <p className="mt-0.5 text-[9px] font-bold uppercase tracking-widest opacity-30">Padrão</p>
+                  <p className="mt-0.5 text-xs font-bold  opacity-30">Padrão</p>
                 )}
                 {!platform.ativo && (
-                  <p className="mt-1 text-[10px] font-bold text-[var(--text-secondary)] opacity-50">
+                  <p className="mt-1 text-xs font-bold text-[var(--text-secondary)] opacity-50">
                     Inativa para criação, mas preservada para leitura histórica
                   </p>
                 )}
@@ -148,7 +148,7 @@ export function PlatformsSettingsPage() {
                 onClick={() => toggleAtivo(platform)}
                 disabled={isPadrao(platform.nome)}
                 className={cn(
-                  'rounded-full px-4 py-2 text-[9px] font-black uppercase tracking-widest transition-all',
+                  'rounded-full px-4 py-2 text-xs font-semibold  transition-all',
                   platform.ativo ? 'bg-green-400/10 text-green-400' : 'bg-zinc-800 text-zinc-500',
                   isPadrao(platform.nome) && 'cursor-not-allowed opacity-50'
                 )}
@@ -158,7 +158,7 @@ export function PlatformsSettingsPage() {
               {!isPadrao(platform.nome) && (
                 <button
                   onClick={() => dispatch({type: 'DELETE_PLATFORM', payload: platform.id})}
-                  className="px-2 text-[10px] font-black uppercase tracking-widest opacity-20 transition-all hover:text-red-400 hover:opacity-60"
+                  className="px-2 text-xs font-semibold  opacity-20 transition-all hover:text-red-400 hover:opacity-60"
                 >
                   ✕
                 </button>
@@ -166,7 +166,6 @@ export function PlatformsSettingsPage() {
             </div>
           ))}
         </div>
-      </div>
-    </div>
+    </PageLayout>
   );
 }

@@ -18,7 +18,6 @@ import {
   Hash,
   Target,
   TrendingUp,
-  ChevronLeft,
 } from 'lucide-react';
 import { useAppContext } from '../../../context/AppContext';
 import { Anotacao, BibliotecaItem, BibliotecaItemMeta, Content, Idea, Projeto } from '../../../lib/database';
@@ -35,8 +34,12 @@ import { CONTENT_STATUS } from '../../contents/lib/contentPipeline';
 import { BookAnnotationComposerSheet } from '../components/modals/BookAnnotationComposerSheet';
 import { generateUUID } from '../../../utils/uuid';
 import { DesktopPageHeader } from '../../../layouts/page/DesktopPageHeader';
+import { PageLayout } from '../../../layouts/page/PageLayout';
 import { PipelineActionBar } from '../../../components/pipeline/PipelineActionBar';
 import { AnnotationNoteCard } from '../components/AnnotationNoteCard';
+import { TagSelect } from '../../../components/ui/TagSelect';
+import { useIsMobile } from '../../../hooks/useIsMobile';
+import { BookDetailMobileScreen } from '../../../mobile/screens/library/BookDetailMobileScreen';
 
 const STATUS_CORES: Record<string, string> = {
   'Ideia': 'bg-[var(--accent-orange)]/10 text-[var(--accent-orange)]',
@@ -64,7 +67,7 @@ const GENEROS: GeneroLivro[] = [
 
 type Tab = 'info' | 'anotacoes' | 'conteudos';
 
-const SECTION_LABEL = 'text-[9px] font-black uppercase tracking-widest opacity-30 mb-4 block text-[var(--text-primary)]';
+const SECTION_LABEL = 'text-xs font-semibold  opacity-30 mb-4 block text-[var(--text-primary)]';
 
 function getItemTypeLabel(tipo: BibliotecaItem['tipo']) {
   if (tipo === 'filme') return 'Filme';
@@ -150,6 +153,7 @@ export function BookDetailPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { state, dispatch } = useAppContext();
+  const isMobile = useIsMobile();
 
   const livro = state.books.find(b => b.id === id);
   const initialTab = (searchParams.get('tab') as Tab | null);
@@ -157,9 +161,6 @@ export function BookDetailPage() {
 
   // Anotações state
   const [filtroTipo, setFiltroTipo] = useState<TipoAnotacao | 'Todos' | 'Destaques'>('Todos');
-  const [novaAnotacao, setNovaAnotacao] = useState('');
-  const [novoTipo, setNovoTipo] = useState<TipoAnotacao>('Reação');
-  const [novoCapitulo, setNovoCapitulo] = useState('');
   const [mobileNoteComposerOpen, setMobileNoteComposerOpen] = useState(false);
 
   // Conteúdos state
@@ -298,7 +299,7 @@ export function BookDetailPage() {
     YouTube: [...new Set(hashtagsAgregadas.YouTube)].join(' '),
   };
 
-  // Performance data
+  // Public response metrics
   const conteudosPostados = conteudosDoLivro.filter(c => c.status === 'Postado');
   const resultadosDoLivro = state.results.filter(r =>
     r.contentId && conteudosDoLivro.some(c => c.id === r.contentId)
@@ -314,26 +315,6 @@ export function BookDetailPage() {
   );
 
   // Handlers
-  const handleAddAnotacao = () => {
-    if (!novaAnotacao.trim()) return;
-    const anotacao: Anotacao = {
-      id: generateUUID(),
-      userId: '',
-      itemId: livro.id,
-      texto: novaAnotacao.trim(),
-      tipo: novoTipo,
-      capituloRef: novoCapitulo.trim() || null,
-      destilada: false,
-      contentPotential: false,
-      createdAt: new Date().toISOString(),
-      deletedAt: null,
-    };
-    dispatch({ type: 'ADD_ANNOTATION', payload: anotacao });
-    setNovaAnotacao('');
-    setNovoCapitulo('');
-    setMobileNoteComposerOpen(false);
-  };
-
   const handleTransformarEmIdeia = (anotacao: BookAnnotation) => {
     const ideia: Idea = {
       id: generateUUID(),
@@ -583,50 +564,148 @@ export function BookDetailPage() {
     conteudos: conteudosDoLivro.length,
   };
 
-  return (
-    <div className="min-h-screen bg-[var(--bg-secondary)]">
-      <div className="md:hidden border-b border-[var(--border-color)] bg-[var(--bg-primary)] px-4 pb-3 pt-3">
-        <div className="relative flex items-start justify-center">
-          <button
-            onClick={() => navigate('/biblioteca')}
-            className="absolute left-0 top-0 flex h-10 w-10 items-center justify-center rounded-full border border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)]"
-            aria-label="Voltar para biblioteca"
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </button>
-
-          <div className="max-w-[220px] pt-1 text-center">
-            <h1 className="line-clamp-2 text-[16px] font-black leading-tight text-[var(--text-primary)]">
-              {livro.titulo}
-            </h1>
-            <p className="mt-0.5 line-clamp-1 text-[11px] text-[var(--text-secondary)]">
-              {livro.autorDiretor}
-            </p>
-            <p className="mt-1.5 text-[9px] font-black uppercase tracking-[0.16em] text-[var(--text-tertiary)] opacity-65">
-              {itemTypeLabel} · {livro.status}
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <div className="desktop-header-sticky hidden md:block">
-        <div className="desktop-header-frame">
-          <DesktopPageHeader
-            section="Biblioteca"
-            title={livro.titulo}
-            meta={[livro.autorDiretor, itemTypeLabel, livro.status].filter(Boolean).join(' · ')}
-            icon={ItemIcon}
-            backLabel="Biblioteca"
-            backTo="/biblioteca"
-            className="mb-0"
+  if (isMobile) {
+    return (
+      <>
+        <div className="min-h-full bg-[var(--bg-primary)]">
+          <BookDetailMobileScreen
+            livro={livro}
+            tab={tab}
+            onTabChange={setTab}
+            itemTypeLabel={itemTypeLabel}
+            creatorLabel={creatorLabel}
+            progressLabels={progressLabels}
+            statusLeituraOptions={STATUS_LEITURA[livro.tipo]}
+            generoOptions={GENEROS}
+            infoLocal={infoLocal}
+            onInfoLocalPatch={(patch) => setInfoLocal((prev) => ({ ...prev, ...patch }))}
+            onSaveInfo={handleSalvarInfo}
+            infoSalvo={infoSalvo}
+            onRequestDelete={() =>
+              setConfirm({
+                message: `Remover "${livro.titulo}" da biblioteca?`,
+                onConfirm: () => {
+                  dispatch({ type: 'DELETE_BOOK', payload: livro.id });
+                  navigate('/biblioteca');
+                },
+              })
+            }
+            filtroTipo={filtroTipo}
+            onFiltroTipoChange={setFiltroTipo}
+            tipoAnotacaoOptions={TIPOS}
+            anotacoesFiltradas={anotacoesFiltradas}
+            onOpenAnnotationComposer={() => setMobileNoteComposerOpen(true)}
+            onToggleContentPotential={handleToggleContentPotential}
+            onTransformIdea={handleTransformarEmIdeia}
+            onTransformContent={handleTransformarEmConteudo}
+            onDeleteAnotacao={handleDeleteAnotacao}
+            conteudosDoLivro={conteudosDoLivro}
+            ideiasDeLivro={ideiasDeLivro}
+            statusCores={STATUS_CORES}
+            alertaEcossistema={alertaEcossistema}
+            anotacoesDestaqueCount={anotacoesDestaque.length}
+            onCreateContent={handleCriarConteudo}
+            onPromoteIdeia={handlePromoteIdeia}
+            onOpenContent={(contentId) => navigate(buildContentDetailRoute(contentId))}
+            onStartBrainstorm={() => {
+              setBrainstormIdx(0);
+              setBrainstormMode(true);
+            }}
           />
         </div>
-      </div>
 
-      <div className="desktop-content-frame hidden md:block">
+        <AnimatePresence>
+          {brainstormMode && anotacoesDestaque.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+            >
+              <motion.div
+                initial={{ scale: 0.95, y: 20 }}
+                animate={{ scale: 1, y: 0 }}
+                exit={{ scale: 0.95, y: 20 }}
+                className="w-full max-w-lg rounded-[var(--radius-overlay)] bg-[var(--bg-primary)] p-8 shadow-none"
+              >
+                <div className="mb-6 flex items-center justify-between">
+                  <span className="text-xs font-semibold text-[var(--text-tertiary)]">
+                    Brainstorm — {brainstormIdx + 1}/{anotacoesDestaque.length}
+                  </span>
+                  <button
+                    onClick={() => setBrainstormMode(false)}
+                    className="rounded-full p-2 transition-colors hover:bg-[var(--bg-hover)]"
+                  >
+                    <X className="h-5 w-5 text-[var(--text-tertiary)]" />
+                  </button>
+                </div>
+                <p className="mb-8 text-lg font-medium leading-relaxed text-[var(--text-primary)]">
+                  &quot;{anotacoesDestaque[brainstormIdx]?.texto}&quot;
+                </p>
+                <div className="flex flex-col gap-3 sm:flex-row">
+                  <button
+                    onClick={() => handleBrainstormConteudo(anotacoesDestaque[brainstormIdx])}
+                    className="flex-1 rounded-[var(--radius-card-mobile)] bg-[var(--text-primary)] py-3 text-xs font-semibold text-[var(--bg-primary)] transition-all hover:scale-[1.02] md:rounded-[var(--radius-card)]"
+                  >
+                    → Virar Conteúdo
+                  </button>
+                  <button
+                    onClick={() => handleBrainstormIdeia(anotacoesDestaque[brainstormIdx])}
+                    className="flex-1 rounded-[var(--radius-card-mobile)] border border-[var(--border-strong)] py-3 text-xs font-semibold text-[var(--text-primary)] transition-all hover:bg-[var(--bg-hover)] md:rounded-[var(--radius-card)]"
+                  >
+                    → Virar Ideia
+                  </button>
+                  <button
+                    onClick={handleBrainstormPular}
+                    className="px-4 py-3 text-xs font-semibold text-[var(--text-primary)] opacity-40 transition-opacity hover:opacity-80"
+                  >
+                    Pular →
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <ConfirmModal
+          open={!!confirm}
+          message={confirm?.message || ''}
+          onConfirm={() => {
+            confirm?.onConfirm();
+            setConfirm(null);
+          }}
+          onCancel={() => setConfirm(null)}
+        />
+        <BookAnnotationComposerSheet
+          book={livro}
+          open={mobileNoteComposerOpen}
+          onClose={() => setMobileNoteComposerOpen(false)}
+        />
+      </>
+    );
+  }
+
+  return (
+    <>
+    <PageLayout
+      variant="settings"
+      contentWidth="book"
+      header={
+        <DesktopPageHeader
+          section="Biblioteca"
+          title={livro.titulo}
+          meta={[livro.autorDiretor, itemTypeLabel, livro.status].filter(Boolean).join(' · ')}
+          icon={ItemIcon}
+          backLabel="Biblioteca"
+          backTo="/biblioteca"
+          className="mb-0"
+        />
+      }
+    >
+      <div className="hidden md:block">
         <PipelineActionBar
           className="mb-4"
-          title="Transformar leitura em conteudo"
+          title="Transformar leitura em conteúdo"
           description="Crie uma ideia editorial a partir deste item da biblioteca."
           primaryLabel="Transformar em ideia"
           onPrimary={() => {
@@ -634,7 +713,7 @@ export function BookDetailPage() {
               id: generateUUID(),
               userId: '',
               text: livro.notasGerais?.trim()
-                || `Conteudo sobre "${livro.titulo}"${livro.autorDiretor ? ` — ${livro.autorDiretor}` : ''}`,
+                || `Conteúdo sobre "${livro.titulo}"${livro.autorDiretor ? ` — ${livro.autorDiretor}` : ''}`,
               pilarId: null,
               seriesId: null,
               origemId: livro.id,
@@ -648,146 +727,14 @@ export function BookDetailPage() {
         />
       </div>
 
-      <div className="md:hidden bg-[var(--bg-primary)] px-4 pb-10 pt-3">
-        <div className="mb-5 flex border-b border-[var(--border-color)]">
-          {(['info', 'anotacoes', 'conteudos'] as Tab[]).map(t => (
-            <button
-              key={t}
-              onClick={() => setTab(t)}
-              className={`relative px-4 pb-3 pt-2 text-[11px] font-black uppercase tracking-[0.16em] transition-all ${
-                tab === t
-                  ? 'text-[var(--text-primary)]'
-                  : 'text-[var(--text-primary)] opacity-30'
-              }`}
-            >
-              {t === 'info' ? 'Info' : t === 'anotacoes' ? `Notas (${livro.anotacoes.length})` : `Conteúdos (${conteudosDoLivro.length})`}
-              {tab === t && (
-                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[var(--text-primary)] rounded-full" />
-              )}
-            </button>
-          ))}
-        </div>
-
-        {tab === 'info' && (
-          <div className="space-y-4">
-            <div className="rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-primary)] p-4">
-              <p className="text-[9px] font-semibold uppercase tracking-[0.12em] text-[var(--text-tertiary)]">Info</p>
-              <div className="mt-4 space-y-3 text-sm text-[var(--text-primary)]">
-                <div>
-                  <span className="block text-[10px] font-black uppercase tracking-[0.16em] text-[var(--text-tertiary)] opacity-55">Título</span>
-                  <span>{livro.titulo}</span>
-                </div>
-                <div>
-                  <span className="block text-[10px] font-black uppercase tracking-[0.16em] text-[var(--text-tertiary)] opacity-55">{creatorLabel}</span>
-                  <span>{livro.autorDiretor || 'Sem preenchimento'}</span>
-                </div>
-                <div>
-                  <span className="block text-[10px] font-black uppercase tracking-[0.16em] text-[var(--text-tertiary)] opacity-55">Status</span>
-                  <span>{livro.status}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {tab === 'anotacoes' && (
-          <div className="space-y-5">
-            <div className="rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-primary)] p-3 space-y-3">
-              <div className="flex gap-3">
-                <select
-                  value={novoTipo}
-                  onChange={e => setNovoTipo(e.target.value as TipoAnotacao)}
-                  className="shrink-0 rounded-2xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-3 text-[11px] font-bold text-[var(--text-primary)]"
-                >
-                  {TIPOS.map(t => <option key={t}>{t}</option>)}
-                </select>
-                <input
-                  type="text"
-                  value={novoCapitulo}
-                  onChange={e => setNovoCapitulo(e.target.value)}
-                  placeholder="Cap. / Página"
-                  className="w-40 rounded-2xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-3 text-[11px] text-[var(--text-primary)] placeholder:opacity-40"
-                />
-              </div>
-
-              <textarea
-                value={novaAnotacao}
-                onChange={e => setNovaAnotacao(e.target.value)}
-                placeholder="Escreva uma anotação, trecho ou ideia..."
-                rows={5}
-                onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handleAddAnotacao(); }}
-                className="w-full resize-none rounded-[22px] border border-[var(--border-color)] bg-[var(--bg-primary)] px-4 py-4 text-[13px] leading-6 text-[var(--text-primary)] placeholder:opacity-30 focus:ring-0"
-              />
-
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] text-[var(--text-tertiary)] opacity-60">⌘ + para adicionar</span>
-                <button
-                  onClick={handleAddAnotacao}
-                  disabled={!novaAnotacao.trim()}
-                  className="rounded-full bg-[var(--text-primary)] px-5 py-2.5 text-[10px] font-black uppercase tracking-[0.16em] text-[var(--bg-primary)] transition-all disabled:cursor-not-allowed disabled:opacity-30"
-                >
-                  Adicionar
-                </button>
-              </div>
-            </div>
-
-            <div className="flex gap-2 flex-wrap">
-              {(['Todos', 'Destaques', ...TIPOS] as (TipoAnotacao | 'Todos' | 'Destaques')[]).map(t => (
-                <button
-                  key={t}
-                  onClick={() => setFiltroTipo(t)}
-                  className={`text-[10px] font-bold px-3 py-1.5 rounded-full border transition-all ${
-                    filtroTipo === t
-                      ? 'bg-[var(--text-primary)] text-[var(--bg-secondary)] border-[var(--text-primary)]'
-                      : 'bg-transparent text-[var(--text-primary)] border-[var(--border-strong)] opacity-40'
-                  }`}
-                >
-                  {t === 'Destaques' ? 'Destaques' : t}
-                </button>
-              ))}
-            </div>
-
-            {anotacoesFiltradas.length === 0 ? (
-              <div className="text-center py-16">
-                <p className="text-[var(--text-tertiary)] font-bold text-sm uppercase tracking-widest">Nenhuma anotação ainda</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 gap-2 md:grid-cols-2 lg:grid-cols-3">
-                {anotacoesFiltradas.map(a => (
-                  <AnnotationNoteCard
-                    key={a.id}
-                    anotacao={a}
-                    onToggleHighlight={() => handleToggleContentPotential(a)}
-                    onTransformIdea={() => handleTransformarEmIdeia(a)}
-                    onTransformContent={() => handleTransformarEmConteudo(a)}
-                    onDelete={() => handleDeleteAnotacao(a.id)}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {tab === 'conteudos' && (
-          <div className="space-y-4">
-            <div className="rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-primary)] p-4">
-              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--text-tertiary)] opacity-60">Conteúdos</p>
-              <p className="mt-4 text-sm text-[var(--text-secondary)]">
-                {conteudosDoLivro.length === 0 ? 'Nenhum conteúdo criado ainda.' : `${conteudosDoLivro.length} conteúdo(s) vinculados a este item.`}
-              </p>
-            </div>
-          </div>
-        )}
-      </div>
-
-      <div className="desktop-content-frame-book hidden md:block">
+      <div className="hidden md:block">
         {/* Barra de tabs separada */}
         <div className="mb-6 mt-2 flex border-b border-[var(--border-color)] md:mb-8">
           {(['info', 'anotacoes', 'conteudos'] as Tab[]).map(t => (
             <button
               key={t}
               onClick={() => setTab(t)}
-              className={`relative px-3 pb-3 pt-2 text-[11px] font-black uppercase tracking-[0.16em] transition-all md:px-4 md:tracking-widest ${
+              className={`relative px-3 pb-3 pt-2 text-xs font-semibold uppercase tracking-[0.16em] transition-all md:px-4 md:tracking-widest ${
                 tab === t
                   ? 'text-[var(--text-primary)]'
                   : 'text-[var(--text-primary)] opacity-30 hover:opacity-60'
@@ -806,7 +753,7 @@ export function BookDetailPage() {
           <div className="grid md:grid-cols-[200px_1fr] gap-10 pb-10">
             {/* Capa + Avaliação */}
             <div className="space-y-4">
-              <div className="aspect-[2/3] rounded-2xl overflow-hidden bg-[var(--bg-hover)] shadow-md">
+              <div className="aspect-[2/3] rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] overflow-hidden bg-[var(--bg-hover)] shadow-md">
                 {livro.capaUrl ? (
                   <img src={livro.capaUrl} alt={livro.titulo} className="w-full h-full object-cover" />
                 ) : (
@@ -816,7 +763,7 @@ export function BookDetailPage() {
                 )}
               </div>
               <div>
-                <p className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] mb-2">Avaliação</p>
+                <p className="text-xs font-bold  text-[var(--text-tertiary)] mb-2">Avaliação</p>
                 <div className="flex gap-1">
                   {[1, 2, 3, 4, 5].map(n => (
                     <button key={n} onClick={() => setInfoLocal(prev => ({ ...prev, avaliacao: n as 1 | 2 | 3 | 4 | 5 }))}>
@@ -835,34 +782,23 @@ export function BookDetailPage() {
                 <span className={SECTION_LABEL}>Identificação</span>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1.5">Título</label>
+                    <label className="text-xs font-bold  text-[var(--text-tertiary)] block mb-1.5">Título</label>
                     <input type="text" value={infoLocal.titulo} onChange={e => setInfoLocal(prev => ({ ...prev, titulo: e.target.value }))} className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)]" />
                   </div>
                   <div>
-                    <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1.5">{creatorLabel}</label>
+                    <label className="text-xs font-bold  text-[var(--text-tertiary)] block mb-1.5">{creatorLabel}</label>
                     <input type="text" value={infoLocal.autor} onChange={e => setInfoLocal(prev => ({ ...prev, autor: e.target.value }))} className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)]" />
                   </div>
                 </div>
                 <div className="mt-4">
-                  <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-2">Gêneros</label>
-                  <div className="flex flex-wrap gap-2">
-                    {GENEROS.map(g => (
-                      <button
-                        key={g}
-                        onClick={() => {
-                          const atual = infoLocal.generos;
-                          setInfoLocal(prev => ({ ...prev, generos: atual.includes(g) ? atual.filter(x => x !== g) : [...atual, g] }));
-                        }}
-                        className={`text-[10px] font-bold px-2.5 py-1 rounded-full border transition-all ${
-                          infoLocal.generos.includes(g)
-                            ? 'bg-[var(--text-primary)] text-[var(--bg-secondary)] border-[var(--text-primary)]'
-                            : 'bg-transparent text-[var(--text-primary)] border-[var(--border-strong)] opacity-40 hover:opacity-70'
-                        }`}
-                      >
-                        {g}
-                      </button>
-                    ))}
-                  </div>
+                  <TagSelect
+                    label="Generos"
+                    hint="Selecione um ou mais generos para categorizar este item."
+                    values={infoLocal.generos}
+                    onChange={generos => setInfoLocal(prev => ({ ...prev, generos: generos as GeneroLivro[] }))}
+                    options={GENEROS.map(genero => ({ value: genero, label: genero }))}
+                    placeholder="Selecione generos"
+                  />
                 </div>
               </section>
 
@@ -871,37 +807,37 @@ export function BookDetailPage() {
                 <span className={SECTION_LABEL}>Consumo</span>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1.5">Status</label>
+                    <label className="text-xs font-bold  text-[var(--text-tertiary)] block mb-1.5">Status</label>
                     <select value={infoLocal.statusLeitura} onChange={e => setInfoLocal(prev => ({ ...prev, statusLeitura: e.target.value as StatusLeitura }))} className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)]">
                       {STATUS_LEITURA[livro.tipo].map(s => <option key={s}>{s}</option>)}
                     </select>
                   </div>
                   <div>
-                    <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1.5">URL da Capa</label>
+                    <label className="text-xs font-bold  text-[var(--text-tertiary)] block mb-1.5">URL da Capa</label>
                     <input type="url" value={infoLocal.capaUrl} onChange={e => setInfoLocal(prev => ({ ...prev, capaUrl: e.target.value }))} placeholder="https://..." className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:opacity-30" />
                   </div>
                   <div>
-                    <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1.5">Início</label>
+                    <label className="text-xs font-bold  text-[var(--text-tertiary)] block mb-1.5">Início</label>
                     <input type="date" value={infoLocal.dataInicio} onChange={e => setInfoLocal(prev => ({ ...prev, dataInicio: e.target.value }))} className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)]" />
                   </div>
                   <div>
-                    <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1.5">Fim</label>
+                    <label className="text-xs font-bold  text-[var(--text-tertiary)] block mb-1.5">Fim</label>
                     <input type="date" value={infoLocal.dataFim} onChange={e => setInfoLocal(prev => ({ ...prev, dataFim: e.target.value }))} className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)]" />
                   </div>
                   <div>
-                    <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1.5">{progressLabels.current}</label>
+                    <label className="text-xs font-bold  text-[var(--text-tertiary)] block mb-1.5">{progressLabels.current}</label>
                     <input type="number" min={0} value={infoLocal.paginasLidas} onChange={e => setInfoLocal(prev => ({ ...prev, paginasLidas: e.target.value === '' ? '' : Number(e.target.value) }))} placeholder={livro.tipo === 'filme' ? 'Ex: 95' : livro.tipo === 'série' || livro.tipo === 'anime' ? 'Ex: 8' : 'Ex: 120'} className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:opacity-30" />
                   </div>
                   <div>
-                    <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1.5">{progressLabels.total}</label>
+                    <label className="text-xs font-bold  text-[var(--text-tertiary)] block mb-1.5">{progressLabels.total}</label>
                     <input type="number" min={1} value={infoLocal.totalPaginas} onChange={e => setInfoLocal(prev => ({ ...prev, totalPaginas: e.target.value === '' ? '' : Number(e.target.value) }))} placeholder={livro.tipo === 'filme' ? 'Ex: 130' : livro.tipo === 'série' || livro.tipo === 'anime' ? 'Ex: 10' : 'Ex: 380'} className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:opacity-30" />
                   </div>
                 </div>
                 {(infoLocal.totalPaginas as number) > 0 && (
                   <div className="mt-4">
                     <div className="flex items-center justify-between mb-1.5">
-                      <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)]">Progresso</label>
-                      <span className="text-[10px] font-black text-[var(--accent-purple)]">
+                      <label className="text-xs font-bold  text-[var(--text-tertiary)]">Progresso</label>
+                      <span className="text-xs font-semibold text-[var(--accent-purple)]">
                         {(infoLocal.paginasLidas as number || 0)}/{infoLocal.totalPaginas} {progressLabels.unit} · {Math.min(100, Math.round(((infoLocal.paginasLidas as number || 0) / (infoLocal.totalPaginas as number)) * 100))}%
                       </span>
                     </div>
@@ -924,35 +860,35 @@ export function BookDetailPage() {
                 {showTechnical && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1.5">{technicalLabels.publisher}</label>
+                      <label className="text-xs font-bold  text-[var(--text-tertiary)] block mb-1.5">{technicalLabels.publisher}</label>
                       <input type="text" value={infoLocal.editora} onChange={e => setInfoLocal(prev => ({ ...prev, editora: e.target.value }))} placeholder={technicalLabels.publisherPlaceholder} className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:opacity-30" />
                     </div>
                     <div>
-                      <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1.5">Ano de Publicação</label>
+                      <label className="text-xs font-bold  text-[var(--text-tertiary)] block mb-1.5">Ano de Publicação</label>
                       <input type="number" value={infoLocal.anoPublicacao} onChange={e => setInfoLocal(prev => ({ ...prev, anoPublicacao: e.target.value }))} placeholder="2024" className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:opacity-30" />
                     </div>
                     {(livro.tipo === 'livro' || livro.tipo === 'manga') && (
                       <div>
-                        <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1.5">ISBN</label>
+                        <label className="text-xs font-bold  text-[var(--text-tertiary)] block mb-1.5">ISBN</label>
                         <input type="text" value={infoLocal.isbn} onChange={e => setInfoLocal(prev => ({ ...prev, isbn: e.target.value }))} placeholder="978-..." className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:opacity-30" />
                       </div>
                     )}
                     <div>
-                      <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1.5">Idioma</label>
+                      <label className="text-xs font-bold  text-[var(--text-tertiary)] block mb-1.5">Idioma</label>
                       <input type="text" value={infoLocal.idioma} onChange={e => setInfoLocal(prev => ({ ...prev, idioma: e.target.value }))} placeholder="Português" className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:opacity-30" />
                     </div>
                     <div>
-                      <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1.5">{technicalLabels.translation}</label>
+                      <label className="text-xs font-bold  text-[var(--text-tertiary)] block mb-1.5">{technicalLabels.translation}</label>
                       <input type="text" value={infoLocal.traducao} onChange={e => setInfoLocal(prev => ({ ...prev, traducao: e.target.value }))} placeholder={technicalLabels.translationPlaceholder} className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:opacity-30" />
                     </div>
                     <div>
-                      <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1.5">{technicalLabels.collection}</label>
+                      <label className="text-xs font-bold  text-[var(--text-tertiary)] block mb-1.5">{technicalLabels.collection}</label>
                       <input type="text" value={infoLocal.serieColecao} onChange={e => setInfoLocal(prev => ({ ...prev, serieColecao: e.target.value }))} placeholder={technicalLabels.collectionPlaceholder} className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:opacity-30" />
                     </div>
                     {(livro.tipo === 'livro' || livro.tipo === 'manga') && (
                       <>
                         <div>
-                          <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1.5">Série ou coleção?</label>
+                          <label className="text-xs font-bold  text-[var(--text-tertiary)] block mb-1.5">Série ou coleção?</label>
                           <select value={infoLocal.colecaoStatus} onChange={e => setInfoLocal(prev => ({ ...prev, colecaoStatus: e.target.value as 'sim' | 'nao', colecaoNome: e.target.value === 'nao' ? '' : prev.colecaoNome }))} className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)]">
                             <option value="nao">Não</option>
                             <option value="sim">Sim</option>
@@ -960,20 +896,20 @@ export function BookDetailPage() {
                         </div>
                         {infoLocal.colecaoStatus === 'sim' && (
                           <div>
-                            <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1.5">Qual coleção?</label>
+                            <label className="text-xs font-bold  text-[var(--text-tertiary)] block mb-1.5">Qual coleção?</label>
                             <input type="text" value={infoLocal.colecaoNome} onChange={e => setInfoLocal(prev => ({ ...prev, colecaoNome: e.target.value, serieColecao: e.target.value }))} placeholder="Ex: Trono de Vidro" className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:opacity-30" />
                           </div>
                         )}
                         <div>
-                          <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1.5">Gênero do autor</label>
+                          <label className="text-xs font-bold  text-[var(--text-tertiary)] block mb-1.5">Gênero do autor</label>
                           <input type="text" value={infoLocal.generoAutor} onChange={e => setInfoLocal(prev => ({ ...prev, generoAutor: e.target.value }))} placeholder="Ex: mulher, homem, não binárie" className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:opacity-30" />
                         </div>
                         <div>
-                          <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1.5">País do autor</label>
+                          <label className="text-xs font-bold  text-[var(--text-tertiary)] block mb-1.5">País do autor</label>
                           <input type="text" value={infoLocal.paisAutor} onChange={e => setInfoLocal(prev => ({ ...prev, paisAutor: e.target.value }))} placeholder="Ex: Nigéria" className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:opacity-30" />
                         </div>
                         <div>
-                          <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1.5">Raça do autor</label>
+                          <label className="text-xs font-bold  text-[var(--text-tertiary)] block mb-1.5">Raça do autor</label>
                           <input type="text" value={infoLocal.racaAutor} onChange={e => setInfoLocal(prev => ({ ...prev, racaAutor: e.target.value }))} placeholder="Como você prefere catalogar" className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:opacity-30" />
                         </div>
                       </>
@@ -994,15 +930,15 @@ export function BookDetailPage() {
                 {showParaVoce && (
                   <div className="space-y-4">
                     <div>
-                      <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1.5">Quem Indicou</label>
+                      <label className="text-xs font-bold  text-[var(--text-tertiary)] block mb-1.5">Quem Indicou</label>
                       <input type="text" value={infoLocal.quemIndicou} onChange={e => setInfoLocal(prev => ({ ...prev, quemIndicou: e.target.value }))} placeholder="Ex: Podcast X, amiga Y..." className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:opacity-30" />
                     </div>
                     <div>
-                      <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1.5">Por que Escolheu</label>
+                      <label className="text-xs font-bold  text-[var(--text-tertiary)] block mb-1.5">Por que Escolheu</label>
                       <textarea value={infoLocal.motivoEscolha} onChange={e => setInfoLocal(prev => ({ ...prev, motivoEscolha: e.target.value }))} rows={3} placeholder="Motivação, contexto..." className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] resize-none placeholder:opacity-30" />
                     </div>
                     <div>
-                      <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-2">Potencial de Conteúdo</label>
+                      <label className="text-xs font-bold  text-[var(--text-tertiary)] block mb-2">Potencial de Conteúdo</label>
                       <div className="flex gap-2">
                         {([1, 2, 3] as const).map(v => (
                           <button
@@ -1031,17 +967,17 @@ export function BookDetailPage() {
                 />
               </section>
 
-              {/* Salvar / Deletar */}
+              {/* Salvar / Remover */}
               <div className="pt-4 border-t border-[var(--border-color)] flex items-center justify-between">
                 <button
-                  onClick={() => setConfirm({ message: `Excluir "${livro.titulo}"? Esta ação é irreversível.`, onConfirm: () => { dispatch({ type: 'DELETE_BOOK', payload: livro.id }); navigate('/biblioteca'); } })}
+                  onClick={() => setConfirm({ message: `Remover "${livro.titulo}" da biblioteca?`, onConfirm: () => { dispatch({ type: 'DELETE_BOOK', payload: livro.id }); navigate('/biblioteca'); } })}
                   className="text-xs font-bold text-[var(--accent-pink)] opacity-50 hover:opacity-100 transition-opacity"
                 >
-                  Excluir item
+                  Remover item
                 </button>
                 <button
                   onClick={handleSalvarInfo}
-                  className="flex items-center gap-2 px-5 py-2.5 bg-[var(--text-primary)] text-[var(--bg-primary)] text-xs font-black uppercase tracking-widest rounded-xl hover:scale-[1.02] active:scale-[0.98] transition-all shadow-md"
+                  className="flex items-center gap-2 px-5 py-2.5 bg-[var(--text-primary)] text-[var(--bg-primary)] text-xs font-semibold  rounded-xl hover:scale-[1.02] active:scale-[0.98] transition-all shadow-md"
                 >
                   <Check className="w-3.5 h-3.5" />
                   {infoSalvo ? 'Salvo!' : 'Salvar'}
@@ -1057,14 +993,14 @@ export function BookDetailPage() {
             <div className="rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-primary)] p-4">
               <div className="flex items-center justify-between gap-4">
                 <div>
-                  <p className="text-[9px] font-semibold uppercase tracking-[0.12em] text-[var(--text-tertiary)]">Nova nota</p>
+                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-tertiary)]">Nova nota</p>
                   <p className="mt-1 text-xs leading-relaxed text-[var(--text-primary)] opacity-65">
                     Abra um composer rapido para registrar uma anotação sem misturar com a lista existente.
                   </p>
                 </div>
                 <button
                   onClick={() => setMobileNoteComposerOpen(true)}
-                  className="flex shrink-0 items-center gap-2 rounded-2xl bg-[var(--text-primary)] px-4 py-3 text-[10px] font-black uppercase tracking-[0.18em] text-[var(--bg-primary)] transition-all hover:scale-[1.02]"
+                  className="flex shrink-0 items-center gap-2 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] bg-[var(--text-primary)] px-4 py-3 text-xs font-semibold  text-[var(--bg-primary)] transition-all hover:scale-[1.02]"
                 >
                   <Plus className="h-4 w-4" />
                   Nova anotação
@@ -1078,7 +1014,7 @@ export function BookDetailPage() {
                 <button
                   key={t}
                   onClick={() => setFiltroTipo(t)}
-                  className={`text-[10px] font-bold px-3 py-1.5 rounded-full border transition-all ${
+                  className={`text-xs font-bold px-3 py-1.5 rounded-full border transition-all ${
                     filtroTipo === t
                       ? 'bg-[var(--text-primary)] text-[var(--bg-secondary)] border-[var(--text-primary)]'
                       : 'bg-transparent text-[var(--text-primary)] border-[var(--border-strong)] opacity-40 hover:opacity-70'
@@ -1092,7 +1028,7 @@ export function BookDetailPage() {
             {/* Lista de anotações */}
             {anotacoesFiltradas.length === 0 ? (
               <div className="text-center py-16">
-                <p className="text-[var(--text-tertiary)] font-bold text-sm uppercase tracking-widest">Nenhuma anotação ainda</p>
+                <p className="text-[var(--text-tertiary)] font-bold text-sm ">Nenhuma anotação ainda</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-3">
@@ -1115,11 +1051,11 @@ export function BookDetailPage() {
         {/* ════ ABA: CONTEÚDOS ════ */}
         {tab === 'conteudos' && (
           <div className="space-y-6 pb-10">
-            {/* Alerta */}
+            {/* Ponto de contexto */}
             {alertaEcossistema && (
-              <div className="flex items-center gap-3 bg-orange-50 border border-orange-200 rounded-2xl px-5 py-4">
+              <div className="flex items-center gap-3 bg-orange-50 border border-orange-200 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] px-5 py-4">
                 <AlertCircle className="w-5 h-5 text-orange-500 shrink-0" />
-                <p className="text-sm text-orange-700 font-medium">Você já concluiu esse {itemTypeLabel.toLowerCase()} mas ainda não postou nenhum conteúdo sobre ele.</p>
+                <p className="text-sm text-orange-700 font-medium">Esse {itemTypeLabel.toLowerCase()} ja foi concluido e ainda pode render conteudo quando fizer sentido.</p>
               </div>
             )}
 
@@ -1131,8 +1067,8 @@ export function BookDetailPage() {
                 { label: 'em produção', value: conteudosDoLivro.filter(c => c.status !== 'Postado' && c.status !== 'Ideia').length },
               ].map(stat => (
                 <div key={stat.label} className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-xl">
-                  <span className="text-sm font-black text-[var(--text-primary)]">{stat.value}</span>
-                  <span className="text-[10px] text-[var(--text-secondary)] opacity-50">{stat.label}</span>
+                  <span className="text-sm font-semibold text-[var(--text-primary)]">{stat.value}</span>
+                  <span className="text-xs text-[var(--text-secondary)] opacity-50">{stat.label}</span>
                 </div>
               ))}
             </div>
@@ -1140,7 +1076,7 @@ export function BookDetailPage() {
             {/* Botão Novo Conteúdo hero */}
             <button
               onClick={handleCriarConteudo}
-              className="w-full flex items-center justify-center gap-2 py-4 bg-[var(--text-primary)] text-[var(--bg-primary)] text-sm font-black uppercase tracking-widest rounded-2xl hover:scale-[1.01] transition-all shadow-md"
+              className="w-full flex items-center justify-center gap-2 py-4 bg-[var(--text-primary)] text-[var(--bg-primary)] text-sm font-semibold  rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] hover:scale-[1.01] transition-all shadow-md"
             >
               <Plus className="w-4 h-4" />
               Novo Conteúdo
@@ -1148,13 +1084,13 @@ export function BookDetailPage() {
 
             {/* Brainstorm CTA */}
             {anotacoesDestaque.length > 0 && (
-              <div className="bg-gradient-to-r from-yellow-50 to-amber-50 border border-yellow-200 rounded-2xl px-5 py-4">
+              <div className="bg-gradient-to-r from-yellow-50 to-amber-50 border border-yellow-200 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] px-5 py-4">
                 <p className="text-sm font-bold text-amber-800 mb-2">
                   ⭐ Você tem {anotacoesDestaque.length} destaque{anotacoesDestaque.length > 1 ? 's' : ''} prontos para virar conteúdo.
                 </p>
                 <button
                   onClick={() => { setBrainstormIdx(0); setBrainstormMode(true); }}
-                  className="text-[10px] font-black uppercase tracking-widest text-amber-700 hover:text-amber-900 transition-colors"
+                  className="text-xs font-semibold  text-amber-700 hover:text-amber-900 transition-colors"
                 >
                   Brainstormar →
                 </button>
@@ -1162,12 +1098,12 @@ export function BookDetailPage() {
             )}
 
             {/* ── Campanhas ── */}
-            <section className="bg-[var(--bg-primary)] rounded-2xl border border-[var(--border-color)] p-5">
+            <section className="bg-[var(--bg-primary)] rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] p-5">
               <div className="flex items-center justify-between mb-4">
                 <span className={SECTION_LABEL + ' mb-0'}>Produção Editorial</span>
                 <button
                   onClick={() => setNovaCampanhaAberta(v => !v)}
-                  className="text-[10px] font-black uppercase tracking-widest text-[var(--accent-blue)] hover:underline"
+                  className="text-xs font-semibold  text-[var(--accent-blue)] hover:underline"
                 >
                   + Nova Produção
                 </button>
@@ -1184,20 +1120,20 @@ export function BookDetailPage() {
                   />
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1">Início</label>
+                      <label className="text-xs font-bold  text-[var(--text-tertiary)] block mb-1">Início</label>
                       <input type="date" value={campForm.dataInicio} onChange={e => setCampForm(p => ({ ...p, dataInicio: e.target.value }))} className="w-full text-sm bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl px-3 py-2 text-[var(--text-primary)]" />
                     </div>
                     <div>
-                      <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1">Fim</label>
+                      <label className="text-xs font-bold  text-[var(--text-tertiary)] block mb-1">Fim</label>
                       <input type="date" value={campForm.dataFim} onChange={e => setCampForm(p => ({ ...p, dataFim: e.target.value }))} className="w-full text-sm bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl px-3 py-2 text-[var(--text-primary)]" />
                     </div>
                   </div>
                   <div>
-                    <label className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] block mb-1">Meta de peças</label>
+                    <label className="text-xs font-bold  text-[var(--text-tertiary)] block mb-1">Meta de peças</label>
                     <input type="number" min={1} value={campForm.metaConteudos} onChange={e => setCampForm(p => ({ ...p, metaConteudos: e.target.value }))} className="w-full text-sm bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl px-3 py-2 text-[var(--text-primary)]" />
                   </div>
                   <div className="flex gap-2">
-                    <button onClick={handleSalvarCampanha} className="flex-1 py-2 bg-[var(--text-primary)] text-[var(--bg-primary)] text-xs font-black uppercase tracking-widest rounded-xl hover:scale-[1.02] transition-all">Salvar</button>
+                    <button onClick={handleSalvarCampanha} className="flex-1 py-2 bg-[var(--text-primary)] text-[var(--bg-primary)] text-xs font-semibold  rounded-xl hover:scale-[1.02] transition-all">Salvar</button>
                     <button onClick={() => setNovaCampanhaAberta(false)} className="px-4 py-2 border border-[var(--border-strong)] text-[var(--text-primary)] opacity-50 text-xs font-bold rounded-xl hover:opacity-80 transition-opacity">Cancelar</button>
                   </div>
                 </div>
@@ -1214,12 +1150,12 @@ export function BookDetailPage() {
                       <div key={camp.id} className="space-y-2">
                         <div className="flex items-center justify-between">
                           <span className="text-sm font-bold text-[var(--text-primary)]">{camp.nome}</span>
-                          <span className="text-[10px] font-black text-[var(--text-tertiary)]">{criados}/{camp.metaConteudos} peças</span>
+                          <span className="text-xs font-semibold text-[var(--text-tertiary)]">{criados}/{camp.metaConteudos} peças</span>
                         </div>
                         <div className="h-2 w-full bg-[var(--bg-hover)] rounded-full overflow-hidden">
                           <div className="h-full bg-[var(--accent-blue)] rounded-full transition-all" style={{ width: `${progresso}%` }} />
                         </div>
-                        <p className="text-[9px] text-[var(--text-tertiary)]">{camp.status}</p>
+                        <p className="text-xs text-[var(--text-tertiary)]">{camp.status}</p>
                       </div>
                     );
                   })}
@@ -1229,8 +1165,8 @@ export function BookDetailPage() {
 
             {/* ── Ideias deste livro ── */}
             {ideiasDeLivro.length > 0 && (
-              <div className="bg-[var(--bg-primary)] rounded-2xl border border-[var(--border-color)] p-5">
-                <h3 className="text-[10px] font-black uppercase tracking-widest text-[var(--text-tertiary)] mb-3">
+              <div className="bg-[var(--bg-primary)] rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] p-5">
+                <h3 className="text-xs font-semibold  text-[var(--text-tertiary)] mb-3">
                   Ideias deste {itemTypeLabel.toLowerCase()} ({ideiasDeLivro.length})
                 </h3>
                 <div className="space-y-2">
@@ -1240,7 +1176,7 @@ export function BookDetailPage() {
                       <p className="text-sm text-[var(--text-primary)] opacity-70 flex-1">{ideia.text}</p>
                       <button
                         onClick={() => handlePromoteIdeia(ideia.id, ideia.text)}
-                        className="text-[10px] font-black uppercase tracking-widest text-[var(--accent-blue)] hover:underline shrink-0"
+                        className="text-xs font-semibold  text-[var(--accent-blue)] hover:underline shrink-0"
                       >
                         → Conteúdo
                       </button>
@@ -1258,7 +1194,7 @@ export function BookDetailPage() {
                     <button
                       key={ag}
                       onClick={() => setEcossistemaAgrupamento(ag)}
-                      className={`text-[10px] font-bold px-3 py-1.5 rounded-lg transition-all capitalize ${
+                      className={`text-xs font-bold px-3 py-1.5 rounded-lg transition-all capitalize ${
                         ecossistemaAgrupamento === ag
                           ? 'bg-[var(--text-primary)] text-[var(--bg-secondary)]'
                           : 'bg-[var(--bg-hover)] text-[var(--text-primary)] opacity-50 hover:opacity-80'
@@ -1274,23 +1210,23 @@ export function BookDetailPage() {
                     ecossistemaAgrupamento === 'slot' ? conteudosPorSlot : conteudosPorPlataforma
                   ) as [string, typeof conteudosDoLivro][]).map(([grupo, conteudos]) => (
                     <div key={grupo}>
-                      <h3 className="text-[10px] font-black uppercase tracking-widest text-[var(--text-tertiary)] mb-3">{grupo}</h3>
+                      <h3 className="text-xs font-semibold  text-[var(--text-tertiary)] mb-3">{grupo}</h3>
                       <div className="space-y-2">
                         {conteudos.map(c => (
                           <button
                             key={c.id}
                             onClick={() => navigate(buildContentDetailRoute(c.id))}
-                            className="w-full flex items-center gap-4 px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-2xl hover:border-[var(--text-primary)]/30 transition-all text-left group"
+                            className="w-full flex items-center gap-4 px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] hover:border-[var(--text-primary)]/30 transition-all text-left group"
                           >
                             <div className="flex-1 min-w-0">
                               <p className="text-sm font-bold text-[var(--text-primary)] line-clamp-2 leading-snug">{c.title}</p>
                               <div className="flex items-center gap-2 mt-1 flex-wrap">
-                                <p className="text-[10px] text-[var(--text-secondary)] opacity-50">{c.pilarId}</p>
-                                {c.publishDate && <p className="text-[9px] text-[var(--text-secondary)] opacity-40">📅 {c.publishDate}</p>}
-                                {c.recordingDate && <p className="text-[9px] text-[var(--text-secondary)] opacity-40">🎙️ {c.recordingDate}</p>}
+                                <p className="text-xs text-[var(--text-secondary)] opacity-50">{c.pilarId}</p>
+                                {c.publishDate && <p className="text-xs text-[var(--text-secondary)] opacity-40">📅 {c.publishDate}</p>}
+                                {c.recordingDate && <p className="text-xs text-[var(--text-secondary)] opacity-40">🎙️ {c.recordingDate}</p>}
                               </div>
                             </div>
-                            <span className={`text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full shrink-0 ${STATUS_CORES[c.status] || 'bg-[var(--bg-hover)] text-[var(--text-primary)]'}`}>
+                            <span className={`text-xs font-semibold  px-2.5 py-1 rounded-full shrink-0 ${STATUS_CORES[c.status] || 'bg-[var(--bg-hover)] text-[var(--text-primary)]'}`}>
                               {c.status}
                             </span>
                           </button>
@@ -1305,14 +1241,14 @@ export function BookDetailPage() {
             {conteudosDoLivro.length === 0 && (
               <div className="text-center py-12">
                 <ItemIcon className="w-10 h-10 text-[var(--text-primary)] opacity-10 mx-auto mb-3" />
-                <p className="text-[var(--text-tertiary)] font-bold text-sm uppercase tracking-widest">
+                <p className="text-[var(--text-tertiary)] font-bold text-sm ">
                   Nenhum conteúdo criado a partir deste {itemTypeLabel.toLowerCase()} ainda
                 </p>
               </div>
             )}
 
             {/* ── Capítulos/Partes cobertos ── */}
-            <section className="bg-[var(--bg-primary)] rounded-2xl border border-[var(--border-color)] p-5">
+            <section className="bg-[var(--bg-primary)] rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] p-5">
               <span className={SECTION_LABEL}>{coverageLabels.section}</span>
               <div className="flex gap-2 mb-4">
                 <input
@@ -1326,7 +1262,7 @@ export function BookDetailPage() {
                 <button
                   onClick={handleAdicionarCapitulo}
                   disabled={!novoCapituloCoberto.trim()}
-                  className="px-4 py-2 bg-[var(--text-primary)] text-[var(--bg-primary)] text-xs font-black rounded-xl disabled:opacity-30 hover:scale-[1.02] transition-all"
+                  className="px-4 py-2 bg-[var(--text-primary)] text-[var(--bg-primary)] text-xs font-semibold rounded-xl disabled:opacity-30 hover:scale-[1.02] transition-all"
                 >
                   Adicionar
                 </button>
@@ -1336,7 +1272,7 @@ export function BookDetailPage() {
               ) : (
                 <div className="flex flex-wrap gap-2">
                   {capitulosCobertos.map((cap: string) => (
-                    <div key={cap} className="flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-full bg-[var(--bg-hover)] text-[var(--text-primary)] border border-[var(--border-color)]">
+                    <div key={cap} className="flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full bg-[var(--bg-hover)] text-[var(--text-primary)] border border-[var(--border-color)]">
                       <span>{cap}</span>
                       <button onClick={() => handleRemoverCapitulo(cap)} className="opacity-40 hover:opacity-100 transition-opacity ml-1">
                         <X className="w-3 h-3" />
@@ -1348,13 +1284,13 @@ export function BookDetailPage() {
             </section>
 
             {/* ── Hashtag Manager ── */}
-            <section className="bg-[var(--bg-primary)] rounded-2xl border border-[var(--border-color)] p-5">
+            <section className="bg-[var(--bg-primary)] rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] p-5">
               <button
                 onClick={() => setHashtagsAberto(v => !v)}
                 className="flex items-center gap-2 w-full text-left"
               >
                 <Hash className="w-4 h-4 text-[var(--text-tertiary)]" />
-                <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-primary)] opacity-50 hover:opacity-80 transition-opacity flex-1">
+                <span className="text-xs font-semibold  text-[var(--text-primary)] opacity-50 hover:opacity-80 transition-opacity flex-1">
                   {hashtagsAberto ? 'Ocultar hashtags sugeridas ▴' : 'Ver hashtags sugeridas ▾'}
                 </span>
               </button>
@@ -1365,7 +1301,7 @@ export function BookDetailPage() {
                       <button
                         key={plat}
                         onClick={() => setHashtagTab(plat)}
-                        className={`text-[10px] font-bold px-3 py-1.5 rounded-lg transition-all ${
+                        className={`text-xs font-bold px-3 py-1.5 rounded-lg transition-all ${
                           hashtagTab === plat
                             ? 'bg-[var(--text-primary)] text-[var(--bg-secondary)]'
                             : 'bg-[var(--bg-hover)] text-[var(--text-primary)] opacity-50 hover:opacity-80'
@@ -1393,21 +1329,21 @@ export function BookDetailPage() {
               )}
             </section>
 
-            {/* ── Performance ── */}
+            {/* ── Resposta do publico ── */}
             {resultadosDoLivro.length > 0 && (
-              <section className="bg-[var(--bg-primary)] rounded-2xl border border-[var(--border-color)] p-5">
+              <section className="bg-[var(--bg-primary)] rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] p-5">
                 <div className="flex items-center gap-2 mb-4">
                   <TrendingUp className="w-4 h-4 text-[var(--accent-green)]" />
-                  <span className={SECTION_LABEL + ' mb-0'}>Performance</span>
+                  <span className={SECTION_LABEL + ' mb-0'}>Resposta do publico</span>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div className="bg-[var(--bg-hover)] rounded-xl p-3">
-                    <p className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] mb-1">Total Views</p>
-                    <p className="text-xl font-black text-[var(--text-primary)]">{totalViews.toLocaleString()}</p>
+                    <p className="text-xs font-bold  text-[var(--text-tertiary)] mb-1">Visualizacoes</p>
+                    <p className="text-xl font-semibold text-[var(--text-primary)]">{totalViews.toLocaleString()}</p>
                   </div>
                   {melhorPorViews && (
                     <div className="bg-[var(--bg-hover)] rounded-xl p-3">
-                      <p className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] mb-1">Melhor Views</p>
+                      <p className="text-xs font-bold  text-[var(--text-tertiary)] mb-1">Mais visto</p>
                       <p className="text-sm font-bold text-[var(--text-primary)] line-clamp-2">
                         {state.contents.find(c => c.id === melhorPorViews.contentId)?.title || '—'}
                       </p>
@@ -1416,7 +1352,7 @@ export function BookDetailPage() {
                   )}
                   {melhorPorSaves && (
                     <div className="bg-[var(--bg-hover)] rounded-xl p-3">
-                      <p className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] mb-1">Mais Saves</p>
+                      <p className="text-xs font-bold  text-[var(--text-tertiary)] mb-1">Mais Saves</p>
                       <p className="text-sm font-bold text-[var(--text-primary)] line-clamp-2">
                         {state.contents.find(c => c.id === melhorPorSaves.contentId)?.title || '—'}
                       </p>
@@ -1429,6 +1365,7 @@ export function BookDetailPage() {
           </div>
         )}
       </div>
+    </PageLayout>
 
       {/* ── Modal Brainstorm ── */}
       <AnimatePresence>
@@ -1437,16 +1374,16 @@ export function BookDetailPage() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50  p-4"
           >
             <motion.div
               initial={{ scale: 0.95, y: 20 }}
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.95, y: 20 }}
-              className="bg-[var(--bg-primary)] rounded-3xl p-8 max-w-lg w-full shadow-2xl"
+              className="bg-[var(--bg-primary)] rounded-[var(--radius-overlay)] p-8 max-w-lg w-full shadow-none"
             >
               <div className="flex items-center justify-between mb-6">
-                <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-tertiary)]">
+                <span className="text-xs font-semibold  text-[var(--text-tertiary)]">
                   Brainstorm — {brainstormIdx + 1}/{anotacoesDestaque.length}
                 </span>
                 <button onClick={() => setBrainstormMode(false)} className="p-2 hover:bg-[var(--bg-hover)] rounded-full transition-colors">
@@ -1459,19 +1396,19 @@ export function BookDetailPage() {
               <div className="flex flex-col sm:flex-row gap-3">
                 <button
                   onClick={() => handleBrainstormConteudo(anotacoesDestaque[brainstormIdx])}
-                  className="flex-1 py-3 bg-[var(--text-primary)] text-[var(--bg-primary)] text-xs font-black uppercase tracking-widest rounded-2xl hover:scale-[1.02] transition-all"
+                  className="flex-1 py-3 bg-[var(--text-primary)] text-[var(--bg-primary)] text-xs font-semibold  rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] hover:scale-[1.02] transition-all"
                 >
                   → Virar Conteúdo
                 </button>
                 <button
                   onClick={() => handleBrainstormIdeia(anotacoesDestaque[brainstormIdx])}
-                  className="flex-1 py-3 border border-[var(--border-strong)] text-[var(--text-primary)] text-xs font-black uppercase tracking-widest rounded-2xl hover:bg-[var(--bg-hover)] transition-all"
+                  className="flex-1 py-3 border border-[var(--border-strong)] text-[var(--text-primary)] text-xs font-semibold  rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] hover:bg-[var(--bg-hover)] transition-all"
                 >
                   → Virar Ideia
                 </button>
                 <button
                   onClick={handleBrainstormPular}
-                  className="py-3 px-4 text-[var(--text-primary)] opacity-40 text-xs font-black uppercase tracking-widest hover:opacity-80 transition-opacity"
+                  className="py-3 px-4 text-[var(--text-primary)] opacity-40 text-xs font-semibold  hover:opacity-80 transition-opacity"
                 >
                   Pular →
                 </button>
@@ -1493,6 +1430,6 @@ export function BookDetailPage() {
         open={mobileNoteComposerOpen}
         onClose={() => setMobileNoteComposerOpen(false)}
       />
-    </div>
+    </>
   );
 }

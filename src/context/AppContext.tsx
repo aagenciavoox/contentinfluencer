@@ -12,8 +12,8 @@ import { getErrorMessage, notifySaveFeedback } from '../lib/saveFeedback';
 import { generateUUID, isUUID } from '../utils/uuid';
 
 const ACTION_SAVE_LABELS: Partial<Record<AppAction['type'], string>> = {
-  UPDATE_CONTENT: 'Conteudo salvo',
-  ADD_CONTENT: 'Conteudo criado',
+  UPDATE_CONTENT: 'Conteúdo salvo',
+  ADD_CONTENT: 'Conteúdo criado',
   UPDATE_IDEA: 'Ideia salva',
   ADD_IDEA: 'Ideia criada',
   UPDATE_AGENDA_ITEM: 'Agenda salva',
@@ -30,6 +30,7 @@ export const AppContext = React.createContext<{
   createContent: (content: db.Content, options?: PersistOptions) => Promise<void>;
   updateContent: (content: db.Content, options?: PersistOptions) => Promise<void>;
   syncFromServer: (options?: { silent?: boolean }) => Promise<void>;
+  ensureDataDomains: (domains: readonly db.AppDataDomain[]) => Promise<void>;
 } | null>(null);
 
 function normalizeContentId(content: db.Content): db.Content {
@@ -65,6 +66,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(appReducer, initialState);
   const stateRef = useRef(state);
   const loadDone = useRef(false);
+  const loadedDomains = useRef(new Set<db.AppDataDomain>());
+  const loadingDomains = useRef(new Map<string, Promise<void>>());
   const { user } = useAuth();
   const realtimeRefreshTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastLocalMutationAt = useRef<number | null>(null);
@@ -97,13 +100,45 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const loadDomains = useCallback(async (
+    domains: readonly db.AppDataDomain[],
+    options?: { force?: boolean; markLoaded?: boolean }
+  ) => {
+    if (!supabase || !user) return;
+    const missingDomains = options?.force
+      ? [...domains]
+      : domains.filter(domain => !loadedDomains.current.has(domain));
+    if (missingDomains.length === 0) return;
+
+    const key = [...missingDomains].sort().join('|');
+    const existing = loadingDomains.current.get(key);
+    if (existing) return existing;
+
+    const loadPromise = import('../lib/database')
+      .then(module => module.fetchDataDomains(missingDomains))
+      .then(data => {
+        dispatch({ type: 'SET_DATA', payload: data });
+        if (options?.markLoaded !== false) {
+          missingDomains.forEach(domain => loadedDomains.current.add(domain));
+        }
+      })
+      .finally(() => {
+        loadingDomains.current.delete(key);
+      });
+
+    loadingDomains.current.set(key, loadPromise);
+    return loadPromise;
+  }, [user]);
+
   const refreshFromServer = useCallback(async (options?: { silent?: boolean }) => {
     if (!supabase || !user) return;
     if (pendingPersistCount.current > 0) return;
 
     try {
-      const data = await import('../lib/database').then(module => module.fetchAllData());
-      dispatch({ type: 'SET_DATA', payload: data });
+      const domains = loadedDomains.current.size > 0
+        ? [...loadedDomains.current]
+        : (await import('../lib/database')).BOOTSTRAP_DATA_DOMAINS;
+      await loadDomains(domains, { force: true });
       dispatch({ type: 'SET_LOADED' });
       loadDone.current = true;
     } catch (err) {
@@ -116,7 +151,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         });
       }
     }
-  }, [user]);
+  }, [loadDomains, user]);
 
   useEffect(() => {
     if (!supabase) {
@@ -125,34 +160,36 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    let done = false;
+    if (!user) {
+      dispatch({ type: 'SET_DATA', payload: {} });
+      loadedDomains.current.clear();
+      loadingDomains.current.clear();
+      dispatch({ type: 'SET_LOADED' });
+      loadDone.current = true;
+      return;
+    }
+
+    let cancelled = false;
 
     async function load() {
-      if (done) return;
-      done = true;
       try {
-        const data = await import('../lib/database').then(module => module.fetchAllData());
-        dispatch({ type: 'SET_DATA', payload: data });
+        const { BOOTSTRAP_DATA_DOMAINS } = await import('../lib/database');
+        await loadDomains(BOOTSTRAP_DATA_DOMAINS);
       } catch (err) {
-        console.error('[DB] fetchAllData failed:', err);
+        console.error('[DB] initial data fetch failed:', err);
       } finally {
+        if (cancelled) return;
         dispatch({ type: 'SET_LOADED' });
         loadDone.current = true;
       }
     }
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (session && ['SIGNED_IN', 'INITIAL_SESSION', 'TOKEN_REFRESHED'].includes(event)) {
-        void load();
-      } else if (event === 'SIGNED_OUT' || (event === 'INITIAL_SESSION' && !session)) {
-        dispatch({ type: 'SET_DATA', payload: {} });
-        dispatch({ type: 'SET_LOADED' });
-        loadDone.current = true;
-      }
-    });
+    void load();
 
-    return () => subscription.unsubscribe();
-  }, []);
+    return () => {
+      cancelled = true;
+    };
+  }, [loadDomains, user]);
 
   useEffect(() => {
     if (!supabase || !user) return;
@@ -228,10 +265,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [refreshFromServer, user]);
 
   const createContent = useCallback(async (content: db.Content, options?: PersistOptions) => {
-    if (!user) throw new Error('Usuário não autenticado');
-    if (!supabase) throw new Error('Supabase não inicializado');
-
     const normalizedContent = normalizeContentId(content);
+
+    if (!user || !supabase) {
+      // Modo local: mantém o estado em memória mesmo sem backend disponível.
+      dispatch({ type: 'ADD_CONTENT', payload: normalizedContent });
+      finishPersist('ADD_CONTENT', options);
+      return;
+    }
 
     if (!options?.silent) {
       notifySaveFeedback({ status: 'saving', message: 'Criando conteudo...' });
@@ -254,10 +295,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [finishPersist, refreshFromServer, runPersist, user]);
 
   const updateContent = useCallback(async (content: db.Content, options?: PersistOptions) => {
-    if (!user) throw new Error('Usuário não autenticado');
-    if (!supabase) throw new Error('Supabase não inicializado');
-
     const normalizedContent = normalizeContentId(content);
+
+    if (!user || !supabase) {
+      // Modo local: mantém o estado em memória mesmo sem backend disponível.
+      dispatch({ type: 'UPDATE_CONTENT', payload: normalizedContent });
+      finishPersist('UPDATE_CONTENT', options);
+      return;
+    }
 
     if (!options?.silent) {
       notifySaveFeedback({ status: 'saving', message: 'Salvando conteudo...' });
@@ -339,7 +384,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     createContent,
     updateContent,
     syncFromServer: refreshFromServer,
-  }), [state, enhancedDispatch, createContent, updateContent, refreshFromServer]);
+    ensureDataDomains: loadDomains,
+  }), [state, enhancedDispatch, createContent, updateContent, refreshFromServer, loadDomains]);
 
   return (
     <AppContext.Provider value={contextValue}>

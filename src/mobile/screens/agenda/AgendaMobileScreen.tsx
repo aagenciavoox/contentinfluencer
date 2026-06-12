@@ -161,7 +161,7 @@ function buildTimelineEntries(contents: Content[], platforms: Platform[], agenda
           title: projeto.nome,
           date: projeto.dataFim,
           projetoId: projeto.id,
-          secondary: 'Prazo final',
+          secondary: 'Data final',
           color: projeto.color,
         });
       }
@@ -287,7 +287,7 @@ export function AgendaMobileScreen({
             >
               <ChevronLeft className="h-4 w-4 text-[var(--text-tertiary)]" />
             </button>
-            <span className="min-w-[120px] text-center text-sm font-black uppercase tracking-wider text-[var(--text-primary)]">
+            <span className="min-w-[120px] text-center text-sm font-semibold uppercase tracking-wider text-[var(--text-primary)]">
               {format(calendarMonth, 'MMM yyyy', {locale: ptBR})}
             </span>
             <button
@@ -314,7 +314,7 @@ export function AgendaMobileScreen({
               type="button"
               onClick={onAddAgenda}
               aria-label="Novo evento"
-              className="flex min-h-11 items-center gap-1.5 rounded-xl bg-[var(--text-primary)] px-4 text-[11px] font-black uppercase tracking-widest text-[var(--bg-primary)] transition-all active:scale-95"
+              className="flex min-h-11 items-center gap-1.5 rounded-xl bg-[var(--text-primary)] px-4 text-xs font-semibold  text-[var(--bg-primary)] transition-all active:scale-95"
             >
               <Plus className="h-4 w-4" />
               Novo
@@ -338,7 +338,7 @@ export function AgendaMobileScreen({
                   )
                 }
                 className={cn(
-                  'flex min-h-11 items-center gap-1.5 rounded-lg border px-3 text-[10px] font-bold whitespace-nowrap transition-all shrink-0',
+                  'flex min-h-11 items-center gap-1.5 rounded-lg border px-3 text-xs font-bold whitespace-nowrap transition-all shrink-0',
                   'cursor-pointer active:scale-95 select-none',
                   active
                     ? 'border-[var(--border-strong)] bg-[var(--bg-hover)] text-[var(--text-primary)]'
@@ -358,7 +358,7 @@ export function AgendaMobileScreen({
         {/* Day-of-week labels */}
         <div className="grid grid-cols-7 border-t border-[var(--border-color)] bg-[var(--bg-hover)]/30">
           {['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map((label, i) => (
-            <div key={i} className="py-1.5 text-center text-[9px] font-black uppercase tracking-widest text-[var(--text-tertiary)] opacity-50">
+            <div key={i} className="py-1.5 text-center text-xs font-semibold  text-[var(--text-tertiary)] opacity-50">
               {label}
             </div>
           ))}
@@ -390,7 +390,7 @@ export function AgendaMobileScreen({
               >
                 <div
                   className={cn(
-                    'flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-black',
+                    'flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold',
                     isSelected && 'bg-[var(--accent-blue)] text-white',
                     isToday && !isSelected && 'bg-[var(--text-primary)] text-[var(--bg-primary)]',
                     !isToday && !isSelected && 'text-[var(--text-primary)]'
@@ -421,14 +421,14 @@ export function AgendaMobileScreen({
         <MobileSearchBar
           value={search}
           onChange={setSearch}
-          placeholder="Buscar evento, gravacao, projeto..."
+          placeholder="Buscar evento, gravação, projeto..."
         />
 
         {/* Context header */}
         <div className="flex items-center justify-between px-1">
           {selectedDate ? (
             <>
-              <p className="text-xs font-black uppercase tracking-widest text-[var(--text-primary)]">
+              <p className="text-xs font-semibold  text-[var(--text-primary)]">
                 {format(selectedDate, "EEEE, dd 'de' MMMM", {locale: ptBR})}
                 <span className="ml-2 font-bold text-[var(--text-tertiary)]">
                   · {filteredEntries.length}
@@ -437,13 +437,13 @@ export function AgendaMobileScreen({
               <button
                 type="button"
                 onClick={() => setSelectedDate(null)}
-                className="text-[10px] font-black uppercase tracking-widest text-[var(--text-tertiary)] transition-all active:opacity-50"
+                className="text-xs font-semibold  text-[var(--text-tertiary)] transition-all active:opacity-50"
               >
                 Ver todos
               </button>
             </>
           ) : (
-            <p className="text-xs font-black uppercase tracking-widest text-[var(--text-tertiary)]">
+            <p className="text-xs font-semibold  text-[var(--text-tertiary)]">
               Proximos 60 dias
               <span className="ml-2 text-[var(--text-primary)]">· {filteredEntries.length}</span>
             </p>
@@ -507,7 +507,7 @@ export function AgendaMobileScreen({
                         }
                         meta={
                           <span
-                            className="rounded-full px-2.5 py-1 text-[11px] font-semibold"
+                            className="rounded-full px-2.5 py-1 text-xs font-semibold"
                             style={{
                               backgroundColor: `${accentColor}18`,
                               color: accentColor,

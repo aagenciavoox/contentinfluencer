@@ -62,7 +62,7 @@ export function ProfileMobileScreen({
     <div className="space-y-5">
       <section className="rounded-[1.75rem] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4 shadow-sm">
         <div className="mb-4 flex items-start gap-3">
-          <div className="rounded-2xl bg-[var(--accent-blue)]/12 p-3 text-[var(--accent-blue)]">
+          <div className="rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] bg-[var(--accent-blue)]/12 p-3 text-[var(--accent-blue)]">
             <UserCircle2 className="h-5 w-5" />
           </div>
           <div className="min-w-0">

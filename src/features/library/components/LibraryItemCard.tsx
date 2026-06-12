@@ -61,7 +61,7 @@ export function LibraryItemCard({
         ) : (
           <div className="flex h-full w-full flex-col items-center justify-center gap-2 p-3">
             <TypeIcon className="h-8 w-8 text-[var(--text-tertiary)]" />
-            <span className="text-center text-[9px] font-bold leading-tight text-[var(--text-tertiary)]">
+            <span className="text-center text-xs font-bold leading-tight text-[var(--text-tertiary)]">
               {item.titulo}
             </span>
           </div>
@@ -116,10 +116,10 @@ export function LibraryItemCard({
         </div>
 
         <div className="pointer-events-none absolute bottom-2 left-2 flex flex-col gap-1 transition-opacity duration-200 group-hover:opacity-0">
-          <span className="rounded-full bg-black/60 px-2 py-0.5 text-[7px] font-black text-white backdrop-blur-sm">
+          <span className="rounded-full bg-black/60 px-2 py-0.5 text-[7px] font-semibold text-white ">
             {typeConfig.label}
           </span>
-          <span className={`rounded-full px-2 py-0.5 text-[8px] font-black ${statusClassName}`}>
+          <span className={`rounded-full px-2 py-0.5 text-[8px] font-semibold ${statusClassName}`}>
             {item.status}
           </span>
         </div>
@@ -130,7 +130,7 @@ export function LibraryItemCard({
             event.stopPropagation();
             onTogglePrimary();
           }}
-          className={`absolute right-2 top-2 inline-flex items-center gap-1 rounded-full px-2 py-1 text-[8px] font-black uppercase tracking-[0.15em] opacity-0 backdrop-blur-sm transition-all group-hover:opacity-100 ${
+          className={`absolute right-2 top-2 inline-flex items-center gap-1 rounded-full px-2 py-1 text-[8px] font-semibold uppercase tracking-[0.15em] opacity-0  transition-all group-hover:opacity-100 ${
             isPrimaryMobileBook
               ? 'bg-[var(--text-primary)] text-[var(--bg-primary)]'
               : 'bg-black/60 text-white hover:bg-black/80'
@@ -141,7 +141,7 @@ export function LibraryItemCard({
         </button>
 
         {contentsCount > 0 ? (
-          <div className="absolute right-2 top-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--text-primary)] px-1 text-[9px] font-black text-[var(--bg-primary)] transition-all group-hover:top-9">
+          <div className="absolute right-2 top-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--text-primary)] px-1 text-xs font-semibold text-[var(--bg-primary)] transition-all group-hover:top-9">
             {contentsCount}
           </div>
         ) : null}
@@ -152,7 +152,7 @@ export function LibraryItemCard({
         onClick={onOpen}
         className="text-left"
       >
-        <p className="mb-0.5 line-clamp-2 text-[10px] font-semibold leading-tight text-[var(--text-primary)] transition-colors group-hover:text-[var(--accent-blue)]">
+        <p className="mb-0.5 line-clamp-2 text-xs font-semibold leading-tight text-[var(--text-primary)] transition-colors group-hover:text-[var(--accent-blue)]">
           {item.titulo}
         </p>
         <p className="truncate text-[8px] text-[var(--text-secondary)]">
@@ -169,7 +169,7 @@ export function LibraryItemCard({
           </div>
         ) : null}
         {isWishlistStatus(item.status) && item.potencialConteudo ? (
-          <div className="mt-1 text-[10px] text-[var(--text-secondary)]">
+          <div className="mt-1 text-xs text-[var(--text-secondary)]">
             Potencial {item.potencialConteudo}/3
           </div>
         ) : null}

@@ -1,23 +1,27 @@
-import {useEffect, useState} from 'react';
+import {useEffect, useState, type ReactNode} from 'react';
 import {useNavigate, useSearchParams} from 'react-router-dom';
-import {Plus, Video} from 'lucide-react';
+import {Layers3, Video} from 'lucide-react';
 import {useAppContext} from '../../../context/AppContext';
 import {useAuth} from '../../../context/AuthContext';
 import {useIsMobile} from '../../../hooks/useIsMobile';
 import type {RecordingBlock, RecordingBlockContent} from '../../../lib/database';
 import {buildContentDetailRoute} from '../../contents/lib/contentDetailRoute';
 import {getRecordingQueueContents} from '../../contents/lib/contentWorkflow';
-import {cn, getEntityTagStyle} from '../../../lib/utils';
+import {cn} from '../../../lib/utils';
 import {DesktopPageHeader} from '../../../layouts/page/DesktopPageHeader';
+import {PageLayout} from '../../../layouts/page/PageLayout';
 import {RecordingMobileScreen} from '../../../mobile/screens/recording/RecordingMobileScreen';
+import {RecordingQueueGrid} from '../components/desktop/RecordingQueueGrid';
 import {RecordingQueueTab} from '../components/desktop/RecordingQueueTab';
+import {RecordingSelectionBar} from '../components/desktop/RecordingSelectionBar';
 import {FilterBar} from '../../../components/ui/FilterBar';
 import {normalizeRecordingTags} from '../lib/recordingWorkflow';
+import {generateUUID} from '../../../utils/uuid';
 
 type RecordingPageTab = 'queue' | 'blocks';
 
 function resolveRecordingTab(tab: string | null): RecordingPageTab {
-  return tab === 'queue' ? 'queue' : 'blocks';
+  return tab === 'blocks' ? 'blocks' : 'queue';
 }
 
 export function RecordingPage() {
@@ -38,7 +42,7 @@ export function RecordingPage() {
   const [filterEnergia, setFilterEnergia] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [sortValue, setSortValue] = useState('recentes');
-  const [blockTagsInput, setBlockTagsInput] = useState('');
+  const [blockTags, setBlockTags] = useState<string[]>([]);
 
   const openContentDetail = (contentId: string) => navigate(buildContentDetailRoute(contentId, 'gravacao'));
 
@@ -57,13 +61,15 @@ export function RecordingPage() {
     }, {replace: true});
   };
 
+  const queueContents = getRecordingQueueContents(state.contents, state.recordingBlocks);
+
   const availableRecordingTags = Array.from(
     new Set(
-      getRecordingQueueContents(state.contents).flatMap(content => normalizeRecordingTags(content.tags || []))
+      queueContents.flatMap(content => normalizeRecordingTags(content.tags || []))
     )
   ).sort((left, right) => left.localeCompare(right, 'pt-BR'));
 
-  const prontos = [...getRecordingQueueContents(state.contents)]
+  const prontos = [...queueContents]
     .filter(content => {
       if (filterPilar && content.pilarId !== filterPilar) return false;
       if (filterSerie && content.seriesId !== filterSerie) return false;
@@ -109,17 +115,33 @@ export function RecordingPage() {
     });
   };
 
-  const handleCriarBloco = () => {
+  const handleSelectAll = () => {
+    const allSelected = prontos.length > 0 && prontos.every(content => selectedIds.has(content.id));
+    if (allSelected) {
+      setSelectedIds(new Set());
+      return;
+    }
+    setSelectedIds(new Set(prontos.map(content => content.id)));
+  };
+
+  const handleClearSelection = () => {
+    setSelectedIds(new Set());
+    setBlockName('');
+    setBlockTags([]);
+    setShowBlockForm(false);
+  };
+
+  const handleCriarBloco = async () => {
     if (!blockName.trim() || selectedIds.size === 0) return;
 
     const orderedSelectedContents = prontos.filter(content => selectedIds.has(content.id));
-    const manualTags = blockTagsInput.split(/[,\n]/).map(tag => tag.trim()).filter(Boolean);
+    const manualTags = blockTags.map(tag => tag.trim()).filter(Boolean);
     const recordingTags = normalizeRecordingTags(
       manualTags.length > 0 ? manualTags : orderedSelectedContents.flatMap(content => content.tags || [])
     );
 
     const block: RecordingBlock = {
-      id: crypto.randomUUID(),
+      id: generateUUID(),
       userId: user?.id || '',
       name: blockName.trim(),
       lookLabel: null,
@@ -139,26 +161,14 @@ export function RecordingPage() {
       gravado: false,
     }));
 
-    dispatch({type: 'ADD_RECORDING_BLOCK', payload: block});
-    dispatch({type: 'UPDATE_BLOCK_CONTENTS', payload: {blockId: block.id, contents: blockContents}});
+    await dispatch({type: 'ADD_RECORDING_BLOCK', payload: block});
+    await dispatch({type: 'UPDATE_BLOCK_CONTENTS', payload: {blockId: block.id, contents: blockContents}});
 
-    setSelectedIds(new Set());
-    setBlockName('');
-    setBlockTagsInput('');
-    setShowBlockForm(false);
+    handleClearSelection();
     handleTabChange('blocks');
   };
 
-  const getPilarNome = (pilarId: string | null) =>
-    state.pilares.find(pilar => pilar.id === pilarId)?.nome || '';
-
-  const getPilar = (pilarId: string | null) =>
-    state.pilares.find(pilar => pilar.id === pilarId) || null;
-
-  const getSerie = (serieId: string | null) =>
-    state.series.find(serie => serie.id === serieId) || null;
-
-  const handleCreateBlockFromMobile = ({
+  const handleCreateBlockFromMobile = async ({
     name,
     contentIds,
     tagsText,
@@ -178,7 +188,7 @@ export function RecordingPage() {
     );
 
     const block: RecordingBlock = {
-      id: crypto.randomUUID(),
+      id: generateUUID(),
       userId: user?.id || '',
       name: name.trim(),
       lookLabel: null,
@@ -198,20 +208,22 @@ export function RecordingPage() {
       gravado: false,
     }));
 
-    dispatch({type: 'ADD_RECORDING_BLOCK', payload: block});
-    dispatch({type: 'UPDATE_BLOCK_CONTENTS', payload: {blockId: block.id, contents: blockContents}});
+    await dispatch({type: 'ADD_RECORDING_BLOCK', payload: block});
+    await dispatch({type: 'UPDATE_BLOCK_CONTENTS', payload: {blockId: block.id, contents: blockContents}});
   };
 
   if (isMobile) {
     return (
       <div className="min-h-full bg-[var(--bg-primary)]">
         <RecordingMobileScreen
-          readyContents={getRecordingQueueContents(state.contents)}
+          readyContents={queueContents}
           recordingBlocks={state.recordingBlocks}
           allContents={state.contents}
           pilares={state.pilares}
           series={state.series}
           availableTags={availableRecordingTags}
+          activeTab={activeTab}
+          onTabChange={handleTabChange}
           onCreateBlock={handleCreateBlockFromMobile}
           onOpenBlock={(blockId) => navigate(`/gravacao/${blockId}?tab=blocks`)}
           onOpenContent={(contentId) => openContentDetail(contentId)}
@@ -221,19 +233,18 @@ export function RecordingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[var(--bg-secondary)]">
-      <header className="desktop-header-sticky transition-colors duration-300">
-        <div className="desktop-header-frame">
-          <DesktopPageHeader
-            section="Produção"
-            title="Gravação"
-            icon={Video}
-            className="mb-0"
-          />
-        </div>
-      </header>
-
-      <div className="desktop-content-frame space-y-8">
+    <PageLayout
+      variant="settings"
+      contentClassName="space-y-8"
+      header={
+        <DesktopPageHeader
+          section="Produção"
+          title="Gravação"
+          icon={Video}
+          className="mb-0"
+        />
+      }
+    >
         <div
           role="tablist"
           aria-label="Areas de gravacao"
@@ -271,7 +282,13 @@ export function RecordingPage() {
         </div>
 
         {activeTab === 'queue' ? (
-          <section className="space-y-6">
+          <section className={cn('space-y-6', selectedIds.size > 0 && 'pb-28')}>
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-3 md:max-w-2xl">
+              <StatCard label="Sem bloco" value={String(prontos.length)} />
+              <StatCard label="Selecionados" value={String(selectedIds.size)} />
+              <StatCard label="Blocos montados" value={String(state.recordingBlocks.length)} className="col-span-2 md:col-span-1" />
+            </div>
+
             <FilterBar
               searchValue={searchTerm}
               onSearchChange={setSearchTerm}
@@ -330,166 +347,88 @@ export function RecordingPage() {
               ]}
             />
 
-            <div className="space-y-2">
-              <h2 className="text-[11px] font-black uppercase tracking-widest opacity-40">
-                Conteudos sem bloco
-                {prontos.length > 0 && <span className="ml-2 opacity-70">({prontos.length})</span>}
-              </h2>
+            <div className="space-y-1">
+              <h2 className="text-sm font-semibold text-[var(--text-primary)]">Grade de roteiros prontos</h2>
               <p className="text-sm text-[var(--text-secondary)]">
-                Selecione os conteudos disponiveis e monte um bloco. Quando criar, ele aparece na aba `Blocos`.
+                Clique no card para selecionar. Use o icone de link para abrir o detalhe sem sair da selecao.
               </p>
             </div>
 
-            {prontos.length === 0 ? (
-              <div className="py-12 text-center">
-                <Video className="mx-auto mb-3 h-10 w-10 opacity-10" />
-                <p className="text-sm font-black uppercase tracking-widest opacity-30">
-                  Nenhum conteudo sem bloco
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {prontos.map(content => (
-                  <div
-                    key={content.id}
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => openContentDetail(content.id)}
-                    onKeyDown={event => {
-                      if (event.key === 'Enter' || event.key === ' ') {
-                        event.preventDefault();
-                        openContentDetail(content.id);
-                      }
-                    }}
-                    className={cn(
-                      'flex w-full items-center gap-4 rounded-2xl border px-5 py-4 text-left transition-all',
-                      selectedIds.has(content.id)
-                        ? 'border-[var(--text-primary)] bg-[var(--bg-hover)]'
-                        : 'border-[var(--border-color)] bg-[var(--bg-primary)] hover:border-[var(--text-primary)]/30'
-                    )}
-                  >
-                    <div
-                      className="shrink-0"
-                    >
-                      <button
-                        type="button"
-                        onClick={event => {
-                          event.stopPropagation();
-                          toggleSelect(content.id);
-                        }}
-                        className={cn(
-                          'flex h-5 w-5 items-center justify-center rounded-md border-2 transition-all',
-                          selectedIds.has(content.id)
-                            ? 'border-[var(--text-primary)] bg-[var(--text-primary)]'
-                            : 'border-[var(--border-color)] bg-[var(--bg-primary)]'
-                        )}
-                        aria-label={selectedIds.has(content.id) ? 'Remover da selecao' : 'Selecionar para bloco'}
-                      >
-                        {selectedIds.has(content.id) ? (
-                          <div className="h-2 w-2 rounded-sm bg-[var(--bg-primary)]" />
-                        ) : null}
-                      </button>
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-black text-[var(--text-primary)]">
-                        {content.title || '(sem titulo)'}
-                      </p>
-                      <div className="mt-0.5 flex flex-wrap gap-3">
-                        {content.pilarId && (
-                          <span
-                            className="rounded-full border px-2 py-0.5 text-[10px] font-bold"
-                            style={getEntityTagStyle(getPilar(content.pilarId)?.cor)}
-                          >
-                            {getPilarNome(content.pilarId)}
-                          </span>
-                        )}
-                        {content.seriesId && getSerie(content.seriesId)?.name && (
-                          <span
-                            className="rounded-full border px-2 py-0.5 text-[10px] font-bold"
-                            style={getEntityTagStyle(getSerie(content.seriesId)?.cor)}
-                          >
-                            {getSerie(content.seriesId)?.name}
-                          </span>
-                        )}
-                        {content.energiaNecessaria && (
-                          <span className="text-[10px] font-bold capitalize opacity-40">
-                            {`⚡ ${content.energiaNecessaria}`}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <span className="rounded-full bg-[var(--bg-hover)] px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-[var(--text-secondary)]">
-                      Abrir detalhe
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
+            <RecordingQueueGrid
+              contents={prontos}
+              selectedIds={selectedIds}
+              onToggleSelect={toggleSelect}
+              onSelectAll={handleSelectAll}
+              onClearSelection={handleClearSelection}
+              onOpen={openContentDetail}
+            />
 
-            {selectedIds.size > 0 && (
-              <div className="mt-4">
-                {showBlockForm ? (
-                  <div className="flex gap-3">
-                    <input
-                      autoFocus
-                      value={blockName}
-                      onChange={event => setBlockName(event.target.value)}
-                      onKeyDown={event => event.key === 'Enter' && handleCriarBloco()}
-                      placeholder={`Nome do bloco (${selectedIds.size} selecionados)`}
-                      className="flex-1 rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] placeholder:opacity-30 focus:outline-none focus:border-[var(--text-primary)]/40"
-                    />
-                    <input
-                      value={blockTagsInput}
-                      onChange={event => setBlockTagsInput(event.target.value)}
-                      placeholder="Marcadores: roupa preta, estante, caneca"
-                      className="flex-[1.2] rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] placeholder:opacity-30 focus:outline-none focus:border-[var(--text-primary)]/40"
-                    />
-                    <button
-                      onClick={handleCriarBloco}
-                      disabled={!blockName.trim()}
-                      className="rounded-xl bg-[var(--text-primary)] px-6 py-3 text-[11px] font-black uppercase tracking-widest text-[var(--bg-primary)] hover:opacity-90 disabled:opacity-30"
-                    >
-                      Criar
-                    </button>
-                    <button
-                      onClick={() => {
-                        setShowBlockForm(false);
-                        setBlockTagsInput('');
-                      }}
-                      className="rounded-xl border border-[var(--border-color)] px-4 py-3 text-[11px] font-black uppercase tracking-widest opacity-50 hover:opacity-80"
-                    >
-                      Cancelar
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => setShowBlockForm(true)}
-                    className="flex items-center gap-2 rounded-2xl bg-[var(--text-primary)] px-6 py-3 text-[11px] font-black uppercase tracking-widest text-[var(--bg-primary)] transition-opacity hover:opacity-90"
-                  >
-                    <Plus className="h-4 w-4" />
-                    {`Criar bloco (${selectedIds.size})`}
-                  </button>
-                )}
-              </div>
-            )}
+            <RecordingSelectionBar
+              selectedCount={selectedIds.size}
+              blockName={blockName}
+              blockTags={blockTags}
+              availableTags={availableRecordingTags}
+              showBlockForm={showBlockForm}
+              canCreate={Boolean(blockName.trim())}
+              onBlockNameChange={setBlockName}
+              onBlockTagsChange={setBlockTags}
+              onShowForm={() => setShowBlockForm(true)}
+              onHideForm={() => {
+                setShowBlockForm(false);
+                setBlockTags([]);
+              }}
+              onCreate={handleCriarBloco}
+              onClearSelection={handleClearSelection}
+            />
           </section>
         ) : (
-          <section className="space-y-4">
-            <div>
-              <h2 className="text-[11px] font-black uppercase tracking-widest opacity-40">
-                Blocos de gravacao
-              </h2>
-              <p className="mt-2 text-sm text-[var(--text-secondary)]">
-                Aqui ficam os blocos montados para revisar lineup, validar os roteiros e iniciar o modo explosao.
+          <section className="space-y-6">
+            <div className="grid grid-cols-2 gap-3 md:max-w-md">
+              <StatCard label="Blocos" value={String(state.recordingBlocks.length)} icon={<Layers3 className="h-4 w-4" />} />
+              <StatCard
+                label="Roteiros sem bloco"
+                value={String(queueContents.length)}
+                icon={<Video className="h-4 w-4" />}
+              />
+            </div>
+
+            <div className="space-y-1">
+              <h2 className="text-sm font-semibold text-[var(--text-primary)]">Blocos de gravacao</h2>
+              <p className="text-sm text-[var(--text-secondary)]">
+                Clique em um bloco para editar lineup, marcadores e teleprompter antes de gravar.
               </p>
             </div>
 
             <RecordingQueueTab />
           </section>
         )}
-      </div>
-    </div>
+    </PageLayout>
   );
 }
 
-
+function StatCard({
+  label,
+  value,
+  icon,
+  className,
+}: {
+  label: string;
+  value: string;
+  icon?: ReactNode;
+  className?: string;
+}) {
+  return (
+    <div
+      className={cn(
+        'rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-3',
+        className
+      )}
+    >
+      <div className="flex items-center gap-2 text-[var(--text-tertiary)]">
+        {icon}
+        <p className="text-xs font-semibold uppercase tracking-[0.14em]">{label}</p>
+      </div>
+      <p className="mt-1 text-2xl font-semibold text-[var(--text-primary)]">{value}</p>
+    </div>
+  );
+}

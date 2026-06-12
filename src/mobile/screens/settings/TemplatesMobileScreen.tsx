@@ -4,6 +4,7 @@ import type {Platform, Serie, Template} from '../../../lib/database';
 import {MobileEmptyState} from '../../components/MobileEmptyState';
 import {MobileListCard} from '../../components/MobileListCard';
 import {Layout, Plus} from 'lucide-react';
+import {generateUUID} from '../../../utils/uuid';
 
 type TemplateTypeFilter = 'roteiro' | 'legenda' | 'outro';
 
@@ -32,7 +33,7 @@ export function TemplatesMobileScreen({
     if (!name.trim()) return;
 
     onCreate({
-      id: crypto.randomUUID(),
+      id: generateUUID(),
       userId: '',
       nome: name.trim(),
       type,
@@ -55,7 +56,7 @@ export function TemplatesMobileScreen({
     <div className="space-y-5">
       <section className="rounded-[1.75rem] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4 shadow-sm">
         <div className="mb-4 flex items-center gap-3">
-          <div className="rounded-2xl bg-[var(--accent-blue)]/12 p-3 text-[var(--accent-blue)]">
+          <div className="rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] bg-[var(--accent-blue)]/12 p-3 text-[var(--accent-blue)]">
             <Layout className="h-5 w-5" />
           </div>
           <div>
@@ -90,16 +91,16 @@ export function TemplatesMobileScreen({
                   description={`${template.estrutura.length} blocos estruturados`}
                   meta={
                     <>
-                      <span className="rounded-full bg-[var(--bg-hover)] px-3 py-1 text-[11px] font-semibold text-[var(--text-secondary)]">
+                      <span className="rounded-full bg-[var(--bg-hover)] px-3 py-1 text-xs font-semibold text-[var(--text-secondary)]">
                         {template.type || 'roteiro'}
                       </span>
                       {serie ? (
-                        <span className="rounded-full bg-[var(--accent-purple)]/10 px-3 py-1 text-[11px] font-semibold text-[var(--accent-purple)]">
+                        <span className="rounded-full bg-[var(--accent-purple)]/10 px-3 py-1 text-xs font-semibold text-[var(--accent-purple)]">
                           {serie.name}
                         </span>
                       ) : null}
                       {platform ? (
-                        <span className="rounded-full bg-[var(--accent-green)]/10 px-3 py-1 text-[11px] font-semibold text-[var(--accent-green)]">
+                        <span className="rounded-full bg-[var(--accent-green)]/10 px-3 py-1 text-xs font-semibold text-[var(--accent-green)]">
                           {platform.nome}
                         </span>
                       ) : null}
@@ -112,7 +113,7 @@ export function TemplatesMobileScreen({
                         event.stopPropagation();
                         onDelete(template.id);
                       }}
-                      className="rounded-full bg-[var(--accent-pink)]/10 px-3 py-2 text-[11px] font-black uppercase tracking-[0.14em] text-[var(--accent-pink)]"
+                      className="rounded-full bg-[var(--accent-pink)]/10 px-3 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--accent-pink)]"
                     >
                       Excluir
                     </button>
@@ -169,7 +170,7 @@ export function TemplatesMobileScreen({
             <button
               type="button"
               onClick={() => setShowForm(false)}
-              className="flex-1 rounded-[1.25rem] border border-[var(--border-color)] py-3 text-xs font-black uppercase tracking-widest text-[var(--text-secondary)]"
+              className="flex-1 rounded-[1.25rem] border border-[var(--border-color)] py-3 text-xs font-semibold  text-[var(--text-secondary)]"
             >
               Cancelar
             </button>

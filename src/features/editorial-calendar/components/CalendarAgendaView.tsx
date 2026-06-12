@@ -140,17 +140,17 @@ export function CalendarAgendaView({
         const gridDays = eachDayOfInterval({ start: startDate, end: endDate });
 
         return (
-          <div key={mIdx} className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-[2rem] overflow-hidden shadow-xl shadow-black/5 animate-in zoom-in-95 duration-500">
+          <div key={mIdx} className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-[var(--radius-card-mobile)] overflow-hidden shadow-xl shadow-black/5 animate-in zoom-in-95 duration-500">
             <div className="p-4 md:p-6 border-b border-[var(--border-color)] flex items-center justify-center bg-[var(--bg-primary)]">
                <CalendarIcon className="w-4 h-4 text-[var(--accent-blue)] mr-2" />
-               <h2 className="text-sm font-black uppercase tracking-[0.2em] text-[var(--text-primary)]">
+               <h2 className="text-sm font-semibold uppercase tracking-[0.2em] text-[var(--text-primary)]">
                  {format(month.date, 'MMMM yyyy', { locale: ptBR })}
                </h2>
             </div>
             
             <div className="grid grid-cols-7 border-b border-[var(--border-color)] bg-[var(--bg-hover)]/30">
               {['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'].map(d => (
-                <div key={d} className="py-3 text-center text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-tertiary)]">
+                <div key={d} className="py-3 text-center text-xs font-semibold uppercase tracking-[0.2em] text-[var(--text-tertiary)]">
                   {d}
                 </div>
               ))}
@@ -175,7 +175,7 @@ export function CalendarAgendaView({
                   >
                     <div className="w-full flex justify-center mb-1 mt-1">
                       <span className={cn(
-                        "text-[12px] font-black w-6 h-6 flex items-center justify-center rounded-full transition-all",
+                        "text-[12px] font-semibold w-6 h-6 flex items-center justify-center rounded-full transition-all",
                         activeToday ? "bg-[var(--accent-blue)] text-white shadow-lg" : "text-[var(--text-primary)]"
                       )}>
                         {format(day, 'd')}
@@ -213,14 +213,14 @@ export function CalendarAgendaView({
 
       {/* Popover de eventos do dia (Mobile) */}
       {selectedDayItems && (
-        <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm"
+        <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/60 "
              onClick={() => setSelectedDayItems(null)}>
-          <div className="bg-[var(--bg-primary)] w-full sm:max-w-md rounded-t-[2rem] sm:rounded-[2rem] p-6 shadow-2xl animate-in slide-in-from-bottom flex flex-col max-h-[80vh]"
+          <div className="bg-[var(--bg-primary)] w-full sm:max-w-md rounded-t-[2rem] sm:rounded-[var(--radius-card-mobile)] p-6 shadow-none animate-in slide-in-from-bottom flex flex-col max-h-[80vh]"
                onClick={e => e.stopPropagation()}>
             <div className="flex justify-between items-center mb-6 px-2">
               <div>
-                <h3 className="text-lg font-black text-[var(--text-primary)]">{format(selectedDayItems.date, "dd 'de' MMMM", { locale: ptBR })}</h3>
-                <p className="text-[10px] font-black uppercase text-[var(--text-tertiary)] tracking-widest">{selectedDayItems.items.length} EVENTOS</p>
+                <h3 className="text-lg font-semibold text-[var(--text-primary)]">{format(selectedDayItems.date, "dd 'de' MMMM", { locale: ptBR })}</h3>
+                <p className="text-xs font-semibold uppercase text-[var(--text-tertiary)] tracking-widest">{selectedDayItems.items.length} EVENTOS</p>
               </div>
               <button onClick={() => setSelectedDayItems(null)} className="p-2 bg-[var(--bg-hover)] rounded-full">
                  <span className="text-xl leading-none">×</span>
@@ -232,7 +232,7 @@ export function CalendarAgendaView({
                   key={idx}
                   onClick={() => { setSelectedDayItems(null); item.__type !== 'external' && onSelectContent(item); }}
                   className={cn(
-                    "w-full text-left p-3 rounded-2xl border flex items-center justify-between shadow-sm relative",
+                    "w-full text-left p-3 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border flex items-center justify-between shadow-sm relative",
                      item.__type === 'recording' ? "bg-[#f9731610] border-[#f9731630]" :
                      item.__type === 'post' ? "bg-[#3b82f610] border-[#3b82f630]" :
                      item.__type === 'partnership' ? "bg-[#f59e0b10] border-[#f59e0b30]" : "bg-[#a855f710] border-[#a855f730]"
@@ -245,7 +245,7 @@ export function CalendarAgendaView({
                     {item.__type === 'external' && <CalendarIcon className="w-5 h-5 text-purple-500" />}
                     <div>
                       <p className="font-bold text-sm text-[var(--text-primary)] truncate text-left max-w-[200px]">{item.title || item.description || item.text}</p>
-                      <p className="text-[9px] font-black uppercase tracking-widest opacity-60 text-[var(--text-tertiary)] text-left mt-0.5">
+                      <p className="text-xs font-semibold  opacity-60 text-[var(--text-tertiary)] text-left mt-0.5">
                         {item.__type === 'recording' ? 'Gravação' : item.__type === 'post' ? 'Postagem' : item.__type === 'partnership' ? 'Publicidade' : 'Evento'}
                       </p>
                     </div>

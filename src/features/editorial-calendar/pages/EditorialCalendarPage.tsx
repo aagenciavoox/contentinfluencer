@@ -2,8 +2,9 @@ import {useCallback, useEffect, useMemo, useState} from 'react';
 import {useNavigate} from 'react-router-dom';
 import {addMonths, addWeeks, eachDayOfInterval, endOfWeek, format, isSameDay, startOfWeek, subMonths, subWeeks} from 'date-fns';
 import {ptBR} from 'date-fns/locale';
-import {BookOpen, CalendarDays, ChevronLeft, ChevronRight, Mic2, PanelRight, Plus, Radio, Send, Target, X, Zap} from 'lucide-react';
+import {BookOpen, CalendarDays, ChevronLeft, ChevronRight, Clock, Mic2, PanelRight, Plus, Radio, Send, Target, X, Zap} from 'lucide-react';
 import {AppButton} from '../../../components/ui/AppButton';
+import {PageLayout} from '../../../layouts/page/PageLayout';
 import {BottomSheetModal} from '../../../components/feedback/modals/BottomSheetModal';
 import {useAppContext} from '../../../context/AppContext';
 import {AgendaItem, Content, Platform, Projeto} from '../../../lib/database';
@@ -15,6 +16,9 @@ import {CONTENT_STATUS, ContentStage, getContentStage} from '../../contents/lib/
 import {buildContentDetailRoute} from '../../contents/lib/contentDetailRoute';
 import {createContentDraft} from '../../contents/lib/createContentDraft';
 import {buildCalendarEntries, CalendarEntry, MonthlyCalendarView} from '../components/MonthlyCalendarView';
+import {PostingTimeSuggestions} from '../../settings/components/PostingTimeSuggestions';
+import {getPostingTimes} from '../../settings/lib/postingTimes';
+import {generateUUID} from '../../../utils/uuid';
 
 const STORAGE_KEY = 'content-os:calendar-layers';
 const PANEL_STORAGE_KEY = 'content-os:calendar-day-panel';
@@ -169,7 +173,7 @@ export function EditorialCalendarPage() {
   }
 
   return (
-    <div className="min-h-full bg-[var(--bg-primary)] transition-colors duration-200">
+    <PageLayout contentWidth="full" className="min-h-full" contentClassName="!px-0 !py-0">
       <div className="h-[calc(100vh-64px)] overflow-y-auto custom-scrollbar">
         <div className="mx-auto max-w-[1760px] px-5 py-4 md:px-8">
           <div
@@ -192,6 +196,7 @@ export function EditorialCalendarPage() {
                 onToggleDayPanel={() => setDayPanelOpen(!dayPanelOpen)}
                 onAddAgenda={() => setIsAddAgendaOpen(true)}
                 onAddPostedVideo={() => setIsAddPostedVideoOpen(true)}
+                onNavigateHorarios={() => navigate('/configuracoes/horarios')}
                 onPrevMonth={() => {
                   setCurrentMonth(date => viewMode === 'week' ? subWeeks(date, 1) : subMonths(date, 1));
                   if (viewMode === 'week') setSelectedDate(date => subWeeks(date, 1));
@@ -341,7 +346,7 @@ export function EditorialCalendarPage() {
           />
         ) : null}
       </BottomSheetModal>
-    </div>
+    </PageLayout>
   );
 }
 
@@ -358,6 +363,7 @@ function CalendarCommandBar({
   onToggleDayPanel,
   onAddAgenda,
   onAddPostedVideo,
+  onNavigateHorarios,
   onPrevMonth,
   onNextMonth,
 }: {
@@ -373,6 +379,7 @@ function CalendarCommandBar({
   onToggleDayPanel: () => void;
   onAddAgenda: () => void;
   onAddPostedVideo: () => void;
+  onNavigateHorarios: () => void;
   onPrevMonth: () => void;
   onNextMonth: () => void;
 }) {
@@ -434,12 +441,20 @@ function CalendarCommandBar({
         onChange={event => onSortChange(event.target.value)}
         className="h-8 min-w-[110px]"
       >
-        <option value="proximos">Proximos</option>
-        <option value="titulo:asc">Titulo A-Z</option>
+        <option value="proximos">Próximos</option>
+        <option value="titulo:asc">Título A-Z</option>
         <option value="tipo:asc">Tipo</option>
       </select>
 
       <div className="ml-auto flex items-center gap-2">
+        <button
+          type="button"
+          onClick={onNavigateHorarios}
+          className="flex items-center gap-1.5 rounded-lg border border-[var(--border-color)] bg-[var(--bg-primary)] px-3 py-1.5 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]"
+        >
+          <Clock className="h-3.5 w-3.5" />
+          Horários
+        </button>
         <AppButton
           variant="ghost"
           size="sm"
@@ -495,7 +510,7 @@ function CalendarLayerBar({
             type="button"
             onClick={() => onToggleLayer(layer.id)}
             className={cn(
-              'flex h-7 items-center gap-1.5 rounded-[var(--radius-pill)] border px-2.5 text-[11px] font-semibold transition-all',
+              'flex h-7 items-center gap-1.5 rounded-[var(--radius-pill)] border px-2.5 text-xs font-semibold transition-all',
               active ? layerToneClass[layer.tone] : 'border-[var(--border-color)] bg-[var(--bg-elevated)] text-[var(--text-tertiary)]'
             )}
           >
@@ -512,7 +527,7 @@ function getEntryLabel(entry: CalendarEntry) {
   return entry.type === 'project'
     ? 'Projeto'
     : entry.type === 'recording'
-      ? 'Gravacao'
+      ? 'Gravação'
       : entry.type === 'publish'
         ? 'Postagem'
         : 'Evento';
@@ -560,7 +575,7 @@ function CalendarWeekView({
                 active && 'bg-[color-mix(in_srgb,var(--accent-blue),transparent_94%)]'
               )}
             >
-              <span className="text-[11px] font-semibold uppercase text-[var(--text-tertiary)]">
+              <span className="text-xs font-semibold uppercase text-[var(--text-tertiary)]">
                 {format(day, 'EEE', {locale: ptBR})}
               </span>
               <span className={cn(
@@ -603,9 +618,9 @@ function CalendarWeekView({
                       }}
                       className={cn('w-full rounded-lg border px-3 py-3 text-left transition-all hover:-translate-y-0.5 hover:shadow-sm', getEntryTone(entry))}
                     >
-                      <span className="text-[11px] font-semibold">{getEntryLabel(entry)}</span>
+                      <span className="text-xs font-semibold">{getEntryLabel(entry)}</span>
                       <p className="mt-1 line-clamp-2 text-[13px] font-semibold text-[var(--text-primary)]">{entry.label}</p>
-                      <p className="mt-1 text-[11px] text-[var(--text-secondary)]">
+                      <p className="mt-1 text-xs text-[var(--text-secondary)]">
                         {[entry.time, entry.secondary].filter(Boolean).join(' - ') || 'Sem horario'}
                       </p>
                     </button>
@@ -663,7 +678,7 @@ function CalendarAgendaListView({
                     </p>
                     <p className="text-[12px] capitalize text-[var(--text-secondary)]">{format(date, 'EEEE', {locale: ptBR})}</p>
                   </div>
-                  <span className="rounded-full bg-[var(--surface-subtle)] px-2 py-1 text-[11px] font-semibold text-[var(--text-secondary)]">
+                  <span className="rounded-full bg-[var(--surface-subtle)] px-2 py-1 text-xs font-semibold text-[var(--text-secondary)]">
                     {entries.length}
                   </span>
                 </button>
@@ -684,7 +699,7 @@ function CalendarAgendaListView({
                       </div>
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-[13px] font-semibold text-[var(--text-primary)]">{entry.label}</p>
-                        <p className="truncate text-[11px] text-[var(--text-secondary)]">
+                        <p className="truncate text-xs text-[var(--text-secondary)]">
                           {[getEntryLabel(entry), entry.time, entry.secondary].filter(Boolean).join(' - ')}
                         </p>
                       </div>
@@ -740,7 +755,7 @@ function CalendarDayPanel({
           className="mb-4 w-full rounded-lg border border-[color-mix(in_srgb,var(--accent-blue),transparent_62%)] bg-[color-mix(in_srgb,var(--accent-blue),transparent_94%)] p-4 text-left"
         >
           <span className="status-pill mb-3 border-blue-200 bg-blue-50 text-blue-600">
-            {primaryEntry.type === 'project' ? 'Projeto' : primaryEntry.type === 'recording' ? 'Gravacao' : primaryEntry.type === 'publish' ? 'Postagem' : 'Evento'}
+            {primaryEntry.type === 'project' ? 'Projeto' : primaryEntry.type === 'recording' ? 'Gravação' : primaryEntry.type === 'publish' ? 'Postagem' : 'Evento'}
           </span>
           <h3 className="text-[15px] font-semibold text-[var(--text-primary)]">{primaryEntry.label}</h3>
           <p className="mt-1 text-[12px] text-[var(--text-secondary)]">{primaryEntry.secondary || 'Detalhe editorial'}</p>
@@ -780,7 +795,7 @@ function CalendarDayPanel({
                   )}
                 >
                   <p className="text-xs font-semibold text-[var(--text-primary)]">{entry.label}</p>
-                  <p className="mt-0.5 text-[11px] text-[var(--text-secondary)]">
+                  <p className="mt-0.5 text-xs text-[var(--text-secondary)]">
                     {[entry.time, entry.secondary].filter(Boolean).join(' - ') || 'Sem horario'}
                   </p>
                 </button>
@@ -798,11 +813,11 @@ function CalendarDayPanel({
             className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-semibold text-[var(--accent-purple)]"
           >
             <Target className="h-3.5 w-3.5" />
-            Foco do dia
+            Talvez util neste dia
           </button>
           {focusOpen ? (
             <div className="border-t border-[var(--border-color)] p-3">
-              <p className="text-xs text-[var(--text-primary)]">Entregar roteiro e gravar 1 bloco</p>
+              <p className="text-xs text-[var(--text-primary)]">Roteiro e um bloco separados para quando fizer sentido</p>
               <div className="mt-2 h-1.5 rounded-full bg-[var(--bg-hover)]">
                 <div className="h-full w-[72%] rounded-full bg-[var(--accent-purple)]" />
               </div>
@@ -853,8 +868,8 @@ function CalendarInsightCards({
 
 function FieldRow({label, value}: {label: string; value: string}) {
   return (
-    <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-hover)]/50 px-4 py-3">
-      <p className="text-[9px] font-black uppercase tracking-widest text-[var(--text-tertiary)] opacity-60">
+    <div className="rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-hover)]/50 px-4 py-3">
+      <p className="text-xs font-semibold  text-[var(--text-tertiary)] opacity-60">
         {label}
       </p>
       <p className="mt-1 whitespace-pre-wrap text-sm font-bold text-[var(--text-primary)]">
@@ -884,6 +899,8 @@ function CalendarEntryDetailModal({
   onSaveAgenda: (item: AgendaItem) => void;
 }) {
   const navigate = useNavigate();
+  const {state: calendarState} = useAppContext();
+  const postingTimes = getPostingTimes(calendarState.preferences);
   const content = entry.contentId ? contents.find(item => item.id === entry.contentId) : null;
   const agendaItem = entry.agendaId ? agendaItems.find(item => item.id === entry.agendaId) : null;
   const projeto = entry.projetoId ? projetos.find(item => item.id === entry.projetoId) : null;
@@ -959,7 +976,7 @@ function CalendarEntryDetailModal({
       return;
     }
 
-    const platformRecordId = plataforma?.id || crypto.randomUUID();
+    const platformRecordId = plataforma?.id || generateUUID();
     const nextPlatformId = platformId || plataforma?.platformId || activePlatforms[0]?.id || '';
     const nextPlataformas = content.plataformas.some(item => item.id === platformRecordId)
       ? content.plataformas.map(item =>
@@ -1003,7 +1020,7 @@ function CalendarEntryDetailModal({
     entry.type === 'publish'
       ? 'Publicacao'
       : entry.type === 'recording'
-        ? 'Gravacao'
+        ? 'Gravação'
         : entry.type === 'agenda'
           ? 'Agenda'
           : 'Projeto';
@@ -1012,10 +1029,10 @@ function CalendarEntryDetailModal({
     <div className="flex max-h-[90vh] flex-col bg-[var(--bg-primary)]">
       <div className="flex items-start justify-between gap-4 border-b border-[var(--border-color)] px-6 py-5">
         <div className="min-w-0">
-          <p className="text-[9px] font-black uppercase tracking-[0.25em] text-[var(--text-tertiary)]">
+          <p className="text-xs font-semibold uppercase tracking-[0.25em] text-[var(--text-tertiary)]">
             {subtitle}
           </p>
-          <h2 className="mt-1 truncate text-lg font-black text-[var(--text-primary)]">
+          <h2 className="mt-1 truncate text-lg font-semibold text-[var(--text-primary)]">
             {isEditing ? 'Editar evento' : title}
           </h2>
         </div>
@@ -1028,7 +1045,7 @@ function CalendarEntryDetailModal({
         {isEditing ? (
           <>
             <label className="block space-y-2">
-              <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-tertiary)] opacity-60">
+              <span className="text-xs font-semibold  text-[var(--text-tertiary)] opacity-60">
                 Titulo
               </span>
               <input
@@ -1036,35 +1053,42 @@ function CalendarEntryDetailModal({
                 type="text"
                 value={title}
                 onChange={event => setTitle(event.target.value)}
-                className="w-full rounded-2xl border border-[var(--border-color)] bg-[var(--bg-hover)] px-5 py-3.5 text-sm font-bold text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--accent-blue)]"
+                className="w-full rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-hover)] px-5 py-3.5 text-sm font-bold text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--accent-blue)]"
               />
             </label>
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <label className="block space-y-2">
-                <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-tertiary)] opacity-60">
+                <span className="text-xs font-semibold  text-[var(--text-tertiary)] opacity-60">
                   Data
                 </span>
                 <input
                   type="date"
                   value={date}
                   onChange={event => setDate(event.target.value)}
-                  className="w-full rounded-2xl border border-[var(--border-color)] bg-[var(--bg-hover)] px-5 py-3.5 text-sm font-bold text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--accent-blue)]"
+                  className="w-full rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-hover)] px-5 py-3.5 text-sm font-bold text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--accent-blue)]"
                 />
               </label>
 
               {entry.type !== 'recording' ? (
-                <label className="block space-y-2">
-                  <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-tertiary)] opacity-60">
+                <div className="block space-y-2">
+                  <span className="text-xs font-semibold  text-[var(--text-tertiary)] opacity-60">
                     Hora
                   </span>
                   <input
                     type="time"
                     value={time}
                     onChange={event => setTime(event.target.value)}
-                    className="w-full rounded-2xl border border-[var(--border-color)] bg-[var(--bg-hover)] px-5 py-3.5 text-sm font-bold text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--accent-blue)]"
+                    className="w-full rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-hover)] px-5 py-3.5 text-sm font-bold text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--accent-blue)]"
                   />
-                </label>
+                  <PostingTimeSuggestions
+                    date={date}
+                    selectedTime={time}
+                    postingTimes={postingTimes}
+                    onSelect={setTime}
+                    className="pt-1"
+                  />
+                </div>
               ) : null}
             </div>
 
@@ -1076,7 +1100,7 @@ function CalendarEntryDetailModal({
                       key={type}
                       type="button"
                       onClick={() => setAgendaType(type)}
-                      className={`rounded-xl border px-3 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all ${
+                      className={`rounded-xl border px-3 py-2.5 text-xs font-semibold  transition-all ${
                         agendaType === type
                           ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-[var(--bg-primary)]'
                           : 'border-[var(--border-color)] text-[var(--text-tertiary)]'
@@ -1088,13 +1112,13 @@ function CalendarEntryDetailModal({
                 </div>
 
                 <label className="block space-y-2">
-                  <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-tertiary)] opacity-60">
+                  <span className="text-xs font-semibold  text-[var(--text-tertiary)] opacity-60">
                     Projeto vinculado
                   </span>
                   <select
                     value={projetoId}
                     onChange={event => setProjetoId(event.target.value)}
-                    className="w-full rounded-2xl border border-[var(--border-color)] bg-[var(--bg-hover)] px-5 py-3.5 text-sm font-bold text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--accent-blue)]"
+                    className="w-full rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-hover)] px-5 py-3.5 text-sm font-bold text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--accent-blue)]"
                   >
                     <option value="">Sem projeto</option>
                     {projetos
@@ -1112,13 +1136,13 @@ function CalendarEntryDetailModal({
             {content && entry.type === 'publish' ? (
               <>
                 <label className="block space-y-2">
-                  <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-tertiary)] opacity-60">
+                  <span className="text-xs font-semibold  text-[var(--text-tertiary)] opacity-60">
                     Rede postada
                   </span>
                   <select
                     value={platformId}
                     onChange={event => setPlatformId(event.target.value)}
-                    className="w-full rounded-2xl border border-[var(--border-color)] bg-[var(--bg-hover)] px-5 py-3.5 text-sm font-bold text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--accent-blue)]"
+                    className="w-full rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-hover)] px-5 py-3.5 text-sm font-bold text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--accent-blue)]"
                   >
                     {activePlatforms.map(platform => (
                       <option key={platform.id} value={platform.id}>
@@ -1129,14 +1153,14 @@ function CalendarEntryDetailModal({
                 </label>
 
                 <label className="block space-y-2">
-                  <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-tertiary)] opacity-60">
+                  <span className="text-xs font-semibold  text-[var(--text-tertiary)] opacity-60">
                     Legenda
                   </span>
                   <textarea
                     value={caption}
                     onChange={event => setCaption(event.target.value)}
                     rows={7}
-                    className="w-full resize-none rounded-2xl border border-[var(--border-color)] bg-[var(--bg-hover)] px-5 py-3.5 text-sm font-medium leading-relaxed text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--accent-blue)]"
+                    className="w-full resize-none rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-hover)] px-5 py-3.5 text-sm font-medium leading-relaxed text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--accent-blue)]"
                   />
                 </label>
               </>
@@ -1178,7 +1202,7 @@ function CalendarEntryDetailModal({
             <button
               type="button"
               onClick={handleCancelEdit}
-              className="flex-1 rounded-2xl border border-[var(--border-color)] py-3 text-xs font-black uppercase tracking-widest text-[var(--text-primary)] transition-all hover:bg-[var(--bg-hover)]"
+              className="flex-1 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] py-3 text-xs font-semibold  text-[var(--text-primary)] transition-all hover:bg-[var(--bg-hover)]"
             >
               Cancelar
             </button>
@@ -1186,7 +1210,7 @@ function CalendarEntryDetailModal({
               type="button"
               onClick={handleSave}
               disabled={!title.trim() || !date}
-              className="flex-1 rounded-2xl bg-[var(--text-primary)] py-3 text-xs font-black uppercase tracking-widest text-[var(--bg-primary)] transition-all hover:scale-[1.01] disabled:pointer-events-none disabled:opacity-30"
+              className="flex-1 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] bg-[var(--text-primary)] py-3 text-xs font-semibold  text-[var(--bg-primary)] transition-all hover:scale-[1.01] disabled:pointer-events-none disabled:opacity-30"
             >
               Salvar
             </button>
@@ -1196,7 +1220,7 @@ function CalendarEntryDetailModal({
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 rounded-2xl border border-[var(--border-color)] py-3 text-xs font-black uppercase tracking-widest text-[var(--text-primary)] transition-all hover:bg-[var(--bg-hover)]"
+              className="flex-1 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] py-3 text-xs font-semibold  text-[var(--text-primary)] transition-all hover:bg-[var(--bg-hover)]"
             >
               Fechar
             </button>
@@ -1207,7 +1231,7 @@ function CalendarEntryDetailModal({
                   onClose();
                   navigate(buildContentDetailRoute(content.id, 'roteiro'));
                 }}
-                className="flex-1 rounded-2xl border border-[var(--border-color)] py-3 text-xs font-black uppercase tracking-widest text-[var(--text-primary)] transition-all hover:bg-[var(--bg-hover)]"
+                className="flex-1 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] py-3 text-xs font-semibold  text-[var(--text-primary)] transition-all hover:bg-[var(--bg-hover)]"
               >
                 Abrir roteiro
               </button>
@@ -1217,9 +1241,9 @@ function CalendarEntryDetailModal({
                 type="button"
                 onClick={() => {
                   onClose();
-                  navigate(buildContentDetailRoute(content.id, 'postagem'));
+                  navigate(buildContentDetailRoute(content.id, 'publicar'));
                 }}
-                className="flex-1 rounded-2xl bg-[var(--text-primary)] py-3 text-xs font-black uppercase tracking-widest text-[var(--bg-primary)] transition-all hover:scale-[1.01]"
+                className="flex-1 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] bg-[var(--text-primary)] py-3 text-xs font-semibold  text-[var(--bg-primary)] transition-all hover:scale-[1.01]"
               >
                 Agendar postagem
               </button>
@@ -1227,7 +1251,7 @@ function CalendarEntryDetailModal({
               <button
                 type="button"
                 onClick={() => setIsEditing(true)}
-                className="flex-1 rounded-2xl bg-[var(--text-primary)] py-3 text-xs font-black uppercase tracking-widest text-[var(--bg-primary)] transition-all hover:scale-[1.01]"
+                className="flex-1 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] bg-[var(--text-primary)] py-3 text-xs font-semibold  text-[var(--bg-primary)] transition-all hover:scale-[1.01]"
               >
                 Editar
               </button>
@@ -1248,6 +1272,8 @@ function AddPostedVideoModal({
   onSave: (content: Content) => void;
   onClose: () => void;
 }) {
+  const {state: videoState} = useAppContext();
+  const videoPostingTimes = getPostingTimes(videoState.preferences);
   const activePlatforms = platforms.filter(platform => platform.ativo);
   const [title, setTitle] = useState('');
   const [date, setDate] = useState(format(new Date(), 'yyyy-MM-dd'));
@@ -1258,7 +1284,7 @@ function AddPostedVideoModal({
   const handleSave = () => {
     if (!title.trim() || !date || !platformId) return;
 
-    const contentId = crypto.randomUUID();
+    const contentId = generateUUID();
     const now = new Date().toISOString();
     const content = createContentDraft({
       id: contentId,
@@ -1273,7 +1299,7 @@ function AddPostedVideoModal({
       updatedAt: now,
       plataformas: [
         {
-          id: crypto.randomUUID(),
+          id: generateUUID(),
           contentId,
           platformId,
           legenda: caption.trim(),
@@ -1292,8 +1318,8 @@ function AddPostedVideoModal({
     <div className="flex h-full flex-col bg-[var(--bg-primary)]">
       <div className="flex items-center justify-between border-b border-[var(--border-color)] px-6 py-5">
         <div>
-          <h2 className="text-lg font-black text-[var(--text-primary)]">Video postado</h2>
-          <p className="mt-0.5 text-[9px] font-black uppercase tracking-[0.25em] text-[var(--text-tertiary)]">
+          <h2 className="text-lg font-semibold text-[var(--text-primary)]">Video postado</h2>
+          <p className="mt-0.5 text-xs font-semibold uppercase tracking-[0.25em] text-[var(--text-tertiary)]">
             Registro de publicacao
           </p>
         </div>
@@ -1303,14 +1329,14 @@ function AddPostedVideoModal({
       </div>
 
       <div className="flex-1 space-y-5 overflow-y-auto p-6">
-        <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-hover)]/50 px-4 py-3">
-          <p className="text-[11px] font-bold leading-relaxed text-[var(--text-tertiary)]">
+        <div className="rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-hover)]/50 px-4 py-3">
+          <p className="text-xs font-bold leading-relaxed text-[var(--text-tertiary)]">
             Esse registro entra como conteudo Postado, aparece na camada de publicacoes e ja fica pronto para cruzar com metricas e analises depois.
           </p>
         </div>
 
         <div className="space-y-2">
-          <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-tertiary)] opacity-60">
+          <label className="text-xs font-semibold  text-[var(--text-tertiary)] opacity-60">
             Titulo do video
           </label>
           <input
@@ -1319,44 +1345,50 @@ function AddPostedVideoModal({
             value={title}
             onChange={event => setTitle(event.target.value)}
             placeholder="Ex: 3 sinais de que..."
-            className="w-full rounded-2xl border border-[var(--border-color)] bg-[var(--bg-hover)] px-5 py-3.5 text-sm font-bold text-[var(--text-primary)] placeholder:opacity-30 focus:ring-2 focus:ring-[var(--accent-blue)]"
+            className="w-full rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-hover)] px-5 py-3.5 text-sm font-bold text-[var(--text-primary)] placeholder:opacity-30 focus:ring-2 focus:ring-[var(--accent-blue)]"
           />
         </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <div className="space-y-2">
-            <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-tertiary)] opacity-60">
+            <label className="text-xs font-semibold  text-[var(--text-tertiary)] opacity-60">
               Data postada
             </label>
             <input
               type="date"
               value={date}
               onChange={event => setDate(event.target.value)}
-              className="w-full rounded-2xl border border-[var(--border-color)] bg-[var(--bg-hover)] px-5 py-3.5 text-sm font-bold text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--accent-blue)]"
+              className="w-full rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-hover)] px-5 py-3.5 text-sm font-bold text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--accent-blue)]"
             />
           </div>
 
           <div className="space-y-2">
-            <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-tertiary)] opacity-60">
+            <label className="text-xs font-semibold  text-[var(--text-tertiary)] opacity-60">
               Hora
             </label>
             <input
               type="time"
               value={time}
               onChange={event => setTime(event.target.value)}
-              className="w-full rounded-2xl border border-[var(--border-color)] bg-[var(--bg-hover)] px-5 py-3.5 text-sm font-bold text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--accent-blue)]"
+              className="w-full rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-hover)] px-5 py-3.5 text-sm font-bold text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--accent-blue)]"
+            />
+            <PostingTimeSuggestions
+              date={date}
+              selectedTime={time}
+              postingTimes={videoPostingTimes}
+              onSelect={setTime}
             />
           </div>
 
           <div className="space-y-2">
-            <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-tertiary)] opacity-60">
+            <label className="text-xs font-semibold  text-[var(--text-tertiary)] opacity-60">
               Rede postada
             </label>
             <select
               value={platformId}
               onChange={event => setPlatformId(event.target.value)}
               disabled={activePlatforms.length === 0}
-              className="w-full rounded-2xl border border-[var(--border-color)] bg-[var(--bg-hover)] px-5 py-3.5 text-sm font-bold text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--accent-blue)] disabled:opacity-40"
+              className="w-full rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-hover)] px-5 py-3.5 text-sm font-bold text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--accent-blue)] disabled:opacity-40"
             >
               {activePlatforms.length === 0 ? (
                 <option value="">Cadastre uma rede primeiro</option>
@@ -1372,7 +1404,7 @@ function AddPostedVideoModal({
         </div>
 
         <div className="space-y-2">
-          <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-tertiary)] opacity-60">
+          <label className="text-xs font-semibold  text-[var(--text-tertiary)] opacity-60">
             Legenda publicada
           </label>
           <textarea
@@ -1380,7 +1412,7 @@ function AddPostedVideoModal({
             onChange={event => setCaption(event.target.value)}
             rows={7}
             placeholder="Cole aqui a legenda que foi publicada..."
-            className="w-full resize-none rounded-2xl border border-[var(--border-color)] bg-[var(--bg-hover)] px-5 py-3.5 text-sm font-medium leading-relaxed text-[var(--text-primary)] placeholder:opacity-30 focus:ring-2 focus:ring-[var(--accent-blue)]"
+            className="w-full resize-none rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-hover)] px-5 py-3.5 text-sm font-medium leading-relaxed text-[var(--text-primary)] placeholder:opacity-30 focus:ring-2 focus:ring-[var(--accent-blue)]"
           />
         </div>
       </div>
@@ -1389,7 +1421,7 @@ function AddPostedVideoModal({
         <button
           onClick={handleSave}
           disabled={!title.trim() || !date || !platformId}
-          className="w-full rounded-2xl bg-[var(--text-primary)] py-4 text-xs font-black uppercase tracking-widest text-[var(--bg-primary)] shadow-lg transition-all hover:scale-[1.01] disabled:pointer-events-none disabled:opacity-30"
+          className="w-full rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] bg-[var(--text-primary)] py-4 text-xs font-semibold  text-[var(--bg-primary)] shadow-lg transition-all hover:scale-[1.01] disabled:pointer-events-none disabled:opacity-30"
         >
           Registrar no calendario
         </button>
@@ -1407,8 +1439,11 @@ function AddAgendaModal({
   onSave: (item: AgendaItem) => void;
   onClose: () => void;
 }) {
+  const {state: agendaState} = useAppContext();
+  const agendaPostingTimes = getPostingTimes(agendaState.preferences);
   const [title, setTitle] = useState('');
   const [date, setDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [time, setTime] = useState('');
   const [agendaType, setAgendaType] = useState<AgendaItem['tipo']>('Reunião');
   const [projetoId, setProjetoId] = useState('');
 
@@ -1416,11 +1451,11 @@ function AddAgendaModal({
     if (!title.trim() || !date) return;
 
     onSave({
-      id: crypto.randomUUID(),
+      id: generateUUID(),
       userId: '',
       title: title.trim(),
       date,
-      time: null,
+      time: time || null,
       tipo: agendaType,
       projetoId: projetoId || null,
       createdAt: new Date().toISOString(),
@@ -1431,8 +1466,8 @@ function AddAgendaModal({
     <div className="flex h-full flex-col bg-[var(--bg-primary)]">
       <div className="flex items-center justify-between border-b border-[var(--border-color)] px-6 py-5">
         <div>
-          <h2 className="text-lg font-black text-[var(--text-primary)]">Novo Evento</h2>
-          <p className="mt-0.5 text-[9px] font-black uppercase tracking-[0.25em] text-[var(--text-tertiary)]">
+          <h2 className="text-lg font-semibold text-[var(--text-primary)]">Novo Evento</h2>
+          <p className="mt-0.5 text-xs font-semibold uppercase tracking-[0.25em] text-[var(--text-tertiary)]">
             Agenda editorial
           </p>
         </div>
@@ -1443,7 +1478,7 @@ function AddAgendaModal({
 
       <div className="flex-1 space-y-5 overflow-y-auto p-6">
         <div className="space-y-2">
-          <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-tertiary)] opacity-60">
+          <label className="text-xs font-semibold  text-[var(--text-tertiary)] opacity-60">
             Titulo do evento
           </label>
           <input
@@ -1452,24 +1487,44 @@ function AddAgendaModal({
             value={title}
             onChange={event => setTitle(event.target.value)}
             placeholder="Ex: reuniao, entrega, live..."
-            className="w-full rounded-2xl border border-[var(--border-color)] bg-[var(--bg-hover)] px-5 py-3.5 text-sm font-bold text-[var(--text-primary)] placeholder:opacity-30 focus:ring-2 focus:ring-[var(--accent-blue)]"
+            className="w-full rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-hover)] px-5 py-3.5 text-sm font-bold text-[var(--text-primary)] placeholder:opacity-30 focus:ring-2 focus:ring-[var(--accent-blue)]"
           />
         </div>
 
-        <div className="space-y-2">
-          <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-tertiary)] opacity-60">
-            Data
-          </label>
-          <input
-            type="date"
-            value={date}
-            onChange={event => setDate(event.target.value)}
-            className="w-full rounded-2xl border border-[var(--border-color)] bg-[var(--bg-hover)] px-5 py-3.5 text-sm font-bold text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--accent-blue)]"
-          />
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <label className="text-xs font-semibold  text-[var(--text-tertiary)] opacity-60">
+              Data
+            </label>
+            <input
+              type="date"
+              value={date}
+              onChange={event => setDate(event.target.value)}
+              className="w-full rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-hover)] px-5 py-3.5 text-sm font-bold text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--accent-blue)]"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-xs font-semibold  text-[var(--text-tertiary)] opacity-60">
+              Hora
+            </label>
+            <input
+              type="time"
+              value={time}
+              onChange={event => setTime(event.target.value)}
+              className="w-full rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-hover)] px-5 py-3.5 text-sm font-bold text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--accent-blue)]"
+            />
+            <PostingTimeSuggestions
+              date={date}
+              selectedTime={time}
+              postingTimes={agendaPostingTimes}
+              onSelect={setTime}
+            />
+          </div>
         </div>
 
         <div className="space-y-2">
-          <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-tertiary)] opacity-60">
+          <label className="text-xs font-semibold  text-[var(--text-tertiary)] opacity-60">
             Tipo
           </label>
           <div className="grid grid-cols-2 gap-2">
@@ -1478,7 +1533,7 @@ function AddAgendaModal({
                 key={type}
                 type="button"
                 onClick={() => setAgendaType(type)}
-                className={`rounded-xl border px-3 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all ${
+                className={`rounded-xl border px-3 py-2.5 text-xs font-semibold  transition-all ${
                   agendaType === type
                     ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-[var(--bg-primary)]'
                     : 'border-[var(--border-color)] text-[var(--text-tertiary)]'
@@ -1491,13 +1546,13 @@ function AddAgendaModal({
         </div>
 
         <div className="space-y-2">
-          <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-tertiary)] opacity-60">
+          <label className="text-xs font-semibold  text-[var(--text-tertiary)] opacity-60">
             Projeto vinculado
           </label>
           <select
             value={projetoId}
             onChange={event => setProjetoId(event.target.value)}
-            className="w-full rounded-2xl border border-[var(--border-color)] bg-[var(--bg-hover)] px-5 py-3.5 text-sm font-bold text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--accent-blue)]"
+            className="w-full rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-hover)] px-5 py-3.5 text-sm font-bold text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--accent-blue)]"
           >
             <option value="">Sem projeto</option>
             {projetos
@@ -1515,7 +1570,7 @@ function AddAgendaModal({
         <button
           onClick={handleSave}
           disabled={!title.trim() || !date}
-          className="w-full rounded-2xl bg-[var(--text-primary)] py-4 text-xs font-black uppercase tracking-widest text-[var(--bg-primary)] shadow-lg transition-all hover:scale-[1.01] disabled:pointer-events-none disabled:opacity-30"
+          className="w-full rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] bg-[var(--text-primary)] py-4 text-xs font-semibold  text-[var(--bg-primary)] shadow-lg transition-all hover:scale-[1.01] disabled:pointer-events-none disabled:opacity-30"
         >
           Adicionar evento
         </button>

@@ -106,8 +106,8 @@ export function MobileScriptEditor({
               <X className="h-5 w-5" />
             </button>
             <div className="min-w-0 flex-1 text-center">
-              <p className="truncate text-sm font-black">{documentTitle}</p>
-              <p className="text-[10px] font-semibold text-[var(--text-tertiary)]">{savedLabel}</p>
+              <p className="truncate text-sm font-semibold">{documentTitle}</p>
+              <p className="text-xs font-semibold text-[var(--text-tertiary)]">{savedLabel}</p>
             </div>
             <button
               type="button"
@@ -129,7 +129,7 @@ export function MobileScriptEditor({
     <>
       <div className={cn('rounded-lg border border-[var(--border-color)] bg-white px-3 py-3 shadow-sm', className)}>
         <div className="mb-2 flex items-center justify-between gap-2">
-          <span className="text-[10px] font-black uppercase tracking-[0.16em] text-[var(--text-tertiary)]">
+          <span className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--text-tertiary)]">
             {savedLabel}
           </span>
           <button

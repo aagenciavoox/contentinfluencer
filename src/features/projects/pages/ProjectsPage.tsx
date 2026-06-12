@@ -6,11 +6,15 @@ import { useAuth } from '../../../context/AuthContext';
 import { normalizeProjetoTipo, type Projeto } from '../../../lib/database';
 import { cn } from '../../../lib/utils';
 import { DesktopPageHeader } from '../../../layouts/page/DesktopPageHeader';
+import { PageLayout } from '../../../layouts/page/PageLayout';
 import { AppButton } from '../../../components/ui/AppButton';
 import { FilterBar } from '../../../components/ui/FilterBar';
 import { useIsMobile } from '../../../hooks/useIsMobile';
 import { BottomSheetModal } from '../../../components/feedback/modals/BottomSheetModal';
 import { ProjectsMobileScreen } from '../../../mobile/screens/projects/ProjectsMobileScreen';
+import { PostingTimeSuggestions } from '../../settings/components/PostingTimeSuggestions';
+import { getPostingTimes } from '../../settings/lib/postingTimes';
+import { generateUUID } from '../../../utils/uuid';
 
 type TipoFilter = 'todos' | 'publi' | 'producao' | 'outro';
 type StatusFilter = 'todos' | 'pendente' | 'em_andamento' | 'concluído';
@@ -59,6 +63,9 @@ export function ProjectsPage() {
   const [brand, setBrand] = useState('');
   const [value, setValue] = useState('');
   const [color, setColor] = useState(PROJECT_COLORS[Math.floor(Math.random() * PROJECT_COLORS.length)]);
+  const [dataFim, setDataFim] = useState('');
+
+  const postingTimes = getPostingTimes(state.preferences);
 
   const projetos = state.projetos
     .filter(p => {
@@ -92,13 +99,13 @@ export function ProjectsPage() {
   const handleCreate = () => {
     if (!nome.trim()) return;
     const projeto: Projeto = {
-      id: crypto.randomUUID(),
+      id: generateUUID(),
       userId: user?.id || '',
       nome: nome.trim(),
       tipo: normalizeProjetoTipo(tipo),
       status: 'pendente',
       dataInicio: null,
-      dataFim: null,
+      dataFim: dataFim ? `${dataFim}T12:00:00.000Z` : null,
       metaConteudos: null,
       bibliotecaItemId: null,
       brand: tipo === 'publi' ? brand.trim() || null : null,
@@ -118,6 +125,7 @@ export function ProjectsPage() {
     setTipo('publi');
     setBrand('');
     setValue('');
+    setDataFim('');
     setColor(PROJECT_COLORS[Math.floor(Math.random() * PROJECT_COLORS.length)]);
     setShowForm(false);
   };
@@ -153,7 +161,7 @@ export function ProjectsPage() {
               <div className="grid grid-cols-1 gap-3">
                 <select value={tipo} onChange={e => setTipo(e.target.value as Projeto['tipo'])}>
                   <option value="publi">Publi</option>
-                  <option value="producao">Producao</option>
+                  <option value="producao">Produção</option>
                   <option value="outro">Outro</option>
                 </select>
               </div>
@@ -175,8 +183,24 @@ export function ProjectsPage() {
                 />
               ) : null}
 
+              <div className="space-y-1.5">
+                <p className="text-xs font-semibold  text-[var(--text-tertiary)] opacity-60">Data de entrega</p>
+                <input
+                  type="date"
+                  value={dataFim}
+                  onChange={e => setDataFim(e.target.value)}
+                  className="w-full"
+                />
+                <PostingTimeSuggestions
+                  date={dataFim}
+                  selectedTime=""
+                  postingTimes={postingTimes}
+                  onSelect={() => {}}
+                />
+              </div>
+
               <div>
-                <p className="mb-2 text-[9px] font-black uppercase tracking-widest text-[var(--text-tertiary)] opacity-60">Cor do projeto</p>
+                <p className="mb-2 text-xs font-semibold  text-[var(--text-tertiary)] opacity-60">Cor do projeto</p>
                 <div className="flex flex-wrap gap-2">
                   {PROJECT_COLORS.map(c => (
                     <button
@@ -195,7 +219,7 @@ export function ProjectsPage() {
               <button
                 type="button"
                 onClick={() => setShowForm(false)}
-                className="flex-1 rounded-[1.25rem] border border-[var(--border-color)] py-3 text-xs font-black uppercase tracking-widest text-[var(--text-secondary)]"
+                className="flex-1 rounded-[1.25rem] border border-[var(--border-color)] py-3 text-xs font-semibold  text-[var(--text-secondary)]"
               >
                 Cancelar
               </button>
@@ -215,30 +239,28 @@ export function ProjectsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[var(--bg-secondary)]">
-      <header className="desktop-header-sticky transition-colors duration-300">
-        <div className="desktop-header-frame">
-          <DesktopPageHeader
-            section="Gestão"
-            title="Projetos"
-            icon={Handshake}
-            className="mb-0"
-            actions={(
-              <AppButton
-                onClick={() => setShowForm(true)}
-                variant="primary"
-                size="md"
-                leftIcon={<Plus className="w-4 h-4" />}
-                className="uppercase tracking-widest shrink-0"
-              >
-                Novo projeto
-              </AppButton>
-            )}
-          />
-        </div>
-      </header>
-
-      <div className="desktop-content-frame">
+    <PageLayout
+      variant="settings"
+      header={
+        <DesktopPageHeader
+          section="Gestão"
+          title="Projetos"
+          icon={Handshake}
+          className="mb-0"
+          actions={(
+            <AppButton
+              onClick={() => setShowForm(true)}
+              variant="primary"
+              size="md"
+              leftIcon={<Plus className="w-4 h-4" />}
+              className=" shrink-0"
+            >
+              Novo projeto
+            </AppButton>
+          )}
+        />
+      }
+    >
 
         <div className="desktop-toolbar-surface mb-6 p-4 md:p-5">
           <FilterBar
@@ -275,8 +297,8 @@ export function ProjectsPage() {
             ]}
             sortValue={sortValue}
             sortOptions={[
-              {label: 'Prazo crescente', value: 'deadline:asc'},
-              {label: 'Prazo decrescente', value: 'deadline:desc'},
+              {label: 'Data combinada crescente', value: 'deadline:asc'},
+              {label: 'Data combinada decrescente', value: 'deadline:desc'},
               {label: 'Nome A-Z', value: 'name:asc'},
               {label: 'Maior valor', value: 'value:desc'},
               {label: 'Atualizados', value: 'updatedAt:desc'},
@@ -287,8 +309,8 @@ export function ProjectsPage() {
 
         {/* Form novo projeto */}
         {showForm && (
-          <div className="mb-6 p-6 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-2xl space-y-4">
-            <p className="text-[10px] font-black uppercase tracking-widest text-[var(--text-tertiary)]">Novo Projeto</p>
+          <div className="mb-6 p-6 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] space-y-4">
+            <p className="text-xs font-semibold  text-[var(--text-tertiary)]">Novo Projeto</p>
             <input
               autoFocus
               value={nome}
@@ -301,7 +323,7 @@ export function ProjectsPage() {
               <select
                 value={tipo}
                 onChange={e => setTipo(e.target.value as Projeto['tipo'])}
-                className="flex-1 min-w-[120px] px-4 py-2.5 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl text-[11px] font-black uppercase tracking-widest text-[var(--text-primary)] focus:outline-none"
+                className="flex-1 min-w-[120px] px-4 py-2.5 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl text-xs font-semibold  text-[var(--text-primary)] focus:outline-none"
               >
                 <option value="publi">Publi</option>
                 <option value="producao">Produção</option>
@@ -312,7 +334,7 @@ export function ProjectsPage() {
                 onChange={e => setValue(e.target.value)}
                 type="number"
                 placeholder="Valor (R$)"
-                className="flex-1 min-w-[100px] px-4 py-2.5 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl text-[11px] font-bold text-[var(--text-primary)] placeholder:opacity-30 focus:outline-none"
+                className="flex-1 min-w-[100px] px-4 py-2.5 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl text-xs font-bold text-[var(--text-primary)] placeholder:opacity-30 focus:outline-none"
               />
             </div>
             {tipo === 'publi' && (
@@ -323,8 +345,23 @@ export function ProjectsPage() {
                 className="w-full px-4 py-3 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:opacity-30 focus:outline-none focus:border-[var(--text-primary)]/40"
               />
             )}
+            <div className="space-y-1.5">
+              <p className="text-xs font-semibold  opacity-40">Data de entrega</p>
+              <input
+                type="date"
+                value={dataFim}
+                onChange={e => setDataFim(e.target.value)}
+                className="w-full px-4 py-2.5 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl text-xs font-bold text-[var(--text-primary)] focus:outline-none"
+              />
+              <PostingTimeSuggestions
+                date={dataFim}
+                selectedTime=""
+                postingTimes={postingTimes}
+                onSelect={() => {}}
+              />
+            </div>
             <div>
-              <p className="mb-2 text-[9px] font-black uppercase tracking-widest opacity-40">Cor do projeto</p>
+              <p className="mb-2 text-xs font-semibold  opacity-40">Cor do projeto</p>
               <div className="flex flex-wrap gap-2">
                 {PROJECT_COLORS.map(c => (
                   <button
@@ -341,13 +378,13 @@ export function ProjectsPage() {
               <button
                 onClick={handleCreate}
                 disabled={!nome.trim()}
-                className="px-6 py-2.5 bg-[var(--text-primary)] text-[var(--bg-primary)] rounded-xl text-[11px] font-black uppercase tracking-widest hover:opacity-90 transition-opacity disabled:opacity-30"
+                className="px-6 py-2.5 bg-[var(--text-primary)] text-[var(--bg-primary)] rounded-xl text-xs font-semibold  hover:opacity-90 transition-opacity disabled:opacity-30"
               >
                 Criar
               </button>
               <button
                 onClick={() => setShowForm(false)}
-                className="px-6 py-2.5 border border-[var(--border-color)] rounded-xl text-[11px] font-black uppercase tracking-widest opacity-50 hover:opacity-80 transition-opacity"
+                className="px-6 py-2.5 border border-[var(--border-color)] rounded-xl text-xs font-semibold  opacity-50 hover:opacity-80 transition-opacity"
               >
                 Cancelar
               </button>
@@ -359,10 +396,10 @@ export function ProjectsPage() {
         {projetos.length === 0 ? (
           <div className="text-center py-24 space-y-4">
             <Handshake className="w-12 h-12 mx-auto opacity-10" />
-            <p className="text-sm font-black uppercase tracking-widest opacity-30">Nenhum projeto ainda</p>
+            <p className="text-sm font-semibold  opacity-30">Nenhum projeto ainda</p>
             <button
               onClick={() => setShowForm(true)}
-              className="px-6 py-3 bg-[var(--text-primary)] text-[var(--bg-primary)] rounded-2xl text-[11px] font-black uppercase tracking-widest hover:opacity-90 transition-opacity"
+              className="px-6 py-3 bg-[var(--text-primary)] text-[var(--bg-primary)] rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] text-xs font-semibold  hover:opacity-90 transition-opacity"
             >
               Criar projeto
             </button>
@@ -375,27 +412,27 @@ export function ProjectsPage() {
                 <button
                   key={projeto.id}
                   onClick={() => navigate(`/projetos/${projeto.id}`)}
-                  className="w-full flex items-center gap-5 px-6 py-5 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-2xl hover:border-[var(--text-primary)]/30 hover:shadow-sm transition-all text-left group"
+                  className="w-full flex items-center gap-5 px-6 py-5 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] hover:border-[var(--text-primary)]/30 hover:shadow-sm transition-all text-left group"
                 >
                   <div className="h-10 w-1.5 rounded-full shrink-0" style={{ backgroundColor: projeto.color || '#78716c' }} />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-3 mb-1.5 flex-wrap">
-                      <p className="text-sm font-black text-[var(--text-primary)] truncate">{projeto.nome}</p>
-                      <span className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full bg-[var(--bg-hover)] opacity-60">
+                      <p className="text-sm font-semibold text-[var(--text-primary)] truncate">{projeto.nome}</p>
+                      <span className="text-xs font-semibold  px-2.5 py-1 rounded-full bg-[var(--bg-hover)] opacity-60">
                         {TIPO_LABELS[normalizeProjetoTipo(projeto.tipo)]}
                       </span>
-                      <span className={cn('text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full', STATUS_COLORS[status])}>
+                      <span className={cn('text-xs font-semibold  px-2.5 py-1 rounded-full', STATUS_COLORS[status])}>
                         {status.replace('_', ' ')}
                       </span>
                     </div>
                     <div className="flex items-center gap-4 flex-wrap">
                       {normalizeProjetoTipo(projeto.tipo) === 'publi' && projeto.brand && (
-                        <span className="text-[10px] font-bold text-[var(--text-secondary)] opacity-60">
+                        <span className="text-xs font-bold text-[var(--text-secondary)] opacity-60">
                           {projeto.brand}
                         </span>
                       )}
                       {projeto.value && (
-                        <span className="flex items-center gap-1 text-[10px] font-bold text-[var(--text-secondary)] opacity-50">
+                        <span className="flex items-center gap-1 text-xs font-bold text-[var(--text-secondary)] opacity-50">
                           <DollarSign className="w-3 h-3" />
                           {projeto.value.toLocaleString('pt-BR', { style: 'currency', currency: projeto.currency || 'BRL' })}
                         </span>
@@ -408,10 +445,7 @@ export function ProjectsPage() {
             })}
           </div>
         )}
-      </div>
-    </div>
+    </PageLayout>
   );
 }
-
-
 

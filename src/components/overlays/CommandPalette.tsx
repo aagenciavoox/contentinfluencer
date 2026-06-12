@@ -89,7 +89,7 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
           animate={isMobile ? { y: 0 } : { opacity: 1, scale: 1, y: 0 }}
           exit={isMobile ? { y: '100%' } : { opacity: 0, scale: 0.95, y: -10 }}
           transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-          className={`relative w-full ${isMobile ? 'h-full bg-[var(--bg-primary)] flex flex-col' : 'max-w-xl bg-[var(--bg-secondary)] rounded-2xl border border-[var(--border-color)] overflow-hidden shadow-2xl'}`}
+          className={`relative w-full ${isMobile ? 'h-full bg-[var(--bg-primary)] flex flex-col' : 'max-w-xl bg-[var(--bg-secondary)] rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] overflow-hidden shadow-none'}`}
         >
           {/* Header */}
           <div className={`flex items-center px-4 border-b border-[var(--border-color)] ${isMobile ? 'pt-14 pb-4' : ''}`}>
@@ -107,7 +107,7 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
                 <X className="w-5 h-5" />
               </button>
             ) : (
-              <div className="flex items-center gap-1 px-1.5 py-0.5 bg-[var(--bg-hover)] border border-[var(--border-color)] rounded text-[10px] text-[var(--text-tertiary)] font-mono">
+              <div className="flex items-center gap-1 px-1.5 py-0.5 bg-[var(--bg-hover)] border border-[var(--border-color)] rounded text-xs text-[var(--text-tertiary)] font-mono">
                 <span className="text-[12px]">ESC</span>
               </div>
             )}
@@ -122,7 +122,7 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
                     key={`${item.category}-${item.id}`}
                     onClick={() => handleSelect(item)}
                     onMouseEnter={() => !isMobile && setSelectedIndex(index)}
-                    className={`w-full flex items-center gap-4 px-4 py-4 rounded-2xl transition-all text-left group ${
+                    className={`w-full flex items-center gap-4 px-4 py-4 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] transition-all text-left group ${
                       index === selectedIndex ? 'bg-[var(--bg-hover)] shadow-sm' : ''
                     } ${isMobile ? 'active:bg-[var(--bg-hover)]' : ''}`}
                   >
@@ -135,7 +135,7 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
                       <div className="flex items-center gap-2">
                         <span className="text-base font-medium text-[var(--text-primary)] truncate">{item.title}</span>
                       </div>
-                      <span className="text-[10px] text-[var(--text-tertiary)] uppercase tracking-[0.2em] font-black">
+                      <span className="text-xs text-[var(--text-tertiary)] uppercase tracking-[0.2em] font-semibold">
                         {item.category}
                       </span>
                     </div>
@@ -155,7 +155,7 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
 
           {/* Footer - Desktop Only */}
           {!isMobile && (
-            <div className="px-4 py-3 bg-[var(--bg-primary)] border-t border-[var(--border-color)] flex items-center justify-between text-[10px] text-[var(--text-tertiary)] font-bold uppercase tracking-widest">
+            <div className="px-4 py-3 bg-[var(--bg-primary)] border-t border-[var(--border-color)] flex items-center justify-between text-xs text-[var(--text-tertiary)] font-bold ">
               <div className="flex gap-4">
                 <span className="flex items-center gap-1"><Command className="w-3 h-3" /> + K para buscar</span>
                 <span className="flex items-center gap-1">↑↓ para navegar</span>

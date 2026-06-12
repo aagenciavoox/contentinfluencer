@@ -39,7 +39,7 @@ export function DNAVozDrawer({ isOpen, onClose }: { isOpen: boolean; onClose: ()
             <div className="p-6 md:p-12 flex-1 overflow-y-auto custom-scrollbar">
               {/* Header */}
               <div className="flex items-center justify-between mb-10">
-                <h2 className="text-2xl font-black text-[var(--text-primary)]">Séries</h2>
+                <h2 className="text-2xl font-semibold text-[var(--text-primary)]">Séries</h2>
                 <div className="flex items-center gap-2">
                   {isEditing ? (
                     <button
@@ -67,7 +67,7 @@ export function DNAVozDrawer({ isOpen, onClose }: { isOpen: boolean; onClose: ()
                 <section>
                   <div className="flex items-center gap-2 mb-4 text-[var(--text-tertiary)]">
                     <Zap className="w-4 h-4" />
-                    <span className="text-[10px] uppercase tracking-widest font-bold">Promessa Central</span>
+                    <span className="text-xs  font-bold">Promessa Central</span>
                   </div>
                   {isEditing ? (
                     <textarea
@@ -89,7 +89,7 @@ export function DNAVozDrawer({ isOpen, onClose }: { isOpen: boolean; onClose: ()
                 <section>
                   <div className="flex items-center gap-2 mb-4 text-[var(--text-tertiary)]">
                     <Users className="w-4 h-4" />
-                    <span className="text-[10px] uppercase tracking-widest font-bold">Público</span>
+                    <span className="text-xs  font-bold">Público</span>
                   </div>
                   {isEditing ? (
                     <textarea
@@ -111,7 +111,7 @@ export function DNAVozDrawer({ isOpen, onClose }: { isOpen: boolean; onClose: ()
                 <section>
                   <div className="flex items-center gap-2 mb-4 text-[var(--text-tertiary)]">
                     <Target className="w-4 h-4" />
-                    <span className="text-[10px] uppercase tracking-widest font-bold">Pilares de Conteúdo</span>
+                    <span className="text-xs  font-bold">Pilares de Conteúdo</span>
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {state.pilares.filter(p => p.ativo).map(p => (
@@ -126,7 +126,7 @@ export function DNAVozDrawer({ isOpen, onClose }: { isOpen: boolean; onClose: ()
                 <section>
                   <div className="flex items-center gap-2 mb-4 text-[var(--text-tertiary)]">
                     <MessageSquare className="w-4 h-4" />
-                    <span className="text-[10px] uppercase tracking-widest font-bold">Tom de Voz</span>
+                    <span className="text-xs  font-bold">Tom de Voz</span>
                   </div>
                   {isEditing ? (
                     <textarea
@@ -146,14 +146,14 @@ export function DNAVozDrawer({ isOpen, onClose }: { isOpen: boolean; onClose: ()
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-2 text-[var(--text-tertiary)]">
                       <Ban className="w-4 h-4" />
-                      <span className="text-[10px] uppercase tracking-widest font-bold">O que não faço</span>
+                      <span className="text-xs  font-bold">O que não faço</span>
                     </div>
                     {isEditing && (
                       <div className="flex items-center gap-2">
                          <input 
                           type="text" 
                           placeholder="Novo proibido..."
-                          className="text-[10px] py-1 px-3 border-none w-32"
+                          className="text-xs py-1 px-3 border-none w-32"
                           value={newInput.field === 'naoFaco' ? newInput.value : ''}
                           onChange={e => setNewInput({ field: 'naoFaco', value: e.target.value })}
                           onKeyDown={e => e.key === 'Enter' && handleAddItem('naoFaco')}
@@ -187,19 +187,19 @@ export function DNAVozDrawer({ isOpen, onClose }: { isOpen: boolean; onClose: ()
                   </ul>
                 </section>
 
-                {/* Alertas de Desvio */}
+                {/* Cuidados de voz */}
                 <section>
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-2 text-[var(--text-tertiary)]">
                       <ShieldAlert className="w-4 h-4" />
-                      <span className="text-[10px] uppercase tracking-widest font-bold">Alertas de Desvio</span>
+                      <span className="text-xs  font-bold">Cuidados de voz</span>
                     </div>
                     {isEditing && (
                       <div className="flex items-center gap-2">
                         <input 
                           type="text" 
-                          placeholder="Novo alerta..."
-                          className="text-[10px] py-1 px-3 border-none w-32"
+                          placeholder="Novo cuidado..."
+                          className="text-xs py-1 px-3 border-none w-32"
                           value={newInput.field === 'alertas' ? newInput.value : ''}
                           onChange={e => setNewInput({ field: 'alertas', value: e.target.value })}
                           onKeyDown={e => e.key === 'Enter' && handleAddItem('alertas')}

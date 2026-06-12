@@ -1,8 +1,17 @@
-import { Check, Eye, Layers, Zap } from 'lucide-react';
+import { Check, Eye, Sparkles, Zap } from 'lucide-react';
 import { Content } from '../../../../lib/database';
 import { useAppContext } from '../../../../context/AppContext';
-import { cn, getEntityTagStyle, htmlToReadableText } from '../../../../lib/utils';
-import { CONTENT_STATUS } from '../../lib/contentPipeline';
+import { cn } from '../../../../lib/utils';
+import { ContentEntityTags } from '../ContentEntityTags';
+import {
+  buildContentMetaLine,
+  getDisplayTitle,
+  getStatusChipClass,
+  getUsefulExcerpt,
+  isDraftTitle,
+  isRecentlyCreated,
+  resolveContentEntities,
+} from '../../lib/contentCardMeta';
 
 interface ContentGridProps {
   contents: Content[];
@@ -11,19 +20,13 @@ interface ContentGridProps {
   onPreview: (content: Content) => void;
   onToggleSelect: (id: string) => void;
   selectedIds: Set<string>;
-  mode?: 'editorial' | 'postagem' | 'historico';
+  mode?: 'pipeline' | 'publicados';
+  isCompact?: boolean;
+  filterStatus?: string;
+  onSelectAll?: () => void;
+  allPageSelected?: boolean;
+  somePageSelected?: boolean;
 }
-
-const STATUS_CLASSES: Record<string, string> = {
-  [CONTENT_STATUS.IDEIA]: 'bg-zinc-100 text-zinc-700',
-  [CONTENT_STATUS.ROTEIRO]: 'bg-amber-100 text-amber-700',
-  [CONTENT_STATUS.PRONTO_PARA_GRAVAR]: 'bg-orange-100 text-orange-700',
-  [CONTENT_STATUS.GRAVADO]: 'bg-sky-100 text-sky-700',
-  [CONTENT_STATUS.A_EDITAR]: 'bg-violet-100 text-violet-700',
-  [CONTENT_STATUS.EDITADO]: 'bg-cyan-100 text-cyan-700',
-  [CONTENT_STATUS.PROGRAMADO]: 'bg-emerald-100 text-emerald-700',
-  [CONTENT_STATUS.POSTADO]: 'bg-green-100 text-green-700',
-};
 
 export function ContentGrid({
   contents,
@@ -32,142 +35,185 @@ export function ContentGrid({
   onPreview,
   onToggleSelect,
   selectedIds,
-  mode = 'editorial',
+  mode = 'pipeline',
+  isCompact = true,
+  filterStatus = 'Todos',
+  onSelectAll,
+  allPageSelected = false,
+  somePageSelected = false,
 }: ContentGridProps) {
   const { state } = useAppContext();
-  const enableSelection = mode !== 'historico';
+  const enableSelection = mode !== 'publicados';
 
   if (contents.length === 0) {
+    const emptyMessage =
+      filterStatus === 'Todos'
+        ? 'Nenhum conteúdo no pipeline. Crie o primeiro.'
+        : `Nenhum conteúdo em "${filterStatus}".`;
+
     return (
-      <div className="rounded-2xl border-2 border-dashed border-[var(--border-color)] py-24 text-center opacity-40">
-        <p className="text-sm font-black uppercase tracking-widest text-[var(--text-tertiary)]">
-          Nenhum conteudo encontrado
-        </p>
+      <div className="rounded-[var(--radius-card)] border border-dashed border-[var(--border-color)] py-16 text-center">
+        <p className="text-sm font-medium text-[var(--text-tertiary)]">{emptyMessage}</p>
       </div>
     );
   }
 
   return (
-    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-      {contents.map(content => {
-        const series = content.seriesId ? state.series.find(item => item.id === content.seriesId) : null;
-        const pillar = content.pilarId ? state.pilares.find(item => item.id === content.pilarId) : null;
-        const isSelected = selectedIds.has(content.id);
-        const excerpt = htmlToReadableText(content.notes || content.script);
-
-        return (
-          <article
-            key={content.id}
+    <div className="space-y-3">
+      {enableSelection && onSelectAll ? (
+        <div className="flex items-center gap-2 px-0.5">
+          <button
+            type="button"
+            onClick={onSelectAll}
             className={cn(
-              'relative flex min-h-[220px] flex-col rounded-2xl border bg-[var(--bg-primary)] p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-lg',
-              isSelected
-                ? 'border-[var(--text-primary)] ring-2 ring-[var(--text-primary)]/10'
-                : 'border-[var(--border-color)]'
+              'inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-[var(--radius-input)] border transition-colors',
+              allPageSelected
+                ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-[var(--bg-primary)]'
+                : somePageSelected
+                  ? 'border-[var(--text-primary)]/60 bg-[var(--text-primary)]/15'
+                  : 'border-[var(--border-color)] hover:border-[var(--border-strong)]'
             )}
+            aria-label="Selecionar todos desta página"
           >
-            <div className="mb-4 flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                {mode !== 'historico' ? (
-                  <span
-                    className={cn(
-                      'inline-flex rounded-full px-2.5 py-1 text-[9px] font-black uppercase tracking-widest',
-                      STATUS_CLASSES[content.status] || 'bg-[var(--bg-hover)] text-[var(--text-primary)]'
-                    )}
-                  >
-                    {content.status}
-                  </span>
-                ) : (
-                  <span className="inline-flex rounded-full bg-[var(--bg-hover)] px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-[var(--text-tertiary)]">
-                    {content.publishDate
-                      ? new Date(content.publishDate).toLocaleDateString('pt-BR')
-                      : 'Sem data'}
-                  </span>
-                )}
-                <h3 className="mt-3 line-clamp-2 text-lg font-semibold leading-tight text-[var(--text-primary)]">
-                  {content.title || '(sem titulo)'}
-                </h3>
-              </div>
+            {allPageSelected ? <Check className="h-3.5 w-3.5 stroke-[3px]" /> : null}
+            {somePageSelected && !allPageSelected ? (
+              <span className="h-0.5 w-2.5 rounded-full bg-[var(--text-primary)]" />
+            ) : null}
+          </button>
+          <span className="text-xs text-[var(--text-tertiary)]">
+            Selecionar todos desta página ({contents.length})
+          </span>
+        </div>
+      ) : null}
 
-              <div className="flex items-center gap-2">
-                {enableSelection ? (
-                  <button
-                    type="button"
-                    onClick={() => onToggleSelect(content.id)}
-                    className={cn(
-                      'inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border transition-all',
-                      isSelected
-                        ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-[var(--bg-primary)]'
-                        : 'border-[var(--border-color)] bg-[color-mix(in_srgb,var(--bg-elevated),transparent_8%)] text-[var(--text-secondary)]'
-                    )}
-                    aria-label={isSelected ? `Desmarcar ${content.title}` : `Selecionar ${content.title}`}
-                  >
-                    {isSelected ? <Check className="h-4 w-4 stroke-[3px]" /> : null}
-                  </button>
-                ) : null}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        {contents.map(content => {
+          const { pillar, series: seriesEntity } = resolveContentEntities(content, state.pilares, state.series);
+          const isSelected = selectedIds.has(content.id);
+          const excerpt = !isCompact ? getUsefulExcerpt(content) : null;
+          const showStatusOnCard = filterStatus === 'Todos' || mode === 'publicados';
+          const isDraft = isDraftTitle(content.title);
+          const isNew = isRecentlyCreated(content);
 
-                {mode !== 'historico' ? (
-                  <button
-                    type="button"
-                    onClick={() => onPreview(content)}
-                    className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[var(--border-color)] bg-[color-mix(in_srgb,var(--bg-elevated),transparent_8%)] text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
-                    aria-label={`Abrir detalhe de ${content.title}`}
-                  >
-                    <Eye className="h-4 w-4" />
-                  </button>
-                ) : null}
-              </div>
-            </div>
-
-            <div
-              className="flex-1 cursor-pointer"
-              onClick={() => onSelect(content)}
-              onKeyDown={event => {
-                if (event.key === 'Enter' || event.key === ' ') {
-                  event.preventDefault();
-                  onSelect(content);
-                }
-              }}
-              role="button"
-              tabIndex={0}
+          return (
+            <article
+              key={content.id}
+              className={cn(
+                'ds-card group relative flex flex-col bg-[var(--bg-primary)] text-left transition-colors hover:border-[var(--border-strong)]',
+                isCompact ? 'p-3' : 'p-3.5',
+                isSelected && 'border-[var(--text-primary)] ring-1 ring-[var(--text-primary)]/15'
+              )}
             >
-              {mode !== 'historico' && (
-                <div className="flex flex-wrap gap-2">
-                  {pillar && (
-                    <span
-                      className="rounded-full border px-2.5 py-1 text-[11px] font-semibold"
-                      style={getEntityTagStyle(pillar.cor)}
-                    >
-                      {pillar.nome}
+              <div className="mb-2 flex items-start justify-between gap-2">
+                <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+                  {mode === 'publicados' ? (
+                    <span className="inline-flex rounded-full bg-[var(--bg-hover)] px-2 py-0.5 text-xs font-medium text-[var(--text-tertiary)]">
+                      {content.publishDate
+                        ? new Date(content.publishDate).toLocaleDateString('pt-BR')
+                        : 'Sem data'}
                     </span>
-                  )}
-                  {series && (
+                  ) : showStatusOnCard ? (
                     <span
-                      className="inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-semibold"
-                      style={getEntityTagStyle(series.cor)}
+                      className={cn(
+                        'inline-flex rounded-full px-2 py-0.5 text-xs font-medium',
+                        getStatusChipClass(content.status)
+                      )}
                     >
-                      <Layers className="h-3 w-3" />
-                      {series.name}
+                      {content.status}
                     </span>
-                  )}
+                  ) : null}
+                  {isNew ? (
+                    <span className="inline-flex items-center gap-0.5 rounded-full bg-[var(--accent-blue)]/10 px-1.5 py-0.5 text-xs font-medium text-[var(--accent-blue)]">
+                      <Sparkles className="h-2.5 w-2.5" />
+                      Novo
+                    </span>
+                  ) : null}
+                  {isDraft ? (
+                    <span className="inline-flex rounded-full bg-[var(--bg-hover)] px-1.5 py-0.5 text-xs font-medium text-[var(--text-tertiary)]">
+                      Rascunho
+                    </span>
+                  ) : null}
                 </div>
-              )}
 
-              {(mode !== 'historico' ? excerpt : false) && (
-                <p className="mt-4 line-clamp-4 text-sm leading-relaxed text-[var(--text-secondary)]">
-                  {excerpt}
-                </p>
-              )}
-            </div>
+                <div className="flex shrink-0 items-center gap-1">
+                  {enableSelection ? (
+                    <button
+                      type="button"
+                      onClick={() => onToggleSelect(content.id)}
+                      className={cn(
+                        'inline-flex h-7 w-7 items-center justify-center rounded-[var(--radius-input)] border transition-colors',
+                        isSelected
+                          ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-[var(--bg-primary)]'
+                          : 'border-[var(--border-color)] text-[var(--text-secondary)] opacity-0 group-hover:opacity-100 hover:bg-[var(--bg-hover)]'
+                      )}
+                      aria-label={isSelected ? `Desmarcar ${content.title}` : `Selecionar ${content.title}`}
+                    >
+                      {isSelected ? <Check className="h-3.5 w-3.5 stroke-[3px]" /> : null}
+                    </button>
+                  ) : null}
 
-            {lookAlerts[content.id] && (
-              <div className="mt-4 flex items-center gap-2 border-t border-[var(--border-color)] pt-4 text-[10px] font-black uppercase tracking-widest text-orange-500">
-                <Zap className="h-3.5 w-3.5" />
-                {lookAlerts[content.id]}
+                  {mode !== 'publicados' ? (
+                    <button
+                      type="button"
+                      onClick={event => {
+                        event.stopPropagation();
+                        onPreview(content);
+                      }}
+                      className="inline-flex h-7 w-7 items-center justify-center rounded-[var(--radius-input)] border border-[var(--border-color)] text-[var(--text-secondary)] opacity-0 transition-all group-hover:opacity-100 hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
+                      aria-label={`Pré-visualizar ${content.title}`}
+                    >
+                      <Eye className="h-3.5 w-3.5" />
+                    </button>
+                  ) : null}
+                </div>
               </div>
-            )}
-          </article>
-        );
-      })}
+
+              <button
+                type="button"
+                onClick={() => onSelect(content)}
+                className="flex min-h-0 flex-1 flex-col text-left"
+              >
+                <h3
+                  className={cn(
+                    'line-clamp-2 text-sm font-semibold leading-snug text-[var(--text-primary)]',
+                    isDraft && 'italic text-[var(--text-secondary)]'
+                  )}
+                >
+                  {getDisplayTitle(content.title)}
+                </h3>
+
+                {mode !== 'publicados' ? (
+                  <ContentEntityTags
+                    pillar={pillar}
+                    series={seriesEntity}
+                    pillarId={content.pilarId}
+                    seriesId={content.seriesId}
+                    className="mt-2"
+                    size="sm"
+                  />
+                ) : null}
+
+                {excerpt ? (
+                  <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-[var(--text-secondary)]">
+                    {excerpt}
+                  </p>
+                ) : (
+                  <p className="mt-2 line-clamp-1 text-xs text-[var(--text-tertiary)]">
+                    {buildContentMetaLine(content)}
+                  </p>
+                )}
+
+                {lookAlerts[content.id] ? (
+                  <div className="mt-2 flex items-center gap-1 text-xs font-medium text-[var(--accent-orange)]">
+                    <Zap className="h-3 w-3" />
+                    <span className="line-clamp-1">{lookAlerts[content.id]}</span>
+                  </div>
+                ) : null}
+              </button>
+            </article>
+          );
+        })}
+      </div>
     </div>
   );
 }

@@ -27,7 +27,7 @@ function normalizeAuthError(error: AuthFailure | null | undefined) {
   const code = (error?.code ?? '').toLowerCase();
 
   if (code === 'invalid_credentials' || msg.includes('invalid login')) {
-    return 'E-mail ou senha inválidos.';
+    return 'E-mail e senha nao conferem. Revise os dados e tente novamente.';
   }
 
   if (code === 'email_not_confirmed' || msg.includes('email not confirmed')) {
@@ -47,7 +47,7 @@ function normalizeAuthError(error: AuthFailure | null | undefined) {
   }
 
   if (code === 'weak_password' || msg.includes('password')) {
-    return 'A senha deve ter pelo menos 6 caracteres.';
+    return 'Use uma senha com pelo menos 6 caracteres.';
   }
 
   if (code === 'over_email_send_rate_limit') {
@@ -95,7 +95,7 @@ export function LoginPage() {
     }
 
     if (password.length < 6) {
-      setError('A senha deve ter pelo menos 6 caracteres.');
+      setError('Use uma senha com pelo menos 6 caracteres.');
       return;
     }
 
@@ -142,7 +142,7 @@ export function LoginPage() {
   return (
     <div className="min-h-screen w-full bg-[var(--bg-primary)] flex items-center justify-center p-6 relative overflow-hidden">
 
-      <div className="absolute inset-x-0 top-0 h-24 border-b border-[var(--border-color)] bg-[var(--bg-secondary)]/70 backdrop-blur-xl" />
+      <div className="absolute inset-x-0 top-0 h-24 border-b border-[var(--border-color)] bg-[var(--bg-secondary)]/90" />
 
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -164,7 +164,7 @@ export function LoginPage() {
         </div>
 
         {/* Card */}
-        <div className="bg-[var(--bg-elevated)] border border-[var(--border-color)] p-8 rounded-lg shadow-[var(--shadow-soft)] backdrop-blur-xl">
+        <div className="rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-elevated)] p-8">
 
           <AnimatePresence mode="wait">
             {success ? (

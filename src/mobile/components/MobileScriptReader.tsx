@@ -74,8 +74,8 @@ export function MobileScriptReader({
               <X className="h-5 w-5" />
             </button>
             <div className="min-w-0 flex-1 text-center">
-              <p className="truncate text-sm font-black">{title}</p>
-              <p className="text-[10px] font-semibold text-[var(--text-tertiary)]">
+              <p className="truncate text-sm font-semibold">{title}</p>
+              <p className="text-xs font-semibold text-[var(--text-tertiary)]">
                 {words > 0 ? `${words} palavras` : 'Vazio'}
               </p>
             </div>
@@ -113,7 +113,7 @@ export function MobileScriptReader({
         )}
       >
         <div className="mb-3 flex items-center justify-between gap-2">
-          <span className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--text-tertiary)]">
+          <span className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--text-tertiary)]">
             {words > 0 ? `${words} palavras` : 'Roteiro vazio'}
           </span>
           <div className="flex items-center gap-1">
@@ -131,7 +131,7 @@ export function MobileScriptReader({
               <button
                 type="button"
                 onClick={onEdit}
-                className="inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-[var(--border-color)] bg-[var(--bg-primary)] px-3 text-[10px] font-black uppercase tracking-[0.12em] text-[var(--text-primary)]"
+                className="inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-[var(--border-color)] bg-[var(--bg-primary)] px-3 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-primary)]"
               >
                 <Pencil className="h-3.5 w-3.5" />
                 Editar

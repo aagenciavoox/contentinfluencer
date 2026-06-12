@@ -86,10 +86,10 @@ export function BookNotesModal({ book, onClose }: BookNotesModalProps) {
       <div className="shrink-0 border-b border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-2 md:px-8 md:py-4">
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
-            <p className="line-clamp-1 text-[10px] font-semibold text-[var(--text-secondary)] opacity-65">
+            <p className="line-clamp-1 text-xs font-semibold text-[var(--text-secondary)] opacity-65">
               {book.titulo}
             </p>
-            <p className="mt-0.5 text-[8px] font-black uppercase tracking-[0.18em] text-[var(--text-tertiary)] opacity-50">
+            <p className="mt-0.5 text-[8px] font-semibold  text-[var(--text-tertiary)] opacity-50">
               Notas
             </p>
           </div>
@@ -109,7 +109,7 @@ export function BookNotesModal({ book, onClose }: BookNotesModalProps) {
             <select
               value={novoTipo}
               onChange={event => setNovoTipo(event.target.value as TipoAnotacao)}
-              className="w-full cursor-pointer rounded-xl border-none bg-[var(--bg-hover)] px-3 py-2.5 text-[10px] font-black uppercase tracking-[0.18em] text-[var(--text-primary)] focus:ring-1 focus:ring-[var(--accent-purple)] sm:w-auto"
+              className="w-full cursor-pointer rounded-xl border-none bg-[var(--bg-hover)] px-3 py-2.5 text-xs font-semibold  text-[var(--text-primary)] focus:ring-1 focus:ring-[var(--accent-purple)] sm:w-auto"
             >
               {TIPOS.map(tipo => <option key={tipo}>{tipo}</option>)}
             </select>
@@ -119,7 +119,7 @@ export function BookNotesModal({ book, onClose }: BookNotesModalProps) {
               value={novoCapitulo}
               onChange={event => setNovoCapitulo(event.target.value)}
               placeholder="Cap. / página"
-              className="w-full rounded-xl border-none bg-[var(--bg-hover)] px-3 py-2.5 text-[11px] font-bold text-[var(--text-primary)] placeholder:opacity-40 focus:ring-1 focus:ring-[var(--accent-purple)] sm:w-40"
+              className="w-full rounded-xl border-none bg-[var(--bg-hover)] px-3 py-2.5 text-xs font-bold text-[var(--text-primary)] placeholder:opacity-40 focus:ring-1 focus:ring-[var(--accent-purple)] sm:w-40"
             />
           </div>
 
@@ -132,14 +132,14 @@ export function BookNotesModal({ book, onClose }: BookNotesModalProps) {
           />
 
           <div className="mt-4 flex items-center justify-between gap-3 border-t border-[var(--border-color)] pt-3">
-            <span className="text-[9px] font-black uppercase tracking-[0.16em] text-[var(--text-tertiary)] opacity-45">
+            <span className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--text-tertiary)] opacity-45">
               Nova nota
             </span>
 
             <button
               onClick={handleAddAnotacao}
               disabled={!novaAnotacao.trim()}
-              className="flex shrink-0 items-center gap-1.5 rounded-xl bg-[var(--text-primary)] px-4 py-2.5 text-[10px] font-black uppercase tracking-[0.18em] text-[var(--bg-primary)] transition-all hover:scale-[1.02] active:scale-95 disabled:opacity-30"
+              className="flex shrink-0 items-center gap-1.5 rounded-xl bg-[var(--text-primary)] px-4 py-2.5 text-xs font-semibold  text-[var(--bg-primary)] transition-all hover:scale-[1.02] active:scale-95 disabled:opacity-30"
             >
               <Plus className="h-3 w-3" />
               Adicionar
@@ -150,10 +150,10 @@ export function BookNotesModal({ book, onClose }: BookNotesModalProps) {
         <div className="mt-4 space-y-4">
           <div className="flex flex-col gap-3">
             <div className="flex items-center justify-between">
-              <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[var(--text-tertiary)] opacity-55">
+              <span className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--text-tertiary)] opacity-55">
                 Filtros
               </span>
-              <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[var(--text-tertiary)] opacity-55">
+              <span className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--text-tertiary)] opacity-55">
                 {anotacoesFiltradas.length} {anotacoesFiltradas.length === 1 ? 'nota' : 'notas'}
               </span>
             </div>
@@ -164,7 +164,7 @@ export function BookNotesModal({ book, onClose }: BookNotesModalProps) {
                   key={tipo}
                   onClick={() => setFiltroTipo(tipo)}
                   className={cn(
-                    'shrink-0 whitespace-nowrap rounded-full border px-3 py-1.5 text-[8px] font-black uppercase tracking-[0.16em] transition-all',
+                    'shrink-0 whitespace-nowrap rounded-full border px-3 py-1.5 text-[8px] font-semibold uppercase tracking-[0.16em] transition-all',
                     filtroTipo === tipo
                       ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-[var(--bg-secondary)]'
                       : 'border-[var(--border-strong)] bg-transparent text-[var(--text-primary)] opacity-55 hover:opacity-100'
@@ -179,7 +179,7 @@ export function BookNotesModal({ book, onClose }: BookNotesModalProps) {
           {anotacoesFiltradas.length === 0 ? (
             <div className="rounded-[24px] border border-dashed border-[var(--border-color)] py-16 text-center opacity-35">
               <MessageSquare className="mx-auto mb-3 h-10 w-10 text-[var(--text-primary)] opacity-20" />
-              <p className="text-[10px] font-black uppercase tracking-widest">
+              <p className="text-xs font-semibold ">
                 Nenhuma anotação neste filtro
               </p>
             </div>
@@ -197,7 +197,7 @@ export function BookNotesModal({ book, onClose }: BookNotesModalProps) {
                   onDelete={() => handleDeleteAnotacao(anotacao.id)}
                   footer={
                     <div className="mt-2 flex items-center justify-end border-t border-[var(--border-color)] pt-2">
-                      <span className="text-[10px] font-medium text-[var(--text-tertiary)]">
+                      <span className="text-xs font-medium text-[var(--text-tertiary)]">
                         {formatNoteDate(anotacao.createdAt)}
                       </span>
                     </div>

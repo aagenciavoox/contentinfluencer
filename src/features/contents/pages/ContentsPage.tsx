@@ -9,11 +9,13 @@ import {broadcastDataSync} from '../../../lib/syncBroadcast';
 import {notifySaveFeedback} from '../../../lib/saveFeedback';
 import {useIsMobile} from '../../../hooks/useIsMobile';
 import {DesktopPageHeader} from '../../../layouts/page/DesktopPageHeader';
-import {PageScaffold} from '../../../layouts/page/PageScaffold';
+import {PageLayout} from '../../../layouts/page/PageLayout';
 import {Content} from '../../../lib/database';
 import {ContentsMobileScreen} from '../../../mobile/screens/contents/ContentsMobileScreen';
 import {ContentsDesktop} from '../components/desktop/ContentsDesktop';
+import {ContentPreviewSheet} from '../components/desktop/ContentPreviewSheet';
 import {ContentsToolbar} from '../components/filters/ContentsToolbar';
+import {loadPipelinePreferences, savePipelinePreferences} from '../lib/pipelinePreferences';
 import {buildDetailBackState} from '../../../lib/navigation/detailBack';
 import {createContentDraft} from '../lib/createContentDraft';
 import {buildContentDetailRoute} from '../lib/contentDetailRoute';
@@ -24,13 +26,11 @@ import {
   getContentStatusOptions,
   getEditorialContents,
   getPostedContents,
-  getPostingContents,
   PRODUCTION_CONTENT_STATUSES,
   RECORDING_READY_STATUS,
 } from '../lib/contentWorkflow';
-import {ContentsViewMode, PostingTab, SortDirection, SortField} from '../types';
+import {ContentsListView, ContentsViewMode, CONTENTS_DESKTOP_PAGE_SIZE, SortDirection, SortField} from '../types';
 
-const DESKTOP_PAGE_SIZE = 12;
 const MOBILE_PAGE_SIZE = 8;
 const KEEP_VALUE = '__KEEP__';
 const EMPTY_VALUE = '__EMPTY__';
@@ -41,31 +41,38 @@ const CSVUploadModal = lazy(() =>
 
 function ModalFallback() {
   return (
-    <div className="fixed inset-0 z-[120] bg-[rgba(9,13,24,0.38)] backdrop-blur-sm" aria-hidden="true" />
+    <div className="fixed inset-0 z-[120] bg-[rgba(9,13,24,0.38)] " aria-hidden="true" />
   );
 }
 
+function resolveListView(view: string | null): ContentsListView {
+  if (view === 'publicados' || view === 'historico') return 'publicados';
+  return 'pipeline';
+}
+
 export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'history' | 'auto'}) {
-  const {state, dispatch, updateContent} = useAppContext();
+  const {state, dispatch, updateContent, ensureDataDomains} = useAppContext();
+
+  useEffect(() => {
+    void ensureDataDomains(['production', 'content']);
+  }, [ensureDataDomains]);
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const isMobile = useIsMobile();
   const requestedView = searchParams.get('view');
-  const resolvedMode =
-    mode === 'auto'
-      ? requestedView === 'postagem' || requestedView === 'historico'
-        ? 'history'
-        : 'editorial'
-      : mode;
-  const [postingTab, setPostingTab] = useState<PostingTab>(requestedView === 'historico' ? 'historico' : 'postagem');
-  const [filterStatus, setFilterStatus] = useState<string>(
-    searchParams.get('status') === RECORDING_READY_STATUS ? 'Todos' : searchParams.get('status') || 'Todos'
-  );
+  const listView = mode === 'auto' ? resolveListView(requestedView) : mode === 'history' ? 'publicados' : 'pipeline';
+  const pipelinePrefs = loadPipelinePreferences();
+  const [filterStatus, setFilterStatus] = useState<string>(() => {
+    const urlStatus = searchParams.get('status');
+    if (urlStatus === RECORDING_READY_STATUS) return 'Todos';
+    if (urlStatus) return urlStatus;
+    return pipelinePrefs.filterStatus;
+  });
   const [searchTerm, setSearchTerm] = useState('');
   const [filterSeries, setFilterSeries] = useState<string>('Todas');
   const [filterPillar, setFilterPillar] = useState<string>('Todos');
-  const [viewMode, setViewMode] = useState<ContentsViewMode>('table');
+  const [viewMode, setViewMode] = useState<ContentsViewMode>(pipelinePrefs.viewMode);
   const [isCSVUploadOpen, setIsCSVUploadOpen] = useState(false);
   const [sortField, setSortField] = useState<SortField>('createdAt');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
@@ -78,48 +85,20 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
   const [isBulkUpdating, setIsBulkUpdating] = useState(false);
   const [confirm, setConfirm] = useState<{message: string; onConfirm: () => void} | null>(null);
   const [desktopPage, setDesktopPage] = useState(1);
+  const [isCompact, setIsCompact] = useState(pipelinePrefs.isCompact);
+  const [previewContent, setPreviewContent] = useState<Content | null>(null);
 
-  const isEditorialMode = resolvedMode === 'editorial';
-  const isPostingHistory = resolvedMode === 'history' && postingTab === 'historico';
-  const effectiveViewMode = isPostingHistory ? 'grid' : viewMode;
-  const statusOptions = useMemo(() => getContentStatusOptions(resolvedMode), [resolvedMode]);
+  const isPipeline = listView === 'pipeline';
+  const isPublicados = listView === 'publicados';
+  const effectiveViewMode: ContentsViewMode = isPublicados
+    ? 'grid'
+    : viewMode === 'kanban'
+      ? 'kanban'
+      : viewMode;
+  const statusOptions = useMemo(() => getContentStatusOptions(isPipeline ? 'editorial' : 'history'), [isPipeline]);
 
-  useEffect(() => {
-    if (resolvedMode !== 'history') {
-      if (postingTab !== 'postagem') setPostingTab('postagem');
-      return;
-    }
-
-    const nextPostingTab = requestedView === 'historico' ? 'historico' : 'postagem';
-    setPostingTab(previous => (previous === nextPostingTab ? previous : nextPostingTab));
-  }, [postingTab, requestedView, resolvedMode]);
-
-  useEffect(() => {
-    if (isPostingHistory) {
-      setViewMode('grid');
-      setSelectedIds(new Set());
-    }
-  }, [isPostingHistory]);
-
-  useEffect(() => {
-    if (selectedIds.size === 0) {
-      setBulkSeriesValue(KEEP_VALUE);
-      setBulkPillarValue(KEEP_VALUE);
-      setBulkStatusValue(KEEP_VALUE);
-      setBulkUpdateMessage(null);
-      setBulkUpdateError(null);
-    }
-  }, [selectedIds]);
-
-  const sourceContents = useMemo(() => {
-    if (resolvedMode === 'editorial') return getEditorialContents(state.contents);
-    return postingTab === 'historico'
-      ? getPostedContents(state.contents)
-      : getPostingContents(state.contents);
-  }, [postingTab, resolvedMode, state.contents]);
-
-  const filteredContents = useMemo(() => {
-    return sourceContents.filter(content => {
+  const matchesPipelineFilters = useMemo(() => {
+    return (content: Content, includeStatusFilter: boolean) => {
       const normalizedSearch = searchTerm.trim().toLowerCase();
       const seriesName = state.series.find(series => series.id === content.seriesId)?.name || '';
       const pillarName = state.pilares.find(pillar => pillar.id === content.pilarId)?.nome || '';
@@ -130,7 +109,7 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
         ? `${bibliotecaItem.titulo} ${bibliotecaItem.autorDiretor}`
         : '';
 
-      if (isPostingHistory) {
+      if (isPublicados) {
         const dateLabel = content.publishDate
           ? new Date(content.publishDate).toLocaleDateString('pt-BR').toLowerCase()
           : '';
@@ -141,8 +120,7 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
         );
       }
 
-      const statusMatch = filterStatus === 'Todos' || content.status === filterStatus;
-
+      const statusMatch = !includeStatusFilter || filterStatus === 'Todos' || content.status === filterStatus;
       const seriesMatch = filterSeries === 'Todas' || content.seriesId === filterSeries;
       const pillarMatch = filterPillar === 'Todos' || content.pilarId === filterPillar;
       const searchMatch =
@@ -154,18 +132,82 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
         bibliotecaLabel.toLowerCase().includes(normalizedSearch);
 
       return statusMatch && seriesMatch && pillarMatch && searchMatch;
-    });
+    };
   }, [
     filterPillar,
     filterSeries,
     filterStatus,
-    isPostingHistory,
+    isPublicados,
     searchTerm,
-    sourceContents,
     state.bibliotecaItems,
     state.pilares,
     state.series,
   ]);
+
+  const statusCounts = useMemo(() => {
+    if (!isPipeline) return {};
+
+    const base = getEditorialContents(state.contents).filter(content =>
+      matchesPipelineFilters(content, false)
+    );
+    const counts: Record<string, number> = {Todos: base.length};
+
+    for (const status of EDITORIAL_CONTENT_STATUSES) {
+      counts[status] = base.filter(content => content.status === status).length;
+    }
+
+    return counts;
+  }, [isPipeline, matchesPipelineFilters, state.contents]);
+
+  useEffect(() => {
+    if (!isPipeline) return;
+    savePipelinePreferences({viewMode, isCompact, filterStatus});
+  }, [filterStatus, isCompact, isPipeline, viewMode]);
+
+  const filteredContents = useMemo(() => {
+    return (isPipeline ? getEditorialContents(state.contents) : getPostedContents(state.contents)).filter(
+      content => matchesPipelineFilters(content, true)
+    );
+  }, [isPipeline, matchesPipelineFilters, state.contents]);
+
+  const filteredSeriesOptions = useMemo(() => {
+    const seriesSet = new Set<string>();
+    filteredContents.forEach(c => {
+      if (c.seriesId) seriesSet.add(c.seriesId);
+    });
+    return Array.from(seriesSet).map(id => {
+      const s = state.series.find(s => s.id === id);
+      return s ? { id: s.id, name: s.name } : null;
+    }).filter(Boolean) as { id: string; name: string }[];
+  }, [filteredContents, state.series]);
+
+  const filteredPillarOptions = useMemo(() => {
+    const pillarSet = new Set<string>();
+    filteredContents.forEach(c => {
+      if (c.pilarId) pillarSet.add(c.pilarId);
+    });
+    return Array.from(pillarSet).map(id => {
+      const p = state.pilares.find(p => p.id === id);
+      return p ? { id: p.id, nome: p.nome } : null;
+    }).filter(Boolean) as { id: string; nome: string }[];
+  }, [filteredContents, state.pilares]);
+
+  useEffect(() => {
+    if (isPublicados) {
+      setViewMode('grid');
+      setSelectedIds(new Set());
+    }
+  }, [isPublicados]);
+
+  useEffect(() => {
+    if (selectedIds.size === 0) {
+      setBulkSeriesValue(KEEP_VALUE);
+      setBulkPillarValue(KEEP_VALUE);
+      setBulkStatusValue(KEEP_VALUE);
+      setBulkUpdateMessage(null);
+      setBulkUpdateError(null);
+    }
+  }, [selectedIds]);
 
   const sortedContents = useMemo(() => {
     return [...filteredContents].sort((a, b) => {
@@ -202,16 +244,16 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
     return Array.from(uniqueStatuses);
   }, []);
 
-  const totalDesktopPages = Math.max(1, Math.ceil(sortedContents.length / DESKTOP_PAGE_SIZE));
+  const totalDesktopPages = Math.max(1, Math.ceil(sortedContents.length / CONTENTS_DESKTOP_PAGE_SIZE));
 
   const paginatedDesktopContents = useMemo(() => {
-    const start = (desktopPage - 1) * DESKTOP_PAGE_SIZE;
-    return sortedContents.slice(start, start + DESKTOP_PAGE_SIZE);
+    const start = (desktopPage - 1) * CONTENTS_DESKTOP_PAGE_SIZE;
+    return sortedContents.slice(start, start + CONTENTS_DESKTOP_PAGE_SIZE);
   }, [desktopPage, sortedContents]);
 
   useEffect(() => {
     setDesktopPage(1);
-  }, [resolvedMode, postingTab, filterStatus, filterSeries, filterPillar, searchTerm, sortField, sortDirection, viewMode]);
+  }, [listView, filterStatus, filterSeries, filterPillar, searchTerm, sortField, sortDirection, viewMode]);
 
   useEffect(() => {
     if (desktopPage > totalDesktopPages) {
@@ -220,7 +262,7 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
   }, [desktopPage, totalDesktopPages]);
 
   const lookAlerts = useMemo(() => {
-    if (!isEditorialMode && postingTab !== 'postagem') return {};
+    if (!isPipeline) return {};
 
     const alerts: Record<string, string> = {};
 
@@ -239,7 +281,7 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
     }
 
     return alerts;
-  }, [isEditorialMode, postingTab, sortedContents]);
+  }, [isPipeline, sortedContents]);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -254,19 +296,19 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
   const conteudosListPath = `${location.pathname}${location.search}`;
 
   const handleAddContent = () => {
-    setFilterStatus('Todos');
+    setFilterStatus(CONTENT_STATUS.ROTEIRO);
     setFilterSeries('Todas');
     setFilterPillar('Todos');
     const newContent = createContentDraft({
       title: 'Novo Conteudo',
-      status: isEditorialMode ? CONTENT_STATUS.ROTEIRO : CONTENT_STATUS.GRAVADO,
+      status: isPipeline ? CONTENT_STATUS.ROTEIRO : CONTENT_STATUS.GRAVADO,
     });
     void dispatch({type: 'ADD_CONTENT', payload: newContent});
     navigate(`${buildContentDetailRoute(newContent.id)}&focus=script`, buildDetailBackState(conteudosListPath));
   };
 
   const handleToggleSelect = (id: string) => {
-    if (isPostingHistory) return;
+    if (isPublicados) return;
 
     setSelectedIds(previous => {
       const next = new Set(previous);
@@ -277,7 +319,7 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
   };
 
   const handleSelectAll = () => {
-    if (isPostingHistory) return;
+    if (isPublicados) return;
 
     setSelectedIds(previous => {
       const pageIds = paginatedDesktopContents.map(content => content.id);
@@ -297,7 +339,7 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
 
   const handleBulkDelete = () => {
     setConfirm({
-      message: `Tem certeza que deseja deletar ${selectedIds.size} itens?`,
+      message: `Remover ${selectedIds.size} itens selecionados?`,
       onConfirm: () => {
         selectedIds.forEach(id => dispatch({type: 'DELETE_CONTENT', payload: id}));
         setSelectedIds(new Set());
@@ -307,6 +349,50 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
 
   const hasBulkChanges =
     bulkSeriesValue !== KEEP_VALUE || bulkPillarValue !== KEEP_VALUE || bulkStatusValue !== KEEP_VALUE;
+
+  const handleBulkSetStatus = async (status: string) => {
+    if (selectedIds.size === 0 || isBulkUpdating) return;
+
+    const selectedContents = state.contents.filter(content => selectedIds.has(content.id));
+    if (selectedContents.length === 0) return;
+
+    setIsBulkUpdating(true);
+    setBulkUpdateMessage(null);
+    setBulkUpdateError(null);
+
+    try {
+      notifySaveFeedback({
+        status: 'saving',
+        message: `Atualizando ${selectedContents.length} conteudos...`,
+      });
+
+      await Promise.all(
+        selectedContents.map(content =>
+          updateContent(
+            {
+              ...content,
+              status,
+              updatedAt: new Date().toISOString(),
+            },
+            { silent: true, skipBroadcast: true }
+          )
+        )
+      );
+
+      broadcastDataSync();
+      notifySaveFeedback({
+        status: 'success',
+        message: `${selectedContents.length} conteudos atualizados`,
+      });
+      setBulkUpdateMessage(`${selectedContents.length} conteudos marcados como "${status}".`);
+      setSelectedIds(new Set());
+    } catch (error) {
+      console.error('[ContentsPage] bulk status update failed:', error);
+      setBulkUpdateError('Nao foi possivel atualizar o status em massa.');
+    } finally {
+      setIsBulkUpdating(false);
+    }
+  };
 
   const handleBulkApply = async () => {
     if (!hasBulkChanges || selectedIds.size === 0 || isBulkUpdating) return;
@@ -364,16 +450,23 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
     }
   };
 
-  const pageTitle = isEditorialMode ? 'Roteiro' : postingTab === 'historico' ? 'Publicados' : 'Postagem';
-  const surfaceMode = isEditorialMode ? 'editorial' : isPostingHistory ? 'historico' : 'postagem';
+  const pageTitle = isPipeline ? 'Pipeline' : 'Publicados';
+  const surfaceMode = isPipeline ? 'pipeline' : 'publicados';
 
-  const openUnifiedDetail = (content: Content, tab: 'roteiro' | 'postagem' | 'historico') => {
+  const openContentDetail = (content: Content, tab: 'roteiro' | 'publicar' = 'roteiro') => {
     navigate(buildContentDetailRoute(content.id, tab), buildDetailBackState(conteudosListPath));
   };
 
-  const openScriptDetail = (content: Content) => {
-    navigate(buildContentDetailRoute(content.id), buildDetailBackState(conteudosListPath));
+  const handlePreview = (content: Content) => {
+    setPreviewContent(content);
   };
+
+  const previewPillar = previewContent?.pilarId
+    ? state.pilares.find(pillar => pillar.id === previewContent.pilarId) ?? null
+    : null;
+  const previewSeries = previewContent?.seriesId
+    ? state.series.find(series => series.id === previewContent.seriesId) ?? null
+    : null;
 
   if (isMobile) {
     return (
@@ -386,24 +479,22 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
           series={state.series}
           pilares={state.pilares}
           onSelect={content => {
-            if (isPostingHistory) {
-              openUnifiedDetail(content, 'historico');
-              return;
-            }
-            if (isEditorialMode) {
-              openUnifiedDetail(content, 'roteiro');
-              return;
-            }
-            if (postingTab === 'postagem') {
-              openUnifiedDetail(content, 'postagem');
-              return;
-            }
+            openContentDetail(content, isPublicados ? 'publicar' : 'roteiro');
           }}
-          onPreview={openScriptDetail}
+          onPreview={handlePreview}
           onCreate={handleAddContent}
+          onListViewChange={view => {
+            setSearchParams(previous => {
+              const next = new URLSearchParams(previous);
+              if (view === 'publicados') next.set('view', 'publicados');
+              else next.delete('view');
+              return next;
+            }, {replace: true});
+          }}
+          isCompact={isCompact}
         />
 
-        {isEditorialMode && isCSVUploadOpen && (
+        {isPipeline && isCSVUploadOpen && (
           <Suspense fallback={<ModalFallback />}>
             <CSVUploadModal onClose={() => setIsCSVUploadOpen(false)} />
           </Suspense>
@@ -423,7 +514,7 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
   }
 
   return (
-    <PageScaffold
+    <PageLayout
       contentWidth="full"
       contentClassName="pb-32 md:pb-10"
       header={
@@ -436,8 +527,7 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
       }
       toolbar={
         <ContentsToolbar
-          mode={resolvedMode}
-          postingTab={postingTab}
+          listView={listView}
           isMobile={isMobile}
           viewMode={effectiveViewMode}
           searchTerm={searchTerm}
@@ -446,8 +536,11 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
           filterPillar={filterPillar}
           sortValue={`${sortField}:${sortDirection}`}
           statusOptions={statusOptions}
-          seriesOptions={state.series}
-          pillarOptions={state.pilares}
+          statusCounts={statusCounts}
+          seriesOptions={filteredSeriesOptions}
+          pillarOptions={filteredPillarOptions}
+          isCompact={isCompact}
+          onCompactToggle={() => setIsCompact(prev => !prev)}
           onViewModeChange={setViewMode}
           onSearchChange={setSearchTerm}
           onFilterStatusChange={setFilterStatus}
@@ -460,11 +553,11 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
           }}
           onImportClick={() => setIsCSVUploadOpen(true)}
           onCreateClick={handleAddContent}
-          onPostingTabChange={tab => {
-            setPostingTab(tab);
+          onListViewChange={view => {
             setSearchParams(previous => {
               const next = new URLSearchParams(previous);
-              next.set('view', tab);
+              if (view === 'publicados') next.set('view', 'publicados');
+              else next.delete('view');
               return next;
             }, {replace: true});
           }}
@@ -475,6 +568,7 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
         mode={surfaceMode}
         viewMode={effectiveViewMode}
         contents={paginatedDesktopContents}
+        kanbanContents={sortedContents}
         totalItems={sortedContents.length}
         currentPage={desktopPage}
         totalPages={totalDesktopPages}
@@ -482,38 +576,38 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
         sortField={sortField}
         sortDirection={sortDirection}
         selectedIds={selectedIds}
-        onSelect={content => {
-          if (isPostingHistory) {
-            openUnifiedDetail(content, 'historico');
-            return;
-          }
-          if (isEditorialMode) {
-            openUnifiedDetail(content, 'roteiro');
-            return;
-          }
-          if (postingTab === 'postagem') {
-            openUnifiedDetail(content, 'postagem');
-            return;
-          }
-        }}
-        onPreview={openScriptDetail}
+        isCompact={isCompact}
+        filterStatus={filterStatus}
+        onSelect={content => openContentDetail(content, isPublicados ? 'publicar' : 'roteiro')}
+        onPreview={handlePreview}
         onSort={handleSort}
         onToggleSelect={handleToggleSelect}
         onSelectAll={handleSelectAll}
         onPageChange={setDesktopPage}
       />
 
+      <ContentPreviewSheet
+        content={previewContent}
+        pillar={previewPillar}
+        series={previewSeries}
+        onClose={() => setPreviewContent(null)}
+        onOpen={content => {
+          setPreviewContent(null);
+          openContentDetail(content, 'roteiro');
+        }}
+      />
+
       <AnimatePresence>
-        {!isPostingHistory && selectedIds.size > 0 && (
+        {!isPublicados && selectedIds.size > 0 && (
           <motion.div
             initial={{y: 80}}
             animate={{y: 0}}
             exit={{y: 80}}
-            className="fixed bottom-6 left-1/2 z-30 w-[min(1100px,calc(100vw-2rem))] -translate-x-1/2 rounded-[28px] bg-[var(--text-primary)] px-4 py-4 text-[var(--bg-primary)] shadow-2xl"
+            className="fixed bottom-6 left-1/2 z-30 w-[min(1100px,calc(100vw-2rem))] -translate-x-1/2 rounded-[var(--radius-card-mobile)] bg-[var(--text-primary)] px-4 py-4 text-[var(--bg-primary)] shadow-none"
           >
             <div className="flex flex-col gap-4">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="rounded-full bg-white/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em]">
+                <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-semibold ">
                   {selectedIds.size} selecionados
                 </span>
                 <span className="text-xs text-white/70">Aplique pilar, serie e status de uma vez.</span>
@@ -552,6 +646,14 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
 
                 <div className="flex flex-wrap items-end gap-2">
                   <AppButton
+                    variant="secondary"
+                    onClick={() => void handleBulkSetStatus(RECORDING_READY_STATUS)}
+                    disabled={isBulkUpdating}
+                    className="border-white/20 bg-white/10 text-white hover:bg-white/15"
+                  >
+                    Pronto p/ gravar
+                  </AppButton>
+                  <AppButton
                     variant="primary"
                     onClick={handleBulkApply}
                     disabled={!hasBulkChanges || isBulkUpdating}
@@ -586,7 +688,7 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
         )}
       </AnimatePresence>
 
-      {isEditorialMode && isCSVUploadOpen && (
+      {isPipeline && isCSVUploadOpen && (
         <Suspense fallback={<ModalFallback />}>
           <CSVUploadModal onClose={() => setIsCSVUploadOpen(false)} />
         </Suspense>
@@ -601,7 +703,7 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
         }}
         onCancel={() => setConfirm(null)}
       />
-    </PageScaffold>
+    </PageLayout>
   );
 }
 
@@ -615,11 +717,11 @@ interface BulkSelectProps {
 function BulkSelect({label, value, onChange, options}: BulkSelectProps) {
   return (
     <label className="flex min-w-0 flex-col gap-2">
-      <span className="text-[10px] font-black uppercase tracking-[0.18em] text-white/70">{label}</span>
+      <span className="text-xs font-semibold  text-white/70">{label}</span>
       <select
         value={value}
         onChange={event => onChange(event.target.value)}
-        className="h-11 rounded-2xl border border-white/10 bg-white px-4 text-sm font-semibold text-[#0F172A] outline-none transition-colors focus:border-white/40"
+        className="h-11 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-white/10 bg-white px-4 text-sm font-semibold text-[#0F172A] outline-none transition-colors focus:border-white/40"
       >
         {options.map(option => (
           <option key={`${label}-${option.value}`} value={option.value}>

@@ -15,10 +15,9 @@ import {
 import {startOfWeek} from 'date-fns';
 import {useNavigate} from 'react-router-dom';
 import {DesktopPageHeader} from '../../../layouts/page/DesktopPageHeader';
-import {PageScaffold} from '../../../layouts/page/PageScaffold';
+import {PageLayout} from '../../../layouts/page/PageLayout';
 import {useAppContext} from '../../../context/AppContext';
 import {useIsMobile} from '../../../hooks/useIsMobile';
-import {cn} from '../../../lib/utils';
 import {DashboardMobileScreen} from '../../../mobile/screens/dashboard/DashboardMobileScreen';
 import {CONTENT_STATUS} from '../../contents/lib/contentPipeline';
 import {buildContentDetailRoute} from '../../contents/lib/contentDetailRoute';
@@ -78,13 +77,13 @@ export function DashboardPage() {
   }
 
   return (
-    <PageScaffold
+    <PageLayout
       contentWidth="full"
       contentClassName="space-y-8 pb-24 md:pb-10"
       header={
         <DesktopPageHeader
           section="Central"
-          title="Inicio"
+          title="Início"
           icon={Sparkles}
           className="mb-0"
         />
@@ -97,17 +96,17 @@ export function DashboardPage() {
       {goldenRuleViolations.length > 0 && (
         <button
           onClick={() => navigate('/configuracoes/regras')}
-          className="group flex w-full items-center justify-between gap-4 rounded-[1.5rem] border border-amber-500/30 bg-amber-500/5 px-5 py-4 text-left transition-opacity hover:opacity-80"
+          className="group flex w-full items-center justify-between gap-4 rounded-[var(--radius-card-mobile)] border border-amber-500/30 bg-amber-500/5 px-5 py-4 text-left transition-opacity hover:opacity-80"
         >
           <div className="flex items-center gap-3">
             <AlertTriangle className="h-4 w-4 shrink-0 text-amber-500" />
-            <p className="text-sm font-black text-[var(--text-primary)]">
+            <p className="text-sm font-semibold text-[var(--text-primary)]">
               {goldenRuleViolations.length === 1
                 ? '1 regra editorial precisa de atencao esta semana'
                 : `${goldenRuleViolations.length} regras editoriais precisam de atencao esta semana`}
             </p>
           </div>
-          <span className="flex shrink-0 items-center gap-1 text-[11px] font-black uppercase tracking-[0.18em] text-amber-500">
+          <span className="flex shrink-0 items-center gap-1 text-xs font-semibold  text-amber-500">
             Ver regras <ArrowRight className="h-3 w-3" />
           </span>
         </button>
@@ -118,7 +117,7 @@ export function DashboardPage() {
         <section>
           <div className="mb-3 flex items-center gap-2">
             <FolderKanban className="h-4 w-4 text-[var(--text-tertiary)]" />
-            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[var(--text-tertiary)]">
+            <p className="text-xs font-semibold  text-[var(--text-tertiary)]">
               Deadline nos proximos 7 dias
             </p>
           </div>
@@ -127,10 +126,10 @@ export function DashboardPage() {
               <button
                 key={project.id}
                 onClick={() => navigate(`/projetos/${project.id}`)}
-                className="group flex items-center justify-between gap-4 rounded-[1.5rem] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-5 py-4 text-left transition-opacity hover:opacity-70"
+                className="group flex items-center justify-between gap-4 rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-5 py-4 text-left transition-opacity hover:opacity-70"
               >
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-black text-[var(--text-primary)]">{project.nome}</p>
+                  <p className="truncate text-sm font-semibold text-[var(--text-primary)]">{project.nome}</p>
                   <p className="mt-0.5 text-xs text-[var(--text-secondary)]">
                     {project.brand ? `${project.brand} · ` : ''}{project.dataFim}
                   </p>
@@ -144,20 +143,20 @@ export function DashboardPage() {
 
       {/* Acoes rapidas */}
       <section className="flex flex-wrap gap-3">
-        <QuickAction label="Novo conteudo" icon={Plus} onClick={() => navigate('/conteudos')} />
+        <QuickAction label="Novo conteúdo" icon={Plus} onClick={() => navigate('/conteudos')} />
         <QuickAction label="Nova ideia" icon={Lightbulb} onClick={() => navigate('/ideias')} />
-        <QuickAction label="Ir para gravacao" icon={Video} onClick={() => navigate('/gravacao')} />
-        <QuickAction label="Ver calendario" icon={CalendarDays} onClick={() => navigate('/calendario')} />
+        <QuickAction label="Ir para gravação" icon={Video} onClick={() => navigate('/gravacao')} />
+        <QuickAction label="Ver calendário" icon={CalendarDays} onClick={() => navigate('/calendario')} />
       </section>
 
       {/* Listas operacionais */}
       <section className="grid gap-6 xl:grid-cols-3">
         <OperationalList
-          title="Fila de gravacao"
+          title="Fila de gravação"
           icon={Video}
           empty="Nenhum roteiro pronto para gravar."
           seeAllHref="/gravacao"
-          seeAllLabel="Abrir gravacao"
+          seeAllLabel="Abrir gravação"
         >
           {readyToRecord.slice(0, 5).map(content => (
             <ContentRow
@@ -170,11 +169,11 @@ export function DashboardPage() {
         </OperationalList>
 
         <OperationalList
-          title="Em producao"
+          title="Em produção"
           icon={Scissors}
-          empty="Nenhum conteudo em edicao ou gravado."
+          empty="Nenhum conteúdo em edição ou gravado."
           seeAllHref="/conteudos"
-          seeAllLabel="Ver conteudos"
+          seeAllLabel="Ver conteúdos"
         >
           {inProduction.slice(0, 5).map(content => (
             <ContentRow
@@ -187,7 +186,7 @@ export function DashboardPage() {
         </OperationalList>
 
         <OperationalList
-          title="Agenda proxima"
+          title="Agenda próxima"
           icon={BookOpen}
           empty="Nenhum item futuro na agenda."
           seeAllHref="/calendario"
@@ -203,7 +202,7 @@ export function DashboardPage() {
           ))}
         </OperationalList>
       </section>
-    </PageScaffold>
+    </PageLayout>
   );
 }
 
@@ -263,14 +262,14 @@ function SpotlightBlock({
 }) {
   if (spotlight.type === 'empty') {
     return (
-      <div className="flex items-center justify-between gap-6 rounded-[2rem] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-8">
+      <div className="flex items-center justify-between gap-6 rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-8">
         <div>
-          <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[var(--text-tertiary)]">
-            Proximo passo
+          <p className="text-xs font-semibold  text-[var(--text-tertiary)]">
+            Próximo passo
           </p>
-          <h2 className="mt-3 text-2xl font-black text-[var(--text-primary)]">Tudo em dia</h2>
+          <h2 className="mt-3 text-2xl font-semibold text-[var(--text-primary)]">Tudo em dia</h2>
           <p className="mt-2 text-sm text-[var(--text-secondary)]">
-            Nenhuma acao pendente no momento. Comece criando um conteudo ou capturando uma ideia.
+            Nenhuma ação pendente no momento. Comece criando um conteudo ou capturando uma ideia.
           </p>
         </div>
         <Sparkles className="h-10 w-10 shrink-0 text-[var(--text-tertiary)]" />
@@ -282,13 +281,13 @@ function SpotlightBlock({
     return (
       <button
         onClick={() => onNavigate('/gravacao')}
-        className="group flex w-full items-center justify-between gap-6 rounded-[2rem] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-8 text-left transition-opacity hover:opacity-80"
+        className="group flex w-full items-center justify-between gap-6 rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-8 text-left transition-opacity hover:opacity-80"
       >
         <div className="min-w-0">
-          <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[var(--text-tertiary)]">
-            Proximo passo
+          <p className="text-xs font-semibold  text-[var(--text-tertiary)]">
+            Próximo passo
           </p>
-          <h2 className="mt-3 truncate text-2xl font-black text-[var(--text-primary)]">
+          <h2 className="mt-3 truncate text-2xl font-semibold text-[var(--text-primary)]">
             {spotlight.count === 1
               ? `Gravar: ${spotlight.firstTitle}`
               : `${spotlight.count} roteiros prontos para gravar`}
@@ -298,11 +297,11 @@ function SpotlightBlock({
               ? 'Este roteiro ja pode entrar em sessao de gravacao.'
               : `Comece pelo primeiro: ${spotlight.firstTitle}`}
           </p>
-          <span className="mt-4 inline-flex items-center gap-1.5 text-[11px] font-black uppercase tracking-[0.18em] text-[var(--text-primary)]">
-            Abrir gravacao <ArrowRight className="h-3 w-3" />
+          <span className="mt-4 inline-flex items-center gap-1.5 text-xs font-semibold  text-[var(--text-primary)]">
+            Abrir gravação <ArrowRight className="h-3 w-3" />
           </span>
         </div>
-        <div className="rounded-[1.5rem] bg-amber-500/10 p-5">
+        <div className="rounded-[var(--radius-card-mobile)] bg-amber-500/10 p-5">
           <Clapperboard className="h-8 w-8 text-amber-500" />
         </div>
       </button>
@@ -313,13 +312,13 @@ function SpotlightBlock({
     return (
       <button
         onClick={() => onNavigate(buildContentDetailRoute(spotlight.firstId))}
-        className="group flex w-full items-center justify-between gap-6 rounded-[2rem] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-8 text-left transition-opacity hover:opacity-80"
+        className="group flex w-full items-center justify-between gap-6 rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-8 text-left transition-opacity hover:opacity-80"
       >
         <div className="min-w-0">
-          <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[var(--text-tertiary)]">
-            Proximo passo
+          <p className="text-xs font-semibold  text-[var(--text-tertiary)]">
+            Próximo passo
           </p>
-          <h2 className="mt-3 truncate text-2xl font-black text-[var(--text-primary)]">
+          <h2 className="mt-3 truncate text-2xl font-semibold text-[var(--text-primary)]">
             {spotlight.count === 1
               ? `Editar: ${spotlight.firstTitle}`
               : `${spotlight.count} conteudos aguardando edicao`}
@@ -329,11 +328,11 @@ function SpotlightBlock({
               ? 'Pronto para entrar em edicao.'
               : `Continue pelo: ${spotlight.firstTitle}`}
           </p>
-          <span className="mt-4 inline-flex items-center gap-1.5 text-[11px] font-black uppercase tracking-[0.18em] text-[var(--text-primary)]">
-            Abrir conteudo <ArrowRight className="h-3 w-3" />
+          <span className="mt-4 inline-flex items-center gap-1.5 text-xs font-semibold  text-[var(--text-primary)]">
+            Abrir conteúdo <ArrowRight className="h-3 w-3" />
           </span>
         </div>
-        <div className="rounded-[1.5rem] bg-violet-500/10 p-5">
+        <div className="rounded-[var(--radius-card-mobile)] bg-violet-500/10 p-5">
           <Scissors className="h-8 w-8 text-violet-500" />
         </div>
       </button>
@@ -344,23 +343,23 @@ function SpotlightBlock({
   return (
     <button
       onClick={() => onNavigate('/calendario')}
-      className="group flex w-full items-center justify-between gap-6 rounded-[2rem] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-8 text-left transition-opacity hover:opacity-80"
+      className="group flex w-full items-center justify-between gap-6 rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-8 text-left transition-opacity hover:opacity-80"
     >
       <div className="min-w-0">
-        <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[var(--text-tertiary)]">
-          Proximo passo
+        <p className="text-xs font-semibold  text-[var(--text-tertiary)]">
+          Próximo passo
         </p>
-        <h2 className="mt-3 truncate text-2xl font-black text-[var(--text-primary)]">
+        <h2 className="mt-3 truncate text-2xl font-semibold text-[var(--text-primary)]">
           {spotlight.title}
         </h2>
         <p className="mt-2 text-sm text-[var(--text-secondary)]">
           {[spotlight.date, spotlight.time].filter(Boolean).join(' · ')}
         </p>
-        <span className="mt-4 inline-flex items-center gap-1.5 text-[11px] font-black uppercase tracking-[0.18em] text-[var(--text-primary)]">
+        <span className="mt-4 inline-flex items-center gap-1.5 text-xs font-semibold  text-[var(--text-primary)]">
           Ver calendario <ArrowRight className="h-3 w-3" />
         </span>
       </div>
-      <div className="rounded-[1.5rem] bg-sky-500/10 p-5">
+      <div className="rounded-[var(--radius-card-mobile)] bg-sky-500/10 p-5">
         <CalendarDays className="h-8 w-8 text-sky-500" />
       </div>
     </button>
@@ -381,7 +380,7 @@ function QuickAction({
   return (
     <button
       onClick={onClick}
-      className="flex items-center gap-2 rounded-[1.2rem] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-2.5 text-[11px] font-black uppercase tracking-[0.18em] text-[var(--text-secondary)] transition-opacity hover:opacity-70"
+      className="flex items-center gap-2 rounded-[1.2rem] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-2.5 text-xs font-semibold  text-[var(--text-secondary)] transition-opacity hover:opacity-70"
     >
       <Icon className="h-3.5 w-3.5" />
       {label}
@@ -408,9 +407,9 @@ function OperationalList({
   const items = React.Children.toArray(children);
 
   return (
-    <div className="rounded-[2rem] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-6">
+    <div className="rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-6">
       <div className="mb-5 flex items-center justify-between gap-4">
-        <h2 className="text-lg font-black text-[var(--text-primary)]">{title}</h2>
+        <h2 className="text-lg font-semibold text-[var(--text-primary)]">{title}</h2>
         <Icon className="h-4 w-4 text-[var(--text-tertiary)]" />
       </div>
 
@@ -426,7 +425,7 @@ function OperationalList({
 
       <button
         onClick={() => navigate(seeAllHref)}
-        className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-[1.2rem] border border-[var(--border-color)] py-2.5 text-[11px] font-black uppercase tracking-[0.18em] text-[var(--text-tertiary)] transition-opacity hover:opacity-70"
+        className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-[1.2rem] border border-[var(--border-color)] py-2.5 text-xs font-semibold  text-[var(--text-tertiary)] transition-opacity hover:opacity-70"
       >
         {seeAllLabel}
         <ArrowRight className="h-3 w-3" />
@@ -450,7 +449,7 @@ function ContentRow({
       className="group flex w-full items-center justify-between gap-3 rounded-[1.2rem] border border-[var(--border-color)] bg-[var(--bg-primary)] px-4 py-3 text-left transition-opacity hover:opacity-70"
     >
       <div className="min-w-0">
-        <p className="truncate text-sm font-black text-[var(--text-primary)]">{title}</p>
+        <p className="truncate text-sm font-semibold text-[var(--text-primary)]">{title}</p>
         <p className="mt-0.5 text-xs text-[var(--text-secondary)]">{meta}</p>
       </div>
       <ArrowRight className="h-3.5 w-3.5 shrink-0 text-[var(--text-tertiary)]" />

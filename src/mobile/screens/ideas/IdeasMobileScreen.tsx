@@ -165,7 +165,7 @@ export function IdeasMobileScreen({
                 type="button"
                 onClick={() => setActiveTab(tab.value)}
                 className={cn(
-                  'rounded-lg px-5 py-2 text-[11px] font-semibold uppercase tracking-[0.05em] transition-all',
+                  'rounded-lg px-5 py-2 text-xs font-semibold uppercase tracking-[0.05em] transition-all',
                   active
                     ? 'bg-[var(--text-primary)] text-[var(--bg-primary)] shadow-sm'
                     : 'text-[var(--text-tertiary)] hover:bg-[var(--bg-secondary)]/80'
@@ -230,7 +230,7 @@ export function IdeasMobileScreen({
         <form onSubmit={handleComposerSubmit} className="flex flex-col bg-[var(--bg-primary)]">
           <div className="flex items-center justify-between border-b border-[var(--border-color)] px-5 py-4">
             <div>
-              <h2 className="text-base font-black text-[var(--text-primary)]">Nova ideia</h2>
+              <h2 className="text-base font-semibold text-[var(--text-primary)]">Nova ideia</h2>
               <p className="mt-0.5 text-xs text-[var(--text-tertiary)]">Escreva primeiro. Classifique depois.</p>
             </div>
             <button

@@ -365,12 +365,12 @@ export function BurstModeMobileScreen({
             </button>
 
             <div className="min-w-0 flex-1">
-              <p className="truncate text-xs font-black">{currentContent.title || 'Sem titulo'}</p>
-              <p className={cn('text-[10px] font-semibold uppercase tracking-[0.16em]', theme.muted)}>
+              <p className="truncate text-xs font-semibold">{currentContent.title || 'Sem titulo'}</p>
+              <p className={cn('text-xs font-semibold uppercase tracking-[0.16em]', theme.muted)}>
                 {playbackState === 'preparing'
                   ? 'Preparar'
                   : playbackState === 'reading'
-                    ? 'Lendo'
+                    ? 'Acompanhando'
                     : 'Pausado'}
                 {' · '}
                 {formatSeconds(elapsedSeconds)} / {formatSeconds(totalEstimatedSeconds)}
@@ -435,10 +435,10 @@ export function BurstModeMobileScreen({
         <>
           <div className="flex items-center justify-between px-4 pb-3 pt-[calc(env(safe-area-inset-top)+10px)]">
             <div className="min-w-0">
-              <p className={cn('text-[11px] font-black uppercase tracking-[0.22em]', theme.muted)}>
+              <p className={cn('text-xs font-semibold ', theme.muted)}>
                 Modo Explosao
               </p>
-              <h2 className="mt-1 truncate text-base font-black">{currentContent.title || 'Sem titulo'}</h2>
+              <h2 className="mt-1 truncate text-base font-semibold">{currentContent.title || 'Sem titulo'}</h2>
             </div>
 
             <button
@@ -461,9 +461,9 @@ export function BurstModeMobileScreen({
 
       {teleprompterEnabled && countdownRemaining !== null && (
         <div className="absolute inset-0 z-[10] flex flex-col items-center justify-center bg-black/25 px-6">
-          <div className={cn('rounded-[2rem] border px-10 py-8 text-center shadow-2xl', theme.card, theme.border)}>
-            <p className={cn('text-[10px] font-black uppercase tracking-[0.22em]', theme.muted)}>Preparar</p>
-            <p className="mt-2 text-6xl font-black">{countdownRemaining}</p>
+          <div className={cn('rounded-[var(--radius-card-mobile)] border px-10 py-8 text-center shadow-none', theme.card, theme.border)}>
+            <p className={cn('text-xs font-semibold ', theme.muted)}>Preparar</p>
+            <p className="mt-2 text-6xl font-semibold">{countdownRemaining}</p>
           </div>
           <button
             type="button"
@@ -471,7 +471,7 @@ export function BurstModeMobileScreen({
               setCountdownRemaining(null);
               setIsPlaying(false);
             }}
-            className="mt-6 min-h-11 rounded-full border border-white/30 px-6 text-sm font-black uppercase tracking-[0.16em] text-white"
+            className="mt-6 min-h-11 rounded-full border border-white/30 px-6 text-sm font-semibold uppercase tracking-[0.16em] text-white"
           >
             Cancelar
           </button>
@@ -513,10 +513,10 @@ export function BurstModeMobileScreen({
       <BottomSheetModal open={isSettingsOpen && !isPreparing} onClose={() => setIsSettingsOpen(false)} zIndex="z-[220]">
         <section className="flex max-h-[80vh] flex-col overflow-hidden bg-[var(--bg-primary)]">
           <div className="border-b border-[var(--border-color)] px-5 py-4">
-            <p className="text-[11px] font-black uppercase tracking-[0.22em] text-[var(--text-tertiary)]">
+            <p className="text-xs font-semibold  text-[var(--text-tertiary)]">
               Modo Explosao
             </p>
-            <h3 className="mt-2 text-xl font-black text-[var(--text-primary)]">Ajustes mobile</h3>
+            <h3 className="mt-2 text-xl font-semibold text-[var(--text-primary)]">Ajustes mobile</h3>
           </div>
 
           <div className="space-y-5 overflow-y-auto px-5 py-5">
@@ -564,17 +564,17 @@ export function BurstModeMobileScreen({
 function MetricCard({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-[1.15rem] bg-[var(--bg-hover)] px-3 py-3">
-      <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--text-tertiary)]">
+      <p className="text-xs font-semibold  text-[var(--text-tertiary)]">
         {label}
       </p>
-      <p className="mt-1 text-base font-black text-[var(--text-primary)]">{value}</p>
+      <p className="mt-1 text-base font-semibold text-[var(--text-primary)]">{value}</p>
     </div>
   );
 }
 
 function InfoPill({ icon, label }: { icon: React.ReactNode; label: string }) {
   return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-[var(--bg-hover)] px-3 py-1 text-[11px] font-semibold text-[var(--text-secondary)]">
+    <span className="inline-flex items-center gap-1 rounded-full bg-[var(--bg-hover)] px-3 py-1 text-xs font-semibold text-[var(--text-secondary)]">
       {icon}
       {label}
     </span>
@@ -607,7 +607,7 @@ function ActionIconButton({
       )}
     >
       {icon}
-      <span className="text-[10px] font-black uppercase tracking-[0.18em]">{label}</span>
+      <span className="text-xs font-semibold ">{label}</span>
     </button>
   );
 }
@@ -625,7 +625,7 @@ function MobileSliderSetting({
     <div className="space-y-2">
       <div className="flex items-center justify-between gap-3">
         <span className="text-sm font-bold text-[var(--text-primary)]">{label}</span>
-        <span className="text-[11px] font-black uppercase tracking-[0.16em] text-[var(--text-tertiary)]">{value}</span>
+        <span className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--text-tertiary)]">{value}</span>
       </div>
       {children}
     </div>
@@ -661,7 +661,7 @@ function ChoiceButton({
       type="button"
       onClick={onClick}
       className={cn(
-        'rounded-full border px-4 py-2 text-sm font-black transition-colors',
+        'rounded-full border px-4 py-2 text-sm font-semibold transition-colors',
         active
           ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-[var(--bg-primary)]'
           : 'border-[var(--border-color)] text-[var(--text-secondary)]'

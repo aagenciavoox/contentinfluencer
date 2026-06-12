@@ -47,7 +47,7 @@ export function IdeaInboxCard({
         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
           {pilarNome ? (
             <span
-              className="status-pill text-[9px] font-medium uppercase tracking-[0.06em]"
+              className="status-pill text-xs font-medium uppercase tracking-[0.06em]"
               style={getEntityTagStyle(pilarCor)}
             >
               {pilarNome}
@@ -55,20 +55,20 @@ export function IdeaInboxCard({
           ) : null}
           {serieNome ? (
             <span
-              className="status-pill text-[9px] font-medium uppercase tracking-[0.06em]"
+              className="status-pill text-xs font-medium uppercase tracking-[0.06em]"
               style={getEntityTagStyle(serieCor)}
             >
               {serieNome}
             </span>
           ) : null}
           {origemTitulo ? (
-            <span className="status-pill gap-1 text-[9px] font-medium uppercase tracking-[0.06em] text-[var(--accent-orange)]">
+            <span className="status-pill gap-1 text-xs font-medium uppercase tracking-[0.06em] text-[var(--accent-orange)]">
               <BookOpen className="h-3 w-3" />
               {origemTitulo}
             </span>
           ) : null}
           {!hasTags ? (
-            <span className="text-[9px] font-medium uppercase tracking-[0.08em] text-[var(--text-tertiary)]">
+            <span className="text-xs font-medium uppercase tracking-[0.08em] text-[var(--text-tertiary)]">
               Sem classificação
             </span>
           ) : null}
@@ -76,7 +76,7 @@ export function IdeaInboxCard({
 
         <time
           dateTime={idea.createdAt}
-          className="shrink-0 text-[10px] font-medium tabular-nums text-[var(--text-tertiary)]"
+          className="shrink-0 text-xs font-medium tabular-nums text-[var(--text-tertiary)]"
         >
           {format(new Date(idea.createdAt), "d MMM", { locale: ptBR })}
         </time>
@@ -112,7 +112,7 @@ function InboxAction({ label, icon: Icon, onClick, accent }: InboxActionProps) {
         onClick();
       }}
       className={cn(
-        'flex items-center gap-1 rounded-md px-2 py-1 text-[9px] font-medium uppercase tracking-[0.08em] transition-colors',
+        'flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium uppercase tracking-[0.08em] transition-colors',
         accent
           ? 'text-[var(--text-primary)] hover:bg-[var(--bg-hover)]'
           : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]'

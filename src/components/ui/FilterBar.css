@@ -1,0 +1,72 @@
+/* src/components/ui/FilterBar.css */
+
+/*---------------------------------------------------------------
+ * Filter Bar – overall container
+ *---------------------------------------------------------------*/
+.filter-bar {
+  @apply flex flex-col md:flex-row md:items-end gap-3 md:gap-4;
+}
+
+/* Compact variant: reduces vertical padding and font size */
+.filter-bar--compact {
+  @apply text-sm;
+}
+
+/*---------------------------------------------------------------
+ * Search area (icon + input)
+ *---------------------------------------------------------------*/
+.filter-bar-search {
+  @apply flex items-center gap-1.5 bg-[var(--bg-hover)] rounded-xl py-1 px-2 w-full;
+}
+
+.filter-bar-search-input {
+  @apply flex-1 bg-transparent border-none text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-blue)]/40;
+}
+
+/*---------------------------------------------------------------
+ * Generic select (used for series, pillar and sort)
+ *---------------------------------------------------------------*/
+.filter-bar-select {
+  @apply bg-[var(--bg-elevated)] border border-[var(--border-color)] rounded-md text-[var(--text-primary)] text-sm pr-8 cursor-pointer appearance-none;
+  transition: background-color 0.15s, border-color 0.15s;
+}
+
+.filter-bar-select:hover,
+.filter-bar-select:focus {
+  @apply bg-[var(--bg-hover)] border-[var(--text-primary)] ring-2 ring-[var(--accent-blue)]/30;
+}
+
+/* Ensure option text does not overflow */
+.filter-bar-select option {
+  @apply truncate;
+}
+
+/*---------------------------------------------------------------
+ * Dropdown menu for custom filters / "Mais filtros"
+ *---------------------------------------------------------------*/
+.filter-bar-menu {
+  @apply absolute left-0 top-full mt-1 w-max min-w-[180px] bg-[var(--bg-elevated)] border border-[var(--border-color)] rounded-md shadow-lg z-20 p-3;
+}
+
+/* Adjust spacing for filter controls */
+.filter-bar-controls {
+  @apply flex flex-wrap items-end gap-2;
+}
+
+/*---------------------------------------------------------------
+ * Responsive width utilities – handled via inline Tailwind in JSX,
+ * but we provide a fallback class for when Tailwind is not applied.
+ *---------------------------------------------------------------*/
+.filter-bar-select.w-[104px] {
+  @apply w-[104px];
+}
+.filter-bar-select.w-[148px] {
+  @apply w-[148px];
+}
+
+/*---------------------------------------------------------------
+ * Misc – ensure chevron icons are correctly positioned
+ *---------------------------------------------------------------*/
+.filter-bar-select + .filter-bar-select {
+  /* no extra rules needed – placeholder */
+}

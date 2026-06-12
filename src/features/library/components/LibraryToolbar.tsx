@@ -120,7 +120,7 @@ export function LibraryToolbar({
         variant="primary"
         size="sm"
         leftIcon={<Plus className="h-3.5 w-3.5" />}
-        className="library-toolbar-add shrink-0 text-[10px] uppercase tracking-widest"
+        className="library-toolbar-add shrink-0 text-xs "
       >
         Adicionar
       </AppButton>

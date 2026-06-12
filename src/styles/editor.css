@@ -1,4 +1,8 @@
 .tiptap {
+  font-family: var(--font-sans);
+  font-size: 1.0625rem;
+  line-height: 1.75;
+
   &:focus {
     outline: none;
   }

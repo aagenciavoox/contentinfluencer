@@ -1,18 +1,24 @@
 import { useState } from 'react';
-import { AlertTriangle, ChevronDown, Clock3, FileText, Settings2 } from 'lucide-react';
+import { ChevronDown, FileText, Settings2 } from 'lucide-react';
 import { BottomSheetModal } from '../../../components/feedback/modals/BottomSheetModal';
 import { AppButton } from '../../../components/ui/AppButton';
 import type { Content } from '../../../lib/database';
 import { MobileSegmentTabs } from '../../components/MobileSegmentTabs';
 import type { ContentDetailTab, ContentPrimaryAction, PostingAlert } from '../../../features/contents/lib/contentPipeline';
 
+const TAB_LABELS: Record<ContentDetailTab, string> = {
+  roteiro: 'Roteiro',
+  gravacao: 'Gravação',
+  publicacao: 'Publicação',
+};
+
 interface ContentDetailMobileScreenProps {
   content: Content;
   activeTab: ContentDetailTab;
+  visibleTabs: ContentDetailTab[];
   onTabChange: (tab: ContentDetailTab) => void;
   primaryAction: ContentPrimaryAction;
   onPrimaryAction: () => void;
-  onStatusChange?: (status: string) => void;
   isSaving: boolean;
   postingAlerts: PostingAlert[];
   stageLabel: string;
@@ -32,6 +38,7 @@ function formatDate(value: string | null) {
 export function ContentDetailMobileScreen({
   content,
   activeTab,
+  visibleTabs,
   onTabChange,
   primaryAction,
   onPrimaryAction,
@@ -48,6 +55,7 @@ export function ContentDetailMobileScreen({
   const [detailsSheetOpen, setDetailsSheetOpen] = useState(false);
   const hasPrimaryAction = primaryAction.id !== 'none';
   const isScriptTab = activeTab === 'roteiro';
+  const tabOptions = visibleTabs.map(tab => ({ value: tab, label: TAB_LABELS[tab] }));
 
   const blockLabel = blockName
     ? blockOrder
@@ -63,12 +71,12 @@ export function ContentDetailMobileScreen({
             <p className="min-w-0 truncate text-base font-semibold text-[var(--text-primary)]">
               {content.title || 'Sem titulo'}
             </p>
-            <span className="status-pill shrink-0 text-[10px]">{stageLabel}</span>
+            <span className="status-pill shrink-0 text-xs">{stageLabel}</span>
           </div>
-          <p className="text-[11px] text-[var(--text-secondary)]">
+          <p className="text-xs text-[var(--text-secondary)]">
             {blockLabel} · Grav: {formatDate(content.recordingDate)} · Post: {formatDate(content.publishDate)}
           </p>
-          {saveHint ? <p className="text-[10px] text-[var(--text-tertiary)]">{saveHint}</p> : null}
+          {saveHint ? <p className="text-xs text-[var(--text-tertiary)]">{saveHint}</p> : null}
         </div>
 
         <div className="min-h-0 flex-1 py-2">{section}</div>
@@ -104,13 +112,7 @@ export function ContentDetailMobileScreen({
             {operationalPanel}
             <MobileSegmentTabs
               rounded="tight"
-              tabs={[
-                { value: 'roteiro', label: 'Roteiro' },
-                { value: 'gravacao', label: 'Gravacao' },
-                { value: 'producao', label: 'Producao' },
-                { value: 'postagem', label: 'Postagem' },
-                { value: 'historico', label: 'Historico' },
-              ]}
+              tabs={tabOptions}
               value={activeTab}
               onChange={tab => {
                 onTabChange(tab);
@@ -140,13 +142,13 @@ export function ContentDetailMobileScreen({
             <p className="truncate text-sm font-semibold text-[var(--text-primary)]">
               {content.title || 'Conteudo sem titulo'}
             </p>
-            <p className="text-[11px] text-[var(--text-tertiary)]">{stageLabel}</p>
+            <p className="text-xs text-[var(--text-tertiary)]">{stageLabel}</p>
           </div>
           <ChevronDown className="h-4 w-4 shrink-0 text-[var(--text-tertiary)]" />
         </summary>
 
         <div className="space-y-3 border-t border-[var(--border-color)] p-3">
-          <p className="text-[11px] text-[var(--text-secondary)]">
+          <p className="text-xs text-[var(--text-secondary)]">
             {blockLabel} · Grav: {formatDate(content.recordingDate)} · Post: {formatDate(content.publishDate)}
           </p>
           {hasPrimaryAction ? (
@@ -159,39 +161,10 @@ export function ContentDetailMobileScreen({
               {isSaving ? 'Salvando...' : primaryAction.label}
             </AppButton>
           ) : null}
-          {primaryAction.reason ? (
-            <p className="text-[11px] font-medium text-[var(--text-secondary)]">{primaryAction.reason}</p>
-          ) : null}
         </div>
       </details>
 
-      {postingAlerts.length > 0 ? (
-        <section className="grid gap-2">
-          {postingAlerts.map(alert => (
-            <article key={alert.id} className="ds-card flex items-start gap-2 bg-[var(--bg-secondary)] px-3 py-3">
-              {alert.tone === 'warning' ? (
-                <AlertTriangle className="mt-0.5 h-4 w-4 text-amber-500" />
-              ) : (
-                <Clock3 className="mt-0.5 h-4 w-4 text-sky-500" />
-              )}
-              <p className="text-sm font-medium text-[var(--text-primary)]">{alert.message}</p>
-            </article>
-          ))}
-        </section>
-      ) : null}
-
-      <MobileSegmentTabs
-        rounded="tight"
-        tabs={[
-          { value: 'roteiro', label: 'Roteiro' },
-          { value: 'gravacao', label: 'Gravacao' },
-          { value: 'producao', label: 'Producao' },
-          { value: 'postagem', label: 'Postagem' },
-          { value: 'historico', label: 'Historico' },
-        ]}
-        value={activeTab}
-        onChange={onTabChange}
-      />
+      <MobileSegmentTabs rounded="tight" tabs={tabOptions} value={activeTab} onChange={onTabChange} />
 
       {section}
 

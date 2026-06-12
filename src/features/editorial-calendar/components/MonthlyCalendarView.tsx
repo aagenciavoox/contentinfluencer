@@ -139,7 +139,7 @@ export function buildCalendarEntries(
           label: projeto.nome,
           date: '',
           projetoId: projeto.id,
-          secondary: 'Inicio do projeto',
+          secondary: 'Início do projeto',
           color: projeto.color,
         });
 
@@ -149,7 +149,7 @@ export function buildCalendarEntries(
           label: projeto.nome,
           date: '',
           projetoId: projeto.id,
-          secondary: 'Prazo final',
+          secondary: 'Data final',
           color: projeto.color,
         });
 
@@ -283,7 +283,7 @@ export function MonthlyCalendarView({
                   >
                     <div
                       className={cn(
-                        'mb-2 flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-semibold',
+                        'mb-2 flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold',
                         isToday
                           ? 'bg-[color-mix(in_srgb,var(--accent-blue),var(--accent-purple)_18%)] text-white shadow-[0_8px_18px_color-mix(in_srgb,var(--accent-blue),transparent_82%)]'
                           : selectedDate && isSameDay(day, selectedDate)
@@ -307,7 +307,7 @@ export function MonthlyCalendarView({
                               onSelectDate?.(day);
                             }}
                             className={cn(
-                              'w-full rounded-lg px-2 py-1.5 text-left text-[11px] font-semibold tracking-normal shadow-[0_1px_0_rgba(255,255,255,0.56)_inset] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent-blue)]/20',
+                              'w-full rounded-lg px-2 py-1.5 text-left text-xs font-semibold tracking-normal shadow-[0_1px_0_rgba(255,255,255,0.56)_inset] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent-blue)]/20',
                               !useCustomColor && ENTRY_STYLES[entry.type]
                             )}
                             style={useCustomColor ? { backgroundColor: `${entry.color}15`, color: entry.color! } : undefined}
@@ -331,7 +331,7 @@ export function MonthlyCalendarView({
                       })}
 
                       {entries.length > 4 && (
-                        <div className="text-center text-[11px] font-medium tracking-normal text-[var(--text-tertiary)]">
+                        <div className="text-center text-xs font-medium tracking-normal text-[var(--text-tertiary)]">
                           +{entries.length - 4}
                         </div>
                       )}
@@ -342,7 +342,7 @@ export function MonthlyCalendarView({
             </div>
 
             <div className="grid grid-cols-[118px_repeat(7,minmax(0,1fr))] items-center border-t border-[var(--border-color)] bg-[var(--bg-elevated)] px-3 py-3">
-              <div className="text-[11px] font-semibold text-[var(--text-secondary)]">
+              <div className="text-xs font-semibold text-[var(--text-secondary)]">
                 Intensidade
               </div>
               {intensityByWeekday.map((value, index) => (

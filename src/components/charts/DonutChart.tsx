@@ -37,7 +37,7 @@ export function DonutChart({value, size = 96, strokeWidth = 10, label}: DonutCha
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
         <span className="text-xl font-bold text-[var(--text-primary)]">{clamped}%</span>
-        {label ? <span className="text-[10px] font-medium text-[var(--text-tertiary)]">{label}</span> : null}
+        {label ? <span className="text-xs font-medium text-[var(--text-tertiary)]">{label}</span> : null}
       </div>
     </div>
   );

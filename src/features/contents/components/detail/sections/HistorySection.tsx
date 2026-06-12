@@ -3,6 +3,7 @@ import type {Content} from '../../../../../lib/database';
 
 interface HistorySectionProps {
   content: Content;
+  compact?: boolean;
 }
 
 function formatDateTime(value: string | null) {
@@ -10,17 +11,17 @@ function formatDateTime(value: string | null) {
   return new Date(value).toLocaleString('pt-BR');
 }
 
-export function HistorySection({content}: HistorySectionProps) {
+export function HistorySection({content, compact = false}: HistorySectionProps) {
   const items = [
     {
       id: 'created',
-      title: 'Conteudo criado',
+      title: 'Conteúdo criado',
       value: formatDateTime(content.createdAt),
       icon: <History className="h-4 w-4" />,
     },
     {
       id: 'recording',
-      title: 'Gravacao planejada',
+      title: 'Gravação planejada',
       value: content.recordingDate ? new Date(content.recordingDate).toLocaleDateString('pt-BR') : 'Sem data',
       icon: <Clock3 className="h-4 w-4" />,
     },
@@ -39,24 +40,34 @@ export function HistorySection({content}: HistorySectionProps) {
   ];
 
   return (
-    <section className="rounded-[28px] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-5 shadow-sm md:p-7">
-      <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--text-tertiary)]">
-        Historico
-      </p>
-      <h2 className="mt-2 text-xl font-black text-[var(--text-primary)]">Timeline inicial do conteudo</h2>
+    <section
+      className={
+        compact
+          ? 'p-2'
+          : 'rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-5 shadow-sm md:p-7'
+      }
+    >
+      {!compact ? (
+        <>
+          <p className="text-xs font-semibold  text-[var(--text-tertiary)]">
+            Historico
+          </p>
+          <h2 className="mt-2 text-xl font-semibold text-[var(--text-primary)]">Timeline do conteudo</h2>
+        </>
+      ) : null}
 
-      <div className="mt-6 space-y-4">
+      <div className={compact ? 'space-y-2' : 'mt-6 space-y-4'}>
         {items.map(item => (
           <article
             key={item.id}
-            className="flex items-start gap-4 rounded-[22px] border border-[var(--border-color)] bg-[var(--bg-primary)] px-4 py-4"
+            className="flex items-start gap-3 rounded-[18px] border border-[var(--border-color)] bg-[var(--bg-primary)] px-3 py-3"
           >
             <div className="mt-0.5 text-[var(--text-secondary)]">{item.icon}</div>
             <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--text-tertiary)]">
+              <p className="text-xs font-semibold  text-[var(--text-tertiary)]">
                 {item.title}
               </p>
-              <p className="mt-2 text-sm font-semibold text-[var(--text-primary)]">{item.value}</p>
+              <p className="mt-1 text-sm font-semibold text-[var(--text-primary)]">{item.value}</p>
             </div>
           </article>
         ))}

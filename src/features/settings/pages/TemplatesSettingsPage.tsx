@@ -7,8 +7,10 @@ import {useIsMobile} from '../../../hooks/useIsMobile';
 import type {Template, TemplateBloco} from '../../../lib/database';
 import {cn} from '../../../lib/utils';
 import {DesktopPageHeader} from '../../../layouts/page/DesktopPageHeader';
+import {PageLayout} from '../../../layouts/page/PageLayout';
 import {FixedPanelModal} from '../../../components/overlays/FixedPanelModal';
 import {TemplatesMobileScreen} from '../../../mobile/screens/settings/TemplatesMobileScreen';
+import {generateUUID} from '../../../utils/uuid';
 
 type TemplateTypeFilter = 'roteiro' | 'legenda' | 'outro';
 
@@ -101,7 +103,7 @@ export function TemplatesSettingsPage() {
     if (!novoNome.trim()) return;
 
     const template: Template = {
-      id: crypto.randomUUID(),
+      id: generateUUID(),
       userId: user?.id || '',
       nome: novoNome.trim(),
       type: novoTipo,
@@ -145,7 +147,7 @@ export function TemplatesSettingsPage() {
   };
 
   const deleteTemplate = (id: string) => {
-    if (!window.confirm('Excluir este template?')) return;
+    if (!window.confirm('Remover este template?')) return;
     dispatch({type: 'DELETE_TEMPLATE', payload: id});
     if (selectedTemplateId === id) closeTemplateEditor();
   };
@@ -211,7 +213,7 @@ export function TemplatesSettingsPage() {
     if (!selectedTemplate || !novoBlocoLabel.trim()) return;
 
     const bloco: TemplateBloco = {
-      id: crypto.randomUUID(),
+      id: generateUUID(),
       tipo: novoBlocoTipo,
       label: novoBlocoLabel.trim(),
       conteudo: '',
@@ -259,32 +261,32 @@ export function TemplatesSettingsPage() {
     );
 
   return (
-    <div className="min-h-screen bg-[var(--bg-secondary)]">
-      <header className="desktop-header-sticky transition-colors duration-300">
-        <div className="desktop-header-frame">
-          <DesktopPageHeader
-            section="Configurações"
-            title="Templates"
-            icon={Layout}
-            backLabel="Configurações"
-            backTo="/configuracoes"
-            actions={
-              <button
-                onClick={() => setShowNewForm(true)}
-                className="flex shrink-0 items-center gap-2 rounded-2xl bg-[var(--text-primary)] px-5 py-3 text-[11px] font-black uppercase tracking-widest text-[var(--bg-primary)] hover:opacity-90"
-              >
-                <Plus className="h-4 w-4" />
-                Novo
-              </button>
-            }
-          />
-        </div>
-      </header>
-
-      <div className="desktop-content-frame space-y-6">
+    <>
+    <PageLayout
+      variant="settings"
+      contentClassName="space-y-6"
+      header={
+        <DesktopPageHeader
+          section="Configurações"
+          title="Templates"
+          icon={Layout}
+          backLabel="Configurações"
+          backTo="/configuracoes"
+          actions={
+            <button
+              onClick={() => setShowNewForm(true)}
+              className="flex shrink-0 items-center gap-2 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] bg-[var(--text-primary)] px-5 py-3 text-xs font-semibold text-[var(--bg-primary)] hover:opacity-90"
+            >
+              <Plus className="h-4 w-4" />
+              Novo
+            </button>
+          }
+        />
+      }
+    >
         {showNewForm && (
-          <div className="space-y-3 rounded-2xl border border-[var(--border-color)] bg-[var(--bg-primary)] p-6">
-            <p className="text-[10px] font-black uppercase tracking-widest opacity-40">Novo template</p>
+          <div className="space-y-3 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-primary)] p-6">
+            <p className="text-xs font-semibold  opacity-40">Novo template</p>
             <input
               autoFocus
               value={novoNome}
@@ -296,7 +298,7 @@ export function TemplatesSettingsPage() {
               <select
                 value={novoTipo}
                 onChange={event => setNovoTipo(event.target.value as TemplateTypeFilter)}
-                className="flex-1 min-w-[120px] rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-2.5 text-[11px] font-black uppercase text-[var(--text-primary)] focus:outline-none"
+                className="flex-1 min-w-[120px] rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-2.5 text-xs font-semibold uppercase text-[var(--text-primary)] focus:outline-none"
               >
                 <option value="roteiro">Roteiro</option>
                 <option value="legenda">Legenda</option>
@@ -305,7 +307,7 @@ export function TemplatesSettingsPage() {
               <select
                 value={novaSerieId}
                 onChange={event => setNovaSerieId(event.target.value)}
-                className="flex-1 min-w-[120px] rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-2.5 text-[11px] font-bold text-[var(--text-primary)] focus:outline-none"
+                className="flex-1 min-w-[120px] rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-2.5 text-xs font-bold text-[var(--text-primary)] focus:outline-none"
               >
                 <option value="">Série (opcional)</option>
                 {state.series.map(serie => (
@@ -317,7 +319,7 @@ export function TemplatesSettingsPage() {
               <select
                 value={novaPlatformId}
                 onChange={event => setNovaPlatformId(event.target.value)}
-                className="flex-1 min-w-[120px] rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-2.5 text-[11px] font-bold text-[var(--text-primary)] focus:outline-none"
+                className="flex-1 min-w-[120px] rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-2.5 text-xs font-bold text-[var(--text-primary)] focus:outline-none"
               >
                 <option value="">Plataforma (opcional)</option>
                 {state.platforms.filter(platform => platform.ativo).map(platform => (
@@ -331,13 +333,13 @@ export function TemplatesSettingsPage() {
               <button
                 onClick={handleCreateTemplate}
                 disabled={!novoNome.trim()}
-                className="rounded-xl bg-[var(--text-primary)] px-6 py-2.5 text-[11px] font-black uppercase tracking-widest text-[var(--bg-primary)] hover:opacity-90 disabled:opacity-30"
+                className="rounded-xl bg-[var(--text-primary)] px-6 py-2.5 text-xs font-semibold  text-[var(--bg-primary)] hover:opacity-90 disabled:opacity-30"
               >
                 Criar
               </button>
               <button
                 onClick={() => setShowNewForm(false)}
-                className="rounded-xl border border-[var(--border-color)] px-6 py-2.5 text-[11px] font-black uppercase tracking-widest opacity-50 hover:opacity-80"
+                className="rounded-xl border border-[var(--border-color)] px-6 py-2.5 text-xs font-semibold  opacity-50 hover:opacity-80"
               >
                 Cancelar
               </button>
@@ -348,7 +350,7 @@ export function TemplatesSettingsPage() {
         {templates.length === 0 && !showNewForm ? (
           <div className="py-16 text-center">
             <Layout className="mx-auto mb-3 h-10 w-10 opacity-10" />
-            <p className="text-sm font-black uppercase tracking-widest opacity-30">Nenhum template ainda</p>
+            <p className="text-sm font-semibold  opacity-30">Nenhum template ainda</p>
           </div>
         ) : (
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -360,27 +362,27 @@ export function TemplatesSettingsPage() {
                 <div
                   key={template.id}
                   onClick={() => openTemplateEditor(template)}
-                  className="group flex cursor-pointer items-start gap-3 rounded-2xl border border-[var(--border-color)] bg-[var(--bg-primary)] p-5 transition-all hover:-translate-y-0.5 hover:border-[var(--text-primary)]/20 hover:shadow-lg"
+                  className="group flex cursor-pointer items-start gap-3 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-primary)] p-5 transition-all hover:-translate-y-0.5 hover:border-[var(--text-primary)]/20 hover:shadow-lg"
                 >
                   <div className="min-w-0 flex-1 space-y-3">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="rounded-full bg-[var(--bg-hover)] px-3 py-1 text-[10px] font-black uppercase tracking-widest text-[var(--text-primary)]">
+                      <span className="rounded-full bg-[var(--bg-hover)] px-3 py-1 text-xs font-semibold  text-[var(--text-primary)]">
                         {template.type || 'roteiro'}
                       </span>
                       {serie ? (
-                        <span className="rounded-full bg-[var(--accent-purple)]/10 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-[var(--accent-purple)]">
+                        <span className="rounded-full bg-[var(--accent-purple)]/10 px-3 py-1 text-xs font-semibold  text-[var(--accent-purple)]">
                           {serie.name}
                         </span>
                       ) : null}
                       {platform ? (
-                        <span className="rounded-full bg-[var(--accent-green)]/10 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-[var(--accent-green)]">
+                        <span className="rounded-full bg-[var(--accent-green)]/10 px-3 py-1 text-xs font-semibold  text-[var(--accent-green)]">
                           {platform.nome}
                         </span>
                       ) : null}
                     </div>
 
                     <div>
-                      <p className="text-base font-black text-[var(--text-primary)]">{template.nome}</p>
+                      <p className="text-base font-semibold text-[var(--text-primary)]">{template.nome}</p>
                       <p className="mt-1 text-sm text-[var(--text-secondary)]">
                         {template.estrutura.length} bloco{template.estrutura.length === 1 ? '' : 's'} estruturado{template.estrutura.length === 1 ? '' : 's'}
                       </p>
@@ -401,7 +403,6 @@ export function TemplatesSettingsPage() {
             })}
           </div>
         )}
-      </div>
 
       <FixedPanelModal
         open={!!selectedTemplate}
@@ -414,10 +415,10 @@ export function TemplatesSettingsPage() {
             <div className="border-b border-[var(--border-color)] px-6 py-5 md:px-8 md:py-6">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[var(--text-tertiary)]">
+                  <p className="text-xs font-semibold  text-[var(--text-tertiary)]">
                     Template
                   </p>
-                  <h2 className="mt-2 text-2xl font-black text-[var(--text-primary)] md:text-3xl">
+                  <h2 className="mt-2 text-2xl font-semibold text-[var(--text-primary)] md:text-3xl">
                     {selectedTemplate.nome}
                   </h2>
                   <p className="mt-2 text-sm text-[var(--text-secondary)]">
@@ -426,7 +427,7 @@ export function TemplatesSettingsPage() {
                 </div>
                 <button
                   onClick={() => deleteTemplate(selectedTemplate.id)}
-                  className="rounded-xl border border-red-400/20 bg-red-400/5 px-4 py-3 text-[11px] font-black uppercase tracking-widest text-red-400 hover:bg-red-400/10"
+                  className="rounded-xl border border-red-400/20 bg-red-400/5 px-4 py-3 text-xs font-semibold  text-red-400 hover:bg-red-400/10"
                 >
                   Excluir template
                 </button>
@@ -437,7 +438,7 @@ export function TemplatesSettingsPage() {
               <aside className="border-r border-[var(--border-color)] bg-[var(--bg-secondary)] p-5 md:p-6">
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-tertiary)]">
+                    <label className="text-xs font-semibold  text-[var(--text-tertiary)]">
                       Nome
                     </label>
                     <input
@@ -448,13 +449,13 @@ export function TemplatesSettingsPage() {
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-tertiary)]">
+                    <label className="text-xs font-semibold  text-[var(--text-tertiary)]">
                       Tipo
                     </label>
                     <select
                       value={templateEditor.type}
                       onChange={event => setTemplateEditor(previous => ({...previous, type: event.target.value as TemplateTypeFilter}))}
-                      className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] px-4 py-3 text-[11px] font-black uppercase text-[var(--text-primary)] focus:outline-none"
+                      className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] px-4 py-3 text-xs font-semibold uppercase text-[var(--text-primary)] focus:outline-none"
                     >
                       <option value="roteiro">Roteiro</option>
                       <option value="legenda">Legenda</option>
@@ -463,7 +464,7 @@ export function TemplatesSettingsPage() {
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-tertiary)]">
+                    <label className="text-xs font-semibold  text-[var(--text-tertiary)]">
                       Série
                     </label>
                     <select
@@ -481,7 +482,7 @@ export function TemplatesSettingsPage() {
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-tertiary)]">
+                    <label className="text-xs font-semibold  text-[var(--text-tertiary)]">
                       Plataforma
                     </label>
                     <select
@@ -501,7 +502,7 @@ export function TemplatesSettingsPage() {
                   <button
                     onClick={saveTemplateMeta}
                     disabled={!templateEditor.nome.trim() || !isTemplateMetaDirty}
-                    className="w-full rounded-xl bg-[var(--text-primary)] px-4 py-3 text-[11px] font-black uppercase tracking-widest text-[var(--bg-primary)] hover:opacity-90 disabled:opacity-30"
+                    className="w-full rounded-xl bg-[var(--text-primary)] px-4 py-3 text-xs font-semibold  text-[var(--bg-primary)] hover:opacity-90 disabled:opacity-30"
                   >
                     Salvar contexto
                   </button>
@@ -509,10 +510,10 @@ export function TemplatesSettingsPage() {
 
                 <div className="mt-6 border-t border-[var(--border-color)] pt-6">
                   <div className="mb-3 flex items-center justify-between gap-3">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-[var(--text-tertiary)]">
+                    <p className="text-xs font-semibold  text-[var(--text-tertiary)]">
                       Blocos
                     </p>
-                    <span className="text-[10px] font-bold text-[var(--text-secondary)]">
+                    <span className="text-xs font-bold text-[var(--text-secondary)]">
                       {selectedTemplate.estrutura.length} itens
                     </span>
                   </div>
@@ -522,7 +523,7 @@ export function TemplatesSettingsPage() {
                       <div
                         key={bloco.id}
                         className={cn(
-                          'rounded-2xl border p-3 transition-all',
+                          'rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border p-3 transition-all',
                           editingBlocoId === bloco.id
                             ? 'border-[var(--text-primary)]/30 bg-[var(--bg-primary)]'
                             : 'border-[var(--border-color)] bg-[var(--bg-hover)]'
@@ -548,10 +549,10 @@ export function TemplatesSettingsPage() {
 
                           <button type="button" onClick={() => selectBloco(bloco)} className="min-w-0 flex-1 text-left">
                             <div className="flex flex-wrap items-center gap-2">
-                              <p className="truncate text-sm font-black text-[var(--text-primary)]">{bloco.label}</p>
+                              <p className="truncate text-sm font-semibold text-[var(--text-primary)]">{bloco.label}</p>
                               <span
                                 className={cn(
-                                  'rounded-full px-2 py-1 text-[9px] font-black uppercase tracking-widest',
+                                  'rounded-full px-2 py-1 text-xs font-semibold ',
                                   bloco.tipo === 'fixo'
                                     ? 'bg-blue-400/10 text-blue-400'
                                     : 'bg-orange-400/10 text-orange-400'
@@ -582,7 +583,7 @@ export function TemplatesSettingsPage() {
                     <select
                       value={novoBlocoTipo}
                       onChange={event => setNovoBlocoTipo(event.target.value as 'fixo' | 'variavel')}
-                      className="rounded-lg border border-[var(--border-color)] bg-[var(--bg-primary)] px-3 py-2 text-[10px] font-black uppercase text-[var(--text-primary)] focus:outline-none"
+                      className="rounded-lg border border-[var(--border-color)] bg-[var(--bg-primary)] px-3 py-2 text-xs font-semibold uppercase text-[var(--text-primary)] focus:outline-none"
                     >
                       <option value="variavel">Variável</option>
                       <option value="fixo">Fixo</option>
@@ -602,14 +603,14 @@ export function TemplatesSettingsPage() {
                 {editingBloco ? (
                   <div className="mx-auto max-w-3xl space-y-5">
                     <div className="space-y-2">
-                      <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[var(--text-tertiary)]">
+                      <p className="text-xs font-semibold  text-[var(--text-tertiary)]">
                         Edição do bloco
                       </p>
-                      <h3 className="text-2xl font-black text-[var(--text-primary)]">{editingBloco.label}</h3>
+                      <h3 className="text-2xl font-semibold text-[var(--text-primary)]">{editingBloco.label}</h3>
                     </div>
 
                     <div className="space-y-2">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-tertiary)]">
+                      <label className="text-xs font-semibold  text-[var(--text-tertiary)]">
                         Label
                       </label>
                       <input
@@ -620,7 +621,7 @@ export function TemplatesSettingsPage() {
                     </div>
 
                     <div className="space-y-2">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-tertiary)]">
+                      <label className="text-xs font-semibold  text-[var(--text-tertiary)]">
                         {editingBloco.tipo === 'fixo' ? 'Conteúdo fixo' : 'Placeholder da variável'}
                       </label>
                       <textarea
@@ -633,10 +634,10 @@ export function TemplatesSettingsPage() {
                         placeholder={
                           editingBloco.tipo === 'fixo'
                             ? 'Escreva o conteúdo base deste bloco...'
-                            : 'Explique o que precisa ser preenchido neste bloco...'
+                            : 'Explique o que entra neste bloco...'
                         }
                         rows={editingBloco.tipo === 'fixo' ? 16 : 12}
-                        className="min-h-[340px] w-full resize-y rounded-2xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-4 text-sm leading-7 text-[var(--text-primary)] placeholder:opacity-30 focus:outline-none"
+                        className="min-h-[340px] w-full resize-y rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-4 text-sm leading-7 text-[var(--text-primary)] placeholder:opacity-30 focus:outline-none"
                       />
                     </div>
 
@@ -644,24 +645,24 @@ export function TemplatesSettingsPage() {
                       <button
                         onClick={saveBloco}
                         disabled={!blocoEditor.label.trim() || !isBlocoDirty}
-                        className="inline-flex items-center gap-2 rounded-xl bg-[var(--text-primary)] px-5 py-3 text-[11px] font-black uppercase tracking-widest text-[var(--bg-primary)] hover:opacity-90 disabled:opacity-30"
+                        className="inline-flex items-center gap-2 rounded-xl bg-[var(--text-primary)] px-5 py-3 text-xs font-semibold  text-[var(--bg-primary)] hover:opacity-90 disabled:opacity-30"
                       >
                         <Check className="h-4 w-4" />
                         Salvar bloco
                       </button>
                       <button
                         onClick={() => deleteBloco(editingBloco.id)}
-                        className="rounded-xl border border-red-400/20 bg-red-400/5 px-5 py-3 text-[11px] font-black uppercase tracking-widest text-red-400 hover:bg-red-400/10"
+                        className="rounded-xl border border-red-400/20 bg-red-400/5 px-5 py-3 text-xs font-semibold  text-red-400 hover:bg-red-400/10"
                       >
                         Excluir bloco
                       </button>
                     </div>
                   </div>
                 ) : (
-                  <div className="flex h-full min-h-[420px] items-center justify-center rounded-[28px] border border-dashed border-[var(--border-color)] bg-[var(--bg-secondary)] px-8 text-center">
+                  <div className="flex h-full min-h-[420px] items-center justify-center rounded-[var(--radius-card-mobile)] border border-dashed border-[var(--border-color)] bg-[var(--bg-secondary)] px-8 text-center">
                     <div className="space-y-3">
                       <Layout className="mx-auto h-10 w-10 opacity-20" />
-                      <p className="text-sm font-black uppercase tracking-widest text-[var(--text-primary)] opacity-40">
+                      <p className="text-sm font-semibold  text-[var(--text-primary)] opacity-40">
                         Selecione um bloco
                       </p>
                       <p className="text-sm text-[var(--text-secondary)]">
@@ -675,6 +676,7 @@ export function TemplatesSettingsPage() {
           </div>
         ) : null}
       </FixedPanelModal>
-    </div>
+    </PageLayout>
+    </>
   );
 }

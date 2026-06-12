@@ -4,34 +4,11 @@ import { useAppContext } from '../../../../context/AppContext';
 import { Zap, ArrowUp, ArrowDown, ArrowUpDown, Check } from 'lucide-react';
 import { cn } from '../../../../lib/utils';
 import { useIsMobile } from '../../../../hooks/useIsMobile';
-
-function formatLastEdit(iso: string) {
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return '—';
-
-  const now = new Date();
-  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const startOfEdit = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-  const dayDiff = Math.round((startOfToday.getTime() - startOfEdit.getTime()) / 86_400_000);
-
-  if (dayDiff === 0) return 'hoje';
-  if (dayDiff === 1) return 'ontem';
-  if (dayDiff < 7) return `${dayDiff}d`;
-
-  return date.toLocaleDateString('pt-BR', {day: '2-digit', month: 'short'});
-}
-
-function buildMetadataLine(content: Content, seriesName?: string, pillarName?: string) {
-  return [
-    seriesName || 'Sem série',
-    pillarName || 'Sem pilar',
-    content.status,
-    formatLastEdit(content.updatedAt),
-  ].join(' · ');
-}
+import { buildContentMetaLine } from '../../lib/contentCardMeta';
+import { ContentEntityTags } from '../ContentEntityTags';
 
 interface ContentTableProps {
-  mode?: 'editorial' | 'postagem' | 'historico';
+  mode?: 'pipeline' | 'publicados';
   contents: Content[];
   onSelect: (content: Content) => void;
   onPreview: (content: Content) => void;
@@ -45,7 +22,7 @@ interface ContentTableProps {
 }
 
 export function ContentTable({
-  mode = 'editorial',
+  mode = 'pipeline',
   contents,
   onSelect,
   onPreview,
@@ -60,7 +37,7 @@ export function ContentTable({
   const { state } = useAppContext();
   const isMobile = useIsMobile();
 
-  const enableSelection = mode !== 'historico';
+  const enableSelection = mode !== 'publicados';
   const allSelected = enableSelection && contents.length > 0 && contents.every(c => selectedIds.has(c.id));
   const someSelected = enableSelection && contents.some(c => selectedIds.has(c.id));
 
@@ -92,7 +69,7 @@ export function ContentTable({
                 }
               }}
               className={cn(
-                'relative cursor-pointer rounded-2xl border bg-[var(--bg-secondary)] px-4 py-4 shadow-sm transition-all active:scale-[0.98]',
+                'relative cursor-pointer rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border bg-[var(--bg-secondary)] px-4 py-4 shadow-sm transition-all active:scale-[0.98]',
                 isSelected ? 'border-[var(--text-primary)] ring-2 ring-[var(--text-primary)]/5' : 'border-[var(--border-color)]'
               )}
             >
@@ -101,8 +78,9 @@ export function ContentTable({
                   <h3 className="line-clamp-2 text-base font-semibold leading-tight text-[var(--text-primary)]">
                     {content.title}
                   </h3>
-                  <p className="mt-1.5 line-clamp-2 text-[12px] leading-relaxed text-[var(--text-tertiary)]">
-                    {buildMetadataLine(content, series?.name, pillar?.nome)}
+                  <ContentEntityTags pillar={pillar} series={series} className="mt-2" size="sm" />
+                  <p className="mt-1.5 line-clamp-1 text-xs leading-relaxed text-[var(--text-tertiary)]">
+                    {buildContentMetaLine(content)}
                   </p>
                 </div>
 
@@ -123,7 +101,7 @@ export function ContentTable({
               {lookAlerts[content.id] && (
                 <div className="absolute -right-1 -top-1.5 z-10 flex items-center gap-1 rounded-full bg-orange-500 px-2 py-0.5 text-white shadow-lg">
                   <Zap className="h-2 w-2 fill-current animate-pulse" />
-                  <span className="text-[7px] font-black uppercase">Refazer</span>
+                  <span className="text-[7px] font-semibold uppercase">Refazer</span>
                 </div>
               )}
             </div>
@@ -138,7 +116,7 @@ export function ContentTable({
     <div className="editorial-surface w-full overflow-hidden rounded-lg transition-all duration-300">
       <table className="w-full border-separate border-spacing-0 text-left">
         <thead>
-          <tr className="text-[11px] font-medium tracking-normal text-[var(--text-tertiary)]">
+          <tr className="text-xs font-medium tracking-normal text-[var(--text-tertiary)]">
             <th className="w-12 border-b border-[var(--border-color)] py-3 pl-5 pr-2 text-center">
               <button
                 type="button"
@@ -213,7 +191,7 @@ export function ContentTable({
                 <td className="border-b border-[var(--border-color)]/50 px-5 py-3.5">
                   <div className="flex min-w-0 items-start gap-2">
                     {hasLookAlert ? (
-                      <span className="mt-1.5 inline-flex shrink-0 text-orange-500" title="Look precisa ser refeito">
+                      <span className="mt-1.5 inline-flex shrink-0 text-orange-500" title="Look marcado para revisar">
                         <Zap className="h-3 w-3 fill-current" />
                       </span>
                     ) : null}
@@ -221,9 +199,12 @@ export function ContentTable({
                       <p className="truncate text-[15px] font-semibold leading-snug text-[var(--text-primary)] transition-colors group-hover:text-[var(--accent-blue)]">
                         {content.title}
                       </p>
-                      <p className="mt-1 truncate text-[12px] leading-relaxed text-[var(--text-tertiary)]">
-                        {buildMetadataLine(content, series?.name, pillar?.nome)}
-                      </p>
+                      <div className="mt-1 flex flex-wrap items-center gap-2">
+                        <p className="truncate text-xs leading-relaxed text-[var(--text-tertiary)]">
+                          {buildContentMetaLine(content)}
+                        </p>
+                        <ContentEntityTags pillar={pillar} series={series} size="sm" />
+                      </div>
                     </div>
                   </div>
                 </td>

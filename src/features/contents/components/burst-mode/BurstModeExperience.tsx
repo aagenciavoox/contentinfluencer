@@ -13,20 +13,14 @@ import {
   Type,
   X,
 } from 'lucide-react';
-import { ConfirmModal } from '../../../../components/feedback/modals/ConfirmModal';
 import { FixedPanelModal } from '../../../../components/overlays/FixedPanelModal';
 import { useAppContext } from '../../../../context/AppContext';
-import { broadcastDataSync } from '../../../../lib/syncBroadcast';
-import { notifySaveFeedback } from '../../../../lib/saveFeedback';
 import { Content, RecordingBlock } from '../../../../lib/database';
 import { cn, htmlToReadableText } from '../../../../lib/utils';
 import { isRecordingBlockTeleprompterEnabled } from '../../../recording/lib/recordingWorkflow';
 
-const READY_STATUS = 'Pronto para Gravar';
-const RECORDED_STATUS = 'Gravado';
 const BURST_SETTINGS_PREFERENCE_KEY = 'burstModeSettings';
 
-type ConfirmState = { message: string; onConfirm: () => void } | null;
 type BurstTheme = 'light' | 'dark' | 'amber';
 type BurstTextColor = 'theme' | 'ink' | 'paper' | 'amber';
 type BurstTextAlign = 'left' | 'center';
@@ -53,8 +47,8 @@ type BurstModeSettings = {
 
 type BurstModeExperienceProps = {
   block: RecordingBlock;
-  completedIds: Set<string>;
-  setCompletedIds: React.Dispatch<React.SetStateAction<Set<string>>>;
+  recordedIds: Set<string>;
+  onMarkRecorded: (contentId: string) => void;
   onExit: () => void;
 };
 
@@ -120,10 +114,6 @@ function getBlockContents(block: RecordingBlock, contents: Content[]) {
   return block.contents
     .map(({ contentId }) => contents.find(content => content.id === contentId) ?? null)
     .filter((content): content is Content => content !== null);
-}
-
-function getReadyContents(contents: Content[]) {
-  return contents.filter(content => content.status === READY_STATUS);
 }
 
 function getScriptLabel(script: string | null | undefined, fallback: string) {
@@ -210,13 +200,12 @@ function getResolvedTextColor(theme: BurstTheme, textColor: BurstTextColor) {
 
 export function BurstModeExperience({
   block,
-  completedIds,
-  setCompletedIds,
+  recordedIds,
+  onMarkRecorded,
   onExit,
 }: BurstModeExperienceProps) {
-  const { state, dispatch, updateContent } = useAppContext();
+  const {state, dispatch} = useAppContext();
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [confirmBurst, setConfirmBurst] = useState<ConfirmState>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [playhead, setPlayhead] = useState(0);
   const [countdownRemaining, setCountdownRemaining] = useState<number | null>(null);
@@ -228,8 +217,8 @@ export function BurstModeExperience({
   const [settings, setSettings] = useState<BurstModeSettings>(persistedSettings);
 
   const readyContents = useMemo(
-    () => getReadyContents(getBlockContents(block, state.contents)),
-    [block, state.contents]
+    () => getBlockContents(block, state.contents).filter(content => !recordedIds.has(content.id)),
+    [block, recordedIds, state.contents]
   );
 
   const currentContent = readyContents[currentIndex] ?? null;
@@ -248,8 +237,7 @@ export function BurstModeExperience({
   const currentLineIndex = clamp(Math.round(playhead), 0, Math.max(0, scriptLines.length - 1));
   const elapsedRatio = scriptLines.length <= 1 ? 0 : clamp(playhead / Math.max(scriptLines.length - 1, 1), 0, 1);
   const elapsedSeconds = totalEstimatedSeconds * elapsedRatio;
-  const isCurrentCompleted = currentContent ? completedIds.has(currentContent.id) : false;
-  const pendingCount = completedIds.size;
+  const isCurrentCompleted = currentContent ? recordedIds.has(currentContent.id) : false;
   const teleprompterEnabled = isRecordingBlockTeleprompterEnabled(block);
 
   const themeStyle = THEME_STYLES[settings.theme];
@@ -449,44 +437,13 @@ export function BurstModeExperience({
 
   const speedStep = Math.max(5, Math.round(settings.speedSensitivity * 10));
 
-  const saveSessionProgress = async () => {
-    const updates = completedIds
-      .map(id => state.contents.find(item => item.id === id))
-      .filter((content): content is Content => Boolean(content));
-
-    if (updates.length === 0) return;
-
-    notifySaveFeedback({ status: 'saving', message: 'Salvando progresso da sessao...' });
-
-    await Promise.all(
-      updates.map(content =>
-        updateContent(
-          { ...content, status: RECORDED_STATUS, updatedAt: new Date().toISOString() },
-          { silent: true, skipBroadcast: true }
-        )
-      )
-    );
-
-    broadcastDataSync();
-    notifySaveFeedback({ status: 'success', message: 'Progresso da sessao salvo' });
-  };
-
   const handleFinishBlock = () => {
-    setConfirmBurst({
-      message: 'Salvar progresso do bloco de gravação? Pausar agora não perde o que foi marcado nesta sessão.',
-      onConfirm: () => {
-        void saveSessionProgress().finally(() => onExit());
-      },
-    });
+    onExit();
   };
 
   const toggleComplete = (id: string) => {
-    setCompletedIds(previous => {
-      const next = new Set(previous);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+    if (recordedIds.has(id)) return;
+    onMarkRecorded(id);
   };
 
   const handleNextVideo = () => {
@@ -547,32 +504,23 @@ export function BurstModeExperience({
         className="fixed inset-0 z-[100] flex min-h-screen flex-col items-center justify-center bg-[var(--bg-primary)] p-6 text-center"
       >
         <CheckCircle2 className="mx-auto mb-8 h-24 w-24 animate-bounce text-[var(--accent-green)]" />
-        <h1 className="mb-4 text-4xl font-black uppercase italic tracking-tight text-[var(--text-primary)] md:text-5xl">
+        <h1 className="mb-4 text-4xl font-semibold uppercase italic tracking-tight text-[var(--text-primary)] md:text-5xl">
           Parabéns!
         </h1>
         <p className="mb-4 text-lg font-bold text-[var(--text-tertiary)]">
           Você finalizou ou pausou a sessão deste bloco.
         </p>
         <p className="mb-12 max-w-xl text-sm font-medium text-[var(--text-secondary)]">
-          Os itens marcados como gravados nesta sessão ainda precisam ser salvos para atualizar o bloco.
+          Todos os roteiros deste bloco foram marcados como gravados.
         </p>
         <button
           type="button"
-          aria-label="Salvar e fechar sala"
+          aria-label="Fechar modo gravacao"
           onClick={handleFinishBlock}
-          className="rounded-2xl bg-[var(--text-primary)] px-12 py-5 text-sm font-black uppercase tracking-widest text-[var(--bg-primary)] shadow-2xl transition-all hover:scale-105"
+          className="rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] bg-[var(--text-primary)] px-12 py-5 text-sm font-semibold  text-[var(--bg-primary)] shadow-none transition-all hover:scale-105"
         >
-          Salvar e Fechar Sala
+          Fechar modo gravacao
         </button>
-        <ConfirmModal
-          open={!!confirmBurst}
-          message={confirmBurst?.message || ''}
-          onConfirm={() => {
-            confirmBurst?.onConfirm();
-            setConfirmBurst(null);
-          }}
-          onCancel={() => setConfirmBurst(null)}
-        />
       </div>
     );
   }
@@ -612,25 +560,25 @@ export function BurstModeExperience({
             <div className="flex items-start gap-3">
               <div className={cn('mt-1 h-3 w-3 rounded-full shadow-[0_0_20px_currentColor]', themeStyle.accent)} />
               <div>
-                <p className="text-xs font-black uppercase tracking-[0.22em]">Modo Explosão</p>
+                <p className="text-xs font-semibold ">Modo gravacao</p>
                 <p className={cn('mt-1 text-sm', themeStyle.muted)}>
-                  {teleprompterEnabled ? 'Foco total no roteiro' : 'Leitura estÃ¡tica do roteiro'}
+                  {teleprompterEnabled ? 'Foco total no roteiro' : 'Leitura estatica do roteiro'}
                 </p>
               </div>
             </div>
 
             <div className="grid min-w-[280px] grid-cols-1 gap-3 text-sm md:grid-cols-3 md:gap-6">
               <div className="border-l border-transparent pl-0 md:border-l md:border-[currentColor]/15 md:pl-6">
-                <p className={cn('text-[11px] font-bold uppercase tracking-[0.18em]', themeStyle.muted)}>Roteiro atual</p>
-                <p className="mt-1 truncate text-base font-black">{currentContent.title}</p>
+                <p className={cn('text-xs font-bold ', themeStyle.muted)}>Roteiro atual</p>
+                <p className="mt-1 truncate text-base font-semibold">{currentContent.title}</p>
               </div>
               <div className="border-l border-transparent pl-0 md:border-l md:border-[currentColor]/15 md:pl-6">
-                <p className={cn('text-[11px] font-bold uppercase tracking-[0.18em]', themeStyle.muted)}>Tempo estimado</p>
-                <p className="mt-1 text-base font-black">{formatSeconds(totalEstimatedSeconds)}</p>
+                <p className={cn('text-xs font-bold ', themeStyle.muted)}>Tempo estimado</p>
+                <p className="mt-1 text-base font-semibold">{formatSeconds(totalEstimatedSeconds)}</p>
               </div>
               <div className="border-l border-transparent pl-0 md:border-l md:border-[currentColor]/15 md:pl-6">
-                <p className={cn('text-[11px] font-bold uppercase tracking-[0.18em]', themeStyle.muted)}>Palavras</p>
-                <p className="mt-1 text-base font-black">{totalWords}</p>
+                <p className={cn('text-xs font-bold ', themeStyle.muted)}>Palavras</p>
+                <p className="mt-1 text-base font-semibold">{totalWords}</p>
               </div>
             </div>
 
@@ -638,7 +586,7 @@ export function BurstModeExperience({
               <button
                 type="button"
                 onClick={() => setIsSettingsOpen(previous => !previous)}
-                className={cn('rounded-2xl border px-4 py-3 text-sm font-black transition-colors', themeStyle.panelBorder, themeStyle.panel)}
+                className={cn('rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border px-4 py-3 text-sm font-semibold transition-colors', themeStyle.panelBorder, themeStyle.panel)}
               >
                 <span className="inline-flex items-center gap-2">
                   <Settings2 className="h-4 w-4" /> Configurações
@@ -647,11 +595,11 @@ export function BurstModeExperience({
               <button
                 type="button"
                 onClick={handleFinishBlock}
-                className={cn('rounded-2xl border px-4 py-3 text-sm font-black transition-colors', themeStyle.panelBorder, themeStyle.panel)}
+                className={cn('rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border px-4 py-3 text-sm font-semibold transition-colors', themeStyle.panelBorder, themeStyle.panel)}
               >
                 <span className="inline-flex items-center gap-2">
                   <X className="h-4 w-4" /> Sair do Modo Explosão
-                  <span className={cn('rounded-lg border px-2 py-0.5 text-[10px] font-black', themeStyle.panelBorder)}>ESC</span>
+                  <span className={cn('rounded-lg border px-2 py-0.5 text-xs font-semibold', themeStyle.panelBorder)}>ESC</span>
                 </span>
               </button>
             </div>
@@ -758,9 +706,9 @@ export function BurstModeExperience({
           ) : (
             <div className="custom-scrollbar relative h-full overflow-y-auto px-5 pb-[14rem] pt-10 md:px-16 md:pb-[18rem] md:pt-20">
               <div className="mx-auto max-w-4xl">
-                <div className={cn('rounded-[2rem] border p-5 shadow-[0_20px_80px_rgba(0,0,0,0.08)] md:p-8', themeStyle.panel, themeStyle.panelBorder)}>
+                <div className={cn('rounded-[var(--radius-card-mobile)] border p-5 shadow-[0_20px_80px_rgba(0,0,0,0.08)] md:p-8', themeStyle.panel, themeStyle.panelBorder)}>
                   <div className="mb-5 flex flex-wrap items-center gap-3">
-                    <span className={cn('rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em]', themeStyle.panelBorder, themeStyle.accentSoft)}>
+                    <span className={cn('rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em]', themeStyle.panelBorder, themeStyle.accentSoft)}>
                       Teleprompter desativado
                     </span>
                     <span className={cn('text-xs font-bold uppercase tracking-[0.16em]', themeStyle.muted)}>
@@ -783,35 +731,35 @@ export function BurstModeExperience({
           )}
 
           {teleprompterEnabled && countdownRemaining !== null && (
-            <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/22 backdrop-blur-sm">
-              <div className={cn('rounded-[2rem] border px-10 py-8 text-center shadow-2xl', themeStyle.panel, themeStyle.panelBorder)}>
-                <p className={cn('text-[11px] font-black uppercase tracking-[0.25em]', themeStyle.muted)}>Preparar</p>
-                <p className="mt-3 text-6xl font-black">{countdownRemaining}</p>
-                <p className={cn('mt-3 text-sm', themeStyle.muted)}>A leitura automática começa já.</p>
+            <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/22 ">
+              <div className={cn('rounded-[var(--radius-card-mobile)] border px-10 py-8 text-center shadow-none', themeStyle.panel, themeStyle.panelBorder)}>
+                <p className={cn('text-xs font-semibold uppercase tracking-[0.25em]', themeStyle.muted)}>Preparar</p>
+                <p className="mt-3 text-6xl font-semibold">{countdownRemaining}</p>
+                <p className={cn('mt-3 text-sm', themeStyle.muted)}>A leitura pode ser pausada a qualquer momento.</p>
               </div>
             </div>
           )}
         </main>
 
         <div className="pointer-events-none absolute inset-x-0 bottom-6 z-40 px-4 md:bottom-8">
-          <div className={cn('pointer-events-auto mx-auto flex max-w-5xl flex-col gap-4 rounded-[2rem] border p-4 shadow-[0_25px_80px_rgba(0,0,0,0.12)] backdrop-blur-xl md:flex-row md:items-center md:justify-between md:px-6', themeStyle.controls, themeStyle.panelBorder)}>
+          <div className={cn('pointer-events-auto mx-auto flex max-w-5xl flex-col gap-4 rounded-[var(--radius-card-mobile)] border p-4 shadow-[0_25px_80px_rgba(0,0,0,0.12)] backdrop-blur-xl md:flex-row md:items-center md:justify-between md:px-6', themeStyle.controls, themeStyle.panelBorder)}>
             <div className="flex flex-wrap items-center gap-3">
               <button
                 type="button"
                 onClick={togglePlayback}
                 disabled={!teleprompterEnabled}
-                className={cn('inline-flex items-center gap-2 rounded-2xl border px-4 py-3 text-sm font-black transition-colors', themeStyle.panelBorder)}
+                className={cn('inline-flex items-center gap-2 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border px-4 py-3 text-sm font-semibold transition-colors', themeStyle.panelBorder)}
               >
                 {isPlaying ? <Pause className="h-4 w-4 fill-current" /> : <Play className="h-4 w-4 fill-current" />}
                 {isPlaying ? 'Pausar' : 'Play'}
-                <span className={cn('rounded-lg border px-2 py-0.5 text-[10px] font-black', themeStyle.panelBorder)}>Espaço</span>
+                <span className={cn('rounded-lg border px-2 py-0.5 text-xs font-semibold', themeStyle.panelBorder)}>Espaço</span>
               </button>
 
               <button
                 type="button"
                 onClick={handlePreviousVideo}
                 disabled={currentIndex === 0}
-                className={cn('inline-flex items-center gap-2 rounded-2xl border px-4 py-3 text-sm font-black transition-colors disabled:opacity-30', themeStyle.panelBorder)}
+                className={cn('inline-flex items-center gap-2 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border px-4 py-3 text-sm font-semibold transition-colors disabled:opacity-30', themeStyle.panelBorder)}
               >
                 <SkipBack className="h-4 w-4" /> Vídeo anterior
               </button>
@@ -819,21 +767,21 @@ export function BurstModeExperience({
               <button
                 type="button"
                 onClick={handleNextVideo}
-                className={cn('inline-flex items-center gap-2 rounded-2xl px-4 py-3 text-sm font-black text-white shadow-lg', settings.theme === 'amber' ? 'bg-[#ff9f1a]' : 'bg-[#4f46e5]')}
+                className={cn('inline-flex items-center gap-2 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] px-4 py-3 text-sm font-semibold text-white shadow-lg', settings.theme === 'amber' ? 'bg-[#ff9f1a]' : 'bg-[#4f46e5]')}
               >
                 Próximo vídeo <SkipForward className="h-4 w-4 fill-current" />
               </button>
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
-              <div className="rounded-2xl border px-4 py-3 text-center" style={{ borderColor: 'rgba(148, 163, 184, 0.25)' }}>
-                <p className={cn('text-[10px] font-black uppercase tracking-[0.2em]', themeStyle.muted)}>Tempo</p>
-                <p className="mt-1 text-sm font-black">
+              <div className="rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border px-4 py-3 text-center" style={{ borderColor: 'rgba(148, 163, 184, 0.25)' }}>
+                <p className={cn('text-xs font-semibold uppercase tracking-[0.2em]', themeStyle.muted)}>Tempo</p>
+                <p className="mt-1 text-sm font-semibold">
                   {formatSeconds(elapsedSeconds)} / {formatSeconds(totalEstimatedSeconds)}
                 </p>
               </div>
 
-              <div className="flex items-center gap-2 rounded-2xl border px-3 py-3" style={{ borderColor: 'rgba(148, 163, 184, 0.25)' }}>
+              <div className="flex items-center gap-2 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border px-3 py-3" style={{ borderColor: 'rgba(148, 163, 184, 0.25)' }}>
                 <button
                   type="button"
                   onClick={() => updateSetting('wpm', clamp(settings.wpm - speedStep, 60, 280))}
@@ -843,8 +791,8 @@ export function BurstModeExperience({
                   <Minus className="h-3.5 w-3.5" />
                 </button>
                 <div className="min-w-[82px] text-center">
-                  <p className={cn('text-[10px] font-black uppercase tracking-[0.2em]', themeStyle.muted)}>Velocidade</p>
-                  <p className="mt-1 text-sm font-black">{effectiveWpm} wpm</p>
+                  <p className={cn('text-xs font-semibold uppercase tracking-[0.2em]', themeStyle.muted)}>Velocidade</p>
+                  <p className="mt-1 text-sm font-semibold">{effectiveWpm} wpm</p>
                 </div>
                 <button
                   type="button"
@@ -856,7 +804,7 @@ export function BurstModeExperience({
                 </button>
               </div>
 
-              <div className="flex items-center gap-2 rounded-2xl border px-3 py-3" style={{ borderColor: 'rgba(148, 163, 184, 0.25)' }}>
+              <div className="flex items-center gap-2 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border px-3 py-3" style={{ borderColor: 'rgba(148, 163, 184, 0.25)' }}>
                 <button
                   type="button"
                   onClick={() => updateSetting('fontSize', clamp(settings.fontSize - 2, 24, 96))}
@@ -865,8 +813,8 @@ export function BurstModeExperience({
                   <Minus className="h-3.5 w-3.5" />
                 </button>
                 <div className="min-w-[82px] text-center">
-                  <p className={cn('text-[10px] font-black uppercase tracking-[0.2em]', themeStyle.muted)}>Fonte</p>
-                  <p className="mt-1 text-sm font-black">{settings.fontSize}px</p>
+                  <p className={cn('text-xs font-semibold uppercase tracking-[0.2em]', themeStyle.muted)}>Fonte</p>
+                  <p className="mt-1 text-sm font-semibold">{settings.fontSize}px</p>
                 </div>
                 <button
                   type="button"
@@ -881,7 +829,7 @@ export function BurstModeExperience({
                 type="button"
                 onClick={() => currentContent && toggleComplete(currentContent.id)}
                 className={cn(
-                  'inline-flex items-center gap-2 rounded-2xl border px-4 py-3 text-sm font-black transition-colors',
+                  'inline-flex items-center gap-2 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border px-4 py-3 text-sm font-semibold transition-colors',
                   isCurrentCompleted
                     ? 'border-emerald-500 bg-emerald-500 text-white'
                     : themeStyle.panelBorder
@@ -889,7 +837,7 @@ export function BurstModeExperience({
               >
                 <CheckCircle2 className="h-4 w-4" />
                 {isCurrentCompleted ? 'Marcado como gravado' : 'Marcar como gravado'}
-                <span className={cn('rounded-lg border px-2 py-0.5 text-[10px] font-black', isCurrentCompleted ? 'border-white/40' : themeStyle.panelBorder)}>
+                <span className={cn('rounded-lg border px-2 py-0.5 text-xs font-semibold', isCurrentCompleted ? 'border-white/40' : themeStyle.panelBorder)}>
                   G
                 </span>
               </button>
@@ -907,10 +855,10 @@ export function BurstModeExperience({
           <section className={cn('flex h-full flex-col overflow-hidden', themeStyle.controls, themeStyle.text)}>
             <div className={cn('flex items-center justify-between border-b px-5 py-4 md:px-8', themeStyle.panelBorder)}>
               <div>
-                <p className={cn('text-[10px] font-black uppercase tracking-[0.22em]', themeStyle.muted)}>
+                <p className={cn('text-xs font-semibold ', themeStyle.muted)}>
                   Modo Explosão
                 </p>
-                <h2 className="mt-1 text-lg font-black uppercase tracking-tight md:text-2xl">
+                <h2 className="mt-1 text-lg font-semibold uppercase tracking-tight md:text-2xl">
                   Configurações
                 </h2>
               </div>
@@ -919,14 +867,14 @@ export function BurstModeExperience({
                 <button
                   type="button"
                   onClick={resetSettings}
-                  className={cn('rounded-2xl border px-4 py-2 text-xs font-black', themeStyle.panelBorder)}
+                  className={cn('rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border px-4 py-2 text-xs font-semibold', themeStyle.panelBorder)}
                 >
                   Restaurar padrões
                 </button>
                 <button
                   type="button"
                   onClick={() => setIsSettingsOpen(false)}
-                  className={cn('rounded-2xl border px-4 py-2 text-xs font-black', themeStyle.panelBorder)}
+                  className={cn('rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border px-4 py-2 text-xs font-semibold', themeStyle.panelBorder)}
                 >
                   Fechar
                 </button>
@@ -935,8 +883,8 @@ export function BurstModeExperience({
 
             <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 md:px-8 md:py-6">
               {!teleprompterEnabled && (
-                <div className="mb-5 rounded-[1.5rem] border border-amber-400/30 bg-amber-400/10 px-4 py-4">
-                  <p className="text-sm font-black uppercase tracking-[0.18em] text-amber-500">
+                <div className="mb-5 rounded-[var(--radius-card-mobile)] border border-amber-400/30 bg-amber-400/10 px-4 py-4">
+                  <p className="text-sm font-semibold  text-amber-500">
                     Leitura estÃ¡tica ativa
                   </p>
                   <p className="mt-2 text-sm leading-relaxed text-current/80">
@@ -950,7 +898,7 @@ export function BurstModeExperience({
                 <SettingsGroup title="Aparência">
                   <RangeSetting label="Tamanho da fonte" value={`${settings.fontSize}px`}>
                     <button type="button" onClick={() => updateSetting('fontSize', clamp(settings.fontSize - 2, 24, 96))} className="rounded-xl border p-2"><Minus className="h-4 w-4" /></button>
-                    <span className="min-w-[64px] text-center text-sm font-black">{settings.fontSize}</span>
+                    <span className="min-w-[64px] text-center text-sm font-semibold">{settings.fontSize}</span>
                     <button type="button" onClick={() => updateSetting('fontSize', clamp(settings.fontSize + 2, 24, 96))} className="rounded-xl border p-2"><Plus className="h-4 w-4" /></button>
                   </RangeSetting>
                   <SliderSetting label="Espaçamento entre linhas" value={settings.lineHeight.toFixed(1)}>
@@ -1012,8 +960,8 @@ export function BurstModeExperience({
 
                 <SettingsGroup title="Comportamento">
                   <ToggleSetting
-                    label="Rolagem automática"
-                    description="O texto rola automaticamente"
+                    label="Rolagem assistida"
+                    description="O texto acompanha o ritmo escolhido"
                     checked={settings.autoScroll}
                     onChange={() => updateSetting('autoScroll', !settings.autoScroll)}
                   />
@@ -1026,8 +974,8 @@ export function BurstModeExperience({
                     checked={settings.highlightCurrentLine}
                     onChange={() => updateSetting('highlightCurrentLine', !settings.highlightCurrentLine)}
                   />
-                  <div className="rounded-[1.5rem] border border-[currentColor]/12 p-4">
-                    <p className={cn('text-[10px] font-black uppercase tracking-[0.2em]', themeStyle.muted)}>Atalhos</p>
+                  <div className="rounded-[var(--radius-card-mobile)] border border-[currentColor]/12 p-4">
+                    <p className={cn('text-xs font-semibold uppercase tracking-[0.2em]', themeStyle.muted)}>Atalhos</p>
                     <div className="mt-3 space-y-2 text-sm">
                       <ShortcutLine label="Iniciar / Pausar" value="Espaço" />
                       <ShortcutLine label="Próximo vídeo" value="→" />
@@ -1043,16 +991,6 @@ export function BurstModeExperience({
             </div>
           </section>
         </FixedPanelModal>
-
-        <ConfirmModal
-          open={!!confirmBurst}
-          message={confirmBurst?.message || ''}
-          onConfirm={() => {
-            confirmBurst?.onConfirm();
-            setConfirmBurst(null);
-          }}
-          onCancel={() => setConfirmBurst(null)}
-        />
       </div>
     </div>
   );
@@ -1060,8 +998,8 @@ export function BurstModeExperience({
 
 function SettingsGroup({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-[1.75rem] border border-[currentColor]/10 bg-white/30 p-4 backdrop-blur-sm dark:bg-black/10">
-      <p className="mb-4 text-[10px] font-black uppercase tracking-[0.22em] opacity-60">{title}</p>
+    <div className="rounded-[1.75rem] border border-[currentColor]/10 bg-white/30 p-4  dark:bg-black/10">
+      <p className="mb-4 text-xs font-semibold  opacity-60">{title}</p>
       <div className="space-y-4">{children}</div>
     </div>
   );
@@ -1080,7 +1018,7 @@ function RangeSetting({
     <div>
       <div className="mb-2 flex items-center justify-between gap-4">
         <span className="text-sm font-bold">{label}</span>
-        <span className="text-xs font-black uppercase opacity-50">{value}</span>
+        <span className="text-xs font-semibold uppercase opacity-50">{value}</span>
       </div>
       <div className="flex items-center gap-3">{children}</div>
     </div>
@@ -1100,7 +1038,7 @@ function SliderSetting({
     <div>
       <div className="mb-2 flex items-center justify-between gap-4">
         <span className="text-sm font-bold">{label}</span>
-        <span className="text-xs font-black uppercase opacity-50">{value}</span>
+        <span className="text-xs font-semibold uppercase opacity-50">{value}</span>
       </div>
       {children}
     </div>
@@ -1136,7 +1074,7 @@ function ChoiceButton({
       type="button"
       onClick={onClick}
       className={cn(
-        'rounded-xl border px-3 py-2 text-xs font-black uppercase tracking-widest transition-all',
+        'rounded-xl border px-3 py-2 text-xs font-semibold  transition-all',
         active ? 'border-[#4f46e5] bg-[#4f46e5]/10 text-[#4f46e5]' : 'border-[currentColor]/12 opacity-70'
       )}
     >
@@ -1187,10 +1125,9 @@ function ShortcutLine({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-center justify-between gap-3">
       <span className="font-medium opacity-80">{label}</span>
-      <span className="rounded-lg border border-[currentColor]/12 px-2 py-1 text-[10px] font-black uppercase tracking-widest opacity-70">
+      <span className="rounded-lg border border-[currentColor]/12 px-2 py-1 text-xs font-semibold  opacity-70">
         {value}
       </span>
     </div>
   );
 }
-

@@ -124,14 +124,14 @@ export function MobileActionMenu({ open, onClose }: MobileActionMenuProps) {
                     onClick={action.onClick}
                     disabled={action.disabled}
                     className={cn(
-                      'flex min-h-11 flex-col items-center justify-center gap-2 rounded-2xl border border-[var(--border-color)] bg-[var(--bg-primary)] px-2 py-3 text-center transition-colors active:scale-[0.98]',
+                      'flex min-h-11 flex-col items-center justify-center gap-2 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-primary)] px-2 py-3 text-center transition-colors active:scale-[0.98]',
                       action.disabled ? 'cursor-not-allowed opacity-40' : 'hover:bg-[var(--bg-hover)]'
                     )}
                   >
                     <div className={cn('rounded-xl p-2.5', action.accentClassName)}>
                       {action.icon}
                     </div>
-                    <span className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--text-primary)]">
+                    <span className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--text-primary)]">
                       {action.label.replace('Nova ', '').replace('Novo ', '')}
                     </span>
                   </button>
@@ -139,7 +139,7 @@ export function MobileActionMenu({ open, onClose }: MobileActionMenuProps) {
               </div>
 
               {currentBook ? (
-                <p className="px-4 pb-2 text-center text-[11px] text-[var(--text-tertiary)]">
+                <p className="px-4 pb-2 text-center text-xs text-[var(--text-tertiary)]">
                   {preferredBookId === currentBook.id ? (
                     <span className="inline-flex items-center gap-1">
                       <Pin className="h-3 w-3 text-[var(--accent-purple)]" />

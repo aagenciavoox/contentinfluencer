@@ -16,28 +16,28 @@ export function LibraryAnalyticsTab({ items, contents }: LibraryAnalyticsTabProp
         {analytics.statCards.map(card => (
           <div
             key={card.label}
-            className="rounded-3xl border border-[var(--border-color)] bg-[var(--bg-primary)] p-5"
+            className="rounded-[var(--radius-overlay)] border border-[var(--border-color)] bg-[var(--bg-primary)] p-5"
           >
-            <p className="text-[10px] font-black uppercase tracking-[0.24em] text-[var(--text-tertiary)]">
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--text-tertiary)]">
               {card.label}
             </p>
-            <p className="mt-3 text-3xl font-black text-[var(--text-primary)]">{card.value}</p>
+            <p className="mt-3 text-3xl font-semibold text-[var(--text-primary)]">{card.value}</p>
             <p className="mt-2 text-sm text-[var(--text-secondary)]">{card.detail}</p>
           </div>
         ))}
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[1.1fr_1fr]">
-        <section className="rounded-3xl border border-[var(--border-color)] bg-[var(--bg-primary)] p-5">
+        <section className="rounded-[var(--radius-overlay)] border border-[var(--border-color)] bg-[var(--bg-primary)] p-5">
           <div className="mb-5 flex items-center gap-2">
             <BarChart3 className="h-4 w-4 text-[var(--accent-blue)]" />
-            <h3 className="text-sm font-black uppercase tracking-[0.24em] text-[var(--text-primary)]">
+            <h3 className="text-sm font-semibold uppercase tracking-[0.24em] text-[var(--text-primary)]">
               Distribuicao do acervo
             </h3>
           </div>
           <div className="grid gap-4 md:grid-cols-2">
             <div>
-              <p className="mb-3 text-[10px] font-black uppercase tracking-[0.24em] text-[var(--text-tertiary)]">
+              <p className="mb-3 text-xs font-semibold uppercase tracking-[0.24em] text-[var(--text-tertiary)]">
                 Por tipo
               </p>
               <div className="space-y-3">
@@ -59,7 +59,7 @@ export function LibraryAnalyticsTab({ items, contents }: LibraryAnalyticsTabProp
             </div>
 
             <div>
-              <p className="mb-3 text-[10px] font-black uppercase tracking-[0.24em] text-[var(--text-tertiary)]">
+              <p className="mb-3 text-xs font-semibold uppercase tracking-[0.24em] text-[var(--text-tertiary)]">
                 Por status
               </p>
               <div className="space-y-3">
@@ -82,10 +82,10 @@ export function LibraryAnalyticsTab({ items, contents }: LibraryAnalyticsTabProp
           </div>
         </section>
 
-        <section className="rounded-3xl border border-[var(--border-color)] bg-[var(--bg-primary)] p-5">
+        <section className="rounded-[var(--radius-overlay)] border border-[var(--border-color)] bg-[var(--bg-primary)] p-5">
           <div className="mb-5 flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-[var(--accent-orange)]" />
-            <h3 className="text-sm font-black uppercase tracking-[0.24em] text-[var(--text-primary)]">
+            <h3 className="text-sm font-semibold uppercase tracking-[0.24em] text-[var(--text-primary)]">
               Oportunidades
             </h3>
           </div>
@@ -98,7 +98,7 @@ export function LibraryAnalyticsTab({ items, contents }: LibraryAnalyticsTabProp
               {analytics.opportunities.map(item => (
                 <div
                   key={item.id}
-                  className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-3"
+                  className="rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-3"
                 >
                   <p className="text-sm font-bold text-[var(--text-primary)]">{item.title}</p>
                   <p className="mt-1 text-xs text-[var(--text-secondary)]">{item.reason}</p>
@@ -109,10 +109,10 @@ export function LibraryAnalyticsTab({ items, contents }: LibraryAnalyticsTabProp
         </section>
       </div>
 
-      <section className="rounded-3xl border border-[var(--border-color)] bg-[var(--bg-primary)] p-5">
+      <section className="rounded-[var(--radius-overlay)] border border-[var(--border-color)] bg-[var(--bg-primary)] p-5">
         <div className="mb-5 flex items-center gap-2">
           <BookOpen className="h-4 w-4 text-[var(--accent-purple)]" />
-          <h3 className="text-sm font-black uppercase tracking-[0.24em] text-[var(--text-primary)]">
+          <h3 className="text-sm font-semibold uppercase tracking-[0.24em] text-[var(--text-primary)]">
             Itens que mais renderam
           </h3>
         </div>
@@ -125,14 +125,14 @@ export function LibraryAnalyticsTab({ items, contents }: LibraryAnalyticsTabProp
             {analytics.topItems.map(item => (
               <div
                 key={item.id}
-                className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4"
+                className="rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="text-sm font-bold text-[var(--text-primary)]">{item.title}</p>
                     <p className="mt-1 text-xs text-[var(--text-secondary)]">{item.subtitle}</p>
                   </div>
-                  <span className="rounded-full bg-[var(--bg-hover)] px-2 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-tertiary)]">
+                  <span className="rounded-full bg-[var(--bg-hover)] px-2 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-[var(--text-tertiary)]">
                     {item.typeLabel}
                   </span>
                 </div>
@@ -146,10 +146,10 @@ export function LibraryAnalyticsTab({ items, contents }: LibraryAnalyticsTabProp
         )}
       </section>
 
-      <section className="rounded-3xl border border-[var(--border-color)] bg-[var(--bg-primary)] p-5">
+      <section className="rounded-[var(--radius-overlay)] border border-[var(--border-color)] bg-[var(--bg-primary)] p-5">
         <div className="mb-5 flex items-center gap-2">
           <Lightbulb className="h-4 w-4 text-[var(--accent-pink)]" />
-          <h3 className="text-sm font-black uppercase tracking-[0.24em] text-[var(--text-primary)]">
+          <h3 className="text-sm font-semibold uppercase tracking-[0.24em] text-[var(--text-primary)]">
             Leitura rapida
           </h3>
         </div>

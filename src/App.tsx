@@ -21,11 +21,11 @@ function AppContent() {
   if (!backendReady) {
     return (
       <div className="min-h-screen w-full bg-[var(--bg-primary)] text-[var(--text-primary)] flex items-center justify-center p-6">
-        <div className="w-full max-w-lg rounded-[2rem] border border-red-500/20 bg-[var(--bg-secondary)] p-8 shadow-2xl">
-          <div className="mb-5 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-red-500/10 text-red-500">
+        <div className="w-full max-w-lg rounded-[var(--radius-card-mobile)] border border-red-500/20 bg-[var(--bg-secondary)] p-8 shadow-none">
+          <div className="mb-5 inline-flex h-14 w-14 items-center justify-center rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] bg-red-500/10 text-red-500">
             <AlertTriangle className="h-7 w-7" />
           </div>
-          <h1 className="text-2xl font-black uppercase tracking-[0.2em]">Backend obrigatorio</h1>
+          <h1 className="text-2xl font-semibold uppercase tracking-[0.2em]">Backend obrigatorio</h1>
           <p className="mt-4 text-sm leading-6 text-[var(--text-secondary)]">
             Este app nao opera mais em modo offline. Preencha o arquivo <code>.env.local</code> na raiz do projeto e reinicie o servidor (<code>npm run dev</code>).
           </p>

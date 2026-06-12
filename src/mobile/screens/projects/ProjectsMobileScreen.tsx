@@ -24,7 +24,7 @@ const TIPO_LABELS: Record<Exclude<TipoFilter, 'todos'>, string> = {
 };
 
 const STATUS_LABELS: Record<Exclude<StatusFilter, 'todos'>, string> = {
-  pendente: 'Pendente',
+  pendente: 'Em aberto',
   em_andamento: 'Em andamento',
   concluido: 'Concluido',
 };
@@ -123,27 +123,27 @@ export function ProjectsMobileScreen({
     <div className="space-y-5">
       <section className="rounded-[1.75rem] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4 shadow-sm">
         <div className="mb-4 flex items-center gap-3">
-          <div className="rounded-2xl bg-[var(--accent-green)]/12 p-3 text-[var(--accent-green)]">
+          <div className="rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] bg-[var(--accent-green)]/12 p-3 text-[var(--accent-green)]">
             <FolderKanban className="h-5 w-5" />
           </div>
           <div>
-            <p className="t-section-title text-[var(--text-primary)]">Pipeline enxuto</p>
-            <p className="t-secondary">Prazo, valor e andamento em cards leves para consulta rapida.</p>
+            <p className="t-section-title text-[var(--text-primary)]">Projetos abertos</p>
+            <p className="t-secondary">Datas, valor e contexto em cards leves para consulta rapida.</p>
           </div>
         </div>
 
         <div className="grid grid-cols-3 gap-2">
           <div className="rounded-[1.2rem] bg-[var(--bg-hover)] px-3 py-3">
             <p className="t-label text-[var(--text-tertiary)]">Total</p>
-            <p className="mt-1 text-xl font-black text-[var(--text-primary)]">{projetos.length}</p>
+            <p className="mt-1 text-xl font-semibold text-[var(--text-primary)]">{projetos.length}</p>
           </div>
           <div className="rounded-[1.2rem] bg-[var(--bg-hover)] px-3 py-3">
             <p className="t-label text-[var(--text-tertiary)]">Ativos</p>
-            <p className="mt-1 text-xl font-black text-[var(--text-primary)]">{activeProjectsCount}</p>
+            <p className="mt-1 text-xl font-semibold text-[var(--text-primary)]">{activeProjectsCount}</p>
           </div>
           <div className="rounded-[1.2rem] bg-[var(--bg-hover)] px-3 py-3">
-            <p className="t-label text-[var(--text-tertiary)]">Prazo</p>
-            <p className="mt-1 text-xl font-black text-[var(--text-primary)]">{getDueSoonCount(projetos)}</p>
+            <p className="t-label text-[var(--text-tertiary)]">Datas</p>
+            <p className="mt-1 text-xl font-semibold text-[var(--text-primary)]">{getDueSoonCount(projetos)}</p>
           </div>
         </div>
 
@@ -165,7 +165,7 @@ export function ProjectsMobileScreen({
           tabs={[
             { value: 'all', label: 'Todos', count: projetos.length },
             { value: 'active', label: 'Ativos', count: activeProjectsCount },
-            { value: 'deadline', label: 'Prazo', count: getDueSoonCount(projetos) },
+            { value: 'deadline', label: 'Datas', count: getDueSoonCount(projetos) },
           ]}
           value={activeTab}
           onChange={(value) => setActiveTab(value)}
@@ -194,7 +194,7 @@ export function ProjectsMobileScreen({
                   meta={
                     <>
                       {projeto.value ? (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-[var(--accent-orange)]/10 px-3 py-1 text-[11px] font-semibold text-[var(--accent-orange)]">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-[var(--accent-orange)]/10 px-3 py-1 text-xs font-semibold text-[var(--accent-orange)]">
                           <CircleDollarSign className="h-3 w-3" />
                           {projeto.value.toLocaleString('pt-BR', {
                             style: 'currency',
@@ -202,7 +202,7 @@ export function ProjectsMobileScreen({
                           })}
                         </span>
                       ) : null}
-                      <span className="inline-flex items-center gap-1 rounded-full bg-[var(--accent-green)]/10 px-3 py-1 text-[11px] font-semibold text-[var(--accent-green)]">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-[var(--accent-green)]/10 px-3 py-1 text-xs font-semibold text-[var(--accent-green)]">
                         <TimerReset className="h-3 w-3" />
                         {STATUS_LABELS[status]}
                       </span>
@@ -248,7 +248,7 @@ export function ProjectsMobileScreen({
           <span className="t-label text-[var(--text-tertiary)]">Status</span>
           <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}>
             <option value="todos">Todos</option>
-            <option value="pendente">Pendente</option>
+            <option value="pendente">Em aberto</option>
             <option value="em_andamento">Em andamento</option>
             <option value="concluido">Concluido</option>
           </select>
@@ -257,8 +257,8 @@ export function ProjectsMobileScreen({
         <label className="block space-y-2">
           <span className="t-label text-[var(--text-tertiary)]">Ordenacao</span>
           <select value={sortValue} onChange={(event) => setSortValue(event.target.value)}>
-            <option value="deadline:asc">Prazo crescente</option>
-            <option value="deadline:desc">Prazo decrescente</option>
+            <option value="deadline:asc">Data combinada crescente</option>
+            <option value="deadline:desc">Data combinada decrescente</option>
             <option value="name:asc">Nome A-Z</option>
             <option value="value:desc">Maior valor</option>
             <option value="updatedAt:desc">Atualizados</option>

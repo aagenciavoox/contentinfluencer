@@ -1,27 +1,36 @@
-import React, {useState} from 'react';
-import {useNavigate} from 'react-router-dom';
-import {Zap, Users, Target, MessageSquare, Ban, ShieldAlert, Plus, Trash2} from 'lucide-react';
-import {useAppContext} from '../../../context/AppContext';
-import {useIsMobile} from '../../../hooks/useIsMobile';
-import {DesktopPageHeader} from '../../../layouts/page/DesktopPageHeader';
-import {DNAVozMobileScreen} from '../../../mobile/screens/settings/DNAVozMobileScreen';
-import {AppButton} from '../../../components/ui/AppButton';
+import React, { useState } from 'react';
+import { Zap, Users, Target, MessageSquare, Ban, ShieldAlert } from 'lucide-react';
+import { useAppContext } from '../../../context/AppContext';
+import { useIsMobile } from '../../../hooks/useIsMobile';
+import { DNAVozMobileScreen } from '../../../mobile/screens/settings/DNAVozMobileScreen';
+import { AppButton } from '../../../components/ui/AppButton';
+import { SettingsPageScaffold } from '../../../components/settings/SettingsPageScaffold';
+import { SettingsArrayInput } from '../../../components/settings/SettingsArrayInput';
+import { SettingsGridCard, SETTINGS_ENTITY_GRID_CLASS } from '../../../components/settings/SettingsGridCard';
+
+const fieldTextareaClass =
+  'w-full min-h-[72px] resize-none rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-hover)] p-3 text-sm text-[var(--text-primary)] placeholder:opacity-40 focus:ring-1 focus:ring-[var(--border-strong)]';
 
 export function DNAVozSettingsPage() {
-  const {state, dispatch} = useAppContext();
-  const navigate = useNavigate();
+  const { state, dispatch } = useAppContext();
   const isMobile = useIsMobile();
-  const [editData, setEditData] = useState(state.dnaVoz);
-  const [newInput, setNewInput] = useState<{field: string; value: string}>({field: '', value: ''});
+  const [editData, setEditData] = useState(state.dnaVoz ?? {
+    id: '',
+    userId: '',
+    promessaCentral: '',
+    publico: '',
+    tom: '',
+    naoFaco: [] as string[],
+    alertas: [] as string[],
+    updatedAt: '',
+  });
 
   const handleSave = () => {
-    dispatch({type: 'UPDATE_DNA_VOZ', payload: editData});
+    dispatch({ type: 'UPDATE_DNA_VOZ', payload: editData });
   };
 
-  const handleAddItem = (field: 'naoFaco' | 'alertas') => {
-    if (!newInput.value.trim()) return;
-    setEditData(p => ({ ...p, [field]: [...(p?.[field] || []), newInput.value] }));
-    setNewInput({ field: '', value: '' });
+  const handleAddItem = (field: 'naoFaco' | 'alertas', value: string) => {
+    setEditData(p => ({ ...p, [field]: [...(p?.[field] || []), value] }));
   };
 
   const removeItem = (field: 'naoFaco' | 'alertas', index: number) => {
@@ -45,194 +54,105 @@ export function DNAVozSettingsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[var(--bg-secondary)]">
-      <header className="desktop-header-sticky transition-colors duration-300">
-        <div className="desktop-header-frame">
-        <DesktopPageHeader
-          section="Configurações"
-          title="DNA da Voz"
-          icon={MessageSquare}
-          backLabel="Configurações"
-          backTo="/configuracoes"
-          actions={isDirty ? (
-            <AppButton
-              onClick={handleSave}
-              variant="primary"
-            >
-              Salvar
-            </AppButton>
-          ) : null}
-        />
-        </div>
-      </header>
+    <SettingsPageScaffold
+      compact
+      title="DNA da Voz"
+      icon={MessageSquare}
+      actions={
+        isDirty ? (
+          <AppButton onClick={handleSave} variant="primary">
+            Salvar
+          </AppButton>
+        ) : null
+      }
+    >
+      <div className={`${SETTINGS_ENTITY_GRID_CLASS} mb-3`}>
+        <SettingsGridCard
+          title="Promessa Central"
+          leading={<Zap className="h-3.5 w-3.5 text-[var(--text-tertiary)]" />}
+        >
+          <textarea
+            value={editData.promessaCentral}
+            onChange={e => setEditData(p => ({ ...p, promessaCentral: e.target.value }))}
+            placeholder="O que você entrega para quem te segue?"
+            className={fieldTextareaClass}
+          />
+        </SettingsGridCard>
 
-      <div className="desktop-content-frame">
+        <SettingsGridCard
+          title="Público"
+          leading={<Users className="h-3.5 w-3.5 text-[var(--text-tertiary)]" />}
+        >
+          <textarea
+            value={editData.publico}
+            onChange={e => setEditData(p => ({ ...p, publico: e.target.value }))}
+            placeholder="Para quem você cria?"
+            className={fieldTextareaClass}
+          />
+        </SettingsGridCard>
 
-        <div className="space-y-10">
-          {/* Promessa Central */}
-          <section className="bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-2xl p-6">
-            <div className="flex items-center gap-2 mb-4 text-[var(--text-tertiary)]">
-              <Zap className="w-4 h-4" />
-              <span className="t-label">Promessa Central</span>
-            </div>
-            <textarea
-              value={editData.promessaCentral}
-              onChange={e => setEditData(p => ({ ...p, promessaCentral: e.target.value }))}
-              placeholder="O que você entrega para quem te segue?"
-              className="w-full min-h-[80px] text-sm text-[var(--text-primary)] bg-[var(--bg-hover)] border-none rounded-xl p-4 focus:ring-0 resize-none placeholder:opacity-30"
-            />
-          </section>
+        <SettingsGridCard
+          title="Tom de Voz"
+          leading={<MessageSquare className="h-3.5 w-3.5 text-[var(--text-tertiary)]" />}
+          className="sm:col-span-2 xl:col-span-3"
+        >
+          <textarea
+            value={editData.tom}
+            onChange={e => setEditData(p => ({ ...p, tom: e.target.value }))}
+            placeholder="Como você fala?"
+            className={fieldTextareaClass}
+          />
+        </SettingsGridCard>
 
-          {/* Público */}
-          <section className="bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-2xl p-6">
-            <div className="flex items-center gap-2 mb-4 text-[var(--text-tertiary)]">
-              <Users className="w-4 h-4" />
-              <span className="t-label">Público</span>
-            </div>
-            <textarea
-              value={editData.publico}
-              onChange={e => setEditData(p => ({ ...p, publico: e.target.value }))}
-              placeholder="Para quem você cria? Ex: 'Leitoras de 20-35 anos apaixonadas por Fantasy e Dark Romance, que querem falar de livros com humor e sem vergonha.'"
-              className="w-full min-h-[80px] text-sm text-[var(--text-primary)] bg-[var(--bg-hover)] border-none rounded-xl p-4 focus:ring-0 resize-none placeholder:opacity-30"
-            />
-          </section>
+        <SettingsGridCard
+          title="O que não faço"
+          leading={<Ban className="h-3.5 w-3.5 text-[var(--accent-pink)]" />}
+        >
+          <SettingsArrayInput
+            items={editData.naoFaco}
+            onAdd={val => handleAddItem('naoFaco', val)}
+            onRemove={idx => removeItem('naoFaco', idx)}
+            placeholder="Novo proibido..."
+            bulletColor="var(--accent-pink)"
+          />
+        </SettingsGridCard>
 
-          {/* Pilares — read-only, managed in Pilares settings */}
-          <section className="bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-2xl p-6">
-            <div className="flex items-center gap-2 mb-4 text-[var(--text-tertiary)]">
-              <Target className="w-4 h-4" />
-              <span className="t-label">Pilares de Conteúdo</span>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {state.pilares.filter(p => p.ativo).map(p => (
-                <span key={p.id} className="px-3 py-1 text-xs rounded-full bg-[var(--text-primary)] text-[var(--bg-secondary)] font-bold">
-                  {p.nome}
-                </span>
-              ))}
-              {state.pilares.length === 0 && (
-                <p className="text-xs text-[var(--text-tertiary)] italic opacity-50">Configure seus pilares em Configurações → Pilares.</p>
-              )}
-            </div>
-          </section>
+        <SettingsGridCard
+          title="Cuidados de voz"
+          leading={<ShieldAlert className="h-3.5 w-3.5 text-[var(--accent-orange)]" />}
+        >
+          <SettingsArrayInput
+            items={editData.alertas}
+            onAdd={val => handleAddItem('alertas', val)}
+            onRemove={idx => removeItem('alertas', idx)}
+            placeholder="Novo cuidado..."
+            bulletColor="var(--accent-orange)"
+            itemClassName="bg-[var(--accent-orange)]/5 border-[var(--accent-orange)]/10"
+          />
+        </SettingsGridCard>
 
-          {/* Tom de Voz */}
-          <section className="bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-2xl p-6">
-            <div className="flex items-center gap-2 mb-4 text-[var(--text-tertiary)]">
-              <MessageSquare className="w-4 h-4" />
-              <span className="t-label">Tom de Voz</span>
-            </div>
-            <textarea
-              value={editData.tom}
-              onChange={e => setEditData(p => ({ ...p, tom: e.target.value }))}
-              placeholder="Como você fala? Ex: 'Direto, sem floreio, mas com calor humano. Jamais didático ou professoral.'"
-              className="w-full min-h-[100px] text-sm text-[var(--text-primary)] bg-[var(--bg-hover)] border-none rounded-xl p-4 focus:ring-0 resize-none placeholder:opacity-30"
-            />
-          </section>
-
-          {/* O que não faço */}
-          <section className="bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-2xl p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2 text-[var(--text-tertiary)]">
-                <Ban className="w-4 h-4" />
-                <span className="t-label">O que não faço</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <input
-                  type="text"
-                  placeholder="Novo proibido..."
-                className="t-secondary w-32 rounded-lg border-none bg-[var(--bg-hover)] px-3 py-1 text-[var(--text-primary)] placeholder:opacity-30"
-                  value={newInput.field === 'naoFaco' ? newInput.value : ''}
-                  onChange={e => setNewInput({ field: 'naoFaco', value: e.target.value })}
-                  onKeyDown={e => e.key === 'Enter' && handleAddItem('naoFaco')}
-                />
-                <button
-                  onClick={() => handleAddItem('naoFaco')}
-                  className="p-1.5 hover:bg-[var(--bg-hover)] rounded-full transition-colors"
-                >
-                  <Plus className="w-3.5 h-3.5 text-[var(--text-tertiary)]" />
-                </button>
-              </div>
-            </div>
-            <ul className="space-y-3">
-              {editData.naoFaco.map((item, i) => (
-                <li key={i} className="flex items-start justify-between group">
-                  <div className="flex items-start gap-3 text-sm text-[var(--text-primary)] opacity-80">
-                    <div className="w-1.5 h-1.5 rounded-full bg-[var(--accent-pink)] mt-1.5 shrink-0" />
-                    {item}
-                  </div>
-                  <button
-                    onClick={() => removeItem('naoFaco', i)}
-                    className="p-1 text-[var(--accent-pink)] opacity-0 group-hover:opacity-100 shrink-0 transition-opacity"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </li>
-              ))}
-              {editData.naoFaco.length === 0 && (
-                <p className="text-xs text-[var(--text-tertiary)] italic">Nenhum item adicionado ainda.</p>
-              )}
-            </ul>
-          </section>
-
-          {/* Alertas de Desvio */}
-          <section className="bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-2xl p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2 text-[var(--text-tertiary)]">
-                <ShieldAlert className="w-4 h-4" />
-                <span className="t-label">Alertas de Desvio</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <input
-                  type="text"
-                  placeholder="Novo alerta..."
-                className="t-secondary w-32 rounded-lg border-none bg-[var(--bg-hover)] px-3 py-1 text-[var(--text-primary)] placeholder:opacity-30"
-                  value={newInput.field === 'alertas' ? newInput.value : ''}
-                  onChange={e => setNewInput({ field: 'alertas', value: e.target.value })}
-                  onKeyDown={e => e.key === 'Enter' && handleAddItem('alertas')}
-                />
-                <button
-                  onClick={() => handleAddItem('alertas')}
-                  className="p-1.5 hover:bg-[var(--bg-hover)] rounded-full transition-colors"
-                >
-                  <Plus className="w-3.5 h-3.5 text-[var(--text-tertiary)]" />
-                </button>
-              </div>
-            </div>
-            <div className="space-y-3">
-              {editData.alertas.map((alerta, i) => (
-                <div key={i} className="relative group">
-                  <div className="p-4 bg-[var(--accent-orange)]/5 border border-[var(--accent-orange)]/10 rounded-xl">
-                    <p className="text-xs text-[var(--accent-orange)] leading-relaxed italic pr-6">"{alerta}"</p>
-                  </div>
-                  <button
-                    onClick={() => removeItem('alertas', i)}
-                    className="absolute top-2 right-2 p-1 text-[var(--accent-orange)] opacity-0 group-hover:opacity-100 hover:bg-[var(--accent-orange)]/10 rounded-full transition-opacity"
-                  >
-                    <Trash2 className="w-3 h-3" />
-                  </button>
-                </div>
-              ))}
-              {editData.alertas.length === 0 && (
-                <p className="text-xs text-[var(--text-tertiary)] italic">Nenhum alerta adicionado ainda.</p>
-              )}
-            </div>
-          </section>
-
-          {isDirty && (
-            <div className="flex justify-end">
-              <AppButton
-                onClick={handleSave}
-                variant="primary"
+        <SettingsGridCard
+          title="Pilares de Conteúdo"
+          leading={<Target className="h-3.5 w-3.5 text-[var(--text-tertiary)]" />}
+          className="sm:col-span-2 xl:col-span-3"
+        >
+          <div className="flex flex-wrap gap-1.5">
+            {state.pilares.filter(p => p.ativo).map(p => (
+              <span
+                key={p.id}
+                className="rounded-full border border-[var(--border-color)] bg-[var(--bg-hover)] px-2.5 py-0.5 text-xs font-medium text-[var(--text-secondary)]"
               >
-                Salvar Alterações
-              </AppButton>
-            </div>
-          )}
-        </div>
+                {p.nome}
+              </span>
+            ))}
+            {state.pilares.length === 0 ? (
+              <p className="text-xs text-[var(--text-tertiary)]">
+                Configure seus pilares em Configurações → Pilares.
+              </p>
+            ) : null}
+          </div>
+        </SettingsGridCard>
       </div>
-    </div>
+    </SettingsPageScaffold>
   );
 }
-
-
-

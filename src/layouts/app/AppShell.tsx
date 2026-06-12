@@ -18,6 +18,7 @@ import { forceMobileRefresh } from '../../lib/pwaRefresh';
 import { IdeaQuickCapture } from '../../features/ideas/components/IdeaQuickCapture';
 import { generateUUID } from '../../utils/uuid';
 import type { Idea } from '../../lib/database';
+import { getModuleFlags } from '../../features/settings/lib/moduleFlags';
 
 interface AppShellProps {
   children: ReactNode;
@@ -39,6 +40,7 @@ export function AppShell({ children }: AppShellProps) {
   const { isHidden, handleScroll } = useHideOnScroll(isMobile);
   const routeMeta = getMobileRouteMeta(location.pathname);
   const { state, dispatch, syncFromServer } = useAppContext();
+  const moduleFlags = getModuleFlags(state.preferences);
 
   const handlePullRefresh = useCallback(async () => {
     await forceMobileRefresh(() => syncFromServer({ silent: true }));
@@ -123,6 +125,7 @@ export function AppShell({ children }: AppShellProps) {
             <MobileBottomNav
               isActionOpen={isActionMenuOpen}
               onActionToggle={() => setIsActionMenuOpen((previous) => !previous)}
+              moduleFlags={moduleFlags}
             />
           )}
           overlay={(
@@ -176,7 +179,7 @@ export function AppShell({ children }: AppShellProps) {
           />
           <div className="relative z-10 w-full max-w-md">
             <div className="mb-2 flex items-center justify-between px-1">
-              <span className="text-[10px] font-black uppercase tracking-[0.22em] text-[var(--text-tertiary)]">
+              <span className="text-xs font-semibold  text-[var(--text-tertiary)]">
                 Nova ideia
               </span>
               <button

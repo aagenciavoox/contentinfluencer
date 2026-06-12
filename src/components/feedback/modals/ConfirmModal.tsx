@@ -1,6 +1,12 @@
-import { createPortal } from 'react-dom';
-import { motion, AnimatePresence } from 'motion/react';
-import { useBodyScrollLock } from '../../../hooks/useBodyScrollLock';
+import { AppButton } from '../../ui/AppButton';
+import { Text } from '../../ui/Text';
+import {
+  DESKTOP_DIALOG_ANIMATE,
+  DESKTOP_DIALOG_EXIT,
+  DESKTOP_DIALOG_INITIAL,
+  DESKTOP_PANEL_TRANSITION,
+} from '../../overlays/overlayConstants';
+import { OverlayRoot } from '../../overlays/OverlayRoot';
 
 interface ConfirmModalProps {
   open: boolean;
@@ -17,48 +23,31 @@ export function ConfirmModal({
   onConfirm,
   onCancel,
 }: ConfirmModalProps) {
-  useBodyScrollLock(open);
-
-  const content = (
-    <AnimatePresence>
-      {open && (
-        <div className="fixed inset-0 z-[200]">
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={onCancel}
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-          />
-          <motion.div
-            initial={{ opacity: 0, scale: 0.93, y: 8 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.93, y: 8 }}
-            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[88%] max-w-xs bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl shadow-2xl p-6"
-          >
-            <p className="text-sm font-medium text-[var(--text-primary)] leading-relaxed mb-6 opacity-80">
-              {message}
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={onCancel}
-                className="flex-1 py-3 rounded-2xl text-[11px] font-black uppercase tracking-widest text-[var(--text-primary)] bg-[var(--bg-hover)] border border-[var(--border-color)] hover:border-[var(--border-strong)] transition-all"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={onConfirm}
-                className="flex-1 py-3 rounded-2xl text-[11px] font-black uppercase tracking-widest text-white bg-[var(--accent-pink)] hover:opacity-90 transition-all shadow-md"
-              >
-                {confirmLabel}
-              </button>
-            </div>
-          </motion.div>
-        </div>
-      )}
-    </AnimatePresence>
+  return (
+    <OverlayRoot
+      open={open}
+      onClose={onCancel}
+      placement="center"
+      zIndex="z-[200]"
+      mobileEdgePadding={false}
+      ariaLabel="Confirmação"
+      panelInitial={DESKTOP_DIALOG_INITIAL}
+      panelAnimate={DESKTOP_DIALOG_ANIMATE}
+      panelExit={DESKTOP_DIALOG_EXIT}
+      panelTransition={DESKTOP_PANEL_TRANSITION}
+      panelClassName="absolute top-1/2 left-1/2 w-[88%] max-w-xs -translate-x-1/2 -translate-y-1/2 rounded-[var(--radius-overlay)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-6"
+    >
+      <Text variant="body" className="mb-6 leading-relaxed text-[var(--text-primary)] opacity-80">
+        {message}
+      </Text>
+      <div className="flex gap-3">
+        <AppButton variant="secondary" className="flex-1" onClick={onCancel}>
+          Cancelar
+        </AppButton>
+        <AppButton variant="primary" className="flex-1" onClick={onConfirm}>
+          {confirmLabel}
+        </AppButton>
+      </div>
+    </OverlayRoot>
   );
-
-  return createPortal(content, document.body);
 }

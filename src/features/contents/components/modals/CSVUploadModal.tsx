@@ -24,7 +24,7 @@ export function CSVUploadModal({ onClose }: CSVUploadModalProps) {
     const selectedFile = e.target.files?.[0];
     if (selectedFile) {
       if (selectedFile.type !== 'text/csv' && !selectedFile.name.endsWith('.csv')) {
-        setError('Por favor, selecione um arquivo CSV válido.');
+        setError('Selecione um arquivo CSV para importar os roteiros.');
         return;
       }
       setFile(selectedFile);
@@ -40,7 +40,7 @@ export function CSVUploadModal({ onClose }: CSVUploadModalProps) {
         const text = e.target?.result as string;
         const lines = text.split(/\r?\n/).filter(line => line.trim());
         if (lines.length < 2) {
-          setError('O arquivo CSV está vazio ou não possui cabeçalhos.');
+          setError('Nao encontramos linhas suficientes no CSV. Inclua uma linha de cabecalho e ao menos um roteiro.');
           return;
         }
 
@@ -53,7 +53,7 @@ export function CSVUploadModal({ onClose }: CSVUploadModalProps) {
         const scriptIdx = headers.findIndex(h => h === 'roteiro' || h === 'texto' || h === 'script');
 
         if (titleIdx === -1 || scriptIdx === -1) {
-          setError('Não encontramos as colunas obrigatórias: "titulo" e "roteiro". Verifique o modelo abaixo.');
+          setError('Para importar, inclua as colunas "titulo" e "roteiro". O modelo abaixo pode ajudar.');
           return;
         }
 
@@ -84,12 +84,12 @@ export function CSVUploadModal({ onClose }: CSVUploadModalProps) {
         }
 
         if (data.length === 0) {
-          setError('Nenhum dado válido encontrado nas linhas. Certifique-se de preencher título e roteiro.');
+          setError('As linhas importadas ainda nao trazem titulo e roteiro juntos. Complete esses campos e tente novamente.');
         } else {
           setPreview(data);
         }
       } catch (err) {
-        setError('Erro ao ler o arquivo. Certifique-se de que a formatação está correta.');
+        setError('Nao conseguimos ler o arquivo agora. Revise a formatacao do CSV e tente novamente.');
       }
     };
     reader.readAsText(file);
@@ -134,9 +134,9 @@ export function CSVUploadModal({ onClose }: CSVUploadModalProps) {
           <div>
             <div className="flex items-center gap-3 mb-1">
               <Upload className="w-5 h-5 text-[var(--accent-blue)]" />
-              <h2 className="text-2xl font-black text-[var(--text-primary)] uppercase">Importar Roteiros</h2>
+              <h2 className="text-2xl font-semibold text-[var(--text-primary)] uppercase">Importar Roteiros</h2>
             </div>
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-tertiary)]">Adicione múltiplos conteúdos de uma vez</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--text-tertiary)]">Adicione múltiplos conteúdos de uma vez</p>
           </div>
           <button onClick={onClose} className="p-2 hover:bg-[var(--bg-hover)] rounded-full transition-colors">
             <X className="w-5 h-5 text-[var(--text-tertiary)]" />
@@ -150,7 +150,7 @@ export function CSVUploadModal({ onClose }: CSVUploadModalProps) {
               <div className="w-20 h-20 bg-green-500/10 text-green-500 rounded-full flex items-center justify-center mb-6 border-4 border-green-500/20">
                 <Check className="w-10 h-10" />
               </div>
-              <h3 className="text-xl font-black text-[var(--text-primary)] uppercase mb-2">Importação Concluída!</h3>
+              <h3 className="text-xl font-semibold text-[var(--text-primary)] uppercase mb-2">Importação Concluída!</h3>
               <p className="text-sm text-[var(--text-tertiary)] opacity-70">{preview.length} roteiros foram adicionados ao seu inventário.</p>
             </motion.div>
           ) : (
@@ -159,25 +159,25 @@ export function CSVUploadModal({ onClose }: CSVUploadModalProps) {
               <section>
                 <div className="flex items-center gap-2 mb-4">
                   <Info className="w-4 h-4 text-[var(--accent-blue)]" />
-                  <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">Instruções do Arquivo</span>
+                  <span className="text-xs font-semibold  text-[var(--text-secondary)]">Instruções do Arquivo</span>
                 </div>
-                <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-6 shadow-sm">
+                <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] p-6 shadow-sm">
                   <p className="text-sm text-[var(--text-tertiary)] mb-6 leading-relaxed">
-                    Seu arquivo deve ser um **CSV** (Comma Separated Values). A primeira linha deve conter os nomes das colunas.
+                    Use um arquivo **CSV** (Comma Separated Values). A primeira linha funciona como cabecalho das colunas.
                   </p>
                   <div className="space-y-4">
-                    <div className="flex items-center justify-between text-[11px] font-bold py-2 border-b border-[var(--border-color)]">
+                    <div className="flex items-center justify-between text-xs font-bold py-2 border-b border-[var(--border-color)]">
                       <span className="text-[var(--text-primary)]">titulo</span>
-                      <span className="text-[var(--accent-pink)]">Obrigatório</span>
+                      <span className="text-[var(--accent-pink)]">Necessario para importar</span>
                     </div>
-                    <div className="flex items-center justify-between text-[11px] font-bold py-2 border-b border-[var(--border-color)]">
+                    <div className="flex items-center justify-between text-xs font-bold py-2 border-b border-[var(--border-color)]">
                       <span className="text-[var(--text-primary)]">roteiro</span>
-                      <span className="text-[var(--accent-pink)]">Obrigatório</span>
+                      <span className="text-[var(--accent-pink)]">Necessario para importar</span>
                     </div>
                   </div>
                   <div className="mt-6">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-[var(--text-tertiary)] mb-3">Exemplo de Conteúdo</p>
-                    <pre className="bg-black/5 dark:bg-white/5 p-4 rounded-xl text-[10px] font-mono opacity-60 overflow-x-auto whitespace-pre">
+                    <p className="text-xs font-semibold  text-[var(--text-tertiary)] mb-3">Exemplo de Conteúdo</p>
+                    <pre className="bg-black/5 dark:bg-white/5 p-4 rounded-xl text-xs font-mono opacity-60 overflow-x-auto whitespace-pre">
                       titulo,roteiro{'\n'}
                       Como ler mais rápido,"Dica 1: Pare de subvocalizar..."{'\n'}
                       Minha estante secreta,"Neste vídeo mostro os livros que..."
@@ -191,20 +191,20 @@ export function CSVUploadModal({ onClose }: CSVUploadModalProps) {
                 {!file ? (
                   <label className="flex flex-col items-center justify-center p-12 border-2 border-dashed border-[var(--border-color)] rounded-[2.5rem] bg-[var(--bg-secondary)]/30 hover:bg-[var(--bg-hover)] transition-all cursor-pointer group">
                     <input ref={fileInputRef} type="file" accept=".csv" onChange={handleFileChange} className="hidden" />
-                    <div className="w-16 h-16 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-2xl mb-6 flex items-center justify-center group-hover:scale-110 transition-transform shadow-sm">
+                    <div className="w-16 h-16 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] mb-6 flex items-center justify-center group-hover:scale-110 transition-transform shadow-sm">
                       <FileText className="w-8 h-8 text-[var(--text-tertiary)]" />
                     </div>
-                    <span className="text-sm font-black text-[var(--text-primary)] uppercase tracking-widest mb-2">Clique para selecionar</span>
-                    <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] opacity-50 tracking-widest">Apenas arquivos .csv são suportados</span>
+                    <span className="text-sm font-semibold text-[var(--text-primary)]  mb-2">Clique para selecionar</span>
+                    <span className="text-xs uppercase font-bold text-[var(--text-tertiary)] opacity-50 tracking-widest">Apenas arquivos .csv são suportados</span>
                   </label>
                 ) : (
-                  <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl overflow-hidden shadow-sm">
+                  <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] overflow-hidden shadow-sm">
                     <div className="p-4 bg-[var(--bg-hover)] flex items-center justify-between border-b border-[var(--border-color)]">
                       <div className="flex items-center gap-3">
                         <FileText className="w-4 h-4 text-[var(--accent-blue)]" />
-                        <span className="text-xs font-black text-[var(--text-primary)] truncate max-w-[200px]">{file.name}</span>
+                        <span className="text-xs font-semibold text-[var(--text-primary)] truncate max-w-[200px]">{file.name}</span>
                       </div>
-                      <button onClick={() => { setFile(null); setPreview([]); setError(null); }} className="text-[10px] font-bold text-[var(--accent-pink)] hover:underline uppercase tracking-widest">Remover</button>
+                      <button onClick={() => { setFile(null); setPreview([]); setError(null); }} className="text-xs font-bold text-[var(--accent-pink)] hover:underline ">Remover</button>
                     </div>
                     
                     {error && (
@@ -218,12 +218,12 @@ export function CSVUploadModal({ onClose }: CSVUploadModalProps) {
                       <div className="max-h-[300px] overflow-y-auto divide-y divide-[var(--border-color)]">
                         {preview.slice(0, 10).map((row, i) => (
                           <div key={i} className="p-4 flex flex-col gap-1">
-                            <span className="text-xs font-black text-[var(--text-primary)] line-clamp-1">{row.title}</span>
-                            <span className="text-[10px] text-[var(--text-tertiary)] line-clamp-1 opacity-60 italic">{row.script?.substring(0, 100)}...</span>
+                            <span className="text-xs font-semibold text-[var(--text-primary)] line-clamp-1">{row.title}</span>
+                            <span className="text-xs text-[var(--text-tertiary)] line-clamp-1 opacity-60 italic">{row.script?.substring(0, 100)}...</span>
                           </div>
                         ))}
                         {preview.length > 10 && (
-                          <div className="p-3 text-center bg-[var(--background-secondary)] text-[10px] font-bold opacity-30 uppercase tracking-widest">
+                          <div className="p-3 text-center bg-[var(--background-secondary)] text-xs font-bold opacity-30 ">
                             + {preview.length - 10} outros roteiros
                           </div>
                         )}
@@ -242,7 +242,7 @@ export function CSVUploadModal({ onClose }: CSVUploadModalProps) {
             <button
               onClick={handleImport}
               disabled={preview.length === 0 || !!error}
-              className="flex items-center justify-center gap-3 bg-[var(--text-primary)] text-[var(--bg-primary)] px-10 py-4 rounded-2xl text-xs font-black uppercase tracking-widest hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl disabled:opacity-30 disabled:scale-100"
+              className="flex items-center justify-center gap-3 bg-[var(--text-primary)] text-[var(--bg-primary)] px-10 py-4 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] text-xs font-semibold  hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl disabled:opacity-30 disabled:scale-100"
             >
               <Check className="w-4 h-4" /> Importar {preview.length} Roteiros
             </button>
@@ -252,5 +252,4 @@ export function CSVUploadModal({ onClose }: CSVUploadModalProps) {
     </FixedPanelModal>
   );
 }
-
 

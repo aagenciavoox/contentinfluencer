@@ -115,7 +115,7 @@ export function PilarForm({
           <textarea
             value={form.descricao}
             onChange={event => setForm(prev => ({...prev, descricao: event.target.value}))}
-            placeholder="Em que conteudos aparece?"
+            placeholder="Em que conteúdos aparece?"
             className={cn(fieldClass, 'min-h-[72px] resize-none')}
           />
         </label>

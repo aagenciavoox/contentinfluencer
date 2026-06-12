@@ -1,5 +1,6 @@
 import {ReactNode} from 'react';
 import {cn} from '../../lib/utils';
+import {Surface} from './Surface';
 
 interface CardProps {
   children: ReactNode;
@@ -8,11 +9,12 @@ interface CardProps {
   interactive?: boolean;
 }
 
-const paddingClasses = {
-  md: 'p-4',
-  lg: 'p-6',
-} as const;
+const paddingMap = {
+  md: 'md' as const,
+  lg: 'lg' as const,
+};
 
+/** @deprecated Prefer Surface directly */
 export function Card({
   children,
   className,
@@ -20,15 +22,12 @@ export function Card({
   interactive = false,
 }: CardProps) {
   return (
-    <div
-      className={cn(
-        'editorial-card',
-        paddingClasses[padding],
-        interactive && 'editorial-card-interactive',
-        className
-      )}
+    <Surface
+      variant={interactive ? 'interactive' : 'outlined'}
+      padding={paddingMap[padding]}
+      className={cn('editorial-card shadow-none', className)}
     >
       {children}
-    </div>
+    </Surface>
   );
 }

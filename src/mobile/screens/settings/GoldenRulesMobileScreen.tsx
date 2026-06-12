@@ -15,7 +15,7 @@ const TYPE_OPTIONS: GoldenRule['tipo'][] = ['pilar', 'série', 'formato', 'publi
 
 const CONDITION_LABEL: Record<GoldenRule['condicao'], string> = {
   recomendado: 'Recomendado',
-  impedir: 'Impedir agendamento',
+  impedir: 'Avisar antes de agendar',
 };
 
 const ICON_BY_CONDITION: Record<GoldenRule['condicao'], React.ElementType> = {
@@ -103,13 +103,13 @@ export function GoldenRulesMobileScreen({
     <div className="space-y-5">
       <section className="rounded-[1.75rem] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4 shadow-sm">
         <div className="mb-4 flex items-start gap-3">
-          <div className="rounded-2xl bg-[var(--accent-blue)]/12 p-3 text-[var(--accent-blue)]">
+          <div className="rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] bg-[var(--accent-blue)]/12 p-3 text-[var(--accent-blue)]">
             <ShieldCheck className="h-5 w-5" />
           </div>
           <div className="min-w-0">
             <p className="t-section-title text-[var(--text-primary)]">Regras de Ouro</p>
             <p className="t-secondary">
-              Limites editoriais em fluxo mobile, com leitura rapida das violacoes da semana.
+              Limites editoriais em fluxo mobile, com leitura rapida dos pontos da semana.
             </p>
           </div>
         </div>
@@ -117,13 +117,13 @@ export function GoldenRulesMobileScreen({
         <div className="grid grid-cols-2 gap-3">
           <div className="rounded-[1.25rem] bg-[var(--bg-primary)] p-3">
             <p className="t-label text-[var(--text-tertiary)]">Ativas</p>
-            <p className="mt-1 text-2xl font-black text-[var(--text-primary)]">
+            <p className="mt-1 text-2xl font-semibold text-[var(--text-primary)]">
               {rules.filter(rule => rule.ativa).length}
             </p>
           </div>
           <div className="rounded-[1.25rem] bg-[var(--bg-primary)] p-3">
-            <p className="t-label text-[var(--text-tertiary)]">Violacoes</p>
-            <p className="mt-1 text-2xl font-black text-[var(--accent-orange)]">{violations.length}</p>
+            <p className="t-label text-[var(--text-tertiary)]">Revisoes</p>
+            <p className="mt-1 text-2xl font-semibold text-[var(--accent-orange)]">{violations.length}</p>
           </div>
         </div>
 
@@ -137,19 +137,19 @@ export function GoldenRulesMobileScreen({
         <section className="rounded-[1.75rem] border border-orange-200 bg-orange-50 p-4">
           <div className="mb-3 flex items-center gap-2 text-orange-700">
             <AlertTriangle className="h-4 w-4" />
-            <p className="text-xs font-black uppercase tracking-[0.18em]">
-              {violations.length} alerta{violations.length > 1 ? 's' : ''} nesta semana
+            <p className="text-xs font-semibold ">
+              {violations.length} ponto{violations.length > 1 ? 's' : ''} para revisar nesta semana
             </p>
           </div>
 
           <div className="space-y-2">
             {violations.slice(0, 3).map((violation, index) => (
-              <div key={`${violation.ruleId}-${index}`} className="rounded-2xl bg-white/70 px-3 py-2">
+              <div key={`${violation.ruleId}-${index}`} className="rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] bg-white/70 px-3 py-2">
                 <p className="text-xs font-semibold text-orange-800">{violation.message}</p>
               </div>
             ))}
             {violations.length > 3 ? (
-              <p className="px-1 text-[11px] font-semibold text-orange-700">
+              <p className="px-1 text-xs font-semibold text-orange-700">
                 +{violations.length - 3} itens adicionais monitorados nesta semana.
               </p>
             ) : null}
@@ -167,7 +167,7 @@ export function GoldenRulesMobileScreen({
             },
             {
               value: 'violacoes',
-              label: 'Alertas',
+              label: 'Revisoes',
               count: rules.filter(rule => (violationsByRule.get(rule.id) || []).length > 0).length,
             },
             {
@@ -183,7 +183,7 @@ export function GoldenRulesMobileScreen({
         {filteredRules.length === 0 ? (
           <MobileEmptyState
             title="Nenhuma regra neste recorte"
-            description="Crie uma regra ou troque o filtro para continuar a auditoria editorial no mobile."
+            description="Crie uma regra ou troque o filtro para continuar a leitura editorial no mobile."
             icon={<ShieldCheck className="h-8 w-8" />}
           />
         ) : (
@@ -201,21 +201,21 @@ export function GoldenRulesMobileScreen({
                   meta={
                     <>
                       <span
-                        className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-[11px] font-semibold ${TONE_BY_CONDITION[rule.condicao]}`}
+                        className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold ${TONE_BY_CONDITION[rule.condicao]}`}
                         style={rule.cor ? {backgroundColor: `${rule.cor}18`, color: rule.cor} : undefined}
                       >
                         <Icon className="h-3.5 w-3.5" />
                         {CONDITION_LABEL[rule.condicao]}
                       </span>
-                      <span className="rounded-full bg-[var(--bg-hover)] px-3 py-1 text-[11px] font-semibold text-[var(--text-secondary)]">
+                      <span className="rounded-full bg-[var(--bg-hover)] px-3 py-1 text-xs font-semibold text-[var(--text-secondary)]">
                         min {rule.minimo ?? '-'}
                       </span>
-                      <span className="rounded-full bg-[var(--bg-hover)] px-3 py-1 text-[11px] font-semibold text-[var(--text-secondary)]">
+                      <span className="rounded-full bg-[var(--bg-hover)] px-3 py-1 text-xs font-semibold text-[var(--text-secondary)]">
                         max {rule.maximo ?? '-'}
                       </span>
                       {matchingViolations.length > 0 ? (
-                        <span className="rounded-full bg-orange-100 px-3 py-1 text-[11px] font-semibold text-orange-700">
-                          {matchingViolations.length} alerta{matchingViolations.length > 1 ? 's' : ''}
+                        <span className="rounded-full bg-orange-100 px-3 py-1 text-xs font-semibold text-orange-700">
+                          {matchingViolations.length} ponto{matchingViolations.length > 1 ? 's' : ''}
                         </span>
                       ) : null}
                     </>
@@ -362,7 +362,7 @@ export function GoldenRulesMobileScreen({
             <button
               type="button"
               onClick={resetAndClose}
-              className="flex-1 rounded-[1.25rem] border border-[var(--border-color)] py-3 text-xs font-black uppercase tracking-widest text-[var(--text-secondary)]"
+              className="flex-1 rounded-[1.25rem] border border-[var(--border-color)] py-3 text-xs font-semibold  text-[var(--text-secondary)]"
             >
               Cancelar
             </button>

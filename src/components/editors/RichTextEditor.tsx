@@ -63,6 +63,7 @@ interface RichTextEditorProps {
   compactMobileComposer?: boolean;
   autoFocus?: boolean;
   variant?: 'default' | 'workspace';
+  toolbarStart?: React.ReactNode;
 }
 
 type FormattingAction = {
@@ -85,6 +86,8 @@ const COMMENT_COLORS = [
   { name: 'Pink', value: 'rgba(255, 121, 198, 0.5)' },
 ];
 
+const WORDS_PER_SECOND = 2.5;
+
 function getWordCount(value: string) {
   const text = value
     .replace(/<[^>]*>/g, ' ')
@@ -94,6 +97,17 @@ function getWordCount(value: string) {
 
   if (!text) return 0;
   return text.split(' ').length;
+}
+
+function formatSpeakingDuration(wordCount: number) {
+  if (wordCount === 0) return '~0s';
+
+  const seconds = Math.round(wordCount / WORDS_PER_SECOND);
+  if (seconds >= 60) {
+    return `~${Math.round(seconds / 60)} min`;
+  }
+
+  return `~${seconds}s`;
 }
 
 export function RichTextEditor({
@@ -112,6 +126,7 @@ export function RichTextEditor({
   compactMobileComposer = false,
   autoFocus = false,
   variant = 'default',
+  toolbarStart,
 }: RichTextEditorProps) {
   const isWorkspace = variant === 'workspace';
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -404,6 +419,7 @@ export function RichTextEditor({
   );
 
   const wordCount = useMemo(() => getWordCount(content), [content]);
+  const speakingDuration = useMemo(() => formatSpeakingDuration(wordCount), [wordCount]);
 
   const secondaryActions: FormattingAction[] = useMemo(
     () => [
@@ -534,11 +550,11 @@ export function RichTextEditor({
         layout
         className={cn(
           'relative border border-[var(--border-color)] transition-all duration-500 overflow-hidden',
-          isWorkspace ? 'flex min-h-[calc(100vh-280px)] flex-col rounded-[var(--radius-card)] bg-[var(--bg-elevated)]' : 'rounded-2xl',
+          isWorkspace ? 'flex min-h-[calc(100vh-280px)] flex-col rounded-[var(--radius-card)] bg-[var(--bg-elevated)]' : 'rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)]',
           isFullscreen
             ? isMobile
               ? 'fixed inset-0 z-[100] flex flex-col rounded-none border-0 bg-white shadow-none'
-              : 'fixed left-1/2 top-1/2 z-[100] flex h-[min(1120px,calc(100dvh-56px))] w-[min(1420px,calc(100vw-56px))] -translate-x-1/2 -translate-y-1/2 flex-col rounded-[28px] border border-[#e5e7eb] bg-white shadow-[0_24px_80px_rgba(15,23,42,0.18)]'
+              : 'fixed left-1/2 top-1/2 z-[100] flex h-[min(1120px,calc(100dvh-56px))] w-[min(1420px,calc(100vw-56px))] -translate-x-1/2 -translate-y-1/2 flex-col rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-white shadow-[0_24px_80px_rgba(15,23,42,0.18)]'
             : compactMobileComposer
               ? 'flex min-h-[56dvh] flex-col bg-white'
               : isWorkspace
@@ -550,7 +566,7 @@ export function RichTextEditor({
         {isFullscreen ? (
           <div
             className={cn(
-              'shrink-0 border-b border-[#e5e7eb] bg-white',
+              'shrink-0 border-b border-[var(--border-color)] bg-white',
               isMobile ? 'pt-safe' : '',
             )}
           >
@@ -559,18 +575,18 @@ export function RichTextEditor({
                 <>
                   <button
                     onClick={() => setIsFullscreen(false)}
-                    className="flex h-10 w-10 items-center justify-center rounded-xl text-[#111827] transition hover:bg-[#f5f7fb]"
+                    className="flex h-10 w-10 items-center justify-center rounded-xl text-[var(--text-primary)] transition hover:bg-[var(--bg-hover)]"
                     aria-label="Fechar expansão"
                   >
                     <X className="h-[22px] w-[22px]" />
                   </button>
                   <div className="flex-1 text-center">
-                    <p className="truncate text-base font-semibold text-[#111827]">{documentTitle}</p>
-                    <p className="text-xs text-[#6b7280]">Salvo agora há pouco</p>
+                    <p className="truncate text-base font-semibold text-[var(--text-primary)]">{documentTitle}</p>
+                    <p className="text-xs text-[var(--text-tertiary)]">Salvo agora há pouco</p>
                   </div>
                   <button
                     onClick={() => setIsFullscreen(false)}
-                    className="min-w-[72px] text-sm font-semibold text-[#1677ff]"
+                    className="min-w-[72px] text-sm font-semibold text-[var(--accent-blue)]"
                   >
                     Concluir
                   </button>
@@ -578,28 +594,28 @@ export function RichTextEditor({
               ) : (
                 <>
                   <div className="flex min-w-0 flex-1 items-center gap-3">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#e5e7eb] bg-white shadow-[0_4px_16px_rgba(15,23,42,0.06)]">
-                      <Plus className="h-4 w-4 text-[#1677ff]" />
+                    <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--border-color)] bg-white shadow-[0_4px_16px_rgba(15,23,42,0.06)]">
+                      <Plus className="h-4 w-4 text-[var(--accent-blue)]" />
                     </div>
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 text-sm">
-                        <span className="truncate font-semibold text-[#111827]">{documentTitle}</span>
+                        <span className="truncate font-semibold text-[var(--text-primary)]">{documentTitle}</span>
                         <span className="text-[#d1d5db]">•</span>
-                        <span className="text-[#6b7280]">Salvo agora há pouco</span>
+                        <span className="text-[var(--text-tertiary)]">Salvo agora há pouco</span>
                       </div>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => setIsFullscreen(false)}
-                      className="flex h-10 w-10 items-center justify-center rounded-xl text-[#6b7280] transition hover:bg-[#f5f7fb]"
+                      className="flex h-10 w-10 items-center justify-center rounded-xl text-[var(--text-tertiary)] transition hover:bg-[var(--bg-hover)]"
                       aria-label="Fechar expansão"
                     >
                       <Minimize2 className="h-4 w-4" />
                     </button>
                     <button
                       onClick={() => setIsFullscreen(false)}
-                      className="flex h-10 w-10 items-center justify-center rounded-xl text-[#111827] transition hover:bg-[#f5f7fb]"
+                      className="flex h-10 w-10 items-center justify-center rounded-xl text-[var(--text-primary)] transition hover:bg-[var(--bg-hover)]"
                       aria-label="Fechar editor"
                     >
                       <X className="h-5 w-5" />
@@ -612,22 +628,27 @@ export function RichTextEditor({
         ) : compactMobileComposer ? null : (
           <button
             onClick={() => setIsFullscreen(true)}
-            className="absolute right-4 top-4 z-20 rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] p-2 shadow-sm transition hover:bg-[var(--bg-hover)]"
+            className="group absolute right-4 top-4 z-20 rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)]/95 p-2 shadow-sm transition hover:border-[var(--text-tertiary)]/30 hover:bg-[var(--bg-hover)]"
             aria-label="Expandir editor"
           >
-            <Maximize2 className="h-4 w-4 opacity-40 transition hover:opacity-100" />
+            <Maximize2 className="h-4 w-4 text-[var(--text-tertiary)] opacity-70 transition group-hover:opacity-100 group-hover:text-[var(--text-primary)]" />
           </button>
         )}
 
         {compactMobileComposer ? null : (
           <div
             className={cn(
-              'relative flex items-center border-b border-[#e5e7eb] bg-white',
-              isMobile ? 'h-12 px-2' : 'h-12 px-3',
-              !isFullscreen && 'rounded-t-xl bg-[var(--bg-secondary)]',
+              'relative flex items-center border-b border-[var(--border-color)] bg-[var(--bg-elevated)]',
+              isMobile ? 'h-11 px-2' : 'h-11 px-3',
+              !isFullscreen && 'rounded-t-[var(--radius-input)]',
             )}
           >
           <div className="flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto">
+            {toolbarStart ? (
+              <div className="mr-1 flex shrink-0 items-center gap-1 border-r border-[var(--border-color)] pr-2">
+                {toolbarStart}
+              </div>
+            ) : null}
             {topToolbarActions.slice(0, 2).map((action, index) => {
               const Icon = action.icon;
               const showDivider = index === 1;
@@ -636,13 +657,13 @@ export function RichTextEditor({
                 <div key={action.id} className="flex items-center">
                   <button
                     onClick={action.run}
-                    className="flex h-9 w-9 items-center justify-center rounded-lg text-[#6b7280] transition hover:bg-[#f5f7fb] hover:text-[#111827]"
+                    className="flex h-9 w-9 items-center justify-center rounded-lg text-[var(--text-tertiary)] transition hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
                     aria-label={action.label}
                     type="button"
                   >
                     <Icon className="h-4 w-4" />
                   </button>
-                  {showDivider && <div className="mx-2 h-5 w-px bg-[#e5e7eb]" />}
+                  {showDivider && <div className="mx-2 h-5 w-px bg-[var(--border-color)]" />}
                 </div>
               );
             })}
@@ -658,8 +679,8 @@ export function RichTextEditor({
                   className={cn(
                     'flex h-9 w-9 items-center justify-center rounded-lg transition',
                     active
-                      ? 'bg-[#eef5ff] text-[#1677ff]'
-                      : 'text-[#6b7280] hover:bg-[#f5f7fb] hover:text-[#111827]',
+                      ? 'bg-[color-mix(in_srgb,var(--accent-blue),transparent_92%)] text-[var(--accent-blue)]'
+                      : 'text-[var(--text-tertiary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]',
                   )}
                   aria-label={action.label}
                   type="button"
@@ -670,13 +691,17 @@ export function RichTextEditor({
             })}
           </div>
 
-          <div className="ml-3 flex items-center gap-1 text-sm text-[#6b7280]">
-            <span className="hidden sm:inline">{wordCount} palavras</span>
-            <span className="sm:hidden">{wordCount}</span>
+          <div className="ml-3 flex shrink-0 items-center gap-1 text-sm text-[var(--text-tertiary)]">
+            <span className="hidden sm:inline">
+              {wordCount} palavras · {speakingDuration}
+            </span>
+            <span className="sm:hidden">
+              {wordCount} · {speakingDuration}
+            </span>
             <div className="relative" ref={optionsMenuRef}>
               <button
                 onClick={() => setIsOptionsMenuOpen((current) => !current)}
-                className="ml-1 flex h-9 w-9 items-center justify-center rounded-lg text-[#6b7280] transition hover:bg-[#f5f7fb] hover:text-[#111827]"
+                className="ml-1 flex h-9 w-9 items-center justify-center rounded-lg text-[var(--text-tertiary)] transition hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
                 aria-label="Mais opções"
                 type="button"
               >
@@ -689,7 +714,7 @@ export function RichTextEditor({
                     initial={{ opacity: 0, y: 6 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: 6 }}
-                    className="absolute right-0 top-11 z-[130] min-w-[220px] rounded-2xl border border-[#e5e7eb] bg-white p-2 shadow-[0_10px_30px_rgba(0,0,0,0.08)]"
+                    className="absolute right-0 top-11 z-[130] min-w-[220px] rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] bg-white p-2 shadow-[0_10px_30px_rgba(0,0,0,0.08)]"
                   >
                     {secondaryActions.map((action) => {
                       const Icon = action.icon;
@@ -701,7 +726,7 @@ export function RichTextEditor({
                           onClick={action.run}
                           className={cn(
                             'flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition',
-                            active ? 'bg-[#eef5ff] text-[#1677ff]' : 'text-[#111827] hover:bg-[#f5f7fb]',
+                            active ? 'bg-[color-mix(in_srgb,var(--accent-blue),transparent_92%)] text-[var(--accent-blue)]' : 'text-[var(--text-primary)] hover:bg-[var(--bg-hover)]',
                           )}
                           type="button"
                         >
@@ -725,14 +750,14 @@ export function RichTextEditor({
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.9 }}
-              className="fixed z-[120] flex -translate-x-1/2 items-center gap-0.5 rounded-xl border border-gray-200 bg-white p-1.5 shadow-2xl"
+              className="fixed z-[120] flex -translate-x-1/2 items-center gap-0.5 rounded-lg border border-[var(--border-color)] bg-[var(--bg-elevated)] p-1 shadow-lg"
               style={{ top: selectionMenu.y, left: selectionMenu.x }}
             >
               <button
                 onClick={() => editor.chain().focus().toggleBold().run()}
                 className={cn(
                   'rounded-lg p-2',
-                  editor.isActive('bold') ? 'text-blue-600' : 'opacity-60',
+                  editor.isActive('bold') ? 'text-[var(--accent-blue)]' : 'opacity-60',
                 )}
                 type="button"
               >
@@ -742,7 +767,7 @@ export function RichTextEditor({
                 onClick={() => editor.chain().focus().toggleItalic().run()}
                 className={cn(
                   'rounded-lg p-2',
-                  editor.isActive('italic') ? 'text-blue-600' : 'opacity-60',
+                  editor.isActive('italic') ? 'text-[var(--accent-blue)]' : 'opacity-60',
                 )}
                 type="button"
               >
@@ -752,7 +777,7 @@ export function RichTextEditor({
                 onClick={() => editor.chain().focus().toggleUnderline().run()}
                 className={cn(
                   'rounded-lg p-2',
-                  editor.isActive('underline') ? 'text-blue-600' : 'opacity-60',
+                  editor.isActive('underline') ? 'text-[var(--accent-blue)]' : 'opacity-60',
                 )}
                 type="button"
               >
@@ -825,15 +850,15 @@ export function RichTextEditor({
                   : compactMobileComposer
                     ? 'min-h-[56dvh] rounded-[1.35rem] border border-[var(--border-color)] px-4 py-4 shadow-sm'
                     : isWorkspace
-                      ? 'min-h-[calc(100vh-340px)] rounded-[var(--radius-input)] border border-[var(--border-color)] px-5 py-6 md:px-8 md:py-10'
-                      : 'min-h-[800px] rounded-[4px] border border-[#e5e7eb] p-12 shadow-[0_2px_15px_rgba(0,0,0,0.02)] md:p-24',
+                      ? 'min-h-[calc(100vh-260px)] rounded-[var(--radius-input)] border border-[var(--border-color)] px-4 py-5 md:px-6 md:py-6'
+                      : 'min-h-[800px] rounded-[4px] border border-[var(--border-color)] p-12 shadow-[0_2px_15px_rgba(0,0,0,0.02)] md:p-24',
                 editorCanvasClassName,
               )}
             >
               <EditorContent editor={editor} className="cursor-text max-w-none prose-sm sm:prose lg:prose-lg" />
 
               {!isFullscreen && annotations.length > 0 && (
-                <div className="pointer-events-none absolute right-3 top-3 flex select-none items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[10px] font-bold text-amber-600">
+                <div className="pointer-events-none absolute right-3 top-3 flex select-none items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-600">
                   <MessageSquare className="h-3 w-3" />
                   {annotations.length}
                 </div>
@@ -853,18 +878,18 @@ export function RichTextEditor({
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0 }}
                       style={{ top: draftCommentTop ?? 0 }}
-                      className="absolute left-0 right-0 z-20 rounded-2xl border-2 border-blue-100 bg-white p-5 shadow-2xl"
+                      className="absolute left-0 right-0 z-20 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border-2 border-blue-100 bg-white p-5 shadow-none"
                     >
                       <div className="mb-4 flex items-center gap-3">
                         <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-50 text-xs font-bold text-blue-500">
                           {authorName[0]}
                         </div>
-                        <span className="text-[11px] font-black uppercase tracking-widest text-gray-800">
+                        <span className="text-xs font-semibold  text-gray-800">
                           {authorName}
                         </span>
                       </div>
                       <div className="mb-4 overflow-hidden rounded-xl border border-gray-100 bg-gray-50/80 p-3">
-                        <span className="line-clamp-2 text-[10px] font-medium italic text-gray-400">
+                        <span className="line-clamp-2 text-xs font-medium italic text-gray-400">
                           "{activeDraft.text}"
                         </span>
                       </div>
@@ -884,7 +909,7 @@ export function RichTextEditor({
                       <div className="flex items-center justify-end gap-3">
                         <button
                           onClick={() => setActiveDraft(null)}
-                          className="text-[11px] font-black text-gray-400"
+                          className="text-xs font-semibold text-gray-400"
                           type="button"
                         >
                           Cancelar
@@ -893,7 +918,7 @@ export function RichTextEditor({
                           onClick={submitComment}
                           disabled={!draftCommentText.trim()}
                           className={cn(
-                            'rounded-full px-6 py-2 text-[11px] font-black transition-all',
+                            'rounded-full px-6 py-2 text-xs font-semibold transition-all',
                             draftCommentText.trim()
                               ? 'bg-blue-600 text-white shadow-lg active:scale-95'
                               : 'bg-gray-100 text-gray-300',
@@ -917,7 +942,7 @@ export function RichTextEditor({
                         onClick={() => handleNoteExpand(note.id)}
                         style={{ top: anchoredPosition?.top ?? 0 }}
                         className={cn(
-                          'group absolute left-0 right-0 cursor-pointer overflow-hidden rounded-2xl border bg-white transition-all',
+                          'group absolute left-0 right-0 cursor-pointer overflow-hidden rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border bg-white transition-all',
                           isExpanded
                             ? 'z-10 scale-105 border-blue-500/30 p-5 shadow-xl'
                             : 'border-gray-100 p-4 shadow-sm hover:border-gray-200 hover:shadow-md',
@@ -928,10 +953,10 @@ export function RichTextEditor({
                           style={{ backgroundColor: note.color || 'rgba(255, 235, 153, 0.4)' }}
                         />
                         <div className="mb-3 flex items-center gap-3">
-                          <div className="flex h-7 w-7 items-center justify-center rounded-full border border-gray-100 bg-gray-50 text-[10px] font-bold text-blue-500">
+                          <div className="flex h-7 w-7 items-center justify-center rounded-full border border-gray-100 bg-gray-50 text-xs font-bold text-blue-500">
                             {currentAuthor[0]}
                           </div>
-                          <span className="flex-1 text-[10px] font-black uppercase tracking-widest text-gray-800">
+                          <span className="flex-1 text-xs font-semibold  text-gray-800">
                             {currentAuthor}
                           </span>
                           <div className="flex items-center opacity-0 transition-all group-hover:opacity-100">
@@ -981,7 +1006,7 @@ export function RichTextEditor({
                                     />
                                   ))}
                                 </div>
-                                <span className="text-[9px] font-bold uppercase tracking-widest text-gray-300">
+                                <span className="text-xs font-bold  text-gray-300">
                                   Fechar
                                 </span>
                               </motion.div>
@@ -1013,8 +1038,8 @@ export function RichTextEditor({
                         className={cn(
                           'inline-flex h-10 shrink-0 items-center gap-1.5 rounded-xl border px-3 text-sm font-medium transition',
                           active
-                            ? 'border-[#d9e7ff] bg-[#eef5ff] text-[#1677ff]'
-                            : 'border-[#eef1f5] bg-white text-[#111827]',
+                            ? 'border-[#d9e7ff] bg-[color-mix(in_srgb,var(--accent-blue),transparent_92%)] text-[var(--accent-blue)]'
+                            : 'border-[#eef1f5] bg-white text-[var(--text-primary)]',
                         )}
                         type="button"
                       >
@@ -1025,7 +1050,7 @@ export function RichTextEditor({
                   })}
                 <button
                   onClick={() => setIsMobileQuickbarOpen((current) => !current)}
-                  className="ml-auto inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#eef1f5] bg-[#f8fafc] text-[#6b7280]"
+                  className="ml-auto inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#eef1f5] bg-[#f8fafc] text-[var(--text-tertiary)]"
                   type="button"
                   aria-label="Alternar barra de atalhos"
                 >
@@ -1049,14 +1074,14 @@ export function RichTextEditor({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={() => setActiveAnnotationModal(null)}
-            className="fixed inset-0 z-[200] flex items-end justify-center bg-black/40 p-4 backdrop-blur-sm sm:items-center"
+            className="fixed inset-0 z-[200] flex items-end justify-center bg-black/40 p-4  sm:items-center"
           >
             <motion.div
               initial={{ opacity: 0, y: 40, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 40, scale: 0.95 }}
               onClick={(event) => event.stopPropagation()}
-              className="w-full max-w-sm overflow-hidden rounded-2xl bg-white shadow-2xl"
+              className="w-full max-w-sm overflow-hidden rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] bg-white shadow-none"
             >
               <div
                 className="h-1.5 w-full"
@@ -1068,10 +1093,10 @@ export function RichTextEditor({
                     {(activeAnnotationModal.authorName || authorName)[0]}
                   </div>
                   <div className="flex-1">
-                    <p className="text-[11px] font-black uppercase tracking-widest text-gray-800">
+                    <p className="text-xs font-semibold  text-gray-800">
                       {activeAnnotationModal.authorName || authorName}
                     </p>
-                    <p className="text-[10px] text-gray-400">Comentário</p>
+                    <p className="text-xs text-gray-400">Comentário</p>
                   </div>
                   <button
                     onClick={() => setActiveAnnotationModal(null)}
@@ -1083,7 +1108,7 @@ export function RichTextEditor({
                 </div>
 
                 <div className="mb-4 rounded-xl border border-amber-100 bg-amber-50 p-3">
-                  <p className="line-clamp-2 text-[10px] font-medium italic text-amber-700">
+                  <p className="line-clamp-2 text-xs font-medium italic text-amber-700">
                     "{activeAnnotationModal.text}"
                   </p>
                 </div>
@@ -1117,7 +1142,7 @@ export function RichTextEditor({
                       onRemoveAnnotation?.(activeAnnotationModal.id);
                       setActiveAnnotationModal(null);
                     }}
-                    className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-bold text-red-400 transition-colors hover:bg-red-50 hover:text-red-600"
+                    className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold text-red-400 transition-colors hover:bg-red-50 hover:text-red-600"
                     type="button"
                   >
                     <Trash2 className="h-3.5 w-3.5" />
@@ -1137,20 +1162,20 @@ export function RichTextEditor({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={() => setActiveDraft(null)}
-            className="fixed inset-0 z-[200] flex items-end justify-center bg-black/40 p-4 backdrop-blur-sm sm:items-center"
+            className="fixed inset-0 z-[200] flex items-end justify-center bg-black/40 p-4  sm:items-center"
           >
             <motion.div
               initial={{ opacity: 0, y: 40, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 40, scale: 0.95 }}
               onClick={(event) => event.stopPropagation()}
-              className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl"
+              className="w-full max-w-sm rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] bg-white p-6 shadow-none"
             >
               <div className="mb-4 flex items-center gap-3">
                 <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-50 text-xs font-bold text-blue-500">
                   {authorName[0]}
                 </div>
-                <span className="flex-1 text-[11px] font-black uppercase tracking-widest text-gray-800">
+                <span className="flex-1 text-xs font-semibold  text-gray-800">
                   {authorName}
                 </span>
                 <button
@@ -1162,7 +1187,7 @@ export function RichTextEditor({
                 </button>
               </div>
               <div className="mb-4 overflow-hidden rounded-xl border border-gray-100 bg-gray-50/80 p-3">
-                <span className="line-clamp-2 text-[10px] font-medium italic text-gray-400">
+                <span className="line-clamp-2 text-xs font-medium italic text-gray-400">
                   "{activeDraft.text}"
                 </span>
               </div>
@@ -1182,7 +1207,7 @@ export function RichTextEditor({
               <div className="flex items-center justify-end gap-3">
                 <button
                   onClick={() => setActiveDraft(null)}
-                  className="text-[11px] font-black text-gray-400"
+                  className="text-xs font-semibold text-gray-400"
                   type="button"
                 >
                   Cancelar
@@ -1191,7 +1216,7 @@ export function RichTextEditor({
                   onClick={submitComment}
                   disabled={!draftCommentText.trim()}
                   className={cn(
-                    'rounded-full px-6 py-2 text-[11px] font-black transition-all',
+                    'rounded-full px-6 py-2 text-xs font-semibold transition-all',
                     draftCommentText.trim()
                       ? 'bg-blue-600 text-white shadow-lg active:scale-95'
                       : 'bg-gray-100 text-gray-300',

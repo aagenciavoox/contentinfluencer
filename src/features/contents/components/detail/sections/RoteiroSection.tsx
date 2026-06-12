@@ -20,6 +20,7 @@ type ScriptDraft = {
   status: Content['status'];
   recordingDate: string | null;
   publishDate: string | null;
+  publishTime: string | null;
 };
 
 interface RoteiroSectionProps {
@@ -32,6 +33,7 @@ interface RoteiroSectionProps {
   mobileComposer?: boolean;
   autoFocusScript?: boolean;
   layout?: 'stack' | 'workspace';
+  showSidePanel?: boolean;
 }
 
 export function RoteiroSection({
@@ -44,6 +46,7 @@ export function RoteiroSection({
   mobileComposer = false,
   autoFocusScript = false,
   layout = 'stack',
+  showSidePanel = true,
 }: RoteiroSectionProps) {
   const hasScript = htmlToReadableText(draft.script).trim().length > 0;
   const [mobileMode, setMobileMode] = useState<'read' | 'edit'>(autoFocusScript || !hasScript ? 'edit' : 'read');
@@ -75,27 +78,37 @@ export function RoteiroSection({
       }),
   };
 
+  const scriptWorkspace = (
+    <ContentScriptWorkspace
+      script={draft.script}
+      scriptNotes={draft.scriptNotes}
+      documentTitle={draft.title?.trim() || 'Novo roteiro'}
+      authorName={authorName}
+      referencias={draft.referencias}
+      onScriptChange={html => onChange({script: html})}
+      onReferenciasChange={value => onChange({referencias: value})}
+      {...annotationHandlers}
+    />
+  );
+
   if (layout === 'workspace' && !mobileComposer) {
+    if (!showSidePanel) {
+      return scriptWorkspace;
+    }
+
     return (
-      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,7fr)_minmax(280px,3fr)]">
-        <ContentScriptWorkspace
-          script={draft.script}
-          scriptNotes={draft.scriptNotes}
-          documentTitle={draft.title?.trim() || 'Novo roteiro'}
-          authorName={authorName}
-          referencias={draft.referencias}
-          onScriptChange={html => onChange({script: html})}
-          onReferenciasChange={value => onChange({referencias: value})}
-          {...annotationHandlers}
-        />
+      <div className="grid items-start gap-3 lg:grid-cols-[minmax(0,1fr)_280px] xl:grid-cols-[minmax(0,1fr)_300px]">
+        {scriptWorkspace}
         <div className="sticky top-4">
           <ContentOperationalPanel
             draft={draft}
             series={series}
             pilares={pilares}
+            authorName={authorName}
             onChange={onChange}
             onStatusChange={onStatusChange}
             showTitle={false}
+            density="compact"
           />
         </div>
       </div>
@@ -108,14 +121,14 @@ export function RoteiroSection({
   if (mobileComposer) {
     return (
       <div className="grid gap-3">
-        <section className="ds-card bg-[var(--bg-secondary)] p-3">
+        <section className="cms-panel p-3">
           <label className="block">
-            <span className="ds-section-label">Titulo</span>
+            <span className="text-xs font-medium text-[var(--text-secondary)]">Titulo</span>
             <input
               value={draft.title}
               onChange={event => onChange({title: event.target.value})}
-              className={cn(fieldClass, 'font-semibold')}
-              placeholder="Titulo do conteudo"
+              className={cn(fieldClass, 'mt-1.5 font-semibold')}
+              placeholder="Título do conteúdo"
             />
           </label>
         </section>
@@ -155,19 +168,11 @@ export function RoteiroSection({
         draft={draft}
         series={series}
         pilares={pilares}
+        authorName={authorName}
         onChange={onChange}
         onStatusChange={onStatusChange}
       />
-      <ContentScriptWorkspace
-        script={draft.script}
-        scriptNotes={draft.scriptNotes}
-        documentTitle={draft.title?.trim() || 'Novo roteiro'}
-        authorName={authorName}
-        referencias={draft.referencias}
-        onScriptChange={html => onChange({script: html})}
-        onReferenciasChange={value => onChange({referencias: value})}
-        {...annotationHandlers}
-      />
+      {scriptWorkspace}
     </div>
   );
 }

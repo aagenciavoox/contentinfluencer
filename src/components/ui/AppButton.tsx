@@ -33,9 +33,9 @@ const iconOnlySizeClasses: Record<ButtonSize, string> = {
 
 const variantClasses: Record<ButtonVariant, string> = {
   primary:
-    'border border-[color-mix(in_srgb,var(--accent-blue),var(--accent-purple)_18%)] bg-[color-mix(in_srgb,var(--accent-blue),var(--accent-purple)_18%)] text-white shadow-[0_12px_26px_color-mix(in_srgb,var(--accent-blue),transparent_84%)] hover:-translate-y-0.5 hover:shadow-[0_16px_34px_color-mix(in_srgb,var(--accent-blue),transparent_80%)]',
+    'border border-[var(--text-primary)] bg-[var(--text-primary)] text-white shadow-sm hover:bg-[#252B37] hover:border-[#252B37]',
   secondary:
-    'border border-[var(--border-color)] bg-[color-mix(in_srgb,var(--bg-elevated),transparent_10%)] text-[var(--text-primary)] shadow-[0_1px_0_rgba(255,255,255,0.55)_inset] hover:-translate-y-0.5 hover:border-[var(--border-strong)] hover:bg-[var(--bg-elevated)]',
+    'border border-[var(--border-color)] bg-[var(--bg-elevated)] text-[var(--text-primary)] shadow-sm hover:bg-[var(--bg-hover)] hover:border-[var(--border-strong)]',
   ghost:
     'border border-transparent bg-transparent text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]',
 };

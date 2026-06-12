@@ -6,6 +6,7 @@ import { AppButton } from '../../components/ui/AppButton';
 import type { Content, RecordingBlock, RecordingBlockContent } from '../../lib/database';
 import { CONTENT_STATUS, canAdvanceToRecording } from '../../features/contents/lib/contentPipeline';
 import { normalizeRecordingTags } from '../../features/recording/lib/recordingWorkflow';
+import { generateUUID } from '../../utils/uuid';
 
 interface SendToRecordingSheetProps {
   open: boolean;
@@ -77,7 +78,7 @@ export function SendToRecordingSheet({
 
     setIsBusy(true);
     try {
-      const blockId = crypto.randomUUID();
+      const blockId = generateUUID();
       const block: RecordingBlock = {
         id: blockId,
         userId: content.userId,
@@ -134,15 +135,15 @@ export function SendToRecordingSheet({
         className="flex max-h-[85vh] flex-col overflow-hidden bg-[var(--bg-primary)]"
       >
         <div className="border-b border-[var(--border-color)] px-5 py-4">
-          <p className="text-[11px] font-black uppercase tracking-[0.22em] text-[var(--text-tertiary)]">
+          <p className="text-xs font-semibold  text-[var(--text-tertiary)]">
             Enviar para gravacao
           </p>
-          <h3 id="send-recording-title" className="mt-2 text-xl font-black text-[var(--text-primary)]">
+          <h3 id="send-recording-title" className="mt-2 text-xl font-semibold text-[var(--text-primary)]">
             {successBlockId ? 'Pronto para gravar' : 'Escolha o bloco'}
           </h3>
           <p className="mt-2 text-sm text-[var(--text-secondary)]">
             {successBlockId
-              ? 'Conteudo salvo na fila. Abra o teleprompter ou revise o bloco.'
+              ? 'Conteudo guardado para gravacao. Abra o teleprompter ou revise o bloco quando quiser.'
               : 'Crie um bloco novo ou adicione este roteiro a um bloco existente.'}
           </p>
         </div>
@@ -156,7 +157,7 @@ export function SendToRecordingSheet({
                 className="min-h-11 w-full justify-center"
                 onClick={openTeleprompter}
               >
-                Abrir teleprompter
+                Abrir modo gravacao
               </AppButton>
               <AppButton
                 variant="secondary"
@@ -170,14 +171,14 @@ export function SendToRecordingSheet({
           ) : (
             <>
               <article className="rounded-[1.4rem] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-4">
-                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--text-tertiary)]">
+                <p className="text-xs font-semibold  text-[var(--text-tertiary)]">
                   Criar bloco novo
                 </p>
                 <input
                   value={blockName}
                   onChange={event => setBlockName(event.target.value)}
                   placeholder="Nome do bloco"
-                  className="mt-3 min-h-11 w-full rounded-2xl border border-[var(--border-color)] bg-[var(--bg-primary)] px-4 text-sm font-semibold text-[var(--text-primary)] outline-none"
+                  className="mt-3 min-h-11 w-full rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-primary)] px-4 text-sm font-semibold text-[var(--text-primary)] outline-none"
                 />
                 <AppButton
                   variant="primary"
@@ -191,13 +192,13 @@ export function SendToRecordingSheet({
               </article>
 
               <article className="rounded-[1.4rem] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-4">
-                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--text-tertiary)]">
+                <p className="text-xs font-semibold  text-[var(--text-tertiary)]">
                   Bloco existente
                 </p>
                 <select
                   value={selectedBlockId}
                   onChange={event => setSelectedBlockId(event.target.value)}
-                  className="mt-3 min-h-11 w-full rounded-2xl border border-[var(--border-color)] bg-[var(--bg-primary)] px-4 text-sm font-semibold text-[var(--text-primary)] outline-none"
+                  className="mt-3 min-h-11 w-full rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-primary)] px-4 text-sm font-semibold text-[var(--text-primary)] outline-none"
                 >
                   <option value="">Selecione um bloco</option>
                   {availableBlocks.map(block => (
@@ -229,7 +230,7 @@ export function SendToRecordingSheet({
           <button
             type="button"
             onClick={onClose}
-            className="min-h-11 w-full rounded-2xl border border-[var(--border-color)] text-sm font-black uppercase tracking-[0.16em] text-[var(--text-secondary)]"
+            className="min-h-11 w-full rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] text-sm font-semibold uppercase tracking-[0.16em] text-[var(--text-secondary)]"
           >
             {successBlockId ? 'Fechar' : 'Cancelar'}
           </button>

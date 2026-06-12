@@ -1,4 +1,4 @@
-import { KeyboardEvent, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { BookOpen, Clapperboard, Film, LucideIcon, Plus, Tags, Tv, X } from 'lucide-react';
 import { useAppContext } from '../../../context/AppContext';
@@ -6,13 +6,14 @@ import { BibliotecaItem, BibliotecaItemMeta, Idea } from '../../../lib/database'
 import { generateUUID } from '../../../utils/uuid';
 import { BottomSheetModal } from '../../../components/feedback/modals/BottomSheetModal';
 import { useIsMobile } from '../../../hooks/useIsMobile';
-import { PageScaffold } from '../../../layouts/page/PageScaffold';
+import { PageLayout } from '../../../layouts/page/PageLayout';
 import { PipelineActionBar } from '../../../components/pipeline/PipelineActionBar';
 import { LibraryMobileScreen } from '../../../mobile/screens/library/LibraryMobileScreen';
 import { LibraryAnalyticsTab } from '../components/LibraryAnalyticsTab';
 import { LibraryItemCard } from '../components/LibraryItemCard';
 import { LibraryToolbar } from '../components/LibraryToolbar';
 import { COMPLETED_STATUS_BY_TYPE } from '../lib/libraryStatus';
+import { TagSelect } from '../../../components/ui/TagSelect';
 
 type StatusLeitura = BibliotecaItem['status'];
 type GeneroLivro = string;
@@ -34,11 +35,9 @@ interface NovoLivroForm {
   titulo: string;
   autor: string;
   generos: GeneroLivro[];
-  generoInput: string;
   capaUrl: string;
   statusLeitura: StatusLeitura;
   tagsPersonalizadas: string[];
-  tagInput: string;
   editora: string;
   anoPublicacao: string;
   isbn: string;
@@ -168,11 +167,9 @@ const INITIAL_FORM: NovoLivroForm = {
   titulo: '',
   autor: '',
   generos: [],
-  generoInput: '',
   capaUrl: '',
   statusLeitura: STATUS_BY_TYPE.livro[0],
   tagsPersonalizadas: [],
-  tagInput: '',
   editora: '',
   anoPublicacao: '',
   isbn: '',
@@ -199,117 +196,6 @@ const INITIAL_FORM: NovoLivroForm = {
   motivoEscolha: '',
   potencialConteudo: '',
 };
-
-function normalizeToken(value: string) {
-  return value.trim().replace(/\s+/g, ' ');
-}
-
-function appendUniqueToken(list: string[], rawValue: string) {
-  const value = normalizeToken(rawValue);
-  if (!value) return list;
-  if (list.some(item => item.toLowerCase() === value.toLowerCase())) return list;
-  return [...list, value];
-}
-
-function removeToken(list: string[], value: string) {
-  return list.filter(item => item !== value);
-}
-
-function ChipField({
-  label,
-  values,
-  inputValue,
-  placeholder,
-  suggestions,
-  onInputChange,
-  onAddValue,
-  onRemoveValue,
-}: {
-  label: string;
-  values: string[];
-  inputValue: string;
-  placeholder: string;
-  suggestions?: string[];
-  onInputChange: (value: string) => void;
-  onAddValue: (value: string) => void;
-  onRemoveValue: (value: string) => void;
-}) {
-  const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === 'Enter' || event.key === ',') {
-      event.preventDefault();
-      if (!inputValue.trim()) return;
-      onAddValue(inputValue);
-      onInputChange('');
-    }
-  };
-
-  const handleBlur = () => {
-    if (!inputValue.trim()) return;
-    onAddValue(inputValue);
-    onInputChange('');
-  };
-
-  return (
-    <div>
-      <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-widest text-[var(--text-tertiary)]">
-        {label}
-      </label>
-      <div className="rounded-2xl bg-[var(--bg-hover)] p-3">
-        <div className="flex flex-wrap gap-2">
-          {values.map(value => (
-            <span
-              key={value}
-              className="inline-flex items-center gap-1 rounded-full bg-[var(--bg-primary)] px-2.5 py-1 text-[10px] font-bold text-[var(--text-primary)]"
-            >
-              {value}
-              <button
-                type="button"
-                onClick={() => onRemoveValue(value)}
-                className="rounded-full p-0.5 text-[var(--text-tertiary)] transition hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
-                aria-label={`Remover ${value}`}
-              >
-                <X className="h-3 w-3" />
-              </button>
-            </span>
-          ))}
-          <input
-            type="text"
-            value={inputValue}
-            onChange={event => onInputChange(event.target.value)}
-            onKeyDown={handleKeyDown}
-            onBlur={handleBlur}
-            placeholder={placeholder}
-            className="min-w-[180px] flex-1 border-none bg-transparent px-1 py-1 text-sm text-[var(--text-primary)] placeholder:opacity-40 focus:ring-0"
-          />
-        </div>
-
-        {suggestions && suggestions.length > 0 ? (
-          <div className="mt-3 flex flex-wrap gap-2">
-            {suggestions.map(suggestion => {
-              const selected = values.some(value => value.toLowerCase() === suggestion.toLowerCase());
-
-              return (
-                <button
-                  key={suggestion}
-                  type="button"
-                  onClick={() => onAddValue(suggestion)}
-                  disabled={selected}
-                  className={`rounded-full border px-2.5 py-1 text-[10px] font-bold transition-all ${
-                    selected
-                      ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-[var(--bg-primary)]'
-                      : 'border-[var(--border-strong)] text-[var(--text-primary)] opacity-60 hover:opacity-100'
-                  }`}
-                >
-                  {suggestion}
-                </button>
-              );
-            })}
-          </div>
-        ) : null}
-      </div>
-    </div>
-  );
-}
 
 export function LibraryPage() {
   const { state, dispatch } = useAppContext();
@@ -425,20 +311,6 @@ export function LibraryPage() {
       ...prev,
       tipo,
       statusLeitura: STATUS_BY_TYPE[tipo][0],
-    }));
-  };
-
-  const updateGenreList = (value: string) => {
-    setForm(prev => ({
-      ...prev,
-      generos: appendUniqueToken(prev.generos, value),
-    }));
-  };
-
-  const updateTagList = (value: string) => {
-    setForm(prev => ({
-      ...prev,
-      tagsPersonalizadas: appendUniqueToken(prev.tagsPersonalizadas, value),
     }));
   };
 
@@ -570,7 +442,7 @@ export function LibraryPage() {
                         key={tipo}
                         type="button"
                         onClick={() => updateTipo(tipo)}
-                        className={`flex items-center justify-center gap-2 rounded-[1.1rem] border px-3 py-3 text-[11px] font-black uppercase tracking-[0.14em] ${
+                        className={`flex items-center justify-center gap-2 rounded-[1.1rem] border px-3 py-3 text-xs font-semibold uppercase tracking-[0.14em] ${
                           active
                             ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-[var(--bg-primary)]'
                             : 'border-[var(--border-color)] bg-[var(--bg-secondary)] text-[var(--text-primary)]'
@@ -624,64 +496,31 @@ export function LibraryPage() {
                 </select>
               </label>
 
-              <input
-                type="text"
-                value={form.generoInput}
-                onChange={event => setForm(prev => ({ ...prev, generoInput: event.target.value }))}
-                onBlur={() => {
-                  if (!form.generoInput.trim()) return;
-                  updateGenreList(form.generoInput);
-                  setForm(prev => ({ ...prev, generoInput: '' }));
-                }}
-                placeholder="Genero principal"
-                className="w-full"
+              <TagSelect
+                label="Generos"
+                hint="Selecione um ou mais generos para categorizar este item."
+                values={form.generos}
+                onChange={generos => setForm(prev => ({ ...prev, generos }))}
+                options={GENEROS_SUGERIDOS.map(genero => ({ value: genero, label: genero }))}
+                creatable
+                placeholder="Selecione ou digite generos"
               />
 
-              <input
-                type="text"
-                value={form.tagInput}
-                onChange={event => setForm(prev => ({ ...prev, tagInput: event.target.value }))}
-                onBlur={() => {
-                  if (!form.tagInput.trim()) return;
-                  updateTagList(form.tagInput);
-                  setForm(prev => ({ ...prev, tagInput: '' }));
-                }}
-                placeholder="Tag pessoal"
-                className="w-full"
+              <TagSelect
+                label="Tags personalizadas"
+                hint="Organize o acervo com tags proprias."
+                values={form.tagsPersonalizadas}
+                onChange={tagsPersonalizadas => setForm(prev => ({ ...prev, tagsPersonalizadas }))}
+                creatable
+                placeholder="Ex: comfort read, favorito de infancia"
               />
-
-              {form.generos.length > 0 ? (
-                <div className="flex flex-wrap gap-2">
-                  {form.generos.map(genero => (
-                    <span
-                      key={genero}
-                      className="rounded-full bg-[var(--bg-hover)] px-3 py-1 text-[11px] font-semibold text-[var(--text-secondary)]"
-                    >
-                      {genero}
-                    </span>
-                  ))}
-                </div>
-              ) : null}
-
-              {form.tagsPersonalizadas.length > 0 ? (
-                <div className="flex flex-wrap gap-2">
-                  {form.tagsPersonalizadas.map(tag => (
-                    <span
-                      key={tag}
-                      className="rounded-full bg-[var(--accent-orange)]/10 px-3 py-1 text-[11px] font-semibold text-[var(--accent-orange)]"
-                    >
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-              ) : null}
             </div>
 
             <div className="flex gap-3 border-t border-[var(--border-color)] px-5 py-4 pb-safe">
               <button
                 type="button"
                 onClick={() => setModalAberto(false)}
-                className="flex-1 rounded-[1.25rem] border border-[var(--border-color)] py-3 text-xs font-black uppercase tracking-widest text-[var(--text-secondary)]"
+                className="flex-1 rounded-[1.25rem] border border-[var(--border-color)] py-3 text-xs font-semibold  text-[var(--text-secondary)]"
               >
                 Cancelar
               </button>
@@ -701,7 +540,7 @@ export function LibraryPage() {
   }
 
   return (
-    <PageScaffold
+    <PageLayout
       contentWidth="wide"
       contentClassName="pb-10 pt-2"
       toolbar={
@@ -728,7 +567,7 @@ export function LibraryPage() {
       {activeTab !== 'analises' ? (
         <PipelineActionBar
           className="mb-4"
-          title="Proximo passo do pipeline"
+          title="Próximo passo do pipeline"
           description="Transforme um item da biblioteca em ideia editorial."
           primaryLabel="Transformar em ideia"
           onPrimary={() => {
@@ -744,7 +583,7 @@ export function LibraryPage() {
       ) : livrosFiltrados.length === 0 ? (
         <div className="flex flex-col items-center justify-center gap-3 py-20 text-center">
           <BookOpen className="h-10 w-10 text-[var(--text-primary)] opacity-10" />
-          <p className="text-sm font-bold uppercase tracking-widest text-[var(--text-tertiary)]">
+          <p className="text-sm font-bold  text-[var(--text-tertiary)]">
             {state.books.length === 0
               ? 'Nenhum item ainda. Adicione o primeiro.'
               : 'Nenhum item com esses filtros'}
@@ -782,7 +621,7 @@ export function LibraryPage() {
       >
         <div className="flex shrink-0 items-center justify-between border-b border-[var(--border-color)] px-6 py-5">
           <div>
-            <h2 className="text-lg font-black text-[var(--text-primary)]">Novo item da biblioteca</h2>
+            <h2 className="text-lg font-semibold text-[var(--text-primary)]">Novo item da biblioteca</h2>
             <p className="mt-1 text-xs text-[var(--text-secondary)]">
               O formulário muda conforme o tipo escolhido.
             </p>
@@ -794,7 +633,7 @@ export function LibraryPage() {
 
         <div className="flex-1 space-y-5 overflow-y-auto p-6">
           <div>
-            <p className="mb-3 text-[9px] font-black uppercase tracking-widest text-[var(--text-tertiary)]">
+            <p className="mb-3 text-xs font-semibold  text-[var(--text-tertiary)]">
               Tipo de conteúdo
             </p>
             <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
@@ -808,14 +647,14 @@ export function LibraryPage() {
                       key={tipo}
                       type="button"
                       onClick={() => updateTipo(tipo)}
-                      className={`flex flex-col items-center gap-2 rounded-2xl border px-4 py-4 text-center transition-all ${
+                      className={`flex flex-col items-center gap-2 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border px-4 py-4 text-center transition-all ${
                         active
                           ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-[var(--bg-primary)] shadow-lg'
                           : 'border-[var(--border-color)] bg-[var(--bg-hover)] text-[var(--text-primary)] hover:border-[var(--text-primary)]/40'
                       }`}
                     >
                       <Icon className="h-5 w-5" />
-                      <span className="text-[10px] font-black uppercase tracking-[0.2em]">
+                      <span className="text-xs font-semibold uppercase tracking-[0.2em]">
                         {config.label}
                       </span>
                     </button>
@@ -826,7 +665,7 @@ export function LibraryPage() {
 
           <div className="grid gap-4 md:grid-cols-2">
             <div>
-              <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-widest text-[var(--text-tertiary)]">
+              <label className="mb-1.5 block text-xs font-bold  text-[var(--text-tertiary)]">
                 Título *
               </label>
               <input
@@ -840,7 +679,7 @@ export function LibraryPage() {
             </div>
 
             <div>
-              <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-widest text-[var(--text-tertiary)]">
+              <label className="mb-1.5 block text-xs font-bold  text-[var(--text-tertiary)]">
                 {selectedTypeConfig.creatorLabel}
               </label>
               <input
@@ -855,7 +694,7 @@ export function LibraryPage() {
 
           {selectedTypeConfig.showCover ? (
             <div>
-              <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-widest text-[var(--text-tertiary)]">
+              <label className="mb-1.5 block text-xs font-bold  text-[var(--text-tertiary)]">
                 URL da capa
               </label>
               <input
@@ -868,19 +707,18 @@ export function LibraryPage() {
             </div>
           ) : null}
 
-          <ChipField
-            label="Gêneros"
+          <TagSelect
+            label="Generos"
+            hint="Selecione um ou mais generos para categorizar este item."
             values={form.generos}
-            inputValue={form.generoInput}
-            placeholder="Digite e aperte Enter"
-            suggestions={GENEROS_SUGERIDOS}
-            onInputChange={value => setForm(prev => ({ ...prev, generoInput: value }))}
-            onAddValue={updateGenreList}
-            onRemoveValue={value => setForm(prev => ({ ...prev, generos: removeToken(prev.generos, value) }))}
+            onChange={generos => setForm(prev => ({ ...prev, generos }))}
+            options={GENEROS_SUGERIDOS.map(genero => ({ value: genero, label: genero }))}
+            creatable
+            placeholder="Digite e selecione generos"
           />
 
           <div>
-            <label className="mb-2 block text-[10px] font-bold uppercase tracking-widest text-[var(--text-tertiary)]">
+            <label className="mb-2 block text-xs font-bold  text-[var(--text-tertiary)]">
               Status
             </label>
             <div className="flex flex-wrap gap-2">
@@ -889,7 +727,7 @@ export function LibraryPage() {
                   key={status}
                   type="button"
                   onClick={() => setForm(prev => ({ ...prev, statusLeitura: status }))}
-                  className={`rounded-full border px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.15em] transition-all ${
+                  className={`rounded-full border px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.15em] transition-all ${
                     form.statusLeitura === status
                       ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-[var(--bg-primary)]'
                       : 'border-[var(--border-color)] bg-[var(--bg-hover)] text-[var(--text-primary)] opacity-70 hover:opacity-100'
@@ -901,19 +739,18 @@ export function LibraryPage() {
             </div>
           </div>
 
-          <ChipField
+          <TagSelect
             label="Tags personalizadas"
+            hint="Organize o acervo com tags proprias."
             values={form.tagsPersonalizadas}
-            inputValue={form.tagInput}
-            placeholder="Ex: comfort read, favorito de infância..."
-            onInputChange={value => setForm(prev => ({ ...prev, tagInput: value }))}
-            onAddValue={updateTagList}
-            onRemoveValue={value => setForm(prev => ({ ...prev, tagsPersonalizadas: removeToken(prev.tagsPersonalizadas, value) }))}
+            onChange={tagsPersonalizadas => setForm(prev => ({ ...prev, tagsPersonalizadas }))}
+            creatable
+            placeholder="Ex: comfort read, favorito de infancia..."
           />
 
           {selectedTypeConfig.isBookish ? (
-            <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-primary)] p-4">
-              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-primary)]">
+            <div className="rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-primary)] p-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--text-primary)]">
                 Detalhes técnicos
               </p>
               <p className="mt-2 text-sm text-[var(--text-secondary)]">
@@ -923,14 +760,14 @@ export function LibraryPage() {
           ) : null}
 
           {form.tipo === 'filme' ? (
-            <div className="space-y-4 rounded-2xl border border-[var(--border-color)] bg-[var(--bg-primary)] p-4">
-              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-primary)]">
+            <div className="space-y-4 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-primary)] p-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--text-primary)]">
                 Dados do filme
               </p>
 
               <div className="grid gap-4 md:grid-cols-2">
                 <div>
-                  <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-widest text-[var(--text-tertiary)]">
+                  <label className="mb-1.5 block text-xs font-bold  text-[var(--text-tertiary)]">
                     Duração (min)
                   </label>
                   <input
@@ -944,7 +781,7 @@ export function LibraryPage() {
                 </div>
 
                 <div>
-                  <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-widest text-[var(--text-tertiary)]">
+                  <label className="mb-1.5 block text-xs font-bold  text-[var(--text-tertiary)]">
                     Avaliação
                   </label>
                   <select
@@ -962,7 +799,7 @@ export function LibraryPage() {
                 </div>
 
                 <div>
-                  <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-widest text-[var(--text-tertiary)]">
+                  <label className="mb-1.5 block text-xs font-bold  text-[var(--text-tertiary)]">
                     Roteirista
                   </label>
                   <input
@@ -975,7 +812,7 @@ export function LibraryPage() {
                 </div>
 
                 <div>
-                  <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-widest text-[var(--text-tertiary)]">
+                  <label className="mb-1.5 block text-xs font-bold  text-[var(--text-tertiary)]">
                     Distribuidora
                   </label>
                   <input
@@ -988,7 +825,7 @@ export function LibraryPage() {
                 </div>
 
                 <div>
-                  <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-widest text-[var(--text-tertiary)]">
+                  <label className="mb-1.5 block text-xs font-bold  text-[var(--text-tertiary)]">
                     Plataforma
                   </label>
                   <input
@@ -1001,7 +838,7 @@ export function LibraryPage() {
                 </div>
 
                 <div>
-                  <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-widest text-[var(--text-tertiary)]">
+                  <label className="mb-1.5 block text-xs font-bold  text-[var(--text-tertiary)]">
                     Ano de lançamento
                   </label>
                   <input
@@ -1015,7 +852,7 @@ export function LibraryPage() {
                 </div>
 
                 <div>
-                  <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-widest text-[var(--text-tertiary)]">
+                  <label className="mb-1.5 block text-xs font-bold  text-[var(--text-tertiary)]">
                     País de origem
                   </label>
                   <input
@@ -1028,7 +865,7 @@ export function LibraryPage() {
                 </div>
 
                 <div className="md:col-span-2">
-                  <label className="mb-2 block text-[10px] font-bold uppercase tracking-widest text-[var(--text-tertiary)]">
+                  <label className="mb-2 block text-xs font-bold  text-[var(--text-tertiary)]">
                     Faz parte de uma série?
                   </label>
                   <div className="flex flex-wrap gap-2">
@@ -1037,7 +874,7 @@ export function LibraryPage() {
                         key={value}
                         type="button"
                         onClick={() => setForm(prev => ({ ...prev, fazParteDeSerie: value, nomeDaSerie: value === 'nao' ? '' : prev.nomeDaSerie }))}
-                        className={`rounded-full border px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.15em] transition-all ${
+                        className={`rounded-full border px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.15em] transition-all ${
                           form.fazParteDeSerie === value
                             ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-[var(--bg-primary)]'
                             : 'border-[var(--border-color)] bg-[var(--bg-hover)] text-[var(--text-primary)] opacity-70'
@@ -1051,7 +888,7 @@ export function LibraryPage() {
 
                 {form.fazParteDeSerie === 'sim' ? (
                   <div className="md:col-span-2">
-                    <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-widest text-[var(--text-tertiary)]">
+                    <label className="mb-1.5 block text-xs font-bold  text-[var(--text-tertiary)]">
                       Qual série / franquia?
                     </label>
                     <input
@@ -1068,14 +905,14 @@ export function LibraryPage() {
           ) : null}
 
           {(form.tipo === 'série' || form.tipo === 'anime') ? (
-            <div className="space-y-4 rounded-2xl border border-[var(--border-color)] bg-[var(--bg-primary)] p-4">
-              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-primary)]">
+            <div className="space-y-4 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-primary)] p-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--text-primary)]">
                 Dados {form.tipo === 'anime' ? 'do anime' : 'da série'}
               </p>
 
               <div className="grid gap-4 md:grid-cols-2">
                 <div>
-                  <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-widest text-[var(--text-tertiary)]">
+                  <label className="mb-1.5 block text-xs font-bold  text-[var(--text-tertiary)]">
                     Episódios
                   </label>
                   <input
@@ -1089,7 +926,7 @@ export function LibraryPage() {
                 </div>
 
                 <div>
-                  <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-widest text-[var(--text-tertiary)]">
+                  <label className="mb-1.5 block text-xs font-bold  text-[var(--text-tertiary)]">
                     Duração por ep. (min)
                   </label>
                   <input
@@ -1103,7 +940,7 @@ export function LibraryPage() {
                 </div>
 
                 <div>
-                  <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-widest text-[var(--text-tertiary)]">
+                  <label className="mb-1.5 block text-xs font-bold  text-[var(--text-tertiary)]">
                     Plataforma
                   </label>
                   <input
@@ -1116,7 +953,7 @@ export function LibraryPage() {
                 </div>
 
                 <div>
-                  <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-widest text-[var(--text-tertiary)]">
+                  <label className="mb-1.5 block text-xs font-bold  text-[var(--text-tertiary)]">
                     Ano de lançamento
                   </label>
                   <input
@@ -1130,7 +967,7 @@ export function LibraryPage() {
                 </div>
 
                 <div>
-                  <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-widest text-[var(--text-tertiary)]">
+                  <label className="mb-1.5 block text-xs font-bold  text-[var(--text-tertiary)]">
                     País de origem
                   </label>
                   <input
@@ -1143,7 +980,7 @@ export function LibraryPage() {
                 </div>
 
                 <div className="md:col-span-2">
-                  <label className="mb-2 block text-[10px] font-bold uppercase tracking-widest text-[var(--text-tertiary)]">
+                  <label className="mb-2 block text-xs font-bold  text-[var(--text-tertiary)]">
                     Faz parte de uma franquia?
                   </label>
                   <div className="flex flex-wrap gap-2">
@@ -1152,7 +989,7 @@ export function LibraryPage() {
                         key={value}
                         type="button"
                         onClick={() => setForm(prev => ({ ...prev, fazParteDeSerie: value, nomeDaSerie: value === 'nao' ? '' : prev.nomeDaSerie }))}
-                        className={`rounded-full border px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.15em] transition-all ${
+                        className={`rounded-full border px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.15em] transition-all ${
                           form.fazParteDeSerie === value
                             ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-[var(--bg-primary)]'
                             : 'border-[var(--border-color)] bg-[var(--bg-hover)] text-[var(--text-primary)] opacity-70'
@@ -1166,7 +1003,7 @@ export function LibraryPage() {
 
                 {form.fazParteDeSerie === 'sim' ? (
                   <div className="md:col-span-2">
-                    <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-widest text-[var(--text-tertiary)]">
+                    <label className="mb-1.5 block text-xs font-bold  text-[var(--text-tertiary)]">
                       Qual série / universo?
                     </label>
                     <input
@@ -1183,14 +1020,14 @@ export function LibraryPage() {
           ) : null}
 
           {selectedTypeConfig.isBookish ? (
-            <div className="space-y-4 rounded-2xl border border-[var(--border-color)] bg-[var(--bg-primary)] p-4">
-              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-primary)]">
+            <div className="space-y-4 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-primary)] p-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--text-primary)]">
                 Para você
               </p>
 
               <div className="grid gap-4 md:grid-cols-2">
                 <div>
-                  <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-widest text-[var(--text-tertiary)]">
+                  <label className="mb-1.5 block text-xs font-bold  text-[var(--text-tertiary)]">
                     Quem indicou
                   </label>
                   <input
@@ -1203,7 +1040,7 @@ export function LibraryPage() {
                 </div>
 
                 <div>
-                  <label className="mb-2 block text-[10px] font-bold uppercase tracking-widest text-[var(--text-tertiary)]">
+                  <label className="mb-2 block text-xs font-bold  text-[var(--text-tertiary)]">
                     Potencial de conteúdo
                   </label>
                   <div className="flex gap-2">
@@ -1215,7 +1052,7 @@ export function LibraryPage() {
                           ...prev,
                           potencialConteudo: prev.potencialConteudo === value ? '' : value,
                         }))}
-                        className={`rounded-xl border px-3 py-2 text-sm font-black transition-all ${
+                        className={`rounded-xl border px-3 py-2 text-sm font-semibold transition-all ${
                           form.potencialConteudo === value
                             ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-[var(--bg-primary)]'
                             : 'border-[var(--border-strong)] opacity-50 hover:opacity-80'
@@ -1229,7 +1066,7 @@ export function LibraryPage() {
               </div>
 
               <div>
-                <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-widest text-[var(--text-tertiary)]">
+                <label className="mb-1.5 block text-xs font-bold  text-[var(--text-tertiary)]">
                   Por que quer consumir
                 </label>
                 <textarea
@@ -1246,7 +1083,7 @@ export function LibraryPage() {
               <button
                 type="button"
                 onClick={() => setShowParaVoce(value => !value)}
-                className="mb-3 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-[var(--text-primary)] opacity-50 transition-opacity hover:opacity-80"
+                className="mb-3 flex items-center gap-2 text-xs font-semibold  text-[var(--text-primary)] opacity-50 transition-opacity hover:opacity-80"
               >
                 <Tags className="h-3.5 w-3.5" />
                 Para você
@@ -1255,7 +1092,7 @@ export function LibraryPage() {
               {showParaVoce ? (
                 <div className="space-y-3">
                   <div>
-                    <label className="mb-1 block text-[10px] font-bold uppercase tracking-widest text-[var(--text-tertiary)]">
+                    <label className="mb-1 block text-xs font-bold  text-[var(--text-tertiary)]">
                       Quem indicou
                     </label>
                     <input
@@ -1267,7 +1104,7 @@ export function LibraryPage() {
                     />
                   </div>
                   <div>
-                    <label className="mb-1 block text-[10px] font-bold uppercase tracking-widest text-[var(--text-tertiary)]">
+                    <label className="mb-1 block text-xs font-bold  text-[var(--text-tertiary)]">
                       Observação pessoal
                     </label>
                     <textarea
@@ -1288,7 +1125,7 @@ export function LibraryPage() {
           <button
             type="button"
             onClick={() => setModalAberto(false)}
-            className="flex-1 rounded-2xl border border-[var(--border-color)] py-3 text-xs font-black uppercase tracking-widest text-[var(--text-secondary)] transition-all hover:bg-[var(--bg-hover)]"
+            className="flex-1 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] py-3 text-xs font-semibold  text-[var(--text-secondary)] transition-all hover:bg-[var(--bg-hover)]"
           >
             Cancelar
           </button>
@@ -1296,12 +1133,12 @@ export function LibraryPage() {
             type="button"
             onClick={handleCriarLivro}
             disabled={!form.titulo.trim()}
-            className="hover-action flex-1 rounded-2xl bg-[var(--text-primary)] py-3 text-xs font-black uppercase tracking-widest text-[var(--bg-primary)] shadow-lg transition-all disabled:cursor-not-allowed disabled:opacity-40"
+            className="hover-action flex-1 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] bg-[var(--text-primary)] py-3 text-xs font-semibold  text-[var(--bg-primary)] shadow-lg transition-all disabled:cursor-not-allowed disabled:opacity-40"
           >
             Criar item
           </button>
         </div>
       </BottomSheetModal>
-    </PageScaffold>
+    </PageLayout>
   );
 }

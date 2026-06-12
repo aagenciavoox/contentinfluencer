@@ -3,9 +3,11 @@ import { BarChart3 } from 'lucide-react';
 import { useAppContext } from '../../../context/AppContext';
 import type { GoldenRule, Content } from '../../../lib/database';
 import { DesktopPageHeader } from '../../../layouts/page/DesktopPageHeader';
+import { PageLayout } from '../../../layouts/page/PageLayout';
 import { useIsMobile } from '../../../hooks/useIsMobile';
 import { AnalyticsMobileScreen } from '../../../mobile/screens/analytics/AnalyticsMobileScreen';
 import { AnalyticsCategoryCards, type RuleResult } from '../components/AnalyticsCategoryCards';
+import { getGentleExperienceSettings } from '../../settings/lib/gentleExperience';
 
 function periodoDias(periodo: GoldenRule['periodo']): number {
   if (periodo === 'semana') return 7;
@@ -35,22 +37,18 @@ function avaliarRegra(regra: GoldenRule, contents: Content[]): RuleResult {
     count = janela.length;
   }
 
-  const { condicao, minimo, maximo } = regra;
-  const violacao = (minimo != null && count < minimo) || (maximo != null && count > maximo);
+  const { minimo, maximo } = regra;
+  const needsReview = (minimo != null && count < minimo) || (maximo != null && count > maximo);
   const detalheRange = `${count} (min. ${minimo ?? '—'} · max. ${maximo ?? '—'})`;
 
-  if (condicao === 'impedir') {
-    if (violacao) return { regra, status: 'violacao', detalhe: detalheRange };
-    return { regra, status: 'ok', detalhe: `${count} ok` };
-  }
-
-  if (violacao) return { regra, status: 'aviso', detalhe: detalheRange };
+  if (needsReview) return { regra, status: 'aviso', detalhe: detalheRange };
   return { regra, status: 'ok', detalhe: `${count} ok` };
 }
 
 export function AnalyticsPage() {
   const { state } = useAppContext();
   const isMobile = useIsMobile();
+  const gentleExperience = getGentleExperienceSettings(state.preferences);
   const [mixPeriodo, setMixPeriodo] = useState<30 | 90>(30);
   const [perfPlatforma, setPerfPlatforma] = useState('');
 
@@ -134,6 +132,7 @@ export function AnalyticsPage() {
     perfPlatforma,
     onPerfPlatformaChange: setPerfPlatforma,
     platforms: state.platforms,
+    gentleExperience,
   };
 
   if (isMobile) {
@@ -145,13 +144,11 @@ export function AnalyticsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[var(--bg-secondary)]">
-      <div className="desktop-header-frame">
-        <DesktopPageHeader section="Inteligencia" title="Analise" icon={BarChart3} />
-      </div>
-      <div className="desktop-content-frame">
-        <AnalyticsCategoryCards {...categoryProps} />
-      </div>
-    </div>
+    <PageLayout
+      variant="settings"
+      header={<DesktopPageHeader section="Inteligencia" title="Analise" icon={BarChart3} />}
+    >
+      <AnalyticsCategoryCards {...categoryProps} />
+    </PageLayout>
   );
 }

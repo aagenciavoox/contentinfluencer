@@ -23,7 +23,7 @@ export function MobilePillButton({
     <button
       type={type}
       className={cn(
-        'inline-flex min-h-11 items-center justify-center rounded-full px-4 text-[11px] font-black uppercase tracking-[0.14em] transition-colors active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40',
+        'inline-flex min-h-11 items-center justify-center rounded-full px-4 text-xs font-semibold uppercase tracking-[0.14em] transition-colors active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40',
         TONE_CLASS[tone],
         className
       )}

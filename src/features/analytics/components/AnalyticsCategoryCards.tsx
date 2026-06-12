@@ -5,8 +5,9 @@ import {DonutChart} from '../../../components/charts/DonutChart';
 import {HorizontalBarChart} from '../../../components/charts/HorizontalBarChart';
 import {HeatmapGrid} from '../../../components/charts/HeatmapGrid';
 import {cn} from '../../../lib/utils';
+import type {GentleExperienceSettings} from '../../settings/lib/gentleExperience';
 
-export type RuleResult = {regra: GoldenRule; status: 'ok' | 'aviso' | 'violacao'; detalhe: string};
+export type RuleResult = {regra: GoldenRule; status: 'ok' | 'aviso'; detalhe: string};
 
 interface AnalyticsCategoryCardsProps {
   resultados: RuleResult[];
@@ -23,6 +24,7 @@ interface AnalyticsCategoryCardsProps {
   perfPlatforma: string;
   onPerfPlatformaChange: (value: string) => void;
   platforms: Array<{id: string; nome: string; ativo: boolean}>;
+  gentleExperience: GentleExperienceSettings;
 }
 
 function buildPostingHeatmap(contents: Content[]) {
@@ -59,8 +61,10 @@ export function AnalyticsCategoryCards({
   perfPlatforma,
   onPerfPlatformaChange,
   platforms,
+  gentleExperience,
 }: AnalyticsCategoryCardsProps) {
   const navigate = useNavigate();
+  const useGentleLanguage = gentleExperience.enabled;
   const excecoes = resultados.filter(r => r.status !== 'ok');
   const heatmapCells = useMemo(() => buildPostingHeatmap(postedContents), [postedContents]);
 
@@ -92,7 +96,7 @@ export function AnalyticsCategoryCards({
   return (
     <div className="space-y-6">
       <section className="ds-card bg-[var(--bg-primary)] p-5">
-        <h2 className="ds-h3 mb-4">Consistencia editorial</h2>
+        <h2 className="ds-h3 mb-4">{useGentleLanguage ? 'Leitura editorial' : 'Consistencia editorial'}</h2>
         {regrasAtivasCount === 0 ? (
           <div className="py-8 text-center">
             <p className="text-sm text-[var(--text-secondary)]">Nenhuma regra de ouro configurada</p>
@@ -107,15 +111,17 @@ export function AnalyticsCategoryCards({
         ) : (
           <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
             {score !== null ? (
-              <DonutChart value={score} label="score" />
+              <DonutChart value={score} label={useGentleLanguage ? 'leitura' : 'score'} />
             ) : null}
             <div className="min-w-0 flex-1 space-y-2">
               <p className="text-sm text-[var(--text-secondary)]">
-                {resultados.filter(r => r.status === 'ok').length}/{regrasAtivasCount} regras cumpridas
+                {useGentleLanguage
+                  ? `${resultados.filter(r => r.status === 'ok').length}/${regrasAtivasCount} combinados em harmonia`
+                  : `${resultados.filter(r => r.status === 'ok').length}/${regrasAtivasCount} regras cumpridas`}
               </p>
               {excecoes.length === 0 ? (
                 <p className="rounded-[var(--radius-input)] bg-[var(--bg-hover)] px-3 py-2 text-sm text-[var(--text-secondary)]">
-                  Nenhuma violacao no periodo.
+                  {useGentleLanguage ? 'Nada para revisar neste periodo.' : 'Nenhum ponto fora do combinado no periodo.'}
                 </p>
               ) : (
                 excecoes.map(({regra, status, detalhe}) => (
@@ -123,7 +129,7 @@ export function AnalyticsCategoryCards({
                     key={regra.id}
                     className={cn(
                       'rounded-[var(--radius-input)] border px-3 py-2',
-                      status === 'violacao' ? 'border-red-500/30 bg-red-500/5' : 'border-amber-500/30 bg-amber-500/5'
+                      status === 'aviso' ? 'border-amber-500/30 bg-amber-500/5' : 'border-[var(--border-color)] bg-[var(--bg-hover)]'
                     )}
                   >
                     <p className="text-sm font-medium text-[var(--text-primary)]">{regra.descricao}</p>
@@ -163,7 +169,9 @@ export function AnalyticsCategoryCards({
           <div className="mb-4 space-y-1">
             {semPostar.map(({pilar}) => (
               <p key={pilar.id} className="text-xs text-amber-700">
-                Sem posts de {pilar.nome} nos ultimos {mixPeriodo} dias
+                {useGentleLanguage
+                  ? `${pilar.nome} ficou mais quieto nos ultimos ${mixPeriodo} dias`
+                  : `Sem posts de ${pilar.nome} nos ultimos ${mixPeriodo} dias`}
               </p>
             ))}
           </div>
@@ -182,7 +190,7 @@ export function AnalyticsCategoryCards({
 
       <section className="ds-card bg-[var(--bg-primary)] p-5">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-          <h2 className="ds-h3">Performance</h2>
+          <h2 className="ds-h3">{useGentleLanguage ? 'Resposta do publico' : 'Metricas publicadas'}</h2>
           <select
             value={perfPlatforma}
             onChange={e => onPerfPlatformaChange(e.target.value)}
@@ -222,11 +230,11 @@ export function AnalyticsCategoryCards({
               <HorizontalBarChart items={formatoBars} />
             </div>
             <div>
-              <p className="ds-meta mb-2">Top por views</p>
+              <p className="ds-meta mb-2">{useGentleLanguage ? 'Mais vistos' : 'Top por views'}</p>
               <HorizontalBarChart items={topViewsBars} />
             </div>
             <div>
-              <p className="ds-meta mb-2">Ritmo de postagem (28 dias)</p>
+              <p className="ds-meta mb-2">{useGentleLanguage ? 'Presenca nos ultimos 28 dias' : 'Ritmo de postagem (28 dias)'}</p>
               <HeatmapGrid cells={heatmapCells} columns={7} />
             </div>
           </div>

@@ -65,7 +65,7 @@ export function MobileHeaderIOS({
               onClick={onRightAction}
               className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[var(--border-color)] bg-[var(--bg-secondary)] text-[var(--text-primary)] shadow-sm active:scale-95"
             >
-              {rightActionIcon ?? <span className="t-label text-[10px]">CMD</span>}
+              {rightActionIcon ?? <span className="t-label text-xs">CMD</span>}
             </button>
           </div>
         ) : (

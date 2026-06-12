@@ -55,7 +55,7 @@ function LibraryBadge({ children, tone = 'neutral' }: { children: React.ReactNod
   return (
     <span
       className={cn(
-        'inline-flex max-w-full truncate rounded-md px-1.5 py-0.5 text-[9px] font-semibold leading-tight',
+        'inline-flex max-w-full truncate rounded-md px-1.5 py-0.5 text-xs font-semibold leading-tight',
         tone === 'blue' && 'bg-[var(--accent-blue)]/10 text-[var(--accent-blue)]',
         tone === 'green' && 'bg-[var(--accent-green)]/10 text-[var(--accent-green)]',
         tone === 'neutral' && 'bg-[var(--bg-hover)] text-[var(--text-secondary)]'
@@ -133,13 +133,13 @@ export function LibraryMobileScreen({
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-sm font-black text-[var(--text-primary)]">Biblioteca</p>
+          <p className="text-sm font-semibold text-[var(--text-primary)]">Biblioteca</p>
           <p className="text-xs text-[var(--text-secondary)]">{items.length} itens no acervo</p>
         </div>
         <button
           type="button"
           onClick={onOpenCreate}
-          className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-lg border border-[var(--border-color)] bg-[var(--bg-secondary)] px-3 text-[11px] font-black uppercase tracking-[0.12em] text-[var(--text-primary)]"
+          className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-lg border border-[var(--border-color)] bg-[var(--bg-secondary)] px-3 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-primary)]"
         >
           <Plus className="h-4 w-4" />
           Novo
@@ -149,7 +149,7 @@ export function LibraryMobileScreen({
       <MobileSearchBar
         value={search}
         onChange={setSearch}
-        placeholder="Buscar titulo, autoria ou tag"
+        placeholder="Buscar título, autoria ou tag"
         onFilterClick={() => setIsFilterSheetOpen(true)}
         rounded="tight"
       />
@@ -204,10 +204,10 @@ export function LibraryMobileScreen({
 
                   <div className="space-y-2 p-2.5">
                     <div>
-                      <p className="line-clamp-2 text-[11px] font-black leading-snug text-[var(--text-primary)]">
+                      <p className="line-clamp-2 text-xs font-semibold leading-snug text-[var(--text-primary)]">
                         {item.titulo}
                       </p>
-                      <p className="mt-0.5 line-clamp-1 text-[10px] text-[var(--text-secondary)]">
+                      <p className="mt-0.5 line-clamp-1 text-xs text-[var(--text-secondary)]">
                         {item.autorDiretor || TYPE_LABELS[item.tipo]}
                       </p>
                     </div>
@@ -247,7 +247,7 @@ export function LibraryMobileScreen({
                     type="button"
                     onClick={() => onTogglePrimary(item.id)}
                     className={cn(
-                      'inline-flex min-h-9 w-full items-center justify-center gap-1 rounded-md border text-[9px] font-black uppercase tracking-[0.1em] transition-colors',
+                      'inline-flex min-h-9 w-full items-center justify-center gap-1 rounded-md border text-xs font-semibold uppercase tracking-[0.1em] transition-colors',
                       isPrimary
                         ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-[var(--bg-primary)]'
                         : 'border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-secondary)]'

@@ -13,6 +13,17 @@ export const CONTENT_STATUS = {
   POSTADO: 'Postado',
 } as const;
 
+export const STATUS_ORDER = [
+  CONTENT_STATUS.IDEIA,
+  CONTENT_STATUS.ROTEIRO,
+  CONTENT_STATUS.PRONTO_PARA_GRAVAR,
+  CONTENT_STATUS.GRAVADO,
+  CONTENT_STATUS.A_EDITAR,
+  CONTENT_STATUS.EDITADO,
+  CONTENT_STATUS.PROGRAMADO,
+  CONTENT_STATUS.POSTADO,
+] as const;
+
 export const ContentStage = {
   IDEIA: 'IDEIA',
   ROTEIRO: 'ROTEIRO',
@@ -26,7 +37,7 @@ export const ContentStage = {
 
 export type ContentStage = typeof ContentStage[keyof typeof ContentStage];
 
-export type ContentDetailTab = 'roteiro' | 'gravacao' | 'producao' | 'postagem' | 'historico';
+export type ContentDetailTab = 'roteiro' | 'gravacao' | 'publicacao';
 
 export type ContentPrimaryActionId =
   | 'advance_to_recording'
@@ -51,22 +62,103 @@ export interface PostingAlert {
   message: string;
 }
 
-type StageOptions = {
+export type StageOptions = {
   block?: RecordingBlock | null;
 };
+
+export function normalizeContentDetailTab(tab: string | null): ContentDetailTab {
+  if (tab === 'gravacao') return 'gravacao';
+  if (tab === 'publicacao' || tab === 'fluxo' || tab === 'publicar' || tab === 'producao' || tab === 'postagem') return 'publicacao';
+  return 'roteiro';
+}
+
+export function getInitialTabForContext(tab: string | null): ContentDetailTab {
+  return normalizeContentDetailTab(tab);
+}
+
+export function getAllowedStatuses(current: string): string[] {
+  const order = STATUS_ORDER as readonly string[];
+  const idx = order.indexOf(current);
+  if (idx === -1) return [...order];
+
+  const allowed = new Set<string>([current]);
+  if (idx > 0) allowed.add(order[idx - 1]);
+  if (idx < order.length - 1) allowed.add(order[idx + 1]);
+  if (idx >= 3) allowed.add(CONTENT_STATUS.POSTADO);
+
+  if (current === CONTENT_STATUS.POSTADO) {
+    allowed.add(CONTENT_STATUS.PROGRAMADO);
+    allowed.add(CONTENT_STATUS.EDITADO);
+  }
+
+  return order.filter(status => allowed.has(status));
+}
+
+export const CONTENT_PIPELINE_TABS: ContentDetailTab[] = ['roteiro', 'gravacao', 'publicacao'];
+
+const POSTING_UNLOCKED_STAGES = new Set<ContentStage>([
+  ContentStage.GRAVADO,
+  ContentStage.PRODUCAO,
+  ContentStage.PROGRAMADO,
+  ContentStage.POSTADO,
+]);
+
+export function shouldShowPublishingSection(stage: ContentStage): boolean {
+  return POSTING_UNLOCKED_STAGES.has(stage);
+}
+
+export function getPipelineTabIndex(stage: ContentStage): number {
+  switch (stage) {
+    case ContentStage.IDEIA:
+    case ContentStage.ROTEIRO:
+      return 0;
+    case ContentStage.PRONTO_PARA_GRAVAR:
+    case ContentStage.EM_BLOCO:
+      return 1;
+    case ContentStage.GRAVADO:
+    case ContentStage.PRODUCAO:
+    case ContentStage.PROGRAMADO:
+    case ContentStage.POSTADO:
+      return 2;
+    default:
+      return 0;
+  }
+}
+
+export function isTabLocked(tab: ContentDetailTab, content: Content, options: StageOptions = {}): boolean {
+  if (tab !== 'publicacao') return false;
+  return !POSTING_UNLOCKED_STAGES.has(getContentStage(content, options));
+}
+
+export function getVisibleTabsForContent(content: Content, options: StageOptions = {}): ContentDetailTab[] {
+  const tabs: ContentDetailTab[] = ['roteiro', 'gravacao'];
+  const stage = getContentStage(content, options);
+  if (POSTING_UNLOCKED_STAGES.has(stage)) {
+    tabs.push('publicacao');
+  }
+  return tabs;
+}
 
 export function isContentInBlock(contentId: string, block?: RecordingBlock | null) {
   if (!block) return false;
   return block.contents.some(item => item.contentId === contentId);
 }
 
-export function getContentBlockSummary(contentId: string, blocks: RecordingBlock[]) {
+export function getContentBlockSummary(
+  contentId: string,
+  blocks: RecordingBlock[],
+  contents: Content[] = []
+) {
   const block = blocks.find(candidate => candidate.contents.some(item => item.contentId === contentId)) ?? null;
   if (!block) return null;
 
   const orderedContents = [...block.contents].sort((left, right) => left.ordem - right.ordem);
   const index = orderedContents.findIndex(item => item.contentId === contentId);
-  const completedCount = orderedContents.filter(item => item.gravado).length;
+  const completedCount = orderedContents.filter(item => {
+    if (item.gravado) return true;
+    const content = contents.find(candidate => candidate.id === item.contentId);
+    return Boolean(content && content.status !== CONTENT_STATUS.PRONTO_PARA_GRAVAR);
+  }).length;
 
   return {
     block,
@@ -116,7 +208,7 @@ export function getPostingAlerts(content: Pick<Content, 'publishDate' | 'status'
       {
         id: 'scheduled',
         tone: 'info',
-        message: 'Data futura definida. Este conteudo deve seguir como Programado.',
+        message: 'Data futura guardada. Voce pode marcar como Programado quando quiser acompanhar essa publicacao.',
       },
     ] satisfies PostingAlert[];
   }
@@ -126,7 +218,7 @@ export function getPostingAlerts(content: Pick<Content, 'publishDate' | 'status'
       {
         id: 'overdue',
         tone: 'warning',
-        message: 'A data de postagem ja passou e o conteudo ainda nao foi marcado como Postado.',
+        message: 'Essa data ja ficou para tras. O conteudo continua aqui para retomar, reagendar ou marcar como Postado.',
       },
     ] satisfies PostingAlert[];
   }
@@ -157,55 +249,49 @@ export function getPrimaryAction(content: Content, options: StageOptions = {}): 
     case ContentStage.ROTEIRO:
       return {
         id: 'advance_to_recording',
-        label: 'Enviar para gravacao',
-        targetTab: 'roteiro',
+        label: 'Deixar disponivel para gravacao',
+        targetTab: 'gravacao',
         disabled: !canAdvanceToRecording(content),
-        reason: !canAdvanceToRecording(content) ? 'Preencha titulo e roteiro antes de avancar.' : undefined,
+        reason: !canAdvanceToRecording(content) ? 'Guarde um titulo e um roteiro para liberar essa opcao.' : undefined,
       };
     case ContentStage.PRONTO_PARA_GRAVAR:
       return {
         id: 'add_to_block',
-        label: 'Adicionar ao bloco',
+        label: 'Guardar em um bloco',
         targetTab: 'gravacao',
       };
     case ContentStage.EM_BLOCO:
       return {
         id: 'go_to_execution',
-        label: 'Marcar como gravado',
+        label: 'Abrir bloco de gravacao',
         targetTab: 'gravacao',
       };
     case ContentStage.GRAVADO:
     case ContentStage.PRODUCAO:
       return {
         id: 'send_to_posting',
-        label: 'Agendar postagem',
-        targetTab: 'postagem',
+        label: 'Preparar publicacao com calma',
+        targetTab: 'publicacao',
       };
     case ContentStage.PROGRAMADO:
       return {
         id: 'save_schedule',
-        label: 'Confirmar agendamento',
-        targetTab: 'postagem',
+        label: 'Guardar agendamento',
+        targetTab: 'publicacao',
         disabled: !canSchedulePosting(content),
       };
     case ContentStage.POSTADO:
       return {
         id: 'none',
-        label: 'Ver analise editorial',
-        targetTab: 'historico',
+        label: 'Ver aprendizados',
+        targetTab: 'publicacao',
       };
     default:
+  
       return {
         id: 'none',
         label: 'Ver detalhes',
         targetTab: 'roteiro',
       };
   }
-}
-
-export function getInitialTabForContext(tab: string | null): ContentDetailTab {
-  if (tab === 'gravacao' || tab === 'producao' || tab === 'postagem' || tab === 'historico') {
-    return tab;
-  }
-  return 'roteiro';
 }

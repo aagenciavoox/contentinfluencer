@@ -5,12 +5,14 @@ import { MobileEmptyState } from '../../components/MobileEmptyState';
 import { MobileListCard } from '../../components/MobileListCard';
 import { MobilePillButton } from '../../components/MobilePillButton';
 import { Layers, Plus } from 'lucide-react';
+import { generateUUID } from '../../../utils/uuid';
 
 interface SeriesMobileScreenProps {
   series: Serie[];
   onSave: (serie: Serie) => void;
   onToggle: (serie: Serie) => void;
   onDelete: (serieId: string) => void;
+  onBulkCreate?: (serieId: string) => void;
 }
 
 const FREQUENCIAS = ['Semanal', 'Quinzenal', 'Mensal', 'Sob demanda'] as const;
@@ -20,6 +22,7 @@ export function SeriesMobileScreen({
   onSave,
   onToggle,
   onDelete,
+  onBulkCreate,
 }: SeriesMobileScreenProps) {
   const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState('');
@@ -31,7 +34,7 @@ export function SeriesMobileScreen({
     if (!name.trim()) return;
 
     onSave({
-      id: crypto.randomUUID(),
+      id: generateUUID(),
       userId: '',
       name: name.trim(),
       template: '',
@@ -60,7 +63,7 @@ export function SeriesMobileScreen({
     <div className="space-y-5">
       <section className="rounded-[1.75rem] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4 shadow-sm">
         <div className="mb-4 flex items-center gap-3">
-          <div className="rounded-2xl bg-[var(--accent-purple)]/12 p-3 text-[var(--accent-purple)]">
+          <div className="rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] bg-[var(--accent-purple)]/12 p-3 text-[var(--accent-purple)]">
             <Layers className="h-5 w-5" />
           </div>
           <div>
@@ -90,24 +93,37 @@ export function SeriesMobileScreen({
               description={serie.estruturaRoteiro || serie.notes || 'Sem estrutura de roteiro ainda.'}
               meta={
                 <>
-                  <span className="rounded-full bg-[var(--bg-hover)] px-3 py-1 text-[11px] font-semibold text-[var(--text-secondary)]">
+                  <span className="rounded-full bg-[var(--bg-hover)] px-3 py-1 text-xs font-semibold text-[var(--text-secondary)]">
                     {serie.frequenciaRecomendada || 'Sem frequência'}
                   </span>
-                  <span className="rounded-full bg-[var(--accent-purple)]/10 px-3 py-1 text-[11px] font-semibold text-[var(--accent-purple)]">
+                  <span className="rounded-full bg-[var(--accent-purple)]/10 px-3 py-1 text-xs font-semibold text-[var(--accent-purple)]">
                     {serie.bordao || 'Sem bordão'}
                   </span>
                 </>
               }
               trailing={
-                <MobilePillButton
-                  tone="danger"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    onDelete(serie.id);
-                  }}
-                >
-                  Excluir
-                </MobilePillButton>
+                <div className="flex flex-wrap justify-end gap-2">
+                  {onBulkCreate ? (
+                    <MobilePillButton
+                      tone="muted"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onBulkCreate(serie.id);
+                      }}
+                    >
+                      Roteiros
+                    </MobilePillButton>
+                  ) : null}
+                  <MobilePillButton
+                    tone="danger"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onDelete(serie.id);
+                    }}
+                  >
+                    Excluir
+                  </MobilePillButton>
+                </div>
               }
               status={
                 <MobilePillButton
@@ -168,7 +184,7 @@ export function SeriesMobileScreen({
             <button
               type="button"
               onClick={() => setShowForm(false)}
-              className="flex-1 rounded-[1.25rem] border border-[var(--border-color)] py-3 text-xs font-black uppercase tracking-widest text-[var(--text-secondary)]"
+              className="flex-1 rounded-[1.25rem] border border-[var(--border-color)] py-3 text-xs font-semibold  text-[var(--text-secondary)]"
             >
               Cancelar
             </button>

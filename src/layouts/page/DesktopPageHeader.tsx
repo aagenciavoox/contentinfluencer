@@ -1,6 +1,7 @@
-import {Children, ReactNode} from 'react';
-import {Link, useNavigate} from 'react-router-dom';
-import {cn} from '../../lib/utils';
+import { Children, ReactNode } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { cn } from '../../lib/utils';
+import { Text } from '../../components/ui/Text';
 
 interface DesktopPageHeaderProps {
   section: string;
@@ -27,7 +28,7 @@ function BreadcrumbTrail({
   parentHref?: string;
 }) {
   return (
-    <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[11px] font-medium leading-none text-[var(--text-tertiary)]">
+    <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
       {items.map((item, index) => {
         const isParent = index === 0 && items.length > 1;
         const isCurrent = index === items.length - 1;
@@ -38,7 +39,7 @@ function BreadcrumbTrail({
             {isParent && parentHref ? (
               <Link
                 to={parentHref}
-                className="truncate transition-colors hover:text-[var(--text-primary)]"
+                className="t-meta truncate transition-colors hover:text-[var(--text-primary)]"
               >
                 {item}
               </Link>
@@ -46,14 +47,14 @@ function BreadcrumbTrail({
               <button
                 type="button"
                 onClick={onParentClick}
-                className="truncate transition-colors hover:text-[var(--text-primary)]"
+                className="t-meta truncate transition-colors hover:text-[var(--text-primary)]"
               >
                 {item}
               </button>
             ) : (
-              <span className={cn('truncate', isCurrent && 'text-[var(--text-secondary)]')}>
+              <Text variant="meta" as="span" className={cn('truncate', isCurrent && 'text-[var(--text-secondary)]')}>
                 {item}
-              </span>
+              </Text>
             )}
           </div>
         );
@@ -93,11 +94,13 @@ export function DesktopPageHeader({
 
         <div className="mt-1.5 flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
-            <h1 className="truncate text-[22px] font-semibold leading-tight tracking-normal text-[var(--text-primary)]">
+            <Text variant="pageTitle" as="h1" truncate>
               {title}
-            </h1>
+            </Text>
             {meta ? (
-              <p className="mt-1 truncate text-[11px] font-medium text-[var(--text-tertiary)]">{meta}</p>
+              <Text variant="meta" className="mt-1 truncate">
+                {meta}
+              </Text>
             ) : null}
           </div>
 
@@ -114,11 +117,13 @@ export function DesktopPageHeader({
 
         <div className="mt-1 flex items-center justify-between gap-4">
           <div className="min-w-0 flex-1">
-            <h1 className="truncate text-[24px] font-semibold leading-tight tracking-normal text-[var(--text-primary)]">
+            <Text variant="pageTitle" as="h1" truncate>
               {title}
-            </h1>
+            </Text>
             {meta ? (
-              <p className="mt-0.5 truncate text-[11px] font-medium text-[var(--text-tertiary)]">{meta}</p>
+              <Text variant="meta" className="mt-0.5 truncate">
+                {meta}
+              </Text>
             ) : null}
           </div>
 

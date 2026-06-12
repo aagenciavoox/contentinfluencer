@@ -1,4 +1,4 @@
-import type {Content} from '../../../lib/database.ts';
+import type {Content, RecordingBlock} from '../../../lib/database.ts';
 import {CONTENT_STATUS} from './contentPipeline.ts';
 
 export const EDITORIAL_CONTENT_STATUSES = [
@@ -50,8 +50,15 @@ export function getPostedContents(contents: Content[]) {
   return contents.filter(content => content.status === POSTED_STATUS);
 }
 
-export function getRecordingQueueContents(contents: Content[]) {
-  return contents.filter(content => content.status === RECORDING_READY_STATUS);
+export function getRecordingQueueContents(contents: Content[], blocks: RecordingBlock[] = []) {
+  const blockedIds = new Set<string>();
+  blocks.forEach(block => {
+    block.contents.forEach(item => blockedIds.add(item.contentId));
+  });
+
+  return contents.filter(
+    content => content.status === RECORDING_READY_STATUS && !blockedIds.has(content.id)
+  );
 }
 
 export function getContentStatusOptions(mode: 'editorial' | 'history') {

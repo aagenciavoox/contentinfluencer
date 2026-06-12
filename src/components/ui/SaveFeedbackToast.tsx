@@ -29,7 +29,7 @@ export function SaveFeedbackToast() {
     >
       <div
         className={cn(
-          'pointer-events-auto flex max-w-md items-start gap-3 rounded-2xl border px-4 py-3 shadow-2xl backdrop-blur-md',
+          'pointer-events-auto flex max-w-md items-start gap-3 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border px-4 py-3 shadow-none backdrop-blur-md',
           tone
         )}
       >
@@ -41,7 +41,7 @@ export function SaveFeedbackToast() {
           <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-red-400" />
         )}
         <div className="min-w-0">
-          <p className="text-sm font-black">{feedback.message}</p>
+          <p className="text-sm font-semibold">{feedback.message}</p>
           {feedback.detail ? (
             <p className="mt-1 text-xs font-semibold opacity-80">{feedback.detail}</p>
           ) : null}

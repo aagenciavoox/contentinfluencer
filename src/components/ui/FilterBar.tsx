@@ -1,205 +1,137 @@
-import {ReactNode, useEffect, useRef, useState} from 'react';
-import {ChevronDown, Search} from 'lucide-react';
-import {cn} from '../../lib/utils';
+import React, { useState, useEffect } from 'react';
+import { Search, ChevronDown, X, Filter } from 'lucide-react';
+import { cn } from '../../lib/utils';
 
-export interface FilterBarOption {
+export interface FilterOption {
   label: string;
   value: string;
 }
 
-interface FilterBarSelectFilter {
+export interface FilterDefinition {
   id: string;
   label: string;
   value: string;
-  options: FilterBarOption[];
   onChange: (value: string) => void;
-  type?: 'select';
+  options: FilterOption[];
 }
-
-interface FilterBarCustomFilter {
-  id: string;
-  label: string;
-  type: 'custom';
-  renderContent: (close: () => void) => ReactNode;
-}
-
-export type FilterBarFilter = FilterBarSelectFilter | FilterBarCustomFilter;
 
 interface FilterBarProps {
   searchValue: string;
   onSearchChange: (value: string) => void;
   searchPlaceholder?: string;
-  filters?: FilterBarFilter[];
-  sortValue: string;
-  sortOptions: FilterBarOption[];
-  onSortChange: (value: string) => void;
+  filters?: FilterDefinition[];
+  sortValue?: string;
+  onSortChange?: (value: string) => void;
+  sortOptions?: FilterOption[];
   className?: string;
-  maxVisibleFilters?: number;
-  compact?: boolean;
-}
-
-function useOutsideClose(open: boolean, onClose: () => void) {
-  const ref = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    if (!open) return;
-
-    const handlePointerDown = (event: MouseEvent) => {
-      if (!ref.current?.contains(event.target as Node)) {
-        onClose();
-      }
-    };
-
-    document.addEventListener('mousedown', handlePointerDown);
-    return () => document.removeEventListener('mousedown', handlePointerDown);
-  }, [open, onClose]);
-
-  return ref;
-}
-
-function FilterBarDropdown({
-  label,
-  children,
-  compact = false,
-}: {
-  label: string;
-  children: (close: () => void) => ReactNode;
-  compact?: boolean;
-}) {
-  const [open, setOpen] = useState(false);
-  const close = () => setOpen(false);
-  const ref = useOutsideClose(open, close);
-
-  return (
-    <div ref={ref} className="relative shrink-0">
-      <button
-        type="button"
-        onClick={() => setOpen(previous => !previous)}
-        className={cn('filter-bar-select justify-between', compact ? 'w-[104px]' : 'w-[148px]')}
-      >
-        <span className="truncate">{label}</span>
-        <ChevronDown className="h-4 w-4 shrink-0" />
-      </button>
-
-      {open ? (
-        <div className="filter-bar-menu">
-          {children(close)}
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-function FilterControl({filter, compact = false}: {filter: FilterBarFilter; compact?: boolean}) {
-  const selectWidth = compact ? 'w-[104px]' : 'w-[148px]';
-
-  if (filter.type === 'custom') {
-    return (
-      <FilterBarDropdown label={filter.label} compact={compact}>
-        {close => filter.renderContent(close)}
-      </FilterBarDropdown>
-    );
-  }
-
-  return (
-    <div className="relative shrink-0">
-      <select
-        aria-label={filter.label}
-        value={filter.value}
-        onChange={event => filter.onChange(event.target.value)}
-        className={cn('filter-bar-select appearance-none pr-10', selectWidth)}
-      >
-        {filter.options.map(option => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
-      <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-tertiary)]" />
-    </div>
-  );
 }
 
 export function FilterBar({
   searchValue,
   onSearchChange,
-  searchPlaceholder = 'Buscar',
+  searchPlaceholder = "Buscar...",
   filters = [],
   sortValue,
-  sortOptions,
   onSortChange,
+  sortOptions = [],
   className,
-  maxVisibleFilters = 4,
-  compact = false,
 }: FilterBarProps) {
-  const selectWidth = compact ? 'w-[104px]' : 'w-[148px]';
-  const visibleFilters = filters.slice(0, maxVisibleFilters);
-  const overflowFilters = filters.slice(maxVisibleFilters);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const activeFiltersCount = filters.filter(f => f.value !== '' && f.value !== 'Todos').length;
 
   return (
-    <div className={cn('filter-bar', compact && 'filter-bar--compact', className)}>
-      <div className="filter-bar-search">
-        <Search className="h-4 w-4 shrink-0 text-[var(--text-tertiary)]" />
-        <input
-          type="text"
-          value={searchValue}
-          onChange={event => onSearchChange(event.target.value)}
-          placeholder={searchPlaceholder}
-          className="filter-bar-search-input"
-        />
-      </div>
-
-      <div className="filter-bar-controls">
-        {visibleFilters.map(filter => (
-          <FilterControl key={filter.id} filter={filter} compact={compact} />
-        ))}
-
-        {overflowFilters.length > 0 ? (
-          <FilterBarDropdown label="Mais filtros" compact={compact}>
-            {close => (
-              <div className="flex min-w-[240px] flex-col gap-3">
-                {overflowFilters.map(filter => (
-                  <div key={filter.id} className="flex flex-col gap-1.5">
-                    <span className="text-[11px] font-semibold text-[var(--text-secondary)]">
-                      {filter.label}
-                    </span>
-                    {filter.type === 'custom' ? filter.renderContent(close) : (
-                      <select
-                        aria-label={filter.label}
-                        value={filter.value}
-                        onChange={event => filter.onChange(event.target.value)}
-                        className="filter-bar-select w-full appearance-none"
-                      >
-                        {filter.options.map(option => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </FilterBarDropdown>
-        ) : null}
-
-        <div className="relative shrink-0">
-          <select
-            aria-label="Ordenar"
-            value={sortValue}
-            onChange={event => onSortChange(event.target.value)}
-            className={cn('filter-bar-select appearance-none pr-10', selectWidth)}
-          >
-            {sortOptions.map(option => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-          <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-tertiary)]" />
+    <div className={cn("space-y-3", className)}>
+      <div className="flex items-center gap-2">
+        <div className="relative flex-1 group">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--text-tertiary)] transition-colors group-focus-within:text-[var(--text-primary)]" />
+          <input
+            type="text"
+            value={searchValue}
+            onChange={e => onSearchChange(e.target.value)}
+            placeholder={searchPlaceholder}
+            className="w-full h-11 pl-10 pr-4 rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] text-sm font-medium text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:border-[var(--border-strong)] transition-all outline-none"
+          />
+          {searchValue && (
+            <button 
+              onClick={() => onSearchChange('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-[var(--bg-hover)] text-[var(--text-tertiary)] transition-colors"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
         </div>
+
+        {filters.length > 0 && (
+          <button
+            onClick={() => setIsExpanded(!isExpanded)}
+            className={cn(
+              "flex h-11 items-center gap-2 rounded-xl border px-4 text-xs font-semibold  transition-all",
+              isExpanded || activeFiltersCount > 0
+                ? "border-[var(--text-primary)] bg-[var(--text-primary)] text-[var(--bg-primary)]"
+                : "border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-secondary)] hover:border-[var(--border-strong)]"
+            )}
+          >
+            <Filter className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Filtros</span>
+            {activeFiltersCount > 0 && (
+              <span className="flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-[var(--bg-primary)] px-1 text-xs font-semibold text-[var(--text-primary)]">
+                {activeFiltersCount}
+              </span>
+            )}
+          </button>
+        )}
+
+        {sortOptions.length > 0 && onSortChange && (
+          <div className="relative hidden md:block">
+            <select
+              value={sortValue}
+              onChange={e => onSortChange(e.target.value)}
+              className="h-11 min-w-[140px] appearance-none rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] pl-4 pr-10 text-xs font-semibold  text-[var(--text-secondary)] hover:border-[var(--border-strong)] outline-none transition-all cursor-pointer"
+            >
+              {sortOptions.map(opt => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--text-tertiary)] pointer-events-none" />
+          </div>
+        )}
       </div>
+
+      {isExpanded && filters.length > 0 && (
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 p-3 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-primary)] shadow-sm animate-in fade-in slide-in-from-top-2">
+          {filters.map(filter => (
+            <div key={filter.id} className="space-y-1.5">
+              <label className="px-1 text-xs font-semibold  text-[var(--text-tertiary)] opacity-60">
+                {filter.label}
+              </label>
+              <div className="relative">
+                <select
+                  value={filter.value}
+                  onChange={e => filter.onChange(e.target.value)}
+                  className="w-full h-9 appearance-none rounded-lg border border-[var(--border-color)] bg-[var(--bg-hover)] pl-3 pr-8 text-xs font-bold text-[var(--text-primary)] hover:border-[var(--border-strong)] outline-none transition-all cursor-pointer"
+                >
+                  {filter.options.map(opt => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
+                <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[var(--text-tertiary)] pointer-events-none" />
+              </div>
+            </div>
+          ))}
+          
+          <div className="col-span-full pt-2 flex justify-end">
+            <button
+              onClick={() => {
+                filters.forEach(f => f.onChange(''));
+                setIsExpanded(false);
+              }}
+              className="text-xs font-semibold  text-[var(--accent-pink)] hover:underline"
+            >
+              Limpar Filtros
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

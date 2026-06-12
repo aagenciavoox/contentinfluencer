@@ -118,13 +118,13 @@ export function AnnotationNoteCard({
             {anotacao.tipo}
           </span>
           {anotacao.capituloRef ? (
-            <span className="text-[10px] font-medium text-[var(--text-secondary)] opacity-70">{anotacao.capituloRef}</span>
+            <span className="text-xs font-medium text-[var(--text-secondary)] opacity-70">{anotacao.capituloRef}</span>
           ) : null}
           {anotacao.contentPotential ? (
-            <span className="text-[9px] font-medium text-yellow-500">Destaque</span>
+            <span className="text-xs font-medium text-yellow-500">Destaque</span>
           ) : null}
           {anotacao.destilada ? (
-            <span className="flex items-center gap-1 text-[9px] font-medium text-[var(--accent-green)]">
+            <span className="flex items-center gap-1 text-xs font-medium text-[var(--accent-green)]">
               <CheckCircle2 className="h-3 w-3" />
               Destilada
             </span>

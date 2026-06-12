@@ -1,18 +1,25 @@
 import {useNavigate} from 'react-router-dom';
 import {
+  BarChart3,
+  BookOpen,
+  Calendar,
+  Camera,
+  Check,
   ChevronRight,
-  Fingerprint,
+  Clock,
+  Flag,
   FolderKanban,
-  Layers,
+  Hash,
+  HeartHandshake,
   Layout,
+  Leaf,
   MonitorSpeaker,
-  Palette,
+  PauseCircle,
   Settings as SettingsIcon,
-  ShieldCheck,
   UserCircle2,
 } from 'lucide-react';
 import {DesktopPageHeader} from '../../../layouts/page/DesktopPageHeader';
-import {AppButton} from '../../../components/ui/AppButton';
+import {PageLayout} from '../../../layouts/page/PageLayout';
 import {useAppContext} from '../../../context/AppContext';
 import {useIsMobile} from '../../../hooks/useIsMobile';
 import {MobileToggleSwitch} from '../../../mobile/components/MobileToggleSwitch';
@@ -23,59 +30,65 @@ import {
   MODULE_FLAGS_PREFERENCE_KEY,
   ModuleFlagKey,
 } from '../lib/moduleFlags';
+import {
+  DEFAULT_GENTLE_EXPERIENCE,
+  GENTLE_EXPERIENCE_PREFERENCE_KEY,
+  GentleExperienceSettings,
+  getGentleExperienceSettings,
+} from '../lib/gentleExperience';
+
+type ItemStatus = 'complete' | 'partial' | 'empty' | undefined;
 
 export function SettingsPage() {
   const navigate = useNavigate();
   const {state, dispatch} = useAppContext();
   const isMobile = useIsMobile();
   const moduleFlags = getModuleFlags(state.preferences);
+  const gentleExperience = getGentleExperienceSettings(state.preferences);
+
+  const getItemStatus = (key: string): ItemStatus => {
+    switch (key) {
+      case 'perfil': return 'complete';
+      case 'plataformas': return (state.platforms?.filter((p: {ativo: boolean}) => p.ativo).length ?? 0) > 0 ? 'complete' : 'empty';
+      case 'templates': return (state.templates?.length ?? 0) > 0 ? 'complete' : 'empty';
+      case 'horarios': return 'complete';
+      default: return undefined;
+    }
+  };
 
   const items = [
     {
+      key: 'perfil',
       to: '/configuracoes/perfil',
       icon: UserCircle2,
       title: 'Perfil e Seguranca',
       desc: 'Atualize nome, email da conta e senha para desktop e mobile',
     },
     {
-      to: '/configuracoes/dna',
-      icon: Fingerprint,
-      title: 'DNA da Voz',
-      desc: 'Promessa central, público, tom de voz e limites do seu conteúdo',
-    },
-    {
-      to: '/configuracoes/pilares',
-      icon: Palette,
-      title: 'Pilares Editoriais',
-      desc: 'Gerencie os pilares de conteúdo, cores e hashtag combos por plataforma',
-    },
-    {
-      to: '/configuracoes/regras',
-      icon: ShieldCheck,
-      title: 'Regras de Ouro',
-      desc: 'Validações editoriais que garantem consistência e qualidade da grade',
-    },
-    {
-      to: '/configuracoes/series',
-      icon: Layers,
-      title: 'Séries',
-      desc: 'Gerencie séries editoriais recorrentes com estrutura e frequência definidas',
-    },
-    {
+      key: 'plataformas',
       to: '/configuracoes/plataformas',
       icon: MonitorSpeaker,
       title: 'Plataformas',
       desc: 'Ative ou desative as plataformas onde você publica conteúdo',
     },
     {
+      key: 'templates',
       to: '/configuracoes/templates',
       icon: Layout,
       title: 'Templates de Roteiro',
       desc: 'Modelos de roteiro reutilizáveis por série ou formato',
     },
+    {
+      key: 'horarios',
+      to: '/configuracoes/horarios',
+      icon: Clock,
+      title: 'Horários de Postagem',
+      desc: 'Janelas recomendadas de publicação por dia da semana',
+    },
     ...(moduleFlags.projects
       ? [
           {
+            key: 'projetos',
             to: '/projetos',
             icon: FolderKanban,
             title: 'Projetos',
@@ -83,18 +96,19 @@ export function SettingsPage() {
           },
         ]
       : []),
-  ];
+  ].map(item => ({...item, status: getItemStatus(item.key)}));
 
   const moduleCards: Array<{
     key: ModuleFlagKey;
     title: string;
     desc: string;
+    icon: React.ElementType;
   }> = [
-    {key: 'library', title: 'Biblioteca', desc: 'Acervo, notas e análises de consumo'},
-    {key: 'recording', title: 'Gravação', desc: 'Fila, blocos e modo explosão'},
-    {key: 'calendar', title: 'Calendário', desc: 'Agenda e visão mensal editorial'},
-    {key: 'projects', title: 'Projetos', desc: 'Campanhas, publis e produções'},
-    {key: 'analytics', title: 'Análise', desc: 'Monitoramento e leitura de resultados'},
+    {key: 'library', title: 'Biblioteca', desc: 'Acervo, notas e análises de consumo', icon: BookOpen},
+    {key: 'recording', title: 'Gravação', desc: 'Fila, blocos e modo explosão', icon: Camera},
+    {key: 'calendar', title: 'Calendário', desc: 'Agenda e visão mensal editorial', icon: Calendar},
+    {key: 'projects', title: 'Projetos', desc: 'Campanhas, publis e produções', icon: FolderKanban},
+    {key: 'analytics', title: 'Análise', desc: 'Monitoramento e leitura de resultados', icon: BarChart3},
   ];
 
   const toggleModuleFlag = (key: ModuleFlagKey) => {
@@ -111,10 +125,68 @@ export function SettingsPage() {
     });
   };
 
+  const updateGentleExperience = (patch: Partial<GentleExperienceSettings>) => {
+    dispatch({
+      type: 'SET_PREFERENCE',
+      payload: {
+        key: GENTLE_EXPERIENCE_PREFERENCE_KEY,
+        value: {
+          ...DEFAULT_GENTLE_EXPERIENCE,
+          ...gentleExperience,
+          ...patch,
+        },
+      },
+    });
+  };
+
+  const gentleCards = [
+    {
+      key: 'enabled',
+      icon: HeartHandshake,
+      title: 'Experiencia gentil',
+      desc: 'Troca cobrancas por linguagem de apoio e escolhas sem pressa',
+      enabled: gentleExperience.enabled,
+      onToggle: () => updateGentleExperience({enabled: !gentleExperience.enabled}),
+    },
+    {
+      key: 'pauseMode',
+      icon: PauseCircle,
+      title: 'Modo pausa',
+      desc: 'Guarda tudo sem sugerir proximos movimentos no dashboard',
+      enabled: gentleExperience.pauseMode,
+      onToggle: () => updateGentleExperience({pauseMode: !gentleExperience.pauseMode}),
+    },
+    {
+      key: 'calmSuggestions',
+      icon: Leaf,
+      title: 'Sugestoes calmas',
+      desc: 'Mostra caminhos possiveis em vez de destaques fortes',
+      enabled: gentleExperience.calmSuggestions,
+      onToggle: () => updateGentleExperience({calmSuggestions: !gentleExperience.calmSuggestions}),
+    },
+    {
+      key: 'dashboardCounts',
+      icon: Hash,
+      title: 'Numeros no dashboard',
+      desc: 'Permite ocultar contadores quando voce quiser uma leitura mais leve',
+      enabled: gentleExperience.dashboardCounts,
+      onToggle: () => updateGentleExperience({dashboardCounts: !gentleExperience.dashboardCounts}),
+    },
+    {
+      key: 'realDeadlineHighlights',
+      icon: Flag,
+      title: 'Destacar prazos reais',
+      desc: 'Reserva destaque forte apenas para compromissos externos e entregas combinadas',
+      enabled: gentleExperience.realDeadlineHighlights,
+      onToggle: () => updateGentleExperience({realDeadlineHighlights: !gentleExperience.realDeadlineHighlights}),
+    },
+  ];
+
   if (isMobile) {
     return (
       <div className="min-h-full bg-[var(--bg-primary)]">
         <SettingsMobileScreen
+          gentleCards={gentleCards}
           moduleCards={moduleCards.map(({key, title, desc}) => ({
             key,
             title,
@@ -132,69 +204,141 @@ export function SettingsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[var(--bg-secondary)]">
-      <div className="desktop-header-frame">
+    <PageLayout
+      variant="settings"
+      contentClassName="space-y-6"
+      header={
         <DesktopPageHeader
           section="Sistema"
           title="Configurações"
           icon={SettingsIcon}
         />
-      </div>
-
-      <div className="desktop-content-frame space-y-8">
-        <section className="space-y-4">
+      }
+    >
+        <section className="space-y-3">
           <div>
-            <p className="text-[10px] font-black uppercase tracking-[0.24em] text-[var(--text-tertiary)] opacity-60">
-              Módulos
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--text-tertiary)] opacity-60">
+              Ritmo
             </p>
-            <h2 className="mt-2 text-2xl font-black tracking-tight text-[var(--text-primary)]">
-              Ligue ou desligue superfícies secundárias
+            <h2 className="mt-1 text-xl font-semibold tracking-tight text-[var(--text-primary)]">
+              Ajuste como o sistema conversa com você
             </h2>
           </div>
 
-          <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
-            {moduleCards.map(({key, title, desc}) => (
+          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
+            {gentleCards.map(({key, icon: CardIcon, title, desc, enabled, onToggle}) => (
               <div
                 key={key}
-                className="flex items-center justify-between gap-4 rounded-2xl border border-[var(--border-color)] bg-[var(--bg-primary)] px-5 py-4"
+                className="flex items-center justify-between gap-3 rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] px-4 py-3 shadow-[0_1px_2px_rgba(0,0,0,0.02)] transition-all hover:border-[var(--border-strong)]"
               >
-                <div>
-                  <p className="text-sm font-black text-[var(--text-primary)]">{title}</p>
-                  <p className="mt-0.5 text-xs text-[var(--text-secondary)] opacity-60">{desc}</p>
+                <div className="flex min-w-0 items-start gap-2.5">
+                  <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[var(--bg-hover)] text-[var(--text-primary)]">
+                    <CardIcon className="h-4 w-4 opacity-50" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[13px] font-semibold leading-snug text-[var(--text-primary)] truncate">{title}</p>
+                    <p className="mt-0.5 text-xs leading-relaxed text-[var(--text-secondary)] opacity-60 line-clamp-2">{desc}</p>
+                  </div>
                 </div>
 
-                <MobileToggleSwitch
-                  enabled={moduleFlags[key]}
-                  onToggle={() => toggleModuleFlag(key)}
-                  label={`módulo ${title}`}
-                />
+                <div className="shrink-0 scale-90">
+                  <MobileToggleSwitch
+                    enabled={enabled}
+                    onToggle={onToggle}
+                    label={title}
+                  />
+                </div>
               </div>
             ))}
           </div>
         </section>
 
         <section className="space-y-3">
-          {items.map(({to, icon: Icon, title, desc}) => (
-            <AppButton
-              key={to}
-              onClick={() => navigate(to)}
-              variant="ghost"
-              size="lg"
-              fullWidth
-              className="group h-auto justify-start gap-5 border border-[#E5E7EB] px-5 py-4 text-left normal-case tracking-normal"
-            >
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[var(--bg-hover)]">
-                <Icon className="h-5 w-5 text-[var(--text-primary)] opacity-50 transition-opacity group-hover:opacity-100" />
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--text-tertiary)] opacity-60">
+              Módulos
+            </p>
+            <h2 className="mt-1 text-xl font-semibold tracking-tight text-[var(--text-primary)]">
+              Ligue ou desligue superfícies secundárias
+            </h2>
+          </div>
+
+          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
+            {moduleCards.map(({key, icon: CardIcon, title, desc}) => (
+              <div
+                key={key}
+                className="flex items-center justify-between gap-3 rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] px-4 py-3 shadow-[0_1px_2px_rgba(0,0,0,0.02)] transition-all hover:border-[var(--border-strong)]"
+              >
+                <div className="flex min-w-0 items-start gap-2.5">
+                  <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[var(--bg-hover)] text-[var(--text-primary)]">
+                    <CardIcon className="h-4 w-4 opacity-50" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[13px] font-semibold leading-snug text-[var(--text-primary)] truncate">{title}</p>
+                    <p className="mt-0.5 text-xs leading-relaxed text-[var(--text-secondary)] opacity-60 line-clamp-2">{desc}</p>
+                  </div>
+                </div>
+
+                <div className="shrink-0 scale-90">
+                  <MobileToggleSwitch
+                    enabled={moduleFlags[key]}
+                    onToggle={() => toggleModuleFlag(key)}
+                    label={`módulo ${title}`}
+                  />
+                </div>
               </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-black text-[var(--text-primary)]">{title}</p>
-                <p className="mt-0.5 text-xs text-[var(--text-secondary)] opacity-50">{desc}</p>
-              </div>
-              <ChevronRight className="h-4 w-4 shrink-0 text-[var(--text-primary)] opacity-20 transition-opacity group-hover:opacity-50" />
-            </AppButton>
-          ))}
+            ))}
+          </div>
         </section>
-      </div>
-    </div>
+
+        <section className="space-y-3">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--text-tertiary)] opacity-60">
+              Diretrizes & Grade
+            </p>
+            <h2 className="mt-1 text-xl font-semibold tracking-tight text-[var(--text-primary)]">
+              Gerencie a base e os parâmetros da sua criação
+            </h2>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-4">
+            {items.map((item) => {
+              const {to, icon: Icon, title, desc, status} = item;
+              return (
+                <button
+                  key={to}
+                  onClick={() => navigate(to)}
+                  className="group flex flex-col justify-between rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] p-4 text-left transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md hover:border-[var(--border-strong)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-blue)] cursor-pointer min-h-[130px]"
+                >
+                  <div className="flex flex-col h-full w-full justify-between gap-3">
+                    <div>
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--bg-hover)] text-[var(--text-primary)] transition-all duration-300 group-hover:bg-[var(--text-primary)] group-hover:text-[var(--bg-primary)]">
+                          <Icon className="h-4.5 w-4.5 opacity-60 transition-opacity group-hover:opacity-100" />
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          {(() => {
+                            if (status === 'complete') return <Check className="h-3.5 w-3.5 text-[var(--accent-green)]" />;
+                            if (status === 'empty') return <span className="rounded px-1.5 py-0.5 text-xs font-semibold bg-[var(--accent-pink)]/10 text-[var(--accent-pink)]">Vazio</span>;
+                            if (status === 'partial') return <span className="rounded px-1.5 py-0.5 text-xs font-semibold bg-[var(--accent-orange)]/10 text-[var(--accent-orange)]">Parcial</span>;
+                            return null;
+                          })()}
+                          <ChevronRight className="h-3.5 w-3.5 text-[var(--text-primary)] opacity-20 transition-all duration-300 group-hover:translate-x-1 group-hover:opacity-60" />
+                        </div>
+                      </div>
+                      <h3 className="text-[13px] font-semibold tracking-tight leading-snug text-[var(--text-primary)] truncate">
+                        {title}
+                      </h3>
+                      <p className="mt-1 text-xs leading-relaxed text-[var(--text-secondary)] opacity-60 line-clamp-2">
+                        {desc}
+                      </p>
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+    </PageLayout>
   );
 }

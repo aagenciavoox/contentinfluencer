@@ -62,7 +62,7 @@ export function IdeaQuickCapture({
           disabled={!canSave}
           title="Salvar (Enter)"
           className={cn(
-            'mt-0.5 flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] transition-all',
+            'mt-0.5 flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.14em] transition-all',
             canSave
               ? 'bg-[var(--text-primary)] text-[var(--bg-primary)] hover:opacity-90'
               : 'cursor-not-allowed bg-[var(--bg-hover)] text-[var(--text-tertiary)] opacity-50'
@@ -78,7 +78,7 @@ export function IdeaQuickCapture({
           type="button"
           onClick={() => setMetaOpen((open) => !open)}
           className={cn(
-            'flex items-center gap-1.5 rounded-md px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] transition-colors',
+            'flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-semibold uppercase tracking-[0.12em] transition-colors',
             metaOpen || hasMeta
               ? 'text-[var(--accent-blue)]'
               : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'
@@ -87,13 +87,13 @@ export function IdeaQuickCapture({
           <ChevronDown className={cn('h-3.5 w-3.5 transition-transform', metaOpen && 'rotate-180')} />
           Classificar
           {hasMeta && !metaOpen ? (
-            <span className="ml-1 rounded-full bg-[var(--accent-blue)]/15 px-1.5 py-0.5 text-[9px] text-[var(--accent-blue)]">
+            <span className="ml-1 rounded-full bg-[var(--accent-blue)]/15 px-1.5 py-0.5 text-xs text-[var(--accent-blue)]">
               ·
             </span>
           ) : null}
         </button>
-        <span className="text-[10px] text-[var(--text-tertiary)]">
-          <kbd className="rounded border border-[var(--border-color)] bg-[var(--bg-hover)] px-1 py-0.5 font-mono text-[9px]">↵</kbd>
+        <span className="text-xs text-[var(--text-tertiary)]">
+          <kbd className="rounded border border-[var(--border-color)] bg-[var(--bg-hover)] px-1 py-0.5 font-mono text-xs">↵</kbd>
           {' '}salvar
         </span>
       </div>

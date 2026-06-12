@@ -1,4 +1,7 @@
 import type { ReactNode } from 'react';
+import { ListItem } from '../../components/ui/ListItem';
+import { Text } from '../../components/ui/Text';
+import { Surface } from '../../components/ui/Surface';
 import { cn } from '../../lib/utils';
 
 interface MobileListCardProps {
@@ -23,38 +26,37 @@ export function MobileListCard({
   className,
 }: MobileListCardProps) {
   const content = (
-    <div className={cn('rounded-[1.5rem] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4 shadow-sm', className)}>
+  <div className={cn('space-y-2', className)}>
       <div className="flex items-start gap-3">
         <div className="min-w-0 flex-1 space-y-2">
-          {eyebrow ? <p className="t-label text-[var(--text-tertiary)]">{eyebrow}</p> : null}
-          <p className="t-section-title text-[var(--text-primary)]">{title}</p>
-          {description ? <p className="t-body text-[var(--text-secondary)]">{description}</p> : null}
+          {eyebrow ? <Text variant="label">{eyebrow}</Text> : null}
+          <Text variant="sectionTitle" as="p">
+            {title}
+          </Text>
+          {description ? (
+            <Text variant="body" className="text-[var(--text-secondary)]">
+              {description}
+            </Text>
+          ) : null}
           {meta ? <div className="flex flex-wrap items-center gap-2">{meta}</div> : null}
         </div>
-
         {trailing ? <div className="shrink-0">{trailing}</div> : null}
       </div>
-
-      {status ? <div className="mt-3">{status}</div> : null}
+      {status ? <div>{status}</div> : null}
     </div>
   );
 
-  if (!onClick) return content;
+  if (onClick) {
+    return (
+      <Surface variant="interactive" padding="md" as="div" onClick={onClick} className="w-full cursor-pointer text-left">
+        {content}
+      </Surface>
+    );
+  }
 
   return (
-    <div
-      role="button"
-      tabIndex={0}
-      onClick={onClick}
-      onKeyDown={(event) => {
-        if (event.key === 'Enter' || event.key === ' ') {
-          event.preventDefault();
-          onClick();
-        }
-      }}
-      className="w-full text-left active:scale-[0.99]"
-    >
+    <Surface variant="outlined" padding="md">
       {content}
-    </div>
+    </Surface>
   );
 }

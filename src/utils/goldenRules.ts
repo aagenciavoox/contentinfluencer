@@ -3,7 +3,7 @@ import {addDays, isWithinInterval, startOfDay} from 'date-fns';
 
 export interface Violation {
   ruleId: string;
-  type: 'error' | 'warning' | 'info';
+  type: 'warning' | 'info';
   message: string;
   affectedContentIds: string[];
 }
@@ -20,7 +20,7 @@ function countHashtags(text: string): number {
 }
 
 function getViolationType(rule: GoldenRule): Violation['type'] {
-  return rule.condicao === 'impedir' ? 'error' : 'warning';
+  return rule.condicao === 'impedir' ? 'warning' : 'info';
 }
 
 function compareRule(
@@ -28,10 +28,10 @@ function compareRule(
   rule: GoldenRule
 ): {matched: boolean; detail: string} {
   if (rule.minimo != null && current < rule.minimo) {
-    return {matched: true, detail: `${current} abaixo do mínimo ${rule.minimo}`};
+    return {matched: true, detail: `${current} abaixo do combinado ${rule.minimo}`};
   }
   if (rule.maximo != null && current > rule.maximo) {
-    return {matched: true, detail: `${current} acima do máximo ${rule.maximo}`};
+    return {matched: true, detail: `${current} acima do combinado ${rule.maximo}`};
   }
   return {matched: false, detail: ''};
 }

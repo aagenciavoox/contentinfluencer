@@ -36,10 +36,10 @@ export function CalendarLayerToggle({ activeLayers, onChange }: LayerToggleProps
   ];
 
   return (
-    <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl md:rounded-3xl p-3 md:p-6 shadow-xl shadow-black/5">
+    <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] md:rounded-[var(--radius-overlay)] p-3 md:p-6 shadow-xl shadow-black/5">
       <div className="flex items-center gap-3 mb-3 md:mb-8 text-[var(--text-tertiary)]">
         <Layers className="w-3.5 h-3.5 md:w-4 md:h-4" />
-        <span className="text-[8px] md:text-[10px] font-black uppercase tracking-[0.2em]">Camadas</span>
+        <span className="text-[8px] md:text-xs font-semibold uppercase tracking-[0.2em]">Camadas</span>
       </div>
       
       <div className={cn(
@@ -70,7 +70,7 @@ export function CalendarLayerToggle({ activeLayers, onChange }: LayerToggleProps
                )}>
                  {layer.icon}
                </div>
-               <span className="text-[9px] md:text-xs font-bold text-[var(--text-primary)] truncate text-left leading-tight">
+               <span className="text-xs md:text-xs font-bold text-[var(--text-primary)] truncate text-left leading-tight">
                  {layer.label}
                </span>
             </div>
@@ -88,7 +88,7 @@ export function CalendarLayerToggle({ activeLayers, onChange }: LayerToggleProps
       </div>
       
       <div className="hidden md:block mt-8 pt-8 border-t border-[var(--border-color)] text-center">
-         <p className="text-[9px] font-black uppercase tracking-widest text-[var(--text-tertiary)]">
+         <p className="text-xs font-semibold  text-[var(--text-tertiary)]">
            Pressione 'C' para alternar camadas
          </p>
       </div>

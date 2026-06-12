@@ -41,6 +41,8 @@ PLANEJAMENTO Calendário + Projetos
 CONTROLE     Análise
 ```
 
+**Experiencia gentil:** o sistema ajuda a lembrar, organizar e escolher sem cobrar. Sugestoes, contadores, modo pausa e destaques de prazo devem ser configuraveis. Prazos reais ficam separados de datas desejadas. Analise vira aprendizado, nao julgamento. Guia de voz: `PRODUCT_VOICE.md`.
+
 ---
 
 ## 3. SCHEMA
@@ -217,19 +219,19 @@ user_id UUID FK | key TEXT | value TEXT
 
 ### /conteudos
 - Busca em tempo real + filtros (status, pilar, série, plataforma, projeto)
-- Toggle grid/lista; ordenação automática (status + data)
-- Card exibe: título, status(cor+ícone), pilar(cor), série, plataformas, datas, alerta regra, próxima ação, energia
+- Toggle grid/lista; ordenação configurável (status + data)
+- Card exibe: título, status(cor+ícone), pilar(cor), série, plataformas, datas, ponto de regra, caminho possível, energia
 - Menu rápido por item: mudar status · duplicar · adicionar a projeto · adicionar a bloco de gravação
 - **Mobile:** 2 colunas estilo Keep | **Desktop:** lista/grid + sidebar filtros
 
 ### /conteudos/:id
 5 abas: **Roteiro** (editor rich text + scriptNotes) · **Publicação** (legenda+hashtags+datas por plataforma) · **Planejamento** (status, pilar, série, formato, energia, slot, datas) · **Contexto** (biblioteca, projeto, tags) · **Análise** (métricas)
-Automático: template da série aplicado ao abrir roteiro · hashtags pilar+série pré-preenchidas · alertas regras em tempo real (aviso, não bloqueio)
+Assistido: template da série disponível ao abrir roteiro · hashtags pilar+série como sugestão editável · pontos de regra em tempo real (aviso, não bloqueio)
 
 ### /calendario
 - Visão mensal/semanal · sidebar do dia selecionado
 - Camadas ativas: conteúdos · gravações · projetos/parcerias · entregas
-- Arrastar conteúdo muda data · alertas de conflito visíveis
+- Arrastar conteúdo muda data · pontos de conflito visíveis
 - **Mobile:** semanal ou lista por dia | **Desktop:** mensal completo
 
 ### /ideias
@@ -260,9 +262,9 @@ Status do projeto calculado automaticamente pelas etapas.
 
 ### /analise
 3 abas:
-1. **Regras de Ouro** — violações vs. state.goldenRules · score geral (% cumpridas)
-2. **Mix** — distribuição postados por pilar (30/90 dias) · sugestão "você precisa de [Pilar X]"
-3. **Performance** — agregar state.contentMetrics · top 5 por views/saves/comentários · filtro por plataforma
+1. **Leitura editorial** — pontos fora dos combinados em state.goldenRules · indicador de harmonia editorial
+2. **Mix** — distribuição postados por pilar (30/90 dias) · sugestão "[Pilar X] ficou mais quieto neste periodo"
+3. **Resposta do publico** — agregar state.contentMetrics · top 5 por views/saves/comentários · filtro por plataforma
 
 ### /configuracoes
 **Estratégia:** Pilares · Regras de Ouro · DNA da Voz
@@ -274,11 +276,11 @@ Status do projeto calculado automaticamente pelas etapas.
 ## 5. AUTOMAÇÕES (sem IA)
 
 1. **"O que gravar hoje"** — input energia → filtra "Pronto p/ Gravar" × energia_necessaria × regras × datas → lista sugerida
-2. **Alerta de inconsistência** — ao salvar conteúdo → cruza regras de ouro → ⚠️ aviso / ❌ violação (nunca bloqueia)
-3. **Sugestão de mix** — ao abrir Análise/Calendário → distribução últimos N postados → "você precisa de [Pilar X]"
+2. **Ponto para revisar** — ao salvar conteúdo → cruza regras de ouro → aviso gentil (nunca bloqueia)
+3. **Sugestão de mix** — ao abrir Análise/Calendário → distribuicao últimos N postados → "[Pilar X] ficou mais quieto neste periodo"
 4. **Pré-preenchimento hashtags** — ao selecionar pilar/série → hashtags pilar + série = campo pré-preenchido editável
-5. **Score de análise** — % equilíbrio pilares · frequência vs. meta · nº violações → score visual
-6. **Próxima ação** — por conteúdo na lista: energia baixa → leves · prontos p/ gravar → iniciar gravação · editados com data chegando → postar
+5. **Leitura de análise** — % equilíbrio pilares · frequência vs. intenção · pontos fora dos combinados → indicador visual
+6. **Caminhos possíveis** — por conteúdo na lista: energia baixa → leves · prontos p/ gravar → separar para gravação · editados com data combinada → lembrar postagem
 
 ---
 
@@ -332,7 +334,7 @@ Redirects legados ativos. 3 rotas são placeholders: `/projetos`, `/gravacao`, `
 - `Settings.tsx` — corrigir links `/settings/*` → `/configuracoes/*`
 
 **Limpeza:**
-- Deletar `schema.new.sql`
+- Remover `schema.new.sql`
 - `CommandPalette.tsx` — adicionar Projetos à busca
 - `Onboarding.tsx` — verificar se é chamado; se não, remover
 
@@ -347,7 +349,7 @@ Redirects legados ativos. 3 rotas são placeholders: `/projetos`, `/gravacao`, `
 
 ```
 Fase A (~1h)     Limpeza rápida
-  1. Deletar schema.new.sql
+  1. Remover schema.new.sql
   2. Corrigir links Settings.tsx (/settings/* → /configuracoes/*)
   3. Atualizar Sidebar.tsx — novos links e sublinks
 
@@ -366,7 +368,7 @@ Fase D (~1 dia)  /gravacao
   Dispatches: ADD_RECORDING_BLOCK · UPDATE_RECORDING_BLOCK · DELETE_RECORDING_BLOCK
 
 Fase E (~1 dia)  /analise
-  Analise.tsx: 3 abas — Regras de Ouro · Mix · Performance
+  Analise.tsx: 3 abas — Leitura editorial · Mix · Resposta do publico
   Dados: state.goldenRules · state.contents · state.contentMetrics
 
 Fase F (~0.5 dia cada)  Config faltando

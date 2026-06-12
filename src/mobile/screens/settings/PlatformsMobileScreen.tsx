@@ -35,7 +35,7 @@ export function PlatformsMobileScreen({
     <div className="space-y-5">
       <section className="rounded-[1.75rem] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4 shadow-sm">
         <div className="mb-4 flex items-center gap-3">
-          <div className="rounded-2xl bg-[var(--accent-green)]/12 p-3 text-[var(--accent-green)]">
+          <div className="rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] bg-[var(--accent-green)]/12 p-3 text-[var(--accent-green)]">
             <MonitorSpeaker className="h-5 w-5" />
           </div>
           <div>
@@ -121,7 +121,7 @@ export function PlatformsMobileScreen({
             <button
               type="button"
               onClick={() => setShowForm(false)}
-              className="flex min-h-11 flex-1 items-center justify-center rounded-[1.25rem] border border-[var(--border-color)] text-xs font-black uppercase tracking-widest text-[var(--text-secondary)]"
+              className="flex min-h-11 flex-1 items-center justify-center rounded-[1.25rem] border border-[var(--border-color)] text-xs font-semibold  text-[var(--text-secondary)]"
             >
               Cancelar
             </button>
