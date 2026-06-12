@@ -113,6 +113,18 @@ export function ProjectDetailPage() {
   const [agendaTipo, setAgendaTipo] = useState<AgendaItem['tipo']>(TIPO_REUNIAO);
   const [showAgendaForm, setShowAgendaForm] = useState(false);
 
+  const sortedEtapas = useMemo(
+    () => [...(projeto?.etapas ?? [])].sort((a, b) => a.ordem - b.ordem),
+    [projeto?.etapas]
+  );
+
+  const proximaEntrega = useMemo(() => {
+    const candidates = [...sortedEtapas]
+      .filter(etapa => etapa.dataPrazo && etapa.status !== STATUS_CONCLUIDA)
+      .sort((a, b) => (a.dataPrazo || '').localeCompare(b.dataPrazo || ''));
+    return candidates[0] ?? null;
+  }, [sortedEtapas]);
+
   if (!projeto) {
     return (
       <div className="min-h-screen bg-[var(--bg-secondary)] flex items-center justify-center">
@@ -126,20 +138,12 @@ export function ProjectDetailPage() {
     );
   }
 
-  const sortedEtapas = [...projeto.etapas].sort((a, b) => a.ordem - b.ordem);
   const agendaItems = [...state.agendaItems]
     .filter(item => item.projetoId === projeto.id)
     .sort((a, b) => `${a.date}${a.time || ''}`.localeCompare(`${b.date}${b.time || ''}`));
   const projetoContents = state.contents.filter(content => projeto.contentIds.includes(content.id));
   const disponiveisParaVincular = state.contents.filter(content => !projeto.contentIds.includes(content.id));
   const etapasConcluidas = sortedEtapas.filter(etapa => etapa.status === STATUS_CONCLUIDA).length;
-
-  const proximaEntrega = useMemo(() => {
-    const candidates = [...sortedEtapas]
-      .filter(etapa => etapa.dataPrazo && etapa.status !== STATUS_CONCLUIDA)
-      .sort((a, b) => (a.dataPrazo || '').localeCompare(b.dataPrazo || ''));
-    return candidates[0] ?? null;
-  }, [sortedEtapas]);
 
   const proximoEvento = agendaItems[0] ?? null;
 
