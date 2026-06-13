@@ -356,6 +356,18 @@ export interface ContentMetric {
   createdAt: string;
 }
 
+export interface PostingTimeEntry {
+  id: string;
+  userId: string;
+  /** null = horário global (fallback para todas as plataformas) */
+  platformId: string | null;
+  /** 0 = domingo … 6 = sábado */
+  weekday: 0 | 1 | 2 | 3 | 4 | 5 | 6;
+  /** Formato "HH:MM" */
+  time: string;
+  createdAt: string;
+}
+
 export interface AppData {
   platforms: Platform[];
   preferences: Record<string, any>;
@@ -374,6 +386,7 @@ export interface AppData {
   agendaItems: AgendaItem[];
   goldenRules: GoldenRule[];
   contentMetrics: ContentMetric[];
+  postingTimeEntries: PostingTimeEntry[];
 
   // Aliases for legacy support (will be mapped in AppContext)
   books: BibliotecaItem[];
@@ -394,7 +407,8 @@ export type AppDataDomain =
   | 'analytics'
   | 'rules'
   | 'voice'
-  | 'production';
+  | 'production'
+  | 'schedule';
 
 export const BOOTSTRAP_DATA_DOMAINS: AppDataDomain[] = [
   'bootstrap',
@@ -403,16 +417,8 @@ export const BOOTSTRAP_DATA_DOMAINS: AppDataDomain[] = [
   'ideas',
   'projects',
   'agenda',
+  'schedule',
 ];
-
-export interface EnergyLog {
-  id: string;
-  userId: string;
-  date: string;
-  level: number;
-  notes?: string;
-  createdAt?: string;
-}
 
 // ============================================================================
 // HELPERS
@@ -423,7 +429,7 @@ function empty(): AppData {
     platforms: [], preferences: {}, dnaVoz: null, pilares: [], series: [],
     cenarios: [], looks: [], bibliotecaGeneros: [], bibliotecaItems: [],
     contents: [], ideas: [], projetos: [], recordingBlocks: [], templates: [],
-    agendaItems: [], goldenRules: [], contentMetrics: [],
+    agendaItems: [], goldenRules: [], contentMetrics: [], postingTimeEntries: [],
     books: [], partnerships: [], results: [], agenda: [],
   };
 }
@@ -514,6 +520,7 @@ const mp = {
   anotacao: (r: Row): Anotacao => ({
     id: r.id, userId: r.user_id, itemId: r.item_id, texto: r.texto, tipo: r.tipo,
     capituloRef: r.capitulo_ref, contentPotential: r.content_potential ?? false,
+    destilada: r.destilada ?? false,
     createdAt: r.created_at, deletedAt: r.deleted_at,
   }),
   bibliotecaItem: (r: Row): BibliotecaItem => ({
@@ -595,6 +602,10 @@ const mp = {
     retentionRate: r.retention_rate, completionRate: r.completion_rate,
     qualitativeNotes: r.qualitative_notes, registeredAt: r.registered_at,
     createdAt: r.created_at,
+  }),
+  postingTimeEntry: (r: Row): PostingTimeEntry => ({
+    id: r.id, userId: r.user_id, platformId: r.platform_id ?? null,
+    weekday: r.weekday as PostingTimeEntry['weekday'], time: r.time, createdAt: r.created_at,
   }),
 };
 
@@ -773,6 +784,18 @@ export async function fetchDataDomains(domains: readonly AppDataDomain[]): Promi
       platformId: normalizePlatformRef(row.platform_id, platformNameById),
     }));
     payload.results = payload.contentMetrics;
+  }
+
+  if (requested.has('schedule')) {
+    payload.postingTimeEntries = (assertQuerySuccess(
+      'posting_times fetch',
+      await supabase
+        .from('posting_times')
+        .select('*')
+        .eq('user_id', uid)
+        .order('weekday')
+        .order('time')
+    ) || []).map(mp.postingTimeEntry);
   }
 
   return payload;
@@ -1034,6 +1057,7 @@ export async function saveAnotacao(anotacao: Omit<Anotacao, 'createdAt' | 'delet
     id: anotacao.id, user_id: anotacao.userId, item_id: anotacao.itemId,
     texto: anotacao.texto, tipo: anotacao.tipo, capitulo_ref: anotacao.capituloRef,
     content_potential: anotacao.contentPotential,
+    destilada: anotacao.destilada ?? false,
   });
   if (error) throw new Error(`anotacoes: ${error.message}`);
 }
@@ -1311,4 +1335,74 @@ export async function deleteContentMetric(id: string): Promise<void> {
   if (!supabase) return;
   const { error } = await supabase.from('content_metrics').delete().eq('id', id);
   if (error) throw new Error(`delete content_metric: ${error.message}`);
+}
+
+// ============================================================================
+// HORARIOS DE POSTAGEM
+// ============================================================================
+
+export async function savePostingTimeEntry(
+  entry: Omit<PostingTimeEntry, 'id' | 'createdAt'>
+): Promise<PostingTimeEntry> {
+  if (!supabase) throw new Error('posting_times: supabase not configured');
+  const uid = await currentUserId();
+  if (!uid) throw new Error('posting_times: unauthenticated');
+  const { data, error } = await supabase
+    .from('posting_times')
+    .insert({
+      user_id: uid,
+      platform_id: entry.platformId ?? null,
+      weekday: entry.weekday,
+      time: entry.time,
+    })
+    .select()
+    .single();
+  if (error) throw new Error(`posting_times: ${error.message}`);
+  return mp.postingTimeEntry(data);
+}
+
+export async function deletePostingTimeEntry(id: string): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase.from('posting_times').delete().eq('id', id);
+  if (error) throw new Error(`delete posting_time: ${error.message}`);
+}
+
+export async function replacePostingTimesForPlatform(
+  platformId: string | null,
+  weekday: PostingTimeEntry['weekday'],
+  times: string[],
+): Promise<void> {
+  if (!supabase) return;
+  const uid = await currentUserId();
+  if (!uid) return;
+
+  if (platformId === null) {
+    await supabase
+      .from('posting_times')
+      .delete()
+      .eq('user_id', uid)
+      .eq('weekday', weekday)
+      .is('platform_id', null);
+  } else {
+    await supabase
+      .from('posting_times')
+      .delete()
+      .eq('user_id', uid)
+      .eq('weekday', weekday)
+      .eq('platform_id', platformId);
+  }
+
+  if (times.length === 0) return;
+
+  const { error } = await supabase.from('posting_times').insert(
+    times.map(function(time) {
+      return {
+        user_id: uid,
+        platform_id: platformId ?? null,
+        weekday: weekday,
+        time: time,
+      };
+    })
+  );
+  if (error) throw new Error(`posting_times replace: ${error.message}`);
 }

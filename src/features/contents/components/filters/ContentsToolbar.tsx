@@ -59,161 +59,173 @@ export function ContentsToolbar({
   const isPipeline = listView === 'pipeline';
   const isPublicados = listView === 'publicados';
 
+  // Oculta status com zero itens (exceto o selecionado e "Todos")
+  const visibleStatusOptions = statusOptions.filter(option => {
+    if (option === 'Todos' || option === filterStatus) return true;
+    const count = statusCounts[option];
+    return typeof count === 'number' ? count > 0 : true;
+  });
+
   return (
-    <header className="flex flex-col gap-3 md:gap-4">
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex flex-col gap-3 md:flex-row md:items-center md:gap-6">
-          <div className="flex rounded-xl bg-[var(--bg-hover)] p-1">
-            {([
-              {id: 'pipeline', label: 'Pipeline'},
-              {id: 'publicados', label: 'Publicados'},
-            ] as const).map(tab => (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => onListViewChange(tab.id)}
-                className={cn(
-                  'rounded-lg px-4 py-2 text-xs font-semibold  transition-all',
-                  listView === tab.id
-                    ? 'bg-[var(--bg-primary)] text-[var(--text-primary)] shadow-sm'
-                    : 'text-[var(--text-secondary)] hover:bg-[var(--bg-primary)]/60'
-                )}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-
-          {!isMobile && !isPublicados && (
-            <div className="flex items-center gap-2">
-              <ViewModeToggle
-                value={viewMode}
-                onChange={onViewModeChange}
-                options={[
-                  {value: 'table', label: 'Tabela', icon: TableIcon},
-                  {value: 'grid', label: 'Grid', icon: Grid2X2},
-                  {value: 'kanban', label: 'Kanban', icon: Columns3},
-                ]}
-              />
-
-              {viewMode === 'grid' && (
-                <button
-                  type="button"
-                  onClick={onCompactToggle}
-                  className={cn(
-                    'inline-flex h-10 items-center justify-center rounded-xl border px-4 text-xs font-semibold  transition-all cursor-pointer',
-                    isCompact
-                      ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-[var(--bg-primary)]'
-                      : 'border-[var(--border-color)] bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]'
-                  )}
-                >
-                  {isCompact ? 'Modo Expandido' : 'Modo Compacto'}
-                </button>
+    <header className="flex flex-col gap-3">
+      {/* Linha 1: tabs + controles de view + acoes */}
+      <div className="flex items-center gap-3">
+        {/* Tabs Pipeline / Publicados */}
+        <div className="flex rounded-xl bg-[var(--bg-hover)] p-1">
+          {([
+            {id: 'pipeline', label: 'Pipeline'},
+            {id: 'publicados', label: 'Publicados'},
+          ] as const).map(tab => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => onListViewChange(tab.id)}
+              className={cn(
+                'rounded-lg px-4 py-1.5 text-xs font-semibold transition-all',
+                listView === tab.id
+                  ? 'bg-[var(--bg-primary)] text-[var(--text-primary)] shadow-sm'
+                  : 'text-[var(--text-secondary)] hover:bg-[var(--bg-primary)]/60'
               )}
-            </div>
-          )}
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
 
+        {/* Controles de visualizacao (apenas desktop, apenas pipeline) */}
+        {!isMobile && !isPublicados && (
+          <div className="flex items-center gap-2">
+            <ViewModeToggle
+              value={viewMode}
+              onChange={onViewModeChange}
+              options={[
+                {value: 'table', label: 'Tabela', icon: TableIcon},
+                {value: 'grid', label: 'Grid', icon: Grid2X2},
+                {value: 'kanban', label: 'Kanban', icon: Columns3},
+              ]}
+            />
+
+            {viewMode === 'grid' && (
+              <button
+                type="button"
+                onClick={onCompactToggle}
+                className={cn(
+                  'inline-flex h-9 items-center justify-center rounded-xl border px-3 text-xs font-medium transition-all cursor-pointer',
+                  isCompact
+                    ? 'border-[var(--border-strong)] bg-[var(--bg-hover)] text-[var(--text-primary)]'
+                    : 'border-[var(--border-color)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]'
+                )}
+              >
+                {isCompact ? 'Expandido' : 'Compacto'}
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Acoes — empurradas para a direita */}
         {isPipeline && (
-          <div className="grid grid-cols-2 gap-2 md:flex md:items-center md:gap-3">
-            <AppButton
-              variant="secondary"
-              leftIcon={<Upload className="h-4 w-4" />}
+          <div className="ml-auto flex items-center gap-2">
+            <button
+              type="button"
               onClick={onImportClick}
-              className="justify-center"
+              className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-[var(--border-color)] px-3 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
+              title="Importar CSV"
             >
-              Importar CSV
-            </AppButton>
+              <Upload className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Importar CSV</span>
+            </button>
             <AppButton variant="primary" leftIcon={<Plus className="h-4 w-4" />} onClick={onCreateClick}>
-              Novo conteudo
+              Novo roteiro
             </AppButton>
           </div>
         )}
       </div>
 
-      {isPipeline && (
-        <div className="flex flex-wrap items-center gap-2 pt-1">
-          {statusOptions.map(option => {
-            const isSelected = filterStatus === option;
-            const count = statusCounts[option];
-            return (
-              <button
-                key={option}
-                type="button"
-                onClick={() => onFilterStatusChange(option)}
-                className={cn(
-                  'inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all cursor-pointer border',
-                  isSelected
-                    ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-[var(--bg-primary)]'
-                    : 'border-[var(--border-color)] bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]'
-                )}
-              >
-                <span>{option}</span>
-                {typeof count === 'number' ? (
-                  <span
-                    className={cn(
-                      'rounded-full px-1.5 py-0.5 text-xs font-medium tabular-nums',
-                      isSelected ? 'bg-white/20 text-inherit' : 'bg-[var(--bg-hover)] text-[var(--text-tertiary)]'
-                    )}
-                  >
-                    {count}
-                  </span>
-                ) : null}
-              </button>
-            );
-          })}
-        </div>
-      )}
+      {/* Linha 2: status pills + busca + filtros */}
+      <div className="flex flex-wrap items-center gap-2">
+        {isPipeline && visibleStatusOptions.map(option => {
+          const isSelected = filterStatus === option;
+          const count = statusCounts[option];
+          return (
+            <button
+              key={option}
+              type="button"
+              onClick={() => onFilterStatusChange(option)}
+              className={cn(
+                'inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all cursor-pointer border',
+                isSelected
+                  ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-[var(--bg-primary)]'
+                  : 'border-[var(--border-color)] bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]'
+              )}
+            >
+              <span>{option}</span>
+              {typeof count === 'number' && (
+                <span
+                  className={cn(
+                    'tabular-nums',
+                    isSelected ? 'opacity-70' : 'text-[var(--text-tertiary)]'
+                  )}
+                >
+                  {count}
+                </span>
+              )}
+            </button>
+          );
+        })}
 
-      <FilterBar
-        searchValue={searchTerm}
-        onSearchChange={onSearchChange}
-        searchPlaceholder={
-          isPublicados
-            ? 'Buscar titulo ou data de publicacao'
-            : 'Buscar titulo, roteiro, serie ou pilar'
-        }
-        filters={
-          isPipeline
-            ? [
-                {
-                  id: 'series',
-                  label: 'Serie',
-                  value: filterSeries,
-                  onChange: onFilterSeriesChange,
-                  options: [
-                    {value: 'Todas', label: 'Todas'},
-                    ...seriesOptions.map(series => ({value: series.id, label: series.name})),
-                  ],
-                },
-                {
-                  id: 'pillar',
-                  label: 'Pilar',
-                  value: filterPillar,
-                  onChange: onFilterPillarChange,
-                  options: [
-                    {value: 'Todos', label: 'Todos'},
-                    ...pillarOptions.map(pillar => ({value: pillar.id, label: pillar.nome})),
-                  ],
-                },
-              ]
-            : []
-        }
-        sortValue={sortValue}
-        sortOptions={
-          isPublicados
-            ? [
-                {value: 'publishDate:desc', label: 'Data de postagem'},
-                {value: 'updatedAt:desc', label: 'Recentes'},
-              ]
-            : [
-                {value: 'updatedAt:desc', label: 'Recentes'},
-                {value: 'createdAt:desc', label: 'Criação'},
-                {value: 'title:asc', label: 'Título A-Z'},
-              ]
-        }
-        onSortChange={onSortChange}
-      />
+        {/* Busca + filtros + sort — ocupa o espaco restante */}
+        <div className={cn('min-w-0', isPipeline ? 'flex-1' : 'w-full')}>
+          <FilterBar
+            searchValue={searchTerm}
+            onSearchChange={onSearchChange}
+            searchPlaceholder={
+              isPublicados
+                ? 'Buscar titulo ou data de publicacao'
+                : 'Buscar titulo, serie ou pilar'
+            }
+            filters={
+              isPipeline
+                ? [
+                    {
+                      id: 'series',
+                      label: 'Serie',
+                      value: filterSeries,
+                      onChange: onFilterSeriesChange,
+                      options: [
+                        {value: 'Todas', label: 'Todas'},
+                        ...seriesOptions.map(s => ({value: s.id, label: s.name})),
+                      ],
+                    },
+                    {
+                      id: 'pillar',
+                      label: 'Pilar',
+                      value: filterPillar,
+                      onChange: onFilterPillarChange,
+                      options: [
+                        {value: 'Todos', label: 'Todos'},
+                        ...pillarOptions.map(p => ({value: p.id, label: p.nome})),
+                      ],
+                    },
+                  ]
+                : []
+            }
+            sortValue={sortValue}
+            sortOptions={
+              isPublicados
+                ? [
+                    {value: 'publishDate:desc', label: 'Data de postagem'},
+                    {value: 'updatedAt:desc', label: 'Recentes'},
+                  ]
+                : [
+                    {value: 'updatedAt:desc', label: 'Recentes'},
+                    {value: 'createdAt:desc', label: 'Criacao'},
+                    {value: 'title:asc', label: 'Titulo A-Z'},
+                  ]
+            }
+            onSortChange={onSortChange}
+          />
+        </div>
+      </div>
     </header>
   );
 }

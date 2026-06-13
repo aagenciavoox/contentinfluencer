@@ -9,6 +9,7 @@ import {
   ChevronRight,
   FileText,
   Fingerprint,
+  FolderKanban,
   LayoutDashboard,
   Layers,
   Lightbulb,
@@ -121,7 +122,6 @@ export function Sidebar({isOpen, onClose}: SidebarProps) {
   };
 
   const generalItems: NavItem[] = [
-    {to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard},
     {
       to: '/conteudos',
       label: 'Pipeline',
@@ -129,8 +129,7 @@ export function Sidebar({isOpen, onClose}: SidebarProps) {
       badge: getEditorialContents(state.contents).length || undefined,
     },
     {to: '/ideias', label: 'Ideias', icon: Lightbulb},
-    {to: '/calendario', label: 'Calendário', icon: Calendar, hidden: !moduleFlags.calendar},
-    {to: '/programacao', label: 'Programação', icon: CalendarClock, hidden: !moduleFlags.calendar},
+    {to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard},
   ];
 
   const studioItems: NavItem[] = [
@@ -141,6 +140,9 @@ export function Sidebar({isOpen, onClose}: SidebarProps) {
   ];
 
   const workspaceItems: NavItem[] = [
+    {to: '/calendario', label: 'Calendário', icon: Calendar, hidden: !moduleFlags.calendar},
+    {to: '/programacao', label: 'Grade', icon: CalendarClock, hidden: !moduleFlags.calendar},
+    {to: '/projetos', label: 'Projetos', icon: FolderKanban, hidden: !moduleFlags.projects},
     {
       to: '/biblioteca',
       label: 'Biblioteca',
@@ -305,17 +307,16 @@ export function Sidebar({isOpen, onClose}: SidebarProps) {
 
       <nav className="flex flex-1 flex-col" role="navigation" aria-label="Principal">
         <div className="custom-scrollbar flex-1 overflow-y-auto">
-          <NavSectionLabel collapsed={isCollapsed}>Geral</NavSectionLabel>
           <div className="space-y-0.5">
             {generalItems.filter(item => !item.hidden).map(renderNavItem)}
           </div>
 
-          <NavSectionLabel collapsed={isCollapsed}>Estúdio</NavSectionLabel>
+          <NavSectionLabel collapsed={isCollapsed}>Editorial</NavSectionLabel>
           <div className="space-y-0.5">
             {studioItems.map(renderNavItem)}
           </div>
 
-          <NavSectionLabel collapsed={isCollapsed}>Workspace</NavSectionLabel>
+          <NavSectionLabel collapsed={isCollapsed}>Ferramentas</NavSectionLabel>
           <div className="space-y-0.5">
             {workspaceItems.filter(item => !item.hidden).map(renderNavItem)}
           </div>

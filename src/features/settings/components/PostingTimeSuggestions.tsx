@@ -1,29 +1,33 @@
 import {getDay, parseISO} from 'date-fns';
 import {Clock} from 'lucide-react';
 import {cn} from '../../../lib/utils';
-import {getTimesForDay, PostingTimesSettings, Weekday} from '../lib/postingTimes';
+import {
+  getTimesForDay,
+  getPostingTimesForPlatform,
+  PostingTimesSettings,
+  Weekday,
+} from '../lib/postingTimes';
+import type {PostingTimeEntry} from '../../../lib/database';
 
 interface PostingTimeSuggestionsProps {
-  /** Data no formato "yyyy-MM-dd" usada para derivar o dia da semana */
   date: string;
-  /** Horário atualmente selecionado */
   selectedTime: string;
-  /** Configuração vinda de getPostingTimes(state.preferences) */
-  postingTimes: PostingTimesSettings;
   onSelect: (time: string) => void;
   className?: string;
+  postingTimeEntries?: PostingTimeEntry[];
+  platformId?: string | null;
+  /** @deprecated Use postingTimeEntries + platformId */
+  postingTimes?: PostingTimesSettings;
 }
 
-/**
- * Mostra chips clicáveis com os horários recomendados para o dia da semana
- * da `date` informada. Não renderiza nada se não há horários configurados.
- */
 export function PostingTimeSuggestions({
   date,
   selectedTime,
-  postingTimes,
   onSelect,
   className,
+  postingTimeEntries,
+  platformId = null,
+  postingTimes,
 }: PostingTimeSuggestionsProps) {
   if (!date) return null;
 
@@ -34,7 +38,16 @@ export function PostingTimeSuggestions({
     return null;
   }
 
-  const times = getTimesForDay(postingTimes, weekday);
+  let times: string[];
+  if (postingTimeEntries) {
+    const settings = getPostingTimesForPlatform(postingTimeEntries, platformId ?? null);
+    times = getTimesForDay(settings, weekday);
+  } else if (postingTimes) {
+    times = getTimesForDay(postingTimes, weekday);
+  } else {
+    return null;
+  }
+
   if (times.length === 0) return null;
 
   return (

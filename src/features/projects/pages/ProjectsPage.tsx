@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Plus, Handshake, ChevronRight, DollarSign } from 'lucide-react';
 import { useAppContext } from '../../../context/AppContext';
 import { useAuth } from '../../../context/AuthContext';
-import { normalizeProjetoTipo, type Projeto } from '../../../lib/database';
+import { type Projeto } from '../../../lib/database';
 import { cn } from '../../../lib/utils';
 import { DesktopPageHeader } from '../../../layouts/page/DesktopPageHeader';
 import { PageLayout } from '../../../layouts/page/PageLayout';
@@ -12,12 +12,9 @@ import { FilterBar } from '../../../components/ui/FilterBar';
 import { useIsMobile } from '../../../hooks/useIsMobile';
 import { BottomSheetModal } from '../../../components/feedback/modals/BottomSheetModal';
 import { ProjectsMobileScreen } from '../../../mobile/screens/projects/ProjectsMobileScreen';
-import { PostingTimeSuggestions } from '../../settings/components/PostingTimeSuggestions';
-import { getPostingTimes } from '../../settings/lib/postingTimes';
 import { generateUUID } from '../../../utils/uuid';
 
-type TipoFilter = 'todos' | 'publi' | 'producao' | 'outro';
-type StatusFilter = 'todos' | 'pendente' | 'em_andamento' | 'concluído';
+type StatusFilter = 'todos' | 'com_eventos' | 'sem_eventos';
 
 const PROJECT_COLORS = [
   '#ef4444', '#f97316', '#f59e0b', '#84cc16', '#22c55e',
@@ -25,53 +22,29 @@ const PROJECT_COLORS = [
   '#a855f7', '#ec4899', '#f43f5e', '#78716c',
 ];
 
-function calcularStatus(projeto: Projeto): 'pendente' | 'em_andamento' | 'concluído' {
-  if (projeto.etapas.length === 0) return 'pendente';
-  const todas = projeto.etapas.length;
-  const concluidas = projeto.etapas.filter(e => e.status === 'concluída').length;
-  if (concluidas === todas) return 'concluído';
-  if (projeto.etapas.some(e => e.status === 'em_andamento')) return 'em_andamento';
-  return 'pendente';
-}
-
-const TIPO_LABELS: Record<string, string> = {
-  publi: 'Publi',
-  producao: 'Produção',
-  outro: 'Outro',
-};
-
-const STATUS_COLORS: Record<string, string> = {
-  pendente: 'text-zinc-400 bg-zinc-800',
-  em_andamento: 'text-yellow-400 bg-yellow-400/10',
-  concluído: 'text-green-400 bg-green-400/10',
-};
-
 export function ProjectsPage() {
   const { state, dispatch } = useAppContext();
   const { user } = useAuth();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
 
-  const [tipoFilter, setTipoFilter] = useState<TipoFilter>('todos');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('todos');
   const [searchTerm, setSearchTerm] = useState('');
-  const [sortValue, setSortValue] = useState('deadline:asc');
+  const [sortValue, setSortValue] = useState('updatedAt:desc');
   const [showForm, setShowForm] = useState(false);
 
   const [nome, setNome] = useState('');
-  const [tipo, setTipo] = useState<Projeto['tipo']>('publi');
   const [brand, setBrand] = useState('');
   const [value, setValue] = useState('');
   const [color, setColor] = useState(PROJECT_COLORS[Math.floor(Math.random() * PROJECT_COLORS.length)]);
-  const [dataFim, setDataFim] = useState('');
 
-  const postingTimes = getPostingTimes(state.preferences);
+  const projetosComEventos = new Set(state.agendaItems.map(a => a.projetoId).filter(Boolean));
 
   const projetos = state.projetos
     .filter(p => {
       const normalizedSearch = searchTerm.trim().toLowerCase();
-      if (tipoFilter !== 'todos' && normalizeProjetoTipo(p.tipo) !== tipoFilter) return false;
-      if (statusFilter !== 'todos' && calcularStatus(p) !== statusFilter) return false;
+      if (statusFilter === 'com_eventos' && !projetosComEventos.has(p.id)) return false;
+      if (statusFilter === 'sem_eventos' && projetosComEventos.has(p.id)) return false;
       if (normalizedSearch) {
         const haystack = [p.nome, p.brand || '', p.notes || ''].join(' ').toLowerCase();
         if (!haystack.includes(normalizedSearch)) return false;
@@ -79,22 +52,17 @@ export function ProjectsPage() {
       return true;
     })
     .sort((a, b) => {
-      if (sortValue === 'deadline:asc') {
-        if (!a.dataFim && !b.dataFim) return 0;
-        if (!a.dataFim) return 1;
-        if (!b.dataFim) return -1;
-        return a.dataFim.localeCompare(b.dataFim);
-      }
-      if (sortValue === 'deadline:desc') {
-        if (!a.dataFim && !b.dataFim) return 0;
-        if (!a.dataFim) return 1;
-        if (!b.dataFim) return -1;
-        return b.dataFim.localeCompare(a.dataFim);
-      }
       if (sortValue === 'name:asc') return a.nome.localeCompare(b.nome);
       if (sortValue === 'value:desc') return (b.value || 0) - (a.value || 0);
       return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
     });
+
+  const resetForm = () => {
+    setNome('');
+    setBrand('');
+    setValue('');
+    setColor(PROJECT_COLORS[Math.floor(Math.random() * PROJECT_COLORS.length)]);
+  };
 
   const handleCreate = () => {
     if (!nome.trim()) return;
@@ -102,13 +70,13 @@ export function ProjectsPage() {
       id: generateUUID(),
       userId: user?.id || '',
       nome: nome.trim(),
-      tipo: normalizeProjetoTipo(tipo),
+      tipo: 'publi',
       status: 'pendente',
       dataInicio: null,
-      dataFim: dataFim ? `${dataFim}T12:00:00.000Z` : null,
+      dataFim: null,
       metaConteudos: null,
       bibliotecaItemId: null,
-      brand: tipo === 'publi' ? brand.trim() || null : null,
+      brand: brand.trim() || null,
       brandColor: null,
       color,
       value: value ? parseFloat(value) : null,
@@ -121,14 +89,25 @@ export function ProjectsPage() {
       contentIds: [],
     };
     dispatch({ type: 'ADD_PROJETO', payload: projeto });
-    setNome('');
-    setTipo('publi');
-    setBrand('');
-    setValue('');
-    setDataFim('');
-    setColor(PROJECT_COLORS[Math.floor(Math.random() * PROJECT_COLORS.length)]);
+    resetForm();
     setShowForm(false);
   };
+
+  const handleClose = () => { resetForm(); setShowForm(false); };
+
+  const colorPicker = (
+    <div className="flex flex-wrap gap-2">
+      {PROJECT_COLORS.map(c => (
+        <button
+          key={c}
+          type="button"
+          onClick={() => setColor(c)}
+          className={cn('h-7 w-7 rounded-full border-2 transition-all', color === c ? 'border-[var(--text-primary)] scale-110' : 'border-transparent opacity-50 hover:opacity-80')}
+          style={{ backgroundColor: c }}
+        />
+      ))}
+    </div>
+  );
 
   if (isMobile) {
     return (
@@ -141,13 +120,11 @@ export function ProjectsPage() {
           />
         </div>
 
-        <BottomSheetModal open={showForm} onClose={() => setShowForm(false)} desktopMaxW="max-w-xl" zIndex="z-[110]">
+        <BottomSheetModal open={showForm} onClose={handleClose} desktopMaxW="max-w-xl" zIndex="z-[110]">
           <div className="flex h-full flex-col bg-[var(--bg-primary)]">
             <div className="border-b border-[var(--border-color)] px-5 py-4">
               <p className="t-section-title text-[var(--text-primary)]">Novo projeto</p>
-              <p className="t-secondary mt-1">Crie um item leve para acompanhar no mobile.</p>
             </div>
-
             <div className="flex-1 space-y-4 overflow-y-auto p-5">
               <input
                 autoFocus
@@ -157,15 +134,6 @@ export function ProjectsPage() {
                 placeholder="Nome do projeto"
                 className="w-full"
               />
-
-              <div className="grid grid-cols-1 gap-3">
-                <select value={tipo} onChange={e => setTipo(e.target.value as Projeto['tipo'])}>
-                  <option value="publi">Publi</option>
-                  <option value="producao">Produção</option>
-                  <option value="outro">Outro</option>
-                </select>
-              </div>
-
               <input
                 value={value}
                 onChange={e => setValue(e.target.value)}
@@ -173,53 +141,22 @@ export function ProjectsPage() {
                 placeholder="Valor (R$)"
                 className="w-full"
               />
-
-              {tipo === 'publi' ? (
-                <input
-                  value={brand}
-                  onChange={e => setBrand(e.target.value)}
-                  placeholder="Nome da marca"
-                  className="w-full"
-                />
-              ) : null}
-
-              <div className="space-y-1.5">
-                <p className="text-xs font-semibold  text-[var(--text-tertiary)] opacity-60">Data de entrega</p>
-                <input
-                  type="date"
-                  value={dataFim}
-                  onChange={e => setDataFim(e.target.value)}
-                  className="w-full"
-                />
-                <PostingTimeSuggestions
-                  date={dataFim}
-                  selectedTime=""
-                  postingTimes={postingTimes}
-                  onSelect={() => {}}
-                />
-              </div>
-
+              <input
+                value={brand}
+                onChange={e => setBrand(e.target.value)}
+                placeholder="Marca"
+                className="w-full"
+              />
               <div>
-                <p className="mb-2 text-xs font-semibold  text-[var(--text-tertiary)] opacity-60">Cor do projeto</p>
-                <div className="flex flex-wrap gap-2">
-                  {PROJECT_COLORS.map(c => (
-                    <button
-                      key={c}
-                      type="button"
-                      onClick={() => setColor(c)}
-                      className={cn('h-8 w-8 rounded-full border-2 transition-all', color === c ? 'border-white scale-110' : 'border-transparent opacity-60')}
-                      style={{ backgroundColor: c }}
-                    />
-                  ))}
-                </div>
+                <p className="mb-2 text-xs font-semibold text-[var(--text-tertiary)] opacity-60">Cor do projeto</p>
+                {colorPicker}
               </div>
             </div>
-
             <div className="flex gap-3 border-t border-[var(--border-color)] px-5 py-4 pb-safe">
               <button
                 type="button"
-                onClick={() => setShowForm(false)}
-                className="flex-1 rounded-[1.25rem] border border-[var(--border-color)] py-3 text-xs font-semibold  text-[var(--text-secondary)]"
+                onClick={handleClose}
+                className="flex-1 rounded-[1.25rem] border border-[var(--border-color)] py-3 text-xs font-semibold text-[var(--text-secondary)]"
               >
                 Cancelar
               </button>
@@ -253,7 +190,7 @@ export function ProjectsPage() {
               variant="primary"
               size="md"
               leftIcon={<Plus className="w-4 h-4" />}
-              className=" shrink-0"
+              className="shrink-0"
             >
               Novo projeto
             </AppButton>
@@ -261,191 +198,133 @@ export function ProjectsPage() {
         />
       }
     >
+      <div className="desktop-toolbar-surface mb-6 p-4 md:p-5">
+        <FilterBar
+          searchValue={searchTerm}
+          onSearchChange={setSearchTerm}
+          searchPlaceholder="Buscar projeto ou marca"
+          filters={[
+            {
+              id: 'status',
+              label: 'Status',
+              value: statusFilter,
+              options: [
+                { label: 'Todos', value: 'todos' },
+                { label: 'Com eventos', value: 'com_eventos' },
+                { label: 'Sem eventos', value: 'sem_eventos' },
+              ],
+              onChange: value => setStatusFilter(value as StatusFilter),
+            },
+          ]}
+          sortValue={sortValue}
+          sortOptions={[
+            { label: 'Atualizados', value: 'updatedAt:desc' },
+            { label: 'Nome A-Z', value: 'name:asc' },
+            { label: 'Maior valor', value: 'value:desc' },
+          ]}
+          onSortChange={setSortValue}
+        />
+      </div>
 
-        <div className="desktop-toolbar-surface mb-6 p-4 md:p-5">
-          <FilterBar
-            searchValue={searchTerm}
-            onSearchChange={setSearchTerm}
-            searchPlaceholder="Buscar projeto ou marca"
-            filters={[
-              {
-                id: 'tipo',
-                label: 'Tipo',
-                value: tipoFilter,
-                options: [
-                  {label: 'Tipo', value: 'todos'},
-                  ...(['publi', 'producao', 'outro'] as TipoFilter[]).map(tipo => ({
-                    label: TIPO_LABELS[tipo],
-                    value: tipo,
-                  })),
-                ],
-                onChange: value => setTipoFilter(value as TipoFilter),
-              },
-              {
-                id: 'status',
-                label: 'Status',
-                value: statusFilter,
-                options: [
-                  {label: 'Status', value: 'todos'},
-                  ...(['pendente', 'em_andamento', 'concluído'] as StatusFilter[]).map(status => ({
-                    label: status.replace('_', ' '),
-                    value: status,
-                  })),
-                ],
-                onChange: value => setStatusFilter(value as StatusFilter),
-              },
-            ]}
-            sortValue={sortValue}
-            sortOptions={[
-              {label: 'Data combinada crescente', value: 'deadline:asc'},
-              {label: 'Data combinada decrescente', value: 'deadline:desc'},
-              {label: 'Nome A-Z', value: 'name:asc'},
-              {label: 'Maior valor', value: 'value:desc'},
-              {label: 'Atualizados', value: 'updatedAt:desc'},
-            ]}
-            onSortChange={setSortValue}
+      {/* Form novo projeto */}
+      {showForm && (
+        <div className="mb-6 space-y-4 rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-primary)] p-6">
+          <p className="text-xs font-semibold text-[var(--text-tertiary)]">Novo Projeto</p>
+          <input
+            autoFocus
+            value={nome}
+            onChange={e => setNome(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && handleCreate()}
+            placeholder="Nome do projeto"
+            className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] placeholder:opacity-30 focus:outline-none focus:border-[var(--text-primary)]/40"
           />
-        </div>
-
-        {/* Form novo projeto */}
-        {showForm && (
-          <div className="mb-6 p-6 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] space-y-4">
-            <p className="text-xs font-semibold  text-[var(--text-tertiary)]">Novo Projeto</p>
+          <div className="flex flex-wrap gap-3">
             <input
-              autoFocus
-              value={nome}
-              onChange={e => setNome(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleCreate()}
-              placeholder="Nome do projeto"
-              className="w-full px-4 py-3 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:opacity-30 focus:outline-none focus:border-[var(--text-primary)]/40"
+              value={value}
+              onChange={e => setValue(e.target.value)}
+              type="number"
+              placeholder="Valor (R$)"
+              className="flex-1 min-w-[120px] rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-2.5 text-xs font-bold text-[var(--text-primary)] placeholder:opacity-30 focus:outline-none"
             />
-            <div className="flex flex-wrap gap-3">
-              <select
-                value={tipo}
-                onChange={e => setTipo(e.target.value as Projeto['tipo'])}
-                className="flex-1 min-w-[120px] px-4 py-2.5 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl text-xs font-semibold  text-[var(--text-primary)] focus:outline-none"
-              >
-                <option value="publi">Publi</option>
-                <option value="producao">Produção</option>
-                <option value="outro">Outro</option>
-              </select>
-              <input
-                value={value}
-                onChange={e => setValue(e.target.value)}
-                type="number"
-                placeholder="Valor (R$)"
-                className="flex-1 min-w-[100px] px-4 py-2.5 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl text-xs font-bold text-[var(--text-primary)] placeholder:opacity-30 focus:outline-none"
-              />
-            </div>
-            {tipo === 'publi' && (
-              <input
-                value={brand}
-                onChange={e => setBrand(e.target.value)}
-                placeholder="Nome da marca"
-                className="w-full px-4 py-3 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:opacity-30 focus:outline-none focus:border-[var(--text-primary)]/40"
-              />
-            )}
-            <div className="space-y-1.5">
-              <p className="text-xs font-semibold  opacity-40">Data de entrega</p>
-              <input
-                type="date"
-                value={dataFim}
-                onChange={e => setDataFim(e.target.value)}
-                className="w-full px-4 py-2.5 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl text-xs font-bold text-[var(--text-primary)] focus:outline-none"
-              />
-              <PostingTimeSuggestions
-                date={dataFim}
-                selectedTime=""
-                postingTimes={postingTimes}
-                onSelect={() => {}}
-              />
-            </div>
-            <div>
-              <p className="mb-2 text-xs font-semibold  opacity-40">Cor do projeto</p>
-              <div className="flex flex-wrap gap-2">
-                {PROJECT_COLORS.map(c => (
-                  <button
-                    key={c}
-                    type="button"
-                    onClick={() => setColor(c)}
-                    className={cn('h-7 w-7 rounded-full border-2 transition-all', color === c ? 'border-[var(--text-primary)] scale-110' : 'border-transparent opacity-50 hover:opacity-80')}
-                    style={{ backgroundColor: c }}
-                  />
-                ))}
-              </div>
-            </div>
-            <div className="flex gap-3 pt-1">
-              <button
-                onClick={handleCreate}
-                disabled={!nome.trim()}
-                className="px-6 py-2.5 bg-[var(--text-primary)] text-[var(--bg-primary)] rounded-xl text-xs font-semibold  hover:opacity-90 transition-opacity disabled:opacity-30"
-              >
-                Criar
-              </button>
-              <button
-                onClick={() => setShowForm(false)}
-                className="px-6 py-2.5 border border-[var(--border-color)] rounded-xl text-xs font-semibold  opacity-50 hover:opacity-80 transition-opacity"
-              >
-                Cancelar
-              </button>
-            </div>
+            <input
+              value={brand}
+              onChange={e => setBrand(e.target.value)}
+              placeholder="Marca"
+              className="flex-1 min-w-[140px] rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-2.5 text-xs font-bold text-[var(--text-primary)] placeholder:opacity-30 focus:outline-none"
+            />
           </div>
-        )}
-
-        {/* Lista */}
-        {projetos.length === 0 ? (
-          <div className="text-center py-24 space-y-4">
-            <Handshake className="w-12 h-12 mx-auto opacity-10" />
-            <p className="text-sm font-semibold  opacity-30">Nenhum projeto ainda</p>
+          <div>
+            <p className="mb-2 text-xs font-semibold opacity-40">Cor do projeto</p>
+            {colorPicker}
+          </div>
+          <div className="flex gap-3 pt-1">
             <button
-              onClick={() => setShowForm(true)}
-              className="px-6 py-3 bg-[var(--text-primary)] text-[var(--bg-primary)] rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] text-xs font-semibold  hover:opacity-90 transition-opacity"
+              onClick={handleCreate}
+              disabled={!nome.trim()}
+              className="rounded-xl bg-[var(--text-primary)] px-6 py-2.5 text-xs font-semibold text-[var(--bg-primary)] hover:opacity-90 transition-opacity disabled:opacity-30"
             >
-              Criar projeto
+              Criar
+            </button>
+            <button
+              onClick={handleClose}
+              className="rounded-xl border border-[var(--border-color)] px-6 py-2.5 text-xs font-semibold opacity-50 hover:opacity-80 transition-opacity"
+            >
+              Cancelar
             </button>
           </div>
-        ) : (
-          <div className="space-y-3">
-            {projetos.map(projeto => {
-              const status = calcularStatus(projeto);
-              return (
-                <button
-                  key={projeto.id}
-                  onClick={() => navigate(`/projetos/${projeto.id}`)}
-                  className="w-full flex items-center gap-5 px-6 py-5 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] hover:border-[var(--text-primary)]/30 hover:shadow-sm transition-all text-left group"
-                >
-                  <div className="h-10 w-1.5 rounded-full shrink-0" style={{ backgroundColor: projeto.color || '#78716c' }} />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-3 mb-1.5 flex-wrap">
-                      <p className="text-sm font-semibold text-[var(--text-primary)] truncate">{projeto.nome}</p>
-                      <span className="text-xs font-semibold  px-2.5 py-1 rounded-full bg-[var(--bg-hover)] opacity-60">
-                        {TIPO_LABELS[normalizeProjetoTipo(projeto.tipo)]}
+        </div>
+      )}
+
+      {/* Lista */}
+      {projetos.length === 0 ? (
+        <div className="space-y-4 py-24 text-center">
+          <Handshake className="mx-auto h-12 w-12 opacity-10" />
+          <p className="text-sm font-semibold opacity-30">Nenhum projeto ainda</p>
+          <button
+            onClick={() => setShowForm(true)}
+            className="rounded-[var(--radius-card)] bg-[var(--text-primary)] px-6 py-3 text-xs font-semibold text-[var(--bg-primary)] hover:opacity-90 transition-opacity"
+          >
+            Criar projeto
+          </button>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {projetos.map(projeto => {
+            const eventoCount = state.agendaItems.filter(a => a.projetoId === projeto.id).length;
+            return (
+              <button
+                key={projeto.id}
+                onClick={() => navigate(`/projetos/${projeto.id}`)}
+                className="group flex w-full items-center gap-5 rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-primary)] px-6 py-5 text-left transition-all hover:border-[var(--text-primary)]/30 hover:shadow-sm"
+              >
+                <div className="h-10 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: projeto.color || '#78716c' }} />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold text-[var(--text-primary)]">{projeto.nome}</p>
+                  <div className="mt-1 flex flex-wrap items-center gap-3">
+                    {projeto.brand && (
+                      <span className="text-xs font-semibold text-[var(--text-secondary)] opacity-60">
+                        {projeto.brand}
                       </span>
-                      <span className={cn('text-xs font-semibold  px-2.5 py-1 rounded-full', STATUS_COLORS[status])}>
-                        {status.replace('_', ' ')}
+                    )}
+                    {projeto.value ? (
+                      <span className="flex items-center gap-1 text-xs font-bold text-[var(--text-secondary)] opacity-50">
+                        <DollarSign className="h-3 w-3" />
+                        {projeto.value.toLocaleString('pt-BR', { style: 'currency', currency: projeto.currency || 'BRL' })}
                       </span>
-                    </div>
-                    <div className="flex items-center gap-4 flex-wrap">
-                      {normalizeProjetoTipo(projeto.tipo) === 'publi' && projeto.brand && (
-                        <span className="text-xs font-bold text-[var(--text-secondary)] opacity-60">
-                          {projeto.brand}
-                        </span>
-                      )}
-                      {projeto.value && (
-                        <span className="flex items-center gap-1 text-xs font-bold text-[var(--text-secondary)] opacity-50">
-                          <DollarSign className="w-3 h-3" />
-                          {projeto.value.toLocaleString('pt-BR', { style: 'currency', currency: projeto.currency || 'BRL' })}
-                        </span>
-                      )}
-                    </div>
+                    ) : null}
+                    {eventoCount > 0 ? (
+                      <span className="text-xs text-[var(--text-tertiary)]">
+                        {eventoCount} evento{eventoCount !== 1 ? 's' : ''}
+                      </span>
+                    ) : null}
                   </div>
-                  <ChevronRight className="w-4 h-4 opacity-20 group-hover:opacity-50 transition-opacity shrink-0" />
-                </button>
-              );
-            })}
-          </div>
-        )}
+                </div>
+                <ChevronRight className="h-4 w-4 shrink-0 opacity-20 transition-opacity group-hover:opacity-50" />
+              </button>
+            );
+          })}
+        </div>
+      )}
     </PageLayout>
   );
 }
-

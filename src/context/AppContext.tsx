@@ -30,7 +30,7 @@ export const AppContext = React.createContext<{
   createContent: (content: db.Content, options?: PersistOptions) => Promise<void>;
   updateContent: (content: db.Content, options?: PersistOptions) => Promise<void>;
   syncFromServer: (options?: { silent?: boolean }) => Promise<void>;
-  ensureDataDomains: (domains: readonly db.AppDataDomain[]) => Promise<void>;
+  ensureDataDomains: (domains: readonly db.AppDataDomain[], options?: { force?: boolean }) => Promise<void>;
 } | null>(null);
 
 function normalizeContentId(content: db.Content): db.Content {

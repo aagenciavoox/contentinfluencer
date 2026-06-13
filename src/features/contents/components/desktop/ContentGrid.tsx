@@ -5,6 +5,8 @@ import { cn } from '../../../../lib/utils';
 import { ContentEntityTags } from '../ContentEntityTags';
 import {
   buildContentMetaLine,
+  formatLastEdit,
+  getScriptWordCount,
   getDisplayTitle,
   getStatusChipClass,
   getUsefulExcerpt,
@@ -48,8 +50,8 @@ export function ContentGrid({
   if (contents.length === 0) {
     const emptyMessage =
       filterStatus === 'Todos'
-        ? 'Nenhum conteúdo no pipeline. Crie o primeiro.'
-        : `Nenhum conteúdo em "${filterStatus}".`;
+        ? 'Nenhum conteudo no pipeline. Crie o primeiro.'
+        : `Nenhum conteudo em "${filterStatus}".`;
 
     return (
       <div className="rounded-[var(--radius-card)] border border-dashed border-[var(--border-color)] py-16 text-center">
@@ -73,7 +75,7 @@ export function ContentGrid({
                   ? 'border-[var(--text-primary)]/60 bg-[var(--text-primary)]/15'
                   : 'border-[var(--border-color)] hover:border-[var(--border-strong)]'
             )}
-            aria-label="Selecionar todos desta página"
+            aria-label="Selecionar todos desta pagina"
           >
             {allPageSelected ? <Check className="h-3.5 w-3.5 stroke-[3px]" /> : null}
             {somePageSelected && !allPageSelected ? (
@@ -81,7 +83,7 @@ export function ContentGrid({
             ) : null}
           </button>
           <span className="text-xs text-[var(--text-tertiary)]">
-            Selecionar todos desta página ({contents.length})
+            Selecionar todos desta pagina ({contents.length})
           </span>
         </div>
       ) : null}
@@ -94,79 +96,129 @@ export function ContentGrid({
           const showStatusOnCard = filterStatus === 'Todos' || mode === 'publicados';
           const isDraft = isDraftTitle(content.title);
           const isNew = isRecentlyCreated(content);
+          const seriesColor = seriesEntity?.cor ?? null;
+          const isPipeline = mode === 'pipeline';
+
+          // Meta line sem "Roteiro ·" no pipeline
+          const metaLine = isPipeline
+            ? [formatLastEdit(content.updatedAt), getScriptWordCount(content) > 0 ? `${getScriptWordCount(content)} palavras` : null]
+                .filter(Boolean).join(' · ')
+            : buildContentMetaLine(content);
 
           return (
             <article
               key={content.id}
               className={cn(
-                'ds-card group relative flex flex-col bg-[var(--bg-primary)] text-left transition-colors hover:border-[var(--border-strong)]',
-                isCompact ? 'p-3' : 'p-3.5',
+                'ds-card group relative flex flex-col overflow-hidden bg-[var(--bg-primary)] text-left transition-colors hover:border-[var(--border-strong)]',
+                isPipeline ? 'p-3' : isCompact ? 'p-3' : 'p-3.5',
                 isSelected && 'border-[var(--text-primary)] ring-1 ring-[var(--text-primary)]/15'
               )}
             >
-              <div className="mb-2 flex items-start justify-between gap-2">
-                <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-                  {mode === 'publicados' ? (
-                    <span className="inline-flex rounded-full bg-[var(--bg-hover)] px-2 py-0.5 text-xs font-medium text-[var(--text-tertiary)]">
-                      {content.publishDate
-                        ? new Date(content.publishDate).toLocaleDateString('pt-BR')
-                        : 'Sem data'}
-                    </span>
-                  ) : showStatusOnCard ? (
-                    <span
-                      className={cn(
-                        'inline-flex rounded-full px-2 py-0.5 text-xs font-medium',
-                        getStatusChipClass(content.status)
-                      )}
-                    >
-                      {content.status}
-                    </span>
-                  ) : null}
-                  {isNew ? (
-                    <span className="inline-flex items-center gap-0.5 rounded-full bg-[var(--accent-blue)]/10 px-1.5 py-0.5 text-xs font-medium text-[var(--accent-blue)]">
-                      <Sparkles className="h-2.5 w-2.5" />
-                      Novo
-                    </span>
-                  ) : null}
-                  {isDraft ? (
-                    <span className="inline-flex rounded-full bg-[var(--bg-hover)] px-1.5 py-0.5 text-xs font-medium text-[var(--text-tertiary)]">
-                      Rascunho
-                    </span>
-                  ) : null}
-                </div>
+              {/* Borda colorida da serie */}
+              {isPipeline && seriesColor ? (
+                <div
+                  className="pointer-events-none absolute inset-y-0 left-0 w-[3px]"
+                  style={{ backgroundColor: seriesColor }}
+                />
+              ) : null}
 
-                <div className="flex shrink-0 items-center gap-1">
+              {/* Botoes de acao — absolutos no pipeline para nao consumir linha */}
+              {isPipeline ? (
+                <div className="absolute right-2 top-2 flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
                   {enableSelection ? (
                     <button
                       type="button"
                       onClick={() => onToggleSelect(content.id)}
                       className={cn(
-                        'inline-flex h-7 w-7 items-center justify-center rounded-[var(--radius-input)] border transition-colors',
+                        'inline-flex h-6 w-6 items-center justify-center rounded-[var(--radius-input)] border transition-colors',
                         isSelected
-                          ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-[var(--bg-primary)]'
-                          : 'border-[var(--border-color)] text-[var(--text-secondary)] opacity-0 group-hover:opacity-100 hover:bg-[var(--bg-hover)]'
+                          ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-[var(--bg-primary)] opacity-100'
+                          : 'border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]'
                       )}
                       aria-label={isSelected ? `Desmarcar ${content.title}` : `Selecionar ${content.title}`}
                     >
-                      {isSelected ? <Check className="h-3.5 w-3.5 stroke-[3px]" /> : null}
+                      {isSelected ? <Check className="h-3 w-3 stroke-[3px]" /> : null}
                     </button>
                   ) : null}
+                  <button
+                    type="button"
+                    onClick={event => { event.stopPropagation(); onPreview(content); }}
+                    className="inline-flex h-6 w-6 items-center justify-center rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
+                    aria-label={`Pre-visualizar ${content.title}`}
+                  >
+                    <Eye className="h-3 w-3" />
+                  </button>
+                </div>
+              ) : (
+                /* Layout original para publicados */
+                <div className="mb-2 flex items-start justify-between gap-2">
+                  <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+                    {mode === 'publicados' ? (
+                      <span className="inline-flex rounded-full bg-[var(--bg-hover)] px-2 py-0.5 text-xs font-medium text-[var(--text-tertiary)]">
+                        {content.publishDate
+                          ? new Date(content.publishDate).toLocaleDateString('pt-BR')
+                          : 'Sem data'}
+                      </span>
+                    ) : showStatusOnCard ? (
+                      <span
+                        className={cn(
+                          'inline-flex rounded-full px-2 py-0.5 text-xs font-medium',
+                          getStatusChipClass(content.status)
+                        )}
+                      >
+                        {content.status}
+                      </span>
+                    ) : null}
+                    {isNew ? (
+                      <span className="inline-flex items-center gap-0.5 rounded-full bg-[var(--accent-blue)]/10 px-1.5 py-0.5 text-xs font-medium text-[var(--accent-blue)]">
+                        <Sparkles className="h-2.5 w-2.5" />
+                        Novo
+                      </span>
+                    ) : null}
+                    {isDraft ? (
+                      <span className="inline-flex rounded-full bg-[var(--bg-hover)] px-1.5 py-0.5 text-xs font-medium text-[var(--text-tertiary)]">
+                        Rascunho
+                      </span>
+                    ) : null}
+                  </div>
 
-                  {mode !== 'publicados' ? (
+                  <div className="flex shrink-0 items-center gap-1">
+                    {enableSelection ? (
+                      <button
+                        type="button"
+                        onClick={() => onToggleSelect(content.id)}
+                        className={cn(
+                          'inline-flex h-7 w-7 items-center justify-center rounded-[var(--radius-input)] border transition-colors',
+                          isSelected
+                            ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-[var(--bg-primary)]'
+                            : 'border-[var(--border-color)] text-[var(--text-secondary)] opacity-0 group-hover:opacity-100 hover:bg-[var(--bg-hover)]'
+                        )}
+                        aria-label={isSelected ? `Desmarcar ${content.title}` : `Selecionar ${content.title}`}
+                      >
+                        {isSelected ? <Check className="h-3.5 w-3.5 stroke-[3px]" /> : null}
+                      </button>
+                    ) : null}
+
                     <button
                       type="button"
-                      onClick={event => {
-                        event.stopPropagation();
-                        onPreview(content);
-                      }}
+                      onClick={event => { event.stopPropagation(); onPreview(content); }}
                       className="inline-flex h-7 w-7 items-center justify-center rounded-[var(--radius-input)] border border-[var(--border-color)] text-[var(--text-secondary)] opacity-0 transition-all group-hover:opacity-100 hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
-                      aria-label={`Pré-visualizar ${content.title}`}
+                      aria-label={`Pre-visualizar ${content.title}`}
                     >
                       <Eye className="h-3.5 w-3.5" />
                     </button>
-                  ) : null}
+                  </div>
                 </div>
-              </div>
+              )}
+
+              {/* Chip de rascunho no pipeline (unico que faz sentido mostrar) */}
+              {isPipeline && isDraft ? (
+                <div className="mb-1.5">
+                  <span className="inline-flex rounded-full bg-[var(--bg-hover)] px-1.5 py-0.5 text-xs font-medium text-[var(--text-tertiary)]">
+                    Rascunho
+                  </span>
+                </div>
+              ) : null}
 
               <button
                 type="button"
@@ -199,7 +251,7 @@ export function ContentGrid({
                   </p>
                 ) : (
                   <p className="mt-2 line-clamp-1 text-xs text-[var(--text-tertiary)]">
-                    {buildContentMetaLine(content)}
+                    {metaLine}
                   </p>
                 )}
 

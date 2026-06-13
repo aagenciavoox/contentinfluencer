@@ -16,6 +16,7 @@ export const REALTIME_TABLES = [
   'pilar_plataformas',
   'pilares',
   'platforms',
+  'posting_times',
   'projeto_conteudos',
   'projeto_etapas',
   'projetos',

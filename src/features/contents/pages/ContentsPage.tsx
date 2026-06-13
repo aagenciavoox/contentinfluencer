@@ -603,86 +603,93 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
             initial={{y: 80}}
             animate={{y: 0}}
             exit={{y: 80}}
-            className="fixed bottom-6 left-1/2 z-30 w-[min(1100px,calc(100vw-2rem))] -translate-x-1/2 rounded-[var(--radius-card-mobile)] bg-[var(--text-primary)] px-4 py-4 text-[var(--bg-primary)] shadow-none"
+            className="fixed bottom-6 left-1/2 z-30 w-[min(1100px,calc(100vw-2rem))] -translate-x-1/2 rounded-2xl bg-[var(--text-primary)] px-4 py-3 text-[var(--bg-primary)] shadow-xl shadow-black/20"
           >
-            <div className="flex flex-col gap-4">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-semibold ">
-                  {selectedIds.size} selecionados
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center gap-2 overflow-hidden">
+                {/* Contador */}
+                <span className="shrink-0 rounded-full bg-white/15 px-2.5 py-1 text-[11px] font-bold tabular-nums">
+                  {selectedIds.size} sel.
                 </span>
-                <span className="text-xs text-white/70">Aplique pilar, serie e status de uma vez.</span>
-              </div>
 
-              <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto]">
-                <BulkSelect
-                  label="Pilar"
-                  value={bulkPillarValue}
-                  onChange={setBulkPillarValue}
-                  options={[
-                    {label: 'Manter pilar atual', value: KEEP_VALUE},
-                    {label: 'Sem pilar', value: EMPTY_VALUE},
-                    ...state.pilares.map(pillar => ({label: pillar.nome, value: pillar.id})),
-                  ]}
-                />
-                <BulkSelect
-                  label="Serie"
-                  value={bulkSeriesValue}
-                  onChange={setBulkSeriesValue}
-                  options={[
-                    {label: 'Manter serie atual', value: KEEP_VALUE},
-                    {label: 'Sem serie', value: EMPTY_VALUE},
-                    ...state.series.map(series => ({label: series.name, value: series.id})),
-                  ]}
-                />
-                <BulkSelect
-                  label="Status"
-                  value={bulkStatusValue}
-                  onChange={setBulkStatusValue}
-                  options={[
-                    {label: 'Manter status atual', value: KEEP_VALUE},
-                    ...bulkStatusOptions.map(status => ({label: status, value: status})),
-                  ]}
-                />
+                {/* Selects — largura fixa, sem wrap */}
+                <div className="flex shrink-0 items-center gap-1.5">
+                  <BulkSelect
+                    label="Pilar"
+                    value={bulkPillarValue}
+                    onChange={setBulkPillarValue}
+                    options={[
+                      {label: 'Pilar', value: KEEP_VALUE},
+                      {label: 'Sem pilar', value: EMPTY_VALUE},
+                      ...state.pilares.map(pillar => ({label: pillar.nome, value: pillar.id})),
+                    ]}
+                  />
+                  <BulkSelect
+                    label="Serie"
+                    value={bulkSeriesValue}
+                    onChange={setBulkSeriesValue}
+                    options={[
+                      {label: 'Serie', value: KEEP_VALUE},
+                      {label: 'Sem serie', value: EMPTY_VALUE},
+                      ...state.series.map(series => ({label: series.name, value: series.id})),
+                    ]}
+                  />
+                  <BulkSelect
+                    label="Status"
+                    value={bulkStatusValue}
+                    onChange={setBulkStatusValue}
+                    options={[
+                      {label: 'Status', value: KEEP_VALUE},
+                      ...bulkStatusOptions.map(status => ({label: status, value: status})),
+                    ]}
+                  />
+                </div>
 
-                <div className="flex flex-wrap items-end gap-2">
-                  <AppButton
-                    variant="secondary"
+                {/* Separador */}
+                <div className="h-5 w-px shrink-0 bg-white/15" />
+
+                {/* Acoes */}
+                <div className="flex shrink-0 items-center gap-1.5">
+                  <button
+                    type="button"
                     onClick={() => void handleBulkSetStatus(RECORDING_READY_STATUS)}
                     disabled={isBulkUpdating}
-                    className="border-white/20 bg-white/10 text-white hover:bg-white/15"
+                    className="inline-flex h-8 items-center gap-1 rounded-lg border border-white/20 bg-white/10 px-2.5 text-[11px] font-semibold text-white transition-colors hover:bg-white/15 disabled:opacity-40"
                   >
                     Pronto p/ gravar
-                  </AppButton>
-                  <AppButton
-                    variant="primary"
+                  </button>
+                  <button
+                    type="button"
                     onClick={handleBulkApply}
                     disabled={!hasBulkChanges || isBulkUpdating}
-                    leftIcon={isBulkUpdating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-                    className="bg-white text-[#0F172A] hover:bg-white/90"
+                    className="inline-flex h-8 items-center gap-1 rounded-lg bg-white px-3 text-[11px] font-bold text-[#0F172A] transition-colors hover:bg-white/90 disabled:opacity-40"
                   >
+                    {isBulkUpdating
+                      ? <Loader2 className="h-3 w-3 animate-spin" />
+                      : <Check className="h-3 w-3" />}
                     Aplicar
-                  </AppButton>
+                  </button>
                   <button
                     type="button"
                     onClick={handleBulkDelete}
-                    className="rounded-xl bg-red-500/20 p-3 text-red-200 transition-colors hover:bg-red-500/30"
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-red-500/20 text-red-300 transition-colors hover:bg-red-500/30"
                     aria-label="Excluir selecionados"
                   >
-                    <Trash2 className="h-4 w-4" />
+                    <Trash2 className="h-3.5 w-3.5" />
                   </button>
                   <button
                     type="button"
                     onClick={() => setSelectedIds(new Set())}
-                    className="rounded-xl bg-white/10 p-3 text-white transition-colors hover:bg-white/15"
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-white/10 text-white/60 transition-colors hover:bg-white/15 hover:text-white"
                     aria-label="Limpar selecao"
                   >
-                    <X className="h-4 w-4" />
+                    <X className="h-3.5 w-3.5" />
                   </button>
                 </div>
               </div>
 
-              {bulkUpdateError ? <p className="text-xs text-red-200">{bulkUpdateError}</p> : null}
-              {bulkUpdateMessage ? <p className="text-xs text-emerald-200">{bulkUpdateMessage}</p> : null}
+              {bulkUpdateError ? <p className="text-xs text-red-300">{bulkUpdateError}</p> : null}
+              {bulkUpdateMessage ? <p className="text-xs text-emerald-300">{bulkUpdateMessage}</p> : null}
             </div>
           </motion.div>
         )}
@@ -716,19 +723,17 @@ interface BulkSelectProps {
 
 function BulkSelect({label, value, onChange, options}: BulkSelectProps) {
   return (
-    <label className="flex min-w-0 flex-col gap-2">
-      <span className="text-xs font-semibold  text-white/70">{label}</span>
-      <select
-        value={value}
-        onChange={event => onChange(event.target.value)}
-        className="h-11 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-white/10 bg-white px-4 text-sm font-semibold text-[#0F172A] outline-none transition-colors focus:border-white/40"
-      >
-        {options.map(option => (
-          <option key={`${label}-${option.value}`} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
-    </label>
+    <select
+      value={value}
+      onChange={event => onChange(event.target.value)}
+      aria-label={label}
+      className="h-8 w-[115px] cursor-pointer rounded-lg border border-white/15 bg-white/10 px-2 text-[11px] font-semibold text-white outline-none transition-colors hover:bg-white/15 focus:border-white/30"
+    >
+      {options.map(option => (
+        <option key={`${label}-${option.value}`} value={option.value} className="bg-[#1e293b] text-white">
+          {option.label}
+        </option>
+      ))}
+    </select>
   );
 }

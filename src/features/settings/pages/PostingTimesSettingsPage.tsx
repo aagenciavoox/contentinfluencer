@@ -1,6 +1,6 @@
-import {useState} from 'react';
+import {useState, useMemo, useCallback} from 'react';
 import {useNavigate} from 'react-router-dom';
-import {Clock, Plus, Trash2} from 'lucide-react';
+import {Clock, Plus, Trash2, Globe} from 'lucide-react';
 import {useAppContext} from '../../../context/AppContext';
 import {useIsMobile} from '../../../hooks/useIsMobile';
 import {DesktopPageHeader} from '../../../layouts/page/DesktopPageHeader';
@@ -8,73 +8,166 @@ import {PageLayout} from '../../../layouts/page/PageLayout';
 import {AppButton} from '../../../components/ui/AppButton';
 import {cn} from '../../../lib/utils';
 import {
-  DEFAULT_POSTING_TIMES,
-  getPostingTimes,
-  POSTING_TIMES_PREFERENCE_KEY,
-  PostingTimesSettings,
+  getPostingTimesForPlatform,
+  WEEKDAYS_ORDERED,
   Weekday,
   WEEKDAY_LABELS,
 } from '../lib/postingTimes';
+import {
+  replacePostingTimesForPlatform,
+} from '../../../lib/database';
+import type {PostingTimeEntry} from '../../../lib/database';
 
 const MAX_TIMES_PER_DAY = 3;
-const WEEKDAYS: Weekday[] = [1, 2, 3, 4, 5, 6, 0];
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+/** Retorna true se o dia usa horários globais como fallback (sem específicos) */
+function isUsingGlobalFallback(
+  entries: PostingTimeEntry[],
+  platformId: string | null,
+  weekday: Weekday,
+): boolean {
+  if (platformId === null) return false;
+  const specific = entries.filter(e => e.platformId === platformId && e.weekday === weekday);
+  const global = entries.filter(e => e.platformId === null && e.weekday === weekday);
+  return specific.length === 0 && global.length > 0;
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
 
 export function PostingTimesSettingsPage() {
-  const {state, dispatch} = useAppContext();
+  const {state, ensureDataDomains} = useAppContext();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
 
-  const saved = getPostingTimes(state.preferences);
+  const [selectedPlatformId, setSelectedPlatformId] = useState<string | null>(null);
 
-  // Local draft — salva só ao confirmar cada horário
-  const [draft, setDraft] = useState<PostingTimesSettings>(() =>
-    JSON.parse(JSON.stringify(saved)),
+  const activePlatforms = useMemo(
+    () => state.platforms.filter(p => p.ativo),
+    [state.platforms],
   );
 
-  function updatePreference(next: PostingTimesSettings) {
-    setDraft(next);
-    dispatch({
-      type: 'SET_PREFERENCE',
-      payload: {
-        key: POSTING_TIMES_PREFERENCE_KEY,
-        value: next,
-      },
-    });
-  }
+  const entries: PostingTimeEntry[] = state.postingTimeEntries ?? [];
 
-  function addTime(day: Weekday, time: string) {
+  const reload = useCallback(
+    () => ensureDataDomains(['schedule'], {force: true}),
+    [ensureDataDomains],
+  );
+
+  async function handleAdd(weekday: Weekday, time: string) {
     if (!time) return;
-    const current = (draft[day] ?? []).filter(Boolean) as string[];
-    if (current.length >= MAX_TIMES_PER_DAY) return;
-    if (current.includes(time)) return;
-    const next = [...current, time].sort() as PostingTimesSettings[Weekday];
-    updatePreference({...draft, [day]: next});
+    const specificEntries = entries.filter(
+      e => e.platformId === selectedPlatformId && e.weekday === weekday,
+    );
+    if (specificEntries.length >= MAX_TIMES_PER_DAY) return;
+    if (specificEntries.some(e => e.time === time)) return;
+    const newTimes = [...specificEntries.map(e => e.time), time].sort();
+    await replacePostingTimesForPlatform(selectedPlatformId, weekday, newTimes);
+    await reload();
   }
 
-  function removeTime(day: Weekday, index: number) {
-    const current = (draft[day] ?? []).filter(Boolean) as string[];
-    current.splice(index, 1);
-    updatePreference({...draft, [day]: current as PostingTimesSettings[Weekday]});
+  async function handleRemove(weekday: Weekday, time: string) {
+    const specificEntries = entries.filter(
+      e => e.platformId === selectedPlatformId && e.weekday === weekday,
+    );
+    const newTimes = specificEntries.map(e => e.time).filter(t => t !== time);
+    await replacePostingTimesForPlatform(selectedPlatformId, weekday, newTimes);
+    await reload();
   }
 
-  function clearAll() {
-    updatePreference({...DEFAULT_POSTING_TIMES});
-  }
+  const totalConfigured = useMemo(() => {
+    return entries.filter(e =>
+      selectedPlatformId === null ? e.platformId === null : e.platformId === selectedPlatformId
+    ).length;
+  }, [entries, selectedPlatformId]);
 
-  const totalConfigured = WEEKDAYS.reduce(
-    (acc, d) => acc + ((draft[d] ?? []).filter(Boolean).length),
-    0,
+  const platformTabs = [
+    {id: null, label: 'Global'},
+    ...activePlatforms.map(p => ({id: p.id, label: p.nome})),
+  ];
+
+  const content = (
+    <div className="space-y-5">
+      <p className="text-sm text-[var(--text-secondary)] opacity-60">
+        Configure até {MAX_TIMES_PER_DAY} horários por dia. Horários específicos de plataforma
+        sobrepõem o Global. Se não houver configuração própria, o Global é usado como sugestão.
+      </p>
+
+      {/* Tabs de plataforma */}
+      <div className="flex flex-wrap gap-2">
+        {platformTabs.map(tab => (
+          <button
+            key={tab.id ?? 'global'}
+            onClick={() => setSelectedPlatformId(tab.id)}
+            className={cn(
+              'flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold transition-all border',
+              selectedPlatformId === tab.id
+                ? 'border-[var(--accent-primary)] bg-[var(--accent-primary)] text-white'
+                : 'border-[var(--border-color)] bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:border-[var(--text-primary)] hover:text-[var(--text-primary)]',
+            )}
+          >
+            {tab.id === null && <Globe className="h-3 w-3" />}
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {selectedPlatformId !== null && (
+        <p className="text-xs text-[var(--text-secondary)] opacity-50">
+          Dias sem horários próprios usam os horários <strong>Global</strong> como sugestão
+          (exibidos tracejados).
+        </p>
+      )}
+
+      {/* Grid de dias */}
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+        {WEEKDAYS_ORDERED.map(day => {
+          const specificTimes = entries
+            .filter(e => e.platformId === selectedPlatformId && e.weekday === day)
+            .map(e => e.time)
+            .sort();
+          const usingFallback = isUsingGlobalFallback(entries, selectedPlatformId, day);
+          const fallbackTimes = usingFallback
+            ? entries.filter(e => e.platformId === null && e.weekday === day).map(e => e.time).sort()
+            : [];
+
+          return (
+            <DayCard
+              key={day}
+              day={day}
+              specificTimes={specificTimes}
+              fallbackTimes={fallbackTimes}
+              isFallback={usingFallback}
+              onAdd={(t) => handleAdd(day, t)}
+              onRemove={(t) => handleRemove(day, t)}
+            />
+          );
+        })}
+      </div>
+    </div>
   );
 
   if (isMobile) {
     return (
       <div className="min-h-full bg-[var(--bg-primary)]">
-        <MobilePostingTimes
-          draft={draft}
-          onAdd={addTime}
-          onRemove={removeTime}
-          onBack={() => navigate('/configuracoes')}
-        />
+        <div className="flex flex-col">
+          <div className="flex items-center gap-3 border-b border-[var(--border-color)] bg-[var(--bg-primary)] px-4 py-4">
+            <button
+              onClick={() => navigate('/configuracoes')}
+              className="text-[var(--text-secondary)] opacity-60 hover:opacity-100"
+            >
+              ←
+            </button>
+            <div className="flex items-center gap-2">
+              <Clock className="h-4 w-4 text-[var(--text-primary)] opacity-50" />
+              <h1 className="text-base font-semibold text-[var(--text-primary)]">
+                Horários de Postagem
+              </h1>
+            </div>
+          </div>
+          <div className="p-4">{content}</div>
+        </div>
       </div>
     );
   }
@@ -93,7 +186,12 @@ export function PostingTimesSettingsPage() {
           actions={
             totalConfigured > 0 ? (
               <AppButton
-                onClick={clearAll}
+                onClick={async () => {
+                  for (const wd of [0, 1, 2, 3, 4, 5, 6] as Weekday[]) {
+                    await replacePostingTimesForPlatform(selectedPlatformId, wd, []);
+                  }
+                  await reload();
+                }}
                 variant="ghost"
                 size="sm"
                 className="text-[var(--text-secondary)] opacity-60 hover:opacity-100"
@@ -105,38 +203,26 @@ export function PostingTimesSettingsPage() {
         />
       }
     >
-        <p className="text-sm text-[var(--text-secondary)] opacity-60">
-          Configure até {MAX_TIMES_PER_DAY} horários recomendados por dia. O sistema usará essas
-          janelas como sugestão ao programar conteúdo.
-        </p>
-
-        <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-          {WEEKDAYS.map((day) => (
-            <DayCard
-              key={day}
-              day={day}
-              times={(draft[day] ?? []).filter(Boolean) as string[]}
-              onAdd={(t) => addTime(day, t)}
-              onRemove={(i) => removeTime(day, i)}
-            />
-          ))}
-        </div>
+      {content}
     </PageLayout>
   );
 }
 
-// ─── DayCard ────────────────────────────────────────────────────────────────
+// ─── DayCard ─────────────────────────────────────────────────────────────────
 
 interface DayCardProps {
   day: Weekday;
-  times: string[];
+  specificTimes: string[];
+  fallbackTimes: string[];
+  isFallback: boolean;
   onAdd: (time: string) => void;
-  onRemove: (index: number) => void;
+  onRemove: (time: string) => void;
 }
 
-function DayCard({day, times, onAdd, onRemove}: DayCardProps) {
+function DayCard({day, specificTimes, fallbackTimes, isFallback, onAdd, onRemove}: DayCardProps) {
   const [input, setInput] = useState('');
-  const canAdd = times.length < MAX_TIMES_PER_DAY;
+  const canAdd = specificTimes.length < MAX_TIMES_PER_DAY;
+  const displayTimes = specificTimes.length > 0 ? specificTimes : fallbackTimes;
 
   function handleAdd() {
     if (!input) return;
@@ -148,28 +234,46 @@ function DayCard({day, times, onAdd, onRemove}: DayCardProps) {
     <div className="rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-primary)] px-5 py-4 space-y-3">
       <div className="flex items-center justify-between">
         <p className="text-sm font-semibold text-[var(--text-primary)]">{WEEKDAY_LABELS[day]}</p>
-        <span className="text-xs text-[var(--text-secondary)] opacity-40">
-          {times.length}/{MAX_TIMES_PER_DAY}
-        </span>
+        <div className="flex items-center gap-2">
+          {isFallback && (
+            <span className="flex items-center gap-1 text-xs text-[var(--text-secondary)] opacity-40">
+              <Globe className="h-2.5 w-2.5" />
+              global
+            </span>
+          )}
+          <span className="text-xs text-[var(--text-secondary)] opacity-40">
+            {specificTimes.length}/{MAX_TIMES_PER_DAY}
+          </span>
+        </div>
       </div>
 
-      {times.length > 0 && (
+      {displayTimes.length > 0 && (
         <div className="flex flex-wrap gap-2">
-          {times.map((t, i) => (
-            <span
-              key={t}
-              className="flex items-center gap-1.5 rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-3 py-1.5 text-xs font-bold text-[var(--text-primary)]"
-            >
-              {t}
-              <button
-                onClick={() => onRemove(i)}
-                className="opacity-30 hover:opacity-80 transition-opacity"
-                aria-label={`Remover ${t}`}
+          {displayTimes.map(t => {
+            const isOwn = specificTimes.includes(t);
+            return (
+              <span
+                key={t}
+                className={cn(
+                  'flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold',
+                  isOwn
+                    ? 'border-[var(--border-color)] bg-[var(--bg-secondary)] text-[var(--text-primary)]'
+                    : 'border-dashed border-[var(--border-color)] bg-transparent text-[var(--text-secondary)] opacity-40',
+                )}
               >
-                <Trash2 className="h-3 w-3" />
-              </button>
-            </span>
-          ))}
+                {t}
+                {isOwn && (
+                  <button
+                    onClick={() => onRemove(t)}
+                    className="opacity-30 hover:opacity-80 transition-opacity"
+                    aria-label={`Remover ${t}`}
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </button>
+                )}
+              </span>
+            );
+          })}
         </div>
       )}
 
@@ -198,52 +302,11 @@ function DayCard({day, times, onAdd, onRemove}: DayCardProps) {
         </div>
       )}
 
-      {!canAdd && times.length === MAX_TIMES_PER_DAY && (
+      {!canAdd && (
         <p className="text-xs text-[var(--text-secondary)] opacity-40">
-          Máximo de {MAX_TIMES_PER_DAY} horários atingido
+          {`Maximo de ${MAX_TIMES_PER_DAY} horarios atingido`}
         </p>
       )}
-    </div>
-  );
-}
-
-// ─── Mobile ─────────────────────────────────────────────────────────────────
-
-interface MobilePostingTimesProps {
-  draft: PostingTimesSettings;
-  onAdd: (day: Weekday, time: string) => void;
-  onRemove: (day: Weekday, index: number) => void;
-  onBack: () => void;
-}
-
-function MobilePostingTimes({draft, onAdd, onRemove, onBack}: MobilePostingTimesProps) {
-  return (
-    <div className="flex flex-col">
-      {/* Header */}
-      <div className="flex items-center gap-3 border-b border-[var(--border-color)] bg-[var(--bg-primary)] px-4 py-4">
-        <button onClick={onBack} className="text-[var(--text-secondary)] opacity-60 hover:opacity-100">
-          ←
-        </button>
-        <div className="flex items-center gap-2">
-          <Clock className="h-4 w-4 text-[var(--text-primary)] opacity-50" />
-          <h1 className="text-base font-semibold text-[var(--text-primary)]">Horários de Postagem</h1>
-        </div>
-      </div>
-
-      <div className="space-y-1 p-4">
-        <p className="mb-4 text-xs text-[var(--text-secondary)] opacity-60">
-          Até {MAX_TIMES_PER_DAY} horários por dia. Usados como sugestão ao programar.
-        </p>
-        {WEEKDAYS.map((day) => (
-          <DayCard
-            key={day}
-            day={day}
-            times={(draft[day] ?? []).filter(Boolean) as string[]}
-            onAdd={(t) => onAdd(day, t)}
-            onRemove={(i) => onRemove(day, i)}
-          />
-        ))}
-      </div>
     </div>
   );
 }

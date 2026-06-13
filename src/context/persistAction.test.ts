@@ -77,6 +77,7 @@ function createState(overrides: Partial<AppState> = {}): AppState {
     agendaItems: [],
     goldenRules: [],
     contentMetrics: [],
+    postingTimeEntries: [],
     books: [],
     partnerships: [],
     results: [],

@@ -23,6 +23,7 @@ export const initialState: AppState = {
   agendaItems: [],
   goldenRules: [],
   contentMetrics: [],
+  postingTimeEntries: [],
 
   // Legacy aliases
   books: [],
