@@ -683,8 +683,10 @@ textarea {
   }
 
   .page-container {
-    padding-left: 1rem;
-    padding-right: 1rem;
+    max-width: 100%;
+    padding-left: clamp(1rem, 2vw, 3rem);
+    padding-right: clamp(1rem, 2vw, 3rem);
+    margin-bottom: 3rem;
   }
 
   .filter-select {
@@ -707,8 +709,10 @@ textarea {
 /* 💻 DESKTOP & SHARED STYLES */
 @media (min-width: 769px) {
   .page-container {
-    padding-left: 2.5rem;
-    padding-right: 2.5rem;
+    max-width: 100%;
+    padding-left: clamp(1rem, 2vw, 3rem);
+    padding-right: clamp(1rem, 2vw, 3rem);
+    margin-bottom: 3rem;
   }
 
   .button-primary {
@@ -903,22 +907,22 @@ textarea {
 }
 
 .desktop-header-frame {
-  max-width: none;
+  max-width: 100%;
   padding: 16px 24px 12px;
 }
 
 .desktop-content-frame {
-  max-width: none;
+  max-width: 100%;
   padding: 24px 16px 32px;
 }
 
 .desktop-content-frame-wide {
-  max-width: none;
+  max-width: 100%;
   padding: 24px 16px 32px;
 }
 
 .desktop-content-frame-book {
-  max-width: none;
+  max-width: 100%;
   padding: 24px 16px 32px;
 }
 

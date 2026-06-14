@@ -145,7 +145,7 @@ function DesktopPagination({
   const pages = Array.from({ length: totalPages }, (_, index) => index + 1);
 
   return (
-    <div className="flex flex-col gap-3 rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-3 md:flex-row md:items-center md:justify-between">
+    <div className="flex flex-col gap-3 rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-3 mt-8 w-full md:flex-row md:items-center md:justify-between">
       <p className="text-xs font-medium text-[var(--text-secondary)]">
         Mostrando {startItem}-{endItem} de {totalItems} conteudos
       </p>
