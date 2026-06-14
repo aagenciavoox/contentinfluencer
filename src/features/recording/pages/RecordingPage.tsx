@@ -131,6 +131,31 @@ export function RecordingPage() {
     setShowBlockForm(false);
   };
 
+  const handleAddToExistingBlock = async (blockId: string) => {
+    if (!blockId || selectedIds.size === 0) return;
+
+    const existingBlock = state.recordingBlocks.find(b => b.id === blockId);
+    if (!existingBlock) return;
+
+    const existingContentIds = new Set(existingBlock.contents.map(c => c.contentId));
+    const newContents = prontos.filter(c => selectedIds.has(c.id) && !existingContentIds.has(c.id));
+
+    const merged = [
+      ...existingBlock.contents,
+      ...newContents.map((content, i) => ({
+        blockId,
+        contentId: content.id,
+        ordem: existingBlock.contents.length + i,
+        gravado: false,
+      })),
+    ];
+
+    await dispatch({type: 'UPDATE_BLOCK_CONTENTS', payload: {blockId, contents: merged}});
+
+    handleClearSelection();
+    navigate(`/gravacao/${blockId}?tab=blocks`);
+  };
+
   const handleCriarBloco = async () => {
     if (!blockName.trim() || selectedIds.size === 0) return;
 
@@ -368,6 +393,7 @@ export function RecordingPage() {
               blockName={blockName}
               blockTags={blockTags}
               availableTags={availableRecordingTags}
+              existingBlocks={state.recordingBlocks}
               showBlockForm={showBlockForm}
               canCreate={Boolean(blockName.trim())}
               onBlockNameChange={setBlockName}
@@ -378,6 +404,7 @@ export function RecordingPage() {
                 setBlockTags([]);
               }}
               onCreate={handleCriarBloco}
+              onAddToBlock={handleAddToExistingBlock}
               onClearSelection={handleClearSelection}
             />
           </section>
@@ -393,9 +420,9 @@ export function RecordingPage() {
             </div>
 
             <div className="space-y-1">
-              <h2 className="text-sm font-semibold text-[var(--text-primary)]">Blocos de gravacao</h2>
+              <h2 className="text-sm font-semibold text-[var(--text-primary)]">Blocos de gravação</h2>
               <p className="text-sm text-[var(--text-secondary)]">
-                Clique em um bloco para editar lineup, marcadores e teleprompter antes de gravar.
+                Gerencie os blocos montados e acompanhe o progresso de gravação.
               </p>
             </div>
 
@@ -406,29 +433,21 @@ export function RecordingPage() {
   );
 }
 
-function StatCard({
-  label,
-  value,
-  icon,
-  className,
-}: {
+interface StatCardProps {
   label: string;
   value: string;
   icon?: ReactNode;
   className?: string;
-}) {
+}
+
+function StatCard({label, value, icon, className}: StatCardProps) {
   return (
-    <div
-      className={cn(
-        'rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-3',
-        className
-      )}
-    >
-      <div className="flex items-center gap-2 text-[var(--text-tertiary)]">
-        {icon}
-        <p className="text-xs font-semibold uppercase tracking-[0.14em]">{label}</p>
+    <div className={cn('rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4', className)}>
+      <div className="flex items-center gap-2">
+        {icon ? <span className="text-[var(--text-secondary)]">{icon}</span> : null}
+        <p className="text-xs font-medium text-[var(--text-secondary)]">{label}</p>
       </div>
-      <p className="mt-1 text-2xl font-semibold text-[var(--text-primary)]">{value}</p>
+      <p className="mt-1 text-2xl font-bold tabular-nums text-[var(--text-primary)]">{value}</p>
     </div>
   );
 }

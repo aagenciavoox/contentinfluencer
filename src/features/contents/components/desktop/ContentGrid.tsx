@@ -1,4 +1,4 @@
-import { Check, Eye, Sparkles, Zap } from 'lucide-react';
+import {Check, Eye, Sparkles, Zap} from 'lucide-react';
 import { Content } from '../../../../lib/database';
 import { useAppContext } from '../../../../context/AppContext';
 import { cn } from '../../../../lib/utils';
@@ -99,7 +99,6 @@ export function ContentGrid({
           const seriesColor = seriesEntity?.cor ?? null;
           const isPipeline = mode === 'pipeline';
 
-          // Meta line sem "Roteiro ·" no pipeline
           const metaLine = isPipeline
             ? [formatLastEdit(content.updatedAt), getScriptWordCount(content) > 0 ? `${getScriptWordCount(content)} palavras` : null]
                 .filter(Boolean).join(' · ')
@@ -111,10 +110,9 @@ export function ContentGrid({
               className={cn(
                 'ds-card group relative flex flex-col overflow-hidden bg-[var(--bg-primary)] text-left transition-colors hover:border-[var(--border-strong)]',
                 isPipeline ? 'p-3' : isCompact ? 'p-3' : 'p-3.5',
-                isSelected && 'border-[var(--text-primary)] ring-1 ring-[var(--text-primary)]/15'
+                isSelected && 'border-[var(--text-primary)] bg-[var(--text-primary)]/5 ring-1 ring-[var(--text-primary)]/20'
               )}
             >
-              {/* Borda colorida da serie */}
               {isPipeline && seriesColor ? (
                 <div
                   className="pointer-events-none absolute inset-y-0 left-0 w-[3px]"
@@ -122,17 +120,19 @@ export function ContentGrid({
                 />
               ) : null}
 
-              {/* Botoes de acao — absolutos no pipeline para nao consumir linha */}
               {isPipeline ? (
-                <div className="absolute right-2 top-2 flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                <div className={cn(
+                  'absolute right-2 top-2 flex items-center gap-1 transition-opacity',
+                  isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                )}>
                   {enableSelection ? (
                     <button
                       type="button"
-                      onClick={() => onToggleSelect(content.id)}
+                      onClick={e => { e.stopPropagation(); onToggleSelect(content.id); }}
                       className={cn(
                         'inline-flex h-6 w-6 items-center justify-center rounded-[var(--radius-input)] border transition-colors',
                         isSelected
-                          ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-[var(--bg-primary)] opacity-100'
+                          ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-[var(--bg-primary)]'
                           : 'border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]'
                       )}
                       aria-label={isSelected ? `Desmarcar ${content.title}` : `Selecionar ${content.title}`}
@@ -150,7 +150,6 @@ export function ContentGrid({
                   </button>
                 </div>
               ) : (
-                /* Layout original para publicados */
                 <div className="mb-2 flex items-start justify-between gap-2">
                   <div className="flex min-w-0 flex-wrap items-center gap-1.5">
                     {mode === 'publicados' ? (
@@ -181,7 +180,6 @@ export function ContentGrid({
                       </span>
                     ) : null}
                   </div>
-
                   <div className="flex shrink-0 items-center gap-1">
                     {enableSelection ? (
                       <button
@@ -211,7 +209,6 @@ export function ContentGrid({
                 </div>
               )}
 
-              {/* Chip de rascunho no pipeline (unico que faz sentido mostrar) */}
               {isPipeline && isDraft ? (
                 <div className="mb-1.5">
                   <span className="inline-flex rounded-full bg-[var(--bg-hover)] px-1.5 py-0.5 text-xs font-medium text-[var(--text-tertiary)]">
@@ -249,19 +246,17 @@ export function ContentGrid({
                   <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-[var(--text-secondary)]">
                     {excerpt}
                   </p>
-                ) : (
-                  <p className="mt-2 line-clamp-1 text-xs text-[var(--text-tertiary)]">
-                    {metaLine}
-                  </p>
-                )}
-
-                {lookAlerts[content.id] ? (
-                  <div className="mt-2 flex items-center gap-1 text-xs font-medium text-[var(--accent-orange)]">
-                    <Zap className="h-3 w-3" />
-                    <span className="line-clamp-1">{lookAlerts[content.id]}</span>
-                  </div>
                 ) : null}
+
+                <p className="mt-auto pt-2 text-[11px] text-[var(--text-tertiary)]">{metaLine}</p>
               </button>
+
+              {lookAlerts[content.id] ? (
+                <div className="mt-2 flex items-center gap-1 text-xs font-medium text-[var(--accent-orange)]">
+                  <Zap className="h-3 w-3" />
+                  <span className="line-clamp-1">{lookAlerts[content.id]}</span>
+                </div>
+              ) : null}
             </article>
           );
         })}

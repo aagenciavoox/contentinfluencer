@@ -1,10 +1,11 @@
-import {Suspense, lazy, useEffect, useMemo, useState} from 'react';
+import {Suspense, lazy, useEffect, useMemo, useRef, useState} from 'react';
 import {useLocation, useNavigate, useSearchParams} from 'react-router-dom';
-import {Check, Loader2, Table as TableIcon, Trash2, X} from 'lucide-react';
+import {Check, ChevronDown, Clapperboard, Loader2, Table as TableIcon, Trash2, X} from 'lucide-react';
 import {AnimatePresence, motion} from 'motion/react';
 import {ConfirmModal} from '../../../components/feedback/modals/ConfirmModal';
 import {AppButton} from '../../../components/ui/AppButton';
 import {useAppContext} from '../../../context/AppContext';
+import {useAuth} from '../../../context/AuthContext';
 import {broadcastDataSync} from '../../../lib/syncBroadcast';
 import {notifySaveFeedback} from '../../../lib/saveFeedback';
 import {useIsMobile} from '../../../hooks/useIsMobile';
@@ -21,6 +22,8 @@ import {createContentDraft} from '../lib/createContentDraft';
 import {buildContentDetailRoute} from '../lib/contentDetailRoute';
 import {CONTENT_STATUS} from '../lib/contentPipeline';
 import {normalizeRecordingTags} from '../../recording/lib/recordingWorkflow';
+import {generateUUID} from '../../../utils/uuid';
+import type {RecordingBlock, RecordingBlockContent} from '../../../lib/database';
 import {
   EDITORIAL_CONTENT_STATUSES,
   getContentStatusOptions,
@@ -52,6 +55,7 @@ function resolveListView(view: string | null): ContentsListView {
 
 export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'history' | 'auto'}) {
   const {state, dispatch, updateContent, ensureDataDomains} = useAppContext();
+  const {user} = useAuth();
 
   useEffect(() => {
     void ensureDataDomains(['production', 'content']);
@@ -83,6 +87,10 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
   const [bulkUpdateMessage, setBulkUpdateMessage] = useState<string | null>(null);
   const [bulkUpdateError, setBulkUpdateError] = useState<string | null>(null);
   const [isBulkUpdating, setIsBulkUpdating] = useState(false);
+  const [showBlockForm, setShowBlockForm] = useState(false);
+  const [blockMode, setBlockMode] = useState<'novo' | 'existente'>('novo');
+  const [blockName, setBlockName] = useState('');
+  const [targetBlockId, setTargetBlockId] = useState<string>('');
   const [confirm, setConfirm] = useState<{message: string; onConfirm: () => void} | null>(null);
   const [desktopPage, setDesktopPage] = useState(1);
   const [isCompact, setIsCompact] = useState(pipelinePrefs.isCompact);
@@ -206,6 +214,10 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
       setBulkStatusValue(KEEP_VALUE);
       setBulkUpdateMessage(null);
       setBulkUpdateError(null);
+      setShowBlockForm(false);
+      setBlockMode('novo');
+      setBlockName('');
+      setTargetBlockId('');
     }
   }, [selectedIds]);
 
@@ -450,10 +462,71 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
     }
   };
 
+  const handleCriarBloco = async () => {
+    if (!blockName.trim() || selectedIds.size === 0) return;
+
+    const selectedContents = state.contents.filter(content => selectedIds.has(content.id));
+    const recordingTags = normalizeRecordingTags(
+      selectedContents.flatMap(content => content.tags || [])
+    );
+
+    const block: RecordingBlock = {
+      id: generateUUID(),
+      userId: user?.id || '',
+      name: blockName.trim(),
+      lookLabel: null,
+      cenarioLabel: null,
+      metadata: {
+        recordingTags,
+        sourceContentIds: selectedContents.map(content => content.id),
+      },
+      createdAt: new Date().toISOString(),
+      contents: [],
+    };
+
+    const blockContents: RecordingBlockContent[] = selectedContents.map((content, index) => ({
+      blockId: block.id,
+      contentId: content.id,
+      ordem: index,
+      gravado: false,
+    }));
+
+    await dispatch({type: 'ADD_RECORDING_BLOCK', payload: block});
+    await dispatch({type: 'UPDATE_BLOCK_CONTENTS', payload: {blockId: block.id, contents: blockContents}});
+
+    setSelectedIds(new Set());
+    navigate(`/gravacao/${block.id}`);
+  };
+
+  const handleAddToExistingBlock = async () => {
+    if (!targetBlockId || selectedIds.size === 0) return;
+
+    const existingBlock = state.recordingBlocks.find(b => b.id === targetBlockId);
+    if (!existingBlock) return;
+
+    const existingContentIds = new Set(existingBlock.contents.map(c => c.contentId));
+    const selectedContents = state.contents.filter(c => selectedIds.has(c.id) && !existingContentIds.has(c.id));
+
+    const merged: RecordingBlockContent[] = [
+      ...existingBlock.contents,
+      ...selectedContents.map((content, i) => ({
+        blockId: targetBlockId,
+        contentId: content.id,
+        ordem: existingBlock.contents.length + i,
+        gravado: false,
+      })),
+    ];
+
+    await dispatch({type: 'UPDATE_BLOCK_CONTENTS', payload: {blockId: targetBlockId, contents: merged}});
+
+    setSelectedIds(new Set());
+    navigate(`/gravacao/${targetBlockId}`);
+  };
+
   const pageTitle = isPipeline ? 'Pipeline' : 'Publicados';
   const surfaceMode = isPipeline ? 'pipeline' : 'publicados';
 
-  const openContentDetail = (content: Content, tab: 'roteiro' | 'publicar' = 'roteiro') => {
+  const openContentDetail = (content: Content, tab: 'roteiro' | 'publicacao' = 'roteiro') => {
     navigate(buildContentDetailRoute(content.id, tab), buildDetailBackState(conteudosListPath));
   };
 
@@ -479,7 +552,7 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
           series={state.series}
           pilares={state.pilares}
           onSelect={content => {
-            openContentDetail(content, isPublicados ? 'publicar' : 'roteiro');
+            openContentDetail(content, isPublicados ? 'publicacao' : 'roteiro');
           }}
           onPreview={handlePreview}
           onCreate={handleAddContent}
@@ -491,7 +564,6 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
               return next;
             }, {replace: true});
           }}
-          isCompact={isCompact}
         />
 
         {isPipeline && isCSVUploadOpen && (
@@ -578,7 +650,7 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
         selectedIds={selectedIds}
         isCompact={isCompact}
         filterStatus={filterStatus}
-        onSelect={content => openContentDetail(content, isPublicados ? 'publicar' : 'roteiro')}
+        onSelect={content => openContentDetail(content, isPublicados ? 'publicacao' : 'roteiro')}
         onPreview={handlePreview}
         onSort={handleSort}
         onToggleSelect={handleToggleSelect}
@@ -605,101 +677,186 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
             exit={{y: 80}}
             className="fixed bottom-6 left-1/2 z-30 w-[min(1100px,calc(100vw-2rem))] -translate-x-1/2 rounded-2xl bg-[var(--text-primary)] px-4 py-3 text-[var(--bg-primary)] shadow-xl shadow-black/20"
           >
-            <div className="flex flex-col gap-2">
-              <div className="flex items-center gap-2 overflow-hidden">
-                {/* Contador */}
-                <span className="shrink-0 rounded-full bg-white/15 px-2.5 py-1 text-[11px] font-bold tabular-nums">
-                  {selectedIds.size} sel.
-                </span>
-
-                {/* Selects — largura fixa, sem wrap */}
-                <div className="flex shrink-0 items-center gap-1.5">
-                  <BulkSelect
-                    label="Pilar"
-                    value={bulkPillarValue}
-                    onChange={setBulkPillarValue}
-                    options={[
-                      {label: 'Pilar', value: KEEP_VALUE},
-                      {label: 'Sem pilar', value: EMPTY_VALUE},
-                      ...state.pilares.map(pillar => ({label: pillar.nome, value: pillar.id})),
-                    ]}
-                  />
-                  <BulkSelect
-                    label="Serie"
-                    value={bulkSeriesValue}
-                    onChange={setBulkSeriesValue}
-                    options={[
-                      {label: 'Serie', value: KEEP_VALUE},
-                      {label: 'Sem serie', value: EMPTY_VALUE},
-                      ...state.series.map(series => ({label: series.name, value: series.id})),
-                    ]}
-                  />
-                  <BulkSelect
-                    label="Status"
-                    value={bulkStatusValue}
-                    onChange={setBulkStatusValue}
-                    options={[
-                      {label: 'Status', value: KEEP_VALUE},
-                      ...bulkStatusOptions.map(status => ({label: status, value: status})),
-                    ]}
-                  />
-                </div>
-
-                {/* Separador */}
-                <div className="h-5 w-px shrink-0 bg-white/15" />
-
-                {/* Acoes */}
-                <div className="flex shrink-0 items-center gap-1.5">
+            {showBlockForm ? (
+              <div className="flex flex-col gap-2.5">
+                {/* Cabecalho */}
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-xs font-semibold text-white">
+                    <Clapperboard className="mr-1.5 inline h-3.5 w-3.5 opacity-70" />
+                    {selectedIds.size} {selectedIds.size === 1 ? 'roteiro' : 'roteiros'} selecionados
+                  </p>
                   <button
                     type="button"
-                    onClick={() => void handleBulkSetStatus(RECORDING_READY_STATUS)}
-                    disabled={isBulkUpdating}
-                    className="inline-flex h-8 items-center gap-1 rounded-lg border border-white/20 bg-white/10 px-2.5 text-[11px] font-semibold text-white transition-colors hover:bg-white/15 disabled:opacity-40"
-                  >
-                    Pronto p/ gravar
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleBulkApply}
-                    disabled={!hasBulkChanges || isBulkUpdating}
-                    className="inline-flex h-8 items-center gap-1 rounded-lg bg-white px-3 text-[11px] font-bold text-[#0F172A] transition-colors hover:bg-white/90 disabled:opacity-40"
-                  >
-                    {isBulkUpdating
-                      ? <Loader2 className="h-3 w-3 animate-spin" />
-                      : <Check className="h-3 w-3" />}
-                    Aplicar
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleBulkDelete}
-                    className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-red-500/20 text-red-300 transition-colors hover:bg-red-500/30"
-                    aria-label="Excluir selecionados"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedIds(new Set())}
-                    className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-white/10 text-white/60 transition-colors hover:bg-white/15 hover:text-white"
-                    aria-label="Limpar selecao"
+                    onClick={() => { setShowBlockForm(false); setBlockMode('novo'); setBlockName(''); setTargetBlockId(''); }}
+                    className="rounded-full p-1 text-white/50 transition-colors hover:bg-white/10 hover:text-white"
+                    aria-label="Cancelar"
                   >
                     <X className="h-3.5 w-3.5" />
                   </button>
                 </div>
-              </div>
 
-              {bulkUpdateError ? <p className="text-xs text-red-300">{bulkUpdateError}</p> : null}
-              {bulkUpdateMessage ? <p className="text-xs text-emerald-300">{bulkUpdateMessage}</p> : null}
-            </div>
+                {/* Toggle novo / existente */}
+                <div className="flex rounded-lg bg-white/10 p-0.5 w-fit">
+                  {(['novo', 'existente'] as const).map(mode => (
+                    <button
+                      key={mode}
+                      type="button"
+                      onClick={() => setBlockMode(mode)}
+                      className={`px-3 py-1 rounded-md text-[10px] font-semibold transition-colors ${
+                        blockMode === mode ? 'bg-white text-[#0F172A]' : 'text-white/60 hover:text-white'
+                      }`}
+                    >
+                      {mode === 'novo' ? 'Novo bloco' : 'Bloco existente'}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Conteudo do form */}
+                {blockMode === 'novo' ? (
+                  <div className="flex items-center gap-2">
+                    <input
+                      autoFocus
+                      value={blockName}
+                      onChange={event => setBlockName(event.target.value)}
+                      onKeyDown={event => event.key === 'Enter' && blockName.trim() && void handleCriarBloco()}
+                      placeholder="Nome do bloco..."
+                      className="h-8 flex-1 rounded-lg border border-white/20 bg-white/10 px-3 text-[11px] font-medium text-white placeholder:text-white/40 outline-none focus:border-white/40"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => void handleCriarBloco()}
+                      disabled={!blockName.trim()}
+                      className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg bg-white px-3 text-[11px] font-bold text-[#0F172A] transition-colors hover:bg-white/90 disabled:opacity-40"
+                    >
+                      <Check className="h-3 w-3" />
+                      Criar
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <select
+                      autoFocus
+                      value={targetBlockId}
+                      onChange={e => setTargetBlockId(e.target.value)}
+                      className="h-8 flex-1 rounded-lg border border-white/20 bg-[#1e293b] px-2 text-[11px] font-medium text-white outline-none focus:border-white/40"
+                    >
+                      <option value="">Escolher bloco...</option>
+                      {state.recordingBlocks.map(b => (
+                        <option key={b.id} value={b.id}>{b.name}</option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      onClick={() => void handleAddToExistingBlock()}
+                      disabled={!targetBlockId}
+                      className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg bg-white px-3 text-[11px] font-bold text-[#0F172A] transition-colors hover:bg-white/90 disabled:opacity-40"
+                    >
+                      <Check className="h-3 w-3" />
+                      Adicionar
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  {/* Contador */}
+                  <span className="shrink-0 rounded-full bg-white/15 px-2.5 py-1 text-[11px] font-bold tabular-nums">
+                    {selectedIds.size} sel.
+                  </span>
+
+                  {/* Dropdowns customizados */}
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    <BulkDropdown
+                      label="Pilar"
+                      value={bulkPillarValue}
+                      onChange={setBulkPillarValue}
+                      options={[
+                        {label: 'Sem pilar', value: EMPTY_VALUE},
+                        ...state.pilares.map(pillar => ({label: pillar.nome, value: pillar.id})),
+                      ]}
+                    />
+                    <BulkDropdown
+                      label="Série"
+                      value={bulkSeriesValue}
+                      onChange={setBulkSeriesValue}
+                      options={[
+                        {label: 'Sem série', value: EMPTY_VALUE},
+                        ...state.series.map(series => ({label: series.name, value: series.id})),
+                      ]}
+                    />
+                    <BulkDropdown
+                      label="Status"
+                      value={bulkStatusValue}
+                      onChange={setBulkStatusValue}
+                      options={bulkStatusOptions.map(status => ({label: status, value: status}))}
+                    />
+                  </div>
+
+                  {/* Separador */}
+                  <div className="h-5 w-px shrink-0 bg-white/15" />
+
+                  {/* Acoes */}
+                  <div className="flex shrink-0 flex-wrap items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => void handleBulkSetStatus(RECORDING_READY_STATUS)}
+                      disabled={isBulkUpdating}
+                      className="inline-flex h-8 items-center gap-1 rounded-lg border border-white/20 bg-white/10 px-2.5 text-[11px] font-semibold text-white transition-colors hover:bg-white/15 disabled:opacity-40"
+                    >
+                      Pronto p/ gravar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleBulkApply}
+                      disabled={!hasBulkChanges || isBulkUpdating}
+                      className="inline-flex h-8 items-center gap-1 rounded-lg bg-white px-3 text-[11px] font-bold text-[#0F172A] transition-colors hover:bg-white/90 disabled:opacity-40"
+                    >
+                      {isBulkUpdating
+                        ? <Loader2 className="h-3 w-3 animate-spin" />
+                        : <Check className="h-3 w-3" />}
+                      Aplicar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowBlockForm(true)}
+                      className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-white/20 bg-white/10 px-2.5 text-[11px] font-semibold text-white transition-colors hover:bg-white/15"
+                    >
+                      <Clapperboard className="h-3 w-3" />
+                      Criar bloco
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleBulkDelete}
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-red-500/20 text-red-300 transition-colors hover:bg-red-500/30"
+                      aria-label="Excluir selecionados"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedIds(new Set())}
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-white/10 text-white/60 transition-colors hover:bg-white/15 hover:text-white"
+                      aria-label="Limpar selecao"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </div>
+
+                {bulkUpdateError ? <p className="text-xs text-red-300">{bulkUpdateError}</p> : null}
+                {bulkUpdateMessage ? <p className="text-xs text-emerald-300">{bulkUpdateMessage}</p> : null}
+              </div>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
 
       {isPipeline && isCSVUploadOpen && (
-        <Suspense fallback={<ModalFallback />}>
-          <CSVUploadModal onClose={() => setIsCSVUploadOpen(false)} />
-        </Suspense>
-      )}
+          <Suspense fallback={<ModalFallback />}>
+            <CSVUploadModal onClose={() => setIsCSVUploadOpen(false)} />
+          </Suspense>
+        )}
 
       <ConfirmModal
         open={!!confirm}
@@ -710,30 +867,91 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
         }}
         onCancel={() => setConfirm(null)}
       />
+
+      {previewContent ? (
+        <ContentPreviewSheet
+          content={previewContent}
+          pillar={previewPillar}
+          series={previewSeries}
+          onClose={() => setPreviewContent(null)}
+          onOpen={() => openContentDetail(previewContent)}
+        />
+      ) : null}
     </PageLayout>
   );
 }
 
-interface BulkSelectProps {
+interface BulkDropdownOption {
+  label: string;
+  value: string;
+}
+
+interface BulkDropdownProps {
   label: string;
   value: string;
   onChange: (value: string) => void;
-  options: Array<{label: string; value: string}>;
+  options: BulkDropdownOption[];
 }
 
-function BulkSelect({label, value, onChange, options}: BulkSelectProps) {
+function BulkDropdown({label, value, onChange, options}: BulkDropdownProps) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (event: MouseEvent) => {
+      if (ref.current && !ref.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  const selectedLabel = options.find(opt => opt.value === value)?.label;
+
   return (
-    <select
-      value={value}
-      onChange={event => onChange(event.target.value)}
-      aria-label={label}
-      className="h-8 w-[115px] cursor-pointer rounded-lg border border-white/15 bg-white/10 px-2 text-[11px] font-semibold text-white outline-none transition-colors hover:bg-white/15 focus:border-white/30"
-    >
-      {options.map(option => (
-        <option key={`${label}-${option.value}`} value={option.value} className="bg-[#1e293b] text-white">
-          {option.label}
-        </option>
-      ))}
-    </select>
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen(prev => !prev)}
+        className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-white/20 bg-white/10 px-2.5 text-[11px] font-semibold text-white transition-colors hover:bg-white/15"
+      >
+        <span className="text-[10px] font-bold uppercase tracking-wide text-white/50">{label}</span>
+        {selectedLabel ? (
+          <>
+            <span className="text-white/30">·</span>
+            <span className="max-w-[90px] truncate text-white">{selectedLabel}</span>
+          </>
+        ) : null}
+        <ChevronDown className={`h-3 w-3 text-white/50 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+
+      {open ? (
+        <div className="absolute bottom-full left-0 z-50 mb-1.5 min-w-[160px] overflow-hidden rounded-xl border border-white/10 bg-[#1e293b] shadow-xl">
+          <button
+            type="button"
+            onClick={() => { onChange(KEEP_VALUE); setOpen(false); }}
+            className="flex w-full items-center gap-2 px-3 py-2 text-left text-[11px] font-medium text-white/50 hover:bg-white/10"
+          >
+            Limpar
+          </button>
+          <div className="my-1 h-px bg-white/10" />
+          {options.map(opt => (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => { onChange(opt.value); setOpen(false); }}
+              className="flex w-full items-center gap-2 px-3 py-2 text-left text-[11px] font-medium text-white hover:bg-white/10"
+            >
+              <span className="flex h-3.5 w-3.5 shrink-0 items-center justify-center">
+                {value === opt.value ? <Check className="h-3 w-3 stroke-[3px]" /> : null}
+              </span>
+              <span className="truncate">{opt.label}</span>
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
   );
 }
