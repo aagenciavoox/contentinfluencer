@@ -1,53 +1,39 @@
 import React from 'react';
 import {NavLink, useLocation, useNavigate} from 'react-router-dom';
 import {
-  BarChart3,
-  BookOpen,
-  Calendar,
-  CalendarClock,
-  Camera,
   ChevronRight,
-  FileText,
-  Fingerprint,
-  FolderKanban,
-  LayoutDashboard,
-  Layers,
-  Lightbulb,
   LogOut,
   Moon,
   PanelLeftClose,
   PanelLeftOpen,
-  Palette,
   Search,
   Settings,
-  ShieldCheck,
   Sun,
   User,
   X,
 } from 'lucide-react';
 import {AnimatePresence, motion} from 'motion/react';
 import {Tooltip} from '../../components/ui/Tooltip';
+import {Text} from '../../components/ui/Text';
 import {useAppContext} from '../../context/AppContext';
 import {useAuth} from '../../context/AuthContext';
-import {getEditorialContents} from '../../features/contents/lib/contentWorkflow';
 import {getModuleFlags} from '../../features/settings/lib/moduleFlags';
+import {useNavCounts} from '../../hooks/useNavCounts';
 import {readStoredJson, writeStoredJson} from '../../lib/browserStorage';
 import {cn} from '../../lib/utils';
 import {MobileSidebarDrawer} from '../../mobile/components/MobileSidebarDrawer';
+import {
+  buildSidebarSections,
+  isNavItemHidden,
+  isSettingsNavActive,
+  resolveNavBadge,
+  type NavItemDefinition,
+} from './navConfig';
 
 interface SidebarProps {
   isOpen: boolean;
   onClose: () => void;
 }
-
-type NavItem = {
-  to: string;
-  label: string;
-  icon: React.ElementType;
-  badge?: number;
-  hidden?: boolean;
-  end?: boolean;
-};
 
 const SIDEBAR_COLLAPSED_KEY = 'sidebar_collapsed';
 const SIDEBAR_WIDTH_EXPANDED = 280;
@@ -56,9 +42,9 @@ const SIDEBAR_WIDTH_COLLAPSED = 72;
 function NavSectionLabel({children, collapsed}: {children: string; collapsed: boolean}) {
   if (collapsed) return null;
   return (
-    <p className="mb-1 mt-4 px-3 text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)] first:mt-0">
+    <Text variant="label" uppercase className="mb-1 mt-4 px-3 first:mt-0">
       {children}
-    </p>
+    </Text>
   );
 }
 
@@ -69,6 +55,7 @@ export function Sidebar({isOpen, onClose}: SidebarProps) {
   const navigate = useNavigate();
   const previousPathname = React.useRef(location.pathname);
   const moduleFlags = getModuleFlags(state.preferences);
+  const navCounts = useNavCounts(state.bibliotecaItems.length);
   const [isCollapsed, setIsCollapsed] = React.useState(() =>
     readStoredJson(SIDEBAR_COLLAPSED_KEY, false)
   );
@@ -80,6 +67,17 @@ export function Sidebar({isOpen, onClose}: SidebarProps) {
     }
     previousPathname.current = location.pathname;
   }, [isOpen, location.pathname, onClose]);
+
+  React.useEffect(() => {
+    if (!isOpen) return undefined;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isOpen]);
 
   React.useEffect(() => {
     if (!isOpen) return;
@@ -121,43 +119,7 @@ export function Sidebar({isOpen, onClose}: SidebarProps) {
     window.dispatchEvent(new KeyboardEvent('keydown', {key: 'k', metaKey: true, ctrlKey: true}));
   };
 
-  const generalItems: NavItem[] = [
-    {
-      to: '/conteudos',
-      label: 'Pipeline',
-      icon: FileText,
-      badge: getEditorialContents(state.contents).length || undefined,
-    },
-    {to: '/ideias', label: 'Ideias', icon: Lightbulb},
-    {to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard},
-  ];
-
-  const studioItems: NavItem[] = [
-    {to: '/configuracoes/dna', label: 'DNA da Voz', icon: Fingerprint},
-    {to: '/configuracoes/pilares', label: 'Pilares', icon: Palette},
-    {to: '/configuracoes/series', label: 'Séries', icon: Layers},
-    {to: '/configuracoes/regras', label: 'Regras de Ouro', icon: ShieldCheck},
-  ];
-
-  const workspaceItems: NavItem[] = [
-    {to: '/calendario', label: 'Calendário', icon: Calendar, hidden: !moduleFlags.calendar},
-    {to: '/programacao', label: 'Grade', icon: CalendarClock, hidden: !moduleFlags.calendar},
-    {to: '/projetos', label: 'Projetos', icon: FolderKanban, hidden: !moduleFlags.projects},
-    {
-      to: '/biblioteca',
-      label: 'Biblioteca',
-      icon: BookOpen,
-      badge: state.bibliotecaItems.length || undefined,
-      hidden: !moduleFlags.library,
-    },
-    {
-      to: '/gravacao?tab=queue',
-      label: 'Gravação',
-      icon: Camera,
-      hidden: !moduleFlags.recording,
-    },
-    {to: '/analise', label: 'Análise', icon: BarChart3, hidden: !moduleFlags.analytics},
-  ];
+  const navSections = buildSidebarSections(moduleFlags);
 
   const userName =
     user?.user_metadata?.full_name?.trim() ||
@@ -165,7 +127,9 @@ export function Sidebar({isOpen, onClose}: SidebarProps) {
     'Utilizador';
   const userEmail = user?.email || 'user@exemplo.com';
 
-  const renderNavItem = ({to, label, icon: Icon, badge, end = true}: NavItem) => {
+  const renderNavItem = (item: NavItemDefinition) => {
+    const {to, label, icon: Icon, end = true} = item;
+    const badge = resolveNavBadge(item, navCounts, state.bibliotecaItems.length);
     const link = (
       <NavLink
         key={to}
@@ -250,12 +214,12 @@ export function Sidebar({isOpen, onClose}: SidebarProps) {
     <div
       className={cn(
         'flex h-full w-full flex-col overflow-hidden border-r border-[var(--border-color)] bg-[var(--bg-secondary)] text-[var(--text-primary)] transition-[padding] duration-200',
-        isCollapsed ? 'px-2 py-4' : 'px-4 py-5'
+        isCollapsed ? 'px-2 py-4' : 'px-4 py-6'
       )}
     >
       <div className={cn('mb-5 flex shrink-0 items-center', isCollapsed ? 'justify-center' : 'justify-between')}>
         {isCollapsed ? (
-          <Tooltip label="Content OS">
+          <Tooltip label="Skript">
             <div className="flex h-8 w-8 items-center justify-center rounded-md border border-[var(--border-color)] bg-[var(--bg-elevated)]">
               <div className="h-3.5 w-3.5 rounded-sm border-2 border-[var(--text-primary)]" />
             </div>
@@ -266,7 +230,7 @@ export function Sidebar({isOpen, onClose}: SidebarProps) {
               <div className="h-3.5 w-3.5 rounded-sm border-2 border-[var(--text-primary)]" />
             </div>
             <span className="truncate text-sm font-semibold tracking-tight text-[var(--text-primary)]">
-              Content OS
+              Skript
             </span>
           </div>
         )}
@@ -307,19 +271,23 @@ export function Sidebar({isOpen, onClose}: SidebarProps) {
 
       <nav className="flex flex-1 flex-col" role="navigation" aria-label="Principal">
         <div className="custom-scrollbar flex-1 overflow-y-auto">
-          <div className="space-y-0.5">
-            {generalItems.filter(item => !item.hidden).map(renderNavItem)}
-          </div>
+          {navSections.map(section => {
+            const visibleItems = section.items.filter(item => !isNavItemHidden(item, moduleFlags));
+            if (visibleItems.length === 0) return null;
 
-          <NavSectionLabel collapsed={isCollapsed}>Editorial</NavSectionLabel>
-          <div className="space-y-0.5">
-            {studioItems.map(renderNavItem)}
-          </div>
-
-          <NavSectionLabel collapsed={isCollapsed}>Ferramentas</NavSectionLabel>
-          <div className="space-y-0.5">
-            {workspaceItems.filter(item => !item.hidden).map(renderNavItem)}
-          </div>
+            return (
+              <React.Fragment key={section.label ?? 'today'}>
+                {section.label ? (
+                  <NavSectionLabel collapsed={isCollapsed}>{section.label}</NavSectionLabel>
+                ) : (
+                  <div className="space-y-0.5">{visibleItems.map(renderNavItem)}</div>
+                )}
+                {section.label ? (
+                  <div className="space-y-0.5">{visibleItems.map(renderNavItem)}</div>
+                ) : null}
+              </React.Fragment>
+            );
+          })}
         </div>
       </nav>
 
@@ -328,17 +296,14 @@ export function Sidebar({isOpen, onClose}: SidebarProps) {
           <Tooltip label="Configurações" className="w-full justify-center">
             <NavLink
               to="/configuracoes"
-              className={({isActive}) => {
-                const studioRoutes = ['/configuracoes/dna', '/configuracoes/pilares', '/configuracoes/series', '/configuracoes/regras'];
-                const isStudio = studioRoutes.some(r => location.pathname.startsWith(r));
-                const active = !isStudio && (isActive || location.pathname.startsWith('/configuracoes'));
-                return cn(
+              className={({isActive}) =>
+                cn(
                   'flex h-9 w-9 items-center justify-center rounded-md transition-colors',
-                  active
+                  isSettingsNavActive(location.pathname, isActive)
                     ? 'bg-[var(--bg-hover)] text-[var(--text-primary)]'
                     : 'text-[var(--text-tertiary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]'
-                );
-              }}
+                )
+              }
             >
               <Settings className="h-5 w-5" />
             </NavLink>
@@ -346,17 +311,14 @@ export function Sidebar({isOpen, onClose}: SidebarProps) {
         ) : (
           <NavLink
             to="/configuracoes"
-            className={({isActive}) => {
-              const studioRoutes = ['/configuracoes/dna', '/configuracoes/pilares', '/configuracoes/series', '/configuracoes/regras'];
-              const isStudio = studioRoutes.some(r => location.pathname.startsWith(r));
-              const active = !isStudio && (isActive || location.pathname.startsWith('/configuracoes'));
-              return cn(
+            className={({isActive}) =>
+              cn(
                 'group flex items-center gap-3 rounded-md px-3 py-2 transition-colors',
-                active
+                isSettingsNavActive(location.pathname, isActive)
                   ? 'bg-[var(--bg-hover)] text-[var(--text-primary)]'
                   : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]'
-              );
-            }}
+              )
+            }
           >
             <Settings className="h-5 w-5 text-[var(--text-tertiary)]" />
             <span className="flex-1 text-sm font-medium">Configurações</span>
@@ -452,7 +414,7 @@ export function Sidebar({isOpen, onClose}: SidebarProps) {
               animate={{opacity: 1}}
               exit={{opacity: 0}}
               onClick={onClose}
-              className="fixed inset-0 z-[105] bg-black/40  md:hidden"
+              className="fixed inset-0 z-[105] bg-[var(--backdrop-medium)]  md:hidden"
             />
             <motion.div
               initial={{x: '-100%'}}

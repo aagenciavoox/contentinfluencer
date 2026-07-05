@@ -2,8 +2,7 @@ export type ModuleFlagKey =
   | 'library'
   | 'recording'
   | 'calendar'
-  | 'projects'
-  | 'analytics';
+  | 'projects';
 
 export type ModuleFlags = Record<ModuleFlagKey, boolean>;
 
@@ -14,7 +13,6 @@ export const DEFAULT_MODULE_FLAGS: ModuleFlags = {
   recording: true,
   calendar: true,
   projects: true,
-  analytics: true,
 };
 
 export function getModuleFlags(preferences: Record<string, unknown> | null | undefined): ModuleFlags {

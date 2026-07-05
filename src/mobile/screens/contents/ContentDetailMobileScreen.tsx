@@ -4,6 +4,7 @@ import { BottomSheetModal } from '../../../components/feedback/modals/BottomShee
 import { AppButton } from '../../../components/ui/AppButton';
 import type { Content } from '../../../lib/database';
 import { MobileSegmentTabs } from '../../components/MobileSegmentTabs';
+import { MobileSectionHeader } from '../../components/MobileSectionHeader';
 import type { ContentDetailTab, ContentPrimaryAction, PostingAlert } from '../../../features/contents/lib/contentPipeline';
 
 const TAB_LABELS: Record<ContentDetailTab, string> = {
@@ -66,7 +67,7 @@ export function ContentDetailMobileScreen({
   if (isScriptTab) {
     return (
       <div className="flex min-h-[calc(100dvh-120px)] flex-col pb-24">
-        <div className="sticky top-0 z-10 -mx-1 space-y-2 border-b border-[var(--border-color)] bg-[color-mix(in_srgb,var(--bg-primary)_94%,transparent)] px-1 py-2 backdrop-blur-md">
+        <div className="sticky top-0 z-10 -mx-1 stack-sm border-b border-[var(--border-color)] bg-[color-mix(in_srgb,var(--bg-primary)_94%,transparent)] px-1 py-2 backdrop-blur-md">
           <div className="flex items-center justify-between gap-2">
             <p className="min-w-0 truncate text-base font-semibold text-[var(--text-primary)]">
               {content.title || 'Sem titulo'}
@@ -107,8 +108,8 @@ export function ContentDetailMobileScreen({
         </div>
 
         <BottomSheetModal open={detailsSheetOpen} onClose={() => setDetailsSheetOpen(false)} desktopMaxW="max-w-md">
-          <div className="space-y-4 p-1">
-            <h2 className="ds-h3">Detalhes editoriais</h2>
+          <div className="stack-lg p-1">
+            <MobileSectionHeader icon={Settings2} tone="blue" title="Detalhes editoriais" />
             {operationalPanel}
             <MobileSegmentTabs
               rounded="tight"
@@ -126,7 +127,7 @@ export function ContentDetailMobileScreen({
   }
 
   return (
-    <div className="space-y-3 pb-8">
+    <div className="stack-md pb-8">
       <button
         type="button"
         onClick={() => onTabChange('roteiro')}
@@ -147,7 +148,7 @@ export function ContentDetailMobileScreen({
           <ChevronDown className="h-4 w-4 shrink-0 text-[var(--text-tertiary)]" />
         </summary>
 
-        <div className="space-y-3 border-t border-[var(--border-color)] p-3">
+        <div className="stack-md border-t border-[var(--border-color)] p-3">
           <p className="text-xs text-[var(--text-secondary)]">
             {blockLabel} · Grav: {formatDate(content.recordingDate)} · Post: {formatDate(content.publishDate)}
           </p>

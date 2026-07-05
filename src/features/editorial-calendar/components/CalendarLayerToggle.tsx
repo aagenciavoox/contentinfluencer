@@ -9,6 +9,8 @@ import {
   Target 
 } from 'lucide-react';
 import { cn } from '../../../lib/utils';
+import { Surface } from '../../../components/ui/Surface';
+import { Text } from '../../../components/ui/Text';
 import { useIsMobile } from '../../../hooks/useIsMobile';
 
 interface LayerToggleProps {
@@ -36,10 +38,10 @@ export function CalendarLayerToggle({ activeLayers, onChange }: LayerToggleProps
   ];
 
   return (
-    <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] md:rounded-[var(--radius-overlay)] p-3 md:p-6 shadow-xl shadow-black/5">
+    <Surface variant="elevated" padding="none" className="p-3 md:p-6">
       <div className="flex items-center gap-3 mb-3 md:mb-8 text-[var(--text-tertiary)]">
         <Layers className="w-3.5 h-3.5 md:w-4 md:h-4" />
-        <span className="text-[8px] md:text-xs font-semibold uppercase tracking-[0.2em]">Camadas</span>
+        <Text variant="label" uppercase className="text-2xs md:text-xs font-semibold">Camadas</Text>
       </div>
       
       <div className={cn(
@@ -51,7 +53,7 @@ export function CalendarLayerToggle({ activeLayers, onChange }: LayerToggleProps
             key={layer.id}
             onClick={() => toggleLayer(layer.id)}
             className={cn(
-              "flex items-center justify-between p-2 md:p-4 rounded-xl md:rounded-[1.25rem] border transition-all active:scale-[0.98]",
+              "flex items-center justify-between p-2 md:p-4 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border transition-all active:scale-[0.98]",
               activeLayers.includes(layer.id) 
                 ? "bg-[var(--bg-hover)] border-[var(--border-strong)] shadow-sm" 
                 : "bg-transparent border-transparent opacity-40 hover:opacity-100 hover:bg-[var(--bg-hover)]"
@@ -59,13 +61,13 @@ export function CalendarLayerToggle({ activeLayers, onChange }: LayerToggleProps
           >
             <div className="flex items-center gap-2 md:gap-4 overflow-hidden">
                <div className={cn(
-                 "p-1.5 md:p-2.5 rounded-lg md:rounded-xl transition-colors shrink-0",
+                 "p-1.5 md:p-2.5 rounded-[var(--radius-input)] transition-colors shrink-0",
                  activeLayers.includes(layer.id) 
-                   ? (layer.color === 'orange' ? 'bg-orange-500/10 text-orange-600' :
-                      layer.color === 'blue' ? 'bg-blue-500/10 text-blue-600' :
-                      layer.color === 'amber' ? 'bg-amber-500/10 text-amber-600' :
-                      layer.color === 'purple' ? 'bg-purple-500/10 text-purple-600' :
-                      'bg-red-500/10 text-red-600')
+                   ? (layer.color === 'orange' ? 'bg-[var(--accent-orange)]/10 text-[var(--accent-orange)]' :
+                      layer.color === 'blue' ? 'bg-[var(--accent-blue)]/10 text-[var(--accent-blue)]' :
+                      layer.color === 'amber' ? 'bg-[var(--warning)]/10 text-[var(--warning)]' :
+                      layer.color === 'purple' ? 'bg-[var(--accent-purple)]/10 text-[var(--accent-purple)]' :
+                      'bg-[var(--danger)]/10 text-[var(--danger)]')
                    : "bg-[var(--bg-hover)] text-[var(--text-tertiary)]"
                )}>
                  {layer.icon}
@@ -92,7 +94,6 @@ export function CalendarLayerToggle({ activeLayers, onChange }: LayerToggleProps
            Pressione 'C' para alternar camadas
          </p>
       </div>
-    </div>
+    </Surface>
   );
 }
-

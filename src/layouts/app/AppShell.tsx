@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { ReactNode } from 'react';
 import { Lightbulb, Search, X } from 'lucide-react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { Sidebar } from '../navigation/Sidebar';
 import { CommandPalette } from '../../components/overlays/CommandPalette';
 import { useIsMobile } from '../../hooks/useIsMobile';
@@ -16,20 +15,18 @@ import { SaveFeedbackToast } from '../../components/ui/SaveFeedbackToast';
 import { useAppContext } from '../../context/AppContext';
 import { forceMobileRefresh } from '../../lib/pwaRefresh';
 import { IdeaQuickCapture } from '../../features/ideas/components/IdeaQuickCapture';
+import { buildIdeaFields } from '../../features/ideas/lib/ideaText';
 import { generateUUID } from '../../utils/uuid';
 import type { Idea } from '../../lib/database';
 import { getModuleFlags } from '../../features/settings/lib/moduleFlags';
 
-interface AppShellProps {
-  children: ReactNode;
-}
-
-export function AppShell({ children }: AppShellProps) {
+export function AppShell() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [isActionMenuOpen, setIsActionMenuOpen] = useState(false);
   const [isQuickNoteOpen, setIsQuickNoteOpen] = useState(false);
-  const [quickNoteText, setQuickNoteText] = useState('');
+  const [quickNoteTitle, setQuickNoteTitle] = useState('');
+  const [quickNoteNotes, setQuickNoteNotes] = useState('');
   const [quickNotePilarId, setQuickNotePilarId] = useState('');
   const [quickNoteSeries, setQuickNoteSeries] = useState('');
   const [quickNoteBibliotecaId, setQuickNoteBibliotecaId] = useState('');
@@ -43,29 +40,32 @@ export function AppShell({ children }: AppShellProps) {
   const moduleFlags = getModuleFlags(state.preferences);
 
   const handlePullRefresh = useCallback(async () => {
-    await forceMobileRefresh(() => syncFromServer({ silent: true }));
+    await forceMobileRefresh(() => syncFromServer({ silent: true, force: true }));
   }, [syncFromServer]);
 
   const saveQuickNote = useCallback(() => {
-    if (!quickNoteText.trim()) return;
+    const fields = buildIdeaFields({title: quickNoteTitle, notes: quickNoteNotes});
+    if (!fields.title && !fields.notes) return;
     const newIdea: Idea = {
       id: generateUUID(),
       userId: '',
-      text: quickNoteText.trim(),
+      ...fields,
       pilarId: quickNotePilarId || null,
       seriesId: quickNoteSeries || null,
       origemId: quickNoteBibliotecaId || null,
       promotedToContentId: null,
+      demotedFromContentId: null,
       archived: false,
       createdAt: new Date().toISOString(),
     };
     dispatch({ type: 'ADD_IDEA', payload: newIdea });
-    setQuickNoteText('');
+    setQuickNoteTitle('');
+    setQuickNoteNotes('');
     setQuickNotePilarId('');
     setQuickNoteSeries('');
     setQuickNoteBibliotecaId('');
     setIsQuickNoteOpen(false);
-  }, [quickNoteText, quickNotePilarId, quickNoteSeries, quickNoteBibliotecaId, dispatch]);
+  }, [quickNoteTitle, quickNoteNotes, quickNotePilarId, quickNoteSeries, quickNoteBibliotecaId, dispatch]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -137,7 +137,7 @@ export function AppShell({ children }: AppShellProps) {
           onScroll={handleScroll}
           onPullRefresh={handlePullRefresh}
         >
-          {children}
+          <Outlet />
         </MobileAppShell>
         <SaveFeedbackToast />
       </div>
@@ -158,14 +158,16 @@ export function AppShell({ children }: AppShellProps) {
         onScroll={handleScroll}
         className="relative flex-1 overflow-y-auto bg-transparent pb-24 transition-transform duration-300 ease-in-out md:pb-0 md:pt-0"
       >
-        <div className="min-h-full">{children}</div>
+        <div className="min-h-full">
+          <Outlet />
+        </div>
       </main>
 
       {/* Botao flutuante de nota rapida */}
       <button
         onClick={() => setIsQuickNoteOpen(true)}
         title="Nova ideia"
-        className="fixed bottom-6 right-6 z-40 flex h-12 w-12 items-center justify-center rounded-full border border-[var(--border-color)] bg-[var(--bg-secondary)] text-[var(--text-secondary)] shadow-lg transition-all hover:scale-105 hover:border-[var(--text-primary)] hover:text-[var(--text-primary)]"
+        className="fixed bottom-6 right-6 z-40 flex h-12 w-12 items-center justify-center rounded-full border border-[var(--border-color)] bg-[var(--bg-secondary)] text-[var(--text-secondary)] shadow-lg transition-all hover:scale-105 hover:border-[var(--text-primary)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
       >
         <Lightbulb className="h-5 w-5" />
       </button>
@@ -174,7 +176,7 @@ export function AppShell({ children }: AppShellProps) {
       {isQuickNoteOpen && (
         <div className="fixed inset-0 z-50 flex items-end justify-end p-6">
           <div
-            className="absolute inset-0 bg-black/20 backdrop-blur-[2px]"
+            className="absolute inset-0 bg-[var(--backdrop-soft)] backdrop-blur-[2px]"
             onClick={() => setIsQuickNoteOpen(false)}
           />
           <div className="relative z-10 w-full max-w-md">
@@ -184,18 +186,20 @@ export function AppShell({ children }: AppShellProps) {
               </span>
               <button
                 onClick={() => setIsQuickNoteOpen(false)}
-                className="rounded-lg p-1 text-[var(--text-tertiary)] hover:text-[var(--text-primary)]"
+                className="rounded-lg p-1 text-[var(--text-tertiary)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
               >
                 <X className="h-3.5 w-3.5" />
               </button>
             </div>
             <IdeaQuickCapture
-              text={quickNoteText}
+              title={quickNoteTitle}
+              notes={quickNoteNotes}
               selectedPilarId={quickNotePilarId}
               selectedSeries={quickNoteSeries}
               selectedBibliotecaId={quickNoteBibliotecaId}
               state={state}
-              onTextChange={setQuickNoteText}
+              onTitleChange={setQuickNoteTitle}
+              onNotesChange={setQuickNoteNotes}
               onSelectedPilarIdChange={setQuickNotePilarId}
               onSelectedSeriesChange={setQuickNoteSeries}
               onSelectedBibliotecaIdChange={setQuickNoteBibliotecaId}

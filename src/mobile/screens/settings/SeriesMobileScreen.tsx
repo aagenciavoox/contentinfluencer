@@ -1,196 +1,195 @@
 import { useState } from 'react';
+import { ChevronRight, Layers, Plus } from 'lucide-react';
 import { BottomSheetModal } from '../../../components/feedback/modals/BottomSheetModal';
-import type { Serie } from '../../../lib/database';
-import { MobileEmptyState } from '../../components/MobileEmptyState';
+import { AppButton } from '../../../components/ui/AppButton';
+import { Badge } from '../../../components/ui/Badge';
+import { Text } from '../../../components/ui/Text';
+import type { Content, Serie } from '../../../lib/database';
+import { EmptyState } from '../../../components/ui/EmptyState';
+import { SeriesForm } from '../../../features/settings/pages/SeriesSettingsPage';
 import { MobileListCard } from '../../components/MobileListCard';
 import { MobilePillButton } from '../../components/MobilePillButton';
-import { Layers, Plus } from 'lucide-react';
-import { generateUUID } from '../../../utils/uuid';
+import { MobileSectionHeader } from '../../components/MobileSectionHeader';
 
 interface SeriesMobileScreenProps {
   series: Serie[];
+  roteiroCountBySerie: Map<string, number>;
+  platformNames: string[];
+  contents: Content[];
   onSave: (serie: Serie) => void;
   onToggle: (serie: Serie) => void;
   onDelete: (serieId: string) => void;
-  onBulkCreate?: (serieId: string) => void;
+  onOpen: (serieId: string) => void;
 }
-
-const FREQUENCIAS = ['Semanal', 'Quinzenal', 'Mensal', 'Sob demanda'] as const;
 
 export function SeriesMobileScreen({
   series,
+  roteiroCountBySerie,
+  platformNames,
+  contents,
   onSave,
   onToggle,
   onDelete,
-  onBulkCreate,
+  onOpen,
 }: SeriesMobileScreenProps) {
-  const [showForm, setShowForm] = useState(false);
-  const [name, setName] = useState('');
-  const [frequency, setFrequency] = useState<string>('Semanal');
-  const [bordao, setBordao] = useState('');
-  const [color, setColor] = useState('#6366f1');
+  const [panelMode, setPanelMode] = useState<'create' | 'edit' | null>(null);
+  const [editingSerie, setEditingSerie] = useState<Serie | null>(null);
 
-  const handleCreate = () => {
-    if (!name.trim()) return;
-
-    onSave({
-      id: generateUUID(),
-      userId: '',
-      name: name.trim(),
-      template: '',
-      notes: '',
-      slotPadrao: null,
-      formatoVisualPadrao: null,
-      estruturaRoteiro: null,
-      bordao: bordao.trim() || null,
-      cor: color,
-      ativa: true,
-      frequenciaRecomendada: frequency,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      pilarIds: [],
-      plataformas: [],
-    });
-
-    setName('');
-    setFrequency('Semanal');
-    setBordao('');
-    setColor('#6366f1');
-    setShowForm(false);
+  const closePanel = () => {
+    setPanelMode(null);
+    setEditingSerie(null);
   };
 
-  return (
-    <div className="space-y-5">
-      <section className="rounded-[1.75rem] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4 shadow-sm">
-        <div className="mb-4 flex items-center gap-3">
-          <div className="rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] bg-[var(--accent-purple)]/12 p-3 text-[var(--accent-purple)]">
-            <Layers className="h-5 w-5" />
-          </div>
-          <div>
-            <p className="t-section-title text-[var(--text-primary)]">Séries</p>
-            <p className="t-secondary">Gerencie quadros recorrentes com identidade básica em fluxo mobile.</p>
-          </div>
-        </div>
+  const handleSave = (serie: Serie) => {
+    onSave(serie);
+    closePanel();
+  };
 
-        <button type="button" onClick={() => setShowForm(true)} className="button-primary w-full">
-          <Plus className="h-4 w-4" />
+  const activeCount = series.filter(serie => serie.ativa).length;
+
+  return (
+    <div className="stack-xl">
+      <section className="rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4 shadow-sm">
+        <MobileSectionHeader
+          icon={Layers}
+          tone="purple"
+          title="Séries"
+          description={
+            series.length === 0
+              ? 'Quadros recorrentes com identidade e roteiros vinculados.'
+              : `${activeCount} ativa${activeCount === 1 ? '' : 's'} · ${series.length} no total`
+          }
+        />
+
+        <AppButton
+          variant="primary"
+          fullWidth
+          onClick={() => {
+            setEditingSerie(null);
+            setPanelMode('create');
+          }}
+          leftIcon={<Plus className="h-4 w-4" />}
+        >
           Nova série
-        </button>
+        </AppButton>
       </section>
 
-      <section className="space-y-3">
+      <section className="stack-md">
         {series.length === 0 ? (
-          <MobileEmptyState
+          <EmptyState
+            compact
             title="Nenhuma série criada"
             description="Adicione a primeira série recorrente para estruturar o calendário editorial."
             icon={<Layers className="h-8 w-8" />}
           />
         ) : (
-          series.map((serie) => (
-            <MobileListCard
-              key={serie.id}
-              title={serie.name}
-              description={serie.estruturaRoteiro || serie.notes || 'Sem estrutura de roteiro ainda.'}
-              meta={
-                <>
-                  <span className="rounded-full bg-[var(--bg-hover)] px-3 py-1 text-xs font-semibold text-[var(--text-secondary)]">
-                    {serie.frequenciaRecomendada || 'Sem frequência'}
-                  </span>
-                  <span className="rounded-full bg-[var(--accent-purple)]/10 px-3 py-1 text-xs font-semibold text-[var(--accent-purple)]">
-                    {serie.bordao || 'Sem bordão'}
-                  </span>
-                </>
-              }
-              trailing={
-                <div className="flex flex-wrap justify-end gap-2">
-                  {onBulkCreate ? (
+          series.map(serie => {
+            const roteiroCount = roteiroCountBySerie.get(serie.id) || 0;
+            const serieColor = serie.cor || '#6366f1';
+
+            return (
+              <MobileListCard
+                key={serie.id}
+                title={serie.name}
+                description={
+                  serie.estruturaRoteiro
+                    ? serie.estruturaRoteiro.slice(0, 120) + (serie.estruturaRoteiro.length > 120 ? '…' : '')
+                    : serie.bordao
+                      ? `“${serie.bordao}”`
+                      : 'Toque para criar roteiros e ver detalhes.'
+                }
+                onClick={() => onOpen(serie.id)}
+                meta={
+                  <>
+                    <span
+                      className="inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold text-[var(--text-primary)]"
+                      style={{ backgroundColor: `${serieColor}22` }}
+                    >
+                      <span className="h-2 w-2 rounded-full" style={{ backgroundColor: serieColor }} />
+                      {serie.frequenciaRecomendada || 'Sob demanda'}
+                    </span>
+                    <Badge variant="neutral">{roteiroCount} roteiro{roteiroCount === 1 ? '' : 's'}</Badge>
+                    {serie.bordao ? (
+                      <Badge variant="tag" className="text-[var(--accent-purple)]">
+                        {serie.bordao}
+                      </Badge>
+                    ) : null}
+                  </>
+                }
+                trailing={
+                  <ChevronRight className="mt-1 h-5 w-5 shrink-0 text-[var(--text-tertiary)]" />
+                }
+                status={
+                  <div className="flex flex-wrap items-center gap-2">
                     <MobilePillButton
-                      tone="muted"
-                      onClick={(event) => {
+                      tone={serie.ativa ? 'success' : 'muted'}
+                      onClick={event => {
                         event.stopPropagation();
-                        onBulkCreate(serie.id);
+                        onToggle(serie);
                       }}
                     >
-                      Roteiros
+                      {serie.ativa ? 'Ativa' : 'Inativa'}
                     </MobilePillButton>
-                  ) : null}
-                  <MobilePillButton
-                    tone="danger"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      onDelete(serie.id);
-                    }}
-                  >
-                    Excluir
-                  </MobilePillButton>
-                </div>
-              }
-              status={
-                <MobilePillButton
-                  tone={serie.ativa ? 'success' : 'muted'}
-                  onClick={() => onToggle(serie)}
-                >
-                  {serie.ativa ? 'Ativa' : 'Inativa'}
-                </MobilePillButton>
-              }
-            />
-          ))
+                    <MobilePillButton
+                      tone="muted"
+                      onClick={event => {
+                        event.stopPropagation();
+                        setEditingSerie(serie);
+                        setPanelMode('edit');
+                      }}
+                    >
+                      Editar
+                    </MobilePillButton>
+                    <MobilePillButton
+                      tone="danger"
+                      onClick={event => {
+                        event.stopPropagation();
+                        onDelete(serie.id);
+                      }}
+                    >
+                      Excluir
+                    </MobilePillButton>
+                  </div>
+                }
+              />
+            );
+          })
         )}
       </section>
 
-      <BottomSheetModal open={showForm} onClose={() => setShowForm(false)} desktopMaxW="max-w-xl" zIndex="z-[110]">
+      <BottomSheetModal
+        open={panelMode !== null}
+        onClose={closePanel}
+        desktopMaxW="max-w-xl"
+        zIndex="z-[110]"
+      >
         <div className="flex h-full flex-col bg-[var(--bg-primary)]">
-          <div className="border-b border-[var(--border-color)] px-5 py-4">
-            <p className="t-section-title text-[var(--text-primary)]">Nova série</p>
-            <p className="t-secondary mt-1">Cadastro rápido de identidade para um quadro recorrente.</p>
-          </div>
-
-          <div className="flex-1 space-y-4 overflow-y-auto p-5">
-            <input
-              autoFocus
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              placeholder="Nome da série"
-              className="w-full"
-            />
-
-            <select value={frequency} onChange={(event) => setFrequency(event.target.value)} className="w-full">
-              {FREQUENCIAS.map((item) => (
-                <option key={item} value={item}>
-                  {item}
-                </option>
-              ))}
-            </select>
-
-            <input
-              value={bordao}
-              onChange={(event) => setBordao(event.target.value)}
-              placeholder="Bordão"
-              className="w-full"
-            />
-
-            <div className="space-y-2">
-              <span className="t-label text-[var(--text-tertiary)]">Cor</span>
-              <input
-                type="color"
-                value={color}
-                onChange={(event) => setColor(event.target.value)}
-                className="h-12 w-16 cursor-pointer rounded-xl border border-[var(--border-color)] bg-transparent"
+          <div className="border-b border-[var(--border-color)] px-6 py-4">
+            <div className="flex items-center gap-3">
+              <span
+                className="h-10 w-10 shrink-0 rounded-[var(--radius-card)] border border-[var(--border-color)]"
+                style={{ backgroundColor: editingSerie?.cor || '#6366f1' }}
               />
+              <div className="min-w-0">
+                <Text variant="sectionTitle" truncate>
+                  {panelMode === 'edit' ? editingSerie?.name : 'Nova série'}
+                </Text>
+                <Text variant="meta" className="text-[var(--text-secondary)]">
+                  Identidade, estrutura e hashtags
+                </Text>
+              </div>
             </div>
           </div>
 
-          <div className="flex gap-3 border-t border-[var(--border-color)] px-5 py-4 pb-safe">
-            <button
-              type="button"
-              onClick={() => setShowForm(false)}
-              className="flex-1 rounded-[1.25rem] border border-[var(--border-color)] py-3 text-xs font-semibold  text-[var(--text-secondary)]"
-            >
-              Cancelar
-            </button>
-            <button type="button" onClick={handleCreate} disabled={!name.trim()} className="button-primary flex-1 disabled:opacity-40">
-              Criar
-            </button>
+          <div className="flex-1 overflow-y-auto p-6">
+            <SeriesForm
+              key={editingSerie?.id || 'new'}
+              initial={editingSerie ?? {}}
+              onSave={handleSave}
+              onCancel={closePanel}
+              platformNames={platformNames}
+              contents={contents}
+            />
           </div>
         </div>
       </BottomSheetModal>

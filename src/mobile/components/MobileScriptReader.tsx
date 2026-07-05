@@ -28,13 +28,13 @@ function ScriptBody({ text, large }: { text: string; large?: boolean }) {
   }
 
   return (
-    <div className={cn('space-y-4', large && 'space-y-5')}>
+    <div className={cn('stack-lg', large && 'stack-xl')}>
       {paragraphs.map((paragraph, index) => (
         <p
           key={index}
           className={cn(
             'whitespace-pre-wrap text-[var(--text-primary)]',
-            large ? 'text-[17px] font-medium leading-[1.65]' : 'text-[15px] font-medium leading-[1.55]'
+            large ? 'text-base font-medium leading-[1.65]' : 't-body font-medium leading-[1.55]'
           )}
         >
           {paragraph}
@@ -95,7 +95,7 @@ export function MobileScriptReader({
               <div className="w-11" />
             )}
           </header>
-          <div className="flex-1 overflow-y-auto px-4 py-5 pb-safe">
+          <div className="flex-1 overflow-y-auto px-4 py-6 pb-safe">
             <ScriptBody text={plainText} large />
           </div>
         </div>,
@@ -131,7 +131,7 @@ export function MobileScriptReader({
               <button
                 type="button"
                 onClick={onEdit}
-                className="inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-[var(--border-color)] bg-[var(--bg-primary)] px-3 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-primary)]"
+                className="inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-[var(--border-color)] bg-[var(--bg-primary)] px-3 t-label t-label-uppercase font-semibold text-[var(--text-primary)]"
               >
                 <Pencil className="h-3.5 w-3.5" />
                 Editar
@@ -153,5 +153,5 @@ export function scriptExcerpt(content: string | null | undefined, maxLength = 14
   const text = htmlToReadableText(content).replace(/\s+/g, ' ').trim();
   if (!text) return null;
   if (text.length <= maxLength) return text;
-  return `${text.slice(0, maxLength).trim()}…`;
+  return `${text.slice(0, maxLength).trim()}"¦`;
 }

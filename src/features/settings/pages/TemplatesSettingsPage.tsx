@@ -8,8 +8,11 @@ import type {Template, TemplateBloco} from '../../../lib/database';
 import {cn} from '../../../lib/utils';
 import {DesktopPageHeader} from '../../../layouts/page/DesktopPageHeader';
 import {PageLayout} from '../../../layouts/page/PageLayout';
+import {Text} from '../../../components/ui/Text';
 import {FixedPanelModal} from '../../../components/overlays/FixedPanelModal';
 import {TemplatesMobileScreen} from '../../../mobile/screens/settings/TemplatesMobileScreen';
+import {ConfirmModal} from '../../../components/feedback/modals/ConfirmModal';
+import {CONFIRM, EMPTY, type ConfirmState} from '../../../lib/uiCopy';
 import {generateUUID} from '../../../utils/uuid';
 
 type TemplateTypeFilter = 'roteiro' | 'legenda' | 'outro';
@@ -58,6 +61,7 @@ export function TemplatesSettingsPage() {
   const [blocoEditor, setBlocoEditor] = useState<BlocoEditorState>(EMPTY_BLOCO_EDITOR);
   const [novoBlocoLabel, setNovoBlocoLabel] = useState('');
   const [novoBlocoTipo, setNovoBlocoTipo] = useState<'fixo' | 'variavel'>('variavel');
+  const [confirm, setConfirm] = useState<ConfirmState | null>(null);
 
   const templates = useMemo(
     () => [...state.templates].sort((left, right) => new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime()),
@@ -147,9 +151,13 @@ export function TemplatesSettingsPage() {
   };
 
   const deleteTemplate = (id: string) => {
-    if (!window.confirm('Remover este template?')) return;
-    dispatch({type: 'DELETE_TEMPLATE', payload: id});
-    if (selectedTemplateId === id) closeTemplateEditor();
+    setConfirm({
+      ...CONFIRM.excluirTemplate,
+      onConfirm: () => {
+        dispatch({type: 'DELETE_TEMPLATE', payload: id});
+        if (selectedTemplateId === id) closeTemplateEditor();
+      },
+    });
   };
 
   const selectBloco = (bloco: TemplateBloco) => {
@@ -264,7 +272,6 @@ export function TemplatesSettingsPage() {
     <>
     <PageLayout
       variant="settings"
-      contentClassName="space-y-6"
       header={
         <DesktopPageHeader
           section="Configurações"
@@ -275,7 +282,7 @@ export function TemplatesSettingsPage() {
           actions={
             <button
               onClick={() => setShowNewForm(true)}
-              className="flex shrink-0 items-center gap-2 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] bg-[var(--text-primary)] px-5 py-3 text-xs font-semibold text-[var(--bg-primary)] hover:opacity-90"
+              className="flex shrink-0 items-center gap-2 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] bg-[var(--text-primary)] px-6 py-3 text-xs font-semibold text-[var(--bg-primary)] hover:opacity-90"
             >
               <Plus className="h-4 w-4" />
               Novo
@@ -285,7 +292,7 @@ export function TemplatesSettingsPage() {
       }
     >
         {showNewForm && (
-          <div className="space-y-3 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-primary)] p-6">
+          <div className="stack-md rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-primary)] p-6">
             <p className="text-xs font-semibold  opacity-40">Novo template</p>
             <input
               autoFocus
@@ -350,7 +357,7 @@ export function TemplatesSettingsPage() {
         {templates.length === 0 && !showNewForm ? (
           <div className="py-16 text-center">
             <Layout className="mx-auto mb-3 h-10 w-10 opacity-10" />
-            <p className="text-sm font-semibold  opacity-30">Nenhum template ainda</p>
+            <p className="text-sm font-semibold  opacity-30">{EMPTY.templates.title}</p>
           </div>
         ) : (
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -362,9 +369,9 @@ export function TemplatesSettingsPage() {
                 <div
                   key={template.id}
                   onClick={() => openTemplateEditor(template)}
-                  className="group flex cursor-pointer items-start gap-3 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-primary)] p-5 transition-all hover:-translate-y-0.5 hover:border-[var(--text-primary)]/20 hover:shadow-lg"
+                  className="group flex cursor-pointer items-start gap-3 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-primary)] p-6 transition-all hover:-translate-y-0.5 hover:border-[var(--text-primary)]/20 hover:shadow-lg"
                 >
-                  <div className="min-w-0 flex-1 space-y-3">
+                  <div className="min-w-0 flex-1 stack-md">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="rounded-full bg-[var(--bg-hover)] px-3 py-1 text-xs font-semibold  text-[var(--text-primary)]">
                         {template.type || 'roteiro'}
@@ -412,15 +419,15 @@ export function TemplatesSettingsPage() {
       >
         {selectedTemplate ? (
           <div className="flex h-full flex-col overflow-hidden bg-[var(--bg-primary)]">
-            <div className="border-b border-[var(--border-color)] px-6 py-5 md:px-8 md:py-6">
+            <div className="border-b border-[var(--border-color)] px-6 py-6 md:px-8 md:py-6">
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <p className="text-xs font-semibold  text-[var(--text-tertiary)]">
                     Template
                   </p>
-                  <h2 className="mt-2 text-2xl font-semibold text-[var(--text-primary)] md:text-3xl">
+                  <Text variant="sectionTitle" className="mt-2">
                     {selectedTemplate.nome}
-                  </h2>
+                  </Text>
                   <p className="mt-2 text-sm text-[var(--text-secondary)]">
                     Edite contexto e estrutura no mesmo modal, sem etapa intermediária de visualização.
                   </p>
@@ -435,9 +442,9 @@ export function TemplatesSettingsPage() {
             </div>
 
             <div className="grid min-h-0 flex-1 gap-0 md:grid-cols-[340px_minmax(0,1fr)]">
-              <aside className="border-r border-[var(--border-color)] bg-[var(--bg-secondary)] p-5 md:p-6">
-                <div className="space-y-4">
-                  <div className="space-y-2">
+              <aside className="border-r border-[var(--border-color)] bg-[var(--bg-secondary)] p-6 md:p-6">
+                <div className="stack-lg">
+                  <div className="stack-sm">
                     <label className="text-xs font-semibold  text-[var(--text-tertiary)]">
                       Nome
                     </label>
@@ -448,7 +455,7 @@ export function TemplatesSettingsPage() {
                     />
                   </div>
 
-                  <div className="space-y-2">
+                  <div className="stack-sm">
                     <label className="text-xs font-semibold  text-[var(--text-tertiary)]">
                       Tipo
                     </label>
@@ -463,7 +470,7 @@ export function TemplatesSettingsPage() {
                     </select>
                   </div>
 
-                  <div className="space-y-2">
+                  <div className="stack-sm">
                     <label className="text-xs font-semibold  text-[var(--text-tertiary)]">
                       Série
                     </label>
@@ -481,7 +488,7 @@ export function TemplatesSettingsPage() {
                     </select>
                   </div>
 
-                  <div className="space-y-2">
+                  <div className="stack-sm">
                     <label className="text-xs font-semibold  text-[var(--text-tertiary)]">
                       Plataforma
                     </label>
@@ -518,7 +525,7 @@ export function TemplatesSettingsPage() {
                     </span>
                   </div>
 
-                  <div className="space-y-2">
+                  <div className="stack-sm">
                     {selectedTemplate.estrutura.map((bloco, idx) => (
                       <div
                         key={bloco.id}
@@ -599,17 +606,17 @@ export function TemplatesSettingsPage() {
                 </div>
               </aside>
 
-              <section className="min-h-0 overflow-y-auto p-5 md:p-8">
+              <section className="min-h-0 overflow-y-auto p-6 md:p-8">
                 {editingBloco ? (
-                  <div className="mx-auto max-w-3xl space-y-5">
-                    <div className="space-y-2">
+                  <div className="mx-auto max-w-3xl stack-xl">
+                    <div className="stack-sm">
                       <p className="text-xs font-semibold  text-[var(--text-tertiary)]">
                         Edição do bloco
                       </p>
-                      <h3 className="text-2xl font-semibold text-[var(--text-primary)]">{editingBloco.label}</h3>
+                      <Text variant="itemTitle">{editingBloco.label}</Text>
                     </div>
 
-                    <div className="space-y-2">
+                    <div className="stack-sm">
                       <label className="text-xs font-semibold  text-[var(--text-tertiary)]">
                         Label
                       </label>
@@ -620,7 +627,7 @@ export function TemplatesSettingsPage() {
                       />
                     </div>
 
-                    <div className="space-y-2">
+                    <div className="stack-sm">
                       <label className="text-xs font-semibold  text-[var(--text-tertiary)]">
                         {editingBloco.tipo === 'fixo' ? 'Conteúdo fixo' : 'Placeholder da variável'}
                       </label>
@@ -645,14 +652,14 @@ export function TemplatesSettingsPage() {
                       <button
                         onClick={saveBloco}
                         disabled={!blocoEditor.label.trim() || !isBlocoDirty}
-                        className="inline-flex items-center gap-2 rounded-xl bg-[var(--text-primary)] px-5 py-3 text-xs font-semibold  text-[var(--bg-primary)] hover:opacity-90 disabled:opacity-30"
+                        className="inline-flex items-center gap-2 rounded-xl bg-[var(--text-primary)] px-6 py-3 text-xs font-semibold  text-[var(--bg-primary)] hover:opacity-90 disabled:opacity-30"
                       >
                         <Check className="h-4 w-4" />
                         Salvar bloco
                       </button>
                       <button
                         onClick={() => deleteBloco(editingBloco.id)}
-                        className="rounded-xl border border-red-400/20 bg-red-400/5 px-5 py-3 text-xs font-semibold  text-red-400 hover:bg-red-400/10"
+                        className="rounded-xl border border-red-400/20 bg-red-400/5 px-6 py-3 text-xs font-semibold  text-red-400 hover:bg-red-400/10"
                       >
                         Excluir bloco
                       </button>
@@ -660,7 +667,7 @@ export function TemplatesSettingsPage() {
                   </div>
                 ) : (
                   <div className="flex h-full min-h-[420px] items-center justify-center rounded-[var(--radius-card-mobile)] border border-dashed border-[var(--border-color)] bg-[var(--bg-secondary)] px-8 text-center">
-                    <div className="space-y-3">
+                    <div className="stack-md">
                       <Layout className="mx-auto h-10 w-10 opacity-20" />
                       <p className="text-sm font-semibold  text-[var(--text-primary)] opacity-40">
                         Selecione um bloco
@@ -676,6 +683,18 @@ export function TemplatesSettingsPage() {
           </div>
         ) : null}
       </FixedPanelModal>
+
+      <ConfirmModal
+        open={!!confirm}
+        message={confirm?.message || ''}
+        confirmLabel={confirm?.confirmLabel}
+        cancelLabel={confirm?.cancelLabel}
+        onConfirm={() => {
+          confirm?.onConfirm();
+          setConfirm(null);
+        }}
+        onCancel={() => setConfirm(null)}
+      />
     </PageLayout>
     </>
   );

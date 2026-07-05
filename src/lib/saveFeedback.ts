@@ -4,6 +4,8 @@ export type SaveFeedbackState = {
   status: SaveFeedbackStatus;
   message: string;
   detail?: string;
+  href?: string;
+  actionLabel?: string;
   updatedAt: number;
 };
 
@@ -41,7 +43,7 @@ export function clearSaveFeedback(): void {
 }
 
 export function notifySaveFeedback(
-  next: Pick<SaveFeedbackState, 'status' | 'message' | 'detail'>
+  next: Pick<SaveFeedbackState, 'status' | 'message' | 'detail' | 'href' | 'actionLabel'>
 ): void {
   if (hideTimer) {
     clearTimeout(hideTimer);
@@ -66,5 +68,5 @@ export function notifySaveFeedback(
 export function getErrorMessage(error: unknown): string {
   if (error instanceof Error && error.message.trim()) return error.message;
   if (typeof error === 'string' && error.trim()) return error;
-  return 'Nao foi possivel salvar. Tente novamente.';
+  return 'Não foi possível salvar agora. Verifique sua conexão e tente novamente.';
 }

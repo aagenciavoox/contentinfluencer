@@ -3,6 +3,7 @@ import { Info, Plus, ShieldAlert, ShieldCheck } from 'lucide-react';
 import { startOfWeek } from 'date-fns';
 import { useAppContext } from '../../../context/AppContext';
 import { ConfirmModal } from '../../../components/feedback/modals/ConfirmModal';
+import { CONFIRM, GLOSSARY, type ConfirmState } from '../../../lib/uiCopy';
 import { useIsMobile } from '../../../hooks/useIsMobile';
 import { validateWeeklyContent } from '../../../utils/goldenRules';
 import { GoldenRulesMobileScreen } from '../../../mobile/screens/settings/GoldenRulesMobileScreen';
@@ -10,10 +11,22 @@ import { generateUUID } from '../../../utils/uuid';
 import { GoldenRule } from '../../../lib/database';
 import { SettingsPageScaffold } from '../../../components/settings/SettingsPageScaffold';
 import { SettingsGridCard, SETTINGS_ENTITY_GRID_CLASS } from '../../../components/settings/SettingsGridCard';
-import { SidePanel } from '../../../components/layout/SidePanel';
+import { Dialog } from '../../../components/overlays/Dialog';
+import { OverlayHeader } from '../../../components/overlays/OverlayHeader';
+import { OverlayBody } from '../../../components/overlays/OverlayBody';
 import { AppButton } from '../../../components/ui/AppButton';
 import { cn } from '../../../lib/utils';
 
+const EMPTY_GOLDEN_RULES_DRAFT = {
+  titulo: '',
+  descricao: '',
+  cor: '#6366f1',
+  tipo: 'publi' as GoldenRule['tipo'],
+  condicao: 'recomendado' as GoldenRule['condicao'],
+  periodo: 'semana' as GoldenRule['periodo'],
+  minimo: '',
+  maximo: '',
+};
 const CONDITION_OPTIONS: GoldenRule['condicao'][] = ['recomendado', 'impedir'];
 const PERIOD_OPTIONS: GoldenRule['periodo'][] = ['semana', 'quinzena', 'mensal'];
 const TYPE_OPTIONS: GoldenRule['tipo'][] = ['pilar', 'série', 'formato', 'publi', 'plataforma'];
@@ -73,9 +86,9 @@ function GoldenRuleForm({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="stack-xl">
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <div className="space-y-1.5">
+        <div className="stack-xs">
           <label className="text-xs font-semibold  text-[var(--text-tertiary)] opacity-60">Título</label>
           <input
             type="text"
@@ -85,7 +98,7 @@ function GoldenRuleForm({
             className="w-full h-11 rounded-xl border border-[var(--border-color)] bg-[var(--bg-hover)] px-4 text-sm font-bold text-[var(--text-primary)] focus:ring-1 focus:ring-[var(--border-strong)]"
           />
         </div>
-        <div className="space-y-1.5">
+        <div className="stack-xs">
           <label className="text-xs font-semibold  text-[var(--text-tertiary)] opacity-60">Tipo</label>
           <select
             value={draft.tipo}
@@ -101,7 +114,7 @@ function GoldenRuleForm({
         </div>
       </div>
 
-      <div className="space-y-1.5">
+      <div className="stack-xs">
         <label className="text-xs font-semibold  text-[var(--text-tertiary)] opacity-60">Descrição</label>
         <textarea
           rows={3}
@@ -113,7 +126,7 @@ function GoldenRuleForm({
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <div className="space-y-1.5">
+        <div className="stack-xs">
           <label className="text-xs font-semibold  text-[var(--text-tertiary)] opacity-60">Condição</label>
           <select
             value={draft.condicao}
@@ -128,7 +141,7 @@ function GoldenRuleForm({
           </select>
         </div>
 
-        <div className="space-y-1.5">
+        <div className="stack-xs">
           <label className="text-xs font-semibold  text-[var(--text-tertiary)] opacity-60">Período</label>
           <select
             value={draft.periodo}
@@ -145,7 +158,7 @@ function GoldenRuleForm({
       </div>
 
       <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-1.5">
+        <div className="stack-xs">
           <label className="text-xs font-semibold  text-[var(--text-tertiary)] opacity-60">Mínimo</label>
           <input
             type="number"
@@ -155,7 +168,7 @@ function GoldenRuleForm({
           />
         </div>
 
-        <div className="space-y-1.5">
+        <div className="stack-xs">
           <label className="text-xs font-semibold  text-[var(--text-tertiary)] opacity-60">Máximo</label>
           <input
             type="number"
@@ -166,7 +179,7 @@ function GoldenRuleForm({
         </div>
       </div>
 
-      <div className="space-y-1.5">
+      <div className="stack-xs">
         <label className="text-xs font-semibold  text-[var(--text-tertiary)] opacity-60">Cor</label>
         <div className="flex items-center gap-3">
           <input
@@ -196,7 +209,7 @@ export function GoldenRulesSettingsPage() {
   const isMobile = useIsMobile();
   const [panelMode, setPanelMode] = useState<'create' | 'edit' | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [confirm, setConfirm] = useState<{ message: string; onConfirm: () => void } | null>(null);
+  const [confirm, setConfirm] = useState<ConfirmState | null>(null);
 
   const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
   const violations = validateWeeklyContent(state.contents, weekStart, state.pilares, state.goldenRules);
@@ -222,7 +235,7 @@ export function GoldenRulesSettingsPage() {
 
   const handleDeleteRule = (id: string) => {
     setConfirm({
-      message: 'Remover esta regra dos combinados editoriais?',
+      ...CONFIRM.excluirRegra,
       onConfirm: () => dispatch({ type: 'DELETE_GOLDEN_RULE', payload: id }),
     });
   };
@@ -234,7 +247,7 @@ export function GoldenRulesSettingsPage() {
           <GoldenRulesMobileScreen
             rules={state.goldenRules}
             violations={violations}
-            draft={{}}
+            draft={EMPTY_GOLDEN_RULES_DRAFT}
             onDraftChange={() => {}}
             onCreate={() => setPanelMode('create')}
             onToggle={rule => toggleRegra(rule.id, !rule.ativa)}
@@ -244,6 +257,8 @@ export function GoldenRulesSettingsPage() {
         <ConfirmModal
           open={!!confirm}
           message={confirm?.message || ''}
+          confirmLabel={confirm?.confirmLabel}
+          cancelLabel={confirm?.cancelLabel}
           onConfirm={() => {
             confirm?.onConfirm();
             setConfirm(null);
@@ -257,7 +272,7 @@ export function GoldenRulesSettingsPage() {
   return (
     <SettingsPageScaffold
       compact
-      title="Regras de Ouro"
+      title={GLOSSARY.ritmoEditorial}
       icon={ShieldCheck}
       actions={
         <AppButton
@@ -273,11 +288,11 @@ export function GoldenRulesSettingsPage() {
       }
     >
       {violations.length > 0 && (
-        <div className="mb-3 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-orange-200 bg-orange-50/50 p-3">
+        <div className="mb-3 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--warning)]/25 bg-[var(--warning)]/10/50 p-3">
           <p className="mb-3 text-xs font-semibold  text-orange-700">
             {violations.length} alerta{violations.length > 1 ? 's' : ''} para revisar esta semana
           </p>
-          <div className="space-y-1.5">
+          <div className="stack-xs">
             {violations.map((violation, index) => (
               <div key={index} className="flex items-start gap-3">
                 <ShieldAlert className="mt-0.5 h-3.5 w-3.5 text-orange-500" />
@@ -344,27 +359,38 @@ export function GoldenRulesSettingsPage() {
         )}
       </div>
 
-      <SidePanel
+      <Dialog
         open={panelMode !== null}
-        title={panelMode === 'edit' ? 'Editar regra' : 'Nova regra de ouro'}
         onClose={() => {
           setPanelMode(null);
           setEditingId(null);
         }}
+        desktopMaxW="md:max-w-2xl"
       >
-        <GoldenRuleForm
-          initial={editingRule ?? {}}
-          onSave={handleSave}
-          onCancel={() => {
+        <OverlayHeader
+          title={panelMode === 'edit' ? 'Editar regra' : 'Nova regra de ouro'}
+          onClose={() => {
             setPanelMode(null);
             setEditingId(null);
           }}
         />
-      </SidePanel>
+        <OverlayBody>
+          <GoldenRuleForm
+            initial={editingRule ?? {}}
+            onSave={handleSave}
+            onCancel={() => {
+              setPanelMode(null);
+              setEditingId(null);
+            }}
+          />
+        </OverlayBody>
+      </Dialog>
 
       <ConfirmModal
         open={!!confirm}
         message={confirm?.message || ''}
+        confirmLabel={confirm?.confirmLabel}
+        cancelLabel={confirm?.cancelLabel}
         onConfirm={() => {
           confirm?.onConfirm();
           setConfirm(null);

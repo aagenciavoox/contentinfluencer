@@ -78,7 +78,9 @@ export function ProjectDetailPage() {
   const [editValue, setEditValue] = useState('');
   const [editNotes, setEditNotes] = useState('');
   const [editColor, setEditColor] = useState('');
+  const [editDriveUrl, setEditDriveUrl] = useState('');
   const [isEditing, setIsEditing] = useState(false);
+  const [copyFeedback, setCopyFeedback] = useState(false);
 
   const [agendaTitle, setAgendaTitle] = useState('');
   const [agendaDate, setAgendaDate] = useState('');
@@ -89,7 +91,7 @@ export function ProjectDetailPage() {
   if (!projeto) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[var(--bg-secondary)]">
-        <div className="space-y-4 text-center">
+        <div className="stack-lg text-center">
           <p className="text-sm font-semibold opacity-30">Projeto nao encontrado</p>
           <button onClick={() => navigate('/projetos')} className="text-xs font-semibold underline opacity-50">
             Voltar
@@ -112,6 +114,7 @@ export function ProjectDetailPage() {
     setEditValue(projeto.value?.toString() || '');
     setEditNotes(projeto.notes || '');
     setEditColor(projeto.color || '#78716c');
+    setEditDriveUrl(projeto.driveUrl || '');
     setIsEditing(true);
   };
 
@@ -124,6 +127,7 @@ export function ProjectDetailPage() {
         brand: editBrand.trim() || null,
         color: editColor || null,
         value: editValue ? parseFloat(editValue) : null,
+        driveUrl: editDriveUrl.trim() || null,
         notes: editNotes.trim() || null,
         updatedAt: new Date().toISOString(),
       },
@@ -135,6 +139,15 @@ export function ProjectDetailPage() {
     if (!window.confirm(`Remover o projeto "${projeto.nome}"?`)) return;
     dispatch({ type: 'DELETE_PROJETO', payload: projeto.id });
     navigate('/projetos');
+  };
+
+  const handleCopyShareLink = () => {
+    if (!projeto.shareToken) return;
+    const url = `${window.location.origin}/share/${projeto.shareToken}`;
+    void navigator.clipboard.writeText(url).then(() => {
+      setCopyFeedback(true);
+      setTimeout(() => setCopyFeedback(false), 2000);
+    });
   };
 
   const vincularContent = (contentId: string) => {
@@ -238,7 +251,7 @@ export function ProjectDetailPage() {
   return (
     <PageLayout
       variant="settings"
-      contentClassName="space-y-6"
+      contentStack="dense"
       header={
         <DesktopPageHeader
           section="Projetos"
@@ -250,18 +263,18 @@ export function ProjectDetailPage() {
         />
       }
     >
-      <div className="grid gap-3 md:grid-cols-3">
+      <div className="grid grid-metrics md:grid-cols-3">
         {summaryCards.map(card => (
-          <div key={card.label} className="rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-primary)] px-5 py-4">
+          <Surface key={card.label} variant="outlined" padding="md">
             <p className="text-xs font-semibold opacity-40">{card.label}</p>
             <p className="mt-3 text-xl font-semibold text-[var(--text-primary)]">{card.value}</p>
             <p className="mt-1 text-xs text-[var(--text-secondary)]">{card.helper}</p>
-          </div>
+          </Surface>
         ))}
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-        <div className="space-y-6">
+      <div className="grid gap-[var(--space-xl)] xl:grid-cols-[1.2fr_0.8fr]">
+        <div className="stack-lg">
           {/* Eventos */}
           <SectionCard
             eyebrow="Calendário"
@@ -279,10 +292,10 @@ export function ProjectDetailPage() {
               ) : null
             }
           >
-            <div className="space-y-3">
+            <div className="stack-md">
               {showAgendaForm && (
                 <div className="rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4">
-                  <div className="space-y-3">
+                  <div className="stack-md">
                     <input
                       autoFocus
                       value={agendaTitle}
@@ -297,7 +310,7 @@ export function ProjectDetailPage() {
                         onChange={event => setAgendaDate(event.target.value)}
                         className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] px-4 py-3 text-xs text-[var(--text-primary)] focus:outline-none"
                       />
-                      <div className="space-y-1.5">
+                      <div className="stack-xs">
                         <input
                           type="time"
                           value={agendaTime}
@@ -322,10 +335,10 @@ export function ProjectDetailPage() {
                       </select>
                     </div>
                     <div className="flex flex-wrap gap-3">
-                      <button type="button" onClick={handleAddAgenda} className="rounded-xl bg-[var(--text-primary)] px-5 py-3 text-xs font-semibold text-[var(--bg-primary)] transition-opacity hover:opacity-90">
+                      <button type="button" onClick={handleAddAgenda} className="rounded-xl bg-[var(--text-primary)] px-6 py-3 text-xs font-semibold text-[var(--bg-primary)] transition-opacity hover:opacity-90">
                         Adicionar evento
                       </button>
-                      <button type="button" onClick={() => setShowAgendaForm(false)} className="rounded-xl border border-[var(--border-color)] px-5 py-3 text-xs font-semibold opacity-60 transition-opacity hover:opacity-100">
+                      <button type="button" onClick={() => setShowAgendaForm(false)} className="rounded-xl border border-[var(--border-color)] px-6 py-3 text-xs font-semibold opacity-60 transition-opacity hover:opacity-100">
                         Cancelar
                       </button>
                     </div>
@@ -334,7 +347,7 @@ export function ProjectDetailPage() {
               )}
 
               {agendaItems.length === 0 && !showAgendaForm && (
-                <div className="rounded-[var(--radius-card)] border border-dashed border-[var(--border-color)] px-5 py-8 text-center">
+                <div className="rounded-[var(--radius-card)] border border-dashed border-[var(--border-color)] px-6 py-8 text-center">
                   <p className="text-sm font-semibold opacity-30">Nenhum evento ainda</p>
                   <p className="mt-2 text-sm text-[var(--text-secondary)]">Crie reunioes, entregas e publicacoes. Tudo aparece no calendario.</p>
                 </div>
@@ -374,7 +387,7 @@ export function ProjectDetailPage() {
               </button>
             }
           >
-            <div className="space-y-4">
+            <div className="stack-lg">
               {disponiveisParaVincular.length > 0 && (
                 <div className="rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4">
                   <p className="mb-3 text-xs font-semibold uppercase tracking-[0.3em] opacity-40">Vincular existente</p>
@@ -398,11 +411,11 @@ export function ProjectDetailPage() {
               )}
 
               {projetoContents.length === 0 ? (
-                <div className="rounded-[var(--radius-card)] border border-dashed border-[var(--border-color)] px-5 py-8 text-center">
+                <div className="rounded-[var(--radius-card)] border border-dashed border-[var(--border-color)] px-6 py-8 text-center">
                   <p className="text-sm font-semibold opacity-30">Nenhum conteudo vinculado</p>
                 </div>
               ) : (
-                <div className="space-y-3">
+                <div className="stack-md">
                   {projetoContents.map(content => (
                     <div key={content.id} className="rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-4">
                       <div className="flex items-start gap-3">
@@ -431,7 +444,7 @@ export function ProjectDetailPage() {
         </div>
 
         {/* Sidebar: Resumo + Edit */}
-        <div className="space-y-6">
+        <div className="stack-lg">
           <SectionCard
             eyebrow="Contexto"
             title="Resumo do projeto"
@@ -449,7 +462,7 @@ export function ProjectDetailPage() {
             }
           >
             {!isEditing ? (
-              <div className="space-y-4">
+              <div className="stack-lg">
                 <div className="grid grid-cols-2 gap-3">
                   {[
                     { label: 'Marca', value: projeto.brand || '--' },
@@ -483,13 +496,13 @@ export function ProjectDetailPage() {
                 <button
                   type="button"
                   onClick={handleDeleteProjeto}
-                  className="w-full rounded-xl border border-red-500/30 px-5 py-3 text-xs font-semibold text-red-400 transition-colors hover:bg-red-500/10"
+                  className="w-full rounded-xl border border-red-500/30 px-6 py-3 text-xs font-semibold text-red-400 transition-colors hover:bg-red-500/10"
                 >
                   Excluir projeto
                 </button>
               </div>
             ) : (
-              <div className="space-y-4">
+              <div className="stack-lg">
                 <input
                   value={editNome}
                   onChange={event => setEditNome(event.target.value)}
@@ -523,6 +536,13 @@ export function ProjectDetailPage() {
                     ))}
                   </div>
                 </div>
+                <input
+                  value={editDriveUrl}
+                  onChange={event => setEditDriveUrl(event.target.value)}
+                  placeholder="Link da pasta no Drive (https://...)"
+                  type="url"
+                  className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-3 text-sm text-[var(--text-primary)] placeholder:opacity-30 focus:outline-none"
+                />
                 <textarea
                   value={editNotes}
                   onChange={event => setEditNotes(event.target.value)}
@@ -531,10 +551,10 @@ export function ProjectDetailPage() {
                   className="w-full resize-none rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-3 text-sm text-[var(--text-primary)] placeholder:opacity-30 focus:outline-none"
                 />
                 <div className="flex flex-wrap gap-3">
-                  <button type="button" onClick={saveEdit} className="rounded-xl bg-[var(--text-primary)] px-5 py-3 text-xs font-semibold text-[var(--bg-primary)] transition-opacity hover:opacity-90">
+                  <button type="button" onClick={saveEdit} className="rounded-xl bg-[var(--text-primary)] px-6 py-3 text-xs font-semibold text-[var(--bg-primary)] transition-opacity hover:opacity-90">
                     Salvar
                   </button>
-                  <button type="button" onClick={() => setIsEditing(false)} className="rounded-xl border border-[var(--border-color)] px-5 py-3 text-xs font-semibold opacity-60 transition-opacity hover:opacity-100">
+                  <button type="button" onClick={() => setIsEditing(false)} className="rounded-xl border border-[var(--border-color)] px-6 py-3 text-xs font-semibold opacity-60 transition-opacity hover:opacity-100">
                     Cancelar
                   </button>
                 </div>

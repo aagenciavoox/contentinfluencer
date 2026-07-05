@@ -17,7 +17,7 @@ export function HorizontalBarChart({items, valueSuffix = ''}: HorizontalBarChart
   }
 
   return (
-    <div className="space-y-3">
+    <div className="stack-md">
       {items.map(item => (
         <div key={item.id}>
           <div className="mb-1 flex items-center justify-between gap-2">

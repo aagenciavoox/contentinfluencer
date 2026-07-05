@@ -7,7 +7,8 @@ import {
   PostingTimesSettings,
   Weekday,
 } from '../lib/postingTimes';
-import type {PostingTimeEntry} from '../../../lib/database';
+import type {Pilar, Platform, PostingTimeEntry} from '../../../lib/database';
+import {getCrossedPostingTimesForPilar} from '../lib/pilarPostingSchedule';
 
 interface PostingTimeSuggestionsProps {
   date: string;
@@ -16,6 +17,8 @@ interface PostingTimeSuggestionsProps {
   className?: string;
   postingTimeEntries?: PostingTimeEntry[];
   platformId?: string | null;
+  pilar?: Pick<Pilar, 'plataformas'> | null;
+  platforms?: Platform[];
   /** @deprecated Use postingTimeEntries + platformId */
   postingTimes?: PostingTimesSettings;
 }
@@ -27,6 +30,8 @@ export function PostingTimeSuggestions({
   className,
   postingTimeEntries,
   platformId = null,
+  pilar = null,
+  platforms = [],
   postingTimes,
 }: PostingTimeSuggestionsProps) {
   if (!date) return null;
@@ -39,7 +44,14 @@ export function PostingTimeSuggestions({
   }
 
   let times: string[];
-  if (postingTimeEntries) {
+  if (postingTimeEntries && pilar) {
+    times = getCrossedPostingTimesForPilar(pilar, postingTimeEntries, platforms, weekday);
+    if (platformId) {
+      const platformTimes = getPostingTimesForPlatform(postingTimeEntries, platformId);
+      const allowed = new Set(getTimesForDay(platformTimes, weekday));
+      times = times.filter(time => allowed.has(time));
+    }
+  } else if (postingTimeEntries) {
     const settings = getPostingTimesForPlatform(postingTimeEntries, platformId ?? null);
     times = getTimesForDay(settings, weekday);
   } else if (postingTimes) {

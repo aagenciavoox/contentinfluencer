@@ -6,6 +6,7 @@ import {useIsMobile} from '../../../hooks/useIsMobile';
 import {DesktopPageHeader} from '../../../layouts/page/DesktopPageHeader';
 import {PageLayout} from '../../../layouts/page/PageLayout';
 import {AppButton} from '../../../components/ui/AppButton';
+import {Text} from '../../../components/ui/Text';
 import {cn} from '../../../lib/utils';
 import {
   getPostingTimesForPlatform,
@@ -17,6 +18,8 @@ import {
   replacePostingTimesForPlatform,
 } from '../../../lib/database';
 import type {PostingTimeEntry} from '../../../lib/database';
+import {notifySaveFeedback, getErrorMessage} from '../../../lib/saveFeedback';
+import {broadcastDataSync} from '../../../lib/syncBroadcast';
 
 const MAX_TIMES_PER_DAY = 3;
 
@@ -63,8 +66,15 @@ export function PostingTimesSettingsPage() {
     if (specificEntries.length >= MAX_TIMES_PER_DAY) return;
     if (specificEntries.some(e => e.time === time)) return;
     const newTimes = [...specificEntries.map(e => e.time), time].sort();
-    await replacePostingTimesForPlatform(selectedPlatformId, weekday, newTimes);
-    await reload();
+    try {
+      notifySaveFeedback({ status: 'saving', message: 'Salvando horário...' });
+      await replacePostingTimesForPlatform(selectedPlatformId, weekday, newTimes);
+      await reload();
+      broadcastDataSync();
+      notifySaveFeedback({ status: 'success', message: 'Horário salvo' });
+    } catch (err) {
+      notifySaveFeedback({ status: 'error', message: 'Falha ao salvar horário', detail: getErrorMessage(err) });
+    }
   }
 
   async function handleRemove(weekday: Weekday, time: string) {
@@ -72,8 +82,15 @@ export function PostingTimesSettingsPage() {
       e => e.platformId === selectedPlatformId && e.weekday === weekday,
     );
     const newTimes = specificEntries.map(e => e.time).filter(t => t !== time);
-    await replacePostingTimesForPlatform(selectedPlatformId, weekday, newTimes);
-    await reload();
+    try {
+      notifySaveFeedback({ status: 'saving', message: 'Removendo horário...' });
+      await replacePostingTimesForPlatform(selectedPlatformId, weekday, newTimes);
+      await reload();
+      broadcastDataSync();
+      notifySaveFeedback({ status: 'success', message: 'Horário removido' });
+    } catch (err) {
+      notifySaveFeedback({ status: 'error', message: 'Falha ao remover horário', detail: getErrorMessage(err) });
+    }
   }
 
   const totalConfigured = useMemo(() => {
@@ -88,7 +105,7 @@ export function PostingTimesSettingsPage() {
   ];
 
   const content = (
-    <div className="space-y-5">
+    <div className="stack-xl">
       <p className="text-sm text-[var(--text-secondary)] opacity-60">
         Configure até {MAX_TIMES_PER_DAY} horários por dia. Horários específicos de plataforma
         sobrepõem o Global. Se não houver configuração própria, o Global é usado como sugestão.
@@ -161,9 +178,9 @@ export function PostingTimesSettingsPage() {
             </button>
             <div className="flex items-center gap-2">
               <Clock className="h-4 w-4 text-[var(--text-primary)] opacity-50" />
-              <h1 className="text-base font-semibold text-[var(--text-primary)]">
+              <Text variant="pageTitle">
                 Horários de Postagem
-              </h1>
+              </Text>
             </div>
           </div>
           <div className="p-4">{content}</div>
@@ -175,7 +192,6 @@ export function PostingTimesSettingsPage() {
   return (
     <PageLayout
       variant="settings"
-      contentClassName="space-y-6"
       header={
         <DesktopPageHeader
           section="Configurações"
@@ -187,10 +203,17 @@ export function PostingTimesSettingsPage() {
             totalConfigured > 0 ? (
               <AppButton
                 onClick={async () => {
-                  for (const wd of [0, 1, 2, 3, 4, 5, 6] as Weekday[]) {
-                    await replacePostingTimesForPlatform(selectedPlatformId, wd, []);
+                  try {
+                    notifySaveFeedback({ status: 'saving', message: 'Limpando horários...' });
+                    for (const wd of [0, 1, 2, 3, 4, 5, 6] as Weekday[]) {
+                      await replacePostingTimesForPlatform(selectedPlatformId, wd, []);
+                    }
+                    await reload();
+                    broadcastDataSync();
+                    notifySaveFeedback({ status: 'success', message: 'Horários removidos' });
+                  } catch (err) {
+                    notifySaveFeedback({ status: 'error', message: 'Falha ao limpar horários', detail: getErrorMessage(err) });
                   }
-                  await reload();
                 }}
                 variant="ghost"
                 size="sm"
@@ -231,7 +254,7 @@ function DayCard({day, specificTimes, fallbackTimes, isFallback, onAdd, onRemove
   }
 
   return (
-    <div className="rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-primary)] px-5 py-4 space-y-3">
+    <div className="rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-primary)] px-6 py-4 stack-md">
       <div className="flex items-center justify-between">
         <p className="text-sm font-semibold text-[var(--text-primary)]">{WEEKDAY_LABELS[day]}</p>
         <div className="flex items-center gap-2">

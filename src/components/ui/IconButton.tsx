@@ -36,6 +36,7 @@ export function IconButton({
       aria-label={label}
       className={cn(
         'inline-flex items-center justify-center rounded-[var(--radius-card)] text-[var(--text-tertiary)] transition-colors disabled:opacity-40',
+        'focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
         sizeClasses[size],
         variantClasses[variant],
         className

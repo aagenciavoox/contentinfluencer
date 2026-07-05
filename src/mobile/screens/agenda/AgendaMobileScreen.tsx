@@ -31,7 +31,8 @@ import type {AgendaItem, Content, Platform, Projeto} from '../../../lib/database
 import type {CalendarEntry} from '../../../features/editorial-calendar/components/MonthlyCalendarView';
 import {readStoredJson, writeStoredJson} from '../../../lib/browserStorage';
 import {cn} from '../../../lib/utils';
-import {MobileEmptyState} from '../../components/MobileEmptyState';
+import {AppButton} from '../../../components/ui/AppButton';
+import {EmptyState} from '../../../components/ui/EmptyState';
 import {MobileListCard} from '../../components/MobileListCard';
 import {MobileSearchBar} from '../../components/MobileSearchBar';
 
@@ -272,12 +273,12 @@ export function AgendaMobileScreen({
   const days = eachDayOfInterval({start: gridStart, end: gridEnd});
 
   return (
-    <div className="space-y-4">
-      {/* ── Calendar card ─────────────────────────────── */}
-      <section className="overflow-hidden rounded-[1.75rem] border border-[var(--border-color)] bg-[var(--bg-secondary)] shadow-sm">
+    <div className="stack-xl">
+      {/* â”€â”€ Calendar card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      <section className="overflow-hidden rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] shadow-sm">
 
         {/* Header: month nav + actions on second row */}
-        <div className="space-y-3 px-4 pt-4 pb-3">
+        <div className="stack-md px-4 pt-4 pb-3">
           <div className="flex items-center justify-center gap-1">
             <button
               type="button"
@@ -414,8 +415,8 @@ export function AgendaMobileScreen({
         </div>
       </section>
 
-      {/* ── Agenda list ────────────────────────────────── */}
-      <section className="space-y-3">
+      {/* â”€â”€ Agenda list â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      <section className="stack-md">
 
         {/* Search */}
         <MobileSearchBar
@@ -452,7 +453,7 @@ export function AgendaMobileScreen({
 
         {/* Entries */}
         {groupedEntries.length === 0 ? (
-          <MobileEmptyState
+          <EmptyState compact
             title="Nada por aqui"
             description={
               selectedDate
@@ -460,20 +461,19 @@ export function AgendaMobileScreen({
                 : 'Nenhum evento nos proximos 60 dias com as camadas ativas.'
             }
             action={
-              <button type="button" onClick={onAddAgenda} className="button-primary w-full">
-                <Plus className="h-4 w-4" />
+              <AppButton variant="primary" fullWidth onClick={onAddAgenda} leftIcon={<Plus className="h-4 w-4" />}>
                 Novo evento
-              </button>
+              </AppButton>
             }
             icon={<SearchCheck className="h-8 w-8" />}
           />
         ) : (
-          <div className="space-y-5">
+          <div className="stack-xl">
             {groupedEntries.map(group => (
-              <div key={group.label} className="space-y-2">
+              <div key={group.label} className="stack-sm">
                 <p className="px-1 t-label text-[var(--text-tertiary)]">{group.label}</p>
 
-                <div className="space-y-2">
+                <div className="stack-sm">
                   {group.items.map(entry => {
                     const accentColor = entry.color || KIND_ACCENTS[entry.kind];
                     const calendarType =

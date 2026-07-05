@@ -1,11 +1,13 @@
 import { useMemo, useState } from 'react';
 import { CircleDollarSign, FolderKanban, Plus, SearchCheck, TimerReset } from 'lucide-react';
 import { normalizeProjetoTipo, type Projeto } from '../../../lib/database';
-import { MobileEmptyState } from '../../components/MobileEmptyState';
+import { EmptyState } from '../../../components/ui/EmptyState';
 import { MobileFilterSheet } from '../../components/MobileFilterSheet';
 import { MobileListCard } from '../../components/MobileListCard';
 import { MobileSearchBar } from '../../components/MobileSearchBar';
 import { MobileSegmentTabs } from '../../components/MobileSegmentTabs';
+import { MobileSectionHeader } from '../../components/MobileSectionHeader';
+import { AppButton } from '../../../components/ui/AppButton';
 
 type TipoFilter = 'todos' | 'publi' | 'producao' | 'outro';
 type StatusFilter = 'todos' | 'pendente' | 'em_andamento' | 'concluido';
@@ -113,26 +115,22 @@ export function ProjectsMobileScreen({
   }, [activeTab, projetos, search, sortValue, statusFilter, typeFilter]);
 
   const focusAction = (
-    <button type="button" onClick={onCreateProject} className="button-primary w-full">
-      <Plus className="h-4 w-4" />
+    <AppButton variant="primary" fullWidth onClick={onCreateProject} leftIcon={<Plus className="h-4 w-4" />}>
       Novo projeto
-    </button>
+    </AppButton>
   );
 
   return (
-    <div className="space-y-5">
-      <section className="rounded-[1.75rem] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4 shadow-sm">
-        <div className="mb-4 flex items-center gap-3">
-          <div className="rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] bg-[var(--accent-green)]/12 p-3 text-[var(--accent-green)]">
-            <FolderKanban className="h-5 w-5" />
-          </div>
-          <div>
-            <p className="t-section-title text-[var(--text-primary)]">Projetos abertos</p>
-            <p className="t-secondary">Datas, valor e contexto em cards leves para consulta rapida.</p>
-          </div>
-        </div>
+    <div className="stack-xl">
+      <section className="rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4 shadow-sm">
+        <MobileSectionHeader
+          icon={FolderKanban}
+          tone="green"
+          title="Projetos abertos"
+          description="Datas, valor e contexto em cards leves para consulta rapida."
+        />
 
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid-metrics-3">
           <div className="rounded-[1.2rem] bg-[var(--bg-hover)] px-3 py-3">
             <p className="t-label text-[var(--text-tertiary)]">Total</p>
             <p className="mt-1 text-xl font-semibold text-[var(--text-primary)]">{projetos.length}</p>
@@ -147,13 +145,12 @@ export function ProjectsMobileScreen({
           </div>
         </div>
 
-        <button type="button" onClick={onCreateProject} className="button-primary mt-4 w-full">
-          <Plus className="h-4 w-4" />
+        <AppButton variant="primary" fullWidth onClick={onCreateProject} className="mt-4" leftIcon={<Plus className="h-4 w-4" />}>
           Criar projeto
-        </button>
+        </AppButton>
       </section>
 
-      <section className="space-y-4">
+      <section className="stack-lg">
         <MobileSearchBar
           value={search}
           onChange={setSearch}
@@ -172,14 +169,14 @@ export function ProjectsMobileScreen({
         />
 
         {filteredProjects.length === 0 ? (
-          <MobileEmptyState
+          <EmptyState compact
             title="Nenhum projeto encontrado"
             description="Ajuste a busca ou abra um novo projeto para alimentar essa camada mobile."
             action={focusAction}
             icon={<SearchCheck className="h-8 w-8" />}
           />
         ) : (
-          <div className="space-y-3">
+          <div className="stack-md">
             {filteredProjects.map((projeto) => {
               const status = getProjectStatus(projeto);
               const progress = getProgress(projeto);
@@ -209,7 +206,7 @@ export function ProjectsMobileScreen({
                     </>
                   }
                   status={
-                    <div className="space-y-2">
+                    <div className="stack-sm">
                       <div className="flex items-center justify-between">
                         <span className="t-label text-[var(--text-tertiary)]">Progresso</span>
                         <span className="text-xs font-semibold text-[var(--text-secondary)]">{progress}%</span>
@@ -234,7 +231,7 @@ export function ProjectsMobileScreen({
         title="Filtrar projetos"
         onClose={() => setIsFilterSheetOpen(false)}
       >
-        <label className="block space-y-2">
+        <label className="block stack-sm">
           <span className="t-label text-[var(--text-tertiary)]">Tipo</span>
           <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value as TipoFilter)}>
             <option value="todos">Todos</option>
@@ -244,7 +241,7 @@ export function ProjectsMobileScreen({
           </select>
         </label>
 
-        <label className="block space-y-2">
+        <label className="block stack-sm">
           <span className="t-label text-[var(--text-tertiary)]">Status</span>
           <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}>
             <option value="todos">Todos</option>
@@ -254,7 +251,7 @@ export function ProjectsMobileScreen({
           </select>
         </label>
 
-        <label className="block space-y-2">
+        <label className="block stack-sm">
           <span className="t-label text-[var(--text-tertiary)]">Ordenacao</span>
           <select value={sortValue} onChange={(event) => setSortValue(event.target.value)}>
             <option value="deadline:asc">Data combinada crescente</option>
@@ -265,18 +262,18 @@ export function ProjectsMobileScreen({
           </select>
         </label>
 
-        <button
-          type="button"
+        <AppButton
+          variant="primary"
+          fullWidth
           onClick={() => {
             setTypeFilter('todos');
             setStatusFilter('todos');
             setSortValue('deadline:asc');
             setIsFilterSheetOpen(false);
           }}
-          className="button-primary w-full"
         >
           Limpar filtros
-        </button>
+        </AppButton>
       </MobileFilterSheet>
     </div>
   );

@@ -1,7 +1,24 @@
-import type {Content, Platform} from '../../../lib/database';
-import {CONTENT_STATUS} from '../../contents/lib/contentPipeline';
+import type {AgendaItem, Content, Platform, Projeto, PublicationKind} from '../../../lib/database';
+import {
+  CONTENT_STATUS,
+  DISPLAY_STATUS,
+  getDisplayStatus,
+  normalizeContentStatus,
+} from '../../contents/lib/contentPipeline';
 
 export const SEM_PLATAFORMA = 'Sem plataforma';
+
+/** Evento de publicação cadastrado dentro de um projeto (agenda). Somente leitura na grade. */
+export interface ProjetoPublicacaoMarker {
+  key: string;
+  agendaId: string;
+  projetoId: string;
+  projetoNome: string;
+  title: string;
+  /** yyyy-MM-dd */
+  date: string;
+  time: string | null;
+}
 
 /**
  * Um card de programação = um roteiro em uma plataforma.
@@ -15,24 +32,28 @@ export interface ProgramacaoCard {
   /** Nome resolvido da plataforma, usado para cor e filtro */
   platformName: string;
   title: string;
+  /** Display status (may be derived Programado). */
   status: string;
+  /** Canonical persisted status. */
+  canonicalStatus: string;
   /** "yyyy-MM-dd" ou null (backlog) */
   date: string | null;
   time: string | null;
   legenda: string;
   hashtags: string;
+  publicationKind?: PublicationKind;
 }
 
 const SCHEDULABLE_STATUSES = new Set<string>([
-  CONTENT_STATUS.GRAVADO,
-  CONTENT_STATUS.EDITADO,
-  CONTENT_STATUS.PROGRAMADO,
+  CONTENT_STATUS.IDEIA,
+  CONTENT_STATUS.ROTEIRO,
+  CONTENT_STATUS.PRODUCAO,
   CONTENT_STATUS.POSTADO,
 ]);
 
 const BACKLOG_STATUSES = new Set<string>([
-  CONTENT_STATUS.GRAVADO,
-  CONTENT_STATUS.EDITADO,
+  CONTENT_STATUS.ROTEIRO,
+  CONTENT_STATUS.PRODUCAO,
 ]);
 
 /** Normaliza "HH:MM:SS" (banco) para "HH:MM" (exibição/comparação). */
@@ -48,18 +69,18 @@ export function resolvePlatformName(platformId: string | null, platforms: Platfo
 
 /** Paleta fixa por plataforma conhecida + fallback determinístico. */
 const PLATFORM_COLOR_PRESETS: Record<string, PlatformColor> = {
-  instagram: {chip: 'border-pink-200 bg-pink-50 text-pink-700 dark:border-pink-500/30 dark:bg-pink-500/10 dark:text-pink-300', dot: '#db2777'},
-  tiktok: {chip: 'border-teal-200 bg-teal-50 text-teal-700 dark:border-teal-500/30 dark:bg-teal-500/10 dark:text-teal-300', dot: '#0d9488'},
-  youtube: {chip: 'border-red-200 bg-red-50 text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300', dot: '#dc2626'},
-  blog: {chip: 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-300', dot: '#2563eb'},
+  instagram: {chip: 'border-pink-200 bg-pink-50 text-pink-700 dark:border-pink-500/30 dark:bg-pink-500/10 dark:text-pink-300', dot: 'var(--accent-pink)'},
+  tiktok: {chip: 'border-teal-200 bg-teal-50 text-teal-700 dark:border-teal-500/30 dark:bg-teal-500/10 dark:text-teal-300', dot: 'var(--accent-green)'},
+  youtube: {chip: 'border-red-200 bg-red-50 text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300', dot: 'var(--danger)'},
+  blog: {chip: 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-300', dot: 'var(--accent-blue)'},
 };
 
 const FALLBACK_COLORS: PlatformColor[] = [
-  {chip: 'border-purple-200 bg-purple-50 text-purple-700 dark:border-purple-500/30 dark:bg-purple-500/10 dark:text-purple-300', dot: '#9333ea'},
-  {chip: 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300', dot: '#d97706'},
-  {chip: 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300', dot: '#059669'},
-  {chip: 'border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-300', dot: '#0284c7'},
-  {chip: 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300', dot: '#e11d48'},
+  {chip: 'border-purple-200 bg-purple-50 text-purple-700 dark:border-purple-500/30 dark:bg-purple-500/10 dark:text-purple-300', dot: 'var(--accent-purple)'},
+  {chip: 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300', dot: 'var(--accent-orange)'},
+  {chip: 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300', dot: 'var(--accent-green)'},
+  {chip: 'border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-300', dot: 'var(--info)'},
+  {chip: 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300', dot: 'var(--accent-pink)'},
 ];
 
 export interface PlatformColor {
@@ -71,7 +92,7 @@ export function getPlatformColor(platformName: string): PlatformColor {
   const preset = PLATFORM_COLOR_PRESETS[platformName.trim().toLowerCase()];
   if (preset) return preset;
   if (platformName === SEM_PLATAFORMA) {
-    return {chip: 'border-[var(--border-color)] bg-[var(--bg-hover)] text-[var(--text-secondary)]', dot: '#9ca3af'};
+    return {chip: 'border-[var(--border-color)] bg-[var(--bg-hover)] text-[var(--text-secondary)]', dot: 'var(--text-tertiary)'};
   }
   let hash = 0;
   for (let i = 0; i < platformName.length; i++) {
@@ -86,7 +107,10 @@ export function buildProgramacaoCards(contents: Content[], platforms: Platform[]
 
   contents.forEach(content => {
     if (content.deletedAt) return;
-    if (!SCHEDULABLE_STATUSES.has(content.status)) return;
+    const canonicalStatus = normalizeContentStatus(content.status);
+    if (!SCHEDULABLE_STATUSES.has(canonicalStatus)) return;
+
+    const displayStatus = getDisplayStatus(content);
 
     if (content.plataformas.length > 0) {
       content.plataformas.forEach(plataforma => {
@@ -97,11 +121,13 @@ export function buildProgramacaoCards(contents: Content[], platforms: Platform[]
           platformId: plataforma.platformId,
           platformName: resolvePlatformName(plataforma.platformId, platforms),
           title: content.title || '(sem título)',
-          status: content.status,
+          status: displayStatus,
+          canonicalStatus,
           date: date ? date.slice(0, 10) : null,
           time: normalizeTime(plataforma.publishTime || content.publishTime),
           legenda: plataforma.legenda || '',
           hashtags: plataforma.hashtags || '',
+          publicationKind: plataforma.publicationKind === 'repost' ? 'repost' : 'post',
         });
       });
       return;
@@ -113,7 +139,8 @@ export function buildProgramacaoCards(contents: Content[], platforms: Platform[]
       platformId: null,
       platformName: SEM_PLATAFORMA,
       title: content.title || '(sem título)',
-      status: content.status,
+      status: displayStatus,
+      canonicalStatus,
       date: content.publishDate ? content.publishDate.slice(0, 10) : null,
       time: normalizeTime(content.publishTime),
       legenda: '',
@@ -124,12 +151,72 @@ export function buildProgramacaoCards(contents: Content[], platforms: Platform[]
   return cards;
 }
 
-export function isBacklogCard(card: ProgramacaoCard): boolean {
-  return !card.date && BACKLOG_STATUSES.has(card.status);
+/** Publicações de projeto (agenda tipo Publicação) agrupadas por dia. */
+export function buildProjetoPublicacaoByDate(
+  agendaItems: AgendaItem[],
+  projetos: Projeto[],
+): Map<string, ProjetoPublicacaoMarker[]> {
+  const projetoById = new Map(
+    projetos.filter(projeto => !projeto.deletedAt).map(projeto => [projeto.id, projeto]),
+  );
+  const map = new Map<string, ProjetoPublicacaoMarker[]>();
+
+  agendaItems.forEach(item => {
+    if (item.tipo !== 'Publicação' || !item.projetoId) return;
+    const projeto = projetoById.get(item.projetoId);
+    if (!projeto) return;
+
+    const date = item.date.slice(0, 10);
+    const marker: ProjetoPublicacaoMarker = {
+      key: `agenda::${item.id}`,
+      agendaId: item.id,
+      projetoId: projeto.id,
+      projetoNome: projeto.nome,
+      title: item.title,
+      date,
+      time: item.time ? item.time.slice(0, 5) : null,
+    };
+    const list = map.get(date) || [];
+    list.push(marker);
+    map.set(date, list);
+  });
+
+  map.forEach(list =>
+    list.sort(
+      (a, b) =>
+        (a.time || '99:99').localeCompare(b.time || '99:99') ||
+        a.title.localeCompare(b.title, 'pt-BR'),
+    ),
+  );
+
+  return map;
 }
 
 export function isCardLocked(card: ProgramacaoCard): boolean {
-  return card.status === CONTENT_STATUS.POSTADO;
+  return card.canonicalStatus === CONTENT_STATUS.POSTADO;
+}
+
+export function isBacklogCard(card: ProgramacaoCard): boolean {
+  if (card.date) return false;
+  if (isCardLocked(card)) return false;
+  if (isIdeiaCard(card)) return false;
+  return BACKLOG_STATUSES.has(card.canonicalStatus);
+}
+
+export function isIdeiaCard(card: ProgramacaoCard): boolean {
+  return card.canonicalStatus === CONTENT_STATUS.IDEIA;
+}
+
+export function isPostadoCard(card: ProgramacaoCard): boolean {
+  return card.canonicalStatus === CONTENT_STATUS.POSTADO;
+}
+
+export function canDragCard(card: ProgramacaoCard): boolean {
+  return !isCardLocked(card);
+}
+
+export function promoteIdeiaToRoteiro(content: Content): Content {
+  return {...content, status: CONTENT_STATUS.ROTEIRO, updatedAt: new Date().toISOString()};
 }
 
 function earliestPlatformDate(content: Content): string | null {
@@ -169,20 +256,12 @@ export function applyScheduleToContent(
     next = {...content, publishDate: isoDate, publishTime: time, publishDateEnabled: true};
   }
 
-  // Gravado/Editado com data de hoje em diante vira Programado.
-  const today = new Date();
-  const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-  if (BACKLOG_STATUSES.has(next.status) && dateStr >= todayKey) {
-    next.status = CONTENT_STATUS.PROGRAMADO;
-  }
-
   return {...next, updatedAt: new Date().toISOString()};
 }
 
 /**
- * Remove o agendamento de um card (volta para "Prontos para programar").
- * Limpa só a data daquela plataforma; o status volta para Editado quando
- * nenhuma plataforma tem mais data.
+ * Remove o agendamento de um card (volta para backlog).
+ * Limpa só a data daquela plataforma; o status canônico não muda.
  */
 export function applyUnscheduleToContent(content: Content, platformId: string | null): Content {
   let next: Content;
@@ -201,9 +280,7 @@ export function applyUnscheduleToContent(content: Content, platformId: string | 
     next = {...content, publishDate: null, publishTime: null, publishDateEnabled: false};
   }
 
-  if (next.status === CONTENT_STATUS.PROGRAMADO && !next.publishDate) {
-    next.status = CONTENT_STATUS.EDITADO;
-  }
-
   return {...next, updatedAt: new Date().toISOString()};
 }
+
+export {DISPLAY_STATUS};

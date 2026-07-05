@@ -39,9 +39,11 @@ import { Content, Projeto, AgendaItem, Look, Cenario } from '../../../lib/databa
 type Partnership = Projeto;
 import { cn, getEventDates } from '../../../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
-import { STATUS_CONFIG } from '../../../constants';
+import { getStatusCalendarClass } from '../../../lib/statusClasses';
 import { getStatusIcon } from '../pages/EditorialCalendarPage';
 import { CalendarHoverCard } from './CalendarHoverCard';
+import { Surface } from '../../../components/ui/Surface';
+import { Text } from '../../../components/ui/Text';
 
 interface CalendarGridProps {
   activeLayers: string[];
@@ -100,7 +102,6 @@ export function CalendarGrid({ activeLayers, searchTerm, sortValue, onItemClick 
         .forEach(p => {
           const pDates = getEventDates(p);
           if (pDates.includes(dayStr)) {
-            const stSet = STATUS_CONFIG[p.status];
             const IconComponent = Star;
             items.push({ 
               ...p, 
@@ -113,7 +114,7 @@ export function CalendarGrid({ activeLayers, searchTerm, sortValue, onItemClick 
 
     // 4. Agenda (Events)
     if (activeLayers.includes('agenda')) {
-      state.agenda
+      state.agendaItems
         .filter(a => {
           if (a.projetoId) {
             const p = state.projetos.find(proj => proj.id === a.projetoId);
@@ -164,7 +165,7 @@ export function CalendarGrid({ activeLayers, searchTerm, sortValue, onItemClick 
   };
 
   return (
-    <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-[var(--radius-card-mobile)] md:rounded-[2.5rem] overflow-hidden shadow-xl shadow-black/5 animate-in zoom-in-95 duration-500">
+    <Surface variant="elevated" padding="none" className="overflow-hidden animate-in zoom-in-95 duration-500">
       <div className="overflow-x-auto no-scrollbar">
       <div className="min-w-[800px] md:min-w-0">
       {/* Calendar Header */}
@@ -172,38 +173,38 @@ export function CalendarGrid({ activeLayers, searchTerm, sortValue, onItemClick 
         <div className="flex items-center gap-3 md:gap-6 w-full md:w-auto">
            <div className="flex items-center gap-2 px-4 md:px-6 py-2 md:py-3 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] shadow-sm flex-1 md:flex-none justify-center md:justify-start">
              <CalendarIcon className="w-4 h-4 md:w-5 md:h-5 text-[var(--accent-blue)]" />
-             <span className="text-xs md:text-sm font-semibold uppercase tracking-[0.1em] md:tracking-[0.2em] text-[var(--text-primary)]">
+             <Text as="span" variant="label" uppercase className="md:text-sm font-semibold text-[var(--text-primary)]">
                {format(currentDate, 'MMMM yyyy', { locale: ptBR })}
-             </span>
+             </Text>
            </div>
            
            <div className="flex gap-1 md:gap-2 p-1 bg-[var(--bg-hover)] border border-[var(--border-color)] rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)]">
              <button onClick={prevMonth} className="p-1.5 md:p-2 hover:bg-[var(--border-color)] rounded-xl transition-colors"><ChevronLeft className="w-4 h-4 md:w-5 md:h-5" /></button>
-             <button onClick={() => setCurrentDate(new Date())} className="px-3 md:px-5 py-1.5 md:py-2 text-[8px] md:text-xs font-semibold  hover:bg-[var(--border-color)] rounded-xl transition-colors">Hoje</button>
+             <button onClick={() => setCurrentDate(new Date())} className="px-3 md:px-6 py-1.5 md:py-2 text-2xs md:text-xs font-semibold hover:bg-[var(--border-color)] rounded-[var(--radius-input)] transition-colors">Hoje</button>
              <button onClick={nextMonth} className="p-1.5 md:p-2 hover:bg-[var(--border-color)] rounded-xl transition-colors"><ChevronRight className="w-4 h-4 md:w-5 md:h-5" /></button>
            </div>
         </div>
 
         <div className="flex md:hidden w-full overflow-x-auto gap-4 py-2 border-t border-[var(--border-color)] no-scrollbar">
-           <div className="flex items-center gap-2 shrink-0"><Video className="w-3 h-3 text-[var(--accent-orange)]" /><span className="text-[8px] font-bold uppercase tracking-wider opacity-60">Gravação</span></div>
-           <div className="flex items-center gap-2 shrink-0"><Send className="w-3 h-3 text-[var(--accent-blue)]" /><span className="text-[8px] font-bold uppercase tracking-wider opacity-60">Postagens</span></div>
-           <div className="flex items-center gap-2 shrink-0"><Star className="w-3.5 h-3.5 text-amber-500" /><span className="text-[8px] font-bold uppercase tracking-wider opacity-60">Publicidade</span></div>
+           <div className="flex items-center gap-2 shrink-0"><Video className="w-3 h-3 text-[var(--accent-orange)]" /><span className="text-2xs font-semibold uppercase tracking-normal opacity-60">Gravação</span></div>
+           <div className="flex items-center gap-2 shrink-0"><Send className="w-3 h-3 text-[var(--accent-blue)]" /><span className="text-2xs font-semibold uppercase tracking-normal opacity-60">Postagens</span></div>
+           <div className="flex items-center gap-2 shrink-0"><Star className="w-3.5 h-3.5 text-[var(--warning)]" /><span className="text-2xs font-semibold uppercase tracking-normal opacity-60">Publicidade</span></div>
         </div>
 
         <div className="hidden md:flex items-center gap-4 text-[var(--text-tertiary)] text-xs font-semibold  opacity-60">
            <div className="flex items-center gap-2"><Video className="w-3 h-3 text-[var(--accent-orange)]" /> Gravação</div>
-           <div className="h-1 w-1 bg-gray-400 rounded-full" />
+           <div className="h-1 w-1 bg-[var(--text-tertiary)] rounded-[var(--radius-pill)]" />
            <div className="flex items-center gap-2"><Send className="w-3 h-3 text-[var(--accent-blue)]" /> Postagens</div>
-           <div className="h-1 w-1 bg-gray-400 rounded-full" />
-           <div className="flex items-center gap-2"><Star className="w-3.5 h-3.5 text-amber-500" /> Publicidade</div>
+           <div className="h-1 w-1 bg-[var(--text-tertiary)] rounded-[var(--radius-pill)]" />
+           <div className="flex items-center gap-2"><Star className="w-3.5 h-3.5 text-[var(--warning)]" /> Publicidade</div>
         </div>
       </div>
 
       {/* Week Day Labels */}
       <div className="grid grid-cols-7 border-b border-[var(--border-color)] bg-[var(--bg-hover)]/30">
         {['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'].map(d => (
-          <div key={d} className="py-2 md:py-4 text-center text-xs md:text-xs font-semibold uppercase tracking-[0.2em] text-[var(--text-tertiary)]">
-            {d}
+          <div key={d} className="py-2 md:py-4 text-center">
+            <Text variant="label" uppercase className="font-semibold text-[var(--text-tertiary)]">{d}</Text>
           </div>
         ))}
       </div>
@@ -231,7 +232,7 @@ export function CalendarGrid({ activeLayers, searchTerm, sortValue, onItemClick 
               <div className="flex items-center justify-between p-2 mb-1">
                 <span className={cn(
                   "text-xs font-semibold w-6 h-6 flex items-center justify-center rounded-full transition-all",
-                  activeToday ? "bg-[var(--accent-blue)] text-white shadow-lg" : "text-[var(--text-tertiary)] group-hover:text-[var(--text-primary)]"
+                  activeToday ? "bg-[var(--accent-blue)] text-[var(--bg-secondary)] shadow-[var(--shadow-soft)]" : "text-[var(--text-tertiary)] group-hover:text-[var(--text-primary)]"
                 )}>
                   {format(day, 'd')}
                 </span>
@@ -254,11 +255,12 @@ export function CalendarGrid({ activeLayers, searchTerm, sortValue, onItemClick 
                       onMouseEnter={() => setHoveredItemId(item.id)}
                       onMouseLeave={() => setHoveredItemId(null)}
                       className={cn(
-                        "w-full text-left px-2 py-1.5 rounded-lg flex items-center gap-2 transition-all group/item shadow-sm border border-transparent",
-                        item.type === 'recording' && "bg-orange-500/5 text-orange-600 hover:bg-orange-500/10 hover:border-orange-500/20",
-                        item.type === 'post' && "bg-blue-500/5 text-blue-600 hover:bg-blue-500/10 hover:border-blue-500/20",
+                        "w-full text-left px-2 py-1.5 rounded-[var(--radius-input)] flex items-center gap-2 transition-all group/item shadow-sm border border-transparent",
+                        item.type === 'recording' && "bg-[var(--accent-orange)]/5 text-[var(--accent-orange)] hover:bg-[var(--accent-orange)]/10 hover:border-[var(--accent-orange)]/20",
+                        item.type === 'post' && "bg-[var(--accent-blue)]/5 text-[var(--accent-blue)] hover:bg-[var(--accent-blue)]/10 hover:border-[var(--accent-blue)]/20",
+                        item.type === 'partnership' && !item.color && getStatusCalendarClass(item.status),
                         item.type === 'partnership' && "hover:border-current",
-                        item.type === 'agenda' && !item.brandColor && !item.projetoColor && "bg-purple-500/5 text-purple-600 hover:bg-purple-500/10 hover:border-purple-500/20",
+                        item.type === 'agenda' && !item.brandColor && !item.projetoColor && "bg-[var(--accent-purple)]/5 text-[var(--accent-purple)] hover:bg-[var(--accent-purple)]/10 hover:border-[var(--accent-purple)]/20",
                         item.status === 'Postado' && "opacity-40 grayscale"
                       )}
                       style={
@@ -266,9 +268,6 @@ export function CalendarGrid({ activeLayers, searchTerm, sortValue, onItemClick 
                           backgroundColor: `${item.color}15`,
                           color: item.color,
                           borderColor: `${item.color}30`
-                        } : item.type === 'partnership' ? {
-                          backgroundColor: `${STATUS_CONFIG[item.status]?.color || '#f59e0b'}15`,
-                          color: STATUS_CONFIG[item.status]?.color || '#d97706'
                         } : item.type === 'agenda' && item.projetoColor ? {
                           backgroundColor: `${item.projetoColor}15`,
                           color: item.projetoColor,
@@ -294,9 +293,9 @@ export function CalendarGrid({ activeLayers, searchTerm, sortValue, onItemClick 
               {/* Day Warnings */}
               {loadWarn && (
                 <div className="mt-auto pt-2" title="Cuidado, carga excessiva para sua energia atual">
-                   <div className="flex items-center gap-1.5 px-3 py-1 bg-red-400/10 rounded-full border border-red-400/20 animate-pulse">
-                      <AlertTriangle className="w-3 h-3 text-red-500" />
-                      <span className="text-[8px] font-semibold  text-red-500">Carga Excessiva</span>
+                   <div className="flex items-center gap-1.5 px-3 py-1 bg-[var(--danger)]/10 rounded-[var(--radius-pill)] border border-[var(--danger)]/20 animate-pulse">
+                      <AlertTriangle className="w-3 h-3 text-[var(--danger)]" />
+                      <span className="text-2xs font-semibold text-[var(--danger)]">Carga Excessiva</span>
                    </div>
                 </div>
               )}
@@ -306,7 +305,6 @@ export function CalendarGrid({ activeLayers, searchTerm, sortValue, onItemClick 
       </div>
       </div>
       </div>
-    </div>
+    </Surface>
   );
 }
-

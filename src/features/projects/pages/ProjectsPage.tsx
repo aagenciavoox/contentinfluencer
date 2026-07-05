@@ -1,13 +1,17 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Handshake, ChevronRight, DollarSign } from 'lucide-react';
+import { Plus, Handshake, DollarSign, CalendarDays } from 'lucide-react';
 import { useAppContext } from '../../../context/AppContext';
 import { useAuth } from '../../../context/AuthContext';
+import { EMPTY } from '../../../lib/uiCopy';
 import { type Projeto } from '../../../lib/database';
 import { cn } from '../../../lib/utils';
 import { DesktopPageHeader } from '../../../layouts/page/DesktopPageHeader';
 import { PageLayout } from '../../../layouts/page/PageLayout';
 import { AppButton } from '../../../components/ui/AppButton';
+import { Badge } from '../../../components/ui/Badge';
+import { Surface } from '../../../components/ui/Surface';
+import { Text } from '../../../components/ui/Text';
 import { FilterBar } from '../../../components/ui/FilterBar';
 import { useIsMobile } from '../../../hooks/useIsMobile';
 import { BottomSheetModal } from '../../../components/feedback/modals/BottomSheetModal';
@@ -21,6 +25,12 @@ const PROJECT_COLORS = [
   '#14b8a6', '#06b6d4', '#3b82f6', '#6366f1', '#8b5cf6',
   '#a855f7', '#ec4899', '#f43f5e', '#78716c',
 ];
+
+const FIELD_CLASS =
+  'w-full rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-3 py-2 text-sm text-[var(--text-primary)] outline-none transition-colors placeholder:text-[var(--text-tertiary)] focus:border-[var(--border-strong)]';
+
+const GHOST_ACTION =
+  'inline-flex items-center gap-1.5 rounded-[var(--radius-input)] px-2.5 py-1.5 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]';
 
 export function ProjectsPage() {
   const { state, dispatch } = useAppContext();
@@ -122,10 +132,10 @@ export function ProjectsPage() {
 
         <BottomSheetModal open={showForm} onClose={handleClose} desktopMaxW="max-w-xl" zIndex="z-[110]">
           <div className="flex h-full flex-col bg-[var(--bg-primary)]">
-            <div className="border-b border-[var(--border-color)] px-5 py-4">
-              <p className="t-section-title text-[var(--text-primary)]">Novo projeto</p>
+            <div className="border-b border-[var(--border-color)] px-6 py-4">
+              <Text variant="sectionTitle">Novo projeto</Text>
             </div>
-            <div className="flex-1 space-y-4 overflow-y-auto p-5">
+            <div className="flex-1 stack-lg overflow-y-auto p-6">
               <input
                 autoFocus
                 value={nome}
@@ -148,26 +158,26 @@ export function ProjectsPage() {
                 className="w-full"
               />
               <div>
-                <p className="mb-2 text-xs font-semibold text-[var(--text-tertiary)] opacity-60">Cor do projeto</p>
+                <Text variant="label" className="mb-2 block opacity-60">Cor do projeto</Text>
                 {colorPicker}
               </div>
             </div>
-            <div className="flex gap-3 border-t border-[var(--border-color)] px-5 py-4 pb-safe">
+            <div className="flex gap-3 border-t border-[var(--border-color)] px-6 py-4 pb-safe">
               <button
                 type="button"
                 onClick={handleClose}
-                className="flex-1 rounded-[1.25rem] border border-[var(--border-color)] py-3 text-xs font-semibold text-[var(--text-secondary)]"
+                className="flex-1 rounded-[var(--radius-md)] border border-[var(--border-color)] py-3 text-xs font-semibold text-[var(--text-secondary)]"
               >
                 Cancelar
               </button>
-              <button
-                type="button"
+              <AppButton
+                variant="primary"
                 onClick={handleCreate}
                 disabled={!nome.trim()}
-                className="button-primary flex-1 disabled:opacity-40"
+                className="flex-1"
               >
                 Criar projeto
-              </button>
+              </AppButton>
             </div>
           </div>
         </BottomSheetModal>
@@ -198,7 +208,7 @@ export function ProjectsPage() {
         />
       }
     >
-      <div className="desktop-toolbar-surface mb-6 p-4 md:p-5">
+      <div className="desktop-toolbar-surface mb-6 p-4 md:p-6">
         <FilterBar
           searchValue={searchTerm}
           onSearchChange={setSearchTerm}
@@ -228,15 +238,15 @@ export function ProjectsPage() {
 
       {/* Form novo projeto */}
       {showForm && (
-        <div className="mb-6 space-y-4 rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-primary)] p-6">
-          <p className="text-xs font-semibold text-[var(--text-tertiary)]">Novo Projeto</p>
+        <div className="surface-quiet mb-6 stack-lg p-6">
+          <span className="eyebrow-label">Novo projeto</span>
           <input
             autoFocus
             value={nome}
             onChange={e => setNome(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && handleCreate()}
             placeholder="Nome do projeto"
-            className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] placeholder:opacity-30 focus:outline-none focus:border-[var(--text-primary)]/40"
+            className={cn(FIELD_CLASS, 'font-semibold')}
           />
           <div className="flex flex-wrap gap-3">
             <input
@@ -244,31 +254,28 @@ export function ProjectsPage() {
               onChange={e => setValue(e.target.value)}
               type="number"
               placeholder="Valor (R$)"
-              className="flex-1 min-w-[120px] rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-2.5 text-xs font-bold text-[var(--text-primary)] placeholder:opacity-30 focus:outline-none"
+              className={cn(FIELD_CLASS, 'min-w-[120px] flex-1')}
             />
             <input
               value={brand}
               onChange={e => setBrand(e.target.value)}
               placeholder="Marca"
-              className="flex-1 min-w-[140px] rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-2.5 text-xs font-bold text-[var(--text-primary)] placeholder:opacity-30 focus:outline-none"
+              className={cn(FIELD_CLASS, 'min-w-[140px] flex-1')}
             />
           </div>
-          <div>
-            <p className="mb-2 text-xs font-semibold opacity-40">Cor do projeto</p>
+          <div className="stack-sm">
+            <span className="eyebrow-label">Cor do projeto</span>
             {colorPicker}
           </div>
-          <div className="flex gap-3 pt-1">
+          <div className="flex gap-2 pt-1">
             <button
               onClick={handleCreate}
               disabled={!nome.trim()}
-              className="rounded-xl bg-[var(--text-primary)] px-6 py-2.5 text-xs font-semibold text-[var(--bg-primary)] hover:opacity-90 transition-opacity disabled:opacity-30"
+              className="rounded-[var(--radius-input)] bg-[var(--text-primary)] px-6 py-2 text-xs font-semibold text-[var(--bg-primary)] transition-opacity hover:opacity-90 disabled:opacity-30"
             >
               Criar
             </button>
-            <button
-              onClick={handleClose}
-              className="rounded-xl border border-[var(--border-color)] px-6 py-2.5 text-xs font-semibold opacity-50 hover:opacity-80 transition-opacity"
-            >
+            <button onClick={handleClose} className={GHOST_ACTION}>
               Cancelar
             </button>
           </div>
@@ -277,53 +284,69 @@ export function ProjectsPage() {
 
       {/* Lista */}
       {projetos.length === 0 ? (
-        <div className="space-y-4 py-24 text-center">
+        <div className="stack-lg py-24 text-center">
           <Handshake className="mx-auto h-12 w-12 opacity-10" />
-          <p className="text-sm font-semibold opacity-30">Nenhum projeto ainda</p>
+          <Text variant="bodyStrong" className="text-[var(--text-tertiary)]">{EMPTY.projetos.title}</Text>
+          <Text variant="meta" className="mx-auto mt-2 max-w-sm">{EMPTY.projetos.description}</Text>
           <button
             onClick={() => setShowForm(true)}
-            className="rounded-[var(--radius-card)] bg-[var(--text-primary)] px-6 py-3 text-xs font-semibold text-[var(--bg-primary)] hover:opacity-90 transition-opacity"
+            className="rounded-[var(--radius-input)] bg-[var(--text-primary)] px-6 py-2.5 text-xs font-semibold text-[var(--bg-primary)] transition-opacity hover:opacity-90"
           >
             Criar projeto
           </button>
         </div>
       ) : (
-        <div className="space-y-3">
-          {projetos.map(projeto => {
-            const eventoCount = state.agendaItems.filter(a => a.projetoId === projeto.id).length;
-            return (
-              <button
-                key={projeto.id}
-                onClick={() => navigate(`/projetos/${projeto.id}`)}
-                className="group flex w-full items-center gap-5 rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-primary)] px-6 py-5 text-left transition-all hover:border-[var(--text-primary)]/30 hover:shadow-sm"
-              >
-                <div className="h-10 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: projeto.color || '#78716c' }} />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold text-[var(--text-primary)]">{projeto.nome}</p>
-                  <div className="mt-1 flex flex-wrap items-center gap-3">
-                    {projeto.brand && (
-                      <span className="text-xs font-semibold text-[var(--text-secondary)] opacity-60">
-                        {projeto.brand}
-                      </span>
-                    )}
+        <>
+          <div className="mb-3 flex items-center gap-2">
+            <span className="eyebrow-label">
+              {projetos.length} {projetos.length === 1 ? 'projeto' : 'projetos'}
+            </span>
+          </div>
+          <div className="grid-content">
+            {projetos.map(projeto => {
+              const eventoCount = state.agendaItems.filter(a => a.projetoId === projeto.id).length;
+              return (
+                <Surface
+                  key={projeto.id}
+                  variant="interactive"
+                  padding="md"
+                  onClick={() => navigate(`/projetos/${projeto.id}`)}
+                  className="flex flex-col gap-3"
+                >
+                  <div className="flex items-start gap-3">
+                    <span
+                      className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full"
+                      style={{ backgroundColor: projeto.color || '#78716c' }}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <Text variant="itemTitle" className="line-clamp-2">{projeto.nome}</Text>
+                      {projeto.brand ? (
+                        <Text variant="meta" className="mt-0.5 block truncate">{projeto.brand}</Text>
+                      ) : null}
+                    </div>
+                    {projeto.status ? (
+                      <Badge variant="neutral" className="shrink-0">{projeto.status}</Badge>
+                    ) : null}
+                  </div>
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 pl-[1.375rem]">
                     {projeto.value ? (
-                      <span className="flex items-center gap-1 text-xs font-bold text-[var(--text-secondary)] opacity-50">
-                        <DollarSign className="h-3 w-3" />
+                      <span className="flex items-center gap-1 text-xs font-medium text-[var(--text-secondary)]">
+                        <DollarSign className="h-3.5 w-3.5 text-[var(--text-tertiary)]" />
                         {projeto.value.toLocaleString('pt-BR', { style: 'currency', currency: projeto.currency || 'BRL' })}
                       </span>
                     ) : null}
                     {eventoCount > 0 ? (
-                      <span className="text-xs text-[var(--text-tertiary)]">
+                      <span className="flex items-center gap-1 text-xs text-[var(--text-tertiary)]">
+                        <CalendarDays className="h-3.5 w-3.5" />
                         {eventoCount} evento{eventoCount !== 1 ? 's' : ''}
                       </span>
                     ) : null}
                   </div>
-                </div>
-                <ChevronRight className="h-4 w-4 shrink-0 opacity-20 transition-opacity group-hover:opacity-50" />
-              </button>
-            );
-          })}
-        </div>
+                </Surface>
+              );
+            })}
+          </div>
+        </>
       )}
     </PageLayout>
   );

@@ -8,6 +8,6 @@ interface OverlayBodyProps {
 
 export function OverlayBody({ children, className }: OverlayBodyProps) {
   return (
-    <div className={cn('flex-1 min-h-0 overflow-y-auto px-5 py-4', className)}>{children}</div>
+    <div className={cn('flex-1 min-h-0 overflow-y-auto px-6 py-4', className)}>{children}</div>
   );
 }

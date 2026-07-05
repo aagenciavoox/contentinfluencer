@@ -9,11 +9,12 @@ import {
 } from 'lucide-react';
 import { BottomSheetModal } from '../../../components/feedback/modals/BottomSheetModal';
 import { AppButton } from '../../../components/ui/AppButton';
+import { Text } from '../../../components/ui/Text';
 import type { AgendaItem, Content, Projeto } from '../../../lib/database';
 import { cn } from '../../../lib/utils';
 import { PostingTimeSuggestions } from '../../../features/settings/components/PostingTimeSuggestions';
 import type { PostingTimesSettings } from '../../../features/settings/lib/postingTimes';
-import { MobileEmptyState } from '../../components/MobileEmptyState';
+import { EmptyState } from '../../../components/ui/EmptyState';
 import { MobileListCard } from '../../components/MobileListCard';
 import { MobileSegmentTabs } from '../../components/MobileSegmentTabs';
 
@@ -38,6 +39,7 @@ export interface ProjectDetailEditFields {
   value: string;
   notes: string;
   color: string;
+  driveUrl: string;
 }
 
 export interface ProjectDetailMobileScreenProps {
@@ -112,32 +114,29 @@ export function ProjectDetailMobileScreen({
   const tabAction = (() => {
     if (activeTab === 'eventos') {
       return (
-        <button type="button" onClick={onOpenAgendaForm} className="button-primary w-full">
-          <Plus className="h-4 w-4" />
+        <AppButton variant="primary" fullWidth onClick={onOpenAgendaForm} leftIcon={<Plus className="h-4 w-4" />}>
           Novo evento
-        </button>
+        </AppButton>
       );
     }
     return (
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         {disponiveisParaVincular.length > 0 ? (
-          <button type="button" onClick={() => setLinkSheetOpen(true)} className="button-primary w-full">
-            <Link2 className="h-4 w-4" />
+          <AppButton variant="primary" fullWidth onClick={() => setLinkSheetOpen(true)} leftIcon={<Link2 className="h-4 w-4" />}>
             Vincular existente
-          </button>
+          </AppButton>
         ) : null}
-        <button type="button" onClick={onCreateContent} className="button-primary w-full">
-          <Plus className="h-4 w-4" />
+        <AppButton variant="primary" fullWidth onClick={onCreateContent} leftIcon={<Plus className="h-4 w-4" />}>
           Criar conteudo
-        </button>
+        </AppButton>
       </div>
     );
   })();
 
   return (
-    <div className="space-y-5 pb-8">
+    <div className="stack-xl pb-8">
       {/* Header do projeto */}
-      <section className="rounded-[1.75rem] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4 shadow-sm">
+      <section className="rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4 shadow-sm">
         <div className="mb-4 flex items-start gap-3">
           <div
             className="mt-0.5 h-11 w-11 shrink-0 rounded-[var(--radius-card-mobile)]"
@@ -164,7 +163,7 @@ export function ProjectDetailMobileScreen({
           </button>
         </div>
 
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid-metrics">
           <div className="rounded-[1.2rem] bg-[var(--bg-hover)] px-3 py-3">
             <p className="t-label text-[var(--text-tertiary)]">Eventos</p>
             <p className="mt-1 text-lg font-semibold text-[var(--text-primary)]">{agendaItems.length}</p>
@@ -193,9 +192,9 @@ export function ProjectDetailMobileScreen({
       />
 
       {activeTab === 'eventos' && (
-        <section className="space-y-3">
+        <section className="stack-md">
           {agendaItems.length === 0 ? (
-            <MobileEmptyState
+            <EmptyState compact
               title="Nenhum evento ainda"
               description="Adicione reunioes, entregas e publicacoes. Tudo vai aparecer no calendario."
               action={tabAction}
@@ -228,9 +227,9 @@ export function ProjectDetailMobileScreen({
       )}
 
       {activeTab === 'conteudos' && (
-        <section className="space-y-3">
+        <section className="stack-md">
           {projetoContents.length === 0 ? (
-            <MobileEmptyState
+            <EmptyState compact
               title="Nenhum conteudo vinculado"
               description="Vincule ideias ja existentes ou crie novos conteudos para este projeto."
               action={tabAction}
@@ -277,10 +276,10 @@ export function ProjectDetailMobileScreen({
 
       {/* Edit sheet */}
       <BottomSheetModal open={isEditing} onClose={onCancelEdit} desktopMaxW="max-w-xl" zIndex="z-[110]">
-        <div className="border-b border-[var(--border-color)] px-5 py-4">
-          <p className="t-section-title text-[var(--text-primary)]">Editar projeto</p>
+        <div className="border-b border-[var(--border-color)] px-6 py-4">
+          <Text variant="sectionTitle">Editar projeto</Text>
         </div>
-        <div className="space-y-4 p-5 pb-safe">
+        <div className="stack-lg p-6 pb-safe">
           <input
             autoFocus
             value={editFields.nome}
@@ -346,10 +345,10 @@ export function ProjectDetailMobileScreen({
 
       {/* Novo evento sheet */}
       <BottomSheetModal open={showAgendaForm} onClose={onCloseAgendaForm} desktopMaxW="max-w-xl" zIndex="z-[110]">
-        <div className="border-b border-[var(--border-color)] px-5 py-4">
-          <p className="t-section-title text-[var(--text-primary)]">Novo evento</p>
+        <div className="border-b border-[var(--border-color)] px-6 py-4">
+          <Text variant="sectionTitle">Novo evento</Text>
         </div>
-        <div className="space-y-4 p-5 pb-safe">
+        <div className="stack-lg p-6 pb-safe">
           <input
             autoFocus
             value={agendaTitle}
@@ -397,10 +396,10 @@ export function ProjectDetailMobileScreen({
 
       {/* Vincular conteudo sheet */}
       <BottomSheetModal open={linkSheetOpen} onClose={() => setLinkSheetOpen(false)} desktopMaxW="max-w-xl" zIndex="z-[110]">
-        <div className="border-b border-[var(--border-color)] px-5 py-4">
-          <p className="t-section-title text-[var(--text-primary)]">Vincular conteudo</p>
+        <div className="border-b border-[var(--border-color)] px-6 py-4">
+          <Text variant="sectionTitle">Vincular conteudo</Text>
         </div>
-        <div className="space-y-4 p-5 pb-safe">
+        <div className="stack-lg p-6 pb-safe">
           <select
             value={selectedContentId}
             onChange={event => setSelectedContentId(event.target.value)}

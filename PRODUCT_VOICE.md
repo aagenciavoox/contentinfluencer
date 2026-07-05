@@ -71,3 +71,19 @@ When adding a new dashboard, alert, empty state, metric, or proactive suggestion
 
 Preference readers should be tolerant of old or malformed saved values. If a setting is missing or not a boolean,
 fall back to the gentle default instead of letting a broken preference make the interface harsher.
+
+## Glossary (PT-BR UI)
+
+Prefer these terms in user-facing copy. Shared constants live in `src/lib/uiCopy.ts`.
+
+| Concept | Use | Avoid in primary navigation |
+|---|---|---|
+| Lista editorial | Roteiros | Pipeline, Conteúdos |
+| Item individual | Roteiro | Conteúdo (sem contexto) |
+| Referências | Biblioteca | Acervo |
+| Sessão em lote | Bloco de gravação | — |
+| Modo teleprompter | Modo gravação | Modo Explosão (nome principal) |
+| Regras editoriais | Ritmo Editorial | Regras de Ouro (nav primária) |
+| Status de etapa | Em aberto | Pendente (rótulo visível) |
+
+Confirmations should name the action and consequence (`Excluir pilar` / `Manter pilar`), not generic `Confirmar`.

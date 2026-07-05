@@ -8,7 +8,6 @@ export const REALTIME_TABLES = [
   'content_plataformas',
   'contents',
   'cenarios',
-  'dna_voz',
   'golden_rules',
   'ideas',
   'item_generos',

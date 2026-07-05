@@ -1,4 +1,9 @@
+import { dataCache } from './dataCache.ts';
+import { getCachedPlatforms } from './platformsCache.ts';
 import { supabase } from './supabase.ts';
+import { normalizeContentStatus } from '../features/contents/lib/contentPipeline';
+import { hydrateIdeasFromDemotedContents } from '../features/ideas/lib/hydrateIdeasFromDemotedContents';
+import { getIdeaNotes, normalizeIdea } from '../features/ideas/lib/ideaText';
 
 // ============================================================================
 // TYPES
@@ -27,6 +32,10 @@ export interface PilarPlataforma {
   pilarId: string;
   platformId: string;
   hashtags: string;
+  /** 0 = domingo … 6 = sábado. Vazio = todos os dias. */
+  melhoresDias: Array<0 | 1 | 2 | 3 | 4 | 5 | 6>;
+  janelaHorarioInicio: string | null;
+  janelaHorarioFim: string | null;
 }
 
 export interface Pilar {
@@ -36,6 +45,8 @@ export interface Pilar {
   descricao: string;
   cor: string;
   ativo: boolean;
+  frequenciaSemanal: number | null;
+  metaCiclo: number | null;
   createdAt: string;
   updatedAt: string;
   plataformas: PilarPlataforma[];
@@ -177,6 +188,8 @@ export interface ScriptNote {
   createdAt: string;
 }
 
+export type PublicationKind = 'post' | 'repost';
+
 export interface ContentPlataforma {
   id: string;
   contentId: string;
@@ -186,6 +199,8 @@ export interface ContentPlataforma {
   publishDate: string | null;
   publishTime?: string | null;
   publishDateEnabled?: boolean;
+  /** post = publicação original, repost = republicação */
+  publicationKind?: PublicationKind;
 }
 
 export interface Content {
@@ -205,6 +220,8 @@ export interface Content {
   publishDate: string | null;
   publishTime?: string | null;
   recordingDate: string | null;
+  recordedAt?: string | null;
+  postedAt?: string | null;
   publishDateEnabled?: boolean;
   recordingDateEnabled?: boolean;
   link: string | null;
@@ -222,11 +239,14 @@ export interface Content {
 export interface Idea {
   id: string;
   userId: string;
+  title: string | null;
+  notes: string | null;
   text: string;
   pilarId: string | null;
   seriesId: string | null;
   origemId: string | null;
   promotedToContentId: string | null;
+  demotedFromContentId: string | null;
   archived: boolean;
   createdAt: string;
 }
@@ -256,6 +276,8 @@ export interface Projeto {
   color: string | null;
   value: number | null;
   currency: string;
+  driveUrl: string | null;
+  shareToken: string | null;
   notes: string | null;
   createdAt: string;
   updatedAt: string;
@@ -387,17 +409,14 @@ export interface AppData {
   goldenRules: GoldenRule[];
   contentMetrics: ContentMetric[];
   postingTimeEntries: PostingTimeEntry[];
-
-  // Aliases for legacy support (will be mapped in AppContext)
-  books: BibliotecaItem[];
-  partnerships: Projeto[];
-  results: ContentMetric[];
-  agenda: AgendaItem[];
 }
 
 export type AppDataDomain =
   | 'bootstrap'
   | 'content'
+  | 'content-schedule'
+  | 'content-summary'
+  | 'library-generos'
   | 'ideas'
   | 'library'
   | 'projects'
@@ -410,14 +429,15 @@ export type AppDataDomain =
   | 'production'
   | 'schedule';
 
+/** Carregado logo após login — cobre dashboard e navegação inicial sem segunda rodada. */
 export const BOOTSTRAP_DATA_DOMAINS: AppDataDomain[] = [
   'bootstrap',
   'production',
-  'content',
+  'content-summary',
   'ideas',
   'projects',
   'agenda',
-  'schedule',
+  'rules',
 ];
 
 // ============================================================================
@@ -430,7 +450,6 @@ function empty(): AppData {
     cenarios: [], looks: [], bibliotecaGeneros: [], bibliotecaItems: [],
     contents: [], ideas: [], projetos: [], recordingBlocks: [], templates: [],
     agendaItems: [], goldenRules: [], contentMetrics: [], postingTimeEntries: [],
-    books: [], partnerships: [], results: [], agenda: [],
   };
 }
 
@@ -479,6 +498,14 @@ function isMissingPublishTimeColumn(error: {message?: string} | null | undefined
   return !!error?.message?.includes("'publish_time' column");
 }
 
+function isMissingPublicationKindColumn(error: {message?: string} | null | undefined) {
+  return !!error?.message?.includes('publication_kind');
+}
+
+function isMissingMilestoneColumn(error: {message?: string} | null | undefined) {
+  return !!error?.message?.includes("'recorded_at'") || !!error?.message?.includes("'posted_at'");
+}
+
 const mp = {
   platform: (r: Row): Platform => ({
     id: r.id, userId: r.user_id, nome: r.nome, ativo: r.ativo, createdAt: r.created_at,
@@ -490,9 +517,17 @@ const mp = {
   }),
   pilar: (r: Row): Pilar => ({
     id: r.id, userId: r.user_id, nome: r.nome, descricao: r.descricao || '',
-    cor: r.cor, ativo: r.ativo, createdAt: r.created_at, updatedAt: r.updated_at,
+    cor: r.cor, ativo: r.ativo,
+    frequenciaSemanal: r.frequencia_semanal ?? null,
+    metaCiclo: r.meta_ciclo ?? null,
+    createdAt: r.created_at, updatedAt: r.updated_at,
     plataformas: (r.pilar_plataformas || []).map((p: Row) => ({
       pilarId: p.pilar_id, platformId: p.platform_id, hashtags: p.hashtags || '',
+      melhoresDias: Array.isArray(p.melhores_dias)
+        ? p.melhores_dias.filter((day: number) => day >= 0 && day <= 6)
+        : [],
+      janelaHorarioInicio: p.janela_inicio ?? null,
+      janelaHorarioFim: p.janela_fim ?? null,
     })),
   }),
   serie: (r: Row): Serie => ({
@@ -534,12 +569,14 @@ const mp = {
     anotacoes: (r.anotacoes || []).filter((a: Row) => !a.deleted_at).map(mp.anotacao),
   }),
   content: (r: Row): Content => ({
-    id: r.id, userId: r.user_id, title: r.title, status: r.status,
+    id: r.id, userId: r.user_id, title: r.title, status: normalizeContentStatus(r.status),
     classificacao: r.classificacao,
     slotType: r.slot_type, seriesId: r.series_id, pilarId: r.pilar_id,
     lookId: r.look_id, cenarioId: r.cenario_id, bibliotecaItemId: r.biblioteca_item_id,
     formatoVisual: r.formato_visual, energiaNecessaria: r.energia_necessaria,
-    publishDate: r.publish_date, publishTime: r.publish_time, recordingDate: r.recording_date, link: r.link,
+    publishDate: r.publish_date, publishTime: r.publish_time, recordingDate: r.recording_date,
+    recordedAt: r.recorded_at ?? null, postedAt: r.posted_at ?? null,
+    link: r.link,
     publishDateEnabled: r.publish_date_enabled ?? (r.publish_date != null),
     recordingDateEnabled: r.recording_date_enabled ?? (r.recording_date != null),
     script: r.script, scriptNotes: r.script_notes || [], tags: r.tags || [],
@@ -550,19 +587,28 @@ const mp = {
       legenda: p.legenda || '', hashtags: p.hashtags || '', publishDate: p.publish_date,
       publishTime: p.publish_time,
       publishDateEnabled: p.publish_date_enabled ?? (p.publish_date != null),
+      publicationKind: p.publication_kind === 'repost' ? 'repost' : 'post',
     })),
   }),
-  idea: (r: Row): Idea => ({
-    id: r.id, userId: r.user_id, text: r.text, pilarId: r.pilar_id,
+  idea: (r: Row): Idea => normalizeIdea({
+    id: r.id,
+    userId: r.user_id,
+    title: r.title ?? null,
+    notes: r.notes ?? null,
+    text: r.text,
+    pilarId: r.pilar_id,
     seriesId: r.series_id, origemId: r.origem_id,
-    promotedToContentId: r.promoted_to_content_id, archived: r.archived,
+    promotedToContentId: r.promoted_to_content_id,
+    demotedFromContentId: r.demoted_from_content_id ?? null,
+    archived: r.archived,
     createdAt: r.created_at,
   }),
   projeto: (r: Row): Projeto => ({
     id: r.id, userId: r.user_id, nome: r.nome, tipo: normalizeProjetoTipo(r.tipo), status: r.status,
     dataInicio: r.data_inicio, dataFim: r.data_fim, metaConteudos: r.meta_conteudos,
     bibliotecaItemId: r.biblioteca_item_id, brand: r.brand, brandColor: r.brand_color,
-    color: r.color || null, value: r.value, currency: r.currency || 'BRL', notes: r.notes,
+    color: r.color || null, value: r.value, currency: r.currency || 'BRL',
+    driveUrl: r.drive_url || null, shareToken: r.share_token || null, notes: r.notes,
     createdAt: r.created_at, updatedAt: r.updated_at, deletedAt: r.deleted_at,
     etapas: (r.projeto_etapas || []).map((e: Row) => ({
       id: e.id, projetoId: e.projeto_id, nome: e.nome, ordem: e.ordem,
@@ -609,6 +655,376 @@ const mp = {
   }),
 };
 
+function mapContentWithPlatforms(row: Row, platformNameById: Map<string, string>): Content {
+  return {
+    ...mp.content(row),
+    plataformas: (row.content_plataformas || []).map((p: Row) => ({
+      id: p.id,
+      contentId: p.content_id,
+      platformId: normalizePlatformRef(p.platform_id, platformNameById),
+      legenda: p.legenda || '',
+      hashtags: p.hashtags || '',
+      publishDate: p.publish_date,
+      publishTime: p.publish_time,
+      publishDateEnabled: p.publish_date_enabled ?? (p.publish_date != null),
+      publicationKind: p.publication_kind === 'repost' ? 'repost' : 'post',
+    })),
+  };
+}
+
+const POSTED_CONTENT_STATUS = 'Postado';
+const CONTENT_SUMMARY_LIMIT = 80;
+
+/** Colunas leves para grade, calendário e filas — sem roteiro. */
+const CONTENT_SCHEDULE_SELECT_COLUMNS = [
+  'id',
+  'user_id',
+  'title',
+  'status',
+  'slot_type',
+  'series_id',
+  'pilar_id',
+  'look_id',
+  'cenario_id',
+  'biblioteca_item_id',
+  'formato_visual',
+  'energia_necessaria',
+  'publish_date',
+  'publish_time',
+  'publish_date_enabled',
+  'recording_date',
+  'link',
+  'tags',
+  'created_at',
+  'updated_at',
+  'deleted_at',
+  'content_plataformas(id, content_id, platform_id, legenda, hashtags, publish_date, publish_time, publish_date_enabled, publication_kind)',
+] as const;
+
+const CONTENT_SCHEDULE_MILESTONE_COLUMNS = ['recorded_at', 'posted_at'] as const;
+
+function buildContentScheduleSelect(includeMilestones: boolean): string {
+  const columns = includeMilestones
+    ? [
+        ...CONTENT_SCHEDULE_SELECT_COLUMNS.slice(0, 15),
+        ...CONTENT_SCHEDULE_MILESTONE_COLUMNS,
+        ...CONTENT_SCHEDULE_SELECT_COLUMNS.slice(15),
+      ]
+    : [...CONTENT_SCHEDULE_SELECT_COLUMNS];
+  return columns.join(', ');
+}
+
+const CONTENT_SCHEDULE_SELECT = buildContentScheduleSelect(true);
+const CONTENT_SCHEDULE_SELECT_WITHOUT_MILESTONES = buildContentScheduleSelect(false);
+
+type SupabaseListResult<T> = { data: T; error: { message?: string } | null; count?: number | null };
+
+async function runContentScheduleSelect<T>(
+  label: string,
+  run: (select: string) => Promise<SupabaseListResult<T>>,
+): Promise<SupabaseListResult<T>> {
+  const result = await run(CONTENT_SCHEDULE_SELECT);
+  if (!result.error || !isMissingMilestoneColumn(result.error)) return result;
+  return run(CONTENT_SCHEDULE_SELECT_WITHOUT_MILESTONES);
+}
+const CONTENT_LIST_SORT_COLUMNS: Record<string, string> = {
+  createdAt: 'created_at',
+  title: 'title',
+  status: 'status',
+  updatedAt: 'updated_at',
+};
+
+export type PaginatedResult<T> = {
+  items: T[];
+  total: number;
+};
+
+export type ContentsListQuery = {
+  page: number;
+  pageSize: number;
+  listMode: 'editorial' | 'published';
+  status?: string;
+  seriesId?: string;
+  pilarId?: string;
+  search?: string;
+  sortField?: string;
+  sortDirection?: 'asc' | 'desc';
+};
+
+export type BibliotecaListQuery = {
+  page: number;
+  pageSize: number;
+  tipo?: string;
+  status?: string;
+  genero?: string;
+  search?: string;
+  sortValue?: string;
+};
+
+export async function fetchContentsPage(
+  userId: string,
+  query: ContentsListQuery,
+): Promise<PaginatedResult<Content>> {
+  if (!supabase) return { items: [], total: 0 };
+
+  const from = (query.page - 1) * query.pageSize;
+  const to = from + query.pageSize - 1;
+  const sortColumn = CONTENT_LIST_SORT_COLUMNS[query.sortField || 'createdAt'] || 'created_at';
+  const ascending = query.sortDirection === 'asc';
+
+  const buildPageRequest = (select: string) => {
+    let pageRequest = supabase
+      .from('contents')
+      .select(select, { count: 'exact' })
+      .eq('user_id', userId)
+      .is('deleted_at', null);
+
+    if (query.listMode === 'published') {
+      pageRequest = pageRequest.eq('status', POSTED_CONTENT_STATUS);
+    } else {
+      pageRequest = pageRequest.neq('status', POSTED_CONTENT_STATUS);
+    }
+
+    if (query.status && query.status !== 'Todos') {
+      pageRequest = pageRequest.eq('status', query.status);
+    }
+
+    if (query.seriesId && query.seriesId !== 'Todas') {
+      pageRequest = pageRequest.eq('series_id', query.seriesId);
+    }
+
+    if (query.pilarId && query.pilarId !== 'Todos') {
+      pageRequest = pageRequest.eq('pilar_id', query.pilarId);
+    }
+
+    const normalizedSearch = query.search?.trim();
+    if (normalizedSearch) {
+      pageRequest = pageRequest.or(`title.ilike.%${normalizedSearch}%,notes.ilike.%${normalizedSearch}%`);
+    }
+
+    return pageRequest.order(sortColumn, { ascending }).range(from, to);
+  };
+
+  const result = await runContentScheduleSelect('contents page fetch', buildPageRequest);
+
+  const platforms = await getCachedPlatforms(userId, async () =>
+    assertQuerySuccess(
+      'platforms fetch',
+      await supabase.from('platforms').select('*').or(`user_id.is.null,user_id.eq.${userId}`),
+    ) || [],
+  );
+  const platformNameById = new Map(platforms.map((platform: Row) => [platform.id, platform.nome]));
+  const rows = assertQuerySuccess('contents page fetch', result) || [];
+
+  return {
+    items: rows.map((row: Row) => mapContentWithPlatforms(row, platformNameById)),
+    total: result.count ?? rows.length,
+  };
+}
+
+export async function fetchContentsByIds(
+  userId: string,
+  ids: readonly string[],
+  options?: {includeDeleted?: boolean},
+): Promise<Content[]> {
+  if (!supabase || ids.length === 0) return [];
+
+  const uniqueIds = [...new Set(ids)];
+  let contentsQuery = supabase
+    .from('contents')
+    .select('*, content_plataformas(*)')
+    .eq('user_id', userId)
+    .in('id', uniqueIds);
+
+  if (!options?.includeDeleted) {
+    contentsQuery = contentsQuery.is('deleted_at', null);
+  }
+
+  const [platforms, contentsResult] = await Promise.all([
+    getCachedPlatforms(userId, async () =>
+      assertQuerySuccess(
+        'platforms fetch',
+        await supabase.from('platforms').select('*').or(`user_id.is.null,user_id.eq.${userId}`),
+      ) || [],
+    ),
+    contentsQuery,
+  ]);
+
+  const platformNameById = new Map(platforms.map((platform: Row) => [platform.id, platform.nome]));
+  const rows = assertQuerySuccess('contents by ids fetch', contentsResult) || [];
+
+  return rows.map((row: Row) => mapContentWithPlatforms(row, platformNameById));
+}
+
+export async function fetchContentStatusCounts(
+  userId: string,
+  query: Pick<ContentsListQuery, 'listMode' | 'seriesId' | 'pilarId' | 'search'>,
+): Promise<Record<string, number>> {
+  if (!supabase) return { Todos: 0 };
+
+  const cacheKey = `stats:content-status-counts:${userId}:${JSON.stringify(query)}`;
+  if (dataCache.isValueFresh(cacheKey)) {
+    const cached = dataCache.getValue<Record<string, number>>(cacheKey);
+    if (cached) return cached;
+  }
+
+  const { data, error } = await supabase.rpc('get_content_status_counts', {
+    p_list_mode: query.listMode,
+    p_series_id: query.seriesId && query.seriesId !== 'Todas' ? query.seriesId : null,
+    p_pilar_id: query.pilarId && query.pilarId !== 'Todos' ? query.pilarId : null,
+    p_search: query.search?.trim() || null,
+  });
+
+  if (error || !data || typeof data !== 'object') return { Todos: 0 };
+
+  const counts = data as Record<string, number>;
+  dataCache.setValue(cacheKey, counts);
+  return counts;
+}
+
+export async function fetchContentStats(userId: string): Promise<{ editorialCount: number; postedCount: number; libraryCount: number }> {
+  if (!supabase) return { editorialCount: 0, postedCount: 0, libraryCount: 0 };
+
+  const [editorialResult, postedResult, libraryResult] = await Promise.all([
+    supabase
+      .from('contents')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .is('deleted_at', null)
+      .neq('status', POSTED_CONTENT_STATUS),
+    supabase
+      .from('contents')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .is('deleted_at', null)
+      .eq('status', POSTED_CONTENT_STATUS),
+    supabase
+      .from('biblioteca_items')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .is('deleted_at', null),
+  ]);
+
+  if (editorialResult.error) throw new Error(`editorial count: ${editorialResult.error.message}`);
+  if (postedResult.error) throw new Error(`posted count: ${postedResult.error.message}`);
+  if (libraryResult.error) throw new Error(`library count: ${libraryResult.error.message}`);
+
+  return {
+    editorialCount: editorialResult.count ?? 0,
+    postedCount: postedResult.count ?? 0,
+    libraryCount: libraryResult.count ?? 0,
+  };
+}
+
+export async function fetchBibliotecaPage(
+  userId: string,
+  query: BibliotecaListQuery,
+): Promise<PaginatedResult<BibliotecaItem>> {
+  if (!supabase) return { items: [], total: 0 };
+
+  const from = (query.page - 1) * query.pageSize;
+  const to = from + query.pageSize - 1;
+  const generoFilter = Boolean(query.genero && query.genero !== 'Todos');
+
+  let request = supabase
+    .from('biblioteca_items')
+    .select(
+      generoFilter
+        ? '*, item_generos!inner(genero_id, biblioteca_generos!inner(nome))'
+        : '*, item_generos(genero_id, biblioteca_generos(nome))',
+      { count: 'exact' },
+    )
+    .eq('user_id', userId)
+    .is('deleted_at', null);
+
+  if (query.tipo && query.tipo !== 'Todos') {
+    request = request.eq('tipo', query.tipo);
+  }
+
+  if (query.status && query.status !== 'Todos') {
+    request = request.eq('status', query.status);
+  }
+
+  if (generoFilter) {
+    request = request.eq('item_generos.biblioteca_generos.nome', query.genero);
+  }
+
+  const normalizedSearch = query.search?.trim();
+  if (normalizedSearch) {
+    request = request.or(`titulo.ilike.%${normalizedSearch}%,autor_diretor.ilike.%${normalizedSearch}%`);
+  }
+
+  switch (query.sortValue) {
+    case 'titulo:asc':
+      request = request.order('titulo', { ascending: true });
+      break;
+    case 'autor:asc':
+      request = request.order('autor_diretor', { ascending: true });
+      break;
+    case 'status:asc':
+      request = request.order('status', { ascending: true });
+      break;
+    case 'recentes':
+    default:
+      request = request.order('updated_at', { ascending: false });
+      break;
+  }
+
+  const result = await request.range(from, to);
+  const rows = assertQuerySuccess('biblioteca page fetch', result) || [];
+
+  return {
+    items: rows.map((row: Row) => mp.bibliotecaItem({ ...row, anotacoes: [] })),
+    total: result.count ?? rows.length,
+  };
+}
+
+export async function fetchBibliotecaContentCounts(userId: string): Promise<Map<string, number>> {
+  if (!supabase) return new Map();
+
+  const cacheKey = `stats:biblioteca-content-counts:${userId}`;
+  if (dataCache.isValueFresh(cacheKey)) {
+    const cached = dataCache.getValue<Map<string, number>>(cacheKey);
+    if (cached) return cached;
+  }
+
+  const rows = assertQuerySuccess(
+    'biblioteca content counts fetch',
+    await supabase
+      .from('contents')
+      .select('biblioteca_item_id')
+      .eq('user_id', userId)
+      .is('deleted_at', null)
+      .not('biblioteca_item_id', 'is', null),
+  ) || [];
+
+  const counts = new Map<string, number>();
+  for (const row of rows as Row[]) {
+    const itemId = row.biblioteca_item_id as string;
+    counts.set(itemId, (counts.get(itemId) || 0) + 1);
+  }
+
+  dataCache.setValue(cacheKey, counts);
+  return counts;
+}
+
+export async function fetchBibliotecaItemById(userId: string, itemId: string): Promise<BibliotecaItem | null> {
+  if (!supabase) return null;
+
+  const row = assertQuerySuccess(
+    'biblioteca item fetch',
+    await supabase
+      .from('biblioteca_items')
+      .select('*, item_generos(genero_id, biblioteca_generos(nome)), anotacoes(*)')
+      .eq('user_id', userId)
+      .eq('id', itemId)
+      .is('deleted_at', null)
+      .maybeSingle(),
+  );
+
+  return row ? mp.bibliotecaItem(row) : null;
+}
+
 // ============================================================================
 // FETCH
 // ============================================================================
@@ -633,171 +1049,242 @@ export async function fetchAllData(): Promise<AppData> {
   };
 }
 
-export async function fetchDataDomains(domains: readonly AppDataDomain[]): Promise<Partial<AppData>> {
+export async function fetchDataDomains(
+  domains: readonly AppDataDomain[],
+  userId?: string | null,
+): Promise<Partial<AppData>> {
   if (!supabase) return empty();
-  const uid = await currentUserId();
+  const uid = userId ?? (await currentUserId());
   if (!uid) return empty();
   const requested = new Set(domains);
   const payload: Partial<AppData> = {};
 
-  const platformsResult = await supabase.from('platforms').select('*').or(`user_id.is.null,user_id.eq.${uid}`);
-  const platforms = assertQuerySuccess('platforms fetch', platformsResult) || [];
-  const platformNameById = new Map(platforms.map((platform: Row) => [platform.id, platform.nome]));
+  const needsPlatforms =
+    requested.has('bootstrap') ||
+    requested.has('production') ||
+    requested.has('content') ||
+    requested.has('content-schedule') ||
+    requested.has('content-summary') ||
+    requested.has('analytics');
+
+  const platformsPromise = needsPlatforms
+    ? supabase.from('platforms').select('*').or(`user_id.is.null,user_id.eq.${uid}`)
+    : null;
+
+  const platformNameByIdPromise = platformsPromise
+    ? platformsPromise.then(result => {
+      const platforms = assertQuerySuccess('platforms fetch', result) || [];
+      return new Map(platforms.map((platform: Row) => [platform.id, platform.nome]));
+    })
+    : Promise.resolve(new Map<string, string>());
+
+  const tasks: Promise<void>[] = [];
 
   if (requested.has('bootstrap')) {
-    const prefs = assertQuerySuccess(
-      'preferences fetch',
-      await supabase.from('user_preferences').select('*').eq('user_id', uid)
-    ) || [];
-    payload.platforms = platforms.map(mp.platform);
-    payload.preferences = prefs.reduce((acc: Record<string, any>, p: Row) => ({ ...acc, [p.key]: parsePreferenceValue(p.value) }), {});
+    tasks.push((async () => {
+      const [platformsResult, prefsResult] = await Promise.all([
+        platformsPromise!,
+        supabase.from('user_preferences').select('*').eq('user_id', uid),
+      ]);
+      const platforms = assertQuerySuccess('platforms fetch', platformsResult) || [];
+      const prefs = assertQuerySuccess('preferences fetch', prefsResult) || [];
+      payload.platforms = platforms.map(mp.platform);
+      payload.preferences = prefs.reduce(
+        (acc: Record<string, unknown>, p: Row) => ({ ...acc, [p.key]: parsePreferenceValue(p.value) }),
+        {},
+      );
+    })());
   }
 
   if (requested.has('voice')) {
-    const dnaVozRow = assertQuerySuccess(
-      'dna_voz fetch',
-      await supabase.from('dna_voz').select('*').eq('user_id', uid).maybeSingle()
-    );
-    payload.dnaVoz = dnaVozRow ? mp.dnaVoz(dnaVozRow) : null;
+    tasks.push((async () => {
+      const dnaVozRow = assertQuerySuccess(
+        'dna_voz fetch',
+        await supabase.from('dna_voz').select('*').eq('user_id', uid).maybeSingle(),
+      );
+      payload.dnaVoz = dnaVozRow ? mp.dnaVoz(dnaVozRow) : null;
+    })());
   }
 
   if (requested.has('production')) {
-    const [pilaresResult, seriesResult, cenariosResult, looksResult] = await Promise.all([
-      supabase.from('pilares').select('*, pilar_plataformas(*)').eq('user_id', uid).is('deleted_at', null),
-      supabase.from('series').select('*, serie_pilares(pilar_id), serie_plataformas(*)').eq('user_id', uid).is('deleted_at', null),
-      supabase.from('cenarios').select('*').eq('user_id', uid).is('deleted_at', null),
-      supabase.from('looks').select('*').eq('user_id', uid).is('deleted_at', null).order('numero'),
-    ]);
-    const pilaresRows = assertQuerySuccess('pilares fetch', pilaresResult) || [];
-    const seriesRows = assertQuerySuccess('series fetch', seriesResult) || [];
-    payload.pilares = pilaresRows.map((row: Row) => ({
-      ...mp.pilar(row),
-      plataformas: (row.pilar_plataformas || []).map((p: Row) => ({
-        pilarId: p.pilar_id,
-        platformId: normalizePlatformRef(p.platform_id, platformNameById),
-        hashtags: p.hashtags || '',
-      })),
-    }));
-    payload.series = seriesRows.map((row: Row) => ({
-      ...mp.serie(row),
-      plataformas: (row.serie_plataformas || []).map((p: Row) => ({
-        serieId: p.serie_id,
-        platformId: normalizePlatformRef(p.platform_id, platformNameById),
-        hashtags: p.hashtags || '',
-      })),
-    }));
-    payload.cenarios = (assertQuerySuccess('cenarios fetch', cenariosResult) || []).map(mp.cenario);
-    payload.looks = (assertQuerySuccess('looks fetch', looksResult) || []).map(mp.look);
+    tasks.push((async () => {
+      const platformNameById = await platformNameByIdPromise;
+      const [pilaresResult, seriesResult, cenariosResult, looksResult] = await Promise.all([
+        supabase.from('pilares').select('*, pilar_plataformas(*)').eq('user_id', uid).is('deleted_at', null),
+        supabase.from('series').select('*, serie_pilares(pilar_id), serie_plataformas(*)').eq('user_id', uid).is('deleted_at', null),
+        supabase.from('cenarios').select('*').eq('user_id', uid).is('deleted_at', null),
+        supabase.from('looks').select('*').eq('user_id', uid).is('deleted_at', null).order('numero'),
+      ]);
+      const pilaresRows = assertQuerySuccess('pilares fetch', pilaresResult) || [];
+      const seriesRows = assertQuerySuccess('series fetch', seriesResult) || [];
+      payload.pilares = pilaresRows.map((row: Row) => ({
+        ...mp.pilar(row),
+        plataformas: (row.pilar_plataformas || []).map((p: Row) => ({
+          pilarId: p.pilar_id,
+          platformId: normalizePlatformRef(p.platform_id, platformNameById),
+          hashtags: p.hashtags || '',
+          melhoresDias: Array.isArray(p.melhores_dias)
+            ? p.melhores_dias.filter((day: number) => day >= 0 && day <= 6)
+            : [],
+          janelaHorarioInicio: p.janela_inicio ?? null,
+          janelaHorarioFim: p.janela_fim ?? null,
+        })),
+      }));
+      payload.series = seriesRows.map((row: Row) => ({
+        ...mp.serie(row),
+        plataformas: (row.serie_plataformas || []).map((p: Row) => ({
+          serieId: p.serie_id,
+          platformId: normalizePlatformRef(p.platform_id, platformNameById),
+          hashtags: p.hashtags || '',
+        })),
+      }));
+      payload.cenarios = (assertQuerySuccess('cenarios fetch', cenariosResult) || []).map(mp.cenario);
+      payload.looks = (assertQuerySuccess('looks fetch', looksResult) || []).map(mp.look);
+    })());
   }
 
-  if (requested.has('library')) {
-    const [generosResult, bibliotecaResult] = await Promise.all([
-      supabase.from('biblioteca_generos').select('*').eq('user_id', uid).order('nome'),
-      supabase.from('biblioteca_items')
-      .select('*, item_generos(genero_id, biblioteca_generos(nome)), anotacoes(*)')
-      .eq('user_id', uid).is('deleted_at', null)
-      .order('created_at', { ascending: false }),
-    ]);
-    payload.bibliotecaGeneros = (assertQuerySuccess('biblioteca_generos fetch', generosResult) || []).map(mp.genero);
-    payload.bibliotecaItems = (assertQuerySuccess('biblioteca_items fetch', bibliotecaResult) || []).map(mp.bibliotecaItem);
-    payload.books = payload.bibliotecaItems;
+  if (requested.has('library') || requested.has('library-generos')) {
+    tasks.push((async () => {
+      const generosResult = await supabase.from('biblioteca_generos').select('*').eq('user_id', uid).order('nome');
+      payload.bibliotecaGeneros = (assertQuerySuccess('biblioteca_generos fetch', generosResult) || []).map(mp.genero);
+
+      if (!requested.has('library')) return;
+
+      const bibliotecaResult = await supabase.from('biblioteca_items')
+        .select('*, item_generos(genero_id, biblioteca_generos(nome)), anotacoes(*)')
+        .eq('user_id', uid).is('deleted_at', null)
+        .order('created_at', { ascending: false });
+      payload.bibliotecaItems = (assertQuerySuccess('biblioteca_items fetch', bibliotecaResult) || []).map(mp.bibliotecaItem);
+    })());
   }
 
-  if (requested.has('content')) {
-    const contentsRows = assertQuerySuccess(
-      'contents fetch',
-      await supabase.from('contents')
-      .select('*, content_plataformas(*)')
-      .eq('user_id', uid).is('deleted_at', null)
-      .order('created_at', { ascending: false })
-    ) || [];
-    payload.contents = contentsRows.map((row: Row) => ({
-      ...mp.content(row),
-      plataformas: (row.content_plataformas || []).map((p: Row) => ({
-        id: p.id,
-        contentId: p.content_id,
-        platformId: normalizePlatformRef(p.platform_id, platformNameById),
-        legenda: p.legenda || '',
-        hashtags: p.hashtags || '',
-        publishDate: p.publish_date,
-        publishTime: p.publish_time,
-      })),
-    }));
+  if (requested.has('content') || requested.has('content-summary') || requested.has('content-schedule')) {
+    tasks.push((async () => {
+      const platformNameById = await platformNameByIdPromise;
+      const lightOnly = requested.has('content-schedule') && !requested.has('content') && !requested.has('content-summary');
+
+      const buildDomainContentsRequest = (select: string) => {
+        let domainQuery = supabase.from('contents')
+          .select(select)
+          .eq('user_id', uid)
+          .is('deleted_at', null)
+          .order('created_at', { ascending: false });
+
+        if (requested.has('content-summary') && !requested.has('content')) {
+          domainQuery = domainQuery.limit(CONTENT_SUMMARY_LIMIT);
+        }
+
+        return domainQuery;
+      };
+
+      const contentsResult = lightOnly
+        ? await runContentScheduleSelect('contents fetch', buildDomainContentsRequest)
+        : await buildDomainContentsRequest('*, content_plataformas(*)');
+      const contentsRows = assertQuerySuccess('contents fetch', contentsResult) || [];
+      payload.contents = contentsRows.map((row: Row) => mapContentWithPlatforms(row, platformNameById));
+    })());
   }
 
   if (requested.has('ideas')) {
-    payload.ideas = (assertQuerySuccess(
-      'ideas fetch',
-      await supabase.from('ideas').select('*').eq('user_id', uid).order('created_at', { ascending: false })
-    ) || []).map(mp.idea);
+    tasks.push((async () => {
+      const ideas = (assertQuerySuccess(
+        'ideas fetch',
+        await supabase.from('ideas').select('*').eq('user_id', uid).order('created_at', { ascending: false }),
+      ) || []).map(mp.idea);
+
+      const demotedContentIds = ideas
+        .filter(idea => idea.demotedFromContentId && !getIdeaNotes(idea).trim())
+        .map(idea => idea.demotedFromContentId as string);
+
+      if (demotedContentIds.length === 0) {
+        payload.ideas = ideas;
+        return;
+      }
+
+      const demotedContents = await fetchContentsByIds(uid, demotedContentIds, {includeDeleted: true});
+      payload.ideas = hydrateIdeasFromDemotedContents(ideas, demotedContents);
+    })());
   }
 
   if (requested.has('projects')) {
-    payload.projetos = (assertQuerySuccess(
-      'projetos fetch',
-      await supabase.from('projetos')
-      .select('*, projeto_etapas(*), projeto_conteudos(content_id)')
-      .eq('user_id', uid).is('deleted_at', null)
-      .order('created_at', { ascending: false })
-    ) || []).map(mp.projeto);
-    payload.partnerships = payload.projetos;
+    tasks.push((async () => {
+      payload.projetos = (assertQuerySuccess(
+        'projetos fetch',
+        await supabase.from('projetos')
+          .select('*, projeto_etapas(*), projeto_conteudos(content_id)')
+          .eq('user_id', uid).is('deleted_at', null)
+          .order('created_at', { ascending: false }),
+      ) || []).map(mp.projeto);
+    })());
   }
 
   if (requested.has('recording')) {
-    payload.recordingBlocks = (assertQuerySuccess(
-      'recording_blocks fetch',
-      await supabase.from('recording_blocks')
-      .select('*, recording_block_contents(*)')
-      .eq('user_id', uid)
-      .order('created_at', { ascending: false })
-    ) || []).map(mp.recordingBlock);
+    tasks.push((async () => {
+      payload.recordingBlocks = (assertQuerySuccess(
+        'recording_blocks fetch',
+        await supabase.from('recording_blocks')
+          .select('*, recording_block_contents(*)')
+          .eq('user_id', uid)
+          .order('created_at', { ascending: false }),
+      ) || []).map(mp.recordingBlock);
+    })());
   }
 
   if (requested.has('templates')) {
-    payload.templates = (assertQuerySuccess(
-      'templates fetch',
-      await supabase.from('templates').select('*').eq('user_id', uid)
-    ) || []).map(mp.template);
+    tasks.push((async () => {
+      payload.templates = (assertQuerySuccess(
+        'templates fetch',
+        await supabase.from('templates').select('*').eq('user_id', uid),
+      ) || []).map(mp.template);
+    })());
   }
 
   if (requested.has('agenda')) {
-    payload.agendaItems = (assertQuerySuccess(
-      'agenda_items fetch',
-      await supabase.from('agenda_items').select('*').eq('user_id', uid).order('date')
-    ) || []).map(mp.agendaItem);
-    payload.agenda = payload.agendaItems;
+    tasks.push((async () => {
+      payload.agendaItems = (assertQuerySuccess(
+        'agenda_items fetch',
+        await supabase.from('agenda_items').select('*').eq('user_id', uid).order('date'),
+      ) || []).map(mp.agendaItem);
+    })());
   }
 
   if (requested.has('rules')) {
-    payload.goldenRules = (assertQuerySuccess(
-      'golden_rules fetch',
-      await supabase.from('golden_rules').select('*').eq('user_id', uid)
-    ) || []).map(mp.goldenRule);
+    tasks.push((async () => {
+      payload.goldenRules = (assertQuerySuccess(
+        'golden_rules fetch',
+        await supabase.from('golden_rules').select('*').eq('user_id', uid),
+      ) || []).map(mp.goldenRule);
+    })());
   }
 
   if (requested.has('analytics')) {
-    payload.contentMetrics = (assertQuerySuccess(
-      'content_metrics fetch',
-      await supabase.from('content_metrics').select('*').eq('user_id', uid)
-    ) || []).map((row: Row) => ({
-      ...mp.contentMetric(row),
-      platformId: normalizePlatformRef(row.platform_id, platformNameById),
-    }));
-    payload.results = payload.contentMetrics;
+    tasks.push((async () => {
+      const platformNameById = await platformNameByIdPromise;
+      payload.contentMetrics = (assertQuerySuccess(
+        'content_metrics fetch',
+        await supabase.from('content_metrics').select('*').eq('user_id', uid),
+      ) || []).map((row: Row) => ({
+        ...mp.contentMetric(row),
+        platformId: normalizePlatformRef(row.platform_id, platformNameById),
+      }));
+    })());
   }
 
   if (requested.has('schedule')) {
-    payload.postingTimeEntries = (assertQuerySuccess(
-      'posting_times fetch',
-      await supabase
-        .from('posting_times')
-        .select('*')
-        .eq('user_id', uid)
-        .order('weekday')
-        .order('time')
-    ) || []).map(mp.postingTimeEntry);
+    tasks.push((async () => {
+      payload.postingTimeEntries = (assertQuerySuccess(
+        'posting_times fetch',
+        await supabase
+          .from('posting_times')
+          .select('*')
+          .eq('user_id', uid)
+          .order('weekday')
+          .order('time'),
+      ) || []).map(mp.postingTimeEntry);
+    })());
   }
 
+  await Promise.all(tasks);
   return payload;
 }
 
@@ -837,18 +1324,23 @@ export async function savePreference(key: string, value: any): Promise<void> {
 }
 
 export async function savePlatform(platform: Omit<Platform, 'createdAt'>): Promise<void> {
-  if (!supabase) return;
-  const { error } = await supabase.from('platforms').upsert({
-    id: platform.id,
-    user_id: platform.userId,
-    nome: platform.nome,
-    ativo: platform.ativo,
-  });
+  if (!supabase) throw new Error('Supabase não configurado');
+  const uid = platform.userId ?? (await currentUserId());
+  if (!uid) throw new Error('Usuário não autenticado');
+  const { error } = await supabase.from('platforms').upsert(
+    {
+      id: platform.id,
+      user_id: uid,
+      nome: platform.nome,
+      ativo: platform.ativo,
+    },
+    { onConflict: 'id' },
+  );
   if (error) throw new Error(`platforms: ${error.message}`);
 }
 
 export async function deletePlatform(id: string): Promise<void> {
-  if (!supabase) return;
+  if (!supabase) throw new Error('Supabase não configurado');
   const { error } = await supabase.from('platforms').delete().eq('id', id);
   if (error) throw new Error(`delete platform: ${error.message}`);
 }
@@ -858,10 +1350,11 @@ export async function deletePlatform(id: string): Promise<void> {
 // ============================================================================
 
 export async function saveDnaVoz(
-  dna: Pick<DnaVoz, 'promessaCentral' | 'publico' | 'tom' | 'naoFaco' | 'alertas'>
+  dna: Pick<DnaVoz, 'promessaCentral' | 'publico' | 'tom' | 'naoFaco' | 'alertas'>,
+  userId?: string
 ): Promise<void> {
   if (!supabase) return;
-  const uid = await currentUserId();
+  const uid = userId ?? await currentUserId();
   if (!uid) return;
   const { error } = await supabase.from('dna_voz').upsert({
     user_id: uid,
@@ -883,21 +1376,53 @@ export async function savePilar(pilar: Omit<Pilar, 'plataformas' | 'createdAt' |
   const { error } = await supabase.from('pilares').upsert({
     id: pilar.id, user_id: pilar.userId, nome: pilar.nome,
     descricao: pilar.descricao, cor: pilar.cor, ativo: pilar.ativo,
+    frequencia_semanal: pilar.frequenciaSemanal,
+    meta_ciclo: pilar.metaCiclo,
   });
   if (error) throw new Error(`pilares: ${error.message}`);
 }
 
 export async function savePilarPlataformas(pilarId: string, plataformas: PilarPlataforma[]): Promise<void> {
   if (!supabase) return;
-  await supabase.from('pilar_plataformas').delete().eq('pilar_id', pilarId);
+  const { error: deleteError } = await supabase.from('pilar_plataformas').delete().eq('pilar_id', pilarId);
+  if (deleteError) throw new Error(`pilar_plataformas delete: ${deleteError.message}`);
   if (plataformas.length === 0) return;
   const platformIds = await resolvePlatformIds(plataformas.map(p => p.platformId));
   const { error } = await supabase.from('pilar_plataformas').insert(
     plataformas
-      .map(p => ({ pilar_id: pilarId, platform_id: platformIds.get(p.platformId), hashtags: p.hashtags }))
-      .filter((row): row is { pilar_id: string; platform_id: string; hashtags: string } => !!row.platform_id)
+      .map(p => ({
+        pilar_id: pilarId,
+        platform_id: platformIds.get(p.platformId),
+        hashtags: p.hashtags,
+        melhores_dias: p.melhoresDias.length > 0 ? p.melhoresDias : null,
+        janela_inicio: p.janelaHorarioInicio,
+        janela_fim: p.janelaHorarioFim,
+      }))
+      .filter((row): row is {
+        pilar_id: string;
+        platform_id: string;
+        hashtags: string;
+        melhores_dias: number[] | null;
+        janela_inicio: string | null;
+        janela_fim: string | null;
+      } => !!row.platform_id)
   );
   if (error) throw new Error(`pilar_plataformas: ${error.message}`);
+}
+
+export async function clearPilarReferences(pilarId: string): Promise<void> {
+  if (!supabase) return;
+  const { error: contentsError } = await supabase
+    .from('contents')
+    .update({ pilar_id: null })
+    .eq('pilar_id', pilarId);
+  if (contentsError) throw new Error(`clear pilar contents: ${contentsError.message}`);
+
+  const { error: ideasError } = await supabase
+    .from('ideas')
+    .update({ pilar_id: null })
+    .eq('pilar_id', pilarId);
+  if (ideasError) throw new Error(`clear pilar ideas: ${ideasError.message}`);
 }
 
 export async function deletePilar(id: string): Promise<void> {
@@ -923,7 +1448,8 @@ export async function saveSerie(serie: Omit<Serie, 'pilarIds' | 'plataformas' | 
 
 export async function saveSeriePilares(serieId: string, pilarIds: string[]): Promise<void> {
   if (!supabase) return;
-  await supabase.from('serie_pilares').delete().eq('serie_id', serieId);
+  const { error: deleteError } = await supabase.from('serie_pilares').delete().eq('serie_id', serieId);
+  if (deleteError) throw new Error(`serie_pilares delete: ${deleteError.message}`);
   if (pilarIds.length === 0) return;
   const { error } = await supabase.from('serie_pilares').insert(
     pilarIds.map(pid => ({ serie_id: serieId, pilar_id: pid }))
@@ -933,7 +1459,8 @@ export async function saveSeriePilares(serieId: string, pilarIds: string[]): Pro
 
 export async function saveSeriePlataformas(serieId: string, plataformas: SeriePlataforma[]): Promise<void> {
   if (!supabase) return;
-  await supabase.from('serie_plataformas').delete().eq('serie_id', serieId);
+  const { error: deleteError } = await supabase.from('serie_plataformas').delete().eq('serie_id', serieId);
+  if (deleteError) throw new Error(`serie_plataformas delete: ${deleteError.message}`);
   if (plataformas.length === 0) return;
   const platformIds = await resolvePlatformIds(plataformas.map(plataforma => plataforma.platformId));
   const { error } = await supabase.from('serie_plataformas').insert(
@@ -1087,12 +1614,26 @@ export async function saveContent(
     publish_time: content.publishTime,
     publish_date_enabled: content.publishDateEnabled ?? (content.publishDate != null),
     recording_date: content.recordingDate,
+    recorded_at: content.recordedAt,
+    posted_at: content.postedAt,
     recording_date_enabled: content.recordingDateEnabled ?? (content.recordingDate != null),
     link: content.link, script: content.script,
     script_notes: content.scriptNotes, tags: content.tags,
     notes: content.notes, referencias: content.referencias,
   };
   const { error } = await supabase.from('contents').upsert(row);
+  if (isMissingMilestoneColumn(error)) {
+    const {recorded_at: _recordedAt, posted_at: _postedAt, ...rowWithoutMilestones} = row;
+    const retry = await supabase.from('contents').upsert(rowWithoutMilestones);
+    if (retry.error && isMissingPublishTimeColumn(retry.error)) {
+      const {publish_time: _publishTime, ...rowWithoutPublishTime} = rowWithoutMilestones;
+      const retryPublish = await supabase.from('contents').upsert(rowWithoutPublishTime);
+      if (retryPublish.error) throw new Error(`contents: ${retryPublish.error.message}`);
+      return;
+    }
+    if (retry.error) throw new Error(`contents: ${retry.error.message}`);
+    return;
+  }
   if (isMissingPublishTimeColumn(error)) {
     const { publish_time: _publishTime, ...rowWithoutPublishTime } = row;
     const retry = await supabase.from('contents').upsert(rowWithoutPublishTime);
@@ -1107,7 +1648,8 @@ export async function saveContentPlataformas(
   plataformas: Omit<ContentPlataforma, 'id' | 'contentId'>[]
 ): Promise<void> {
   if (!supabase) return;
-  await supabase.from('content_plataformas').delete().eq('content_id', contentId);
+  const { error: deleteError } = await supabase.from('content_plataformas').delete().eq('content_id', contentId);
+  if (deleteError) throw new Error(`content_plataformas delete: ${deleteError.message}`);
   if (plataformas.length === 0) return;
   const platformIds = await resolvePlatformIds(plataformas.map(p => p.platformId));
   const rows = plataformas.map(p => ({
@@ -1115,6 +1657,7 @@ export async function saveContentPlataformas(
       legenda: p.legenda, hashtags: p.hashtags, publish_date: p.publishDate,
       publish_time: p.publishTime,
       publish_date_enabled: p.publishDateEnabled ?? (p.publishDate != null),
+      publication_kind: p.publicationKind ?? 'post',
     })).filter((row): row is {
       content_id: string;
       platform_id: string;
@@ -1123,21 +1666,36 @@ export async function saveContentPlataformas(
       publish_date: string | null;
       publish_time: string | null | undefined;
       publish_date_enabled: boolean;
+      publication_kind: string;
     } => !!row.platform_id);
-  const { error } = await supabase.from('content_plataformas').insert(rows);
+
+  const insertRows = async (payload: typeof rows) => {
+    const { error } = await supabase.from('content_plataformas').insert(payload);
+    return error;
+  };
+
+  let error = await insertRows(rows);
+  if (isMissingPublicationKindColumn(error)) {
+    const rowsWithoutKind = rows.map(({publication_kind: _publicationKind, ...row}) => row);
+    error = await insertRows(rowsWithoutKind as typeof rows);
+  }
   if (isMissingPublishTimeColumn(error)) {
-    const rowsWithoutPublishTime = rows.map(({publish_time: _publishTime, ...row}) => row);
-    const retry = await supabase.from('content_plataformas').insert(rowsWithoutPublishTime);
-    if (retry.error) throw new Error(`content_plataformas: ${retry.error.message}`);
-    return;
+    const rowsWithoutPublishTime = rows.map(({publish_time: _publishTime, publication_kind: _publicationKind, ...row}) => row);
+    error = await insertRows(rowsWithoutPublishTime as typeof rows);
+    if (isMissingPublicationKindColumn(error)) {
+      error = await insertRows(rowsWithoutPublishTime.map(({publication_kind: _k, ...row}) => row) as typeof rows);
+    }
   }
   if (error) throw new Error(`content_plataformas: ${error.message}`);
 }
 
 export async function deleteContent(id: string): Promise<void> {
   if (!supabase) return;
+  const deletedAt = new Date().toISOString();
   const { error } = await supabase.from('contents')
-    .delete().eq('id', id);
+    .update({deleted_at: deletedAt})
+    .eq('id', id)
+    .is('deleted_at', null);
   if (error) throw new Error(`delete content: ${error.message}`);
 }
 
@@ -1148,9 +1706,16 @@ export async function deleteContent(id: string): Promise<void> {
 export async function saveIdea(idea: Omit<Idea, 'createdAt'>): Promise<void> {
   if (!supabase) return;
   const { error } = await supabase.from('ideas').upsert({
-    id: idea.id, user_id: idea.userId, text: idea.text, pilar_id: idea.pilarId,
+    id: idea.id,
+    user_id: idea.userId,
+    title: idea.title,
+    notes: idea.notes,
+    text: idea.text,
+    pilar_id: idea.pilarId,
     series_id: idea.seriesId, origem_id: idea.origemId,
-    promoted_to_content_id: idea.promotedToContentId, archived: idea.archived,
+    promoted_to_content_id: idea.promotedToContentId,
+    demoted_from_content_id: idea.demotedFromContentId,
+    archived: idea.archived,
   });
   if (error) throw new Error(`ideas: ${error.message}`);
 }
@@ -1178,7 +1743,7 @@ export async function saveProjeto(
     status: projeto.status, data_inicio: projeto.dataInicio, data_fim: projeto.dataFim,
     meta_conteudos: projeto.metaConteudos, biblioteca_item_id: projeto.bibliotecaItemId,
     brand: projeto.brand, brand_color: projeto.brandColor, color: projeto.color,
-    value: projeto.value, currency: projeto.currency, notes: projeto.notes,
+    drive_url: projeto.driveUrl, value: projeto.value, currency: projeto.currency, notes: projeto.notes,
   });
   if (error) throw new Error(`projetos: ${error.message}`);
 }
@@ -1194,6 +1759,20 @@ export async function saveProjetoEtapa(etapa: Omit<ProjetoEtapa, 'createdAt'>): 
     data_prazo: etapa.dataPrazo,
   });
   if (error) throw new Error(`projeto_etapas: ${error.message}`);
+}
+
+export async function saveProjetoEtapas(etapas: Omit<ProjetoEtapa, 'createdAt'>[]): Promise<void> {
+  if (!supabase || etapas.length === 0) return;
+  const rows = etapas.map(etapa => ({
+    id: etapa.id,
+    projeto_id: etapa.projetoId,
+    nome: etapa.nome,
+    ordem: etapa.ordem,
+    status: etapa.status,
+    data_prazo: etapa.dataPrazo,
+  }));
+  const { error } = await supabase.from('projeto_etapas').upsert(rows);
+  if (error) throw new Error(`projeto_etapas bulk: ${error.message}`);
 }
 
 export async function deleteProjetoEtapa(id: string): Promise<void> {
@@ -1329,6 +1908,89 @@ export async function saveContentMetric(metric: Omit<ContentMetric, 'id' | 'crea
     registered_at: metric.registeredAt,
   }, { onConflict: 'content_id,platform_id' });
   if (error) throw new Error(`content_metrics: ${error.message}`);
+}
+
+// ============================================================================
+// CAMPANHA PÚBLICA (sem autenticação — via share_token)
+// ============================================================================
+
+export interface CampanhaPublicaEtapa {
+  id: string;
+  nome: string;
+  ordem: number;
+  status: 'pendente' | 'em_andamento' | 'concluída';
+  data_prazo: string | null;
+}
+
+export interface CampanhaPublicaAgendaItem {
+  id: string;
+  title: string;
+  date: string;
+  time: string | null;
+  tipo: string;
+}
+
+export interface CampanhaPublicaConteudo {
+  id: string;
+  title: string;
+  status: string;
+  publish_date: string | null;
+  publish_time: string | null;
+  posted_at: string | null;
+  link: string | null;
+}
+
+export interface CampanhaPublicaMetric {
+  id: string;
+  content_id: string;
+  platform_id: string;
+  views: number | null;
+  likes: number | null;
+  comments: number | null;
+  saves: number | null;
+  shares: number | null;
+  reposts: number | null;
+  new_followers: number | null;
+  accounts_reached: number | null;
+  watch_time: number | null;
+  retention_rate: number | null;
+  completion_rate: number | null;
+  registered_at: string;
+}
+
+export interface CampanhaPublicaPlatform {
+  id: string;
+  nome: string;
+}
+
+export interface CampanhaPublicaData {
+  projeto: {
+    id: string;
+    nome: string;
+    tipo: string;
+    status: string;
+    brand: string | null;
+    brand_color: string | null;
+    color: string | null;
+    drive_url: string | null;
+    data_inicio: string | null;
+    data_fim: string | null;
+    meta_conteudos: number | null;
+    notes: string | null;
+    created_at: string;
+  };
+  etapas: CampanhaPublicaEtapa[];
+  agenda_items: CampanhaPublicaAgendaItem[];
+  conteudos: CampanhaPublicaConteudo[];
+  metrics: CampanhaPublicaMetric[];
+  platforms: CampanhaPublicaPlatform[];
+}
+
+export async function fetchCampanhaPublica(token: string): Promise<CampanhaPublicaData | null> {
+  if (!supabase) return null;
+  const { data, error } = await supabase.rpc('get_campanha_publica', { p_token: token });
+  if (error || !data) return null;
+  return data as CampanhaPublicaData;
 }
 
 export async function deleteContentMetric(id: string): Promise<void> {

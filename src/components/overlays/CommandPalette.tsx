@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Search, FileText, Lightbulb, Handshake, ChevronRight, Command, X } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
 import { useNavigate } from 'react-router-dom';
+import { getIdeaTitle } from '../../features/ideas/lib/ideaText';
 import { useIsMobile } from '../../hooks/useIsMobile';
 
 interface CommandPaletteProps {
@@ -28,8 +29,8 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
   const filteredResults = [
     ...navigation,
     ...state.contents.map(c => ({ id: c.id, title: c.title, path: `/conteudos`, icon: <FileText className="w-4 h-4" />, category: 'Conteúdo', data: c })),
-    ...state.ideas.map(i => ({ id: i.id, title: i.text, path: '/ideias', icon: <Lightbulb className="w-4 h-4" />, category: 'Ideias', data: i })),
-    ...(state.partnerships || []).map(p => ({ id: p.id, title: p.brand ? `${p.brand}: ${p.nome}` : p.nome, path: `/projetos`, icon: <Handshake className="w-4 h-4" />, category: 'Projetos', data: p })),
+    ...state.ideas.map(i => ({ id: i.id, title: getIdeaTitle(i), path: '/ideias', icon: <Lightbulb className="w-4 h-4" />, category: 'Ideias', data: i })),
+    ...(state.projetos || []).map(p => ({ id: p.id, title: p.brand ? `${p.brand}: ${p.nome}` : p.nome, path: `/projetos`, icon: <Handshake className="w-4 h-4" />, category: 'Projetos', data: p })),
   ].filter(item => 
     item.title.toLowerCase().includes(search.toLowerCase()) || 
     item.category.toLowerCase().includes(search.toLowerCase())
@@ -81,7 +82,7 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           onClick={onClose}
-          className="fixed inset-0 bg-black/60 backdrop-blur-md"
+          className="fixed inset-0 bg-[var(--backdrop-strong)] backdrop-blur-md"
         />
         
         <motion.div 
@@ -108,7 +109,7 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
               </button>
             ) : (
               <div className="flex items-center gap-1 px-1.5 py-0.5 bg-[var(--bg-hover)] border border-[var(--border-color)] rounded text-xs text-[var(--text-tertiary)] font-mono">
-                <span className="text-[12px]">ESC</span>
+                <span className="t-meta">ESC</span>
               </div>
             )}
           </div>
@@ -135,7 +136,7 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
                       <div className="flex items-center gap-2">
                         <span className="text-base font-medium text-[var(--text-primary)] truncate">{item.title}</span>
                       </div>
-                      <span className="text-xs text-[var(--text-tertiary)] uppercase tracking-[0.2em] font-semibold">
+                      <span className="text-xs text-[var(--text-tertiary)] t-label-uppercase font-semibold">
                         {item.category}
                       </span>
                     </div>
@@ -158,7 +159,7 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
             <div className="px-4 py-3 bg-[var(--bg-primary)] border-t border-[var(--border-color)] flex items-center justify-between text-xs text-[var(--text-tertiary)] font-bold ">
               <div className="flex gap-4">
                 <span className="flex items-center gap-1"><Command className="w-3 h-3" /> + K para buscar</span>
-                <span className="flex items-center gap-1">↑↓ para navegar</span>
+                <span className="flex items-center gap-1">↑↑ para navegar</span>
                 <span className="flex items-center gap-1">↵ para selecionar</span>
               </div>
             </div>

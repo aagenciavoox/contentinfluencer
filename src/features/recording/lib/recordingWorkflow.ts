@@ -1,6 +1,5 @@
 import {Content, RecordingBlock, RecordingBlockContent} from '../../../lib/database';
 import {CONTENT_STATUS} from '../../contents/lib/contentPipeline';
-import {RECORDED_STATUS, RECORDING_READY_STATUS} from '../../contents/lib/contentWorkflow';
 
 type MarkContentRecordedParams = {
   block: RecordingBlock;
@@ -40,7 +39,7 @@ export function isBlockContentComplete(
   content: Content | null | undefined
 ) {
   if (blockContent.gravado) return true;
-  return Boolean(content && content.status !== RECORDING_READY_STATUS);
+  return Boolean(content?.recordedAt);
 }
 
 export function getRecordingBlockProgress(
@@ -112,7 +111,7 @@ export function addBlockContent(
       blockId,
       contentId: content.id,
       ordem: contents.length,
-      gravado: content.status === CONTENT_STATUS.GRAVADO,
+      gravado: Boolean(content.recordedAt),
     },
   ]);
 }
@@ -141,11 +140,14 @@ export function buildMarkContentRecordedTransition({
   const content = contents.find(item => item.id === contentId);
   if (!content) return null;
 
+  const now = new Date().toISOString();
+
   return {
     updatedContent: {
       ...content,
-      status: RECORDED_STATUS,
-      updatedAt: new Date().toISOString(),
+      status: CONTENT_STATUS.PRODUCAO,
+      recordedAt: content.recordedAt ?? now,
+      updatedAt: now,
     },
     updatedBlockContents: block.contents.map(item =>
       item.contentId === contentId ? {...item, gravado: true} : item
@@ -158,12 +160,14 @@ export function buildSaveRecordingSessionTransition(
   contents: Content[],
   completedIds: Set<string>
 ) {
+  const now = new Date().toISOString();
   const updatedContents = contents
     .filter(content => completedIds.has(content.id))
     .map(content => ({
       ...content,
-      status: RECORDED_STATUS,
-      updatedAt: new Date().toISOString(),
+      status: CONTENT_STATUS.PRODUCAO,
+      recordedAt: content.recordedAt ?? now,
+      updatedAt: now,
     }));
 
   const updatedBlockContents: RecordingBlockContent[] = block.contents.map(item => ({

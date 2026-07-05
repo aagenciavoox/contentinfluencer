@@ -36,6 +36,7 @@ export function Surface({
 }: SurfaceProps) {
   const isInteractive = Boolean(onClick);
   const Component = as ?? (isInteractive ? 'button' : 'div');
+  const isFocusable = isInteractive || Component === 'button';
   const resolvedVariant = isInteractive && variant === 'outlined' ? 'interactive' : variant;
 
   const handleKeyDown = (event: KeyboardEvent<HTMLElement>) => {
@@ -57,6 +58,7 @@ export function Surface({
         variantClasses[resolvedVariant],
         paddingClasses[padding],
         isInteractive && Component === 'button' && 'w-full text-left',
+        isFocusable && 'focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
         className
       )}
     >

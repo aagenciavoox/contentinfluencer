@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import type { Content, GoldenRule } from '../lib/database.ts';
-import { validateWeeklyContent } from './goldenRules.ts';
+import { diffViolations, previewScheduleViolations, validateWeeklyContent, type Violation } from './goldenRules.ts';
 
 function buildContent(overrides: Partial<Content> = {}): Content {
   return {
@@ -135,9 +135,70 @@ function testInWeekPlatformCaptionsOnly() {
   assert.ok(violations.every((violation) => violation.affectedContentIds[0] === 'instagram-content'));
 }
 
+function testPreviewScheduleViolationsPubliMax() {
+  const weekDay = '2026-04-27';
+  const weekStart = new Date(weekDay);
+  const rules: GoldenRule[] = [{
+    id: 'RG-PUBLI',
+    userId: 'user-1',
+    titulo: 'Maximo de publicacoes',
+    descricao: 'Limite semanal',
+    tipo: 'publi',
+    valor: 0,
+    periodo: 'semana',
+    condicao: 'impedir',
+    minimo: null,
+    maximo: 2,
+    ativa: true,
+    createdAt: '2026-04-27T00:00:00.000Z',
+  }];
+
+  const scheduled = [
+    buildContent({ id: 'c1', publishDate: '2026-04-27T12:00:00.000Z' }),
+    buildContent({ id: 'c2', publishDate: '2026-04-28T12:00:00.000Z' }),
+  ];
+  const unscheduled = buildContent({ id: 'c3', publishDate: null, status: 'Produção' });
+
+  const before = validateWeeklyContent(scheduled, weekStart, undefined, rules);
+  assert.equal(before.length, 0);
+
+  const after = previewScheduleViolations([...scheduled, {
+    ...unscheduled,
+    publishDate: '2026-04-29T12:00:00.000Z',
+    publishDateEnabled: true,
+    status: 'Produção',
+  }], '2026-04-29', rules);
+  assert.equal(after.length, 1);
+  assert.equal(after[0]?.type, 'warning');
+
+  const newOnes = diffViolations(before, after);
+  assert.equal(newOnes.length, 1);
+  assert.equal(newOnes[0]?.ruleId, 'RG-PUBLI');
+}
+
+function testDiffViolationsIgnoresExisting() {
+  const existing: Violation[] = [{
+    ruleId: 'RG-01',
+    type: 'warning',
+    message: 'Regra existente',
+    affectedContentIds: ['c1'],
+  }];
+  const after: Violation[] = [...existing, {
+    ruleId: 'RG-02',
+    type: 'info',
+    message: 'Nova regra',
+    affectedContentIds: ['c2'],
+  }];
+  const diff = diffViolations(existing, after);
+  assert.equal(diff.length, 1);
+  assert.equal(diff[0]?.ruleId, 'RG-02');
+}
+
 const tests: Array<[string, () => void]> = [
   ['reports RG-06 when YouTube hashtags fall outside the recommended range', testYoutubeHashtagRange],
   ['reports RG-05 only for in-week platform captions with more than five hashtags', testInWeekPlatformCaptionsOnly],
+  ['previewScheduleViolations detects publi max when scheduling third item in week', testPreviewScheduleViolationsPubliMax],
+  ['diffViolations returns only newly introduced violations', testDiffViolationsIgnoresExisting],
 ];
 
 for (const [name, fn] of tests) {

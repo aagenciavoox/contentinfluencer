@@ -12,6 +12,7 @@ interface ConfirmModalProps {
   open: boolean;
   message: string;
   confirmLabel?: string;
+  cancelLabel?: string;
   onConfirm: () => void;
   onCancel: () => void;
 }
@@ -20,6 +21,7 @@ export function ConfirmModal({
   open,
   message,
   confirmLabel = 'Confirmar',
+  cancelLabel = 'Cancelar',
   onConfirm,
   onCancel,
 }: ConfirmModalProps) {
@@ -42,7 +44,7 @@ export function ConfirmModal({
       </Text>
       <div className="flex gap-3">
         <AppButton variant="secondary" className="flex-1" onClick={onCancel}>
-          Cancelar
+          {cancelLabel}
         </AppButton>
         <AppButton variant="primary" className="flex-1" onClick={onConfirm}>
           {confirmLabel}

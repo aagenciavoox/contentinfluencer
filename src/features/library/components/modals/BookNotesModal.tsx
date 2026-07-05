@@ -4,6 +4,7 @@ import { AnnotationNoteCard } from '../AnnotationNoteCard';
 import { useAppContext } from '../../../../context/AppContext';
 import { BibliotecaItem, Anotacao } from '../../../../lib/database';
 import { generateUUID } from '../../../../utils/uuid';
+import { buildIdeaFields, parseLegacyIdeaText } from '../../../ideas/lib/ideaText';
 import { cn } from '../../../../lib/utils';
 import { BottomSheetModal } from '../../../../components/feedback/modals/BottomSheetModal';
 
@@ -56,16 +57,23 @@ export function BookNotesModal({ book, onClose }: BookNotesModalProps) {
   };
 
   const handleTransformarEmIdeia = (anotacao: Anotacao) => {
+    const parsed = parseLegacyIdeaText(anotacao.texto);
+    const fields = buildIdeaFields({
+      title: parsed.title || anotacao.texto.slice(0, 60),
+      notes: parsed.notes,
+    });
+
     dispatch({
       type: 'ADD_IDEA',
       payload: {
         id: generateUUID(),
         userId: '',
-        text: anotacao.texto,
+        ...fields,
         pilarId: null,
         seriesId: null,
         origemId: book.id,
         promotedToContentId: null,
+        demotedFromContentId: null,
         archived: false,
         createdAt: new Date().toISOString(),
       },
@@ -89,7 +97,7 @@ export function BookNotesModal({ book, onClose }: BookNotesModalProps) {
             <p className="line-clamp-1 text-xs font-semibold text-[var(--text-secondary)] opacity-65">
               {book.titulo}
             </p>
-            <p className="mt-0.5 text-[8px] font-semibold  text-[var(--text-tertiary)] opacity-50">
+            <p className="mt-0.5 text-xs font-semibold  text-[var(--text-tertiary)] opacity-50">
               Notas
             </p>
           </div>
@@ -104,7 +112,7 @@ export function BookNotesModal({ book, onClose }: BookNotesModalProps) {
       </div>
 
       <div className="custom-scrollbar flex-1 overflow-y-auto p-4 md:p-8" style={{ minHeight: 0 }}>
-        <div className="rounded-[22px] border border-[var(--border-color)] bg-[var(--bg-primary)] p-4 md:p-5">
+        <div className="rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-primary)] p-4 md:p-6">
           <div className="flex flex-col gap-3 sm:flex-row">
             <select
               value={novoTipo}
@@ -128,11 +136,11 @@ export function BookNotesModal({ book, onClose }: BookNotesModalProps) {
             onChange={event => setNovaAnotacao(event.target.value)}
             placeholder="Escreva uma nova nota..."
             rows={4}
-            className="custom-scrollbar mt-4 w-full resize-none border-none bg-transparent p-0 text-[14px] leading-6 text-[var(--text-primary)] placeholder:opacity-30 focus:ring-0"
+            className="custom-scrollbar mt-4 w-full resize-none border-none bg-transparent p-0 text-sm leading-6 text-[var(--text-primary)] placeholder:opacity-30 focus:ring-0"
           />
 
           <div className="mt-4 flex items-center justify-between gap-3 border-t border-[var(--border-color)] pt-3">
-            <span className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--text-tertiary)] opacity-45">
+            <span className="t-label t-label-uppercase font-semibold text-[var(--text-tertiary)] opacity-45">
               Nova nota
             </span>
 
@@ -147,13 +155,13 @@ export function BookNotesModal({ book, onClose }: BookNotesModalProps) {
           </div>
         </div>
 
-        <div className="mt-4 space-y-4">
+        <div className="mt-4 stack-lg">
           <div className="flex flex-col gap-3">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--text-tertiary)] opacity-55">
+              <span className="t-label t-label-uppercase font-semibold text-[var(--text-tertiary)] opacity-55">
                 Filtros
               </span>
-              <span className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--text-tertiary)] opacity-55">
+              <span className="t-label t-label-uppercase font-semibold text-[var(--text-tertiary)] opacity-55">
                 {anotacoesFiltradas.length} {anotacoesFiltradas.length === 1 ? 'nota' : 'notas'}
               </span>
             </div>
@@ -164,7 +172,7 @@ export function BookNotesModal({ book, onClose }: BookNotesModalProps) {
                   key={tipo}
                   onClick={() => setFiltroTipo(tipo)}
                   className={cn(
-                    'shrink-0 whitespace-nowrap rounded-full border px-3 py-1.5 text-[8px] font-semibold uppercase tracking-[0.16em] transition-all',
+                    'shrink-0 whitespace-nowrap rounded-full border px-3 py-1.5 t-label t-label-uppercase font-semibold transition-all',
                     filtroTipo === tipo
                       ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-[var(--bg-secondary)]'
                       : 'border-[var(--border-strong)] bg-transparent text-[var(--text-primary)] opacity-55 hover:opacity-100'
@@ -177,7 +185,7 @@ export function BookNotesModal({ book, onClose }: BookNotesModalProps) {
           </div>
 
           {anotacoesFiltradas.length === 0 ? (
-            <div className="rounded-[24px] border border-dashed border-[var(--border-color)] py-16 text-center opacity-35">
+            <div className="rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-dashed border-[var(--border-color)] py-16 text-center opacity-35">
               <MessageSquare className="mx-auto mb-3 h-10 w-10 text-[var(--text-primary)] opacity-20" />
               <p className="text-xs font-semibold ">
                 Nenhuma anotação neste filtro

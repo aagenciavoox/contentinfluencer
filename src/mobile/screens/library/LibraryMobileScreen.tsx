@@ -2,10 +2,13 @@ import { useMemo, useState } from 'react';
 import { BookOpen, Film, Pin, Plus, SearchCheck, Star, Tv } from 'lucide-react';
 import type { BibliotecaItem, BibliotecaItemMeta } from '../../../lib/database';
 import { cn } from '../../../lib/utils';
-import { MobileEmptyState } from '../../components/MobileEmptyState';
+import { EmptyState } from '../../../components/ui/EmptyState';
 import { MobileFilterSheet } from '../../components/MobileFilterSheet';
 import { MobileSearchBar } from '../../components/MobileSearchBar';
 import { MobileSegmentTabs } from '../../components/MobileSegmentTabs';
+import { SkeletonList } from '../../../components/ui/Skeleton';
+import { AppButton } from '../../../components/ui/AppButton';
+import { MobileSectionHeader } from '../../components/MobileSectionHeader';
 
 type BibliotecaTipo = BibliotecaItem['tipo'];
 type StatusLeitura = BibliotecaItem['status'];
@@ -16,6 +19,7 @@ interface LibraryMobileScreenProps {
   mobilePrimaryBookId: string | null;
   getItemMeta: (itemId: string) => BibliotecaItemMeta;
   countContents: (itemId: string) => number;
+  isLoading?: boolean;
   onOpenItem: (itemId: string) => void;
   onOpenCreate: () => void;
   onTogglePrimary: (itemId: string) => void;
@@ -74,6 +78,7 @@ export function LibraryMobileScreen({
   onOpenItem,
   onOpenCreate,
   onTogglePrimary,
+  isLoading = false,
 }: LibraryMobileScreenProps) {
   const [search, setSearch] = useState('');
   const [activeTab, setActiveTab] = useState<LibraryMobileTab>('current');
@@ -123,28 +128,31 @@ export function LibraryMobileScreen({
   );
 
   const focusAction = (
-    <button type="button" onClick={onOpenCreate} className="button-primary w-full">
-      <Plus className="h-4 w-4" />
+    <AppButton variant="primary" fullWidth onClick={onOpenCreate} leftIcon={<Plus className="h-4 w-4" />}>
       Novo item
-    </button>
+    </AppButton>
   );
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-sm font-semibold text-[var(--text-primary)]">Biblioteca</p>
-          <p className="text-xs text-[var(--text-secondary)]">{items.length} itens no acervo</p>
-        </div>
-        <button
-          type="button"
-          onClick={onOpenCreate}
-          className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-lg border border-[var(--border-color)] bg-[var(--bg-secondary)] px-3 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-primary)]"
-        >
-          <Plus className="h-4 w-4" />
-          Novo
-        </button>
-      </div>
+    <div className="stack-xl">
+      <section className="rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4 shadow-sm">
+        <MobileSectionHeader
+          icon={BookOpen}
+          tone="purple"
+          title="Biblioteca"
+          description={`${items.length} itens na biblioteca`}
+          action={
+            <button
+              type="button"
+              onClick={onOpenCreate}
+              className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-lg border border-[var(--border-color)] bg-[var(--bg-primary)] px-3 t-label t-label-uppercase font-semibold text-[var(--text-primary)]"
+            >
+              <Plus className="h-4 w-4" />
+              Novo
+            </button>
+          }
+        />
+      </section>
 
       <MobileSearchBar
         value={search}
@@ -165,15 +173,17 @@ export function LibraryMobileScreen({
         onChange={(value) => setActiveTab(value)}
       />
 
-      {filteredItems.length === 0 ? (
-        <MobileEmptyState
-          title="Nada nessa visao do acervo"
+      {isLoading ? (
+        <SkeletonList count={9} variant="card" />
+      ) : filteredItems.length === 0 ? (
+        <EmptyState compact
+          title="Nada nessa visão da biblioteca"
           description="Ajuste os filtros ou adicione um novo item."
           action={focusAction}
           icon={<SearchCheck className="h-8 w-8" />}
         />
       ) : (
-        <div className="grid grid-cols-3 gap-2.5">
+        <div className="grid-metrics-3">
           {filteredItems.map((item) => {
             const ItemIcon = TYPE_ICONS[item.tipo] || BookOpen;
             const metadata = getItemMeta(item.id);
@@ -202,7 +212,7 @@ export function LibraryMobileScreen({
                     </div>
                   )}
 
-                  <div className="space-y-2 p-2.5">
+                  <div className="stack-sm p-2.5">
                     <div>
                       <p className="line-clamp-2 text-xs font-semibold leading-snug text-[var(--text-primary)]">
                         {item.titulo}
@@ -247,7 +257,7 @@ export function LibraryMobileScreen({
                     type="button"
                     onClick={() => onTogglePrimary(item.id)}
                     className={cn(
-                      'inline-flex min-h-9 w-full items-center justify-center gap-1 rounded-md border text-xs font-semibold uppercase tracking-[0.1em] transition-colors',
+                      'inline-flex min-h-9 w-full items-center justify-center gap-1 rounded-md border text-xs font-semibold t-label-uppercase transition-colors',
                       isPrimary
                         ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-[var(--bg-primary)]'
                         : 'border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-secondary)]'
@@ -265,10 +275,10 @@ export function LibraryMobileScreen({
 
       <MobileFilterSheet
         open={isFilterSheetOpen}
-        title="Filtrar acervo"
+        title="Filtrar biblioteca"
         onClose={() => setIsFilterSheetOpen(false)}
       >
-        <label className="block space-y-2">
+        <label className="block stack-sm">
           <span className="t-label text-[var(--text-tertiary)]">Tipo</span>
           <select
             value={typeFilter}
@@ -285,7 +295,7 @@ export function LibraryMobileScreen({
           </select>
         </label>
 
-        <label className="block space-y-2">
+        <label className="block stack-sm">
           <span className="t-label text-[var(--text-tertiary)]">Status</span>
           <select
             value={statusFilter}
@@ -301,17 +311,17 @@ export function LibraryMobileScreen({
           </select>
         </label>
 
-        <button
-          type="button"
+        <AppButton
+          variant="primary"
+          fullWidth
           onClick={() => {
             setTypeFilter('all');
             setStatusFilter('all');
             setIsFilterSheetOpen(false);
           }}
-          className="button-primary w-full"
         >
           Limpar filtros
-        </button>
+        </AppButton>
       </MobileFilterSheet>
     </div>
   );

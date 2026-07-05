@@ -1,12 +1,14 @@
-import {ReactNode} from 'react';
-import {cn} from '../../lib/utils';
+import { ReactNode } from 'react';
+import { cn } from '../../lib/utils';
+import { Text } from './Text';
 
 interface EmptyStateProps {
-  icon: ReactNode;
+  icon?: ReactNode;
   title: string;
   description: string;
   action?: ReactNode;
   className?: string;
+  compact?: boolean;
 }
 
 export function EmptyState({
@@ -15,17 +17,29 @@ export function EmptyState({
   description,
   action,
   className,
+  compact = false,
 }: EmptyStateProps) {
   return (
     <div
       className={cn(
-        'flex min-h-[240px] flex-col items-center justify-center rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-dashed border-[#E5E7EB] bg-white px-6 py-10 text-center',
+        'flex flex-col items-center justify-center rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-dashed border-[var(--border-color)] bg-[var(--bg-elevated)] text-center',
+        compact
+          ? 'px-6 py-8 shadow-sm'
+          : 'min-h-[180px] md:min-h-[240px] px-6 py-8 md:px-6 md:py-10',
         className
       )}
     >
-      <div className="mb-4 text-[#9CA3AF]">{icon}</div>
-      <h3 className="text-[18px] font-semibold text-[#0F172A]">{title}</h3>
-      <p className="mt-2 max-w-md text-[14px] text-[#6B7280]">{description}</p>
+      {icon ? (
+        <div className="mb-4 flex justify-center text-[var(--text-tertiary)]">{icon}</div>
+      ) : null}
+      <div className="stack-sm">
+        <Text variant="sectionTitle" as="h3">
+          {title}
+        </Text>
+        <Text variant="meta" className="max-w-md">
+          {description}
+        </Text>
+      </div>
       {action ? <div className="mt-5">{action}</div> : null}
     </div>
   );

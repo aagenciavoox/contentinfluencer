@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { Edit2, ToggleLeft, ToggleRight, Trash2 } from 'lucide-react';
+import { Text } from '../ui/Text';
 import { cn } from '../../lib/utils';
 
 export const SETTINGS_ENTITY_GRID_CLASS =
@@ -51,7 +52,7 @@ export function SettingsGridCard({
           {leading ?? (
             color ? (
               <span
-                className="h-3 w-3 shrink-0 rounded-full border border-black/10"
+                className="h-3 w-3 shrink-0 rounded-full border border-[var(--border-color)]"
                 style={{ backgroundColor: color }}
               />
             ) : (
@@ -75,7 +76,7 @@ export function SettingsGridCard({
         </div>
       )}
 
-      <h3 className="text-sm font-semibold leading-snug text-[var(--text-primary)]">{title}</h3>
+      <Text variant="itemTitle" className="leading-snug">{title}</Text>
 
       {children ?? (
         description ? (

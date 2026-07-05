@@ -22,16 +22,16 @@ export function CalendarHoverCard({ item, isVisible }: HoverCardProps) {
       className="absolute bottom-full left-0 mb-3 z-[200] pointer-events-none"
     >
       <div className="bg-[var(--bg-primary)]/40 backdrop-blur-xl border border-white/20 p-4 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] shadow-none shadow-black/10 min-w-[160px] overflow-hidden">
-        <div className="absolute top-0 right-0 w-12 h-12 bg-white/10 blur-xl rounded-full" />
+        <div className="absolute top-0 right-0 w-12 h-12 bg-[var(--bg-elevated)]/10 blur-xl rounded-full" />
         
-        <div className="relative space-y-3">
+        <div className="relative stack-md">
           <div className="flex items-center gap-2">
             <Layers className="w-3.5 h-3.5 text-[var(--text-tertiary)]" />
             <span className="text-xs font-semibold  text-[var(--text-tertiary)]">Pilar / Origem</span>
           </div>
           <span className="text-sm font-bold text-[var(--text-primary)] block line-clamp-1">{targetLabel}</span>
           
-          <div className="h-px bg-white/10" />
+          <div className="h-px bg-[var(--bg-elevated)]/10" />
           
           <div className="flex items-center gap-2 pt-1">
              <Film className="w-3.5 h-3.5 text-[var(--text-tertiary)]" />

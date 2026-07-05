@@ -6,31 +6,58 @@ import type * as db from '../lib/database';
 import { appReducer, AppAction } from './reducer';
 import { persistAction, persistContentRecord } from './persistAction';
 import { REALTIME_TABLES, shouldSkipRealtimeRefresh } from './realtimeSync';
+import {
+  getDomainsForRealtimeTable,
+  getListNamespacesForRealtimeTable,
+} from './realtimeDomainMap';
 import { useAuth } from './AuthContext';
 import { broadcastDataSync, subscribeDataSync } from '../lib/syncBroadcast';
 import { getErrorMessage, notifySaveFeedback } from '../lib/saveFeedback';
+import { ERRORS, LOADING } from '../lib/uiCopy';
 import { generateUUID, isUUID } from '../utils/uuid';
+import { buildDomainCacheKey, dataCache } from '../lib/dataCache';
+import {
+  clearPersistedDomainsForUser,
+  isPersistedDomainFresh,
+  readPersistedDomain,
+  writePersistedDomain,
+} from '../lib/persistentDataCache';
+import { mergeFetchedAppData, patchContentsInDomainCaches, patchPlatformsInDomainCaches } from '../lib/domainCacheSync';
 
 const ACTION_SAVE_LABELS: Partial<Record<AppAction['type'], string>> = {
-  UPDATE_CONTENT: 'Conteúdo salvo',
-  ADD_CONTENT: 'Conteúdo criado',
+  UPDATE_CONTENT: 'Roteiro salvo',
+  ADD_CONTENT: 'Roteiro criado',
   UPDATE_IDEA: 'Ideia salva',
   ADD_IDEA: 'Ideia criada',
+  DEMOTE_CONTENTS_TO_IDEAS: 'Roteiros movidos para Ideias',
   UPDATE_AGENDA_ITEM: 'Agenda salva',
   ADD_AGENDA_ITEM: 'Agenda salva',
   UPDATE_RECORDING_BLOCK: 'Bloco salvo',
   ADD_RECORDING_BLOCK: 'Bloco criado',
+  ADD_PLATFORM: 'Plataforma salva',
+  UPDATE_PLATFORM: 'Plataforma salva',
+  DELETE_PLATFORM: 'Plataforma removida',
 };
 
 export type PersistOptions = { silent?: boolean; skipBroadcast?: boolean };
+
+export type RefreshFromServerOptions = {
+  silent?: boolean;
+  force?: boolean;
+  domains?: db.AppDataDomain[];
+  namespaces?: string[];
+};
+
+const MIN_SERVER_REFRESH_INTERVAL_MS = 30_000;
 
 export const AppContext = React.createContext<{
   state: AppState;
   dispatch: (action: AppAction, options?: PersistOptions) => Promise<void>;
   createContent: (content: db.Content, options?: PersistOptions) => Promise<void>;
   updateContent: (content: db.Content, options?: PersistOptions) => Promise<void>;
-  syncFromServer: (options?: { silent?: boolean }) => Promise<void>;
+  syncFromServer: (options?: RefreshFromServerOptions) => Promise<void>;
   ensureDataDomains: (domains: readonly db.AppDataDomain[], options?: { force?: boolean }) => Promise<void>;
+  invalidateListCaches: (namespaces?: string[]) => void;
 } | null>(null);
 
 function normalizeContentId(content: db.Content): db.Content {
@@ -70,10 +97,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const loadingDomains = useRef(new Map<string, Promise<void>>());
   const { user } = useAuth();
   const realtimeRefreshTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingRealtimeDomains = useRef(new Set<db.AppDataDomain>());
+  const pendingRealtimeNamespaces = useRef(new Set<string>());
+  const lastServerRefreshAt = useRef(0);
   const lastLocalMutationAt = useRef<number | null>(null);
+  const lastUserIdRef = useRef<string | null>(null);
   const pendingPersistCount = useRef(0);
 
   stateRef.current = state;
+
+  useEffect(() => {
+    if (user?.id) lastUserIdRef.current = user.id;
+  }, [user?.id]);
 
   const touchLocalMutation = useCallback(() => {
     lastLocalMutationAt.current = Date.now();
@@ -90,6 +125,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   }, [touchLocalMutation]);
 
+  const invalidateListCaches = useCallback((namespaces?: string[]) => {
+    if (!namespaces) {
+      dataCache.invalidatePages();
+    } else {
+      namespaces.forEach(namespace => dataCache.invalidatePages(namespace));
+    }
+    dataCache.invalidateValue('stats:');
+  }, []);
+
   const finishPersist = useCallback((actionType: AppAction['type'], options?: PersistOptions) => {
     if (!options?.silent) {
       const label = ACTION_SAVE_LABELS[actionType] ?? 'Alteracoes salvas';
@@ -98,7 +142,44 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (!options?.skipBroadcast) {
       broadcastDataSync();
     }
-  }, []);
+
+    if (
+      actionType.includes('CONTENT')
+      || actionType.includes('BOOK')
+      || actionType.includes('BIBLIOTECA')
+      || actionType.includes('ANOTACAO')
+      || actionType.includes('ANNOTATION')
+    ) {
+      invalidateListCaches(['contents', 'library']);
+    }
+
+    if (
+      user
+      && (actionType === 'ADD_PLATFORM' || actionType === 'UPDATE_PLATFORM' || actionType === 'DELETE_PLATFORM')
+    ) {
+      patchPlatformsInDomainCaches(user.id, stateRef.current.platforms);
+    }
+
+    if (
+      user
+      && (
+        actionType === 'ADD_CONTENT'
+        || actionType === 'UPDATE_CONTENT'
+        || actionType === 'DELETE_CONTENT'
+        || actionType === 'DELETE_MULTIPLE_CONTENTS'
+      )
+    ) {
+      patchContentsInDomainCaches(user.id, stateRef.current.contents);
+    }
+  }, [invalidateListCaches, user]);
+
+  const mergeSnapshot = useCallback(
+    () => ({
+      platforms: stateRef.current.platforms,
+      contents: stateRef.current.contents,
+    }),
+    [],
+  );
 
   const loadDomains = useCallback(async (
     domains: readonly db.AppDataDomain[],
@@ -114,10 +195,38 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const existing = loadingDomains.current.get(key);
     if (existing) return existing;
 
+    const cacheKey = buildDomainCacheKey(missingDomains);
+
+    if (!options?.force) {
+      const memoryCached = dataCache.getDomain<Partial<db.AppData>>(cacheKey);
+      const persisted = readPersistedDomain(user.id, cacheKey);
+      const cachedPayload = memoryCached ?? persisted?.payload ?? null;
+      const isFresh =
+        (memoryCached != null && dataCache.isDomainFresh(cacheKey)) ||
+        (persisted != null && isPersistedDomainFresh(persisted));
+
+      if (cachedPayload && pendingPersistCount.current === 0) {
+        dispatch({
+          type: 'SET_DATA',
+          payload: mergeFetchedAppData(mergeSnapshot(), cachedPayload),
+        });
+        missingDomains.forEach(domain => loadedDomains.current.add(domain));
+        if (isFresh) return;
+      } else if (cachedPayload && isFresh) {
+        missingDomains.forEach(domain => loadedDomains.current.add(domain));
+        return;
+      }
+    } else {
+      dataCache.invalidateDomain(cacheKey);
+    }
+
     const loadPromise = import('../lib/database')
-      .then(module => module.fetchDataDomains(missingDomains))
+      .then(module => module.fetchDataDomains(missingDomains, user.id))
       .then(data => {
-        dispatch({ type: 'SET_DATA', payload: data });
+        const merged = mergeFetchedAppData(mergeSnapshot(), data);
+        dataCache.setDomain(cacheKey, merged);
+        writePersistedDomain(user.id, cacheKey, merged);
+        dispatch({ type: 'SET_DATA', payload: merged });
         if (options?.markLoaded !== false) {
           missingDomains.forEach(domain => loadedDomains.current.add(domain));
         }
@@ -128,30 +237,54 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     loadingDomains.current.set(key, loadPromise);
     return loadPromise;
-  }, [user]);
+  }, [mergeSnapshot, user]);
 
-  const refreshFromServer = useCallback(async (options?: { silent?: boolean }) => {
+  const refreshFromServer = useCallback(async (options?: RefreshFromServerOptions) => {
     if (!supabase || !user) return;
     if (pendingPersistCount.current > 0) return;
 
+    if (
+      !options?.force
+      && lastServerRefreshAt.current > 0
+      && Date.now() - lastServerRefreshAt.current < MIN_SERVER_REFRESH_INTERVAL_MS
+    ) {
+      return;
+    }
+
     try {
-      const domains = loadedDomains.current.size > 0
-        ? [...loadedDomains.current]
-        : (await import('../lib/database')).BOOTSTRAP_DATA_DOMAINS;
+      let domains: db.AppDataDomain[];
+      if (options?.domains?.length) {
+        domains = options.force
+          ? options.domains
+          : options.domains.filter(domain => loadedDomains.current.has(domain));
+        if (domains.length === 0) return;
+      } else {
+        domains = loadedDomains.current.size > 0
+          ? [...loadedDomains.current]
+          : (await import('../lib/database')).BOOTSTRAP_DATA_DOMAINS;
+      }
+
+      if (options?.namespaces !== undefined) {
+        invalidateListCaches(options.namespaces);
+      } else {
+        invalidateListCaches();
+      }
+
       await loadDomains(domains, { force: true });
       dispatch({ type: 'SET_LOADED' });
       loadDone.current = true;
+      lastServerRefreshAt.current = Date.now();
     } catch (err) {
       console.error('[Sync] Realtime refresh failed:', err);
       if (!options?.silent) {
         notifySaveFeedback({
           status: 'error',
-          message: 'Falha ao sincronizar',
+          message: ERRORS.sincronizar,
           detail: getErrorMessage(err),
         });
       }
     }
-  }, [loadDomains, user]);
+  }, [invalidateListCaches, loadDomains, user]);
 
   useEffect(() => {
     if (!supabase) {
@@ -161,9 +294,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
 
     if (!user) {
+      if (lastUserIdRef.current) {
+        clearPersistedDomainsForUser(lastUserIdRef.current);
+        lastUserIdRef.current = null;
+      }
       dispatch({ type: 'SET_DATA', payload: {} });
       loadedDomains.current.clear();
       loadingDomains.current.clear();
+      dataCache.invalidateAll();
       dispatch({ type: 'SET_LOADED' });
       loadDone.current = true;
       return;
@@ -174,6 +312,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     async function load() {
       try {
         const { BOOTSTRAP_DATA_DOMAINS } = await import('../lib/database');
+        const cacheKey = buildDomainCacheKey(BOOTSTRAP_DATA_DOMAINS);
+        const persisted = readPersistedDomain(user.id, cacheKey);
+        if (persisted?.payload) {
+          dispatch({
+            type: 'SET_DATA',
+            payload: mergeFetchedAppData(mergeSnapshot(), persisted.payload),
+          });
+          if (!cancelled) {
+            dispatch({ type: 'SET_LOADED' });
+            loadDone.current = true;
+          }
+        }
         await loadDomains(BOOTSTRAP_DATA_DOMAINS);
       } catch (err) {
         console.error('[DB] initial data fetch failed:', err);
@@ -196,13 +346,32 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     const relevantTables = new Set<string>(REALTIME_TABLES);
 
-    const scheduleRefresh = () => {
+    const scheduleRefresh = (table: string) => {
+      getDomainsForRealtimeTable(table).forEach(domain => {
+        pendingRealtimeDomains.current.add(domain);
+      });
+      getListNamespacesForRealtimeTable(table).forEach(namespace => {
+        pendingRealtimeNamespaces.current.add(namespace);
+      });
+
       if (realtimeRefreshTimeout.current) {
         clearTimeout(realtimeRefreshTimeout.current);
       }
 
       realtimeRefreshTimeout.current = setTimeout(() => {
-        void refreshFromServer({ silent: true });
+        const tableDomains = [...pendingRealtimeDomains.current];
+        pendingRealtimeDomains.current.clear();
+        const tableNamespaces = [...pendingRealtimeNamespaces.current];
+        pendingRealtimeNamespaces.current.clear();
+
+        const domains = tableDomains.filter(domain => loadedDomains.current.has(domain));
+        if (domains.length === 0) return;
+
+        void refreshFromServer({
+          silent: true,
+          domains,
+          namespaces: tableNamespaces,
+        });
       }, 120);
     };
 
@@ -219,7 +388,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         ) {
           return;
         }
-        scheduleRefresh();
+        scheduleRefresh(payload.table);
       })
       .subscribe(status => {
         if (import.meta.env.DEV) {
@@ -275,7 +444,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
 
     if (!options?.silent) {
-      notifySaveFeedback({ status: 'saving', message: 'Criando conteudo...' });
+      notifySaveFeedback({ status: 'saving', message: LOADING.criandoRoteiro });
     }
 
     try {
@@ -286,10 +455,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       console.error('[AppContext] createContent failed:', err);
       notifySaveFeedback({
         status: 'error',
-        message: 'Falha ao criar conteudo',
+        message: ERRORS.criarRoteiro,
         detail: getErrorMessage(err),
       });
-      await refreshFromServer({ silent: true });
+      await refreshFromServer({ silent: true, force: true });
       throw err;
     }
   }, [finishPersist, refreshFromServer, runPersist, user]);
@@ -305,7 +474,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
 
     if (!options?.silent) {
-      notifySaveFeedback({ status: 'saving', message: 'Salvando conteudo...' });
+      notifySaveFeedback({ status: 'saving', message: LOADING.salvandoRoteiro });
     }
 
     try {
@@ -316,10 +485,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       console.error('[AppContext] updateContent failed:', err);
       notifySaveFeedback({
         status: 'error',
-        message: 'Falha ao salvar conteudo',
+        message: ERRORS.salvarRoteiro,
         detail: getErrorMessage(err),
       });
-      await refreshFromServer({ silent: true });
+      await refreshFromServer({ silent: true, force: true });
       throw err;
     }
   }, [finishPersist, refreshFromServer, runPersist, user]);
@@ -337,18 +506,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    dispatch(normalizedAction);
-
-    if (!user) return;
-
-    const shouldPersist = !['SET_DATA', 'SET_LOADED', 'SET_THEME', 'LOG_ENERGY', 'DELETE_MULTIPLE_CONTENTS'].includes(
+    const shouldPersist = !['SET_DATA', 'SET_LOADED', 'SET_THEME', 'LOG_ENERGY'].includes(
       normalizedAction.type
     );
 
-    if (!shouldPersist) return;
+    // Snapshot before optimistic dispatch so we can restore on double-failure.
+    const snapshot = shouldPersist && user ? stateRef.current : null;
+
+    dispatch(normalizedAction);
+
+    if (!user || !shouldPersist) return;
 
     if (!options?.silent) {
-      notifySaveFeedback({ status: 'saving', message: 'Salvando...' });
+      notifySaveFeedback({ status: 'saving', message: LOADING.salvandoAlteracoes });
     }
 
     try {
@@ -360,10 +530,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       console.error('[Sync] Error persisting action:', normalizedAction.type, err);
       notifySaveFeedback({
         status: 'error',
-        message: 'Falha ao salvar',
+        message: ERRORS.salvarGenerico,
         detail: getErrorMessage(err),
       });
-      await refreshFromServer({ silent: true });
+      try {
+        await refreshFromServer({ silent: true, force: true });
+      } catch (refreshErr) {
+        // Server refresh also failed: restore from pre-dispatch snapshot.
+        console.error('[Sync] Server refresh also failed, restoring from snapshot:', refreshErr);
+        if (snapshot) {
+          dispatch({ type: 'SET_DATA', payload: snapshot });
+        }
+      }
       throw err;
     }
   }, [createContent, finishPersist, refreshFromServer, runPersist, updateContent, user]);
@@ -373,19 +551,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [state.theme]);
 
   const contextValue = React.useMemo(() => ({
-    state: {
-      ...state,
-      books: state.bibliotecaItems,
-      partnerships: state.projetos,
-      results: state.contentMetrics,
-      agenda: state.agendaItems,
-    },
+    state,
     dispatch: enhancedDispatch,
     createContent,
     updateContent,
     syncFromServer: refreshFromServer,
     ensureDataDomains: loadDomains,
-  }), [state, enhancedDispatch, createContent, updateContent, refreshFromServer, loadDomains]);
+    invalidateListCaches,
+  }), [state, enhancedDispatch, createContent, updateContent, refreshFromServer, loadDomains, invalidateListCaches]);
 
   return (
     <AppContext.Provider value={contextValue}>

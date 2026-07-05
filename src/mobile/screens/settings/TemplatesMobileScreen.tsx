@@ -1,8 +1,11 @@
 import {useState} from 'react';
 import {BottomSheetModal} from '../../../components/feedback/modals/BottomSheetModal';
+import {AppButton} from '../../../components/ui/AppButton';
+import {Text} from '../../../components/ui/Text';
 import type {Platform, Serie, Template} from '../../../lib/database';
-import {MobileEmptyState} from '../../components/MobileEmptyState';
+import {EmptyState} from '../../../components/ui/EmptyState';
 import {MobileListCard} from '../../components/MobileListCard';
+import {MobileSectionHeader} from '../../components/MobileSectionHeader';
 import {Layout, Plus} from 'lucide-react';
 import {generateUUID} from '../../../utils/uuid';
 
@@ -53,33 +56,29 @@ export function TemplatesMobileScreen({
   };
 
   return (
-    <div className="space-y-5">
-      <section className="rounded-[1.75rem] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4 shadow-sm">
-        <div className="mb-4 flex items-center gap-3">
-          <div className="rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] bg-[var(--accent-blue)]/12 p-3 text-[var(--accent-blue)]">
-            <Layout className="h-5 w-5" />
-          </div>
-          <div>
-            <p className="t-section-title text-[var(--text-primary)]">Templates</p>
-            <p className="t-secondary">Um catálogo único com tags de tipo, série e plataforma.</p>
-          </div>
-        </div>
+    <div className="stack-xl">
+      <section className="rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4 shadow-sm">
+        <MobileSectionHeader
+          icon={Layout}
+          tone="blue"
+          title="Templates"
+          description="Um catálogo único com tags de tipo, série e plataforma."
+        />
 
-        <button type="button" onClick={() => setShowForm(true)} className="button-primary w-full">
-          <Plus className="h-4 w-4" />
+        <AppButton variant="primary" fullWidth onClick={() => setShowForm(true)} leftIcon={<Plus className="h-4 w-4" />}>
           Novo template
-        </button>
+        </AppButton>
       </section>
 
-      <section className="space-y-4">
+      <section className="stack-lg">
         {templates.length === 0 ? (
-          <MobileEmptyState
+          <EmptyState compact
             title="Nenhum template ainda"
             description="Crie o primeiro item para começar a montar seu catálogo reutilizável."
             icon={<Layout className="h-8 w-8" />}
           />
         ) : (
-          <div className="space-y-3">
+          <div className="stack-md">
             {templates.map((template) => {
               const serie = series.find((item) => item.id === template.seriesId);
               const platform = platforms.find((item) => item.id === template.platformId);
@@ -127,12 +126,12 @@ export function TemplatesMobileScreen({
 
       <BottomSheetModal open={showForm} onClose={() => setShowForm(false)} desktopMaxW="max-w-xl" zIndex="z-[110]">
         <div className="flex h-full flex-col bg-[var(--bg-primary)]">
-          <div className="border-b border-[var(--border-color)] px-5 py-4">
-            <p className="t-section-title text-[var(--text-primary)]">Novo template</p>
+          <div className="border-b border-[var(--border-color)] px-6 py-4">
+            <Text variant="sectionTitle">Novo template</Text>
             <p className="t-secondary mt-1">Defina o tipo como uma tag, sem separar o catálogo por abas.</p>
           </div>
 
-          <div className="flex-1 space-y-4 overflow-y-auto p-5">
+          <div className="flex-1 stack-lg overflow-y-auto p-6">
             <input
               autoFocus
               value={name}
@@ -166,17 +165,17 @@ export function TemplatesMobileScreen({
             </select>
           </div>
 
-          <div className="flex gap-3 border-t border-[var(--border-color)] px-5 py-4 pb-safe">
+          <div className="flex gap-3 border-t border-[var(--border-color)] px-6 py-4 pb-safe">
             <button
               type="button"
               onClick={() => setShowForm(false)}
-              className="flex-1 rounded-[1.25rem] border border-[var(--border-color)] py-3 text-xs font-semibold  text-[var(--text-secondary)]"
+              className="flex-1 rounded-[var(--radius-md)] border border-[var(--border-color)] py-3 text-xs font-semibold  text-[var(--text-secondary)]"
             >
               Cancelar
             </button>
-            <button type="button" onClick={handleCreate} disabled={!name.trim()} className="button-primary flex-1 disabled:opacity-40">
+            <AppButton variant="primary" onClick={handleCreate} disabled={!name.trim()} className="flex-1">
               Criar
-            </button>
+            </AppButton>
           </div>
         </div>
       </BottomSheetModal>

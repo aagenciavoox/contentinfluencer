@@ -12,8 +12,9 @@
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit",
     "lint:design": "node scripts/lint-design.mjs",
+    "fix:encoding": "node scripts/fix-encoding.mjs",
     "voice:audit": "node scripts/audit-product-voice.mjs",
-    "check": "npm run voice:audit && npm run lint && npm test && npm run build",
+    "check": "npm run voice:audit && npm run lint:design && npm run lint && npm test && npm run build",
     "test": "node --experimental-strip-types src/test-runner.ts"
   },
   "dependencies": {

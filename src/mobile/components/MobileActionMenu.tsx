@@ -66,7 +66,7 @@ export function MobileActionMenu({ open, onClose }: MobileActionMenuProps) {
       disabled: false,
     },
     {
-      label: 'Novo conteudo',
+      label: 'Novo roteiro',
       icon: <FileText className="h-5 w-5" />,
       onClick: handleNewContent,
       accentClassName: 'text-[var(--accent-blue)] bg-[var(--accent-blue)]/10',
@@ -90,7 +90,7 @@ export function MobileActionMenu({ open, onClose }: MobileActionMenuProps) {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 z-[84] bg-black/40 backdrop-blur-[2px] md:hidden"
+              className="fixed inset-0 z-[84] bg-[var(--backdrop-medium)] backdrop-blur-[2px] md:hidden"
               onClick={onClose}
               aria-hidden="true"
             />

@@ -14,6 +14,9 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../../../lib/utils';
+import { ERRORS } from '../../../lib/uiCopy';
+import { AppButton } from '../../../components/ui/AppButton';
+import { Text } from '../../../components/ui/Text';
 
 type AuthFailure = {
   message?: string;
@@ -54,7 +57,7 @@ function normalizeAuthError(error: AuthFailure | null | undefined) {
     return 'Muitas tentativas de e-mail agora. Aguarde um pouco e tente novamente.';
   }
 
-  return 'Não foi possível concluir a autenticação.';
+  return ERRORS.autenticacao;
 }
 
 export function LoginPage() {
@@ -155,10 +158,10 @@ export function LoginPage() {
           <div className="w-12 h-12 bg-[var(--text-primary)] rounded-lg flex items-center justify-center text-[var(--bg-primary)] shadow-[var(--shadow-soft)] mb-5">
             <Fingerprint className="w-7 h-7" />
           </div>
-          <h1 className="text-[18px] font-semibold tracking-normal text-[var(--text-primary)] mb-1">
-            Content OS
-          </h1>
-          <p className="text-[13px] font-normal tracking-normal text-[var(--text-secondary)] text-center">
+          <Text variant="sectionTitle" as="h1" className="mb-1 font-semibold tracking-normal">
+            Skript
+          </Text>
+          <p className="t-secondary font-normal tracking-normal text-center">
             A sua Central de Produção Inteligente
           </p>
         </div>
@@ -173,9 +176,9 @@ export function LoginPage() {
                   <ArrowRight className="w-6 h-6" />
                 </div>
 
-                <h2 className="text-lg font-semibold tracking-normal text-[var(--text-primary)] mb-2">
+                <Text variant="sectionTitle" as="h2" className="mb-2 text-lg font-semibold tracking-normal">
                   Quase lá, {firstName}!
-                </h2>
+                </Text>
 
                 <p className="text-sm text-[var(--text-secondary)] px-4 leading-relaxed">
                   Enviamos um link para <span className="font-bold">{email}</span>.
@@ -194,16 +197,16 @@ export function LoginPage() {
               <motion.div key="form">
 
                 <div className="mb-8">
-                  <h2 className="text-xl font-semibold tracking-normal text-[var(--text-primary)]">
+                  <Text variant="sectionTitle" as="h2" className="text-xl font-semibold tracking-normal">
                     {isRegister ? 'Criar Conta' : 'Entrar'}
-                  </h2>
+                  </Text>
                 </div>
 
-                <form onSubmit={handleSubmit} className="space-y-4">
+                <form onSubmit={handleSubmit} className="stack-lg">
 
                   {isRegister && (
                     <div>
-                      <label htmlFor="name" className="text-[12px] font-medium text-[var(--text-tertiary)]">
+                      <label htmlFor="name" className="t-meta font-medium text-[var(--text-tertiary)]">
                         Nome
                       </label>
                       <input
@@ -218,7 +221,7 @@ export function LoginPage() {
                   )}
 
                   <div>
-                    <label htmlFor="email" className="text-[12px] font-medium text-[var(--text-tertiary)]">
+                    <label htmlFor="email" className="t-meta font-medium text-[var(--text-tertiary)]">
                       E-mail
                     </label>
                     <input
@@ -233,7 +236,7 @@ export function LoginPage() {
                   </div>
 
                   <div>
-                    <label htmlFor="password" className="text-[12px] font-medium text-[var(--text-tertiary)]">
+                    <label htmlFor="password" className="t-meta font-medium text-[var(--text-tertiary)]">
                       Senha
                     </label>
                     <div className="relative">
@@ -262,13 +265,15 @@ export function LoginPage() {
                     </div>
                   )}
 
-                  <button
+                  <AppButton
                     type="submit"
+                    variant="primary"
+                    fullWidth
                     disabled={loading}
-                    className={cn("w-full button-primary interactive-press", loading && "opacity-50")}
+                    className={cn('interactive-press', loading && 'opacity-50')}
                   >
                     {loading ? <Loader2 className="animate-spin" /> : 'Continuar'}
-                  </button>
+                  </AppButton>
                 </form>
 
                 <div className="mt-6 text-center">

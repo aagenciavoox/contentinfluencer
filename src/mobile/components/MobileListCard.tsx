@@ -26,9 +26,9 @@ export function MobileListCard({
   className,
 }: MobileListCardProps) {
   const content = (
-  <div className={cn('space-y-2', className)}>
+  <div className={cn('stack-sm', className)}>
       <div className="flex items-start gap-3">
-        <div className="min-w-0 flex-1 space-y-2">
+        <div className="min-w-0 flex-1 stack-sm">
           {eyebrow ? <Text variant="label">{eyebrow}</Text> : null}
           <Text variant="sectionTitle" as="p">
             {title}

@@ -30,6 +30,8 @@ function createContent(overrides: Partial<Content> = {}): Content {
     createdAt: '2026-05-01T00:00:00.000Z',
     updatedAt: '2026-05-01T00:00:00.000Z',
     deletedAt: null,
+    recordedAt: null,
+    postedAt: null,
     plataformas: [],
     ...overrides,
   };
@@ -38,14 +40,9 @@ function createContent(overrides: Partial<Content> = {}): Content {
 function testEditorialContentsShowAllExceptPosted() {
   const roteiro = createContent({id: 'roteiro', status: CONTENT_STATUS.ROTEIRO});
   const ideia = createContent({id: 'ideia', status: CONTENT_STATUS.IDEIA});
-  const linkedReady = createContent({
-    id: 'linked-ready',
-    status: CONTENT_STATUS.PRONTO_PARA_GRAVAR,
-    bibliotecaItemId: 'book-1',
-  });
-  const linkedRecorded = createContent({
-    id: 'linked-recorded',
-    status: CONTENT_STATUS.GRAVADO,
+  const linkedProduction = createContent({
+    id: 'linked-production',
+    status: CONTENT_STATUS.PRODUCAO,
     bibliotecaItemId: 'book-1',
   });
   const linkedPosted = createContent({
@@ -53,26 +50,25 @@ function testEditorialContentsShowAllExceptPosted() {
     status: CONTENT_STATUS.POSTADO,
     bibliotecaItemId: 'book-1',
   });
-  const unlinkedReady = createContent({
-    id: 'unlinked-ready',
-    status: CONTENT_STATUS.PRONTO_PARA_GRAVAR,
+  const unlinkedProduction = createContent({
+    id: 'unlinked-production',
+    status: CONTENT_STATUS.PRODUCAO,
   });
 
   const visibleIds = getEditorialContents([
     roteiro,
     ideia,
-    linkedReady,
-    linkedRecorded,
+    linkedProduction,
     linkedPosted,
-    unlinkedReady,
+    unlinkedProduction,
   ]).map(content => content.id);
 
-  assert.deepEqual(visibleIds, ['roteiro', 'ideia', 'linked-ready', 'linked-recorded', 'unlinked-ready']);
+  assert.deepEqual(visibleIds, ['roteiro', 'ideia', 'linked-production', 'unlinked-production']);
 }
 
 function testRecordingQueueExcludesBlockedContents() {
-  const ready = createContent({id: 'ready-1', status: CONTENT_STATUS.PRONTO_PARA_GRAVAR});
-  const blocked = createContent({id: 'ready-2', status: CONTENT_STATUS.PRONTO_PARA_GRAVAR});
+  const ready = createContent({id: 'ready-1', status: CONTENT_STATUS.PRODUCAO});
+  const blocked = createContent({id: 'ready-2', status: CONTENT_STATUS.PRODUCAO});
   const blocks = [
     {
       id: 'block-1',

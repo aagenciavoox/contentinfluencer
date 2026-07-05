@@ -42,8 +42,8 @@ export function ContentKanban({
       <div className="rounded-[var(--radius-card)] border border-dashed border-[var(--border-color)] py-16 text-center">
         <p className="text-sm font-medium text-[var(--text-tertiary)]">
           {filterStatus === 'Todos'
-            ? 'Nenhum conteúdo no pipeline.'
-            : `Nenhum conteúdo em "${filterStatus}".`}
+            ? 'Nenhum roteiro nesta visão.'
+            : `Nenhum roteiro em "${filterStatus}".`}
         </p>
       </div>
     );

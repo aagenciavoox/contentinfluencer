@@ -15,6 +15,7 @@ import {RecordingQueueGrid} from '../components/desktop/RecordingQueueGrid';
 import {RecordingQueueTab} from '../components/desktop/RecordingQueueTab';
 import {RecordingSelectionBar} from '../components/desktop/RecordingSelectionBar';
 import {FilterBar} from '../../../components/ui/FilterBar';
+import {Text} from '../../../components/ui/Text';
 import {normalizeRecordingTags} from '../lib/recordingWorkflow';
 import {generateUUID} from '../../../utils/uuid';
 
@@ -49,6 +50,11 @@ export function RecordingPage() {
   useEffect(() => {
     const nextTab = resolveRecordingTab(searchParams.get('tab'));
     setActiveTab(previous => (previous === nextTab ? previous : nextTab));
+  }, [searchParams]);
+
+  useEffect(() => {
+    const seriesId = searchParams.get('seriesId');
+    if (seriesId) setFilterSerie(seriesId);
   }, [searchParams]);
 
   const handleTabChange = (tab: RecordingPageTab) => {
@@ -260,7 +266,6 @@ export function RecordingPage() {
   return (
     <PageLayout
       variant="settings"
-      contentClassName="space-y-8"
       header={
         <DesktopPageHeader
           section="Produção"
@@ -307,7 +312,7 @@ export function RecordingPage() {
         </div>
 
         {activeTab === 'queue' ? (
-          <section className={cn('space-y-6', selectedIds.size > 0 && 'pb-28')}>
+          <section className={cn('stack-xl', selectedIds.size > 0 && 'pb-28')}>
             <div className="grid grid-cols-2 gap-3 md:grid-cols-3 md:max-w-2xl">
               <StatCard label="Sem bloco" value={String(prontos.length)} />
               <StatCard label="Selecionados" value={String(selectedIds.size)} />
@@ -373,7 +378,7 @@ export function RecordingPage() {
             />
 
             <div className="space-y-1">
-              <h2 className="text-sm font-semibold text-[var(--text-primary)]">Grade de roteiros prontos</h2>
+              <Text variant="sectionTitle">Grade de roteiros prontos</Text>
               <p className="text-sm text-[var(--text-secondary)]">
                 Clique no card para selecionar. Use o icone de link para abrir o detalhe sem sair da selecao.
               </p>
@@ -409,7 +414,7 @@ export function RecordingPage() {
             />
           </section>
         ) : (
-          <section className="space-y-6">
+          <section className="stack-xl">
             <div className="grid grid-cols-2 gap-3 md:max-w-md">
               <StatCard label="Blocos" value={String(state.recordingBlocks.length)} icon={<Layers3 className="h-4 w-4" />} />
               <StatCard
@@ -420,7 +425,7 @@ export function RecordingPage() {
             </div>
 
             <div className="space-y-1">
-              <h2 className="text-sm font-semibold text-[var(--text-primary)]">Blocos de gravação</h2>
+              <Text variant="sectionTitle">Blocos de gravação</Text>
               <p className="text-sm text-[var(--text-secondary)]">
                 Gerencie os blocos montados e acompanhe o progresso de gravação.
               </p>

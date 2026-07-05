@@ -76,11 +76,11 @@ export function BookAnnotationComposerSheet({
         </div>
 
         <div className="mt-5 rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-primary)] p-4">
-          <div className="space-y-4">
+          <div className="stack-lg">
             <select
               value={novoTipo}
               onChange={event => setNovoTipo(event.target.value as TipoAnotacao)}
-              className="w-full rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-hover)] px-4 py-4 text-[12px] font-semibold  text-[var(--text-primary)]"
+              className="w-full rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-hover)] px-4 py-4 t-meta font-semibold  text-[var(--text-primary)]"
             >
               {TIPOS.map(tipo => <option key={tipo}>{tipo}</option>)}
             </select>
@@ -114,7 +114,7 @@ export function BookAnnotationComposerSheet({
             <button
               onClick={handleAddAnotacao}
               disabled={!novaAnotacao.trim()}
-              className="rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] bg-[var(--text-primary)] px-5 py-3 text-xs font-semibold  text-[var(--bg-primary)] transition-all hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-30"
+              className="rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] bg-[var(--text-primary)] px-6 py-3 text-xs font-semibold  text-[var(--bg-primary)] transition-all hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-30"
             >
               <span className="inline-flex items-center gap-1.5">
                 <Plus className="h-3.5 w-3.5" />

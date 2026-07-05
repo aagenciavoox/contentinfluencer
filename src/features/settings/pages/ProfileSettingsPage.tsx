@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { KeyRound, Mail, ShieldCheck, UserCircle2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { AppButton } from '../../../components/ui/AppButton';
+import { Text } from '../../../components/ui/Text';
 import { useAuth } from '../../../context/AuthContext';
 import { useIsMobile } from '../../../hooks/useIsMobile';
 import { DesktopPageHeader } from '../../../layouts/page/DesktopPageHeader';
@@ -38,16 +39,16 @@ function SectionCard({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-[1.75rem] border border-[var(--border-color)] bg-[var(--bg-primary)] p-6">
+    <section className="rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-primary)] p-6">
       <div className="mb-5 flex items-start gap-4">
         <div className="rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] bg-[var(--bg-hover)] p-3 text-[var(--text-primary)]">
           <Icon className="h-5 w-5" />
         </div>
         <div className="min-w-0">
-          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--text-tertiary)]">
+          <p className="text-xs font-semibold t-label-uppercase text-[var(--text-tertiary)]">
             {eyebrow}
           </p>
-          <h2 className="mt-2 text-xl font-semibold tracking-tight text-[var(--text-primary)]">{title}</h2>
+          <Text variant="sectionTitle" className="mt-2 tracking-tight">{title}</Text>
           <p className="mt-1 text-sm text-[var(--text-secondary)]">{description}</p>
         </div>
       </div>
@@ -237,7 +238,6 @@ export function ProfileSettingsPage() {
   return (
     <PageLayout
       variant="settings"
-      contentClassName="space-y-6"
       header={
         <DesktopPageHeader
           section="Configurações"
@@ -262,9 +262,9 @@ export function ProfileSettingsPage() {
             title="Nome público"
             description="Ajuste o nome usado no cadastro e em experiências futuras do sistema."
           >
-            <div className="space-y-4">
+            <div className="stack-lg">
               <div>
-                <label htmlFor="profile-full-name" className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-[var(--text-tertiary)]">
+                <label htmlFor="profile-full-name" className="mb-2 block text-xs font-semibold t-label-uppercase text-[var(--text-tertiary)]">
                   Nome
                 </label>
                 <input
@@ -298,15 +298,15 @@ export function ProfileSettingsPage() {
             title="E-mail da conta"
             description="Troque o endereço principal usado no login."
           >
-            <div className="space-y-4">
+            <div className="stack-lg">
               <div className="rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] bg-[var(--bg-hover)] px-4 py-3">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--text-tertiary)]">
+                <p className="t-label t-label-uppercase font-semibold text-[var(--text-tertiary)]">
                   E-mail atual
                 </p>
                 <p className="mt-1 text-sm font-semibold text-[var(--text-primary)]">{initialEmail || 'Sem e-mail identificado'}</p>
               </div>
               <div>
-                <label htmlFor="profile-email" className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-[var(--text-tertiary)]">
+                <label htmlFor="profile-email" className="mb-2 block text-xs font-semibold t-label-uppercase text-[var(--text-tertiary)]">
                   Novo e-mail
                 </label>
                 <input
@@ -343,9 +343,9 @@ export function ProfileSettingsPage() {
             title="Senha"
             description="Defina uma nova senha para manter o acesso seguro no desktop e no mobile."
           >
-            <div className="space-y-4">
+            <div className="stack-lg">
               <div>
-                <label htmlFor="profile-password" className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-[var(--text-tertiary)]">
+                <label htmlFor="profile-password" className="mb-2 block text-xs font-semibold t-label-uppercase text-[var(--text-tertiary)]">
                   Nova senha
                 </label>
                 <input
@@ -362,7 +362,7 @@ export function ProfileSettingsPage() {
                 />
               </div>
               <div>
-                <label htmlFor="profile-password-confirm" className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-[var(--text-tertiary)]">
+                <label htmlFor="profile-password-confirm" className="mb-2 block text-xs font-semibold t-label-uppercase text-[var(--text-tertiary)]">
                   Confirmar senha
                 </label>
                 <input

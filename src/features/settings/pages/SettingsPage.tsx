@@ -1,6 +1,5 @@
 import {useNavigate} from 'react-router-dom';
 import {
-  BarChart3,
   BookOpen,
   Calendar,
   Camera,
@@ -20,6 +19,7 @@ import {
 } from 'lucide-react';
 import {DesktopPageHeader} from '../../../layouts/page/DesktopPageHeader';
 import {PageLayout} from '../../../layouts/page/PageLayout';
+import {Text} from '../../../components/ui/Text';
 import {useAppContext} from '../../../context/AppContext';
 import {useIsMobile} from '../../../hooks/useIsMobile';
 import {MobileToggleSwitch} from '../../../mobile/components/MobileToggleSwitch';
@@ -104,11 +104,10 @@ export function SettingsPage() {
     desc: string;
     icon: React.ElementType;
   }> = [
-    {key: 'library', title: 'Biblioteca', desc: 'Acervo, notas e análises de consumo', icon: BookOpen},
+    {key: 'library', title: 'Biblioteca', desc: 'Acervo e notas de consumo', icon: BookOpen},
     {key: 'recording', title: 'Gravação', desc: 'Fila, blocos e modo explosão', icon: Camera},
     {key: 'calendar', title: 'Calendário', desc: 'Agenda e visão mensal editorial', icon: Calendar},
     {key: 'projects', title: 'Projetos', desc: 'Campanhas, publis e produções', icon: FolderKanban},
-    {key: 'analytics', title: 'Análise', desc: 'Monitoramento e leitura de resultados', icon: BarChart3},
   ];
 
   const toggleModuleFlag = (key: ModuleFlagKey) => {
@@ -206,7 +205,6 @@ export function SettingsPage() {
   return (
     <PageLayout
       variant="settings"
-      contentClassName="space-y-6"
       header={
         <DesktopPageHeader
           section="Sistema"
@@ -215,14 +213,14 @@ export function SettingsPage() {
         />
       }
     >
-        <section className="space-y-3">
+        <section className="stack-md">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--text-tertiary)] opacity-60">
+            <p className="text-xs font-semibold t-label-uppercase text-[var(--text-tertiary)] opacity-60">
               Ritmo
             </p>
-            <h2 className="mt-1 text-xl font-semibold tracking-tight text-[var(--text-primary)]">
+            <Text variant="sectionTitle" className="mt-1 tracking-tight">
               Ajuste como o sistema conversa com você
-            </h2>
+            </Text>
           </div>
 
           <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
@@ -236,7 +234,7 @@ export function SettingsPage() {
                     <CardIcon className="h-4 w-4 opacity-50" />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-[13px] font-semibold leading-snug text-[var(--text-primary)] truncate">{title}</p>
+                    <p className="t-secondary font-semibold leading-snug text-[var(--text-primary)] truncate">{title}</p>
                     <p className="mt-0.5 text-xs leading-relaxed text-[var(--text-secondary)] opacity-60 line-clamp-2">{desc}</p>
                   </div>
                 </div>
@@ -253,14 +251,14 @@ export function SettingsPage() {
           </div>
         </section>
 
-        <section className="space-y-3">
+        <section className="stack-md">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--text-tertiary)] opacity-60">
+            <p className="text-xs font-semibold t-label-uppercase text-[var(--text-tertiary)] opacity-60">
               Módulos
             </p>
-            <h2 className="mt-1 text-xl font-semibold tracking-tight text-[var(--text-primary)]">
+            <Text variant="sectionTitle" className="mt-1 tracking-tight">
               Ligue ou desligue superfícies secundárias
-            </h2>
+            </Text>
           </div>
 
           <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
@@ -274,7 +272,7 @@ export function SettingsPage() {
                     <CardIcon className="h-4 w-4 opacity-50" />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-[13px] font-semibold leading-snug text-[var(--text-primary)] truncate">{title}</p>
+                    <p className="t-secondary font-semibold leading-snug text-[var(--text-primary)] truncate">{title}</p>
                     <p className="mt-0.5 text-xs leading-relaxed text-[var(--text-secondary)] opacity-60 line-clamp-2">{desc}</p>
                   </div>
                 </div>
@@ -291,14 +289,14 @@ export function SettingsPage() {
           </div>
         </section>
 
-        <section className="space-y-3">
+        <section className="stack-md">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--text-tertiary)] opacity-60">
+            <p className="text-xs font-semibold t-label-uppercase text-[var(--text-tertiary)] opacity-60">
               Diretrizes & Grade
             </p>
-            <h2 className="mt-1 text-xl font-semibold tracking-tight text-[var(--text-primary)]">
-              Gerencie a base e os parâmetros da sua criação
-            </h2>
+            <Text variant="sectionTitle" className="mt-1 tracking-tight">
+              Gerencie a base e os parÃ¢metros da sua criação
+            </Text>
           </div>
 
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-4">
@@ -326,9 +324,9 @@ export function SettingsPage() {
                           <ChevronRight className="h-3.5 w-3.5 text-[var(--text-primary)] opacity-20 transition-all duration-300 group-hover:translate-x-1 group-hover:opacity-60" />
                         </div>
                       </div>
-                      <h3 className="text-[13px] font-semibold tracking-tight leading-snug text-[var(--text-primary)] truncate">
+                      <Text variant="itemTitle" truncate className="tracking-tight leading-snug">
                         {title}
-                      </h3>
+                      </Text>
                       <p className="mt-1 text-xs leading-relaxed text-[var(--text-secondary)] opacity-60 line-clamp-2">
                         {desc}
                       </p>

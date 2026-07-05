@@ -1,9 +1,11 @@
-import {Suspense, lazy, useEffect, useMemo, useRef, useState} from 'react';
+import {Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {useLocation, useNavigate, useSearchParams} from 'react-router-dom';
-import {Check, ChevronDown, Clapperboard, Loader2, Table as TableIcon, Trash2, X} from 'lucide-react';
+import {Check, ChevronDown, Clapperboard, Lightbulb, Loader2, Plus, Table as TableIcon, Trash2, Upload, X} from 'lucide-react';
 import {AnimatePresence, motion} from 'motion/react';
 import {ConfirmModal} from '../../../components/feedback/modals/ConfirmModal';
+import {CONFIRM, ERRORS, GLOSSARY, type ConfirmState} from '../../../lib/uiCopy';
 import {AppButton} from '../../../components/ui/AppButton';
+import {SkeletonList} from '../../../components/ui/Skeleton';
 import {useAppContext} from '../../../context/AppContext';
 import {useAuth} from '../../../context/AuthContext';
 import {broadcastDataSync} from '../../../lib/syncBroadcast';
@@ -11,7 +13,8 @@ import {notifySaveFeedback} from '../../../lib/saveFeedback';
 import {useIsMobile} from '../../../hooks/useIsMobile';
 import {DesktopPageHeader} from '../../../layouts/page/DesktopPageHeader';
 import {PageLayout} from '../../../layouts/page/PageLayout';
-import {Content} from '../../../lib/database';
+import {Content, fetchContentStatusCounts, fetchContentsPage} from '../../../lib/database';
+import {usePaginatedQuery} from '../../../hooks/usePaginatedQuery';
 import {ContentsMobileScreen} from '../../../mobile/screens/contents/ContentsMobileScreen';
 import {ContentsDesktop} from '../components/desktop/ContentsDesktop';
 import {ContentPreviewSheet} from '../components/desktop/ContentPreviewSheet';
@@ -22,19 +25,23 @@ import {createContentDraft} from '../lib/createContentDraft';
 import {buildContentDetailRoute} from '../lib/contentDetailRoute';
 import {CONTENT_STATUS} from '../lib/contentPipeline';
 import {normalizeRecordingTags} from '../../recording/lib/recordingWorkflow';
+import {getActivePilares} from '../../settings/lib/activePilares';
 import {generateUUID} from '../../../utils/uuid';
 import type {RecordingBlock, RecordingBlockContent} from '../../../lib/database';
 import {
   EDITORIAL_CONTENT_STATUSES,
   getContentStatusOptions,
   getEditorialContents,
-  getPostedContents,
   PRODUCTION_CONTENT_STATUSES,
   RECORDING_READY_STATUS,
 } from '../lib/contentWorkflow';
-import {ContentsListView, ContentsViewMode, CONTENTS_DESKTOP_PAGE_SIZE, SortDirection, SortField} from '../types';
+import {ContentsListView, ContentsViewMode, SortDirection, SortField} from '../types';
+import {
+  buildListPageSearchParams,
+  parseListLimitParam,
+  parseListPageParam,
+} from '../lib/contentsListUrl';
 
-const MOBILE_PAGE_SIZE = 8;
 const KEEP_VALUE = '__KEEP__';
 const EMPTY_VALUE = '__EMPTY__';
 
@@ -55,11 +62,7 @@ function resolveListView(view: string | null): ContentsListView {
 
 export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'history' | 'auto'}) {
   const {state, dispatch, updateContent, ensureDataDomains} = useAppContext();
-  const {user} = useAuth();
-
-  useEffect(() => {
-    void ensureDataDomains(['production', 'content']);
-  }, [ensureDataDomains]);
+  const {user, loading: authLoading} = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -81,6 +84,7 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
   const [sortField, setSortField] = useState<SortField>('createdAt');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [selectionMode, setSelectionMode] = useState(false);
   const [bulkSeriesValue, setBulkSeriesValue] = useState(KEEP_VALUE);
   const [bulkPillarValue, setBulkPillarValue] = useState(KEEP_VALUE);
   const [bulkStatusValue, setBulkStatusValue] = useState(KEEP_VALUE);
@@ -91,10 +95,28 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
   const [blockMode, setBlockMode] = useState<'novo' | 'existente'>('novo');
   const [blockName, setBlockName] = useState('');
   const [targetBlockId, setTargetBlockId] = useState<string>('');
-  const [confirm, setConfirm] = useState<{message: string; onConfirm: () => void} | null>(null);
-  const [desktopPage, setDesktopPage] = useState(1);
+  const [confirm, setConfirm] = useState<ConfirmState | null>(null);
+  const desktopPage = parseListPageParam(searchParams);
+  const listLimit = parseListLimitParam(searchParams);
+  const mobilePage = parseListPageParam(searchParams);
+  const [statusCounts, setStatusCounts] = useState<Record<string, number>>({Todos: 0});
   const [isCompact, setIsCompact] = useState(pipelinePrefs.isCompact);
   const [previewContent, setPreviewContent] = useState<Content | null>(null);
+  const listFiltersKey = useMemo(
+    () => JSON.stringify({
+      listView,
+      filterStatus,
+      filterSeries,
+      filterPillar,
+      searchTerm,
+      sortField,
+      sortDirection,
+      viewMode,
+    }),
+    [filterPillar, filterSeries, filterStatus, listView, searchTerm, sortDirection, sortField, viewMode],
+  );
+  const previousListFiltersKeyRef = useRef(listFiltersKey);
+  const pilarParamAppliedRef = useRef(false);
 
   const isPipeline = listView === 'pipeline';
   const isPublicados = listView === 'publicados';
@@ -105,107 +127,185 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
       : viewMode;
   const statusOptions = useMemo(() => getContentStatusOptions(isPipeline ? 'editorial' : 'history'), [isPipeline]);
 
-  const matchesPipelineFilters = useMemo(() => {
-    return (content: Content, includeStatusFilter: boolean) => {
-      const normalizedSearch = searchTerm.trim().toLowerCase();
-      const seriesName = state.series.find(series => series.id === content.seriesId)?.name || '';
-      const pillarName = state.pilares.find(pillar => pillar.id === content.pilarId)?.nome || '';
-      const bibliotecaItem = content.bibliotecaItemId
-        ? state.bibliotecaItems.find(item => item.id === content.bibliotecaItemId)
-        : null;
-      const bibliotecaLabel = bibliotecaItem
-        ? `${bibliotecaItem.titulo} ${bibliotecaItem.autorDiretor}`
-        : '';
+  const isKanban = isPipeline && effectiveViewMode === 'kanban';
 
-      if (isPublicados) {
-        const dateLabel = content.publishDate
-          ? new Date(content.publishDate).toLocaleDateString('pt-BR').toLowerCase()
-          : '';
-        return (
-          normalizedSearch.length === 0 ||
-          content.title.toLowerCase().includes(normalizedSearch) ||
-          dateLabel.includes(normalizedSearch)
-        );
-      }
+  useEffect(() => {
+    void ensureDataDomains(['production']);
+  }, [ensureDataDomains]);
 
-      const statusMatch = !includeStatusFilter || filterStatus === 'Todos' || content.status === filterStatus;
-      const seriesMatch = filterSeries === 'Todas' || content.seriesId === filterSeries;
-      const pillarMatch = filterPillar === 'Todos' || content.pilarId === filterPillar;
-      const searchMatch =
-        normalizedSearch.length === 0 ||
-        content.title.toLowerCase().includes(normalizedSearch) ||
-        (content.notes || '').toLowerCase().includes(normalizedSearch) ||
-        seriesName.toLowerCase().includes(normalizedSearch) ||
-        pillarName.toLowerCase().includes(normalizedSearch) ||
-        bibliotecaLabel.toLowerCase().includes(normalizedSearch);
+  useEffect(() => {
+    if (!isKanban) return;
+    void ensureDataDomains(['content']);
+  }, [ensureDataDomains, isKanban]);
 
-      return statusMatch && seriesMatch && pillarMatch && searchMatch;
-    };
-  }, [
+  useEffect(() => {
+    if (pilarParamAppliedRef.current || state.pilares.length === 0) return;
+    const pilarParam = searchParams.get('pilar');
+    if (pilarParam && state.pilares.some(pilar => pilar.id === pilarParam)) {
+      setFilterPillar(pilarParam);
+    }
+    pilarParamAppliedRef.current = true;
+  }, [searchParams, state.pilares]);
+
+  const activeAssignmentPilares = useMemo(
+    () => getActivePilares(state.pilares),
+    [state.pilares],
+  );
+
+  const listQueryBase = useMemo(() => ({
+    pageSize: listLimit,
+    listMode: isPipeline ? 'editorial' as const : 'published' as const,
+    status: filterStatus,
+    seriesId: filterSeries,
+    pilarId: filterPillar,
+    search: searchTerm,
+    sortField,
+    sortDirection,
+  }), [
     filterPillar,
     filterSeries,
     filterStatus,
-    isPublicados,
+    isPipeline,
+    listLimit,
     searchTerm,
-    state.bibliotecaItems,
-    state.pilares,
-    state.series,
+    sortDirection,
+    sortField,
   ]);
 
-  const statusCounts = useMemo(() => {
-    if (!isPipeline) return {};
+  const listQuery = useMemo(() => ({
+    ...listQueryBase,
+    page: desktopPage,
+  }), [desktopPage, listQueryBase]);
 
-    const base = getEditorialContents(state.contents).filter(content =>
-      matchesPipelineFilters(content, false)
-    );
-    const counts: Record<string, number> = {Todos: base.length};
+  const mobileListQuery = useMemo(() => ({
+    ...listQueryBase,
+    page: mobilePage,
+    sortField: 'updatedAt' as const,
+    sortDirection: 'desc' as const,
+  }), [listQueryBase, mobilePage]);
 
-    for (const status of EDITORIAL_CONTENT_STATUSES) {
-      counts[status] = base.filter(content => content.status === status).length;
-    }
+  const fetchContentsPageForUser = useCallback(
+    (query: typeof listQuery) => {
+      if (!user) return Promise.resolve({ items: [], total: 0 });
+      return fetchContentsPage(user.id, query);
+    },
+    [user],
+  );
 
-    return counts;
-  }, [isPipeline, matchesPipelineFilters, state.contents]);
+  const {
+    items: paginatedItems,
+    total: paginatedTotal,
+    loading: paginatedLoading,
+    reload: reloadContentsPage,
+  } = usePaginatedQuery({
+    namespace: 'contents',
+    query: listQuery,
+    enabled: !!user && !isKanban && !isMobile,
+    fetchPage: fetchContentsPageForUser,
+  });
+
+  const {
+    items: mobileItems,
+    total: mobileTotal,
+    loading: mobileLoading,
+    reload: reloadMobileContentsPage,
+  } = usePaginatedQuery({
+    namespace: 'contents',
+    query: mobileListQuery,
+    enabled: !!user && !isKanban && isMobile,
+    fetchPage: fetchContentsPageForUser,
+  });
+
+  const statusCountQuery = useMemo(() => ({
+    listMode: isPipeline ? 'editorial' as const : 'published' as const,
+    seriesId: filterSeries,
+    pilarId: filterPillar,
+    search: searchTerm,
+  }), [filterPillar, filterSeries, isPipeline, searchTerm]);
+
+  useEffect(() => {
+    if (!user || isKanban) return;
+
+    let active = true;
+    void fetchContentStatusCounts(user.id, statusCountQuery).then(counts => {
+      if (!active) return;
+      setStatusCounts(counts);
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [isKanban, statusCountQuery, user]);
+
+  useEffect(() => {
+    if (!isKanban) return;
+    void reloadContentsPage();
+  }, [isKanban, reloadContentsPage, state.contents.length]);
+
+  const isContentsLoading = authLoading || paginatedLoading || (isMobile && mobileLoading && mobilePage === 1);
+
+  const filteredSeriesOptions = useMemo(
+    () => state.series.map(series => ({ id: series.id, name: series.name })),
+    [state.series],
+  );
+
+  const filteredPillarOptions = useMemo(
+    () => state.pilares.map(pilar => ({ id: pilar.id, nome: pilar.nome })),
+    [state.pilares],
+  );
+
+  const kanbanContents = useMemo(() => {
+    if (!isKanban) return [];
+    return getEditorialContents(state.contents).filter(content => {
+      const seriesMatch = filterSeries === 'Todas' || content.seriesId === filterSeries;
+      const pillarMatch = filterPillar === 'Todos' || content.pilarId === filterPillar;
+      const statusMatch = filterStatus === 'Todos' || content.status === filterStatus;
+      const normalizedSearch = searchTerm.trim().toLowerCase();
+      const searchMatch =
+        normalizedSearch.length === 0 ||
+        content.title.toLowerCase().includes(normalizedSearch) ||
+        (content.notes || '').toLowerCase().includes(normalizedSearch);
+      return seriesMatch && pillarMatch && statusMatch && searchMatch;
+    });
+  }, [filterPillar, filterSeries, filterStatus, isKanban, searchTerm, state.contents]);
+
+  const sortedContents = isKanban ? kanbanContents : paginatedItems;
+  const mobileContents = isMobile ? mobileItems : sortedContents;
+  const totalDesktopPages = Math.max(1, Math.ceil(paginatedTotal / listLimit));
+  const paginatedDesktopContents = isKanban ? kanbanContents : paginatedItems;
+
+  const contentById = useMemo(() => {
+    const map = new Map<string, Content>();
+    [...state.contents, ...paginatedItems, ...mobileItems, ...kanbanContents].forEach(content => {
+      map.set(content.id, content);
+    });
+    return map;
+  }, [kanbanContents, mobileItems, paginatedItems, state.contents]);
+
+  const resolveSelectedContents = useCallback(() => {
+    return [...selectedIds]
+      .map(id => contentById.get(id))
+      .filter((content): content is Content => Boolean(content));
+  }, [contentById, selectedIds]);
 
   useEffect(() => {
     if (!isPipeline) return;
     savePipelinePreferences({viewMode, isCompact, filterStatus});
   }, [filterStatus, isCompact, isPipeline, viewMode]);
 
-  const filteredContents = useMemo(() => {
-    return (isPipeline ? getEditorialContents(state.contents) : getPostedContents(state.contents)).filter(
-      content => matchesPipelineFilters(content, true)
-    );
-  }, [isPipeline, matchesPipelineFilters, state.contents]);
-
-  const filteredSeriesOptions = useMemo(() => {
-    const seriesSet = new Set<string>();
-    filteredContents.forEach(c => {
-      if (c.seriesId) seriesSet.add(c.seriesId);
-    });
-    return Array.from(seriesSet).map(id => {
-      const s = state.series.find(s => s.id === id);
-      return s ? { id: s.id, name: s.name } : null;
-    }).filter(Boolean) as { id: string; name: string }[];
-  }, [filteredContents, state.series]);
-
-  const filteredPillarOptions = useMemo(() => {
-    const pillarSet = new Set<string>();
-    filteredContents.forEach(c => {
-      if (c.pilarId) pillarSet.add(c.pilarId);
-    });
-    return Array.from(pillarSet).map(id => {
-      const p = state.pilares.find(p => p.id === id);
-      return p ? { id: p.id, nome: p.nome } : null;
-    }).filter(Boolean) as { id: string; nome: string }[];
-  }, [filteredContents, state.pilares]);
-
   useEffect(() => {
     if (isPublicados) {
       setViewMode('grid');
       setSelectedIds(new Set());
+      setSelectionMode(false);
     }
   }, [isPublicados]);
+
+  useEffect(() => {
+    if (!selectionMode) {
+      setSelectedIds(new Set());
+    }
+  }, [selectionMode]);
 
   useEffect(() => {
     if (selectedIds.size === 0) {
@@ -221,67 +321,51 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
     }
   }, [selectedIds]);
 
-  const sortedContents = useMemo(() => {
-    return [...filteredContents].sort((a, b) => {
-      const valA =
-        sortField === 'seriesName'
-          ? state.series.find(series => series.id === a.seriesId)?.name || ''
-          : sortField === 'pillarName'
-            ? state.pilares.find(pillar => pillar.id === a.pilarId)?.nome || ''
-            : a[sortField as keyof Content] || '';
-      const valB =
-        sortField === 'seriesName'
-          ? state.series.find(series => series.id === b.seriesId)?.name || ''
-          : sortField === 'pillarName'
-            ? state.pilares.find(pillar => pillar.id === b.pilarId)?.nome || ''
-            : b[sortField as keyof Content] || '';
-
-      if (valA < valB) return sortDirection === 'asc' ? -1 : 1;
-      if (valA > valB) return sortDirection === 'asc' ? 1 : -1;
-      return 0;
-    });
-  }, [filteredContents, sortDirection, sortField, state.pilares, state.series]);
-
-  const mobileContents = useMemo(() => {
-    return sortedContents;
-  }, [sortedContents]);
-
   const bulkStatusOptions = useMemo(() => {
     const uniqueStatuses = new Set<string>([
       ...EDITORIAL_CONTENT_STATUSES,
-      RECORDING_READY_STATUS,
       ...PRODUCTION_CONTENT_STATUSES,
     ]);
 
     return Array.from(uniqueStatuses);
   }, []);
 
-  const totalDesktopPages = Math.max(1, Math.ceil(sortedContents.length / CONTENTS_DESKTOP_PAGE_SIZE));
-
-  const paginatedDesktopContents = useMemo(() => {
-    const start = (desktopPage - 1) * CONTENTS_DESKTOP_PAGE_SIZE;
-    return sortedContents.slice(start, start + CONTENTS_DESKTOP_PAGE_SIZE);
-  }, [desktopPage, sortedContents]);
+  useEffect(() => {
+    if (previousListFiltersKeyRef.current === listFiltersKey) return;
+    previousListFiltersKeyRef.current = listFiltersKey;
+    setSearchParams(
+      previous => buildListPageSearchParams(previous, 1, listLimit),
+      {replace: true},
+    );
+  }, [listFiltersKey, listLimit, setSearchParams]);
 
   useEffect(() => {
-    setDesktopPage(1);
-  }, [listView, filterStatus, filterSeries, filterPillar, searchTerm, sortField, sortDirection, viewMode]);
+    if (desktopPage <= totalDesktopPages) return;
+    setSearchParams(
+      previous => buildListPageSearchParams(previous, totalDesktopPages, listLimit),
+      {replace: true},
+    );
+  }, [desktopPage, listLimit, setSearchParams, totalDesktopPages]);
+
+  const totalMobilePages = Math.max(1, Math.ceil(mobileTotal / listLimit));
 
   useEffect(() => {
-    if (desktopPage > totalDesktopPages) {
-      setDesktopPage(totalDesktopPages);
-    }
-  }, [desktopPage, totalDesktopPages]);
+    if (!isMobile || mobilePage <= totalMobilePages) return;
+    setSearchParams(
+      previous => buildListPageSearchParams(previous, totalMobilePages, listLimit),
+      {replace: true},
+    );
+  }, [isMobile, listLimit, mobilePage, setSearchParams, totalMobilePages]);
 
   const lookAlerts = useMemo(() => {
     if (!isPipeline) return {};
 
     const alerts: Record<string, string> = {};
 
-    for (let i = 0; i < sortedContents.length - 2; i += 1) {
-      const current = sortedContents[i];
-      const next1 = sortedContents[i + 1];
-      const next2 = sortedContents[i + 2];
+    for (let i = 0; i < paginatedDesktopContents.length - 2; i += 1) {
+      const current = paginatedDesktopContents[i];
+      const next1 = paginatedDesktopContents[i + 1];
+      const next2 = paginatedDesktopContents[i + 2];
 
       const currentKey = normalizeRecordingTags(current.tags || []).sort().join('|');
       const nextKey1 = normalizeRecordingTags(next1.tags || []).sort().join('|');
@@ -293,7 +377,7 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
     }
 
     return alerts;
-  }, [isPipeline, sortedContents]);
+  }, [isPipeline, paginatedDesktopContents]);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -307,20 +391,41 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
 
   const conteudosListPath = `${location.pathname}${location.search}`;
 
+  const handleDesktopPageChange = useCallback((page: number) => {
+    setSearchParams(
+      previous => buildListPageSearchParams(previous, page, listLimit),
+      {replace: true},
+    );
+  }, [listLimit, setSearchParams]);
+
+  const handleMobilePageChange = useCallback((page: number) => {
+    setSearchParams(
+      previous => buildListPageSearchParams(previous, page, listLimit),
+      {replace: true},
+    );
+  }, [listLimit, setSearchParams]);
+
+  const handleMobileLimitChange = useCallback((limit: number) => {
+    setSearchParams(
+      previous => buildListPageSearchParams(previous, 1, limit),
+      {replace: true},
+    );
+  }, [setSearchParams]);
+
   const handleAddContent = () => {
     setFilterStatus(CONTENT_STATUS.ROTEIRO);
     setFilterSeries('Todas');
     setFilterPillar('Todos');
     const newContent = createContentDraft({
       title: 'Novo Conteudo',
-      status: isPipeline ? CONTENT_STATUS.ROTEIRO : CONTENT_STATUS.GRAVADO,
+      status: isPipeline ? CONTENT_STATUS.ROTEIRO : CONTENT_STATUS.PRODUCAO,
     });
     void dispatch({type: 'ADD_CONTENT', payload: newContent});
     navigate(`${buildContentDetailRoute(newContent.id)}&focus=script`, buildDetailBackState(conteudosListPath));
   };
 
   const handleToggleSelect = (id: string) => {
-    if (isPublicados) return;
+    if (isPublicados || !selectionMode) return;
 
     setSelectedIds(previous => {
       const next = new Set(previous);
@@ -331,7 +436,7 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
   };
 
   const handleSelectAll = () => {
-    if (isPublicados) return;
+    if (isPublicados || !selectionMode) return;
 
     setSelectedIds(previous => {
       const pageIds = paginatedDesktopContents.map(content => content.id);
@@ -350,11 +455,71 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
   };
 
   const handleBulkDelete = () => {
+    const copy = CONFIRM.excluirRoteiros(selectedIds.size);
     setConfirm({
-      message: `Remover ${selectedIds.size} itens selecionados?`,
+      ...copy,
       onConfirm: () => {
         selectedIds.forEach(id => dispatch({type: 'DELETE_CONTENT', payload: id}));
         setSelectedIds(new Set());
+      },
+    });
+  };
+
+  const commitBulkMoveToIdeas = async () => {
+    if (selectedIds.size === 0 || isBulkUpdating) return;
+
+    const contentIds = [...selectedIds];
+    setIsBulkUpdating(true);
+    setBulkUpdateMessage(null);
+    setBulkUpdateError(null);
+
+    try {
+      await ensureDataDomains(['ideas']);
+      notifySaveFeedback({
+        status: 'saving',
+        message: `Movendo ${contentIds.length} roteiro${contentIds.length === 1 ? '' : 's'} para Ideias...`,
+      });
+
+      await dispatch(
+        {
+          type: 'DEMOTE_CONTENTS_TO_IDEAS',
+          payload: {contentIds, contents: resolveSelectedContents()},
+        },
+        {silent: true, skipBroadcast: true},
+      );
+
+      broadcastDataSync();
+      notifySaveFeedback({
+        status: 'success',
+        message:
+          contentIds.length === 1
+            ? 'Roteiro movido para Ideias'
+            : `${contentIds.length} roteiros movidos para Ideias`,
+        href: '/ideias',
+        actionLabel: 'Ver ideias',
+      });
+      setBulkUpdateMessage(
+        contentIds.length === 1
+          ? '1 roteiro movido para Ideias.'
+          : `${contentIds.length} roteiros movidos para Ideias.`,
+      );
+      setSelectedIds(new Set());
+      void reloadContentsPage();
+      void reloadMobileContentsPage();
+    } catch (error) {
+      console.error('[ContentsPage] bulk move to ideas failed:', error);
+      setBulkUpdateError(ERRORS.moverParaIdeiasMassa);
+    } finally {
+      setIsBulkUpdating(false);
+    }
+  };
+
+  const handleBulkMoveToIdeas = () => {
+    const copy = CONFIRM.moverParaIdeias(selectedIds.size);
+    setConfirm({
+      ...copy,
+      onConfirm: () => {
+        void commitBulkMoveToIdeas();
       },
     });
   };
@@ -365,7 +530,7 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
   const handleBulkSetStatus = async (status: string) => {
     if (selectedIds.size === 0 || isBulkUpdating) return;
 
-    const selectedContents = state.contents.filter(content => selectedIds.has(content.id));
+    const selectedContents = resolveSelectedContents();
     if (selectedContents.length === 0) return;
 
     setIsBulkUpdating(true);
@@ -400,7 +565,7 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
       setSelectedIds(new Set());
     } catch (error) {
       console.error('[ContentsPage] bulk status update failed:', error);
-      setBulkUpdateError('Nao foi possivel atualizar o status em massa.');
+      setBulkUpdateError(ERRORS.atualizarStatusMassa);
     } finally {
       setIsBulkUpdating(false);
     }
@@ -409,7 +574,7 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
   const handleBulkApply = async () => {
     if (!hasBulkChanges || selectedIds.size === 0 || isBulkUpdating) return;
 
-    const selectedContents = state.contents.filter(content => selectedIds.has(content.id));
+    const selectedContents = resolveSelectedContents();
     if (selectedContents.length === 0) return;
 
     setIsBulkUpdating(true);
@@ -456,7 +621,7 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
       setSelectedIds(new Set());
     } catch (error) {
       console.error('[ContentsPage] bulk update failed:', error);
-      setBulkUpdateError('Nao foi possivel aplicar as alteracoes em massa.');
+      setBulkUpdateError(ERRORS.aplicarAlteracoesMassa);
     } finally {
       setIsBulkUpdating(false);
     }
@@ -465,7 +630,7 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
   const handleCriarBloco = async () => {
     if (!blockName.trim() || selectedIds.size === 0) return;
 
-    const selectedContents = state.contents.filter(content => selectedIds.has(content.id));
+    const selectedContents = resolveSelectedContents();
     const recordingTags = normalizeRecordingTags(
       selectedContents.flatMap(content => content.tags || [])
     );
@@ -505,7 +670,7 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
     if (!existingBlock) return;
 
     const existingContentIds = new Set(existingBlock.contents.map(c => c.contentId));
-    const selectedContents = state.contents.filter(c => selectedIds.has(c.id) && !existingContentIds.has(c.id));
+    const selectedContents = resolveSelectedContents().filter(content => !existingContentIds.has(content.id));
 
     const merged: RecordingBlockContent[] = [
       ...existingBlock.contents,
@@ -523,7 +688,7 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
     navigate(`/gravacao/${targetBlockId}`);
   };
 
-  const pageTitle = isPipeline ? 'Pipeline' : 'Publicados';
+  const pageTitle = isPipeline ? GLOSSARY.roteiro : GLOSSARY.publicados;
   const surfaceMode = isPipeline ? 'pipeline' : 'publicados';
 
   const openContentDetail = (content: Content, tab: 'roteiro' | 'publicacao' = 'roteiro') => {
@@ -547,10 +712,15 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
         <ContentsMobileScreen
           mode={surfaceMode}
           contents={mobileContents}
-          pageSize={MOBILE_PAGE_SIZE}
-          allContents={state.contents}
+          pageSize={listLimit}
+          totalItems={mobileTotal}
+          currentPage={mobilePage}
+          totalPages={totalMobilePages}
           series={state.series}
           pilares={state.pilares}
+          isLoading={isContentsLoading}
+          onPageChange={handleMobilePageChange}
+          onPageSizeChange={handleMobileLimitChange}
           onSelect={content => {
             openContentDetail(content, isPublicados ? 'publicacao' : 'roteiro');
           }}
@@ -575,6 +745,8 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
         <ConfirmModal
           open={!!confirm}
           message={confirm?.message || ''}
+          confirmLabel={confirm?.confirmLabel}
+          cancelLabel={confirm?.cancelLabel}
           onConfirm={() => {
             confirm?.onConfirm();
             setConfirm(null);
@@ -591,10 +763,26 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
       contentClassName="pb-32 md:pb-10"
       header={
         <DesktopPageHeader
-          section="Operacao"
+          section="Operação"
           title={pageTitle}
           icon={TableIcon}
           className="mb-0"
+          actions={
+            isPipeline ? (
+              <>
+                <AppButton
+                  variant="secondary"
+                  leftIcon={<Upload className="h-4 w-4" />}
+                  onClick={() => setIsCSVUploadOpen(true)}
+                >
+                  Importar CSV
+                </AppButton>
+                <AppButton variant="primary" leftIcon={<Plus className="h-4 w-4" />} onClick={handleAddContent}>
+                  Novo roteiro
+                </AppButton>
+              </>
+            ) : undefined
+          }
         />
       }
       toolbar={
@@ -611,8 +799,6 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
           statusCounts={statusCounts}
           seriesOptions={filteredSeriesOptions}
           pillarOptions={filteredPillarOptions}
-          isCompact={isCompact}
-          onCompactToggle={() => setIsCompact(prev => !prev)}
           onViewModeChange={setViewMode}
           onSearchChange={setSearchTerm}
           onFilterStatusChange={setFilterStatus}
@@ -623,8 +809,6 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
             setSortField(field);
             setSortDirection(direction);
           }}
-          onImportClick={() => setIsCSVUploadOpen(true)}
-          onCreateClick={handleAddContent}
           onListViewChange={view => {
             setSearchParams(previous => {
               const next = new URLSearchParams(previous);
@@ -636,18 +820,27 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
         />
       }
     >
+      {isContentsLoading ? (
+        <SkeletonList
+          count={8}
+          variant={effectiveViewMode === 'grid' ? 'content' : 'row'}
+        />
+      ) : (
       <ContentsDesktop
         mode={surfaceMode}
         viewMode={effectiveViewMode}
         contents={paginatedDesktopContents}
-        kanbanContents={sortedContents}
-        totalItems={sortedContents.length}
+        kanbanContents={kanbanContents}
+        totalItems={isKanban ? kanbanContents.length : paginatedTotal}
         currentPage={desktopPage}
         totalPages={totalDesktopPages}
+        pageSize={listLimit}
         lookAlerts={lookAlerts}
         sortField={sortField}
         sortDirection={sortDirection}
         selectedIds={selectedIds}
+        selectionMode={selectionMode}
+        onSelectionModeChange={setSelectionMode}
         isCompact={isCompact}
         filterStatus={filterStatus}
         onSelect={content => openContentDetail(content, isPublicados ? 'publicacao' : 'roteiro')}
@@ -655,8 +848,9 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
         onSort={handleSort}
         onToggleSelect={handleToggleSelect}
         onSelectAll={handleSelectAll}
-        onPageChange={setDesktopPage}
+        onPageChange={handleDesktopPageChange}
       />
+      )}
 
       <ContentPreviewSheet
         content={previewContent}
@@ -670,25 +864,25 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
       />
 
       <AnimatePresence>
-        {!isPublicados && selectedIds.size > 0 && (
+        {!isPublicados && selectionMode && selectedIds.size > 0 && (
           <motion.div
             initial={{y: 80}}
             animate={{y: 0}}
             exit={{y: 80}}
-            className="fixed bottom-6 left-1/2 z-30 w-[min(1100px,calc(100vw-2rem))] -translate-x-1/2 rounded-2xl bg-[var(--text-primary)] px-4 py-3 text-[var(--bg-primary)] shadow-xl shadow-black/20"
+            className="fixed bottom-6 left-1/2 z-30 w-[min(1100px,calc(100vw-2rem))] -translate-x-1/2 rounded-[var(--radius-overlay)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-4 py-3 text-[var(--text-primary)] shadow-[var(--shadow-dropdown)]"
           >
             {showBlockForm ? (
               <div className="flex flex-col gap-2.5">
                 {/* Cabecalho */}
                 <div className="flex items-center justify-between gap-2">
-                  <p className="text-xs font-semibold text-white">
+                  <p className="text-xs font-semibold text-[var(--text-primary)]">
                     <Clapperboard className="mr-1.5 inline h-3.5 w-3.5 opacity-70" />
                     {selectedIds.size} {selectedIds.size === 1 ? 'roteiro' : 'roteiros'} selecionados
                   </p>
                   <button
                     type="button"
                     onClick={() => { setShowBlockForm(false); setBlockMode('novo'); setBlockName(''); setTargetBlockId(''); }}
-                    className="rounded-full p-1 text-white/50 transition-colors hover:bg-white/10 hover:text-white"
+                    className="rounded-[var(--radius-pill)] p-1 text-[var(--text-tertiary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
                     aria-label="Cancelar"
                   >
                     <X className="h-3.5 w-3.5" />
@@ -696,14 +890,14 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
                 </div>
 
                 {/* Toggle novo / existente */}
-                <div className="flex rounded-lg bg-white/10 p-0.5 w-fit">
+                <div className="flex rounded-[var(--radius-input)] bg-[var(--bg-hover)] p-0.5 w-fit">
                   {(['novo', 'existente'] as const).map(mode => (
                     <button
                       key={mode}
                       type="button"
                       onClick={() => setBlockMode(mode)}
-                      className={`px-3 py-1 rounded-md text-[10px] font-semibold transition-colors ${
-                        blockMode === mode ? 'bg-white text-[#0F172A]' : 'text-white/60 hover:text-white'
+                      className={`px-3 py-1 rounded-[var(--radius-input)] text-2xs font-semibold transition-colors ${
+                        blockMode === mode ? 'bg-[var(--text-primary)] text-[var(--bg-primary)]' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
                       }`}
                     >
                       {mode === 'novo' ? 'Novo bloco' : 'Bloco existente'}
@@ -720,13 +914,13 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
                       onChange={event => setBlockName(event.target.value)}
                       onKeyDown={event => event.key === 'Enter' && blockName.trim() && void handleCriarBloco()}
                       placeholder="Nome do bloco..."
-                      className="h-8 flex-1 rounded-lg border border-white/20 bg-white/10 px-3 text-[11px] font-medium text-white placeholder:text-white/40 outline-none focus:border-white/40"
+                      className="h-8 flex-1 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-primary)] px-3 text-2xs font-medium text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-[var(--border-strong)]"
                     />
                     <button
                       type="button"
                       onClick={() => void handleCriarBloco()}
                       disabled={!blockName.trim()}
-                      className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg bg-white px-3 text-[11px] font-bold text-[#0F172A] transition-colors hover:bg-white/90 disabled:opacity-40"
+                      className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-[var(--radius-input)] bg-[var(--text-primary)] px-3 text-2xs font-bold text-[var(--bg-primary)] transition-colors hover:opacity-90 disabled:opacity-40"
                     >
                       <Check className="h-3 w-3" />
                       Criar
@@ -738,7 +932,7 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
                       autoFocus
                       value={targetBlockId}
                       onChange={e => setTargetBlockId(e.target.value)}
-                      className="h-8 flex-1 rounded-lg border border-white/20 bg-[#1e293b] px-2 text-[11px] font-medium text-white outline-none focus:border-white/40"
+                      className="h-8 flex-1 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-primary)] px-2 text-2xs font-medium text-[var(--text-primary)] outline-none focus:border-[var(--border-strong)]"
                     >
                       <option value="">Escolher bloco...</option>
                       {state.recordingBlocks.map(b => (
@@ -749,7 +943,7 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
                       type="button"
                       onClick={() => void handleAddToExistingBlock()}
                       disabled={!targetBlockId}
-                      className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg bg-white px-3 text-[11px] font-bold text-[#0F172A] transition-colors hover:bg-white/90 disabled:opacity-40"
+                      className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-[var(--radius-input)] bg-[var(--text-primary)] px-3 text-2xs font-bold text-[var(--bg-primary)] transition-colors hover:opacity-90 disabled:opacity-40"
                     >
                       <Check className="h-3 w-3" />
                       Adicionar
@@ -761,7 +955,7 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
               <div className="flex flex-col gap-2">
                 <div className="flex flex-wrap items-center gap-2">
                   {/* Contador */}
-                  <span className="shrink-0 rounded-full bg-white/15 px-2.5 py-1 text-[11px] font-bold tabular-nums">
+                  <span className="shrink-0 rounded-[var(--radius-pill)] bg-[var(--bg-hover)] px-2.5 py-1 text-2xs font-bold text-[var(--text-secondary)] tabular-nums">
                     {selectedIds.size} sel.
                   </span>
 
@@ -773,7 +967,7 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
                       onChange={setBulkPillarValue}
                       options={[
                         {label: 'Sem pilar', value: EMPTY_VALUE},
-                        ...state.pilares.map(pillar => ({label: pillar.nome, value: pillar.id})),
+                        ...activeAssignmentPilares.map(pillar => ({label: pillar.nome, value: pillar.id})),
                       ]}
                     />
                     <BulkDropdown
@@ -794,23 +988,32 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
                   </div>
 
                   {/* Separador */}
-                  <div className="h-5 w-px shrink-0 bg-white/15" />
+                  <div className="h-5 w-px shrink-0 bg-[var(--border-color)]" />
 
                   {/* Acoes */}
                   <div className="flex shrink-0 flex-wrap items-center gap-1.5">
                     <button
                       type="button"
-                      onClick={() => void handleBulkSetStatus(RECORDING_READY_STATUS)}
+                      onClick={handleBulkMoveToIdeas}
                       disabled={isBulkUpdating}
-                      className="inline-flex h-8 items-center gap-1 rounded-lg border border-white/20 bg-white/10 px-2.5 text-[11px] font-semibold text-white transition-colors hover:bg-white/15 disabled:opacity-40"
+                      className="inline-flex h-8 items-center gap-1 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-primary)] px-2.5 text-2xs font-semibold text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] disabled:opacity-40"
                     >
-                      Pronto p/ gravar
+                      <Lightbulb className="h-3 w-3" />
+                      Ideias
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void handleBulkSetStatus(CONTENT_STATUS.PRODUCAO)}
+                      disabled={isBulkUpdating}
+                      className="inline-flex h-8 items-center gap-1 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-primary)] px-2.5 text-2xs font-semibold text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] disabled:opacity-40"
+                    >
+                      Produção
                     </button>
                     <button
                       type="button"
                       onClick={handleBulkApply}
                       disabled={!hasBulkChanges || isBulkUpdating}
-                      className="inline-flex h-8 items-center gap-1 rounded-lg bg-white px-3 text-[11px] font-bold text-[#0F172A] transition-colors hover:bg-white/90 disabled:opacity-40"
+                      className="inline-flex h-8 items-center gap-1 rounded-[var(--radius-input)] bg-[var(--text-primary)] px-3 text-2xs font-bold text-[var(--bg-primary)] transition-colors hover:opacity-90 disabled:opacity-40"
                     >
                       {isBulkUpdating
                         ? <Loader2 className="h-3 w-3 animate-spin" />
@@ -820,7 +1023,7 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
                     <button
                       type="button"
                       onClick={() => setShowBlockForm(true)}
-                      className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-white/20 bg-white/10 px-2.5 text-[11px] font-semibold text-white transition-colors hover:bg-white/15"
+                      className="inline-flex h-8 items-center gap-1.5 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-primary)] px-2.5 text-2xs font-semibold text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)]"
                     >
                       <Clapperboard className="h-3 w-3" />
                       Criar bloco
@@ -828,7 +1031,7 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
                     <button
                       type="button"
                       onClick={handleBulkDelete}
-                      className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-red-500/20 text-red-300 transition-colors hover:bg-red-500/30"
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-[var(--radius-input)] bg-[color-mix(in_srgb,var(--danger),transparent_86%)] text-[var(--danger)] transition-colors hover:bg-[color-mix(in_srgb,var(--danger),transparent_78%)]"
                       aria-label="Excluir selecionados"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
@@ -836,7 +1039,7 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
                     <button
                       type="button"
                       onClick={() => setSelectedIds(new Set())}
-                      className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-white/10 text-white/60 transition-colors hover:bg-white/15 hover:text-white"
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-[var(--radius-input)] bg-[var(--bg-hover)] text-[var(--text-tertiary)] transition-colors hover:text-[var(--text-primary)]"
                       aria-label="Limpar selecao"
                     >
                       <X className="h-3.5 w-3.5" />
@@ -844,8 +1047,8 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
                   </div>
                 </div>
 
-                {bulkUpdateError ? <p className="text-xs text-red-300">{bulkUpdateError}</p> : null}
-                {bulkUpdateMessage ? <p className="text-xs text-emerald-300">{bulkUpdateMessage}</p> : null}
+                {bulkUpdateError ? <p className="text-xs text-[var(--danger)]">{bulkUpdateError}</p> : null}
+                {bulkUpdateMessage ? <p className="text-xs text-[var(--success)]">{bulkUpdateMessage}</p> : null}
               </div>
             )}
           </motion.div>
@@ -861,6 +1064,8 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
       <ConfirmModal
         open={!!confirm}
         message={confirm?.message || ''}
+        confirmLabel={confirm?.confirmLabel}
+        cancelLabel={confirm?.cancelLabel}
         onConfirm={() => {
           confirm?.onConfirm();
           setConfirm(null);
@@ -915,34 +1120,34 @@ function BulkDropdown({label, value, onChange, options}: BulkDropdownProps) {
       <button
         type="button"
         onClick={() => setOpen(prev => !prev)}
-        className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-white/20 bg-white/10 px-2.5 text-[11px] font-semibold text-white transition-colors hover:bg-white/15"
+        className="inline-flex h-8 items-center gap-1.5 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-primary)] px-2.5 text-2xs font-semibold text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-hover)]"
       >
-        <span className="text-[10px] font-bold uppercase tracking-wide text-white/50">{label}</span>
+        <span className="text-2xs font-bold uppercase tracking-wide text-[var(--text-tertiary)]">{label}</span>
         {selectedLabel ? (
           <>
-            <span className="text-white/30">·</span>
-            <span className="max-w-[90px] truncate text-white">{selectedLabel}</span>
+            <span className="text-[var(--text-tertiary)]">·</span>
+            <span className="max-w-[90px] truncate text-[var(--text-primary)]">{selectedLabel}</span>
           </>
         ) : null}
-        <ChevronDown className={`h-3 w-3 text-white/50 transition-transform ${open ? 'rotate-180' : ''}`} />
+        <ChevronDown className={`h-3 w-3 text-[var(--text-tertiary)] transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
 
       {open ? (
-        <div className="absolute bottom-full left-0 z-50 mb-1.5 min-w-[160px] overflow-hidden rounded-xl border border-white/10 bg-[#1e293b] shadow-xl">
+        <div className="absolute bottom-full left-0 z-50 mb-1.5 min-w-[160px] overflow-hidden rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-elevated)] shadow-[var(--shadow-dropdown)]">
           <button
             type="button"
             onClick={() => { onChange(KEEP_VALUE); setOpen(false); }}
-            className="flex w-full items-center gap-2 px-3 py-2 text-left text-[11px] font-medium text-white/50 hover:bg-white/10"
+            className="flex w-full items-center gap-2 px-3 py-2 text-left text-2xs font-medium text-[var(--text-tertiary)] hover:bg-[var(--bg-hover)]"
           >
             Limpar
           </button>
-          <div className="my-1 h-px bg-white/10" />
+          <div className="my-1 h-px bg-[var(--border-color)]" />
           {options.map(opt => (
             <button
               key={opt.value}
               type="button"
               onClick={() => { onChange(opt.value); setOpen(false); }}
-              className="flex w-full items-center gap-2 px-3 py-2 text-left text-[11px] font-medium text-white hover:bg-white/10"
+              className="flex w-full items-center gap-2 px-3 py-2 text-left text-2xs font-medium text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"
             >
               <span className="flex h-3.5 w-3.5 shrink-0 items-center justify-center">
                 {value === opt.value ? <Check className="h-3 w-3 stroke-[3px]" /> : null}

@@ -32,7 +32,7 @@ export function Drawer({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className={cn('fixed inset-0 bg-black/40', zIndex === 'z-50' ? 'z-40' : 'z-[90]')}
+            className={cn('fixed inset-0 bg-[var(--backdrop-medium)]', zIndex === 'z-50' ? 'z-40' : 'z-[90]')}
             onClick={onClose}
             aria-hidden
           />

@@ -72,7 +72,7 @@ export function OverlayRoot({
             exit={{ opacity: 0 }}
             transition={{ duration: 0.16, ease: 'easeOut' }}
             onClick={onClose}
-            className="absolute inset-0 bg-black/40"
+            className="absolute inset-0 bg-[var(--backdrop-medium)]"
             aria-hidden
           />
 

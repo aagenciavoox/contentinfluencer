@@ -52,7 +52,7 @@ export function RecordingSelectionBar({
     <div className="pointer-events-none fixed inset-x-0 bottom-6 z-40 px-4 md:px-8">
       <div className="pointer-events-auto mx-auto max-w-3xl">
         {showBlockForm ? (
-          <div className="space-y-3 rounded-[1.25rem] border border-[var(--border-color)] bg-[var(--bg-primary)] p-4 shadow-[0_20px_60px_rgba(0,0,0,0.12)]">
+          <div className="stack-md rounded-[var(--radius-md)] border border-[var(--border-color)] bg-[var(--bg-primary)] p-4 shadow-[0_20px_60px_rgba(0,0,0,0.12)]">
 
             <div className="flex items-center justify-between gap-3">
               <p className="text-sm font-semibold text-[var(--text-primary)]">
@@ -89,7 +89,7 @@ export function RecordingSelectionBar({
             )}
 
             {blockMode === 'novo' ? (
-              <div className="space-y-3">
+              <div className="stack-md">
                 <input
                   autoFocus
                   value={blockName}
@@ -114,7 +114,7 @@ export function RecordingSelectionBar({
                     type="button"
                     onClick={onCreate}
                     disabled={!canCreate}
-                    className="inline-flex flex-1 items-center justify-center gap-2 rounded-[var(--radius-input)] bg-[var(--text-primary)] px-5 py-3 text-sm font-semibold text-[var(--bg-primary)] disabled:opacity-30 sm:flex-none"
+                    className="inline-flex flex-1 items-center justify-center gap-2 rounded-[var(--radius-input)] bg-[var(--text-primary)] px-6 py-3 text-sm font-semibold text-[var(--bg-primary)] disabled:opacity-30 sm:flex-none"
                   >
                     <Plus className="h-4 w-4" />
                     Criar bloco
@@ -129,7 +129,7 @@ export function RecordingSelectionBar({
                 </div>
               </div>
             ) : (
-              <div className="space-y-3">
+              <div className="stack-md">
                 <div className="space-y-1.5">
                   <p className="text-xs font-medium text-[var(--text-secondary)]">Escolher bloco existente</p>
                   <div className="grid gap-2 max-h-48 overflow-y-auto">
@@ -160,7 +160,7 @@ export function RecordingSelectionBar({
                     type="button"
                     onClick={() => { onAddToBlock(targetBlockId); setTargetBlockId(''); }}
                     disabled={!targetBlockId}
-                    className="inline-flex flex-1 items-center justify-center gap-2 rounded-[var(--radius-input)] bg-[var(--text-primary)] px-5 py-3 text-sm font-semibold text-[var(--bg-primary)] disabled:opacity-30 sm:flex-none"
+                    className="inline-flex flex-1 items-center justify-center gap-2 rounded-[var(--radius-input)] bg-[var(--text-primary)] px-6 py-3 text-sm font-semibold text-[var(--bg-primary)] disabled:opacity-30 sm:flex-none"
                   >
                     <Check className="h-4 w-4" />
                     Adicionar ao bloco
@@ -177,7 +177,7 @@ export function RecordingSelectionBar({
             )}
           </div>
         ) : (
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-[1.25rem] border border-[var(--border-color)] bg-[var(--bg-primary)] px-4 py-3 shadow-[0_20px_60px_rgba(0,0,0,0.12)]">
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-md)] border border-[var(--border-color)] bg-[var(--bg-primary)] px-4 py-3 shadow-[0_20px_60px_rgba(0,0,0,0.12)]">
             <p className="text-sm font-semibold text-[var(--text-primary)]">
               {selectedCount} {selectedCount === 1 ? 'roteiro selecionado' : 'roteiros selecionados'}
             </p>
@@ -192,7 +192,7 @@ export function RecordingSelectionBar({
               <button
                 type="button"
                 onClick={onShowForm}
-                className="inline-flex items-center gap-2 rounded-[var(--radius-input)] bg-[var(--text-primary)] px-5 py-2.5 text-sm font-semibold text-[var(--bg-primary)]"
+                className="inline-flex items-center gap-2 rounded-[var(--radius-input)] bg-[var(--text-primary)] px-6 py-2.5 text-sm font-semibold text-[var(--bg-primary)]"
               >
                 <Plus className="h-4 w-4" />
                 {existingBlocks.length > 0 ? 'Criar / adicionar ao bloco' : 'Criar bloco'}

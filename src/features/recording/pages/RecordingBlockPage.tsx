@@ -14,6 +14,8 @@ import {
   normalizeRecordingTags,
   resolveRecordingContextSummary,
 } from '../lib/recordingWorkflow';
+import {AppButton} from '../../../components/ui/AppButton';
+import {Text} from '../../../components/ui/Text';
 import {BurstModeMobileScreen} from '../../../mobile/screens/recording/BurstModeMobileScreen';
 import type {Content} from '../../../lib/database';
 
@@ -125,7 +127,7 @@ export function RecordingBlockPage() {
   if (!block) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[var(--bg-secondary)]">
-        <div className="space-y-4 text-center">
+        <div className="stack-lg text-center">
           <p className="text-sm font-semibold opacity-30">Bloco nao encontrado</p>
           <button onClick={() => navigate('/gravacao')} className="text-xs font-semibold underline opacity-50">
             Voltar
@@ -138,11 +140,11 @@ export function RecordingBlockPage() {
   if (progress?.isCompleted) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[var(--bg-secondary)] px-6">
-        <div className="w-full max-w-md space-y-6 text-center">
-          <div className="text-6xl">🎉</div>
-          <h1 className="text-3xl font-semibold tracking-tight text-[var(--text-primary)]">Bloco concluido!</h1>
+        <div className="w-full max-w-md stack-xl text-center">
+          <div className="text-6xl">Ã°Å¸Å½"°</div>
+          <Text variant="pageTitle">Bloco concluido!</Text>
           <p className="text-sm font-bold opacity-40">
-            {block.name} · {progress.totalCount} conteudos gravados
+            {block.name} · {progress.totalCount} roteiros gravados
           </p>
           <button
             onClick={() => navigate('/conteudos?view=postagem')}
@@ -176,12 +178,12 @@ export function RecordingBlockPage() {
 
     return (
       <>
-        <div className="space-y-4">
-          <section className="rounded-[1.75rem] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4 shadow-sm">
-            <p className="text-xs font-semibold text-[var(--text-tertiary)]">Bloco de gravacao</p>
-            <h1 className="mt-2 text-2xl font-semibold leading-tight text-[var(--text-primary)]">{block.name}</h1>
+        <div className="stack-lg">
+          <section className="rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4 shadow-sm">
+            <p className="text-xs font-semibold text-[var(--text-tertiary)]">Bloco de gravação</p>
+            <Text variant="pageTitle" className="mt-2">{block.name}</Text>
             <p className="mt-2 text-sm text-[var(--text-secondary)]">
-              Edite o bloco, revise os roteiros e inicie o modo gravacao quando estiver pronto.
+              Edite o bloco, revise os roteiros e inicie o modo gravação quando estiver pronto.
             </p>
 
             <div className="mt-4 grid grid-cols-3 gap-2">
@@ -191,7 +193,7 @@ export function RecordingBlockPage() {
             </div>
           </section>
 
-          <section className="rounded-[1.75rem] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4 shadow-sm">
+          <section className="rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4 shadow-sm">
             <RecordingBlockEditor
               block={block}
               blockContents={resolvedContents}
@@ -202,15 +204,15 @@ export function RecordingBlockPage() {
             />
           </section>
 
-          <section className="rounded-[1.75rem] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4 shadow-sm">
+          <section className="rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4 shadow-sm">
             <div className="mb-4 flex items-center justify-between gap-3">
-              <h2 className="text-base font-semibold text-[var(--text-primary)]">Ordem de execucao</h2>
+              <Text variant="sectionTitle">Ordem de execução</Text>
               <span className="rounded-full bg-[var(--bg-hover)] px-3 py-1 text-xs font-semibold text-[var(--text-secondary)]">
                 {resolveRecordingContextSummary({block, content: mobileEntries[0]?.content ?? null})}
               </span>
             </div>
 
-            <div className="space-y-3">
+            <div className="stack-md">
               {mobileEntries.map((entry, index) => (
                 <div
                   key={entry.content.id}
@@ -227,7 +229,7 @@ export function RecordingBlockPage() {
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-semibold text-[var(--text-primary)]">
-                        {entry.content.title || 'Conteudo sem titulo'}
+                        {entry.content.title || 'Roteiro sem título'}
                       </p>
                       <p className="mt-1 text-sm text-[var(--text-secondary)]">
                         {htmlToReadableText(entry.content.script)
@@ -247,15 +249,15 @@ export function RecordingBlockPage() {
             </div>
           </section>
 
-          <button
-            type="button"
+          <AppButton
+            variant="primary"
+            fullWidth
             onClick={() => setIsMobileBurstOpen(true)}
             disabled={readyCount === 0}
-            className="button-primary w-full disabled:cursor-not-allowed disabled:opacity-40"
+            leftIcon={<Video className="h-4 w-4" />}
           >
-            <Video className="h-4 w-4" />
-            Iniciar modo gravacao
-          </button>
+            Iniciar modo gravação
+          </AppButton>
         </div>
 
         {isMobileBurstOpen ? (
@@ -299,13 +301,13 @@ export function RecordingBlockPage() {
           </div>
         </div>
 
-        <div className="mb-8 space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--text-tertiary)]">
-            Bloco de gravacao
+        <div className="mb-8 stack-sm">
+          <p className="t-label t-label-uppercase font-semibold text-[var(--text-tertiary)]">
+            Bloco de gravação
           </p>
-          <h1 className="text-3xl font-semibold tracking-tight text-[var(--text-primary)]">{block.name}</h1>
+          <Text variant="pageTitle">{block.name}</Text>
           <p className="max-w-2xl text-sm text-[var(--text-secondary)]">
-            Edite nome, marcadores e ordem dos roteiros. Quando estiver pronto, abra o modo gravacao com teleprompter.
+            Edite nome, marcadores e ordem dos roteiros. Quando estiver pronto, abra o modo gravação com teleprompter.
           </p>
         </div>
 
@@ -328,7 +330,7 @@ export function RecordingBlockPage() {
             className="inline-flex items-center gap-2 rounded-[var(--radius-card)] bg-[var(--text-primary)] px-6 py-3 text-sm font-semibold text-[var(--bg-primary)] transition-opacity hover:opacity-90 disabled:opacity-30"
           >
             <Video className="h-4 w-4" />
-            Iniciar modo gravacao
+            Iniciar modo gravação
           </button>
         </div>
       </div>

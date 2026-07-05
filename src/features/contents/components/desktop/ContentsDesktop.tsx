@@ -1,7 +1,9 @@
 import { Content } from '../../../../lib/database';
+import { PaginationBar } from '../../../../components/ui/PaginationBar';
 import { ContentTable } from './ContentTable';
 import { ContentGrid } from './ContentGrid';
 import { ContentKanban } from './ContentKanban';
+import { PipelineProgressLegend } from './PipelineProgressLegend';
 import { ContentsViewMode, SortDirection, SortField, CONTENTS_DESKTOP_PAGE_SIZE } from '../../types';
 
 interface ContentsDesktopProps {
@@ -12,10 +14,13 @@ interface ContentsDesktopProps {
   totalItems: number;
   currentPage: number;
   totalPages: number;
+  pageSize?: number;
   lookAlerts: Record<string, string>;
   sortField: SortField;
   sortDirection: SortDirection;
   selectedIds: Set<string>;
+  selectionMode: boolean;
+  onSelectionModeChange: (active: boolean) => void;
   isCompact: boolean;
   filterStatus?: string;
   onSelect: (content: Content) => void;
@@ -34,10 +39,13 @@ export function ContentsDesktop({
   totalItems,
   currentPage,
   totalPages,
+  pageSize = CONTENTS_DESKTOP_PAGE_SIZE,
   lookAlerts,
   sortField,
   sortDirection,
   selectedIds,
+  selectionMode,
+  onSelectionModeChange,
   isCompact,
   filterStatus = 'Todos',
   onSelect,
@@ -47,13 +55,12 @@ export function ContentsDesktop({
   onSelectAll,
   onPageChange,
 }: ContentsDesktopProps) {
-  const startItem = totalItems === 0 ? 0 : (currentPage - 1) * CONTENTS_DESKTOP_PAGE_SIZE + 1;
-  const endItem = totalItems === 0 ? 0 : startItem + contents.length - 1;
   const enableSelection = mode !== 'publicados';
+  const selectionActive = enableSelection && selectionMode;
   const allPageSelected =
-    enableSelection && contents.length > 0 && contents.every(content => selectedIds.has(content.id));
+    selectionActive && contents.length > 0 && contents.every(content => selectedIds.has(content.id));
   const somePageSelected =
-    enableSelection && contents.some(content => selectedIds.has(content.id));
+    selectionActive && contents.some(content => selectedIds.has(content.id));
 
   if (viewMode === 'kanban') {
     return (
@@ -69,35 +76,39 @@ export function ContentsDesktop({
 
   if (viewMode === 'grid') {
     return (
-      <div className="space-y-4">
+      <div className="stack-xl">
         <ContentGrid
           contents={contents}
           onSelect={onSelect}
           onPreview={onPreview}
           onToggleSelect={onToggleSelect}
           selectedIds={selectedIds}
+          selectionMode={selectionMode}
+          onSelectionModeChange={onSelectionModeChange}
           lookAlerts={lookAlerts}
           mode={mode}
           isCompact={isCompact}
           filterStatus={filterStatus}
-          onSelectAll={enableSelection ? onSelectAll : undefined}
+          onSelectAll={selectionActive ? onSelectAll : undefined}
           allPageSelected={allPageSelected}
           somePageSelected={somePageSelected}
         />
-        <DesktopPagination
+        <PaginationBar
+          variant="full"
+          itemLabel="conteúdos"
           totalItems={totalItems}
           currentPage={currentPage}
           totalPages={totalPages}
-          startItem={startItem}
-          endItem={endItem}
+          pageSize={pageSize}
           onPageChange={onPageChange}
         />
+        {mode === 'pipeline' ? <PipelineProgressLegend /> : null}
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
+    <div className="stack-lg">
       <ContentTable
         contents={contents}
         onSelect={onSelect}
@@ -107,83 +118,21 @@ export function ContentsDesktop({
         onSort={onSort}
         lookAlerts={lookAlerts}
         selectedIds={selectedIds}
+        selectionMode={selectionMode}
+        onSelectionModeChange={onSelectionModeChange}
         onToggleSelect={onToggleSelect}
         onSelectAll={onSelectAll}
         mode={mode}
       />
-      <DesktopPagination
+      <PaginationBar
+        variant="full"
+        itemLabel="conteúdos"
         totalItems={totalItems}
         currentPage={currentPage}
         totalPages={totalPages}
-        startItem={startItem}
-        endItem={endItem}
+        pageSize={pageSize}
         onPageChange={onPageChange}
       />
-    </div>
-  );
-}
-
-interface DesktopPaginationProps {
-  totalItems: number;
-  currentPage: number;
-  totalPages: number;
-  startItem: number;
-  endItem: number;
-  onPageChange: (page: number) => void;
-}
-
-function DesktopPagination({
-  totalItems,
-  currentPage,
-  totalPages,
-  startItem,
-  endItem,
-  onPageChange,
-}: DesktopPaginationProps) {
-  if (totalItems <= CONTENTS_DESKTOP_PAGE_SIZE) return null;
-
-  const pages = Array.from({ length: totalPages }, (_, index) => index + 1);
-
-  return (
-    <div className="flex flex-col gap-3 rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-3 mt-8 w-full md:flex-row md:items-center md:justify-between">
-      <p className="text-xs font-medium text-[var(--text-secondary)]">
-        Mostrando {startItem}-{endItem} de {totalItems} conteudos
-      </p>
-
-      <div className="flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          onClick={() => onPageChange(currentPage - 1)}
-          disabled={currentPage === 1}
-          className="rounded-[var(--radius-input)] border border-[var(--border-color)] px-3 py-1.5 text-xs font-medium text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-hover)] disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          Anterior
-        </button>
-
-        {pages.map(page => (
-          <button
-            key={page}
-            type="button"
-            onClick={() => onPageChange(page)}
-            className={`rounded-[var(--radius-input)] px-3 py-1.5 text-xs font-medium transition-colors ${
-              page === currentPage
-                ? 'bg-[var(--text-primary)] text-[var(--bg-primary)]'
-                : 'border border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-hover)]'
-            }`}
-          >
-            {page}
-          </button>
-        ))}
-
-        <button
-          type="button"
-          onClick={() => onPageChange(currentPage + 1)}
-          disabled={currentPage === totalPages}
-          className="rounded-[var(--radius-input)] border border-[var(--border-color)] px-3 py-1.5 text-xs font-medium text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-hover)] disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          Proxima
-        </button>
-      </div>
     </div>
   );
 }

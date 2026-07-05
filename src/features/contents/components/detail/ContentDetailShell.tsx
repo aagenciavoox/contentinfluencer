@@ -1,7 +1,8 @@
 import {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {getSaveFeedbackState, subscribeSaveFeedback, type SaveFeedbackState} from '../../../../lib/saveFeedback';
-import {useNavigate, useSearchParams} from 'react-router-dom';
+import {useBlocker, useNavigate, useSearchParams} from 'react-router-dom';
 import {SendToRecordingSheet} from '../../../../mobile/components/SendToRecordingSheet';
+import {ConfirmModal} from '../../../../components/feedback/modals/ConfirmModal';
 import {useAppContext} from '../../../../context/AppContext';
 import {useAuth} from '../../../../context/AuthContext';
 import type {Content} from '../../../../lib/database';
@@ -14,12 +15,13 @@ import {
   ContentStage,
   getContentStage,
   getInitialTabForContext,
-  getPostingAutomationStatus,
   getPostingAlerts,
   getPrimaryAction,
   getVisibleTabsForContent,
+  applyStatusMilestones,
   isTabLocked,
-  shouldShowPublishingSection,
+  PRODUCTION_TAGS,
+  withProductionTag,
   type ContentDetailTab,
 } from '../../lib/contentPipeline';
 import {ContentDetailHeader} from './ContentDetailHeader';
@@ -27,30 +29,14 @@ import {ContentPipelineStepper} from './ContentPipelineStepper';
 import {PublishingSection} from './sections/PublishingSection';
 import {RecordingSection} from './sections/RecordingSection';
 import {ContentOperationalPanel} from './ContentOperationalPanel';
-import {RoteiroSection} from './sections/RoteiroSection';
+import {RoteiroSection, type ScriptDraft} from './sections/RoteiroSection';
 
 interface ContentDetailShellProps {
   content: Content;
   mode?: 'desktop' | 'mobile';
 }
 
-type ContentDraft = Pick<
-  Content,
-  | 'title'
-  | 'seriesId'
-  | 'pilarId'
-  | 'slotType'
-  | 'formatoVisual'
-  | 'script'
-  | 'scriptNotes'
-  | 'referencias'
-  | 'notes'
-  | 'status'
-  | 'publishDate'
-  | 'publishTime'
-  | 'recordingDate'
-  | 'plataformas'
->;
+type ContentDraft = ScriptDraft;
 
 export function ContentDetailShell({content, mode = 'desktop'}: ContentDetailShellProps) {
   const {state, dispatch, updateContent} = useAppContext();
@@ -81,7 +67,22 @@ export function ContentDetailShell({content, mode = 'desktop'}: ContentDetailShe
   const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const activeTab = getInitialTabForContext(searchParams.get('tab'));
 
+  const blocker = useBlocker(
+    ({currentLocation, nextLocation}) =>
+      draftDirty && currentLocation.pathname !== nextLocation.pathname,
+  );
+
   useEffect(() => subscribeSaveFeedback(() => setSaveFeedback(getSaveFeedbackState())), []);
+
+  useEffect(() => {
+    if (!draftDirty) return;
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [draftDirty]);
 
   useEffect(() => {
     if (mode !== 'mobile' || searchParams.get('focus') !== 'script') return;
@@ -100,7 +101,6 @@ export function ContentDetailShell({content, mode = 'desktop'}: ContentDetailShe
   const blockSummary = getContentBlockSummary(content.id, state.recordingBlocks, state.contents);
   const mergedContent = {...liveContent, ...draft};
   const stage = getContentStage(mergedContent, {block: blockSummary?.block});
-  const showPublishingSection = shouldShowPublishingSection(stage);
   const stageOptions = useMemo(
     () => ({block: blockSummary?.block ?? null}),
     [blockSummary?.block]
@@ -161,6 +161,9 @@ export function ContentDetailShell({content, mode = 'desktop'}: ContentDetailShe
     draftDirtyRef.current = true;
     setDraftDirty(true);
     setDraft(previous => ({...previous, ...updates}));
+    if ('status' in updates && updates.status) {
+      void persistRef.current({status: updates.status});
+    }
   }, []);
 
   const pillar = state.pilares.find(item => item.id === draft.pilarId) || null;
@@ -184,19 +187,22 @@ export function ContentDetailShell({content, mode = 'desktop'}: ContentDetailShe
     try {
       let nextStatus =
         options?.advanceToReady && draft.status === CONTENT_STATUS.ROTEIRO
-          ? CONTENT_STATUS.PRONTO_PARA_GRAVAR
+          ? CONTENT_STATUS.PRODUCAO
           : updates?.status ?? draft.status;
 
-      const nextPublishDate = updates?.publishDate ?? draft.publishDate;
-      nextStatus = getPostingAutomationStatus({
-        publishDate: nextPublishDate,
-        status: nextStatus,
-      });
+      const nextTags =
+        options?.advanceToReady && draft.status === CONTENT_STATUS.ROTEIRO
+          ? withProductionTag(updates?.tags ?? liveContent.tags ?? [], PRODUCTION_TAGS.GRAVAR)
+          : updates?.tags ?? liveContent.tags;
+
+      const statusMilestones = applyStatusMilestones(liveContent, nextStatus);
 
       const payload: Content = {
         ...liveContent,
         ...draft,
         ...updates,
+        ...statusMilestones,
+        tags: nextTags,
         status: nextStatus,
         updatedAt: new Date().toISOString(),
       };
@@ -239,7 +245,7 @@ export function ContentDetailShell({content, mode = 'desktop'}: ContentDetailShe
         autosaveTimerRef.current = null;
       }
     };
-  }, [activeTab, draft.script, draft.title, draft.notes, draft.referencias]);
+  }, [activeTab, draft.script, draft.title, draft.notes, draft.referencias, draft.plataformas]);
 
   const saveHint = isSaving || saveFeedback.status === 'saving'
     ? 'Salvando no servidor...'
@@ -250,6 +256,15 @@ export function ContentDetailShell({content, mode = 'desktop'}: ContentDetailShe
         : draftDirty
           ? 'Salvamento automatico em breve'
           : 'Sincronizado';
+
+  const editorSaveState: 'idle' | 'saving' | 'saved' | 'error' =
+    isSaving || saveFeedback.status === 'saving'
+      ? 'saving'
+      : saveFeedback.status === 'error'
+        ? 'error'
+        : saveFeedback.status === 'success' || (!draftDirty && !isSaving)
+          ? 'saved'
+          : 'idle';
 
   const setTab = (tab: ContentDetailTab) => {
     if (isTabLocked(tab, mergedContent, stageOptions)) return;
@@ -284,10 +299,6 @@ export function ContentDetailShell({content, mode = 'desktop'}: ContentDetailShe
         await persist();
         return;
       default:
-        if (primaryAction.id === 'none' && stage === ContentStage.POSTADO) {
-          navigate('/analise');
-          return;
-        }
         setTab(primaryAction.targetTab);
     }
   };
@@ -295,16 +306,9 @@ export function ContentDetailShell({content, mode = 'desktop'}: ContentDetailShe
   const stageLabel: Record<string, string> = {
     IDEIA: 'Ideia',
     ROTEIRO: 'Roteiro',
-    PRONTO_PARA_GRAVAR: 'Pronto para gravacao',
+    PRODUCAO: 'Producao',
     EM_BLOCO: 'Em bloco',
-    GRAVADO: 'Gravado',
-    PRODUCAO: 'Publicacao',
-    PROGRAMADO: 'Programado',
     POSTADO: 'Postado',
-  };
-
-  const tabAlertCounts = {
-    publicacao: postingAlerts.length,
   };
 
   const detailSection =
@@ -313,24 +317,18 @@ export function ContentDetailShell({content, mode = 'desktop'}: ContentDetailShe
         draft={draft}
         series={state.series}
         pilares={state.pilares}
+        pilar={pillar}
+        serie={serie}
         authorName={user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Usuario'}
         onChange={handleDraftChange}
-        onStatusChange={status => void persist({status})}
         mobileComposer={mode === 'mobile'}
         autoFocusScript={mode === 'mobile' && searchParams.get('focus') === 'script'}
         layout={mode === 'desktop' ? 'workspace' : 'stack'}
+        title={draft.title}
+        onTitleChange={value => handleDraftChange({title: value})}
+        saveState={editorSaveState}
       />
-    ) : activeTab === 'gravacao' || !showPublishingSection ? (
-      <RecordingSection
-        content={mergedContent}
-        stage={stage}
-        recordingBlocks={state.recordingBlocks}
-        allContents={state.contents}
-        onPersist={persist}
-        onDispatch={dispatch}
-        onOpenBlockSheet={() => setIsRecordingSheetOpen(true)}
-      />
-    ) : (
+    ) : activeTab === 'publicacao' ? (
       <PublishingSection
         draft={draft}
         pilar={pillar}
@@ -340,7 +338,39 @@ export function ContentDetailShell({content, mode = 'desktop'}: ContentDetailShe
         isSaving={isSaving}
         onMarkPosted={() => void persist({status: CONTENT_STATUS.POSTADO})}
       />
+    ) : (
+      <RecordingSection
+        content={mergedContent}
+        stage={stage}
+        recordingBlocks={state.recordingBlocks}
+        allContents={state.contents}
+        onPersist={persist}
+        onDispatch={dispatch}
+        onOpenBlockSheet={() => setIsRecordingSheetOpen(true)}
+      />
     );
+
+  const recordingSheet = (
+    <SendToRecordingSheet
+      open={isRecordingSheetOpen}
+      onClose={() => setIsRecordingSheetOpen(false)}
+      content={mergedContent}
+      recordingBlocks={state.recordingBlocks}
+      onPersist={persist}
+      onDispatch={dispatch}
+    />
+  );
+
+  const leaveConfirmModal = (
+    <ConfirmModal
+      open={blocker.state === 'blocked'}
+      message="Você tem alterações não salvas. Sair mesmo assim?"
+      confirmLabel="Sair mesmo assim"
+      cancelLabel="Continuar editando"
+      onConfirm={() => blocker.proceed?.()}
+      onCancel={() => blocker.reset?.()}
+    />
+  );
 
   if (mode === 'mobile') {
     return (
@@ -361,7 +391,6 @@ export function ContentDetailShell({content, mode = 'desktop'}: ContentDetailShe
               series={state.series}
               pilares={state.pilares}
               onChange={handleDraftChange}
-              onStatusChange={status => void persist({status})}
               density="compact"
             />
           }
@@ -371,85 +400,76 @@ export function ContentDetailShell({content, mode = 'desktop'}: ContentDetailShe
           onSave={() => void persist()}
           saveHint={saveHint}
         />
-
-        <SendToRecordingSheet
-          open={isRecordingSheetOpen}
-          onClose={() => setIsRecordingSheetOpen(false)}
-          content={mergedContent}
-          recordingBlocks={state.recordingBlocks}
-          onPersist={persist}
-          onDispatch={dispatch}
-        />
+        {recordingSheet}
+        {leaveConfirmModal}
       </>
     );
   }
 
   return (
-    <PageScaffold contentWidth="full" contentClassName="pb-12 md:pb-10">
-      <div
-        className={cn(
-          'mx-auto flex max-w-[1280px] flex-col px-4 md:px-8',
-          activeTab === 'roteiro' ? 'gap-2 md:pt-4' : 'gap-6 md:pt-8',
-        )}
-      >
-        <div className={activeTab === 'roteiro' ? 'space-y-1.5' : 'contents'}>
-          <ContentDetailHeader
-            content={mergedContent}
-            title={draft.title}
-            onTitleChange={value => handleDraftChange({title: value})}
-            primaryAction={primaryAction}
-            onPrimaryAction={() => void handlePrimaryAction()}
-            onSaveDraft={() => void persist()}
-            onStatusChange={status => void persist({status})}
-            isSaving={isSaving}
-            blockName={blockSummary?.block.name ?? null}
-            blockOrder={blockSummary?.order ?? null}
-            saveHint={saveHint}
-            pilar={pillar}
-            authorName={user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Usuario'}
-            compact={activeTab === 'roteiro'}
-          />
-
-          <ContentPipelineStepper
-            content={mergedContent}
-            activeTab={activeTab}
-            stageOptions={stageOptions}
-            onTabChange={setTab}
-            compact={activeTab === 'roteiro'}
-          />
-        </div>
-
-        <div className={cn(activeTab === 'roteiro' ? 'gap-3' : 'gap-6', 'grid')}>
-          {activeTab === 'roteiro' ? (
-            detailSection
-          ) : (
-            <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
-              <div>{detailSection}</div>
-              <aside className="space-y-4">
-                <ContentOperationalPanel
-                  draft={draft}
-                  series={state.series}
-                  pilares={state.pilares}
-                  authorName={user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Usuario'}
-                  onChange={handleDraftChange}
-                  onStatusChange={status => void persist({status})}
-                  density="compact"
-                  showTitle={false}
-                />
-              </aside>
-            </div>
+    <>
+      <PageScaffold contentWidth="full" contentClassName="pb-12 md:pb-10 bg-[var(--bg-secondary)]">
+        <div
+          className={cn(
+            'mx-auto flex max-w-[1440px] flex-col px-4 md:px-8',
+            activeTab === 'roteiro' ? 'gap-4 md:pt-4' : 'gap-6 md:pt-8',
           )}
-        </div>
-      </div>
+        >
+          <div className={activeTab === 'roteiro' ? 'stack-sm' : 'contents'}>
+            <ContentDetailHeader
+              content={mergedContent}
+              title={draft.title}
+              onTitleChange={value => handleDraftChange({title: value})}
+              primaryAction={primaryAction}
+              onPrimaryAction={() => void handlePrimaryAction()}
+              onSaveDraft={() => void persist()}
+              onStatusChange={status => void persist({status})}
+              isSaving={isSaving}
+              blockName={blockSummary?.block.name ?? null}
+              blockOrder={blockSummary?.order ?? null}
+              saveHint={saveHint}
+              pilar={pillar}
+              authorName={user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Usuario'}
+              compact={activeTab === 'roteiro'}
+              breadcrumbMode={activeTab === 'roteiro' ? 'pipeline' : 'content'}
+              saveFeedbackUpdatedAt={saveFeedback.updatedAt}
+            />
 
-      <SendToRecordingSheet
-        open={isRecordingSheetOpen}
-        onClose={() => setIsRecordingSheetOpen(false)}
-        content={mergedContent}
-        recordingBlocks={state.recordingBlocks}
-        onPersist={persist}
-        onDispatch={dispatch}
-      />
-    </PageScaffold>
+            {activeTab !== 'roteiro' ? (
+              <ContentPipelineStepper
+                content={mergedContent}
+                activeTab={activeTab}
+                visibleTabs={visibleTabs}
+                stageOptions={stageOptions}
+                onTabChange={setTab}
+              />
+            ) : null}
+          </div>
+
+          <div className={cn(activeTab === 'roteiro' ? 'gap-3' : 'gap-6', 'grid')}>
+            {activeTab === 'roteiro' ? (
+              detailSection
+            ) : (
+              <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_300px]">
+                <div>{detailSection}</div>
+                <aside className="stack-lg xl:border-l xl:border-[var(--border-color)] xl:pl-6">
+                  <ContentOperationalPanel
+                    draft={draft}
+                    series={state.series}
+                    pilares={state.pilares}
+                    authorName={user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Usuario'}
+                    onChange={handleDraftChange}
+                    density="compact"
+                    showTitle={false}
+                  />
+                </aside>
+              </div>
+            )}
+          </div>
+        </div>
+      </PageScaffold>
+      {recordingSheet}
+      {leaveConfirmModal}
+    </>
   );
 }

@@ -1,156 +1,126 @@
-import { useState } from 'react';
-import { BottomSheetModal } from '../../../components/feedback/modals/BottomSheetModal';
+import { useMemo } from 'react';
+import { ChevronRight, Palette, Plus } from 'lucide-react';
+import { AppButton } from '../../../components/ui/AppButton';
+import { Badge } from '../../../components/ui/Badge';
 import type { Pilar } from '../../../lib/database';
-import { MobileEmptyState } from '../../components/MobileEmptyState';
+import { EmptyState } from '../../../components/ui/EmptyState';
 import { MobileListCard } from '../../components/MobileListCard';
 import { MobilePillButton } from '../../components/MobilePillButton';
-import { PilarForm } from '../../../features/settings/components/PilarForm';
-import { Palette, Plus } from 'lucide-react';
+import { MobileSectionHeader } from '../../components/MobileSectionHeader';
+import { sortPilares } from '../../../features/settings/lib/activePilares';
 
 interface PillarsMobileScreenProps {
   pilares: Pilar[];
-  onSave: (pilar: Pilar) => void;
+  onCreate: () => void;
+  onEdit: (pilarId: string) => void;
   onToggle: (pilar: Pilar) => void;
   onDelete: (pilarId: string) => void;
 }
 
 export function PillarsMobileScreen({
   pilares,
-  onSave,
+  onCreate,
+  onEdit,
   onToggle,
   onDelete,
 }: PillarsMobileScreenProps) {
-  const [panelMode, setPanelMode] = useState<'create' | 'edit' | null>(null);
-  const [editingPilar, setEditingPilar] = useState<Pilar | null>(null);
-
-  const closePanel = () => {
-    setPanelMode(null);
-    setEditingPilar(null);
-  };
-
-  const handleSave = (pilar: Pilar) => {
-    onSave(pilar);
-    closePanel();
-  };
+  const sortedPilares = useMemo(() => sortPilares(pilares), [pilares]);
+  const activeCount = pilares.filter(pilar => pilar.ativo).length;
 
   return (
-    <div className="space-y-5">
+    <div className="stack-xl">
       <section className="rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4 shadow-sm">
-        <div className="mb-4 flex items-center gap-3">
-          <div className="rounded-[var(--radius-input)] bg-[var(--accent-orange)]/12 p-3 text-[var(--accent-orange)]">
-            <Palette className="h-5 w-5" />
-          </div>
-          <div>
-            <p className="ds-h3 text-[var(--text-primary)]">Pilares editoriais</p>
-            <p className="ds-body text-[var(--text-secondary)]">Nome, distribuicao e hashtags por plataforma.</p>
-          </div>
-        </div>
+        <MobileSectionHeader
+          icon={Palette}
+          tone="orange"
+          title="Pilares editoriais"
+          description={
+            pilares.length === 0
+              ? 'Nome, distribuição e hashtags por plataforma.'
+              : `${activeCount} ativo${activeCount === 1 ? '' : 's'} · ${pilares.length} no total`
+          }
+        />
 
-        <button
-          type="button"
-          onClick={() => {
-            setEditingPilar(null);
-            setPanelMode('create');
-          }}
-          className="button-primary w-full"
+        <AppButton
+          variant="primary"
+          fullWidth
+          onClick={onCreate}
+          leftIcon={<Plus className="h-4 w-4" />}
         >
-          <Plus className="h-4 w-4" />
           Novo pilar
-        </button>
+        </AppButton>
       </section>
 
-      <section className="space-y-3">
-        {pilares.length === 0 ? (
-          <MobileEmptyState
+      <section className="stack-md">
+        {sortedPilares.length === 0 ? (
+          <EmptyState
+            compact
             title="Nenhum pilar cadastrado"
             description="Adicione o primeiro pilar para organizar os temas editoriais."
             icon={<Palette className="h-8 w-8" />}
           />
         ) : (
-          pilares.map(pilar => (
+          sortedPilares.map(pilar => (
             <MobileListCard
               key={pilar.id}
               title={pilar.nome}
-              description={pilar.descricao || 'Sem descricao ainda.'}
-              onClick={() => {
-                setEditingPilar(pilar);
-                setPanelMode('edit');
-              }}
+              description={pilar.descricao || 'Descrição ainda não preenchida'}
+              onClick={() => onEdit(pilar.id)}
               meta={
                 <>
                   <span
-                    className="inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold text-[var(--text-primary)]"
+                    className="inline-flex items-center gap-2 rounded-[var(--radius-pill)] border border-transparent px-3 py-1 text-xs font-medium text-[var(--text-primary)]"
                     style={{ backgroundColor: `${pilar.cor}22` }}
                   >
-                    <span className="h-2 w-2 rounded-full" style={{ backgroundColor: pilar.cor }} />
+                    <span
+                      className="h-2 w-2 shrink-0 rounded-full"
+                      style={{ backgroundColor: pilar.cor }}
+                    />
                     Cor
                   </span>
-                  <span className="rounded-full bg-[var(--bg-hover)] px-3 py-1 text-xs font-semibold text-[var(--text-secondary)]">
-                    {pilar.plataformas.length} plataformas
-                  </span>
+                  <Badge variant="neutral">
+                    {pilar.plataformas.length} plataforma{pilar.plataformas.length === 1 ? '' : 's'}
+                  </Badge>
                 </>
               }
               trailing={
-                <MobilePillButton
-                  tone="danger"
-                  onClick={event => {
-                    event.stopPropagation();
-                    onDelete(pilar.id);
-                  }}
-                >
-                  Excluir
-                </MobilePillButton>
+                <ChevronRight className="mt-1 h-5 w-5 shrink-0 text-[var(--text-tertiary)]" />
               }
               status={
-                <MobilePillButton
-                  tone={pilar.ativo ? 'success' : 'muted'}
-                  onClick={event => {
-                    event.stopPropagation();
-                    onToggle(pilar);
-                  }}
-                >
-                  {pilar.ativo ? 'Ativo' : 'Inativo'}
-                </MobilePillButton>
+                <div className="flex flex-wrap items-center gap-2">
+                  <MobilePillButton
+                    tone={pilar.ativo ? 'success' : 'muted'}
+                    onClick={event => {
+                      event.stopPropagation();
+                      onToggle(pilar);
+                    }}
+                  >
+                    {pilar.ativo ? 'Ativo' : 'Inativo'}
+                  </MobilePillButton>
+                  <MobilePillButton
+                    tone="muted"
+                    onClick={event => {
+                      event.stopPropagation();
+                      onEdit(pilar.id);
+                    }}
+                  >
+                    Editar
+                  </MobilePillButton>
+                  <MobilePillButton
+                    tone="danger"
+                    onClick={event => {
+                      event.stopPropagation();
+                      onDelete(pilar.id);
+                    }}
+                  >
+                    Excluir
+                  </MobilePillButton>
+                </div>
               }
             />
           ))
         )}
       </section>
-
-      <BottomSheetModal
-        open={panelMode !== null}
-        onClose={closePanel}
-        desktopMaxW="max-w-xl"
-        zIndex="z-[110]"
-      >
-        <div className="flex h-full flex-col bg-[var(--bg-primary)]">
-          <div className="border-b border-[var(--border-color)] px-5 py-4">
-            <div className="flex items-center gap-3">
-              <span
-                className="h-10 w-10 shrink-0 rounded-[var(--radius-card)] border border-[var(--border-color)]"
-                style={{ backgroundColor: editingPilar?.cor || '#F5C543' }}
-              />
-              <div className="min-w-0">
-                <p className="ds-h3 truncate text-[var(--text-primary)]">
-                  {panelMode === 'edit' ? editingPilar?.nome : 'Novo pilar'}
-                </p>
-                <p className="ds-meta text-[var(--text-secondary)]">
-                  Identidade, distribuicao e hashtags
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex-1 overflow-y-auto p-5">
-            <PilarForm
-              key={editingPilar?.id || 'new'}
-              initial={editingPilar ?? {}}
-              onSave={handleSave}
-              onCancel={closePanel}
-            />
-          </div>
-        </div>
-      </BottomSheetModal>
     </div>
   );
 }

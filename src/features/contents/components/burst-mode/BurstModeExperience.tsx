@@ -1,4 +1,4 @@
-import { CSSProperties, useEffect, useMemo, useRef, useState } from 'react';
+import { CSSProperties, ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import {
   CheckCircle2,
   ChevronLeft,
@@ -14,6 +14,8 @@ import {
   X,
 } from 'lucide-react';
 import { FixedPanelModal } from '../../../../components/overlays/FixedPanelModal';
+import { Surface } from '../../../../components/ui/Surface';
+import { Text } from '../../../../components/ui/Text';
 import { useAppContext } from '../../../../context/AppContext';
 import { Content, RecordingBlock } from '../../../../lib/database';
 import { cn, htmlToReadableText } from '../../../../lib/utils';
@@ -74,13 +76,13 @@ const DEFAULT_SETTINGS: BurstModeSettings = {
 const THEME_STYLES: Record<BurstTheme, { shell: string; panel: string; panelBorder: string; muted: string; accent: string; accentSoft: string; text: string; controls: string; glow: string; cursor: string }> = {
   light: {
     shell: 'bg-[#fbfaf7]',
-    panel: 'bg-white/88',
+    panel: 'bg-[var(--bg-elevated)]/88',
     panelBorder: 'border-[#e7e0d5]',
     muted: 'text-[#8f9582]',
     accent: 'text-[#4f46e5]',
     accentSoft: 'bg-[#4f46e5]/10 border-[#4f46e5]/20',
     text: 'text-[#141824]',
-    controls: 'bg-white/88',
+    controls: 'bg-[var(--bg-elevated)]/88',
     glow: 'shadow-[0_0_120px_rgba(79,70,229,0.08)]',
     cursor: 'bg-[#4f46e5]',
   },
@@ -504,9 +506,12 @@ export function BurstModeExperience({
         className="fixed inset-0 z-[100] flex min-h-screen flex-col items-center justify-center bg-[var(--bg-primary)] p-6 text-center"
       >
         <CheckCircle2 className="mx-auto mb-8 h-24 w-24 animate-bounce text-[var(--accent-green)]" />
-        <h1 className="mb-4 text-4xl font-semibold uppercase italic tracking-tight text-[var(--text-primary)] md:text-5xl">
+        <Text
+          variant="display"
+          className="mb-4 text-4xl font-semibold uppercase italic tracking-tight text-[var(--text-primary)] md:text-5xl"
+        >
           Parabéns!
-        </h1>
+        </Text>
         <p className="mb-4 text-lg font-bold text-[var(--text-tertiary)]">
           Você finalizou ou pausou a sessão deste bloco.
         </p>
@@ -515,11 +520,11 @@ export function BurstModeExperience({
         </p>
         <button
           type="button"
-          aria-label="Fechar modo gravacao"
+          aria-label="Fechar modo gravação"
           onClick={handleFinishBlock}
           className="rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] bg-[var(--text-primary)] px-12 py-5 text-sm font-semibold  text-[var(--bg-primary)] shadow-none transition-all hover:scale-105"
         >
-          Fechar modo gravacao
+          Fechar modo gravação
         </button>
       </div>
     );
@@ -560,7 +565,7 @@ export function BurstModeExperience({
             <div className="flex items-start gap-3">
               <div className={cn('mt-1 h-3 w-3 rounded-full shadow-[0_0_20px_currentColor]', themeStyle.accent)} />
               <div>
-                <p className="text-xs font-semibold ">Modo gravacao</p>
+                <p className="text-xs font-semibold ">Modo gravação</p>
                 <p className={cn('mt-1 text-sm', themeStyle.muted)}>
                   {teleprompterEnabled ? 'Foco total no roteiro' : 'Leitura estatica do roteiro'}
                 </p>
@@ -598,7 +603,7 @@ export function BurstModeExperience({
                 className={cn('rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border px-4 py-3 text-sm font-semibold transition-colors', themeStyle.panelBorder, themeStyle.panel)}
               >
                 <span className="inline-flex items-center gap-2">
-                  <X className="h-4 w-4" /> Sair do Modo Explosão
+                  <X className="h-4 w-4" /> Sair do modo gravação
                   <span className={cn('rounded-lg border px-2 py-0.5 text-xs font-semibold', themeStyle.panelBorder)}>ESC</span>
                 </span>
               </button>
@@ -708,10 +713,10 @@ export function BurstModeExperience({
               <div className="mx-auto max-w-4xl">
                 <div className={cn('rounded-[var(--radius-card-mobile)] border p-5 shadow-[0_20px_80px_rgba(0,0,0,0.08)] md:p-8', themeStyle.panel, themeStyle.panelBorder)}>
                   <div className="mb-5 flex flex-wrap items-center gap-3">
-                    <span className={cn('rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em]', themeStyle.panelBorder, themeStyle.accentSoft)}>
+                    <span className={cn('rounded-full border px-3 py-1 t-label t-label-uppercase font-semibold', themeStyle.panelBorder, themeStyle.accentSoft)}>
                       Teleprompter desativado
                     </span>
-                    <span className={cn('text-xs font-bold uppercase tracking-[0.16em]', themeStyle.muted)}>
+                    <span className={cn('t-label t-label-uppercase font-semibold', themeStyle.muted)}>
                       Leitura livre no mobile e no desktop
                     </span>
                   </div>
@@ -731,9 +736,9 @@ export function BurstModeExperience({
           )}
 
           {teleprompterEnabled && countdownRemaining !== null && (
-            <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/22 ">
+            <div className="absolute inset-0 z-40 flex items-center justify-center bg-[var(--text-primary)]/22">
               <div className={cn('rounded-[var(--radius-card-mobile)] border px-10 py-8 text-center shadow-none', themeStyle.panel, themeStyle.panelBorder)}>
-                <p className={cn('text-xs font-semibold uppercase tracking-[0.25em]', themeStyle.muted)}>Preparar</p>
+                <Text variant="label" uppercase className={themeStyle.muted}>Preparar</Text>
                 <p className="mt-3 text-6xl font-semibold">{countdownRemaining}</p>
                 <p className={cn('mt-3 text-sm', themeStyle.muted)}>A leitura pode ser pausada a qualquer momento.</p>
               </div>
@@ -775,7 +780,7 @@ export function BurstModeExperience({
 
             <div className="flex flex-wrap items-center gap-3">
               <div className="rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border px-4 py-3 text-center" style={{ borderColor: 'rgba(148, 163, 184, 0.25)' }}>
-                <p className={cn('text-xs font-semibold uppercase tracking-[0.2em]', themeStyle.muted)}>Tempo</p>
+                <Text variant="label" uppercase className={themeStyle.muted}>Tempo</Text>
                 <p className="mt-1 text-sm font-semibold">
                   {formatSeconds(elapsedSeconds)} / {formatSeconds(totalEstimatedSeconds)}
                 </p>
@@ -791,7 +796,7 @@ export function BurstModeExperience({
                   <Minus className="h-3.5 w-3.5" />
                 </button>
                 <div className="min-w-[82px] text-center">
-                  <p className={cn('text-xs font-semibold uppercase tracking-[0.2em]', themeStyle.muted)}>Velocidade</p>
+                  <Text variant="label" uppercase className={themeStyle.muted}>Velocidade</Text>
                   <p className="mt-1 text-sm font-semibold">{effectiveWpm} wpm</p>
                 </div>
                 <button
@@ -813,7 +818,7 @@ export function BurstModeExperience({
                   <Minus className="h-3.5 w-3.5" />
                 </button>
                 <div className="min-w-[82px] text-center">
-                  <p className={cn('text-xs font-semibold uppercase tracking-[0.2em]', themeStyle.muted)}>Fonte</p>
+                  <Text variant="label" uppercase className={themeStyle.muted}>Fonte</Text>
                   <p className="mt-1 text-sm font-semibold">{settings.fontSize}px</p>
                 </div>
                 <button
@@ -856,11 +861,14 @@ export function BurstModeExperience({
             <div className={cn('flex items-center justify-between border-b px-5 py-4 md:px-8', themeStyle.panelBorder)}>
               <div>
                 <p className={cn('text-xs font-semibold ', themeStyle.muted)}>
-                  Modo Explosão
+                  Modo gravação
                 </p>
-                <h2 className="mt-1 text-lg font-semibold uppercase tracking-tight md:text-2xl">
+                <Text
+                  variant="sectionTitle"
+                  className="mt-1 text-lg font-semibold uppercase tracking-tight md:text-2xl"
+                >
                   Configurações
-                </h2>
+                </Text>
               </div>
 
               <div className="flex items-center gap-2">
@@ -885,7 +893,7 @@ export function BurstModeExperience({
               {!teleprompterEnabled && (
                 <div className="mb-5 rounded-[var(--radius-card-mobile)] border border-amber-400/30 bg-amber-400/10 px-4 py-4">
                   <p className="text-sm font-semibold  text-amber-500">
-                    Leitura estÃ¡tica ativa
+                    Leitura estática ativa
                   </p>
                   <p className="mt-2 text-sm leading-relaxed text-current/80">
                     Os ajustes visuais continuam funcionando aqui. Controles de rolagem, velocidade e contagem regressiva
@@ -975,7 +983,7 @@ export function BurstModeExperience({
                     onChange={() => updateSetting('highlightCurrentLine', !settings.highlightCurrentLine)}
                   />
                   <div className="rounded-[var(--radius-card-mobile)] border border-[currentColor]/12 p-4">
-                    <p className={cn('text-xs font-semibold uppercase tracking-[0.2em]', themeStyle.muted)}>Atalhos</p>
+                    <Text variant="label" uppercase className={themeStyle.muted}>Atalhos</Text>
                     <div className="mt-3 space-y-2 text-sm">
                       <ShortcutLine label="Iniciar / Pausar" value="Espaço" />
                       <ShortcutLine label="Próximo vídeo" value="→" />
@@ -996,12 +1004,14 @@ export function BurstModeExperience({
   );
 }
 
-function SettingsGroup({ title, children }: { title: string; children: React.ReactNode }) {
+function SettingsGroup({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <div className="rounded-[1.75rem] border border-[currentColor]/10 bg-white/30 p-4  dark:bg-black/10">
-      <p className="mb-4 text-xs font-semibold  opacity-60">{title}</p>
+    <Surface variant="outlined" padding="md" className="border-[currentColor]/10 bg-[var(--bg-elevated)]/30">
+      <Text variant="label" uppercase className="mb-4 opacity-60">
+        {title}
+      </Text>
       <div className="space-y-4">{children}</div>
-    </div>
+    </Surface>
   );
 }
 
@@ -1012,13 +1022,15 @@ function RangeSetting({
 }: {
   label: string;
   value: string;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
     <div>
       <div className="mb-2 flex items-center justify-between gap-4">
-        <span className="text-sm font-bold">{label}</span>
-        <span className="text-xs font-semibold uppercase opacity-50">{value}</span>
+        <Text variant="bodyStrong">{label}</Text>
+        <Text variant="label" uppercase className="opacity-50">
+          {value}
+        </Text>
       </div>
       <div className="flex items-center gap-3">{children}</div>
     </div>
@@ -1032,13 +1044,15 @@ function SliderSetting({
 }: {
   label: string;
   value: string;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
     <div>
       <div className="mb-2 flex items-center justify-between gap-4">
-        <span className="text-sm font-bold">{label}</span>
-        <span className="text-xs font-semibold uppercase opacity-50">{value}</span>
+        <Text variant="bodyStrong">{label}</Text>
+        <Text variant="label" uppercase className="opacity-50">
+          {value}
+        </Text>
       </div>
       {children}
     </div>
@@ -1050,7 +1064,7 @@ function ChoiceSetting({
   children,
 }: {
   label: string;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
     <div>
@@ -1067,7 +1081,7 @@ function ChoiceButton({
 }: {
   active: boolean;
   onClick: () => void;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
     <button
@@ -1098,7 +1112,7 @@ function ToggleSetting({
     <button
       type="button"
       onClick={onChange}
-      className="flex w-full items-center justify-between gap-4 rounded-[1.25rem] border border-[currentColor]/12 px-4 py-3 text-left"
+      className="flex w-full items-center justify-between gap-4 rounded-[var(--radius-md)] border border-[currentColor]/12 px-4 py-3 text-left"
     >
       <div>
         <p className="text-sm font-bold">{label}</p>
@@ -1107,12 +1121,12 @@ function ToggleSetting({
       <div
         className={cn(
           'relative h-7 w-12 rounded-full transition-colors',
-          checked ? 'bg-[#4f46e5]' : 'bg-black/12'
+          checked ? 'bg-[#4f46e5]' : 'bg-[var(--text-primary)]/12'
         )}
       >
         <div
           className={cn(
-            'absolute top-1 h-5 w-5 rounded-full bg-white transition-all',
+            'absolute top-1 h-5 w-5 rounded-full bg-[var(--bg-elevated)] transition-all',
             checked ? 'left-6' : 'left-1'
           )}
         />

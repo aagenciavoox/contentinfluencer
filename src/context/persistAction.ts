@@ -1,10 +1,13 @@
 import type { AppState } from '../app/providers/appState';
+import { planDemoteContentsToIdeas } from '../features/contents/lib/demoteContentToIdea.ts';
+import { normalizeIdea } from '../features/ideas/lib/ideaText.ts';
 import type * as db from '../lib/database.ts';
 import type { AppAction } from './reducer';
 
 type DatabaseModule = typeof import('../lib/database.ts');
 
 export type PersistenceApi = Pick<DatabaseModule,
+  | 'saveDnaVoz'
   | 'saveContent'
   | 'saveContentPlataformas'
   | 'saveBibliotecaItem'
@@ -13,15 +16,18 @@ export type PersistenceApi = Pick<DatabaseModule,
   | 'saveAnotacao'
   | 'deleteAnotacao'
   | 'deleteContent'
+  | 'fetchContentsByIds'
   | 'saveIdea'
   | 'deleteIdea'
   | 'saveProjeto'
   | 'saveProjetoEtapa'
+  | 'saveProjetoEtapas'
   | 'saveProjetoConteudos'
   | 'deleteProjetoEtapa'
   | 'deleteProjeto'
   | 'savePilar'
   | 'savePilarPlataformas'
+  | 'clearPilarReferences'
   | 'deletePilar'
   | 'saveSerie'
   | 'saveSeriePilares'
@@ -41,7 +47,6 @@ export type PersistenceApi = Pick<DatabaseModule,
   | 'saveTemplate'
   | 'deleteTemplate'
   | 'savePreference'
-  | 'saveDnaVoz'
   | 'saveGoldenRule'
   | 'deleteGoldenRule'
   | 'savePlatform'
@@ -128,9 +133,11 @@ export async function persistAction({ action, userId, state, api }: PersistActio
       return;
 
     case 'ADD_IDEA':
-    case 'UPDATE_IDEA':
-      await persistenceApi.saveIdea({ ...action.payload, userId });
+    case 'UPDATE_IDEA': {
+      const normalizedIdea = normalizeIdea({ ...action.payload, userId });
+      await persistenceApi.saveIdea(normalizedIdea);
       return;
+    }
 
     case 'PROMOTE_IDEA': {
       await persistContentRecord(action.payload.content, userId, persistenceApi);
@@ -146,6 +153,32 @@ export async function persistAction({ action, userId, state, api }: PersistActio
       return;
     }
 
+    case 'DEMOTE_CONTENTS_TO_IDEAS': {
+      const contentIds = action.payload.contentIds;
+      const fetchedContents = await persistenceApi.fetchContentsByIds(userId, contentIds);
+      const fetchedById = new Map(fetchedContents.map(content => [content.id, content]));
+      const payloadById = new Map((action.payload.contents ?? []).map(content => [content.id, content]));
+      const demoteContents = contentIds
+        .map(contentId => fetchedById.get(contentId) ?? payloadById.get(contentId) ?? state.contents.find(content => content.id === contentId))
+        .filter((content): content is db.Content => Boolean(content));
+
+      const plan = planDemoteContentsToIdeas(
+        demoteContents,
+        state.ideas,
+        contentIds,
+        userId,
+      );
+
+      for (const idea of plan.ideasToSave) {
+        await persistenceApi.saveIdea(normalizeIdea({ ...idea, userId: idea.userId || userId }));
+      }
+
+      for (const contentId of plan.contentIdsToDelete) {
+        await persistenceApi.deleteContent(contentId);
+      }
+      return;
+    }
+
     case 'DELETE_IDEA':
       await persistenceApi.deleteIdea(action.payload);
       return;
@@ -156,9 +189,7 @@ export async function persistAction({ action, userId, state, api }: PersistActio
     case 'ADD_PROJETO':
     case 'UPDATE_PROJETO':
       await persistenceApi.saveProjeto({ ...action.payload, userId });
-      for (const etapa of action.payload.etapas || []) {
-        await persistenceApi.saveProjetoEtapa(etapa);
-      }
+      await persistenceApi.saveProjetoEtapas(action.payload.etapas || []);
       await persistenceApi.saveProjetoConteudos(action.payload.id, action.payload.contentIds || []);
       return;
 
@@ -185,12 +216,12 @@ export async function persistAction({ action, userId, state, api }: PersistActio
       return;
 
     case 'DELETE_PILAR':
+      await persistenceApi.clearPilarReferences(action.payload);
       await persistenceApi.deletePilar(action.payload);
       return;
 
     case 'ADD_SERIE':
     case 'UPDATE_SERIE':
-    case 'ADD_SERIES':
       await persistenceApi.saveSerie({ ...action.payload, userId });
       if (action.payload.pilarIds) {
         await persistenceApi.saveSeriePilares(action.payload.id, action.payload.pilarIds);
@@ -268,23 +299,13 @@ export async function persistAction({ action, userId, state, api }: PersistActio
       await persistenceApi.deleteTemplate(action.payload);
       return;
 
+    case 'UPDATE_DNA_VOZ':
+      await persistenceApi.saveDnaVoz(action.payload, userId);
+      return;
+
     case 'SET_PREFERENCE':
     case 'UPDATE_PREFERENCE':
       await persistenceApi.savePreference(action.payload.key, action.payload.value);
-      return;
-
-    case 'UPDATE_DNA_VOZ':
-      await persistenceApi.saveDnaVoz({
-        promessaCentral: action.payload.promessaCentral ?? state.dnaVoz?.promessaCentral ?? '',
-        publico: action.payload.publico ?? state.dnaVoz?.publico ?? '',
-        tom: action.payload.tom ?? state.dnaVoz?.tom ?? '',
-        naoFaco: action.payload.naoFaco ?? state.dnaVoz?.naoFaco ?? [],
-        alertas: action.payload.alertas ?? state.dnaVoz?.alertas ?? [],
-      });
-      return;
-
-    case 'SET_DNA_VOZ':
-      await persistenceApi.saveDnaVoz(action.payload);
       return;
 
     case 'ADD_GOLDEN_RULE':
@@ -305,11 +326,16 @@ export async function persistAction({ action, userId, state, api }: PersistActio
       await persistenceApi.deletePlatform(action.payload);
       return;
 
+    case 'DELETE_MULTIPLE_CONTENTS':
+      for (const id of action.payload) {
+        await persistenceApi.deleteContent(id);
+      }
+      return;
+
     case 'LOG_ENERGY':
     case 'SET_DATA':
     case 'SET_LOADED':
     case 'SET_THEME':
-    case 'DELETE_MULTIPLE_CONTENTS':
       return;
 
     default: {

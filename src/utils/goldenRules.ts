@@ -1,5 +1,5 @@
 import type {Content, GoldenRule} from '../lib/database.ts';
-import {addDays, isWithinInterval, startOfDay} from 'date-fns';
+import {addDays, isWithinInterval, parseISO, startOfDay, startOfWeek} from 'date-fns';
 
 export interface Violation {
   ruleId: string;
@@ -157,11 +157,33 @@ export function validateWeeklyContent(
     }
   });
 
+  return dedupeViolations(violations);
+}
+
+function violationKey(violation: Violation): string {
+  return `${violation.ruleId}-${[...violation.affectedContentIds].sort().join(',')}-${violation.message}`;
+}
+
+function dedupeViolations(violations: Violation[]): Violation[] {
   const seen = new Set<string>();
   return violations.filter(violation => {
-    const key = `${violation.ruleId}-${violation.affectedContentIds.sort().join(',')}-${violation.message}`;
+    const key = violationKey(violation);
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
   });
+}
+
+export function diffViolations(before: Violation[], after: Violation[]): Violation[] {
+  const beforeKeys = new Set(before.map(violationKey));
+  return after.filter(violation => !beforeKeys.has(violationKey(violation)));
+}
+
+export function previewScheduleViolations(
+  nextContents: Content[],
+  dayKey: string,
+  rules: GoldenRule[] = [],
+): Violation[] {
+  const weekStart = startOfWeek(parseISO(dayKey), {weekStartsOn: 1});
+  return validateWeeklyContent(nextContents, weekStart, undefined, rules);
 }

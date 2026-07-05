@@ -27,7 +27,7 @@ export function MobileToggleSwitch({ enabled, onToggle, label, className }: Mobi
       >
         <span
           className={cn(
-            'absolute top-1 h-5 w-5 rounded-full bg-white transition-all',
+            'absolute top-1 h-5 w-5 rounded-full bg-[var(--bg-elevated)] transition-all',
             enabled ? 'left-6' : 'left-1'
           )}
         />

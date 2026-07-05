@@ -13,6 +13,7 @@ interface ViewModeToggleProps<T extends string> {
   onChange: (value: T) => void;
   className?: string;
   buttonClassName?: string;
+  showLabels?: boolean;
 }
 
 export function ViewModeToggle<T extends string>({
@@ -21,10 +22,11 @@ export function ViewModeToggle<T extends string>({
   onChange,
   className,
   buttonClassName,
+  showLabels = false,
 }: ViewModeToggleProps<T>) {
   return (
-    <div className={cn('flex bg-[var(--bg-hover)] rounded-xl p-1 border border-[var(--border-color)] shrink-0', className)}>
-      {options.map((option) => {
+    <div className={cn('flex shrink-0 rounded-xl border border-[var(--border-color)] bg-[var(--bg-hover)] p-1', className)}>
+      {options.map(option => {
         const Icon = option.icon;
         const active = option.value === value;
 
@@ -34,14 +36,23 @@ export function ViewModeToggle<T extends string>({
             type="button"
             onClick={() => onChange(option.value)}
             className={cn(
-              'p-2 rounded-lg transition-all text-[var(--text-tertiary)]',
-              active && 'bg-[var(--bg-primary)] text-[var(--accent-blue)]',
-              buttonClassName
+              'inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-all focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
+              active
+                ? 'bg-[var(--bg-primary)] text-[var(--text-primary)] shadow-sm'
+                : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]',
+              buttonClassName,
             )}
             title={option.label}
             aria-pressed={active}
           >
-            <Icon className="w-4 h-4" />
+            {showLabels ? (
+              <>
+                <Icon className="h-3.5 w-3.5 shrink-0" />
+                <span>{option.label}</span>
+              </>
+            ) : (
+              <Icon className="h-4 w-4 shrink-0" />
+            )}
           </button>
         );
       })}

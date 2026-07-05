@@ -1,4 +1,5 @@
 import type { Content, Pilar, Serie } from '../../../lib/database';
+import { getDisplayStatus } from './contentPipeline';
 import { htmlToReadableText } from '../../../lib/utils';
 
 export function resolveContentEntities(
@@ -32,7 +33,7 @@ export function formatLastEdit(iso: string) {
 
   if (dayDiff === 0) return 'hoje';
   if (dayDiff === 1) return 'ontem';
-  if (dayDiff < 7) return `${dayDiff}d`;
+  if (dayDiff < 7) return `${dayDiff}d atrás`;
 
   return date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
 }
@@ -64,7 +65,7 @@ export function buildContentMetaLine(
   content: Content,
   options?: { pillarName?: string | null; seriesName?: string | null }
 ) {
-  const parts = [content.status, formatLastEdit(content.updatedAt)];
+  const parts = [getDisplayStatus(content), formatLastEdit(content.updatedAt)];
 
   if (options?.pillarName) parts.push(options.pillarName);
   if (options?.seriesName) parts.push(options.seriesName);
@@ -80,17 +81,4 @@ export function getDisplayTitle(title: string | null | undefined) {
   return title || '(sem título)';
 }
 
-export const CONTENT_STATUS_CHIP_CLASS: Record<string, string> = {
-  Ideia: 'bg-[var(--accent-purple)]/10 text-[var(--accent-purple)]',
-  Roteiro: 'bg-[var(--accent-blue)]/10 text-[var(--accent-blue)]',
-  'Pronto para Gravar': 'bg-[var(--accent-green)]/10 text-[var(--accent-green)]',
-  Gravado: 'bg-[var(--status-recorded)]/10 text-[var(--status-recorded)]',
-  'A Editar': 'bg-[var(--accent-orange)]/10 text-[var(--accent-orange)]',
-  Editado: 'bg-[var(--status-edited)]/10 text-[var(--status-edited)]',
-  Programado: 'bg-[var(--accent-pink)]/10 text-[var(--accent-pink)]',
-  Postado: 'bg-[var(--bg-hover)] text-[var(--text-secondary)]',
-};
-
-export function getStatusChipClass(status: string) {
-  return CONTENT_STATUS_CHIP_CLASS[status] ?? 'bg-[var(--bg-hover)] text-[var(--text-secondary)]';
-}
+export { getStatusChipClass } from '../../../lib/statusClasses';

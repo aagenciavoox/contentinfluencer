@@ -1,9 +1,16 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FilePlus2, Layers, Plus } from 'lucide-react';
+import { CalendarClock, FilePlus2, Hash, Layers, Palette, Plus, Quote, Type } from 'lucide-react';
 import { ConfirmModal } from '../../../components/feedback/modals/ConfirmModal';
-import { SidePanel } from '../../../components/layout/SidePanel';
+import { CONFIRM, type ConfirmState } from '../../../lib/uiCopy';
 import { AppButton } from '../../../components/ui/AppButton';
+import {
+  PropertyInput,
+  PropertyRow,
+  PropertySection,
+  PropertySelect,
+  PropertyTextarea,
+} from '../../../components/ui/PropertyRow';
 import { useAppContext } from '../../../context/AppContext';
 import { useAuth } from '../../../context/AuthContext';
 import { useIsMobile } from '../../../hooks/useIsMobile';
@@ -12,19 +19,23 @@ import type { Serie } from '../../../lib/database';
 import { SettingsPageScaffold } from '../../../components/settings/SettingsPageScaffold';
 import { SettingsGridCard, SETTINGS_ENTITY_GRID_CLASS } from '../../../components/settings/SettingsGridCard';
 import { generateUUID } from '../../../utils/uuid';
+import { SerieProductionMetricsPanel } from '../components/SerieProductionMetricsPanel';
+import type { Content } from '../../../lib/database';
 
 const FREQUENCIAS = ['Semanal', 'Quinzenal', 'Mensal', 'Sob demanda'] as const;
 
-function SeriesForm({
+export function SeriesForm({
   initial,
   onSave,
   onCancel,
   platformNames,
+  contents = [],
 }: {
   initial: Partial<Serie>;
   onSave: (serie: Serie) => void;
   onCancel: () => void;
   platformNames: string[];
+  contents?: Content[];
 }) {
   const [form, setForm] = useState<Serie>(() => ({
     id: initial.id || generateUUID(),
@@ -66,96 +77,108 @@ function SeriesForm({
   };
 
   return (
-    <div className="space-y-6">
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="space-y-1.5">
-          <label className="text-xs font-semibold  text-[var(--text-tertiary)] opacity-60">Nome *</label>
-          <input
+    <div className="space-y-7">
+      <PropertySection label="Identidade">
+        <PropertyRow label="Nome *" icon={<Type />}>
+          <PropertyInput
             type="text"
             value={form.name}
             onChange={event => setForm(previous => ({ ...previous, name: event.target.value }))}
             placeholder="Nome da série"
-            className="w-full h-11 rounded-xl border border-[var(--border-color)] bg-[var(--bg-hover)] px-4 py-2 text-sm font-bold text-[var(--text-primary)] focus:ring-1 focus:ring-[var(--border-strong)]"
+            className={form.name ? '' : 'property-row-value--empty'}
           />
-        </div>
+        </PropertyRow>
 
-        <div className="space-y-1.5">
-          <label className="text-xs font-semibold  text-[var(--text-tertiary)] opacity-60">Frequência</label>
-          <select
+        <PropertyRow label="Frequência" icon={<CalendarClock />}>
+          <PropertySelect
             value={form.frequenciaRecomendada || 'Semanal'}
             onChange={event =>
               setForm(previous => ({ ...previous, frequenciaRecomendada: event.target.value }))
             }
-            className="w-full h-11 rounded-xl border border-[var(--border-color)] bg-[var(--bg-hover)] px-4 text-sm font-bold text-[var(--text-primary)] focus:ring-1 focus:ring-[var(--border-strong)]"
           >
             {FREQUENCIAS.map(item => (
               <option key={item} value={item}>
                 {item}
               </option>
             ))}
-          </select>
-        </div>
-      </div>
+          </PropertySelect>
+        </PropertyRow>
 
-      <div className="grid gap-4 sm:grid-cols-[1fr_auto]">
-        <div className="space-y-1.5">
-          <label className="text-xs font-semibold  text-[var(--text-tertiary)] opacity-60">Bordão</label>
-          <input
+        <PropertyRow label="Bordão" icon={<Quote />}>
+          <PropertyInput
             type="text"
             value={form.bordao || ''}
             onChange={event => setForm(previous => ({ ...previous, bordao: event.target.value || null }))}
             placeholder="Ex: vamos destrinchar isso"
-            className="w-full h-11 rounded-xl border border-[var(--border-color)] bg-[var(--bg-hover)] px-4 py-2 text-sm font-bold text-[var(--text-primary)] focus:ring-1 focus:ring-[var(--border-strong)]"
+            className={form.bordao ? '' : 'property-row-value--empty'}
           />
-        </div>
+        </PropertyRow>
 
-        <div className="space-y-1.5">
-          <label className="text-xs font-semibold  text-[var(--text-tertiary)] opacity-60">Cor</label>
+        <PropertyRow label="Cor" icon={<Palette />}>
           <input
             type="color"
             value={form.cor || '#6366f1'}
             onChange={event => setForm(previous => ({ ...previous, cor: event.target.value }))}
-            className="h-11 w-16 cursor-pointer rounded-xl border border-[var(--border-color)] bg-transparent p-1"
+            className="h-6 w-10 cursor-pointer rounded-[var(--radius-input)] border border-[var(--border-color)] bg-transparent p-0.5"
           />
-        </div>
-      </div>
+        </PropertyRow>
+      </PropertySection>
 
-      <div className="space-y-1.5">
-        <label className="text-xs font-semibold  text-[var(--text-tertiary)] opacity-60">Estrutura do roteiro</label>
-        <textarea
+      <PropertySection label="Estrutura do roteiro">
+        <PropertyTextarea
           rows={6}
           value={form.estruturaRoteiro || ''}
           onChange={event =>
             setForm(previous => ({ ...previous, estruturaRoteiro: event.target.value || null }))
           }
           placeholder="Estrutura base para roteiros desta série..."
-          className="w-full resize-none rounded-xl border border-[var(--border-color)] bg-[var(--bg-hover)] p-4 text-sm font-medium leading-relaxed text-[var(--text-primary)] focus:ring-1 focus:ring-[var(--border-strong)]"
+          className="min-h-[140px] leading-relaxed"
         />
-      </div>
+      </PropertySection>
 
-      <div className="space-y-4 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-5">
-        <p className="text-xs font-semibold  text-[var(--text-tertiary)] opacity-70">
-          Hashtags por plataforma
-        </p>
-        <div className="space-y-3">
-          {platformNames.map(platform => (
-            <div key={platform} className="grid grid-cols-[100px_1fr] items-center gap-4">
-              <span className="text-xs font-semibold  text-[var(--text-secondary)] opacity-60">
-                {platform}
-              </span>
-              <input
-                type="text"
-                value={form.plataformas.find(item => item.platformId === platform)?.hashtags || ''}
-                onChange={event => updatePlatformHashtags(platform, event.target.value)}
-                placeholder="#hashtag1 #hashtag2"
-                className="h-10 rounded-lg border border-[var(--border-color)] bg-[var(--bg-primary)] px-3 text-xs font-bold text-[var(--text-primary)] focus:ring-1 focus:ring-[var(--border-strong)]"
-              />
-            </div>
-          ))}
-        </div>
-      </div>
+      <PropertySection label="Hashtags por plataforma">
+        {platformNames.map(platform => (
+          <PropertyRow key={platform} label={platform} icon={<Hash />}>
+            <PropertyInput
+              type="text"
+              value={form.plataformas.find(item => item.platformId === platform)?.hashtags || ''}
+              onChange={event => updatePlatformHashtags(platform, event.target.value)}
+              placeholder="#hashtag1 #hashtag2"
+              className={
+                form.plataformas.find(item => item.platformId === platform)?.hashtags
+                  ? ''
+                  : 'property-row-value--empty'
+              }
+            />
+          </PropertyRow>
+        ))}
+      </PropertySection>
 
-      <div className="flex items-center justify-end gap-3 pt-4">
+      {initial.id ? (
+        <SerieProductionMetricsPanel
+          serie={{
+            id: form.id,
+            userId: form.userId,
+            name: form.name,
+            template: form.template,
+            notes: form.notes,
+            slotPadrao: form.slotPadrao,
+            formatoVisualPadrao: form.formatoVisualPadrao,
+            estruturaRoteiro: form.estruturaRoteiro,
+            bordao: form.bordao,
+            cor: form.cor,
+            ativa: form.ativa,
+            frequenciaRecomendada: form.frequenciaRecomendada,
+            pilarIds: form.pilarIds,
+            plataformas: form.plataformas,
+            createdAt: form.createdAt,
+            updatedAt: form.updatedAt,
+          }}
+          contents={contents}
+        />
+      ) : null}
+
+      <div className="flex items-center justify-end gap-3 pt-2">
         <AppButton onClick={onCancel} variant="secondary">
           Cancelar
         </AppButton>
@@ -172,18 +195,14 @@ export function SeriesSettingsPage() {
   const { user } = useAuth();
   const isMobile = useIsMobile();
   const navigate = useNavigate();
-  const [panelMode, setPanelMode] = useState<'create' | 'edit' | null>(null);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [confirm, setConfirm] = useState<{ message: string; onConfirm: () => void } | null>(null);
+  const [confirm, setConfirm] = useState<ConfirmState | null>(null);
 
-  const editingSerie = useMemo(
-    () => state.series.find(serie => serie.id === editingId) ?? null,
-    [editingId, state.series]
-  );
+  const openEditPage = (serieId: string) => {
+    navigate(`/configuracoes/series/${serieId}/editar`);
+  };
 
-  const closePanel = () => {
-    setEditingId(null);
-    setPanelMode(null);
+  const openCreatePage = () => {
+    navigate('/configuracoes/series/nova');
   };
 
   const handleSave = (serie: Serie) => {
@@ -195,8 +214,6 @@ export function SeriesSettingsPage() {
     } else {
       dispatch({ type: 'ADD_SERIE', payload });
     }
-
-    closePanel();
   };
 
   const handleToggleActive = (serie: Serie) => {
@@ -208,32 +225,47 @@ export function SeriesSettingsPage() {
 
   const handleDelete = (id: string) => {
     setConfirm({
-      message: 'Remover esta serie?',
+      ...CONFIRM.excluirSerie,
       onConfirm: () => dispatch({ type: 'DELETE_SERIE', payload: id }),
     });
   };
 
-  const platformNames = state.platforms.filter(platform => platform.ativo).map(platform => platform.nome);
+  const roteiroCountBySerie = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const content of state.contents) {
+      if (content.seriesId) map.set(content.seriesId, (map.get(content.seriesId) || 0) + 1);
+    }
+    return map;
+  }, [state.contents]);
 
   const openBulkPage = (serieId: string) => {
     navigate(`/configuracoes/series/${serieId}/roteiros`);
   };
 
   if (isMobile) {
+    const platformNames = state.platforms
+      .filter(platform => platform.ativo)
+      .map(platform => platform.nome);
+
     return (
       <>
         <div className="min-h-full bg-[var(--bg-primary)]">
           <SeriesMobileScreen
             series={state.series}
+            roteiroCountBySerie={roteiroCountBySerie}
+            platformNames={platformNames}
+            contents={state.contents}
             onSave={handleSave}
             onToggle={handleToggleActive}
             onDelete={(serieId) => handleDelete(serieId)}
-            onBulkCreate={openBulkPage}
+            onOpen={openBulkPage}
           />
         </div>
         <ConfirmModal
           open={!!confirm}
           message={confirm?.message || ''}
+          confirmLabel={confirm?.confirmLabel}
+          cancelLabel={confirm?.cancelLabel}
           onConfirm={() => {
             confirm?.onConfirm();
             setConfirm(null);
@@ -251,10 +283,7 @@ export function SeriesSettingsPage() {
       icon={Layers}
       actions={
         <AppButton
-          onClick={() => {
-            setEditingId(null);
-            setPanelMode('create');
-          }}
+          onClick={openCreatePage}
           variant="primary"
           leftIcon={<Plus className="h-4 w-4" />}
         >
@@ -278,10 +307,7 @@ export function SeriesSettingsPage() {
               active={serie.ativa}
               dimmed={!serie.ativa}
               onToggle={() => handleToggleActive(serie)}
-              onEdit={() => {
-                setEditingId(serie.id);
-                setPanelMode('edit');
-              }}
+              onEdit={() => openEditPage(serie.id)}
               onDelete={() => handleDelete(serie.id)}
               footer={
                 <>
@@ -296,10 +322,7 @@ export function SeriesSettingsPage() {
                   <div className="flex items-center gap-1">
                     <button
                       type="button"
-                      onClick={() => {
-                        setEditingId(serie.id);
-                        setPanelMode('edit');
-                      }}
+                      onClick={() => openEditPage(serie.id)}
                       className="rounded-[var(--radius-input)] px-2 py-1 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
                     >
                       Editar
@@ -320,7 +343,7 @@ export function SeriesSettingsPage() {
                     {serie.frequenciaRecomendada || 'Sob demanda'}
                   </span>
                   <span className="rounded-full bg-[var(--bg-hover)] px-2 py-0.5 text-xs font-medium text-[var(--text-tertiary)]">
-                    {serie.plataformas.length} redes
+                    {roteiroCountBySerie.get(serie.id) || 0} roteiros
                   </span>
                 </>
               }
@@ -329,33 +352,11 @@ export function SeriesSettingsPage() {
         )}
       </div>
 
-      <SidePanel
-        open={panelMode === 'create' || panelMode === 'edit'}
-        title={panelMode === 'edit' ? 'Editar série' : 'Nova série'}
-        headerContent={
-          <div className="flex items-center gap-3">
-            <span
-              className="h-10 w-10 shrink-0 rounded-[var(--radius-card)] border border-[var(--border-color)]"
-              style={{ backgroundColor: editingSerie?.cor || '#6366f1' }}
-            />
-            <p className="truncate text-base font-semibold text-[var(--text-primary)]">
-              {editingSerie?.name || 'Nova série recorrente'}
-            </p>
-          </div>
-        }
-        onClose={closePanel}
-      >
-        <SeriesForm
-          initial={editingSerie ?? {}}
-          onSave={handleSave}
-          onCancel={closePanel}
-          platformNames={platformNames}
-        />
-      </SidePanel>
-
       <ConfirmModal
         open={!!confirm}
         message={confirm?.message || ''}
+        confirmLabel={confirm?.confirmLabel}
+        cancelLabel={confirm?.cancelLabel}
         onConfirm={() => {
           confirm?.onConfirm();
           setConfirm(null);

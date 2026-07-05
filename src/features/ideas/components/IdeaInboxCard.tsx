@@ -1,8 +1,9 @@
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Archive, BookOpen, Edit3, FileText } from 'lucide-react';
+import { BookOpen } from 'lucide-react';
 import type { Idea } from '../../../lib/database';
-import { cn, getEntityTagStyle } from '../../../lib/utils';
+import { getEntityTagStyle } from '../../../lib/utils';
+import { getIdeaNotes, getIdeaTitle } from '../lib/ideaText';
 
 interface IdeaInboxCardProps {
   idea: Idea;
@@ -11,12 +12,10 @@ interface IdeaInboxCardProps {
   serieNome: string | null;
   serieCor: string | undefined;
   origemTitulo: string | null;
-  onPromote: () => void;
-  onEdit: () => void;
-  onArchive: () => void;
+  onOpen: () => void;
 }
 
-function previewText(text: string, maxLines = 3): string {
+function previewNotes(text: string, maxLines = 3): string {
   const lines = text.split('\n').slice(0, maxLines);
   const joined = lines.join('\n');
   if (text.split('\n').length > maxLines) return `${joined}…`;
@@ -31,17 +30,25 @@ export function IdeaInboxCard({
   serieNome,
   serieCor,
   origemTitulo,
-  onPromote,
-  onEdit,
-  onArchive,
+  onOpen,
 }: IdeaInboxCardProps) {
-  const hasTags = Boolean(pilarNome || serieNome || origemTitulo);
+  const title = getIdeaTitle(idea);
+  const notes = getIdeaNotes(idea);
 
   return (
-    <article className="editorial-card group h-full rounded-[var(--radius-input)] px-3 py-2.5 transition-all hover:border-[var(--border-strong)] hover:shadow-[var(--shadow-soft)]">
-      <p className="line-clamp-3 text-xs leading-relaxed text-[var(--text-primary)] whitespace-pre-wrap break-words">
-        {previewText(idea.text)}
+    <button
+      type="button"
+      onClick={onOpen}
+      className="editorial-card group h-full w-full rounded-[var(--radius-input)] px-3 py-2.5 text-left transition-all hover:border-[var(--border-strong)] hover:shadow-[var(--shadow-soft)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-blue)]/40"
+    >
+      <p className="line-clamp-2 text-sm font-semibold leading-snug text-[var(--text-primary)] break-words">
+        {title}
       </p>
+      {notes ? (
+        <p className="mt-1.5 line-clamp-3 text-xs leading-relaxed text-[var(--text-secondary)] whitespace-pre-wrap break-words">
+          {previewNotes(notes)}
+        </p>
+      ) : null}
 
       <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
@@ -67,11 +74,6 @@ export function IdeaInboxCard({
               {origemTitulo}
             </span>
           ) : null}
-          {!hasTags ? (
-            <span className="text-xs font-medium uppercase tracking-[0.08em] text-[var(--text-tertiary)]">
-              Sem classificação
-            </span>
-          ) : null}
         </div>
 
         <time
@@ -81,45 +83,6 @@ export function IdeaInboxCard({
           {format(new Date(idea.createdAt), "d MMM", { locale: ptBR })}
         </time>
       </div>
-
-      <div className="mt-2 flex items-center gap-0.5 border-t border-[var(--border-color)] pt-2 opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100">
-        <InboxAction
-          label="Promover para roteiro"
-          icon={FileText}
-          onClick={onPromote}
-          accent
-        />
-        <InboxAction label="Editar" icon={Edit3} onClick={onEdit} />
-        <InboxAction label="Arquivar" icon={Archive} onClick={onArchive} />
-      </div>
-    </article>
-  );
-}
-
-interface InboxActionProps {
-  label: string;
-  icon: typeof Edit3;
-  onClick: () => void;
-  accent?: boolean;
-}
-
-function InboxAction({ label, icon: Icon, onClick, accent }: InboxActionProps) {
-  return (
-    <button
-      type="button"
-      onClick={(event) => {
-        event.stopPropagation();
-        onClick();
-      }}
-      className={cn(
-        'flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium uppercase tracking-[0.08em] transition-colors',
-        accent
-          ? 'text-[var(--text-primary)] hover:bg-[var(--bg-hover)]'
-          : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]'
-      )}
-    >
-      <Icon className="h-3.5 w-3.5" />
-      {label}
     </button>
   );
 }

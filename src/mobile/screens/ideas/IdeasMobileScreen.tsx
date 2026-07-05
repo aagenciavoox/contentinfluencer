@@ -3,17 +3,22 @@ import type { FormEvent } from 'react';
 import { Lightbulb, Search, SlidersHorizontal, X } from 'lucide-react';
 import type { AppState } from '../../../app/providers/appState';
 import { BottomSheetModal } from '../../../components/feedback/modals/BottomSheetModal';
-import { MobileEmptyState } from '../../components/MobileEmptyState';
+import { AppButton } from '../../../components/ui/AppButton';
+import { Text } from '../../../components/ui/Text';
+import { EmptyState } from '../../../components/ui/EmptyState';
 import { MobileFilterSheet } from '../../components/MobileFilterSheet';
 import type { Idea } from '../../../lib/database';
 import { cn } from '../../../lib/utils';
 import { IdeaQuickCapture } from '../../../features/ideas/components/IdeaQuickCapture';
+import { ideaSearchText } from '../../../features/ideas/lib/ideaText';
+import { getActivePilares } from '../../../features/settings/lib/activePilares';
 import { IdeaInboxCard } from '../../../features/ideas/components/IdeaInboxCard';
 
 type MobileIdeasTab = 'all' | 'unprocessed' | 'favorites';
 
 interface IdeasMobileScreenProps {
-  newIdeaText: string;
+  newIdeaTitle: string;
+  newIdeaNotes: string;
   selectedPilarId: string;
   selectedSeries: string;
   selectedBibliotecaId: string;
@@ -21,14 +26,13 @@ interface IdeasMobileScreenProps {
   state: AppState;
   composerOpen: boolean;
   onComposerOpenChange: (open: boolean) => void;
-  onNewIdeaTextChange: (value: string) => void;
+  onNewIdeaTitleChange: (value: string) => void;
+  onNewIdeaNotesChange: (value: string) => void;
   onSelectedPilarIdChange: (value: string) => void;
   onSelectedSeriesChange: (value: string) => void;
   onSelectedBibliotecaIdChange: (value: string) => void;
   onSubmit: (event: FormEvent) => void;
   onSave: () => void;
-  onPromote: (idea: Idea) => void;
-  onArchive: (idea: Idea) => void;
   onOpenIdea: (idea: Idea) => void;
 }
 
@@ -39,7 +43,8 @@ const TAB_OPTIONS: { value: MobileIdeasTab; label: string }[] = [
 ];
 
 export function IdeasMobileScreen({
-  newIdeaText,
+  newIdeaTitle,
+  newIdeaNotes,
   selectedPilarId,
   selectedSeries,
   selectedBibliotecaId,
@@ -47,14 +52,13 @@ export function IdeasMobileScreen({
   state,
   composerOpen,
   onComposerOpenChange,
-  onNewIdeaTextChange,
+  onNewIdeaTitleChange,
+  onNewIdeaNotesChange,
   onSelectedPilarIdChange,
   onSelectedSeriesChange,
   onSelectedBibliotecaIdChange,
   onSubmit,
   onSave,
-  onPromote,
-  onArchive,
   onOpenIdea,
 }: IdeasMobileScreenProps) {
   const [search, setSearch] = useState('');
@@ -76,7 +80,7 @@ export function IdeasMobileScreen({
       })
       .filter((idea) => {
         if (!normalizedSearch) return true;
-        return idea.text.toLowerCase().includes(normalizedSearch);
+        return ideaSearchText(idea).includes(normalizedSearch);
       })
       .filter((idea) => (selectedPilarId ? idea.pilarId === selectedPilarId : true))
       .filter((idea) => (selectedSeries ? idea.seriesId === selectedSeries : true))
@@ -103,15 +107,17 @@ export function IdeasMobileScreen({
       : 'Tente outro filtro ou crie uma nova ideia para comecar seu processo editorial.';
 
   return (
-    <div className="relative pb-4">
+    <div className="stack-xl relative pb-4">
       <section className="sticky top-0 z-10 mb-4 -mx-1 bg-[color-mix(in_srgb,var(--bg-primary)_92%,transparent)] pb-2 backdrop-blur-md">
         <IdeaQuickCapture
-          text={newIdeaText}
+          title={newIdeaTitle}
+          notes={newIdeaNotes}
           selectedPilarId={selectedPilarId}
           selectedSeries={selectedSeries}
           selectedBibliotecaId={selectedBibliotecaId}
           state={state}
-          onTextChange={onNewIdeaTextChange}
+          onTitleChange={onNewIdeaTitleChange}
+          onNotesChange={onNewIdeaNotesChange}
           onSelectedPilarIdChange={onSelectedPilarIdChange}
           onSelectedSeriesChange={onSelectedSeriesChange}
           onSelectedBibliotecaIdChange={onSelectedBibliotecaIdChange}
@@ -165,7 +171,7 @@ export function IdeasMobileScreen({
                 type="button"
                 onClick={() => setActiveTab(tab.value)}
                 className={cn(
-                  'rounded-lg px-5 py-2 text-xs font-semibold uppercase tracking-[0.05em] transition-all',
+                  'rounded-lg px-6 py-2 text-xs font-semibold uppercase tracking-[0.05em] transition-all',
                   active
                     ? 'bg-[var(--text-primary)] text-[var(--bg-primary)] shadow-sm'
                     : 'text-[var(--text-tertiary)] hover:bg-[var(--bg-secondary)]/80'
@@ -179,22 +185,18 @@ export function IdeasMobileScreen({
       </section>
 
       {filteredIdeas.length === 0 ? (
-        <MobileEmptyState
+        <EmptyState compact
           title={emptyTitle}
           description={emptyDescription}
           action={(
-            <button
-              type="button"
-              onClick={() => onComposerOpenChange(true)}
-              className="button-primary w-full max-w-xs"
-            >
+            <AppButton variant="primary" fullWidth onClick={() => onComposerOpenChange(true)} className="max-w-xs">
               Nova ideia
-            </button>
+            </AppButton>
           )}
           icon={<Lightbulb className="h-8 w-8" />}
         />
       ) : (
-        <ul className="space-y-2">
+        <ul className="stack-sm">
           {filteredIdeas.map((idea) => {
             const pilar = idea.pilarId ? getPilar(idea.pilarId) : null;
             const serie = idea.seriesId ? state.series.find((s) => s.id === idea.seriesId) : null;
@@ -211,9 +213,7 @@ export function IdeasMobileScreen({
                   serieNome={serie?.name ?? null}
                   serieCor={serie?.cor}
                   origemTitulo={origem?.titulo ?? null}
-                  onPromote={() => onPromote(idea)}
-                  onEdit={() => onOpenIdea(idea)}
-                  onArchive={() => onArchive(idea)}
+                  onOpen={() => onOpenIdea(idea)}
                 />
               </li>
             );
@@ -228,9 +228,9 @@ export function IdeasMobileScreen({
         zIndex="z-[90]"
       >
         <form onSubmit={handleComposerSubmit} className="flex flex-col bg-[var(--bg-primary)]">
-          <div className="flex items-center justify-between border-b border-[var(--border-color)] px-5 py-4">
+          <div className="flex items-center justify-between border-b border-[var(--border-color)] px-6 py-4">
             <div>
-              <h2 className="text-base font-semibold text-[var(--text-primary)]">Nova ideia</h2>
+              <Text variant="sectionTitle">Nova ideia</Text>
               <p className="mt-0.5 text-xs text-[var(--text-tertiary)]">Escreva primeiro. Classifique depois.</p>
             </div>
             <button
@@ -242,16 +242,22 @@ export function IdeasMobileScreen({
             </button>
           </div>
 
-          <div className="space-y-4 p-5">
-            <textarea
+          <div className="stack-lg p-6">
+            <input
               autoFocus
-              value={newIdeaText}
-              onChange={(event) => onNewIdeaTextChange(event.target.value)}
-              placeholder="Registre uma ideia, gancho ou observacao."
+              value={newIdeaTitle}
+              onChange={(event) => onNewIdeaTitleChange(event.target.value)}
+              placeholder="Título da ideia"
+              className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-3 text-sm font-semibold text-[var(--text-primary)] outline-none focus:border-[var(--accent-blue)]"
+            />
+            <textarea
+              value={newIdeaNotes}
+              onChange={(event) => onNewIdeaNotesChange(event.target.value)}
+              placeholder="Observações, gancho ou contexto."
               className="min-h-36 w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--accent-blue)]"
             />
 
-            <label className="block space-y-2">
+            <label className="block stack-sm">
               <span className="t-label text-[var(--text-tertiary)]">Pilar</span>
               <select
                 value={selectedPilarId}
@@ -259,7 +265,7 @@ export function IdeasMobileScreen({
                 className="w-full"
               >
                 <option value="">Opcional</option>
-                {state.pilares.map((pilar) => (
+                {getActivePilares(state.pilares).map((pilar) => (
                   <option key={pilar.id} value={pilar.id}>
                     {pilar.nome}
                   </option>
@@ -267,7 +273,7 @@ export function IdeasMobileScreen({
               </select>
             </label>
 
-            <label className="block space-y-2">
+            <label className="block stack-sm">
               <span className="t-label text-[var(--text-tertiary)]">Serie</span>
               <select
                 value={selectedSeries}
@@ -284,7 +290,7 @@ export function IdeasMobileScreen({
             </label>
 
             {consumindo.length > 0 ? (
-              <label className="block space-y-2">
+              <label className="block stack-sm">
                 <span className="t-label text-[var(--text-tertiary)]">Origem</span>
                 <select
                   value={selectedBibliotecaId}
@@ -302,10 +308,10 @@ export function IdeasMobileScreen({
             ) : null}
           </div>
 
-          <div className="border-t border-[var(--border-color)] p-5 pb-safe">
-            <button type="submit" disabled={!newIdeaText.trim()} className="button-primary w-full disabled:opacity-40">
+          <div className="border-t border-[var(--border-color)] p-6 pb-safe">
+            <AppButton type="submit" variant="primary" fullWidth disabled={!newIdeaTitle.trim() && !newIdeaNotes.trim()}>
               Capturar ideia
-            </button>
+            </AppButton>
           </div>
         </form>
       </BottomSheetModal>
@@ -315,7 +321,7 @@ export function IdeasMobileScreen({
         title="Filtrar ideias"
         onClose={() => setIsFilterSheetOpen(false)}
       >
-        <label className="block space-y-2">
+        <label className="block stack-sm">
           <span className="t-label text-[var(--text-tertiary)]">Pilar</span>
           <select value={selectedPilarId} onChange={(event) => onSelectedPilarIdChange(event.target.value)}>
             <option value="">Todos os pilares</option>
@@ -327,7 +333,7 @@ export function IdeasMobileScreen({
           </select>
         </label>
 
-        <label className="block space-y-2">
+        <label className="block stack-sm">
           <span className="t-label text-[var(--text-tertiary)]">Serie</span>
           <select value={selectedSeries} onChange={(event) => onSelectedSeriesChange(event.target.value)}>
             <option value="">Todas as series</option>
@@ -339,7 +345,7 @@ export function IdeasMobileScreen({
           </select>
         </label>
 
-        <label className="block space-y-2">
+        <label className="block stack-sm">
           <span className="t-label text-[var(--text-tertiary)]">Origem</span>
           <select value={selectedBibliotecaId} onChange={(event) => onSelectedBibliotecaIdChange(event.target.value)}>
             <option value="">Qualquer origem</option>
@@ -351,18 +357,18 @@ export function IdeasMobileScreen({
           </select>
         </label>
 
-        <button
-          type="button"
+        <AppButton
+          variant="primary"
+          fullWidth
           onClick={() => {
             onSelectedPilarIdChange('');
             onSelectedSeriesChange('');
             onSelectedBibliotecaIdChange('');
             setIsFilterSheetOpen(false);
           }}
-          className="button-primary w-full"
         >
           Limpar filtros
-        </button>
+        </AppButton>
       </MobileFilterSheet>
     </div>
   );

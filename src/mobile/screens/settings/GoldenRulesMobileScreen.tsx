@@ -1,10 +1,13 @@
 import {useMemo, useState} from 'react';
 import {BottomSheetModal} from '../../../components/feedback/modals/BottomSheetModal';
+import {AppButton} from '../../../components/ui/AppButton';
+import {Text} from '../../../components/ui/Text';
 import type {GoldenRule} from '../../../lib/database';
 import type {Violation} from '../../../utils/goldenRules';
-import {MobileEmptyState} from '../../components/MobileEmptyState';
+import {EmptyState} from '../../../components/ui/EmptyState';
 import {MobileIconButton} from '../../components/MobileIconButton';
 import {MobileListCard} from '../../components/MobileListCard';
+import {MobileSectionHeader} from '../../components/MobileSectionHeader';
 import {MobileSegmentTabs} from '../../components/MobileSegmentTabs';
 import React from 'react';
 import {AlertTriangle, Info, Plus, ShieldAlert, ShieldCheck, ToggleLeft, ToggleRight, Trash2} from 'lucide-react';
@@ -100,41 +103,35 @@ export function GoldenRulesMobileScreen({
   };
 
   return (
-    <div className="space-y-5">
-      <section className="rounded-[1.75rem] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4 shadow-sm">
-        <div className="mb-4 flex items-start gap-3">
-          <div className="rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] bg-[var(--accent-blue)]/12 p-3 text-[var(--accent-blue)]">
-            <ShieldCheck className="h-5 w-5" />
-          </div>
-          <div className="min-w-0">
-            <p className="t-section-title text-[var(--text-primary)]">Regras de Ouro</p>
-            <p className="t-secondary">
-              Limites editoriais em fluxo mobile, com leitura rapida dos pontos da semana.
-            </p>
-          </div>
-        </div>
+    <div className="stack-xl">
+      <section className="rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4 shadow-sm">
+        <MobileSectionHeader
+          icon={ShieldCheck}
+          tone="blue"
+          title="Ritmo Editorial"
+          description="Limites editoriais em fluxo mobile, com leitura rapida dos pontos da semana."
+        />
 
-        <div className="grid grid-cols-2 gap-3">
-          <div className="rounded-[1.25rem] bg-[var(--bg-primary)] p-3">
+        <div className="grid-metrics">
+          <div className="rounded-[var(--radius-md)] bg-[var(--bg-primary)] p-3">
             <p className="t-label text-[var(--text-tertiary)]">Ativas</p>
             <p className="mt-1 text-2xl font-semibold text-[var(--text-primary)]">
               {rules.filter(rule => rule.ativa).length}
             </p>
           </div>
-          <div className="rounded-[1.25rem] bg-[var(--bg-primary)] p-3">
+          <div className="rounded-[var(--radius-md)] bg-[var(--bg-primary)] p-3">
             <p className="t-label text-[var(--text-tertiary)]">Revisoes</p>
             <p className="mt-1 text-2xl font-semibold text-[var(--accent-orange)]">{violations.length}</p>
           </div>
         </div>
 
-        <button type="button" onClick={() => setShowForm(true)} className="button-primary mt-4 w-full">
-          <Plus className="h-4 w-4" />
+        <AppButton variant="primary" fullWidth onClick={() => setShowForm(true)} className="mt-4" leftIcon={<Plus className="h-4 w-4" />}>
           Nova regra
-        </button>
+        </AppButton>
       </section>
 
       {violations.length > 0 ? (
-        <section className="rounded-[1.75rem] border border-orange-200 bg-orange-50 p-4">
+        <section className="rounded-[var(--radius-card)] border border-[var(--warning)]/25 bg-[var(--warning)]/10 p-4">
           <div className="mb-3 flex items-center gap-2 text-orange-700">
             <AlertTriangle className="h-4 w-4" />
             <p className="text-xs font-semibold ">
@@ -142,9 +139,9 @@ export function GoldenRulesMobileScreen({
             </p>
           </div>
 
-          <div className="space-y-2">
+          <div className="stack-sm">
             {violations.slice(0, 3).map((violation, index) => (
-              <div key={`${violation.ruleId}-${index}`} className="rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] bg-white/70 px-3 py-2">
+              <div key={`${violation.ruleId}-${index}`} className="rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] bg-[var(--bg-elevated)]/70 px-3 py-2">
                 <p className="text-xs font-semibold text-orange-800">{violation.message}</p>
               </div>
             ))}
@@ -157,7 +154,7 @@ export function GoldenRulesMobileScreen({
         </section>
       ) : null}
 
-      <section className="space-y-4">
+      <section className="stack-lg">
         <MobileSegmentTabs
           tabs={[
             {
@@ -181,13 +178,13 @@ export function GoldenRulesMobileScreen({
         />
 
         {filteredRules.length === 0 ? (
-          <MobileEmptyState
+          <EmptyState compact
             title="Nenhuma regra neste recorte"
             description="Crie uma regra ou troque o filtro para continuar a leitura editorial no mobile."
             icon={<ShieldCheck className="h-8 w-8" />}
           />
         ) : (
-          <div className="space-y-3">
+          <div className="stack-md">
             {filteredRules.map(rule => {
               const Icon = ICON_BY_CONDITION[rule.condicao] || Info;
               const matchingViolations = violationsByRule.get(rule.id) || [];
@@ -222,7 +219,7 @@ export function GoldenRulesMobileScreen({
                   }
                   status={
                     matchingViolations.length > 0 ? (
-                      <div className="space-y-2 rounded-[1.25rem] bg-orange-50 p-3">
+                      <div className="stack-sm rounded-[var(--radius-md)] bg-[var(--warning)]/10 p-3">
                         {matchingViolations.slice(0, 2).map((violation, index) => (
                           <p key={`${rule.id}-status-${index}`} className="text-xs font-medium text-orange-800">
                             {violation.message}
@@ -262,12 +259,12 @@ export function GoldenRulesMobileScreen({
 
       <BottomSheetModal open={showForm} onClose={resetAndClose} desktopMaxW="max-w-xl" zIndex="z-[110]">
         <div className="flex h-full flex-col bg-[var(--bg-primary)]">
-          <div className="border-b border-[var(--border-color)] px-5 py-4">
-            <p className="t-section-title text-[var(--text-primary)]">Nova regra</p>
+          <div className="border-b border-[var(--border-color)] px-6 py-4">
+            <Text variant="sectionTitle">Nova regra</Text>
             <p className="t-secondary mt-1">Crie limites minimos ou maximos para manter a operacao editorial consistente.</p>
           </div>
 
-          <div className="flex-1 space-y-4 overflow-y-auto p-5">
+          <div className="flex-1 stack-lg overflow-y-auto p-6">
             <input
               autoFocus
               value={draft.titulo}
@@ -307,7 +304,7 @@ export function GoldenRulesMobileScreen({
               ))}
             </select>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid-metrics">
               <select
                 value={draft.condicao}
                 onChange={event =>
@@ -337,7 +334,7 @@ export function GoldenRulesMobileScreen({
               </select>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid-metrics">
               <input
                 type="number"
                 inputMode="numeric"
@@ -358,25 +355,25 @@ export function GoldenRulesMobileScreen({
             </div>
           </div>
 
-          <div className="flex gap-3 border-t border-[var(--border-color)] px-5 py-4 pb-safe">
+          <div className="flex gap-3 border-t border-[var(--border-color)] px-6 py-4 pb-safe">
             <button
               type="button"
               onClick={resetAndClose}
-              className="flex-1 rounded-[1.25rem] border border-[var(--border-color)] py-3 text-xs font-semibold  text-[var(--text-secondary)]"
+              className="flex-1 rounded-[var(--radius-md)] border border-[var(--border-color)] py-3 text-xs font-semibold  text-[var(--text-secondary)]"
             >
               Cancelar
             </button>
-            <button
-              type="button"
+            <AppButton
+              variant="primary"
               onClick={() => {
                 onCreate();
                 resetAndClose();
               }}
               disabled={!draft.titulo.trim()}
-              className="button-primary flex-1 disabled:opacity-40"
+              className="flex-1"
             >
               Criar
-            </button>
+            </AppButton>
           </div>
         </div>
       </BottomSheetModal>

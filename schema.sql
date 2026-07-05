@@ -165,6 +165,8 @@ CREATE TABLE public.golden_rules (
 CREATE TABLE public.ideas (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL,
+  title text,
+  notes text,
   text text NOT NULL,
   pilar_id uuid,
   series_id uuid,

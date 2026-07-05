@@ -1,6 +1,8 @@
 import {Check, Clapperboard, ExternalLink, Zap} from 'lucide-react';
+import {Text} from '../../../../components/ui/Text';
 import type {Content} from '../../../../lib/database';
 import {useAppContext} from '../../../../context/AppContext';
+import {EMPTY} from '../../../../lib/uiCopy';
 import {cn} from '../../../../lib/utils';
 import {ContentEntityTags} from '../../../contents/components/ContentEntityTags';
 import {
@@ -36,16 +38,16 @@ export function RecordingQueueGrid({
     return (
       <div className="rounded-[var(--radius-card)] border border-dashed border-[var(--border-color)] bg-[var(--bg-secondary)] px-6 py-16 text-center">
         <Clapperboard className="mx-auto mb-4 h-10 w-10 text-[var(--text-tertiary)] opacity-40" />
-        <p className="text-sm font-semibold text-[var(--text-primary)]">Nenhum conteudo sem bloco</p>
+        <p className="text-sm font-semibold text-[var(--text-primary)]">{EMPTY.roteirosSemBloco.title}</p>
         <p className="mx-auto mt-2 max-w-sm text-sm text-[var(--text-secondary)]">
-          Finalize roteiros e deixe-os prontos para gravacao, ou ajuste os filtros acima.
+          {EMPTY.roteirosSemBloco.description}
         </p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
+    <div className="stack-lg">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <button
           type="button"
@@ -131,9 +133,9 @@ export function RecordingQueueGrid({
                 onClick={() => onToggleSelect(content.id)}
                 className="flex min-h-0 flex-1 flex-col text-left"
               >
-                <h3 className="line-clamp-2 text-sm font-semibold leading-snug text-[var(--text-primary)]">
+                <Text variant="itemTitle" className="line-clamp-2 leading-snug">
                   {getDisplayTitle(content.title)}
-                </h3>
+                </Text>
 
                 <ContentEntityTags
                   pillar={pillar}

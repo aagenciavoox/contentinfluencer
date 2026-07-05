@@ -28,7 +28,7 @@ export function SettingsArrayInput({
   };
 
   return (
-    <div className="space-y-4">
+    <div className="stack-lg">
       <div className="flex items-center gap-2">
         <input
           type="text"
@@ -46,7 +46,7 @@ export function SettingsArrayInput({
         </button>
       </div>
 
-      <ul className="space-y-2">
+      <ul className="stack-sm">
         {items.map((item, index) => (
           <li key={index} className={cn("group flex items-start justify-between gap-3 rounded-xl border border-transparent p-1 transition-all hover:bg-[var(--bg-hover)]/30", itemClassName)}>
             <div className="flex items-start gap-3 text-sm text-[var(--text-primary)]">

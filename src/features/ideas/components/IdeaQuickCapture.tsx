@@ -1,15 +1,18 @@
 import { useState } from 'react';
 import { ChevronDown, CornerDownLeft } from 'lucide-react';
 import type { AppState } from '../../../app/providers/appState';
+import { getActivePilares } from '../../settings/lib/activePilares';
 import { cn } from '../../../lib/utils';
 
 interface IdeaQuickCaptureProps {
-  text: string;
+  title: string;
+  notes: string;
   selectedPilarId: string;
   selectedSeries: string;
   selectedBibliotecaId: string;
   state: AppState;
-  onTextChange: (value: string) => void;
+  onTitleChange: (value: string) => void;
+  onNotesChange: (value: string) => void;
   onSelectedPilarIdChange: (value: string) => void;
   onSelectedSeriesChange: (value: string) => void;
   onSelectedBibliotecaIdChange: (value: string) => void;
@@ -17,12 +20,14 @@ interface IdeaQuickCaptureProps {
 }
 
 export function IdeaQuickCapture({
-  text,
+  title,
+  notes,
   selectedPilarId,
   selectedSeries,
   selectedBibliotecaId,
   state,
-  onTextChange,
+  onTitleChange,
+  onNotesChange,
   onSelectedPilarIdChange,
   onSelectedSeriesChange,
   onSelectedBibliotecaIdChange,
@@ -35,9 +40,9 @@ export function IdeaQuickCapture({
   );
 
   const hasMeta = Boolean(selectedPilarId || selectedSeries || selectedBibliotecaId);
-  const canSave = text.trim().length > 0;
+  const canSave = title.trim().length > 0 || notes.trim().length > 0;
 
-  const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+  const handleNotesKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault();
       if (canSave) onSave();
@@ -47,15 +52,23 @@ export function IdeaQuickCapture({
   return (
     <div className="editorial-surface rounded-[var(--radius-input)] p-2.5 shadow-[var(--shadow-soft)] transition-all focus-within:border-[var(--accent-blue)] focus-within:ring-1 focus-within:ring-[var(--accent-blue)]/20">
       <div className="flex items-start gap-3">
-        <textarea
-          autoFocus
-          value={text}
-          onChange={(event) => onTextChange(event.target.value)}
-          onKeyDown={handleKeyDown}
-          rows={1}
-          placeholder="Capture uma ideia… Enter para salvar, Shift+Enter para nova linha"
-          className="min-h-[2.5rem] max-h-32 flex-1 resize-none border-none bg-transparent p-0 text-[15px] leading-relaxed text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:ring-0 custom-scrollbar"
-        />
+        <div className="min-w-0 flex-1 stack-sm">
+          <input
+            autoFocus
+            value={title}
+            onChange={(event) => onTitleChange(event.target.value)}
+            placeholder="Título da ideia"
+            className="w-full border-none bg-transparent p-0 text-sm font-semibold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:ring-0"
+          />
+          <textarea
+            value={notes}
+            onChange={(event) => onNotesChange(event.target.value)}
+            onKeyDown={handleNotesKeyDown}
+            rows={2}
+            placeholder="Observações — Enter para salvar, Shift+Enter para nova linha"
+            className="min-h-[3rem] max-h-32 w-full resize-none border-none bg-transparent p-0 t-body leading-relaxed text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:ring-0 custom-scrollbar"
+          />
+        </div>
         <button
           type="button"
           onClick={onSave}
@@ -78,7 +91,7 @@ export function IdeaQuickCapture({
           type="button"
           onClick={() => setMetaOpen((open) => !open)}
           className={cn(
-            'flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-semibold uppercase tracking-[0.12em] transition-colors',
+            'flex items-center gap-1.5 rounded-md px-2 py-1 t-label t-label-uppercase font-semibold transition-colors',
             metaOpen || hasMeta
               ? 'text-[var(--accent-blue)]'
               : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'
@@ -106,7 +119,7 @@ export function IdeaQuickCapture({
             className="w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-hover)] px-3 py-2 text-xs font-medium text-[var(--text-primary)] focus:border-[var(--accent-blue)] focus:ring-1 focus:ring-[var(--accent-blue)]/20"
           >
             <option value="">Pilar</option>
-            {state.pilares.map((pilar) => (
+            {getActivePilares(state.pilares).map((pilar) => (
               <option key={pilar.id} value={pilar.id}>
                 {pilar.nome}
               </option>

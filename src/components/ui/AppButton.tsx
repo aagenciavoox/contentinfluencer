@@ -33,9 +33,9 @@ const iconOnlySizeClasses: Record<ButtonSize, string> = {
 
 const variantClasses: Record<ButtonVariant, string> = {
   primary:
-    'border border-[var(--text-primary)] bg-[var(--text-primary)] text-white shadow-sm hover:bg-[#252B37] hover:border-[#252B37]',
+    'border border-[var(--accent)] bg-[var(--accent)] text-[var(--bg-secondary)] shadow-none hover:opacity-90',
   secondary:
-    'border border-[var(--border-color)] bg-[var(--bg-elevated)] text-[var(--text-primary)] shadow-sm hover:bg-[var(--bg-hover)] hover:border-[var(--border-strong)]',
+    'border border-[var(--border-color)] bg-[var(--bg-elevated)] text-[var(--text-primary)] shadow-none hover:bg-[var(--bg-hover)] hover:border-[var(--border-strong)]',
   ghost:
     'border border-transparent bg-transparent text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]',
 };
@@ -63,8 +63,8 @@ export const AppButton = React.forwardRef<HTMLButtonElement, AppButtonProps>(
         type={type}
         disabled={disabled}
         className={cn(
-          'inline-flex shrink-0 items-center justify-center gap-2 rounded-[var(--radius-input)] text-[13px] font-semibold tracking-normal transition-[background-color,border-color,color,box-shadow,transform,opacity,filter] duration-150',
-          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-blue)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-secondary)]',
+          'inline-flex shrink-0 items-center justify-center gap-2 rounded-[var(--radius-input)] text-[length:var(--font-size-button)] font-semibold tracking-normal transition-[background-color,border-color,color,box-shadow,transform,opacity,filter] duration-150',
+          'focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
           'disabled:pointer-events-none disabled:opacity-45',
           iconOnly ? iconOnlySizeClasses[size] : sizeClasses[size],
           variantClasses[variant],

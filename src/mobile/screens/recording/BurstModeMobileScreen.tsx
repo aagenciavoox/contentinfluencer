@@ -12,6 +12,7 @@ import {
   X,
 } from 'lucide-react';
 import { BottomSheetModal } from '../../../components/feedback/modals/BottomSheetModal';
+import { Text } from '../../../components/ui/Text';
 import { useBodyScrollLock } from '../../../hooks/useBodyScrollLock';
 import { readStoredJson, writeStoredJson } from '../../../lib/browserStorage';
 import type { Content, RecordingBlock } from '../../../lib/database';
@@ -366,7 +367,7 @@ export function BurstModeMobileScreen({
 
             <div className="min-w-0 flex-1">
               <p className="truncate text-xs font-semibold">{currentContent.title || 'Sem titulo'}</p>
-              <p className={cn('text-xs font-semibold uppercase tracking-[0.16em]', theme.muted)}>
+              <p className={cn('text-xs font-semibold t-label-uppercase', theme.muted)}>
                 {playbackState === 'preparing'
                   ? 'Preparar'
                   : playbackState === 'reading'
@@ -436,9 +437,9 @@ export function BurstModeMobileScreen({
           <div className="flex items-center justify-between px-4 pb-3 pt-[calc(env(safe-area-inset-top)+10px)]">
             <div className="min-w-0">
               <p className={cn('text-xs font-semibold ', theme.muted)}>
-                Modo Explosao
+                Modo gravação
               </p>
-              <h2 className="mt-1 truncate text-base font-semibold">{currentContent.title || 'Sem titulo'}</h2>
+              <Text variant="sectionTitle" truncate className="mt-1">{currentContent.title || 'Sem titulo'}</Text>
             </div>
 
             <button
@@ -451,7 +452,7 @@ export function BurstModeMobileScreen({
             </button>
           </div>
 
-          <div className="flex-1 overflow-y-auto px-5 pb-[calc(env(safe-area-inset-bottom)+6.5rem)]">
+          <div className="flex-1 overflow-y-auto px-6 pb-[calc(env(safe-area-inset-bottom)+6.5rem)]">
             <article className="mx-auto max-w-3xl whitespace-pre-wrap" style={fullTextStyle}>
               {currentScript}
             </article>
@@ -460,7 +461,7 @@ export function BurstModeMobileScreen({
       )}
 
       {teleprompterEnabled && countdownRemaining !== null && (
-        <div className="absolute inset-0 z-[10] flex flex-col items-center justify-center bg-black/25 px-6">
+        <div className="absolute inset-0 z-[10] flex flex-col items-center justify-center bg-[color-mix(in_srgb,var(--text-primary)_25%,transparent)] px-6">
           <div className={cn('rounded-[var(--radius-card-mobile)] border px-10 py-8 text-center shadow-none', theme.card, theme.border)}>
             <p className={cn('text-xs font-semibold ', theme.muted)}>Preparar</p>
             <p className="mt-2 text-6xl font-semibold">{countdownRemaining}</p>
@@ -471,7 +472,7 @@ export function BurstModeMobileScreen({
               setCountdownRemaining(null);
               setIsPlaying(false);
             }}
-            className="mt-6 min-h-11 rounded-full border border-white/30 px-6 text-sm font-semibold uppercase tracking-[0.16em] text-white"
+            className="mt-6 min-h-11 rounded-full border border-white/30 px-6 text-sm font-semibold t-label-uppercase text-white"
           >
             Cancelar
           </button>
@@ -512,14 +513,14 @@ export function BurstModeMobileScreen({
 
       <BottomSheetModal open={isSettingsOpen && !isPreparing} onClose={() => setIsSettingsOpen(false)} zIndex="z-[220]">
         <section className="flex max-h-[80vh] flex-col overflow-hidden bg-[var(--bg-primary)]">
-          <div className="border-b border-[var(--border-color)] px-5 py-4">
+          <div className="border-b border-[var(--border-color)] px-6 py-4">
             <p className="text-xs font-semibold  text-[var(--text-tertiary)]">
               Modo Explosao
             </p>
-            <h3 className="mt-2 text-xl font-semibold text-[var(--text-primary)]">Ajustes mobile</h3>
+            <Text variant="itemTitle" className="mt-2">Ajustes mobile</Text>
           </div>
 
-          <div className="space-y-5 overflow-y-auto px-5 py-5">
+          <div className="stack-xl overflow-y-auto px-6 py-6">
             <ChoiceCluster label="Presets">
               <ChoiceButton active={false} onClick={() => applyPreset('perto')}>Perto</ChoiceButton>
               <ChoiceButton active={false} onClick={() => applyPreset('tripe')}>Tripe</ChoiceButton>
@@ -600,7 +601,7 @@ function ActionIconButton({
       onClick={onClick}
       disabled={disabled}
       className={cn(
-        'flex flex-col items-center justify-center gap-1 rounded-[1.25rem] border px-3 py-3 text-center transition-colors disabled:opacity-40',
+        'flex flex-col items-center justify-center gap-1 rounded-[var(--radius-md)] border px-3 py-3 text-center transition-colors disabled:opacity-40',
         active
           ? 'border-emerald-500/30 bg-emerald-500/12 text-emerald-500'
           : 'border-[var(--border-color)] text-[var(--text-primary)]'
@@ -625,7 +626,7 @@ function MobileSliderSetting({
     <div className="space-y-2">
       <div className="flex items-center justify-between gap-3">
         <span className="text-sm font-bold text-[var(--text-primary)]">{label}</span>
-        <span className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--text-tertiary)]">{value}</span>
+        <span className="text-xs font-semibold t-label-uppercase text-[var(--text-tertiary)]">{value}</span>
       </div>
       {children}
     </div>

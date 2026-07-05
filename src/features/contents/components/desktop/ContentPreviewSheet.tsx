@@ -1,5 +1,7 @@
 import { ExternalLink } from 'lucide-react';
-import { SidePanel } from '../../../../components/layout/SidePanel';
+import { BottomSheet } from '../../../../components/overlays/BottomSheet';
+import { OverlayHeader } from '../../../../components/overlays/OverlayHeader';
+import { OverlayBody } from '../../../../components/overlays/OverlayBody';
 import { AppButton } from '../../../../components/ui/AppButton';
 import type { Content, Pilar, Serie } from '../../../../lib/database';
 import { htmlToReadableText } from '../../../../lib/utils';
@@ -32,14 +34,14 @@ export function ContentPreviewSheet({
   const scriptPreview = htmlToReadableText(content.script || content.notes || '').trim();
 
   return (
-    <SidePanel
-      open={!!content}
-      title={getDisplayTitle(content.title)}
-      subtitle={buildContentMetaLine(content)}
-      onClose={onClose}
-      widthClassName="max-w-lg"
-    >
-      <div className="flex flex-col gap-4">
+    <BottomSheet open={!!content} onClose={onClose} desktopMaxW="max-w-lg">
+      <OverlayHeader
+        title={getDisplayTitle(content.title)}
+        subtitle={buildContentMetaLine(content)}
+        onClose={onClose}
+      />
+      <OverlayBody>
+        <div className="flex flex-col gap-4">
         <div className="flex flex-wrap items-center gap-2">
           <span
             className={`inline-flex w-fit rounded-full px-2.5 py-0.5 text-xs font-medium ${getStatusChipClass(content.status)}`}
@@ -77,7 +79,8 @@ export function ContentPreviewSheet({
         >
           Abrir roteiro
         </AppButton>
-      </div>
-    </SidePanel>
+        </div>
+      </OverlayBody>
+    </BottomSheet>
   );
 }

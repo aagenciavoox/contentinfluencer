@@ -28,7 +28,7 @@ export function MobileGridCard({
 }: MobileGridCardProps) {
   const content = (
     <div className={cn('flex min-h-36 flex-col justify-between', className)}>
-      <div className="space-y-3">
+      <div className="stack-md">
         {icon ? <div className="text-[var(--text-secondary)]">{icon}</div> : null}
         <div className="space-y-1">
           <Text variant="sectionTitle" as="p" className={titleClassName}>

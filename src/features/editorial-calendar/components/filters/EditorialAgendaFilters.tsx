@@ -19,10 +19,10 @@ const LAYER_OPTIONS = [
 ] as const;
 
 const COLOR_MAP: Record<string, {active: string; dot: string}> = {
-  orange: {active: 'border-orange-500/50 bg-orange-500/10 text-orange-600', dot: 'bg-orange-500'},
-  blue: {active: 'border-blue-500/50 bg-blue-500/10 text-blue-600', dot: 'bg-blue-500'},
-  purple: {active: 'border-purple-500/50 bg-purple-500/10 text-purple-600', dot: 'bg-purple-500'},
-  green: {active: 'border-green-500/50 bg-green-500/10 text-green-600', dot: 'bg-green-500'},
+  orange: {active: 'border-[var(--accent-orange)]/50 bg-[var(--accent-orange)]/10 text-[var(--accent-orange)]', dot: 'bg-[var(--accent-orange)]'},
+  blue: {active: 'border-[var(--accent-blue)]/50 bg-[var(--accent-blue)]/10 text-[var(--accent-blue)]', dot: 'bg-[var(--accent-blue)]'},
+  purple: {active: 'border-[var(--accent-purple)]/50 bg-[var(--accent-purple)]/10 text-[var(--accent-purple)]', dot: 'bg-[var(--accent-purple)]'},
+  green: {active: 'border-[var(--accent-green)]/50 bg-[var(--accent-green)]/10 text-[var(--accent-green)]', dot: 'bg-[var(--accent-green)]'},
 };
 
 export function EditorialAgendaFilters({
@@ -34,7 +34,7 @@ export function EditorialAgendaFilters({
   onToggleLayer,
 }: EditorialAgendaFiltersProps) {
   return (
-    <div className="space-y-3">
+    <div className="stack-md">
       <FilterBar
         searchValue={searchTerm}
         onSearchChange={onSearchChange}
@@ -61,7 +61,7 @@ export function EditorialAgendaFilters({
               type="button"
               onClick={() => onToggleLayer(option.id)}
               className={cn(
-                'flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-bold transition-all select-none',
+                'flex items-center gap-2 rounded-[var(--radius-md)] border px-3 py-2 text-xs font-bold transition-all select-none',
                 'cursor-pointer active:scale-[0.97]',
                 active
                   ? colors.active

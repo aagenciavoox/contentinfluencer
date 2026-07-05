@@ -1,13 +1,13 @@
 import {CheckCircle2, Clapperboard, ExternalLink, Layers3, Video} from 'lucide-react';
 import {useNavigate} from 'react-router-dom';
 import {AppButton} from '../../../../../components/ui/AppButton';
-import type {Content, RecordingBlock} from '../../../../lib/database';
+import {Text} from '../../../../../components/ui/Text';
+import type {Content, RecordingBlock} from '../../../../../lib/database';
 import {
-  CONTENT_STATUS,
   getContentBlockSummary,
   type ContentStage,
 } from '../../../lib/contentPipeline';
-import {buildMarkContentRecordedTransition} from '../../../../recording/lib/recordingWorkflow';
+import { buildMarkContentRecordedTransition } from '../../../../recording/lib/recordingWorkflow';
 
 interface RecordingSectionProps {
   content: Content;
@@ -30,7 +30,7 @@ export function RecordingSection({
 }: RecordingSectionProps) {
   const navigate = useNavigate();
   const blockSummary = getContentBlockSummary(content.id, recordingBlocks, allContents ?? [content]);
-  const isRecorded = content.status === CONTENT_STATUS.GRAVADO;
+  const isRecorded = Boolean(content.recordedAt);
 
   const markRecorded = async () => {
     if (!blockSummary?.block) return;
@@ -44,6 +44,7 @@ export function RecordingSection({
 
     await onPersist({
       status: transition.updatedContent.status,
+      recordedAt: transition.updatedContent.recordedAt,
       updatedAt: transition.updatedContent.updatedAt,
     });
     await onDispatch({
@@ -53,20 +54,20 @@ export function RecordingSection({
   };
 
   return (
-    <div className="grid gap-5">
-      <section className="rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-5 shadow-sm md:p-6">
-        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--text-tertiary)]">Bloco</p>
-        <h2 className="mt-2 text-xl font-semibold text-[var(--text-primary)]">
+    <div className="grid gap-[var(--space-xl)]">
+      <section className="rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-6 shadow-sm md:p-6">
+        <p className="t-label t-label-uppercase font-semibold text-[var(--text-tertiary)]">Bloco</p>
+        <Text variant="sectionTitle" className="mt-2">
           {blockSummary ? blockSummary.block.name : 'Sem bloco atribuido'}
-        </h2>
+        </Text>
 
         {blockSummary ? (
-          <div className="mt-4 space-y-4">
+          <div className="mt-4 stack-lg">
             <p className="text-sm text-[var(--text-secondary)]">
               Ordem {blockSummary.order ?? '-'} de {blockSummary.total} · {blockSummary.progressPercentage}% concluido
             </p>
             <p className="text-sm font-semibold text-[var(--text-primary)]">
-              Status: {isRecorded || stage === 'GRAVADO' ? 'Gravado' : 'Em execucao'}
+              Status: {isRecorded ? 'Gravado' : 'Em execucao'}
             </p>
             <div className="flex flex-wrap gap-3">
               <AppButton
@@ -95,7 +96,7 @@ export function RecordingSection({
             </div>
           </div>
         ) : (
-          <div className="mt-4 space-y-4">
+          <div className="mt-4 stack-lg">
             <p className="text-sm text-[var(--text-secondary)]">
               Guarde este conteudo em um bloco para montar a sessao de gravacao.
             </p>

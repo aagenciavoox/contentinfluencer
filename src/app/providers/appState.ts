@@ -25,12 +25,6 @@ export const initialState: AppState = {
   contentMetrics: [],
   postingTimeEntries: [],
 
-  // Legacy aliases
-  books: [],
-  partnerships: [],
-  results: [],
-  agenda: [],
-
   theme: 'light',
   isLoaded: false,
 };

@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { Text } from '../../components/ui/Text';
 import { BottomSheetModal } from '../../components/feedback/modals/BottomSheetModal';
 
 interface MobileFilterSheetProps {
@@ -16,10 +17,10 @@ export function MobileFilterSheet({
 }: MobileFilterSheetProps) {
   return (
     <BottomSheetModal open={open} onClose={onClose} desktopMaxW="max-w-xl" zIndex="z-[110]">
-      <div className="border-b border-[var(--border-color)] px-5 py-4">
-        <p className="t-section-title text-[var(--text-primary)]">{title}</p>
+      <div className="border-b border-[var(--border-color)] px-6 py-4">
+        <Text variant="sectionTitle">{title}</Text>
       </div>
-      <div className="space-y-4 p-5 pb-safe">{children}</div>
+      <div className="stack-lg p-6 pb-safe">{children}</div>
     </BottomSheetModal>
   );
 }

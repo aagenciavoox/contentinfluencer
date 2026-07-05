@@ -299,6 +299,7 @@ CREATE TABLE IF NOT EXISTS public.anotacoes (
   tipo text NOT NULL,
   capitulo_ref text,
   content_potential boolean NOT NULL DEFAULT false,
+  destilada boolean NOT NULL DEFAULT false,
   created_at timestamptz NOT NULL DEFAULT now(),
   deleted_at timestamptz,
   CONSTRAINT anotacoes_pkey PRIMARY KEY (id)

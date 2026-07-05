@@ -1,14 +1,17 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAppContext } from '../../../context/AppContext';
-import { ArrowUpRight, Clock, Inbox, Lightbulb, X, Trash2, Edit3, Save, BookOpen, Archive } from 'lucide-react';
+import { ArrowUpRight, Clock, Lightbulb, X, Trash2, Edit3, Save, BookOpen, Archive } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Idea } from '../../../lib/database';
 import { BottomSheetModal } from '../../../components/feedback/modals/BottomSheetModal';
 import { ConfirmModal } from '../../../components/feedback/modals/ConfirmModal';
-import { DesktopPageHeader } from '../../../layouts/page/DesktopPageHeader';
+import { CONFIRM, EMPTY, type ConfirmState } from '../../../lib/uiCopy';
 import { PageLayout } from '../../../layouts/page/PageLayout';
+import { DesktopPageHeader } from '../../../layouts/page/DesktopPageHeader';
+import { Text } from '../../../components/ui/Text';
+import { EmptyState } from '../../../components/ui/EmptyState';
 import { useIsMobile } from '../../../hooks/useIsMobile';
 import { IdeasMobileScreen } from '../../../mobile/screens/ideas/IdeasMobileScreen';
 import { getEntityTagStyle, cn } from '../../../lib/utils';
@@ -16,9 +19,11 @@ import { generateUUID } from '../../../utils/uuid';
 import { createContentDraft } from '../../contents/lib/createContentDraft';
 import { buildContentDetailRoute } from '../../contents/lib/contentDetailRoute';
 import { CONTENT_STATUS } from '../../contents/lib/contentPipeline';
+import { notifySaveFeedback } from '../../../lib/saveFeedback';
 import { IdeaQuickCapture } from '../components/IdeaQuickCapture';
 import { IdeaInboxCard } from '../components/IdeaInboxCard';
 import { PipelineActionBar } from '../../../components/pipeline/PipelineActionBar';
+import { buildIdeaFields, getIdeaNotes, getIdeaTitle } from '../lib/ideaText';
 
 type InboxFilter = 'inbox' | 'archived';
 
@@ -27,7 +32,8 @@ export function IdeasPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const isMobile = useIsMobile();
-  const [newIdeaText, setNewIdeaText] = useState('');
+  const [newIdeaTitle, setNewIdeaTitle] = useState('');
+  const [newIdeaNotes, setNewIdeaNotes] = useState('');
   const [selectedPilarId, setSelectedPilarId] = useState<string>('');
   const [selectedSeries, setSelectedSeries] = useState<string>('');
   const [selectedBibliotecaId, setSelectedBibliotecaId] = useState<string>('');
@@ -48,8 +54,9 @@ export function IdeasPage() {
   }, [searchParams]);
 
   const [isEditing, setIsEditing] = useState(false);
-  const [editValue, setEditValue] = useState('');
-  const [confirm, setConfirm] = useState<{ message: string; onConfirm: () => void } | null>(null);
+  const [editTitle, setEditTitle] = useState('');
+  const [editNotes, setEditNotes] = useState('');
+  const [confirm, setConfirm] = useState<ConfirmState | null>(null);
 
   const allIdeas = [...state.ideas]
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
@@ -58,21 +65,24 @@ export function IdeasPage() {
   const inboxIdeas = inboxFilter === 'inbox' ? activeIdeas : archivedIdeas;
 
   const saveIdea = () => {
-    if (!newIdeaText.trim()) return;
+    const fields = buildIdeaFields({title: newIdeaTitle, notes: newIdeaNotes});
+    if (!fields.title && !fields.notes) return;
 
     const newIdea: Omit<Idea, 'createdAt'> = {
       id: generateUUID(),
       userId: '',
-      text: newIdeaText.trim(),
+      ...fields,
       pilarId: selectedPilarId || null,
       seriesId: selectedSeries || null,
       origemId: selectedBibliotecaId || null,
       promotedToContentId: null,
+      demotedFromContentId: null,
       archived: false,
     };
 
     dispatch({ type: 'ADD_IDEA', payload: { ...newIdea, createdAt: new Date().toISOString() } });
-    setNewIdeaText('');
+    setNewIdeaTitle('');
+    setNewIdeaNotes('');
     setSelectedPilarId('');
     setSelectedSeries('');
     setSelectedBibliotecaId('');
@@ -89,13 +99,15 @@ export function IdeasPage() {
     if (viewingIdea?.id === idea.id) setViewingIdea(null);
   };
 
-  const handlePromote = (idea: Idea) => {
+  const doPromote = (idea: Idea) => {
+    const title = getIdeaTitle(idea);
+    const notes = getIdeaNotes(idea);
     const newContent = createContentDraft({
-      title: idea.text.split('\n')[0].slice(0, 50),
+      title: title.slice(0, 50) || 'Novo roteiro',
       status: CONTENT_STATUS.ROTEIRO,
       seriesId: idea.seriesId,
       pilarId: idea.pilarId,
-      notes: idea.text,
+      notes: notes || null,
       bibliotecaItemId: idea.origemId,
     });
 
@@ -107,27 +119,61 @@ export function IdeasPage() {
         content: newContent,
       },
     });
-    setViewingIdea(null);
-    navigate(buildContentDetailRoute(newContent.id));
+
+    const detailRoute = buildContentDetailRoute(newContent.id);
+    notifySaveFeedback({
+      status: 'success',
+      message: 'Ideia transformada em conteúdo',
+      href: detailRoute,
+      actionLabel: 'Abrir roteiro',
+    });
+
+    window.setTimeout(() => {
+      setViewingIdea(null);
+      navigate(detailRoute);
+    }, 2000);
+  };
+
+  // Spec: promover abre um modal pequeno de confirmacao antes de criar o roteiro.
+  const handlePromote = (idea: Idea) => {
+    setConfirm({
+      ...CONFIRM.promoverIdeia,
+      onConfirm: () => doPromote(idea),
+    });
   };
 
   const handleDelete = (id: string) => {
     setConfirm({
-      message: 'Remover esta ideia da lista ativa?',
+      ...CONFIRM.excluirIdeia,
       onConfirm: () => { dispatch({ type: 'DELETE_IDEA', payload: id }); setViewingIdea(null); },
     });
   };
 
   const handleUpdate = () => {
-    if (!viewingIdea || !editValue.trim()) return;
-    dispatch({ type: 'UPDATE_IDEA', payload: { ...viewingIdea, text: editValue } });
-    setViewingIdea({ ...viewingIdea, text: editValue });
+    if (!viewingIdea) return;
+    const fields = buildIdeaFields({title: editTitle, notes: editNotes});
+    if (!fields.title && !fields.notes) return;
+
+    const updatedIdea = {...viewingIdea, ...fields};
+    dispatch({ type: 'UPDATE_IDEA', payload: updatedIdea });
+    setViewingIdea(updatedIdea);
+    setIsEditing(false);
+  };
+
+  const openIdea = (idea: Idea) => {
+    setViewingIdea(idea);
+    setIsEditing(false);
+  };
+
+  const closeIdeaModal = () => {
+    setViewingIdea(null);
     setIsEditing(false);
   };
 
   const startEditing = () => {
     if (!viewingIdea) return;
-    setEditValue(viewingIdea.text);
+    setEditTitle(getIdeaTitle(viewingIdea));
+    setEditNotes(getIdeaNotes(viewingIdea));
     setIsEditing(true);
   };
 
@@ -143,11 +189,19 @@ export function IdeasPage() {
   const getBibliotecaTitulo = (itemId: string | null) =>
     state.bibliotecaItems.find(b => b.id === itemId)?.titulo ?? null;
 
+  const ideaHasClassification = (idea: Idea) =>
+    Boolean(
+      (idea.pilarId && getPilarNome(idea.pilarId)) ||
+      (idea.seriesId && getSerie(idea.seriesId)?.name) ||
+      (idea.origemId && getBibliotecaTitulo(idea.origemId)),
+    );
+
   if (isMobile) {
     return (
       <>
         <IdeasMobileScreen
-          newIdeaText={newIdeaText}
+          newIdeaTitle={newIdeaTitle}
+          newIdeaNotes={newIdeaNotes}
           selectedPilarId={selectedPilarId}
           selectedSeries={selectedSeries}
           selectedBibliotecaId={selectedBibliotecaId}
@@ -155,37 +209,33 @@ export function IdeasPage() {
           state={state}
           composerOpen={composerOpen}
           onComposerOpenChange={setComposerOpen}
-          onNewIdeaTextChange={setNewIdeaText}
+          onNewIdeaTitleChange={setNewIdeaTitle}
+          onNewIdeaNotesChange={setNewIdeaNotes}
           onSelectedPilarIdChange={setSelectedPilarId}
           onSelectedSeriesChange={setSelectedSeries}
           onSelectedBibliotecaIdChange={setSelectedBibliotecaId}
           onSubmit={handleAddIdea}
           onSave={saveIdea}
-          onPromote={handlePromote}
-          onArchive={handleArchive}
-          onOpenIdea={(idea) => {
-            setViewingIdea(idea);
-            setIsEditing(false);
-          }}
+          onOpenIdea={openIdea}
         />
-        <BottomSheetModal open={!!viewingIdea} onClose={() => setViewingIdea(null)} desktopMaxW="max-w-3xl" zIndex="z-[100]">
+        <BottomSheetModal open={!!viewingIdea} onClose={closeIdeaModal} desktopMaxW="max-w-3xl" zIndex="z-[100]">
           {viewingIdea && (
             <>
               <div className="flex items-center justify-between border-b border-[var(--border-color)] p-4 shrink-0">
-                <div className="flex items-center gap-3 text-xs text-[var(--text-tertiary)] font-semibold uppercase tracking-[0.2em]">
+                <div className="flex items-center gap-3 text-xs text-[var(--text-tertiary)] font-semibold t-label-uppercase">
                   <Clock className="h-3.5 w-3.5" />
                   {format(new Date(viewingIdea.createdAt), "dd 'DE' MMMM 'AS' HH:mm", { locale: ptBR })}
                 </div>
-                <button onClick={() => setViewingIdea(null)} className="rounded-full p-2 text-[var(--text-tertiary)] transition-all hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]">
+                <button onClick={closeIdeaModal} className="rounded-full p-2 text-[var(--text-tertiary)] transition-all hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]">
                   <X className="h-5 w-5" />
                 </button>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-5 custom-scrollbar">
+              <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
                 <div className="mb-6 flex flex-wrap gap-2">
                   {viewingIdea.pilarId && getPilarNome(viewingIdea.pilarId) && (
                     <span
-                      className="rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em]"
+                      className="rounded-full border px-3 py-1 t-label t-label-uppercase font-semibold"
                       style={getEntityTagStyle(getPilar(viewingIdea.pilarId)?.cor)}
                     >
                       {getPilarNome(viewingIdea.pilarId)}
@@ -193,37 +243,57 @@ export function IdeasPage() {
                   )}
                   {viewingIdea.seriesId && (
                     <span
-                      className="rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em]"
+                      className="rounded-full border px-3 py-1 t-label t-label-uppercase font-semibold"
                       style={getEntityTagStyle(getSerie(viewingIdea.seriesId)?.cor)}
                     >
                       {getSerie(viewingIdea.seriesId)?.name}
                     </span>
                   )}
                   {viewingIdea.origemId && getBibliotecaTitulo(viewingIdea.origemId) && (
-                    <span className="flex items-center gap-1.5 rounded-full border border-[var(--accent-orange)]/20 bg-[var(--accent-orange)]/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-[var(--accent-orange)]">
+                    <span className="flex items-center gap-1.5 rounded-full border border-[var(--accent-orange)]/20 bg-[var(--accent-orange)]/10 px-3 py-1 t-label t-label-uppercase font-semibold text-[var(--accent-orange)]">
                       <BookOpen className="h-3 w-3" />
                       {getBibliotecaTitulo(viewingIdea.origemId)}
                     </span>
                   )}
+                  {!ideaHasClassification(viewingIdea) ? (
+                    <span className="rounded-full border border-[var(--border-color)] px-3 py-1 t-label t-label-uppercase font-semibold text-[var(--text-tertiary)]">
+                      Sem classificação
+                    </span>
+                  ) : null}
                   {viewingIdea.archived && (
-                    <span className="rounded-full border border-[var(--accent-orange)]/20 bg-[var(--accent-orange)]/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-[var(--accent-orange)]">
+                    <span className="rounded-full border border-[var(--accent-orange)]/20 bg-[var(--accent-orange)]/10 px-3 py-1 t-label t-label-uppercase font-semibold text-[var(--accent-orange)]">
                       Promovido
                     </span>
                   )}
                 </div>
 
                 {isEditing ? (
-                  <textarea
-                    autoFocus
-                    value={editValue}
-                    onChange={(e) => setEditValue(e.target.value)}
-                    className="min-h-[220px] w-full resize-none border-none bg-transparent p-0 text-lg font-medium leading-relaxed text-[var(--text-primary)] custom-scrollbar"
-                    placeholder="Desenvolva sua ideia..."
-                  />
+                  <div className="stack-md">
+                    <input
+                      autoFocus
+                      value={editTitle}
+                      onChange={(e) => setEditTitle(e.target.value)}
+                      className="w-full border-none bg-transparent p-0 text-lg font-semibold text-[var(--text-primary)] focus:ring-0"
+                      placeholder="Título da ideia"
+                    />
+                    <textarea
+                      value={editNotes}
+                      onChange={(e) => setEditNotes(e.target.value)}
+                      className="min-h-[220px] w-full resize-none border-none bg-transparent p-0 text-base font-medium leading-relaxed text-[var(--text-primary)] custom-scrollbar"
+                      placeholder="Observações..."
+                    />
+                  </div>
                 ) : (
-                  <p className="text-lg font-medium italic leading-relaxed text-[var(--text-primary)] whitespace-pre-wrap break-words">
-                    "{viewingIdea.text}"
-                  </p>
+                  <div className="stack-md">
+                    <p className="text-lg font-semibold leading-snug text-[var(--text-primary)] break-words">
+                      {getIdeaTitle(viewingIdea)}
+                    </p>
+                    {getIdeaNotes(viewingIdea) ? (
+                      <p className="text-base leading-relaxed text-[var(--text-secondary)] whitespace-pre-wrap break-words">
+                        {getIdeaNotes(viewingIdea)}
+                      </p>
+                    ) : null}
+                  </div>
                 )}
               </div>
 
@@ -232,6 +302,15 @@ export function IdeasPage() {
                   <button onClick={() => handleDelete(viewingIdea.id)} className="rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] p-3 text-[var(--accent-pink)] transition-all hover:bg-[var(--accent-pink)]/10" title="Excluir">
                     <Trash2 className="h-5 w-5" />
                   </button>
+                  {!viewingIdea.archived && !isEditing ? (
+                    <button
+                      onClick={() => handleArchive(viewingIdea)}
+                      className="flex items-center gap-2 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] px-3 py-2 text-xs font-semibold t-label-uppercase text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)]"
+                      title="Arquivar"
+                    >
+                      <Archive className="h-4 w-4" /> Arquivar
+                    </button>
+                  ) : null}
                   {isEditing ? (
                     <button onClick={handleUpdate} className="flex flex-1 items-center justify-center gap-3 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] bg-[var(--accent-green)] px-6 py-2.5 text-sm font-semibold text-white shadow-xl shadow-[var(--accent-green)]/20 transition-all">
                       <Save className="h-4 w-4" /> SALVAR
@@ -243,7 +322,7 @@ export function IdeasPage() {
                   )}
                 </div>
                 {!viewingIdea.archived && !isEditing && (
-                  <button onClick={() => handlePromote(viewingIdea)} className="flex w-full items-center justify-center gap-2 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] bg-[var(--text-primary)] px-5 py-3 text-sm font-semibold text-[var(--bg-primary)] shadow-none shadow-black/20 transition-all">
+                  <button onClick={() => handlePromote(viewingIdea)} className="flex w-full items-center justify-center gap-2 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] bg-[var(--text-primary)] px-6 py-3 text-sm font-semibold text-[var(--bg-primary)] shadow-none shadow-black/20 transition-all">
                     PROMOVER <ArrowUpRight className="h-4 w-4" />
                   </button>
                 )}
@@ -251,7 +330,7 @@ export function IdeasPage() {
             </>
           )}
         </BottomSheetModal>
-        <ConfirmModal open={!!confirm} message={confirm?.message || ''} onConfirm={() => { confirm?.onConfirm(); setConfirm(null); }} onCancel={() => setConfirm(null)} />
+        <ConfirmModal open={!!confirm} message={confirm?.message || ''} confirmLabel={confirm?.confirmLabel} cancelLabel={confirm?.cancelLabel} onConfirm={() => { confirm?.onConfirm(); setConfirm(null); }} onCancel={() => setConfirm(null)} />
       </>
     );
   }
@@ -260,69 +339,65 @@ export function IdeasPage() {
     <>
     <PageLayout
       variant="settings"
-      contentClassName="max-w-6xl"
+      contentWidth="narrow"
       header={
-        <>
-          <DesktopPageHeader
-            section="Inbox editorial"
-            title="Ideias"
-            subtitle={`${activeIdeas.length} na caixa de entrada · capture rápido, classifique depois`}
-            icon={Inbox}
-            className="mb-0"
-          />
+        <DesktopPageHeader
+          section="Inbox editorial"
+          title="Ideias"
+          meta={`${activeIdeas.length} na caixa de entrada · capture rápido, classifique depois`}
+        >
           <IdeaQuickCapture
-            text={newIdeaText}
+            title={newIdeaTitle}
+            notes={newIdeaNotes}
             selectedPilarId={selectedPilarId}
             selectedSeries={selectedSeries}
             selectedBibliotecaId={selectedBibliotecaId}
             state={state}
-            onTextChange={setNewIdeaText}
+            onTitleChange={setNewIdeaTitle}
+            onNotesChange={setNewIdeaNotes}
             onSelectedPilarIdChange={setSelectedPilarId}
             onSelectedSeriesChange={setSelectedSeries}
             onSelectedBibliotecaIdChange={setSelectedBibliotecaId}
             onSave={saveIdea}
           />
-        </>
+        </DesktopPageHeader>
       }
     >
         {inboxIdeas[0] && inboxFilter === 'inbox' ? (
           <PipelineActionBar
             className="mb-4"
             title="Promover ideia para roteiro"
-            description={`"${inboxIdeas[0].text.slice(0, 80)}${inboxIdeas[0].text.length > 80 ? '...' : ''}"`}
+            description={`"${getIdeaTitle(inboxIdeas[0]).slice(0, 80)}${getIdeaTitle(inboxIdeas[0]).length > 80 ? '...' : ''}"`}
             primaryLabel="Promover para roteiro"
             onPrimary={() => handlePromote(inboxIdeas[0])}
           />
         ) : null}
-        <div className="mb-4 flex items-center gap-2">
+        <div className="tab-bar mb-5">
           <button
             type="button"
             onClick={() => setInboxFilter('inbox')}
-            className={cn(
-              'rounded-lg px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.1em] transition-colors',
-              inboxFilter === 'inbox'
-                ? 'bg-[var(--text-primary)] text-[var(--bg-primary)]'
-                : 'text-[var(--text-tertiary)] hover:bg-[var(--bg-hover)]'
-            )}
+            className={cn('tab-item', inboxFilter === 'inbox' && 'tab-item-active')}
           >
             Caixa de entrada ({activeIdeas.length})
           </button>
           <button
             type="button"
             onClick={() => setInboxFilter('archived')}
-            className={cn(
-              'rounded-lg px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.1em] transition-colors',
-              inboxFilter === 'archived'
-                ? 'bg-[var(--text-primary)] text-[var(--bg-primary)]'
-                : 'text-[var(--text-tertiary)] hover:bg-[var(--bg-hover)]'
-            )}
+            className={cn('tab-item', inboxFilter === 'archived' && 'tab-item-active')}
           >
             Arquivadas ({archivedIdeas.length})
           </button>
         </div>
 
         {inboxIdeas.length > 0 ? (
-          <ul className="grid grid-cols-1 gap-2 md:grid-cols-2 lg:grid-cols-3">
+          <>
+          <div className="mb-3 flex items-center justify-between px-0.5">
+            <span className="eyebrow-label">
+              {inboxFilter === 'inbox' ? 'Caixa de entrada' : 'Arquivadas'}
+            </span>
+            <Text variant="meta">{inboxIdeas.length}</Text>
+          </div>
+          <ul className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
             {inboxIdeas.map((idea) => (
               <li key={idea.id} className="min-h-0">
                 <IdeaInboxCard
@@ -332,45 +407,39 @@ export function IdeasPage() {
                   serieNome={idea.seriesId ? getSerie(idea.seriesId)?.name ?? null : null}
                   serieCor={getSerie(idea.seriesId)?.cor}
                   origemTitulo={idea.origemId ? getBibliotecaTitulo(idea.origemId) : null}
-                  onPromote={() => !idea.archived && handlePromote(idea)}
-                  onEdit={() => {
-                    setViewingIdea(idea);
-                    setIsEditing(false);
-                  }}
-                  onArchive={() => handleArchive(idea)}
+                  onOpen={() => openIdea(idea)}
                 />
               </li>
             ))}
           </ul>
+          </>
         ) : (
-          <div className="rounded-[var(--radius-input)] border border-dashed border-[var(--border-color)] py-12 text-center">
-            <Lightbulb className="mx-auto mb-3 h-10 w-10 text-[var(--text-tertiary)] opacity-40" />
-            <p className="text-xs font-medium text-[var(--text-secondary)]">
-              {inboxFilter === 'inbox'
-                ? 'Caixa de entrada vazia. Digite acima e pressione Enter.'
-                : 'Nenhuma ideia arquivada ainda.'}
-            </p>
-          </div>
+          <EmptyState
+            compact
+            icon={<Lightbulb className="h-8 w-8" />}
+            title={inboxFilter === 'inbox' ? EMPTY.ideias.title : EMPTY.ideiasArquivadas.title}
+            description={inboxFilter === 'inbox' ? EMPTY.ideias.description : EMPTY.ideiasArquivadas.description}
+          />
         )}
     </PageLayout>
-    <BottomSheetModal open={!!viewingIdea} onClose={() => setViewingIdea(null)} desktopMaxW="max-w-3xl" zIndex="z-[100]">
+    <BottomSheetModal open={!!viewingIdea} onClose={closeIdeaModal} desktopMaxW="max-w-3xl" zIndex="z-[100]">
         {viewingIdea && (
           <>
             <div className="flex items-center justify-between p-4 md:p-8 border-b border-[var(--border-color)] shrink-0">
-              <div className="flex items-center gap-3 md:gap-4 text-xs md:text-xs text-[var(--text-tertiary)] font-semibold uppercase tracking-[0.2em]">
+              <div className="flex items-center gap-3 md:gap-4 text-xs md:text-xs text-[var(--text-tertiary)] font-semibold t-label-uppercase">
                 <Clock className="w-3.5 md:w-4 h-3.5 md:h-4" />
                 {format(new Date(viewingIdea.createdAt), "dd 'DE' MMMM 'ÀS' HH:mm", { locale: ptBR })}
               </div>
-              <button onClick={() => setViewingIdea(null)} className="p-2 md:p-3 hover:bg-[var(--bg-hover)] rounded-full transition-all text-[var(--text-tertiary)] hover:text-[var(--text-primary)]">
+              <button onClick={closeIdeaModal} className="p-2 md:p-3 hover:bg-[var(--bg-hover)] rounded-full transition-all text-[var(--text-tertiary)] hover:text-[var(--text-primary)]">
                 <X className="w-5 h-5 md:w-6 md:h-6" />
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-5 md:p-14 custom-scrollbar">
+            <div className="flex-1 overflow-y-auto p-6 md:p-14 custom-scrollbar">
               <div className="flex flex-wrap gap-2 md:gap-3 mb-6 md:mb-8">
                 {viewingIdea.pilarId && getPilarNome(viewingIdea.pilarId) && (
                   <span
-                    className="rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] md:px-4 md:py-1.5 md:text-xs"
+                    className="rounded-full border px-3 py-1 t-label t-label-uppercase font-semibold md:px-4 md:py-1.5 md:text-xs"
                     style={getEntityTagStyle(getPilar(viewingIdea.pilarId)?.cor)}
                   >
                     {getPilarNome(viewingIdea.pilarId)}
@@ -378,37 +447,57 @@ export function IdeasPage() {
                 )}
                 {viewingIdea.seriesId && (
                   <span
-                    className="rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] md:px-4 md:py-1.5 md:text-xs"
+                    className="rounded-full border px-3 py-1 t-label t-label-uppercase font-semibold md:px-4 md:py-1.5 md:text-xs"
                     style={getEntityTagStyle(getSerie(viewingIdea.seriesId)?.cor)}
                   >
                     {getSerie(viewingIdea.seriesId)?.name}
                   </span>
                 )}
                 {viewingIdea.origemId && getBibliotecaTitulo(viewingIdea.origemId) && (
-                  <span className="px-3 md:px-4 py-1 md:py-1.5 bg-[var(--accent-orange)]/10 text-[var(--accent-orange)] text-xs md:text-xs font-semibold uppercase tracking-[0.2em] rounded-full border border-[var(--accent-orange)]/20 flex items-center gap-1.5">
+                  <span className="px-3 md:px-4 py-1 md:py-1.5 bg-[var(--accent-orange)]/10 text-[var(--accent-orange)] text-xs md:t-label t-label-uppercase font-semibold rounded-full border border-[var(--accent-orange)]/20 flex items-center gap-1.5">
                     <BookOpen className="w-3 md:w-3.5 h-3 md:h-3.5" />
                     {getBibliotecaTitulo(viewingIdea.origemId)}
                   </span>
                 )}
+                {!ideaHasClassification(viewingIdea) ? (
+                  <span className="rounded-full border border-[var(--border-color)] px-3 md:px-4 py-1 md:py-1.5 t-label t-label-uppercase font-semibold text-[var(--text-tertiary)]">
+                    Sem classificação
+                  </span>
+                ) : null}
                 {viewingIdea.archived && (
-                  <span className="px-3 md:px-4 py-1 md:py-1.5 bg-[var(--accent-orange)]/10 text-[var(--accent-orange)] text-xs md:text-xs font-semibold uppercase tracking-[0.2em] rounded-full border border-[var(--accent-orange)]/20">
+                  <span className="px-3 md:px-4 py-1 md:py-1.5 bg-[var(--accent-orange)]/10 text-[var(--accent-orange)] text-xs md:t-label t-label-uppercase font-semibold rounded-full border border-[var(--accent-orange)]/20">
                     PROMOVIDO
                   </span>
                 )}
               </div>
 
               {isEditing ? (
-                <textarea
-                  autoFocus
-                  value={editValue}
-                  onChange={(e) => setEditValue(e.target.value)}
-                  className="w-full min-h-[120px] md:min-h-[400px] text-lg md:text-2xl text-[var(--text-primary)] leading-relaxed border-none focus:ring-0 p-0 resize-none bg-transparent custom-scrollbar font-medium"
-                  placeholder="Desenvolva sua ideia..."
-                />
+                <div className="stack-lg">
+                  <input
+                    autoFocus
+                    value={editTitle}
+                    onChange={(e) => setEditTitle(e.target.value)}
+                    className="w-full border-none bg-transparent p-0 text-xl md:text-2xl font-semibold text-[var(--text-primary)] focus:ring-0"
+                    placeholder="Título da ideia"
+                  />
+                  <textarea
+                    value={editNotes}
+                    onChange={(e) => setEditNotes(e.target.value)}
+                    className="w-full min-h-[120px] md:min-h-[320px] text-lg md:text-xl text-[var(--text-primary)] leading-relaxed border-none focus:ring-0 p-0 resize-none bg-transparent custom-scrollbar font-medium"
+                    placeholder="Observações..."
+                  />
+                </div>
               ) : (
-                <p className="text-lg md:text-xl text-[var(--text-primary)] leading-relaxed whitespace-pre-wrap break-words font-medium">
-                  {viewingIdea.text}
-                </p>
+                <div className="stack-lg">
+                  <p className="text-xl md:text-2xl font-semibold leading-snug text-[var(--text-primary)] break-words">
+                    {getIdeaTitle(viewingIdea)}
+                  </p>
+                  {getIdeaNotes(viewingIdea) ? (
+                    <p className="text-lg md:text-xl text-[var(--text-secondary)] leading-relaxed whitespace-pre-wrap break-words font-medium">
+                      {getIdeaNotes(viewingIdea)}
+                    </p>
+                  ) : null}
+                </div>
               )}
             </div>
 
@@ -420,7 +509,7 @@ export function IdeasPage() {
                 {!viewingIdea.archived && !isEditing ? (
                   <button
                     onClick={() => handleArchive(viewingIdea)}
-                    className="flex items-center gap-2 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] px-3 py-2 text-xs font-semibold uppercase tracking-[0.1em] text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)]"
+                    className="flex items-center gap-2 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] px-3 py-2 text-xs font-semibold t-label-uppercase text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)]"
                     title="Arquivar"
                   >
                     <Archive className="w-4 h-4" /> Arquivar
@@ -437,7 +526,7 @@ export function IdeasPage() {
                 )}
               </div>
               {!viewingIdea.archived && !isEditing && (
-                <button onClick={() => handlePromote(viewingIdea)} className="flex items-center justify-center gap-2 bg-[var(--text-primary)] text-[var(--bg-primary)] px-5 py-3 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] text-sm font-semibold transition-all shadow-none shadow-black/20 w-full md:w-auto hover-action">
+                <button onClick={() => handlePromote(viewingIdea)} className="flex items-center justify-center gap-2 bg-[var(--text-primary)] text-[var(--bg-primary)] px-6 py-3 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] text-sm font-semibold transition-all shadow-none shadow-black/20 w-full md:w-auto hover-action">
                   Promover para roteiro <ArrowUpRight className="w-4 h-4" />
                 </button>
               )}
@@ -445,7 +534,7 @@ export function IdeasPage() {
           </>
         )}
       </BottomSheetModal>
-      <ConfirmModal open={!!confirm} message={confirm?.message || ''} onConfirm={() => { confirm?.onConfirm(); setConfirm(null); }} onCancel={() => setConfirm(null)} />
+      <ConfirmModal open={!!confirm} message={confirm?.message || ''} confirmLabel={confirm?.confirmLabel} cancelLabel={confirm?.cancelLabel} onConfirm={() => { confirm?.onConfirm(); setConfirm(null); }} onCancel={() => setConfirm(null)} />
     </>
   );
 }

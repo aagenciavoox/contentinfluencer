@@ -62,7 +62,7 @@ export function TagPill({
             event.stopPropagation();
             onRemove();
           }}
-          className="rounded p-0.5 text-[var(--tag-text)]/70 transition hover:bg-[var(--tag-bg-hover)] hover:text-[var(--tag-text)]"
+          className="rounded p-0.5 text-[var(--tag-text)]/70 transition hover:bg-[var(--tag-bg-hover)] hover:text-[var(--tag-text)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
           aria-label={`Remover ${label}`}
         >
           <X className="h-3 w-3" />
@@ -235,7 +235,7 @@ export function TagSelect({
               event.stopPropagation();
               setOpen(previous => !previous);
             }}
-            className="shrink-0 rounded p-1 text-[var(--text-tertiary)] transition hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
+            className="shrink-0 rounded p-1 text-[var(--text-tertiary)] transition hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
             aria-label={open ? 'Fechar opcoes' : 'Abrir opcoes'}
           >
             <ChevronsUpDown className="h-4 w-4" />
@@ -255,7 +255,7 @@ export function TagSelect({
                   type="button"
                   role="option"
                   onClick={() => toggleOption(option.value)}
-                  className="flex w-full items-center px-3 py-2 text-left text-sm text-[var(--text-primary)] transition hover:bg-[var(--bg-hover)]"
+                  className="flex w-full items-center px-3 py-2 text-left text-sm text-[var(--text-primary)] transition hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
                 >
                   {option.label ?? option.value}
                 </button>
@@ -266,7 +266,7 @@ export function TagSelect({
               <button
                 type="button"
                 onClick={() => addValue(query)}
-                className="flex w-full items-center px-3 py-2 text-left text-sm text-[var(--text-primary)] transition hover:bg-[var(--bg-hover)]"
+                className="flex w-full items-center px-3 py-2 text-left text-sm text-[var(--text-primary)] transition hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
               >
                 Adicionar &quot;{query.trim()}&quot;
               </button>

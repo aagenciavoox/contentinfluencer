@@ -1,5 +1,8 @@
-import {CalendarDays, CheckCircle2, Clock3, History} from 'lucide-react';
+import {CalendarCheck, Circle, Clapperboard, FileText, Send} from 'lucide-react';
+import {Text} from '../../../../../components/ui/Text';
 import type {Content} from '../../../../../lib/database';
+import {CONTENT_STATUS, getDisplayStatus, normalizeContentStatus} from '../../../lib/contentPipeline';
+import {cn} from '../../../../../lib/utils';
 
 interface HistorySectionProps {
   content: Content;
@@ -7,71 +10,109 @@ interface HistorySectionProps {
 }
 
 function formatDateTime(value: string | null) {
-  if (!value) return 'Nao registrado';
+  if (!value) return null;
   return new Date(value).toLocaleString('pt-BR');
 }
 
+const STATUS_RANK: Record<string, number> = {
+  [CONTENT_STATUS.IDEIA]: 0,
+  [CONTENT_STATUS.ROTEIRO]: 1,
+  [CONTENT_STATUS.PRODUCAO]: 2,
+  [CONTENT_STATUS.POSTADO]: 3,
+};
+
+function statusRank(status: string) {
+  return STATUS_RANK[normalizeContentStatus(status)] ?? 1;
+}
+
 export function HistorySection({content, compact = false}: HistorySectionProps) {
-  const items = [
+  const rank = statusRank(content.status);
+  const displayStatus = getDisplayStatus(content);
+  const isScheduled = displayStatus === 'Programado';
+
+  const milestones = [
     {
       id: 'created',
-      title: 'Conteúdo criado',
-      value: formatDateTime(content.createdAt),
-      icon: <History className="h-4 w-4" />,
+      label: 'Criado',
+      date: formatDateTime(content.createdAt),
+      reached: true,
+      icon: <Circle className="h-3.5 w-3.5" />,
     },
     {
-      id: 'recording',
-      title: 'Gravação planejada',
-      value: content.recordingDate ? new Date(content.recordingDate).toLocaleDateString('pt-BR') : 'Sem data',
-      icon: <Clock3 className="h-4 w-4" />,
+      id: 'script',
+      label: 'Roteiro',
+      date: formatDateTime(content.createdAt),
+      reached: rank >= 1,
+      icon: <FileText className="h-3.5 w-3.5" />,
     },
     {
-      id: 'posting',
-      title: 'Postagem planejada',
-      value: content.publishDate ? new Date(content.publishDate).toLocaleDateString('pt-BR') : 'Sem data',
-      icon: <CalendarDays className="h-4 w-4" />,
+      id: 'production',
+      label: 'Produção',
+      date: rank >= 2 ? formatDateTime(content.updatedAt) : null,
+      reached: rank >= 2,
+      icon: <Clapperboard className="h-3.5 w-3.5" />,
     },
     {
-      id: 'updated',
-      title: 'Ultima atualizacao',
-      value: formatDateTime(content.updatedAt),
-      icon: <CheckCircle2 className="h-4 w-4" />,
+      id: 'recorded',
+      label: 'Gravado',
+      date: formatDateTime(content.recordedAt ?? null),
+      reached: Boolean(content.recordedAt),
+      icon: <Clapperboard className="h-3.5 w-3.5" />,
+    },
+    {
+      id: 'scheduled',
+      label: 'Programado',
+      date: isScheduled ? formatDateTime(content.publishDate) : null,
+      reached: isScheduled,
+      icon: <CalendarCheck className="h-3.5 w-3.5" />,
+    },
+    {
+      id: 'posted',
+      label: 'Postado',
+      date: formatDateTime(content.postedAt ?? null),
+      reached: rank >= 3,
+      icon: <Send className="h-3.5 w-3.5" />,
     },
   ];
 
   return (
     <section
-      className={
-        compact
-          ? 'p-2'
-          : 'rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-5 shadow-sm md:p-7'
-      }
+      className={cn(
+        'rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-elevated)]',
+        compact ? 'p-4' : 'p-6',
+      )}
     >
-      {!compact ? (
-        <>
-          <p className="text-xs font-semibold  text-[var(--text-tertiary)]">
-            Historico
-          </p>
-          <h2 className="mt-2 text-xl font-semibold text-[var(--text-primary)]">Timeline do conteudo</h2>
-        </>
-      ) : null}
-
-      <div className={compact ? 'space-y-2' : 'mt-6 space-y-4'}>
-        {items.map(item => (
-          <article
-            key={item.id}
-            className="flex items-start gap-3 rounded-[18px] border border-[var(--border-color)] bg-[var(--bg-primary)] px-3 py-3"
+      <Text variant="sectionTitle" className="mb-4">
+        Historico
+      </Text>
+      <ol className="stack-md">
+        {milestones.map(milestone => (
+          <li
+            key={milestone.id}
+            className={cn(
+              'flex items-start gap-3 text-sm',
+              milestone.reached ? 'text-[var(--text-primary)]' : 'text-[var(--text-tertiary)]',
+            )}
           >
-            <div className="mt-0.5 text-[var(--text-secondary)]">{item.icon}</div>
-            <div>
-              <p className="text-xs font-semibold  text-[var(--text-tertiary)]">
-                {item.title}
-              </p>
-              <p className="mt-1 text-sm font-semibold text-[var(--text-primary)]">{item.value}</p>
+            <span
+              className={cn(
+                'mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border',
+                milestone.reached
+                  ? 'border-[var(--accent-blue)]/30 bg-[var(--accent-blue)]/10 text-[var(--accent-blue)]'
+                  : 'border-[var(--border-color)] bg-[var(--bg-hover)]',
+              )}
+            >
+              {milestone.icon}
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="font-medium">{milestone.label}</p>
+              {milestone.date ? (
+                <p className="text-xs text-[var(--text-tertiary)]">{milestone.date}</p>
+              ) : null}
             </div>
-          </article>
+          </li>
         ))}
-      </div>
+      </ol>
     </section>
   );
 }

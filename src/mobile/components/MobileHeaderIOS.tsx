@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { ChevronLeft, Menu } from 'lucide-react';
+import { Text } from '../../components/ui/Text';
 import { cn } from '../../lib/utils';
 
 interface MobileHeaderIOSProps {
@@ -55,9 +56,9 @@ export function MobileHeaderIOS({
               {mode === 'back' ? <ChevronLeft className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
             </button>
 
-            <h1 className="min-w-0 flex-1 truncate text-center text-[13px] font-semibold tracking-tight text-[var(--text-primary)]">
+            <Text variant="itemTitle" truncate className="min-w-0 flex-1 text-center font-semibold tracking-tight text-[var(--text-secondary)]">
               {title}
-            </h1>
+            </Text>
 
             <button
               type="button"
@@ -65,7 +66,7 @@ export function MobileHeaderIOS({
               onClick={onRightAction}
               className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[var(--border-color)] bg-[var(--bg-secondary)] text-[var(--text-primary)] shadow-sm active:scale-95"
             >
-              {rightActionIcon ?? <span className="t-label text-xs">CMD</span>}
+              {rightActionIcon ?? <Text variant="label" className="text-xs">CMD</Text>}
             </button>
           </div>
         ) : (
@@ -86,14 +87,14 @@ export function MobileHeaderIOS({
                 onClick={onRightAction}
                 className="flex h-11 min-w-11 items-center justify-center rounded-full border border-[var(--border-color)] bg-[var(--bg-secondary)] px-3 text-[var(--text-primary)] shadow-sm active:scale-95"
               >
-                {rightActionIcon ?? <span className="t-label">CMD</span>}
+                {rightActionIcon ?? <Text variant="label">CMD</Text>}
               </button>
             </div>
 
             <div className="space-y-1">
-              <p className="t-page-title text-[var(--text-primary)]">{title}</p>
+              <Text variant="pageTitle">{title}</Text>
               {subtitle ? (
-                <p className="t-secondary max-w-[24rem] text-[var(--text-secondary)]">{subtitle}</p>
+                <Text variant="secondary" className="max-w-[24rem]">{subtitle}</Text>
               ) : null}
             </div>
           </>

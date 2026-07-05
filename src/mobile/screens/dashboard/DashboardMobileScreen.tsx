@@ -1,16 +1,23 @@
 import { CalendarClock, FileText, FolderKanban, Lightbulb, Sparkles, Video } from 'lucide-react';
-import type { AgendaItem, Content, Idea, Projeto } from '../../../lib/database';
-import { CONTENT_STATUS } from '../../../features/contents/lib/contentPipeline';
+import type { AgendaItem, Content, Idea, Pilar, Projeto, Serie } from '../../../lib/database';
+import { CONTENT_STATUS, PRODUCTION_TAGS } from '../../../features/contents/lib/contentPipeline';
 import type { GentleExperienceSettings } from '../../../features/settings/lib/gentleExperience';
-import { MobileEmptyState } from '../../components/MobileEmptyState';
+import { recommendDailyAction } from '../../../features/recommendations/recommendDailyAction';
+import { DailyRecommendationBlock } from '../../../features/recommendations/DailyRecommendationBlock';
+import { EmptyState } from '../../../components/ui/EmptyState';
+import { Text } from '../../../components/ui/Text';
 import { MobileListCard } from '../../components/MobileListCard';
+import { MobileSectionHeader } from '../../components/MobileSectionHeader';
 
 interface DashboardMobileScreenProps {
   contents: Content[];
   ideas: Idea[];
   projetos: Projeto[];
   agendaItems: AgendaItem[];
+  pilares: Pilar[];
+  series: Serie[];
   gentleExperience: GentleExperienceSettings;
+  onNavigate: (path: string) => void;
 }
 
 export function DashboardMobileScreen({
@@ -18,11 +25,19 @@ export function DashboardMobileScreen({
   ideas,
   projetos,
   agendaItems,
+  pilares,
+  series,
   gentleExperience,
+  onNavigate,
 }: DashboardMobileScreenProps) {
   const useGentleLanguage = gentleExperience.enabled;
   const isPauseMode = gentleExperience.enabled && gentleExperience.pauseMode;
-  const readyToRecord = contents.filter((content) => content.status === CONTENT_STATUS.PRONTO_PARA_GRAVAR);
+  const readyToRecord = contents.filter(
+    (content) =>
+      content.status === CONTENT_STATUS.PRODUCAO &&
+      !content.recordedAt &&
+      (content.tags.includes(PRODUCTION_TAGS.GRAVAR) || content.tags.length === 0),
+  );
   const activeIdeas = ideas.filter((idea) => !idea.archived);
   const activeProjects = projetos.filter((project) => project.status !== 'Concluido');
   const realDeadlineProjects = projetos
@@ -36,29 +51,35 @@ export function DashboardMobileScreen({
   const recentContents = [...contents]
     .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
     .slice(0, 3);
+  const dailyRecommendation =
+    !isPauseMode
+      ? recommendDailyAction({ pilares, series, contents })
+      : null;
 
   return (
-    <div className="space-y-5">
-      <section className="rounded-[1.75rem] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4 shadow-sm">
-        <div className="mb-4 flex items-center gap-3">
-          <div className="rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] bg-[var(--accent-blue)]/12 p-3 text-[var(--accent-blue)]">
-            <Sparkles className="h-5 w-5" />
-          </div>
-          <div>
-            <p className="t-section-title text-[var(--text-primary)]">
-              {isPauseMode ? 'Tudo guardado' : useGentleLanguage ? 'Talvez util hoje' : 'Resumo do dia'}
-            </p>
-            <p className="t-secondary">
-              {useGentleLanguage
-                ? isPauseMode
-                  ? 'Modo pausa ligado. O sistema fica quieto e preserva seu contexto.'
-                  : 'Um resumo leve para escolher o que faz sentido, sem pressa.'
-                : 'Um resumo rapido para escolher sem abrir o painel completo.'}
-            </p>
-          </div>
-        </div>
+    <div className="stack-xl">
+      {dailyRecommendation && gentleExperience.calmSuggestions ? (
+        <DailyRecommendationBlock
+          recommendation={dailyRecommendation}
+          gentleLanguage={useGentleLanguage}
+        />
+      ) : null}
 
-        <div className="grid grid-cols-2 gap-3">
+      <section className="rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4 shadow-sm">
+        <MobileSectionHeader
+          icon={Sparkles}
+          tone="blue"
+          title={isPauseMode ? 'Tudo guardado' : useGentleLanguage ? 'Talvez util hoje' : 'Resumo do dia'}
+          description={
+            useGentleLanguage
+              ? isPauseMode
+                ? 'Modo pausa ligado. O sistema fica quieto e preserva seu contexto.'
+                : 'Um resumo leve para escolher o que faz sentido, sem pressa.'
+              : 'Um resumo rapido para escolher sem abrir o painel completo.'
+          }
+        />
+
+        <div className="grid-metrics">
           <FocusMetric
             icon={Video}
             label={useGentleLanguage ? 'Para gravar' : 'Prontos para gravar'}
@@ -92,17 +113,15 @@ export function DashboardMobileScreen({
 
       {isPauseMode ? (
         <section className="rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4 shadow-sm">
-          <p className="text-sm font-semibold text-[var(--text-primary)]">Pausa respeitada</p>
-          <p className="mt-2 text-sm text-[var(--text-secondary)]">
+          <Text variant="bodyStrong">Pausa respeitada</Text>
+          <Text variant="secondary" className="mt-2">
             Sugestoes ficam ocultas. Conteudos, ideias e projetos continuam guardados para quando voce quiser voltar.
-          </p>
+          </Text>
         </section>
       ) : gentleExperience.calmSuggestions ? (
-        <section className="space-y-4">
+        <section className="stack-lg">
           <div className="px-1">
-            <p className="t-label text-[var(--text-tertiary)]">
-              Caminhos possiveis
-            </p>
+            <Text variant="label">Caminhos possiveis</Text>
           </div>
 
           <MobileListCard
@@ -111,9 +130,10 @@ export function DashboardMobileScreen({
             description={
               useGentleLanguage
                 ? 'Roteiros disponiveis ficam aqui para quando houver energia de camera.'
-                : `${readyToRecord.length} roteiros ja podem entrar na fila de gravacao.`
+                : `${readyToRecord.length} roteiros já podem entrar na fila de gravação.`
             }
             trailing={<Video className="h-4 w-4 text-[var(--accent-orange)]" />}
+            onClick={() => onNavigate('/gravacao')}
           />
 
           <MobileListCard
@@ -125,6 +145,7 @@ export function DashboardMobileScreen({
                 : `${activeIdeas.length} ideias seguem abertas para promover ou organizar.`
             }
             trailing={<Lightbulb className="h-4 w-4 text-[var(--accent-blue)]" />}
+            onClick={() => onNavigate('/ideias')}
           />
 
           <MobileListCard
@@ -136,6 +157,7 @@ export function DashboardMobileScreen({
                 : `${activeProjects.length} projetos ativos com contexto para revisar.`
             }
             trailing={<FolderKanban className="h-4 w-4 text-[var(--accent-green)]" />}
+            onClick={() => onNavigate('/projetos')}
           />
 
           {gentleExperience.realDeadlineHighlights ? (
@@ -148,26 +170,27 @@ export function DashboardMobileScreen({
                   : `${realDeadlineProjects.length} projetos tem contexto externo marcado.`
               }
               trailing={<CalendarClock className="h-4 w-4 text-[var(--text-tertiary)]" />}
+              onClick={() => onNavigate(realDeadlineProjects[0] ? `/projetos/${realDeadlineProjects[0].id}` : '/projetos')}
             />
           ) : null}
         </section>
       ) : null}
 
-      <section className="space-y-4">
+      <section className="stack-lg">
         <div className="px-1">
-          <p className="t-label text-[var(--text-tertiary)]">
+          <Text variant="label">
             {useGentleLanguage ? 'Agenda para lembrar' : 'Agenda proxima'}
-          </p>
+          </Text>
         </div>
 
         {upcomingAgenda.length === 0 ? (
-          <MobileEmptyState
-            title={useGentleLanguage ? 'Nada chamando atencao agora' : 'Agenda livre por enquanto'}
+          <EmptyState compact
+            title={useGentleLanguage ? 'Nada chamando atenção agora' : 'Agenda livre por enquanto'}
             description="Nenhum compromisso futuro encontrado na agenda editorial."
             icon={<CalendarClock className="h-8 w-8" />}
           />
         ) : (
-          <div className="space-y-3">
+          <div className="stack-md">
             {upcomingAgenda.map((item) => (
               <MobileListCard
                 key={item.id}
@@ -181,19 +204,19 @@ export function DashboardMobileScreen({
         )}
       </section>
 
-      <section className="space-y-4">
+      <section className="stack-lg">
         <div className="px-1">
-          <p className="t-label text-[var(--text-tertiary)]">Movimento recente</p>
+          <Text variant="label">Movimento recente</Text>
         </div>
 
         {recentContents.length === 0 ? (
-          <MobileEmptyState
+          <EmptyState compact
             title="Sem conteúdos recentes"
-            description="Quando o pipeline receber itens novos, eles aparecem aqui em leitura rápida."
+            description="Quando houver roteiros novos, eles aparecem aqui em leitura rápida."
             icon={<FileText className="h-8 w-8" />}
           />
         ) : (
-          <div className="space-y-3">
+          <div className="stack-md">
             {recentContents.map((content) => (
               <MobileListCard
                 key={content.id}
@@ -233,12 +256,12 @@ function FocusMetric({
           : 'bg-[var(--bg-hover)] text-[var(--text-primary)]';
 
   return (
-    <div className="rounded-[1.25rem] bg-[var(--bg-hover)] px-3 py-3">
-      <div className={`mb-3 inline-flex rounded-xl p-2 ${toneClass}`}>
+    <div className="rounded-[var(--radius-md)] bg-[var(--bg-hover)] px-3 py-3">
+      <div className={`mb-3 inline-flex rounded-[var(--radius-card)] p-2 ${toneClass}`}>
         <Icon className="h-4 w-4" />
       </div>
-      <p className="t-label text-[var(--text-tertiary)]">{label}</p>
-      <p className="mt-2 text-2xl font-semibold text-[var(--text-primary)]">{showValue ? value : '...'}</p>
+      <Text variant="label">{label}</Text>
+      <Text variant="bodyStrong" className="mt-2 text-2xl">{showValue ? value : '...'}</Text>
     </div>
   );
 }

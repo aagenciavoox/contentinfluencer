@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -17,10 +17,10 @@ import {
   Copy,
   Hash,
   Target,
-  TrendingUp,
 } from 'lucide-react';
 import { useAppContext } from '../../../context/AppContext';
-import { Anotacao, BibliotecaItem, BibliotecaItemMeta, Content, Idea, Projeto } from '../../../lib/database';
+import { useAuth } from '../../../context/AuthContext';
+import { Anotacao, BibliotecaItem, BibliotecaItemMeta, Content, fetchBibliotecaItemById, Idea, Projeto } from '../../../lib/database';
 import { generateUUID as _uuid } from '../../../utils/uuid';
 type BookAnnotation = Anotacao;
 type TipoAnotacao = Anotacao['tipo'];
@@ -28,9 +28,11 @@ type StatusLeitura = BibliotecaItem['status'];
 type GeneroLivro = string;
 type Campaign = Projeto;
 import { ConfirmModal } from '../../../components/feedback/modals/ConfirmModal';
+import { CONFIRM, type ConfirmState } from '../../../lib/uiCopy';
 import { createContentDraft } from '../../contents/lib/createContentDraft';
+import { buildIdeaFields, getIdeaNotes, getIdeaTitle, parseLegacyIdeaText } from '../../ideas/lib/ideaText';
 import { buildContentDetailRoute } from '../../contents/lib/contentDetailRoute';
-import { CONTENT_STATUS } from '../../contents/lib/contentPipeline';
+import { CONTENT_STATUS, getDisplayStatus } from '../../contents/lib/contentPipeline';
 import { BookAnnotationComposerSheet } from '../components/modals/BookAnnotationComposerSheet';
 import { generateUUID } from '../../../utils/uuid';
 import { DesktopPageHeader } from '../../../layouts/page/DesktopPageHeader';
@@ -40,13 +42,17 @@ import { AnnotationNoteCard } from '../components/AnnotationNoteCard';
 import { TagSelect } from '../../../components/ui/TagSelect';
 import { useIsMobile } from '../../../hooks/useIsMobile';
 import { BookDetailMobileScreen } from '../../../mobile/screens/library/BookDetailMobileScreen';
+import { Text } from '../../../components/ui/Text';
+import { Surface } from '../../../components/ui/Surface';
+import { AppButton } from '../../../components/ui/AppButton';
+import { cn } from '../../../lib/utils';
+
+const FOCUS_INTERACTIVE = 'focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]';
 
 const STATUS_CORES: Record<string, string> = {
   'Ideia': 'bg-[var(--accent-orange)]/10 text-[var(--accent-orange)]',
-  'Pronto para Gravar': 'bg-[var(--accent-purple)]/10 text-[var(--accent-purple)]',
-  'Gravado': 'bg-amber-500/10 text-amber-600',
-  'A Editar': 'bg-[var(--accent-blue)]/10 text-[var(--accent-blue)]',
-  'Editado': 'bg-[var(--accent-blue)]/20 text-[var(--accent-blue)]',
+  'Roteiro': 'bg-[var(--accent-blue)]/10 text-[var(--accent-blue)]',
+  'Produção': 'bg-[var(--accent-purple)]/10 text-[var(--accent-purple)]',
   'Programado': 'bg-[var(--accent-purple)]/20 text-[var(--accent-purple)]',
   'Postado': 'bg-[var(--accent-green)]/10 text-[var(--accent-green)]',
 };
@@ -67,7 +73,13 @@ const GENEROS: GeneroLivro[] = [
 
 type Tab = 'info' | 'anotacoes' | 'conteudos';
 
-const SECTION_LABEL = 'text-xs font-semibold  opacity-30 mb-4 block text-[var(--text-primary)]';
+function SectionLabel({ children, className }: { children: ReactNode; className?: string }) {
+  return (
+    <Text variant="label" uppercase className={cn('mb-4 block opacity-30', className)}>
+      {children}
+    </Text>
+  );
+}
 
 function getItemTypeLabel(tipo: BibliotecaItem['tipo']) {
   if (tipo === 'filme') return 'Filme';
@@ -153,9 +165,17 @@ export function BookDetailPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { state, dispatch } = useAppContext();
+  const { user } = useAuth();
   const isMobile = useIsMobile();
 
-  const livro = state.books.find(b => b.id === id);
+  const livro = state.bibliotecaItems.find(b => b.id === id);
+
+  useEffect(() => {
+    if (!id || !user || livro) return;
+    void fetchBibliotecaItemById(user.id, id).then(item => {
+      if (item) dispatch({ type: 'ADD_BIBLIOTECA_ITEM', payload: item });
+    });
+  }, [dispatch, id, livro, user]);
   const initialTab = (searchParams.get('tab') as Tab | null);
   const [tab, setTab] = useState<Tab>(initialTab === 'info' || initialTab === 'conteudos' ? initialTab : 'anotacoes');
 
@@ -186,7 +206,7 @@ export function BookDetailPage() {
   const [showTechnical, setShowTechnical] = useState(false);
   const [showParaVoce, setShowParaVoce] = useState(false);
   const [infoSalvo, setInfoSalvo] = useState(false);
-  const [confirm, setConfirm] = useState<{ message: string; onConfirm: () => void } | null>(null);
+  const [confirm, setConfirm] = useState<ConfirmState | null>(null);
 
   const _livro = livro as any;
   const itemType = livro?.tipo ?? 'livro';
@@ -229,8 +249,12 @@ export function BookDetailPage() {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <p className="text-[var(--text-tertiary)] font-bold mb-4">Item não encontrado</p>
-          <button onClick={() => navigate('/biblioteca')} className="text-xs font-bold text-[var(--accent-blue)] hover:underline">
+          <Text variant="bodyStrong" className="mb-4 text-[var(--text-tertiary)]">Item não encontrado</Text>
+          <button
+            type="button"
+            onClick={() => navigate('/biblioteca')}
+            className={cn('text-xs font-bold text-[var(--accent-blue)] hover:underline', FOCUS_INTERACTIVE)}
+          >
             Voltar à Biblioteca
           </button>
         </div>
@@ -299,31 +323,22 @@ export function BookDetailPage() {
     YouTube: [...new Set(hashtagsAgregadas.YouTube)].join(' '),
   };
 
-  // Public response metrics
-  const conteudosPostados = conteudosDoLivro.filter(c => c.status === 'Postado');
-  const resultadosDoLivro = state.results.filter(r =>
-    r.contentId && conteudosDoLivro.some(c => c.id === r.contentId)
-  );
-  const totalViews = resultadosDoLivro.reduce((sum, r) => sum + (r.views || 0), 0);
-  const melhorPorViews = resultadosDoLivro.reduce((best, r) =>
-    (r.views || 0) > (best?.views || 0) ? r : best,
-    resultadosDoLivro[0]
-  );
-  const melhorPorSaves = resultadosDoLivro.reduce((best, r) =>
-    (r.saves || 0) > (best?.saves || 0) ? r : best,
-    resultadosDoLivro[0]
-  );
-
   // Handlers
   const handleTransformarEmIdeia = (anotacao: BookAnnotation) => {
+    const parsed = parseLegacyIdeaText(anotacao.texto);
+    const fields = buildIdeaFields({
+      title: parsed.title || anotacao.texto.slice(0, 60),
+      notes: parsed.notes,
+    });
     const ideia: Idea = {
       id: generateUUID(),
       userId: '',
-      text: anotacao.texto,
+      ...fields,
       pilarId: null,
       seriesId: null,
       origemId: livro.id,
       promotedToContentId: null,
+      demotedFromContentId: null,
       archived: false,
       createdAt: new Date().toISOString(),
     };
@@ -519,6 +534,8 @@ export function BookDetailPage() {
       deletedAt: null,
       etapas: [],
       contentIds: [],
+      driveUrl: null,
+      shareToken: null,
     };
     dispatch({ type: 'ADD_PROJETO', payload: nova });
     setCampForm({ nome: '', dataInicio: '', dataFim: '', metaConteudos: '5' });
@@ -583,7 +600,7 @@ export function BookDetailPage() {
             infoSalvo={infoSalvo}
             onRequestDelete={() =>
               setConfirm({
-                message: `Remover "${livro.titulo}" da biblioteca?`,
+                ...CONFIRM.excluirBiblioteca(livro.titulo),
                 onConfirm: () => {
                   dispatch({ type: 'DELETE_BOOK', payload: livro.id });
                   navigate('/biblioteca');
@@ -620,7 +637,7 @@ export function BookDetailPage() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+              className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--backdrop-strong)] p-4"
             >
               <motion.div
                 initial={{ scale: 0.95, y: 20 }}
@@ -670,6 +687,8 @@ export function BookDetailPage() {
         <ConfirmModal
           open={!!confirm}
           message={confirm?.message || ''}
+          confirmLabel={confirm?.confirmLabel}
+          cancelLabel={confirm?.cancelLabel}
           onConfirm={() => {
             confirm?.onConfirm();
             setConfirm(null);
@@ -689,6 +708,7 @@ export function BookDetailPage() {
     <>
     <PageLayout
       variant="settings"
+      contentStack="dense"
       contentWidth="book"
       header={
         <DesktopPageHeader
@@ -709,15 +729,21 @@ export function BookDetailPage() {
           description="Crie uma ideia editorial a partir deste item da biblioteca."
           primaryLabel="Transformar em ideia"
           onPrimary={() => {
+            const fields = buildIdeaFields({
+              title: `Conteúdo sobre "${livro.titulo}"`,
+              notes:
+                livro.notasGerais?.trim()
+                || (livro.autorDiretor ? livro.autorDiretor : ''),
+            });
             const ideia: Idea = {
               id: generateUUID(),
               userId: '',
-              text: livro.notasGerais?.trim()
-                || `Conteúdo sobre "${livro.titulo}"${livro.autorDiretor ? ` — ${livro.autorDiretor}` : ''}`,
+              ...fields,
               pilarId: null,
               seriesId: null,
               origemId: livro.id,
               promotedToContentId: null,
+      demotedFromContentId: null,
               archived: false,
               createdAt: new Date().toISOString(),
             };
@@ -733,14 +759,22 @@ export function BookDetailPage() {
           {(['info', 'anotacoes', 'conteudos'] as Tab[]).map(t => (
             <button
               key={t}
+              type="button"
               onClick={() => setTab(t)}
-              className={`relative px-3 pb-3 pt-2 text-xs font-semibold uppercase tracking-[0.16em] transition-all md:px-4 md:tracking-widest ${
-                tab === t
-                  ? 'text-[var(--text-primary)]'
-                  : 'text-[var(--text-primary)] opacity-30 hover:opacity-60'
-              }`}
+              className={cn('relative px-3 pb-3 pt-2 transition-all md:px-4', FOCUS_INTERACTIVE)}
             >
-              {t === 'info' ? 'Info' : t === 'anotacoes' ? `Notas${tabCounts.anotacoes !== null ? ` (${tabCounts.anotacoes})` : ''}` : `Conteúdos${tabCounts.conteudos !== null ? ` (${tabCounts.conteudos})` : ''}`}
+              <Text
+                variant="label"
+                uppercase
+                className={cn(
+                  'font-semibold',
+                  tab === t
+                    ? 'text-[var(--text-primary)]'
+                    : 'text-[var(--text-primary)] opacity-30 hover:opacity-60'
+                )}
+              >
+                {t === 'info' ? 'Info' : t === 'anotacoes' ? `Notas${tabCounts.anotacoes !== null ? ` (${tabCounts.anotacoes})` : ''}` : `Conteúdos${tabCounts.conteudos !== null ? ` (${tabCounts.conteudos})` : ''}`}
+              </Text>
               {tab === t && (
                 <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[var(--text-primary)] rounded-full" />
               )}
@@ -750,9 +784,9 @@ export function BookDetailPage() {
 
         {/* ════ ABA: INFO ════ */}
         {tab === 'info' && (
-          <div className="grid md:grid-cols-[200px_1fr] gap-10 pb-10">
+          <div className="grid-book-hero pb-10">
             {/* Capa + Avaliação */}
-            <div className="space-y-4">
+            <div className="stack-lg">
               <div className="aspect-[2/3] rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] overflow-hidden bg-[var(--bg-hover)] shadow-md">
                 {livro.capaUrl ? (
                   <img src={livro.capaUrl} alt={livro.titulo} className="w-full h-full object-cover" />
@@ -763,11 +797,16 @@ export function BookDetailPage() {
                 )}
               </div>
               <div>
-                <p className="text-xs font-bold  text-[var(--text-tertiary)] mb-2">Avaliação</p>
+                <Text variant="label" className="mb-2 block font-bold">Avaliação</Text>
                 <div className="flex gap-1">
                   {[1, 2, 3, 4, 5].map(n => (
-                    <button key={n} onClick={() => setInfoLocal(prev => ({ ...prev, avaliacao: n as 1 | 2 | 3 | 4 | 5 }))}>
-                      <Star className={`w-5 h-5 transition-colors ${n <= (infoLocal.avaliacao || 0) ? 'text-yellow-400 fill-yellow-400' : 'text-[var(--border-strong)] hover:text-yellow-300'}`} />
+                    <button
+                      key={n}
+                      type="button"
+                      onClick={() => setInfoLocal(prev => ({ ...prev, avaliacao: n as 1 | 2 | 3 | 4 | 5 }))}
+                      className={FOCUS_INTERACTIVE}
+                    >
+                      <Star className={cn('w-5 h-5 transition-colors', n <= (infoLocal.avaliacao || 0) ? 'fill-[var(--warning)] text-[var(--warning)]' : 'text-[var(--border-strong)] hover:text-[var(--warning)]/70')} />
                     </button>
                   ))}
                 </div>
@@ -775,12 +814,12 @@ export function BookDetailPage() {
             </div>
 
             {/* Campos direita */}
-            <div className="space-y-8">
+            <div className="stack-2xl">
 
               {/* Seção 1 — Identificação */}
               <section>
-                <span className={SECTION_LABEL}>Identificação</span>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <SectionLabel>Identificação</SectionLabel>
+                <div className="grid-form">
                   <div>
                     <label className="text-xs font-bold  text-[var(--text-tertiary)] block mb-1.5">Título</label>
                     <input type="text" value={infoLocal.titulo} onChange={e => setInfoLocal(prev => ({ ...prev, titulo: e.target.value }))} className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)]" />
@@ -804,8 +843,8 @@ export function BookDetailPage() {
 
               {/* Seção 2 — Consumo */}
               <section className="border-t border-[var(--border-color)] pt-6">
-                <span className={SECTION_LABEL}>Consumo</span>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <SectionLabel>Consumo</SectionLabel>
+                <div className="grid-form">
                   <div>
                     <label className="text-xs font-bold  text-[var(--text-tertiary)] block mb-1.5">Status</label>
                     <select value={infoLocal.statusLeitura} onChange={e => setInfoLocal(prev => ({ ...prev, statusLeitura: e.target.value as StatusLeitura }))} className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)]">
@@ -851,14 +890,15 @@ export function BookDetailPage() {
               {/* Seção 3 — Detalhes Técnicos (colapsável) */}
               <section className="border-t border-[var(--border-color)] pt-6">
                 <button
+                  type="button"
                   onClick={() => setShowTechnical(v => !v)}
-                  className="flex items-center gap-2 w-full text-left mb-3"
+                  className={cn('mb-3 flex w-full items-center gap-2 text-left', FOCUS_INTERACTIVE)}
                 >
-                  <span className={SECTION_LABEL + ' mb-0'}>Detalhes Técnicos</span>
+                  <SectionLabel className="mb-0">Detalhes Técnicos</SectionLabel>
                   {showTechnical ? <ChevronUp className="w-3.5 h-3.5 text-[var(--text-tertiary)]" /> : <ChevronDown className="w-3.5 h-3.5 text-[var(--text-tertiary)]" />}
                 </button>
                 {showTechnical && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="grid-form">
                     <div>
                       <label className="text-xs font-bold  text-[var(--text-tertiary)] block mb-1.5">{technicalLabels.publisher}</label>
                       <input type="text" value={infoLocal.editora} onChange={e => setInfoLocal(prev => ({ ...prev, editora: e.target.value }))} placeholder={technicalLabels.publisherPlaceholder} className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:opacity-30" />
@@ -921,14 +961,15 @@ export function BookDetailPage() {
               {/* Seção 4 — Para você (colapsável) */}
               <section className="border-t border-[var(--border-color)] pt-6">
                 <button
+                  type="button"
                   onClick={() => setShowParaVoce(v => !v)}
-                  className="flex items-center gap-2 w-full text-left mb-3"
+                  className={cn('mb-3 flex w-full items-center gap-2 text-left', FOCUS_INTERACTIVE)}
                 >
-                  <span className={SECTION_LABEL + ' mb-0'}>Para você</span>
+                  <SectionLabel className="mb-0">Para você</SectionLabel>
                   {showParaVoce ? <ChevronUp className="w-3.5 h-3.5 text-[var(--text-tertiary)]" /> : <ChevronDown className="w-3.5 h-3.5 text-[var(--text-tertiary)]" />}
                 </button>
                 {showParaVoce && (
-                  <div className="space-y-4">
+                  <div className="stack-lg">
                     <div>
                       <label className="text-xs font-bold  text-[var(--text-tertiary)] block mb-1.5">Quem Indicou</label>
                       <input type="text" value={infoLocal.quemIndicou} onChange={e => setInfoLocal(prev => ({ ...prev, quemIndicou: e.target.value }))} placeholder="Ex: Podcast X, amiga Y..." className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:opacity-30" />
@@ -943,8 +984,15 @@ export function BookDetailPage() {
                         {([1, 2, 3] as const).map(v => (
                           <button
                             key={v}
+                            type="button"
                             onClick={() => setInfoLocal(prev => ({ ...prev, potencialConteudo: prev.potencialConteudo === v ? undefined : v }))}
-                            className={`text-base px-3 py-1.5 rounded-xl border transition-all ${infoLocal.potencialConteudo === v ? 'bg-[var(--text-primary)] border-[var(--text-primary)]' : 'border-[var(--border-strong)] opacity-50 hover:opacity-80'}`}
+                            className={cn(
+                              'rounded-xl border px-3 py-1.5 text-base transition-all',
+                              FOCUS_INTERACTIVE,
+                              infoLocal.potencialConteudo === v
+                                ? 'border-[var(--text-primary)] bg-[var(--text-primary)]'
+                                : 'border-[var(--border-strong)] opacity-50 hover:opacity-80',
+                            )}
                           >
                             {'🔥'.repeat(v)}
                           </button>
@@ -957,7 +1005,7 @@ export function BookDetailPage() {
 
               {/* Seção 5 — Notas Gerais */}
               <section className="border-t border-[var(--border-color)] pt-6">
-                <span className={SECTION_LABEL}>Notas Gerais</span>
+                <SectionLabel>Notas Gerais</SectionLabel>
                 <textarea
                   value={infoLocal.notasGerais}
                   onChange={e => setInfoLocal(prev => ({ ...prev, notasGerais: e.target.value }))}
@@ -968,20 +1016,26 @@ export function BookDetailPage() {
               </section>
 
               {/* Salvar / Remover */}
-              <div className="pt-4 border-t border-[var(--border-color)] flex items-center justify-between">
-                <button
-                  onClick={() => setConfirm({ message: `Remover "${livro.titulo}" da biblioteca?`, onConfirm: () => { dispatch({ type: 'DELETE_BOOK', payload: livro.id }); navigate('/biblioteca'); } })}
-                  className="text-xs font-bold text-[var(--accent-pink)] opacity-50 hover:opacity-100 transition-opacity"
+              <div className="flex items-center justify-between border-t border-[var(--border-color)] pt-4">
+                <AppButton
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setConfirm({
+                    ...CONFIRM.excluirBiblioteca(livro.titulo),
+                    onConfirm: () => { dispatch({ type: 'DELETE_BOOK', payload: livro.id }); navigate('/biblioteca'); },
+                  })}
+                  className="font-bold text-[var(--accent-pink)] opacity-50 hover:opacity-100"
                 >
                   Remover item
-                </button>
-                <button
+                </AppButton>
+                <AppButton
+                  variant="primary"
+                  size="sm"
+                  leftIcon={<Check className="h-3.5 w-3.5" />}
                   onClick={handleSalvarInfo}
-                  className="flex items-center gap-2 px-5 py-2.5 bg-[var(--text-primary)] text-[var(--bg-primary)] text-xs font-semibold  rounded-xl hover:scale-[1.02] active:scale-[0.98] transition-all shadow-md"
                 >
-                  <Check className="w-3.5 h-3.5" />
                   {infoSalvo ? 'Salvo!' : 'Salvar'}
-                </button>
+                </AppButton>
               </div>
             </div>
           </div>
@@ -989,22 +1043,24 @@ export function BookDetailPage() {
 
         {/* ════ ABA: ANOTAÇÕES ════ */}
         {tab === 'anotacoes' && (
-          <div className="space-y-6 pb-10">
+          <div className="stack-xl pb-10">
             <div className="rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-primary)] p-4">
               <div className="flex items-center justify-between gap-4">
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-tertiary)]">Nova nota</p>
+                  <Text variant="label" uppercase className="font-semibold">Nova nota</Text>
                   <p className="mt-1 text-xs leading-relaxed text-[var(--text-primary)] opacity-65">
                     Abra um composer rapido para registrar uma anotação sem misturar com a lista existente.
                   </p>
                 </div>
-                <button
+                <AppButton
+                  variant="primary"
+                  size="sm"
+                  leftIcon={<Plus className="h-4 w-4" />}
                   onClick={() => setMobileNoteComposerOpen(true)}
-                  className="flex shrink-0 items-center gap-2 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] bg-[var(--text-primary)] px-4 py-3 text-xs font-semibold  text-[var(--bg-primary)] transition-all hover:scale-[1.02]"
+                  className="shrink-0"
                 >
-                  <Plus className="h-4 w-4" />
                   Nova anotação
-                </button>
+                </AppButton>
               </div>
             </div>
 
@@ -1013,12 +1069,15 @@ export function BookDetailPage() {
               {(['Todos', 'Destaques', ...TIPOS] as (TipoAnotacao | 'Todos' | 'Destaques')[]).map(t => (
                 <button
                   key={t}
+                  type="button"
                   onClick={() => setFiltroTipo(t)}
-                  className={`text-xs font-bold px-3 py-1.5 rounded-full border transition-all ${
+                  className={cn(
+                    'rounded-full border px-3 py-1.5 text-xs font-bold transition-all',
+                    FOCUS_INTERACTIVE,
                     filtroTipo === t
-                      ? 'bg-[var(--text-primary)] text-[var(--bg-secondary)] border-[var(--text-primary)]'
-                      : 'bg-transparent text-[var(--text-primary)] border-[var(--border-strong)] opacity-40 hover:opacity-70'
-                  }`}
+                      ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-[var(--bg-secondary)]'
+                      : 'border-[var(--border-strong)] bg-transparent text-[var(--text-primary)] opacity-40 hover:opacity-70',
+                  )}
                 >
                   {t === 'Destaques' ? '⭐ Destaques' : t}
                 </button>
@@ -1050,12 +1109,12 @@ export function BookDetailPage() {
 
         {/* ════ ABA: CONTEÚDOS ════ */}
         {tab === 'conteudos' && (
-          <div className="space-y-6 pb-10">
+          <div className="stack-xl pb-10">
             {/* Ponto de contexto */}
             {alertaEcossistema && (
-              <div className="flex items-center gap-3 bg-orange-50 border border-orange-200 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] px-5 py-4">
-                <AlertCircle className="w-5 h-5 text-orange-500 shrink-0" />
-                <p className="text-sm text-orange-700 font-medium">Esse {itemTypeLabel.toLowerCase()} ja foi concluido e ainda pode render conteudo quando fizer sentido.</p>
+              <div className="flex items-center gap-3 rounded-[var(--radius-card-mobile)] border border-[var(--accent-orange)]/25 bg-[var(--accent-orange)]/10 px-6 py-4 md:rounded-[var(--radius-card)]">
+                <AlertCircle className="w-5 h-5 shrink-0 text-[var(--accent-orange)]" />
+                <p className="text-sm font-medium text-[var(--accent-orange)]">Esse {itemTypeLabel.toLowerCase()} ja foi concluido e ainda pode render conteudo quando fizer sentido.</p>
               </div>
             )}
 
@@ -1074,43 +1133,49 @@ export function BookDetailPage() {
             </div>
 
             {/* Botão Novo Conteúdo hero */}
-            <button
+            <AppButton
+              variant="primary"
+              size="lg"
+              fullWidth
+              leftIcon={<Plus className="h-4 w-4" />}
               onClick={handleCriarConteudo}
-              className="w-full flex items-center justify-center gap-2 py-4 bg-[var(--text-primary)] text-[var(--bg-primary)] text-sm font-semibold  rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] hover:scale-[1.01] transition-all shadow-md"
             >
-              <Plus className="w-4 h-4" />
               Novo Conteúdo
-            </button>
+            </AppButton>
 
             {/* Brainstorm CTA */}
             {anotacoesDestaque.length > 0 && (
-              <div className="bg-gradient-to-r from-yellow-50 to-amber-50 border border-yellow-200 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] px-5 py-4">
-                <p className="text-sm font-bold text-amber-800 mb-2">
+              <div className="rounded-[var(--radius-card-mobile)] border border-[var(--warning)]/25 bg-[var(--warning)]/10 px-6 py-4 md:rounded-[var(--radius-card)]">
+                <p className="mb-2 text-sm font-bold text-[var(--warning)]">
                   ⭐ Você tem {anotacoesDestaque.length} destaque{anotacoesDestaque.length > 1 ? 's' : ''} prontos para virar conteúdo.
                 </p>
-                <button
+                <AppButton
+                  variant="secondary"
+                  size="sm"
                   onClick={() => { setBrainstormIdx(0); setBrainstormMode(true); }}
-                  className="text-xs font-semibold  text-amber-700 hover:text-amber-900 transition-colors"
+                  className="text-[var(--warning)]"
                 >
                   Brainstormar →
-                </button>
+                </AppButton>
               </div>
             )}
 
             {/* ── Campanhas ── */}
-            <section className="bg-[var(--bg-primary)] rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] p-5">
+            <section className="bg-[var(--bg-primary)] rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] p-6">
               <div className="flex items-center justify-between mb-4">
-                <span className={SECTION_LABEL + ' mb-0'}>Produção Editorial</span>
-                <button
+                <SectionLabel className="mb-0">Produção Editorial</SectionLabel>
+                <AppButton
+                  variant="ghost"
+                  size="sm"
                   onClick={() => setNovaCampanhaAberta(v => !v)}
-                  className="text-xs font-semibold  text-[var(--accent-blue)] hover:underline"
+                  className="text-[var(--accent-blue)]"
                 >
                   + Nova Produção
-                </button>
+                </AppButton>
               </div>
 
               {novaCampanhaAberta && (
-                <div className="mb-4 p-4 bg-[var(--bg-hover)] rounded-xl space-y-3">
+                <div className="mb-4 p-4 bg-[var(--bg-hover)] rounded-xl stack-md">
                   <input
                     type="text"
                     value={campForm.nome}
@@ -1133,8 +1198,12 @@ export function BookDetailPage() {
                     <input type="number" min={1} value={campForm.metaConteudos} onChange={e => setCampForm(p => ({ ...p, metaConteudos: e.target.value }))} className="w-full text-sm bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl px-3 py-2 text-[var(--text-primary)]" />
                   </div>
                   <div className="flex gap-2">
-                    <button onClick={handleSalvarCampanha} className="flex-1 py-2 bg-[var(--text-primary)] text-[var(--bg-primary)] text-xs font-semibold  rounded-xl hover:scale-[1.02] transition-all">Salvar</button>
-                    <button onClick={() => setNovaCampanhaAberta(false)} className="px-4 py-2 border border-[var(--border-strong)] text-[var(--text-primary)] opacity-50 text-xs font-bold rounded-xl hover:opacity-80 transition-opacity">Cancelar</button>
+                    <AppButton variant="primary" size="sm" fullWidth onClick={handleSalvarCampanha}>
+                      Salvar
+                    </AppButton>
+                    <AppButton variant="secondary" size="sm" onClick={() => setNovaCampanhaAberta(false)}>
+                      Cancelar
+                    </AppButton>
                   </div>
                 </div>
               )}
@@ -1142,12 +1211,12 @@ export function BookDetailPage() {
               {campanhasDoLivro.length === 0 ? (
                 <p className="text-xs text-[var(--text-tertiary)] text-center py-4">Nenhuma produção editorial ainda</p>
               ) : (
-                <div className="space-y-3">
+                <div className="stack-md">
                   {campanhasDoLivro.map(camp => {
                     const criados = conteudosDoLivro.length;
                     const progresso = Math.min(100, Math.round((criados / camp.metaConteudos) * 100));
                     return (
-                      <div key={camp.id} className="space-y-2">
+                      <div key={camp.id} className="stack-sm">
                         <div className="flex items-center justify-between">
                           <span className="text-sm font-bold text-[var(--text-primary)]">{camp.nome}</span>
                           <span className="text-xs font-semibold text-[var(--text-tertiary)]">{criados}/{camp.metaConteudos} peças</span>
@@ -1165,21 +1234,23 @@ export function BookDetailPage() {
 
             {/* ── Ideias deste livro ── */}
             {ideiasDeLivro.length > 0 && (
-              <div className="bg-[var(--bg-primary)] rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] p-5">
-                <h3 className="text-xs font-semibold  text-[var(--text-tertiary)] mb-3">
+              <div className="bg-[var(--bg-primary)] rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] p-6">
+                <Text variant="itemTitle" className="mb-3 text-[var(--text-tertiary)]">
                   Ideias deste {itemTypeLabel.toLowerCase()} ({ideiasDeLivro.length})
-                </h3>
-                <div className="space-y-2">
+                </Text>
+                <div className="stack-sm">
                   {ideiasDeLivro.map(ideia => (
                     <div key={ideia.id} className="flex items-center gap-3 py-2 border-b border-[var(--border-color)] last:border-0">
-                      <Lightbulb className="w-3.5 h-3.5 text-yellow-500 shrink-0" />
+                      <Lightbulb className="w-3.5 h-3.5 shrink-0 text-[var(--warning)]" />
                       <p className="text-sm text-[var(--text-primary)] opacity-70 flex-1">{ideia.text}</p>
-                      <button
+                      <AppButton
+                        variant="ghost"
+                        size="xs"
                         onClick={() => handlePromoteIdeia(ideia.id, ideia.text)}
-                        className="text-xs font-semibold  text-[var(--accent-blue)] hover:underline shrink-0"
+                        className="shrink-0 text-[var(--accent-blue)]"
                       >
                         → Conteúdo
-                      </button>
+                      </AppButton>
                     </div>
                   ))}
                 </div>
@@ -1193,30 +1264,37 @@ export function BookDetailPage() {
                   {(['slot', 'plataforma'] as const).map(ag => (
                     <button
                       key={ag}
+                      type="button"
                       onClick={() => setEcossistemaAgrupamento(ag)}
-                      className={`text-xs font-bold px-3 py-1.5 rounded-lg transition-all capitalize ${
+                      className={cn(
+                        'rounded-lg px-3 py-1.5 text-xs font-bold capitalize transition-all',
+                        FOCUS_INTERACTIVE,
                         ecossistemaAgrupamento === ag
                           ? 'bg-[var(--text-primary)] text-[var(--bg-secondary)]'
-                          : 'bg-[var(--bg-hover)] text-[var(--text-primary)] opacity-50 hover:opacity-80'
-                      }`}
+                          : 'bg-[var(--bg-hover)] text-[var(--text-primary)] opacity-50 hover:opacity-80',
+                      )}
                     >
                       Por {ag}
                     </button>
                   ))}
                 </div>
 
-                <div className="space-y-6">
+                <div className="stack-xl">
                   {(Object.entries(
                     ecossistemaAgrupamento === 'slot' ? conteudosPorSlot : conteudosPorPlataforma
                   ) as [string, typeof conteudosDoLivro][]).map(([grupo, conteudos]) => (
                     <div key={grupo}>
-                      <h3 className="text-xs font-semibold  text-[var(--text-tertiary)] mb-3">{grupo}</h3>
-                      <div className="space-y-2">
+                      <Text variant="itemTitle" className="mb-3 text-[var(--text-tertiary)]">{grupo}</Text>
+                      <div className="stack-sm">
                         {conteudos.map(c => (
                           <button
                             key={c.id}
+                            type="button"
                             onClick={() => navigate(buildContentDetailRoute(c.id))}
-                            className="w-full flex items-center gap-4 px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] hover:border-[var(--text-primary)]/30 transition-all text-left group"
+                            className={cn(
+                              'group flex w-full items-center gap-4 rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-primary)] px-4 py-3 text-left transition-all hover:border-[var(--text-primary)]/30 md:rounded-[var(--radius-card)]',
+                              FOCUS_INTERACTIVE,
+                            )}
                           >
                             <div className="flex-1 min-w-0">
                               <p className="text-sm font-bold text-[var(--text-primary)] line-clamp-2 leading-snug">{c.title}</p>
@@ -1226,8 +1304,8 @@ export function BookDetailPage() {
                                 {c.recordingDate && <p className="text-xs text-[var(--text-secondary)] opacity-40">🎙️ {c.recordingDate}</p>}
                               </div>
                             </div>
-                            <span className={`text-xs font-semibold  px-2.5 py-1 rounded-full shrink-0 ${STATUS_CORES[c.status] || 'bg-[var(--bg-hover)] text-[var(--text-primary)]'}`}>
-                              {c.status}
+                            <span className={`text-xs font-semibold  px-2.5 py-1 rounded-full shrink-0 ${STATUS_CORES[getDisplayStatus(c)] || 'bg-[var(--bg-hover)] text-[var(--text-primary)]'}`}>
+                              {getDisplayStatus(c)}
                             </span>
                           </button>
                         ))}
@@ -1248,8 +1326,8 @@ export function BookDetailPage() {
             )}
 
             {/* ── Capítulos/Partes cobertos ── */}
-            <section className="bg-[var(--bg-primary)] rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] p-5">
-              <span className={SECTION_LABEL}>{coverageLabels.section}</span>
+            <section className="bg-[var(--bg-primary)] rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] p-6">
+              <SectionLabel>{coverageLabels.section}</SectionLabel>
               <div className="flex gap-2 mb-4">
                 <input
                   type="text"
@@ -1259,13 +1337,14 @@ export function BookDetailPage() {
                   placeholder={coverageLabels.placeholder}
                   className="flex-1 text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:opacity-40"
                 />
-                <button
+                <AppButton
+                  variant="primary"
+                  size="sm"
                   onClick={handleAdicionarCapitulo}
                   disabled={!novoCapituloCoberto.trim()}
-                  className="px-4 py-2 bg-[var(--text-primary)] text-[var(--bg-primary)] text-xs font-semibold rounded-xl disabled:opacity-30 hover:scale-[1.02] transition-all"
                 >
                   Adicionar
-                </button>
+                </AppButton>
               </div>
               {capitulosCobertos.length === 0 ? (
                 <p className="text-xs text-[var(--text-tertiary)]">{coverageLabels.empty}</p>
@@ -1274,7 +1353,11 @@ export function BookDetailPage() {
                   {capitulosCobertos.map((cap: string) => (
                     <div key={cap} className="flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full bg-[var(--bg-hover)] text-[var(--text-primary)] border border-[var(--border-color)]">
                       <span>{cap}</span>
-                      <button onClick={() => handleRemoverCapitulo(cap)} className="opacity-40 hover:opacity-100 transition-opacity ml-1">
+                      <button
+                        type="button"
+                        onClick={() => handleRemoverCapitulo(cap)}
+                        className={cn('ml-1 opacity-40 transition-opacity hover:opacity-100', FOCUS_INTERACTIVE)}
+                      >
                         <X className="w-3 h-3" />
                       </button>
                     </div>
@@ -1284,10 +1367,11 @@ export function BookDetailPage() {
             </section>
 
             {/* ── Hashtag Manager ── */}
-            <section className="bg-[var(--bg-primary)] rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] p-5">
+            <section className="bg-[var(--bg-primary)] rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] p-6">
               <button
+                type="button"
                 onClick={() => setHashtagsAberto(v => !v)}
-                className="flex items-center gap-2 w-full text-left"
+                className={cn('flex w-full items-center gap-2 text-left', FOCUS_INTERACTIVE)}
               >
                 <Hash className="w-4 h-4 text-[var(--text-tertiary)]" />
                 <span className="text-xs font-semibold  text-[var(--text-primary)] opacity-50 hover:opacity-80 transition-opacity flex-1">
@@ -1300,12 +1384,15 @@ export function BookDetailPage() {
                     {(['Instagram', 'TikTok', 'YouTube'] as const).map(plat => (
                       <button
                         key={plat}
+                        type="button"
                         onClick={() => setHashtagTab(plat)}
-                        className={`text-xs font-bold px-3 py-1.5 rounded-lg transition-all ${
+                        className={cn(
+                          'rounded-lg px-3 py-1.5 text-xs font-bold transition-all',
+                          FOCUS_INTERACTIVE,
                           hashtagTab === plat
                             ? 'bg-[var(--text-primary)] text-[var(--bg-secondary)]'
-                            : 'bg-[var(--bg-hover)] text-[var(--text-primary)] opacity-50 hover:opacity-80'
-                        }`}
+                            : 'bg-[var(--bg-hover)] text-[var(--text-primary)] opacity-50 hover:opacity-80',
+                        )}
                       >
                         {plat}
                       </button>
@@ -1315,8 +1402,9 @@ export function BookDetailPage() {
                     <div className="bg-[var(--bg-hover)] rounded-xl p-3 relative">
                       <p className="text-xs text-[var(--text-primary)] opacity-70 pr-10">{hashtagsUnicas[hashtagTab]}</p>
                       <button
+                        type="button"
                         onClick={() => handleCopiarHashtags(hashtagsUnicas[hashtagTab])}
-                        className="absolute top-2 right-2 p-1.5 hover:bg-[var(--bg-secondary)] rounded-lg transition-colors"
+                        className={cn('absolute right-2 top-2 rounded-lg p-1.5 transition-colors hover:bg-[var(--bg-secondary)]', FOCUS_INTERACTIVE)}
                         title="Copiar hashtags"
                       >
                         {hashtagCopiado ? <Check className="w-4 h-4 text-[var(--accent-green)]" /> : <Copy className="w-4 h-4 text-[var(--text-tertiary)]" />}
@@ -1328,40 +1416,6 @@ export function BookDetailPage() {
                 </div>
               )}
             </section>
-
-            {/* ── Resposta do publico ── */}
-            {resultadosDoLivro.length > 0 && (
-              <section className="bg-[var(--bg-primary)] rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] p-5">
-                <div className="flex items-center gap-2 mb-4">
-                  <TrendingUp className="w-4 h-4 text-[var(--accent-green)]" />
-                  <span className={SECTION_LABEL + ' mb-0'}>Resposta do publico</span>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div className="bg-[var(--bg-hover)] rounded-xl p-3">
-                    <p className="text-xs font-bold  text-[var(--text-tertiary)] mb-1">Visualizacoes</p>
-                    <p className="text-xl font-semibold text-[var(--text-primary)]">{totalViews.toLocaleString()}</p>
-                  </div>
-                  {melhorPorViews && (
-                    <div className="bg-[var(--bg-hover)] rounded-xl p-3">
-                      <p className="text-xs font-bold  text-[var(--text-tertiary)] mb-1">Mais visto</p>
-                      <p className="text-sm font-bold text-[var(--text-primary)] line-clamp-2">
-                        {state.contents.find(c => c.id === melhorPorViews.contentId)?.title || '—'}
-                      </p>
-                      <p className="text-xs text-[var(--accent-green)] font-bold">{melhorPorViews.views?.toLocaleString()} views</p>
-                    </div>
-                  )}
-                  {melhorPorSaves && (
-                    <div className="bg-[var(--bg-hover)] rounded-xl p-3">
-                      <p className="text-xs font-bold  text-[var(--text-tertiary)] mb-1">Mais Saves</p>
-                      <p className="text-sm font-bold text-[var(--text-primary)] line-clamp-2">
-                        {state.contents.find(c => c.id === melhorPorSaves.contentId)?.title || '—'}
-                      </p>
-                      <p className="text-xs text-[var(--accent-blue)] font-bold">{melhorPorSaves.saves?.toLocaleString()} saves</p>
-                    </div>
-                  )}
-                </div>
-              </section>
-            )}
           </div>
         )}
       </div>
@@ -1374,7 +1428,7 @@ export function BookDetailPage() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50  p-4"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--backdrop-strong)] p-4"
           >
             <motion.div
               initial={{ scale: 0.95, y: 20 }}
@@ -1386,32 +1440,39 @@ export function BookDetailPage() {
                 <span className="text-xs font-semibold  text-[var(--text-tertiary)]">
                   Brainstorm — {brainstormIdx + 1}/{anotacoesDestaque.length}
                 </span>
-                <button onClick={() => setBrainstormMode(false)} className="p-2 hover:bg-[var(--bg-hover)] rounded-full transition-colors">
+                <button
+                  type="button"
+                  onClick={() => setBrainstormMode(false)}
+                  className={cn('rounded-full p-2 transition-colors hover:bg-[var(--bg-hover)]', FOCUS_INTERACTIVE)}
+                >
                   <X className="w-5 h-5 text-[var(--text-tertiary)]" />
                 </button>
               </div>
               <p className="text-lg font-medium text-[var(--text-primary)] leading-relaxed mb-8">
                 "{anotacoesDestaque[brainstormIdx]?.texto}"
               </p>
-              <div className="flex flex-col sm:flex-row gap-3">
-                <button
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <AppButton
+                  variant="primary"
+                  fullWidth
                   onClick={() => handleBrainstormConteudo(anotacoesDestaque[brainstormIdx])}
-                  className="flex-1 py-3 bg-[var(--text-primary)] text-[var(--bg-primary)] text-xs font-semibold  rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] hover:scale-[1.02] transition-all"
                 >
                   → Virar Conteúdo
-                </button>
-                <button
+                </AppButton>
+                <AppButton
+                  variant="secondary"
+                  fullWidth
                   onClick={() => handleBrainstormIdeia(anotacoesDestaque[brainstormIdx])}
-                  className="flex-1 py-3 border border-[var(--border-strong)] text-[var(--text-primary)] text-xs font-semibold  rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] hover:bg-[var(--bg-hover)] transition-all"
                 >
                   → Virar Ideia
-                </button>
-                <button
+                </AppButton>
+                <AppButton
+                  variant="ghost"
                   onClick={handleBrainstormPular}
-                  className="py-3 px-4 text-[var(--text-primary)] opacity-40 text-xs font-semibold  hover:opacity-80 transition-opacity"
+                  className="opacity-60"
                 >
                   Pular →
-                </button>
+                </AppButton>
               </div>
             </motion.div>
           </motion.div>
@@ -1422,6 +1483,8 @@ export function BookDetailPage() {
       <ConfirmModal
         open={!!confirm}
         message={confirm?.message || ''}
+        confirmLabel={confirm?.confirmLabel}
+        cancelLabel={confirm?.cancelLabel}
         onConfirm={() => { confirm?.onConfirm(); setConfirm(null); }}
         onCancel={() => setConfirm(null)}
       />

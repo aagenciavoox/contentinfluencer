@@ -1,50 +1,47 @@
 import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Palette, Plus } from 'lucide-react';
 import { ConfirmModal } from '../../../components/feedback/modals/ConfirmModal';
-import { SidePanel } from '../../../components/layout/SidePanel';
+import { CONFIRM, type ConfirmState } from '../../../lib/uiCopy';
 import { AppButton } from '../../../components/ui/AppButton';
+import { Badge } from '../../../components/ui/Badge';
+import { EmptyState } from '../../../components/ui/EmptyState';
+import { Text } from '../../../components/ui/Text';
 import { useAppContext } from '../../../context/AppContext';
 import { useIsMobile } from '../../../hooks/useIsMobile';
 import { PillarsMobileScreen } from '../../../mobile/screens/settings/PillarsMobileScreen';
-import { Pilar } from '../../../lib/database';
-import { PilarForm } from '../components/PilarForm';
+import { sortPilares } from '../lib/activePilares';
 import { SettingsPageScaffold } from '../../../components/settings/SettingsPageScaffold';
 import { SettingsGridCard, SETTINGS_ENTITY_GRID_CLASS } from '../../../components/settings/SettingsGridCard';
 
 export function PillarsSettingsPage() {
   const { state, dispatch } = useAppContext();
+  const navigate = useNavigate();
   const isMobile = useIsMobile();
-  const [panelMode, setPanelMode] = useState<'create' | 'edit' | null>(null);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [confirm, setConfirm] = useState<{ message: string; onConfirm: () => void } | null>(null);
+  const [confirm, setConfirm] = useState<ConfirmState | null>(null);
 
-  const editingPilar = useMemo(
-    () => state.pilares.find(pilar => pilar.id === editingId) ?? null,
-    [editingId, state.pilares]
-  );
+  const sortedPilares = useMemo(() => sortPilares(state.pilares), [state.pilares]);
 
-  const closePanel = () => {
-    setEditingId(null);
-    setPanelMode(null);
-  };
-
-  const handleSave = (pilar: Pilar) => {
-    const exists = state.pilares.find(item => item.id === pilar.id);
-    if (exists) {
-      dispatch({ type: 'UPDATE_PILAR', payload: pilar });
-    } else {
-      dispatch({ type: 'ADD_PILAR', payload: pilar });
+  const contentCountByPilar = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const content of state.contents) {
+      if (content.pilarId) {
+        map.set(content.pilarId, (map.get(content.pilarId) || 0) + 1);
+      }
     }
-    closePanel();
-  };
+    return map;
+  }, [state.contents]);
 
-  const handleToggleActive = (pilar: Pilar) => {
+  const openCreatePage = () => navigate('/configuracoes/pilares/nova');
+  const openEditPage = (pilarId: string) => navigate(`/configuracoes/pilares/${pilarId}/editar`);
+
+  const handleToggleActive = (pilar: (typeof state.pilares)[number]) => {
     dispatch({ type: 'UPDATE_PILAR', payload: { ...pilar, ativo: !pilar.ativo } });
   };
 
   const handleDelete = (id: string) => {
     setConfirm({
-      message: 'Remover este pilar?',
+      ...CONFIRM.excluirPilar,
       onConfirm: () => dispatch({ type: 'DELETE_PILAR', payload: id }),
     });
   };
@@ -55,7 +52,8 @@ export function PillarsSettingsPage() {
         <div className="min-h-full bg-[var(--bg-primary)]">
           <PillarsMobileScreen
             pilares={state.pilares}
-            onSave={handleSave}
+            onCreate={openCreatePage}
+            onEdit={openEditPage}
             onToggle={handleToggleActive}
             onDelete={(pilarId) => handleDelete(pilarId)}
           />
@@ -63,6 +61,8 @@ export function PillarsSettingsPage() {
         <ConfirmModal
           open={!!confirm}
           message={confirm?.message || ''}
+          confirmLabel={confirm?.confirmLabel}
+          cancelLabel={confirm?.cancelLabel}
           onConfirm={() => {
             confirm?.onConfirm();
             setConfirm(null);
@@ -80,10 +80,7 @@ export function PillarsSettingsPage() {
       icon={Palette}
       actions={
         <AppButton
-          onClick={() => {
-            setEditingId(null);
-            setPanelMode('create');
-          }}
+          onClick={openCreatePage}
           variant="primary"
           leftIcon={<Plus className="h-4 w-4" />}
         >
@@ -91,60 +88,72 @@ export function PillarsSettingsPage() {
         </AppButton>
       }
     >
-      <div className={SETTINGS_ENTITY_GRID_CLASS}>
-        {state.pilares.map(pilar => {
-          const volume = state.contents.filter(c => c.pilarId === pilar.id).length;
-          return (
-            <SettingsGridCard
-              key={pilar.id}
-              title={pilar.nome}
-              description={pilar.descricao || 'Sem descrição definida'}
-              color={pilar.cor}
-              active={pilar.ativo}
-              dimmed={!pilar.ativo}
-              onToggle={() => handleToggleActive(pilar)}
-              onEdit={() => {
-                setEditingId(pilar.id);
-                setPanelMode('edit');
-              }}
-              onDelete={() => handleDelete(pilar.id)}
-              badges={
-                <>
-                  <span className="rounded-full bg-[var(--bg-hover)] px-2 py-0.5 text-xs font-medium text-[var(--text-tertiary)]">
-                    {volume} conteúdos
-                  </span>
-                  <span className="rounded-full bg-[var(--bg-hover)] px-2 py-0.5 text-xs font-medium text-[var(--text-tertiary)]">
-                    {pilar.plataformas.length} redes
-                  </span>
-                </>
-              }
-            />
-          );
-        })}
-      </div>
+      <Text variant="secondary" className="mb-4">
+        Pilares organizam os temas editoriais. Cada roteiro pode ter um pilar; as hashtags aqui entram na publicação.
+      </Text>
 
-      <SidePanel
-        open={panelMode !== null}
-        title={panelMode === 'edit' ? 'Editar pilar' : 'Novo pilar'}
-        headerContent={
-          <div className="flex items-center gap-3">
-            <span
-              className="h-10 w-10 shrink-0 rounded-[var(--radius-card)] border border-[var(--border-color)]"
-              style={{ backgroundColor: editingPilar?.cor || '#F5C543' }}
-            />
-            <p className="truncate text-base font-semibold text-[var(--text-primary)]">
-              {editingPilar?.nome || 'Novo pilar editorial'}
-            </p>
-          </div>
-        }
-        onClose={closePanel}
-      >
-        <PilarForm initial={editingPilar ?? {}} onSave={handleSave} onCancel={closePanel} />
-      </SidePanel>
+      {state.pilares.length === 0 ? (
+        <EmptyState
+          icon={<Palette className="h-8 w-8" />}
+          title="Nenhum pilar cadastrado"
+          description="Adicione o primeiro pilar para organizar os temas editoriais."
+          action={
+            <AppButton
+              variant="primary"
+              leftIcon={<Plus className="h-4 w-4" />}
+              onClick={openCreatePage}
+            >
+              Novo pilar
+            </AppButton>
+          }
+        />
+      ) : (
+        <div className={SETTINGS_ENTITY_GRID_CLASS}>
+          {sortedPilares.map(pilar => {
+            const count = contentCountByPilar.get(pilar.id) || 0;
+            const volumeLabel =
+              count === 0
+                ? 'Nenhum roteiro neste pilar ainda'
+                : `${count} roteiro${count === 1 ? '' : 's'}`;
+
+            return (
+              <SettingsGridCard
+                key={pilar.id}
+                title={pilar.nome}
+                description={pilar.descricao || 'Descrição ainda não preenchida'}
+                color={pilar.cor}
+                active={pilar.ativo}
+                dimmed={!pilar.ativo}
+                onToggle={() => handleToggleActive(pilar)}
+                onEdit={() => openEditPage(pilar.id)}
+                onDelete={() => handleDelete(pilar.id)}
+                badges={
+                  <>
+                    {count > 0 ? (
+                      <button
+                        type="button"
+                        onClick={() => navigate(`/conteudos?pilar=${pilar.id}`)}
+                        className="rounded-[var(--radius-pill)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+                      >
+                        <Badge variant="neutral">{volumeLabel}</Badge>
+                      </button>
+                    ) : (
+                      <Badge variant="neutral">{volumeLabel}</Badge>
+                    )}
+                    <Badge variant="neutral">{pilar.plataformas.length} redes</Badge>
+                  </>
+                }
+              />
+            );
+          })}
+        </div>
+      )}
 
       <ConfirmModal
         open={!!confirm}
         message={confirm?.message || ''}
+        confirmLabel={confirm?.confirmLabel}
+        cancelLabel={confirm?.cancelLabel}
         onConfirm={() => {
           confirm?.onConfirm();
           setConfirm(null);

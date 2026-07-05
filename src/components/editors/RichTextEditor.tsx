@@ -26,6 +26,7 @@ import {
   Heading1,
   Heading2,
   Minus,
+  Strikethrough,
   Link as LinkIcon,
   Check,
   ChevronUp,
@@ -64,6 +65,7 @@ interface RichTextEditorProps {
   autoFocus?: boolean;
   variant?: 'default' | 'workspace';
   toolbarStart?: React.ReactNode;
+  saveState?: 'idle' | 'saving' | 'saved' | 'error';
 }
 
 type FormattingAction = {
@@ -80,11 +82,16 @@ type AnnotationPosition = {
 };
 
 const COMMENT_COLORS = [
-  { name: 'Yellow', value: 'rgba(255, 235, 153, 0.5)' },
-  { name: 'Orange', value: 'rgba(255, 184, 108, 0.5)' },
-  { name: 'Blue', value: 'rgba(139, 233, 253, 0.5)' },
-  { name: 'Pink', value: 'rgba(255, 121, 198, 0.5)' },
+  { name: 'Yellow', value: 'color-mix(in srgb, var(--warning), transparent 50%)' },
+  { name: 'Orange', value: 'color-mix(in srgb, var(--accent-orange), transparent 50%)' },
+  { name: 'Blue', value: 'color-mix(in srgb, var(--accent-blue), transparent 50%)' },
+  { name: 'Pink', value: 'color-mix(in srgb, var(--accent-pink), transparent 50%)' },
 ];
+
+const DEFAULT_COMMENT_HIGHLIGHT = 'color-mix(in srgb, var(--warning), transparent 70%)';
+const DEFAULT_COMMENT_BORDER = 'color-mix(in srgb, var(--warning), transparent 55%)';
+const DEFAULT_COMMENT_STRIPE = 'color-mix(in srgb, var(--warning), transparent 60%)';
+const DEFAULT_COMMENT_MODAL_STRIPE = 'color-mix(in srgb, var(--warning), transparent 25%)';
 
 const WORDS_PER_SECOND = 2.5;
 
@@ -99,10 +106,14 @@ function getWordCount(value: string) {
   return text.split(' ').length;
 }
 
-function formatSpeakingDuration(wordCount: number) {
-  if (wordCount === 0) return '~0s';
+function formatSpeakingDuration(wordCount: number, workspace = false) {
+  if (wordCount === 0) return workspace ? '0 segundos de leitura' : '~0s';
 
   const seconds = Math.round(wordCount / WORDS_PER_SECOND);
+  if (workspace) {
+    return `${seconds} ${seconds === 1 ? 'segundo' : 'segundos'} de leitura`;
+  }
+
   if (seconds >= 60) {
     return `~${Math.round(seconds / 60)} min`;
   }
@@ -127,6 +138,7 @@ export function RichTextEditor({
   autoFocus = false,
   variant = 'default',
   toolbarStart,
+  saveState = 'idle',
 }: RichTextEditorProps) {
   const isWorkspace = variant === 'workspace';
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -220,8 +232,8 @@ export function RichTextEditor({
                 'annotation-highlight transition-all duration-300 cursor-pointer',
                 isExpanded && 'active-annotation',
               ),
-              style: `background-color: ${note.color || 'rgba(255, 235, 153, 0.3)'}; border-bottom: 2px solid ${
-                isExpanded ? 'var(--accent-blue)' : 'rgba(200,160,0,0.4)'
+              style: `background-color: ${note.color || DEFAULT_COMMENT_HIGHLIGHT}; border-bottom: 2px solid ${
+                isExpanded ? 'var(--accent-blue)' : DEFAULT_COMMENT_BORDER
               }`,
             }),
           );
@@ -419,7 +431,18 @@ export function RichTextEditor({
   );
 
   const wordCount = useMemo(() => getWordCount(content), [content]);
-  const speakingDuration = useMemo(() => formatSpeakingDuration(wordCount), [wordCount]);
+  const speakingDuration = useMemo(
+    () => formatSpeakingDuration(wordCount, isWorkspace),
+    [isWorkspace, wordCount],
+  );
+  const saveFooterLabel =
+    saveState === 'saving'
+      ? 'Salvando...'
+      : saveState === 'saved'
+        ? 'Salvo agora'
+        : saveState === 'error'
+          ? 'Erro ao salvar'
+          : null;
 
   const secondaryActions: FormattingAction[] = useMemo(
     () => [
@@ -520,14 +543,35 @@ export function RichTextEditor({
         isActive: () => !!editor?.isActive('underline'),
       },
       {
+        id: 'strike',
+        label: 'Tachado',
+        icon: Strikethrough,
+        run: () => editor?.chain().focus().toggleStrike().run(),
+        isActive: () => !!editor?.isActive('strike'),
+      },
+      {
         id: 'list',
         label: 'Lista',
         icon: List,
         run: () => editor?.chain().focus().toggleBulletList().run(),
         isActive: () => !!editor?.isActive('bulletList'),
       },
+      {
+        id: 'ordered',
+        label: 'Lista numerada',
+        icon: ListOrdered,
+        run: () => editor?.chain().focus().toggleOrderedList().run(),
+        isActive: () => !!editor?.isActive('orderedList'),
+      },
+      {
+        id: 'link',
+        label: 'Link',
+        icon: LinkIcon,
+        run: requestLink,
+        isActive: () => !!editor?.isActive('link'),
+      },
     ],
-    [editor],
+    [editor, requestLink],
   );
 
   if (!editor) return null;
@@ -541,7 +585,7 @@ export function RichTextEditor({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={() => setIsFullscreen(false)}
-            className="fixed inset-0 z-[90] bg-[rgba(15,23,42,0.12)] backdrop-blur-[2px]"
+            className="fixed inset-0 z-[90] bg-[color-mix(in_srgb,var(--text-primary)_12%,transparent)] backdrop-blur-[2px]"
           />
         )}
       </AnimatePresence>
@@ -553,10 +597,10 @@ export function RichTextEditor({
           isWorkspace ? 'flex min-h-[calc(100vh-280px)] flex-col rounded-[var(--radius-card)] bg-[var(--bg-elevated)]' : 'rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)]',
           isFullscreen
             ? isMobile
-              ? 'fixed inset-0 z-[100] flex flex-col rounded-none border-0 bg-white shadow-none'
-              : 'fixed left-1/2 top-1/2 z-[100] flex h-[min(1120px,calc(100dvh-56px))] w-[min(1420px,calc(100vw-56px))] -translate-x-1/2 -translate-y-1/2 flex-col rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-white shadow-[0_24px_80px_rgba(15,23,42,0.18)]'
+              ? 'fixed inset-0 z-[100] flex flex-col rounded-none border-0 bg-[var(--bg-elevated)] shadow-none'
+              : 'fixed left-1/2 top-1/2 z-[100] flex h-[min(1120px,calc(100dvh-56px))] w-[min(1420px,calc(100vw-56px))] -translate-x-1/2 -translate-y-1/2 flex-col rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-elevated)] shadow-[var(--shadow-modal)]'
             : compactMobileComposer
-              ? 'flex min-h-[56dvh] flex-col bg-white'
+              ? 'flex min-h-[56dvh] flex-col bg-[var(--bg-elevated)]'
               : isWorkspace
                 ? ''
                 : 'flex min-h-[400px] flex-col bg-[var(--bg-secondary)]/50',
@@ -566,7 +610,7 @@ export function RichTextEditor({
         {isFullscreen ? (
           <div
             className={cn(
-              'shrink-0 border-b border-[var(--border-color)] bg-white',
+              'shrink-0 border-b border-[var(--border-color)] bg-[var(--bg-elevated)]',
               isMobile ? 'pt-safe' : '',
             )}
           >
@@ -575,14 +619,14 @@ export function RichTextEditor({
                 <>
                   <button
                     onClick={() => setIsFullscreen(false)}
-                    className="flex h-10 w-10 items-center justify-center rounded-xl text-[var(--text-primary)] transition hover:bg-[var(--bg-hover)]"
+                    className="flex h-10 w-10 items-center justify-center rounded-[var(--radius-input)] text-[var(--text-primary)] transition hover:bg-[var(--bg-hover)]"
                     aria-label="Fechar expansão"
                   >
                     <X className="h-[22px] w-[22px]" />
                   </button>
                   <div className="flex-1 text-center">
                     <p className="truncate text-base font-semibold text-[var(--text-primary)]">{documentTitle}</p>
-                    <p className="text-xs text-[var(--text-tertiary)]">Salvo agora há pouco</p>
+                    <p className="text-xs text-[var(--text-tertiary)]">{saveFooterLabel ?? 'Salvo agora há pouco'}</p>
                   </div>
                   <button
                     onClick={() => setIsFullscreen(false)}
@@ -594,28 +638,28 @@ export function RichTextEditor({
               ) : (
                 <>
                   <div className="flex min-w-0 flex-1 items-center gap-3">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--border-color)] bg-white shadow-[0_4px_16px_rgba(15,23,42,0.06)]">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-secondary)] shadow-[var(--shadow-soft)]">
                       <Plus className="h-4 w-4 text-[var(--accent-blue)]" />
                     </div>
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 text-sm">
                         <span className="truncate font-semibold text-[var(--text-primary)]">{documentTitle}</span>
-                        <span className="text-[#d1d5db]">•</span>
-                        <span className="text-[var(--text-tertiary)]">Salvo agora há pouco</span>
+                        <span className="text-[var(--border-strong)]">•</span>
+                        <span className="text-[var(--text-tertiary)]">{saveFooterLabel ?? 'Salvo agora há pouco'}</span>
                       </div>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => setIsFullscreen(false)}
-                      className="flex h-10 w-10 items-center justify-center rounded-xl text-[var(--text-tertiary)] transition hover:bg-[var(--bg-hover)]"
+                      className="flex h-10 w-10 items-center justify-center rounded-[var(--radius-input)] text-[var(--text-tertiary)] transition hover:bg-[var(--bg-hover)]"
                       aria-label="Fechar expansão"
                     >
                       <Minimize2 className="h-4 w-4" />
                     </button>
                     <button
                       onClick={() => setIsFullscreen(false)}
-                      className="flex h-10 w-10 items-center justify-center rounded-xl text-[var(--text-primary)] transition hover:bg-[var(--bg-hover)]"
+                      className="flex h-10 w-10 items-center justify-center rounded-[var(--radius-input)] text-[var(--text-primary)] transition hover:bg-[var(--bg-hover)]"
                       aria-label="Fechar editor"
                     >
                       <X className="h-5 w-5" />
@@ -626,23 +670,14 @@ export function RichTextEditor({
             </div>
           </div>
         ) : compactMobileComposer ? null : (
-          <button
-            onClick={() => setIsFullscreen(true)}
-            className="group absolute right-4 top-4 z-20 rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)]/95 p-2 shadow-sm transition hover:border-[var(--text-tertiary)]/30 hover:bg-[var(--bg-hover)]"
-            aria-label="Expandir editor"
-          >
-            <Maximize2 className="h-4 w-4 text-[var(--text-tertiary)] opacity-70 transition group-hover:opacity-100 group-hover:text-[var(--text-primary)]" />
-          </button>
-        )}
-
-        {compactMobileComposer ? null : (
-          <div
-            className={cn(
-              'relative flex items-center border-b border-[var(--border-color)] bg-[var(--bg-elevated)]',
-              isMobile ? 'h-11 px-2' : 'h-11 px-3',
-              !isFullscreen && 'rounded-t-[var(--radius-input)]',
-            )}
-          >
+          <div className="relative flex items-center border-b border-[var(--border-color)] bg-[var(--bg-elevated)]">
+            <div
+              className={cn(
+                'relative flex min-w-0 flex-1 items-center',
+                isMobile ? 'h-11 px-2' : 'h-11 px-3',
+                !isFullscreen && 'rounded-t-[var(--radius-input)]',
+              )}
+            >
           <div className="flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto">
             {toolbarStart ? (
               <div className="mr-1 flex shrink-0 items-center gap-1 border-r border-[var(--border-color)] pr-2">
@@ -657,7 +692,7 @@ export function RichTextEditor({
                 <div key={action.id} className="flex items-center">
                   <button
                     onClick={action.run}
-                    className="flex h-9 w-9 items-center justify-center rounded-lg text-[var(--text-tertiary)] transition hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
+                    className="flex h-9 w-9 items-center justify-center rounded-[var(--radius-input)] text-[var(--text-tertiary)] transition hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
                     aria-label={action.label}
                     type="button"
                   >
@@ -677,7 +712,7 @@ export function RichTextEditor({
                   key={action.id}
                   onClick={action.run}
                   className={cn(
-                    'flex h-9 w-9 items-center justify-center rounded-lg transition',
+                    'flex h-9 w-9 items-center justify-center rounded-[var(--radius-input)] transition',
                     active
                       ? 'bg-[color-mix(in_srgb,var(--accent-blue),transparent_92%)] text-[var(--accent-blue)]'
                       : 'text-[var(--text-tertiary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]',
@@ -691,30 +726,74 @@ export function RichTextEditor({
             })}
           </div>
 
-          <div className="ml-3 flex shrink-0 items-center gap-1 text-sm text-[var(--text-tertiary)]">
-            <span className="hidden sm:inline">
-              {wordCount} palavras · {speakingDuration}
-            </span>
-            <span className="sm:hidden">
-              {wordCount} · {speakingDuration}
-            </span>
-            <div className="relative" ref={optionsMenuRef}>
+          {!isWorkspace ? (
+            <div className="ml-3 flex shrink-0 items-center gap-1 text-sm text-[var(--text-tertiary)]">
+              <span className="hidden sm:inline">
+                {wordCount} palavras · {speakingDuration}
+              </span>
+              <span className="sm:hidden">
+                {wordCount} · {speakingDuration}
+              </span>
+              <div className="relative" ref={optionsMenuRef}>
+                <button
+                  onClick={() => setIsOptionsMenuOpen((current) => !current)}
+                  className="ml-1 flex h-9 w-9 items-center justify-center rounded-[var(--radius-input)] text-[var(--text-tertiary)] transition hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
+                  aria-label="Mais opções"
+                  type="button"
+                >
+                  <MoreVertical className="h-4 w-4" />
+                </button>
+
+                <AnimatePresence>
+                  {isOptionsMenuOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 6 }}
+                      className="absolute right-0 top-11 z-[130] min-w-[220px] rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-elevated)] p-2 shadow-[var(--shadow-dropdown)]"
+                    >
+                      {secondaryActions.map((action) => {
+                        const Icon = action.icon;
+                        const active = action.isActive?.() ?? false;
+
+                        return (
+                          <button
+                            key={action.id}
+                            onClick={action.run}
+                            className={cn(
+                              'flex w-full items-center gap-3 rounded-[var(--radius-input)] px-3 py-2.5 text-left text-sm transition',
+                              active ? 'bg-[color-mix(in_srgb,var(--accent-blue),transparent_92%)] text-[var(--accent-blue)]' : 'text-[var(--text-primary)] hover:bg-[var(--bg-hover)]',
+                            )}
+                            type="button"
+                          >
+                            <Icon className="h-4 w-4" />
+                            <span className="flex-1">{action.label}</span>
+                            {active && <Check className="h-4 w-4" />}
+                          </button>
+                        );
+                      })}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            </div>
+          ) : (
+            <div className="relative ml-2 shrink-0" ref={optionsMenuRef}>
               <button
                 onClick={() => setIsOptionsMenuOpen((current) => !current)}
-                className="ml-1 flex h-9 w-9 items-center justify-center rounded-lg text-[var(--text-tertiary)] transition hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
+                className="flex h-9 w-9 items-center justify-center rounded-[var(--radius-input)] text-[var(--text-tertiary)] transition hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
                 aria-label="Mais opções"
                 type="button"
               >
                 <MoreVertical className="h-4 w-4" />
               </button>
-
               <AnimatePresence>
                 {isOptionsMenuOpen && (
                   <motion.div
                     initial={{ opacity: 0, y: 6 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: 6 }}
-                    className="absolute right-0 top-11 z-[130] min-w-[220px] rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] bg-white p-2 shadow-[0_10px_30px_rgba(0,0,0,0.08)]"
+                    className="absolute right-0 top-11 z-[130] min-w-[220px] rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-elevated)] p-2 shadow-[var(--shadow-dropdown)]"
                   >
                     {secondaryActions.map((action) => {
                       const Icon = action.icon;
@@ -725,7 +804,7 @@ export function RichTextEditor({
                           key={action.id}
                           onClick={action.run}
                           className={cn(
-                            'flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition',
+                            'flex w-full items-center gap-3 rounded-[var(--radius-input)] px-3 py-2.5 text-left text-sm transition',
                             active ? 'bg-[color-mix(in_srgb,var(--accent-blue),transparent_92%)] text-[var(--accent-blue)]' : 'text-[var(--text-primary)] hover:bg-[var(--bg-hover)]',
                           )}
                           type="button"
@@ -740,7 +819,16 @@ export function RichTextEditor({
                 )}
               </AnimatePresence>
             </div>
+          )}
           </div>
+            <button
+              onClick={() => setIsFullscreen(true)}
+              className="mr-2 flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--radius-input)] text-[var(--text-tertiary)] transition hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
+              aria-label="Expandir editor"
+              type="button"
+            >
+              <Maximize2 className="h-4 w-4" />
+            </button>
           </div>
         )}
 
@@ -750,13 +838,13 @@ export function RichTextEditor({
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.9 }}
-              className="fixed z-[120] flex -translate-x-1/2 items-center gap-0.5 rounded-lg border border-[var(--border-color)] bg-[var(--bg-elevated)] p-1 shadow-lg"
+              className="fixed z-[120] flex -translate-x-1/2 items-center gap-0.5 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] p-1 shadow-[var(--shadow-dropdown)]"
               style={{ top: selectionMenu.y, left: selectionMenu.x }}
             >
               <button
                 onClick={() => editor.chain().focus().toggleBold().run()}
                 className={cn(
-                  'rounded-lg p-2',
+                  'rounded-[var(--radius-input)] p-2',
                   editor.isActive('bold') ? 'text-[var(--accent-blue)]' : 'opacity-60',
                 )}
                 type="button"
@@ -766,7 +854,7 @@ export function RichTextEditor({
               <button
                 onClick={() => editor.chain().focus().toggleItalic().run()}
                 className={cn(
-                  'rounded-lg p-2',
+                  'rounded-[var(--radius-input)] p-2',
                   editor.isActive('italic') ? 'text-[var(--accent-blue)]' : 'opacity-60',
                 )}
                 type="button"
@@ -776,7 +864,7 @@ export function RichTextEditor({
               <button
                 onClick={() => editor.chain().focus().toggleUnderline().run()}
                 className={cn(
-                  'rounded-lg p-2',
+                  'rounded-[var(--radius-input)] p-2',
                   editor.isActive('underline') ? 'text-[var(--accent-blue)]' : 'opacity-60',
                 )}
                 type="button"
@@ -785,10 +873,10 @@ export function RichTextEditor({
               </button>
               {onAddAnnotation && (
                 <>
-                  <div className="mx-1 h-5 w-px bg-gray-200" />
+                  <div className="mx-1 h-5 w-px bg-[var(--border-color)]" />
                   <button
                     onClick={startCommenting}
-                    className="rounded-lg p-2 text-blue-600 opacity-80 transition hover:bg-blue-50 hover:opacity-100"
+                    className="rounded-[var(--radius-input)] p-2 text-[var(--accent-blue)] opacity-80 transition hover:bg-[color-mix(in_srgb,var(--accent-blue),transparent_90%)] hover:opacity-100"
                     type="button"
                     aria-label="Comentar trecho selecionado"
                   >
@@ -809,7 +897,7 @@ export function RichTextEditor({
             >
               <button
                 onClick={startCommenting}
-                className="rounded-full border border-gray-100 bg-white p-2.5 text-blue-600 shadow-lg transition hover:scale-110 hover:bg-blue-600 hover:text-white active:scale-95"
+                className="rounded-[var(--radius-pill)] border border-[var(--border-color)] bg-[var(--bg-elevated)] p-2.5 text-[var(--accent-blue)] shadow-[var(--shadow-dropdown)] transition hover:scale-110 hover:bg-[var(--accent-blue)] hover:text-[var(--bg-secondary)] active:scale-95"
                 type="button"
               >
                 <MessageSquarePlus className="h-5 w-5" />
@@ -823,11 +911,11 @@ export function RichTextEditor({
           className={cn(
             'flex-1 overflow-y-auto custom-scrollbar transition-all duration-500',
             isFullscreen
-              ? 'bg-white'
+              ? 'bg-[var(--bg-elevated)]'
               : compactMobileComposer
-                ? 'bg-white p-0'
+                ? 'bg-[var(--bg-elevated)] p-0'
                 : isWorkspace
-                  ? 'bg-[var(--bg-elevated)] p-3 md:p-5'
+                  ? 'bg-[var(--bg-elevated)] p-3 md:p-6'
                   : 'bg-[var(--bg-secondary)]/30 p-4 md:p-8 lg:p-12',
             editorViewportClassName,
           )}
@@ -842,23 +930,23 @@ export function RichTextEditor({
               ref={editorContainerRef}
               onPointerDown={handleEditorAreaPointerDown}
               className={cn(
-                'relative w-full flex-1 cursor-text bg-white transition-all',
+                'relative w-full flex-1 cursor-text bg-[var(--bg-elevated)] transition-all',
                 isFullscreen
                   ? cn(
                       isMobile ? 'min-h-[calc(100vh-112px)] px-4 py-6 pb-28' : 'min-h-[760px] px-8 py-8',
                     )
                   : compactMobileComposer
-                    ? 'min-h-[56dvh] rounded-[1.35rem] border border-[var(--border-color)] px-4 py-4 shadow-sm'
+                    ? 'min-h-[56dvh] rounded-[var(--radius-card)] border border-[var(--border-color)] px-4 py-4 shadow-[var(--shadow-soft)]'
                     : isWorkspace
-                      ? 'min-h-[calc(100vh-260px)] rounded-[var(--radius-input)] border border-[var(--border-color)] px-4 py-5 md:px-6 md:py-6'
-                      : 'min-h-[800px] rounded-[4px] border border-[var(--border-color)] p-12 shadow-[0_2px_15px_rgba(0,0,0,0.02)] md:p-24',
+                      ? 'min-h-[calc(100vh-260px)] rounded-[var(--radius-input)] border border-[var(--border-color)] px-4 py-6 md:px-6 md:py-6'
+                      : 'min-h-[800px] rounded-[var(--radius-input)] border border-[var(--border-color)] p-12 shadow-[var(--shadow-editorial)] md:p-24',
                 editorCanvasClassName,
               )}
             >
               <EditorContent editor={editor} className="cursor-text max-w-none prose-sm sm:prose lg:prose-lg" />
 
               {!isFullscreen && annotations.length > 0 && (
-                <div className="pointer-events-none absolute right-3 top-3 flex select-none items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-600">
+                <div className="pointer-events-none absolute right-3 top-3 flex select-none items-center gap-1.5 rounded-[var(--radius-pill)] border border-[color-mix(in_srgb,var(--warning),transparent_72%)] bg-[color-mix(in_srgb,var(--warning),transparent_90%)] px-2.5 py-1 text-xs font-bold text-[var(--warning)]">
                   <MessageSquare className="h-3 w-3" />
                   {annotations.length}
                 </div>
@@ -878,18 +966,18 @@ export function RichTextEditor({
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0 }}
                       style={{ top: draftCommentTop ?? 0 }}
-                      className="absolute left-0 right-0 z-20 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border-2 border-blue-100 bg-white p-5 shadow-none"
+                      className="absolute left-0 right-0 z-20 rounded-[var(--radius-card-mobile)] border-2 border-[color-mix(in_srgb,var(--accent-blue),transparent_78%)] bg-[var(--bg-elevated)] p-6 shadow-none md:rounded-[var(--radius-card)]"
                     >
                       <div className="mb-4 flex items-center gap-3">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-50 text-xs font-bold text-blue-500">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-[var(--radius-pill)] bg-[color-mix(in_srgb,var(--accent-blue),transparent_90%)] text-xs font-bold text-[var(--accent-blue)]">
                           {authorName[0]}
                         </div>
-                        <span className="text-xs font-semibold  text-gray-800">
+                        <span className="text-xs font-semibold text-[var(--text-primary)]">
                           {authorName}
                         </span>
                       </div>
-                      <div className="mb-4 overflow-hidden rounded-xl border border-gray-100 bg-gray-50/80 p-3">
-                        <span className="line-clamp-2 text-xs font-medium italic text-gray-400">
+                      <div className="mb-4 overflow-hidden rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[color-mix(in_srgb,var(--surface-subtle)_80%,transparent)] p-3">
+                        <span className="line-clamp-2 text-xs font-medium italic text-[var(--text-tertiary)]">
                           "{activeDraft.text}"
                         </span>
                       </div>
@@ -898,7 +986,7 @@ export function RichTextEditor({
                         value={draftCommentText}
                         onChange={(event) => setDraftCommentText(event.target.value)}
                         placeholder="O que você quer comentar?"
-                        className="mb-4 min-h-[80px] w-full resize-none rounded-xl border border-gray-200 bg-white px-4 py-3 text-base transition-all focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500/10 md:text-xs"
+                        className="mb-4 min-h-[80px] w-full resize-none rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-4 py-3 text-base text-[var(--text-primary)] transition-all focus:border-[var(--accent-blue)] focus:outline-none focus:ring-4 focus:ring-[color-mix(in_srgb,var(--accent-blue),transparent_88%)] md:text-xs"
                         onKeyDown={(event) => {
                           if (event.key === 'Enter' && !event.shiftKey) {
                             event.preventDefault();
@@ -909,7 +997,7 @@ export function RichTextEditor({
                       <div className="flex items-center justify-end gap-3">
                         <button
                           onClick={() => setActiveDraft(null)}
-                          className="text-xs font-semibold text-gray-400"
+                          className="text-xs font-semibold text-[var(--text-tertiary)]"
                           type="button"
                         >
                           Cancelar
@@ -918,10 +1006,10 @@ export function RichTextEditor({
                           onClick={submitComment}
                           disabled={!draftCommentText.trim()}
                           className={cn(
-                            'rounded-full px-6 py-2 text-xs font-semibold transition-all',
+                            'rounded-[var(--radius-pill)] px-6 py-2 text-xs font-semibold transition-all',
                             draftCommentText.trim()
-                              ? 'bg-blue-600 text-white shadow-lg active:scale-95'
-                              : 'bg-gray-100 text-gray-300',
+                              ? 'bg-[var(--accent-blue)] text-[var(--bg-secondary)] shadow-[var(--shadow-soft)] active:scale-95'
+                              : 'bg-[var(--bg-hover)] text-[var(--text-tertiary)]',
                           )}
                           type="button"
                         >
@@ -942,21 +1030,21 @@ export function RichTextEditor({
                         onClick={() => handleNoteExpand(note.id)}
                         style={{ top: anchoredPosition?.top ?? 0 }}
                         className={cn(
-                          'group absolute left-0 right-0 cursor-pointer overflow-hidden rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border bg-white transition-all',
+                          'group absolute left-0 right-0 cursor-pointer overflow-hidden rounded-[var(--radius-card-mobile)] border bg-[var(--bg-elevated)] transition-all md:rounded-[var(--radius-card)]',
                           isExpanded
-                            ? 'z-10 scale-105 border-blue-500/30 p-5 shadow-xl'
-                            : 'border-gray-100 p-4 shadow-sm hover:border-gray-200 hover:shadow-md',
+                            ? 'z-10 scale-105 border-[color-mix(in_srgb,var(--accent-blue),transparent_70%)] p-6 shadow-[var(--shadow-card)]'
+                            : 'border-[var(--border-color)] p-4 shadow-[var(--shadow-soft)] hover:border-[var(--border-strong)]',
                         )}
                       >
                         <div
                           className="absolute bottom-0 left-0 top-0 w-1.5"
-                          style={{ backgroundColor: note.color || 'rgba(255, 235, 153, 0.4)' }}
+                          style={{ backgroundColor: note.color || DEFAULT_COMMENT_STRIPE }}
                         />
                         <div className="mb-3 flex items-center gap-3">
-                          <div className="flex h-7 w-7 items-center justify-center rounded-full border border-gray-100 bg-gray-50 text-xs font-bold text-blue-500">
+                          <div className="flex h-7 w-7 items-center justify-center rounded-[var(--radius-pill)] border border-[var(--border-color)] bg-[var(--surface-subtle)] text-xs font-bold text-[var(--accent-blue)]">
                             {currentAuthor[0]}
                           </div>
-                          <span className="flex-1 text-xs font-semibold  text-gray-800">
+                          <span className="flex-1 text-xs font-semibold text-[var(--text-primary)]">
                             {currentAuthor}
                           </span>
                           <div className="flex items-center opacity-0 transition-all group-hover:opacity-100">
@@ -965,7 +1053,7 @@ export function RichTextEditor({
                                 event.stopPropagation();
                                 onRemoveAnnotation?.(note.id);
                               }}
-                              className="rounded-lg p-1.5 text-red-300 transition hover:bg-red-50 hover:text-red-500"
+                              className="rounded-[var(--radius-input)] p-1.5 text-[color-mix(in_srgb,var(--danger),transparent_35%)] transition hover:bg-[color-mix(in_srgb,var(--danger),transparent_90%)] hover:text-[var(--danger)]"
                               type="button"
                             >
                               <Trash2 className="h-3.5 w-3.5" />
@@ -975,7 +1063,7 @@ export function RichTextEditor({
                         <div>
                           <p
                             className={cn(
-                              'text-[12px] font-medium leading-relaxed text-gray-700 transition-all duration-300',
+                              't-meta font-medium leading-relaxed text-[var(--text-secondary)] transition-all duration-300',
                               !isExpanded && 'line-clamp-2 overflow-hidden text-ellipsis',
                             )}
                           >
@@ -987,7 +1075,7 @@ export function RichTextEditor({
                                 initial={{ height: 0, opacity: 0 }}
                                 animate={{ height: 'auto', opacity: 1 }}
                                 exit={{ height: 0, opacity: 0 }}
-                                className="mt-4 flex items-center justify-between overflow-hidden border-t border-gray-50 pt-4"
+                                className="mt-4 flex items-center justify-between overflow-hidden border-t border-[var(--border-color)] pt-4"
                               >
                                 <div className="flex items-center gap-2">
                                   {COMMENT_COLORS.map((color) => (
@@ -998,15 +1086,15 @@ export function RichTextEditor({
                                         onUpdateAnnotation?.(note.id, note.comment, color.value);
                                       }}
                                       className={cn(
-                                        'h-3.5 w-3.5 rounded-full ring-offset-2 transition-all hover:scale-125',
-                                        note.color === color.value && 'ring-2 ring-blue-500',
+                                        'h-3.5 w-3.5 rounded-[var(--radius-pill)] ring-offset-2 ring-offset-[var(--bg-elevated)] transition-all hover:scale-125',
+                                        note.color === color.value && 'ring-2 ring-[var(--accent-blue)]',
                                       )}
                                       style={{ backgroundColor: color.value }}
                                       type="button"
                                     />
                                   ))}
                                 </div>
-                                <span className="text-xs font-bold  text-gray-300">
+                                <span className="text-xs font-bold text-[var(--text-tertiary)]">
                                   Fechar
                                 </span>
                               </motion.div>
@@ -1023,8 +1111,8 @@ export function RichTextEditor({
         </div>
 
         {isFullscreen && isMobile && !compactMobileComposer && (
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[120] bg-gradient-to-t from-white via-white to-transparent px-4 pb-safe pt-6">
-            <div className="pointer-events-auto rounded-[20px] border border-[#eef1f5] bg-white/95 p-2 shadow-[0_10px_30px_rgba(0,0,0,0.08)] backdrop-blur">
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[120] bg-gradient-to-t from-[var(--bg-elevated)] via-[var(--bg-elevated)] to-transparent px-4 pb-safe pt-6">
+            <div className="pointer-events-auto rounded-[var(--radius-overlay)] border border-[var(--border-color)] bg-[color-mix(in_srgb,var(--bg-elevated)_95%,transparent)] p-2 shadow-[var(--shadow-dropdown)] backdrop-blur">
               <div className="flex items-center gap-2 overflow-x-auto">
                 {isMobileQuickbarOpen &&
                   secondaryActions.map((action) => {
@@ -1036,10 +1124,10 @@ export function RichTextEditor({
                         key={action.id}
                         onClick={action.run}
                         className={cn(
-                          'inline-flex h-10 shrink-0 items-center gap-1.5 rounded-xl border px-3 text-sm font-medium transition',
+                          'inline-flex h-10 shrink-0 items-center gap-1.5 rounded-[var(--radius-input)] border px-3 text-sm font-medium transition',
                           active
-                            ? 'border-[#d9e7ff] bg-[color-mix(in_srgb,var(--accent-blue),transparent_92%)] text-[var(--accent-blue)]'
-                            : 'border-[#eef1f5] bg-white text-[var(--text-primary)]',
+                            ? 'border-[color-mix(in_srgb,var(--accent-blue),transparent_75%)] bg-[color-mix(in_srgb,var(--accent-blue),transparent_92%)] text-[var(--accent-blue)]'
+                            : 'border-[var(--border-color)] bg-[var(--bg-elevated)] text-[var(--text-primary)]',
                         )}
                         type="button"
                       >
@@ -1050,7 +1138,7 @@ export function RichTextEditor({
                   })}
                 <button
                   onClick={() => setIsMobileQuickbarOpen((current) => !current)}
-                  className="ml-auto inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#eef1f5] bg-[#f8fafc] text-[var(--text-tertiary)]"
+                  className="ml-auto inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-hover)] text-[var(--text-tertiary)]"
                   type="button"
                   aria-label="Alternar barra de atalhos"
                 >
@@ -1065,6 +1153,20 @@ export function RichTextEditor({
             </div>
           </div>
         )}
+
+        {isWorkspace && !compactMobileComposer ? (
+          <div className="flex shrink-0 items-center justify-between border-t border-[var(--border-color)] bg-[var(--bg-elevated)] px-4 py-2.5 text-xs text-[var(--text-tertiary)]">
+            <span>
+              {wordCount} palavras · {speakingDuration}
+            </span>
+            {saveFooterLabel ? (
+              <span className="inline-flex items-center gap-1 font-medium text-[var(--text-secondary)]">
+                {saveState === 'saved' ? <Check className="h-3.5 w-3.5 text-[var(--success)]" /> : null}
+                {saveFooterLabel}
+              </span>
+            ) : null}
+          </div>
+        ) : null}
       </motion.div>
 
       <AnimatePresence>
@@ -1074,48 +1176,48 @@ export function RichTextEditor({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={() => setActiveAnnotationModal(null)}
-            className="fixed inset-0 z-[200] flex items-end justify-center bg-black/40 p-4  sm:items-center"
+            className="fixed inset-0 z-[200] flex items-end justify-center bg-[color-mix(in_srgb,var(--text-primary)_40%,transparent)] p-4 sm:items-center"
           >
             <motion.div
               initial={{ opacity: 0, y: 40, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 40, scale: 0.95 }}
               onClick={(event) => event.stopPropagation()}
-              className="w-full max-w-sm overflow-hidden rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] bg-white shadow-none"
+              className="w-full max-w-sm overflow-hidden rounded-[var(--radius-card-mobile)] bg-[var(--bg-elevated)] shadow-none md:rounded-[var(--radius-card)]"
             >
               <div
                 className="h-1.5 w-full"
-                style={{ backgroundColor: activeAnnotationModal.color || 'rgba(255, 235, 153, 0.8)' }}
+                style={{ backgroundColor: activeAnnotationModal.color || DEFAULT_COMMENT_MODAL_STRIPE }}
               />
               <div className="p-6">
                 <div className="mb-4 flex items-center gap-3">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full border border-gray-100 bg-gray-50 text-xs font-bold text-blue-500">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-[var(--radius-pill)] border border-[var(--border-color)] bg-[var(--surface-subtle)] text-xs font-bold text-[var(--accent-blue)]">
                     {(activeAnnotationModal.authorName || authorName)[0]}
                   </div>
                   <div className="flex-1">
-                    <p className="text-xs font-semibold  text-gray-800">
+                    <p className="text-xs font-semibold text-[var(--text-primary)]">
                       {activeAnnotationModal.authorName || authorName}
                     </p>
-                    <p className="text-xs text-gray-400">Comentário</p>
+                    <p className="text-xs text-[var(--text-tertiary)]">Comentário</p>
                   </div>
                   <button
                     onClick={() => setActiveAnnotationModal(null)}
-                    className="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-gray-100"
+                    className="rounded-[var(--radius-input)] p-1.5 text-[var(--text-tertiary)] transition-colors hover:bg-[var(--bg-hover)]"
                     type="button"
                   >
                     <X className="h-4 w-4" />
                   </button>
                 </div>
 
-                <div className="mb-4 rounded-xl border border-amber-100 bg-amber-50 p-3">
-                  <p className="line-clamp-2 text-xs font-medium italic text-amber-700">
+                <div className="mb-4 rounded-[var(--radius-input)] border border-[color-mix(in_srgb,var(--warning),transparent_82%)] bg-[color-mix(in_srgb,var(--warning),transparent_92%)] p-3">
+                  <p className="line-clamp-2 text-xs font-medium italic text-[var(--warning)]">
                     "{activeAnnotationModal.text}"
                   </p>
                 </div>
 
-                <p className="text-sm leading-relaxed text-gray-700">{activeAnnotationModal.comment}</p>
+                <p className="text-sm leading-relaxed text-[var(--text-secondary)]">{activeAnnotationModal.comment}</p>
 
-                <div className="mt-5 flex items-center justify-between border-t border-gray-50 pt-4">
+                <div className="mt-5 flex items-center justify-between border-t border-[var(--border-color)] pt-4">
                   <div className="flex items-center gap-2">
                     {COMMENT_COLORS.map((color) => (
                       <button
@@ -1129,8 +1231,8 @@ export function RichTextEditor({
                           setActiveAnnotationModal({ ...activeAnnotationModal, color: color.value });
                         }}
                         className={cn(
-                          'h-4 w-4 rounded-full ring-offset-2 transition-all hover:scale-125',
-                          activeAnnotationModal.color === color.value && 'ring-2 ring-blue-500',
+                          'h-4 w-4 rounded-[var(--radius-pill)] ring-offset-2 ring-offset-[var(--bg-elevated)] transition-all hover:scale-125',
+                          activeAnnotationModal.color === color.value && 'ring-2 ring-[var(--accent-blue)]',
                         )}
                         style={{ backgroundColor: color.value }}
                         type="button"
@@ -1142,7 +1244,7 @@ export function RichTextEditor({
                       onRemoveAnnotation?.(activeAnnotationModal.id);
                       setActiveAnnotationModal(null);
                     }}
-                    className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold text-red-400 transition-colors hover:bg-red-50 hover:text-red-600"
+                    className="flex items-center gap-1.5 rounded-[var(--radius-input)] px-3 py-1.5 text-xs font-bold text-[var(--danger)] transition-colors hover:bg-[color-mix(in_srgb,var(--danger),transparent_90%)]"
                     type="button"
                   >
                     <Trash2 className="h-3.5 w-3.5" />
@@ -1162,32 +1264,32 @@ export function RichTextEditor({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={() => setActiveDraft(null)}
-            className="fixed inset-0 z-[200] flex items-end justify-center bg-black/40 p-4  sm:items-center"
+            className="fixed inset-0 z-[200] flex items-end justify-center bg-[color-mix(in_srgb,var(--text-primary)_40%,transparent)] p-4 sm:items-center"
           >
             <motion.div
               initial={{ opacity: 0, y: 40, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 40, scale: 0.95 }}
               onClick={(event) => event.stopPropagation()}
-              className="w-full max-w-sm rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] bg-white p-6 shadow-none"
+              className="w-full max-w-sm rounded-[var(--radius-card-mobile)] bg-[var(--bg-elevated)] p-6 shadow-none md:rounded-[var(--radius-card)]"
             >
               <div className="mb-4 flex items-center gap-3">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-50 text-xs font-bold text-blue-500">
+                <div className="flex h-8 w-8 items-center justify-center rounded-[var(--radius-pill)] bg-[color-mix(in_srgb,var(--accent-blue),transparent_90%)] text-xs font-bold text-[var(--accent-blue)]">
                   {authorName[0]}
                 </div>
-                <span className="flex-1 text-xs font-semibold  text-gray-800">
+                <span className="flex-1 text-xs font-semibold text-[var(--text-primary)]">
                   {authorName}
                 </span>
                 <button
                   onClick={() => setActiveDraft(null)}
-                  className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100"
+                  className="rounded-[var(--radius-input)] p-1.5 text-[var(--text-tertiary)] hover:bg-[var(--bg-hover)]"
                   type="button"
                 >
                   <X className="h-4 w-4" />
                 </button>
               </div>
-              <div className="mb-4 overflow-hidden rounded-xl border border-gray-100 bg-gray-50/80 p-3">
-                <span className="line-clamp-2 text-xs font-medium italic text-gray-400">
+              <div className="mb-4 overflow-hidden rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[color-mix(in_srgb,var(--surface-subtle)_80%,transparent)] p-3">
+                <span className="line-clamp-2 text-xs font-medium italic text-[var(--text-tertiary)]">
                   "{activeDraft.text}"
                 </span>
               </div>
@@ -1196,7 +1298,7 @@ export function RichTextEditor({
                 value={draftCommentText}
                 onChange={(event) => setDraftCommentText(event.target.value)}
                 placeholder="O que você quer comentar?"
-                className="mb-4 min-h-[80px] w-full resize-none rounded-xl border border-gray-200 bg-white px-4 py-3 text-base transition-all focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500/10 md:text-xs"
+                className="mb-4 min-h-[80px] w-full resize-none rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-4 py-3 text-base text-[var(--text-primary)] transition-all focus:border-[var(--accent-blue)] focus:outline-none focus:ring-4 focus:ring-[color-mix(in_srgb,var(--accent-blue),transparent_88%)] md:text-xs"
                 onKeyDown={(event) => {
                   if (event.key === 'Enter' && !event.shiftKey) {
                     event.preventDefault();
@@ -1207,7 +1309,7 @@ export function RichTextEditor({
               <div className="flex items-center justify-end gap-3">
                 <button
                   onClick={() => setActiveDraft(null)}
-                  className="text-xs font-semibold text-gray-400"
+                  className="text-xs font-semibold text-[var(--text-tertiary)]"
                   type="button"
                 >
                   Cancelar
@@ -1216,10 +1318,10 @@ export function RichTextEditor({
                   onClick={submitComment}
                   disabled={!draftCommentText.trim()}
                   className={cn(
-                    'rounded-full px-6 py-2 text-xs font-semibold transition-all',
+                    'rounded-[var(--radius-pill)] px-6 py-2 text-xs font-semibold transition-all',
                     draftCommentText.trim()
-                      ? 'bg-blue-600 text-white shadow-lg active:scale-95'
-                      : 'bg-gray-100 text-gray-300',
+                      ? 'bg-[var(--accent-blue)] text-[var(--bg-secondary)] shadow-[var(--shadow-soft)] active:scale-95'
+                      : 'bg-[var(--bg-hover)] text-[var(--text-tertiary)]',
                   )}
                   type="button"
                 >

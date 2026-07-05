@@ -1,10 +1,11 @@
 import type { AppState } from '../app/providers/appState';
+import { planDemoteContentsToIdeas } from '../features/contents/lib/demoteContentToIdea';
 import {
   AppData,
   Content, Idea, Pilar, Serie, Cenario, Look,
   BibliotecaItem, Anotacao, Projeto, ProjetoEtapa,
   RecordingBlock, RecordingBlockContent, Template,
-  AgendaItem, GoldenRule, ContentMetric, DnaVoz, Platform,
+  AgendaItem, GoldenRule, ContentMetric, Platform, DnaVoz,
 } from '../lib/database';
 
 // ============================================================================
@@ -19,6 +20,9 @@ export type AppAction =
   | { type: 'SET_PREFERENCE'; payload: { key: string; value: any } }
   | { type: 'UPDATE_PREFERENCE'; payload: { key: string; value: any } }
 
+  // ─── DNA de Voz ─────────────────────────────────────────────────────────────
+  | { type: 'UPDATE_DNA_VOZ'; payload: Pick<DnaVoz, 'promessaCentral' | 'publico' | 'tom' | 'naoFaco' | 'alertas'> }
+
   // ─── Conteúdos ──────────────────────────────────────────────────────────────
   | { type: 'ADD_CONTENT';              payload: Content }
   | { type: 'UPDATE_CONTENT';           payload: Content }
@@ -30,6 +34,7 @@ export type AppAction =
   | { type: 'UPDATE_IDEA'; payload: Idea }
   | { type: 'DELETE_IDEA'; payload: string }
   | { type: 'PROMOTE_IDEA'; payload: { ideaId: string; contentId: string; content: Content } }
+  | { type: 'DEMOTE_CONTENTS_TO_IDEAS'; payload: { contentIds: string[]; contents?: Content[] } }
 
   // ─── Pilares ────────────────────────────────────────────────────────────────
   | { type: 'ADD_PILAR';    payload: Pilar }
@@ -40,7 +45,6 @@ export type AppAction =
   | { type: 'ADD_SERIE';    payload: Serie }
   | { type: 'UPDATE_SERIE'; payload: Serie }
   | { type: 'DELETE_SERIE'; payload: string }
-  | { type: 'ADD_SERIES';   payload: Serie }
 
   // ─── Cenários ───────────────────────────────────────────────────────────────
   | { type: 'ADD_CENARIO';    payload: Cenario }
@@ -120,10 +124,6 @@ export type AppAction =
   | { type: 'UPDATE_PLATFORM'; payload: Platform }
   | { type: 'DELETE_PLATFORM'; payload: string }
 
-  // ─── DNA da Voz ─────────────────────────────────────────────────────────────
-  | { type: 'UPDATE_DNA_VOZ'; payload: Partial<DnaVoz> }
-  | { type: 'SET_DNA_VOZ'; payload: DnaVoz }
-
   // ─── Energia ────────────────────────────────────────────────────────────────
   | { type: 'LOG_ENERGY'; payload: unknown };
 
@@ -131,7 +131,9 @@ export type AppAction =
 // HELPERS
 // ============================================================================
 
-function deriveTheme(_prefs: Record<string, string>): 'light' | 'dark' {
+function deriveTheme(prefs: Record<string, string>): 'light' | 'dark' {
+  const saved = prefs?.['theme'];
+  if (saved === 'dark' || saved === 'light') return saved;
   return 'light';
 }
 
@@ -154,6 +156,15 @@ export function appReducer(state: AppState, action: AppAction): AppState {
     case 'SET_PREFERENCE':
     case 'UPDATE_PREFERENCE':
       return { ...state, preferences: { ...state.preferences, [action.payload.key]: action.payload.value } };
+
+    // ─── DNA de Voz ─────────────────────────────────────────────────────────
+    case 'UPDATE_DNA_VOZ':
+      return {
+        ...state,
+        dnaVoz: state.dnaVoz
+          ? { ...state.dnaVoz, ...action.payload }
+          : { id: '', userId: '', updatedAt: new Date().toISOString(), ...action.payload },
+      };
 
     // ─── Conteúdos ──────────────────────────────────────────────────────────
     case 'ADD_CONTENT':
@@ -182,6 +193,33 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         ),
         contents: [action.payload.content, ...state.contents],
       };
+    case 'DEMOTE_CONTENTS_TO_IDEAS': {
+      const contentIdSet = new Set(action.payload.contentIds);
+      const demoteContents = action.payload.contents?.length
+        ? action.payload.contents
+        : state.contents.filter(content => contentIdSet.has(content.id));
+      const userId = demoteContents[0]?.userId ?? state.contents.find(content => contentIdSet.has(content.id))?.userId ?? '';
+      const plan = planDemoteContentsToIdeas(
+        demoteContents,
+        state.ideas,
+        action.payload.contentIds,
+        userId,
+      );
+
+      return {
+        ...state,
+        ideas: plan.nextIdeas,
+        contents: state.contents.filter(content => !contentIdSet.has(content.id)),
+        recordingBlocks: state.recordingBlocks.map(block => ({
+          ...block,
+          contents: block.contents.filter(item => !contentIdSet.has(item.contentId)),
+        })),
+        projetos: state.projetos.map(projeto => ({
+          ...projeto,
+          contentIds: projeto.contentIds.filter(id => !contentIdSet.has(id)),
+        })),
+      };
+    }
 
     // ─── Pilares ────────────────────────────────────────────────────────────
     case 'ADD_PILAR':
@@ -189,7 +227,21 @@ export function appReducer(state: AppState, action: AppAction): AppState {
     case 'UPDATE_PILAR':
       return { ...state, pilares: state.pilares.map(p => p.id === action.payload.id ? action.payload : p) };
     case 'DELETE_PILAR':
-      return { ...state, pilares: state.pilares.filter(p => p.id !== action.payload) };
+      return {
+        ...state,
+        pilares: state.pilares.filter(p => p.id !== action.payload),
+        contents: state.contents.map(c =>
+          c.pilarId === action.payload ? { ...c, pilarId: null } : c
+        ),
+        ideas: state.ideas.map(i =>
+          i.pilarId === action.payload ? { ...i, pilarId: null } : i
+        ),
+        series: state.series.map(s =>
+          s.pilarIds.includes(action.payload)
+            ? { ...s, pilarIds: s.pilarIds.filter(id => id !== action.payload) }
+            : s
+        ),
+      };
 
     // ─── Séries ─────────────────────────────────────────────────────────────
     case 'ADD_SERIE':
@@ -402,12 +454,9 @@ export function appReducer(state: AppState, action: AppAction): AppState {
 
     // ─── Energia ──────────────────────────────────────────────────────────────
     case 'LOG_ENERGY':
-      // Ignored in new schema persistence, but we can keep it in state if needed
       return state;
 
     // ─── DNA ──────────────────────────────────────────────────────────────────
-    case 'UPDATE_DNA_VOZ':
-      return { ...state, dnaVoz: state.dnaVoz ? { ...state.dnaVoz, ...action.payload } : action.payload as DnaVoz };
     case 'SET_DNA_VOZ':
       return { ...state, dnaVoz: action.payload };
 

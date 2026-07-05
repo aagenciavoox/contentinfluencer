@@ -14,7 +14,7 @@ interface OverlayHeaderProps {
 
 export function OverlayHeader({ title, subtitle, onClose, children, className }: OverlayHeaderProps) {
   return (
-    <div className={cn('shrink-0 border-b border-[var(--border-color)] px-5 py-4', className)}>
+    <div className={cn('shrink-0 border-b border-[var(--border-color)] px-6 py-4', className)}>
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0 flex-1">
           {children ?? (

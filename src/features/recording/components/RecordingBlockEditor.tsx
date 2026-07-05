@@ -108,10 +108,10 @@ export function RecordingBlockEditor({
   const teleprompterEnabled = isRecordingBlockTeleprompterEnabled(block);
 
   return (
-    <div className={cn('space-y-5', className)}>
+    <div className={cn('stack-xl', className)}>
       <div className="grid gap-4 md:grid-cols-2">
-        <label className="block space-y-2">
-          <span className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--text-tertiary)]">
+        <label className="block stack-sm">
+          <span className="text-xs font-semibold t-label-uppercase text-[var(--text-tertiary)]">
             Nome do bloco
           </span>
           <input
@@ -129,7 +129,7 @@ export function RecordingBlockEditor({
         <div className="rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--text-tertiary)]">
+              <p className="text-xs font-semibold t-label-uppercase text-[var(--text-tertiary)]">
                 Teleprompter
               </p>
               <p className="mt-2 text-sm font-semibold text-[var(--text-primary)]">
@@ -163,10 +163,10 @@ export function RecordingBlockEditor({
         placeholder="Ex: roupa preta, estante, caneca"
       />
 
-      <section className="space-y-3">
+      <section className="stack-md">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--text-tertiary)]">
+            <p className="text-xs font-semibold t-label-uppercase text-[var(--text-tertiary)]">
               Roteiros do bloco
             </p>
             <p className="mt-1 text-sm text-[var(--text-secondary)]">
@@ -183,7 +183,7 @@ export function RecordingBlockEditor({
             <p className="text-sm font-semibold text-[var(--text-secondary)]">Nenhum roteiro neste bloco.</p>
           </div>
         ) : (
-          <div className="space-y-2">
+          <div className="stack-sm">
             {orderedEntries.map(({item, content}, index) => {
               const completed = isBlockContentComplete(item, content);
 
@@ -246,7 +246,7 @@ export function RecordingBlockEditor({
       </section>
 
       <section className="rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4">
-        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--text-tertiary)]">
+        <p className="text-xs font-semibold t-label-uppercase text-[var(--text-tertiary)]">
           Adicionar roteiro
         </p>
         {addableQueueContents.length === 0 ? (

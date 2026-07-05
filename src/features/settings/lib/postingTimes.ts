@@ -14,11 +14,11 @@ export const POSTING_TIMES_PREFERENCE_KEY = 'posting_times';
 export const WEEKDAY_LABELS: Record<Weekday, string> = {
   0: 'Domingo',
   1: 'Segunda',
-  2: 'Terca',
+  2: 'Terça',
   3: 'Quarta',
   4: 'Quinta',
   5: 'Sexta',
-  6: 'Sabado',
+  6: 'Sábado',
 };
 
 export const WEEKDAY_SHORT: Record<Weekday, string> = {

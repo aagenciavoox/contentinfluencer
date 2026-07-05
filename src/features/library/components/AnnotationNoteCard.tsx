@@ -7,8 +7,8 @@ import { cn } from '../../../lib/utils';
 const TIPO_CORES: Record<string, string> = {
   'Anotação': 'bg-[var(--text-tertiary)]/10 text-[var(--text-tertiary)]',
   Trecho: 'bg-[var(--accent-blue)]/10 text-[var(--accent-blue)]',
-  Reação: 'bg-[var(--accent-pink)]/10 text-[var(--accent-pink)]',
-  Análise: 'bg-[var(--accent-purple)]/10 text-[var(--accent-purple)]',
+  'Reação': 'bg-[var(--accent-pink)]/10 text-[var(--accent-pink)]',
+  'Análise': 'bg-[var(--accent-purple)]/10 text-[var(--accent-purple)]',
   'Ideia de conteúdo': 'bg-[var(--accent-green)]/10 text-[var(--accent-green)]',
   Pergunta: 'bg-[var(--accent-orange)]/10 text-[var(--accent-orange)]',
 };
@@ -43,10 +43,10 @@ export function AnnotationCardActions({
           title={anotacao.contentPotential ? 'Remover destaque' : 'Destacar'}
           className={cn(
             'rounded-md p-1.5 transition-colors',
-            anotacao.contentPotential ? 'text-yellow-500' : 'text-[var(--text-primary)] opacity-40 hover:opacity-80'
+            anotacao.contentPotential ? 'text-[var(--accent-orange)]' : 'text-[var(--text-primary)] opacity-40 hover:opacity-80'
           )}
         >
-          <Star className={cn('h-3.5 w-3.5', anotacao.contentPotential && 'fill-yellow-400 text-yellow-400')} />
+          <Star className={cn('h-3.5 w-3.5', anotacao.contentPotential && 'fill-[var(--accent-orange)] text-[var(--accent-orange)]')} />
         </button>
       ) : null}
       {showTransformIdea && !anotacao.destilada ? (
@@ -54,7 +54,7 @@ export function AnnotationCardActions({
           type="button"
           onClick={onTransformIdea}
           title="Transformar em ideia"
-          className="rounded-md p-1.5 text-green-600 transition-colors hover:bg-green-50"
+          className="rounded-md p-1.5 text-[var(--accent-green)] transition-colors hover:bg-[var(--accent-green)]/10"
         >
           <Lightbulb className="h-3.5 w-3.5" />
         </button>
@@ -114,14 +114,14 @@ export function AnnotationNoteCard({
     <div className="p-3">
       <div className="flex items-start justify-between gap-2">
         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
-          <span className={cn('rounded-full px-2.5 py-1 text-[8px] font-semibold uppercase tracking-[0.12em]', tipoClass)}>
+          <span className={cn('rounded-full px-2.5 py-1 t-label t-label-uppercase font-semibold', tipoClass)}>
             {anotacao.tipo}
           </span>
           {anotacao.capituloRef ? (
             <span className="text-xs font-medium text-[var(--text-secondary)] opacity-70">{anotacao.capituloRef}</span>
           ) : null}
           {anotacao.contentPotential ? (
-            <span className="text-xs font-medium text-yellow-500">Destaque</span>
+            <span className="text-xs font-medium text-[var(--accent-orange)]">Destaque</span>
           ) : null}
           {anotacao.destilada ? (
             <span className="flex items-center gap-1 text-xs font-medium text-[var(--accent-green)]">
@@ -160,7 +160,7 @@ export function AnnotationNoteCard({
 
   if (!layout) {
     return (
-      <div className="rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-primary)]">
+      <div className="rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-primary)] md:rounded-[var(--radius-card)]">
         {body}
       </div>
     );
@@ -171,7 +171,7 @@ export function AnnotationNoteCard({
       layout
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      className={cn('group rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-primary)]', className)}
+      className={cn('group rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-primary)] md:rounded-[var(--radius-card)]', className)}
     >
       {body}
     </motion.div>

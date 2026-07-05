@@ -2,12 +2,14 @@ import {useState} from 'react';
 import {MobileScriptEditor} from '../../../../../mobile/components/MobileScriptEditor';
 import {MobileScriptReader} from '../../../../../mobile/components/MobileScriptReader';
 import {htmlToReadableText} from '../../../../../lib/utils';
-import type {Content, Pilar, Serie} from '../../../../../lib/database';
+import type {Content, ContentPlataforma, Pilar, Serie} from '../../../../../lib/database';
 import {cn} from '../../../../../lib/utils';
+import {CONTENT_STATUS} from '../../../lib/contentPipeline';
 import {ContentOperationalPanel} from '../ContentOperationalPanel';
 import {ContentScriptWorkspace} from '../ContentScriptWorkspace';
+import {PlatformCopyEditor} from '../PlatformCopyEditor';
 
-type ScriptDraft = {
+export type ScriptDraft = {
   title: string;
   seriesId: string | null;
   pilarId: string | null;
@@ -21,34 +23,42 @@ type ScriptDraft = {
   recordingDate: string | null;
   publishDate: string | null;
   publishTime: string | null;
+  plataformas: ContentPlataforma[];
 };
 
 interface RoteiroSectionProps {
   draft: ScriptDraft;
   series: Serie[];
   pilares: Pilar[];
+  pilar: Pilar | null;
+  serie: Serie | null;
   authorName: string;
   onChange: (updates: Partial<ScriptDraft>) => void;
-  onStatusChange?: (status: string) => void;
   mobileComposer?: boolean;
   autoFocusScript?: boolean;
   layout?: 'stack' | 'workspace';
   showSidePanel?: boolean;
+  title?: string;
+  onTitleChange?: (title: string) => void;
+  saveState?: 'idle' | 'saving' | 'saved' | 'error';
 }
 
 export function RoteiroSection({
   draft,
   series,
   pilares,
+  pilar,
+  serie,
   authorName,
   onChange,
-  onStatusChange,
   mobileComposer = false,
   autoFocusScript = false,
   layout = 'stack',
   showSidePanel = true,
+  saveState,
 }: RoteiroSectionProps) {
   const hasScript = htmlToReadableText(draft.script).trim().length > 0;
+  const isPosted = draft.status === CONTENT_STATUS.POSTADO;
   const [mobileMode, setMobileMode] = useState<'read' | 'edit'>(autoFocusScript || !hasScript ? 'edit' : 'read');
 
   const annotationHandlers = {
@@ -61,7 +71,7 @@ export function RoteiroSection({
             text,
             selection,
             comment,
-            color: '#F5C543',
+            color: 'color-mix(in srgb, var(--warning), transparent 50%)',
             createdAt: new Date().toISOString(),
           },
         ],
@@ -87,18 +97,39 @@ export function RoteiroSection({
       referencias={draft.referencias}
       onScriptChange={html => onChange({script: html})}
       onReferenciasChange={value => onChange({referencias: value})}
+      saveState={saveState}
+      showReferencias={layout !== 'workspace'}
       {...annotationHandlers}
+    />
+  );
+
+  const captionEditor = (
+    <PlatformCopyEditor
+      plataformas={draft.plataformas}
+      pilar={pilar}
+      serie={serie}
+      disabled={isPosted}
+      embedded
+      onChange={plataformas => onChange({plataformas})}
     />
   );
 
   if (layout === 'workspace' && !mobileComposer) {
     if (!showSidePanel) {
-      return scriptWorkspace;
+      return (
+        <div className="grid gap-3">
+          {scriptWorkspace}
+          {captionEditor}
+        </div>
+      );
     }
 
     return (
-      <div className="grid items-start gap-3 lg:grid-cols-[minmax(0,1fr)_280px] xl:grid-cols-[minmax(0,1fr)_300px]">
-        {scriptWorkspace}
+      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(280px,30%)]">
+        <div className="flex flex-col gap-3">
+          {scriptWorkspace}
+          {captionEditor}
+        </div>
         <div className="sticky top-4">
           <ContentOperationalPanel
             draft={draft}
@@ -106,9 +137,10 @@ export function RoteiroSection({
             pilares={pilares}
             authorName={authorName}
             onChange={onChange}
-            onStatusChange={onStatusChange}
             showTitle={false}
             density="compact"
+            layout="property"
+            variant="cards"
           />
         </div>
       </div>
@@ -128,7 +160,7 @@ export function RoteiroSection({
               value={draft.title}
               onChange={event => onChange({title: event.target.value})}
               className={cn(fieldClass, 'mt-1.5 font-semibold')}
-              placeholder="Título do conteúdo"
+              placeholder="Titulo do conteudo"
             />
           </label>
         </section>
@@ -158,6 +190,8 @@ export function RoteiroSection({
             autoFocus={autoFocusScript || mobileMode === 'edit'}
           />
         )}
+
+        {captionEditor}
       </div>
     );
   }
@@ -170,9 +204,9 @@ export function RoteiroSection({
         pilares={pilares}
         authorName={authorName}
         onChange={onChange}
-        onStatusChange={onStatusChange}
       />
       {scriptWorkspace}
+      {captionEditor}
     </div>
   );
 }

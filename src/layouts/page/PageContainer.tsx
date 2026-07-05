@@ -11,7 +11,7 @@ const widthClasses = {
   narrow: 'desktop-content-frame',
   wide: 'desktop-content-frame-wide',
   book: 'desktop-content-frame-book',
-  full: 'px-4 md:px-6 py-6 md:py-8',
+  full: 'px-[var(--space-lg)] py-[var(--space-xl)] md:px-[var(--space-2xl)] md:py-[var(--space-xl)]',
 } as const;
 
 export function PageContainer({

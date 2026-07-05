@@ -7,6 +7,7 @@ import { generateUUID } from '../../../utils/uuid';
 import { DesktopPageHeader } from '../../../layouts/page/DesktopPageHeader';
 import { PageLayout } from '../../../layouts/page/PageLayout';
 import { AppButton } from '../../../components/ui/AppButton';
+import { Text } from '../../../components/ui/Text';
 
 type EditingLook = Partial<Look> & { numero: number; descricao: string; ativo: boolean };
 type EditingCenario = Partial<Cenario> & { nome: string; descricao: string; tempoSetupMinutos: number; ativo: boolean };
@@ -77,9 +78,9 @@ export function LooksSettingsPage() {
         {/* LOOKS */}
         <section className="mb-12">
           <div className="flex items-center justify-between mb-5">
-            <h2 className="t-section-title">
+            <Text variant="sectionTitle">
               Looks ({activeLooks.length})
-            </h2>
+            </Text>
             <AppButton
               onClick={() => {
                 setCriandoLook(true);
@@ -93,7 +94,7 @@ export function LooksSettingsPage() {
           </div>
 
           {criandoLook && (
-            <div className="mb-4 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] p-5 space-y-3">
+            <div className="mb-4 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] p-6 stack-md">
               <div className="flex gap-3">
                 <div>
                   <label className="text-xs font-bold  text-[var(--text-tertiary)] block mb-1">Nº</label>
@@ -137,7 +138,7 @@ export function LooksSettingsPage() {
             </div>
           )}
 
-          <div className="space-y-2">
+          <div className="stack-sm">
             {activeLooks.length === 0 ? (
               <p className="text-xs text-[var(--text-tertiary)] text-center py-8 font-bold">Nenhum look cadastrado ainda</p>
             ) : activeLooks.map(look => {
@@ -189,9 +190,9 @@ export function LooksSettingsPage() {
         {/* CENÁRIOS */}
         <section>
           <div className="flex items-center justify-between mb-5">
-            <h2 className="t-section-title">
+            <Text variant="sectionTitle">
               Cenários ({activeCenarios.length})
-            </h2>
+            </Text>
             <button
               onClick={() => setCriandoCenario(true)}
               className="t-button t-button-uppercase flex items-center gap-1.5 rounded-xl bg-[var(--text-primary)] px-3 py-2 text-[var(--bg-primary)] shadow-sm transition-all hover:scale-[1.02]"
@@ -202,8 +203,8 @@ export function LooksSettingsPage() {
           </div>
 
           {criandoCenario && (
-            <div className="mb-4 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] p-5 space-y-3">
-              <div className="grid grid-cols-2 gap-3">
+            <div className="mb-4 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] p-6 stack-md">
+              <div className="grid-metrics">
                 <div>
                   <label className="t-label block mb-1">Nome *</label>
                   <input
@@ -245,7 +246,7 @@ export function LooksSettingsPage() {
             </div>
           )}
 
-          <div className="space-y-2">
+          <div className="stack-sm">
             {activeCenarios.length === 0 ? (
               <p className="text-xs text-[var(--text-tertiary)] text-center py-8 font-bold">Nenhum cenário cadastrado ainda</p>
             ) : activeCenarios.map(cenario => (

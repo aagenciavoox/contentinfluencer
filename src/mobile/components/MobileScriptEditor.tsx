@@ -45,6 +45,13 @@ export function MobileScriptEditor({
   useBodyScrollLock(isFullscreen);
 
   useEffect(() => {
+    const active = document.activeElement;
+    const isEditing =
+      active === textareaRef.current ||
+      active === fullscreenRef.current;
+
+    if (isEditing) return;
+
     setPlainText(htmlToReadableText(content));
   }, [content]);
 
@@ -127,9 +134,9 @@ export function MobileScriptEditor({
 
   return (
     <>
-      <div className={cn('rounded-lg border border-[var(--border-color)] bg-white px-3 py-3 shadow-sm', className)}>
+      <div className={cn('rounded-lg border border-[var(--border-color)] bg-[var(--bg-elevated)] px-3 py-3 shadow-sm', className)}>
         <div className="mb-2 flex items-center justify-between gap-2">
-          <span className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--text-tertiary)]">
+          <span className="text-xs font-semibold t-label-uppercase text-[var(--text-tertiary)]">
             {savedLabel}
           </span>
           <button

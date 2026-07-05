@@ -1,16 +1,12 @@
 import { Plus } from 'lucide-react';
 import { AppButton } from '../../../components/ui/AppButton';
 import { FilterBar } from '../../../components/ui/FilterBar';
-import { cn } from '../../../lib/utils';
 import { BibliotecaItem } from '../../../lib/database';
 
 type StatusLeitura = BibliotecaItem['status'];
 type BibliotecaTipo = BibliotecaItem['tipo'];
-type LibraryTab = 'acervo' | 'analises';
 
 interface LibraryToolbarProps {
-  activeTab: LibraryTab;
-  onTabChange: (tab: LibraryTab) => void;
   searchValue: string;
   onSearchChange: (value: string) => void;
   filtroTipo: BibliotecaTipo | 'Todos';
@@ -27,8 +23,6 @@ interface LibraryToolbarProps {
 }
 
 export function LibraryToolbar({
-  activeTab,
-  onTabChange,
   searchValue,
   onSearchChange,
   filtroTipo,
@@ -45,27 +39,9 @@ export function LibraryToolbar({
 }: LibraryToolbarProps) {
   return (
     <div className="library-toolbar">
-      <div className="library-toolbar-tabs">
-        {([
-          { key: 'acervo', label: 'Acervo' },
-          { key: 'analises', label: 'Análises' },
-        ] as const).map(tab => (
-          <button
-            key={tab.key}
-            type="button"
-            onClick={() => onTabChange(tab.key)}
-            className={cn(
-              'library-toolbar-tab',
-              activeTab === tab.key && 'library-toolbar-tab-active'
-            )}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
-
       <FilterBar
         className="library-toolbar-filters"
+        size="compact"
         searchValue={searchValue}
         onSearchChange={onSearchChange}
         searchPlaceholder="Buscar título, autoria ou tag"

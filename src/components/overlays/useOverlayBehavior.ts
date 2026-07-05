@@ -16,6 +16,8 @@ export function useOverlayBehavior(
   panelRef: RefObject<HTMLElement | null>
 ) {
   const previousFocusRef = useRef<HTMLElement | null>(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   useBodyScrollLock(open);
 
@@ -24,10 +26,30 @@ export function useOverlayBehavior(
 
     previousFocusRef.current = document.activeElement as HTMLElement | null;
 
+    const raf = requestAnimationFrame(() => {
+      if (!panelRef.current) return;
+
+      const active = document.activeElement;
+      if (active && panelRef.current.contains(active)) return;
+
+      const focusable = getFocusableElements(panelRef.current);
+      (focusable[0] ?? panelRef.current).focus();
+    });
+
+    return () => {
+      cancelAnimationFrame(raf);
+      previousFocusRef.current?.focus?.();
+      previousFocusRef.current = null;
+    };
+  }, [open, panelRef]);
+
+  useEffect(() => {
+    if (!open) return;
+
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         event.preventDefault();
-        onClose();
+        onCloseRef.current();
         return;
       }
 
@@ -54,17 +76,6 @@ export function useOverlayBehavior(
     };
 
     document.addEventListener('keydown', handleKeyDown);
-
-    const raf = requestAnimationFrame(() => {
-      if (!panelRef.current) return;
-      const focusable = getFocusableElements(panelRef.current);
-      (focusable[0] ?? panelRef.current).focus();
-    });
-
-    return () => {
-      cancelAnimationFrame(raf);
-      document.removeEventListener('keydown', handleKeyDown);
-      previousFocusRef.current?.focus?.();
-    };
-  }, [open, onClose, panelRef]);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [open, panelRef]);
 }

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Clapperboard, Mic2, Plus, Video } from 'lucide-react';
 import { BottomSheetModal } from '../../components/feedback/modals/BottomSheetModal';
 import { AppButton } from '../../components/ui/AppButton';
+import { Text } from '../../components/ui/Text';
 import type { Content, RecordingBlock, RecordingBlockContent } from '../../lib/database';
 import { CONTENT_STATUS, canAdvanceToRecording } from '../../features/contents/lib/contentPipeline';
 import { normalizeRecordingTags } from '../../features/recording/lib/recordingWorkflow';
@@ -50,14 +51,14 @@ export function SendToRecordingSheet({
   const attachToBlock = async (blockId: string, block: RecordingBlock, isNew: boolean) => {
     const ordered = [...block.contents].sort((left, right) => left.ordem - right.ordem);
     const nextContents: RecordingBlockContent[] = isNew
-      ? [{ blockId, contentId: content.id, ordem: 0, gravado: content.status === CONTENT_STATUS.GRAVADO }]
+      ? [{ blockId, contentId: content.id, ordem: 0, gravado: Boolean(content.recordedAt) }]
       : [
           ...ordered,
           {
             blockId: block.id,
             contentId: content.id,
             ordem: ordered.length,
-            gravado: content.status === CONTENT_STATUS.GRAVADO,
+            gravado: Boolean(content.recordedAt),
           },
         ];
 
@@ -131,16 +132,16 @@ export function SendToRecordingSheet({
       <section
         role="dialog"
         aria-modal="true"
-        aria-labelledby="send-recording-title"
+        aria-label={successBlockId ? 'Pronto para gravar' : 'Escolha o bloco'}
         className="flex max-h-[85vh] flex-col overflow-hidden bg-[var(--bg-primary)]"
       >
-        <div className="border-b border-[var(--border-color)] px-5 py-4">
+        <div className="border-b border-[var(--border-color)] px-6 py-4">
           <p className="text-xs font-semibold  text-[var(--text-tertiary)]">
-            Enviar para gravacao
+            Guardar em um bloco
           </p>
-          <h3 id="send-recording-title" className="mt-2 text-xl font-semibold text-[var(--text-primary)]">
+          <Text variant="itemTitle" className="mt-2">
             {successBlockId ? 'Pronto para gravar' : 'Escolha o bloco'}
-          </h3>
+          </Text>
           <p className="mt-2 text-sm text-[var(--text-secondary)]">
             {successBlockId
               ? 'Conteudo guardado para gravacao. Abra o teleprompter ou revise o bloco quando quiser.'
@@ -148,9 +149,9 @@ export function SendToRecordingSheet({
           </p>
         </div>
 
-        <div className="space-y-4 overflow-y-auto px-5 py-5">
+        <div className="stack-lg overflow-y-auto px-6 py-6">
           {successBlockId ? (
-            <div className="space-y-3">
+            <div className="stack-md">
               <AppButton
                 variant="primary"
                 leftIcon={<Video className="h-4 w-4" />}
@@ -226,11 +227,11 @@ export function SendToRecordingSheet({
           )}
         </div>
 
-        <div className="border-t border-[var(--border-color)] px-5 py-4 pb-safe">
+        <div className="border-t border-[var(--border-color)] px-6 py-4 pb-safe">
           <button
             type="button"
             onClick={onClose}
-            className="min-h-11 w-full rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] text-sm font-semibold uppercase tracking-[0.16em] text-[var(--text-secondary)]"
+            className="min-h-11 w-full rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] text-sm font-semibold t-label-uppercase text-[var(--text-secondary)]"
           >
             {successBlockId ? 'Fechar' : 'Cancelar'}
           </button>

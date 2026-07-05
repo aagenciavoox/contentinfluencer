@@ -59,7 +59,8 @@ export function ListItem({
         }
         className={cn(
           'flex min-h-12 items-center gap-4 border-b border-[var(--border-color)] px-1 py-3 last:border-b-0',
-          (interactive || onClick) && 'cursor-pointer transition-colors hover:bg-[var(--bg-hover)]',
+          (interactive || onClick) &&
+            'cursor-pointer transition-colors hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
           className
         )}
       >

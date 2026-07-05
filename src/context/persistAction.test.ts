@@ -3,7 +3,7 @@ import type { AppState } from '../app/providers/appState.ts';
 import type { Content } from '../lib/database.ts';
 import { persistAction, persistContentRecord, type PersistenceApi } from './persistAction.ts';
 
-function createMockApi() {
+function createMockApi(contentsById: Content[] = []) {
   const calls: Array<{ name: keyof PersistenceApi; args: unknown[] }> = [];
   const record = <K extends keyof PersistenceApi>(name: K) =>
     (...args: unknown[]) => {
@@ -12,6 +12,7 @@ function createMockApi() {
     };
 
   const api: PersistenceApi = {
+    saveDnaVoz: record('saveDnaVoz'),
     saveContent: record('saveContent'),
     saveContentPlataformas: record('saveContentPlataformas'),
     saveBibliotecaItem: record('saveBibliotecaItem'),
@@ -20,15 +21,21 @@ function createMockApi() {
     saveAnotacao: record('saveAnotacao'),
     deleteAnotacao: record('deleteAnotacao'),
     deleteContent: record('deleteContent'),
+    fetchContentsByIds: async (_userId: string, ids: readonly string[]) => {
+      calls.push({ name: 'fetchContentsByIds', args: [ids] });
+      return contentsById.filter(content => ids.includes(content.id));
+    },
     saveIdea: record('saveIdea'),
     deleteIdea: record('deleteIdea'),
     saveProjeto: record('saveProjeto'),
     saveProjetoEtapa: record('saveProjetoEtapa'),
+    saveProjetoEtapas: record('saveProjetoEtapas'),
     saveProjetoConteudos: record('saveProjetoConteudos'),
     deleteProjetoEtapa: record('deleteProjetoEtapa'),
     deleteProjeto: record('deleteProjeto'),
     savePilar: record('savePilar'),
     savePilarPlataformas: record('savePilarPlataformas'),
+    clearPilarReferences: record('clearPilarReferences'),
     deletePilar: record('deletePilar'),
     saveSerie: record('saveSerie'),
     saveSeriePilares: record('saveSeriePilares'),
@@ -48,7 +55,6 @@ function createMockApi() {
     saveTemplate: record('saveTemplate'),
     deleteTemplate: record('deleteTemplate'),
     savePreference: record('savePreference'),
-    saveDnaVoz: record('saveDnaVoz'),
     saveGoldenRule: record('saveGoldenRule'),
     deleteGoldenRule: record('deleteGoldenRule'),
     savePlatform: record('savePlatform'),
@@ -148,11 +154,14 @@ async function testPersistActionPromoteIdeaArchivesIdeaAndPersistsContent() {
     ideas: [{
       id: 'idea-1',
       userId: 'user-1',
+      title: 'Ideia',
+      notes: null,
       text: 'Ideia',
       pilarId: null,
       seriesId: null,
       origemId: null,
       promotedToContentId: null,
+      demotedFromContentId: null,
       archived: false,
       createdAt: '2026-05-01T00:00:00.000Z',
     }],
@@ -176,6 +185,83 @@ async function testPersistActionPromoteIdeaArchivesIdeaAndPersistsContent() {
   const savedIdea = calls[2]?.args[0] as { archived: boolean; promotedToContentId: string };
   assert.equal(savedIdea.archived, true);
   assert.equal(savedIdea.promotedToContentId, 'content-promoted');
+}
+
+async function testPersistActionDemoteContentsRestoresLinkedIdea() {
+  const content = createContent({ id: 'content-linked', title: 'Roteiro editado', notes: 'corpo das observações' });
+  const { api, calls } = createMockApi([content]);
+  const state = createState({
+    contents: [content],
+    ideas: [{
+      id: 'idea-1',
+      userId: 'user-1',
+      title: 'Ideia original',
+      notes: null,
+      text: 'Ideia original',
+      pilarId: null,
+      seriesId: null,
+      origemId: null,
+      promotedToContentId: 'content-linked',
+      demotedFromContentId: null,
+      archived: true,
+      createdAt: '2026-05-01T00:00:00.000Z',
+    }],
+  });
+
+  await persistAction({
+    action: {
+      type: 'DEMOTE_CONTENTS_TO_IDEAS',
+      payload: { contentIds: ['content-linked'] },
+    },
+    userId: 'user-1',
+    state,
+    api,
+  });
+
+  assert.deepEqual(calls.map(call => call.name), ['fetchContentsByIds', 'saveIdea', 'deleteContent']);
+  const savedIdea = calls.find(call => call.name === 'saveIdea')?.args[0] as {
+    archived: boolean;
+    promotedToContentId: string | null;
+    demotedFromContentId: string | null;
+    title: string;
+    notes: string | null;
+  };
+  assert.equal(savedIdea.archived, false);
+  assert.equal(savedIdea.promotedToContentId, null);
+  assert.equal(savedIdea.demotedFromContentId, 'content-linked');
+  assert.equal(savedIdea.title, 'Roteiro editado');
+  assert.match(savedIdea.notes ?? '', /corpo/);
+  assert.equal(calls.find(call => call.name === 'deleteContent')?.args[0], 'content-linked');
+}
+
+async function testPersistActionDemoteContentsCreatesIdeaWhenUnlinked() {
+  const content = createContent({ id: 'content-new', title: 'Só roteiro', notes: 'Sem ideia anterior' });
+  const { api, calls } = createMockApi([content]);
+  const state = createState({ contents: [content], ideas: [] });
+
+  await persistAction({
+    action: {
+      type: 'DEMOTE_CONTENTS_TO_IDEAS',
+      payload: { contentIds: ['content-new'] },
+    },
+    userId: 'user-1',
+    state,
+    api,
+  });
+
+  assert.deepEqual(calls.map(call => call.name), ['fetchContentsByIds', 'saveIdea', 'deleteContent']);
+  const savedIdea = calls.find(call => call.name === 'saveIdea')?.args[0] as {
+    archived: boolean;
+    promotedToContentId: string | null;
+    demotedFromContentId: string | null;
+    title: string;
+    notes: string | null;
+  };
+  assert.equal(savedIdea.archived, false);
+  assert.equal(savedIdea.promotedToContentId, null);
+  assert.equal(savedIdea.demotedFromContentId, 'content-new');
+  assert.equal(savedIdea.title, 'Só roteiro');
+  assert.equal(calls.find(call => call.name === 'deleteContent')?.args[0], 'content-new');
 }
 
 async function testPersistActionWritesLooksAndCenarios() {
@@ -224,6 +310,8 @@ async function testPersistActionWritesLooksAndCenarios() {
 const tests: Array<[string, () => Promise<void>]> = [
   ['persistContentRecord saves content and platforms together', testPersistContentRecordUsesContentAndPlatforms],
   ['persistAction persists promoted ideas with archived source idea', testPersistActionPromoteIdeaArchivesIdeaAndPersistsContent],
+  ['persistAction demote restores linked idea before deleting content', testPersistActionDemoteContentsRestoresLinkedIdea],
+  ['persistAction demote creates idea when content has no linked idea', testPersistActionDemoteContentsCreatesIdeaWhenUnlinked],
   ['persistAction persists looks and cenarios through the unified adapter', testPersistActionWritesLooksAndCenarios],
 ];
 

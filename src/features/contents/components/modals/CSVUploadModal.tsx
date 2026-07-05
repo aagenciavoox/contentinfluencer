@@ -1,10 +1,12 @@
 import { useState, useRef } from 'react';
 import { X, Upload, FileText, Check, AlertCircle, Info } from 'lucide-react';
 import { FixedPanelModal } from '../../../../components/overlays/FixedPanelModal';
+import { Text } from '../../../../components/ui/Text';
 import { Content } from '../../../../lib/database';
 import { useAppContext } from '../../../../context/AppContext';
 import { broadcastDataSync } from '../../../../lib/syncBroadcast';
 import { notifySaveFeedback } from '../../../../lib/saveFeedback';
+import { ERRORS, LOADING } from '../../../../lib/uiCopy';
 import { cn } from '../../../../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -40,7 +42,7 @@ export function CSVUploadModal({ onClose }: CSVUploadModalProps) {
         const text = e.target?.result as string;
         const lines = text.split(/\r?\n/).filter(line => line.trim());
         if (lines.length < 2) {
-          setError('Nao encontramos linhas suficientes no CSV. Inclua uma linha de cabecalho e ao menos um roteiro.');
+          setError('Não encontramos linhas suficientes no CSV. Inclua uma linha de cabeçalho e ao menos um roteiro.');
           return;
         }
 
@@ -84,12 +86,12 @@ export function CSVUploadModal({ onClose }: CSVUploadModalProps) {
         }
 
         if (data.length === 0) {
-          setError('As linhas importadas ainda nao trazem titulo e roteiro juntos. Complete esses campos e tente novamente.');
+          setError('As linhas importadas ainda não trazem título e roteiro juntos. Complete esses campos e tente novamente.');
         } else {
           setPreview(data);
         }
       } catch (err) {
-        setError('Nao conseguimos ler o arquivo agora. Revise a formatacao do CSV e tente novamente.');
+        setError('Não conseguimos ler o arquivo agora. Revise a formatação do CSV e tente novamente.');
       }
     };
     reader.readAsText(file);
@@ -100,7 +102,7 @@ export function CSVUploadModal({ onClose }: CSVUploadModalProps) {
 
     notifySaveFeedback({
       status: 'saving',
-      message: `Importando ${preview.length} conteudos...`,
+      message: LOADING.importandoRoteiros(preview.length),
     });
 
     try {
@@ -114,7 +116,7 @@ export function CSVUploadModal({ onClose }: CSVUploadModalProps) {
       broadcastDataSync();
       notifySaveFeedback({
         status: 'success',
-        message: `${preview.length} conteudos importados`,
+        message: `${preview.length} roteiros importados`,
       });
       setIsSuccess(true);
       setTimeout(() => {
@@ -122,7 +124,7 @@ export function CSVUploadModal({ onClose }: CSVUploadModalProps) {
       }, 2000);
     } catch (err) {
       console.error('[CSVUploadModal] import failed:', err);
-      setError('Nao foi possivel importar todos os roteiros. Tente novamente.');
+      setError(ERRORS.importarRoteiros);
     }
   };
 
@@ -134,9 +136,11 @@ export function CSVUploadModal({ onClose }: CSVUploadModalProps) {
           <div>
             <div className="flex items-center gap-3 mb-1">
               <Upload className="w-5 h-5 text-[var(--accent-blue)]" />
-              <h2 className="text-2xl font-semibold text-[var(--text-primary)] uppercase">Importar Roteiros</h2>
+              <Text variant="sectionTitle" uppercase>
+                Importar Roteiros
+              </Text>
             </div>
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--text-tertiary)]">Adicione múltiplos conteúdos de uma vez</p>
+            <p className="t-label t-label-uppercase font-semibold text-[var(--text-tertiary)]">Adicione múltiplos conteúdos de uma vez</p>
           </div>
           <button onClick={onClose} className="p-2 hover:bg-[var(--bg-hover)] rounded-full transition-colors">
             <X className="w-5 h-5 text-[var(--text-tertiary)]" />
@@ -150,7 +154,9 @@ export function CSVUploadModal({ onClose }: CSVUploadModalProps) {
               <div className="w-20 h-20 bg-green-500/10 text-green-500 rounded-full flex items-center justify-center mb-6 border-4 border-green-500/20">
                 <Check className="w-10 h-10" />
               </div>
-              <h3 className="text-xl font-semibold text-[var(--text-primary)] uppercase mb-2">Importação Concluída!</h3>
+              <Text variant="itemTitle" uppercase className="mb-2">
+                Importação Concluída!
+              </Text>
               <p className="text-sm text-[var(--text-tertiary)] opacity-70">{preview.length} roteiros foram adicionados ao seu inventário.</p>
             </motion.div>
           ) : (
@@ -165,7 +171,7 @@ export function CSVUploadModal({ onClose }: CSVUploadModalProps) {
                   <p className="text-sm text-[var(--text-tertiary)] mb-6 leading-relaxed">
                     Use um arquivo **CSV** (Comma Separated Values). A primeira linha funciona como cabecalho das colunas.
                   </p>
-                  <div className="space-y-4">
+                  <div className="stack-lg">
                     <div className="flex items-center justify-between text-xs font-bold py-2 border-b border-[var(--border-color)]">
                       <span className="text-[var(--text-primary)]">titulo</span>
                       <span className="text-[var(--accent-pink)]">Necessario para importar</span>
@@ -177,7 +183,7 @@ export function CSVUploadModal({ onClose }: CSVUploadModalProps) {
                   </div>
                   <div className="mt-6">
                     <p className="text-xs font-semibold  text-[var(--text-tertiary)] mb-3">Exemplo de Conteúdo</p>
-                    <pre className="bg-black/5 dark:bg-white/5 p-4 rounded-xl text-xs font-mono opacity-60 overflow-x-auto whitespace-pre">
+                    <pre className="bg-[var(--text-primary)]/5 dark:bg-[var(--bg-elevated)]/5 p-4 rounded-xl text-xs font-mono opacity-60 overflow-x-auto whitespace-pre">
                       titulo,roteiro{'\n'}
                       Como ler mais rápido,"Dica 1: Pare de subvocalizar..."{'\n'}
                       Minha estante secreta,"Neste vídeo mostro os livros que..."

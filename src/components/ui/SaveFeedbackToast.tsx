@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { AlertTriangle, CheckCircle2, Loader2 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import {
@@ -16,9 +17,9 @@ export function SaveFeedbackToast() {
 
   const tone =
     feedback.status === 'error'
-      ? 'border-red-500/30 bg-[color-mix(in_srgb,var(--bg-secondary)_94%,#ef4444_6%)] text-red-100'
+      ? 'border-red-500/30 bg-[color-mix(in_srgb,var(--bg-secondary)_94%,var(--danger)_6%)] text-red-100'
       : feedback.status === 'success'
-        ? 'border-emerald-500/30 bg-[color-mix(in_srgb,var(--bg-secondary)_94%,#10b981_6%)] text-emerald-50'
+        ? 'border-emerald-500/30 bg-[color-mix(in_srgb,var(--bg-secondary)_94%,var(--success)_6%)] text-emerald-50'
         : 'border-[var(--border-color)] bg-[color-mix(in_srgb,var(--bg-secondary)_94%,transparent)] text-[var(--text-primary)]';
 
   return (
@@ -44,6 +45,14 @@ export function SaveFeedbackToast() {
           <p className="text-sm font-semibold">{feedback.message}</p>
           {feedback.detail ? (
             <p className="mt-1 text-xs font-semibold opacity-80">{feedback.detail}</p>
+          ) : null}
+          {feedback.href ? (
+            <Link
+              to={feedback.href}
+              className="mt-2 inline-block text-xs font-semibold underline underline-offset-2 opacity-90 hover:opacity-100"
+            >
+              {feedback.actionLabel ?? 'Abrir'}
+            </Link>
           ) : null}
         </div>
       </div>
