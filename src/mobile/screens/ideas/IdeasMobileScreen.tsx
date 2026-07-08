@@ -1,7 +1,10 @@
 import type { FormEvent } from 'react';
-import { Lightbulb, X } from 'lucide-react';
+import { Lightbulb } from 'lucide-react';
 import type { AppState } from '../../../app/providers/appState';
 import { BottomSheetModal } from '../../../components/feedback/modals/BottomSheetModal';
+import { OverlayBody } from '../../../components/overlays/OverlayBody';
+import { OverlayFooter } from '../../../components/overlays/OverlayFooter';
+import { OverlayHeader } from '../../../components/overlays/OverlayHeader';
 import { AppButton } from '../../../components/ui/AppButton';
 import { Text } from '../../../components/ui/Text';
 import { EmptyState } from '../../../components/ui/EmptyState';
@@ -207,24 +210,17 @@ export function IdeasMobileScreen({
         open={composerOpen}
         onClose={() => onComposerOpenChange(false)}
         desktopMaxW="max-w-lg"
-        zIndex="z-[90]"
+        zIndex="z-[110]"
+        ariaLabel="Nova ideia"
       >
-        <form onSubmit={handleComposerSubmit} className="flex flex-col bg-[var(--bg-primary)]">
-          <div className="flex items-center justify-between border-b border-[var(--border-color)] px-6 py-4">
-            <div>
-              <Text variant="sectionTitle">Nova ideia</Text>
-              <p className="mt-0.5 text-xs text-[var(--text-tertiary)]">Escreva primeiro. Classifique depois.</p>
-            </div>
-            <button
-              type="button"
-              onClick={() => onComposerOpenChange(false)}
-              className="rounded-full p-2 text-[var(--text-tertiary)] hover:bg-[var(--bg-hover)]"
-            >
-              <X className="h-5 w-5" />
-            </button>
-          </div>
+        <form onSubmit={handleComposerSubmit} className="flex min-h-0 flex-1 flex-col">
+          <OverlayHeader
+            title="Nova ideia"
+            subtitle="Escreva primeiro. Classifique depois."
+            onClose={() => onComposerOpenChange(false)}
+          />
 
-          <div className="stack-lg p-6">
+          <OverlayBody className="stack-lg py-6">
             <IdeaQuickCapture
               title={newIdeaTitle}
               notes={newIdeaNotes}
@@ -240,13 +236,13 @@ export function IdeasMobileScreen({
               onSelectedBibliotecaIdChange={onSelectedBibliotecaIdChange}
               onSave={onSave}
             />
-          </div>
+          </OverlayBody>
 
-          <div className="border-t border-[var(--border-color)] p-6 pb-safe">
+          <OverlayFooter className="pb-safe">
             <AppButton type="submit" variant="primary" fullWidth disabled={!newIdeaTitle.trim() && !newIdeaNotes.trim()}>
               Capturar ideia
             </AppButton>
-          </div>
+          </OverlayFooter>
         </form>
       </BottomSheetModal>
     </div>

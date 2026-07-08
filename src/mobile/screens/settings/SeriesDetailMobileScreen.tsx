@@ -2,6 +2,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { ArrowUpRight, FilePlus2, FileText, Lightbulb, Pencil } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { BottomSheetModal } from '../../../components/feedback/modals/BottomSheetModal';
+import { OverlayBody } from '../../../components/overlays/OverlayBody';
+import { OverlayFooter } from '../../../components/overlays/OverlayFooter';
+import { OverlayHeader } from '../../../components/overlays/OverlayHeader';
 import { AppButton } from '../../../components/ui/AppButton';
 import { Badge } from '../../../components/ui/Badge';
 import { EmptyState } from '../../../components/ui/EmptyState';
@@ -242,9 +245,9 @@ export function SeriesDetailMobileScreen({
         zIndex="z-[110]"
       >
         {previewItem ? (
-          <div className="flex h-full flex-col bg-[var(--bg-primary)]">
+          <>
             <div className="h-1 w-full shrink-0" style={{ backgroundColor: serieColor }} />
-            <div className="border-b border-[var(--border-color)] px-6 py-4">
+            <OverlayHeader>
               <Text variant="itemTitle" truncate>
                 {seriesListItemTitle(previewItem)}
               </Text>
@@ -257,9 +260,9 @@ export function SeriesDetailMobileScreen({
                 </Badge>
                 <Badge variant="neutral">{seriesListItemWordCount(previewItem)} palavras</Badge>
               </div>
-            </div>
+            </OverlayHeader>
 
-            <div className="flex-1 stack-xl overflow-y-auto px-6 py-4">
+            <OverlayBody className="stack-xl py-4">
               <div>
                 <div className="mb-2 flex items-center gap-2">
                   <FileText className="h-3.5 w-3.5 text-[var(--text-tertiary)]" />
@@ -307,9 +310,9 @@ export function SeriesDetailMobileScreen({
                     ))}
                 </div>
               ) : null}
-            </div>
+            </OverlayBody>
 
-            <div className="border-t border-[var(--border-color)] px-6 py-4 pb-safe">
+            <OverlayFooter className="pb-safe">
               <AppButton
                 variant="primary"
                 fullWidth
@@ -324,8 +327,8 @@ export function SeriesDetailMobileScreen({
               >
                 {previewItem.kind === 'inbox-idea' ? 'Abrir na caixa de ideias' : 'Abrir'}
               </AppButton>
-            </div>
-          </div>
+            </OverlayFooter>
+          </>
         ) : null}
       </BottomSheetModal>
 
@@ -336,17 +339,13 @@ export function SeriesDetailMobileScreen({
         zIndex="z-[110]"
       >
         {drawerMode ? (
-          <div className="flex h-full flex-col bg-[var(--bg-primary)]">
+          <>
             <div className="h-1 w-full shrink-0" style={{ backgroundColor: serieColor }} />
-            <div className="border-b border-[var(--border-color)] px-6 py-4">
-              <Text variant="sectionTitle">
-                {drawerMode === 'ideia' ? 'Nova ideia' : 'Novo roteiro'}
-              </Text>
-              <Text variant="meta" className="mt-1 text-[var(--text-tertiary)]">
-                {serie.name}
-              </Text>
-            </div>
-            <div className="flex-1 overflow-y-auto p-6 pb-safe">
+            <OverlayHeader
+              title={drawerMode === 'ideia' ? 'Nova ideia' : 'Novo roteiro'}
+              subtitle={serie.name}
+            />
+            <OverlayBody className="py-6 pb-safe">
               <SeriesCreateContentForm
                 key={drawerMode}
                 serie={serie}
@@ -357,8 +356,8 @@ export function SeriesDetailMobileScreen({
                 onCreate={onCreateBulkContents}
                 onSuccess={() => closeCreateSheet()}
               />
-            </div>
-          </div>
+            </OverlayBody>
+          </>
         ) : null}
       </BottomSheetModal>
 
@@ -368,38 +367,36 @@ export function SeriesDetailMobileScreen({
         desktopMaxW="max-w-xl"
         zIndex="z-[110]"
       >
-        <div className="flex h-full flex-col bg-[var(--bg-primary)]">
-          <div className="border-b border-[var(--border-color)] px-6 py-4">
-            <div className="flex items-center gap-3">
-              <span
-                className="h-10 w-10 shrink-0 rounded-[var(--radius-card)] border border-[var(--border-color)]"
-                style={{ backgroundColor: serieColor }}
-              />
-              <div className="min-w-0">
-                <Text variant="sectionTitle" truncate>
-                  {serie.name}
-                </Text>
-                <Text variant="meta" className="text-[var(--text-secondary)]">
-                  Editar identidade da série
-                </Text>
-              </div>
+        <OverlayHeader>
+          <div className="flex items-center gap-3">
+            <span
+              className="h-10 w-10 shrink-0 rounded-[var(--radius-card)] border border-[var(--border-color)]"
+              style={{ backgroundColor: serieColor }}
+            />
+            <div className="min-w-0">
+              <Text variant="sectionTitle" truncate>
+                {serie.name}
+              </Text>
+              <Text variant="meta" className="text-[var(--text-secondary)]">
+                Editar identidade da série
+              </Text>
             </div>
           </div>
+        </OverlayHeader>
 
-          <div className="flex-1 overflow-y-auto p-6 pb-safe">
-            <SeriesForm
-              key={serie.id}
-              initial={serie}
-              onSave={saved => {
-                onSaveSerie(saved);
-                setShowEditSheet(false);
-              }}
-              onCancel={() => setShowEditSheet(false)}
-              platformNames={platformNames}
-              contents={contents ?? linkedContents}
-            />
-          </div>
-        </div>
+        <OverlayBody className="py-6 pb-safe">
+          <SeriesForm
+            key={serie.id}
+            initial={serie}
+            onSave={saved => {
+              onSaveSerie(saved);
+              setShowEditSheet(false);
+            }}
+            onCancel={() => setShowEditSheet(false)}
+            platformNames={platformNames}
+            contents={contents ?? linkedContents}
+          />
+        </OverlayBody>
       </BottomSheetModal>
     </div>
   );

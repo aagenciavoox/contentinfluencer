@@ -17,7 +17,7 @@ function getRouteDataDomains(pathname: string): AppDataDomain[] {
   if (pathname === '/dashboard' || pathname === '/') {
     return [];
   }
-  if (pathname.startsWith('/biblioteca')) return ['library-generos'];
+  if (pathname.startsWith('/biblioteca')) return ['library', 'library-generos'];
   if (pathname.startsWith('/conteudos/')) return ['production'];
   if (pathname.startsWith('/conteudos')) return ['production'];
   if (pathname.startsWith('/ideias')) return ['production'];

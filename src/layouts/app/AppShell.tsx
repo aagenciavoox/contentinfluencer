@@ -9,6 +9,7 @@ import { MobileActionMenu } from '../../mobile/components/MobileActionMenu';
 import { MobileAppShell } from '../../mobile/components/MobileAppShell';
 import { MobileBottomNav } from '../../mobile/components/MobileBottomNav';
 import { MobileHeaderIOS } from '../../mobile/components/MobileHeaderIOS';
+import { MobileScrollLockProvider } from '../../context/MobileScrollLockContext';
 import { getMobileRouteMeta } from '../../mobile/config/mobileRouteMeta';
 import { resolveRouteBack } from '../../lib/navigation/detailBack';
 import { SaveFeedbackToast } from '../../components/ui/SaveFeedbackToast';
@@ -96,7 +97,8 @@ export function AppShell() {
 
   if (isMobile) {
     return (
-      <div className="h-dvh overflow-hidden bg-[var(--bg-primary)]">
+      <MobileScrollLockProvider>
+        <div className="h-dvh overflow-hidden bg-[var(--bg-primary)]">
         <CommandPalette
           isOpen={isCommandPaletteOpen}
           onClose={() => setIsCommandPaletteOpen(false)}
@@ -149,7 +151,8 @@ export function AppShell() {
           <Outlet />
         </MobileAppShell>
         <SaveFeedbackToast />
-      </div>
+        </div>
+      </MobileScrollLockProvider>
     );
   }
 

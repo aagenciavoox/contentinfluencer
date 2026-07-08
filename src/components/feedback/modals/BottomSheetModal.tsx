@@ -7,6 +7,7 @@ interface BottomSheetModalProps {
   children: ReactNode;
   desktopMaxW?: string;
   zIndex?: string;
+  ariaLabel?: string;
 }
 
 /** @deprecated Use BottomSheet from components/overlays */
@@ -16,9 +17,10 @@ export function BottomSheetModal({
   children,
   desktopMaxW = 'max-w-2xl',
   zIndex = 'z-[100]',
+  ariaLabel,
 }: BottomSheetModalProps) {
   return (
-    <BottomSheet open={open} onClose={onClose} desktopMaxW={desktopMaxW} zIndex={zIndex}>
+    <BottomSheet open={open} onClose={onClose} desktopMaxW={desktopMaxW} zIndex={zIndex} ariaLabel={ariaLabel}>
       {children}
     </BottomSheet>
   );

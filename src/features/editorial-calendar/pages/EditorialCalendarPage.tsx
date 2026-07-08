@@ -17,6 +17,9 @@ import {Text} from '../../../components/ui/Text';
 import {PageLayout} from '../../../layouts/page/PageLayout';
 import {DesktopPageHeader} from '../../../layouts/page/DesktopPageHeader';
 import {BottomSheetModal} from '../../../components/feedback/modals/BottomSheetModal';
+import {OverlayBody} from '../../../components/overlays/OverlayBody';
+import {OverlayFooter} from '../../../components/overlays/OverlayFooter';
+import {OverlayHeader} from '../../../components/overlays/OverlayHeader';
 import {Drawer} from '../../../components/overlays/Drawer';
 import {useAppContext} from '../../../context/AppContext';
 import {AgendaItem, Content, Platform, Projeto} from '../../../lib/database';
@@ -150,6 +153,7 @@ export function EditorialCalendarPage() {
           open={isAddAgendaOpen}
           onClose={() => setIsAddAgendaOpen(false)}
           desktopMaxW="max-w-md"
+          zIndex="z-[110]"
         >
           <AddAgendaModal
             projetos={state.projetos}
@@ -1338,20 +1342,14 @@ function AddAgendaModal({
   };
 
   return (
-    <div className="flex h-full flex-col bg-[var(--bg-primary)]">
-      <div className="flex items-center justify-between border-b border-[var(--border-color)] px-6 py-6">
-        <div>
-          <Text variant="sectionTitle">Novo Evento</Text>
-          <p className="mt-0.5 text-xs font-semibold uppercase tracking-[0.25em] text-[var(--text-tertiary)]">
-            Agenda editorial
-          </p>
-        </div>
-        <button onClick={onClose} className="rounded-full p-2 transition-all hover:bg-[var(--bg-hover)]">
-          <Plus className="h-5 w-5 rotate-45 text-[var(--text-tertiary)]" />
-        </button>
-      </div>
+    <>
+      <OverlayHeader
+        title="Novo Evento"
+        subtitle="Agenda editorial"
+        onClose={onClose}
+      />
 
-      <div className="flex-1 stack-xl overflow-y-auto p-6">
+      <OverlayBody className="stack-xl py-6">
         <div className="stack-sm">
           <label className="text-xs font-semibold  text-[var(--text-tertiary)] opacity-60">
             Titulo do evento
@@ -1439,9 +1437,9 @@ function AddAgendaModal({
               ))}
           </select>
         </div>
-      </div>
+      </OverlayBody>
 
-      <div className="border-t border-[var(--border-color)] px-6 py-4">
+      <OverlayFooter>
         <button
           onClick={handleSave}
           disabled={!title.trim() || !date}
@@ -1449,7 +1447,7 @@ function AddAgendaModal({
         >
           Adicionar evento
         </button>
-      </div>
-    </div>
+      </OverlayFooter>
+    </>
   );
 }

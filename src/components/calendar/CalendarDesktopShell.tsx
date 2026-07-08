@@ -3,6 +3,7 @@ import {AnimatePresence, motion} from 'motion/react';
 import {createPortal} from 'react-dom';
 import {PanelLeft} from 'lucide-react';
 import {cn} from '../../lib/utils';
+import {Z_INDEX_DRAWER_BACKDROP, Z_INDEX_MODAL} from '../overlays/overlayConstants';
 
 interface CalendarDesktopShellProps {
   sidebar: ReactNode;
@@ -46,7 +47,7 @@ export function CalendarDesktopShell({
                   initial={{opacity: 0}}
                   animate={{opacity: 1}}
                   exit={{opacity: 0}}
-                  className="fixed inset-0 z-40 bg-[var(--backdrop-medium)] xl:hidden"
+                  className={cn('fixed inset-0 bg-[var(--backdrop-medium)] xl:hidden', Z_INDEX_DRAWER_BACKDROP)}
                   onClick={() => onSidebarOpenChange?.(false)}
                   aria-hidden
                 />
@@ -56,7 +57,10 @@ export function CalendarDesktopShell({
                   animate={{x: 0}}
                   exit={{x: '-100%'}}
                   transition={{type: 'spring', damping: 28, stiffness: 280}}
-                  className="fixed inset-y-0 left-0 z-50 flex w-[min(280px,88vw)] flex-col overflow-y-auto border-r border-[var(--border-color)] bg-[var(--bg-elevated)] p-4 xl:hidden"
+                  className={cn(
+                    'fixed inset-y-0 left-0 flex w-[min(280px,88vw)] flex-col overflow-y-auto border-r border-[var(--border-color)] bg-[var(--bg-elevated)] p-4 xl:hidden',
+                    Z_INDEX_MODAL,
+                  )}
                 >
                   {sidebar}
                 </motion.aside>

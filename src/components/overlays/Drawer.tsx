@@ -5,6 +5,7 @@ import { useOverlayBehavior } from './useOverlayBehavior';
 import { useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence } from 'motion/react';
+import { Z_INDEX_DRAWER_BACKDROP, Z_INDEX_MODAL } from './overlayConstants';
 
 interface DrawerProps {
   open: boolean;
@@ -19,7 +20,7 @@ export function Drawer({
   onClose,
   children,
   widthClassName = 'max-w-xl',
-  zIndex = 'z-50',
+  zIndex = Z_INDEX_MODAL,
 }: DrawerProps) {
   const panelRef = useRef<HTMLElement>(null);
   useOverlayBehavior(open, onClose, panelRef);
@@ -32,7 +33,7 @@ export function Drawer({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className={cn('fixed inset-0 bg-[var(--backdrop-medium)]', zIndex === 'z-50' ? 'z-40' : 'z-[90]')}
+            className={cn('fixed inset-0 bg-[var(--backdrop-medium)]', Z_INDEX_DRAWER_BACKDROP)}
             onClick={onClose}
             aria-hidden
           />

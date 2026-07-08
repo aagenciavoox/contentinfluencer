@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Navigate } from 'react-router-dom';
 import { Plus, Trash2, Edit2, ToggleLeft, ToggleRight, Check, X, Shirt } from 'lucide-react';
 import { useAppContext } from '../../../context/AppContext';
+import { useIsMobile } from '../../../hooks/useIsMobile';
 import { Look, Cenario } from '../../../lib/database';
 import { generateUUID } from '../../../utils/uuid';
 import { DesktopPageHeader } from '../../../layouts/page/DesktopPageHeader';
@@ -14,7 +15,7 @@ type EditingCenario = Partial<Cenario> & { nome: string; descricao: string; temp
 
 export function LooksSettingsPage() {
   const { state, dispatch } = useAppContext();
-  const navigate = useNavigate();
+  const isMobile = useIsMobile();
 
   const [editLookId, setEditLookId] = useState<string | null>(null);
   const [editCenarioId, setEditCenarioId] = useState<string | null>(null);
@@ -60,6 +61,10 @@ export function LooksSettingsPage() {
 
   const activeLooks = [...state.looks].sort((a, b) => a.numero - b.numero);
   const activeCenarios = state.cenarios;
+
+  if (isMobile) {
+    return <Navigate to="/configuracoes" replace />;
+  }
 
   return (
     <PageLayout

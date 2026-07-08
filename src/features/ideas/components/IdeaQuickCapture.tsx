@@ -68,8 +68,8 @@ export function IdeaQuickCapture({
       }
     };
 
-    document.addEventListener('mousedown', handlePointerDown);
-    return () => document.removeEventListener('mousedown', handlePointerDown);
+    document.addEventListener('pointerdown', handlePointerDown);
+    return () => document.removeEventListener('pointerdown', handlePointerDown);
   }, [openMeta]);
 
   const handleNotesKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {

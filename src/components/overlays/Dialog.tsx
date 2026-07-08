@@ -56,7 +56,7 @@ export function Dialog({
       panelClassName={cn(
         'relative flex max-h-[90dvh] w-full flex-col overflow-hidden border border-[var(--border-color)] bg-[var(--bg-primary)]',
         isMobile
-          ? 'rounded-[var(--radius-overlay)]'
+          ? 'min-h-0 rounded-[var(--radius-overlay)]'
           : cn('rounded-[var(--radius-overlay)] md:p-0', desktopMaxW),
         desktopPanelClassName
       )}

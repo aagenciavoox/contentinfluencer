@@ -6,6 +6,9 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Idea } from '../../../lib/database';
 import { BottomSheetModal } from '../../../components/feedback/modals/BottomSheetModal';
+import { OverlayBody } from '../../../components/overlays/OverlayBody';
+import { OverlayFooter } from '../../../components/overlays/OverlayFooter';
+import { OverlayHeader } from '../../../components/overlays/OverlayHeader';
 import { ConfirmModal } from '../../../components/feedback/modals/ConfirmModal';
 import { CONFIRM, EMPTY, type ConfirmState } from '../../../lib/uiCopy';
 import { PageLayout } from '../../../layouts/page/PageLayout';
@@ -239,20 +242,17 @@ export function IdeasPage() {
           onPromoteIdea={handlePromote}
           onArchiveIdea={handleArchive}
         />
-        <BottomSheetModal open={!!viewingIdea} onClose={closeIdeaModal} desktopMaxW="max-w-3xl" zIndex="z-[100]">
+        <BottomSheetModal open={!!viewingIdea} onClose={closeIdeaModal} desktopMaxW="max-w-3xl" zIndex="z-[110]">
           {viewingIdea && (
             <>
-              <div className="flex items-center justify-between border-b border-[var(--border-color)] p-4 shrink-0">
+              <OverlayHeader onClose={closeIdeaModal}>
                 <div className="flex items-center gap-3 text-xs text-[var(--text-tertiary)] font-semibold t-label-uppercase">
                   <Clock className="h-3.5 w-3.5" />
                   {format(new Date(viewingIdea.createdAt), "dd 'DE' MMMM 'AS' HH:mm", { locale: ptBR })}
                 </div>
-                <button onClick={closeIdeaModal} className="rounded-full p-2 text-[var(--text-tertiary)] transition-all hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]">
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
+              </OverlayHeader>
 
-              <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
+              <OverlayBody className="custom-scrollbar py-6">
                 <div className="mb-6 flex flex-wrap gap-2">
                   {viewingIdea.pilarId && getPilarNome(viewingIdea.pilarId) && (
                     <span
@@ -316,9 +316,9 @@ export function IdeasPage() {
                     ) : null}
                   </div>
                 )}
-              </div>
+              </OverlayBody>
 
-              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--border-color)] bg-[var(--bg-hover)] p-4 pb-safe shrink-0">
+              <OverlayFooter className="flex-wrap bg-[var(--bg-hover)] pb-safe">
                 <div className="flex flex-1 items-center gap-3">
                   <button onClick={() => handleDelete(viewingIdea.id)} className="rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] p-3 text-[var(--accent-pink)] transition-all hover:bg-[var(--accent-pink)]/10" title="Excluir">
                     <Trash2 className="h-5 w-5" />
@@ -347,7 +347,7 @@ export function IdeasPage() {
                     PROMOVER <ArrowUpRight className="h-4 w-4" />
                   </button>
                 )}
-              </div>
+              </OverlayFooter>
             </>
           )}
         </BottomSheetModal>

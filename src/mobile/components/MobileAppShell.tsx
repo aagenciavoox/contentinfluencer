@@ -1,7 +1,9 @@
 import type { ReactNode, UIEvent } from 'react';
+import { useCallback } from 'react';
 import { Loader2 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { usePullToRefresh } from '../../hooks/usePullToRefresh';
+import { useMobileScrollLock } from '../../context/MobileScrollLockContext';
 
 interface MobileAppShellProps {
   header: ReactNode;
@@ -24,7 +26,16 @@ export function MobileAppShell({
   onScroll,
   onPullRefresh,
 }: MobileAppShellProps) {
+  const { registerMainElement } = useMobileScrollLock() ?? {};
   const { containerRef, pullDistance, isRefreshing, progress, isActive } = usePullToRefresh(onPullRefresh);
+
+  const setMainRef = useCallback(
+    (node: HTMLElement | null) => {
+      containerRef.current = node;
+      registerMainElement?.(node);
+    },
+    [containerRef, registerMainElement],
+  );
 
   return (
     <div className={cn('relative flex h-dvh flex-col overflow-hidden bg-[var(--bg-primary)] md:hidden', className)}>
@@ -58,7 +69,7 @@ export function MobileAppShell({
       </div>
 
       <main
-        ref={containerRef}
+        ref={setMainRef}
         onScroll={onScroll}
         className={cn(
           'flex-1 min-h-0 overflow-y-auto overscroll-y-contain px-4 pb-[calc(env(safe-area-inset-bottom)+6.75rem)] max-[390px]:pb-[calc(env(safe-area-inset-bottom)+6.25rem)]',

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useMobileScrollLock } from '../context/MobileScrollLockContext';
 
 const PULL_THRESHOLD = 72;
 const MAX_PULL = 112;
@@ -12,6 +13,9 @@ export function usePullToRefresh(onRefresh?: () => Promise<void>) {
   const isRefreshingRef = useRef(false);
   const containerRef = useRef<HTMLElement | null>(null);
   const onRefreshRef = useRef(onRefresh);
+  const scrollLock = useMobileScrollLock();
+  const isScrollLockedRef = useRef(scrollLock?.isScrollLocked ?? false);
+  isScrollLockedRef.current = scrollLock?.isScrollLocked ?? false;
 
   onRefreshRef.current = onRefresh;
   pullDistanceRef.current = pullDistance;
@@ -45,14 +49,19 @@ export function usePullToRefresh(onRefresh?: () => Promise<void>) {
     const container = containerRef.current;
     if (!container || !onRefresh) return;
 
+    const isPullDisabled = () =>
+      isRefreshingRef.current ||
+      isScrollLockedRef.current ||
+      document.documentElement.hasAttribute('data-scroll-locked');
+
     const handleTouchStart = (event: TouchEvent) => {
-      if (isRefreshingRef.current || container.scrollTop > 0) return;
+      if (isPullDisabled() || container.scrollTop > 0) return;
       startY.current = event.touches[0]?.clientY ?? 0;
       pulling.current = true;
     };
 
     const handleTouchMove = (event: TouchEvent) => {
-      if (!pulling.current || isRefreshingRef.current) return;
+      if (!pulling.current || isPullDisabled()) return;
 
       if (container.scrollTop > 0) {
         resetPull();
@@ -77,7 +86,7 @@ export function usePullToRefresh(onRefresh?: () => Promise<void>) {
     const handleTouchEnd = () => {
       if (!pulling.current) return;
 
-      if (pullDistanceRef.current >= PULL_THRESHOLD && !isRefreshingRef.current) {
+      if (pullDistanceRef.current >= PULL_THRESHOLD && !isRefreshingRef.current && !isPullDisabled()) {
         void runRefresh();
         return;
       }

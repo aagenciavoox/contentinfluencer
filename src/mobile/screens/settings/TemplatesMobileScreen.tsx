@@ -1,7 +1,9 @@
 import {useState} from 'react';
 import {BottomSheetModal} from '../../../components/feedback/modals/BottomSheetModal';
+import {OverlayBody} from '../../../components/overlays/OverlayBody';
+import {OverlayFooter} from '../../../components/overlays/OverlayFooter';
+import {OverlayHeader} from '../../../components/overlays/OverlayHeader';
 import {AppButton} from '../../../components/ui/AppButton';
-import {Text} from '../../../components/ui/Text';
 import type {Platform, Serie, Template} from '../../../lib/database';
 import {EmptyState} from '../../../components/ui/EmptyState';
 import {MobileListCard} from '../../components/MobileListCard';
@@ -125,59 +127,57 @@ export function TemplatesMobileScreen({
       </section>
 
       <BottomSheetModal open={showForm} onClose={() => setShowForm(false)} desktopMaxW="max-w-xl" zIndex="z-[110]">
-        <div className="flex h-full flex-col bg-[var(--bg-primary)]">
-          <div className="border-b border-[var(--border-color)] px-6 py-4">
-            <Text variant="sectionTitle">Novo template</Text>
-            <p className="t-secondary mt-1">Defina o tipo como uma tag, sem separar o catálogo por abas.</p>
-          </div>
+        <OverlayHeader
+          title="Novo template"
+          subtitle="Defina o tipo como uma tag, sem separar o catálogo por abas."
+        />
 
-          <div className="flex-1 stack-lg overflow-y-auto p-6">
-            <input
-              autoFocus
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              placeholder="Nome do template"
-              className="w-full"
-            />
+        <OverlayBody className="stack-lg py-6">
+          <input
+            autoFocus
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            placeholder="Nome do template"
+            className="w-full"
+          />
 
-            <select value={type} onChange={(event) => setType(event.target.value as TemplateTypeFilter)} className="w-full">
-              <option value="roteiro">Roteiro</option>
-              <option value="legenda">Legenda</option>
-              <option value="outro">Outro</option>
-            </select>
+          <select value={type} onChange={(event) => setType(event.target.value as TemplateTypeFilter)} className="w-full">
+            <option value="roteiro">Roteiro</option>
+            <option value="legenda">Legenda</option>
+            <option value="outro">Outro</option>
+          </select>
 
-            <select value={seriesId} onChange={(event) => setSeriesId(event.target.value)} className="w-full">
-              <option value="">Série (opcional)</option>
-              {series.map((serie) => (
-                <option key={serie.id} value={serie.id}>
-                  {serie.name}
-                </option>
-              ))}
-            </select>
+          <select value={seriesId} onChange={(event) => setSeriesId(event.target.value)} className="w-full">
+            <option value="">Série (opcional)</option>
+            {series.map((serie) => (
+              <option key={serie.id} value={serie.id}>
+                {serie.name}
+              </option>
+            ))}
+          </select>
 
-            <select value={platformId} onChange={(event) => setPlatformId(event.target.value)} className="w-full">
-              <option value="">Plataforma (opcional)</option>
-              {platforms.filter((platform) => platform.ativo).map((platform) => (
-                <option key={platform.id} value={platform.id}>
-                  {platform.nome}
-                </option>
-              ))}
-            </select>
-          </div>
+          <select value={platformId} onChange={(event) => setPlatformId(event.target.value)} className="w-full">
+            <option value="">Plataforma (opcional)</option>
+            {platforms.filter((platform) => platform.ativo).map((platform) => (
+              <option key={platform.id} value={platform.id}>
+                {platform.nome}
+              </option>
+            ))}
+          </select>
+        </OverlayBody>
 
-          <div className="flex gap-3 border-t border-[var(--border-color)] px-6 py-4 pb-safe">
-            <button
-              type="button"
-              onClick={() => setShowForm(false)}
-              className="flex-1 rounded-[var(--radius-md)] border border-[var(--border-color)] py-3 text-xs font-semibold  text-[var(--text-secondary)]"
-            >
-              Cancelar
-            </button>
-            <AppButton variant="primary" onClick={handleCreate} disabled={!name.trim()} className="flex-1">
-              Criar
-            </AppButton>
-          </div>
-        </div>
+        <OverlayFooter className="pb-safe">
+          <button
+            type="button"
+            onClick={() => setShowForm(false)}
+            className="flex-1 rounded-[var(--radius-md)] border border-[var(--border-color)] py-3 text-xs font-semibold  text-[var(--text-secondary)]"
+          >
+            Cancelar
+          </button>
+          <AppButton variant="primary" onClick={handleCreate} disabled={!name.trim()} className="flex-1">
+            Criar
+          </AppButton>
+        </OverlayFooter>
       </BottomSheetModal>
     </div>
   );

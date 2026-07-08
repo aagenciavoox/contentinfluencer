@@ -2,8 +2,10 @@ import { useState } from 'react';
 import { MonitorSpeaker, Plus } from 'lucide-react';
 import type { Platform } from '../../../lib/database';
 import { BottomSheetModal } from '../../../components/feedback/modals/BottomSheetModal';
+import { OverlayBody } from '../../../components/overlays/OverlayBody';
+import { OverlayFooter } from '../../../components/overlays/OverlayFooter';
+import { OverlayHeader } from '../../../components/overlays/OverlayHeader';
 import { AppButton } from '../../../components/ui/AppButton';
-import { Text } from '../../../components/ui/Text';
 import { EmptyState } from '../../../components/ui/EmptyState';
 import { MobileListCard } from '../../components/MobileListCard';
 import { MobilePillButton } from '../../components/MobilePillButton';
@@ -99,36 +101,34 @@ export function PlatformsMobileScreen({
       </section>
 
       <BottomSheetModal open={showForm} onClose={() => setShowForm(false)} desktopMaxW="max-w-xl" zIndex="z-[110]">
-        <div className="flex h-full flex-col bg-[var(--bg-primary)]">
-          <div className="border-b border-[var(--border-color)] px-6 py-4">
-            <Text variant="sectionTitle">Nova plataforma</Text>
-            <p className="t-secondary mt-1">Cadastro rápido de um canal adicional.</p>
-          </div>
+        <OverlayHeader
+          title="Nova plataforma"
+          subtitle="Cadastro rápido de um canal adicional."
+        />
 
-          <div className="flex-1 p-6">
-            <input
-              autoFocus
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              onKeyDown={(event) => event.key === 'Enter' && handleAdd()}
-              placeholder="Nome da plataforma"
-              className="min-h-11 w-full"
-            />
-          </div>
+        <OverlayBody className="py-6">
+          <input
+            autoFocus
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            onKeyDown={(event) => event.key === 'Enter' && handleAdd()}
+            placeholder="Nome da plataforma"
+            className="min-h-11 w-full"
+          />
+        </OverlayBody>
 
-          <div className="flex gap-3 border-t border-[var(--border-color)] px-6 py-4 pb-safe">
-            <button
-              type="button"
-              onClick={() => setShowForm(false)}
-              className="flex min-h-11 flex-1 items-center justify-center rounded-[var(--radius-md)] border border-[var(--border-color)] text-xs font-semibold  text-[var(--text-secondary)]"
-            >
-              Cancelar
-            </button>
-            <AppButton variant="primary" size="lg" onClick={handleAdd} disabled={!name.trim()} className="flex-1">
-              Criar
-            </AppButton>
-          </div>
-        </div>
+        <OverlayFooter className="pb-safe">
+          <button
+            type="button"
+            onClick={() => setShowForm(false)}
+            className="flex min-h-11 flex-1 items-center justify-center rounded-[var(--radius-md)] border border-[var(--border-color)] text-xs font-semibold  text-[var(--text-secondary)]"
+          >
+            Cancelar
+          </button>
+          <AppButton variant="primary" size="lg" onClick={handleAdd} disabled={!name.trim()} className="flex-1">
+            Criar
+          </AppButton>
+        </OverlayFooter>
       </BottomSheetModal>
     </div>
   );

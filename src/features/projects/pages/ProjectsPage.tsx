@@ -15,6 +15,9 @@ import { Text } from '../../../components/ui/Text';
 import { FilterBar } from '../../../components/ui/FilterBar';
 import { useIsMobile } from '../../../hooks/useIsMobile';
 import { BottomSheetModal } from '../../../components/feedback/modals/BottomSheetModal';
+import { OverlayBody } from '../../../components/overlays/OverlayBody';
+import { OverlayFooter } from '../../../components/overlays/OverlayFooter';
+import { OverlayHeader } from '../../../components/overlays/OverlayHeader';
 import { ProjectsMobileScreen } from '../../../mobile/screens/projects/ProjectsMobileScreen';
 import { generateUUID } from '../../../utils/uuid';
 
@@ -131,55 +134,53 @@ export function ProjectsPage() {
         </div>
 
         <BottomSheetModal open={showForm} onClose={handleClose} desktopMaxW="max-w-xl" zIndex="z-[110]">
-          <div className="flex h-full flex-col bg-[var(--bg-primary)]">
-            <div className="border-b border-[var(--border-color)] px-6 py-4">
-              <Text variant="sectionTitle">Novo projeto</Text>
+          <OverlayHeader title="Novo projeto" />
+
+          <OverlayBody className="stack-lg py-6">
+            <input
+              autoFocus
+              value={nome}
+              onChange={e => setNome(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleCreate()}
+              placeholder="Nome do projeto"
+              className="w-full"
+            />
+            <input
+              value={value}
+              onChange={e => setValue(e.target.value)}
+              type="number"
+              placeholder="Valor (R$)"
+              className="w-full"
+            />
+            <input
+              value={brand}
+              onChange={e => setBrand(e.target.value)}
+              placeholder="Marca"
+              className="w-full"
+            />
+            <div>
+              <Text variant="label" className="mb-2 block opacity-60">Cor do projeto</Text>
+              {colorPicker}
             </div>
-            <div className="flex-1 stack-lg overflow-y-auto p-6">
-              <input
-                autoFocus
-                value={nome}
-                onChange={e => setNome(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && handleCreate()}
-                placeholder="Nome do projeto"
-                className="w-full"
-              />
-              <input
-                value={value}
-                onChange={e => setValue(e.target.value)}
-                type="number"
-                placeholder="Valor (R$)"
-                className="w-full"
-              />
-              <input
-                value={brand}
-                onChange={e => setBrand(e.target.value)}
-                placeholder="Marca"
-                className="w-full"
-              />
-              <div>
-                <Text variant="label" className="mb-2 block opacity-60">Cor do projeto</Text>
-                {colorPicker}
-              </div>
-            </div>
-            <div className="flex gap-3 border-t border-[var(--border-color)] px-6 py-4 pb-safe">
-              <button
-                type="button"
-                onClick={handleClose}
-                className="flex-1 rounded-[var(--radius-md)] border border-[var(--border-color)] py-3 text-xs font-semibold text-[var(--text-secondary)]"
-              >
-                Cancelar
-              </button>
-              <AppButton
-                variant="primary"
-                onClick={handleCreate}
-                disabled={!nome.trim()}
-                className="flex-1"
-              >
-                Criar projeto
-              </AppButton>
-            </div>
-          </div>
+          </OverlayBody>
+
+          <OverlayFooter className="pb-safe">
+            <button
+              type="button"
+              onClick={handleClose}
+              className="flex-1 rounded-[var(--radius-md)] border border-[var(--border-color)] py-3 text-xs font-semibold text-[var(--text-secondary)]"
+            >
+              Cancelar
+            </button>
+            <AppButton
+              variant="primary"
+              onClick={handleCreate}
+              disabled={!nome.trim()}
+              className="flex-1"
+            >
+              Criar projeto
+            </AppButton>
+          </OverlayFooter>
         </BottomSheetModal>
       </>
     );

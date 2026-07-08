@@ -2,16 +2,21 @@ import {useMemo, useState} from 'react';
 import {useNavigate} from 'react-router-dom';
 import {
   addDays,
+  addMonths,
   eachDayOfInterval,
+  endOfMonth,
   endOfWeek,
   format,
   getDay,
   isSameDay,
+  isSameMonth,
   parseISO,
+  startOfMonth,
   startOfWeek,
+  subMonths,
 } from 'date-fns';
 import {ptBR} from 'date-fns/locale';
-import {AlertTriangle, ArrowUpRight, Briefcase, ChevronDown, ChevronUp, Eye, GripVertical, Info, Lightbulb, Plus, Search, Send, X} from 'lucide-react';
+import {AlertTriangle, ArrowUpRight, Briefcase, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Eye, GripVertical, Info, Lightbulb, Plus, Search, Send, X} from 'lucide-react';
 import {BottomSheetModal} from '../../../components/feedback/modals/BottomSheetModal';
 import {ConfirmModal} from '../../../components/feedback/modals/ConfirmModal';
 import {Text} from '../../../components/ui/Text';
@@ -19,7 +24,11 @@ import {Badge} from '../../../components/ui/Badge';
 import {AppButton} from '../../../components/ui/AppButton';
 import {Surface} from '../../../components/ui/Surface';
 import {Drawer} from '../../../components/overlays/Drawer';
+import {OverlayBody} from '../../../components/overlays/OverlayBody';
+import {OverlayFooter} from '../../../components/overlays/OverlayFooter';
+import {OverlayHeader} from '../../../components/overlays/OverlayHeader';
 import {useAppContext} from '../../../context/AppContext';
+import {useIsMobile} from '../../../hooks/useIsMobile';
 import {PageLayout} from '../../../layouts/page/PageLayout';
 import {DesktopPageHeader} from '../../../layouts/page/DesktopPageHeader';
 import type {Content} from '../../../lib/database';
@@ -57,6 +66,7 @@ import {
   CalendarMonthGrid,
   CalendarPeriodNav,
 } from '../../../components/calendar';
+import {ProgramacaoMobileScreen} from '../../../mobile/screens/programacao/ProgramacaoMobileScreen';
 
 type ProgramacaoView = 'week' | 'month';
 
@@ -106,6 +116,7 @@ function platformInitials(platformName: string): string {
 export function ProgramacaoPage() {
   const {state, dispatch} = useAppContext();
   const routerNavigate = useNavigate();
+  const isMobile = useIsMobile();
   const [viewMode, setViewMode] = useState<ProgramacaoView>('month');
   const [anchorDate, setAnchorDate] = useState(new Date());
   const [disabledPlatforms, setDisabledPlatforms] = useState<string[]>([]);
@@ -122,6 +133,7 @@ export function ProgramacaoPage() {
   const [postedEditContent, setPostedEditContent] = useState<Content | null>(null);
   const [ideaActionCard, setIdeaActionCard] = useState<ProgramacaoCard | null>(null);
   const [promoteConfirm, setPromoteConfirm] = useState<ConfirmState | null>(null);
+  const [mobileDatePickerOpen, setMobileDatePickerOpen] = useState(false);
 
   const postingTimes = useMemo(() => getPostingTimes(state.preferences), [state.preferences]);
 
@@ -453,6 +465,209 @@ export function ProgramacaoPage() {
     </div>
   );
 
+  const previewContent = previewCard
+    ? state.contents.find(item => item.id === previewCard.contentId) || null
+    : null;
+
+  const openPreviewContent = () => {
+    const id = previewCard?.contentId;
+    setPreviewCard(null);
+    if (id) routerNavigate(buildContentDetailRoute(id, 'roteiro'));
+  };
+
+  const mobileModals = (
+    <>
+      <ConfirmModal
+        open={Boolean(promoteConfirm)}
+        message={promoteConfirm?.message ?? ''}
+        confirmLabel={promoteConfirm?.confirmLabel ?? 'Confirmar'}
+        cancelLabel={promoteConfirm?.cancelLabel ?? 'Cancelar'}
+        onConfirm={() => promoteConfirm?.onConfirm()}
+        onCancel={() => setPromoteConfirm(null)}
+      />
+
+      <ConfirmModal
+        open={Boolean(pendingSchedule)}
+        message={
+          pendingSchedule
+            ? evaluateScheduleViolations(
+                state.contents,
+                state.pilares,
+                state.platforms,
+                pendingSchedule.card,
+                pendingSchedule.dayKey,
+                pendingSchedule.time,
+              )
+                .filter(violation => violation.type === 'warning')
+                .map(violation => violation.message)
+                .join('\n')
+            : ''
+        }
+        confirmLabel="Agendar mesmo assim"
+        cancelLabel="Cancelar"
+        onConfirm={confirmPendingSchedule}
+        onCancel={() => setPendingSchedule(null)}
+      />
+
+      <BottomSheetModal
+        open={Boolean(previewCard)}
+        onClose={() => setPreviewCard(null)}
+        desktopMaxW="max-w-xl"
+      >
+        {previewCard ? (
+          <>
+            <OverlayHeader title="Detalhe do conteúdo" onClose={() => setPreviewCard(null)} />
+            <OverlayBody>
+              <CardPreviewContent card={previewCard} content={previewContent} />
+            </OverlayBody>
+            <OverlayFooter>
+              <AppButton variant="primary" fullWidth leftIcon={<Eye className="h-4 w-4" />} onClick={openPreviewContent}>
+                Abrir conteúdo completo
+              </AppButton>
+            </OverlayFooter>
+          </>
+        ) : null}
+      </BottomSheetModal>
+
+      <BottomSheetModal
+        open={Boolean(timePickerCard)}
+        onClose={() => {
+          setTimePickerCard(null);
+          setTimePickerViolations([]);
+        }}
+        desktopMaxW="max-w-sm"
+      >
+        {timePickerCard ? (
+          <TimePickerSheet
+            card={timePickerCard}
+            violations={timePickerViolations}
+            usedTimes={(scheduledByDate.get(timePickerCard.date || '') || [])
+              .filter(item => item.key !== timePickerCard.key)
+              .map(item => item.time)
+              .filter((time): time is string => Boolean(time))}
+            configuredTimes={
+              timePickerCard.date
+                ? getTimesForDay(postingTimes, getDay(new Date(`${timePickerCard.date}T12:00:00`)) as Weekday)
+                : []
+            }
+            onSelect={time => applyTime(timePickerCard, time)}
+            onClose={() => {
+              setTimePickerCard(null);
+              setTimePickerViolations([]);
+            }}
+          />
+        ) : null}
+      </BottomSheetModal>
+
+      <BottomSheetModal
+        open={mobileDatePickerOpen}
+        onClose={() => setMobileDatePickerOpen(false)}
+        desktopMaxW="max-w-sm"
+      >
+        <MobileDatePickerSheet
+          anchorDate={anchorDate}
+          selectedBacklogKey={selectedBacklogKey}
+          backlogCards={backlogCards}
+          scheduledByDate={scheduledByDate}
+          projetoPublicacaoByDate={projetoPublicacaoByDate}
+          onSelectDay={dayKey => {
+            handleDayClick(dayKey);
+            setMobileDatePickerOpen(false);
+          }}
+          onClose={() => setMobileDatePickerOpen(false)}
+        />
+      </BottomSheetModal>
+
+      <BottomSheetModal
+        open={Boolean(ideaComposerDay)}
+        onClose={() => setIdeaComposerDay(null)}
+        desktopMaxW="max-w-sm"
+      >
+        {ideaComposerDay ? (
+          <IdeaComposerSheet
+            dayKey={ideaComposerDay}
+            onCreate={title => handleCreateIdea(ideaComposerDay, title)}
+            onClose={() => setIdeaComposerDay(null)}
+          />
+        ) : null}
+      </BottomSheetModal>
+
+      <BottomSheetModal
+        open={Boolean(postedComposerDay)}
+        onClose={() => {
+          setPostedComposerDay(null);
+          setPostedEditContent(null);
+        }}
+        desktopMaxW="max-w-lg"
+      >
+        {postedComposerDay ? (
+          <PostedVideoComposerSheet
+            initialDate={postedComposerDay}
+            initialContent={postedEditContent}
+            platforms={state.platforms}
+            postingTimes={postingTimes}
+            onSave={(content, options) => handleSavePosted(content, options)}
+            onClose={() => {
+              setPostedComposerDay(null);
+              setPostedEditContent(null);
+            }}
+          />
+        ) : null}
+      </BottomSheetModal>
+
+      <BottomSheetModal
+        open={Boolean(ideaActionCard)}
+        onClose={() => setIdeaActionCard(null)}
+        desktopMaxW="max-w-sm"
+      >
+        {ideaActionCard ? (
+          <IdeaActionSheet
+            card={ideaActionCard}
+            onPromote={() => requestPromoteIdeia(ideaActionCard)}
+            onPreview={() => {
+              setPreviewCard(ideaActionCard);
+              setIdeaActionCard(null);
+            }}
+            onOpen={() => {
+              routerNavigate(buildContentDetailRoute(ideaActionCard.contentId, 'roteiro'));
+              setIdeaActionCard(null);
+            }}
+            onClose={() => setIdeaActionCard(null)}
+          />
+        ) : null}
+      </BottomSheetModal>
+    </>
+  );
+
+  if (isMobile) {
+    return (
+      <>
+        <div className="min-h-full bg-[var(--bg-primary)]">
+          <ProgramacaoMobileScreen
+            viewMode={viewMode}
+            onViewModeChange={setViewMode}
+            anchorDate={anchorDate}
+            onAnchorDateChange={setAnchorDate}
+            backlogCards={backlogCards}
+            selectedBacklogKey={selectedBacklogKey}
+            onSelectBacklogCard={setSelectedBacklogKey}
+            scheduledByDate={scheduledByDate}
+            projetoPublicacaoByDate={projetoPublicacaoByDate}
+            weekViolations={weekViolations}
+            onDayClick={handleDayClick}
+            onCardClick={handleCardClick}
+            onPreview={setPreviewCard}
+            onAddIdea={setIdeaComposerDay}
+            onRegisterPosted={openPostedComposer}
+            onOpenProjetoPublicacao={openProjetoPublicacao}
+            onPickDate={() => setMobileDatePickerOpen(true)}
+          />
+        </div>
+        {mobileModals}
+      </>
+    );
+  }
+
   return (
     <PageLayout
       contentWidth="full"
@@ -561,25 +776,18 @@ export function ProgramacaoPage() {
         </div>
       </CalendarDesktopShell>
 
-      {/* Drawer de visualização rápida (somente leitura) */}
       <Drawer open={Boolean(previewCard)} onClose={() => setPreviewCard(null)} widthClassName="max-w-xl">
         {previewCard ? (
-          <div className="flex h-full flex-col bg-[var(--bg-elevated)]">
-            <div className="border-b border-[var(--border-color)] bg-[var(--bg-secondary)] px-6 py-3">
-              <Text variant="eyebrow">Detalhe do conteúdo</Text>
-            </div>
-            <div className="flex-1 overflow-y-auto">
-          <CardPreview
-            card={previewCard}
-            content={state.contents.find(item => item.id === previewCard.contentId) || null}
-            onClose={() => setPreviewCard(null)}
-            onOpen={() => {
-              const id = previewCard.contentId;
-              setPreviewCard(null);
-              if (id) routerNavigate(buildContentDetailRoute(id, 'roteiro'));
-            }}
-          />
-            </div>
+          <div className="flex h-full min-h-0 flex-col bg-[var(--bg-elevated)]">
+            <OverlayHeader title="Detalhe do conteúdo" onClose={() => setPreviewCard(null)} />
+            <OverlayBody>
+              <CardPreviewContent card={previewCard} content={previewContent} />
+            </OverlayBody>
+            <OverlayFooter>
+              <AppButton variant="primary" fullWidth leftIcon={<Eye className="h-4 w-4" />} onClick={openPreviewContent}>
+                Abrir conteúdo completo
+              </AppButton>
+            </OverlayFooter>
           </div>
         ) : null}
       </Drawer>
@@ -616,7 +824,6 @@ export function ProgramacaoPage() {
         onCancel={() => setPendingSchedule(null)}
       />
 
-      {/* Escolha de horário (cadastrados ou livre) */}
       <BottomSheetModal
         open={Boolean(timePickerCard)}
         onClose={() => {
@@ -1726,63 +1933,38 @@ function MonthGrid({
   );
 }
 
-interface CardPreviewProps {
+interface CardPreviewContentProps {
   card: ProgramacaoCard;
   content: Content | null;
-  onClose: () => void;
-  onOpen?: () => void;
 }
 
-function CardPreview({card, content, onClose, onOpen}: CardPreviewProps) {
+function CardPreviewContent({card, content}: CardPreviewContentProps) {
   const color = getPlatformColor(card.platformName);
   const scriptText = htmlToReadableText(content?.script || '');
   const paragraphs = scriptText.split(/\n\n+/).filter(Boolean);
 
   return (
-    <div className="h-full overflow-y-auto p-6 md:p-6">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className={cn('inline-flex min-h-8 items-center gap-2 rounded-full border px-3 text-sm font-semibold', color.chip)}>
-              <span className="flex h-5 min-w-5 items-center justify-center rounded-full text-2xs font-bold text-white" style={{backgroundColor: color.dot}}>
-                {platformInitials(card.platformName)}
-              </span>
-              {card.platformName}
-            </span>
-            <Badge variant="status" status={card.status}>
-              {card.status}
-            </Badge>
-          </div>
-          <Text variant="sectionTitle" className="mt-3">{card.title}</Text>
-          {card.date ? (
-            <p className="mt-1 text-sm font-medium capitalize text-[var(--text-secondary)]">
-              {format(new Date(`${card.date}T12:00:00`), "EEEE, d 'de' MMMM", {locale: ptBR})}
-              {card.time ? ` · ${card.time}` : ' · sem horário'}
-            </p>
-          ) : null}
-        </div>
-        <button
-          type="button"
-          onClick={onClose}
-          className="flex min-h-10 min-w-10 shrink-0 items-center justify-center rounded-md text-[var(--text-tertiary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
-          aria-label="Fechar"
-        >
-          <X className="h-4 w-4" />
-        </button>
+    <div className="stack-lg">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className={cn('inline-flex min-h-8 items-center gap-2 rounded-full border px-3 text-sm font-semibold', color.chip)}>
+          <span className="flex h-5 min-w-5 items-center justify-center rounded-full text-2xs font-bold text-white" style={{backgroundColor: color.dot}}>
+            {platformInitials(card.platformName)}
+          </span>
+          {card.platformName}
+        </span>
+        <Badge variant="status" status={card.status}>
+          {card.status}
+        </Badge>
       </div>
-
-      {onOpen ? (
-        <button
-          type="button"
-          onClick={onOpen}
-          className="mt-4 flex min-h-10 w-full items-center justify-center gap-2 rounded-[var(--radius-input)] border border-[var(--text-primary)] bg-[var(--text-primary)] px-4 text-sm font-semibold text-[var(--bg-primary)] transition-opacity hover:opacity-90"
-        >
-          <Eye className="h-4 w-4" />
-          Abrir conteúdo completo
-        </button>
+      <Text variant="sectionTitle">{card.title}</Text>
+      {card.date ? (
+        <p className="text-sm font-medium capitalize text-[var(--text-secondary)]">
+          {format(new Date(`${card.date}T12:00:00`), "EEEE, d 'de' MMMM", {locale: ptBR})}
+          {card.time ? ` · ${card.time}` : ' · sem horário'}
+        </p>
       ) : null}
 
-      <div className="mt-5 stack-xl">
+      <div className="stack-xl">
         {card.legenda || card.hashtags ? (
           <section className="rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-primary)] p-4">
             <p className="text-sm font-semibold text-[var(--text-secondary)]">
@@ -1815,6 +1997,111 @@ function CardPreview({card, content, onClose, onOpen}: CardPreviewProps) {
             </div>
           )}
         </section>
+      </div>
+    </div>
+  );
+}
+
+interface MobileDatePickerSheetProps {
+  anchorDate: Date;
+  selectedBacklogKey: string | null;
+  backlogCards: ProgramacaoCard[];
+  scheduledByDate: Map<string, ProgramacaoCard[]>;
+  projetoPublicacaoByDate: Map<string, ProjetoPublicacaoMarker[]>;
+  onSelectDay: (dayKey: string) => void;
+  onClose: () => void;
+}
+
+function MobileDatePickerSheet({
+  anchorDate,
+  selectedBacklogKey,
+  backlogCards,
+  scheduledByDate,
+  projetoPublicacaoByDate,
+  onSelectDay,
+  onClose,
+}: MobileDatePickerSheetProps) {
+  const [pickerMonth, setPickerMonth] = useState(startOfMonth(anchorDate));
+  const selectedCard = selectedBacklogKey
+    ? backlogCards.find(card => card.key === selectedBacklogKey) ?? null
+    : null;
+
+  const days = eachDayOfInterval({
+    start: startOfWeek(startOfMonth(pickerMonth), {weekStartsOn: 1}),
+    end: endOfWeek(endOfMonth(pickerMonth), {weekStartsOn: 1}),
+  });
+
+  return (
+    <div className="stack-lg p-6">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-[var(--text-secondary)]">Escolher data</p>
+          {selectedCard ? (
+            <p className="mt-1 text-base font-semibold text-[var(--text-primary)]">{selectedCard.title}</p>
+          ) : null}
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="flex min-h-10 min-w-10 shrink-0 items-center justify-center rounded-md text-[var(--text-tertiary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
+          aria-label="Fechar"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+
+      <div className="flex items-center justify-center gap-1">
+        <button
+          type="button"
+          onClick={() => setPickerMonth(month => subMonths(month, 1))}
+          className="flex min-h-10 min-w-10 items-center justify-center rounded-lg hover:bg-[var(--bg-hover)]"
+          aria-label="Mês anterior"
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </button>
+        <span className="min-w-[120px] text-center text-sm font-semibold capitalize text-[var(--text-primary)]">
+          {format(pickerMonth, 'MMMM yyyy', {locale: ptBR})}
+        </span>
+        <button
+          type="button"
+          onClick={() => setPickerMonth(month => addMonths(month, 1))}
+          className="flex min-h-10 min-w-10 items-center justify-center rounded-lg hover:bg-[var(--bg-hover)]"
+          aria-label="Próximo mês"
+        >
+          <ChevronRight className="h-4 w-4" />
+        </button>
+      </div>
+
+      <div className="grid grid-cols-7 gap-1">
+        {['S', 'T', 'Q', 'Q', 'S', 'S', 'D'].map((label, index) => (
+          <div key={index} className="py-1 text-center text-2xs font-semibold text-[var(--text-tertiary)]">
+            {label}
+          </div>
+        ))}
+        {days.map(day => {
+          const key = format(day, 'yyyy-MM-dd');
+          const inMonth = isSameMonth(day, pickerMonth);
+          const count =
+            (scheduledByDate.get(key)?.length || 0) + (projetoPublicacaoByDate.get(key)?.length || 0);
+          return (
+            <button
+              key={key}
+              type="button"
+              disabled={!selectedCard}
+              onClick={() => onSelectDay(key)}
+              className={cn(
+                'flex min-h-11 flex-col items-center justify-center rounded-lg border text-xs font-semibold transition-colors',
+                inMonth
+                  ? 'border-[var(--border-color)] text-[var(--text-primary)] hover:border-[var(--accent-blue)]'
+                  : 'border-transparent text-[var(--text-tertiary)] opacity-40',
+                !selectedCard && 'opacity-40',
+              )}
+            >
+              {format(day, 'd')}
+              {count > 0 ? <span className="mt-0.5 h-1 w-1 rounded-full bg-[var(--accent-blue)]" /> : null}
+            </button>
+          );
+        })}
       </div>
     </div>
   );

@@ -52,7 +52,8 @@ export function BottomSheet({
           : undefined
       }
       panelClassName={cn(
-        'relative flex flex-col overflow-hidden border border-[var(--border-color)] bg-[var(--bg-secondary)] rounded-[var(--radius-overlay)]',
+        'relative flex w-full flex-col overflow-hidden border border-[var(--border-color)] bg-[var(--bg-secondary)] rounded-[var(--radius-overlay)]',
+        isMobile && 'min-h-0 max-h-[90dvh]',
         !isMobile &&
           cn(
             'absolute top-1/2 left-1/2 w-[95%] max-h-[90vh] -translate-x-1/2 -translate-y-1/2',
@@ -60,7 +61,7 @@ export function BottomSheet({
           )
       )}
     >
-      {children}
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">{children}</div>
     </OverlayRoot>
   );
 }

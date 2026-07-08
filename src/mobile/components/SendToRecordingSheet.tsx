@@ -2,6 +2,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Clapperboard, Mic2, Plus, Video } from 'lucide-react';
 import { BottomSheetModal } from '../../components/feedback/modals/BottomSheetModal';
+import { OverlayBody } from '../../components/overlays/OverlayBody';
+import { OverlayFooter } from '../../components/overlays/OverlayFooter';
+import { OverlayHeader } from '../../components/overlays/OverlayHeader';
 import { AppButton } from '../../components/ui/AppButton';
 import { Text } from '../../components/ui/Text';
 import type { Content, RecordingBlock, RecordingBlockContent } from '../../lib/database';
@@ -128,28 +131,27 @@ export function SendToRecordingSheet({
   };
 
   return (
-    <BottomSheetModal open={open} onClose={onClose} zIndex="z-[120]">
-      <section
-        role="dialog"
-        aria-modal="true"
-        aria-label={successBlockId ? 'Pronto para gravar' : 'Escolha o bloco'}
-        className="flex max-h-[85vh] flex-col overflow-hidden bg-[var(--bg-primary)]"
-      >
-        <div className="border-b border-[var(--border-color)] px-6 py-4">
-          <p className="text-xs font-semibold  text-[var(--text-tertiary)]">
-            Guardar em um bloco
-          </p>
-          <Text variant="itemTitle" className="mt-2">
-            {successBlockId ? 'Pronto para gravar' : 'Escolha o bloco'}
-          </Text>
-          <p className="mt-2 text-sm text-[var(--text-secondary)]">
-            {successBlockId
-              ? 'Conteudo guardado para gravacao. Abra o teleprompter ou revise o bloco quando quiser.'
-              : 'Crie um bloco novo ou adicione este roteiro a um bloco existente.'}
-          </p>
-        </div>
+    <BottomSheetModal
+      open={open}
+      onClose={onClose}
+      zIndex="z-[120]"
+      ariaLabel={successBlockId ? 'Pronto para gravar' : 'Escolha o bloco'}
+    >
+      <OverlayHeader>
+        <p className="text-xs font-semibold  text-[var(--text-tertiary)]">
+          Guardar em um bloco
+        </p>
+        <Text variant="itemTitle" className="mt-2">
+          {successBlockId ? 'Pronto para gravar' : 'Escolha o bloco'}
+        </Text>
+        <p className="mt-2 text-sm text-[var(--text-secondary)]">
+          {successBlockId
+            ? 'Conteudo guardado para gravacao. Abra o teleprompter ou revise o bloco quando quiser.'
+            : 'Crie um bloco novo ou adicione este roteiro a um bloco existente.'}
+        </p>
+      </OverlayHeader>
 
-        <div className="stack-lg overflow-y-auto px-6 py-6">
+      <OverlayBody className="stack-lg py-6">
           {successBlockId ? (
             <div className="stack-md">
               <AppButton
@@ -225,18 +227,17 @@ export function SendToRecordingSheet({
               </article>
             </>
           )}
-        </div>
+      </OverlayBody>
 
-        <div className="border-t border-[var(--border-color)] px-6 py-4 pb-safe">
-          <button
-            type="button"
-            onClick={onClose}
-            className="min-h-11 w-full rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] text-sm font-semibold t-label-uppercase text-[var(--text-secondary)]"
-          >
-            {successBlockId ? 'Fechar' : 'Cancelar'}
-          </button>
-        </div>
-      </section>
+      <OverlayFooter className="pb-safe">
+        <button
+          type="button"
+          onClick={onClose}
+          className="min-h-11 w-full rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] text-sm font-semibold t-label-uppercase text-[var(--text-secondary)]"
+        >
+          {successBlockId ? 'Fechar' : 'Cancelar'}
+        </button>
+      </OverlayFooter>
     </BottomSheetModal>
   );
 }

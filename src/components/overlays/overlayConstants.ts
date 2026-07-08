@@ -1,3 +1,8 @@
+export const Z_INDEX_NAV = 'z-[80]';
+export const Z_INDEX_DRAWER_BACKDROP = 'z-[100]';
+export const Z_INDEX_MODAL = 'z-[110]';
+export const Z_INDEX_CONFIRM = 'z-[200]';
+
 export const MOBILE_MODAL_EDGE_PADDING = '8px';
 export const MOBILE_MODAL_MAX_HEIGHT =
   'calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 16px)';

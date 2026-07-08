@@ -1,12 +1,10 @@
 import {useState, useMemo, useCallback} from 'react';
-import {useNavigate} from 'react-router-dom';
 import {Clock, Plus, Trash2, Globe} from 'lucide-react';
 import {useAppContext} from '../../../context/AppContext';
 import {useIsMobile} from '../../../hooks/useIsMobile';
 import {DesktopPageHeader} from '../../../layouts/page/DesktopPageHeader';
 import {PageLayout} from '../../../layouts/page/PageLayout';
 import {AppButton} from '../../../components/ui/AppButton';
-import {Text} from '../../../components/ui/Text';
 import {cn} from '../../../lib/utils';
 import {
   getPostingTimesForPlatform,
@@ -41,7 +39,6 @@ function isUsingGlobalFallback(
 
 export function PostingTimesSettingsPage() {
   const {state, ensureDataDomains} = useAppContext();
-  const navigate = useNavigate();
   const isMobile = useIsMobile();
 
   const [selectedPlatformId, setSelectedPlatformId] = useState<string | null>(null);
@@ -166,27 +163,7 @@ export function PostingTimesSettingsPage() {
   );
 
   if (isMobile) {
-    return (
-      <div className="min-h-full bg-[var(--bg-primary)]">
-        <div className="flex flex-col">
-          <div className="flex items-center gap-3 border-b border-[var(--border-color)] bg-[var(--bg-primary)] px-4 py-4">
-            <button
-              onClick={() => navigate('/configuracoes')}
-              className="text-[var(--text-secondary)] opacity-60 hover:opacity-100"
-            >
-              ←
-            </button>
-            <div className="flex items-center gap-2">
-              <Clock className="h-4 w-4 text-[var(--text-primary)] opacity-50" />
-              <Text variant="pageTitle">
-                Horários de Postagem
-              </Text>
-            </div>
-          </div>
-          <div className="p-4">{content}</div>
-        </div>
-      </div>
-    );
+    return content;
   }
 
   return (

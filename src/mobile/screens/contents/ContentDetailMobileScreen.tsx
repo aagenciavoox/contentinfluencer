@@ -66,7 +66,7 @@ export function ContentDetailMobileScreen({
 
   if (isScriptTab) {
     return (
-      <div className="flex min-h-[calc(100dvh-120px)] flex-col pb-24">
+      <div className="stack-sm pb-24">
         <div className="sticky top-0 z-10 -mx-1 stack-sm border-b border-[var(--border-color)] bg-[color-mix(in_srgb,var(--bg-primary)_94%,transparent)] px-1 py-2 backdrop-blur-md">
           <div className="flex items-center justify-between gap-2">
             <p className="min-w-0 truncate text-base font-semibold text-[var(--text-primary)]">
@@ -80,7 +80,7 @@ export function ContentDetailMobileScreen({
           {saveHint ? <p className="text-xs text-[var(--text-tertiary)]">{saveHint}</p> : null}
         </div>
 
-        <div className="min-h-0 flex-1 py-2">{section}</div>
+        <div className="py-2">{section}</div>
 
         <div className="fixed inset-x-0 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-20 flex gap-2 border-t border-[var(--border-color)] bg-[color-mix(in_srgb,var(--bg-primary)_96%,transparent)] px-3 py-2 backdrop-blur-md">
           <AppButton

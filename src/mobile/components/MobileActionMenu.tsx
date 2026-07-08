@@ -1,11 +1,14 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { BookOpen, FileText, Lightbulb, Pin } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
 import { useAppContext } from '../../context/AppContext';
+import { useAuth } from '../../context/AuthContext';
 import { BookAnnotationComposerSheet } from '../../features/library/components/modals/BookAnnotationComposerSheet';
 import { createContentDraft } from '../../features/contents/lib/createContentDraft';
 import { buildContentDetailRoute } from '../../features/contents/lib/contentDetailRoute';
+import { fetchBibliotecaItemById, type BibliotecaItem } from '../../lib/database';
+import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
 import { cn } from '../../lib/utils';
 
 interface MobileActionMenuProps {
@@ -13,19 +16,58 @@ interface MobileActionMenuProps {
   onClose: () => void;
 }
 
+const ACTIVE_READING_STATUSES = ['Consumindo', 'Lendo', 'Assistindo'] as const;
+
 export function MobileActionMenu({ open, onClose }: MobileActionMenuProps) {
-  const { state, dispatch } = useAppContext();
+  const { state, dispatch, ensureDataDomains } = useAppContext();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [isBookComposerOpen, setIsBookComposerOpen] = useState(false);
+  const [fetchedBook, setFetchedBook] = useState<BibliotecaItem | null>(null);
 
   const preferredBookId = typeof state.preferences.mobile_notes_primary_book_id === 'string'
     ? state.preferences.mobile_notes_primary_book_id
     : null;
 
-  const currentBook = (
-    (preferredBookId ? state.bibliotecaItems.find(book => book.id === preferredBookId) : null)
-    ?? state.bibliotecaItems.find((book) => ['Consumindo', 'Lendo', 'Assistindo'].includes(book.status))
-  );
+  const bookFromState = useMemo(() => {
+    if (preferredBookId) {
+      const pinned = state.bibliotecaItems.find(book => book.id === preferredBookId);
+      if (pinned) return pinned;
+    }
+
+    return state.bibliotecaItems.find((book) =>
+      ACTIVE_READING_STATUSES.includes(book.status as (typeof ACTIVE_READING_STATUSES)[number])
+    ) ?? null;
+  }, [preferredBookId, state.bibliotecaItems]);
+
+  const currentBook = bookFromState ?? fetchedBook;
+
+  useBodyScrollLock(open);
+
+  useEffect(() => {
+    void ensureDataDomains(['library']);
+  }, [ensureDataDomains]);
+
+  useEffect(() => {
+    if (bookFromState) {
+      setFetchedBook(null);
+      return undefined;
+    }
+
+    if (!preferredBookId || !user?.id) {
+      setFetchedBook(null);
+      return undefined;
+    }
+
+    let cancelled = false;
+    void fetchBibliotecaItemById(user.id, preferredBookId).then(book => {
+      if (!cancelled) setFetchedBook(book);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [bookFromState, preferredBookId, user?.id]);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -51,9 +93,8 @@ export function MobileActionMenu({ open, onClose }: MobileActionMenuProps) {
   };
 
   const handleNewAnnotation = () => {
-    if (currentBook) {
-      setIsBookComposerOpen(true);
-    }
+    if (!currentBook) return;
+    setIsBookComposerOpen(true);
     onClose();
   };
 
@@ -90,7 +131,7 @@ export function MobileActionMenu({ open, onClose }: MobileActionMenuProps) {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 z-[84] bg-[var(--backdrop-medium)] backdrop-blur-[2px] md:hidden"
+              className="fixed inset-0 z-[100] bg-[var(--backdrop-medium)] backdrop-blur-[2px] md:hidden"
               onClick={onClose}
               aria-hidden="true"
             />
@@ -109,7 +150,7 @@ export function MobileActionMenu({ open, onClose }: MobileActionMenuProps) {
               onDragEnd={(_, info) => {
                 if (info.offset.y > 72 || info.velocity.y > 600) onClose();
               }}
-              className="fixed inset-x-0 bottom-0 z-[85] rounded-t-[1.75rem] border border-b-0 border-[var(--border-color)] bg-[var(--bg-secondary)] shadow-[0_-12px_40px_rgba(0,0,0,0.2)] md:hidden"
+              className="fixed inset-x-0 bottom-0 z-[110] rounded-t-[1.75rem] border border-b-0 border-[var(--border-color)] bg-[var(--bg-secondary)] shadow-[0_-12px_40px_rgba(0,0,0,0.2)] md:hidden"
               style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 4.5rem)' }}
             >
               <div className="flex justify-center pt-3 pb-2">

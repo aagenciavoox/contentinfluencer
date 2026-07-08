@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { ChevronRight, Layers, Plus } from 'lucide-react';
 import { BottomSheetModal } from '../../../components/feedback/modals/BottomSheetModal';
+import { OverlayBody } from '../../../components/overlays/OverlayBody';
+import { OverlayHeader } from '../../../components/overlays/OverlayHeader';
 import { AppButton } from '../../../components/ui/AppButton';
 import { Badge } from '../../../components/ui/Badge';
 import { Text } from '../../../components/ui/Text';
@@ -163,35 +165,33 @@ export function SeriesMobileScreen({
         desktopMaxW="max-w-xl"
         zIndex="z-[110]"
       >
-        <div className="flex h-full flex-col bg-[var(--bg-primary)]">
-          <div className="border-b border-[var(--border-color)] px-6 py-4">
-            <div className="flex items-center gap-3">
-              <span
-                className="h-10 w-10 shrink-0 rounded-[var(--radius-card)] border border-[var(--border-color)]"
-                style={{ backgroundColor: editingSerie?.cor || '#6366f1' }}
-              />
-              <div className="min-w-0">
-                <Text variant="sectionTitle" truncate>
-                  {panelMode === 'edit' ? editingSerie?.name : 'Nova série'}
-                </Text>
-                <Text variant="meta" className="text-[var(--text-secondary)]">
-                  Identidade, estrutura e hashtags
-                </Text>
-              </div>
+        <OverlayHeader>
+          <div className="flex items-center gap-3">
+            <span
+              className="h-10 w-10 shrink-0 rounded-[var(--radius-card)] border border-[var(--border-color)]"
+              style={{ backgroundColor: editingSerie?.cor || '#6366f1' }}
+            />
+            <div className="min-w-0">
+              <Text variant="sectionTitle" truncate>
+                {panelMode === 'edit' ? editingSerie?.name : 'Nova série'}
+              </Text>
+              <Text variant="meta" className="text-[var(--text-secondary)]">
+                Identidade, estrutura e hashtags
+              </Text>
             </div>
           </div>
+        </OverlayHeader>
 
-          <div className="flex-1 overflow-y-auto p-6">
-            <SeriesForm
-              key={editingSerie?.id || 'new'}
-              initial={editingSerie ?? {}}
-              onSave={handleSave}
-              onCancel={closePanel}
-              platformNames={platformNames}
-              contents={contents}
-            />
-          </div>
-        </div>
+        <OverlayBody className="py-6 pb-safe">
+          <SeriesForm
+            key={editingSerie?.id || 'new'}
+            initial={editingSerie ?? {}}
+            onSave={handleSave}
+            onCancel={closePanel}
+            platformNames={platformNames}
+            contents={contents}
+          />
+        </OverlayBody>
       </BottomSheetModal>
     </div>
   );

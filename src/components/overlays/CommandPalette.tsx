@@ -5,6 +5,7 @@ import { useAppContext } from '../../context/AppContext';
 import { useNavigate } from 'react-router-dom';
 import { getIdeaTitle } from '../../features/ideas/lib/ideaText';
 import { useIsMobile } from '../../hooks/useIsMobile';
+import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
 
 interface CommandPaletteProps {
   isOpen: boolean;
@@ -18,6 +19,8 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
   const [search, setSearch] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  useBodyScrollLock(isOpen);
 
   const navigation = [
     { id: 'nav-1', title: 'Conteúdos', path: '/conteudos', icon: <FileText className="w-4 h-4" />, category: 'Navegação' },
@@ -93,7 +96,10 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
           className={`relative w-full ${isMobile ? 'h-full bg-[var(--bg-primary)] flex flex-col' : 'max-w-xl bg-[var(--bg-secondary)] rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] overflow-hidden shadow-none'}`}
         >
           {/* Header */}
-          <div className={`flex items-center px-4 border-b border-[var(--border-color)] ${isMobile ? 'pt-14 pb-4' : ''}`}>
+          <div
+            className={`flex items-center px-4 border-b border-[var(--border-color)] ${isMobile ? 'pb-4' : ''}`}
+            style={isMobile ? { paddingTop: 'calc(env(safe-area-inset-top) + 1rem)' } : undefined}
+          >
             <Search className="w-5 h-5 text-[var(--text-tertiary)]" />
             <input 
               ref={inputRef}
@@ -115,7 +121,7 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
           </div>
 
           {/* Results */}
-          <div className="flex-1 overflow-y-auto p-2 custom-scrollbar">
+          <div className="flex-1 min-h-0 overflow-y-auto p-2 custom-scrollbar">
             {filteredResults.length > 0 ? (
               <div className="space-y-1">
                 {filteredResults.map((item, index) => (

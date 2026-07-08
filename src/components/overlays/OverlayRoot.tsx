@@ -50,53 +50,55 @@ export function OverlayRoot({
     end: 'items-stretch justify-end',
   };
 
+  const panelWrapperStyle = mobileEdgePadding
+    ? {
+        paddingTop: `calc(env(safe-area-inset-top, 0px) + 8px)`,
+        paddingRight: '8px',
+        paddingBottom: `calc(env(safe-area-inset-bottom, 0px) + 8px)`,
+        paddingLeft: '8px',
+      }
+    : undefined;
+
   const content = (
     <AnimatePresence>
       {open && (
-        <div
-          className={cn('fixed inset-0 flex', placementClasses[placement], zIndex, className)}
-          style={
-            mobileEdgePadding
-              ? {
-                  paddingTop: `calc(env(safe-area-inset-top, 0px) + 8px)`,
-                  paddingRight: '8px',
-                  paddingBottom: `calc(env(safe-area-inset-bottom, 0px) + 8px)`,
-                  paddingLeft: '8px',
-                }
-              : undefined
-          }
-        >
+        <div className={cn('fixed inset-0', zIndex, className)}>
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.16, ease: 'easeOut' }}
             onClick={onClose}
-            className="absolute inset-0 bg-[var(--backdrop-medium)]"
+            className="fixed inset-0 bg-[var(--backdrop-medium)]"
             aria-hidden
           />
 
-          <motion.div
-            ref={panelRef}
-            role="dialog"
-            aria-modal="true"
-            aria-label={ariaLabel}
-            tabIndex={-1}
-            initial={panelInitial}
-            animate={panelAnimate}
-            exit={panelExit}
-            transition={panelTransition}
-            style={panelStyle}
-            onClick={(event) => event.stopPropagation()}
-            className={panelClassName}
+          <div
+            className={cn('fixed inset-0 flex pointer-events-none', placementClasses[placement])}
+            style={panelWrapperStyle}
           >
-            {showMobileHandle ? (
-              <div className="flex justify-center pt-3 pb-1 shrink-0 md:hidden">
-                <div className="h-1 w-10 rounded-full bg-[var(--text-primary)] opacity-20" />
-              </div>
-            ) : null}
-            {children}
-          </motion.div>
+            <motion.div
+              ref={panelRef}
+              role="dialog"
+              aria-modal="true"
+              aria-label={ariaLabel}
+              tabIndex={-1}
+              initial={panelInitial}
+              animate={panelAnimate}
+              exit={panelExit}
+              transition={panelTransition}
+              style={panelStyle}
+              onClick={(event) => event.stopPropagation()}
+              className={cn('pointer-events-auto', panelClassName)}
+            >
+              {showMobileHandle ? (
+                <div className="flex justify-center pt-3 pb-1 shrink-0 md:hidden">
+                  <div className="h-1 w-10 rounded-full bg-[var(--text-primary)] opacity-20" />
+                </div>
+              ) : null}
+              {children}
+            </motion.div>
+          </div>
         </div>
       )}
     </AnimatePresence>

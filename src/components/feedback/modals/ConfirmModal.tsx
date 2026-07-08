@@ -1,10 +1,12 @@
 import { AppButton } from '../../ui/AppButton';
 import { Text } from '../../ui/Text';
+import { useIsMobile } from '../../../hooks/useIsMobile';
 import {
   DESKTOP_DIALOG_ANIMATE,
   DESKTOP_DIALOG_EXIT,
   DESKTOP_DIALOG_INITIAL,
   DESKTOP_PANEL_TRANSITION,
+  Z_INDEX_CONFIRM,
 } from '../../overlays/overlayConstants';
 import { OverlayRoot } from '../../overlays/OverlayRoot';
 
@@ -25,13 +27,15 @@ export function ConfirmModal({
   onConfirm,
   onCancel,
 }: ConfirmModalProps) {
+  const isMobile = useIsMobile();
+
   return (
     <OverlayRoot
       open={open}
       onClose={onCancel}
       placement="center"
-      zIndex="z-[200]"
-      mobileEdgePadding={false}
+      zIndex={Z_INDEX_CONFIRM}
+      mobileEdgePadding={isMobile}
       ariaLabel="Confirmação"
       panelInitial={DESKTOP_DIALOG_INITIAL}
       panelAnimate={DESKTOP_DIALOG_ANIMATE}
