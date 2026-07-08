@@ -48,10 +48,18 @@ export function IdeaInboxCard({
   const hasActions = showActions && !idea.archived && (onPromote || onArchive || onEdit);
 
   return (
-    <button
-      type="button"
+    <div
+      role="button"
+      tabIndex={0}
+      aria-label={`Abrir ideia ${title}`}
       onClick={onOpen}
-      className="editorial-card editorial-card-interactive group flex h-full min-h-[7.5rem] w-full flex-col rounded-[var(--radius-input)] px-3 py-2.5 text-left transition-all hover:shadow-[var(--shadow-soft)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-blue)]/40"
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          onOpen();
+        }
+      }}
+      className="editorial-card editorial-card-interactive group flex h-full min-h-[7.5rem] w-full cursor-pointer flex-col rounded-[var(--radius-input)] px-3 py-2.5 text-left transition-all hover:shadow-[var(--shadow-soft)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-blue)]/40"
     >
       <p className="line-clamp-2 text-sm font-semibold leading-snug text-[var(--text-primary)] break-words">
         {title}
@@ -137,6 +145,6 @@ export function IdeaInboxCard({
           </div>
         ) : null}
       </div>
-    </button>
+    </div>
   );
 }
