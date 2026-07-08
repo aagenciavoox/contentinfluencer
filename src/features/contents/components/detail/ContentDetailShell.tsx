@@ -1,6 +1,7 @@
 import {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {getSaveFeedbackState, subscribeSaveFeedback, type SaveFeedbackState} from '../../../../lib/saveFeedback';
-import {useBlocker, useNavigate, useSearchParams} from 'react-router-dom';
+import {useNavigate, useSearchParams} from 'react-router-dom';
+import {useNavigationBlocker} from '../../../../lib/navigation/NavigationBlockerContext';
 import {SendToRecordingSheet} from '../../../../mobile/components/SendToRecordingSheet';
 import {ConfirmModal} from '../../../../components/feedback/modals/ConfirmModal';
 import {useAppContext} from '../../../../context/AppContext';
@@ -29,6 +30,7 @@ import {ContentPipelineStepper} from './ContentPipelineStepper';
 import {PublishingSection} from './sections/PublishingSection';
 import {RecordingSection} from './sections/RecordingSection';
 import {ContentOperationalPanel} from './ContentOperationalPanel';
+import {isContentBodyLoaded} from '../../lib/contentBody';
 import {RoteiroSection, type ScriptDraft} from './sections/RoteiroSection';
 
 interface ContentDetailShellProps {
@@ -67,10 +69,7 @@ export function ContentDetailShell({content, mode = 'desktop'}: ContentDetailShe
   const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const activeTab = getInitialTabForContext(searchParams.get('tab'));
 
-  const blocker = useBlocker(
-    ({currentLocation, nextLocation}) =>
-      draftDirty && currentLocation.pathname !== nextLocation.pathname,
-  );
+  const blocker = useNavigationBlocker(() => draftDirty);
 
   useEffect(() => subscribeSaveFeedback(() => setSaveFeedback(getSaveFeedbackState())), []);
 
@@ -230,6 +229,7 @@ export function ContentDetailShell({content, mode = 'desktop'}: ContentDetailShe
   useEffect(() => {
     if (!draftDirtyRef.current) return;
     if (activeTab !== 'roteiro') return;
+    if (!isContentBodyLoaded(liveContent)) return;
 
     if (autosaveTimerRef.current) {
       clearTimeout(autosaveTimerRef.current);
@@ -408,11 +408,11 @@ export function ContentDetailShell({content, mode = 'desktop'}: ContentDetailShe
 
   return (
     <>
-      <PageScaffold contentWidth="full" contentClassName="pb-12 md:pb-10 bg-[var(--bg-secondary)]">
+      <PageScaffold contentWidth="narrow" contentStack="none">
         <div
           className={cn(
-            'mx-auto flex max-w-[1440px] flex-col px-4 md:px-8',
-            activeTab === 'roteiro' ? 'gap-4 md:pt-4' : 'gap-6 md:pt-8',
+            'flex flex-col',
+            activeTab === 'roteiro' ? 'gap-4' : 'gap-6',
           )}
         >
           <div className={activeTab === 'roteiro' ? 'stack-sm' : 'contents'}>

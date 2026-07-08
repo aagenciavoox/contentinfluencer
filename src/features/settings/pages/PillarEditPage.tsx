@@ -184,7 +184,7 @@ export function PillarEditPage() {
 
   if (!isCreate && !editingPilar) {
     return (
-      <PageLayout variant="settings" contentWidth="full" contentClassName="!py-10">
+      <PageLayout variant="settings">
         <div className="mx-auto max-w-3xl text-center">
           <Text variant="body" className="text-[var(--text-tertiary)]">
             Este pilar não existe mais.
@@ -267,9 +267,7 @@ export function PillarEditPage() {
   return (
     <>
       <PageLayout
-        variant="default"
-        contentWidth="full"
-        contentClassName="!py-4 !px-4 md:!px-6"
+        variant="settings"
         header={
           <DesktopPageHeader
             section="Pilares"

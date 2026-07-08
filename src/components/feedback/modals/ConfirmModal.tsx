@@ -37,16 +37,16 @@ export function ConfirmModal({
       panelAnimate={DESKTOP_DIALOG_ANIMATE}
       panelExit={DESKTOP_DIALOG_EXIT}
       panelTransition={DESKTOP_PANEL_TRANSITION}
-      panelClassName="absolute top-1/2 left-1/2 w-[88%] max-w-xs -translate-x-1/2 -translate-y-1/2 rounded-[var(--radius-overlay)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-6"
+      panelClassName="absolute top-1/2 left-1/2 w-[88%] max-w-md -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-[var(--radius-overlay)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-6"
     >
       <Text variant="body" className="mb-6 leading-relaxed text-[var(--text-primary)] opacity-80">
         {message}
       </Text>
-      <div className="flex gap-3">
-        <AppButton variant="secondary" className="flex-1" onClick={onCancel}>
+      <div className="flex min-w-0 flex-col gap-3 sm:flex-row">
+        <AppButton variant="secondary" fullWidth className="sm:min-w-0 sm:shrink sm:flex-1" onClick={onCancel}>
           {cancelLabel}
         </AppButton>
-        <AppButton variant="primary" className="flex-1" onClick={onConfirm}>
+        <AppButton variant="primary" fullWidth className="sm:min-w-0 sm:shrink sm:flex-1" onClick={onConfirm}>
           {confirmLabel}
         </AppButton>
       </div>

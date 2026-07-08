@@ -23,7 +23,7 @@ import {CONTENT_STATUS, PRODUCTION_TAGS} from '../../contents/lib/contentPipelin
 import {buildContentDetailRoute} from '../../contents/lib/contentDetailRoute';
 import {createContentDraft} from '../../contents/lib/createContentDraft';
 import {getGentleExperienceSettings} from '../../settings/lib/gentleExperience';
-import {validateWeeklyContent} from '../../../utils/goldenRules';
+import {validateWeeklyContent} from '../../../utils/pilarRhythm';
 import {recommendDailyAction} from '../../recommendations/recommendDailyAction';
 import {DailyRecommendationBlock} from '../../recommendations/DailyRecommendationBlock';
 import {AppButton} from '../../../components/ui/AppButton';
@@ -58,11 +58,11 @@ export function DashboardPage() {
 
   // Regras de Ouro: validacao da semana atual
   const weekStart = startOfWeek(new Date(), {weekStartsOn: 1});
-  const goldenRuleViolations = validateWeeklyContent(
+  const rhythmViolations = validateWeeklyContent(
     state.contents,
     weekStart,
     state.pilares,
-    state.goldenRules,
+    state.platforms,
   );
 
   // Projetos com deadline nos proximos 7 dias
@@ -102,13 +102,10 @@ export function DashboardPage() {
 
   return (
     <PageLayout
-      contentWidth="full"
-      contentClassName="pb-24 md:pb-10"
       header={
         <DesktopPageHeader
           section="Central"
           title="Hoje"
-          titleVariant="display"
           icon={Sparkles}
           className="mb-0"
           actions={
@@ -187,21 +184,21 @@ export function DashboardPage() {
       </section>
 
       {/* Alerta de Regras de Ouro */}
-      {goldenRuleViolations.length > 0 && (
+      {rhythmViolations.length > 0 && (
         <button
-          onClick={() => navigate('/configuracoes/regras')}
+          onClick={() => navigate('/configuracoes/pilares')}
           className="group flex w-full items-center justify-between gap-4 rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--warning-bg)] px-6 py-4 text-left transition-colors hover:bg-[var(--warning-bg-hover)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
         >
           <div className="flex items-center gap-3">
             <AlertTriangle className="h-4 w-4 shrink-0 text-[var(--warning)]" />
             <Text variant="bodyStrong">
-              {goldenRuleViolations.length === 1
-                ? '1 regra editorial para revisar esta semana'
-                : `${goldenRuleViolations.length} regras editoriais para revisar esta semana`}
+              {rhythmViolations.length === 1
+                ? '1 alerta de ritmo editorial nos pilares esta semana'
+                : `${rhythmViolations.length} alertas de ritmo editorial nos pilares esta semana`}
             </Text>
           </div>
           <span className="flex shrink-0 items-center gap-1 text-sm font-semibold text-[var(--warning)]">
-            Ver regras <ArrowRight className="h-3 w-3" />
+            Ver pilares <ArrowRight className="h-3 w-3" />
           </span>
         </button>
       )}

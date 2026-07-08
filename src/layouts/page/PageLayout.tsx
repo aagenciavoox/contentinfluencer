@@ -24,6 +24,13 @@ const contentStackClasses = {
   none: '',
 } as const;
 
+const headerWidthClasses = {
+  narrow: 'desktop-header-frame',
+  wide: 'desktop-header-frame-wide',
+  book: 'desktop-header-frame-book',
+  full: 'desktop-header-frame-full',
+} as const;
+
 export function PageLayout({
   header,
   toolbar,
@@ -32,7 +39,7 @@ export function PageLayout({
   children,
   className,
   contentClassName,
-  contentWidth = 'narrow',
+  contentWidth = 'wide',
   contentStack,
   variant = 'default',
 }: PageLayoutProps) {
@@ -49,7 +56,7 @@ export function PageLayout({
     >
       {(header || toolbar) && (
         <header className="desktop-header-sticky hidden md:block">
-          <div className="desktop-header-frame stack-md">
+          <div className={cn(headerWidthClasses[contentWidth], 'stack-md')}>
             {header}
             {toolbar}
           </div>
@@ -58,7 +65,7 @@ export function PageLayout({
 
       <main className="flex-1">
         {mobileHeader ? (
-          <div className="desktop-header-frame md:hidden">{mobileHeader}</div>
+          <div className={cn(headerWidthClasses[contentWidth], 'md:hidden')}>{mobileHeader}</div>
         ) : null}
 
         <PageContainer

@@ -707,9 +707,7 @@ export function BookDetailPage() {
   return (
     <>
     <PageLayout
-      variant="settings"
       contentStack="dense"
-      contentWidth="book"
       header={
         <DesktopPageHeader
           section="Biblioteca"

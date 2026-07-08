@@ -15,6 +15,7 @@ import {
 import {AppButton} from '../../../components/ui/AppButton';
 import {Text} from '../../../components/ui/Text';
 import {PageLayout} from '../../../layouts/page/PageLayout';
+import {DesktopPageHeader} from '../../../layouts/page/DesktopPageHeader';
 import {BottomSheetModal} from '../../../components/feedback/modals/BottomSheetModal';
 import {Drawer} from '../../../components/overlays/Drawer';
 import {useAppContext} from '../../../context/AppContext';
@@ -303,7 +304,19 @@ export function EditorialCalendarPage() {
   );
 
   return (
-    <PageLayout contentWidth="full" contentStack="none" className="min-h-full" contentClassName="!px-0 !py-0">
+    <PageLayout
+      contentWidth="full"
+      contentStack="none"
+      className="min-h-full"
+      contentClassName="!px-0 !py-0"
+      header={
+        <DesktopPageHeader
+          section="Produção"
+          title="Calendário"
+          meta="Roteiros, eventos e projetos na linha do tempo."
+        />
+      }
+    >
       <CalendarDesktopShell
         sidebar={calendarSidebar}
         sidebarOpen={sidebarOpen}

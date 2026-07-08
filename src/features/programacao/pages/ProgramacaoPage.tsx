@@ -22,11 +22,11 @@ import {Drawer} from '../../../components/overlays/Drawer';
 import {useAppContext} from '../../../context/AppContext';
 import {PageLayout} from '../../../layouts/page/PageLayout';
 import {DesktopPageHeader} from '../../../layouts/page/DesktopPageHeader';
-import type {Content, GoldenRule} from '../../../lib/database';
+import type {Content} from '../../../lib/database';
 import {GLOSSARY, type ConfirmState} from '../../../lib/uiCopy';
 import {cn, htmlToReadableText} from '../../../lib/utils';
 import {getStatusCalendarClass, getStatusColorVar} from '../../../lib/statusClasses';
-import {diffViolations, previewScheduleViolations, validateWeeklyContent, type Violation} from '../../../utils/goldenRules';
+import {diffViolations, previewScheduleViolations, validateWeeklyContent, type Violation} from '../../../utils/pilarRhythm';
 import {getPostingTimes} from '../../settings/lib/postingTimes';
 import {recommendDailyAction} from '../../recommendations/recommendDailyAction';
 import type {Weekday} from '../../settings/lib/postingTimes';
@@ -72,7 +72,8 @@ type PendingSchedule = {
 
 function evaluateScheduleViolations(
   contents: Content[],
-  goldenRules: GoldenRule[],
+  pilares: Parameters<typeof validateWeeklyContent>[2],
+  platforms: Parameters<typeof validateWeeklyContent>[3],
   card: ProgramacaoCard,
   dayKey: string,
   time: string | null,
@@ -82,10 +83,10 @@ function evaluateScheduleViolations(
 
   const timeToUse = time ?? (card.date ? card.time : null);
   const weekStart = startOfWeek(parseISO(dayKey), {weekStartsOn: 1});
-  const before = validateWeeklyContent(contents, weekStart, undefined, goldenRules);
+  const before = validateWeeklyContent(contents, weekStart, pilares, platforms);
   const updated = applyScheduleToContent(content, card.platformId, dayKey, timeToUse);
   const nextContents = contents.map(item => (item.id === card.contentId ? updated : item));
-  const after = previewScheduleViolations(nextContents, dayKey, goldenRules);
+  const after = previewScheduleViolations(nextContents, dayKey, pilares, platforms);
   return diffViolations(before, after);
 }
 
@@ -186,8 +187,8 @@ export function ProgramacaoPage() {
   const weekDays = eachDayOfInterval({start: weekStart, end: endOfWeek(anchorDate, {locale: ptBR})});
 
   const weekViolations = useMemo(
-    () => validateWeeklyContent(state.contents, weekStart, undefined, state.goldenRules),
-    [state.contents, state.goldenRules, weekStart],
+    () => validateWeeklyContent(state.contents, weekStart, state.pilares, state.platforms),
+    [state.contents, state.pilares, state.platforms, weekStart],
   );
 
   const draggingCard = draggingCardKey ? cards.find(item => item.key === draggingCardKey) ?? null : null;
@@ -195,7 +196,14 @@ export function ProgramacaoPage() {
   const hasDayViolationWarning = (dayKey: string) => {
     if (!draggingCard) return false;
     const time = draggingCard.date ? draggingCard.time : null;
-    return evaluateScheduleViolations(state.contents, state.goldenRules, draggingCard, dayKey, time).some(
+    return evaluateScheduleViolations(
+      state.contents,
+      state.pilares,
+      state.platforms,
+      draggingCard,
+      dayKey,
+      time,
+    ).some(
       violation => violation.type === 'warning',
     );
   };
@@ -239,7 +247,8 @@ export function ProgramacaoPage() {
     const effectiveTime = time ?? (card.date ? card.time : null);
     const newViolations = evaluateScheduleViolations(
       state.contents,
-      state.goldenRules,
+      state.pilares,
+      state.platforms,
       card,
       dayKey,
       effectiveTime,
@@ -445,15 +454,20 @@ export function ProgramacaoPage() {
   );
 
   return (
-    <PageLayout contentWidth="full" contentStack="none" className="min-h-full" contentClassName="!px-0 !py-0" mobileToolbar={periodControls}>
-      <div className="border-b border-[var(--border-color)] bg-[var(--bg-elevated)] px-4 py-3 md:px-6">
+    <PageLayout
+      contentWidth="full"
+      contentStack="none"
+      className="min-h-full"
+      contentClassName="!px-0 !py-0"
+      header={
         <DesktopPageHeader
           section="Produção"
           title={GLOSSARY.gradePostagem}
           meta="Arraste um vídeo pronto para um dia, ou toque no vídeo e depois no dia."
         />
-      </div>
-
+      }
+      mobileToolbar={periodControls}
+    >
       <CalendarDesktopShell
         sidebar={programacaoSidebar}
         sidebarOpen={sidebarOpen}
@@ -462,7 +476,7 @@ export function ProgramacaoPage() {
       >
         <div className="stack-md p-3 md:p-4">
           {viewMode === 'week' && weekViolations.length > 0 ? (
-            <GoldenRulesStrip violations={weekViolations} />
+            <PilarRhythmStrip violations={weekViolations} />
           ) : null}
 
           <Surface variant="outlined" padding="none" className="overflow-hidden">
@@ -585,7 +599,8 @@ export function ProgramacaoPage() {
           pendingSchedule
             ? evaluateScheduleViolations(
                 state.contents,
-                state.goldenRules,
+                state.pilares,
+                state.platforms,
                 pendingSchedule.card,
                 pendingSchedule.dayKey,
                 pendingSchedule.time,
@@ -736,7 +751,7 @@ function TimePickerSheet({card, configuredTimes, usedTimes, violations = [], onS
         </button>
       </div>
 
-      {violations.length > 0 ? <GoldenRulesStrip violations={violations} compact /> : null}
+      {violations.length > 0 ? <PilarRhythmStrip violations={violations} compact /> : null}
 
       {configuredTimes.length > 0 ? (
         <div>
@@ -949,7 +964,7 @@ function IdeaActionSheet({card, onPromote, onPreview, onOpen, onClose}: IdeaActi
   );
 }
 
-function GoldenRulesStrip({violations, compact = false}: {violations: Violation[]; compact?: boolean}) {
+function PilarRhythmStrip({violations, compact = false}: {violations: Violation[]; compact?: boolean}) {
   return (
     <div
       className={cn( 'stack-sm rounded-[var(--radius-card-mobile)] border border-[var(--warning)]/30 bg-[var(--warning-bg)] p-3',

@@ -483,8 +483,8 @@ export function PilarEditForm({
           <Surface variant="outlined" padding="md" className="bg-[var(--bg-secondary)]">
             <SectionHeader
               icon={<Target className="h-4 w-4" />}
-              title="Compromisso do ciclo"
-              description="Frequência semanal e meta de 28 dias para calcular o gap de produção."
+              title="Ritmo editorial"
+              description="Frequência semanal, meta do ciclo e alertas na grade de postagem."
               compact
             />
 

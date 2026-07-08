@@ -1,10 +1,13 @@
 import {ArrowRight} from 'lucide-react';
 import {AppButton} from '../ui/AppButton';
+import {Text} from '../ui/Text';
 import {cn} from '../../lib/utils';
 
 interface PipelineActionBarProps {
   title: string;
   description?: string;
+  eyebrow?: string;
+  reason?: string;
   primaryLabel: string;
   onPrimary: () => void;
   disabled?: boolean;
@@ -16,6 +19,8 @@ interface PipelineActionBarProps {
 export function PipelineActionBar({
   title,
   description,
+  eyebrow,
+  reason,
   primaryLabel,
   onPrimary,
   disabled = false,
@@ -31,7 +36,11 @@ export function PipelineActionBar({
       )}
     >
       <div className="min-w-0">
-        <p className="text-sm font-semibold text-[var(--text-primary)]">{title}</p>
+        {eyebrow ? <Text variant="eyebrow">{eyebrow}</Text> : null}
+        <p className={cn('text-sm font-semibold text-[var(--text-primary)]', eyebrow && 'mt-1')}>
+          {title}
+        </p>
+        {reason ? <p className="mt-0.5 text-xs text-[var(--text-tertiary)]">{reason}</p> : null}
         {description ? <p className="mt-0.5 text-xs text-[var(--text-secondary)]">{description}</p> : null}
       </div>
       <div className="flex shrink-0 flex-wrap gap-2">

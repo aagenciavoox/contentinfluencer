@@ -170,11 +170,11 @@ export function ContentScriptWorkspace({
   };
 
   return (
-    <section className="cms-panel flex flex-col overflow-hidden shadow-sm">
+    <section className="cms-panel flex flex-col shadow-sm">
       <div className="border-b border-[var(--border-color)] px-4 py-3 md:px-6">
         <Text variant="sectionTitle">Roteiro</Text>
       </div>
-      <div className="min-h-0 flex-1">
+      <div>
         <RichTextEditor
           variant="workspace"
           content={script || ''}
@@ -188,7 +188,7 @@ export function ContentScriptWorkspace({
           onUpdateAnnotation={onUpdateAnnotation}
           toolbarStart={<ScriptBlockToolbar onInsertBlock={handleInsertBlock} onApplyTemplate={handleApplyTemplate} />}
           saveState={saveState}
-          className="min-h-[420px] border-0 bg-[var(--bg-elevated)] shadow-none"
+          className="border-0 bg-[var(--bg-elevated)] shadow-none"
         />
       </div>
 

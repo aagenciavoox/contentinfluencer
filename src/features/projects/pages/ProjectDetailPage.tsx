@@ -250,7 +250,6 @@ export function ProjectDetailPage() {
 
   return (
     <PageLayout
-      variant="settings"
       contentStack="dense"
       header={
         <DesktopPageHeader

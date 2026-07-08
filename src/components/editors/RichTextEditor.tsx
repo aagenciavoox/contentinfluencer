@@ -593,8 +593,14 @@ export function RichTextEditor({
       <motion.div
         layout
         className={cn(
-          'relative border border-[var(--border-color)] transition-all duration-500 overflow-hidden',
-          isWorkspace ? 'flex min-h-[calc(100vh-280px)] flex-col rounded-[var(--radius-card)] bg-[var(--bg-elevated)]' : 'rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)]',
+          'relative border border-[var(--border-color)] transition-all duration-500',
+          isWorkspace && !isFullscreen ? 'overflow-visible' : 'overflow-hidden',
+          isWorkspace
+            ? cn(
+                'flex flex-col rounded-[var(--radius-card)] bg-[var(--bg-elevated)]',
+                isFullscreen && 'min-h-[calc(100vh-280px)]',
+              )
+            : 'rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)]',
           isFullscreen
             ? isMobile
               ? 'fixed inset-0 z-[100] flex flex-col rounded-none border-0 bg-[var(--bg-elevated)] shadow-none'
@@ -909,7 +915,10 @@ export function RichTextEditor({
         <div
           ref={editorViewportRef}
           className={cn(
-            'flex-1 overflow-y-auto custom-scrollbar transition-all duration-500',
+            'transition-all duration-500',
+            isWorkspace && !isFullscreen
+              ? 'overflow-visible'
+              : 'flex-1 overflow-y-auto custom-scrollbar',
             isFullscreen
               ? 'bg-[var(--bg-elevated)]'
               : compactMobileComposer
@@ -938,7 +947,7 @@ export function RichTextEditor({
                   : compactMobileComposer
                     ? 'min-h-[56dvh] rounded-[var(--radius-card)] border border-[var(--border-color)] px-4 py-4 shadow-[var(--shadow-soft)]'
                     : isWorkspace
-                      ? 'min-h-[calc(100vh-260px)] rounded-[var(--radius-input)] border border-[var(--border-color)] px-4 py-6 md:px-6 md:py-6'
+                      ? 'min-h-[8rem] rounded-[var(--radius-input)] border border-[var(--border-color)] px-4 py-6 md:px-6 md:py-6'
                       : 'min-h-[800px] rounded-[var(--radius-input)] border border-[var(--border-color)] p-12 shadow-[var(--shadow-editorial)] md:p-24',
                 editorCanvasClassName,
               )}

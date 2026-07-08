@@ -1,14 +1,11 @@
-import {Check, Copy, Instagram, Plus, SlidersHorizontal, Youtube} from 'lucide-react';
-import {useMemo, useState} from 'react';
+import {Check, Copy, Instagram, Plus, Youtube} from 'lucide-react';
+import {useEffect, useMemo, useRef, useState} from 'react';
 import {DEFAULT_PLATFORMS} from '../../../../constants';
+import {useAppContext} from '../../../../context/AppContext';
 import type {ContentPlataforma, Pilar, Serie} from '../../../../lib/database';
 import {cn} from '../../../../lib/utils';
-import {AppButton} from '../../../../components/ui/AppButton';
 import {Text} from '../../../../components/ui/Text';
 import {TagPill} from '../../../../components/ui/TagSelect';
-import {Drawer} from '../../../../components/overlays/Drawer';
-import {OverlayHeader} from '../../../../components/overlays/OverlayHeader';
-import {OverlayBody} from '../../../../components/overlays/OverlayBody';
 
 const CHAR_LIMITS: Record<string, number> = {
   Instagram: 2200,
@@ -92,32 +89,39 @@ function PlatformStatusDot({status}: {status: 'empty' | 'partial' | 'complete'})
   );
 }
 
-function PlatformTabButton({
+function PlatformToggleButton({
   platform,
+  isEnabled,
   isActive,
   completion,
+  disabled,
   onClick,
 }: {
   platform: string;
+  isEnabled: boolean;
   isActive: boolean;
-  completion: 'empty' | 'partial' | 'complete';
+  completion: 'empty' | 'partial' | 'complete' | 'inactive';
+  disabled?: boolean;
   onClick: () => void;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      aria-pressed={isActive}
+      disabled={disabled}
+      aria-pressed={isEnabled}
       className={cn(
-        'inline-flex h-10 min-w-[132px] items-center gap-2.5 rounded-[var(--radius-input)] px-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
-        isActive
+        'inline-flex h-10 min-w-[132px] items-center gap-2.5 rounded-[var(--radius-input)] px-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] disabled:opacity-50',
+        isEnabled && isActive
           ? 'border-2 border-[var(--accent-purple)] bg-[var(--bg-elevated)] text-[var(--text-primary)]'
-          : 'border border-[var(--border-color)] bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]',
+          : isEnabled
+            ? 'border border-[var(--border-strong)] bg-[var(--bg-elevated)] text-[var(--text-primary)] hover:border-[var(--accent-purple)]'
+            : 'border border-[var(--border-color)] bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]',
       )}
     >
       <PlatformIconBadge platform={platform} />
       <span className="min-w-0 flex-1 truncate text-left">{platform}</span>
-      <PlatformStatusDot status={completion} />
+      {isEnabled ? <PlatformStatusDot status={completion} /> : null}
     </button>
   );
 }
@@ -176,13 +180,21 @@ export function PlatformCopyEditor({
   onChange,
   embedded = false,
 }: PlatformCopyEditorProps) {
+  const {state} = useAppContext();
+  const registeredPlatforms = useMemo(
+    () => {
+      const active = state.platforms.filter(platform => platform.ativo).map(platform => platform.nome);
+      return active.length > 0 ? active : DEFAULT_PLATFORMS;
+    },
+    [state.platforms],
+  );
   const [activePlatform, setActivePlatform] = useState<string>(
-    plataformas[0]?.platformId || DEFAULT_PLATFORMS[0]
+    plataformas[0]?.platformId || registeredPlatforms[0] || DEFAULT_PLATFORMS[0],
   );
   const [copied, setCopied] = useState<'legenda' | 'tudo' | null>(null);
-  const [platformDrawerOpen, setPlatformDrawerOpen] = useState(false);
+  const legendaTextareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const activePlatformIds = plataformas.length > 0 ? plataformas.map(item => item.platformId) : [];
+  const activePlatformIds = plataformas.map(item => item.platformId);
   const currentPlatform = useMemo(
     () => ensurePlatformRecord(plataformas, activePlatform),
     [activePlatform, plataformas]
@@ -199,6 +211,37 @@ export function PlatformCopyEditor({
       : null;
   const charLimit = CHAR_LIMITS[activePlatform];
   const charCount = currentPlatform.legenda.length;
+
+  useEffect(() => {
+    if (registeredPlatforms.includes(activePlatform)) return;
+    setActivePlatform(activePlatformIds[0] || registeredPlatforms[0] || DEFAULT_PLATFORMS[0]);
+  }, [activePlatform, activePlatformIds, registeredPlatforms]);
+
+  useEffect(() => {
+    const textarea = legendaTextareaRef.current;
+    if (!textarea) return;
+    textarea.style.height = 'auto';
+    textarea.style.height = `${textarea.scrollHeight}px`;
+  }, [activePlatform, currentPlatform.legenda]);
+
+  const handlePlatformClick = (platform: string) => {
+    const isEnabled = activePlatformIds.includes(platform);
+
+    if (!isEnabled) {
+      onChange([...plataformas, ensurePlatformRecord(plataformas, platform)]);
+      setActivePlatform(platform);
+      return;
+    }
+
+    if (activePlatform !== platform) {
+      setActivePlatform(platform);
+      return;
+    }
+
+    const next = plataformas.filter(item => item.platformId !== platform);
+    onChange(next);
+    setActivePlatform(next[0]?.platformId || registeredPlatforms.find(name => name !== platform) || '');
+  };
 
   const updatePlatform = (platformId: string, updates: Partial<ContentPlataforma>) => {
     const next = plataformas.map(plataforma =>
@@ -242,88 +285,43 @@ export function PlatformCopyEditor({
 
   return (
     <section className="cms-panel overflow-hidden shadow-sm">
-      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[var(--border-color)] px-4 py-3">
-        <div className="min-w-0">
-          <Text variant="sectionTitle">{embedded ? 'Legendas' : 'Preparar distribuicao'}</Text>
-          {embedded ? (
-            <Text variant="secondary" className="mt-0.5">
-              Gerencie as legendas para cada plataforma.
-            </Text>
-          ) : null}
-        </div>
-        <AppButton
-          variant="secondary"
-          size="sm"
-          disabled={disabled}
-          leftIcon={<SlidersHorizontal className="h-4 w-4" />}
-          onClick={() => setPlatformDrawerOpen(true)}
-        >
-          Selecionar plataformas
-        </AppButton>
+      <div className="border-b border-[var(--border-color)] px-4 py-3">
+        <Text variant="sectionTitle">{embedded ? 'Legendas' : 'Preparar distribuicao'}</Text>
+        {embedded ? (
+          <Text variant="secondary" className="mt-0.5">
+            Gerencie as legendas para cada plataforma.
+          </Text>
+        ) : null}
       </div>
 
       <div className="p-4">
-        <Drawer open={platformDrawerOpen} onClose={() => setPlatformDrawerOpen(false)} widthClassName="max-w-md">
-          <OverlayHeader
-            title="Plataformas"
-            subtitle="Selecione uma ou mais plataformas para preparar a distribuicao."
-            onClose={() => setPlatformDrawerOpen(false)}
-          />
-          <OverlayBody>
-            <div className="flex flex-col gap-2">
-              {DEFAULT_PLATFORMS.map(platform => {
-                const selected = activePlatformIds.includes(platform);
-                return (
-                  <button
-                    key={platform}
-                    type="button"
-                    onClick={() => {
-                      const next = selected
-                        ? plataformas.filter(item => item.platformId !== platform)
-                        : [...plataformas, ensurePlatformRecord(plataformas, platform)];
-                      onChange(next);
-                      if (!selected) setActivePlatform(platform);
-                      if (selected && activePlatform === platform) {
-                        setActivePlatform(next[0]?.platformId || DEFAULT_PLATFORMS[0]);
-                      }
-                    }}
-                    className={cn(
-                      'rounded-[var(--radius-input)] border px-3 py-2 text-left text-sm transition-colors',
-                      selected
-                        ? 'border-[var(--accent-purple)] bg-[color-mix(in_srgb,var(--accent-purple),transparent_92%)] text-[var(--text-primary)]'
-                        : 'border-[var(--border-color)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]',
-                    )}
-                  >
-                    {platform}
-                  </button>
-                );
-              })}
-            </div>
-          </OverlayBody>
-        </Drawer>
+        {registeredPlatforms.length > 0 ? (
+          <div className="flex flex-wrap items-center gap-2">
+            {registeredPlatforms.map(platform => {
+              const isEnabled = activePlatformIds.includes(platform);
+              const record = plataformas.find(item => item.platformId === platform);
 
-        {activePlatformIds.length > 0 ? (
-          <>
-            <div className="flex flex-wrap items-center gap-2">
-              {activePlatformIds.map(platform => (
-                <PlatformTabButton
+              return (
+                <PlatformToggleButton
                   key={platform}
                   platform={platform}
+                  isEnabled={isEnabled}
                   isActive={activePlatform === platform}
-                  completion={platformCompletion(plataformas.find(item => item.platformId === platform))}
-                  onClick={() => setActivePlatform(platform)}
+                  completion={isEnabled ? platformCompletion(record) : 'inactive'}
+                  disabled={disabled}
+                  onClick={() => handlePlatformClick(platform)}
                 />
-              ))}
-              <button
-                type="button"
-                onClick={() => setPlatformDrawerOpen(true)}
-                className="inline-flex h-10 items-center gap-1.5 rounded-[var(--radius-input)] border border-dashed border-[var(--border-color)] bg-[var(--bg-elevated)] px-3 text-sm font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
-              >
-                <Plus className="h-4 w-4" />
-                Adicionar plataforma
-              </button>
-            </div>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="text-sm text-[var(--text-secondary)]">
+            Cadastre uma plataforma em Configuracoes → Plataformas.
+          </p>
+        )}
 
+        {activePlatformIds.length > 0 && activePlatformIds.includes(activePlatform) ? (
+          <>
             <div className="mt-4 flex items-center justify-between gap-3">
               <p className="text-sm font-semibold text-[var(--text-primary)]">
                 Legenda para {activePlatform}
@@ -340,13 +338,15 @@ export function PlatformCopyEditor({
               </p>
             </div>
 
-            <div className="mt-3 flex gap-3">
-              <div className="relative min-w-0 flex-1 overflow-hidden rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-primary)]">
+            <div className="mt-3">
+              <div className="relative w-full rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-primary)]">
                 <textarea
+                  ref={legendaTextareaRef}
                   value={currentPlatform.legenda}
                   disabled={disabled}
+                  rows={1}
                   onChange={event => updatePlatform(activePlatform, {legenda: event.target.value})}
-                  className="min-h-[160px] w-full resize-none bg-transparent px-4 pt-4 pb-8 text-sm leading-7 text-[var(--text-primary)] outline-none disabled:opacity-60"
+                  className="block min-h-[4.5rem] w-full resize-none overflow-hidden bg-transparent px-4 pt-4 pb-8 text-sm leading-7 text-[var(--text-primary)] outline-none disabled:opacity-60"
                   placeholder={`Copy para ${activePlatform}`}
                 />
                 {charLimit ? (
@@ -361,12 +361,12 @@ export function PlatformCopyEditor({
                 ) : null}
               </div>
 
-              <div className="flex shrink-0 flex-col gap-2">
+              <div className="mt-2 flex flex-wrap gap-2">
                 <button
                   type="button"
                   onClick={() => void handleCopy('legenda')}
                   disabled={!currentPlatform.legenda.trim()}
-                  className="inline-flex min-w-[148px] items-center justify-center gap-1.5 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-3 py-2 text-xs font-semibold text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-hover)] disabled:opacity-40"
+                  className="inline-flex items-center justify-center gap-1.5 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-3 py-2 text-xs font-semibold text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-hover)] disabled:opacity-40"
                 >
                   {copied === 'legenda' ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
                   Copiar legenda
@@ -375,7 +375,7 @@ export function PlatformCopyEditor({
                   type="button"
                   onClick={() => void handleCopy('tudo')}
                   disabled={!currentPlatform.legenda.trim() && !currentPlatform.hashtags.trim()}
-                  className="inline-flex min-w-[148px] items-center justify-center gap-1.5 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-3 py-2 text-xs font-semibold text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-hover)] disabled:opacity-40"
+                  className="inline-flex items-center justify-center gap-1.5 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-3 py-2 text-xs font-semibold text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-hover)] disabled:opacity-40"
                 >
                   {copied === 'tudo' ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
                   Copiar tudo (legenda + hashtags)
@@ -429,11 +429,11 @@ export function PlatformCopyEditor({
               </div>
             </div>
           </>
-        ) : (
-          <p className="text-sm text-[var(--text-secondary)]">
+        ) : registeredPlatforms.length > 0 ? (
+          <p className="mt-4 text-sm text-[var(--text-secondary)]">
             Ative pelo menos uma plataforma para preparar legendas.
           </p>
-        )}
+        ) : null}
       </div>
     </section>
   );

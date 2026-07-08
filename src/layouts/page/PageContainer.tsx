@@ -17,7 +17,7 @@ const widthClasses = {
 export function PageContainer({
   children,
   className,
-  width = 'narrow',
+  width = 'wide',
 }: PageContainerProps) {
   return <div className={cn(widthClasses[width], className)}>{children}</div>;
 }

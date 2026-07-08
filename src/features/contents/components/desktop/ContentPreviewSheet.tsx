@@ -1,10 +1,15 @@
+import { useEffect, useRef, useState } from 'react';
 import { ExternalLink } from 'lucide-react';
 import { BottomSheet } from '../../../../components/overlays/BottomSheet';
 import { OverlayHeader } from '../../../../components/overlays/OverlayHeader';
 import { OverlayBody } from '../../../../components/overlays/OverlayBody';
 import { AppButton } from '../../../../components/ui/AppButton';
+import { useAppContext } from '../../../../context/AppContext';
+import { useAuth } from '../../../../context/AuthContext';
 import type { Content, Pilar, Serie } from '../../../../lib/database';
+import { fetchContentsByIds } from '../../../../lib/database';
 import { htmlToReadableText } from '../../../../lib/utils';
+import { isContentBodyLoaded, upsertContent } from '../../lib/contentBody';
 import { ContentEntityTags } from '../ContentEntityTags';
 import {
   buildContentMetaLine,
@@ -28,16 +33,60 @@ export function ContentPreviewSheet({
   onClose,
   onOpen,
 }: ContentPreviewSheetProps) {
+  const { state, dispatch } = useAppContext();
+  const { user } = useAuth();
+  const contentsRef = useRef(state.contents);
+  contentsRef.current = state.contents;
+  const [resolvedContent, setResolvedContent] = useState<Content | null>(content);
+  const [loadingBody, setLoadingBody] = useState(false);
+
+  useEffect(() => {
+    if (!content) {
+      setResolvedContent(null);
+      setLoadingBody(false);
+      return;
+    }
+
+    if (isContentBodyLoaded(content)) {
+      setResolvedContent(content);
+      setLoadingBody(false);
+      return;
+    }
+
+    if (!user) return;
+
+    let cancelled = false;
+    setLoadingBody(true);
+
+    void fetchContentsByIds(user.id, [content.id]).then(fetched => {
+      if (cancelled) return;
+      const item = fetched[0] ?? content;
+      setResolvedContent(item);
+      setLoadingBody(false);
+      if (item && fetched[0]) {
+        dispatch({
+          type: 'SET_DATA',
+          payload: { contents: upsertContent(contentsRef.current, item) },
+        });
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [content, dispatch, user]);
+
   if (!content) return null;
 
-  const excerpt = getUsefulExcerpt(content);
-  const scriptPreview = htmlToReadableText(content.script || content.notes || '').trim();
+  const previewContent = resolvedContent ?? content;
+  const excerpt = getUsefulExcerpt(previewContent);
+  const scriptPreview = htmlToReadableText(previewContent.script || previewContent.notes || '').trim();
 
   return (
     <BottomSheet open={!!content} onClose={onClose} desktopMaxW="max-w-lg">
       <OverlayHeader
         title={getDisplayTitle(content.title)}
-        subtitle={buildContentMetaLine(content)}
+        subtitle={buildContentMetaLine(previewContent)}
         onClose={onClose}
       />
       <OverlayBody>
@@ -58,7 +107,9 @@ export function ContentPreviewSheet({
           </div>
         ) : null}
 
-        {scriptPreview ? (
+        {loadingBody ? (
+          <p className="text-sm text-[var(--text-tertiary)]">Carregando roteiro...</p>
+        ) : scriptPreview ? (
           <div>
             <p className="mb-1.5 text-xs font-medium text-[var(--text-tertiary)]">Roteiro</p>
             <div className="max-h-[min(50vh,360px)] overflow-y-auto rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-hover)]/40 p-3">
@@ -74,7 +125,7 @@ export function ContentPreviewSheet({
         <AppButton
           variant="primary"
           leftIcon={<ExternalLink className="h-4 w-4" />}
-          onClick={() => onOpen(content)}
+          onClick={() => onOpen(previewContent)}
           className="w-full justify-center"
         >
           Abrir roteiro

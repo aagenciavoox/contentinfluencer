@@ -154,7 +154,6 @@ export function SeriesScriptsPage() {
 
     return (
       <SettingsPageScaffold
-        compact
         title="Roteiros da série"
         icon={Layers}
         backTo="/configuracoes/series"
@@ -198,7 +197,7 @@ export function SeriesScriptsPage() {
   }
 
   return (
-    <PageLayout variant="settings" contentWidth="full" contentClassName="!py-6">
+    <PageLayout variant="settings">
       <div className="stack-xl">
         <SeriesDetailHeader
           serie={serie}

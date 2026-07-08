@@ -75,7 +75,6 @@ export function PillarsSettingsPage() {
 
   return (
     <SettingsPageScaffold
-      compact
       title="Pilares editoriais"
       icon={Palette}
       actions={
@@ -89,7 +88,7 @@ export function PillarsSettingsPage() {
       }
     >
       <Text variant="secondary" className="mb-4">
-        Pilares organizam os temas editoriais. Cada roteiro pode ter um pilar; as hashtags aqui entram na publicação.
+        Pilares organizam temas, ritmo editorial e publicação por plataforma. Frequência semanal, meta do ciclo, dias e hashtags ficam aqui.
       </Text>
 
       {state.pilares.length === 0 ? (
@@ -141,6 +140,11 @@ export function PillarsSettingsPage() {
                       <Badge variant="neutral">{volumeLabel}</Badge>
                     )}
                     <Badge variant="neutral">{pilar.plataformas.length} redes</Badge>
+                    {pilar.frequenciaSemanal != null ? (
+                      <Badge variant="neutral">{pilar.frequenciaSemanal}x/sem</Badge>
+                    ) : (
+                      <Badge variant="neutral">Sem ritmo</Badge>
+                    )}
                   </>
                 }
               />

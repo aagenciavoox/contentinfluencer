@@ -187,7 +187,6 @@ export function ProjectsPage() {
 
   return (
     <PageLayout
-      variant="settings"
       header={
         <DesktopPageHeader
           section="Gestão"

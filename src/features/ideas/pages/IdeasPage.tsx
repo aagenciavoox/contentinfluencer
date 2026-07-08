@@ -10,7 +10,6 @@ import { ConfirmModal } from '../../../components/feedback/modals/ConfirmModal';
 import { CONFIRM, EMPTY, type ConfirmState } from '../../../lib/uiCopy';
 import { PageLayout } from '../../../layouts/page/PageLayout';
 import { DesktopPageHeader } from '../../../layouts/page/DesktopPageHeader';
-import { Text } from '../../../components/ui/Text';
 import { EmptyState } from '../../../components/ui/EmptyState';
 import { useIsMobile } from '../../../hooks/useIsMobile';
 import { IdeasMobileScreen } from '../../../mobile/screens/ideas/IdeasMobileScreen';
@@ -22,10 +21,10 @@ import { CONTENT_STATUS } from '../../contents/lib/contentPipeline';
 import { notifySaveFeedback } from '../../../lib/saveFeedback';
 import { IdeaQuickCapture } from '../components/IdeaQuickCapture';
 import { IdeaInboxCard } from '../components/IdeaInboxCard';
-import { PipelineActionBar } from '../../../components/pipeline/PipelineActionBar';
+import { IdeasInboxToolbar } from '../components/IdeasInboxToolbar';
+import { useIdeasInboxFilters } from '../hooks/useIdeasInboxFilters';
 import { buildIdeaFields, getIdeaNotes, getIdeaTitle } from '../lib/ideaText';
-
-type InboxFilter = 'inbox' | 'archived';
+import { ideaHasClassification } from '../lib/ideaFilters';
 
 export function IdeasPage() {
   const { state, dispatch } = useAppContext();
@@ -38,7 +37,26 @@ export function IdeasPage() {
   const [selectedSeries, setSelectedSeries] = useState<string>('');
   const [selectedBibliotecaId, setSelectedBibliotecaId] = useState<string>('');
   const [viewingIdea, setViewingIdea] = useState<Idea | null>(null);
-  const [inboxFilter, setInboxFilter] = useState<InboxFilter>('inbox');
+
+  const {
+    search,
+    setSearch,
+    inboxFilter,
+    setInboxFilter,
+    sort,
+    setSort,
+    quickFilter,
+    toggleQuickFilter,
+    filterPilarId,
+    setFilterPilarId,
+    filterSeriesId,
+    setFilterSeriesId,
+    filterOrigemId,
+    setFilterOrigemId,
+    activeIdeas,
+    archivedIdeas,
+    filteredIdeas,
+  } = useIdeasInboxFilters(state.ideas);
 
   useEffect(() => {
     const itemId = searchParams.get('itemId');
@@ -58,11 +76,7 @@ export function IdeasPage() {
   const [editNotes, setEditNotes] = useState('');
   const [confirm, setConfirm] = useState<ConfirmState | null>(null);
 
-  const allIdeas = [...state.ideas]
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-  const activeIdeas = allIdeas.filter((idea) => !idea.archived);
-  const archivedIdeas = allIdeas.filter((idea) => idea.archived);
-  const inboxIdeas = inboxFilter === 'inbox' ? activeIdeas : archivedIdeas;
+  const allIdeas = state.ideas;
 
   const saveIdea = () => {
     const fields = buildIdeaFields({title: newIdeaTitle, notes: newIdeaNotes});
@@ -160,9 +174,13 @@ export function IdeasPage() {
     setIsEditing(false);
   };
 
-  const openIdea = (idea: Idea) => {
+  const openIdea = (idea: Idea, startInEditMode = false) => {
     setViewingIdea(idea);
-    setIsEditing(false);
+    setIsEditing(startInEditMode);
+    if (startInEditMode) {
+      setEditTitle(getIdeaTitle(idea));
+      setEditNotes(getIdeaNotes(idea));
+    }
   };
 
   const closeIdeaModal = () => {
@@ -189,7 +207,8 @@ export function IdeasPage() {
   const getBibliotecaTitulo = (itemId: string | null) =>
     state.bibliotecaItems.find(b => b.id === itemId)?.titulo ?? null;
 
-  const ideaHasClassification = (idea: Idea) =>
+  const ideaHasClassificationTags = (idea: Idea) =>
+    ideaHasClassification(idea) &&
     Boolean(
       (idea.pilarId && getPilarNome(idea.pilarId)) ||
       (idea.seriesId && getSerie(idea.seriesId)?.name) ||
@@ -217,6 +236,8 @@ export function IdeasPage() {
           onSubmit={handleAddIdea}
           onSave={saveIdea}
           onOpenIdea={openIdea}
+          onPromoteIdea={handlePromote}
+          onArchiveIdea={handleArchive}
         />
         <BottomSheetModal open={!!viewingIdea} onClose={closeIdeaModal} desktopMaxW="max-w-3xl" zIndex="z-[100]">
           {viewingIdea && (
@@ -255,7 +276,7 @@ export function IdeasPage() {
                       {getBibliotecaTitulo(viewingIdea.origemId)}
                     </span>
                   )}
-                  {!ideaHasClassification(viewingIdea) ? (
+                  {!ideaHasClassificationTags(viewingIdea) ? (
                     <span className="rounded-full border border-[var(--border-color)] px-3 py-1 t-label t-label-uppercase font-semibold text-[var(--text-tertiary)]">
                       Sem classificação
                     </span>
@@ -338,13 +359,12 @@ export function IdeasPage() {
   return (
     <>
     <PageLayout
-      variant="settings"
-      contentWidth="narrow"
       header={
         <DesktopPageHeader
           section="Inbox editorial"
           title="Ideias"
           meta={`${activeIdeas.length} na caixa de entrada · capture rápido, classifique depois`}
+          hideSearch
         >
           <IdeaQuickCapture
             title={newIdeaTitle}
@@ -363,42 +383,49 @@ export function IdeasPage() {
         </DesktopPageHeader>
       }
     >
-        {inboxIdeas[0] && inboxFilter === 'inbox' ? (
-          <PipelineActionBar
-            className="mb-4"
-            title="Promover ideia para roteiro"
-            description={`"${getIdeaTitle(inboxIdeas[0]).slice(0, 80)}${getIdeaTitle(inboxIdeas[0]).length > 80 ? '...' : ''}"`}
-            primaryLabel="Promover para roteiro"
-            onPrimary={() => handlePromote(inboxIdeas[0])}
-          />
-        ) : null}
-        <div className="tab-bar mb-5">
+        <div className="tab-bar mb-3">
           <button
             type="button"
             onClick={() => setInboxFilter('inbox')}
             className={cn('tab-item', inboxFilter === 'inbox' && 'tab-item-active')}
           >
-            Caixa de entrada ({activeIdeas.length})
+            Caixa de entrada
+            {inboxFilter === 'inbox' ? (
+              <span className="ml-1.5 text-[var(--text-tertiary)]">({activeIdeas.length})</span>
+            ) : null}
           </button>
           <button
             type="button"
             onClick={() => setInboxFilter('archived')}
             className={cn('tab-item', inboxFilter === 'archived' && 'tab-item-active')}
           >
-            Arquivadas ({archivedIdeas.length})
+            Arquivadas
+            {inboxFilter === 'archived' ? (
+              <span className="ml-1.5 text-[var(--text-tertiary)]">({archivedIdeas.length})</span>
+            ) : null}
           </button>
         </div>
 
-        {inboxIdeas.length > 0 ? (
-          <>
-          <div className="mb-3 flex items-center justify-between px-0.5">
-            <span className="eyebrow-label">
-              {inboxFilter === 'inbox' ? 'Caixa de entrada' : 'Arquivadas'}
-            </span>
-            <Text variant="meta">{inboxIdeas.length}</Text>
-          </div>
+        <IdeasInboxToolbar
+          className="mb-3"
+          state={state}
+          search={search}
+          onSearchChange={setSearch}
+          sort={sort}
+          onSortChange={setSort}
+          quickFilter={quickFilter}
+          onQuickFilterToggle={toggleQuickFilter}
+          filterPilarId={filterPilarId}
+          onFilterPilarIdChange={setFilterPilarId}
+          filterSeriesId={filterSeriesId}
+          onFilterSeriesIdChange={setFilterSeriesId}
+          filterOrigemId={filterOrigemId}
+          onFilterOrigemIdChange={setFilterOrigemId}
+        />
+
+        {filteredIdeas.length > 0 ? (
           <ul className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
-            {inboxIdeas.map((idea) => (
+            {filteredIdeas.map((idea) => (
               <li key={idea.id} className="min-h-0">
                 <IdeaInboxCard
                   idea={idea}
@@ -408,11 +435,14 @@ export function IdeasPage() {
                   serieCor={getSerie(idea.seriesId)?.cor}
                   origemTitulo={idea.origemId ? getBibliotecaTitulo(idea.origemId) : null}
                   onOpen={() => openIdea(idea)}
+                  onPromote={!idea.archived ? () => handlePromote(idea) : undefined}
+                  onArchive={!idea.archived ? () => handleArchive(idea) : undefined}
+                  onEdit={!idea.archived ? () => openIdea(idea, true) : undefined}
+                  showActions={!idea.archived}
                 />
               </li>
             ))}
           </ul>
-          </>
         ) : (
           <EmptyState
             compact
@@ -459,7 +489,7 @@ export function IdeasPage() {
                     {getBibliotecaTitulo(viewingIdea.origemId)}
                   </span>
                 )}
-                {!ideaHasClassification(viewingIdea) ? (
+                {!ideaHasClassificationTags(viewingIdea) ? (
                   <span className="rounded-full border border-[var(--border-color)] px-3 md:px-4 py-1 md:py-1.5 t-label t-label-uppercase font-semibold text-[var(--text-tertiary)]">
                     Sem classificação
                   </span>
@@ -538,5 +568,4 @@ export function IdeasPage() {
     </>
   );
 }
-
 

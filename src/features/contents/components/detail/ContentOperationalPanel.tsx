@@ -1,11 +1,10 @@
 import {useEffect, useMemo, useRef, useState} from 'react';
 import {useNavigate} from 'react-router-dom';
 import {getDay, parseISO} from 'date-fns';
-import {CalendarClock, ChevronDown, ChevronUp, Clapperboard, Clock, ExternalLink, Layers, ListChecks, Palette, Shapes, Sun, Target, Video} from 'lucide-react';
+import {CalendarClock, ChevronDown, ChevronUp, Clock, ExternalLink, Layers, ListChecks, Palette, Sun, Target, Video} from 'lucide-react';
 import type {Content, Pilar, Serie} from '../../../../lib/database';
 import type {Weekday} from '../../../settings/lib/postingTimes';
 import {cn} from '../../../../lib/utils';
-import {VISUAL_FORMATS} from '../../../../constants';
 import {useAppContext} from '../../../../context/AppContext';
 import {
   PropertyInput,
@@ -14,6 +13,7 @@ import {
   PropertySelect,
   PropertyTextarea,
 } from '../../../../components/ui/PropertyRow';
+import {PropertyDatePicker} from '../../../../components/ui/PropertyDatePicker';
 import {Surface} from '../../../../components/ui/Surface';
 import {Badge} from '../../../../components/ui/Badge';
 import {Text} from '../../../../components/ui/Text';
@@ -28,15 +28,9 @@ import {getAllowedStatuses, getDisplayStatus} from '../../lib/contentPipeline';
 
 const NOTES_MAX = 500;
 
-const FORMAT_COLORS: Record<string, string> = {
-  'Talking Head': 'var(--accent-blue)',
-  'Tela Verde': 'var(--accent-green)',
-  Voiceover: 'var(--accent-purple)',
-  'POV Texto': 'var(--accent-pink)',
-  Reacao: 'var(--accent-orange)',
-  Vlog: 'var(--accent-blue)',
-  Misto: 'var(--text-secondary)',
-};
+function toIsoDate(dateOnly: string | null) {
+  return dateOnly ? `${dateOnly}T12:00:00.000Z` : null;
+}
 
 type OperationalDraft = Pick<
   Content,
@@ -340,22 +334,6 @@ export function ContentOperationalPanel({
         </ColoredSelect>
       </PropertyRow>
 
-      <PropertyRow label="Formato" icon={<Shapes />}>
-        <ColoredSelect
-          value={draft.formatoVisual ?? ''}
-          onChange={event => onChange({formatoVisual: event.target.value || null})}
-          empty={!draft.formatoVisual}
-          dotColor={draft.formatoVisual ? FORMAT_COLORS[draft.formatoVisual] ?? 'var(--accent-purple)' : null}
-        >
-          <option value="">Vazio</option>
-          {VISUAL_FORMATS.map(format => (
-            <option key={format} value={format}>
-              {format}
-            </option>
-          ))}
-        </ColoredSelect>
-      </PropertyRow>
-
       <PropertyRow label="Janela" icon={<Sun />}>
         <ColoredSelect
           value={postingWindow?.id ?? ''}
@@ -388,24 +366,16 @@ export function ContentOperationalPanel({
   const scheduleSection = (
     <PropertySection label="Agendamento">
       <PropertyRow label="Gravacao" icon={<Video />}>
-        <PropertyInput
-          type="date"
-          value={draft.recordingDate ? draft.recordingDate.slice(0, 10) : ''}
-          onChange={event =>
-            onChange({recordingDate: event.target.value ? event.target.value + 'T12:00:00.000Z' : null})
-          }
-          className={draft.recordingDate ? '' : 'property-row-value--empty'}
+        <PropertyDatePicker
+          value={draft.recordingDate ? draft.recordingDate.slice(0, 10) : null}
+          onChange={date => onChange({recordingDate: toIsoDate(date)})}
         />
       </PropertyRow>
 
       <PropertyRow label="Publicacao" icon={<CalendarClock />}>
-        <PropertyInput
-          type="date"
-          value={publishDateOnly}
-          onChange={event =>
-            onChange({publishDate: event.target.value ? event.target.value + 'T12:00:00.000Z' : null})
-          }
-          className={publishDateOnly ? '' : 'property-row-value--empty'}
+        <PropertyDatePicker
+          value={publishDateOnly || null}
+          onChange={date => onChange({publishDate: toIsoDate(date)})}
         />
       </PropertyRow>
 
@@ -478,24 +448,18 @@ export function ContentOperationalPanel({
         <div className="grid grid-cols-2 gap-3">
           <div className="flex flex-col gap-1">
             <span className="text-xs font-medium text-[var(--text-secondary)]">Gravacao</span>
-            <input
-              type="date"
-              value={draft.recordingDate ? draft.recordingDate.slice(0, 10) : ''}
-              onChange={event =>
-                onChange({recordingDate: event.target.value ? event.target.value + 'T12:00:00.000Z' : null})
-              }
-              className={formInputClass}
+            <PropertyDatePicker
+              variant="field"
+              value={draft.recordingDate ? draft.recordingDate.slice(0, 10) : null}
+              onChange={date => onChange({recordingDate: toIsoDate(date)})}
             />
           </div>
           <div className="flex flex-col gap-1">
             <span className="text-xs font-medium text-[var(--text-secondary)]">Postagem</span>
-            <input
-              type="date"
-              value={publishDateOnly}
-              onChange={event =>
-                onChange({publishDate: event.target.value ? event.target.value + 'T12:00:00.000Z' : null})
-              }
-              className={formInputClass}
+            <PropertyDatePicker
+              variant="field"
+              value={publishDateOnly || null}
+              onChange={date => onChange({publishDate: toIsoDate(date)})}
             />
           </div>
         </div>
@@ -559,21 +523,6 @@ export function ContentOperationalPanel({
             </RoteiroSelect>
           </RoteiroField>
 
-          <RoteiroField label="Formato" icon={<Clapperboard className="h-3.5 w-3.5" />}>
-            <RoteiroSelect
-              value={draft.formatoVisual ?? ''}
-              onChange={event => onChange({formatoVisual: event.target.value || null})}
-              dotColor={draft.formatoVisual ? FORMAT_COLORS[draft.formatoVisual] ?? 'var(--accent-purple)' : null}
-            >
-              <option value="">Vazio</option>
-              {VISUAL_FORMATS.map(format => (
-                <option key={format} value={format}>
-                  {format}
-                </option>
-              ))}
-            </RoteiroSelect>
-          </RoteiroField>
-
           <RoteiroField label="Slot" icon={<Sun className="h-3.5 w-3.5" />}>
             <RoteiroSelect
               value={postingWindow?.id ?? ''}
@@ -605,24 +554,18 @@ export function ContentOperationalPanel({
 
         <CollapsibleCard title="Agendamento">
           <RoteiroField label="Gravação" icon={<Video className="h-3.5 w-3.5" />}>
-            <input
-              type="date"
-              value={draft.recordingDate ? draft.recordingDate.slice(0, 10) : ''}
-              onChange={event =>
-                onChange({recordingDate: event.target.value ? event.target.value + 'T12:00:00.000Z' : null})
-              }
-              className={formInputClass}
+            <PropertyDatePicker
+              variant="field"
+              value={draft.recordingDate ? draft.recordingDate.slice(0, 10) : null}
+              onChange={date => onChange({recordingDate: toIsoDate(date)})}
             />
           </RoteiroField>
 
           <RoteiroField label="Publicação" icon={<CalendarClock className="h-3.5 w-3.5" />}>
-            <input
-              type="date"
-              value={publishDateOnly}
-              onChange={event =>
-                onChange({publishDate: event.target.value ? event.target.value + 'T12:00:00.000Z' : null})
-              }
-              className={formInputClass}
+            <PropertyDatePicker
+              variant="field"
+              value={publishDateOnly || null}
+              onChange={date => onChange({publishDate: toIsoDate(date)})}
             />
           </RoteiroField>
 

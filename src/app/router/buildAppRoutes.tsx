@@ -2,8 +2,8 @@ import { lazy } from 'react';
 import { Navigate, type RouteObject } from 'react-router-dom';
 import { AppShell } from '../../layouts/app/AppShell';
 import { CampanhaPublicaPage } from '../../features/projects/pages/CampanhaPublicaPage';
-import type { ModuleFlags } from '../../features/settings/lib/moduleFlags';
 import { LoginRoute, RequireAuth } from './RequireAuth';
+import { ModuleRoute } from './ModuleRoute';
 import { RouteDataBoundary } from './RouteDataBoundary';
 
 const Dashboard = lazy(() => import('../../pages/Dashboard').then(module => ({ default: module.Dashboard })));
@@ -18,7 +18,6 @@ const Settings = lazy(() => import('../../pages/Settings').then(module => ({ def
 const PerfilSettings = lazy(() => import('../../pages/settings/Perfil').then(module => ({ default: module.PerfilSettings })));
 const PilaresSettings = lazy(() => import('../../pages/settings/Pilares').then(module => ({ default: module.PilaresSettings })));
 const PilarEditar = lazy(() => import('../../pages/settings/PilarEditar').then(module => ({ default: module.PilarEditar })));
-const RegrasDeOuro = lazy(() => import('../../pages/settings/RegrasDeOuro').then(module => ({ default: module.RegrasDeOuro })));
 const SeriesSettings = lazy(() => import('../../pages/settings/Series').then(module => ({ default: module.SeriesSettings })));
 const SeriesEditar = lazy(() => import('../../pages/settings/SeriesEditar').then(module => ({ default: module.SeriesEditar })));
 const SeriesRoteiros = lazy(() => import('../../pages/settings/SeriesRoteiros').then(module => ({ default: module.SeriesRoteiros })));
@@ -31,7 +30,7 @@ const ProjetoDetalhe = lazy(() => import('../../pages/ProjetoDetalhe').then(modu
 const Gravacao = lazy(() => import('../../pages/Gravacao').then(module => ({ default: module.Gravacao })));
 const GravacaoBloco = lazy(() => import('../../pages/GravacaoBloco').then(module => ({ default: module.GravacaoBloco })));
 
-export function buildAppRoutes(moduleFlags: ModuleFlags): RouteObject[] {
+export function buildAppRoutes(): RouteObject[] {
   return [
     {
       path: '/share/:token',
@@ -59,35 +58,67 @@ export function buildAppRoutes(moduleFlags: ModuleFlags): RouteObject[] {
                 { path: '/ideias', element: <Ideas /> },
                 {
                   path: '/calendario',
-                  element: moduleFlags.calendar ? <EditorialCalendar /> : <Navigate to="/dashboard" replace />,
+                  element: (
+                    <ModuleRoute module="calendar">
+                      <EditorialCalendar />
+                    </ModuleRoute>
+                  ),
                 },
                 {
                   path: '/programacao',
-                  element: moduleFlags.calendar ? <Programacao /> : <Navigate to="/dashboard" replace />,
+                  element: (
+                    <ModuleRoute module="calendar">
+                      <Programacao />
+                    </ModuleRoute>
+                  ),
                 },
                 {
                   path: '/biblioteca',
-                  element: moduleFlags.library ? <Biblioteca /> : <Navigate to="/dashboard" replace />,
+                  element: (
+                    <ModuleRoute module="library">
+                      <Biblioteca />
+                    </ModuleRoute>
+                  ),
                 },
                 {
                   path: '/biblioteca/:id',
-                  element: moduleFlags.library ? <BookDetail /> : <Navigate to="/dashboard" replace />,
+                  element: (
+                    <ModuleRoute module="library">
+                      <BookDetail />
+                    </ModuleRoute>
+                  ),
                 },
                 {
                   path: '/projetos',
-                  element: moduleFlags.projects ? <Projetos /> : <Navigate to="/dashboard" replace />,
+                  element: (
+                    <ModuleRoute module="projects">
+                      <Projetos />
+                    </ModuleRoute>
+                  ),
                 },
                 {
                   path: '/projetos/:id',
-                  element: moduleFlags.projects ? <ProjetoDetalhe /> : <Navigate to="/dashboard" replace />,
+                  element: (
+                    <ModuleRoute module="projects">
+                      <ProjetoDetalhe />
+                    </ModuleRoute>
+                  ),
                 },
                 {
                   path: '/gravacao',
-                  element: moduleFlags.recording ? <Gravacao /> : <Navigate to="/dashboard" replace />,
+                  element: (
+                    <ModuleRoute module="recording">
+                      <Gravacao />
+                    </ModuleRoute>
+                  ),
                 },
                 {
                   path: '/gravacao/:id',
-                  element: moduleFlags.recording ? <GravacaoBloco /> : <Navigate to="/dashboard" replace />,
+                  element: (
+                    <ModuleRoute module="recording">
+                      <GravacaoBloco />
+                    </ModuleRoute>
+                  ),
                 },
                 { path: '/configuracoes', element: <Settings /> },
                 { path: '/configuracoes/perfil', element: <PerfilSettings /> },
@@ -96,7 +127,7 @@ export function buildAppRoutes(moduleFlags: ModuleFlags): RouteObject[] {
                 { path: '/configuracoes/pilares/:pilarId/editar', element: <PilarEditar /> },
                 { path: '/configuracoes/aparencia', element: <LooksSettings /> },
                 { path: '/configuracoes/looks', element: <Navigate to="/configuracoes/aparencia" replace /> },
-                { path: '/configuracoes/regras', element: <RegrasDeOuro /> },
+                { path: '/configuracoes/regras', element: <Navigate to="/configuracoes/pilares" replace /> },
                 { path: '/configuracoes/series', element: <SeriesSettings /> },
                 { path: '/configuracoes/series/nova', element: <SeriesEditar /> },
                 { path: '/configuracoes/series/:serieId/editar', element: <SeriesEditar /> },

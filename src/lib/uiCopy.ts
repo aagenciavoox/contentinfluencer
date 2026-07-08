@@ -8,7 +8,6 @@ export const GLOSSARY = {
   biblioteca: 'Biblioteca',
   blocoGravacao: 'Bloco de gravação',
   modoGravacao: 'Modo gravação',
-  ritmoEditorial: 'Ritmo Editorial',
   publicados: 'Publicados',
   gradePostagem: 'Grade de Postagem',
 } as const;

@@ -13,8 +13,6 @@ interface SettingsPageScaffoldProps {
   actions?: React.ReactNode;
   children: React.ReactNode;
   className?: string;
-  /** Reduz padding vertical do conteúdo */
-  compact?: boolean;
 }
 
 /** @deprecated Use PageLayout with variant="settings" */
@@ -27,13 +25,11 @@ export function SettingsPageScaffold({
   actions,
   children,
   className,
-  compact = false,
 }: SettingsPageScaffoldProps) {
   return (
     <PageLayout
       variant="settings"
       className={cn(className)}
-      contentClassName={cn(compact && '!py-4 !px-4 md:!px-6 !pb-16')}
       header={
         <DesktopPageHeader
           section={section}

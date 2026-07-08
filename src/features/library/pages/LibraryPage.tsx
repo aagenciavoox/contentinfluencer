@@ -579,7 +579,6 @@ export function LibraryPage() {
   return (
     <PageLayout
       contentWidth="wide"
-      contentClassName="pb-10 pt-2"
       header={<DesktopPageHeader section="Criação" title="Biblioteca" />}
       toolbar={
         <LibraryToolbar

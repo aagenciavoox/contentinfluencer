@@ -1,5 +1,6 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { NavigationBlockerProvider } from '../../lib/navigation/NavigationBlockerContext';
 import { Login } from '../../pages/Login';
 
 export function RequireAuth() {
@@ -10,7 +11,11 @@ export function RequireAuth() {
     return <Navigate to="/login" replace state={{ from: location.pathname }} />;
   }
 
-  return <Outlet />;
+  return (
+    <NavigationBlockerProvider>
+      <Outlet />
+    </NavigationBlockerProvider>
+  );
 }
 
 export function LoginRoute() {

@@ -153,7 +153,7 @@ export function SeriesEditPage() {
 
   if (!isCreate && !editingSerie) {
     return (
-      <PageLayout variant="settings" contentWidth="full" contentClassName="!py-10">
+      <PageLayout variant="settings">
         <div className="mx-auto max-w-3xl text-center">
           <Text variant="body" className="text-[var(--text-tertiary)]">
             Esta série não existe mais.
@@ -233,9 +233,7 @@ export function SeriesEditPage() {
   return (
     <>
       <PageLayout
-        variant="default"
-        contentWidth="full"
-        contentClassName="!py-4 !px-4 md:!px-6"
+        variant="settings"
         header={
           <DesktopPageHeader
             section="Séries"

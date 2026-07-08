@@ -71,11 +71,10 @@ export default defineConfig(() => {
         workbox: {
           // Não precacheia HTML — evita shell antigo preso no PWA instalado.
           globPatterns: ['**/*.{js,css,ico,png,svg,woff2}'],
+          navigateFallback: null,
           cleanupOutdatedCaches: true,
           clientsClaim: true,
           skipWaiting: true,
-          navigateFallback: '/index.html',
-          navigateFallbackDenylist: [/^https:\/\//],
           runtimeCaching: [
             {
               urlPattern: ({request}) => request.mode === 'navigate',

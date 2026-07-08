@@ -278,7 +278,6 @@ export function SeriesSettingsPage() {
 
   return (
     <SettingsPageScaffold
-      compact
       title="Séries"
       icon={Layers}
       actions={

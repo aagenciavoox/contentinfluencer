@@ -22,7 +22,7 @@ function getRouteDataDomains(pathname: string): AppDataDomain[] {
   if (pathname.startsWith('/conteudos')) return ['production'];
   if (pathname.startsWith('/ideias')) return ['production'];
   if (pathname.startsWith('/calendario')) return ['content-schedule', 'agenda', 'projects'];
-  if (pathname.startsWith('/programacao')) return ['content-schedule', 'rules'];
+  if (pathname.startsWith('/programacao')) return ['content-schedule', 'production'];
   if (pathname.startsWith('/projetos')) return ['content-schedule', 'library'];
   if (pathname.startsWith('/gravacao')) return ['content', 'production', 'recording'];
   if (pathname.startsWith('/configuracoes/pilares/')) return ['production', 'content', 'bootstrap'];
@@ -30,7 +30,6 @@ function getRouteDataDomains(pathname: string): AppDataDomain[] {
   if (pathname.startsWith('/configuracoes/series/')) return ['production', 'content', 'bootstrap'];
   if (pathname.startsWith('/configuracoes/series')) return ['production'];
   if (pathname.startsWith('/configuracoes/templates')) return ['templates', 'production'];
-  if (pathname.startsWith('/configuracoes/regras')) return ['rules', 'production', 'content'];
   if (pathname.startsWith('/configuracoes/plataformas')) return ['bootstrap'];
   if (pathname.startsWith('/configuracoes/aparencia')) return ['production'];
   return [];

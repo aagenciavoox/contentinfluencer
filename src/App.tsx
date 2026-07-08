@@ -1,18 +1,12 @@
 import { AlertTriangle, Loader2 } from 'lucide-react';
-import { useMemo } from 'react';
-import { createBrowserRouter, RouterProvider } from 'react-router-dom';
+import { RouterProvider } from 'react-router-dom';
 import { AppProviders } from './app/providers/AppProviders';
-import { buildAppRoutes } from './app/router/buildAppRoutes';
+import { appRouter } from './app/router/appRouter';
 import { useAuth } from './context/AuthContext';
-import { useAppContext } from './context/AppContext';
-import { getModuleFlags } from './features/settings/lib/moduleFlags';
 import { supabaseConfigStatus } from './lib/supabase';
 
 function AppRouter() {
   const { loading, backendReady } = useAuth();
-  const { state } = useAppContext();
-  const moduleFlags = getModuleFlags(state.preferences);
-  const router = useMemo(() => createBrowserRouter(buildAppRoutes(moduleFlags)), [moduleFlags]);
 
   if (loading) {
     return (
@@ -60,7 +54,7 @@ function AppRouter() {
     );
   }
 
-  return <RouterProvider router={router} />;
+  return <RouterProvider router={appRouter} />;
 }
 
 export default function App() {

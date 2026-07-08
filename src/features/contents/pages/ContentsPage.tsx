@@ -759,8 +759,6 @@ export function ContentsPage({mode = 'editorial'}: {mode?: 'editorial' | 'histor
 
   return (
     <PageLayout
-      contentWidth="full"
-      contentClassName="pb-32 md:pb-10"
       header={
         <DesktopPageHeader
           section="Operação"

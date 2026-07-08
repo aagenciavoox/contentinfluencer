@@ -3,15 +3,18 @@ import { Navigate, useParams } from 'react-router-dom';
 import { useAppContext } from '../../../context/AppContext';
 import { useAuth } from '../../../context/AuthContext';
 import { useIsMobile } from '../../../hooks/useIsMobile';
-import { Content, fetchContentsByIds } from '../../../lib/database';
+import { fetchContentsByIds } from '../../../lib/database';
 import { ContentDetailShell } from '../components/detail/ContentDetailShell';
+import { isContentBodyLoaded, upsertContent } from '../lib/contentBody';
 
-function upsertContent(contents: Content[], item: Content): Content[] {
-  const index = contents.findIndex(entry => entry.id === item.id);
-  if (index === -1) return [item, ...contents];
-  const next = [...contents];
-  next[index] = item;
-  return next;
+function ContentDetailLoading() {
+  return (
+    <div className="flex min-h-[40vh] items-center justify-center">
+      <p className="text-xs font-semibold t-label-uppercase text-[var(--text-tertiary)]">
+        Carregando conteúdo...
+      </p>
+    </div>
+  );
 }
 
 export function ContentDetailPage() {
@@ -23,11 +26,18 @@ export function ContentDetailPage() {
   contentsRef.current = state.contents;
 
   const content = state.contents.find(item => item.id === id);
-  const [isFetching, setIsFetching] = useState(false);
-  const [fetchAttempted, setFetchAttempted] = useState(false);
+  const bodyLoaded = content ? isContentBodyLoaded(content) : false;
+  const [isFetching, setIsFetching] = useState(() => !bodyLoaded);
+  const [fetchAttempted, setFetchAttempted] = useState(bodyLoaded);
 
   useEffect(() => {
-    if (!id || !user || content) return;
+    if (!id || !user) return;
+
+    if (content && isContentBodyLoaded(content)) {
+      setIsFetching(false);
+      setFetchAttempted(true);
+      return;
+    }
 
     let cancelled = false;
     setIsFetching(true);
@@ -48,24 +58,20 @@ export function ContentDetailPage() {
     return () => {
       cancelled = true;
     };
-  }, [dispatch, id, content, user]);
+  }, [content, dispatch, id, user]);
 
   if (!id) {
     return <Navigate to="/conteudos" replace />;
   }
 
-  if (content) {
-    return <ContentDetailShell content={content} mode={isMobile ? 'mobile' : 'desktop'} />;
+  const resolvedContent = state.contents.find(item => item.id === id);
+
+  if (resolvedContent && isContentBodyLoaded(resolvedContent)) {
+    return <ContentDetailShell content={resolvedContent} mode={isMobile ? 'mobile' : 'desktop'} />;
   }
 
   if (authLoading || isFetching || (user && !fetchAttempted)) {
-    return (
-      <div className="flex min-h-[40vh] items-center justify-center">
-        <p className="text-xs font-semibold t-label-uppercase text-[var(--text-tertiary)]">
-          Carregando conteúdo...
-        </p>
-      </div>
-    );
+    return <ContentDetailLoading />;
   }
 
   return <Navigate to="/conteudos" replace />;

@@ -38,7 +38,10 @@ export function useOverlayBehavior(
 
     return () => {
       cancelAnimationFrame(raf);
-      previousFocusRef.current?.focus?.();
+      const previous = previousFocusRef.current;
+      if (previous && document.contains(previous)) {
+        previous.focus();
+      }
       previousFocusRef.current = null;
     };
   }, [open, panelRef]);

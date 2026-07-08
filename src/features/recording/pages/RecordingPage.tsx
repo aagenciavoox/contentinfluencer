@@ -265,7 +265,6 @@ export function RecordingPage() {
 
   return (
     <PageLayout
-      variant="settings"
       header={
         <DesktopPageHeader
           section="Produção"

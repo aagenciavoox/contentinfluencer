@@ -10,7 +10,6 @@ import {
   Layers,
   Lightbulb,
   Palette,
-  ShieldCheck,
 } from 'lucide-react';
 import type { ModuleFlags } from '../../features/settings/lib/moduleFlags';
 import { GLOSSARY } from '../../lib/uiCopy';
@@ -34,7 +33,6 @@ export type NavSectionDefinition = {
 export const STUDIO_ROUTES = [
   '/configuracoes/pilares',
   '/configuracoes/series',
-  '/configuracoes/regras',
 ] as const;
 
 export const MOBILE_BOTTOM_NAV_ITEMS: NavItemDefinition[] = [
@@ -67,12 +65,6 @@ export function buildSidebarSections(moduleFlags: ModuleFlags): NavSectionDefini
         { to: '/programacao', label: GLOSSARY.gradePostagem, icon: CalendarClock, module: 'calendar' },
         { to: '/calendario', label: 'Calendário', icon: Calendar, module: 'calendar' },
         { to: '/projetos', label: 'Projetos', icon: FolderKanban, module: 'projects' },
-      ],
-    },
-    {
-      label: 'Controle',
-      items: [
-        { to: '/configuracoes/regras', label: 'Ritmo Editorial', icon: ShieldCheck },
       ],
     },
   ];
