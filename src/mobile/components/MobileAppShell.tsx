@@ -27,7 +27,7 @@ export function MobileAppShell({
   const { containerRef, pullDistance, isRefreshing, progress, isActive } = usePullToRefresh(onPullRefresh);
 
   return (
-    <div className={cn('relative min-h-screen bg-[var(--bg-primary)] md:hidden', className)}>
+    <div className={cn('relative flex h-dvh flex-col overflow-hidden bg-[var(--bg-primary)] md:hidden', className)}>
       {header}
 
       <div
@@ -61,7 +61,7 @@ export function MobileAppShell({
         ref={containerRef}
         onScroll={onScroll}
         className={cn(
-          'min-h-screen overflow-y-auto overscroll-y-contain px-4 pb-[calc(env(safe-area-inset-bottom)+6.75rem)] max-[390px]:pb-[calc(env(safe-area-inset-bottom)+6.25rem)]',
+          'flex-1 min-h-0 overflow-y-auto overscroll-y-contain px-4 pb-[calc(env(safe-area-inset-bottom)+6.75rem)] max-[390px]:pb-[calc(env(safe-area-inset-bottom)+6.25rem)]',
           compactHeader
             ? 'pt-[calc(env(safe-area-inset-top)+4.25rem)]'
             : 'pt-[calc(env(safe-area-inset-top)+8.5rem)] max-[390px]:pt-[calc(env(safe-area-inset-top)+7.5rem)]',
@@ -71,7 +71,7 @@ export function MobileAppShell({
           transition: isActive && !isRefreshing ? 'none' : 'transform 180ms ease-out',
         }}
       >
-        <div className="min-h-[calc(100vh-12rem)]">{children}</div>
+        <div className="min-h-full">{children}</div>
       </main>
 
       {bottomNav}

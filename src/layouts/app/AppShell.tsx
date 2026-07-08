@@ -85,9 +85,18 @@ export function AppShell() {
     setIsActionMenuOpen(false);
   }, [location.pathname]);
 
+  useEffect(() => {
+    if (!isMobile) return;
+
+    document.documentElement.classList.add('mobile-app-shell');
+    return () => {
+      document.documentElement.classList.remove('mobile-app-shell');
+    };
+  }, [isMobile]);
+
   if (isMobile) {
     return (
-      <div className="bg-[var(--bg-primary)]">
+      <div className="h-dvh overflow-hidden bg-[var(--bg-primary)]">
         <CommandPalette
           isOpen={isCommandPaletteOpen}
           onClose={() => setIsCommandPaletteOpen(false)}

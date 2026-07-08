@@ -206,6 +206,17 @@ html, body {
   scrollbar-color: var(--scrollbar-thumb) transparent;
 }
 
+/* Mobile app shell: single scroll container inside MobileAppShell */
+html.mobile-app-shell,
+html.mobile-app-shell body {
+  height: 100%;
+  overflow: hidden;
+}
+
+html.mobile-app-shell #root {
+  height: 100%;
+}
+
 body {
   @apply font-sans antialiased transition-colors duration-200;
   font-size: var(--font-size-body);
