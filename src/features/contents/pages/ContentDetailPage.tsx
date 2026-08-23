@@ -61,7 +61,7 @@ export function ContentDetailPage() {
   }, [content, dispatch, id, user]);
 
   if (!id) {
-    return <Navigate to="/conteudos" replace />;
+    return <Navigate to="/criacao" replace />;
   }
 
   const resolvedContent = state.contents.find(item => item.id === id);
@@ -74,5 +74,5 @@ export function ContentDetailPage() {
     return <ContentDetailLoading />;
   }
 
-  return <Navigate to="/conteudos" replace />;
+  return <Navigate to="/criacao" replace />;
 }

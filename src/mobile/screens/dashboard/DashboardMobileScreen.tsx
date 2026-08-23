@@ -1,6 +1,7 @@
 import { CalendarClock, FileText, FolderKanban, Lightbulb, Sparkles, Video } from 'lucide-react';
-import type { AgendaItem, Content, Idea, Pilar, Projeto, Serie } from '../../../lib/database';
-import { CONTENT_STATUS, PRODUCTION_TAGS } from '../../../features/contents/lib/contentPipeline';
+import type { AgendaItem, Content, Pilar, Projeto, Serie } from '../../../lib/database';
+import { CONTENT_STATUS, PRODUCTION_TAGS, getDisplayStatus } from '../../../features/contents/lib/contentPipeline';
+import { buildContentDetailRoute } from '../../../features/contents/lib/contentDetailRoute';
 import type { GentleExperienceSettings } from '../../../features/settings/lib/gentleExperience';
 import { recommendDailyAction } from '../../../features/recommendations/recommendDailyAction';
 import { DailyRecommendationBlock } from '../../../features/recommendations/DailyRecommendationBlock';
@@ -11,7 +12,6 @@ import { MobileSectionHeader } from '../../components/MobileSectionHeader';
 
 interface DashboardMobileScreenProps {
   contents: Content[];
-  ideas: Idea[];
   projetos: Projeto[];
   agendaItems: AgendaItem[];
   pilares: Pilar[];
@@ -22,7 +22,6 @@ interface DashboardMobileScreenProps {
 
 export function DashboardMobileScreen({
   contents,
-  ideas,
   projetos,
   agendaItems,
   pilares,
@@ -38,7 +37,9 @@ export function DashboardMobileScreen({
       !content.recordedAt &&
       (content.tags.includes(PRODUCTION_TAGS.GRAVAR) || content.tags.length === 0),
   );
-  const activeIdeas = ideas.filter((idea) => !idea.archived);
+  const activeIdeas = contents.filter(
+    (content) => content.status === CONTENT_STATUS.IDEIA && !content.archivedAt && !content.deletedAt,
+  );
   const activeProjects = projetos.filter((project) => project.status !== 'Concluido');
   const realDeadlineProjects = projetos
     .filter((project) => Boolean(project.brand || project.value || project.dataFim))
@@ -145,7 +146,7 @@ export function DashboardMobileScreen({
                 : `${activeIdeas.length} ideias seguem abertas para promover ou organizar.`
             }
             trailing={<Lightbulb className="h-4 w-4 text-[var(--accent-blue)]" />}
-            onClick={() => onNavigate('/ideias')}
+            onClick={() => onNavigate('/criacao?tab=ideias')}
           />
 
           <MobileListCard
@@ -220,10 +221,11 @@ export function DashboardMobileScreen({
             {recentContents.map((content) => (
               <MobileListCard
                 key={content.id}
-                eyebrow={content.status}
+                eyebrow={getDisplayStatus(content)}
                 title={content.title || 'Conteudo sem titulo'}
                 description={content.notes || 'Sem observacoes adicionais'}
                 trailing={<FileText className="h-4 w-4 text-[var(--text-tertiary)]" />}
+                onClick={() => onNavigate(buildContentDetailRoute(content.id))}
               />
             ))}
           </div>

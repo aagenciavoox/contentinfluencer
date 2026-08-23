@@ -15,6 +15,8 @@ interface ConfirmModalProps {
   message: string;
   confirmLabel?: string;
   cancelLabel?: string;
+  confirmDisabled?: boolean;
+  cancelDisabled?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
 }
@@ -24,6 +26,8 @@ export function ConfirmModal({
   message,
   confirmLabel = 'Confirmar',
   cancelLabel = 'Cancelar',
+  confirmDisabled = false,
+  cancelDisabled = false,
   onConfirm,
   onCancel,
 }: ConfirmModalProps) {
@@ -47,10 +51,22 @@ export function ConfirmModal({
         {message}
       </Text>
       <div className="flex min-w-0 flex-col gap-3 sm:flex-row">
-        <AppButton variant="secondary" fullWidth className="sm:min-w-0 sm:shrink sm:flex-1" onClick={onCancel}>
+        <AppButton
+          variant="secondary"
+          fullWidth
+          className="sm:min-w-0 sm:shrink sm:flex-1"
+          disabled={cancelDisabled}
+          onClick={onCancel}
+        >
           {cancelLabel}
         </AppButton>
-        <AppButton variant="primary" fullWidth className="sm:min-w-0 sm:shrink sm:flex-1" onClick={onConfirm}>
+        <AppButton
+          variant="primary"
+          fullWidth
+          className="sm:min-w-0 sm:shrink sm:flex-1"
+          disabled={confirmDisabled}
+          onClick={onConfirm}
+        >
           {confirmLabel}
         </AppButton>
       </div>

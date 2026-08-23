@@ -1,5 +1,14 @@
 import type { AppState } from '../app/providers/appState';
-import { planDemoteContentsToIdeas } from '../features/contents/lib/demoteContentToIdea';
+import {
+  archiveCreation,
+  contentFromLegacyIdea,
+  demoteContentToIdea,
+  findContentForLegacyIdea,
+  promoteContentToScript,
+  restoreCreation,
+  transitionCreationStatus,
+  updateContentFromLegacyIdea,
+} from '../features/contents/lib/creationContent';
 import {
   AppData,
   Content, Idea, Pilar, Serie, Cenario, Look,
@@ -15,7 +24,7 @@ import {
 export type AppAction =
   // ─── Sincronização ──────────────────────────────────────────────────────────
   | { type: 'SET_DATA';    payload: Partial<AppData> }
-  | { type: 'SET_LOADED' }
+  | { type: 'SET_LOADED';  payload?: boolean }
   | { type: 'SET_THEME';   payload: 'light' | 'dark' }
   | { type: 'SET_PREFERENCE'; payload: { key: string; value: any } }
   | { type: 'UPDATE_PREFERENCE'; payload: { key: string; value: any } }
@@ -28,10 +37,13 @@ export type AppAction =
   | { type: 'UPDATE_CONTENT';           payload: Content }
   | { type: 'DELETE_CONTENT';           payload: string }
   | { type: 'DELETE_MULTIPLE_CONTENTS'; payload: string[] }
+  | { type: 'SET_CONTENT_STATUS'; payload: { contentIds: string[]; status: string } }
+  | { type: 'ARCHIVE_CONTENTS'; payload: string[] }
+  | { type: 'RESTORE_CONTENTS'; payload: string[] }
 
   // ─── Ideias ─────────────────────────────────────────────────────────────────
-  | { type: 'ADD_IDEA';    payload: Idea }
-  | { type: 'UPDATE_IDEA'; payload: Idea }
+  | { type: 'ADD_IDEA';    payload: Idea & { canonicalContentId?: string } }
+  | { type: 'UPDATE_IDEA'; payload: Idea & { canonicalContentId?: string } }
   | { type: 'DELETE_IDEA'; payload: string }
   | { type: 'PROMOTE_IDEA'; payload: { ideaId: string; contentId: string; content: Content } }
   | { type: 'DEMOTE_CONTENTS_TO_IDEAS'; payload: { contentIds: string[]; contents?: Content[] } }
@@ -150,7 +162,7 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       return { ...state, ...action.payload, theme: deriveTheme(prefs) };
     }
     case 'SET_LOADED':
-      return { ...state, isLoaded: true };
+      return { ...state, isLoaded: action.payload !== false };
     case 'SET_THEME':
       return { ...state, theme: action.payload };
     case 'SET_PREFERENCE':
@@ -169,54 +181,139 @@ export function appReducer(state: AppState, action: AppAction): AppState {
     // ─── Conteúdos ──────────────────────────────────────────────────────────
     case 'ADD_CONTENT':
       return { ...state, contents: [action.payload, ...state.contents] };
-    case 'UPDATE_CONTENT':
-      return { ...state, contents: state.contents.map(c => c.id === action.payload.id ? action.payload : c) };
+    case 'UPDATE_CONTENT': {
+      const exists = state.contents.some(content => content.id === action.payload.id);
+      return {
+        ...state,
+        contents: exists
+          ? state.contents.map(content =>
+              content.id === action.payload.id ? action.payload : content
+            )
+          : [action.payload, ...state.contents],
+      };
+    }
     case 'DELETE_CONTENT':
       return { ...state, contents: state.contents.filter(c => c.id !== action.payload) };
     case 'DELETE_MULTIPLE_CONTENTS':
       return { ...state, contents: state.contents.filter(c => !action.payload.includes(c.id)) };
+    case 'SET_CONTENT_STATUS': {
+      const contentIds = new Set(action.payload.contentIds);
+      return {
+        ...state,
+        contents: state.contents.map(content =>
+          contentIds.has(content.id)
+            ? transitionCreationStatus(content, action.payload.status)
+            : content
+        ),
+      };
+    }
+    case 'ARCHIVE_CONTENTS': {
+      const contentIds = new Set(action.payload);
+      return {
+        ...state,
+        contents: state.contents.map(content =>
+          contentIds.has(content.id) ? archiveCreation(content) : content
+        ),
+      };
+    }
+    case 'RESTORE_CONTENTS': {
+      const contentIds = new Set(action.payload);
+      return {
+        ...state,
+        contents: state.contents.map(content =>
+          contentIds.has(content.id) ? restoreCreation(content) : content
+        ),
+      };
+    }
 
     // ─── Ideias ─────────────────────────────────────────────────────────────
-    case 'ADD_IDEA':
-      return { ...state, ideas: [action.payload, ...state.ideas] };
-    case 'UPDATE_IDEA':
-      return { ...state, ideas: state.ideas.map(i => i.id === action.payload.id ? action.payload : i) };
-    case 'DELETE_IDEA':
-      return { ...state, ideas: state.ideas.filter(i => i.id !== action.payload) };
-    case 'PROMOTE_IDEA':
+    case 'ADD_IDEA': {
+      const existing = findContentForLegacyIdea(state.contents, action.payload.id);
+      const content = existing
+        ? updateContentFromLegacyIdea(existing, action.payload)
+        : contentFromLegacyIdea(action.payload, {
+            id: action.payload.canonicalContentId,
+          });
+      return {
+        ...state,
+        contents: existing
+          ? state.contents.map(item => item.id === existing.id ? content : item)
+          : [content, ...state.contents],
+      };
+    }
+    case 'UPDATE_IDEA': {
+      const existing = findContentForLegacyIdea(state.contents, action.payload.id);
+      const content = existing
+        ? updateContentFromLegacyIdea(existing, action.payload)
+        : contentFromLegacyIdea(action.payload, {
+            id: action.payload.canonicalContentId,
+          });
+      return {
+        ...state,
+        contents: existing
+          ? state.contents.map(item => item.id === existing.id ? content : item)
+          : [content, ...state.contents],
+        ideas: state.ideas.map(idea =>
+          idea.id === action.payload.id ? {...idea, ...action.payload} : idea
+        ),
+      };
+    }
+    case 'DELETE_IDEA': {
+      const existing = findContentForLegacyIdea(state.contents, action.payload);
+      return {
+        ...state,
+        contents: existing
+          ? state.contents.map(content =>
+              content.id === existing.id ? archiveCreation(content) : content
+            )
+          : state.contents,
+        ideas: state.ideas.map(idea =>
+          idea.id === action.payload ? {...idea, archived: true} : idea
+        ),
+      };
+    }
+    case 'PROMOTE_IDEA': {
+      const existing = findContentForLegacyIdea(state.contents, action.payload.ideaId);
+      const sourceIdea = state.ideas.find(idea => idea.id === action.payload.ideaId);
+      const canonicalContent = existing
+        ? promoteContentToScript(existing)
+        : promoteContentToScript(
+            sourceIdea
+              ? contentFromLegacyIdea(sourceIdea, {
+                  ...action.payload.content,
+                  legacyIdeaId: sourceIdea.id,
+                  createdAt: sourceIdea.createdAt,
+                })
+              : {
+                  ...action.payload.content,
+                  legacyIdeaId: action.payload.ideaId,
+                }
+          );
       return {
         ...state,
         ideas: state.ideas.map(i =>
           i.id === action.payload.ideaId
-            ? { ...i, promotedToContentId: action.payload.contentId, archived: true }
+            ? { ...i, promotedToContentId: canonicalContent.id, archived: true }
             : i
         ),
-        contents: [action.payload.content, ...state.contents],
+        contents: existing
+          ? state.contents.map(content =>
+              content.id === existing.id ? canonicalContent : content
+            )
+          : [canonicalContent, ...state.contents],
       };
+    }
     case 'DEMOTE_CONTENTS_TO_IDEAS': {
       const contentIdSet = new Set(action.payload.contentIds);
-      const demoteContents = action.payload.contents?.length
-        ? action.payload.contents
-        : state.contents.filter(content => contentIdSet.has(content.id));
-      const userId = demoteContents[0]?.userId ?? state.contents.find(content => contentIdSet.has(content.id))?.userId ?? '';
-      const plan = planDemoteContentsToIdeas(
-        demoteContents,
-        state.ideas,
-        action.payload.contentIds,
-        userId,
-      );
 
       return {
         ...state,
-        ideas: plan.nextIdeas,
-        contents: state.contents.filter(content => !contentIdSet.has(content.id)),
+        contents: state.contents.map(content =>
+          contentIdSet.has(content.id) ? demoteContentToIdea(content) : content
+        ),
         recordingBlocks: state.recordingBlocks.map(block => ({
           ...block,
           contents: block.contents.filter(item => !contentIdSet.has(item.contentId)),
-        })),
-        projetos: state.projetos.map(projeto => ({
-          ...projeto,
-          contentIds: projeto.contentIds.filter(id => !contentIdSet.has(id)),
         })),
       };
     }
@@ -455,10 +552,6 @@ export function appReducer(state: AppState, action: AppAction): AppState {
     // ─── Energia ──────────────────────────────────────────────────────────────
     case 'LOG_ENERGY':
       return state;
-
-    // ─── DNA ──────────────────────────────────────────────────────────────────
-    case 'SET_DNA_VOZ':
-      return { ...state, dnaVoz: action.payload };
 
     default:
       return state;

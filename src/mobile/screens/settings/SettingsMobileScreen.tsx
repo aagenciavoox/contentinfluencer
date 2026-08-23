@@ -1,7 +1,10 @@
 import {
   ChevronRight,
+  Clock,
+  Hash,
   HeartHandshake,
   Layout,
+  Leaf,
   MonitorSpeaker,
   Settings as SettingsIcon,
   UserCircle2,
@@ -38,6 +41,9 @@ const ICON_BY_ROUTE: Record<string, React.ElementType> = {
   '/configuracoes/perfil': UserCircle2,
   '/configuracoes/plataformas': MonitorSpeaker,
   '/configuracoes/templates': Layout,
+  '/configuracoes/pilares': Leaf,
+  '/configuracoes/series': Hash,
+  '/configuracoes/horarios': Clock,
 };
 
 export function SettingsMobileScreen({

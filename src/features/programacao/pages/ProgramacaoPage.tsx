@@ -1,5 +1,5 @@
 import {useMemo, useState} from 'react';
-import {useNavigate} from 'react-router-dom';
+import {useLocation, useNavigate} from 'react-router-dom';
 import {
   addDays,
   addMonths,
@@ -16,7 +16,7 @@ import {
   subMonths,
 } from 'date-fns';
 import {ptBR} from 'date-fns/locale';
-import {AlertTriangle, ArrowUpRight, Briefcase, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Eye, GripVertical, Info, Lightbulb, Plus, Search, Send, X} from 'lucide-react';
+import {AlertCircle, AlertTriangle, ArrowUpRight, Briefcase, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Eye, GripVertical, Info, Lightbulb, Plus, Search, Send, X} from 'lucide-react';
 import {BottomSheetModal} from '../../../components/feedback/modals/BottomSheetModal';
 import {ConfirmModal} from '../../../components/feedback/modals/ConfirmModal';
 import {Text} from '../../../components/ui/Text';
@@ -32,7 +32,7 @@ import {useIsMobile} from '../../../hooks/useIsMobile';
 import {PageLayout} from '../../../layouts/page/PageLayout';
 import {DesktopPageHeader} from '../../../layouts/page/DesktopPageHeader';
 import type {Content} from '../../../lib/database';
-import {GLOSSARY, type ConfirmState} from '../../../lib/uiCopy';
+import type {ConfirmState} from '../../../lib/uiCopy';
 import {cn, htmlToReadableText} from '../../../lib/utils';
 import {getStatusCalendarClass, getStatusColorVar} from '../../../lib/statusClasses';
 import {diffViolations, previewScheduleViolations, validateWeeklyContent, type Violation} from '../../../utils/pilarRhythm';
@@ -59,6 +59,7 @@ import {
   type ProjetoPublicacaoMarker,
 } from '../lib/programacao';
 import {buildContentDetailRoute} from '../../contents/lib/contentDetailRoute';
+import {buildDetailBackState} from '../../../lib/navigation/detailBack';
 import {
   CalendarDesktopShell,
   CalendarLayerChecklist,
@@ -67,6 +68,7 @@ import {
   CalendarPeriodNav,
 } from '../../../components/calendar';
 import {ProgramacaoMobileScreen} from '../../../mobile/screens/programacao/ProgramacaoMobileScreen';
+import {CalendarModeSwitch} from '../../editorial-calendar/components/CalendarModeSwitch';
 
 type ProgramacaoView = 'week' | 'month';
 
@@ -84,6 +86,7 @@ function evaluateScheduleViolations(
   contents: Content[],
   pilares: Parameters<typeof validateWeeklyContent>[2],
   platforms: Parameters<typeof validateWeeklyContent>[3],
+  series: Parameters<typeof validateWeeklyContent>[4],
   card: ProgramacaoCard,
   dayKey: string,
   time: string | null,
@@ -93,10 +96,10 @@ function evaluateScheduleViolations(
 
   const timeToUse = time ?? (card.date ? card.time : null);
   const weekStart = startOfWeek(parseISO(dayKey), {weekStartsOn: 1});
-  const before = validateWeeklyContent(contents, weekStart, pilares, platforms);
+  const before = validateWeeklyContent(contents, weekStart, pilares, platforms, series);
   const updated = applyScheduleToContent(content, card.platformId, dayKey, timeToUse);
   const nextContents = contents.map(item => (item.id === card.contentId ? updated : item));
-  const after = previewScheduleViolations(nextContents, dayKey, pilares, platforms);
+  const after = previewScheduleViolations(nextContents, dayKey, pilares, platforms, series);
   return diffViolations(before, after);
 }
 
@@ -116,6 +119,8 @@ function platformInitials(platformName: string): string {
 export function ProgramacaoPage() {
   const {state, dispatch} = useAppContext();
   const routerNavigate = useNavigate();
+  const location = useLocation();
+  const detailBackState = buildDetailBackState(`${location.pathname}${location.search}`);
   const isMobile = useIsMobile();
   const [viewMode, setViewMode] = useState<ProgramacaoView>('month');
   const [anchorDate, setAnchorDate] = useState(new Date());
@@ -199,8 +204,8 @@ export function ProgramacaoPage() {
   const weekDays = eachDayOfInterval({start: weekStart, end: endOfWeek(anchorDate, {locale: ptBR})});
 
   const weekViolations = useMemo(
-    () => validateWeeklyContent(state.contents, weekStart, state.pilares, state.platforms),
-    [state.contents, state.pilares, state.platforms, weekStart],
+    () => validateWeeklyContent(state.contents, weekStart, state.pilares, state.platforms, state.series),
+    [state.contents, state.pilares, state.platforms, state.series, weekStart],
   );
 
   const draggingCard = draggingCardKey ? cards.find(item => item.key === draggingCardKey) ?? null : null;
@@ -212,6 +217,7 @@ export function ProgramacaoPage() {
       state.contents,
       state.pilares,
       state.platforms,
+      state.series,
       draggingCard,
       dayKey,
       time,
@@ -261,6 +267,7 @@ export function ProgramacaoPage() {
       state.contents,
       state.pilares,
       state.platforms,
+      state.series,
       card,
       dayKey,
       effectiveTime,
@@ -472,7 +479,7 @@ export function ProgramacaoPage() {
   const openPreviewContent = () => {
     const id = previewCard?.contentId;
     setPreviewCard(null);
-    if (id) routerNavigate(buildContentDetailRoute(id, 'roteiro'));
+    if (id) routerNavigate(buildContentDetailRoute(id, 'roteiro'), detailBackState);
   };
 
   const mobileModals = (
@@ -494,6 +501,7 @@ export function ProgramacaoPage() {
                 state.contents,
                 state.pilares,
                 state.platforms,
+                state.series,
                 pendingSchedule.card,
                 pendingSchedule.dayKey,
                 pendingSchedule.time,
@@ -629,7 +637,7 @@ export function ProgramacaoPage() {
               setIdeaActionCard(null);
             }}
             onOpen={() => {
-              routerNavigate(buildContentDetailRoute(ideaActionCard.contentId, 'roteiro'));
+              routerNavigate(buildContentDetailRoute(ideaActionCard.contentId, 'roteiro'), detailBackState);
               setIdeaActionCard(null);
             }}
             onClose={() => setIdeaActionCard(null)}
@@ -677,9 +685,11 @@ export function ProgramacaoPage() {
       header={
         <DesktopPageHeader
           section="Produção"
-          title={GLOSSARY.gradePostagem}
+          title="Calendário"
           meta="Arraste um vídeo pronto para um dia, ou toque no vídeo e depois no dia."
-        />
+        >
+          <CalendarModeSwitch />
+        </DesktopPageHeader>
       }
       mobileToolbar={periodControls}
     >
@@ -809,6 +819,7 @@ export function ProgramacaoPage() {
                 state.contents,
                 state.pilares,
                 state.platforms,
+                state.series,
                 pendingSchedule.card,
                 pendingSchedule.dayKey,
                 pendingSchedule.time,
@@ -905,7 +916,7 @@ export function ProgramacaoPage() {
               setIdeaActionCard(null);
             }}
             onOpen={() => {
-              routerNavigate(buildContentDetailRoute(ideaActionCard.contentId, 'roteiro'));
+              routerNavigate(buildContentDetailRoute(ideaActionCard.contentId, 'roteiro'), detailBackState);
               setIdeaActionCard(null);
             }}
             onClose={() => setIdeaActionCard(null)}
@@ -1182,6 +1193,8 @@ function PilarRhythmStrip({violations, compact = false}: {violations: Violation[
         <div key={`${violation.ruleId}-${index}`} className="flex items-start gap-2 text-sm font-medium">
           {violation.type === 'warning' ? (
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-[var(--warning)]" />
+          ) : violation.type === 'deficit' ? (
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-[var(--warning)]" />
           ) : (
             <Info className="mt-0.5 h-4 w-4 shrink-0 text-[var(--info)]" />
           )}

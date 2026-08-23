@@ -17,12 +17,14 @@ import { ERRORS, LOADING } from '../lib/uiCopy';
 import { generateUUID, isUUID } from '../utils/uuid';
 import { buildDomainCacheKey, dataCache } from '../lib/dataCache';
 import {
+  canDomainPayloadSatisfyRequest,
   clearPersistedDomainsForUser,
   isPersistedDomainFresh,
   readPersistedDomain,
   writePersistedDomain,
 } from '../lib/persistentDataCache';
 import { mergeFetchedAppData, patchContentsInDomainCaches, patchPlatformsInDomainCaches } from '../lib/domainCacheSync';
+import { BOOTSTRAP_DATA_DOMAINS } from '../lib/database';
 
 const ACTION_SAVE_LABELS: Partial<Record<AppAction['type'], string>> = {
   UPDATE_CONTENT: 'Roteiro salvo',
@@ -30,6 +32,11 @@ const ACTION_SAVE_LABELS: Partial<Record<AppAction['type'], string>> = {
   UPDATE_IDEA: 'Ideia salva',
   ADD_IDEA: 'Ideia criada',
   DEMOTE_CONTENTS_TO_IDEAS: 'Roteiros movidos para Ideias',
+  SET_CONTENT_STATUS: 'Etapa atualizada',
+  ARCHIVE_CONTENTS: 'Criação arquivada',
+  RESTORE_CONTENTS: 'Criação restaurada',
+  DELETE_CONTENT: 'Roteiro movido para a lixeira',
+  DELETE_MULTIPLE_CONTENTS: 'Roteiros movidos para a lixeira',
   UPDATE_AGENDA_ITEM: 'Agenda salva',
   ADD_AGENDA_ITEM: 'Agenda salva',
   UPDATE_RECORDING_BLOCK: 'Bloco salvo',
@@ -73,6 +80,17 @@ function normalizeAction(action: AppAction): AppAction {
         ...action,
         payload: normalizeContentId(action.payload),
       };
+    case 'ADD_IDEA':
+    case 'UPDATE_IDEA':
+      return {
+        ...action,
+        payload: {
+          ...action.payload,
+          canonicalContentId:
+            action.payload.canonicalContentId
+            ?? (isUUID(action.payload.id) ? action.payload.id : generateUUID()),
+        },
+      };
     case 'PROMOTE_IDEA': {
       const normalizedContent = normalizeContentId(action.payload.content);
       return {
@@ -95,7 +113,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const loadDone = useRef(false);
   const loadedDomains = useRef(new Set<db.AppDataDomain>());
   const loadingDomains = useRef(new Map<string, Promise<void>>());
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const realtimeRefreshTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingRealtimeDomains = useRef(new Set<db.AppDataDomain>());
   const pendingRealtimeNamespaces = useRef(new Set<string>());
@@ -149,6 +167,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       || actionType.includes('BIBLIOTECA')
       || actionType.includes('ANOTACAO')
       || actionType.includes('ANNOTATION')
+      || actionType.includes('IDEA')
     ) {
       invalidateListCaches(['contents', 'library']);
     }
@@ -167,6 +186,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         || actionType === 'UPDATE_CONTENT'
         || actionType === 'DELETE_CONTENT'
         || actionType === 'DELETE_MULTIPLE_CONTENTS'
+        || actionType === 'ADD_IDEA'
+        || actionType === 'UPDATE_IDEA'
+        || actionType === 'DELETE_IDEA'
+        || actionType === 'PROMOTE_IDEA'
+        || actionType === 'DEMOTE_CONTENTS_TO_IDEAS'
+        || actionType === 'SET_CONTENT_STATUS'
+        || actionType === 'ARCHIVE_CONTENTS'
+        || actionType === 'RESTORE_CONTENTS'
       )
     ) {
       patchContentsInDomainCaches(user.id, stateRef.current.contents);
@@ -204,15 +231,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const isFresh =
         (memoryCached != null && dataCache.isDomainFresh(cacheKey)) ||
         (persisted != null && isPersistedDomainFresh(persisted));
+      const cacheSatisfiesRequest = cachedPayload
+        ? canDomainPayloadSatisfyRequest(missingDomains, cachedPayload)
+        : false;
 
       if (cachedPayload && pendingPersistCount.current === 0) {
         dispatch({
           type: 'SET_DATA',
           payload: mergeFetchedAppData(mergeSnapshot(), cachedPayload),
         });
-        missingDomains.forEach(domain => loadedDomains.current.add(domain));
-        if (isFresh) return;
-      } else if (cachedPayload && isFresh) {
+      }
+
+      if (cachedPayload && isFresh && cacheSatisfiesRequest) {
         missingDomains.forEach(domain => loadedDomains.current.add(domain));
         return;
       }
@@ -261,7 +291,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       } else {
         domains = loadedDomains.current.size > 0
           ? [...loadedDomains.current]
-          : (await import('../lib/database')).BOOTSTRAP_DATA_DOMAINS;
+          : BOOTSTRAP_DATA_DOMAINS;
       }
 
       if (options?.namespaces !== undefined) {
@@ -271,7 +301,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }
 
       await loadDomains(domains, { force: true });
-      dispatch({ type: 'SET_LOADED' });
+      dispatch({ type: 'SET_LOADED', payload: true });
       loadDone.current = true;
       lastServerRefreshAt.current = Date.now();
     } catch (err) {
@@ -288,10 +318,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!supabase) {
-      dispatch({ type: 'SET_LOADED' });
+      dispatch({ type: 'SET_LOADED', payload: true });
       loadDone.current = true;
       return;
     }
+
+    // Auth ainda resolvendo — não marcar como carregado com dados vazios.
+    if (authLoading) return;
 
     if (!user) {
       if (lastUserIdRef.current) {
@@ -302,34 +335,35 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       loadedDomains.current.clear();
       loadingDomains.current.clear();
       dataCache.invalidateAll();
-      dispatch({ type: 'SET_LOADED' });
+      dispatch({ type: 'SET_LOADED', payload: true });
       loadDone.current = true;
       return;
     }
 
     let cancelled = false;
 
+    const cacheKey = buildDomainCacheKey(BOOTSTRAP_DATA_DOMAINS);
+    const persisted = readPersistedDomain(user.id, cacheKey);
+    if (persisted?.payload) {
+      dispatch({
+        type: 'SET_DATA',
+        payload: mergeFetchedAppData(mergeSnapshot(), persisted.payload),
+      });
+      dispatch({ type: 'SET_LOADED', payload: true });
+      loadDone.current = true;
+    } else {
+      loadDone.current = false;
+      dispatch({ type: 'SET_LOADED', payload: false });
+    }
+
     async function load() {
       try {
-        const { BOOTSTRAP_DATA_DOMAINS } = await import('../lib/database');
-        const cacheKey = buildDomainCacheKey(BOOTSTRAP_DATA_DOMAINS);
-        const persisted = readPersistedDomain(user.id, cacheKey);
-        if (persisted?.payload) {
-          dispatch({
-            type: 'SET_DATA',
-            payload: mergeFetchedAppData(mergeSnapshot(), persisted.payload),
-          });
-          if (!cancelled) {
-            dispatch({ type: 'SET_LOADED' });
-            loadDone.current = true;
-          }
-        }
         await loadDomains(BOOTSTRAP_DATA_DOMAINS);
       } catch (err) {
         console.error('[DB] initial data fetch failed:', err);
       } finally {
         if (cancelled) return;
-        dispatch({ type: 'SET_LOADED' });
+        dispatch({ type: 'SET_LOADED', payload: true });
         loadDone.current = true;
       }
     }
@@ -339,12 +373,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [loadDomains, user]);
+  }, [authLoading, loadDomains, mergeSnapshot, user]);
 
   useEffect(() => {
     if (!supabase || !user) return;
-
-    const relevantTables = new Set<string>(REALTIME_TABLES);
 
     const scheduleRefresh = (table: string) => {
       getDomainsForRealtimeTable(table).forEach(domain => {
@@ -375,26 +407,34 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }, 120);
     };
 
-    const channel = supabase
-      .channel(`content-os-realtime:${user.id}`)
-      .on('postgres_changes', { event: '*', schema: 'public' }, payload => {
-        if (!payload.table || !relevantTables.has(payload.table)) return;
-        if (
-          shouldSkipRealtimeRefresh(
-            lastLocalMutationAt.current,
-            Date.now(),
-            pendingPersistCount.current
-          )
-        ) {
-          return;
-        }
-        scheduleRefresh(payload.table);
-      })
-      .subscribe(status => {
-        if (import.meta.env.DEV) {
-          console.log('[Realtime] Channel status:', status);
-        }
-      });
+    const handleTableChange = (table: string) => {
+      if (
+        shouldSkipRealtimeRefresh(
+          lastLocalMutationAt.current,
+          Date.now(),
+          pendingPersistCount.current
+        )
+      ) {
+        return;
+      }
+      scheduleRefresh(table);
+    };
+
+    let channel = supabase.channel(`content-os-realtime:${user.id}`);
+
+    for (const table of REALTIME_TABLES) {
+      channel = channel.on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table },
+        () => handleTableChange(table)
+      );
+    }
+
+    channel.subscribe(status => {
+      if (import.meta.env.DEV) {
+        console.log('[Realtime] Channel status:', status);
+      }
+    });
 
     return () => {
       if (realtimeRefreshTimeout.current) {

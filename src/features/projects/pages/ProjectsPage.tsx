@@ -94,6 +94,8 @@ export function ProjectsPage() {
       color,
       value: value ? parseFloat(value) : null,
       currency: 'BRL',
+      driveUrl: null,
+      shareToken: null,
       notes: null,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),

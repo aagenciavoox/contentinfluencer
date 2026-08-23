@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Lightbulb, Search, X } from 'lucide-react';
+import { Lightbulb, Loader2, Search, X } from 'lucide-react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { Sidebar } from '../navigation/Sidebar';
 import { CommandPalette } from '../../components/overlays/CommandPalette';
@@ -13,13 +13,24 @@ import { MobileScrollLockProvider } from '../../context/MobileScrollLockContext'
 import { getMobileRouteMeta } from '../../mobile/config/mobileRouteMeta';
 import { resolveRouteBack } from '../../lib/navigation/detailBack';
 import { SaveFeedbackToast } from '../../components/ui/SaveFeedbackToast';
+import { Text } from '../../components/ui/Text';
 import { useAppContext } from '../../context/AppContext';
 import { forceMobileRefresh } from '../../lib/pwaRefresh';
 import { IdeaQuickCapture } from '../../features/ideas/components/IdeaQuickCapture';
 import { buildIdeaFields } from '../../features/ideas/lib/ideaText';
-import { generateUUID } from '../../utils/uuid';
-import type { Idea } from '../../lib/database';
 import { getModuleFlags } from '../../features/settings/lib/moduleFlags';
+import { createContentDraft } from '../../features/contents/lib/createContentDraft';
+import { CONTENT_STATUS } from '../../features/contents/lib/contentPipeline';
+import { LOADING } from '../../lib/uiCopy';
+
+function AppDataLoadingScreen() {
+  return (
+    <div className="flex h-dvh w-full flex-col items-center justify-center gap-3 bg-[var(--bg-primary)]">
+      <Loader2 className="h-8 w-8 animate-spin text-[var(--text-primary)]" aria-hidden="true" />
+      <Text variant="meta">{LOADING.dados}</Text>
+    </div>
+  );
+}
 
 export function AppShell() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -47,19 +58,15 @@ export function AppShell() {
   const saveQuickNote = useCallback(() => {
     const fields = buildIdeaFields({title: quickNoteTitle, notes: quickNoteNotes});
     if (!fields.title && !fields.notes) return;
-    const newIdea: Idea = {
-      id: generateUUID(),
-      userId: '',
-      ...fields,
+    const newIdea = createContentDraft({
+      title: fields.title || 'Ideia sem título',
+      status: CONTENT_STATUS.IDEIA,
+      notes: fields.notes || null,
       pilarId: quickNotePilarId || null,
       seriesId: quickNoteSeries || null,
-      origemId: quickNoteBibliotecaId || null,
-      promotedToContentId: null,
-      demotedFromContentId: null,
-      archived: false,
-      createdAt: new Date().toISOString(),
-    };
-    dispatch({ type: 'ADD_IDEA', payload: newIdea });
+      bibliotecaItemId: quickNoteBibliotecaId || null,
+    });
+    void dispatch({ type: 'ADD_CONTENT', payload: newIdea });
     setQuickNoteTitle('');
     setQuickNoteNotes('');
     setQuickNotePilarId('');
@@ -95,6 +102,10 @@ export function AppShell() {
     };
   }, [isMobile]);
 
+  if (!state.isLoaded) {
+    return <AppDataLoadingScreen />;
+  }
+
   if (isMobile) {
     return (
       <MobileScrollLockProvider>
@@ -121,7 +132,7 @@ export function AppShell() {
                   const target = resolveRouteBack(
                     location.pathname,
                     location.state as { from?: string } | null,
-                    routeMeta.backTo ?? '/dashboard',
+                    routeMeta.backTo ?? '/criacao',
                   );
                   navigate(target);
                   return;

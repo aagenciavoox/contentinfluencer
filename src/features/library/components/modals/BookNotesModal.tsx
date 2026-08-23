@@ -5,6 +5,7 @@ import { useAppContext } from '../../../../context/AppContext';
 import { BibliotecaItem, Anotacao } from '../../../../lib/database';
 import { generateUUID } from '../../../../utils/uuid';
 import { buildIdeaFields, parseLegacyIdeaText } from '../../../ideas/lib/ideaText';
+import { createIdeaContent } from '../../../contents/lib/creationContent';
 import { cn } from '../../../../lib/utils';
 import { BottomSheetModal } from '../../../../components/feedback/modals/BottomSheetModal';
 
@@ -64,19 +65,12 @@ export function BookNotesModal({ book, onClose }: BookNotesModalProps) {
     });
 
     dispatch({
-      type: 'ADD_IDEA',
-      payload: {
-        id: generateUUID(),
-        userId: '',
-        ...fields,
-        pilarId: null,
-        seriesId: null,
-        origemId: book.id,
-        promotedToContentId: null,
-        demotedFromContentId: null,
-        archived: false,
-        createdAt: new Date().toISOString(),
-      },
+      type: 'ADD_CONTENT',
+      payload: createIdeaContent({
+        title: fields.title || 'Ideia sem título',
+        notes: fields.notes || null,
+        bibliotecaItemId: book.id,
+      }),
     });
 
     dispatch({

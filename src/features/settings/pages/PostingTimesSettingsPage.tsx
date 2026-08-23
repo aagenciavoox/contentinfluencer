@@ -70,7 +70,7 @@ export function PostingTimesSettingsPage() {
       broadcastDataSync();
       notifySaveFeedback({ status: 'success', message: 'Horário salvo' });
     } catch (err) {
-      notifySaveFeedback({ status: 'error', message: 'Falha ao salvar horário', detail: getErrorMessage(err) });
+      notifySaveFeedback({ status: 'error', message: 'O horário não foi salvo', detail: getErrorMessage(err) });
     }
   }
 
@@ -86,7 +86,7 @@ export function PostingTimesSettingsPage() {
       broadcastDataSync();
       notifySaveFeedback({ status: 'success', message: 'Horário removido' });
     } catch (err) {
-      notifySaveFeedback({ status: 'error', message: 'Falha ao remover horário', detail: getErrorMessage(err) });
+      notifySaveFeedback({ status: 'error', message: 'O horário não foi removido', detail: getErrorMessage(err) });
     }
   }
 
@@ -189,7 +189,7 @@ export function PostingTimesSettingsPage() {
                     broadcastDataSync();
                     notifySaveFeedback({ status: 'success', message: 'Horários removidos' });
                   } catch (err) {
-                    notifySaveFeedback({ status: 'error', message: 'Falha ao limpar horários', detail: getErrorMessage(err) });
+                    notifySaveFeedback({ status: 'error', message: 'Os horários não foram limpos', detail: getErrorMessage(err) });
                   }
                 }}
                 variant="ghost"

@@ -1,5 +1,5 @@
 import {useCallback, useEffect, useMemo, useState} from 'react';
-import {useNavigate} from 'react-router-dom';
+import {useLocation, useNavigate} from 'react-router-dom';
 import {eachDayOfInterval, endOfWeek, format, isSameDay, startOfWeek} from 'date-fns';
 import {ptBR} from 'date-fns/locale';
 import {BookOpen, CalendarDays, ChevronDown, Clock, Mic2, PanelRight, Plus, Radio, Search, Send, Target, X} from 'lucide-react';
@@ -29,8 +29,10 @@ import {cn} from '../../../lib/utils';
 import {AgendaMobileScreen} from '../../../mobile/screens/agenda/AgendaMobileScreen';
 import {CONTENT_STATUS, ContentStage, getContentStage} from '../../contents/lib/contentPipeline';
 import {buildContentDetailRoute} from '../../contents/lib/contentDetailRoute';
+import {buildDetailBackState} from '../../../lib/navigation/detailBack';
 import {PostedVideoComposerSheet} from '../../contents/components/PostedVideoComposerSheet';
 import {buildCalendarEntries, CalendarEntry, MonthlyCalendarView} from '../components/MonthlyCalendarView';
+import {CalendarModeSwitch} from '../components/CalendarModeSwitch';
 import {PostingTimeSuggestions} from '../../settings/components/PostingTimeSuggestions';
 import {getPostingTimes} from '../../settings/lib/postingTimes';
 import {generateUUID} from '../../../utils/uuid';
@@ -318,7 +320,9 @@ export function EditorialCalendarPage() {
           section="Produção"
           title="Calendário"
           meta="Roteiros, eventos e projetos na linha do tempo."
-        />
+        >
+          <CalendarModeSwitch />
+        </DesktopPageHeader>
       }
     >
       <CalendarDesktopShell
@@ -936,6 +940,8 @@ function CalendarEntryDetailModal({
   onSaveAgenda: (item: AgendaItem) => void;
 }) {
   const navigate = useNavigate();
+  const location = useLocation();
+  const detailBackState = buildDetailBackState(`${location.pathname}${location.search}`);
   const {state: calendarState} = useAppContext();
   const postingTimes = getPostingTimes(calendarState.preferences);
   const content = entry.contentId ? contents.find(item => item.id === entry.contentId) : null;
@@ -1266,7 +1272,7 @@ function CalendarEntryDetailModal({
                 type="button"
                 onClick={() => {
                   onClose();
-                  navigate(buildContentDetailRoute(content.id, 'roteiro'));
+                  navigate(buildContentDetailRoute(content.id, 'roteiro'), detailBackState);
                 }}
                 className="flex-1 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] py-3 text-xs font-semibold  text-[var(--text-primary)] transition-all hover:bg-[var(--bg-hover)]"
               >
@@ -1278,7 +1284,7 @@ function CalendarEntryDetailModal({
                 type="button"
                 onClick={() => {
                   onClose();
-                  navigate(buildContentDetailRoute(content.id, 'publicacao'));
+                  navigate(buildContentDetailRoute(content.id, 'publicacao'), detailBackState);
                 }}
                 className="flex-1 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] bg-[var(--text-primary)] py-3 text-xs font-semibold  text-[var(--bg-primary)] transition-all hover:scale-[1.01]"
               >

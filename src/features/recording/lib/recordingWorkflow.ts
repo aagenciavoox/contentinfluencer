@@ -1,5 +1,5 @@
-import {Content, RecordingBlock, RecordingBlockContent} from '../../../lib/database';
-import {CONTENT_STATUS} from '../../contents/lib/contentPipeline';
+import type {Content, RecordingBlock, RecordingBlockContent} from '../../../lib/database.ts';
+import {CONTENT_STATUS} from '../../contents/lib/contentPipeline.ts';
 
 type MarkContentRecordedParams = {
   block: RecordingBlock;
@@ -152,6 +152,18 @@ export function buildMarkContentRecordedTransition({
     updatedBlockContents: block.contents.map(item =>
       item.contentId === contentId ? {...item, gravado: true} : item
     ),
+  };
+}
+
+export function buildMarkStandaloneContentRecordedTransition(
+  content: Content,
+  recordedAt = new Date().toISOString()
+) {
+  return {
+    ...content,
+    status: CONTENT_STATUS.PRODUCAO,
+    recordedAt: content.recordedAt ?? recordedAt,
+    updatedAt: recordedAt,
   };
 }
 

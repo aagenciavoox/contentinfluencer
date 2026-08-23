@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import {
   Briefcase,
   CalendarDays,
@@ -19,6 +19,7 @@ import {
   type Projeto,
 } from '../../../lib/database';
 import { cn } from '../../../lib/utils';
+import { buildDetailBackState } from '../../../lib/navigation/detailBack';
 import { DesktopPageHeader } from '../../../layouts/page/DesktopPageHeader';
 import { PageLayout } from '../../../layouts/page/PageLayout';
 import { Section } from '../../../components/ui/Section';
@@ -68,6 +69,8 @@ export function ProjectDetailPage() {
   const { state, dispatch } = useAppContext();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const detailBackState = buildDetailBackState(`${location.pathname}${location.search}`);
   const isMobile = useIsMobile();
   const postingTimes = getPostingTimes(state.preferences);
 
@@ -193,6 +196,7 @@ export function ProjectDetailPage() {
       case 'value': setEditValue(value as string); break;
       case 'notes': setEditNotes(value as string); break;
       case 'color': setEditColor(value as string); break;
+      case 'driveUrl': setEditDriveUrl(value as string); break;
     }
   };
 
@@ -202,6 +206,7 @@ export function ProjectDetailPage() {
     value: editValue,
     notes: editNotes,
     color: editColor,
+    driveUrl: editDriveUrl,
   };
 
   if (isMobile) {
@@ -235,8 +240,8 @@ export function ProjectDetailPage() {
           onAddAgenda={handleAddAgenda}
           onDeleteAgendaItem={itemId => dispatch({ type: 'DELETE_AGENDA_ITEM', payload: itemId })}
           onVincularContent={vincularContent}
-          onOpenContent={contentId => navigate(`/conteudos/${contentId}`)}
-          onCreateContent={() => navigate('/conteudos')}
+          onOpenContent={contentId => navigate(`/conteudos/${contentId}`, detailBackState)}
+          onCreateContent={() => navigate('/criacao?compose=script')}
         />
       </div>
     );
@@ -378,7 +383,7 @@ export function ProjectDetailPage() {
             action={
               <button
                 type="button"
-                onClick={() => navigate('/conteudos')}
+                onClick={() => navigate('/criacao')}
                 className="inline-flex items-center gap-2 rounded-xl bg-[var(--text-primary)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.25em] text-[var(--bg-primary)] transition-opacity hover:opacity-90"
               >
                 <Plus className="h-4 w-4" />
@@ -427,7 +432,7 @@ export function ProjectDetailPage() {
                         </div>
                         <button
                           type="button"
-                          onClick={() => navigate(`/conteudos/${content.id}`)}
+                          onClick={() => navigate(`/conteudos/${content.id}`, detailBackState)}
                           className="inline-flex items-center gap-2 rounded-xl border border-[var(--border-color)] px-3 py-2 text-xs font-semibold opacity-70 transition-opacity hover:opacity-100"
                         >
                           <Link2 className="h-3.5 w-3.5" />

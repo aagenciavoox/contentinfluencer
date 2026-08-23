@@ -1,8 +1,13 @@
-import { NavLink, useLocation } from 'react-router-dom';
 import { Plus } from 'lucide-react';
+import { NavLink, useLocation } from 'react-router-dom';
 import { cn } from '../../lib/utils';
 import type { ModuleFlags } from '../../features/settings/lib/moduleFlags';
-import { MOBILE_BOTTOM_NAV_ITEMS, isNavItemHidden } from '../../layouts/navigation/navConfig';
+import {
+  isBottomNavItemActive,
+  isNavItemHidden,
+  MOBILE_BOTTOM_NAV_ITEMS,
+  splitBottomNavItems,
+} from '../../layouts/navigation/navConfig';
 
 interface MobileBottomNavProps {
   isActionOpen: boolean;
@@ -10,76 +15,77 @@ interface MobileBottomNavProps {
   moduleFlags: ModuleFlags;
 }
 
+const tabClassName =
+  'flex min-h-12 min-w-0 flex-1 flex-col items-center justify-center gap-1 px-1 py-1 text-center touch-manipulation select-none transition-colors duration-200';
+
 function MobileBottomNavItem({
   to,
   label,
   icon: Icon,
 }: (typeof MOBILE_BOTTOM_NAV_ITEMS)[number]) {
   const location = useLocation();
-  const pathname = to.split('?')[0];
+  const isActive = isBottomNavItemActive(to, location.pathname);
 
   return (
     <NavLink
       to={to}
-      className={() =>
-        cn(
-          'flex min-h-11 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 px-1 text-center transition-all duration-200',
-          location.pathname.startsWith(pathname)
-            ? 'text-[var(--text-primary)]'
-            : 'text-[var(--text-tertiary)]'
-        )
-      }
+      aria-current={isActive ? 'page' : undefined}
+      className={cn(
+        tabClassName,
+        isActive ? 'text-[var(--text-primary)]' : 'text-[var(--text-tertiary)]',
+      )}
     >
-      <Icon className="h-5 w-5 stroke-[1.75]" />
-      <span className="t-nav truncate uppercase">{label}</span>
+      <span className="flex h-9 w-9 items-center justify-center" aria-hidden>
+        <Icon className={cn('h-5 w-5 shrink-0', isActive ? 'stroke-[2.25]' : 'stroke-[1.75]')} />
+      </span>
+      <span className="t-nav w-full truncate text-center leading-tight">{label}</span>
     </NavLink>
+  );
+}
+
+function MobileBottomNavAction({
+  isActionOpen,
+  onActionToggle,
+}: Pick<MobileBottomNavProps, 'isActionOpen' | 'onActionToggle'>) {
+  return (
+    <button
+      type="button"
+      aria-label={isActionOpen ? 'Fechar ações rápidas' : 'Abrir ações rápidas'}
+      aria-expanded={isActionOpen}
+      onClick={onActionToggle}
+      className={cn(
+        tabClassName,
+        isActionOpen ? 'text-[var(--text-primary)]' : 'text-[var(--text-tertiary)]',
+      )}
+    >
+      <span
+        aria-hidden
+        className="flex h-9 w-9 items-center justify-center rounded-[var(--radius-pill)] bg-[var(--accent)] text-[var(--bg-secondary)] transition-transform duration-200"
+      >
+        <Plus className={cn('h-5 w-5', isActionOpen ? 'rotate-45' : '')} />
+      </span>
+      <span className="t-nav w-full truncate text-center leading-tight">Criar</span>
+    </button>
   );
 }
 
 export function MobileBottomNav({ isActionOpen, onActionToggle, moduleFlags }: MobileBottomNavProps) {
   const visibleItems = MOBILE_BOTTOM_NAV_ITEMS.filter(item => !isNavItemHidden(item, moduleFlags));
-  const splitIndex = Math.ceil(visibleItems.length / 2);
-  const leftItems = visibleItems.slice(0, splitIndex);
-  const rightItems = visibleItems.slice(splitIndex);
+  const { left, right } = splitBottomNavItems(visibleItems);
 
   return (
     <nav
       aria-label="Navegação principal mobile"
-      className="fixed inset-x-0 bottom-0 z-[80] border-t border-[var(--border-color)] bg-[color-mix(in_srgb,var(--bg-primary)_94%,transparent)] px-3 pb-safe pt-2 backdrop-blur-xl md:hidden"
+      className="fixed inset-x-0 bottom-0 z-[80] border-t border-[var(--border-color)] bg-[color-mix(in_srgb,var(--bg-primary)_94%,transparent)] px-2 pb-safe pt-2 backdrop-blur-xl touch-manipulation select-none"
     >
-      <div className="flex min-h-11 items-end gap-1">
-        <div
-          className="grid min-w-0 flex-1 items-end gap-1"
-          style={{ gridTemplateColumns: `repeat(${Math.max(leftItems.length, 1)}, minmax(0, 1fr))` }}
-        >
-          {leftItems.map(item => (
-            <MobileBottomNavItem key={item.to} {...item} />
-          ))}
-        </div>
-
-        <div className="flex justify-center">
-          <button
-            type="button"
-            aria-label={isActionOpen ? 'Fechar ações rápidas' : 'Abrir ações rápidas'}
-            aria-expanded={isActionOpen}
-            onClick={onActionToggle}
-            className={cn(
-              'relative -top-5 flex h-[3.75rem] w-[3.75rem] items-center justify-center rounded-[var(--radius-card)] border border-[var(--text-primary)] bg-[var(--text-primary)] text-[var(--bg-primary)] shadow-[0_18px_40px_rgba(0,0,0,0.18)] transition-transform duration-200 active:scale-95',
-              isActionOpen ? 'rotate-45' : ''
-            )}
-          >
-            <Plus className="h-7 w-7" />
-          </button>
-        </div>
-
-        <div
-          className="grid min-w-0 flex-1 items-end gap-1"
-          style={{ gridTemplateColumns: `repeat(${Math.max(rightItems.length, 1)}, minmax(0, 1fr))` }}
-        >
-          {rightItems.map(item => (
-            <MobileBottomNavItem key={item.to} {...item} />
-          ))}
-        </div>
+      <div className="flex items-stretch">
+        {left.map(item => (
+          <MobileBottomNavItem key={item.to} {...item} />
+        ))}
+        <MobileBottomNavAction isActionOpen={isActionOpen} onActionToggle={onActionToggle} />
+        {right.map(item => (
+          <MobileBottomNavItem key={item.to} {...item} />
+        ))}
       </div>
     </nav>
   );

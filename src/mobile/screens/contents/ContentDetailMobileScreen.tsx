@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChevronDown, FileText, Settings2 } from 'lucide-react';
+import { ChevronDown, FileText, Settings2, Trash2 } from 'lucide-react';
 import { BottomSheetModal } from '../../../components/feedback/modals/BottomSheetModal';
 import { AppButton } from '../../../components/ui/AppButton';
 import type { Content } from '../../../lib/database';
@@ -27,8 +27,10 @@ interface ContentDetailMobileScreenProps {
   blockOrder?: number | null;
   section: React.ReactNode;
   operationalPanel: React.ReactNode;
-  onSave: () => void;
+  onRetrySave: () => void;
+  onDelete: () => void;
   saveHint?: string;
+  saveState?: 'idle' | 'saving' | 'saved' | 'error';
 }
 
 function formatDate(value: string | null) {
@@ -50,14 +52,15 @@ export function ContentDetailMobileScreen({
   blockOrder,
   section,
   operationalPanel,
-  onSave,
+  onRetrySave,
+  onDelete,
   saveHint,
+  saveState = 'idle',
 }: ContentDetailMobileScreenProps) {
   const [detailsSheetOpen, setDetailsSheetOpen] = useState(false);
   const hasPrimaryAction = primaryAction.id !== 'none';
   const isScriptTab = activeTab === 'roteiro';
   const tabOptions = visibleTabs.map(tab => ({ value: tab, label: TAB_LABELS[tab] }));
-
   const blockLabel = blockName
     ? blockOrder
       ? `${blockName} (${blockOrder})`
@@ -66,7 +69,7 @@ export function ContentDetailMobileScreen({
 
   if (isScriptTab) {
     return (
-      <div className="stack-sm pb-24">
+      <div className="stack-sm pb-40">
         <div className="sticky top-0 z-10 -mx-1 stack-sm border-b border-[var(--border-color)] bg-[color-mix(in_srgb,var(--bg-primary)_94%,transparent)] px-1 py-2 backdrop-blur-md">
           <div className="flex items-center justify-between gap-2">
             <p className="min-w-0 truncate text-base font-semibold text-[var(--text-primary)]">
@@ -77,34 +80,55 @@ export function ContentDetailMobileScreen({
           <p className="text-xs text-[var(--text-secondary)]">
             {blockLabel} · Grav: {formatDate(content.recordingDate)} · Post: {formatDate(content.publishDate)}
           </p>
-          {saveHint ? <p className="text-xs text-[var(--text-tertiary)]">{saveHint}</p> : null}
+          {saveHint ? (
+            <div className="flex min-w-0 items-center gap-1.5">
+              <span
+                className={
+                  saveState === 'error'
+                    ? 'h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--accent-red)]'
+                    : saveState === 'saved'
+                      ? 'h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--success)]'
+                      : 'h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-[var(--accent-blue)]'
+                }
+                aria-hidden
+              />
+              <p className="truncate text-xs text-[var(--text-tertiary)]">{saveHint}</p>
+              {saveState === 'error' ? (
+                <AppButton
+                  variant="ghost"
+                  size="xs"
+                  onClick={onRetrySave}
+                  disabled={isSaving}
+                  className="h-7 px-2 text-[var(--accent-red)] hover:text-[var(--accent-red)]"
+                >
+                  Tentar novamente
+                </AppButton>
+              ) : null}
+            </div>
+          ) : null}
         </div>
 
         <div className="py-2">{section}</div>
 
-        <div className="fixed inset-x-0 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-20 flex gap-2 border-t border-[var(--border-color)] bg-[color-mix(in_srgb,var(--bg-primary)_96%,transparent)] px-3 py-2 backdrop-blur-md">
-          <AppButton
-            variant="secondary"
-            onClick={() => setDetailsSheetOpen(true)}
-            leftIcon={<Settings2 className="h-4 w-4" />}
-            className="min-h-11 flex-1 justify-center"
-          >
-            Detalhes
-          </AppButton>
+        <div className="fixed inset-x-0 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-20 flex flex-col gap-2 border-t border-[var(--border-color)] bg-[color-mix(in_srgb,var(--bg-primary)_96%,transparent)] px-3 py-2 backdrop-blur-md">
           {hasPrimaryAction ? (
             <AppButton
               variant="primary"
               onClick={onPrimaryAction}
               disabled={isSaving || primaryAction.disabled}
-              className="min-h-11 flex-[1.4] justify-center"
+              className="min-h-11 w-full justify-center"
             >
               {isSaving ? 'Salvando...' : primaryAction.label}
             </AppButton>
-          ) : (
-            <AppButton variant="secondary" onClick={onSave} className="min-h-11 flex-1 justify-center">
-              Salvar
-            </AppButton>
-          )}
+          ) : null}
+          <AppButton
+            variant="secondary"
+            onClick={() => setDetailsSheetOpen(true)}
+            leftIcon={<Settings2 className="h-4 w-4" />}
+            className="min-h-11 w-full justify-center"
+          >
+            Detalhes
+          </AppButton>
         </div>
 
         <BottomSheetModal open={detailsSheetOpen} onClose={() => setDetailsSheetOpen(false)} desktopMaxW="max-w-md">
@@ -120,6 +144,17 @@ export function ContentDetailMobileScreen({
                 setDetailsSheetOpen(false);
               }}
             />
+            <AppButton
+              variant="ghost"
+              leftIcon={<Trash2 className="h-4 w-4" />}
+              onClick={() => {
+                setDetailsSheetOpen(false);
+                onDelete();
+              }}
+              className="w-full justify-center text-[var(--accent-red)] hover:text-[var(--accent-red)]"
+            >
+              Mover para a lixeira
+            </AppButton>
           </div>
         </BottomSheetModal>
       </div>
@@ -169,9 +204,16 @@ export function ContentDetailMobileScreen({
 
       {section}
 
-      <AppButton variant="secondary" onClick={onSave} className="min-h-11 w-full justify-center">
-        {isSaving ? 'Salvando...' : 'Salvar'}
-      </AppButton>
+      {saveState === 'error' ? (
+        <AppButton
+          variant="secondary"
+          onClick={onRetrySave}
+          disabled={isSaving}
+          className="min-h-11 w-full justify-center text-[var(--accent-red)]"
+        >
+          Tentar salvar novamente
+        </AppButton>
+      ) : null}
     </div>
   );
 }

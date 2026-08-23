@@ -6,6 +6,7 @@ import { EmptyState } from '../../../components/ui/EmptyState';
 import { MobileFilterSheet } from '../../components/MobileFilterSheet';
 import { MobileSearchBar } from '../../components/MobileSearchBar';
 import { MobileSegmentTabs } from '../../components/MobileSegmentTabs';
+import { LibrarySectionTabs } from '../../../features/library/components/LibrarySectionTabs';
 import { SkeletonList } from '../../../components/ui/Skeleton';
 import { AppButton } from '../../../components/ui/AppButton';
 import { MobileSectionHeader } from '../../components/MobileSectionHeader';
@@ -153,6 +154,8 @@ export function LibraryMobileScreen({
           }
         />
       </section>
+
+      <LibrarySectionTabs />
 
       <MobileSearchBar
         value={search}

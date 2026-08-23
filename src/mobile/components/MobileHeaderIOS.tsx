@@ -34,7 +34,7 @@ export function MobileHeaderIOS({
   return (
     <header
       className={cn(
-        'fixed inset-x-0 top-0 z-[70] md:hidden transition-transform duration-300 ease-out',
+        'fixed inset-x-0 top-0 z-[70] transition-transform duration-300 ease-out',
         isHidden ? '-translate-y-full' : 'translate-y-0'
       )}
     >
@@ -51,7 +51,7 @@ export function MobileHeaderIOS({
               type="button"
               aria-label={leftLabel}
               onClick={onLeftAction}
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[var(--border-color)] bg-[var(--bg-secondary)] text-[var(--text-primary)] shadow-sm active:scale-95"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[var(--border-color)] bg-[var(--bg-secondary)] text-[var(--text-primary)] shadow-sm touch-manipulation active:scale-95"
             >
               {mode === 'back' ? <ChevronLeft className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
             </button>
@@ -64,7 +64,7 @@ export function MobileHeaderIOS({
               type="button"
               aria-label={rightActionLabel ?? 'Abrir busca global'}
               onClick={onRightAction}
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[var(--border-color)] bg-[var(--bg-secondary)] text-[var(--text-primary)] shadow-sm active:scale-95"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[var(--border-color)] bg-[var(--bg-secondary)] text-[var(--text-primary)] shadow-sm touch-manipulation active:scale-95"
             >
               {rightActionIcon ?? <Text variant="label" className="text-xs">CMD</Text>}
             </button>
@@ -76,7 +76,7 @@ export function MobileHeaderIOS({
                 type="button"
                 aria-label={leftLabel}
                 onClick={onLeftAction}
-                className="flex h-11 w-11 items-center justify-center rounded-full border border-[var(--border-color)] bg-[var(--bg-secondary)] text-[var(--text-primary)] shadow-sm active:scale-95"
+                className="flex h-11 w-11 items-center justify-center rounded-full border border-[var(--border-color)] bg-[var(--bg-secondary)] text-[var(--text-primary)] shadow-sm touch-manipulation active:scale-95"
               >
                 {mode === 'back' ? <ChevronLeft className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
               </button>
@@ -85,7 +85,7 @@ export function MobileHeaderIOS({
                 type="button"
                 aria-label={rightActionLabel ?? 'Abrir busca global'}
                 onClick={onRightAction}
-                className="flex h-11 min-w-11 items-center justify-center rounded-full border border-[var(--border-color)] bg-[var(--bg-secondary)] px-3 text-[var(--text-primary)] shadow-sm active:scale-95"
+                className="flex h-11 min-w-11 items-center justify-center rounded-full border border-[var(--border-color)] bg-[var(--bg-secondary)] px-3 text-[var(--text-primary)] shadow-sm touch-manipulation active:scale-95"
               >
                 {rightActionIcon ?? <Text variant="label">CMD</Text>}
               </button>

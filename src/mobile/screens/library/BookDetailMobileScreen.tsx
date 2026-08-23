@@ -10,7 +10,8 @@ import {
   Plus,
   Star,
 } from 'lucide-react';
-import type { Anotacao, BibliotecaItem, Content, Idea } from '../../../lib/database';
+import type { Anotacao, BibliotecaItem, Content } from '../../../lib/database';
+import { CONTENT_STATUS, getDisplayStatus } from '../../../features/contents/lib/contentPipeline';
 import { BottomSheetModal } from '../../../components/feedback/modals/BottomSheetModal';
 import { AppButton } from '../../../components/ui/AppButton';
 import { TagSelect } from '../../../components/ui/TagSelect';
@@ -64,12 +65,12 @@ interface BookDetailMobileScreenProps {
   onTransformContent: (anotacao: Anotacao) => void;
   onDeleteAnotacao: (anotacaoId: string) => void;
   conteudosDoLivro: Content[];
-  ideiasDeLivro: Idea[];
+  ideiasDeLivro: Content[];
   statusCores: Record<string, string>;
   alertaEcossistema: boolean;
   anotacoesDestaqueCount: number;
   onCreateContent: () => void;
-  onPromoteIdeia: (ideiaId: string, ideiaText: string) => void;
+  onPromoteIdeia: (ideia: Content) => void;
   onOpenContent: (contentId: string) => void;
   onStartBrainstorm: () => void;
 }
@@ -377,13 +378,19 @@ export function BookDetailMobileScreen({
               { label: 'conteúdos', value: conteudosDoLivro.length },
               {
                 label: 'postados',
-                value: conteudosDoLivro.filter((content) => content.status === 'Postado').length,
+                value: conteudosDoLivro.filter(
+                  (content) => getDisplayStatus(content) === CONTENT_STATUS.POSTADO
+                ).length,
               },
               {
                 label: 'em produção',
-                value: conteudosDoLivro.filter(
-                  (content) => content.status !== 'Postado' && content.status !== 'Ideia'
-                ).length,
+                value: conteudosDoLivro.filter((content) => {
+                  const displayStatus = getDisplayStatus(content);
+                  return (
+                    displayStatus !== CONTENT_STATUS.POSTADO &&
+                    displayStatus !== CONTENT_STATUS.IDEIA
+                  );
+                }).length,
               },
             ].map((stat) => (
               <div
@@ -434,10 +441,12 @@ export function BookDetailMobileScreen({
                     className="flex items-start gap-2 border-b border-[var(--border-color)] pb-2 last:border-0 last:pb-0"
                   >
                     <Lightbulb className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[var(--warning)]" />
-                    <p className="min-w-0 flex-1 text-sm text-[var(--text-primary)]">{ideia.text}</p>
+                    <p className="min-w-0 flex-1 text-sm text-[var(--text-primary)]">
+                      {ideia.title || 'Ideia sem título'}
+                    </p>
                     <button
                       type="button"
-                      onClick={() => onPromoteIdeia(ideia.id, ideia.text)}
+                      onClick={() => onPromoteIdeia(ideia)}
                       className="shrink-0 text-xs font-semibold text-[var(--accent-blue)]"
                     >
                       Conteúdo
@@ -470,10 +479,10 @@ export function BookDetailMobileScreen({
                     <span
                       className={cn(
                         'rounded-full px-2 py-0.5 text-xs font-semibold',
-                        statusCores[content.status] || 'bg-[var(--bg-hover)] text-[var(--text-primary)]'
+                        statusCores[getDisplayStatus(content)] || 'bg-[var(--bg-hover)] text-[var(--text-primary)]'
                       )}
                     >
-                      {content.status}
+                      {getDisplayStatus(content)}
                     </span>
                   }
                   onClick={() => onOpenContent(content.id)}

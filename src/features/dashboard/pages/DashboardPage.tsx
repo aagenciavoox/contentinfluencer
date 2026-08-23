@@ -13,14 +13,15 @@ import {
   Video,
 } from 'lucide-react';
 import {startOfWeek} from 'date-fns';
-import {useNavigate} from 'react-router-dom';
+import {useLocation, useNavigate} from 'react-router-dom';
 import {DesktopPageHeader} from '../../../layouts/page/DesktopPageHeader';
 import {PageLayout} from '../../../layouts/page/PageLayout';
 import {useAppContext} from '../../../context/AppContext';
 import {useIsMobile} from '../../../hooks/useIsMobile';
 import {DashboardMobileScreen} from '../../../mobile/screens/dashboard/DashboardMobileScreen';
-import {CONTENT_STATUS, PRODUCTION_TAGS} from '../../contents/lib/contentPipeline';
+import {CONTENT_STATUS, getDisplayStatus, PRODUCTION_TAGS} from '../../contents/lib/contentPipeline';
 import {buildContentDetailRoute} from '../../contents/lib/contentDetailRoute';
+import {buildDetailBackState, type DetailBackState} from '../../../lib/navigation/detailBack';
 import {createContentDraft} from '../../contents/lib/createContentDraft';
 import {getGentleExperienceSettings} from '../../settings/lib/gentleExperience';
 import {validateWeeklyContent} from '../../../utils/pilarRhythm';
@@ -28,6 +29,7 @@ import {recommendDailyAction} from '../../recommendations/recommendDailyAction';
 import {DailyRecommendationBlock} from '../../recommendations/DailyRecommendationBlock';
 import {AppButton} from '../../../components/ui/AppButton';
 import {ContentRow, OperationalList} from '../../../components/ui';
+import {SpotlightCta} from '../../../components/ui/SpotlightCta';
 import {Text} from '../../../components/ui/Text';
 import {EMPTY} from '../../../lib/uiCopy';
 
@@ -35,11 +37,13 @@ export function DashboardPage() {
   const {state, dispatch} = useAppContext();
   const isMobile = useIsMobile();
   const navigate = useNavigate();
+  const location = useLocation();
+  const detailBackState = buildDetailBackState(`${location.pathname}${location.search}`);
 
   const handleNovoRoteiro = () => {
     const newContent = createContentDraft({title: 'Novo Conteudo', status: CONTENT_STATUS.ROTEIRO});
     void dispatch({type: 'ADD_CONTENT', payload: newContent});
-    navigate(`${buildContentDetailRoute(newContent.id)}&focus=script`);
+    navigate(`${buildContentDetailRoute(newContent.id)}&focus=script`, detailBackState);
   };
   const gentleExperience = getGentleExperienceSettings(state.preferences);
 
@@ -63,6 +67,7 @@ export function DashboardPage() {
     weekStart,
     state.pilares,
     state.platforms,
+    state.series,
   );
 
   // Projetos com deadline nos proximos 7 dias
@@ -88,13 +93,18 @@ export function DashboardPage() {
       <div className="min-h-full bg-[var(--bg-primary)]">
         <DashboardMobileScreen
           contents={state.contents}
-          ideas={state.ideas}
           projetos={state.projetos}
           agendaItems={state.agendaItems}
           pilares={state.pilares}
           series={state.series}
           gentleExperience={gentleExperience}
-          onNavigate={navigate}
+          onNavigate={(path) => {
+            if (path.startsWith('/conteudos/')) {
+              navigate(path, detailBackState);
+              return;
+            }
+            navigate(path);
+          }}
         />
       </div>
     );
@@ -102,10 +112,12 @@ export function DashboardPage() {
 
   return (
     <PageLayout
+      contentWidth="narrow"
       header={
         <DesktopPageHeader
           section="Central"
           title="Hoje"
+          titleVariant="display"
           icon={Sparkles}
           className="mb-0"
           actions={
@@ -116,72 +128,15 @@ export function DashboardPage() {
         />
       }
     >
-      {/* Decisão diária */}
+      {/* Herói único: recomendação diária OU destaque operacional */}
       {dailyRecommendation && gentleExperience.calmSuggestions ? (
         <DailyRecommendationBlock
           recommendation={dailyRecommendation}
           gentleLanguage={gentleExperience.enabled}
         />
-      ) : null}
-
-      {/* Bloco de destaque */}
-      <SpotlightBlock spotlight={spotlight} onNavigate={navigate} />
-
-      {/* Listas operacionais */}
-      <section className="grid-dashboard">
-        <OperationalList
-          title="Fila de gravação"
-          icon={Video}
-          empty="Nenhum roteiro pronto para gravar."
-          seeAllHref="/gravacao"
-          seeAllLabel="Abrir gravação"
-        >
-          {readyToRecord.slice(0, 5).map(content => (
-            <ContentRow
-              key={content.id}
-              title={content.title || '(sem titulo)'}
-              meta={content.status}
-              isStatus
-              onClick={() => navigate(buildContentDetailRoute(content.id))}
-            />
-          ))}
-        </OperationalList>
-
-        <OperationalList
-          title="Em produção"
-          icon={Scissors}
-          empty="Nenhum conteúdo em edição ou gravado."
-          seeAllHref="/conteudos"
-          seeAllLabel="Ver conteúdos"
-        >
-          {inProduction.slice(0, 5).map(content => (
-            <ContentRow
-              key={content.id}
-              title={content.title || '(sem titulo)'}
-              meta={content.status}
-              isStatus
-              onClick={() => navigate(buildContentDetailRoute(content.id))}
-            />
-          ))}
-        </OperationalList>
-
-        <OperationalList
-          title="Agenda próxima"
-          icon={BookOpen}
-          empty="Nenhum item futuro na agenda."
-          seeAllHref="/calendario"
-          seeAllLabel="Ver calendario"
-        >
-          {upcomingAgenda.map(item => (
-            <ContentRow
-              key={item.id}
-              title={item.title}
-              meta={[item.date, item.time].filter(Boolean).join(' · ')}
-              onClick={() => navigate('/calendario')}
-            />
-          ))}
-        </OperationalList>
-      </section>
+      ) : (
+        <SpotlightBlock spotlight={spotlight} onNavigate={navigate} detailBackState={detailBackState} />
+      )}
 
       {/* Alerta de Regras de Ouro */}
       {rhythmViolations.length > 0 && (
@@ -193,8 +148,8 @@ export function DashboardPage() {
             <AlertTriangle className="h-4 w-4 shrink-0 text-[var(--warning)]" />
             <Text variant="bodyStrong">
               {rhythmViolations.length === 1
-                ? '1 alerta de ritmo editorial nos pilares esta semana'
-                : `${rhythmViolations.length} alertas de ritmo editorial nos pilares esta semana`}
+                ? '1 alerta de ritmo editorial esta semana'
+                : `${rhythmViolations.length} alertas de ritmo editorial esta semana`}
             </Text>
           </div>
           <span className="flex shrink-0 items-center gap-1 text-sm font-semibold text-[var(--warning)]">
@@ -230,14 +185,68 @@ export function DashboardPage() {
         </section>
       )}
 
+      {/* Listas operacionais */}
+      <section className="grid-dashboard">
+        <OperationalList
+          title="Fila de gravação"
+          icon={Video}
+          empty="Nenhum roteiro pronto para gravar."
+          seeAllHref="/gravacao"
+          seeAllLabel="Abrir gravação"
+        >
+          {readyToRecord.slice(0, 5).map(content => (
+            <ContentRow
+              key={content.id}
+              title={content.title || '(sem titulo)'}
+              meta={getDisplayStatus(content)}
+              isStatus
+              onClick={() => navigate(buildContentDetailRoute(content.id), detailBackState)}
+            />
+          ))}
+        </OperationalList>
+
+        <OperationalList
+          title="Em produção"
+          icon={Scissors}
+          empty="Nenhum conteúdo em edição ou gravado."
+          seeAllHref="/criacao?tab=producao"
+          seeAllLabel="Ver conteúdos"
+        >
+          {inProduction.slice(0, 5).map(content => (
+            <ContentRow
+              key={content.id}
+              title={content.title || '(sem titulo)'}
+              meta={getDisplayStatus(content)}
+              isStatus
+              onClick={() => navigate(buildContentDetailRoute(content.id), detailBackState)}
+            />
+          ))}
+        </OperationalList>
+
+        <OperationalList
+          title="Agenda próxima"
+          icon={BookOpen}
+          empty="Nenhum item futuro na agenda."
+          seeAllHref="/calendario"
+          seeAllLabel="Ver calendario"
+        >
+          {upcomingAgenda.map(item => (
+            <ContentRow
+              key={item.id}
+              title={item.title}
+              meta={[item.date, item.time].filter(Boolean).join(' · ')}
+              onClick={() => navigate('/calendario')}
+            />
+          ))}
+        </OperationalList>
+      </section>
+
       {/* Acoes rapidas */}
       <section className="stack-md">
         <Text variant="eyebrow">Atalhos</Text>
         <div className="flex flex-wrap gap-2">
           <QuickAction label="Novo roteiro" icon={Plus} onClick={handleNovoRoteiro} />
-          <QuickAction label="Nova ideia" icon={Lightbulb} onClick={() => navigate('/ideias')} />
-          <QuickAction label="Ir para gravação" icon={Video} onClick={() => navigate('/gravacao')} />
-          <QuickAction label="Ver calendário" icon={CalendarDays} onClick={() => navigate('/calendario')} />
+          <QuickAction label="Nova ideia" icon={Lightbulb} onClick={() => navigate('/criacao?compose=idea')} />
         </div>
       </section>
     </PageLayout>
@@ -292,16 +301,18 @@ function resolveSpotlight({
 function SpotlightBlock({
   spotlight,
   onNavigate,
+  detailBackState,
 }: {
   spotlight: SpotlightData;
-  onNavigate: (path: string) => void;
+  onNavigate: (path: string, options?: {state?: DetailBackState}) => void;
+  detailBackState: {state: DetailBackState};
 }) {
   if (spotlight.type === 'empty') {
     return (
       <div className="editorial-card flex items-center justify-between gap-6 p-8">
         <div>
           <Text variant="eyebrow">Próximo passo</Text>
-          <Text variant="spotlightTitle" className="mt-3">Tudo em dia</Text>
+          <Text variant="sectionTitle" className="mt-3">Tudo em dia</Text>
           <Text variant="body" className="mt-2 text-[var(--text-secondary)]">
             {EMPTY.dashboardSpotlight.description}
           </Text>
@@ -319,7 +330,7 @@ function SpotlightBlock({
       >
         <div className="min-w-0">
           <Text variant="eyebrow">Próximo passo</Text>
-          <Text variant="spotlightTitle" className="mt-3" truncate>
+          <Text variant="sectionTitle" className="mt-3" truncate>
             {spotlight.count === 1
               ? `Gravar: ${spotlight.firstTitle}`
               : `${spotlight.count} roteiros prontos para gravar`}
@@ -343,12 +354,12 @@ function SpotlightBlock({
   if (spotlight.type === 'edit') {
     return (
       <button
-        onClick={() => onNavigate(buildContentDetailRoute(spotlight.firstId))}
+        onClick={() => onNavigate(buildContentDetailRoute(spotlight.firstId), detailBackState)}
         className="editorial-card group flex w-full items-center justify-between gap-6 border-l-2 border-[var(--accent-blue)] bg-[var(--bg-secondary)] p-8 text-left shadow-sm transition-colors hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
       >
         <div className="min-w-0">
           <Text variant="eyebrow">Próximo passo</Text>
-          <Text variant="spotlightTitle" className="mt-3" truncate>
+          <Text variant="sectionTitle" className="mt-3" truncate>
             {spotlight.count === 1
               ? `Editar: ${spotlight.firstTitle}`
               : `${spotlight.count} conteudos aguardando edicao`}
@@ -377,7 +388,7 @@ function SpotlightBlock({
     >
       <div className="min-w-0">
         <Text variant="eyebrow">Próximo passo</Text>
-        <Text variant="spotlightTitle" className="mt-3" truncate>
+        <Text variant="sectionTitle" className="mt-3" truncate>
           {spotlight.title}
         </Text>
         <Text variant="body" className="mt-2 text-[var(--text-secondary)]">
@@ -395,14 +406,6 @@ function SpotlightBlock({
 }
 
 // --- Componentes ---
-
-function SpotlightCta({children}: {children: React.ReactNode}) {
-  return (
-    <span className="mt-4 inline-flex h-9 items-center justify-center gap-2 rounded-[var(--radius-input)] border border-[var(--accent)] bg-[var(--accent)] px-3 text-[length:var(--font-size-button)] font-semibold text-[var(--bg-secondary)]">
-      {children}
-    </span>
-  );
-}
 
 function QuickAction({
   label,

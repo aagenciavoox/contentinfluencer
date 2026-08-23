@@ -1,4 +1,4 @@
-import { LucideIcon, CheckCircle2, ExternalLink, Lightbulb, Pencil, Pin, Star } from 'lucide-react';
+import { LucideIcon, CheckCircle2, Lightbulb, NotebookPen, Pencil, Pin, Star } from 'lucide-react';
 import { motion } from 'motion/react';
 import { MediaCard } from '../../../components/ui/MediaCard';
 import { BibliotecaItem, BibliotecaItemMeta } from '../../../lib/database';
@@ -57,17 +57,26 @@ export function LibraryItemCard({
         className="mb-2 hover-card"
         overlay={
           <>
-            <div className="absolute inset-0 flex items-center justify-center gap-1.5 bg-[var(--text-primary)]/55 opacity-0 backdrop-blur-[1px] transition-opacity duration-200 group-hover:opacity-100">
+            <button
+              type="button"
+              onClick={onOpen}
+              aria-label={`Abrir anotações de ${item.titulo}`}
+              title="Abrir anotações"
+              className="absolute inset-0 z-0 rounded-[var(--radius-card-mobile)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--accent-blue)] md:rounded-[var(--radius-card)]"
+            />
+
+            <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center gap-1.5 bg-[var(--text-primary)]/55 opacity-0 backdrop-blur-[1px] transition-opacity duration-200 group-hover:opacity-100">
               <button
                 type="button"
                 onClick={event => {
                   event.stopPropagation();
                   onOpen();
                 }}
-                title="Abrir"
-                className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[var(--bg-elevated)]/95 text-[var(--text-primary)] shadow-none transition hover:scale-105"
+                title="Abrir anotações"
+                aria-label={`Ver anotações de ${item.titulo}`}
+                className="pointer-events-auto inline-flex h-8 w-8 items-center justify-center rounded-full bg-[var(--bg-elevated)]/95 text-[var(--text-primary)] shadow-none transition hover:scale-105"
               >
-                <ExternalLink className="h-3.5 w-3.5" />
+                <NotebookPen className="h-3.5 w-3.5" />
               </button>
               <button
                 type="button"
@@ -76,7 +85,7 @@ export function LibraryItemCard({
                   onEdit();
                 }}
                 title="Editar"
-                className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[var(--bg-elevated)]/95 text-[var(--text-primary)] shadow-none transition hover:scale-105"
+                className="pointer-events-auto inline-flex h-8 w-8 items-center justify-center rounded-full bg-[var(--bg-elevated)]/95 text-[var(--text-primary)] shadow-none transition hover:scale-105"
               >
                 <Pencil className="h-3.5 w-3.5" />
               </button>
@@ -88,7 +97,7 @@ export function LibraryItemCard({
                 }}
                 title={completed ? 'Já concluído' : 'Marcar concluído'}
                 disabled={completed}
-                className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[var(--bg-elevated)]/95 text-[var(--accent-green)] shadow-none transition hover:scale-105 disabled:cursor-default disabled:opacity-40"
+                className="pointer-events-auto inline-flex h-8 w-8 items-center justify-center rounded-full bg-[var(--bg-elevated)]/95 text-[var(--accent-green)] shadow-none transition hover:scale-105 disabled:cursor-default disabled:opacity-40"
               >
                 <CheckCircle2 className="h-3.5 w-3.5" />
               </button>
@@ -99,7 +108,7 @@ export function LibraryItemCard({
                   onTurnIntoIdea();
                 }}
                 title="Virar ideia"
-                className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[var(--bg-elevated)]/95 text-[var(--accent-orange)] shadow-none transition hover:scale-105"
+                className="pointer-events-auto inline-flex h-8 w-8 items-center justify-center rounded-full bg-[var(--bg-elevated)]/95 text-[var(--accent-orange)] shadow-none transition hover:scale-105"
               >
                 <Lightbulb className="h-3.5 w-3.5" />
               </button>
@@ -120,7 +129,7 @@ export function LibraryItemCard({
                 event.stopPropagation();
                 onTogglePrimary();
               }}
-              className={`absolute right-2 top-2 inline-flex items-center gap-1 rounded-full px-2 py-1 t-label t-label-uppercase font-semibold opacity-0  transition-all group-hover:opacity-100 ${
+              className={`absolute right-2 top-2 z-20 inline-flex items-center gap-1 rounded-full px-2 py-1 t-label t-label-uppercase font-semibold opacity-0  transition-all group-hover:opacity-100 ${
                 isPrimaryMobileBook
                   ? 'bg-[var(--text-primary)] text-[var(--bg-primary)]'
                   : 'bg-[var(--backdrop-strong)] text-[var(--bg-elevated)] hover:bg-[color-mix(in_srgb,var(--text-primary)_80%,transparent)]'
@@ -131,7 +140,7 @@ export function LibraryItemCard({
             </button>
 
             {contentsCount > 0 ? (
-              <div className="absolute right-2 top-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--text-primary)] px-1 text-xs font-semibold text-[var(--bg-primary)] transition-all group-hover:top-9">
+              <div className="pointer-events-none absolute right-2 top-2 z-20 flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--text-primary)] px-1 text-xs font-semibold text-[var(--bg-primary)] transition-all group-hover:top-9">
                 {contentsCount}
               </div>
             ) : null}

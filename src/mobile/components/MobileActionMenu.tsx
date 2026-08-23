@@ -5,8 +5,6 @@ import { useNavigate } from 'react-router-dom';
 import { useAppContext } from '../../context/AppContext';
 import { useAuth } from '../../context/AuthContext';
 import { BookAnnotationComposerSheet } from '../../features/library/components/modals/BookAnnotationComposerSheet';
-import { createContentDraft } from '../../features/contents/lib/createContentDraft';
-import { buildContentDetailRoute } from '../../features/contents/lib/contentDetailRoute';
 import { fetchBibliotecaItemById, type BibliotecaItem } from '../../lib/database';
 import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
 import { cn } from '../../lib/utils';
@@ -19,7 +17,7 @@ interface MobileActionMenuProps {
 const ACTIVE_READING_STATUSES = ['Consumindo', 'Lendo', 'Assistindo'] as const;
 
 export function MobileActionMenu({ open, onClose }: MobileActionMenuProps) {
-  const { state, dispatch, ensureDataDomains } = useAppContext();
+  const { state, ensureDataDomains } = useAppContext();
   const { user } = useAuth();
   const navigate = useNavigate();
   const [isBookComposerOpen, setIsBookComposerOpen] = useState(false);
@@ -81,14 +79,12 @@ export function MobileActionMenu({ open, onClose }: MobileActionMenuProps) {
   }, [onClose, open]);
 
   const handleNewIdea = () => {
-    navigate('/ideias?compose=1');
+    navigate('/criacao?compose=idea');
     onClose();
   };
 
   const handleNewContent = () => {
-    const newContent = createContentDraft({ title: '' });
-    void dispatch({ type: 'ADD_CONTENT', payload: newContent });
-    navigate(`${buildContentDetailRoute(newContent.id)}&focus=script`, { replace: true });
+    navigate('/criacao?compose=script');
     onClose();
   };
 
@@ -131,7 +127,7 @@ export function MobileActionMenu({ open, onClose }: MobileActionMenuProps) {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 z-[100] bg-[var(--backdrop-medium)] backdrop-blur-[2px] md:hidden"
+              className="fixed inset-0 z-[100] bg-[var(--backdrop-medium)] backdrop-blur-[2px]"
               onClick={onClose}
               aria-hidden="true"
             />
@@ -150,7 +146,7 @@ export function MobileActionMenu({ open, onClose }: MobileActionMenuProps) {
               onDragEnd={(_, info) => {
                 if (info.offset.y > 72 || info.velocity.y > 600) onClose();
               }}
-              className="fixed inset-x-0 bottom-0 z-[110] rounded-t-[1.75rem] border border-b-0 border-[var(--border-color)] bg-[var(--bg-secondary)] shadow-[0_-12px_40px_rgba(0,0,0,0.2)] md:hidden"
+              className="fixed inset-x-0 bottom-0 z-[110] rounded-t-[1.75rem] border border-b-0 border-[var(--border-color)] bg-[var(--bg-secondary)] shadow-[0_-12px_40px_rgba(0,0,0,0.18)]"
               style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 4.5rem)' }}
             >
               <div className="flex justify-center pt-3 pb-2">

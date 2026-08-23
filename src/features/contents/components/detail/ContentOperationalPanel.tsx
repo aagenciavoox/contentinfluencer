@@ -44,7 +44,7 @@ type OperationalDraft = Pick<
   | 'publishDate'
   | 'publishTime'
   | 'status'
->;
+> & Partial<Pick<Content, 'postedAt'>>;
 
 interface ContentOperationalPanelProps {
   draft: OperationalDraft;
@@ -71,7 +71,7 @@ function CollapsibleCard({
   const [open, setOpen] = useState(defaultOpen);
 
   return (
-    <Surface variant="outlined" padding="none" className="overflow-hidden shadow-sm">
+    <Surface variant="outlined" padding="none" className="overflow-visible shadow-sm">
       <button
         type="button"
         onClick={() => setOpen(prev => !prev)}
@@ -176,17 +176,19 @@ function ColoredSelect({
 function StatusDropdownField({
   status,
   publishDate,
+  postedAt,
   allowedStatuses,
   onStatusChange,
 }: {
   status: Content['status'];
   publishDate: string | null;
+  postedAt: string | null;
   allowedStatuses: string[];
   onStatusChange: (status: string) => void;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
-  const displayStatus = getDisplayStatus({status, publishDate});
+  const displayStatus = getDisplayStatus({status, publishDate, postedAt});
 
   useEffect(() => {
     if (!open) return;
@@ -238,11 +240,13 @@ function StatusDropdownField({
 function StatusPropertyRow({
   status,
   publishDate,
+  postedAt,
   allowedStatuses,
   onStatusChange,
 }: {
   status: Content['status'];
   publishDate: string | null;
+  postedAt: string | null;
   allowedStatuses: string[];
   onStatusChange: (status: string) => void;
 }) {
@@ -251,6 +255,7 @@ function StatusPropertyRow({
       <StatusDropdownField
         status={status}
         publishDate={publishDate}
+        postedAt={postedAt}
         allowedStatuses={allowedStatuses}
         onStatusChange={onStatusChange}
       />
@@ -357,6 +362,7 @@ export function ContentOperationalPanel({
       <StatusPropertyRow
         status={draft.status}
         publishDate={draft.publishDate}
+        postedAt={draft.postedAt ?? null}
         allowedStatuses={allowedStatuses}
         onStatusChange={status => onChange({status})}
       />
@@ -546,6 +552,7 @@ export function ContentOperationalPanel({
             <StatusDropdownField
               status={draft.status}
               publishDate={draft.publishDate}
+              postedAt={draft.postedAt ?? null}
               allowedStatuses={allowedStatuses}
               onStatusChange={status => onChange({status})}
             />

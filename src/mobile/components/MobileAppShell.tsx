@@ -38,7 +38,7 @@ export function MobileAppShell({
   );
 
   return (
-    <div className={cn('relative flex h-dvh flex-col overflow-hidden bg-[var(--bg-primary)] md:hidden', className)}>
+    <div className={cn('relative flex h-dvh flex-col overflow-hidden bg-[var(--bg-primary)]', className)}>
       {header}
 
       <div
@@ -72,7 +72,7 @@ export function MobileAppShell({
         ref={setMainRef}
         onScroll={onScroll}
         className={cn(
-          'flex-1 min-h-0 overflow-y-auto overscroll-y-contain px-4 pb-[calc(env(safe-area-inset-bottom)+6.75rem)] max-[390px]:pb-[calc(env(safe-area-inset-bottom)+6.25rem)]',
+          'flex-1 min-h-0 overflow-y-auto overscroll-y-contain px-4 pb-[calc(env(safe-area-inset-bottom)+5.5rem)]',
           compactHeader
             ? 'pt-[calc(env(safe-area-inset-top)+4.25rem)]'
             : 'pt-[calc(env(safe-area-inset-top)+8.5rem)] max-[390px]:pt-[calc(env(safe-area-inset-top)+7.5rem)]',

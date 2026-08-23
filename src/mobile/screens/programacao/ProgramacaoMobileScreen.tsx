@@ -41,6 +41,7 @@ import {cn} from '../../../lib/utils';
 import {MobileListCard} from '../../components/MobileListCard';
 import {MobileSearchBar} from '../../components/MobileSearchBar';
 import {MobileSectionHeader} from '../../components/MobileSectionHeader';
+import {CalendarModeSwitch} from '../../../features/editorial-calendar/components/CalendarModeSwitch';
 
 type ProgramacaoView = 'week' | 'month';
 
@@ -154,6 +155,7 @@ export function ProgramacaoMobileScreen({
 
   return (
     <div className="stack-xl px-4 py-4">
+      <CalendarModeSwitch variant="mobile" />
       <CalendarPeriodNav
         anchorDate={anchorDate}
         onAnchorDateChange={onAnchorDateChange}

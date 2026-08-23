@@ -14,15 +14,17 @@ function RouteFallback() {
 }
 
 function getRouteDataDomains(pathname: string): AppDataDomain[] {
-  if (pathname === '/dashboard' || pathname === '/') {
-    return [];
+  if (pathname === '/biblioteca/analise') {
+    return ['library'];
   }
   if (pathname.startsWith('/biblioteca')) return ['library', 'library-generos'];
+  if (pathname.startsWith('/criacao')) return ['production', 'content'];
   if (pathname.startsWith('/conteudos/')) return ['production'];
   if (pathname.startsWith('/conteudos')) return ['production'];
   if (pathname.startsWith('/ideias')) return ['production'];
-  if (pathname.startsWith('/calendario')) return ['content-schedule', 'agenda', 'projects'];
-  if (pathname.startsWith('/programacao')) return ['content-schedule', 'production'];
+  if (pathname.startsWith('/calendario') || pathname.startsWith('/programacao')) {
+    return ['content-schedule', 'agenda', 'projects', 'production'];
+  }
   if (pathname.startsWith('/projetos')) return ['content-schedule', 'library'];
   if (pathname.startsWith('/gravacao')) return ['content', 'production', 'recording'];
   if (pathname.startsWith('/configuracoes/pilares/')) return ['production', 'content', 'bootstrap'];

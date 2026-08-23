@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ArrowUpRight, FilePlus2, FileText, Lightbulb, Pencil } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { BottomSheetModal } from '../../../components/feedback/modals/BottomSheetModal';
 import { OverlayBody } from '../../../components/overlays/OverlayBody';
 import { OverlayFooter } from '../../../components/overlays/OverlayFooter';
@@ -27,6 +27,7 @@ import {
 } from '../../../features/settings/lib/seriesContentListUtils';
 import type { Content, Idea, Pilar, Serie } from '../../../lib/database';
 import { htmlToReadableText } from '../../../lib/utils';
+import { buildDetailBackState } from '../../../lib/navigation/detailBack';
 import { MobilePillButton } from '../../components/MobilePillButton';
 import { MobileSectionHeader } from '../../components/MobileSectionHeader';
 import { MobileSegmentTabs } from '../../components/MobileSegmentTabs';
@@ -58,6 +59,7 @@ export function SeriesDetailMobileScreen({
   onCreateBulkContents,
 }: SeriesDetailMobileScreenProps) {
   const navigate = useNavigate();
+  const location = useLocation();
   const [activeTab, setActiveTab] = useState<SeriesContentTab>('roteiros');
   const [previewItem, setPreviewItem] = useState<SeriesListItem | null>(null);
   const [showEditSheet, setShowEditSheet] = useState(false);
@@ -217,7 +219,7 @@ export function SeriesDetailMobileScreen({
               </Text>
               <button
                 type="button"
-                onClick={() => navigate('/conteudos')}
+                onClick={() => navigate('/criacao')}
                 className="inline-flex items-center gap-1 text-xs font-semibold text-[var(--text-secondary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
               >
                 Roteiros
@@ -318,10 +320,13 @@ export function SeriesDetailMobileScreen({
                 fullWidth
                 onClick={() => {
                   if (previewItem.kind === 'inbox-idea') {
-                    navigate('/ideias');
+                    navigate('/criacao?tab=ideias');
                     return;
                   }
-                  navigate(`/conteudos/${previewItem.data.id}`);
+                  navigate(
+                    `/conteudos/${previewItem.data.id}`,
+                    buildDetailBackState(`${location.pathname}${location.search}`),
+                  );
                 }}
                 leftIcon={<ArrowUpRight className="h-4 w-4" />}
               >

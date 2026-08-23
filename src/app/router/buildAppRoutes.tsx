@@ -5,14 +5,13 @@ import { CampanhaPublicaPage } from '../../features/projects/pages/CampanhaPubli
 import { LoginRoute, RequireAuth } from './RequireAuth';
 import { ModuleRoute } from './ModuleRoute';
 import { RouteDataBoundary } from './RouteDataBoundary';
+import { LegacyCreationRedirect } from '../../features/creation/components/LegacyCreationRedirect';
 
-const Dashboard = lazy(() => import('../../pages/Dashboard').then(module => ({ default: module.Dashboard })));
-const Contents = lazy(() => import('../../pages/Contents').then(module => ({ default: module.Contents })));
+const Creation = lazy(() => import('../../pages/Creation').then(module => ({ default: module.Creation })));
 const ContentDetail = lazy(() => import('../../pages/ContentDetail').then(module => ({ default: module.ContentDetail })));
-const Ideas = lazy(() => import('../../pages/Ideas').then(module => ({ default: module.Ideas })));
 const EditorialCalendar = lazy(() => import('../../pages/EditorialCalendar').then(module => ({ default: module.EditorialCalendar })));
-const Programacao = lazy(() => import('../../pages/Programacao').then(module => ({ default: module.Programacao })));
 const Biblioteca = lazy(() => import('../../pages/Biblioteca').then(module => ({ default: module.Biblioteca })));
+const Analise = lazy(() => import('../../pages/Analise').then(module => ({ default: module.Analise })));
 const BookDetail = lazy(() => import('../../pages/BookDetail').then(module => ({ default: module.BookDetail })));
 const Settings = lazy(() => import('../../pages/Settings').then(module => ({ default: module.Settings })));
 const PerfilSettings = lazy(() => import('../../pages/settings/Perfil').then(module => ({ default: module.PerfilSettings })));
@@ -49,13 +48,14 @@ export function buildAppRoutes(): RouteObject[] {
             {
               element: <RouteDataBoundary />,
               children: [
-                { path: '/', element: <Navigate to="/dashboard" replace /> },
-                { path: '/dashboard', element: <Dashboard /> },
-                { path: '/conteudos', element: <Contents /> },
-                { path: '/conteudos/historico', element: <Navigate to="/conteudos?view=publicados" replace /> },
-                { path: '/conteudos/publicados', element: <Navigate to="/conteudos?view=publicados" replace /> },
+                { path: '/', element: <Navigate to="/criacao" replace /> },
+                { path: '/dashboard', element: <Navigate to="/criacao" replace /> },
+                { path: '/criacao', element: <Creation /> },
+                { path: '/conteudos', element: <LegacyCreationRedirect source="contents" /> },
+                { path: '/conteudos/historico', element: <LegacyCreationRedirect source="contents" /> },
+                { path: '/conteudos/publicados', element: <LegacyCreationRedirect source="contents" /> },
                 { path: '/conteudos/:id', element: <ContentDetail /> },
-                { path: '/ideias', element: <Ideas /> },
+                { path: '/ideias', element: <LegacyCreationRedirect source="ideas" /> },
                 {
                   path: '/calendario',
                   element: (
@@ -66,17 +66,21 @@ export function buildAppRoutes(): RouteObject[] {
                 },
                 {
                   path: '/programacao',
-                  element: (
-                    <ModuleRoute module="calendar">
-                      <Programacao />
-                    </ModuleRoute>
-                  ),
+                  element: <Navigate to="/calendario?modo=agendar" replace />,
                 },
                 {
                   path: '/biblioteca',
                   element: (
                     <ModuleRoute module="library">
                       <Biblioteca />
+                    </ModuleRoute>
+                  ),
+                },
+                {
+                  path: '/biblioteca/analise',
+                  element: (
+                    <ModuleRoute module="library">
+                      <Analise />
                     </ModuleRoute>
                   ),
                 },
@@ -135,14 +139,15 @@ export function buildAppRoutes(): RouteObject[] {
                 { path: '/configuracoes/plataformas', element: <PlataformasSettings /> },
                 { path: '/configuracoes/templates', element: <TemplatesSettings /> },
                 { path: '/configuracoes/horarios', element: <PostingTimesSettings /> },
-                { path: '/contents', element: <Navigate to="/conteudos" replace /> },
-                { path: '/ideas', element: <Navigate to="/ideias" replace /> },
+                { path: '/contents', element: <LegacyCreationRedirect source="contents" /> },
+                { path: '/ideas', element: <LegacyCreationRedirect source="ideas" /> },
                 { path: '/editorial', element: <Navigate to="/calendario" replace /> },
+                { path: '/analise', element: <Navigate to="/biblioteca/analise" replace /> },
                 { path: '/calendar', element: <Navigate to="/calendario" replace /> },
-                { path: '/results', element: <Navigate to="/dashboard" replace /> },
-                { path: '/configuracoes/dna', element: <Navigate to="/dashboard" replace /> },
+                { path: '/results', element: <Navigate to="/criacao" replace /> },
+                { path: '/configuracoes/dna', element: <Navigate to="/criacao" replace /> },
                 { path: '/settings/*', element: <Navigate to="/configuracoes" replace /> },
-                { path: '*', element: <Navigate to="/dashboard" replace /> },
+                { path: '*', element: <Navigate to="/criacao" replace /> },
               ],
             },
           ],

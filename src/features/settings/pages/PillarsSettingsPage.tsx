@@ -131,7 +131,7 @@ export function PillarsSettingsPage() {
                     {count > 0 ? (
                       <button
                         type="button"
-                        onClick={() => navigate(`/conteudos?pilar=${pilar.id}`)}
+                        onClick={() => navigate(`/criacao?pilar=${pilar.id}`)}
                         className="rounded-[var(--radius-pill)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
                       >
                         <Badge variant="neutral">{volumeLabel}</Badge>

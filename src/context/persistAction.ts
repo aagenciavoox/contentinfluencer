@@ -1,6 +1,14 @@
 import type { AppState } from '../app/providers/appState';
-import { planDemoteContentsToIdeas } from '../features/contents/lib/demoteContentToIdea.ts';
-import { normalizeIdea } from '../features/ideas/lib/ideaText.ts';
+import {
+  archiveCreation,
+  contentFromLegacyIdea,
+  demoteContentToIdea,
+  findContentForLegacyIdea,
+  promoteContentToScript,
+  restoreCreation,
+  transitionCreationStatus,
+  updateContentFromLegacyIdea,
+} from '../features/contents/lib/creationContent.ts';
 import type * as db from '../lib/database.ts';
 import type { AppAction } from './reducer';
 
@@ -128,28 +136,81 @@ export async function persistAction({ action, userId, state, api }: PersistActio
       await persistContentRecord(action.payload, userId, persistenceApi);
       return;
 
+    case 'SET_CONTENT_STATUS': {
+      const contentIds = new Set(action.payload.contentIds);
+      const contents = state.contents.filter(content => contentIds.has(content.id));
+      for (const content of contents) {
+        await persistContentRecord(
+          transitionCreationStatus(content, action.payload.status),
+          userId,
+          persistenceApi,
+        );
+      }
+      return;
+    }
+
+    case 'ARCHIVE_CONTENTS': {
+      const contentIds = new Set(action.payload);
+      for (const content of state.contents.filter(item => contentIds.has(item.id))) {
+        await persistContentRecord(archiveCreation(content), userId, persistenceApi);
+      }
+      return;
+    }
+
+    case 'RESTORE_CONTENTS': {
+      const contentIds = new Set(action.payload);
+      for (const content of state.contents.filter(item => contentIds.has(item.id))) {
+        await persistContentRecord(restoreCreation(content), userId, persistenceApi);
+      }
+      return;
+    }
+
     case 'DELETE_CONTENT':
       await persistenceApi.deleteContent(action.payload);
       return;
 
-    case 'ADD_IDEA':
+    case 'ADD_IDEA': {
+      const idea = {...action.payload, userId};
+      const existing = findContentForLegacyIdea(state.contents, idea.id);
+      const content = existing
+        ? updateContentFromLegacyIdea(existing, idea)
+        : contentFromLegacyIdea(idea, {
+            id: action.payload.canonicalContentId,
+          });
+      await persistContentRecord(content, userId, persistenceApi);
+      return;
+    }
+
     case 'UPDATE_IDEA': {
-      const normalizedIdea = normalizeIdea({ ...action.payload, userId });
-      await persistenceApi.saveIdea(normalizedIdea);
+      const idea = {...action.payload, userId};
+      const existing = findContentForLegacyIdea(state.contents, idea.id);
+      const content = existing
+        ? updateContentFromLegacyIdea(existing, idea)
+        : contentFromLegacyIdea(idea, {
+            id: action.payload.canonicalContentId,
+          });
+      await persistContentRecord(content, userId, persistenceApi);
       return;
     }
 
     case 'PROMOTE_IDEA': {
-      await persistContentRecord(action.payload.content, userId, persistenceApi);
-      const existingIdea = state.ideas.find(idea => idea.id === action.payload.ideaId);
-      if (existingIdea) {
-        await persistenceApi.saveIdea({
-          ...existingIdea,
-          userId,
-          promotedToContentId: action.payload.contentId,
-          archived: true,
-        });
-      }
+      const existing = findContentForLegacyIdea(state.contents, action.payload.ideaId);
+      const sourceIdea = state.ideas.find(idea => idea.id === action.payload.ideaId);
+      const canonicalContent = existing
+        ? promoteContentToScript(existing)
+        : promoteContentToScript(
+            sourceIdea
+              ? contentFromLegacyIdea({...sourceIdea, userId}, {
+                  ...action.payload.content,
+                  legacyIdeaId: sourceIdea.id,
+                  createdAt: sourceIdea.createdAt,
+                })
+              : {
+                  ...action.payload.content,
+                  legacyIdeaId: action.payload.ideaId,
+                }
+          );
+      await persistContentRecord(canonicalContent, userId, persistenceApi);
       return;
     }
 
@@ -162,26 +223,25 @@ export async function persistAction({ action, userId, state, api }: PersistActio
         .map(contentId => fetchedById.get(contentId) ?? payloadById.get(contentId) ?? state.contents.find(content => content.id === contentId))
         .filter((content): content is db.Content => Boolean(content));
 
-      const plan = planDemoteContentsToIdeas(
-        demoteContents,
-        state.ideas,
-        contentIds,
-        userId,
-      );
-
-      for (const idea of plan.ideasToSave) {
-        await persistenceApi.saveIdea(normalizeIdea({ ...idea, userId: idea.userId || userId }));
-      }
-
-      for (const contentId of plan.contentIdsToDelete) {
-        await persistenceApi.deleteContent(contentId);
+      for (const content of demoteContents) {
+        await persistContentRecord(
+          demoteContentToIdea(content),
+          userId,
+          persistenceApi,
+        );
       }
       return;
     }
 
-    case 'DELETE_IDEA':
-      await persistenceApi.deleteIdea(action.payload);
+    case 'DELETE_IDEA': {
+      const existing = findContentForLegacyIdea(state.contents, action.payload);
+      if (existing) {
+        await persistContentRecord(archiveCreation(existing), userId, persistenceApi);
+      } else {
+        await persistenceApi.deleteIdea(action.payload);
+      }
       return;
+    }
 
     case 'ADD_CAMPAIGN':
     case 'ADD_PARTNERSHIP':

@@ -23,7 +23,6 @@ import { SeriesCreateContentPanel } from '../components/series-detail/SeriesCrea
 import { SeriesContentPreviewModal } from '../components/series-detail/SeriesContentPreviewModal';
 import {
   computeSeriesContentStats,
-  getInboxIdeasForSeriesScripts,
   type SeriesContentTab,
 } from '../lib/computeSeriesContentStats';
 import { filterAndSortSeriesListItems, type SeriesListItem } from '../lib/seriesContentListUtils';
@@ -60,10 +59,9 @@ export function SeriesScriptsPage() {
     [serieId, state.contents],
   );
 
-  const inboxIdeas = useMemo(
-    () => getInboxIdeasForSeriesScripts(state.ideas),
-    [state.ideas],
-  );
+  // Ideias agora vivem no mesmo pipeline de Content; a lista legada fica fora
+  // desta tela para evitar duplicar itens já migrados.
+  const inboxIdeas = useMemo(() => [], []);
 
   const stats = useMemo(
     () => computeSeriesContentStats(linkedContents, inboxIdeas),

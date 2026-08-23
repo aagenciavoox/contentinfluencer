@@ -1,5 +1,6 @@
-import {Check, Clapperboard, ExternalLink, Zap} from 'lucide-react';
+import {BookOpenText, Check, Clapperboard, ExternalLink, Zap} from 'lucide-react';
 import {Text} from '../../../../components/ui/Text';
+import {AppButton} from '../../../../components/ui/AppButton';
 import type {Content} from '../../../../lib/database';
 import {useAppContext} from '../../../../context/AppContext';
 import {EMPTY} from '../../../../lib/uiCopy';
@@ -12,6 +13,7 @@ import {
   resolveContentEntities,
 } from '../../../contents/lib/contentCardMeta';
 import {normalizeRecordingTags} from '../../lib/recordingWorkflow';
+import {isContentBodyLoaded} from '../../../contents/lib/contentBody';
 
 interface RecordingQueueGridProps {
   contents: Content[];
@@ -20,6 +22,7 @@ interface RecordingQueueGridProps {
   onSelectAll: () => void;
   onClearSelection: () => void;
   onOpen: (id: string) => void;
+  onRead: (id: string) => void;
 }
 
 export function RecordingQueueGrid({
@@ -29,6 +32,7 @@ export function RecordingQueueGrid({
   onSelectAll,
   onClearSelection,
   onOpen,
+  onRead,
 }: RecordingQueueGridProps) {
   const {state} = useAppContext();
   const allSelected = contents.length > 0 && contents.every(content => selectedIds.has(content.id));
@@ -91,6 +95,7 @@ export function RecordingQueueGrid({
           const {pillar, series} = resolveContentEntities(content, state.pilares, state.series);
           const excerpt = getUsefulExcerpt(content);
           const wordCount = getScriptWordCount(content);
+          const bodyLoaded = isContentBodyLoaded(content);
           const recordingTags = normalizeRecordingTags(content.tags || []);
 
           return (
@@ -118,14 +123,25 @@ export function RecordingQueueGrid({
                   {isSelected ? <Check className="h-3.5 w-3.5 stroke-[3px]" /> : null}
                 </button>
 
-                <button
-                  type="button"
-                  onClick={() => onOpen(content.id)}
-                  className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-[var(--radius-input)] border border-[var(--border-color)] text-[var(--text-secondary)] opacity-70 transition-all hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] group-hover:opacity-100"
-                  aria-label="Abrir detalhe do conteudo"
-                >
-                  <ExternalLink className="h-3.5 w-3.5" />
-                </button>
+                <div className="flex items-center gap-1">
+                  <AppButton
+                    variant="ghost"
+                    size="xs"
+                    iconOnly
+                    leftIcon={<BookOpenText className="h-3.5 w-3.5" />}
+                    onClick={() => onRead(content.id)}
+                    className="border-[var(--border-color)] opacity-70 group-hover:opacity-100"
+                    aria-label="Abrir modo leitura"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => onOpen(content.id)}
+                    className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-[var(--radius-input)] border border-[var(--border-color)] text-[var(--text-secondary)] opacity-70 transition-all hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] group-hover:opacity-100"
+                    aria-label="Abrir detalhe do conteudo"
+                  >
+                    <ExternalLink className="h-3.5 w-3.5" />
+                  </button>
+                </div>
               </div>
 
               <button
@@ -150,7 +166,11 @@ export function RecordingQueueGrid({
                   <p className="mt-2 line-clamp-3 text-xs leading-relaxed text-[var(--text-secondary)]">{excerpt}</p>
                 ) : (
                   <p className="mt-2 text-xs text-[var(--text-tertiary)]">
-                    {wordCount > 0 ? `${wordCount} palavras no roteiro` : 'Sem roteiro escrito'}
+                    {!bodyLoaded
+                      ? 'Carregando roteiro...'
+                      : wordCount > 0
+                        ? `${wordCount} palavras no roteiro`
+                        : 'Sem roteiro escrito'}
                   </p>
                 )}
 

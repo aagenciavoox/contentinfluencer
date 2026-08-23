@@ -35,6 +35,8 @@ import {AppButton} from '../../../components/ui/AppButton';
 import {EmptyState} from '../../../components/ui/EmptyState';
 import {MobileListCard} from '../../components/MobileListCard';
 import {MobileSearchBar} from '../../components/MobileSearchBar';
+import {CalendarModeSwitch} from '../../../features/editorial-calendar/components/CalendarModeSwitch';
+import {getDisplayStatus} from '../../../features/contents/lib/contentPipeline';
 
 type AgendaTimelineKind = 'agenda' | 'recording' | 'publish' | 'project';
 
@@ -103,6 +105,7 @@ function buildTimelineEntries(contents: Content[], platforms: Platform[], agenda
   });
 
   contents.forEach(content => {
+    const displayStatus = getDisplayStatus(content);
     if (content.recordingDate) {
       entries.push({
         id: `${content.id}:recording`,
@@ -110,7 +113,7 @@ function buildTimelineEntries(contents: Content[], platforms: Platform[], agenda
         title: content.title || 'Conteudo sem titulo',
         date: content.recordingDate,
         contentId: content.id,
-        secondary: content.status || 'Fila de gravacao',
+        secondary: displayStatus || 'Fila de gravacao',
       });
     }
     if (content.plataformas.length > 0) {
@@ -125,7 +128,7 @@ function buildTimelineEntries(contents: Content[], platforms: Platform[], agenda
           time: plataforma.publishTime || content.publishTime,
           contentId: content.id,
           plataformaId: plataforma.id,
-          secondary: `${platformNameById.get(plataforma.platformId) || plataforma.platformId} - ${content.status || 'Publicado'}`,
+          secondary: `${platformNameById.get(plataforma.platformId) || plataforma.platformId} - ${displayStatus || 'Publicado'}`,
         });
       });
     } else if (content.publishDate) {
@@ -136,7 +139,7 @@ function buildTimelineEntries(contents: Content[], platforms: Platform[], agenda
         date: content.publishDate,
         time: content.publishTime,
         contentId: content.id,
-        secondary: content.status || 'Planejado para publicar',
+        secondary: displayStatus || 'Planejado para publicar',
       });
     }
   });
@@ -274,7 +277,10 @@ export function AgendaMobileScreen({
 
   return (
     <div className="stack-xl">
-      {/* â”€â”€ Calendar card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      <div className="px-4">
+        <CalendarModeSwitch variant="mobile" />
+      </div>
+      {/* Calendar card */}
       <section className="overflow-hidden rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] shadow-sm">
 
         {/* Header: month nav + actions on second row */}

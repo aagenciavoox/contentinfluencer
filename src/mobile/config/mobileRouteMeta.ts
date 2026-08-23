@@ -10,6 +10,15 @@ interface MobileRouteMeta {
 }
 
 export function getMobileRouteMeta(pathname: string): MobileRouteMeta {
+  if (pathname === '/biblioteca/analise') {
+    return {
+      title: 'Análise',
+      subtitle: 'Livros, páginas, minutagem, progresso e anotações.',
+      mode: 'back',
+      backTo: '/biblioteca',
+    };
+  }
+
   if (pathname.startsWith('/biblioteca/')) {
     return {
       title: 'Leitura',
@@ -33,7 +42,7 @@ export function getMobileRouteMeta(pathname: string): MobileRouteMeta {
       title: GLOSSARY.roteiro,
       subtitle: 'Etapas do roteiro em um único detalhe.',
       mode: 'back',
-      backTo: '/conteudos',
+      backTo: '/criacao',
     };
   }
 
@@ -126,10 +135,11 @@ export function getMobileRouteMeta(pathname: string): MobileRouteMeta {
   }
 
   switch (pathname) {
-    case '/dashboard':
+    case '/criacao':
       return {
-        title: 'Hoje',
-        subtitle: 'Talvez útil para escolher sem pressa.',
+        title: 'Central de criação',
+        subtitle: 'Ideias e roteiros em um único fluxo.',
+        titleVariant: 'compact-center',
       };
     case '/conteudos':
       return {
@@ -143,9 +153,10 @@ export function getMobileRouteMeta(pathname: string): MobileRouteMeta {
         titleVariant: 'compact-center',
       };
     case '/calendario':
+    case '/programacao':
       return {
         title: 'Calendário',
-        subtitle: 'Visão objetiva da semana editorial.',
+        subtitle: 'Ver a semana ou agendar postagens.',
       };
     case '/biblioteca':
       return {
@@ -161,11 +172,6 @@ export function getMobileRouteMeta(pathname: string): MobileRouteMeta {
       return {
         title: 'Gravação',
         subtitle: 'Fila ativa e acesso ao modo gravação.',
-      };
-    case '/programacao':
-      return {
-        title: GLOSSARY.gradePostagem,
-        subtitle: 'Programação editorial e fila de publicação.',
       };
     case '/configuracoes':
       return {

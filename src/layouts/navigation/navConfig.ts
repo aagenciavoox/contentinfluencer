@@ -2,17 +2,13 @@ import type { ElementType } from 'react';
 import {
   BookOpen,
   Calendar,
-  CalendarClock,
   Camera,
-  FileText,
   FolderKanban,
-  LayoutDashboard,
   Layers,
-  Lightbulb,
   Palette,
+  Sparkles,
 } from 'lucide-react';
 import type { ModuleFlags } from '../../features/settings/lib/moduleFlags';
-import { GLOSSARY } from '../../lib/uiCopy';
 
 export type NavBadgeKey = 'editorial' | 'library';
 
@@ -37,22 +33,38 @@ export const STUDIO_ROUTES = [
 
 export const MOBILE_BOTTOM_NAV_ITEMS: NavItemDefinition[] = [
   { to: '/calendario', label: 'Calendário', icon: Calendar, module: 'calendar' },
-  { to: '/conteudos', label: 'Roteiros', icon: FileText, badgeKey: 'editorial' },
+  { to: '/criacao', label: 'Criação', icon: Sparkles, badgeKey: 'editorial' },
   { to: '/gravacao?tab=queue', label: 'Gravação', icon: Camera, module: 'recording' },
-  { to: '/ideias', label: 'Ideias', icon: Lightbulb },
 ];
+
+export function splitBottomNavItems<T>(items: T[]): { left: T[]; right: T[] } {
+  const splitIndex = Math.ceil(items.length / 2);
+  return {
+    left: items.slice(0, splitIndex),
+    right: items.slice(splitIndex),
+  };
+}
+
+export function isBottomNavItemActive(to: string, pathname: string): boolean {
+  const target = to.split('?')[0];
+
+  if (target === '/criacao') {
+    return pathname === '/criacao' || pathname.startsWith('/conteudos/');
+  }
+
+  if (target === '/gravacao') {
+    return pathname === '/gravacao' || pathname.startsWith('/gravacao/');
+  }
+
+  return pathname === target || pathname.startsWith(`${target}/`);
+}
 
 export function buildSidebarSections(moduleFlags: ModuleFlags): NavSectionDefinition[] {
   return [
     {
-      label: null,
-      items: [{ to: '/dashboard', label: 'Hoje', icon: LayoutDashboard }],
-    },
-    {
       label: 'Criação',
       items: [
-        { to: '/ideias', label: 'Ideias', icon: Lightbulb },
-        { to: '/conteudos', label: 'Roteiros', icon: FileText, badgeKey: 'editorial' },
+        { to: '/criacao', label: 'Criação', icon: Sparkles, badgeKey: 'editorial' },
         { to: '/configuracoes/series', label: 'Séries', icon: Layers },
         { to: '/configuracoes/pilares', label: 'Pilares', icon: Palette },
         { to: '/biblioteca', label: 'Biblioteca', icon: BookOpen, badgeKey: 'library', module: 'library' },
@@ -62,7 +74,6 @@ export function buildSidebarSections(moduleFlags: ModuleFlags): NavSectionDefini
       label: 'Produção',
       items: [
         { to: '/gravacao?tab=queue', label: 'Gravação', icon: Camera, module: 'recording' },
-        { to: '/programacao', label: GLOSSARY.gradePostagem, icon: CalendarClock, module: 'calendar' },
         { to: '/calendario', label: 'Calendário', icon: Calendar, module: 'calendar' },
         { to: '/projetos', label: 'Projetos', icon: FolderKanban, module: 'projects' },
       ],

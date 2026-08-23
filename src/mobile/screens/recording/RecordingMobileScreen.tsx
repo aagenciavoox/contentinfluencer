@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Clapperboard, ExternalLink, Layers3, Plus, SearchCheck, Tags, Video } from 'lucide-react';
+import { BookOpenText, Clapperboard, ExternalLink, Layers3, Plus, SearchCheck, Tags, Video } from 'lucide-react';
 import type { Content, Pilar, RecordingBlock, Serie } from '../../../lib/database';
 import { EmptyState } from '../../../components/ui/EmptyState';
 import { EMPTY } from '../../../lib/uiCopy';
@@ -13,6 +13,8 @@ import { TagSelect } from '../../../components/ui/TagSelect';
 import { AppButton } from '../../../components/ui/AppButton';
 import { Text } from '../../../components/ui/Text';
 import { getEntityTagStyle } from '../../../lib/utils';
+import { getScriptWordCount } from '../../../features/contents/lib/contentCardMeta';
+import { isContentBodyLoaded } from '../../../features/contents/lib/contentBody';
 
 interface RecordingMobileScreenProps {
   readyContents: Content[];
@@ -26,6 +28,7 @@ interface RecordingMobileScreenProps {
   onCreateBlock: (payload: { name: string; contentIds: string[]; tagsText: string }) => Promise<void> | void;
   onOpenBlock: (blockId: string) => void;
   onOpenContent: (contentId: string) => void;
+  onReadContent: (contentId: string) => void;
 }
 
 type RecordingMobileTab = 'queue' | 'blocks';
@@ -42,6 +45,7 @@ export function RecordingMobileScreen({
   onCreateBlock,
   onOpenBlock,
   onOpenContent,
+  onReadContent,
 }: RecordingMobileScreenProps) {
   const [search, setSearch] = useState('');
   const [pilarFilter, setPilarFilter] = useState('all');
@@ -179,6 +183,8 @@ export function RecordingMobileScreen({
                   const seriesName = serie?.name;
                   const selected = selectedIds.has(content.id);
                   const recordingTags = normalizeRecordingTags(content.tags || []);
+                  const bodyLoaded = isContentBodyLoaded(content);
+                  const scriptWordCount = getScriptWordCount(content);
 
                   return (
                     <MobileListCard
@@ -187,19 +193,39 @@ export function RecordingMobileScreen({
                       className={selected ? 'ring-1 ring-[var(--text-primary)]' : undefined}
                       eyebrow={selected ? 'Selecionado' : 'Sem bloco'}
                       title={content.title || 'Conteudo sem titulo'}
-                      description={content.notes || 'Sem observacoes adicionais'}
+                      description={
+                        !bodyLoaded
+                          ? 'Carregando roteiro...'
+                          : scriptWordCount > 0
+                            ? `${scriptWordCount} palavras no roteiro`
+                            : 'Sem roteiro escrito'
+                      }
                       trailing={
-                        <button
-                          type="button"
-                          onClick={event => {
-                            event.stopPropagation();
-                            onOpenContent(content.id);
-                          }}
-                          className="inline-flex h-8 w-8 items-center justify-center rounded-[var(--radius-input)] border border-[var(--border-color)] text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
-                          aria-label="Abrir detalhe do conteudo"
-                        >
-                          <ExternalLink className="h-3.5 w-3.5" />
-                        </button>
+                        <div className="flex items-center gap-1">
+                          <AppButton
+                            variant="ghost"
+                            size="xs"
+                            iconOnly
+                            leftIcon={<BookOpenText className="h-3.5 w-3.5" />}
+                            onClick={event => {
+                              event.stopPropagation();
+                              onReadContent(content.id);
+                            }}
+                            className="border-[var(--border-color)]"
+                            aria-label="Abrir modo leitura"
+                          />
+                          <button
+                            type="button"
+                            onClick={event => {
+                              event.stopPropagation();
+                              onOpenContent(content.id);
+                            }}
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-[var(--radius-input)] border border-[var(--border-color)] text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
+                            aria-label="Abrir detalhe do conteudo"
+                          >
+                            <ExternalLink className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
                       }
                       meta={
                         <>

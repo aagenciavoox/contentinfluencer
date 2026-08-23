@@ -147,7 +147,7 @@ export function RecordingBlockPage() {
             {block.name} · {progress.totalCount} roteiros gravados
           </p>
           <button
-            onClick={() => navigate('/conteudos?view=postagem')}
+            onClick={() => navigate('/criacao?tab=producao')}
             className="rounded-[var(--radius-card-mobile)] bg-[var(--text-primary)] px-8 py-4 text-xs font-semibold text-[var(--bg-primary)] transition-opacity hover:opacity-90 md:rounded-[var(--radius-card)]"
           >
             Ir para Producao
@@ -166,7 +166,7 @@ export function RecordingBlockPage() {
         onExit={() => {
           setIsBurstOpen(false);
           if (getRecordingBlockProgress(block, resolvedContents).isCompleted) {
-            navigate('/conteudos?view=postagem');
+            navigate('/criacao?tab=producao');
           }
         }}
       />
@@ -268,7 +268,7 @@ export function RecordingBlockPage() {
             onMarkRecorded={handleMarkRecorded}
             onFinish={() => {
               setIsMobileBurstOpen(false);
-              navigate('/conteudos');
+              navigate('/criacao');
             }}
           />
         ) : null}

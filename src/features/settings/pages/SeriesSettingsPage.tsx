@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CalendarClock, FilePlus2, Hash, Layers, Palette, Plus, Quote, Type } from 'lucide-react';
+import { CalendarClock, Hash, Layers, Palette, Plus, Quote, Type } from 'lucide-react';
 import { ConfirmModal } from '../../../components/feedback/modals/ConfirmModal';
 import { CONFIRM, type ConfirmState } from '../../../lib/uiCopy';
 import { AppButton } from '../../../components/ui/AppButton';
@@ -11,6 +11,8 @@ import {
   PropertySelect,
   PropertyTextarea,
 } from '../../../components/ui/PropertyRow';
+import { SegmentTabs } from '../../../components/ui/SegmentTabs';
+import { ToolbarSearchInput } from '../../../components/ui/ToolbarSearchInput';
 import { useAppContext } from '../../../context/AppContext';
 import { useAuth } from '../../../context/AuthContext';
 import { useIsMobile } from '../../../hooks/useIsMobile';
@@ -23,6 +25,20 @@ import { SerieProductionMetricsPanel } from '../components/SerieProductionMetric
 import type { Content } from '../../../lib/database';
 
 const FREQUENCIAS = ['Semanal', 'Quinzenal', 'Mensal', 'Sob demanda'] as const;
+
+type SeriesFilter = 'todas' | 'ativas' | 'inativas';
+
+function formatRoteiroCount(count: number) {
+  return `${count} roteiro${count === 1 ? '' : 's'}`;
+}
+
+function seriesMetaLine(serie: Serie, roteiroCount: number) {
+  const frequency = serie.frequenciaRecomendada || 'Sob demanda';
+  const activeLabel = serie.ativa ? null : 'Inativa';
+  return [frequency, formatRoteiroCount(roteiroCount), activeLabel]
+    .filter(Boolean)
+    .join(' · ');
+}
 
 export function SeriesForm({
   initial,
@@ -196,6 +212,8 @@ export function SeriesSettingsPage() {
   const isMobile = useIsMobile();
   const navigate = useNavigate();
   const [confirm, setConfirm] = useState<ConfirmState | null>(null);
+  const [search, setSearch] = useState('');
+  const [filter, setFilter] = useState<SeriesFilter>('todas');
 
   const openEditPage = (serieId: string) => {
     navigate(`/configuracoes/series/${serieId}/editar`);
@@ -237,6 +255,39 @@ export function SeriesSettingsPage() {
     }
     return map;
   }, [state.contents]);
+
+  const filteredSeries = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    return state.series
+      .filter(serie => {
+        if (filter === 'ativas' && !serie.ativa) return false;
+        if (filter === 'inativas' && serie.ativa) return false;
+        if (!query) return true;
+        const haystack = [
+          serie.name,
+          serie.bordao,
+          serie.estruturaRoteiro,
+          serie.frequenciaRecomendada,
+        ]
+          .filter(Boolean)
+          .join(' ')
+          .toLowerCase();
+        return haystack.includes(query);
+      })
+      .sort((a, b) => {
+        if (a.ativa !== b.ativa) return a.ativa ? -1 : 1;
+        return a.name.localeCompare(b.name, 'pt-BR');
+      });
+  }, [filter, search, state.series]);
+
+  const filterCounts = useMemo(() => {
+    const ativas = state.series.filter(serie => serie.ativa).length;
+    return {
+      todas: state.series.length,
+      ativas,
+      inativas: state.series.length - ativas,
+    };
+  }, [state.series]);
 
   const openBulkPage = (serieId: string) => {
     navigate(`/configuracoes/series/${serieId}/roteiros`);
@@ -290,64 +341,59 @@ export function SeriesSettingsPage() {
         </AppButton>
       }
     >
+      {state.series.length > 0 ? (
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <ToolbarSearchInput
+            value={search}
+            onChange={setSearch}
+            placeholder="Buscar série..."
+            className="w-full sm:max-w-xs"
+          />
+          <SegmentTabs<SeriesFilter>
+            value={filter}
+            onChange={setFilter}
+            options={[
+              { id: 'todas', label: `Todas ${filterCounts.todas}` },
+              { id: 'ativas', label: `Ativas ${filterCounts.ativas}` },
+              { id: 'inativas', label: `Inativas ${filterCounts.inativas}` },
+            ]}
+          />
+        </div>
+      ) : null}
+
       <div className={SETTINGS_ENTITY_GRID_CLASS}>
         {state.series.length === 0 ? (
           <div className="col-span-full py-10 text-center">
             <Layers className="mx-auto mb-2 h-8 w-8 opacity-10" />
             <p className="text-sm font-medium opacity-40">Nenhuma série criada</p>
           </div>
+        ) : filteredSeries.length === 0 ? (
+          <div className="col-span-full py-10 text-center">
+            <p className="text-sm font-medium opacity-40">Nenhuma série encontrada</p>
+          </div>
         ) : (
-          state.series.map(serie => (
-            <SettingsGridCard
-              key={serie.id}
-              title={serie.name}
-              description={serie.estruturaRoteiro || 'Sem estrutura de roteiro definida.'}
-              color={serie.cor || '#6366f1'}
-              active={serie.ativa}
-              dimmed={!serie.ativa}
-              onToggle={() => handleToggleActive(serie)}
-              onEdit={() => openEditPage(serie.id)}
-              onDelete={() => handleDelete(serie.id)}
-              footer={
-                <>
-                  <button
-                    type="button"
-                    onClick={() => openBulkPage(serie.id)}
-                    className="inline-flex items-center gap-1 rounded-[var(--radius-input)] px-2 py-1 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
-                  >
-                    <FilePlus2 className="h-3 w-3" />
-                    Roteiros
-                  </button>
-                  <div className="flex items-center gap-1">
-                    <button
-                      type="button"
-                      onClick={() => openEditPage(serie.id)}
-                      className="rounded-[var(--radius-input)] px-2 py-1 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
-                    >
-                      Editar
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleDelete(serie.id)}
-                      className="rounded-[var(--radius-input)] px-2 py-1 text-xs font-medium text-[var(--accent-pink)] transition-colors hover:bg-[var(--accent-pink)]/10"
-                    >
-                      Excluir
-                    </button>
-                  </div>
-                </>
-              }
-              badges={
-                <>
-                  <span className="rounded-full bg-[var(--bg-hover)] px-2 py-0.5 text-xs font-medium text-[var(--text-tertiary)]">
-                    {serie.frequenciaRecomendada || 'Sob demanda'}
-                  </span>
-                  <span className="rounded-full bg-[var(--bg-hover)] px-2 py-0.5 text-xs font-medium text-[var(--text-tertiary)]">
-                    {roteiroCountBySerie.get(serie.id) || 0} roteiros
-                  </span>
-                </>
-              }
-            />
-          ))
+          filteredSeries.map(serie => {
+            const roteiroCount = roteiroCountBySerie.get(serie.id) || 0;
+            const structure = serie.estruturaRoteiro?.trim();
+
+            return (
+              <SettingsGridCard
+                key={serie.id}
+                compact
+                colorAccent="bar"
+                title={serie.name}
+                description={structure || undefined}
+                color={serie.cor || '#6366f1'}
+                active={serie.ativa}
+                dimmed={!serie.ativa}
+                onOpen={() => openBulkPage(serie.id)}
+                onToggle={() => handleToggleActive(serie)}
+                onEdit={() => openEditPage(serie.id)}
+                onDelete={() => handleDelete(serie.id)}
+                meta={seriesMetaLine(serie, roteiroCount)}
+              />
+            );
+          })
         )}
       </div>
 

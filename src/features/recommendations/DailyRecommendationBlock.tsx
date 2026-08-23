@@ -1,5 +1,6 @@
 import { ArrowRight, Clapperboard, Settings2, Sparkles, Video } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { SpotlightCta } from '../../components/ui/SpotlightCta';
 import { Text } from '../../components/ui/Text';
 import type { DailyRecommendation } from './types';
 
@@ -56,7 +57,7 @@ export function DailyRecommendationBlock({
             style={{ backgroundColor: pilar.cor }}
             aria-hidden
           />
-          <Text variant="spotlightTitle" truncate>
+          <Text variant="sectionTitle" truncate>
             {title}
           </Text>
         </div>
@@ -69,9 +70,9 @@ export function DailyRecommendationBlock({
             {pilar.gapCiclo != null && pilar.gapCiclo > 0 ? ` · Gap: ${pilar.gapCiclo}` : ''}
           </Text>
         ) : null}
-        <span className="mt-4 inline-flex h-9 items-center justify-center gap-2 rounded-[var(--radius-input)] border border-[var(--accent)] bg-[var(--accent)] px-3 text-[length:var(--font-size-button)] font-semibold text-[var(--bg-secondary)]">
+        <SpotlightCta>
           Ver caminho <ArrowRight className="h-3.5 w-3.5" />
-        </span>
+        </SpotlightCta>
       </div>
       <div className="rounded-[var(--radius-card-mobile)] bg-[var(--bg-hover)] p-6">
         <Icon className="h-8 w-8 text-[var(--text-secondary)]" />

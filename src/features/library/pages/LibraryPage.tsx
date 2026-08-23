@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { BookOpen, ChevronDown, Clapperboard, Film, LucideIcon, Tags, Tv } from 'lucide-react';
 import { useAppContext } from '../../../context/AppContext';
 import { useAuth } from '../../../context/AuthContext';
-import { BibliotecaItem, BibliotecaItemMeta, fetchBibliotecaContentCounts, fetchBibliotecaPage, Idea } from '../../../lib/database';
+import { BibliotecaItem, BibliotecaItemMeta, fetchBibliotecaContentCounts, fetchBibliotecaPage } from '../../../lib/database';
 import { usePaginatedQuery } from '../../../hooks/usePaginatedQuery';
 import { generateUUID } from '../../../utils/uuid';
 import { buildIdeaFields, parseLegacyIdeaText } from '../../ideas/lib/ideaText';
@@ -26,6 +26,8 @@ import { LibraryItemCard } from '../components/LibraryItemCard';
 import { LibraryToolbar } from '../components/LibraryToolbar';
 import { COMPLETED_STATUS_BY_TYPE } from '../lib/libraryStatus';
 import { TagSelect } from '../../../components/ui/TagSelect';
+import { createIdeaContent } from '../../contents/lib/creationContent';
+import { LibrarySectionTabs } from '../components/LibrarySectionTabs';
 
 type StatusLeitura = BibliotecaItem['status'];
 type GeneroLivro = string;
@@ -317,20 +319,15 @@ export function LibraryPage() {
         || (item.autorDiretor ? item.autorDiretor : ''),
     });
 
-    const ideia: Idea = {
-      id: generateUUID(),
-      userId: '',
-      ...fields,
+    const ideia = createIdeaContent({
+      title: fields.title || 'Ideia sem título',
+      notes: fields.notes || null,
       pilarId: null,
       seriesId: null,
-      origemId: item.id,
-      promotedToContentId: null,
-      demotedFromContentId: null,
-      archived: false,
-      createdAt: new Date().toISOString(),
-    };
+      bibliotecaItemId: item.id,
+    });
 
-    dispatch({ type: 'ADD_IDEA', payload: ideia });
+    dispatch({ type: 'ADD_CONTENT', payload: ideia });
   };
 
   const resetForm = () => {
@@ -451,7 +448,7 @@ export function LibraryPage() {
             getItemMeta={getItemMeta}
             countContents={contarConteudos}
             isLoading={isLibraryLoading}
-            onOpenItem={(itemId) => navigate(`/biblioteca/${itemId}`)}
+            onOpenItem={(itemId) => navigate(`/biblioteca/${itemId}?tab=anotacoes`)}
             onOpenCreate={handleOpenModal}
             onTogglePrimary={handleSetPrimaryMobileBook}
           />
@@ -581,7 +578,11 @@ export function LibraryPage() {
   return (
     <PageLayout
       contentWidth="wide"
-      header={<DesktopPageHeader section="Criação" title="Biblioteca" />}
+      header={(
+        <DesktopPageHeader section="Criação" title="Biblioteca">
+          <LibrarySectionTabs />
+        </DesktopPageHeader>
+      )}
       toolbar={
         <LibraryToolbar
           searchValue={searchTerm}
@@ -643,7 +644,7 @@ export function LibraryPage() {
                 contentsCount={contarConteudos(livro.id)}
                 isPrimaryMobileBook={mobilePrimaryBookId === livro.id}
                 statusClassName={STATUS_CORES[livro.status] || ''}
-                onOpen={() => navigate(`/biblioteca/${livro.id}`)}
+                onOpen={() => navigate(`/biblioteca/${livro.id}?tab=anotacoes`)}
                 onEdit={() => navigate(`/biblioteca/${livro.id}?tab=info`)}
                 onMarkComplete={() => handleMarkComplete(livro)}
                 onTurnIntoIdea={() => handleTurnIntoIdea(livro)}

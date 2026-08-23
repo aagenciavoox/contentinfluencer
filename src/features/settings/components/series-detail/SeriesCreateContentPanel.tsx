@@ -1,8 +1,9 @@
 import { useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Text } from '../../../../components/ui/Text';
 import { AppButton } from '../../../../components/ui/AppButton';
 import type { Content, Pilar, Serie } from '../../../../lib/database';
+import { buildDetailBackState } from '../../../../lib/navigation/detailBack';
 import {
   SeriesCreateContentForm,
   type SeriesCreateContentFormHandle,
@@ -24,6 +25,7 @@ export function SeriesCreateContentPanel({
   onCreate,
 }: SeriesCreateContentPanelProps) {
   const navigate = useNavigate();
+  const location = useLocation();
   const formRef = useRef<SeriesCreateContentFormHandle>(null);
 
   const title = mode === 'ideia' ? 'Nova ideia' : 'Novo roteiro';
@@ -31,7 +33,10 @@ export function SeriesCreateContentPanel({
 
   const handleSuccess = (contentId: string, action: 'draft' | 'open') => {
     if (action === 'open') {
-      navigate(`/conteudos/${contentId}`);
+      navigate(
+        `/conteudos/${contentId}`,
+        buildDetailBackState(`${location.pathname}${location.search}`),
+      );
     }
   };
 

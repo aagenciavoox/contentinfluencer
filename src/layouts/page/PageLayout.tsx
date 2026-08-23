@@ -1,5 +1,6 @@
 import { ReactNode } from 'react';
 import { cn } from '../../lib/utils';
+import { useIsMobile } from '../../hooks/useIsMobile';
 import { PageContainer } from './PageContainer';
 
 interface PageLayoutProps {
@@ -43,6 +44,7 @@ export function PageLayout({
   contentStack,
   variant = 'default',
 }: PageLayoutProps) {
+  const isMobile = useIsMobile();
   const resolvedStack =
     contentStack ?? (variant === 'settings' ? 'settings' : 'operational');
 
@@ -54,18 +56,18 @@ export function PageLayout({
         className
       )}
     >
-      {(header || toolbar) && (
-        <header className="desktop-header-sticky hidden md:block">
+      {!isMobile && (header || toolbar) ? (
+        <header className="desktop-header-sticky">
           <div className={cn(headerWidthClasses[contentWidth], 'stack-md')}>
             {header}
             {toolbar}
           </div>
         </header>
-      )}
+      ) : null}
 
       <main className="flex-1">
-        {mobileHeader ? (
-          <div className={cn(headerWidthClasses[contentWidth], 'md:hidden')}>{mobileHeader}</div>
+        {isMobile && mobileHeader ? (
+          <div>{mobileHeader}</div>
         ) : null}
 
         <PageContainer
@@ -76,7 +78,7 @@ export function PageLayout({
             contentClassName,
           )}
         >
-          {mobileToolbar ? <div className="mb-6 md:hidden">{mobileToolbar}</div> : null}
+          {isMobile && mobileToolbar ? <div className="mb-6">{mobileToolbar}</div> : null}
           {children}
         </PageContainer>
       </main>

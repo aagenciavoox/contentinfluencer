@@ -23,6 +23,7 @@ export type ScriptDraft = {
   recordingDate: string | null;
   publishDate: string | null;
   publishTime: string | null;
+  postedAt: string | null;
   plataformas: ContentPlataforma[];
 };
 

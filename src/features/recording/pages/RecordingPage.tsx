@@ -1,11 +1,14 @@
-import {useEffect, useState, type ReactNode} from 'react';
-import {useNavigate, useSearchParams} from 'react-router-dom';
+import {useEffect, useRef, useState, type ReactNode} from 'react';
+import {useLocation, useNavigate, useSearchParams} from 'react-router-dom';
 import {Layers3, Video} from 'lucide-react';
 import {useAppContext} from '../../../context/AppContext';
 import {useAuth} from '../../../context/AuthContext';
 import {useIsMobile} from '../../../hooks/useIsMobile';
 import type {RecordingBlock, RecordingBlockContent} from '../../../lib/database';
+import {fetchContentsByIds} from '../../../lib/database';
 import {buildContentDetailRoute} from '../../contents/lib/contentDetailRoute';
+import {buildDetailBackState} from '../../../lib/navigation/detailBack';
+import {isContentBodyLoaded, upsertContent} from '../../contents/lib/contentBody';
 import {getRecordingQueueContents} from '../../contents/lib/contentWorkflow';
 import {cn} from '../../../lib/utils';
 import {DesktopPageHeader} from '../../../layouts/page/DesktopPageHeader';
@@ -14,9 +17,13 @@ import {RecordingMobileScreen} from '../../../mobile/screens/recording/Recording
 import {RecordingQueueGrid} from '../components/desktop/RecordingQueueGrid';
 import {RecordingQueueTab} from '../components/desktop/RecordingQueueTab';
 import {RecordingSelectionBar} from '../components/desktop/RecordingSelectionBar';
+import {RecordingScriptReader} from '../components/RecordingScriptReader';
 import {FilterBar} from '../../../components/ui/FilterBar';
 import {Text} from '../../../components/ui/Text';
-import {normalizeRecordingTags} from '../lib/recordingWorkflow';
+import {
+  buildMarkStandaloneContentRecordedTransition,
+  normalizeRecordingTags,
+} from '../lib/recordingWorkflow';
 import {generateUUID} from '../../../utils/uuid';
 
 type RecordingPageTab = 'queue' | 'blocks';
@@ -29,6 +36,7 @@ export function RecordingPage() {
   const {state, dispatch} = useAppContext();
   const {user} = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const isMobile = useIsMobile();
 
@@ -44,8 +52,87 @@ export function RecordingPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortValue, setSortValue] = useState('recentes');
   const [blockTags, setBlockTags] = useState<string[]>([]);
+  const [readerContentId, setReaderContentId] = useState<string | null>(null);
+  const [readerLoading, setReaderLoading] = useState(false);
+  const [readerLoadError, setReaderLoadError] = useState<string | null>(null);
+  const contentsRef = useRef(state.contents);
+  contentsRef.current = state.contents;
 
-  const openContentDetail = (contentId: string) => navigate(buildContentDetailRoute(contentId, 'gravacao'));
+  const openContentDetail = (contentId: string) =>
+    navigate(
+      buildContentDetailRoute(contentId, 'gravacao'),
+      buildDetailBackState(`${location.pathname}${location.search}`),
+    );
+  const readerContent = state.contents.find(content => content.id === readerContentId) ?? null;
+
+  const openScriptReader = (contentId: string) => {
+    const content = state.contents.find(candidate => candidate.id === contentId);
+    setReaderLoadError(null);
+    setReaderLoading(Boolean(content && !isContentBodyLoaded(content)));
+    setReaderContentId(contentId);
+  };
+
+  const closeScriptReader = () => {
+    setReaderContentId(null);
+    setReaderLoading(false);
+    setReaderLoadError(null);
+  };
+
+  useEffect(() => {
+    if (!readerContentId || !readerContent) return;
+
+    if (isContentBodyLoaded(readerContent)) {
+      setReaderLoading(false);
+      setReaderLoadError(null);
+      return;
+    }
+
+    if (!user) {
+      setReaderLoading(false);
+      setReaderLoadError('Entre novamente para buscar o texto salvo.');
+      return;
+    }
+
+    let cancelled = false;
+    setReaderLoading(true);
+    setReaderLoadError(null);
+
+    void fetchContentsByIds(user.id, [readerContentId])
+      .then(async fetched => {
+        if (cancelled) return;
+        const item = fetched[0];
+        if (!item) {
+          setReaderLoadError('O roteiro não foi encontrado no banco de dados.');
+          return;
+        }
+        await dispatch({
+          type: 'SET_DATA',
+          payload: {contents: upsertContent(contentsRef.current, item)},
+        });
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setReaderLoadError('Verifique sua conexão e tente abrir o roteiro novamente.');
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setReaderLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [dispatch, readerContent, readerContentId, user]);
+
+  const handleMarkStandaloneRecorded = async (contentId: string) => {
+    const content = state.contents.find(candidate => candidate.id === contentId);
+    if (!content) return;
+    await dispatch({
+      type: 'UPDATE_CONTENT',
+      payload: buildMarkStandaloneContentRecordedTransition(content),
+    });
+    closeScriptReader();
+  };
 
   useEffect(() => {
     const nextTab = resolveRecordingTab(searchParams.get('tab'));
@@ -245,8 +332,9 @@ export function RecordingPage() {
 
   if (isMobile) {
     return (
-      <div className="min-h-full bg-[var(--bg-primary)]">
-        <RecordingMobileScreen
+      <>
+        <div className="min-h-full bg-[var(--bg-primary)]">
+          <RecordingMobileScreen
           readyContents={queueContents}
           recordingBlocks={state.recordingBlocks}
           allContents={state.contents}
@@ -258,13 +346,25 @@ export function RecordingPage() {
           onCreateBlock={handleCreateBlockFromMobile}
           onOpenBlock={(blockId) => navigate(`/gravacao/${blockId}?tab=blocks`)}
           onOpenContent={(contentId) => openContentDetail(contentId)}
-        />
-      </div>
+          onReadContent={openScriptReader}
+          />
+        </div>
+        {readerContent ? (
+          <RecordingScriptReader
+            content={readerContent}
+            loading={readerLoading}
+            loadError={readerLoadError}
+            onClose={closeScriptReader}
+            onMarkRecorded={handleMarkStandaloneRecorded}
+          />
+        ) : null}
+      </>
     );
   }
 
   return (
-    <PageLayout
+    <>
+      <PageLayout
       header={
         <DesktopPageHeader
           section="Produção"
@@ -390,6 +490,7 @@ export function RecordingPage() {
               onSelectAll={handleSelectAll}
               onClearSelection={handleClearSelection}
               onOpen={openContentDetail}
+              onRead={openScriptReader}
             />
 
             <RecordingSelectionBar
@@ -433,7 +534,17 @@ export function RecordingPage() {
             <RecordingQueueTab />
           </section>
         )}
-    </PageLayout>
+      </PageLayout>
+      {readerContent ? (
+        <RecordingScriptReader
+          content={readerContent}
+          loading={readerLoading}
+          loadError={readerLoadError}
+          onClose={closeScriptReader}
+          onMarkRecorded={handleMarkStandaloneRecorded}
+        />
+      ) : null}
+    </>
   );
 }
 

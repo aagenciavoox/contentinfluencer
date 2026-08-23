@@ -1,2 +1,2 @@
-export { EditorialCalendarPage as EditorialCalendar } from '../features/editorial-calendar/pages/EditorialCalendarPage';
+export { CalendarHubPage as EditorialCalendar } from '../features/editorial-calendar/pages/CalendarHubPage';
 

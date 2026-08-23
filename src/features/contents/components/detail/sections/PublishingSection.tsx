@@ -1,14 +1,14 @@
 import {AlertTriangle, CalendarDays, Image, Send} from 'lucide-react';
 import type {Content, ContentPlataforma, Pilar, Serie} from '../../../../../lib/database';
 import {AppButton} from '../../../../../components/ui/AppButton';
-import {CONTENT_STATUS} from '../../../lib/contentPipeline';
+import {CONTENT_STATUS, getDisplayStatus} from '../../../lib/contentPipeline';
 import type {PostingAlert} from '../../../lib/contentPipeline';
 import {PlatformCopyEditor} from '../PlatformCopyEditor';
 
 type PublishingDraft = Pick<
   Content,
   'status' | 'publishDate' | 'publishDateEnabled' | 'plataformas' | 'notes'
->;
+> & Partial<Pick<Content, 'postedAt'>>;
 
 interface PublishingSectionProps {
   draft: PublishingDraft;
@@ -41,7 +41,7 @@ export function PublishingSection({
   onMarkPosted,
   isSaving = false,
 }: PublishingSectionProps) {
-  const isPosted = draft.status === CONTENT_STATUS.POSTADO;
+  const isPosted = draft.status === CONTENT_STATUS.POSTADO || Boolean(draft.postedAt);
   const activePlatformIds = draft.plataformas.length > 0 ? draft.plataformas.map(item => item.platformId) : [];
 
   return (
@@ -78,7 +78,13 @@ export function PublishingSection({
 
           <div className="rounded-[24px] border border-[var(--border-color)] bg-[var(--bg-primary)] px-4 py-4">
             <p className="text-xs font-semibold text-[var(--text-tertiary)]">Status atual</p>
-            <p className="mt-3 text-xl font-semibold text-[var(--text-primary)]">{draft.status}</p>
+            <p className="mt-3 text-xl font-semibold text-[var(--text-primary)]">
+              {getDisplayStatus({
+                status: draft.status,
+                publishDate: draft.publishDate,
+                postedAt: draft.postedAt ?? null,
+              })}
+            </p>
             <p className="mt-2 text-sm text-[var(--text-secondary)]">
               Datas ficam guardadas aqui para lembrar, reagendar ou marcar como postado quando fizer sentido.
             </p>

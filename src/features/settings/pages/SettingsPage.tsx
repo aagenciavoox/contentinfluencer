@@ -51,6 +51,8 @@ export function SettingsPage() {
       case 'perfil': return 'complete';
       case 'plataformas': return (state.platforms?.filter((p: {ativo: boolean}) => p.ativo).length ?? 0) > 0 ? 'complete' : 'empty';
       case 'templates': return (state.templates?.length ?? 0) > 0 ? 'complete' : 'empty';
+      case 'pilares': return (state.pilares?.length ?? 0) > 0 ? 'complete' : 'empty';
+      case 'series': return (state.series?.length ?? 0) > 0 ? 'complete' : 'empty';
       case 'horarios': return 'complete';
       default: return undefined;
     }
@@ -77,6 +79,20 @@ export function SettingsPage() {
       icon: Layout,
       title: 'Templates de Roteiro',
       desc: 'Modelos de roteiro reutilizáveis por série ou formato',
+    },
+    {
+      key: 'pilares',
+      to: '/configuracoes/pilares',
+      icon: Leaf,
+      title: 'Pilares',
+      desc: 'Temas editoriais, metas de ciclo e hashtags por plataforma',
+    },
+    {
+      key: 'series',
+      to: '/configuracoes/series',
+      icon: Hash,
+      title: 'Séries',
+      desc: 'Quadros recorrentes e roteiros vinculados a cada série',
     },
     {
       key: 'horarios',

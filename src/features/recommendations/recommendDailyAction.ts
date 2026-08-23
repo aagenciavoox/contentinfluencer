@@ -85,7 +85,7 @@ export function recommendDailyAction({
         },
         contentIds: postCandidate.metrics.postableContentIds,
         message: `"${pilar.nome}" precisa de mais ${gap} no ciclo. A série "${postCandidate.serie.name}" tem ${postCandidate.metrics.gravadosProntos} prontos e ${formatLastPublication(postCandidate.metrics.ultimaPublicacao)}.`,
-        href: '/programacao',
+        href: '/calendario?modo=agendar',
       };
     }
 
@@ -117,6 +117,6 @@ export function recommendDailyAction({
       configuredMetrics.gapCiclo,
     ),
     message: 'O estoque cobre as metas do ciclo. Você pode seguir com o próximo passo do dia.',
-    href: '/dashboard',
+    href: '/criacao',
   };
 }

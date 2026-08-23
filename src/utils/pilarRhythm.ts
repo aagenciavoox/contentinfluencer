@@ -1,23 +1,42 @@
-import type {Content, Pilar, Platform} from '../lib/database.ts';
+import type {Content, Pilar, Platform, Serie} from '../lib/database.ts';
 import {
   isTimeWithinWindow,
   isWeekdayAllowed,
   resolvePlatformUuid,
 } from '../features/settings/lib/pilarPostingSchedule.ts';
 import type {Weekday} from '../features/settings/lib/postingTimes.ts';
+import {isScriptWritten} from '../features/recommendations/contentStock.ts';
 import {addDays, getDay, isWithinInterval, parseISO, startOfDay, startOfWeek} from 'date-fns';
 
 export interface Violation {
   ruleId: string;
-  type: 'warning' | 'info';
+  type: 'deficit' | 'warning' | 'info';
   message: string;
   affectedContentIds: string[];
 }
+
+type DeficitTarget = {
+  kind: 'pilar' | 'serie';
+  id: string;
+  label: string;
+  target: number;
+  count: number;
+  missing: number;
+  scheduledIds: string[];
+};
 
 function getWeekInterval(weekStart: Date) {
   return {
     start: startOfDay(weekStart),
     end: startOfDay(addDays(weekStart, 6)),
+  };
+}
+
+function getRollingIntervalEndingAtWeek(weekStart: Date, dayCount: number) {
+  const weekEnd = startOfDay(addDays(weekStart, 6));
+  return {
+    start: startOfDay(addDays(weekEnd, -(dayCount - 1))),
+    end: weekEnd,
   };
 }
 
@@ -50,8 +69,7 @@ function parsePublishDate(value: string): Date {
   return parseISO(value);
 }
 
-function publishedThisWeek(contents: Content[], weekStart: Date): Content[] {
-  const interval = getWeekInterval(weekStart);
+function contentsInInterval(contents: Content[], interval: {start: Date; end: Date}): Content[] {
   return contents.filter(content => {
     if (!content.publishDate) return false;
     try {
@@ -62,10 +80,30 @@ function publishedThisWeek(contents: Content[], weekStart: Date): Content[] {
   });
 }
 
+function publishedThisWeek(contents: Content[], weekStart: Date): Content[] {
+  return contentsInInterval(contents, getWeekInterval(weekStart));
+}
+
+function serieWindowDays(frequencia: string | null | undefined): number | null {
+  const normalized = (frequencia || '').trim().toLowerCase();
+  if (normalized === 'semanal') return 7;
+  if (normalized === 'quinzenal') return 14;
+  if (normalized === 'mensal') return 28;
+  return null;
+}
+
+function windowLabel(dayCount: number): string {
+  if (dayCount === 7) return 'esta semana';
+  if (dayCount === 14) return 'nos últimos 14 dias';
+  if (dayCount === 28) return 'nos últimos 28 dias';
+  return 'no período';
+}
+
 function validatePilarFrequency(
   pilares: Pilar[],
   weekContents: Content[],
   violations: Violation[],
+  deficits: DeficitTarget[],
 ) {
   pilares
     .filter(pilar => pilar.ativo && pilar.frequenciaSemanal != null)
@@ -73,16 +111,116 @@ function validatePilarFrequency(
       const target = pilar.frequenciaSemanal!;
       const pillarContents = weekContents.filter(content => content.pilarId === pilar.id);
       const count = pillarContents.length;
+      const scheduledIds = pillarContents.map(content => content.id);
 
       if (count > target) {
         violations.push({
           ruleId: `pilar-${pilar.id}-frequency`,
           type: 'warning',
           message: `${pilar.nome}: ${count} posts esta semana, acima da frequência de ${target}.`,
-          affectedContentIds: pillarContents.map(content => content.id),
+          affectedContentIds: scheduledIds,
+        });
+        return;
+      }
+
+      if (count < target) {
+        const missing = target - count;
+        deficits.push({
+          kind: 'pilar',
+          id: pilar.id,
+          label: pilar.nome,
+          target,
+          count,
+          missing,
+          scheduledIds,
+        });
+        violations.push({
+          ruleId: `pilar-${pilar.id}-under-frequency`,
+          type: 'deficit',
+          message: `${pilar.nome}: ${count}/${target} posts esta semana — faltam ${missing}.`,
+          affectedContentIds: scheduledIds,
         });
       }
     });
+}
+
+function validateSerieFrequency(
+  series: Serie[],
+  contents: Content[],
+  weekStart: Date,
+  violations: Violation[],
+  deficits: DeficitTarget[],
+) {
+  series
+    .filter(serie => serie.ativa)
+    .forEach(serie => {
+      const dayCount = serieWindowDays(serie.frequenciaRecomendada);
+      if (dayCount == null) return;
+
+      const interval =
+        dayCount === 7
+          ? getWeekInterval(weekStart)
+          : getRollingIntervalEndingAtWeek(weekStart, dayCount);
+      const serieContents = contentsInInterval(contents, interval).filter(
+        content => content.seriesId === serie.id,
+      );
+      const count = serieContents.length;
+      const target = 1;
+      const scheduledIds = serieContents.map(content => content.id);
+      const period = windowLabel(dayCount);
+
+      if (count < target) {
+        const missing = target - count;
+        deficits.push({
+          kind: 'serie',
+          id: serie.id,
+          label: serie.name,
+          target,
+          count,
+          missing,
+          scheduledIds,
+        });
+        violations.push({
+          ruleId: `serie-${serie.id}-under-frequency`,
+          type: 'deficit',
+          message: `${serie.name}: 0 posts ${period} (meta ${serie.frequenciaRecomendada}).`,
+          affectedContentIds: scheduledIds,
+        });
+      }
+    });
+}
+
+function countScriptBacklog(
+  contents: Content[],
+  kind: 'pilar' | 'serie',
+  id: string,
+): {count: number; ids: string[]} {
+  const backlog = contents.filter(content => {
+    if (content.publishDate) return false;
+    if (kind === 'pilar' && content.pilarId !== id) return false;
+    if (kind === 'serie' && content.seriesId !== id) return false;
+    return isScriptWritten(content);
+  });
+  return {
+    count: backlog.length,
+    ids: backlog.map(content => content.id),
+  };
+}
+
+function validateScriptCoverage(contents: Content[], deficits: DeficitTarget[], violations: Violation[]) {
+  deficits.forEach(deficit => {
+    const backlog = countScriptBacklog(contents, deficit.kind, deficit.id);
+    if (backlog.count >= deficit.missing) return;
+
+    const needScripts = deficit.missing - backlog.count;
+    const scope = deficit.kind === 'pilar' ? 'pilar' : 'serie';
+    violations.push({
+      ruleId: `${scope}-${deficit.id}-needs-scripts`,
+      type: 'deficit',
+      message: `${deficit.label}: faltam ${deficit.missing} post${deficit.missing === 1 ? '' : 's'} e só há ${backlog.count} roteiro${backlog.count === 1 ? '' : 's'} pronto${backlog.count === 1 ? '' : 's'} — precisa de mais ${needScripts} roteiro${needScripts === 1 ? '' : 's'}.`,
+      affectedContentIds: [...deficit.scheduledIds, ...backlog.ids],
+    });
+  });
 }
 
 function validatePlatformSchedule(
@@ -156,15 +294,22 @@ export function validateWeeklyContent(
   weekStart: Date,
   pilares: Pilar[] = [],
   platforms: Platform[] = [],
+  series: Serie[] = [],
 ): Violation[] {
   const activePilares = pilares.filter(pilar => pilar.ativo);
-  if (activePilares.length === 0) return [];
+  const activeSeries = series.filter(serie => serie.ativa);
+  if (activePilares.length === 0 && activeSeries.length === 0) return [];
 
   const weekContents = publishedThisWeek(contents, weekStart);
   const violations: Violation[] = [];
+  const deficits: DeficitTarget[] = [];
 
-  validatePilarFrequency(activePilares, weekContents, violations);
-  validatePlatformSchedule(activePilares, platforms, weekContents, violations);
+  validatePilarFrequency(activePilares, weekContents, violations, deficits);
+  validateSerieFrequency(activeSeries, contents, weekStart, violations, deficits);
+  validateScriptCoverage(contents, deficits, violations);
+  if (activePilares.length > 0) {
+    validatePlatformSchedule(activePilares, platforms, weekContents, violations);
+  }
 
   return dedupeViolations(violations);
 }
@@ -183,7 +328,8 @@ export function previewScheduleViolations(
   dayKey: string,
   pilares: Pilar[] = [],
   platforms: Platform[] = [],
+  series: Serie[] = [],
 ): Violation[] {
   const weekStart = startOfWeek(parseISO(dayKey), {weekStartsOn: 1});
-  return validateWeeklyContent(nextContents, weekStart, pilares, platforms);
+  return validateWeeklyContent(nextContents, weekStart, pilares, platforms, series);
 }

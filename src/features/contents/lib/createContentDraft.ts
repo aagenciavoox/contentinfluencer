@@ -1,6 +1,6 @@
-import type {Content} from '../../../lib/database';
-import {generateUUID} from '../../../utils/uuid';
-import {CONTENT_STATUS} from './contentPipeline';
+import type {Content} from '../../../lib/database.ts';
+import {generateUUID} from '../../../utils/uuid.ts';
+import {CONTENT_STATUS} from './contentPipeline.ts';
 
 type CreateContentDraftOverrides = Partial<Content>;
 
@@ -34,6 +34,8 @@ export function createContentDraft(overrides: CreateContentDraftOverrides = {}):
     createdAt: now,
     updatedAt: now,
     deletedAt: null,
+    archivedAt: null,
+    legacyIdeaId: null,
     plataformas: [],
     ...overrides,
   };

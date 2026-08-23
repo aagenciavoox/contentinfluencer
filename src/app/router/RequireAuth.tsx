@@ -22,7 +22,7 @@ export function LoginRoute() {
   const { user } = useAuth();
 
   if (user) {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to="/criacao" replace />;
   }
 
   return <Login />;

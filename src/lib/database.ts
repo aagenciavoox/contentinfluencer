@@ -233,6 +233,10 @@ export interface Content {
   createdAt: string;
   updatedAt: string;
   deletedAt: string | null;
+  /** Arquivamento editorial reversível. Exclusão continua usando deletedAt. */
+  archivedAt?: string | null;
+  /** Identificador da antiga tabela ideas, usado para migração e deduplicação. */
+  legacyIdeaId?: string | null;
   plataformas: ContentPlataforma[];
 }
 
@@ -506,6 +510,18 @@ function isMissingMilestoneColumn(error: {message?: string} | null | undefined) 
   return !!error?.message?.includes("'recorded_at'") || !!error?.message?.includes("'posted_at'");
 }
 
+/** Cobre o schema cache ("'posted_at' column") e o erro SQL cru de coluna inexistente. */
+function isMissingPostedAtColumn(error: {message?: string} | null | undefined) {
+  return isMissingMilestoneColumn(error) || !!error?.message?.includes('posted_at');
+}
+
+function isMissingCreationColumn(error: {message?: string} | null | undefined) {
+  return !!error?.message && (
+    error.message.includes('archived_at') ||
+    error.message.includes('legacy_idea_id')
+  );
+}
+
 const mp = {
   platform: (r: Row): Platform => ({
     id: r.id, userId: r.user_id, nome: r.nome, ativo: r.ativo, createdAt: r.created_at,
@@ -582,6 +598,8 @@ const mp = {
     script: r.script, scriptNotes: r.script_notes || [], tags: r.tags || [],
     notes: r.notes, referencias: r.referencias,
     createdAt: r.created_at, updatedAt: r.updated_at, deletedAt: r.deleted_at,
+    archivedAt: r.archived_at ?? null,
+    legacyIdeaId: r.legacy_idea_id ?? null,
     plataformas: (r.content_plataformas || []).map((p: Row) => ({
       id: p.id, contentId: p.content_id, platformId: p.platform_id,
       legenda: p.legenda || '', hashtags: p.hashtags || '', publishDate: p.publish_date,
@@ -698,34 +716,58 @@ const CONTENT_SCHEDULE_SELECT_COLUMNS = [
   'created_at',
   'updated_at',
   'deleted_at',
+  'archived_at',
+  'legacy_idea_id',
   'content_plataformas(id, content_id, platform_id, legenda, hashtags, publish_date, publish_time, publish_date_enabled, publication_kind)',
 ] as const;
 
 const CONTENT_SCHEDULE_MILESTONE_COLUMNS = ['recorded_at', 'posted_at'] as const;
 
-function buildContentScheduleSelect(includeMilestones: boolean): string {
-  const columns = includeMilestones
+function buildContentScheduleSelect(
+  includeMilestones: boolean,
+  includeCreationColumns = true,
+): string {
+  let columns: readonly string[] = includeMilestones
     ? [
         ...CONTENT_SCHEDULE_SELECT_COLUMNS.slice(0, 15),
         ...CONTENT_SCHEDULE_MILESTONE_COLUMNS,
         ...CONTENT_SCHEDULE_SELECT_COLUMNS.slice(15),
       ]
     : [...CONTENT_SCHEDULE_SELECT_COLUMNS];
+  if (!includeCreationColumns) {
+    columns = columns.filter(
+      column => column !== 'archived_at' && column !== 'legacy_idea_id',
+    );
+  }
   return columns.join(', ');
 }
-
-const CONTENT_SCHEDULE_SELECT = buildContentScheduleSelect(true);
-const CONTENT_SCHEDULE_SELECT_WITHOUT_MILESTONES = buildContentScheduleSelect(false);
 
 type SupabaseListResult<T> = { data: T; error: { message?: string } | null; count?: number | null };
 
 async function runContentScheduleSelect<T>(
   label: string,
-  run: (select: string) => Promise<SupabaseListResult<T>>,
+  run: (select: string) => PromiseLike<SupabaseListResult<T>>,
 ): Promise<SupabaseListResult<T>> {
-  const result = await run(CONTENT_SCHEDULE_SELECT);
-  if (!result.error || !isMissingMilestoneColumn(result.error)) return result;
-  return run(CONTENT_SCHEDULE_SELECT_WITHOUT_MILESTONES);
+  let includeMilestones = true;
+  let includeCreationColumns = true;
+
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const result = await run(
+      buildContentScheduleSelect(includeMilestones, includeCreationColumns),
+    );
+    if (!result.error) return result;
+    if (includeCreationColumns && isMissingCreationColumn(result.error)) {
+      includeCreationColumns = false;
+      continue;
+    }
+    if (includeMilestones && isMissingMilestoneColumn(result.error)) {
+      includeMilestones = false;
+      continue;
+    }
+    return result;
+  }
+
+  return run(buildContentScheduleSelect(false, false));
 }
 const CONTENT_LIST_SORT_COLUMNS: Record<string, string> = {
   createdAt: 'created_at',
@@ -742,13 +784,14 @@ export type PaginatedResult<T> = {
 export type ContentsListQuery = {
   page: number;
   pageSize: number;
-  listMode: 'editorial' | 'published';
+  listMode: 'editorial' | 'published' | 'all';
   status?: string;
   seriesId?: string;
   pilarId?: string;
   search?: string;
   sortField?: string;
   sortDirection?: 'asc' | 'desc';
+  archiveMode?: 'active' | 'archived' | 'all';
 };
 
 export type BibliotecaListQuery = {
@@ -772,16 +815,22 @@ export async function fetchContentsPage(
   const sortColumn = CONTENT_LIST_SORT_COLUMNS[query.sortField || 'createdAt'] || 'created_at';
   const ascending = query.sortDirection === 'asc';
 
-  const buildPageRequest = (select: string) => {
+  const buildPageRequest = (select: string, includeArchiveFilter = true) => {
     let pageRequest = supabase
       .from('contents')
       .select(select, { count: 'exact' })
       .eq('user_id', userId)
       .is('deleted_at', null);
 
+    if (includeArchiveFilter && query.archiveMode !== 'all') {
+      pageRequest = query.archiveMode === 'archived'
+        ? pageRequest.not('archived_at', 'is', null)
+        : pageRequest.is('archived_at', null);
+    }
+
     if (query.listMode === 'published') {
       pageRequest = pageRequest.eq('status', POSTED_CONTENT_STATUS);
-    } else {
+    } else if (query.listMode === 'editorial') {
       pageRequest = pageRequest.neq('status', POSTED_CONTENT_STATUS);
     }
 
@@ -805,7 +854,19 @@ export async function fetchContentsPage(
     return pageRequest.order(sortColumn, { ascending }).range(from, to);
   };
 
-  const result = await runContentScheduleSelect('contents page fetch', buildPageRequest);
+  let result = await runContentScheduleSelect<Row[]>(
+    'contents page fetch',
+    select => buildPageRequest(select),
+  );
+  if (result.error && isMissingCreationColumn(result.error)) {
+    if (query.archiveMode === 'archived') {
+      return {items: [], total: 0};
+    }
+    result = await runContentScheduleSelect<Row[]>(
+      'contents page fetch',
+      select => buildPageRequest(select, false),
+    );
+  }
 
   const platforms = await getCachedPlatforms(userId, async () =>
     assertQuerySuccess(
@@ -820,6 +881,70 @@ export async function fetchContentsPage(
     items: rows.map((row: Row) => mapContentWithPlatforms(row, platformNameById)),
     total: result.count ?? rows.length,
   };
+}
+
+export async function fetchArchivedContents(userId: string): Promise<Content[]> {
+  if (!supabase) return [];
+
+  const contentsResult = await runContentScheduleSelect<Row[]>(
+    'archived contents fetch',
+    select => supabase
+      .from('contents')
+      .select(select)
+      .eq('user_id', userId)
+      .is('deleted_at', null)
+      .not('archived_at', 'is', null)
+      .order('updated_at', {ascending: false}),
+  );
+
+  if (contentsResult.error) {
+    if (isMissingCreationColumn(contentsResult.error)) return [];
+    throw new Error(`archived contents fetch: ${contentsResult.error.message}`);
+  }
+
+  const platforms = await getCachedPlatforms(userId, async () =>
+    assertQuerySuccess(
+      'platforms fetch',
+      await supabase.from('platforms').select('*').or(`user_id.is.null,user_id.eq.${userId}`),
+    ) || [],
+  );
+  const platformNameById = new Map(
+    platforms.map((platform: Row) => [platform.id, platform.nome]),
+  );
+  return (contentsResult.data || []).map(
+    (row: Row) => mapContentWithPlatforms(row, platformNameById),
+  );
+}
+
+export async function fetchDeletedContents(userId: string): Promise<Content[]> {
+  if (!supabase) return [];
+
+  const contentsResult = await runContentScheduleSelect<Row[]>(
+    'deleted contents fetch',
+    select => supabase
+      .from('contents')
+      .select(select)
+      .eq('user_id', userId)
+      .not('deleted_at', 'is', null)
+      .order('deleted_at', {ascending: false}),
+  );
+
+  if (contentsResult.error) {
+    throw new Error(`deleted contents fetch: ${contentsResult.error.message}`);
+  }
+
+  const platforms = await getCachedPlatforms(userId, async () =>
+    assertQuerySuccess(
+      'platforms fetch',
+      await supabase.from('platforms').select('*').or(`user_id.is.null,user_id.eq.${userId}`),
+    ) || [],
+  );
+  const platformNameById = new Map(
+    platforms.map((platform: Row) => [platform.id, platform.nome]),
+  );
+  return (contentsResult.data || []).map(
+    (row: Row) => mapContentWithPlatforms(row, platformNameById),
+  );
 }
 
 export async function fetchContentsByIds(
@@ -885,19 +1010,59 @@ export async function fetchContentStatusCounts(
 export async function fetchContentStats(userId: string): Promise<{ editorialCount: number; postedCount: number; libraryCount: number }> {
   if (!supabase) return { editorialCount: 0, postedCount: 0, libraryCount: 0 };
 
-  const [editorialResult, postedResult, libraryResult] = await Promise.all([
-    supabase
+  const runContentCount = (
+    mode: 'editorial' | 'published',
+    includeArchiveFilter: boolean,
+    includePostedAt: boolean,
+  ) => {
+    let query = supabase
       .from('contents')
-      .select('*', { count: 'exact', head: true })
+      .select('*', {count: 'exact', head: true})
       .eq('user_id', userId)
-      .is('deleted_at', null)
-      .neq('status', POSTED_CONTENT_STATUS),
-    supabase
-      .from('contents')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', userId)
-      .is('deleted_at', null)
-      .eq('status', POSTED_CONTENT_STATUS),
+      .is('deleted_at', null);
+    if (includeArchiveFilter) {
+      query = query.is('archived_at', null);
+    }
+    if (mode === 'published') {
+      return includePostedAt
+        ? query.or(`status.eq.${POSTED_CONTENT_STATUS},posted_at.not.is.null`)
+        : query.eq('status', POSTED_CONTENT_STATUS);
+    }
+    return includePostedAt
+      ? query.is('posted_at', null).neq('status', POSTED_CONTENT_STATUS)
+      : query.neq('status', POSTED_CONTENT_STATUS);
+  };
+
+  const runContentCounts = async () => {
+    let includeArchiveFilter = true;
+    let includePostedAt = true;
+
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const results = await Promise.all([
+        runContentCount('editorial', includeArchiveFilter, includePostedAt),
+        runContentCount('published', includeArchiveFilter, includePostedAt),
+      ]);
+      const error = results[0].error || results[1].error;
+      if (!error) return results;
+      if (includePostedAt && isMissingPostedAtColumn(error)) {
+        includePostedAt = false;
+        continue;
+      }
+      if (includeArchiveFilter && isMissingCreationColumn(error)) {
+        includeArchiveFilter = false;
+        continue;
+      }
+      return results;
+    }
+
+    return Promise.all([
+      runContentCount('editorial', false, false),
+      runContentCount('published', false, false),
+    ]);
+  };
+
+  const [[editorialResult, postedResult], libraryResult] = await Promise.all([
+    runContentCounts(),
     supabase
       .from('biblioteca_items')
       .select('*', { count: 'exact', head: true })
@@ -1161,14 +1326,20 @@ export async function fetchDataDomains(
   if (requested.has('content') || requested.has('content-summary') || requested.has('content-schedule')) {
     tasks.push((async () => {
       const platformNameById = await platformNameByIdPromise;
-      const lightOnly = requested.has('content-schedule') && !requested.has('content') && !requested.has('content-summary');
 
-      const buildDomainContentsRequest = (select: string) => {
+      const buildDomainContentsRequest = (
+        select: string,
+        includeArchiveFilter = true,
+      ) => {
         let domainQuery = supabase.from('contents')
           .select(select)
           .eq('user_id', uid)
           .is('deleted_at', null)
           .order('created_at', { ascending: false });
+
+        if (includeArchiveFilter) {
+          domainQuery = domainQuery.is('archived_at', null);
+        }
 
         if (requested.has('content-summary') && !requested.has('content')) {
           domainQuery = domainQuery.limit(CONTENT_SUMMARY_LIMIT);
@@ -1177,9 +1348,16 @@ export async function fetchDataDomains(
         return domainQuery;
       };
 
-      const contentsResult = lightOnly
-        ? await runContentScheduleSelect('contents fetch', buildDomainContentsRequest)
-        : await buildDomainContentsRequest('*, content_plataformas(*)');
+      let contentsResult = await runContentScheduleSelect<Row[]>(
+        'contents fetch',
+        buildDomainContentsRequest,
+      );
+      if (contentsResult.error && isMissingCreationColumn(contentsResult.error)) {
+        contentsResult = await runContentScheduleSelect<Row[]>(
+          'contents fetch',
+          select => buildDomainContentsRequest(select, false),
+        );
+      }
       const contentsRows = assertQuerySuccess('contents fetch', contentsResult) || [];
       payload.contents = contentsRows.map((row: Row) => mapContentWithPlatforms(row, platformNameById));
     })());
@@ -1398,14 +1576,10 @@ export async function savePilarPlataformas(pilarId: string, plataformas: PilarPl
         janela_inicio: p.janelaHorarioInicio,
         janela_fim: p.janelaHorarioFim,
       }))
-      .filter((row): row is {
-        pilar_id: string;
-        platform_id: string;
-        hashtags: string;
-        melhores_dias: number[] | null;
-        janela_inicio: string | null;
-        janela_fim: string | null;
-      } => !!row.platform_id)
+      .filter(
+        (row): row is typeof row & {platform_id: string} =>
+          typeof row.platform_id === 'string',
+      )
   );
   if (error) throw new Error(`pilar_plataformas: ${error.message}`);
 }
@@ -1604,7 +1778,7 @@ export async function saveContent(
   content: Omit<Content, 'plataformas' | 'updatedAt' | 'deletedAt'>
 ): Promise<void> {
   if (!supabase) return;
-  const row = {
+  let row: Record<string, unknown> = {
     id: content.id, user_id: content.userId, title: content.title,
     status: content.status, classificacao: content.classificacao,
     slot_type: content.slotType, series_id: content.seriesId,
@@ -1620,27 +1794,44 @@ export async function saveContent(
     link: content.link, script: content.script,
     script_notes: content.scriptNotes, tags: content.tags,
     notes: content.notes, referencias: content.referencias,
+    archived_at: content.archivedAt ?? null,
+    legacy_idea_id: content.legacyIdeaId ?? null,
   };
-  const { error } = await supabase.from('contents').upsert(row);
-  if (isMissingMilestoneColumn(error)) {
-    const {recorded_at: _recordedAt, posted_at: _postedAt, ...rowWithoutMilestones} = row;
-    const retry = await supabase.from('contents').upsert(rowWithoutMilestones);
-    if (retry.error && isMissingPublishTimeColumn(retry.error)) {
-      const {publish_time: _publishTime, ...rowWithoutPublishTime} = rowWithoutMilestones;
-      const retryPublish = await supabase.from('contents').upsert(rowWithoutPublishTime);
-      if (retryPublish.error) throw new Error(`contents: ${retryPublish.error.message}`);
-      return;
+
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    const {error} = await supabase.from('contents').upsert(row);
+    if (!error) return;
+
+    if (isMissingCreationColumn(error)) {
+      const {
+        archived_at: _archivedAt,
+        legacy_idea_id: _legacyIdeaId,
+        ...rowWithoutCreationColumns
+      } = row;
+      row = rowWithoutCreationColumns;
+      continue;
     }
-    if (retry.error) throw new Error(`contents: ${retry.error.message}`);
-    return;
+
+    if (isMissingMilestoneColumn(error)) {
+      const {
+        recorded_at: _recordedAt,
+        posted_at: _postedAt,
+        ...rowWithoutMilestones
+      } = row;
+      row = rowWithoutMilestones;
+      continue;
+    }
+
+    if (isMissingPublishTimeColumn(error)) {
+      const {publish_time: _publishTime, ...rowWithoutPublishTime} = row;
+      row = rowWithoutPublishTime;
+      continue;
+    }
+
+    throw new Error(`contents: ${error.message}`);
   }
-  if (isMissingPublishTimeColumn(error)) {
-    const { publish_time: _publishTime, ...rowWithoutPublishTime } = row;
-    const retry = await supabase.from('contents').upsert(rowWithoutPublishTime);
-    if (retry.error) throw new Error(`contents: ${retry.error.message}`);
-    return;
-  }
-  if (error) throw new Error(`contents: ${error.message}`);
+
+  throw new Error('contents: schema compatibility retries exhausted');
 }
 
 export async function saveContentPlataformas(
@@ -1658,45 +1849,75 @@ export async function saveContentPlataformas(
       publish_time: p.publishTime,
       publish_date_enabled: p.publishDateEnabled ?? (p.publishDate != null),
       publication_kind: p.publicationKind ?? 'post',
-    })).filter((row): row is {
-      content_id: string;
-      platform_id: string;
-      legenda: string;
-      hashtags: string;
-      publish_date: string | null;
-      publish_time: string | null | undefined;
-      publish_date_enabled: boolean;
-      publication_kind: string;
-    } => !!row.platform_id);
+    })).filter(
+      (row): row is typeof row & {platform_id: string} =>
+        typeof row.platform_id === 'string',
+    );
 
-  const insertRows = async (payload: typeof rows) => {
+  const insertRows = async (payload: Array<Record<string, unknown>>) => {
     const { error } = await supabase.from('content_plataformas').insert(payload);
     return error;
   };
 
-  let error = await insertRows(rows);
-  if (isMissingPublicationKindColumn(error)) {
-    const rowsWithoutKind = rows.map(({publication_kind: _publicationKind, ...row}) => row);
-    error = await insertRows(rowsWithoutKind as typeof rows);
-  }
-  if (isMissingPublishTimeColumn(error)) {
-    const rowsWithoutPublishTime = rows.map(({publish_time: _publishTime, publication_kind: _publicationKind, ...row}) => row);
-    error = await insertRows(rowsWithoutPublishTime as typeof rows);
+  let payload: Array<Record<string, unknown>> = rows;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const error = await insertRows(payload);
+    if (!error) return;
     if (isMissingPublicationKindColumn(error)) {
-      error = await insertRows(rowsWithoutPublishTime.map(({publication_kind: _k, ...row}) => row) as typeof rows);
+      payload = payload.map(({publication_kind: _publicationKind, ...row}) => row);
+      continue;
     }
+    if (isMissingPublishTimeColumn(error)) {
+      payload = payload.map(({publish_time: _publishTime, ...row}) => row);
+      continue;
+    }
+    throw new Error(`content_plataformas: ${error.message}`);
   }
-  if (error) throw new Error(`content_plataformas: ${error.message}`);
+  throw new Error('content_plataformas: schema compatibility retries exhausted');
 }
 
 export async function deleteContent(id: string): Promise<void> {
   if (!supabase) return;
   const deletedAt = new Date().toISOString();
   const { error } = await supabase.from('contents')
-    .update({deleted_at: deletedAt})
+    .update({deleted_at: deletedAt, updated_at: deletedAt})
     .eq('id', id)
     .is('deleted_at', null);
   if (error) throw new Error(`delete content: ${error.message}`);
+}
+
+export async function restoreContent(id: string, userId: string): Promise<void> {
+  if (!supabase) return;
+  const {error} = await supabase
+    .from('contents')
+    .update({deleted_at: null, updated_at: new Date().toISOString()})
+    .eq('id', id)
+    .eq('user_id', userId)
+    .not('deleted_at', 'is', null);
+  if (error) throw new Error(`restore content: ${error.message}`);
+}
+
+export async function permanentlyDeleteContent(id: string, userId: string): Promise<void> {
+  if (!supabase) return;
+  const {error} = await supabase
+    .from('contents')
+    .delete()
+    .eq('id', id)
+    .eq('user_id', userId)
+    .not('deleted_at', 'is', null);
+  if (error) throw new Error(`permanently delete content: ${error.message}`);
+}
+
+export async function emptyContentTrash(userId: string): Promise<number> {
+  if (!supabase) return 0;
+  const {data, error} = await supabase
+    .from('contents')
+    .delete()
+    .eq('user_id', userId)
+    .not('deleted_at', 'is', null)
+    .select('id');
+  if (error) throw new Error(`empty content trash: ${error.message}`);
+  return data?.length ?? 0;
 }
 
 // ============================================================================

@@ -18,6 +18,7 @@ import {Text} from '../../components/ui/Text';
 import {useAppContext} from '../../context/AppContext';
 import {useAuth} from '../../context/AuthContext';
 import {getModuleFlags} from '../../features/settings/lib/moduleFlags';
+import {useIsMobile} from '../../hooks/useIsMobile';
 import {useNavCounts} from '../../hooks/useNavCounts';
 import {readStoredJson, writeStoredJson} from '../../lib/browserStorage';
 import {cn} from '../../lib/utils';
@@ -53,6 +54,7 @@ export function Sidebar({isOpen, onClose}: SidebarProps) {
   const {signOut, user} = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const previousPathname = React.useRef(location.pathname);
   const moduleFlags = getModuleFlags(state.preferences);
   const navCounts = useNavCounts(state.bibliotecaItems.length);
@@ -235,10 +237,10 @@ export function Sidebar({isOpen, onClose}: SidebarProps) {
           </div>
         )}
 
-        {!isCollapsed ? (
+        {!isCollapsed && isMobile ? (
           <button
             onClick={onClose}
-            className="rounded-md p-1.5 text-[var(--text-tertiary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] md:hidden"
+            className="rounded-md p-1.5 text-[var(--text-tertiary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
             aria-label="Fechar menu"
           >
             <X className="h-5 w-5" />
@@ -398,35 +400,37 @@ export function Sidebar({isOpen, onClose}: SidebarProps) {
 
   return (
     <>
-      <motion.div
-        animate={{width: isCollapsed ? SIDEBAR_WIDTH_COLLAPSED : SIDEBAR_WIDTH_EXPANDED}}
-        transition={{type: 'spring', damping: 32, stiffness: 320}}
-        className="hidden h-screen shrink-0 overflow-hidden md:block"
-      >
-        {sidebarContent}
-      </motion.div>
+      {!isMobile ? (
+        <motion.div
+          animate={{width: isCollapsed ? SIDEBAR_WIDTH_COLLAPSED : SIDEBAR_WIDTH_EXPANDED}}
+          transition={{type: 'spring', damping: 32, stiffness: 320}}
+          className="h-screen shrink-0 overflow-hidden"
+        >
+          {sidebarContent}
+        </motion.div>
+      ) : null}
 
       <AnimatePresence>
-        {isOpen && (
+        {isMobile && isOpen ? (
           <>
             <motion.div
               initial={{opacity: 0}}
               animate={{opacity: 1}}
               exit={{opacity: 0}}
               onClick={onClose}
-              className="fixed inset-0 z-[105] bg-[var(--backdrop-medium)]  md:hidden"
+              className="fixed inset-0 z-[105] bg-[var(--backdrop-medium)]"
             />
             <motion.div
               initial={{x: '-100%'}}
               animate={{x: 0}}
               exit={{x: '-100%'}}
               transition={{type: 'spring', damping: 30, stiffness: 280}}
-              className="fixed left-0 top-0 z-[110] h-full w-[min(88vw,280px)] overflow-hidden shadow-none md:hidden"
+              className="fixed left-0 top-0 z-[110] h-full w-[min(88vw,280px)] overflow-hidden shadow-none"
             >
               <MobileSidebarDrawer onClose={onClose} />
             </motion.div>
           </>
-        )}
+        ) : null}
       </AnimatePresence>
     </>
   );

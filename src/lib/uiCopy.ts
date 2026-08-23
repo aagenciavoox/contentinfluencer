@@ -55,8 +55,8 @@ export const CONFIRM = {
     cancelLabel: 'Manter projeto',
   }),
   excluirRoteiros: (count: number) => ({
-    message: `Excluir ${count} roteiro${count === 1 ? '' : 's'}? Esta ação não pode ser desfeita.`,
-    confirmLabel: count === 1 ? 'Excluir roteiro' : `Excluir ${count} roteiros`,
+    message: `Mover ${count} roteiro${count === 1 ? '' : 's'} para a lixeira? ${count === 1 ? 'Ele poderá' : 'Eles poderão'} ser restaurado${count === 1 ? '' : 's'} depois.`,
+    confirmLabel: count === 1 ? 'Mover para a lixeira' : `Mover ${count} para a lixeira`,
     cancelLabel: 'Manter seleção',
   }),
   moverParaIdeias: (count: number) => ({
@@ -118,6 +118,7 @@ export const ERRORS = {
 
 export const LOADING = {
   area: 'Carregando área...',
+  dados: 'Carregando seus dados...',
   serie: 'Carregando série...',
   salvandoAlteracoes: 'Salvando alterações...',
   importandoRoteiros: (count: number) => `Importando ${count} roteiros...`,

@@ -16,6 +16,10 @@ export const POSTED_STATUS = CONTENT_STATUS.POSTADO;
 export type EditorialContentStatus = typeof EDITORIAL_CONTENT_STATUSES[number];
 export type ProductionContentStatus = typeof PRODUCTION_CONTENT_STATUSES[number];
 
+export function isActiveCreation(content: Pick<Content, 'archivedAt' | 'deletedAt'>) {
+  return content.deletedAt == null && content.archivedAt == null;
+}
+
 export function isEditorialContentStatus(status: string): status is EditorialContentStatus {
   return EDITORIAL_CONTENT_STATUSES.includes(normalizeContentStatus(status) as EditorialContentStatus);
 }
@@ -24,22 +28,31 @@ export function isProductionContentStatus(status: string): status is ProductionC
   return PRODUCTION_CONTENT_STATUSES.includes(normalizeContentStatus(status) as ProductionContentStatus);
 }
 
+export function isPostedContent(content: Pick<Content, 'status' | 'postedAt'>) {
+  return normalizeContentStatus(content.status) === POSTED_STATUS || Boolean(content.postedAt);
+}
+
 export function getEditorialContents(contents: Content[]) {
-  return contents.filter(content => normalizeContentStatus(content.status) !== POSTED_STATUS);
+  return contents.filter(content => isActiveCreation(content) && !isPostedContent(content));
 }
 
 export function getProductionContents(contents: Content[]) {
-  return contents.filter(content => isProductionContentStatus(content.status));
+  return contents.filter(
+    content => isActiveCreation(content) && isProductionContentStatus(content.status)
+  );
 }
 
 export function getPostingContents(contents: Content[]) {
   return contents.filter(
-    content => isProductionContentStatus(content.status) && content.status !== POSTED_STATUS
+    content =>
+      isActiveCreation(content) &&
+      isProductionContentStatus(content.status) &&
+      normalizeContentStatus(content.status) !== POSTED_STATUS
   );
 }
 
 export function getPostedContents(contents: Content[]) {
-  return contents.filter(content => normalizeContentStatus(content.status) === POSTED_STATUS);
+  return contents.filter(content => isActiveCreation(content) && isPostedContent(content));
 }
 
 export function getRecordingQueueContents(contents: Content[], blocks: RecordingBlock[] = []) {
@@ -50,6 +63,7 @@ export function getRecordingQueueContents(contents: Content[], blocks: Recording
 
   return contents.filter(
     content =>
+      isActiveCreation(content) &&
       normalizeContentStatus(content.status) === RECORDING_READY_STATUS &&
       !blockedIds.has(content.id)
   );

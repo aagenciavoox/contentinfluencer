@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import type {Content} from '../../../lib/database.ts';
 import {CONTENT_STATUS} from './contentPipeline.ts';
-import {getEditorialContents, getRecordingQueueContents} from './contentWorkflow.ts';
+import {getEditorialContents, getPostedContents, getRecordingQueueContents} from './contentWorkflow.ts';
 
 function createContent(overrides: Partial<Content> = {}): Content {
   return {
@@ -54,6 +54,11 @@ function testEditorialContentsShowAllExceptPosted() {
     id: 'unlinked-production',
     status: CONTENT_STATUS.PRODUCAO,
   });
+  const postedAtOnly = createContent({
+    id: 'posted-at-only',
+    status: CONTENT_STATUS.PRODUCAO,
+    postedAt: '2026-05-02T00:00:00.000Z',
+  });
 
   const visibleIds = getEditorialContents([
     roteiro,
@@ -61,9 +66,26 @@ function testEditorialContentsShowAllExceptPosted() {
     linkedProduction,
     linkedPosted,
     unlinkedProduction,
+    postedAtOnly,
   ]).map(content => content.id);
 
   assert.deepEqual(visibleIds, ['roteiro', 'ideia', 'linked-production', 'unlinked-production']);
+}
+
+function testPostedContentsIncludePostedAtWithoutStatus() {
+  const roteiro = createContent({id: 'roteiro', status: CONTENT_STATUS.ROTEIRO});
+  const postedByStatus = createContent({id: 'posted-status', status: CONTENT_STATUS.POSTADO});
+  const postedByDate = createContent({
+    id: 'posted-date',
+    status: CONTENT_STATUS.PRODUCAO,
+    postedAt: '2026-05-02T00:00:00.000Z',
+  });
+
+  const postedIds = getPostedContents([roteiro, postedByStatus, postedByDate]).map(
+    content => content.id
+  );
+
+  assert.deepEqual(postedIds, ['posted-status', 'posted-date']);
 }
 
 function testRecordingQueueExcludesBlockedContents() {
@@ -85,6 +107,7 @@ function testRecordingQueueExcludesBlockedContents() {
 
 const tests: Array<[string, () => void]> = [
   ['editorial contents show all except posted', testEditorialContentsShowAllExceptPosted],
+  ['posted contents include postedAt without status', testPostedContentsIncludePostedAtWithoutStatus],
   ['recording queue excludes blocked contents', testRecordingQueueExcludesBlockedContents],
 ];
 

@@ -1,17 +1,19 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { ChevronRight, Layers, Plus } from 'lucide-react';
 import { BottomSheetModal } from '../../../components/feedback/modals/BottomSheetModal';
 import { OverlayBody } from '../../../components/overlays/OverlayBody';
 import { OverlayHeader } from '../../../components/overlays/OverlayHeader';
 import { AppButton } from '../../../components/ui/AppButton';
-import { Badge } from '../../../components/ui/Badge';
 import { Text } from '../../../components/ui/Text';
+import { ToolbarSearchInput } from '../../../components/ui/ToolbarSearchInput';
 import type { Content, Serie } from '../../../lib/database';
 import { EmptyState } from '../../../components/ui/EmptyState';
 import { SeriesForm } from '../../../features/settings/pages/SeriesSettingsPage';
 import { MobileListCard } from '../../components/MobileListCard';
 import { MobilePillButton } from '../../components/MobilePillButton';
 import { MobileSectionHeader } from '../../components/MobileSectionHeader';
+import { MobileSegmentTabs } from '../../components/MobileSegmentTabs';
+import { cn } from '../../../lib/utils';
 
 interface SeriesMobileScreenProps {
   series: Serie[];
@@ -22,6 +24,12 @@ interface SeriesMobileScreenProps {
   onToggle: (serie: Serie) => void;
   onDelete: (serieId: string) => void;
   onOpen: (serieId: string) => void;
+}
+
+type SeriesFilter = 'todas' | 'ativas' | 'inativas';
+
+function formatRoteiroCount(count: number) {
+  return `${count} roteiro${count === 1 ? '' : 's'}`;
 }
 
 export function SeriesMobileScreen({
@@ -36,6 +44,8 @@ export function SeriesMobileScreen({
 }: SeriesMobileScreenProps) {
   const [panelMode, setPanelMode] = useState<'create' | 'edit' | null>(null);
   const [editingSerie, setEditingSerie] = useState<Serie | null>(null);
+  const [search, setSearch] = useState('');
+  const [filter, setFilter] = useState<SeriesFilter>('todas');
 
   const closePanel = () => {
     setPanelMode(null);
@@ -48,6 +58,39 @@ export function SeriesMobileScreen({
   };
 
   const activeCount = series.filter(serie => serie.ativa).length;
+
+  const filterCounts = useMemo(() => {
+    const ativas = series.filter(serie => serie.ativa).length;
+    return {
+      todas: series.length,
+      ativas,
+      inativas: series.length - ativas,
+    };
+  }, [series]);
+
+  const filteredSeries = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    return series
+      .filter(serie => {
+        if (filter === 'ativas' && !serie.ativa) return false;
+        if (filter === 'inativas' && serie.ativa) return false;
+        if (!query) return true;
+        const haystack = [
+          serie.name,
+          serie.bordao,
+          serie.estruturaRoteiro,
+          serie.frequenciaRecomendada,
+        ]
+          .filter(Boolean)
+          .join(' ')
+          .toLowerCase();
+        return haystack.includes(query);
+      })
+      .sort((a, b) => {
+        if (a.ativa !== b.ativa) return a.ativa ? -1 : 1;
+        return a.name.localeCompare(b.name, 'pt-BR');
+      });
+  }, [filter, search, series]);
 
   return (
     <div className="stack-xl">
@@ -76,6 +119,26 @@ export function SeriesMobileScreen({
         </AppButton>
       </section>
 
+      {series.length > 0 ? (
+        <section className="stack-sm">
+          <ToolbarSearchInput
+            value={search}
+            onChange={setSearch}
+            placeholder="Buscar série..."
+            size="compact"
+          />
+          <MobileSegmentTabs<SeriesFilter>
+            value={filter}
+            onChange={setFilter}
+            tabs={[
+              { value: 'todas', label: 'Todas', count: filterCounts.todas },
+              { value: 'ativas', label: 'Ativas', count: filterCounts.ativas },
+              { value: 'inativas', label: 'Inativas', count: filterCounts.inativas },
+            ]}
+          />
+        </section>
+      ) : null}
+
       <section className="stack-md">
         {series.length === 0 ? (
           <EmptyState
@@ -84,39 +147,42 @@ export function SeriesMobileScreen({
             description="Adicione a primeira série recorrente para estruturar o calendário editorial."
             icon={<Layers className="h-8 w-8" />}
           />
+        ) : filteredSeries.length === 0 ? (
+          <EmptyState
+            compact
+            title="Nenhuma série encontrada"
+            description="Ajuste a busca ou o filtro para ver outras séries."
+            icon={<Layers className="h-8 w-8" />}
+          />
         ) : (
-          series.map(serie => {
+          filteredSeries.map(serie => {
             const roteiroCount = roteiroCountBySerie.get(serie.id) || 0;
             const serieColor = serie.cor || '#6366f1';
+            const structure = serie.estruturaRoteiro?.trim();
+            const frequency = serie.frequenciaRecomendada || 'Sob demanda';
 
             return (
-              <MobileListCard
+              <div
                 key={serie.id}
+                className={cn(!serie.ativa && 'opacity-55')}
+              >
+              <MobileListCard
                 title={serie.name}
-                description={
-                  serie.estruturaRoteiro
-                    ? serie.estruturaRoteiro.slice(0, 120) + (serie.estruturaRoteiro.length > 120 ? '…' : '')
-                    : serie.bordao
-                      ? `“${serie.bordao}”`
-                      : 'Toque para criar roteiros e ver detalhes.'
-                }
+                description={structure
+                  ? structure.slice(0, 120) + (structure.length > 120 ? '…' : '')
+                  : undefined}
                 onClick={() => onOpen(serie.id)}
                 meta={
-                  <>
+                  <Text variant="meta" as="p" className="leading-none">
                     <span
-                      className="inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold text-[var(--text-primary)]"
-                      style={{ backgroundColor: `${serieColor}22` }}
-                    >
-                      <span className="h-2 w-2 rounded-full" style={{ backgroundColor: serieColor }} />
-                      {serie.frequenciaRecomendada || 'Sob demanda'}
-                    </span>
-                    <Badge variant="neutral">{roteiroCount} roteiro{roteiroCount === 1 ? '' : 's'}</Badge>
-                    {serie.bordao ? (
-                      <Badge variant="tag" className="text-[var(--accent-purple)]">
-                        {serie.bordao}
-                      </Badge>
-                    ) : null}
-                  </>
+                      className="mr-1.5 inline-block h-2 w-2 rounded-full align-middle"
+                      style={{ backgroundColor: serieColor }}
+                      aria-hidden
+                    />
+                    {[frequency, formatRoteiroCount(roteiroCount), serie.ativa ? null : 'Inativa']
+                      .filter(Boolean)
+                      .join(' · ')}
+                  </Text>
                 }
                 trailing={
                   <ChevronRight className="mt-1 h-5 w-5 shrink-0 text-[var(--text-tertiary)]" />
@@ -154,6 +220,7 @@ export function SeriesMobileScreen({
                   </div>
                 }
               />
+              </div>
             );
           })
         )}

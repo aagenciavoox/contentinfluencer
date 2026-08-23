@@ -217,6 +217,43 @@ html.mobile-app-shell #root {
   height: 100%;
 }
 
+html.mobile-app-shell .desktop-header-frame,
+html.mobile-app-shell .desktop-header-frame-wide,
+html.mobile-app-shell .desktop-header-frame-book,
+html.mobile-app-shell .desktop-header-frame-full {
+  max-width: none;
+  padding-left: 0;
+  padding-right: 0;
+  padding-top: 0;
+  padding-bottom: 0.75rem;
+}
+
+html.mobile-app-shell .desktop-content-frame,
+html.mobile-app-shell .desktop-content-frame-wide,
+html.mobile-app-shell .desktop-content-frame-book {
+  max-width: none;
+  padding-left: 0;
+  padding-right: 0;
+  padding-top: var(--space-md);
+  padding-bottom: var(--space-xl);
+}
+
+html.mobile-app-shell .grid-content,
+html.mobile-app-shell .filter-bar-panel {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+html.mobile-app-shell input,
+html.mobile-app-shell textarea,
+html.mobile-app-shell select,
+html.mobile-app-shell .input,
+html.mobile-app-shell .input-inline,
+html.mobile-app-shell .tiptap,
+html.mobile-app-shell .tiptap p,
+html.mobile-app-shell .ProseMirror {
+  font-size: 16px !important;
+}
+
 body {
   @apply font-sans antialiased transition-colors duration-200;
   font-size: var(--font-size-body);
@@ -392,6 +429,8 @@ textarea {
   font-weight: 700;
   letter-spacing: 0.04em;
   line-height: 1.1;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 @media (min-width: 769px) {
@@ -1450,6 +1489,10 @@ select.property-input {
   display: grid;
   gap: var(--space-lg);
   grid-template-columns: repeat(1, minmax(0, 1fr));
+}
+
+@media (min-width: 1024px) {
+  .grid-dashboard { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (min-width: 1280px) {

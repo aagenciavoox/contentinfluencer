@@ -35,7 +35,7 @@ export function computeSeriesContentStats(
     const status = normalizeContentStatus(c.status);
     if (status === CONTENT_STATUS.IDEIA) { contentIdeias++; continue; }
     roteiros++;
-    if (status === CONTENT_STATUS.POSTADO) publicados++;
+    if (status === CONTENT_STATUS.POSTADO || c.postedAt) publicados++;
     else if (status === CONTENT_STATUS.PRODUCAO) emProducao++;
     if (isIncompleteRoteiro(c)) rascunhos++;
   }

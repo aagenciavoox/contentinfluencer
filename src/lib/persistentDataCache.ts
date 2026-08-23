@@ -1,5 +1,5 @@
-import type { AppData, Content } from './database';
-import { readStoredJson, writeStoredJson } from './browserStorage';
+import type { AppData, AppDataDomain, Content } from './database';
+import { readStoredJson, writeStoredJson } from './browserStorage.ts';
 
 const STORAGE_PREFIX = 'content-os:domain:';
 /** Dados persistidos ficam legíveis por até 24h; revalidação em background após 5 min. */
@@ -10,6 +10,19 @@ type PersistedEntry = {
   payload: Partial<AppData>;
   fetchedAt: number;
 };
+
+/** Um cache sem corpo pode montar listas, mas não satisfaz telas que pedem o domínio `content`. */
+export function canDomainPayloadSatisfyRequest(
+  domains: readonly AppDataDomain[],
+  payload: Partial<AppData>,
+) {
+  if (!domains.includes('content') || !payload.contents) return true;
+  return payload.contents.every(content => (
+    content.script !== undefined
+    || content.notes !== undefined
+    || content.referencias !== undefined
+  ));
+}
 
 function storageKey(userId: string, cacheKey: string) {
   return `${STORAGE_PREFIX}${userId}:${cacheKey}`;
@@ -28,11 +41,13 @@ export function sanitizeDomainPayload(payload: Partial<AppData>): Partial<AppDat
 function stripContentForCache(content: Content): Content {
   return {
     ...content,
-    script: null,
+    // `undefined` diferencia "campo não carregado" de um roteiro carregado e vazio.
+    // JSON.stringify omite essas chaves e força o detalhe a buscar o corpo no servidor.
+    script: undefined,
     scriptNotes: [],
-    notes: content.notes ? content.notes.slice(0, 280) : null,
-    referencias: null,
-  };
+    notes: undefined,
+    referencias: undefined,
+  } as Content;
 }
 
 export function readPersistedDomain(userId: string, cacheKey: string): PersistedEntry | null {
@@ -42,7 +57,11 @@ export function readPersistedDomain(userId: string, cacheKey: string): Persisted
     clearPersistedDomain(userId, cacheKey);
     return null;
   }
-  return entry;
+  return {
+    ...entry,
+    // Normaliza também caches gravados por versões anteriores, que usavam `null`.
+    payload: sanitizeDomainPayload(entry.payload),
+  };
 }
 
 export function writePersistedDomain(userId: string, cacheKey: string, payload: Partial<AppData>) {

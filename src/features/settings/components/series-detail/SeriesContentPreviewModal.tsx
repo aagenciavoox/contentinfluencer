@@ -1,11 +1,12 @@
 import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { ArrowUpRight, FileText, X } from 'lucide-react';
 import { AppButton } from '../../../../components/ui/AppButton';
 import { Text } from '../../../../components/ui/Text';
 import { CONTENT_STATUS } from '../../../contents/lib/contentPipeline';
 import type { Platform, Serie } from '../../../../lib/database';
 import { htmlToReadableText } from '../../../../lib/utils';
+import { buildDetailBackState } from '../../../../lib/navigation/detailBack';
 import { useBodyScrollLock } from '../../../../hooks/useBodyScrollLock';
 import {
   seriesListItemPreviewText,
@@ -28,6 +29,7 @@ export function SeriesContentPreviewModal({
   onClose,
 }: SeriesContentPreviewModalProps) {
   const navigate = useNavigate();
+  const location = useLocation();
   const isOpen = item !== null;
 
   useBodyScrollLock(isOpen);
@@ -52,10 +54,13 @@ export function SeriesContentPreviewModal({
 
   const handleOpen = () => {
     if (isInboxIdea) {
-      navigate('/ideias');
+      navigate('/criacao?tab=ideias');
       return;
     }
-    navigate(`/conteudos/${item.data.id}`);
+    navigate(
+      `/conteudos/${item.data.id}`,
+      buildDetailBackState(`${location.pathname}${location.search}`),
+    );
   };
 
   return (

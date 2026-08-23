@@ -190,6 +190,7 @@ export function getContentBlockSummary(
 export function getContentStage(content: Content, options: StageOptions = {}): ContentStage {
   const status = normalizeContentStatus(content.status);
 
+  if (status === CONTENT_STATUS.POSTADO || content.postedAt) return ContentStage.POSTADO;
   if (status === CONTENT_STATUS.IDEIA) return ContentStage.IDEIA;
   if (status === CONTENT_STATUS.ROTEIRO) return ContentStage.ROTEIRO;
   if (status === CONTENT_STATUS.PRODUCAO) {
@@ -208,9 +209,13 @@ export function canSchedulePosting(content: Pick<Content, 'publishDate' | 'plata
 }
 
 export function getDisplayStatus(
-  content: Pick<Content, 'publishDate' | 'status'>
+  content: Pick<Content, 'publishDate' | 'status' | 'postedAt'>
 ): string {
   const status = normalizeContentStatus(content.status);
+
+  if (status === CONTENT_STATUS.POSTADO || content.postedAt) {
+    return CONTENT_STATUS.POSTADO;
+  }
 
   if (!content.publishDate) return status;
 
@@ -296,10 +301,12 @@ export function getPrimaryAction(content: Content, options: StageOptions = {}): 
     case ContentStage.ROTEIRO:
       return {
         id: 'advance_to_recording',
-        label: 'Deixar disponível para gravação',
+        label: 'Avançar para gravação',
         targetTab: 'gravacao',
         disabled: !canAdvanceToRecording(content),
-        reason: !canAdvanceToRecording(content) ? 'Guarde um titulo e um roteiro para liberar essa opcao.' : undefined,
+        reason: !canAdvanceToRecording(content)
+          ? 'Adicione um título e escreva o roteiro para continuar.'
+          : undefined,
       };
     case ContentStage.PRODUCAO:
       if (scheduled) {

@@ -13,7 +13,7 @@ export function ModuleRoute({ module, children }: ModuleRouteProps) {
   const moduleFlags = getModuleFlags(state.preferences);
 
   if (!moduleFlags[module]) {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to="/criacao" replace />;
   }
 
   return <>{children}</>;

@@ -8,6 +8,7 @@ import {
 } from 'react';
 import { Check, Eraser, Sparkles } from 'lucide-react';
 import { AppButton } from '../../../../components/ui/AppButton';
+import { SegmentTabs } from '../../../../components/ui/SegmentTabs';
 import { TagSelect } from '../../../../components/ui/TagSelect';
 import { Text } from '../../../../components/ui/Text';
 import { DEFAULT_PLATFORMS } from '../../../../constants';
@@ -317,18 +318,38 @@ export const SeriesCreateContentForm = forwardRef<
             />
 
             {selectedPlatforms.length > 0 && activeCaptionPlatform ? (
-              <label className="block">
-                <span className="mb-1.5 block text-xs font-semibold text-[var(--text-tertiary)]">
-                  Legenda — {activeCaptionPlatform}
-                </span>
-                <textarea
-                  value={captionsByPlatform[activeCaptionPlatform] ?? ''}
-                  onChange={event => updateCaption(activeCaptionPlatform, event.target.value)}
-                  placeholder={`Legenda para ${activeCaptionPlatform}...`}
-                  rows={4}
-                  className="min-h-[110px] w-full resize-y rounded-[var(--radius-card)] border border-dashed border-[var(--border-strong)] bg-[var(--bg-secondary)] px-4 py-3 text-sm leading-6 text-[var(--text-primary)]"
-                />
-              </label>
+              <div className="stack-md">
+                {selectedPlatforms.length > 1 ? (
+                  <div className="stack-sm">
+                    <Text variant="meta" className="text-[var(--text-tertiary)]">
+                      Escolha a plataforma que deseja editar
+                    </Text>
+                    <div className="overflow-x-auto pb-1">
+                      <SegmentTabs
+                        value={activeCaptionPlatform}
+                        onChange={setActiveCaptionPlatform}
+                        options={selectedPlatforms.map(platform => ({
+                          id: platform,
+                          label: captionsByPlatform[platform]?.trim() ? `${platform} ✓` : platform,
+                        }))}
+                      />
+                    </div>
+                  </div>
+                ) : null}
+
+                <label className="block">
+                  <span className="mb-1.5 block text-xs font-semibold text-[var(--text-tertiary)]">
+                    Legenda — {activeCaptionPlatform}
+                  </span>
+                  <textarea
+                    value={captionsByPlatform[activeCaptionPlatform] ?? ''}
+                    onChange={event => updateCaption(activeCaptionPlatform, event.target.value)}
+                    placeholder={`Legenda para ${activeCaptionPlatform}...`}
+                    rows={4}
+                    className="min-h-[110px] w-full resize-y rounded-[var(--radius-card)] border border-dashed border-[var(--border-strong)] bg-[var(--bg-secondary)] px-4 py-3 text-sm leading-6 text-[var(--text-primary)]"
+                  />
+                </label>
+              </div>
             ) : null}
           </div>
         ) : null}

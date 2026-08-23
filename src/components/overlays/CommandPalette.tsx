@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Search, FileText, Lightbulb, Handshake, ChevronRight, Command, X } from 'lucide-react';
+import { Search, FileText, Sparkles, Handshake, ChevronRight, Command, X } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
-import { useNavigate } from 'react-router-dom';
-import { getIdeaTitle } from '../../features/ideas/lib/ideaText';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
+import { CONTENT_STATUS } from '../../features/contents/lib/contentPipeline';
+import { buildContentDetailRoute } from '../../features/contents/lib/contentDetailRoute';
+import { buildDetailBackState } from '../../lib/navigation/detailBack';
 
 interface CommandPaletteProps {
   isOpen: boolean;
@@ -15,6 +17,7 @@ interface CommandPaletteProps {
 export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
   const { state } = useAppContext();
   const navigate = useNavigate();
+  const location = useLocation();
   const isMobile = useIsMobile();
   const [search, setSearch] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -23,16 +26,24 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
   useBodyScrollLock(isOpen);
 
   const navigation = [
-    { id: 'nav-1', title: 'Conteúdos', path: '/conteudos', icon: <FileText className="w-4 h-4" />, category: 'Navegação' },
+    { id: 'nav-1', title: 'Central de criação', path: '/criacao', icon: <Sparkles className="w-4 h-4" />, category: 'Navegação' },
     { id: 'nav-2', title: 'Calendário', path: '/calendario', icon: <Search className="w-4 h-4" />, category: 'Navegação' },
-    { id: 'nav-3', title: 'Ideias', path: '/ideias', icon: <Lightbulb className="w-4 h-4" />, category: 'Navegação' },
-    { id: 'nav-4', title: 'Projetos', path: '/projetos', icon: <Handshake className="w-4 h-4" />, category: 'Navegação' },
+    { id: 'nav-2b', title: 'Agendar postagens', path: '/calendario?modo=agendar', icon: <Search className="w-4 h-4" />, category: 'Navegação' },
+    { id: 'nav-3', title: 'Projetos', path: '/projetos', icon: <Handshake className="w-4 h-4" />, category: 'Navegação' },
   ];
 
   const filteredResults = [
     ...navigation,
-    ...state.contents.map(c => ({ id: c.id, title: c.title, path: `/conteudos`, icon: <FileText className="w-4 h-4" />, category: 'Conteúdo', data: c })),
-    ...state.ideas.map(i => ({ id: i.id, title: getIdeaTitle(i), path: '/ideias', icon: <Lightbulb className="w-4 h-4" />, category: 'Ideias', data: i })),
+    ...state.contents.map(c => ({
+      id: c.id,
+      title: c.title,
+      path: buildContentDetailRoute(c.id),
+      icon: c.status === CONTENT_STATUS.IDEIA
+        ? <Sparkles className="w-4 h-4" />
+        : <FileText className="w-4 h-4" />,
+      category: c.status === CONTENT_STATUS.IDEIA ? 'Ideia' : 'Criação',
+      data: c,
+    })),
     ...(state.projetos || []).map(p => ({ id: p.id, title: p.brand ? `${p.brand}: ${p.nome}` : p.nome, path: `/projetos`, icon: <Handshake className="w-4 h-4" />, category: 'Projetos', data: p })),
   ].filter(item => 
     item.title.toLowerCase().includes(search.toLowerCase()) || 
@@ -71,7 +82,11 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
 
   const handleSelect = (item: any) => {
     if (!item) return;
-    navigate(item.path);
+    const from = `${location.pathname}${location.search}`;
+    navigate(
+      item.path,
+      item.path.startsWith('/conteudos/') ? buildDetailBackState(from) : undefined,
+    );
     onClose();
   };
 

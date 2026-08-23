@@ -84,10 +84,6 @@ function createState(overrides: Partial<AppState> = {}): AppState {
     goldenRules: [],
     contentMetrics: [],
     postingTimeEntries: [],
-    books: [],
-    partnerships: [],
-    results: [],
-    agenda: [],
     theme: 'light',
     isLoaded: true,
     ...overrides,
@@ -147,9 +143,10 @@ async function testPersistContentRecordUsesContentAndPlatforms() {
   assert.equal(calls[1]?.args[0], 'content-1');
 }
 
-async function testPersistActionPromoteIdeaArchivesIdeaAndPersistsContent() {
+async function testPersistActionPromoteIdeaUsesStableCanonicalContentId() {
   const { api, calls } = createMockApi();
-  const content = createContent({ id: 'content-promoted' });
+  const canonicalId = '11111111-1111-4111-8111-111111111111';
+  const content = createContent({ id: canonicalId });
   const state = createState({
     ideas: [{
       id: 'idea-1',
@@ -172,7 +169,7 @@ async function testPersistActionPromoteIdeaArchivesIdeaAndPersistsContent() {
       type: 'PROMOTE_IDEA',
       payload: {
         ideaId: 'idea-1',
-        contentId: 'content-promoted',
+        contentId: canonicalId,
         content,
       },
     },
@@ -181,13 +178,14 @@ async function testPersistActionPromoteIdeaArchivesIdeaAndPersistsContent() {
     api,
   });
 
-  assert.deepEqual(calls.map(call => call.name), ['saveContent', 'saveContentPlataformas', 'saveIdea']);
-  const savedIdea = calls[2]?.args[0] as { archived: boolean; promotedToContentId: string };
-  assert.equal(savedIdea.archived, true);
-  assert.equal(savedIdea.promotedToContentId, 'content-promoted');
+  assert.deepEqual(calls.map(call => call.name), ['saveContent', 'saveContentPlataformas']);
+  const savedContent = calls[0]?.args[0] as Content;
+  assert.equal(savedContent.id, canonicalId);
+  assert.equal(savedContent.legacyIdeaId, 'idea-1');
+  assert.equal(savedContent.status, 'Roteiro');
 }
 
-async function testPersistActionDemoteContentsRestoresLinkedIdea() {
+async function testPersistActionDemoteContentKeepsStableId() {
   const content = createContent({ id: 'content-linked', title: 'Roteiro editado', notes: 'corpo das observações' });
   const { api, calls } = createMockApi([content]);
   const state = createState({
@@ -218,23 +216,20 @@ async function testPersistActionDemoteContentsRestoresLinkedIdea() {
     api,
   });
 
-  assert.deepEqual(calls.map(call => call.name), ['fetchContentsByIds', 'saveIdea', 'deleteContent']);
-  const savedIdea = calls.find(call => call.name === 'saveIdea')?.args[0] as {
-    archived: boolean;
-    promotedToContentId: string | null;
-    demotedFromContentId: string | null;
-    title: string;
-    notes: string | null;
-  };
-  assert.equal(savedIdea.archived, false);
-  assert.equal(savedIdea.promotedToContentId, null);
-  assert.equal(savedIdea.demotedFromContentId, 'content-linked');
-  assert.equal(savedIdea.title, 'Roteiro editado');
-  assert.match(savedIdea.notes ?? '', /corpo/);
-  assert.equal(calls.find(call => call.name === 'deleteContent')?.args[0], 'content-linked');
+  assert.deepEqual(calls.map(call => call.name), [
+    'fetchContentsByIds',
+    'saveContent',
+    'saveContentPlataformas',
+  ]);
+  const savedContent = calls.find(call => call.name === 'saveContent')?.args[0] as Content;
+  assert.equal(savedContent.id, 'content-linked');
+  assert.equal(savedContent.status, 'Ideia');
+  assert.equal(savedContent.title, 'Roteiro editado');
+  assert.equal(calls.some(call => call.name === 'deleteContent'), false);
+  assert.equal(calls.some(call => call.name === 'saveIdea'), false);
 }
 
-async function testPersistActionDemoteContentsCreatesIdeaWhenUnlinked() {
+async function testPersistActionDemoteUnlinkedContentRemainsContent() {
   const content = createContent({ id: 'content-new', title: 'Só roteiro', notes: 'Sem ideia anterior' });
   const { api, calls } = createMockApi([content]);
   const state = createState({ contents: [content], ideas: [] });
@@ -249,19 +244,51 @@ async function testPersistActionDemoteContentsCreatesIdeaWhenUnlinked() {
     api,
   });
 
-  assert.deepEqual(calls.map(call => call.name), ['fetchContentsByIds', 'saveIdea', 'deleteContent']);
-  const savedIdea = calls.find(call => call.name === 'saveIdea')?.args[0] as {
-    archived: boolean;
-    promotedToContentId: string | null;
-    demotedFromContentId: string | null;
-    title: string;
-    notes: string | null;
-  };
-  assert.equal(savedIdea.archived, false);
-  assert.equal(savedIdea.promotedToContentId, null);
-  assert.equal(savedIdea.demotedFromContentId, 'content-new');
-  assert.equal(savedIdea.title, 'Só roteiro');
-  assert.equal(calls.find(call => call.name === 'deleteContent')?.args[0], 'content-new');
+  assert.deepEqual(calls.map(call => call.name), [
+    'fetchContentsByIds',
+    'saveContent',
+    'saveContentPlataformas',
+  ]);
+  const savedContent = calls.find(call => call.name === 'saveContent')?.args[0] as Content;
+  assert.equal(savedContent.id, 'content-new');
+  assert.equal(savedContent.status, 'Ideia');
+  assert.equal(calls.some(call => call.name === 'saveIdea'), false);
+}
+
+async function testPersistActionAdaptsLegacyAddIdeaToContent() {
+  const {api, calls} = createMockApi();
+  const state = createState();
+
+  await persistAction({
+    action: {
+      type: 'ADD_IDEA',
+      payload: {
+        id: 'idea-new',
+        canonicalContentId: '22222222-2222-4222-8222-222222222222',
+        userId: '',
+        title: 'Gancho novo',
+        notes: 'Desenvolver depois',
+        text: 'Gancho novo',
+        pilarId: null,
+        seriesId: null,
+        origemId: null,
+        promotedToContentId: null,
+        demotedFromContentId: null,
+        archived: false,
+        createdAt: '2026-05-01T00:00:00.000Z',
+      },
+    },
+    userId: 'user-1',
+    state,
+    api,
+  });
+
+  assert.deepEqual(calls.map(call => call.name), ['saveContent', 'saveContentPlataformas']);
+  const savedContent = calls[0]?.args[0] as Content;
+  assert.equal(savedContent.id, '22222222-2222-4222-8222-222222222222');
+  assert.equal(savedContent.legacyIdeaId, 'idea-new');
+  assert.equal(savedContent.status, 'Ideia');
+  assert.equal(calls.some(call => call.name === 'saveIdea'), false);
 }
 
 async function testPersistActionWritesLooksAndCenarios() {
@@ -309,9 +336,10 @@ async function testPersistActionWritesLooksAndCenarios() {
 
 const tests: Array<[string, () => Promise<void>]> = [
   ['persistContentRecord saves content and platforms together', testPersistContentRecordUsesContentAndPlatforms],
-  ['persistAction persists promoted ideas with archived source idea', testPersistActionPromoteIdeaArchivesIdeaAndPersistsContent],
-  ['persistAction demote restores linked idea before deleting content', testPersistActionDemoteContentsRestoresLinkedIdea],
-  ['persistAction demote creates idea when content has no linked idea', testPersistActionDemoteContentsCreatesIdeaWhenUnlinked],
+  ['persistAction promotes an idea with a stable canonical content id', testPersistActionPromoteIdeaUsesStableCanonicalContentId],
+  ['persistAction demotes content by updating its canonical status', testPersistActionDemoteContentKeepsStableId],
+  ['persistAction keeps unlinked demoted content in contents', testPersistActionDemoteUnlinkedContentRemainsContent],
+  ['persistAction adapts ADD_IDEA to a canonical content write', testPersistActionAdaptsLegacyAddIdeaToContent],
   ['persistAction persists looks and cenarios through the unified adapter', testPersistActionWritesLooksAndCenarios],
 ];
 

@@ -121,7 +121,9 @@ function PlatformToggleButton({
     >
       <PlatformIconBadge platform={platform} />
       <span className="min-w-0 flex-1 truncate text-left">{platform}</span>
-      {isEnabled ? <PlatformStatusDot status={completion} /> : null}
+      {isEnabled ? (
+        <PlatformStatusDot status={completion === 'inactive' ? 'empty' : completion} />
+      ) : null}
     </button>
   );
 }

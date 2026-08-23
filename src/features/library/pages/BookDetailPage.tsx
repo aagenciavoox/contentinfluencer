@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   BookOpen,
@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 import { useAppContext } from '../../../context/AppContext';
 import { useAuth } from '../../../context/AuthContext';
-import { Anotacao, BibliotecaItem, BibliotecaItemMeta, Content, fetchBibliotecaItemById, Idea, Projeto } from '../../../lib/database';
+import { Anotacao, BibliotecaItem, BibliotecaItemMeta, Content, fetchBibliotecaItemById, Projeto } from '../../../lib/database';
 import { generateUUID as _uuid } from '../../../utils/uuid';
 type BookAnnotation = Anotacao;
 type TipoAnotacao = Anotacao['tipo'];
@@ -30,9 +30,11 @@ type Campaign = Projeto;
 import { ConfirmModal } from '../../../components/feedback/modals/ConfirmModal';
 import { CONFIRM, type ConfirmState } from '../../../lib/uiCopy';
 import { createContentDraft } from '../../contents/lib/createContentDraft';
+import { createIdeaContent, promoteContentToScript } from '../../contents/lib/creationContent';
 import { buildIdeaFields, getIdeaNotes, getIdeaTitle, parseLegacyIdeaText } from '../../ideas/lib/ideaText';
 import { buildContentDetailRoute } from '../../contents/lib/contentDetailRoute';
 import { CONTENT_STATUS, getDisplayStatus } from '../../contents/lib/contentPipeline';
+import { buildDetailBackState } from '../../../lib/navigation/detailBack';
 import { BookAnnotationComposerSheet } from '../components/modals/BookAnnotationComposerSheet';
 import { generateUUID } from '../../../utils/uuid';
 import { DesktopPageHeader } from '../../../layouts/page/DesktopPageHeader';
@@ -163,6 +165,7 @@ function getCoverageLabels(tipo: BibliotecaItem['tipo']) {
 export function BookDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   const { state, dispatch } = useAppContext();
   const { user } = useAuth();
@@ -271,7 +274,17 @@ export function BookDetailPage() {
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
   const conteudosDoLivro = state.contents.filter(c => c.bibliotecaItemId === livro.id);
-  const ideiasDeLivro = state.ideas.filter(i => i.origemId === livro.id && !i.archived);
+  const ideiasDeLivro = conteudosDoLivro.filter(
+    c =>
+      !c.archivedAt &&
+      !c.deletedAt &&
+      (c.status === CONTENT_STATUS.IDEIA || getDisplayStatus(c) === CONTENT_STATUS.IDEIA),
+  );
+  const conteudosPostados = conteudosDoLivro.filter(c => getDisplayStatus(c) === CONTENT_STATUS.POSTADO);
+  const conteudosEmProducao = conteudosDoLivro.filter(c => {
+    const displayStatus = getDisplayStatus(c);
+    return displayStatus !== CONTENT_STATUS.POSTADO && displayStatus !== CONTENT_STATUS.IDEIA;
+  });
   const campanhasDoLivro = state.projetos.filter(
     projeto =>
       projeto.bibliotecaItemId === livro.id &&
@@ -281,7 +294,7 @@ export function BookDetailPage() {
 
   const alertaEcossistema =
     livro.status === 'Concluído' &&
-    conteudosDoLivro.filter(c => c.status === 'Postado').length === 0;
+    conteudosPostados.length === 0;
 
   const conteudosPorSlot = conteudosDoLivro.reduce<Record<string, typeof conteudosDoLivro>>((acc, c) => {
     const key = c.slotType || 'Sem Slot';
@@ -324,25 +337,27 @@ export function BookDetailPage() {
   };
 
   // Handlers
+  const openContentDetail = (contentId: string) => {
+    navigate(
+      buildContentDetailRoute(contentId),
+      buildDetailBackState(`${location.pathname}${location.search}`),
+    );
+  };
+
   const handleTransformarEmIdeia = (anotacao: BookAnnotation) => {
     const parsed = parseLegacyIdeaText(anotacao.texto);
     const fields = buildIdeaFields({
       title: parsed.title || anotacao.texto.slice(0, 60),
       notes: parsed.notes,
     });
-    const ideia: Idea = {
-      id: generateUUID(),
-      userId: '',
-      ...fields,
+    const ideia = createIdeaContent({
+      title: fields.title || 'Ideia sem título',
+      notes: fields.notes || null,
       pilarId: null,
       seriesId: null,
-      origemId: livro.id,
-      promotedToContentId: null,
-      demotedFromContentId: null,
-      archived: false,
-      createdAt: new Date().toISOString(),
-    };
-    dispatch({ type: 'ADD_IDEA', payload: ideia });
+      bibliotecaItemId: livro.id,
+    });
+    dispatch({ type: 'ADD_CONTENT', payload: ideia });
     dispatch({ type: 'DISTILL_ANNOTATION', payload: { livroId: livro.id, annotationId: anotacao.id } });
   };
 
@@ -354,7 +369,7 @@ export function BookDetailPage() {
       notes: anotacao.texto,
     });
     dispatch({ type: 'ADD_CONTENT', payload: novoConteudo });
-    navigate(buildContentDetailRoute(novoConteudo.id));
+    openContentDetail(novoConteudo.id);
     dispatch({ type: 'DISTILL_ANNOTATION', payload: { livroId: livro.id, annotationId: anotacao.id } });
   };
 
@@ -442,45 +457,13 @@ export function BookDetailPage() {
       plataformas: [],
     });
     dispatch({ type: 'ADD_CONTENT', payload: novoConteudo });
-    navigate(buildContentDetailRoute(novoConteudo.id));
+    openContentDetail(novoConteudo.id);
   };
 
-  const handlePromoteIdeia = (ideiaId: string, ideiaText: string) => {
-    const novoConteudo = createContentDraft({
-      id: generateUUID(),
-      userId: '',
-      title: ideiaText.slice(0, 60),
-      status: CONTENT_STATUS.ROTEIRO,
-      slotType: null,
-      seriesId: null,
-      pilarId: null,
-      lookId: null,
-      cenarioId: null,
-      bibliotecaItemId: livro.id,
-      formatoVisual: null,
-      energiaNecessaria: null,
-      publishDate: null,
-      recordingDate: null,
-      link: null,
-      script: null,
-      scriptNotes: [],
-      tags: [],
-      notes: ideiaText,
-      referencias: null,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      deletedAt: null,
-      plataformas: [],
-    });
-    void dispatch({
-      type: 'PROMOTE_IDEA',
-      payload: {
-        ideaId: ideiaId,
-        contentId: novoConteudo.id,
-        content: novoConteudo,
-      },
-    });
-    navigate(buildContentDetailRoute(novoConteudo.id));
+  const handlePromoteIdeia = (ideia: Content) => {
+    const promovido = promoteContentToScript(ideia);
+    dispatch({ type: 'UPDATE_CONTENT', payload: promovido });
+    openContentDetail(promovido.id);
   };
 
   const handleAdicionarCapitulo = () => {
@@ -623,7 +606,7 @@ export function BookDetailPage() {
             anotacoesDestaqueCount={anotacoesDestaque.length}
             onCreateContent={handleCriarConteudo}
             onPromoteIdeia={handlePromoteIdeia}
-            onOpenContent={(contentId) => navigate(buildContentDetailRoute(contentId))}
+            onOpenContent={openContentDetail}
             onStartBrainstorm={() => {
               setBrainstormIdx(0);
               setBrainstormMode(true);
@@ -733,20 +716,15 @@ export function BookDetailPage() {
                 livro.notasGerais?.trim()
                 || (livro.autorDiretor ? livro.autorDiretor : ''),
             });
-            const ideia: Idea = {
-              id: generateUUID(),
-              userId: '',
-              ...fields,
+            const ideia = createIdeaContent({
+              title: fields.title || 'Ideia sem título',
+              notes: fields.notes || null,
               pilarId: null,
               seriesId: null,
-              origemId: livro.id,
-              promotedToContentId: null,
-      demotedFromContentId: null,
-              archived: false,
-              createdAt: new Date().toISOString(),
-            };
-            dispatch({ type: 'ADD_IDEA', payload: ideia });
-            navigate('/ideias');
+              bibliotecaItemId: livro.id,
+            });
+            dispatch({ type: 'ADD_CONTENT', payload: ideia });
+            navigate('/criacao?tab=ideias');
           }}
         />
       </div>
@@ -1120,8 +1098,8 @@ export function BookDetailPage() {
             <div className="flex gap-4 flex-wrap">
               {[
                 { label: 'conteúdos', value: conteudosDoLivro.length },
-                { label: 'postados', value: conteudosDoLivro.filter(c => c.status === 'Postado').length },
-                { label: 'em produção', value: conteudosDoLivro.filter(c => c.status !== 'Postado' && c.status !== 'Ideia').length },
+                { label: 'postados', value: conteudosPostados.length },
+                { label: 'em produção', value: conteudosEmProducao.length },
               ].map(stat => (
                 <div key={stat.label} className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-xl">
                   <span className="text-sm font-semibold text-[var(--text-primary)]">{stat.value}</span>
@@ -1240,11 +1218,11 @@ export function BookDetailPage() {
                   {ideiasDeLivro.map(ideia => (
                     <div key={ideia.id} className="flex items-center gap-3 py-2 border-b border-[var(--border-color)] last:border-0">
                       <Lightbulb className="w-3.5 h-3.5 shrink-0 text-[var(--warning)]" />
-                      <p className="text-sm text-[var(--text-primary)] opacity-70 flex-1">{ideia.text}</p>
+                      <p className="text-sm text-[var(--text-primary)] opacity-70 flex-1">{ideia.title || 'Ideia sem título'}</p>
                       <AppButton
                         variant="ghost"
                         size="xs"
-                        onClick={() => handlePromoteIdeia(ideia.id, ideia.text)}
+                        onClick={() => handlePromoteIdeia(ideia)}
                         className="shrink-0 text-[var(--accent-blue)]"
                       >
                         → Conteúdo
@@ -1288,7 +1266,7 @@ export function BookDetailPage() {
                           <button
                             key={c.id}
                             type="button"
-                            onClick={() => navigate(buildContentDetailRoute(c.id))}
+                            onClick={() => openContentDetail(c.id)}
                             className={cn(
                               'group flex w-full items-center gap-4 rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-primary)] px-4 py-3 text-left transition-all hover:border-[var(--text-primary)]/30 md:rounded-[var(--radius-card)]',
                               FOCUS_INTERACTIVE,

@@ -59,11 +59,14 @@ export function ContentDetailShell({content, mode = 'desktop'}: ContentDetailShe
     publishDate: content.publishDate,
     publishTime: content.publishTime,
     recordingDate: content.recordingDate,
+    postedAt: content.postedAt,
     plataformas: content.plataformas || [],
   }));
   const [isSaving, setIsSaving] = useState(false);
   const [saveFeedback, setSaveFeedback] = useState<SaveFeedbackState>(() => getSaveFeedbackState());
   const [isRecordingSheetOpen, setIsRecordingSheetOpen] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const draftDirtyRef = useRef(false);
   const [draftDirty, setDraftDirty] = useState(false);
   const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -135,6 +138,7 @@ export function ContentDetailShell({content, mode = 'desktop'}: ContentDetailShe
       publishDate: liveContent.publishDate,
       publishTime: liveContent.publishTime,
       recordingDate: liveContent.recordingDate,
+      postedAt: liveContent.postedAt,
       plataformas: liveContent.plataformas || [],
     });
   }, [
@@ -153,6 +157,7 @@ export function ContentDetailShell({content, mode = 'desktop'}: ContentDetailShe
     liveContent.publishDate,
     liveContent.publishTime,
     liveContent.recordingDate,
+    liveContent.postedAt,
     liveContent.plataformas,
   ]);
 
@@ -228,7 +233,6 @@ export function ContentDetailShell({content, mode = 'desktop'}: ContentDetailShe
 
   useEffect(() => {
     if (!draftDirtyRef.current) return;
-    if (activeTab !== 'roteiro') return;
     if (!isContentBodyLoaded(liveContent)) return;
 
     if (autosaveTimerRef.current) {
@@ -245,26 +249,62 @@ export function ContentDetailShell({content, mode = 'desktop'}: ContentDetailShe
         autosaveTimerRef.current = null;
       }
     };
-  }, [activeTab, draft.script, draft.title, draft.notes, draft.referencias, draft.plataformas]);
+  }, [
+    draft.formatoVisual,
+    draft.notes,
+    draft.pilarId,
+    draft.plataformas,
+    draft.publishDate,
+    draft.publishTime,
+    draft.recordingDate,
+    draft.referencias,
+    draft.script,
+    draft.scriptNotes,
+    draft.seriesId,
+    draft.slotType,
+    draft.title,
+    liveContent,
+  ]);
 
   const saveHint = isSaving || saveFeedback.status === 'saving'
-    ? 'Salvando no servidor...'
+    ? 'Salvando…'
     : saveFeedback.status === 'error'
       ? saveFeedback.detail || saveFeedback.message
-      : saveFeedback.status === 'success'
-        ? saveFeedback.message
-        : draftDirty
-          ? 'Salvamento automatico em breve'
-          : 'Sincronizado';
+      : draftDirty
+        ? 'Salvando em instantes…'
+        : saveFeedback.status === 'success'
+          ? 'Salvo agora'
+          : 'Salvo';
 
   const editorSaveState: 'idle' | 'saving' | 'saved' | 'error' =
     isSaving || saveFeedback.status === 'saving'
       ? 'saving'
       : saveFeedback.status === 'error'
         ? 'error'
-        : saveFeedback.status === 'success' || (!draftDirty && !isSaving)
-          ? 'saved'
-          : 'idle';
+        : draftDirty
+          ? 'idle'
+          : 'saved';
+
+  const handleDelete = async () => {
+    setIsDeleting(true);
+    if (autosaveTimerRef.current) {
+      clearTimeout(autosaveTimerRef.current);
+      autosaveTimerRef.current = null;
+    }
+
+    try {
+      if (draftDirtyRef.current) {
+        await persistRef.current(undefined, {silent: true});
+      }
+      await dispatch({type: 'DELETE_CONTENT', payload: content.id});
+      draftDirtyRef.current = false;
+      setDraftDirty(false);
+      setDeleteConfirmOpen(false);
+      navigate('/criacao?tab=roteiros', {replace: true});
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   const setTab = (tab: ContentDetailTab) => {
     if (isTabLocked(tab, mergedContent, stageOptions)) return;
@@ -382,7 +422,7 @@ export function ContentDetailShell({content, mode = 'desktop'}: ContentDetailShe
           onTabChange={setTab}
           primaryAction={primaryAction}
           onPrimaryAction={() => void handlePrimaryAction()}
-          isSaving={isSaving}
+          isSaving={isSaving || isDeleting}
           postingAlerts={postingAlerts}
           stageLabel={stageLabel[stage]}
           operationalPanel={
@@ -397,11 +437,22 @@ export function ContentDetailShell({content, mode = 'desktop'}: ContentDetailShe
           blockName={blockSummary?.block.name ?? null}
           blockOrder={blockSummary?.order ?? null}
           section={detailSection}
-          onSave={() => void persist()}
+          onRetrySave={() => void persist()}
           saveHint={saveHint}
+          saveState={editorSaveState}
+          onDelete={() => setDeleteConfirmOpen(true)}
         />
         {recordingSheet}
         {leaveConfirmModal}
+        <ConfirmModal
+          open={deleteConfirmOpen}
+          message={`Mover este roteiro para a lixeira — ${draft.title || 'Roteiro sem título'}? Você poderá restaurá-lo depois.`}
+          confirmLabel={isDeleting ? 'Movendo...' : 'Mover para a lixeira'}
+          cancelLabel="Manter roteiro"
+          confirmDisabled={isDeleting}
+          onConfirm={() => void handleDelete()}
+          onCancel={() => setDeleteConfirmOpen(false)}
+        />
       </>
     );
   }
@@ -422,9 +473,9 @@ export function ContentDetailShell({content, mode = 'desktop'}: ContentDetailShe
               onTitleChange={value => handleDraftChange({title: value})}
               primaryAction={primaryAction}
               onPrimaryAction={() => void handlePrimaryAction()}
-              onSaveDraft={() => void persist()}
-              onStatusChange={status => void persist({status})}
-              isSaving={isSaving}
+              onRetrySave={() => void persist()}
+              onDelete={() => setDeleteConfirmOpen(true)}
+              isSaving={isSaving || isDeleting}
               blockName={blockSummary?.block.name ?? null}
               blockOrder={blockSummary?.order ?? null}
               saveHint={saveHint}
@@ -432,7 +483,7 @@ export function ContentDetailShell({content, mode = 'desktop'}: ContentDetailShe
               authorName={user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Usuario'}
               compact={activeTab === 'roteiro'}
               breadcrumbMode={activeTab === 'roteiro' ? 'pipeline' : 'content'}
-              saveFeedbackUpdatedAt={saveFeedback.updatedAt}
+              saveState={editorSaveState}
             />
 
             {activeTab !== 'roteiro' ? (
@@ -470,6 +521,15 @@ export function ContentDetailShell({content, mode = 'desktop'}: ContentDetailShe
       </PageScaffold>
       {recordingSheet}
       {leaveConfirmModal}
+      <ConfirmModal
+        open={deleteConfirmOpen}
+        message={`Mover este roteiro para a lixeira — ${draft.title || 'Roteiro sem título'}? Você poderá restaurá-lo depois.`}
+        confirmLabel={isDeleting ? 'Movendo...' : 'Mover para a lixeira'}
+        cancelLabel="Manter roteiro"
+        confirmDisabled={isDeleting}
+        onConfirm={() => void handleDelete()}
+        onCancel={() => setDeleteConfirmOpen(false)}
+      />
     </>
   );
 }

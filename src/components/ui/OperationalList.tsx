@@ -24,10 +24,12 @@ export function OperationalList({
   return (
     <div className="editorial-card p-6">
       <div className="mb-4 flex items-center justify-between gap-4">
-        <Text variant="eyebrow" as="span">
-          <Icon className="h-3.5 w-3.5" />
-          {title}
-        </Text>
+        <div className="flex items-center gap-2">
+          <Icon className="h-4 w-4 text-[var(--text-tertiary)]" />
+          <Text variant="itemTitle" as="h3">
+            {title}
+          </Text>
+        </div>
       </div>
 
       <div className="space-y-1">
