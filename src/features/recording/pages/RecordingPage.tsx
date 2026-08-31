@@ -224,26 +224,37 @@ export function RecordingPage() {
     setShowBlockForm(false);
   };
 
-  const handleAddToExistingBlock = async (blockId: string) => {
-    if (!blockId || selectedIds.size === 0) return;
+  const addContentsToExistingBlock = async (blockId: string, contentIds: string[]) => {
+    if (!blockId || contentIds.length === 0) return;
 
     const existingBlock = state.recordingBlocks.find(b => b.id === blockId);
     if (!existingBlock) return;
 
     const existingContentIds = new Set(existingBlock.contents.map(c => c.contentId));
-    const newContents = prontos.filter(c => selectedIds.has(c.id) && !existingContentIds.has(c.id));
+    const newContentIds = contentIds.filter(id => !existingContentIds.has(id));
+    if (newContentIds.length === 0) return;
 
     const merged = [
       ...existingBlock.contents,
-      ...newContents.map((content, i) => ({
-        blockId,
-        contentId: content.id,
-        ordem: existingBlock.contents.length + i,
-        gravado: false,
-      })),
+      ...newContentIds.map((contentId, i) => {
+        const content = state.contents.find(item => item.id === contentId);
+        return {
+          blockId,
+          contentId,
+          ordem: existingBlock.contents.length + i,
+          gravado: Boolean(content?.recordedAt),
+        };
+      }),
     ];
 
     await dispatch({type: 'UPDATE_BLOCK_CONTENTS', payload: {blockId, contents: merged}});
+  };
+
+  const handleAddToExistingBlock = async (blockId: string) => {
+    if (!blockId || selectedIds.size === 0) return;
+
+    const orderedIds = prontos.filter(content => selectedIds.has(content.id)).map(content => content.id);
+    await addContentsToExistingBlock(blockId, orderedIds);
 
     handleClearSelection();
     navigate(`/gravacao/${blockId}?tab=blocks`);
@@ -344,6 +355,9 @@ export function RecordingPage() {
           activeTab={activeTab}
           onTabChange={handleTabChange}
           onCreateBlock={handleCreateBlockFromMobile}
+          onAddToExistingBlock={async ({blockId, contentIds}) => {
+            await addContentsToExistingBlock(blockId, contentIds);
+          }}
           onOpenBlock={(blockId) => navigate(`/gravacao/${blockId}?tab=blocks`)}
           onOpenContent={(contentId) => openContentDetail(contentId)}
           onReadContent={openScriptReader}

@@ -7,9 +7,9 @@ import { OverlayFooter } from '../../components/overlays/OverlayFooter';
 import { OverlayHeader } from '../../components/overlays/OverlayHeader';
 import { AppButton } from '../../components/ui/AppButton';
 import { Text } from '../../components/ui/Text';
-import type { Content, RecordingBlock, RecordingBlockContent } from '../../lib/database';
+import type { Content, RecordingBlock } from '../../lib/database';
 import { CONTENT_STATUS, canAdvanceToRecording } from '../../features/contents/lib/contentPipeline';
-import { normalizeRecordingTags } from '../../features/recording/lib/recordingWorkflow';
+import { normalizeRecordingTags, addBlockContent, getOrderedBlockContents } from '../../features/recording/lib/recordingWorkflow';
 import { generateUUID } from '../../utils/uuid';
 
 interface SendToRecordingSheetProps {
@@ -33,11 +33,11 @@ export function SendToRecordingSheet({
   const [blockName, setBlockName] = useState('');
   const [selectedBlockId, setSelectedBlockId] = useState('');
   const [isBusy, setIsBusy] = useState(false);
-  const [createdBlockId, setCreatedBlockId] = useState<string | null>(null);
+  const [attachedBlockId, setAttachedBlockId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open) {
-      setCreatedBlockId(null);
+      setAttachedBlockId(null);
       setBlockName('');
       setSelectedBlockId('');
     }
@@ -49,21 +49,9 @@ export function SendToRecordingSheet({
   );
 
   const canMoveToReady = content.title.trim().length > 0 && canAdvanceToRecording(content);
-  const successBlockId = createdBlockId ?? (selectedBlockId || null);
 
-  const attachToBlock = async (blockId: string, block: RecordingBlock, isNew: boolean) => {
-    const ordered = [...block.contents].sort((left, right) => left.ordem - right.ordem);
-    const nextContents: RecordingBlockContent[] = isNew
-      ? [{ blockId, contentId: content.id, ordem: 0, gravado: Boolean(content.recordedAt) }]
-      : [
-          ...ordered,
-          {
-            blockId: block.id,
-            contentId: content.id,
-            ordem: ordered.length,
-            gravado: Boolean(content.recordedAt),
-          },
-        ];
+  const attachToBlock = async (blockId: string, block: RecordingBlock) => {
+    const nextContents = addBlockContent(getOrderedBlockContents(block), block.id, content);
 
     await onDispatch({
       type: 'UPDATE_BLOCK_CONTENTS',
@@ -74,7 +62,7 @@ export function SendToRecordingSheet({
       await onPersist({}, { advanceToReady: true });
     }
 
-    setCreatedBlockId(blockId);
+    setAttachedBlockId(blockId);
   };
 
   const createBlock = async () => {
@@ -98,7 +86,7 @@ export function SendToRecordingSheet({
       };
 
       await onDispatch({ type: 'ADD_RECORDING_BLOCK', payload: block });
-      await attachToBlock(blockId, block, true);
+      await attachToBlock(blockId, block);
       setBlockName('');
     } finally {
       setIsBusy(false);
@@ -112,22 +100,22 @@ export function SendToRecordingSheet({
 
     setIsBusy(true);
     try {
-      await attachToBlock(block.id, block, false);
+      await attachToBlock(block.id, block);
     } finally {
       setIsBusy(false);
     }
   };
 
   const openTeleprompter = () => {
-    if (!successBlockId) return;
+    if (!attachedBlockId) return;
     onClose();
-    navigate(`/gravacao/${successBlockId}?burst=1`);
+    navigate(`/gravacao/${attachedBlockId}?burst=1`);
   };
 
   const openBlockPage = () => {
-    if (!successBlockId) return;
+    if (!attachedBlockId) return;
     onClose();
-    navigate(`/gravacao/${successBlockId}`);
+    navigate(`/gravacao/${attachedBlockId}`);
   };
 
   return (
@@ -135,24 +123,24 @@ export function SendToRecordingSheet({
       open={open}
       onClose={onClose}
       zIndex="z-[120]"
-      ariaLabel={successBlockId ? 'Pronto para gravar' : 'Escolha o bloco'}
+      ariaLabel={attachedBlockId ? 'Pronto para gravar' : 'Escolha o bloco'}
     >
       <OverlayHeader>
         <p className="text-xs font-semibold  text-[var(--text-tertiary)]">
           Guardar em um bloco
         </p>
         <Text variant="itemTitle" className="mt-2">
-          {successBlockId ? 'Pronto para gravar' : 'Escolha o bloco'}
+          {attachedBlockId ? 'Pronto para gravar' : 'Escolha o bloco'}
         </Text>
         <p className="mt-2 text-sm text-[var(--text-secondary)]">
-          {successBlockId
+          {attachedBlockId
             ? 'Conteudo guardado para gravacao. Abra o teleprompter ou revise o bloco quando quiser.'
             : 'Crie um bloco novo ou adicione este roteiro a um bloco existente.'}
         </p>
       </OverlayHeader>
 
       <OverlayBody className="stack-lg py-6">
-          {successBlockId ? (
+          {attachedBlockId ? (
             <div className="stack-md">
               <AppButton
                 variant="primary"
@@ -235,7 +223,7 @@ export function SendToRecordingSheet({
           onClick={onClose}
           className="min-h-11 w-full rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] text-sm font-semibold t-label-uppercase text-[var(--text-secondary)]"
         >
-          {successBlockId ? 'Fechar' : 'Cancelar'}
+          {attachedBlockId ? 'Fechar' : 'Cancelar'}
         </button>
       </OverlayFooter>
     </BottomSheetModal>

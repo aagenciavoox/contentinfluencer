@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import type {Content} from '../../../lib/database.ts';
 import {CONTENT_STATUS} from '../../contents/lib/contentPipeline.ts';
-import {buildMarkStandaloneContentRecordedTransition} from './recordingWorkflow.ts';
+import {addBlockContent, buildMarkStandaloneContentRecordedTransition} from './recordingWorkflow.ts';
 
 function createContent(overrides: Partial<Content> = {}): Content {
   return {
@@ -54,9 +54,41 @@ function testPreservesExistingRecordingMilestone() {
   assert.equal(updated.updatedAt, '2026-07-27T12:00:00.000Z');
 }
 
+function testAddsScriptToExistingBlock() {
+  const existing = {
+    blockId: 'block-1',
+    contentId: 'content-1',
+    ordem: 0,
+    gravado: false,
+  };
+  const next = addBlockContent([existing], 'block-1', createContent({id: 'content-2'}));
+
+  assert.equal(next.length, 2);
+  assert.equal(next[1]?.contentId, 'content-2');
+  assert.equal(next[1]?.blockId, 'block-1');
+  assert.equal(next[1]?.ordem, 1);
+}
+
+function testDoesNotDuplicateScriptInBlock() {
+  const contents = [
+    {
+      blockId: 'block-1',
+      contentId: 'content-1',
+      ordem: 0,
+      gravado: false,
+    },
+  ];
+  const next = addBlockContent(contents, 'block-1', createContent({id: 'content-1'}));
+
+  assert.equal(next, contents);
+  assert.equal(next.length, 1);
+}
+
 const tests: Array<[string, () => void]> = [
   ['standalone recording marks the content milestone', testMarksStandaloneContentAsRecorded],
   ['standalone recording preserves an existing milestone', testPreservesExistingRecordingMilestone],
+  ['adds a script to an existing recording block', testAddsScriptToExistingBlock],
+  ['does not duplicate a script already in the block', testDoesNotDuplicateScriptInBlock],
 ];
 
 for (const [name, fn] of tests) {

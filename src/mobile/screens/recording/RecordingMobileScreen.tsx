@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { BookOpenText, Clapperboard, ExternalLink, Layers3, Plus, SearchCheck, Tags, Video } from 'lucide-react';
+import { BookOpenText, Check, Clapperboard, ExternalLink, Layers3, Plus, SearchCheck, Tags, Video } from 'lucide-react';
 import type { Content, Pilar, RecordingBlock, Serie } from '../../../lib/database';
 import { EmptyState } from '../../../components/ui/EmptyState';
 import { EMPTY } from '../../../lib/uiCopy';
@@ -11,8 +11,7 @@ import { MobileSectionHeader } from '../../components/MobileSectionHeader';
 import {getRecordingBlockProgress, normalizeRecordingTags, resolveRecordingContextSummary} from '../../../features/recording/lib/recordingWorkflow';
 import { TagSelect } from '../../../components/ui/TagSelect';
 import { AppButton } from '../../../components/ui/AppButton';
-import { Text } from '../../../components/ui/Text';
-import { getEntityTagStyle } from '../../../lib/utils';
+import { cn, getEntityTagStyle } from '../../../lib/utils';
 import { getScriptWordCount } from '../../../features/contents/lib/contentCardMeta';
 import { isContentBodyLoaded } from '../../../features/contents/lib/contentBody';
 
@@ -26,6 +25,7 @@ interface RecordingMobileScreenProps {
   activeTab: RecordingMobileTab;
   onTabChange: (tab: RecordingMobileTab) => void;
   onCreateBlock: (payload: { name: string; contentIds: string[]; tagsText: string }) => Promise<void> | void;
+  onAddToExistingBlock: (payload: { blockId: string; contentIds: string[] }) => Promise<void> | void;
   onOpenBlock: (blockId: string) => void;
   onOpenContent: (contentId: string) => void;
   onReadContent: (contentId: string) => void;
@@ -43,6 +43,7 @@ export function RecordingMobileScreen({
   activeTab,
   onTabChange,
   onCreateBlock,
+  onAddToExistingBlock,
   onOpenBlock,
   onOpenContent,
   onReadContent,
@@ -55,6 +56,8 @@ export function RecordingMobileScreen({
   const [blockName, setBlockName] = useState('');
   const [blockTags, setBlockTags] = useState<string[]>([]);
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [blockMode, setBlockMode] = useState<'novo' | 'existente'>('novo');
+  const [targetBlockId, setTargetBlockId] = useState('');
   const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
 
   const orderedQueueContents = useMemo(
@@ -112,15 +115,33 @@ export function RecordingMobileScreen({
     });
   };
 
-  const handleCreate = async () => {
-    const orderedIds = orderedQueueContents.filter((content) => selectedIds.has(content.id)).map((content) => content.id);
-    if (!blockName.trim() || orderedIds.length === 0) return;
-    await onCreateBlock({ name: blockName.trim(), contentIds: orderedIds, tagsText: blockTags.join(', ') });
+  const selectedQueueIds = () =>
+    orderedQueueContents.filter((content) => selectedIds.has(content.id)).map((content) => content.id);
+
+  const resetSelectionForm = () => {
     setSelectedIds(new Set());
     setBlockName('');
     setBlockTags([]);
     setShowCreateForm(false);
+    setBlockMode('novo');
+    setTargetBlockId('');
+  };
+
+  const handleCreate = async () => {
+    const orderedIds = selectedQueueIds();
+    if (!blockName.trim() || orderedIds.length === 0) return;
+    await onCreateBlock({ name: blockName.trim(), contentIds: orderedIds, tagsText: blockTags.join(', ') });
+    resetSelectionForm();
     onTabChange('blocks');
+  };
+
+  const handleAddToExisting = async () => {
+    const orderedIds = selectedQueueIds();
+    if (!targetBlockId || orderedIds.length === 0) return;
+    const blockId = targetBlockId;
+    await onAddToExistingBlock({ blockId, contentIds: orderedIds });
+    resetSelectionForm();
+    onOpenBlock(blockId);
   };
 
   return (
@@ -266,41 +287,116 @@ export function RecordingMobileScreen({
               <div className="stack-md rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4 shadow-sm">
                 {showCreateForm ? (
                   <>
-                    <input
-                      autoFocus
-                      value={blockName}
-                      onChange={(event) => setBlockName(event.target.value)}
-                      placeholder={`Nome do bloco (${selectedIds.size} selecionados)`}
-                      className="w-full"
-                    />
-                    <TagSelect
-                      label="Marcadores de gravacao"
-                      hint="Selecione ou crie marcadores para organizar o bloco."
-                      values={blockTags}
-                      onChange={setBlockTags}
-                      options={availableTags.map(tag => ({ value: tag, label: tag }))}
-                      creatable
-                      placeholder="Ex: roupa preta, estante, caneca"
-                    />
-                    <div className="flex gap-3">
-                      <AppButton variant="primary" onClick={handleCreate} disabled={!blockName.trim()} className="flex-1">
-                        Criar bloco
-                      </AppButton>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShowCreateForm(false);
-                          setBlockTags([]);
-                        }}
-                        className="flex-1 rounded-[var(--radius-md)] border border-[var(--border-color)] py-3 text-xs font-semibold  text-[var(--text-secondary)]"
-                      >
-                        Cancelar
-                      </button>
-                    </div>
+                    {recordingBlocks.length > 0 ? (
+                      <div className="flex w-fit rounded-xl border border-[var(--border-color)] bg-[var(--bg-hover)] p-0.5">
+                        {(['novo', 'existente'] as const).map(mode => (
+                          <button
+                            key={mode}
+                            type="button"
+                            onClick={() => setBlockMode(mode)}
+                            className={cn(
+                              'rounded-lg px-4 py-1.5 text-xs font-semibold transition-all',
+                              blockMode === mode
+                                ? 'bg-[var(--bg-primary)] text-[var(--text-primary)] shadow-sm'
+                                : 'text-[var(--text-secondary)]'
+                            )}
+                          >
+                            {mode === 'novo' ? 'Novo bloco' : 'Bloco existente'}
+                          </button>
+                        ))}
+                      </div>
+                    ) : null}
+
+                    {blockMode === 'novo' ? (
+                      <>
+                        <input
+                          autoFocus
+                          value={blockName}
+                          onChange={(event) => setBlockName(event.target.value)}
+                          placeholder={`Nome do bloco (${selectedIds.size} selecionados)`}
+                          className="w-full"
+                        />
+                        <TagSelect
+                          label="Marcadores de gravacao"
+                          hint="Selecione ou crie marcadores para organizar o bloco."
+                          values={blockTags}
+                          onChange={setBlockTags}
+                          options={availableTags.map(tag => ({ value: tag, label: tag }))}
+                          creatable
+                          placeholder="Ex: roupa preta, estante, caneca"
+                        />
+                        <div className="flex gap-3">
+                          <AppButton variant="primary" onClick={handleCreate} disabled={!blockName.trim()} className="flex-1">
+                            Criar bloco
+                          </AppButton>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowCreateForm(false);
+                              setBlockTags([]);
+                              setBlockMode('novo');
+                              setTargetBlockId('');
+                            }}
+                            className="flex-1 rounded-[var(--radius-md)] border border-[var(--border-color)] py-3 text-xs font-semibold  text-[var(--text-secondary)]"
+                          >
+                            Cancelar
+                          </button>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <p className="text-xs font-semibold text-[var(--text-tertiary)]">Escolher bloco existente</p>
+                        <div className="grid max-h-48 gap-2 overflow-y-auto">
+                          {recordingBlocks.map(block => (
+                            <button
+                              key={block.id}
+                              type="button"
+                              onClick={() => setTargetBlockId(block.id)}
+                              className={cn(
+                                'flex min-h-11 items-center justify-between rounded-[var(--radius-input)] border px-4 py-3 text-left text-sm',
+                                targetBlockId === block.id
+                                  ? 'border-[var(--text-primary)] bg-[var(--text-primary)]/5 font-semibold text-[var(--text-primary)]'
+                                  : 'border-[var(--border-color)] text-[var(--text-primary)]'
+                              )}
+                            >
+                              <span className="truncate">{block.name}</span>
+                              <span className="ml-2 flex shrink-0 items-center gap-2 text-xs text-[var(--text-tertiary)]">
+                                {block.contents.length} roteiro{block.contents.length !== 1 ? 's' : ''}
+                                {targetBlockId === block.id ? <Check className="h-4 w-4 text-[var(--text-primary)]" /> : null}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                        <div className="flex gap-3">
+                          <AppButton
+                            variant="primary"
+                            onClick={() => void handleAddToExisting()}
+                            disabled={!targetBlockId}
+                            className="flex-1"
+                          >
+                            Adicionar ao bloco
+                          </AppButton>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowCreateForm(false);
+                              setBlockTags([]);
+                              setBlockMode('novo');
+                              setTargetBlockId('');
+                            }}
+                            className="flex-1 rounded-[var(--radius-md)] border border-[var(--border-color)] py-3 text-xs font-semibold  text-[var(--text-secondary)]"
+                          >
+                            Cancelar
+                          </button>
+                        </div>
+                      </>
+                    )}
                   </>
                 ) : (
                   <AppButton variant="primary" fullWidth onClick={() => setShowCreateForm(true)} leftIcon={<Plus className="h-4 w-4" />}>
-                    {`Criar bloco (${selectedIds.size})`}
+                    {recordingBlocks.length > 0
+                      ? `Criar / adicionar ao bloco (${selectedIds.size})`
+                      : `Criar bloco (${selectedIds.size})`}
                   </AppButton>
                 )}
               </div>
