@@ -41,7 +41,7 @@ interface ContentDetailShellProps {
 type ContentDraft = ScriptDraft;
 
 export function ContentDetailShell({content, mode = 'desktop'}: ContentDetailShellProps) {
-  const {state, dispatch, updateContent} = useAppContext();
+  const {state, dispatch, updateContent, ensureDataDomains} = useAppContext();
   const {user} = useAuth();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -65,6 +65,7 @@ export function ContentDetailShell({content, mode = 'desktop'}: ContentDetailShe
   const [isSaving, setIsSaving] = useState(false);
   const [saveFeedback, setSaveFeedback] = useState<SaveFeedbackState>(() => getSaveFeedbackState());
   const [isRecordingSheetOpen, setIsRecordingSheetOpen] = useState(false);
+  const [recordingBlocksLoading, setRecordingBlocksLoading] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const draftDirtyRef = useRef(false);
@@ -75,6 +76,23 @@ export function ContentDetailShell({content, mode = 'desktop'}: ContentDetailShe
   const blocker = useNavigationBlocker(() => draftDirty);
 
   useEffect(() => subscribeSaveFeedback(() => setSaveFeedback(getSaveFeedbackState())), []);
+
+  useEffect(() => {
+    if (!isRecordingSheetOpen) {
+      setRecordingBlocksLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setRecordingBlocksLoading(true);
+    void ensureDataDomains(['recording']).finally(() => {
+      if (!cancelled) setRecordingBlocksLoading(false);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [ensureDataDomains, isRecordingSheetOpen]);
 
   useEffect(() => {
     if (!draftDirty) return;
@@ -396,6 +414,7 @@ export function ContentDetailShell({content, mode = 'desktop'}: ContentDetailShe
       onClose={() => setIsRecordingSheetOpen(false)}
       content={mergedContent}
       recordingBlocks={state.recordingBlocks}
+      blocksLoading={recordingBlocksLoading}
       onPersist={persist}
       onDispatch={dispatch}
     />

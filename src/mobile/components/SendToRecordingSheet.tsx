@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Clapperboard, Mic2, Plus, Video } from 'lucide-react';
+import { CheckCircle2, Clapperboard, Loader2, Video } from 'lucide-react';
 import { BottomSheetModal } from '../../components/feedback/modals/BottomSheetModal';
 import { OverlayBody } from '../../components/overlays/OverlayBody';
 import { OverlayFooter } from '../../components/overlays/OverlayFooter';
@@ -10,6 +10,7 @@ import { Text } from '../../components/ui/Text';
 import type { Content, RecordingBlock } from '../../lib/database';
 import { CONTENT_STATUS, canAdvanceToRecording } from '../../features/contents/lib/contentPipeline';
 import { normalizeRecordingTags, addBlockContent, getOrderedBlockContents } from '../../features/recording/lib/recordingWorkflow';
+import { getErrorMessage } from '../../lib/saveFeedback';
 import { generateUUID } from '../../utils/uuid';
 
 interface SendToRecordingSheetProps {
@@ -17,6 +18,7 @@ interface SendToRecordingSheetProps {
   onClose: () => void;
   content: Content;
   recordingBlocks: RecordingBlock[];
+  blocksLoading?: boolean;
   onPersist: (updates?: Partial<Content>, options?: { advanceToReady?: boolean }) => Promise<void>;
   onDispatch: (action: { type: string; payload?: unknown }) => Promise<void>;
 }
@@ -26,6 +28,7 @@ export function SendToRecordingSheet({
   onClose,
   content,
   recordingBlocks,
+  blocksLoading = false,
   onPersist,
   onDispatch,
 }: SendToRecordingSheetProps) {
@@ -34,12 +37,17 @@ export function SendToRecordingSheet({
   const [selectedBlockId, setSelectedBlockId] = useState('');
   const [isBusy, setIsBusy] = useState(false);
   const [attachedBlockId, setAttachedBlockId] = useState<string | null>(null);
+  const [attachedBlockName, setAttachedBlockName] = useState('');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open) {
       setAttachedBlockId(null);
+      setAttachedBlockName('');
       setBlockName('');
       setSelectedBlockId('');
+      setErrorMessage(null);
+      setIsBusy(false);
     }
   }, [open]);
 
@@ -49,6 +57,7 @@ export function SendToRecordingSheet({
   );
 
   const canMoveToReady = content.title.trim().length > 0 && canAdvanceToRecording(content);
+  const canSave = Boolean(selectedBlockId || blockName.trim());
 
   const attachToBlock = async (blockId: string, block: RecordingBlock) => {
     const nextContents = addBlockContent(getOrderedBlockContents(block), block.id, content);
@@ -63,18 +72,33 @@ export function SendToRecordingSheet({
     }
 
     setAttachedBlockId(blockId);
+    setAttachedBlockName(block.name);
   };
 
-  const createBlock = async () => {
-    if (!blockName.trim()) return;
-
+  const handleSave = async () => {
+    if (isBusy || !canSave) return;
+    setErrorMessage(null);
     setIsBusy(true);
+
     try {
+      if (selectedBlockId) {
+        const block = recordingBlocks.find(item => item.id === selectedBlockId);
+        if (!block) {
+          setErrorMessage('Esse bloco ainda não carregou. Espere um instante e tente de novo.');
+          return;
+        }
+        await attachToBlock(block.id, block);
+        return;
+      }
+
+      const name = blockName.trim();
+      if (!name) return;
+
       const blockId = generateUUID();
       const block: RecordingBlock = {
         id: blockId,
         userId: content.userId,
-        name: blockName.trim(),
+        name,
         lookLabel: null,
         cenarioLabel: null,
         metadata: {
@@ -88,19 +112,10 @@ export function SendToRecordingSheet({
       await onDispatch({ type: 'ADD_RECORDING_BLOCK', payload: block });
       await attachToBlock(blockId, block);
       setBlockName('');
-    } finally {
-      setIsBusy(false);
-    }
-  };
-
-  const addToExisting = async () => {
-    if (!selectedBlockId) return;
-    const block = recordingBlocks.find(item => item.id === selectedBlockId);
-    if (!block) return;
-
-    setIsBusy(true);
-    try {
-      await attachToBlock(block.id, block);
+    } catch (error) {
+      setAttachedBlockId(null);
+      setAttachedBlockName('');
+      setErrorMessage(getErrorMessage(error));
     } finally {
       setIsBusy(false);
     }
@@ -118,23 +133,28 @@ export function SendToRecordingSheet({
     navigate(`/gravacao/${attachedBlockId}`);
   };
 
+  const handleClose = () => {
+    if (isBusy) return;
+    onClose();
+  };
+
   return (
     <BottomSheetModal
       open={open}
-      onClose={onClose}
+      onClose={handleClose}
       zIndex="z-[120]"
-      ariaLabel={attachedBlockId ? 'Pronto para gravar' : 'Escolha o bloco'}
+      ariaLabel={attachedBlockId ? 'Roteiro guardado no bloco' : 'Escolha o bloco'}
     >
       <OverlayHeader>
         <p className="text-xs font-semibold  text-[var(--text-tertiary)]">
           Guardar em um bloco
         </p>
         <Text variant="itemTitle" className="mt-2">
-          {attachedBlockId ? 'Pronto para gravar' : 'Escolha o bloco'}
+          {attachedBlockId ? 'Roteiro guardado' : 'Escolha o bloco'}
         </Text>
         <p className="mt-2 text-sm text-[var(--text-secondary)]">
           {attachedBlockId
-            ? 'Conteudo guardado para gravacao. Abra o teleprompter ou revise o bloco quando quiser.'
+            ? `Este roteiro entrou no bloco “${attachedBlockName}”.`
             : 'Crie um bloco novo ou adicione este roteiro a um bloco existente.'}
         </p>
       </OverlayHeader>
@@ -142,6 +162,17 @@ export function SendToRecordingSheet({
       <OverlayBody className="stack-lg py-6">
           {attachedBlockId ? (
             <div className="stack-md">
+              <div className="flex items-start gap-3 rounded-[var(--radius-card-mobile)] border border-emerald-500/20 bg-emerald-500/8 px-4 py-4">
+                <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-500" />
+                <div>
+                  <p className="text-sm font-semibold text-[var(--text-primary)]">
+                    Guardado em {attachedBlockName}
+                  </p>
+                  <p className="mt-1 text-sm text-[var(--text-secondary)]">
+                    Já está na fila do bloco. Pode gravar agora ou revisar a ordem depois.
+                  </p>
+                </div>
+              </div>
               <AppButton
                 variant="primary"
                 leftIcon={<Video className="h-4 w-4" />}
@@ -167,19 +198,14 @@ export function SendToRecordingSheet({
                 </p>
                 <input
                   value={blockName}
-                  onChange={event => setBlockName(event.target.value)}
+                  onChange={event => {
+                    setBlockName(event.target.value);
+                    if (event.target.value.trim()) setSelectedBlockId('');
+                  }}
                   placeholder="Nome do bloco"
+                  disabled={isBusy}
                   className="mt-3 min-h-11 w-full rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-primary)] px-4 text-sm font-semibold text-[var(--text-primary)] outline-none"
                 />
-                <AppButton
-                  variant="primary"
-                  leftIcon={<Plus className="h-4 w-4" />}
-                  disabled={isBusy || !blockName.trim()}
-                  className="mt-3 min-h-11 w-full justify-center"
-                  onClick={() => void createBlock()}
-                >
-                  {isBusy ? 'Criando...' : 'Criar bloco e adicionar'}
-                </AppButton>
               </article>
 
               <article className="rounded-[1.4rem] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-4">
@@ -188,43 +214,66 @@ export function SendToRecordingSheet({
                 </p>
                 <select
                   value={selectedBlockId}
-                  onChange={event => setSelectedBlockId(event.target.value)}
+                  onChange={event => {
+                    setSelectedBlockId(event.target.value);
+                    if (event.target.value) setBlockName('');
+                  }}
+                  disabled={isBusy || (blocksLoading && availableBlocks.length === 0)}
                   className="mt-3 min-h-11 w-full rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-primary)] px-4 text-sm font-semibold text-[var(--text-primary)] outline-none"
                 >
-                  <option value="">Selecione um bloco</option>
+                  <option value="">
+                    {blocksLoading && availableBlocks.length === 0 ? 'Carregando blocos...' : 'Selecione um bloco'}
+                  </option>
                   {availableBlocks.map(block => (
                     <option key={block.id} value={block.id}>
                       {block.name}
                     </option>
                   ))}
                 </select>
-                <AppButton
-                  variant="secondary"
-                  leftIcon={<Mic2 className="h-4 w-4" />}
-                  disabled={isBusy || !selectedBlockId}
-                  className="mt-3 min-h-11 w-full justify-center"
-                  onClick={() => void addToExisting()}
-                >
-                  {isBusy ? 'Adicionando...' : 'Adicionar ao bloco'}
-                </AppButton>
-                {availableBlocks.length === 0 ? (
+                {blocksLoading && availableBlocks.length === 0 ? (
+                  <p className="mt-3 text-xs font-semibold text-[var(--text-secondary)]">
+                    Buscando blocos salvos...
+                  </p>
+                ) : availableBlocks.length === 0 ? (
                   <p className="mt-3 text-xs font-semibold text-[var(--text-secondary)]">
                     Nenhum bloco disponivel sem este conteudo.
                   </p>
                 ) : null}
               </article>
+
+              {errorMessage ? (
+                <p className="text-sm font-semibold text-[var(--danger)]">{errorMessage}</p>
+              ) : null}
             </>
           )}
       </OverlayBody>
 
       <OverlayFooter className="pb-safe">
-        <button
-          type="button"
-          onClick={onClose}
-          className="min-h-11 w-full rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] text-sm font-semibold t-label-uppercase text-[var(--text-secondary)]"
-        >
-          {attachedBlockId ? 'Fechar' : 'Cancelar'}
-        </button>
+        {attachedBlockId ? (
+          <AppButton variant="secondary" className="min-h-11 w-full justify-center" onClick={handleClose}>
+            Fechar
+          </AppButton>
+        ) : (
+          <>
+            <AppButton
+              variant="secondary"
+              className="min-h-11 flex-1 justify-center"
+              onClick={handleClose}
+              disabled={isBusy}
+            >
+              Cancelar
+            </AppButton>
+            <AppButton
+              variant="primary"
+              className="min-h-11 flex-1 justify-center"
+              leftIcon={isBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : undefined}
+              disabled={isBusy || !canSave}
+              onClick={() => void handleSave()}
+            >
+              {isBusy ? 'Guardando...' : selectedBlockId ? 'Guardar no bloco' : 'Criar e guardar'}
+            </AppButton>
+          </>
+        )}
       </OverlayFooter>
     </BottomSheetModal>
   );

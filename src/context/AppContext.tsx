@@ -40,6 +40,7 @@ const ACTION_SAVE_LABELS: Partial<Record<AppAction['type'], string>> = {
   UPDATE_AGENDA_ITEM: 'Agenda salva',
   ADD_AGENDA_ITEM: 'Agenda salva',
   UPDATE_RECORDING_BLOCK: 'Bloco salvo',
+  UPDATE_BLOCK_CONTENTS: 'Roteiro adicionado ao bloco',
   ADD_RECORDING_BLOCK: 'Bloco criado',
   ADD_PLATFORM: 'Plataforma salva',
   UPDATE_PLATFORM: 'Plataforma salva',

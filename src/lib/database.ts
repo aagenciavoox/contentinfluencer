@@ -2035,7 +2035,8 @@ export async function saveRecordingBlock(block: Omit<RecordingBlock, 'contents' 
 
 export async function saveRecordingBlockContents(blockId: string, contents: RecordingBlockContent[]): Promise<void> {
   if (!supabase) return;
-  await supabase.from('recording_block_contents').delete().eq('block_id', blockId);
+  const { error: deleteError } = await supabase.from('recording_block_contents').delete().eq('block_id', blockId);
+  if (deleteError) throw new Error(`recording_block_contents delete: ${deleteError.message}`);
   if (contents.length === 0) return;
   const { error } = await supabase.from('recording_block_contents').insert(
     contents.map(c => ({

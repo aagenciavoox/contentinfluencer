@@ -24,7 +24,7 @@ export function SaveFeedbackToast() {
 
   return (
     <div
-      className="pointer-events-none fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+5.5rem)] z-[120] flex justify-center px-4 md:bottom-6 md:justify-end md:pr-6"
+      className="pointer-events-none fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+5.5rem)] z-[210] flex justify-center px-4 md:bottom-6 md:justify-end md:pr-6"
       role="status"
       aria-live="polite"
     >
