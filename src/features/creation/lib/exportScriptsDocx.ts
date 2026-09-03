@@ -167,12 +167,14 @@ export async function createCreationsDocxBlob(
     }),
   ];
 
-  sections.forEach((section, index) => {
+  sections.forEach((section) => {
     documentChildren.push(
       new Paragraph({
         text: section.title,
         heading: HeadingLevel.HEADING_1,
-        pageBreakBefore: index > 0,
+        // Keep all exported items flowing in the same document to save space.
+        // The previous behavior forced each item to start on a new page.
+        pageBreakBefore: false,
         keepNext: true,
         widowControl: true,
       }),
