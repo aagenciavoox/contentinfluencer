@@ -74,6 +74,7 @@ assert.equal(snapshot.totals.averageRating, 4.5);
 assert.equal(snapshot.totals.completed, 2);
 assert.equal(snapshot.totals.active, 2);
 assert.equal(snapshot.totals.averageProgress, 68);
+assert.equal(snapshot.totals.trackedProgressCount, 4);
 assert.equal(snapshot.totals.averageCompletionDays, 10);
 assert.equal(snapshot.annotations.total, 2);
 assert.equal(snapshot.annotations.highlights, 1);

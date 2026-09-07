@@ -1,4 +1,5 @@
 import { AlertTriangle, Loader2 } from 'lucide-react';
+import { useEffect } from 'react';
 import { RouterProvider } from 'react-router-dom';
 import { AppProviders } from './app/providers/AppProviders';
 import { appRouter } from './app/router/appRouter';
@@ -7,6 +8,12 @@ import { supabaseConfigStatus } from './lib/supabase';
 
 function AppRouter() {
   const { loading, backendReady } = useAuth();
+
+  useEffect(() => {
+    if (loading || !backendReady) return;
+    // Prefetch da rota inicial enquanto o bootstrap crítico roda.
+    void import('./pages/Creation');
+  }, [backendReady, loading]);
 
   if (loading) {
     return (

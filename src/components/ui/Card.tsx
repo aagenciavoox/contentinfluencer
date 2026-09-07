@@ -1,6 +1,6 @@
-import {ReactNode} from 'react';
-import {cn} from '../../lib/utils';
-import {Surface} from './Surface';
+import { ReactNode } from 'react';
+import { cn } from '../../lib/utils';
+import { Surface } from './Surface';
 
 interface CardProps {
   children: ReactNode;
@@ -9,12 +9,10 @@ interface CardProps {
   interactive?: boolean;
 }
 
-const paddingMap = {
-  md: 'md' as const,
-  lg: 'lg' as const,
-};
-
-/** @deprecated Prefer Surface directly */
+/**
+ * Thin wrapper over Surface for legacy call sites.
+ * Prefer Surface directly: outlined (neutral), interactive (hover lift), elevated (overlays).
+ */
 export function Card({
   children,
   className,
@@ -24,8 +22,8 @@ export function Card({
   return (
     <Surface
       variant={interactive ? 'interactive' : 'outlined'}
-      padding={paddingMap[padding]}
-      className={cn('editorial-card shadow-none', className)}
+      padding={padding}
+      className={cn(className)}
     >
       {children}
     </Surface>

@@ -7,13 +7,15 @@ import { MobileFilterSheet } from '../../components/MobileFilterSheet';
 import { MobileListCard } from '../../components/MobileListCard';
 import { MobileSearchBar } from '../../components/MobileSearchBar';
 import { MobileSegmentTabs } from '../../components/MobileSegmentTabs';
-import { MobileSectionHeader } from '../../components/MobileSectionHeader';
 import {getRecordingBlockProgress, normalizeRecordingTags, resolveRecordingContextSummary} from '../../../features/recording/lib/recordingWorkflow';
 import { TagSelect } from '../../../components/ui/TagSelect';
 import { AppButton } from '../../../components/ui/AppButton';
 import { cn, getEntityTagStyle } from '../../../lib/utils';
 import { getScriptWordCount } from '../../../features/contents/lib/contentCardMeta';
-import { isContentBodyLoaded } from '../../../features/contents/lib/contentBody';
+import {
+  resolveScriptBodyStatus,
+  scriptBodyStatusLabel,
+} from '../../../features/contents/lib/contentBody';
 
 interface RecordingMobileScreenProps {
   readyContents: Content[];
@@ -29,6 +31,9 @@ interface RecordingMobileScreenProps {
   onOpenBlock: (blockId: string) => void;
   onOpenContent: (contentId: string) => void;
   onReadContent: (contentId: string) => void;
+  isHydrating?: (id: string) => boolean;
+  hasHydrationError?: (id: string) => boolean;
+  onRetryHydration?: (id: string) => void;
 }
 
 type RecordingMobileTab = 'queue' | 'blocks';
@@ -47,11 +52,16 @@ export function RecordingMobileScreen({
   onOpenBlock,
   onOpenContent,
   onReadContent,
+  isHydrating = () => false,
+  hasHydrationError = () => false,
+  onRetryHydration,
 }: RecordingMobileScreenProps) {
   const [search, setSearch] = useState('');
   const [pilarFilter, setPilarFilter] = useState('all');
   const [seriesFilter, setSeriesFilter] = useState('all');
   const [tagFilter, setTagFilter] = useState('all');
+  const [energiaFilter, setEnergiaFilter] = useState('all');
+  const [sortValue, setSortValue] = useState('recentes');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [blockName, setBlockName] = useState('');
   const [blockTags, setBlockTags] = useState<string[]>([]);
@@ -60,10 +70,26 @@ export function RecordingMobileScreen({
   const [targetBlockId, setTargetBlockId] = useState('');
   const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
 
-  const orderedQueueContents = useMemo(
-    () => [...readyContents].sort((left, right) => new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime()),
-    [readyContents]
-  );
+  const orderedQueueContents = useMemo(() => {
+    const energyRank: Record<string, number> = { alta: 3, média: 2, baixa: 1 };
+
+    return [...readyContents].sort((left, right) => {
+      switch (sortValue) {
+        case 'titulo:asc':
+          return (left.title || '').localeCompare(right.title || '', 'pt-BR');
+        case 'pilar:asc': {
+          const leftPilar = pilares.find((item) => item.id === left.pilarId)?.nome || '';
+          const rightPilar = pilares.find((item) => item.id === right.pilarId)?.nome || '';
+          return leftPilar.localeCompare(rightPilar, 'pt-BR');
+        }
+        case 'energia:desc':
+          return (energyRank[right.energiaNecessaria ?? ''] ?? 0) - (energyRank[left.energiaNecessaria ?? ''] ?? 0);
+        case 'recentes':
+        default:
+          return new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime();
+      }
+    });
+  }, [pilares, readyContents, sortValue]);
 
   const filteredQueue = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
@@ -74,6 +100,9 @@ export function RecordingMobileScreen({
       .filter((content) =>
         tagFilter === 'all' ? true : normalizeRecordingTags(content.tags || []).includes(tagFilter)
       )
+      .filter((content) =>
+        energiaFilter === 'all' ? true : content.energiaNecessaria === energiaFilter
+      )
       .filter((content) => {
         if (!normalizedSearch) return true;
         const pilarName = pilares.find((item) => item.id === content.pilarId)?.nome || '';
@@ -81,7 +110,7 @@ export function RecordingMobileScreen({
         const recordingTags = normalizeRecordingTags(content.tags || []).join(' ');
         return [content.title, pilarName, seriesName, recordingTags].join(' ').toLowerCase().includes(normalizedSearch);
       });
-  }, [orderedQueueContents, pilares, pilarFilter, search, series, seriesFilter, tagFilter]);
+  }, [energiaFilter, orderedQueueContents, pilares, pilarFilter, search, series, seriesFilter, tagFilter]);
 
   const blockSummaries = useMemo(
     () =>
@@ -145,41 +174,18 @@ export function RecordingMobileScreen({
   };
 
   return (
-    <div className="stack-xl">
-      <section className="rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4 shadow-sm">
-        <MobileSectionHeader
-          icon={Video}
-          tone="orange"
-          title="Gravacao"
-          description="Guarde blocos e itens soltos para montar uma sessao quando fizer sentido."
-        />
+    <div className="stack-md">
+      <MobileSegmentTabs
+        rounded="tight"
+        tabs={[
+          { value: 'queue', label: 'Sem bloco', count: readyContents.length },
+          { value: 'blocks', label: 'Blocos', count: recordingBlocks.length },
+        ]}
+        value={activeTab}
+        onChange={(value) => onTabChange(value)}
+      />
 
-        <div className="grid-metrics-3">
-          <div className="rounded-[1.2rem] bg-[var(--bg-hover)] px-3 py-3">
-            <p className="t-label text-[var(--text-tertiary)]">Sem bloco</p>
-            <p className="mt-1 text-xl font-semibold text-[var(--text-primary)]">{readyContents.length}</p>
-          </div>
-          <div className="rounded-[1.2rem] bg-[var(--bg-hover)] px-3 py-3">
-            <p className="t-label text-[var(--text-tertiary)]">Blocos</p>
-            <p className="mt-1 text-xl font-semibold text-[var(--text-primary)]">{recordingBlocks.length}</p>
-          </div>
-          <div className="rounded-[1.2rem] bg-[var(--bg-hover)] px-3 py-3">
-            <p className="t-label text-[var(--text-tertiary)]">Marcados</p>
-            <p className="mt-1 text-xl font-semibold text-[var(--text-primary)]">{selectedIds.size}</p>
-          </div>
-        </div>
-      </section>
-
-      <section className="stack-lg">
-        <MobileSegmentTabs
-          tabs={[
-            { value: 'queue', label: 'Sem bloco', count: readyContents.length },
-            { value: 'blocks', label: 'Blocos', count: recordingBlocks.length },
-          ]}
-          value={activeTab}
-          onChange={(value) => onTabChange(value)}
-        />
-
+      <section className="stack-md">
         {activeTab === 'queue' ? (
           <>
             <MobileSearchBar
@@ -196,7 +202,7 @@ export function RecordingMobileScreen({
                 icon={<SearchCheck className="h-8 w-8" />}
               />
             ) : (
-              <div className="stack-md">
+              <div className="stack-sm">
                 {filteredQueue.map((content) => {
                   const pilar = pilares.find((item) => item.id === content.pilarId) || null;
                   const serie = series.find((item) => item.id === content.seriesId) || null;
@@ -204,25 +210,40 @@ export function RecordingMobileScreen({
                   const seriesName = serie?.name;
                   const selected = selectedIds.has(content.id);
                   const recordingTags = normalizeRecordingTags(content.tags || []);
-                  const bodyLoaded = isContentBodyLoaded(content);
                   const scriptWordCount = getScriptWordCount(content);
+                  const bodyStatus = resolveScriptBodyStatus(content, {
+                    hydrating: isHydrating(content.id),
+                    error: hasHydrationError(content.id),
+                  });
+                  const statusLabel = scriptBodyStatusLabel(bodyStatus, scriptWordCount);
 
                   return (
                     <MobileListCard
                       key={content.id}
                       onClick={() => toggleSelect(content.id)}
                       className={selected ? 'ring-1 ring-[var(--text-primary)]' : undefined}
-                      eyebrow={selected ? 'Selecionado' : 'Sem bloco'}
-                      title={content.title || 'Conteudo sem titulo'}
-                      description={
-                        !bodyLoaded
-                          ? 'Carregando roteiro...'
-                          : scriptWordCount > 0
-                            ? `${scriptWordCount} palavras no roteiro`
-                            : 'Sem roteiro escrito'
+                      status={
+                        <span className="inline-flex rounded-md bg-[var(--bg-hover)] px-1.5 py-0.5 text-xs font-semibold text-[var(--text-secondary)]">
+                          {selected ? 'Selecionado' : 'Roteiro'}
+                        </span>
                       }
+                      title={content.title || 'Conteudo sem titulo'}
+                      description={statusLabel}
                       trailing={
                         <div className="flex items-center gap-1">
+                          {bodyStatus === 'error' && onRetryHydration ? (
+                            <AppButton
+                              variant="ghost"
+                              size="xs"
+                              onClick={event => {
+                                event.stopPropagation();
+                                onRetryHydration(content.id);
+                              }}
+                              className="border-[var(--border-color)]"
+                            >
+                              Tentar
+                            </AppButton>
+                          ) : null}
                           <AppButton
                             variant="ghost"
                             size="xs"
@@ -252,7 +273,7 @@ export function RecordingMobileScreen({
                         <>
                           {pilarName ? (
                             <span
-                              className="rounded-full border px-3 py-1 text-xs font-semibold"
+                              className="rounded-md border px-1.5 py-0.5 text-xs font-semibold"
                               style={getEntityTagStyle(pilar?.cor)}
                             >
                               {pilarName}
@@ -260,16 +281,16 @@ export function RecordingMobileScreen({
                           ) : null}
                           {seriesName ? (
                             <span
-                              className="rounded-full border px-3 py-1 text-xs font-semibold"
+                              className="rounded-md border px-1.5 py-0.5 text-xs font-semibold"
                               style={getEntityTagStyle(serie?.cor)}
                             >
                               {seriesName}
                             </span>
                           ) : null}
-                          {recordingTags.map((tag) => (
+                          {recordingTags.slice(0, 2).map((tag) => (
                             <span
                               key={`${content.id}-${tag}`}
-                              className="inline-flex items-center gap-1 rounded-full bg-[var(--accent-orange)]/10 px-3 py-1 text-xs font-semibold text-[var(--accent-orange)]"
+                              className="inline-flex items-center gap-1 rounded-md bg-[var(--accent-orange)]/10 px-1.5 py-0.5 text-xs font-semibold text-[var(--accent-orange)]"
                             >
                               <Tags className="h-3 w-3" />
                               {tag}
@@ -284,7 +305,7 @@ export function RecordingMobileScreen({
             )}
 
             {selectedIds.size > 0 ? (
-              <div className="stack-md rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4 shadow-sm">
+              <div className="stack-md rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4">
                 {showCreateForm ? (
                   <>
                     {recordingBlocks.length > 0 ? (
@@ -411,25 +432,29 @@ export function RecordingMobileScreen({
                 icon={<Layers3 className="h-8 w-8" />}
               />
             ) : (
-              <div className="stack-md">
+              <div className="stack-sm">
                 {blockSummaries.map(({ block, total, progress, first, ready }) => (
                   <MobileListCard
                     key={block.id}
                     onClick={() => onOpenBlock(block.id)}
-                    eyebrow={ready === 0 ? 'Finalizado' : 'Aguardando camera'}
+                    status={
+                      <span className="inline-flex rounded-md bg-[var(--bg-hover)] px-1.5 py-0.5 text-xs font-semibold text-[var(--text-secondary)]">
+                        {ready === 0 ? 'Finalizado' : 'Bloco'}
+                      </span>
+                    }
                     title={block.name}
                     description={first?.title || 'Sem roteiro inicial'}
                     meta={
                       <>
-                        <span className="inline-flex items-center gap-1 rounded-full bg-[var(--accent-blue)]/10 px-3 py-1 text-xs font-semibold text-[var(--accent-blue)]">
+                        <span className="inline-flex items-center gap-1 rounded-md bg-[var(--accent-blue)]/10 px-1.5 py-0.5 text-xs font-semibold text-[var(--accent-blue)]">
                           <Clapperboard className="h-3 w-3" />
                           {total} videos
                         </span>
-                        <span className="inline-flex items-center gap-1 rounded-full bg-[var(--accent-green)]/10 px-3 py-1 text-xs font-semibold text-[var(--accent-green)]">
+                        <span className="inline-flex items-center gap-1 rounded-md bg-[var(--accent-green)]/10 px-1.5 py-0.5 text-xs font-semibold text-[var(--accent-green)]">
                           <Layers3 className="h-3 w-3" />
-                          {progress}% pronto
+                          {progress}%
                         </span>
-                        <span className="inline-flex items-center gap-1 rounded-full bg-[var(--bg-hover)] px-3 py-1 text-xs font-semibold text-[var(--text-secondary)]">
+                        <span className="inline-flex items-center gap-1 rounded-md bg-[var(--bg-hover)] px-1.5 py-0.5 text-xs font-semibold text-[var(--text-secondary)]">
                           <Tags className="h-3 w-3" />
                           {resolveRecordingContextSummary({ block, content: first })}
                         </span>
@@ -485,6 +510,26 @@ export function RecordingMobileScreen({
           </select>
         </label>
 
+        <label className="block stack-sm">
+          <span className="t-label text-[var(--text-tertiary)]">Energia</span>
+          <select value={energiaFilter} onChange={(event) => setEnergiaFilter(event.target.value)}>
+            <option value="all">Todas</option>
+            <option value="baixa">Baixa</option>
+            <option value="média">Média</option>
+            <option value="alta">Alta</option>
+          </select>
+        </label>
+
+        <label className="block stack-sm">
+          <span className="t-label text-[var(--text-tertiary)]">Ordenacao</span>
+          <select value={sortValue} onChange={(event) => setSortValue(event.target.value)}>
+            <option value="recentes">Mais recentes</option>
+            <option value="titulo:asc">Título A-Z</option>
+            <option value="pilar:asc">Pilar A-Z</option>
+            <option value="energia:desc">Energia alta</option>
+          </select>
+        </label>
+
         <AppButton
           variant="primary"
           fullWidth
@@ -492,6 +537,8 @@ export function RecordingMobileScreen({
             setPilarFilter('all');
             setSeriesFilter('all');
             setTagFilter('all');
+            setEnergiaFilter('all');
+            setSortValue('recentes');
             setIsFilterSheetOpen(false);
           }}
         >

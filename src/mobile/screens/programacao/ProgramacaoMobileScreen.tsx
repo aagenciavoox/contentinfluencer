@@ -30,9 +30,12 @@ import {EmptyState} from '../../../components/ui/EmptyState';
 import {Surface} from '../../../components/ui/Surface';
 import {Text} from '../../../components/ui/Text';
 import type {Violation} from '../../../utils/pilarRhythm';
+import {summarizeViolations} from '../../../utils/pilarRhythm';
 import {
   getPlatformColor,
   isIdeiaCard,
+  platformInitials,
+  sortDayCards,
   type ProgramacaoCard,
   type ProjetoPublicacaoMarker,
 } from '../../../features/programacao/lib/programacao';
@@ -63,29 +66,6 @@ interface ProgramacaoMobileScreenProps {
   onRegisterPosted: (dayKey: string) => void;
   onOpenProjetoPublicacao: (marker: ProjetoPublicacaoMarker) => void;
   onPickDate: () => void;
-}
-
-function platformInitials(platformName: string): string {
-  return (
-    platformName
-      .split(/\s+/)
-      .filter(Boolean)
-      .slice(0, 2)
-      .map(part => part.charAt(0).toUpperCase())
-      .join('') || '?'
-  );
-}
-
-function sortDayCards(cards: ProgramacaoCard[]): ProgramacaoCard[] {
-  return [...cards].sort((a, b) => {
-    const aIdeia = isIdeiaCard(a) ? 0 : 1;
-    const bIdeia = isIdeiaCard(b) ? 0 : 1;
-    if (aIdeia !== bIdeia) return aIdeia - bIdeia;
-    const timeA = a.time || '99:99';
-    const timeB = b.time || '99:99';
-    if (timeA !== timeB) return timeA.localeCompare(timeB);
-    return a.title.localeCompare(b.title, 'pt-BR');
-  });
 }
 
 function dateKey(date: Date): string {
@@ -132,6 +112,8 @@ export function ProgramacaoMobileScreen({
     );
   }, [backlogCards, search]);
 
+  const violationSummary = useMemo(() => summarizeViolations(weekViolations, 3), [weekViolations]);
+
   const selectedBacklogCard = selectedBacklogKey
     ? backlogCards.find(card => card.key === selectedBacklogKey) ?? null
     : null;
@@ -154,7 +136,7 @@ export function ProgramacaoMobileScreen({
       : format(anchorDate, "MMMM 'de' yyyy", {locale: ptBR});
 
   return (
-    <div className="stack-xl px-4 py-4">
+    <div className="stack-lg px-4 py-4">
       <CalendarModeSwitch variant="mobile" />
       <CalendarPeriodNav
         anchorDate={anchorDate}
@@ -190,18 +172,6 @@ export function ProgramacaoMobileScreen({
                 Cancelar
               </AppButton>
             </div>
-          </div>
-        </Surface>
-      ) : null}
-
-      {weekViolations.length > 0 ? (
-        <Surface variant="outlined" padding="md" className="border-[var(--warning)]/30 bg-[var(--warning-bg)]">
-          <div className="stack-sm">
-            {weekViolations.map((violation, index) => (
-              <Text key={`${violation.ruleId}-${index}`} variant="body">
-                {violation.message}
-              </Text>
-            ))}
           </div>
         </Surface>
       ) : null}
@@ -314,14 +284,13 @@ export function ProgramacaoMobileScreen({
                   <span className="text-2xs font-semibold uppercase text-[var(--text-tertiary)]">
                     {format(day, 'EEE', {locale: ptBR})}
                   </span>
-                  <span
-                    className={cn(
-                      'text-lg font-bold',
-                      isToday ? 'text-[var(--accent-blue)]' : 'text-[var(--text-primary)]',
-                    )}
+                  <Text
+                    variant="sectionTitle"
+                    as="span"
+                    className={cn(isToday ? 'text-[var(--accent-blue)]' : 'text-[var(--text-primary)]')}
                   >
                     {format(day, 'd')}
-                  </span>
+                  </Text>
                   {count > 0 ? (
                     <span className="rounded-full bg-[var(--bg-hover)] px-1.5 py-0.5 text-2xs font-bold text-[var(--text-secondary)]">
                       {count}
@@ -441,7 +410,7 @@ export function ProgramacaoMobileScreen({
             }
           />
         ) : (
-          <div className="stack-xl">
+          <div className="stack-lg">
             {scheduledGroups.map(group => (
               <div key={group.dayKey} className="stack-sm">
                 <div className="flex items-center justify-between px-1">
@@ -540,6 +509,36 @@ export function ProgramacaoMobileScreen({
           </div>
         )}
       </section>
+
+      {weekViolations.length > 0 ? (
+        <Surface variant="outlined" padding="md" className="border-[var(--warning)]/30 bg-[var(--warning-bg)]">
+          <div className="stack-sm">
+            <div className="flex items-center justify-between gap-2">
+              <Text variant="label">Diagnóstico do ritmo</Text>
+              <Text variant="meta">{weekViolations.length} alertas</Text>
+            </div>
+            {violationSummary.top.map((violation, index) => (
+              <Text key={`${violation.ruleId}-${index}`} variant="body">
+                {violation.message}
+              </Text>
+            ))}
+            {violationSummary.rest.length > 0 ? (
+              <details className="rounded-[var(--radius-sm)] border border-[var(--border-color)]/50 bg-[var(--bg-elevated)]/40">
+                <summary className="cursor-pointer list-none px-2 py-2 text-sm font-semibold text-[var(--text-secondary)] marker:content-none [&::-webkit-details-marker]:hidden">
+                  Ver todos ({violationSummary.rest.length})
+                </summary>
+                <div className="stack-sm border-t border-[var(--border-color)]/50 px-2 py-2">
+                  {violationSummary.rest.map((violation, index) => (
+                    <Text key={`rest-${violation.ruleId}-${index}`} variant="body">
+                      {violation.message}
+                    </Text>
+                  ))}
+                </div>
+              </details>
+            ) : null}
+          </div>
+        </Surface>
+      ) : null}
     </div>
   );
 }

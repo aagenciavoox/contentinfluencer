@@ -22,9 +22,9 @@ export function EmptyState({
   return (
     <div
       className={cn(
-        'flex flex-col items-center justify-center rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-dashed border-[var(--border-color)] bg-[var(--bg-elevated)] text-center',
+        'empty-state flex flex-col items-center justify-center rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-dashed border-[var(--border-color)] bg-[var(--bg-elevated)] text-center',
         compact
-          ? 'px-6 py-8 shadow-sm'
+          ? 'px-4 py-4 shadow-sm'
           : 'min-h-[180px] md:min-h-[240px] px-6 py-8 md:px-6 md:py-10',
         className
       )}

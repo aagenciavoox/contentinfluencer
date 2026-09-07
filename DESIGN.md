@@ -9,7 +9,8 @@ Content OS uses a token-based design system. Pages compose with shared UI primit
 | **Text** | `src/components/ui/Text.tsx` | All typography — see hierarchy below |
 | **EmptyState** | `src/components/ui/EmptyState.tsx` | Empty lists — use `compact` on mobile |
 | **Skeleton** | `src/components/ui/Skeleton.tsx` | Loading placeholders — `SkeletonList`, `SkeletonCard`, `SkeletonRow` |
-| **Surface** | `src/components/ui/Surface.tsx` | Cards and panels — `plain`, `outlined`, `interactive`, `elevated` |
+| **Surface** | `src/components/ui/Surface.tsx` | Cards and panels — see elevation rules below |
+| **Card** | `src/components/ui/Card.tsx` | Thin wrapper over Surface (prefer Surface directly) |
 | **Badge** | `src/components/ui/Badge.tsx` | Status pills, tags, neutral chips — pass `status` prop with pipeline label for tinted status |
 | **AppButton** | `src/components/ui/AppButton.tsx` | Buttons — `variant="primary" \| "secondary" \| "ghost"` |
 | **OperationalList** | `src/components/ui/OperationalList.tsx` | Eyebrow + list + “ver tudo” footer (dashboard-style lists) |
@@ -20,6 +21,25 @@ Content OS uses a token-based design system. Pages compose with shared UI primit
 | **SegmentTabs** | `src/components/ui/SegmentTabs.tsx` | Tabs segmentadas em toolbars |
 | **MediaCard** | `src/components/ui/MediaCard.tsx` | Capa/thumbnail para grids de catálogo |
 | **MobileSectionHeader** | `src/mobile/components/MobileSectionHeader.tsx` | Cabeçalho in-card em telas mobile |
+
+### Surface elevation (cards, borders, shadows)
+
+Strict elevation ladder — do not mix ad-hoc shadows/borders on feature cards:
+
+| Variant | Use for | Border | Shadow |
+|---------|---------|--------|--------|
+| `outlined` | Default neutral cards / panels | `1px solid var(--border-color)` | **none** |
+| `interactive` | Clickable cards | same border (unchanged on hover) | `--shadow-card-hover` on `:hover` |
+| `elevated` | Floating overlays only (menus, dropdowns, popovers) | `1px solid var(--border-color)` | `--shadow-dropdown` |
+| `plain` | Flush surfaces without chrome | none | none |
+
+Radius: `--radius-card` (12px). Transition: `--surface-transition` (0.2s).
+
+**Separators:** avoid `border-b` / `<hr>` between small groups inside a card — use `gap` (12–16px). Use `.surface-separator` (`1px solid var(--border-subtle)`) only between major blocks (page header ↔ content, modal body ↔ footer).
+
+**Card reading order:** (1) badge/status top-left — max 1 visible tag, overflow as `+N`; (2) title + secondary description ≤2 lines; (3) meta footer; actions (edit/delete/⋯) via `.card-actions` — visible on card `:hover` / `:focus-within` only.
+
+**Do not** change border color on card hover, stack `shadow-sm`/`shadow-lg` on flat cards, or lift cards with `translate-y`.
 
 ### Spacing & layout utilities
 
@@ -57,17 +77,19 @@ Do **not** use raw `<h1>`/`<h2>`/`<h3>`, `notion-title`, `button-primary`, or ar
 
 Use `Text` variants in this order of visual weight (highest → lowest):
 
-| Variant | Use for |
-|---------|---------|
-| `display` | Hero editorial (ex.: Dashboard “Hoje”) |
-| `pageTitle` | Título de página (`DesktopPageHeader`, detalhe de conteúdo) |
-| `spotlightTitle` | Destaque em cards (ex.: bloco “Próximo passo”) |
-| `sectionTitle` | Cabeçalho de seção dentro da página |
-| `itemTitle` | Título de item em listas e cards |
-| `body` / `bodyStrong` | Parágrafos e ênfase inline |
-| `secondary` / `meta` | Texto auxiliar |
-| `eyebrow` | Rótulo de zona (uppercase, 11px) — acima de grupos de conteúdo |
-| `label` | Labels de formulário e navegação secundária |
+| Variant | Mobile | Desktop | Use for |
+|---------|--------|---------|---------|
+| `display` | Title 2 · 22pt | 40px | Hero de página (Inter bold; ex.: Dashboard) |
+| `pageTitle` | Title 2 · 22pt | 32px | Título de página e título do roteiro |
+| `spotlightTitle` | Title 2 · 22pt | 32px | Destaque em cards (ex.: bloco “Próximo passo”) |
+| `sectionTitle` | Body · 17pt | Title 3 · 20pt | Cabeçalho de seção dentro da página |
+| `itemTitle` | Callout · 15pt | 15px | Título de item em listas e cards |
+| `body` / `bodyStrong` | Callout · 15pt | 15px | Parágrafos de UI |
+| `secondary` / `meta` | Footnote 13 / Caption 12 | 13 / 12 | Texto auxiliar |
+| `eyebrow` | 11px | 11px | Rótulo de zona (uppercase) — acima de grupos |
+| `label` | Caption · 12pt | 12px | Labels de formulário e navegação secundária |
+
+Long-form (editor de roteiro) usa **Body 17pt**. Mobile **não** usa Large Title 34pt nem Title 1 28pt no chrome — esses tamanhos inflavam sheets e headers.
 
 **Regra:** `eyebrow` nomeia a *categoria*; `sectionTitle` nomeia a *seção*; `itemTitle` nomeia cada *item*. Inputs editáveis de título podem usar a classe `t-page-title` diretamente (exceção no lint).
 
@@ -86,7 +108,13 @@ Applies to `AppButton`, `Surface` (interactive), `ListItem`, `IconButton`, and r
 ### Surfaces & text
 - `--bg-primary`, `--bg-secondary`, `--bg-elevated`, `--bg-hover`, `--surface-subtle`
 - `--text-primary`, `--text-secondary`, `--text-tertiary`
-- `--border-color`, `--border-strong`
+- `--border-color`, `--border-strong`, `--border-subtle` (major separators only)
+
+### Elevation shadows
+- `--shadow-card` — none (flat cards)
+- `--shadow-card-hover` — light lift for interactive cards
+- `--shadow-dropdown` / `--shadow-modal` — floating overlays only
+- `--surface-transition` — shared 0.2s ease-in-out for border/shadow/bg
 
 ### Radius
 - `--radius-sm` (8px), `--radius-md` (12px), `--radius-card`, `--radius-input`, `--radius-pill`
@@ -113,7 +141,7 @@ Applies to `AppButton`, `Surface` (interactive), `ListItem`, `IconButton`, and r
 npm run lint:design
 ```
 
-Checks for banned patterns: `font-black`, arbitrary `text-[Npx]`, `button-primary`, hard-coded gray/white surfaces, legacy tracking, `notion-title`, and raw `t-section-title` / `t-page-title` on non-input elements. Exceptions: `Text.tsx`, editable title inputs in `ContentDetailHeader.tsx` / `ContentOperationalPanel.tsx`.
+Checks for banned patterns: `font-black`, arbitrary `text-[Npx]`, `button-primary`, hard-coded gray/white surfaces, legacy tracking, `notion-title`, and raw `t-section-title` / `t-page-title` on non-input elements. Exceptions: `Text.tsx`, editable title inputs in `ContentDetailHeader.tsx` / `ContentOperationalPanel.tsx` / `RoteiroSection.tsx`.
 
 Run before finishing UI work. Full check: `npm run check`.
 

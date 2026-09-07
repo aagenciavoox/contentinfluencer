@@ -21,7 +21,7 @@ import { Content, RecordingBlock } from '../../../../lib/database';
 import { cn, htmlToReadableText } from '../../../../lib/utils';
 import { isRecordingBlockTeleprompterEnabled } from '../../../recording/lib/recordingWorkflow';
 
-const BURST_SETTINGS_PREFERENCE_KEY = 'burstModeSettings';
+const BURST_SETTINGS_PREFERENCE_KEY = 'burstModeSettings'; // Shared with BurstModeMobileScreen via app preferences.
 
 type BurstTheme = 'light' | 'dark' | 'amber';
 type BurstTextColor = 'theme' | 'ink' | 'paper' | 'amber';

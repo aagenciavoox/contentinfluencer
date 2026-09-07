@@ -1,5 +1,6 @@
 import {useState} from 'react';
 import {Check, Eye, Flag, MessageSquare, MoreHorizontal, Sparkles} from 'lucide-react';
+import {Badge} from '../../../../components/ui/Badge';
 import {Text} from '../../../../components/ui/Text';
 import type {Content, Pilar, Platform, Serie} from '../../../../lib/database';
 import {cn} from '../../../../lib/utils';
@@ -53,9 +54,16 @@ export function PipelineContentCard({
   return (
     <article
       className={cn(
-        'group relative flex flex-col rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-elevated)] p-2.5 text-left shadow-[var(--shadow-card)] transition-colors hover:border-[var(--border-strong)]',
-        isSelected && selectionMode && 'border-[var(--text-primary)] ring-1 ring-[var(--text-primary)]/20',
+        'surface-interactive group relative flex cursor-pointer flex-col p-4 text-left',
+        isSelected && selectionMode && 'ring-1 ring-[var(--text-primary)]',
       )}
+      onClick={() => {
+        if (selectionMode) {
+          onToggleSelect();
+          return;
+        }
+        onSelect();
+      }}
     >
       <div className={cn('relative', selectionMode ? 'pl-7' : 'pr-7')}>
         {selectionMode ? (
@@ -86,8 +94,9 @@ export function PipelineContentCard({
             }
             onSelect();
           }}
-          className="flex w-full min-w-0 flex-col text-left"
+          className="flex w-full min-w-0 flex-col gap-2 text-left"
         >
+          <Badge variant="status" status={displayStatus}>{displayStatus}</Badge>
           <div className="flex items-start gap-1">
             {(isNew || isDraft) ? (
               <span className="mt-0.5 inline-flex shrink-0 items-center gap-0.5">
@@ -102,7 +111,7 @@ export function PipelineContentCard({
             <Text
               variant="itemTitle"
               className={cn(
-                'line-clamp-3 break-words text-sm font-semibold leading-snug',
+                'line-clamp-2 break-words leading-snug',
                 isDraft && 'italic text-[var(--text-secondary)]',
               )}
             >
@@ -116,9 +125,11 @@ export function PipelineContentCard({
             <ContentEntityTags pillar={pillar} pillarId={content.pilarId} className="mt-1.5" size="sm" />
           ) : null}
 
-          <Text variant="meta" as="p" className="mt-1 leading-tight">
-            {[displayStatus, platformName].filter(Boolean).join(' · ')}
-          </Text>
+          {platformName ? (
+            <Text variant="meta" as="p" className="mt-4 leading-tight">
+              {platformName}
+            </Text>
+          ) : null}
         </button>
 
         {!selectionMode ? (
@@ -130,9 +141,10 @@ export function PipelineContentCard({
               setMenuOpen(open => !open);
             }}
             className={cn(
-              'inline-flex h-6 w-6 items-center justify-center rounded-md text-[var(--text-tertiary)] transition-opacity hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:opacity-100 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
-              menuOpen || isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100',
+              'card-actions inline-flex h-6 w-6 items-center justify-center rounded-md text-[var(--text-tertiary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:opacity-100 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
+              (menuOpen || isSelected) && 'opacity-100',
             )}
+            data-open={menuOpen ? 'true' : undefined}
             aria-label="Ações do roteiro"
           >
             <MoreHorizontal className="h-3.5 w-3.5" />
@@ -165,8 +177,8 @@ export function PipelineContentCard({
         ) : null}
       </div>
 
-      <div className="mt-2 flex items-center justify-between gap-2 border-t border-[var(--border-color)] pt-1.5">
-        <Text variant="label" className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 leading-none">
+      <div className="mt-3 flex items-center justify-between gap-2">
+        <Text variant="meta" className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 leading-none">
           <span>{formatLastEdit(content.updatedAt)}</span>
           {wordCount > 0 ? (
             <>
@@ -176,7 +188,7 @@ export function PipelineContentCard({
           ) : null}
         </Text>
         {notesCount > 0 ? (
-          <Text variant="label" className="inline-flex shrink-0 items-center gap-0.5 tabular-nums leading-none">
+          <Text variant="meta" className="inline-flex shrink-0 items-center gap-0.5 tabular-nums leading-none">
             <MessageSquare className="h-3 w-3" />
             {notesCount}
           </Text>

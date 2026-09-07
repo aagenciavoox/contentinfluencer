@@ -118,11 +118,11 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
             <Search className="w-5 h-5 text-[var(--text-tertiary)]" />
             <input 
               ref={inputRef}
-              type="text" 
+              type="search"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder={isMobile ? "Buscar..." : "Busque por conteúdo, ideias, parcerias..."}
-              className="flex-1 h-14 bg-transparent border-none focus:ring-0 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] text-base px-3"
+              className="input-plain flex-1 h-14 bg-transparent text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] text-base px-3"
             />
             {isMobile ? (
               <button onClick={onClose} className="p-2 bg-[var(--bg-hover)] rounded-xl">

@@ -1,5 +1,5 @@
-import {useMemo, useState} from 'react';
-import {useNavigate} from 'react-router-dom';
+import {useEffect, useMemo, useRef, useState} from 'react';
+import {useSearchParams} from 'react-router-dom';
 import {Check, ChevronDown, ChevronUp, Layout, Plus, Trash2} from 'lucide-react';
 import {useAppContext} from '../../../context/AppContext';
 import {useAuth} from '../../../context/AuthContext';
@@ -9,6 +9,8 @@ import {cn} from '../../../lib/utils';
 import {DesktopPageHeader} from '../../../layouts/page/DesktopPageHeader';
 import {PageLayout} from '../../../layouts/page/PageLayout';
 import {Text} from '../../../components/ui/Text';
+import {AppButton} from '../../../components/ui/AppButton';
+import {EmptyState} from '../../../components/ui/EmptyState';
 import {FixedPanelModal} from '../../../components/overlays/FixedPanelModal';
 import {TemplatesMobileScreen} from '../../../mobile/screens/settings/TemplatesMobileScreen';
 import {ConfirmModal} from '../../../components/feedback/modals/ConfirmModal';
@@ -46,8 +48,10 @@ const EMPTY_BLOCO_EDITOR: BlocoEditorState = {
 export function TemplatesSettingsPage() {
   const {state, dispatch} = useAppContext();
   const {user} = useAuth();
-  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const isMobile = useIsMobile();
+  const editParam = searchParams.get('edit');
+  const lastHydratedEditRef = useRef<string | null>(null);
 
   const [showNewForm, setShowNewForm] = useState(false);
   const [novoNome, setNovoNome] = useState('');
@@ -71,7 +75,16 @@ export function TemplatesSettingsPage() {
   const selectedTemplate = templates.find(template => template.id === selectedTemplateId) || null;
   const editingBloco = selectedTemplate?.estrutura.find(bloco => bloco.id === editingBlocoId) || null;
 
-  const openTemplateEditor = (template: Template) => {
+  const setEditParam = (templateId: string | null) => {
+    setSearchParams(previous => {
+      const next = new URLSearchParams(previous);
+      if (templateId) next.set('edit', templateId);
+      else next.delete('edit');
+      return next;
+    }, {replace: true});
+  };
+
+  const hydrateTemplateEditor = (template: Template) => {
     setSelectedTemplateId(template.id);
     setTemplateEditor({
       nome: template.nome,
@@ -94,7 +107,7 @@ export function TemplatesSettingsPage() {
     }
   };
 
-  const closeTemplateEditor = () => {
+  const clearTemplateEditorState = () => {
     setSelectedTemplateId(null);
     setEditingBlocoId(null);
     setTemplateEditor(EMPTY_TEMPLATE_EDITOR);
@@ -102,6 +115,41 @@ export function TemplatesSettingsPage() {
     setNovoBlocoLabel('');
     setNovoBlocoTipo('variavel');
   };
+
+  useEffect(() => {
+    if (!editParam) {
+      if (lastHydratedEditRef.current !== null) {
+        lastHydratedEditRef.current = null;
+        clearTemplateEditorState();
+      }
+      return;
+    }
+
+    if (lastHydratedEditRef.current === editParam) return;
+
+    const template = templates.find(item => item.id === editParam);
+    if (!template) {
+      if (state.isLoaded) {
+        lastHydratedEditRef.current = null;
+        setEditParam(null);
+      }
+      return;
+    }
+
+    lastHydratedEditRef.current = editParam;
+    hydrateTemplateEditor(template);
+  }, [editParam, templates, state.isLoaded]);
+
+  const openTemplateEditor = (template: Template) => {
+    lastHydratedEditRef.current = template.id;
+    hydrateTemplateEditor(template);
+    setEditParam(template.id);
+  };
+
+  const closeTemplateEditor = () => {
+    setEditParam(null);
+  };
+
 
   const handleCreateTemplate = () => {
     if (!novoNome.trim()) return;
@@ -237,20 +285,6 @@ export function TemplatesSettingsPage() {
     selectBloco(bloco);
   };
 
-  if (isMobile) {
-    return (
-      <div className="min-h-full bg-[var(--bg-primary)]">
-        <TemplatesMobileScreen
-          templates={state.templates}
-          series={state.series}
-          platforms={state.platforms}
-          onCreate={template => dispatch({type: 'ADD_TEMPLATE', payload: {...template, userId: user?.id || ''}})}
-          onDelete={templateId => dispatch({type: 'DELETE_TEMPLATE', payload: templateId})}
-        />
-      </div>
-    );
-  }
-
   const isTemplateMetaDirty =
     !!selectedTemplate &&
     (
@@ -268,149 +302,8 @@ export function TemplatesSettingsPage() {
       blocoEditor.placeholder !== editingBloco.placeholder
     );
 
-  return (
+  const templateEditorOverlays = (
     <>
-    <PageLayout
-      variant="settings"
-      header={
-        <DesktopPageHeader
-          section="Configurações"
-          title="Templates"
-          icon={Layout}
-          backLabel="Configurações"
-          backTo="/configuracoes"
-          actions={
-            <button
-              onClick={() => setShowNewForm(true)}
-              className="flex shrink-0 items-center gap-2 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] bg-[var(--text-primary)] px-6 py-3 text-xs font-semibold text-[var(--bg-primary)] hover:opacity-90"
-            >
-              <Plus className="h-4 w-4" />
-              Novo
-            </button>
-          }
-        />
-      }
-    >
-        {showNewForm && (
-          <div className="stack-md rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-primary)] p-6">
-            <p className="text-xs font-semibold  opacity-40">Novo template</p>
-            <input
-              autoFocus
-              value={novoNome}
-              onChange={event => setNovoNome(event.target.value)}
-              placeholder="Nome do template"
-              className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] placeholder:opacity-30 focus:outline-none"
-            />
-            <div className="flex flex-wrap gap-3">
-              <select
-                value={novoTipo}
-                onChange={event => setNovoTipo(event.target.value as TemplateTypeFilter)}
-                className="flex-1 min-w-[120px] rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-2.5 text-xs font-semibold uppercase text-[var(--text-primary)] focus:outline-none"
-              >
-                <option value="roteiro">Roteiro</option>
-                <option value="legenda">Legenda</option>
-                <option value="outro">Outro</option>
-              </select>
-              <select
-                value={novaSerieId}
-                onChange={event => setNovaSerieId(event.target.value)}
-                className="flex-1 min-w-[120px] rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-2.5 text-xs font-bold text-[var(--text-primary)] focus:outline-none"
-              >
-                <option value="">Série (opcional)</option>
-                {state.series.map(serie => (
-                  <option key={serie.id} value={serie.id}>
-                    {serie.name}
-                  </option>
-                ))}
-              </select>
-              <select
-                value={novaPlatformId}
-                onChange={event => setNovaPlatformId(event.target.value)}
-                className="flex-1 min-w-[120px] rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-2.5 text-xs font-bold text-[var(--text-primary)] focus:outline-none"
-              >
-                <option value="">Plataforma (opcional)</option>
-                {state.platforms.filter(platform => platform.ativo).map(platform => (
-                  <option key={platform.id} value={platform.id}>
-                    {platform.nome}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="flex gap-3">
-              <button
-                onClick={handleCreateTemplate}
-                disabled={!novoNome.trim()}
-                className="rounded-xl bg-[var(--text-primary)] px-6 py-2.5 text-xs font-semibold  text-[var(--bg-primary)] hover:opacity-90 disabled:opacity-30"
-              >
-                Criar
-              </button>
-              <button
-                onClick={() => setShowNewForm(false)}
-                className="rounded-xl border border-[var(--border-color)] px-6 py-2.5 text-xs font-semibold  opacity-50 hover:opacity-80"
-              >
-                Cancelar
-              </button>
-            </div>
-          </div>
-        )}
-
-        {templates.length === 0 && !showNewForm ? (
-          <div className="py-16 text-center">
-            <Layout className="mx-auto mb-3 h-10 w-10 opacity-10" />
-            <p className="text-sm font-semibold  opacity-30">{EMPTY.templates.title}</p>
-          </div>
-        ) : (
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-            {templates.map(template => {
-              const serie = state.series.find(item => item.id === template.seriesId);
-              const platform = state.platforms.find(item => item.id === template.platformId);
-
-              return (
-                <div
-                  key={template.id}
-                  onClick={() => openTemplateEditor(template)}
-                  className="group flex cursor-pointer items-start gap-3 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-primary)] p-6 transition-all hover:-translate-y-0.5 hover:border-[var(--text-primary)]/20 hover:shadow-lg"
-                >
-                  <div className="min-w-0 flex-1 stack-md">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="rounded-full bg-[var(--bg-hover)] px-3 py-1 text-xs font-semibold  text-[var(--text-primary)]">
-                        {template.type || 'roteiro'}
-                      </span>
-                      {serie ? (
-                        <span className="rounded-full bg-[var(--accent-purple)]/10 px-3 py-1 text-xs font-semibold  text-[var(--accent-purple)]">
-                          {serie.name}
-                        </span>
-                      ) : null}
-                      {platform ? (
-                        <span className="rounded-full bg-[var(--accent-green)]/10 px-3 py-1 text-xs font-semibold  text-[var(--accent-green)]">
-                          {platform.nome}
-                        </span>
-                      ) : null}
-                    </div>
-
-                    <div>
-                      <p className="text-base font-semibold text-[var(--text-primary)]">{template.nome}</p>
-                      <p className="mt-1 text-sm text-[var(--text-secondary)]">
-                        {template.estrutura.length} bloco{template.estrutura.length === 1 ? '' : 's'} estruturado{template.estrutura.length === 1 ? '' : 's'}
-                      </p>
-                    </div>
-                  </div>
-
-                  <button
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      deleteTemplate(template.id);
-                    }}
-                    className="shrink-0 rounded-full p-2 opacity-20 transition-all hover:bg-red-400/10 hover:text-red-400 hover:opacity-80"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
       <FixedPanelModal
         open={!!selectedTemplate}
         onClose={closeTemplateEditor}
@@ -539,18 +432,22 @@ export function TemplatesSettingsPage() {
                         <div className="flex items-start gap-2">
                           <div className="mt-0.5 flex shrink-0 flex-col gap-0.5">
                             <button
+                              type="button"
                               onClick={() => moveBloco(bloco, -1)}
                               disabled={idx === 0}
-                              className="p-0.5 opacity-30 hover:opacity-80 disabled:opacity-10"
+                              aria-label={`Mover bloco ${bloco.label} para cima`}
+                              className="inline-flex min-h-9 min-w-9 items-center justify-center rounded-[var(--radius-input)] opacity-40 hover:opacity-80 disabled:opacity-10"
                             >
-                              <ChevronUp className="h-3 w-3" />
+                              <ChevronUp className="h-3.5 w-3.5" />
                             </button>
                             <button
+                              type="button"
                               onClick={() => moveBloco(bloco, 1)}
                               disabled={idx === selectedTemplate.estrutura.length - 1}
-                              className="p-0.5 opacity-30 hover:opacity-80 disabled:opacity-10"
+                              aria-label={`Mover bloco ${bloco.label} para baixo`}
+                              className="inline-flex min-h-9 min-w-9 items-center justify-center rounded-[var(--radius-input)] opacity-40 hover:opacity-80 disabled:opacity-10"
                             >
-                              <ChevronDown className="h-3 w-3" />
+                              <ChevronDown className="h-3.5 w-3.5" />
                             </button>
                           </div>
 
@@ -695,7 +592,180 @@ export function TemplatesSettingsPage() {
         }}
         onCancel={() => setConfirm(null)}
       />
+    </>
+  );
+
+  if (isMobile) {
+    return (
+      <div className="min-h-full bg-[var(--bg-primary)]">
+        <TemplatesMobileScreen
+          templates={state.templates}
+          series={state.series}
+          platforms={state.platforms}
+          onCreate={template => {
+            const payload = {...template, userId: user?.id || ''};
+            dispatch({type: 'ADD_TEMPLATE', payload});
+            openTemplateEditor(payload);
+          }}
+          onDelete={templateId => deleteTemplate(templateId)}
+        />
+        {templateEditorOverlays}
+      </div>
+    );
+  }
+
+  return (
+    <>
+    <PageLayout
+      variant="settings"
+      header={
+        <DesktopPageHeader
+          section="Configurações"
+          title="Templates"
+          icon={Layout}
+          backLabel="Configurações"
+          backTo="/configuracoes"
+          actions={
+            <button
+              onClick={() => setShowNewForm(true)}
+              className="flex shrink-0 items-center gap-2 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] bg-[var(--text-primary)] px-6 py-3 text-xs font-semibold text-[var(--bg-primary)] hover:opacity-90"
+            >
+              <Plus className="h-4 w-4" />
+              Novo
+            </button>
+          }
+        />
+      }
+    >
+        {showNewForm && (
+          <div className="stack-md rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-primary)] p-6">
+            <p className="text-xs font-semibold  opacity-40">Novo template</p>
+            <input
+              autoFocus
+              value={novoNome}
+              onChange={event => setNovoNome(event.target.value)}
+              placeholder="Nome do template"
+              className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] placeholder:opacity-30 focus:outline-none"
+            />
+            <div className="flex flex-wrap gap-3">
+              <select
+                value={novoTipo}
+                onChange={event => setNovoTipo(event.target.value as TemplateTypeFilter)}
+                className="flex-1 min-w-[120px] rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-2.5 text-xs font-semibold uppercase text-[var(--text-primary)] focus:outline-none"
+              >
+                <option value="roteiro">Roteiro</option>
+                <option value="legenda">Legenda</option>
+                <option value="outro">Outro</option>
+              </select>
+              <select
+                value={novaSerieId}
+                onChange={event => setNovaSerieId(event.target.value)}
+                className="flex-1 min-w-[120px] rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-2.5 text-xs font-bold text-[var(--text-primary)] focus:outline-none"
+              >
+                <option value="">Série (opcional)</option>
+                {state.series.map(serie => (
+                  <option key={serie.id} value={serie.id}>
+                    {serie.name}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={novaPlatformId}
+                onChange={event => setNovaPlatformId(event.target.value)}
+                className="flex-1 min-w-[120px] rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-2.5 text-xs font-bold text-[var(--text-primary)] focus:outline-none"
+              >
+                <option value="">Plataforma (opcional)</option>
+                {state.platforms.filter(platform => platform.ativo).map(platform => (
+                  <option key={platform.id} value={platform.id}>
+                    {platform.nome}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={handleCreateTemplate}
+                disabled={!novoNome.trim()}
+                className="rounded-xl bg-[var(--text-primary)] px-6 py-2.5 text-xs font-semibold  text-[var(--bg-primary)] hover:opacity-90 disabled:opacity-30"
+              >
+                Criar
+              </button>
+              <button
+                onClick={() => setShowNewForm(false)}
+                className="rounded-xl border border-[var(--border-color)] px-6 py-2.5 text-xs font-semibold  opacity-50 hover:opacity-80"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        )}
+
+        {templates.length === 0 && !showNewForm ? (
+          <EmptyState
+            icon={<Layout className="h-10 w-10" />}
+            title={EMPTY.templates.title}
+            description={EMPTY.templates.description}
+            action={
+              <AppButton variant="primary" onClick={() => setShowNewForm(true)} leftIcon={<Plus className="h-4 w-4" />}>
+                Novo template
+              </AppButton>
+            }
+          />
+        ) : (
+          <div className="grid-content">
+            {templates.map(template => {
+              const serie = state.series.find(item => item.id === template.seriesId);
+              const platform = state.platforms.find(item => item.id === template.platformId);
+
+              return (
+                <div
+                  key={template.id}
+                  onClick={() => openTemplateEditor(template)}
+                  className="group flex cursor-pointer items-start gap-3 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-primary)] p-6 transition-all hover:shadow-[var(--shadow-card-hover)]"
+                >
+                  <div className="min-w-0 flex-1 stack-md">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="rounded-full bg-[var(--bg-hover)] px-3 py-1 text-xs font-semibold  text-[var(--text-primary)]">
+                        {template.type || 'roteiro'}
+                      </span>
+                      {serie ? (
+                        <span className="rounded-full bg-[var(--accent-purple)]/10 px-3 py-1 text-xs font-semibold  text-[var(--accent-purple)]">
+                          {serie.name}
+                        </span>
+                      ) : null}
+                      {platform ? (
+                        <span className="rounded-full bg-[var(--accent-green)]/10 px-3 py-1 text-xs font-semibold  text-[var(--accent-green)]">
+                          {platform.nome}
+                        </span>
+                      ) : null}
+                    </div>
+
+                    <div>
+                      <p className="text-base font-semibold text-[var(--text-primary)]">{template.nome}</p>
+                      <p className="mt-1 text-sm text-[var(--text-secondary)]">
+                        {template.estrutura.length} bloco{template.estrutura.length === 1 ? '' : 's'} estruturado{template.estrutura.length === 1 ? '' : 's'}
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      deleteTemplate(template.id);
+                    }}
+                    aria-label={`Excluir template ${template.nome}`}
+                    className="inline-flex min-h-9 min-w-9 shrink-0 items-center justify-center rounded-full opacity-20 transition-all hover:bg-red-400/10 hover:text-red-400 hover:opacity-80"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
     </PageLayout>
+    {templateEditorOverlays}
     </>
   );
 }

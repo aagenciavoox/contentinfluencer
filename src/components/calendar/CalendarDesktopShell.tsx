@@ -2,8 +2,12 @@ import {useEffect, useRef, type ReactNode} from 'react';
 import {AnimatePresence, motion} from 'motion/react';
 import {createPortal} from 'react-dom';
 import {PanelLeft} from 'lucide-react';
+import {BREAKPOINTS} from '../../shared/breakpoints';
 import {cn} from '../../lib/utils';
 import {Z_INDEX_DRAWER_BACKDROP, Z_INDEX_MODAL} from '../overlays/overlayConstants';
+
+/** Main column narrower than this (with right panel) should auto-collapse the day panel. */
+const MAIN_NARROW_THRESHOLD_PX = 560;
 
 interface CalendarDesktopShellProps {
   sidebar: ReactNode;
@@ -13,6 +17,8 @@ interface CalendarDesktopShellProps {
   rightPanel?: ReactNode;
   sidebarOpen?: boolean;
   onSidebarOpenChange?: (open: boolean) => void;
+  /** Fired when the main column is too narrow for a comfortable month grid + day panel. */
+  onMainNarrowChange?: (isNarrow: boolean) => void;
   className?: string;
 }
 
@@ -24,9 +30,12 @@ export function CalendarDesktopShell({
   rightPanel,
   sidebarOpen = false,
   onSidebarOpenChange,
+  onMainNarrowChange,
   className,
 }: CalendarDesktopShellProps) {
   const sidebarPanelRef = useRef<HTMLDivElement>(null);
+  const mainRef = useRef<HTMLElement>(null);
+  const narrowRef = useRef(false);
 
   useEffect(() => {
     if (!sidebarOpen) return;
@@ -36,6 +45,42 @@ export function CalendarDesktopShell({
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
   }, [sidebarOpen, onSidebarOpenChange]);
+
+  useEffect(() => {
+    if (!onMainNarrowChange) return;
+
+    const report = (isNarrow: boolean) => {
+      if (narrowRef.current === isNarrow) return;
+      narrowRef.current = isNarrow;
+      onMainNarrowChange(isNarrow);
+    };
+
+    const measure = () => {
+      const viewportNarrow = window.innerWidth < BREAKPOINTS.xl;
+      const mainWidth = mainRef.current?.clientWidth ?? 0;
+      const mainNarrow = Boolean(rightPanel) && mainWidth > 0 && mainWidth < MAIN_NARROW_THRESHOLD_PX;
+      report(viewportNarrow || mainNarrow);
+    };
+
+    measure();
+
+    const media = window.matchMedia(`(max-width: ${BREAKPOINTS.xl - 1}px)`);
+    const onMedia = () => measure();
+    media.addEventListener('change', onMedia);
+
+    const observer =
+      typeof ResizeObserver !== 'undefined' && mainRef.current
+        ? new ResizeObserver(() => measure())
+        : null;
+    if (mainRef.current && observer) observer.observe(mainRef.current);
+
+    window.addEventListener('resize', measure);
+    return () => {
+      media.removeEventListener('change', onMedia);
+      observer?.disconnect();
+      window.removeEventListener('resize', measure);
+    };
+  }, [onMainNarrowChange, rightPanel]);
 
   const mobileDrawer =
     typeof document !== 'undefined'
@@ -96,7 +141,9 @@ export function CalendarDesktopShell({
           {sidebar}
         </aside>
 
-        <main className="min-w-0 overflow-hidden">{children}</main>
+        <main ref={mainRef} className="min-w-0 overflow-hidden">
+          {children}
+        </main>
 
         {rightPanel ? (
           <aside className="hidden shrink-0 overflow-y-auto border-l border-[var(--border-color)] bg-[var(--bg-elevated)] xl:block">

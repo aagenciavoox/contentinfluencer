@@ -281,12 +281,12 @@ export const SeriesCreateContentForm = forwardRef<
             placeholder={isIdeia ? 'Descreva a ideia, referências ou ângulo...' : 'Escreva ou cole o roteiro...'}
             rows={1}
             spellCheck
-            className="block w-full min-h-[2.75rem] resize-none overflow-hidden rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-primary)] px-3 py-2.5 text-sm leading-7 text-[var(--text-primary)] shadow-sm outline-none placeholder:text-[var(--text-tertiary)] focus:border-[var(--border-strong)]"
+            className="block w-full min-h-[2.75rem] resize-none overflow-hidden rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-primary)] px-3 py-2.5 text-sm leading-7 text-[var(--text-primary)] outline-none placeholder:text-[var(--text-tertiary)] focus:border-[var(--border-strong)]"
           />
         </div>
       </section>
 
-      <section className="grid gap-4 rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-primary)] p-4 shadow-sm">
+      <section className="grid gap-4 rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-primary)] p-4">
         <Text variant="label" className="text-[var(--text-tertiary)]">
           Legenda (opcional)
         </Text>
@@ -355,7 +355,7 @@ export const SeriesCreateContentForm = forwardRef<
         ) : null}
       </section>
 
-      <section className="grid gap-3 rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-primary)] p-4 shadow-sm">
+      <section className="grid gap-3 rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-primary)] p-4">
         <Text variant="label" className="text-[var(--text-tertiary)]">
           Publicação (opcional)
         </Text>

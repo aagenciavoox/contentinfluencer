@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { BookOpen, ChevronDown, Clapperboard, Film, LucideIcon, Tags, Tv } from 'lucide-react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { BookOpen, ChevronDown, Clapperboard, Film, LucideIcon, Plus, Tags, Tv } from 'lucide-react';
 import { useAppContext } from '../../../context/AppContext';
 import { useAuth } from '../../../context/AuthContext';
 import { BibliotecaItem, BibliotecaItemMeta, fetchBibliotecaContentCounts, fetchBibliotecaPage } from '../../../lib/database';
@@ -16,15 +16,13 @@ import { PageLayout } from '../../../layouts/page/PageLayout';
 import { DesktopPageHeader } from '../../../layouts/page/DesktopPageHeader';
 import { AppButton } from '../../../components/ui/AppButton';
 import { PaginationBar } from '../../../components/ui/PaginationBar';
-import { Text } from '../../../components/ui/Text';
-import { SkeletonList } from '../../../components/ui/Skeleton';
-import { EmptyState } from '../../../components/ui/EmptyState';
-import { GLOSSARY, EMPTY } from '../../../lib/uiCopy';
-import { PipelineActionBar } from '../../../components/pipeline/PipelineActionBar';
+import { QueryViewState, resolveQueryViewStatus } from '../../../components/ui/QueryViewState';
+import { EMPTY } from '../../../lib/uiCopy';
 import { LibraryMobileScreen } from '../../../mobile/screens/library/LibraryMobileScreen';
 import { LibraryItemCard } from '../components/LibraryItemCard';
 import { LibraryToolbar } from '../components/LibraryToolbar';
 import { COMPLETED_STATUS_BY_TYPE } from '../lib/libraryStatus';
+import { GENEROS_SUGERIDOS } from '../lib/libraryGenres';
 import { TagSelect } from '../../../components/ui/TagSelect';
 import { createIdeaContent } from '../../contents/lib/creationContent';
 import { LibrarySectionTabs } from '../components/LibrarySectionTabs';
@@ -93,21 +91,6 @@ const STATUS_CORES: Record<string, string> = {
   Lido: 'bg-[var(--accent-green)]/10 text-[var(--accent-green)]',
   Assistido: 'bg-[var(--accent-green)]/10 text-[var(--accent-green)]',
 };
-
-const GENEROS_SUGERIDOS: GeneroLivro[] = [
-  'Fantasia',
-  'Romance',
-  'Thriller',
-  'Terror',
-  'Drama',
-  'Mistério',
-  'Ficção científica',
-  'Não ficção',
-  'Comédia',
-  'Ação',
-  'Aventura',
-  'Slice of life',
-];
 
 const STATUS_BY_TYPE: Record<BibliotecaTipo, StatusLeitura[]> = {
   livro: ['Quero ler', 'Lendo', 'Lido', 'Abandonado'],
@@ -216,6 +199,7 @@ export function LibraryPage() {
   const { state, dispatch, ensureDataDomains } = useAppContext();
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const isMobile = useIsMobile();
   const [libraryPage, setLibraryPage] = useState(1);
   const [contentCounts, setContentCounts] = useState<Map<string, number>>(new Map());
@@ -252,6 +236,10 @@ export function LibraryPage() {
     items: libraryItems,
     total: libraryTotal,
     loading: libraryLoading,
+    refreshing: libraryRefreshing,
+    error: libraryError,
+    fetchAttempted: libraryFetchAttempted,
+    reload: reloadLibrary,
   } = usePaginatedQuery({
     namespace: 'library',
     query: libraryQuery,
@@ -278,7 +266,15 @@ export function LibraryPage() {
     };
   }, [user, state.contents.length, state.bibliotecaItems.length]);
 
-  const isLibraryLoading = authLoading || libraryLoading;
+  const libraryQueryStatus = resolveQueryViewStatus({
+    authLoading,
+    loading: libraryLoading,
+    refreshing: libraryRefreshing,
+    error: libraryError,
+    fetchAttempted: libraryFetchAttempted,
+    enabled: !!user,
+    itemCount: libraryItems.length,
+  });
   const totalLibraryPages = Math.max(1, Math.ceil(libraryTotal / LIBRARY_PAGE_SIZE));
   const livrosFiltrados = libraryItems;
 
@@ -341,6 +337,15 @@ export function LibraryPage() {
     resetForm();
     setModalAberto(true);
   };
+
+  useEffect(() => {
+    if (searchParams.get('compose') !== 'novo') return;
+    resetForm();
+    setModalAberto(true);
+    const next = new URLSearchParams(searchParams);
+    next.delete('compose');
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
 
   const updateTipo = (tipo: BibliotecaTipo) => {
     setForm(prev => ({
@@ -444,10 +449,16 @@ export function LibraryPage() {
         <div className="min-h-full bg-[var(--bg-primary)]">
           <LibraryMobileScreen
             items={libraryItems}
+            libraryTotal={libraryTotal}
             mobilePrimaryBookId={mobilePrimaryBookId}
             getItemMeta={getItemMeta}
             countContents={contarConteudos}
-            isLoading={isLibraryLoading}
+            queryStatus={libraryQueryStatus}
+            errorMessage={libraryError}
+            onRetry={() => void reloadLibrary()}
+            page={libraryPage}
+            totalPages={totalLibraryPages}
+            onPageChange={setLibraryPage}
             onOpenItem={(itemId) => navigate(`/biblioteca/${itemId}?tab=anotacoes`)}
             onOpenCreate={handleOpenModal}
             onTogglePrimary={handleSetPrimaryMobileBook}
@@ -464,6 +475,7 @@ export function LibraryPage() {
           <OverlayHeader
             title="Novo item do acervo"
             subtitle="Cadastro rapido para consulta e captura no mobile."
+            onClose={() => setModalAberto(false)}
           />
 
           <OverlayBody className="stack-lg py-6">
@@ -579,12 +591,24 @@ export function LibraryPage() {
     <PageLayout
       contentWidth="wide"
       header={(
-        <DesktopPageHeader section="Criação" title="Biblioteca">
-          <LibrarySectionTabs />
-        </DesktopPageHeader>
+        <DesktopPageHeader
+          section="Criação"
+          title="Biblioteca"
+          meta={`${libraryTotal} ${libraryTotal === 1 ? 'item' : 'itens'}`}
+          actions={(
+            <AppButton
+              onClick={handleOpenModal}
+              variant="primary"
+              leftIcon={<Plus className="h-4 w-4" />}
+            >
+              Novo item
+            </AppButton>
+          )}
+        />
       )}
       toolbar={
         <LibraryToolbar
+          tabs={<LibrarySectionTabs />}
           searchValue={searchTerm}
           onSearchChange={setSearchTerm}
           filtroTipo={filtroTipo}
@@ -597,40 +621,23 @@ export function LibraryPage() {
           onSortChange={setSortValue}
           statusOptions={STATUS_OPTIONS}
           genreOptions={availableGenreFilters}
-          onAddClick={handleOpenModal}
         />
       }
     >
 
-      <PipelineActionBar
-        className="mb-4"
-        title="Próximo passo editorial"
-        description="Transforme um item da biblioteca em ideia editorial."
-        primaryLabel="Transformar em ideia"
-        onPrimary={() => {
-          const first = livrosFiltrados[0];
-          if (first) handleTurnIntoIdea(first);
-        }}
-        disabled={livrosFiltrados.length === 0}
-      />
-
-      {isLibraryLoading ? (
-        <SkeletonList count={12} variant="card" />
-      ) : livrosFiltrados.length === 0 ? (
-        <EmptyState
-          compact
-          icon={<BookOpen className="h-8 w-8" />}
-          title={libraryTotal === 0 ? EMPTY.biblioteca.title : EMPTY.bibliotecaSemResultado.title}
-          description={libraryTotal === 0 ? EMPTY.biblioteca.description : EMPTY.bibliotecaSemResultado.description}
-        />
-      ) : (
+      <QueryViewState
+        status={libraryQueryStatus}
+        skeletonCount={12}
+        skeletonVariant="card"
+        emptyIcon={<BookOpen className="h-8 w-8" />}
+        emptyTitle={libraryTotal === 0 ? EMPTY.biblioteca.title : EMPTY.bibliotecaSemResultado.title}
+        emptyDescription={
+          libraryTotal === 0 ? EMPTY.biblioteca.description : EMPTY.bibliotecaSemResultado.description
+        }
+        errorMessage={libraryError}
+        onRetry={() => void reloadLibrary()}
+      >
         <>
-        <div className="mb-3 flex items-center justify-between px-0.5">
-          <Text variant="eyebrow">{GLOSSARY.biblioteca}</Text>
-          <Text variant="meta">
-            {libraryTotal} {libraryTotal === 1 ? 'item' : 'itens'}
-          </Text>
-        </div>
         <div className="grid-catalog">
           {livrosFiltrados.map(livro => {
             const typeConfig = TYPE_CONFIG[livro.tipo] ?? TYPE_CONFIG.outro;
@@ -664,7 +671,7 @@ export function LibraryPage() {
           className="mt-6"
         />
         </>
-      )}
+      </QueryViewState>
 
       <BottomSheetModal
         open={modalAberto}

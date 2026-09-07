@@ -1,10 +1,11 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Clock, MoreHorizontal } from 'lucide-react';
+import { Clock } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { ConfirmModal } from '../../../components/feedback/modals/ConfirmModal';
 import { AppButton } from '../../../components/ui/AppButton';
+import { MoreMenu } from '../../../components/ui/MoreMenu';
 import { Text } from '../../../components/ui/Text';
 import { useAppContext } from '../../../context/AppContext';
 import { useAuth } from '../../../context/AuthContext';
@@ -22,16 +23,12 @@ function SerieEditHeaderActions({
   isDirty,
   isCreate,
   lastEditLabel,
-  showMoreMenu,
-  onToggleMore,
   onDelete,
   chrome,
 }: {
   isDirty: boolean;
   isCreate: boolean;
   lastEditLabel: string | null;
-  showMoreMenu: boolean;
-  onToggleMore: () => void;
   onDelete?: () => void;
   chrome: SerieEditChromeState | null;
 }) {
@@ -56,30 +53,15 @@ function SerieEditHeaderActions({
         </span>
       ) : null}
       {!isCreate && onDelete ? (
-        <div className="relative">
-          <button
-            type="button"
-            onClick={onToggleMore}
-            className="flex h-9 w-9 items-center justify-center rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
-            aria-label="Mais opções"
-          >
-            <MoreHorizontal className="h-4 w-4" />
-          </button>
-          {showMoreMenu ? (
-            <div className="absolute right-0 top-full z-20 mt-1 min-w-[140px] rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-secondary)] py-1 shadow-lg">
-              <button
-                type="button"
-                className="flex w-full px-3 py-2 text-left text-sm text-[var(--accent-pink)] hover:bg-[var(--bg-hover)]"
-                onClick={() => {
-                  onToggleMore();
-                  onDelete();
-                }}
-              >
-                Excluir série
-              </button>
-            </div>
-          ) : null}
-        </div>
+        <MoreMenu
+          items={[
+            {
+              label: CONFIRM.excluirSerie.confirmLabel,
+              tone: 'danger',
+              onClick: onDelete,
+            },
+          ]}
+        />
       ) : null}
       <AppButton variant="secondary" size="sm" onClick={chrome.handleCancel}>
         Cancelar
@@ -103,7 +85,6 @@ export function SeriesEditPage() {
   const isMobile = useIsMobile();
   const { serieId } = useParams<{ serieId: string }>();
   const [chrome, setChrome] = useState<SerieEditChromeState | null>(null);
-  const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   const isCreate = !serieId || serieId === 'nova';
@@ -236,7 +217,7 @@ export function SeriesEditPage() {
         variant="settings"
         header={
           <DesktopPageHeader
-            section="Séries"
+            section="Criação"
             backLabel="Séries"
             backTo="/configuracoes/series"
             title={pageTitle}
@@ -247,8 +228,6 @@ export function SeriesEditPage() {
                 isDirty={chrome?.isDirty ?? false}
                 isCreate={isCreate}
                 lastEditLabel={lastEditLabel}
-                showMoreMenu={showMoreMenu}
-                onToggleMore={() => setShowMoreMenu(previous => !previous)}
                 onDelete={() => setConfirmDelete(true)}
                 chrome={chrome}
               />

@@ -4,13 +4,14 @@ import { BottomSheetModal } from '../../../components/feedback/modals/BottomShee
 import { OverlayBody } from '../../../components/overlays/OverlayBody';
 import { OverlayHeader } from '../../../components/overlays/OverlayHeader';
 import { AppButton } from '../../../components/ui/AppButton';
+import { MoreMenu } from '../../../components/ui/MoreMenu';
 import { Text } from '../../../components/ui/Text';
 import { ToolbarSearchInput } from '../../../components/ui/ToolbarSearchInput';
 import type { Content, Serie } from '../../../lib/database';
 import { EmptyState } from '../../../components/ui/EmptyState';
+import { CONFIRM } from '../../../lib/uiCopy';
 import { SeriesForm } from '../../../features/settings/pages/SeriesSettingsPage';
 import { MobileListCard } from '../../components/MobileListCard';
-import { MobilePillButton } from '../../components/MobilePillButton';
 import { MobileSectionHeader } from '../../components/MobileSectionHeader';
 import { MobileSegmentTabs } from '../../components/MobileSegmentTabs';
 import { cn } from '../../../lib/utils';
@@ -93,8 +94,8 @@ export function SeriesMobileScreen({
   }, [filter, search, series]);
 
   return (
-    <div className="stack-xl">
-      <section className="rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4 shadow-sm">
+    <div className="stack-lg">
+      <section className="rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4">
         <MobileSectionHeader
           icon={Layers}
           tone="purple"
@@ -179,44 +180,46 @@ export function SeriesMobileScreen({
                       style={{ backgroundColor: serieColor }}
                       aria-hidden
                     />
-                    {[frequency, formatRoteiroCount(roteiroCount), serie.ativa ? null : 'Inativa']
-                      .filter(Boolean)
-                      .join(' · ')}
+                    {[
+                      frequency,
+                      formatRoteiroCount(roteiroCount),
+                      serie.ativa ? 'Ativa' : 'Inativa',
+                    ].join(' · ')}
                   </Text>
                 }
                 trailing={
-                  <ChevronRight className="mt-1 h-5 w-5 shrink-0 text-[var(--text-tertiary)]" />
+                  <div className="mt-1 flex items-start gap-1">
+                    <MoreMenu
+                      size="sm"
+                      items={[
+                        {
+                          label: serie.ativa ? 'Desativar' : 'Ativar',
+                          tone: serie.ativa ? 'default' : 'success',
+                          onClick: () => onToggle(serie),
+                        },
+                        {
+                          label: CONFIRM.excluirSerie.confirmLabel,
+                          tone: 'danger',
+                          onClick: () => onDelete(serie.id),
+                        },
+                      ]}
+                      triggerClassName="border-transparent bg-transparent"
+                    />
+                    <ChevronRight className="h-5 w-5 shrink-0 text-[var(--text-tertiary)]" />
+                  </div>
                 }
                 status={
                   <div className="flex flex-wrap items-center gap-2">
-                    <MobilePillButton
-                      tone={serie.ativa ? 'success' : 'muted'}
-                      onClick={event => {
-                        event.stopPropagation();
-                        onToggle(serie);
-                      }}
+                    <Text
+                      variant="meta"
+                      className={
+                        serie.ativa
+                          ? 'font-semibold text-[var(--accent-green)]'
+                          : 'font-semibold text-[var(--text-tertiary)]'
+                      }
                     >
                       {serie.ativa ? 'Ativa' : 'Inativa'}
-                    </MobilePillButton>
-                    <MobilePillButton
-                      tone="muted"
-                      onClick={event => {
-                        event.stopPropagation();
-                        setEditingSerie(serie);
-                        setPanelMode('edit');
-                      }}
-                    >
-                      Editar
-                    </MobilePillButton>
-                    <MobilePillButton
-                      tone="danger"
-                      onClick={event => {
-                        event.stopPropagation();
-                        onDelete(serie.id);
-                      }}
-                    >
-                      Excluir
-                    </MobilePillButton>
+                    </Text>
                   </div>
                 }
               />
@@ -232,24 +235,24 @@ export function SeriesMobileScreen({
         desktopMaxW="max-w-xl"
         zIndex="z-[110]"
       >
-        <OverlayHeader>
+        <OverlayHeader onClose={closePanel}>
           <div className="flex items-center gap-3">
             <span
               className="h-10 w-10 shrink-0 rounded-[var(--radius-card)] border border-[var(--border-color)]"
               style={{ backgroundColor: editingSerie?.cor || '#6366f1' }}
             />
             <div className="min-w-0">
-              <Text variant="sectionTitle" truncate>
+              <Text variant="sectionTitle" className="break-words">
                 {panelMode === 'edit' ? editingSerie?.name : 'Nova série'}
               </Text>
-              <Text variant="meta" className="text-[var(--text-secondary)]">
+              <Text variant="meta" className="mt-1 text-[var(--text-secondary)]">
                 Identidade, estrutura e hashtags
               </Text>
             </div>
           </div>
         </OverlayHeader>
 
-        <OverlayBody className="py-6 pb-safe">
+        <OverlayBody className="stack-lg pb-safe">
           <SeriesForm
             key={editingSerie?.id || 'new'}
             initial={editingSerie ?? {}}

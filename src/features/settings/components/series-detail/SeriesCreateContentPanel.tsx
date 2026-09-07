@@ -1,7 +1,9 @@
 import { useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Text } from '../../../../components/ui/Text';
 import { AppButton } from '../../../../components/ui/AppButton';
+import { OverlayBody } from '../../../../components/overlays/OverlayBody';
+import { OverlayFooter } from '../../../../components/overlays/OverlayFooter';
+import { OverlayHeader } from '../../../../components/overlays/OverlayHeader';
 import type { Content, Pilar, Serie } from '../../../../lib/database';
 import { buildDetailBackState } from '../../../../lib/navigation/detailBack';
 import {
@@ -15,6 +17,7 @@ interface SeriesCreateContentPanelProps {
   pilares: Pilar[];
   platformNames: string[];
   onCreate: (contents: Content[]) => Promise<void>;
+  onClose: () => void;
 }
 
 export function SeriesCreateContentPanel({
@@ -23,6 +26,7 @@ export function SeriesCreateContentPanel({
   pilares,
   platformNames,
   onCreate,
+  onClose,
 }: SeriesCreateContentPanelProps) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -32,6 +36,7 @@ export function SeriesCreateContentPanel({
   const serieColor = serie.cor || '#6366f1';
 
   const handleSuccess = (contentId: string, action: 'draft' | 'open') => {
+    onClose();
     if (action === 'open') {
       navigate(
         `/conteudos/${contentId}`,
@@ -41,17 +46,12 @@ export function SeriesCreateContentPanel({
   };
 
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-primary)] shadow-sm">
+    <>
       <div className="h-1 w-full shrink-0" style={{ backgroundColor: serieColor }} />
 
-      <div className="shrink-0 border-b border-[var(--border-color)] px-6 py-4">
-        <Text variant="sectionTitle">{title}</Text>
-        <Text variant="meta" className="mt-1 text-[var(--text-tertiary)]">
-          {serie.name}
-        </Text>
-      </div>
+      <OverlayHeader title={title} subtitle={serie.name} onClose={onClose} />
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
+      <OverlayBody>
         <SeriesCreateContentForm
           ref={formRef}
           key={mode}
@@ -63,16 +63,19 @@ export function SeriesCreateContentPanel({
           onCreate={onCreate}
           onSuccess={handleSuccess}
         />
-      </div>
+      </OverlayBody>
 
-      <div className="flex shrink-0 flex-col gap-2 border-t border-[var(--border-color)] bg-[var(--bg-secondary)] px-6 py-4">
-        <AppButton variant="primary" fullWidth onClick={() => void formRef.current?.saveAndOpen()}>
-          Salvar e abrir editor
+      <OverlayFooter className="flex-wrap justify-end">
+        <AppButton variant="secondary" onClick={onClose}>
+          Cancelar
         </AppButton>
-        <AppButton variant="secondary" fullWidth onClick={() => void formRef.current?.saveDraft()}>
+        <AppButton variant="secondary" onClick={() => void formRef.current?.saveDraft()}>
           Salvar rascunho
         </AppButton>
-      </div>
-    </div>
+        <AppButton variant="primary" onClick={() => void formRef.current?.saveAndOpen()}>
+          Salvar e abrir editor
+        </AppButton>
+      </OverlayFooter>
+    </>
   );
 }

@@ -9,9 +9,9 @@ interface PageContainerProps {
 
 const widthClasses = {
   narrow: 'desktop-content-frame',
-  wide: 'desktop-content-frame-wide',
-  book: 'desktop-content-frame-book',
-  full: 'px-[var(--space-lg)] py-[var(--space-xl)] md:px-[var(--space-2xl)] md:py-[var(--space-xl)]',
+  wide: 'desktop-content-frame',
+  book: 'desktop-content-frame',
+  full: 'desktop-content-frame',
 } as const;
 
 export function PageContainer({

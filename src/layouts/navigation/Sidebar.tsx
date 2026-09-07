@@ -37,13 +37,13 @@ interface SidebarProps {
 }
 
 const SIDEBAR_COLLAPSED_KEY = 'sidebar_collapsed';
-const SIDEBAR_WIDTH_EXPANDED = 280;
+const SIDEBAR_WIDTH_EXPANDED = 240;
 const SIDEBAR_WIDTH_COLLAPSED = 72;
 
 function NavSectionLabel({children, collapsed}: {children: string; collapsed: boolean}) {
   if (collapsed) return null;
   return (
-    <Text variant="label" uppercase className="mb-1 mt-4 px-3 first:mt-0">
+    <Text variant="label" uppercase className="mb-2 mt-6 px-3 first:mt-0">
       {children}
     </Text>
   );
@@ -216,7 +216,7 @@ export function Sidebar({isOpen, onClose}: SidebarProps) {
     <div
       className={cn(
         'flex h-full w-full flex-col overflow-hidden border-r border-[var(--border-color)] bg-[var(--bg-secondary)] text-[var(--text-primary)] transition-[padding] duration-200',
-        isCollapsed ? 'px-2 py-4' : 'px-4 py-6'
+        isCollapsed ? 'px-2 py-4' : 'p-4'
       )}
     >
       <div className={cn('mb-5 flex shrink-0 items-center', isCollapsed ? 'justify-center' : 'justify-between')}>

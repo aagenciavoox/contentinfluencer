@@ -6,6 +6,9 @@ export type SaveFeedbackState = {
   detail?: string;
   href?: string;
   actionLabel?: string;
+  /** Reversible action undo handler (cleared when toast hides). */
+  onUndo?: () => void;
+  undoLabel?: string;
   updatedAt: number;
 };
 
@@ -42,8 +45,28 @@ export function clearSaveFeedback(): void {
   emit();
 }
 
+export function pauseSaveFeedbackHide(): void {
+  if (hideTimer) {
+    clearTimeout(hideTimer);
+    hideTimer = null;
+  }
+}
+
+export function resumeSaveFeedbackHide(): void {
+  if (state.status !== 'success' && state.status !== 'error') return;
+  if (hideTimer) clearTimeout(hideTimer);
+  hideTimer = setTimeout(() => {
+    state = { status: 'idle', message: '', updatedAt: Date.now() };
+    emit();
+    hideTimer = null;
+  }, AUTO_HIDE_MS);
+}
+
 export function notifySaveFeedback(
-  next: Pick<SaveFeedbackState, 'status' | 'message' | 'detail' | 'href' | 'actionLabel'>
+  next: Pick<
+    SaveFeedbackState,
+    'status' | 'message' | 'detail' | 'href' | 'actionLabel' | 'onUndo' | 'undoLabel'
+  >,
 ): void {
   if (hideTimer) {
     clearTimeout(hideTimer);
@@ -57,11 +80,13 @@ export function notifySaveFeedback(
   emit();
 
   if (next.status === 'success' || next.status === 'error') {
+    // Keep undo toasts visible longer.
+    const hideMs = next.onUndo ? AUTO_HIDE_MS + 2000 : AUTO_HIDE_MS;
     hideTimer = setTimeout(() => {
       state = { status: 'idle', message: '', updatedAt: Date.now() };
       emit();
       hideTimer = null;
-    }, AUTO_HIDE_MS);
+    }, hideMs);
   }
 }
 

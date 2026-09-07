@@ -1,26 +1,33 @@
-import { useMemo, useState } from 'react';
-import { BookOpen, Film, Pin, Plus, SearchCheck, Star, Tv } from 'lucide-react';
+import { useMemo, useState, type ReactNode } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { BookOpen, ChevronLeft, ChevronRight, Film, Pin, Plus, SearchCheck, Tv } from 'lucide-react';
 import type { BibliotecaItem, BibliotecaItemMeta } from '../../../lib/database';
 import { cn } from '../../../lib/utils';
 import { EmptyState } from '../../../components/ui/EmptyState';
+import { QueryViewState, type QueryViewStatus } from '../../../components/ui/QueryViewState';
 import { MobileFilterSheet } from '../../components/MobileFilterSheet';
 import { MobileSearchBar } from '../../components/MobileSearchBar';
-import { MobileSegmentTabs } from '../../components/MobileSegmentTabs';
-import { LibrarySectionTabs } from '../../../features/library/components/LibrarySectionTabs';
-import { SkeletonList } from '../../../components/ui/Skeleton';
 import { AppButton } from '../../../components/ui/AppButton';
-import { MobileSectionHeader } from '../../components/MobileSectionHeader';
+import { EMPTY } from '../../../lib/uiCopy';
+import { Text } from '../../../components/ui/Text';
 
 type BibliotecaTipo = BibliotecaItem['tipo'];
 type StatusLeitura = BibliotecaItem['status'];
 type LibraryMobileTab = 'current' | 'wishlist' | 'done';
+type LibrarySection = 'collection' | 'analysis';
 
 interface LibraryMobileScreenProps {
   items: BibliotecaItem[];
+  libraryTotal?: number;
   mobilePrimaryBookId: string | null;
   getItemMeta: (itemId: string) => BibliotecaItemMeta;
   countContents: (itemId: string) => number;
-  isLoading?: boolean;
+  queryStatus?: QueryViewStatus;
+  errorMessage?: string | null;
+  onRetry?: () => void;
+  page?: number;
+  totalPages?: number;
+  onPageChange?: (page: number) => void;
   onOpenItem: (itemId: string) => void;
   onOpenCreate: () => void;
   onTogglePrimary: (itemId: string) => void;
@@ -56,7 +63,7 @@ function isDoneStatus(status: StatusLeitura) {
   return status === 'Concluído' || status === 'Lido' || status === 'Assistido' || status === 'Abandonado';
 }
 
-function LibraryBadge({ children, tone = 'neutral' }: { children: React.ReactNode; tone?: 'neutral' | 'blue' | 'green' }) {
+function LibraryBadge({ children, tone = 'neutral' }: { children: ReactNode; tone?: 'neutral' | 'blue' | 'green' }) {
   return (
     <span
       className={cn(
@@ -73,19 +80,31 @@ function LibraryBadge({ children, tone = 'neutral' }: { children: React.ReactNod
 
 export function LibraryMobileScreen({
   items,
+  libraryTotal = 0,
   mobilePrimaryBookId,
   getItemMeta,
   countContents,
   onOpenItem,
   onOpenCreate,
   onTogglePrimary,
-  isLoading = false,
+  queryStatus = 'ready',
+  errorMessage = null,
+  onRetry,
+  page,
+  totalPages,
+  onPageChange,
 }: LibraryMobileScreenProps) {
+  const location = useLocation();
+  const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [activeTab, setActiveTab] = useState<LibraryMobileTab>('current');
   const [typeFilter, setTypeFilter] = useState<'all' | BibliotecaTipo>('all');
   const [statusFilter, setStatusFilter] = useState<'all' | StatusLeitura>('all');
   const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
+
+  const activeSection: LibrarySection = location.pathname === '/biblioteca/analise'
+    ? 'analysis'
+    : 'collection';
 
   const tabCounts = useMemo(
     () => ({
@@ -134,28 +153,70 @@ export function LibraryMobileScreen({
     </AppButton>
   );
 
-  return (
-    <div className="stack-xl">
-      <section className="rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4 shadow-sm">
-        <MobileSectionHeader
-          icon={BookOpen}
-          tone="purple"
-          title="Biblioteca"
-          description={`${items.length} itens na biblioteca`}
-          action={
-            <button
-              type="button"
-              onClick={onOpenCreate}
-              className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-lg border border-[var(--border-color)] bg-[var(--bg-primary)] px-3 t-label t-label-uppercase font-semibold text-[var(--text-primary)]"
-            >
-              <Plus className="h-4 w-4" />
-              Novo
-            </button>
-          }
-        />
-      </section>
+  const chipClass = (active: boolean) =>
+    cn(
+      'inline-flex h-9 shrink-0 items-center gap-1.5 rounded-[var(--radius-sm)] px-3 t-button whitespace-nowrap transition-colors',
+      active
+        ? 'bg-[var(--text-primary)] text-[var(--bg-primary)]'
+        : 'bg-[var(--bg-hover)] text-[var(--text-secondary)]',
+    );
 
-      <LibrarySectionTabs />
+  return (
+    <div className="stack-md">
+      <div className="mobile-h-scroll" role="tablist" aria-label="Seções da biblioteca">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeSection === 'collection'}
+          className={chipClass(activeSection === 'collection')}
+          onClick={() => {
+            if (activeSection !== 'collection') navigate('/biblioteca');
+          }}
+        >
+          Acervo
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeSection === 'analysis'}
+          className={chipClass(activeSection === 'analysis')}
+          onClick={() => {
+            if (activeSection !== 'analysis') navigate('/biblioteca/analise');
+          }}
+        >
+          Análise
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'current'}
+          className={chipClass(activeTab === 'current')}
+          onClick={() => setActiveTab('current')}
+        >
+          Agora
+          <span className="t-meta tabular-nums opacity-80">{tabCounts.current}</span>
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'wishlist'}
+          className={chipClass(activeTab === 'wishlist')}
+          onClick={() => setActiveTab('wishlist')}
+        >
+          Fila
+          <span className="t-meta tabular-nums opacity-80">{tabCounts.wishlist}</span>
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'done'}
+          className={chipClass(activeTab === 'done')}
+          onClick={() => setActiveTab('done')}
+        >
+          Feitos
+          <span className="t-meta tabular-nums opacity-80">{tabCounts.done}</span>
+        </button>
+      </div>
 
       <MobileSearchBar
         value={search}
@@ -165,116 +226,127 @@ export function LibraryMobileScreen({
         rounded="tight"
       />
 
-      <MobileSegmentTabs
-        rounded="tight"
-        tabs={[
-          { value: 'current', label: 'Agora', count: tabCounts.current },
-          { value: 'wishlist', label: 'Fila', count: tabCounts.wishlist },
-          { value: 'done', label: 'Feitos', count: tabCounts.done },
-        ]}
-        value={activeTab}
-        onChange={(value) => setActiveTab(value)}
-      />
+      <QueryViewState
+        status={queryStatus}
+        skeletonCount={6}
+        skeletonVariant="card"
+        emptyIcon={<BookOpen className="h-8 w-8" />}
+        emptyTitle={libraryTotal === 0 ? EMPTY.biblioteca.title : EMPTY.bibliotecaSemResultado.title}
+        emptyDescription={
+          libraryTotal === 0
+            ? 'Use o botão + da barra inferior para adicionar um item.'
+            : EMPTY.bibliotecaSemResultado.description
+        }
+        emptyAction={libraryTotal === 0 ? undefined : focusAction}
+        errorMessage={errorMessage}
+        onRetry={onRetry}
+      >
+        {filteredItems.length === 0 ? (
+          <EmptyState compact
+            title="Nada nessa visão da biblioteca"
+            description="Ajuste os filtros ou adicione um novo item."
+            action={focusAction}
+            icon={<SearchCheck className="h-8 w-8" />}
+          />
+        ) : (
+        <>
+          <div className="grid grid-cols-2 gap-3">
+            {filteredItems.map((item) => {
+              const ItemIcon = TYPE_ICONS[item.tipo] || BookOpen;
+              const metadata = getItemMeta(item.id);
+              const relatedContents = countContents(item.id);
+              const isPrimary = mobilePrimaryBookId === item.id;
 
-      {isLoading ? (
-        <SkeletonList count={9} variant="card" />
-      ) : filteredItems.length === 0 ? (
-        <EmptyState compact
-          title="Nada nessa visão da biblioteca"
-          description="Ajuste os filtros ou adicione um novo item."
-          action={focusAction}
-          icon={<SearchCheck className="h-8 w-8" />}
-        />
-      ) : (
-        <div className="grid-metrics-3">
-          {filteredItems.map((item) => {
-            const ItemIcon = TYPE_ICONS[item.tipo] || BookOpen;
-            const metadata = getItemMeta(item.id);
-            const relatedContents = countContents(item.id);
-            const isPrimary = mobilePrimaryBookId === item.id;
-
-            return (
-              <article
-                key={item.id}
-                className="flex flex-col overflow-hidden rounded-lg border border-[var(--border-color)] bg-[var(--bg-secondary)] shadow-sm"
-              >
-                <button
-                  type="button"
-                  onClick={() => onOpenItem(item.id)}
-                  className="block w-full text-left active:opacity-90"
+              return (
+                <article
+                  key={item.id}
+                  className="flex flex-col overflow-hidden rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)]"
                 >
-                  {item.capaUrl ? (
-                    <img
-                      src={item.capaUrl}
-                      alt=""
-                      className="aspect-[0.76] w-full object-cover"
-                    />
-                  ) : (
-                    <div className="flex aspect-[0.76] w-full items-center justify-center bg-[var(--bg-hover)] text-[var(--text-tertiary)]">
-                      <ItemIcon className="h-6 w-6" />
-                    </div>
-                  )}
-
-                  <div className="stack-sm p-2.5">
-                    <div>
-                      <p className="line-clamp-2 text-xs font-semibold leading-snug text-[var(--text-primary)]">
-                        {item.titulo}
-                      </p>
-                      <p className="mt-0.5 line-clamp-1 text-xs text-[var(--text-secondary)]">
-                        {item.autorDiretor || TYPE_LABELS[item.tipo]}
-                      </p>
-                    </div>
-
-                    <div className="flex flex-wrap gap-1">
-                      <LibraryBadge>{TYPE_LABELS[item.tipo]}</LibraryBadge>
-                      <LibraryBadge tone="blue">{item.status}</LibraryBadge>
-                      {relatedContents > 0 ? (
-                        <LibraryBadge tone="green">{relatedContents} cont.</LibraryBadge>
-                      ) : null}
-                    </div>
-
-                    {item.avaliacao ? (
-                      <div className="flex gap-0.5">
-                        {Array.from({ length: 5 }).map((_, index) => (
-                          <Star
-                            key={index}
-                            className={cn(
-                              'h-2.5 w-2.5',
-                              index < item.avaliacao!
-                                ? 'fill-yellow-400 text-yellow-400'
-                                : 'text-[var(--border-strong)]'
-                            )}
-                          />
-                        ))}
-                      </div>
-                    ) : null}
-
-                    {metadata.tagsPersonalizadas?.[0] ? (
-                      <LibraryBadge>{metadata.tagsPersonalizadas[0]}</LibraryBadge>
-                    ) : null}
-                  </div>
-                </button>
-
-                <div className="border-t border-[var(--border-color)] p-2">
                   <button
                     type="button"
-                    onClick={() => onTogglePrimary(item.id)}
-                    className={cn(
-                      'inline-flex min-h-9 w-full items-center justify-center gap-1 rounded-md border text-xs font-semibold t-label-uppercase transition-colors',
-                      isPrimary
-                        ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-[var(--bg-primary)]'
-                        : 'border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-secondary)]'
-                    )}
+                    onClick={() => onOpenItem(item.id)}
+                    className="block w-full text-left active:opacity-90"
                   >
-                    <Pin className="h-3 w-3" />
-                    {isPrimary ? 'Principal' : 'Fixar'}
+                    {item.capaUrl ? (
+                      <img
+                        src={item.capaUrl}
+                        alt=""
+                        className="aspect-[3/4] max-h-28 w-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex aspect-[3/4] max-h-28 w-full items-center justify-center bg-[var(--bg-hover)] text-[var(--text-tertiary)]">
+                        <ItemIcon className="h-5 w-5" />
+                      </div>
+                    )}
+
+                    <div className="stack-xs p-3">
+                      <p className="line-clamp-2 text-sm font-semibold leading-snug text-[var(--text-primary)]">
+                        {item.titulo}
+                      </p>
+                      <p className="line-clamp-1 text-xs text-[var(--text-secondary)]">
+                        {item.autorDiretor || TYPE_LABELS[item.tipo]}
+                      </p>
+
+                      <div className="flex flex-wrap gap-1">
+                        <LibraryBadge>{TYPE_LABELS[item.tipo]}</LibraryBadge>
+                        {relatedContents > 0 ? (
+                          <LibraryBadge tone="green">{relatedContents}</LibraryBadge>
+                        ) : null}
+                        {metadata.tagsPersonalizadas?.[0] ? (
+                          <LibraryBadge>{metadata.tagsPersonalizadas[0]}</LibraryBadge>
+                        ) : null}
+                      </div>
+                    </div>
                   </button>
-                </div>
-              </article>
-            );
-          })}
-        </div>
-      )}
+
+                  <div className="border-t border-[var(--border-color)] p-1.5">
+                    <button
+                      type="button"
+                      onClick={() => onTogglePrimary(item.id)}
+                      className={cn(
+                        'inline-flex h-8 w-full items-center justify-center gap-1 rounded-md border text-[length:var(--font-size-nav-mobile)] font-semibold t-label-uppercase transition-colors',
+                        isPrimary
+                          ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-[var(--bg-primary)]'
+                          : 'border-[var(--border-color)] bg-transparent text-[var(--text-secondary)]'
+                      )}
+                    >
+                      <Pin className="h-3 w-3" />
+                      {isPrimary ? 'Principal' : 'Fixar'}
+                    </button>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+
+          {onPageChange && typeof page === 'number' && typeof totalPages === 'number' && totalPages > 1 ? (
+            <div className="flex items-center justify-between gap-3 rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-3 py-2">
+              <AppButton
+                variant="secondary"
+                size="sm"
+                disabled={page <= 1}
+                leftIcon={<ChevronLeft className="h-4 w-4" />}
+                onClick={() => onPageChange(Math.max(1, page - 1))}
+              >
+                Anterior
+              </AppButton>
+              <Text variant="meta">
+                Página {page} de {totalPages}
+              </Text>
+              <AppButton
+                variant="secondary"
+                size="sm"
+                disabled={page >= totalPages}
+                rightIcon={<ChevronRight className="h-4 w-4" />}
+                onClick={() => onPageChange(Math.min(totalPages, page + 1))}
+              >
+                Próxima
+              </AppButton>
+            </div>
+          ) : null}
+        </>
+        )}
+      </QueryViewState>
 
       <MobileFilterSheet
         open={isFilterSheetOpen}

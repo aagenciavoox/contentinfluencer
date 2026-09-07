@@ -12,6 +12,8 @@ interface MobileAppShellProps {
   children: ReactNode;
   className?: string;
   compactHeader?: boolean;
+  hideHeader?: boolean;
+  hideBottomNav?: boolean;
   onScroll?: (event: UIEvent<HTMLElement>) => void;
   onPullRefresh?: () => Promise<void>;
 }
@@ -22,12 +24,16 @@ export function MobileAppShell({
   overlay,
   children,
   className,
-  compactHeader = false,
+  compactHeader: _compactHeader = false,
+  hideHeader = false,
+  hideBottomNav = false,
   onScroll,
   onPullRefresh,
 }: MobileAppShellProps) {
   const { registerMainElement } = useMobileScrollLock() ?? {};
-  const { containerRef, pullDistance, isRefreshing, progress, isActive } = usePullToRefresh(onPullRefresh);
+  const { containerRef, pullDistance, isRefreshing, progress, isActive } = usePullToRefresh(
+    hideBottomNav ? undefined : onPullRefresh,
+  );
 
   const setMainRef = useCallback(
     (node: HTMLElement | null) => {
@@ -39,7 +45,7 @@ export function MobileAppShell({
 
   return (
     <div className={cn('relative flex h-dvh flex-col overflow-hidden bg-[var(--bg-primary)]', className)}>
-      {header}
+      {hideHeader ? null : header}
 
       <div
         aria-hidden
@@ -48,7 +54,9 @@ export function MobileAppShell({
           isActive ? 'opacity-100' : 'opacity-0',
         )}
         style={{
-          top: `calc(env(safe-area-inset-top, 0px) + ${compactHeader ? 4.25 : 8.5}rem)`,
+          top: hideHeader
+            ? 'calc(env(safe-area-inset-top, 0px) + 1rem)'
+            : 'calc(env(safe-area-inset-top, 0px) + 3.5rem)',
           transform: `translateY(${Math.max(pullDistance - 28, 0)}px)`,
         }}
       >
@@ -72,10 +80,13 @@ export function MobileAppShell({
         ref={setMainRef}
         onScroll={onScroll}
         className={cn(
-          'flex-1 min-h-0 overflow-y-auto overscroll-y-contain px-4 pb-[calc(env(safe-area-inset-bottom)+5.5rem)]',
-          compactHeader
-            ? 'pt-[calc(env(safe-area-inset-top)+4.25rem)]'
-            : 'pt-[calc(env(safe-area-inset-top)+8.5rem)] max-[390px]:pt-[calc(env(safe-area-inset-top)+7.5rem)]',
+          'flex-1 min-h-0 overflow-y-auto overscroll-y-contain',
+          hideBottomNav
+            ? 'pb-0'
+            : 'pb-[calc(env(safe-area-inset-bottom)+5.5rem)]',
+          hideHeader
+            ? 'px-0 pt-0'
+            : 'px-4 pt-[calc(env(safe-area-inset-top)+3.5rem)]',
         )}
         style={{
           transform: isActive ? `translateY(${pullDistance}px)` : undefined,
@@ -85,7 +96,7 @@ export function MobileAppShell({
         <div className="min-h-full">{children}</div>
       </main>
 
-      {bottomNav}
+      {hideBottomNav ? null : bottomNav}
       {overlay}
     </div>
   );

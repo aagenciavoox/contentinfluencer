@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 
 import { useNavigate, useParams } from 'react-router-dom';
 import { Layers } from 'lucide-react';
+import { DesktopPageHeader } from '../../../layouts/page/DesktopPageHeader';
 import { SettingsPageScaffold } from '../../../components/settings/SettingsPageScaffold';
 import { AppButton } from '../../../components/ui/AppButton';
 import { Text } from '../../../components/ui/Text';
@@ -15,11 +16,10 @@ import { PageLayout } from '../../../layouts/page/PageLayout';
 import { SeriesDetailMobileScreen } from '../../../mobile/screens/settings/SeriesDetailMobileScreen';
 import { SeriesDetailHeader } from '../components/series-detail/SeriesDetailHeader';
 import { SeriesStatsRow } from '../components/series-detail/SeriesStatsRow';
-import { SeriesContentsToolbar } from '../components/series-detail/SeriesContentsToolbar';
 import { SeriesContentsTabs } from '../components/series-detail/SeriesContentsTabs';
 import { SeriesContentsFilterBar } from '../components/series-detail/SeriesContentsFilterBar';
 import { SeriesContentList } from '../components/series-detail/SeriesContentList';
-import { SeriesCreateContentPanel } from '../components/series-detail/SeriesCreateContentPanel';
+import { SeriesBulkComposer } from '../components/SeriesBulkComposer';
 import { SeriesContentPreviewModal } from '../components/series-detail/SeriesContentPreviewModal';
 import {
   computeSeriesContentStats,
@@ -43,10 +43,8 @@ export function SeriesScriptsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('Todos');
   const [sortBy, setSortBy] = useState('updatedAt:desc');
-  const [panelMode, setPanelMode] = useState<'roteiro' | 'ideia'>('roteiro');
   const [previewItem, setPreviewItem] = useState<SeriesListItem | null>(null);
   const [showHeaderMenu, setShowHeaderMenu] = useState(false);
-  const [showToolbarMenu, setShowToolbarMenu] = useState(false);
 
   const serie = state.series.find(item => item.id === serieId) ?? null;
   const platformNames = state.platforms.filter(platform => platform.ativo).map(platform => platform.nome);
@@ -189,13 +187,29 @@ export function SeriesScriptsPage() {
           onSaveSerie={handleSaveSerie}
           onToggleActive={handleToggleActive}
           onCreateBulkContents={handleCreateBulkContents}
+          searchValue={searchTerm}
+          onSearchChange={setSearchTerm}
+          statusValue={filterStatus}
+          onStatusChange={setFilterStatus}
+          sortValue={sortBy}
+          onSortChange={setSortBy}
         />
       </div>
     );
   }
 
   return (
-    <PageLayout variant="settings">
+    <PageLayout
+      variant="settings"
+      header={(
+        <DesktopPageHeader
+          section="Criação"
+          title={serie.name}
+          backLabel="Séries"
+          backTo="/configuracoes/series"
+        />
+      )}
+    >
       <div className="stack-xl">
         <SeriesDetailHeader
           serie={serie}
@@ -204,6 +218,7 @@ export function SeriesScriptsPage() {
           showMoreMenu={showHeaderMenu}
           onToggleMore={() => setShowHeaderMenu(current => !current)}
           onEdit={() => navigate(`/configuracoes/series/${serie.id}/editar`)}
+          hideChrome
           onMenuAction={action => {
             if (action === 'toggle-active') handleToggleActive(serie);
           }}
@@ -211,18 +226,8 @@ export function SeriesScriptsPage() {
 
         <SeriesStatsRow stats={stats} />
 
-        <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] xl:gap-8">
-          <div className="min-w-0 stack-xl">
-            <SeriesContentsToolbar
-              showMoreMenu={showToolbarMenu}
-              onToggleMore={() => setShowToolbarMenu(current => !current)}
-              onNewRoteiro={() => setPanelMode('roteiro')}
-              onNewIdeia={() => setPanelMode('ideia')}
-              onMenuAction={action => {
-                if (action === 'bulk-create') navigate(`/configuracoes/series/${serie.id}/editar`);
-              }}
-            />
-
+        <div className="grid-series-detail">
+          <div className="min-w-0 order-2 stack-xl lg:order-1">
             <SeriesContentsTabs
               activeTab={activeTab}
               onTabChange={setActiveTab}
@@ -246,9 +251,8 @@ export function SeriesScriptsPage() {
             />
           </div>
 
-          <aside className="min-w-0 xl:sticky xl:top-6 xl:h-[calc(100vh-3rem)]">
-            <SeriesCreateContentPanel
-              mode={panelMode}
+          <aside className="min-w-0 order-1 lg:sticky lg:top-4 lg:order-2 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto">
+            <SeriesBulkComposer
               serie={serie}
               pilares={state.pilares}
               platformNames={platformNames}

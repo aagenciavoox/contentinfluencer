@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowUpRight, FilePlus2, FileText, Lightbulb, Pencil } from 'lucide-react';
+import { ArrowUpRight, FileText, Pencil } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { BottomSheetModal } from '../../../components/feedback/modals/BottomSheetModal';
 import { OverlayBody } from '../../../components/overlays/OverlayBody';
@@ -10,7 +10,7 @@ import { Badge } from '../../../components/ui/Badge';
 import { EmptyState } from '../../../components/ui/EmptyState';
 import { Text } from '../../../components/ui/Text';
 import { SeriesForm } from '../../../features/settings/pages/SeriesSettingsPage';
-import { SeriesCreateContentForm } from '../../../features/settings/components/series-detail/SeriesCreateContentForm';
+import { SeriesBulkComposer } from '../../../features/settings/components/SeriesBulkComposer';
 import { SeriesStatsRow } from '../../../features/settings/components/series-detail/SeriesStatsRow';
 import { SeriesContentListRow } from '../../../features/settings/components/series-detail/SeriesContentListRow';
 import {
@@ -18,6 +18,9 @@ import {
   type SeriesContentTab,
 } from '../../../features/settings/lib/computeSeriesContentStats';
 import {
+  DEFAULT_SERIES_CONTENT_SORT,
+  SERIES_CONTENT_SORT_OPTIONS,
+  SERIES_CONTENT_STATUS_OPTIONS,
   filterAndSortSeriesListItems,
   seriesListItemId,
   seriesListItemPreviewText,
@@ -28,12 +31,12 @@ import {
 import type { Content, Idea, Pilar, Serie } from '../../../lib/database';
 import { htmlToReadableText } from '../../../lib/utils';
 import { buildDetailBackState } from '../../../lib/navigation/detailBack';
+import { MobileFilterSheet } from '../../components/MobileFilterSheet';
 import { MobilePillButton } from '../../components/MobilePillButton';
+import { MobileSearchBar } from '../../components/MobileSearchBar';
 import { MobileSectionHeader } from '../../components/MobileSectionHeader';
 import { MobileSegmentTabs } from '../../components/MobileSegmentTabs';
 import { CONTENT_STATUS } from '../../../features/contents/lib/contentPipeline';
-
-type SeriesDrawerMode = 'roteiro' | 'ideia' | null;
 
 interface SeriesDetailMobileScreenProps {
   serie: Serie;
@@ -45,6 +48,12 @@ interface SeriesDetailMobileScreenProps {
   onSaveSerie: (serie: Serie) => void;
   onToggleActive: (serie: Serie) => void;
   onCreateBulkContents: (contents: Content[]) => Promise<void>;
+  searchValue?: string;
+  onSearchChange?: (value: string) => void;
+  statusValue?: string;
+  onStatusChange?: (value: string) => void;
+  sortValue?: string;
+  onSortChange?: (value: string) => void;
 }
 
 export function SeriesDetailMobileScreen({
@@ -57,13 +66,30 @@ export function SeriesDetailMobileScreen({
   onSaveSerie,
   onToggleActive,
   onCreateBulkContents,
+  searchValue: searchValueProp,
+  onSearchChange,
+  statusValue: statusValueProp,
+  onStatusChange,
+  sortValue: sortValueProp,
+  onSortChange,
 }: SeriesDetailMobileScreenProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const [activeTab, setActiveTab] = useState<SeriesContentTab>('roteiros');
   const [previewItem, setPreviewItem] = useState<SeriesListItem | null>(null);
   const [showEditSheet, setShowEditSheet] = useState(false);
-  const [drawerMode, setDrawerMode] = useState<SeriesDrawerMode>(null);
+  const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
+  const [localSearch, setLocalSearch] = useState('');
+  const [localStatus, setLocalStatus] = useState('Todos');
+  const [localSort, setLocalSort] = useState<string>(DEFAULT_SERIES_CONTENT_SORT);
+
+  const searchValue = searchValueProp ?? localSearch;
+  const statusValue = statusValueProp ?? localStatus;
+  const sortValue = sortValueProp ?? localSort;
+
+  const handleSearchChange = onSearchChange ?? setLocalSearch;
+  const handleStatusChange = onStatusChange ?? setLocalStatus;
+  const handleSortChange = onSortChange ?? setLocalSort;
 
   const serieColor = serie.cor || '#6366f1';
 
@@ -91,11 +117,11 @@ export function SeriesDetailMobileScreen({
     () =>
       filterAndSortSeriesListItems(linkedContents, linkedInboxIdeas, {
         tab: activeTab,
-        search: '',
-        status: 'Todos',
-        sort: 'updatedAt:desc',
+        search: searchValue,
+        status: statusValue,
+        sort: sortValue,
       }),
-    [activeTab, linkedContents, linkedInboxIdeas],
+    [activeTab, linkedContents, linkedInboxIdeas, searchValue, sortValue, statusValue],
   );
 
   useEffect(() => {
@@ -107,18 +133,10 @@ export function SeriesDetailMobileScreen({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [previewItem]);
 
-  const openCreateSheet = (mode: 'roteiro' | 'ideia') => {
-    setDrawerMode(mode);
-  };
-
-  const closeCreateSheet = () => {
-    setDrawerMode(null);
-  };
-
   return (
-    <div className="stack-xl">
+    <div className="stack-lg">
       <section
-        className="overflow-hidden rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] shadow-sm"
+        className="overflow-hidden rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)]"
         style={{ borderTopColor: serieColor, borderTopWidth: 4 }}
       >
         <div className="stack-md p-4">
@@ -168,24 +186,13 @@ export function SeriesDetailMobileScreen({
         </div>
       </div>
 
-      <div className="grid-metrics">
-        <AppButton
-          variant="secondary"
-          fullWidth
-          onClick={() => openCreateSheet('ideia')}
-          leftIcon={<Lightbulb className="h-4 w-4" />}
-        >
-          Nova ideia
-        </AppButton>
-        <AppButton
-          variant="primary"
-          fullWidth
-          onClick={() => openCreateSheet('roteiro')}
-          leftIcon={<FilePlus2 className="h-4 w-4" />}
-        >
-          Novo roteiro
-        </AppButton>
-      </div>
+      <SeriesBulkComposer
+        serie={serie}
+        pilares={pilares}
+        platformNames={platformNames}
+        onCreate={onCreateBulkContents}
+        compact
+      />
 
       <MobileSegmentTabs
         tabs={[
@@ -197,17 +204,27 @@ export function SeriesDetailMobileScreen({
         onChange={value => setActiveTab(value as SeriesContentTab)}
       />
 
+      <MobileSearchBar
+        value={searchValue}
+        onChange={handleSearchChange}
+        placeholder="Buscar título ou texto…"
+        onFilterClick={() => setIsFilterSheetOpen(true)}
+        filterLabel="Abrir filtros da série"
+      />
+
       <section className="stack-md">
         {filteredItems.length === 0 ? (
           <EmptyState
             compact
             title="Nenhum conteúdo encontrado"
             description={
-              activeTab === 'ideias'
-                ? 'Crie a primeira ideia com o botão acima.'
-                : activeTab === 'roteiros'
-                  ? 'Crie o primeiro roteiro com o botão acima.'
-                  : 'Crie roteiros ou ideias para esta série.'
+              searchValue.trim() || statusValue !== 'Todos'
+                ? 'Ajuste a busca ou os filtros para ver conteúdos desta série.'
+                : activeTab === 'ideias'
+                  ? 'Crie a primeira ideia no formulário acima.'
+                  : activeTab === 'roteiros'
+                    ? 'Crie o primeiro roteiro no formulário acima.'
+                    : 'Crie roteiros ou ideias no formulário acima.'
             }
             icon={<FileText className="h-8 w-8" />}
           />
@@ -240,6 +257,58 @@ export function SeriesDetailMobileScreen({
         )}
       </section>
 
+      <MobileFilterSheet
+        open={isFilterSheetOpen}
+        title="Filtrar conteúdos"
+        onClose={() => setIsFilterSheetOpen(false)}
+      >
+        <label className="block stack-sm">
+          <Text variant="label" className="text-[var(--text-tertiary)]">
+            Status
+          </Text>
+          <select
+            value={statusValue}
+            onChange={event => handleStatusChange(event.target.value)}
+            className="min-h-11 w-full rounded-[var(--radius-md)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-3 text-sm text-[var(--text-primary)]"
+          >
+            {SERIES_CONTENT_STATUS_OPTIONS.map(option => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="block stack-sm">
+          <Text variant="label" className="text-[var(--text-tertiary)]">
+            Ordenar
+          </Text>
+          <select
+            value={sortValue}
+            onChange={event => handleSortChange(event.target.value)}
+            className="min-h-11 w-full rounded-[var(--radius-md)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-3 text-sm text-[var(--text-primary)]"
+          >
+            {SERIES_CONTENT_SORT_OPTIONS.map(option => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <AppButton
+          variant="primary"
+          fullWidth
+          onClick={() => {
+            handleStatusChange('Todos');
+            handleSortChange(DEFAULT_SERIES_CONTENT_SORT);
+            setIsFilterSheetOpen(false);
+          }}
+        >
+          Limpar filtros
+        </AppButton>
+      </MobileFilterSheet>
+
       <BottomSheetModal
         open={previewItem !== null}
         onClose={() => setPreviewItem(null)}
@@ -249,7 +318,7 @@ export function SeriesDetailMobileScreen({
         {previewItem ? (
           <>
             <div className="h-1 w-full shrink-0" style={{ backgroundColor: serieColor }} />
-            <OverlayHeader>
+            <OverlayHeader onClose={() => setPreviewItem(null)}>
               <Text variant="itemTitle" truncate>
                 {seriesListItemTitle(previewItem)}
               </Text>
@@ -264,7 +333,7 @@ export function SeriesDetailMobileScreen({
               </div>
             </OverlayHeader>
 
-            <OverlayBody className="stack-xl py-4">
+            <OverlayBody className="stack-lg">
               <div>
                 <div className="mb-2 flex items-center gap-2">
                   <FileText className="h-3.5 w-3.5 text-[var(--text-tertiary)]" />
@@ -338,41 +407,12 @@ export function SeriesDetailMobileScreen({
       </BottomSheetModal>
 
       <BottomSheetModal
-        open={drawerMode !== null}
-        onClose={closeCreateSheet}
-        desktopMaxW="max-w-xl"
-        zIndex="z-[110]"
-      >
-        {drawerMode ? (
-          <>
-            <div className="h-1 w-full shrink-0" style={{ backgroundColor: serieColor }} />
-            <OverlayHeader
-              title={drawerMode === 'ideia' ? 'Nova ideia' : 'Novo roteiro'}
-              subtitle={serie.name}
-            />
-            <OverlayBody className="py-6 pb-safe">
-              <SeriesCreateContentForm
-                key={drawerMode}
-                serie={serie}
-                pilares={pilares}
-                platformNames={platformNames}
-                mode={drawerMode}
-                variant="compact"
-                onCreate={onCreateBulkContents}
-                onSuccess={() => closeCreateSheet()}
-              />
-            </OverlayBody>
-          </>
-        ) : null}
-      </BottomSheetModal>
-
-      <BottomSheetModal
         open={showEditSheet}
         onClose={() => setShowEditSheet(false)}
         desktopMaxW="max-w-xl"
         zIndex="z-[110]"
       >
-        <OverlayHeader>
+        <OverlayHeader onClose={() => setShowEditSheet(false)}>
           <div className="flex items-center gap-3">
             <span
               className="h-10 w-10 shrink-0 rounded-[var(--radius-card)] border border-[var(--border-color)]"
@@ -389,7 +429,7 @@ export function SeriesDetailMobileScreen({
           </div>
         </OverlayHeader>
 
-        <OverlayBody className="py-6 pb-safe">
+        <OverlayBody className="stack-lg pb-safe">
           <SeriesForm
             key={serie.id}
             initial={serie}

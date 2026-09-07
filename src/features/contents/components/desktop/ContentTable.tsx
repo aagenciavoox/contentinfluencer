@@ -117,7 +117,7 @@ export function ContentTable({
                 }
               }}
               className={cn(
-                'relative cursor-pointer rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border bg-[var(--bg-secondary)] px-4 py-4 shadow-sm transition-all active:scale-[0.98]',
+                'relative cursor-pointer rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border bg-[var(--bg-secondary)] px-4 py-4 transition-all active:scale-[0.98]',
                 isSelected ? 'border-[var(--text-primary)] ring-2 ring-[var(--text-primary)]/5' : 'border-[var(--border-color)]'
               )}
             >

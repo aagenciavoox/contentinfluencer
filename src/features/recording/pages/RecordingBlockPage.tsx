@@ -1,6 +1,6 @@
 import {useEffect, useMemo, useState} from 'react';
 import {useNavigate, useParams, useSearchParams} from 'react-router-dom';
-import {ArrowLeft, CheckCircle2, Video} from 'lucide-react';
+import {CheckCircle2, Video} from 'lucide-react';
 import {useAppContext} from '../../../context/AppContext';
 import {useIsMobile} from '../../../hooks/useIsMobile';
 import {cn, htmlToReadableText} from '../../../lib/utils';
@@ -18,6 +18,9 @@ import {AppButton} from '../../../components/ui/AppButton';
 import {Text} from '../../../components/ui/Text';
 import {BurstModeMobileScreen} from '../../../mobile/screens/recording/BurstModeMobileScreen';
 import type {Content} from '../../../lib/database';
+import {DesktopPageHeader} from '../../../layouts/page/DesktopPageHeader';
+import {PageLayout} from '../../../layouts/page/PageLayout';
+import {PAGE_SECTION} from '../../../layouts/navigation/navConfig';
 
 export function RecordingBlockPage() {
   const {id} = useParams<{id: string}>();
@@ -126,34 +129,42 @@ export function RecordingBlockPage() {
 
   if (!block) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[var(--bg-secondary)]">
-        <div className="stack-lg text-center">
-          <p className="text-sm font-semibold opacity-30">Bloco nao encontrado</p>
-          <button onClick={() => navigate('/gravacao')} className="text-xs font-semibold underline opacity-50">
-            Voltar
-          </button>
-        </div>
-      </div>
+      <PageLayout
+        header={(
+          <DesktopPageHeader
+            section={PAGE_SECTION.producao}
+            title="Bloco não encontrado"
+            backLabel="Gravação"
+            backTo="/gravacao"
+          />
+        )}
+      >
+        <Text variant="secondary">Este bloco de gravação não existe mais.</Text>
+      </PageLayout>
     );
   }
 
   if (progress?.isCompleted) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[var(--bg-secondary)] px-6">
-        <div className="w-full max-w-md stack-xl text-center">
-          <div className="text-6xl">Ã°Å¸Å½"°</div>
-          <Text variant="pageTitle">Bloco concluido!</Text>
-          <p className="text-sm font-bold opacity-40">
-            {block.name} · {progress.totalCount} roteiros gravados
-          </p>
-          <button
-            onClick={() => navigate('/criacao?tab=producao')}
-            className="rounded-[var(--radius-card-mobile)] bg-[var(--text-primary)] px-8 py-4 text-xs font-semibold text-[var(--bg-primary)] transition-opacity hover:opacity-90 md:rounded-[var(--radius-card)]"
-          >
-            Ir para Producao
-          </button>
-        </div>
-      </div>
+      <PageLayout
+        header={(
+          <DesktopPageHeader
+            section={PAGE_SECTION.producao}
+            title="Bloco concluído"
+            backLabel="Gravação"
+            backTo="/gravacao?tab=blocks"
+            actions={(
+              <AppButton variant="primary" onClick={() => navigate('/criacao?tab=producao')}>
+                Ir para Produção
+              </AppButton>
+            )}
+          />
+        )}
+      >
+        <Text variant="secondary">
+          {block.name} · {progress.totalCount} roteiros gravados
+        </Text>
+      </PageLayout>
     );
   }
 
@@ -179,7 +190,7 @@ export function RecordingBlockPage() {
     return (
       <>
         <div className="stack-lg">
-          <section className="rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4 shadow-sm">
+          <section className="rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4">
             <p className="text-xs font-semibold text-[var(--text-tertiary)]">Bloco de gravação</p>
             <Text variant="pageTitle" className="mt-2">{block.name}</Text>
             <p className="mt-2 text-sm text-[var(--text-secondary)]">
@@ -193,7 +204,7 @@ export function RecordingBlockPage() {
             </div>
           </section>
 
-          <section className="rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4 shadow-sm">
+          <section className="rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4">
             <RecordingBlockEditor
               block={block}
               blockContents={resolvedContents}
@@ -204,7 +215,7 @@ export function RecordingBlockPage() {
             />
           </section>
 
-          <section className="rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4 shadow-sm">
+          <section className="rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4">
             <div className="mb-4 flex items-center justify-between gap-3">
               <Text variant="sectionTitle">Ordem de execução</Text>
               <span className="rounded-full bg-[var(--bg-hover)] px-3 py-1 text-xs font-semibold text-[var(--text-secondary)]">
@@ -277,64 +288,38 @@ export function RecordingBlockPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[var(--bg-secondary)]">
-      <div className="mx-auto max-w-5xl px-6 py-10 md:px-10 md:py-14">
-        <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
-          <button
-            onClick={() => navigate('/gravacao?tab=blocks')}
-            className="inline-flex items-center gap-2 text-xs font-semibold opacity-50 transition-opacity hover:opacity-80"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Voltar para blocos
-          </button>
-
-          <div className="flex items-center gap-3">
-            <div className="h-1.5 w-32 overflow-hidden rounded-full bg-[var(--bg-hover)]">
-              <div
-                className="h-full rounded-full bg-[var(--text-primary)] transition-all duration-500"
-                style={{width: `${progress?.progressPercentage ?? 0}%`}}
-              />
-            </div>
-            <span className="text-xs font-semibold opacity-40">
-              {progress?.completedCount ?? 0}/{progress?.totalCount ?? 0}
-            </span>
-          </div>
-        </div>
-
-        <div className="mb-8 stack-sm">
-          <p className="t-label t-label-uppercase font-semibold text-[var(--text-tertiary)]">
-            Bloco de gravação
-          </p>
-          <Text variant="pageTitle">{block.name}</Text>
-          <p className="max-w-2xl text-sm text-[var(--text-secondary)]">
-            Edite nome, marcadores e ordem dos roteiros. Quando estiver pronto, abra o modo gravação com teleprompter.
-          </p>
-        </div>
-
-        <div className="rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-primary)] p-6 md:p-8">
-          <RecordingBlockEditor
-            block={block}
-            blockContents={resolvedContents}
-            queueContents={queueContents}
-            availableTags={availableTags}
-            onUpdateBlock={handleUpdateBlock}
-            onUpdateContents={handleUpdateContents}
-          />
-        </div>
-
-        <div className="mt-8 flex flex-wrap gap-3">
-          <button
-            type="button"
-            onClick={() => setIsBurstOpen(true)}
-            disabled={(progress?.readyCount ?? 0) === 0}
-            className="inline-flex items-center gap-2 rounded-[var(--radius-card)] bg-[var(--text-primary)] px-6 py-3 text-sm font-semibold text-[var(--bg-primary)] transition-opacity hover:opacity-90 disabled:opacity-30"
-          >
-            <Video className="h-4 w-4" />
-            Iniciar modo gravação
-          </button>
-        </div>
+    <PageLayout
+      header={(
+        <DesktopPageHeader
+          section={PAGE_SECTION.producao}
+          title={block.name}
+          backLabel="Gravação"
+          backTo="/gravacao?tab=blocks"
+          meta={`${progress?.completedCount ?? 0}/${progress?.totalCount ?? 0} gravados`}
+          actions={(
+            <AppButton
+              variant="primary"
+              onClick={() => setIsBurstOpen(true)}
+              disabled={(progress?.readyCount ?? 0) === 0}
+              leftIcon={<Video className="h-4 w-4" />}
+            >
+              Iniciar modo gravação
+            </AppButton>
+          )}
+        />
+      )}
+    >
+      <div className="rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-primary)] p-6 md:p-8">
+        <RecordingBlockEditor
+          block={block}
+          blockContents={resolvedContents}
+          queueContents={queueContents}
+          availableTags={availableTags}
+          onUpdateBlock={handleUpdateBlock}
+          onUpdateContents={handleUpdateContents}
+        />
       </div>
-    </div>
+    </PageLayout>
   );
 }
 

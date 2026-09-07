@@ -4,8 +4,11 @@ import { AnimatePresence, motion } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
 import { useAppContext } from '../../context/AppContext';
 import { useAuth } from '../../context/AuthContext';
+import { createScriptContent } from '../../features/contents/lib/creationContent';
+import { buildContentDetailRoute } from '../../features/contents/lib/contentDetailRoute';
 import { BookAnnotationComposerSheet } from '../../features/library/components/modals/BookAnnotationComposerSheet';
 import { fetchBibliotecaItemById, type BibliotecaItem } from '../../lib/database';
+import { buildDetailBackState } from '../../lib/navigation/detailBack';
 import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
 import { cn } from '../../lib/utils';
 
@@ -17,7 +20,7 @@ interface MobileActionMenuProps {
 const ACTIVE_READING_STATUSES = ['Consumindo', 'Lendo', 'Assistindo'] as const;
 
 export function MobileActionMenu({ open, onClose }: MobileActionMenuProps) {
-  const { state, ensureDataDomains } = useAppContext();
+  const { state, ensureDataDomains, dispatch } = useAppContext();
   const { user } = useAuth();
   const navigate = useNavigate();
   const [isBookComposerOpen, setIsBookComposerOpen] = useState(false);
@@ -84,7 +87,12 @@ export function MobileActionMenu({ open, onClose }: MobileActionMenuProps) {
   };
 
   const handleNewContent = () => {
-    navigate('/criacao?compose=script');
+    const content = createScriptContent({ title: 'Novo roteiro' });
+    void dispatch({ type: 'ADD_CONTENT', payload: content });
+    navigate(
+      `${buildContentDetailRoute(content.id)}&focus=script`,
+      buildDetailBackState('/criacao?tab=roteiros'),
+    );
     onClose();
   };
 

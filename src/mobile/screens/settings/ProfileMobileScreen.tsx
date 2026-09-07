@@ -26,6 +26,7 @@ interface ProfileMobileScreenProps {
   onSaveProfile: () => void;
   onSaveEmail: () => void;
   onSavePassword: () => void;
+  emailSubmitDisabled?: boolean;
 }
 
 function Feedback({ message, tone }: { message: string; tone: 'success' | 'error' }) {
@@ -60,10 +61,11 @@ export function ProfileMobileScreen({
   onSaveProfile,
   onSaveEmail,
   onSavePassword,
+  emailSubmitDisabled = false,
 }: ProfileMobileScreenProps) {
   return (
-    <div className="stack-xl">
-      <section className="rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4 shadow-sm">
+    <div className="stack-lg">
+      <section className="rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4">
         <MobileSectionHeader
           icon={UserCircle2}
           tone="blue"
@@ -84,7 +86,7 @@ export function ProfileMobileScreen({
         )}
       </section>
 
-      <section className="rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4 shadow-sm">
+      <section className="rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4">
         <div className="mb-3 flex items-center gap-2 text-[var(--text-secondary)]">
           <UserCircle2 className="h-4 w-4" />
           <p className="t-label">Nome do perfil</p>
@@ -110,12 +112,16 @@ export function ProfileMobileScreen({
         {profileError ? <div className="mt-3"><Feedback message={profileError} tone="error" /></div> : null}
       </section>
 
-      <section className="rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4 shadow-sm">
+      <section className="rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4">
         <div className="mb-3 flex items-center gap-2 text-[var(--text-secondary)]">
           <Mail className="h-4 w-4" />
           <p className="t-label">Trocar e-mail</p>
         </div>
+        <label htmlFor="mobile-profile-email" className="mb-2 block text-xs font-semibold t-label-uppercase text-[var(--text-tertiary)]">
+          Novo e-mail
+        </label>
         <input
+          id="mobile-profile-email"
           type="email"
           value={pendingEmail}
           onChange={(event) => onPendingEmailChange(event.target.value)}
@@ -124,13 +130,14 @@ export function ProfileMobileScreen({
           className="input"
         />
         <p className="mt-3 text-xs text-[var(--text-secondary)]">
-          O Supabase pode pedir confirmação no endereço novo antes da troca ser concluída.
+          Enviaremos um link de confirmação para o novo endereço. A troca só termina depois que você
+          validar esse e-mail.
         </p>
         <AppButton
           variant="primary"
           fullWidth
           onClick={onSaveEmail}
-          disabled={!backendReady || emailLoading}
+          disabled={emailSubmitDisabled}
           className="mt-4"
         >
           {emailLoading ? 'Atualizando...' : 'Atualizar e-mail'}
@@ -139,28 +146,36 @@ export function ProfileMobileScreen({
         {emailError ? <div className="mt-3"><Feedback message={emailError} tone="error" /></div> : null}
       </section>
 
-      <section className="rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4 shadow-sm">
+      <section className="rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4">
         <div className="mb-3 flex items-center gap-2 text-[var(--text-secondary)]">
           <KeyRound className="h-4 w-4" />
           <p className="t-label">Trocar senha</p>
         </div>
         <div className="stack-md">
-          <input
-            type="password"
-            value={password}
-            onChange={(event) => onPasswordChange(event.target.value)}
-            placeholder="Nova senha"
-            disabled={!backendReady || passwordLoading}
-            className="input"
-          />
-          <input
-            type="password"
-            value={confirmPassword}
-            onChange={(event) => onConfirmPasswordChange(event.target.value)}
-            placeholder="Confirmar nova senha"
-            disabled={!backendReady || passwordLoading}
-            className="input"
-          />
+          <div className="stack-sm">
+            <p className="t-label text-[var(--text-tertiary)]">Nova senha</p>
+            <input
+              type="password"
+              value={password}
+              onChange={(event) => onPasswordChange(event.target.value)}
+              placeholder="Mínimo de 6 caracteres"
+              disabled={!backendReady || passwordLoading}
+              className="input"
+              aria-label="Nova senha"
+            />
+          </div>
+          <div className="stack-sm">
+            <p className="t-label text-[var(--text-tertiary)]">Confirmar nova senha</p>
+            <input
+              type="password"
+              value={confirmPassword}
+              onChange={(event) => onConfirmPasswordChange(event.target.value)}
+              placeholder="Repita a nova senha"
+              disabled={!backendReady || passwordLoading}
+              className="input"
+              aria-label="Confirmar nova senha"
+            />
+          </div>
         </div>
         <div className="mt-3 rounded-[var(--radius-md)] bg-[var(--bg-primary)] px-4 py-3 text-xs text-[var(--text-secondary)]">
           <div className="flex items-center gap-2">

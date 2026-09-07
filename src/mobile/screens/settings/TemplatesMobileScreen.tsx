@@ -1,4 +1,5 @@
 import {useState} from 'react';
+import {useNavigate} from 'react-router-dom';
 import {BottomSheetModal} from '../../../components/feedback/modals/BottomSheetModal';
 import {OverlayBody} from '../../../components/overlays/OverlayBody';
 import {OverlayFooter} from '../../../components/overlays/OverlayFooter';
@@ -28,6 +29,7 @@ export function TemplatesMobileScreen({
   onCreate,
   onDelete,
 }: TemplatesMobileScreenProps) {
+  const navigate = useNavigate();
   const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState('');
   const [type, setType] = useState<TemplateTypeFilter>('roteiro');
@@ -57,9 +59,13 @@ export function TemplatesMobileScreen({
     setShowForm(false);
   };
 
+  const openTemplateEditor = (templateId: string) => {
+    navigate(`/configuracoes/templates?edit=${encodeURIComponent(templateId)}`);
+  };
+
   return (
-    <div className="stack-xl">
-      <section className="rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4 shadow-sm">
+    <div className="stack-lg">
+      <section className="rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4">
         <MobileSectionHeader
           icon={Layout}
           tone="blue"
@@ -90,6 +96,7 @@ export function TemplatesMobileScreen({
                   key={template.id}
                   title={template.nome}
                   description={`${template.estrutura.length} blocos estruturados`}
+                  onClick={() => openTemplateEditor(template.id)}
                   meta={
                     <>
                       <span className="rounded-full bg-[var(--bg-hover)] px-3 py-1 text-xs font-semibold text-[var(--text-secondary)]">
@@ -130,9 +137,10 @@ export function TemplatesMobileScreen({
         <OverlayHeader
           title="Novo template"
           subtitle="Defina o tipo como uma tag, sem separar o catálogo por abas."
+          onClose={() => setShowForm(false)}
         />
 
-        <OverlayBody className="stack-lg py-6">
+        <OverlayBody className="stack-lg">
           <input
             autoFocus
             value={name}

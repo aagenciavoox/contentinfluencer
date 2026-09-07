@@ -1,6 +1,6 @@
-import {useEffect, useRef, useState, type ReactNode} from 'react';
+import {useEffect, useMemo, useRef, useState, type ReactNode} from 'react';
 import {useLocation, useNavigate, useSearchParams} from 'react-router-dom';
-import {Layers3, Video} from 'lucide-react';
+import {Layers3, Plus, Video} from 'lucide-react';
 import {useAppContext} from '../../../context/AppContext';
 import {useAuth} from '../../../context/AuthContext';
 import {useIsMobile} from '../../../hooks/useIsMobile';
@@ -11,6 +11,7 @@ import {buildDetailBackState} from '../../../lib/navigation/detailBack';
 import {isContentBodyLoaded, upsertContent} from '../../contents/lib/contentBody';
 import {getRecordingQueueContents} from '../../contents/lib/contentWorkflow';
 import {cn} from '../../../lib/utils';
+import {useHydrateContentBodies} from '../../../hooks/useHydrateContentBodies';
 import {DesktopPageHeader} from '../../../layouts/page/DesktopPageHeader';
 import {PageLayout} from '../../../layouts/page/PageLayout';
 import {RecordingMobileScreen} from '../../../mobile/screens/recording/RecordingMobileScreen';
@@ -19,6 +20,7 @@ import {RecordingQueueTab} from '../components/desktop/RecordingQueueTab';
 import {RecordingSelectionBar} from '../components/desktop/RecordingSelectionBar';
 import {RecordingScriptReader} from '../components/RecordingScriptReader';
 import {FilterBar} from '../../../components/ui/FilterBar';
+import {AppButton} from '../../../components/ui/AppButton';
 import {Text} from '../../../components/ui/Text';
 import {
   buildMarkStandaloneContentRecordedTransition,
@@ -155,6 +157,8 @@ export function RecordingPage() {
   };
 
   const queueContents = getRecordingQueueContents(state.contents, state.recordingBlocks);
+  const queueIds = useMemo(() => queueContents.map(content => content.id), [queueContents]);
+  const {isHydrating, hasHydrationError, retryHydration} = useHydrateContentBodies(queueIds);
 
   const availableRecordingTags = Array.from(
     new Set(
@@ -361,6 +365,9 @@ export function RecordingPage() {
           onOpenBlock={(blockId) => navigate(`/gravacao/${blockId}?tab=blocks`)}
           onOpenContent={(contentId) => openContentDetail(contentId)}
           onReadContent={openScriptReader}
+          isHydrating={isHydrating}
+          hasHydrationError={hasHydrationError}
+          onRetryHydration={retryHydration}
           />
         </div>
         {readerContent ? (
@@ -385,6 +392,18 @@ export function RecordingPage() {
           title="Gravação"
           icon={Video}
           className="mb-0"
+          actions={
+            <AppButton
+              variant="primary"
+              leftIcon={<Plus className="h-4 w-4" />}
+              onClick={() => {
+                handleTabChange('queue');
+                setShowBlockForm(true);
+              }}
+            >
+              Criar bloco
+            </AppButton>
+          }
         />
       }
     >
@@ -505,6 +524,9 @@ export function RecordingPage() {
               onClearSelection={handleClearSelection}
               onOpen={openContentDetail}
               onRead={openScriptReader}
+              isHydrating={isHydrating}
+              hasHydrationError={hasHydrationError}
+              onRetryHydration={retryHydration}
             />
 
             <RecordingSelectionBar

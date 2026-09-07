@@ -106,7 +106,7 @@ function SectionHeader({
             {title}
           </Text>
           {description ? (
-            <Text variant="meta" className="mt-0.5 text-[var(--text-secondary)]">
+            <Text variant="meta" className="mt-1 text-[var(--text-secondary)]">
               {description}
             </Text>
           ) : null}
@@ -137,7 +137,7 @@ function PilarPickerMenu({
   onSelect: (pilarId: string) => void;
 }) {
   return (
-    <div className="absolute left-0 right-0 top-full z-20 mt-1.5 max-h-72 w-full min-w-0 overflow-y-auto rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] py-1.5 shadow-lg">
+    <div className="absolute left-0 right-0 top-full z-20 mt-1.5 max-h-72 w-full min-w-0 overflow-y-auto rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] py-1.5 shadow-[var(--shadow-dropdown)]">
       {pilares.map(item => (
         <button
           key={item.id}
@@ -332,14 +332,14 @@ export function SerieEditForm({
             <Layers className="h-7 w-7 text-[var(--text-primary)] opacity-80 md:h-8 md:w-8" strokeWidth={1.5} />
           </span>
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
-              <Text variant="pageTitle" truncate>
+            <div className="flex items-start gap-2">
+              <Text variant="pageTitle" className="min-w-0 break-words">
                 {form.name.trim() || 'Nova série'}
               </Text>
-              <Pencil className="h-4 w-4 shrink-0 text-[var(--text-tertiary)]" aria-hidden />
+              <Pencil className="mt-1 h-4 w-4 shrink-0 text-[var(--text-tertiary)]" aria-hidden />
             </div>
-            <span className="mt-1.5 inline-flex rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-hover)] px-2 py-0.5">
-              <Text variant="meta" className="font-mono text-[var(--text-secondary)]">
+            <span className="mt-1.5 inline-flex max-w-full rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-hover)] px-2 py-0.5">
+              <Text variant="meta" className="break-all font-mono text-[var(--text-secondary)]">
                 ID: {slug}
               </Text>
             </span>

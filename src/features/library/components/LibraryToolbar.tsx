@@ -1,5 +1,4 @@
-import { Plus } from 'lucide-react';
-import { AppButton } from '../../../components/ui/AppButton';
+import type { ReactNode } from 'react';
 import { FilterBar } from '../../../components/ui/FilterBar';
 import { BibliotecaItem } from '../../../lib/database';
 
@@ -19,7 +18,7 @@ interface LibraryToolbarProps {
   onSortChange: (value: string) => void;
   statusOptions: StatusLeitura[];
   genreOptions: string[];
-  onAddClick: () => void;
+  tabs?: ReactNode;
 }
 
 export function LibraryToolbar({
@@ -35,71 +34,60 @@ export function LibraryToolbar({
   onSortChange,
   statusOptions,
   genreOptions,
-  onAddClick,
+  tabs,
 }: LibraryToolbarProps) {
   return (
-    <div className="library-toolbar">
-      <FilterBar
-        className="library-toolbar-filters"
-        size="compact"
-        searchValue={searchValue}
-        onSearchChange={onSearchChange}
-        searchPlaceholder="Buscar título, autoria ou tag"
-        filters={[
-          {
-            id: 'tipo',
-            label: 'Tipo',
-            value: filtroTipo,
-            onChange: value => onFiltroTipoChange(value as BibliotecaTipo | 'Todos'),
-            options: [
-              { label: 'Tipo', value: 'Todos' },
-              { label: 'Livro', value: 'livro' },
-              { label: 'Filme', value: 'filme' },
-              { label: 'Série', value: 'série' },
-              { label: 'Anime', value: 'anime' },
-              { label: 'Mangá', value: 'manga' },
-            ],
-          },
-          {
-            id: 'status',
-            label: 'Status',
-            value: filtroStatus,
-            onChange: value => onFiltroStatusChange(value as StatusLeitura | 'Todos'),
-            options: [
-              { label: 'Status', value: 'Todos' },
-              ...statusOptions.map(status => ({ label: status, value: status })),
-            ],
-          },
-          {
-            id: 'genero',
-            label: 'Gênero',
-            value: filtroGenero,
-            onChange: onFiltroGeneroChange,
-            options: [
-              { label: 'Gênero', value: 'Todos' },
-              ...genreOptions.map(genero => ({ label: genero, value: genero })),
-            ],
-          },
-        ]}
-        sortValue={sortValue}
-        onSortChange={onSortChange}
-        sortOptions={[
-          { label: 'Recentes', value: 'recentes' },
-          { label: 'Título A-Z', value: 'titulo:asc' },
-          { label: 'Autor A-Z', value: 'autor:asc' },
-          { label: 'Status A-Z', value: 'status:asc' },
-        ]}
-      />
-
-      <AppButton
-        onClick={onAddClick}
-        variant="primary"
-        size="sm"
-        leftIcon={<Plus className="h-3.5 w-3.5" />}
-        className="library-toolbar-add shrink-0 text-xs "
-      >
-        Adicionar
-      </AppButton>
-    </div>
+    <FilterBar
+      className="library-toolbar-filters"
+      size="compact"
+      leading={tabs}
+      searchValue={searchValue}
+      onSearchChange={onSearchChange}
+      searchPlaceholder="Buscar título, autoria ou tag"
+      filters={[
+        {
+          id: 'tipo',
+          label: 'Tipo',
+          value: filtroTipo,
+          onChange: value => onFiltroTipoChange(value as BibliotecaTipo | 'Todos'),
+          options: [
+            { label: 'Tipo', value: 'Todos' },
+            { label: 'Livro', value: 'livro' },
+            { label: 'Filme', value: 'filme' },
+            { label: 'Série', value: 'série' },
+            { label: 'Anime', value: 'anime' },
+            { label: 'Mangá', value: 'manga' },
+          ],
+        },
+        {
+          id: 'status',
+          label: 'Status',
+          value: filtroStatus,
+          onChange: value => onFiltroStatusChange(value as StatusLeitura | 'Todos'),
+          options: [
+            { label: 'Status', value: 'Todos' },
+            ...statusOptions.map(status => ({ label: status, value: status })),
+          ],
+        },
+        {
+          id: 'genero',
+          label: 'Gênero',
+          value: filtroGenero,
+          onChange: onFiltroGeneroChange,
+          options: [
+            { label: 'Gênero', value: 'Todos' },
+            ...genreOptions.map(genero => ({ label: genero, value: genero })),
+          ],
+        },
+      ]}
+      sortValue={sortValue}
+      onSortChange={onSortChange}
+      sortOptions={[
+        { label: 'Recentes', value: 'recentes' },
+        { label: 'Título A-Z', value: 'titulo:asc' },
+        { label: 'Autor A-Z', value: 'autor:asc' },
+        { label: 'Status A-Z', value: 'status:asc' },
+      ]}
+    />
   );
 }

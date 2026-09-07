@@ -28,7 +28,9 @@ export interface LibraryAnalyticsSnapshot {
     ratedItems: number;
     completed: number;
     active: number;
-    averageProgress: number;
+    /** Média só de itens ativos/concluídos com progresso total informado; null se nenhum. */
+    averageProgress: number | null;
+    trackedProgressCount: number;
     averageCompletionDays: number | null;
   };
   annotations: {
@@ -217,7 +219,8 @@ export function buildLibraryAnalytics(
       active: activeItems.length,
       averageProgress: trackedProgress.length > 0
         ? Math.round(trackedProgress.reduce((sum, value) => sum + value, 0) / trackedProgress.length)
-        : 0,
+        : null,
+      trackedProgressCount: trackedProgress.length,
       averageCompletionDays: completionDurations.length > 0
         ? Math.round(completionDurations.reduce((sum, days) => sum + days, 0) / completionDurations.length)
         : null,

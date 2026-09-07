@@ -46,7 +46,7 @@ export function PublishingSection({
 
   return (
     <div className="grid gap-6">
-      <section className="rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-6 shadow-sm md:rounded-[var(--radius-card)] md:p-7">
+      <section className="rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-6 md:rounded-[var(--radius-card)] md:p-7">
         <div className="flex items-center gap-2 text-xs font-semibold text-[var(--text-tertiary)]">
           <CalendarDays className="h-4 w-4" />
           Agendamento
@@ -119,7 +119,7 @@ export function PublishingSection({
       />
 
       {activePlatformIds.length > 0 ? (
-        <section className="rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-6 shadow-sm md:rounded-[var(--radius-card)] md:p-7">
+        <section className="rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-6 md:rounded-[var(--radius-card)] md:p-7">
           <div className="flex items-center gap-2 text-xs font-semibold text-[var(--text-tertiary)]">
             <Send className="h-4 w-4" />
             Datas por plataforma
@@ -157,7 +157,7 @@ export function PublishingSection({
         </section>
       ) : null}
 
-      <section className="rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-6 shadow-sm md:rounded-[var(--radius-card)] md:p-7">
+      <section className="rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-6 md:rounded-[var(--radius-card)] md:p-7">
         <div className="flex items-center gap-2 text-xs font-semibold text-[var(--text-tertiary)]">
           <Image className="h-4 w-4" />
           Assets e observacoes

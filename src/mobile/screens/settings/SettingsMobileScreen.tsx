@@ -52,8 +52,8 @@ export function SettingsMobileScreen({
   items,
 }: SettingsMobileScreenProps) {
   return (
-    <div className="stack-xl">
-      <section className="rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4 shadow-sm">
+    <div className="stack-lg">
+      <section className="rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4">
         <MobileSectionHeader
           icon={SettingsIcon}
           tone="blue"
@@ -69,14 +69,14 @@ export function SettingsMobileScreen({
           {gentleCards.map((item) => (
             <div
               key={item.key}
-              className="flex items-center justify-between gap-4 rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-4 shadow-sm"
+              className="flex items-center justify-between gap-4 rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-4"
             >
               <div className="flex min-w-0 items-start gap-3">
                 <div className="mt-0.5 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] bg-[var(--bg-hover)] p-2 text-[var(--text-primary)]">
                   <HeartHandshake className="h-4 w-4 opacity-60" />
                 </div>
                 <div>
-                  <Text variant="bodyStrong" className="text-sm">{item.title}</Text>
+                  <Text variant="bodyStrong">{item.title}</Text>
                   <Text variant="meta" className="mt-1 block">{item.desc}</Text>
                 </div>
               </div>
@@ -98,10 +98,10 @@ export function SettingsMobileScreen({
           {moduleCards.map((item) => (
             <div
               key={item.key}
-              className="flex items-center justify-between gap-4 rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-4 shadow-sm"
+              className="flex items-center justify-between gap-4 rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-4"
             >
               <div className="min-w-0">
-                <Text variant="bodyStrong" className="text-sm">{item.title}</Text>
+                <Text variant="bodyStrong">{item.title}</Text>
                 <Text variant="meta" className="mt-1 block">{item.desc}</Text>
               </div>
 

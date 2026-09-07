@@ -434,14 +434,24 @@ export type AppDataDomain =
   | 'schedule';
 
 /** Carregado logo após login — cobre dashboard e navegação inicial sem segunda rodada. */
-export const BOOTSTRAP_DATA_DOMAINS: AppDataDomain[] = [
+export const CRITICAL_BOOTSTRAP_DOMAINS: AppDataDomain[] = [
   'bootstrap',
   'production',
-  'content-summary',
+  // Lista leve completa (~200 itens): evita segundo fetch em Criação/Calendário/Gravação.
+  'content',
+];
+
+/** Domínios úteis, mas que não bloqueiam a primeira pintura do shell. */
+export const DEFERRED_BOOTSTRAP_DOMAINS: AppDataDomain[] = [
   'ideas',
   'projects',
   'agenda',
   'rules',
+];
+
+export const BOOTSTRAP_DATA_DOMAINS: AppDataDomain[] = [
+  ...CRITICAL_BOOTSTRAP_DOMAINS,
+  ...DEFERRED_BOOTSTRAP_DOMAINS,
 ];
 
 // ============================================================================
@@ -1341,7 +1351,11 @@ export async function fetchDataDomains(
           domainQuery = domainQuery.is('archived_at', null);
         }
 
-        if (requested.has('content-summary') && !requested.has('content')) {
+        if (
+          requested.has('content-summary')
+          && !requested.has('content')
+          && !requested.has('content-schedule')
+        ) {
           domainQuery = domainQuery.limit(CONTENT_SUMMARY_LIMIT);
         }
 

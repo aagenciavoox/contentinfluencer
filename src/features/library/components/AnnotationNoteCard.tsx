@@ -41,8 +41,9 @@ export function AnnotationCardActions({
           type="button"
           onClick={onToggleHighlight}
           title={anotacao.contentPotential ? 'Remover destaque' : 'Destacar'}
+          aria-label={anotacao.contentPotential ? 'Remover destaque' : 'Destacar anotação'}
           className={cn(
-            'rounded-md p-1.5 transition-colors',
+            'inline-flex min-h-9 min-w-9 items-center justify-center rounded-md transition-colors',
             anotacao.contentPotential ? 'text-[var(--accent-orange)]' : 'text-[var(--text-primary)] opacity-40 hover:opacity-80'
           )}
         >
@@ -54,7 +55,8 @@ export function AnnotationCardActions({
           type="button"
           onClick={onTransformIdea}
           title="Transformar em ideia"
-          className="rounded-md p-1.5 text-[var(--accent-green)] transition-colors hover:bg-[var(--accent-green)]/10"
+          aria-label="Transformar em ideia"
+          className="inline-flex min-h-9 min-w-9 items-center justify-center rounded-md text-[var(--accent-green)] transition-colors hover:bg-[var(--accent-green)]/10"
         >
           <Lightbulb className="h-3.5 w-3.5" />
         </button>
@@ -64,7 +66,8 @@ export function AnnotationCardActions({
           type="button"
           onClick={onTransformContent}
           title="Criar conteudo"
-          className="rounded-md p-1.5 transition-colors hover:bg-[var(--accent-blue)]/10"
+          aria-label="Criar conteúdo a partir da anotação"
+          className="inline-flex min-h-9 min-w-9 items-center justify-center rounded-md transition-colors hover:bg-[var(--accent-blue)]/10"
         >
           <Film className="h-3.5 w-3.5 text-[var(--accent-blue)] opacity-60" />
         </button>
@@ -73,7 +76,8 @@ export function AnnotationCardActions({
         type="button"
         onClick={onDelete}
         title="Excluir"
-        className="rounded-md p-1.5 transition-colors hover:bg-[var(--accent-pink)]/10"
+        aria-label="Excluir anotação"
+        className="inline-flex min-h-9 min-w-9 items-center justify-center rounded-md transition-colors hover:bg-[var(--accent-pink)]/10"
       >
         <Trash2 className="h-3.5 w-3.5 text-[var(--accent-pink)] opacity-60" />
       </button>
@@ -137,7 +141,7 @@ export function AnnotationNoteCard({
             onTransformIdea={onTransformIdea ?? (() => {})}
             onTransformContent={onTransformContent ?? (() => {})}
             onDelete={onDelete}
-            className={actionsClassName}
+            className={cn('card-actions', actionsClassName)}
             showHighlight={showHighlight}
             showTransformContent={showTransformContent && Boolean(onTransformContent)}
             showTransformIdea={Boolean(onTransformIdea)}
@@ -147,7 +151,7 @@ export function AnnotationNoteCard({
             type="button"
             onClick={onDelete}
             title="Excluir"
-            className="rounded-md p-1.5 transition-colors hover:bg-[var(--accent-pink)]/10"
+            className="card-actions rounded-md p-1.5 transition-colors hover:bg-[var(--accent-pink)]/10"
           >
             <Trash2 className="h-3.5 w-3.5 text-[var(--accent-pink)] opacity-60" />
           </button>
@@ -160,7 +164,7 @@ export function AnnotationNoteCard({
 
   if (!layout) {
     return (
-      <div className="rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-primary)] md:rounded-[var(--radius-card)]">
+      <div className="rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-elevated)] md:rounded-[var(--radius-card)]">
         {body}
       </div>
     );
@@ -171,7 +175,7 @@ export function AnnotationNoteCard({
       layout
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      className={cn('group rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-primary)] md:rounded-[var(--radius-card)]', className)}
+      className={cn('group rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-elevated)] md:rounded-[var(--radius-card)]', className)}
     >
       {body}
     </motion.div>

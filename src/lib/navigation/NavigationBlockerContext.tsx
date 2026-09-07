@@ -60,17 +60,26 @@ export function useNavigationBlocker(shouldBlock: () => boolean): Blocker {
   const id = useId();
   const {blocker, register, unregister} = context;
   const shouldBlockRef = useRef(shouldBlock);
+  const blockerRef = useRef(blocker);
   shouldBlockRef.current = shouldBlock;
+  blockerRef.current = blocker;
 
+  // Do not depend on `blocker` here — identity changes on every block/proceed and
+  // would unregister the guard (and used to reset) right after navigation is blocked.
   useEffect(() => {
     register(id, () => shouldBlockRef.current());
     return () => {
       unregister(id);
-      if (blocker.state === 'blocked') {
-        blocker.reset?.();
+    };
+  }, [id, register, unregister]);
+
+  useEffect(() => {
+    return () => {
+      if (blockerRef.current.state === 'blocked') {
+        blockerRef.current.reset?.();
       }
     };
-  }, [blocker, id, register, unregister]);
+  }, []);
 
   return blocker;
 }

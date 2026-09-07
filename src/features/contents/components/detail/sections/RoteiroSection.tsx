@@ -1,13 +1,17 @@
-import {useState} from 'react';
 import {MobileScriptEditor} from '../../../../../mobile/components/MobileScriptEditor';
-import {MobileScriptReader} from '../../../../../mobile/components/MobileScriptReader';
-import {htmlToReadableText} from '../../../../../lib/utils';
+import {AppButton} from '../../../../../components/ui/AppButton';
+import {Skeleton} from '../../../../../components/ui/Skeleton';
+import {Text} from '../../../../../components/ui/Text';
 import type {Content, ContentPlataforma, Pilar, Serie} from '../../../../../lib/database';
-import {cn} from '../../../../../lib/utils';
 import {CONTENT_STATUS} from '../../../lib/contentPipeline';
 import {ContentOperationalPanel} from '../ContentOperationalPanel';
 import {ContentScriptWorkspace} from '../ContentScriptWorkspace';
 import {PlatformCopyEditor} from '../PlatformCopyEditor';
+import {
+  ScriptBlockToolbar,
+  appendScriptBlock,
+  type ScriptBlockLabel,
+} from '../ScriptBlockToolbar';
 
 export type ScriptDraft = {
   title: string;
@@ -42,6 +46,9 @@ interface RoteiroSectionProps {
   title?: string;
   onTitleChange?: (title: string) => void;
   saveState?: 'idle' | 'saving' | 'saved' | 'error';
+  bodyLoading?: boolean;
+  bodyError?: string | null;
+  onRetryBody?: () => void;
 }
 
 export function RoteiroSection({
@@ -57,10 +64,11 @@ export function RoteiroSection({
   layout = 'stack',
   showSidePanel = true,
   saveState,
+  bodyLoading = false,
+  bodyError = null,
+  onRetryBody,
 }: RoteiroSectionProps) {
-  const hasScript = htmlToReadableText(draft.script).trim().length > 0;
   const isPosted = draft.status === CONTENT_STATUS.POSTADO;
-  const [mobileMode, setMobileMode] = useState<'read' | 'edit'>(autoFocusScript || !hasScript ? 'edit' : 'read');
 
   const annotationHandlers = {
     onAddAnnotation: (text: string, selection: {from: number; to: number}, comment: string) =>
@@ -89,6 +97,15 @@ export function RoteiroSection({
       }),
   };
 
+  const handleInsertBlock = (label: ScriptBlockLabel) => {
+    onChange({script: appendScriptBlock(draft.script, label)});
+  };
+
+  const handleApplyTemplate = (html: string) => {
+    const trimmed = draft.script?.trim() ?? '';
+    onChange({script: trimmed ? `${trimmed}${html}` : html});
+  };
+
   const scriptWorkspace = (
     <ContentScriptWorkspace
       script={draft.script}
@@ -100,6 +117,9 @@ export function RoteiroSection({
       onReferenciasChange={value => onChange({referencias: value})}
       saveState={saveState}
       showReferencias={layout !== 'workspace'}
+      bodyLoading={bodyLoading}
+      bodyError={bodyError}
+      onRetryBody={onRetryBody}
       {...annotationHandlers}
     />
   );
@@ -126,12 +146,12 @@ export function RoteiroSection({
     }
 
     return (
-      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(280px,30%)]">
-        <div className="flex flex-col gap-3">
+      <div className="grid-editor">
+        <div className="flex min-w-0 flex-col gap-3">
           {scriptWorkspace}
           {captionEditor}
         </div>
-        <div className="sticky top-4">
+        <div className="sticky top-4 min-w-0">
           <ContentOperationalPanel
             draft={draft}
             series={series}
@@ -148,51 +168,54 @@ export function RoteiroSection({
     );
   }
 
-  const fieldClass =
-    'ds-input w-full border border-[var(--border-color)] bg-[var(--bg-primary)] px-3 py-2 text-sm font-medium text-[var(--text-primary)]';
-
   if (mobileComposer) {
+    if (bodyLoading) {
+      return (
+        <div className="stack-sm pt-4" aria-busy="true" aria-label="Carregando roteiro">
+          <Skeleton className="h-8 w-2/3" />
+          <Skeleton className="mt-4 h-40 w-full" />
+        </div>
+      );
+    }
+
+    if (bodyError) {
+      return (
+        <div className="stack-md pt-8 text-center">
+          <Text variant="sectionTitle">Não foi possível carregar o roteiro</Text>
+          <Text variant="meta">{bodyError}</Text>
+          {onRetryBody ? (
+            <AppButton type="button" variant="secondary" size="sm" onClick={onRetryBody}>
+              Tentar novamente
+            </AppButton>
+          ) : null}
+        </div>
+      );
+    }
+
     return (
-      <div className="grid gap-3">
-        <section className="cms-panel p-3">
-          <label className="block">
-            <span className="text-xs font-medium text-[var(--text-secondary)]">Titulo</span>
-            <input
-              value={draft.title}
-              onChange={event => onChange({title: event.target.value})}
-              className={cn(fieldClass, 'mt-1.5 font-semibold')}
-              placeholder="Titulo do conteudo"
+      <div className="stack-sm">
+        <input
+          value={draft.title === 'Novo roteiro' ? '' : draft.title}
+          onChange={event => onChange({title: event.target.value})}
+          className="t-page-title w-full border-0 bg-transparent py-1 text-[var(--text-primary)] outline-none placeholder:text-[var(--text-tertiary)]"
+          placeholder="Título"
+          aria-label="Título do roteiro"
+        />
+        <MobileScriptEditor
+          content={draft.script || ''}
+          onChange={html => onChange({script: html})}
+          placeholder="Escreva o roteiro..."
+          documentTitle={draft.title?.trim() || 'Novo roteiro'}
+          autoFocus={autoFocusScript}
+          saveState={saveState}
+          toolbarStart={
+            <ScriptBlockToolbar
+              menuPlacement="top"
+              onInsertBlock={handleInsertBlock}
+              onApplyTemplate={handleApplyTemplate}
             />
-          </label>
-        </section>
-
-        {mobileMode === 'edit' && hasScript ? (
-          <button
-            type="button"
-            onClick={() => setMobileMode('read')}
-            className="text-left text-xs font-semibold text-[var(--accent-blue)]"
-          >
-            Voltar para leitura
-          </button>
-        ) : null}
-
-        {mobileMode === 'read' ? (
-          <MobileScriptReader
-            content={draft.script || ''}
-            title={draft.title?.trim() || 'Roteiro'}
-            onEdit={() => setMobileMode('edit')}
-          />
-        ) : (
-          <MobileScriptEditor
-            content={draft.script || ''}
-            onChange={html => onChange({script: html})}
-            placeholder="Abra o seu coracao e escreva o roteiro..."
-            documentTitle={draft.title?.trim() || 'Novo roteiro'}
-            autoFocus={autoFocusScript || mobileMode === 'edit'}
-          />
-        )}
-
-        {captionEditor}
+          }
+        />
       </div>
     );
   }

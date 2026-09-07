@@ -1,5 +1,6 @@
 import { ArrowRight, Clapperboard, Settings2, Sparkles, Video } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { Badge } from '../../components/ui/Badge';
 import { SpotlightCta } from '../../components/ui/SpotlightCta';
 import { Text } from '../../components/ui/Text';
 import type { DailyRecommendation } from './types';
@@ -39,24 +40,25 @@ export function DailyRecommendationBlock({
           ? Settings2
           : Video;
 
-  const borderColor =
-    kind === 'on_track' ? 'var(--accent-green)' : 'var(--accent-blue)';
+  const kindLabel =
+    kind === 'post' ? 'Postar'
+      : kind === 'record' ? 'Gravar'
+        : kind === 'configure_meta' ? 'Configurar'
+          : 'Em dia';
 
   return (
     <button
       type="button"
       onClick={() => navigate(href)}
-      className="editorial-card group flex w-full items-center justify-between gap-6 border-l-2 bg-[var(--bg-secondary)] p-6 text-left shadow-sm transition-colors hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] md:p-8"
-      style={{ borderLeftColor: borderColor }}
+      className="editorial-card group flex w-full items-center justify-between gap-6 bg-[var(--bg-secondary)] p-6 text-left transition-colors hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] md:p-8"
     >
       <div className="min-w-0">
-        <Text variant="eyebrow">{eyebrow}</Text>
+        <div className="flex flex-wrap items-center gap-2">
+          <Text variant="eyebrow">{eyebrow}</Text>
+          <Badge variant="neutral">{kindLabel}</Badge>
+        </div>
         <div className="mt-3 flex flex-wrap items-center gap-2">
-          <span
-            className="h-3 w-3 shrink-0 rounded-full"
-            style={{ backgroundColor: pilar.cor }}
-            aria-hidden
-          />
+          <Badge variant="tag">{pilar.nome}</Badge>
           <Text variant="sectionTitle" truncate>
             {title}
           </Text>

@@ -37,7 +37,7 @@ export function RecordingQueueTab() {
 
   return (
     <div className="stack-2xl">
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid-content">
         {state.recordingBlocks.length === 0 ? (
           <div className="col-span-full mt-8 flex flex-col items-center gap-6 rounded-[3rem] border-2 border-dashed border-[var(--border-color)] py-32 text-center opacity-30">
             <Video className="h-12 w-12" />
@@ -101,7 +101,7 @@ function RecordingBlockCard({block, contents, onOpen, onDelete}: RecordingBlockC
       tabIndex={0}
       aria-label={`Abrir bloco ${block.name}`}
       className={cn(
-        'group flex cursor-pointer flex-col justify-between rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-primary)] p-6 transition-all hover:-translate-y-0.5 hover:border-[var(--border-strong)] hover:shadow-sm',
+        'ds-card group flex cursor-pointer flex-col justify-between p-6 transition-all hover:shadow-[var(--shadow-card-hover)]',
         isCompleted && 'opacity-70'
       )}
     >
@@ -122,7 +122,7 @@ function RecordingBlockCard({block, contents, onOpen, onDelete}: RecordingBlockC
             type="button"
             aria-label={`Remover bloco ${block.name}`}
             onClick={event => onDelete(block.id, event)}
-            className="rounded-full p-2 text-[var(--accent-pink)] opacity-0 transition-opacity hover:!opacity-100 hover:bg-[var(--accent-pink)]/10 group-hover:opacity-60"
+            className="card-actions rounded-full p-2 text-[var(--accent-pink)] hover:bg-[var(--accent-pink)]/10"
           >
             <Trash2 className="h-4 w-4" />
           </button>
@@ -132,16 +132,16 @@ function RecordingBlockCard({block, contents, onOpen, onDelete}: RecordingBlockC
           <Text variant="itemTitle" className="line-clamp-2 leading-snug">
             {block.name}
           </Text>
-          <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-[var(--border-color)] bg-[var(--bg-hover)] px-2 py-1 text-xs font-semibold text-[var(--text-tertiary)] opacity-0 transition-opacity group-hover:opacity-100">
+          <span className="card-actions inline-flex shrink-0 items-center gap-1 rounded-full border border-[var(--border-color)] bg-[var(--bg-hover)] px-2 py-1 text-xs font-semibold text-[var(--text-tertiary)]">
             <Pencil className="h-3 w-3" />
             Editar
           </span>
         </div>
 
         {firstContent ? (
-          <p className="mb-6 line-clamp-1 text-xs font-bold text-[var(--text-tertiary)]">
+          <Text variant="secondary" className="mb-6 line-clamp-2">
             Ex: {firstContent.title}
-          </p>
+          </Text>
         ) : null}
 
         <div className="mt-2 stack-sm">
@@ -164,7 +164,7 @@ function RecordingBlockCard({block, contents, onOpen, onDelete}: RecordingBlockC
         </div>
       </div>
 
-      <div className="mt-6 grid grid-cols-2 gap-3 border-t border-[var(--border-color)] pt-6">
+      <div className="mt-6 grid grid-cols-2 gap-3">
         <div className="stack-sm">
           <div className="flex items-center gap-2 text-xs font-semibold  text-[var(--text-tertiary)]">
             <Layers className="h-3 w-3" /> Videos

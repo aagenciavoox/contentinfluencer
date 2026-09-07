@@ -29,9 +29,14 @@ export function usePaginatedQuery<T, Q extends { page: number; pageSize: number 
   const [loading, setLoading] = useState(enabled);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fetchAttempted, setFetchAttempted] = useState(false);
 
   const load = useCallback(async (options?: { background?: boolean }) => {
-    if (!enabled) return;
+    if (!enabled) {
+      setLoading(true);
+      setFetchAttempted(false);
+      return;
+    }
 
     const cached = dataCache.getPage<T>(namespace, queryKey, query.page);
     const isFresh = dataCache.isPageFresh(namespace, queryKey, query.page);
@@ -39,7 +44,9 @@ export function usePaginatedQuery<T, Q extends { page: number; pageSize: number 
     if (cached) {
       setItems(cached.items);
       setTotal(cached.total);
+      // Stale-while-revalidate: show cached rows immediately; refresh in background.
       setLoading(false);
+      setFetchAttempted(true);
       if (isFresh && !options?.background) return;
       setRefreshing(true);
     } else if (!options?.background) {
@@ -64,12 +71,21 @@ export function usePaginatedQuery<T, Q extends { page: number; pageSize: number 
     } finally {
       setLoading(false);
       setRefreshing(false);
+      setFetchAttempted(true);
     }
   }, [enabled, namespace, query, queryKey]);
 
   useEffect(() => {
+    if (!enabled) {
+      setLoading(true);
+      setFetchAttempted(false);
+      setItems([]);
+      setTotal(0);
+      setError(null);
+      return;
+    }
     void load();
-  }, [load]);
+  }, [load, enabled]);
 
   const reload = useCallback(() => {
     dataCache.invalidatePages(namespace);
@@ -82,6 +98,7 @@ export function usePaginatedQuery<T, Q extends { page: number; pageSize: number 
     loading,
     refreshing,
     error,
+    fetchAttempted,
     reload,
   };
 }

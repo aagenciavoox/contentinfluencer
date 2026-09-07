@@ -142,7 +142,7 @@ export function CalendarAgendaView({
         const gridDays = eachDayOfInterval({ start: startDate, end: endDate });
 
         return (
-          <Surface key={mIdx} variant="elevated" padding="none" className="overflow-hidden animate-in zoom-in-95 duration-500">
+          <Surface key={mIdx} variant="outlined" padding="none" className="overflow-hidden animate-in zoom-in-95 duration-500">
             <div className="p-4 md:p-6 border-b border-[var(--border-color)] flex items-center justify-center bg-[var(--bg-primary)]">
                <CalendarIcon className="w-4 h-4 text-[var(--accent-blue)] mr-2" />
                <Text variant="label" uppercase as="h2" className="font-semibold text-[var(--text-primary)]">
@@ -234,7 +234,7 @@ export function CalendarAgendaView({
                   key={idx}
                   onClick={() => { setSelectedDayItems(null); item.__type !== 'external' && onSelectContent(item); }}
                   className={cn(
-                    "w-full text-left p-3 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border flex items-center justify-between shadow-sm relative",
+                    "w-full text-left p-3 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border flex items-center justify-between relative",
                      item.__type === 'recording' ? "bg-[var(--accent-orange)]/10 border-[var(--accent-orange)]/30" :
                      item.__type === 'post' ? "bg-[var(--accent-blue)]/10 border-[var(--accent-blue)]/30" :
                      item.__type === 'partnership' ? "bg-[var(--warning)]/10 border-[var(--warning)]/30" : "bg-[var(--accent-purple)]/10 border-[var(--accent-purple)]/30"

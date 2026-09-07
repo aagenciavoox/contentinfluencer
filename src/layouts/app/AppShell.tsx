@@ -1,16 +1,17 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Lightbulb, Loader2, Search, X } from 'lucide-react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { Sidebar } from '../navigation/Sidebar';
 import { CommandPalette } from '../../components/overlays/CommandPalette';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import { useHideOnScroll } from '../../hooks/useHideOnScroll';
-import { MobileActionMenu } from '../../mobile/components/MobileActionMenu';
-import { MobileAppShell } from '../../mobile/components/MobileAppShell';
-import { MobileBottomNav } from '../../mobile/components/MobileBottomNav';
-import { MobileHeaderIOS } from '../../mobile/components/MobileHeaderIOS';
+import { MobileAppShell } from '../../mobile/components/shell';
+import { MobileActionMenu } from '../../mobile/components/shell';
+import { MobileBottomNav } from '../../mobile/components/shell';
+import { MobileHeaderIOS } from '../../mobile/components/shell';
+import type { MobileChromeOutletContext } from '../../mobile/components/shell';
 import { MobileScrollLockProvider } from '../../context/MobileScrollLockContext';
-import { getMobileRouteMeta } from '../../mobile/config/mobileRouteMeta';
+import { resolveMobileRouteMeta } from '../../mobile/config/mobileRouteMeta';
 import { resolveRouteBack } from '../../lib/navigation/detailBack';
 import { SaveFeedbackToast } from '../../components/ui/SaveFeedbackToast';
 import { Text } from '../../components/ui/Text';
@@ -18,10 +19,10 @@ import { useAppContext } from '../../context/AppContext';
 import { forceMobileRefresh } from '../../lib/pwaRefresh';
 import { IdeaQuickCapture } from '../../features/ideas/components/IdeaQuickCapture';
 import { buildIdeaFields } from '../../features/ideas/lib/ideaText';
+import { LOADING } from '../../lib/uiCopy';
 import { getModuleFlags } from '../../features/settings/lib/moduleFlags';
 import { createContentDraft } from '../../features/contents/lib/createContentDraft';
 import { CONTENT_STATUS } from '../../features/contents/lib/contentPipeline';
-import { LOADING } from '../../lib/uiCopy';
 
 function AppDataLoadingScreen() {
   return (
@@ -35,8 +36,8 @@ function AppDataLoadingScreen() {
 export function AppShell() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
-  const [isActionMenuOpen, setIsActionMenuOpen] = useState(false);
   const [isQuickNoteOpen, setIsQuickNoteOpen] = useState(false);
+  const [isActionMenuOpen, setIsActionMenuOpen] = useState(false);
   const [quickNoteTitle, setQuickNoteTitle] = useState('');
   const [quickNoteNotes, setQuickNoteNotes] = useState('');
   const [quickNotePilarId, setQuickNotePilarId] = useState('');
@@ -46,10 +47,36 @@ export function AppShell() {
   const isMobile = useIsMobile();
   const location = useLocation();
   const navigate = useNavigate();
-  const { isHidden, handleScroll } = useHideOnScroll(isMobile);
-  const routeMeta = getMobileRouteMeta(location.pathname);
   const { state, dispatch, syncFromServer } = useAppContext();
+  const { isHidden, handleScroll } = useHideOnScroll(isMobile);
   const moduleFlags = getModuleFlags(state.preferences);
+
+  const routeMeta = useMemo(() => {
+    const contentId = location.pathname.startsWith('/conteudos/')
+      ? location.pathname.split('/')[2]
+      : null;
+    const bibliotecaMatch = location.pathname.match(/^\/biblioteca\/([^/]+)/);
+    const bibliotecaId = bibliotecaMatch?.[1];
+    const recordingId = location.pathname.startsWith('/gravacao/')
+      ? location.pathname.split('/')[2]
+      : null;
+
+    return resolveMobileRouteMeta(location.pathname, {
+      contentTitle: contentId
+        ? state.contents.find(item => item.id === contentId)?.title
+        : null,
+      bibliotecaTitle: bibliotecaId && bibliotecaId !== 'analise'
+        ? state.bibliotecaItems.find(item => item.id === bibliotecaId)?.titulo
+        : null,
+      recordingBlockName: recordingId
+        ? state.recordingBlocks.find(block => block.id === recordingId)?.name
+        : null,
+    }, location.search);
+  }, [location.pathname, location.search, state.bibliotecaItems, state.contents, state.recordingBlocks]);
+
+  const handleOpenCreateMenu = useCallback(() => {
+    setIsActionMenuOpen(true);
+  }, []);
 
   const handlePullRefresh = useCallback(async () => {
     await forceMobileRefresh(() => syncFromServer({ silent: true, force: true }));
@@ -90,10 +117,6 @@ export function AppShell() {
   }, [isQuickNoteOpen]);
 
   useEffect(() => {
-    setIsActionMenuOpen(false);
-  }, [location.pathname]);
-
-  useEffect(() => {
     if (!isMobile) return;
 
     document.documentElement.classList.add('mobile-app-shell');
@@ -101,6 +124,11 @@ export function AppShell() {
       document.documentElement.classList.remove('mobile-app-shell');
     };
   }, [isMobile]);
+
+  const chromeActions: MobileChromeOutletContext = {
+    openMobileMenu: () => setIsMobileMenuOpen(true),
+    openSearch: () => setIsCommandPaletteOpen(true),
+  };
 
   if (!state.isLoaded) {
     return <AppDataLoadingScreen />;
@@ -119,8 +147,10 @@ export function AppShell() {
           onClose={() => setIsMobileMenuOpen(false)}
         />
         <MobileAppShell
+          hideHeader={Boolean(routeMeta.hideHeader)}
+          hideBottomNav={Boolean(routeMeta.hideBottomNav)}
           compactHeader={routeMeta.titleVariant === 'compact-center'}
-          header={(
+          header={routeMeta.hideHeader ? null : (
             <MobileHeaderIOS
               title={routeMeta.title}
               subtitle={routeMeta.subtitle}
@@ -143,24 +173,21 @@ export function AppShell() {
               rightActionIcon={<Search className="h-4 w-4" />}
             />
           )}
-          bottomNav={(
+          bottomNav={routeMeta.hideBottomNav ? null : (
             <MobileBottomNav
-              isActionOpen={isActionMenuOpen}
-              onActionToggle={() => setIsActionMenuOpen((previous) => !previous)}
+              onOpenCreateMenu={handleOpenCreateMenu}
               moduleFlags={moduleFlags}
-            />
-          )}
-          overlay={(
-            <MobileActionMenu
-              open={isActionMenuOpen}
-              onClose={() => setIsActionMenuOpen(false)}
             />
           )}
           onScroll={handleScroll}
           onPullRefresh={handlePullRefresh}
         >
-          <Outlet />
+          <Outlet context={chromeActions} />
         </MobileAppShell>
+        <MobileActionMenu
+          open={isActionMenuOpen}
+          onClose={() => setIsActionMenuOpen(false)}
+        />
         <SaveFeedbackToast />
         </div>
       </MobileScrollLockProvider>

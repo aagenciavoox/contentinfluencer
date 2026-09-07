@@ -13,6 +13,7 @@ import {
 } from '../../../components/ui/PropertyRow';
 import { SegmentTabs } from '../../../components/ui/SegmentTabs';
 import { ToolbarSearchInput } from '../../../components/ui/ToolbarSearchInput';
+import { QueryViewState, resolveQueryViewStatus } from '../../../components/ui/QueryViewState';
 import { useAppContext } from '../../../context/AppContext';
 import { useAuth } from '../../../context/AuthContext';
 import { useIsMobile } from '../../../hooks/useIsMobile';
@@ -289,6 +290,13 @@ export function SeriesSettingsPage() {
     };
   }, [state.series]);
 
+  const seriesStatus = resolveQueryViewStatus({
+    loading: !state.isLoaded,
+    enabled: true,
+    fetchAttempted: state.isLoaded,
+    itemCount: state.series.length,
+  });
+
   const openBulkPage = (serieId: string) => {
     navigate(`/configuracoes/series/${serieId}/roteiros`);
   };
@@ -329,6 +337,7 @@ export function SeriesSettingsPage() {
 
   return (
     <SettingsPageScaffold
+      section="Criação"
       title="Séries"
       icon={Layers}
       actions={
@@ -342,12 +351,12 @@ export function SeriesSettingsPage() {
       }
     >
       {state.series.length > 0 ? (
-        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="desktop-subheader">
           <ToolbarSearchInput
             value={search}
             onChange={setSearch}
             placeholder="Buscar série..."
-            className="w-full sm:max-w-xs"
+            className="desktop-subheader-search"
           />
           <SegmentTabs<SeriesFilter>
             value={filter}
@@ -361,41 +370,49 @@ export function SeriesSettingsPage() {
         </div>
       ) : null}
 
-      <div className={SETTINGS_ENTITY_GRID_CLASS}>
-        {state.series.length === 0 ? (
-          <div className="col-span-full py-10 text-center">
-            <Layers className="mx-auto mb-2 h-8 w-8 opacity-10" />
-            <p className="text-sm font-medium opacity-40">Nenhuma série criada</p>
-          </div>
-        ) : filteredSeries.length === 0 ? (
-          <div className="col-span-full py-10 text-center">
-            <p className="text-sm font-medium opacity-40">Nenhuma série encontrada</p>
-          </div>
-        ) : (
-          filteredSeries.map(serie => {
-            const roteiroCount = roteiroCountBySerie.get(serie.id) || 0;
-            const structure = serie.estruturaRoteiro?.trim();
+      <QueryViewState
+        status={seriesStatus}
+        skeletonCount={6}
+        skeletonVariant="row"
+        emptyIcon={<Layers className="h-8 w-8" />}
+        emptyTitle="Nenhuma série criada"
+        emptyDescription="Crie a primeira série para agrupar roteiros recorrentes."
+        emptyAction={
+          <AppButton variant="primary" leftIcon={<Plus className="h-4 w-4" />} onClick={openCreatePage}>
+            Nova série
+          </AppButton>
+        }
+      >
+        <div className={SETTINGS_ENTITY_GRID_CLASS}>
+          {filteredSeries.length === 0 ? (
+            <div className="col-span-full py-10 text-center">
+              <p className="text-sm font-medium opacity-40">Nenhuma série encontrada</p>
+            </div>
+          ) : (
+            filteredSeries.map(serie => {
+              const roteiroCount = roteiroCountBySerie.get(serie.id) || 0;
+              const structure = serie.estruturaRoteiro?.trim();
 
-            return (
-              <SettingsGridCard
-                key={serie.id}
-                compact
-                colorAccent="bar"
-                title={serie.name}
-                description={structure || undefined}
-                color={serie.cor || '#6366f1'}
-                active={serie.ativa}
-                dimmed={!serie.ativa}
-                onOpen={() => openBulkPage(serie.id)}
-                onToggle={() => handleToggleActive(serie)}
-                onEdit={() => openEditPage(serie.id)}
-                onDelete={() => handleDelete(serie.id)}
-                meta={seriesMetaLine(serie, roteiroCount)}
-              />
-            );
-          })
-        )}
-      </div>
+              return (
+                <SettingsGridCard
+                  key={serie.id}
+                  compact
+                  title={serie.name}
+                  description={structure || undefined}
+                  color={serie.cor || '#6366f1'}
+                  active={serie.ativa}
+                  dimmed={!serie.ativa}
+                  onOpen={() => openBulkPage(serie.id)}
+                  onToggle={() => handleToggleActive(serie)}
+                  onEdit={() => openEditPage(serie.id)}
+                  onDelete={() => handleDelete(serie.id)}
+                  meta={seriesMetaLine(serie, roteiroCount)}
+                />
+              );
+            })
+          )}
+        </div>
+      </QueryViewState>
 
       <ConfirmModal
         open={!!confirm}

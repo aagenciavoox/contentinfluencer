@@ -1,7 +1,7 @@
 .tiptap {
   font-family: var(--font-sans);
-  font-size: 1.0625rem;
-  line-height: 1.75;
+  font-size: var(--font-size-body-reading);
+  line-height: 1.6;
 
   &:focus {
     outline: none;
@@ -33,25 +33,25 @@
 
   /* Headers */
   h1 {
-    font-size: 2.25rem;
-    font-weight: 900;
-    line-height: 1.1;
+    font-size: var(--font-size-title-1);
+    font-weight: 700;
+    line-height: 1.15;
     margin-top: 1.5rem;
     margin-bottom: 1rem;
   }
 
   h2 {
-    font-size: 1.5rem;
-    font-weight: 800;
-    line-height: 1.1;
+    font-size: var(--font-size-title-2);
+    font-weight: 700;
+    line-height: 1.2;
     margin-top: 1.5rem;
     margin-bottom: 0.75rem;
   }
 
   h3 {
-    font-size: 1.25rem;
-    font-weight: 700;
-    line-height: 1.1;
+    font-size: var(--font-size-title-3);
+    font-weight: 600;
+    line-height: 1.25;
     margin-top: 1.5rem;
     margin-bottom: 0.75rem;
   }
@@ -102,5 +102,41 @@
     border: none;
     border-top: 1px solid var(--border-color);
     margin: 2rem 0;
+  }
+}
+
+@media (max-width: 1023px) {
+  .tiptap {
+    line-height: 1.5;
+  }
+
+  .tiptap h1 {
+    font-size: var(--font-size-title-2);
+    font-weight: 700;
+    margin-top: 1rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .tiptap h2 {
+    font-size: var(--font-size-title-3);
+    font-weight: 600;
+    margin-top: 0.85rem;
+    margin-bottom: 0.4rem;
+  }
+
+  .tiptap h3 {
+    font-size: var(--font-size-body-reading);
+    font-weight: 600;
+    margin-top: 0.75rem;
+    margin-bottom: 0.35rem;
+  }
+
+  .tiptap ul,
+  .tiptap ol {
+    margin: 0.75rem 0.75rem 0.75rem 0.25rem;
+  }
+
+  .tiptap hr {
+    margin: 1.25rem 0;
   }
 }

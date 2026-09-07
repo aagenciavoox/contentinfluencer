@@ -4,7 +4,9 @@ import {
   Calendar,
   Camera,
   FolderKanban,
+  Home,
   Layers,
+  Lightbulb,
   Palette,
   Sparkles,
 } from 'lucide-react';
@@ -26,15 +28,34 @@ export type NavSectionDefinition = {
   items: NavItemDefinition[];
 };
 
+export const PAGE_SECTION = {
+  hoje: 'Hoje',
+  criacao: 'Criação',
+  producao: 'Produção',
+  configuracoes: 'Configurações',
+} as const;
+
 export const STUDIO_ROUTES = [
   '/configuracoes/pilares',
   '/configuracoes/series',
 ] as const;
 
-export const MOBILE_BOTTOM_NAV_ITEMS: NavItemDefinition[] = [
-  { to: '/calendario', label: 'Calendário', icon: Calendar, module: 'calendar' },
-  { to: '/criacao', label: 'Criação', icon: Sparkles, badgeKey: 'editorial' },
+/** Left side of mobile bottom nav (before FAB). */
+export const MOBILE_BOTTOM_NAV_LEFT: NavItemDefinition[] = [
+  { to: '/hoje', label: 'Home', icon: Home },
+  { to: '/criacao', label: 'Criação', icon: Lightbulb, badgeKey: 'editorial' },
+];
+
+/** Right side of mobile bottom nav (after FAB). */
+export const MOBILE_BOTTOM_NAV_RIGHT: NavItemDefinition[] = [
+  { to: '/biblioteca', label: 'Biblioteca', icon: BookOpen, badgeKey: 'library', module: 'library' },
   { to: '/gravacao?tab=queue', label: 'Gravação', icon: Camera, module: 'recording' },
+];
+
+/** @deprecated Use MOBILE_BOTTOM_NAV_LEFT + MOBILE_BOTTOM_NAV_RIGHT */
+export const MOBILE_BOTTOM_NAV_ITEMS: NavItemDefinition[] = [
+  ...MOBILE_BOTTOM_NAV_LEFT,
+  ...MOBILE_BOTTOM_NAV_RIGHT,
 ];
 
 export function splitBottomNavItems<T>(items: T[]): { left: T[]; right: T[] } {
@@ -48,8 +69,16 @@ export function splitBottomNavItems<T>(items: T[]): { left: T[]; right: T[] } {
 export function isBottomNavItemActive(to: string, pathname: string): boolean {
   const target = to.split('?')[0];
 
+  if (target === '/hoje') {
+    return pathname === '/hoje';
+  }
+
   if (target === '/criacao') {
     return pathname === '/criacao' || pathname.startsWith('/conteudos/');
+  }
+
+  if (target === '/biblioteca') {
+    return pathname === '/biblioteca' || pathname.startsWith('/biblioteca/');
   }
 
   if (target === '/gravacao') {
@@ -61,6 +90,12 @@ export function isBottomNavItemActive(to: string, pathname: string): boolean {
 
 export function buildSidebarSections(moduleFlags: ModuleFlags): NavSectionDefinition[] {
   return [
+    {
+      label: null,
+      items: [
+        { to: '/hoje', label: 'Hoje', icon: Home },
+      ],
+    },
     {
       label: 'Criação',
       items: [

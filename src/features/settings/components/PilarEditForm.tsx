@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Check,
+  ChevronDown,
   Clock,
   Copy,
   Hash,
@@ -19,6 +20,7 @@ import type { Content, Pilar, PilarPlataforma, Platform, PostingTimeEntry, Serie
 import { computePilarMetrics } from '../../recommendations/computePilarMetrics';
 import { cn } from '../../../lib/utils';
 import { generateUUID } from '../../../utils/uuid';
+import { useIsMobile } from '../../../hooks/useIsMobile';
 import {
   WEEKDAY_SHORT,
   WEEKDAYS_ORDERED,
@@ -26,8 +28,7 @@ import {
 } from '../lib/postingTimes';
 import {
   createEmptyPilarPlataforma,
-  formatCrossedPostingPreview,
-  getCrossedPostingTimesForPilarPlatform,
+  formatCrossedPostingSummary,
   resolvePlatformUuid,
   shouldPersistPilarPlataforma,
 } from '../lib/pilarPostingSchedule';
@@ -38,6 +39,8 @@ import {
   PILAR_PRESET_CORES,
   pilarSlugFromNome,
 } from '../lib/pilarConstants';
+
+type AccordionStep = 'identidade' | 'ritmo' | 'plataformas' | 'series';
 
 export type PilarEditSavePayload = {
   pilar: Pilar;
@@ -85,43 +88,59 @@ function PlatformBrand({ platform, compact = false }: { platform: string; compac
   );
 }
 
-function SectionHeader({
-  icon,
+function AccordionSection({
+  step,
   title,
   description,
-  action,
-  compact = false,
+  icon,
+  open,
+  onToggle,
+  children,
 }: {
-  icon: React.ReactNode;
+  step: number;
   title: string;
   description?: string;
-  action?: React.ReactNode;
-  compact?: boolean;
+  icon: React.ReactNode;
+  open: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
 }) {
   return (
-    <div className={cn('flex items-start justify-between gap-3', compact ? 'mb-3' : 'mb-4')}>
-      <div className="flex min-w-0 items-start gap-2.5">
-        <span
-          className={cn(
-            'flex shrink-0 items-center justify-center rounded-full bg-[var(--bg-hover)] text-[var(--text-secondary)]',
-            compact ? 'h-8 w-8' : 'h-9 w-9',
-          )}
-        >
+    <Surface variant="outlined" padding="none" className="overflow-hidden bg-[var(--bg-secondary)]">
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={open}
+        className="flex w-full items-start gap-3 px-4 py-3.5 text-left transition-colors hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+      >
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--bg-hover)] text-[var(--text-secondary)]">
           {icon}
         </span>
-        <div className="min-w-0">
-          <Text variant="label" className="font-semibold uppercase tracking-[0.06em] text-[var(--text-primary)]">
-            {title}
-          </Text>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <Text variant="meta" className="tabular-nums text-[var(--text-tertiary)]">
+              {step}.
+            </Text>
+            <Text variant="label" className="font-semibold uppercase tracking-[0.06em] text-[var(--text-primary)]">
+              {title}
+            </Text>
+          </div>
           {description ? (
-            <Text variant="meta" className="mt-0.5 text-[var(--text-secondary)]">
+            <Text variant="meta" className="mt-1 text-[var(--text-secondary)]">
               {description}
             </Text>
           ) : null}
         </div>
-      </div>
-      {action}
-    </div>
+        <ChevronDown
+          className={cn(
+            'mt-1 h-4 w-4 shrink-0 text-[var(--text-tertiary)] transition-transform',
+            open && 'rotate-180',
+          )}
+          aria-hidden
+        />
+      </button>
+      {open ? <div className="border-t border-[var(--border-color)] px-4 py-4">{children}</div> : null}
+    </Surface>
   );
 }
 
@@ -158,7 +177,7 @@ function SeriePickerMenu({
   onSelect: (serieId: string) => void;
 }) {
   return (
-    <div className="absolute left-0 right-0 top-full z-20 mt-1.5 max-h-72 w-full min-w-0 overflow-y-auto rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] py-1.5 shadow-lg">
+    <div className="absolute left-0 right-0 top-full z-20 mt-1.5 max-h-72 w-full min-w-0 overflow-y-auto rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] py-1.5 shadow-[var(--shadow-dropdown)]">
       {series.map(item => (
         <button
           key={item.id}
@@ -198,6 +217,7 @@ export function PilarEditForm({
   onCancel: () => void;
   onChromeChange?: (state: PilarEditChromeState) => void;
 }) {
+  const isMobile = useIsMobile();
   const normalizePlataformas = (items: PilarPlataforma[] = []) =>
     items.map(item => ({
       ...createEmptyPilarPlataforma(item.pilarId, item.platformId),
@@ -228,7 +248,12 @@ export function PilarEditForm({
   const [form, setForm] = useState(initialSnapshot.current.form);
   const [linkedSerieIds, setLinkedSerieIds] = useState<string[]>(initialSnapshot.current.linkedSerieIds);
   const [showSeriePicker, setShowSeriePicker] = useState(false);
+  const [openStep, setOpenStep] = useState<AccordionStep>('identidade');
   const seriePickerRef = useRef<HTMLDivElement>(null);
+
+  const toggleStep = (step: AccordionStep) => {
+    setOpenStep(current => (current === step ? current : step));
+  };
 
   const addSerie = (serieId: string) => {
     setLinkedSerieIds(previous => [...previous, serieId]);
@@ -381,11 +406,12 @@ export function PilarEditForm({
 
   const slug = pilarSlugFromNome(form.nome || 'pilar');
   const selectedColorLabel = PILAR_COR_LABELS[form.cor] || 'Personalizada';
+  const showDirtyFooter = isDirty && isMobile;
 
   return (
-    <div className={cn('relative w-full', isDirty && 'pb-28')}>
+    <div className={cn('relative w-full', showDirtyFooter && 'pb-28')}>
       <Surface variant="outlined" padding="md" className="mb-3 w-full bg-[var(--bg-secondary)]">
-        <div className="flex w-full items-center gap-4">
+        <div className="flex w-full items-start gap-4">
           <span
             className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full md:h-16 md:w-16"
             style={{backgroundColor: form.cor}}
@@ -393,14 +419,14 @@ export function PilarEditForm({
             <Smile className="h-7 w-7 text-[var(--text-primary)] opacity-80 md:h-8 md:w-8" strokeWidth={1.5} />
           </span>
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
-              <Text variant="pageTitle" truncate>
+            <div className="flex items-start gap-2">
+              <Text variant="pageTitle" className="min-w-0 break-words">
                 {form.nome.trim() || 'Novo pilar'}
               </Text>
-              <Pencil className="h-4 w-4 shrink-0 text-[var(--text-tertiary)]" aria-hidden />
+              <Pencil className="mt-1 h-4 w-4 shrink-0 text-[var(--text-tertiary)]" aria-hidden />
             </div>
-            <span className="mt-1.5 inline-flex rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-hover)] px-2 py-0.5">
-              <Text variant="meta" className="font-mono text-[var(--text-secondary)]">
+            <span className="mt-1.5 inline-flex max-w-full rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-hover)] px-2 py-0.5">
+              <Text variant="meta" className="break-all font-mono text-[var(--text-secondary)]">
                 ID: {slug}
               </Text>
             </span>
@@ -408,86 +434,85 @@ export function PilarEditForm({
         </div>
       </Surface>
 
-      <div className="grid w-full grid-cols-1 gap-3 md:grid-cols-[minmax(0,7fr)_minmax(0,3fr)] md:items-start">
-        <div className="flex min-w-0 flex-col gap-3">
-          <Surface variant="outlined" padding="md" className="bg-[var(--bg-secondary)]">
-            <SectionHeader
-              icon={<Smile className="h-4 w-4" />}
-              title="Identidade"
-              description="Defina os atributos que representam este pilar."
-              compact
-            />
+      <div className="flex w-full flex-col gap-3">
+        <AccordionSection
+          step={1}
+          title="Identidade"
+          description="Defina os atributos que representam este pilar."
+          icon={<Smile className="h-4 w-4" />}
+          open={openStep === 'identidade'}
+          onToggle={() => toggleStep('identidade')}
+        >
+          <div className="stack-lg">
+            <div>
+              <FieldLabel required>Nome</FieldLabel>
+              <input
+                type="text"
+                value={form.nome}
+                onChange={event => setForm(previous => ({...previous, nome: event.target.value}))}
+                placeholder="Ex: Humor"
+                className={inputClass}
+              />
+            </div>
 
-            <div className="stack-lg">
-              <div>
-                <FieldLabel required>Nome</FieldLabel>
-                <input
-                  type="text"
-                  value={form.nome}
-                  onChange={event => setForm(previous => ({...previous, nome: event.target.value}))}
-                  placeholder="Ex: Humor"
-                  className={inputClass}
-                />
+            <div>
+              <FieldLabel>Cor</FieldLabel>
+              <div className="flex flex-wrap items-center gap-2">
+                {PILAR_PRESET_CORES.map(color => {
+                  const selected = form.cor === color;
+                  return (
+                    <button
+                      key={color}
+                      type="button"
+                      onClick={() => setForm(previous => ({...previous, cor: color}))}
+                      className={cn(
+                        'relative flex h-8 w-8 items-center justify-center rounded-full border-2 transition-all focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
+                        selected ? 'border-[var(--text-primary)] scale-105' : 'border-transparent hover:scale-105',
+                      )}
+                      style={{backgroundColor: color}}
+                      aria-label={`Cor ${PILAR_COR_LABELS[color] || color}`}
+                    >
+                      {selected ? <Check className="h-3.5 w-3.5 text-white drop-shadow-sm" strokeWidth={3} /> : null}
+                    </button>
+                  );
+                })}
               </div>
+              <Text variant="meta" className="mt-1.5 text-[var(--text-tertiary)]">
+                {selectedColorLabel}
+              </Text>
+            </div>
 
-              <div>
-                <FieldLabel>Cor</FieldLabel>
-                <div className="flex flex-wrap items-center gap-2">
-                  {PILAR_PRESET_CORES.map(color => {
-                    const selected = form.cor === color;
-                    return (
-                      <button
-                        key={color}
-                        type="button"
-                        onClick={() => setForm(previous => ({...previous, cor: color}))}
-                        className={cn(
-                          'relative flex h-8 w-8 items-center justify-center rounded-full border-2 transition-all focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
-                          selected ? 'border-[var(--text-primary)] scale-105' : 'border-transparent hover:scale-105',
-                        )}
-                        style={{backgroundColor: color}}
-                        aria-label={`Cor ${PILAR_COR_LABELS[color] || color}`}
-                      >
-                        {selected ? <Check className="h-3.5 w-3.5 text-white drop-shadow-sm" strokeWidth={3} /> : null}
-                      </button>
-                    );
-                  })}
-                </div>
-                <Text variant="meta" className="mt-1.5 text-[var(--text-tertiary)]">
-                  {selectedColorLabel}
+            <div>
+              <FieldLabel>Descrição</FieldLabel>
+              <textarea
+                value={form.descricao}
+                onChange={event =>
+                  setForm(previous => ({
+                    ...previous,
+                    descricao: event.target.value.slice(0, PILAR_DESCRICAO_MAX),
+                  }))
+                }
+                placeholder="Em que conteúdos aparece?"
+                rows={3}
+                className={cn(inputClass, 'min-h-[88px] resize-none leading-relaxed')}
+              />
+              <div className="mt-1 flex items-center justify-end">
+                <Text variant="meta" className="shrink-0 tabular-nums text-[var(--text-tertiary)]">
+                  {form.descricao.length}/{PILAR_DESCRICAO_MAX}
                 </Text>
               </div>
-
-              <div>
-                <FieldLabel>Descrição</FieldLabel>
-                <textarea
-                  value={form.descricao}
-                  onChange={event =>
-                    setForm(previous => ({
-                      ...previous,
-                      descricao: event.target.value.slice(0, PILAR_DESCRICAO_MAX),
-                    }))
-                  }
-                  placeholder="Em que conteúdos aparece?"
-                  rows={3}
-                  className={cn(inputClass, 'min-h-[88px] resize-none leading-relaxed')}
-                />
-                <div className="mt-1 flex items-center justify-end">
-                  <Text variant="meta" className="shrink-0 tabular-nums text-[var(--text-tertiary)]">
-                    {form.descricao.length}/{PILAR_DESCRICAO_MAX}
-                  </Text>
-                </div>
-              </div>
             </div>
-          </Surface>
+          </div>
+        </AccordionSection>
 
-          <Surface variant="outlined" padding="md" className="bg-[var(--bg-secondary)]">
-            <SectionHeader
-              icon={<Target className="h-4 w-4" />}
-              title="Ritmo editorial"
-              description="Frequência semanal, meta do ciclo e alertas na grade de postagem."
-              compact
-            />
-
+        <AccordionSection
+          step={2}
+          title="Ritmo editorial"
+          description="Frequência semanal, meta do ciclo e alertas na grade de postagem."
+          icon={<Target className="h-4 w-4" />}
+          open={openStep === 'ritmo'}
+          onToggle={() => toggleStep('ritmo')}
+        >
             <div className="stack-lg">
               <div className="grid gap-3 sm:grid-cols-2">
                 <div>
@@ -548,18 +573,16 @@ export function PilarEditForm({
                 </div>
               </div>
             </div>
-          </Surface>
-        </div>
+        </AccordionSection>
 
-        <aside className="flex min-w-0 flex-col gap-3 md:sticky md:top-24 md:self-start">
-          <Surface variant="outlined" padding="md" className="bg-[var(--bg-secondary)]">
-            <SectionHeader
-              icon={<Hash className="h-4 w-4 text-[var(--accent-green)]" />}
-              title="Plataformas"
-              description="Hashtags, melhores dias e janela cruzada com os horários configurados."
-              compact
-            />
-
+        <AccordionSection
+          step={3}
+          title="Plataformas"
+          description="Hashtags, melhores dias e janela cruzada com os horários configurados."
+          icon={<Hash className="h-4 w-4 text-[var(--accent-green)]" />}
+          open={openStep === 'plataformas'}
+          onToggle={() => toggleStep('plataformas')}
+        >
             {platformNames.length === 0 ? (
               <Text variant="meta" className="text-[var(--text-tertiary)]">
                 Nenhuma plataforma ativa configurada.
@@ -571,6 +594,12 @@ export function PilarEditForm({
                   const platformUuid = resolvePlatformUuid(platforms, platform);
                   const previewDays =
                     plataforma.melhoresDias.length > 0 ? plataforma.melhoresDias : WEEKDAYS_ORDERED;
+                  const summary = formatCrossedPostingSummary(
+                    plataforma,
+                    postingTimeEntries,
+                    platformUuid,
+                    previewDays,
+                  );
 
                   return (
                     <div
@@ -670,21 +699,9 @@ export function PilarEditForm({
                               Cruzamento com horários
                             </Text>
                           </div>
-                          <div className="space-y-1">
-                            {previewDays.map(weekday => (
-                              <Text key={`${platform}-preview-${weekday}`} variant="meta" className="text-[var(--text-secondary)]">
-                                {formatCrossedPostingPreview(
-                                  getCrossedPostingTimesForPilarPlatform(
-                                    plataforma,
-                                    postingTimeEntries,
-                                    platformUuid,
-                                    weekday,
-                                  ),
-                                  weekday,
-                                )}
-                              </Text>
-                            ))}
-                          </div>
+                          <Text variant="meta" className="text-[var(--text-secondary)]">
+                            {summary}
+                          </Text>
                         </div>
                       </div>
                     </div>
@@ -692,22 +709,23 @@ export function PilarEditForm({
                 })}
               </div>
             )}
-          </Surface>
+        </AccordionSection>
 
-          <Surface variant="outlined" padding="md" className="bg-[var(--bg-secondary)]">
-            <SectionHeader
-              icon={<Layers className="h-4 w-4" />}
-              title="Séries vinculadas"
-              compact
-            />
-
+        <AccordionSection
+          step={4}
+          title="Séries vinculadas"
+          description="Associe séries editoriais a este pilar."
+          icon={<Layers className="h-4 w-4" />}
+          open={openStep === 'series'}
+          onToggle={() => toggleStep('series')}
+        >
             <div className="flex flex-col items-start gap-2">
               {linkedSeries.map(item => (
                 <span
                   key={item.id}
                   className="inline-flex max-w-full items-center gap-1.5 rounded-[var(--radius-pill)] border border-[var(--border-color)] bg-[var(--bg-hover)] py-1 pl-3 pr-1.5 text-sm font-medium text-[var(--text-primary)]"
                 >
-                  <span className="truncate">{item.name}</span>
+                  <span className="min-w-0 break-words">{item.name}</span>
                   <button
                     type="button"
                     onClick={() => setLinkedSerieIds(previous => previous.filter(id => id !== item.id))}
@@ -741,12 +759,11 @@ export function PilarEditForm({
                 </Text>
               ) : null}
             </div>
-          </Surface>
-        </aside>
+        </AccordionSection>
       </div>
 
-      {isDirty ? (
-        <div className="fixed inset-x-0 bottom-0 z-30 border-t border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-3 md:px-6">
+      {showDirtyFooter ? (
+        <div className="fixed inset-x-0 bottom-0 z-30 border-t border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-3 pb-safe">
           <div className="flex w-full items-center justify-between gap-4">
             <div className="flex min-w-0 items-start gap-2.5">
               <Info className="mt-0.5 h-4 w-4 shrink-0 text-[var(--text-tertiary)]" />

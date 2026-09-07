@@ -5,87 +5,86 @@ import type { ModuleFlags } from '../../features/settings/lib/moduleFlags';
 import {
   isBottomNavItemActive,
   isNavItemHidden,
-  MOBILE_BOTTOM_NAV_ITEMS,
-  splitBottomNavItems,
+  MOBILE_BOTTOM_NAV_LEFT,
+  MOBILE_BOTTOM_NAV_RIGHT,
+  type NavItemDefinition,
 } from '../../layouts/navigation/navConfig';
 
 interface MobileBottomNavProps {
-  isActionOpen: boolean;
-  onActionToggle: () => void;
+  onOpenCreateMenu: () => void;
   moduleFlags: ModuleFlags;
 }
-
-const tabClassName =
-  'flex min-h-12 min-w-0 flex-1 flex-col items-center justify-center gap-1 px-1 py-1 text-center touch-manipulation select-none transition-colors duration-200';
 
 function MobileBottomNavItem({
   to,
   label,
   icon: Icon,
-}: (typeof MOBILE_BOTTOM_NAV_ITEMS)[number]) {
+}: NavItemDefinition) {
   const location = useLocation();
   const isActive = isBottomNavItemActive(to, location.pathname);
 
   return (
     <NavLink
       to={to}
+      aria-label={label}
       aria-current={isActive ? 'page' : undefined}
       className={cn(
-        tabClassName,
-        isActive ? 'text-[var(--text-primary)]' : 'text-[var(--text-tertiary)]',
+        'relative flex h-12 w-full items-center justify-center rounded-full',
+        'touch-manipulation select-none',
+        'transition-colors duration-200 motion-reduce:transition-none',
+        'focus-visible:outline-none focus-visible:shadow-[var(--focus-ring-brand)]',
+        isActive ? 'text-[var(--brand-accent)]' : 'text-[var(--text-tertiary)]',
       )}
     >
-      <span className="flex h-9 w-9 items-center justify-center" aria-hidden>
-        <Icon className={cn('h-5 w-5 shrink-0', isActive ? 'stroke-[2.25]' : 'stroke-[1.75]')} />
-      </span>
-      <span className="t-nav w-full truncate text-center leading-tight">{label}</span>
+      <Icon
+        className={cn('h-6 w-6 shrink-0', isActive ? 'stroke-[2.25]' : 'stroke-[1.75]')}
+        aria-hidden
+      />
     </NavLink>
   );
 }
 
-function MobileBottomNavAction({
-  isActionOpen,
-  onActionToggle,
-}: Pick<MobileBottomNavProps, 'isActionOpen' | 'onActionToggle'>) {
-  return (
-    <button
-      type="button"
-      aria-label={isActionOpen ? 'Fechar ações rápidas' : 'Abrir ações rápidas'}
-      aria-expanded={isActionOpen}
-      onClick={onActionToggle}
-      className={cn(
-        tabClassName,
-        isActionOpen ? 'text-[var(--text-primary)]' : 'text-[var(--text-tertiary)]',
-      )}
-    >
-      <span
-        aria-hidden
-        className="flex h-9 w-9 items-center justify-center rounded-[var(--radius-pill)] bg-[var(--accent)] text-[var(--bg-secondary)] transition-transform duration-200"
-      >
-        <Plus className={cn('h-5 w-5', isActionOpen ? 'rotate-45' : '')} />
-      </span>
-      <span className="t-nav w-full truncate text-center leading-tight">Criar</span>
-    </button>
-  );
-}
-
-export function MobileBottomNav({ isActionOpen, onActionToggle, moduleFlags }: MobileBottomNavProps) {
-  const visibleItems = MOBILE_BOTTOM_NAV_ITEMS.filter(item => !isNavItemHidden(item, moduleFlags));
-  const { left, right } = splitBottomNavItems(visibleItems);
+export function MobileBottomNav({ onOpenCreateMenu, moduleFlags }: MobileBottomNavProps) {
+  const leftItems = MOBILE_BOTTOM_NAV_LEFT.filter(item => !isNavItemHidden(item, moduleFlags));
+  const rightItems = MOBILE_BOTTOM_NAV_RIGHT.filter(item => !isNavItemHidden(item, moduleFlags));
 
   return (
     <nav
       aria-label="Navegação principal mobile"
-      className="fixed inset-x-0 bottom-0 z-[80] border-t border-[var(--border-color)] bg-[color-mix(in_srgb,var(--bg-primary)_94%,transparent)] px-2 pb-safe pt-2 backdrop-blur-xl touch-manipulation select-none"
+      className="pointer-events-none fixed inset-x-0 bottom-0 z-[100] w-full px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
     >
-      <div className="flex items-stretch">
-        {left.map(item => (
-          <MobileBottomNavItem key={item.to} {...item} />
-        ))}
-        <MobileBottomNavAction isActionOpen={isActionOpen} onActionToggle={onActionToggle} />
-        {right.map(item => (
-          <MobileBottomNavItem key={item.to} {...item} />
-        ))}
+      <div className="pointer-events-auto relative mx-auto h-12 max-w-md">
+        <div
+          className={cn(
+            'grid h-full grid-cols-5 items-center rounded-[var(--radius-pill)]',
+            'border border-[var(--border-color)] bg-[var(--bg-secondary)]',
+            'shadow-[var(--shadow-dropdown)]',
+          )}
+        >
+          {leftItems.map(item => (
+            <MobileBottomNavItem key={item.to} {...item} />
+          ))}
+          <div aria-hidden />
+          {rightItems.map(item => (
+            <MobileBottomNavItem key={item.to} {...item} />
+          ))}
+        </div>
+
+        <button
+          type="button"
+          aria-label="Criar"
+          onClick={onOpenCreateMenu}
+          className={cn(
+            'absolute left-1/2 top-1/2 z-10 flex h-14 w-14 -translate-x-1/2 -translate-y-1/2',
+            'items-center justify-center rounded-full',
+            'bg-[var(--brand-fab)] text-[var(--bg-secondary)]',
+            'touch-manipulation select-none',
+            'transition-transform duration-200 motion-reduce:transition-none',
+            'active:scale-95 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring-brand)]',
+          )}
+        >
+          <Plus className="h-7 w-7 stroke-[2.5]" aria-hidden />
+        </button>
       </div>
     </nav>
   );

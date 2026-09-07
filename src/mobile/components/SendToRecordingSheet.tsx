@@ -145,7 +145,7 @@ export function SendToRecordingSheet({
       zIndex="z-[120]"
       ariaLabel={attachedBlockId ? 'Roteiro guardado no bloco' : 'Escolha o bloco'}
     >
-      <OverlayHeader>
+      <OverlayHeader onClose={handleClose}>
         <p className="text-xs font-semibold  text-[var(--text-tertiary)]">
           Guardar em um bloco
         </p>
@@ -159,7 +159,7 @@ export function SendToRecordingSheet({
         </p>
       </OverlayHeader>
 
-      <OverlayBody className="stack-lg py-6">
+      <OverlayBody className="stack-lg">
           {attachedBlockId ? (
             <div className="stack-md">
               <div className="flex items-start gap-3 rounded-[var(--radius-card-mobile)] border border-emerald-500/20 bg-emerald-500/8 px-4 py-4">

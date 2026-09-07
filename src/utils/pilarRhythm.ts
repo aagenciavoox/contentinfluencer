@@ -314,6 +314,39 @@ export function validateWeeklyContent(
   return dedupeViolations(violations);
 }
 
+const VIOLATION_TYPE_PRIORITY: Record<Violation['type'], number> = {
+  deficit: 0,
+  warning: 1,
+  info: 2,
+};
+
+/** Sort by severity, then by deficit magnitude hinted in the message (faltam N). */
+export function prioritizeViolations(violations: Violation[]): Violation[] {
+  const missingFromMessage = (message: string) => {
+    const match = message.match(/faltam?\s+(\d+)/i) || message.match(/precisa de mais\s+(\d+)/i);
+    return match ? Number(match[1]) : 0;
+  };
+
+  return [...violations].sort((left, right) => {
+    const typeDiff = VIOLATION_TYPE_PRIORITY[left.type] - VIOLATION_TYPE_PRIORITY[right.type];
+    if (typeDiff !== 0) return typeDiff;
+    const missingDiff = missingFromMessage(right.message) - missingFromMessage(left.message);
+    if (missingDiff !== 0) return missingDiff;
+    return left.message.localeCompare(right.message, 'pt-BR');
+  });
+}
+
+export function summarizeViolations(violations: Violation[], topN = 3): {
+  top: Violation[];
+  rest: Violation[];
+} {
+  const sorted = prioritizeViolations(violations);
+  return {
+    top: sorted.slice(0, topN),
+    rest: sorted.slice(topN),
+  };
+}
+
 function violationKey(violation: Violation): string {
   return `${violation.ruleId}-${[...violation.affectedContentIds].sort().join(',')}-${violation.message}`;
 }

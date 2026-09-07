@@ -2,7 +2,6 @@ import { ChevronRight } from 'lucide-react';
 import { Badge } from '../../../../components/ui/Badge';
 import { Text } from '../../../../components/ui/Text';
 import { getDisplayTitle } from '../../../contents/lib/contentCardMeta';
-import { getStatusColorVar } from '../../../../lib/statusClasses';
 import {
   formatContentListTimestamp,
   seriesListItemPreviewText,
@@ -21,7 +20,6 @@ export function SeriesContentListRow({ item, onClick }: SeriesContentListRowProp
   const words = seriesListItemWordCount(item);
   const isInboxIdea = item.kind === 'inbox-idea';
   const statusLabel = isInboxIdea ? 'Caixa de ideias' : item.data.status;
-  const statusColor = isInboxIdea ? 'var(--accent-blue)' : getStatusColorVar(item.data.status);
   const timestamp = isInboxIdea
     ? formatContentListTimestamp(item.data.createdAt)
     : formatContentListTimestamp(item.data.updatedAt);
@@ -32,12 +30,6 @@ export function SeriesContentListRow({ item, onClick }: SeriesContentListRowProp
       onClick={onClick}
       className="group flex w-full items-center gap-3 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-primary)] px-4 py-3 text-left transition-colors hover:border-[var(--border-strong)] hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
     >
-      <span
-        className="mt-0.5 h-2.5 w-2.5 shrink-0 rounded-full"
-        style={{ backgroundColor: statusColor }}
-        aria-hidden
-      />
-
       <div className="min-w-0 flex-1">
         <Text variant="itemTitle" truncate>
           {isInboxIdea ? seriesListItemTitle(item) : getDisplayTitle(item.data.title)}

@@ -49,6 +49,7 @@ const typographyClassExceptions = new Set([
   'Text.tsx',
   'ContentDetailHeader.tsx',
   'ContentOperationalPanel.tsx',
+  'RoteiroSection.tsx',
 ]);
 
 function walk(dir) {

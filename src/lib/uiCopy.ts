@@ -49,6 +49,12 @@ export const CONFIRM = {
     confirmLabel: 'Excluir template',
     cancelLabel: 'Manter template',
   },
+  excluirPlataforma: {
+    message:
+      'Excluir plataforma? Leituras históricas podem ficar sem este canal; roteiros vinculados preservam o nome já salvo.',
+    confirmLabel: 'Excluir plataforma',
+    cancelLabel: 'Manter plataforma',
+  },
   excluirProjeto: (nome: string) => ({
     message: `Excluir o projeto "${nome}"? Etapas, eventos e roteiros vinculados deixam de aparecer neste projeto.`,
     confirmLabel: 'Excluir projeto',
@@ -179,5 +185,10 @@ export const EMPTY = {
     title: 'Nada chamando atenção agora',
     description:
       'Comece criando um roteiro ou capturando uma ideia quando fizer sentido.',
+  },
+  dailySession: {
+    title: 'Nada disponível para gravar',
+    description:
+      'Quando um roteiro estiver pronto, ele aparece aqui para montar a sessão do dia.',
   },
 } as const;

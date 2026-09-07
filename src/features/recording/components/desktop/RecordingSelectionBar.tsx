@@ -46,7 +46,26 @@ export function RecordingSelectionBar({
     onHideForm();
   };
 
-  if (selectedCount === 0) return null;
+  if (selectedCount === 0 && !showBlockForm) return null;
+
+  if (selectedCount === 0) {
+    return (
+      <div className="pointer-events-none fixed inset-x-0 bottom-6 z-40 px-4 md:px-8">
+        <div className="pointer-events-auto mx-auto flex max-w-3xl items-center justify-between gap-3 rounded-[var(--radius-md)] border border-[var(--border-color)] bg-[var(--bg-primary)] px-4 py-3 shadow-[0_20px_60px_rgba(0,0,0,0.12)]">
+          <p className="text-sm font-medium text-[var(--text-secondary)]">
+            Selecione roteiros na grade para criar o bloco.
+          </p>
+          <button
+            type="button"
+            onClick={handleHide}
+            className="rounded-[var(--radius-input)] border border-[var(--border-color)] px-4 py-2.5 text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
+          >
+            Cancelar
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="pointer-events-none fixed inset-x-0 bottom-6 z-40 px-4 md:px-8">

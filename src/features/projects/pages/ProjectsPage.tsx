@@ -10,6 +10,7 @@ import { DesktopPageHeader } from '../../../layouts/page/DesktopPageHeader';
 import { PageLayout } from '../../../layouts/page/PageLayout';
 import { AppButton } from '../../../components/ui/AppButton';
 import { Badge } from '../../../components/ui/Badge';
+import { EmptyState } from '../../../components/ui/EmptyState';
 import { Surface } from '../../../components/ui/Surface';
 import { Text } from '../../../components/ui/Text';
 import { FilterBar } from '../../../components/ui/FilterBar';
@@ -51,7 +52,9 @@ export function ProjectsPage() {
   const [value, setValue] = useState('');
   const [color, setColor] = useState(PROJECT_COLORS[Math.floor(Math.random() * PROJECT_COLORS.length)]);
 
-  const projetosComEventos = new Set(state.agendaItems.map(a => a.projetoId).filter(Boolean));
+  const projetosComEventos = new Set(
+    state.agendaItems.map(a => a.projetoId).filter((id): id is string => Boolean(id))
+  );
 
   const projetos = state.projetos
     .filter(p => {
@@ -130,13 +133,14 @@ export function ProjectsPage() {
         <div className="min-h-full bg-[var(--bg-primary)]">
           <ProjectsMobileScreen
             projetos={state.projetos}
+            projectIdsWithEvents={projetosComEventos}
             onOpenProject={(projectId) => navigate(`/projetos/${projectId}`)}
             onCreateProject={() => setShowForm(true)}
           />
         </div>
 
         <BottomSheetModal open={showForm} onClose={handleClose} desktopMaxW="max-w-xl" zIndex="z-[110]">
-          <OverlayHeader title="Novo projeto" />
+          <OverlayHeader title="Novo projeto" onClose={handleClose} />
 
           <OverlayBody className="stack-lg py-6">
             <input
@@ -192,10 +196,9 @@ export function ProjectsPage() {
     <PageLayout
       header={
         <DesktopPageHeader
-          section="Gestão"
+          section="Produção"
           title="Projetos"
           icon={Handshake}
-          className="mb-0"
           actions={(
             <AppButton
               onClick={() => setShowForm(true)}
@@ -209,8 +212,7 @@ export function ProjectsPage() {
           )}
         />
       }
-    >
-      <div className="desktop-toolbar-surface mb-6 p-4 md:p-6">
+      toolbar={(
         <FilterBar
           searchValue={searchTerm}
           onSearchChange={setSearchTerm}
@@ -236,8 +238,8 @@ export function ProjectsPage() {
           ]}
           onSortChange={setSortValue}
         />
-      </div>
-
+      )}
+    >
       {/* Form novo projeto */}
       {showForm && (
         <div className="surface-quiet mb-6 stack-lg p-6">
@@ -286,17 +288,16 @@ export function ProjectsPage() {
 
       {/* Lista */}
       {projetos.length === 0 ? (
-        <div className="stack-lg py-24 text-center">
-          <Handshake className="mx-auto h-12 w-12 opacity-10" />
-          <Text variant="bodyStrong" className="text-[var(--text-tertiary)]">{EMPTY.projetos.title}</Text>
-          <Text variant="meta" className="mx-auto mt-2 max-w-sm">{EMPTY.projetos.description}</Text>
-          <button
-            onClick={() => setShowForm(true)}
-            className="rounded-[var(--radius-input)] bg-[var(--text-primary)] px-6 py-2.5 text-xs font-semibold text-[var(--bg-primary)] transition-opacity hover:opacity-90"
-          >
-            Criar projeto
-          </button>
-        </div>
+        <EmptyState
+          icon={<Handshake className="h-10 w-10" />}
+          title={EMPTY.projetos.title}
+          description={EMPTY.projetos.description}
+          action={
+            <AppButton variant="primary" onClick={() => setShowForm(true)} leftIcon={<Plus className="h-4 w-4" />}>
+              Criar projeto
+            </AppButton>
+          }
+        />
       ) : (
         <>
           <div className="mb-3 flex items-center gap-2">
@@ -307,6 +308,7 @@ export function ProjectsPage() {
           <div className="grid-content">
             {projetos.map(projeto => {
               const eventoCount = state.agendaItems.filter(a => a.projetoId === projeto.id).length;
+              const coverUrl = state.bibliotecaItems.find(item => item.id === projeto.bibliotecaItemId)?.capaUrl;
               return (
                 <Surface
                   key={projeto.id}
@@ -316,10 +318,19 @@ export function ProjectsPage() {
                   className="flex flex-col gap-3"
                 >
                   <div className="flex items-start gap-3">
-                    <span
-                      className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full"
-                      style={{ backgroundColor: projeto.color || '#78716c' }}
-                    />
+                    {coverUrl ? (
+                      <img
+                        src={coverUrl}
+                        alt=""
+                        className="h-12 w-9 shrink-0 rounded-[var(--radius-input)] object-cover"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <span
+                        className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full"
+                        style={{ backgroundColor: projeto.color || '#78716c' }}
+                      />
+                    )}
                     <div className="min-w-0 flex-1">
                       <Text variant="itemTitle" className="line-clamp-2">{projeto.nome}</Text>
                       {projeto.brand ? (
@@ -330,7 +341,7 @@ export function ProjectsPage() {
                       <Badge variant="neutral" className="shrink-0">{projeto.status}</Badge>
                     ) : null}
                   </div>
-                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 pl-[1.375rem]">
+                  <div className={cn('flex flex-wrap items-center gap-x-4 gap-y-1', coverUrl ? '' : 'pl-[1.375rem]')}>
                     {projeto.value ? (
                       <span className="flex items-center gap-1 text-xs font-medium text-[var(--text-secondary)]">
                         <DollarSign className="h-3.5 w-3.5 text-[var(--text-tertiary)]" />

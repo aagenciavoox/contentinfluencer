@@ -27,7 +27,7 @@ function parseDateValue(value: string | null): Date | null {
 export function PropertyDatePicker({
   value,
   onChange,
-  placeholder = 'Vazio',
+  placeholder = 'Selecionar...',
   className,
   variant = 'property',
   weekStartsOn = 1,
@@ -107,7 +107,7 @@ export function PropertyDatePicker({
   };
 
   return (
-    <div ref={containerRef} className="relative min-w-0">
+    <div ref={containerRef} className="relative min-w-0 w-full">
       <button
         ref={triggerRef}
         type="button"

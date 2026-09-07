@@ -1,17 +1,13 @@
-import { useEffect, useState } from 'react';
+import { SHELL_MOBILE_QUERY } from '../shared/breakpoints';
+import { useMediaQuery } from './useMediaQuery';
 
-/** Matches Tailwind `lg` (1024px). Phone landscape and tablets stay on the mobile shell. */
-export const MOBILE_QUERY = '(max-width: 1023px)';
+/** @deprecated Prefer SHELL_MOBILE_QUERY from shared/breakpoints */
+export const MOBILE_QUERY = SHELL_MOBILE_QUERY;
 
+/**
+ * True when the mobile app shell should render (bottom nav, not sidebar).
+ * Bound to SHELL_MAX_PX — not a substitute for content-reflow `md:` utilities.
+ */
 export function useIsMobile() {
-  const [isMobile, setIsMobile] = useState(
-    () => window.matchMedia(MOBILE_QUERY).matches,
-  );
-  useEffect(() => {
-    const mq = window.matchMedia(MOBILE_QUERY);
-    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
-    mq.addEventListener('change', handler);
-    return () => mq.removeEventListener('change', handler);
-  }, []);
-  return isMobile;
+  return useMediaQuery(SHELL_MOBILE_QUERY);
 }

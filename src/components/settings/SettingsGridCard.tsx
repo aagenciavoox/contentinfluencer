@@ -1,17 +1,16 @@
 import type { ReactNode } from 'react';
-import { Edit2, ToggleLeft, ToggleRight, Trash2 } from 'lucide-react';
+import { Edit2, ToggleLeft, ToggleRight } from 'lucide-react';
+import { Badge } from '../ui/Badge';
 import { Text } from '../ui/Text';
+import { MoreMenu, type MoreMenuItem } from '../ui/MoreMenu';
 import { cn } from '../../lib/utils';
 
-export const SETTINGS_ENTITY_GRID_CLASS =
-  'grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3';
+export const SETTINGS_ENTITY_GRID_CLASS = 'grid-content';
 
 interface SettingsGridCardProps {
   title: string;
   description?: string;
   color?: string;
-  /** `dot` keeps the classic header swatch; `bar` uses a left accent (compact series). */
-  colorAccent?: 'dot' | 'bar';
   leading?: ReactNode;
   badges?: ReactNode;
   /** Compact meta line (e.g. "Semanal · 12 roteiros"). */
@@ -23,18 +22,46 @@ interface SettingsGridCardProps {
   /** Makes the card body open the primary destination. */
   onOpen?: () => void;
   dimmed?: boolean;
-  /** Dense layout: no footer divider, hover icon actions, optional left color bar. */
+  /** Dense layout: no footer divider, hover icon actions. */
   compact?: boolean;
   className?: string;
   children?: ReactNode;
   footer?: ReactNode;
 }
 
+function buildMoreItems({
+  active,
+  onToggle,
+  onDelete,
+}: {
+  active: boolean;
+  onToggle?: () => void;
+  onDelete?: () => void;
+}): MoreMenuItem[] {
+  const items: MoreMenuItem[] = [];
+  if (onToggle) {
+    items.push({
+      id: 'toggle',
+      label: active ? 'Desativar' : 'Ativar',
+      tone: active ? 'default' : 'success',
+      onClick: onToggle,
+    });
+  }
+  if (onDelete) {
+    items.push({
+      id: 'delete',
+      label: 'Excluir',
+      tone: 'danger',
+      onClick: onDelete,
+    });
+  }
+  return items;
+}
+
 export function SettingsGridCard({
   title,
   description,
   color,
-  colorAccent = 'dot',
   leading,
   badges,
   meta,
@@ -49,49 +76,64 @@ export function SettingsGridCard({
   children,
   footer,
 }: SettingsGridCardProps) {
-  const showLegacyActions = !compact && Boolean(onEdit || onDelete || footer);
-  const showCompactActions = compact && Boolean(onEdit || onDelete || onToggle);
-  const useBar = Boolean(color) && (compact || colorAccent === 'bar');
+  const moreItems = buildMoreItems({ active, onToggle, onDelete });
+  const showLegacyActions = !compact && Boolean(onEdit || moreItems.length > 0 || footer);
+  const showCompactActions = compact && Boolean(onEdit || moreItems.length > 0);
+  const toggleLabel = active ? 'Desativar' : 'Ativar';
+  const statusBadge = color || compact ? (
+    <Badge variant="neutral">
+      {color ? (
+        <span
+          className="mr-1.5 inline-block h-2 w-2 rounded-full border border-[var(--border-color)]"
+          style={{ backgroundColor: color }}
+          aria-hidden
+        />
+      ) : null}
+      {active ? 'Ativa' : 'Inativa'}
+    </Badge>
+  ) : null;
 
   const body = (
     <>
+      {statusBadge || badges ? (
+        <div className="mb-2 flex flex-wrap items-center gap-1">
+          {statusBadge}
+          {badges}
+        </div>
+      ) : null}
+
       <Text variant="itemTitle" className="leading-snug">
         {title}
       </Text>
 
       {children ?? (
         description ? (
-          <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-[var(--text-secondary)]">
+          <Text variant="secondary" className="mt-1 line-clamp-2">
             {description}
-          </p>
+          </Text>
         ) : null
       )}
 
       {meta ? (
-        <Text variant="meta" as="p" className="mt-1.5 truncate leading-none">
+        <Text variant="meta" as="p" className="mt-2 truncate leading-none">
           {meta}
         </Text>
       ) : null}
-
-      {!meta && badges ? <div className="mt-2 flex flex-wrap gap-1">{badges}</div> : null}
     </>
   );
 
   return (
     <div
       className={cn(
-        'ds-card group relative flex flex-col bg-[var(--bg-primary)] text-left transition-colors hover:border-[var(--border-strong)]',
-        compact ? 'gap-0 p-3' : 'p-3.5',
-        useBar && 'border-l-[3px]',
+        'ds-card ds-card-interactive group relative flex flex-col gap-3 bg-[var(--bg-elevated)] p-4 text-left',
         dimmed && 'opacity-55',
         className,
       )}
-      style={useBar && color ? { borderLeftColor: color } : undefined}
     >
-      {!compact && (leading || (color && colorAccent === 'dot') || onToggle) ? (
+      {!compact && (leading || color || onToggle) ? (
         <div className="mb-2.5 flex items-center justify-between gap-2">
           {leading ?? (
-            color && colorAccent === 'dot' ? (
+            color ? (
               <span
                 className="h-3 w-3 shrink-0 rounded-full border border-[var(--border-color)]"
                 style={{ backgroundColor: color }}
@@ -104,14 +146,15 @@ export function SettingsGridCard({
             <button
               type="button"
               onClick={onToggle}
-              className="transition-transform active:scale-95"
-              aria-label={active ? 'Desativar' : 'Ativar'}
+              className="inline-flex items-center gap-1.5 rounded-[var(--radius-input)] px-1.5 py-1 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
+              aria-label={toggleLabel}
             >
               {active ? (
                 <ToggleRight className="h-5 w-5 text-[var(--accent-green)]" />
               ) : (
                 <ToggleLeft className="h-5 w-5 text-[var(--text-tertiary)]" />
               )}
+              <span>{toggleLabel}</span>
             </button>
           ) : null}
         </div>
@@ -120,25 +163,9 @@ export function SettingsGridCard({
       {showCompactActions ? (
         <div
           className={cn(
-            'absolute right-2 top-2 z-10 flex items-center gap-0.5 rounded-[var(--radius-input)] bg-[var(--bg-primary)]/90 p-0.5',
-            'opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100',
+            'card-actions absolute right-2 top-2 z-10 flex items-center gap-0.5 rounded-[var(--radius-input)] bg-[var(--bg-elevated)]/90 p-0.5',
           )}
         >
-          {onToggle ? (
-            <button
-              type="button"
-              onClick={onToggle}
-              className="rounded-md p-1.5 text-[var(--text-tertiary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
-              aria-label={active ? 'Desativar' : 'Ativar'}
-              title={active ? 'Desativar' : 'Ativar'}
-            >
-              {active ? (
-                <ToggleRight className="h-4 w-4 text-[var(--accent-green)]" />
-              ) : (
-                <ToggleLeft className="h-4 w-4" />
-              )}
-            </button>
-          ) : null}
           {onEdit ? (
             <button
               type="button"
@@ -150,16 +177,12 @@ export function SettingsGridCard({
               <Edit2 className="h-3.5 w-3.5" />
             </button>
           ) : null}
-          {onDelete ? (
-            <button
-              type="button"
-              onClick={onDelete}
-              className="rounded-md p-1.5 text-[var(--text-tertiary)] transition-colors hover:bg-[var(--accent-pink)]/10 hover:text-[var(--accent-pink)]"
-              aria-label={`Excluir ${title}`}
-              title="Excluir"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </button>
+          {moreItems.length > 0 ? (
+            <MoreMenu
+              size="sm"
+              items={moreItems}
+              triggerClassName="border-transparent bg-transparent hover:bg-[var(--bg-hover)]"
+            />
           ) : null}
         </div>
       ) : null}
@@ -181,7 +204,7 @@ export function SettingsGridCard({
       )}
 
       {showLegacyActions ? (
-        <div className="mt-3 flex items-center justify-between gap-2 border-t border-[var(--border-color)] pt-2.5">
+        <div className="card-actions mt-1 flex items-center justify-between gap-2">
           {footer ?? (
             <>
               {onEdit ? (
@@ -197,14 +220,18 @@ export function SettingsGridCard({
                 <span />
               )}
               {onDelete ? (
-                <button
-                  type="button"
-                  onClick={onDelete}
-                  className="rounded-[var(--radius-input)] p-1 text-[var(--accent-pink)] transition-colors hover:bg-[var(--accent-pink)]/10"
-                  aria-label="Remover"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
+                <MoreMenu
+                  size="sm"
+                  items={[
+                    {
+                      id: 'delete',
+                      label: 'Excluir',
+                      tone: 'danger',
+                      onClick: onDelete,
+                    },
+                  ]}
+                  triggerClassName="border-transparent bg-transparent text-[var(--text-tertiary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
+                />
               ) : null}
             </>
           )}

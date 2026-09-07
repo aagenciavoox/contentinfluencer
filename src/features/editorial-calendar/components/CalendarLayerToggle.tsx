@@ -36,7 +36,7 @@ export function CalendarLayerToggle({ activeLayers, onChange }: LayerToggleProps
   ];
 
   return (
-    <Surface variant="elevated" padding="none" className="p-3 md:p-6">
+    <Surface variant="outlined" padding="none" className="p-3 md:p-6">
       <div className="flex items-center gap-3 mb-3 md:mb-8 text-[var(--text-tertiary)]">
         <Layers className="w-3.5 h-3.5 md:w-4 md:h-4" />
         <Text variant="label" uppercase className="text-2xs md:text-xs font-semibold">Camadas</Text>

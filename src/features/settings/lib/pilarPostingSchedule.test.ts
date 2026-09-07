@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import type { PostingTimeEntry } from '../../../lib/database.ts';
 import {
+  formatCrossedPostingSummary,
   getCrossedPostingTimesForPilarPlatform,
   isTimeWithinWindow,
 } from './pilarPostingSchedule.ts';
@@ -64,6 +65,22 @@ const entries: PostingTimeEntry[] = [
     2,
   );
   assert.deepEqual(times, []);
+}
+
+{
+  const summary = formatCrossedPostingSummary(
+    {
+      melhoresDias: [2, 4],
+      janelaHorarioInicio: '08:00',
+      janelaHorarioFim: '13:00',
+    },
+    entries,
+    'platform-ig',
+    [2, 4],
+  );
+  assert.match(summary, /Ter/);
+  assert.match(summary, /Qui/);
+  assert.doesNotMatch(summary, /Nenhum horário de/);
 }
 
 console.log('pilarPostingSchedule.test.ts passed');

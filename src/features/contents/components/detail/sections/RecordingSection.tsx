@@ -55,7 +55,7 @@ export function RecordingSection({
 
   return (
     <div className="grid gap-[var(--space-xl)]">
-      <section className="rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-6 shadow-sm md:p-6">
+      <section className="rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-6 md:p-6">
         <p className="t-label t-label-uppercase font-semibold text-[var(--text-tertiary)]">Bloco</p>
         <Text variant="sectionTitle" className="mt-2">
           {blockSummary ? blockSummary.block.name : 'Sem bloco atribuido'}
@@ -107,7 +107,7 @@ export function RecordingSection({
                   leftIcon={<Clapperboard className="h-4 w-4" />}
                   onClick={onOpenBlockSheet}
                 >
-                  Guardar em bloco
+                  Salvar no bloco de gravação
                 </AppButton>
               ) : null}
               <AppButton

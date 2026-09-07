@@ -134,16 +134,16 @@ export function ProjectDetailMobileScreen({
   })();
 
   return (
-    <div className="stack-xl pb-8">
+    <div className="stack-lg pb-8">
       {/* Header do projeto */}
-      <section className="rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4 shadow-sm">
+      <section className="rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4">
         <div className="mb-4 flex items-start gap-3">
           <div
             className="mt-0.5 h-11 w-11 shrink-0 rounded-[var(--radius-card-mobile)]"
             style={{ backgroundColor: projectColor }}
           />
           <div className="min-w-0 flex-1">
-            <p className="truncate text-lg font-semibold text-[var(--text-primary)]">{projeto.nome}</p>
+            <Text variant="sectionTitle" as="p" className="truncate">{projeto.nome}</Text>
             {projeto.brand ? (
               <p className="mt-1 text-xs text-[var(--text-secondary)]">{projeto.brand}</p>
             ) : null}
@@ -166,11 +166,11 @@ export function ProjectDetailMobileScreen({
         <div className="grid-metrics">
           <div className="rounded-[1.2rem] bg-[var(--bg-hover)] px-3 py-3">
             <p className="t-label text-[var(--text-tertiary)]">Eventos</p>
-            <p className="mt-1 text-lg font-semibold text-[var(--text-primary)]">{agendaItems.length}</p>
+            <Text variant="sectionTitle" as="p" className="mt-1 tabular-nums">{agendaItems.length}</Text>
           </div>
           <div className="rounded-[1.2rem] bg-[var(--bg-hover)] px-3 py-3">
             <p className="t-label text-[var(--text-tertiary)]">Conteúdos</p>
-            <p className="mt-1 text-lg font-semibold text-[var(--text-primary)]">{projetoContents.length}</p>
+            <Text variant="sectionTitle" as="p" className="mt-1 tabular-nums">{projetoContents.length}</Text>
           </div>
         </div>
 
@@ -276,10 +276,10 @@ export function ProjectDetailMobileScreen({
 
       {/* Edit sheet */}
       <BottomSheetModal open={isEditing} onClose={onCancelEdit} desktopMaxW="max-w-xl" zIndex="z-[110]">
-        <div className="border-b border-[var(--border-color)] px-6 py-4">
+        <div className="border-b border-[var(--border-color)] px-4 py-3">
           <Text variant="sectionTitle">Editar projeto</Text>
         </div>
-        <div className="stack-lg p-6 pb-safe">
+        <div className="stack-lg px-4 pb-safe">
           <input
             autoFocus
             value={editFields.nome}
@@ -345,10 +345,10 @@ export function ProjectDetailMobileScreen({
 
       {/* Novo evento sheet */}
       <BottomSheetModal open={showAgendaForm} onClose={onCloseAgendaForm} desktopMaxW="max-w-xl" zIndex="z-[110]">
-        <div className="border-b border-[var(--border-color)] px-6 py-4">
+        <div className="border-b border-[var(--border-color)] px-4 py-3">
           <Text variant="sectionTitle">Novo evento</Text>
         </div>
-        <div className="stack-lg p-6 pb-safe">
+        <div className="stack-lg px-4 pb-safe">
           <input
             autoFocus
             value={agendaTitle}
@@ -396,10 +396,10 @@ export function ProjectDetailMobileScreen({
 
       {/* Vincular conteudo sheet */}
       <BottomSheetModal open={linkSheetOpen} onClose={() => setLinkSheetOpen(false)} desktopMaxW="max-w-xl" zIndex="z-[110]">
-        <div className="border-b border-[var(--border-color)] px-6 py-4">
+        <div className="border-b border-[var(--border-color)] px-4 py-3">
           <Text variant="sectionTitle">Vincular conteudo</Text>
         </div>
-        <div className="stack-lg p-6 pb-safe">
+        <div className="stack-lg px-4 pb-safe">
           <select
             value={selectedContentId}
             onChange={event => setSelectedContentId(event.target.value)}

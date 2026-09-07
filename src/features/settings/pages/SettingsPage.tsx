@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import {DesktopPageHeader} from '../../../layouts/page/DesktopPageHeader';
 import {PageLayout} from '../../../layouts/page/PageLayout';
+import {AppButton} from '../../../components/ui/AppButton';
 import {Text} from '../../../components/ui/Text';
 import {useAppContext} from '../../../context/AppContext';
 import {useIsMobile} from '../../../hooks/useIsMobile';
@@ -223,9 +224,18 @@ export function SettingsPage() {
       variant="settings"
       header={
         <DesktopPageHeader
-          section="Sistema"
+          section="Configurações"
           title="Configurações"
           icon={SettingsIcon}
+          actions={
+            <AppButton
+              variant="primary"
+              leftIcon={<UserCircle2 className="h-4 w-4" />}
+              onClick={() => navigate('/configuracoes/perfil')}
+            >
+              Editar perfil
+            </AppButton>
+          }
         />
       }
     >
@@ -243,7 +253,7 @@ export function SettingsPage() {
             {gentleCards.map(({key, icon: CardIcon, title, desc, enabled, onToggle}) => (
               <div
                 key={key}
-                className="flex items-center justify-between gap-3 rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] px-4 py-3 shadow-[0_1px_2px_rgba(0,0,0,0.02)] transition-all hover:border-[var(--border-strong)]"
+                className="flex items-center justify-between gap-3 rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] px-4 py-3 transition-[box-shadow] hover:shadow-[var(--shadow-card-hover)]"
               >
                 <div className="flex min-w-0 items-start gap-2.5">
                   <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[var(--bg-hover)] text-[var(--text-primary)]">
@@ -281,7 +291,7 @@ export function SettingsPage() {
             {moduleCards.map(({key, icon: CardIcon, title, desc}) => (
               <div
                 key={key}
-                className="flex items-center justify-between gap-3 rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] px-4 py-3 shadow-[0_1px_2px_rgba(0,0,0,0.02)] transition-all hover:border-[var(--border-strong)]"
+                className="flex items-center justify-between gap-3 rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] px-4 py-3 transition-[box-shadow] hover:shadow-[var(--shadow-card-hover)]"
               >
                 <div className="flex min-w-0 items-start gap-2.5">
                   <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[var(--bg-hover)] text-[var(--text-primary)]">
@@ -311,7 +321,7 @@ export function SettingsPage() {
               Diretrizes & Grade
             </p>
             <Text variant="sectionTitle" className="mt-1 tracking-tight">
-              Gerencie a base e os parÃ¢metros da sua criação
+              Gerencie a base e os parâmetros da sua criação
             </Text>
           </div>
 
@@ -322,7 +332,7 @@ export function SettingsPage() {
                 <button
                   key={to}
                   onClick={() => navigate(to)}
-                  className="group flex flex-col justify-between rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] p-4 text-left transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md hover:border-[var(--border-strong)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-blue)] cursor-pointer min-h-[130px]"
+                  className="group flex flex-col justify-between rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] p-4 text-left transition-all duration-300 hover:shadow-[var(--shadow-card-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-blue)] cursor-pointer min-h-[130px]"
                 >
                   <div className="flex flex-col h-full w-full justify-between gap-3">
                     <div>
@@ -333,7 +343,7 @@ export function SettingsPage() {
                         <div className="flex items-center gap-1.5">
                           {(() => {
                             if (status === 'complete') return <Check className="h-3.5 w-3.5 text-[var(--accent-green)]" />;
-                            if (status === 'empty') return <span className="rounded px-1.5 py-0.5 text-xs font-semibold bg-[var(--accent-pink)]/10 text-[var(--accent-pink)]">Vazio</span>;
+                            if (status === 'empty') return <span className="rounded px-1.5 py-0.5 text-xs font-semibold bg-[var(--accent-pink)]/10 text-[var(--accent-pink)]">Pendente</span>;
                             if (status === 'partial') return <span className="rounded px-1.5 py-0.5 text-xs font-semibold bg-[var(--accent-orange)]/10 text-[var(--accent-orange)]">Parcial</span>;
                             return null;
                           })()}

@@ -2,8 +2,12 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { AlertTriangle, CheckCircle2, Loader2 } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import { AppButton } from './AppButton';
 import {
+  clearSaveFeedback,
   getSaveFeedbackState,
+  pauseSaveFeedbackHide,
+  resumeSaveFeedbackHide,
   subscribeSaveFeedback,
   type SaveFeedbackState,
 } from '../../lib/saveFeedback';
@@ -24,14 +28,18 @@ export function SaveFeedbackToast() {
 
   return (
     <div
-      className="pointer-events-none fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+5.5rem)] z-[210] flex justify-center px-4 md:bottom-6 md:justify-end md:pr-6"
+      className="pointer-events-none fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+5.5rem)] z-[210] flex justify-center px-4 lg:bottom-6 lg:justify-end lg:pr-6"
       role="status"
       aria-live="polite"
+      onMouseEnter={pauseSaveFeedbackHide}
+      onMouseLeave={resumeSaveFeedbackHide}
+      onFocusCapture={pauseSaveFeedbackHide}
+      onBlurCapture={resumeSaveFeedbackHide}
     >
       <div
         className={cn(
           'pointer-events-auto flex max-w-md items-start gap-3 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border px-4 py-3 shadow-none backdrop-blur-md',
-          tone
+          tone,
         )}
       >
         {feedback.status === 'saving' ? (
@@ -41,19 +49,35 @@ export function SaveFeedbackToast() {
         ) : (
           <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-red-400" />
         )}
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <p className="text-sm font-semibold">{feedback.message}</p>
           {feedback.detail ? (
             <p className="mt-1 text-xs font-semibold opacity-80">{feedback.detail}</p>
           ) : null}
-          {feedback.href ? (
-            <Link
-              to={feedback.href}
-              className="mt-2 inline-block text-xs font-semibold underline underline-offset-2 opacity-90 hover:opacity-100"
-            >
-              {feedback.actionLabel ?? 'Abrir'}
-            </Link>
-          ) : null}
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            {feedback.href ? (
+              <Link
+                to={feedback.href}
+                className="inline-block text-xs font-semibold underline underline-offset-2 opacity-90 hover:opacity-100"
+              >
+                {feedback.actionLabel ?? 'Abrir'}
+              </Link>
+            ) : null}
+            {feedback.onUndo ? (
+              <AppButton
+                type="button"
+                variant="ghost"
+                size="xs"
+                onClick={() => {
+                  const undo = feedback.onUndo;
+                  clearSaveFeedback();
+                  undo?.();
+                }}
+              >
+                {feedback.undoLabel ?? 'Desfazer'}
+              </AppButton>
+            ) : null}
+          </div>
         </div>
       </div>
     </div>

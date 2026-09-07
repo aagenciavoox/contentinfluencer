@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { isContentBodyLoaded } from './contentBody.ts';
+import { isContentBodyLoaded, resolveScriptBodyStatus, scriptBodyStatusLabel } from './contentBody.ts';
 import type { Content } from '../../../lib/database.ts';
 import { sanitizeDomainPayload } from '../../../lib/persistentDataCache.ts';
 
@@ -38,5 +38,33 @@ describe('isContentBodyLoaded', () => {
     assert.equal(cachedContent.notes, undefined);
     assert.equal(cachedContent.referencias, undefined);
     assert.equal(isContentBodyLoaded(cachedContent), false);
+  });
+});
+
+describe('resolveScriptBodyStatus', () => {
+  it('shows loading only while body is missing and hydrating', () => {
+    assert.equal(resolveScriptBodyStatus(content({}), { hydrating: true }), 'loading');
+    assert.equal(resolveScriptBodyStatus(content({}), { hydrating: false }), 'error');
+  });
+
+  it('never stays loading after error', () => {
+    assert.equal(resolveScriptBodyStatus(content({}), { error: true }), 'error');
+    assert.equal(
+      resolveScriptBodyStatus(content({ script: '<p>ok</p>' }), { error: true }),
+      'error',
+    );
+  });
+
+  it('maps loaded empty script to empty and text to ready', () => {
+    assert.equal(resolveScriptBodyStatus(content({ script: null })), 'empty');
+    assert.equal(resolveScriptBodyStatus(content({ script: '   ' })), 'empty');
+    assert.equal(resolveScriptBodyStatus(content({ script: '<p>Texto</p>' })), 'ready');
+  });
+
+  it('exposes stable labels', () => {
+    assert.equal(scriptBodyStatusLabel('loading'), 'Carregando roteiro...');
+    assert.equal(scriptBodyStatusLabel('error'), 'Não foi possível carregar o roteiro');
+    assert.equal(scriptBodyStatusLabel('empty'), 'Sem roteiro escrito');
+    assert.equal(scriptBodyStatusLabel('ready', 42), '42 palavras no roteiro');
   });
 });

@@ -1,7 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Archive,
-  ArrowRight,
   Check,
   Columns3,
   Download,
@@ -9,29 +7,28 @@ import {
   LayoutGrid,
   Lightbulb,
   List,
-  RotateCcw,
-  SlidersHorizontal,
-  Square,
   Trash2,
   X,
 } from 'lucide-react';
 import { ConfirmModal } from '../../../components/feedback/modals/ConfirmModal';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { AppButton } from '../../../components/ui/AppButton';
-import { Badge } from '../../../components/ui/Badge';
 import { FilterBar } from '../../../components/ui/FilterBar';
 import { PaginationBar } from '../../../components/ui/PaginationBar';
 import { SegmentTabs } from '../../../components/ui/SegmentTabs';
 import { Surface } from '../../../components/ui/Surface';
 import { Text } from '../../../components/ui/Text';
+import { QueryViewState, resolveQueryViewStatus } from '../../../components/ui/QueryViewState';
 import { ViewModeToggle } from '../../../components/ui/ViewModeToggle';
 import { useAppContext } from '../../../context/AppContext';
 import { useAuth } from '../../../context/AuthContext';
 import { useIsMobile } from '../../../hooks/useIsMobile';
+import { CreateMenuButton } from '../../../components/ui/CreateMenuButton';
 import { DesktopPageHeader } from '../../../layouts/page/DesktopPageHeader';
 import { PageLayout } from '../../../layouts/page/PageLayout';
 import { MobileFilterSheet } from '../../../mobile/components/MobileFilterSheet';
 import { MobileSearchBar } from '../../../mobile/components/MobileSearchBar';
+import { MobileSegmentTabs } from '../../../mobile/components/MobileSegmentTabs';
 import {
   emptyContentTrash,
   fetchArchivedContents,
@@ -40,13 +37,9 @@ import {
   permanentlyDeleteContent,
   restoreContent,
   type Content,
-  type Pilar,
-  type Serie,
 } from '../../../lib/database';
 import { buildDetailBackState } from '../../../lib/navigation/detailBack';
 import { getErrorMessage, notifySaveFeedback } from '../../../lib/saveFeedback';
-import { cn, htmlToReadableText } from '../../../lib/utils';
-import { ContentEntityTags } from '../../contents/components/ContentEntityTags';
 import { buildContentDetailRoute } from '../../contents/lib/contentDetailRoute';
 import {
   archiveCreation,
@@ -55,7 +48,6 @@ import {
   createScriptContent,
   CREATION_TABS,
   filterCreationContents,
-  filterContentsByCreationTab,
   getCreationTabCounts,
   paginateCreationContents,
   promoteContentToScript,
@@ -63,19 +55,35 @@ import {
   restoreCreation,
   restoreDeletedCreation,
   sortCreationContents,
+  type CreationSort,
   type CreationTab,
   type CreationViewMode,
 } from '../../contents/lib/creationContent';
-import { getDisplayStatus } from '../../contents/lib/contentPipeline';
-import {
-  CreationComposer,
-  type CreationIdeaInput,
-} from '../components/CreationComposer';
+import { CreationComposer, type CreationIdeaInput } from '../components/CreationComposer';
+import { CreationDisplayMenu } from '../components/CreationDisplayMenu';
+import { CreationGridView } from '../components/CreationGridView';
+import { CreationKanbanView } from '../components/CreationKanbanView';
+import { CreationListView } from '../components/CreationListView';
+import { CreationOverflowMenu } from '../components/CreationOverflowMenu';
 import {
   canExportCreation,
   downloadCreationsDocx,
   getCreationExportCopy,
 } from '../lib/exportScriptsDocx';
+import {
+  CREATION_FILTER_QUERY_KEYS,
+  CREATION_SORT_OPTIONS,
+  CREATION_VIEW_MODE_LABELS,
+  CREATION_VIEW_MODE_VALUES,
+  type CreationSortValue,
+} from '../lib/creationFilterOptions';
+import type { CreationItemActionHandlers } from '../lib/creationItemActions';
+import {
+  moveCreationToKanbanTab,
+  readStoredCreationViewMode,
+  storeCreationViewMode,
+  type CreationKanbanTab,
+} from '../lib/creationItemPresentation';
 
 const TAB_QUERY: Record<CreationTab, string> = {
   Todos: 'todos',
@@ -91,381 +99,15 @@ const QUERY_TAB = Object.fromEntries(
   Object.entries(TAB_QUERY).map(([label, query]) => [query, label]),
 ) as Record<string, CreationTab>;
 
-const SORT_OPTIONS = [
-  { label: 'Mais recentes', value: 'recent' },
-  { label: 'Mais antigos', value: 'oldest' },
-  { label: 'Título A–Z', value: 'title' },
-];
+const VIEW_OPTIONS = CREATION_VIEW_MODE_VALUES.map(value => ({
+  value,
+  label: CREATION_VIEW_MODE_LABELS[value],
+  icon: value === 'grid' ? LayoutGrid : value === 'list' ? List : Columns3,
+}));
 
-const VIEW_OPTIONS = [
-  {value: 'grid', label: 'Grade', icon: LayoutGrid},
-  {value: 'list', label: 'Lista', icon: List},
-  {value: 'kanban', label: 'Kanban', icon: Columns3},
-] satisfies Array<{
-  value: CreationViewMode;
-  label: string;
-  icon: typeof LayoutGrid;
-}>;
-
-const KANBAN_TABS: Exclude<CreationTab, 'Todos'>[] = [
-  'Ideias',
-  'Roteiros',
-  'Produção',
-  'Publicados',
-];
-
-function formatUpdatedAt(value: string) {
-  return new Intl.DateTimeFormat('pt-BR', {
-    day: 'numeric',
-    month: 'short',
-  }).format(new Date(value));
-}
-
-function getExcerpt(content: Content) {
-  const notes = htmlToReadableText(content.notes).trim();
-  if (notes) return notes;
-  return htmlToReadableText(content.script).trim();
-}
-
-function CreationCard({
-  content,
-  onOpen,
-  onToggleSelect,
-  onPromote,
-  onArchive,
-  onRestore,
-  onPermanentDelete,
-  selectionMode,
-  selectable,
-  selected,
-  pillar,
-  series,
-}: {
-  content: Content;
-  onOpen: () => void;
-  onToggleSelect: () => void;
-  onPromote: () => void;
-  onArchive: () => void;
-  onRestore: () => void;
-  onPermanentDelete: () => void;
-  selectionMode: boolean;
-  selectable: boolean;
-  selected: boolean;
-  pillar?: Pilar | null;
-  series?: Serie | null;
-}) {
-  const archived = Boolean(content.archivedAt);
-  const deleted = Boolean(content.deletedAt);
-  const status = deleted ? 'Na lixeira' : archived ? 'Arquivado' : getDisplayStatus(content);
-  const excerpt = getExcerpt(content);
-  const isIdea = !deleted && !archived && getDisplayStatus(content) === 'Ideia';
-  const title = content.title.trim() || 'Sem título';
-  const canOpen = !deleted;
-  const canActivate = selectionMode ? selectable : canOpen;
-  const handleActivate = selectionMode
-    ? (selectable ? onToggleSelect : undefined)
-    : (canOpen ? onOpen : undefined);
-
-  return (
-    <Surface
-      as="article"
-      variant="outlined"
-      padding="sm"
-      className={cn(
-        'group flex h-full flex-col gap-2',
-        selectionMode && selected
-          && 'border-[var(--text-primary)] bg-[var(--bg-hover)] shadow-[0_0_0_1px_var(--text-primary)]',
-        selectionMode && !selectable && 'opacity-55',
-      )}
-    >
-      <button
-        type="button"
-        onClick={handleActivate}
-        disabled={!canActivate}
-        className={cn(
-          'min-w-0 flex-1 stack-xs text-left focus-visible:outline-none',
-          canActivate
-            ? 'cursor-pointer rounded-[var(--radius-input)] focus-visible:shadow-[var(--focus-ring)]'
-            : 'cursor-default',
-        )}
-        aria-label={selectionMode
-          ? (selectable
-              ? `${selected ? 'Desmarcar' : 'Selecionar'} ${title} para exportação`
-              : `${title} não pode ser exportado`)
-          : (canOpen ? `Abrir ${title}` : title)}
-      >
-        <Text variant="itemTitle" className="line-clamp-2 leading-snug">
-          {title}
-        </Text>
-        {excerpt ? (
-          <Text variant="secondary" className="line-clamp-2">
-            {excerpt}
-          </Text>
-        ) : null}
-        <ContentEntityTags
-          pillar={pillar}
-          series={series}
-          pillarId={content.pilarId}
-          seriesId={content.seriesId}
-          size="sm"
-          className="pt-0.5"
-        />
-      </button>
-
-      <div className="mt-auto flex items-center gap-1.5">
-        <Text variant="meta" as="p" className="min-w-0 truncate leading-none">
-          <span>{status}</span>
-          <span aria-hidden> · </span>
-          <time dateTime={content.updatedAt}>{formatUpdatedAt(content.updatedAt)}</time>
-        </Text>
-
-        <div className="ml-auto flex shrink-0 items-center gap-0.5">
-          {selectionMode ? (
-            selectable ? (
-              <AppButton
-                size="xs"
-                variant={selected ? 'primary' : 'secondary'}
-                iconOnly
-                leftIcon={selected
-                  ? <Check className="h-3.5 w-3.5 stroke-[3px]" />
-                  : <Square className="h-3.5 w-3.5" />}
-                onClick={onToggleSelect}
-                aria-label={`${selected ? 'Desmarcar' : 'Selecionar'} ${title} para exportação`}
-                title={selected ? 'Desmarcar roteiro' : 'Selecionar roteiro'}
-              />
-            ) : (
-              <Badge>Não exportável</Badge>
-            )
-          ) : deleted ? (
-            <>
-              <AppButton
-                size="xs"
-                variant="secondary"
-                leftIcon={<RotateCcw className="h-3.5 w-3.5" />}
-                onClick={onRestore}
-              >
-                Restaurar
-              </AppButton>
-              <AppButton
-                size="xs"
-                variant="ghost"
-                iconOnly
-                leftIcon={<Trash2 className="h-3.5 w-3.5" />}
-                onClick={onPermanentDelete}
-                className="text-[var(--accent-red)] hover:text-[var(--accent-red)]"
-                aria-label={`Excluir definitivamente ${title}`}
-                title="Excluir definitivamente"
-              />
-            </>
-          ) : archived ? (
-            <AppButton
-              size="xs"
-              variant="ghost"
-              leftIcon={<RotateCcw className="h-3.5 w-3.5" />}
-              onClick={onRestore}
-            >
-              Restaurar
-            </AppButton>
-          ) : (
-            <>
-              {isIdea ? (
-                <AppButton
-                  size="xs"
-                  variant="secondary"
-                  rightIcon={<ArrowRight className="h-3.5 w-3.5" />}
-                  onClick={onPromote}
-                >
-                  Virar roteiro
-                </AppButton>
-              ) : null}
-              <AppButton
-                size="xs"
-                variant="ghost"
-                iconOnly
-                leftIcon={<Archive className="h-3.5 w-3.5" />}
-                onClick={onArchive}
-                className={cn(
-                  'text-[var(--text-tertiary)] hover:text-[var(--text-primary)]',
-                  'opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100',
-                )}
-                aria-label={`Arquivar ${title}`}
-                title="Arquivar"
-              />
-            </>
-          )}
-        </div>
-      </div>
-    </Surface>
-  );
-}
-
-function CreationListRow({
-  content,
-  onOpen,
-  onToggleSelect,
-  onPromote,
-  onArchive,
-  onRestore,
-  onPermanentDelete,
-  selectionMode,
-  selectable,
-  selected,
-  pillar,
-  series,
-  originName,
-}: {
-  content: Content;
-  onOpen: () => void;
-  onToggleSelect: () => void;
-  onPromote: () => void;
-  onArchive: () => void;
-  onRestore: () => void;
-  onPermanentDelete: () => void;
-  selectionMode: boolean;
-  selectable: boolean;
-  selected: boolean;
-  pillar?: Pilar | null;
-  series?: Serie | null;
-  originName?: string;
-}) {
-  const archived = Boolean(content.archivedAt);
-  const deleted = Boolean(content.deletedAt);
-  const status = deleted ? 'Na lixeira' : archived ? 'Arquivado' : getDisplayStatus(content);
-  const excerpt = getExcerpt(content);
-  const isIdea = !deleted && !archived && getDisplayStatus(content) === 'Ideia';
-  const title = content.title.trim() || 'Sem título';
-  const canOpen = !deleted;
-  const canActivate = selectionMode ? selectable : canOpen;
-  const handleActivate = selectionMode
-    ? (selectable ? onToggleSelect : undefined)
-    : (canOpen ? onOpen : undefined);
-
-  return (
-    <Surface
-      as="article"
-      variant="outlined"
-      padding="sm"
-      className={cn(
-        'group flex flex-col gap-3 md:flex-row md:items-center',
-        selectionMode && selected
-          && 'border-[var(--text-primary)] bg-[var(--bg-hover)] shadow-[0_0_0_1px_var(--text-primary)]',
-        selectionMode && !selectable && 'opacity-55',
-      )}
-    >
-      <button
-        type="button"
-        onClick={handleActivate}
-        disabled={!canActivate}
-        className={cn(
-          'min-w-0 flex-1 stack-xs text-left focus-visible:outline-none',
-          canActivate
-            ? 'cursor-pointer rounded-[var(--radius-input)] focus-visible:shadow-[var(--focus-ring)]'
-            : 'cursor-default',
-        )}
-        aria-label={selectionMode
-          ? (selectable
-              ? `${selected ? 'Desmarcar' : 'Selecionar'} ${title} para exportação`
-              : `${title} não pode ser exportado`)
-          : (canOpen ? `Abrir ${title}` : title)}
-      >
-        <Text variant="meta" as="p" className="leading-none">
-          <span>{status}</span>
-          <span aria-hidden> · </span>
-          <time dateTime={content.updatedAt}>{formatUpdatedAt(content.updatedAt)}</time>
-        </Text>
-        <Text variant="itemTitle" className="line-clamp-1">
-          {title}
-        </Text>
-        {excerpt ? (
-          <Text variant="secondary" className="line-clamp-2">{excerpt}</Text>
-        ) : null}
-        <div className="flex flex-wrap items-center gap-1">
-          <ContentEntityTags
-            pillar={pillar}
-            series={series}
-            pillarId={content.pilarId}
-            seriesId={content.seriesId}
-            size="sm"
-          />
-          {originName ? <Badge>{originName}</Badge> : null}
-        </div>
-      </button>
-
-      <div className="flex shrink-0 flex-wrap items-center gap-1.5">
-        {selectionMode ? (
-          selectable ? (
-            <AppButton
-              size="xs"
-              variant={selected ? 'primary' : 'secondary'}
-              leftIcon={selected
-                ? <Check className="h-3.5 w-3.5 stroke-[3px]" />
-                : <Square className="h-3.5 w-3.5" />}
-              onClick={onToggleSelect}
-            >
-              {selected ? 'Selecionado' : 'Selecionar'}
-            </AppButton>
-          ) : (
-            <Badge>Não exportável</Badge>
-          )
-        ) : deleted ? (
-          <>
-            <AppButton
-              size="xs"
-              variant="secondary"
-              leftIcon={<RotateCcw className="h-3.5 w-3.5" />}
-              onClick={onRestore}
-            >
-              Restaurar
-            </AppButton>
-            <AppButton
-              size="xs"
-              variant="ghost"
-              leftIcon={<Trash2 className="h-3.5 w-3.5" />}
-              onClick={onPermanentDelete}
-              className="text-[var(--accent-red)] hover:text-[var(--accent-red)]"
-            >
-              Excluir definitivamente
-            </AppButton>
-          </>
-        ) : archived ? (
-          <AppButton
-            size="xs"
-            variant="ghost"
-            leftIcon={<RotateCcw className="h-3.5 w-3.5" />}
-            onClick={onRestore}
-          >
-            Restaurar
-          </AppButton>
-        ) : (
-          <>
-            {isIdea ? (
-              <AppButton
-                size="xs"
-                variant="secondary"
-                rightIcon={<ArrowRight className="h-3.5 w-3.5" />}
-                onClick={onPromote}
-              >
-                Virar roteiro
-              </AppButton>
-            ) : null}
-            <AppButton
-              size="xs"
-              variant="ghost"
-              iconOnly
-              leftIcon={<Archive className="h-3.5 w-3.5" />}
-              onClick={onArchive}
-              className={cn(
-                'text-[var(--text-tertiary)] hover:text-[var(--text-primary)]',
-                'opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100',
-              )}
-              aria-label={`Arquivar ${title}`}
-              title="Arquivar"
-            />
-          </>
-        )}
-      </div>
-    </Surface>
-  );
+function parseViewMode(value: string | null): CreationViewMode | null {
+  if (value === 'list' || value === 'kanban' || value === 'grid') return value;
+  return null;
 }
 
 export function CreationHubPage() {
@@ -484,6 +126,7 @@ export function CreationHubPage() {
   const [selectedExportIds, setSelectedExportIds] = useState<Set<string>>(new Set());
   const [isExporting, setIsExporting] = useState(false);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+  const [persistingIds, setPersistingIds] = useState<Set<string>>(new Set());
   const handledComposeRef = useRef<string | null>(null);
   const isMobile = useIsMobile();
 
@@ -496,10 +139,11 @@ export function CreationHubPage() {
   const seriesId = searchParams.get('serie') ?? '';
   const originId = searchParams.get('origem') ?? '';
   const sortParam = searchParams.get('sort');
-  const sort = sortParam === 'oldest' || sortParam === 'title' ? sortParam : 'recent';
+  const sort: CreationSort =
+    sortParam === 'oldest' || sortParam === 'title' ? sortParam : 'recent';
   const viewParam = searchParams.get('view');
   const requestedView: CreationViewMode =
-    viewParam === 'list' || viewParam === 'kanban' ? viewParam : 'grid';
+    parseViewMode(viewParam) ?? readStoredCreationViewMode() ?? 'grid';
   const viewMode: CreationViewMode =
     isMobile && requestedView === 'kanban' ? 'grid' : requestedView;
   const requestedPage = Math.max(1, Number.parseInt(searchParams.get('page') ?? '1', 10) || 1);
@@ -520,6 +164,15 @@ export function CreationHubPage() {
       return next;
     }, { replace: true });
   }, [setSearchParams]);
+
+  const setViewMode = useCallback((value: CreationViewMode) => {
+    storeCreationViewMode(value);
+    updateSearchParam('view', value, 'grid');
+  }, [updateSearchParam]);
+
+  useEffect(() => {
+    storeCreationViewMode(requestedView);
+  }, [requestedView]);
 
   const canonicalContents = useMemo(() => {
     const byId = new Map<string, Content>();
@@ -582,12 +235,12 @@ export function CreationHubPage() {
     if (exportableContents.length === 0) setExportMode(false);
   }, [exportableContents.length, exportableIds]);
 
-  const openContent = (content: Content) => {
+  const openContent = useCallback((content: Content) => {
     navigate(
       buildContentDetailRoute(content.id),
       buildDetailBackState(`${location.pathname}${location.search}`),
     );
-  };
+  }, [location.pathname, location.search, navigate]);
 
   const toggleExportMode = useCallback(() => {
     if (exportMode) setSelectedExportIds(new Set());
@@ -595,6 +248,7 @@ export function CreationHubPage() {
   }, [exportMode]);
 
   const toggleExportSelection = useCallback((id: string) => {
+    setExportMode(true);
     setSelectedExportIds(previous => {
       const next = new Set(previous);
       if (next.has(id)) next.delete(id);
@@ -604,6 +258,7 @@ export function CreationHubPage() {
   }, []);
 
   const toggleSelectAllExportable = useCallback(() => {
+    setExportMode(true);
     setSelectedExportIds(
       allExportableSelected
         ? new Set()
@@ -668,7 +323,12 @@ export function CreationHubPage() {
 
   useEffect(() => {
     const compose = searchParams.get('compose');
-    if (compose !== 'script') return;
+    if (compose !== 'script') {
+      if (handledComposeRef.current === 'script') {
+        handledComposeRef.current = null;
+      }
+      return;
+    }
     if (handledComposeRef.current === compose) return;
 
     handledComposeRef.current = compose;
@@ -685,22 +345,17 @@ export function CreationHubPage() {
       next.delete('compose');
       next.delete('itemId');
       return next;
-    }, {replace: true});
+    }, { replace: true });
   }, [setSearchParams]);
 
   const saveIdea = useCallback(async (input: CreationIdeaInput) => {
     const content = createIdeaContent(input);
-    await dispatch({type: 'ADD_CONTENT', payload: content});
-    setSearchParams(previous => {
-      const next = new URLSearchParams(previous);
-      next.set('tab', TAB_QUERY.Ideias);
-      next.delete('tipo');
-      next.delete('compose');
-      next.delete('itemId');
-      next.delete('page');
-      return next;
-    }, {replace: true});
-  }, [dispatch, setSearchParams]);
+    await dispatch({ type: 'ADD_CONTENT', payload: content });
+    navigate(
+      buildContentDetailRoute(content.id),
+      buildDetailBackState('/criacao?tab=ideias'),
+    );
+  }, [dispatch, navigate]);
 
   useEffect(() => {
     if (!user?.id) {
@@ -767,8 +422,8 @@ export function CreationHubPage() {
     try {
       await restoreContent(content.id, user.id);
       setDeletedContents(previous => previous.filter(item => item.id !== content.id));
-      await updateContent(restored, {silent: true});
-      notifySaveFeedback({status: 'success', message: 'Roteiro restaurado'});
+      await updateContent(restored, { silent: true });
+      notifySaveFeedback({ status: 'success', message: 'Roteiro restaurado' });
     } catch (error) {
       notifySaveFeedback({
         status: 'error',
@@ -787,7 +442,7 @@ export function CreationHubPage() {
         previous.filter(item => item.id !== permanentDeleteTarget.id)
       );
       setPermanentDeleteTarget(null);
-      notifySaveFeedback({status: 'success', message: 'Roteiro excluído definitivamente'});
+      notifySaveFeedback({ status: 'success', message: 'Roteiro excluído definitivamente' });
     } catch (error) {
       notifySaveFeedback({
         status: 'error',
@@ -823,6 +478,71 @@ export function CreationHubPage() {
     }
   }, [deletedContents.length, user?.id]);
 
+  const handleMoveToTab = useCallback(async (content: Content, tab: CreationKanbanTab) => {
+    const previous = content;
+    const next = moveCreationToKanbanTab(content, tab);
+    if (
+      previous.status === next.status
+      && (previous.postedAt ?? null) === (next.postedAt ?? null)
+    ) {
+      return;
+    }
+
+    setPersistingIds(current => new Set(current).add(content.id));
+    try {
+      await updateContent(next);
+    } catch (error) {
+      try {
+        await updateContent(previous, { silent: true });
+      } catch {
+        // keep UI on previous via failed update rollback below
+      }
+      notifySaveFeedback({
+        status: 'error',
+        message: 'Não foi possível mover o item.',
+        detail: getErrorMessage(error),
+      });
+    } finally {
+      setPersistingIds(current => {
+        const nextSet = new Set(current);
+        nextSet.delete(content.id);
+        return nextSet;
+      });
+    }
+  }, [updateContent]);
+
+  const itemActions: CreationItemActionHandlers = useMemo(() => ({
+    onPromote: content => {
+      void updateContent(promoteContentToScript(content));
+    },
+    onArchive: content => {
+      void handleArchive(content);
+    },
+    onRestore: content => {
+      void (content.deletedAt ? handleRestoreDeleted(content) : handleRestore(content));
+    },
+    onPermanentDelete: content => {
+      setPermanentDeleteTarget(content);
+    },
+    onMoveToTab: (content, tab) => {
+      void handleMoveToTab(content, tab);
+    },
+  }), [handleArchive, handleMoveToTab, handleRestore, handleRestoreDeleted, updateContent]);
+
+  const resolveItem = useCallback((content: Content) => ({
+    content,
+    pillar: state.pilares.find(pilar => pilar.id === content.pilarId) ?? null,
+    series: state.series.find(item => item.id === content.seriesId) ?? null,
+    selectable: exportableIds.has(content.id),
+    selected: selectedExportIds.has(content.id),
+  }), [exportableIds, selectedExportIds, state.pilares, state.series]);
+
+  const listItems = useMemo(
+    () => visibleContents.map(resolveItem),
+    [resolveItem, visibleContents],
+  );
+
+  const showStatus = true;
   const tabOptions = CREATION_TABS.map(tab => ({
     id: tab,
     label: `${tab} ${tabCounts[tab]}`,
@@ -830,19 +550,6 @@ export function CreationHubPage() {
 
   const creationActions = (
     <>
-      {exportableContents.length > 0 ? (
-        <AppButton
-          variant={exportMode ? 'primary' : 'secondary'}
-          size="sm"
-          leftIcon={exportMode
-            ? <X className="h-4 w-4" />
-            : <Download className="h-4 w-4" />}
-          onClick={toggleExportMode}
-          className={isMobile ? 'col-span-2' : undefined}
-        >
-          {exportMode ? 'Cancelar exportação' : `Exportar ${exportCopy.plural}`}
-        </AppButton>
-      ) : null}
       <AppButton
         variant="secondary"
         size="sm"
@@ -876,20 +583,25 @@ export function CreationHubPage() {
     </AppButton>
   );
 
-  const headerActions = activeTab === 'Lixeira' ? trashActions : creationActions;
+  const desktopTabs = (
+    <SegmentTabs
+      options={tabOptions}
+      value={activeTab}
+      onChange={tab => updateSearchParam('tab', TAB_QUERY[tab], 'todos')}
+    />
+  );
 
-  const tabs = (
-    <div className="-mx-1 overflow-x-auto px-1 pb-1">
-      <SegmentTabs
-        options={tabOptions}
-        value={activeTab}
-        onChange={tab => updateSearchParam('tab', TAB_QUERY[tab], 'todos')}
-        className={cn(
-          'min-w-max',
-          isMobile && '[&_.segment-tabs-item]:min-h-11 [&_.segment-tabs-item]:px-4',
-        )}
-      />
-    </div>
+  const mobileTabs = (
+    <MobileSegmentTabs
+      rounded="tight"
+      tabs={CREATION_TABS.map(tab => ({
+        value: tab,
+        label: tab,
+        count: tabCounts[tab],
+      }))}
+      value={activeTab}
+      onChange={tab => updateSearchParam('tab', TAB_QUERY[tab], 'todos')}
+    />
   );
 
   const filterDefinitions = useMemo(() => [
@@ -936,59 +648,65 @@ export function CreationHubPage() {
     updateSearchParam,
   ]);
 
-  const activeFilterCount = filterDefinitions.filter(filter => filter.value).length;
-
   const clearMobileFilters = useCallback(() => {
     setSearchParams(previous => {
       const next = new URLSearchParams(previous);
-      ['pilar', 'serie', 'origem', 'sort', 'page'].forEach(key => next.delete(key));
+      CREATION_FILTER_QUERY_KEYS.forEach(key => next.delete(key));
       return next;
     }, { replace: true });
     setMobileFiltersOpen(false);
   }, [setSearchParams]);
 
   const filters = (
-    <div className="flex flex-col gap-2 md:flex-row md:items-start">
+    <div className="desktop-subheader !mb-0">
       <FilterBar
         className="min-w-0 flex-1"
         searchValue={search}
         onSearchChange={value => updateSearchParam('q', value)}
         searchPlaceholder="Buscar por título, nota ou tag..."
         filters={filterDefinitions}
-        sortValue={sort}
-        onSortChange={value => updateSearchParam('sort', value, 'recent')}
-        sortOptions={SORT_OPTIONS}
       />
-      <ViewModeToggle
-        value={viewMode}
-        options={VIEW_OPTIONS}
-        onChange={value => updateSearchParam('view', value, 'grid')}
-        showLabels
-        className="self-start"
-      />
+      <div className="inline-stack-sm shrink-0">
+        <CreationDisplayMenu
+          sort={sort as CreationSortValue}
+          onSortChange={value => updateSearchParam('sort', value, 'recent')}
+        />
+        <ViewModeToggle
+          value={viewMode}
+          options={VIEW_OPTIONS}
+          onChange={value => setViewMode(value)}
+          showLabels
+        />
+        {activeTab !== 'Lixeira' ? (
+          <CreationOverflowMenu
+            exportLabel={`Exportar ${exportCopy.plural}`}
+            exportEnabled={exportableContents.length > 0}
+            exportMode={exportMode}
+            onToggleExport={toggleExportMode}
+          />
+        ) : null}
+      </div>
     </div>
   );
 
   const mobileFilters = (
-    <div className="flex items-center gap-2">
-      <div className="min-w-0 flex-1">
-        <MobileSearchBar
-          value={search}
-          onChange={value => updateSearchParam('q', value)}
-          placeholder="Buscar por título, nota ou tag"
-          rounded="tight"
-        />
-      </div>
-      <AppButton
-        variant={activeFilterCount > 0 ? 'primary' : 'secondary'}
-        size="lg"
-        leftIcon={<SlidersHorizontal className="h-4 w-4" />}
-        rightIcon={activeFilterCount > 0 ? <Badge>{activeFilterCount}</Badge> : undefined}
-        onClick={() => setMobileFiltersOpen(true)}
-      >
-        Filtros
-      </AppButton>
-    </div>
+    <MobileSearchBar
+      value={search}
+      onChange={value => updateSearchParam('q', value)}
+      placeholder="Buscar por título, nota ou tag"
+      onFilterClick={() => setMobileFiltersOpen(true)}
+      rounded="tight"
+      trailing={
+        activeTab !== 'Lixeira' ? (
+          <CreationOverflowMenu
+            exportLabel={`Exportar ${exportCopy.plural}`}
+            exportEnabled={exportableContents.length > 0}
+            exportMode={exportMode}
+            onToggleExport={toggleExportMode}
+          />
+        ) : undefined
+      }
+    />
   );
 
   const mobileFilterSheet = (
@@ -1021,9 +739,24 @@ export function CreationHubPage() {
           onChange={event => updateSearchParam('sort', event.target.value, 'recent')}
           className="min-h-11 w-full rounded-[var(--radius-input)]"
         >
-          {SORT_OPTIONS.map(option => (
+          {CREATION_SORT_OPTIONS.map(option => (
             <option key={option.value} value={option.value}>
               {option.label}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      <label className="block stack-sm">
+        <Text variant="label" as="span">Visualização</Text>
+        <select
+          value={requestedView}
+          onChange={event => setViewMode(event.target.value as CreationViewMode)}
+          className="min-h-11 w-full rounded-[var(--radius-input)]"
+        >
+          {CREATION_VIEW_MODE_VALUES.map(value => (
+            <option key={value} value={value}>
+              {CREATION_VIEW_MODE_LABELS[value]}
             </option>
           ))}
         </select>
@@ -1074,56 +807,20 @@ export function CreationHubPage() {
         >
           {isExporting ? 'Gerando DOCX...' : `Exportar DOCX (${selectedExportIds.size})`}
         </AppButton>
+        <AppButton
+          variant="ghost"
+          size="sm"
+          leftIcon={<X className="h-4 w-4" />}
+          onClick={toggleExportMode}
+        >
+          Cancelar
+        </AppButton>
       </div>
     </Surface>
   ) : null;
 
-  const renderCard = (content: Content) => (
-    <CreationCard
-      key={content.id}
-      content={content}
-      onOpen={() => openContent(content)}
-      onToggleSelect={() => toggleExportSelection(content.id)}
-      onPromote={() => void updateContent(promoteContentToScript(content))}
-      onArchive={() => void handleArchive(content)}
-      onRestore={() => void (
-        content.deletedAt ? handleRestoreDeleted(content) : handleRestore(content)
-      )}
-      onPermanentDelete={() => setPermanentDeleteTarget(content)}
-      selectionMode={exportMode}
-      selectable={exportableIds.has(content.id)}
-      selected={selectedExportIds.has(content.id)}
-      pillar={state.pilares.find(pilar => pilar.id === content.pilarId) ?? null}
-      series={state.series.find(item => item.id === content.seriesId) ?? null}
-    />
-  );
-
-  const renderListRow = (content: Content) => (
-    <CreationListRow
-      key={content.id}
-      content={content}
-      onOpen={() => openContent(content)}
-      onToggleSelect={() => toggleExportSelection(content.id)}
-      onPromote={() => void updateContent(promoteContentToScript(content))}
-      onArchive={() => void handleArchive(content)}
-      onRestore={() => void (
-        content.deletedAt ? handleRestoreDeleted(content) : handleRestore(content)
-      )}
-      onPermanentDelete={() => setPermanentDeleteTarget(content)}
-      selectionMode={exportMode}
-      selectable={exportableIds.has(content.id)}
-      selected={selectedExportIds.has(content.id)}
-      pillar={state.pilares.find(pilar => pilar.id === content.pilarId) ?? null}
-      series={state.series.find(item => item.id === content.seriesId) ?? null}
-      originName={state.bibliotecaItems.find(item => item.id === content.bibliotecaItemId)?.titulo}
-    />
-  );
-
   const hasFilters = Boolean(search || pilarId || seriesId || originId);
   const shownCount = viewMode === 'kanban' ? filteredContents.length : pageData.items.length;
-  const kanbanTabs = activeTab === 'Todos'
-    ? KANBAN_TABS
-    : [activeTab as Exclude<CreationTab, 'Todos'>];
 
   return (
     <>
@@ -1133,64 +830,94 @@ export function CreationHubPage() {
         header={(
           <DesktopPageHeader
             section="Criação"
-            title="Central de criação"
+            title="Criação"
             meta={`${shownCount} de ${filteredContents.length} itens`}
-            actions={headerActions}
-          >
-            {tabs}
-          </DesktopPageHeader>
+            actions={activeTab === 'Lixeira' ? trashActions : (
+              <CreateMenuButton
+                onCreateIdea={openIdeaComposer}
+                onCreateScript={() => createScript()}
+              />
+            )}
+          />
         )}
-        toolbar={filters}
+        toolbar={(
+          <div className="stack-md">
+            {desktopTabs}
+            {filters}
+          </div>
+        )}
         mobileHeader={(
-          <div className="stack-md border-b border-[var(--border-color)] pb-4 pt-2">
-            <Text variant="meta">{shownCount} de {filteredContents.length} itens</Text>
-            <div className={activeTab === 'Lixeira' ? 'w-full' : 'grid grid-cols-2 gap-2'}>
-              {headerActions}
-            </div>
-            {tabs}
+          <div className="stack-sm pb-1 pt-1">
+            {activeTab === 'Lixeira' ? trashActions : null}
+            {mobileTabs}
           </div>
         )}
         mobileToolbar={mobileFilters}
       >
         {exportSelectionToolbar}
 
-        {visibleContents.length > 0 ? (
-          <div className="stack-lg" aria-live="polite">
+        <QueryViewState
+          status={resolveQueryViewStatus({
+            loading: !state.isLoaded,
+            enabled: true,
+            fetchAttempted: state.isLoaded,
+            itemCount: visibleContents.length,
+          })}
+          skeletonCount={8}
+          skeletonVariant="content"
+          emptyTitle={hasFilters ? 'Nenhum resultado' : `Nenhum item em ${activeTab}`}
+          emptyDescription={
+            hasFilters
+              ? 'Ajuste a busca ou limpe os filtros para encontrar outros itens.'
+              : activeTab === 'Lixeira'
+                ? 'Roteiros excluídos aparecem aqui para que você possa restaurá-los.'
+                : isMobile
+                  ? 'Use o botão + da barra inferior para criar uma ideia ou um roteiro.'
+                  : 'Crie uma ideia ou um roteiro para começar a preencher esta etapa.'
+          }
+          emptyAction={
+            !isMobile && !hasFilters && activeTab !== 'Lixeira' ? (
+              <div className="flex flex-wrap justify-center gap-2">{creationActions}</div>
+            ) : undefined
+          }
+        >
+          <div className={isMobile ? 'stack-md' : 'stack-lg'} aria-live="polite">
             {viewMode === 'grid' ? (
-              <div className="grid-content">{visibleContents.map(renderCard)}</div>
+              <CreationGridView
+                items={listItems}
+                showStatus
+                selectionMode={exportMode}
+                compact={isMobile}
+                onOpen={openContent}
+                onToggleSelect={content => toggleExportSelection(content.id)}
+                actions={itemActions}
+              />
             ) : null}
 
             {viewMode === 'list' ? (
-              <div className="stack-sm">{visibleContents.map(renderListRow)}</div>
+              <CreationListView
+                items={listItems}
+                showStatus
+                selectionMode={exportMode}
+                sort={sort}
+                onSortChange={value => updateSearchParam('sort', value, 'recent')}
+                onOpen={openContent}
+                onToggleSelect={content => toggleExportSelection(content.id)}
+                actions={itemActions}
+              />
             ) : null}
 
             {viewMode === 'kanban' ? (
-              <div className="flex gap-3 overflow-x-auto pb-2">
-                {kanbanTabs.map(tab => {
-                  const columnItems = filterContentsByCreationTab(filteredContents, tab);
-                  return (
-                    <Surface
-                      key={tab}
-                      as="section"
-                      variant="outlined"
-                      padding="none"
-                      className="flex w-[min(320px,86vw)] shrink-0 flex-col bg-[var(--bg-hover)]/20"
-                    >
-                      <div className="flex items-center justify-between border-b border-[var(--border-color)] px-3 py-3">
-                        <Text variant="label">{tab}</Text>
-                        <Badge>{columnItems.length}</Badge>
-                      </div>
-                      <div className="flex max-h-[68vh] flex-col gap-2 overflow-y-auto p-2">
-                        {columnItems.length > 0 ? columnItems.map(renderCard) : (
-                          <Text variant="meta" className="px-2 py-8 text-center">
-                            Nenhum item nesta etapa.
-                          </Text>
-                        )}
-                      </div>
-                    </Surface>
-                  );
-                })}
-              </div>
+              <CreationKanbanView
+                contents={filteredContents}
+                activeTab={activeTab}
+                resolveItem={resolveItem}
+                selectionMode={exportMode}
+                onOpen={openContent}
+                actions={itemActions}
+                onMoveToTab={handleMoveToTab}
+                persistingIds={persistingIds}
+              />
             ) : null}
 
             {viewMode !== 'kanban' ? (
@@ -1205,27 +932,7 @@ export function CreationHubPage() {
               />
             ) : null}
           </div>
-        ) : (
-          <Surface
-            variant="outlined"
-            padding="lg"
-            className="flex min-h-[240px] flex-col items-center justify-center gap-3 border-dashed text-center"
-          >
-            <Text variant="sectionTitle">
-              {hasFilters ? 'Nenhum resultado' : `Nenhum item em ${activeTab}`}
-            </Text>
-            <Text variant="secondary" className="max-w-md">
-              {hasFilters
-                ? 'Ajuste a busca ou limpe os filtros para encontrar outros itens.'
-                : activeTab === 'Lixeira'
-                  ? 'Roteiros excluídos aparecem aqui para que você possa restaurá-los.'
-                  : 'Crie uma ideia ou um roteiro para começar a preencher esta etapa.'}
-            </Text>
-            {!hasFilters && activeTab !== 'Lixeira' ? (
-              <div className="flex flex-wrap justify-center gap-2">{creationActions}</div>
-            ) : null}
-          </Surface>
-        )}
+        </QueryViewState>
       </PageLayout>
 
       {isMobile ? mobileFilterSheet : null}

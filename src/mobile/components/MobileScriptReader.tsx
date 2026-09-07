@@ -28,7 +28,7 @@ function ScriptBody({ text, large }: { text: string; large?: boolean }) {
   }
 
   return (
-    <div className={cn('stack-lg', large && 'stack-xl')}>
+    <div className={cn('stack-lg')}>
       {paragraphs.map((paragraph, index) => (
         <p
           key={index}

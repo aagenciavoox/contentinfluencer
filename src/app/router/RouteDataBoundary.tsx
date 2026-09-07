@@ -1,55 +1,37 @@
 import { Suspense, useEffect, useMemo } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { useAppContext } from '../../context/AppContext';
-import type { AppDataDomain } from '../../lib/database';
+import { LOADING } from '../../lib/uiCopy';
+import {
+  getRouteDataDomains,
+  getRouteOutletKey,
+} from './routeDataDomains';
 
-function RouteFallback() {
+function RouteFallback({ label = LOADING.area }: { label?: string }) {
   return (
     <div className="flex min-h-[40vh] items-center justify-center rounded-[var(--radius-overlay)] border border-[var(--border-color)] bg-[var(--bg-primary)]">
       <p className="text-xs font-semibold t-label-uppercase text-[var(--text-tertiary)]">
-        Carregando área...
+        {label}
       </p>
     </div>
   );
-}
-
-function getRouteDataDomains(pathname: string): AppDataDomain[] {
-  if (pathname === '/biblioteca/analise') {
-    return ['library'];
-  }
-  if (pathname.startsWith('/biblioteca')) return ['library', 'library-generos'];
-  if (pathname.startsWith('/criacao')) return ['production', 'content'];
-  if (pathname.startsWith('/conteudos/')) return ['production', 'recording'];
-  if (pathname.startsWith('/conteudos')) return ['production'];
-  if (pathname.startsWith('/ideias')) return ['production'];
-  if (pathname.startsWith('/calendario') || pathname.startsWith('/programacao')) {
-    return ['content-schedule', 'agenda', 'projects', 'production'];
-  }
-  if (pathname.startsWith('/projetos')) return ['content-schedule', 'library'];
-  if (pathname.startsWith('/gravacao')) return ['content', 'production', 'recording'];
-  if (pathname.startsWith('/configuracoes/pilares/')) return ['production', 'content', 'bootstrap'];
-  if (pathname.startsWith('/configuracoes/pilares')) return ['production'];
-  if (pathname.startsWith('/configuracoes/series/')) return ['production', 'content', 'bootstrap'];
-  if (pathname.startsWith('/configuracoes/series')) return ['production'];
-  if (pathname.startsWith('/configuracoes/templates')) return ['templates', 'production'];
-  if (pathname.startsWith('/configuracoes/plataformas')) return ['bootstrap'];
-  if (pathname.startsWith('/configuracoes/aparencia')) return ['production'];
-  return [];
 }
 
 export function RouteDataBoundary() {
   const { ensureDataDomains } = useAppContext();
   const location = useLocation();
   const routeDataDomains = useMemo(() => getRouteDataDomains(location.pathname), [location.pathname]);
+  const outletKey = getRouteOutletKey(location.pathname);
 
   useEffect(() => {
     if (routeDataDomains.length === 0) return;
     void ensureDataDomains(routeDataDomains);
   }, [ensureDataDomains, routeDataDomains]);
 
+  // Keep the previous route painted during navigation; only Suspense covers lazy chunks.
   return (
     <Suspense fallback={<RouteFallback />}>
-      <Outlet />
+      <Outlet key={outletKey} />
     </Suspense>
   );
 }

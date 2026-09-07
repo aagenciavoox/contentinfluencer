@@ -1,6 +1,6 @@
 import type { Content, Idea } from '../../../lib/database';
 import { formatLastEdit } from '../../contents/lib/contentCardMeta';
-import { normalizeContentStatus } from '../../contents/lib/contentPipeline';
+import { CONTENT_STATUS, normalizeContentStatus } from '../../contents/lib/contentPipeline';
 import { getIdeaNotes, getIdeaTitle, ideaSearchText } from '../../ideas/lib/ideaText';
 import { htmlToReadableText } from '../../../lib/utils';
 import { filterByTab, type SeriesContentTab } from './computeSeriesContentStats';
@@ -8,6 +8,22 @@ import { filterByTab, type SeriesContentTab } from './computeSeriesContentStats'
 export type SeriesListItem =
   | { kind: 'content'; data: Content }
   | { kind: 'inbox-idea'; data: Idea };
+
+export const SERIES_CONTENT_STATUS_OPTIONS = [
+  { value: 'Todos', label: 'Todos' },
+  { value: CONTENT_STATUS.IDEIA, label: CONTENT_STATUS.IDEIA },
+  { value: CONTENT_STATUS.ROTEIRO, label: CONTENT_STATUS.ROTEIRO },
+  { value: CONTENT_STATUS.PRODUCAO, label: CONTENT_STATUS.PRODUCAO },
+  { value: CONTENT_STATUS.POSTADO, label: CONTENT_STATUS.POSTADO },
+] as const;
+
+export const SERIES_CONTENT_SORT_OPTIONS = [
+  { value: 'updatedAt:desc', label: 'Mais recentes' },
+  { value: 'createdAt:desc', label: 'Criação' },
+  { value: 'title:asc', label: 'Título A-Z' },
+] as const;
+
+export const DEFAULT_SERIES_CONTENT_SORT = SERIES_CONTENT_SORT_OPTIONS[0].value;
 
 export function seriesListItemId(item: SeriesListItem): string {
   return item.kind === 'content' ? item.data.id : `inbox-idea:${item.data.id}`;

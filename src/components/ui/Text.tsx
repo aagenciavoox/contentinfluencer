@@ -15,15 +15,15 @@ export type TextVariant =
   | 'eyebrow';
 
 const variantClasses: Record<TextVariant, string> = {
-  display: 't-display font-serif text-[var(--text-primary)]',
+  display: 't-display text-[var(--text-primary)]',
   pageTitle: 't-page-title text-[var(--text-primary)]',
   sectionTitle: 't-section-title text-[var(--text-primary)]',
-  /** Título grande de destaque (2rem bold) — usado em spotlight cards */
+  /** Título grande de destaque — Title 2 no mobile, 32px no desktop */
   spotlightTitle: 'notion-title text-[var(--text-primary)]',
   itemTitle: 't-item-title text-[var(--text-primary)]',
   body: 't-body text-[var(--text-primary)]',
   bodyStrong: 't-body-strong text-[var(--text-primary)]',
-  /** Texto auxiliar pequeno (13px, cor text-secondary) */
+  /** Texto auxiliar (13px footnote) */
   secondary: 't-secondary',
   meta: 't-meta',
   label: 't-label text-[var(--text-tertiary)]',

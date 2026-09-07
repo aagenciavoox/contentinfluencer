@@ -67,20 +67,47 @@ export function resolvePlatformName(platformId: string | null, platforms: Platfo
   return platforms.find(platform => platform.id === platformId)?.nome ?? platformId;
 }
 
-/** Paleta fixa por plataforma conhecida + fallback determinístico. */
+/** Paleta por plataforma — tokens CSS (respeitam data-theme via dark: wired to [data-theme]). */
 const PLATFORM_COLOR_PRESETS: Record<string, PlatformColor> = {
-  instagram: {chip: 'border-pink-200 bg-pink-50 text-pink-700 dark:border-pink-500/30 dark:bg-pink-500/10 dark:text-pink-300', dot: 'var(--accent-pink)'},
-  tiktok: {chip: 'border-teal-200 bg-teal-50 text-teal-700 dark:border-teal-500/30 dark:bg-teal-500/10 dark:text-teal-300', dot: 'var(--accent-green)'},
-  youtube: {chip: 'border-red-200 bg-red-50 text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300', dot: 'var(--danger)'},
-  blog: {chip: 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-300', dot: 'var(--accent-blue)'},
+  instagram: {
+    chip: 'border-[color-mix(in_srgb,var(--accent-pink)_35%,transparent)] bg-[color-mix(in_srgb,var(--accent-pink)_12%,transparent)] text-[var(--accent-pink)]',
+    dot: 'var(--accent-pink)',
+  },
+  tiktok: {
+    chip: 'border-[color-mix(in_srgb,var(--accent-green)_35%,transparent)] bg-[color-mix(in_srgb,var(--accent-green)_12%,transparent)] text-[var(--accent-green)]',
+    dot: 'var(--accent-green)',
+  },
+  youtube: {
+    chip: 'border-[color-mix(in_srgb,var(--danger)_35%,transparent)] bg-[color-mix(in_srgb,var(--danger)_12%,transparent)] text-[var(--danger)]',
+    dot: 'var(--danger)',
+  },
+  blog: {
+    chip: 'border-[color-mix(in_srgb,var(--accent-blue)_35%,transparent)] bg-[color-mix(in_srgb,var(--accent-blue)_12%,transparent)] text-[var(--accent-blue)]',
+    dot: 'var(--accent-blue)',
+  },
 };
 
 const FALLBACK_COLORS: PlatformColor[] = [
-  {chip: 'border-purple-200 bg-purple-50 text-purple-700 dark:border-purple-500/30 dark:bg-purple-500/10 dark:text-purple-300', dot: 'var(--accent-purple)'},
-  {chip: 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300', dot: 'var(--accent-orange)'},
-  {chip: 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300', dot: 'var(--accent-green)'},
-  {chip: 'border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-300', dot: 'var(--info)'},
-  {chip: 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300', dot: 'var(--accent-pink)'},
+  {
+    chip: 'border-[color-mix(in_srgb,var(--accent-purple)_35%,transparent)] bg-[color-mix(in_srgb,var(--accent-purple)_12%,transparent)] text-[var(--accent-purple)]',
+    dot: 'var(--accent-purple)',
+  },
+  {
+    chip: 'border-[color-mix(in_srgb,var(--accent-orange)_35%,transparent)] bg-[color-mix(in_srgb,var(--accent-orange)_12%,transparent)] text-[var(--accent-orange)]',
+    dot: 'var(--accent-orange)',
+  },
+  {
+    chip: 'border-[color-mix(in_srgb,var(--accent-green)_35%,transparent)] bg-[color-mix(in_srgb,var(--accent-green)_12%,transparent)] text-[var(--accent-green)]',
+    dot: 'var(--accent-green)',
+  },
+  {
+    chip: 'border-[color-mix(in_srgb,var(--info)_35%,transparent)] bg-[color-mix(in_srgb,var(--info)_12%,transparent)] text-[var(--info)]',
+    dot: 'var(--info)',
+  },
+  {
+    chip: 'border-[color-mix(in_srgb,var(--accent-pink)_35%,transparent)] bg-[color-mix(in_srgb,var(--accent-pink)_12%,transparent)] text-[var(--accent-pink)]',
+    dot: 'var(--accent-pink)',
+  },
 ];
 
 export interface PlatformColor {
@@ -213,6 +240,29 @@ export function isPostadoCard(card: ProgramacaoCard): boolean {
 
 export function canDragCard(card: ProgramacaoCard): boolean {
   return !isCardLocked(card);
+}
+
+export function platformInitials(platformName: string): string {
+  return (
+    platformName
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map(part => part.charAt(0).toUpperCase())
+      .join('') || '?'
+  );
+}
+
+export function sortDayCards(cards: ProgramacaoCard[]): ProgramacaoCard[] {
+  return [...cards].sort((a, b) => {
+    const aIdeia = isIdeiaCard(a) ? 0 : 1;
+    const bIdeia = isIdeiaCard(b) ? 0 : 1;
+    if (aIdeia !== bIdeia) return aIdeia - bIdeia;
+    const timeA = a.time || '99:99';
+    const timeB = b.time || '99:99';
+    if (timeA !== timeB) return timeA.localeCompare(timeB);
+    return a.title.localeCompare(b.title, 'pt-BR');
+  });
 }
 
 export function promoteIdeiaToRoteiro(content: Content): Content {

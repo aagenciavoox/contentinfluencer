@@ -12,7 +12,7 @@ interface PageLayoutProps {
   className?: string;
   contentClassName?: string;
   contentWidth?: 'narrow' | 'wide' | 'book' | 'full';
-  /** Vertical rhythm between direct page sections (default: operational 32px, settings 24px) */
+  /** Vertical rhythm between direct page sections. Mobile shell always uses dense (16px). */
   contentStack?: 'operational' | 'settings' | 'dense' | 'none';
   /** Settings pages use secondary background */
   variant?: 'default' | 'settings';
@@ -27,9 +27,9 @@ const contentStackClasses = {
 
 const headerWidthClasses = {
   narrow: 'desktop-header-frame',
-  wide: 'desktop-header-frame-wide',
-  book: 'desktop-header-frame-book',
-  full: 'desktop-header-frame-full',
+  wide: 'desktop-header-frame',
+  book: 'desktop-header-frame',
+  full: 'desktop-header-frame',
 } as const;
 
 export function PageLayout({
@@ -45,8 +45,11 @@ export function PageLayout({
   variant = 'default',
 }: PageLayoutProps) {
   const isMobile = useIsMobile();
-  const resolvedStack =
+  let resolvedStack =
     contentStack ?? (variant === 'settings' ? 'settings' : 'operational');
+  if (isMobile && resolvedStack !== 'none') {
+    resolvedStack = 'dense';
+  }
 
   return (
     <div
@@ -58,7 +61,7 @@ export function PageLayout({
     >
       {!isMobile && (header || toolbar) ? (
         <header className="desktop-header-sticky">
-          <div className={cn(headerWidthClasses[contentWidth], 'stack-md')}>
+          <div className={cn(headerWidthClasses[contentWidth], 'stack-lg')}>
             {header}
             {toolbar}
           </div>
@@ -73,12 +76,14 @@ export function PageLayout({
         <PageContainer
           width={contentWidth}
           className={cn(
-            contentStackClasses[resolvedStack],
+            isMobile && resolvedStack === 'dense'
+              ? 'stack-md'
+              : contentStackClasses[resolvedStack],
             variant === 'settings' && 'pb-20',
             contentClassName,
           )}
         >
-          {isMobile && mobileToolbar ? <div className="mb-6">{mobileToolbar}</div> : null}
+          {isMobile && mobileToolbar ? <div className="mb-3">{mobileToolbar}</div> : null}
           {children}
         </PageContainer>
       </main>

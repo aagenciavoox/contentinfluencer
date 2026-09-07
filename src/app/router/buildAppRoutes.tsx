@@ -23,11 +23,11 @@ const SeriesRoteiros = lazy(() => import('../../pages/settings/SeriesRoteiros').
 const PlataformasSettings = lazy(() => import('../../pages/settings/Plataformas').then(module => ({ default: module.PlataformasSettings })));
 const TemplatesSettings = lazy(() => import('../../pages/settings/Templates').then(module => ({ default: module.TemplatesSettings })));
 const PostingTimesSettings = lazy(() => import('../../pages/settings/PostingTimes').then(module => ({ default: module.PostingTimesSettings })));
-const LooksSettings = lazy(() => import('../../pages/settings/LooksScenarios').then(module => ({ default: module.LooksSettings })));
 const Projetos = lazy(() => import('../../pages/Projetos').then(module => ({ default: module.Projetos })));
 const ProjetoDetalhe = lazy(() => import('../../pages/ProjetoDetalhe').then(module => ({ default: module.ProjetoDetalhe })));
 const Gravacao = lazy(() => import('../../pages/Gravacao').then(module => ({ default: module.Gravacao })));
 const GravacaoBloco = lazy(() => import('../../pages/GravacaoBloco').then(module => ({ default: module.GravacaoBloco })));
+const Dashboard = lazy(() => import('../../pages/Dashboard').then(module => ({ default: module.Dashboard })));
 
 export function buildAppRoutes(): RouteObject[] {
   return [
@@ -50,6 +50,7 @@ export function buildAppRoutes(): RouteObject[] {
               children: [
                 { path: '/', element: <Navigate to="/criacao" replace /> },
                 { path: '/dashboard', element: <Navigate to="/criacao" replace /> },
+                { path: '/hoje', element: <Dashboard /> },
                 { path: '/criacao', element: <Creation /> },
                 { path: '/conteudos', element: <LegacyCreationRedirect source="contents" /> },
                 { path: '/conteudos/historico', element: <LegacyCreationRedirect source="contents" /> },
@@ -129,8 +130,8 @@ export function buildAppRoutes(): RouteObject[] {
                 { path: '/configuracoes/pilares', element: <PilaresSettings /> },
                 { path: '/configuracoes/pilares/nova', element: <PilarEditar /> },
                 { path: '/configuracoes/pilares/:pilarId/editar', element: <PilarEditar /> },
-                { path: '/configuracoes/aparencia', element: <LooksSettings /> },
-                { path: '/configuracoes/looks', element: <Navigate to="/configuracoes/aparencia" replace /> },
+                { path: '/configuracoes/aparencia', element: <Navigate to="/configuracoes" replace /> },
+                { path: '/configuracoes/looks', element: <Navigate to="/configuracoes" replace /> },
                 { path: '/configuracoes/regras', element: <Navigate to="/configuracoes/pilares" replace /> },
                 { path: '/configuracoes/series', element: <SeriesSettings /> },
                 { path: '/configuracoes/series/nova', element: <SeriesEditar /> },

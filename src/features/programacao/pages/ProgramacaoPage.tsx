@@ -16,13 +16,15 @@ import {
   subMonths,
 } from 'date-fns';
 import {ptBR} from 'date-fns/locale';
-import {AlertCircle, AlertTriangle, ArrowUpRight, Briefcase, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Eye, GripVertical, Info, Lightbulb, Plus, Search, Send, X} from 'lucide-react';
+import {AlertCircle, AlertTriangle, ArrowUpRight, Briefcase, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Eye, GripVertical, Info, Lightbulb, Plus, Send, X} from 'lucide-react';
 import {BottomSheetModal} from '../../../components/feedback/modals/BottomSheetModal';
 import {ConfirmModal} from '../../../components/feedback/modals/ConfirmModal';
 import {Text} from '../../../components/ui/Text';
+import {ToolbarSearchInput} from '../../../components/ui/ToolbarSearchInput';
 import {Badge} from '../../../components/ui/Badge';
 import {AppButton} from '../../../components/ui/AppButton';
 import {Surface} from '../../../components/ui/Surface';
+import {PaginationBar} from '../../../components/ui/PaginationBar';
 import {Drawer} from '../../../components/overlays/Drawer';
 import {OverlayBody} from '../../../components/overlays/OverlayBody';
 import {OverlayFooter} from '../../../components/overlays/OverlayFooter';
@@ -35,7 +37,7 @@ import type {Content} from '../../../lib/database';
 import type {ConfirmState} from '../../../lib/uiCopy';
 import {cn, htmlToReadableText} from '../../../lib/utils';
 import {getStatusCalendarClass, getStatusColorVar} from '../../../lib/statusClasses';
-import {diffViolations, previewScheduleViolations, validateWeeklyContent, type Violation} from '../../../utils/pilarRhythm';
+import {diffViolations, previewScheduleViolations, summarizeViolations, validateWeeklyContent, type Violation} from '../../../utils/pilarRhythm';
 import {getPostingTimes} from '../../settings/lib/postingTimes';
 import {recommendDailyAction} from '../../recommendations/recommendDailyAction';
 import type {Weekday} from '../../settings/lib/postingTimes';
@@ -54,7 +56,9 @@ import {
   isCardLocked,
   isIdeiaCard,
   isPostadoCard,
+  platformInitials,
   promoteIdeiaToRoteiro,
+  sortDayCards,
   type ProgramacaoCard,
   type ProjetoPublicacaoMarker,
 } from '../lib/programacao';
@@ -105,15 +109,6 @@ function evaluateScheduleViolations(
 
 function dateKey(date: Date): string {
   return format(date, 'yyyy-MM-dd');
-}
-
-function platformInitials(platformName: string): string {
-  return platformName
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map(part => part.charAt(0).toUpperCase())
-    .join('') || '?';
 }
 
 export function ProgramacaoPage() {
@@ -681,15 +676,25 @@ export function ProgramacaoPage() {
       contentWidth="full"
       contentStack="none"
       className="min-h-full"
-      contentClassName="!px-0 !py-0"
+      contentClassName="!py-0"
       header={
         <DesktopPageHeader
           section="Produção"
           title="Calendário"
           meta="Arraste um vídeo pronto para um dia, ou toque no vídeo e depois no dia."
-        >
-          <CalendarModeSwitch />
-        </DesktopPageHeader>
+          actions={
+            <>
+              <CalendarModeSwitch />
+              <AppButton
+                variant="primary"
+                leftIcon={<Plus className="h-4 w-4" />}
+                onClick={() => openPostedComposer(dateKey(new Date()))}
+              >
+                Registrar postado
+              </AppButton>
+            </>
+          }
+        />
       }
       mobileToolbar={periodControls}
     >
@@ -700,10 +705,6 @@ export function ProgramacaoPage() {
         toolbar={periodControls}
       >
         <div className="stack-md p-3 md:p-4">
-          {viewMode === 'week' && weekViolations.length > 0 ? (
-            <PilarRhythmStrip violations={weekViolations} />
-          ) : null}
-
           <Surface variant="outlined" padding="none" className="overflow-hidden">
             <BacklogPanel
               cards={backlogCards}
@@ -783,6 +784,10 @@ export function ProgramacaoPage() {
               )}
             </div>
           </Surface>
+
+          {weekViolations.length > 0 ? (
+            <PilarRhythmStrip violations={weekViolations} />
+          ) : null}
         </div>
       </CalendarDesktopShell>
 
@@ -1183,13 +1188,27 @@ function IdeaActionSheet({card, onPromote, onPreview, onOpen, onClose}: IdeaActi
 }
 
 function PilarRhythmStrip({violations, compact = false}: {violations: Violation[]; compact?: boolean}) {
+  const {top, rest} = useMemo(() => summarizeViolations(violations, 3), [violations]);
+
+  if (violations.length === 0) return null;
+
   return (
     <div
-      className={cn( 'stack-sm rounded-[var(--radius-card-mobile)] border border-[var(--warning)]/30 bg-[var(--warning-bg)] p-3',
+      className={cn(
+        'stack-sm rounded-[var(--radius-card-mobile)] border border-[var(--warning)]/30 bg-[var(--warning-bg)] p-3',
         compact && 'p-2.5',
       )}
     >
-      {violations.map((violation, index) => (
+      <div className="flex items-center justify-between gap-2">
+        <Text variant="label" className="text-[var(--text-primary)]">
+          Diagnóstico do ritmo
+        </Text>
+        <Text variant="meta" className="text-[var(--text-secondary)]">
+          {violations.length} alerta{violations.length === 1 ? '' : 's'}
+        </Text>
+      </div>
+
+      {top.map((violation, index) => (
         <div key={`${violation.ruleId}-${index}`} className="flex items-start gap-2 text-sm font-medium">
           {violation.type === 'warning' ? (
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-[var(--warning)]" />
@@ -1201,6 +1220,28 @@ function PilarRhythmStrip({violations, compact = false}: {violations: Violation[
           <span className="text-[var(--text-primary)]">{violation.message}</span>
         </div>
       ))}
+
+      {rest.length > 0 ? (
+        <details className="rounded-[var(--radius-sm)] border border-[var(--border-color)]/60 bg-[var(--bg-elevated)]/40">
+          <summary className="cursor-pointer list-none px-2.5 py-2 text-sm font-semibold text-[var(--text-secondary)] marker:content-none [&::-webkit-details-marker]:hidden">
+            Ver todos ({rest.length})
+          </summary>
+          <div className="stack-sm border-t border-[var(--border-color)]/60 px-2.5 py-2">
+            {rest.map((violation, index) => (
+              <div key={`rest-${violation.ruleId}-${index}`} className="flex items-start gap-2 text-sm font-medium">
+                {violation.type === 'warning' ? (
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-[var(--warning)]" />
+                ) : violation.type === 'deficit' ? (
+                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-[var(--warning)]" />
+                ) : (
+                  <Info className="mt-0.5 h-4 w-4 shrink-0 text-[var(--info)]" />
+                )}
+                <span className="text-[var(--text-primary)]">{violation.message}</span>
+              </div>
+            ))}
+          </div>
+        </details>
+      ) : null}
     </div>
   );
 }
@@ -1221,6 +1262,8 @@ interface BacklogPanelProps {
 function BacklogPanel({cards, selectedKey, isDropTarget, onSelect, onPreview, onDragStart, onDragEnd, onDragOver, onDragLeave, onDrop}: BacklogPanelProps) {
   const [expanded, setExpanded] = useState(false);
   const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const pageSize = 12;
 
   const sortedCards = useMemo(
     () => [...cards].sort((a, b) => a.title.localeCompare(b.title, 'pt-BR')),
@@ -1237,15 +1280,22 @@ function BacklogPanel({cards, selectedKey, isDropTarget, onSelect, onPreview, on
     );
   }, [search, sortedCards]);
 
+  const totalPages = Math.max(1, Math.ceil(filteredCards.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const pagedCards = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredCards.slice(start, start + pageSize);
+  }, [currentPage, filteredCards, pageSize]);
+
   const platformGroups = useMemo(() => {
     const map = new Map<string, ProgramacaoCard[]>();
-    filteredCards.forEach(card => {
+    pagedCards.forEach(card => {
       const list = map.get(card.platformName) || [];
       list.push(card);
       map.set(card.platformName, list);
     });
     return Array.from(map.entries()).sort(([a], [b]) => a.localeCompare(b, 'pt-BR'));
-  }, [filteredCards]);
+  }, [pagedCards]);
 
   const showPlatformGroups = platformGroups.length > 1;
   const showSearch = cards.length > 6;
@@ -1277,16 +1327,16 @@ function BacklogPanel({cards, selectedKey, isDropTarget, onSelect, onPreview, on
         </button>
 
         {showSearch && expanded ? (
-          <label className="relative min-w-[min(100%,220px)] flex-1 md:max-w-xs">
-            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-tertiary)]" />
-            <input
-              type="search"
-              value={search}
-              onChange={event => setSearch(event.target.value)}
-              placeholder="Buscar na fila…"
-              className="min-h-9 w-full rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] py-1.5 pl-9 pr-3 text-sm text-[var(--text-primary)] outline-none placeholder:text-[var(--text-tertiary)] focus:border-[var(--accent-blue)]"
-            />
-          </label>
+          <ToolbarSearchInput
+            value={search}
+            onChange={value => {
+              setSearch(value);
+              setPage(1);
+            }}
+            placeholder="Buscar na fila…"
+            size="compact"
+            className="filter-bar-search--fluid min-w-[min(100%,220px)] md:max-w-xs"
+          />
         ) : null}
 
         <p className="ml-auto hidden max-w-xl text-sm text-[var(--text-tertiary)] lg:block">
@@ -1300,7 +1350,7 @@ function BacklogPanel({cards, selectedKey, isDropTarget, onSelect, onPreview, on
         <p className="mt-2 text-sm text-[var(--text-tertiary)]">
           {cards.length === 0
             ? 'Nada por aqui. Roteiros e conteúdos em produção sem data aparecem aqui. Ideias salvas ficam nos dias da grade.'
-            : `${cards.length} vídeo${cards.length > 1 ? 's' : ''} em ${platformGroups.length} plataforma${platformGroups.length > 1 ? 's' : ''} — expanda para ver a fila.`}
+            : `${cards.length} vídeo${cards.length > 1 ? 's' : ''} em ${new Set(sortedCards.map(card => card.platformName)).size} plataforma${new Set(sortedCards.map(card => card.platformName)).size > 1 ? 's' : ''} — expanda para ver a fila.`}
         </p>
       ) : cards.length === 0 ? (
         <p className="mt-3 rounded-md border border-dashed border-[var(--border-color)] px-3 py-2 text-sm text-[var(--text-tertiary)]">
@@ -1311,7 +1361,7 @@ function BacklogPanel({cards, selectedKey, isDropTarget, onSelect, onPreview, on
           Nenhum vídeo corresponde a &ldquo;{search.trim()}&rdquo;.
         </p>
       ) : (
-        <div className="mt-3 max-h-[min(320px,42vh)] stack-md overflow-y-auto pr-1">
+        <div className="mt-3 stack-md">
           {showPlatformGroups
             ? platformGroups.map(([platformName, groupCards]) => (
                 <BacklogPlatformGroup
@@ -1327,7 +1377,7 @@ function BacklogPanel({cards, selectedKey, isDropTarget, onSelect, onPreview, on
               ))
             : (
               <BacklogCardGrid
-                cards={filteredCards}
+                cards={pagedCards}
                 selectedKey={selectedKey}
                 onSelect={onSelect}
                 onPreview={onPreview}
@@ -1335,6 +1385,15 @@ function BacklogPanel({cards, selectedKey, isDropTarget, onSelect, onPreview, on
                 onDragEnd={onDragEnd}
               />
             )}
+          <PaginationBar
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalItems={filteredCards.length}
+            pageSize={pageSize}
+            onPageChange={setPage}
+            variant="simple"
+            itemLabel="vídeos"
+          />
         </div>
       )}
     </section>
@@ -1436,8 +1495,6 @@ function ProgramacaoCardChip({
   const locked = isCardLocked(card);
   const draggableEnabled = draggable && canDragCard(card);
   const statusClass = getStatusCalendarClass(card.status);
-  const statusColor = getStatusColorVar(card.status);
-  const showStatusBadge = !compact;
 
   const cardBody = compact ? (
     <>
@@ -1447,6 +1504,9 @@ function ProgramacaoCardChip({
         ) : null}
         <span className="block break-words text-xs font-semibold leading-snug text-[var(--text-primary)]">
           {card.title}
+        </span>
+        <span className={cn('inline-flex rounded-md border px-1.5 py-0.5 text-2xs font-bold leading-none', statusClass)}>
+          {card.status}
         </span>
         {card.publicationKind === 'repost' ? (
           <span className="inline-flex rounded border border-[var(--border-color)] bg-[var(--bg-hover)] px-1.5 py-0.5 text-2xs font-bold uppercase tracking-wide text-[var(--text-tertiary)]">
@@ -1469,11 +1529,9 @@ function ProgramacaoCardChip({
     </>
   ) : (
     <>
-      {showStatusBadge ? (
-        <span className={cn('shrink-0 rounded-md border px-1.5 py-0.5 text-2xs font-bold leading-none', statusClass)}>
-          {card.status}
-        </span>
-      ) : null}
+      <span className={cn('shrink-0 rounded-md border px-1.5 py-0.5 text-2xs font-bold leading-none', statusClass)}>
+        {card.status}
+      </span>
       {card.time ? <span className="shrink-0 font-bold tabular-nums text-[var(--text-primary)]">{card.time}</span> : null}
       <span className="min-w-0 flex-1 truncate font-semibold text-[var(--text-primary)]">{card.title}</span>
       <button
@@ -1515,13 +1573,12 @@ function ProgramacaoCardChip({
           onClick();
         }}
         className={cn(
-          'group flex min-h-10 items-start gap-1.5 rounded-md border border-l-4 px-2 py-1.5 text-xs transition-all focus:outline-none focus:ring-2 focus:ring-[var(--accent-blue)]/35',
+          'group flex min-h-10 items-start gap-1.5 rounded-md border px-2 py-1.5 text-xs transition-all focus:outline-none focus:ring-2 focus:ring-[var(--accent-blue)]/35',
           statusClass,
           draggableEnabled && 'cursor-grab active:cursor-grabbing',
           selected && 'ring-2 ring-[var(--text-primary)]',
           locked && 'opacity-75',
         )}
-        style={{borderLeftColor: statusColor}}
         title={`${card.title} — ${card.platformName} · ${card.status}`}
       >
         {cardBody}
@@ -1552,13 +1609,12 @@ function ProgramacaoCardChip({
         onClick();
       }}
       className={cn(
-        'group flex min-h-[76px] items-stretch gap-2 rounded-lg border border-l-4 p-2 transition-all focus:outline-none focus:ring-2 focus:ring-[var(--accent-blue)]/35',
+        'group flex min-h-[76px] items-stretch gap-2 rounded-lg border p-2 transition-all focus:outline-none focus:ring-2 focus:ring-[var(--accent-blue)]/35',
         statusClass,
         draggableEnabled && 'cursor-grab active:cursor-grabbing',
         selected && 'ring-2 ring-[var(--text-primary)]',
         locked && 'opacity-75',
       )}
-      style={{borderLeftColor: statusColor}}
       title={`${card.title} — ${card.platformName} · ${card.status}`}
     >
       {draggableEnabled ? (
@@ -1838,18 +1894,6 @@ interface MonthGridProps {
   onOpenProjetoPublicacao: (marker: ProjetoPublicacaoMarker) => void;
   onDragStart: (cardKey: string) => void;
   onDragEnd: () => void;
-}
-
-function sortDayCards(cards: ProgramacaoCard[]): ProgramacaoCard[] {
-  return [...cards].sort((a, b) => {
-    const aIdeia = isIdeiaCard(a) ? 0 : 1;
-    const bIdeia = isIdeiaCard(b) ? 0 : 1;
-    if (aIdeia !== bIdeia) return aIdeia - bIdeia;
-    const timeA = a.time || '99:99';
-    const timeB = b.time || '99:99';
-    if (timeA !== timeB) return timeA.localeCompare(timeB);
-    return a.title.localeCompare(b.title, 'pt-BR');
-  });
 }
 
 function MonthGrid({

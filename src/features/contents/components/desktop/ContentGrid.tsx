@@ -158,7 +158,7 @@ export function ContentGrid({
             <article
               key={content.id}
               className={cn(
-                'ds-card group relative flex flex-col overflow-hidden bg-[var(--bg-primary)] p-3 text-left transition-colors hover:border-[var(--border-strong)]',
+                'ds-card group relative flex flex-col overflow-hidden bg-[var(--bg-primary)] p-3 text-left transition-colors hover:shadow-[var(--shadow-card-hover)]',
                 isSelected && 'border-[var(--text-primary)] bg-[var(--text-primary)]/5 ring-1 ring-[var(--text-primary)]/20',
               )}
             >

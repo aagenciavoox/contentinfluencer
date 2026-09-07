@@ -26,14 +26,13 @@ export function LibrarySectionTabs({ className }: LibrarySectionTabsProps) {
   };
 
   return (
-    <SegmentTabs
-      options={OPTIONS}
-      value={activeSection}
-      onChange={handleChange}
-      className={cn(
-        'w-full md:w-fit [&_.segment-tabs-item]:flex-1 md:[&_.segment-tabs-item]:flex-none',
-        className,
-      )}
-    />
+    <div className={cn('mobile-h-scroll md:contents', className)}>
+      <SegmentTabs
+        options={OPTIONS}
+        value={activeSection}
+        onChange={handleChange}
+        className="w-max min-w-max md:w-fit [&_.segment-tabs-item]:shrink-0 md:[&_.segment-tabs-item]:flex-none"
+      />
+    </div>
   );
 }

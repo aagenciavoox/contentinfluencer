@@ -5,7 +5,7 @@ import { ConfirmModal } from '../../../components/feedback/modals/ConfirmModal';
 import { CONFIRM, type ConfirmState } from '../../../lib/uiCopy';
 import { AppButton } from '../../../components/ui/AppButton';
 import { Badge } from '../../../components/ui/Badge';
-import { EmptyState } from '../../../components/ui/EmptyState';
+import { QueryViewState, resolveQueryViewStatus } from '../../../components/ui/QueryViewState';
 import { Text } from '../../../components/ui/Text';
 import { useAppContext } from '../../../context/AppContext';
 import { useIsMobile } from '../../../hooks/useIsMobile';
@@ -21,6 +21,12 @@ export function PillarsSettingsPage() {
   const [confirm, setConfirm] = useState<ConfirmState | null>(null);
 
   const sortedPilares = useMemo(() => sortPilares(state.pilares), [state.pilares]);
+  const pillarsStatus = resolveQueryViewStatus({
+    loading: !state.isLoaded,
+    enabled: true,
+    fetchAttempted: state.isLoaded,
+    itemCount: state.pilares.length,
+  });
 
   const contentCountByPilar = useMemo(() => {
     const map = new Map<string, number>();
@@ -75,7 +81,8 @@ export function PillarsSettingsPage() {
 
   return (
     <SettingsPageScaffold
-      title="Pilares editoriais"
+      section="Criação"
+      title="Pilares"
       icon={Palette}
       actions={
         <AppButton
@@ -83,7 +90,7 @@ export function PillarsSettingsPage() {
           variant="primary"
           leftIcon={<Plus className="h-4 w-4" />}
         >
-          Novo
+          Novo pilar
         </AppButton>
       }
     >
@@ -91,22 +98,24 @@ export function PillarsSettingsPage() {
         Pilares organizam temas, ritmo editorial e publicação por plataforma. Frequência semanal, meta do ciclo, dias e hashtags ficam aqui.
       </Text>
 
-      {state.pilares.length === 0 ? (
-        <EmptyState
-          icon={<Palette className="h-8 w-8" />}
-          title="Nenhum pilar cadastrado"
-          description="Adicione o primeiro pilar para organizar os temas editoriais."
-          action={
-            <AppButton
-              variant="primary"
-              leftIcon={<Plus className="h-4 w-4" />}
-              onClick={openCreatePage}
-            >
-              Novo pilar
-            </AppButton>
-          }
-        />
-      ) : (
+      <QueryViewState
+        status={pillarsStatus}
+        skeletonCount={6}
+        skeletonVariant="row"
+        emptyIcon={<Palette className="h-8 w-8" />}
+        emptyTitle="Nenhum pilar cadastrado"
+        emptyDescription="Adicione o primeiro pilar para organizar os temas editoriais."
+        emptyAction={
+          <AppButton
+            variant="primary"
+            leftIcon={<Plus className="h-4 w-4" />}
+            onClick={openCreatePage}
+          >
+            Novo pilar
+          </AppButton>
+        }
+        compactEmpty={false}
+      >
         <div className={SETTINGS_ENTITY_GRID_CLASS}>
           {sortedPilares.map(pilar => {
             const count = contentCountByPilar.get(pilar.id) || 0;
@@ -151,7 +160,7 @@ export function PillarsSettingsPage() {
             );
           })}
         </div>
-      )}
+      </QueryViewState>
 
       <ConfirmModal
         open={!!confirm}

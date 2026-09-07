@@ -11,6 +11,7 @@ interface MobileSegmentTabsProps<T extends string> {
   value: T;
   onChange: (value: T) => void;
   rounded?: 'default' | 'tight';
+  className?: string;
 }
 
 export function MobileSegmentTabs<T extends string>({
@@ -18,17 +19,12 @@ export function MobileSegmentTabs<T extends string>({
   value,
   onChange,
   rounded = 'default',
+  className,
 }: MobileSegmentTabsProps<T>) {
   const isTight = rounded === 'tight';
 
   return (
-    <div
-      className={cn(
-        'grid gap-1 bg-[var(--bg-hover)] p-1',
-        isTight ? 'rounded-lg' : 'gap-2 rounded-[1.4rem]'
-      )}
-      style={{ gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))` }}
-    >
+    <div className={cn('mobile-h-scroll', className)} role="tablist">
       {tabs.map((tab) => {
         const active = tab.value === value;
 
@@ -36,21 +32,25 @@ export function MobileSegmentTabs<T extends string>({
           <button
             key={tab.value}
             type="button"
+            role="tab"
+            aria-selected={active}
             onClick={() => onChange(tab.value)}
             className={cn(
-              'flex min-h-11 items-center justify-center gap-1.5 px-2 transition-colors',
-              isTight ? 'rounded-md' : 'gap-2 rounded-[1rem] px-3',
-              active ? 'bg-[var(--bg-secondary)] text-[var(--text-primary)] shadow-sm' : 'text-[var(--text-tertiary)]'
+              'inline-flex h-9 shrink-0 items-center justify-center gap-1.5 px-3 transition-colors',
+              isTight ? 'rounded-[var(--radius-sm)]' : 'rounded-[var(--radius-md)]',
+              active
+                ? 'bg-[var(--text-primary)] text-[var(--bg-primary)]'
+                : 'bg-[var(--bg-hover)] text-[var(--text-secondary)]',
             )}
           >
-            <span className={cn('font-semibold uppercase', isTight ? 'text-xs tracking-[0.12em]' : 't-button t-button-uppercase')}>
-              {tab.label}
-            </span>
+            <span className="t-button whitespace-nowrap">{tab.label}</span>
             {typeof tab.count === 'number' ? (
               <span
                 className={cn(
-                  'bg-[var(--bg-hover)] px-1.5 py-0.5 text-xs font-semibold text-[var(--text-secondary)]',
-                  isTight ? 'rounded' : 'rounded-full text-xs'
+                  'rounded-[var(--radius-sm)] px-1.5 py-0.5 t-meta tabular-nums',
+                  active
+                    ? 'bg-[color-mix(in_srgb,var(--bg-primary)_22%,transparent)] text-[var(--bg-primary)]'
+                    : 'bg-[var(--bg-secondary)] text-[var(--text-tertiary)]',
                 )}
               >
                 {tab.count}

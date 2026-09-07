@@ -1,4 +1,5 @@
 import type { Pilar, Serie } from '../../../lib/database';
+import { OverflowTags } from '../../../components/ui/OverflowTags';
 import { cn, getEntityTagStyle } from '../../../lib/utils';
 
 interface ContentEntityTagsProps {
@@ -55,14 +56,10 @@ export function ContentEntityTags({
 
   if (!pillarLabel && !seriesLabel) return null;
 
-  return (
-    <div className={cn('flex flex-wrap items-center gap-1.5', className)}>
-      {pillarLabel ? (
-        <EntityTag label={pillarLabel} color={pillar?.cor} size={size} />
-      ) : null}
-      {seriesLabel ? (
-        <EntityTag label={seriesLabel} color={series?.cor} size={size} />
-      ) : null}
-    </div>
-  );
+  const tags = [
+    seriesLabel ? <EntityTag key="series" label={seriesLabel} color={series?.cor} size={size} /> : null,
+    pillarLabel ? <EntityTag key="pillar" label={pillarLabel} color={pillar?.cor} size={size} /> : null,
+  ].filter(Boolean);
+
+  return <OverflowTags items={tags} className={className} />;
 }

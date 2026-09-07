@@ -28,10 +28,10 @@ interface PropertySectionProps {
 
 export function PropertySection({ label, action, children, className }: PropertySectionProps) {
   return (
-    <section className={cn('space-y-1.5', className)}>
+    <section className={cn('stack-lg', className)}>
       {(label || action) && (
-        <header className="flex items-center justify-between gap-2 px-2">
-          {label ? <span className="eyebrow-label">{label}</span> : <span />}
+        <header className="flex items-center justify-between gap-2">
+          {label ? <span className="panel-section-title">{label}</span> : <span />}
           {action}
         </header>
       )}

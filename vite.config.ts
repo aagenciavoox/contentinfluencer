@@ -22,12 +22,12 @@ export default defineConfig(() => {
           'maskable-icon-512x512.png',
         ],
         manifest: {
-          name: 'Content OS',
-          short_name: 'Content OS',
+          name: 'Criaki',
+          short_name: 'Criaki',
           description:
-            'Seu sistema operacional de conteudo - planeje, produza e distribua com clareza.',
-          theme_color: '#191919',
-          background_color: '#FBFBFA',
+            'Seu estudio de criacao - ideias, roteiros, gravacao e biblioteca no seu ritmo.',
+          theme_color: '#F6F5F3',
+          background_color: '#F6F5F3',
           display: 'standalone',
           orientation: 'portrait-primary',
           scope: '/',

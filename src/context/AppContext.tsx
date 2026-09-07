@@ -24,7 +24,12 @@ import {
   writePersistedDomain,
 } from '../lib/persistentDataCache';
 import { mergeFetchedAppData, patchContentsInDomainCaches, patchPlatformsInDomainCaches } from '../lib/domainCacheSync';
-import { BOOTSTRAP_DATA_DOMAINS } from '../lib/database';
+import {
+  BOOTSTRAP_DATA_DOMAINS,
+  CRITICAL_BOOTSTRAP_DOMAINS,
+  DEFERRED_BOOTSTRAP_DOMAINS,
+  fetchDataDomains,
+} from '../lib/database';
 
 const ACTION_SAVE_LABELS: Partial<Record<AppAction['type'], string>> = {
   UPDATE_CONTENT: 'Roteiro salvo',
@@ -46,6 +51,36 @@ const ACTION_SAVE_LABELS: Partial<Record<AppAction['type'], string>> = {
   UPDATE_PLATFORM: 'Plataforma salva',
   DELETE_PLATFORM: 'Plataforma removida',
 };
+
+/** `content` e `content-schedule` são o mesmo select completo; ambos cobrem o summary limitado. */
+const FULL_CONTENT_LIST_DOMAINS: readonly db.AppDataDomain[] = ['content', 'content-schedule'];
+
+function isDomainAlreadyLoaded(
+  loaded: ReadonlySet<db.AppDataDomain>,
+  domain: db.AppDataDomain,
+): boolean {
+  if (loaded.has(domain)) return true;
+  if (
+    (domain === 'content' || domain === 'content-schedule' || domain === 'content-summary')
+    && (loaded.has('content') || loaded.has('content-schedule'))
+  ) {
+    return true;
+  }
+  return false;
+}
+
+function markDomainsLoaded(
+  loaded: Set<db.AppDataDomain>,
+  domains: readonly db.AppDataDomain[],
+) {
+  for (const domain of domains) {
+    loaded.add(domain);
+    if (FULL_CONTENT_LIST_DOMAINS.includes(domain)) {
+      FULL_CONTENT_LIST_DOMAINS.forEach(alias => loaded.add(alias));
+      loaded.add('content-summary');
+    }
+  }
+}
 
 export type PersistOptions = { silent?: boolean; skipBroadcast?: boolean };
 
@@ -115,6 +150,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const loadedDomains = useRef(new Set<db.AppDataDomain>());
   const loadingDomains = useRef(new Map<string, Promise<void>>());
   const { user, loading: authLoading } = useAuth();
+  const userId = user?.id ?? null;
   const realtimeRefreshTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingRealtimeDomains = useRef(new Set<db.AppDataDomain>());
   const pendingRealtimeNamespaces = useRef(new Set<string>());
@@ -126,8 +162,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   stateRef.current = state;
 
   useEffect(() => {
-    if (user?.id) lastUserIdRef.current = user.id;
-  }, [user?.id]);
+    if (userId) lastUserIdRef.current = userId;
+  }, [userId]);
 
   const touchLocalMutation = useCallback(() => {
     lastLocalMutationAt.current = Date.now();
@@ -174,14 +210,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
 
     if (
-      user
+      userId
       && (actionType === 'ADD_PLATFORM' || actionType === 'UPDATE_PLATFORM' || actionType === 'DELETE_PLATFORM')
     ) {
-      patchPlatformsInDomainCaches(user.id, stateRef.current.platforms);
+      patchPlatformsInDomainCaches(userId, stateRef.current.platforms);
     }
 
     if (
-      user
+      userId
       && (
         actionType === 'ADD_CONTENT'
         || actionType === 'UPDATE_CONTENT'
@@ -197,9 +233,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         || actionType === 'RESTORE_CONTENTS'
       )
     ) {
-      patchContentsInDomainCaches(user.id, stateRef.current.contents);
+      patchContentsInDomainCaches(userId, stateRef.current.contents);
     }
-  }, [invalidateListCaches, user]);
+  }, [invalidateListCaches, userId]);
 
   const mergeSnapshot = useCallback(
     () => ({
@@ -213,10 +249,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     domains: readonly db.AppDataDomain[],
     options?: { force?: boolean; markLoaded?: boolean }
   ) => {
-    if (!supabase || !user) return;
+    if (!supabase || !userId) return;
     const missingDomains = options?.force
       ? [...domains]
-      : domains.filter(domain => !loadedDomains.current.has(domain));
+      : domains.filter(domain => !isDomainAlreadyLoaded(loadedDomains.current, domain));
     if (missingDomains.length === 0) return;
 
     const key = [...missingDomains].sort().join('|');
@@ -227,7 +263,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     if (!options?.force) {
       const memoryCached = dataCache.getDomain<Partial<db.AppData>>(cacheKey);
-      const persisted = readPersistedDomain(user.id, cacheKey);
+      const persisted = readPersistedDomain(userId, cacheKey);
       const cachedPayload = memoryCached ?? persisted?.payload ?? null;
       const isFresh =
         (memoryCached != null && dataCache.isDomainFresh(cacheKey)) ||
@@ -244,22 +280,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (cachedPayload && isFresh && cacheSatisfiesRequest) {
-        missingDomains.forEach(domain => loadedDomains.current.add(domain));
+        markDomainsLoaded(loadedDomains.current, missingDomains);
         return;
       }
     } else {
       dataCache.invalidateDomain(cacheKey);
     }
 
-    const loadPromise = import('../lib/database')
-      .then(module => module.fetchDataDomains(missingDomains, user.id))
+    const loadPromise = fetchDataDomains(missingDomains, userId)
       .then(data => {
         const merged = mergeFetchedAppData(mergeSnapshot(), data);
         dataCache.setDomain(cacheKey, merged);
-        writePersistedDomain(user.id, cacheKey, merged);
+        writePersistedDomain(userId, cacheKey, merged);
         dispatch({ type: 'SET_DATA', payload: merged });
         if (options?.markLoaded !== false) {
-          missingDomains.forEach(domain => loadedDomains.current.add(domain));
+          markDomainsLoaded(loadedDomains.current, missingDomains);
         }
       })
       .finally(() => {
@@ -268,10 +303,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     loadingDomains.current.set(key, loadPromise);
     return loadPromise;
-  }, [mergeSnapshot, user]);
+  }, [mergeSnapshot, userId]);
 
   const refreshFromServer = useCallback(async (options?: RefreshFromServerOptions) => {
-    if (!supabase || !user) return;
+    if (!supabase || !userId) return;
     if (pendingPersistCount.current > 0) return;
 
     if (
@@ -287,7 +322,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (options?.domains?.length) {
         domains = options.force
           ? options.domains
-          : options.domains.filter(domain => loadedDomains.current.has(domain));
+          : options.domains.filter(domain => isDomainAlreadyLoaded(loadedDomains.current, domain));
         if (domains.length === 0) return;
       } else {
         domains = loadedDomains.current.size > 0
@@ -315,7 +350,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         });
       }
     }
-  }, [invalidateListCaches, loadDomains, user]);
+  }, [invalidateListCaches, loadDomains, userId]);
 
   useEffect(() => {
     if (!supabase) {
@@ -327,7 +362,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     // Auth ainda resolvendo — não marcar como carregado com dados vazios.
     if (authLoading) return;
 
-    if (!user) {
+    if (!userId) {
       if (lastUserIdRef.current) {
         clearPersistedDomainsForUser(lastUserIdRef.current);
         lastUserIdRef.current = null;
@@ -343,8 +378,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     let cancelled = false;
 
-    const cacheKey = buildDomainCacheKey(BOOTSTRAP_DATA_DOMAINS);
-    const persisted = readPersistedDomain(user.id, cacheKey);
+    const criticalCacheKey = buildDomainCacheKey(CRITICAL_BOOTSTRAP_DOMAINS);
+    const legacyBootstrapKey = buildDomainCacheKey(BOOTSTRAP_DATA_DOMAINS);
+    const persisted =
+      readPersistedDomain(userId, criticalCacheKey)
+      ?? readPersistedDomain(userId, legacyBootstrapKey);
+
     if (persisted?.payload) {
       dispatch({
         type: 'SET_DATA',
@@ -352,6 +391,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       });
       dispatch({ type: 'SET_LOADED', payload: true });
       loadDone.current = true;
+      // Cache legado / crítico já tem o essencial — evita bloquear rotas na revalidação.
+      if (persisted.payload.contents) {
+        markDomainsLoaded(loadedDomains.current, CRITICAL_BOOTSTRAP_DOMAINS);
+      }
     } else {
       loadDone.current = false;
       dispatch({ type: 'SET_LOADED', payload: false });
@@ -359,13 +402,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     async function load() {
       try {
-        await loadDomains(BOOTSTRAP_DATA_DOMAINS);
-      } catch (err) {
-        console.error('[DB] initial data fetch failed:', err);
-      } finally {
+        // Primeira pintura: plataformas + pilares/séries + lista leve de conteúdos.
+        await loadDomains(CRITICAL_BOOTSTRAP_DOMAINS);
         if (cancelled) return;
         dispatch({ type: 'SET_LOADED', payload: true });
         loadDone.current = true;
+
+        // Resto do bootstrap não bloqueia o shell.
+        void loadDomains(DEFERRED_BOOTSTRAP_DOMAINS).catch(err => {
+          console.error('[DB] deferred bootstrap failed:', err);
+        });
+      } catch (err) {
+        console.error('[DB] initial data fetch failed:', err);
+        if (!cancelled) {
+          dispatch({ type: 'SET_LOADED', payload: true });
+          loadDone.current = true;
+        }
       }
     }
 
@@ -374,10 +426,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [authLoading, loadDomains, mergeSnapshot, user]);
+  }, [authLoading, loadDomains, mergeSnapshot, userId]);
 
   useEffect(() => {
-    if (!supabase || !user) return;
+    if (!supabase || !userId) return;
 
     const scheduleRefresh = (table: string) => {
       getDomainsForRealtimeTable(table).forEach(domain => {
@@ -397,7 +449,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         const tableNamespaces = [...pendingRealtimeNamespaces.current];
         pendingRealtimeNamespaces.current.clear();
 
-        const domains = tableDomains.filter(domain => loadedDomains.current.has(domain));
+        const domains = tableDomains.filter(domain =>
+          isDomainAlreadyLoaded(loadedDomains.current, domain)
+        );
         if (domains.length === 0) return;
 
         void refreshFromServer({
@@ -421,7 +475,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       scheduleRefresh(table);
     };
 
-    let channel = supabase.channel(`content-os-realtime:${user.id}`);
+    let channel = supabase.channel(`content-os-realtime:${userId}`);
 
     for (const table of REALTIME_TABLES) {
       channel = channel.on(
@@ -445,7 +499,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
       void supabase.removeChannel(channel);
     };
-  }, [refreshFromServer, user]);
+  }, [refreshFromServer, userId]);
 
   useEffect(() => {
     return subscribeDataSync(() => {
@@ -454,7 +508,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [refreshFromServer]);
 
   useEffect(() => {
-    if (!user) return;
+    if (!userId) return;
 
     let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -472,12 +526,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       document.removeEventListener('visibilitychange', handleVisibility);
       if (debounceTimer) clearTimeout(debounceTimer);
     };
-  }, [refreshFromServer, user]);
+  }, [refreshFromServer, userId]);
 
   const createContent = useCallback(async (content: db.Content, options?: PersistOptions) => {
     const normalizedContent = normalizeContentId(content);
 
-    if (!user || !supabase) {
+    if (!userId || !supabase) {
       // Modo local: mantém o estado em memória mesmo sem backend disponível.
       dispatch({ type: 'ADD_CONTENT', payload: normalizedContent });
       finishPersist('ADD_CONTENT', options);
@@ -490,7 +544,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     try {
       dispatch({ type: 'ADD_CONTENT', payload: normalizedContent });
-      await runPersist(() => persistContentRecord(normalizedContent, user.id));
+      await runPersist(() => persistContentRecord(normalizedContent, userId));
       finishPersist('ADD_CONTENT', options);
     } catch (err) {
       console.error('[AppContext] createContent failed:', err);
@@ -502,12 +556,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       await refreshFromServer({ silent: true, force: true });
       throw err;
     }
-  }, [finishPersist, refreshFromServer, runPersist, user]);
+  }, [finishPersist, refreshFromServer, runPersist, userId]);
 
   const updateContent = useCallback(async (content: db.Content, options?: PersistOptions) => {
     const normalizedContent = normalizeContentId(content);
 
-    if (!user || !supabase) {
+    if (!userId || !supabase) {
       // Modo local: mantém o estado em memória mesmo sem backend disponível.
       dispatch({ type: 'UPDATE_CONTENT', payload: normalizedContent });
       finishPersist('UPDATE_CONTENT', options);
@@ -520,7 +574,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     try {
       dispatch({ type: 'UPDATE_CONTENT', payload: normalizedContent });
-      await runPersist(() => persistContentRecord(normalizedContent, user.id));
+      await runPersist(() => persistContentRecord(normalizedContent, userId));
       finishPersist('UPDATE_CONTENT', options);
     } catch (err) {
       console.error('[AppContext] updateContent failed:', err);
@@ -532,7 +586,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       await refreshFromServer({ silent: true, force: true });
       throw err;
     }
-  }, [finishPersist, refreshFromServer, runPersist, user]);
+  }, [finishPersist, refreshFromServer, runPersist, userId]);
 
   const enhancedDispatch = useCallback(async (action: AppAction, options?: PersistOptions) => {
     const normalizedAction = normalizeAction(action);
@@ -552,11 +606,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     );
 
     // Snapshot before optimistic dispatch so we can restore on double-failure.
-    const snapshot = shouldPersist && user ? stateRef.current : null;
+    const snapshot = shouldPersist && userId ? stateRef.current : null;
 
     dispatch(normalizedAction);
 
-    if (!user || !shouldPersist) return;
+    if (!userId || !shouldPersist) return;
 
     if (!options?.silent) {
       notifySaveFeedback({ status: 'saving', message: LOADING.salvandoAlteracoes });
@@ -564,7 +618,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     try {
       await runPersist(() =>
-        persistAction({ action: normalizedAction, userId: user.id, state: stateRef.current })
+        persistAction({ action: normalizedAction, userId, state: stateRef.current })
       );
       finishPersist(normalizedAction.type, options);
     } catch (err) {
@@ -585,7 +639,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }
       throw err;
     }
-  }, [createContent, finishPersist, refreshFromServer, runPersist, updateContent, user]);
+  }, [createContent, finishPersist, refreshFromServer, runPersist, updateContent, userId]);
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', state.theme);

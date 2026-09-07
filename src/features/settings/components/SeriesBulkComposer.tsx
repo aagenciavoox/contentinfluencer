@@ -1,7 +1,9 @@
-import {useState} from 'react';
-import {cn} from '../../../lib/utils';
-import type {Content, Pilar, Serie} from '../../../lib/database';
-import {SeriesCreateContentForm} from './series-detail/SeriesCreateContentForm';
+import { useState } from 'react';
+import { SegmentTabs } from '../../../components/ui/SegmentTabs';
+import { Surface } from '../../../components/ui/Surface';
+import { Text } from '../../../components/ui/Text';
+import type { Content, Pilar, Serie } from '../../../lib/database';
+import { SeriesCreateContentForm } from './series-detail/SeriesCreateContentForm';
 
 type BulkContentType = 'roteiro' | 'ideia';
 
@@ -19,37 +21,40 @@ export function SeriesBulkComposer({
   pilares,
   platformNames,
   onCreate,
+  compact = false,
 }: SeriesBulkComposerProps) {
   const [contentType, setContentType] = useState<BulkContentType>('roteiro');
 
   return (
-    <div className="flex flex-col gap-[var(--space-xl)]">
-      <div className="flex flex-wrap gap-2">
-        {(['roteiro', 'ideia'] as const).map(type => (
-          <button
-            key={type}
-            type="button"
-            onClick={() => setContentType(type)}
-            className={cn(
-              'rounded-[var(--radius-pill)] px-4 py-2 text-xs font-semibold transition-colors',
-              contentType === type
-                ? 'bg-[var(--text-primary)] text-[var(--bg-primary)]'
-                : 'border border-[var(--border-color)] bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]',
-            )}
-          >
-            {type === 'roteiro' ? 'Roteiro' : 'Ideia'}
-          </button>
-        ))}
+    <Surface
+      variant="outlined"
+      padding={compact ? 'md' : 'lg'}
+      className="stack-lg"
+    >
+      <div className="stack-sm">
+        <Text variant="sectionTitle">Criar</Text>
+        <Text variant="meta" className="text-[var(--text-secondary)]">
+          {contentType === 'ideia' ? 'Nova ideia nesta série' : 'Novo roteiro nesta série'}
+        </Text>
+        <SegmentTabs
+          value={contentType}
+          onChange={setContentType}
+          options={[
+            { id: 'roteiro', label: 'Roteiro' },
+            { id: 'ideia', label: 'Ideia' },
+          ]}
+        />
       </div>
 
       <SeriesCreateContentForm
+        key={contentType}
         serie={serie}
         pilares={pilares}
         platformNames={platformNames}
         mode={contentType}
-        variant="compact"
+        variant={compact ? 'compact' : 'default'}
         onCreate={onCreate}
       />
-    </div>
+    </Surface>
   );
 }

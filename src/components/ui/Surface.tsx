@@ -1,4 +1,4 @@
-import { ElementType, ReactNode, KeyboardEvent } from 'react';
+import { ElementType, HTMLAttributes, KeyboardEvent, ReactNode } from 'react';
 import { cn } from '../../lib/utils';
 
 export type SurfaceVariant = 'plain' | 'outlined' | 'interactive' | 'elevated';
@@ -6,7 +6,9 @@ export type SurfaceVariant = 'plain' | 'outlined' | 'interactive' | 'elevated';
 const variantClasses: Record<SurfaceVariant, string> = {
   plain: 'surface-plain',
   outlined: 'surface-outlined',
-  interactive: 'surface-interactive editorial-card-interactive',
+  /** Neutral card with light lift on hover — border color stays stable */
+  interactive: 'surface-interactive',
+  /** Floating overlays only (menus, popovers, dialogs) */
   elevated: 'surface-elevated',
 };
 
@@ -17,14 +19,14 @@ const paddingClasses = {
   lg: 'p-6',
 } as const;
 
-interface SurfaceProps {
+type SurfaceProps = {
   children: ReactNode;
   variant?: SurfaceVariant;
   padding?: keyof typeof paddingClasses;
   className?: string;
   as?: ElementType;
   onClick?: () => void;
-}
+} & Omit<HTMLAttributes<HTMLElement>, 'as' | 'children' | 'className' | 'onClick'>;
 
 export function Surface({
   children,
@@ -33,6 +35,7 @@ export function Surface({
   className,
   as,
   onClick,
+  ...rest
 }: SurfaceProps) {
   const isInteractive = Boolean(onClick);
   const Component = as ?? (isInteractive ? 'button' : 'div');
@@ -61,6 +64,7 @@ export function Surface({
         isFocusable && 'focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
         className
       )}
+      {...rest}
     >
       {children}
     </Component>

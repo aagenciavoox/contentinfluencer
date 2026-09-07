@@ -23,6 +23,7 @@ import { buildDetailBackState } from '../../../lib/navigation/detailBack';
 import { DesktopPageHeader } from '../../../layouts/page/DesktopPageHeader';
 import { PageLayout } from '../../../layouts/page/PageLayout';
 import { Section } from '../../../components/ui/Section';
+import { AppButton } from '../../../components/ui/AppButton';
 import { Surface } from '../../../components/ui/Surface';
 import { useIsMobile } from '../../../hooks/useIsMobile';
 import { ProjectDetailMobileScreen } from '../../../mobile/screens/projects/ProjectDetailMobileScreen';
@@ -258,12 +259,21 @@ export function ProjectDetailPage() {
       contentStack="dense"
       header={
         <DesktopPageHeader
-          section="Projetos"
+          section="Produção"
           title={projeto.nome}
           meta={projeto.brand || undefined}
           icon={Briefcase}
           backLabel="Projetos"
           backTo="/projetos"
+          actions={
+            <AppButton
+              variant="primary"
+              leftIcon={<Plus className="h-4 w-4" />}
+              onClick={() => setShowAgendaForm(true)}
+            >
+              Novo evento
+            </AppButton>
+          }
         />
       }
     >
@@ -283,18 +293,6 @@ export function ProjectDetailPage() {
           <SectionCard
             eyebrow="Calendário"
             title="Eventos"
-            action={
-              !showAgendaForm ? (
-                <button
-                  type="button"
-                  onClick={() => setShowAgendaForm(true)}
-                  className="inline-flex items-center gap-2 rounded-xl border border-[var(--border-color)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.25em] opacity-70 transition-opacity hover:opacity-100"
-                >
-                  <CalendarDays className="h-4 w-4" />
-                  Novo evento
-                </button>
-              ) : null
-            }
           >
             <div className="stack-md">
               {showAgendaForm && (
@@ -368,7 +366,12 @@ export function ProjectDetailPage() {
                       {formatDate(item.date)}{item.time ? ` · ${item.time}` : ''} · {item.tipo}
                     </p>
                   </div>
-                  <button type="button" onClick={() => dispatch({ type: 'DELETE_AGENDA_ITEM', payload: item.id })} className="p-2 opacity-20 transition-all hover:text-red-400 hover:opacity-60">
+                  <button
+                    type="button"
+                    onClick={() => dispatch({ type: 'DELETE_AGENDA_ITEM', payload: item.id })}
+                    aria-label={`Remover evento ${item.title}`}
+                    className="inline-flex min-h-9 min-w-9 items-center justify-center rounded-[var(--radius-input)] opacity-20 transition-all hover:text-red-400 hover:opacity-60"
+                  >
                     <Trash2 className="h-4 w-4" />
                   </button>
                 </div>

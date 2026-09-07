@@ -1,12 +1,24 @@
-import { CONTENT_STATUS, DISPLAY_STATUS } from '../features/contents/lib/contentPipeline';
+import { CONTENT_STATUS, DISPLAY_STATUS, PRODUCTION_TAGS } from '../features/contents/lib/contentPipeline';
 
-/** Maps content pipeline status labels to CSS token names. */
+/**
+ * Maps content pipeline / display / legacy labels to CSS --status-* token names.
+ * Keep in sync with --status-* in src/styles/index.css.
+ */
 export const STATUS_TOKEN: Record<string, string> = {
   [CONTENT_STATUS.IDEIA]: 'idea',
   [CONTENT_STATUS.ROTEIRO]: 'writing',
   [CONTENT_STATUS.PRODUCAO]: 'production',
   [DISPLAY_STATUS.PROGRAMADO]: 'scheduled',
   [CONTENT_STATUS.POSTADO]: 'posted',
+  // Legacy display labels → distinct tokens (CSS already defines these)
+  'Pronto para Gravar': 'ready',
+  Gravado: 'recorded',
+  'A Editar': 'editing',
+  Editado: 'edited',
+  Arquivado: 'archived',
+  // Production tags sometimes surface as status chips
+  [PRODUCTION_TAGS.GRAVAR]: 'ready',
+  [PRODUCTION_TAGS.EDITAR]: 'editing',
 };
 
 export function getStatusToken(status: string): string {

@@ -39,7 +39,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setSession(null);
           return;
         }
-        setUser(data.user);
+        // Evita trocar a referência do user sem necessidade (reinicia bootstrap no AppContext).
+        setUser(current => (current?.id === data.user.id ? current : data.user));
       });
     });
 
@@ -56,7 +57,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setSession(null);
           return;
         }
-        setUser(data.user);
+        setUser(current => (current?.id === data.user.id ? current : data.user));
       });
     });
 

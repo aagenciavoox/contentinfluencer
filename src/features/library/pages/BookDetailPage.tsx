@@ -22,11 +22,7 @@ import { useAppContext } from '../../../context/AppContext';
 import { useAuth } from '../../../context/AuthContext';
 import { Anotacao, BibliotecaItem, BibliotecaItemMeta, Content, fetchBibliotecaItemById, Projeto } from '../../../lib/database';
 import { generateUUID as _uuid } from '../../../utils/uuid';
-type BookAnnotation = Anotacao;
-type TipoAnotacao = Anotacao['tipo'];
-type StatusLeitura = BibliotecaItem['status'];
-type GeneroLivro = string;
-type Campaign = Projeto;
+import { GENEROS_SUGERIDOS } from '../lib/libraryGenres';
 import { ConfirmModal } from '../../../components/feedback/modals/ConfirmModal';
 import { CONFIRM, type ConfirmState } from '../../../lib/uiCopy';
 import { createContentDraft } from '../../contents/lib/createContentDraft';
@@ -39,7 +35,6 @@ import { BookAnnotationComposerSheet } from '../components/modals/BookAnnotation
 import { generateUUID } from '../../../utils/uuid';
 import { DesktopPageHeader } from '../../../layouts/page/DesktopPageHeader';
 import { PageLayout } from '../../../layouts/page/PageLayout';
-import { PipelineActionBar } from '../../../components/pipeline/PipelineActionBar';
 import { AnnotationNoteCard } from '../components/AnnotationNoteCard';
 import { TagSelect } from '../../../components/ui/TagSelect';
 import { useIsMobile } from '../../../hooks/useIsMobile';
@@ -48,6 +43,12 @@ import { Text } from '../../../components/ui/Text';
 import { Surface } from '../../../components/ui/Surface';
 import { AppButton } from '../../../components/ui/AppButton';
 import { cn } from '../../../lib/utils';
+
+type BookAnnotation = Anotacao;
+type TipoAnotacao = Anotacao['tipo'];
+type StatusLeitura = BibliotecaItem['status'];
+type GeneroLivro = string;
+type Campaign = Projeto;
 
 const FOCUS_INTERACTIVE = 'focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]';
 
@@ -68,11 +69,6 @@ const STATUS_LEITURA: Record<BibliotecaItem['tipo'], StatusLeitura[]> = {
   anime: ['Quero ver', 'Assistindo', 'Assistido', 'Abandonado'],
   outro: ['Quero consumir', 'Consumindo', 'Concluído', 'Abandonado'],
 };
-const GENEROS: GeneroLivro[] = [
-  'Fantasy', 'Dark Romance', 'Ficção Científica', 'Clássico',
-  'Não-ficção', 'Romance', 'Thriller', 'Horror', 'Outro',
-];
-
 type Tab = 'info' | 'anotacoes' | 'conteudos';
 
 function SectionLabel({ children, className }: { children: ReactNode; className?: string }) {
@@ -429,6 +425,24 @@ export function BookDetailPage() {
     setTimeout(() => setInfoSalvo(false), 2000);
   };
 
+  const handleTransformarLeituraEmIdeia = () => {
+    const fields = buildIdeaFields({
+      title: `Conteúdo sobre "${livro.titulo}"`,
+      notes:
+        livro.notasGerais?.trim()
+        || (livro.autorDiretor ? livro.autorDiretor : ''),
+    });
+    const ideia = createIdeaContent({
+      title: fields.title || 'Ideia sem título',
+      notes: fields.notes || null,
+      pilarId: null,
+      seriesId: null,
+      bibliotecaItemId: livro.id,
+    });
+    dispatch({ type: 'ADD_CONTENT', payload: ideia });
+    navigate('/criacao?tab=ideias');
+  };
+
   const handleCriarConteudo = () => {
     const novoConteudo = createContentDraft({
       id: generateUUID(),
@@ -576,7 +590,7 @@ export function BookDetailPage() {
             creatorLabel={creatorLabel}
             progressLabels={progressLabels}
             statusLeituraOptions={STATUS_LEITURA[livro.tipo]}
-            generoOptions={GENEROS}
+            generoOptions={[...GENEROS_SUGERIDOS]}
             infoLocal={infoLocal}
             onInfoLocalPatch={(patch) => setInfoLocal((prev) => ({ ...prev, ...patch }))}
             onSaveInfo={handleSalvarInfo}
@@ -693,42 +707,25 @@ export function BookDetailPage() {
       contentStack="dense"
       header={
         <DesktopPageHeader
-          section="Biblioteca"
+          section="Criação"
           title={livro.titulo}
           meta={[livro.autorDiretor, itemTypeLabel, livro.status].filter(Boolean).join(' · ')}
           icon={ItemIcon}
           backLabel="Biblioteca"
           backTo="/biblioteca"
           className="mb-0"
+          actions={
+            <AppButton
+              variant="primary"
+              leftIcon={<Lightbulb className="h-4 w-4" />}
+              onClick={handleTransformarLeituraEmIdeia}
+            >
+              Transformar em ideia
+            </AppButton>
+          }
         />
       }
     >
-      <div className="hidden md:block">
-        <PipelineActionBar
-          className="mb-4"
-          title="Transformar leitura em conteúdo"
-          description="Crie uma ideia editorial a partir deste item da biblioteca."
-          primaryLabel="Transformar em ideia"
-          onPrimary={() => {
-            const fields = buildIdeaFields({
-              title: `Conteúdo sobre "${livro.titulo}"`,
-              notes:
-                livro.notasGerais?.trim()
-                || (livro.autorDiretor ? livro.autorDiretor : ''),
-            });
-            const ideia = createIdeaContent({
-              title: fields.title || 'Ideia sem título',
-              notes: fields.notes || null,
-              pilarId: null,
-              seriesId: null,
-              bibliotecaItemId: livro.id,
-            });
-            dispatch({ type: 'ADD_CONTENT', payload: ideia });
-            navigate('/criacao?tab=ideias');
-          }}
-        />
-      </div>
-
       <div className="hidden md:block">
         {/* Barra de tabs separada */}
         <div className="mb-6 mt-2 flex border-b border-[var(--border-color)] md:mb-8">
@@ -811,7 +808,7 @@ export function BookDetailPage() {
                     hint="Selecione um ou mais generos para categorizar este item."
                     values={infoLocal.generos}
                     onChange={generos => setInfoLocal(prev => ({ ...prev, generos: generos as GeneroLivro[] }))}
-                    options={GENEROS.map(genero => ({ value: genero, label: genero }))}
+                    options={GENEROS_SUGERIDOS.map(genero => ({ value: genero, label: genero }))}
                     placeholder="Selecione generos"
                   />
                 </div>

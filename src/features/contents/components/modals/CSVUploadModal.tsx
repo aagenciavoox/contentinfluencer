@@ -167,7 +167,7 @@ export function CSVUploadModal({ onClose }: CSVUploadModalProps) {
                   <Info className="w-4 h-4 text-[var(--accent-blue)]" />
                   <span className="text-xs font-semibold  text-[var(--text-secondary)]">Instruções do Arquivo</span>
                 </div>
-                <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] p-6 shadow-sm">
+                <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] p-6">
                   <p className="text-sm text-[var(--text-tertiary)] mb-6 leading-relaxed">
                     Use um arquivo **CSV** (Comma Separated Values). A primeira linha funciona como cabecalho das colunas.
                   </p>
@@ -197,14 +197,14 @@ export function CSVUploadModal({ onClose }: CSVUploadModalProps) {
                 {!file ? (
                   <label className="flex flex-col items-center justify-center p-12 border-2 border-dashed border-[var(--border-color)] rounded-[2.5rem] bg-[var(--bg-secondary)]/30 hover:bg-[var(--bg-hover)] transition-all cursor-pointer group">
                     <input ref={fileInputRef} type="file" accept=".csv" onChange={handleFileChange} className="hidden" />
-                    <div className="w-16 h-16 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] mb-6 flex items-center justify-center group-hover:scale-110 transition-transform shadow-sm">
+                    <div className="w-16 h-16 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] mb-6 flex items-center justify-center group-hover:scale-110 transition-transform">
                       <FileText className="w-8 h-8 text-[var(--text-tertiary)]" />
                     </div>
                     <span className="text-sm font-semibold text-[var(--text-primary)]  mb-2">Clique para selecionar</span>
                     <span className="text-xs uppercase font-bold text-[var(--text-tertiary)] opacity-50 tracking-widest">Apenas arquivos .csv são suportados</span>
                   </label>
                 ) : (
-                  <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] overflow-hidden shadow-sm">
+                  <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] overflow-hidden">
                     <div className="p-4 bg-[var(--bg-hover)] flex items-center justify-between border-b border-[var(--border-color)]">
                       <div className="flex items-center gap-3">
                         <FileText className="w-4 h-4 text-[var(--accent-blue)]" />

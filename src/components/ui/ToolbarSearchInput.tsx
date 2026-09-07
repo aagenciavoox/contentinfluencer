@@ -27,17 +27,18 @@ export function ToolbarSearchInput({
   return (
     <div
       className={cn(
-        'filter-bar-search group relative flex-1',
+        'filter-bar-search group relative',
         size === 'compact' && 'filter-bar-search--compact',
         className,
       )}
     >
       <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-tertiary)] transition-colors group-focus-within:text-[var(--text-primary)]" />
       <input
-        type="text"
+        type="search"
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
+        aria-label={placeholder || 'Buscar'}
         className="filter-bar-search-input"
       />
       {value ? (

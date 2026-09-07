@@ -73,7 +73,7 @@ export function ContentKanban({
 
             <div className="flex max-h-[min(70vh,640px)] flex-col gap-2 overflow-y-auto p-2">
               {columnItems.length === 0 ? (
-                <p className="px-1 py-6 text-center text-xs text-[var(--text-tertiary)]">Vazio</p>
+                <p className="px-1 py-6 text-center text-xs text-[var(--text-tertiary)]">Nenhum roteiro</p>
               ) : (
                 columnItems.map(content => {
                   const { pillar, series: seriesEntity } = resolveContentEntities(
@@ -86,7 +86,7 @@ export function ContentKanban({
                   return (
                     <div
                       key={content.id}
-                      className="ds-card group relative bg-[var(--bg-primary)] p-2.5 transition-colors hover:border-[var(--border-strong)]"
+                      className="ds-card ds-card-interactive group relative bg-[var(--bg-elevated)] p-2.5"
                     >
                       <div className="mb-1.5 flex items-start justify-between gap-1">
                         <span className="text-xs text-[var(--text-tertiary)]">

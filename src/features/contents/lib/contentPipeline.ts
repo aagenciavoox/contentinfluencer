@@ -312,7 +312,7 @@ export function getPrimaryAction(content: Content, options: StageOptions = {}): 
       if (scheduled) {
         return {
           id: 'save_schedule',
-          label: 'Guardar agendamento',
+          label: 'Salvar agendamento',
           targetTab: 'publicacao',
           disabled: !canSchedulePosting(content),
         };
@@ -326,7 +326,7 @@ export function getPrimaryAction(content: Content, options: StageOptions = {}): 
       }
       return {
         id: 'add_to_block',
-        label: 'Guardar em um bloco',
+        label: 'Salvar no bloco de gravação',
         targetTab: 'gravacao',
       };
     case ContentStage.EM_BLOCO:

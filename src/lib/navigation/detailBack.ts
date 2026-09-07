@@ -6,6 +6,7 @@ export const DEFAULT_CONTENT_DETAIL_BACK = '/criacao';
 
 const ALLOWED_BACK_PATHS = [
   '/',
+  '/hoje',
   '/criacao',
   '/calendario',
   '/dashboard',

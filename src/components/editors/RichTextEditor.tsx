@@ -32,12 +32,14 @@ import {
   ChevronUp,
 } from 'lucide-react';
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { cn } from '../../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import { Decoration, DecorationSet } from 'prosemirror-view';
 import '../../styles/editor.css';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
+import { useVisualViewportKeyboard } from '../../hooks/useVisualViewportKeyboard';
 
 interface Annotation {
   id: string;
@@ -156,7 +158,12 @@ export function RichTextEditor({
   const editorContainerRef = useRef<HTMLDivElement>(null);
   const editorViewportRef = useRef<HTMLDivElement>(null);
   const optionsMenuRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef(content);
+  const onChangeRef = useRef(onChange);
+  contentRef.current = content;
+  onChangeRef.current = onChange;
   const isMobile = useIsMobile();
+  const keyboard = useVisualViewportKeyboard();
 
   useBodyScrollLock(isFullscreen);
 
@@ -181,7 +188,17 @@ export function RichTextEditor({
     extensions,
     content,
     onUpdate: ({ editor: currentEditor }) => {
-      onChange(currentEditor.getHTML());
+      const html = currentEditor.getHTML();
+      const current = contentRef.current ?? '';
+      const normalizedHtml = html.trim();
+      const normalizedCurrent = current.trim();
+      const emptyEquivalent = (value: string) =>
+        !value || value === '<p></p>' || value === '<p><br></p>' || value === '<p><br/></p>';
+
+      if (html === current) return;
+      if (emptyEquivalent(normalizedHtml) && emptyEquivalent(normalizedCurrent)) return;
+
+      onChangeRef.current(html);
     },
     onSelectionUpdate: ({ editor: currentEditor }) => {
       const { empty } = currentEditor.state.selection;
@@ -245,7 +262,8 @@ export function RichTextEditor({
 
   useEffect(() => {
     if (editor && content !== editor.getHTML()) {
-      editor.commands.setContent(content);
+      // Avoid marking the parent draft dirty on hydrate / external sync.
+      editor.commands.setContent(content, { emitUpdate: false });
     }
   }, [content, editor]);
 
@@ -574,6 +592,11 @@ export function RichTextEditor({
     [editor, requestLink],
   );
 
+  const canvasToolbarActions = useMemo(
+    () => topToolbarActions.filter(action => ['undo', 'bold', 'italic', 'list'].includes(action.id)),
+    [topToolbarActions],
+  );
+
   if (!editor) return null;
 
   return (
@@ -593,11 +616,13 @@ export function RichTextEditor({
       <motion.div
         layout
         className={cn(
-          'relative border border-[var(--border-color)] transition-all duration-500',
+          'relative transition-all duration-500',
+          compactMobileComposer ? 'border-0' : 'border border-[var(--border-color)]',
           isWorkspace && !isFullscreen ? 'overflow-visible' : 'overflow-hidden',
           isWorkspace
             ? cn(
                 'flex flex-col rounded-[var(--radius-card)] bg-[var(--bg-elevated)]',
+                compactMobileComposer && 'rounded-none bg-transparent',
                 isFullscreen && 'min-h-[calc(100vh-280px)]',
               )
             : 'rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)]',
@@ -606,7 +631,7 @@ export function RichTextEditor({
               ? 'fixed inset-0 z-[100] flex flex-col rounded-none border-0 bg-[var(--bg-elevated)] shadow-none'
               : 'fixed left-1/2 top-1/2 z-[100] flex h-[min(1120px,calc(100dvh-56px))] w-[min(1420px,calc(100vw-56px))] -translate-x-1/2 -translate-y-1/2 flex-col rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-elevated)] shadow-[var(--shadow-modal)]'
             : compactMobileComposer
-              ? 'flex min-h-[56dvh] flex-col bg-[var(--bg-elevated)]'
+              ? 'flex min-h-[50dvh] flex-col bg-transparent'
               : isWorkspace
                 ? ''
                 : 'flex min-h-[400px] flex-col bg-[var(--bg-secondary)]/50',
@@ -922,7 +947,7 @@ export function RichTextEditor({
             isFullscreen
               ? 'bg-[var(--bg-elevated)]'
               : compactMobileComposer
-                ? 'bg-[var(--bg-elevated)] p-0'
+                ? 'bg-transparent p-0'
                 : isWorkspace
                   ? 'bg-[var(--bg-elevated)] p-3 md:p-6'
                   : 'bg-[var(--bg-secondary)]/30 p-4 md:p-8 lg:p-12',
@@ -945,7 +970,7 @@ export function RichTextEditor({
                       isMobile ? 'min-h-[calc(100vh-112px)] px-4 py-6 pb-28' : 'min-h-[760px] px-8 py-8',
                     )
                   : compactMobileComposer
-                    ? 'min-h-[56dvh] rounded-[var(--radius-card)] border border-[var(--border-color)] px-4 py-4 shadow-[var(--shadow-soft)]'
+                    ? 'min-h-[50dvh] rounded-none border-0 bg-transparent px-0 py-2 shadow-none'
                     : isWorkspace
                       ? 'min-h-[8rem] rounded-[var(--radius-input)] border border-[var(--border-color)] px-4 py-6 md:px-6 md:py-6'
                       : 'min-h-[800px] rounded-[var(--radius-input)] border border-[var(--border-color)] p-12 shadow-[var(--shadow-editorial)] md:p-24',
@@ -1177,6 +1202,48 @@ export function RichTextEditor({
           </div>
         ) : null}
       </motion.div>
+
+      {compactMobileComposer && isMobile && typeof document !== 'undefined'
+        ? createPortal(
+            <div
+              className="pointer-events-none fixed inset-x-0 z-[80] px-3"
+              style={{
+                bottom: keyboard.open
+                  ? keyboard.inset
+                  : 'max(0.75rem, env(safe-area-inset-bottom))',
+              }}
+            >
+              <div className="pointer-events-auto mx-auto flex max-w-lg items-center gap-0.5 overflow-x-auto rounded-[var(--radius-pill)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-1.5 py-1">
+                {toolbarStart ? (
+                  <div className="flex shrink-0 items-center gap-0.5 border-r border-[var(--border-color)] pr-1">
+                    {toolbarStart}
+                  </div>
+                ) : null}
+                {canvasToolbarActions.map(action => {
+                  const Icon = action.icon;
+                  const active = action.isActive?.() ?? false;
+                  return (
+                    <button
+                      key={action.id}
+                      type="button"
+                      onClick={action.run}
+                      aria-label={action.label}
+                      className={cn(
+                        'flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors',
+                        active
+                          ? 'bg-[color-mix(in_srgb,var(--brand-accent),transparent_88%)] text-[var(--brand-accent)]'
+                          : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]',
+                      )}
+                    >
+                      <Icon className="h-4 w-4" />
+                    </button>
+                  );
+                })}
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
 
       <AnimatePresence>
         {activeAnnotationModal && (

@@ -5,9 +5,9 @@ import {useIsMobile} from '../../../hooks/useIsMobile';
 import {DesktopPageHeader} from '../../../layouts/page/DesktopPageHeader';
 import {PageLayout} from '../../../layouts/page/PageLayout';
 import {AppButton} from '../../../components/ui/AppButton';
+import {SegmentTabs} from '../../../components/ui/SegmentTabs';
 import {cn} from '../../../lib/utils';
 import {
-  getPostingTimesForPlatform,
   WEEKDAYS_ORDERED,
   Weekday,
   WEEKDAY_LABELS,
@@ -20,6 +20,7 @@ import {notifySaveFeedback, getErrorMessage} from '../../../lib/saveFeedback';
 import {broadcastDataSync} from '../../../lib/syncBroadcast';
 
 const MAX_TIMES_PER_DAY = 3;
+const GLOBAL_TAB_ID = 'global';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -97,9 +98,10 @@ export function PostingTimesSettingsPage() {
   }, [entries, selectedPlatformId]);
 
   const platformTabs = [
-    {id: null, label: 'Global'},
+    {id: GLOBAL_TAB_ID, label: 'Global'},
     ...activePlatforms.map(p => ({id: p.id, label: p.nome})),
   ];
+  const selectedTabId = selectedPlatformId ?? GLOBAL_TAB_ID;
 
   const content = (
     <div className="stack-xl">
@@ -108,24 +110,12 @@ export function PostingTimesSettingsPage() {
         sobrepõem o Global. Se não houver configuração própria, o Global é usado como sugestão.
       </p>
 
-      {/* Tabs de plataforma */}
-      <div className="flex flex-wrap gap-2">
-        {platformTabs.map(tab => (
-          <button
-            key={tab.id ?? 'global'}
-            onClick={() => setSelectedPlatformId(tab.id)}
-            className={cn(
-              'flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold transition-all border',
-              selectedPlatformId === tab.id
-                ? 'border-[var(--accent-primary)] bg-[var(--accent-primary)] text-white'
-                : 'border-[var(--border-color)] bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:border-[var(--text-primary)] hover:text-[var(--text-primary)]',
-            )}
-          >
-            {tab.id === null && <Globe className="h-3 w-3" />}
-            {tab.label}
-          </button>
-        ))}
-      </div>
+      <SegmentTabs
+        options={platformTabs}
+        value={selectedTabId}
+        onChange={(id) => setSelectedPlatformId(id === GLOBAL_TAB_ID ? null : id)}
+        className="flex flex-wrap"
+      />
 
       {selectedPlatformId !== null && (
         <p className="text-xs text-[var(--text-secondary)] opacity-50">
@@ -264,11 +254,12 @@ function DayCard({day, specificTimes, fallbackTimes, isFallback, onAdd, onRemove
                 {t}
                 {isOwn && (
                   <button
+                    type="button"
                     onClick={() => onRemove(t)}
-                    className="opacity-30 hover:opacity-80 transition-opacity"
-                    aria-label={`Remover ${t}`}
+                    className="inline-flex min-h-9 min-w-9 items-center justify-center opacity-40 transition-opacity hover:opacity-100"
+                    aria-label={`Remover horário ${t}`}
                   >
-                    <Trash2 className="h-3 w-3" />
+                    <Trash2 className="h-3.5 w-3.5" />
                   </button>
                 )}
               </span>
@@ -284,10 +275,11 @@ function DayCard({day, specificTimes, fallbackTimes, isFallback, onAdd, onRemove
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
+            aria-label={`Novo horário para ${WEEKDAY_LABELS[day]}`}
             className={cn(
               'flex-1 rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)]',
               'px-3 py-2 text-sm font-bold text-[var(--text-primary)]',
-              'focus:outline-none focus:ring-1 focus:ring-[var(--accent-primary)]',
+              'focus:outline-none focus:ring-1 focus:ring-[var(--accent)]',
             )}
           />
           <AppButton

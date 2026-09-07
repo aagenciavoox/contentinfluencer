@@ -34,7 +34,7 @@ export function MobileSectionHeader({
   return (
     <div className={cn('mobile-section-header', className)}>
       <div className={cn('mobile-section-header-icon', TONE_CLASSES[tone])}>
-        <Icon className="h-5 w-5" />
+        <Icon className="h-4 w-4" />
       </div>
       <div className="min-w-0 flex-1">
         <Text variant="sectionTitle" as="p">
@@ -42,9 +42,11 @@ export function MobileSectionHeader({
         </Text>
         {description ? (
           typeof description === 'string' ? (
-            <Text variant="secondary">{description}</Text>
+            <Text variant="meta" className="mt-0.5">
+              {description}
+            </Text>
           ) : (
-            description
+            <div className="mt-0.5">{description}</div>
           )
         ) : null}
       </div>

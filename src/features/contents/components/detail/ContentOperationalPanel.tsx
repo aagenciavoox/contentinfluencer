@@ -71,13 +71,13 @@ function CollapsibleCard({
   const [open, setOpen] = useState(defaultOpen);
 
   return (
-    <Surface variant="outlined" padding="none" className="overflow-visible shadow-sm">
+    <Surface variant="outlined" padding="none" className="overflow-visible">
       <button
         type="button"
         onClick={() => setOpen(prev => !prev)}
         className="flex w-full items-center justify-between gap-2 border-b border-[var(--border-color)] px-4 py-3 text-left transition-colors hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
       >
-        <Text variant="sectionTitle">{title}</Text>
+        <span className="panel-section-title">{title}</span>
         <ChevronUp className={cn('h-4 w-4 text-[var(--text-tertiary)] transition-transform', !open && 'rotate-180')} />
       </button>
       {open ? <div className="stack-md p-4">{children}</div> : null}
@@ -164,9 +164,17 @@ function ColoredSelect({
   children: React.ReactNode;
 }) {
   return (
-    <span className="inline-flex min-w-0 max-w-full items-center gap-1.5">
-      {dotColor ? <ColorDot color={dotColor} /> : null}
-      <PropertySelect value={value} onChange={onChange} className={empty ? 'property-row-value--empty' : ''}>
+    <span className="relative inline-flex w-full min-w-0 items-center">
+      {dotColor ? (
+        <span className="pointer-events-none absolute left-3 z-10">
+          <ColorDot color={dotColor} />
+        </span>
+      ) : null}
+      <PropertySelect
+        value={value}
+        onChange={onChange}
+        className={cn(empty && 'property-row-value--empty', dotColor && 'pl-7')}
+      >
         {children}
       </PropertySelect>
     </span>
@@ -204,7 +212,7 @@ function StatusDropdownField({
       <button
         type="button"
         onClick={() => setOpen(prev => !prev)}
-        className="inline-flex w-full items-center justify-between gap-2 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-3 py-2 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+        className="property-input flex w-full items-center justify-between gap-2 text-left focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
       >
         <Badge variant="status" status={displayStatus}>
           {displayStatus}
@@ -212,7 +220,7 @@ function StatusDropdownField({
         <ChevronDown className="h-3.5 w-3.5 text-[var(--text-tertiary)]" />
       </button>
       {open ? (
-        <div className="absolute left-0 right-0 top-full z-50 mt-1 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] p-1 shadow-lg">
+        <div className="absolute left-0 right-0 top-full z-50 mt-1 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] p-1 shadow-[var(--shadow-dropdown)]">
           {allowedStatuses.map(option => (
             <button
               key={option}
@@ -251,7 +259,7 @@ function StatusPropertyRow({
   onStatusChange: (status: string) => void;
 }) {
   return (
-    <PropertyRow label="Status">
+    <PropertyRow label="Status" icon={<ListChecks />}>
       <StatusDropdownField
         status={status}
         publishDate={publishDate}
@@ -312,7 +320,7 @@ export function ContentOperationalPanel({
           onChange={event => onChange({seriesId: event.target.value || null})}
           className={emptySelect(draft.seriesId)}
         >
-          <option value="">Vazio</option>
+          <option value="">Selecionar série...</option>
           {series.map(serie => (
             <option key={serie.id} value={serie.id}>
               {serie.name}
@@ -328,7 +336,7 @@ export function ContentOperationalPanel({
           empty={!draft.pilarId}
           dotColor={linkedPilar?.cor ?? null}
         >
-          <option value="">Vazio</option>
+          <option value="">Selecionar pilar...</option>
           {pilares
             .filter(pilar => pilar.ativo)
             .map(pilar => (
@@ -350,7 +358,7 @@ export function ContentOperationalPanel({
           empty={!postingWindow}
           dotColor={postingWindow?.color ?? null}
         >
-          <option value="">Vazio</option>
+          <option value="">Selecionar janela...</option>
           {POSTING_WINDOWS.map(window => (
             <option key={window.id} value={window.id}>
               {window.label}
@@ -400,16 +408,16 @@ export function ContentOperationalPanel({
 
   const notesSection = (
     <PropertySection label="Notas">
-      <div className="px-2">
+      <div className="stack-sm">
         <PropertyTextarea
           value={draft.notes ?? ''}
           onChange={event => onChange({notes: event.target.value.slice(0, NOTES_MAX)})}
-          className="min-h-[88px] w-full"
+          className="w-full"
           placeholder="Observacoes editoriais, referencias, links..."
         />
-        <p className="mt-1 text-right text-xs text-[var(--text-tertiary)]">
+        <Text variant="meta" className="text-right">
           {(draft.notes ?? '').length} / {NOTES_MAX}
-        </p>
+        </Text>
       </div>
     </PropertySection>
   );
@@ -424,7 +432,7 @@ export function ContentOperationalPanel({
             onChange={event => onChange({pilarId: event.target.value || null})}
             className={formInputClass}
           >
-            <option value="">Vazio</option>
+            <option value="">Selecionar pilar...</option>
             {pilares
               .filter(pilar => pilar.ativo)
               .map(pilar => (
@@ -442,7 +450,7 @@ export function ContentOperationalPanel({
             onChange={event => onChange({seriesId: event.target.value || null})}
             className={formInputClass}
           >
-            <option value="">Vazio</option>
+            <option value="">Selecionar série...</option>
             {series.map(serie => (
               <option key={serie.id} value={serie.id}>
                 {serie.name}
@@ -496,14 +504,14 @@ export function ContentOperationalPanel({
 
   if (variant === 'cards') {
     return (
-      <aside className={cn('flex flex-col gap-3', className)}>
+      <aside className={cn('flex flex-col gap-4', className)}>
         <CollapsibleCard title="Propriedades">
           <RoteiroField label="Série" icon={<Layers className="h-3.5 w-3.5" />}>
             <RoteiroSelect
               value={draft.seriesId ?? ''}
               onChange={event => onChange({seriesId: event.target.value || null})}
             >
-              <option value="">Vazio</option>
+              <option value="">Selecionar série...</option>
               {series.map(serie => (
                 <option key={serie.id} value={serie.id}>
                   {serie.name}
@@ -518,7 +526,7 @@ export function ContentOperationalPanel({
               onChange={event => onChange({pilarId: event.target.value || null})}
               dotColor={linkedPilar?.cor ?? null}
             >
-              <option value="">Vazio</option>
+              <option value="">Selecionar pilar...</option>
               {pilares
                 .filter(pilar => pilar.ativo)
                 .map(pilar => (
@@ -539,7 +547,7 @@ export function ContentOperationalPanel({
               }}
               dotColor={postingWindow?.color ?? null}
             >
-              <option value="">Vazio</option>
+              <option value="">Selecionar janela...</option>
               {POSTING_WINDOWS.map(window => (
                 <option key={window.id} value={window.id}>
                   {window.label}
@@ -614,12 +622,12 @@ export function ContentOperationalPanel({
   }
 
   return (
-    <aside className={cn('flex flex-col', compact ? 'gap-[var(--space-xl)]' : 'gap-6', className)}>
+    <aside className={cn('flex flex-col', compact ? 'gap-[var(--space-lg)]' : 'gap-6', className)}>
       {showTitle ? (
         <input
           value={draft.title}
           onChange={event => onChange({title: event.target.value})}
-          className="t-page-title w-full border-0 bg-transparent p-0 outline-none placeholder:text-[var(--text-tertiary)]"
+          className="content-operational-title t-page-title w-full border-0 bg-transparent p-0 outline-none placeholder:text-[var(--text-tertiary)]"
           placeholder="Titulo do conteudo"
         />
       ) : null}

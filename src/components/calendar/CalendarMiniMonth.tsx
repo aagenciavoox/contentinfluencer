@@ -24,7 +24,15 @@ interface CalendarMiniMonthProps {
   className?: string;
 }
 
-const WEEKDAY_LABELS = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'];
+const WEEKDAY_LABELS_SUNDAY_FIRST = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'];
+
+function weekdayLabels(weekStartsOn: 0 | 1): string[] {
+  if (weekStartsOn === 0) return WEEKDAY_LABELS_SUNDAY_FIRST;
+  return [
+    ...WEEKDAY_LABELS_SUNDAY_FIRST.slice(weekStartsOn),
+    ...WEEKDAY_LABELS_SUNDAY_FIRST.slice(0, weekStartsOn),
+  ];
+}
 
 export function CalendarMiniMonth({
   monthDate,
@@ -40,6 +48,7 @@ export function CalendarMiniMonth({
   const gridStart = startOfWeek(monthStart, {weekStartsOn});
   const gridEnd = endOfWeek(monthEnd, {weekStartsOn});
   const days = eachDayOfInterval({start: gridStart, end: gridEnd});
+  const labels = weekdayLabels(weekStartsOn);
 
   const handleDayClick = (day: Date) => {
     onSelectDate(day);
@@ -75,7 +84,7 @@ export function CalendarMiniMonth({
       </div>
 
       <div className="grid grid-cols-7 gap-0.5">
-        {WEEKDAY_LABELS.map((label, index) => (
+        {labels.map((label, index) => (
           <div
             key={`${label}-${index}`}
             className="py-1 text-center text-2xs font-semibold text-[var(--text-tertiary)]"

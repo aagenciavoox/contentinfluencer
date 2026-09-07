@@ -1,20 +1,23 @@
 import {useState} from 'react';
-import {MonitorSpeaker, Plus, Trash2} from 'lucide-react';
+import {MonitorSpeaker, Plus} from 'lucide-react';
 import {useAppContext} from '../../../context/AppContext';
 import {useAuth} from '../../../context/AuthContext';
 import {useIsMobile} from '../../../hooks/useIsMobile';
 import type {Platform} from '../../../lib/database';
-import {cn} from '../../../lib/utils';
 import {DesktopPageHeader} from '../../../layouts/page/DesktopPageHeader';
 import {PageLayout} from '../../../layouts/page/PageLayout';
 import {AppButton} from '../../../components/ui/AppButton';
+import {MoreMenu} from '../../../components/ui/MoreMenu';
 import {Text} from '../../../components/ui/Text';
 import {BottomSheet} from '../../../components/overlays/BottomSheet';
 import {OverlayHeader} from '../../../components/overlays/OverlayHeader';
 import {OverlayBody} from '../../../components/overlays/OverlayBody';
+import {ConfirmModal} from '../../../components/feedback/modals/ConfirmModal';
 import {PlatformsMobileScreen} from '../../../mobile/screens/settings/PlatformsMobileScreen';
+import {MobileToggleSwitch} from '../../../mobile/components/MobileToggleSwitch';
 import {generateUUID} from '../../../utils/uuid';
 import {notifySaveFeedback} from '../../../lib/saveFeedback';
+import {CONFIRM, type ConfirmState} from '../../../lib/uiCopy';
 
 const PADROES = ['Instagram', 'TikTok', 'YouTube', 'Blog'];
 
@@ -26,6 +29,12 @@ export function PlatformsSettingsPage() {
   const [novoNome, setNovoNome] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [confirm, setConfirm] = useState<ConfirmState | null>(null);
+
+  const closeForm = () => {
+    setShowForm(false);
+    setNovoNome('');
+  };
 
   const createPlatform = async (nome: string) => {
     const trimmed = nome.trim();
@@ -80,25 +89,51 @@ export function PlatformsSettingsPage() {
     }
   };
 
+  const handleDelete = (platformId: string) => {
+    setConfirm({
+      ...CONFIRM.excluirPlataforma,
+      onConfirm: () => {
+        void removePlatform(platformId);
+      },
+    });
+  };
+
   const isPadrao = (nome: string) => PADROES.includes(nome);
+
+  const confirmModal = (
+    <ConfirmModal
+      open={!!confirm}
+      message={confirm?.message || ''}
+      confirmLabel={confirm?.confirmLabel}
+      cancelLabel={confirm?.cancelLabel}
+      onConfirm={() => {
+        confirm?.onConfirm();
+        setConfirm(null);
+      }}
+      onCancel={() => setConfirm(null)}
+    />
+  );
 
   if (isMobile) {
     return (
-      <div className="min-h-full bg-[var(--bg-primary)]">
-        <PlatformsMobileScreen
-          platforms={state.platforms}
-          isPadrao={isPadrao}
-          onAdd={platformName => {
-            void createPlatform(platformName);
-          }}
-          onToggle={platform => {
-            void toggleAtivo(platform);
-          }}
-          onDelete={platformId => {
-            void removePlatform(platformId);
-          }}
-        />
-      </div>
+      <>
+        <div className="min-h-full bg-[var(--bg-primary)]">
+          <PlatformsMobileScreen
+            platforms={state.platforms}
+            isPadrao={isPadrao}
+            onAdd={platformName => {
+              void createPlatform(platformName);
+            }}
+            onToggle={platform => {
+              void toggleAtivo(platform);
+            }}
+            onDelete={platformId => {
+              handleDelete(platformId);
+            }}
+          />
+        </div>
+        {confirmModal}
+      </>
     );
   }
 
@@ -124,38 +159,28 @@ export function PlatformsSettingsPage() {
         />
       }
     >
-        <BottomSheet
-          open={showForm}
-          onClose={() => {
-            setShowForm(false);
-            setNovoNome('');
-          }}
-          desktopMaxW="max-w-md"
-        >
-          <OverlayHeader
-            title="Nova plataforma"
-            onClose={() => {
-              setShowForm(false);
-              setNovoNome('');
-            }}
-          />
+        <BottomSheet open={showForm} onClose={closeForm} desktopMaxW="max-w-md">
+          <OverlayHeader title="Nova plataforma" onClose={closeForm} />
           <OverlayBody>
             <div className="flex flex-col gap-4">
-              <input
-                autoFocus
-                value={novoNome}
-                onChange={event => setNovoNome(event.target.value)}
-                onKeyDown={event => event.key === 'Enter' && handleAdd()}
-                placeholder="Nome da plataforma"
-                className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-2.5 text-sm font-bold text-[var(--text-primary)] placeholder:opacity-30 focus:outline-none"
-              />
+              <div className="stack-sm">
+                <label htmlFor="nova-plataforma-nome" className="t-label text-[var(--text-tertiary)]">
+                  Nome
+                </label>
+                <input
+                  id="nova-plataforma-nome"
+                  autoFocus
+                  value={novoNome}
+                  onChange={event => setNovoNome(event.target.value)}
+                  onKeyDown={event => event.key === 'Enter' && handleAdd()}
+                  placeholder="Ex: Instagram, TikTok"
+                  className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-2.5 text-sm font-bold text-[var(--text-primary)] placeholder:opacity-30 focus:outline-none"
+                />
+              </div>
               <div className="flex justify-end gap-2">
                 <button
                   type="button"
-                  onClick={() => {
-                    setShowForm(false);
-                    setNovoNome('');
-                  }}
+                  onClick={closeForm}
                   className="rounded-xl border border-[var(--border-color)] px-4 py-2.5 text-xs font-semibold opacity-60 hover:opacity-90"
                 >
                   Cancelar
@@ -190,53 +215,58 @@ export function PlatformsSettingsPage() {
               </div>
             ) : (
               <div className="surface-quiet divide-y divide-[var(--border-color)]">
-                {state.platforms.map(platform => (
-                  <div key={platform.id} className="flex items-center gap-4 px-6 py-3.5">
-                    <div className="min-w-0 flex-1">
-                      <Text variant="bodyStrong" truncate>
-                        {platform.nome}
-                      </Text>
-                      {isPadrao(platform.nome) && (
-                        <Text variant="meta" className="mt-0.5">
-                          Padrão
+                {state.platforms.map(platform => {
+                  const padrao = isPadrao(platform.nome);
+                  return (
+                    <div key={platform.id} className="flex items-center gap-4 px-6 py-3.5">
+                      <div className="min-w-0 flex-1">
+                        <Text variant="bodyStrong" truncate>
+                          {platform.nome}
                         </Text>
-                      )}
-                      {!platform.ativo && (
-                        <Text variant="meta" className="mt-0.5">
-                          Inativa para criação, mas preservada para leitura histórica
+                        {padrao && (
+                          <Text variant="meta" className="mt-0.5">
+                            Padrão
+                          </Text>
+                        )}
+                        {!platform.ativo && (
+                          <Text variant="meta" className="mt-0.5">
+                            Inativa para criação, mas preservada para leitura histórica
+                          </Text>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Text variant="meta" className="text-[var(--text-secondary)]">
+                          {platform.ativo ? 'Ativa' : 'Inativa'}
                         </Text>
-                      )}
+                        <MobileToggleSwitch
+                          enabled={platform.ativo}
+                          onToggle={() => {
+                            void toggleAtivo(platform);
+                          }}
+                          label={platform.nome}
+                          className={padrao ? 'pointer-events-none opacity-50' : undefined}
+                        />
+                      </div>
+                      {!padrao ? (
+                        <MoreMenu
+                          size="sm"
+                          items={[
+                            {
+                              label: CONFIRM.excluirPlataforma.confirmLabel,
+                              tone: 'danger',
+                              onClick: () => handleDelete(platform.id),
+                            },
+                          ]}
+                        />
+                      ) : null}
                     </div>
-                    <button
-                      onClick={() => toggleAtivo(platform)}
-                      disabled={isPadrao(platform.nome)}
-                      className={cn(
-                        'rounded-[var(--radius-pill)] px-3 py-1 text-xs font-semibold transition-all',
-                        platform.ativo
-                          ? 'bg-[var(--accent-green)]/10 text-[var(--accent-green)]'
-                          : 'bg-[var(--bg-hover)] text-[var(--text-tertiary)]',
-                        isPadrao(platform.nome) && 'cursor-not-allowed opacity-50'
-                      )}
-                    >
-                      {platform.ativo ? 'Ativa' : 'Inativa'}
-                    </button>
-                    {!isPadrao(platform.nome) && (
-                      <button
-                        onClick={() => {
-                          void removePlatform(platform.id);
-                        }}
-                        className="rounded-[var(--radius-input)] p-1.5 text-[var(--text-tertiary)] transition-colors hover:bg-[var(--accent-pink)]/10 hover:text-[var(--accent-pink)]"
-                        aria-label="Remover plataforma"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    )}
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </section>
         </div>
+        {confirmModal}
     </PageLayout>
   );
 }

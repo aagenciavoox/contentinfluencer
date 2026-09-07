@@ -13,7 +13,10 @@ import {
   resolveContentEntities,
 } from '../../../contents/lib/contentCardMeta';
 import {normalizeRecordingTags} from '../../lib/recordingWorkflow';
-import {isContentBodyLoaded} from '../../../contents/lib/contentBody';
+import {
+  resolveScriptBodyStatus,
+  scriptBodyStatusLabel,
+} from '../../../contents/lib/contentBody';
 
 interface RecordingQueueGridProps {
   contents: Content[];
@@ -23,6 +26,9 @@ interface RecordingQueueGridProps {
   onClearSelection: () => void;
   onOpen: (id: string) => void;
   onRead: (id: string) => void;
+  isHydrating?: (id: string) => boolean;
+  hasHydrationError?: (id: string) => boolean;
+  onRetryHydration?: (id: string) => void;
 }
 
 export function RecordingQueueGrid({
@@ -33,6 +39,9 @@ export function RecordingQueueGrid({
   onClearSelection,
   onOpen,
   onRead,
+  isHydrating = () => false,
+  hasHydrationError = () => false,
+  onRetryHydration,
 }: RecordingQueueGridProps) {
   const {state} = useAppContext();
   const allSelected = contents.length > 0 && contents.every(content => selectedIds.has(content.id));
@@ -89,23 +98,27 @@ export function RecordingQueueGrid({
         )}
       </div>
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      <div className="grid-content">
         {contents.map(content => {
           const isSelected = selectedIds.has(content.id);
           const {pillar, series} = resolveContentEntities(content, state.pilares, state.series);
           const excerpt = getUsefulExcerpt(content);
           const wordCount = getScriptWordCount(content);
-          const bodyLoaded = isContentBodyLoaded(content);
+          const bodyStatus = resolveScriptBodyStatus(content, {
+            hydrating: isHydrating(content.id),
+            error: hasHydrationError(content.id),
+          });
+          const statusLabel = scriptBodyStatusLabel(bodyStatus, wordCount);
           const recordingTags = normalizeRecordingTags(content.tags || []);
 
           return (
             <article
               key={content.id}
               className={cn(
-                'group relative flex min-h-[11.5rem] flex-col rounded-[var(--radius-card)] border bg-[var(--bg-primary)] p-4 text-left transition-all',
+                'ds-card group relative flex min-h-[11.5rem] flex-col p-4 text-left transition-all',
                 isSelected
                   ? 'border-[var(--text-primary)] bg-[var(--bg-hover)] shadow-[0_0_0_1px_var(--text-primary)]'
-                  : 'border-[var(--border-color)] hover:border-[var(--border-strong)] hover:shadow-sm'
+                  : 'hover:border-[var(--border-strong)] hover:shadow-sm'
               )}
             >
               <div className="mb-3 flex items-start justify-between gap-2">
@@ -165,13 +178,21 @@ export function RecordingQueueGrid({
                 {excerpt ? (
                   <p className="mt-2 line-clamp-3 text-xs leading-relaxed text-[var(--text-secondary)]">{excerpt}</p>
                 ) : (
-                  <p className="mt-2 text-xs text-[var(--text-tertiary)]">
-                    {!bodyLoaded
-                      ? 'Carregando roteiro...'
-                      : wordCount > 0
-                        ? `${wordCount} palavras no roteiro`
-                        : 'Sem roteiro escrito'}
-                  </p>
+                  <div className="mt-2 stack-sm">
+                    <p className="text-xs text-[var(--text-tertiary)]">{statusLabel}</p>
+                    {bodyStatus === 'error' && onRetryHydration ? (
+                      <button
+                        type="button"
+                        className="text-xs font-semibold text-[var(--text-secondary)] underline underline-offset-2 hover:text-[var(--text-primary)]"
+                        onClick={event => {
+                          event.stopPropagation();
+                          onRetryHydration(content.id);
+                        }}
+                      >
+                        Tentar novamente
+                      </button>
+                    ) : null}
+                  </div>
                 )}
 
                 <div className="mt-auto flex flex-wrap items-center gap-2 pt-3">

@@ -221,7 +221,7 @@ export function TagSelect({
                 onKeyDown={handleInputKeyDown}
                 onFocus={() => setOpen(true)}
                 placeholder={values.length === 0 ? placeholder : ''}
-                className="min-w-[120px] flex-1 border-none bg-transparent px-0 py-0.5 text-sm text-[var(--text-primary)] outline-none placeholder:text-[var(--text-tertiary)]"
+                className="input-plain min-w-[120px] flex-1 bg-transparent px-0 py-0.5 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]"
               />
             ) : values.length === 0 ? (
               <span className="text-sm text-[var(--text-tertiary)]">{placeholder}</span>
@@ -246,7 +246,7 @@ export function TagSelect({
           <div
             id={`${fieldId}-listbox`}
             role="listbox"
-            className="absolute left-0 right-0 top-[calc(100%+4px)] z-50 max-h-56 overflow-y-auto rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] py-1 shadow-lg"
+            className="absolute left-0 right-0 top-[calc(100%+4px)] z-50 max-h-56 overflow-y-auto rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] py-1 shadow-[var(--shadow-dropdown)]"
           >
             {availableOptions.length > 0 ? (
               availableOptions.map(option => (

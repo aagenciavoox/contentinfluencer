@@ -2,7 +2,10 @@ import { useMemo } from 'react';
 import { ChevronRight, Palette, Plus } from 'lucide-react';
 import { AppButton } from '../../../components/ui/AppButton';
 import { Badge } from '../../../components/ui/Badge';
+import { MoreMenu } from '../../../components/ui/MoreMenu';
+import { Text } from '../../../components/ui/Text';
 import type { Pilar } from '../../../lib/database';
+import { CONFIRM } from '../../../lib/uiCopy';
 import { EmptyState } from '../../../components/ui/EmptyState';
 import { MobileListCard } from '../../components/MobileListCard';
 import { MobilePillButton } from '../../components/MobilePillButton';
@@ -28,8 +31,8 @@ export function PillarsMobileScreen({
   const activeCount = pilares.filter(pilar => pilar.ativo).length;
 
   return (
-    <div className="stack-xl">
-      <section className="rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4 shadow-sm">
+    <div className="stack-lg">
+      <section className="rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4">
         <MobileSectionHeader
           icon={Palette}
           tone="orange"
@@ -84,19 +87,38 @@ export function PillarsMobileScreen({
                 </>
               }
               trailing={
-                <ChevronRight className="mt-1 h-5 w-5 shrink-0 text-[var(--text-tertiary)]" />
+                <div className="mt-1 flex items-start gap-1">
+                  <MoreMenu
+                    size="sm"
+                    items={[
+                      {
+                        label: pilar.ativo ? 'Desativar' : 'Ativar',
+                        tone: pilar.ativo ? 'default' : 'success',
+                        onClick: () => onToggle(pilar),
+                      },
+                      {
+                        label: CONFIRM.excluirPilar.confirmLabel,
+                        tone: 'danger',
+                        onClick: () => onDelete(pilar.id),
+                      },
+                    ]}
+                    triggerClassName="border-transparent bg-transparent"
+                  />
+                  <ChevronRight className="h-5 w-5 shrink-0 text-[var(--text-tertiary)]" />
+                </div>
               }
               status={
                 <div className="flex flex-wrap items-center gap-2">
-                  <MobilePillButton
-                    tone={pilar.ativo ? 'success' : 'muted'}
-                    onClick={event => {
-                      event.stopPropagation();
-                      onToggle(pilar);
-                    }}
+                  <Text
+                    variant="meta"
+                    className={
+                      pilar.ativo
+                        ? 'font-semibold text-[var(--accent-green)]'
+                        : 'font-semibold text-[var(--text-tertiary)]'
+                    }
                   >
                     {pilar.ativo ? 'Ativo' : 'Inativo'}
-                  </MobilePillButton>
+                  </Text>
                   <MobilePillButton
                     tone="muted"
                     onClick={event => {
@@ -105,15 +127,6 @@ export function PillarsMobileScreen({
                     }}
                   >
                     Editar
-                  </MobilePillButton>
-                  <MobilePillButton
-                    tone="danger"
-                    onClick={event => {
-                      event.stopPropagation();
-                      onDelete(pilar.id);
-                    }}
-                  >
-                    Excluir
                   </MobilePillButton>
                 </div>
               }

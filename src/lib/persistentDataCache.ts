@@ -11,17 +11,21 @@ type PersistedEntry = {
   fetchedAt: number;
 };
 
-/** Um cache sem corpo pode montar listas, mas não satisfaz telas que pedem o domínio `content`. */
+/**
+ * Domínios de lista (`content`, `content-schedule`, `content-summary`) usam select leve
+ * sem roteiro; o corpo é hidratado sob demanda em detalhe/gravação.
+ * Qualquer payload com `contents` (mesmo sanitizado) satisfaz esses pedidos.
+ */
 export function canDomainPayloadSatisfyRequest(
   domains: readonly AppDataDomain[],
   payload: Partial<AppData>,
 ) {
-  if (!domains.includes('content') || !payload.contents) return true;
-  return payload.contents.every(content => (
-    content.script !== undefined
-    || content.notes !== undefined
-    || content.referencias !== undefined
-  ));
+  const needsContents =
+    domains.includes('content')
+    || domains.includes('content-schedule')
+    || domains.includes('content-summary');
+  if (!needsContents) return true;
+  return Array.isArray(payload.contents);
 }
 
 function storageKey(userId: string, cacheKey: string) {

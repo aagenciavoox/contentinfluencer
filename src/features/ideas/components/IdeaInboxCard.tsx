@@ -3,6 +3,9 @@ import { ptBR } from 'date-fns/locale';
 import { Archive, ArrowUpRight, BookOpen, Edit3 } from 'lucide-react';
 import type { Idea } from '../../../lib/database';
 import { Badge } from '../../../components/ui/Badge';
+import { OverflowTags } from '../../../components/ui/OverflowTags';
+import { Surface } from '../../../components/ui/Surface';
+import { Text } from '../../../components/ui/Text';
 import { getEntityTagStyle } from '../../../lib/utils';
 import { getIdeaNotes, getIdeaTitle } from '../lib/ideaText';
 import { ideaHasClassification } from '../lib/ideaFilters';
@@ -47,68 +50,71 @@ export function IdeaInboxCard({
   const hasClassification = ideaHasClassification(idea);
   const hasActions = showActions && !idea.archived && (onPromote || onArchive || onEdit);
 
+  const tags = [
+    serieNome ? (
+      <span
+        key="serie"
+        className="status-pill text-xs font-medium uppercase tracking-[0.06em]"
+        style={getEntityTagStyle(serieCor)}
+      >
+        {serieNome}
+      </span>
+    ) : null,
+    pilarNome ? (
+      <span
+        key="pilar"
+        className="status-pill text-xs font-medium uppercase tracking-[0.06em]"
+        style={getEntityTagStyle(pilarCor)}
+      >
+        {pilarNome}
+      </span>
+    ) : null,
+    origemTitulo ? (
+      <span
+        key="origem"
+        className="status-pill gap-1 text-xs font-medium uppercase tracking-[0.06em] text-[var(--accent-orange)]"
+      >
+        <BookOpen className="h-3 w-3" />
+        <span className="truncate">{origemTitulo}</span>
+      </span>
+    ) : null,
+    !hasClassification ? <Badge key="unclassified" variant="neutral">Sem classificação</Badge> : null,
+  ].filter(Boolean);
+
   return (
-    <div
-      role="button"
-      tabIndex={0}
-      aria-label={`Abrir ideia ${title}`}
+    <Surface
+      as="div"
+      variant="interactive"
+      padding="md"
       onClick={onOpen}
-      onKeyDown={(event) => {
-        if (event.key === 'Enter' || event.key === ' ') {
-          event.preventDefault();
-          onOpen();
-        }
-      }}
-      className="editorial-card editorial-card-interactive group flex h-full min-h-[7.5rem] w-full cursor-pointer flex-col rounded-[var(--radius-input)] px-3 py-2.5 text-left transition-all hover:shadow-[var(--shadow-soft)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-blue)]/40"
+      aria-label={`Abrir ideia ${title}`}
+      className="group flex h-full min-h-[7.5rem] w-full cursor-pointer flex-col text-left"
     >
-      <p className="line-clamp-2 text-sm font-semibold leading-snug text-[var(--text-primary)] break-words">
+      {tags.length > 0 ? (
+        <div className="mb-2">
+          <OverflowTags items={tags} />
+        </div>
+      ) : null}
+
+      <Text variant="itemTitle" className="line-clamp-2 leading-snug break-words">
         {title}
-      </p>
+      </Text>
       {notes ? (
-        <p className="mt-1 line-clamp-2 flex-1 text-xs leading-relaxed text-[var(--text-secondary)] whitespace-pre-wrap break-words">
+        <Text variant="secondary" className="mt-1 line-clamp-2 flex-1 whitespace-pre-wrap break-words">
           {previewNotes(notes)}
-        </p>
+        </Text>
       ) : (
         <div className="flex-1" />
       )}
 
-      <div className="mt-2 flex items-center gap-2">
-        <time
-          dateTime={idea.createdAt}
-          className="t-meta shrink-0 tabular-nums"
-        >
-          {format(new Date(idea.createdAt), "d MMM", { locale: ptBR })}
-        </time>
-
-        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1">
-          {pilarNome ? (
-            <span
-              className="status-pill text-xs font-medium uppercase tracking-[0.06em]"
-              style={getEntityTagStyle(pilarCor)}
-            >
-              {pilarNome}
-            </span>
-          ) : null}
-          {serieNome ? (
-            <span
-              className="status-pill text-xs font-medium uppercase tracking-[0.06em]"
-              style={getEntityTagStyle(serieCor)}
-            >
-              {serieNome}
-            </span>
-          ) : null}
-          {origemTitulo ? (
-            <span className="status-pill gap-1 text-xs font-medium uppercase tracking-[0.06em] text-[var(--accent-orange)]">
-              <BookOpen className="h-3 w-3" />
-              <span className="truncate">{origemTitulo}</span>
-            </span>
-          ) : null}
-          {!hasClassification ? <Badge variant="neutral">Sem classificação</Badge> : null}
-        </div>
+      <div className="mt-3 flex items-center justify-between gap-2">
+        <Text variant="meta" as="time" className="shrink-0 tabular-nums">
+          {format(new Date(idea.createdAt), 'd MMM', { locale: ptBR })}
+        </Text>
 
         {hasActions ? (
           <div
-            className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
+            className="card-actions flex shrink-0 items-center gap-0.5"
             onClick={(event) => event.stopPropagation()}
             onKeyDown={(event) => event.stopPropagation()}
           >
@@ -145,6 +151,6 @@ export function IdeaInboxCard({
           </div>
         ) : null}
       </div>
-    </div>
+    </Surface>
   );
 }

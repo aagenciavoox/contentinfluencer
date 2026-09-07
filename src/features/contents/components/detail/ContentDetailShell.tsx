@@ -1,14 +1,15 @@
 import {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {getSaveFeedbackState, subscribeSaveFeedback, type SaveFeedbackState} from '../../../../lib/saveFeedback';
-import {useNavigate, useSearchParams} from 'react-router-dom';
+import {useLocation, useNavigate, useSearchParams} from 'react-router-dom';
 import {useNavigationBlocker} from '../../../../lib/navigation/NavigationBlockerContext';
+import {resolveContentDetailBack} from '../../../../lib/navigation/detailBack';
 import {SendToRecordingSheet} from '../../../../mobile/components/SendToRecordingSheet';
 import {ConfirmModal} from '../../../../components/feedback/modals/ConfirmModal';
 import {useAppContext} from '../../../../context/AppContext';
 import {useAuth} from '../../../../context/AuthContext';
 import type {Content} from '../../../../lib/database';
 import {cn} from '../../../../lib/utils';
-import {PageScaffold} from '../../../../layouts/page/PageScaffold';
+import {PageLayout} from '../../../../layouts/page/PageLayout';
 import {ContentDetailMobileScreen} from '../../../../mobile/screens/contents/ContentDetailMobileScreen';
 import {
   CONTENT_STATUS,
@@ -36,14 +37,37 @@ import {RoteiroSection, type ScriptDraft} from './sections/RoteiroSection';
 interface ContentDetailShellProps {
   content: Content;
   mode?: 'desktop' | 'mobile';
+  bodyLoading?: boolean;
+  bodyError?: string | null;
+  onRetryBody?: () => void;
 }
 
 type ContentDraft = ScriptDraft;
 
-export function ContentDetailShell({content, mode = 'desktop'}: ContentDetailShellProps) {
+function normalizePlain(value: string | null | undefined): string {
+  const trimmed = (value ?? '').trim();
+  if (
+    !trimmed
+    || trimmed === '<p></p>'
+    || trimmed === '<p><br></p>'
+    || trimmed === '<p><br/></p>'
+  ) {
+    return '';
+  }
+  return trimmed;
+}
+
+export function ContentDetailShell({
+  content,
+  mode = 'desktop',
+  bodyLoading = false,
+  bodyError = null,
+  onRetryBody,
+}: ContentDetailShellProps) {
   const {state, dispatch, updateContent, ensureDataDomains} = useAppContext();
   const {user} = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const [draft, setDraft] = useState<ContentDraft>(() => ({
     title: content.title,
@@ -73,7 +97,9 @@ export function ContentDetailShell({content, mode = 'desktop'}: ContentDetailShe
   const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const activeTab = getInitialTabForContext(searchParams.get('tab'));
 
-  const blocker = useNavigationBlocker(() => draftDirty);
+  // Read the ref so clearing dirty before navigate is honored immediately
+  // (state updates would still look dirty for one render and cancel leave).
+  const blocker = useNavigationBlocker(() => draftDirtyRef.current);
 
   useEffect(() => subscribeSaveFeedback(() => setSaveFeedback(getSaveFeedbackState())), []);
 
@@ -180,12 +206,32 @@ export function ContentDetailShell({content, mode = 'desktop'}: ContentDetailShe
   ]);
 
   const handleDraftChange = useCallback((updates: Partial<ContentDraft>) => {
-    draftDirtyRef.current = true;
-    setDraftDirty(true);
-    setDraft(previous => ({...previous, ...updates}));
-    if ('status' in updates && updates.status) {
-      void persistRef.current({status: updates.status});
-    }
+    setDraft(previous => {
+      const changed = (Object.keys(updates) as Array<keyof ContentDraft>).some(key => {
+        const nextValue = updates[key];
+        const prevValue = previous[key];
+        if (key === 'script' || key === 'notes' || key === 'referencias') {
+          return normalizePlain(prevValue as string | null) !== normalizePlain(nextValue as string | null);
+        }
+        if (key === 'scriptNotes' || key === 'plataformas') {
+          return JSON.stringify(prevValue ?? null) !== JSON.stringify(nextValue ?? null);
+        }
+        return prevValue !== nextValue;
+      });
+
+      if (!changed) return previous;
+
+      draftDirtyRef.current = true;
+      setDraftDirty(true);
+
+      if (updates.status && updates.status !== previous.status) {
+        queueMicrotask(() => {
+          void persistRef.current({status: updates.status});
+        });
+      }
+
+      return {...previous, ...updates};
+    });
   }, []);
 
   const pillar = state.pilares.find(item => item.id === draft.pilarId) || null;
@@ -314,11 +360,14 @@ export function ContentDetailShell({content, mode = 'desktop'}: ContentDetailShe
       if (draftDirtyRef.current) {
         await persistRef.current(undefined, {silent: true});
       }
-      await dispatch({type: 'DELETE_CONTENT', payload: content.id});
+      // Clear dirty before leave so the navigation blocker cannot cancel it
+      // after DELETE_CONTENT unmounts this shell.
       draftDirtyRef.current = false;
       setDraftDirty(false);
       setDeleteConfirmOpen(false);
-      navigate('/criacao?tab=roteiros', {replace: true});
+      const backTo = resolveContentDetailBack(location.state as {from?: string} | null);
+      await dispatch({type: 'DELETE_CONTENT', payload: content.id});
+      navigate(backTo, {replace: true});
     } finally {
       setIsDeleting(false);
     }
@@ -385,6 +434,9 @@ export function ContentDetailShell({content, mode = 'desktop'}: ContentDetailShe
         title={draft.title}
         onTitleChange={value => handleDraftChange({title: value})}
         saveState={editorSaveState}
+        bodyLoading={bodyLoading}
+        bodyError={bodyError}
+        onRetryBody={onRetryBody}
       />
     ) : activeTab === 'publicacao' ? (
       <PublishingSection
@@ -478,66 +530,60 @@ export function ContentDetailShell({content, mode = 'desktop'}: ContentDetailShe
 
   return (
     <>
-      <PageScaffold contentWidth="narrow" contentStack="none">
-        <div
-          className={cn(
-            'flex flex-col',
-            activeTab === 'roteiro' ? 'gap-4' : 'gap-6',
-          )}
-        >
-          <div className={activeTab === 'roteiro' ? 'stack-sm' : 'contents'}>
-            <ContentDetailHeader
+      <PageLayout
+        contentStack="none"
+        header={(
+          <ContentDetailHeader
+            content={mergedContent}
+            title={draft.title}
+            onTitleChange={value => handleDraftChange({title: value})}
+            primaryAction={primaryAction}
+            onPrimaryAction={() => void handlePrimaryAction()}
+            onRetrySave={() => void persist()}
+            onDelete={() => setDeleteConfirmOpen(true)}
+            isSaving={isSaving || isDeleting}
+            blockName={blockSummary?.block.name ?? null}
+            blockOrder={blockSummary?.order ?? null}
+            saveHint={saveHint}
+            pilar={pillar}
+            authorName={user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Usuario'}
+            compact={activeTab === 'roteiro'}
+            breadcrumbMode={activeTab === 'roteiro' ? 'pipeline' : 'content'}
+            saveState={editorSaveState}
+          />
+        )}
+      >
+        <div className={cn('flex flex-col', activeTab === 'roteiro' ? 'gap-4' : 'gap-6')}>
+          {activeTab !== 'roteiro' ? (
+            <ContentPipelineStepper
               content={mergedContent}
-              title={draft.title}
-              onTitleChange={value => handleDraftChange({title: value})}
-              primaryAction={primaryAction}
-              onPrimaryAction={() => void handlePrimaryAction()}
-              onRetrySave={() => void persist()}
-              onDelete={() => setDeleteConfirmOpen(true)}
-              isSaving={isSaving || isDeleting}
-              blockName={blockSummary?.block.name ?? null}
-              blockOrder={blockSummary?.order ?? null}
-              saveHint={saveHint}
-              pilar={pillar}
-              authorName={user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Usuario'}
-              compact={activeTab === 'roteiro'}
-              breadcrumbMode={activeTab === 'roteiro' ? 'pipeline' : 'content'}
-              saveState={editorSaveState}
+              activeTab={activeTab}
+              visibleTabs={visibleTabs}
+              stageOptions={stageOptions}
+              onTabChange={setTab}
             />
+          ) : null}
 
-            {activeTab !== 'roteiro' ? (
-              <ContentPipelineStepper
-                content={mergedContent}
-                activeTab={activeTab}
-                visibleTabs={visibleTabs}
-                stageOptions={stageOptions}
-                onTabChange={setTab}
-              />
-            ) : null}
-          </div>
-
-          <div className={cn(activeTab === 'roteiro' ? 'gap-3' : 'gap-6', 'grid')}>
-            {activeTab === 'roteiro' ? (
-              detailSection
-            ) : (
-              <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_300px]">
-                <div>{detailSection}</div>
-                <aside className="stack-lg xl:border-l xl:border-[var(--border-color)] xl:pl-6">
-                  <ContentOperationalPanel
-                    draft={draft}
-                    series={state.series}
-                    pilares={state.pilares}
-                    authorName={user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Usuario'}
-                    onChange={handleDraftChange}
-                    density="compact"
-                    showTitle={false}
-                  />
-                </aside>
-              </div>
-            )}
-          </div>
+          {activeTab === 'roteiro' ? (
+            detailSection
+          ) : (
+            <div className="grid-editor">
+              <div className="min-w-0">{detailSection}</div>
+              <aside className="min-w-0 stack-lg xl:border-l xl:border-[var(--border-color)] xl:pl-6">
+                <ContentOperationalPanel
+                  draft={draft}
+                  series={state.series}
+                  pilares={state.pilares}
+                  authorName={user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Usuario'}
+                  onChange={handleDraftChange}
+                  density="compact"
+                  showTitle={false}
+                />
+              </aside>
+            </div>
+          )}
         </div>
-      </PageScaffold>
+      </PageLayout>
       {recordingSheet}
       {leaveConfirmModal}
       <ConfirmModal

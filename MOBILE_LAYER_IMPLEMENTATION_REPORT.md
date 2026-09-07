@@ -1,5 +1,7 @@
 # Mobile Layer Isolation Report
 
+> **Superseded 2026-08-21.** This snapshot (2026-05-05) describes Pipeline/Ideias as primary surfaces, a bottom nav of Agenda|Projetos|Ideias|Acervo, and screens that no longer exist (`AnalyticsMobileScreen`, `IdeasMobileScreen`, `ContentsMobileScreen`). Current truth: `/criacao` (CreationHub), `/calendario?modo=`, bottom nav Calendário | Criação | Gravação. See `src/layouts/navigation/navConfig.ts` and `src/app/router/buildAppRoutes.tsx`.
+
 ## Objetivo
 
 Isolar a camada mobile da camada desktop em todas as paginas principais, compartilhando apenas estado, dados e regras de negocio.

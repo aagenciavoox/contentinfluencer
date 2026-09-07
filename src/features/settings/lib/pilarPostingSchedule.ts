@@ -114,3 +114,45 @@ export function formatCrossedPostingPreview(
   }
   return `${WEEKDAY_SHORT[weekday]}: ${times.join(', ')}`;
 }
+
+/** One-line summary across several weekdays (avoids one alert per day). */
+export function formatCrossedPostingSummary(
+  schedule: PilarPlatformSchedule,
+  postingTimeEntries: PostingTimeEntry[],
+  platformUuid: string | null,
+  weekdays: Weekday[],
+): string {
+  const withTimes: { weekday: Weekday; times: string[] }[] = [];
+  const withoutTimes: Weekday[] = [];
+
+  for (const weekday of weekdays) {
+    const times = getCrossedPostingTimesForPilarPlatform(
+      schedule,
+      postingTimeEntries,
+      platformUuid,
+      weekday,
+    );
+    if (times.length === 0) withoutTimes.push(weekday);
+    else withTimes.push({ weekday, times });
+  }
+
+  if (withTimes.length === 0) {
+    return 'Nenhum horário cruza com esta janela nos dias selecionados.';
+  }
+
+  const byKey = new Map<string, Weekday[]>();
+  for (const item of withTimes) {
+    const key = item.times.join(', ');
+    const group = byKey.get(key) ?? [];
+    group.push(item.weekday);
+    byKey.set(key, group);
+  }
+
+  const matched = [...byKey.entries()]
+    .map(([times, days]) => `${days.map(day => WEEKDAY_SHORT[day]).join(', ')}: ${times}`)
+    .join(' · ');
+
+  if (withoutTimes.length === 0) return matched;
+
+  return `${matched}. Sem cruzamento: ${withoutTimes.map(day => WEEKDAY_SHORT[day]).join(', ')}.`;
+}

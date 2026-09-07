@@ -35,6 +35,7 @@ import {AppButton} from '../../../components/ui/AppButton';
 import {EmptyState} from '../../../components/ui/EmptyState';
 import {MobileListCard} from '../../components/MobileListCard';
 import {MobileSearchBar} from '../../components/MobileSearchBar';
+import {MobileSegmentTabs} from '../../components/MobileSegmentTabs';
 import {CalendarModeSwitch} from '../../../features/editorial-calendar/components/CalendarModeSwitch';
 import {getDisplayStatus} from '../../../features/contents/lib/contentPipeline';
 
@@ -45,6 +46,10 @@ interface AgendaMobileScreenProps {
   platforms: Platform[];
   agendaItems: AgendaItem[];
   projetos: Projeto[];
+  listMode?: 'agenda' | 'timeline';
+  onListModeChange?: (mode: 'agenda' | 'timeline') => void;
+  periodStart?: Date;
+  periodEnd?: Date;
   onAddAgenda: () => void;
   onAddPostedVideo: () => void;
   onSelectEntry?: (entry: CalendarEntry) => void;
@@ -195,6 +200,10 @@ export function AgendaMobileScreen({
   platforms,
   agendaItems,
   projetos,
+  listMode = 'agenda',
+  onListModeChange,
+  periodStart,
+  periodEnd,
   onAddAgenda,
   onAddPostedVideo,
   onSelectEntry,
@@ -221,6 +230,9 @@ export function AgendaMobileScreen({
 
   const today = startOfDay(new Date());
   const upcomingEnd = endOfDay(addDays(today, 60));
+  const rangeStart = periodStart ? startOfDay(periodStart) : today;
+  const rangeEnd = periodEnd ? endOfDay(periodEnd) : upcomingEnd;
+  const isTimeline = listMode === 'timeline';
 
   const timeline = useMemo(
     () => buildTimelineEntries(contents, platforms, agendaItems, projetos),
@@ -245,6 +257,7 @@ export function AgendaMobileScreen({
       .filter(entry => {
         const d = parseISO(entry.date);
         if (selectedDate) return isSameDay(d, selectedDate);
+        if (isTimeline) return isWithinInterval(d, {start: rangeStart, end: rangeEnd});
         return isWithinInterval(d, {start: today, end: upcomingEnd});
       })
       .filter(entry => activeKinds.includes(entry.kind))
@@ -253,7 +266,7 @@ export function AgendaMobileScreen({
         return [entry.title, entry.secondary || '', KIND_LABELS[entry.kind]]
           .join(' ').toLowerCase().includes(q);
       });
-  }, [activeKinds, search, selectedDate, timeline, today, upcomingEnd]);
+  }, [activeKinds, isTimeline, rangeEnd, rangeStart, search, selectedDate, timeline, today, upcomingEnd]);
 
   const groupedEntries = useMemo(() => {
     return filteredEntries.reduce<Array<{label: string; items: AgendaTimelineEntry[]}>>((acc, entry) => {
@@ -276,12 +289,23 @@ export function AgendaMobileScreen({
   const days = eachDayOfInterval({start: gridStart, end: gridEnd});
 
   return (
-    <div className="stack-xl">
-      <div className="px-4">
+    <div className="stack-lg">
+      <div className="px-4 stack-md">
         <CalendarModeSwitch variant="mobile" />
+        {onListModeChange ? (
+          <MobileSegmentTabs
+            tabs={[
+              {value: 'agenda', label: 'Agenda'},
+              {value: 'timeline', label: 'Timeline'},
+            ]}
+            value={listMode}
+            onChange={value => onListModeChange(value as 'agenda' | 'timeline')}
+          />
+        ) : null}
       </div>
-      {/* Calendar card */}
-      <section className="overflow-hidden rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] shadow-sm">
+      {/* Calendar card — operational Agenda keeps month picker; Timeline is temporal list */}
+      {!isTimeline ? (
+      <section className="overflow-hidden rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)]">
 
         {/* Header: month nav + actions on second row */}
         <div className="stack-md px-4 pt-4 pb-3">
@@ -420,22 +444,72 @@ export function AgendaMobileScreen({
           })}
         </div>
       </section>
+      ) : (
+        <div className="flex items-center justify-end gap-2 px-4">
+          <button
+            type="button"
+            onClick={onAddPostedVideo}
+            aria-label="Marcar como postado"
+            className="flex min-h-11 min-w-11 items-center justify-center rounded-xl border border-[var(--border-color)] transition-all active:scale-95"
+          >
+            <Radio className="h-4 w-4 text-[var(--text-primary)]" />
+          </button>
+          <button
+            type="button"
+            onClick={onAddAgenda}
+            aria-label="Novo evento"
+            className="flex min-h-11 items-center gap-1.5 rounded-xl bg-[var(--text-primary)] px-4 text-xs font-semibold text-[var(--bg-primary)] transition-all active:scale-95"
+          >
+            <Plus className="h-4 w-4" />
+            Novo
+          </button>
+        </div>
+      )}
 
-      {/* â”€â”€ Agenda list â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
-      <section className="stack-md">
-
-        {/* Search */}
+      <section className="stack-md px-4">
         <MobileSearchBar
           value={search}
           onChange={setSearch}
           placeholder="Buscar evento, gravação, projeto..."
         />
 
-        {/* Context header */}
+        {isTimeline ? (
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {ALL_KINDS.map(kind => {
+              const active = activeKinds.includes(kind);
+              return (
+                <button
+                  key={kind}
+                  type="button"
+                  onClick={() =>
+                    setActiveKinds(current =>
+                      current.includes(kind)
+                        ? current.length === 1 ? current : current.filter(k => k !== kind)
+                        : [...current, kind]
+                    )
+                  }
+                  className={cn(
+                    'flex min-h-11 shrink-0 cursor-pointer items-center gap-1.5 rounded-lg border px-3 text-xs font-bold whitespace-nowrap transition-all select-none active:scale-95',
+                    active
+                      ? 'border-[var(--border-strong)] bg-[var(--bg-hover)] text-[var(--text-primary)]'
+                      : 'border-[var(--border-color)] text-[var(--text-tertiary)] opacity-40',
+                  )}
+                >
+                  <span
+                    className="h-1.5 w-1.5 shrink-0 rounded-full"
+                    style={{backgroundColor: active ? KIND_ACCENTS[kind] : 'currentColor'}}
+                  />
+                  {KIND_LABELS[kind]}
+                </button>
+              );
+            })}
+          </div>
+        ) : null}
+
         <div className="flex items-center justify-between px-1">
           {selectedDate ? (
             <>
-              <p className="text-xs font-semibold  text-[var(--text-primary)]">
+              <p className="text-xs font-semibold text-[var(--text-primary)]">
                 {format(selectedDate, "EEEE, dd 'de' MMMM", {locale: ptBR})}
                 <span className="ml-2 font-bold text-[var(--text-tertiary)]">
                   · {filteredEntries.length}
@@ -444,27 +518,30 @@ export function AgendaMobileScreen({
               <button
                 type="button"
                 onClick={() => setSelectedDate(null)}
-                className="text-xs font-semibold  text-[var(--text-tertiary)] transition-all active:opacity-50"
+                className="text-xs font-semibold text-[var(--text-tertiary)] transition-all active:opacity-50"
               >
                 Ver todos
               </button>
             </>
           ) : (
-            <p className="text-xs font-semibold  text-[var(--text-tertiary)]">
-              Proximos 60 dias
+            <p className="text-xs font-semibold text-[var(--text-tertiary)]">
+              {isTimeline
+                ? `${format(rangeStart, 'd MMM', {locale: ptBR})} – ${format(rangeEnd, 'd MMM', {locale: ptBR})}`
+                : 'Proximos 60 dias'}
               <span className="ml-2 text-[var(--text-primary)]">· {filteredEntries.length}</span>
             </p>
           )}
         </div>
 
-        {/* Entries */}
         {groupedEntries.length === 0 ? (
           <EmptyState compact
             title="Nada por aqui"
             description={
               selectedDate
                 ? 'Nenhum evento nesse dia. Toque em Novo para adicionar.'
-                : 'Nenhum evento nos proximos 60 dias com as camadas ativas.'
+                : isTimeline
+                  ? 'Nenhum evento no período temporal com as camadas ativas.'
+                  : 'Nenhum evento nos proximos 60 dias com as camadas ativas.'
             }
             action={
               <AppButton variant="primary" fullWidth onClick={onAddAgenda} leftIcon={<Plus className="h-4 w-4" />}>
@@ -474,7 +551,7 @@ export function AgendaMobileScreen({
             icon={<SearchCheck className="h-8 w-8" />}
           />
         ) : (
-          <div className="stack-xl">
+          <div className="stack-lg">
             {groupedEntries.map(group => (
               <div key={group.label} className="stack-sm">
                 <p className="px-1 t-label text-[var(--text-tertiary)]">{group.label}</p>

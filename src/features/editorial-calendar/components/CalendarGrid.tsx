@@ -165,13 +165,13 @@ export function CalendarGrid({ activeLayers, searchTerm, sortValue, onItemClick 
   };
 
   return (
-    <Surface variant="elevated" padding="none" className="overflow-hidden animate-in zoom-in-95 duration-500">
+    <Surface variant="outlined" padding="none" className="overflow-hidden animate-in zoom-in-95 duration-500">
       <div className="overflow-x-auto no-scrollbar">
       <div className="min-w-[800px] md:min-w-0">
       {/* Calendar Header */}
       <div className="p-4 md:p-8 border-b border-[var(--border-color)] flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div className="flex items-center gap-3 md:gap-6 w-full md:w-auto">
-           <div className="flex items-center gap-2 px-4 md:px-6 py-2 md:py-3 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] shadow-sm flex-1 md:flex-none justify-center md:justify-start">
+           <div className="flex items-center gap-2 px-4 md:px-6 py-2 md:py-3 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] flex-1 md:flex-none justify-center md:justify-start">
              <CalendarIcon className="w-4 h-4 md:w-5 md:h-5 text-[var(--accent-blue)]" />
              <Text as="span" variant="label" uppercase className="md:text-sm font-semibold text-[var(--text-primary)]">
                {format(currentDate, 'MMMM yyyy', { locale: ptBR })}

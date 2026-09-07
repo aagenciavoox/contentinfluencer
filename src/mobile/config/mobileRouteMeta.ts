@@ -1,19 +1,47 @@
-import { GLOSSARY } from '../../lib/uiCopy';
+import { GLOSSARY } from '../../lib/uiCopy.ts';
 
-interface MobileRouteMeta {
+export interface MobileRouteMeta {
   title: string;
-  subtitle: string;
+  subtitle?: string;
   mode?: 'menu' | 'back';
   backTo?: string;
-  /** Titulo pequeno centralizado na barra superior (ex.: Ideias). */
+  /** Titulo pequeno centralizado na barra superior (ex.: detalhe). */
   titleVariant?: 'default' | 'compact-center';
+  /** Esconde o header fixo — a propria tela desenha o herói (ex.: Hoje). */
+  hideHeader?: boolean;
+  /** Esconde a bottom nav — telas de foco (ex.: escrever roteiro). */
+  hideBottomNav?: boolean;
+  /** Exibe wordmark Criaki no lugar do titulo textual. */
+  showBrandLogo?: boolean;
 }
 
-export function getMobileRouteMeta(pathname: string): MobileRouteMeta {
+export type MobileRouteContext = {
+  contentTitle?: string | null;
+  bibliotecaTitle?: string | null;
+  recordingBlockName?: string | null;
+};
+
+function isContentScriptTab(search: string) {
+  const params = new URLSearchParams(search.startsWith('?') ? search.slice(1) : search);
+  const tab = params.get('tab');
+  if (tab === 'gravacao') return false;
+  if (
+    tab === 'publicacao'
+    || tab === 'fluxo'
+    || tab === 'publicar'
+    || tab === 'producao'
+    || tab === 'postagem'
+  ) {
+    return false;
+  }
+  return true;
+}
+
+export function getMobileRouteMeta(pathname: string, search = ''): MobileRouteMeta {
   if (pathname === '/biblioteca/analise') {
     return {
       title: 'Análise',
-      subtitle: 'Livros, páginas, minutagem, progresso e anotações.',
+      subtitle: 'Progresso e anotações por obra.',
       mode: 'back',
       backTo: '/biblioteca',
     };
@@ -21,44 +49,46 @@ export function getMobileRouteMeta(pathname: string): MobileRouteMeta {
 
   if (pathname.startsWith('/biblioteca/')) {
     return {
-      title: 'Leitura',
-      subtitle: 'Consulta e anotações do item atual.',
+      title: GLOSSARY.biblioteca,
       mode: 'back',
       backTo: '/biblioteca',
+      titleVariant: 'compact-center',
     };
   }
 
   if (pathname.startsWith('/projetos/')) {
     return {
       title: 'Projeto',
-      subtitle: 'Contexto, eventos e caminhos possíveis.',
       mode: 'back',
       backTo: '/projetos',
+      titleVariant: 'compact-center',
     };
   }
 
   if (pathname.startsWith('/conteudos/')) {
+    const isScriptTab = isContentScriptTab(search);
     return {
       title: GLOSSARY.roteiro,
-      subtitle: 'Etapas do roteiro em um único detalhe.',
       mode: 'back',
       backTo: '/criacao',
+      titleVariant: 'compact-center',
+      hideHeader: isScriptTab,
+      hideBottomNav: isScriptTab,
     };
   }
 
   if (pathname.startsWith('/gravacao/')) {
     return {
       title: GLOSSARY.modoGravacao,
-      subtitle: 'Leitura e execução do bloco em camada mobile.',
       mode: 'back',
       backTo: '/gravacao?tab=queue',
+      titleVariant: 'compact-center',
     };
   }
 
   if (pathname.startsWith('/configuracoes/pilares/') && pathname.endsWith('/editar')) {
     return {
       title: 'Editar pilar',
-      subtitle: 'Identidade, distribuição e hashtags.',
       mode: 'back',
       backTo: '/configuracoes/pilares',
       titleVariant: 'compact-center',
@@ -68,7 +98,6 @@ export function getMobileRouteMeta(pathname: string): MobileRouteMeta {
   if (pathname === '/configuracoes/pilares/nova') {
     return {
       title: 'Novo pilar',
-      subtitle: 'Cadastro de tema editorial.',
       mode: 'back',
       backTo: '/configuracoes/pilares',
       titleVariant: 'compact-center',
@@ -78,7 +107,6 @@ export function getMobileRouteMeta(pathname: string): MobileRouteMeta {
   if (pathname === '/configuracoes/pilares') {
     return {
       title: 'Pilares',
-      subtitle: 'Temas editoriais e hashtags por plataforma.',
       mode: 'back',
       backTo: '/configuracoes',
       titleVariant: 'compact-center',
@@ -88,7 +116,6 @@ export function getMobileRouteMeta(pathname: string): MobileRouteMeta {
   if (pathname.startsWith('/configuracoes/series/') && pathname.endsWith('/roteiros')) {
     return {
       title: 'Série',
-      subtitle: 'Criar roteiros, ver vinculados e identidade.',
       mode: 'back',
       backTo: '/configuracoes/series',
       titleVariant: 'compact-center',
@@ -98,7 +125,6 @@ export function getMobileRouteMeta(pathname: string): MobileRouteMeta {
   if (pathname.startsWith('/configuracoes/series/') && pathname.endsWith('/editar')) {
     return {
       title: 'Editar série',
-      subtitle: 'Identidade, estrutura e hashtags.',
       mode: 'back',
       backTo: '/configuracoes/series',
       titleVariant: 'compact-center',
@@ -108,7 +134,6 @@ export function getMobileRouteMeta(pathname: string): MobileRouteMeta {
   if (pathname === '/configuracoes/series/nova') {
     return {
       title: 'Nova série',
-      subtitle: 'Cadastro de quadro recorrente.',
       mode: 'back',
       backTo: '/configuracoes/series',
       titleVariant: 'compact-center',
@@ -118,7 +143,6 @@ export function getMobileRouteMeta(pathname: string): MobileRouteMeta {
   if (pathname === '/configuracoes/series') {
     return {
       title: 'Séries',
-      subtitle: 'Quadros recorrentes e roteiros vinculados.',
       mode: 'back',
       backTo: '/configuracoes',
       titleVariant: 'compact-center',
@@ -128,28 +152,29 @@ export function getMobileRouteMeta(pathname: string): MobileRouteMeta {
   if (pathname.startsWith('/configuracoes/')) {
     return {
       title: 'Configuração',
-      subtitle: 'Ajustes em fluxo dedicado para mobile.',
       mode: 'back',
       backTo: '/configuracoes',
     };
   }
 
   switch (pathname) {
+    case '/hoje':
+      return {
+        title: 'Hoje',
+        hideHeader: true,
+      };
     case '/criacao':
       return {
-        title: 'Central de criação',
-        subtitle: 'Ideias e roteiros em um único fluxo.',
+        title: 'Criação',
         titleVariant: 'compact-center',
       };
     case '/conteudos':
       return {
         title: GLOSSARY.roteiros,
-        subtitle: 'Roteiros em produção e publicados.',
       };
     case '/ideias':
       return {
         title: 'Ideias',
-        subtitle: '',
         titleVariant: 'compact-center',
       };
     case '/calendario':
@@ -161,27 +186,66 @@ export function getMobileRouteMeta(pathname: string): MobileRouteMeta {
     case '/biblioteca':
       return {
         title: GLOSSARY.biblioteca,
-        subtitle: 'Busca leve e referências em leitura.',
+        titleVariant: 'compact-center',
       };
     case '/projetos':
       return {
         title: 'Projetos',
-        subtitle: 'Lista leve com contexto e datas combinadas.',
+        subtitle: 'Contexto e datas combinadas.',
       };
     case '/gravacao':
       return {
         title: 'Gravação',
-        subtitle: 'Fila ativa e acesso ao modo gravação.',
+        titleVariant: 'compact-center',
       };
     case '/configuracoes':
       return {
         title: 'Configurações',
-        subtitle: 'Hub de ajustes em camadas mobile.',
       };
     default:
       return {
-        title: 'Content OS',
-        subtitle: 'Navegação mobile dedicada.',
+        title: 'Criaki',
       };
   }
+}
+
+export function resolveMobileRouteMeta(
+  pathname: string,
+  context: MobileRouteContext = {},
+  search = '',
+): MobileRouteMeta {
+  const meta = getMobileRouteMeta(pathname, search);
+
+  if (pathname.startsWith('/conteudos/') && context.contentTitle?.trim()) {
+    return {
+      ...meta,
+      title: context.contentTitle.trim(),
+      subtitle: undefined,
+      titleVariant: 'compact-center',
+    };
+  }
+
+  if (
+    pathname.startsWith('/biblioteca/')
+    && pathname !== '/biblioteca/analise'
+    && context.bibliotecaTitle?.trim()
+  ) {
+    return {
+      ...meta,
+      title: context.bibliotecaTitle.trim(),
+      subtitle: undefined,
+      titleVariant: 'compact-center',
+    };
+  }
+
+  if (pathname.startsWith('/gravacao/') && context.recordingBlockName?.trim()) {
+    return {
+      ...meta,
+      title: context.recordingBlockName.trim(),
+      subtitle: undefined,
+      titleVariant: 'compact-center',
+    };
+  }
+
+  return meta;
 }

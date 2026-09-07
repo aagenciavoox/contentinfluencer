@@ -1,5 +1,4 @@
 import { cn } from '../../lib/utils';
-import { Text } from './Text';
 
 export interface SegmentTabOption<T extends string = string> {
   id: T;
@@ -31,9 +30,7 @@ export function SegmentTabs<T extends string = string>({
           onClick={() => onChange(option.id)}
           className={cn('segment-tabs-item', value === option.id && 'segment-tabs-item-active')}
         >
-          <Text variant="label" as="span" className="font-semibold">
-            {option.label}
-          </Text>
+          <span className="text-xs font-semibold">{option.label}</span>
         </button>
       ))}
     </div>

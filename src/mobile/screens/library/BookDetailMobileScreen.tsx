@@ -148,10 +148,10 @@ export function BookDetailMobileScreen({
   };
 
   return (
-    <div className="stack-xl pb-24">
-      <Surface variant="outlined" padding="md" className="bg-[var(--bg-secondary)]">
+    <div className="stack-md pb-24">
+      <Surface variant="outlined" padding="sm" className="bg-[var(--bg-secondary)]">
         <div className="flex gap-3">
-          <div className="h-24 w-16 shrink-0 overflow-hidden rounded-lg bg-[var(--bg-hover)]">
+          <div className="h-16 w-11 shrink-0 overflow-hidden rounded-lg bg-[var(--bg-hover)]">
             {livro.capaUrl ? (
               <img src={livro.capaUrl} alt="" className="h-full w-full object-cover" />
             ) : (
@@ -161,8 +161,8 @@ export function BookDetailMobileScreen({
             )}
           </div>
 
-          <div className="min-w-0 flex-1 stack-sm">
-            <Text variant="sectionTitle" className="line-clamp-2">{livro.titulo}</Text>
+          <div className="min-w-0 flex-1 stack-xs">
+            <Text variant="itemTitle" className="line-clamp-2 font-semibold">{livro.titulo}</Text>
             <p className="text-xs text-[var(--text-secondary)]">
               {livro.autorDiretor || 'Sem autoria'}
             </p>
@@ -180,7 +180,7 @@ export function BookDetailMobileScreen({
                   <Star
                     key={index}
                     className={cn(
-                      'h-3.5 w-3.5',
+                      'h-3 w-3',
                       index < livro.avaliacao!
                         ? 'fill-[var(--warning)] text-[var(--warning)]'
                         : 'text-[var(--border-strong)]'
@@ -205,8 +205,8 @@ export function BookDetailMobileScreen({
       />
 
       {tab === 'info' ? (
-        <div className="stack-lg">
-          <Surface variant="outlined" padding="md" className="bg-[var(--bg-secondary)]">
+        <div className="stack-md">
+          <Surface variant="outlined" padding="sm" className="bg-[var(--bg-secondary)]">
             <MobileSectionHeader
               icon={BookOpen}
               tone="purple"
@@ -297,18 +297,18 @@ export function BookDetailMobileScreen({
       ) : null}
 
       {tab === 'anotacoes' ? (
-        <div className="stack-lg">
-          <div className="flex gap-2 overflow-x-auto pb-1">
+        <div className="stack-md">
+          <div className="mobile-h-scroll">
             {filterOptions.map((option) => (
               <button
                 key={option}
                 type="button"
                 onClick={() => onFiltroTipoChange(option)}
                 className={cn(
-                  'shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors',
+                  'inline-flex h-9 shrink-0 items-center rounded-[var(--radius-sm)] border px-3 text-xs font-semibold transition-colors',
                   filtroTipo === option
                     ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-[var(--bg-primary)]'
-                    : 'border-[var(--border-color)] text-[var(--text-secondary)]'
+                    : 'border-[var(--border-color)] bg-[var(--bg-hover)] text-[var(--text-secondary)]'
                 )}
               >
                 {option === 'Destaques' ? 'Destaques' : option}
@@ -357,23 +357,23 @@ export function BookDetailMobileScreen({
       ) : null}
 
       {tab === 'conteudos' ? (
-        <div className="stack-lg">
+        <div className="stack-md">
           {alertaEcossistema ? (
             <Surface
               variant="outlined"
-              padding="md"
+              padding="sm"
               className="border-[var(--accent-orange)]/25 bg-[var(--accent-orange)]/10"
             >
-              <div className="flex items-start gap-3">
+              <div className="flex items-start gap-2">
                 <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-[var(--accent-orange)]" />
-                <p className="text-sm text-[var(--accent-orange)]">
+                <p className="text-xs text-[var(--accent-orange)]">
                   Este {itemTypeLabel.toLowerCase()} foi concluído e ainda pode render conteúdo.
                 </p>
               </div>
             </Surface>
           ) : null}
 
-          <div className="flex flex-wrap gap-2">
+          <div className="mobile-h-scroll">
             {[
               { label: 'conteúdos', value: conteudosDoLivro.length },
               {
@@ -395,15 +395,15 @@ export function BookDetailMobileScreen({
             ].map((stat) => (
               <div
                 key={stat.label}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border-color)] bg-[var(--bg-secondary)] px-3 py-1.5"
+                className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md border border-[var(--border-color)] bg-[var(--bg-secondary)] px-2.5"
               >
-                <span className="text-sm font-semibold text-[var(--text-primary)]">{stat.value}</span>
+                <span className="text-xs font-semibold text-[var(--text-primary)]">{stat.value}</span>
                 <span className="text-xs text-[var(--text-secondary)]">{stat.label}</span>
               </div>
             ))}
           </div>
 
-          <AppButton variant="primary" fullWidth onClick={onCreateContent} leftIcon={<Plus className="h-4 w-4" />}>
+          <AppButton variant="secondary" fullWidth onClick={onCreateContent} leftIcon={<Plus className="h-4 w-4" />}>
             Novo conteúdo
           </AppButton>
 

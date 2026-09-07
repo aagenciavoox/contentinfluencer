@@ -17,6 +17,8 @@ interface SeriesDetailHeaderProps {
   onToggleMore: () => void;
   showMoreMenu: boolean;
   onMenuAction: (action: SeriesDetailMenuAction) => void;
+  /** Hide title/breadcrumb when the page already uses DesktopPageHeader. */
+  hideChrome?: boolean;
 }
 
 export function SeriesDetailHeader({
@@ -27,6 +29,7 @@ export function SeriesDetailHeader({
   onToggleMore,
   showMoreMenu,
   onMenuAction,
+  hideChrome = false,
 }: SeriesDetailHeaderProps) {
   const linkedPilares = pilares.filter(pilar => serie.pilarIds.includes(pilar.id));
   const lastEditLabel = serie.updatedAt
@@ -35,6 +38,7 @@ export function SeriesDetailHeader({
 
   return (
     <header className="stack-lg">
+      {hideChrome ? null : (
       <nav className="flex flex-wrap items-center gap-1.5">
         <Link
           to="/configuracoes/series"
@@ -43,16 +47,19 @@ export function SeriesDetailHeader({
           Séries
         </Link>
         <ChevronRight className="h-3.5 w-3.5 text-[var(--text-tertiary)]" aria-hidden />
-        <Text variant="meta" className="text-[var(--text-secondary)]">
+        <Text variant="meta" className="break-words text-[var(--text-secondary)]">
           {serie.name}
         </Text>
       </nav>
+      )}
 
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0 flex-1 stack-md">
-          <Text variant="pageTitle" as="h1">
+          {hideChrome ? null : (
+          <Text variant="pageTitle" as="h1" className="break-words">
             {serie.name}
           </Text>
+          )}
 
           <div className="flex flex-wrap items-center gap-2">
             {linkedPilares.map(pilar => (
@@ -91,7 +98,7 @@ export function SeriesDetailHeader({
             <MoreHorizontal className="h-4 w-4" />
           </button>
           {showMoreMenu ? (
-            <div className="absolute right-0 top-full z-20 mt-1 min-w-[160px] rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-secondary)] py-1 shadow-lg">
+            <div className="absolute right-0 top-full z-20 mt-1 min-w-[160px] rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-secondary)] py-1 shadow-[var(--shadow-dropdown)]">
               <button
                 type="button"
                 className="flex w-full px-3 py-2 text-left text-sm text-[var(--text-primary)] hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"

@@ -46,7 +46,7 @@ export function AnalyticsCategoryCards({ analytics }: AnalyticsCategoryCardsProp
 
   return (
     <div className="stack-xl">
-      <Surface variant="elevated" padding="lg">
+      <Surface variant="outlined" padding="lg">
         <div className="mb-5">
           <Text variant="eyebrow">Biblioteca em números</Text>
           <Text variant="sectionTitle" className="mt-1">Seu consumo cultural</Text>
@@ -102,8 +102,18 @@ export function AnalyticsCategoryCards({ analytics }: AnalyticsCategoryCardsProp
           <Text variant="eyebrow">Progresso</Text>
           <Text variant="sectionTitle" className="mt-1">Ritmo do acervo</Text>
 
+          <Text variant="meta" className="mt-2 block">
+            Progresso médio considera só itens ativos ou concluídos com total de páginas/episódios informado
+            {totals.trackedProgressCount > 0
+              ? ` (${totals.trackedProgressCount} ${totals.trackedProgressCount === 1 ? 'item' : 'itens'}).`
+              : ' — nenhum item rastreado ainda.'}
+          </Text>
+
           <div className="mt-6 flex flex-col gap-6 sm:flex-row sm:items-center">
-            <DonutChart value={totals.averageProgress} label="progresso médio" />
+            <DonutChart
+              value={totals.averageProgress}
+              label="média dos rastreados"
+            />
             <div className="grid flex-1 grid-cols-2 gap-3">
               <MetricCard icon={Gauge} label="Em andamento" value={totals.active} />
               <MetricCard icon={CheckCircle2} label="Concluídos" value={totals.completed} />
@@ -113,18 +123,18 @@ export function AnalyticsCategoryCards({ analytics }: AnalyticsCategoryCardsProp
           </div>
 
           <div className="mt-6 grid gap-3 sm:grid-cols-2">
-            <Surface variant="plain" padding="sm" className="bg-[var(--bg-hover)]">
+            <div className="rounded-[var(--radius-input)] bg-[var(--bg-hover)] px-3 py-3">
               <Text variant="label" uppercase>Páginas percorridas</Text>
               <Text variant="bodyStrong" className="mt-1">{pagesPercent}% do total catalogado</Text>
-            </Surface>
-            <Surface variant="plain" padding="sm" className="bg-[var(--bg-hover)]">
+            </div>
+            <div className="rounded-[var(--radius-input)] bg-[var(--bg-hover)] px-3 py-3">
               <Text variant="label" uppercase>Tempo médio para concluir</Text>
               <Text variant="bodyStrong" className="mt-1">
                 {totals.averageCompletionDays === null
                   ? 'Datas insuficientes'
                   : `${totals.averageCompletionDays} ${totals.averageCompletionDays === 1 ? 'dia' : 'dias'}`}
               </Text>
-            </Surface>
+            </div>
           </div>
         </Surface>
 

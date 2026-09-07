@@ -1,6 +1,6 @@
 import { ReactNode } from 'react';
 import { cn } from '../../lib/utils';
-import { useIsMobile } from '../../hooks/useIsMobile';
+import { usePointerCoarse } from '../../hooks/usePointerCoarse';
 import {
   DESKTOP_PANEL_TRANSITION,
   MOBILE_MODAL_MAX_HEIGHT,
@@ -28,33 +28,34 @@ export function BottomSheet({
   zIndex = 'z-[100]',
   ariaLabel,
 }: BottomSheetProps) {
-  const isMobile = useIsMobile();
+  // Interaction criterion: coarse pointer prefers sheet-like chrome, not viewport width.
+  const touchPrimary = usePointerCoarse();
 
   return (
     <OverlayRoot
       open={open}
       onClose={onClose}
-      placement={isMobile ? 'center' : 'bottom'}
+      placement={touchPrimary ? 'center' : 'bottom'}
       zIndex={zIndex}
-      showMobileHandle={isMobile}
+      showMobileHandle={touchPrimary}
       ariaLabel={ariaLabel}
       panelInitial={
-        isMobile
+        touchPrimary
           ? MOBILE_PANEL_INITIAL
           : { opacity: 0, scale: 0.95, y: 20 }
       }
-      panelAnimate={isMobile ? MOBILE_PANEL_ANIMATE : { opacity: 1, scale: 1, y: 0 }}
-      panelExit={isMobile ? MOBILE_PANEL_EXIT : { opacity: 0, scale: 0.95, y: 20 }}
-      panelTransition={isMobile ? MOBILE_PANEL_TRANSITION : DESKTOP_PANEL_TRANSITION}
+      panelAnimate={touchPrimary ? MOBILE_PANEL_ANIMATE : { opacity: 1, scale: 1, y: 0 }}
+      panelExit={touchPrimary ? MOBILE_PANEL_EXIT : { opacity: 0, scale: 0.95, y: 20 }}
+      panelTransition={touchPrimary ? MOBILE_PANEL_TRANSITION : DESKTOP_PANEL_TRANSITION}
       panelStyle={
-        isMobile
+        touchPrimary
           ? { width: 'min(100%, 720px)', maxHeight: MOBILE_MODAL_MAX_HEIGHT }
           : undefined
       }
       panelClassName={cn(
         'relative flex w-full flex-col overflow-hidden border border-[var(--border-color)] bg-[var(--bg-secondary)] rounded-[var(--radius-overlay)]',
-        isMobile && 'min-h-0 max-h-[90dvh]',
-        !isMobile &&
+        touchPrimary && 'min-h-0 max-h-[90dvh]',
+        !touchPrimary &&
           cn(
             'absolute top-1/2 left-1/2 w-[95%] max-h-[90vh] -translate-x-1/2 -translate-y-1/2',
             desktopMaxW

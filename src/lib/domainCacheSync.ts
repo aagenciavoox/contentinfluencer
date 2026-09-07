@@ -1,5 +1,5 @@
 import type { AppData, Platform } from './database';
-import { BOOTSTRAP_DATA_DOMAINS, type AppDataDomain } from './database';
+import { BOOTSTRAP_DATA_DOMAINS, CRITICAL_BOOTSTRAP_DOMAINS, type AppDataDomain } from './database';
 import { buildDomainCacheKey, dataCache } from './dataCache';
 import { readPersistedDomain, writePersistedDomain } from './persistentDataCache';
 
@@ -7,11 +7,13 @@ const STORAGE_PREFIX = 'content-os:domain:';
 
 const DOMAIN_SETS_WITH_PLATFORMS: readonly (readonly AppDataDomain[])[] = [
   ['bootstrap'],
+  CRITICAL_BOOTSTRAP_DOMAINS,
   BOOTSTRAP_DATA_DOMAINS,
 ];
 
 const DOMAIN_SETS_WITH_CONTENTS: readonly (readonly AppDataDomain[])[] = [
   ['bootstrap'],
+  CRITICAL_BOOTSTRAP_DOMAINS,
   BOOTSTRAP_DATA_DOMAINS,
   ['content-schedule'],
   ['content-schedule', 'rules'],

@@ -13,13 +13,14 @@ import {
 } from 'lucide-react';
 import { BottomSheetModal } from '../../../components/feedback/modals/BottomSheetModal';
 import { Text } from '../../../components/ui/Text';
+import { useAppContext } from '../../../context/AppContext';
 import { useBodyScrollLock } from '../../../hooks/useBodyScrollLock';
-import { readStoredJson, writeStoredJson } from '../../../lib/browserStorage';
 import type { Content, RecordingBlock } from '../../../lib/database';
 import { cn, htmlToReadableText } from '../../../lib/utils';
 import { isRecordingBlockTeleprompterEnabled } from '../../../features/recording/lib/recordingWorkflow';
 
 type BurstTheme = 'paper' | 'night' | 'amber';
+type DesktopBurstTheme = 'light' | 'dark' | 'amber';
 type BurstTextAlign = 'left' | 'center';
 
 type MobileBurstSettings = {
@@ -45,7 +46,8 @@ interface BurstModeMobileScreenProps {
   onFinish: () => void;
 }
 
-const MOBILE_BURST_SETTINGS_KEY = 'content-os:mobile-burst-settings';
+// Shared with BurstModeExperience via app preferences key `burstModeSettings` (not a separate localStorage key).
+const BURST_SETTINGS_PREFERENCE_KEY = 'burstModeSettings';
 
 const DEFAULT_SETTINGS: MobileBurstSettings = {
   fontSize: 30,
@@ -64,8 +66,33 @@ const BURST_PRESETS: Record<string, Partial<MobileBurstSettings>> = {
   noite: { fontSize: 32, lineHeight: 1.5, wpm: 115, theme: 'night', textAlign: 'center' },
 };
 
-function loadBurstSettings(): MobileBurstSettings {
-  return { ...DEFAULT_SETTINGS, ...readStoredJson(MOBILE_BURST_SETTINGS_KEY, {}) };
+function toMobileTheme(theme: unknown): BurstTheme {
+  if (theme === 'night' || theme === 'dark') return 'night';
+  if (theme === 'amber') return 'amber';
+  return 'paper';
+}
+
+function toDesktopTheme(theme: BurstTheme): DesktopBurstTheme {
+  if (theme === 'night') return 'dark';
+  if (theme === 'amber') return 'amber';
+  return 'light';
+}
+
+function normalizeMobileBurstSettings(value: unknown): MobileBurstSettings {
+  if (!value || typeof value !== 'object') return DEFAULT_SETTINGS;
+  const parsed = value as Partial<MobileBurstSettings> & { theme?: string };
+  return {
+    fontSize: typeof parsed.fontSize === 'number' ? parsed.fontSize : DEFAULT_SETTINGS.fontSize,
+    lineHeight: typeof parsed.lineHeight === 'number' ? parsed.lineHeight : DEFAULT_SETTINGS.lineHeight,
+    textAlign: parsed.textAlign === 'center' ? 'center' : 'left',
+    theme: toMobileTheme(parsed.theme),
+    wpm: typeof parsed.wpm === 'number' ? parsed.wpm : DEFAULT_SETTINGS.wpm,
+    countdown: typeof parsed.countdown === 'number' ? parsed.countdown : DEFAULT_SETTINGS.countdown,
+    highlightCurrentLine:
+      typeof parsed.highlightCurrentLine === 'boolean'
+        ? parsed.highlightCurrentLine
+        : DEFAULT_SETTINGS.highlightCurrentLine,
+  };
 }
 
 const THEME_CLASSNAMES: Record<BurstTheme, { shell: string; card: string; border: string; muted: string; text: string }> = {
@@ -159,16 +186,59 @@ export function BurstModeMobileScreen({
   onMarkRecorded,
   onFinish,
 }: BurstModeMobileScreenProps) {
+  const { state, dispatch } = useAppContext();
   const teleprompterEnabled = isRecordingBlockTeleprompterEnabled(block);
   const [currentIndex, setCurrentIndex] = useState(() => getInitialIndex(entries));
   const [isPlaying, setIsPlaying] = useState(false);
   const [countdownRemaining, setCountdownRemaining] = useState<number | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [settings, setSettings] = useState(loadBurstSettings);
+  const persistedSettings = useMemo(
+    () => normalizeMobileBurstSettings(state.preferences[BURST_SETTINGS_PREFERENCE_KEY]),
+    [state.preferences]
+  );
+  const [settings, setSettings] = useState<MobileBurstSettings>(persistedSettings);
   const [controlsVisible, setControlsVisible] = useState(true);
   const containerRef = useRef<HTMLDivElement>(null);
   const lineRefs = useRef<Array<HTMLParagraphElement | null>>([]);
   const [playhead, setPlayhead] = useState(0);
+  const lastPersistedSettings = useRef(JSON.stringify(persistedSettings));
+
+  useEffect(() => {
+    const serialized = JSON.stringify(persistedSettings);
+    lastPersistedSettings.current = serialized;
+    setSettings((current) => (JSON.stringify(current) === serialized ? current : persistedSettings));
+  }, [persistedSettings]);
+
+  useEffect(() => {
+    const serialized = JSON.stringify(settings);
+    if (serialized === lastPersistedSettings.current) return;
+
+    lastPersistedSettings.current = serialized;
+    const existingPreference = state.preferences[BURST_SETTINGS_PREFERENCE_KEY];
+    const existing =
+      existingPreference && typeof existingPreference === 'object'
+        ? (existingPreference as Record<string, unknown>)
+        : {};
+
+    void dispatch({
+      type: 'UPDATE_PREFERENCE',
+      payload: {
+        key: BURST_SETTINGS_PREFERENCE_KEY,
+        value: {
+          ...existing,
+          fontSize: settings.fontSize,
+          lineHeight: settings.lineHeight,
+          textAlign: settings.textAlign,
+          theme: toDesktopTheme(settings.theme),
+          wpm: settings.wpm,
+          countdown: settings.countdown,
+          highlightCurrentLine: settings.highlightCurrentLine,
+        },
+      },
+    });
+    // Intentionally omit state.preferences: merge uses latest at write time; sync effect handles inbound changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- match BurstModeExperience persistence pattern
+  }, [dispatch, settings]);
 
   useEffect(() => {
     setCurrentIndex(previous => clamp(previous, 0, Math.max(entries.length - 1, 0)));
@@ -312,19 +382,11 @@ export function BurstModeMobileScreen({
   };
 
   const updateSetting = <K extends keyof MobileBurstSettings>(key: K, value: MobileBurstSettings[K]) => {
-    setSettings(previous => {
-      const next = { ...previous, [key]: value };
-      writeStoredJson(MOBILE_BURST_SETTINGS_KEY, next);
-      return next;
-    });
+    setSettings((previous) => ({ ...previous, [key]: value }));
   };
 
   const applyPreset = (presetId: keyof typeof BURST_PRESETS) => {
-    setSettings(previous => {
-      const next = { ...previous, ...BURST_PRESETS[presetId] };
-      writeStoredJson(MOBILE_BURST_SETTINGS_KEY, next);
-      return next;
-    });
+    setSettings((previous) => ({ ...previous, ...BURST_PRESETS[presetId] }));
   };
 
   const isPreparing = countdownRemaining !== null;
@@ -513,14 +575,14 @@ export function BurstModeMobileScreen({
 
       <BottomSheetModal open={isSettingsOpen && !isPreparing} onClose={() => setIsSettingsOpen(false)} zIndex="z-[220]">
         <section className="flex max-h-[80vh] flex-col overflow-hidden bg-[var(--bg-primary)]">
-          <div className="border-b border-[var(--border-color)] px-6 py-4">
+          <div className="border-b border-[var(--border-color)] px-4 py-3">
             <p className="text-xs font-semibold  text-[var(--text-tertiary)]">
               Modo Explosao
             </p>
             <Text variant="itemTitle" className="mt-2">Ajustes mobile</Text>
           </div>
 
-          <div className="stack-xl overflow-y-auto px-6 py-6">
+          <div className="stack-lg overflow-y-auto px-4 py-4">
             <ChoiceCluster label="Presets">
               <ChoiceButton active={false} onClick={() => applyPreset('perto')}>Perto</ChoiceButton>
               <ChoiceButton active={false} onClick={() => applyPreset('tripe')}>Tripe</ChoiceButton>

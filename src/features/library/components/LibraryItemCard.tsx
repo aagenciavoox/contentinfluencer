@@ -1,6 +1,8 @@
 import { LucideIcon, CheckCircle2, Lightbulb, NotebookPen, Pencil, Pin, Star } from 'lucide-react';
 import { motion } from 'motion/react';
 import { MediaCard } from '../../../components/ui/MediaCard';
+import { OverflowTags } from '../../../components/ui/OverflowTags';
+import { Text } from '../../../components/ui/Text';
 import { BibliotecaItem, BibliotecaItemMeta } from '../../../lib/database';
 import { isCompletedStatus } from '../lib/libraryStatus';
 
@@ -47,7 +49,8 @@ export function LibraryItemCard({
     <motion.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      className="group flex flex-col"
+      className="group flex cursor-pointer flex-col"
+      onClick={onOpen}
     >
       <MediaCard
         imageUrl={item.capaUrl}
@@ -148,17 +151,13 @@ export function LibraryItemCard({
         }
       />
 
-      <button
-        type="button"
-        onClick={onOpen}
-        className="text-left"
-      >
-        <p className="mb-0.5 line-clamp-2 text-xs font-semibold leading-tight text-[var(--text-primary)] transition-colors group-hover:text-[var(--accent-blue)]">
+      <div className="text-left">
+        <Text variant="itemTitle" className="mb-0.5 line-clamp-2 leading-tight transition-colors group-hover:text-[var(--accent-blue)]">
           {item.titulo}
-        </p>
-        <p className="truncate text-xs text-[var(--text-secondary)]">
+        </Text>
+        <Text variant="meta" className="truncate">
           {item.autorDiretor}
-        </p>
+        </Text>
         {item.avaliacao ? (
           <div className="mt-1 flex gap-0.5">
             {Array.from({ length: 5 }).map((_, index) => (
@@ -170,23 +169,24 @@ export function LibraryItemCard({
           </div>
         ) : null}
         {isWishlistStatus(item.status) && item.potencialConteudo ? (
-          <div className="mt-1 text-xs text-[var(--text-secondary)]">
+          <Text variant="meta" className="mt-1">
             Potencial {item.potencialConteudo}/3
-          </div>
+          </Text>
         ) : null}
         {metadata.tagsPersonalizadas?.length ? (
-          <div className="mt-1.5 flex flex-wrap gap-1">
-            {metadata.tagsPersonalizadas.slice(0, 2).map(tag => (
+          <OverflowTags
+            className="mt-1.5"
+            items={metadata.tagsPersonalizadas.map(tag => (
               <span
                 key={tag}
-                className="rounded-full bg-[var(--bg-hover)] px-2 py-0.5 text-xs font-bold text-[var(--text-secondary)]"
+                className="rounded-full bg-[var(--bg-hover)] px-2 py-0.5 text-xs font-semibold text-[var(--text-secondary)]"
               >
                 {tag}
               </span>
             ))}
-          </div>
+          />
         ) : null}
-      </button>
+      </div>
     </motion.div>
   );
 }

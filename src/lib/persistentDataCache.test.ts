@@ -34,8 +34,12 @@ function content(overrides: Partial<Content> = {}): Content {
 
 const completePayload = {contents: [content()]} satisfies Partial<AppData>;
 const lightweightPayload = sanitizeDomainPayload(completePayload);
+const emptyPayload = {} satisfies Partial<AppData>;
 
 assert.equal(canDomainPayloadSatisfyRequest(['content'], completePayload), true);
-assert.equal(canDomainPayloadSatisfyRequest(['content'], lightweightPayload), false);
+assert.equal(canDomainPayloadSatisfyRequest(['content'], lightweightPayload), true);
+assert.equal(canDomainPayloadSatisfyRequest(['content-schedule'], lightweightPayload), true);
 assert.equal(canDomainPayloadSatisfyRequest(['content-summary'], lightweightPayload), true);
+assert.equal(canDomainPayloadSatisfyRequest(['content'], emptyPayload), false);
+assert.equal(canDomainPayloadSatisfyRequest(['production'], emptyPayload), true);
 console.log('persistentDataCache.test.ts passed');

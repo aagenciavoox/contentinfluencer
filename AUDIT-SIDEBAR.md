@@ -1,5 +1,7 @@
 # Auditoria — Sidebar e Organização de Navegação
 
+> **Superseded 2026-08-21.** Desktop is Hoje → Criação (Criação, Séries, Pilares, Biblioteca) → Produção (Gravação, Calendário, Projetos). Mobile bottom nav is Calendário | Criação | Gravação. `/programacao` redirects to `/calendario?modo=agendar`. See `src/layouts/navigation/navConfig.ts`.
+
 > Data: 2026-06-12 · Escopo: `Sidebar.tsx`, `MobileBottomNav.tsx`, `MobileSidebarDrawer.tsx`, `SettingsSubSidebar.tsx`, rotas
 
 ## 1. Estrutura atual

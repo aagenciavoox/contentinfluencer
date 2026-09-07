@@ -1,103 +1,183 @@
-import React from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { CalendarDays, FolderKanban, Sparkles, Video } from 'lucide-react';
+import { useLocation, useNavigate, useOutletContext } from 'react-router-dom';
+import { DesktopPageHeader } from '../../../layouts/page/DesktopPageHeader';
+import { PageLayout } from '../../../layouts/page/PageLayout';
+import { useAppContext } from '../../../context/AppContext';
+import { useAuth } from '../../../context/AuthContext';
+import { useIsMobile } from '../../../hooks/useIsMobile';
+import { DashboardMobileScreen } from '../../../mobile/screens/dashboard/DashboardMobileScreen';
+import type { MobileChromeOutletContext } from '../../../mobile/components/shell';
+import { getModuleFlags } from '../../settings/lib/moduleFlags';
+import { CONTENT_STATUS } from '../../contents/lib/contentPipeline';
+import { buildContentDetailRoute } from '../../contents/lib/contentDetailRoute';
+import { buildDetailBackState } from '../../../lib/navigation/detailBack';
+import { createContentDraft } from '../../contents/lib/createContentDraft';
+import { getGentleExperienceSettings } from '../../settings/lib/gentleExperience';
+import { CreateMenuButton } from '../../../components/ui/CreateMenuButton';
+import { AppButton } from '../../../components/ui/AppButton';
+import { Text } from '../../../components/ui/Text';
+import { getErrorMessage } from '../../../lib/saveFeedback';
+import { DailySessionPanel } from '../components/DailySessionPanel';
 import {
-  AlertTriangle,
-  ArrowRight,
-  BookOpen,
-  CalendarDays,
-  Clapperboard,
-  FolderKanban,
-  Lightbulb,
-  Plus,
-  Scissors,
-  Sparkles,
-  Video,
-} from 'lucide-react';
-import {startOfWeek} from 'date-fns';
-import {useLocation, useNavigate} from 'react-router-dom';
-import {DesktopPageHeader} from '../../../layouts/page/DesktopPageHeader';
-import {PageLayout} from '../../../layouts/page/PageLayout';
-import {useAppContext} from '../../../context/AppContext';
-import {useIsMobile} from '../../../hooks/useIsMobile';
-import {DashboardMobileScreen} from '../../../mobile/screens/dashboard/DashboardMobileScreen';
-import {CONTENT_STATUS, getDisplayStatus, PRODUCTION_TAGS} from '../../contents/lib/contentPipeline';
-import {buildContentDetailRoute} from '../../contents/lib/contentDetailRoute';
-import {buildDetailBackState, type DetailBackState} from '../../../lib/navigation/detailBack';
-import {createContentDraft} from '../../contents/lib/createContentDraft';
-import {getGentleExperienceSettings} from '../../settings/lib/gentleExperience';
-import {validateWeeklyContent} from '../../../utils/pilarRhythm';
-import {recommendDailyAction} from '../../recommendations/recommendDailyAction';
-import {DailyRecommendationBlock} from '../../recommendations/DailyRecommendationBlock';
-import {AppButton} from '../../../components/ui/AppButton';
-import {ContentRow, OperationalList} from '../../../components/ui';
-import {SpotlightCta} from '../../../components/ui/SpotlightCta';
-import {Text} from '../../../components/ui/Text';
-import {EMPTY} from '../../../lib/uiCopy';
+  buildDailySessionBlock,
+  defaultSelectedSessionIds,
+  getSessionCandidates,
+} from '../lib/dailySession';
+import { getUpcomingAgenda } from '../lib/dashboardMetrics';
+
+function resolveGreetingName(fullName: unknown, email: string | undefined): string {
+  if (typeof fullName === 'string' && fullName.trim()) {
+    return fullName.trim().split(/\s+/)[0] ?? 'Criaki';
+  }
+  const fromEmail = email?.split('@')[0]?.trim();
+  return fromEmail || 'Criaki';
+}
 
 export function DashboardPage() {
-  const {state, dispatch} = useAppContext();
+  const { state, dispatch } = useAppContext();
+  const { user } = useAuth();
   const isMobile = useIsMobile();
   const navigate = useNavigate();
   const location = useLocation();
+  const chrome = useOutletContext<MobileChromeOutletContext | null>();
+  const moduleFlags = getModuleFlags(state.preferences);
   const detailBackState = buildDetailBackState(`${location.pathname}${location.search}`);
-
-  const handleNovoRoteiro = () => {
-    const newContent = createContentDraft({title: 'Novo Conteudo', status: CONTENT_STATUS.ROTEIRO});
-    void dispatch({type: 'ADD_CONTENT', payload: newContent});
-    navigate(`${buildContentDetailRoute(newContent.id)}&focus=script`, detailBackState);
-  };
+  const greetingName = resolveGreetingName(user?.user_metadata?.full_name, user?.email);
   const gentleExperience = getGentleExperienceSettings(state.preferences);
 
-  // Listas operacionais
-  const readyToRecord = state.contents.filter(
-    c =>
-      c.status === CONTENT_STATUS.PRODUCAO &&
-      !c.recordedAt &&
-      (c.tags.includes(PRODUCTION_TAGS.GRAVAR) || c.tags.length === 0),
-  );
-  const inProduction = state.contents.filter(c => c.status === CONTENT_STATUS.PRODUCAO);
-  const upcomingAgenda = [...state.agendaItems]
-    .filter(item => item.date >= new Date().toISOString().slice(0, 10))
-    .sort((a, b) => `${a.date}${a.time || ''}`.localeCompare(`${b.date}${b.time || ''}`))
-    .slice(0, 5);
-
-  // Regras de Ouro: validacao da semana atual
-  const weekStart = startOfWeek(new Date(), {weekStartsOn: 1});
-  const rhythmViolations = validateWeeklyContent(
-    state.contents,
-    weekStart,
-    state.pilares,
-    state.platforms,
-    state.series,
+  const candidates = useMemo(
+    () => getSessionCandidates(state.contents, state.recordingBlocks),
+    [state.contents, state.recordingBlocks],
   );
 
-  // Projetos com deadline nos proximos 7 dias
-  const today = new Date().toISOString().slice(0, 10);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
+  const [isBusy, setIsBusy] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const candidateIdsKey = candidates.map(content => content.id).join(',');
+
+  useEffect(() => {
+    const validIds = new Set(candidates.map(content => content.id));
+    setSelectedIds(previous => {
+      const pruned = [...previous].filter(id => validIds.has(id));
+      if (pruned.length > 0) return new Set(pruned);
+      if (previous.size === 0) return new Set(defaultSelectedSessionIds(candidates));
+      return new Set();
+    });
+    // Membership is tracked by candidateIdsKey; keep intentional clears.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [candidateIdsKey]);
+
+  const todayKey = new Date().toISOString().slice(0, 10);
+  const agendaToday = useMemo(
+    () => getUpcomingAgenda(state.agendaItems, 20).filter(item => item.date === todayKey),
+    [state.agendaItems, todayKey],
+  );
+
   const in7days = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-  const urgentProjects = state.projetos
-    .filter(p => p.status !== 'Concluido' && p.dataFim && p.dataFim >= today && p.dataFim <= in7days)
-    .sort((a, b) => (a.dataFim! > b.dataFim! ? 1 : -1));
+  const urgentProjects =
+    gentleExperience.realDeadlineHighlights
+      ? state.projetos
+          .filter(
+            project =>
+              project.status !== 'Concluido' &&
+              project.dataFim &&
+              project.dataFim >= todayKey &&
+              project.dataFim <= in7days,
+          )
+          .sort((left, right) => (left.dataFim! > right.dataFim! ? 1 : -1))
+      : [];
 
-  // Bloco de destaque
-  const spotlight = resolveSpotlight({readyToRecord, inProduction, upcomingAgenda});
-  const dailyRecommendation =
-    !gentleExperience.pauseMode
-      ? recommendDailyAction({
-          pilares: state.pilares,
-          series: state.series,
-          contents: state.contents,
-        })
-      : null;
+  const handleNovoRoteiro = () => {
+    const newContent = createContentDraft({ title: 'Novo Conteudo', status: CONTENT_STATUS.ROTEIRO });
+    void dispatch({ type: 'ADD_CONTENT', payload: newContent });
+    navigate(`${buildContentDetailRoute(newContent.id)}&focus=script`, detailBackState);
+  };
+
+  const handleNovaIdeia = () => {
+    navigate('/criacao?compose=idea');
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(previous => {
+      const next = new Set(previous);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const selectAll = () => {
+    setSelectedIds(new Set(candidates.map(content => content.id)));
+  };
+
+  const clearSelection = () => {
+    setSelectedIds(new Set());
+  };
+
+  const createSession = async (startBurst: boolean) => {
+    if (isBusy || selectedIds.size === 0 || !moduleFlags.recording) return;
+
+    const orderedIds = candidates
+      .filter(content => selectedIds.has(content.id))
+      .map(content => content.id);
+    const payload = buildDailySessionBlock({
+      contents: state.contents,
+      contentIds: orderedIds,
+      userId: user?.id || '',
+    });
+    if (!payload) return;
+
+    setIsBusy(true);
+    setErrorMessage(null);
+    try {
+      await dispatch({ type: 'ADD_RECORDING_BLOCK', payload: payload.block });
+      await dispatch({
+        type: 'UPDATE_BLOCK_CONTENTS',
+        payload: { blockId: payload.block.id, contents: payload.blockContents },
+      });
+      navigate(
+        startBurst
+          ? `/gravacao/${payload.block.id}?burst=1`
+          : `/gravacao/${payload.block.id}`,
+      );
+    } catch (error) {
+      setErrorMessage(getErrorMessage(error));
+    } finally {
+      setIsBusy(false);
+    }
+  };
+
+  const sessionPanel = (
+    <DailySessionPanel
+      candidates={moduleFlags.recording ? candidates : []}
+      series={state.series}
+      selectedIds={selectedIds}
+      showCounts={gentleExperience.dashboardCounts}
+      isBusy={isBusy}
+      density={isMobile ? 'mobile' : 'desktop'}
+      onToggle={toggleSelect}
+      onSelectAll={selectAll}
+      onClear={clearSelection}
+      onStartSession={() => void createSession(true)}
+      onBuildOnly={() => void createSession(false)}
+      onOpenQueue={() => navigate('/gravacao?tab=queue')}
+      onCreateScript={handleNovoRoteiro}
+    />
+  );
 
   if (isMobile) {
     return (
       <div className="min-h-full bg-[var(--bg-primary)]">
         <DashboardMobileScreen
-          contents={state.contents}
-          projetos={state.projetos}
-          agendaItems={state.agendaItems}
-          pilares={state.pilares}
-          series={state.series}
-          gentleExperience={gentleExperience}
+          greetingName={greetingName}
+          pauseMode={gentleExperience.pauseMode}
+          agendaToday={agendaToday}
+          urgentProjects={urgentProjects}
+          errorMessage={errorMessage}
+          recordingEnabled={moduleFlags.recording}
+          onOpenMenu={() => chrome?.openMobileMenu()}
+          onOpenSearch={() => chrome?.openSearch()}
           onNavigate={(path) => {
             if (path.startsWith('/conteudos/')) {
               navigate(path, detailBackState);
@@ -105,7 +185,9 @@ export function DashboardPage() {
             }
             navigate(path);
           }}
-        />
+        >
+          {sessionPanel}
+        </DashboardMobileScreen>
       </div>
     );
   }
@@ -115,51 +197,78 @@ export function DashboardPage() {
       contentWidth="narrow"
       header={
         <DesktopPageHeader
-          section="Central"
-          title="Hoje"
+          section="Hoje"
+          title="Sessão do dia"
           titleVariant="display"
           icon={Sparkles}
           className="mb-0"
           actions={
-            <AppButton variant="primary" onClick={handleNovoRoteiro} leftIcon={<Plus className="h-4 w-4" />}>
-              Novo roteiro
-            </AppButton>
+            <CreateMenuButton
+              onCreateIdea={handleNovaIdeia}
+              onCreateScript={handleNovoRoteiro}
+            />
           }
         />
       }
     >
-      {/* Herói único: recomendação diária OU destaque operacional */}
-      {dailyRecommendation && gentleExperience.calmSuggestions ? (
-        <DailyRecommendationBlock
-          recommendation={dailyRecommendation}
-          gentleLanguage={gentleExperience.enabled}
-        />
+      {!moduleFlags.recording ? (
+        <section className="editorial-card stack-md p-8">
+          <Text variant="bodyStrong">Gravação está desligada</Text>
+          <Text variant="body" className="text-[var(--text-secondary)]">
+            Ative o módulo de gravação nas configurações para montar a sessão do dia.
+          </Text>
+          <AppButton variant="secondary" onClick={() => navigate('/configuracoes')}>
+            Abrir configurações
+          </AppButton>
+        </section>
       ) : (
-        <SpotlightBlock spotlight={spotlight} onNavigate={navigate} detailBackState={detailBackState} />
+        sessionPanel
       )}
 
-      {/* Alerta de Regras de Ouro */}
-      {rhythmViolations.length > 0 && (
-        <button
-          onClick={() => navigate('/configuracoes/pilares')}
-          className="group flex w-full items-center justify-between gap-4 rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--warning-bg)] px-6 py-4 text-left transition-colors hover:bg-[var(--warning-bg-hover)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
-        >
-          <div className="flex items-center gap-3">
-            <AlertTriangle className="h-4 w-4 shrink-0 text-[var(--warning)]" />
-            <Text variant="bodyStrong">
-              {rhythmViolations.length === 1
-                ? '1 alerta de ritmo editorial esta semana'
-                : `${rhythmViolations.length} alertas de ritmo editorial esta semana`}
-            </Text>
+      {errorMessage ? (
+        <Text variant="meta" className="text-[var(--danger)]">
+          {errorMessage}
+        </Text>
+      ) : null}
+
+      {gentleExperience.pauseMode ? (
+        <section className="editorial-card stack-sm p-6">
+          <Text variant="bodyStrong">Pausa respeitada</Text>
+          <Text variant="body" className="text-[var(--text-secondary)]">
+            Sugestões ficam de lado. Você ainda pode montar uma sessão quando quiser gravar.
+          </Text>
+        </section>
+      ) : null}
+
+      {agendaToday.length > 0 ? (
+        <section className="stack-md">
+          <Text variant="eyebrow" as="span">
+            <CalendarDays className="h-3.5 w-3.5" />
+            Para lembrar hoje
+          </Text>
+          <div className="stack-sm">
+            {agendaToday.map(item => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => navigate('/calendario')}
+                className="editorial-card flex w-full items-center justify-between gap-4 px-6 py-4 text-left transition-colors hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+              >
+                <div className="min-w-0">
+                  <Text variant="bodyStrong" truncate>
+                    {item.title}
+                  </Text>
+                  <Text variant="meta" className="mt-0.5">
+                    {[item.date, item.time].filter(Boolean).join(' · ')}
+                  </Text>
+                </div>
+              </button>
+            ))}
           </div>
-          <span className="flex shrink-0 items-center gap-1 text-sm font-semibold text-[var(--warning)]">
-            Ver pilares <ArrowRight className="h-3 w-3" />
-          </span>
-        </button>
-      )}
+        </section>
+      ) : null}
 
-      {/* Projetos com deadline proximo */}
-      {urgentProjects.length > 0 && (
+      {urgentProjects.length > 0 ? (
         <section className="stack-md">
           <Text variant="eyebrow" as="span">
             <FolderKanban className="h-3.5 w-3.5" />
@@ -169,260 +278,35 @@ export function DashboardPage() {
             {urgentProjects.map(project => (
               <button
                 key={project.id}
+                type="button"
                 onClick={() => navigate(`/projetos/${project.id}`)}
                 className="editorial-card group flex items-center justify-between gap-4 px-6 py-4 text-left transition-colors hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
               >
                 <div className="min-w-0">
-                  <Text variant="bodyStrong" truncate>{project.nome}</Text>
+                  <Text variant="bodyStrong" truncate>
+                    {project.nome}
+                  </Text>
                   <Text variant="meta" className="mt-0.5 truncate">
-                    {project.brand ? `${project.brand} · ` : ''}{project.dataFim}
+                    {project.brand ? `${project.brand} · ` : ''}
+                    {project.dataFim}
                   </Text>
                 </div>
-                <ArrowRight className="h-3.5 w-3.5 shrink-0 text-[var(--text-tertiary)]" />
               </button>
             ))}
           </div>
         </section>
-      )}
+      ) : null}
 
-      {/* Listas operacionais */}
-      <section className="grid-dashboard">
-        <OperationalList
-          title="Fila de gravação"
-          icon={Video}
-          empty="Nenhum roteiro pronto para gravar."
-          seeAllHref="/gravacao"
-          seeAllLabel="Abrir gravação"
+      <div className="flex justify-start">
+        <AppButton
+          variant="ghost"
+          size="sm"
+          leftIcon={<Video className="h-3.5 w-3.5" />}
+          onClick={() => navigate('/gravacao?tab=blocks')}
         >
-          {readyToRecord.slice(0, 5).map(content => (
-            <ContentRow
-              key={content.id}
-              title={content.title || '(sem titulo)'}
-              meta={getDisplayStatus(content)}
-              isStatus
-              onClick={() => navigate(buildContentDetailRoute(content.id), detailBackState)}
-            />
-          ))}
-        </OperationalList>
-
-        <OperationalList
-          title="Em produção"
-          icon={Scissors}
-          empty="Nenhum conteúdo em edição ou gravado."
-          seeAllHref="/criacao?tab=producao"
-          seeAllLabel="Ver conteúdos"
-        >
-          {inProduction.slice(0, 5).map(content => (
-            <ContentRow
-              key={content.id}
-              title={content.title || '(sem titulo)'}
-              meta={getDisplayStatus(content)}
-              isStatus
-              onClick={() => navigate(buildContentDetailRoute(content.id), detailBackState)}
-            />
-          ))}
-        </OperationalList>
-
-        <OperationalList
-          title="Agenda próxima"
-          icon={BookOpen}
-          empty="Nenhum item futuro na agenda."
-          seeAllHref="/calendario"
-          seeAllLabel="Ver calendario"
-        >
-          {upcomingAgenda.map(item => (
-            <ContentRow
-              key={item.id}
-              title={item.title}
-              meta={[item.date, item.time].filter(Boolean).join(' · ')}
-              onClick={() => navigate('/calendario')}
-            />
-          ))}
-        </OperationalList>
-      </section>
-
-      {/* Acoes rapidas */}
-      <section className="stack-md">
-        <Text variant="eyebrow">Atalhos</Text>
-        <div className="flex flex-wrap gap-2">
-          <QuickAction label="Novo roteiro" icon={Plus} onClick={handleNovoRoteiro} />
-          <QuickAction label="Nova ideia" icon={Lightbulb} onClick={() => navigate('/criacao?compose=idea')} />
-        </div>
-      </section>
+          Ver blocos de gravação
+        </AppButton>
+      </div>
     </PageLayout>
-  );
-}
-
-// --- Spotlight ---
-
-type SpotlightData =
-  | {type: 'record'; count: number; firstId: string; firstTitle: string}
-  | {type: 'edit'; count: number; firstId: string; firstTitle: string}
-  | {type: 'agenda'; title: string; date: string; time?: string}
-  | {type: 'empty'};
-
-function resolveSpotlight({
-  readyToRecord,
-  inProduction,
-  upcomingAgenda,
-}: {
-  readyToRecord: {id: string; title?: string | null}[];
-  inProduction: {id: string; title?: string | null; status: string; recordedAt?: string | null}[];
-  upcomingAgenda: {title: string; date: string; time?: string}[];
-}): SpotlightData {
-  if (readyToRecord.length > 0) {
-    return {
-      type: 'record',
-      count: readyToRecord.length,
-      firstId: readyToRecord[0].id,
-      firstTitle: readyToRecord[0].title || '(sem titulo)',
-    };
-  }
-  const editing = inProduction.filter(c => Boolean(c.recordedAt));
-  if (editing.length > 0) {
-    return {
-      type: 'edit',
-      count: editing.length,
-      firstId: editing[0].id,
-      firstTitle: editing[0].title || '(sem titulo)',
-    };
-  }
-  if (upcomingAgenda.length > 0) {
-    return {
-      type: 'agenda',
-      title: upcomingAgenda[0].title,
-      date: upcomingAgenda[0].date,
-      time: upcomingAgenda[0].time,
-    };
-  }
-  return {type: 'empty'};
-}
-
-function SpotlightBlock({
-  spotlight,
-  onNavigate,
-  detailBackState,
-}: {
-  spotlight: SpotlightData;
-  onNavigate: (path: string, options?: {state?: DetailBackState}) => void;
-  detailBackState: {state: DetailBackState};
-}) {
-  if (spotlight.type === 'empty') {
-    return (
-      <div className="editorial-card flex items-center justify-between gap-6 p-8">
-        <div>
-          <Text variant="eyebrow">Próximo passo</Text>
-          <Text variant="sectionTitle" className="mt-3">Tudo em dia</Text>
-          <Text variant="body" className="mt-2 text-[var(--text-secondary)]">
-            {EMPTY.dashboardSpotlight.description}
-          </Text>
-        </div>
-        <Sparkles className="h-10 w-10 shrink-0 text-[var(--text-tertiary)]" />
-      </div>
-    );
-  }
-
-  if (spotlight.type === 'record') {
-    return (
-      <button
-        onClick={() => onNavigate('/gravacao')}
-        className="editorial-card group flex w-full items-center justify-between gap-6 border-l-2 border-[var(--accent-blue)] bg-[var(--bg-secondary)] p-8 text-left shadow-sm transition-colors hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
-      >
-        <div className="min-w-0">
-          <Text variant="eyebrow">Próximo passo</Text>
-          <Text variant="sectionTitle" className="mt-3" truncate>
-            {spotlight.count === 1
-              ? `Gravar: ${spotlight.firstTitle}`
-              : `${spotlight.count} roteiros prontos para gravar`}
-          </Text>
-          <Text variant="body" className="mt-2 text-[var(--text-secondary)]">
-            {spotlight.count === 1
-              ? 'Este roteiro já pode entrar em sessão de gravação.'
-              : `Comece pelo primeiro: ${spotlight.firstTitle}`}
-          </Text>
-          <SpotlightCta>
-            Abrir gravação <ArrowRight className="h-3.5 w-3.5" />
-          </SpotlightCta>
-        </div>
-        <div className="rounded-[var(--radius-card-mobile)] bg-[var(--status-ready-bg)] p-6">
-          <Clapperboard className="h-8 w-8 text-[var(--status-ready)]" />
-        </div>
-      </button>
-    );
-  }
-
-  if (spotlight.type === 'edit') {
-    return (
-      <button
-        onClick={() => onNavigate(buildContentDetailRoute(spotlight.firstId), detailBackState)}
-        className="editorial-card group flex w-full items-center justify-between gap-6 border-l-2 border-[var(--accent-blue)] bg-[var(--bg-secondary)] p-8 text-left shadow-sm transition-colors hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
-      >
-        <div className="min-w-0">
-          <Text variant="eyebrow">Próximo passo</Text>
-          <Text variant="sectionTitle" className="mt-3" truncate>
-            {spotlight.count === 1
-              ? `Editar: ${spotlight.firstTitle}`
-              : `${spotlight.count} conteudos aguardando edicao`}
-          </Text>
-          <Text variant="body" className="mt-2 text-[var(--text-secondary)]">
-            {spotlight.count === 1
-              ? 'Pronto para entrar em edicao.'
-              : `Continue pelo: ${spotlight.firstTitle}`}
-          </Text>
-          <SpotlightCta>
-            Abrir conteúdo <ArrowRight className="h-3.5 w-3.5" />
-          </SpotlightCta>
-        </div>
-        <div className="rounded-[var(--radius-card-mobile)] bg-[var(--status-recorded-bg)] p-6">
-          <Scissors className="h-8 w-8 text-[var(--status-recorded)]" />
-        </div>
-      </button>
-    );
-  }
-
-  // agenda
-  return (
-    <button
-      onClick={() => onNavigate('/calendario')}
-      className="editorial-card group flex w-full items-center justify-between gap-6 border-l-2 border-[var(--accent-blue)] bg-[var(--bg-secondary)] p-8 text-left shadow-sm transition-colors hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
-    >
-      <div className="min-w-0">
-        <Text variant="eyebrow">Próximo passo</Text>
-        <Text variant="sectionTitle" className="mt-3" truncate>
-          {spotlight.title}
-        </Text>
-        <Text variant="body" className="mt-2 text-[var(--text-secondary)]">
-          {[spotlight.date, spotlight.time].filter(Boolean).join(' · ')}
-        </Text>
-        <SpotlightCta>
-          Ver calendário <ArrowRight className="h-3.5 w-3.5" />
-        </SpotlightCta>
-      </div>
-      <div className="rounded-[var(--radius-card-mobile)] bg-[var(--status-scheduled-bg)] p-6">
-        <CalendarDays className="h-8 w-8 text-[var(--status-scheduled)]" />
-      </div>
-    </button>
-  );
-}
-
-// --- Componentes ---
-
-function QuickAction({
-  label,
-  icon: Icon,
-  onClick,
-}: {
-  label: string;
-  icon: React.ElementType;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className="flex items-center gap-2 rounded-[var(--radius-pill)] bg-[var(--surface-subtle)] px-4 py-2.5 text-sm font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
-    >
-      <Icon className="h-3.5 w-3.5" />
-      {label}
-    </button>
   );
 }

@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { Navigate } from 'react-router-dom';
 import { Plus, Trash2, Edit2, ToggleLeft, ToggleRight, Check, X, Shirt } from 'lucide-react';
 import { useAppContext } from '../../../context/AppContext';
 import { useIsMobile } from '../../../hooks/useIsMobile';
@@ -62,14 +61,11 @@ export function LooksSettingsPage() {
   const activeLooks = [...state.looks].sort((a, b) => a.numero - b.numero);
   const activeCenarios = state.cenarios;
 
-  if (isMobile) {
-    return <Navigate to="/configuracoes" replace />;
-  }
-
   return (
     <PageLayout
       variant="settings"
       header={
+        !isMobile ? (
         <DesktopPageHeader
           section="Configurações"
           title="Looks & Cenários"
@@ -77,6 +73,17 @@ export function LooksSettingsPage() {
           backLabel="Configurações"
           backTo="/configuracoes"
         />
+        ) : undefined
+      }
+      mobileHeader={
+        isMobile ? (
+          <div className="px-1 pb-3 pt-1">
+            <Text variant="sectionTitle">Looks & Cenários</Text>
+            <Text variant="meta" className="mt-1 text-[var(--text-tertiary)]">
+              Catálogo de looks e cenários
+            </Text>
+          </div>
+        ) : undefined
       }
     >
 

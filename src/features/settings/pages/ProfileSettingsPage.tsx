@@ -69,7 +69,7 @@ export function ProfileSettingsPage() {
   const initialEmail = user?.email ?? '';
 
   const [fullName, setFullName] = useState(initialFullName);
-  const [pendingEmail, setPendingEmail] = useState(initialEmail);
+  const [pendingEmail, setPendingEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 
@@ -89,9 +89,10 @@ export function ProfileSettingsPage() {
     setFullName(initialFullName);
   }, [initialFullName]);
 
-  useEffect(() => {
-    setPendingEmail(initialEmail);
-  }, [initialEmail]);
+  const normalizedPendingEmail = pendingEmail.trim().toLowerCase();
+  const emailUnchanged =
+    !normalizedPendingEmail || normalizedPendingEmail === initialEmail.trim().toLowerCase();
+  const emailSubmitDisabled = !backendReady || emailLoading || emailUnchanged;
 
   const clearProfileFeedback = () => {
     setProfileMessage(null);
@@ -230,6 +231,7 @@ export function ProfileSettingsPage() {
           onSaveProfile={handleSaveProfile}
           onSaveEmail={handleSaveEmail}
           onSavePassword={handleSavePassword}
+          emailSubmitDisabled={emailSubmitDisabled}
         />
       </div>
     );
@@ -323,12 +325,12 @@ export function ProfileSettingsPage() {
                 />
               </div>
               <p className="text-xs text-[var(--text-secondary)]">
-                Em ambientes com confirmação ativa, a mudança só termina após validar o novo endereço.
+                Enviaremos um link de confirmação para o novo endereço. A troca só termina depois que você validar esse e-mail.
               </p>
               <AppButton
                 onClick={handleSaveEmail}
                 variant="primary"
-                disabled={!backendReady || emailLoading}
+                disabled={emailSubmitDisabled}
               >
                 {emailLoading ? 'Atualizando' : 'Atualizar e-mail'}
               </AppButton>

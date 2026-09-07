@@ -286,7 +286,7 @@ export function PlatformCopyEditor({
   };
 
   return (
-    <section className="cms-panel overflow-hidden shadow-sm">
+    <section className="cms-panel overflow-hidden">
       <div className="border-b border-[var(--border-color)] px-4 py-3">
         <Text variant="sectionTitle">{embedded ? 'Legendas' : 'Preparar distribuicao'}</Text>
         {embedded ? (

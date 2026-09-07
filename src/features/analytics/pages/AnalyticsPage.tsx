@@ -1,17 +1,18 @@
 import { useMemo } from 'react';
-import { BarChart3 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Plus } from 'lucide-react';
 import { useAppContext } from '../../../context/AppContext';
 import type { BibliotecaItemMeta } from '../../../lib/database';
 import { DesktopPageHeader } from '../../../layouts/page/DesktopPageHeader';
 import { PageLayout } from '../../../layouts/page/PageLayout';
-import { Surface } from '../../../components/ui/Surface';
-import { MobileSectionHeader } from '../../../mobile/components/MobileSectionHeader';
+import { AppButton } from '../../../components/ui/AppButton';
 import { LibrarySectionTabs } from '../../library/components/LibrarySectionTabs';
 import { AnalyticsCategoryCards } from '../components/AnalyticsCategoryCards';
 import { buildLibraryAnalytics } from '../lib/libraryAnalytics';
 
 export function AnalyticsPage() {
   const { state } = useAppContext();
+  const navigate = useNavigate();
 
   const analytics = useMemo(
     () => buildLibraryAnalytics(
@@ -29,20 +30,23 @@ export function AnalyticsPage() {
     <PageLayout
       contentWidth="wide"
       header={(
-        <DesktopPageHeader section="Biblioteca" title="Análise" icon={BarChart3}>
-          <LibrarySectionTabs />
-        </DesktopPageHeader>
+        <DesktopPageHeader
+          section="Criação"
+          title="Análise"
+          actions={
+            <AppButton
+              variant="primary"
+              leftIcon={<Plus className="h-4 w-4" />}
+              onClick={() => navigate('/biblioteca?compose=novo')}
+            >
+              Novo item
+            </AppButton>
+          }
+        />
       )}
+      toolbar={<LibrarySectionTabs />}
       mobileHeader={(
-        <div className="stack-md px-4 pt-4">
-          <Surface variant="outlined" padding="md">
-            <MobileSectionHeader
-              icon={BarChart3}
-              tone="green"
-              title="Análise da Biblioteca"
-              description="Livros, páginas, minutagem, progresso e anotações."
-            />
-          </Surface>
+        <div className="pb-1 pt-1">
           <LibrarySectionTabs />
         </div>
       )}

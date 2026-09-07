@@ -1,8 +1,17 @@
 import {useCallback, useEffect, useMemo, useState} from 'react';
-import {useLocation, useNavigate} from 'react-router-dom';
-import {eachDayOfInterval, endOfWeek, format, isSameDay, startOfWeek} from 'date-fns';
+import {useLocation, useNavigate, useSearchParams} from 'react-router-dom';
+import {
+  eachDayOfInterval,
+  endOfMonth,
+  endOfWeek,
+  format,
+  isSameDay,
+  isWithinInterval,
+  startOfMonth,
+  startOfWeek,
+} from 'date-fns';
 import {ptBR} from 'date-fns/locale';
-import {BookOpen, CalendarDays, ChevronDown, Clock, Mic2, PanelRight, Plus, Radio, Search, Send, Target, X} from 'lucide-react';
+import {BookOpen, CalendarDays, ChevronDown, Clock, Mic2, PanelRight, Plus, Radio, Send, Target, X} from 'lucide-react';
 import {
   CalendarDesktopShell,
   CalendarEventPill,
@@ -14,6 +23,7 @@ import {
 } from '../../../components/calendar';
 import {AppButton} from '../../../components/ui/AppButton';
 import {Text} from '../../../components/ui/Text';
+import {ToolbarSearchInput} from '../../../components/ui/ToolbarSearchInput';
 import {PageLayout} from '../../../layouts/page/PageLayout';
 import {DesktopPageHeader} from '../../../layouts/page/DesktopPageHeader';
 import {BottomSheetModal} from '../../../components/feedback/modals/BottomSheetModal';
@@ -32,15 +42,21 @@ import {buildContentDetailRoute} from '../../contents/lib/contentDetailRoute';
 import {buildDetailBackState} from '../../../lib/navigation/detailBack';
 import {PostedVideoComposerSheet} from '../../contents/components/PostedVideoComposerSheet';
 import {buildCalendarEntries, CalendarEntry, MonthlyCalendarView} from '../components/MonthlyCalendarView';
+import {CalendarTimelineView, type TimelinePeriod} from '../components/CalendarTimelineView';
 import {CalendarModeSwitch} from '../components/CalendarModeSwitch';
+import {
+  CALENDAR_VIEW_QUERY,
+  parseCalendarViewMode,
+  type CalendarViewMode,
+} from '../lib/calendarMode';
 import {PostingTimeSuggestions} from '../../settings/components/PostingTimeSuggestions';
 import {getPostingTimes} from '../../settings/lib/postingTimes';
 import {generateUUID} from '../../../utils/uuid';
 
 const STORAGE_KEY = 'content-os:calendar-layers';
 const PANEL_STORAGE_KEY = 'content-os:calendar-day-panel';
+const TIMELINE_PERIOD_KEY = 'content-os:calendar-timeline-period';
 const DEFAULT_LAYERS = ['recordings', 'posts', 'projects', 'agenda'];
-type CalendarViewMode = 'month' | 'week' | 'agenda' | 'timeline';
 
 function loadLayers(): string[] {
   return readStoredJson(STORAGE_KEY, DEFAULT_LAYERS);
@@ -50,6 +66,11 @@ function loadDayPanelOpen(): boolean {
   return readStoredJson(PANEL_STORAGE_KEY, true);
 }
 
+function loadTimelinePeriod(): TimelinePeriod {
+  const stored = readStoredJson<TimelinePeriod>(TIMELINE_PERIOD_KEY, 'week');
+  return stored === 'month' ? 'month' : 'week';
+}
+
 export function getStatusIcon() {
   return null;
 }
@@ -57,6 +78,7 @@ export function getStatusIcon() {
 export function EditorialCalendarPage() {
   const {state, dispatch} = useAppContext();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const isMobile = useIsMobile();
   const [isAddAgendaOpen, setIsAddAgendaOpen] = useState(false);
   const [isAddPostedVideoOpen, setIsAddPostedVideoOpen] = useState(false);
@@ -66,17 +88,22 @@ export function EditorialCalendarPage() {
   const [sortValue, setSortValue] = useState('proximos');
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [viewMode, setViewMode] = useState<CalendarViewMode>('month');
+  const viewMode = parseCalendarViewMode(searchParams.get(CALENDAR_VIEW_QUERY));
+  const [timelinePeriod, setTimelinePeriodRaw] = useState<TimelinePeriod>(loadTimelinePeriod);
   const [dayPanelOpen, setDayPanelOpenRaw] = useState(loadDayPanelOpen);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [createMenuOpen, setCreateMenuOpen] = useState(false);
-  const [searchExpanded, setSearchExpanded] = useState(false);
   const [quickCreateDate, setQuickCreateDate] = useState<Date | null>(null);
   const [agendaDraft, setAgendaDraft] = useState<{title: string; date: string; time: string | null} | null>(null);
 
   const setDayPanelOpen = useCallback((value: boolean) => {
     setDayPanelOpenRaw(value);
     writeStoredJson(PANEL_STORAGE_KEY, value);
+  }, []);
+
+  const setTimelinePeriod = useCallback((value: TimelinePeriod) => {
+    setTimelinePeriodRaw(value);
+    writeStoredJson(TIMELINE_PERIOD_KEY, value);
   }, []);
 
   const setActiveLayers = useCallback((updater: string[] | ((prev: string[]) => string[])) => {
@@ -101,6 +128,22 @@ export function EditorialCalendarPage() {
   );
   const selectedDateKey = format(selectedDate, 'yyyy-MM-dd');
   const selectedEntries = entriesByDate.get(selectedDateKey) || [];
+
+  const agendaPeriod = useMemo(() => {
+    const weekStartsOn = 0 as const;
+    if (viewMode === 'week' || (viewMode === 'timeline' && timelinePeriod === 'week')) {
+      return {
+        start: startOfWeek(currentMonth, {weekStartsOn}),
+        end: endOfWeek(currentMonth, {weekStartsOn}),
+        label: 'semana',
+      };
+    }
+    return {
+      start: startOfMonth(currentMonth),
+      end: endOfMonth(currentMonth),
+      label: 'mês',
+    };
+  }, [currentMonth, timelinePeriod, viewMode]);
 
   // Spec: projeto -> pagina dedicada; conteudo -> drawer; evento -> modal.
   const handleSelectEntry = useCallback(
@@ -128,12 +171,30 @@ export function EditorialCalendarPage() {
 
   const handleViewChange = useCallback(
     (next: CalendarViewMode) => {
-      setViewMode(next);
+      setSearchParams(
+        prev => {
+          const nextParams = new URLSearchParams(prev);
+          if (next === 'month') {
+            nextParams.delete(CALENDAR_VIEW_QUERY);
+          } else {
+            nextParams.set(CALENDAR_VIEW_QUERY, next);
+          }
+          return nextParams;
+        },
+        {replace: true},
+      );
       if (next === 'agenda' || next === 'timeline') {
         setDayPanelOpen(false);
       }
     },
-    [setDayPanelOpen]
+    [setDayPanelOpen, setSearchParams],
+  );
+
+  const handleMainNarrowChange = useCallback(
+    (isNarrow: boolean) => {
+      if (isNarrow) setDayPanelOpen(false);
+    },
+    [setDayPanelOpen],
   );
 
   if (isMobile) {
@@ -145,6 +206,10 @@ export function EditorialCalendarPage() {
             platforms={state.platforms}
             agendaItems={state.agendaItems}
             projetos={state.projetos}
+            listMode={viewMode === 'timeline' ? 'timeline' : 'agenda'}
+            onListModeChange={mode => handleViewChange(mode === 'timeline' ? 'timeline' : 'agenda')}
+            periodStart={agendaPeriod.start}
+            periodEnd={agendaPeriod.end}
             onAddAgenda={() => setIsAddAgendaOpen(true)}
             onAddPostedVideo={() => setIsAddPostedVideoOpen(true)}
             onSelectEntry={handleSelectEntry}
@@ -314,31 +379,50 @@ export function EditorialCalendarPage() {
       contentWidth="full"
       contentStack="none"
       className="min-h-full"
-      contentClassName="!px-0 !py-0"
+      contentClassName="!py-0"
       header={
         <DesktopPageHeader
           section="Produção"
           title="Calendário"
           meta="Roteiros, eventos e projetos na linha do tempo."
-        >
-          <CalendarModeSwitch />
-        </DesktopPageHeader>
+          actions={(
+            <>
+              <CalendarModeSwitch />
+              <AppButton
+                variant="primary"
+                leftIcon={<Plus className="h-4 w-4" />}
+                onClick={() => setQuickCreateDate(selectedDate)}
+              >
+                Novo evento
+              </AppButton>
+            </>
+          )}
+        />
       }
     >
       <CalendarDesktopShell
         sidebar={calendarSidebar}
         sidebarOpen={sidebarOpen}
         onSidebarOpenChange={setSidebarOpen}
+        onMainNarrowChange={handleMainNarrowChange}
         toolbar={
           <CalendarPeriodNav
             anchorDate={currentMonth}
             onAnchorDateChange={date => {
               setCurrentMonth(date);
-              if (viewMode === 'week') setSelectedDate(date);
+              if (viewMode === 'week' || (viewMode === 'timeline' && timelinePeriod === 'week')) {
+                setSelectedDate(date);
+              }
             }}
             viewMode={viewMode}
             onViewModeChange={handleViewChange}
-            weekViewId="week"
+            weekViewId={
+              viewMode === 'week'
+                ? 'week'
+                : viewMode === 'timeline' && timelinePeriod === 'week'
+                  ? 'timeline'
+                  : undefined
+            }
             views={[
               {id: 'month', label: 'Mês'},
               {id: 'week', label: 'Semana'},
@@ -349,28 +433,13 @@ export function EditorialCalendarPage() {
         }
         toolbarExtra={
           <>
-            {searchExpanded ? (
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={event => setSearchTerm(event.target.value)}
-                placeholder="Buscar"
-                className="h-9 w-36 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-2 text-sm"
-                autoFocus
-                onBlur={() => {
-                  if (!searchTerm.trim()) setSearchExpanded(false);
-                }}
-              />
-            ) : (
-              <button
-                type="button"
-                onClick={() => setSearchExpanded(true)}
-                className="flex min-h-9 min-w-9 items-center justify-center rounded-[var(--radius-sm)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
-                aria-label="Buscar"
-              >
-                <Search className="h-4 w-4" />
-              </button>
-            )}
+            <ToolbarSearchInput
+              value={searchTerm}
+              onChange={setSearchTerm}
+              placeholder="Buscar no calendário"
+              size="compact"
+              className="w-44 max-w-[40vw]"
+            />
             <select
               value={sortValue}
               onChange={event => setSortValue(event.target.value)}
@@ -411,6 +480,10 @@ export function EditorialCalendarPage() {
             <CalendarAgendaListView
               entriesByDate={entriesByDate}
               selectedDate={selectedDate}
+              periodStart={agendaPeriod.start}
+              periodEnd={agendaPeriod.end}
+              periodLabel={agendaPeriod.label}
+              headerPeriodLabel={format(currentMonth, "MMMM 'de' yyyy", {locale: ptBR})}
               onSelectDate={setSelectedDate}
               onSelectEntry={handleSelectEntry}
             />
@@ -421,6 +494,16 @@ export function EditorialCalendarPage() {
               entriesByDate={entriesByDate}
               onSelectDate={setSelectedDate}
               onSelectEntry={handleSelectEntry}
+            />
+          ) : viewMode === 'timeline' ? (
+            <CalendarTimelineView
+              anchorDate={currentMonth}
+              period={timelinePeriod}
+              entriesByDate={entriesByDate}
+              selectedDate={selectedDate}
+              onSelectDate={setSelectedDate}
+              onSelectEntry={handleSelectEntry}
+              onPeriodChange={setTimelinePeriod}
             />
           ) : (
             <MonthlyCalendarView
@@ -683,35 +766,61 @@ function CalendarWeekView({
 function CalendarAgendaListView({
   entriesByDate,
   selectedDate,
+  periodStart,
+  periodEnd,
+  periodLabel,
+  headerPeriodLabel,
   onSelectDate,
   onSelectEntry,
 }: {
   entriesByDate: Map<string, CalendarEntry[]>;
   selectedDate: Date;
+  periodStart: Date;
+  periodEnd: Date;
+  periodLabel: string;
+  headerPeriodLabel: string;
   onSelectDate: (date: Date) => void;
   onSelectEntry: (entry: CalendarEntry) => void;
 }) {
+  const listPeriodLabel = `${format(periodStart, "d MMM", {locale: ptBR})} – ${format(periodEnd, "d MMM yyyy", {locale: ptBR})}`;
+  const headerMonthLabel = format(periodStart, "MMMM 'de' yyyy", {locale: ptBR});
+  const showPeriodMeta =
+    periodLabel === 'semana' ||
+    headerPeriodLabel.trim().toLowerCase() !== headerMonthLabel.trim().toLowerCase();
+
   const groupedEntries = Array.from(entriesByDate.entries())
+    .filter(([dateKey]) => {
+      const date = new Date(`${dateKey}T12:00:00`);
+      return isWithinInterval(date, {start: periodStart, end: periodEnd});
+    })
     .sort(([left], [right]) => left.localeCompare(right))
-    .slice(0, 60);
+    .map(([dateKey, entries]) => [dateKey, collapseSameDayContentEntries(entries)] as const);
+
+  const totalRows = groupedEntries.reduce((total, [, rows]) => total + rows.length, 0);
 
   return (
     <section className="rounded-lg border border-[var(--border-color)] bg-[var(--bg-elevated)] p-3 shadow-[var(--shadow-soft)]">
-      <div className="mb-3 flex items-center justify-between px-1">
+      <div className="mb-3 flex items-center justify-between gap-3 px-1">
         <div>
           <Text variant="sectionTitle">Agenda editorial</Text>
-          <p className="t-meta text-[var(--text-secondary)]">Lista cronologica de operacoes planejadas.</p>
+          <p className="t-meta text-[var(--text-secondary)]">Lista cronológica de operações planejadas.</p>
+          {showPeriodMeta ? (
+            <Text variant="meta" className="mt-1 block text-[var(--text-tertiary)]">
+              Lista filtrada para {listPeriodLabel}
+              {headerPeriodLabel ? ` (cabeçalho: ${headerPeriodLabel})` : ''}.
+            </Text>
+          ) : null}
         </div>
-        <span className="status-pill">{groupedEntries.reduce((total, [, entries]) => total + entries.length, 0)} eventos</span>
+        <span className="status-pill">{totalRows} eventos</span>
       </div>
 
       <div className="stack-md">
         {groupedEntries.length === 0 ? (
           <div className="rounded-lg bg-[var(--surface-subtle)] px-4 py-10 text-center text-sm text-[var(--text-secondary)]">
-            Nenhum evento encontrado com os filtros atuais.
+            Nenhum evento encontrado no período atual.
           </div>
         ) : (
-          groupedEntries.map(([dateKey, entries]) => {
+          groupedEntries.map(([dateKey, rows]) => {
             const date = new Date(`${dateKey}T12:00:00`);
             const active = isSameDay(date, selectedDate);
             return (
@@ -724,25 +833,46 @@ function CalendarAgendaListView({
                     <p className="t-meta capitalize text-[var(--text-secondary)]">{format(date, 'EEEE', {locale: ptBR})}</p>
                   </div>
                   <span className="rounded-full bg-[var(--surface-subtle)] px-2 py-1 text-xs font-semibold text-[var(--text-secondary)]">
-                    {entries.length}
+                    {rows.length}
                   </span>
                 </button>
 
                 <div className="stack-sm">
-                  {entries.map(entry => (
-                    <CalendarEventPill
-                      key={entry.id}
-                      label={entry.label}
-                      time={entry.time}
-                      secondary={[getEntryLabel(entry), entry.secondary].filter(Boolean).join(' · ')}
-                      variant="expanded"
-                      style={entryPillStyle(entry)}
-                      onClick={() => {
-                        onSelectDate(date);
-                        onSelectEntry(entry);
-                      }}
-                    />
-                  ))}
+                  {rows.map(row => {
+                    if (row.kind === 'dual') {
+                      const primary = row.recording || row.publish!;
+                      return (
+                        <CalendarEventPill
+                          key={`dual-${row.contentId}-${dateKey}`}
+                          label={row.label}
+                          time={row.publish?.time || row.recording?.time}
+                          secondary="Estados simultâneos · Gravação + Postagem"
+                          variant="expanded"
+                          style={entryPillStyle(primary)}
+                          onClick={() => {
+                            onSelectDate(date);
+                            onSelectEntry(primary);
+                          }}
+                        />
+                      );
+                    }
+
+                    const entry = row.entry;
+                    return (
+                      <CalendarEventPill
+                        key={entry.id}
+                        label={entry.label}
+                        time={entry.time}
+                        secondary={[getEntryLabel(entry), entry.secondary].filter(Boolean).join(' · ')}
+                        variant="expanded"
+                        style={entryPillStyle(entry)}
+                        onClick={() => {
+                          onSelectDate(date);
+                          onSelectEntry(entry);
+                        }}
+                      />
+                    );
+                  })}
                 </div>
               </div>
             );
@@ -751,6 +881,57 @@ function CalendarAgendaListView({
       </div>
     </section>
   );
+}
+
+type AgendaListRow =
+  | {kind: 'single'; entry: CalendarEntry}
+  | {
+      kind: 'dual';
+      contentId: string;
+      label: string;
+      recording?: CalendarEntry;
+      publish?: CalendarEntry;
+    };
+
+function collapseSameDayContentEntries(entries: CalendarEntry[]): AgendaListRow[] {
+  const byContent = new Map<string, {recording?: CalendarEntry; publishes: CalendarEntry[]}>();
+  const others: CalendarEntry[] = [];
+
+  entries.forEach(entry => {
+    if (entry.type === 'recording' && entry.contentId) {
+      const group = byContent.get(entry.contentId) || {publishes: []};
+      group.recording = entry;
+      byContent.set(entry.contentId, group);
+      return;
+    }
+    if (entry.type === 'publish' && entry.contentId) {
+      const group = byContent.get(entry.contentId) || {publishes: []};
+      group.publishes.push(entry);
+      byContent.set(entry.contentId, group);
+      return;
+    }
+    others.push(entry);
+  });
+
+  const rows: AgendaListRow[] = [];
+
+  byContent.forEach((group, contentId) => {
+    if (group.recording && group.publishes.length > 0) {
+      rows.push({
+        kind: 'dual',
+        contentId,
+        label: group.recording.label || group.publishes[0].label,
+        recording: group.recording,
+        publish: group.publishes[0],
+      });
+      return;
+    }
+    if (group.recording) rows.push({kind: 'single', entry: group.recording});
+    group.publishes.forEach(publish => rows.push({kind: 'single', entry: publish}));
+  });
+
+  others.forEach(entry => rows.push({kind: 'single', entry}));
+  return rows;
 }
 
 function CalendarDayPanel({
