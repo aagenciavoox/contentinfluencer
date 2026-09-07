@@ -224,6 +224,16 @@ export function LibraryMobileScreen({
         placeholder="Buscar título, autoria ou tag"
         onFilterClick={() => setIsFilterSheetOpen(true)}
         rounded="tight"
+        trailing={
+          <AppButton
+            variant="primary"
+            size="lg"
+            iconOnly
+            aria-label="Novo item"
+            onClick={onOpenCreate}
+            leftIcon={<Plus className="h-4 w-4" />}
+          />
+        }
       />
 
       <QueryViewState
@@ -234,10 +244,10 @@ export function LibraryMobileScreen({
         emptyTitle={libraryTotal === 0 ? EMPTY.biblioteca.title : EMPTY.bibliotecaSemResultado.title}
         emptyDescription={
           libraryTotal === 0
-            ? 'Use o botão + da barra inferior para adicionar um item.'
+            ? EMPTY.biblioteca.description
             : EMPTY.bibliotecaSemResultado.description
         }
-        emptyAction={libraryTotal === 0 ? undefined : focusAction}
+        emptyAction={focusAction}
         errorMessage={errorMessage}
         onRetry={onRetry}
       >

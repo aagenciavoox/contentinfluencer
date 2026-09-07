@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { BookOpen, FileText, Lightbulb, Pin } from 'lucide-react';
+import { BookOpen, BookPlus, FileText, Lightbulb, Pin } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
 import { useAppContext } from '../../context/AppContext';
@@ -7,6 +7,7 @@ import { useAuth } from '../../context/AuthContext';
 import { createScriptContent } from '../../features/contents/lib/creationContent';
 import { buildContentDetailRoute } from '../../features/contents/lib/contentDetailRoute';
 import { BookAnnotationComposerSheet } from '../../features/library/components/modals/BookAnnotationComposerSheet';
+import { getModuleFlags } from '../../features/settings/lib/moduleFlags';
 import { fetchBibliotecaItemById, type BibliotecaItem } from '../../lib/database';
 import { buildDetailBackState } from '../../lib/navigation/detailBack';
 import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
@@ -81,6 +82,8 @@ export function MobileActionMenu({ open, onClose }: MobileActionMenuProps) {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onClose, open]);
 
+  const moduleFlags = getModuleFlags(state.preferences);
+
   const handleNewIdea = () => {
     navigate('/criacao?compose=idea');
     onClose();
@@ -93,6 +96,11 @@ export function MobileActionMenu({ open, onClose }: MobileActionMenuProps) {
       `${buildContentDetailRoute(content.id)}&focus=script`,
       buildDetailBackState('/criacao?tab=roteiros'),
     );
+    onClose();
+  };
+
+  const handleNewLibraryItem = () => {
+    navigate('/biblioteca?compose=novo');
     onClose();
   };
 
@@ -117,6 +125,15 @@ export function MobileActionMenu({ open, onClose }: MobileActionMenuProps) {
       accentClassName: 'text-[var(--accent-blue)] bg-[var(--accent-blue)]/10',
       disabled: false,
     },
+    ...(moduleFlags.library
+      ? [{
+          label: 'Novo item',
+          icon: <BookPlus className="h-5 w-5" />,
+          onClick: handleNewLibraryItem,
+          accentClassName: 'text-[var(--accent-green)] bg-[var(--accent-green)]/10',
+          disabled: false,
+        }]
+      : []),
     {
       label: 'Nova anotacao',
       icon: <BookOpen className="h-5 w-5" />,
@@ -161,7 +178,7 @@ export function MobileActionMenu({ open, onClose }: MobileActionMenuProps) {
                 <div className="h-1 w-10 rounded-full bg-[var(--border-strong)]" aria-hidden="true" />
               </div>
 
-              <div className="grid grid-cols-3 gap-2 px-4 pb-3">
+              <div className={cn('grid gap-2 px-4 pb-3', actions.length > 3 ? 'grid-cols-2' : 'grid-cols-3')}>
                 {actions.map((action) => (
                   <button
                     key={action.label}
