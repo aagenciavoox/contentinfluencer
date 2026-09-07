@@ -3932,8 +3932,8 @@
       "source_location": "L40",
       "_origin": "ast",
       "id": "date_fns",
-      "community": 133,
-      "community_name": "htmlToReadableText",
+      "community": 17,
+      "community_name": "contentStock.ts",
       "norm_label": "date-fns"
     },
     {
@@ -16923,8 +16923,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_features_recommendations_cycle",
-      "community": 97,
-      "community_name": "pilarRhythm.test.ts",
+      "community": 17,
+      "community_name": "contentStock.ts",
       "norm_label": "cycle.ts"
     },
     {
@@ -17154,8 +17154,8 @@
       "source_location": "L43",
       "_origin": "ast",
       "id": "src_features_recommendations_types_cyclewindow",
-      "community": 97,
-      "community_name": "pilarRhythm.test.ts",
+      "community": 17,
+      "community_name": "contentStock.ts",
       "norm_label": "cyclewindow"
     },
     {
@@ -17484,8 +17484,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_features_recording_lib_recordingworkflow",
-      "community": 33,
-      "community_name": "PlatformCopyEditor.tsx",
+      "community": 132,
+      "community_name": "4. TELAS",
       "norm_label": "recordingworkflow.ts"
     },
     {
@@ -17495,8 +17495,8 @@
       "source_location": "L4",
       "_origin": "ast",
       "id": "src_features_recording_lib_recordingworkflow_markcontentrecordedparams",
-      "community": 33,
-      "community_name": "PlatformCopyEditor.tsx",
+      "community": 132,
+      "community_name": "4. TELAS",
       "norm_label": "markcontentrecordedparams"
     },
     {
@@ -17506,8 +17506,8 @@
       "source_location": "L10",
       "_origin": "ast",
       "id": "src_features_recording_lib_recordingworkflow_recordingblocklabelsparams",
-      "community": 33,
-      "community_name": "PlatformCopyEditor.tsx",
+      "community": 132,
+      "community_name": "4. TELAS",
       "norm_label": "recordingblocklabelsparams"
     },
     {
@@ -17517,8 +17517,8 @@
       "source_location": "L15",
       "_origin": "ast",
       "id": "src_features_recording_lib_recordingworkflow_recordingtagmetadata",
-      "community": 33,
-      "community_name": "PlatformCopyEditor.tsx",
+      "community": 132,
+      "community_name": "4. TELAS",
       "norm_label": "recordingtagmetadata"
     },
     {
@@ -17528,8 +17528,8 @@
       "source_location": "L19",
       "_origin": "ast",
       "id": "src_features_recording_lib_recordingworkflow_recordingblockprogress",
-      "community": 33,
-      "community_name": "PlatformCopyEditor.tsx",
+      "community": 132,
+      "community_name": "4. TELAS",
       "norm_label": "recordingblockprogress"
     },
     {
@@ -17539,8 +17539,8 @@
       "source_location": "L27",
       "_origin": "ast",
       "id": "src_features_recording_lib_recordingworkflow_getcontentidsinblocks",
-      "community": 33,
-      "community_name": "PlatformCopyEditor.tsx",
+      "community": 132,
+      "community_name": "4. TELAS",
       "norm_label": "getcontentidsinblocks()"
     },
     {
@@ -17550,8 +17550,8 @@
       "source_location": "L37",
       "_origin": "ast",
       "id": "src_features_recording_lib_recordingworkflow_isblockcontentcomplete",
-      "community": 33,
-      "community_name": "PlatformCopyEditor.tsx",
+      "community": 132,
+      "community_name": "4. TELAS",
       "norm_label": "isblockcontentcomplete()"
     },
     {
@@ -17616,8 +17616,8 @@
       "source_location": "L101",
       "_origin": "ast",
       "id": "src_features_recording_lib_recordingworkflow_addblockcontent",
-      "community": 33,
-      "community_name": "PlatformCopyEditor.tsx",
+      "community": 205,
+      "community_name": "PrecacheCacheKeyPlugin",
       "norm_label": "addblockcontent()"
     },
     {
@@ -17627,8 +17627,8 @@
       "source_location": "L119",
       "_origin": "ast",
       "id": "src_features_recording_lib_recordingworkflow_getrecordingblocktags",
-      "community": 33,
-      "community_name": "PlatformCopyEditor.tsx",
+      "community": 132,
+      "community_name": "4. TELAS",
       "norm_label": "getrecordingblocktags()"
     },
     {
@@ -17671,8 +17671,8 @@
       "source_location": "L170",
       "_origin": "ast",
       "id": "src_features_recording_lib_recordingworkflow_buildsaverecordingsessiontransition",
-      "community": 33,
-      "community_name": "PlatformCopyEditor.tsx",
+      "community": 132,
+      "community_name": "4. TELAS",
       "norm_label": "buildsaverecordingsessiontransition()"
     },
     {
@@ -17682,8 +17682,8 @@
       "source_location": "L193",
       "_origin": "ast",
       "id": "src_features_recording_lib_recordingworkflow_normalizerecordingtags",
-      "community": 33,
-      "community_name": "PlatformCopyEditor.tsx",
+      "community": 132,
+      "community_name": "4. TELAS",
       "norm_label": "normalizerecordingtags()"
     },
     {
@@ -17693,8 +17693,8 @@
       "source_location": "L207",
       "_origin": "ast",
       "id": "src_features_recording_lib_recordingworkflow_resolverecordingcontexttags",
-      "community": 33,
-      "community_name": "PlatformCopyEditor.tsx",
+      "community": 132,
+      "community_name": "4. TELAS",
       "norm_label": "resolverecordingcontexttags()"
     },
     {
@@ -24007,8 +24007,8 @@
       "source_location": "L26",
       "_origin": "ast",
       "id": "src_mobile_components_sendtorecordingsheet_sendtorecordingsheet",
-      "community": 33,
-      "community_name": "PlatformCopyEditor.tsx",
+      "community": 205,
+      "community_name": "PrecacheCacheKeyPlugin",
       "norm_label": "sendtorecordingsheet()"
     },
     {
@@ -125898,7 +125898,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/layouts/app/AppShell.tsx",
-      "source_location": "L162",
+      "source_location": "L182",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_layouts_app_appshell_appshell",
@@ -133875,7 +133875,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/mobile/components/MobileBottomNav.tsx",
-      "source_location": "L58",
+      "source_location": "L72",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_mobile_components_mobilebottomnav_mobilebottomnav",

@@ -454,7 +454,7 @@ body.mobile-burst-open > [data-burst-portal] {
   padding-top: max(1.25rem, env(safe-area-inset-top));
 }
 
-/* Bottom nav: floating pill in browser; docked surface in PWA (no grey safe-area strip). */
+/* Floating bottom nav pill (browser + PWA). */
 .mobile-bottom-nav {
   padding-left: 1rem;
   padding-right: 1rem;
@@ -466,49 +466,6 @@ body.mobile-burst-open > [data-burst-portal] {
   border: 1px solid var(--border-color);
   background: var(--bg-secondary);
   box-shadow: var(--shadow-dropdown);
-}
-
-@media (display-mode: standalone), (display-mode: fullscreen) {
-  .mobile-bottom-nav {
-    padding-left: 0;
-    padding-right: 0;
-    padding-bottom: 0;
-    border-top: 1px solid var(--border-color);
-    background: var(--bg-secondary);
-  }
-
-  .mobile-bottom-nav-inner {
-    max-width: none;
-    padding-bottom: env(safe-area-inset-bottom, 0px);
-  }
-
-  .mobile-bottom-nav-pill {
-    border: none;
-    border-radius: 0;
-    background: transparent;
-    box-shadow: none;
-  }
-}
-
-/* iOS home-screen PWA before display-mode support */
-html.pwa-standalone .mobile-bottom-nav {
-  padding-left: 0;
-  padding-right: 0;
-  padding-bottom: 0;
-  border-top: 1px solid var(--border-color);
-  background: var(--bg-secondary);
-}
-
-html.pwa-standalone .mobile-bottom-nav-inner {
-  max-width: none;
-  padding-bottom: env(safe-area-inset-bottom, 0px);
-}
-
-html.pwa-standalone .mobile-bottom-nav-pill {
-  border: none;
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
 }
 
 /* Global Form Elements Branding */

@@ -1,7 +1,7 @@
 # Graph Report - content-os  (2026-09-07)
 
 ## Corpus Check
-- 478 files · ~368,555 words
+- 478 files · ~368,607 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
@@ -365,8 +365,8 @@ Cohesion: 0.08
 Nodes (22): Annotation, AnnotationPosition, COMMENT_COLORS, formatSpeakingDuration(), FormattingAction, getWordCount(), RichTextEditor(), RichTextEditorProps (+14 more)
 
 ### Community 17 - "contentStock.ts"
-Cohesion: 0.37
-Nodes (11): canAdvanceToRecording(), computeSerieMetrics(), comparePublicationTimestamps(), ContentLike, getPublicationTimestamp(), isActiveContent(), isPostableStock(), isPublishedContent() (+3 more)
+Cohesion: 0.29
+Nodes (13): date-fns, canAdvanceToRecording(), computeSerieMetrics(), comparePublicationTimestamps(), ContentLike, getPublicationTimestamp(), isActiveContent(), isPostableStock() (+5 more)
 
 ### Community 18 - "StrategyHandler"
 Cohesion: 0.16
@@ -421,8 +421,8 @@ Cohesion: 0.11
 Nodes (22): ModuleFlags, NavCounts, useNavCounts(), buildSidebarSections(), isNavItemHidden(), isSettingsNavActive(), MOBILE_BOTTOM_NAV_ITEMS, MOBILE_BOTTOM_NAV_LEFT (+14 more)
 
 ### Community 33 - "PlatformCopyEditor.tsx"
-Cohesion: 0.15
-Nodes (26): handleAddFromQueue(), handleMove(), handleNameBlur(), handleRemove(), handleTagsChange(), handleTeleprompterToggle(), persistBlockMeta(), RecordingBlockEditor() (+18 more)
+Cohesion: 0.24
+Nodes (16): handleAddFromQueue(), handleMove(), handleNameBlur(), handleRemove(), handleTagsChange(), handleTeleprompterToggle(), persistBlockMeta(), RecordingBlockEditor() (+8 more)
 
 ### Community 34 - "utils.ts"
 Cohesion: 0.05
@@ -673,8 +673,8 @@ Cohesion: 0.12
 Nodes (15): Anti-Padroes Proibidos, Auditoria de Realidade 2026-05-05, Checklist Operacional Para a IA, Fase 0 - Guardrails e preparacao, Fase 1 - Fundacao mobile global, Fase 2 - Telas nucleares de uso rapido, Fase 3 - Fluxos operacionais leves, Fase 4 - Configuracoes mobile (+7 more)
 
 ### Community 97 - "pilarRhythm.test.ts"
-Cohesion: 0.18
-Nodes (15): computeAllPilarMetrics(), computePilarMetrics(), computeAllSerieMetrics(), DailyRecommendationBlockProps, compareRankedSeries(), RankedSerie, rankSeriesForPilar(), buildPilarSnapshot() (+7 more)
+Cohesion: 0.21
+Nodes (14): computeAllPilarMetrics(), computePilarMetrics(), computeAllSerieMetrics(), DailyRecommendationBlockProps, compareRankedSeries(), RankedSerie, rankSeriesForPilar(), buildPilarSnapshot() (+6 more)
 
 ### Community 99 - "dependencies"
 Cohesion: 0.32
@@ -797,12 +797,12 @@ Cohesion: 0.20
 Nodes (9): 1. Estrutura atual, 2. Problemas encontrados, 3. Proposta de reorganização, 4. O que funciona bem (manter), 5. Plano de implementação, Auditoria — Sidebar e Organização de Navegação, 🔴 Críticos, 🟢 Menores (+1 more)
 
 ### Community 132 - "4. TELAS"
-Cohesion: 0.15
-Nodes (11): ConfirmStateLocal, getBlockContents(), getBlockSummary(), getReadyContents(), RecordingBlockCard(), RecordingBlockCardProps, RecordingQueueTab(), getRecordingBlockProgress() (+3 more)
+Cohesion: 0.12
+Nodes (19): ConfirmStateLocal, getBlockContents(), getBlockSummary(), getReadyContents(), RecordingBlockCard(), RecordingBlockCardProps, RecordingQueueTab(), getRecordingBlockProgress() (+11 more)
 
 ### Community 133 - "htmlToReadableText"
-Cohesion: 0.20
-Nodes (4): date-fns, parseDateValue(), PropertyDatePicker(), PropertyDatePickerProps
+Cohesion: 0.22
+Nodes (3): parseDateValue(), PropertyDatePicker(), PropertyDatePickerProps
 
 ### Community 134 - "navConfig.test.ts"
 Cohesion: 0.29
@@ -1013,8 +1013,8 @@ Cohesion: 0.29
 Nodes (4): CacheableResponse, isArray(), isArrayOfClass(), NavigationRoute
 
 ### Community 205 - "PrecacheCacheKeyPlugin"
-Cohesion: 0.46
-Nodes (7): buildMarkStandaloneContentRecordedTransition(), createContent(), testAddsScriptToExistingBlock(), testDoesNotDuplicateScriptInBlock(), testMarksStandaloneContentAsRecorded(), testPreservesExistingRecordingMilestone(), tests
+Cohesion: 0.38
+Nodes (9): addBlockContent(), buildMarkStandaloneContentRecordedTransition(), createContent(), testAddsScriptToExistingBlock(), testDoesNotDuplicateScriptInBlock(), testMarksStandaloneContentAsRecorded(), testPreservesExistingRecordingMilestone(), tests (+1 more)
 
 ### Community 210 - "statusClasses.ts"
 Cohesion: 0.33

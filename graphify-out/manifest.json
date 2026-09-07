@@ -1285,8 +1285,8 @@
     "semantic_hash": ""
   },
   "src/layouts/app/AppShell.tsx": {
-    "mtime": 1788821304.396072,
-    "ast_hash": "64ba0cddd8be30b3b7e41dfd187b7046",
+    "mtime": 1788821651.7279928,
+    "ast_hash": "71f14c3659081548ea53feea38ce073a",
     "semantic_hash": ""
   },
   "src/layouts/navigation/navConfig.ts": {
