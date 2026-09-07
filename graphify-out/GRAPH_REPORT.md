@@ -1,16 +1,16 @@
 # Graph Report - content-os  (2026-09-07)
 
 ## Corpus Check
-- 478 files · ~368,551 words
+- 478 files · ~368,607 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 3720 nodes · 9520 edges · 256 communities (193 shown, 63 thin omitted)
+- 3720 nodes · 9520 edges · 257 communities (193 shown, 64 thin omitted)
 - Extraction: 97% EXTRACTED · 3% INFERRED · 0% AMBIGUOUS · INFERRED: 295 edges (avg confidence: 0.73)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `051f040c`
+- Built from commit: `71fca6b6`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -265,6 +265,7 @@
 - ViewModeToggle.tsx
 - recommendDailyAction.test.ts
 - format
+- ContentDetailTab
 
 ## God Nodes (most connected - your core abstractions)
 1. `cn()` - 323 edges
@@ -293,7 +294,7 @@
 ## Import Cycles
 - 3-file cycle: `src/components/calendar/calendarPillStyles.ts -> src/features/editorial-calendar/components/MonthlyCalendarView.tsx -> src/components/calendar/index.ts -> src/components/calendar/calendarPillStyles.ts`
 
-## Communities (256 total, 63 thin omitted)
+## Communities (257 total, 64 thin omitted)
 
 ### Community 0 - "IdeasPage.tsx"
 Cohesion: 0.18
@@ -364,16 +365,12 @@ Cohesion: 0.08
 Nodes (22): Annotation, AnnotationPosition, COMMENT_COLORS, formatSpeakingDuration(), FormattingAction, getWordCount(), RichTextEditor(), RichTextEditorProps (+14 more)
 
 ### Community 17 - "contentStock.ts"
-Cohesion: 0.37
-Nodes (11): canAdvanceToRecording(), computeSerieMetrics(), comparePublicationTimestamps(), ContentLike, getPublicationTimestamp(), isActiveContent(), isPostableStock(), isPublishedContent() (+3 more)
+Cohesion: 0.29
+Nodes (13): date-fns, canAdvanceToRecording(), computeSerieMetrics(), comparePublicationTimestamps(), ContentLike, getPublicationTimestamp(), isActiveContent(), isPostableStock() (+5 more)
 
 ### Community 18 - "StrategyHandler"
 Cohesion: 0.16
 Nodes (23): IdeaInboxCard(), IdeaInboxCardProps, previewNotes(), useIdeasInboxFilters(), hydrateIdeaFromDemotedContent(), hydrateIdeasFromDemotedContents(), filterIdeas(), ideaHasClassification() (+15 more)
-
-### Community 19 - "CampanhaPublicaPage.tsx"
-Cohesion: 0.18
-Nodes (4): ContentDetailHeader(), ContentPrimaryAction, PAGE_SECTION, ContentDetailMobileScreenProps
 
 ### Community 20 - "useIsMobile"
 Cohesion: 0.06
@@ -560,8 +557,8 @@ Cohesion: 0.15
 Nodes (13): autoprefixer, devDependencies, autoprefixer, tailwindcss, tsx, @types/express, @types/node, typescript (+5 more)
 
 ### Community 68 - "Mapeamento Arquivo a Arquivo"
-Cohesion: 0.47
-Nodes (8): buildIdeaBodyFromContent(), buildIdeaFromContent(), buildIdeaTextFromContent(), createIdeaFromContent(), DemoteContentsPlan, planDemoteContentsToIdeas(), restoreIdeaFromContent(), composeIdeaText()
+Cohesion: 0.26
+Nodes (14): buildIdeaBodyFromContent(), buildIdeaFromContent(), buildIdeaTextFromContent(), createIdeaFromContent(), DemoteContentsPlan, planDemoteContentsToIdeas(), restoreIdeaFromContent(), composeIdeaText() (+6 more)
 
 ### Community 69 - "currentUserId"
 Cohesion: 0.19
@@ -676,8 +673,8 @@ Cohesion: 0.12
 Nodes (15): Anti-Padroes Proibidos, Auditoria de Realidade 2026-05-05, Checklist Operacional Para a IA, Fase 0 - Guardrails e preparacao, Fase 1 - Fundacao mobile global, Fase 2 - Telas nucleares de uso rapido, Fase 3 - Fluxos operacionais leves, Fase 4 - Configuracoes mobile (+7 more)
 
 ### Community 97 - "pilarRhythm.test.ts"
-Cohesion: 0.18
-Nodes (15): computeAllPilarMetrics(), computePilarMetrics(), computeAllSerieMetrics(), DailyRecommendationBlockProps, compareRankedSeries(), RankedSerie, rankSeriesForPilar(), buildPilarSnapshot() (+7 more)
+Cohesion: 0.21
+Nodes (14): computeAllPilarMetrics(), computePilarMetrics(), computeAllSerieMetrics(), DailyRecommendationBlockProps, compareRankedSeries(), RankedSerie, rankSeriesForPilar(), buildPilarSnapshot() (+6 more)
 
 ### Community 99 - "dependencies"
 Cohesion: 0.32
@@ -740,8 +737,8 @@ Cohesion: 0.29
 Nodes (3): CacheableResponse, isInstance(), RegExpRoute
 
 ### Community 117 - "recordingWorkflow.test.ts"
-Cohesion: 0.14
-Nodes (22): ContentDetailTabs(), ContentDetailTabsProps, TAB_META, ContentPipelineStepper(), ContentPipelineStepperProps, stageIndex(), STEP_LABELS, StepIndicator() (+14 more)
+Cohesion: 0.17
+Nodes (18): ContentPipelineStepper(), ContentPipelineStepperProps, stageIndex(), STEP_LABELS, StepIndicator(), CONTENT_PIPELINE_TABS, ContentPrimaryActionId, getContentStage() (+10 more)
 
 ### Community 118 - "saveFeedback.ts"
 Cohesion: 0.29
@@ -804,16 +801,16 @@ Cohesion: 0.12
 Nodes (19): ConfirmStateLocal, getBlockContents(), getBlockSummary(), getReadyContents(), RecordingBlockCard(), RecordingBlockCardProps, RecordingQueueTab(), getRecordingBlockProgress() (+11 more)
 
 ### Community 133 - "htmlToReadableText"
-Cohesion: 0.20
-Nodes (4): date-fns, parseDateValue(), PropertyDatePicker(), PropertyDatePickerProps
+Cohesion: 0.22
+Nodes (3): parseDateValue(), PropertyDatePicker(), PropertyDatePickerProps
 
 ### Community 134 - "navConfig.test.ts"
 Cohesion: 0.29
 Nodes (10): isBottomNavItemActive(), splitBottomNavItems(), testBibliotecaHighlightsDetailRoutes(), testContentDetailHighlightsCriacao(), testHomeRouteOnlyMatchesHoje(), testRecordingDetailHighlightsGravacao(), tests, testSplitsFourItemsEvenly() (+2 more)
 
 ### Community 135 - "ContentTable.tsx"
-Cohesion: 0.14
-Nodes (18): Dialog(), FixedPanelModal(), FixedPanelModalProps, getScriptLabel(), clamp(), loadReaderSettings(), RecordingScriptReader(), contentPreviewText() (+10 more)
+Cohesion: 0.18
+Nodes (12): Dialog(), FixedPanelModal(), FixedPanelModalProps, clamp(), loadReaderSettings(), RecordingScriptReader(), useBodyScrollLock(), countWords() (+4 more)
 
 ### Community 136 - "Contrato minimo por componente"
 Cohesion: 0.22
@@ -1043,15 +1040,19 @@ Nodes (4): createContent(), createPilar(), createSerie(), NOW
 Cohesion: 0.67
 Nodes (3): getItemsForDay(), getItemsForDay(), format()
 
+### Community 250 - "ContentDetailTab"
+Cohesion: 0.33
+Nodes (6): ContentDetailTabs(), ContentDetailTabsProps, TAB_META, ContentDetailTab, ContentPrimaryAction, ContentDetailMobileScreenProps
+
 ## Knowledge Gaps
 - **1188 isolated node(s):** `supabase`, `name`, `private`, `version`, `type` (+1183 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **63 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **64 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `cn()` connect `detailBack.ts` to `programacao.ts`, `DashboardPage.tsx`, `CreationHubPage.tsx`, `htmlToReadableText`, `4. TELAS`, `ContentTable.tsx`, `navConfig.test.ts`, `workbox-ca84f546.js`, `database.ts`, `Text`, `shouldSkipRealtimeRefresh`, `LibraryPage.tsx`, `PageLayout.tsx`, `ProjectDetailPage.tsx`, `StrategyHandler`, `StrategyHandler`, `CampanhaPublicaPage.tsx`, `CacheTimestampsModel`, `Plano de Implementacao`, `TagSelect.tsx`, `ContentDetailShell.tsx`, `SettingsPage.tsx`, `IconButton.tsx`, `getDisplayStatus`, `Router`, `IdeasMobileScreen.tsx`, `@tiptap/extension-underline`, `PlatformCopyEditor.tsx`, `BookAnnotationComposerSheet.tsx`, `RecordingMobileScreen.tsx`, `PillarsSettingsPage.tsx`, `recordingWorkflow.ts`, `useMediaQuery`, `useBodyScrollLock`, `BurstModeExperience.tsx`, `isInstance`, `getGentleExperienceSettings`, `persistentDataCache.ts`, `PrecacheController`, `index.ts`, `SeriesCreateContentForm.tsx`, `AppContext.tsx`, `PropertyDatePicker.tsx`, `SendToRecordingSheet.tsx`, `ContentsPage.tsx`, `cn`, `SerieEditForm.tsx`, `LooksSettingsPage.tsx`, `CalendarMiniMonth.tsx`, `.constructor`, `PillarEditPage.tsx`, `format`, `Briefing Dev — Content OS`, `currentUserId`, `PLAYBOOK — Core Creator`, `statusClasses.ts`, `sw.js`, `design-migrate.mjs`, `dependencies`, `TagSelect.tsx`, `contentPipeline.ts`, `SeriesContentList.tsx`, `index.ts`, `recordingWorkflow.test.ts`, `saveFeedback.ts`, `ViewModeToggle.tsx`, `domainCacheSync.ts`, `ContentsMobileScreen.tsx`, `shouldSkipRealtimeRefresh`?**
+- **Why does `cn()` connect `detailBack.ts` to `programacao.ts`, `DashboardPage.tsx`, `CreationHubPage.tsx`, `htmlToReadableText`, `4. TELAS`, `ContentTable.tsx`, `navConfig.test.ts`, `workbox-ca84f546.js`, `database.ts`, `Text`, `shouldSkipRealtimeRefresh`, `LibraryPage.tsx`, `PageLayout.tsx`, `ProjectDetailPage.tsx`, `StrategyHandler`, `StrategyHandler`, `CampanhaPublicaPage.tsx`, `CacheTimestampsModel`, `Plano de Implementacao`, `TagSelect.tsx`, `ContentDetailShell.tsx`, `SettingsPage.tsx`, `IconButton.tsx`, `getDisplayStatus`, `Router`, `IdeasMobileScreen.tsx`, `@tiptap/extension-underline`, `PlatformCopyEditor.tsx`, `BookAnnotationComposerSheet.tsx`, `RecordingMobileScreen.tsx`, `PillarsSettingsPage.tsx`, `recordingWorkflow.ts`, `useMediaQuery`, `useBodyScrollLock`, `BurstModeExperience.tsx`, `isInstance`, `getGentleExperienceSettings`, `persistentDataCache.ts`, `PrecacheController`, `index.ts`, `SeriesCreateContentForm.tsx`, `AppContext.tsx`, `PropertyDatePicker.tsx`, `SendToRecordingSheet.tsx`, `ContentsPage.tsx`, `cn`, `SerieEditForm.tsx`, `LooksSettingsPage.tsx`, `CalendarMiniMonth.tsx`, `.constructor`, `PillarEditPage.tsx`, `format`, `Briefing Dev — Content OS`, `currentUserId`, `PLAYBOOK — Core Creator`, `statusClasses.ts`, `sw.js`, `design-migrate.mjs`, `dependencies`, `TagSelect.tsx`, `contentPipeline.ts`, `SeriesContentList.tsx`, `index.ts`, `recordingWorkflow.test.ts`, `saveFeedback.ts`, `ViewModeToggle.tsx`, `ContentDetailTab`, `domainCacheSync.ts`, `ContentsMobileScreen.tsx`, `shouldSkipRealtimeRefresh`?**
   _High betweenness centrality (0.053) - this node is a cross-community bridge._
 - **Why does `react` connect `IconButton.tsx` to `IdeasPage.tsx`, `programacao.ts`, `DashboardPage.tsx`, `PilarEditForm.tsx`, `CreationHubPage.tsx`, `htmlToReadableText`, `4. TELAS`, `ContentTable.tsx`, `workbox-21a80088.js`, `workbox-ca84f546.js`, `database.ts`, `Text`, `shouldSkipRealtimeRefresh`, `LibraryPage.tsx`, `ProjectDetailPage.tsx`, `StrategyHandler`, `StrategyHandler`, `CampanhaPublicaPage.tsx`, `CacheTimestampsModel`, `Plano de Implementacao`, `TagSelect.tsx`, `ContentDetailShell.tsx`, `SettingsPage.tsx`, `getDisplayStatus`, `AppButton.tsx`, `Router`, `Router`, `IdeasMobileScreen.tsx`, `@tiptap/extension-underline`, `PlatformCopyEditor.tsx`, `BookAnnotationComposerSheet.tsx`, `PillarsSettingsPage.tsx`, `recordingWorkflow.ts`, `detailBack.ts`, `useMediaQuery`, `useBodyScrollLock`, `BurstModeExperience.tsx`, `isInstance`, `getGentleExperienceSettings`, `domainCacheSync.test.ts`, `PrecacheController`, `index.ts`, `SeriesCreateContentForm.tsx`, `PropertyDatePicker.tsx`, `SendToRecordingSheet.tsx`, `ContentsPage.tsx`, `SerieEditForm.tsx`, `contentDetailRoute.ts`, `LooksSettingsPage.tsx`, `currentUserId`, `PillarEditPage.tsx`, `format`, `Briefing Dev — Content OS`, `PLAYBOOK — Core Creator`, `sw.js`, `design-migrate.mjs`, `TagSelect.tsx`, `contentPipeline.ts`, `index.ts`, `saveFeedback.ts`, `pwaRefresh.ts`, `domainCacheSync.ts`, `ContentsMobileScreen.tsx`, `shouldSkipRealtimeRefresh`?**
   _High betweenness centrality (0.046) - this node is a cross-community bridge._

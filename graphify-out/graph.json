@@ -3932,8 +3932,8 @@
       "source_location": "L40",
       "_origin": "ast",
       "id": "date_fns",
-      "community": 133,
-      "community_name": "htmlToReadableText",
+      "community": 17,
+      "community_name": "contentStock.ts",
       "norm_label": "date-fns"
     },
     {
@@ -9971,8 +9971,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_features_contents_components_detail_contentdetailtabs",
-      "community": 117,
-      "community_name": "recordingWorkflow.test.ts",
+      "community": 250,
+      "community_name": "ContentDetailTab",
       "norm_label": "contentdetailtabs.tsx"
     },
     {
@@ -9982,8 +9982,8 @@
       "source_location": "L5",
       "_origin": "ast",
       "id": "src_features_contents_components_detail_contentdetailtabs_tab_meta",
-      "community": 117,
-      "community_name": "recordingWorkflow.test.ts",
+      "community": 250,
+      "community_name": "ContentDetailTab",
       "norm_label": "tab_meta"
     },
     {
@@ -9993,8 +9993,8 @@
       "source_location": "L14",
       "_origin": "ast",
       "id": "src_features_contents_components_detail_contentdetailtabs_contentdetailtabsprops",
-      "community": 117,
-      "community_name": "recordingWorkflow.test.ts",
+      "community": 250,
+      "community_name": "ContentDetailTab",
       "norm_label": "contentdetailtabsprops"
     },
     {
@@ -10004,8 +10004,8 @@
       "source_location": "L21",
       "_origin": "ast",
       "id": "src_features_contents_components_detail_contentdetailtabs_contentdetailtabs",
-      "community": 117,
-      "community_name": "recordingWorkflow.test.ts",
+      "community": 250,
+      "community_name": "ContentDetailTab",
       "norm_label": "contentdetailtabs()"
     },
     {
@@ -11192,8 +11192,8 @@
       "source_location": "L51",
       "_origin": "ast",
       "id": "src_features_contents_lib_contentpipeline_contentdetailtab",
-      "community": 117,
-      "community_name": "recordingWorkflow.test.ts",
+      "community": 250,
+      "community_name": "ContentDetailTab",
       "norm_label": "contentdetailtab"
     },
     {
@@ -11214,8 +11214,8 @@
       "source_location": "L62",
       "_origin": "ast",
       "id": "src_features_contents_lib_contentpipeline_contentprimaryaction",
-      "community": 19,
-      "community_name": "CampanhaPublicaPage.tsx",
+      "community": 250,
+      "community_name": "ContentDetailTab",
       "norm_label": "contentprimaryaction"
     },
     {
@@ -16923,8 +16923,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_features_recommendations_cycle",
-      "community": 97,
-      "community_name": "pilarRhythm.test.ts",
+      "community": 17,
+      "community_name": "contentStock.ts",
       "norm_label": "cycle.ts"
     },
     {
@@ -17154,8 +17154,8 @@
       "source_location": "L43",
       "_origin": "ast",
       "id": "src_features_recommendations_types_cyclewindow",
-      "community": 97,
-      "community_name": "pilarRhythm.test.ts",
+      "community": 17,
+      "community_name": "contentStock.ts",
       "norm_label": "cyclewindow"
     },
     {
@@ -23380,8 +23380,8 @@
       "source_location": "L21",
       "_origin": "ast",
       "id": "src_lib_utils_htmltoreadabletext",
-      "community": 135,
-      "community_name": "ContentTable.tsx",
+      "community": 68,
+      "community_name": "Mapeamento Arquivo a Arquivo",
       "norm_label": "htmltoreadabletext()"
     },
     {
@@ -23520,7 +23520,7 @@
       "label": "MobileBottomNav()",
       "file_type": "code",
       "source_file": "src/mobile/components/MobileBottomNav.tsx",
-      "source_location": "L50",
+      "source_location": "L47",
       "_origin": "ast",
       "id": "src_mobile_components_mobilebottomnav_mobilebottomnav",
       "community": 32,
@@ -24326,8 +24326,8 @@
       "source_location": "L22",
       "_origin": "ast",
       "id": "src_mobile_screens_contents_contentdetailmobilescreen_contentdetailmobilescreenprops",
-      "community": 19,
-      "community_name": "CampanhaPublicaPage.tsx",
+      "community": 250,
+      "community_name": "ContentDetailTab",
       "norm_label": "contentdetailmobilescreenprops"
     },
     {
@@ -39322,9 +39322,9 @@
       "file_type": "code",
       "source_file": "src/features/settings/pages/SeriesScriptsPage.tsx",
       "source_location": "L21",
-      "community": 135,
+      "community": 68,
       "norm_label": "contentpreviewtext()",
-      "community_name": "ContentTable.tsx",
+      "community_name": "Mapeamento Arquivo a Arquivo",
       "id": "src_features_settings_pages_seriesscriptspage_contentpreviewtext"
     },
     {
@@ -39332,9 +39332,9 @@
       "file_type": "code",
       "source_file": "src/features/settings/pages/SeriesScriptsPage.tsx",
       "source_location": "L31",
-      "community": 135,
+      "community": 68,
       "norm_label": "scriptwordcount()",
-      "community_name": "ContentTable.tsx",
+      "community_name": "Mapeamento Arquivo a Arquivo",
       "id": "src_features_settings_pages_seriesscriptspage_scriptwordcount"
     },
     {
@@ -39352,9 +39352,9 @@
       "file_type": "code",
       "source_file": "src/mobile/screens/settings/SeriesDetailMobileScreen.tsx",
       "source_location": "L22",
-      "community": 135,
+      "community": 68,
       "norm_label": "contentpreviewtext()",
-      "community_name": "ContentTable.tsx",
+      "community_name": "Mapeamento Arquivo a Arquivo",
       "id": "src_mobile_screens_settings_seriesdetailmobilescreen_contentpreviewtext"
     },
     {
@@ -39362,9 +39362,9 @@
       "file_type": "code",
       "source_file": "src/mobile/screens/settings/SeriesDetailMobileScreen.tsx",
       "source_location": "L28",
-      "community": 135,
+      "community": 68,
       "norm_label": "scriptwordcount()",
-      "community_name": "ContentTable.tsx",
+      "community_name": "Mapeamento Arquivo a Arquivo",
       "id": "src_mobile_screens_settings_seriesdetailmobilescreen_scriptwordcount"
     },
     {
@@ -39952,9 +39952,9 @@
       "file_type": "code",
       "source_file": "src/features/recording/components/desktop/RecordingQueueTab.tsx",
       "source_location": "L28",
-      "community": 135,
+      "community": 68,
       "norm_label": "getscriptlabel()",
-      "community_name": "ContentTable.tsx",
+      "community_name": "Mapeamento Arquivo a Arquivo",
       "id": "src_features_recording_components_desktop_recordingqueuetab_getscriptlabel"
     },
     {
@@ -77673,7 +77673,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "src/mobile/components/MobileBottomNav.tsx",
-      "source_location": "L51",
+      "source_location": "L48",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_mobile_components_mobilebottomnav_mobilebottomnav",
@@ -125898,7 +125898,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/layouts/app/AppShell.tsx",
-      "source_location": "L162",
+      "source_location": "L182",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_layouts_app_appshell_appshell",
@@ -126746,7 +126746,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/mobile/components/MobileBottomNav.tsx",
-      "source_location": "L51",
+      "source_location": "L48",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_mobile_components_mobilebottomnav_mobilebottomnav",
@@ -133875,7 +133875,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/mobile/components/MobileBottomNav.tsx",
-      "source_location": "L74",
+      "source_location": "L72",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_mobile_components_mobilebottomnav_mobilebottomnav",
@@ -134808,7 +134808,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/mobile/components/MobileBottomNav.tsx",
-      "source_location": "L50",
+      "source_location": "L47",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_mobile_components_mobilebottomnav",
@@ -150182,5 +150182,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "051f040cc4bfcb6a2b2ede41a9d88ad66aab8c7b"
+  "built_at_commit": "71fca6b68bdf40e9921cfa8aa8e204a56f2054d3"
 }

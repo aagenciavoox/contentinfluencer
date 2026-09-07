@@ -454,6 +454,63 @@ body.mobile-burst-open > [data-burst-portal] {
   padding-top: max(1.25rem, env(safe-area-inset-top));
 }
 
+/* Bottom nav: floating pill in browser; docked surface in PWA (no grey safe-area strip). */
+.mobile-bottom-nav {
+  padding-left: 1rem;
+  padding-right: 1rem;
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom, 0px));
+}
+
+.mobile-bottom-nav-pill {
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  box-shadow: var(--shadow-dropdown);
+}
+
+@media (display-mode: standalone), (display-mode: fullscreen) {
+  .mobile-bottom-nav {
+    padding-left: 0;
+    padding-right: 0;
+    padding-bottom: 0;
+    border-top: 1px solid var(--border-color);
+    background: var(--bg-secondary);
+  }
+
+  .mobile-bottom-nav-inner {
+    max-width: none;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  .mobile-bottom-nav-pill {
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+}
+
+/* iOS home-screen PWA before display-mode support */
+html.pwa-standalone .mobile-bottom-nav {
+  padding-left: 0;
+  padding-right: 0;
+  padding-bottom: 0;
+  border-top: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+}
+
+html.pwa-standalone .mobile-bottom-nav-inner {
+  max-width: none;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+html.pwa-standalone .mobile-bottom-nav-pill {
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
 /* Global Form Elements Branding */
 input[type="text"]:not(.filter-bar-search-input):not(.input-plain),
 input[type="number"], input[type="password"], input[type="email"], input[type="date"],

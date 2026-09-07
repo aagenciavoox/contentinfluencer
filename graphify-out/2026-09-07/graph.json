@@ -3932,8 +3932,8 @@
       "source_location": "L40",
       "_origin": "ast",
       "id": "date_fns",
-      "community": 17,
-      "community_name": "contentStock.ts",
+      "community": 133,
+      "community_name": "htmlToReadableText",
       "norm_label": "date-fns"
     },
     {
@@ -9971,8 +9971,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_features_contents_components_detail_contentdetailtabs",
-      "community": 117,
-      "community_name": "recordingWorkflow.test.ts",
+      "community": 250,
+      "community_name": "ContentDetailTab",
       "norm_label": "contentdetailtabs.tsx"
     },
     {
@@ -9982,8 +9982,8 @@
       "source_location": "L5",
       "_origin": "ast",
       "id": "src_features_contents_components_detail_contentdetailtabs_tab_meta",
-      "community": 117,
-      "community_name": "recordingWorkflow.test.ts",
+      "community": 250,
+      "community_name": "ContentDetailTab",
       "norm_label": "tab_meta"
     },
     {
@@ -9993,8 +9993,8 @@
       "source_location": "L14",
       "_origin": "ast",
       "id": "src_features_contents_components_detail_contentdetailtabs_contentdetailtabsprops",
-      "community": 117,
-      "community_name": "recordingWorkflow.test.ts",
+      "community": 250,
+      "community_name": "ContentDetailTab",
       "norm_label": "contentdetailtabsprops"
     },
     {
@@ -10004,8 +10004,8 @@
       "source_location": "L21",
       "_origin": "ast",
       "id": "src_features_contents_components_detail_contentdetailtabs_contentdetailtabs",
-      "community": 117,
-      "community_name": "recordingWorkflow.test.ts",
+      "community": 250,
+      "community_name": "ContentDetailTab",
       "norm_label": "contentdetailtabs()"
     },
     {
@@ -11192,8 +11192,8 @@
       "source_location": "L51",
       "_origin": "ast",
       "id": "src_features_contents_lib_contentpipeline_contentdetailtab",
-      "community": 117,
-      "community_name": "recordingWorkflow.test.ts",
+      "community": 250,
+      "community_name": "ContentDetailTab",
       "norm_label": "contentdetailtab"
     },
     {
@@ -11214,8 +11214,8 @@
       "source_location": "L62",
       "_origin": "ast",
       "id": "src_features_contents_lib_contentpipeline_contentprimaryaction",
-      "community": 19,
-      "community_name": "CampanhaPublicaPage.tsx",
+      "community": 250,
+      "community_name": "ContentDetailTab",
       "norm_label": "contentprimaryaction"
     },
     {
@@ -16923,8 +16923,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_features_recommendations_cycle",
-      "community": 17,
-      "community_name": "contentStock.ts",
+      "community": 97,
+      "community_name": "pilarRhythm.test.ts",
       "norm_label": "cycle.ts"
     },
     {
@@ -17154,8 +17154,8 @@
       "source_location": "L43",
       "_origin": "ast",
       "id": "src_features_recommendations_types_cyclewindow",
-      "community": 17,
-      "community_name": "contentStock.ts",
+      "community": 97,
+      "community_name": "pilarRhythm.test.ts",
       "norm_label": "cyclewindow"
     },
     {
@@ -17484,8 +17484,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_features_recording_lib_recordingworkflow",
-      "community": 132,
-      "community_name": "4. TELAS",
+      "community": 33,
+      "community_name": "PlatformCopyEditor.tsx",
       "norm_label": "recordingworkflow.ts"
     },
     {
@@ -17495,8 +17495,8 @@
       "source_location": "L4",
       "_origin": "ast",
       "id": "src_features_recording_lib_recordingworkflow_markcontentrecordedparams",
-      "community": 132,
-      "community_name": "4. TELAS",
+      "community": 33,
+      "community_name": "PlatformCopyEditor.tsx",
       "norm_label": "markcontentrecordedparams"
     },
     {
@@ -17506,8 +17506,8 @@
       "source_location": "L10",
       "_origin": "ast",
       "id": "src_features_recording_lib_recordingworkflow_recordingblocklabelsparams",
-      "community": 132,
-      "community_name": "4. TELAS",
+      "community": 33,
+      "community_name": "PlatformCopyEditor.tsx",
       "norm_label": "recordingblocklabelsparams"
     },
     {
@@ -17517,8 +17517,8 @@
       "source_location": "L15",
       "_origin": "ast",
       "id": "src_features_recording_lib_recordingworkflow_recordingtagmetadata",
-      "community": 132,
-      "community_name": "4. TELAS",
+      "community": 33,
+      "community_name": "PlatformCopyEditor.tsx",
       "norm_label": "recordingtagmetadata"
     },
     {
@@ -17528,8 +17528,8 @@
       "source_location": "L19",
       "_origin": "ast",
       "id": "src_features_recording_lib_recordingworkflow_recordingblockprogress",
-      "community": 132,
-      "community_name": "4. TELAS",
+      "community": 33,
+      "community_name": "PlatformCopyEditor.tsx",
       "norm_label": "recordingblockprogress"
     },
     {
@@ -17539,8 +17539,8 @@
       "source_location": "L27",
       "_origin": "ast",
       "id": "src_features_recording_lib_recordingworkflow_getcontentidsinblocks",
-      "community": 132,
-      "community_name": "4. TELAS",
+      "community": 33,
+      "community_name": "PlatformCopyEditor.tsx",
       "norm_label": "getcontentidsinblocks()"
     },
     {
@@ -17550,8 +17550,8 @@
       "source_location": "L37",
       "_origin": "ast",
       "id": "src_features_recording_lib_recordingworkflow_isblockcontentcomplete",
-      "community": 132,
-      "community_name": "4. TELAS",
+      "community": 33,
+      "community_name": "PlatformCopyEditor.tsx",
       "norm_label": "isblockcontentcomplete()"
     },
     {
@@ -17616,8 +17616,8 @@
       "source_location": "L101",
       "_origin": "ast",
       "id": "src_features_recording_lib_recordingworkflow_addblockcontent",
-      "community": 205,
-      "community_name": "PrecacheCacheKeyPlugin",
+      "community": 33,
+      "community_name": "PlatformCopyEditor.tsx",
       "norm_label": "addblockcontent()"
     },
     {
@@ -17627,8 +17627,8 @@
       "source_location": "L119",
       "_origin": "ast",
       "id": "src_features_recording_lib_recordingworkflow_getrecordingblocktags",
-      "community": 132,
-      "community_name": "4. TELAS",
+      "community": 33,
+      "community_name": "PlatformCopyEditor.tsx",
       "norm_label": "getrecordingblocktags()"
     },
     {
@@ -17671,8 +17671,8 @@
       "source_location": "L170",
       "_origin": "ast",
       "id": "src_features_recording_lib_recordingworkflow_buildsaverecordingsessiontransition",
-      "community": 132,
-      "community_name": "4. TELAS",
+      "community": 33,
+      "community_name": "PlatformCopyEditor.tsx",
       "norm_label": "buildsaverecordingsessiontransition()"
     },
     {
@@ -17682,8 +17682,8 @@
       "source_location": "L193",
       "_origin": "ast",
       "id": "src_features_recording_lib_recordingworkflow_normalizerecordingtags",
-      "community": 132,
-      "community_name": "4. TELAS",
+      "community": 33,
+      "community_name": "PlatformCopyEditor.tsx",
       "norm_label": "normalizerecordingtags()"
     },
     {
@@ -17693,8 +17693,8 @@
       "source_location": "L207",
       "_origin": "ast",
       "id": "src_features_recording_lib_recordingworkflow_resolverecordingcontexttags",
-      "community": 132,
-      "community_name": "4. TELAS",
+      "community": 33,
+      "community_name": "PlatformCopyEditor.tsx",
       "norm_label": "resolverecordingcontexttags()"
     },
     {
@@ -24007,8 +24007,8 @@
       "source_location": "L26",
       "_origin": "ast",
       "id": "src_mobile_components_sendtorecordingsheet_sendtorecordingsheet",
-      "community": 205,
-      "community_name": "PrecacheCacheKeyPlugin",
+      "community": 33,
+      "community_name": "PlatformCopyEditor.tsx",
       "norm_label": "sendtorecordingsheet()"
     },
     {
@@ -24326,8 +24326,8 @@
       "source_location": "L22",
       "_origin": "ast",
       "id": "src_mobile_screens_contents_contentdetailmobilescreen_contentdetailmobilescreenprops",
-      "community": 19,
-      "community_name": "CampanhaPublicaPage.tsx",
+      "community": 250,
+      "community_name": "ContentDetailTab",
       "norm_label": "contentdetailmobilescreenprops"
     },
     {
@@ -150182,5 +150182,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "051f040cc4bfcb6a2b2ede41a9d88ad66aab8c7b"
+  "built_at_commit": "71fca6b68bdf40e9921cfa8aa8e204a56f2054d3"
 }

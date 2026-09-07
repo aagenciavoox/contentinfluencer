@@ -125,6 +125,26 @@ export function AppShell() {
     };
   }, [isMobile]);
 
+  useEffect(() => {
+    const root = document.documentElement;
+    const mq = window.matchMedia('(display-mode: standalone), (display-mode: fullscreen)');
+    const iosStandalone = Boolean(
+      (window.navigator as Navigator & { standalone?: boolean }).standalone,
+    );
+
+    const sync = () => {
+      const isStandalone = mq.matches || iosStandalone;
+      root.classList.toggle('pwa-standalone', isStandalone);
+    };
+
+    sync();
+    mq.addEventListener('change', sync);
+    return () => {
+      mq.removeEventListener('change', sync);
+      root.classList.remove('pwa-standalone');
+    };
+  }, []);
+
   const chromeActions: MobileChromeOutletContext = {
     openMobileMenu: () => setIsMobileMenuOpen(true),
     openSearch: () => setIsCommandPaletteOpen(true),
