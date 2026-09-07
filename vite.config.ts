@@ -15,6 +15,7 @@ export default defineConfig(() => {
         includeAssets: [
           'favicon.ico',
           'favicon.svg',
+          'favicon-32.png',
           'apple-touch-icon-180x180.png',
           'pwa-64x64.png',
           'pwa-192x192.png',
