@@ -2082,6 +2082,9 @@ html.mobile-app-shell .segment-tabs-item-active {
 /* ── Overlay scroll body ── */
 .overlay-body {
   padding: var(--space-lg) var(--space-xl);
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
 }
 
 @media (max-width: 1023px) {

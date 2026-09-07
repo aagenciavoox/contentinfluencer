@@ -15,8 +15,10 @@ import { BottomSheetModal } from '../../../components/feedback/modals/BottomShee
 import { Text } from '../../../components/ui/Text';
 import { useAppContext } from '../../../context/AppContext';
 import { useBodyScrollLock } from '../../../hooks/useBodyScrollLock';
+import { useHydrateContentBodies } from '../../../hooks/useHydrateContentBodies';
 import type { Content, RecordingBlock } from '../../../lib/database';
 import { cn, htmlToReadableText } from '../../../lib/utils';
+import { isContentBodyLoaded } from '../../../features/contents/lib/contentBody';
 import { isRecordingBlockTeleprompterEnabled } from '../../../features/recording/lib/recordingWorkflow';
 
 type BurstTheme = 'paper' | 'night' | 'amber';
@@ -203,6 +205,19 @@ export function BurstModeMobileScreen({
   const [playhead, setPlayhead] = useState(0);
   const lastPersistedSettings = useRef(JSON.stringify(persistedSettings));
 
+  const entryContentIds = useMemo(() => entries.map(entry => entry.content.id), [entries]);
+  const {hasHydrationError} = useHydrateContentBodies(entryContentIds);
+
+  // Prefer live app state so hydration updates the teleprompter without remounting.
+  const liveEntries = useMemo(
+    () =>
+      entries.map(entry => {
+        const live = state.contents.find(content => content.id === entry.content.id);
+        return live ? {...entry, content: live} : entry;
+      }),
+    [entries, state.contents]
+  );
+
   useEffect(() => {
     const serialized = JSON.stringify(persistedSettings);
     lastPersistedSettings.current = serialized;
@@ -241,15 +256,21 @@ export function BurstModeMobileScreen({
   }, [dispatch, settings]);
 
   useEffect(() => {
-    setCurrentIndex(previous => clamp(previous, 0, Math.max(entries.length - 1, 0)));
-  }, [entries.length]);
+    setCurrentIndex(previous => clamp(previous, 0, Math.max(liveEntries.length - 1, 0)));
+  }, [liveEntries.length]);
 
-  const currentEntry = entries[currentIndex] ?? null;
+  const currentEntry = liveEntries[currentIndex] ?? null;
   const currentContent = currentEntry?.content ?? null;
-  const currentScript = useMemo(
-    () => htmlToReadableText(currentContent?.script) || 'Sem roteiro. Grave no freestyle.',
-    [currentContent?.script]
-  );
+  const currentScript = useMemo(() => {
+    if (!currentContent) return 'Sem roteiro. Grave no freestyle.';
+    if (!isContentBodyLoaded(currentContent)) {
+      if (hasHydrationError(currentContent.id)) {
+        return 'Não foi possível carregar o roteiro.';
+      }
+      return 'Carregando roteiro...';
+    }
+    return htmlToReadableText(currentContent.script) || 'Sem roteiro. Grave no freestyle.';
+  }, [currentContent, hasHydrationError]);
   const scriptLines = useMemo(() => buildPrompterLines(currentScript), [currentScript]);
   const lineWordCounts = useMemo(() => scriptLines.map(line => Math.max(1, countWords(line))), [scriptLines]);
   const totalWords = useMemo(() => lineWordCounts.reduce((sum, count) => sum + count, 0), [lineWordCounts]);
@@ -257,8 +278,8 @@ export function BurstModeMobileScreen({
   const currentLineIndex = clamp(Math.round(playhead), 0, Math.max(scriptLines.length - 1, 0));
   const elapsedRatio = scriptLines.length <= 1 ? 0 : clamp(playhead / Math.max(scriptLines.length - 1, 1), 0, 1);
   const elapsedSeconds = totalEstimatedSeconds * elapsedRatio;
-  const recordedCount = entries.filter(entry => entry.gravado).length;
-  const progressPercentage = entries.length === 0 ? 0 : Math.round((recordedCount / entries.length) * 100);
+  const recordedCount = liveEntries.filter(entry => entry.gravado).length;
+  const progressPercentage = liveEntries.length === 0 ? 0 : Math.round((recordedCount / liveEntries.length) * 100);
   const theme = THEME_CLASSNAMES[settings.theme];
 
   useBodyScrollLock(true);
@@ -357,7 +378,7 @@ export function BurstModeMobileScreen({
 
     onMarkRecorded(currentContent.id);
 
-    if (currentIndex < entries.length - 1) {
+    if (currentIndex < liveEntries.length - 1) {
       setCurrentIndex(previous => previous + 1);
       return;
     }
@@ -368,7 +389,7 @@ export function BurstModeMobileScreen({
   };
 
   const handleNext = () => {
-    if (currentIndex >= entries.length - 1) {
+    if (currentIndex >= liveEntries.length - 1) {
       onFinish();
       return;
     }

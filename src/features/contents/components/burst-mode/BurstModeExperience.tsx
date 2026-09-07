@@ -17,8 +17,10 @@ import { FixedPanelModal } from '../../../../components/overlays/FixedPanelModal
 import { Surface } from '../../../../components/ui/Surface';
 import { Text } from '../../../../components/ui/Text';
 import { useAppContext } from '../../../../context/AppContext';
+import { useHydrateContentBodies } from '../../../../hooks/useHydrateContentBodies';
 import { Content, RecordingBlock } from '../../../../lib/database';
 import { cn, htmlToReadableText } from '../../../../lib/utils';
+import { isContentBodyLoaded } from '../../lib/contentBody';
 import { isRecordingBlockTeleprompterEnabled } from '../../../recording/lib/recordingWorkflow';
 
 const BURST_SETTINGS_PREFERENCE_KEY = 'burstModeSettings'; // Shared with BurstModeMobileScreen via app preferences.
@@ -222,12 +224,23 @@ export function BurstModeExperience({
     () => getBlockContents(block, state.contents).filter(content => !recordedIds.has(content.id)),
     [block, recordedIds, state.contents]
   );
+  const readyContentIds = useMemo(
+    () => readyContents.map(content => content.id),
+    [readyContents]
+  );
+  const {hasHydrationError} = useHydrateContentBodies(readyContentIds);
 
   const currentContent = readyContents[currentIndex] ?? null;
-  const scriptText = useMemo(
-    () => getScriptLabel(currentContent?.script, 'Sem roteiro. Grave no freestyle.'),
-    [currentContent?.script]
-  );
+  const scriptText = useMemo(() => {
+    if (!currentContent) return 'Sem roteiro. Grave no freestyle.';
+    if (!isContentBodyLoaded(currentContent)) {
+      if (hasHydrationError(currentContent.id)) {
+        return 'Não foi possível carregar o roteiro.';
+      }
+      return 'Carregando roteiro...';
+    }
+    return getScriptLabel(currentContent.script, 'Sem roteiro. Grave no freestyle.');
+  }, [currentContent, hasHydrationError]);
   const scriptLines = useMemo(() => buildPrompterLines(scriptText), [scriptText]);
   const lineWordCounts = useMemo(() => scriptLines.map(line => Math.max(1, countWords(line))), [scriptLines]);
   const totalWords = useMemo(

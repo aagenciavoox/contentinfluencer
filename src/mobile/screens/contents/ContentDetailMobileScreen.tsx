@@ -94,9 +94,15 @@ export function ContentDetailMobileScreen({
     }
   };
 
-  /** Keep the tap when the script editor has focus (iOS otherwise eats the first click). */
-  const preserveTapWhileEditing = (event: MouseEvent | PointerEvent) => {
+  /**
+   * iOS + contenteditable: the first tap often only blurs the editor and never
+   * delivers click. Run the action on pointerdown and preventDefault so the
+   * gesture is not swallowed — do not also rely on onClick (preventDefault
+   * suppresses click on WebKit).
+   */
+  const activateWhileEditing = (event: MouseEvent | PointerEvent, action: () => void) => {
     event.preventDefault();
+    action();
   };
 
   const detailsSheet = (
@@ -175,9 +181,7 @@ export function ContentDetailMobileScreen({
             <button
               type="button"
               aria-label="Voltar"
-              onPointerDown={preserveTapWhileEditing}
-              onMouseDown={preserveTapWhileEditing}
-              onClick={handleBack}
+              onPointerDown={event => activateWhileEditing(event, handleBack)}
               className={cn(
                 'relative z-[1] flex h-11 w-11 shrink-0 items-center justify-center rounded-full',
                 'text-[var(--text-primary)] touch-manipulation active:scale-95',
@@ -206,8 +210,7 @@ export function ContentDetailMobileScreen({
                     <AppButton
                       variant="ghost"
                       size="xs"
-                      onMouseDown={preserveTapWhileEditing}
-                      onClick={onRetrySave}
+                      onPointerDown={event => activateWhileEditing(event, onRetrySave)}
                       disabled={isSaving}
                       className="h-7 px-2 text-[var(--accent-red)] hover:text-[var(--accent-red)]"
                     >
@@ -225,9 +228,7 @@ export function ContentDetailMobileScreen({
               <button
                 type="button"
                 aria-label="Concluir edição"
-                onPointerDown={preserveTapWhileEditing}
-                onMouseDown={preserveTapWhileEditing}
-                onClick={dismissKeyboard}
+                onPointerDown={event => activateWhileEditing(event, dismissKeyboard)}
                 className={cn(
                   'relative z-[1] flex h-11 w-11 shrink-0 items-center justify-center rounded-full',
                   'border border-[var(--brand-accent)] bg-[var(--brand-accent)] text-[var(--brand-on-accent)]',
@@ -241,9 +242,7 @@ export function ContentDetailMobileScreen({
               <button
                 type="button"
                 aria-label="Abrir detalhes"
-                onPointerDown={preserveTapWhileEditing}
-                onMouseDown={preserveTapWhileEditing}
-                onClick={() => setDetailsSheetOpen(true)}
+                onPointerDown={event => activateWhileEditing(event, () => setDetailsSheetOpen(true))}
                 className={cn(
                   'relative z-[1] flex h-11 w-11 shrink-0 items-center justify-center rounded-full',
                   'text-[var(--text-secondary)] touch-manipulation active:scale-95',

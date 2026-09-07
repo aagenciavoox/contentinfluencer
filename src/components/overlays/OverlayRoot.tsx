@@ -1,10 +1,19 @@
 import { CSSProperties, ReactNode, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { AnimatePresence, motion, type Target, type Transition } from 'motion/react';
+import {
+  AnimatePresence,
+  motion,
+  useDragControls,
+  type Target,
+  type Transition,
+} from 'motion/react';
 import { cn } from '../../lib/utils';
 import { useOverlayBehavior } from './useOverlayBehavior';
 
 export type OverlayPlacement = 'center' | 'bottom' | 'end';
+
+const DISMISS_OFFSET_Y = 72;
+const DISMISS_VELOCITY_Y = 600;
 
 interface OverlayRootProps {
   open: boolean;
@@ -42,6 +51,7 @@ export function OverlayRoot({
   ariaLabel,
 }: OverlayRootProps) {
   const panelRef = useRef<HTMLDivElement>(null);
+  const dragControls = useDragControls();
   useOverlayBehavior(open, onClose, panelRef);
 
   const placementClasses = {
@@ -88,11 +98,30 @@ export function OverlayRoot({
               exit={panelExit}
               transition={panelTransition}
               style={panelStyle}
+              drag={showMobileHandle ? 'y' : false}
+              dragControls={showMobileHandle ? dragControls : undefined}
+              dragListener={false}
+              dragConstraints={{ top: 0, bottom: 0 }}
+              dragElastic={{ top: 0, bottom: 0.18 }}
+              onDragEnd={
+                showMobileHandle
+                  ? (_, info) => {
+                      if (info.offset.y > DISMISS_OFFSET_Y || info.velocity.y > DISMISS_VELOCITY_Y) {
+                        onClose();
+                      }
+                    }
+                  : undefined
+              }
               onClick={(event) => event.stopPropagation()}
               className={cn('pointer-events-auto', panelClassName)}
             >
               {showMobileHandle ? (
-                <div className="flex justify-center pt-3 pb-1 shrink-0 md:hidden">
+                <div
+                  className="flex min-h-11 shrink-0 touch-none cursor-grab items-start justify-center pt-3 active:cursor-grabbing"
+                  onPointerDown={event => dragControls.start(event)}
+                  aria-label="Arrastar para fechar"
+                  role="button"
+                >
                   <div className="h-1 w-10 rounded-full bg-[var(--text-primary)] opacity-20" />
                 </div>
               ) : null}

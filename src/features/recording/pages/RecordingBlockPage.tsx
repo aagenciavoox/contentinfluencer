@@ -2,9 +2,11 @@ import {useEffect, useMemo, useState} from 'react';
 import {useNavigate, useParams, useSearchParams} from 'react-router-dom';
 import {CheckCircle2, Video} from 'lucide-react';
 import {useAppContext} from '../../../context/AppContext';
+import {useHydrateContentBodies} from '../../../hooks/useHydrateContentBodies';
 import {useIsMobile} from '../../../hooks/useIsMobile';
 import {cn, htmlToReadableText} from '../../../lib/utils';
 import {BurstModeExperience} from '../../contents/components/burst-mode/BurstModeExperience';
+import {isContentBodyLoaded} from '../../contents/lib/contentBody';
 import {getRecordingQueueContents} from '../../contents/lib/contentWorkflow';
 import {RecordingBlockEditor} from '../components/RecordingBlockEditor';
 import {
@@ -50,6 +52,12 @@ export function RecordingBlockPage() {
     () => (block ? [...block.contents].sort((left, right) => left.ordem - right.ordem) : []),
     [block]
   );
+
+  const blockContentIds = useMemo(
+    () => blockContents.map(item => item.contentId),
+    [blockContents]
+  );
+  const {hasHydrationError} = useHydrateContentBodies(blockContentIds);
 
   const resolvedContents = useMemo(
     () =>
@@ -243,9 +251,13 @@ export function RecordingBlockPage() {
                         {entry.content.title || 'Roteiro sem título'}
                       </p>
                       <p className="mt-1 text-sm text-[var(--text-secondary)]">
-                        {htmlToReadableText(entry.content.script)
-                          ? 'Roteiro pronto para leitura.'
-                          : 'Sem roteiro escrito.'}
+                        {!isContentBodyLoaded(entry.content)
+                          ? hasHydrationError(entry.content.id)
+                            ? 'Não foi possível carregar o roteiro.'
+                            : 'Carregando roteiro...'
+                          : htmlToReadableText(entry.content.script)
+                            ? 'Roteiro pronto para leitura.'
+                            : 'Sem roteiro escrito.'}
                       </p>
                     </div>
                     {entry.gravado || recordedIds.has(entry.content.id) ? (
