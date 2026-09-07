@@ -37,6 +37,7 @@ interface ContentDetailMobileScreenProps {
   onDelete: () => void;
   saveHint?: string;
   saveState?: 'idle' | 'saving' | 'saved' | 'error';
+  onBack?: () => void;
 }
 
 export function ContentDetailMobileScreen({
@@ -57,6 +58,7 @@ export function ContentDetailMobileScreen({
   onDelete,
   saveHint,
   saveState = 'idle',
+  onBack,
 }: ContentDetailMobileScreenProps) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -75,6 +77,14 @@ export function ContentDetailMobileScreen({
     if (document.activeElement instanceof HTMLElement) {
       document.activeElement.blur();
     }
+    if (detailsSheetOpen) {
+      setDetailsSheetOpen(false);
+      return;
+    }
+    if (onBack) {
+      onBack();
+      return;
+    }
     navigate(resolveContentDetailBack(location.state as { from?: string } | null));
   };
 
@@ -90,8 +100,13 @@ export function ContentDetailMobileScreen({
   };
 
   const detailsSheet = (
-    <BottomSheetModal open={detailsSheetOpen} onClose={() => setDetailsSheetOpen(false)} desktopMaxW="max-w-md">
-      <OverlayBody className="stack-lg">
+    <BottomSheetModal
+      open={detailsSheetOpen}
+      onClose={() => setDetailsSheetOpen(false)}
+      desktopMaxW="max-w-md"
+      zIndex="z-[120]"
+    >
+        <OverlayBody className="stack-lg pb-safe">
         <MobileSectionHeader
           icon={Settings2}
           tone="blue"
@@ -151,6 +166,7 @@ export function ContentDetailMobileScreen({
   if (isScriptTab) {
     return (
       <div className="flex min-h-dvh flex-col bg-[var(--bg-primary)]">
+        {/* z below overlays (100+) so details sheet is not trapped under the chrome */}
         <header
           className="fixed inset-x-0 top-0 z-[90] border-b border-[var(--border-color)] bg-[var(--bg-primary)] px-4"
           style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
@@ -159,10 +175,11 @@ export function ContentDetailMobileScreen({
             <button
               type="button"
               aria-label="Voltar"
+              onPointerDown={preserveTapWhileEditing}
               onMouseDown={preserveTapWhileEditing}
               onClick={handleBack}
               className={cn(
-                'flex h-11 w-11 shrink-0 items-center justify-center rounded-full',
+                'relative z-[1] flex h-11 w-11 shrink-0 items-center justify-center rounded-full',
                 'text-[var(--text-primary)] touch-manipulation active:scale-95',
                 'focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
               )}
@@ -208,10 +225,11 @@ export function ContentDetailMobileScreen({
               <button
                 type="button"
                 aria-label="Concluir edição"
+                onPointerDown={preserveTapWhileEditing}
                 onMouseDown={preserveTapWhileEditing}
                 onClick={dismissKeyboard}
                 className={cn(
-                  'flex h-11 w-11 shrink-0 items-center justify-center rounded-full',
+                  'relative z-[1] flex h-11 w-11 shrink-0 items-center justify-center rounded-full',
                   'border border-[var(--brand-accent)] bg-[var(--brand-accent)] text-[var(--brand-on-accent)]',
                   'touch-manipulation active:scale-95',
                   'focus-visible:outline-none focus-visible:shadow-[var(--focus-ring-brand)]',
@@ -223,10 +241,11 @@ export function ContentDetailMobileScreen({
               <button
                 type="button"
                 aria-label="Abrir detalhes"
+                onPointerDown={preserveTapWhileEditing}
                 onMouseDown={preserveTapWhileEditing}
                 onClick={() => setDetailsSheetOpen(true)}
                 className={cn(
-                  'flex h-11 w-11 shrink-0 items-center justify-center rounded-full',
+                  'relative z-[1] flex h-11 w-11 shrink-0 items-center justify-center rounded-full',
                   'text-[var(--text-secondary)] touch-manipulation active:scale-95',
                   'focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
                 )}

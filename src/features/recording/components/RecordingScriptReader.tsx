@@ -119,6 +119,7 @@ export function RecordingScriptReader({
             ? 'border-[var(--bg-primary)]/20 bg-[var(--text-primary)]'
             : 'border-[var(--border-color)] bg-[var(--bg-elevated)]'
         )}
+        style={{ paddingTop: 'max(0.75rem, env(safe-area-inset-top, 0px))' }}
       >
         <div className="mx-auto flex w-full max-w-6xl items-center gap-3">
           <div className="min-w-0 flex-1">
@@ -135,7 +136,7 @@ export function RecordingScriptReader({
             leftIcon={<X className="h-5 w-5" />}
             onClick={onClose}
             aria-label="Fechar modo leitura"
-            className={foregroundClass}
+            className={cn('min-h-11 min-w-11', foregroundClass)}
           />
         </div>
 
@@ -182,7 +183,10 @@ export function RecordingScriptReader({
         </div>
       </Surface>
 
-      <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-6 py-8 md:px-10 md:py-14">
+      <div
+        ref={scrollRef}
+        className="min-h-0 flex-1 overflow-y-auto px-6 py-8 md:px-10 md:py-14"
+      >
         {loading || loadError ? (
           <Surface
             variant="outlined"
@@ -230,6 +234,7 @@ export function RecordingScriptReader({
             ? 'border-[var(--bg-primary)]/20 bg-[var(--text-primary)]'
             : 'border-[var(--border-color)] bg-[var(--bg-elevated)]'
         )}
+        style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom, 0px))' }}
       >
         <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-3">
           <Text variant="meta" className={mutedClass}>{wordCount} palavras</Text>

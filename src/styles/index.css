@@ -1397,10 +1397,13 @@ textarea.property-input {
 .filter-bar-search {
   display: flex;
   align-items: center;
-  min-height: 40px;
-  flex: 0 1 320px;
+  flex: 0 1 auto;
   width: min(100%, 320px);
   max-width: 320px;
+  /* Cap height — flex-basis:320px was intended for row layouts but becomes
+     height inside column stacks (e.g. Séries mobile search). */
+  min-height: 40px;
+  max-height: var(--control-height-mobile, 44px);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-input);
   background: var(--bg-elevated);
@@ -1472,6 +1475,11 @@ input[type="search"]::-webkit-search-results-decoration {
   .filter-bar-search input.filter-bar-search-input {
     min-height: var(--control-height-mobile);
   }
+}
+
+.filter-bar-search--compact {
+  min-height: 36px;
+  max-height: 36px;
 }
 
 .filter-bar-search--compact input.filter-bar-search-input {
@@ -1785,7 +1793,7 @@ input[type="search"]::-webkit-search-results-decoration {
 
   .filter-bar-search,
   .desktop-subheader-search {
-    flex: 0 1 320px;
+    flex: 0 1 auto;
     width: min(100%, 320px);
     max-width: 320px;
     min-width: 0;

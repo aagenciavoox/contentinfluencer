@@ -6,12 +6,12 @@ import { OverlayHeader } from '../../../components/overlays/OverlayHeader';
 import { AppButton } from '../../../components/ui/AppButton';
 import { MoreMenu } from '../../../components/ui/MoreMenu';
 import { Text } from '../../../components/ui/Text';
-import { ToolbarSearchInput } from '../../../components/ui/ToolbarSearchInput';
 import type { Content, Serie } from '../../../lib/database';
 import { EmptyState } from '../../../components/ui/EmptyState';
 import { CONFIRM } from '../../../lib/uiCopy';
 import { SeriesForm } from '../../../features/settings/pages/SeriesSettingsPage';
 import { MobileListCard } from '../../components/MobileListCard';
+import { MobileSearchBar } from '../../components/MobileSearchBar';
 import { MobileSectionHeader } from '../../components/MobileSectionHeader';
 import { MobileSegmentTabs } from '../../components/MobileSegmentTabs';
 import { cn } from '../../../lib/utils';
@@ -122,11 +122,10 @@ export function SeriesMobileScreen({
 
       {series.length > 0 ? (
         <section className="stack-sm">
-          <ToolbarSearchInput
+          <MobileSearchBar
             value={search}
             onChange={setSearch}
             placeholder="Buscar série..."
-            size="compact"
           />
           <MobileSegmentTabs<SeriesFilter>
             value={filter}

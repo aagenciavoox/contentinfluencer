@@ -373,6 +373,19 @@ export function ContentDetailShell({
     }
   };
 
+  const handleMobileBack = async () => {
+    if (autosaveTimerRef.current) {
+      clearTimeout(autosaveTimerRef.current);
+      autosaveTimerRef.current = null;
+    }
+    if (draftDirtyRef.current) {
+      await persistRef.current(undefined, {silent: true});
+    }
+    draftDirtyRef.current = false;
+    setDraftDirty(false);
+    navigate(resolveContentDetailBack(location.state as {from?: string} | null));
+  };
+
   const setTab = (tab: ContentDetailTab) => {
     if (isTabLocked(tab, mergedContent, stageOptions)) return;
 
@@ -503,6 +516,7 @@ export function ContentDetailShell({
               pilares={state.pilares}
               onChange={handleDraftChange}
               density="compact"
+              showTitle={false}
             />
           }
           blockName={blockSummary?.block.name ?? null}
@@ -511,6 +525,7 @@ export function ContentDetailShell({
           onRetrySave={() => void persist()}
           saveHint={saveHint}
           saveState={editorSaveState}
+          onBack={() => void handleMobileBack()}
           onDelete={() => setDeleteConfirmOpen(true)}
         />
         {recordingSheet}
