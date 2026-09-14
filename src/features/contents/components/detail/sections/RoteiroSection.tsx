@@ -17,6 +17,7 @@ export type ScriptDraft = {
   title: string;
   seriesId: string | null;
   pilarId: string | null;
+  bibliotecaItemId: string | null;
   slotType: Content['slotType'];
   formatoVisual: string | null;
   script: string | null;

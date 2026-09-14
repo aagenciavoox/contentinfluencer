@@ -49,14 +49,44 @@ function createContent(overrides: Partial<Content> = {}): Content {
 }
 
 function testStablePipelineTransitions() {
-  const source = createContent({id: 'stable-id', status: 'Ideia'});
+  const source = createContent({
+    id: 'stable-id',
+    status: 'Ideia',
+    notes: 'Começar com uma pergunta.\n\nDepois explicar o contexto.',
+  });
   const promoted = promoteContentToScript(source, '2026-07-25T11:00:00.000Z');
   const demoted = demoteContentToIdea(promoted, '2026-07-25T12:00:00.000Z');
 
   assert.equal(promoted.id, 'stable-id');
   assert.equal(promoted.status, 'Roteiro');
+  assert.equal(
+    promoted.script,
+    '<p>Começar com uma pergunta.</p><p>Depois explicar o contexto.</p>',
+  );
+  assert.equal(promoted.notes, source.notes);
   assert.equal(demoted.id, 'stable-id');
   assert.equal(demoted.status, 'Ideia');
+}
+
+function testPromotionKeepsAnExistingScript() {
+  const source = createContent({
+    status: 'Ideia',
+    notes: 'Anotação mais recente',
+    script: '<p>Roteiro que já existia</p>',
+  });
+
+  const promoted = promoteContentToScript(source, '2026-07-25T11:00:00.000Z');
+
+  assert.equal(promoted.script, '<p>Roteiro que já existia</p>');
+  assert.equal(promoted.notes, 'Anotação mais recente');
+}
+
+function testPromotionPreservesRichIdeaFormatting() {
+  const richIdea = '<h2>Ponto central</h2><p>Uma ideia com <strong>ênfase</strong>.</p>';
+  const promoted = promoteContentToScript(createContent({notes: richIdea}));
+
+  assert.equal(promoted.script, richIdea);
+  assert.equal(promoted.notes, richIdea);
 }
 
 function testArchiveAndRestoreAreReversible() {
@@ -228,6 +258,8 @@ function testCreationSortingAndPaginationClampInvalidPages() {
 
 const tests: Array<[string, () => void]> = [
   ['creation pipeline transitions keep the same id', testStablePipelineTransitions],
+  ['promotion preserves an existing script', testPromotionKeepsAnExistingScript],
+  ['promotion preserves rich idea formatting', testPromotionPreservesRichIdeaFormatting],
   ['archive and restore are reversible', testArchiveAndRestoreAreReversible],
   ['trash and restore are reversible', testTrashAndRestoreAreReversible],
   ['clearing trash keeps active creations', testClearTrashKeepsOnlyActiveCreations],

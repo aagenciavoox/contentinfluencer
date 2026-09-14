@@ -38,6 +38,7 @@ interface ContentDetailMobileScreenProps {
   saveHint?: string;
   saveState?: 'idle' | 'saving' | 'saved' | 'error';
   onBack?: () => void;
+  contentKind?: 'idea' | 'script';
 }
 
 export function ContentDetailMobileScreen({
@@ -59,6 +60,7 @@ export function ContentDetailMobileScreen({
   saveHint,
   saveState = 'idle',
   onBack,
+  contentKind = 'script',
 }: ContentDetailMobileScreenProps) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -66,6 +68,7 @@ export function ContentDetailMobileScreen({
   const [detailsSheetOpen, setDetailsSheetOpen] = useState(false);
   const hasPrimaryAction = primaryAction.id !== 'none';
   const isScriptTab = activeTab === 'roteiro';
+  const isIdea = contentKind === 'idea';
   const tabOptions = visibleTabs.map(tab => ({ value: tab, label: TAB_LABELS[tab] }));
   const blockLabel = blockName
     ? blockOrder
@@ -116,8 +119,8 @@ export function ContentDetailMobileScreen({
         <MobileSectionHeader
           icon={Settings2}
           tone="blue"
-          title="Detalhes editoriais"
-          description={`${stageLabel} · ${blockLabel}`}
+          title={isIdea ? 'Detalhes da ideia' : 'Detalhes editoriais'}
+          description={isIdea ? 'Organize sem precisar planejar a produção agora.' : `${stageLabel} · ${blockLabel}`}
           className="mb-0"
         />
         {postingAlerts.length > 0 ? (

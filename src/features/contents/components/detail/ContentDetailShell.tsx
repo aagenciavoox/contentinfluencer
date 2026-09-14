@@ -23,6 +23,7 @@ import {
   applyStatusMilestones,
   isTabLocked,
   PRODUCTION_TAGS,
+  normalizeContentStatus,
   withProductionTag,
   type ContentDetailTab,
 } from '../../lib/contentPipeline';
@@ -33,6 +34,8 @@ import {RecordingSection} from './sections/RecordingSection';
 import {ContentOperationalPanel} from './ContentOperationalPanel';
 import {isContentBodyLoaded} from '../../lib/contentBody';
 import {RoteiroSection, type ScriptDraft} from './sections/RoteiroSection';
+import {IdeaDetailSection, IdeaOrganizationPanel} from './sections/IdeaDetailSection';
+import {promoteContentToScript} from '../../lib/creationContent';
 
 interface ContentDetailShellProps {
   content: Content;
@@ -73,6 +76,7 @@ export function ContentDetailShell({
     title: content.title,
     seriesId: content.seriesId,
     pilarId: content.pilarId,
+    bibliotecaItemId: content.bibliotecaItemId,
     slotType: content.slotType,
     formatoVisual: content.formatoVisual,
     script: content.script,
@@ -172,6 +176,7 @@ export function ContentDetailShell({
       title: liveContent.title,
       seriesId: liveContent.seriesId,
       pilarId: liveContent.pilarId,
+      bibliotecaItemId: liveContent.bibliotecaItemId,
       slotType: liveContent.slotType,
       formatoVisual: liveContent.formatoVisual,
       script: liveContent.script,
@@ -193,6 +198,7 @@ export function ContentDetailShell({
     liveContent.status,
     liveContent.seriesId,
     liveContent.pilarId,
+    liveContent.bibliotecaItemId,
     liveContent.slotType,
     liveContent.formatoVisual,
     liveContent.scriptNotes,
@@ -315,6 +321,7 @@ export function ContentDetailShell({
     };
   }, [
     draft.formatoVisual,
+    draft.bibliotecaItemId,
     draft.notes,
     draft.pilarId,
     draft.plataformas,
@@ -398,6 +405,11 @@ export function ContentDetailShell({
 
   const handlePrimaryAction = async () => {
     switch (primaryAction.id) {
+      case 'promote_to_script': {
+        const promoted = promoteContentToScript(mergedContent);
+        await persist({status: promoted.status, script: promoted.script});
+        return;
+      }
       case 'advance_to_recording':
         await persist({}, {advanceToReady: true});
         setIsRecordingSheetOpen(true);
@@ -431,26 +443,46 @@ export function ContentDetailShell({
     POSTADO: 'Postado',
   };
 
+  const isIdea = normalizeContentStatus(mergedContent.status) === CONTENT_STATUS.IDEIA;
+
   const detailSection =
     activeTab === 'roteiro' ? (
-      <RoteiroSection
-        draft={draft}
-        series={state.series}
-        pilares={state.pilares}
-        pilar={pillar}
-        serie={serie}
-        authorName={user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Usuario'}
-        onChange={handleDraftChange}
-        mobileComposer={mode === 'mobile'}
-        autoFocusScript={mode === 'mobile' && searchParams.get('focus') === 'script'}
-        layout={mode === 'desktop' ? 'workspace' : 'stack'}
-        title={draft.title}
-        onTitleChange={value => handleDraftChange({title: value})}
-        saveState={editorSaveState}
-        bodyLoading={bodyLoading}
-        bodyError={bodyError}
-        onRetryBody={onRetryBody}
-      />
+      isIdea ? (
+        <IdeaDetailSection
+          draft={draft}
+          series={state.series}
+          pilares={state.pilares}
+          bibliotecaItems={state.bibliotecaItems}
+          onChange={handleDraftChange}
+          bodyLoading={bodyLoading}
+          bodyError={bodyError}
+          onRetryBody={onRetryBody}
+          mobile={mode === 'mobile'}
+          isSaving={isSaving}
+          onPromote={() => void handlePrimaryAction()}
+          authorName={user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Usuario'}
+          saveState={editorSaveState}
+        />
+      ) : (
+        <RoteiroSection
+          draft={draft}
+          series={state.series}
+          pilares={state.pilares}
+          pilar={pillar}
+          serie={serie}
+          authorName={user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Usuario'}
+          onChange={handleDraftChange}
+          mobileComposer={mode === 'mobile'}
+          autoFocusScript={mode === 'mobile' && searchParams.get('focus') === 'script'}
+          layout={mode === 'desktop' ? 'workspace' : 'stack'}
+          title={draft.title}
+          onTitleChange={value => handleDraftChange({title: value})}
+          saveState={editorSaveState}
+          bodyLoading={bodyLoading}
+          bodyError={bodyError}
+          onRetryBody={onRetryBody}
+        />
+      )
     ) : activeTab === 'publicacao' ? (
       <PublishingSection
         draft={draft}
@@ -510,14 +542,24 @@ export function ContentDetailShell({
           postingAlerts={postingAlerts}
           stageLabel={stageLabel[stage]}
           operationalPanel={
-            <ContentOperationalPanel
-              draft={draft}
-              series={state.series}
-              pilares={state.pilares}
-              onChange={handleDraftChange}
-              density="compact"
-              showTitle={false}
-            />
+            isIdea ? (
+              <IdeaOrganizationPanel
+                draft={draft}
+                series={state.series}
+                pilares={state.pilares}
+                bibliotecaItems={state.bibliotecaItems}
+                onChange={handleDraftChange}
+              />
+            ) : (
+              <ContentOperationalPanel
+                draft={draft}
+                series={state.series}
+                pilares={state.pilares}
+                onChange={handleDraftChange}
+                density="compact"
+                showTitle={false}
+              />
+            )
           }
           blockName={blockSummary?.block.name ?? null}
           blockOrder={blockSummary?.order ?? null}
@@ -527,14 +569,15 @@ export function ContentDetailShell({
           saveState={editorSaveState}
           onBack={() => void handleMobileBack()}
           onDelete={() => setDeleteConfirmOpen(true)}
+          contentKind={isIdea ? 'idea' : 'script'}
         />
         {recordingSheet}
         {leaveConfirmModal}
         <ConfirmModal
           open={deleteConfirmOpen}
-          message={`Mover este roteiro para a lixeira — ${draft.title || 'Roteiro sem título'}? Você poderá restaurá-lo depois.`}
+          message={`Mover esta ${isIdea ? 'ideia' : 'criação'} para a lixeira — ${draft.title || (isIdea ? 'Ideia sem título' : 'Roteiro sem título')}? Você poderá restaurá-la depois.`}
           confirmLabel={isDeleting ? 'Movendo...' : 'Mover para a lixeira'}
-          cancelLabel="Manter roteiro"
+          cancelLabel={isIdea ? 'Manter ideia' : 'Manter roteiro'}
           confirmDisabled={isDeleting}
           onConfirm={() => void handleDelete()}
           onCancel={() => setDeleteConfirmOpen(false)}
@@ -565,6 +608,7 @@ export function ContentDetailShell({
             compact={activeTab === 'roteiro'}
             breadcrumbMode={activeTab === 'roteiro' ? 'pipeline' : 'content'}
             saveState={editorSaveState}
+            contentKind={isIdea ? 'idea' : 'script'}
           />
         )}
       >
@@ -603,9 +647,9 @@ export function ContentDetailShell({
       {leaveConfirmModal}
       <ConfirmModal
         open={deleteConfirmOpen}
-        message={`Mover este roteiro para a lixeira — ${draft.title || 'Roteiro sem título'}? Você poderá restaurá-lo depois.`}
+      message={`Mover esta ${isIdea ? 'ideia' : 'criação'} para a lixeira — ${draft.title || (isIdea ? 'Ideia sem título' : 'Roteiro sem título')}? Você poderá restaurá-la depois.`}
         confirmLabel={isDeleting ? 'Movendo...' : 'Mover para a lixeira'}
-        cancelLabel="Manter roteiro"
+        cancelLabel={isIdea ? 'Manter ideia' : 'Manter roteiro'}
         confirmDisabled={isDeleting}
         onConfirm={() => void handleDelete()}
         onCancel={() => setDeleteConfirmOpen(false)}

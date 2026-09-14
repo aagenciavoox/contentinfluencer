@@ -29,6 +29,7 @@ interface ContentDetailHeaderProps {
   hideTitle?: boolean;
   breadcrumbMode?: 'content' | 'pipeline';
   saveState?: 'idle' | 'saving' | 'saved' | 'error';
+  contentKind?: 'idea' | 'script';
 }
 
 export function ContentDetailHeader({
@@ -49,8 +50,11 @@ export function ContentDetailHeader({
   hideTitle = false,
   breadcrumbMode = 'content',
   saveState = 'idle',
+  contentKind = 'script',
 }: ContentDetailHeaderProps) {
   const displayTitle = title ?? content.title;
+  const isIdea = contentKind === 'idea';
+  const contentReference = isIdea ? 'da ideia' : 'do roteiro';
   const [menuOpen, setMenuOpen] = useState(false);
   const [titleEditing, setTitleEditing] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -116,7 +120,7 @@ export function ContentDetailHeader({
         iconOnly
         onClick={() => setMenuOpen(prev => !prev)}
         disabled={isSaving}
-        aria-label="Mais opções do roteiro"
+        aria-label={`Mais opções ${contentReference}`}
         leftIcon={<MoreHorizontal className="h-4 w-4" />}
       >
         Mais opções
@@ -158,9 +162,9 @@ export function ContentDetailHeader({
             event.currentTarget.blur();
           }
         }}
-        aria-label="Título do roteiro"
+        aria-label={`Título ${contentReference}`}
         autoComplete="off"
-        placeholder="Roteiro sem título"
+        placeholder={isIdea ? 'Ideia sem título' : 'Roteiro sem título'}
         className="t-page-title w-full !rounded-none !border-0 !border-b !border-[var(--border-strong)] !bg-transparent !px-0 !py-1 !shadow-none text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:!border-[var(--accent)] focus:!shadow-none"
       />
     </div>
@@ -168,7 +172,7 @@ export function ContentDetailHeader({
     <AppButton
       variant="ghost"
       onClick={() => setTitleEditing(true)}
-      aria-label="Editar título do roteiro"
+      aria-label={`Editar título ${contentReference}`}
       rightIcon={
         <Pencil
           className="h-4 w-4 text-[var(--text-tertiary)] opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"
@@ -178,12 +182,12 @@ export function ContentDetailHeader({
       className="group h-auto max-w-full justify-start px-0 py-1 text-left hover:bg-transparent"
     >
       <Text as="span" variant="pageTitle" truncate>
-        {displayTitle || 'Roteiro sem título'}
+        {displayTitle || (isIdea ? 'Ideia sem título' : 'Roteiro sem título')}
       </Text>
     </AppButton>
   ) : !hideTitle ? (
     <Text variant="pageTitle" className="break-words">
-      {displayTitle || 'Roteiro sem título'}
+      {displayTitle || (isIdea ? 'Ideia sem título' : 'Roteiro sem título')}
     </Text>
   ) : null;
 
@@ -215,10 +219,10 @@ export function ContentDetailHeader({
   return (
     <DesktopPageHeader
       section={PAGE_SECTION.criacao}
-      title={displayTitle || 'Roteiro sem título'}
+      title={displayTitle || (isIdea ? 'Ideia sem título' : 'Roteiro sem título')}
       titleContent={titleContent}
-      backLabel={breadcrumbMode === 'pipeline' ? 'Roteiros' : 'Conteúdos'}
-      backTo={breadcrumbMode === 'pipeline' ? '/criacao?tab=roteiros' : '/criacao'}
+      backLabel={isIdea ? 'Ideias' : breadcrumbMode === 'pipeline' ? 'Roteiros' : 'Conteúdos'}
+      backTo={isIdea ? '/criacao?tab=ideias' : breadcrumbMode === 'pipeline' ? '/criacao?tab=roteiros' : '/criacao'}
       meta={compact ? undefined : meta}
       actions={(
         <>
@@ -228,7 +232,7 @@ export function ContentDetailHeader({
               onClick={onPrimaryAction}
               disabled={isSaving || primaryAction.disabled}
               title={primaryAction.disabled && primaryAction.reason ? primaryAction.reason : undefined}
-              rightIcon={primaryAction.id === 'advance_to_recording' ? <ArrowRight className="h-4 w-4" /> : undefined}
+              rightIcon={primaryAction.id === 'advance_to_recording' || primaryAction.id === 'promote_to_script' ? <ArrowRight className="h-4 w-4" /> : undefined}
             >
               {isSaving ? 'Salvando…' : primaryAction.label}
             </AppButton>

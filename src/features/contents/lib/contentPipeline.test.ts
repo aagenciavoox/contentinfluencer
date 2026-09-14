@@ -90,6 +90,18 @@ function testRecordingActionUsesClearPipelineCopy() {
   assert.equal(action.disabled, false);
 }
 
+function testIdeaActionPromotesBeforeProduction() {
+  const action = getPrimaryAction(createContent({
+    status: CONTENT_STATUS.IDEIA,
+    script: null,
+    notes: 'Uma ideia ainda em desenvolvimento',
+  }));
+
+  assert.equal(action.id, 'promote_to_script');
+  assert.equal(action.label, 'Transformar em roteiro');
+  assert.equal(action.disabled, undefined);
+}
+
 function testRecordingActionExplainsMissingRequirements() {
   const action = getPrimaryAction(createContent({title: '', script: ''}));
 
@@ -104,6 +116,7 @@ const tests: Array<[string, () => void]> = [
   ['postedAt marks a roteiro as Postado in display', testDisplayStatusPostedAtOverridesRoteiro],
   ['normalize legacy statuses to canonical', testNormalizeLegacyStatuses],
   ['recording action uses clear pipeline copy', testRecordingActionUsesClearPipelineCopy],
+  ['idea action promotes before production', testIdeaActionPromotesBeforeProduction],
   ['recording action explains missing requirements', testRecordingActionExplainsMissingRequirements],
 ];
 

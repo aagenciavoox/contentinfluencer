@@ -127,7 +127,42 @@ export function promoteContentToScript(
   content: Content,
   now = new Date().toISOString(),
 ): Content {
-  return transitionCreationStatus(content, CONTENT_STATUS.ROTEIRO, now);
+  const currentScript = htmlToReadableText(content.script).trim();
+  const ideaText = htmlToReadableText(content.notes).trim();
+
+  return {
+    ...transitionCreationStatus(content, CONTENT_STATUS.ROTEIRO, now),
+    script: currentScript || !ideaText
+      ? content.script
+      : ideaTextToScriptHtml(content.notes ?? ''),
+  };
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+export function readableTextToScriptHtml(value: string): string {
+  const normalized = value.trim();
+  if (!normalized) return '';
+
+  return normalized
+    .split(/\n{2,}/)
+    .map(paragraph => `<p>${escapeHtml(paragraph).replace(/\n/g, '<br>')}</p>`)
+    .join('');
+}
+
+export function ideaTextToScriptHtml(value: string): string {
+  const normalized = value.trim();
+  if (!normalized) return '';
+  return /<([a-z][\w-]*)(?:\s[^>]*)?>/i.test(normalized)
+    ? normalized
+    : readableTextToScriptHtml(normalized);
 }
 
 export function demoteContentToIdea(

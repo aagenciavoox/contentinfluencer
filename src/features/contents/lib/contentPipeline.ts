@@ -51,6 +51,7 @@ export type ContentStage = typeof ContentStage[keyof typeof ContentStage];
 export type ContentDetailTab = 'roteiro' | 'gravacao' | 'publicacao';
 
 export type ContentPrimaryActionId =
+  | 'promote_to_script'
   | 'advance_to_recording'
   | 'add_to_block'
   | 'go_to_execution'
@@ -298,6 +299,11 @@ export function getPrimaryAction(content: Content, options: StageOptions = {}): 
 
   switch (stage) {
     case ContentStage.IDEIA:
+      return {
+        id: 'promote_to_script',
+        label: 'Transformar em roteiro',
+        targetTab: 'roteiro',
+      };
     case ContentStage.ROTEIRO:
       return {
         id: 'advance_to_recording',
