@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Lightbulb, Loader2, Search, X } from 'lucide-react';
+import { Lightbulb, Loader2, Search } from 'lucide-react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { Sidebar } from '../navigation/Sidebar';
 import { CommandPalette } from '../../components/overlays/CommandPalette';
@@ -15,14 +15,16 @@ import { resolveMobileRouteMeta } from '../../mobile/config/mobileRouteMeta';
 import { resolveRouteBack } from '../../lib/navigation/detailBack';
 import { SaveFeedbackToast } from '../../components/ui/SaveFeedbackToast';
 import { Text } from '../../components/ui/Text';
+import { AppButton } from '../../components/ui/AppButton';
 import { useAppContext } from '../../context/AppContext';
 import { forceMobileRefresh } from '../../lib/pwaRefresh';
-import { IdeaQuickCapture } from '../../features/ideas/components/IdeaQuickCapture';
-import { buildIdeaFields } from '../../features/ideas/lib/ideaText';
 import { LOADING } from '../../lib/uiCopy';
 import { getModuleFlags } from '../../features/settings/lib/moduleFlags';
-import { createContentDraft } from '../../features/contents/lib/createContentDraft';
-import { CONTENT_STATUS } from '../../features/contents/lib/contentPipeline';
+import { createIdeaContent } from '../../features/contents/lib/creationContent';
+import {
+  CreationComposer,
+  type CreationIdeaInput,
+} from '../../features/creation/components/CreationComposer';
 
 function AppDataLoadingScreen() {
   return (
@@ -38,11 +40,6 @@ export function AppShell() {
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [isQuickNoteOpen, setIsQuickNoteOpen] = useState(false);
   const [isActionMenuOpen, setIsActionMenuOpen] = useState(false);
-  const [quickNoteTitle, setQuickNoteTitle] = useState('');
-  const [quickNoteNotes, setQuickNoteNotes] = useState('');
-  const [quickNotePilarId, setQuickNotePilarId] = useState('');
-  const [quickNoteSeries, setQuickNoteSeries] = useState('');
-  const [quickNoteBibliotecaId, setQuickNoteBibliotecaId] = useState('');
 
   const isMobile = useIsMobile();
   const location = useLocation();
@@ -82,25 +79,12 @@ export function AppShell() {
     await forceMobileRefresh(() => syncFromServer({ silent: true, force: true }));
   }, [syncFromServer]);
 
-  const saveQuickNote = useCallback(() => {
-    const fields = buildIdeaFields({title: quickNoteTitle, notes: quickNoteNotes});
-    if (!fields.title && !fields.notes) return;
-    const newIdea = createContentDraft({
-      title: fields.title || 'Ideia sem título',
-      status: CONTENT_STATUS.IDEIA,
-      notes: fields.notes || null,
-      pilarId: quickNotePilarId || null,
-      seriesId: quickNoteSeries || null,
-      bibliotecaItemId: quickNoteBibliotecaId || null,
+  const saveQuickNote = useCallback(async (input: CreationIdeaInput) => {
+    await dispatch({
+      type: 'ADD_CONTENT',
+      payload: createIdeaContent(input),
     });
-    void dispatch({ type: 'ADD_CONTENT', payload: newIdea });
-    setQuickNoteTitle('');
-    setQuickNoteNotes('');
-    setQuickNotePilarId('');
-    setQuickNoteSeries('');
-    setQuickNoteBibliotecaId('');
-    setIsQuickNoteOpen(false);
-  }, [quickNoteTitle, quickNoteNotes, quickNotePilarId, quickNoteSeries, quickNoteBibliotecaId, dispatch]);
+  }, [dispatch]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -108,13 +92,10 @@ export function AppShell() {
         event.preventDefault();
         setIsCommandPaletteOpen((previous) => !previous);
       }
-      if (event.key === 'Escape' && isQuickNoteOpen) {
-        setIsQuickNoteOpen(false);
-      }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isQuickNoteOpen]);
+  }, []);
 
   useEffect(() => {
     if (!isMobile) return;
@@ -214,50 +195,26 @@ export function AppShell() {
       </main>
 
       {/* Botao flutuante de nota rapida */}
-      <button
+      <AppButton
         onClick={() => setIsQuickNoteOpen(true)}
         title="Nova ideia"
-        className="fixed bottom-6 right-6 z-40 flex h-12 w-12 items-center justify-center rounded-full border border-[var(--border-color)] bg-[var(--bg-secondary)] text-[var(--text-secondary)] shadow-lg transition-all hover:scale-105 hover:border-[var(--text-primary)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+        aria-label="Nova ideia"
+        variant="secondary"
+        size="lg"
+        iconOnly
+        leftIcon={<Lightbulb className="h-5 w-5" />}
+        className="fixed bottom-6 right-6 z-40 h-12 w-12 rounded-full shadow-[var(--shadow-soft)] hover:scale-105"
       >
-        <Lightbulb className="h-5 w-5" />
-      </button>
+        Nova ideia
+      </AppButton>
 
       {/* Modal de nota rapida */}
-      {isQuickNoteOpen && (
-        <div className="fixed inset-0 z-50 flex items-end justify-end p-6">
-          <div
-            className="absolute inset-0 bg-[var(--backdrop-soft)] backdrop-blur-[2px]"
-            onClick={() => setIsQuickNoteOpen(false)}
-          />
-          <div className="relative z-10 w-full max-w-md">
-            <div className="mb-2 flex items-center justify-between px-1">
-              <span className="text-xs font-semibold  text-[var(--text-tertiary)]">
-                Nova ideia
-              </span>
-              <button
-                onClick={() => setIsQuickNoteOpen(false)}
-                className="rounded-lg p-1 text-[var(--text-tertiary)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
-              >
-                <X className="h-3.5 w-3.5" />
-              </button>
-            </div>
-            <IdeaQuickCapture
-              title={quickNoteTitle}
-              notes={quickNoteNotes}
-              selectedPilarId={quickNotePilarId}
-              selectedSeries={quickNoteSeries}
-              selectedBibliotecaId={quickNoteBibliotecaId}
-              state={state}
-              onTitleChange={setQuickNoteTitle}
-              onNotesChange={setQuickNoteNotes}
-              onSelectedPilarIdChange={setQuickNotePilarId}
-              onSelectedSeriesChange={setQuickNoteSeries}
-              onSelectedBibliotecaIdChange={setQuickNoteBibliotecaId}
-              onSave={saveQuickNote}
-            />
-          </div>
-        </div>
-      )}
+      <CreationComposer
+        open={isQuickNoteOpen}
+        state={state}
+        onClose={() => setIsQuickNoteOpen(false)}
+        onSave={saveQuickNote}
+      />
 
       <SaveFeedbackToast />
     </div>

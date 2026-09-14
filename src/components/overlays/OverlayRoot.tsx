@@ -55,7 +55,7 @@ export function OverlayRoot({
   useOverlayBehavior(open, onClose, panelRef);
 
   const placementClasses = {
-    center: 'items-center',
+    center: 'items-center justify-center',
     bottom: 'items-end md:items-center',
     end: 'items-stretch justify-end',
   };

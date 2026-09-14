@@ -36,7 +36,7 @@ export function SeriesBulkComposer({
         <Text variant="meta" className="text-[var(--text-secondary)]">
           {contentType === 'ideia' ? 'Nova ideia nesta série' : 'Novo roteiro nesta série'}
         </Text>
-        <SegmentTabs
+        <SegmentTabs<BulkContentType>
           value={contentType}
           onChange={setContentType}
           options={[
