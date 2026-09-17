@@ -15,10 +15,13 @@ interface ConfirmModalProps {
   message: string;
   confirmLabel?: string;
   cancelLabel?: string;
+  altLabel?: string;
   confirmDisabled?: boolean;
   cancelDisabled?: boolean;
+  altDisabled?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
+  onAlt?: () => void;
 }
 
 export function ConfirmModal({
@@ -26,10 +29,13 @@ export function ConfirmModal({
   message,
   confirmLabel = 'Confirmar',
   cancelLabel = 'Cancelar',
+  altLabel,
   confirmDisabled = false,
   cancelDisabled = false,
+  altDisabled = false,
   onConfirm,
   onCancel,
+  onAlt,
 }: ConfirmModalProps) {
   const isMobile = useIsMobile();
 
@@ -50,7 +56,7 @@ export function ConfirmModal({
       <Text variant="body" className="mb-6 leading-relaxed text-[var(--text-primary)] opacity-80">
         {message}
       </Text>
-      <div className="flex min-w-0 flex-col gap-3 sm:flex-row">
+      <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:flex-wrap">
         <AppButton
           variant="secondary"
           fullWidth
@@ -60,6 +66,17 @@ export function ConfirmModal({
         >
           {cancelLabel}
         </AppButton>
+        {altLabel && onAlt ? (
+          <AppButton
+            variant="ghost"
+            fullWidth
+            className="sm:min-w-0 sm:shrink sm:flex-1 text-[var(--accent-red)] hover:text-[var(--accent-red)]"
+            disabled={altDisabled}
+            onClick={onAlt}
+          >
+            {altLabel}
+          </AppButton>
+        ) : null}
         <AppButton
           variant="primary"
           fullWidth

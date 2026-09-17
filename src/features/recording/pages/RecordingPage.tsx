@@ -21,6 +21,7 @@ import {RecordingSelectionBar} from '../components/desktop/RecordingSelectionBar
 import {RecordingScriptReader} from '../components/RecordingScriptReader';
 import {FilterBar} from '../../../components/ui/FilterBar';
 import {AppButton} from '../../../components/ui/AppButton';
+import {Surface} from '../../../components/ui/Surface';
 import {Text} from '../../../components/ui/Text';
 import {
   buildMarkStandaloneContentRecordedTransition,
@@ -348,7 +349,7 @@ export function RecordingPage() {
   if (isMobile) {
     return (
       <>
-        <div className="min-h-full bg-[var(--bg-primary)]">
+        <div className="recording-page min-h-full bg-[var(--bg-primary)]">
           <RecordingMobileScreen
           readyContents={queueContents}
           recordingBlocks={state.recordingBlocks}
@@ -386,6 +387,8 @@ export function RecordingPage() {
   return (
     <>
       <PageLayout
+      className="recording-page"
+      contentStack="none"
       header={
         <DesktopPageHeader
           section="Produção"
@@ -407,10 +410,11 @@ export function RecordingPage() {
         />
       }
     >
+        <div className="stack-xl">
         <div
           role="tablist"
           aria-label="Areas de gravacao"
-          className="grid grid-cols-2 rounded-xl border border-[var(--border-color)] bg-[var(--bg-hover)] p-0.5 md:max-w-md"
+          className="recording-segment md:max-w-md"
         >
           <button
             type="button"
@@ -418,10 +422,10 @@ export function RecordingPage() {
             aria-selected={activeTab === 'queue'}
             onClick={() => handleTabChange('queue')}
             className={cn(
-              't-label rounded-lg px-3 py-2 text-center transition-all md:px-6 md:py-2.5',
+              'recording-segment-item t-label',
               activeTab === 'queue'
-                ? 'bg-[var(--bg-primary)] text-[var(--text-primary)] shadow-sm'
-                : 'text-[var(--text-secondary)] italic'
+                ? 'recording-segment-item-active'
+                : 'italic'
             )}
           >
             Sem bloco
@@ -433,10 +437,10 @@ export function RecordingPage() {
             aria-selected={activeTab === 'blocks'}
             onClick={() => handleTabChange('blocks')}
             className={cn(
-              't-label rounded-lg px-3 py-2 text-center transition-all md:px-6 md:py-2.5',
+              'recording-segment-item t-label',
               activeTab === 'blocks'
-                ? 'bg-[var(--bg-primary)] text-[var(--text-primary)] shadow-sm'
-                : 'text-[var(--text-secondary)] italic'
+                ? 'recording-segment-item-active'
+                : 'italic'
             )}
           >
             Blocos
@@ -445,12 +449,6 @@ export function RecordingPage() {
 
         {activeTab === 'queue' ? (
           <section className={cn('stack-xl', selectedIds.size > 0 && 'pb-28')}>
-            <div className="grid grid-cols-2 gap-3 md:grid-cols-3 md:max-w-2xl">
-              <StatCard label="Sem bloco" value={String(prontos.length)} />
-              <StatCard label="Selecionados" value={String(selectedIds.size)} />
-              <StatCard label="Blocos montados" value={String(state.recordingBlocks.length)} className="col-span-2 md:col-span-1" />
-            </div>
-
             <FilterBar
               searchValue={searchTerm}
               onSearchChange={setSearchTerm}
@@ -508,6 +506,12 @@ export function RecordingPage() {
                 {label: 'Energia alta', value: 'energia:desc'},
               ]}
             />
+
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-3 md:max-w-2xl">
+              <StatCard label="Sem bloco" value={String(prontos.length)} />
+              <StatCard label="Selecionados" value={String(selectedIds.size)} />
+              <StatCard label="Blocos montados" value={String(state.recordingBlocks.length)} className="col-span-2 md:col-span-1" />
+            </div>
 
             <div className="space-y-1">
               <Text variant="sectionTitle">Grade de roteiros prontos</Text>
@@ -570,6 +574,7 @@ export function RecordingPage() {
             <RecordingQueueTab />
           </section>
         )}
+        </div>
       </PageLayout>
       {readerContent ? (
         <RecordingScriptReader
@@ -593,12 +598,12 @@ interface StatCardProps {
 
 function StatCard({label, value, icon, className}: StatCardProps) {
   return (
-    <div className={cn('rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4', className)}>
+    <Surface variant="outlined" padding="md" className={cn('recording-stat-card', className)}>
       <div className="flex items-center gap-2">
         {icon ? <span className="text-[var(--text-secondary)]">{icon}</span> : null}
-        <p className="text-xs font-medium text-[var(--text-secondary)]">{label}</p>
+        <Text variant="label">{label}</Text>
       </div>
       <p className="mt-1 text-2xl font-bold tabular-nums text-[var(--text-primary)]">{value}</p>
-    </div>
+    </Surface>
   );
 }

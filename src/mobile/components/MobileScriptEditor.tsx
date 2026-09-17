@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { RichTextEditor } from '../../components/editors/RichTextEditor';
+import { DraftSaveBar } from '../../features/contents/components/detail/DraftSaveBar';
 import { cn } from '../../lib/utils';
 
 interface MobileScriptEditorProps {
@@ -11,6 +12,8 @@ interface MobileScriptEditorProps {
   className?: string;
   saveState?: 'idle' | 'saving' | 'saved' | 'error';
   toolbarStart?: ReactNode;
+  onSave?: () => void;
+  hasUnsavedChanges?: boolean;
 }
 
 export function MobileScriptEditor({
@@ -22,6 +25,8 @@ export function MobileScriptEditor({
   className,
   saveState,
   toolbarStart,
+  onSave,
+  hasUnsavedChanges = false,
 }: MobileScriptEditorProps) {
   return (
     <RichTextEditor
@@ -34,6 +39,15 @@ export function MobileScriptEditor({
       documentTitle={documentTitle}
       saveState={saveState}
       toolbarStart={toolbarStart}
+      saveAction={
+        onSave ? (
+          <DraftSaveBar
+            onSave={onSave}
+            saveState={saveState}
+            hasUnsavedChanges={hasUnsavedChanges}
+          />
+        ) : null
+      }
       className={cn('border-0 bg-transparent shadow-none', className)}
       editorViewportClassName="bg-transparent p-0"
       editorCanvasClassName="min-h-[50dvh] rounded-none border-0 bg-transparent px-0 py-2 shadow-none"

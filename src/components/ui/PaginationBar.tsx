@@ -29,6 +29,8 @@ export interface PaginationBarProps {
   className?: string;
   /** Optional slot above controls (e.g. page-size selector) */
   accessory?: ReactNode;
+  /** Hide the repeated item range when the parent already exposes the total. */
+  showSummary?: boolean;
 }
 
 export function PaginationBar({
@@ -41,6 +43,7 @@ export function PaginationBar({
   itemLabel = 'itens',
   className,
   accessory,
+  showSummary = true,
 }: PaginationBarProps) {
   if (totalItems <= pageSize) return null;
 
@@ -52,27 +55,34 @@ export function PaginationBar({
     <div
       className={cn(
         'pagination-bar rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-elevated)]',
-        accessory ? 'stack-md p-3' : 'px-4 py-3',
+        showSummary || accessory
+          ? (accessory ? 'stack-md p-3' : 'px-4 py-3')
+          : 'mt-6 border-transparent bg-transparent p-0',
         className,
       )}
     >
       {accessory}
 
       {variant === 'full' ? (
-        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <Text variant="meta">
-            Mostrando {startItem}–{endItem} de {totalItems} {itemLabel}
-          </Text>
+        <div className={cn(
+          'flex flex-col gap-3 md:flex-row md:items-center',
+          showSummary ? 'md:justify-between' : 'justify-center',
+        )}>
+          {showSummary ? (
+            <Text variant="meta">
+              Mostrando {startItem}–{endItem} de {totalItems} {itemLabel}
+            </Text>
+          ) : null}
 
-          <div className="flex flex-wrap items-center justify-end gap-1.5">
-            <button
-              type="button"
+          <div className="flex flex-wrap items-center justify-center gap-1.5">
+            <AppButton
+              variant="secondary"
+              size="xs"
               onClick={() => onPageChange(currentPage - 1)}
               disabled={currentPage === 1}
-              className="pagination-bar-btn"
             >
               Anterior
-            </button>
+            </AppButton>
 
             {pages.map((page, index) =>
               page === 'ellipsis' ? (
@@ -80,28 +90,27 @@ export function PaginationBar({
                   …
                 </span>
               ) : (
-                <button
+                <AppButton
                   key={page}
-                  type="button"
+                  variant={page === currentPage ? 'primary' : 'secondary'}
+                  size="xs"
                   onClick={() => onPageChange(page)}
-                  className={cn(
-                    'pagination-bar-btn min-w-9',
-                    page === currentPage && 'pagination-bar-btn-active',
-                  )}
+                  className="min-w-8 px-2"
+                  aria-current={page === currentPage ? 'page' : undefined}
                 >
                   {page}
-                </button>
+                </AppButton>
               ),
             )}
 
-            <button
-              type="button"
+            <AppButton
+              variant="secondary"
+              size="xs"
               onClick={() => onPageChange(currentPage + 1)}
               disabled={currentPage === totalPages}
-              className="pagination-bar-btn"
             >
               Próxima
-            </button>
+            </AppButton>
           </div>
         </div>
       ) : (

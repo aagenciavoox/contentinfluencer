@@ -60,19 +60,8 @@ function normalizePlain(value: string | null | undefined): string {
   return trimmed;
 }
 
-export function ContentDetailShell({
-  content,
-  mode = 'desktop',
-  bodyLoading = false,
-  bodyError = null,
-  onRetryBody,
-}: ContentDetailShellProps) {
-  const {state, dispatch, updateContent, ensureDataDomains} = useAppContext();
-  const {user} = useAuth();
-  const navigate = useNavigate();
-  const location = useLocation();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const [draft, setDraft] = useState<ContentDraft>(() => ({
+function draftFromContent(content: Content): ContentDraft {
+  return {
     title: content.title,
     seriesId: content.seriesId,
     pilarId: content.pilarId,
@@ -89,7 +78,39 @@ export function ContentDetailShell({
     recordingDate: content.recordingDate,
     postedAt: content.postedAt,
     plataformas: content.plataformas || [],
-  }));
+  };
+}
+
+function mergeLoadedBody(draft: ContentDraft, live: Content): ContentDraft {
+  let next = draft;
+  const assignIfMissing = <K extends 'script' | 'notes' | 'referencias'>(key: K, value: ContentDraft[K]) => {
+    if (draft[key] !== undefined || value === undefined) return;
+    if (next === draft) next = {...draft};
+    next[key] = value;
+  };
+  assignIfMissing('script', live.script);
+  assignIfMissing('notes', live.notes);
+  assignIfMissing('referencias', live.referencias);
+  return next;
+}
+
+const AUTOSAVE_IDLE_MS = 5000;
+
+type PersistDraftOptions = {advanceToReady?: boolean; silent?: boolean};
+
+export function ContentDetailShell({
+  content,
+  mode = 'desktop',
+  bodyLoading = false,
+  bodyError = null,
+  onRetryBody,
+}: ContentDetailShellProps) {
+  const {state, dispatch, updateContent, ensureDataDomains} = useAppContext();
+  const {user} = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [draft, setDraft] = useState<ContentDraft>(() => draftFromContent(content));
   const [isSaving, setIsSaving] = useState(false);
   const [saveFeedback, setSaveFeedback] = useState<SaveFeedbackState>(() => getSaveFeedbackState());
   const [isRecordingSheetOpen, setIsRecordingSheetOpen] = useState(false);
@@ -98,7 +119,22 @@ export function ContentDetailShell({
   const [isDeleting, setIsDeleting] = useState(false);
   const draftDirtyRef = useRef(false);
   const [draftDirty, setDraftDirty] = useState(false);
+  const [explicitSaving, setExplicitSaving] = useState(false);
   const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const saveGenRef = useRef(0);
+  const persistInFlightRef = useRef(false);
+  const drainPersistQueueRef = useRef<() => Promise<void>>(async () => undefined);
+  const persistQueueRef = useRef<Array<{
+    updates?: Partial<Content>;
+    options?: PersistDraftOptions;
+    resolve: (ok: boolean) => void;
+  }>>([]);
+  const draftRef = useRef(draft);
+  const liveContentRef = useRef(content);
+  const persistRef = useRef<(
+    updates?: Partial<Content>,
+    options?: PersistDraftOptions
+  ) => Promise<boolean>>(async () => false);
   const activeTab = getInitialTabForContext(searchParams.get('tab'));
 
   // Read the ref so clearing dirty before navigate is honored immediately
@@ -170,26 +206,12 @@ export function ContentDetailShell({
   }, [activeTab, mergedContent, setSearchParams, stageOptions, visibleTabs]);
 
   useEffect(() => {
-    if (draftDirtyRef.current) return;
+    if (draftDirtyRef.current) {
+      setDraft(previous => mergeLoadedBody(previous, liveContent));
+      return;
+    }
 
-    setDraft({
-      title: liveContent.title,
-      seriesId: liveContent.seriesId,
-      pilarId: liveContent.pilarId,
-      bibliotecaItemId: liveContent.bibliotecaItemId,
-      slotType: liveContent.slotType,
-      formatoVisual: liveContent.formatoVisual,
-      script: liveContent.script,
-      scriptNotes: liveContent.scriptNotes || [],
-      referencias: liveContent.referencias,
-      notes: liveContent.notes,
-      status: liveContent.status,
-      publishDate: liveContent.publishDate,
-      publishTime: liveContent.publishTime,
-      recordingDate: liveContent.recordingDate,
-      postedAt: liveContent.postedAt,
-      plataformas: liveContent.plataformas || [],
-    });
+    setDraft(draftFromContent(liveContent));
   }, [
     liveContent.id,
     liveContent.updatedAt,
@@ -228,6 +250,7 @@ export function ContentDetailShell({
       if (!changed) return previous;
 
       draftDirtyRef.current = true;
+      saveGenRef.current += 1;
       setDraftDirty(true);
 
       if (updates.status && updates.status !== previous.status) {
@@ -254,26 +277,46 @@ export function ContentDetailShell({
 
   const persist = useCallback(async (
     updates?: Partial<Content>,
-    options?: {advanceToReady?: boolean; silent?: boolean}
-  ) => {
+    options?: PersistDraftOptions
+  ): Promise<boolean> => {
+    return new Promise(resolve => {
+      persistQueueRef.current.push({updates, options, resolve});
+      void drainPersistQueueRef.current();
+    });
+  }, []);
+
+  const runPersist = useCallback(async (
+    updates?: Partial<Content>,
+    options?: PersistDraftOptions
+  ): Promise<boolean> => {
+    const draftNow = mergeLoadedBody(draftRef.current, liveContentRef.current);
+    const liveNow = liveContentRef.current;
+
+    if (!isContentBodyLoaded(liveNow) && !isContentBodyLoaded(draftNow)) {
+      return false;
+    }
+
+    const sentGen = saveGenRef.current;
+    const silent = Boolean(options?.silent);
     setIsSaving(true);
+    if (!silent) setExplicitSaving(true);
 
     try {
       let nextStatus =
-        options?.advanceToReady && draft.status === CONTENT_STATUS.ROTEIRO
+        options?.advanceToReady && draftNow.status === CONTENT_STATUS.ROTEIRO
           ? CONTENT_STATUS.PRODUCAO
-          : updates?.status ?? draft.status;
+          : updates?.status ?? draftNow.status;
 
       const nextTags =
-        options?.advanceToReady && draft.status === CONTENT_STATUS.ROTEIRO
-          ? withProductionTag(updates?.tags ?? liveContent.tags ?? [], PRODUCTION_TAGS.GRAVAR)
-          : updates?.tags ?? liveContent.tags;
+        options?.advanceToReady && draftNow.status === CONTENT_STATUS.ROTEIRO
+          ? withProductionTag(updates?.tags ?? liveNow.tags ?? [], PRODUCTION_TAGS.GRAVAR)
+          : updates?.tags ?? liveNow.tags;
 
-      const statusMilestones = applyStatusMilestones(liveContent, nextStatus);
+      const statusMilestones = applyStatusMilestones(liveNow, nextStatus);
 
       const payload: Content = {
-        ...liveContent,
-        ...draft,
+        ...liveNow,
+        ...draftNow,
         ...updates,
         ...statusMilestones,
         tags: nextTags,
@@ -281,9 +324,13 @@ export function ContentDetailShell({
         updatedAt: new Date().toISOString(),
       };
 
-      await updateContent(payload, {silent: options?.silent});
-      draftDirtyRef.current = false;
-      setDraftDirty(false);
+      await updateContent(payload, {silent, skipBroadcast: silent});
+
+      if (saveGenRef.current === sentGen) {
+        draftDirtyRef.current = false;
+        setDraftDirty(false);
+      }
+
       setDraft(previous => ({...previous, ...updates, status: nextStatus}));
 
       if (options?.advanceToReady) {
@@ -293,13 +340,40 @@ export function ContentDetailShell({
           return next;
         });
       }
+
+      return true;
+    } catch {
+      return false;
     } finally {
       setIsSaving(false);
+      if (!silent) setExplicitSaving(false);
     }
-  }, [draft, liveContent, setSearchParams, updateContent]);
+  }, [setSearchParams, updateContent]);
 
-  const persistRef = useRef(persist);
+  const drainPersistQueue = useCallback(async () => {
+    if (persistInFlightRef.current) return;
+    persistInFlightRef.current = true;
+
+    try {
+      while (persistQueueRef.current.length > 0) {
+        const batch = persistQueueRef.current.splice(0);
+        const lastExplicit = [...batch].reverse().find(item => !item.options?.silent);
+        const last = lastExplicit ?? batch[batch.length - 1];
+        const ok = await runPersist(last.updates, last.options);
+        batch.forEach(item => item.resolve(ok));
+      }
+    } finally {
+      persistInFlightRef.current = false;
+      if (persistQueueRef.current.length > 0) {
+        void drainPersistQueue();
+      }
+    }
+  }, [runPersist]);
+
   persistRef.current = persist;
+  drainPersistQueueRef.current = drainPersistQueue;
+  draftRef.current = draft;
+  liveContentRef.current = liveContent;
 
   useEffect(() => {
     if (!draftDirtyRef.current) return;
@@ -311,7 +385,7 @@ export function ContentDetailShell({
 
     autosaveTimerRef.current = setTimeout(() => {
       void persistRef.current(undefined, {silent: true});
-    }, 1800);
+    }, AUTOSAVE_IDLE_MS);
 
     return () => {
       if (autosaveTimerRef.current) {
@@ -337,12 +411,50 @@ export function ContentDetailShell({
     liveContent,
   ]);
 
+  useEffect(() => {
+    const flush = () => {
+      if (!draftDirtyRef.current) return;
+      if (autosaveTimerRef.current) {
+        clearTimeout(autosaveTimerRef.current);
+        autosaveTimerRef.current = null;
+      }
+      void persistRef.current(undefined, {silent: true});
+    };
+
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') flush();
+    };
+
+    document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('pagehide', flush);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('pagehide', flush);
+    };
+  }, []);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== 's') return;
+      event.preventDefault();
+      if (!draftDirtyRef.current) return;
+      if (autosaveTimerRef.current) {
+        clearTimeout(autosaveTimerRef.current);
+        autosaveTimerRef.current = null;
+      }
+      void persistRef.current();
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
+
   const saveHint = isSaving || saveFeedback.status === 'saving'
     ? 'Salvando…'
     : saveFeedback.status === 'error'
       ? saveFeedback.detail || saveFeedback.message
       : draftDirty
-        ? 'Salvando em instantes…'
+        ? 'Não salvo'
         : saveFeedback.status === 'success'
           ? 'Salvo agora'
           : 'Salvo';
@@ -355,6 +467,31 @@ export function ContentDetailShell({
         : draftDirty
           ? 'idle'
           : 'saved';
+
+  const handleSaveAndLeave = async () => {
+    if (autosaveTimerRef.current) {
+      clearTimeout(autosaveTimerRef.current);
+      autosaveTimerRef.current = null;
+    }
+
+    for (let attempt = 0; attempt < 4 && draftDirtyRef.current; attempt += 1) {
+      const ok = await persistRef.current(undefined, {silent: true});
+      if (!ok) return;
+    }
+
+    if (draftDirtyRef.current) return;
+    blocker.proceed?.();
+  };
+
+  const handleDiscardAndLeave = () => {
+    if (autosaveTimerRef.current) {
+      clearTimeout(autosaveTimerRef.current);
+      autosaveTimerRef.current = null;
+    }
+    draftDirtyRef.current = false;
+    setDraftDirty(false);
+    blocker.proceed?.();
+  };
 
   const handleDelete = async () => {
     setIsDeleting(true);
@@ -380,16 +517,7 @@ export function ContentDetailShell({
     }
   };
 
-  const handleMobileBack = async () => {
-    if (autosaveTimerRef.current) {
-      clearTimeout(autosaveTimerRef.current);
-      autosaveTimerRef.current = null;
-    }
-    if (draftDirtyRef.current) {
-      await persistRef.current(undefined, {silent: true});
-    }
-    draftDirtyRef.current = false;
-    setDraftDirty(false);
+  const handleMobileBack = () => {
     navigate(resolveContentDetailBack(location.state as {from?: string} | null));
   };
 
@@ -458,10 +586,12 @@ export function ContentDetailShell({
           bodyError={bodyError}
           onRetryBody={onRetryBody}
           mobile={mode === 'mobile'}
-          isSaving={isSaving}
+          isSaving={explicitSaving}
           onPromote={() => void handlePrimaryAction()}
           authorName={user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Usuario'}
           saveState={editorSaveState}
+          onSave={() => void persist()}
+          hasUnsavedChanges={draftDirty}
         />
       ) : (
         <RoteiroSection
@@ -478,6 +608,8 @@ export function ContentDetailShell({
           title={draft.title}
           onTitleChange={value => handleDraftChange({title: value})}
           saveState={editorSaveState}
+          onSave={() => void persist()}
+          hasUnsavedChanges={draftDirty}
           bodyLoading={bodyLoading}
           bodyError={bodyError}
           onRetryBody={onRetryBody}
@@ -490,7 +622,7 @@ export function ContentDetailShell({
         serie={serie}
         alerts={postingAlerts}
         onChange={handleDraftChange}
-        isSaving={isSaving}
+        isSaving={explicitSaving}
         onMarkPosted={() => void persist({status: CONTENT_STATUS.POSTADO})}
       />
     ) : (
@@ -499,7 +631,9 @@ export function ContentDetailShell({
         stage={stage}
         recordingBlocks={state.recordingBlocks}
         allContents={state.contents}
-        onPersist={persist}
+        onPersist={async (updates, options) => {
+          await persist(updates, options);
+        }}
         onDispatch={dispatch}
         onOpenBlockSheet={() => setIsRecordingSheetOpen(true)}
       />
@@ -512,7 +646,9 @@ export function ContentDetailShell({
       content={mergedContent}
       recordingBlocks={state.recordingBlocks}
       blocksLoading={recordingBlocksLoading}
-      onPersist={persist}
+      onPersist={async (updates, options) => {
+        await persist(updates, options);
+      }}
       onDispatch={dispatch}
     />
   );
@@ -520,11 +656,15 @@ export function ContentDetailShell({
   const leaveConfirmModal = (
     <ConfirmModal
       open={blocker.state === 'blocked'}
-      message="Você tem alterações não salvas. Sair mesmo assim?"
-      confirmLabel="Sair mesmo assim"
+      message="Você tem alterações não salvas."
+      confirmLabel={isSaving ? 'Salvando…' : 'Salvar e sair'}
       cancelLabel="Continuar editando"
-      onConfirm={() => blocker.proceed?.()}
+      altLabel="Sair sem salvar"
+      confirmDisabled={isSaving}
+      altDisabled={isSaving}
+      onConfirm={() => void handleSaveAndLeave()}
       onCancel={() => blocker.reset?.()}
+      onAlt={handleDiscardAndLeave}
     />
   );
 
@@ -538,7 +678,7 @@ export function ContentDetailShell({
           onTabChange={setTab}
           primaryAction={primaryAction}
           onPrimaryAction={() => void handlePrimaryAction()}
-          isSaving={isSaving || isDeleting}
+          isSaving={explicitSaving || isDeleting}
           postingAlerts={postingAlerts}
           stageLabel={stageLabel[stage]}
           operationalPanel={
@@ -567,7 +707,7 @@ export function ContentDetailShell({
           onRetrySave={() => void persist()}
           saveHint={saveHint}
           saveState={editorSaveState}
-          onBack={() => void handleMobileBack()}
+          onBack={() => handleMobileBack()}
           onDelete={() => setDeleteConfirmOpen(true)}
           contentKind={isIdea ? 'idea' : 'script'}
         />
@@ -600,6 +740,7 @@ export function ContentDetailShell({
             onRetrySave={() => void persist()}
             onDelete={() => setDeleteConfirmOpen(true)}
             isSaving={isSaving || isDeleting}
+            primaryBusy={explicitSaving || isDeleting}
             blockName={blockSummary?.block.name ?? null}
             blockOrder={blockSummary?.order ?? null}
             saveHint={saveHint}

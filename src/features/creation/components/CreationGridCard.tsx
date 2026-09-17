@@ -11,11 +11,12 @@ import {
   type CreationItemActionHandlers,
 } from '../lib/creationItemActions';
 import {
+  getCreationCardFooterMeta,
+  getCreationCardTags,
   getCreationNoteExcerpt,
   getCreationStageLabel,
   getCreationStageTone,
   getCreationTitle,
-  preferredCreationEntity,
 } from '../lib/creationItemPresentation';
 
 export interface CreationGridCardProps {
@@ -41,7 +42,6 @@ export function CreationGridCard({
   selectionMode,
   selectable,
   selected,
-  compact = false,
   onOpen,
   onToggleSelect,
   actions,
@@ -49,8 +49,9 @@ export function CreationGridCard({
   const title = getCreationTitle(content);
   const stageLabel = getCreationStageLabel(content);
   const stageTone = getCreationStageTone(content);
-  const entity = preferredCreationEntity(content, pillar, series);
+  const tags = getCreationCardTags(content, pillar, series);
   const excerpt = getCreationNoteExcerpt(content);
+  const footerMeta = getCreationCardFooterMeta(content);
   const canOpen = !content.deletedAt;
   const canActivate = selectionMode ? selectable : canOpen;
   const showSelect = selectable;
@@ -68,9 +69,9 @@ export function CreationGridCard({
     <Surface
       as="article"
       variant="interactive"
-      padding="sm"
+      padding="none"
       className={cn(
-        'group relative flex min-h-0 flex-col',
+        'creation-hub-card group relative flex flex-col transition-[border-color,box-shadow,background-color] duration-200',
         canActivate && 'cursor-pointer',
         selected && 'ring-1 ring-[var(--text-primary)]',
         selectionMode && !selectable && 'opacity-55',
@@ -93,17 +94,21 @@ export function CreationGridCard({
         }
       />
 
-      <div className="relative z-[1] pointer-events-none flex min-h-0 flex-1 flex-col gap-1">
-        <div className="flex h-5 items-center justify-between gap-2">
-          <div
-            className={cn(
-              'relative flex min-w-0 flex-1 items-center transition-[padding] duration-150',
-              showSelect && 'group-hover:pl-6 group-focus-within:pl-6',
-              showSelect && (selected || selectionMode) && 'pl-6',
-            )}
-          >
+      <div className="relative z-[1] pointer-events-none flex min-h-0 flex-col">
+        <div className="creation-hub-card__header flex min-h-5 items-center justify-between gap-2">
+          <div className="flex min-w-0 flex-1 items-center">
+            {showStatus ? (
+              <CreationStageChip
+                label={stageLabel}
+                toneStatus={stageTone}
+                className="max-w-full truncate"
+              />
+            ) : null}
+          </div>
+
+          <div className="pointer-events-auto flex min-h-5 shrink-0 items-center justify-end gap-1">
             {showSelect ? (
-              <span className="pointer-events-auto absolute left-0 top-1/2 -translate-y-1/2">
+              <span>
                 <CreationSelectCheckbox
                   selected={selected}
                   onToggle={onToggleSelect}
@@ -112,41 +117,39 @@ export function CreationGridCard({
                 />
               </span>
             ) : null}
-            {compact ? (
-              showStatus ? (
-                <CreationStageChip label={stageLabel} toneStatus={stageTone} />
-              ) : null
-            ) : entity ? (
-              <CreationCategoryLabel label={entity.label} color={entity.color} />
-            ) : null}
-          </div>
-
-          <div className="relative flex h-5 min-w-[2.5rem] shrink-0 items-center justify-end">
-            {!compact && showStatus ? (
-              <CreationStageChip
-                label={stageLabel}
-                toneStatus={stageTone}
-                className="max-w-full truncate transition-opacity duration-150 group-hover:opacity-0 group-focus-within:opacity-0"
-              />
-            ) : null}
-            <span className="pointer-events-auto absolute right-0 top-1/2 -translate-y-1/2">
+            <span>
               <CreationItemMenu
                 items={menuItems}
                 label={`Ações de ${title}`}
-                alwaysVisible={compact}
+                alwaysVisible
               />
             </span>
           </div>
         </div>
 
-        <Text variant="itemTitle" className="line-clamp-2 font-semibold leading-snug">
-          {title}
-        </Text>
-
-        {!compact && excerpt ? (
-          <Text variant="secondary" className="line-clamp-2 leading-snug">
-            {excerpt}
+        <div className="card-body">
+          <Text variant="itemTitle" className="creation-hub-card__title line-clamp-2">
+            {title}
           </Text>
+
+          {excerpt ? (
+            <Text variant="secondary" className="card-excerpt">
+              {excerpt}
+            </Text>
+          ) : null}
+        </div>
+
+        {tags.length > 0 || footerMeta ? (
+          <div className="creation-hub-card__footer flex min-h-6 items-center justify-between gap-4">
+            {tags.length > 0 ? (
+              <CreationCategoryLabel label={tags[0]} extraCount={tags.length - 1} />
+            ) : <span aria-hidden />}
+            {footerMeta ? (
+              <Text variant="meta" as="span" className="max-w-[45%] truncate text-right text-2xs text-[var(--text-tertiary)]">
+                {footerMeta}
+              </Text>
+            ) : null}
+          </div>
         ) : null}
       </div>
     </Surface>

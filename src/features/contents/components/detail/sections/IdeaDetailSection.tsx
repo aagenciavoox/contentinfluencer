@@ -5,6 +5,7 @@ import {Skeleton} from '../../../../../components/ui/Skeleton';
 import {Surface} from '../../../../../components/ui/Surface';
 import {Text} from '../../../../../components/ui/Text';
 import type {BibliotecaItem, Pilar, Serie} from '../../../../../lib/database';
+import {DraftSaveBar} from '../DraftSaveBar';
 import type {ScriptDraft} from './RoteiroSection';
 
 type IdeaDraft = Pick<
@@ -102,6 +103,8 @@ interface IdeaDetailSectionProps extends IdeaOrganizationPanelProps {
   onPromote: () => void;
   authorName: string;
   saveState?: 'idle' | 'saving' | 'saved' | 'error';
+  onSave?: () => void;
+  hasUnsavedChanges?: boolean;
 }
 
 export function IdeaDetailSection({
@@ -118,6 +121,8 @@ export function IdeaDetailSection({
   onPromote,
   authorName,
   saveState = 'idle',
+  onSave,
+  hasUnsavedChanges = false,
 }: IdeaDetailSectionProps) {
   const annotationHandlers = {
     onAddAnnotation: (text: string, selection: {from: number; to: number}, comment: string) =>
@@ -184,6 +189,15 @@ export function IdeaDetailSection({
           authorName={authorName}
           annotations={draft.scriptNotes || []}
           saveState={saveState}
+          saveAction={
+            onSave ? (
+              <DraftSaveBar
+                onSave={onSave}
+                saveState={saveState}
+                hasUnsavedChanges={hasUnsavedChanges}
+              />
+            ) : null
+          }
           editorCanvasClassName="min-h-[500px]"
           editorViewportClassName="overflow-visible"
           className="min-h-[560px] rounded-none border-0"
@@ -197,13 +211,15 @@ export function IdeaDetailSection({
   if (mobile) {
     return (
       <div className="stack-md">
-        <input
-          value={draft.title === 'Ideia sem título' ? '' : draft.title}
-          onChange={event => onChange({title: event.target.value})}
-          className="t-page-title w-full border-0 bg-transparent py-1 text-[var(--text-primary)] outline-none placeholder:text-[var(--text-tertiary)]"
-          placeholder="Título da ideia"
-          aria-label="Título da ideia"
-        />
+        <Text variant="pageTitle" as="div">
+          <input
+            value={draft.title === 'Ideia sem título' ? '' : draft.title}
+            onChange={event => onChange({title: event.target.value})}
+            className="w-full border-0 bg-transparent py-1 font-[inherit] leading-[inherit] text-[var(--text-primary)] outline-none placeholder:text-[var(--text-tertiary)]"
+            placeholder="Título da ideia"
+            aria-label="Título da ideia"
+          />
+        </Text>
         {editor}
         <IdeaOrganizationPanel
           draft={draft}

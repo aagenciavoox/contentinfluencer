@@ -11,6 +11,7 @@ import {
   appendScriptBlock,
   type ScriptBlockLabel,
 } from './ScriptBlockToolbar';
+import {DraftSaveBar} from './DraftSaveBar';
 
 interface ContentScriptWorkspaceProps {
   script: string | null;
@@ -21,6 +22,8 @@ interface ContentScriptWorkspaceProps {
   onScriptChange: (html: string) => void;
   onReferenciasChange: (value: string) => void;
   saveState?: 'idle' | 'saving' | 'saved' | 'error';
+  onSave?: () => void;
+  hasUnsavedChanges?: boolean;
   showReferencias?: boolean;
   bodyLoading?: boolean;
   bodyError?: string | null;
@@ -39,6 +42,8 @@ export function ContentScriptWorkspace({
   onScriptChange,
   onReferenciasChange,
   saveState,
+  onSave,
+  hasUnsavedChanges = false,
   showReferencias = true,
   bodyLoading = false,
   bodyError = null,
@@ -100,6 +105,15 @@ export function ContentScriptWorkspace({
             onUpdateAnnotation={onUpdateAnnotation}
             toolbarStart={<ScriptBlockToolbar onInsertBlock={handleInsertBlock} onApplyTemplate={handleApplyTemplate} />}
             saveState={saveState}
+            saveAction={
+              onSave ? (
+                <DraftSaveBar
+                  onSave={onSave}
+                  saveState={saveState}
+                  hasUnsavedChanges={hasUnsavedChanges}
+                />
+              ) : null
+            }
             className="border-0 bg-[var(--bg-elevated)] shadow-none"
           />
         )}

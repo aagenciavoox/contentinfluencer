@@ -68,6 +68,7 @@ interface RichTextEditorProps {
   variant?: 'default' | 'workspace';
   toolbarStart?: React.ReactNode;
   saveState?: 'idle' | 'saving' | 'saved' | 'error';
+  saveAction?: React.ReactNode;
 }
 
 type FormattingAction = {
@@ -141,6 +142,7 @@ export function RichTextEditor({
   variant = 'default',
   toolbarStart,
   saveState = 'idle',
+  saveAction,
 }: RichTextEditorProps) {
   const isWorkspace = variant === 'workspace';
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -1189,16 +1191,23 @@ export function RichTextEditor({
         )}
 
         {isWorkspace && !compactMobileComposer ? (
-          <div className="flex shrink-0 items-center justify-between border-t border-[var(--border-color)] bg-[var(--bg-elevated)] px-4 py-2.5 text-xs text-[var(--text-tertiary)]">
+          <div className="flex shrink-0 items-center justify-between gap-3 border-t border-[var(--border-color)] bg-[var(--bg-elevated)] px-4 py-2.5 text-xs text-[var(--text-tertiary)]">
             <span>
               {wordCount} palavras · {speakingDuration}
             </span>
-            {saveFooterLabel ? (
-              <span className="inline-flex items-center gap-1 font-medium text-[var(--text-secondary)]">
-                {saveState === 'saved' ? <Check className="h-3.5 w-3.5 text-[var(--success)]" /> : null}
-                {saveFooterLabel}
-              </span>
-            ) : null}
+            <div className="flex min-w-0 items-center gap-2">
+              {saveFooterLabel ? (
+                <span className="inline-flex items-center gap-1 font-medium text-[var(--text-secondary)]">
+                  {saveState === 'saved' ? <Check className="h-3.5 w-3.5 text-[var(--success)]" /> : null}
+                  {saveFooterLabel}
+                </span>
+              ) : null}
+              {saveAction}
+            </div>
+          </div>
+        ) : compactMobileComposer && saveAction ? (
+          <div className="shrink-0 pb-16 pt-3">
+            {saveAction}
           </div>
         ) : null}
       </motion.div>

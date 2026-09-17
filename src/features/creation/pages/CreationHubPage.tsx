@@ -924,6 +924,7 @@ export function CreationHubPage() {
               <PaginationBar
                 variant={isMobile ? 'simple' : 'full'}
                 itemLabel="criações"
+                showSummary={false}
                 totalItems={pageData.totalItems}
                 currentPage={pageData.page}
                 totalPages={pageData.totalPages}

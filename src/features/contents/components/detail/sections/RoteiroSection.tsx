@@ -47,6 +47,8 @@ interface RoteiroSectionProps {
   title?: string;
   onTitleChange?: (title: string) => void;
   saveState?: 'idle' | 'saving' | 'saved' | 'error';
+  onSave?: () => void;
+  hasUnsavedChanges?: boolean;
   bodyLoading?: boolean;
   bodyError?: string | null;
   onRetryBody?: () => void;
@@ -65,6 +67,8 @@ export function RoteiroSection({
   layout = 'stack',
   showSidePanel = true,
   saveState,
+  onSave,
+  hasUnsavedChanges = false,
   bodyLoading = false,
   bodyError = null,
   onRetryBody,
@@ -117,6 +121,8 @@ export function RoteiroSection({
       onScriptChange={html => onChange({script: html})}
       onReferenciasChange={value => onChange({referencias: value})}
       saveState={saveState}
+      onSave={onSave}
+      hasUnsavedChanges={hasUnsavedChanges}
       showReferencias={layout !== 'workspace'}
       bodyLoading={bodyLoading}
       bodyError={bodyError}
@@ -216,6 +222,8 @@ export function RoteiroSection({
               onApplyTemplate={handleApplyTemplate}
             />
           }
+          onSave={onSave}
+          hasUnsavedChanges={hasUnsavedChanges}
         />
       </div>
     );

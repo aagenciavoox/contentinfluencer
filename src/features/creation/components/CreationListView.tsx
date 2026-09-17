@@ -12,10 +12,10 @@ import {
 } from '../lib/creationItemActions';
 import {
   getCreationFormatLabel,
+  getCreationCardTags,
   getCreationStageLabel,
   getCreationStageTone,
   getCreationTitle,
-  preferredCreationEntity,
 } from '../lib/creationItemPresentation';
 
 export interface CreationListItemModel {
@@ -58,7 +58,7 @@ function CreationListRow({
   const title = getCreationTitle(content);
   const stageLabel = getCreationStageLabel(content);
   const stageTone = getCreationStageTone(content);
-  const entity = preferredCreationEntity(content, pillar, series);
+  const tags = getCreationCardTags(content, pillar, series);
   const format = getCreationFormatLabel(content);
   const canOpen = !content.deletedAt;
   const canActivate = selectionMode ? selectable : canOpen;
@@ -124,8 +124,8 @@ function CreationListRow({
         </Text>
 
         <div className="relative z-[1] min-w-0">
-          {entity ? (
-            <CreationCategoryLabel label={entity.label} color={entity.color} />
+          {tags.length > 0 ? (
+            <CreationCategoryLabel label={tags[0]} extraCount={tags.length - 1} />
           ) : (
             <span className="hidden md:block" aria-hidden />
           )}

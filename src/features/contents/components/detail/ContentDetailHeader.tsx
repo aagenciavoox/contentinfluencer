@@ -20,6 +20,7 @@ interface ContentDetailHeaderProps {
   onRetrySave?: () => void;
   onDelete?: () => void;
   isSaving: boolean;
+  primaryBusy?: boolean;
   blockName?: string | null;
   blockOrder?: number | null;
   saveHint?: string;
@@ -41,6 +42,7 @@ export function ContentDetailHeader({
   onRetrySave,
   onDelete,
   isSaving,
+  primaryBusy,
   blockName,
   blockOrder,
   saveHint,
@@ -61,6 +63,7 @@ export function ContentDetailHeader({
   const titleInputRef = useRef<HTMLInputElement>(null);
   const hasPrimaryAction = primaryAction.id !== 'none';
   const displayStatus = getDisplayStatus(content);
+  const workflowBusy = primaryBusy ?? isSaving;
 
   useEffect(() => {
     if (!titleEditing) return;
@@ -230,11 +233,11 @@ export function ContentDetailHeader({
             <AppButton
               variant="primary"
               onClick={onPrimaryAction}
-              disabled={isSaving || primaryAction.disabled}
+              disabled={workflowBusy || primaryAction.disabled}
               title={primaryAction.disabled && primaryAction.reason ? primaryAction.reason : undefined}
               rightIcon={primaryAction.id === 'advance_to_recording' || primaryAction.id === 'promote_to_script' ? <ArrowRight className="h-4 w-4" /> : undefined}
             >
-              {isSaving ? 'Salvando…' : primaryAction.label}
+              {primaryAction.label}
             </AppButton>
           ) : null}
           {overflowMenu}

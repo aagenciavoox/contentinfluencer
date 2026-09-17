@@ -1,11 +1,12 @@
-import type { Content, Pilar, Serie } from '../../../lib/database';
-import { getUsefulExcerpt } from '../../contents/lib/contentCardMeta';
+import type { Content, Pilar, Serie } from '../../../lib/database.ts';
+import { htmlToReadableText } from '../../../lib/utils.ts';
 import {
   CONTENT_STATUS,
   getDisplayStatus,
   normalizeContentStatus,
-} from '../../contents/lib/contentPipeline';
-import { transitionCreationStatus, type CreationTab } from '../../contents/lib/creationContent';
+  PRODUCTION_TAGS,
+} from '../../contents/lib/contentPipeline.ts';
+import { transitionCreationStatus, type CreationTab } from '../../contents/lib/creationContent.ts';
 
 export const CREATION_KANBAN_TABS = [
   'Ideias',
@@ -44,7 +45,7 @@ export function getCreationStageTone(content: Content): string {
 }
 
 export function preferredCreationEntity(
-  content: Content,
+  content: Pick<Content, 'pilarId' | 'seriesId'>,
   pillar?: Pilar | null,
   series?: Serie | null,
 ) {
@@ -68,8 +69,74 @@ export function getCreationFormatLabel(content: Content) {
   return value || null;
 }
 
+const TECHNICAL_TIME_MARK =
+  /\[\d{1,2}:\d{2}(?::\d{2})?(?:\s*(?:--|[-–—])\s*\d{1,2}:\d{2}(?::\d{2})?)?\]/g;
+const TECHNICAL_TAGS = new Set<string>([
+  PRODUCTION_TAGS.GRAVAR,
+  PRODUCTION_TAGS.EDITAR,
+]);
+
+function decodeCommonEntities(value: string) {
+  return value
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&gt;/gi, '>')
+    .replace(/&lt;/gi, '<')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#(?:39|x27);/gi, "'")
+    .replace(/&amp;/gi, '&');
+}
+
+/** Turns editor or transcript content into a concise, presentation-safe preview. */
+export function sanitizeCreationPreviewText(value: string | null | undefined) {
+  return decodeCommonEntities(htmlToReadableText(value))
+    .replace(TECHNICAL_TIME_MARK, ' ')
+    .replace(/\[\d+(?:\s*,\s*\d+)*\]/g, ' ')
+    .replace(/(^|\s)>\s*/g, '$1')
+    .replace(/\[(?:cena|take|bloco|pausa|corte)[^\]]*\]/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 export function getCreationNoteExcerpt(content: Content) {
-  return getUsefulExcerpt(content);
+  return (
+    sanitizeCreationPreviewText(content.notes)
+    || sanitizeCreationPreviewText(content.script)
+    || null
+  );
+}
+
+function formatCreationCardDate(iso: string) {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+}
+
+export function getCreationCardFooterMeta(content: Content) {
+  return [getCreationFormatLabel(content), formatCreationCardDate(content.updatedAt)]
+    .filter(Boolean)
+    .join(' / ');
+}
+
+/** User-facing tags first, followed by the resolved editorial category as fallback metadata. */
+export function getCreationCardTags(
+  content: Pick<Content, 'tags' | 'pilarId' | 'seriesId'>,
+  pillar?: Pilar | null,
+  series?: Serie | null,
+) {
+  const labels = [
+    ...content.tags.filter(tag => !TECHNICAL_TAGS.has(tag.trim().toLowerCase())),
+    preferredCreationEntity(content, pillar, series)?.label,
+  ];
+  const seen = new Set<string>();
+
+  return labels.flatMap(label => {
+    const normalized = label?.trim().replace(/^#+/, '');
+    if (!normalized) return [];
+    const key = normalized.toLocaleLowerCase('pt-BR');
+    if (seen.has(key)) return [];
+    seen.add(key);
+    return [normalized];
+  });
 }
 
 export function isCreationKanbanTab(tab: CreationTab): tab is CreationKanbanTab {

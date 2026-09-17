@@ -154,7 +154,7 @@ export function ContentDetailMobileScreen({
             disabled={isSaving || primaryAction.disabled}
             className="min-h-11 w-full justify-center"
           >
-            {isSaving ? 'Salvando...' : primaryAction.label}
+            {primaryAction.label}
           </AppButton>
         ) : null}
         <AppButton
@@ -209,17 +209,6 @@ export function ContentDetailMobileScreen({
                   <Text variant="meta" truncate>
                     {saveHint}
                   </Text>
-                  {saveState === 'error' ? (
-                    <AppButton
-                      variant="ghost"
-                      size="xs"
-                      onPointerDown={event => activateWhileEditing(event, onRetrySave)}
-                      disabled={isSaving}
-                      className="h-7 px-2 text-[var(--accent-red)] hover:text-[var(--accent-red)]"
-                    >
-                      Tentar novamente
-                    </AppButton>
-                  ) : null}
                 </div>
               ) : (
                 <Text variant="meta" truncate>
@@ -304,7 +293,7 @@ export function ContentDetailMobileScreen({
               disabled={isSaving || primaryAction.disabled}
               className="min-h-11 w-full justify-center"
             >
-              {isSaving ? 'Salvando...' : primaryAction.label}
+              {primaryAction.label}
             </AppButton>
           ) : null}
           <AppButton

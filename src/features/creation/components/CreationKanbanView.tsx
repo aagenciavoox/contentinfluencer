@@ -12,12 +12,16 @@ import {
 } from '../lib/creationItemActions';
 import {
   CREATION_KANBAN_TABS,
-  getCreationFormatLabel,
+  getCreationCardFooterMeta,
+  getCreationCardTags,
+  getCreationNoteExcerpt,
+  getCreationStageLabel,
+  getCreationStageTone,
   getCreationTitle,
   isCreationKanbanTab,
-  preferredCreationEntity,
   type CreationKanbanTab,
 } from '../lib/creationItemPresentation';
+import { CreationStageChip } from './CreationStageChip';
 
 const DRAG_MIME = 'application/x-creation-id';
 
@@ -61,8 +65,11 @@ function CreationKanbanCard({
   actions: CreationItemActionHandlers;
 }) {
   const title = getCreationTitle(content);
-  const entity = preferredCreationEntity(content, pillar, series);
-  const format = getCreationFormatLabel(content);
+  const tags = getCreationCardTags(content, pillar, series);
+  const excerpt = getCreationNoteExcerpt(content);
+  const stageLabel = getCreationStageLabel(content);
+  const stageTone = getCreationStageTone(content);
+  const footerMeta = getCreationCardFooterMeta(content);
   const canOpen = !content.deletedAt && !selectionMode;
   const menuItems = buildCreationItemMenuItems(content, actions, {
     includeMoveActions: draggable,
@@ -87,35 +94,18 @@ function CreationKanbanCard({
       tabIndex={canOpen ? 0 : undefined}
       aria-label={canOpen ? `Abrir ${title}` : title}
       className={cn(
-        'group relative rounded-[10px] border border-[var(--border-color)] bg-[var(--bg-elevated)] p-3 shadow-none',
-        'transition-[border-color,box-shadow,opacity] duration-150',
-        'hover:border-[var(--border-strong)] hover:shadow-[var(--shadow-soft)]',
+        'creation-hub-card group relative flex flex-col rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-elevated)] shadow-none',
+        'transition-[border-color,box-shadow,opacity] duration-200',
+        'hover:shadow-[var(--shadow-card-hover)]',
         'focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
-        'focus-within:border-[var(--border-strong)] focus-within:shadow-[var(--shadow-soft)]',
+        'focus-within:shadow-[var(--shadow-card-hover)]',
         canOpen && 'cursor-pointer',
         isDragging && 'opacity-60',
         isPersisting && 'opacity-70',
       )}
     >
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0 flex-1 stack-xs">
-          <Text variant="itemTitle" className="line-clamp-2 text-sm font-semibold leading-snug">
-            {title}
-          </Text>
-          {entity ? (
-            <CreationCategoryLabel label={entity.label} color={entity.color} />
-          ) : null}
-          {format ? (
-            <Text variant="meta" as="p" className="truncate leading-none">
-              {format}
-            </Text>
-          ) : null}
-          {isPersisting ? (
-            <Text variant="meta" as="p" className="leading-none">
-              Salvando…
-            </Text>
-          ) : null}
-        </div>
+      <div className="creation-hub-card__header flex min-h-5 items-center justify-between gap-2">
+        <CreationStageChip label={stageLabel} toneStatus={stageTone} />
         <span
           className="pointer-events-auto shrink-0"
           onClick={event => event.stopPropagation()}
@@ -124,6 +114,35 @@ function CreationKanbanCard({
           <CreationItemMenu items={menuItems} label={`Ações de ${title}`} />
         </span>
       </div>
+
+      <div className="card-body">
+        <Text variant="itemTitle" className="creation-hub-card__title line-clamp-2">
+          {title}
+        </Text>
+        {excerpt ? (
+          <Text variant="secondary" className="card-excerpt">
+            {excerpt}
+          </Text>
+        ) : null}
+        {isPersisting ? (
+          <Text variant="meta" as="p" className="leading-none">
+            Salvando…
+          </Text>
+        ) : null}
+      </div>
+
+      {tags.length > 0 || footerMeta ? (
+        <div className="creation-hub-card__footer flex min-h-6 items-center justify-between gap-4">
+          {tags.length > 0 ? (
+            <CreationCategoryLabel label={tags[0]} extraCount={tags.length - 1} />
+          ) : <span aria-hidden />}
+          {footerMeta ? (
+            <Text variant="meta" as="span" className="max-w-[45%] truncate text-right text-2xs text-[var(--text-tertiary)]">
+              {footerMeta}
+            </Text>
+          ) : null}
+        </div>
+      ) : null}
     </article>
   );
 }

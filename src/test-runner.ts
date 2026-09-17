@@ -12,6 +12,7 @@ await import('./features/recording/lib/recordingWorkflow.test.ts');
 await import('./features/editorial-calendar/lib/calendarMode.test.ts');
 await import('./features/creation/lib/legacyCreationRoute.test.ts');
 await import('./features/creation/lib/creationMigrationContract.test.ts');
+await import('./features/creation/lib/creationItemPresentation.test.ts');
 await import('./features/creation/lib/exportScriptsDocx.test.ts');
 await import('./features/settings/lib/gentleExperience.test.ts');
 await import('./features/recommendations/recommendDailyAction.test.ts');

@@ -1,22 +1,14 @@
 import { useState } from 'react';
-import { supabase } from '../../../lib/supabase';
-import {
-  Mail,
-  Lock,
-  ArrowRight,
-  Fingerprint,
-  ChevronRight,
-  AlertCircle,
-  Loader2,
-  User as UserIcon,
-  Eye,
-  EyeOff
-} from 'lucide-react';
+import { Eye, EyeOff, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { supabase } from '../../../lib/supabase';
 import { cn } from '../../../lib/utils';
 import { ERRORS } from '../../../lib/uiCopy';
 import { AppButton } from '../../../components/ui/AppButton';
+import { Badge } from '../../../components/ui/Badge';
+import { Surface } from '../../../components/ui/Surface';
 import { Text } from '../../../components/ui/Text';
+import { useIsMobile } from '../../../hooks/useIsMobile';
 
 type AuthFailure = {
   message?: string;
@@ -60,7 +52,189 @@ function normalizeAuthError(error: AuthFailure | null | undefined) {
   return ERRORS.autenticacao;
 }
 
+function AuthForm({
+  isRegister,
+  name,
+  email,
+  password,
+  showPassword,
+  loading,
+  error,
+  success,
+  firstName,
+  onNameChange,
+  onEmailChange,
+  onPasswordChange,
+  onTogglePassword,
+  onToggleMode,
+  onSubmit,
+  onBackFromSuccess,
+  compact = false,
+}: {
+  isRegister: boolean;
+  name: string;
+  email: string;
+  password: string;
+  showPassword: boolean;
+  loading: boolean;
+  error: string | null;
+  success: boolean;
+  firstName: string;
+  onNameChange: (value: string) => void;
+  onEmailChange: (value: string) => void;
+  onPasswordChange: (value: string) => void;
+  onTogglePassword: () => void;
+  onToggleMode: () => void;
+  onSubmit: (e: React.FormEvent) => void;
+  onBackFromSuccess: () => void;
+  compact?: boolean;
+}) {
+  return (
+    <AnimatePresence mode="wait">
+      {success ? (
+        <motion.div
+          key="success"
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -8 }}
+          transition={{ duration: 0.35 }}
+          className="stack-lg text-center py-6"
+        >
+          <div
+            className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[var(--brand-accent-soft)] text-[var(--brand-accent)]"
+            aria-hidden
+          >
+            <span className="text-lg font-semibold">✓</span>
+          </div>
+          <div className="stack-sm">
+            <Text variant="sectionTitle" as="h2">
+              Quase lá, {firstName}!
+            </Text>
+            <Text variant="secondary">
+              Enviamos um link para{' '}
+              <span className="font-semibold text-[var(--text-primary)]">{email}</span>.
+              Confirme para entrar.
+            </Text>
+          </div>
+          <AppButton type="button" variant="ghost" onClick={onBackFromSuccess}>
+            Voltar ao login
+          </AppButton>
+        </motion.div>
+      ) : (
+        <motion.div
+          key="form"
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -8 }}
+          transition={{ duration: 0.35 }}
+        >
+          <div className={cn('stack-sm', compact ? 'mb-6' : 'mb-8')}>
+            <Text variant="eyebrow" uppercase>
+              {isRegister ? 'Novo acesso' : 'Bem-vindo de volta'}
+            </Text>
+            <Text variant={compact ? 'pageTitle' : 'display'} as="h2">
+              {isRegister ? 'Criar conta' : 'Entrar'}
+            </Text>
+            <Text variant="secondary">
+              {isRegister
+                ? 'Monte seu estúdio e comece a organizar ideias e roteiros.'
+                : 'Continue de onde parou no seu estúdio de criação.'}
+            </Text>
+          </div>
+
+          <form onSubmit={onSubmit} className="stack-lg">
+            {isRegister && (
+              <label htmlFor="name" className="stack-sm">
+                <Text variant="label">Nome</Text>
+                <input
+                  id="name"
+                  autoComplete="name"
+                  value={name}
+                  onChange={(e) => onNameChange(e.target.value)}
+                  className="w-full input"
+                  placeholder="Seu nome"
+                />
+              </label>
+            )}
+
+            <label htmlFor="email" className="stack-sm">
+              <Text variant="label">E-mail</Text>
+              <input
+                id="email"
+                type="email"
+                autoComplete="email"
+                value={email}
+                onChange={(e) => onEmailChange(e.target.value)}
+                className="w-full input"
+                placeholder="email@exemplo.com"
+              />
+            </label>
+
+            <div className="stack-sm">
+              <label htmlFor="password">
+                <Text variant="label">Senha</Text>
+              </label>
+              <div className="relative">
+                <input
+                  id="password"
+                  type={showPassword ? 'text' : 'password'}
+                  autoComplete={isRegister ? 'new-password' : 'current-password'}
+                  value={password}
+                  onChange={(e) => onPasswordChange(e.target.value)}
+                  className="w-full input pr-12"
+                  placeholder="••••••••"
+                />
+                <button
+                  type="button"
+                  aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
+                  onClick={onTogglePassword}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 touch-target interactive-press inline-flex items-center justify-center text-[var(--text-tertiary)]"
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
+            </div>
+
+            {error ? (
+              <div
+                role="alert"
+                className="rounded-[var(--radius-input)] border border-[color-mix(in_srgb,var(--danger)_35%,var(--border-color))] bg-[color-mix(in_srgb,var(--danger)_8%,transparent)] px-3 py-2"
+              >
+                <Text variant="meta" className="text-[var(--danger)]">
+                  {error}
+                </Text>
+              </div>
+            ) : null}
+
+            <AppButton
+              type="submit"
+              variant="primary"
+              size="lg"
+              fullWidth
+              disabled={loading}
+              className={cn('interactive-press', loading && 'opacity-50')}
+            >
+              {loading ? <Loader2 className="animate-spin" size={18} /> : isRegister ? 'Criar conta' : 'Entrar'}
+            </AppButton>
+          </form>
+
+          <div className="mt-6 text-center">
+            <button
+              type="button"
+              onClick={onToggleMode}
+              className="touch-target interactive-press text-[length:var(--font-size-footnote)] text-[var(--text-secondary)] underline decoration-[var(--border-strong)] underline-offset-4"
+            >
+              {isRegister ? 'Já tem conta? Entrar' : 'Criar conta'}
+            </button>
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
 export function LoginPage() {
+  const isMobile = useIsMobile();
   const [isRegister, setIsRegister] = useState(false);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -77,7 +251,7 @@ export function LoginPage() {
   };
 
   const handleToggleMode = () => {
-    setIsRegister(prev => !prev);
+    setIsRegister((prev) => !prev);
     resetStates();
   };
 
@@ -112,26 +286,26 @@ export function LoginPage() {
 
     try {
       if (isRegister) {
-        const { error } = await supabase.auth.signUp({
+        const { error: signUpError } = await supabase.auth.signUp({
           email: trimmedEmail,
           password,
           options: {
             data: {
               full_name: trimmedName,
-            }
-          }
+            },
+          },
         });
 
-        if (error) throw error;
+        if (signUpError) throw signUpError;
 
         setSuccess(true);
       } else {
-        const { error } = await supabase.auth.signInWithPassword({
+        const { error: signInError } = await supabase.auth.signInWithPassword({
           email: trimmedEmail,
           password,
         });
 
-        if (error) throw error;
+        if (signInError) throw signInError;
       }
     } catch (err) {
       setError(normalizeAuthError(err as AuthFailure));
@@ -142,154 +316,154 @@ export function LoginPage() {
 
   const firstName = name.trim().split(' ')[0] || 'criador';
 
-  return (
-    <div className="min-h-screen w-full bg-[var(--bg-primary)] flex items-center justify-center p-6 relative overflow-hidden">
+  const formProps = {
+    isRegister,
+    name,
+    email,
+    password,
+    showPassword,
+    loading,
+    error,
+    success,
+    firstName,
+    onNameChange: setName,
+    onEmailChange: setEmail,
+    onPasswordChange: setPassword,
+    onTogglePassword: () => setShowPassword((prev) => !prev),
+    onToggleMode: handleToggleMode,
+    onSubmit: handleSubmit,
+    onBackFromSuccess: () => setSuccess(false),
+  };
 
-      <div className="absolute inset-x-0 top-0 h-24 border-b border-[var(--border-color)] bg-[var(--bg-secondary)]/90" />
+  if (isMobile) {
+    return (
+      <div className="min-h-dvh w-full bg-[var(--bg-primary)] flex flex-col">
+        <motion.section
+          initial={{ opacity: 0, y: -12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, ease: 'easeOut' }}
+          className="relative overflow-hidden bg-[var(--brand-accent)] px-6 pb-8"
+          style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 28px)' }}
+        >
+          <div
+            aria-hidden
+            className="pointer-events-none absolute -right-8 top-8 h-36 w-36 rotate-12 rounded-[var(--radius-xl)] bg-[var(--brand-on-accent)]/15"
+          />
+          <div
+            aria-hidden
+            className="pointer-events-none absolute -left-10 bottom-0 h-28 w-28 -rotate-12 rounded-[var(--radius-xl)] bg-[var(--brand-fab)]/20"
+          />
 
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.8, ease: "easeOut" }}
-        className="w-full max-w-md relative z-10"
-      >
-        {/* Logo */}
-        <div className="flex flex-col items-center mb-8">
-          <div className="w-12 h-12 bg-[var(--text-primary)] rounded-lg flex items-center justify-center text-[var(--bg-primary)] shadow-[var(--shadow-soft)] mb-5">
-            <Fingerprint className="w-7 h-7" />
+          <div className="relative z-10 stack-md">
+            <Badge
+              variant="neutral"
+              className="w-fit border-transparent bg-[var(--brand-on-accent)]/20 text-[var(--brand-on-accent)]"
+            >
+              Estúdio de criação
+            </Badge>
+            <img
+              src="/brand/criaki-logo-dark.png"
+              alt="Criaki"
+              className="h-16 w-auto max-w-[9.5rem] object-contain object-left"
+            />
+            <Text variant="body" className="max-w-[18rem] text-[var(--brand-on-accent)] opacity-95">
+              Ideias, roteiros, gravação e biblioteca — no seu ritmo.
+            </Text>
           </div>
-          <Text variant="sectionTitle" as="h1" className="mb-1 font-semibold tracking-normal">
-            Skript
+        </motion.section>
+
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.55, delay: 0.08, ease: 'easeOut' }}
+          className="relative z-10 -mt-4 flex-1 rounded-t-[var(--radius-card)] bg-[var(--bg-primary)] px-6 pt-6"
+          style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 24px)' }}
+        >
+          <AuthForm {...formProps} compact />
+        </motion.div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-dvh w-full grid lg:grid-cols-2 bg-[var(--bg-primary)]">
+      <motion.aside
+        initial={{ opacity: 0, x: -24 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.65, ease: 'easeOut' }}
+        className="relative hidden lg:flex flex-col justify-between overflow-hidden bg-[var(--brand-fab)] px-12 py-12 text-[var(--brand-on-accent)]"
+      >
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0"
+          style={{
+            background:
+              'radial-gradient(ellipse 70% 50% at 20% 15%, color-mix(in srgb, var(--brand-accent) 55%, transparent), transparent 70%), radial-gradient(ellipse 50% 40% at 85% 80%, color-mix(in srgb, var(--brand-accent) 28%, transparent), transparent 65%)',
+          }}
+        />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute right-10 top-24 h-24 w-40 rotate-[-28deg] rounded-[var(--radius-xl)] bg-[var(--brand-accent)]"
+        />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute bottom-28 right-16 h-28 w-28 rotate-12 rounded-[var(--radius-xl)]"
+          style={{
+            background:
+              'conic-gradient(from 210deg at 60% 40%, color-mix(in srgb, var(--brand-accent) 80%, white), transparent 55%)',
+          }}
+        />
+
+        <div className="relative z-10">
+          <Badge
+            variant="neutral"
+            className="border-transparent bg-[var(--brand-on-accent)]/12 text-[var(--brand-on-accent)]"
+          >
+            Criaki
+          </Badge>
+        </div>
+
+        <div className="relative z-10 stack-xl max-w-md">
+          <img
+            src="/brand/criaki-logo-dark.png"
+            alt="Criaki"
+            className="h-28 w-auto max-w-[14rem] object-contain object-left"
+          />
+          <div className="stack-sm">
+            <Text variant="display" as="p" className="text-[var(--brand-on-accent)]">
+              Seu estúdio de criação
+            </Text>
+            <Text variant="body" className="text-[var(--brand-on-accent)]/80">
+              Ideias, roteiros, gravação e biblioteca — organizados para você produzir no ritmo certo.
+            </Text>
+          </div>
+        </div>
+
+        <div className="relative z-10 flex items-center gap-3">
+          <img
+            src="/brand/criaki-app-icon.png"
+            alt=""
+            className="h-10 w-10 rounded-[var(--radius-input)] object-cover"
+            aria-hidden
+          />
+          <Text variant="meta" className="text-[var(--brand-on-accent)]/70">
+            Produção com clareza, do briefing ao post.
           </Text>
-          <p className="t-secondary font-normal tracking-normal text-center">
-            A sua Central de Produção Inteligente
-          </p>
         </div>
+      </motion.aside>
 
-        {/* Card */}
-        <div className="rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-elevated)] p-8">
-
-          <AnimatePresence mode="wait">
-            {success ? (
-              <motion.div key="success" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-10">
-                <div className="w-12 h-12 bg-green-500/10 text-green-500 rounded-full flex items-center justify-center mx-auto mb-4 border border-green-500/20">
-                  <ArrowRight className="w-6 h-6" />
-                </div>
-
-                <Text variant="sectionTitle" as="h2" className="mb-2 text-lg font-semibold tracking-normal">
-                  Quase lá, {firstName}!
-                </Text>
-
-                <p className="text-sm text-[var(--text-secondary)] px-4 leading-relaxed">
-                  Enviamos um link para <span className="font-bold">{email}</span>.
-                  Confirme para entrar.
-                </p>
-
-                <button
-                  type="button"
-                  onClick={() => setSuccess(false)}
-                  className="mt-8 touch-target interactive-press text-sm font-medium tracking-normal underline"
-                >
-                  Voltar ao login
-                </button>
-              </motion.div>
-            ) : (
-              <motion.div key="form">
-
-                <div className="mb-8">
-                  <Text variant="sectionTitle" as="h2" className="text-xl font-semibold tracking-normal">
-                    {isRegister ? 'Criar Conta' : 'Entrar'}
-                  </Text>
-                </div>
-
-                <form onSubmit={handleSubmit} className="stack-lg">
-
-                  {isRegister && (
-                    <div>
-                      <label htmlFor="name" className="t-meta font-medium text-[var(--text-tertiary)]">
-                        Nome
-                      </label>
-                      <input
-                        id="name"
-                        autoComplete="name"
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        className="w-full input"
-                        placeholder="Seu nome"
-                      />
-                    </div>
-                  )}
-
-                  <div>
-                    <label htmlFor="email" className="t-meta font-medium text-[var(--text-tertiary)]">
-                      E-mail
-                    </label>
-                    <input
-                      id="email"
-                      type="email"
-                      autoComplete="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="w-full input"
-                      placeholder="email@exemplo.com"
-                    />
-                  </div>
-
-                  <div>
-                    <label htmlFor="password" className="t-meta font-medium text-[var(--text-tertiary)]">
-                      Senha
-                    </label>
-                    <div className="relative">
-                      <input
-                        id="password"
-                        type={showPassword ? 'text' : 'password'}
-                        autoComplete={isRegister ? 'new-password' : 'current-password'}
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        className="w-full input pr-10"
-                      />
-                      <button
-                        type="button"
-                        aria-label="Mostrar senha"
-                        onClick={() => setShowPassword(prev => !prev)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 touch-target interactive-press inline-flex items-center justify-center"
-                      >
-                        {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                      </button>
-                    </div>
-                  </div>
-
-                  {error && (
-                    <div role="alert" className="text-red-500 text-xs">
-                      {error}
-                    </div>
-                  )}
-
-                  <AppButton
-                    type="submit"
-                    variant="primary"
-                    fullWidth
-                    disabled={loading}
-                    className={cn('interactive-press', loading && 'opacity-50')}
-                  >
-                    {loading ? <Loader2 className="animate-spin" /> : 'Continuar'}
-                  </AppButton>
-                </form>
-
-                <div className="mt-6 text-center">
-                  <button type="button" onClick={handleToggleMode} className="touch-target interactive-press text-xs underline">
-                    {isRegister ? 'Já tem conta?' : 'Criar conta'}
-                  </button>
-                </div>
-
-              </motion.div>
-            )}
-          </AnimatePresence>
-
+      <motion.main
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.55, delay: 0.1, ease: 'easeOut' }}
+        className="flex items-center justify-center px-6 py-12"
+      >
+        <div className="w-full max-w-md">
+          <Surface variant="outlined" padding="lg" className="p-8">
+            <AuthForm {...formProps} />
+          </Surface>
         </div>
-      </motion.div>
+      </motion.main>
     </div>
   );
 }
-
-
