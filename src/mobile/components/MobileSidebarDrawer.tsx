@@ -6,7 +6,6 @@ import {
   Search,
   Settings,
   Sun,
-  User,
   X,
 } from 'lucide-react';
 import { Text } from '../../components/ui/Text';
@@ -14,6 +13,8 @@ import { useAppContext } from '../../context/AppContext';
 import { useAuth } from '../../context/AuthContext';
 import { getModuleFlags } from '../../features/settings/lib/moduleFlags';
 import { useNavCounts } from '../../hooks/useNavCounts';
+import { BrandLockup } from '../../layouts/navigation/BrandLockup';
+import { getUserInitials } from '../../layouts/navigation/userInitials';
 import {
   buildSidebarSections,
   isNavItemHidden,
@@ -42,9 +43,9 @@ function DrawerNavItem({
       onClick={onClose}
       className={({ isActive }) =>
         cn(
-          'flex min-h-11 items-center gap-3 rounded-[var(--radius-card-mobile)] px-3 transition-colors',
+          'relative flex min-h-11 items-center gap-3 rounded-[var(--radius-card-mobile)] px-3 transition-colors',
           isActive
-            ? 'bg-[var(--bg-hover)] text-[var(--text-primary)]'
+            ? 'relative bg-[var(--bg-hover)] text-[var(--text-primary)] before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-0.5 before:rounded-full before:bg-[var(--brand-accent)]'
             : 'text-[var(--text-secondary)] active:bg-[var(--bg-hover)]'
         )
       }
@@ -54,7 +55,7 @@ function DrawerNavItem({
           <Icon
             className={cn(
               'h-5 w-5 shrink-0 stroke-[1.75]',
-              isActive ? 'text-[var(--text-primary)]' : 'text-[var(--text-tertiary)]'
+              isActive ? 'text-[var(--brand-accent)]' : 'text-[var(--text-tertiary)]'
             )}
           />
           <span className={cn('flex-1 truncate text-sm', isActive ? 'font-semibold' : 'font-medium')}>
@@ -95,18 +96,12 @@ export function MobileSidebarDrawer({ onClose }: MobileSidebarDrawerProps) {
     user?.email?.split('@')[0] ||
     'Utilizador';
   const userEmail = user?.email || 'user@exemplo.com';
+  const userInitials = getUserInitials(userName);
 
   return (
     <div className="flex h-full flex-col overflow-hidden border-r border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 pb-safe pt-[max(env(safe-area-inset-top),12px)]">
       <div className="mb-4 flex shrink-0 items-center justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-2.5">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-[var(--border-color)] bg-[var(--bg-elevated)]">
-            <div className="h-3.5 w-3.5 rounded-sm border-2 border-[var(--text-primary)]" />
-          </div>
-          <span className="truncate text-sm font-semibold tracking-tight text-[var(--text-primary)]">
-            Skript
-          </span>
-        </div>
+        <BrandLockup className="min-w-0 flex-1" onNavigate={onClose} />
         <button
           type="button"
           onClick={onClose}
@@ -169,7 +164,14 @@ export function MobileSidebarDrawer({ onClose }: MobileSidebarDrawerProps) {
             )
           }
         >
-          <Settings className="h-5 w-5 shrink-0 text-[var(--text-tertiary)]" />
+          <Settings
+            className={cn(
+              'h-5 w-5 shrink-0',
+              isSettingsNavActive(location.pathname, false)
+                ? 'text-[var(--brand-accent)]'
+                : 'text-[var(--text-tertiary)]',
+            )}
+          />
           <span className="flex-1 text-sm font-medium">Configurações</span>
           <ChevronRight className="h-4 w-4 shrink-0 text-[var(--text-tertiary)]" />
         </NavLink>
@@ -181,8 +183,8 @@ export function MobileSidebarDrawer({ onClose }: MobileSidebarDrawerProps) {
           onClick={onClose}
           className="flex min-h-11 items-center gap-3 rounded-md p-2 transition-colors active:bg-[var(--bg-hover)]"
         >
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[var(--bg-hover)]">
-            <User className="h-5 w-5 text-[var(--text-secondary)]" />
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[var(--bg-hover)] text-sm font-semibold text-[var(--text-secondary)]">
+            {userInitials}
           </div>
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-semibold text-[var(--text-primary)]">{userName}</p>

@@ -23,6 +23,8 @@ import {useNavCounts} from '../../hooks/useNavCounts';
 import {readStoredJson, writeStoredJson} from '../../lib/browserStorage';
 import {cn} from '../../lib/utils';
 import {MobileSidebarDrawer} from '../../mobile/components/MobileSidebarDrawer';
+import {BrandLockup} from './BrandLockup';
+import {getUserInitials} from './userInitials';
 import {
   buildSidebarSections,
   isNavItemHidden,
@@ -128,6 +130,7 @@ export function Sidebar({isOpen, onClose}: SidebarProps) {
     user?.email?.split('@')[0] ||
     'Utilizador';
   const userEmail = user?.email || 'user@exemplo.com';
+  const userInitials = getUserInitials(userName);
 
   const renderNavItem = (item: NavItemDefinition) => {
     const {to, label, icon: Icon, end = true} = item;
@@ -143,7 +146,7 @@ export function Sidebar({isOpen, onClose}: SidebarProps) {
             'group relative flex items-center rounded-md transition-colors duration-150',
             isCollapsed ? 'justify-center px-0 py-2' : 'gap-3 px-3 py-2',
             isActive
-              ? 'bg-[var(--bg-hover)] text-[var(--text-primary)]'
+              ? 'bg-[var(--bg-hover)] text-[var(--text-primary)] before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-0.5 before:rounded-full before:bg-[var(--brand-accent)]'
               : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]'
           )
         }
@@ -153,7 +156,7 @@ export function Sidebar({isOpen, onClose}: SidebarProps) {
             <Icon
               className={cn(
                 'h-5 w-5 shrink-0 stroke-[1.75]',
-                isActive ? 'text-[var(--text-primary)]' : 'text-[var(--text-tertiary)] group-hover:text-[var(--text-secondary)]'
+                isActive ? 'text-[var(--brand-accent)]' : 'text-[var(--text-tertiary)] group-hover:text-[var(--text-secondary)]'
               )}
             />
             {!isCollapsed ? (
@@ -221,20 +224,11 @@ export function Sidebar({isOpen, onClose}: SidebarProps) {
     >
       <div className={cn('mb-5 flex shrink-0 items-center', isCollapsed ? 'justify-center' : 'justify-between')}>
         {isCollapsed ? (
-          <Tooltip label="Skript">
-            <div className="flex h-8 w-8 items-center justify-center rounded-md border border-[var(--border-color)] bg-[var(--bg-elevated)]">
-              <div className="h-3.5 w-3.5 rounded-sm border-2 border-[var(--text-primary)]" />
-            </div>
+          <Tooltip label="Criaki">
+            <BrandLockup collapsed />
           </Tooltip>
         ) : (
-          <div className="flex min-w-0 flex-1 items-center gap-2.5">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-[var(--border-color)] bg-[var(--bg-elevated)]">
-              <div className="h-3.5 w-3.5 rounded-sm border-2 border-[var(--text-primary)]" />
-            </div>
-            <span className="truncate text-sm font-semibold tracking-tight text-[var(--text-primary)]">
-              Skript
-            </span>
-          </div>
+          <BrandLockup className="min-w-0 flex-1" />
         )}
 
         {!isCollapsed && isMobile ? (
@@ -302,7 +296,7 @@ export function Sidebar({isOpen, onClose}: SidebarProps) {
                 cn(
                   'flex h-9 w-9 items-center justify-center rounded-md transition-colors',
                   isSettingsNavActive(location.pathname, isActive)
-                    ? 'bg-[var(--bg-hover)] text-[var(--text-primary)]'
+                    ? 'bg-[var(--bg-hover)] text-[var(--brand-accent)]'
                     : 'text-[var(--text-tertiary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]'
                 )
               }
@@ -322,7 +316,10 @@ export function Sidebar({isOpen, onClose}: SidebarProps) {
               )
             }
           >
-            <Settings className="h-5 w-5 text-[var(--text-tertiary)]" />
+            <Settings className={cn(
+              'h-5 w-5',
+              isSettingsNavActive(location.pathname, false) ? 'text-[var(--brand-accent)]' : 'text-[var(--text-tertiary)]'
+            )} />
             <span className="flex-1 text-sm font-medium">Configurações</span>
             <ChevronRight className="h-4 w-4 text-[var(--text-tertiary)]" />
           </NavLink>
@@ -340,10 +337,10 @@ export function Sidebar({isOpen, onClose}: SidebarProps) {
             <Tooltip label={userName}>
               <button
                 onClick={e => { e.stopPropagation(); setUserMenuOpen(prev => !prev); }}
-                className="relative flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-[var(--bg-hover)]"
+                className="relative flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-[var(--bg-hover)] text-xs font-semibold text-[var(--text-secondary)]"
                 aria-label="Perfil"
               >
-                <User className="h-4 w-4 text-[var(--text-secondary)]" />
+                {userInitials}
               </button>
             </Tooltip>
           </div>
@@ -359,8 +356,8 @@ export function Sidebar({isOpen, onClose}: SidebarProps) {
               className="flex w-full items-center gap-3 rounded-md border border-transparent p-2 text-left transition-colors hover:bg-[var(--bg-hover)]"
               aria-label="Abrir perfil"
             >
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[var(--bg-hover)]">
-                <User className="h-5 w-5 text-[var(--text-secondary)]" />
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[var(--bg-hover)] text-sm font-semibold text-[var(--text-secondary)]">
+                {userInitials}
               </div>
               <div className="flex min-w-0 flex-1 flex-col items-start overflow-hidden">
                 <span className="w-full truncate text-sm font-semibold text-[var(--text-primary)]">{userName}</span>

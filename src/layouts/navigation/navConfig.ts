@@ -1,14 +1,13 @@
 import type { ElementType } from 'react';
 import {
-  BookOpen,
-  Calendar,
-  Camera,
-  FolderKanban,
-  Home,
-  Layers,
-  Lightbulb,
-  Palette,
-  Sparkles,
+  Briefcase,
+  CalendarDays,
+  Clapperboard,
+  Columns3,
+  Library,
+  ListVideo,
+  PenLine,
+  SunMedium,
 } from 'lucide-react';
 import type { ModuleFlags } from '../../features/settings/lib/moduleFlags';
 
@@ -42,14 +41,14 @@ export const STUDIO_ROUTES = [
 
 /** Left side of mobile bottom nav (before FAB). */
 export const MOBILE_BOTTOM_NAV_LEFT: NavItemDefinition[] = [
-  { to: '/hoje', label: 'Home', icon: Home },
-  { to: '/criacao', label: 'Criação', icon: Lightbulb, badgeKey: 'editorial' },
+  { to: '/hoje', label: 'Home', icon: SunMedium },
+  { to: '/criacao', label: 'Criação', icon: PenLine, badgeKey: 'editorial' },
 ];
 
 /** Right side of mobile bottom nav (after FAB). */
 export const MOBILE_BOTTOM_NAV_RIGHT: NavItemDefinition[] = [
-  { to: '/biblioteca', label: 'Biblioteca', icon: BookOpen, badgeKey: 'library', module: 'library' },
-  { to: '/gravacao?tab=queue', label: 'Gravação', icon: Camera, module: 'recording' },
+  { to: '/biblioteca', label: 'Biblioteca', icon: Library, badgeKey: 'library', module: 'library' },
+  { to: '/gravacao?tab=queue', label: 'Gravação', icon: Clapperboard, module: 'recording' },
 ];
 
 /** @deprecated Use MOBILE_BOTTOM_NAV_LEFT + MOBILE_BOTTOM_NAV_RIGHT */
@@ -93,24 +92,24 @@ export function buildSidebarSections(moduleFlags: ModuleFlags): NavSectionDefini
     {
       label: null,
       items: [
-        { to: '/hoje', label: 'Hoje', icon: Home },
+        { to: '/hoje', label: 'Hoje', icon: SunMedium },
       ],
     },
     {
       label: 'Criação',
       items: [
-        { to: '/criacao', label: 'Criação', icon: Sparkles, badgeKey: 'editorial' },
-        { to: '/configuracoes/series', label: 'Séries', icon: Layers },
-        { to: '/configuracoes/pilares', label: 'Pilares', icon: Palette },
-        { to: '/biblioteca', label: 'Biblioteca', icon: BookOpen, badgeKey: 'library', module: 'library' },
+        { to: '/criacao', label: 'Criação', icon: PenLine, badgeKey: 'editorial' },
+        { to: '/configuracoes/series', label: 'Séries', icon: ListVideo },
+        { to: '/configuracoes/pilares', label: 'Pilares', icon: Columns3 },
+        { to: '/biblioteca', label: 'Biblioteca', icon: Library, badgeKey: 'library', module: 'library' },
       ],
     },
     {
       label: 'Produção',
       items: [
-        { to: '/gravacao?tab=queue', label: 'Gravação', icon: Camera, module: 'recording' },
-        { to: '/calendario', label: 'Calendário', icon: Calendar, module: 'calendar' },
-        { to: '/projetos', label: 'Projetos', icon: FolderKanban, module: 'projects' },
+        { to: '/gravacao?tab=queue', label: 'Gravação', icon: Clapperboard, module: 'recording' },
+        { to: '/calendario', label: 'Calendário', icon: CalendarDays, module: 'calendar' },
+        { to: '/projetos', label: 'Projetos', icon: Briefcase, module: 'projects' },
       ],
     },
   ];
