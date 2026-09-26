@@ -1,16 +1,20 @@
-import { useId, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { ImagePlus, Loader2, Trash2 } from 'lucide-react';
 import { AppButton } from '../../../components/ui/AppButton';
 import { Surface } from '../../../components/ui/Surface';
 import { Text } from '../../../components/ui/Text';
 import { useAuth } from '../../../context/AuthContext';
 import { cn } from '../../../lib/utils';
+import { deleteLibraryCoverByUrl } from '../lib/libraryCoverStorage';
 import { uploadLibraryCover, validateLibraryCoverFile } from '../lib/uploadLibraryCover';
+import { CoverFallback } from './CoverFallback';
 
 interface CoverUploadFieldProps {
   value: string;
   onChange: (url: string) => void;
   itemId?: string | null;
+  title?: string;
+  typeLabel?: string;
   className?: string;
   compact?: boolean;
   allowUrlFallback?: boolean;
@@ -20,6 +24,8 @@ export function CoverUploadField({
   value,
   onChange,
   itemId = null,
+  title = 'Capa',
+  typeLabel,
   className,
   compact = false,
   allowUrlFallback = true,
@@ -29,7 +35,14 @@ export function CoverUploadField({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [showUrl, setShowUrl] = useState(Boolean(value) && !value.includes('/storage/v1/object/public/library-covers/'));
+  const [broken, setBroken] = useState(false);
+  const [showUrl, setShowUrl] = useState(
+    Boolean(value) && !value.includes('/storage/v1/object/public/library-covers/'),
+  );
+
+  useEffect(() => {
+    setBroken(false);
+  }, [value]);
 
   const handlePick = () => {
     setError(null);
@@ -58,15 +71,25 @@ export function CoverUploadField({
         file,
         userId: user.id,
         itemId,
+        previousUrl: value || null,
       });
       onChange(publicUrl);
       setShowUrl(false);
+      setBroken(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Nao foi possivel enviar a capa.');
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
+  };
+
+  const handleRemove = () => {
+    const previous = value;
+    onChange('');
+    setError(null);
+    setBroken(false);
+    void deleteLibraryCoverByUrl(previous);
   };
 
   return (
@@ -80,21 +103,24 @@ export function CoverUploadField({
         padding="none"
         className={cn(
           'overflow-hidden',
-          compact ? 'flex items-center gap-3 p-3' : 'stack-md p-4'
+          compact ? 'flex items-center gap-3 p-3' : 'stack-md p-4',
         )}
       >
         <div
           className={cn(
             'overflow-hidden rounded-[var(--radius-md)] bg-[var(--bg-hover)]',
-            compact ? 'h-20 w-14 shrink-0' : 'aspect-[2/3] w-28'
+            compact ? 'h-20 w-14 shrink-0' : 'aspect-[2/3] w-28',
           )}
         >
-          {value ? (
-            <img src={value} alt="" className="h-full w-full object-cover" />
+          {value && !broken ? (
+            <img
+              src={value}
+              alt=""
+              className="h-full w-full object-cover"
+              onError={() => setBroken(true)}
+            />
           ) : (
-            <div className="flex h-full w-full items-center justify-center text-[var(--text-tertiary)]">
-              <ImagePlus className={compact ? 'h-5 w-5' : 'h-6 w-6'} />
-            </div>
+            <CoverFallback title={title} typeLabel={typeLabel} compact={compact} />
           )}
         </div>
 
@@ -118,10 +144,7 @@ export function CoverUploadField({
                 type="button"
                 variant="ghost"
                 size="sm"
-                onClick={() => {
-                  onChange('');
-                  setError(null);
-                }}
+                onClick={handleRemove}
                 disabled={uploading}
                 leftIcon={<Trash2 className="h-4 w-4" />}
               >
@@ -130,7 +153,7 @@ export function CoverUploadField({
             ) : null}
           </div>
 
-          <Text variant="meta">JPG, PNG, WEBP ou GIF · ate 5 MB</Text>
+          <Text variant="meta">JPG, PNG, WEBP ou GIF · ate 5 MB · compactamos automaticamente</Text>
 
           {allowUrlFallback ? (
             <button

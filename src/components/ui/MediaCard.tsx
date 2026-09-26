@@ -1,11 +1,13 @@
 import type { LucideIcon } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { cn } from '../../lib/utils';
+import { coverInitial } from '../../features/library/lib/libraryCoverFile';
 
 interface MediaCardProps {
   imageUrl?: string | null;
   alt: string;
   placeholderIcon?: LucideIcon;
+  /** Short type label shown under the initial when there is no cover. */
   placeholderLabel?: string;
   aspectRatio?: 'cover' | 'poster';
   className?: string;
@@ -29,6 +31,14 @@ export function MediaCard({
   overlay,
   onImageError,
 }: MediaCardProps) {
+  const [broken, setBroken] = useState(false);
+
+  useEffect(() => {
+    setBroken(false);
+  }, [imageUrl]);
+
+  const showImage = Boolean(imageUrl) && !broken;
+
   return (
     <div
       className={cn(
@@ -37,26 +47,33 @@ export function MediaCard({
         className,
       )}
     >
-      {imageUrl ? (
+      {showImage ? (
         <img
-          src={imageUrl}
+          src={imageUrl!}
           alt={alt}
           className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
-          onError={(event) => {
-            (event.target as HTMLImageElement).style.display = 'none';
+          onError={() => {
+            setBroken(true);
             onImageError?.();
           }}
         />
-      ) : PlaceholderIcon ? (
-        <div className="flex h-full w-full flex-col items-center justify-center gap-2 p-3">
-          <PlaceholderIcon className="h-8 w-8 text-[var(--text-tertiary)]" />
+      ) : (
+        <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-[var(--bg-hover)] p-3 text-center">
+          <span
+            className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-[var(--bg-elevated)] text-lg font-semibold text-[var(--text-primary)]"
+            aria-hidden
+          >
+            {coverInitial(alt)}
+          </span>
           {placeholderLabel ? (
-            <span className="text-center text-xs font-bold leading-tight text-[var(--text-tertiary)]">
+            <span className="text-xs font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">
               {placeholderLabel}
             </span>
+          ) : PlaceholderIcon ? (
+            <PlaceholderIcon className="h-5 w-5 text-[var(--text-tertiary)]" />
           ) : null}
         </div>
-      ) : null}
+      )}
       {overlay}
     </div>
   );

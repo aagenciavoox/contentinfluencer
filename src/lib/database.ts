@@ -811,6 +811,8 @@ export type BibliotecaListQuery = {
   tipo?: string;
   status?: string;
   genero?: string;
+  /** Todos | sem | com */
+  capa?: string;
   search?: string;
   sortValue?: string;
 };
@@ -1123,6 +1125,12 @@ export async function fetchBibliotecaPage(
 
   if (generoFilter) {
     request = request.eq('item_generos.biblioteca_generos.nome', query.genero);
+  }
+
+  if (query.capa === 'sem') {
+    request = request.is('capa_url', null);
+  } else if (query.capa === 'com') {
+    request = request.not('capa_url', 'is', null);
   }
 
   const normalizedSearch = query.search?.trim();
@@ -1772,9 +1780,25 @@ export async function saveItemGeneros(itemId: string, generoIds: string[]): Prom
 
 export async function deleteBibliotecaItem(id: string): Promise<void> {
   if (!supabase) return;
+
+  const { data: existing } = await supabase
+    .from('biblioteca_items')
+    .select('user_id, capa_url')
+    .eq('id', id)
+    .maybeSingle();
+
   const { error } = await supabase.from('biblioteca_items')
     .delete().eq('id', id);
   if (error) throw new Error(`delete biblioteca_item: ${error.message}`);
+
+  if (existing?.user_id) {
+    const { deleteLibraryItemCovers } = await import('../features/library/lib/libraryCoverStorage');
+    void deleteLibraryItemCovers({
+      userId: existing.user_id,
+      itemId: id,
+      capaUrl: existing.capa_url,
+    });
+  }
 }
 
 export async function saveAnotacao(anotacao: Omit<Anotacao, 'createdAt' | 'deletedAt'>): Promise<void> {

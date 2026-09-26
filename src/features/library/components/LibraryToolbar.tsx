@@ -4,6 +4,7 @@ import { BibliotecaItem } from '../../../lib/database';
 
 type StatusLeitura = BibliotecaItem['status'];
 type BibliotecaTipo = BibliotecaItem['tipo'];
+export type BibliotecaCapaFilter = 'Todos' | 'sem' | 'com';
 
 interface LibraryToolbarProps {
   searchValue: string;
@@ -14,6 +15,8 @@ interface LibraryToolbarProps {
   onFiltroStatusChange: (value: StatusLeitura | 'Todos') => void;
   filtroGenero: string;
   onFiltroGeneroChange: (value: string) => void;
+  filtroCapa: BibliotecaCapaFilter;
+  onFiltroCapaChange: (value: BibliotecaCapaFilter) => void;
   sortValue: string;
   onSortChange: (value: string) => void;
   statusOptions: StatusLeitura[];
@@ -30,6 +33,8 @@ export function LibraryToolbar({
   onFiltroStatusChange,
   filtroGenero,
   onFiltroGeneroChange,
+  filtroCapa,
+  onFiltroCapaChange,
   sortValue,
   onSortChange,
   statusOptions,
@@ -77,6 +82,17 @@ export function LibraryToolbar({
           options: [
             { label: 'Gênero', value: 'Todos' },
             ...genreOptions.map(genero => ({ label: genero, value: genero })),
+          ],
+        },
+        {
+          id: 'capa',
+          label: 'Capa',
+          value: filtroCapa,
+          onChange: value => onFiltroCapaChange(value as BibliotecaCapaFilter),
+          options: [
+            { label: 'Capa', value: 'Todos' },
+            { label: 'Sem capa', value: 'sem' },
+            { label: 'Com capa', value: 'com' },
           ],
         },
       ]}

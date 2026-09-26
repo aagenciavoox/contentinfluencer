@@ -1,6 +1,6 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { useMemo, useRef, useState, type ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { BookOpen, ChevronLeft, ChevronRight, Film, Pin, Plus, SearchCheck, Tv } from 'lucide-react';
+import { BookOpen, ChevronLeft, ChevronRight, ImagePlus, Loader2, Pin, Plus, SearchCheck } from 'lucide-react';
 import type { BibliotecaItem, BibliotecaItemMeta } from '../../../lib/database';
 import { cn } from '../../../lib/utils';
 import { EmptyState } from '../../../components/ui/EmptyState';
@@ -10,6 +10,11 @@ import { MobileSearchBar } from '../../components/MobileSearchBar';
 import { AppButton } from '../../../components/ui/AppButton';
 import { EMPTY } from '../../../lib/uiCopy';
 import { Text } from '../../../components/ui/Text';
+import { CoverFallback } from '../../../features/library/components/CoverFallback';
+import type { BibliotecaCapaFilter } from '../../../features/library/components/LibraryToolbar';
+import { useAuth } from '../../../context/AuthContext';
+import { notifySaveFeedback } from '../../../lib/saveFeedback';
+import { uploadLibraryCover, validateLibraryCoverFile } from '../../../features/library/lib/uploadLibraryCover';
 
 type BibliotecaTipo = BibliotecaItem['tipo'];
 type StatusLeitura = BibliotecaItem['status'];
@@ -31,6 +36,9 @@ interface LibraryMobileScreenProps {
   onOpenItem: (itemId: string) => void;
   onOpenCreate: () => void;
   onTogglePrimary: (itemId: string) => void;
+  onCoverChange: (item: BibliotecaItem, capaUrl: string) => void;
+  filtroCapa: BibliotecaCapaFilter;
+  onFiltroCapaChange: (value: BibliotecaCapaFilter) => void;
 }
 
 const TYPE_LABELS: Record<BibliotecaTipo, string> = {
@@ -40,15 +48,6 @@ const TYPE_LABELS: Record<BibliotecaTipo, string> = {
   anime: 'Anime',
   manga: 'Mangá',
   outro: 'Outro',
-};
-
-const TYPE_ICONS: Record<BibliotecaTipo, typeof BookOpen> = {
-  livro: BookOpen,
-  filme: Film,
-  'série': Tv,
-  anime: Tv,
-  manga: BookOpen,
-  outro: BookOpen,
 };
 
 function isWishlistStatus(status: StatusLeitura) {
@@ -78,6 +77,91 @@ function LibraryBadge({ children, tone = 'neutral' }: { children: ReactNode; ton
   );
 }
 
+function MobileCoverThumb({
+  item,
+  onOpen,
+  onCoverChange,
+}: {
+  item: BibliotecaItem;
+  onOpen: () => void;
+  onCoverChange: (capaUrl: string) => void;
+}) {
+  const { user } = useAuth();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [broken, setBroken] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const typeLabel = TYPE_LABELS[item.tipo];
+
+  const handleUpload = async (file: File | undefined) => {
+    if (!file) return;
+    const validationError = validateLibraryCoverFile(file);
+    if (validationError) {
+      notifySaveFeedback({ status: 'error', message: validationError });
+      return;
+    }
+    if (!user?.id) {
+      notifySaveFeedback({ status: 'error', message: 'Entre na conta para enviar a capa.' });
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const publicUrl = await uploadLibraryCover({
+        file,
+        userId: user.id,
+        itemId: item.id,
+        previousUrl: item.capaUrl,
+      });
+      onCoverChange(publicUrl);
+      setBroken(false);
+      notifySaveFeedback({ status: 'success', message: 'Capa atualizada.' });
+    } catch (err) {
+      notifySaveFeedback({
+        status: 'error',
+        message: err instanceof Error ? err.message : 'Nao foi possivel enviar a capa.',
+      });
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  return (
+    <div className="relative">
+      <button type="button" onClick={onOpen} className="block w-full text-left active:opacity-90">
+        {item.capaUrl && !broken ? (
+          <img
+            src={item.capaUrl}
+            alt=""
+            className="aspect-[3/4] max-h-28 w-full object-cover"
+            onError={() => setBroken(true)}
+          />
+        ) : (
+          <div className="aspect-[3/4] max-h-28 w-full overflow-hidden">
+            <CoverFallback title={item.titulo} typeLabel={typeLabel} compact />
+          </div>
+        )}
+      </button>
+      <button
+        type="button"
+        onClick={() => fileInputRef.current?.click()}
+        disabled={uploading}
+        className="absolute bottom-2 right-2 inline-flex h-8 w-8 items-center justify-center rounded-full bg-[var(--backdrop-strong)] text-white"
+        aria-label={`Trocar capa de ${item.titulo}`}
+      >
+        {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ImagePlus className="h-3.5 w-3.5" />}
+      </button>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp,image/gif"
+        className="hidden"
+        onChange={event => void handleUpload(event.target.files?.[0])}
+      />
+    </div>
+  );
+}
+
 export function LibraryMobileScreen({
   items,
   libraryTotal = 0,
@@ -87,6 +171,9 @@ export function LibraryMobileScreen({
   onOpenItem,
   onOpenCreate,
   onTogglePrimary,
+  onCoverChange,
+  filtroCapa,
+  onFiltroCapaChange,
   queryStatus = 'ready',
   errorMessage = null,
   onRetry,
@@ -262,7 +349,6 @@ export function LibraryMobileScreen({
         <>
           <div className="grid grid-cols-2 gap-3">
             {filteredItems.map((item) => {
-              const ItemIcon = TYPE_ICONS[item.tipo] || BookOpen;
               const metadata = getItemMeta(item.id);
               const relatedContents = countContents(item.id);
               const isPrimary = mobilePrimaryBookId === item.id;
@@ -272,23 +358,17 @@ export function LibraryMobileScreen({
                   key={item.id}
                   className="flex flex-col overflow-hidden rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)]"
                 >
+                  <MobileCoverThumb
+                    item={item}
+                    onOpen={() => onOpenItem(item.id)}
+                    onCoverChange={capaUrl => onCoverChange(item, capaUrl)}
+                  />
+
                   <button
                     type="button"
                     onClick={() => onOpenItem(item.id)}
                     className="block w-full text-left active:opacity-90"
                   >
-                    {item.capaUrl ? (
-                      <img
-                        src={item.capaUrl}
-                        alt=""
-                        className="aspect-[3/4] max-h-28 w-full object-cover"
-                      />
-                    ) : (
-                      <div className="flex aspect-[3/4] max-h-28 w-full items-center justify-center bg-[var(--bg-hover)] text-[var(--text-tertiary)]">
-                        <ItemIcon className="h-5 w-5" />
-                      </div>
-                    )}
-
                     <div className="stack-xs p-3">
                       <p className="line-clamp-2 text-sm font-semibold leading-snug text-[var(--text-primary)]">
                         {item.titulo}
@@ -396,12 +476,26 @@ export function LibraryMobileScreen({
           </select>
         </label>
 
+        <label className="block stack-sm">
+          <span className="t-label text-[var(--text-tertiary)]">Capa</span>
+          <select
+            value={filtroCapa}
+            onChange={(event) => onFiltroCapaChange(event.target.value as BibliotecaCapaFilter)}
+            className="min-h-11 w-full rounded-lg"
+          >
+            <option value="Todos">Todas</option>
+            <option value="sem">Sem capa</option>
+            <option value="com">Com capa</option>
+          </select>
+        </label>
+
         <AppButton
           variant="primary"
           fullWidth
           onClick={() => {
             setTypeFilter('all');
             setStatusFilter('all');
+            onFiltroCapaChange('Todos');
             setIsFilterSheetOpen(false);
           }}
         >

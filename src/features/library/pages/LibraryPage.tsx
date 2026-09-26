@@ -21,6 +21,7 @@ import { EMPTY } from '../../../lib/uiCopy';
 import { LibraryMobileScreen } from '../../../mobile/screens/library/LibraryMobileScreen';
 import { LibraryItemCard } from '../components/LibraryItemCard';
 import { LibraryToolbar } from '../components/LibraryToolbar';
+import type { BibliotecaCapaFilter } from '../components/LibraryToolbar';
 import { COMPLETED_STATUS_BY_TYPE } from '../lib/libraryStatus';
 import { GENEROS_SUGERIDOS } from '../lib/libraryGenres';
 import { TagSelect } from '../../../components/ui/TagSelect';
@@ -207,6 +208,7 @@ export function LibraryPage() {
   const [filtroTipo, setFiltroTipo] = useState<BibliotecaTipo | 'Todos'>('Todos');
   const [filtroStatus, setFiltroStatus] = useState<StatusLeitura | 'Todos'>('Todos');
   const [filtroGenero, setFiltroGenero] = useState<string>('Todos');
+  const [filtroCapa, setFiltroCapa] = useState<BibliotecaCapaFilter>('Todos');
   const [searchTerm, setSearchTerm] = useState('');
   const [sortValue, setSortValue] = useState('recentes');
   const [modalAberto, setModalAberto] = useState(false);
@@ -221,9 +223,10 @@ export function LibraryPage() {
     tipo: filtroTipo,
     status: filtroStatus,
     genero: filtroGenero,
+    capa: filtroCapa,
     search: searchTerm,
     sortValue,
-  }), [filtroGenero, filtroStatus, filtroTipo, libraryPage, searchTerm, sortValue]);
+  }), [filtroCapa, filtroGenero, filtroStatus, filtroTipo, libraryPage, searchTerm, sortValue]);
 
   const fetchLibraryPageForUser = useCallback(
     (query: typeof libraryQuery) => {
@@ -250,7 +253,7 @@ export function LibraryPage() {
 
   useEffect(() => {
     setLibraryPage(1);
-  }, [filtroGenero, filtroStatus, filtroTipo, searchTerm, sortValue]);
+  }, [filtroCapa, filtroGenero, filtroStatus, filtroTipo, searchTerm, sortValue]);
 
   useEffect(() => {
     void ensureDataDomains(['library-generos']);
@@ -325,6 +328,17 @@ export function LibraryPage() {
     });
 
     dispatch({ type: 'ADD_CONTENT', payload: ideia });
+  };
+
+  const handleCoverChange = (item: BibliotecaItem, capaUrl: string) => {
+    dispatch({
+      type: 'UPDATE_BOOK',
+      payload: {
+        ...item,
+        capaUrl: capaUrl || null,
+        updatedAt: new Date().toISOString(),
+      },
+    });
   };
 
   const resetForm = () => {
@@ -463,6 +477,9 @@ export function LibraryPage() {
             onOpenItem={(itemId) => navigate(`/biblioteca/${itemId}?tab=anotacoes`)}
             onOpenCreate={handleOpenModal}
             onTogglePrimary={handleSetPrimaryMobileBook}
+            onCoverChange={handleCoverChange}
+            filtroCapa={filtroCapa}
+            onFiltroCapaChange={setFiltroCapa}
           />
         </div>
 
@@ -526,6 +543,8 @@ export function LibraryPage() {
               <CoverUploadField
                 value={form.capaUrl}
                 onChange={capaUrl => setForm(prev => ({ ...prev, capaUrl }))}
+                title={form.titulo || selectedTypeConfig.titlePlaceholder}
+                typeLabel={selectedTypeConfig.label}
                 compact
               />
             ) : null}
@@ -616,6 +635,8 @@ export function LibraryPage() {
           onFiltroStatusChange={setFiltroStatus}
           filtroGenero={filtroGenero}
           onFiltroGeneroChange={setFiltroGenero}
+          filtroCapa={filtroCapa}
+          onFiltroCapaChange={setFiltroCapa}
           sortValue={sortValue}
           onSortChange={setSortValue}
           statusOptions={STATUS_OPTIONS}
@@ -655,6 +676,7 @@ export function LibraryPage() {
                 onMarkComplete={() => handleMarkComplete(livro)}
                 onTurnIntoIdea={() => handleTurnIntoIdea(livro)}
                 onTogglePrimary={() => handleSetPrimaryMobileBook(livro.id)}
+                onCoverChange={capaUrl => handleCoverChange(livro, capaUrl)}
               />
             );
           })}
@@ -748,6 +770,8 @@ export function LibraryPage() {
             <CoverUploadField
               value={form.capaUrl}
               onChange={capaUrl => setForm(prev => ({ ...prev, capaUrl }))}
+              title={form.titulo || selectedTypeConfig.titlePlaceholder}
+              typeLabel={selectedTypeConfig.label}
             />
           ) : null}
 

@@ -19,6 +19,7 @@ import { Text } from '../../../components/ui/Text';
 import { Surface } from '../../../components/ui/Surface';
 import { cn } from '../../../lib/utils';
 import { AnnotationNoteCard } from '../../../features/library/components/AnnotationNoteCard';
+import { CoverFallback } from '../../../features/library/components/CoverFallback';
 import { CoverUploadField } from '../../../features/library/components/CoverUploadField';
 import { EmptyState } from '../../../components/ui/EmptyState';
 import { MobileListCard } from '../../components/MobileListCard';
@@ -74,11 +75,6 @@ interface BookDetailMobileScreenProps {
   onPromoteIdeia: (ideia: Content) => void;
   onOpenContent: (contentId: string) => void;
   onStartBrainstorm: () => void;
-}
-
-function ItemTypeIcon({ tipo }: { tipo: BibliotecaItem['tipo'] }) {
-  const Icon = tipo === 'livro' || tipo === 'manga' ? BookOpen : Film;
-  return <Icon className="h-5 w-5" />;
 }
 
 function StatusBadge({ children, className }: { children: React.ReactNode; className?: string }) {
@@ -154,12 +150,21 @@ export function BookDetailMobileScreen({
         <div className="flex gap-3">
           <div className="h-16 w-11 shrink-0 overflow-hidden rounded-lg bg-[var(--bg-hover)]">
             {infoLocal.capaUrl ? (
-              <img src={infoLocal.capaUrl} alt="" className="h-full w-full object-cover" />
-            ) : (
-              <div className="flex h-full w-full items-center justify-center text-[var(--text-tertiary)]">
-                <ItemTypeIcon tipo={livro.tipo} />
-              </div>
-            )}
+              <img
+                src={infoLocal.capaUrl}
+                alt=""
+                className="h-full w-full object-cover"
+                onError={(event) => {
+                  const target = event.currentTarget;
+                  target.style.display = 'none';
+                  const fallback = target.nextElementSibling;
+                  if (fallback instanceof HTMLElement) fallback.hidden = false;
+                }}
+              />
+            ) : null}
+            <div hidden={Boolean(infoLocal.capaUrl)} className="h-full w-full">
+              <CoverFallback title={infoLocal.titulo || livro.titulo} typeLabel={itemTypeLabel} compact />
+            </div>
           </div>
 
           <div className="min-w-0 flex-1 stack-xs">
@@ -539,6 +544,8 @@ export function BookDetailMobileScreen({
             value={infoLocal.capaUrl}
             onChange={(capaUrl) => onInfoLocalPatch({ capaUrl })}
             itemId={livro.id}
+            title={infoLocal.titulo || livro.titulo}
+            typeLabel={itemTypeLabel}
             compact
           />
 

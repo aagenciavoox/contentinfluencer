@@ -1,10 +1,14 @@
-import { LucideIcon, CheckCircle2, Lightbulb, NotebookPen, Pencil, Pin, Star } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { LucideIcon, CheckCircle2, ImagePlus, Lightbulb, Loader2, NotebookPen, Pencil, Pin, Star } from 'lucide-react';
 import { motion } from 'motion/react';
 import { MediaCard } from '../../../components/ui/MediaCard';
 import { OverflowTags } from '../../../components/ui/OverflowTags';
 import { Text } from '../../../components/ui/Text';
+import { useAuth } from '../../../context/AuthContext';
 import { BibliotecaItem, BibliotecaItemMeta } from '../../../lib/database';
+import { notifySaveFeedback } from '../../../lib/saveFeedback';
 import { isCompletedStatus } from '../lib/libraryStatus';
+import { uploadLibraryCover, validateLibraryCoverFile } from '../lib/uploadLibraryCover';
 
 export interface BibliotecaTypeConfig {
   label: string;
@@ -23,6 +27,7 @@ interface LibraryItemCardProps {
   onMarkComplete: () => void;
   onTurnIntoIdea: () => void;
   onTogglePrimary: () => void;
+  onCoverChange: (capaUrl: string) => void;
 }
 
 function isWishlistStatus(status: BibliotecaItem['status']) {
@@ -41,9 +46,53 @@ export function LibraryItemCard({
   onMarkComplete,
   onTurnIntoIdea,
   onTogglePrimary,
+  onCoverChange,
 }: LibraryItemCardProps) {
+  const { user } = useAuth();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploadingCover, setUploadingCover] = useState(false);
   const TypeIcon = typeConfig.icon;
   const completed = isCompletedStatus(item.status);
+
+  const handleCoverPick = (event: React.MouseEvent) => {
+    event.stopPropagation();
+    fileInputRef.current?.click();
+  };
+
+  const handleCoverFile = async (file: File | undefined) => {
+    if (!file) return;
+
+    const validationError = validateLibraryCoverFile(file);
+    if (validationError) {
+      notifySaveFeedback({ status: 'error', message: validationError });
+      return;
+    }
+
+    if (!user?.id) {
+      notifySaveFeedback({ status: 'error', message: 'Entre na conta para enviar a capa.' });
+      return;
+    }
+
+    setUploadingCover(true);
+    try {
+      const publicUrl = await uploadLibraryCover({
+        file,
+        userId: user.id,
+        itemId: item.id,
+        previousUrl: item.capaUrl,
+      });
+      onCoverChange(publicUrl);
+      notifySaveFeedback({ status: 'success', message: 'Capa atualizada.' });
+    } catch (err) {
+      notifySaveFeedback({
+        status: 'error',
+        message: err instanceof Error ? err.message : 'Nao foi possivel enviar a capa.',
+      });
+    } finally {
+      setUploadingCover(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
 
   return (
     <motion.div
@@ -56,7 +105,7 @@ export function LibraryItemCard({
         imageUrl={item.capaUrl}
         alt={item.titulo}
         placeholderIcon={TypeIcon}
-        placeholderLabel={item.titulo}
+        placeholderLabel={typeConfig.label}
         className="mb-2 hover-card"
         overlay={
           <>
@@ -80,6 +129,20 @@ export function LibraryItemCard({
                 className="pointer-events-auto inline-flex h-8 w-8 items-center justify-center rounded-full bg-[var(--bg-elevated)]/95 text-[var(--text-primary)] shadow-none transition hover:scale-105"
               >
                 <NotebookPen className="h-3.5 w-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={handleCoverPick}
+                title="Trocar capa"
+                aria-label={`Trocar capa de ${item.titulo}`}
+                disabled={uploadingCover}
+                className="pointer-events-auto inline-flex h-8 w-8 items-center justify-center rounded-full bg-[var(--bg-elevated)]/95 text-[var(--text-primary)] shadow-none transition hover:scale-105 disabled:opacity-50"
+              >
+                {uploadingCover ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <ImagePlus className="h-3.5 w-3.5" />
+                )}
               </button>
               <button
                 type="button"
@@ -149,6 +212,15 @@ export function LibraryItemCard({
             ) : null}
           </>
         }
+      />
+
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp,image/gif"
+        className="hidden"
+        onClick={event => event.stopPropagation()}
+        onChange={event => void handleCoverFile(event.target.files?.[0])}
       />
 
       <div className="text-left">

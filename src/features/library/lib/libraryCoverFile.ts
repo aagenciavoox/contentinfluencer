@@ -29,3 +29,26 @@ export function validateLibraryCoverFile(file: File): string | null {
   }
   return null;
 }
+
+export function libraryCoverPathFromUrl(url: string | null | undefined): string | null {
+  if (!url) return null;
+  try {
+    const parsed = new URL(url);
+    const marker = `/object/public/${LIBRARY_COVERS_BUCKET}/`;
+    const index = parsed.pathname.indexOf(marker);
+    if (index === -1) return null;
+    return decodeURIComponent(parsed.pathname.slice(index + marker.length));
+  } catch {
+    return null;
+  }
+}
+
+export function isLibraryCoverStorageUrl(url: string | null | undefined): boolean {
+  return Boolean(libraryCoverPathFromUrl(url));
+}
+
+export function coverInitial(title: string): string {
+  const trimmed = title.trim();
+  if (!trimmed) return '?';
+  return Array.from(trimmed)[0]?.toUpperCase() ?? '?';
+}

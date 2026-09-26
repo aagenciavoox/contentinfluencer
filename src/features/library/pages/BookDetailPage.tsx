@@ -44,6 +44,7 @@ import { Surface } from '../../../components/ui/Surface';
 import { AppButton } from '../../../components/ui/AppButton';
 import { cn } from '../../../lib/utils';
 import { CoverUploadField } from '../components/CoverUploadField';
+import { CoverFallback } from '../components/CoverFallback';
 
 type BookAnnotation = Anotacao;
 type TipoAnotacao = Anotacao['tipo'];
@@ -763,12 +764,21 @@ export function BookDetailPage() {
             <div className="stack-lg">
               <div className="aspect-[2/3] rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] overflow-hidden bg-[var(--bg-hover)] shadow-md">
                 {infoLocal.capaUrl ? (
-                  <img src={infoLocal.capaUrl} alt={livro.titulo} className="w-full h-full object-cover" />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center">
-                    <ItemIcon className="w-10 h-10 text-[var(--text-tertiary)]" />
-                  </div>
-                )}
+                  <img
+                    src={infoLocal.capaUrl}
+                    alt={livro.titulo}
+                    className="w-full h-full object-cover"
+                    onError={(event) => {
+                      const target = event.currentTarget;
+                      target.style.display = 'none';
+                      const fallback = target.nextElementSibling;
+                      if (fallback instanceof HTMLElement) fallback.hidden = false;
+                    }}
+                  />
+                ) : null}
+                <div hidden={Boolean(infoLocal.capaUrl)} className="h-full w-full">
+                  <CoverFallback title={infoLocal.titulo || livro.titulo} typeLabel={itemTypeLabel} icon={ItemIcon} />
+                </div>
               </div>
               <div>
                 <Text variant="label" className="mb-2 block font-bold">Avaliação</Text>
@@ -830,6 +840,8 @@ export function BookDetailPage() {
                       value={infoLocal.capaUrl}
                       onChange={capaUrl => setInfoLocal(prev => ({ ...prev, capaUrl }))}
                       itemId={livro.id}
+                      title={infoLocal.titulo || livro.titulo}
+                      typeLabel={itemTypeLabel}
                       compact
                     />
                   </div>
