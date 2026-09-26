@@ -26,6 +26,7 @@ import { GENEROS_SUGERIDOS } from '../lib/libraryGenres';
 import { TagSelect } from '../../../components/ui/TagSelect';
 import { createIdeaContent } from '../../contents/lib/creationContent';
 import { LibrarySectionTabs } from '../components/LibrarySectionTabs';
+import { CoverUploadField } from '../components/CoverUploadField';
 
 type StatusLeitura = BibliotecaItem['status'];
 type GeneroLivro = string;
@@ -118,7 +119,7 @@ const TYPE_CONFIG: Record<BibliotecaTipo, BibliotecaTypeConfig> = {
     titlePlaceholder: 'Nome do filme',
     creatorPlaceholder: 'Nome do diretor',
     isBookish: false,
-    showCover: false,
+    showCover: true,
   },
   'série': {
     label: 'Série',
@@ -127,7 +128,7 @@ const TYPE_CONFIG: Record<BibliotecaTipo, BibliotecaTypeConfig> = {
     titlePlaceholder: 'Nome da série',
     creatorPlaceholder: 'Direção principal',
     isBookish: false,
-    showCover: false,
+    showCover: true,
   },
   anime: {
     label: 'Anime',
@@ -522,12 +523,10 @@ export function LibraryPage() {
             />
 
             {selectedTypeConfig.showCover ? (
-              <input
-                type="url"
+              <CoverUploadField
                 value={form.capaUrl}
-                onChange={event => setForm(prev => ({ ...prev, capaUrl: event.target.value }))}
-                placeholder="URL da capa"
-                className="w-full"
+                onChange={capaUrl => setForm(prev => ({ ...prev, capaUrl }))}
+                compact
               />
             ) : null}
 
@@ -746,18 +745,10 @@ export function LibraryPage() {
           </div>
 
           {selectedTypeConfig.showCover ? (
-            <div>
-              <label className="mb-1.5 block text-xs font-medium text-[var(--text-tertiary)]">
-                URL da capa
-              </label>
-              <input
-                type="url"
-                value={form.capaUrl}
-                onChange={event => setForm(prev => ({ ...prev, capaUrl: event.target.value }))}
-                placeholder="https://..."
-                className="w-full rounded-xl border-none bg-[var(--bg-hover)] px-4 py-3 text-sm text-[var(--text-primary)] placeholder:opacity-40 focus:ring-2 focus:ring-[var(--text-primary)]/20"
-              />
-            </div>
+            <CoverUploadField
+              value={form.capaUrl}
+              onChange={capaUrl => setForm(prev => ({ ...prev, capaUrl }))}
+            />
           ) : null}
 
           <div>

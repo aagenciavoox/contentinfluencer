@@ -4,6 +4,7 @@ import { supabase } from './supabase.ts';
 import { normalizeContentStatus } from '../features/contents/lib/contentPipeline';
 import { hydrateIdeasFromDemotedContents } from '../features/ideas/lib/hydrateIdeasFromDemotedContents';
 import { getIdeaNotes, normalizeIdea } from '../features/ideas/lib/ideaText';
+import { generateUUID } from '../utils/uuid';
 
 // ============================================================================
 // TYPES
@@ -1729,29 +1730,39 @@ export async function saveItemGeneros(itemId: string, generoIds: string[]): Prom
   if (!uid) return;
 
   await supabase.from('item_generos').delete().eq('item_id', itemId);
-  if (generoIds.length === 0) return;
+  const uniqueNames = Array.from(
+    new Set(generoIds.map(nome => nome.trim()).filter(Boolean)),
+  );
+  if (uniqueNames.length === 0) return;
 
   const { data: existingGeneros, error: fetchError } = await supabase
     .from('biblioteca_generos')
     .select('id, nome')
     .eq('user_id', uid)
-    .in('nome', generoIds);
+    .in('nome', uniqueNames);
   if (fetchError) throw new Error(`biblioteca_generos fetch: ${fetchError.message}`);
 
   const existingByName = new Map((existingGeneros || []).map((genero: Row) => [genero.nome, genero.id]));
-  const missingNames = generoIds.filter(nome => !existingByName.has(nome));
+  const missingNames = uniqueNames.filter(nome => !existingByName.has(nome));
 
   if (missingNames.length > 0) {
     const { data: insertedGeneros, error: insertGeneroError } = await supabase
       .from('biblioteca_generos')
-      .insert(missingNames.map(nome => ({ user_id: uid, nome, tipo: null })))
+      .insert(
+        missingNames.map(nome => ({
+          id: generateUUID(),
+          user_id: uid,
+          nome,
+          tipo: null,
+        })),
+      )
       .select('id, nome');
     if (insertGeneroError) throw new Error(`biblioteca_generos insert: ${insertGeneroError.message}`);
     (insertedGeneros || []).forEach((genero: Row) => existingByName.set(genero.nome, genero.id));
   }
 
   const { error } = await supabase.from('item_generos').insert(
-    generoIds
+    uniqueNames
       .map(nome => existingByName.get(nome))
       .filter((generoId): generoId is string => !!generoId)
       .map(generoId => ({ item_id: itemId, genero_id: generoId }))

@@ -43,6 +43,7 @@ import { Text } from '../../../components/ui/Text';
 import { Surface } from '../../../components/ui/Surface';
 import { AppButton } from '../../../components/ui/AppButton';
 import { cn } from '../../../lib/utils';
+import { CoverUploadField } from '../components/CoverUploadField';
 
 type BookAnnotation = Anotacao;
 type TipoAnotacao = Anotacao['tipo'];
@@ -761,8 +762,8 @@ export function BookDetailPage() {
             {/* Capa + Avaliação */}
             <div className="stack-lg">
               <div className="aspect-[2/3] rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] overflow-hidden bg-[var(--bg-hover)] shadow-md">
-                {livro.capaUrl ? (
-                  <img src={livro.capaUrl} alt={livro.titulo} className="w-full h-full object-cover" />
+                {infoLocal.capaUrl ? (
+                  <img src={infoLocal.capaUrl} alt={livro.titulo} className="w-full h-full object-cover" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center">
                     <ItemIcon className="w-10 h-10 text-[var(--text-tertiary)]" />
@@ -824,9 +825,13 @@ export function BookDetailPage() {
                       {STATUS_LEITURA[livro.tipo].map(s => <option key={s}>{s}</option>)}
                     </select>
                   </div>
-                  <div>
-                    <label className="text-xs font-bold  text-[var(--text-tertiary)] block mb-1.5">URL da Capa</label>
-                    <input type="url" value={infoLocal.capaUrl} onChange={e => setInfoLocal(prev => ({ ...prev, capaUrl: e.target.value }))} placeholder="https://..." className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:opacity-30" />
+                  <div className="md:col-span-2">
+                    <CoverUploadField
+                      value={infoLocal.capaUrl}
+                      onChange={capaUrl => setInfoLocal(prev => ({ ...prev, capaUrl }))}
+                      itemId={livro.id}
+                      compact
+                    />
                   </div>
                   <div>
                     <label className="text-xs font-bold  text-[var(--text-tertiary)] block mb-1.5">Início</label>

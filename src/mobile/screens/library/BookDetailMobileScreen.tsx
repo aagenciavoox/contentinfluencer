@@ -19,6 +19,7 @@ import { Text } from '../../../components/ui/Text';
 import { Surface } from '../../../components/ui/Surface';
 import { cn } from '../../../lib/utils';
 import { AnnotationNoteCard } from '../../../features/library/components/AnnotationNoteCard';
+import { CoverUploadField } from '../../../features/library/components/CoverUploadField';
 import { EmptyState } from '../../../components/ui/EmptyState';
 import { MobileListCard } from '../../components/MobileListCard';
 import { MobileSectionHeader } from '../../components/MobileSectionHeader';
@@ -152,8 +153,8 @@ export function BookDetailMobileScreen({
       <Surface variant="outlined" padding="sm" className="bg-[var(--bg-secondary)]">
         <div className="flex gap-3">
           <div className="h-16 w-11 shrink-0 overflow-hidden rounded-lg bg-[var(--bg-hover)]">
-            {livro.capaUrl ? (
-              <img src={livro.capaUrl} alt="" className="h-full w-full object-cover" />
+            {infoLocal.capaUrl ? (
+              <img src={infoLocal.capaUrl} alt="" className="h-full w-full object-cover" />
             ) : (
               <div className="flex h-full w-full items-center justify-center text-[var(--text-tertiary)]">
                 <ItemTypeIcon tipo={livro.tipo} />
@@ -533,6 +534,13 @@ export function BookDetailMobileScreen({
               ))}
             </select>
           </label>
+
+          <CoverUploadField
+            value={infoLocal.capaUrl}
+            onChange={(capaUrl) => onInfoLocalPatch({ capaUrl })}
+            itemId={livro.id}
+            compact
+          />
 
           <TagSelect
             label="Gêneros"

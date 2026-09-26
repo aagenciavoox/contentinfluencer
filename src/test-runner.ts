@@ -17,6 +17,7 @@ await import('./features/settings/lib/gentleExperience.test.ts');
 await import('./features/recommendations/recommendDailyAction.test.ts');
 await import('./features/settings/lib/pilarPostingSchedule.test.ts');
 await import('./features/analytics/lib/libraryAnalytics.test.ts');
+await import('./features/library/lib/libraryCoverFile.test.ts');
 await import('./mobile/config/mobileRouteMeta.test.ts');
 await import('./layouts/navigation/userInitials.test.ts');
 await import('./app/router/routeDataDomains.test.ts');
