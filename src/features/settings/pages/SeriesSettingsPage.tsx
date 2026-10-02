@@ -340,6 +340,29 @@ export function SeriesSettingsPage() {
       section="Criação"
       title="Séries"
       icon={Layers}
+      showBack={false}
+      variant="default"
+      toolbar={
+        state.series.length > 0 ? (
+          <div className="desktop-subheader !mb-0">
+            <ToolbarSearchInput
+              value={search}
+              onChange={setSearch}
+              placeholder="Buscar série..."
+              className="desktop-subheader-search"
+            />
+            <SegmentTabs<SeriesFilter>
+              value={filter}
+              onChange={setFilter}
+              options={[
+                { id: 'todas', label: `Todas ${filterCounts.todas}` },
+                { id: 'ativas', label: `Ativas ${filterCounts.ativas}` },
+                { id: 'inativas', label: `Inativas ${filterCounts.inativas}` },
+              ]}
+            />
+          </div>
+        ) : undefined
+      }
       actions={
         <AppButton
           onClick={openCreatePage}
@@ -350,26 +373,6 @@ export function SeriesSettingsPage() {
         </AppButton>
       }
     >
-      {state.series.length > 0 ? (
-        <div className="desktop-subheader">
-          <ToolbarSearchInput
-            value={search}
-            onChange={setSearch}
-            placeholder="Buscar série..."
-            className="desktop-subheader-search"
-          />
-          <SegmentTabs<SeriesFilter>
-            value={filter}
-            onChange={setFilter}
-            options={[
-              { id: 'todas', label: `Todas ${filterCounts.todas}` },
-              { id: 'ativas', label: `Ativas ${filterCounts.ativas}` },
-              { id: 'inativas', label: `Inativas ${filterCounts.inativas}` },
-            ]}
-          />
-        </div>
-      ) : null}
-
       <QueryViewState
         status={seriesStatus}
         skeletonCount={6}

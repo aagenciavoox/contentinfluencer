@@ -51,6 +51,7 @@ function stripContentForCache(content: Content): Content {
     scriptNotes: [],
     notes: undefined,
     referencias: undefined,
+    writingNotes: undefined,
   } as Content;
 }
 

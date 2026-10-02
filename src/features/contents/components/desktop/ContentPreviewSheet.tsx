@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { ExternalLink } from 'lucide-react';
-import { BottomSheet } from '../../../../components/overlays/BottomSheet';
+import { Drawer } from '../../../../components/overlays/Drawer';
 import { OverlayHeader } from '../../../../components/overlays/OverlayHeader';
 import { OverlayBody } from '../../../../components/overlays/OverlayBody';
 import { AppButton } from '../../../../components/ui/AppButton';
@@ -83,7 +83,7 @@ export function ContentPreviewSheet({
   const scriptPreview = htmlToReadableText(previewContent.script || previewContent.notes || '').trim();
 
   return (
-    <BottomSheet open={!!content} onClose={onClose} desktopMaxW="max-w-lg">
+    <Drawer open={!!content} onClose={onClose} widthClassName="max-w-lg">
       <OverlayHeader
         title={getDisplayTitle(content.title)}
         subtitle={buildContentMetaLine(previewContent)}
@@ -132,6 +132,6 @@ export function ContentPreviewSheet({
         </AppButton>
         </div>
       </OverlayBody>
-    </BottomSheet>
+    </Drawer>
   );
 }

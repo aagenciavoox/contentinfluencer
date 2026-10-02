@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
-import type { Content, Pilar, Platform, Serie } from '../lib/database.ts';
-import { diffViolations, previewScheduleViolations, validateWeeklyContent } from './pilarRhythm.ts';
+import {parseISO, startOfWeek} from 'date-fns';
+import type { Content, Pilar, Platform, PostingTimeEntry, Serie } from '../lib/database.ts';
+import { buildWeekRhythmQuotas, dayRhythmTone, diffViolations, formatRhythmSlot, previewScheduleViolations, summarizeRhythmProgress, validateWeeklyContent } from './pilarRhythm.ts';
 
 function buildContent(overrides: Partial<Content> = {}): Content {
   return {
@@ -266,6 +267,216 @@ function testSchedulingIntoDeficitDoesNotIntroduceWarning() {
   assert.equal(introduced.length, 0);
 }
 
+function testDayRhythmToneMarksOverAndOpenDays() {
+  const over = dayRhythmTone(['c1'], [{
+    ruleId: 'pilar-1-frequency',
+    type: 'warning',
+    message: 'acima',
+    affectedContentIds: ['c1'],
+  }]);
+  assert.equal(over, 'over');
+
+  const open = dayRhythmTone([], [{
+    ruleId: 'pilar-1-under-frequency',
+    type: 'deficit',
+    message: 'faltam 1',
+    affectedContentIds: [],
+  }]);
+  assert.equal(open, 'open');
+
+  const filledWhileShort = dayRhythmTone(['c2'], [{
+    ruleId: 'pilar-1-under-frequency',
+    type: 'deficit',
+    message: 'faltam 1',
+    affectedContentIds: ['c2'],
+  }]);
+  assert.equal(filledWhileShort, null);
+}
+
+function weekOf(day: string): Date {
+  return startOfWeek(parseISO(day), {weekStartsOn: 1});
+}
+
+function testWeekRhythmKeepsMetQuotaAndSuggestsPlatformTime() {
+  const pilar = buildPilar({
+    frequenciaSemanal: 2,
+    plataformas: [{
+      pilarId: 'pilar-1',
+      platformId: 'platform-ig',
+      hashtags: '',
+      melhoresDias: [2],
+      janelaHorarioInicio: '08:00',
+      janelaHorarioFim: '21:00',
+    }],
+  });
+  const entries: PostingTimeEntry[] = [
+    {
+      id: 'monday',
+      userId: 'user-1',
+      platformId: 'platform-ig',
+      weekday: 1,
+      time: '09:00',
+      createdAt: '2026-04-27T00:00:00.000Z',
+    },
+    {
+      id: 'tuesday',
+      userId: 'user-1',
+      platformId: 'platform-ig',
+      weekday: 2,
+      time: '18:00',
+      createdAt: '2026-04-27T00:00:00.000Z',
+    },
+  ];
+  const quotas = buildWeekRhythmQuotas({
+    contents: [],
+    weekStart: weekOf('2026-04-27'),
+    pilares: [pilar],
+    series: [],
+    platforms,
+    postingTimeEntries: entries,
+  });
+  assert.equal(quotas.length, 1);
+  assert.equal(quotas[0]?.count, 0);
+  assert.equal(quotas[0]?.target, 2);
+  assert.equal(quotas[0]?.tone, 'deficit');
+  assert.equal(quotas[0]?.suggestions.length, 1);
+  assert.equal(formatRhythmSlot(quotas[0]!.suggestions[0]!), 'IG ter 18:00');
+}
+
+function testWeekRhythmSkipsOccupiedSlot() {
+  const pilar = buildPilar({
+    frequenciaSemanal: 2,
+    plataformas: [{
+      pilarId: 'pilar-1',
+      platformId: 'platform-ig',
+      hashtags: '',
+      melhoresDias: [2, 4],
+      janelaHorarioInicio: null,
+      janelaHorarioFim: null,
+    }],
+  });
+  const entries: PostingTimeEntry[] = [
+    {
+      id: 'tuesday',
+      userId: 'user-1',
+      platformId: 'platform-ig',
+      weekday: 2,
+      time: '18:00',
+      createdAt: '2026-04-27T00:00:00.000Z',
+    },
+    {
+      id: 'thursday',
+      userId: 'user-1',
+      platformId: 'platform-ig',
+      weekday: 4,
+      time: '12:00',
+      createdAt: '2026-04-27T00:00:00.000Z',
+    },
+  ];
+  const quotas = buildWeekRhythmQuotas({
+    contents: [buildContent({id: 'c1', publishDate: '2026-04-28', publishTime: '18:00'})],
+    weekStart: weekOf('2026-04-27'),
+    pilares: [pilar],
+    series: [],
+    platforms,
+    postingTimeEntries: entries,
+  });
+  assert.equal(quotas[0]?.suggestions.length, 1);
+  assert.equal(formatRhythmSlot(quotas[0]!.suggestions[0]!), 'IG qui 12:00');
+}
+
+function testWeekRhythmUsesGlobalTimesInsidePilarWindow() {
+  const pilar = buildPilar({
+    frequenciaSemanal: 2,
+    plataformas: [{
+      pilarId: 'pilar-1',
+      platformId: 'platform-ig',
+      hashtags: '',
+      melhoresDias: [2],
+      janelaHorarioInicio: '08:00',
+      janelaHorarioFim: '10:00',
+    }],
+  });
+  const quotas = buildWeekRhythmQuotas({
+    contents: [],
+    weekStart: weekOf('2026-04-27'),
+    pilares: [pilar],
+    series: [],
+    platforms,
+    postingTimeEntries: [],
+    fallbackTimes: {
+      0: [],
+      1: ['10:00'],
+      2: ['08:00', '12:00', '21:00'],
+      3: [],
+      4: [],
+      5: [],
+      6: [],
+    },
+  });
+  assert.equal(quotas[0]?.suggestions.length, 1);
+  assert.equal(formatRhythmSlot(quotas[0]!.suggestions[0]!), 'IG ter 08:00');
+}
+
+function testWeekRhythmKeepsMetPilarWithoutSuggestion() {
+  const pilar = buildPilar({frequenciaSemanal: 1});
+  const quotas = buildWeekRhythmQuotas({
+    contents: [buildContent({publishDate: '2026-04-27'})],
+    weekStart: weekOf('2026-04-27'),
+    pilares: [pilar],
+    series: [],
+    platforms,
+    postingTimeEntries: [],
+  });
+  assert.equal(quotas[0]?.tone, 'met');
+  assert.equal(quotas[0]?.suggestions.length, 0);
+}
+
+function testWeekRhythmShowsShortSeriesWindowOnly() {
+  const due = buildSerie({id: 'serie-q', name: 'Quinzena', frequenciaRecomendada: 'Quinzenal', pilarIds: ['pilar-1']});
+  const paid = buildSerie({id: 'serie-m', name: 'Mes', frequenciaRecomendada: 'Mensal', pilarIds: ['pilar-1']});
+  const weekly = buildSerie({id: 'serie-s', name: 'Semana', frequenciaRecomendada: 'Semanal', pilarIds: ['pilar-1']});
+  const contents = [
+    buildContent({
+      id: 'paid',
+      seriesId: 'serie-m',
+      pilarId: null,
+      publishDate: '2026-04-23',
+    }),
+    buildContent({
+      id: 'weekly-post',
+      seriesId: 'serie-s',
+      pilarId: null,
+      publishDate: '2026-04-27',
+    }),
+  ];
+  const quotas = buildWeekRhythmQuotas({
+    contents,
+    weekStart: weekOf('2026-04-27'),
+    pilares: [buildPilar({frequenciaSemanal: null})],
+    series: [due, paid, weekly],
+    platforms,
+    postingTimeEntries: [],
+  });
+  const labels = quotas.map(item => item.label);
+  assert.ok(labels.includes('Quinzena'));
+  assert.equal(quotas.find(item => item.label === 'Quinzena')?.windowTag, '14d');
+  assert.equal(labels.includes('Mes'), false);
+  assert.equal(quotas.find(item => item.label === 'Semana')?.tone, 'met');
+}
+
+function testSummarizeRhythmProgressUsesFractions() {
+  const pilar = buildPilar({ nome: 'Foco na Identidade', frequenciaSemanal: 6 });
+  const violations = validateWeeklyContent([], new Date('2026-04-27'), [pilar], platforms);
+  const summary = summarizeRhythmProgress(violations);
+  const bar = summary.progress.find(item => item.label === 'Foco na Identidade');
+  assert.ok(bar);
+  assert.equal(bar?.count, 0);
+  assert.equal(bar?.target, 6);
+  assert.equal(bar?.tone, 'deficit');
+  assert.ok(summary.notes.some(note => note.label.includes('roteiro')));
+}
+
 const tests: Array<[string, () => void]> = [
   ['warns when weekly posts exceed pilar frequenciaSemanal', testWeeklyFrequencyExceeded],
   ['emits deficit when weekly posts are under pilar frequenciaSemanal', testWeeklyFrequencyUnderTarget],
@@ -277,6 +488,13 @@ const tests: Array<[string, () => void]> = [
   ['previewScheduleViolations detects frequency when scheduling second item', testPreviewScheduleViolationsFrequency],
   ['diffViolations returns only newly introduced violations', testDiffViolationsIgnoresExisting],
   ['scheduling into deficit does not introduce warning via diff', testSchedulingIntoDeficitDoesNotIntroduceWarning],
+  ['dayRhythmTone marks over-target days and empty days while the week is short', testDayRhythmToneMarksOverAndOpenDays],
+  ['summarizeRhythmProgress turns frequency deficits into count/target bars', testSummarizeRhythmProgressUsesFractions],
+  ['week rhythm suggests the next free platform slot', testWeekRhythmKeepsMetQuotaAndSuggestsPlatformTime],
+  ['week rhythm skips a time already used that day', testWeekRhythmSkipsOccupiedSlot],
+  ['week rhythm keeps a met pilar without a time suggestion', testWeekRhythmKeepsMetPilarWithoutSuggestion],
+  ['week rhythm crosses global times with the pilar window', testWeekRhythmUsesGlobalTimesInsidePilarWindow],
+  ['week rhythm shows quinzenal only while the window is short', testWeekRhythmShowsShortSeriesWindowOnly],
 ];
 
 for (const [name, fn] of tests) {

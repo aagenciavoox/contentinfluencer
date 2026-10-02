@@ -7,7 +7,7 @@ import { BibliotecaItem, BibliotecaItemMeta, fetchBibliotecaContentCounts, fetch
 import { usePaginatedQuery } from '../../../hooks/usePaginatedQuery';
 import { generateUUID } from '../../../utils/uuid';
 import { buildIdeaFields, parseLegacyIdeaText } from '../../ideas/lib/ideaText';
-import { BottomSheetModal } from '../../../components/feedback/modals/BottomSheetModal';
+import { Dialog } from '../../../components/overlays/Dialog';
 import { OverlayBody } from '../../../components/overlays/OverlayBody';
 import { OverlayFooter } from '../../../components/overlays/OverlayFooter';
 import { OverlayHeader } from '../../../components/overlays/OverlayHeader';
@@ -483,7 +483,7 @@ export function LibraryPage() {
           />
         </div>
 
-        <BottomSheetModal
+        <Dialog
           open={modalAberto}
           onClose={() => setModalAberto(false)}
           desktopMaxW="max-w-xl"
@@ -600,7 +600,7 @@ export function LibraryPage() {
               Criar item
             </AppButton>
           </OverlayFooter>
-        </BottomSheetModal>
+        </Dialog>
       </>
     );
   }
@@ -694,7 +694,7 @@ export function LibraryPage() {
         </>
       </QueryViewState>
 
-      <BottomSheetModal
+      <Dialog
         open={modalAberto}
         onClose={() => setModalAberto(false)}
         desktopMaxW="max-w-[720px]"
@@ -1203,7 +1203,7 @@ export function LibraryPage() {
             Criar item
           </button>
         </OverlayFooter>
-      </BottomSheetModal>
+      </Dialog>
     </PageLayout>
   );
 }

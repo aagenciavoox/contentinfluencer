@@ -8,6 +8,7 @@ const ALLOWED_BACK_PATHS = [
   '/',
   '/hoje',
   '/criacao',
+  '/criacao/legendas',
   '/calendario',
   '/dashboard',
   '/biblioteca',

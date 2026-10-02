@@ -11,7 +11,6 @@ import { EmptyState } from '../../../components/ui/EmptyState';
 import { Text } from '../../../components/ui/Text';
 import { SeriesForm } from '../../../features/settings/pages/SeriesSettingsPage';
 import { SeriesBulkComposer } from '../../../features/settings/components/SeriesBulkComposer';
-import { SeriesStatsRow } from '../../../features/settings/components/series-detail/SeriesStatsRow';
 import { SeriesContentListRow } from '../../../features/settings/components/series-detail/SeriesContentListRow';
 import {
   computeSeriesContentStats,
@@ -179,12 +178,6 @@ export function SeriesDetailMobileScreen({
           </div>
         </div>
       </section>
-
-      <div className="-mx-1 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        <div className="min-w-max">
-          <SeriesStatsRow stats={stats} />
-        </div>
-      </div>
 
       <SeriesBulkComposer
         serie={serie}

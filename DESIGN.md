@@ -54,7 +54,7 @@ Prefer stack/grid classes (backed by `--space-*`) over ad-hoc `gap-5` / `space-y
 | `grid-form` | 1→2 cols | Campos de formulário |
 | `grid-metrics` | 2 cols | Métricas do dashboard |
 
-Layout widths via `PageLayout contentWidth`: `narrow` 1440px, `wide` 1600px, `book` 840px, `full` padding only.
+Layout widths via `PageLayout contentWidth`: `narrow`, `wide`, `book`, and `full` all use the same column, `--layout-max` (1440px), with `--layout-gutter` (32px) on desktop. The prop does not change the max width.
 
 Vertical rhythm via `PageLayout contentStack` (auto by variant if omitted):
 - `operational` → `stack-2xl` (32px) — default for list/dashboard pages
@@ -80,7 +80,7 @@ Use `Text` variants in this order of visual weight (highest → lowest):
 | Variant | Mobile | Desktop | Use for |
 |---------|--------|---------|---------|
 | `display` | Title 2 · 22pt | 40px | Hero de página (Inter bold; ex.: Dashboard) |
-| `pageTitle` | Title 2 · 22pt | 32px | Título de página e título do roteiro |
+| `pageTitle` | Title 2 · 22pt | 24px | Título de página e título do roteiro |
 | `spotlightTitle` | Title 2 · 22pt | 32px | Destaque em cards (ex.: bloco “Próximo passo”) |
 | `sectionTitle` | Body · 17pt | Title 3 · 20pt | Cabeçalho de seção dentro da página |
 | `itemTitle` | Callout · 15pt | 15px | Título de item em listas e cards |

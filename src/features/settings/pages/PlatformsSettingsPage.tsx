@@ -9,11 +9,12 @@ import {PageLayout} from '../../../layouts/page/PageLayout';
 import {AppButton} from '../../../components/ui/AppButton';
 import {MoreMenu} from '../../../components/ui/MoreMenu';
 import {Text} from '../../../components/ui/Text';
-import {BottomSheet} from '../../../components/overlays/BottomSheet';
+import {Dialog} from '../../../components/overlays/Dialog';
 import {OverlayHeader} from '../../../components/overlays/OverlayHeader';
 import {OverlayBody} from '../../../components/overlays/OverlayBody';
 import {ConfirmModal} from '../../../components/feedback/modals/ConfirmModal';
 import {PlatformsMobileScreen} from '../../../mobile/screens/settings/PlatformsMobileScreen';
+import {PostingTimesEditor} from '../components/PostingTimesEditor';
 import {MobileToggleSwitch} from '../../../mobile/components/MobileToggleSwitch';
 import {generateUUID} from '../../../utils/uuid';
 import {notifySaveFeedback} from '../../../lib/saveFeedback';
@@ -143,7 +144,7 @@ export function PlatformsSettingsPage() {
       header={
         <DesktopPageHeader
           section="Configurações"
-          title="Plataformas"
+          title="Plataformas e horários"
           icon={MonitorSpeaker}
           backLabel="Configurações"
           backTo="/configuracoes"
@@ -159,7 +160,7 @@ export function PlatformsSettingsPage() {
         />
       }
     >
-        <BottomSheet open={showForm} onClose={closeForm} desktopMaxW="max-w-md">
+        <Dialog open={showForm} onClose={closeForm} desktopMaxW="max-w-md">
           <OverlayHeader title="Nova plataforma" onClose={closeForm} />
           <OverlayBody>
             <div className="flex flex-col gap-4">
@@ -191,13 +192,13 @@ export function PlatformsSettingsPage() {
               </div>
             </div>
           </OverlayBody>
-        </BottomSheet>
+        </Dialog>
 
         <div className="stack-xl">
           <div className="surface-quiet px-6 py-4">
             <span className="eyebrow-label">Leitura histórica</span>
             <Text variant="body" className="mt-2 text-[var(--text-secondary)]">
-              Plataformas inativas continuam disponíveis para leitura de dados antigos. Só os seletores de criação e edição devem limitar o uso às plataformas ativas.
+              Plataformas inativas continuam disponíveis para leitura de dados antigos. Os horários de postagem ficam nesta mesma tela, com uma aba global e uma por canal ativo.
             </Text>
           </div>
 
@@ -264,6 +265,13 @@ export function PlatformsSettingsPage() {
                 })}
               </div>
             )}
+          </section>
+
+          <section className="stack-xs">
+            <header className="px-2">
+              <span className="eyebrow-label">Horários de postagem</span>
+            </header>
+            <PostingTimesEditor />
           </section>
         </div>
         {confirmModal}

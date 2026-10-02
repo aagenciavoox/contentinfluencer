@@ -1195,69 +1195,6 @@ textarea.property-input {
   box-shadow: var(--shadow-dropdown);
 }
 
-/* Recording page: white surfaces sit ON the canvas (fixes inverted depth) */
-html:not([data-theme='dark']) .recording-page {
-  --bg-primary: #F8FAFC;
-  --border-color: #E2E8F0;
-  background-color: var(--bg-primary);
-}
-
-.recording-segment {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  width: 100%;
-  background: var(--segment-track);
-  padding: 4px;
-  border-radius: var(--radius-pill);
-}
-
-.recording-segment-item {
-  border-radius: var(--radius-pill);
-  padding: 0.5rem 0.75rem;
-  text-align: center;
-  color: var(--text-secondary);
-  transition: background-color 0.16s ease, color 0.16s ease, box-shadow 0.16s ease;
-}
-
-@media (min-width: 768px) {
-  .recording-segment-item {
-    padding: 0.625rem 1.5rem;
-  }
-}
-
-.recording-segment-item-active {
-  background: var(--bg-elevated);
-  color: var(--text-primary);
-  box-shadow: var(--shadow-raised);
-  font-style: normal;
-}
-
-.recording-page .filter-bar-search,
-.recording-page .filter-bar-select:not(.filter-bar-select-active),
-.recording-page .filter-bar-toggle:not(.filter-bar-toggle-active) {
-  background: var(--bg-elevated);
-  box-shadow: var(--shadow-input);
-}
-
-.recording-page .filter-bar-select-active,
-.recording-page .filter-bar-toggle-active {
-  box-shadow: var(--shadow-input);
-}
-
-.recording-page .filter-bar-panel {
-  background: var(--bg-elevated);
-  box-shadow: var(--shadow-input);
-}
-
-.recording-stat-card {
-  box-shadow: var(--shadow-input);
-  transition: var(--surface-transition);
-}
-
-.recording-stat-card:hover {
-  box-shadow: var(--shadow-card-hover);
-}
-
 /* Major-block separator only — not between small groups inside a card */
 .surface-separator {
   border-top: 1px solid var(--border-subtle);
@@ -1831,6 +1768,10 @@ input[type="search"]::-webkit-search-results-decoration {
   justify-content: space-between;
   gap: var(--space-lg);
   margin-top: var(--space-sm);
+}
+
+.desktop-page-header-row.items-center {
+  align-items: center;
 }
 
 .desktop-subheader {

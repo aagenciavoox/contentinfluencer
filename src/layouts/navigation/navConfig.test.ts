@@ -26,6 +26,7 @@ function testHomeRouteOnlyMatchesHoje() {
 
 function testContentDetailHighlightsCriacao() {
   assert.equal(isBottomNavItemActive('/criacao', '/criacao'), true);
+  assert.equal(isBottomNavItemActive('/criacao', '/criacao/legendas'), true);
   assert.equal(isBottomNavItemActive('/criacao', '/conteudos/abc'), true);
   assert.equal(isBottomNavItemActive('/criacao', '/calendario'), false);
   assert.equal(isBottomNavItemActive('/criacao', '/gravacao'), false);

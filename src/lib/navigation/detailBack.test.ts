@@ -11,6 +11,7 @@ function backFor(fromPath: string) {
 }
 
 assert.equal(backFor('/criacao?tab=roteiros'), '/criacao?tab=roteiros');
+assert.equal(backFor('/criacao/legendas'), '/criacao/legendas');
 assert.equal(backFor('/calendario?modo=agendar'), '/calendario?modo=agendar');
 assert.equal(backFor('/gravacao'), '/gravacao');
 assert.equal(backFor('/dashboard'), '/dashboard');

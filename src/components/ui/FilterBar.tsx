@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ChevronDown, Filter } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import { AppButton } from './AppButton';
 import { Text } from './Text';
 import { ToolbarSearchInput } from './ToolbarSearchInput';
 
@@ -15,6 +16,17 @@ export interface FilterDefinition {
   value: string;
   onChange: (value: string) => void;
   options: FilterOption[];
+  /** Exact inactive value for this filter. Overrides the default empty set. */
+  emptyValue?: string;
+}
+
+const INACTIVE_FILTER_VALUES = new Set(['', 'Todos', 'todos', 'Todas', 'todas']);
+
+function inactiveFilterValue(filter: FilterDefinition): string {
+  if (filter.emptyValue !== undefined) return filter.emptyValue;
+  const firstValue = filter.options[0]?.value;
+  if (firstValue !== undefined && INACTIVE_FILTER_VALUES.has(firstValue)) return firstValue;
+  return '';
 }
 
 interface FilterBarProps {
@@ -30,6 +42,14 @@ interface FilterBarProps {
   size?: 'default' | 'compact';
   /** Extra controls on the right cluster (tabs, view switch, etc.). */
   leading?: React.ReactNode;
+  /** Hide the search field when the page already has its own. */
+  showSearch?: boolean;
+  /** Extra controls rendered inside the expanded filter panel. */
+  panelExtra?: React.ReactNode;
+  /** Active filters that live in `panelExtra`, added to the badge count. */
+  extraActiveCount?: number;
+  /** Called together with the built-in clear action. */
+  onClearExtra?: () => void;
 }
 
 export function FilterBar({
@@ -43,25 +63,33 @@ export function FilterBar({
   className,
   size = 'default',
   leading,
+  showSearch = true,
+  panelExtra,
+  extraActiveCount = 0,
+  onClearExtra,
 }: FilterBarProps) {
   const [isExpanded, setIsExpanded] = useState(false);
-  const activeFiltersCount = filters.filter((f) => f.value !== '' && f.value !== 'Todos').length;
+  const activeFiltersCount =
+    filters.filter((f) => f.value !== inactiveFilterValue(f)).length + extraActiveCount;
+  const hasPanel = filters.length > 0 || Boolean(panelExtra);
   const isCompact = size === 'compact';
 
   return (
     <div className={cn('filter-bar', isCompact && 'filter-bar--compact', className)}>
       <div className="filter-bar-controls">
-        <ToolbarSearchInput
-          value={searchValue}
-          onChange={onSearchChange}
-          placeholder={searchPlaceholder}
-          size={isCompact ? 'compact' : 'default'}
-          className="desktop-subheader-search"
-        />
+        {showSearch ? (
+          <ToolbarSearchInput
+            value={searchValue}
+            onChange={onSearchChange}
+            placeholder={searchPlaceholder}
+            size={isCompact ? 'compact' : 'default'}
+            className="desktop-subheader-search"
+          />
+        ) : null}
 
         <div className="inline-stack-sm shrink-0">
           {leading}
-          {filters.length > 0 ? (
+          {hasPanel ? (
             <button
               type="button"
               onClick={() => setIsExpanded(!isExpanded)}
@@ -99,7 +127,7 @@ export function FilterBar({
         </div>
       </div>
 
-      {isExpanded && filters.length > 0 ? (
+      {isExpanded && hasPanel ? (
         <div className="filter-bar-panel w-full rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-primary)] p-3 shadow-none md:rounded-[var(--radius-card)]">
           {filters.map((filter) => (
             <div key={filter.id} className="stack-sm">
@@ -112,7 +140,7 @@ export function FilterBar({
                   onChange={(e) => filter.onChange(e.target.value)}
                   className={cn(
                     'filter-bar-select h-9 w-full appearance-none pr-8',
-                    filter.value !== '' && filter.value !== 'Todos'
+                    filter.value !== inactiveFilterValue(filter)
                       ? 'filter-bar-select-active'
                       : 'bg-[var(--bg-hover)]',
                   )}
@@ -128,17 +156,21 @@ export function FilterBar({
             </div>
           ))}
 
+          {panelExtra}
+
           <div className="col-span-full flex justify-end pt-2">
-            <button
+            <AppButton
               type="button"
+              variant="ghost"
+              size="sm"
               onClick={() => {
-                filters.forEach((f) => f.onChange(''));
+                filters.forEach((f) => f.onChange(inactiveFilterValue(f)));
+                onClearExtra?.();
                 setIsExpanded(false);
               }}
-              className="text-xs font-semibold text-[var(--accent-pink)] hover:underline focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
             >
-              Limpar Filtros
-            </button>
+              Limpar filtros
+            </AppButton>
           </div>
         </div>
       ) : null}

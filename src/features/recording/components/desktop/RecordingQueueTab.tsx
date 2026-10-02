@@ -101,7 +101,7 @@ function RecordingBlockCard({block, contents, onOpen, onDelete}: RecordingBlockC
       tabIndex={0}
       aria-label={`Abrir bloco ${block.name}`}
       className={cn(
-        'ds-card group flex cursor-pointer flex-col justify-between p-6 transition-all hover:shadow-[var(--shadow-card-hover)]',
+        'ds-card ds-card-interactive group flex cursor-pointer flex-col justify-between p-6',
         isCompleted && 'opacity-70'
       )}
     >

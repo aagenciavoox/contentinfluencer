@@ -126,6 +126,7 @@ CREATE TABLE public.contents (
   tags ARRAY NOT NULL DEFAULT '{}'::text[],
   notes text,
   referencias text,
+  writing_notes text,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
   updated_at timestamp with time zone NOT NULL DEFAULT now(),
   deleted_at timestamp with time zone,

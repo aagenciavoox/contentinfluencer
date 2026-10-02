@@ -1,8 +1,7 @@
-import type { Content, Pilar, Serie } from '../../../lib/database.ts';
+import type { Content } from '../../../lib/database.ts';
 import { htmlToReadableText } from '../../../lib/utils.ts';
 import {
   CONTENT_STATUS,
-  getDisplayStatus,
   normalizeContentStatus,
   PRODUCTION_TAGS,
 } from '../../contents/lib/contentPipeline.ts';
@@ -28,40 +27,6 @@ const TAB_TO_STATUS: Record<CreationKanbanTab, string> = {
 
 export function getCreationTitle(content: Content) {
   return content.title.trim() || 'Sem título';
-}
-
-export function getCreationStageLabel(content: Content) {
-  if (content.deletedAt) return 'Na lixeira';
-  if (content.archivedAt) return 'Arquivado';
-  return getDisplayStatus(content);
-}
-
-/** Status token target for moderated stage colors (gray/blue/purple/green). */
-export function getCreationStageTone(content: Content): string {
-  if (content.deletedAt || content.archivedAt) return 'Arquivado';
-  const display = getDisplayStatus(content);
-  if (display === 'Programado') return CONTENT_STATUS.PRODUCAO;
-  return display;
-}
-
-export function preferredCreationEntity(
-  content: Pick<Content, 'pilarId' | 'seriesId'>,
-  pillar?: Pilar | null,
-  series?: Serie | null,
-) {
-  if (series || content.seriesId) {
-    return {
-      label: series?.name ?? 'Série',
-      color: series?.cor ?? null,
-    };
-  }
-  if (pillar || content.pilarId) {
-    return {
-      label: pillar?.nome ?? 'Pilar',
-      color: pillar?.cor ?? null,
-    };
-  }
-  return null;
 }
 
 export function getCreationFormatLabel(content: Content) {
@@ -117,16 +82,11 @@ export function getCreationCardFooterMeta(content: Content) {
     .join(' / ');
 }
 
-/** User-facing tags first, followed by the resolved editorial category as fallback metadata. */
+/** User-facing tags. Pilar e série aparecem à parte, na identificação do card. */
 export function getCreationCardTags(
-  content: Pick<Content, 'tags' | 'pilarId' | 'seriesId'>,
-  pillar?: Pilar | null,
-  series?: Serie | null,
+  content: Pick<Content, 'tags'>,
 ) {
-  const labels = [
-    ...content.tags.filter(tag => !TECHNICAL_TAGS.has(tag.trim().toLowerCase())),
-    preferredCreationEntity(content, pillar, series)?.label,
-  ];
+  const labels = content.tags.filter(tag => !TECHNICAL_TAGS.has(tag.trim().toLowerCase()));
   const seen = new Set<string>();
 
   return labels.flatMap(label => {

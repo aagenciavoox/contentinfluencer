@@ -11,7 +11,7 @@ import {
   startOfWeek,
 } from 'date-fns';
 import {ptBR} from 'date-fns/locale';
-import {BookOpen, CalendarDays, ChevronDown, Clock, Mic2, PanelRight, Plus, Radio, Send, Target, X} from 'lucide-react';
+import {BookOpen, CalendarDays, ChevronDown, Clock, Mic2, PanelLeft, PanelRight, Plus, Radio, Send, Target, X} from 'lucide-react';
 import {
   CalendarDesktopShell,
   CalendarEventPill,
@@ -22,11 +22,11 @@ import {
   editorialPillStyle,
 } from '../../../components/calendar';
 import {AppButton} from '../../../components/ui/AppButton';
+import {FilterBar} from '../../../components/ui/FilterBar';
 import {Text} from '../../../components/ui/Text';
-import {ToolbarSearchInput} from '../../../components/ui/ToolbarSearchInput';
 import {PageLayout} from '../../../layouts/page/PageLayout';
 import {DesktopPageHeader} from '../../../layouts/page/DesktopPageHeader';
-import {BottomSheetModal} from '../../../components/feedback/modals/BottomSheetModal';
+import {Dialog} from '../../../components/overlays/Dialog';
 import {OverlayBody} from '../../../components/overlays/OverlayBody';
 import {OverlayFooter} from '../../../components/overlays/OverlayFooter';
 import {OverlayHeader} from '../../../components/overlays/OverlayHeader';
@@ -52,6 +52,13 @@ import {
 import {PostingTimeSuggestions} from '../../settings/components/PostingTimeSuggestions';
 import {getPostingTimes} from '../../settings/lib/postingTimes';
 import {generateUUID} from '../../../utils/uuid';
+import {
+  ALL_PLATFORMS,
+  ALL_STATUSES,
+  CONTENT_STATUS_FILTER_OPTIONS,
+  collectPlatformNames,
+  platformFilterOptions,
+} from '../lib/calendarContentFilters';
 
 const STORAGE_KEY = 'content-os:calendar-layers';
 const PANEL_STORAGE_KEY = 'content-os:calendar-day-panel';
@@ -86,6 +93,8 @@ export function EditorialCalendarPage() {
   const [activeLayers, setActiveLayersRaw] = useState<string[]>(loadLayers);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortValue, setSortValue] = useState('proximos');
+  const [platformFilter, setPlatformFilter] = useState(ALL_PLATFORMS);
+  const [statusFilter, setStatusFilter] = useState(ALL_STATUSES);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
   const viewMode = parseCalendarViewMode(searchParams.get(CALENDAR_VIEW_QUERY));
@@ -114,6 +123,16 @@ export function EditorialCalendarPage() {
     });
   }, []);
 
+  const platformNames = useMemo(() => {
+    const used = state.contents.flatMap(content =>
+      content.plataformas.map(item => {
+        const platform = state.platforms.find(candidate => candidate.id === item.platformId);
+        return platform?.nome || item.platformId;
+      }),
+    );
+    return collectPlatformNames(state.platforms, used);
+  }, [state.contents, state.platforms]);
+
   const entriesByDate = useMemo(
     () => buildCalendarEntries(
       state.contents,
@@ -122,9 +141,10 @@ export function EditorialCalendarPage() {
       state.projetos,
       activeLayers,
       searchTerm,
-      sortValue
+      sortValue,
+      {platformFilter, statusFilter},
     ),
-    [activeLayers, searchTerm, sortValue, state.agendaItems, state.contents, state.platforms, state.projetos]
+    [activeLayers, platformFilter, searchTerm, sortValue, statusFilter, state.agendaItems, state.contents, state.platforms, state.projetos]
   );
   const selectedDateKey = format(selectedDate, 'yyyy-MM-dd');
   const selectedEntries = entriesByDate.get(selectedDateKey) || [];
@@ -145,7 +165,7 @@ export function EditorialCalendarPage() {
     };
   }, [currentMonth, timelinePeriod, viewMode]);
 
-  // Spec: projeto -> pagina dedicada; conteudo -> drawer; evento -> modal.
+  // Spec: projeto -> pagina dedicada; conteudo e evento -> drawer.
   const handleSelectEntry = useCallback(
     (entry: CalendarEntry) => {
       if (entry.type === 'project' && entry.projetoId) {
@@ -157,8 +177,6 @@ export function EditorialCalendarPage() {
     [navigate]
   );
 
-  const isContentEntry =
-    selectedCalendarEntry?.type === 'recording' || selectedCalendarEntry?.type === 'publish';
   const allCalendarEntries = Array.from(entriesByDate.values()).flat();
   const weeklyRecordings = allCalendarEntries.filter(entry => entry.type === 'recording').length;
   const weeklyPosts = allCalendarEntries.filter(entry => entry.type === 'publish').length;
@@ -216,7 +234,7 @@ export function EditorialCalendarPage() {
           />
         </div>
 
-        <BottomSheetModal
+        <Dialog
           open={isAddAgendaOpen}
           onClose={() => setIsAddAgendaOpen(false)}
           desktopMaxW="max-w-md"
@@ -231,9 +249,9 @@ export function EditorialCalendarPage() {
               setIsAddAgendaOpen(false);
             }}
           />
-        </BottomSheetModal>
+        </Dialog>
 
-        <BottomSheetModal
+        <Dialog
           open={isAddPostedVideoOpen}
           onClose={() => setIsAddPostedVideoOpen(false)}
           desktopMaxW="max-w-lg"
@@ -247,12 +265,12 @@ export function EditorialCalendarPage() {
               setIsAddPostedVideoOpen(false);
             }}
           />
-        </BottomSheetModal>
+        </Dialog>
 
-        <BottomSheetModal
+        <Drawer
           open={Boolean(selectedCalendarEntry)}
           onClose={() => setSelectedCalendarEntry(null)}
-          desktopMaxW="max-w-xl"
+          widthClassName="max-w-xl"
         >
           {selectedCalendarEntry ? (
             <CalendarEntryDetailModal
@@ -273,12 +291,14 @@ export function EditorialCalendarPage() {
               }}
             />
           ) : null}
-        </BottomSheetModal>
+        </Drawer>
       </>
     );
   }
 
+  const isMonthView = viewMode === 'month';
   const showDayPanel = dayPanelOpen && viewMode !== 'agenda' && viewMode !== 'timeline';
+  const hiddenLayerCount = EDITORIAL_LAYER_ITEMS.filter(item => !activeLayers.includes(item.id)).length;
 
   const handleLayerToggle = (layerId: string) => {
     setActiveLayers(current =>
@@ -365,7 +385,7 @@ export function EditorialCalendarPage() {
 
       <button
         type="button"
-        onClick={() => navigate('/configuracoes/horarios')}
+        onClick={() => navigate('/configuracoes/plataformas')}
         className="flex w-full items-center gap-2 rounded-[var(--radius-sm)] px-1 py-1.5 text-sm font-semibold text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
       >
         <Clock className="h-4 w-4" />
@@ -388,6 +408,15 @@ export function EditorialCalendarPage() {
           actions={(
             <>
               <CalendarModeSwitch />
+              {isMonthView ? (
+                <AppButton
+                  variant="ghost"
+                  leftIcon={<Radio className="h-4 w-4" />}
+                  onClick={() => setIsAddPostedVideoOpen(true)}
+                >
+                  Vídeo postado
+                </AppButton>
+              ) : null}
               <AppButton
                 variant="primary"
                 leftIcon={<Plus className="h-4 w-4" />}
@@ -399,57 +428,55 @@ export function EditorialCalendarPage() {
           )}
         />
       }
-    >
-      <CalendarDesktopShell
-        sidebar={calendarSidebar}
-        sidebarOpen={sidebarOpen}
-        onSidebarOpenChange={setSidebarOpen}
-        onMainNarrowChange={handleMainNarrowChange}
-        toolbar={
-          <CalendarPeriodNav
-            anchorDate={currentMonth}
-            onAnchorDateChange={date => {
-              setCurrentMonth(date);
-              if (viewMode === 'week' || (viewMode === 'timeline' && timelinePeriod === 'week')) {
-                setSelectedDate(date);
-              }
-            }}
-            viewMode={viewMode}
-            onViewModeChange={handleViewChange}
-            weekViewId={
-              viewMode === 'week'
-                ? 'week'
-                : viewMode === 'timeline' && timelinePeriod === 'week'
-                  ? 'timeline'
-                  : undefined
-            }
-            views={[
-              {id: 'month', label: 'Mês'},
-              {id: 'week', label: 'Semana'},
-              {id: 'agenda', label: 'Agenda'},
-              {id: 'timeline', label: 'Timeline'},
-            ]}
-          />
-        }
-        toolbarExtra={
-          <>
-            <ToolbarSearchInput
-              value={searchTerm}
-              onChange={setSearchTerm}
-              placeholder="Buscar no calendário"
-              size="compact"
-              className="w-44 max-w-[40vw]"
-            />
-            <select
-              value={sortValue}
-              onChange={event => setSortValue(event.target.value)}
-              className="hidden h-9 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-2 text-sm lg:block"
-              aria-label="Ordenar"
-            >
-              <option value="proximos">Próximos</option>
-              <option value="titulo:asc">Título A-Z</option>
-              <option value="tipo:asc">Tipo</option>
-            </select>
+      toolbar={
+        <div className="stack-sm">
+          <div className="flex flex-wrap items-center gap-2">
+            {isMonthView ? null : (
+              <button
+                type="button"
+                onClick={() => setSidebarOpen(true)}
+                className="flex min-h-9 min-w-9 items-center justify-center rounded-[var(--radius-sm)] text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] xl:hidden"
+                aria-label="Abrir painel lateral"
+              >
+                <PanelLeft className="h-4 w-4" />
+              </button>
+            )}
+            <div className="min-w-0 flex-1">
+              <CalendarPeriodNav
+                anchorDate={currentMonth}
+                onAnchorDateChange={date => {
+                  setCurrentMonth(date);
+                  if (viewMode === 'week' || (viewMode === 'timeline' && timelinePeriod === 'week')) {
+                    setSelectedDate(date);
+                  }
+                }}
+                viewMode={viewMode}
+                onViewModeChange={handleViewChange}
+                weekViewId={
+                  viewMode === 'week'
+                    ? 'week'
+                    : viewMode === 'timeline' && timelinePeriod === 'week'
+                      ? 'timeline'
+                      : undefined
+                }
+                views={[
+                  {id: 'month', label: 'Mês'},
+                  {id: 'week', label: 'Semana'},
+                  {id: 'agenda', label: 'Agenda'},
+                  {id: 'timeline', label: 'Timeline'},
+                ]}
+              />
+            </div>
+            {isMonthView ? (
+              <AppButton
+                variant="ghost"
+                size="sm"
+                leftIcon={<Clock className="h-3.5 w-3.5" />}
+                onClick={() => navigate('/configuracoes/plataformas')}
+              >
+                Horários
+              </AppButton>
+            ) : null}
             {!showDayPanel ? (
               <AppButton
                 variant="ghost"
@@ -461,8 +488,71 @@ export function EditorialCalendarPage() {
                 Dia ({selectedEntries.length})
               </AppButton>
             ) : null}
-          </>
-        }
+          </div>
+          <FilterBar
+            size="compact"
+            searchValue={searchTerm}
+            onSearchChange={setSearchTerm}
+            searchPlaceholder="Buscar no calendário"
+            sortValue={sortValue}
+            onSortChange={setSortValue}
+            sortOptions={[
+              {label: 'Próximos', value: 'proximos'},
+              {label: 'Título A-Z', value: 'titulo:asc'},
+              {label: 'Tipo', value: 'tipo:asc'},
+            ]}
+            filters={[
+              {
+                id: 'platform',
+                label: 'Plataforma',
+                value: platformFilter,
+                onChange: setPlatformFilter,
+                options: platformFilterOptions(platformNames),
+              },
+              {
+                id: 'status',
+                label: 'Status',
+                value: statusFilter,
+                onChange: setStatusFilter,
+                options: CONTENT_STATUS_FILTER_OPTIONS,
+              },
+            ]}
+            panelExtra={isMonthView ? (
+              <div className="col-span-full stack-sm">
+                <Text variant="label" as="label" className="px-1">
+                  Camadas
+                </Text>
+                <div className="flex flex-wrap gap-2">
+                  {EDITORIAL_LAYER_ITEMS.map(item => {
+                    const active = activeLayers.includes(item.id);
+                    const Icon = item.icon;
+                    return (
+                      <AppButton
+                        key={item.id}
+                        variant={active ? 'secondary' : 'ghost'}
+                        size="xs"
+                        aria-pressed={active}
+                        leftIcon={<Icon className="h-3.5 w-3.5" style={{color: item.color}} />}
+                        onClick={() => handleLayerToggle(item.id)}
+                      >
+                        {item.label}
+                      </AppButton>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : null}
+            extraActiveCount={isMonthView ? hiddenLayerCount : 0}
+            onClearExtra={isMonthView ? () => setActiveLayers(DEFAULT_LAYERS) : undefined}
+          />
+        </div>
+      }
+    >
+      <CalendarDesktopShell
+        sidebar={isMonthView ? undefined : calendarSidebar}
+        sidebarOpen={sidebarOpen}
+        onSidebarOpenChange={setSidebarOpen}
+        onMainNarrowChange={handleMainNarrowChange}
         rightPanel={
           showDayPanel ? (
             <CalendarDayPanel
@@ -514,6 +604,8 @@ export function EditorialCalendarPage() {
               activeLayers={activeLayers}
               searchTerm={searchTerm}
               sortValue={sortValue}
+              platformFilter={platformFilter}
+              statusFilter={statusFilter}
               monthsToShow={1}
               monthDate={currentMonth}
               selectedDate={selectedDate}
@@ -524,11 +616,13 @@ export function EditorialCalendarPage() {
             />
           )}
 
-          <CalendarInsightCards
-            recordings={weeklyRecordings}
-            posts={weeklyPosts}
-            projects={state.projetos.filter(project => !project.deletedAt).length}
-          />
+          {isMonthView ? null : (
+            <CalendarInsightCards
+              recordings={weeklyRecordings}
+              posts={weeklyPosts}
+              projects={state.projetos.filter(project => !project.deletedAt).length}
+            />
+          )}
         </div>
       </CalendarDesktopShell>
 
@@ -556,7 +650,7 @@ export function EditorialCalendarPage() {
         }}
       />
 
-      <BottomSheetModal
+      <Dialog
         open={isAddAgendaOpen}
         onClose={() => setIsAddAgendaOpen(false)}
         desktopMaxW="max-w-md"
@@ -574,9 +668,9 @@ export function EditorialCalendarPage() {
             setAgendaDraft(null);
           }}
         />
-      </BottomSheetModal>
+      </Dialog>
 
-      <BottomSheetModal
+      <Dialog
         open={isAddPostedVideoOpen}
         onClose={() => setIsAddPostedVideoOpen(false)}
         desktopMaxW="max-w-lg"
@@ -590,63 +684,33 @@ export function EditorialCalendarPage() {
             setIsAddPostedVideoOpen(false);
           }}
         />
-      </BottomSheetModal>
+      </Dialog>
 
-      {isContentEntry ? (
-        // Spec: conteudo abre em drawer rapido
-        <Drawer
-          open={Boolean(selectedCalendarEntry)}
-          onClose={() => setSelectedCalendarEntry(null)}
-          widthClassName="max-w-xl"
-        >
-          {selectedCalendarEntry ? (
-            <CalendarEntryDetailModal
-              key={selectedCalendarEntry.id}
-              entry={selectedCalendarEntry}
-              contents={state.contents}
-              platforms={state.platforms}
-              agendaItems={state.agendaItems}
-              projetos={state.projetos}
-              onClose={() => setSelectedCalendarEntry(null)}
-              onSaveContent={content => {
-                dispatch({type: 'UPDATE_CONTENT', payload: content});
-                setSelectedCalendarEntry(null);
-              }}
-              onSaveAgenda={item => {
-                dispatch({type: 'UPDATE_AGENDA_ITEM', payload: item});
-                setSelectedCalendarEntry(null);
-              }}
-            />
-          ) : null}
-        </Drawer>
-      ) : (
-        // Spec: evento abre em modal
-        <BottomSheetModal
-          open={Boolean(selectedCalendarEntry)}
-          onClose={() => setSelectedCalendarEntry(null)}
-          desktopMaxW="max-w-xl"
-        >
-          {selectedCalendarEntry ? (
-            <CalendarEntryDetailModal
-              key={selectedCalendarEntry.id}
-              entry={selectedCalendarEntry}
-              contents={state.contents}
-              platforms={state.platforms}
-              agendaItems={state.agendaItems}
-              projetos={state.projetos}
-              onClose={() => setSelectedCalendarEntry(null)}
-              onSaveContent={content => {
-                dispatch({type: 'UPDATE_CONTENT', payload: content});
-                setSelectedCalendarEntry(null);
-              }}
-              onSaveAgenda={item => {
-                dispatch({type: 'UPDATE_AGENDA_ITEM', payload: item});
-                setSelectedCalendarEntry(null);
-              }}
-            />
-          ) : null}
-        </BottomSheetModal>
-      )}
+      <Drawer
+        open={Boolean(selectedCalendarEntry)}
+        onClose={() => setSelectedCalendarEntry(null)}
+        widthClassName="max-w-xl"
+      >
+        {selectedCalendarEntry ? (
+          <CalendarEntryDetailModal
+            key={selectedCalendarEntry.id}
+            entry={selectedCalendarEntry}
+            contents={state.contents}
+            platforms={state.platforms}
+            agendaItems={state.agendaItems}
+            projetos={state.projetos}
+            onClose={() => setSelectedCalendarEntry(null)}
+            onSaveContent={content => {
+              dispatch({type: 'UPDATE_CONTENT', payload: content});
+              setSelectedCalendarEntry(null);
+            }}
+            onSaveAgenda={item => {
+              dispatch({type: 'UPDATE_AGENDA_ITEM', payload: item});
+              setSelectedCalendarEntry(null);
+            }}
+          />
+        ) : null}
+      </Drawer>
     </PageLayout>
   );
 }

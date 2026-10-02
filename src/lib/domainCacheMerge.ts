@@ -17,6 +17,7 @@ function mergeContentRecords(local: Content, remote: Content): Content {
     scriptNotes: local.scriptNotes?.length ? local.scriptNotes : remote.scriptNotes,
     notes: local.notes ?? remote.notes,
     referencias: local.referencias ?? remote.referencias,
+    writingNotes: local.writingNotes ?? remote.writingNotes,
     plataformas: local.plataformas?.length ? local.plataformas : remote.plataformas,
   };
 }

@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { MonitorSpeaker, Plus } from 'lucide-react';
+import { Clock, MonitorSpeaker, Plus } from 'lucide-react';
+import { PostingTimesEditor } from '../../../features/settings/components/PostingTimesEditor';
 import type { Platform } from '../../../lib/database';
 import { BottomSheetModal } from '../../../components/feedback/modals/BottomSheetModal';
 import { OverlayBody } from '../../../components/overlays/OverlayBody';
@@ -49,8 +50,8 @@ export function PlatformsMobileScreen({
         <MobileSectionHeader
           icon={MonitorSpeaker}
           tone="green"
-          title="Plataformas"
-          description="Ative os canais da operação e preserve a leitura histórica dos dados."
+          title="Plataformas e horários"
+          description="Canais da operação e janelas de postagem no mesmo lugar."
         />
 
         <AppButton variant="primary" fullWidth onClick={() => setShowForm(true)} leftIcon={<Plus className="h-4 w-4" />}>
@@ -126,6 +127,16 @@ export function PlatformsMobileScreen({
             );
           })
         )}
+      </section>
+
+      <section className="stack-md">
+        <MobileSectionHeader
+          icon={Clock}
+          tone="blue"
+          title="Horários de postagem"
+          description="Global vale para todos os canais. Uma aba da plataforma substitui o dia correspondente."
+        />
+        <PostingTimesEditor />
       </section>
 
       <BottomSheetModal open={showForm} onClose={closeForm} desktopMaxW="max-w-xl" zIndex="z-[110]">

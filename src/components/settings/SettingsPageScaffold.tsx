@@ -13,6 +13,9 @@ interface SettingsPageScaffoldProps {
   actions?: React.ReactNode;
   children: React.ReactNode;
   className?: string;
+  toolbar?: React.ReactNode;
+  variant?: 'default' | 'settings';
+  showBack?: boolean;
 }
 
 /** @deprecated Use PageLayout with variant="settings" */
@@ -25,18 +28,21 @@ export function SettingsPageScaffold({
   actions,
   children,
   className,
+  toolbar,
+  variant = 'settings',
+  showBack = true,
 }: SettingsPageScaffoldProps) {
   return (
     <PageLayout
-      variant="settings"
+      variant={variant}
+      toolbar={toolbar}
       className={cn(className)}
       header={
         <DesktopPageHeader
           section={section}
           title={title}
           icon={icon}
-          backLabel={backLabel}
-          backTo={backTo}
+          {...(showBack ? { backLabel, backTo } : {})}
           actions={actions}
         />
       }

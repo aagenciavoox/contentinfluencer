@@ -45,18 +45,25 @@ const EMPTY_BLOCO_EDITOR: BlocoEditorState = {
   placeholder: '',
 };
 
-export function TemplatesSettingsPage() {
+export function TemplatesSettingsPage({
+  seriesId: lockedSeriesId,
+  embedded = false,
+}: {
+  seriesId?: string;
+  embedded?: boolean;
+} = {}) {
   const {state, dispatch} = useAppContext();
   const {user} = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const isMobile = useIsMobile();
-  const editParam = searchParams.get('edit');
+  const [localEditId, setLocalEditId] = useState<string | null>(null);
+  const editParam = embedded ? localEditId : searchParams.get('edit');
   const lastHydratedEditRef = useRef<string | null>(null);
 
   const [showNewForm, setShowNewForm] = useState(false);
   const [novoNome, setNovoNome] = useState('');
   const [novoTipo, setNovoTipo] = useState<TemplateTypeFilter>('roteiro');
-  const [novaSerieId, setNovaSerieId] = useState('');
+  const [novaSerieId, setNovaSerieId] = useState(lockedSeriesId || '');
   const [novaPlatformId, setNovaPlatformId] = useState('');
 
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
@@ -68,14 +75,20 @@ export function TemplatesSettingsPage() {
   const [confirm, setConfirm] = useState<ConfirmState | null>(null);
 
   const templates = useMemo(
-    () => [...state.templates].sort((left, right) => new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime()),
-    [state.templates]
+    () => [...state.templates]
+      .filter(template => !lockedSeriesId || (template.seriesId === lockedSeriesId && (template.type ?? 'roteiro') === 'roteiro'))
+      .sort((left, right) => new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime()),
+    [lockedSeriesId, state.templates]
   );
 
   const selectedTemplate = templates.find(template => template.id === selectedTemplateId) || null;
   const editingBloco = selectedTemplate?.estrutura.find(bloco => bloco.id === editingBlocoId) || null;
 
   const setEditParam = (templateId: string | null) => {
+    if (embedded) {
+      setLocalEditId(templateId);
+      return;
+    }
     setSearchParams(previous => {
       const next = new URLSearchParams(previous);
       if (templateId) next.set('edit', templateId);
@@ -158,8 +171,8 @@ export function TemplatesSettingsPage() {
       id: generateUUID(),
       userId: user?.id || '',
       nome: novoNome.trim(),
-      type: novoTipo,
-      seriesId: novaSerieId || null,
+      type: lockedSeriesId ? 'roteiro' : novoTipo,
+      seriesId: lockedSeriesId || novaSerieId || null,
       platformId: novaPlatformId || null,
       estrutura: [],
       ativo: true,
@@ -169,7 +182,7 @@ export function TemplatesSettingsPage() {
 
     dispatch({type: 'ADD_TEMPLATE', payload: template});
     setNovoNome('');
-    setNovaSerieId('');
+    setNovaSerieId(lockedSeriesId || '');
     setNovaPlatformId('');
     setNovoTipo('roteiro');
     setShowNewForm(false);
@@ -192,8 +205,8 @@ export function TemplatesSettingsPage() {
     updateTemplate({
       ...selectedTemplate,
       nome: templateEditor.nome.trim(),
-      type: templateEditor.type,
-      seriesId: templateEditor.seriesId || null,
+      type: lockedSeriesId ? 'roteiro' : templateEditor.type,
+      seriesId: lockedSeriesId || templateEditor.seriesId || null,
       platformId: templateEditor.platformId || null,
     });
   };
@@ -348,38 +361,42 @@ export function TemplatesSettingsPage() {
                     />
                   </div>
 
-                  <div className="stack-sm">
-                    <label className="text-xs font-semibold  text-[var(--text-tertiary)]">
-                      Tipo
-                    </label>
-                    <select
-                      value={templateEditor.type}
-                      onChange={event => setTemplateEditor(previous => ({...previous, type: event.target.value as TemplateTypeFilter}))}
-                      className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] px-4 py-3 text-xs font-semibold uppercase text-[var(--text-primary)] focus:outline-none"
-                    >
-                      <option value="roteiro">Roteiro</option>
-                      <option value="legenda">Legenda</option>
-                      <option value="outro">Outro</option>
-                    </select>
-                  </div>
+                  {lockedSeriesId ? null : (
+                    <>
+                      <div className="stack-sm">
+                        <label className="text-xs font-semibold  text-[var(--text-tertiary)]">
+                          Tipo
+                        </label>
+                        <select
+                          value={templateEditor.type}
+                          onChange={event => setTemplateEditor(previous => ({...previous, type: event.target.value as TemplateTypeFilter}))}
+                          className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] px-4 py-3 text-xs font-semibold uppercase text-[var(--text-primary)] focus:outline-none"
+                        >
+                          <option value="roteiro">Roteiro</option>
+                          <option value="legenda">Legenda</option>
+                          <option value="outro">Outro</option>
+                        </select>
+                      </div>
 
-                  <div className="stack-sm">
-                    <label className="text-xs font-semibold  text-[var(--text-tertiary)]">
-                      Série
-                    </label>
-                    <select
-                      value={templateEditor.seriesId}
-                      onChange={event => setTemplateEditor(previous => ({...previous, seriesId: event.target.value}))}
-                      className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] px-4 py-3 text-sm text-[var(--text-primary)] focus:outline-none"
-                    >
-                      <option value="">Sem série</option>
-                      {state.series.map(serie => (
-                        <option key={serie.id} value={serie.id}>
-                          {serie.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                      <div className="stack-sm">
+                        <label className="text-xs font-semibold  text-[var(--text-tertiary)]">
+                          Série
+                        </label>
+                        <select
+                          value={templateEditor.seriesId}
+                          onChange={event => setTemplateEditor(previous => ({...previous, seriesId: event.target.value}))}
+                          className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] px-4 py-3 text-sm text-[var(--text-primary)] focus:outline-none"
+                        >
+                          <option value="">Sem série</option>
+                          {state.series.map(serie => (
+                            <option key={serie.id} value={serie.id}>
+                              {serie.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </>
+                  )}
 
                   <div className="stack-sm">
                     <label className="text-xs font-semibold  text-[var(--text-tertiary)]">
@@ -595,7 +612,7 @@ export function TemplatesSettingsPage() {
     </>
   );
 
-  if (isMobile) {
+  if (isMobile && !embedded) {
     return (
       <div className="min-h-full bg-[var(--bg-primary)]">
         <TemplatesMobileScreen
@@ -614,29 +631,8 @@ export function TemplatesSettingsPage() {
     );
   }
 
-  return (
+  const catalog = (
     <>
-    <PageLayout
-      variant="settings"
-      header={
-        <DesktopPageHeader
-          section="Configurações"
-          title="Templates"
-          icon={Layout}
-          backLabel="Configurações"
-          backTo="/configuracoes"
-          actions={
-            <button
-              onClick={() => setShowNewForm(true)}
-              className="flex shrink-0 items-center gap-2 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] bg-[var(--text-primary)] px-6 py-3 text-xs font-semibold text-[var(--bg-primary)] hover:opacity-90"
-            >
-              <Plus className="h-4 w-4" />
-              Novo
-            </button>
-          }
-        />
-      }
-    >
         {showNewForm && (
           <div className="stack-md rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-primary)] p-6">
             <p className="text-xs font-semibold  opacity-40">Novo template</p>
@@ -648,27 +644,31 @@ export function TemplatesSettingsPage() {
               className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] placeholder:opacity-30 focus:outline-none"
             />
             <div className="flex flex-wrap gap-3">
-              <select
-                value={novoTipo}
-                onChange={event => setNovoTipo(event.target.value as TemplateTypeFilter)}
-                className="flex-1 min-w-[120px] rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-2.5 text-xs font-semibold uppercase text-[var(--text-primary)] focus:outline-none"
-              >
-                <option value="roteiro">Roteiro</option>
-                <option value="legenda">Legenda</option>
-                <option value="outro">Outro</option>
-              </select>
-              <select
-                value={novaSerieId}
-                onChange={event => setNovaSerieId(event.target.value)}
-                className="flex-1 min-w-[120px] rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-2.5 text-xs font-bold text-[var(--text-primary)] focus:outline-none"
-              >
-                <option value="">Série (opcional)</option>
-                {state.series.map(serie => (
-                  <option key={serie.id} value={serie.id}>
-                    {serie.name}
-                  </option>
-                ))}
-              </select>
+              {lockedSeriesId ? null : (
+                <>
+                  <select
+                    value={novoTipo}
+                    onChange={event => setNovoTipo(event.target.value as TemplateTypeFilter)}
+                    className="flex-1 min-w-[120px] rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-2.5 text-xs font-semibold uppercase text-[var(--text-primary)] focus:outline-none"
+                  >
+                    <option value="roteiro">Roteiro</option>
+                    <option value="legenda">Legenda</option>
+                    <option value="outro">Outro</option>
+                  </select>
+                  <select
+                    value={novaSerieId}
+                    onChange={event => setNovaSerieId(event.target.value)}
+                    className="flex-1 min-w-[120px] rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-2.5 text-xs font-bold text-[var(--text-primary)] focus:outline-none"
+                  >
+                    <option value="">Série (opcional)</option>
+                    {state.series.map(serie => (
+                      <option key={serie.id} value={serie.id}>
+                        {serie.name}
+                      </option>
+                    ))}
+                  </select>
+                </>
+              )}
               <select
                 value={novaPlatformId}
                 onChange={event => setNovaPlatformId(event.target.value)}
@@ -764,8 +764,52 @@ export function TemplatesSettingsPage() {
             })}
           </div>
         )}
-    </PageLayout>
-    {templateEditorOverlays}
+    </>
+  );
+
+  if (embedded) {
+    return (
+      <div className="stack-md">
+        {templates.length > 0 || showNewForm ? (
+          <div className="flex justify-end">
+            <AppButton
+              variant="secondary"
+              size="sm"
+              onClick={() => setShowNewForm(true)}
+              leftIcon={<Plus className="h-4 w-4" />}
+            >
+              Novo template
+            </AppButton>
+          </div>
+        ) : null}
+        {catalog}
+        {templateEditorOverlays}
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <PageLayout
+        variant="settings"
+        header={
+          <DesktopPageHeader
+            section="Configurações"
+            title="Templates"
+            icon={Layout}
+            backLabel="Configurações"
+            backTo="/configuracoes"
+            actions={
+              <AppButton variant="primary" size="sm" onClick={() => setShowNewForm(true)} leftIcon={<Plus className="h-4 w-4" />}>
+                Novo
+              </AppButton>
+            }
+          />
+        }
+      >
+        {catalog}
+      </PageLayout>
+      {templateEditorOverlays}
     </>
   );
 }

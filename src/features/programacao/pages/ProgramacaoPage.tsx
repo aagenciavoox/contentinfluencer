@@ -1,4 +1,4 @@
-import {useMemo, useState} from 'react';
+import {useEffect, useMemo, useRef, useState} from 'react';
 import {useLocation, useNavigate} from 'react-router-dom';
 import {
   addDays,
@@ -16,8 +16,8 @@ import {
   subMonths,
 } from 'date-fns';
 import {ptBR} from 'date-fns/locale';
-import {AlertCircle, AlertTriangle, ArrowUpRight, Briefcase, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Eye, GripVertical, Info, Lightbulb, Plus, Send, X} from 'lucide-react';
-import {BottomSheetModal} from '../../../components/feedback/modals/BottomSheetModal';
+import {ArrowUpRight, Briefcase, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, CircleHelp, Eye, GripVertical, Lightbulb, Plus, X} from 'lucide-react';
+import {Dialog} from '../../../components/overlays/Dialog';
 import {ConfirmModal} from '../../../components/feedback/modals/ConfirmModal';
 import {Text} from '../../../components/ui/Text';
 import {ToolbarSearchInput} from '../../../components/ui/ToolbarSearchInput';
@@ -36,13 +36,13 @@ import {DesktopPageHeader} from '../../../layouts/page/DesktopPageHeader';
 import type {Content} from '../../../lib/database';
 import type {ConfirmState} from '../../../lib/uiCopy';
 import {cn, htmlToReadableText} from '../../../lib/utils';
-import {getStatusCalendarClass, getStatusColorVar} from '../../../lib/statusClasses';
-import {diffViolations, previewScheduleViolations, summarizeViolations, validateWeeklyContent, type Violation} from '../../../utils/pilarRhythm';
-import {getPostingTimes} from '../../settings/lib/postingTimes';
+import {getStatusCalendarClass} from '../../../lib/statusClasses';
+import {FilterBar} from '../../../components/ui/FilterBar';
+import {buildWeekRhythmQuotas, dayRhythmTone, diffViolations, previewScheduleViolations, validateWeeklyContent, type DayRhythmTone, type Violation, type WeekRhythmQuota} from '../../../utils/pilarRhythm';
+import {getPostingTimes, getTimesForDay, getTimesForDayFromEntries, getUnionTimesForWeekday, type Weekday} from '../../settings/lib/postingTimes';
+import {resolvePlatformUuid} from '../../settings/lib/pilarPostingSchedule';
 import {recommendDailyAction} from '../../recommendations/recommendDailyAction';
-import type {Weekday} from '../../settings/lib/postingTimes';
-import {getTimesForDay} from '../../settings/lib/postingTimes';
-import {CONTENT_STATUS, DISPLAY_STATUS} from '../../contents/lib/contentPipeline';
+import {CONTENT_STATUS} from '../../contents/lib/contentPipeline';
 import {createContentDraft} from '../../contents/lib/createContentDraft';
 import {PostedVideoComposerSheet} from '../../contents/components/PostedVideoComposerSheet';
 import {
@@ -66,13 +66,19 @@ import {buildContentDetailRoute} from '../../contents/lib/contentDetailRoute';
 import {buildDetailBackState} from '../../../lib/navigation/detailBack';
 import {
   CalendarDesktopShell,
-  CalendarLayerChecklist,
-  CalendarMiniMonth,
   CalendarMonthGrid,
   CalendarPeriodNav,
 } from '../../../components/calendar';
+import {
+  ALL_PLATFORMS,
+  ALL_STATUSES,
+  CONTENT_STATUS_FILTER_OPTIONS,
+  platformFilterOptions,
+} from '../../editorial-calendar/lib/calendarContentFilters';
 import {ProgramacaoMobileScreen} from '../../../mobile/screens/programacao/ProgramacaoMobileScreen';
 import {CalendarModeSwitch} from '../../editorial-calendar/components/CalendarModeSwitch';
+import {RhythmDiagnosis} from '../components/RhythmDiagnosis';
+import {WeekRhythmRail} from '../components/WeekRhythmRail';
 
 type ProgramacaoView = 'week' | 'month';
 
@@ -119,9 +125,12 @@ export function ProgramacaoPage() {
   const isMobile = useIsMobile();
   const [viewMode, setViewMode] = useState<ProgramacaoView>('month');
   const [anchorDate, setAnchorDate] = useState(new Date());
-  const [disabledPlatforms, setDisabledPlatforms] = useState<string[]>([]);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [platformFilter, setPlatformFilter] = useState(ALL_PLATFORMS);
+  const [statusFilter, setStatusFilter] = useState(ALL_STATUSES);
+  const [scheduleSearch, setScheduleSearch] = useState('');
+  const [showProjetoMarkers, setShowProjetoMarkers] = useState(true);
   const [selectedBacklogKey, setSelectedBacklogKey] = useState<string | null>(null);
+  const [pickerDayKey, setPickerDayKey] = useState<string | null>(null);
   const [previewCard, setPreviewCard] = useState<ProgramacaoCard | null>(null);
   const [timePickerCard, setTimePickerCard] = useState<ProgramacaoCard | null>(null);
   const [timePickerViolations, setTimePickerViolations] = useState<Violation[]>([]);
@@ -150,9 +159,14 @@ export function ProgramacaoPage() {
   }, [allCards, state.platforms]);
 
   const cards = useMemo(() => {
-    if (disabledPlatforms.length === 0) return allCards;
-    return allCards.filter(card => !disabledPlatforms.includes(card.platformName));
-  }, [allCards, disabledPlatforms]);
+    const query = scheduleSearch.trim().toLowerCase();
+    return allCards.filter(card => {
+      if (platformFilter !== ALL_PLATFORMS && card.platformName !== platformFilter) return false;
+      if (statusFilter !== ALL_STATUSES && card.status !== statusFilter) return false;
+      if (!query) return true;
+      return `${card.title} ${card.platformName}`.toLowerCase().includes(query);
+    });
+  }, [allCards, platformFilter, scheduleSearch, statusFilter]);
 
   const dailyRecommendation = useMemo(
     () =>
@@ -195,15 +209,100 @@ export function ProgramacaoPage() {
     [state.agendaItems, state.projetos],
   );
 
-  const weekStart = startOfWeek(anchorDate, {locale: ptBR});
-  const weekDays = eachDayOfInterval({start: weekStart, end: endOfWeek(anchorDate, {locale: ptBR})});
+  const visibleProjetoByDate = useMemo(() => {
+    if (showProjetoMarkers) return projetoPublicacaoByDate;
+    return new Map<string, ProjetoPublicacaoMarker[]>();
+  }, [projetoPublicacaoByDate, showProjetoMarkers]);
 
-  const weekViolations = useMemo(
-    () => validateWeeklyContent(state.contents, weekStart, state.pilares, state.platforms, state.series),
-    [state.contents, state.pilares, state.platforms, state.series, weekStart],
-  );
+  const weekStart = startOfWeek(anchorDate, {weekStartsOn: 1});
+  const weekDays = eachDayOfInterval({start: weekStart, end: endOfWeek(anchorDate, {weekStartsOn: 1})});
+
+  const rhythmByWeek = useMemo(() => {
+    const rangeStart = viewMode === 'week'
+      ? weekStart
+      : startOfWeek(startOfMonth(anchorDate), {weekStartsOn: 1});
+    const rangeEnd = viewMode === 'week'
+      ? endOfWeek(anchorDate, {weekStartsOn: 1})
+      : endOfWeek(endOfMonth(anchorDate), {weekStartsOn: 1});
+    const quotas = new Map<string, WeekRhythmQuota[]>();
+    const violations = new Map<string, Violation[]>();
+    for (let cursor = rangeStart; cursor <= rangeEnd; cursor = addDays(cursor, 7)) {
+      const key = format(cursor, 'yyyy-MM-dd');
+      quotas.set(key, buildWeekRhythmQuotas({
+        contents: state.contents,
+        weekStart: cursor,
+        pilares: state.pilares,
+        series: state.series,
+        platforms: state.platforms,
+        postingTimeEntries: state.postingTimeEntries ?? [],
+        fallbackTimes: postingTimes,
+      }));
+      violations.set(key, validateWeeklyContent(state.contents, cursor, state.pilares, state.platforms, state.series));
+    }
+    return {quotas, violations};
+  }, [anchorDate, postingTimes, state.contents, state.pilares, state.platforms, state.postingTimeEntries, state.series, viewMode, weekStart]);
+
+  const anchorWeekKey = format(weekStart, 'yyyy-MM-dd');
+  const anchorWeekQuotas = rhythmByWeek.quotas.get(anchorWeekKey) ?? [];
 
   const draggingCard = draggingCardKey ? cards.find(item => item.key === draggingCardKey) ?? null : null;
+  const selectedBacklogCard = backlogCards.find(item => item.key === selectedBacklogKey) ?? null;
+  const placementPreviewCard = draggingCard ?? selectedBacklogCard;
+
+  const riskDayKeys = useMemo(() => {
+    const keys = new Set<string>();
+    if (!placementPreviewCard || isIdeiaCard(placementPreviewCard)) return keys;
+    const rangeStart = viewMode === 'week'
+      ? startOfWeek(anchorDate, {weekStartsOn: 1})
+      : startOfWeek(startOfMonth(anchorDate), {weekStartsOn: 1});
+    const rangeEnd = viewMode === 'week'
+      ? endOfWeek(anchorDate, {weekStartsOn: 1})
+      : endOfWeek(endOfMonth(anchorDate), {weekStartsOn: 1});
+    for (const day of eachDayOfInterval({start: rangeStart, end: rangeEnd})) {
+      const key = format(day, 'yyyy-MM-dd');
+      const introduced = evaluateScheduleViolations(
+        state.contents,
+        state.pilares,
+        state.platforms,
+        state.series,
+        placementPreviewCard,
+        key,
+        placementPreviewCard.time,
+      );
+      if (introduced.some(item => item.type === 'warning')) keys.add(key);
+    }
+    return keys;
+  }, [
+    anchorDate,
+    placementPreviewCard,
+    state.contents,
+    state.pilares,
+    state.platforms,
+    state.series,
+    viewMode,
+  ]);
+
+  const timesForWeekday = (weekday: Weekday): string[] => {
+    const entries = state.postingTimeEntries ?? [];
+    if (entries.length === 0) return getTimesForDay(postingTimes, weekday);
+    return getUnionTimesForWeekday(entries, state.platforms, weekday);
+  };
+
+  const timesForPlatform = (platformId: string | null, weekday: Weekday): string[] => {
+    const entries = state.postingTimeEntries ?? [];
+    if (entries.length === 0) return getTimesForDay(postingTimes, weekday);
+    const platformUuid = platformId ? resolvePlatformUuid(state.platforms, platformId) : null;
+    return getTimesForDayFromEntries(entries, platformUuid, weekday);
+  };
+
+  const toneForDay = (dayKey: string): DayRhythmTone | 'risk' | null => {
+    if (riskDayKeys.has(dayKey)) return 'risk';
+    const weekKey = format(startOfWeek(parseISO(dayKey), {weekStartsOn: 1}), 'yyyy-MM-dd');
+    const violations = rhythmByWeek.violations.get(weekKey) ?? [];
+    const ids = (scheduledByDate.get(dayKey) || []).map(card => card.contentId);
+    const tone = dayRhythmTone(ids, violations);
+    return tone === 'over' ? 'over' : null;
+  };
 
   const hasDayViolationWarning = (dayKey: string) => {
     if (!draggingCard) return false;
@@ -279,7 +378,7 @@ export function ProgramacaoPage() {
   };
 
   const scheduleCard = (card: ProgramacaoCard, dayKey: string) => {
-    requestSchedule(card, dayKey);
+    requestSchedule(card, dayKey, null, {openTimePicker: false});
   };
 
   const applyTime = (card: ProgramacaoCard, time: string | null) => {
@@ -406,9 +505,21 @@ export function ProgramacaoPage() {
   };
 
   const handleDayClick = (dayKey: string) => {
-    if (!selectedBacklogKey) return;
-    const card = backlogCards.find(item => item.key === selectedBacklogKey);
-    if (card) scheduleCard(card, dayKey);
+    if (selectedBacklogKey) {
+      const card = backlogCards.find(item => item.key === selectedBacklogKey);
+      if (card) scheduleCard(card, dayKey);
+      setPickerDayKey(null);
+      return;
+    }
+    setPickerDayKey(current => (current === dayKey ? null : dayKey));
+  };
+
+  const handlePickBacklogForDay = (key: string) => {
+    if (!pickerDayKey) return;
+    const card = backlogCards.find(item => item.key === key);
+    if (!card) return;
+    scheduleCard(card, pickerDayKey);
+    setPickerDayKey(null);
   };
 
   const periodControls = (
@@ -426,45 +537,40 @@ export function ProgramacaoPage() {
     />
   );
 
-  const platformChecklistItems = platformNames.map(name => ({
-    id: name,
-    label: name,
-    color: getPlatformColor(name).dot,
-  }));
-
-  const activePlatformIds = platformNames.filter(name => !disabledPlatforms.includes(name));
-
-  const handlePlatformToggle = (id: string) => {
-    if (id === 'all') {
-      setDisabledPlatforms([]);
-      return;
-    }
-    setDisabledPlatforms(current =>
-      current.includes(id) ? current.filter(name => name !== id) : [...current, id],
-    );
-  };
-
-  const programacaoSidebar = (
-    <div className="stack-xl">
-      <CalendarMiniMonth
-        monthDate={anchorDate}
-        selectedDate={anchorDate}
-        onSelectDate={setAnchorDate}
-        onMonthChange={setAnchorDate}
-        weekStartsOn={1}
-      />
-
-      {platformChecklistItems.length > 0 ? (
-        <CalendarLayerChecklist
-          title="Plataformas"
-          items={platformChecklistItems}
-          activeIds={activePlatformIds}
-          onToggle={handlePlatformToggle}
-        />
-      ) : null}
-
-      <ProgramacaoStatusLegend compact />
-    </div>
+  const contentFilters = (
+    <FilterBar
+      size="compact"
+      searchValue={scheduleSearch}
+      onSearchChange={setScheduleSearch}
+      searchPlaceholder="Buscar conteúdo"
+      filters={[
+        {
+          id: 'platform',
+          label: 'Plataforma',
+          value: platformFilter,
+          onChange: setPlatformFilter,
+          options: platformFilterOptions(platformNames),
+        },
+        {
+          id: 'status',
+          label: 'Status',
+          value: statusFilter,
+          onChange: setStatusFilter,
+          options: CONTENT_STATUS_FILTER_OPTIONS,
+        },
+        {
+          id: 'projetos',
+          label: 'Publi de projeto',
+          value: showProjetoMarkers ? 'mostrar' : 'ocultar',
+          emptyValue: 'mostrar',
+          onChange: value => setShowProjetoMarkers(value !== 'ocultar'),
+          options: [
+            {label: 'Mostrar', value: 'mostrar'},
+            {label: 'Ocultar', value: 'ocultar'},
+          ],
+        },
+      ]}
+    />
   );
 
   const previewContent = previewCard
@@ -512,13 +618,9 @@ export function ProgramacaoPage() {
         onCancel={() => setPendingSchedule(null)}
       />
 
-      <BottomSheetModal
-        open={Boolean(previewCard)}
-        onClose={() => setPreviewCard(null)}
-        desktopMaxW="max-w-xl"
-      >
+      <Drawer open={Boolean(previewCard)} onClose={() => setPreviewCard(null)} widthClassName="max-w-xl">
         {previewCard ? (
-          <>
+          <div className="flex h-full min-h-0 flex-col bg-[var(--bg-elevated)]">
             <OverlayHeader title="Detalhe do conteúdo" onClose={() => setPreviewCard(null)} />
             <OverlayBody>
               <CardPreviewContent card={previewCard} content={previewContent} />
@@ -528,11 +630,11 @@ export function ProgramacaoPage() {
                 Abrir conteúdo completo
               </AppButton>
             </OverlayFooter>
-          </>
+          </div>
         ) : null}
-      </BottomSheetModal>
+      </Drawer>
 
-      <BottomSheetModal
+      <Dialog
         open={Boolean(timePickerCard)}
         onClose={() => {
           setTimePickerCard(null);
@@ -550,7 +652,7 @@ export function ProgramacaoPage() {
               .filter((time): time is string => Boolean(time))}
             configuredTimes={
               timePickerCard.date
-                ? getTimesForDay(postingTimes, getDay(new Date(`${timePickerCard.date}T12:00:00`)) as Weekday)
+                ? timesForPlatform(timePickerCard.platformId, getDay(parseISO(timePickerCard.date)) as Weekday)
                 : []
             }
             onSelect={time => applyTime(timePickerCard, time)}
@@ -560,9 +662,9 @@ export function ProgramacaoPage() {
             }}
           />
         ) : null}
-      </BottomSheetModal>
+      </Dialog>
 
-      <BottomSheetModal
+      <Dialog
         open={mobileDatePickerOpen}
         onClose={() => setMobileDatePickerOpen(false)}
         desktopMaxW="max-w-sm"
@@ -579,9 +681,9 @@ export function ProgramacaoPage() {
           }}
           onClose={() => setMobileDatePickerOpen(false)}
         />
-      </BottomSheetModal>
+      </Dialog>
 
-      <BottomSheetModal
+      <Dialog
         open={Boolean(ideaComposerDay)}
         onClose={() => setIdeaComposerDay(null)}
         desktopMaxW="max-w-sm"
@@ -593,9 +695,9 @@ export function ProgramacaoPage() {
             onClose={() => setIdeaComposerDay(null)}
           />
         ) : null}
-      </BottomSheetModal>
+      </Dialog>
 
-      <BottomSheetModal
+      <Dialog
         open={Boolean(postedComposerDay)}
         onClose={() => {
           setPostedComposerDay(null);
@@ -616,9 +718,9 @@ export function ProgramacaoPage() {
             }}
           />
         ) : null}
-      </BottomSheetModal>
+      </Dialog>
 
-      <BottomSheetModal
+      <Dialog
         open={Boolean(ideaActionCard)}
         onClose={() => setIdeaActionCard(null)}
         desktopMaxW="max-w-sm"
@@ -638,7 +740,7 @@ export function ProgramacaoPage() {
             onClose={() => setIdeaActionCard(null)}
           />
         ) : null}
-      </BottomSheetModal>
+      </Dialog>
     </>
   );
 
@@ -647,17 +749,24 @@ export function ProgramacaoPage() {
       <>
         <div className="min-h-full bg-[var(--bg-primary)]">
           <ProgramacaoMobileScreen
+            filters={contentFilters}
             viewMode={viewMode}
             onViewModeChange={setViewMode}
             anchorDate={anchorDate}
             onAnchorDateChange={setAnchorDate}
             backlogCards={backlogCards}
             selectedBacklogKey={selectedBacklogKey}
-            onSelectBacklogCard={setSelectedBacklogKey}
+            onSelectBacklogCard={key => {
+              setPickerDayKey(null);
+              setSelectedBacklogKey(key);
+            }}
             scheduledByDate={scheduledByDate}
             projetoPublicacaoByDate={projetoPublicacaoByDate}
-            weekViolations={weekViolations}
+            weekQuotas={anchorWeekQuotas}
+            dayTone={toneForDay}
             onDayClick={handleDayClick}
+            pickerDayKey={pickerDayKey}
+            onPickBacklog={handlePickBacklogForDay}
             onCardClick={handleCardClick}
             onPreview={setPreviewCard}
             onAddIdea={setIdeaComposerDay}
@@ -681,7 +790,14 @@ export function ProgramacaoPage() {
         <DesktopPageHeader
           section="Produção"
           title="Calendário"
-          meta="Arraste um vídeo pronto para um dia, ou toque no vídeo e depois no dia."
+          titleContent={
+            <div className="flex min-w-0 items-center gap-1">
+              <Text variant="pageTitle" className="truncate">
+                Calendário
+              </Text>
+              <ProgramacaoHelpButton />
+            </div>
+          }
           actions={
             <>
               <CalendarModeSwitch />
@@ -696,21 +812,25 @@ export function ProgramacaoPage() {
           }
         />
       }
+      toolbar={
+        <div className="stack-sm">
+          {periodControls}
+          {contentFilters}
+        </div>
+      }
       mobileToolbar={periodControls}
     >
-      <CalendarDesktopShell
-        sidebar={programacaoSidebar}
-        sidebarOpen={sidebarOpen}
-        onSidebarOpenChange={setSidebarOpen}
-        toolbar={periodControls}
-      >
+      <CalendarDesktopShell>
         <div className="stack-md p-3 md:p-4">
           <Surface variant="outlined" padding="none" className="overflow-hidden">
             <BacklogPanel
               cards={backlogCards}
               selectedKey={selectedBacklogKey}
               isDropTarget={dragOverDay === BACKLOG_DROP_KEY}
-              onSelect={key => setSelectedBacklogKey(current => (current === key ? null : key))}
+              onSelect={key => {
+                setPickerDayKey(null);
+                setSelectedBacklogKey(current => (current === key ? null : key));
+              }}
               onPreview={setPreviewCard}
               onDragStart={handleDragStart}
               onDragEnd={handleDragEnd}
@@ -723,13 +843,37 @@ export function ProgramacaoPage() {
             />
 
             <div className="border-t border-[var(--border-color)] bg-[var(--bg-primary)] p-3 md:p-4">
+              {selectedBacklogCard ? (
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-[var(--radius-card-mobile)] border border-[var(--accent-blue)]/40 bg-[color-mix(in_srgb,var(--accent-blue),transparent_92%)] px-3 py-2">
+                  <div className="min-w-0">
+                    <Text variant="label" className="text-[var(--accent-blue)]">
+                      Escolha o dia
+                    </Text>
+                    <Text variant="body" className="truncate">
+                      {selectedBacklogCard.title}
+                    </Text>
+                  </div>
+                  <AppButton variant="secondary" size="sm" onClick={() => setSelectedBacklogKey(null)}>
+                    Cancelar
+                  </AppButton>
+                </div>
+              ) : null}
+
               {viewMode === 'week' ? (
-                <div className="grid grid-cols-7 gap-1.5 max-md:flex max-md:gap-2 max-md:overflow-x-auto max-md:pb-1">
+                <div className="grid grid-cols-[9.5rem_repeat(7,minmax(0,1fr))] gap-1.5">
+                  <div className="relative min-h-[min(36vh,380px)]">
+                    <div className="absolute inset-0 flex flex-col overflow-hidden rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-elevated)] p-2">
+                      <Text variant="meta" className="mb-2 uppercase tracking-wide">
+                        Ritmo
+                      </Text>
+                      <WeekRhythmRail quotas={anchorWeekQuotas} maxVisible={14} className="min-h-0" />
+                    </div>
+                  </div>
                   {weekDays.map(day => {
                     const key = dateKey(day);
                     const dayCards = sortDayCards(scheduledByDate.get(key) || []);
-                    const projetoMarkers = projetoPublicacaoByDate.get(key) || [];
-                    const times = getTimesForDay(postingTimes, getDay(day) as Weekday);
+                    const projetoMarkers = visibleProjetoByDate.get(key) || [];
+                    const times = timesForWeekday(getDay(day) as Weekday);
                     const usedTimes = dayCards.map(card => card.time).filter(Boolean) as string[];
                     return (
                       <DayColumn
@@ -743,7 +887,11 @@ export function ProgramacaoPage() {
                         isToday={isSameDay(day, new Date())}
                         isDropTarget={dragOverDay === key}
                         hasViolationWarning={dragOverDay === key && hasDayViolationWarning(key)}
+                        rhythmTone={toneForDay(key)}
                         canReceive={Boolean(selectedBacklogKey)}
+                        isPicking={pickerDayKey === key}
+                        backlogCards={backlogCards}
+                        onPickBacklog={handlePickBacklogForDay}
                         onDragStart={handleDragStart}
                         onDragEnd={handleDragEnd}
                         onDragOver={event => {
@@ -765,12 +913,17 @@ export function ProgramacaoPage() {
               ) : (
                 <MonthGrid
                   anchorDate={anchorDate}
+                  quotasForWeek={weekStartDate => rhythmByWeek.quotas.get(format(weekStartDate, 'yyyy-MM-dd')) ?? []}
                   scheduledByDate={scheduledByDate}
-                  projetoPublicacaoByDate={projetoPublicacaoByDate}
+                  projetoPublicacaoByDate={visibleProjetoByDate}
                   dragOverDay={dragOverDay}
                   hasSelection={Boolean(selectedBacklogKey)}
+                  pickerDayKey={pickerDayKey}
+                  backlogCards={backlogCards}
+                  onPickBacklog={handlePickBacklogForDay}
                   onDragOverDay={setDragOverDay}
                   hasDayViolationWarning={hasDayViolationWarning}
+                  dayTone={toneForDay}
                   onDrop={handleDrop}
                   onDayClick={handleDayClick}
                   onPreview={setPreviewCard}
@@ -784,10 +937,6 @@ export function ProgramacaoPage() {
               )}
             </div>
           </Surface>
-
-          {weekViolations.length > 0 ? (
-            <PilarRhythmStrip violations={weekViolations} />
-          ) : null}
         </div>
       </CalendarDesktopShell>
 
@@ -840,7 +989,7 @@ export function ProgramacaoPage() {
         onCancel={() => setPendingSchedule(null)}
       />
 
-      <BottomSheetModal
+      <Dialog
         open={Boolean(timePickerCard)}
         onClose={() => {
           setTimePickerCard(null);
@@ -858,7 +1007,7 @@ export function ProgramacaoPage() {
               .filter((time): time is string => Boolean(time))}
             configuredTimes={
               timePickerCard.date
-                ? getTimesForDay(postingTimes, getDay(new Date(`${timePickerCard.date}T12:00:00`)) as Weekday)
+                ? timesForPlatform(timePickerCard.platformId, getDay(parseISO(timePickerCard.date)) as Weekday)
                 : []
             }
             onSelect={time => applyTime(timePickerCard, time)}
@@ -868,9 +1017,9 @@ export function ProgramacaoPage() {
             }}
           />
         ) : null}
-      </BottomSheetModal>
+      </Dialog>
 
-      <BottomSheetModal
+      <Dialog
         open={Boolean(ideaComposerDay)}
         onClose={() => setIdeaComposerDay(null)}
         desktopMaxW="max-w-sm"
@@ -882,9 +1031,9 @@ export function ProgramacaoPage() {
             onClose={() => setIdeaComposerDay(null)}
           />
         ) : null}
-      </BottomSheetModal>
+      </Dialog>
 
-      <BottomSheetModal
+      <Dialog
         open={Boolean(postedComposerDay)}
         onClose={() => {
           setPostedComposerDay(null);
@@ -905,9 +1054,9 @@ export function ProgramacaoPage() {
             }}
           />
         ) : null}
-      </BottomSheetModal>
+      </Dialog>
 
-      <BottomSheetModal
+      <Dialog
         open={Boolean(ideaActionCard)}
         onClose={() => setIdeaActionCard(null)}
         desktopMaxW="max-w-sm"
@@ -927,7 +1076,7 @@ export function ProgramacaoPage() {
             onClose={() => setIdeaActionCard(null)}
           />
         ) : null}
-      </BottomSheetModal>
+      </Dialog>
     </PageLayout>
   );
 }
@@ -974,7 +1123,7 @@ function TimePickerSheet({card, configuredTimes, usedTimes, violations = [], onS
         </button>
       </div>
 
-      {violations.length > 0 ? <PilarRhythmStrip violations={violations} compact /> : null}
+      <RhythmDiagnosis violations={violations} />
 
       {configuredTimes.length > 0 ? (
         <div>
@@ -1039,40 +1188,48 @@ function TimePickerSheet({card, configuredTimes, usedTimes, violations = [], onS
   );
 }
 
-function ProgramacaoStatusLegend({compact = false}: {compact?: boolean}) {
-  const items = [
-    {label: CONTENT_STATUS.IDEIA, status: CONTENT_STATUS.IDEIA},
-    {label: CONTENT_STATUS.ROTEIRO, status: CONTENT_STATUS.ROTEIRO},
-    {label: CONTENT_STATUS.PRODUCAO, status: CONTENT_STATUS.PRODUCAO},
-    {label: DISPLAY_STATUS.PROGRAMADO, status: DISPLAY_STATUS.PROGRAMADO},
-    {label: CONTENT_STATUS.POSTADO, status: CONTENT_STATUS.POSTADO},
-  ];
+function ProgramacaoHelpButton() {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onPointer = (event: MouseEvent) => {
+      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('mousedown', onPointer);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onPointer);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
 
   return (
-    <div className={cn('stack-sm', compact && 'space-y-1.5')}>
-      {!compact ? (
-        <Text variant="label" className="text-[var(--text-secondary)]">
-          Legenda de status
-        </Text>
+    <div ref={rootRef} className="relative shrink-0">
+      <AppButton
+        variant="ghost"
+        size="xs"
+        iconOnly
+        aria-label="Como programar"
+        aria-expanded={open}
+        onClick={() => setOpen(current => !current)}
+      >
+        <CircleHelp className="h-4 w-4" />
+      </AppButton>
+      {open ? (
+        <div
+          role="tooltip"
+          className="absolute left-0 top-full z-20 mt-1 w-64 rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-elevated)] p-3 shadow-[var(--shadow-dropdown)]"
+        >
+          <Text variant="body">
+            Toque num dia para escolher o vídeo, ou selecione um vídeo e depois o dia. O horário você define depois.
+          </Text>
+        </div>
       ) : null}
-      <div className={cn('flex flex-wrap gap-1.5', compact && 'flex-col items-start gap-1')}>
-        {items.map(item => (
-          <span
-            key={item.label}
-            className={cn(
-              'inline-flex min-h-6 items-center gap-1.5 rounded-[var(--radius-sm)] border px-2 text-2xs font-semibold',
-              getStatusCalendarClass(item.status),
-            )}
-          >
-            <span className="h-2 w-2 rounded-full" style={{backgroundColor: getStatusColorVar(item.status)}} />
-            {item.label}
-          </span>
-        ))}
-        <span className="inline-flex min-h-6 items-center gap-1.5 rounded-[var(--radius-sm)] border border-[var(--border-color)] bg-[var(--bg-hover)] px-2 text-2xs font-semibold text-[var(--text-tertiary)]">
-          <Briefcase className="h-2.5 w-2.5 opacity-70" />
-          Publi de projeto
-        </span>
-      </div>
     </div>
   );
 }
@@ -1187,65 +1344,6 @@ function IdeaActionSheet({card, onPromote, onPreview, onOpen, onClose}: IdeaActi
   );
 }
 
-function PilarRhythmStrip({violations, compact = false}: {violations: Violation[]; compact?: boolean}) {
-  const {top, rest} = useMemo(() => summarizeViolations(violations, 3), [violations]);
-
-  if (violations.length === 0) return null;
-
-  return (
-    <div
-      className={cn(
-        'stack-sm rounded-[var(--radius-card-mobile)] border border-[var(--warning)]/30 bg-[var(--warning-bg)] p-3',
-        compact && 'p-2.5',
-      )}
-    >
-      <div className="flex items-center justify-between gap-2">
-        <Text variant="label" className="text-[var(--text-primary)]">
-          Diagnóstico do ritmo
-        </Text>
-        <Text variant="meta" className="text-[var(--text-secondary)]">
-          {violations.length} alerta{violations.length === 1 ? '' : 's'}
-        </Text>
-      </div>
-
-      {top.map((violation, index) => (
-        <div key={`${violation.ruleId}-${index}`} className="flex items-start gap-2 text-sm font-medium">
-          {violation.type === 'warning' ? (
-            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-[var(--warning)]" />
-          ) : violation.type === 'deficit' ? (
-            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-[var(--warning)]" />
-          ) : (
-            <Info className="mt-0.5 h-4 w-4 shrink-0 text-[var(--info)]" />
-          )}
-          <span className="text-[var(--text-primary)]">{violation.message}</span>
-        </div>
-      ))}
-
-      {rest.length > 0 ? (
-        <details className="rounded-[var(--radius-sm)] border border-[var(--border-color)]/60 bg-[var(--bg-elevated)]/40">
-          <summary className="cursor-pointer list-none px-2.5 py-2 text-sm font-semibold text-[var(--text-secondary)] marker:content-none [&::-webkit-details-marker]:hidden">
-            Ver todos ({rest.length})
-          </summary>
-          <div className="stack-sm border-t border-[var(--border-color)]/60 px-2.5 py-2">
-            {rest.map((violation, index) => (
-              <div key={`rest-${violation.ruleId}-${index}`} className="flex items-start gap-2 text-sm font-medium">
-                {violation.type === 'warning' ? (
-                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-[var(--warning)]" />
-                ) : violation.type === 'deficit' ? (
-                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-[var(--warning)]" />
-                ) : (
-                  <Info className="mt-0.5 h-4 w-4 shrink-0 text-[var(--info)]" />
-                )}
-                <span className="text-[var(--text-primary)]">{violation.message}</span>
-              </div>
-            ))}
-          </div>
-        </details>
-      ) : null}
-    </div>
-  );
-}
-
 interface BacklogPanelProps {
   cards: ProgramacaoCard[];
   selectedKey: string | null;
@@ -1339,20 +1437,14 @@ function BacklogPanel({cards, selectedKey, isDropTarget, onSelect, onPreview, on
           />
         ) : null}
 
-        <p className="ml-auto hidden max-w-xl text-sm text-[var(--text-tertiary)] lg:block">
-          {isDropTarget
-            ? 'Solte aqui para tirar do calendário.'
-            : 'Arraste para um dia ou toque no vídeo e depois no dia.'}
-        </p>
+        {isDropTarget ? (
+          <Text variant="meta" as="span" className="ml-auto text-[var(--accent-blue)]">
+            Solte para tirar do calendário
+          </Text>
+        ) : null}
       </div>
 
-      {!expanded ? (
-        <p className="mt-2 text-sm text-[var(--text-tertiary)]">
-          {cards.length === 0
-            ? 'Nada por aqui. Roteiros e conteúdos em produção sem data aparecem aqui. Ideias salvas ficam nos dias da grade.'
-            : `${cards.length} vídeo${cards.length > 1 ? 's' : ''} em ${new Set(sortedCards.map(card => card.platformName)).size} plataforma${new Set(sortedCards.map(card => card.platformName)).size > 1 ? 's' : ''} — expanda para ver a fila.`}
-        </p>
-      ) : cards.length === 0 ? (
+      {!expanded ? null : cards.length === 0 ? (
         <p className="mt-3 rounded-md border border-dashed border-[var(--border-color)] px-3 py-2 text-sm text-[var(--text-tertiary)]">
           Nada por aqui. Roteiros e conteúdos em produção sem data aparecem aqui. Ideias salvas ficam nos dias da grade.
         </p>
@@ -1361,7 +1453,7 @@ function BacklogPanel({cards, selectedKey, isDropTarget, onSelect, onPreview, on
           Nenhum vídeo corresponde a &ldquo;{search.trim()}&rdquo;.
         </p>
       ) : (
-        <div className="mt-3 stack-md">
+        <div className="mt-3 max-h-[min(28vh,240px)] stack-md overflow-y-auto pr-1">
           {showPlatformGroups
             ? platformGroups.map(([platformName, groupCards]) => (
                 <BacklogPlatformGroup
@@ -1501,6 +1593,8 @@ function ProgramacaoCardChip({
       <div className="min-w-0 flex-1 space-y-0.5">
         {card.time ? (
           <span className="block text-2xs font-bold tabular-nums text-[var(--text-primary)]">{card.time}</span>
+        ) : card.date && !locked && !isIdeiaCard(card) ? (
+          <span className="block text-2xs font-semibold text-[var(--info)]">Definir horário</span>
         ) : null}
         <span className="block break-words text-xs font-semibold leading-snug text-[var(--text-primary)]">
           {card.title}
@@ -1532,7 +1626,9 @@ function ProgramacaoCardChip({
       <span className={cn('shrink-0 rounded-md border px-1.5 py-0.5 text-2xs font-bold leading-none', statusClass)}>
         {card.status}
       </span>
-      {card.time ? <span className="shrink-0 font-bold tabular-nums text-[var(--text-primary)]">{card.time}</span> : null}
+      {card.time ? <span className="shrink-0 font-bold tabular-nums text-[var(--text-primary)]">{card.time}</span> : card.date && !locked && !isIdeiaCard(card) ? (
+        <span className="shrink-0 text-2xs font-semibold text-[var(--info)]">Definir horário</span>
+      ) : null}
       <span className="min-w-0 flex-1 truncate font-semibold text-[var(--text-primary)]">{card.title}</span>
       <button
         type="button"
@@ -1579,7 +1675,11 @@ function ProgramacaoCardChip({
           selected && 'ring-2 ring-[var(--text-primary)]',
           locked && 'opacity-75',
         )}
-        title={`${card.title} — ${card.platformName} · ${card.status}`}
+        title={
+          card.date && !card.time && !locked && !isIdeiaCard(card)
+            ? `${card.title} — toque para definir o horário`
+            : `${card.title} — ${card.platformName} · ${card.status}`
+        }
       >
         {cardBody}
       </div>
@@ -1615,7 +1715,11 @@ function ProgramacaoCardChip({
         selected && 'ring-2 ring-[var(--text-primary)]',
         locked && 'opacity-75',
       )}
-      title={`${card.title} — ${card.platformName} · ${card.status}`}
+      title={
+        card.date && !card.time && !locked && !isIdeiaCard(card)
+          ? `${card.title} — toque para definir o horário`
+          : `${card.title} — ${card.platformName} · ${card.status}`
+      }
     >
       {draggableEnabled ? (
         <div className="flex items-center text-[var(--text-tertiary)]">
@@ -1692,7 +1796,11 @@ interface DayColumnProps {
   isToday: boolean;
   isDropTarget: boolean;
   hasViolationWarning: boolean;
+  rhythmTone: DayRhythmTone | 'risk' | null;
   canReceive: boolean;
+  isPicking: boolean;
+  backlogCards: ProgramacaoCard[];
+  onPickBacklog: (key: string) => void;
   onDragStart: (cardKey: string) => void;
   onDragEnd: () => void;
   onDragOver: (event: React.DragEvent) => void;
@@ -1706,19 +1814,48 @@ interface DayColumnProps {
   onOpenProjetoPublicacao: (marker: ProjetoPublicacaoMarker) => void;
 }
 
-function EmptyDayRegisterButton({dayKey, onRegisterPosted}: {dayKey: string; onRegisterPosted: (dayKey: string) => void}) {
+function DayBacklogSelect({
+  cards,
+  onPick,
+}: {
+  cards: ProgramacaoCard[];
+  onPick: (key: string) => void;
+}) {
   return (
-    <button
-      type="button"
-      onClick={event => {
-        event.stopPropagation();
-        onRegisterPosted(dayKey);
-      }}
-      className="w-full rounded-md py-2 text-left text-xs text-[var(--text-tertiary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
-      title="Registrar vídeo já postado neste dia"
+    <label className="block" onClick={event => event.stopPropagation()}>
+      <span className="sr-only">Escolher vídeo pronto</span>
+      <select
+        autoFocus
+        defaultValue=""
+        disabled={cards.length === 0}
+        onChange={event => {
+          const key = event.target.value;
+          if (key) onPick(key);
+        }}
+        className="filter-bar-select h-9 w-full bg-[var(--bg-elevated)] text-xs"
+      >
+        <option value="">{cards.length === 0 ? 'Nenhum vídeo pronto' : 'Escolher vídeo…'}</option>
+        {cards.map(card => (
+          <option key={card.key} value={card.key}>
+            {card.title} · {card.platformName}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+function EmptyDayAffordance({emphasize = false}: {emphasize?: boolean}) {
+  return (
+    <div
+      aria-hidden
+      className={cn(
+        'flex min-h-16 flex-1 items-center justify-center text-[var(--text-tertiary)] opacity-0 transition-opacity duration-150 group-hover:opacity-100',
+        emphasize && 'text-[var(--accent-blue)] opacity-40',
+      )}
     >
-      Livre para programar
-    </button>
+      <Plus className="h-4 w-4" strokeWidth={1.75} />
+    </div>
   );
 }
 
@@ -1769,7 +1906,11 @@ function DayColumn({
   isToday,
   isDropTarget,
   hasViolationWarning,
+  rhythmTone,
   canReceive,
+  isPicking,
+  backlogCards,
+  onPickBacklog,
   onDragStart,
   onDragEnd,
   onDragOver,
@@ -1789,15 +1930,18 @@ function DayColumn({
       onDrop={onDrop}
       onClick={onClick}
       className={cn(
-        'flex min-w-0 flex-col rounded-[var(--radius-card-mobile)] border bg-[var(--bg-secondary)] p-2 transition-colors max-md:w-[168px] max-md:shrink-0 md:min-h-[min(36vh,380px)]',
+        'group relative flex min-w-0 cursor-pointer flex-col rounded-[var(--radius-card-mobile)] border bg-[var(--bg-secondary)] p-2 transition-colors max-md:w-[168px] max-md:shrink-0 md:min-h-[min(36vh,380px)]',
         isDropTarget && hasViolationWarning
-          ? 'border-[var(--warning)] bg-[color-mix(in_srgb,var(--warning),transparent_92%)] ring-2 ring-[var(--warning)]/40'
+          ? 'border-[var(--warning)] bg-[var(--warning-bg)] ring-2 ring-[var(--warning)]/40'
           : isDropTarget
             ? 'border-[var(--accent-blue)] bg-[color-mix(in_srgb,var(--accent-blue),transparent_90%)] ring-2 ring-[var(--accent-blue)]/20'
-            : isToday
-              ? 'border-[var(--accent-blue)]/50'
-              : 'border-[var(--border-color)]',
-        canReceive && 'cursor-pointer hover:border-[var(--accent-blue)]/50',
+              : rhythmTone === 'over' || rhythmTone === 'risk'
+              ? 'border-[var(--warning)] bg-[var(--warning-bg)]'
+              : isToday
+                  ? 'border-[var(--accent-blue)]/50'
+                  : 'border-[var(--border-color)]',
+        canReceive && 'hover:border-[var(--accent-blue)]/50',
+        isPicking && 'border-[var(--accent-blue)] ring-2 ring-[var(--accent-blue)]/30',
       )}
     >
       {/* Cabeçalho do dia: nome + horários cadastrados */}
@@ -1864,8 +2008,9 @@ function DayColumn({
             onDragEnd={onDragEnd}
           />
         ))}
-        {cards.length === 0 && projetoMarkers.length === 0 ? (
-          <EmptyDayRegisterButton dayKey={dayKey} onRegisterPosted={onRegisterPosted} />
+        {isPicking ? <DayBacklogSelect cards={backlogCards} onPick={onPickBacklog} /> : null}
+        {cards.length === 0 && projetoMarkers.length === 0 && !isPicking && !isDropTarget ? (
+          <EmptyDayAffordance emphasize={canReceive} />
         ) : null}
         {isDropTarget ? (
           <div className="flex min-h-12 items-center justify-center rounded-lg border-2 border-dashed border-[var(--accent-blue)]/60 bg-[color-mix(in_srgb,var(--accent-blue),transparent_88%)] px-2 py-2 text-center text-2xs font-semibold text-[var(--accent-blue)]">
@@ -1879,12 +2024,17 @@ function DayColumn({
 
 interface MonthGridProps {
   anchorDate: Date;
+  quotasForWeek: (weekStart: Date) => WeekRhythmQuota[];
   scheduledByDate: Map<string, ProgramacaoCard[]>;
   projetoPublicacaoByDate: Map<string, ProjetoPublicacaoMarker[]>;
   dragOverDay: string | null;
   hasSelection: boolean;
+  pickerDayKey: string | null;
+  backlogCards: ProgramacaoCard[];
+  onPickBacklog: (key: string) => void;
   onDragOverDay: (key: string | null) => void;
   hasDayViolationWarning: (dayKey: string) => boolean;
+  dayTone: (dayKey: string) => DayRhythmTone | 'risk' | null;
   onDrop: (event: React.DragEvent, dayKey: string) => void;
   onDayClick: (dayKey: string) => void;
   onPreview: (card: ProgramacaoCard) => void;
@@ -1898,12 +2048,17 @@ interface MonthGridProps {
 
 function MonthGrid({
   anchorDate,
+  quotasForWeek,
   scheduledByDate,
   projetoPublicacaoByDate,
   dragOverDay,
   hasSelection,
+  pickerDayKey,
+  backlogCards,
+  onPickBacklog,
   onDragOverDay,
   hasDayViolationWarning,
+  dayTone,
   onDrop,
   onDayClick,
   onPreview,
@@ -1919,16 +2074,21 @@ function MonthGrid({
       anchorDate={anchorDate}
       weekStartsOn={1}
       minCellHeight={200}
+      weekAsideLabel="Ritmo"
+      renderWeekAside={weekStartDate => <WeekRhythmRail quotas={quotasForWeek(weekStartDate)} />}
       getDayClassName={({dateKey, inMonth}) => {
         const isDropTarget = dragOverDay === dateKey;
         const violationWarning = isDropTarget && hasDayViolationWarning(dateKey);
+        const rhythmTone = dayTone(dateKey);
         return cn(
           'group relative',
           violationWarning &&
-            '!border-[var(--warning)] !bg-[color-mix(in_srgb,var(--warning),transparent_92%)] ring-2 ring-[var(--warning)]/40',
+            '!border-[var(--warning)] !bg-[var(--warning-bg)] ring-2 ring-[var(--warning)]/40',
           isDropTarget &&
             !violationWarning &&
             '!border-[var(--accent-blue)] !bg-[color-mix(in_srgb,var(--accent-blue),transparent_90%)] ring-2 ring-[var(--accent-blue)]/20',
+          !isDropTarget && (rhythmTone === 'over' || rhythmTone === 'risk') &&
+            '!border-[var(--warning)] !bg-[var(--warning-bg)]',
           hasSelection && 'hover:!border-[var(--accent-blue)]/50',
           !inMonth && 'opacity-45',
         );
@@ -1970,8 +2130,11 @@ function MonthGrid({
                 onDragEnd={onDragEnd}
               />
             ))}
-            {isEmpty ? (
-              <EmptyDayRegisterButton dayKey={dayProps.dateKey} onRegisterPosted={onRegisterPosted} />
+            {pickerDayKey === dayProps.dateKey ? (
+              <DayBacklogSelect cards={backlogCards} onPick={onPickBacklog} />
+            ) : null}
+            {isEmpty && pickerDayKey !== dayProps.dateKey && dragOverDay !== dayProps.dateKey ? (
+              <EmptyDayAffordance emphasize={hasSelection} />
             ) : null}
             {dragOverDay === dayProps.dateKey ? (
               <div className="rounded-[var(--radius-sm)] border border-dashed border-[var(--accent-blue)]/60 px-1 py-1 text-center text-2xs font-semibold text-[var(--accent-blue)]">

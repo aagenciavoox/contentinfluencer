@@ -35,4 +35,9 @@ const criacao = getMobileRouteMeta('/criacao');
 assert.equal(criacao.hideHeader, undefined);
 assert.equal(criacao.hideBottomNav, undefined);
 
+const legendas = getMobileRouteMeta('/criacao/legendas');
+assert.equal(legendas.title, 'Legendas');
+assert.equal(legendas.mode, 'back');
+assert.equal(legendas.backTo, '/criacao');
+
 console.log('mobileRouteMeta.test.ts passed');

@@ -16,6 +16,7 @@ import { Surface } from '../../../components/ui/Surface';
 import { Text } from '../../../components/ui/Text';
 import type { Content, Pilar, Serie } from '../../../lib/database';
 import { SerieProductionMetricsPanel } from './SerieProductionMetricsPanel';
+import { TemplatesSettingsPage } from '../pages/TemplatesSettingsPage';
 import { cn } from '../../../lib/utils';
 import { generateUUID } from '../../../utils/uuid';
 import {
@@ -553,6 +554,22 @@ export function SerieEditForm({
           </Surface>
         </aside>
       </div>
+
+      <Surface variant="outlined" padding="md" className="mt-3 bg-[var(--bg-secondary)]">
+        <SectionHeader
+          icon={<FileText className="h-4 w-4" />}
+          title="Templates de roteiro"
+          description="Modelos reutilizáveis desta série, aplicados na escrita do roteiro."
+          compact
+        />
+        {initial.id ? (
+          <TemplatesSettingsPage seriesId={initial.id} embedded />
+        ) : (
+          <Text variant="meta" className="text-[var(--text-tertiary)]">
+            Salve a série para cadastrar templates de roteiro.
+          </Text>
+        )}
+      </Surface>
 
       {isDirty ? (
         <div className="fixed inset-x-0 bottom-0 z-30 border-t border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-3 md:px-6">

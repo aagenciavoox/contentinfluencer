@@ -15,7 +15,7 @@ import { Surface } from '../../../components/ui/Surface';
 import { Text } from '../../../components/ui/Text';
 import { FilterBar } from '../../../components/ui/FilterBar';
 import { useIsMobile } from '../../../hooks/useIsMobile';
-import { BottomSheetModal } from '../../../components/feedback/modals/BottomSheetModal';
+import { Dialog } from '../../../components/overlays/Dialog';
 import { OverlayBody } from '../../../components/overlays/OverlayBody';
 import { OverlayFooter } from '../../../components/overlays/OverlayFooter';
 import { OverlayHeader } from '../../../components/overlays/OverlayHeader';
@@ -29,12 +29,6 @@ const PROJECT_COLORS = [
   '#14b8a6', '#06b6d4', '#3b82f6', '#6366f1', '#8b5cf6',
   '#a855f7', '#ec4899', '#f43f5e', '#78716c',
 ];
-
-const FIELD_CLASS =
-  'w-full rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-3 py-2 text-sm text-[var(--text-primary)] outline-none transition-colors placeholder:text-[var(--text-tertiary)] focus:border-[var(--border-strong)]';
-
-const GHOST_ACTION =
-  'inline-flex items-center gap-1.5 rounded-[var(--radius-input)] px-2.5 py-1.5 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]';
 
 export function ProjectsPage() {
   const { state, dispatch } = useAppContext();
@@ -127,19 +121,8 @@ export function ProjectsPage() {
     </div>
   );
 
-  if (isMobile) {
-    return (
-      <>
-        <div className="min-h-full bg-[var(--bg-primary)]">
-          <ProjectsMobileScreen
-            projetos={state.projetos}
-            projectIdsWithEvents={projetosComEventos}
-            onOpenProject={(projectId) => navigate(`/projetos/${projectId}`)}
-            onCreateProject={() => setShowForm(true)}
-          />
-        </div>
-
-        <BottomSheetModal open={showForm} onClose={handleClose} desktopMaxW="max-w-xl" zIndex="z-[110]">
+  const createProjectDialog = (
+        <Dialog open={showForm} onClose={handleClose} desktopMaxW="max-w-xl" ariaLabel="Novo projeto">
           <OverlayHeader title="Novo projeto" onClose={handleClose} />
 
           <OverlayBody className="stack-lg py-6">
@@ -187,12 +170,27 @@ export function ProjectsPage() {
               Criar projeto
             </AppButton>
           </OverlayFooter>
-        </BottomSheetModal>
+        </Dialog>
+  );
+
+  if (isMobile) {
+    return (
+      <>
+        <div className="min-h-full bg-[var(--bg-primary)]">
+          <ProjectsMobileScreen
+            projetos={state.projetos}
+            projectIdsWithEvents={projetosComEventos}
+            onOpenProject={(projectId) => navigate(`/projetos/${projectId}`)}
+            onCreateProject={() => setShowForm(true)}
+          />
+        </div>
+        {createProjectDialog}
       </>
     );
   }
 
   return (
+    <>
     <PageLayout
       header={
         <DesktopPageHeader
@@ -240,52 +238,6 @@ export function ProjectsPage() {
         />
       )}
     >
-      {/* Form novo projeto */}
-      {showForm && (
-        <div className="surface-quiet mb-6 stack-lg p-6">
-          <span className="eyebrow-label">Novo projeto</span>
-          <input
-            autoFocus
-            value={nome}
-            onChange={e => setNome(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && handleCreate()}
-            placeholder="Nome do projeto"
-            className={cn(FIELD_CLASS, 'font-semibold')}
-          />
-          <div className="flex flex-wrap gap-3">
-            <input
-              value={value}
-              onChange={e => setValue(e.target.value)}
-              type="number"
-              placeholder="Valor (R$)"
-              className={cn(FIELD_CLASS, 'min-w-[120px] flex-1')}
-            />
-            <input
-              value={brand}
-              onChange={e => setBrand(e.target.value)}
-              placeholder="Marca"
-              className={cn(FIELD_CLASS, 'min-w-[140px] flex-1')}
-            />
-          </div>
-          <div className="stack-sm">
-            <span className="eyebrow-label">Cor do projeto</span>
-            {colorPicker}
-          </div>
-          <div className="flex gap-2 pt-1">
-            <button
-              onClick={handleCreate}
-              disabled={!nome.trim()}
-              className="rounded-[var(--radius-input)] bg-[var(--text-primary)] px-6 py-2 text-xs font-semibold text-[var(--bg-primary)] transition-opacity hover:opacity-90 disabled:opacity-30"
-            >
-              Criar
-            </button>
-            <button onClick={handleClose} className={GHOST_ACTION}>
-              Cancelar
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* Lista */}
       {projetos.length === 0 ? (
         <EmptyState
@@ -362,5 +314,7 @@ export function ProjectsPage() {
         </>
       )}
     </PageLayout>
+    {createProjectDialog}
+    </>
   );
 }

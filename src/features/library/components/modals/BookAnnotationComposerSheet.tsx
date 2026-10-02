@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Plus, X } from 'lucide-react';
 import { useAppContext } from '../../../../context/AppContext';
-import { BottomSheetModal } from '../../../../components/feedback/modals/BottomSheetModal';
+import { Dialog } from '../../../../components/overlays/Dialog';
 import type { Anotacao, BibliotecaItem } from '../../../../lib/database';
 import { generateUUID } from '../../../../utils/uuid';
 
@@ -53,7 +53,7 @@ export function BookAnnotationComposerSheet({
   };
 
   return (
-    <BottomSheetModal
+    <Dialog
       open={open}
       onClose={handleClose}
       desktopMaxW="max-w-md"
@@ -124,6 +124,6 @@ export function BookAnnotationComposerSheet({
           </div>
         </div>
       </div>
-    </BottomSheetModal>
+    </Dialog>
   );
 }

@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
-import { motion, AnimatePresence } from 'motion/react';
+import { Dialog } from '../../../components/overlays/Dialog';
 import {
   BookOpen,
   Star,
@@ -630,58 +630,49 @@ export function BookDetailPage() {
           />
         </div>
 
-        <AnimatePresence>
-          {brainstormMode && anotacoesDestaque.length > 0 && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--backdrop-strong)] p-4"
-            >
-              <motion.div
-                initial={{ scale: 0.95, y: 20 }}
-                animate={{ scale: 1, y: 0 }}
-                exit={{ scale: 0.95, y: 20 }}
-                className="w-full max-w-lg rounded-[var(--radius-overlay)] bg-[var(--bg-primary)] p-8 shadow-none"
+        <Dialog
+          open={brainstormMode && anotacoesDestaque.length > 0}
+          onClose={() => setBrainstormMode(false)}
+          desktopMaxW="max-w-lg"
+          ariaLabel="Brainstorm"
+        >
+          <div className="w-full max-w-lg rounded-[var(--radius-overlay)] bg-[var(--bg-primary)] p-8 shadow-none">
+            <div className="mb-6 flex items-center justify-between">
+              <span className="text-xs font-semibold text-[var(--text-tertiary)]">
+                Brainstorm — {brainstormIdx + 1}/{anotacoesDestaque.length}
+              </span>
+              <button
+                onClick={() => setBrainstormMode(false)}
+                className="rounded-full p-2 transition-colors hover:bg-[var(--bg-hover)]"
               >
-                <div className="mb-6 flex items-center justify-between">
-                  <span className="text-xs font-semibold text-[var(--text-tertiary)]">
-                    Brainstorm — {brainstormIdx + 1}/{anotacoesDestaque.length}
-                  </span>
-                  <button
-                    onClick={() => setBrainstormMode(false)}
-                    className="rounded-full p-2 transition-colors hover:bg-[var(--bg-hover)]"
-                  >
-                    <X className="h-5 w-5 text-[var(--text-tertiary)]" />
-                  </button>
-                </div>
-                <p className="mb-8 text-lg font-medium leading-relaxed text-[var(--text-primary)]">
-                  &quot;{anotacoesDestaque[brainstormIdx]?.texto}&quot;
-                </p>
-                <div className="flex flex-col gap-3 sm:flex-row">
-                  <button
-                    onClick={() => handleBrainstormConteudo(anotacoesDestaque[brainstormIdx])}
-                    className="flex-1 rounded-[var(--radius-card-mobile)] bg-[var(--text-primary)] py-3 text-xs font-semibold text-[var(--bg-primary)] transition-all hover:scale-[1.02] md:rounded-[var(--radius-card)]"
-                  >
-                    → Virar Conteúdo
-                  </button>
-                  <button
-                    onClick={() => handleBrainstormIdeia(anotacoesDestaque[brainstormIdx])}
-                    className="flex-1 rounded-[var(--radius-card-mobile)] border border-[var(--border-strong)] py-3 text-xs font-semibold text-[var(--text-primary)] transition-all hover:bg-[var(--bg-hover)] md:rounded-[var(--radius-card)]"
-                  >
-                    → Virar Ideia
-                  </button>
-                  <button
-                    onClick={handleBrainstormPular}
-                    className="px-4 py-3 text-xs font-semibold text-[var(--text-primary)] opacity-40 transition-opacity hover:opacity-80"
-                  >
-                    Pular →
-                  </button>
-                </div>
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+                <X className="h-5 w-5 text-[var(--text-tertiary)]" />
+              </button>
+            </div>
+            <p className="mb-8 text-lg font-medium leading-relaxed text-[var(--text-primary)]">
+              &quot;{anotacoesDestaque[brainstormIdx]?.texto}&quot;
+            </p>
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <button
+                onClick={() => handleBrainstormConteudo(anotacoesDestaque[brainstormIdx])}
+                className="flex-1 rounded-[var(--radius-card-mobile)] bg-[var(--text-primary)] py-3 text-xs font-semibold text-[var(--bg-primary)] transition-all hover:scale-[1.02] md:rounded-[var(--radius-card)]"
+              >
+                → Virar Conteúdo
+              </button>
+              <button
+                onClick={() => handleBrainstormIdeia(anotacoesDestaque[brainstormIdx])}
+                className="flex-1 rounded-[var(--radius-card-mobile)] border border-[var(--border-strong)] py-3 text-xs font-semibold text-[var(--text-primary)] transition-all hover:bg-[var(--bg-hover)] md:rounded-[var(--radius-card)]"
+              >
+                → Virar Ideia
+              </button>
+              <button
+                onClick={handleBrainstormPular}
+                className="px-4 py-3 text-xs font-semibold text-[var(--text-primary)] opacity-40 transition-opacity hover:opacity-80"
+              >
+                Pular →
+              </button>
+            </div>
+          </div>
+        </Dialog>
 
         <ConfirmModal
           open={!!confirm}
@@ -1412,62 +1403,53 @@ export function BookDetailPage() {
     </PageLayout>
 
       {/* ── Modal Brainstorm ── */}
-      <AnimatePresence>
-        {brainstormMode && anotacoesDestaque.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--backdrop-strong)] p-4"
-          >
-            <motion.div
-              initial={{ scale: 0.95, y: 20 }}
-              animate={{ scale: 1, y: 0 }}
-              exit={{ scale: 0.95, y: 20 }}
-              className="bg-[var(--bg-primary)] rounded-[var(--radius-overlay)] p-8 max-w-lg w-full shadow-none"
+      <Dialog
+        open={brainstormMode && anotacoesDestaque.length > 0}
+        onClose={() => setBrainstormMode(false)}
+        desktopMaxW="max-w-lg"
+        ariaLabel="Brainstorm"
+      >
+        <div className="bg-[var(--bg-primary)] rounded-[var(--radius-overlay)] p-8 max-w-lg w-full shadow-none">
+          <div className="flex items-center justify-between mb-6">
+            <span className="text-xs font-semibold  text-[var(--text-tertiary)]">
+              Brainstorm — {brainstormIdx + 1}/{anotacoesDestaque.length}
+            </span>
+            <button
+              type="button"
+              onClick={() => setBrainstormMode(false)}
+              className={cn('rounded-full p-2 transition-colors hover:bg-[var(--bg-hover)]', FOCUS_INTERACTIVE)}
             >
-              <div className="flex items-center justify-between mb-6">
-                <span className="text-xs font-semibold  text-[var(--text-tertiary)]">
-                  Brainstorm — {brainstormIdx + 1}/{anotacoesDestaque.length}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setBrainstormMode(false)}
-                  className={cn('rounded-full p-2 transition-colors hover:bg-[var(--bg-hover)]', FOCUS_INTERACTIVE)}
-                >
-                  <X className="w-5 h-5 text-[var(--text-tertiary)]" />
-                </button>
-              </div>
-              <p className="text-lg font-medium text-[var(--text-primary)] leading-relaxed mb-8">
-                "{anotacoesDestaque[brainstormIdx]?.texto}"
-              </p>
-              <div className="flex flex-col gap-3 sm:flex-row">
-                <AppButton
-                  variant="primary"
-                  fullWidth
-                  onClick={() => handleBrainstormConteudo(anotacoesDestaque[brainstormIdx])}
-                >
-                  → Virar Conteúdo
-                </AppButton>
-                <AppButton
-                  variant="secondary"
-                  fullWidth
-                  onClick={() => handleBrainstormIdeia(anotacoesDestaque[brainstormIdx])}
-                >
-                  → Virar Ideia
-                </AppButton>
-                <AppButton
-                  variant="ghost"
-                  onClick={handleBrainstormPular}
-                  className="opacity-60"
-                >
-                  Pular →
-                </AppButton>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+              <X className="w-5 h-5 text-[var(--text-tertiary)]" />
+            </button>
+          </div>
+          <p className="text-lg font-medium text-[var(--text-primary)] leading-relaxed mb-8">
+            "{anotacoesDestaque[brainstormIdx]?.texto}"
+          </p>
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <AppButton
+              variant="primary"
+              fullWidth
+              onClick={() => handleBrainstormConteudo(anotacoesDestaque[brainstormIdx])}
+            >
+              → Virar Conteúdo
+            </AppButton>
+            <AppButton
+              variant="secondary"
+              fullWidth
+              onClick={() => handleBrainstormIdeia(anotacoesDestaque[brainstormIdx])}
+            >
+              → Virar Ideia
+            </AppButton>
+            <AppButton
+              variant="ghost"
+              onClick={handleBrainstormPular}
+              className="opacity-60"
+            >
+              Pular →
+            </AppButton>
+          </div>
+        </div>
+      </Dialog>
 
       {/* Modal de conteúdo */}
       <ConfirmModal

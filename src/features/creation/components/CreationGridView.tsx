@@ -12,7 +12,6 @@ export interface CreationGridItemModel {
 
 interface CreationGridViewProps {
   items: CreationGridItemModel[];
-  showStatus: boolean;
   selectionMode: boolean;
   compact?: boolean;
   onOpen: (content: Content) => void;
@@ -22,7 +21,6 @@ interface CreationGridViewProps {
 
 export function CreationGridView({
   items,
-  showStatus,
   selectionMode,
   compact = false,
   onOpen,
@@ -37,7 +35,6 @@ export function CreationGridView({
           content={item.content}
           pillar={item.pillar}
           series={item.series}
-          showStatus={showStatus}
           selectionMode={selectionMode}
           selectable={item.selectable}
           selected={item.selected}

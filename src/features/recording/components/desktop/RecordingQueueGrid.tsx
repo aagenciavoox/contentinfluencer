@@ -115,10 +115,8 @@ export function RecordingQueueGrid({
             <article
               key={content.id}
               className={cn(
-                'ds-card group relative flex min-h-[11.5rem] flex-col p-4 text-left transition-all',
-                isSelected
-                  ? 'border-[var(--text-primary)] bg-[var(--bg-hover)] shadow-[0_0_0_1px_var(--text-primary)]'
-                  : 'hover:border-[var(--border-strong)] hover:shadow-sm'
+                'ds-card ds-card-interactive group relative flex min-h-[11.5rem] flex-col p-4 text-left',
+                isSelected && 'border-[var(--text-primary)] bg-[var(--bg-hover)]'
               )}
             >
               <div className="mb-3 flex items-start justify-between gap-2">

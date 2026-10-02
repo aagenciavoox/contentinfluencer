@@ -6,19 +6,14 @@ import {
   NAVIGATION_SEQUENCE_PATHS,
 } from './routeDataDomains.ts';
 
-function testNavigationSequenceHasDistinctOutletKeys() {
+function testNavigationSequenceSharesSectionOutletKey() {
   const keys = NAVIGATION_SEQUENCE_PATHS.map(getRouteOutletKey);
-  assert.deepEqual(keys, [
-    '/criacao',
-    '/biblioteca',
-    '/configuracoes/series',
-    '/configuracoes/pilares',
-  ]);
-  assert.equal(new Set(keys).size, keys.length, 'each route remount key must be unique');
+  assert.deepEqual(keys, ['section', 'section', 'section', 'section']);
 }
 
 function testNavigationSequencePrefetchDomains() {
   assert.deepEqual(getRouteDataDomains('/criacao'), ['production', 'content']);
+  assert.deepEqual(getRouteDataDomains('/criacao/legendas'), ['production', 'content']);
   assert.deepEqual(getRouteDataDomains('/hoje'), [
     'agenda',
     'projects',
@@ -29,10 +24,10 @@ function testNavigationSequencePrefetchDomains() {
 }
 
 function testQueryOnlyNavigationKeepsOutletKey() {
-  const pathname = '/calendario';
-  assert.equal(getRouteOutletKey(pathname), '/calendario');
-  // Same pathname with different query must not force remount via key.
-  assert.equal(getRouteOutletKey(pathname), getRouteOutletKey('/calendario'));
+  assert.equal(getRouteOutletKey('/calendario'), 'section');
+  assert.equal(getRouteOutletKey('/conteudos/abc'), '/conteudos/abc');
+  assert.equal(getRouteOutletKey('/biblioteca/analise'), 'section');
+  assert.equal(getRouteOutletKey('/biblioteca/livro-1'), '/biblioteca/livro-1');
 }
 
 function testPendingPathnameTransition() {
@@ -48,7 +43,9 @@ function testNestedSettingsDomains() {
     'production',
     'content',
     'bootstrap',
+    'templates',
   ]);
+  assert.deepEqual(getRouteDataDomains('/configuracoes/plataformas'), ['bootstrap', 'schedule']);
   assert.deepEqual(getRouteDataDomains('/configuracoes/pilares/xyz'), [
     'production',
     'content',
@@ -56,7 +53,7 @@ function testNestedSettingsDomains() {
   ]);
 }
 
-testNavigationSequenceHasDistinctOutletKeys();
+testNavigationSequenceSharesSectionOutletKey();
 testNavigationSequencePrefetchDomains();
 testQueryOnlyNavigationKeepsOutletKey();
 testPendingPathnameTransition();

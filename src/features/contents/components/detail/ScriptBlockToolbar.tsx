@@ -1,6 +1,6 @@
 import {useEffect, useRef, useState} from 'react';
 import {ChevronDown, Layout, Plus} from 'lucide-react';
-import {BottomSheet} from '../../../../components/overlays/BottomSheet';
+import {Dialog} from '../../../../components/overlays/Dialog';
 import {OverlayHeader} from '../../../../components/overlays/OverlayHeader';
 import {OverlayBody} from '../../../../components/overlays/OverlayBody';
 import {useAppContext} from '../../../../context/AppContext';
@@ -106,7 +106,7 @@ export function ScriptBlockToolbar({
         <Layout className="h-3.5 w-3.5" />
       </button>
 
-      <BottomSheet open={templatesOpen} onClose={() => setTemplatesOpen(false)} desktopMaxW="max-w-lg">
+      <Dialog open={templatesOpen} onClose={() => setTemplatesOpen(false)} desktopMaxW="max-w-lg">
         <OverlayHeader
           title="Aplicar template"
           subtitle="Insere a estrutura do template no final do roteiro."
@@ -115,7 +115,7 @@ export function ScriptBlockToolbar({
         <OverlayBody>
           {roteiroTemplates.length === 0 ? (
             <Text variant="meta" className="py-8 text-center">
-              Nenhum template de roteiro ativo. Crie um em Configurações &gt; Templates.
+              Nenhum template de roteiro ativo. Crie um na edição da série.
             </Text>
           ) : (
             <div className="flex flex-col gap-2">
@@ -138,7 +138,7 @@ export function ScriptBlockToolbar({
             </div>
           )}
         </OverlayBody>
-      </BottomSheet>
+      </Dialog>
     </>
   );
 }

@@ -3,9 +3,9 @@ import { Surface } from '../../../components/ui/Surface';
 import { Text } from '../../../components/ui/Text';
 import { cn } from '../../../lib/utils';
 import { CreationCategoryLabel } from './CreationCategoryLabel';
+import { CreationEntityMarks, creationEntityHint } from './CreationEntityMarks';
 import { CreationItemMenu } from './CreationItemMenu';
 import { CreationSelectCheckbox } from './CreationSelectCheckbox';
-import { CreationStageChip } from './CreationStageChip';
 import {
   buildCreationItemMenuItems,
   type CreationItemActionHandlers,
@@ -14,8 +14,6 @@ import {
   getCreationCardFooterMeta,
   getCreationCardTags,
   getCreationNoteExcerpt,
-  getCreationStageLabel,
-  getCreationStageTone,
   getCreationTitle,
 } from '../lib/creationItemPresentation';
 
@@ -23,7 +21,6 @@ export interface CreationGridCardProps {
   content: Content;
   pillar?: Pilar | null;
   series?: Serie | null;
-  showStatus: boolean;
   selectionMode: boolean;
   selectable: boolean;
   selected: boolean;
@@ -38,7 +35,6 @@ export function CreationGridCard({
   content,
   pillar,
   series,
-  showStatus,
   selectionMode,
   selectable,
   selected,
@@ -47,15 +43,16 @@ export function CreationGridCard({
   actions,
 }: CreationGridCardProps) {
   const title = getCreationTitle(content);
-  const stageLabel = getCreationStageLabel(content);
-  const stageTone = getCreationStageTone(content);
-  const tags = getCreationCardTags(content, pillar, series);
+  const tags = getCreationCardTags(content);
   const excerpt = getCreationNoteExcerpt(content);
   const footerMeta = getCreationCardFooterMeta(content);
   const canOpen = !content.deletedAt;
   const canActivate = selectionMode ? selectable : canOpen;
   const showSelect = selectable;
   const menuItems = buildCreationItemMenuItems(content, actions);
+  const entityHint = creationEntityHint(pillar, series, content.pilarId, content.seriesId);
+  const hasMarks = entityHint.length > 0;
+  const cornerReserve = showSelect ? 'pr-16' : 'pr-9';
 
   const handleActivate = () => {
     if (selectionMode) {
@@ -86,27 +83,19 @@ export function CreationGridCard({
           !canActivate && 'cursor-default',
         )}
         aria-label={
-          selectionMode
-            ? (selectable
-              ? `${selected ? 'Desmarcar' : 'Selecionar'} ${title}`
-              : `${title} não pode ser selecionado`)
-            : (canOpen ? `Abrir ${title}` : title)
+          [
+            selectionMode
+              ? (selectable
+                ? `${selected ? 'Desmarcar' : 'Selecionar'} ${title}`
+                : `${title} não pode ser selecionado`)
+              : (canOpen ? `Abrir ${title}` : title),
+            entityHint,
+          ].filter(Boolean).join(', ')
         }
       />
 
       <div className="relative z-[1] pointer-events-none flex min-h-0 flex-col">
-        <div className="creation-hub-card__header flex min-h-5 items-center justify-between gap-2">
-          <div className="flex min-w-0 flex-1 items-center">
-            {showStatus ? (
-              <CreationStageChip
-                label={stageLabel}
-                toneStatus={stageTone}
-                className="max-w-full truncate"
-              />
-            ) : null}
-          </div>
-
-          <div className="pointer-events-auto flex min-h-5 shrink-0 items-center justify-end gap-1">
+        <div className="pointer-events-auto absolute top-0 right-0 z-[2] flex items-center justify-end gap-1">
             {showSelect ? (
               <span>
                 <CreationSelectCheckbox
@@ -124,10 +113,27 @@ export function CreationGridCard({
                 alwaysVisible
               />
             </span>
-          </div>
         </div>
 
-        <div className="card-body">
+        {hasMarks ? (
+          <div
+            className={cn('creation-hub-card__header flex min-h-8 items-center', cornerReserve)}
+            onClick={event => {
+              event.stopPropagation();
+              handleActivate();
+            }}
+          >
+            <CreationEntityMarks
+              pillar={pillar}
+              series={series}
+              pillarId={content.pilarId}
+              seriesId={content.seriesId}
+              className="pointer-events-auto relative z-[2]"
+            />
+          </div>
+        ) : null}
+
+        <div className={cn('card-body', !hasMarks && cornerReserve)}>
           <Text variant="itemTitle" className="creation-hub-card__title line-clamp-2">
             {title}
           </Text>

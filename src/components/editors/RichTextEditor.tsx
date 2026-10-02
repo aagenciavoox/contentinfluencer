@@ -7,6 +7,9 @@ import { Color } from '@tiptap/extension-color';
 import TextAlign from '@tiptap/extension-text-align';
 import Typography from '@tiptap/extension-typography';
 import {
+  AlignCenter,
+  AlignLeft,
+  AlignRight,
   Bold,
   Italic,
   Underline as UnderlineIcon,
@@ -97,6 +100,19 @@ const DEFAULT_COMMENT_STRIPE = 'color-mix(in srgb, var(--warning), transparent 6
 const DEFAULT_COMMENT_MODAL_STRIPE = 'color-mix(in srgb, var(--warning), transparent 25%)';
 
 const WORDS_PER_SECOND = 2.5;
+const EMPTY_ANNOTATIONS: Annotation[] = [];
+
+function sameAnnotationPositions(current: AnnotationPosition[], next: AnnotationPosition[]) {
+  if (current.length !== next.length) return false;
+
+  for (let index = 0; index < current.length; index += 1) {
+    if (current[index].id !== next[index].id || current[index].top !== next[index].top) {
+      return false;
+    }
+  }
+
+  return true;
+}
 
 function getWordCount(value: string) {
   const text = value
@@ -132,7 +148,7 @@ export function RichTextEditor({
   editorViewportClassName,
   editorCanvasClassName,
   onAddAnnotation,
-  annotations = [],
+  annotations = EMPTY_ANNOTATIONS,
   onRemoveAnnotation,
   onUpdateAnnotation,
   authorName = 'Você',
@@ -300,16 +316,18 @@ export function RichTextEditor({
     }
   }, [isOptionsMenuOpen]);
 
+  const annotationSource = annotations.length === 0 ? EMPTY_ANNOTATIONS : annotations;
+
   const sortedAnnotations = useMemo(() => {
-    return [...annotations]
+    return [...annotationSource]
       .filter((annotation) => !!annotation.id)
       .sort((a, b) => a.selection.from - b.selection.from);
-  }, [annotations]);
+  }, [annotationSource]);
 
   const updateAnnotationAnchors = useCallback(() => {
     if (!editor || !editorContainerRef.current || !isFullscreen || isMobile) {
-      setAnnotationPositions([]);
-      setDraftCommentTop(null);
+      setAnnotationPositions((current) => (current.length === 0 ? current : []));
+      setDraftCommentTop((current) => (current === null ? current : null));
       return;
     }
 
@@ -329,18 +347,21 @@ export function RichTextEditor({
       })
       .filter((value): value is AnnotationPosition => value !== null);
 
-    setAnnotationPositions(resolvedPositions);
+    setAnnotationPositions((current) =>
+      sameAnnotationPositions(current, resolvedPositions) ? current : resolvedPositions,
+    );
 
+    let nextDraftTop: number | null = null;
     if (activeDraft) {
       try {
         const coords = editor.view.coordsAtPos(activeDraft.selection.from);
-        setDraftCommentTop(Math.max(0, coords.top - editorRect.top - 4));
+        nextDraftTop = Math.max(0, coords.top - editorRect.top - 4);
       } catch {
-        setDraftCommentTop(null);
+        nextDraftTop = null;
       }
-    } else {
-      setDraftCommentTop(null);
     }
+
+    setDraftCommentTop((current) => (current === nextDraftTop ? current : nextDraftTop));
   }, [activeDraft, editor, isFullscreen, isMobile, sortedAnnotations]);
 
   const startCommenting = useCallback(() => {
@@ -570,6 +591,27 @@ export function RichTextEditor({
         isActive: () => !!editor?.isActive('strike'),
       },
       {
+        id: 'align-left',
+        label: 'Alinhar à esquerda',
+        icon: AlignLeft,
+        run: () => editor?.chain().focus().setTextAlign('left').run(),
+        isActive: () => !!editor?.isActive({ textAlign: 'left' }),
+      },
+      {
+        id: 'align-center',
+        label: 'Centralizar',
+        icon: AlignCenter,
+        run: () => editor?.chain().focus().setTextAlign('center').run(),
+        isActive: () => !!editor?.isActive({ textAlign: 'center' }),
+      },
+      {
+        id: 'align-right',
+        label: 'Alinhar à direita',
+        icon: AlignRight,
+        run: () => editor?.chain().focus().setTextAlign('right').run(),
+        isActive: () => !!editor?.isActive({ textAlign: 'right' }),
+      },
+      {
         id: 'list',
         label: 'Lista',
         icon: List,
@@ -599,6 +641,16 @@ export function RichTextEditor({
     [topToolbarActions],
   );
 
+  const toolbarGroups = useMemo(
+    () => [
+      ['undo', 'redo'],
+      ['bold', 'italic', 'underline', 'strike'],
+      ['align-left', 'align-center', 'align-right'],
+      ['list', 'ordered', 'link'],
+    ].map(ids => topToolbarActions.filter(action => ids.includes(action.id))),
+    [topToolbarActions],
+  );
+
   if (!editor) return null;
 
   return (
@@ -620,7 +672,7 @@ export function RichTextEditor({
         className={cn(
           'relative transition-all duration-500',
           compactMobileComposer ? 'border-0' : 'border border-[var(--border-color)]',
-          isWorkspace && !isFullscreen ? 'overflow-visible' : 'overflow-hidden',
+          isWorkspace && !isFullscreen ? 'h-full min-h-0 overflow-hidden' : 'overflow-hidden',
           isWorkspace
             ? cn(
                 'flex flex-col rounded-[var(--radius-card)] bg-[var(--bg-elevated)]',
@@ -703,60 +755,58 @@ export function RichTextEditor({
             </div>
           </div>
         ) : compactMobileComposer ? null : (
-          <div className="relative flex items-center border-b border-[var(--border-color)] bg-[var(--bg-elevated)]">
+          <div
+            className={cn(
+              'relative flex shrink-0 items-center border-b border-[var(--border-color)] bg-[var(--bg-elevated)]',
+              isWorkspace && !isFullscreen && 'sticky top-0 z-10',
+            )}
+          >
             <div
               className={cn(
                 'relative flex min-w-0 flex-1 items-center',
-                isMobile ? 'h-11 px-2' : 'h-11 px-3',
+                isWorkspace && !isFullscreen ? 'min-h-11 px-2 py-1' : isMobile ? 'h-11 px-2' : 'h-11 px-3',
                 !isFullscreen && 'rounded-t-[var(--radius-input)]',
               )}
             >
-          <div className="flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto">
+          <div
+            className={cn(
+              'flex min-w-0 flex-1 items-center gap-0.5',
+              isWorkspace && !isFullscreen ? 'flex-wrap overflow-x-clip' : 'overflow-x-auto',
+            )}
+          >
             {toolbarStart ? (
               <div className="mr-1 flex shrink-0 items-center gap-1 border-r border-[var(--border-color)] pr-2">
                 {toolbarStart}
               </div>
             ) : null}
-            {topToolbarActions.slice(0, 2).map((action, index) => {
-              const Icon = action.icon;
-              const showDivider = index === 1;
+            {toolbarGroups.map((group, groupIndex) => (
+              <div key={group.map(action => action.id).join('-')} className="flex shrink-0 items-center">
+                {groupIndex > 0 ? <div className="mx-1.5 h-5 w-px bg-[var(--border-color)]" aria-hidden /> : null}
+                <div className="flex items-center gap-0.5">
+                  {group.map(action => {
+                    const Icon = action.icon;
+                    const active = action.isActive?.() ?? false;
 
-              return (
-                <div key={action.id} className="flex items-center">
-                  <button
-                    onClick={action.run}
-                    className="flex h-9 w-9 items-center justify-center rounded-[var(--radius-input)] text-[var(--text-tertiary)] transition hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
-                    aria-label={action.label}
-                    type="button"
-                  >
-                    <Icon className="h-4 w-4" />
-                  </button>
-                  {showDivider && <div className="mx-2 h-5 w-px bg-[var(--border-color)]" />}
+                    return (
+                      <button
+                        key={action.id}
+                        onClick={action.run}
+                        className={cn(
+                          'flex h-9 w-9 items-center justify-center rounded-[var(--radius-input)] transition',
+                          active
+                            ? 'bg-[color-mix(in_srgb,var(--accent-blue),transparent_92%)] text-[var(--accent-blue)]'
+                            : 'text-[var(--text-tertiary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]',
+                        )}
+                        aria-label={action.label}
+                        type="button"
+                      >
+                        <Icon className="h-4 w-4" />
+                      </button>
+                    );
+                  })}
                 </div>
-              );
-            })}
-
-            {topToolbarActions.slice(2).map((action) => {
-              const Icon = action.icon;
-              const active = action.isActive?.() ?? false;
-
-              return (
-                <button
-                  key={action.id}
-                  onClick={action.run}
-                  className={cn(
-                    'flex h-9 w-9 items-center justify-center rounded-[var(--radius-input)] transition',
-                    active
-                      ? 'bg-[color-mix(in_srgb,var(--accent-blue),transparent_92%)] text-[var(--accent-blue)]'
-                      : 'text-[var(--text-tertiary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]',
-                  )}
-                  aria-label={action.label}
-                  type="button"
-                >
-                  <Icon className="h-4 w-4" />
-                </button>
-              );
-            })}
+              </div>
+            ))}
           </div>
 
           {!isWorkspace ? (
@@ -944,14 +994,14 @@ export function RichTextEditor({
           className={cn(
             'transition-all duration-500',
             isWorkspace && !isFullscreen
-              ? 'overflow-visible'
+              ? 'min-h-0 flex-1 overflow-y-auto custom-scrollbar'
               : 'flex-1 overflow-y-auto custom-scrollbar',
             isFullscreen
               ? 'bg-[var(--bg-elevated)]'
               : compactMobileComposer
                 ? 'bg-transparent p-0'
                 : isWorkspace
-                  ? 'bg-[var(--bg-elevated)] p-3 md:p-6'
+                  ? 'bg-[var(--bg-elevated)] px-6 py-8 md:px-12 md:py-12'
                   : 'bg-[var(--bg-secondary)]/30 p-4 md:p-8 lg:p-12',
             editorViewportClassName,
           )}
@@ -974,12 +1024,18 @@ export function RichTextEditor({
                   : compactMobileComposer
                     ? 'min-h-[50dvh] rounded-none border-0 bg-transparent px-0 py-2 shadow-none'
                     : isWorkspace
-                      ? 'min-h-[8rem] rounded-[var(--radius-input)] border border-[var(--border-color)] px-4 py-6 md:px-6 md:py-6'
+                      ? 'script-sheet mx-auto min-h-[12rem] w-full max-w-[72ch] rounded-none border-0 bg-transparent px-1 py-2 shadow-none'
                       : 'min-h-[800px] rounded-[var(--radius-input)] border border-[var(--border-color)] p-12 shadow-[var(--shadow-editorial)] md:p-24',
                 editorCanvasClassName,
               )}
             >
-              <EditorContent editor={editor} className="cursor-text max-w-none prose-sm sm:prose lg:prose-lg" />
+              <EditorContent
+                editor={editor}
+                className={cn(
+                  'cursor-text',
+                  isWorkspace ? 'max-w-none' : 'max-w-none prose-sm sm:prose lg:prose-lg',
+                )}
+              />
 
               {!isFullscreen && annotations.length > 0 && (
                 <div className="pointer-events-none absolute right-3 top-3 flex select-none items-center gap-1.5 rounded-[var(--radius-pill)] border border-[color-mix(in_srgb,var(--warning),transparent_72%)] bg-[color-mix(in_srgb,var(--warning),transparent_90%)] px-2.5 py-1 text-xs font-bold text-[var(--warning)]">
@@ -1196,12 +1252,6 @@ export function RichTextEditor({
               {wordCount} palavras · {speakingDuration}
             </span>
             <div className="flex min-w-0 items-center gap-2">
-              {saveFooterLabel ? (
-                <span className="inline-flex items-center gap-1 font-medium text-[var(--text-secondary)]">
-                  {saveState === 'saved' ? <Check className="h-3.5 w-3.5 text-[var(--success)]" /> : null}
-                  {saveFooterLabel}
-                </span>
-              ) : null}
               {saveAction}
             </div>
           </div>

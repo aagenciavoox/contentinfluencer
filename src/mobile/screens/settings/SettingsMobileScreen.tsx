@@ -1,10 +1,8 @@
 import {
   ChevronRight,
-  Clock,
-  Hash,
+  Columns2,
   HeartHandshake,
   Layout,
-  Leaf,
   MonitorSpeaker,
   Settings as SettingsIcon,
   UserCircle2,
@@ -22,6 +20,8 @@ interface SettingsMobileScreenProps {
     enabled: boolean;
     onToggle: () => void;
   }>;
+  writingEnabled: boolean;
+  onToggleWriting: () => void;
   moduleCards: Array<{
     key: string;
     title: string;
@@ -40,14 +40,12 @@ interface SettingsMobileScreenProps {
 const ICON_BY_ROUTE: Record<string, React.ElementType> = {
   '/configuracoes/perfil': UserCircle2,
   '/configuracoes/plataformas': MonitorSpeaker,
-  '/configuracoes/templates': Layout,
-  '/configuracoes/pilares': Leaf,
-  '/configuracoes/series': Hash,
-  '/configuracoes/horarios': Clock,
 };
 
 export function SettingsMobileScreen({
   gentleCards,
+  writingEnabled,
+  onToggleWriting,
   moduleCards,
   items,
 }: SettingsMobileScreenProps) {
@@ -88,6 +86,25 @@ export function SettingsMobileScreen({
               />
             </div>
           ))}
+        </div>
+      </section>
+
+      <section className="stack-lg">
+        <MobileSectionHeader icon={Columns2} tone="blue" title="Escrita" className="px-1" />
+
+        <div className="flex items-center justify-between gap-4 rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-4">
+          <div className="min-w-0">
+            <Text variant="bodyStrong">Modo de escrita</Text>
+            <Text variant="meta" className="mt-1 block">
+              Separa o roteiro da gestão. Status, agendamento e legendas ficam em outra aba, e você pode abrir uma área de notas ao lado do texto.
+            </Text>
+          </div>
+
+          <MobileToggleSwitch
+            enabled={writingEnabled}
+            onToggle={onToggleWriting}
+            label="Modo de escrita"
+          />
         </div>
       </section>
 

@@ -1,7 +1,7 @@
 import {useEffect, useMemo, useRef, useState} from 'react';
 import {useNavigate} from 'react-router-dom';
 import {getDay, parseISO} from 'date-fns';
-import {CalendarClock, ChevronDown, ChevronUp, Clock, ExternalLink, Layers, ListChecks, Palette, Sun, Target, Video} from 'lucide-react';
+import {CalendarClock, ChevronDown, Clock, ExternalLink, Layers, ListChecks, Palette, Sun, Target, Video} from 'lucide-react';
 import type {Content, Pilar, Serie} from '../../../../lib/database';
 import type {Weekday} from '../../../settings/lib/postingTimes';
 import {cn} from '../../../../lib/utils';
@@ -27,6 +27,10 @@ import {
 import {getAllowedStatuses, getDisplayStatus} from '../../lib/contentPipeline';
 
 const NOTES_MAX = 500;
+type AsideSectionId = 'properties' | 'schedule' | 'notes';
+
+const quietFieldClass =
+  'w-full rounded-[var(--radius-input)] border border-transparent bg-transparent px-3 py-2 text-sm text-[var(--text-primary)] outline-none transition-colors hover:bg-[var(--bg-hover)] focus:border-[var(--border-color)] focus:bg-[var(--bg-elevated)]';
 
 function toIsoDate(dateOnly: string | null) {
   return dateOnly ? `${dateOnly}T12:00:00.000Z` : null;
@@ -59,28 +63,35 @@ interface ContentOperationalPanelProps {
   authorName?: string;
 }
 
-function CollapsibleCard({
+function AsideAccordion({
+  id,
   title,
-  defaultOpen = true,
+  openId,
+  onToggle,
   children,
 }: {
+  id: AsideSectionId;
   title: string;
-  defaultOpen?: boolean;
+  openId: AsideSectionId | null;
+  onToggle: (id: AsideSectionId) => void;
   children: React.ReactNode;
 }) {
-  const [open, setOpen] = useState(defaultOpen);
+  const open = openId === id;
 
   return (
     <Surface variant="outlined" padding="none" className="overflow-visible">
       <button
         type="button"
-        onClick={() => setOpen(prev => !prev)}
-        className="flex w-full items-center justify-between gap-2 border-b border-[var(--border-color)] px-4 py-3 text-left transition-colors hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+        aria-expanded={open}
+        onClick={() => onToggle(id)}
+        className="flex w-full items-center justify-between gap-2 px-4 py-3 text-left transition-colors hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
       >
         <span className="panel-section-title">{title}</span>
-        <ChevronUp className={cn('h-4 w-4 text-[var(--text-tertiary)] transition-transform', !open && 'rotate-180')} />
+        <ChevronDown className={cn('h-4 w-4 text-[var(--text-tertiary)] transition-transform', open && 'rotate-180')} />
       </button>
-      {open ? <div className="stack-md p-4">{children}</div> : null}
+      {open ? (
+        <div className="stack-md border-t border-[var(--border-subtle)] p-4">{children}</div>
+      ) : null}
     </Surface>
   );
 }
@@ -129,7 +140,8 @@ function RoteiroSelect({
         value={value}
         onChange={onChange}
         className={cn(
-          'w-full appearance-none rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] py-2 pr-8 text-sm text-[var(--text-primary)] outline-none transition-colors focus:border-[var(--accent-blue)]',
+          quietFieldClass,
+          'appearance-none py-2 pr-8',
           dotColor ? 'pl-7' : 'pl-3',
         )}
       >
@@ -308,6 +320,10 @@ export function ContentOperationalPanel({
   }, [linkedPilar, publishWeekday, state.platforms, state.postingTimeEntries]);
   const compact = density === 'compact';
   const emptySelect = (value: unknown) => (value ? '' : 'property-row-value--empty');
+  const [openSection, setOpenSection] = useState<AsideSectionId | null>(null);
+  const toggleSection = (id: AsideSectionId) => {
+    setOpenSection(current => (current === id ? null : id));
+  };
 
   const formInputClass =
     'w-full rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-3 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--accent-blue)] transition-colors';
@@ -504,8 +520,24 @@ export function ContentOperationalPanel({
 
   if (variant === 'cards') {
     return (
-      <aside className={cn('flex flex-col gap-4', className)}>
-        <CollapsibleCard title="Propriedades">
+      <aside className={cn('flex flex-col gap-3', className)}>
+        <Surface variant="outlined" padding="md" className="stack-md">
+          <RoteiroField label="Status" icon={<ListChecks className="h-3.5 w-3.5" />}>
+            <StatusDropdownField
+              status={draft.status}
+              publishDate={draft.publishDate}
+              postedAt={draft.postedAt ?? null}
+              allowedStatuses={allowedStatuses}
+              onStatusChange={status => onChange({status})}
+            />
+          </RoteiroField>
+          <div className="flex flex-wrap gap-2">
+            <Badge variant="neutral">{linkedSerie?.name ?? 'Sem série'}</Badge>
+            <Badge variant="tag">{linkedPilar?.nome ?? 'Sem pilar'}</Badge>
+          </div>
+        </Surface>
+
+        <AsideAccordion id="properties" title="Propriedades" openId={openSection} onToggle={toggleSection}>
           <RoteiroField label="Série" icon={<Layers className="h-3.5 w-3.5" />}>
             <RoteiroSelect
               value={draft.seriesId ?? ''}
@@ -555,22 +587,13 @@ export function ContentOperationalPanel({
               ))}
             </RoteiroSelect>
           </RoteiroField>
+        </AsideAccordion>
 
-          <RoteiroField label="Status" icon={<ListChecks className="h-3.5 w-3.5" />}>
-            <StatusDropdownField
-              status={draft.status}
-              publishDate={draft.publishDate}
-              postedAt={draft.postedAt ?? null}
-              allowedStatuses={allowedStatuses}
-              onStatusChange={status => onChange({status})}
-            />
-          </RoteiroField>
-        </CollapsibleCard>
-
-        <CollapsibleCard title="Agendamento">
+        <AsideAccordion id="schedule" title="Agendamento" openId={openSection} onToggle={toggleSection}>
           <RoteiroField label="Gravação" icon={<Video className="h-3.5 w-3.5" />}>
             <PropertyDatePicker
               variant="field"
+              className="border-transparent bg-transparent hover:bg-[var(--bg-hover)] focus:border-[var(--border-color)]"
               value={draft.recordingDate ? draft.recordingDate.slice(0, 10) : null}
               onChange={date => onChange({recordingDate: toIsoDate(date)})}
             />
@@ -579,6 +602,7 @@ export function ContentOperationalPanel({
           <RoteiroField label="Publicação" icon={<CalendarClock className="h-3.5 w-3.5" />}>
             <PropertyDatePicker
               variant="field"
+              className="border-transparent bg-transparent hover:bg-[var(--bg-hover)] focus:border-[var(--border-color)]"
               value={publishDateOnly || null}
               onChange={date => onChange({publishDate: toIsoDate(date)})}
             />
@@ -591,7 +615,7 @@ export function ContentOperationalPanel({
                   type="time"
                   value={draft.publishTime ?? ''}
                   onChange={event => onChange({publishTime: event.target.value || null})}
-                  className={formInputClass}
+                  className={quietFieldClass}
                 />
               </RoteiroField>
               <PostingTimeSuggestions
@@ -604,19 +628,19 @@ export function ContentOperationalPanel({
               />
             </>
           ) : null}
-        </CollapsibleCard>
+        </AsideAccordion>
 
-        <CollapsibleCard title="Notas">
+        <AsideAccordion id="notes" title="Notas" openId={openSection} onToggle={toggleSection}>
           <textarea
             value={draft.notes ?? ''}
             onChange={event => onChange({notes: event.target.value.slice(0, NOTES_MAX)})}
-            className={cn(formInputClass, 'min-h-[100px] resize-none')}
+            className={cn(quietFieldClass, 'min-h-[100px] resize-none bg-[var(--bg-hover)]')}
             placeholder="Observacoes editoriais, referencias, links..."
           />
-          <p className="text-right text-xs text-[var(--text-tertiary)]">
+          <Text variant="meta" className="text-right">
             {(draft.notes ?? '').length} / {NOTES_MAX}
-          </p>
-        </CollapsibleCard>
+          </Text>
+        </AsideAccordion>
       </aside>
     );
   }

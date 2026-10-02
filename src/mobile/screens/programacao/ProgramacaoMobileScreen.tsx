@@ -1,4 +1,4 @@
-import {useMemo, useState} from 'react';
+import {useMemo, useState, type ReactNode} from 'react';
 import {
   addMonths,
   eachDayOfInterval,
@@ -29,8 +29,8 @@ import {Badge} from '../../../components/ui/Badge';
 import {EmptyState} from '../../../components/ui/EmptyState';
 import {Surface} from '../../../components/ui/Surface';
 import {Text} from '../../../components/ui/Text';
-import type {Violation} from '../../../utils/pilarRhythm';
-import {summarizeViolations} from '../../../utils/pilarRhythm';
+import type {DayRhythmTone, WeekRhythmQuota} from '../../../utils/pilarRhythm';
+import {WeekRhythmChips} from '../../../features/programacao/components/WeekRhythmRail';
 import {
   getPlatformColor,
   isIdeiaCard,
@@ -58,14 +58,18 @@ interface ProgramacaoMobileScreenProps {
   onSelectBacklogCard: (key: string | null) => void;
   scheduledByDate: Map<string, ProgramacaoCard[]>;
   projetoPublicacaoByDate: Map<string, ProjetoPublicacaoMarker[]>;
-  weekViolations: Violation[];
+  weekQuotas: WeekRhythmQuota[];
+  dayTone: (dayKey: string) => DayRhythmTone | 'risk' | null;
   onDayClick: (dayKey: string) => void;
+  pickerDayKey: string | null;
+  onPickBacklog: (key: string) => void;
   onCardClick: (card: ProgramacaoCard) => void;
   onPreview: (card: ProgramacaoCard) => void;
   onAddIdea: (dayKey: string) => void;
   onRegisterPosted: (dayKey: string) => void;
   onOpenProjetoPublicacao: (marker: ProjetoPublicacaoMarker) => void;
   onPickDate: () => void;
+  filters?: ReactNode;
 }
 
 function dateKey(date: Date): string {
@@ -82,14 +86,18 @@ export function ProgramacaoMobileScreen({
   onSelectBacklogCard,
   scheduledByDate,
   projetoPublicacaoByDate,
-  weekViolations,
+  weekQuotas,
+  dayTone,
   onDayClick,
+  pickerDayKey,
+  onPickBacklog,
   onCardClick,
   onPreview,
   onAddIdea,
   onRegisterPosted,
   onOpenProjetoPublicacao,
   onPickDate,
+  filters,
 }: ProgramacaoMobileScreenProps) {
   const [search, setSearch] = useState('');
   const today = new Date();
@@ -111,8 +119,6 @@ export function ProgramacaoMobileScreen({
         card.platformName.toLowerCase().includes(query),
     );
   }, [backlogCards, search]);
-
-  const violationSummary = useMemo(() => summarizeViolations(weekViolations, 3), [weekViolations]);
 
   const selectedBacklogCard = selectedBacklogKey
     ? backlogCards.find(card => card.key === selectedBacklogKey) ?? null
@@ -138,6 +144,7 @@ export function ProgramacaoMobileScreen({
   return (
     <div className="stack-lg px-4 py-4">
       <CalendarModeSwitch variant="mobile" />
+      {filters}
       <CalendarPeriodNav
         anchorDate={anchorDate}
         onAnchorDateChange={onAnchorDateChange}
@@ -152,6 +159,8 @@ export function ProgramacaoMobileScreen({
         className="justify-center"
       />
 
+      <WeekRhythmChips quotas={weekQuotas} />
+
       {selectedBacklogCard ? (
         <Surface variant="outlined" padding="md" className="border-[var(--accent-blue)]/40 bg-[color-mix(in_srgb,var(--accent-blue),transparent_92%)]">
           <div className="stack-sm">
@@ -160,9 +169,6 @@ export function ProgramacaoMobileScreen({
             </Text>
             <Text variant="sectionTitle" as="p">
               {selectedBacklogCard.title}
-            </Text>
-            <Text variant="secondary">
-              Toque em um dia abaixo para colocar na grade, ou escolha outra data.
             </Text>
             <div className="flex flex-wrap gap-2 pt-1">
               <AppButton variant="primary" size="sm" onClick={onPickDate}>
@@ -253,13 +259,44 @@ export function ProgramacaoMobileScreen({
         )}
       </section>
 
+      {pickerDayKey ? (
+        <Surface variant="outlined" padding="md" className="border-[var(--accent-blue)]/40">
+          <div className="stack-sm">
+            <Text variant="label" className="text-[var(--accent-blue)]">
+              {format(new Date(`${pickerDayKey}T12:00:00`), "EEEE, d 'de' MMMM", {locale: ptBR})}
+            </Text>
+            <label className="block">
+              <span className="sr-only">Escolher vídeo pronto</span>
+              <select
+                autoFocus
+                defaultValue=""
+                disabled={backlogCards.length === 0}
+                onChange={event => {
+                  const key = event.target.value;
+                  if (key) onPickBacklog(key);
+                }}
+                className="filter-bar-select h-11 w-full bg-[var(--bg-elevated)]"
+              >
+                <option value="">
+                  {backlogCards.length === 0 ? 'Nenhum vídeo pronto' : 'Escolher entre os prontos…'}
+                </option>
+                {backlogCards.map(card => (
+                  <option key={card.key} value={card.key}>
+                    {card.title} · {card.platformName}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+        </Surface>
+      ) : null}
+
       {viewMode === 'week' ? (
         <section className="stack-md">
           <MobileSectionHeader
             icon={CalendarDays}
             title="Dias da semana"
             tone="blue"
-            description="Toque em um dia para agendar o vídeo selecionado."
           />
           <div className="flex gap-2 overflow-x-auto pb-1">
             {weekDays.map(day => {
@@ -268,6 +305,7 @@ export function ProgramacaoMobileScreen({
                 (scheduledByDate.get(key)?.length || 0) + (projetoPublicacaoByDate.get(key)?.length || 0);
               const isToday = isSameDay(day, today);
               const canSchedule = Boolean(selectedBacklogKey);
+              const tone = dayTone(key);
               return (
                 <button
                   key={key}
@@ -275,10 +313,13 @@ export function ProgramacaoMobileScreen({
                   onClick={() => onDayClick(key)}
                   className={cn(
                     'flex min-w-[4.5rem] shrink-0 flex-col items-center gap-1 rounded-[var(--radius-card-mobile)] border px-3 py-3 transition-all active:scale-95',
-                    isToday
-                      ? 'border-[var(--accent-blue)] bg-[color-mix(in_srgb,var(--accent-blue),transparent_92%)]'
-                      : 'border-[var(--border-color)] bg-[var(--bg-secondary)]',
-                    canSchedule && 'ring-1 ring-[var(--accent-blue)]/30',
+                    tone === 'over' || tone === 'risk'
+                      ? 'border-[var(--warning)] bg-[var(--warning-bg)]'
+                      : isToday
+                          ? 'border-[var(--accent-blue)] bg-[color-mix(in_srgb,var(--accent-blue),transparent_92%)]'
+                          : 'border-[var(--border-color)] bg-[var(--bg-secondary)]',
+                    canSchedule && tone == null && pickerDayKey !== key && 'ring-1 ring-[var(--accent-blue)]/30',
+                    pickerDayKey === key && 'border-[var(--accent-blue)] ring-2 ring-[var(--accent-blue)]/30',
                   )}
                 >
                   <span className="text-2xs font-semibold uppercase text-[var(--text-tertiary)]">
@@ -349,6 +390,7 @@ export function ProgramacaoMobileScreen({
               const inMonth = isSameMonth(day, anchorDate);
               const isToday = isSameDay(day, today);
               const isLastCol = (index + 1) % 7 === 0;
+              const tone = dayTone(key);
 
               return (
                 <button
@@ -359,7 +401,9 @@ export function ProgramacaoMobileScreen({
                     'flex flex-col items-center gap-1 border-b border-r border-[var(--border-color)] py-2 transition-all active:scale-95',
                     !inMonth && 'opacity-25',
                     isLastCol && 'border-r-0',
-                    selectedBacklogKey && inMonth && 'bg-[color-mix(in_srgb,var(--accent-blue),transparent_94%)]',
+                    inMonth && (tone === 'over' || tone === 'risk') && 'bg-[var(--warning-bg)]',
+                    selectedBacklogKey && inMonth && tone == null && pickerDayKey !== key && 'bg-[color-mix(in_srgb,var(--accent-blue),transparent_94%)]',
+                    pickerDayKey === key && 'bg-[color-mix(in_srgb,var(--accent-blue),transparent_88%)]',
                   )}
                 >
                   <div
@@ -473,6 +517,8 @@ export function ProgramacaoMobileScreen({
                                 <Clock className="h-3 w-3" />
                                 {card.time}
                               </span>
+                            ) : !isIdeiaCard(card) ? (
+                              <span className="text-xs font-semibold text-[var(--info)]">Definir horário</span>
                             ) : null}
                             <span
                               className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold"
@@ -509,36 +555,6 @@ export function ProgramacaoMobileScreen({
           </div>
         )}
       </section>
-
-      {weekViolations.length > 0 ? (
-        <Surface variant="outlined" padding="md" className="border-[var(--warning)]/30 bg-[var(--warning-bg)]">
-          <div className="stack-sm">
-            <div className="flex items-center justify-between gap-2">
-              <Text variant="label">Diagnóstico do ritmo</Text>
-              <Text variant="meta">{weekViolations.length} alertas</Text>
-            </div>
-            {violationSummary.top.map((violation, index) => (
-              <Text key={`${violation.ruleId}-${index}`} variant="body">
-                {violation.message}
-              </Text>
-            ))}
-            {violationSummary.rest.length > 0 ? (
-              <details className="rounded-[var(--radius-sm)] border border-[var(--border-color)]/50 bg-[var(--bg-elevated)]/40">
-                <summary className="cursor-pointer list-none px-2 py-2 text-sm font-semibold text-[var(--text-secondary)] marker:content-none [&::-webkit-details-marker]:hidden">
-                  Ver todos ({violationSummary.rest.length})
-                </summary>
-                <div className="stack-sm border-t border-[var(--border-color)]/50 px-2 py-2">
-                  {violationSummary.rest.map((violation, index) => (
-                    <Text key={`rest-${violation.ruleId}-${index}`} variant="body">
-                      {violation.message}
-                    </Text>
-                  ))}
-                </div>
-              </details>
-            ) : null}
-          </div>
-        </Surface>
-      ) : null}
     </div>
   );
 }

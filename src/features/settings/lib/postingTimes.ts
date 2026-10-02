@@ -92,6 +92,23 @@ export function getTimesForDayFromEntries(
   return getTimesForDay(getPostingTimesForPlatform(entries, platformId), weekday);
 }
 
+/** União dos horários do dia em todas as plataformas ativas, com fallback global por plataforma. */
+export function getUnionTimesForWeekday(
+  entries: PostingTimeEntry[],
+  platforms: Array<{id: string; ativo: boolean}>,
+  weekday: Weekday,
+): string[] {
+  const activeIds = platforms.filter(platform => platform.ativo).map(platform => platform.id);
+  const sources = activeIds.length > 0 ? activeIds : [null];
+  const times = new Set<string>();
+  for (const platformId of sources) {
+    for (const time of getTimesForDayFromEntries(entries, platformId, weekday)) {
+      times.add(time);
+    }
+  }
+  return [...times].sort();
+}
+
 // --- Legacy API: baseada em user_preferences (blob JSON) ---
 // Mantida para compatibilidade com codigo que ainda nao foi migrado.
 

@@ -2,6 +2,7 @@ import type { ElementType } from 'react';
 import {
   Briefcase,
   CalendarDays,
+  Captions,
   Clapperboard,
   Columns3,
   Library,
@@ -20,6 +21,8 @@ export type NavItemDefinition = {
   end?: boolean;
   module?: keyof ModuleFlags;
   badgeKey?: NavBadgeKey;
+  /** Itens recuados sob este destino, como Legendas sob Criação. */
+  nested?: NavItemDefinition[];
 };
 
 export type NavSectionDefinition = {
@@ -73,7 +76,9 @@ export function isBottomNavItemActive(to: string, pathname: string): boolean {
   }
 
   if (target === '/criacao') {
-    return pathname === '/criacao' || pathname.startsWith('/conteudos/');
+    return pathname === '/criacao'
+      || pathname.startsWith('/criacao/')
+      || pathname.startsWith('/conteudos/');
   }
 
   if (target === '/biblioteca') {
@@ -98,7 +103,15 @@ export function buildSidebarSections(moduleFlags: ModuleFlags): NavSectionDefini
     {
       label: 'Criação',
       items: [
-        { to: '/criacao', label: 'Criação', icon: PenLine, badgeKey: 'editorial' },
+        {
+          to: '/criacao',
+          label: 'Criação',
+          icon: PenLine,
+          badgeKey: 'editorial',
+          nested: [
+            { to: '/criacao/legendas', label: 'Legendas', icon: Captions },
+          ],
+        },
         { to: '/configuracoes/series', label: 'Séries', icon: ListVideo },
         { to: '/configuracoes/pilares', label: 'Pilares', icon: Columns3 },
         { to: '/biblioteca', label: 'Biblioteca', icon: Library, badgeKey: 'library', module: 'library' },

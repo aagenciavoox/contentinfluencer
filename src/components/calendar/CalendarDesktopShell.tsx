@@ -1,7 +1,6 @@
 import {useEffect, useRef, type ReactNode} from 'react';
 import {AnimatePresence, motion} from 'motion/react';
 import {createPortal} from 'react-dom';
-import {PanelLeft} from 'lucide-react';
 import {BREAKPOINTS} from '../../shared/breakpoints';
 import {cn} from '../../lib/utils';
 import {Z_INDEX_DRAWER_BACKDROP, Z_INDEX_MODAL} from '../overlays/overlayConstants';
@@ -10,9 +9,7 @@ import {Z_INDEX_DRAWER_BACKDROP, Z_INDEX_MODAL} from '../overlays/overlayConstan
 const MAIN_NARROW_THRESHOLD_PX = 560;
 
 interface CalendarDesktopShellProps {
-  sidebar: ReactNode;
-  toolbar: ReactNode;
-  toolbarExtra?: ReactNode;
+  sidebar?: ReactNode;
   children: ReactNode;
   rightPanel?: ReactNode;
   sidebarOpen?: boolean;
@@ -24,8 +21,6 @@ interface CalendarDesktopShellProps {
 
 export function CalendarDesktopShell({
   sidebar,
-  toolbar,
-  toolbarExtra,
   children,
   rightPanel,
   sidebarOpen = false,
@@ -82,8 +77,10 @@ export function CalendarDesktopShell({
     };
   }, [onMainNarrowChange, rightPanel]);
 
+  const hasSidebar = Boolean(sidebar);
+
   const mobileDrawer =
-    typeof document !== 'undefined'
+    hasSidebar && typeof document !== 'undefined'
       ? createPortal(
           <AnimatePresence>
             {sidebarOpen ? (
@@ -118,28 +115,19 @@ export function CalendarDesktopShell({
 
   return (
     <div className={cn('flex min-h-0 flex-col', className)}>
-      <div className="flex flex-wrap items-center gap-2 border-b border-[var(--border-color)] bg-[var(--bg-elevated)] px-3 py-2">
-        <button
-          type="button"
-          onClick={() => onSidebarOpenChange?.(true)}
-          className="flex min-h-9 min-w-9 items-center justify-center rounded-[var(--radius-sm)] text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] xl:hidden"
-          aria-label="Abrir painel lateral"
-        >
-          <PanelLeft className="h-4 w-4" />
-        </button>
-        <div className="min-w-0 flex-1">{toolbar}</div>
-        {toolbarExtra ? <div className="flex items-center gap-2">{toolbarExtra}</div> : null}
-      </div>
-
       <div
         className={cn(
           'grid min-h-0 flex-1 gap-0',
-          rightPanel ? 'xl:grid-cols-[260px_minmax(0,1fr)_300px]' : 'xl:grid-cols-[260px_minmax(0,1fr)]',
+          hasSidebar && rightPanel && 'xl:grid-cols-[260px_minmax(0,1fr)_300px]',
+          hasSidebar && !rightPanel && 'xl:grid-cols-[260px_minmax(0,1fr)]',
+          !hasSidebar && rightPanel && 'xl:grid-cols-[minmax(0,1fr)_300px]',
         )}
       >
-        <aside className="hidden shrink-0 overflow-y-auto border-r border-[var(--border-color)] bg-[var(--bg-elevated)] p-4 xl:block">
-          {sidebar}
-        </aside>
+        {hasSidebar ? (
+          <aside className="hidden shrink-0 overflow-y-auto border-r border-[var(--border-color)] bg-[var(--bg-elevated)] p-4 xl:block">
+            {sidebar}
+          </aside>
+        ) : null}
 
         <main ref={mainRef} className="min-w-0 overflow-hidden">
           {children}

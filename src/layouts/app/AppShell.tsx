@@ -20,6 +20,7 @@ import { useAppContext } from '../../context/AppContext';
 import { forceMobileRefresh } from '../../lib/pwaRefresh';
 import { LOADING } from '../../lib/uiCopy';
 import { getModuleFlags } from '../../features/settings/lib/moduleFlags';
+import { prefetchPrimaryRoutes } from '../../app/router/routePrefetch';
 import { createIdeaContent } from '../../features/contents/lib/creationContent';
 import {
   CreationComposer,
@@ -96,6 +97,16 @@ export function AppShell() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
+
+  useEffect(() => {
+    if (!state.isLoaded) return;
+    const idleId = window.requestIdleCallback?.(() => prefetchPrimaryRoutes());
+    if (idleId !== undefined) {
+      return () => window.cancelIdleCallback?.(idleId);
+    }
+    const timer = window.setTimeout(prefetchPrimaryRoutes, 250);
+    return () => window.clearTimeout(timer);
+  }, [state.isLoaded]);
 
   useEffect(() => {
     if (!isMobile) return;

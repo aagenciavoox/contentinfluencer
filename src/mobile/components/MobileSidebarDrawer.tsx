@@ -35,7 +35,8 @@ function DrawerNavItem({
   badge,
   onClose,
   end = true,
-}: NavItemDefinition & { badge?: number; onClose: () => void }) {
+  indent = false,
+}: NavItemDefinition & { badge?: number; onClose: () => void; indent?: boolean }) {
   return (
     <NavLink
       to={to}
@@ -44,6 +45,7 @@ function DrawerNavItem({
       className={({ isActive }) =>
         cn(
           'relative flex min-h-11 items-center gap-3 rounded-[var(--radius-card-mobile)] px-3 transition-colors',
+          indent && 'ml-4',
           isActive
             ? 'relative bg-[var(--bg-hover)] text-[var(--text-primary)] before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-0.5 before:rounded-full before:bg-[var(--brand-accent)]'
             : 'text-[var(--text-secondary)] active:bg-[var(--bg-hover)]'
@@ -54,7 +56,8 @@ function DrawerNavItem({
         <>
           <Icon
             className={cn(
-              'h-5 w-5 shrink-0 stroke-[1.75]',
+              'shrink-0 stroke-[1.75]',
+              indent ? 'h-4 w-4' : 'h-5 w-5',
               isActive ? 'text-[var(--brand-accent)]' : 'text-[var(--text-tertiary)]'
             )}
           />
@@ -138,12 +141,24 @@ export function MobileSidebarDrawer({ onClose }: MobileSidebarDrawerProps) {
               ) : null}
               <div className="space-y-0.5">
                 {visibleItems.map(item => (
-                  <DrawerNavItem
-                    key={item.to}
-                    {...item}
-                    badge={resolveNavBadge(item, navCounts, state.bibliotecaItems.length)}
-                    onClose={onClose}
-                  />
+                  <div key={item.to} className="space-y-0.5">
+                    <DrawerNavItem
+                      {...item}
+                      badge={resolveNavBadge(item, navCounts, state.bibliotecaItems.length)}
+                      onClose={onClose}
+                    />
+                    {item.nested
+                      ?.filter(child => !isNavItemHidden(child, moduleFlags))
+                      .map(child => (
+                        <DrawerNavItem
+                          key={child.to}
+                          {...child}
+                          indent
+                          badge={resolveNavBadge(child, navCounts, state.bibliotecaItems.length)}
+                          onClose={onClose}
+                        />
+                      ))}
+                  </div>
                 ))}
               </div>
             </div>

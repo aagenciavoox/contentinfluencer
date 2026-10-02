@@ -51,7 +51,7 @@ export function RecordingSelectionBar({
   if (selectedCount === 0) {
     return (
       <div className="pointer-events-none fixed inset-x-0 bottom-6 z-40 px-4 md:px-8">
-        <div className="pointer-events-auto mx-auto flex max-w-3xl items-center justify-between gap-3 rounded-[var(--radius-md)] border border-[var(--border-color)] bg-[var(--bg-primary)] px-4 py-3 shadow-[0_20px_60px_rgba(0,0,0,0.12)]">
+        <div className="pointer-events-auto mx-auto flex max-w-3xl items-center justify-between gap-3 rounded-[var(--radius-md)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-4 py-3 shadow-[var(--shadow-dropdown)]">
           <p className="text-sm font-medium text-[var(--text-secondary)]">
             Selecione roteiros na grade para criar o bloco.
           </p>
@@ -71,7 +71,7 @@ export function RecordingSelectionBar({
     <div className="pointer-events-none fixed inset-x-0 bottom-6 z-40 px-4 md:px-8">
       <div className="pointer-events-auto mx-auto max-w-3xl">
         {showBlockForm ? (
-          <div className="stack-md rounded-[var(--radius-md)] border border-[var(--border-color)] bg-[var(--bg-primary)] p-4 shadow-[0_20px_60px_rgba(0,0,0,0.12)]">
+          <div className="stack-md rounded-[var(--radius-md)] border border-[var(--border-color)] bg-[var(--bg-elevated)] p-4 shadow-[var(--shadow-dropdown)]">
 
             <div className="flex items-center justify-between gap-3">
               <p className="text-sm font-semibold text-[var(--text-primary)]">
@@ -97,7 +97,7 @@ export function RecordingSelectionBar({
                     className={cn(
                       'rounded-lg px-4 py-1.5 text-xs font-semibold transition-all',
                       blockMode === mode
-                        ? 'bg-[var(--bg-primary)] text-[var(--text-primary)] shadow-sm'
+                        ? 'bg-[var(--bg-elevated)] text-[var(--text-primary)]'
                         : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
                     )}
                   >
@@ -196,7 +196,7 @@ export function RecordingSelectionBar({
             )}
           </div>
         ) : (
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-md)] border border-[var(--border-color)] bg-[var(--bg-primary)] px-4 py-3 shadow-[0_20px_60px_rgba(0,0,0,0.12)]">
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-md)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-4 py-3 shadow-[var(--shadow-dropdown)]">
             <p className="text-sm font-semibold text-[var(--text-primary)]">
               {selectedCount} {selectedCount === 1 ? 'roteiro selecionado' : 'roteiros selecionados'}
             </p>

@@ -21,16 +21,23 @@ export function getRouteDataDomains(pathname: string): AppDataDomain[] {
   if (pathname.startsWith('/gravacao')) return ['content', 'production', 'recording'];
   if (pathname.startsWith('/configuracoes/pilares/')) return ['production', 'content', 'bootstrap'];
   if (pathname.startsWith('/configuracoes/pilares')) return ['production'];
-  if (pathname.startsWith('/configuracoes/series/')) return ['production', 'content', 'bootstrap'];
+  if (pathname.startsWith('/configuracoes/series/')) return ['production', 'content', 'bootstrap', 'templates'];
   if (pathname.startsWith('/configuracoes/series')) return ['production'];
-  if (pathname.startsWith('/configuracoes/templates')) return ['templates', 'production'];
-  if (pathname.startsWith('/configuracoes/plataformas')) return ['bootstrap'];
+  if (pathname.startsWith('/configuracoes/plataformas') || pathname.startsWith('/configuracoes/horarios')) {
+    return ['bootstrap', 'schedule'];
+  }
   return [];
 }
 
-/** Remount key for route outlet — pathname only (preserves query-only navigations). */
+const DETAIL_PATH = /^\/(?:conteudos|projetos|gravacao|configuracoes\/(?:pilares|series))\/.+|^\/biblioteca\/(?!analise$)[^/]+$/;
+
+/**
+ * List screens share one outlet key so moving between them does not remount
+ * Suspense and flash the loading fallback. Detail URLs stay unique so the
+ * editor resets when the id changes. Query strings are ignored.
+ */
 export function getRouteOutletKey(pathname: string): string {
-  return pathname;
+  return DETAIL_PATH.test(pathname) ? pathname : 'section';
 }
 
 /** True when a navigation to a different pathname is in flight. */

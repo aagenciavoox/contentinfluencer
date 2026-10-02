@@ -1,12 +1,21 @@
-import type {Content, Pilar, Platform, Serie} from '../lib/database.ts';
+import type {Content, Pilar, Platform, PostingTimeEntry, Serie} from '../lib/database.ts';
 import {
+  getCrossedPostingTimesForPilarPlatform,
+  hasPilarPlatformSchedule,
   isTimeWithinWindow,
   isWeekdayAllowed,
   resolvePlatformUuid,
+  type PilarPlatformSchedule,
 } from '../features/settings/lib/pilarPostingSchedule.ts';
-import type {Weekday} from '../features/settings/lib/postingTimes.ts';
+import {
+  getTimesForDay,
+  getTimesForDayFromEntries,
+  WEEKDAY_SHORT,
+  type PostingTimesSettings,
+  type Weekday,
+} from '../features/settings/lib/postingTimes.ts';
 import {isScriptWritten} from '../features/recommendations/contentStock.ts';
-import {addDays, getDay, isWithinInterval, parseISO, startOfDay, startOfWeek} from 'date-fns';
+import {addDays, format, getDay, isWithinInterval, parseISO, startOfDay, startOfWeek} from 'date-fns';
 
 export interface Violation {
   ruleId: string;
@@ -336,6 +345,24 @@ export function prioritizeViolations(violations: Violation[]): Violation[] {
   });
 }
 
+export type DayRhythmTone = 'over' | 'open';
+
+/** Paint a calendar day from the week's rhythm: over target, or empty while the week is still short. */
+export function dayRhythmTone(dayContentIds: string[], violations: Violation[]): DayRhythmTone | null {
+  const overIds = new Set<string>();
+  let weekIsShort = false;
+  for (const violation of violations) {
+    if (violation.type === 'warning') {
+      for (const id of violation.affectedContentIds) overIds.add(id);
+    } else if (violation.type === 'deficit') {
+      weekIsShort = true;
+    }
+  }
+  if (dayContentIds.some(id => overIds.has(id))) return 'over';
+  if (weekIsShort && dayContentIds.length === 0) return 'open';
+  return null;
+}
+
 export function summarizeViolations(violations: Violation[], topN = 3): {
   top: Violation[];
   rest: Violation[];
@@ -345,6 +372,395 @@ export function summarizeViolations(violations: Violation[], topN = 3): {
     top: sorted.slice(0, topN),
     rest: sorted.slice(topN),
   };
+}
+
+export interface RhythmProgress {
+  key: string;
+  label: string;
+  count: number;
+  target: number;
+  tone: 'deficit' | 'over';
+}
+
+export interface RhythmNote {
+  key: string;
+  label: string;
+  tone: Violation['type'];
+}
+
+const FREQUENCY_UNDER = /^(.+?): (\d+)\/(\d+) posts/;
+const FREQUENCY_OVER = /^(.+?): (\d+) posts esta semana, acima da frequência de (\d+)/;
+const SERIE_ZERO = /^(.+?): 0 posts .+\(meta /;
+const NEEDS_SCRIPTS = /^(.+?): faltam \d+ posts? .+ precisa de mais (\d+) roteiro/;
+
+function noteBucket(message: string): {key: string; label: string} | null {
+  if (message.includes('dia fora')) return {key: 'day', label: 'Dia fora do pilar'};
+  if (message.includes('horário fora')) return {key: 'time', label: 'Horário fora da janela'};
+  if (message.includes('hashtags')) return {key: 'tags', label: 'Hashtags acima do padrão'};
+  return null;
+}
+
+/** Compact bars ("Identidade 0/6") plus short notes, instead of full violation sentences. */
+export function summarizeRhythmProgress(violations: Violation[]): {
+  progress: RhythmProgress[];
+  notes: RhythmNote[];
+} {
+  const progress: RhythmProgress[] = [];
+  const notes: RhythmNote[] = [];
+  const buckets = new Map<string, {label: string; tone: Violation['type']; count: number}>();
+  let scriptGaps = 0;
+
+  for (const violation of prioritizeViolations(violations)) {
+    const under = violation.message.match(FREQUENCY_UNDER);
+    if (under) {
+      progress.push({
+        key: violation.ruleId,
+        label: under[1],
+        count: Number(under[2]),
+        target: Number(under[3]),
+        tone: 'deficit',
+      });
+      continue;
+    }
+
+    const over = violation.message.match(FREQUENCY_OVER);
+    if (over) {
+      progress.push({
+        key: violation.ruleId,
+        label: over[1],
+        count: Number(over[2]),
+        target: Number(over[3]),
+        tone: 'over',
+      });
+      continue;
+    }
+
+    const serie = violation.message.match(SERIE_ZERO);
+    if (serie) {
+      progress.push({
+        key: violation.ruleId,
+        label: serie[1],
+        count: 0,
+        target: 1,
+        tone: 'deficit',
+      });
+      continue;
+    }
+
+    if (NEEDS_SCRIPTS.test(violation.message)) {
+      scriptGaps += 1;
+      continue;
+    }
+
+    const bucket = noteBucket(violation.message);
+    if (bucket) {
+      const current = buckets.get(bucket.key) ?? {label: bucket.label, tone: violation.type, count: 0};
+      current.count += 1;
+      buckets.set(bucket.key, current);
+      continue;
+    }
+
+    const headline = violation.message.split('—')[0]?.trim() || violation.message;
+    notes.push({
+      key: violation.ruleId,
+      label: headline.length > 72 ? `${headline.slice(0, 69)}…` : headline,
+      tone: violation.type,
+    });
+  }
+
+  if (scriptGaps > 0) {
+    notes.push({
+      key: 'scripts',
+      label: scriptGaps === 1 ? 'Falta roteiro em 1 frente' : `Faltam roteiros em ${scriptGaps} frentes`,
+      tone: 'deficit',
+    });
+  }
+
+  buckets.forEach((value, key) => {
+    notes.push({
+      key,
+      label: value.count > 1 ? `${value.label} · ${value.count}` : value.label,
+      tone: value.tone,
+    });
+  });
+
+  return {progress, notes};
+}
+
+export type RhythmQuotaTone = 'met' | 'deficit' | 'over';
+
+export interface RhythmSlotSuggestion {
+  platformId: string | null;
+  platformName: string | null;
+  dayKey: string;
+  weekday: Weekday;
+  time: string;
+}
+
+export interface WeekRhythmQuota {
+  key: string;
+  kind: 'pilar' | 'serie';
+  id: string;
+  label: string;
+  color: string | null;
+  count: number;
+  target: number;
+  tone: RhythmQuotaTone;
+  /** Presente em série quinzenal ou mensal. */
+  windowTag: '14d' | '28d' | null;
+  suggestions: RhythmSlotSuggestion[];
+}
+
+export interface WeekRhythmInput {
+  contents: Content[];
+  weekStart: Date;
+  pilares: Pilar[];
+  series: Serie[];
+  platforms: Platform[];
+  postingTimeEntries: PostingTimeEntry[];
+  /** Horários globais antigos, usados quando ainda não há horário por plataforma. */
+  fallbackTimes?: PostingTimesSettings;
+}
+
+function quotaTone(count: number, target: number): RhythmQuotaTone {
+  if (count > target) return 'over';
+  if (count < target) return 'deficit';
+  return 'met';
+}
+
+function toneRank(tone: RhythmQuotaTone): number {
+  if (tone === 'deficit') return 0;
+  if (tone === 'over') return 1;
+  return 2;
+}
+
+function compareQuotas(left: WeekRhythmQuota, right: WeekRhythmQuota): number {
+  const rankDiff = toneRank(left.tone) - toneRank(right.tone);
+  if (rankDiff !== 0) return rankDiff;
+  return left.label.localeCompare(right.label, 'pt-BR');
+}
+
+function clockTime(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const match = /^(\d{2}):(\d{2})/.exec(value);
+  return match ? `${match[1]}:${match[2]}` : null;
+}
+
+function collectUsedTimes(contents: Content[], weekStart: Date): Map<string, Set<string>> {
+  const interval = getWeekInterval(weekStart);
+  const used = new Map<string, Set<string>>();
+
+  const add = (rawDate: string | null | undefined, rawTime: string | null | undefined) => {
+    const time = clockTime(rawTime);
+    if (!rawDate || !time) return;
+    const dayKey = rawDate.slice(0, 10);
+    let day: Date;
+    try {
+      day = parseISO(dayKey);
+    } catch {
+      return;
+    }
+    if (!isWithinInterval(day, interval)) return;
+    const set = used.get(dayKey) ?? new Set<string>();
+    set.add(time);
+    used.set(dayKey, set);
+  };
+
+  for (const content of contents) {
+    if (content.deletedAt) continue;
+    if (content.plataformas.length > 0) {
+      for (const plataforma of content.plataformas) {
+        add(plataforma.publishDate || content.publishDate, plataforma.publishTime || content.publishTime);
+      }
+      continue;
+    }
+    add(content.publishDate, content.publishTime);
+  }
+
+  return used;
+}
+
+function findPlatform(platforms: Platform[], platformRef: string): Platform | null {
+  return platforms.find(platform => platform.ativo && (platform.id === platformRef || platform.nome === platformRef)) ?? null;
+}
+
+interface SlotSource {
+  platform: Platform;
+  schedule: PilarPlatformSchedule | null;
+}
+
+function timesForSource(
+  source: SlotSource,
+  entries: PostingTimeEntry[],
+  weekday: Weekday,
+  fallback: PostingTimesSettings | undefined,
+): string[] {
+  if (entries.length > 0) {
+    if (source.schedule && hasPilarPlatformSchedule(source.schedule)) {
+      return getCrossedPostingTimesForPilarPlatform(source.schedule, entries, source.platform.id, weekday);
+    }
+    return getTimesForDayFromEntries(entries, source.platform.id, weekday);
+  }
+
+  const globalTimes = fallback ? getTimesForDay(fallback, weekday) : [];
+  if (!source.schedule || !hasPilarPlatformSchedule(source.schedule)) return globalTimes;
+  if (!isWeekdayAllowed(weekday, source.schedule.melhoresDias)) return [];
+  return globalTimes.filter(time =>
+    isTimeWithinWindow(time, source.schedule?.janelaHorarioInicio ?? null, source.schedule?.janelaHorarioFim ?? null),
+  );
+}
+
+function collectSlots(
+  sources: SlotSource[],
+  entries: PostingTimeEntry[],
+  weekStart: Date,
+  used: Map<string, Set<string>>,
+  fallback: PostingTimesSettings | undefined,
+): RhythmSlotSuggestion[] {
+  const slots: RhythmSlotSuggestion[] = [];
+  for (let offset = 0; offset < 7; offset += 1) {
+    const day = addDays(startOfDay(weekStart), offset);
+    const weekday = getDay(day) as Weekday;
+    const dayKey = format(day, 'yyyy-MM-dd');
+    const taken = used.get(dayKey) ?? new Set<string>();
+    for (const source of sources) {
+      for (const time of timesForSource(source, entries, weekday, fallback)) {
+        if (taken.has(time)) continue;
+        slots.push({
+          platformId: source.platform.id,
+          platformName: source.platform.nome,
+          dayKey,
+          weekday,
+          time,
+        });
+      }
+    }
+  }
+  slots.sort(
+    (left, right) =>
+      left.dayKey.localeCompare(right.dayKey) ||
+      left.time.localeCompare(right.time) ||
+      (left.platformName ?? '').localeCompare(right.platformName ?? '', 'pt-BR'),
+  );
+  const seen = new Set<string>();
+  return slots.filter(slot => {
+    const key = `${slot.dayKey}|${slot.time}|${slot.platformId}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function pilarSources(pilar: Pilar, platforms: Platform[]): SlotSource[] {
+  return pilar.plataformas.flatMap(config => {
+    const platform = findPlatform(platforms, config.platformId);
+    if (!platform) return [];
+    return [{platform, schedule: config}];
+  });
+}
+
+function serieSources(serie: Serie, pilares: Pilar[], platforms: Platform[]): SlotSource[] {
+  const linked = pilares.filter(pilar => pilar.ativo && serie.pilarIds.includes(pilar.id));
+  if (linked.length > 0) {
+    return linked.flatMap(pilar => pilarSources(pilar, platforms));
+  }
+  return serie.plataformas.flatMap(config => {
+    const platform = findPlatform(platforms, config.platformId);
+    if (!platform) return [];
+    return [{platform, schedule: null}];
+  });
+}
+
+const PLATFORM_TAGS: Record<string, string> = {
+  instagram: 'IG',
+  tiktok: 'TT',
+  youtube: 'YT',
+  facebook: 'FB',
+  linkedin: 'LI',
+  twitter: 'TW',
+  threads: 'TH',
+  pinterest: 'PI',
+};
+
+function platformTag(name: string): string {
+  const parts = name.split(/\s+/).filter(Boolean);
+  const known = PLATFORM_TAGS[parts.join(' ').toLowerCase()];
+  if (known) return known;
+  if (parts.length >= 2) {
+    return parts.slice(0, 2).map(part => part.charAt(0).toUpperCase()).join('');
+  }
+  return (parts[0] ?? '').slice(0, 2).toUpperCase();
+}
+
+export function formatRhythmSlot(slot: RhythmSlotSuggestion): string {
+  const day = WEEKDAY_SHORT[slot.weekday].toLowerCase();
+  const tag = slot.platformName ? platformTag(slot.platformName) : '';
+  return tag ? `${tag} ${day} ${slot.time}` : `${day} ${slot.time}`;
+}
+
+function pilarQuotas(input: WeekRhythmInput, used: Map<string, Set<string>>): WeekRhythmQuota[] {
+  const weekContents = publishedThisWeek(input.contents, input.weekStart);
+  return input.pilares
+    .filter(pilar => pilar.ativo && pilar.frequenciaSemanal != null)
+    .map(pilar => {
+      const target = pilar.frequenciaSemanal!;
+      const count = weekContents.filter(content => content.pilarId === pilar.id).length;
+      const tone = quotaTone(count, target);
+      return {
+        key: `pilar-${pilar.id}`,
+        kind: 'pilar' as const,
+        id: pilar.id,
+        label: pilar.nome,
+        color: pilar.cor,
+        count,
+        target,
+        tone,
+        windowTag: null,
+        suggestions:
+          tone === 'deficit'
+            ? collectSlots(pilarSources(pilar, input.platforms), input.postingTimeEntries, input.weekStart, used, input.fallbackTimes).slice(0, 2)
+            : [],
+      };
+    });
+}
+
+function serieQuotas(input: WeekRhythmInput, used: Map<string, Set<string>>): WeekRhythmQuota[] {
+  const quotas: WeekRhythmQuota[] = [];
+  for (const serie of input.series) {
+    if (!serie.ativa) continue;
+    const dayCount = serieWindowDays(serie.frequenciaRecomendada);
+    if (dayCount == null) continue;
+    const interval = dayCount === 7 ? getWeekInterval(input.weekStart) : getRollingIntervalEndingAtWeek(input.weekStart, dayCount);
+    const count = contentsInInterval(input.contents, interval).filter(content => content.seriesId === serie.id).length;
+    const target = 1;
+    const tone = quotaTone(count, target);
+    if (dayCount !== 7 && tone !== 'deficit') continue;
+    const linked = input.pilares.find(pilar => pilar.ativo && serie.pilarIds.includes(pilar.id));
+    quotas.push({
+      key: `serie-${serie.id}`,
+      kind: 'serie',
+      id: serie.id,
+      label: serie.name,
+      color: serie.cor || linked?.cor || null,
+      count,
+      target,
+      tone,
+      windowTag: dayCount === 14 ? '14d' : dayCount === 28 ? '28d' : null,
+      suggestions:
+        tone === 'deficit'
+          ? collectSlots(serieSources(serie, input.pilares, input.platforms), input.postingTimeEntries, input.weekStart, used, input.fallbackTimes).slice(0, 2)
+          : [],
+    });
+  }
+  return quotas;
+}
+
+/** Cotas da semana para a faixa de ritmo, incluindo metas já cumpridas. */
+export function buildWeekRhythmQuotas(input: WeekRhythmInput): WeekRhythmQuota[] {
+  const used = collectUsedTimes(input.contents, input.weekStart);
+  const pillars = pilarQuotas(input, used).sort(compareQuotas);
+  const series = serieQuotas(input, used).sort(compareQuotas);
+  return [...pillars, ...series];
 }
 
 function violationKey(violation: Violation): string {

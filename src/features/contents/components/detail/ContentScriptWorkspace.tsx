@@ -1,4 +1,4 @@
-import {useState} from 'react';
+import {useState, type ReactNode} from 'react';
 import {ChevronDown} from 'lucide-react';
 import {RichTextEditor} from '../../../../components/editors/RichTextEditor';
 import {AppButton} from '../../../../components/ui/AppButton';
@@ -28,6 +28,8 @@ interface ContentScriptWorkspaceProps {
   bodyLoading?: boolean;
   bodyError?: string | null;
   onRetryBody?: () => void;
+  headerAction?: React.ReactNode;
+  className?: string;
   onAddAnnotation?: (text: string, selection: {from: number; to: number}, comment: string) => void;
   onRemoveAnnotation?: (id: string) => void;
   onUpdateAnnotation?: (id: string, comment: string, color?: string) => void;
@@ -48,6 +50,8 @@ export function ContentScriptWorkspace({
   bodyLoading = false,
   bodyError = null,
   onRetryBody,
+  headerAction,
+  className,
   onAddAnnotation,
   onRemoveAnnotation,
   onUpdateAnnotation,
@@ -64,11 +68,12 @@ export function ContentScriptWorkspace({
   };
 
   return (
-    <section className="cms-panel flex flex-col">
-      <div className="border-b border-[var(--border-color)] px-4 py-3 md:px-6">
+    <section className={cn('cms-panel flex max-h-[calc(100dvh-10.5rem)] min-h-[28rem] flex-col overflow-hidden', className)}>
+      <div className="flex shrink-0 items-center justify-between gap-3 border-b border-[var(--border-color)] px-4 py-3 md:px-6">
         <Text variant="sectionTitle">Roteiro</Text>
+        {headerAction}
       </div>
-      <div>
+      <div className="flex min-h-0 flex-1 flex-col">
         {bodyLoading ? (
           <div className="stack-sm p-4 md:p-6" aria-busy="true" aria-label="Carregando roteiro">
             <Skeleton className="h-4 w-full" />
@@ -114,7 +119,7 @@ export function ContentScriptWorkspace({
                 />
               ) : null
             }
-            className="border-0 bg-[var(--bg-elevated)] shadow-none"
+            className="h-full min-h-0 border-0 bg-[var(--bg-elevated)] shadow-none"
           />
         )}
       </div>

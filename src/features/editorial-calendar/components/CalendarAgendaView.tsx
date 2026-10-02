@@ -16,6 +16,7 @@ import {
 import { ptBR } from 'date-fns/locale';
 import { Video, Send, Star, Calendar as CalendarIcon, ChevronRight, Zap } from 'lucide-react';
 import { cn, getEventDates } from '../../../lib/utils';
+import { Dialog } from '../../../components/overlays/Dialog';
 import { Surface } from '../../../components/ui/Surface';
 import { Text } from '../../../components/ui/Text';
 import { Content, Projeto, AgendaItem } from '../../../lib/database';
@@ -213,12 +214,14 @@ export function CalendarAgendaView({
         <div className="inline-block w-6 h-6 border-2 border-[var(--border-color)] border-t-[var(--accent-blue)] rounded-full animate-spin" />
       </div>
 
-      {/* Popover de eventos do dia (Mobile) */}
-      {selectedDayItems && (
-        <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-[var(--backdrop-strong)] "
-             onClick={() => setSelectedDayItems(null)}>
-          <div className="bg-[var(--bg-primary)] w-full sm:max-w-md rounded-t-[var(--radius-overlay)] sm:rounded-[var(--radius-card-mobile)] p-6 shadow-none animate-in slide-in-from-bottom flex flex-col max-h-[80vh]"
-               onClick={e => e.stopPropagation()}>
+      <Dialog
+        open={Boolean(selectedDayItems)}
+        onClose={() => setSelectedDayItems(null)}
+        desktopMaxW="max-w-md"
+        ariaLabel="Eventos do dia"
+      >
+        {selectedDayItems ? (
+          <div className="flex min-h-0 max-h-[80vh] flex-1 flex-col bg-[var(--bg-primary)] p-6">
             <div className="flex justify-between items-center mb-6 px-2">
               <div>
                 <Text variant="itemTitle">{format(selectedDayItems.date, "dd 'de' MMMM", { locale: ptBR })}</Text>
@@ -257,8 +260,8 @@ export function CalendarAgendaView({
               ))}
             </div>
           </div>
-        </div>
-      )}
+        ) : null}
+      </Dialog>
     </div>
   );
 }

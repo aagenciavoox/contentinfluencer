@@ -5,6 +5,7 @@ import { Text } from '../../../components/ui/Text';
 import { cn } from '../../../lib/utils';
 import { filterContentsByCreationTab, type CreationTab } from '../../contents/lib/creationContent';
 import { CreationCategoryLabel } from './CreationCategoryLabel';
+import { CreationEntityMarks, creationEntityHint } from './CreationEntityMarks';
 import { CreationItemMenu } from './CreationItemMenu';
 import {
   buildCreationItemMenuItems,
@@ -15,14 +16,10 @@ import {
   getCreationCardFooterMeta,
   getCreationCardTags,
   getCreationNoteExcerpt,
-  getCreationStageLabel,
-  getCreationStageTone,
   getCreationTitle,
   isCreationKanbanTab,
   type CreationKanbanTab,
 } from '../lib/creationItemPresentation';
-import { CreationStageChip } from './CreationStageChip';
-
 const DRAG_MIME = 'application/x-creation-id';
 
 export interface CreationKanbanItemModel {
@@ -65,12 +62,12 @@ function CreationKanbanCard({
   actions: CreationItemActionHandlers;
 }) {
   const title = getCreationTitle(content);
-  const tags = getCreationCardTags(content, pillar, series);
+  const tags = getCreationCardTags(content);
   const excerpt = getCreationNoteExcerpt(content);
-  const stageLabel = getCreationStageLabel(content);
-  const stageTone = getCreationStageTone(content);
   const footerMeta = getCreationCardFooterMeta(content);
   const canOpen = !content.deletedAt && !selectionMode;
+  const entityHint = creationEntityHint(pillar, series, content.pilarId, content.seriesId);
+  const hasMarks = entityHint.length > 0;
   const menuItems = buildCreationItemMenuItems(content, actions, {
     includeMoveActions: draggable,
   });
@@ -92,7 +89,7 @@ function CreationKanbanCard({
       }}
       role={canOpen ? 'button' : undefined}
       tabIndex={canOpen ? 0 : undefined}
-      aria-label={canOpen ? `Abrir ${title}` : title}
+      aria-label={[canOpen ? `Abrir ${title}` : title, entityHint].filter(Boolean).join(', ')}
       className={cn(
         'creation-hub-card group relative flex flex-col rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-elevated)] shadow-none',
         'transition-[border-color,box-shadow,opacity] duration-200',
@@ -104,18 +101,25 @@ function CreationKanbanCard({
         isPersisting && 'opacity-70',
       )}
     >
-      <div className="creation-hub-card__header flex min-h-5 items-center justify-between gap-2">
-        <CreationStageChip label={stageLabel} toneStatus={stageTone} />
+      <div className="relative">
         <span
-          className="pointer-events-auto shrink-0"
+          className="absolute top-0 right-0 z-[2]"
           onClick={event => event.stopPropagation()}
           onKeyDown={event => event.stopPropagation()}
         >
           <CreationItemMenu items={menuItems} label={`Ações de ${title}`} />
         </span>
-      </div>
-
-      <div className="card-body">
+        {hasMarks ? (
+          <div className="creation-hub-card__header flex min-h-8 items-center pr-9">
+            <CreationEntityMarks
+              pillar={pillar}
+              series={series}
+              pillarId={content.pilarId}
+              seriesId={content.seriesId}
+            />
+          </div>
+        ) : null}
+        <div className={cn('card-body', !hasMarks && 'pr-9')}>
         <Text variant="itemTitle" className="creation-hub-card__title line-clamp-2">
           {title}
         </Text>
@@ -143,6 +147,7 @@ function CreationKanbanCard({
           ) : null}
         </div>
       ) : null}
+      </div>
     </article>
   );
 }

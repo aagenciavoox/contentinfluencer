@@ -6,28 +6,28 @@ import { LoginRoute, RequireAuth } from './RequireAuth';
 import { ModuleRoute } from './ModuleRoute';
 import { RouteDataBoundary } from './RouteDataBoundary';
 import { LegacyCreationRedirect } from '../../features/creation/components/LegacyCreationRedirect';
+import { routeLoaders } from './routePrefetch';
 
-const Creation = lazy(() => import('../../pages/Creation').then(module => ({ default: module.Creation })));
-const ContentDetail = lazy(() => import('../../pages/ContentDetail').then(module => ({ default: module.ContentDetail })));
-const EditorialCalendar = lazy(() => import('../../pages/EditorialCalendar').then(module => ({ default: module.EditorialCalendar })));
-const Biblioteca = lazy(() => import('../../pages/Biblioteca').then(module => ({ default: module.Biblioteca })));
-const Analise = lazy(() => import('../../pages/Analise').then(module => ({ default: module.Analise })));
-const BookDetail = lazy(() => import('../../pages/BookDetail').then(module => ({ default: module.BookDetail })));
-const Settings = lazy(() => import('../../pages/Settings').then(module => ({ default: module.Settings })));
-const PerfilSettings = lazy(() => import('../../pages/settings/Perfil').then(module => ({ default: module.PerfilSettings })));
-const PilaresSettings = lazy(() => import('../../pages/settings/Pilares').then(module => ({ default: module.PilaresSettings })));
-const PilarEditar = lazy(() => import('../../pages/settings/PilarEditar').then(module => ({ default: module.PilarEditar })));
-const SeriesSettings = lazy(() => import('../../pages/settings/Series').then(module => ({ default: module.SeriesSettings })));
-const SeriesEditar = lazy(() => import('../../pages/settings/SeriesEditar').then(module => ({ default: module.SeriesEditar })));
-const SeriesRoteiros = lazy(() => import('../../pages/settings/SeriesRoteiros').then(module => ({ default: module.SeriesRoteiros })));
-const PlataformasSettings = lazy(() => import('../../pages/settings/Plataformas').then(module => ({ default: module.PlataformasSettings })));
-const TemplatesSettings = lazy(() => import('../../pages/settings/Templates').then(module => ({ default: module.TemplatesSettings })));
-const PostingTimesSettings = lazy(() => import('../../pages/settings/PostingTimes').then(module => ({ default: module.PostingTimesSettings })));
-const Projetos = lazy(() => import('../../pages/Projetos').then(module => ({ default: module.Projetos })));
-const ProjetoDetalhe = lazy(() => import('../../pages/ProjetoDetalhe').then(module => ({ default: module.ProjetoDetalhe })));
-const Gravacao = lazy(() => import('../../pages/Gravacao').then(module => ({ default: module.Gravacao })));
-const GravacaoBloco = lazy(() => import('../../pages/GravacaoBloco').then(module => ({ default: module.GravacaoBloco })));
-const Dashboard = lazy(() => import('../../pages/Dashboard').then(module => ({ default: module.Dashboard })));
+const Creation = lazy(() => routeLoaders.creation().then(module => ({ default: module.Creation })));
+const Legendas = lazy(() => routeLoaders.captions().then(module => ({ default: module.Legendas })));
+const ContentDetail = lazy(() => routeLoaders.contentDetail().then(module => ({ default: module.ContentDetail })));
+const EditorialCalendar = lazy(() => routeLoaders.calendar().then(module => ({ default: module.EditorialCalendar })));
+const Biblioteca = lazy(() => routeLoaders.library().then(module => ({ default: module.Biblioteca })));
+const Analise = lazy(() => routeLoaders.libraryAnalysis().then(module => ({ default: module.Analise })));
+const BookDetail = lazy(() => routeLoaders.bookDetail().then(module => ({ default: module.BookDetail })));
+const Settings = lazy(() => routeLoaders.settings().then(module => ({ default: module.Settings })));
+const PerfilSettings = lazy(() => routeLoaders.profile().then(module => ({ default: module.PerfilSettings })));
+const PilaresSettings = lazy(() => routeLoaders.pillars().then(module => ({ default: module.PilaresSettings })));
+const PilarEditar = lazy(() => routeLoaders.pillarEdit().then(module => ({ default: module.PilarEditar })));
+const SeriesSettings = lazy(() => routeLoaders.series().then(module => ({ default: module.SeriesSettings })));
+const SeriesEditar = lazy(() => routeLoaders.seriesEdit().then(module => ({ default: module.SeriesEditar })));
+const SeriesRoteiros = lazy(() => routeLoaders.seriesScripts().then(module => ({ default: module.SeriesRoteiros })));
+const PlataformasSettings = lazy(() => routeLoaders.platforms().then(module => ({ default: module.PlataformasSettings })));
+const Projetos = lazy(() => routeLoaders.projects().then(module => ({ default: module.Projetos })));
+const ProjetoDetalhe = lazy(() => routeLoaders.projectDetail().then(module => ({ default: module.ProjetoDetalhe })));
+const Gravacao = lazy(() => routeLoaders.recording().then(module => ({ default: module.Gravacao })));
+const GravacaoBloco = lazy(() => routeLoaders.recordingBlock().then(module => ({ default: module.GravacaoBloco })));
+const Dashboard = lazy(() => routeLoaders.dashboard().then(module => ({ default: module.Dashboard })));
 
 export function buildAppRoutes(): RouteObject[] {
   return [
@@ -52,6 +52,7 @@ export function buildAppRoutes(): RouteObject[] {
                 { path: '/dashboard', element: <Navigate to="/criacao" replace /> },
                 { path: '/hoje', element: <Dashboard /> },
                 { path: '/criacao', element: <Creation /> },
+                { path: '/criacao/legendas', element: <Legendas /> },
                 { path: '/conteudos', element: <LegacyCreationRedirect source="contents" /> },
                 { path: '/conteudos/historico', element: <LegacyCreationRedirect source="contents" /> },
                 { path: '/conteudos/publicados', element: <LegacyCreationRedirect source="contents" /> },
@@ -138,8 +139,8 @@ export function buildAppRoutes(): RouteObject[] {
                 { path: '/configuracoes/series/:serieId/editar', element: <SeriesEditar /> },
                 { path: '/configuracoes/series/:serieId/roteiros', element: <SeriesRoteiros /> },
                 { path: '/configuracoes/plataformas', element: <PlataformasSettings /> },
-                { path: '/configuracoes/templates', element: <TemplatesSettings /> },
-                { path: '/configuracoes/horarios', element: <PostingTimesSettings /> },
+                { path: '/configuracoes/templates', element: <Navigate to="/configuracoes/series" replace /> },
+                { path: '/configuracoes/horarios', element: <Navigate to="/configuracoes/plataformas" replace /> },
                 { path: '/contents', element: <LegacyCreationRedirect source="contents" /> },
                 { path: '/ideas', element: <LegacyCreationRedirect source="ideas" /> },
                 { path: '/editorial', element: <Navigate to="/calendario" replace /> },

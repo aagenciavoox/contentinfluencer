@@ -34,6 +34,8 @@ interface CalendarMonthGridProps {
   onDayDragLeave?: (props: CalendarMonthGridDayProps) => void;
   onDayDrop?: (props: CalendarMonthGridDayProps, event: React.DragEvent) => void;
   headerWeekDate?: Date;
+  weekAsideLabel?: string;
+  renderWeekAside?: (weekStart: Date) => ReactNode;
 }
 
 export function CalendarMonthGrid({
@@ -50,6 +52,8 @@ export function CalendarMonthGrid({
   onDayDragLeave,
   onDayDrop,
   headerWeekDate,
+  weekAsideLabel,
+  renderWeekAside,
 }: CalendarMonthGridProps) {
   const today = new Date();
   const monthStart = startOfMonth(anchorDate);
@@ -69,9 +73,20 @@ export function CalendarMonthGrid({
       })
     : weeks[0];
 
+  const columnClass = renderWeekAside
+    ? 'grid grid-cols-[9.5rem_repeat(7,minmax(0,1fr))]'
+    : 'grid grid-cols-7';
+
   return (
     <div className={cn('w-full min-w-0 border border-[var(--border-color)] bg-[var(--bg-primary)]', className)}>
-      <div className="grid grid-cols-7 border-b border-[var(--border-color)]">
+      <div className={cn(columnClass, 'border-b border-[var(--border-color)]')}>
+        {renderWeekAside ? (
+          <div className="flex min-w-0 items-center border-r border-[var(--border-color)] px-2 py-2">
+            <span className="text-2xs font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">
+              {weekAsideLabel ?? 'Ritmo'}
+            </span>
+          </div>
+        ) : null}
         {headerDays.map(day => (
           <div
             key={`header-${day.toISOString()}`}
@@ -85,7 +100,17 @@ export function CalendarMonthGrid({
       </div>
 
       {weeks.map(week => (
-        <div key={week[0].toISOString()} className="grid grid-cols-7">
+        <div key={week[0].toISOString()} className={columnClass}>
+          {renderWeekAside ? (
+            <div
+              style={{minHeight: minCellHeight}}
+              className="relative min-h-0 border-b border-r border-[var(--border-color)] bg-[var(--bg-elevated)]"
+            >
+              <div className="absolute inset-0 overflow-hidden p-1.5">
+                {renderWeekAside(week[0])}
+              </div>
+            </div>
+          ) : null}
           {week.map(day => {
             const dateKey = format(day, 'yyyy-MM-dd');
             const inMonth = isSameMonth(day, anchorDate);

@@ -12,6 +12,11 @@ interface MobileSegmentTabsProps<T extends string> {
   onChange: (value: T) => void;
   rounded?: 'default' | 'tight';
   className?: string;
+  /**
+   * iOS contenteditable swallows the first click (it only blurs the editor).
+   * Activate on pointerdown so a tab next to the script editor opens immediately.
+   */
+  activateOnPointerDown?: boolean;
 }
 
 export function MobileSegmentTabs<T extends string>({
@@ -20,6 +25,7 @@ export function MobileSegmentTabs<T extends string>({
   onChange,
   rounded = 'default',
   className,
+  activateOnPointerDown = false,
 }: MobileSegmentTabsProps<T>) {
   const isTight = rounded === 'tight';
 
@@ -34,7 +40,24 @@ export function MobileSegmentTabs<T extends string>({
             type="button"
             role="tab"
             aria-selected={active}
-            onClick={() => onChange(tab.value)}
+            onClick={activateOnPointerDown ? undefined : () => onChange(tab.value)}
+            onPointerDown={
+              activateOnPointerDown
+                ? event => {
+                    event.preventDefault();
+                    onChange(tab.value);
+                  }
+                : undefined
+            }
+            onKeyDown={
+              activateOnPointerDown
+                ? event => {
+                    if (event.key !== 'Enter' && event.key !== ' ') return;
+                    event.preventDefault();
+                    onChange(tab.value);
+                  }
+                : undefined
+            }
             className={cn(
               'inline-flex h-9 shrink-0 items-center justify-center gap-1.5 px-3 transition-colors',
               isTight ? 'rounded-[var(--radius-sm)]' : 'rounded-[var(--radius-md)]',

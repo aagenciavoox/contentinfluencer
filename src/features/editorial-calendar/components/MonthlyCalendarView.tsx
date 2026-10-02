@@ -5,6 +5,12 @@ import {
   CalendarMonthGrid,
   editorialPillStyle,
 } from '../../../components/calendar';
+import {getDisplayStatus} from '../../contents/lib/contentPipeline';
+import {
+  ALL_PLATFORMS,
+  ALL_STATUSES,
+  matchesContentFilters,
+} from '../lib/calendarContentFilters';
 
 type MonthlyCalendarViewProps = {
   contents: Content[];
@@ -21,6 +27,8 @@ type MonthlyCalendarViewProps = {
   onSelectDate?: (date: Date) => void;
   onEmptyDayClick?: (date: Date) => void;
   onShowMore?: (date: Date) => void;
+  platformFilter?: string;
+  statusFilter?: string;
 };
 
 export type CalendarEntry = {
@@ -44,7 +52,8 @@ export function buildCalendarEntries(
   projetos: Projeto[],
   activeLayers: string[],
   searchTerm: string,
-  sortValue: string
+  sortValue: string,
+  filters?: {platformFilter?: string; statusFilter?: string},
 ) {
   const map = new Map<string, CalendarEntry[]>();
   const normalizedSearch = searchTerm.trim().toLowerCase();
@@ -64,23 +73,40 @@ export function buildCalendarEntries(
     map.set(key, current);
   };
 
+  const platformFilter = filters?.platformFilter || ALL_PLATFORMS;
+  const statusFilter = filters?.statusFilter || ALL_STATUSES;
+  const contentFilterActive = platformFilter !== ALL_PLATFORMS || statusFilter !== ALL_STATUSES;
+
   if (activeLayers.includes('recordings')) {
     contents.forEach(content => {
+      const status = getDisplayStatus(content);
+      const platformNames = content.plataformas.map(
+        plataforma => platformNameById.get(plataforma.platformId) || plataforma.platformId,
+      );
+      if (!matchesContentFilters({platformNames, status, platformFilter, statusFilter})) return;
       push(content.recordingDate, {
         id: `${content.id}-rec`,
         type: 'recording',
         label: content.title || '(sem titulo)',
         date: '',
         contentId: content.id,
-        secondary: content.status || 'Gravacao',
+        secondary: status || 'Gravacao',
       });
     });
   }
 
   if (activeLayers.includes('posts')) {
     contents.forEach(content => {
+      const status = getDisplayStatus(content);
       if (content.plataformas.length > 0) {
         content.plataformas.forEach(plataforma => {
+          const platformName = platformNameById.get(plataforma.platformId) || plataforma.platformId;
+          if (!matchesContentFilters({
+            platformNames: [platformName],
+            status,
+            platformFilter,
+            statusFilter,
+          })) return;
           push(plataforma.publishDate || content.publishDate, {
             id: `${content.id}-pub-${plataforma.id}`,
             type: 'publish',
@@ -89,12 +115,13 @@ export function buildCalendarEntries(
             time: plataforma.publishTime || content.publishTime,
             contentId: content.id,
             plataformaId: plataforma.id,
-            secondary: `${platformNameById.get(plataforma.platformId) || plataforma.platformId} - ${content.status || 'Publicacao'}`,
+            secondary: `${platformName} - ${status || 'Publicacao'}`,
           });
         });
         return;
       }
 
+      if (!matchesContentFilters({platformNames: [], status, platformFilter, statusFilter})) return;
       push(content.publishDate, {
         id: `${content.id}-pub`,
         type: 'publish',
@@ -102,12 +129,12 @@ export function buildCalendarEntries(
         date: '',
         time: content.publishTime,
         contentId: content.id,
-        secondary: content.status || 'Publicacao',
+        secondary: status || 'Publicacao',
       });
     });
   }
 
-  if (activeLayers.includes('agenda')) {
+  if (activeLayers.includes('agenda') && !contentFilterActive) {
     agendaItems.forEach(item => {
       const linkedProjeto = item.projetoId ? projetos.find(p => p.id === item.projetoId) : null;
       push(item.date, {
@@ -123,7 +150,7 @@ export function buildCalendarEntries(
     });
   }
 
-  if (activeLayers.includes('projects')) {
+  if (activeLayers.includes('projects') && !contentFilterActive) {
     projetos
       .filter(projeto => !projeto.deletedAt)
       .forEach(projeto => {
@@ -204,10 +231,21 @@ export function MonthlyCalendarView({
   onSelectDate,
   onEmptyDayClick,
   onShowMore,
+  platformFilter,
+  statusFilter,
 }: MonthlyCalendarViewProps) {
   const today = new Date();
   const months = monthDate ? [monthDate] : Array.from({length: monthsToShow}, (_, index) => addMonths(today, index));
-  const entriesByDate = buildCalendarEntries(contents, platforms, agendaItems, projetos, activeLayers, searchTerm, sortValue);
+  const entriesByDate = buildCalendarEntries(
+    contents,
+    platforms,
+    agendaItems,
+    projetos,
+    activeLayers,
+    searchTerm,
+    sortValue,
+    {platformFilter, statusFilter},
+  );
 
   return (
     <div className="stack-lg">

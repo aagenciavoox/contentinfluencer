@@ -1,4 +1,5 @@
-export const Z_INDEX_NAV = 'z-[80]';
+/** Above drawer backdrops so sidebar clicks still navigate. Below drawer panels and confirm dialogs. */
+export const Z_INDEX_NAV = 'z-[105]';
 export const Z_INDEX_DRAWER_BACKDROP = 'z-[100]';
 export const Z_INDEX_MODAL = 'z-[110]';
 export const Z_INDEX_CONFIRM = 'z-[200]';

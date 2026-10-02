@@ -7,7 +7,7 @@ import { generateUUID } from '../../../../utils/uuid';
 import { buildIdeaFields, parseLegacyIdeaText } from '../../../ideas/lib/ideaText';
 import { createIdeaContent } from '../../../contents/lib/creationContent';
 import { cn } from '../../../../lib/utils';
-import { BottomSheetModal } from '../../../../components/feedback/modals/BottomSheetModal';
+import { Dialog } from '../../../../components/overlays/Dialog';
 
 type TipoAnotacao = Anotacao['tipo'];
 
@@ -84,7 +84,7 @@ export function BookNotesModal({ book, onClose }: BookNotesModalProps) {
   };
 
   return (
-    <BottomSheetModal open={true} onClose={onClose} desktopMaxW="max-w-4xl" zIndex="z-[100]">
+    <Dialog open={true} onClose={onClose} desktopMaxW="max-w-4xl" zIndex="z-[100]">
       <div className="shrink-0 border-b border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-2 md:px-8 md:py-4">
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
@@ -212,6 +212,6 @@ export function BookNotesModal({ book, onClose }: BookNotesModalProps) {
       </div>
 
       <div className="h-3 shrink-0 pb-safe" />
-    </BottomSheetModal>
+    </Dialog>
   );
 }

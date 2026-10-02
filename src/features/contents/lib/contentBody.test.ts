@@ -28,6 +28,7 @@ describe('isContentBodyLoaded', () => {
         script: '<p>Roteiro completo</p>',
         notes: 'Notas',
         referencias: 'Referências',
+        writingNotes: '<p>Notas ao lado</p>',
         scriptNotes: [],
       })],
     });
@@ -37,6 +38,7 @@ describe('isContentBodyLoaded', () => {
     assert.equal(cachedContent.script, undefined);
     assert.equal(cachedContent.notes, undefined);
     assert.equal(cachedContent.referencias, undefined);
+    assert.equal(cachedContent.writingNotes, undefined);
     assert.equal(isContentBodyLoaded(cachedContent), false);
   });
 });

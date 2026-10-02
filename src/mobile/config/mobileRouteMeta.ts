@@ -168,6 +168,13 @@ export function getMobileRouteMeta(pathname: string, search = ''): MobileRouteMe
         title: 'Criação',
         titleVariant: 'compact-center',
       };
+    case '/criacao/legendas':
+      return {
+        title: 'Legendas',
+        mode: 'back',
+        backTo: '/criacao',
+        titleVariant: 'compact-center',
+      };
     case '/conteudos':
       return {
         title: GLOSSARY.roteiros,

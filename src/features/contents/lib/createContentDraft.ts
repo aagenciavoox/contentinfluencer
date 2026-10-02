@@ -23,6 +23,7 @@ export function createContentDraft(overrides: CreateContentDraftOverrides = {}):
     tags: [],
     notes: null,
     referencias: null,
+    writingNotes: null,
     energiaNecessaria: null,
     publishDate: null,
     publishTime: null,

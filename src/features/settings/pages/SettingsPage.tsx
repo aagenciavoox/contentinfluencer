@@ -5,12 +5,11 @@ import {
   Camera,
   Check,
   ChevronRight,
-  Clock,
+  Columns2,
   Flag,
   FolderKanban,
   Hash,
   HeartHandshake,
-  Layout,
   Leaf,
   MonitorSpeaker,
   PauseCircle,
@@ -19,7 +18,6 @@ import {
 } from 'lucide-react';
 import {DesktopPageHeader} from '../../../layouts/page/DesktopPageHeader';
 import {PageLayout} from '../../../layouts/page/PageLayout';
-import {AppButton} from '../../../components/ui/AppButton';
 import {Text} from '../../../components/ui/Text';
 import {useAppContext} from '../../../context/AppContext';
 import {useIsMobile} from '../../../hooks/useIsMobile';
@@ -37,6 +35,11 @@ import {
   GentleExperienceSettings,
   getGentleExperienceSettings,
 } from '../lib/gentleExperience';
+import {
+  DEFAULT_WRITING_WORKSPACE,
+  WRITING_WORKSPACE_PREFERENCE_KEY,
+  getWritingWorkspaceSettings,
+} from '../lib/writingWorkspace';
 
 type ItemStatus = 'complete' | 'partial' | 'empty' | undefined;
 
@@ -46,15 +49,12 @@ export function SettingsPage() {
   const isMobile = useIsMobile();
   const moduleFlags = getModuleFlags(state.preferences);
   const gentleExperience = getGentleExperienceSettings(state.preferences);
+  const writingWorkspace = getWritingWorkspaceSettings(state.preferences);
 
   const getItemStatus = (key: string): ItemStatus => {
     switch (key) {
       case 'perfil': return 'complete';
       case 'plataformas': return (state.platforms?.filter((p: {ativo: boolean}) => p.ativo).length ?? 0) > 0 ? 'complete' : 'empty';
-      case 'templates': return (state.templates?.length ?? 0) > 0 ? 'complete' : 'empty';
-      case 'pilares': return (state.pilares?.length ?? 0) > 0 ? 'complete' : 'empty';
-      case 'series': return (state.series?.length ?? 0) > 0 ? 'complete' : 'empty';
-      case 'horarios': return 'complete';
       default: return undefined;
     }
   };
@@ -72,47 +72,8 @@ export function SettingsPage() {
       to: '/configuracoes/plataformas',
       icon: MonitorSpeaker,
       title: 'Plataformas',
-      desc: 'Ative ou desative as plataformas onde você publica conteúdo',
+      desc: 'Canais de publicação e horários de postagem por dia da semana',
     },
-    {
-      key: 'templates',
-      to: '/configuracoes/templates',
-      icon: Layout,
-      title: 'Templates de Roteiro',
-      desc: 'Modelos de roteiro reutilizáveis por série ou formato',
-    },
-    {
-      key: 'pilares',
-      to: '/configuracoes/pilares',
-      icon: Leaf,
-      title: 'Pilares',
-      desc: 'Temas editoriais, metas de ciclo e hashtags por plataforma',
-    },
-    {
-      key: 'series',
-      to: '/configuracoes/series',
-      icon: Hash,
-      title: 'Séries',
-      desc: 'Quadros recorrentes e roteiros vinculados a cada série',
-    },
-    {
-      key: 'horarios',
-      to: '/configuracoes/horarios',
-      icon: Clock,
-      title: 'Horários de Postagem',
-      desc: 'Janelas recomendadas de publicação por dia da semana',
-    },
-    ...(moduleFlags.projects
-      ? [
-          {
-            key: 'projetos',
-            to: '/projetos',
-            icon: FolderKanban,
-            title: 'Projetos',
-            desc: 'Campanhas, publis e produções editoriais',
-          },
-        ]
-      : []),
   ].map(item => ({...item, status: getItemStatus(item.key)}));
 
   const moduleCards: Array<{
@@ -150,6 +111,20 @@ export function SettingsPage() {
           ...DEFAULT_GENTLE_EXPERIENCE,
           ...gentleExperience,
           ...patch,
+        },
+      },
+    });
+  };
+
+  const toggleWritingWorkspace = () => {
+    dispatch({
+      type: 'SET_PREFERENCE',
+      payload: {
+        key: WRITING_WORKSPACE_PREFERENCE_KEY,
+        value: {
+          ...DEFAULT_WRITING_WORKSPACE,
+          ...writingWorkspace,
+          enabled: !writingWorkspace.enabled,
         },
       },
     });
@@ -203,6 +178,8 @@ export function SettingsPage() {
       <div className="min-h-full bg-[var(--bg-primary)]">
         <SettingsMobileScreen
           gentleCards={gentleCards}
+          writingEnabled={writingWorkspace.enabled}
+          onToggleWriting={toggleWritingWorkspace}
           moduleCards={moduleCards.map(({key, title, desc}) => ({
             key,
             title,
@@ -227,15 +204,6 @@ export function SettingsPage() {
           section="Configurações"
           title="Configurações"
           icon={SettingsIcon}
-          actions={
-            <AppButton
-              variant="primary"
-              leftIcon={<UserCircle2 className="h-4 w-4" />}
-              onClick={() => navigate('/configuracoes/perfil')}
-            >
-              Editar perfil
-            </AppButton>
-          }
         />
       }
     >
@@ -274,6 +242,41 @@ export function SettingsPage() {
                 </div>
               </div>
             ))}
+          </div>
+        </section>
+
+        <section className="stack-md">
+          <div>
+            <p className="text-xs font-semibold t-label-uppercase text-[var(--text-tertiary)] opacity-60">
+              Escrita
+            </p>
+            <Text variant="sectionTitle" className="mt-1 tracking-tight">
+              Escolha como o roteiro ocupa a tela
+            </Text>
+          </div>
+
+          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="flex items-center justify-between gap-3 rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] px-4 py-3 transition-[box-shadow] hover:shadow-[var(--shadow-card-hover)]">
+              <div className="flex min-w-0 items-start gap-2.5">
+                <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[var(--bg-hover)] text-[var(--text-primary)]">
+                  <Columns2 className="h-4 w-4 opacity-50" />
+                </div>
+                <div className="min-w-0">
+                  <p className="t-secondary font-semibold leading-snug text-[var(--text-primary)] truncate">Modo de escrita</p>
+                  <p className="mt-0.5 text-xs leading-relaxed text-[var(--text-secondary)] opacity-60 line-clamp-3">
+                    Separa o roteiro da gestão. Status, agendamento e legendas ficam em outra aba, e você pode abrir uma área de notas ao lado do texto.
+                  </p>
+                </div>
+              </div>
+
+              <div className="shrink-0 scale-90">
+                <MobileToggleSwitch
+                  enabled={writingWorkspace.enabled}
+                  onToggle={toggleWritingWorkspace}
+                  label="Modo de escrita"
+                />
+              </div>
+            </div>
           </div>
         </section>
 

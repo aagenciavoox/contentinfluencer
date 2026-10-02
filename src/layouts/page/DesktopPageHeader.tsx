@@ -23,6 +23,8 @@ interface DesktopPageHeaderProps {
   onBack?: () => void;
   /** @deprecated Global search lives in the sidebar (Ctrl K). */
   hideSearch?: boolean;
+  /** Vertically center the title and the header actions. */
+  rowAlign?: 'start' | 'center';
 }
 
 export function DesktopPageHeader({
@@ -37,6 +39,7 @@ export function DesktopPageHeader({
   backLabel,
   backTo,
   onBack,
+  rowAlign = 'start',
 }: DesktopPageHeaderProps) {
   const navigate = useNavigate();
   const handleBack = onBack ?? (backTo ? () => navigate(backTo) : undefined);
@@ -64,7 +67,7 @@ export function DesktopPageHeader({
         )
       ) : null}
 
-      <div className="desktop-page-header-row">
+      <div className={cn('desktop-page-header-row', rowAlign === 'center' && 'items-center')}>
         <div className="min-w-0 flex-1">
           {titleContent ?? (
             titleVariant === 'display' ? (

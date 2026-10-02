@@ -84,6 +84,8 @@ export function PillarsSettingsPage() {
       section="Criação"
       title="Pilares"
       icon={Palette}
+      showBack={false}
+      variant="default"
       actions={
         <AppButton
           onClick={openCreatePage}

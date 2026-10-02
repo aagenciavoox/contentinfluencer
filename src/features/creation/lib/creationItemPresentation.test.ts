@@ -30,23 +30,10 @@ assert.equal(
 );
 
 assert.deepEqual(
-  getCreationCardTags(
-    { tags: ['#Médica', 'POVS', 'gravar', 'médica', 'editar'], pilarId: 'pillar-1', seriesId: null },
-    {
-      id: 'pillar-1',
-      userId: 'user-1',
-      nome: 'Educação',
-      descricao: '',
-      cor: '#6366f1',
-      ativo: true,
-      frequenciaSemanal: null,
-      metaCiclo: null,
-      createdAt: '',
-      updatedAt: '',
-      plataformas: [],
-    },
-  ),
-  ['Médica', 'POVS', 'Educação'],
+  getCreationCardTags({
+    tags: ['#Médica', 'POVS', 'gravar', 'médica', 'editar'],
+  }),
+  ['Médica', 'POVS'],
 );
 
 console.log('creationItemPresentation.test.ts passed');

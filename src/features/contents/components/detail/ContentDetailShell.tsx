@@ -34,6 +34,7 @@ import {RecordingSection} from './sections/RecordingSection';
 import {ContentOperationalPanel} from './ContentOperationalPanel';
 import {isContentBodyLoaded} from '../../lib/contentBody';
 import {RoteiroSection, type ScriptDraft} from './sections/RoteiroSection';
+import {isWritingWorkspaceEnabled} from '../../../settings/lib/writingWorkspace';
 import {IdeaDetailSection, IdeaOrganizationPanel} from './sections/IdeaDetailSection';
 import {promoteContentToScript} from '../../lib/creationContent';
 
@@ -72,6 +73,7 @@ function draftFromContent(content: Content): ContentDraft {
     scriptNotes: content.scriptNotes || [],
     referencias: content.referencias,
     notes: content.notes,
+    writingNotes: content.writingNotes,
     status: content.status,
     publishDate: content.publishDate,
     publishTime: content.publishTime,
@@ -83,7 +85,7 @@ function draftFromContent(content: Content): ContentDraft {
 
 function mergeLoadedBody(draft: ContentDraft, live: Content): ContentDraft {
   let next = draft;
-  const assignIfMissing = <K extends 'script' | 'notes' | 'referencias'>(key: K, value: ContentDraft[K]) => {
+  const assignIfMissing = <K extends 'script' | 'notes' | 'referencias' | 'writingNotes'>(key: K, value: ContentDraft[K]) => {
     if (draft[key] !== undefined || value === undefined) return;
     if (next === draft) next = {...draft};
     next[key] = value;
@@ -91,6 +93,7 @@ function mergeLoadedBody(draft: ContentDraft, live: Content): ContentDraft {
   assignIfMissing('script', live.script);
   assignIfMissing('notes', live.notes);
   assignIfMissing('referencias', live.referencias);
+  assignIfMissing('writingNotes', live.writingNotes);
   return next;
 }
 
@@ -226,6 +229,7 @@ export function ContentDetailShell({
     liveContent.scriptNotes,
     liveContent.referencias,
     liveContent.notes,
+    liveContent.writingNotes,
     liveContent.publishDate,
     liveContent.publishTime,
     liveContent.recordingDate,
@@ -238,7 +242,7 @@ export function ContentDetailShell({
       const changed = (Object.keys(updates) as Array<keyof ContentDraft>).some(key => {
         const nextValue = updates[key];
         const prevValue = previous[key];
-        if (key === 'script' || key === 'notes' || key === 'referencias') {
+        if (key === 'script' || key === 'notes' || key === 'referencias' || key === 'writingNotes') {
           return normalizePlain(prevValue as string | null) !== normalizePlain(nextValue as string | null);
         }
         if (key === 'scriptNotes' || key === 'plataformas') {
@@ -403,6 +407,7 @@ export function ContentDetailShell({
     draft.publishTime,
     draft.recordingDate,
     draft.referencias,
+    draft.writingNotes,
     draft.script,
     draft.scriptNotes,
     draft.seriesId,
@@ -605,6 +610,8 @@ export function ContentDetailShell({
           mobileComposer={mode === 'mobile'}
           autoFocusScript={mode === 'mobile' && searchParams.get('focus') === 'script'}
           layout={mode === 'desktop' ? 'workspace' : 'stack'}
+          writingWorkspace={mode === 'desktop' && isWritingWorkspaceEnabled(state.preferences)}
+          contentId={mergedContent.id}
           title={draft.title}
           onTitleChange={value => handleDraftChange({title: value})}
           saveState={editorSaveState}

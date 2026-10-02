@@ -1,8 +1,12 @@
+import {useState} from 'react';
+import {Columns2} from 'lucide-react';
 import {MobileScriptEditor} from '../../../../../mobile/components/MobileScriptEditor';
+import {MobileSegmentTabs} from '../../../../../mobile/components/MobileSegmentTabs';
 import {AppButton} from '../../../../../components/ui/AppButton';
 import {Skeleton} from '../../../../../components/ui/Skeleton';
 import {Text} from '../../../../../components/ui/Text';
 import type {Content, ContentPlataforma, Pilar, Serie} from '../../../../../lib/database';
+import {cn} from '../../../../../lib/utils';
 import {CONTENT_STATUS} from '../../../lib/contentPipeline';
 import {ContentOperationalPanel} from '../ContentOperationalPanel';
 import {ContentScriptWorkspace} from '../ContentScriptWorkspace';
@@ -12,6 +16,7 @@ import {
   appendScriptBlock,
   type ScriptBlockLabel,
 } from '../ScriptBlockToolbar';
+import {WritingNotesPane} from '../WritingNotesPane';
 
 export type ScriptDraft = {
   title: string;
@@ -24,6 +29,7 @@ export type ScriptDraft = {
   scriptNotes: Content['scriptNotes'];
   referencias: string | null;
   notes: string | null;
+  writingNotes?: string | null;
   status: Content['status'];
   recordingDate: string | null;
   publishDate: string | null;
@@ -52,6 +58,8 @@ interface RoteiroSectionProps {
   bodyLoading?: boolean;
   bodyError?: string | null;
   onRetryBody?: () => void;
+  writingWorkspace?: boolean;
+  contentId?: string;
 }
 
 export function RoteiroSection({
@@ -72,8 +80,22 @@ export function RoteiroSection({
   bodyLoading = false,
   bodyError = null,
   onRetryBody,
+  writingWorkspace = false,
+  contentId = '',
 }: RoteiroSectionProps) {
   const isPosted = draft.status === CONTENT_STATUS.POSTADO;
+  const [mobilePane, setMobilePane] = useState<'script' | 'captions'>('script');
+  const [workspacePaneChoice, setWorkspacePaneChoice] = useState<{
+    contentId: string;
+    pane: 'write' | 'manage';
+  } | null>(null);
+  const [notesChoice, setNotesChoice] = useState<{contentId: string; open: boolean} | null>(null);
+  const workspacePane = workspacePaneChoice?.contentId === contentId
+    ? workspacePaneChoice.pane
+    : 'write';
+  const notesOpen = notesChoice?.contentId === contentId
+    ? notesChoice.open
+    : hasWritingNotesText(draft.writingNotes);
 
   const annotationHandlers = {
     onAddAnnotation: (text: string, selection: {from: number; to: number}, comment: string) =>
@@ -111,6 +133,10 @@ export function RoteiroSection({
     onChange({script: trimmed ? `${trimmed}${html}` : html});
   };
 
+  const splitPanelClass = notesOpen
+    ? 'h-[calc(100dvh-14rem)] max-h-[calc(100dvh-14rem)] min-h-[24rem]'
+    : 'max-h-[calc(100dvh-14rem)]';
+
   const scriptWorkspace = (
     <ContentScriptWorkspace
       script={draft.script}
@@ -127,6 +153,20 @@ export function RoteiroSection({
       bodyLoading={bodyLoading}
       bodyError={bodyError}
       onRetryBody={onRetryBody}
+      className={writingWorkspace ? splitPanelClass : undefined}
+      headerAction={
+        writingWorkspace && workspacePane === 'write' && !notesOpen ? (
+          <AppButton
+            type="button"
+            variant="secondary"
+            size="xs"
+            leftIcon={<Columns2 className="h-3.5 w-3.5" />}
+            onClick={() => setNotesChoice({contentId, open: true})}
+          >
+            Área de notas
+          </AppButton>
+        ) : null
+      }
       {...annotationHandlers}
     />
   );
@@ -143,6 +183,52 @@ export function RoteiroSection({
   );
 
   if (layout === 'workspace' && !mobileComposer) {
+    if (writingWorkspace) {
+      return (
+        <div className="stack-sm">
+          <MobileSegmentTabs<'write' | 'manage'>
+            rounded="tight"
+            tabs={[
+              {value: 'write', label: 'Escrita'},
+              {value: 'manage', label: 'Gestão'},
+            ]}
+            value={workspacePane}
+            onChange={pane => setWorkspacePaneChoice({contentId, pane})}
+          />
+          {workspacePane === 'manage' ? (
+            <div className="grid-editor">
+              <div className="min-w-0">{captionEditor}</div>
+              <div className="sticky top-4 min-w-0">
+                <ContentOperationalPanel
+                  draft={draft}
+                  series={series}
+                  pilares={pilares}
+                  authorName={authorName}
+                  onChange={onChange}
+                  showTitle={false}
+                  density="compact"
+                  layout="property"
+                  variant="cards"
+                />
+              </div>
+            </div>
+          ) : (
+            <div className={cn('grid min-h-0 items-stretch gap-3', notesOpen && 'lg:grid-cols-2')}>
+              {notesOpen ? (
+                <WritingNotesPane
+                  value={draft.writingNotes ?? ''}
+                  onChange={html => onChange({writingNotes: html})}
+                  onClose={() => setNotesChoice({contentId, open: false})}
+                  className={splitPanelClass}
+                />
+              ) : null}
+              {scriptWorkspace}
+            </div>
+          )}
+        </div>
+      );
+    }
+
     if (!showSidePanel) {
       return (
         <div className="grid gap-3">
@@ -208,23 +294,37 @@ export function RoteiroSection({
           placeholder="Título"
           aria-label="Título do roteiro"
         />
-        <MobileScriptEditor
-          content={draft.script || ''}
-          onChange={html => onChange({script: html})}
-          placeholder="Escreva o roteiro..."
-          documentTitle={draft.title?.trim() || 'Novo roteiro'}
-          autoFocus={autoFocusScript}
-          saveState={saveState}
-          toolbarStart={
-            <ScriptBlockToolbar
-              menuPlacement="top"
-              onInsertBlock={handleInsertBlock}
-              onApplyTemplate={handleApplyTemplate}
-            />
-          }
-          onSave={onSave}
-          hasUnsavedChanges={hasUnsavedChanges}
+        <MobileSegmentTabs<'script' | 'captions'>
+          rounded="tight"
+          activateOnPointerDown
+          tabs={[
+            {value: 'script', label: 'Roteiro'},
+            {value: 'captions', label: 'Legendas'},
+          ]}
+          value={mobilePane}
+          onChange={setMobilePane}
         />
+        {mobilePane === 'captions' ? (
+          captionEditor
+        ) : (
+          <MobileScriptEditor
+            content={draft.script || ''}
+            onChange={html => onChange({script: html})}
+            placeholder="Escreva o roteiro..."
+            documentTitle={draft.title?.trim() || 'Novo roteiro'}
+            autoFocus={autoFocusScript}
+            saveState={saveState}
+            toolbarStart={
+              <ScriptBlockToolbar
+                menuPlacement="top"
+                onInsertBlock={handleInsertBlock}
+                onApplyTemplate={handleApplyTemplate}
+              />
+            }
+            onSave={onSave}
+            hasUnsavedChanges={hasUnsavedChanges}
+          />
+        )}
       </div>
     );
   }
@@ -242,4 +342,12 @@ export function RoteiroSection({
       {captionEditor}
     </div>
   );
+}
+
+function hasWritingNotesText(value: string | null | undefined) {
+  const text = (value ?? '')
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .trim();
+  return text.length > 0;
 }

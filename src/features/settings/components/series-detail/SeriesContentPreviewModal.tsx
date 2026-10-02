@@ -1,13 +1,12 @@
-import { useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { ArrowUpRight, FileText, X } from 'lucide-react';
+import { Drawer } from '../../../../components/overlays/Drawer';
 import { AppButton } from '../../../../components/ui/AppButton';
 import { Text } from '../../../../components/ui/Text';
 import { CONTENT_STATUS } from '../../../contents/lib/contentPipeline';
 import type { Platform, Serie } from '../../../../lib/database';
 import { htmlToReadableText } from '../../../../lib/utils';
 import { buildDetailBackState } from '../../../../lib/navigation/detailBack';
-import { useBodyScrollLock } from '../../../../hooks/useBodyScrollLock';
 import {
   seriesListItemPreviewText,
   seriesListItemTitle,
@@ -32,27 +31,15 @@ export function SeriesContentPreviewModal({
   const location = useLocation();
   const isOpen = item !== null;
 
-  useBodyScrollLock(isOpen);
-
-  useEffect(() => {
-    if (!isOpen) return;
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
-
-  if (!item) return null;
-
-  const previewText = seriesListItemPreviewText(item);
-  const words = seriesListItemWordCount(item);
-  const isInboxIdea = item.kind === 'inbox-idea';
-  const captionItems = item.kind === 'content'
+  const previewText = item ? seriesListItemPreviewText(item) : '';
+  const words = item ? seriesListItemWordCount(item) : 0;
+  const isInboxIdea = item?.kind === 'inbox-idea';
+  const captionItems = item?.kind === 'content'
     ? item.data.plataformas.filter(platformItem => platformItem.legenda?.trim())
     : [];
 
   const handleOpen = () => {
+    if (!item) return;
     if (isInboxIdea) {
       navigate('/criacao?tab=ideias');
       return;
@@ -64,20 +51,9 @@ export function SeriesContentPreviewModal({
   };
 
   return (
-    <>
-      <div
-        className="fixed inset-0 z-[9998] bg-[var(--backdrop-strong)]"
-        onClick={onClose}
-        aria-hidden
-      />
-
-      <div className="pointer-events-none fixed inset-0 z-[9999] flex items-center justify-center p-4">
-        <div
-          className="pointer-events-auto flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-primary)] shadow-xl"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="series-content-preview-title"
-        >
+    <Drawer open={isOpen} onClose={onClose} widthClassName="max-w-2xl">
+      {item ? (
+        <>
           <div
             className="h-1 w-full shrink-0"
             style={{ backgroundColor: serie.cor || 'var(--accent-green)' }}
@@ -156,8 +132,8 @@ export function SeriesContentPreviewModal({
               {isInboxIdea ? 'Abrir na caixa de ideias' : 'Abrir'}
             </AppButton>
           </div>
-        </div>
-      </div>
-    </>
+        </>
+      ) : null}
+    </Drawer>
   );
 }

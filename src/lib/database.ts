@@ -231,6 +231,8 @@ export interface Content {
   tags: string[];
   notes: string | null;
   referencias: string | null;
+  /** Notas livres ao lado do roteiro. Ausente enquanto o corpo não foi carregado. */
+  writingNotes?: string | null;
   createdAt: string;
   updatedAt: string;
   deletedAt: string | null;
@@ -526,6 +528,10 @@ function isMissingPostedAtColumn(error: {message?: string} | null | undefined) {
   return isMissingMilestoneColumn(error) || !!error?.message?.includes('posted_at');
 }
 
+function isMissingWritingNotesColumn(error: {message?: string} | null | undefined) {
+  return !!error?.message?.includes('writing_notes');
+}
+
 function isMissingCreationColumn(error: {message?: string} | null | undefined) {
   return !!error?.message && (
     error.message.includes('archived_at') ||
@@ -608,6 +614,7 @@ const mp = {
     recordingDateEnabled: r.recording_date_enabled ?? (r.recording_date != null),
     script: r.script, scriptNotes: r.script_notes || [], tags: r.tags || [],
     notes: r.notes, referencias: r.referencias,
+    writingNotes: r.writing_notes,
     createdAt: r.created_at, updatedAt: r.updated_at, deletedAt: r.deleted_at,
     archivedAt: r.archived_at ?? null,
     legacyIdeaId: r.legacy_idea_id ?? null,
@@ -1843,13 +1850,20 @@ export async function saveContent(
     link: content.link, script: content.script,
     script_notes: content.scriptNotes, tags: content.tags,
     notes: content.notes, referencias: content.referencias,
+    ...(content.writingNotes !== undefined ? {writing_notes: content.writingNotes} : {}),
     archived_at: content.archivedAt ?? null,
     legacy_idea_id: content.legacyIdeaId ?? null,
   };
 
-  for (let attempt = 0; attempt < 4; attempt += 1) {
+  for (let attempt = 0; attempt < 5; attempt += 1) {
     const {error} = await supabase.from('contents').upsert(row);
     if (!error) return;
+
+    if (isMissingWritingNotesColumn(error)) {
+      const {writing_notes: _writingNotes, ...rowWithoutWritingNotes} = row;
+      row = rowWithoutWritingNotes;
+      continue;
+    }
 
     if (isMissingCreationColumn(error)) {
       const {

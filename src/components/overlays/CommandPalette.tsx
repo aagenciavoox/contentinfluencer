@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Search, FileText, Sparkles, Handshake, ChevronRight, Command, X, PenLine, CalendarDays, Briefcase } from 'lucide-react';
+import { Search, FileText, Sparkles, Handshake, ChevronRight, Command, X, PenLine, CalendarDays, Briefcase, Captions } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useIsMobile } from '../../hooks/useIsMobile';
@@ -27,6 +27,7 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
 
   const navigation = [
     { id: 'nav-1', title: 'Central de criação', path: '/criacao', icon: <PenLine className="w-4 h-4" />, category: 'Navegação' },
+    { id: 'nav-1b', title: 'Legendas', path: '/criacao/legendas', icon: <Captions className="w-4 h-4" />, category: 'Navegação' },
     { id: 'nav-2', title: 'Calendário', path: '/calendario', icon: <CalendarDays className="w-4 h-4" />, category: 'Navegação' },
     { id: 'nav-2b', title: 'Agendar postagens', path: '/calendario?modo=agendar', icon: <CalendarDays className="w-4 h-4" />, category: 'Navegação' },
     { id: 'nav-3', title: 'Projetos', path: '/projetos', icon: <Briefcase className="w-4 h-4" />, category: 'Navegação' },

@@ -15,7 +15,6 @@ import { notifySaveFeedback } from '../../../lib/saveFeedback';
 import { PageLayout } from '../../../layouts/page/PageLayout';
 import { SeriesDetailMobileScreen } from '../../../mobile/screens/settings/SeriesDetailMobileScreen';
 import { SeriesDetailHeader } from '../components/series-detail/SeriesDetailHeader';
-import { SeriesStatsRow } from '../components/series-detail/SeriesStatsRow';
 import { SeriesContentsTabs } from '../components/series-detail/SeriesContentsTabs';
 import { SeriesContentsFilterBar } from '../components/series-detail/SeriesContentsFilterBar';
 import { SeriesContentList } from '../components/series-detail/SeriesContentList';
@@ -223,8 +222,6 @@ export function SeriesScriptsPage() {
             if (action === 'toggle-active') handleToggleActive(serie);
           }}
         />
-
-        <SeriesStatsRow stats={stats} />
 
         <div className="grid-series-detail">
           <div className="min-w-0 order-2 stack-xl lg:order-1">

@@ -4,8 +4,16 @@ import {DEFAULT_PLATFORMS} from '../../../../constants';
 import {useAppContext} from '../../../../context/AppContext';
 import type {ContentPlataforma, Pilar, Serie} from '../../../../lib/database';
 import {cn} from '../../../../lib/utils';
+import {AppButton} from '../../../../components/ui/AppButton';
 import {Text} from '../../../../components/ui/Text';
 import {TagPill} from '../../../../components/ui/TagSelect';
+import {
+  CAPTION_HASHTAG_MAX,
+  captionHashtagPresets,
+  joinHashtags,
+  mergeHashtags,
+  parseHashtags,
+} from '../../lib/captionHashtags';
 
 const CHAR_LIMITS: Record<string, number> = {
   Instagram: 2200,
@@ -13,8 +21,6 @@ const CHAR_LIMITS: Record<string, number> = {
   YouTube: 5000,
   Blog: 10000,
 };
-
-const HASHTAG_MAX = 10;
 
 const PLATFORM_BRAND: Record<string, {shell: string; icon: string}> = {
   Instagram: {
@@ -153,18 +159,6 @@ export function ensurePlatformRecord(
   } satisfies ContentPlataforma;
 }
 
-function parseHashtags(value: string): string[] {
-  return value
-    .split(/\s+/)
-    .map(tag => tag.trim())
-    .filter(Boolean)
-    .map(tag => (tag.startsWith('#') ? tag : `#${tag}`));
-}
-
-function joinHashtags(tags: string[]): string {
-  return tags.join(' ');
-}
-
 interface PlatformCopyEditorProps {
   plataformas: ContentPlataforma[];
   pilar: Pilar | null;
@@ -202,15 +196,10 @@ export function PlatformCopyEditor({
     [activePlatform, plataformas]
   );
   const hashtagTags = useMemo(() => parseHashtags(currentPlatform.hashtags), [currentPlatform.hashtags]);
-  const hashtagSuggestion =
-    serie?.plataformas.find(item => item.platformId === activePlatform)?.hashtags ||
-    pilar?.plataformas.find(item => item.platformId === activePlatform)?.hashtags ||
-    '';
-  const hashtagSuggestionSource = serie?.plataformas.find(item => item.platformId === activePlatform)?.hashtags
-    ? 'série'
-    : pilar?.plataformas.find(item => item.platformId === activePlatform)?.hashtags
-      ? 'pilar'
-      : null;
+  const hashtagPresets = useMemo(
+    () => captionHashtagPresets(activePlatform, serie, pilar),
+    [activePlatform, pilar, serie],
+  );
   const charLimit = CHAR_LIMITS[activePlatform];
   const charCount = currentPlatform.legenda.length;
 
@@ -258,7 +247,7 @@ export function PlatformCopyEditor({
   };
 
   const setHashtags = (tags: string[]) => {
-    updatePlatform(activePlatform, {hashtags: joinHashtags(tags.slice(0, HASHTAG_MAX))});
+    updatePlatform(activePlatform, {hashtags: joinHashtags(tags.slice(0, CAPTION_HASHTAG_MAX))});
   };
 
   const handleCopy = async (mode: 'legenda' | 'tudo') => {
@@ -275,14 +264,7 @@ export function PlatformCopyEditor({
   const addHashtag = (raw: string) => {
     const next = parseHashtags(raw);
     if (next.length === 0) return;
-    const merged = [...hashtagTags];
-    next.forEach(tag => {
-      if (merged.length >= HASHTAG_MAX) return;
-      if (!merged.some(existing => existing.toLowerCase() === tag.toLowerCase())) {
-        merged.push(tag);
-      }
-    });
-    setHashtags(merged);
+    setHashtags(mergeHashtags(hashtagTags, next));
   };
 
   return (
@@ -387,6 +369,55 @@ export function PlatformCopyEditor({
 
             <div className="mt-4 rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-primary)] p-4">
               <p className="text-sm font-semibold text-[var(--text-primary)]">Hashtags</p>
+              {hashtagPresets.length > 0 ? (
+                <div className="mt-3 stack-sm">
+                  {hashtagPresets.map(preset => {
+                    const missing = preset.tags.filter(
+                      tag => !hashtagTags.some(existing => existing.toLowerCase() === tag.toLowerCase()),
+                    );
+                    const alreadyIncluded = missing.length === 0;
+                    const atLimit = hashtagTags.length >= CAPTION_HASHTAG_MAX;
+                    const pullLabel = alreadyIncluded
+                      ? 'Já incluídas'
+                      : atLimit
+                        ? 'Limite de 10'
+                        : `Puxar da ${preset.sourceLabel}`;
+
+                    return (
+                      <div
+                        key={preset.key}
+                        className="flex flex-col gap-2 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between"
+                      >
+                        <div className="min-w-0">
+                          <Text variant="meta" className="font-semibold text-[var(--text-primary)]">
+                            {preset.sourceLabel === 'série' ? 'Série' : 'Pilar'} · {preset.name}
+                          </Text>
+                          <Text variant="secondary" className="mt-0.5 break-words">
+                            {preset.tags.join(' ')}
+                          </Text>
+                        </div>
+                        <AppButton
+                          size="xs"
+                          variant="secondary"
+                          disabled={disabled || alreadyIncluded || atLimit}
+                          aria-label={`${pullLabel}: ${preset.tags.join(' ')}`}
+                          onClick={() => addHashtag(preset.tags.join(' '))}
+                        >
+                          {pullLabel}
+                        </AppButton>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : serie || pilar ? (
+                <Text variant="meta" className="mt-2">
+                  {serie && pilar
+                    ? `Nenhuma hashtag definida em ${serie.name} ou ${pilar.nome} para ${activePlatform}.`
+                    : serie
+                      ? `Nenhuma hashtag definida em ${serie.name} para ${activePlatform}.`
+                      : `Nenhuma hashtag definida em ${pilar?.nome} para ${activePlatform}.`}
+                </Text>
+              ) : null}
               <div className="mt-3 flex flex-wrap items-center gap-2">
                 {hashtagTags.map(tag => (
                   <TagPill
@@ -396,7 +427,7 @@ export function PlatformCopyEditor({
                     onRemove={() => setHashtags(hashtagTags.filter(item => item !== tag))}
                   />
                 ))}
-                {hashtagTags.length < HASHTAG_MAX ? (
+                {hashtagTags.length < CAPTION_HASHTAG_MAX ? (
                   <button
                     type="button"
                     disabled={disabled}
@@ -410,23 +441,13 @@ export function PlatformCopyEditor({
                     Adicionar
                   </button>
                 ) : null}
-                {hashtagSuggestion ? (
-                  <button
-                    type="button"
-                    disabled={disabled}
-                    onClick={() => addHashtag(hashtagSuggestion)}
-                    className="text-xs font-semibold text-[var(--accent-blue)] disabled:opacity-50"
-                  >
-                    Puxar da {hashtagSuggestionSource}
-                  </button>
-                ) : null}
               </div>
               <div className="mt-3 flex items-center justify-between gap-2">
                 <p className="text-xs text-[var(--text-tertiary)]">
                   Dica: use até 10 hashtags relevantes para aumentar seu alcance.
                 </p>
                 <p className="text-xs font-semibold text-[var(--text-tertiary)]">
-                  {hashtagTags.length} / {HASHTAG_MAX}
+                  {hashtagTags.length} / {CAPTION_HASHTAG_MAX}
                 </p>
               </div>
             </div>

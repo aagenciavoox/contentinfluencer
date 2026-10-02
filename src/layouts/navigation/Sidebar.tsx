@@ -1,5 +1,6 @@
 import React from 'react';
-import {NavLink, useLocation, useNavigate} from 'react-router-dom';
+import {createPortal} from 'react-dom';
+import {Link, NavLink, useLocation, useNavigate} from 'react-router-dom';
 import {
   ChevronRight,
   LogOut,
@@ -13,6 +14,7 @@ import {
   X,
 } from 'lucide-react';
 import {AnimatePresence, motion} from 'motion/react';
+import {Z_INDEX_NAV} from '../../components/overlays/overlayConstants';
 import {Tooltip} from '../../components/ui/Tooltip';
 import {Text} from '../../components/ui/Text';
 import {useAppContext} from '../../context/AppContext';
@@ -25,6 +27,7 @@ import {cn} from '../../lib/utils';
 import {MobileSidebarDrawer} from '../../mobile/components/MobileSidebarDrawer';
 import {BrandLockup} from './BrandLockup';
 import {getUserInitials} from './userInitials';
+import { prefetchRoute } from '../../app/router/routePrefetch';
 import {
   buildSidebarSections,
   isNavItemHidden,
@@ -51,6 +54,97 @@ function NavSectionLabel({children, collapsed}: {children: string; collapsed: bo
   );
 }
 
+function RailDivider() {
+  return (
+    <div
+      role="separator"
+      aria-orientation="horizontal"
+      className="mx-3 my-2 h-px shrink-0 bg-[var(--border-color)]"
+    />
+  );
+}
+
+function ActiveRailMark() {
+  return (
+    <span
+      aria-hidden
+      className="pointer-events-none absolute left-1 top-1/2 h-4 w-0.5 -translate-y-1/2 rounded-full bg-[var(--brand-accent)]"
+    />
+  );
+}
+
+function NavUpdateDot() {
+  return (
+    <span
+      aria-hidden
+      className="pointer-events-none absolute right-0 top-0 h-2 w-2 rounded-full bg-[var(--accent-blue)] ring-2 ring-[var(--bg-secondary)]"
+    />
+  );
+}
+
+function collapsedRailClass(active: boolean) {
+  return cn(
+    'group relative flex h-11 w-11 items-center justify-center rounded-lg transition-colors duration-150',
+    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-blue)]',
+    active
+      ? 'bg-[var(--brand-accent-soft)] text-[var(--brand-accent)]'
+      : 'text-[var(--text-tertiary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]',
+  );
+}
+
+function CollapsedFlyout({
+  open,
+  anchorRef,
+  children,
+}: {
+  open: boolean;
+  anchorRef: React.RefObject<HTMLDivElement | null>;
+  children: React.ReactNode;
+}) {
+  const [box, setBox] = React.useState<{top: number; left: number} | null>(null);
+
+  React.useLayoutEffect(() => {
+    if (!open) {
+      setBox(null);
+      return;
+    }
+
+    const place = () => {
+      const node = anchorRef.current;
+      if (!node) return;
+      const rect = node.getBoundingClientRect();
+      setBox({top: rect.bottom, left: rect.right + 8});
+    };
+
+    place();
+    window.addEventListener('resize', place);
+    window.addEventListener('scroll', place, true);
+    return () => {
+      window.removeEventListener('resize', place);
+      window.removeEventListener('scroll', place, true);
+    };
+  }, [anchorRef, open]);
+
+  if (!open || !box || typeof document === 'undefined') return null;
+
+  return createPortal(
+    <div
+      style={{
+        position: 'fixed',
+        top: box.top,
+        left: box.left,
+        width: 180,
+        transform: 'translateY(-100%)',
+        zIndex: 80,
+      }}
+      onClick={event => event.stopPropagation()}
+    >
+      {children}
+    </div>,
+    document.body,
+  );
+}
+
 export function Sidebar({isOpen, onClose}: SidebarProps) {
   const {state, dispatch} = useAppContext();
   const {signOut, user} = useAuth();
@@ -64,6 +158,7 @@ export function Sidebar({isOpen, onClose}: SidebarProps) {
     readStoredJson(SIDEBAR_COLLAPSED_KEY, false)
   );
   const [userMenuOpen, setUserMenuOpen] = React.useState(false);
+  const profileAnchorRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
     if (isOpen && previousPathname.current !== location.pathname) {
@@ -132,31 +227,51 @@ export function Sidebar({isOpen, onClose}: SidebarProps) {
   const userEmail = user?.email || 'user@exemplo.com';
   const userInitials = getUserInitials(userName);
 
-  const renderNavItem = (item: NavItemDefinition) => {
+  const renderNavItem = (item: NavItemDefinition, nested = false) => {
     const {to, label, icon: Icon, end = true} = item;
     const badge = resolveNavBadge(item, navCounts, state.bibliotecaItems.length);
+    const accessibleLabel = badge ? `${label}, ${badge} itens` : label;
     const link = (
       <NavLink
-        key={to}
         to={to}
         end={end}
-        title={isCollapsed ? label : undefined}
+        aria-label={isCollapsed ? accessibleLabel : undefined}
+        onMouseEnter={() => prefetchRoute(to)}
+        onFocus={() => prefetchRoute(to)}
         className={({isActive}) =>
           cn(
-            'group relative flex items-center rounded-md transition-colors duration-150',
-            isCollapsed ? 'justify-center px-0 py-2' : 'gap-3 px-3 py-2',
+            'group relative flex items-center transition-colors duration-150',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-blue)]',
+            isCollapsed ? 'h-11 w-11 justify-center rounded-lg' : 'gap-3 rounded-md px-3 py-2',
+            nested && !isCollapsed && 'py-1.5',
             isActive
-              ? 'bg-[var(--bg-hover)] text-[var(--text-primary)] before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-0.5 before:rounded-full before:bg-[var(--brand-accent)]'
-              : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]'
+              ? isCollapsed
+                ? 'bg-[var(--brand-accent-soft)] text-[var(--brand-accent)]'
+                : 'bg-[var(--bg-hover)] text-[var(--text-primary)] before:absolute before:bottom-1.5 before:left-0 before:top-1.5 before:w-0.5 before:rounded-full before:bg-[var(--brand-accent)]'
+              : isCollapsed
+                ? 'text-[var(--text-tertiary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]'
+                : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]'
           )
         }
       >
         {({isActive}) => (
           <>
+            {isCollapsed && isActive ? <ActiveRailMark /> : null}
             <Icon
+              aria-hidden
               className={cn(
-                'h-5 w-5 shrink-0 stroke-[1.75]',
-                isActive ? 'text-[var(--brand-accent)]' : 'text-[var(--text-tertiary)] group-hover:text-[var(--text-secondary)]'
+                'shrink-0',
+                nested && !isCollapsed ? 'h-4 w-4' : 'h-5 w-5',
+                isCollapsed
+                  ? isActive
+                    ? 'stroke-[2.25]'
+                    : 'stroke-[1.75]'
+                  : cn(
+                      'stroke-[1.75]',
+                      isActive
+                        ? 'text-[var(--brand-accent)]'
+                        : 'text-[var(--text-tertiary)] group-hover:text-[var(--text-secondary)]'
+                    )
               )}
             />
             {!isCollapsed ? (
@@ -171,23 +286,34 @@ export function Sidebar({isOpen, onClose}: SidebarProps) {
                 ) : null}
               </>
             ) : badge ? (
-              <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-[var(--accent-blue)]" />
+              <NavUpdateDot />
             ) : null}
           </>
         )}
       </NavLink>
     );
 
-    if (isCollapsed) {
-      return (
-        <Tooltip key={to} label={label}>
-          {link}
-        </Tooltip>
-      );
-    }
+    const nestedItems = !isCollapsed && item.nested?.length ? (
+      <div className="ml-5 border-l border-[var(--border-color)] pl-1">
+        {item.nested
+          .filter(child => !isNavItemHidden(child, moduleFlags))
+          .map(child => renderNavItem(child, true))}
+      </div>
+    ) : null;
 
-    return link;
+    return (
+      <div key={to}>
+        {isCollapsed ? <Tooltip label={label}>{link}</Tooltip> : link}
+        {nestedItems}
+      </div>
+    );
   };
+
+  const themeLabel = state.theme === 'light' ? 'Modo escuro' : 'Modo claro';
+  const settingsNavCurrent = isSettingsNavActive(
+    location.pathname,
+    location.pathname.startsWith('/configuracoes'),
+  );
 
   const userMenuPanel = (
     <div className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] shadow-lg overflow-hidden py-1">
@@ -222,13 +348,36 @@ export function Sidebar({isOpen, onClose}: SidebarProps) {
         isCollapsed ? 'px-2 py-4' : 'p-4'
       )}
     >
-      <div className={cn('mb-5 flex shrink-0 items-center', isCollapsed ? 'justify-center' : 'justify-between')}>
+      <div className={cn('mb-5 flex shrink-0 items-center gap-2', isCollapsed ? 'flex-col' : 'justify-between')}>
         {isCollapsed ? (
           <Tooltip label="Criaki">
             <BrandLockup collapsed />
           </Tooltip>
         ) : (
           <BrandLockup className="min-w-0 flex-1" />
+        )}
+
+        {isCollapsed ? (
+          <Tooltip label="Expandir sidebar">
+            <button
+              type="button"
+              onClick={toggleCollapsed}
+              aria-label="Expandir sidebar"
+              className={collapsedRailClass(false)}
+            >
+              <PanelLeftOpen className="h-4 w-4" />
+            </button>
+          </Tooltip>
+        ) : (
+          <button
+            type="button"
+            onClick={toggleCollapsed}
+            aria-label="Recolher sidebar"
+            title="Recolher sidebar"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[var(--text-tertiary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
+          >
+            <PanelLeftClose className="h-4 w-4" />
+          </button>
         )}
 
         {!isCollapsed && isMobile ? (
@@ -243,11 +392,12 @@ export function Sidebar({isOpen, onClose}: SidebarProps) {
       </div>
 
       {isCollapsed ? (
-        <Tooltip label="Procurar (Ctrl K)" className="mb-3 w-full justify-center">
+        <Tooltip label="Procurar (Ctrl K)" className="mb-1 w-full justify-center">
           <button
+            type="button"
             onClick={openCommandPalette}
             aria-label="Procurar"
-            className="flex h-9 w-9 items-center justify-center rounded-md border border-[var(--border-color)] bg-[var(--bg-elevated)] text-[var(--text-tertiary)] transition-colors hover:text-[var(--text-primary)]"
+            className="flex h-11 w-11 items-center justify-center rounded-lg border border-[var(--border-color)] bg-[var(--bg-elevated)] text-[var(--text-tertiary)] transition-colors duration-150 hover:border-[var(--border-strong)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-blue)]"
           >
             <Search className="h-4 w-4" />
           </button>
@@ -265,86 +415,115 @@ export function Sidebar({isOpen, onClose}: SidebarProps) {
         </button>
       )}
 
-      <nav className="flex flex-1 flex-col" role="navigation" aria-label="Principal">
-        <div className="custom-scrollbar flex-1 overflow-y-auto">
+      <nav className="flex min-h-0 flex-1 flex-col" role="navigation" aria-label="Principal">
+        {isCollapsed ? <RailDivider /> : null}
+        <div className="custom-scrollbar min-h-0 flex-1 overflow-y-auto">
           {navSections.map(section => {
             const visibleItems = section.items.filter(item => !isNavItemHidden(item, moduleFlags));
             if (visibleItems.length === 0) return null;
 
             return (
               <React.Fragment key={section.label ?? 'today'}>
+                {isCollapsed && section.label ? <RailDivider /> : null}
                 {section.label ? (
                   <NavSectionLabel collapsed={isCollapsed}>{section.label}</NavSectionLabel>
-                ) : (
-                  <div className="space-y-0.5">{visibleItems.map(renderNavItem)}</div>
-                )}
-                {section.label ? (
-                  <div className="space-y-0.5">{visibleItems.map(renderNavItem)}</div>
                 ) : null}
+                <div className={cn(isCollapsed ? 'flex flex-col items-center gap-1' : 'space-y-0.5')}>
+                  {visibleItems.flatMap(item => {
+                    const nodes = [renderNavItem(item)];
+                    if (isCollapsed && item.nested) {
+                      for (const child of item.nested) {
+                        if (!isNavItemHidden(child, moduleFlags)) nodes.push(renderNavItem(child));
+                      }
+                    }
+                    return nodes;
+                  })}
+                </div>
               </React.Fragment>
             );
           })}
         </div>
       </nav>
 
-      <div className="mt-4 shrink-0 space-y-0.5 border-t border-[var(--border-color)] pt-4">
+      {isCollapsed ? <RailDivider /> : null}
+      <div className={cn('shrink-0', isCollapsed ? 'flex flex-col items-center gap-1' : 'mt-4 space-y-0.5 border-t border-[var(--border-color)] pt-4')}>
+        {isCollapsed ? (
+          <Tooltip label={themeLabel} className="w-full justify-center">
+            <button
+              type="button"
+              onClick={toggleTheme}
+              aria-label={themeLabel}
+              className={collapsedRailClass(false)}
+            >
+              {state.theme === 'light' ? <Moon className="h-5 w-5 stroke-[1.75]" /> : <Sun className="h-5 w-5 stroke-[1.75]" />}
+            </button>
+          </Tooltip>
+        ) : null}
         {isCollapsed ? (
           <Tooltip label="Configurações" className="w-full justify-center">
-            <NavLink
+            <Link
               to="/configuracoes"
-              className={({isActive}) =>
-                cn(
-                  'flex h-9 w-9 items-center justify-center rounded-md transition-colors',
-                  isSettingsNavActive(location.pathname, isActive)
-                    ? 'bg-[var(--bg-hover)] text-[var(--brand-accent)]'
-                    : 'text-[var(--text-tertiary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]'
-                )
-              }
+              aria-label="Configurações"
+              aria-current={settingsNavCurrent ? 'page' : undefined}
+              onMouseEnter={() => prefetchRoute('/configuracoes')}
+              onFocus={() => prefetchRoute('/configuracoes')}
+              className={collapsedRailClass(settingsNavCurrent)}
             >
-              <Settings className="h-5 w-5" />
-            </NavLink>
+              {settingsNavCurrent ? <ActiveRailMark /> : null}
+              <Settings className={cn('h-5 w-5', settingsNavCurrent ? 'stroke-[2.25]' : 'stroke-[1.75]')} />
+            </Link>
           </Tooltip>
         ) : (
-          <NavLink
+          <Link
             to="/configuracoes"
-            className={({isActive}) =>
-              cn(
-                'group flex items-center gap-3 rounded-md px-3 py-2 transition-colors',
-                isSettingsNavActive(location.pathname, isActive)
-                  ? 'bg-[var(--bg-hover)] text-[var(--text-primary)]'
-                  : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]'
-              )
-            }
+            aria-current={settingsNavCurrent ? 'page' : undefined}
+            onMouseEnter={() => prefetchRoute('/configuracoes')}
+            onFocus={() => prefetchRoute('/configuracoes')}
+            className={cn(
+              'group flex items-center gap-3 rounded-md px-3 py-2 transition-colors',
+              settingsNavCurrent
+                ? 'bg-[var(--bg-hover)] text-[var(--text-primary)]'
+                : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]'
+            )}
           >
             <Settings className={cn(
               'h-5 w-5',
-              isSettingsNavActive(location.pathname, false) ? 'text-[var(--brand-accent)]' : 'text-[var(--text-tertiary)]'
+              settingsNavCurrent ? 'text-[var(--brand-accent)]' : 'text-[var(--text-tertiary)]'
             )} />
             <span className="flex-1 text-sm font-medium">Configurações</span>
             <ChevronRight className="h-4 w-4 text-[var(--text-tertiary)]" />
-          </NavLink>
+          </Link>
         )}
-      </div>
-
-      <div className={cn('mt-3 shrink-0', isCollapsed ? 'flex justify-center' : '')}>
         {isCollapsed ? (
-          <div className="relative">
-            {userMenuOpen && (
-              <div style={{position: 'absolute', left: '100%', bottom: 0, marginLeft: '8px', width: '180px', zIndex: 50}}>
-                {userMenuPanel}
-              </div>
-            )}
-            <Tooltip label={userName}>
+          <div ref={profileAnchorRef} className="relative flex justify-center">
+            <CollapsedFlyout open={userMenuOpen} anchorRef={profileAnchorRef}>
+              {userMenuPanel}
+            </CollapsedFlyout>
+            <Tooltip label="Perfil" disabled={userMenuOpen} className="justify-center">
               <button
-                onClick={e => { e.stopPropagation(); setUserMenuOpen(prev => !prev); }}
-                className="relative flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-[var(--bg-hover)] text-xs font-semibold text-[var(--text-secondary)]"
+                type="button"
+                onClick={event => {
+                  event.stopPropagation();
+                  setUserMenuOpen(previous => !previous);
+                }}
+                className={cn(
+                  collapsedRailClass(false),
+                  'rounded-full bg-[var(--bg-hover)] text-xs font-semibold text-[var(--text-secondary)] hover:bg-[var(--border-color)] hover:text-[var(--text-primary)]',
+                  userMenuOpen && 'bg-[var(--border-color)] text-[var(--text-primary)]',
+                )}
                 aria-label="Perfil"
+                aria-haspopup="menu"
+                aria-expanded={userMenuOpen}
               >
                 {userInitials}
               </button>
             </Tooltip>
           </div>
-        ) : (
+        ) : null}
+      </div>
+
+      {!isCollapsed ? (
+      <div className="mt-3 shrink-0">
           <div className="relative">
             {userMenuOpen && (
               <div style={{position: 'absolute', bottom: '100%', left: 0, right: 0, marginBottom: '4px', zIndex: 50}}>
@@ -366,32 +545,9 @@ export function Sidebar({isOpen, onClose}: SidebarProps) {
               <ChevronRight className="h-4 w-4 shrink-0 text-[var(--text-tertiary)]" />
             </button>
           </div>
-        )}
-      </div>
-
-      <div className="mt-3 shrink-0 border-t border-[var(--border-color)] pt-3">
-        <div className={cn('flex items-center', isCollapsed ? 'justify-center' : 'justify-end')}>
-          {isCollapsed ? (
-            <Tooltip label="Expandir sidebar">
-              <button
-                onClick={toggleCollapsed}
-                aria-label="Expandir sidebar"
-                className="flex h-8 w-8 items-center justify-center rounded-md text-[var(--text-tertiary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
-              >
-                <PanelLeftOpen className="h-4 w-4" />
-              </button>
-            </Tooltip>
-          ) : (
-            <button
-              onClick={toggleCollapsed}
-              aria-label="Recolher sidebar"
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[var(--text-tertiary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
-            >
-              <PanelLeftClose className="h-4 w-4" />
-            </button>
-          )}
         </div>
-      </div>
+      ) : null}
+
     </div>
   );
 
@@ -399,9 +555,10 @@ export function Sidebar({isOpen, onClose}: SidebarProps) {
     <>
       {!isMobile ? (
         <motion.div
+          initial={false}
           animate={{width: isCollapsed ? SIDEBAR_WIDTH_COLLAPSED : SIDEBAR_WIDTH_EXPANDED}}
           transition={{type: 'spring', damping: 32, stiffness: 320}}
-          className="h-screen shrink-0 overflow-hidden"
+          className={cn('relative h-screen shrink-0 overflow-hidden', Z_INDEX_NAV)}
         >
           {sidebarContent}
         </motion.div>

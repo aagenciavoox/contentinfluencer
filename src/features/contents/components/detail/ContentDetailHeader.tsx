@@ -85,7 +85,7 @@ export function ContentDetailHeader({
       <span
         className={cn(
           'h-1.5 w-1.5 shrink-0 rounded-full',
-          saveState === 'saved' && 'bg-[var(--success)]',
+          saveState === 'saved' && 'bg-[var(--text-tertiary)]',
           saveState === 'saving' && 'animate-pulse bg-[var(--accent-blue)]',
           saveState === 'idle' && 'bg-[var(--text-tertiary)]',
           saveState === 'error' && 'bg-[var(--accent-red)]',
@@ -195,22 +195,29 @@ export function ContentDetailHeader({
   ) : null;
 
   const titleContent = titleBlock ? (
-    <div className="min-w-0 stack-sm">
-      {titleBlock}
-      <div className="flex min-w-0 flex-wrap items-center gap-2">
-        <Badge variant="status" status={displayStatus}>
-          {displayStatus}
-        </Badge>
-        {saveIndicator ? (
-          <>
-            <span className="text-[var(--border-strong)]" aria-hidden>
-              ·
-            </span>
-            {saveIndicator}
-          </>
-        ) : null}
+    contentKind === 'script' ? (
+      <div className="flex min-w-0 items-center gap-3">
+        <div className="min-w-0 flex-1">{titleBlock}</div>
+        {saveIndicator ? <div className="shrink-0">{saveIndicator}</div> : null}
       </div>
-    </div>
+    ) : (
+      <div className="min-w-0 stack-sm">
+        {titleBlock}
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <Badge variant="status" status={displayStatus}>
+            {displayStatus}
+          </Badge>
+          {saveIndicator ? (
+            <>
+              <span className="text-[var(--border-strong)]" aria-hidden>
+                ·
+              </span>
+              {saveIndicator}
+            </>
+          ) : null}
+        </div>
+      </div>
+    )
   ) : undefined;
 
   const meta = [
@@ -227,6 +234,7 @@ export function ContentDetailHeader({
       backLabel={isIdea ? 'Ideias' : breadcrumbMode === 'pipeline' ? 'Roteiros' : 'Conteúdos'}
       backTo={isIdea ? '/criacao?tab=ideias' : breadcrumbMode === 'pipeline' ? '/criacao?tab=roteiros' : '/criacao'}
       meta={compact ? undefined : meta}
+      rowAlign={contentKind === 'script' ? 'center' : 'start'}
       actions={(
         <>
           {hasPrimaryAction ? (

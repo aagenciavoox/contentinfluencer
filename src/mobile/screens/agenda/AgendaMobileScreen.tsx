@@ -32,12 +32,21 @@ import type {CalendarEntry} from '../../../features/editorial-calendar/component
 import {readStoredJson, writeStoredJson} from '../../../lib/browserStorage';
 import {cn} from '../../../lib/utils';
 import {AppButton} from '../../../components/ui/AppButton';
+import {FilterBar} from '../../../components/ui/FilterBar';
 import {EmptyState} from '../../../components/ui/EmptyState';
 import {MobileListCard} from '../../components/MobileListCard';
 import {MobileSearchBar} from '../../components/MobileSearchBar';
 import {MobileSegmentTabs} from '../../components/MobileSegmentTabs';
 import {CalendarModeSwitch} from '../../../features/editorial-calendar/components/CalendarModeSwitch';
 import {getDisplayStatus} from '../../../features/contents/lib/contentPipeline';
+import {
+  ALL_PLATFORMS,
+  ALL_STATUSES,
+  CONTENT_STATUS_FILTER_OPTIONS,
+  collectPlatformNames,
+  matchesContentFilters,
+  platformFilterOptions,
+} from '../../../features/editorial-calendar/lib/calendarContentFilters';
 
 type AgendaTimelineKind = 'agenda' | 'recording' | 'publish' | 'project';
 
@@ -67,6 +76,8 @@ interface AgendaTimelineEntry {
   plataformaId?: string;
   agendaId?: string;
   projetoId?: string;
+  platformNames?: string[];
+  contentStatus?: string;
 }
 
 const KIND_LABELS: Record<AgendaTimelineKind, string> = {
@@ -111,6 +122,9 @@ function buildTimelineEntries(contents: Content[], platforms: Platform[], agenda
 
   contents.forEach(content => {
     const displayStatus = getDisplayStatus(content);
+    const platformNames = content.plataformas.map(
+      plataforma => platformNameById.get(plataforma.platformId) || plataforma.platformId,
+    );
     if (content.recordingDate) {
       entries.push({
         id: `${content.id}:recording`,
@@ -119,12 +133,15 @@ function buildTimelineEntries(contents: Content[], platforms: Platform[], agenda
         date: content.recordingDate,
         contentId: content.id,
         secondary: displayStatus || 'Fila de gravacao',
+        platformNames,
+        contentStatus: displayStatus,
       });
     }
     if (content.plataformas.length > 0) {
       content.plataformas.forEach(plataforma => {
         const publishDate = plataforma.publishDate || content.publishDate;
         if (!publishDate) return;
+        const platformName = platformNameById.get(plataforma.platformId) || plataforma.platformId;
         entries.push({
           id: `${content.id}:${plataforma.id}:publish`,
           kind: 'publish',
@@ -133,7 +150,9 @@ function buildTimelineEntries(contents: Content[], platforms: Platform[], agenda
           time: plataforma.publishTime || content.publishTime,
           contentId: content.id,
           plataformaId: plataforma.id,
-          secondary: `${platformNameById.get(plataforma.platformId) || plataforma.platformId} - ${displayStatus || 'Publicado'}`,
+          secondary: `${platformName} - ${displayStatus || 'Publicado'}`,
+          platformNames: [platformName],
+          contentStatus: displayStatus,
         });
       });
     } else if (content.publishDate) {
@@ -145,6 +164,8 @@ function buildTimelineEntries(contents: Content[], platforms: Platform[], agenda
         time: content.publishTime,
         contentId: content.id,
         secondary: displayStatus || 'Planejado para publicar',
+        platformNames: [],
+        contentStatus: displayStatus,
       });
     }
   });
@@ -209,6 +230,8 @@ export function AgendaMobileScreen({
   onSelectEntry,
 }: AgendaMobileScreenProps) {
   const [search, setSearch] = useState('');
+  const [platformFilter, setPlatformFilter] = useState(ALL_PLATFORMS);
+  const [statusFilter, setStatusFilter] = useState(ALL_STATUSES);
   const [activeKinds, setActiveKindsRaw] = useState<AgendaTimelineKind[]>(loadMobileKinds);
   const [calendarMonth, setCalendarMonth] = useState(() => startOfMonth(new Date()));
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -239,21 +262,42 @@ export function AgendaMobileScreen({
     [agendaItems, contents, platforms, projetos]
   );
 
+  const platformNames = useMemo(
+    () => collectPlatformNames(
+      platforms,
+      timeline.flatMap(entry => entry.platformNames ?? []),
+    ),
+    [platforms, timeline],
+  );
+
+  const passesContentFilter = useCallback((entry: AgendaTimelineEntry) => {
+    if (entry.kind === 'agenda' || entry.kind === 'project') {
+      return platformFilter === ALL_PLATFORMS && statusFilter === ALL_STATUSES;
+    }
+    return matchesContentFilters({
+      platformNames: entry.platformNames ?? [],
+      status: entry.contentStatus ?? '',
+      platformFilter,
+      statusFilter,
+    });
+  }, [platformFilter, statusFilter]);
+
   // dots per date for calendar grid
   const kindsByDate = useMemo(() => {
     const map = new Map<string, Set<AgendaTimelineKind>>();
     timeline.forEach(entry => {
-      if (!activeKinds.includes(entry.kind)) return;
+      if (!activeKinds.includes(entry.kind) || !passesContentFilter(entry)) return;
       const key = entry.date.slice(0, 10);
       if (!map.has(key)) map.set(key, new Set());
       map.get(key)!.add(entry.kind);
     });
     return map;
-  }, [timeline, activeKinds]);
+  }, [activeKinds, passesContentFilter, timeline]);
 
   const filteredEntries = useMemo(() => {
     const q = search.trim().toLowerCase();
     return timeline
+      .filter(passesContentFilter)
       .filter(entry => {
         const d = parseISO(entry.date);
         if (selectedDate) return isSameDay(d, selectedDate);
@@ -266,7 +310,7 @@ export function AgendaMobileScreen({
         return [entry.title, entry.secondary || '', KIND_LABELS[entry.kind]]
           .join(' ').toLowerCase().includes(q);
       });
-  }, [activeKinds, isTimeline, rangeEnd, rangeStart, search, selectedDate, timeline, today, upcomingEnd]);
+  }, [activeKinds, isTimeline, passesContentFilter, rangeEnd, rangeStart, search, selectedDate, timeline, today, upcomingEnd]);
 
   const groupedEntries = useMemo(() => {
     return filteredEntries.reduce<Array<{label: string; items: AgendaTimelineEntry[]}>>((acc, entry) => {
@@ -471,6 +515,28 @@ export function AgendaMobileScreen({
           value={search}
           onChange={setSearch}
           placeholder="Buscar evento, gravação, projeto..."
+        />
+        <FilterBar
+          size="compact"
+          showSearch={false}
+          searchValue=""
+          onSearchChange={() => undefined}
+          filters={[
+            {
+              id: 'platform',
+              label: 'Plataforma',
+              value: platformFilter,
+              onChange: setPlatformFilter,
+              options: platformFilterOptions(platformNames),
+            },
+            {
+              id: 'status',
+              label: 'Status',
+              value: statusFilter,
+              onChange: setStatusFilter,
+              options: CONTENT_STATUS_FILTER_OPTIONS,
+            },
+          ]}
         />
 
         {isTimeline ? (

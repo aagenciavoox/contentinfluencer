@@ -3,9 +3,9 @@ import { Text } from '../../../components/ui/Text';
 import { cn } from '../../../lib/utils';
 import type { CreationSort } from '../../contents/lib/creationContent';
 import { CreationCategoryLabel } from './CreationCategoryLabel';
+import { CreationEntityMarks, creationEntityHint } from './CreationEntityMarks';
 import { CreationItemMenu } from './CreationItemMenu';
 import { CreationSelectCheckbox } from './CreationSelectCheckbox';
-import { CreationStageChip } from './CreationStageChip';
 import {
   buildCreationItemMenuItems,
   type CreationItemActionHandlers,
@@ -13,8 +13,6 @@ import {
 import {
   getCreationFormatLabel,
   getCreationCardTags,
-  getCreationStageLabel,
-  getCreationStageTone,
   getCreationTitle,
 } from '../lib/creationItemPresentation';
 
@@ -28,7 +26,6 @@ export interface CreationListItemModel {
 
 interface CreationListViewProps {
   items: CreationListItemModel[];
-  showStatus: boolean;
   selectionMode: boolean;
   sort: CreationSort;
   onSortChange: (sort: CreationSort) => void;
@@ -41,7 +38,6 @@ function CreationListRow({
   content,
   pillar,
   series,
-  showStatus,
   selectionMode,
   selectable,
   selected,
@@ -49,16 +45,14 @@ function CreationListRow({
   onToggleSelect,
   actions,
 }: CreationListItemModel & {
-  showStatus: boolean;
   selectionMode: boolean;
   onOpen: () => void;
   onToggleSelect: () => void;
   actions: CreationItemActionHandlers;
 }) {
   const title = getCreationTitle(content);
-  const stageLabel = getCreationStageLabel(content);
-  const stageTone = getCreationStageTone(content);
-  const tags = getCreationCardTags(content, pillar, series);
+  const entityHint = creationEntityHint(pillar, series, content.pilarId, content.seriesId);
+  const tags = getCreationCardTags(content);
   const format = getCreationFormatLabel(content);
   const canOpen = !content.deletedAt;
   const canActivate = selectionMode ? selectable : canOpen;
@@ -85,18 +79,19 @@ function CreationListRow({
       }}
       role={canActivate ? 'button' : undefined}
       tabIndex={canActivate ? 0 : undefined}
-      aria-label={
+      aria-label={[
         selectionMode
           ? (selectable
             ? `${selected ? 'Desmarcar' : 'Selecionar'} ${title}`
             : `${title} não pode ser selecionado`)
-          : (canOpen ? `Abrir ${title}` : title)
-      }
+          : (canOpen ? `Abrir ${title}` : title),
+        entityHint,
+      ].filter(Boolean).join(', ')}
       className={cn(
         'group relative grid grid-cols-1 gap-2 rounded-[var(--radius-input)] border border-transparent px-3 py-2.5 transition-[background-color,border-color] duration-150',
         'hover:bg-[var(--bg-hover)] focus-within:bg-[var(--bg-hover)]',
         'focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
-        'md:grid-cols-[28px_minmax(0,1.6fr)_minmax(0,0.9fr)_minmax(0,0.7fr)_7.5rem_36px] md:items-center md:gap-3 md:py-0 md:min-h-[56px]',
+        'md:grid-cols-[28px_minmax(0,1.6fr)_minmax(0,0.8fr)_minmax(0,0.55fr)_7.5rem_36px] md:items-center md:gap-3 md:py-0 md:min-h-[56px]',
         selected && 'border-[var(--border-strong)] bg-[var(--bg-hover)]',
         selectionMode && !selectable && 'opacity-55',
         canActivate ? 'cursor-pointer' : 'cursor-default',
@@ -141,10 +136,13 @@ function CreationListRow({
           )}
         </div>
 
-        <div className="relative z-[1] flex items-center gap-2 md:justify-start">
-          {showStatus ? (
-            <CreationStageChip label={stageLabel} toneStatus={stageTone} />
-          ) : null}
+        <div className="relative z-[1] flex min-w-0 items-center gap-2 md:justify-start">
+          <CreationEntityMarks
+            pillar={pillar}
+            series={series}
+            pillarId={content.pilarId}
+            seriesId={content.seriesId}
+          />
           <span
             className="md:hidden"
             onClick={event => event.stopPropagation()}
@@ -170,7 +168,6 @@ function CreationListRow({
 
 export function CreationListView({
   items,
-  showStatus,
   selectionMode,
   sort,
   onSortChange,
@@ -181,7 +178,7 @@ export function CreationListView({
   return (
     <div className="overflow-hidden rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-elevated)]">
       <div
-        className="sticky top-0 z-10 hidden border-b border-[var(--border-color)] bg-[var(--bg-elevated)] px-3 md:grid md:grid-cols-[28px_minmax(0,1.6fr)_minmax(0,0.9fr)_minmax(0,0.7fr)_7.5rem_36px] md:items-center md:gap-3 md:py-2"
+        className="sticky top-0 z-10 hidden border-b border-[var(--border-color)] bg-[var(--bg-elevated)] px-3 md:grid md:grid-cols-[28px_minmax(0,1.6fr)_minmax(0,0.8fr)_minmax(0,0.55fr)_7.5rem_36px] md:items-center md:gap-3 md:py-2"
         role="row"
       >
         <span className="sr-only">Seleção</span>
@@ -197,7 +194,7 @@ export function CreationListView({
         </button>
         <Text variant="label" as="span">Categoria</Text>
         <Text variant="label" as="span">Formato</Text>
-        <Text variant="label" as="span">{showStatus ? 'Etapa' : ''}</Text>
+        <Text variant="label" as="span">Pilar / Série</Text>
         <span className="sr-only">Ações</span>
       </div>
 
@@ -206,7 +203,6 @@ export function CreationListView({
           <CreationListRow
             key={item.content.id}
             {...item}
-            showStatus={showStatus}
             selectionMode={selectionMode}
             onOpen={() => onOpen(item.content)}
             onToggleSelect={() => onToggleSelect(item.content)}

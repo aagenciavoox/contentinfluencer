@@ -542,7 +542,6 @@ export function CreationHubPage() {
     [resolveItem, visibleContents],
   );
 
-  const showStatus = true;
   const tabOptions = CREATION_TABS.map(tab => ({
     id: tab,
     label: `${tab} ${tabCounts[tab]}`,
@@ -885,7 +884,6 @@ export function CreationHubPage() {
             {viewMode === 'grid' ? (
               <CreationGridView
                 items={listItems}
-                showStatus
                 selectionMode={exportMode}
                 compact={isMobile}
                 onOpen={openContent}
@@ -897,7 +895,6 @@ export function CreationHubPage() {
             {viewMode === 'list' ? (
               <CreationListView
                 items={listItems}
-                showStatus
                 selectionMode={exportMode}
                 sort={sort}
                 onSortChange={value => updateSearchParam('sort', value, 'recent')}

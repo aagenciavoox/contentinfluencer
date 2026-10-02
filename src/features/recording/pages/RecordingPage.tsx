@@ -1,6 +1,6 @@
-import {useEffect, useMemo, useRef, useState, type ReactNode} from 'react';
+import {useEffect, useMemo, useRef, useState} from 'react';
 import {useLocation, useNavigate, useSearchParams} from 'react-router-dom';
-import {Layers3, Plus, Video} from 'lucide-react';
+import {Plus} from 'lucide-react';
 import {useAppContext} from '../../../context/AppContext';
 import {useAuth} from '../../../context/AuthContext';
 import {useIsMobile} from '../../../hooks/useIsMobile';
@@ -20,6 +20,7 @@ import {RecordingQueueTab} from '../components/desktop/RecordingQueueTab';
 import {RecordingSelectionBar} from '../components/desktop/RecordingSelectionBar';
 import {RecordingScriptReader} from '../components/RecordingScriptReader';
 import {FilterBar} from '../../../components/ui/FilterBar';
+import {SegmentTabs} from '../../../components/ui/SegmentTabs';
 import {AppButton} from '../../../components/ui/AppButton';
 import {Surface} from '../../../components/ui/Surface';
 import {Text} from '../../../components/ui/Text';
@@ -349,7 +350,7 @@ export function RecordingPage() {
   if (isMobile) {
     return (
       <>
-        <div className="recording-page min-h-full bg-[var(--bg-primary)]">
+        <div className="min-h-full bg-[var(--bg-primary)]">
           <RecordingMobileScreen
           readyContents={queueContents}
           recordingBlocks={state.recordingBlocks}
@@ -387,14 +388,16 @@ export function RecordingPage() {
   return (
     <>
       <PageLayout
-      className="recording-page"
-      contentStack="none"
+      contentStack="dense"
       header={
         <DesktopPageHeader
           section="Produção"
           title="Gravação"
-          icon={Video}
-          className="mb-0"
+          meta={
+            activeTab === 'queue'
+              ? `${prontos.length} sem bloco`
+              : `${state.recordingBlocks.length} ${state.recordingBlocks.length === 1 ? 'bloco' : 'blocos'}`
+          }
           actions={
             <AppButton
               variant="primary"
@@ -409,47 +412,19 @@ export function RecordingPage() {
           }
         />
       }
-    >
-        <div className="stack-xl">
-        <div
-          role="tablist"
-          aria-label="Areas de gravacao"
-          className="recording-segment md:max-w-md"
-        >
-          <button
-            type="button"
-            role="tab"
-            aria-selected={activeTab === 'queue'}
-            onClick={() => handleTabChange('queue')}
-            className={cn(
-              'recording-segment-item t-label',
-              activeTab === 'queue'
-                ? 'recording-segment-item-active'
-                : 'italic'
-            )}
-          >
-            Sem bloco
-          </button>
-
-          <button
-            type="button"
-            role="tab"
-            aria-selected={activeTab === 'blocks'}
-            onClick={() => handleTabChange('blocks')}
-            className={cn(
-              'recording-segment-item t-label',
-              activeTab === 'blocks'
-                ? 'recording-segment-item-active'
-                : 'italic'
-            )}
-          >
-            Blocos
-          </button>
-        </div>
-
-        {activeTab === 'queue' ? (
-          <section className={cn('stack-xl', selectedIds.size > 0 && 'pb-28')}>
+      toolbar={
+        <div className="desktop-subheader !mb-0">
+          <SegmentTabs<RecordingPageTab>
+            value={activeTab}
+            onChange={handleTabChange}
+            options={[
+              {id: 'queue', label: 'Sem bloco'},
+              {id: 'blocks', label: 'Blocos'},
+            ]}
+          />
+          {activeTab === 'queue' ? (
             <FilterBar
+              className="min-w-0 flex-1"
               searchValue={searchTerm}
               onSearchChange={setSearchTerm}
               searchPlaceholder="Buscar por roteiro, pilar, serie ou marcador"
@@ -506,18 +481,17 @@ export function RecordingPage() {
                 {label: 'Energia alta', value: 'energia:desc'},
               ]}
             />
-
-            <div className="grid grid-cols-2 gap-3 md:grid-cols-3 md:max-w-2xl">
+          ) : null}
+        </div>
+      }
+    >
+        <div className="stack-lg">
+        {activeTab === 'queue' ? (
+          <section className={cn('stack-lg', selectedIds.size > 0 && 'pb-28')}>
+            <div className="grid-metrics-3">
               <StatCard label="Sem bloco" value={String(prontos.length)} />
               <StatCard label="Selecionados" value={String(selectedIds.size)} />
-              <StatCard label="Blocos montados" value={String(state.recordingBlocks.length)} className="col-span-2 md:col-span-1" />
-            </div>
-
-            <div className="space-y-1">
-              <Text variant="sectionTitle">Grade de roteiros prontos</Text>
-              <p className="text-sm text-[var(--text-secondary)]">
-                Clique no card para selecionar. Use o icone de link para abrir o detalhe sem sair da selecao.
-              </p>
+              <StatCard label="Blocos montados" value={String(state.recordingBlocks.length)} />
             </div>
 
             <RecordingQueueGrid
@@ -554,21 +528,10 @@ export function RecordingPage() {
             />
           </section>
         ) : (
-          <section className="stack-xl">
-            <div className="grid grid-cols-2 gap-3 md:max-w-md">
-              <StatCard label="Blocos" value={String(state.recordingBlocks.length)} icon={<Layers3 className="h-4 w-4" />} />
-              <StatCard
-                label="Roteiros sem bloco"
-                value={String(queueContents.length)}
-                icon={<Video className="h-4 w-4" />}
-              />
-            </div>
-
-            <div className="space-y-1">
-              <Text variant="sectionTitle">Blocos de gravação</Text>
-              <p className="text-sm text-[var(--text-secondary)]">
-                Gerencie os blocos montados e acompanhe o progresso de gravação.
-              </p>
+          <section className="stack-lg">
+            <div className="grid-metrics">
+              <StatCard label="Blocos" value={String(state.recordingBlocks.length)} />
+              <StatCard label="Roteiros sem bloco" value={String(queueContents.length)} />
             </div>
 
             <RecordingQueueTab />
@@ -592,18 +555,14 @@ export function RecordingPage() {
 interface StatCardProps {
   label: string;
   value: string;
-  icon?: ReactNode;
   className?: string;
 }
 
-function StatCard({label, value, icon, className}: StatCardProps) {
+function StatCard({label, value, className}: StatCardProps) {
   return (
-    <Surface variant="outlined" padding="md" className={cn('recording-stat-card', className)}>
-      <div className="flex items-center gap-2">
-        {icon ? <span className="text-[var(--text-secondary)]">{icon}</span> : null}
-        <Text variant="label">{label}</Text>
-      </div>
-      <p className="mt-1 text-2xl font-bold tabular-nums text-[var(--text-primary)]">{value}</p>
+    <Surface variant="outlined" padding="md" className={className}>
+      <Text variant="label">{label}</Text>
+      <Text variant="sectionTitle" className="mt-1 tabular-nums">{value}</Text>
     </Surface>
   );
 }
