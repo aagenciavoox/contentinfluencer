@@ -1,7 +1,7 @@
 import {useEffect, useMemo, useRef, useState} from 'react';
 import {useNavigate} from 'react-router-dom';
 import {getDay, parseISO} from 'date-fns';
-import {CalendarClock, ChevronDown, Clock, ExternalLink, Layers, ListChecks, Palette, Sun, Target, Video} from 'lucide-react';
+import {BookOpen, CalendarClock, ChevronDown, Clock, ExternalLink, Layers, ListChecks, Palette, Sun, Target, Video} from 'lucide-react';
 import type {Content, Pilar, Serie} from '../../../../lib/database';
 import type {Weekday} from '../../../settings/lib/postingTimes';
 import {cn} from '../../../../lib/utils';
@@ -14,6 +14,7 @@ import {
   PropertyTextarea,
 } from '../../../../components/ui/PropertyRow';
 import {PropertyDatePicker} from '../../../../components/ui/PropertyDatePicker';
+import {AppButton} from '../../../../components/ui/AppButton';
 import {Surface} from '../../../../components/ui/Surface';
 import {Badge} from '../../../../components/ui/Badge';
 import {Text} from '../../../../components/ui/Text';
@@ -48,7 +49,7 @@ type OperationalDraft = Pick<
   | 'publishDate'
   | 'publishTime'
   | 'status'
-> & Partial<Pick<Content, 'postedAt'>>;
+> & Partial<Pick<Content, 'postedAt' | 'bibliotecaItemId'>>;
 
 interface ContentOperationalPanelProps {
   draft: OperationalDraft;
@@ -294,8 +295,22 @@ export function ContentOperationalPanel({
   showTitle = true,
   className,
 }: ContentOperationalPanelProps) {
-  const {state} = useAppContext();
+  const {state, ensureDataDomains} = useAppContext();
   const navigate = useNavigate();
+  const showLibraryLink = variant === 'cards' && layout !== 'form';
+  useEffect(() => {
+    if (showLibraryLink) void ensureDataDomains(['library']);
+  }, [ensureDataDomains, showLibraryLink]);
+  const bibliotecaOptions = useMemo(
+    () =>
+      state.bibliotecaItems
+        .filter(item => !item.deletedAt || item.id === draft.bibliotecaItemId)
+        .sort((a, b) => a.titulo.localeCompare(b.titulo, 'pt-BR')),
+    [state.bibliotecaItems, draft.bibliotecaItemId],
+  );
+  const linkedBibliotecaItem = draft.bibliotecaItemId
+    ? state.bibliotecaItems.find(item => item.id === draft.bibliotecaItemId) ?? null
+    : null;
   const publishDateOnly = draft.publishDate ? draft.publishDate.slice(0, 10) : '';
   const linkedSerie = draft.seriesId ? series.find(serie => serie.id === draft.seriesId) ?? null : null;
   const linkedPilar = draft.pilarId ? pilares.find(pilar => pilar.id === draft.pilarId) ?? null : null;
@@ -530,6 +545,35 @@ export function ContentOperationalPanel({
               allowedStatuses={allowedStatuses}
               onStatusChange={status => onChange({status})}
             />
+          </RoteiroField>
+          <RoteiroField label="Biblioteca" icon={<BookOpen className="h-3.5 w-3.5" />}>
+            <div className="flex items-center gap-1">
+              <div className="min-w-0 flex-1">
+                <RoteiroSelect
+                  value={draft.bibliotecaItemId ?? ''}
+                  onChange={event => onChange({bibliotecaItemId: event.target.value || null})}
+                >
+                  <option value="">Sem item vinculado</option>
+                  {bibliotecaOptions.map(item => (
+                    <option key={item.id} value={item.id}>
+                      {item.titulo}
+                    </option>
+                  ))}
+                </RoteiroSelect>
+              </div>
+              {linkedBibliotecaItem ? (
+                <AppButton
+                  type="button"
+                  variant="ghost"
+                  size="xs"
+                  aria-label={`Abrir ${linkedBibliotecaItem.titulo} na biblioteca`}
+                  title="Abrir na biblioteca"
+                  onClick={() => navigate(`/biblioteca/${linkedBibliotecaItem.id}?tab=conteudos`)}
+                >
+                  <ExternalLink className="h-3.5 w-3.5" />
+                </AppButton>
+              ) : null}
+            </div>
           </RoteiroField>
           <div className="flex flex-wrap gap-2">
             <Badge variant="neutral">{linkedSerie?.name ?? 'Sem série'}</Badge>
