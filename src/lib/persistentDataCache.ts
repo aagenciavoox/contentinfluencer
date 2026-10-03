@@ -2,9 +2,30 @@ import type { AppData, AppDataDomain, Content } from './database';
 import { readStoredJson, writeStoredJson } from './browserStorage.ts';
 
 const STORAGE_PREFIX = 'content-os:domain:';
+const EPOCH_KEY = 'content-os:domain-epoch';
+/** Trocar este valor descarta a lista local de roteiros/ideias na próxima abertura. */
+const DOMAIN_CACHE_EPOCH = '2026-10-02-clear-creations';
 /** Dados persistidos ficam legíveis por até 24h; revalidação em background após 5 min. */
 export const PERSISTENT_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 export const PERSISTENT_FRESH_MS = 5 * 60 * 1000;
+
+/** Apaga o cache de domínio de versões anteriores. A lista guardava títulos sem o corpo. */
+export function discardObsoleteDomainCache(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    if (window.localStorage.getItem(EPOCH_KEY) === DOMAIN_CACHE_EPOCH) return false;
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < window.localStorage.length; i++) {
+      const key = window.localStorage.key(i);
+      if (key?.startsWith(STORAGE_PREFIX)) keysToRemove.push(key);
+    }
+    keysToRemove.forEach(key => window.localStorage.removeItem(key));
+    window.localStorage.setItem(EPOCH_KEY, DOMAIN_CACHE_EPOCH);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 type PersistedEntry = {
   payload: Partial<AppData>;
@@ -56,6 +77,7 @@ function stripContentForCache(content: Content): Content {
 }
 
 export function readPersistedDomain(userId: string, cacheKey: string): PersistedEntry | null {
+  discardObsoleteDomainCache();
   const entry = readStoredJson<PersistedEntry | null>(storageKey(userId, cacheKey), null);
   if (!entry?.payload) return null;
   if (Date.now() - entry.fetchedAt > PERSISTENT_MAX_AGE_MS) {

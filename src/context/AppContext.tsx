@@ -19,6 +19,7 @@ import { buildDomainCacheKey, dataCache } from '../lib/dataCache';
 import {
   canDomainPayloadSatisfyRequest,
   clearPersistedDomainsForUser,
+  discardObsoleteDomainCache,
   isPersistedDomainFresh,
   readPersistedDomain,
   writePersistedDomain,
@@ -297,6 +298,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const loadPromise = fetchDataDomains(missingDomains, userId)
       .then(data => {
         const merged = mergeFetchedAppData(mergeSnapshot(), data);
+        if (
+          pendingPersistCount.current === 0
+          && Array.isArray(data.contents)
+          && data.contents.length === 0
+        ) {
+          merged.contents = [];
+        }
         dataCache.setDomain(cacheKey, merged);
         writePersistedDomain(userId, cacheKey, merged);
         dispatch({ type: 'SET_DATA', payload: merged });
@@ -384,6 +392,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
 
     let cancelled = false;
+
+    if (discardObsoleteDomainCache()) {
+      dataCache.invalidateAll();
+      loadedDomains.current.clear();
+      dispatch({
+        type: 'SET_DATA',
+        payload: { contents: [], ideas: [], series: [], pilares: [] },
+      });
+    }
 
     const criticalCacheKey = buildDomainCacheKey(CRITICAL_BOOTSTRAP_DOMAINS);
     const legacyBootstrapKey = buildDomainCacheKey(BOOTSTRAP_DATA_DOMAINS);
