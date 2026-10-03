@@ -37,6 +37,7 @@ import {RoteiroSection, type ScriptDraft} from './sections/RoteiroSection';
 import {isWritingWorkspaceEnabled} from '../../../settings/lib/writingWorkspace';
 import {IdeaDetailSection, IdeaOrganizationPanel} from './sections/IdeaDetailSection';
 import {promoteContentToScript} from '../../lib/creationContent';
+import {resolveSeriesScriptTemplate} from '../../lib/seriesScriptTemplate';
 
 interface ContentDetailShellProps {
   content: Content;
@@ -121,6 +122,13 @@ export function ContentDetailShell({
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const draftDirtyRef = useRef(false);
+  const appliedSeriesTemplateRef = useRef<string | null>(null);
+  const pendingSeriesTemplateRef = useRef<string | null>(null);
+  const templatesRef = useRef(state.templates);
+  const templatesReadyRef = useRef(false);
+  const [templatesReady, setTemplatesReady] = useState(false);
+  templatesRef.current = state.templates;
+  templatesReadyRef.current = templatesReady || state.templates.length > 0;
   const [draftDirty, setDraftDirty] = useState(false);
   const [explicitSaving, setExplicitSaving] = useState(false);
   const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -145,6 +153,21 @@ export function ContentDetailShell({
   const blocker = useNavigationBlocker(() => draftDirtyRef.current);
 
   useEffect(() => subscribeSaveFeedback(() => setSaveFeedback(getSaveFeedbackState())), []);
+
+  useEffect(() => {
+    let cancelled = false;
+    void Promise.resolve(ensureDataDomains(['templates'])).then(() => {
+      if (!cancelled) setTemplatesReady(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [ensureDataDomains]);
+
+  useEffect(() => {
+    appliedSeriesTemplateRef.current = null;
+    pendingSeriesTemplateRef.current = null;
+  }, [content.id]);
 
   useEffect(() => {
     if (!isRecordingSheetOpen) {
@@ -239,8 +262,30 @@ export function ContentDetailShell({
 
   const handleDraftChange = useCallback((updates: Partial<ContentDraft>) => {
     setDraft(previous => {
-      const changed = (Object.keys(updates) as Array<keyof ContentDraft>).some(key => {
-        const nextValue = updates[key];
+      const nextUpdates = {...updates};
+      if (
+        'seriesId' in updates
+        && (updates.seriesId ?? null) !== previous.seriesId
+        && !('script' in updates)
+        && normalizeContentStatus(previous.status) === CONTENT_STATUS.ROTEIRO
+      ) {
+        const resolution = resolveSeriesScriptTemplate({
+          previousSeriesId: previous.seriesId,
+          nextSeriesId: updates.seriesId ?? null,
+          script: previous.script,
+          templates: templatesRef.current,
+          appliedTemplateHtml: appliedSeriesTemplateRef.current,
+          templatesReady: templatesReadyRef.current,
+        });
+        appliedSeriesTemplateRef.current = resolution.appliedTemplateHtml;
+        pendingSeriesTemplateRef.current = resolution.pendingSeriesId;
+        if (resolution.script !== undefined) {
+          nextUpdates.script = resolution.script;
+        }
+      }
+
+      const changed = (Object.keys(nextUpdates) as Array<keyof ContentDraft>).some(key => {
+        const nextValue = nextUpdates[key];
         const prevValue = previous[key];
         if (key === 'script' || key === 'notes' || key === 'referencias' || key === 'writingNotes') {
           return normalizePlain(prevValue as string | null) !== normalizePlain(nextValue as string | null);
@@ -263,9 +308,32 @@ export function ContentDetailShell({
         });
       }
 
-      return {...previous, ...updates};
+      return {...previous, ...nextUpdates};
     });
   }, []);
+
+  useEffect(() => {
+    const seriesId = pendingSeriesTemplateRef.current;
+    if (!seriesId || draft.seriesId !== seriesId) return;
+    if (normalizeContentStatus(draft.status) !== CONTENT_STATUS.ROTEIRO) return;
+    if (!templatesReady && state.templates.length === 0) return;
+
+    const resolution = resolveSeriesScriptTemplate({
+      previousSeriesId: null,
+      nextSeriesId: seriesId,
+      script: draft.script,
+      templates: state.templates,
+      appliedTemplateHtml: appliedSeriesTemplateRef.current,
+      templatesReady: true,
+    });
+    if (resolution.pendingSeriesId) return;
+
+    pendingSeriesTemplateRef.current = null;
+    appliedSeriesTemplateRef.current = resolution.appliedTemplateHtml;
+    if (resolution.script !== undefined) {
+      handleDraftChange({script: resolution.script});
+    }
+  }, [draft.script, draft.seriesId, draft.status, handleDraftChange, state.templates, templatesReady]);
 
   const pillar = state.pilares.find(item => item.id === draft.pilarId) || null;
   const serie = state.series.find(item => item.id === draft.seriesId) || null;

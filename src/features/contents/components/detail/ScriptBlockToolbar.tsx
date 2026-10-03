@@ -5,20 +5,13 @@ import {OverlayHeader} from '../../../../components/overlays/OverlayHeader';
 import {OverlayBody} from '../../../../components/overlays/OverlayBody';
 import {useAppContext} from '../../../../context/AppContext';
 import {Text} from '../../../../components/ui/Text';
-import type {Template} from '../../../../lib/database';
 import {cn} from '../../../../lib/utils';
+import {templateToHtml} from '../../lib/seriesScriptTemplate';
+
+export {templateToHtml};
 
 export const SCRIPT_BLOCKS = ['Gancho', 'Fato', 'Virada', 'Veredito'] as const;
 export type ScriptBlockLabel = (typeof SCRIPT_BLOCKS)[number];
-
-export function templateToHtml(template: Template): string {
-  return template.estrutura
-    .map(bloco => {
-      const body = (bloco.conteudo || bloco.placeholder || '').trim();
-      return `<p><strong>[${bloco.label}]</strong></p><p>${body}</p>`;
-    })
-    .join('');
-}
 
 export function appendScriptBlock(script: string | null, label: string) {
   const blockHtml = `<p><strong>[${label}]</strong></p><p></p>`;

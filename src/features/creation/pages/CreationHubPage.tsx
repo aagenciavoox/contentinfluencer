@@ -4,13 +4,16 @@ import {
   Columns3,
   Download,
   FileText,
+  Layers,
   LayoutGrid,
   Lightbulb,
   List,
+  Target,
   Trash2,
   X,
 } from 'lucide-react';
 import { ConfirmModal } from '../../../components/feedback/modals/ConfirmModal';
+import { Dialog } from '../../../components/overlays/Dialog';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { AppButton } from '../../../components/ui/AppButton';
 import { FilterBar } from '../../../components/ui/FilterBar';
@@ -40,6 +43,7 @@ import {
 } from '../../../lib/database';
 import { buildDetailBackState } from '../../../lib/navigation/detailBack';
 import { getErrorMessage, notifySaveFeedback } from '../../../lib/saveFeedback';
+import { CONFIRM, ERRORS } from '../../../lib/uiCopy';
 import { buildContentDetailRoute } from '../../contents/lib/contentDetailRoute';
 import {
   archiveCreation,
@@ -125,6 +129,10 @@ export function CreationHubPage() {
   const [exportMode, setExportMode] = useState(false);
   const [selectedExportIds, setSelectedExportIds] = useState<Set<string>>(new Set());
   const [isExporting, setIsExporting] = useState(false);
+  const [assignField, setAssignField] = useState<'seriesId' | 'pilarId' | null>(null);
+  const [assignValue, setAssignValue] = useState('');
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [isBulkWorking, setIsBulkWorking] = useState(false);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [persistingIds, setPersistingIds] = useState<Set<string>>(new Set());
   const handledComposeRef = useRef<string | null>(null);
@@ -243,7 +251,12 @@ export function CreationHubPage() {
   }, [location.pathname, location.search, navigate]);
 
   const toggleExportMode = useCallback(() => {
-    if (exportMode) setSelectedExportIds(new Set());
+    if (exportMode) {
+      setSelectedExportIds(new Set());
+      setAssignField(null);
+      setAssignValue('');
+      setBulkDeleteOpen(false);
+    }
     setExportMode(!exportMode);
   }, [exportMode]);
 
@@ -309,6 +322,107 @@ export function CreationHubPage() {
     user?.id,
   ]);
 
+  const bulkOrganize = activeTab === 'Ideias' || activeTab === 'Roteiros';
+  const selectedContents = useMemo(
+    () => exportableContents.filter(content => selectedExportIds.has(content.id)),
+    [exportableContents, selectedExportIds],
+  );
+
+  const beginSelection = useCallback(() => {
+    setExportMode(true);
+  }, []);
+
+  useEffect(() => {
+    if (bulkOrganize) return;
+    setAssignField(null);
+    setBulkDeleteOpen(false);
+  }, [bulkOrganize]);
+
+  const openBulkAssign = useCallback((field: 'seriesId' | 'pilarId') => {
+    if (selectedExportIds.size === 0 || isBulkWorking) return;
+    setAssignValue('');
+    setAssignField(field);
+  }, [isBulkWorking, selectedExportIds.size]);
+
+  const applyBulkAssign = useCallback(async () => {
+    if (!assignField || !assignValue || selectedContents.length === 0 || isBulkWorking) return;
+
+    const nextValue = assignValue === '__none__' ? null : assignValue;
+    setIsBulkWorking(true);
+    try {
+      const ids = selectedContents.map(content => content.id);
+      const fetched = user?.id ? await fetchContentsByIds(user.id, ids) : selectedContents;
+      if (user?.id && fetched.length !== ids.length) {
+        throw new Error('Nem todos os itens selecionados puderam ser carregados.');
+      }
+
+      const now = new Date().toISOString();
+      for (const content of fetched) {
+        const currentValue = assignField === 'seriesId' ? content.seriesId : content.pilarId;
+        if (currentValue === nextValue) continue;
+        await updateContent({
+          ...content,
+          [assignField]: nextValue,
+          updatedAt: now,
+        }, { silent: true });
+      }
+
+      notifySaveFeedback({
+        status: 'success',
+        message: assignField === 'seriesId'
+          ? 'Série atualizada na seleção'
+          : 'Pilar atualizado na seleção',
+      });
+      setAssignField(null);
+      setAssignValue('');
+      setSelectedExportIds(new Set());
+      setExportMode(false);
+    } catch (error) {
+      notifySaveFeedback({
+        status: 'error',
+        message: ERRORS.aplicarAlteracoesMassa,
+        detail: getErrorMessage(error),
+      });
+    } finally {
+      setIsBulkWorking(false);
+    }
+  }, [assignField, assignValue, isBulkWorking, selectedContents, updateContent, user?.id]);
+
+  const confirmBulkDelete = useCallback(async () => {
+    if (selectedContents.length === 0 || isBulkWorking) return;
+    const ids = selectedContents.map(content => content.id);
+    const removedAt = new Date().toISOString();
+    const removed = selectedContents.map(content => ({
+      ...content,
+      deletedAt: removedAt,
+      updatedAt: removedAt,
+    }));
+
+    setIsBulkWorking(true);
+    try {
+      await dispatch({ type: 'DELETE_MULTIPLE_CONTENTS', payload: ids }, { silent: true });
+      setDeletedContents(previous => [
+        ...removed,
+        ...previous.filter(item => !ids.includes(item.id)),
+      ]);
+      const noun = activeTab === 'Ideias'
+        ? (ids.length === 1 ? 'Ideia movida para a lixeira' : `${ids.length} ideias movidas para a lixeira`)
+        : (ids.length === 1 ? 'Roteiro movido para a lixeira' : `${ids.length} roteiros movidos para a lixeira`);
+      notifySaveFeedback({ status: 'success', message: noun });
+      setBulkDeleteOpen(false);
+      setSelectedExportIds(new Set());
+      setExportMode(false);
+    } catch (error) {
+      notifySaveFeedback({
+        status: 'error',
+        message: ERRORS.salvarGenerico,
+        detail: getErrorMessage(error),
+      });
+    } finally {
+      setIsBulkWorking(false);
+    }
+  }, [activeTab, dispatch, isBulkWorking, selectedContents]);
+
   const createScript = useCallback((replace = false) => {
     const content = createScriptContent({ title: 'Novo roteiro' });
     void dispatch({ type: 'ADD_CONTENT', payload: content });
@@ -351,11 +465,17 @@ export function CreationHubPage() {
   const saveIdea = useCallback(async (input: CreationIdeaInput) => {
     const content = createIdeaContent(input);
     await dispatch({ type: 'ADD_CONTENT', payload: content });
-    navigate(
-      buildContentDetailRoute(content.id),
-      buildDetailBackState('/criacao?tab=ideias'),
-    );
-  }, [dispatch, navigate]);
+    setSearchParams(previous => {
+      const next = new URLSearchParams(previous);
+      const tab = next.get('tab');
+      if (tab && tab !== 'todos' && tab !== 'ideias') {
+        next.set('tab', 'ideias');
+        next.delete('tipo');
+        next.delete('page');
+      }
+      return next;
+    }, { replace: true });
+  }, [dispatch, setSearchParams]);
 
   useEffect(() => {
     if (!user?.id) {
@@ -656,6 +776,21 @@ export function CreationHubPage() {
     setMobileFiltersOpen(false);
   }, [setSearchParams]);
 
+  const selectionMenu = activeTab === 'Lixeira' ? null : (
+    <CreationOverflowMenu
+      exportLabel={`Exportar ${exportCopy.plural}`}
+      exportEnabled={exportableContents.length > 0}
+      exportMode={exportMode}
+      onToggleExport={toggleExportMode}
+      cancelLabel={bulkOrganize ? 'Cancelar seleção' : 'Cancelar exportação'}
+      extraItems={bulkOrganize ? [
+        { id: 'bulk-series', label: 'Mudar série em massa', onClick: beginSelection },
+        { id: 'bulk-pillar', label: 'Mudar pilar em massa', onClick: beginSelection },
+        { id: 'bulk-delete', label: 'Excluir', tone: 'danger', onClick: beginSelection },
+      ] : []}
+    />
+  );
+
   const filters = (
     <div className="desktop-subheader !mb-0">
       <FilterBar
@@ -676,14 +811,7 @@ export function CreationHubPage() {
           onChange={value => setViewMode(value)}
           showLabels
         />
-        {activeTab !== 'Lixeira' ? (
-          <CreationOverflowMenu
-            exportLabel={`Exportar ${exportCopy.plural}`}
-            exportEnabled={exportableContents.length > 0}
-            exportMode={exportMode}
-            onToggleExport={toggleExportMode}
-          />
-        ) : null}
+        {selectionMenu}
       </div>
     </div>
   );
@@ -695,16 +823,7 @@ export function CreationHubPage() {
       placeholder="Buscar por título, nota ou tag"
       onFilterClick={() => setMobileFiltersOpen(true)}
       rounded="tight"
-      trailing={
-        activeTab !== 'Lixeira' ? (
-          <CreationOverflowMenu
-            exportLabel={`Exportar ${exportCopy.plural}`}
-            exportEnabled={exportableContents.length > 0}
-            exportMode={exportMode}
-            onToggleExport={toggleExportMode}
-          />
-        ) : undefined
-      }
+      trailing={selectionMenu ?? undefined}
     />
   );
 
@@ -797,11 +916,43 @@ export function CreationHubPage() {
         >
           {allExportableSelected ? 'Desmarcar todos' : 'Selecionar todos'}
         </AppButton>
+        {bulkOrganize ? (
+          <>
+            <AppButton
+              variant="secondary"
+              size="sm"
+              leftIcon={<Layers className="h-4 w-4" />}
+              disabled={selectedExportIds.size === 0 || isBulkWorking}
+              onClick={() => openBulkAssign('seriesId')}
+            >
+              Mudar série
+            </AppButton>
+            <AppButton
+              variant="secondary"
+              size="sm"
+              leftIcon={<Target className="h-4 w-4" />}
+              disabled={selectedExportIds.size === 0 || isBulkWorking}
+              onClick={() => openBulkAssign('pilarId')}
+            >
+              Mudar pilar
+            </AppButton>
+            <AppButton
+              variant="ghost"
+              size="sm"
+              leftIcon={<Trash2 className="h-4 w-4" />}
+              disabled={selectedExportIds.size === 0 || isBulkWorking}
+              onClick={() => setBulkDeleteOpen(true)}
+              className="text-[var(--accent-pink)]"
+            >
+              Excluir
+            </AppButton>
+          </>
+        ) : null}
         <AppButton
           variant="primary"
           size="sm"
           leftIcon={<Download className="h-4 w-4" />}
-          disabled={selectedExportIds.size === 0 || isExporting}
+          disabled={selectedExportIds.size === 0 || isExporting || isBulkWorking}
           onClick={() => void handleExportCreations()}
         >
           {isExporting ? 'Gerando DOCX...' : `Exportar DOCX (${selectedExportIds.size})`}
@@ -941,6 +1092,83 @@ export function CreationHubPage() {
         initialOriginId={searchParams.get('itemId') ?? originId}
         onClose={closeIdeaComposer}
         onSave={saveIdea}
+      />
+
+      <Dialog
+        open={assignField !== null}
+        onClose={() => {
+          if (!isBulkWorking) setAssignField(null);
+        }}
+        desktopMaxW="max-w-md"
+        ariaLabel={assignField === 'seriesId' ? 'Mudar série' : 'Mudar pilar'}
+      >
+        <div className="stack-md p-4">
+          <Text variant="sectionTitle">
+            {assignField === 'seriesId' ? 'Mudar série' : 'Mudar pilar'}
+          </Text>
+          <Text variant="secondary">
+            A mudança vale para a seleção atual.
+          </Text>
+          <select
+            value={assignValue}
+            onChange={event => setAssignValue(event.target.value)}
+            className="min-h-11 w-full rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-hover)] px-3 text-sm text-[var(--text-primary)]"
+            aria-label={assignField === 'seriesId' ? 'Série' : 'Pilar'}
+          >
+            <option value="">Escolha</option>
+            <option value="__none__">
+              {assignField === 'seriesId' ? 'Sem série' : 'Sem pilar'}
+            </option>
+            {assignField === 'seriesId'
+              ? [...state.series]
+                .sort((left, right) => left.name.localeCompare(right.name, 'pt-BR'))
+                .map(series => (
+                  <option key={series.id} value={series.id}>{series.name}</option>
+                ))
+              : [...state.pilares]
+                .sort((left, right) => left.nome.localeCompare(right.nome, 'pt-BR'))
+                .map(pilar => (
+                  <option key={pilar.id} value={pilar.id}>{pilar.nome}</option>
+                ))}
+          </select>
+          <div className="flex justify-end gap-2">
+            <AppButton
+              variant="secondary"
+              size="sm"
+              disabled={isBulkWorking}
+              onClick={() => setAssignField(null)}
+            >
+              Cancelar
+            </AppButton>
+            <AppButton
+              variant="primary"
+              size="sm"
+              disabled={!assignValue || isBulkWorking}
+              onClick={() => void applyBulkAssign()}
+            >
+              {isBulkWorking ? 'Aplicando...' : 'Aplicar'}
+            </AppButton>
+          </div>
+        </div>
+      </Dialog>
+
+      <ConfirmModal
+        open={bulkDeleteOpen}
+        message={activeTab === 'Ideias'
+          ? `Mover ${selectedExportIds.size} ideia${selectedExportIds.size === 1 ? '' : 's'} para a lixeira? ${selectedExportIds.size === 1 ? 'Ela poderá' : 'Elas poderão'} ser restaurada${selectedExportIds.size === 1 ? '' : 's'} depois.`
+          : CONFIRM.excluirRoteiros(Math.max(selectedExportIds.size, 1)).message}
+        confirmLabel={isBulkWorking
+          ? 'Movendo...'
+          : activeTab === 'Ideias'
+            ? (selectedExportIds.size === 1 ? 'Mover para a lixeira' : `Mover ${selectedExportIds.size} para a lixeira`)
+            : CONFIRM.excluirRoteiros(Math.max(selectedExportIds.size, 1)).confirmLabel}
+        cancelLabel="Manter seleção"
+        confirmDisabled={isBulkWorking || selectedExportIds.size === 0}
+        cancelDisabled={isBulkWorking}
+        onConfirm={() => void confirmBulkDelete()}
+        onCancel={() => {
+          if (!isBulkWorking) setBulkDeleteOpen(false);
+        }}
       />
 
       <ConfirmModal

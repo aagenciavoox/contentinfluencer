@@ -1,4 +1,4 @@
-import { MoreMenu } from '../../../components/ui/MoreMenu';
+import { MoreMenu, type MoreMenuItem } from '../../../components/ui/MoreMenu';
 import { cn } from '../../../lib/utils';
 
 interface CreationOverflowMenuProps {
@@ -6,15 +6,19 @@ interface CreationOverflowMenuProps {
   exportEnabled: boolean;
   exportMode: boolean;
   onToggleExport: () => void;
+  cancelLabel?: string;
+  extraItems?: MoreMenuItem[];
   className?: string;
 }
 
-/** Page-level ••• for secondary actions (export). */
+/** Page-level ••• for selection actions (export and bulk edits). */
 export function CreationOverflowMenu({
   exportLabel,
   exportEnabled,
   exportMode,
   onToggleExport,
+  cancelLabel = 'Cancelar exportação',
+  extraItems = [],
   className,
 }: CreationOverflowMenuProps) {
   if (!exportEnabled && !exportMode) return null;
@@ -30,9 +34,10 @@ export function CreationOverflowMenu({
       items={[
         {
           id: 'export',
-          label: exportMode ? 'Cancelar exportação' : exportLabel,
+          label: exportMode ? cancelLabel : exportLabel,
           onClick: onToggleExport,
         },
+        ...(exportMode ? [] : extraItems),
       ]}
     />
   );

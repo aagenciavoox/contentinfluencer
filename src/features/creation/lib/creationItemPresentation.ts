@@ -25,6 +25,10 @@ const TAB_TO_STATUS: Record<CreationKanbanTab, string> = {
   Publicados: CONTENT_STATUS.POSTADO,
 };
 
+export function isIdeaContent(content: Pick<Content, 'status'>) {
+  return normalizeContentStatus(content.status) === CONTENT_STATUS.IDEIA;
+}
+
 export function getCreationTitle(content: Content) {
   return content.title.trim() || 'Sem título';
 }

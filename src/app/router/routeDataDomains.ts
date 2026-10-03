@@ -11,7 +11,7 @@ export function getRouteDataDomains(pathname: string): AppDataDomain[] {
   }
   if (pathname.startsWith('/biblioteca')) return ['library', 'library-generos'];
   if (pathname.startsWith('/criacao')) return ['production', 'content'];
-  if (pathname.startsWith('/conteudos/')) return ['production', 'recording'];
+  if (pathname.startsWith('/conteudos/')) return ['production', 'recording', 'templates'];
   if (pathname.startsWith('/conteudos')) return ['production'];
   if (pathname.startsWith('/ideias')) return ['production'];
   if (pathname.startsWith('/calendario') || pathname.startsWith('/programacao')) {

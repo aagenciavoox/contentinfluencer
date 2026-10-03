@@ -14,6 +14,7 @@ import {
   getCreationFormatLabel,
   getCreationCardTags,
   getCreationTitle,
+  isIdeaContent,
 } from '../lib/creationItemPresentation';
 
 export interface CreationListItemModel {
@@ -51,6 +52,7 @@ function CreationListRow({
   actions: CreationItemActionHandlers;
 }) {
   const title = getCreationTitle(content);
+  const isIdea = isIdeaContent(content);
   const entityHint = creationEntityHint(pillar, series, content.pilarId, content.seriesId);
   const tags = getCreationCardTags(content);
   const format = getCreationFormatLabel(content);
@@ -89,7 +91,9 @@ function CreationListRow({
       ].filter(Boolean).join(', ')}
       className={cn(
         'group relative grid grid-cols-1 gap-2 rounded-[var(--radius-input)] border border-transparent px-3 py-2.5 transition-[background-color,border-color] duration-150',
-        'hover:bg-[var(--bg-hover)] focus-within:bg-[var(--bg-hover)]',
+        isIdea
+          ? 'creation-hub-row--idea border-[var(--idea-card-border)] bg-[var(--idea-card-bg)]'
+          : 'hover:bg-[var(--bg-hover)] focus-within:bg-[var(--bg-hover)]',
         'focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
         'md:grid-cols-[28px_minmax(0,1.6fr)_minmax(0,0.8fr)_minmax(0,0.55fr)_7.5rem_36px] md:items-center md:gap-3 md:py-0 md:min-h-[56px]',
         selected && 'border-[var(--border-strong)] bg-[var(--bg-hover)]',

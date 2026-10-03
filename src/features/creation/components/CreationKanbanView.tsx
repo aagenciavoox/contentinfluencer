@@ -18,6 +18,7 @@ import {
   getCreationNoteExcerpt,
   getCreationTitle,
   isCreationKanbanTab,
+  isIdeaContent,
   type CreationKanbanTab,
 } from '../lib/creationItemPresentation';
 const DRAG_MIME = 'application/x-creation-id';
@@ -62,6 +63,7 @@ function CreationKanbanCard({
   actions: CreationItemActionHandlers;
 }) {
   const title = getCreationTitle(content);
+  const isIdea = isIdeaContent(content);
   const tags = getCreationCardTags(content);
   const excerpt = getCreationNoteExcerpt(content);
   const footerMeta = getCreationCardFooterMeta(content);
@@ -91,7 +93,10 @@ function CreationKanbanCard({
       tabIndex={canOpen ? 0 : undefined}
       aria-label={[canOpen ? `Abrir ${title}` : title, entityHint].filter(Boolean).join(', ')}
       className={cn(
-        'creation-hub-card group relative flex flex-col rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-elevated)] shadow-none',
+        'creation-hub-card group relative flex flex-col rounded-[var(--radius-card)] border shadow-none',
+        isIdea
+          ? 'creation-hub-card--idea border-[var(--idea-card-border)] bg-[var(--idea-card-bg)]'
+          : 'border-[var(--border-color)] bg-[var(--bg-elevated)]',
         'transition-[border-color,box-shadow,opacity] duration-200',
         'hover:shadow-[var(--shadow-card-hover)]',
         'focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',

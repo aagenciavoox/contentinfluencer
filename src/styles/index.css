@@ -186,6 +186,11 @@
   --status-scheduled-bg: color-mix(in srgb, var(--status-scheduled), transparent 90%);
   --warning-bg:          color-mix(in srgb, var(--warning), transparent 94%);
   --warning-bg-hover:    color-mix(in srgb, var(--warning), transparent 88%);
+
+  /* Idea cards sit beside script cards; a light warm tint keeps them distinct. */
+  --idea-card-bg: color-mix(in srgb, var(--warning) 22%, var(--bg-elevated));
+  --idea-card-bg-hover: color-mix(in srgb, var(--warning) 32%, var(--bg-elevated));
+  --idea-card-border: color-mix(in srgb, var(--warning) 38%, var(--border-color));
 }
 
 [data-theme='dark'] {
@@ -819,6 +824,19 @@ input.caption-locked:focus {
 
 .creation-hub-card__footer {
   margin-top: 10px;
+}
+
+.creation-hub-card--idea,
+.surface-interactive.creation-hub-card--idea {
+  background: var(--idea-card-bg);
+  border-color: var(--idea-card-border);
+}
+
+.creation-hub-card--idea:hover,
+.surface-interactive.creation-hub-card--idea:hover,
+.creation-hub-row--idea:hover,
+.creation-hub-row--idea:focus-within {
+  background: var(--idea-card-bg-hover);
 }
 
 @media (min-width: 769px) {

@@ -15,6 +15,7 @@ import {
   getCreationCardTags,
   getCreationNoteExcerpt,
   getCreationTitle,
+  isIdeaContent,
 } from '../lib/creationItemPresentation';
 
 export interface CreationGridCardProps {
@@ -43,6 +44,7 @@ export function CreationGridCard({
   actions,
 }: CreationGridCardProps) {
   const title = getCreationTitle(content);
+  const isIdea = isIdeaContent(content);
   const tags = getCreationCardTags(content);
   const excerpt = getCreationNoteExcerpt(content);
   const footerMeta = getCreationCardFooterMeta(content);
@@ -69,6 +71,7 @@ export function CreationGridCard({
       padding="none"
       className={cn(
         'creation-hub-card group relative flex flex-col transition-[border-color,box-shadow,background-color] duration-200',
+        isIdea && 'creation-hub-card--idea',
         canActivate && 'cursor-pointer',
         selected && 'ring-1 ring-[var(--text-primary)]',
         selectionMode && !selectable && 'opacity-55',

@@ -39,6 +39,14 @@ function testPendingPathnameTransition() {
   assert.equal(isPathnameTransitionPending('/calendario', '/calendario'), false);
 }
 
+function testContentDetailLoadsScriptTemplates() {
+  assert.deepEqual(getRouteDataDomains('/conteudos/abc'), [
+    'production',
+    'recording',
+    'templates',
+  ]);
+}
+
 function testNestedSettingsDomains() {
   assert.deepEqual(getRouteDataDomains('/series/abc'), [
     'production',
@@ -58,6 +66,7 @@ testNavigationSequenceSharesSectionOutletKey();
 testNavigationSequencePrefetchDomains();
 testQueryOnlyNavigationKeepsOutletKey();
 testPendingPathnameTransition();
+testContentDetailLoadsScriptTemplates();
 testNestedSettingsDomains();
 
 console.log('routeDataDomains.test.ts: ok');

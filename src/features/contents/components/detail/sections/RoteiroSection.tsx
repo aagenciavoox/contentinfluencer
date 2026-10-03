@@ -8,6 +8,7 @@ import {Text} from '../../../../../components/ui/Text';
 import type {Content, ContentPlataforma, Pilar, Serie} from '../../../../../lib/database';
 import {cn} from '../../../../../lib/utils';
 import {CONTENT_STATUS} from '../../../lib/contentPipeline';
+import {ContentManageWorkspace} from '../ContentManageWorkspace';
 import {ContentOperationalPanel} from '../ContentOperationalPanel';
 import {ContentScriptWorkspace} from '../ContentScriptWorkspace';
 import {PlatformCopyEditor} from '../PlatformCopyEditor';
@@ -196,21 +197,14 @@ export function RoteiroSection({
             onChange={pane => setWorkspacePaneChoice({contentId, pane})}
           />
           {workspacePane === 'manage' ? (
-            <div className="stack-md">
-              <ContentOperationalPanel
-                draft={draft}
-                series={series}
-                pilares={pilares}
-                authorName={authorName}
-                onChange={onChange}
-                showTitle={false}
-                density="compact"
-                layout="property"
-                variant="cards"
-                sectionsOpen
-              />
-              <div className="min-w-0">{captionEditor}</div>
-            </div>
+            <ContentManageWorkspace
+              draft={draft}
+              series={series}
+              pilares={pilares}
+              onChange={onChange}
+              onSave={onSave}
+              saveState={saveState}
+            />
           ) : (
             <div className={cn('grid min-h-0 items-stretch gap-3', notesOpen && 'lg:grid-cols-2')}>
               {notesOpen ? (

@@ -5,6 +5,7 @@ import {useAppContext} from '../../../../context/AppContext';
 import type {ContentPlataforma, Pilar, Serie} from '../../../../lib/database';
 import {cn} from '../../../../lib/utils';
 import {AppButton} from '../../../../components/ui/AppButton';
+import {Surface} from '../../../../components/ui/Surface';
 import {Text} from '../../../../components/ui/Text';
 import {TagPill} from '../../../../components/ui/TagSelect';
 import {
@@ -101,6 +102,7 @@ function PlatformToggleButton({
   isActive,
   completion,
   disabled,
+  appearance = 'default',
   onClick,
 }: {
   platform: string;
@@ -108,6 +110,7 @@ function PlatformToggleButton({
   isActive: boolean;
   completion: 'empty' | 'partial' | 'complete' | 'inactive';
   disabled?: boolean;
+  appearance?: 'default' | 'manage';
   onClick: () => void;
 }) {
   return (
@@ -118,16 +121,28 @@ function PlatformToggleButton({
       aria-pressed={isEnabled}
       className={cn(
         'inline-flex h-10 min-w-[132px] items-center gap-2.5 rounded-[var(--radius-input)] px-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] disabled:opacity-50',
-        isEnabled && isActive
-          ? 'border-2 border-[var(--accent-purple)] bg-[var(--bg-elevated)] text-[var(--text-primary)]'
-          : isEnabled
-            ? 'border border-[var(--border-strong)] bg-[var(--bg-elevated)] text-[var(--text-primary)] hover:border-[var(--accent-purple)]'
-            : 'border border-[var(--border-color)] bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]',
+        appearance === 'manage'
+          ? isActive
+            ? 'border border-[var(--accent-blue)] bg-[color-mix(in_srgb,var(--accent-blue)_12%,var(--bg-elevated))] text-[var(--text-primary)]'
+            : 'border border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] hover:border-[var(--border-strong)]'
+          : isEnabled && isActive
+            ? 'border-2 border-[var(--accent-purple)] bg-[var(--bg-elevated)] text-[var(--text-primary)]'
+            : isEnabled
+              ? 'border border-[var(--border-strong)] bg-[var(--bg-elevated)] text-[var(--text-primary)] hover:border-[var(--accent-purple)]'
+              : 'border border-[var(--border-color)] bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]',
       )}
     >
       <PlatformIconBadge platform={platform} />
       <span className="min-w-0 flex-1 truncate text-left">{platform}</span>
-      {isEnabled ? (
+      {appearance === 'manage' ? (
+        isEnabled ? (
+          <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-[var(--accent-blue)] text-[var(--bg-primary)]">
+            <Check className="h-2.5 w-2.5" strokeWidth={3} />
+          </span>
+        ) : (
+          <Plus className="h-3.5 w-3.5 text-[var(--text-tertiary)]" />
+        )
+      ) : isEnabled ? (
         <PlatformStatusDot status={completion === 'inactive' ? 'empty' : completion} />
       ) : null}
     </button>
@@ -166,6 +181,7 @@ interface PlatformCopyEditorProps {
   disabled?: boolean;
   onChange: (plataformas: ContentPlataforma[]) => void;
   embedded?: boolean;
+  presentation?: 'panel' | 'manage';
 }
 
 export function PlatformCopyEditor({
@@ -175,6 +191,7 @@ export function PlatformCopyEditor({
   disabled = false,
   onChange,
   embedded = false,
+  presentation = 'panel',
 }: PlatformCopyEditorProps) {
   const {state} = useAppContext();
   const registeredPlatforms = useMemo(
@@ -209,11 +226,12 @@ export function PlatformCopyEditor({
   }, [activePlatform, activePlatformIds, registeredPlatforms]);
 
   useEffect(() => {
+    if (presentation === 'manage') return;
     const textarea = legendaTextareaRef.current;
     if (!textarea) return;
     textarea.style.height = 'auto';
     textarea.style.height = `${textarea.scrollHeight}px`;
-  }, [activePlatform, currentPlatform.legenda]);
+  }, [activePlatform, currentPlatform.legenda, presentation]);
 
   const handlePlatformClick = (platform: string) => {
     const isEnabled = activePlatformIds.includes(platform);
@@ -266,6 +284,72 @@ export function PlatformCopyEditor({
     if (next.length === 0) return;
     setHashtags(mergeHashtags(hashtagTags, next));
   };
+
+  if (presentation === 'manage') {
+    return (
+      <Surface variant="outlined" padding="lg" className="flex h-full flex-col bg-[var(--bg-elevated)]">
+        <Text variant="sectionTitle" as="h3">Legendas</Text>
+        <Text variant="secondary" className="mt-1">
+          Prepare uma versão para cada plataforma.
+        </Text>
+        <span className="mb-2 mt-4 block text-sm text-[var(--text-secondary)]">Plataformas</span>
+        {registeredPlatforms.length > 0 ? (
+          <div className="flex flex-wrap items-center gap-2">
+            {registeredPlatforms.map(platform => {
+              const isEnabled = activePlatformIds.includes(platform);
+              const record = plataformas.find(item => item.platformId === platform);
+              return (
+                <PlatformToggleButton
+                  key={platform}
+                  platform={platform}
+                  isEnabled={isEnabled}
+                  isActive={isEnabled && activePlatform === platform}
+                  completion={isEnabled ? platformCompletion(record) : 'inactive'}
+                  disabled={disabled}
+                  appearance="manage"
+                  onClick={() => handlePlatformClick(platform)}
+                />
+              );
+            })}
+          </div>
+        ) : (
+          <Text variant="secondary">Cadastre uma plataforma em Configurações → Plataformas.</Text>
+        )}
+        {activePlatformIds.length > 0 && activePlatformIds.includes(activePlatform) ? (
+          <div className="mt-4">
+            <p className="text-sm font-semibold text-[var(--text-primary)]">
+              Legenda para {activePlatform}
+            </p>
+            <div className="relative mt-2">
+              <textarea
+                ref={legendaTextareaRef}
+                value={currentPlatform.legenda}
+                disabled={disabled}
+                rows={4}
+                onChange={event => updatePlatform(activePlatform, {legenda: event.target.value})}
+                className="block min-h-28 w-full resize-none rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-primary)] px-3 pb-8 pt-3 text-sm leading-6 text-[var(--text-primary)] outline-none focus-visible:shadow-[var(--focus-ring)] disabled:opacity-60"
+                placeholder="Escreva a legenda desta publicação..."
+              />
+              <span
+                className={cn(
+                  'pointer-events-none absolute bottom-2 right-3 text-xs',
+                  charLimit && charCount > charLimit
+                    ? 'text-[var(--danger)]'
+                    : 'text-[var(--text-tertiary)]',
+                )}
+              >
+                {charCount} caracteres
+              </span>
+            </div>
+          </div>
+        ) : registeredPlatforms.length > 0 ? (
+          <Text variant="secondary" className="mt-4">
+            Ative pelo menos uma plataforma para preparar legendas.
+          </Text>
+        ) : null}
+      </Surface>
+    );
+  }
 
   return (
     <section className="cms-panel overflow-hidden">

@@ -207,18 +207,20 @@ function ColoredSelect({
   );
 }
 
-function StatusDropdownField({
+export function ContentStatusField({
   status,
   publishDate,
   postedAt,
   allowedStatuses,
   onStatusChange,
+  boxed = false,
 }: {
   status: Content['status'];
   publishDate: string | null;
   postedAt: string | null;
   allowedStatuses: string[];
   onStatusChange: (status: string) => void;
+  boxed?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -238,7 +240,12 @@ function StatusDropdownField({
       <button
         type="button"
         onClick={() => setOpen(prev => !prev)}
-        className="property-input flex w-full items-center justify-between gap-2 text-left focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+        className={cn(
+          'flex w-full items-center justify-between gap-2 text-left focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
+          boxed
+            ? 'h-11 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-primary)] px-3'
+            : 'property-input',
+        )}
       >
         <Badge variant="status" status={displayStatus}>
           {displayStatus}
@@ -286,7 +293,7 @@ function StatusPropertyRow({
 }) {
   return (
     <PropertyRow label="Status" icon={<ListChecks />}>
-      <StatusDropdownField
+      <ContentStatusField
         status={status}
         publishDate={publishDate}
         postedAt={postedAt}
@@ -559,7 +566,7 @@ export function ContentOperationalPanel({
       >
         <Surface variant="outlined" padding="md" className="stack-md">
           <RoteiroField label="Status" icon={<ListChecks className="h-3.5 w-3.5" />}>
-            <StatusDropdownField
+            <ContentStatusField
               status={draft.status}
               publishDate={draft.publishDate}
               postedAt={draft.postedAt ?? null}

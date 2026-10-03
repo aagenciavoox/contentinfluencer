@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict';
 import { createContentDraft } from '../../contents/lib/createContentDraft.ts';
+import { CONTENT_STATUS } from '../../contents/lib/contentPipeline.ts';
 import {
   getCreationCardTags,
   getCreationNoteExcerpt,
+  isIdeaContent,
   sanitizeCreationPreviewText,
 } from './creationItemPresentation.ts';
 
@@ -35,5 +37,8 @@ assert.deepEqual(
   }),
   ['Médica', 'POVS'],
 );
+
+assert.equal(isIdeaContent(createContentDraft({ status: CONTENT_STATUS.IDEIA })), true);
+assert.equal(isIdeaContent(createContentDraft({ status: CONTENT_STATUS.ROTEIRO })), false);
 
 console.log('creationItemPresentation.test.ts passed');
