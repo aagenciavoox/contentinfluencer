@@ -33,6 +33,8 @@ export function AnalyticsPage() {
         <DesktopPageHeader
           section="Criação"
           title="Análise"
+          backLabel="Biblioteca"
+          backTo="/biblioteca"
           actions={
             <AppButton
               variant="primary"

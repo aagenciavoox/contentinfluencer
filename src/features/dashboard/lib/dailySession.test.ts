@@ -4,8 +4,13 @@ import type { Content, RecordingBlock } from '../../../lib/database.ts';
 import {
   buildDailySessionBlock,
   buildDailySessionName,
-  defaultSelectedSessionIds,
   getSessionCandidates,
+  groupCandidatesBySeries,
+  moveSessionId,
+  resolveSessionSelection,
+  suggestSessionIds,
+  suggestionSummary,
+  toggleSessionId,
 } from './dailySession.ts';
 
 function content(partial: Partial<Content> & Pick<Content, 'id'>): Content {
@@ -50,14 +55,78 @@ describe('dailySession', () => {
     assert.deepEqual(ids, ['a']);
   });
 
-  it('auto-selects all candidates when the list is small', () => {
+  it('suggests every candidate when the list is already short', () => {
     const candidates = [content({ id: '1' }), content({ id: '2' })];
-    assert.deepEqual(defaultSelectedSessionIds(candidates), ['1', '2']);
+    assert.deepEqual(suggestSessionIds(candidates), ['1', '2']);
+    assert.equal(suggestionSummary(candidates, []), 'Todos os roteiros prontos.');
   });
 
-  it('does not auto-select when there are many candidates', () => {
+  it('suggests the largest series, capped at four', () => {
+    const candidates = [
+      content({ id: 'a1', seriesId: 'a', updatedAt: '2026-09-05T00:00:00.000Z' }),
+      content({ id: 'b1', seriesId: 'b', updatedAt: '2026-09-04T00:00:00.000Z' }),
+      content({ id: 'a2', seriesId: 'a', updatedAt: '2026-09-03T00:00:00.000Z' }),
+      content({ id: 'loose', updatedAt: '2026-09-02T00:00:00.000Z' }),
+      content({ id: 'a3', seriesId: 'a', updatedAt: '2026-09-01T00:00:00.000Z' }),
+      content({ id: 'b2', seriesId: 'b', updatedAt: '2026-08-01T00:00:00.000Z' }),
+    ];
+    assert.deepEqual(suggestSessionIds(candidates), ['a1', 'a2', 'a3']);
+    assert.equal(
+      suggestionSummary(candidates, [{ id: 'a', name: 'Império do Vampiro' }]),
+      'Sugestão da série Império do Vampiro.',
+    );
+  });
+
+  it('breaks series ties by the most recently updated script', () => {
+    const candidates = [
+      content({ id: 'b1', seriesId: 'b', updatedAt: '2026-09-08T00:00:00.000Z' }),
+      content({ id: 'a1', seriesId: 'a', updatedAt: '2026-09-02T00:00:00.000Z' }),
+      content({ id: 'b2', seriesId: 'b', updatedAt: '2026-09-01T00:00:00.000Z' }),
+      content({ id: 'a2', seriesId: 'a', updatedAt: '2026-08-01T00:00:00.000Z' }),
+      content({ id: 'x', updatedAt: '2026-07-01T00:00:00.000Z' }),
+    ];
+    assert.deepEqual(suggestSessionIds(candidates), ['b1', 'b2']);
+  });
+
+  it('suggests the four most recent scripts when no series has a pair', () => {
     const candidates = Array.from({ length: 6 }, (_, index) => content({ id: `c${index}` }));
-    assert.deepEqual(defaultSelectedSessionIds(candidates), []);
+    assert.deepEqual(suggestSessionIds(candidates), ['c0', 'c1', 'c2', 'c3']);
+    assert.equal(suggestionSummary(candidates, []), 'Sugestão com os roteiros mais recentes.');
+  });
+
+  it('groups named series by size and leaves loose scripts last', () => {
+    const candidates = [
+      content({ id: 'loose' }),
+      content({ id: 'b1', seriesId: 'b' }),
+      content({ id: 'a1', seriesId: 'a' }),
+      content({ id: 'a2', seriesId: 'a' }),
+    ];
+    const groups = groupCandidatesBySeries(candidates, [
+      { id: 'a', name: 'Império' },
+      { id: 'b', name: 'POVS' },
+    ]);
+    assert.deepEqual(groups.map(group => group.label), ['Império', 'POVS', 'Avulsos']);
+    assert.deepEqual(groups[0]?.items.map(item => item.id), ['a1', 'a2']);
+  });
+
+  it('appends on select, removes on toggle, and moves within the session order', () => {
+    assert.deepEqual(toggleSessionId(['a'], 'b'), ['a', 'b']);
+    assert.deepEqual(toggleSessionId(['a', 'b'], 'a'), ['b']);
+    assert.deepEqual(moveSessionId(['a', 'b', 'c'], 'c', -1), ['a', 'c', 'b']);
+    assert.deepEqual(moveSessionId(['a', 'b'], 'a', -1), ['a', 'b']);
+  });
+
+  it('keeps a saved session and drops ids that left the queue', () => {
+    const candidates = [content({ id: 'a' }), content({ id: 'b' })];
+    assert.deepEqual(
+      resolveSessionSelection(candidates, { day: '2026-10-02', ids: ['b', 'gone'], touched: true }),
+      ['b'],
+    );
+  });
+
+  it('starts from the suggestion when the day has no draft', () => {
+    const candidates = [content({ id: 'a' }), content({ id: 'b' })];
+    assert.deepEqual(resolveSessionSelection(candidates, null), ['a', 'b']);
   });
 
   it('builds a named daily session block from selected ids', () => {

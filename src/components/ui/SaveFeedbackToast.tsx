@@ -21,10 +21,10 @@ export function SaveFeedbackToast() {
 
   const tone =
     feedback.status === 'error'
-      ? 'border-red-500/30 bg-[color-mix(in_srgb,var(--bg-secondary)_94%,var(--danger)_6%)] text-red-100'
+      ? 'border-[color-mix(in_srgb,var(--danger)_40%,var(--border-color))] bg-[color-mix(in_srgb,var(--danger)_12%,var(--bg-elevated))] text-[var(--text-primary)]'
       : feedback.status === 'success'
-        ? 'border-emerald-500/30 bg-[color-mix(in_srgb,var(--bg-secondary)_94%,var(--success)_6%)] text-emerald-50'
-        : 'border-[var(--border-color)] bg-[color-mix(in_srgb,var(--bg-secondary)_94%,transparent)] text-[var(--text-primary)]';
+        ? 'border-[color-mix(in_srgb,var(--success)_40%,var(--border-color))] bg-[color-mix(in_srgb,var(--success)_12%,var(--bg-elevated))] text-[var(--text-primary)]'
+        : 'border-[var(--border-color)] bg-[var(--bg-elevated)] text-[var(--text-primary)]';
 
   return (
     <div
@@ -45,9 +45,9 @@ export function SaveFeedbackToast() {
         {feedback.status === 'saving' ? (
           <Loader2 className="mt-0.5 h-5 w-5 shrink-0 animate-spin" />
         ) : feedback.status === 'success' ? (
-          <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-400" />
+          <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-[var(--success)]" />
         ) : (
-          <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-red-400" />
+          <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-[var(--danger)]" />
         )}
         <div className="min-w-0 flex-1">
           <p className="text-sm font-semibold">{feedback.message}</p>

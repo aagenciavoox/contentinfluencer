@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { CalendarDays, FolderKanban, Sparkles, Video } from 'lucide-react';
+import { addDays, format } from 'date-fns';
 import { useLocation, useNavigate, useOutletContext } from 'react-router-dom';
 import { DesktopPageHeader } from '../../../layouts/page/DesktopPageHeader';
 import { PageLayout } from '../../../layouts/page/PageLayout';
@@ -13,17 +13,17 @@ import { CONTENT_STATUS } from '../../contents/lib/contentPipeline';
 import { buildContentDetailRoute } from '../../contents/lib/contentDetailRoute';
 import { buildDetailBackState } from '../../../lib/navigation/detailBack';
 import { createContentDraft } from '../../contents/lib/createContentDraft';
+import { createIdeaContent } from '../../contents/lib/creationContent';
 import { getGentleExperienceSettings } from '../../settings/lib/gentleExperience';
 import { CreateMenuButton } from '../../../components/ui/CreateMenuButton';
-import { AppButton } from '../../../components/ui/AppButton';
+import { Surface } from '../../../components/ui/Surface';
 import { Text } from '../../../components/ui/Text';
-import { getErrorMessage } from '../../../lib/saveFeedback';
-import { DailySessionPanel } from '../components/DailySessionPanel';
-import {
-  buildDailySessionBlock,
-  defaultSelectedSessionIds,
-  getSessionCandidates,
-} from '../lib/dailySession';
+import { getErrorMessage, notifySaveFeedback } from '../../../lib/saveFeedback';
+import { DayPulse } from '../components/DayPulse';
+import { TodayHome } from '../components/TodayHome';
+import { buildDailySessionBlock, getSessionCandidates, suggestionSummary, suggestSessionIds } from '../lib/dailySession';
+import { buildDayPulse, formatDayTitle, formatWeekdayShort, localDateKey } from '../lib/dayPulse';
+import { resolveCurrentRead } from '../lib/currentRead';
 import { getUpcomingAgenda } from '../lib/dashboardMetrics';
 
 function resolveGreetingName(fullName: unknown, email: string | undefined): string {
@@ -35,7 +35,7 @@ function resolveGreetingName(fullName: unknown, email: string | undefined): stri
 }
 
 export function DashboardPage() {
-  const { state, dispatch } = useAppContext();
+  const { state, dispatch, ensureDataDomains } = useAppContext();
   const { user } = useAuth();
   const isMobile = useIsMobile();
   const navigate = useNavigate();
@@ -45,48 +45,64 @@ export function DashboardPage() {
   const detailBackState = buildDetailBackState(`${location.pathname}${location.search}`);
   const greetingName = resolveGreetingName(user?.user_metadata?.full_name, user?.email);
   const gentleExperience = getGentleExperienceSettings(state.preferences);
+  const today = useMemo(() => new Date(), []);
+  const todayKey = localDateKey(today);
+  const dayTitle = formatDayTitle(today);
+  const weekdayLabel = formatWeekdayShort(today);
+
+  const [ideaTitle, setIdeaTitle] = useState('');
+  const [ideaNotes, setIdeaNotes] = useState('');
+  const [ideaPilarId, setIdeaPilarId] = useState('');
+  const [ideaSeriesId, setIdeaSeriesId] = useState('');
+  const [ideaOriginId, setIdeaOriginId] = useState('');
+  const [isBusy, setIsBusy] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    void ensureDataDomains(['library']);
+  }, [ensureDataDomains]);
 
   const candidates = useMemo(
     () => getSessionCandidates(state.contents, state.recordingBlocks),
     [state.contents, state.recordingBlocks],
   );
+  const suggestedScripts = useMemo(() => {
+    const ids = new Set(suggestSessionIds(candidates));
+    return candidates.filter(content => ids.has(content.id));
+  }, [candidates]);
+  const suggestionText = useMemo(
+    () => suggestionSummary(candidates, state.series),
+    [candidates, state.series],
+  );
+  const currentBook = useMemo(() => {
+    const preferredId = typeof state.preferences.mobile_notes_primary_book_id === 'string'
+      ? state.preferences.mobile_notes_primary_book_id
+      : null;
+    return resolveCurrentRead(state.bibliotecaItems, preferredId);
+  }, [state.bibliotecaItems, state.preferences.mobile_notes_primary_book_id]);
 
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
-  const [isBusy, setIsBusy] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const candidateIdsKey = candidates.map(content => content.id).join(',');
-
-  useEffect(() => {
-    const validIds = new Set(candidates.map(content => content.id));
-    setSelectedIds(previous => {
-      const pruned = [...previous].filter(id => validIds.has(id));
-      if (pruned.length > 0) return new Set(pruned);
-      if (previous.size === 0) return new Set(defaultSelectedSessionIds(candidates));
-      return new Set();
-    });
-    // Membership is tracked by candidateIdsKey; keep intentional clears.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [candidateIdsKey]);
-
-  const todayKey = new Date().toISOString().slice(0, 10);
   const agendaToday = useMemo(
     () => getUpcomingAgenda(state.agendaItems, 20).filter(item => item.date === todayKey),
     [state.agendaItems, todayKey],
   );
-
-  const in7days = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-  const urgentProjects =
-    gentleExperience.realDeadlineHighlights
-      ? state.projetos
-          .filter(
-            project =>
-              project.status !== 'Concluido' &&
-              project.dataFim &&
-              project.dataFim >= todayKey &&
-              project.dataFim <= in7days,
-          )
-          .sort((left, right) => (left.dataFim! > right.dataFim! ? 1 : -1))
-      : [];
+  const in7days = format(addDays(today, 7), 'yyyy-MM-dd');
+  const urgentProjects = gentleExperience.realDeadlineHighlights
+    ? state.projetos
+        .filter(
+          project =>
+            project.status !== 'Concluido' &&
+            project.dataFim &&
+            project.dataFim >= todayKey &&
+            project.dataFim <= in7days,
+        )
+        .sort((left, right) => (left.dataFim! > right.dataFim! ? 1 : -1))
+    : [];
+  const pulseSegments = buildDayPulse({
+    readyCount: candidates.length,
+    showCounts: gentleExperience.dashboardCounts,
+    agendaToday,
+    urgentProjects,
+  });
 
   const handleNovoRoteiro = () => {
     const newContent = createContentDraft({ title: 'Novo Conteudo', status: CONTENT_STATUS.ROTEIRO });
@@ -94,36 +110,37 @@ export function DashboardPage() {
     navigate(`${buildContentDetailRoute(newContent.id)}&focus=script`, detailBackState);
   };
 
-  const handleNovaIdeia = () => {
-    navigate('/criacao?compose=idea');
+  const saveIdea = async () => {
+    const title = ideaTitle.trim();
+    const notes = ideaNotes.trim();
+    if (!title && !notes) return;
+
+    try {
+      const content = createIdeaContent({
+        userId: user?.id || '',
+        title: title || 'Ideia sem título',
+        notes: notes || null,
+        pilarId: ideaPilarId || null,
+        seriesId: ideaSeriesId || null,
+        bibliotecaItemId: ideaOriginId || null,
+      });
+      await dispatch({ type: 'ADD_CONTENT', payload: content });
+      setIdeaTitle('');
+      setIdeaNotes('');
+      setIdeaPilarId('');
+      setIdeaSeriesId('');
+      setIdeaOriginId('');
+      notifySaveFeedback({ status: 'success', message: 'Ideia guardada.' });
+    } catch (error) {
+      notifySaveFeedback({ status: 'error', message: getErrorMessage(error) });
+    }
   };
 
-  const toggleSelect = (id: string) => {
-    setSelectedIds(previous => {
-      const next = new Set(previous);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
-
-  const selectAll = () => {
-    setSelectedIds(new Set(candidates.map(content => content.id)));
-  };
-
-  const clearSelection = () => {
-    setSelectedIds(new Set());
-  };
-
-  const createSession = async (startBurst: boolean) => {
-    if (isBusy || selectedIds.size === 0 || !moduleFlags.recording) return;
-
-    const orderedIds = candidates
-      .filter(content => selectedIds.has(content.id))
-      .map(content => content.id);
+  const startSession = async () => {
+    if (isBusy || suggestedScripts.length === 0 || !moduleFlags.recording) return;
     const payload = buildDailySessionBlock({
       contents: state.contents,
-      contentIds: orderedIds,
+      contentIds: suggestedScripts.map(content => content.id),
       userId: user?.id || '',
     });
     if (!payload) return;
@@ -136,11 +153,7 @@ export function DashboardPage() {
         type: 'UPDATE_BLOCK_CONTENTS',
         payload: { blockId: payload.block.id, contents: payload.blockContents },
       });
-      navigate(
-        startBurst
-          ? `/gravacao/${payload.block.id}?burst=1`
-          : `/gravacao/${payload.block.id}`,
-      );
+      navigate(`/gravacao/${payload.block.id}?burst=1`);
     } catch (error) {
       setErrorMessage(getErrorMessage(error));
     } finally {
@@ -148,45 +161,59 @@ export function DashboardPage() {
     }
   };
 
-  const sessionPanel = (
-    <DailySessionPanel
-      candidates={moduleFlags.recording ? candidates : []}
+  const home = (
+    <TodayHome
+      state={state}
+      book={currentBook}
+      scripts={moduleFlags.recording ? suggestedScripts : []}
       series={state.series}
-      selectedIds={selectedIds}
-      showCounts={gentleExperience.dashboardCounts}
+      suggestionText={suggestionText}
+      recordingEnabled={moduleFlags.recording}
       isBusy={isBusy}
-      density={isMobile ? 'mobile' : 'desktop'}
-      onToggle={toggleSelect}
-      onSelectAll={selectAll}
-      onClear={clearSelection}
-      onStartSession={() => void createSession(true)}
-      onBuildOnly={() => void createSession(false)}
+      errorMessage={errorMessage}
+      detailBack={detailBackState.state}
+      ideaTitle={ideaTitle}
+      ideaNotes={ideaNotes}
+      ideaPilarId={ideaPilarId}
+      ideaSeriesId={ideaSeriesId}
+      ideaOriginId={ideaOriginId}
+      onIdeaTitle={setIdeaTitle}
+      onIdeaNotes={setIdeaNotes}
+      onIdeaPilar={setIdeaPilarId}
+      onIdeaSeries={setIdeaSeriesId}
+      onIdeaOrigin={setIdeaOriginId}
+      onSaveIdea={() => void saveIdea()}
+      onOpenBook={() => currentBook && navigate(`/biblioteca/${currentBook.id}`)}
+      onOpenLibrary={() => navigate('/biblioteca')}
+      onStartSession={() => void startSession()}
       onOpenQueue={() => navigate('/gravacao?tab=queue')}
       onCreateScript={handleNovoRoteiro}
+      onOpenSettings={() => navigate('/configuracoes')}
+      density={isMobile ? 'mobile' : 'desktop'}
     />
   );
+
+  const pause = gentleExperience.pauseMode ? (
+    <Surface variant="outlined" padding="md" className="stack-sm">
+      <Text variant="bodyStrong">Pausa respeitada</Text>
+      <Text variant="secondary">
+        Sugestões ficam de lado. A gravação continua disponível se você quiser.
+      </Text>
+    </Surface>
+  ) : null;
 
   if (isMobile) {
     return (
       <div className="min-h-full bg-[var(--bg-primary)]">
         <DashboardMobileScreen
           greetingName={greetingName}
+          weekdayLabel={weekdayLabel}
+          pulseSegments={pulseSegments}
           pauseMode={gentleExperience.pauseMode}
-          agendaToday={agendaToday}
-          urgentProjects={urgentProjects}
-          errorMessage={errorMessage}
-          recordingEnabled={moduleFlags.recording}
           onOpenMenu={() => chrome?.openMobileMenu()}
           onOpenSearch={() => chrome?.openSearch()}
-          onNavigate={(path) => {
-            if (path.startsWith('/conteudos/')) {
-              navigate(path, detailBackState);
-              return;
-            }
-            navigate(path);
-          }}
         >
-          {sessionPanel}
+          {home}
         </DashboardMobileScreen>
       </div>
     );
@@ -194,118 +221,27 @@ export function DashboardPage() {
 
   return (
     <PageLayout
-      contentWidth="narrow"
+      contentWidth="wide"
       header={
         <DesktopPageHeader
           section="Hoje"
-          title="Sessão do dia"
+          title={dayTitle}
           titleVariant="display"
-          icon={Sparkles}
-          className="mb-0"
+          className="mx-auto mb-0 w-full max-w-4xl"
           actions={
             <CreateMenuButton
-              onCreateIdea={handleNovaIdeia}
+              onCreateIdea={() => navigate('/criacao?compose=idea')}
               onCreateScript={handleNovoRoteiro}
             />
           }
-        />
+        >
+          <DayPulse segments={pulseSegments} />
+        </DesktopPageHeader>
       }
     >
-      {!moduleFlags.recording ? (
-        <section className="editorial-card stack-md p-8">
-          <Text variant="bodyStrong">Gravação está desligada</Text>
-          <Text variant="body" className="text-[var(--text-secondary)]">
-            Ative o módulo de gravação nas configurações para montar a sessão do dia.
-          </Text>
-          <AppButton variant="secondary" onClick={() => navigate('/configuracoes')}>
-            Abrir configurações
-          </AppButton>
-        </section>
-      ) : (
-        sessionPanel
-      )}
-
-      {errorMessage ? (
-        <Text variant="meta" className="text-[var(--danger)]">
-          {errorMessage}
-        </Text>
-      ) : null}
-
-      {gentleExperience.pauseMode ? (
-        <section className="editorial-card stack-sm p-6">
-          <Text variant="bodyStrong">Pausa respeitada</Text>
-          <Text variant="body" className="text-[var(--text-secondary)]">
-            Sugestões ficam de lado. Você ainda pode montar uma sessão quando quiser gravar.
-          </Text>
-        </section>
-      ) : null}
-
-      {agendaToday.length > 0 ? (
-        <section className="stack-md">
-          <Text variant="eyebrow" as="span">
-            <CalendarDays className="h-3.5 w-3.5" />
-            Para lembrar hoje
-          </Text>
-          <div className="stack-sm">
-            {agendaToday.map(item => (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => navigate('/calendario')}
-                className="editorial-card flex w-full items-center justify-between gap-4 px-6 py-4 text-left transition-colors hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
-              >
-                <div className="min-w-0">
-                  <Text variant="bodyStrong" truncate>
-                    {item.title}
-                  </Text>
-                  <Text variant="meta" className="mt-0.5">
-                    {[item.date, item.time].filter(Boolean).join(' · ')}
-                  </Text>
-                </div>
-              </button>
-            ))}
-          </div>
-        </section>
-      ) : null}
-
-      {urgentProjects.length > 0 ? (
-        <section className="stack-md">
-          <Text variant="eyebrow" as="span">
-            <FolderKanban className="h-3.5 w-3.5" />
-            Datas combinadas próximas
-          </Text>
-          <div className="grid-cards-row">
-            {urgentProjects.map(project => (
-              <button
-                key={project.id}
-                type="button"
-                onClick={() => navigate(`/projetos/${project.id}`)}
-                className="editorial-card group flex items-center justify-between gap-4 px-6 py-4 text-left transition-colors hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
-              >
-                <div className="min-w-0">
-                  <Text variant="bodyStrong" truncate>
-                    {project.nome}
-                  </Text>
-                  <Text variant="meta" className="mt-0.5 truncate">
-                    {project.brand ? `${project.brand} · ` : ''}
-                    {project.dataFim}
-                  </Text>
-                </div>
-              </button>
-            ))}
-          </div>
-        </section>
-      ) : null}
-
-      <div className="flex justify-start">
-        <AppButton
-          variant="ghost"
-          size="sm"
-          leftIcon={<Video className="h-3.5 w-3.5" />}
-          onClick={() => navigate('/gravacao?tab=blocks')}
-        >
-          Ver blocos de gravação
-        </AppButton>
+      {pause}
+      <div className="mx-auto w-full max-w-4xl">
+        {home}
       </div>
     </PageLayout>
   );

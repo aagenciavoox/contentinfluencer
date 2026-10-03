@@ -39,7 +39,7 @@ export const PAGE_SECTION = {
 
 export const STUDIO_ROUTES = [
   '/configuracoes/pilares',
-  '/configuracoes/series',
+  '/series',
 ] as const;
 
 /** Left side of mobile bottom nav (before FAB). */
@@ -112,7 +112,7 @@ export function buildSidebarSections(moduleFlags: ModuleFlags): NavSectionDefini
             { to: '/criacao/legendas', label: 'Legendas', icon: Captions },
           ],
         },
-        { to: '/configuracoes/series', label: 'Séries', icon: ListVideo },
+        { to: '/series', label: 'Séries', icon: ListVideo, end: false },
         { to: '/configuracoes/pilares', label: 'Pilares', icon: Columns3 },
         { to: '/biblioteca', label: 'Biblioteca', icon: Library, badgeKey: 'library', module: 'library' },
       ],

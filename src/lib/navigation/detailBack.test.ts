@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {
   buildDetailBackState,
+  labelForDetailBack,
   resolveContentDetailBack,
   resolveRouteBack,
   withDetailBack,
@@ -18,7 +19,7 @@ assert.equal(backFor('/dashboard'), '/dashboard');
 assert.equal(backFor('/'), '/');
 assert.equal(backFor('/biblioteca/book-1'), '/biblioteca/book-1');
 assert.equal(backFor('/projetos/projeto-1'), '/projetos/projeto-1');
-assert.equal(backFor('/configuracoes/series/serie-1'), '/configuracoes/series/serie-1');
+assert.equal(backFor('/series/serie-1'), '/series/serie-1');
 assert.equal(backFor('/configuracoes/pilares'), '/configuracoes/pilares');
 
 assert.equal(backFor('/evil'), '/criacao');
@@ -35,5 +36,10 @@ assert.equal(resolveContentDetailBack({}), '/criacao');
 assert.deepEqual(buildDetailBackState('/gravacao'), {state: {from: '/gravacao'}});
 assert.equal(resolveRouteBack('/conteudos/abc', {from: '/gravacao'}, '/nao-usado'), '/gravacao');
 assert.equal(resolveRouteBack('/biblioteca/abc', {from: '/gravacao'}, '/biblioteca'), '/biblioteca');
+
+assert.equal(labelForDetailBack('/series/abc/roteiros', 'Roteiros'), 'Séries');
+assert.equal(labelForDetailBack('/projetos/abc', 'Conteúdos'), 'Projetos');
+assert.equal(labelForDetailBack('/criacao?tab=roteiros', 'Roteiros'), 'Roteiros');
+assert.equal(labelForDetailBack('/calendario', 'Roteiros'), 'Calendário');
 
 console.log('detailBack.test.ts passed');

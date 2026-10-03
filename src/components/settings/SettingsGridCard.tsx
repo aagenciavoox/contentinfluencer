@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Edit2, ToggleLeft, ToggleRight } from 'lucide-react';
 import { Badge } from '../ui/Badge';
 import { Text } from '../ui/Text';
@@ -15,6 +15,8 @@ interface SettingsGridCardProps {
   badges?: ReactNode;
   /** Compact meta line (e.g. "Semanal · 12 roteiros"). */
   meta?: ReactNode;
+  /** Cover shown at the top of the card when the value is an image URL. */
+  imageUrl?: string | null;
   active?: boolean;
   onToggle?: () => void;
   onEdit?: () => void;
@@ -58,6 +60,26 @@ function buildMoreItems({
   return items;
 }
 
+function httpImageUrl(value: string | null | undefined): string | null {
+  const trimmed = value?.trim() ?? '';
+  return /^https?:\/\//i.test(trimmed) ? trimmed : null;
+}
+
+function CardCover({ src, alt }: { src: string; alt: string }) {
+  const [broken, setBroken] = useState(false);
+  if (broken) return null;
+
+  return (
+    <img
+      src={src}
+      alt={alt}
+      loading="lazy"
+      onError={() => setBroken(true)}
+      className="mb-3 aspect-[16/9] w-full rounded-[var(--radius-input)] object-cover"
+    />
+  );
+}
+
 export function SettingsGridCard({
   title,
   description,
@@ -65,6 +87,7 @@ export function SettingsGridCard({
   leading,
   badges,
   meta,
+  imageUrl,
   active = true,
   onToggle,
   onEdit,
@@ -76,6 +99,7 @@ export function SettingsGridCard({
   children,
   footer,
 }: SettingsGridCardProps) {
+  const coverSrc = httpImageUrl(imageUrl);
   const moreItems = buildMoreItems({ active, onToggle, onDelete });
   const showLegacyActions = !compact && Boolean(onEdit || moreItems.length > 0 || footer);
   const showCompactActions = compact && Boolean(onEdit || moreItems.length > 0);
@@ -95,6 +119,7 @@ export function SettingsGridCard({
 
   const body = (
     <>
+      {coverSrc ? <CardCover src={coverSrc} alt="" /> : null}
       {statusBadge || badges ? (
         <div className="mb-2 flex flex-wrap items-center gap-1">
           {statusBadge}

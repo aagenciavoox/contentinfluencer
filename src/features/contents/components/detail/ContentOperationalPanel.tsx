@@ -507,7 +507,7 @@ export function ContentOperationalPanel({
         {linkedSerie ? (
           <button
             type="button"
-            onClick={() => navigate('/configuracoes/series/' + linkedSerie.id + '/roteiros')}
+            onClick={() => navigate('/series/' + linkedSerie.id + '/roteiros')}
             className="flex items-center justify-between gap-2 rounded-[var(--radius-input)] border border-[var(--border-color)] px-3 py-2 text-left text-sm text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)]"
           >
             <span className="truncate">{linkedSerie.name}</span>
@@ -684,7 +684,7 @@ export function ContentOperationalPanel({
           <PropertyRow
             label="Central da serie"
             icon={<ExternalLink />}
-            onClick={() => navigate('/configuracoes/series/' + linkedSerie.id + '/roteiros')}
+            onClick={() => navigate('/series/' + linkedSerie.id + '/roteiros')}
           >
             <span className="min-w-0 truncate">{linkedSerie.name}</span>
           </PropertyRow>

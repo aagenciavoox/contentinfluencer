@@ -37,6 +37,7 @@ function createSerie(overrides: Partial<Serie> = {}): Serie {
     estruturaRoteiro: null,
     bordao: null,
     cor: '#6366f1',
+    capaUrl: null,
     ativa: true,
     frequenciaRecomendada: 'Semanal',
     createdAt: NOW.toISOString(),

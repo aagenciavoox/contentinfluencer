@@ -113,38 +113,29 @@ export function getMobileRouteMeta(pathname: string, search = ''): MobileRouteMe
     };
   }
 
-  if (pathname.startsWith('/configuracoes/series/') && pathname.endsWith('/roteiros')) {
+  if (pathname.startsWith('/series/') && pathname.endsWith('/roteiros')) {
     return {
       title: 'Série',
       mode: 'back',
-      backTo: '/configuracoes/series',
+      backTo: '/series',
       titleVariant: 'compact-center',
     };
   }
 
-  if (pathname.startsWith('/configuracoes/series/') && pathname.endsWith('/editar')) {
+  if (pathname.startsWith('/series/') && pathname.endsWith('/editar')) {
     return {
       title: 'Editar série',
       mode: 'back',
-      backTo: '/configuracoes/series',
+      backTo: '/series',
       titleVariant: 'compact-center',
     };
   }
 
-  if (pathname === '/configuracoes/series/nova') {
+  if (pathname === '/series/nova') {
     return {
       title: 'Nova série',
       mode: 'back',
-      backTo: '/configuracoes/series',
-      titleVariant: 'compact-center',
-    };
-  }
-
-  if (pathname === '/configuracoes/series') {
-    return {
-      title: 'Séries',
-      mode: 'back',
-      backTo: '/configuracoes',
+      backTo: '/series',
       titleVariant: 'compact-center',
     };
   }
@@ -189,6 +180,11 @@ export function getMobileRouteMeta(pathname: string, search = ''): MobileRouteMe
       return {
         title: 'Calendário',
         subtitle: 'Ver a semana ou agendar postagens.',
+      };
+    case '/series':
+      return {
+        title: 'Séries',
+        titleVariant: 'compact-center',
       };
     case '/biblioteca':
       return {

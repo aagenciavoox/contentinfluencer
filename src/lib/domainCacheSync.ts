@@ -80,4 +80,41 @@ export function patchContentsInDomainCaches(userId: string, contents: AppData['c
   patchDomainCaches(userId, DOMAIN_SETS_WITH_CONTENTS, { contents });
 }
 
+const DOMAIN_SETS_WITH_SERIES: readonly (readonly AppDataDomain[])[] = [
+  ['bootstrap'],
+  ['production'],
+  CRITICAL_BOOTSTRAP_DOMAINS,
+  BOOTSTRAP_DATA_DOMAINS,
+];
+
+function patchSeriesDomainCache(userId: string, cacheKey: string, series: AppData['series']) {
+  const memory = dataCache.getDomain<Partial<AppData>>(cacheKey);
+  const persisted = readPersistedDomain(userId, cacheKey);
+  const base = memory ?? persisted?.payload ?? null;
+  if (!base || !Array.isArray(base.series)) return;
+
+  const next = { ...base, series };
+  dataCache.setDomain(cacheKey, next);
+  writePersistedDomain(userId, cacheKey, next);
+}
+
+/** Mantém caches que já guardam séries alinhados após criar, editar ou apagar. */
+export function patchSeriesInDomainCaches(userId: string, series: AppData['series']) {
+  const keys = collectDomainCacheKeys(DOMAIN_SETS_WITH_SERIES);
+
+  if (typeof window !== 'undefined') {
+    const prefix = `${STORAGE_PREFIX}${userId}:domain:`;
+    try {
+      for (let index = 0; index < window.localStorage.length; index += 1) {
+        const storageKey = window.localStorage.key(index);
+        if (storageKey?.startsWith(prefix)) keys.add(storageKey.slice(prefix.length));
+      }
+    } catch {
+      // localStorage indisponível: os conjuntos conhecidos ainda são atualizados.
+    }
+  }
+
+  keys.forEach(cacheKey => patchSeriesDomainCache(userId, cacheKey, series));
+}
+
 export { mergeFetchedAppData } from './domainCacheMerge';

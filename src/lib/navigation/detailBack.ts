@@ -14,14 +14,14 @@ const ALLOWED_BACK_PATHS = [
   '/biblioteca',
   '/gravacao',
   '/projetos',
-  '/configuracoes/series',
+  '/series',
   '/configuracoes/pilares',
 ];
 
 const ALLOWED_BACK_PREFIXES = [
   '/biblioteca/',
   '/projetos/',
-  '/configuracoes/series/',
+  '/series/',
   '/configuracoes/pilares/',
 ];
 
@@ -46,6 +46,20 @@ export function resolveContentDetailBack(state: DetailBackState | null | undefin
     return from;
   }
   return DEFAULT_CONTENT_DETAIL_BACK;
+}
+
+/** Visible name for a stored back target. Creation paths keep the caller's label. */
+export function labelForDetailBack(path: string, fallback: string): string {
+  const pathname = path.split('?')[0].split('#')[0];
+  if (pathname === '/hoje' || pathname === '/' || pathname === '/dashboard') return 'Hoje';
+  if (pathname.startsWith('/criacao')) return fallback;
+  if (pathname.startsWith('/calendario') || pathname.startsWith('/programacao')) return 'Calendário';
+  if (pathname.startsWith('/biblioteca')) return 'Biblioteca';
+  if (pathname.startsWith('/gravacao')) return 'Gravação';
+  if (pathname.startsWith('/projetos')) return 'Projetos';
+  if (pathname.startsWith('/series')) return 'Séries';
+  if (pathname.startsWith('/configuracoes/pilares')) return 'Pilares';
+  return 'Voltar';
 }
 
 export function resolveRouteBack(

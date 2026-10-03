@@ -205,7 +205,7 @@ export function ContentDetailShell({
       const next = new URLSearchParams(previous);
       next.set('tab', visibleTabs[0] ?? 'roteiro');
       return next;
-    });
+    }, {replace: true});
   }, [activeTab, mergedContent, setSearchParams, stageOptions, visibleTabs]);
 
   useEffect(() => {
@@ -342,7 +342,7 @@ export function ContentDetailShell({
           const next = new URLSearchParams(previous);
           next.set('tab', 'gravacao');
           return next;
-        });
+        }, {replace: true});
       }
 
       return true;
@@ -533,7 +533,7 @@ export function ContentDetailShell({
       const next = new URLSearchParams(previous);
       next.set('tab', tab);
       return next;
-    });
+    }, {replace: true});
   };
 
   const handlePrimaryAction = async () => {

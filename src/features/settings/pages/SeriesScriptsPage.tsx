@@ -139,7 +139,7 @@ export function SeriesScriptsPage() {
             {state.isLoaded ? 'Série não encontrada.' : 'Carregando série...'}
           </Text>
           {state.isLoaded ? (
-            <AppButton variant="secondary" className="mt-4" onClick={() => navigate('/configuracoes/series')}>
+            <AppButton variant="secondary" className="mt-4" onClick={() => navigate('/series')}>
               Voltar para séries
             </AppButton>
           ) : null}
@@ -151,7 +151,7 @@ export function SeriesScriptsPage() {
       <SettingsPageScaffold
         title="Roteiros da série"
         icon={Layers}
-        backTo="/configuracoes/series"
+        backTo="/series"
         backLabel="Séries"
       >
         <div className="py-12 text-center">
@@ -163,7 +163,7 @@ export function SeriesScriptsPage() {
             <AppButton
               variant="secondary"
               className="mt-4"
-              onClick={() => navigate('/configuracoes/series')}
+              onClick={() => navigate('/series')}
             >
               Voltar para séries
             </AppButton>
@@ -205,7 +205,7 @@ export function SeriesScriptsPage() {
           section="Criação"
           title={serie.name}
           backLabel="Séries"
-          backTo="/configuracoes/series"
+          backTo="/series"
         />
       )}
     >
@@ -216,7 +216,7 @@ export function SeriesScriptsPage() {
           contentCount={linkedContents.length}
           showMoreMenu={showHeaderMenu}
           onToggleMore={() => setShowHeaderMenu(current => !current)}
-          onEdit={() => navigate(`/configuracoes/series/${serie.id}/editar`)}
+          onEdit={() => navigate(`/series/${serie.id}/editar`)}
           hideChrome
           onMenuAction={action => {
             if (action === 'toggle-active') handleToggleActive(serie);

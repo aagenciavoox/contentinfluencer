@@ -168,6 +168,7 @@ export function SeriesMobileScreen({
               >
               <MobileListCard
                 title={serie.name}
+                imageUrl={serie.capaUrl}
                 description={structure
                   ? structure.slice(0, 120) + (structure.length > 120 ? '…' : '')
                   : undefined}

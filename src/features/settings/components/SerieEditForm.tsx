@@ -14,6 +14,7 @@ import {
 import { AppButton } from '../../../components/ui/AppButton';
 import { Surface } from '../../../components/ui/Surface';
 import { Text } from '../../../components/ui/Text';
+import { CoverUploadField } from '../../library/components/CoverUploadField';
 import type { Content, Pilar, Serie } from '../../../lib/database';
 import { SerieProductionMetricsPanel } from './SerieProductionMetricsPanel';
 import { TemplatesSettingsPage } from '../pages/TemplatesSettingsPage';
@@ -188,6 +189,7 @@ export function SerieEditForm({
       estruturaRoteiro: initial.estruturaRoteiro || '',
       bordao: initial.bordao || '',
       cor: initial.cor || SERIE_DEFAULT_COR,
+      capaUrl: initial.capaUrl || '',
       ativa: initial.ativa ?? true,
       frequenciaRecomendada: initial.frequenciaRecomendada || 'Semanal',
       plataformas: initial.plataformas || [],
@@ -232,6 +234,7 @@ export function SerieEditForm({
     if (form.name !== snap.form.name) return true;
     if (form.bordao !== snap.form.bordao) return true;
     if (form.cor !== snap.form.cor) return true;
+    if (form.capaUrl !== snap.form.capaUrl) return true;
     if (form.estruturaRoteiro !== snap.form.estruturaRoteiro) return true;
     if (form.frequenciaRecomendada !== snap.form.frequenciaRecomendada) return true;
     if (JSON.stringify(form.plataformas) !== JSON.stringify(snap.form.plataformas)) return true;
@@ -270,6 +273,7 @@ export function SerieEditForm({
       estruturaRoteiro: form.estruturaRoteiro.trim() || null,
       bordao: form.bordao.trim() || null,
       cor: form.cor,
+      capaUrl: form.capaUrl.trim() || null,
       ativa: form.ativa,
       frequenciaRecomendada: form.frequenciaRecomendada,
       pilarIds: linkedPilarIds,
@@ -281,14 +285,21 @@ export function SerieEditForm({
     });
   }, [form, initial.createdAt, linkedPilarIds, onSave, platformNames]);
 
+  const onChromeChangeRef = useRef(onChromeChange);
+  const handleSaveRef = useRef(handleSave);
+  const onCancelRef = useRef(onCancel);
+  onChromeChangeRef.current = onChromeChange;
+  handleSaveRef.current = handleSave;
+  onCancelRef.current = onCancel;
+
   useEffect(() => {
-    onChromeChange?.({
+    onChromeChangeRef.current?.({
       isDirty,
       canSave,
-      handleSave,
-      handleCancel: onCancel,
+      handleSave: () => handleSaveRef.current(),
+      handleCancel: () => onCancelRef.current(),
     });
-  }, [isDirty, canSave, handleSave, onCancel, onChromeChange]);
+  }, [isDirty, canSave]);
 
   const copyHashtags = async (value: string) => {
     if (!value.trim()) return;
@@ -301,6 +312,7 @@ export function SerieEditForm({
 
   const slug = serieSlugFromName(form.name || 'serie');
   const selectedColorLabel = PILAR_COR_LABELS[form.cor] || 'Personalizada';
+  const coverPreview = /^https?:\/\//i.test(form.capaUrl.trim()) ? form.capaUrl.trim() : '';
   const serieForMetrics: Serie | null = initial.id
     ? {
         id: form.id,
@@ -313,6 +325,7 @@ export function SerieEditForm({
         estruturaRoteiro: form.estruturaRoteiro.trim() || null,
         bordao: form.bordao.trim() || null,
         cor: form.cor,
+        capaUrl: form.capaUrl.trim() || null,
         ativa: form.ativa,
         frequenciaRecomendada: form.frequenciaRecomendada,
         pilarIds: linkedPilarIds,
@@ -326,12 +339,20 @@ export function SerieEditForm({
     <div className={cn('relative w-full', isDirty && 'pb-28')}>
       <Surface variant="outlined" padding="md" className="mb-3 w-full bg-[var(--bg-secondary)]">
         <div className="flex w-full items-center gap-4">
-          <span
-            className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full md:h-16 md:w-16"
-            style={{backgroundColor: form.cor}}
-          >
-            <Layers className="h-7 w-7 text-[var(--text-primary)] opacity-80 md:h-8 md:w-8" strokeWidth={1.5} />
-          </span>
+          {coverPreview ? (
+            <img
+              src={coverPreview}
+              alt=""
+              className="h-14 w-14 shrink-0 rounded-[var(--radius-card)] object-cover md:h-16 md:w-16"
+            />
+          ) : (
+            <span
+              className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full md:h-16 md:w-16"
+              style={{backgroundColor: form.cor}}
+            >
+              <Layers className="h-7 w-7 text-[var(--text-primary)] opacity-80 md:h-8 md:w-8" strokeWidth={1.5} />
+            </span>
+          )}
           <div className="min-w-0 flex-1">
             <div className="flex items-start gap-2">
               <Text variant="pageTitle" className="min-w-0 break-words">
@@ -424,6 +445,18 @@ export function SerieEditForm({
                   {selectedColorLabel}
                 </Text>
               </div>
+
+              <CoverUploadField
+                value={form.capaUrl}
+                onChange={capaUrl => setForm(previous => ({...previous, capaUrl}))}
+                itemId={form.id}
+                title={form.name.trim() || 'Série'}
+                typeLabel="Série"
+                description="Opcional. Envie uma imagem ou cole um link."
+                compact
+                plain
+                urlAlwaysVisible
+              />
             </div>
           </Surface>
 

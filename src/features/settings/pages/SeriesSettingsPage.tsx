@@ -23,6 +23,7 @@ import { SettingsPageScaffold } from '../../../components/settings/SettingsPageS
 import { SettingsGridCard, SETTINGS_ENTITY_GRID_CLASS } from '../../../components/settings/SettingsGridCard';
 import { generateUUID } from '../../../utils/uuid';
 import { SerieProductionMetricsPanel } from '../components/SerieProductionMetricsPanel';
+import { CoverUploadField } from '../../library/components/CoverUploadField';
 import type { Content } from '../../../lib/database';
 
 const FREQUENCIAS = ['Semanal', 'Quinzenal', 'Mensal', 'Sob demanda'] as const;
@@ -65,6 +66,7 @@ export function SeriesForm({
     estruturaRoteiro: initial.estruturaRoteiro || null,
     bordao: initial.bordao || null,
     cor: initial.cor || '#6366f1',
+    capaUrl: initial.capaUrl || null,
     ativa: initial.ativa ?? true,
     frequenciaRecomendada: initial.frequenciaRecomendada || 'Semanal',
     createdAt: initial.createdAt || new Date().toISOString(),
@@ -90,7 +92,11 @@ export function SeriesForm({
 
   const handleSave = () => {
     if (!form.name.trim()) return;
-    onSave({ ...form, updatedAt: new Date().toISOString() });
+    onSave({
+      ...form,
+      capaUrl: form.capaUrl?.trim() || null,
+      updatedAt: new Date().toISOString(),
+    });
   };
 
   return (
@@ -141,6 +147,17 @@ export function SeriesForm({
         </PropertyRow>
       </PropertySection>
 
+      <CoverUploadField
+        value={form.capaUrl || ''}
+        onChange={capaUrl => setForm(previous => ({ ...previous, capaUrl: capaUrl || null }))}
+        itemId={form.id}
+        title={form.name || 'Série'}
+        typeLabel="Série"
+        description="Opcional. Envie uma imagem ou cole um link."
+        compact
+        urlAlwaysVisible
+      />
+
       <PropertySection label="Estrutura do roteiro">
         <PropertyTextarea
           rows={6}
@@ -184,6 +201,7 @@ export function SeriesForm({
             estruturaRoteiro: form.estruturaRoteiro,
             bordao: form.bordao,
             cor: form.cor,
+            capaUrl: form.capaUrl,
             ativa: form.ativa,
             frequenciaRecomendada: form.frequenciaRecomendada,
             pilarIds: form.pilarIds,
@@ -217,11 +235,11 @@ export function SeriesSettingsPage() {
   const [filter, setFilter] = useState<SeriesFilter>('todas');
 
   const openEditPage = (serieId: string) => {
-    navigate(`/configuracoes/series/${serieId}/editar`);
+    navigate(`/series/${serieId}/editar`);
   };
 
   const openCreatePage = () => {
-    navigate('/configuracoes/series/nova');
+    navigate('/series/nova');
   };
 
   const handleSave = (serie: Serie) => {
@@ -298,7 +316,7 @@ export function SeriesSettingsPage() {
   });
 
   const openBulkPage = (serieId: string) => {
-    navigate(`/configuracoes/series/${serieId}/roteiros`);
+    navigate(`/series/${serieId}/roteiros`);
   };
 
   if (isMobile) {
@@ -401,6 +419,7 @@ export function SeriesSettingsPage() {
                   key={serie.id}
                   compact
                   title={serie.name}
+                  imageUrl={serie.capaUrl}
                   description={structure || undefined}
                   color={serie.cor || '#6366f1'}
                   active={serie.ativa}

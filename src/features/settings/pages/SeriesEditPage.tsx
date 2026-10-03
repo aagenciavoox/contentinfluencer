@@ -98,7 +98,7 @@ export function SeriesEditPage() {
     [state.platforms],
   );
 
-  const backToList = () => navigate('/configuracoes/series');
+  const backToList = () => navigate('/series');
 
   const handleSave = (serie: Serie) => {
     const payload = {...serie, userId: serie.userId || user?.id || ''};
@@ -219,7 +219,7 @@ export function SeriesEditPage() {
           <DesktopPageHeader
             section="Criação"
             backLabel="Séries"
-            backTo="/configuracoes/series"
+            backTo="/series"
             title={pageTitle}
             meta={pageMeta}
             hideSearch

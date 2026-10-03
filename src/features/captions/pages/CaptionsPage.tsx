@@ -6,6 +6,7 @@ import { PaginationBar } from '../../../components/ui/PaginationBar';
 import { SegmentTabs } from '../../../components/ui/SegmentTabs';
 import { useAppContext } from '../../../context/AppContext';
 import { DEFAULT_PLATFORMS } from '../../../constants';
+import { useHydrateContentBodies } from '../../../hooks/useHydrateContentBodies';
 import { useIsMobile } from '../../../hooks/useIsMobile';
 import type { Content } from '../../../lib/database';
 import { DesktopPageHeader } from '../../../layouts/page/DesktopPageHeader';
@@ -46,6 +47,8 @@ export function CaptionsPage() {
     () => paginateCaptionQueue(items, page),
     [items, page],
   );
+  const pageIds = useMemo(() => pageData.items.map(item => item.id), [pageData.items]);
+  const { hasHydrationError, retryHydration } = useHydrateContentBodies(pageIds);
 
   useEffect(() => {
     setPage(1);
@@ -93,6 +96,8 @@ export function CaptionsPage() {
         <DesktopPageHeader
           section="Criação"
           title="Legendas"
+          backLabel="Criação"
+          backTo="/criacao"
           meta={items.length === 1 ? '1 vídeo' : `${items.length} vídeos`}
         />
       )}
@@ -117,6 +122,8 @@ export function CaptionsPage() {
             series={state.series}
             pilares={state.pilares}
             onSave={saveCaption}
+            hasHydrationError={hasHydrationError}
+            onRetryHydration={retryHydration}
           />
           <PaginationBar
             variant={isMobile ? 'simple' : 'full'}

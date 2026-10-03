@@ -23,7 +23,7 @@ import {
   readPersistedDomain,
   writePersistedDomain,
 } from '../lib/persistentDataCache';
-import { mergeFetchedAppData, patchContentsInDomainCaches, patchPlatformsInDomainCaches } from '../lib/domainCacheSync';
+import { mergeFetchedAppData, patchContentsInDomainCaches, patchPlatformsInDomainCaches, patchSeriesInDomainCaches } from '../lib/domainCacheSync';
 import {
   BOOTSTRAP_DATA_DOMAINS,
   CRITICAL_BOOTSTRAP_DOMAINS,
@@ -235,6 +235,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     ) {
       patchContentsInDomainCaches(userId, stateRef.current.contents);
     }
+
+    if (
+      userId
+      && (actionType === 'ADD_SERIE' || actionType === 'UPDATE_SERIE' || actionType === 'DELETE_SERIE')
+    ) {
+      patchSeriesInDomainCaches(userId, stateRef.current.series);
+    }
   }, [invalidateListCaches, userId]);
 
   const mergeSnapshot = useCallback(
@@ -391,8 +398,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       });
       dispatch({ type: 'SET_LOADED', payload: true });
       loadDone.current = true;
-      // Cache legado / crítico já tem o essencial — evita bloquear rotas na revalidação.
-      if (persisted.payload.contents) {
+      // Cache fresco já tem o essencial. Cache vencido pinta na hora, mas não marca
+      // o domínio como carregado — senão a revalidação nunca busca a capa e o resto.
+      if (persisted.payload.contents && isPersistedDomainFresh(persisted)) {
         markDomainsLoaded(loadedDomains.current, CRITICAL_BOOTSTRAP_DOMAINS);
       }
     } else {

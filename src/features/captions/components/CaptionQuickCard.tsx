@@ -12,10 +12,11 @@ import {
   mergeHashtags,
   parseHashtags,
 } from '../../contents/lib/captionHashtags';
+import { isContentBodyLoaded } from '../../contents/lib/contentBody';
 import { getDisplayStatus } from '../../contents/lib/contentPipeline';
 import { buildContentDetailRoute } from '../../contents/lib/contentDetailRoute';
 import type { Content, ContentPlataforma, Pilar, Serie } from '../../../lib/database';
-import { cn } from '../../../lib/utils';
+import { cn, htmlToReadableText } from '../../../lib/utils';
 import { captionClipboardText, formatCaptionBlock } from '../lib/captionQueue';
 
 const CHAR_LIMITS: Record<string, number> = {
@@ -155,15 +156,20 @@ function CaptionGridRow({
   series,
   pilares,
   onSave,
+  hasHydrationError = false,
+  onRetryHydration,
 }: {
   content: Content;
   platforms: string[];
   series: Serie[];
   pilares: Pilar[];
   onSave: (content: Content) => Promise<void>;
+  hasHydrationError?: boolean;
+  onRetryHydration?: () => void;
 }) {
   const { plataformas, update, editing, saving, dirty, startEdit, cancel, save, commit } = useCaptionDraft(content, onSave);
   const [copiedPlatform, setCopiedPlatform] = useState<string | null>(null);
+  const [copiedScript, setCopiedScript] = useState(false);
   const pulledRef = useRef(false);
   const title = content.title.trim() || 'Sem título';
   const status = getDisplayStatus(content);
@@ -217,6 +223,34 @@ function CaptionGridRow({
     }
   };
 
+  const scriptText = htmlToReadableText(content.script).trim();
+  const scriptReady = isContentBodyLoaded(content);
+  const scriptLoading = !scriptReady && !hasHydrationError;
+  const scriptEmpty = scriptReady && scriptText.length === 0;
+
+  const handleCopyScript = async () => {
+    if (hasHydrationError) {
+      onRetryHydration?.();
+      return;
+    }
+    if (!scriptText) return;
+    try {
+      await navigator.clipboard.writeText(scriptText);
+      setCopiedScript(true);
+      window.setTimeout(() => setCopiedScript(false), 1500);
+    } catch {
+      setCopiedScript(false);
+    }
+  };
+
+  const scriptButtonLabel = copiedScript
+    ? 'Copiado'
+    : hasHydrationError
+      ? 'Tentar de novo'
+      : scriptLoading
+        ? 'Carregando...'
+        : 'Copiar roteiro';
+
   return (
     <tr>
       <th scope="row" className={cn(videoCellClass, 'text-left font-normal')}>
@@ -232,25 +266,23 @@ function CaptionGridRow({
           {format ? <Text variant="meta">{format}</Text> : null}
         </div>
         <div className="mt-3 flex flex-wrap items-center gap-2">
-          {editing ? (
-            <>
-              <AppButton size="xs" variant="secondary" disabled={saving} onClick={cancel}>
-                Cancelar
-              </AppButton>
-              <AppButton
-                size="xs"
-                variant="primary"
-                disabled={saving || !dirty}
-                onClick={() => void save()}
-              >
-                {saving ? 'Salvando...' : 'Salvar'}
-              </AppButton>
-            </>
-          ) : (
-            <AppButton size="xs" variant="secondary" onClick={startEdit}>
-              Editar
-            </AppButton>
-          )}
+          <AppButton
+            size="xs"
+            variant="secondary"
+            disabled={scriptLoading || scriptEmpty}
+            aria-label={
+              scriptEmpty
+                ? `Roteiro de ${title} ainda não tem texto`
+                : hasHydrationError
+                  ? `Tentar carregar o roteiro de ${title}`
+                  : `Copiar roteiro de ${title}`
+            }
+            title={scriptEmpty ? 'Este roteiro ainda não tem texto.' : undefined}
+            leftIcon={copiedScript ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+            onClick={() => void handleCopyScript()}
+          >
+            {scriptButtonLabel}
+          </AppButton>
         </div>
       </th>
       {platforms.map(platform => {
@@ -267,18 +299,22 @@ function CaptionGridRow({
               value={legenda}
               rows={4}
               readOnly={!editing}
+              tabIndex={editing ? 0 : -1}
               placeholder={`Legenda para ${platform}`}
               aria-label={`Legenda de ${platform} para ${title}`}
-              className={cn('w-full', !editing && 'cursor-default')}
+              aria-readonly={!editing}
+              className={cn('w-full', !editing && 'caption-locked')}
               onChange={event => updatePlatform(platform, { legenda: event.target.value })}
             />
             <input
               type="text"
               value={hashtags}
               readOnly={!editing}
+              tabIndex={editing ? 0 : -1}
               placeholder="#leitura #livros"
               aria-label={`Hashtags de ${platform} para ${title}`}
-              className={cn('mt-2 w-full', !editing && 'cursor-default')}
+              aria-readonly={!editing}
+              className={cn('mt-2 w-full', !editing && 'caption-locked')}
               onChange={event => updatePlatform(platform, { hashtags: event.target.value })}
             />
             <CaptionHashtagSources
@@ -292,9 +328,30 @@ function CaptionGridRow({
               })}
             />
             <div className="mt-2 flex items-center justify-between gap-2">
-              <Text variant="meta" className={overLimit ? 'text-[var(--danger)]' : undefined}>
-                {limit ? `${legenda.length} / ${limit}` : `${legenda.length}`}
-              </Text>
+              <div className="flex min-w-0 flex-wrap items-center gap-2">
+                {editing ? (
+                  <>
+                    <AppButton size="xs" variant="secondary" disabled={saving} onClick={cancel}>
+                      Cancelar
+                    </AppButton>
+                    <AppButton
+                      size="xs"
+                      variant="primary"
+                      disabled={saving || !dirty}
+                      onClick={() => void save()}
+                    >
+                      {saving ? 'Salvando...' : 'Salvar'}
+                    </AppButton>
+                  </>
+                ) : (
+                  <AppButton size="xs" variant="secondary" onClick={startEdit}>
+                    Editar
+                  </AppButton>
+                )}
+                <Text variant="meta" className={overLimit ? 'text-[var(--danger)]' : undefined}>
+                  {limit ? `${legenda.length} / ${limit}` : `${legenda.length}`}
+                </Text>
+              </div>
               <AppButton
                 size="xs"
                 variant="ghost"
@@ -372,9 +429,19 @@ interface CaptionGridProps {
   series: Serie[];
   pilares: Pilar[];
   onSave: (content: Content) => Promise<void>;
+  hasHydrationError?: (id: string) => boolean;
+  onRetryHydration?: (id: string) => void;
 }
 
-export function CaptionGrid({ contents, platforms, series, pilares, onSave }: CaptionGridProps) {
+export function CaptionGrid({
+  contents,
+  platforms,
+  series,
+  pilares,
+  onSave,
+  hasHydrationError = () => false,
+  onRetryHydration,
+}: CaptionGridProps) {
   return (
     <Surface variant="outlined" padding="none" className="overflow-x-auto">
       <table className="w-full border-collapse text-left">
@@ -409,6 +476,8 @@ export function CaptionGrid({ contents, platforms, series, pilares, onSave }: Ca
               series={series}
               pilares={pilares}
               onSave={onSave}
+              hasHydrationError={hasHydrationError(content.id)}
+              onRetryHydration={onRetryHydration ? () => onRetryHydration(content.id) : undefined}
             />
           ))}
         </tbody>

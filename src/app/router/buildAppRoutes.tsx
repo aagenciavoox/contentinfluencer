@@ -1,5 +1,5 @@
 import { lazy } from 'react';
-import { Navigate, type RouteObject } from 'react-router-dom';
+import { Navigate, useLocation, type RouteObject } from 'react-router-dom';
 import { AppShell } from '../../layouts/app/AppShell';
 import { CampanhaPublicaPage } from '../../features/projects/pages/CampanhaPublicaPage';
 import { LoginRoute, RequireAuth } from './RequireAuth';
@@ -28,6 +28,12 @@ const ProjetoDetalhe = lazy(() => routeLoaders.projectDetail().then(module => ({
 const Gravacao = lazy(() => routeLoaders.recording().then(module => ({ default: module.Gravacao })));
 const GravacaoBloco = lazy(() => routeLoaders.recordingBlock().then(module => ({ default: module.GravacaoBloco })));
 const Dashboard = lazy(() => routeLoaders.dashboard().then(module => ({ default: module.Dashboard })));
+
+function LegacySeriesRedirect() {
+  const { pathname, search, hash } = useLocation();
+  const next = pathname.replace(/^\/configuracoes\/series/, '/series');
+  return <Navigate to={`${next}${search}${hash}`} replace />;
+}
 
 export function buildAppRoutes(): RouteObject[] {
   return [
@@ -134,12 +140,14 @@ export function buildAppRoutes(): RouteObject[] {
                 { path: '/configuracoes/aparencia', element: <Navigate to="/configuracoes" replace /> },
                 { path: '/configuracoes/looks', element: <Navigate to="/configuracoes" replace /> },
                 { path: '/configuracoes/regras', element: <Navigate to="/configuracoes/pilares" replace /> },
-                { path: '/configuracoes/series', element: <SeriesSettings /> },
-                { path: '/configuracoes/series/nova', element: <SeriesEditar /> },
-                { path: '/configuracoes/series/:serieId/editar', element: <SeriesEditar /> },
-                { path: '/configuracoes/series/:serieId/roteiros', element: <SeriesRoteiros /> },
+                { path: '/series', element: <SeriesSettings /> },
+                { path: '/series/nova', element: <SeriesEditar /> },
+                { path: '/series/:serieId/editar', element: <SeriesEditar /> },
+                { path: '/series/:serieId/roteiros', element: <SeriesRoteiros /> },
+                { path: '/configuracoes/series', element: <Navigate to="/series" replace /> },
+                { path: '/configuracoes/series/*', element: <LegacySeriesRedirect /> },
                 { path: '/configuracoes/plataformas', element: <PlataformasSettings /> },
-                { path: '/configuracoes/templates', element: <Navigate to="/configuracoes/series" replace /> },
+                { path: '/configuracoes/templates', element: <Navigate to="/series" replace /> },
                 { path: '/configuracoes/horarios', element: <Navigate to="/configuracoes/plataformas" replace /> },
                 { path: '/contents', element: <LegacyCreationRedirect source="contents" /> },
                 { path: '/ideas', element: <LegacyCreationRedirect source="ideas" /> },

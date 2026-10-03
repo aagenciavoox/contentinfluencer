@@ -70,6 +70,7 @@ export interface Serie {
   estruturaRoteiro: string | null;
   bordao: string | null;
   cor: string | null;
+  capaUrl: string | null;
   ativa: boolean;
   frequenciaRecomendada: string | null;
   createdAt: string;
@@ -567,6 +568,7 @@ const mp = {
     id: r.id, userId: r.user_id, name: r.name, template: r.template || '',
     notes: r.notes || '', slotPadrao: r.slot_padrao, formatoVisualPadrao: r.formato_visual_padrao,
     estruturaRoteiro: r.estrutura_roteiro, bordao: r.bordao, cor: r.cor,
+    capaUrl: r.capa_url || null,
     ativa: r.ativa ?? true, frequenciaRecomendada: r.frequencia_recomendada,
     createdAt: r.created_at, updatedAt: r.updated_at,
     pilarIds: (r.serie_pilares || []).map((sp: Row) => sp.pilar_id),
@@ -1645,6 +1647,7 @@ export async function saveSerie(serie: Omit<Serie, 'pilarIds' | 'plataformas' | 
     id: serie.id, user_id: serie.userId, name: serie.name, template: serie.template,
     notes: serie.notes, slot_padrao: serie.slotPadrao, formato_visual_padrao: serie.formatoVisualPadrao,
     estrutura_roteiro: serie.estruturaRoteiro, bordao: serie.bordao, cor: serie.cor,
+    capa_url: serie.capaUrl?.trim() || null,
     ativa: serie.ativa, frequencia_recomendada: serie.frequenciaRecomendada,
   });
   if (error) throw new Error(`series: ${error.message}`);

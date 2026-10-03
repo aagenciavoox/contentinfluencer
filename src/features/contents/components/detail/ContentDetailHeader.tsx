@@ -1,4 +1,5 @@
 import {useEffect, useRef, useState} from 'react';
+import {useLocation} from 'react-router-dom';
 import {ArrowRight, MoreHorizontal, Pencil, Trash2} from 'lucide-react';
 import {AppButton} from '../../../../components/ui/AppButton';
 import {Badge} from '../../../../components/ui/Badge';
@@ -10,6 +11,7 @@ import type {ContentPrimaryAction} from '../../lib/contentPipeline';
 import {getDisplayStatus} from '../../lib/contentPipeline';
 import {DesktopPageHeader} from '../../../../layouts/page/DesktopPageHeader';
 import {PAGE_SECTION} from '../../../../layouts/navigation/navConfig';
+import {labelForDetailBack, resolveContentDetailBack} from '../../../../lib/navigation/detailBack';
 
 interface ContentDetailHeaderProps {
   content: Content;
@@ -54,8 +56,15 @@ export function ContentDetailHeader({
   saveState = 'idle',
   contentKind = 'script',
 }: ContentDetailHeaderProps) {
+  const location = useLocation();
   const displayTitle = title ?? content.title;
   const isIdea = contentKind === 'idea';
+  const listLabel = isIdea ? 'Ideias' : breadcrumbMode === 'pipeline' ? 'Roteiros' : 'Conteúdos';
+  const listTarget = isIdea ? '/criacao?tab=ideias' : breadcrumbMode === 'pipeline' ? '/criacao?tab=roteiros' : '/criacao';
+  const origin = resolveContentDetailBack(location.state as {from?: string} | null);
+  const backTo = location.state && typeof location.state === 'object' && 'from' in location.state
+    ? origin
+    : listTarget;
   const contentReference = isIdea ? 'da ideia' : 'do roteiro';
   const [menuOpen, setMenuOpen] = useState(false);
   const [titleEditing, setTitleEditing] = useState(false);
@@ -231,8 +240,8 @@ export function ContentDetailHeader({
       section={PAGE_SECTION.criacao}
       title={displayTitle || (isIdea ? 'Ideia sem título' : 'Roteiro sem título')}
       titleContent={titleContent}
-      backLabel={isIdea ? 'Ideias' : breadcrumbMode === 'pipeline' ? 'Roteiros' : 'Conteúdos'}
-      backTo={isIdea ? '/criacao?tab=ideias' : breadcrumbMode === 'pipeline' ? '/criacao?tab=roteiros' : '/criacao'}
+      backLabel={labelForDetailBack(backTo, listLabel)}
+      backTo={backTo}
       meta={compact ? undefined : meta}
       rowAlign={contentKind === 'script' ? 'center' : 'start'}
       actions={(

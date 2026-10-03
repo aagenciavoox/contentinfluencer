@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Text } from '../../components/ui/Text';
 import { Surface } from '../../components/ui/Surface';
 import { cn } from '../../lib/utils';
@@ -10,6 +10,7 @@ interface MobileListCardProps {
   meta?: ReactNode;
   status?: ReactNode;
   trailing?: ReactNode;
+  imageUrl?: string | null;
   onClick?: () => void;
   className?: string;
 }
@@ -21,11 +22,24 @@ export function MobileListCard({
   meta,
   status,
   trailing,
+  imageUrl,
   onClick,
   className,
 }: MobileListCardProps) {
+  const coverSrc = /^https?:\/\//i.test(imageUrl?.trim() ?? '') ? imageUrl!.trim() : null;
+  const [coverBroken, setCoverBroken] = useState(false);
   const content = (
-    <div className={cn('flex flex-col gap-1', className)}>
+    <div className={cn('flex gap-3', className)}>
+      {coverSrc && !coverBroken ? (
+        <img
+          src={coverSrc}
+          alt=""
+          loading="lazy"
+          onError={() => setCoverBroken(true)}
+          className="h-16 w-12 shrink-0 rounded-[var(--radius-input)] object-cover"
+        />
+      ) : null}
+      <div className="flex min-w-0 flex-1 flex-col gap-1">
       {status || eyebrow || trailing ? (
         <div className="flex items-center gap-2">
           <div className="min-w-0 flex-1">
@@ -52,6 +66,7 @@ export function MobileListCard({
           {meta}
         </div>
       ) : null}
+      </div>
     </div>
   );
 

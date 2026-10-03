@@ -41,7 +41,7 @@ export function SeriesDetailHeader({
       {hideChrome ? null : (
       <nav className="flex flex-wrap items-center gap-1.5">
         <Link
-          to="/configuracoes/series"
+          to="/series"
           className="text-[length:var(--font-size-meta)] font-medium text-[var(--text-tertiary)] transition-colors hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
         >
           Séries

@@ -86,9 +86,9 @@ function loaderForPath(pathname: string): RouteLoader | null {
   if (path === '/configuracoes/perfil') return loadProfile;
   if (path === '/configuracoes/pilares') return loadPillars;
   if (path.startsWith('/configuracoes/pilares/')) return loadPillarEdit;
-  if (path === '/configuracoes/series') return loadSeries;
+  if (path === '/series') return loadSeries;
   if (path.includes('/roteiros')) return loadSeriesScripts;
-  if (path.startsWith('/configuracoes/series/')) return loadSeriesEdit;
+  if (path === '/series/nova' || path.startsWith('/series/')) return loadSeriesEdit;
   if (path.startsWith('/configuracoes/plataformas') || path.startsWith('/configuracoes/horarios')) return loadPlatforms;
   if (path.startsWith('/configuracoes/templates')) return loadSeries;
   if (path.startsWith('/configuracoes')) return loadSettings;

@@ -509,6 +509,21 @@ textarea {
   resize: vertical;
 }
 
+textarea.caption-locked,
+input.caption-locked {
+  background-color: var(--bg-primary);
+  cursor: default;
+  pointer-events: none;
+}
+
+textarea.caption-locked:hover,
+input.caption-locked:hover,
+textarea.caption-locked:focus,
+input.caption-locked:focus {
+  border-color: var(--border-color);
+  box-shadow: none;
+}
+
 .input {
   width: 100%;
 }

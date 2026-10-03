@@ -1,7 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { ImagePlus, Loader2, Trash2 } from 'lucide-react';
 import { AppButton } from '../../../components/ui/AppButton';
-import { Surface } from '../../../components/ui/Surface';
 import { Text } from '../../../components/ui/Text';
 import { useAuth } from '../../../context/AuthContext';
 import { cn } from '../../../lib/utils';
@@ -18,6 +17,11 @@ interface CoverUploadFieldProps {
   className?: string;
   compact?: boolean;
   allowUrlFallback?: boolean;
+  /** Keep the URL field visible instead of hiding it behind a toggle. */
+  urlAlwaysVisible?: boolean;
+  /** Skip the inner card so the field can sit inside another surface. */
+  plain?: boolean;
+  description?: string;
 }
 
 export function CoverUploadField({
@@ -29,6 +33,9 @@ export function CoverUploadField({
   className,
   compact = false,
   allowUrlFallback = true,
+  urlAlwaysVisible = false,
+  plain = false,
+  description,
 }: CoverUploadFieldProps) {
   const { user } = useAuth();
   const inputId = useId();
@@ -37,7 +44,7 @@ export function CoverUploadField({
   const [error, setError] = useState<string | null>(null);
   const [broken, setBroken] = useState(false);
   const [showUrl, setShowUrl] = useState(
-    Boolean(value) && !value.includes('/storage/v1/object/public/library-covers/'),
+    urlAlwaysVisible || (Boolean(value) && !value.includes('/storage/v1/object/public/library-covers/')),
   );
 
   useEffect(() => {
@@ -94,16 +101,22 @@ export function CoverUploadField({
 
   return (
     <div className={cn('stack-sm', className)}>
-      <Text variant="label" className="text-[var(--text-tertiary)]">
-        Capa
-      </Text>
+      <div>
+        <Text variant="label" className="text-[var(--text-tertiary)]">
+          Capa
+        </Text>
+        {description ? (
+          <Text variant="meta" className="mt-1 text-[var(--text-secondary)]">
+            {description}
+          </Text>
+        ) : null}
+      </div>
 
-      <Surface
-        variant="outlined"
-        padding="none"
+      <div
         className={cn(
-          'overflow-hidden',
-          compact ? 'flex items-center gap-3 p-3' : 'stack-md p-4',
+          !plain && 'surface-outlined overflow-hidden',
+          compact ? 'flex items-center gap-3' : 'stack-md',
+          !plain && (compact ? 'p-3' : 'p-4'),
         )}
       >
         <div
@@ -155,7 +168,7 @@ export function CoverUploadField({
 
           <Text variant="meta">JPG, PNG, WEBP ou GIF · ate 5 MB · compactamos automaticamente</Text>
 
-          {allowUrlFallback ? (
+          {allowUrlFallback && !urlAlwaysVisible ? (
             <button
               type="button"
               onClick={() => setShowUrl(current => !current)}
@@ -165,7 +178,7 @@ export function CoverUploadField({
             </button>
           ) : null}
         </div>
-      </Surface>
+      </div>
 
       <input
         id={inputId}
@@ -176,15 +189,21 @@ export function CoverUploadField({
         onChange={event => void handleFile(event.target.files?.[0])}
       />
 
-      {showUrl && allowUrlFallback ? (
-        <input
-          type="url"
-          value={value}
-          onChange={event => onChange(event.target.value)}
-          placeholder="https://..."
-          className="w-full"
-          disabled={uploading}
-        />
+      {(showUrl || urlAlwaysVisible) && allowUrlFallback ? (
+        <label className="stack-sm">
+          <Text variant="meta" className="text-[var(--text-secondary)]">
+            Link da imagem
+          </Text>
+          <input
+            type="text"
+            inputMode="url"
+            value={value}
+            onChange={event => onChange(event.target.value)}
+            placeholder="https://..."
+            className="w-full"
+            disabled={uploading}
+          />
+        </label>
       ) : null}
 
       {error ? (

@@ -17,9 +17,10 @@ function testNavigationSequencePrefetchDomains() {
   assert.deepEqual(getRouteDataDomains('/hoje'), [
     'agenda',
     'projects',
+    'library',
   ]);
   assert.deepEqual(getRouteDataDomains('/biblioteca'), ['library', 'library-generos']);
-  assert.deepEqual(getRouteDataDomains('/configuracoes/series'), ['production']);
+  assert.deepEqual(getRouteDataDomains('/series'), ['production']);
   assert.deepEqual(getRouteDataDomains('/configuracoes/pilares'), ['production']);
 }
 
@@ -39,7 +40,7 @@ function testPendingPathnameTransition() {
 }
 
 function testNestedSettingsDomains() {
-  assert.deepEqual(getRouteDataDomains('/configuracoes/series/abc'), [
+  assert.deepEqual(getRouteDataDomains('/series/abc'), [
     'production',
     'content',
     'bootstrap',

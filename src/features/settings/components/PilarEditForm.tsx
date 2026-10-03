@@ -386,14 +386,21 @@ export function PilarEditForm({
     });
   }, [form, initial.createdAt, linkedSerieIds, onSave, platformNames]);
 
+  const onChromeChangeRef = useRef(onChromeChange);
+  const handleSaveRef = useRef(handleSave);
+  const onCancelRef = useRef(onCancel);
+  onChromeChangeRef.current = onChromeChange;
+  handleSaveRef.current = handleSave;
+  onCancelRef.current = onCancel;
+
   useEffect(() => {
-    onChromeChange?.({
+    onChromeChangeRef.current?.({
       isDirty,
       canSave,
-      handleSave,
-      handleCancel: onCancel,
+      handleSave: () => handleSaveRef.current(),
+      handleCancel: () => onCancelRef.current(),
     });
-  }, [isDirty, canSave, handleSave, onCancel, onChromeChange]);
+  }, [isDirty, canSave]);
 
   const copyHashtags = async (value: string) => {
     if (!value.trim()) return;

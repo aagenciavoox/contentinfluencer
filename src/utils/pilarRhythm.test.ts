@@ -62,6 +62,7 @@ function buildSerie(overrides: Partial<Serie> = {}): Serie {
     estruturaRoteiro: null,
     bordao: null,
     cor: null,
+    capaUrl: null,
     ativa: true,
     frequenciaRecomendada: 'Semanal',
     createdAt: '2026-04-27T00:00:00.000Z',
