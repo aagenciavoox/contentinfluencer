@@ -22,6 +22,7 @@ await import('./features/settings/lib/gentleExperience.test.ts');
 await import('./features/settings/lib/writingWorkspace.test.ts');
 await import('./features/recommendations/recommendDailyAction.test.ts');
 await import('./features/settings/lib/pilarPostingSchedule.test.ts');
+await import('./features/settings/lib/pilarConstants.test.ts');
 await import('./features/analytics/lib/libraryAnalytics.test.ts');
 await import('./features/library/lib/libraryCoverFile.test.ts');
 await import('./features/library/lib/libraryCoverExtras.test.ts');

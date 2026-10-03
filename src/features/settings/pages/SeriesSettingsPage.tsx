@@ -24,6 +24,7 @@ import { SettingsGridCard, SETTINGS_ENTITY_GRID_CLASS } from '../../../component
 import { generateUUID } from '../../../utils/uuid';
 import { SerieProductionMetricsPanel } from '../components/SerieProductionMetricsPanel';
 import { CoverUploadField } from '../../library/components/CoverUploadField';
+import { EntityColorPicker } from '../components/EntityColorPicker';
 import type { Content } from '../../../lib/database';
 
 const FREQUENCIAS = ['Semanal', 'Quinzenal', 'Mensal', 'Sob demanda'] as const;
@@ -137,12 +138,10 @@ export function SeriesForm({
           />
         </PropertyRow>
 
-        <PropertyRow label="Cor" icon={<Palette />}>
-          <input
-            type="color"
+        <PropertyRow label="Cor" icon={<Palette />} className="items-start">
+          <EntityColorPicker
             value={form.cor || '#6366f1'}
-            onChange={event => setForm(previous => ({ ...previous, cor: event.target.value }))}
-            className="h-6 w-10 cursor-pointer rounded-[var(--radius-input)] border border-[var(--border-color)] bg-transparent p-0.5"
+            onChange={cor => setForm(previous => ({ ...previous, cor }))}
           />
         </PropertyRow>
       </PropertySection>

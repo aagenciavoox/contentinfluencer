@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Check,
   ChevronDown,
   Clock,
   Copy,
@@ -33,12 +32,11 @@ import {
   shouldPersistPilarPlataforma,
 } from '../lib/pilarPostingSchedule';
 import {
-  PILAR_COR_LABELS,
   PILAR_DEFAULT_COR,
   PILAR_DESCRICAO_MAX,
-  PILAR_PRESET_CORES,
   pilarSlugFromNome,
 } from '../lib/pilarConstants';
+import { EntityColorPicker } from './EntityColorPicker';
 
 type AccordionStep = 'identidade' | 'ritmo' | 'plataformas' | 'series';
 
@@ -412,7 +410,6 @@ export function PilarEditForm({
   };
 
   const slug = pilarSlugFromNome(form.nome || 'pilar');
-  const selectedColorLabel = PILAR_COR_LABELS[form.cor] || 'Personalizada';
   const showDirtyFooter = isDirty && isMobile;
 
   return (
@@ -464,29 +461,10 @@ export function PilarEditForm({
 
             <div>
               <FieldLabel>Cor</FieldLabel>
-              <div className="flex flex-wrap items-center gap-2">
-                {PILAR_PRESET_CORES.map(color => {
-                  const selected = form.cor === color;
-                  return (
-                    <button
-                      key={color}
-                      type="button"
-                      onClick={() => setForm(previous => ({...previous, cor: color}))}
-                      className={cn(
-                        'relative flex h-8 w-8 items-center justify-center rounded-full border-2 transition-all focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
-                        selected ? 'border-[var(--text-primary)] scale-105' : 'border-transparent hover:scale-105',
-                      )}
-                      style={{backgroundColor: color}}
-                      aria-label={`Cor ${PILAR_COR_LABELS[color] || color}`}
-                    >
-                      {selected ? <Check className="h-3.5 w-3.5 text-white drop-shadow-sm" strokeWidth={3} /> : null}
-                    </button>
-                  );
-                })}
-              </div>
-              <Text variant="meta" className="mt-1.5 text-[var(--text-tertiary)]">
-                {selectedColorLabel}
-              </Text>
+              <EntityColorPicker
+                value={form.cor}
+                onChange={cor => setForm(previous => ({...previous, cor}))}
+              />
             </div>
 
             <div>
