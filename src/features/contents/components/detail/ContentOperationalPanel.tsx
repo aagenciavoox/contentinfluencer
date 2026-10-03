@@ -62,6 +62,8 @@ interface ContentOperationalPanelProps {
   showTitle?: boolean;
   className?: string;
   authorName?: string;
+  /** Cards variant only: render every section expanded in a responsive grid. */
+  sectionsOpen?: boolean;
 }
 
 function AsideAccordion({
@@ -69,15 +71,26 @@ function AsideAccordion({
   title,
   openId,
   onToggle,
+  alwaysOpen = false,
   children,
 }: {
   id: AsideSectionId;
   title: string;
   openId: AsideSectionId | null;
   onToggle: (id: AsideSectionId) => void;
+  alwaysOpen?: boolean;
   children: React.ReactNode;
 }) {
   const open = openId === id;
+
+  if (alwaysOpen) {
+    return (
+      <Surface variant="outlined" padding="md" className="stack-md overflow-visible">
+        <span className="panel-section-title">{title}</span>
+        {children}
+      </Surface>
+    );
+  }
 
   return (
     <Surface variant="outlined" padding="none" className="overflow-visible">
@@ -294,6 +307,7 @@ export function ContentOperationalPanel({
   variant = 'default',
   showTitle = true,
   className,
+  sectionsOpen = false,
 }: ContentOperationalPanelProps) {
   const {state, ensureDataDomains} = useAppContext();
   const navigate = useNavigate();
@@ -535,7 +549,14 @@ export function ContentOperationalPanel({
 
   if (variant === 'cards') {
     return (
-      <aside className={cn('flex flex-col gap-3', className)}>
+      <aside
+        className={cn(
+          sectionsOpen
+            ? 'grid items-start gap-3 md:grid-cols-2 xl:grid-cols-4'
+            : 'flex flex-col gap-3',
+          className,
+        )}
+      >
         <Surface variant="outlined" padding="md" className="stack-md">
           <RoteiroField label="Status" icon={<ListChecks className="h-3.5 w-3.5" />}>
             <StatusDropdownField
@@ -581,7 +602,7 @@ export function ContentOperationalPanel({
           </div>
         </Surface>
 
-        <AsideAccordion id="properties" title="Propriedades" openId={openSection} onToggle={toggleSection}>
+        <AsideAccordion id="properties" title="Propriedades" openId={openSection} onToggle={toggleSection} alwaysOpen={sectionsOpen}>
           <RoteiroField label="Série" icon={<Layers className="h-3.5 w-3.5" />}>
             <RoteiroSelect
               value={draft.seriesId ?? ''}
@@ -633,7 +654,7 @@ export function ContentOperationalPanel({
           </RoteiroField>
         </AsideAccordion>
 
-        <AsideAccordion id="schedule" title="Agendamento" openId={openSection} onToggle={toggleSection}>
+        <AsideAccordion id="schedule" title="Agendamento" openId={openSection} onToggle={toggleSection} alwaysOpen={sectionsOpen}>
           <RoteiroField label="Gravação" icon={<Video className="h-3.5 w-3.5" />}>
             <PropertyDatePicker
               variant="field"
@@ -674,7 +695,7 @@ export function ContentOperationalPanel({
           ) : null}
         </AsideAccordion>
 
-        <AsideAccordion id="notes" title="Notas" openId={openSection} onToggle={toggleSection}>
+        <AsideAccordion id="notes" title="Notas" openId={openSection} onToggle={toggleSection} alwaysOpen={sectionsOpen}>
           <textarea
             value={draft.notes ?? ''}
             onChange={event => onChange({notes: event.target.value.slice(0, NOTES_MAX)})}

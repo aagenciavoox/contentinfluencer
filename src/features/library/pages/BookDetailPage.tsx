@@ -31,7 +31,7 @@ import { buildIdeaFields, getIdeaNotes, getIdeaTitle, parseLegacyIdeaText } from
 import { buildContentDetailRoute } from '../../contents/lib/contentDetailRoute';
 import { CONTENT_STATUS, getDisplayStatus } from '../../contents/lib/contentPipeline';
 import { buildDetailBackState } from '../../../lib/navigation/detailBack';
-import { BookAnnotationComposerSheet } from '../components/modals/BookAnnotationComposerSheet';
+import { BookAnnotationComposer, BookAnnotationComposerSheet } from '../components/modals/BookAnnotationComposerSheet';
 import { generateUUID } from '../../../utils/uuid';
 import { DesktopPageHeader } from '../../../layouts/page/DesktopPageHeader';
 import { PageLayout } from '../../../layouts/page/PageLayout';
@@ -1024,67 +1024,55 @@ export function BookDetailPage() {
 
         {/* ════ ABA: ANOTAÇÕES ════ */}
         {tab === 'anotacoes' && (
-          <div className="stack-xl pb-10">
-            <div className="rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-primary)] p-4">
-              <div className="flex items-center justify-between gap-4">
-                <div>
-                  <Text variant="label" uppercase className="font-semibold">Nova nota</Text>
-                  <p className="mt-1 text-xs leading-relaxed text-[var(--text-primary)] opacity-65">
-                    Abra um composer rapido para registrar uma anotação sem misturar com a lista existente.
-                  </p>
-                </div>
-                <AppButton
-                  variant="primary"
-                  size="sm"
-                  leftIcon={<Plus className="h-4 w-4" />}
-                  onClick={() => setMobileNoteComposerOpen(true)}
-                  className="shrink-0"
-                >
-                  Nova anotação
-                </AppButton>
-              </div>
-            </div>
-
-            {/* Filtros por tipo + Destaques */}
-            <div className="flex gap-2 flex-wrap">
-              {(['Todos', 'Destaques', ...TIPOS] as (TipoAnotacao | 'Todos' | 'Destaques')[]).map(t => (
-                <button
-                  key={t}
-                  type="button"
-                  onClick={() => setFiltroTipo(t)}
-                  className={cn(
-                    'rounded-full border px-3 py-1.5 text-xs font-bold transition-all',
-                    FOCUS_INTERACTIVE,
-                    filtroTipo === t
-                      ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-[var(--bg-secondary)]'
-                      : 'border-[var(--border-strong)] bg-transparent text-[var(--text-primary)] opacity-40 hover:opacity-70',
-                  )}
-                >
-                  {t === 'Destaques' ? '⭐ Destaques' : t}
-                </button>
-              ))}
-            </div>
-
-            {/* Lista de anotações */}
-            {anotacoesFiltradas.length === 0 ? (
-              <div className="text-center py-16">
-                <p className="text-[var(--text-tertiary)] font-bold text-sm ">Nenhuma anotação ainda</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-3">
-                {anotacoesFiltradas.map(a => (
-                  <AnnotationNoteCard
-                    key={a.id}
-                    anotacao={a}
-                    onToggleHighlight={() => handleToggleContentPotential(a)}
-                    onTransformIdea={() => handleTransformarEmIdeia(a)}
-                    onTransformContent={() => handleTransformarEmConteudo(a)}
-                    onDelete={() => handleDeleteAnotacao(a.id)}
-                    actionsClassName="opacity-100 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 transition-opacity"
-                  />
+          <div className="grid items-start gap-6 pb-10 lg:grid-cols-[minmax(0,1fr)_22rem]">
+            <div className="stack-xl min-w-0">
+              <div className="flex flex-wrap gap-2">
+                {(['Todos', 'Destaques', ...TIPOS] as (TipoAnotacao | 'Todos' | 'Destaques')[]).map(t => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => setFiltroTipo(t)}
+                    className={cn(
+                      'rounded-full border px-3 py-1.5 text-xs font-bold transition-all',
+                      FOCUS_INTERACTIVE,
+                      filtroTipo === t
+                        ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-[var(--bg-secondary)]'
+                        : 'border-[var(--border-strong)] bg-transparent text-[var(--text-primary)] opacity-40 hover:opacity-70',
+                    )}
+                  >
+                    {t === 'Destaques' ? '⭐ Destaques' : t}
+                  </button>
                 ))}
               </div>
-            )}
+
+              {anotacoesFiltradas.length === 0 ? (
+                <div className="py-16 text-center">
+                  <p className="text-sm font-bold text-[var(--text-tertiary)]">Nenhuma anotação ainda</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 gap-2 xl:grid-cols-2">
+                  {anotacoesFiltradas.map(a => (
+                    <AnnotationNoteCard
+                      key={a.id}
+                      anotacao={a}
+                      onToggleHighlight={() => handleToggleContentPotential(a)}
+                      onTransformIdea={() => handleTransformarEmIdeia(a)}
+                      onTransformContent={() => handleTransformarEmConteudo(a)}
+                      onDelete={() => handleDeleteAnotacao(a.id)}
+                      actionsClassName="opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100"
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="lg:sticky lg:top-4">
+              <BookAnnotationComposer
+                key={livro.id}
+                book={livro}
+                referencePlaceholder={coverageLabels.placeholder}
+              />
+            </div>
           </div>
         )}
 
@@ -1459,11 +1447,6 @@ export function BookDetailPage() {
         cancelLabel={confirm?.cancelLabel}
         onConfirm={() => { confirm?.onConfirm(); setConfirm(null); }}
         onCancel={() => setConfirm(null)}
-      />
-      <BookAnnotationComposerSheet
-        book={livro}
-        open={mobileNoteComposerOpen}
-        onClose={() => setMobileNoteComposerOpen(false)}
       />
     </>
   );

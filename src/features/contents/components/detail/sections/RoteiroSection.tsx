@@ -196,21 +196,20 @@ export function RoteiroSection({
             onChange={pane => setWorkspacePaneChoice({contentId, pane})}
           />
           {workspacePane === 'manage' ? (
-            <div className="grid-editor">
+            <div className="stack-md">
+              <ContentOperationalPanel
+                draft={draft}
+                series={series}
+                pilares={pilares}
+                authorName={authorName}
+                onChange={onChange}
+                showTitle={false}
+                density="compact"
+                layout="property"
+                variant="cards"
+                sectionsOpen
+              />
               <div className="min-w-0">{captionEditor}</div>
-              <div className="sticky top-4 min-w-0">
-                <ContentOperationalPanel
-                  draft={draft}
-                  series={series}
-                  pilares={pilares}
-                  authorName={authorName}
-                  onChange={onChange}
-                  showTitle={false}
-                  density="compact"
-                  layout="property"
-                  variant="cards"
-                />
-              </div>
             </div>
           ) : (
             <div className={cn('grid min-h-0 items-stretch gap-3', notesOpen && 'lg:grid-cols-2')}>
