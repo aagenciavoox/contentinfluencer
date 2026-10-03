@@ -28,7 +28,7 @@ export function EntityColorPicker({
 
   return (
     <div>
-      <div className="grid w-full max-w-sm grid-cols-8 gap-1.5">
+      <div className="grid w-full grid-cols-8 justify-items-center gap-y-2.5">
         {PILAR_PRESET_CORES.map(color => {
           const isSelected = selected === color;
           return (
@@ -39,7 +39,7 @@ export function EntityColorPicker({
               aria-label={`Cor ${entityColorLabel(color)}`}
               aria-pressed={isSelected}
               className={cn(
-                'relative flex aspect-square w-full items-center justify-center rounded-full border-2 transition-transform focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
+                'relative flex aspect-square w-full max-w-14 items-center justify-center rounded-full border-2 transition-transform focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
                 isSelected
                   ? 'scale-105 border-[var(--text-primary)]'
                   : 'border-[var(--border-color)] hover:scale-105',
