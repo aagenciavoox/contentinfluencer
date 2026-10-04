@@ -122,6 +122,44 @@ export function updatePostItText(
   return {...postIt, texto, updatedAt: nowIso(now)};
 }
 
+export interface PostItEdit {
+  texto: string;
+  date: string | null;
+}
+
+export function postItEditDraft(postIt: PlanejamentoPostIt): PostItEdit {
+  return {texto: postIt.texto, date: postIt.date};
+}
+
+/** Grava o texto e o dia do post-it. O conteúdo puxado não muda. */
+export function savePostItEdit(
+  postIt: PlanejamentoPostIt,
+  edit: PostItEdit,
+  now?: string,
+): PlanejamentoPostIt {
+  return movePostIt(updatePostItText(postIt, edit.texto, now), edit.date, now);
+}
+
+/** Descarta o rascunho. O post-it gravado continua o mesmo. */
+export function cancelPostItEdit(postIt: PlanejamentoPostIt, _edit: PostItEdit): PlanejamentoPostIt {
+  return postIt;
+}
+
+/**
+ * Apaga só o post-it. Puxar é um vínculo, não posse: a ideia ou o roteiro fica.
+ * Conteúdo já transformado também fica, porque a transformação já soltou o post-it.
+ */
+export function deletePostIt(input: {
+  postIts: readonly PlanejamentoPostIt[];
+  contents: readonly Content[];
+  id: string;
+}): {postIts: PlanejamentoPostIt[]; contents: readonly Content[]} {
+  return {
+    postIts: input.postIts.filter(postIt => postIt.id !== input.id),
+    contents: input.contents,
+  };
+}
+
 export function postItTransformOptions(
   postIt: PlanejamentoPostIt,
   content: Content | null,
@@ -196,10 +234,10 @@ export function transformPostIt(input: {
 }
 
 export function postItTitle(postIt: PlanejamentoPostIt, content: Content | null): string {
-  const fromContent = content?.title?.trim();
-  if (fromContent) return fromContent;
   const fromNote = postIt.texto.trim();
   if (fromNote) return fromNote;
+  const fromContent = content?.title?.trim();
+  if (fromContent) return fromContent;
   return 'Post-it vazio';
 }
 
