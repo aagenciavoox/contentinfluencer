@@ -10,7 +10,6 @@ import {Surface} from '../../../components/ui/Surface';
 import {Text} from '../../../components/ui/Text';
 import {ToolbarSearchInput} from '../../../components/ui/ToolbarSearchInput';
 import {Dialog} from '../../../components/overlays/Dialog';
-import {Drawer} from '../../../components/overlays/Drawer';
 import {OverlayBody} from '../../../components/overlays/OverlayBody';
 import {OverlayFooter} from '../../../components/overlays/OverlayFooter';
 import {OverlayHeader} from '../../../components/overlays/OverlayHeader';
@@ -212,6 +211,7 @@ export function PlanejamentoPage() {
   }, [contents, pullQuery]);
 
   const options = openPostIt ? postItTransformOptions(openPostIt, openContent) : {ideia: false, roteiro: false};
+  const openKind = openPostIt ? postItKind(openPostIt, openContent) : 'vazio';
 
   return (
     <PageLayout
@@ -275,7 +275,8 @@ export function PlanejamentoPage() {
           <CalendarMonthGrid
             anchorDate={month}
             weekStartsOn={0}
-            minCellHeight={72}
+            minCellHeight={148}
+            expandContent
             getDayClassName={day => cn(
               dragOverDay === day.dateKey && 'bg-[color-mix(in_srgb,var(--accent-orange)_12%,transparent)]',
             )}
@@ -383,7 +384,7 @@ export function PlanejamentoPage() {
         </div>
       </div>
 
-      <Drawer open={Boolean(openPostIt)} onClose={closePostIt} widthClassName="max-w-md">
+      <Dialog open={Boolean(openPostIt)} onClose={closePostIt} desktopMaxW="max-w-md" ariaLabel="Post-it">
         {openPostIt ? (
           <div className="flex h-full min-h-0 flex-col bg-[var(--bg-elevated)]">
             <OverlayHeader title={editing ? 'Editar post-it' : 'Post-it'} onClose={closePostIt} />
@@ -463,7 +464,11 @@ export function PlanejamentoPage() {
                 )}
                 {editing ? null : (
                   <Text variant="meta" className="text-[var(--text-secondary)]">
-                    Virar ideia ou roteiro grava a data deste post-it como publicação e passa a aparecer no calendário.
+                    {openKind === 'roteiro'
+                      ? 'Visualizar abre o roteiro.'
+                      : openKind === 'ideia'
+                        ? 'Visualizar abre a ideia. Virar roteiro grava a data deste post-it como publicação.'
+                        : 'Virar ideia ou roteiro grava a data deste post-it como publicação e passa a aparecer no calendário.'}
                   </Text>
                 )}
               </div>
@@ -481,13 +486,32 @@ export function PlanejamentoPage() {
                   </>
                 ) : (
                   <>
-                    {options.ideia ? (
+                    {(openKind === 'ideia' || openKind === 'roteiro') && openContent ? (
+                      <AppButton
+                        variant="primary"
+                        fullWidth
+                        onClick={() => {
+                          navigate(
+                            buildContentDetailRoute(openContent.id, 'roteiro'),
+                            buildDetailBackState('/planejamento'),
+                          );
+                          closePostIt();
+                        }}
+                      >
+                        Visualizar
+                      </AppButton>
+                    ) : null}
+                    {openKind === 'vazio' && options.ideia ? (
                       <AppButton variant="secondary" fullWidth onClick={() => commitTransform('ideia')}>
                         Virar ideia
                       </AppButton>
                     ) : null}
-                    {options.roteiro ? (
-                      <AppButton variant="primary" fullWidth onClick={() => commitTransform('roteiro')}>
+                    {openKind !== 'roteiro' && options.roteiro ? (
+                      <AppButton
+                        variant={openKind === 'vazio' ? 'primary' : 'secondary'}
+                        fullWidth
+                        onClick={() => commitTransform('roteiro')}
+                      >
                         Virar roteiro
                       </AppButton>
                     ) : null}
@@ -503,7 +527,7 @@ export function PlanejamentoPage() {
             </OverlayFooter>
           </div>
         ) : null}
-      </Drawer>
+      </Dialog>
 
       <Dialog open={pullOpen} onClose={() => setPullOpen(false)} desktopMaxW="max-w-md">
         <OverlayHeader
@@ -530,9 +554,9 @@ export function PlanejamentoPage() {
                     <button
                       type="button"
                       onClick={() => pullOnto(content, pullDate)}
-                      className="flex w-full items-center justify-between gap-3 rounded-[var(--radius-input)] border border-[var(--border-color)] px-3 py-2 text-left hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+                      className="flex w-full items-start justify-between gap-3 rounded-[var(--radius-input)] border border-[var(--border-color)] px-3 py-2 text-left hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
                     >
-                      <span className="min-w-0 truncate text-sm font-semibold text-[var(--text-primary)]">
+                      <span className="min-w-0 flex-1 whitespace-normal break-words text-sm font-semibold text-[var(--text-primary)]">
                         {content.title || 'Sem título'}
                       </span>
                       <Badge variant="status" status={normalizeContentStatus(content.status)}>

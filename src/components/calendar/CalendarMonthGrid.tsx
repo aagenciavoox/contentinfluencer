@@ -26,6 +26,7 @@ interface CalendarMonthGridProps {
   onSelectDate?: (date: Date) => void;
   weekStartsOn?: 0 | 1;
   minCellHeight?: number;
+  expandContent?: boolean;
   className?: string;
   renderDayContent: (props: CalendarMonthGridDayProps) => ReactNode;
   getDayClassName?: (props: CalendarMonthGridDayProps) => string | undefined;
@@ -44,6 +45,7 @@ export function CalendarMonthGrid({
   onSelectDate,
   weekStartsOn = 0,
   minCellHeight = 120,
+  expandContent = false,
   className,
   renderDayContent,
   getDayClassName,
@@ -132,6 +134,7 @@ export function CalendarMonthGrid({
                 onDrop={event => onDayDrop?.(dayProps, event)}
                 className={cn(
                   'flex min-w-0 cursor-pointer flex-col border-b border-r border-[var(--border-color)] p-1 transition-colors last:border-r-0 hover:bg-[color-mix(in_srgb,var(--surface-subtle),transparent_30%)] sm:p-1.5',
+                  expandContent && 'h-auto',
                   !inMonth && 'bg-[var(--bg-hover)]/25 opacity-50',
                   isSelected && 'bg-[color-mix(in_srgb,var(--accent-blue),transparent_95%)]',
                   extraClass,
@@ -153,7 +156,13 @@ export function CalendarMonthGrid({
                     {format(day, 'd')}
                   </span>
                 </div>
-                <div className="min-h-0 flex-1 space-y-0.5 overflow-y-auto">
+                <div
+                  className={
+                    expandContent
+                      ? 'space-y-0.5 overflow-visible'
+                      : 'min-h-0 flex-1 space-y-0.5 overflow-y-auto'
+                  }
+                >
                   {renderDayContent(dayProps)}
                 </div>
               </div>

@@ -12,6 +12,24 @@ const KIND_LABEL = {
   roteiro: 'Roteiro',
 } as const;
 
+const KIND_SURFACE = {
+  vazio: cn(
+    'border-[color-mix(in_srgb,var(--accent-orange)_42%,var(--border-color))]',
+    'bg-[color-mix(in_srgb,var(--accent-orange)_18%,var(--bg-elevated))]',
+    'hover:bg-[color-mix(in_srgb,var(--accent-orange)_28%,var(--bg-elevated))]',
+  ),
+  ideia: cn(
+    'border-[color-mix(in_srgb,var(--accent-purple)_42%,var(--border-color))]',
+    'bg-[color-mix(in_srgb,var(--accent-purple)_18%,var(--bg-elevated))]',
+    'hover:bg-[color-mix(in_srgb,var(--accent-purple)_28%,var(--bg-elevated))]',
+  ),
+  roteiro: cn(
+    'border-[color-mix(in_srgb,var(--accent-green)_42%,var(--border-color))]',
+    'bg-[color-mix(in_srgb,var(--accent-green)_18%,var(--bg-elevated))]',
+    'hover:bg-[color-mix(in_srgb,var(--accent-green)_28%,var(--bg-elevated))]',
+  ),
+} as const;
+
 export function PostItNote({
   postIt,
   content,
@@ -45,16 +63,19 @@ export function PostItNote({
         onOpen();
       }}
       className={cn(
-        'flex w-full cursor-grab items-start gap-1 rounded-[var(--radius-sm)] border px-1.5 py-1 text-left shadow-[var(--shadow-soft)] active:cursor-grabbing',
-        'border-[color-mix(in_srgb,var(--accent-orange)_42%,var(--border-color))]',
-        'bg-[color-mix(in_srgb,var(--accent-orange)_18%,var(--bg-elevated))]',
-        'hover:bg-[color-mix(in_srgb,var(--accent-orange)_28%,var(--bg-elevated))]',
+        'flex w-full cursor-grab items-start gap-1 rounded-[var(--radius-sm)] border px-2 py-1.5 text-left shadow-[var(--shadow-soft)] active:cursor-grabbing',
+        KIND_SURFACE[kind],
         'focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
       )}
     >
       <GripVertical className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[var(--text-tertiary)]" aria-hidden />
       <span className="min-w-0 flex-1">
-        <span className={cn('block font-semibold text-[var(--text-primary)]', compact ? 'truncate text-xs' : 'text-sm')}>
+        <span
+          className={cn(
+            'block min-w-0 whitespace-normal break-words font-semibold leading-snug text-[var(--text-primary)]',
+            compact ? 'text-xs' : 'text-sm',
+          )}
+        >
           {postItTitle(postIt, content)}
         </span>
         {compact ? null : (
