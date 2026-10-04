@@ -120,6 +120,7 @@ CREATE TABLE public.contents (
   publish_date date,
   publish_time time without time zone,
   recording_date date,
+  recording_time time without time zone,
   link text,
   script text,
   script_notes jsonb NOT NULL DEFAULT '[]'::jsonb,

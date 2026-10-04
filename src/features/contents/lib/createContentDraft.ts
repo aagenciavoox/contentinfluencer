@@ -41,6 +41,7 @@ export function createContentDraft(
     publishDate: null,
     publishTime: null,
     recordingDate: null,
+    recordingTime: null,
     recordedAt: null,
     postedAt: null,
     link: null,

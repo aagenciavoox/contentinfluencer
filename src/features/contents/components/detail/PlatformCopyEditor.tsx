@@ -239,7 +239,7 @@ export function PlatformCopyEditor({
   };
 
   return (
-    <section className="cms-panel overflow-hidden">
+    <section className={cn('cms-panel overflow-hidden', embedded && 'flex h-full flex-col')}>
       <div className="border-b border-[var(--border-color)] px-4 py-3">
         <Text variant="sectionTitle">{embedded ? 'Legendas' : 'Preparar distribuição'}</Text>
         {embedded ? (
@@ -277,28 +277,16 @@ export function PlatformCopyEditor({
               <p className="text-sm font-semibold text-[var(--text-primary)]">
                 {currentPlatform.legendaPropria ? 'Legenda para ' + redeNome : 'Legenda compartilhada'}
               </p>
-              <div className="flex flex-wrap items-center gap-2">
-                {currentPlatform.legendaPropria ? null : (
-                  <button
-                    type="button"
-                    disabled={disabled}
-                    onClick={() => onChange(adaptarLegenda(legendaBase, plataformas, activeDestino))}
-                    className="inline-flex min-h-11 items-center rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-3 text-xs font-semibold text-[var(--text-primary)]"
-                  >
-                    {'Adaptar para ' + redeNome}
-                  </button>
-                )}
-                <p
-                  className={cn(
-                    'text-xs font-semibold',
-                    charCount > 0 && charCount <= (charLimit ?? Infinity)
-                      ? 'text-[var(--success)]'
-                      : 'text-[var(--text-tertiary)]',
-                  )}
+              {currentPlatform.legendaPropria ? null : (
+                <button
+                  type="button"
+                  disabled={disabled}
+                  onClick={() => onChange(adaptarLegenda(legendaBase, plataformas, activeDestino))}
+                  className="inline-flex min-h-11 items-center rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-3 text-xs font-semibold text-[var(--text-primary)]"
                 >
-                  {charCount} caracteres
-                </p>
-              </div>
+                  {'Adaptar para ' + redeNome}
+                </button>
+              )}
             </div>
 
             <div className="mt-3">

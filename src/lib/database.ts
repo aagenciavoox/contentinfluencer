@@ -267,6 +267,8 @@ export interface Content {
   publishDate: string | null;
   publishTime?: string | null;
   recordingDate: string | null;
+  /** Horário local da gravação. Ausente no banco antigo. */
+  recordingTime?: string | null;
   recordedAt?: string | null;
   postedAt?: string | null;
   publishDateEnabled?: boolean;
@@ -578,6 +580,10 @@ function isMissingPublishTimeColumn(error: {message?: string} | null | undefined
   return !!error?.message?.includes("'publish_time' column");
 }
 
+function isMissingRecordingTimeColumn(error: {message?: string} | null | undefined) {
+  return !!error?.message && isMissingNamedColumn(error.message, 'recording_time');
+}
+
 function isMissingPublicationKindColumn(error: {message?: string} | null | undefined) {
   return !!error?.message?.includes('publication_kind');
 }
@@ -798,6 +804,7 @@ const mp = {
     contaNaGrade: r.conta_na_grade === false ? false : true,
     legendaBase: typeof r.legenda_base === 'string' ? r.legenda_base : null,
     publishDate: r.publish_date, publishTime: r.publish_time, recordingDate: r.recording_date,
+    recordingTime: typeof r.recording_time === 'string' ? r.recording_time : null,
     recordedAt: r.recorded_at ?? null, postedAt: r.posted_at ?? null,
     link: r.link,
     publishDateEnabled: r.publish_date_enabled ?? (r.publish_date != null),
@@ -949,6 +956,7 @@ function buildContentScheduleSelect(
   includePublicacaoColumns = true,
   includeLegendaBase = true,
   includeLivroIds = true,
+  includeRecordingTime = true,
 ): string {
   let columns: readonly string[] = includeMilestones
     ? [
@@ -974,6 +982,10 @@ function buildContentScheduleSelect(
     const relation = columns[columns.length - 1];
     columns = [...columns.slice(0, -1), 'livro_ids', relation];
   }
+  if (includeRecordingTime) {
+    const relation = columns[columns.length - 1];
+    columns = [...columns.slice(0, -1), 'recording_time', relation];
+  }
   if (includePublicacaoColumns) {
     columns = columns.map(column => (
       column.startsWith('content_plataformas(') ? contentPlataformasSelect(true) : column
@@ -994,8 +1006,9 @@ async function runContentScheduleSelect<T>(
   let includePublicacaoColumns = true;
   let includeLegendaBase = true;
   let includeLivroIds = true;
+  let includeRecordingTime = true;
 
-  for (let attempt = 0; attempt < 7; attempt += 1) {
+  for (let attempt = 0; attempt < 8; attempt += 1) {
     const result = await run(
       buildContentScheduleSelect(
         includeMilestones,
@@ -1004,9 +1017,14 @@ async function runContentScheduleSelect<T>(
         includePublicacaoColumns,
         includeLegendaBase,
         includeLivroIds,
+        includeRecordingTime,
       ),
     );
     if (!result.error) return result;
+    if (includeRecordingTime && isMissingRecordingTimeColumn(result.error)) {
+      includeRecordingTime = false;
+      continue;
+    }
     if (includeLivroIds && isMissingLivroIdsColumn(result.error)) {
       includeLivroIds = false;
       continue;
@@ -1034,7 +1052,7 @@ async function runContentScheduleSelect<T>(
     return result;
   }
 
-  return run(buildContentScheduleSelect(false, false, false, false, false, false));
+  return run(buildContentScheduleSelect(false, false, false, false, false, false, false));
 }
 const CONTENT_LIST_SORT_COLUMNS: Record<string, string> = {
   createdAt: 'created_at',
@@ -2216,6 +2234,7 @@ export async function saveContent(
     publish_time: content.publishTime,
     publish_date_enabled: content.publishDateEnabled ?? (content.publishDate != null),
     recording_date: content.recordingDate,
+    ...(content.recordingTime !== undefined ? {recording_time: content.recordingTime} : {}),
     recorded_at: content.recordedAt,
     posted_at: content.postedAt,
     recording_date_enabled: content.recordingDateEnabled ?? (content.recordingDate != null),
@@ -2291,6 +2310,12 @@ export async function saveContent(
     if (isMissingPublishTimeColumn(error)) {
       const {publish_time: _publishTime, ...rowWithoutPublishTime} = row;
       row = rowWithoutPublishTime;
+      continue;
+    }
+
+    if (isMissingRecordingTimeColumn(error) && 'recording_time' in row) {
+      const {recording_time: _recordingTime, ...rowWithoutRecordingTime} = row;
+      row = rowWithoutRecordingTime;
       continue;
     }
 
