@@ -9,6 +9,8 @@ import type { DetailBackState } from '../../../lib/navigation/detailBack';
 import type { AppState } from '../../../app/providers/appState';
 import { IdeaQuickCapture } from '../../ideas/components/IdeaQuickCapture';
 import { buildContentDetailRoute } from '../../contents/lib/contentDetailRoute';
+import { LeiturasLista } from '../../editorial/components/LeiturasLista';
+import type { Leitura } from '../../editorial/lib/editorialReadings';
 
 function readingProgress(book: BibliotecaItem): number | null {
   if (!book.totalPaginas || book.paginasLidas == null || book.totalPaginas <= 0) return null;
@@ -83,6 +85,7 @@ export function TodayHome({
   agendaLoading = false,
   onOpenCalendar,
   density = 'desktop',
+  leituras = [],
 }: {
   state: AppState;
   book: BibliotecaItem | null;
@@ -119,11 +122,13 @@ export function TodayHome({
   agendaLoading?: boolean;
   onOpenCalendar?: () => void;
   density?: 'desktop' | 'mobile';
+  leituras?: Leitura[];
 }) {
   const progress = book ? readingProgress(book) : null;
 
   return (
     <div className="stack-lg">
+      <LeiturasLista leituras={leituras} />
       <section className="stack-sm">
         <Text variant="eyebrow">Ideia rápida</Text>
         <IdeaQuickCapture

@@ -41,6 +41,7 @@ import {
 import { buildDetailBackState } from '../../../lib/navigation/detailBack';
 import { getErrorMessage, notifySaveFeedback } from '../../../lib/saveFeedback';
 import { buildContentDetailRoute } from '../../contents/lib/contentDetailRoute';
+import { FUNCAO_LABELS, FUNCOES } from '../../editorial/lib/funcoes';
 import {
   archiveCreation,
   CREATION_PAGE_SIZE,
@@ -138,6 +139,7 @@ export function CreationHubPage() {
   const pilarId = searchParams.get('pilar') ?? '';
   const seriesId = searchParams.get('serie') ?? '';
   const originId = searchParams.get('origem') ?? '';
+  const funcaoId = searchParams.get('funcao') ?? '';
   const sortParam = searchParams.get('sort');
   const sort: CreationSort =
     sortParam === 'oldest' || sortParam === 'title' ? sortParam : 'recent';
@@ -194,10 +196,12 @@ export function CreationHubPage() {
         pilarId,
         seriesId,
         originId,
+        funcao: funcaoId,
+        series: state.series,
       }),
       sort,
     ),
-    [activeTab, canonicalContents, originId, pilarId, search, seriesId, sort],
+    [activeTab, canonicalContents, funcaoId, originId, pilarId, search, seriesId, sort, state.series],
   );
 
   const pageData = useMemo(
@@ -641,7 +645,18 @@ export function CreationHubPage() {
         })),
       ],
     },
+    {
+      id: 'funcao',
+      label: 'Função',
+      value: funcaoId,
+      onChange: (value: string) => updateSearchParam('funcao', value),
+      options: [
+        { label: 'Todas as funções', value: '' },
+        ...FUNCOES.map(funcao => ({ label: FUNCAO_LABELS[funcao], value: funcao })),
+      ],
+    },
   ], [
+    funcaoId,
     originId,
     pilarId,
     seriesId,
@@ -822,7 +837,7 @@ export function CreationHubPage() {
     </Surface>
   ) : null;
 
-  const hasFilters = Boolean(search || pilarId || seriesId || originId);
+  const hasFilters = Boolean(search || pilarId || seriesId || originId || funcaoId);
   const shownCount = viewMode === 'kanban' ? filteredContents.length : pageData.items.length;
 
   return (

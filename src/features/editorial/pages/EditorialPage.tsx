@@ -27,6 +27,8 @@ import {
 import { rotuloFuncaoPadrao } from '../lib/funcoes';
 import { DistribuicaoFuncoesPanel } from '../components/DistribuicaoFuncoesPanel';
 import { NotasConfiguracaoEditorial } from '../components/NotasConfiguracaoEditorial';
+import { LeiturasLista } from '../components/LeiturasLista';
+import { computeReadingsFromApp, leiturasDoEditorial } from '../lib/editorialReadings';
 import { rotuloEspacos, somaEspacosSemana } from '../lib/distribuirEspacos';
 import { checkEditorialConfig } from '../lib/checkEditorialConfig';
 import { getSerieOpenItems } from '../lib/serieCompleteness';
@@ -139,6 +141,10 @@ function SeriesPanel() {
   const [filter, setFilter] = useState<SeriesFilter>('todas');
   const [confirm, setConfirm] = useState<ConfirmState | null>(null);
   const settings = getEditorialSettings(state.preferences);
+  const leiturasSerie = useMemo(
+    () => leiturasDoEditorial(computeReadingsFromApp(state)),
+    [state],
+  );
   const openItems = useMemo(
     () => new Map(state.series.map(serie => [serie.id, getSerieOpenItems(serie)])),
     [state.series],
@@ -169,6 +175,11 @@ function SeriesPanel() {
 
   return (
     <>
+      {leiturasSerie.length > 0 ? (
+        <div className="mb-4">
+          <LeiturasLista leituras={leiturasSerie} />
+        </div>
+      ) : null}
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <SegmentTabs<SeriesFilter>
           value={filter}
@@ -470,6 +481,10 @@ function SettingsPanel() {
   ] as const;
 
   const notas = notasDaConfiguracao(state);
+  const leiturasSerie = useMemo(
+    () => leiturasDoEditorial(computeReadingsFromApp(state)),
+    [state],
+  );
   const ativas = state.platforms.filter(platform => platform.ativo);
   const referenciaAtual = state.platforms.find(platform => platform.id === settings.redeReferenciaId);
   const opcoesReferencia = referenciaAtual && !ativas.some(platform => platform.id === referenciaAtual.id)
@@ -481,6 +496,11 @@ function SettingsPanel() {
       {notas.length > 0 ? (
         <div className="sm:col-span-2">
           <NotasConfiguracaoEditorial notas={notas} />
+        </div>
+      ) : null}
+      {leiturasSerie.length > 0 ? (
+        <div className="sm:col-span-2">
+          <LeiturasLista leituras={leiturasSerie} />
         </div>
       ) : null}
       {rows.map(row => (

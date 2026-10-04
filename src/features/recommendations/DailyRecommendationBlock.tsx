@@ -66,12 +66,6 @@ export function DailyRecommendationBlock({
         <Text variant="body" className="mt-2 text-[var(--text-secondary)]">
           {message}
         </Text>
-        {pilar.metaCiclo != null ? (
-          <Text variant="meta" className="mt-2 text-[var(--text-tertiary)]">
-            Prontos: {pilar.totalDisponivel} · Meta do ciclo: {pilar.metaCiclo}
-            {pilar.gapCiclo != null && pilar.gapCiclo > 0 ? ` · Espaço: ${pilar.gapCiclo}` : ''}
-          </Text>
-        ) : null}
         <SpotlightCta>
           Ver caminho <ArrowRight className="h-3.5 w-3.5" />
         </SpotlightCta>

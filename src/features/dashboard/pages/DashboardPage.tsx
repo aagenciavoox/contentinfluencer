@@ -26,6 +26,10 @@ import { buildDailySessionBlock, getSessionCandidates, suggestionSummary, sugges
 import { buildDayPulse, formatDayTitle, formatWeekdayShort, localDateKey } from '../lib/dayPulse';
 import { resolveCurrentRead } from '../lib/currentRead';
 import { getUpcomingAgenda } from '../lib/dashboardMetrics';
+import {
+  computeReadingsFromApp,
+  leiturasDoHoje,
+} from '../../editorial/lib/editorialReadings';
 
 function resolveGreetingName(fullName: unknown, email: string | undefined): string {
   if (typeof fullName === 'string' && fullName.trim()) {
@@ -102,6 +106,10 @@ export function DashboardPage() {
         )
         .sort((left, right) => (left.dataFim! > right.dataFim! ? 1 : -1))
     : [];
+  const leiturasHoje = useMemo(
+    () => leiturasDoHoje(computeReadingsFromApp(state, { now: today })),
+    [state, today],
+  );
   const pulseSegments = buildDayPulse({
     readyCount: candidates.length,
     showCounts: gentleExperience.dashboardCounts,
@@ -201,6 +209,7 @@ export function DashboardPage() {
       agendaLoading={!pulseReady}
       onOpenCalendar={() => navigate('/calendario')}
       density={isMobile ? 'mobile' : 'desktop'}
+      leituras={leiturasHoje}
     />
   );
 

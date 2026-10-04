@@ -33,6 +33,7 @@ await import('./features/editorial/lib/estoque.test.ts');
 await import('./features/editorial/lib/gradeCounts.test.ts');
 await import('./features/editorial/lib/checkEditorialConfig.test.ts');
 await import('./features/editorial/lib/aplicarFuncao.test.ts');
+await import('./features/editorial/lib/editorialReadings.test.ts');
 await import('./features/editorial/lib/postCode.test.ts');
 await import('./features/editorial/lib/markPublished.test.ts');
 await import('./features/editorial/lib/gradeEntries.test.ts');

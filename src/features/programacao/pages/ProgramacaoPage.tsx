@@ -42,6 +42,8 @@ import {buildWeekRhythmQuotas, dayRhythmTone, diffViolations, previewScheduleVio
 import {getPostingTimes, getTimesForDay, getTimesForDayFromEntries, getUnionTimesForWeekday, type Weekday} from '../../settings/lib/postingTimes';
 import {resolvePlatformUuid} from '../../settings/lib/pilarPostingSchedule';
 import {recommendDailyAction} from '../../recommendations/recommendDailyAction';
+import {LeiturasLista} from '../../editorial/components/LeiturasLista';
+import {computeReadingsFromApp, leiturasDaSemana} from '../../editorial/lib/editorialReadings';
 import {CONTENT_STATUS} from '../../contents/lib/contentPipeline';
 import {createContentDraft} from '../../contents/lib/createContentDraft';
 import {PostedVideoComposerSheet} from '../../contents/components/PostedVideoComposerSheet';
@@ -247,6 +249,15 @@ export function ProgramacaoPage() {
 
   const anchorWeekKey = format(weekStart, 'yyyy-MM-dd');
   const anchorWeekQuotas = rhythmByWeek.quotas.get(anchorWeekKey) ?? [];
+  const leiturasSemana = useMemo(
+    () => leiturasDaSemana(computeReadingsFromApp(state, {
+      semana: {
+        inicio: anchorWeekKey,
+        fim: format(endOfWeek(anchorDate, {weekStartsOn: 1}), 'yyyy-MM-dd'),
+      },
+    })),
+    [anchorDate, anchorWeekKey, state],
+  );
 
   const draggingCard = draggingCardKey ? cards.find(item => item.key === draggingCardKey) ?? null : null;
   const selectedBacklogCard = backlogCards.find(item => item.key === selectedBacklogKey) ?? null;
@@ -767,6 +778,7 @@ export function ProgramacaoPage() {
             scheduledByDate={scheduledByDate}
             projetoPublicacaoByDate={projetoPublicacaoByDate}
             weekQuotas={anchorWeekQuotas}
+            leituras={leiturasSemana}
             dayTone={toneForDay}
             onDayClick={handleDayClick}
             pickerDayKey={pickerDayKey}
@@ -820,6 +832,7 @@ export function ProgramacaoPage() {
         <div className="stack-sm">
           {periodControls}
           {contentFilters}
+          <LeiturasLista leituras={leiturasSemana} />
         </div>
       }
       mobileToolbar={periodControls}

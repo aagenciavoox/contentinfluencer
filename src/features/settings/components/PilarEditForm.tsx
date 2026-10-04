@@ -16,8 +16,7 @@ import {
 import { AppButton } from '../../../components/ui/AppButton';
 import { Surface } from '../../../components/ui/Surface';
 import { Text } from '../../../components/ui/Text';
-import type { Content, Pilar, PilarPlataforma, Platform, PostingTimeEntry, Serie } from '../../../lib/database';
-import { computePilarMetrics } from '../../recommendations/computePilarMetrics';
+import type { Pilar, PilarPlataforma, Platform, PostingTimeEntry, Serie } from '../../../lib/database';
 import { cn } from '../../../lib/utils';
 import { generateUUID } from '../../../utils/uuid';
 import {
@@ -196,7 +195,6 @@ export function PilarEditForm({
   initial,
   platformNames,
   series,
-  contents,
   postingTimeEntries,
   platforms,
   initialLinkedSerieIds,
@@ -207,7 +205,6 @@ export function PilarEditForm({
   initial: Partial<Pilar>;
   platformNames: string[];
   series: Serie[];
-  contents: Content[];
   postingTimeEntries: PostingTimeEntry[];
   platforms: Platform[];
   initialLinkedSerieIds: string[];
@@ -240,8 +237,6 @@ export function PilarEditForm({
     },
     linkedSerieIds: [...initialLinkedSerieIds],
   });
-  const metaManuallyEdited = useRef(initial.metaCiclo != null);
-
   const [form, setForm] = useState(initialSnapshot.current.form);
   const [linkedSerieIds, setLinkedSerieIds] = useState<string[]>(initialSnapshot.current.linkedSerieIds);
   const [showSeriePicker, setShowSeriePicker] = useState(false);
@@ -285,35 +280,15 @@ export function PilarEditForm({
     if (form.descricao !== snap.form.descricao) return true;
     if (form.cor !== snap.form.cor) return true;
     if (form.frequenciaSemanal !== snap.form.frequenciaSemanal) return true;
-    if (form.metaCiclo !== snap.form.metaCiclo) return true;
     if (JSON.stringify(form.plataformas) !== JSON.stringify(snap.form.plataformas)) return true;
     if (linkedSerieIds.length !== snap.linkedSerieIds.length) return true;
     return linkedSerieIds.some((id, index) => id !== snap.linkedSerieIds[index]);
   }, [form, linkedSerieIds]);
 
-  const cycleMetrics = useMemo(
-    () =>
-      computePilarMetrics(
-        {
-          ...form,
-          createdAt: initial.createdAt || new Date().toISOString(),
-          updatedAt: initial.updatedAt || new Date().toISOString(),
-        },
-        contents,
-      ),
-    [contents, form, initial.createdAt, initial.updatedAt],
-  );
-
   const updateFrequenciaSemanal = (value: string) => {
     const parsed = value.trim() === '' ? null : Number.parseInt(value, 10);
     const frequenciaSemanal = Number.isFinite(parsed) ? parsed : null;
-    setForm(previous => {
-      const next = { ...previous, frequenciaSemanal };
-      if (!metaManuallyEdited.current && frequenciaSemanal != null) {
-        next.metaCiclo = frequenciaSemanal * 4;
-      }
-      return next;
-    });
+    setForm(previous => ({ ...previous, frequenciaSemanal }));
   };
 
   const canSave = Boolean(form.nome.trim());
@@ -506,69 +481,26 @@ export function PilarEditForm({
         <AccordionSection
           step={2}
           title="Ritmo editorial"
-          description="Espaços por semana e meta do ciclo."
+          description="Espaços deste pilar na semana."
           icon={<Target className="h-4 w-4" />}
           open={openStep === 'ritmo'}
           onToggle={() => toggleStep('ritmo')}
         >
             <div className="stack-lg">
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div>
-                  <FieldLabel>Espaços por semana</FieldLabel>
-                  <input
-                    type="number"
-                    min={0}
-                    max={99}
-                    value={form.frequenciaSemanal ?? ''}
-                    onChange={event => updateFrequenciaSemanal(event.target.value)}
-                    placeholder="Ex.: 2"
-                    className={inputClass}
-                  />
-                  <Text variant="meta" className="mt-1 text-[var(--text-tertiary)]">
-                    Espaços deste pilar na semana. O total da semana é a soma dos pilares.
-                  </Text>
-                </div>
-                <div>
-                  <FieldLabel>Meta por ciclo</FieldLabel>
-                  <input
-                    type="number"
-                    min={0}
-                    max={60}
-                    value={form.metaCiclo ?? ''}
-                    onChange={event => {
-                      metaManuallyEdited.current = true;
-                      const parsed = event.target.value.trim() === ''
-                        ? null
-                        : Number.parseInt(event.target.value, 10);
-                      setForm(previous => ({
-                        ...previous,
-                        metaCiclo: Number.isFinite(parsed) ? parsed : null,
-                      }));
-                    }}
-                    placeholder="Ex.: 8"
-                    className={inputClass}
-                  />
-                  <Text variant="meta" className="mt-1 text-[var(--text-tertiary)]">
-                    Volume alvo nas últimas 4 semanas.
-                  </Text>
-                </div>
-              </div>
-
-              <div className="rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-hover)] px-3 py-3">
-                <Text variant="label" className="text-[var(--text-tertiary)]">
-                  Leitura atual
+              <div>
+                <FieldLabel>Espaços por semana</FieldLabel>
+                <input
+                  type="number"
+                  min={0}
+                  max={99}
+                  value={form.frequenciaSemanal ?? ''}
+                  onChange={event => updateFrequenciaSemanal(event.target.value)}
+                  placeholder="Ex.: 2"
+                  className={inputClass}
+                />
+                <Text variant="meta" className="mt-1 text-[var(--text-tertiary)]">
+                  Espaços deste pilar na semana. O total da semana é a soma dos pilares.
                 </Text>
-                <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                  <Text variant="body">
-                    Total disponível: <strong>{cycleMetrics.totalDisponivel}</strong>
-                  </Text>
-                  <Text variant="body">
-                    Espaço no ciclo:{' '}
-                    <strong>
-                      {cycleMetrics.gapCiclo == null ? '—' : cycleMetrics.gapCiclo}
-                    </strong>
-                  </Text>
-                </div>
               </div>
             </div>
         </AccordionSection>
