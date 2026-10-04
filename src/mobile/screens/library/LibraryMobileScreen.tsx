@@ -14,7 +14,11 @@ import { CoverFallback } from '../../../features/library/components/CoverFallbac
 import type { BibliotecaCapaFilter } from '../../../features/library/components/LibraryToolbar';
 import { useAuth } from '../../../context/AuthContext';
 import { notifySaveFeedback } from '../../../lib/saveFeedback';
-import { uploadLibraryCover, validateLibraryCoverFile } from '../../../features/library/lib/uploadLibraryCover';
+import {
+  LIBRARY_COVER_UPLOAD_ERROR,
+  uploadLibraryCover,
+  validateLibraryCoverFile,
+} from '../../../features/library/lib/uploadLibraryCover';
 
 type BibliotecaTipo = BibliotecaItem['tipo'];
 type StatusLeitura = BibliotecaItem['status'];
@@ -115,11 +119,8 @@ function MobileCoverThumb({
       onCoverChange(publicUrl);
       setBroken(false);
       notifySaveFeedback({ status: 'success', message: 'Capa atualizada.' });
-    } catch (err) {
-      notifySaveFeedback({
-        status: 'error',
-        message: err instanceof Error ? err.message : 'Nao foi possivel enviar a capa.',
-      });
+    } catch {
+      notifySaveFeedback({ status: 'error', message: LIBRARY_COVER_UPLOAD_ERROR });
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';

@@ -142,7 +142,7 @@ export function PostingTimesEditor() {
     const keys = new Set([...Object.keys(savedDraft), ...Object.keys(draft)]);
     setIsSaving(true);
     try {
-      notifySaveFeedback({status: 'saving', message: 'Salvando horários...'});
+      notifySaveFeedback({status: 'saving', message: 'Salvando horários…'});
       for (const key of keys) {
         const platformId = key === GLOBAL_TAB_ID ? null : key;
         for (const weekday of WEEKDAYS) {
@@ -158,7 +158,7 @@ export function PostingTimesEditor() {
       setEditing(false);
       setDraft({});
     } catch (err) {
-      notifySaveFeedback({status: 'error', message: 'Os horários não foram salvos', detail: getErrorMessage(err)});
+      notifySaveFeedback({status: 'error', message: 'Não foi possível salvar os horários. Verifique sua conexão e tente novamente.', detail: getErrorMessage(err)});
     } finally {
       setIsSaving(false);
     }
@@ -182,7 +182,7 @@ export function PostingTimesEditor() {
                 Cancelar
               </AppButton>
               <AppButton variant="primary" size="sm" onClick={() => void handleSave()} disabled={!isDirty || isSaving}>
-                {isSaving ? 'Salvando...' : 'Salvar'}
+                {isSaving ? 'Salvando…' : 'Salvar'}
               </AppButton>
             </>
           ) : (
@@ -327,7 +327,7 @@ function DayCard({day, editing, specificTimes, fallbackTimes, isFallback, onAdd,
             disabled={!input}
             leftIcon={<Plus className="h-3.5 w-3.5" />}
           >
-            Adicionar
+            Adicionar horário
           </AppButton>
         </div>
       ) : null}

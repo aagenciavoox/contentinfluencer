@@ -27,7 +27,7 @@ import {
   Radio,
   SearchCheck,
 } from 'lucide-react';
-import type {AgendaItem, Content, Platform, Projeto} from '../../../lib/database';
+import type {AgendaItem, Content, Platform, Projeto, Serie} from '../../../lib/database';
 import type {CalendarEntry} from '../../../features/editorial-calendar/components/MonthlyCalendarView';
 import {readStoredJson, writeStoredJson} from '../../../lib/browserStorage';
 import {cn} from '../../../lib/utils';
@@ -47,12 +47,17 @@ import {
   matchesContentFilters,
   platformFilterOptions,
 } from '../../../features/editorial-calendar/lib/calendarContentFilters';
+import {buildPublishCalendarItems} from '../../../features/editorial-calendar/lib/publishCalendarItems';
+import {PlatformIcon} from '../../../components/ui/PlatformIcon';
 
 type AgendaTimelineKind = 'agenda' | 'recording' | 'publish' | 'project';
 
 interface AgendaMobileScreenProps {
   contents: Content[];
   platforms: Platform[];
+  series: Serie[];
+  redeReferenciaId: string | null;
+  platformFilter?: string;
   agendaItems: AgendaItem[];
   projetos: Projeto[];
   listMode?: 'agenda' | 'timeline';
@@ -82,8 +87,8 @@ interface AgendaTimelineEntry {
 
 const KIND_LABELS: Record<AgendaTimelineKind, string> = {
   agenda: 'Agenda',
-  recording: 'Gravacao',
-  publish: 'Publicacao',
+  recording: 'Gravação',
+  publish: 'Publicação',
   project: 'Projeto',
 };
 
@@ -101,7 +106,7 @@ function loadMobileKinds(): AgendaTimelineKind[] {
   return readStoredJson(MOBILE_STORAGE_KEY, ALL_KINDS);
 }
 
-function buildTimelineEntries(contents: Content[], platforms: Platform[], agendaItems: AgendaItem[], projetos: Projeto[]) {
+function buildTimelineEntries(contents: Content[], platforms: Platform[], agendaItems: AgendaItem[], projetos: Projeto[], series: Serie[], redeReferenciaId: string | null, platformFilter: string) {
   const projectById = new Map(projetos.map(p => [p.id, p]));
   const platformNameById = new Map(platforms.map(platform => [platform.id, platform.nome]));
   const entries: AgendaTimelineEntry[] = [];
@@ -129,45 +134,38 @@ function buildTimelineEntries(contents: Content[], platforms: Platform[], agenda
       entries.push({
         id: `${content.id}:recording`,
         kind: 'recording',
-        title: content.title || 'Conteudo sem titulo',
+        title: content.title || 'Roteiro sem título',
         date: content.recordingDate,
         contentId: content.id,
-        secondary: displayStatus || 'Fila de gravacao',
+        secondary: displayStatus || 'Para gravar',
         platformNames,
         contentStatus: displayStatus,
       });
     }
-    if (content.plataformas.length > 0) {
-      content.plataformas.forEach(plataforma => {
-        const publishDate = plataforma.publishDate || content.publishDate;
-        if (!publishDate) return;
-        const platformName = platformNameById.get(plataforma.platformId) || plataforma.platformId;
-        entries.push({
-          id: `${content.id}:${plataforma.id}:publish`,
-          kind: 'publish',
-          title: content.title || 'Conteudo sem titulo',
-          date: publishDate,
-          time: plataforma.publishTime || content.publishTime,
-          contentId: content.id,
-          plataformaId: plataforma.id,
-          secondary: `${platformName} - ${displayStatus || 'Publicado'}`,
-          platformNames: [platformName],
-          contentStatus: displayStatus,
-        });
-      });
-    } else if (content.publishDate) {
+    const publishItems = buildPublishCalendarItems({
+      contents: [content],
+      platforms,
+      series,
+      redeReferenciaId,
+      platformFilter,
+    });
+    publishItems.forEach(item => {
+      if (!item.date) return;
       entries.push({
-        id: `${content.id}:publish`,
+        id: item.id,
         kind: 'publish',
-        title: content.title || 'Conteudo sem titulo',
-        date: content.publishDate,
-        time: content.publishTime,
+        title: content.title || 'Roteiro sem título',
+        date: item.date,
+        time: item.time,
         contentId: content.id,
-        secondary: displayStatus || 'Planejado para publicar',
-        platformNames: [],
+        plataformaId: item.plataformaId,
+        secondary: item.platformNames.length > 0
+          ? item.platformNames.join(' · ')
+          : (displayStatus || 'Publicação'),
+        platformNames: item.platformNames,
         contentStatus: displayStatus,
       });
-    }
+    });
   });
 
   projetos
@@ -180,7 +178,7 @@ function buildTimelineEntries(contents: Content[], platforms: Platform[], agenda
           title: projeto.nome,
           date: projeto.dataInicio,
           projetoId: projeto.id,
-          secondary: 'Inicio do projeto',
+          secondary: 'Início do projeto',
           color: projeto.color,
         });
       }
@@ -219,6 +217,9 @@ function buildTimelineEntries(contents: Content[], platforms: Platform[], agenda
 export function AgendaMobileScreen({
   contents,
   platforms,
+  series,
+  redeReferenciaId,
+  platformFilter: platformFilterProp = ALL_PLATFORMS,
   agendaItems,
   projetos,
   listMode = 'agenda',
@@ -230,7 +231,7 @@ export function AgendaMobileScreen({
   onSelectEntry,
 }: AgendaMobileScreenProps) {
   const [search, setSearch] = useState('');
-  const [platformFilter, setPlatformFilter] = useState(ALL_PLATFORMS);
+  const [platformFilter, setPlatformFilter] = useState(platformFilterProp);
   const [statusFilter, setStatusFilter] = useState(ALL_STATUSES);
   const [activeKinds, setActiveKindsRaw] = useState<AgendaTimelineKind[]>(loadMobileKinds);
   const [calendarMonth, setCalendarMonth] = useState(() => startOfMonth(new Date()));
@@ -258,8 +259,8 @@ export function AgendaMobileScreen({
   const isTimeline = listMode === 'timeline';
 
   const timeline = useMemo(
-    () => buildTimelineEntries(contents, platforms, agendaItems, projetos),
-    [agendaItems, contents, platforms, projetos]
+    () => buildTimelineEntries(contents, platforms, agendaItems, projetos, series, redeReferenciaId, platformFilter),
+    [agendaItems, contents, platformFilter, platforms, projetos, redeReferenciaId, series]
   );
 
   const platformNames = useMemo(
@@ -340,7 +341,7 @@ export function AgendaMobileScreen({
           <MobileSegmentTabs
             tabs={[
               {value: 'agenda', label: 'Agenda'},
-              {value: 'timeline', label: 'Timeline'},
+              {value: 'timeline', label: 'Linha do tempo'},
             ]}
             value={listMode}
             onChange={value => onListModeChange(value as 'agenda' | 'timeline')}
@@ -357,7 +358,7 @@ export function AgendaMobileScreen({
             <button
               type="button"
               onClick={() => setCalendarMonth(m => subMonths(m, 1))}
-              aria-label="Mes anterior"
+              aria-label="Mês anterior"
               className="flex min-h-11 min-w-11 items-center justify-center rounded-xl transition-all active:scale-90 hover:bg-[var(--bg-hover)]"
             >
               <ChevronLeft className="h-4 w-4 text-[var(--text-tertiary)]" />
@@ -368,7 +369,7 @@ export function AgendaMobileScreen({
             <button
               type="button"
               onClick={() => setCalendarMonth(m => addMonths(m, 1))}
-              aria-label="Proximo mes"
+              aria-label="Próximo mês"
               className="flex min-h-11 min-w-11 items-center justify-center rounded-xl transition-all active:scale-90 hover:bg-[var(--bg-hover)]"
             >
               <ChevronRight className="h-4 w-4 text-[var(--text-tertiary)]" />
@@ -379,7 +380,7 @@ export function AgendaMobileScreen({
             <button
               type="button"
               onClick={onAddPostedVideo}
-              aria-label="Marcar como postado"
+              aria-label="Registrar vídeo postado"
               className="flex min-h-11 min-w-11 items-center justify-center rounded-xl border border-[var(--border-color)] transition-all active:scale-95"
             >
               <Radio className="h-4 w-4 text-[var(--text-primary)]" />
@@ -392,7 +393,7 @@ export function AgendaMobileScreen({
               className="flex min-h-11 items-center gap-1.5 rounded-xl bg-[var(--text-primary)] px-4 text-xs font-semibold  text-[var(--bg-primary)] transition-all active:scale-95"
             >
               <Plus className="h-4 w-4" />
-              Novo
+              Novo evento
             </button>
           </div>
         </div>
@@ -417,7 +418,7 @@ export function AgendaMobileScreen({
                   'cursor-pointer active:scale-95 select-none',
                   active
                     ? 'border-[var(--border-strong)] bg-[var(--bg-hover)] text-[var(--text-primary)]'
-                    : 'border-[var(--border-color)] text-[var(--text-tertiary)] opacity-40'
+                    : 'border-[var(--border-color)] text-[var(--text-tertiary)]'
                 )}
               >
                 <span
@@ -433,7 +434,7 @@ export function AgendaMobileScreen({
         {/* Day-of-week labels */}
         <div className="grid grid-cols-7 border-t border-[var(--border-color)] bg-[var(--bg-hover)]/30">
           {['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map((label, i) => (
-            <div key={i} className="py-1.5 text-center text-xs font-semibold  text-[var(--text-tertiary)] opacity-50">
+            <div key={i} className="py-1.5 text-center text-xs font-semibold text-[var(--text-tertiary)]">
               {label}
             </div>
           ))}
@@ -493,7 +494,7 @@ export function AgendaMobileScreen({
           <button
             type="button"
             onClick={onAddPostedVideo}
-            aria-label="Marcar como postado"
+            aria-label="Registrar vídeo postado"
             className="flex min-h-11 min-w-11 items-center justify-center rounded-xl border border-[var(--border-color)] transition-all active:scale-95"
           >
             <Radio className="h-4 w-4 text-[var(--text-primary)]" />
@@ -505,7 +506,7 @@ export function AgendaMobileScreen({
             className="flex min-h-11 items-center gap-1.5 rounded-xl bg-[var(--text-primary)] px-4 text-xs font-semibold text-[var(--bg-primary)] transition-all active:scale-95"
           >
             <Plus className="h-4 w-4" />
-            Novo
+            Novo evento
           </button>
         </div>
       )}
@@ -514,7 +515,7 @@ export function AgendaMobileScreen({
         <MobileSearchBar
           value={search}
           onChange={setSearch}
-          placeholder="Buscar evento, gravação, projeto..."
+          placeholder="Buscar evento, gravação, projeto…"
         />
         <FilterBar
           size="compact"
@@ -558,7 +559,7 @@ export function AgendaMobileScreen({
                     'flex min-h-11 shrink-0 cursor-pointer items-center gap-1.5 rounded-lg border px-3 text-xs font-bold whitespace-nowrap transition-all select-none active:scale-95',
                     active
                       ? 'border-[var(--border-strong)] bg-[var(--bg-hover)] text-[var(--text-primary)]'
-                      : 'border-[var(--border-color)] text-[var(--text-tertiary)] opacity-40',
+                      : 'border-[var(--border-color)] text-[var(--text-tertiary)]',
                   )}
                 >
                   <span
@@ -584,7 +585,7 @@ export function AgendaMobileScreen({
               <button
                 type="button"
                 onClick={() => setSelectedDate(null)}
-                className="text-xs font-semibold text-[var(--text-tertiary)] transition-all active:opacity-50"
+                className="text-xs font-semibold text-[var(--text-tertiary)] transition-all"
               >
                 Ver todos
               </button>
@@ -593,7 +594,7 @@ export function AgendaMobileScreen({
             <p className="text-xs font-semibold text-[var(--text-tertiary)]">
               {isTimeline
                 ? `${format(rangeStart, 'd MMM', {locale: ptBR})} – ${format(rangeEnd, 'd MMM', {locale: ptBR})}`
-                : 'Proximos 60 dias'}
+                : 'Próximos 60 dias'}
               <span className="ml-2 text-[var(--text-primary)]">· {filteredEntries.length}</span>
             </p>
           )}
@@ -604,10 +605,10 @@ export function AgendaMobileScreen({
             title="Nada por aqui"
             description={
               selectedDate
-                ? 'Nenhum evento nesse dia. Toque em Novo para adicionar.'
+                ? 'Nenhum evento nesse dia. Toque em Novo evento para adicionar.'
                 : isTimeline
-                  ? 'Nenhum evento no período temporal com as camadas ativas.'
-                  : 'Nenhum evento nos proximos 60 dias com as camadas ativas.'
+                  ? 'Nenhum evento neste período com as camadas ativas.'
+                  : 'Nenhum evento nos próximos 60 dias com as camadas ativas.'
             }
             action={
               <AppButton variant="primary" fullWidth onClick={onAddAgenda} leftIcon={<Plus className="h-4 w-4" />}>
@@ -667,7 +668,13 @@ export function AgendaMobileScreen({
                           </span>
                         }
                         trailing={
-                          entry.kind === 'recording' ? (
+                          entry.kind === 'publish' && entry.platformNames && entry.platformNames.length > 0 ? (
+                            <span className="inline-flex items-center gap-1">
+                              {entry.platformNames.map(name => (
+                                <PlatformIcon key={name} platform={name} className="h-4 w-4 text-[var(--text-secondary)]" />
+                              ))}
+                            </span>
+                          ) : entry.kind === 'recording' ? (
                             <Mic2 className="h-4 w-4 text-[var(--accent-orange)]" />
                           ) : entry.kind === 'publish' ? (
                             <Radio className="h-4 w-4 text-[var(--accent-blue)]" />

@@ -34,6 +34,8 @@ interface RecordingMobileScreenProps {
   isHydrating?: (id: string) => boolean;
   hasHydrationError?: (id: string) => boolean;
   onRetryHydration?: (id: string) => void;
+  /** Sem isto as abas mostram 0 enquanto o domínio ainda carrega. */
+  countsReady?: boolean;
 }
 
 type RecordingMobileTab = 'queue' | 'blocks';
@@ -55,6 +57,7 @@ export function RecordingMobileScreen({
   isHydrating = () => false,
   hasHydrationError = () => false,
   onRetryHydration,
+  countsReady = true,
 }: RecordingMobileScreenProps) {
   const [search, setSearch] = useState('');
   const [pilarFilter, setPilarFilter] = useState('all');
@@ -178,8 +181,8 @@ export function RecordingMobileScreen({
       <MobileSegmentTabs
         rounded="tight"
         tabs={[
-          { value: 'queue', label: 'Sem bloco', count: readyContents.length },
-          { value: 'blocks', label: 'Blocos', count: recordingBlocks.length },
+          { value: 'queue', label: 'Sem bloco', count: countsReady ? readyContents.length : undefined },
+          { value: 'blocks', label: 'Blocos', count: countsReady ? recordingBlocks.length : undefined },
         ]}
         value={activeTab}
         onChange={(value) => onTabChange(value)}
@@ -191,7 +194,7 @@ export function RecordingMobileScreen({
             <MobileSearchBar
               value={search}
               onChange={setSearch}
-              placeholder="Buscar roteiro, pilar ou serie"
+              placeholder="Buscar roteiro, pilar ou série"
               onFilterClick={() => setIsFilterSheetOpen(true)}
             />
 
@@ -227,7 +230,7 @@ export function RecordingMobileScreen({
                           {selected ? 'Selecionado' : 'Roteiro'}
                         </span>
                       }
-                      title={content.title || 'Conteudo sem titulo'}
+                      title={content.title || 'Roteiro sem título'}
                       description={statusLabel}
                       trailing={
                         <div className="flex items-center gap-1">
@@ -241,7 +244,7 @@ export function RecordingMobileScreen({
                               }}
                               className="border-[var(--border-color)]"
                             >
-                              Tentar
+                              Tentar novamente
                             </AppButton>
                           ) : null}
                           <AppButton
@@ -263,7 +266,7 @@ export function RecordingMobileScreen({
                               onOpenContent(content.id);
                             }}
                             className="inline-flex h-8 w-8 items-center justify-center rounded-[var(--radius-input)] border border-[var(--border-color)] text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
-                            aria-label="Abrir detalhe do conteudo"
+                            aria-label="Abrir detalhes do roteiro"
                           >
                             <ExternalLink className="h-3.5 w-3.5" />
                           </button>
@@ -334,17 +337,17 @@ export function RecordingMobileScreen({
                           autoFocus
                           value={blockName}
                           onChange={(event) => setBlockName(event.target.value)}
-                          placeholder={`Nome do bloco (${selectedIds.size} selecionados)`}
+                          placeholder={`Nome do bloco (${selectedIds.size} ${selectedIds.size === 1 ? 'selecionado' : 'selecionados'})`}
                           className="w-full"
                         />
                         <TagSelect
-                          label="Marcadores de gravacao"
+                          label="Marcadores de gravação"
                           hint="Selecione ou crie marcadores para organizar o bloco."
                           values={blockTags}
                           onChange={setBlockTags}
                           options={availableTags.map(tag => ({ value: tag, label: tag }))}
                           creatable
-                          placeholder="Ex: roupa preta, estante, caneca"
+                          placeholder="Ex.: roupa preta, estante, caneca"
                         />
                         <div className="flex gap-3">
                           <AppButton variant="primary" onClick={handleCreate} disabled={!blockName.trim()} className="flex-1">
@@ -439,7 +442,7 @@ export function RecordingMobileScreen({
                     onClick={() => onOpenBlock(block.id)}
                     status={
                       <span className="inline-flex rounded-md bg-[var(--bg-hover)] px-1.5 py-0.5 text-xs font-semibold text-[var(--text-secondary)]">
-                        {ready === 0 ? 'Finalizado' : 'Bloco'}
+                        {total === 0 ? 'Vazio' : ready === 0 ? 'Finalizado' : 'Bloco'}
                       </span>
                     }
                     title={block.name}
@@ -448,7 +451,7 @@ export function RecordingMobileScreen({
                       <>
                         <span className="inline-flex items-center gap-1 rounded-md bg-[var(--accent-blue)]/10 px-1.5 py-0.5 text-xs font-semibold text-[var(--accent-blue)]">
                           <Clapperboard className="h-3 w-3" />
-                          {total} videos
+                          {total} {total === 1 ? 'roteiro' : 'roteiros'}
                         </span>
                         <span className="inline-flex items-center gap-1 rounded-md bg-[var(--accent-green)]/10 px-1.5 py-0.5 text-xs font-semibold text-[var(--accent-green)]">
                           <Layers3 className="h-3 w-3" />
@@ -487,7 +490,7 @@ export function RecordingMobileScreen({
         </label>
 
         <label className="block stack-sm">
-          <span className="t-label text-[var(--text-tertiary)]">Serie</span>
+          <span className="t-label text-[var(--text-tertiary)]">Série</span>
           <select value={seriesFilter} onChange={(event) => setSeriesFilter(event.target.value)}>
             <option value="all">Todas</option>
             {series.map((serie) => (
@@ -521,11 +524,11 @@ export function RecordingMobileScreen({
         </label>
 
         <label className="block stack-sm">
-          <span className="t-label text-[var(--text-tertiary)]">Ordenacao</span>
+          <span className="t-label text-[var(--text-tertiary)]">Ordenação</span>
           <select value={sortValue} onChange={(event) => setSortValue(event.target.value)}>
             <option value="recentes">Mais recentes</option>
-            <option value="titulo:asc">Título A-Z</option>
-            <option value="pilar:asc">Pilar A-Z</option>
+            <option value="titulo:asc">Título A–Z</option>
+            <option value="pilar:asc">Pilar A–Z</option>
             <option value="energia:desc">Energia alta</option>
           </select>
         </label>

@@ -9,7 +9,7 @@ const TONE_CLASS: Record<NonNullable<MobilePillButtonProps['tone']>, string> = {
   default: 'bg-[var(--bg-hover)] text-[var(--text-secondary)]',
   success: 'bg-[var(--accent-green)]/10 text-[var(--accent-green)]',
   danger: 'bg-[var(--accent-pink)]/10 text-[var(--accent-pink)]',
-  muted: 'bg-[var(--bg-hover)] text-[var(--text-tertiary)] opacity-60',
+  muted: 'bg-[var(--bg-hover)] text-[var(--text-tertiary)]',
 };
 
 export function MobilePillButton({

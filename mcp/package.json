@@ -1,0 +1,26 @@
+{
+  "name": "content-os-mcp",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Servidor MCP local do Content OS para Claude, Cursor e outros clientes MCP.",
+  "type": "module",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "start": "node src/index.ts",
+    "http": "node src/http.ts",
+    "tunnel": "npx -y cloudflared tunnel --url http://localhost:3333",
+    "check": "tsc --noEmit",
+    "smoke": "node scripts/smoke.ts"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.0",
+    "@supabase/supabase-js": "^2.117.2",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.4",
+    "typescript": "^7.0.2"
+  }
+}

@@ -197,7 +197,7 @@ export function RecordingScriptReader({
             )}
           >
             <Text variant="sectionTitle" className={foregroundClass}>
-              {loading ? 'Carregando roteiro...' : 'Não foi possível carregar o roteiro'}
+              {loading ? 'Carregando roteiro…' : 'Não foi possível carregar o roteiro'}
             </Text>
             {loadError ? (
               <Text variant="secondary" className={cn('mt-2', mutedClass)}>{loadError}</Text>

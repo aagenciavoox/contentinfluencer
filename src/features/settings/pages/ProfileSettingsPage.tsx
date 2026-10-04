@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
 import { KeyRound, Mail, ShieldCheck, UserCircle2 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
 import { AppButton } from '../../../components/ui/AppButton';
 import { Text } from '../../../components/ui/Text';
 import { useAuth } from '../../../context/AuthContext';
@@ -8,7 +7,10 @@ import { useIsMobile } from '../../../hooks/useIsMobile';
 import { DesktopPageHeader } from '../../../layouts/page/DesktopPageHeader';
 import { PageLayout } from '../../../layouts/page/PageLayout';
 import { ProfileMobileScreen } from '../../../mobile/screens/settings/ProfileMobileScreen';
+import { ERRORS } from '../../../lib/uiCopy';
 import { normalizeProfileAuthError } from '../lib/profileAuth';
+
+type ProfileCard = 'profile' | 'email' | 'password';
 
 function Feedback({
   message,
@@ -58,7 +60,6 @@ function SectionCard({
 }
 
 export function ProfileSettingsPage() {
-  const navigate = useNavigate();
   const isMobile = useIsMobile();
   const { backendReady, user, updateEmail, updatePassword, updateProfile } = useAuth();
 
@@ -84,6 +85,7 @@ export function ProfileSettingsPage() {
   const [profileError, setProfileError] = useState<string | null>(null);
   const [emailError, setEmailError] = useState<string | null>(null);
   const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [lastEditedCard, setLastEditedCard] = useState<ProfileCard | null>(null);
 
   useEffect(() => {
     setFullName(initialFullName);
@@ -93,6 +95,24 @@ export function ProfileSettingsPage() {
   const emailUnchanged =
     !normalizedPendingEmail || normalizedPendingEmail === initialEmail.trim().toLowerCase();
   const emailSubmitDisabled = !backendReady || emailLoading || emailUnchanged;
+  const profileDirty = fullName.trim() !== initialFullName.trim();
+  const emailDirty = Boolean(pendingEmail.trim()) && !emailUnchanged;
+  const passwordDirty = password.length > 0 || confirmPassword.length > 0;
+  const dirtyCards: Record<ProfileCard, boolean> = {
+    profile: profileDirty,
+    email: emailDirty,
+    password: passwordDirty,
+  };
+  const primaryCard: ProfileCard | null =
+    lastEditedCard && dirtyCards[lastEditedCard]
+      ? lastEditedCard
+      : profileDirty
+        ? 'profile'
+        : emailDirty
+          ? 'email'
+          : passwordDirty
+            ? 'password'
+            : null;
 
   const clearProfileFeedback = () => {
     setProfileMessage(null);
@@ -214,24 +234,29 @@ export function ProfileSettingsPage() {
           passwordError={passwordError}
           onFullNameChange={(value) => {
             clearProfileFeedback();
+            setLastEditedCard('profile');
             setFullName(value);
           }}
           onPendingEmailChange={(value) => {
             clearEmailFeedback();
+            setLastEditedCard('email');
             setPendingEmail(value);
           }}
           onPasswordChange={(value) => {
             clearPasswordFeedback();
+            setLastEditedCard('password');
             setPassword(value);
           }}
           onConfirmPasswordChange={(value) => {
             clearPasswordFeedback();
+            setLastEditedCard('password');
             setConfirmPassword(value);
           }}
           onSaveProfile={handleSaveProfile}
           onSaveEmail={handleSaveEmail}
           onSavePassword={handleSavePassword}
           emailSubmitDisabled={emailSubmitDisabled}
+          primaryCard={primaryCard}
         />
       </div>
     );
@@ -252,7 +277,7 @@ export function ProfileSettingsPage() {
     >
         {!backendReady ? (
           <Feedback
-            message="Conecte o Supabase para habilitar alterações de perfil, e-mail e senha."
+            message={ERRORS.supabaseDesconectado}
             tone="error"
           />
         ) : null}
@@ -275,6 +300,7 @@ export function ProfileSettingsPage() {
                   value={fullName}
                   onChange={(event) => {
                     clearProfileFeedback();
+                    setLastEditedCard('profile');
                     setFullName(event.target.value);
                   }}
                   placeholder="Seu nome"
@@ -284,10 +310,10 @@ export function ProfileSettingsPage() {
               </div>
               <AppButton
                 onClick={handleSaveProfile}
-                variant="primary"
+                variant={primaryCard === 'profile' ? 'primary' : 'secondary'}
                 disabled={!backendReady || profileLoading}
               >
-                {profileLoading ? 'Salvando' : 'Salvar nome'}
+                {profileLoading ? 'Salvando…' : 'Salvar nome'}
               </AppButton>
               {profileMessage ? <Feedback message={profileMessage} tone="success" /> : null}
               {profileError ? <Feedback message={profileError} tone="error" /> : null}
@@ -317,6 +343,7 @@ export function ProfileSettingsPage() {
                   value={pendingEmail}
                   onChange={(event) => {
                     clearEmailFeedback();
+                    setLastEditedCard('email');
                     setPendingEmail(event.target.value);
                   }}
                   placeholder="novo-email@exemplo.com"
@@ -329,10 +356,10 @@ export function ProfileSettingsPage() {
               </p>
               <AppButton
                 onClick={handleSaveEmail}
-                variant="primary"
+                variant={primaryCard === 'email' ? 'primary' : 'secondary'}
                 disabled={emailSubmitDisabled}
               >
-                {emailLoading ? 'Atualizando' : 'Atualizar e-mail'}
+                {emailLoading ? 'Atualizando…' : 'Atualizar e-mail'}
               </AppButton>
               {emailMessage ? <Feedback message={emailMessage} tone="success" /> : null}
               {emailError ? <Feedback message={emailError} tone="error" /> : null}
@@ -356,6 +383,7 @@ export function ProfileSettingsPage() {
                   value={password}
                   onChange={(event) => {
                     clearPasswordFeedback();
+                    setLastEditedCard('password');
                     setPassword(event.target.value);
                   }}
                   placeholder="Digite a nova senha"
@@ -373,6 +401,7 @@ export function ProfileSettingsPage() {
                   value={confirmPassword}
                   onChange={(event) => {
                     clearPasswordFeedback();
+                    setLastEditedCard('password');
                     setConfirmPassword(event.target.value);
                   }}
                   placeholder="Repita a nova senha"
@@ -388,10 +417,10 @@ export function ProfileSettingsPage() {
               </div>
               <AppButton
                 onClick={handleSavePassword}
-                variant="primary"
+                variant={primaryCard === 'password' ? 'primary' : 'secondary'}
                 disabled={!backendReady || passwordLoading}
               >
-                {passwordLoading ? 'Salvando' : 'Atualizar senha'}
+                {passwordLoading ? 'Salvando…' : 'Atualizar senha'}
               </AppButton>
               {passwordMessage ? <Feedback message={passwordMessage} tone="success" /> : null}
               {passwordError ? <Feedback message={passwordError} tone="error" /> : null}

@@ -1,4 +1,8 @@
-import {useEffect, useState} from 'react';
+import {useEffect, useMemo, useState} from 'react';
+import type {ContentPlataforma} from '../../../lib/database';
+import {DestinationChips} from '../../editorial/components/DestinationChips';
+import {destinosPadraoAtivos, publicacoesDosDestinos} from '../../editorial/lib/destinations';
+import {getEditorialSettings} from '../../editorial/lib/editorialSettings';
 import type {AppState} from '../../../app/providers/appState';
 import {Dialog} from '../../../components/overlays/Dialog';
 import {OverlayBody} from '../../../components/overlays/OverlayBody';
@@ -11,6 +15,7 @@ export interface CreationIdeaInput {
   pilarId: string | null;
   seriesId: string | null;
   bibliotecaItemId: string | null;
+  plataformas: ContentPlataforma[];
 }
 
 interface CreationComposerProps {
@@ -33,12 +38,19 @@ export function CreationComposer({
   const [pilarId, setPilarId] = useState('');
   const [seriesId, setSeriesId] = useState('');
   const [originId, setOriginId] = useState('');
+  const [plataformas, setPlataformas] = useState<ContentPlataforma[]>([]);
   const [isSaving, setIsSaving] = useState(false);
+  const catalogo = useMemo(
+    () => state.platforms.filter(platform => platform.ativo).map(platform => ({id: platform.id, nome: platform.nome})),
+    [state.platforms],
+  );
 
   useEffect(() => {
     if (!open) return;
     setOriginId(initialOriginId);
-  }, [initialOriginId, open]);
+    const destinos = destinosPadraoAtivos(getEditorialSettings(state.preferences).destinosPadrao, catalogo);
+    setPlataformas(publicacoesDosDestinos({destinos, contentId: ''}));
+  }, [catalogo, initialOriginId, open, state.preferences]);
 
   const reset = () => {
     setTitle('');
@@ -46,6 +58,7 @@ export function CreationComposer({
     setPilarId('');
     setSeriesId('');
     setOriginId('');
+    setPlataformas([]);
   };
 
   const close = () => {
@@ -67,6 +80,7 @@ export function CreationComposer({
         pilarId: pilarId || null,
         seriesId: seriesId || null,
         bibliotecaItemId: originId || null,
+        plataformas,
       });
       reset();
       onClose();
@@ -88,6 +102,14 @@ export function CreationComposer({
         onClose={close}
       />
       <OverlayBody className="bg-[var(--bg-hover)]/30">
+        <div className="mb-4 rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-primary)] p-4">
+          <DestinationChips
+            platforms={catalogo}
+            publications={plataformas}
+            contentId=""
+            onChange={setPlataformas}
+          />
+        </div>
         <IdeaQuickCapture
           title={title}
           notes={notes}

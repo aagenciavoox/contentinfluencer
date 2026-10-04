@@ -1,9 +1,10 @@
-import { BookOpen, Video } from 'lucide-react';
+import { BookOpen, CalendarDays, Video } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { AppButton } from '../../../components/ui/AppButton';
+import { Skeleton } from '../../../components/ui/Skeleton';
 import { Surface } from '../../../components/ui/Surface';
 import { Text } from '../../../components/ui/Text';
-import type { BibliotecaItem, Content, Serie } from '../../../lib/database';
+import type { AgendaItem, BibliotecaItem, Content, Serie } from '../../../lib/database';
 import type { DetailBackState } from '../../../lib/navigation/detailBack';
 import type { AppState } from '../../../app/providers/appState';
 import { IdeaQuickCapture } from '../../ideas/components/IdeaQuickCapture';
@@ -14,10 +15,47 @@ function readingProgress(book: BibliotecaItem): number | null {
   return Math.max(0, Math.min(100, Math.round((book.paginasLidas / book.totalPaginas) * 100)));
 }
 
+/** Mesmo formato do card do livro (capa + 2 linhas), sem texto de vazio nem botão. */
+function CurrentBookSkeleton() {
+  return (
+    <Surface variant="outlined" padding="md" className="h-full" aria-busy="true">
+      <div className="flex gap-4">
+        <Skeleton className="h-36 w-24 shrink-0 rounded-[var(--radius-card)]" />
+        <div className="min-w-0 flex-1 stack-sm">
+          <Text variant="eyebrow">Livro atual</Text>
+          <Skeleton className="h-4 w-4/5" />
+          <Skeleton className="h-3 w-1/2" />
+        </div>
+      </div>
+    </Surface>
+  );
+}
+
+/** Lista de roteiros em carregamento, no lugar de "Nada pronto para gravar agora". */
+function ScriptListSkeleton() {
+  return (
+    <>
+      <ul className="stack-sm" aria-busy="true">
+        {[0, 1, 2].map(index => (
+          <li key={index} className="stack-xs">
+            <Skeleton className="h-4 w-4/5" />
+            <Skeleton className="h-3 w-1/3" />
+          </li>
+        ))}
+      </ul>
+      <div className="mt-auto">
+        <Skeleton className="h-10 w-full rounded-[var(--radius-input)]" />
+      </div>
+    </>
+  );
+}
+
 export function TodayHome({
   state,
   book,
+  bookLoading = false,
   scripts,
+  scriptsLoading = false,
   series,
   suggestionText,
   recordingEnabled,
@@ -41,11 +79,18 @@ export function TodayHome({
   onOpenQueue,
   onCreateScript,
   onOpenSettings,
+  agenda = [],
+  agendaLoading = false,
+  onOpenCalendar,
   density = 'desktop',
 }: {
   state: AppState;
   book: BibliotecaItem | null;
+  /** Biblioteca ainda carregando: mostra skeleton em vez de "Nenhum livro em leitura". */
+  bookLoading?: boolean;
   scripts: Content[];
+  /** Roteiros ainda carregando: mostra skeleton em vez de "Nada pronto para gravar agora". */
+  scriptsLoading?: boolean;
   series: Serie[];
   suggestionText: string;
   recordingEnabled: boolean;
@@ -69,6 +114,10 @@ export function TodayHome({
   onOpenQueue: () => void;
   onCreateScript: () => void;
   onOpenSettings: () => void;
+  agenda?: AgendaItem[];
+  /** Agenda ainda carregando: skeleton em vez de "Nada na agenda". */
+  agendaLoading?: boolean;
+  onOpenCalendar?: () => void;
   density?: 'desktop' | 'mobile';
 }) {
   const progress = book ? readingProgress(book) : null;
@@ -95,7 +144,7 @@ export function TodayHome({
         />
       </section>
 
-      <div className={density === 'desktop' ? 'grid grid-cols-2 items-stretch gap-4' : 'stack-md'}>
+      <div className={density === 'desktop' ? 'grid grid-cols-3 items-stretch gap-4' : 'stack-md'}>
         {book ? (
           <Surface variant="outlined" padding="md" className="h-full" onClick={onOpenBook}>
             <div className="flex gap-4">
@@ -126,6 +175,8 @@ export function TodayHome({
               </div>
             </div>
           </Surface>
+        ) : bookLoading ? (
+          <CurrentBookSkeleton />
         ) : (
           <Surface variant="outlined" padding="lg" className="flex h-full flex-col justify-between stack-md">
             <div className="stack-sm">
@@ -156,6 +207,8 @@ export function TodayHome({
                 Abrir configurações
               </AppButton>
             </>
+          ) : scripts.length === 0 && scriptsLoading ? (
+            <ScriptListSkeleton />
           ) : scripts.length === 0 ? (
             <>
               <Text variant="body">Nada pronto para gravar agora.</Text>
@@ -204,6 +257,60 @@ export function TodayHome({
             </>
           )}
         </Surface>
+
+        {density === 'desktop' ? (
+          agenda.length === 0 && agendaLoading ? (
+            <Surface variant="outlined" padding="lg" className="flex h-full flex-col stack-md" aria-busy="true">
+              <Text variant="eyebrow">Agenda do dia</Text>
+              <ul className="stack-sm">
+                {[0, 1, 2].map(index => (
+                  <li key={index} className="stack-xs">
+                    <Skeleton className="h-4 w-4/5" />
+                    <Skeleton className="h-3 w-1/3" />
+                  </li>
+                ))}
+              </ul>
+            </Surface>
+          ) : agenda.length > 0 ? (
+            <Surface variant="outlined" padding="lg" className="flex h-full flex-col stack-md">
+              <Text variant="eyebrow">Agenda do dia</Text>
+              <ul className="stack-sm">
+                {agenda.map(item => (
+                  <li key={item.id} className="stack-xs">
+                    <Text variant="bodyStrong" className="line-clamp-2">
+                      {item.title.trim() || 'Compromisso'}
+                    </Text>
+                    <Text variant="meta">
+                      {[item.time, item.tipo].filter(Boolean).join(' · ')}
+                    </Text>
+                  </li>
+                ))}
+              </ul>
+              {onOpenCalendar ? (
+                <div className="mt-auto">
+                  <AppButton variant="ghost" fullWidth onClick={onOpenCalendar} leftIcon={<CalendarDays className="h-4 w-4" />}>
+                    Abrir calendário
+                  </AppButton>
+                </div>
+              ) : null}
+            </Surface>
+          ) : (
+            <Surface variant="outlined" padding="lg" className="flex h-full flex-col justify-between stack-md">
+              <div className="stack-sm">
+                <Text variant="eyebrow">Agenda do dia</Text>
+                <Text variant="bodyStrong">Nada na agenda</Text>
+                <Text variant="secondary">
+                  Os compromissos de hoje aparecem aqui.
+                </Text>
+              </div>
+              {onOpenCalendar ? (
+                <AppButton variant="secondary" onClick={onOpenCalendar}>
+                  Abrir calendário
+                </AppButton>
+              ) : null}
+            </Surface>
+          )
+        ) : null}
       </div>
     </div>
   );

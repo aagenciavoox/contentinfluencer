@@ -8,7 +8,7 @@ import { useAuth } from '../../../context/AuthContext';
 import { BibliotecaItem, BibliotecaItemMeta } from '../../../lib/database';
 import { notifySaveFeedback } from '../../../lib/saveFeedback';
 import { isCompletedStatus } from '../lib/libraryStatus';
-import { uploadLibraryCover, validateLibraryCoverFile } from '../lib/uploadLibraryCover';
+import { LIBRARY_COVER_UPLOAD_ERROR, uploadLibraryCover, validateLibraryCoverFile } from '../lib/uploadLibraryCover';
 
 export interface BibliotecaTypeConfig {
   label: string;
@@ -83,11 +83,8 @@ export function LibraryItemCard({
       });
       onCoverChange(publicUrl);
       notifySaveFeedback({ status: 'success', message: 'Capa atualizada.' });
-    } catch (err) {
-      notifySaveFeedback({
-        status: 'error',
-        message: err instanceof Error ? err.message : 'Nao foi possivel enviar a capa.',
-      });
+    } catch {
+      notifySaveFeedback({ status: 'error', message: LIBRARY_COVER_UPLOAD_ERROR });
     } finally {
       setUploadingCover(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -173,7 +170,7 @@ export function LibraryItemCard({
                   event.stopPropagation();
                   onTurnIntoIdea();
                 }}
-                title="Virar ideia"
+                title="Transformar em ideia"
                 className="pointer-events-auto inline-flex h-8 w-8 items-center justify-center rounded-full bg-[var(--bg-elevated)]/95 text-[var(--accent-orange)] shadow-none transition hover:scale-105"
               >
                 <Lightbulb className="h-3.5 w-3.5" />

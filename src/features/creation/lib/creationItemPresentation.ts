@@ -6,6 +6,7 @@ import {
   PRODUCTION_TAGS,
 } from '../../contents/lib/contentPipeline.ts';
 import { transitionCreationStatus, type CreationTab } from '../../contents/lib/creationContent.ts';
+import { getVisualFormatLabel } from '../../../constants.ts';
 
 export const CREATION_KANBAN_TABS = [
   'Ideias',
@@ -31,7 +32,7 @@ export function getCreationTitle(content: Content) {
 
 export function getCreationFormatLabel(content: Content) {
   const value = content.formatoVisual?.trim();
-  return value || null;
+  return value ? getVisualFormatLabel(value) : null;
 }
 
 const TECHNICAL_TIME_MARK =
@@ -70,14 +71,102 @@ export function getCreationNoteExcerpt(content: Content) {
   );
 }
 
-function formatCreationCardDate(iso: string) {
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return null;
+const DAY_MS = 86_400_000;
+
+function formatCreationCardDate(date: Date) {
   return date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
 }
 
-export function getCreationCardFooterMeta(content: Content) {
-  return [getCreationFormatLabel(content), formatCreationCardDate(content.updatedAt)]
+function startOfLocalDay(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+function localDayDiff(from: Date, to: Date) {
+  return Math.round((startOfLocalDay(to).getTime() - startOfLocalDay(from).getTime()) / DAY_MS);
+}
+
+/** Lê "2026-10-12" ou "2026-10-12T12:00:00.000Z" como o dia do calendário, no fuso local. */
+function parseCalendarDay(value: string | null | undefined) {
+  const trimmed = value?.trim();
+  if (!trimmed) return null;
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(trimmed);
+  if (match) return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+  const date = new Date(trimmed);
+  return Number.isNaN(date.getTime()) ? null : startOfLocalDay(date);
+}
+
+function nextUpcomingDay(values: Array<string | null | undefined>, today: Date) {
+  let next: Date | null = null;
+  for (const value of values) {
+    const day = parseCalendarDay(value);
+    if (!day || day.getTime() < today.getTime()) continue;
+    if (!next || day.getTime() < next.getTime()) next = day;
+  }
+  return next;
+}
+
+function formatUpcomingDay(day: Date, today: Date) {
+  const diff = localDayDiff(today, day);
+  if (diff === 0) return 'hoje';
+  if (diff === 1) return 'amanhã';
+  return formatCreationCardDate(day);
+}
+
+/**
+ * Mesmas regras de `formatLastEdit` (contentCardMeta.ts), com `now` injetável.
+ * Aquele módulo não carrega no runner de testes (imports sem extensão).
+ */
+function formatCreationLastEdit(iso: string, now: Date) {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return null;
+  const diff = localDayDiff(date, now);
+  if (diff <= 0) return 'hoje';
+  if (diff === 1) return 'ontem';
+  if (diff < 7) return `${diff}d atrás`;
+  return formatCreationCardDate(date);
+}
+
+type CreationCardDateFields = Pick<
+  Content,
+  | 'publishDate'
+  | 'publishDateEnabled'
+  | 'recordingDate'
+  | 'recordingDateEnabled'
+  | 'recordedAt'
+  | 'postedAt'
+  | 'plataformas'
+  | 'updatedAt'
+>;
+
+/**
+ * Data mais útil para o rodapé do card: próxima publicação, senão próxima
+ * gravação, senão a última edição.
+ */
+export function getCreationCardDateMeta(content: CreationCardDateFields, now: Date = new Date()) {
+  const today = startOfLocalDay(now);
+  const alreadyPosted = Boolean(content.postedAt);
+  const publishCandidates = [
+    alreadyPosted || content.publishDateEnabled === false ? null : content.publishDate,
+    ...(content.plataformas ?? []).map(plataforma => {
+      if (plataforma.publishDateEnabled === false) return null;
+      if (alreadyPosted && plataforma.publicationKind !== 'repost') return null;
+      return plataforma.publishDate;
+    }),
+  ];
+  const nextPublish = nextUpcomingDay(publishCandidates, today);
+  if (nextPublish) return `Publica ${formatUpcomingDay(nextPublish, today)}`;
+
+  if (!content.recordedAt && content.recordingDateEnabled !== false) {
+    const nextRecording = nextUpcomingDay([content.recordingDate], today);
+    if (nextRecording) return `Grava ${formatUpcomingDay(nextRecording, today)}`;
+  }
+
+  const edited = formatCreationLastEdit(content.updatedAt, now);
+  return edited ? `Editado ${edited}` : null;
+}
+
+export function getCreationCardFooterMeta(content: Content, now: Date = new Date()) {
+  return [getCreationFormatLabel(content), getCreationCardDateMeta(content, now)]
     .filter(Boolean)
     .join(' / ');
 }

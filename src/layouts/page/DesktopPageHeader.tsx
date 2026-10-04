@@ -1,4 +1,5 @@
 import { Children, ReactNode } from 'react';
+import { ChevronLeft } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { cn } from '../../lib/utils';
 import { Text } from '../../components/ui/Text';
@@ -43,22 +44,25 @@ export function DesktopPageHeader({
 }: DesktopPageHeaderProps) {
   const navigate = useNavigate();
   const handleBack = onBack ?? (backTo ? () => navigate(backTo) : undefined);
-  const eyebrow = backLabel || section;
+  const eyebrow = backLabel === 'Roteiros' ? 'Criação' : backLabel || section;
+  const hideEyebrow = !backLabel && section === title;
   const hasBack = Boolean(backTo || handleBack);
   const actionItems = Children.toArray(actions);
   const crumbInteractiveClass =
-    'desktop-page-header-crumb transition-colors hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]';
+    'desktop-page-header-crumb desktop-page-header-back transition-colors hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]';
 
   return (
     <header className={cn('desktop-page-header', className)}>
-      {eyebrow ? (
+      {!hideEyebrow && eyebrow ? (
         hasBack ? (
           backTo ? (
             <Link to={backTo} className={crumbInteractiveClass}>
+              <ChevronLeft className="h-3.5 w-3.5 shrink-0" aria-hidden />
               {eyebrow}
             </Link>
           ) : (
             <button type="button" onClick={handleBack} className={crumbInteractiveClass}>
+              <ChevronLeft className="h-3.5 w-3.5 shrink-0" aria-hidden />
               {eyebrow}
             </button>
           )

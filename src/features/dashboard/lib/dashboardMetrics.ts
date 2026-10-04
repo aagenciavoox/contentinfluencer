@@ -41,7 +41,7 @@ export function resolveSpotlight({
       type: 'record',
       count: readyToRecord.length,
       firstId: readyToRecord[0].id,
-      firstTitle: readyToRecord[0].title || '(sem titulo)',
+      firstTitle: readyToRecord[0].title || '(sem título)',
     };
   }
   const editing = inProduction.filter(c => Boolean(c.recordedAt));
@@ -50,7 +50,7 @@ export function resolveSpotlight({
       type: 'edit',
       count: editing.length,
       firstId: editing[0].id,
-      firstTitle: editing[0].title || '(sem titulo)',
+      firstTitle: editing[0].title || '(sem título)',
     };
   }
   if (upcomingAgenda.length > 0) {

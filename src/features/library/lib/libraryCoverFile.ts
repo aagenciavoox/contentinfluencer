@@ -1,5 +1,7 @@
 export const LIBRARY_COVERS_BUCKET = 'library-covers';
 export const LIBRARY_COVER_MAX_BYTES = 5 * 1024 * 1024;
+export const LIBRARY_COVER_UPLOAD_ERROR =
+  'Não foi possível enviar a capa. Use JPG, PNG, WEBP ou GIF de até 5 MB e tente novamente.';
 
 const ALLOWED_TYPES = new Set([
   'image/jpeg',
@@ -25,7 +27,7 @@ export function validateLibraryCoverFile(file: File): string | null {
     return 'Use uma imagem JPG, PNG, WEBP ou GIF.';
   }
   if (file.size > LIBRARY_COVER_MAX_BYTES) {
-    return 'A capa deve ter no maximo 5 MB.';
+    return 'Use uma imagem de até 5 MB.';
   }
   return null;
 }

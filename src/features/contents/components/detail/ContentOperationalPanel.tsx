@@ -1,8 +1,17 @@
 import {useEffect, useMemo, useRef, useState} from 'react';
 import {useNavigate} from 'react-router-dom';
 import {getDay, parseISO} from 'date-fns';
-import {CalendarClock, ChevronDown, Clock, ExternalLink, Layers, ListChecks, Palette, Sun, Target, Video} from 'lucide-react';
-import type {Content, Pilar, Serie} from '../../../../lib/database';
+import {CalendarClock, ChevronDown, Clock, ExternalLink, ImageIcon, Layers, ListChecks, Palette, Sun, Target, Video, Zap} from 'lucide-react';
+import type {Content, EnergiaNivel, Pilar, Serie} from '../../../../lib/database';
+import {VISUAL_FORMATS, getVisualFormatLabel} from '../../../../constants';
+import {
+  FUNCAO_LABELS,
+  FUNCOES,
+  funcaoHerdavelDaSerie,
+  isFuncaoEditorial,
+  resolveFuncao,
+  rotuloDaSerie,
+} from '../../../editorial/lib/funcoes';
 import type {Weekday} from '../../../settings/lib/postingTimes';
 import {cn} from '../../../../lib/utils';
 import {useAppContext} from '../../../../context/AppContext';
@@ -43,12 +52,16 @@ type OperationalDraft = Pick<
   | 'pilarId'
   | 'slotType'
   | 'formatoVisual'
+  | 'funcao'
+  | 'funcaoOrigem'
+  | 'classificacaoCongeladaEm'
+  | 'contaNaGrade'
   | 'notes'
   | 'recordingDate'
   | 'publishDate'
   | 'publishTime'
   | 'status'
-> & Partial<Pick<Content, 'postedAt'>>;
+> & Partial<Pick<Content, 'postedAt' | 'energiaNecessaria'>>;
 
 interface ContentOperationalPanelProps {
   draft: OperationalDraft;
@@ -283,6 +296,113 @@ function StatusPropertyRow({
   );
 }
 
+
+type FuncaoDraft = Pick<Content, 'funcao' | 'funcaoOrigem' | 'classificacaoCongeladaEm' | 'contaNaGrade'>;
+
+function funcaoChoiceValue(draft: Pick<Content, 'funcao' | 'funcaoOrigem'>): string {
+  const origem = draft.funcaoOrigem ?? null;
+  if (!origem) return 'indefinida';
+  if (origem === 'herdada') return 'herdada';
+  if (origem === 'nenhuma') return 'nenhuma';
+  return draft.funcao ?? 'indefinida';
+}
+
+function updatesFromFuncaoChoice(value: string): Partial<Pick<Content, 'funcao' | 'funcaoOrigem'>> {
+  if (value === 'herdada') return {funcao: null, funcaoOrigem: 'herdada'};
+  if (value === 'nenhuma') return {funcao: null, funcaoOrigem: 'nenhuma'};
+  if (value === 'indefinida') return {funcao: null, funcaoOrigem: null};
+  if (isFuncaoEditorial(value)) return {funcao: value, funcaoOrigem: 'escolhida'};
+  return {};
+}
+
+function FuncaoEditorialFields({
+  draft,
+  serie,
+  onChange,
+  variant,
+  formInputClass,
+}: {
+  draft: FuncaoDraft;
+  serie: Serie | null;
+  onChange: (updates: Partial<Pick<Content, 'funcao' | 'funcaoOrigem' | 'contaNaGrade'>>) => void;
+  variant: 'property' | 'form' | 'cards';
+  formInputClass?: string;
+}) {
+  const resolved = resolveFuncao(draft, serie);
+  const daSerieFuncao = resolved.congelada && resolved.estado === 'herdada'
+    ? resolved.funcao
+    : funcaoHerdavelDaSerie(serie);
+  const daSerieLabel = rotuloDaSerie(daSerieFuncao);
+  const value = funcaoChoiceValue(draft);
+  const handleFuncao = (next: string) => onChange(updatesFromFuncaoChoice(next));
+  const grade = (
+    <label className="flex items-center gap-2 text-sm text-[var(--text-primary)]">
+      <input
+        type="checkbox"
+        checked={draft.contaNaGrade !== false}
+        onChange={event => onChange({contaNaGrade: event.target.checked})}
+      />
+      Conta na grade
+    </label>
+  );
+  const options = (
+    <>
+      <option value="herdada">{daSerieLabel}</option>
+      {FUNCOES.map(funcao => (
+        <option key={funcao} value={funcao}>{FUNCAO_LABELS[funcao]}</option>
+      ))}
+      <option value="nenhuma">Nenhuma</option>
+      <option value="indefinida">Ainda não escolhida</option>
+    </>
+  );
+
+  if (variant === 'form') {
+    return (
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-1">
+          <span className="text-xs font-medium text-[var(--text-secondary)]">Função</span>
+          <select value={value} onChange={event => handleFuncao(event.target.value)} className={formInputClass}>
+            {options}
+          </select>
+        </div>
+        {grade}
+      </div>
+    );
+  }
+
+  if (variant === 'cards') {
+    return (
+      <>
+        <RoteiroField label="Função" icon={<ListChecks className="h-3.5 w-3.5" />}>
+          <RoteiroSelect value={value} onChange={event => handleFuncao(event.target.value)}>
+            {options}
+          </RoteiroSelect>
+        </RoteiroField>
+        <RoteiroField label="Grade" icon={<ListChecks className="h-3.5 w-3.5" />}>
+          {grade}
+        </RoteiroField>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <PropertyRow label="Função" icon={<ListChecks />}>
+        <PropertySelect
+          value={value}
+          onChange={event => handleFuncao(event.target.value)}
+          className={value === 'indefinida' ? 'property-row-value--empty' : ''}
+        >
+          {options}
+        </PropertySelect>
+      </PropertyRow>
+      <PropertyRow label="Grade" icon={<ListChecks />}>
+        {grade}
+      </PropertyRow>
+    </>
+  );
+}
+
 export function ContentOperationalPanel({
   draft,
   series,
@@ -299,6 +419,14 @@ export function ContentOperationalPanel({
   const publishDateOnly = draft.publishDate ? draft.publishDate.slice(0, 10) : '';
   const linkedSerie = draft.seriesId ? series.find(serie => serie.id === draft.seriesId) ?? null : null;
   const linkedPilar = draft.pilarId ? pilares.find(pilar => pilar.id === draft.pilarId) ?? null : null;
+  const visualFormats = useMemo(
+    () => Array.from(new Set([
+      ...VISUAL_FORMATS,
+      ...series.map(serie => serie.formatoVisualPadrao).filter((value): value is string => Boolean(value)),
+      ...(draft.formatoVisual ? [draft.formatoVisual] : []),
+    ])),
+    [draft.formatoVisual, series],
+  );
   const postingWindow = getPostingWindowFromTime(draft.publishTime);
   const allowedStatuses = getAllowedStatuses(draft.status);
   const publishWeekday = useMemo(() => {
@@ -330,13 +458,13 @@ export function ContentOperationalPanel({
 
   const propertiesSection = (
     <PropertySection label="Propriedades">
-      <PropertyRow label="Serie" icon={<Layers />}>
+      <PropertyRow label="Série" icon={<Layers />}>
         <PropertySelect
           value={draft.seriesId ?? ''}
           onChange={event => onChange({seriesId: event.target.value || null})}
           className={emptySelect(draft.seriesId)}
         >
-          <option value="">Selecionar série...</option>
+          <option value="">Selecionar série…</option>
           {series.map(serie => (
             <option key={serie.id} value={serie.id}>
               {serie.name}
@@ -352,7 +480,7 @@ export function ContentOperationalPanel({
           empty={!draft.pilarId}
           dotColor={linkedPilar?.cor ?? null}
         >
-          <option value="">Selecionar pilar...</option>
+          <option value="">Selecionar pilar…</option>
           {pilares
             .filter(pilar => pilar.ativo)
             .map(pilar => (
@@ -362,6 +490,39 @@ export function ContentOperationalPanel({
             ))}
         </ColoredSelect>
       </PropertyRow>
+
+      <PropertyRow label="Formato visual" icon={<ImageIcon />}>
+        <PropertySelect
+          value={draft.formatoVisual ?? ''}
+          onChange={event => onChange({formatoVisual: event.target.value || null})}
+          className={emptySelect(draft.formatoVisual)}
+        >
+          <option value="">Sem formato</option>
+          {visualFormats.map(format => (
+            <option key={format} value={format}>{getVisualFormatLabel(format)}</option>
+          ))}
+        </PropertySelect>
+      </PropertyRow>
+
+      <PropertyRow label="Energia" icon={<Zap />}>
+        <PropertySelect
+          value={draft.energiaNecessaria ?? ''}
+          onChange={event => onChange({energiaNecessaria: (event.target.value || null) as EnergiaNivel | null})}
+          className={emptySelect(draft.energiaNecessaria)}
+        >
+          <option value="">Sem energia</option>
+          <option value="baixa">Baixa</option>
+          <option value="média">Média</option>
+          <option value="alta">Alta</option>
+        </PropertySelect>
+      </PropertyRow>
+
+      <FuncaoEditorialFields
+        draft={draft}
+        serie={linkedSerie}
+        onChange={onChange}
+        variant="property"
+      />
 
       <PropertyRow label="Janela" icon={<Sun />}>
         <ColoredSelect
@@ -374,7 +535,7 @@ export function ContentOperationalPanel({
           empty={!postingWindow}
           dotColor={postingWindow?.color ?? null}
         >
-          <option value="">Selecionar janela...</option>
+          <option value="">Selecionar janela…</option>
           {POSTING_WINDOWS.map(window => (
             <option key={window.id} value={window.id}>
               {window.label}
@@ -395,14 +556,14 @@ export function ContentOperationalPanel({
 
   const scheduleSection = (
     <PropertySection label="Agendamento">
-      <PropertyRow label="Gravacao" icon={<Video />}>
+      <PropertyRow label="Gravação" icon={<Video />}>
         <PropertyDatePicker
           value={draft.recordingDate ? draft.recordingDate.slice(0, 10) : null}
           onChange={date => onChange({recordingDate: toIsoDate(date)})}
         />
       </PropertyRow>
 
-      <PropertyRow label="Publicacao" icon={<CalendarClock />}>
+      <PropertyRow label="Publicação" icon={<CalendarClock />}>
         <PropertyDatePicker
           value={publishDateOnly || null}
           onChange={date => onChange({publishDate: toIsoDate(date)})}
@@ -423,13 +584,13 @@ export function ContentOperationalPanel({
   );
 
   const notesSection = (
-    <PropertySection label="Notas">
+    <PropertySection label="Observações">
       <div className="stack-sm">
         <PropertyTextarea
           value={draft.notes ?? ''}
           onChange={event => onChange({notes: event.target.value.slice(0, NOTES_MAX)})}
           className="w-full"
-          placeholder="Observacoes editoriais, referencias, links..."
+          placeholder="Observações editoriais, referências, links…"
         />
         <Text variant="meta" className="text-right">
           {(draft.notes ?? '').length} / {NOTES_MAX}
@@ -448,7 +609,7 @@ export function ContentOperationalPanel({
             onChange={event => onChange({pilarId: event.target.value || null})}
             className={formInputClass}
           >
-            <option value="">Selecionar pilar...</option>
+            <option value="">Selecionar pilar…</option>
             {pilares
               .filter(pilar => pilar.ativo)
               .map(pilar => (
@@ -460,13 +621,13 @@ export function ContentOperationalPanel({
         </div>
 
         <div className="flex flex-col gap-1">
-          <span className="text-xs font-medium text-[var(--text-secondary)]">Serie</span>
+          <span className="text-xs font-medium text-[var(--text-secondary)]">Série</span>
           <select
             value={draft.seriesId ?? ''}
             onChange={event => onChange({seriesId: event.target.value || null})}
             className={formInputClass}
           >
-            <option value="">Selecionar série...</option>
+            <option value="">Selecionar série…</option>
             {series.map(serie => (
               <option key={serie.id} value={serie.id}>
                 {serie.name}
@@ -475,9 +636,46 @@ export function ContentOperationalPanel({
           </select>
         </div>
 
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="flex flex-col gap-1">
+            <span className="text-xs font-medium text-[var(--text-secondary)]">Formato visual</span>
+            <select
+              value={draft.formatoVisual ?? ''}
+              onChange={event => onChange({formatoVisual: event.target.value || null})}
+              className={formInputClass}
+            >
+              <option value="">Sem formato</option>
+              {visualFormats.map(format => (
+                <option key={format} value={format}>{getVisualFormatLabel(format)}</option>
+              ))}
+            </select>
+          </div>
+          <div className="flex flex-col gap-1">
+            <span className="text-xs font-medium text-[var(--text-secondary)]">Energia</span>
+            <select
+              value={draft.energiaNecessaria ?? ''}
+              onChange={event => onChange({energiaNecessaria: (event.target.value || null) as EnergiaNivel | null})}
+              className={formInputClass}
+            >
+              <option value="">Sem energia</option>
+              <option value="baixa">Baixa</option>
+              <option value="média">Média</option>
+              <option value="alta">Alta</option>
+            </select>
+          </div>
+        </div>
+
+        <FuncaoEditorialFields
+          draft={draft}
+          serie={linkedSerie}
+          onChange={onChange}
+          variant="form"
+          formInputClass={formInputClass}
+        />
+
         <div className="grid grid-cols-2 gap-3">
           <div className="flex flex-col gap-1">
-            <span className="text-xs font-medium text-[var(--text-secondary)]">Gravacao</span>
+            <span className="text-xs font-medium text-[var(--text-secondary)]">Gravação</span>
             <PropertyDatePicker
               variant="field"
               value={draft.recordingDate ? draft.recordingDate.slice(0, 10) : null}
@@ -495,12 +693,12 @@ export function ContentOperationalPanel({
         </div>
 
         <div className="flex flex-col gap-1">
-          <span className="text-xs font-medium text-[var(--text-secondary)]">Notas</span>
+          <span className="text-xs font-medium text-[var(--text-secondary)]">Observações</span>
           <textarea
             value={draft.notes ?? ''}
             onChange={event => onChange({notes: event.target.value.slice(0, NOTES_MAX)})}
             className={cn(formInputClass, 'min-h-[88px] resize-none')}
-            placeholder="Observacoes editoriais"
+            placeholder="Observações editoriais"
           />
         </div>
 
@@ -543,7 +741,7 @@ export function ContentOperationalPanel({
               value={draft.seriesId ?? ''}
               onChange={event => onChange({seriesId: event.target.value || null})}
             >
-              <option value="">Selecionar série...</option>
+              <option value="">Selecionar série…</option>
               {series.map(serie => (
                 <option key={serie.id} value={serie.id}>
                   {serie.name}
@@ -558,7 +756,7 @@ export function ContentOperationalPanel({
               onChange={event => onChange({pilarId: event.target.value || null})}
               dotColor={linkedPilar?.cor ?? null}
             >
-              <option value="">Selecionar pilar...</option>
+              <option value="">Selecionar pilar…</option>
               {pilares
                 .filter(pilar => pilar.ativo)
                 .map(pilar => (
@@ -569,7 +767,38 @@ export function ContentOperationalPanel({
             </RoteiroSelect>
           </RoteiroField>
 
-          <RoteiroField label="Slot" icon={<Sun className="h-3.5 w-3.5" />}>
+          <RoteiroField label="Formato visual" icon={<ImageIcon className="h-3.5 w-3.5" />}>
+            <RoteiroSelect
+              value={draft.formatoVisual ?? ''}
+              onChange={event => onChange({formatoVisual: event.target.value || null})}
+            >
+              <option value="">Sem formato</option>
+              {visualFormats.map(format => (
+                <option key={format} value={format}>{getVisualFormatLabel(format)}</option>
+              ))}
+            </RoteiroSelect>
+          </RoteiroField>
+
+          <RoteiroField label="Energia" icon={<Zap className="h-3.5 w-3.5" />}>
+            <RoteiroSelect
+              value={draft.energiaNecessaria ?? ''}
+              onChange={event => onChange({energiaNecessaria: (event.target.value || null) as EnergiaNivel | null})}
+            >
+              <option value="">Sem energia</option>
+              <option value="baixa">Baixa</option>
+              <option value="média">Média</option>
+              <option value="alta">Alta</option>
+            </RoteiroSelect>
+          </RoteiroField>
+
+          <FuncaoEditorialFields
+            draft={draft}
+            serie={linkedSerie}
+            onChange={onChange}
+            variant="cards"
+          />
+
+          <RoteiroField label="Janela" icon={<Sun className="h-3.5 w-3.5" />}>
             <RoteiroSelect
               value={postingWindow?.id ?? ''}
               onChange={event => {
@@ -579,7 +808,7 @@ export function ContentOperationalPanel({
               }}
               dotColor={postingWindow?.color ?? null}
             >
-              <option value="">Selecionar janela...</option>
+              <option value="">Selecionar janela…</option>
               {POSTING_WINDOWS.map(window => (
                 <option key={window.id} value={window.id}>
                   {window.label}
@@ -630,12 +859,12 @@ export function ContentOperationalPanel({
           ) : null}
         </AsideAccordion>
 
-        <AsideAccordion id="notes" title="Notas" openId={openSection} onToggle={toggleSection}>
+        <AsideAccordion id="notes" title="Observações" openId={openSection} onToggle={toggleSection}>
           <textarea
             value={draft.notes ?? ''}
             onChange={event => onChange({notes: event.target.value.slice(0, NOTES_MAX)})}
             className={cn(quietFieldClass, 'min-h-[100px] resize-none bg-[var(--bg-hover)]')}
-            placeholder="Observacoes editoriais, referencias, links..."
+            placeholder="Observações editoriais, referências, links…"
           />
           <Text variant="meta" className="text-right">
             {(draft.notes ?? '').length} / {NOTES_MAX}
@@ -652,7 +881,7 @@ export function ContentOperationalPanel({
           value={draft.title}
           onChange={event => onChange({title: event.target.value})}
           className="content-operational-title t-page-title w-full border-0 bg-transparent p-0 outline-none placeholder:text-[var(--text-tertiary)]"
-          placeholder="Titulo do conteudo"
+          placeholder="Título do roteiro"
         />
       ) : null}
 
@@ -680,9 +909,9 @@ export function ContentOperationalPanel({
       {notesSection}
 
       {linkedSerie ? (
-        <PropertySection label="Vinculos">
+        <PropertySection label="Vínculos">
           <PropertyRow
-            label="Central da serie"
+            label="Central da série"
             icon={<ExternalLink />}
             onClick={() => navigate('/series/' + linkedSerie.id + '/roteiros')}
           >

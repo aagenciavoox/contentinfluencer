@@ -122,7 +122,7 @@ export function IdeaInboxCard({
               <button
                 type="button"
                 onClick={onPromote}
-                title="Promover para roteiro"
+                title="Transformar em roteiro"
                 className="rounded-md p-1.5 text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-hover)]"
               >
                 <ArrowUpRight className="h-3.5 w-3.5" />

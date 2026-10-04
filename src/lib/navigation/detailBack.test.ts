@@ -20,6 +20,8 @@ assert.equal(backFor('/'), '/');
 assert.equal(backFor('/biblioteca/book-1'), '/biblioteca/book-1');
 assert.equal(backFor('/projetos/projeto-1'), '/projetos/projeto-1');
 assert.equal(backFor('/series/serie-1'), '/series/serie-1');
+assert.equal(backFor('/editorial?aba=series'), '/editorial?aba=series');
+assert.equal(backFor('/editorial/pilares/pilar-1'), '/editorial/pilares/pilar-1');
 assert.equal(backFor('/configuracoes/pilares'), '/configuracoes/pilares');
 
 assert.equal(backFor('/evil'), '/criacao');
@@ -41,5 +43,6 @@ assert.equal(labelForDetailBack('/series/abc/roteiros', 'Roteiros'), 'Séries');
 assert.equal(labelForDetailBack('/projetos/abc', 'Conteúdos'), 'Projetos');
 assert.equal(labelForDetailBack('/criacao?tab=roteiros', 'Roteiros'), 'Roteiros');
 assert.equal(labelForDetailBack('/calendario', 'Roteiros'), 'Calendário');
+assert.equal(labelForDetailBack('/editorial?aba=funil', 'Roteiros'), 'Editorial');
 
 console.log('detailBack.test.ts passed');

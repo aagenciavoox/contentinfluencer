@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import {
-  AlertCircle,
   BookOpen,
   Check,
+  CheckCircle2,
   FileText,
   Film,
   Lightbulb,
@@ -204,7 +204,7 @@ export function BookDetailMobileScreen({
         tabs={[
           { value: 'info', label: 'Info' },
           { value: 'anotacoes', label: 'Anotações', count: livro.anotacoes.length },
-          { value: 'conteudos', label: 'Conteúdos', count: conteudosDoLivro.length },
+          { value: 'conteudos', label: 'Roteiros', count: conteudosDoLivro.length },
         ]}
         value={tab}
         onChange={onTabChange}
@@ -297,7 +297,7 @@ export function BookDetailMobileScreen({
             onClick={onRequestDelete}
             className="w-full py-2 text-center text-xs font-semibold text-[var(--accent-pink)] opacity-70"
           >
-            Remover item da biblioteca
+            Remover da biblioteca
           </button>
         </div>
       ) : null}
@@ -368,12 +368,12 @@ export function BookDetailMobileScreen({
             <Surface
               variant="outlined"
               padding="sm"
-              className="border-[var(--accent-orange)]/25 bg-[var(--accent-orange)]/10"
+              className="bg-[var(--bg-hover)]"
             >
               <div className="flex items-start gap-2">
-                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-[var(--accent-orange)]" />
-                <p className="text-xs text-[var(--accent-orange)]">
-                  Este {itemTypeLabel.toLowerCase()} foi concluído e ainda pode render conteúdo.
+                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-[var(--text-secondary)]" />
+                <p className="text-xs text-[var(--text-secondary)]">
+                  Concluído. Ainda pode render conteúdo quando fizer sentido.
                 </p>
               </div>
             </Surface>
@@ -381,7 +381,7 @@ export function BookDetailMobileScreen({
 
           <div className="mobile-h-scroll">
             {[
-              { label: 'conteúdos', value: conteudosDoLivro.length },
+              { label: 'roteiros', value: conteudosDoLivro.length },
               {
                 label: 'postados',
                 value: conteudosDoLivro.filter(
@@ -410,7 +410,7 @@ export function BookDetailMobileScreen({
           </div>
 
           <AppButton variant="secondary" fullWidth onClick={onCreateContent} leftIcon={<Plus className="h-4 w-4" />}>
-            Novo conteúdo
+            Criar roteiro
           </AppButton>
 
           {anotacoesDestaqueCount > 0 ? (
@@ -420,15 +420,16 @@ export function BookDetailMobileScreen({
               className="border-[var(--warning)]/25 bg-[var(--warning)]/10"
             >
               <p className="text-sm font-semibold text-[var(--warning)]">
-                {anotacoesDestaqueCount} destaque{anotacoesDestaqueCount > 1 ? 's' : ''} prontos para
-                virar conteúdo.
+                {anotacoesDestaqueCount === 1
+                  ? '1 destaque pode virar roteiro.'
+                  : `${anotacoesDestaqueCount} destaques podem virar roteiro.`}
               </p>
               <button
                 type="button"
                 onClick={onStartBrainstorm}
                 className="mt-2 text-xs font-semibold text-[var(--warning)] transition-opacity hover:opacity-80"
               >
-                Brainstormar
+                Gerar ideias
               </button>
             </Surface>
           ) : null}
@@ -455,7 +456,7 @@ export function BookDetailMobileScreen({
                       onClick={() => onPromoteIdeia(ideia)}
                       className="shrink-0 text-xs font-semibold text-[var(--accent-blue)]"
                     >
-                      Conteúdo
+                      Transformar em roteiro
                     </button>
                   </div>
                 ))}
@@ -465,11 +466,11 @@ export function BookDetailMobileScreen({
 
           {conteudosDoLivro.length === 0 ? (
             <EmptyState compact
-              title="Nenhum conteúdo vinculado"
-              description="Crie um roteiro a partir deste item da biblioteca."
+              title="Nenhum roteiro criado a partir desta obra ainda"
+              description="Roteiros e ideias criados a partir desta obra aparecem aqui."
               action={
                 <AppButton variant="primary" fullWidth onClick={onCreateContent} leftIcon={<Plus className="h-4 w-4" />}>
-                  Novo conteúdo
+                  Criar roteiro
                 </AppButton>
               }
               icon={<Film className="h-8 w-8" />}

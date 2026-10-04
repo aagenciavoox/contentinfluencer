@@ -14,7 +14,7 @@ interface ToolbarSearchInputProps {
 export function ToolbarSearchInput({
   value,
   onChange,
-  placeholder = 'Buscar...',
+  placeholder = 'Buscar…',
   className,
   size = 'default',
   onClear,

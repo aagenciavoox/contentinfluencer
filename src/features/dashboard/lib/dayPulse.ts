@@ -45,20 +45,26 @@ export function buildDayPulse({
   showCounts,
   agendaToday,
   urgentProjects,
+  dataReady = true,
 }: {
   readyCount: number;
   showCounts: boolean;
   agendaToday: AgendaPulseItem[];
   urgentProjects: ProjectPulseItem[];
+  /** Sem isto, um 0 de carregamento vira "Nenhum roteiro" / "nada na agenda". */
+  dataReady?: boolean;
 }): DayPulseSegment[] {
+  const canCount = dataReady && showCounts;
   let readyLabel = 'Roteiros prontos para gravar';
-  if (readyCount === 0) readyLabel = 'Nenhum roteiro pronto';
-  else if (showCounts && readyCount === 1) readyLabel = '1 roteiro pronto';
-  else if (showCounts) readyLabel = `${readyCount} roteiros prontos`;
+  if (dataReady && readyCount === 0) readyLabel = 'Nenhum roteiro pronto';
+  else if (canCount && readyCount === 1) readyLabel = '1 roteiro pronto';
+  else if (canCount) readyLabel = `${readyCount} roteiros prontos`;
 
   const segments: DayPulseSegment[] = [{ label: readyLabel }];
 
-  if (agendaToday.length === 0) {
+  if (!dataReady && agendaToday.length === 0) {
+    segments.push({ label: 'Agenda do dia', to: '/calendario' });
+  } else if (agendaToday.length === 0) {
     segments.push({ label: 'nada na agenda', to: '/calendario' });
   } else if (agendaToday.length === 1) {
     segments.push({ label: formatAgendaLabel(agendaToday[0]), to: '/calendario' });

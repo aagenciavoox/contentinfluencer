@@ -83,7 +83,7 @@ export function CaptionsPage() {
       <FilterBar
         searchValue={search}
         onSearchChange={setSearch}
-        searchPlaceholder="Buscar roteiro..."
+        searchPlaceholder="Buscar roteiro…"
       />
     </div>
   );
@@ -98,7 +98,7 @@ export function CaptionsPage() {
           title="Legendas"
           backLabel="Criação"
           backTo="/criacao"
-          meta={items.length === 1 ? '1 vídeo' : `${items.length} vídeos`}
+          meta={items.length === 1 ? '1 roteiro' : `${items.length} roteiros`}
         />
       )}
       toolbar={isMobile ? undefined : filters}
@@ -107,7 +107,7 @@ export function CaptionsPage() {
       {items.length === 0 ? (
         <EmptyState
           icon={<Captions className="h-6 w-6" />}
-          title={hasQuery ? 'Nenhum roteiro encontrado' : 'Nenhum vídeo para legendar'}
+          title={hasQuery ? 'Nenhum roteiro encontrado' : 'Nenhum roteiro para legendar'}
           description={
             hasQuery
               ? 'Tente outro termo ou mostre todos os roteiros.'
@@ -115,7 +115,7 @@ export function CaptionsPage() {
           }
         />
       ) : (
-        <div className="stack-md">
+        <div className="stack-md min-w-0">
           <CaptionGrid
             contents={pageData.items}
             platforms={platforms}
@@ -127,7 +127,7 @@ export function CaptionsPage() {
           />
           <PaginationBar
             variant={isMobile ? 'simple' : 'full'}
-            itemLabel="vídeos"
+            itemLabel="roteiros"
             totalItems={pageData.totalItems}
             currentPage={pageData.page}
             totalPages={pageData.totalPages}

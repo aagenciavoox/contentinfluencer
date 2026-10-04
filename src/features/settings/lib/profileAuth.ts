@@ -17,5 +17,5 @@ export function normalizeProfileAuthError(message: string) {
     return 'Sua sessão expirou. Entre novamente para continuar.';
   }
 
-  return 'Não foi possível salvar a alteração agora.';
+  return 'Não foi possível salvar a alteração agora. Verifique sua conexão e tente novamente.';
 }

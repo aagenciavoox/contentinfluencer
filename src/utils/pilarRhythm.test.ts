@@ -17,6 +17,10 @@ function buildContent(overrides: Partial<Content> = {}): Content {
     bibliotecaItemId: null,
     formatoVisual: null,
     energiaNecessaria: null,
+    funcao: null,
+    funcaoOrigem: null,
+    classificacaoCongeladaEm: null,
+    contaNaGrade: true,
     publishDate: '2026-04-27',
     recordingDate: null,
     link: null,
@@ -65,6 +69,8 @@ function buildSerie(overrides: Partial<Serie> = {}): Serie {
     capaUrl: null,
     ativa: true,
     frequenciaRecomendada: 'Semanal',
+    funcaoPadrao: null,
+    energiaPadrao: null,
     createdAt: '2026-04-27T00:00:00.000Z',
     updatedAt: '2026-04-27T00:00:00.000Z',
     pilarIds: ['pilar-1'],
@@ -104,7 +110,7 @@ function testWeeklyFrequencyUnderTarget() {
   const under = violations.find(item => item.ruleId === 'pilar-pilar-1-under-frequency');
   assert.ok(under);
   assert.equal(under?.type, 'deficit');
-  assert.match(under?.message ?? '', /1\/2/);
+  assert.match(under?.message ?? '', /1 de 2 posts/);
 }
 
 function testSerieSemanalWithoutPost() {
@@ -169,7 +175,7 @@ function testNeedsScriptsWhenBacklogInsufficient() {
   const needs = violations.find(item => item.ruleId === 'pilar-pilar-1-needs-scripts');
   assert.ok(needs);
   assert.equal(needs?.type, 'deficit');
-  assert.match(needs?.message ?? '', /precisa de mais 1 roteiro/);
+  assert.match(needs?.message ?? '', /Mais 1 cobriria o ciclo/);
 }
 
 function testHashtagTemplateLimit() {
@@ -280,7 +286,7 @@ function testDayRhythmToneMarksOverAndOpenDays() {
   const open = dayRhythmTone([], [{
     ruleId: 'pilar-1-under-frequency',
     type: 'deficit',
-    message: 'faltam 1',
+    message: 'Pilar: 0 de 1 posts nesta semana.',
     affectedContentIds: [],
   }]);
   assert.equal(open, 'open');
@@ -288,7 +294,7 @@ function testDayRhythmToneMarksOverAndOpenDays() {
   const filledWhileShort = dayRhythmTone(['c2'], [{
     ruleId: 'pilar-1-under-frequency',
     type: 'deficit',
-    message: 'faltam 1',
+    message: 'Pilar: 0 de 1 posts nesta semana.',
     affectedContentIds: ['c2'],
   }]);
   assert.equal(filledWhileShort, null);

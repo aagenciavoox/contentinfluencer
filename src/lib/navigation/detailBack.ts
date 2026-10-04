@@ -15,6 +15,7 @@ const ALLOWED_BACK_PATHS = [
   '/gravacao',
   '/projetos',
   '/series',
+  '/editorial',
   '/configuracoes/pilares',
 ];
 
@@ -22,6 +23,7 @@ const ALLOWED_BACK_PREFIXES = [
   '/biblioteca/',
   '/projetos/',
   '/series/',
+  '/editorial/',
   '/configuracoes/pilares/',
 ];
 
@@ -58,6 +60,7 @@ export function labelForDetailBack(path: string, fallback: string): string {
   if (pathname.startsWith('/gravacao')) return 'Gravação';
   if (pathname.startsWith('/projetos')) return 'Projetos';
   if (pathname.startsWith('/series')) return 'Séries';
+  if (pathname.startsWith('/editorial')) return 'Editorial';
   if (pathname.startsWith('/configuracoes/pilares')) return 'Pilares';
   return 'Voltar';
 }

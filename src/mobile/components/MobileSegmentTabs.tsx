@@ -71,8 +71,10 @@ export function MobileSegmentTabs<T extends string>({
               <span
                 className={cn(
                   'rounded-[var(--radius-sm)] px-1.5 py-0.5 t-meta tabular-nums',
+                  // `.t-meta` define a cor fora das camadas do Tailwind; sem `!` o contador
+                  // ativo herdava --text-secondary sobre o fundo escuro (~1,5:1). Agora ~9:1.
                   active
-                    ? 'bg-[color-mix(in_srgb,var(--bg-primary)_22%,transparent)] text-[var(--bg-primary)]'
+                    ? 'bg-[color-mix(in_srgb,var(--bg-primary)_22%,transparent)] !text-[var(--bg-primary)]'
                     : 'bg-[var(--bg-secondary)] text-[var(--text-tertiary)]',
                 )}
               >

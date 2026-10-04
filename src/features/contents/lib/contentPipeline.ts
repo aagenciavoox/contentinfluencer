@@ -248,7 +248,7 @@ export function getPostingAlerts(content: Pick<Content, 'publishDate' | 'status'
       {
         id: 'scheduled',
         tone: 'info',
-        message: 'Data futura guardada. No calendario, este conteudo aparece como Programado.',
+        message: 'Data futura guardada. No calendário, este roteiro aparece como Programado.',
       },
     ] satisfies PostingAlert[];
   }
@@ -258,7 +258,7 @@ export function getPostingAlerts(content: Pick<Content, 'publishDate' | 'status'
       {
         id: 'overdue',
         tone: 'warning',
-        message: 'Essa data ja ficou para tras. O conteudo continua aqui para retomar, reagendar ou marcar como Postado.',
+        message: 'Essa data já ficou para trás. O roteiro continua aqui para retomar, reagendar ou marcar como Postado.',
       },
     ] satisfies PostingAlert[];
   }
@@ -326,25 +326,25 @@ export function getPrimaryAction(content: Content, options: StageOptions = {}): 
       if (content.recordedAt) {
         return {
           id: 'send_to_posting',
-          label: 'Preparar publicacao com calma',
+          label: 'Preparar publicação com calma',
           targetTab: 'publicacao',
         };
       }
       return {
         id: 'add_to_block',
-        label: 'Salvar no bloco de gravação',
+        label: 'Adicionar ao bloco',
         targetTab: 'gravacao',
       };
     case ContentStage.EM_BLOCO:
       return {
         id: 'go_to_execution',
-        label: 'Abrir bloco de gravacao',
+        label: 'Abrir bloco de gravação',
         targetTab: 'gravacao',
       };
     case ContentStage.POSTADO:
       return {
         id: 'none',
-        label: 'Conteudo publicado',
+        label: 'Roteiro publicado',
         targetTab: 'publicacao',
       };
     default:

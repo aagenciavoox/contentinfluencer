@@ -368,8 +368,8 @@
       "source_location": "L1391",
       "_origin": "ast",
       "id": "dev_dist_workbox_21a80088_has",
-      "community": 15,
-      "community_name": "ProjectDetailPage.tsx",
+      "community": 55,
+      "community_name": "TemplatesSettingsPage.tsx",
       "norm_label": "has()"
     },
     {
@@ -709,8 +709,8 @@
       "source_location": "L2157",
       "_origin": "ast",
       "id": "dev_dist_workbox_21a80088_cacheableresponse",
-      "community": 138,
-      "community_name": "RecordingQueueTab.tsx",
+      "community": 216,
+      "community_name": "schema-constraints.md",
       "norm_label": "cacheableresponse"
     },
     {
@@ -720,8 +720,8 @@
       "source_location": "L2172",
       "_origin": "ast",
       "id": "dev_dist_workbox_21a80088_cacheableresponse_constructor",
-      "community": 138,
-      "community_name": "RecordingQueueTab.tsx",
+      "community": 216,
+      "community_name": "schema-constraints.md",
       "norm_label": ".constructor()"
     },
     {
@@ -731,8 +731,8 @@
       "source_location": "L2210",
       "_origin": "ast",
       "id": "dev_dist_workbox_21a80088_cacheableresponse_isresponsecacheable",
-      "community": 138,
-      "community_name": "RecordingQueueTab.tsx",
+      "community": 216,
+      "community_name": "schema-constraints.md",
       "norm_label": ".isresponsecacheable()"
     },
     {
@@ -742,8 +742,8 @@
       "source_location": "L2268",
       "_origin": "ast",
       "id": "dev_dist_workbox_21a80088_cacheableresponseplugin",
-      "community": 216,
-      "community_name": "schema-constraints.md",
+      "community": 15,
+      "community_name": "ProjectDetailPage.tsx",
       "norm_label": "cacheableresponseplugin"
     },
     {
@@ -753,8 +753,8 @@
       "source_location": "L2283",
       "_origin": "ast",
       "id": "dev_dist_workbox_21a80088_cacheableresponseplugin_constructor",
-      "community": 216,
-      "community_name": "schema-constraints.md",
+      "community": 15,
+      "community_name": "ProjectDetailPage.tsx",
       "norm_label": ".constructor()"
     },
     {
@@ -764,8 +764,8 @@
       "source_location": "L2290",
       "_origin": "ast",
       "id": "dev_dist_workbox_21a80088_cacheableresponseplugin_cachewillupdate",
-      "community": 216,
-      "community_name": "schema-constraints.md",
+      "community": 15,
+      "community_name": "ProjectDetailPage.tsx",
       "norm_label": ".cachewillupdate()"
     },
     {
@@ -1105,8 +1105,8 @@
       "source_location": "L3328",
       "_origin": "ast",
       "id": "dev_dist_workbox_21a80088_networkfirst_constructor",
-      "community": 138,
-      "community_name": "RecordingQueueTab.tsx",
+      "community": 55,
+      "community_name": "TemplatesSettingsPage.tsx",
       "norm_label": ".constructor()"
     },
     {
@@ -1160,8 +1160,8 @@
       "source_location": "L3520",
       "_origin": "ast",
       "id": "dev_dist_workbox_21a80088_waituntil",
-      "community": 138,
-      "community_name": "RecordingQueueTab.tsx",
+      "community": 55,
+      "community_name": "TemplatesSettingsPage.tsx",
       "norm_label": "waituntil()"
     },
     {
@@ -1226,8 +1226,8 @@
       "source_location": "L3653",
       "_origin": "ast",
       "id": "dev_dist_workbox_21a80088_precachecachekeyplugin",
-      "community": 221,
-      "community_name": "PlatformCopyEditor",
+      "community": 15,
+      "community_name": "ProjectDetailPage.tsx",
       "norm_label": "precachecachekeyplugin"
     },
     {
@@ -1237,8 +1237,8 @@
       "source_location": "L3654",
       "_origin": "ast",
       "id": "dev_dist_workbox_21a80088_precachecachekeyplugin_constructor",
-      "community": 221,
-      "community_name": "PlatformCopyEditor",
+      "community": 15,
+      "community_name": "ProjectDetailPage.tsx",
       "norm_label": ".constructor()"
     },
     {
@@ -1248,8 +1248,8 @@
       "source_location": "L3657",
       "_origin": "ast",
       "id": "dev_dist_workbox_21a80088_precachecachekeyplugin_cachekeywillbeused",
-      "community": 221,
-      "community_name": "PlatformCopyEditor",
+      "community": 15,
+      "community_name": "ProjectDetailPage.tsx",
       "norm_label": ".cachekeywillbeused()"
     },
     {
@@ -1259,8 +1259,8 @@
       "source_location": "L3699",
       "_origin": "ast",
       "id": "dev_dist_workbox_21a80088_printcleanupdetails",
-      "community": 138,
-      "community_name": "RecordingQueueTab.tsx",
+      "community": 15,
+      "community_name": "ProjectDetailPage.tsx",
       "norm_label": "printcleanupdetails()"
     },
     {
@@ -1270,8 +1270,8 @@
       "source_location": "L3721",
       "_origin": "ast",
       "id": "dev_dist_workbox_21a80088_nestedgroup",
-      "community": 138,
-      "community_name": "RecordingQueueTab.tsx",
+      "community": 59,
+      "community_name": "SeriesCreateContentForm.tsx",
       "norm_label": "_nestedgroup()"
     },
     {
@@ -1281,8 +1281,8 @@
       "source_location": "L3738",
       "_origin": "ast",
       "id": "dev_dist_workbox_21a80088_printinstalldetails",
-      "community": 138,
-      "community_name": "RecordingQueueTab.tsx",
+      "community": 59,
+      "community_name": "SeriesCreateContentForm.tsx",
       "norm_label": "printinstalldetails()"
     },
     {
@@ -1446,8 +1446,8 @@
       "source_location": "L4180",
       "_origin": "ast",
       "id": "dev_dist_workbox_21a80088_precachecontroller_install",
-      "community": 138,
-      "community_name": "RecordingQueueTab.tsx",
+      "community": 59,
+      "community_name": "SeriesCreateContentForm.tsx",
       "norm_label": ".install()"
     },
     {
@@ -1457,8 +1457,8 @@
       "source_location": "L4227",
       "_origin": "ast",
       "id": "dev_dist_workbox_21a80088_precachecontroller_activate",
-      "community": 138,
-      "community_name": "RecordingQueueTab.tsx",
+      "community": 55,
+      "community_name": "TemplatesSettingsPage.tsx",
       "norm_label": ".activate()"
     },
     {
@@ -1611,8 +1611,8 @@
       "source_location": "L4626",
       "_origin": "ast",
       "id": "dev_dist_workbox_21a80088_cleanupoutdatedcaches",
-      "community": 138,
-      "community_name": "RecordingQueueTab.tsx",
+      "community": 15,
+      "community_name": "ProjectDetailPage.tsx",
       "norm_label": "cleanupoutdatedcaches()"
     },
     {
@@ -1622,8 +1622,8 @@
       "source_location": "L4662",
       "_origin": "ast",
       "id": "dev_dist_workbox_21a80088_navigationroute",
-      "community": 15,
-      "community_name": "ProjectDetailPage.tsx",
+      "community": 216,
+      "community_name": "schema-constraints.md",
       "norm_label": "navigationroute"
     },
     {
@@ -1633,8 +1633,8 @@
       "source_location": "L4687",
       "_origin": "ast",
       "id": "dev_dist_workbox_21a80088_navigationroute_constructor",
-      "community": 15,
-      "community_name": "ProjectDetailPage.tsx",
+      "community": 216,
+      "community_name": "schema-constraints.md",
       "norm_label": ".constructor()"
     },
     {
@@ -1644,8 +1644,8 @@
       "source_location": "L4719",
       "_origin": "ast",
       "id": "dev_dist_workbox_21a80088_navigationroute_match",
-      "community": 15,
-      "community_name": "ProjectDetailPage.tsx",
+      "community": 216,
+      "community_name": "schema-constraints.md",
       "norm_label": "._match()"
     },
     {
@@ -9759,7 +9759,7 @@
       "label": "CaptionHashtagSources()",
       "file_type": "code",
       "source_file": "src/features/captions/components/CaptionQuickCard.tsx",
-      "source_location": "L366",
+      "source_location": "L372",
       "_origin": "ast",
       "id": "src_features_captions_components_captionquickcard_captionhashtagsources",
       "community": 215,
@@ -9770,7 +9770,7 @@
       "label": "CaptionGridProps",
       "file_type": "code",
       "source_file": "src/features/captions/components/CaptionQuickCard.tsx",
-      "source_location": "L420",
+      "source_location": "L426",
       "_origin": "ast",
       "id": "src_features_captions_components_captionquickcard_captiongridprops",
       "community": 215,
@@ -9781,7 +9781,7 @@
       "label": "CaptionGrid()",
       "file_type": "code",
       "source_file": "src/features/captions/components/CaptionQuickCard.tsx",
-      "source_location": "L430",
+      "source_location": "L436",
       "_origin": "ast",
       "id": "src_features_captions_components_captionquickcard_captiongrid",
       "community": 215,
@@ -10037,8 +10037,8 @@
       "source_location": "L5",
       "_origin": "ast",
       "id": "src_features_contents_components_contententitytags_contententitytagsprops",
-      "community": 25,
-      "community_name": "SettingsPage.tsx",
+      "community": 30,
+      "community_name": "MobileAppShell.tsx",
       "norm_label": "contententitytagsprops"
     },
     {
@@ -13788,8 +13788,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_features_creation_components_creationentitymarks",
-      "community": 185,
-      "community_name": "HorizontalBarChart.tsx",
+      "community": 40,
+      "community_name": "detailBack.ts",
       "norm_label": "creationentitymarks.tsx"
     },
     {
@@ -13799,8 +13799,8 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "src_features_creation_components_creationentitymarks_creationentitymarksprops",
-      "community": 185,
-      "community_name": "HorizontalBarChart.tsx",
+      "community": 30,
+      "community_name": "MobileAppShell.tsx",
       "norm_label": "creationentitymarksprops"
     },
     {
@@ -13810,8 +13810,8 @@
       "source_location": "L15",
       "_origin": "ast",
       "id": "src_features_creation_components_creationentitymarks_marklabel",
-      "community": 185,
-      "community_name": "HorizontalBarChart.tsx",
+      "community": 40,
+      "community_name": "detailBack.ts",
       "norm_label": "marklabel()"
     },
     {
@@ -13821,8 +13821,8 @@
       "source_location": "L21",
       "_origin": "ast",
       "id": "src_features_creation_components_creationentitymarks_entitymark",
-      "community": 185,
-      "community_name": "HorizontalBarChart.tsx",
+      "community": 25,
+      "community_name": "SettingsPage.tsx",
       "norm_label": "entitymark()"
     },
     {
@@ -13832,8 +13832,8 @@
       "source_location": "L48",
       "_origin": "ast",
       "id": "src_features_creation_components_creationentitymarks_creationentitymarks",
-      "community": 185,
-      "community_name": "HorizontalBarChart.tsx",
+      "community": 40,
+      "community_name": "detailBack.ts",
       "norm_label": "creationentitymarks()"
     },
     {
@@ -16791,8 +16791,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_features_library_components_libraryitemcard",
-      "community": 32,
-      "community_name": "IdeasMobileScreen.tsx",
+      "community": 27,
+      "community_name": "AppButton.tsx",
       "norm_label": "libraryitemcard.tsx"
     },
     {
@@ -16802,8 +16802,8 @@
       "source_location": "L13",
       "_origin": "ast",
       "id": "src_features_library_components_libraryitemcard_bibliotecatypeconfig",
-      "community": 32,
-      "community_name": "IdeasMobileScreen.tsx",
+      "community": 27,
+      "community_name": "AppButton.tsx",
       "norm_label": "bibliotecatypeconfig"
     },
     {
@@ -16813,8 +16813,8 @@
       "source_location": "L18",
       "_origin": "ast",
       "id": "src_features_library_components_libraryitemcard_libraryitemcardprops",
-      "community": 80,
-      "community_name": "audit-product-voice.mjs",
+      "community": 27,
+      "community_name": "AppButton.tsx",
       "norm_label": "libraryitemcardprops"
     },
     {
@@ -16824,8 +16824,8 @@
       "source_location": "L33",
       "_origin": "ast",
       "id": "src_features_library_components_libraryitemcard_iswishliststatus",
-      "community": 32,
-      "community_name": "IdeasMobileScreen.tsx",
+      "community": 27,
+      "community_name": "AppButton.tsx",
       "norm_label": "iswishliststatus()"
     },
     {
@@ -16835,8 +16835,8 @@
       "source_location": "L37",
       "_origin": "ast",
       "id": "src_features_library_components_libraryitemcard_libraryitemcard",
-      "community": 32,
-      "community_name": "IdeasMobileScreen.tsx",
+      "community": 27,
+      "community_name": "AppButton.tsx",
       "norm_label": "libraryitemcard()"
     },
     {
@@ -16978,8 +16978,8 @@
       "source_location": "L10",
       "_origin": "ast",
       "id": "src_features_library_components_modals_bookannotationcomposersheet_bookannotationcomposersheetprops",
-      "community": 80,
-      "community_name": "audit-product-voice.mjs",
+      "community": 27,
+      "community_name": "AppButton.tsx",
       "norm_label": "bookannotationcomposersheetprops"
     },
     {
@@ -17033,8 +17033,8 @@
       "source_location": "L14",
       "_origin": "ast",
       "id": "src_features_library_components_modals_booknotesmodal_booknotesmodalprops",
-      "community": 80,
-      "community_name": "audit-product-voice.mjs",
+      "community": 27,
+      "community_name": "AppButton.tsx",
       "norm_label": "booknotesmodalprops"
     },
     {
@@ -17264,8 +17264,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_features_library_lib_librarygenres",
-      "community": 161,
-      "community_name": "@tiptap/extension-underline",
+      "community": 34,
+      "community_name": "utils.ts",
       "norm_label": "librarygenres.ts"
     },
     {
@@ -17275,8 +17275,8 @@
       "source_location": "L2",
       "_origin": "ast",
       "id": "src_features_library_lib_librarygenres_generos_sugeridos",
-      "community": 161,
-      "community_name": "@tiptap/extension-underline",
+      "community": 34,
+      "community_name": "utils.ts",
       "norm_label": "generos_sugeridos"
     },
     {
@@ -17286,8 +17286,8 @@
       "source_location": "L17",
       "_origin": "ast",
       "id": "src_features_library_lib_librarygenres_generosugerido",
-      "community": 161,
-      "community_name": "@tiptap/extension-underline",
+      "community": 34,
+      "community_name": "utils.ts",
       "norm_label": "generosugerido"
     },
     {
@@ -17297,8 +17297,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_features_library_lib_librarystatus",
-      "community": 34,
-      "community_name": "utils.ts",
+      "community": 27,
+      "community_name": "AppButton.tsx",
       "norm_label": "librarystatus.ts"
     },
     {
@@ -17308,8 +17308,8 @@
       "source_location": "L3",
       "_origin": "ast",
       "id": "src_features_library_lib_librarystatus_bibliotecatipo",
-      "community": 34,
-      "community_name": "utils.ts",
+      "community": 27,
+      "community_name": "AppButton.tsx",
       "norm_label": "bibliotecatipo"
     },
     {
@@ -17319,8 +17319,8 @@
       "source_location": "L4",
       "_origin": "ast",
       "id": "src_features_library_lib_librarystatus_statusleitura",
-      "community": 34,
-      "community_name": "utils.ts",
+      "community": 27,
+      "community_name": "AppButton.tsx",
       "norm_label": "statusleitura"
     },
     {
@@ -17330,8 +17330,8 @@
       "source_location": "L6",
       "_origin": "ast",
       "id": "src_features_library_lib_librarystatus_completed_status_by_type",
-      "community": 34,
-      "community_name": "utils.ts",
+      "community": 27,
+      "community_name": "AppButton.tsx",
       "norm_label": "completed_status_by_type"
     },
     {
@@ -17341,8 +17341,8 @@
       "source_location": "L15",
       "_origin": "ast",
       "id": "src_features_library_lib_librarystatus_iscompletedstatus",
-      "community": 32,
-      "community_name": "IdeasMobileScreen.tsx",
+      "community": 27,
+      "community_name": "AppButton.tsx",
       "norm_label": "iscompletedstatus()"
     },
     {
@@ -19376,8 +19376,8 @@
       "source_location": "L21",
       "_origin": "ast",
       "id": "src_features_recording_components_desktop_recordingqueuegrid_recordingqueuegridprops",
-      "community": 30,
-      "community_name": "MobileAppShell.tsx",
+      "community": 25,
+      "community_name": "SettingsPage.tsx",
       "norm_label": "recordingqueuegridprops"
     },
     {
@@ -20344,8 +20344,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_features_settings_components_seriesbulkcomposer",
-      "community": 27,
-      "community_name": "AppButton.tsx",
+      "community": 95,
+      "community_name": "BookDetailPage.tsx",
       "norm_label": "seriesbulkcomposer.tsx"
     },
     {
@@ -20355,8 +20355,8 @@
       "source_location": "L8",
       "_origin": "ast",
       "id": "src_features_settings_components_seriesbulkcomposer_bulkcontenttype",
-      "community": 27,
-      "community_name": "AppButton.tsx",
+      "community": 95,
+      "community_name": "BookDetailPage.tsx",
       "norm_label": "bulkcontenttype"
     },
     {
@@ -20366,8 +20366,8 @@
       "source_location": "L10",
       "_origin": "ast",
       "id": "src_features_settings_components_seriesbulkcomposer_seriesbulkcomposerprops",
-      "community": 27,
-      "community_name": "AppButton.tsx",
+      "community": 30,
+      "community_name": "MobileAppShell.tsx",
       "norm_label": "seriesbulkcomposerprops"
     },
     {
@@ -20377,8 +20377,8 @@
       "source_location": "L19",
       "_origin": "ast",
       "id": "src_features_settings_components_seriesbulkcomposer_seriesbulkcomposer",
-      "community": 27,
-      "community_name": "AppButton.tsx",
+      "community": 95,
+      "community_name": "BookDetailPage.tsx",
       "norm_label": "seriesbulkcomposer()"
     },
     {
@@ -20586,8 +20586,8 @@
       "source_location": "L22",
       "_origin": "ast",
       "id": "src_features_settings_components_series_detail_seriescreatecontentform_seriescreatecontentformprops",
-      "community": 95,
-      "community_name": "BookDetailPage.tsx",
+      "community": 30,
+      "community_name": "MobileAppShell.tsx",
       "norm_label": "seriescreatecontentformprops"
     },
     {
@@ -23402,8 +23402,8 @@
       "source_location": "L123",
       "_origin": "ast",
       "id": "src_lib_database_bibliotecaitem",
-      "community": 80,
-      "community_name": "audit-product-voice.mjs",
+      "community": 27,
+      "community_name": "AppButton.tsx",
       "norm_label": "bibliotecaitem"
     },
     {
@@ -28451,8 +28451,8 @@
       "source_location": "L271",
       "_origin": "ast",
       "id": "src_utils_pilarrhythm_test_testdayrhythmtonemarksoverandopendays",
-      "community": 249,
-      "community_name": "Tooltip.tsx",
+      "community": 2,
+      "community_name": "DashboardPage.tsx",
       "norm_label": "testdayrhythmtonemarksoverandopendays()"
     },
     {
@@ -28803,8 +28803,8 @@
       "source_location": "L351",
       "_origin": "ast",
       "id": "src_utils_pilarrhythm_dayrhythmtone",
-      "community": 249,
-      "community_name": "Tooltip.tsx",
+      "community": 2,
+      "community_name": "DashboardPage.tsx",
       "norm_label": "dayrhythmtone"
     },
     {
@@ -29045,8 +29045,8 @@
       "source_location": "L685",
       "_origin": "ast",
       "id": "src_utils_pilarrhythm_platformtag",
-      "community": 20,
-      "community_name": "useIsMobile",
+      "community": 249,
+      "community_name": "Tooltip.tsx",
       "norm_label": "platformtag()"
     },
     {
@@ -29056,8 +29056,8 @@
       "source_location": "L695",
       "_origin": "ast",
       "id": "src_utils_pilarrhythm_formatrhythmslot",
-      "community": 2,
-      "community_name": "DashboardPage.tsx",
+      "community": 249,
+      "community_name": "Tooltip.tsx",
       "norm_label": "formatrhythmslot()"
     },
     {
@@ -38863,9 +38863,9 @@
       "file_type": "code",
       "source_file": "dev-dist/workbox-21a80088.js",
       "source_location": "L399",
-      "community": 15,
+      "community": 216,
       "norm_label": "isarray()",
-      "community_name": "ProjectDetailPage.tsx",
+      "community_name": "schema-constraints.md",
       "id": "dev_dist_workbox_21a80088_isarray"
     },
     {
@@ -38913,9 +38913,9 @@
       "file_type": "code",
       "source_file": "dev-dist/workbox-21a80088.js",
       "source_location": "L432",
-      "community": 15,
+      "community": 216,
       "norm_label": "isarrayofclass()",
-      "community_name": "ProjectDetailPage.tsx",
+      "community_name": "schema-constraints.md",
       "id": "dev_dist_workbox_21a80088_isarrayofclass"
     },
     {
@@ -39003,9 +39003,9 @@
       "file_type": "code",
       "source_file": "dev-dist/workbox-21a80088.js",
       "source_location": "L3686",
-      "community": 138,
+      "community": 15,
       "norm_label": "loggroup()",
-      "community_name": "RecordingQueueTab.tsx",
+      "community_name": "ProjectDetailPage.tsx",
       "id": "dev_dist_workbox_21a80088_loggroup"
     },
     {
@@ -42703,9 +42703,9 @@
       "file_type": "code",
       "source_file": "src/features/settings/components/SeriesBulkComposer.tsx",
       "source_location": "L36",
-      "community": 27,
+      "community": 95,
       "norm_label": "buildplatformrecord()",
-      "community_name": "AppButton.tsx",
+      "community_name": "BookDetailPage.tsx",
       "id": "src_features_settings_components_seriesbulkcomposer_buildplatformrecord"
     },
     {
@@ -42713,9 +42713,9 @@
       "file_type": "code",
       "source_file": "src/features/settings/components/SeriesBulkComposer.tsx",
       "source_location": "L92",
-      "community": 27,
+      "community": 95,
       "norm_label": "handleplatformselection()",
-      "community_name": "AppButton.tsx",
+      "community_name": "BookDetailPage.tsx",
       "id": "src_features_settings_components_seriesbulkcomposer_handleplatformselection"
     },
     {
@@ -42723,9 +42723,9 @@
       "file_type": "code",
       "source_file": "src/features/settings/components/SeriesBulkComposer.tsx",
       "source_location": "L106",
-      "community": 27,
+      "community": 95,
       "norm_label": "updatecaption()",
-      "community_name": "AppButton.tsx",
+      "community_name": "BookDetailPage.tsx",
       "id": "src_features_settings_components_seriesbulkcomposer_updatecaption"
     },
     {
@@ -42733,9 +42733,9 @@
       "file_type": "code",
       "source_file": "src/features/settings/components/SeriesBulkComposer.tsx",
       "source_location": "L118",
-      "community": 27,
+      "community": 95,
       "norm_label": "handlesave()",
-      "community_name": "AppButton.tsx",
+      "community_name": "BookDetailPage.tsx",
       "id": "src_features_settings_components_seriesbulkcomposer_handlesave"
     },
     {
@@ -42743,9 +42743,9 @@
       "file_type": "code",
       "source_file": "src/features/settings/components/SeriesBulkComposer.tsx",
       "source_location": "L170",
-      "community": 27,
+      "community": 95,
       "norm_label": "handlekeydown()",
-      "community_name": "AppButton.tsx",
+      "community_name": "BookDetailPage.tsx",
       "id": "src_features_settings_components_seriesbulkcomposer_handlekeydown"
     },
     {
@@ -42753,9 +42753,9 @@
       "file_type": "code",
       "source_file": "src/features/settings/components/SeriesBulkComposer.tsx",
       "source_location": "L195",
-      "community": 27,
+      "community": 95,
       "norm_label": "cn()",
-      "community_name": "AppButton.tsx",
+      "community_name": "BookDetailPage.tsx",
       "id": "src_features_settings_components_seriesbulkcomposer_cn"
     },
     {
@@ -43353,9 +43353,9 @@
       "file_type": "code",
       "source_file": "src/features/settings/components/SeriesBulkComposer.tsx",
       "source_location": "L48",
-      "community": 27,
+      "community": 95,
       "norm_label": "emptyrow()",
-      "community_name": "AppButton.tsx",
+      "community_name": "BookDetailPage.tsx",
       "id": "src_features_settings_components_seriesbulkcomposer_emptyrow"
     },
     {
@@ -43363,9 +43363,9 @@
       "file_type": "code",
       "source_file": "src/features/settings/components/SeriesBulkComposer.tsx",
       "source_location": "L107",
-      "community": 27,
+      "community": 95,
       "norm_label": "updaterow()",
-      "community_name": "AppButton.tsx",
+      "community_name": "BookDetailPage.tsx",
       "id": "src_features_settings_components_seriesbulkcomposer_updaterow"
     },
     {
@@ -43373,9 +43373,9 @@
       "file_type": "code",
       "source_file": "src/features/settings/components/SeriesBulkComposer.tsx",
       "source_location": "L112",
-      "community": 27,
+      "community": 95,
       "norm_label": "addrow()",
-      "community_name": "AppButton.tsx",
+      "community_name": "BookDetailPage.tsx",
       "id": "src_features_settings_components_seriesbulkcomposer_addrow"
     },
     {
@@ -43383,9 +43383,9 @@
       "file_type": "code",
       "source_file": "src/features/settings/components/SeriesBulkComposer.tsx",
       "source_location": "L116",
-      "community": 27,
+      "community": 95,
       "norm_label": "duplicaterow()",
-      "community_name": "AppButton.tsx",
+      "community_name": "BookDetailPage.tsx",
       "id": "src_features_settings_components_seriesbulkcomposer_duplicaterow"
     },
     {
@@ -43393,9 +43393,9 @@
       "file_type": "code",
       "source_file": "src/features/settings/components/SeriesBulkComposer.tsx",
       "source_location": "L128",
-      "community": 27,
+      "community": 95,
       "norm_label": "removerow()",
-      "community_name": "AppButton.tsx",
+      "community_name": "BookDetailPage.tsx",
       "id": "src_features_settings_components_seriesbulkcomposer_removerow"
     },
     {
@@ -43403,9 +43403,9 @@
       "file_type": "code",
       "source_file": "src/features/settings/components/SeriesBulkComposer.tsx",
       "source_location": "L135",
-      "community": 27,
+      "community": 95,
       "norm_label": "expandonly()",
-      "community_name": "AppButton.tsx",
+      "community_name": "BookDetailPage.tsx",
       "id": "src_features_settings_components_seriesbulkcomposer_expandonly"
     },
     {
@@ -43413,9 +43413,9 @@
       "file_type": "code",
       "source_file": "src/features/settings/components/SeriesBulkComposer.tsx",
       "source_location": "L139",
-      "community": 27,
+      "community": 95,
       "norm_label": "handlecreate()",
-      "community_name": "AppButton.tsx",
+      "community_name": "BookDetailPage.tsx",
       "id": "src_features_settings_components_seriesbulkcomposer_handlecreate"
     },
     {
@@ -84273,7 +84273,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/features/captions/components/CaptionQuickCard.tsx",
-      "source_location": "L430",
+      "source_location": "L436",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_features_captions_components_captionquickcard",
@@ -84284,7 +84284,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/features/captions/components/CaptionQuickCard.tsx",
-      "source_location": "L420",
+      "source_location": "L426",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_features_captions_components_captionquickcard",
@@ -84306,7 +84306,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/features/captions/components/CaptionQuickCard.tsx",
-      "source_location": "L366",
+      "source_location": "L372",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_features_captions_components_captionquickcard",
@@ -84730,7 +84730,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "src/features/captions/components/CaptionQuickCard.tsx",
-      "source_location": "L311",
+      "source_location": "L292",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_features_captions_components_captionquickcard_captiongridrow",
@@ -84826,7 +84826,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "src/features/captions/components/CaptionQuickCard.tsx",
-      "source_location": "L385",
+      "source_location": "L391",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_features_captions_components_captionquickcard_captionhashtagsources",
@@ -84863,7 +84863,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/features/captions/components/CaptionQuickCard.tsx",
-      "source_location": "L313",
+      "source_location": "L294",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_features_captions_components_captionquickcard_captiongridrow",
@@ -84911,7 +84911,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/features/captions/components/CaptionQuickCard.tsx",
-      "source_location": "L342",
+      "source_location": "L327",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_features_captions_components_captionquickcard_captiongridrow",
@@ -84995,7 +84995,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/features/captions/components/CaptionQuickCard.tsx",
-      "source_location": "L381",
+      "source_location": "L387",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_features_captions_components_captionquickcard_captionhashtagsources",

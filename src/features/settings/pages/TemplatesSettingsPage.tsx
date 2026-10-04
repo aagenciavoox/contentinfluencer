@@ -335,7 +335,7 @@ export function TemplatesSettingsPage({
                     {selectedTemplate.nome}
                   </Text>
                   <p className="mt-2 text-sm text-[var(--text-secondary)]">
-                    Edite contexto e estrutura no mesmo modal, sem etapa intermediária de visualização.
+                    Defina onde o template vale e monte os blocos do roteiro.
                   </p>
                 </div>
                 <button
@@ -431,7 +431,7 @@ export function TemplatesSettingsPage({
                       Blocos
                     </p>
                     <span className="text-xs font-bold text-[var(--text-secondary)]">
-                      {selectedTemplate.estrutura.length} itens
+                      {selectedTemplate.estrutura.length === 1 ? '1 bloco' : `${selectedTemplate.estrutura.length} blocos`}
                     </span>
                   </div>
 
@@ -479,7 +479,7 @@ export function TemplatesSettingsPage({
                                     : 'bg-orange-400/10 text-orange-400'
                                 )}
                               >
-                                {bloco.tipo}
+                                {bloco.tipo === 'fixo' ? 'Fixo' : 'Variável'}
                               </span>
                             </div>
                             <p className="mt-2 line-clamp-2 whitespace-pre-wrap text-xs leading-relaxed text-[var(--text-secondary)]">
@@ -499,7 +499,7 @@ export function TemplatesSettingsPage({
                       onChange={event => setNovoBlocoLabel(event.target.value)}
                       onKeyDown={event => event.key === 'Enter' && addBloco()}
                       placeholder="Novo bloco"
-                      className="flex-1 rounded-lg border border-[var(--border-color)] bg-[var(--bg-primary)] px-3 py-2 text-sm font-bold text-[var(--text-primary)] placeholder:opacity-30 focus:outline-none"
+                      className="flex-1 rounded-lg border border-[var(--border-color)] bg-[var(--bg-primary)] px-3 py-2 text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none"
                     />
                     <select
                       value={novoBlocoTipo}
@@ -512,6 +512,7 @@ export function TemplatesSettingsPage({
                     <button
                       onClick={addBloco}
                       disabled={!novoBlocoLabel.trim()}
+                      aria-label="Adicionar bloco"
                       className="rounded-lg bg-[var(--text-primary)] p-2 text-[var(--bg-primary)] hover:opacity-90 disabled:opacity-30"
                     >
                       <Plus className="h-4 w-4" />
@@ -532,7 +533,7 @@ export function TemplatesSettingsPage({
 
                     <div className="stack-sm">
                       <label className="text-xs font-semibold  text-[var(--text-tertiary)]">
-                        Label
+                        Nome do bloco
                       </label>
                       <input
                         value={blocoEditor.label}
@@ -554,11 +555,11 @@ export function TemplatesSettingsPage({
                         }
                         placeholder={
                           editingBloco.tipo === 'fixo'
-                            ? 'Escreva o conteúdo base deste bloco...'
-                            : 'Explique o que entra neste bloco...'
+                            ? 'Escreva o conteúdo base deste bloco…'
+                            : 'Explique o que entra neste bloco…'
                         }
                         rows={editingBloco.tipo === 'fixo' ? 16 : 12}
-                        className="min-h-[340px] w-full resize-y rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-4 text-sm leading-7 text-[var(--text-primary)] placeholder:opacity-30 focus:outline-none"
+                        className="min-h-[340px] w-full resize-y rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-4 text-sm leading-7 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none"
                       />
                     </div>
 
@@ -583,11 +584,11 @@ export function TemplatesSettingsPage({
                   <div className="flex h-full min-h-[420px] items-center justify-center rounded-[var(--radius-card-mobile)] border border-dashed border-[var(--border-color)] bg-[var(--bg-secondary)] px-8 text-center">
                     <div className="stack-md">
                       <Layout className="mx-auto h-10 w-10 opacity-20" />
-                      <p className="text-sm font-semibold  text-[var(--text-primary)] opacity-40">
+                      <Text variant="bodyStrong">
                         Selecione um bloco
-                      </p>
+                      </Text>
                       <p className="text-sm text-[var(--text-secondary)]">
-                        Clique em qualquer bloco da coluna lateral para abrir a edição direta neste modal.
+                        Escolha um bloco à esquerda para editar.
                       </p>
                     </div>
                   </div>
@@ -635,13 +636,13 @@ export function TemplatesSettingsPage({
     <>
         {showNewForm && (
           <div className="stack-md rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-primary)] p-6">
-            <p className="text-xs font-semibold  opacity-40">Novo template</p>
+            <Text variant="eyebrow">Novo template</Text>
             <input
               autoFocus
               value={novoNome}
               onChange={event => setNovoNome(event.target.value)}
               placeholder="Nome do template"
-              className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] placeholder:opacity-30 focus:outline-none"
+              className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none"
             />
             <div className="flex flex-wrap gap-3">
               {lockedSeriesId ? null : (
@@ -683,19 +684,19 @@ export function TemplatesSettingsPage({
               </select>
             </div>
             <div className="flex gap-3">
-              <button
+              <AppButton
                 onClick={handleCreateTemplate}
                 disabled={!novoNome.trim()}
-                className="rounded-xl bg-[var(--text-primary)] px-6 py-2.5 text-xs font-semibold  text-[var(--bg-primary)] hover:opacity-90 disabled:opacity-30"
+                variant="primary"
               >
-                Criar
-              </button>
-              <button
+                Criar template
+              </AppButton>
+              <AppButton
                 onClick={() => setShowNewForm(false)}
-                className="rounded-xl border border-[var(--border-color)] px-6 py-2.5 text-xs font-semibold  opacity-50 hover:opacity-80"
+                variant="secondary"
               >
                 Cancelar
-              </button>
+              </AppButton>
             </div>
           </div>
         )}
@@ -743,7 +744,7 @@ export function TemplatesSettingsPage({
                     <div>
                       <p className="text-base font-semibold text-[var(--text-primary)]">{template.nome}</p>
                       <p className="mt-1 text-sm text-[var(--text-secondary)]">
-                        {template.estrutura.length} bloco{template.estrutura.length === 1 ? '' : 's'} estruturado{template.estrutura.length === 1 ? '' : 's'}
+                        {template.estrutura.length === 1 ? '1 bloco' : `${template.estrutura.length} blocos`}
                       </p>
                     </div>
                   </div>
@@ -801,7 +802,7 @@ export function TemplatesSettingsPage({
             backTo="/configuracoes"
             actions={
               <AppButton variant="primary" size="sm" onClick={() => setShowNewForm(true)} leftIcon={<Plus className="h-4 w-4" />}>
-                Novo
+                Novo template
               </AppButton>
             }
           />

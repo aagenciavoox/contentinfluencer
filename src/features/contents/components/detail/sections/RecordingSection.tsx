@@ -58,16 +58,16 @@ export function RecordingSection({
       <section className="rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-6 md:p-6">
         <p className="t-label t-label-uppercase font-semibold text-[var(--text-tertiary)]">Bloco</p>
         <Text variant="sectionTitle" className="mt-2">
-          {blockSummary ? blockSummary.block.name : 'Sem bloco atribuido'}
+          {blockSummary ? blockSummary.block.name : 'Sem bloco atribuído'}
         </Text>
 
         {blockSummary ? (
           <div className="mt-4 stack-lg">
             <p className="text-sm text-[var(--text-secondary)]">
-              Ordem {blockSummary.order ?? '-'} de {blockSummary.total} · {blockSummary.progressPercentage}% concluido
+              Ordem {blockSummary.order ?? '-'} de {blockSummary.total} · {blockSummary.progressPercentage}% concluído
             </p>
             <p className="text-sm font-semibold text-[var(--text-primary)]">
-              Status: {isRecorded ? 'Gravado' : 'Em execucao'}
+              Status: {isRecorded ? 'Gravado' : 'Em execução'}
             </p>
             <div className="flex flex-wrap gap-3">
               <AppButton
@@ -82,7 +82,7 @@ export function RecordingSection({
                 leftIcon={<Layers3 className="h-4 w-4" />}
                 onClick={() => navigate(`/gravacao/${blockSummary.block.id}?burst=1`)}
               >
-                Iniciar modo gravacao
+                Iniciar modo gravação
               </AppButton>
               {!isRecorded ? (
                 <AppButton
@@ -90,7 +90,7 @@ export function RecordingSection({
                   leftIcon={<CheckCircle2 className="h-4 w-4" />}
                   onClick={() => void markRecorded()}
                 >
-                  Marcar gravado
+                  Marcar como gravado
                 </AppButton>
               ) : null}
             </div>
@@ -98,7 +98,7 @@ export function RecordingSection({
         ) : (
           <div className="mt-4 stack-lg">
             <p className="text-sm text-[var(--text-secondary)]">
-              Guarde este conteudo em um bloco para montar a sessao de gravacao.
+              Guarde este roteiro em um bloco para montar a sessão de gravação.
             </p>
             <div className="flex flex-wrap gap-3">
               {onOpenBlockSheet ? (
@@ -107,7 +107,7 @@ export function RecordingSection({
                   leftIcon={<Clapperboard className="h-4 w-4" />}
                   onClick={onOpenBlockSheet}
                 >
-                  Salvar no bloco de gravação
+                  Adicionar ao bloco
                 </AppButton>
               ) : null}
               <AppButton
@@ -115,7 +115,7 @@ export function RecordingSection({
                 leftIcon={<Clapperboard className="h-4 w-4" />}
                 onClick={() => navigate('/gravacao?tab=queue')}
               >
-                Ir para Gravacao
+                Ir para Gravação
               </AppButton>
             </div>
           </div>
@@ -127,7 +127,7 @@ export function RecordingSection({
           leftIcon={<ExternalLink className="h-4 w-4" />}
           onClick={() => navigate('/gravacao?tab=blocks')}
         >
-          Ver blocos de gravacao
+          Ver blocos de gravação
         </AppButton>
       </section>
     </div>

@@ -16,7 +16,7 @@ export function ContentHistoryPanel({content, defaultOpen = false}: ContentHisto
       <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-4 py-3">
         <span className="inline-flex items-center gap-2 text-xs font-semibold  text-[var(--text-tertiary)]">
           <History className="h-4 w-4" />
-          Historico
+          Histórico
         </span>
         <ChevronDown className="h-4 w-4 text-[var(--text-tertiary)]" />
       </summary>

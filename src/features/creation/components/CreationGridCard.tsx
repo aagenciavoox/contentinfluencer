@@ -106,7 +106,8 @@ export function CreationGridCard({
                 />
               </span>
             ) : null}
-            <span>
+            {/* `.card-actions`: aparece no hover/foco do card; fica visível no toque, com o menu aberto ou com o card selecionado. */}
+            <span className="card-actions" data-open={selected ? 'true' : undefined}>
               <CreationItemMenu
                 items={menuItems}
                 label={`Ações de ${title}`}
@@ -145,13 +146,20 @@ export function CreationGridCard({
           ) : null}
         </div>
 
-        {tags.length > 0 || footerMeta ? (
+        {(!hasMarks && tags.length > 0) || footerMeta ? (
           <div className="creation-hub-card__footer flex min-h-6 items-center justify-between gap-4">
-            {tags.length > 0 ? (
+            {!hasMarks && tags.length > 0 ? (
               <CreationCategoryLabel label={tags[0]} extraCount={tags.length - 1} />
             ) : <span aria-hidden />}
             {footerMeta ? (
-              <Text variant="meta" as="span" className="max-w-[45%] truncate text-right text-2xs text-[var(--text-tertiary)]">
+              <Text
+                variant="meta"
+                as="span"
+                className={cn(
+                  'truncate text-right text-2xs text-[var(--text-tertiary)]',
+                  tags.length > 0 ? 'max-w-[60%] shrink-0' : 'max-w-full',
+                )}
+              >
                 {footerMeta}
               </Text>
             ) : null}

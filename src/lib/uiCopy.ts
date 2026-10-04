@@ -45,7 +45,7 @@ export const CONFIRM = {
   },
   excluirTemplate: {
     message:
-      'Excluir template? Roteiros já criados com ele continuam salvos, mas novos roteiros não usarão este modelo.',
+      'Excluir template? Roteiros já criados com ele continuam salvos, mas novos roteiros não usarão este template.',
     confirmLabel: 'Excluir template',
     cancelLabel: 'Manter template',
   },
@@ -61,13 +61,18 @@ export const CONFIRM = {
     cancelLabel: 'Manter projeto',
   }),
   excluirRoteiros: (count: number) => ({
-    message: `Mover ${count} roteiro${count === 1 ? '' : 's'} para a lixeira? ${count === 1 ? 'Ele poderá' : 'Eles poderão'} ser restaurado${count === 1 ? '' : 's'} depois.`,
+    message:
+      count === 1
+        ? 'Mover 1 roteiro para a lixeira? Ele poderá ser restaurado depois.'
+        : `Mover ${count} roteiros para a lixeira? Eles poderão ser restaurados depois.`,
     confirmLabel: count === 1 ? 'Mover para a lixeira' : `Mover ${count} para a lixeira`,
     cancelLabel: 'Manter seleção',
   }),
   moverParaIdeias: (count: number) => ({
     message:
-      `Mover ${count} roteiro${count === 1 ? '' : 's'} para Ideias? ${count === 1 ? 'Ele sai' : 'Eles saem'} da lista editorial e ${count === 1 ? 'volta' : 'voltam'} ao inbox. O texto editado é preservado. Se ${count === 1 ? 'estiver' : 'estiverem'} em bloco de gravação, ${count === 1 ? 'sai' : 'saem'} dele.`,
+      count === 1
+        ? 'Mover 1 roteiro para Ideias? Ele sai da lista editorial e volta para Ideias. O texto editado é preservado. Se estiver em bloco de gravação, sai dele.'
+        : `Mover ${count} roteiros para Ideias? Eles saem da lista editorial e voltam para Ideias. O texto editado é preservado. Se estiverem em bloco de gravação, saem dele.`,
     confirmLabel: count === 1 ? 'Mover para Ideias' : `Mover ${count} para Ideias`,
     cancelLabel: 'Manter como roteiro',
   }),
@@ -77,8 +82,8 @@ export const CONFIRM = {
     cancelLabel: 'Manter ideia',
   },
   promoverIdeia: {
-    message: 'Transformar esta ideia em roteiro? Ela sai do inbox e abre no editor.',
-    confirmLabel: 'Promover para roteiro',
+    message: 'Transformar esta ideia em roteiro? Ela sai de Ideias e abre no editor.',
+    confirmLabel: 'Transformar em roteiro',
     cancelLabel: 'Manter como ideia',
   },
   excluirBiblioteca: (titulo: string) => ({
@@ -117,21 +122,22 @@ export const ERRORS = {
     'Não foi possível importar todos os roteiros. Tente novamente.',
   autenticacao:
     'Não foi possível entrar. Confira e-mail e senha ou tente novamente.',
-  supabaseDesconectado: 'Conecte o Supabase para alterar dados da conta.',
+  supabaseDesconectado:
+    'Sem conexão com o servidor. Recarregue a página para alterar dados da conta.',
 } as const;
 
 // ─── Loading / saving ─────────────────────────────────────────────────────────
 
 export const LOADING = {
-  area: 'Carregando área...',
-  dados: 'Carregando seus dados...',
-  serie: 'Carregando série...',
-  salvandoAlteracoes: 'Salvando alterações...',
-  importandoRoteiros: (count: number) => `Importando ${count} roteiros...`,
-  montandoBloco: 'Montando bloco de gravação...',
-  criandoRoteiro: 'Criando roteiro...',
-  salvandoRoteiro: 'Salvando roteiro...',
-  salvando: 'Salvando...',
+  area: 'Carregando área…',
+  dados: 'Carregando seus dados…',
+  serie: 'Carregando série…',
+  salvandoAlteracoes: 'Salvando alterações…',
+  importandoRoteiros: (count: number) => `Importando ${count} roteiros…`,
+  montandoBloco: 'Montando bloco de gravação…',
+  criandoRoteiro: 'Criando roteiro…',
+  salvandoRoteiro: 'Salvando roteiro…',
+  salvando: 'Salvando…',
 } as const;
 
 // ─── Empty states ─────────────────────────────────────────────────────────────
@@ -148,7 +154,7 @@ export const EMPTY = {
   },
   ideias: {
     title: 'Nenhuma ideia na caixa de entrada',
-    description: 'Capture uma nota rápida quando algo aparecer.',
+    description: 'Capture uma ideia rápida quando algo aparecer.',
   },
   ideiasArquivadas: {
     title: 'Nenhuma ideia arquivada',
@@ -179,7 +185,7 @@ export const EMPTY = {
   },
   templates: {
     title: 'Nenhum template ainda',
-    description: 'Crie um modelo para reutilizar estruturas de roteiro.',
+    description: 'Crie um template para reutilizar estruturas de roteiro.',
   },
   dashboardSpotlight: {
     title: 'Nada chamando atenção agora',

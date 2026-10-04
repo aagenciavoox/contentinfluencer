@@ -106,7 +106,7 @@ export function IdeaQuickCapture({
           type="button"
           onClick={() => setOpenMeta(isOpen ? null : field)}
           className={cn(
-            'inline-flex max-w-full items-center gap-1 rounded-[var(--radius-pill)] border px-2 py-1 text-xs font-medium transition-colors',
+            'inline-flex min-h-11 max-w-full items-center gap-1 rounded-[var(--radius-pill)] border px-2 py-1 text-xs font-medium transition-colors md:min-h-0',
             filled
               ? 'border-transparent'
               : 'border-dashed border-[var(--border-color)] text-[var(--text-tertiary)] hover:border-[var(--border-strong)] hover:text-[var(--text-secondary)]',
@@ -221,7 +221,7 @@ export function IdeaQuickCapture({
           <button
             type="button"
             onClick={expandCapture}
-            className="shrink-0 rounded-md px-2 py-1.5 text-xs font-medium text-[var(--text-tertiary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--accent-blue)]"
+            className="min-h-11 shrink-0 rounded-md px-2 py-1.5 text-xs font-medium text-[var(--text-tertiary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--accent-blue)] md:min-h-0"
           >
             Observações
           </button>
@@ -279,6 +279,7 @@ export function IdeaQuickCapture({
           size="sm"
           onClick={onSave}
           disabled={!canSave}
+          disabledReason="Escreva um título para salvar a ideia."
           leftIcon={<CornerDownLeft className="h-3.5 w-3.5" />}
           className="shrink-0"
         >

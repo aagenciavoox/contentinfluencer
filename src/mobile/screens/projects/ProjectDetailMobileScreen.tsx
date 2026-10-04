@@ -3,18 +3,21 @@ import {
   CalendarDays,
   ClipboardList,
   Link2,
-  Pencil,
   Plus,
   Trash2,
 } from 'lucide-react';
 import { BottomSheetModal } from '../../../components/feedback/modals/BottomSheetModal';
 import { AppButton } from '../../../components/ui/AppButton';
+import { Badge } from '../../../components/ui/Badge';
+import { MoreMenu } from '../../../components/ui/MoreMenu';
+import { TagSelect } from '../../../components/ui/TagSelect';
 import { Text } from '../../../components/ui/Text';
 import type { AgendaItem, Content, Projeto } from '../../../lib/database';
 import { cn } from '../../../lib/utils';
 import { PostingTimeSuggestions } from '../../../features/settings/components/PostingTimeSuggestions';
 import type { PostingTimesSettings } from '../../../features/settings/lib/postingTimes';
 import { EmptyState } from '../../../components/ui/EmptyState';
+import { PROJECT_STATUS_LABEL } from '../../../features/projects/pages/ProjectsPage';
 import { MobileListCard } from '../../components/MobileListCard';
 import { MobileSegmentTabs } from '../../components/MobileSegmentTabs';
 
@@ -28,9 +31,29 @@ const PROJECT_COLORS = [
 
 const TIPO_AGENDA: AgendaItem['tipo'][] = ['Reunião', 'Entrega', 'Publicação', 'Outro'];
 
+function localTodayKey() {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+}
+
 function formatDate(value: string | null) {
   if (!value) return '--';
+  const [year, month, day] = value.split('-');
+  if (year && month && day) return `${day}/${month}/${year}`;
   return new Date(value).toLocaleDateString('pt-BR');
+}
+
+function formatDayMonth(value: string) {
+  const [, month, day] = value.split('-');
+  if (month && day) return `${day}/${month}`;
+  return formatDate(value);
+}
+
+function resolveEventHighlight(agendaItems: AgendaItem[]) {
+  const today = localTodayKey();
+  const proximoEvento = agendaItems.find(item => item.date >= today) ?? null;
+  const ultimoEvento = [...agendaItems].reverse().find(item => item.date < today) ?? null;
+  return { proximoEvento, ultimoEvento };
 }
 
 export interface ProjectDetailEditFields {
@@ -47,7 +70,6 @@ export interface ProjectDetailMobileScreenProps {
   agendaItems: AgendaItem[];
   projetoContents: Content[];
   disponiveisParaVincular: Content[];
-  proximoEvento: AgendaItem | null;
   postingTimes: PostingTimesSettings;
   isEditing: boolean;
   editFields: ProjectDetailEditFields;
@@ -79,7 +101,6 @@ export function ProjectDetailMobileScreen({
   agendaItems,
   projetoContents,
   disponiveisParaVincular,
-  proximoEvento,
   postingTimes,
   isEditing,
   editFields,
@@ -109,7 +130,11 @@ export function ProjectDetailMobileScreen({
   const [linkSheetOpen, setLinkSheetOpen] = useState(false);
   const [selectedContentId, setSelectedContentId] = useState('');
 
-  const projectColor = projeto.color || '#78716c';
+  const { proximoEvento, ultimoEvento } = resolveEventHighlight(agendaItems);
+  const statusLabel = PROJECT_STATUS_LABEL[projeto.status] ?? projeto.status;
+  const formattedValue = projeto.value
+    ? projeto.value.toLocaleString('pt-BR', { style: 'currency', currency: projeto.currency || 'BRL' })
+    : '--';
 
   const tabAction = (() => {
     if (activeTab === 'eventos') {
@@ -122,12 +147,12 @@ export function ProjectDetailMobileScreen({
     return (
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         {disponiveisParaVincular.length > 0 ? (
-          <AppButton variant="primary" fullWidth onClick={() => setLinkSheetOpen(true)} leftIcon={<Link2 className="h-4 w-4" />}>
+          <AppButton variant="secondary" fullWidth onClick={() => setLinkSheetOpen(true)} leftIcon={<Link2 className="h-4 w-4" />}>
             Vincular existente
           </AppButton>
         ) : null}
-        <AppButton variant="primary" fullWidth onClick={onCreateContent} leftIcon={<Plus className="h-4 w-4" />}>
-          Criar conteudo
+        <AppButton variant="secondary" fullWidth onClick={onCreateContent} leftIcon={<Plus className="h-4 w-4" />}>
+          Criar roteiro
         </AppButton>
       </div>
     );
@@ -135,49 +160,52 @@ export function ProjectDetailMobileScreen({
 
   return (
     <div className="stack-lg pb-8">
-      {/* Header do projeto */}
       <section className="rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4">
         <div className="mb-4 flex items-start gap-3">
-          <div
-            className="mt-0.5 h-11 w-11 shrink-0 rounded-[var(--radius-card-mobile)]"
-            style={{ backgroundColor: projectColor }}
-          />
           <div className="min-w-0 flex-1">
             <Text variant="sectionTitle" as="p" className="truncate">{projeto.nome}</Text>
-            {projeto.brand ? (
-              <p className="mt-1 text-xs text-[var(--text-secondary)]">{projeto.brand}</p>
-            ) : null}
-            {projeto.value ? (
-              <p className="mt-1 text-xs text-[var(--text-tertiary)]">
-                {projeto.value.toLocaleString('pt-BR', { style: 'currency', currency: projeto.currency || 'BRL' })}
-              </p>
-            ) : null}
+            <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-2">
+              {projeto.brand ? (
+                <Text variant="label">{projeto.brand}</Text>
+              ) : null}
+              {projeto.status ? (
+                <Badge variant="neutral">{statusLabel}</Badge>
+              ) : null}
+            </div>
           </div>
-          <button
-            type="button"
-            onClick={onStartEditing}
-            className="flex min-h-11 min-w-11 items-center justify-center rounded-[var(--radius-card)] border border-[var(--border-color)] text-[var(--text-secondary)]"
-            aria-label="Editar projeto"
-          >
-            <Pencil className="h-4 w-4" />
-          </button>
+          <MoreMenu
+            label="Mais opções do projeto"
+            triggerClassName="min-h-11 min-w-11"
+            items={[
+              { id: 'edit', label: 'Editar', onClick: onStartEditing },
+              { id: 'delete', label: 'Excluir', onClick: onDeleteProjeto, tone: 'danger' },
+            ]}
+          />
         </div>
 
-        <div className="grid-metrics">
+        <div className="grid-metrics-3">
           <div className="rounded-[1.2rem] bg-[var(--bg-hover)] px-3 py-3">
-            <p className="t-label text-[var(--text-tertiary)]">Eventos</p>
+            <Text variant="label">Eventos</Text>
             <Text variant="sectionTitle" as="p" className="mt-1 tabular-nums">{agendaItems.length}</Text>
           </div>
           <div className="rounded-[1.2rem] bg-[var(--bg-hover)] px-3 py-3">
-            <p className="t-label text-[var(--text-tertiary)]">Conteúdos</p>
+            <Text variant="label">Roteiros</Text>
             <Text variant="sectionTitle" as="p" className="mt-1 tabular-nums">{projetoContents.length}</Text>
+          </div>
+          <div className="rounded-[1.2rem] bg-[var(--bg-hover)] px-3 py-3">
+            <Text variant="label">Valor</Text>
+            <Text variant="sectionTitle" as="p" className="mt-1 tabular-nums">{formattedValue}</Text>
           </div>
         </div>
 
         {proximoEvento ? (
-          <div className="mt-3 rounded-[1.2rem] bg-[var(--bg-hover)] px-3 py-3 text-xs text-[var(--text-secondary)]">
+          <Text variant="secondary" className="mt-3 rounded-[1.2rem] bg-[var(--bg-hover)] px-3 py-3">
             Próximo: {proximoEvento.title} em {formatDate(proximoEvento.date)}
-          </div>
+          </Text>
+        ) : ultimoEvento ? (
+          <Text variant="secondary" className="mt-3 rounded-[1.2rem] bg-[var(--bg-hover)] px-3 py-3">
+            Último: {formatDayMonth(ultimoEvento.date)}
+          </Text>
         ) : null}
       </section>
 
@@ -185,7 +213,7 @@ export function ProjectDetailMobileScreen({
         rounded="tight"
         tabs={[
           { value: 'eventos', label: 'Eventos', count: agendaItems.length },
-          { value: 'conteudos', label: 'Conteudos', count: projetoContents.length },
+          { value: 'conteudos', label: 'Roteiros', count: projetoContents.length },
         ]}
         value={activeTab}
         onChange={value => setActiveTab(value as ProjectDetailTab)}
@@ -196,7 +224,7 @@ export function ProjectDetailMobileScreen({
           {agendaItems.length === 0 ? (
             <EmptyState compact
               title="Nenhum evento ainda"
-              description="Adicione reunioes, entregas e publicacoes. Tudo vai aparecer no calendario."
+              description="Adicione reuniões, entregas e publicações. Tudo vai aparecer no calendário."
               action={tabAction}
               icon={<CalendarDays className="h-8 w-8" />}
             />
@@ -209,14 +237,15 @@ export function ProjectDetailMobileScreen({
                   title={item.title}
                   description={`${formatDate(item.date)}${item.time ? ` · ${item.time}` : ''}`}
                   trailing={
-                    <button
-                      type="button"
+                    <AppButton
+                      variant="ghost"
+                      iconOnly
                       onClick={() => onDeleteAgendaItem(item.id)}
-                      className="p-2 opacity-30 transition-all hover:text-red-400 hover:opacity-60"
                       aria-label="Remover evento"
+                      leftIcon={<Trash2 className="h-4 w-4" />}
                     >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
+                      Remover
+                    </AppButton>
                   }
                 />
               ))}
@@ -230,8 +259,8 @@ export function ProjectDetailMobileScreen({
         <section className="stack-md">
           {projetoContents.length === 0 ? (
             <EmptyState compact
-              title="Nenhum conteudo vinculado"
-              description="Vincule ideias ja existentes ou crie novos conteudos para este projeto."
+              title="Nenhum roteiro vinculado"
+              description="Vincule ideias já existentes ou crie novos roteiros para este projeto."
               action={tabAction}
               icon={<ClipboardList className="h-8 w-8" />}
             />
@@ -240,31 +269,31 @@ export function ProjectDetailMobileScreen({
               {projetoContents.map(content => (
                 <MobileListCard
                   key={content.id}
-                  title={content.title || '(sem titulo)'}
+                  title={content.title || '(sem título)'}
                   description={content.status}
                   meta={
                     <>
                       {content.publishDate ? (
                         <span className="rounded-full bg-[var(--bg-hover)] px-3 py-1 text-xs font-semibold text-[var(--text-secondary)]">
-                          Publicacao: {formatDate(content.publishDate)}
+                          Publicação: {formatDate(content.publishDate)}
                         </span>
                       ) : null}
                       {content.recordingDate ? (
                         <span className="rounded-full bg-[var(--bg-hover)] px-3 py-1 text-xs font-semibold text-[var(--text-secondary)]">
-                          Gravacao: {formatDate(content.recordingDate)}
+                          Gravação: {formatDate(content.recordingDate)}
                         </span>
                       ) : null}
                     </>
                   }
                   trailing={
-                    <button
-                      type="button"
+                    <AppButton
+                      variant="secondary"
+                      size="sm"
                       onClick={() => onOpenContent(content.id)}
-                      className="inline-flex min-h-11 items-center gap-1 rounded-[var(--radius-card)] border border-[var(--border-color)] px-3 text-xs font-semibold text-[var(--text-primary)]"
+                      leftIcon={<Link2 className="h-3.5 w-3.5" />}
                     >
-                      <Link2 className="h-3.5 w-3.5" />
                       Abrir
-                    </button>
+                    </AppButton>
                   }
                 />
               ))}
@@ -274,7 +303,6 @@ export function ProjectDetailMobileScreen({
         </section>
       )}
 
-      {/* Edit sheet */}
       <BottomSheetModal open={isEditing} onClose={onCancelEdit} desktopMaxW="max-w-xl" zIndex="z-[110]">
         <div className="border-b border-[var(--border-color)] px-4 py-3">
           <Text variant="sectionTitle">Editar projeto</Text>
@@ -301,7 +329,7 @@ export function ProjectDetailMobileScreen({
             className="w-full"
           />
           <div>
-            <p className="mb-2 t-label text-[var(--text-tertiary)]">Cor do projeto</p>
+            <Text variant="label" className="mb-2 block">Cor do projeto</Text>
             <div className="flex flex-wrap gap-2">
               {PROJECT_COLORS.map(color => (
                 <button
@@ -332,18 +360,10 @@ export function ProjectDetailMobileScreen({
             <AppButton variant="secondary" onClick={onCancelEdit} className="min-h-11 w-full justify-center">
               Cancelar
             </AppButton>
-            <button
-              type="button"
-              onClick={onDeleteProjeto}
-              className="min-h-11 w-full rounded-[var(--radius-card)] border border-red-500/30 text-xs font-semibold text-red-400 transition-colors hover:bg-red-500/10"
-            >
-              Excluir projeto
-            </button>
           </div>
         </div>
       </BottomSheetModal>
 
-      {/* Novo evento sheet */}
       <BottomSheetModal open={showAgendaForm} onClose={onCloseAgendaForm} desktopMaxW="max-w-xl" zIndex="z-[110]">
         <div className="border-b border-[var(--border-color)] px-4 py-3">
           <Text variant="sectionTitle">Novo evento</Text>
@@ -353,11 +373,11 @@ export function ProjectDetailMobileScreen({
             autoFocus
             value={agendaTitle}
             onChange={event => onAgendaTitleChange(event.target.value)}
-            placeholder="Titulo do evento"
+            placeholder="Título do evento"
             className="w-full"
           />
           <label className="block space-y-1.5">
-            <span className="t-label text-[var(--text-tertiary)]">Data</span>
+            <Text variant="label">Data</Text>
             <input
               type="date"
               value={agendaDate}
@@ -366,7 +386,7 @@ export function ProjectDetailMobileScreen({
             />
           </label>
           <label className="block space-y-1.5">
-            <span className="t-label text-[var(--text-tertiary)]">Horario</span>
+            <Text variant="label">Horário</Text>
             <input
               type="time"
               value={agendaTime}
@@ -380,37 +400,35 @@ export function ProjectDetailMobileScreen({
               onSelect={onAgendaTimeChange}
             />
           </label>
-          <label className="block space-y-1.5">
-            <span className="t-label text-[var(--text-tertiary)]">Tipo</span>
-            <select value={agendaTipo} onChange={event => onAgendaTipoChange(event.target.value as AgendaItem['tipo'])}>
-              {TIPO_AGENDA.map(tipo => (
-                <option key={tipo} value={tipo}>{tipo}</option>
-              ))}
-            </select>
-          </label>
+          <TagSelect
+            label="Tipo"
+            values={[agendaTipo]}
+            onChange={values => onAgendaTipoChange((values[0] ?? 'Reunião') as AgendaItem['tipo'])}
+            options={TIPO_AGENDA.map(tipo => ({value: tipo, label: tipo}))}
+            maxSelections={1}
+          />
           <AppButton variant="primary" onClick={onAddAgenda} className="min-h-11 w-full justify-center">
             Adicionar evento
           </AppButton>
         </div>
       </BottomSheetModal>
 
-      {/* Vincular conteudo sheet */}
       <BottomSheetModal open={linkSheetOpen} onClose={() => setLinkSheetOpen(false)} desktopMaxW="max-w-xl" zIndex="z-[110]">
         <div className="border-b border-[var(--border-color)] px-4 py-3">
-          <Text variant="sectionTitle">Vincular conteudo</Text>
+          <Text variant="sectionTitle">Vincular roteiro</Text>
         </div>
         <div className="stack-lg px-4 pb-safe">
-          <select
-            value={selectedContentId}
-            onChange={event => setSelectedContentId(event.target.value)}
-          >
-            <option value="">Escolha um conteudo...</option>
-            {disponiveisParaVincular.map(content => (
-              <option key={content.id} value={content.id}>
-                {content.title || '(sem titulo)'}
-              </option>
-            ))}
-          </select>
+          <TagSelect
+            label="Vincular existente"
+            values={selectedContentId ? [selectedContentId] : []}
+            onChange={values => setSelectedContentId(values[0] ?? '')}
+            options={disponiveisParaVincular.map(content => ({
+              value: content.id,
+              label: content.title || '(sem título)',
+            }))}
+            maxSelections={1}
+            placeholder="Escolha um roteiro…"
+          />
           <AppButton
             variant="primary"
             disabled={!selectedContentId}

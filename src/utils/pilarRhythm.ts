@@ -102,7 +102,7 @@ function serieWindowDays(frequencia: string | null | undefined): number | null {
 }
 
 function windowLabel(dayCount: number): string {
-  if (dayCount === 7) return 'esta semana';
+  if (dayCount === 7) return 'nesta semana';
   if (dayCount === 14) return 'nos últimos 14 dias';
   if (dayCount === 28) return 'nos últimos 28 dias';
   return 'no período';
@@ -126,7 +126,7 @@ function validatePilarFrequency(
         violations.push({
           ruleId: `pilar-${pilar.id}-frequency`,
           type: 'warning',
-          message: `${pilar.nome}: ${count} posts esta semana, acima da frequência de ${target}.`,
+          message: `${pilar.nome}: ${count} posts nesta semana, acima da frequência de ${target}.`,
           affectedContentIds: scheduledIds,
         });
         return;
@@ -146,7 +146,7 @@ function validatePilarFrequency(
         violations.push({
           ruleId: `pilar-${pilar.id}-under-frequency`,
           type: 'deficit',
-          message: `${pilar.nome}: ${count}/${target} posts esta semana — faltam ${missing}.`,
+          message: `${pilar.nome}: ${count} de ${target} posts nesta semana.`,
           affectedContentIds: scheduledIds,
         });
       }
@@ -192,7 +192,7 @@ function validateSerieFrequency(
         violations.push({
           ruleId: `serie-${serie.id}-under-frequency`,
           type: 'deficit',
-          message: `${serie.name}: 0 posts ${period} (meta ${serie.frequenciaRecomendada}).`,
+          message: `${serie.name}: nenhum post ${period} (ritmo ${(serie.frequenciaRecomendada || '').toLowerCase()}).`,
           affectedContentIds: scheduledIds,
         });
       }
@@ -223,10 +223,18 @@ function validateScriptCoverage(contents: Content[], deficits: DeficitTarget[], 
 
     const needScripts = deficit.missing - backlog.count;
     const scope = deficit.kind === 'pilar' ? 'pilar' : 'serie';
+    const room = deficit.missing === 1 ? 'cabe mais 1 post' : `cabem mais ${deficit.missing} posts`;
+    const ready =
+      backlog.count === 0
+        ? 'ainda não há roteiro pronto'
+        : backlog.count === 1
+          ? 'há 1 roteiro pronto'
+          : `há ${backlog.count} roteiros prontos`;
+    const cover = needScripts === 1 ? 'Mais 1 cobriria o ciclo' : `Mais ${needScripts} cobririam o ciclo`;
     violations.push({
       ruleId: `${scope}-${deficit.id}-needs-scripts`,
       type: 'deficit',
-      message: `${deficit.label}: faltam ${deficit.missing} post${deficit.missing === 1 ? '' : 's'} e só há ${backlog.count} roteiro${backlog.count === 1 ? '' : 's'} pronto${backlog.count === 1 ? '' : 's'} — precisa de mais ${needScripts} roteiro${needScripts === 1 ? '' : 's'}.`,
+      message: `${deficit.label}: ${room} e ${ready}. ${cover}.`,
       affectedContentIds: [...deficit.scheduledIds, ...backlog.ids],
     });
   });
@@ -329,10 +337,14 @@ const VIOLATION_TYPE_PRIORITY: Record<Violation['type'], number> = {
   info: 2,
 };
 
-/** Sort by severity, then by deficit magnitude hinted in the message (faltam N). */
+const FREQUENCY_UNDER = /^(.+?): (\d+) de (\d+) posts nesta semana/;
+
+/** Sort by severity, then by deficit magnitude hinted in the message ("1 de 3 posts", "cabem mais N"). */
 export function prioritizeViolations(violations: Violation[]): Violation[] {
   const missingFromMessage = (message: string) => {
-    const match = message.match(/faltam?\s+(\d+)/i) || message.match(/precisa de mais\s+(\d+)/i);
+    const ratio = message.match(FREQUENCY_UNDER);
+    if (ratio) return Math.max(0, Number(ratio[3]) - Number(ratio[2]));
+    const match = message.match(/cabem? mais\s+(\d+)/i);
     return match ? Number(match[1]) : 0;
   };
 
@@ -388,10 +400,9 @@ export interface RhythmNote {
   tone: Violation['type'];
 }
 
-const FREQUENCY_UNDER = /^(.+?): (\d+)\/(\d+) posts/;
-const FREQUENCY_OVER = /^(.+?): (\d+) posts esta semana, acima da frequência de (\d+)/;
-const SERIE_ZERO = /^(.+?): 0 posts .+\(meta /;
-const NEEDS_SCRIPTS = /^(.+?): faltam \d+ posts? .+ precisa de mais (\d+) roteiro/;
+const FREQUENCY_OVER = /^(.+?): (\d+) posts nesta semana, acima da frequência de (\d+)/;
+const SERIE_ZERO = /^(.+?): nenhum post .+\(ritmo /;
+const NEEDS_SCRIPTS = /^(.+?): cabem? mais \d+ posts? e .+\. Mais (\d+) cobririam? o ciclo/;
 
 function noteBucket(message: string): {key: string; label: string} | null {
   if (message.includes('dia fora')) return {key: 'day', label: 'Dia fora do pilar'};
@@ -471,7 +482,7 @@ export function summarizeRhythmProgress(violations: Violation[]): {
   if (scriptGaps > 0) {
     notes.push({
       key: 'scripts',
-      label: scriptGaps === 1 ? 'Falta roteiro em 1 frente' : `Faltam roteiros em ${scriptGaps} frentes`,
+      label: scriptGaps === 1 ? '1 frente com espaço para roteiros' : `${scriptGaps} frentes com espaço para roteiros`,
       tone: 'deficit',
     });
   }

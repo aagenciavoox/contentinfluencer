@@ -30,9 +30,9 @@ function AppRouter() {
           <div className="mb-5 inline-flex h-14 w-14 items-center justify-center rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] bg-red-500/10 text-red-500">
             <AlertTriangle className="h-7 w-7" />
           </div>
-          <h1 className="text-2xl font-semibold t-label-uppercase">Backend obrigatorio</h1>
+          <h1 className="text-2xl font-semibold t-label-uppercase">Backend obrigatório</h1>
           <p className="mt-4 text-sm leading-6 text-[var(--text-secondary)]">
-            Este app nao opera mais em modo offline. Preencha o arquivo <code>.env.local</code> na raiz do projeto e reinicie o servidor (<code>npm run dev</code>).
+            Este app não opera mais em modo offline. Preencha o arquivo <code>.env.local</code> na raiz do projeto e reinicie o servidor (<code>npm run dev</code>).
           </p>
           <ul className="mt-4 stack-sm text-sm font-mono">
             <li className={supabaseConfigStatus.url ? 'text-emerald-500' : 'text-red-400'}>

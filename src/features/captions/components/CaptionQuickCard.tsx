@@ -1,10 +1,11 @@
-import { Check, Copy, Instagram, Youtube } from 'lucide-react';
+import { Check, Copy } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { AppButton } from '../../../components/ui/AppButton';
 import { Badge } from '../../../components/ui/Badge';
 import { Surface } from '../../../components/ui/Surface';
 import { Text } from '../../../components/ui/Text';
+import { PlatformIcon as PlatformGlyph, platformDisplayName, platformKey } from '../../../components/ui/PlatformIcon';
 import { ensurePlatformRecord } from '../../contents/components/detail/PlatformCopyEditor';
 import {
   captionHashtagPresets,
@@ -16,6 +17,7 @@ import { isContentBodyLoaded } from '../../contents/lib/contentBody';
 import { getDisplayStatus } from '../../contents/lib/contentPipeline';
 import { buildContentDetailRoute } from '../../contents/lib/contentDetailRoute';
 import type { Content, ContentPlataforma, Pilar, Serie } from '../../../lib/database';
+import { getVisualFormatLabel } from '../../../constants';
 import { cn, htmlToReadableText } from '../../../lib/utils';
 import { captionClipboardText, formatCaptionBlock } from '../lib/captionQueue';
 
@@ -31,26 +33,6 @@ function captionSnapshot(items: ContentPlataforma[]) {
     .map(item => `${item.platformId}\u0000${item.legenda}\u0000${item.hashtags}`)
     .sort()
     .join('\u0001');
-}
-
-function platformKey(platform: string) {
-  return platform.trim().toLocaleLowerCase('pt-BR');
-}
-
-function TikTokIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} fill="currentColor" aria-hidden>
-      <path d="M16.5 3.5c.7 1.4 1.8 2.5 3.2 3.1V10c-1.1-.1-2.2-.4-3.2-.9v6.8c0 3.4-2.8 6.2-6.2 6.2S4.1 19.3 4.1 15.9 6.9 9.7 10.3 9.7c.4 0 .8 0 1.2.1v3.4c-.3-.1-.7-.2-1.1-.2-1.6 0-2.9 1.3-2.9 2.9s1.3 2.9 2.9 2.9 2.9-1.3 2.9-2.9V3.5h3.2z" />
-    </svg>
-  );
-}
-
-function PlatformGlyph({ platform, className }: { platform: string; className?: string }) {
-  const key = platformKey(platform);
-  if (key === 'instagram') return <Instagram className={className} />;
-  if (key === 'youtube') return <Youtube className={className} />;
-  if (key === 'tiktok') return <TikTokIcon className={className} />;
-  return <span className={cn('text-xs font-semibold', className)}>{platform.slice(0, 2)}</span>;
 }
 
 function useCaptionDraft(
@@ -131,8 +113,9 @@ function mergePlatform(
   return plataformas.map(item => (item.platformId === platformId ? next : item));
 }
 
-const videoCellClass = 'sticky left-0 z-10 w-[240px] min-w-[220px] border-b border-r border-[var(--border-color)] bg-[var(--bg-elevated)] px-4 py-3 align-top';
-const networkCellClass = 'min-w-[280px] border-b border-[var(--border-color)] px-3 py-3 align-top';
+const videoCellClass = 'sticky left-0 z-10 w-[220px] min-w-[200px] border-b border-r border-[var(--border-color)] bg-[var(--bg-elevated)] px-4 py-3 align-top';
+const networkCellClass = 'min-w-[200px] border-b border-[var(--border-color)] px-3 py-3 align-top';
+const stickyEdgeShadowClass = 'shadow-[8px_0_16px_-8px_color-mix(in_srgb,var(--text-primary)_24%,transparent)]';
 
 function alignPlatformHashtags<T extends { platformId: string }>(
   items: T[] | undefined,
@@ -158,6 +141,7 @@ function CaptionGridRow({
   onSave,
   hasHydrationError = false,
   onRetryHydration,
+  stickyEdge = false,
 }: {
   content: Content;
   platforms: string[];
@@ -166,6 +150,7 @@ function CaptionGridRow({
   onSave: (content: Content) => Promise<void>;
   hasHydrationError?: boolean;
   onRetryHydration?: () => void;
+  stickyEdge?: boolean;
 }) {
   const { plataformas, update, editing, saving, dirty, startEdit, cancel, save, commit } = useCaptionDraft(content, onSave);
   const [copiedPlatform, setCopiedPlatform] = useState<string | null>(null);
@@ -173,7 +158,8 @@ function CaptionGridRow({
   const pulledRef = useRef(false);
   const title = content.title.trim() || 'Sem título';
   const status = getDisplayStatus(content);
-  const format = content.formatoVisual?.trim() || null;
+  const formatValue = content.formatoVisual?.trim();
+  const format = formatValue ? getVisualFormatLabel(formatValue) : null;
   const serie = useMemo(() => {
     const found = series.find(item => item.id === content.seriesId);
     if (!found) return null;
@@ -248,12 +234,12 @@ function CaptionGridRow({
     : hasHydrationError
       ? 'Tentar de novo'
       : scriptLoading
-        ? 'Carregando...'
+        ? 'Carregando…'
         : 'Copiar roteiro';
 
   return (
     <tr>
-      <th scope="row" className={cn(videoCellClass, 'text-left font-normal')}>
+      <th scope="row" className={cn(videoCellClass, stickyEdge && stickyEdgeShadowClass, 'text-left font-normal')}>
         <Link
           to={buildContentDetailRoute(content.id)}
           state={{ from: '/criacao/legendas' }}
@@ -300,8 +286,8 @@ function CaptionGridRow({
               rows={4}
               readOnly={!editing}
               tabIndex={editing ? 0 : -1}
-              placeholder={`Legenda para ${platform}`}
-              aria-label={`Legenda de ${platform} para ${title}`}
+              placeholder={`Legenda para ${platformDisplayName(platform)}`}
+              aria-label={`Legenda de ${platformDisplayName(platform)} para ${title}`}
               aria-readonly={!editing}
               className={cn('w-full', !editing && 'caption-locked')}
               onChange={event => updatePlatform(platform, { legenda: event.target.value })}
@@ -312,7 +298,7 @@ function CaptionGridRow({
               readOnly={!editing}
               tabIndex={editing ? 0 : -1}
               placeholder="#leitura #livros"
-              aria-label={`Hashtags de ${platform} para ${title}`}
+              aria-label={`Hashtags de ${platformDisplayName(platform)} para ${title}`}
               aria-readonly={!editing}
               className={cn('mt-2 w-full', !editing && 'caption-locked')}
               onChange={event => updatePlatform(platform, { hashtags: event.target.value })}
@@ -340,7 +326,7 @@ function CaptionGridRow({
                       disabled={saving || !dirty}
                       onClick={() => void save()}
                     >
-                      {saving ? 'Salvando...' : 'Salvar'}
+                      {saving ? 'Salvando…' : 'Salvar'}
                     </AppButton>
                   </>
                 ) : (
@@ -357,7 +343,7 @@ function CaptionGridRow({
                 variant="ghost"
                 iconOnly
                 disabled={!canCopy}
-                aria-label={`Copiar legenda de ${platform}`}
+                aria-label={`Copiar legenda de ${platformDisplayName(platform)}`}
                 leftIcon={copiedPlatform === platform ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
                 onClick={() => void handleCopy(platform)}
               />
@@ -442,46 +428,91 @@ export function CaptionGrid({
   hasHydrationError = () => false,
   onRetryHydration,
 }: CaptionGridProps) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [scrollEdge, setScrollEdge] = useState({ left: false, right: false });
+
+  const updateScrollEdge = useCallback(() => {
+    const node = scrollRef.current;
+    if (!node) {
+      setScrollEdge({ left: false, right: false });
+      return;
+    }
+    const left = node.scrollLeft > 1;
+    const right = node.scrollLeft + node.clientWidth < node.scrollWidth - 1;
+    setScrollEdge(previous => (
+      previous.left === left && previous.right === right ? previous : { left, right }
+    ));
+  }, []);
+
+  useEffect(() => {
+    const node = scrollRef.current;
+    if (!node) return;
+    updateScrollEdge();
+    const observer = new ResizeObserver(updateScrollEdge);
+    observer.observe(node);
+    node.addEventListener('scroll', updateScrollEdge, { passive: true });
+    return () => {
+      observer.disconnect();
+      node.removeEventListener('scroll', updateScrollEdge);
+    };
+  }, [contents.length, platforms.length, updateScrollEdge]);
+
+  const showStickyShadow = scrollEdge.left || scrollEdge.right;
+
   return (
-    <Surface variant="outlined" padding="none" className="overflow-x-auto">
-      <table className="w-full border-collapse text-left">
-        <thead>
-          <tr>
-            <th
-              scope="col"
-              className="sticky left-0 z-20 w-[240px] min-w-[220px] border-b border-r border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-3 text-left"
-            >
-              <Text variant="label">Vídeo</Text>
-            </th>
-            {platforms.map(platform => (
-              <th
-                key={platform}
-                scope="col"
-                className="min-w-[280px] border-b border-[var(--border-color)] bg-[var(--bg-secondary)] px-3 py-3 text-left"
-              >
-                <span className="inline-flex items-center gap-2 text-[var(--text-secondary)]">
-                  <PlatformGlyph platform={platform} className="h-4 w-4" />
-                  <Text variant="label">{platform}</Text>
-                </span>
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {contents.map(content => (
-            <CaptionGridRow
-              key={content.id}
-              content={content}
-              platforms={platforms}
-              series={series}
-              pilares={pilares}
-              onSave={onSave}
-              hasHydrationError={hasHydrationError(content.id)}
-              onRetryHydration={onRetryHydration ? () => onRetryHydration(content.id) : undefined}
-            />
-          ))}
-        </tbody>
-      </table>
-    </Surface>
+    <div className="relative min-w-0 max-w-full">
+      <Surface variant="outlined" padding="none" className="min-w-0 max-w-full overflow-hidden">
+        <div ref={scrollRef} className="overflow-x-auto">
+          <table className="min-w-full border-collapse text-left">
+            <thead>
+              <tr>
+                <th
+                  scope="col"
+                  className={cn(
+                    'sticky left-0 z-20 w-[220px] min-w-[200px] border-b border-r border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-3 text-left',
+                    showStickyShadow && stickyEdgeShadowClass,
+                  )}
+                >
+                  <Text variant="label">Roteiro</Text>
+                </th>
+                {platforms.map(platform => (
+                  <th
+                    key={platform}
+                    scope="col"
+                    className="min-w-[200px] border-b border-[var(--border-color)] bg-[var(--bg-secondary)] px-3 py-3 text-left"
+                  >
+                    <span className="inline-flex items-center gap-2 text-[var(--text-secondary)]">
+                      <PlatformGlyph platform={platform} className="h-4 w-4" />
+                      <Text variant="label">{platformDisplayName(platform)}</Text>
+                    </span>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {contents.map(content => (
+                <CaptionGridRow
+                  key={content.id}
+                  content={content}
+                  platforms={platforms}
+                  series={series}
+                  pilares={pilares}
+                  onSave={onSave}
+                  hasHydrationError={hasHydrationError(content.id)}
+                  onRetryHydration={onRetryHydration ? () => onRetryHydration(content.id) : undefined}
+                  stickyEdge={showStickyShadow}
+                />
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Surface>
+      {scrollEdge.right ? (
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-y-px right-px w-8 rounded-r-[var(--radius-card)] bg-gradient-to-l from-[var(--bg-elevated)] to-transparent"
+        />
+      ) : null}
+    </div>
   );
 }

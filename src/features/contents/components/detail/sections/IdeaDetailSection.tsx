@@ -5,12 +5,14 @@ import {Skeleton} from '../../../../../components/ui/Skeleton';
 import {Surface} from '../../../../../components/ui/Surface';
 import {Text} from '../../../../../components/ui/Text';
 import type {BibliotecaItem, Pilar, Serie} from '../../../../../lib/database';
+import {useAppContext} from '../../../../../context/AppContext';
+import {DestinationChips} from '../../../../editorial/components/DestinationChips';
 import {DraftSaveBar} from '../DraftSaveBar';
 import type {ScriptDraft} from './RoteiroSection';
 
 type IdeaDraft = Pick<
   ScriptDraft,
-  'title' | 'notes' | 'scriptNotes' | 'pilarId' | 'seriesId' | 'bibliotecaItemId'
+  'title' | 'notes' | 'scriptNotes' | 'pilarId' | 'seriesId' | 'bibliotecaItemId' | 'plataformas'
 >;
 
 interface IdeaOrganizationPanelProps {
@@ -18,6 +20,7 @@ interface IdeaOrganizationPanelProps {
   series: Serie[];
   pilares: Pilar[];
   bibliotecaItems: BibliotecaItem[];
+  contentId: string;
   onChange: (updates: Partial<ScriptDraft>) => void;
 }
 
@@ -29,8 +32,13 @@ export function IdeaOrganizationPanel({
   series,
   pilares,
   bibliotecaItems,
+  contentId,
   onChange,
 }: IdeaOrganizationPanelProps) {
+  const {state} = useAppContext();
+  const plataformasAtivas = state.platforms
+    .filter(platform => platform.ativo)
+    .map(platform => ({id: platform.id, nome: platform.nome}));
   return (
     <Surface variant="outlined" padding="md" className="grid gap-4 md:grid-cols-3">
       <div className="stack-sm md:col-span-3">
@@ -90,6 +98,14 @@ export function IdeaOrganizationPanel({
           ))}
         </select>
       </label>
+      <div className="md:col-span-3">
+        <DestinationChips
+          platforms={plataformasAtivas}
+          publications={draft.plataformas}
+          contentId={contentId}
+          onChange={plataformas => onChange({plataformas})}
+        />
+      </div>
     </Surface>
   );
 }
@@ -112,6 +128,7 @@ export function IdeaDetailSection({
   series,
   pilares,
   bibliotecaItems,
+  contentId,
   onChange,
   bodyLoading = false,
   bodyError = null,
@@ -226,6 +243,7 @@ export function IdeaDetailSection({
           series={series}
           pilares={pilares}
           bibliotecaItems={bibliotecaItems}
+          contentId={contentId}
           onChange={onChange}
         />
         <AppButton
@@ -251,6 +269,7 @@ export function IdeaDetailSection({
         series={series}
         pilares={pilares}
         bibliotecaItems={bibliotecaItems}
+        contentId={contentId}
         onChange={onChange}
       />
     </div>

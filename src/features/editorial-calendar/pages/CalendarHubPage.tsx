@@ -12,7 +12,7 @@ function CalendarModeFallback() {
   return (
     <div className="flex min-h-[40vh] items-center justify-center">
       <p className="text-xs font-semibold t-label-uppercase text-[var(--text-tertiary)]">
-        Carregando calendário...
+        Carregando calendário…
       </p>
     </div>
   );

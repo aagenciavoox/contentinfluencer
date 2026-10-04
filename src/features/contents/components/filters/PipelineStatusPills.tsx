@@ -1,4 +1,3 @@
-import {Plus} from 'lucide-react';
 import {cn} from '../../../../lib/utils';
 
 interface PipelineStatusPillsProps {
@@ -53,14 +52,6 @@ export function PipelineStatusPills({
           </button>
         );
       })}
-      <button
-        type="button"
-        className="inline-flex min-h-9 items-center gap-1 rounded-full border border-dashed border-[var(--border-color)] px-3 py-1 text-xs font-semibold text-[var(--text-tertiary)] transition-colors hover:border-[var(--border-strong)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
-        title="Filtros salvos em breve"
-      >
-        <Plus className="h-3 w-3" />
-        Salvos
-      </button>
     </div>
   );
 }

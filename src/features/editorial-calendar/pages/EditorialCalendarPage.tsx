@@ -11,7 +11,7 @@ import {
   startOfWeek,
 } from 'date-fns';
 import {ptBR} from 'date-fns/locale';
-import {BookOpen, CalendarDays, ChevronDown, Clock, Mic2, PanelLeft, PanelRight, Plus, Radio, Send, Target, X} from 'lucide-react';
+import {BookOpen, CalendarDays, ChevronDown, Clock, Mic2, MoreHorizontal, PanelLeft, PanelRight, Plus, Radio, Send, Target, X} from 'lucide-react';
 import {
   CalendarDesktopShell,
   CalendarEventPill,
@@ -24,6 +24,7 @@ import {
 import {AppButton} from '../../../components/ui/AppButton';
 import {FilterBar} from '../../../components/ui/FilterBar';
 import {Text} from '../../../components/ui/Text';
+import {ToolbarSearchInput} from '../../../components/ui/ToolbarSearchInput';
 import {PageLayout} from '../../../layouts/page/PageLayout';
 import {DesktopPageHeader} from '../../../layouts/page/DesktopPageHeader';
 import {Dialog} from '../../../components/overlays/Dialog';
@@ -51,7 +52,11 @@ import {
 } from '../lib/calendarMode';
 import {PostingTimeSuggestions} from '../../settings/components/PostingTimeSuggestions';
 import {getPostingTimes} from '../../settings/lib/postingTimes';
+import {getGentleExperienceSettings} from '../../settings/lib/gentleExperience';
+import {getSessionCandidates} from '../../dashboard/lib/dailySession';
 import {generateUUID} from '../../../utils/uuid';
+import {getEditorialSettings} from '../../editorial/lib/editorialSettings';
+import {CalendarNetworkIcons} from '../components/CalendarNetworkIcons';
 import {
   ALL_PLATFORMS,
   ALL_STATUSES,
@@ -84,6 +89,7 @@ export function getStatusIcon() {
 
 export function EditorialCalendarPage() {
   const {state, dispatch} = useAppContext();
+  const editorialSettings = getEditorialSettings(state.preferences);
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const isMobile = useIsMobile();
@@ -102,6 +108,8 @@ export function EditorialCalendarPage() {
   const [dayPanelOpen, setDayPanelOpenRaw] = useState(loadDayPanelOpen);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [createMenuOpen, setCreateMenuOpen] = useState(false);
+  const [headerCreateMenuOpen, setHeaderCreateMenuOpen] = useState(false);
+  const [calendarToolsOpen, setCalendarToolsOpen] = useState(false);
   const [quickCreateDate, setQuickCreateDate] = useState<Date | null>(null);
   const [agendaDraft, setAgendaDraft] = useState<{title: string; date: string; time: string | null} | null>(null);
 
@@ -142,9 +150,14 @@ export function EditorialCalendarPage() {
       activeLayers,
       searchTerm,
       sortValue,
-      {platformFilter, statusFilter},
+      {
+        platformFilter,
+        statusFilter,
+        series: state.series,
+        redeReferenciaId: editorialSettings.redeReferenciaId,
+      },
     ),
-    [activeLayers, platformFilter, searchTerm, sortValue, statusFilter, state.agendaItems, state.contents, state.platforms, state.projetos]
+    [activeLayers, editorialSettings.redeReferenciaId, platformFilter, searchTerm, sortValue, statusFilter, state.agendaItems, state.contents, state.platforms, state.projetos, state.series]
   );
   const selectedDateKey = format(selectedDate, 'yyyy-MM-dd');
   const selectedEntries = entriesByDate.get(selectedDateKey) || [];
@@ -175,6 +188,12 @@ export function EditorialCalendarPage() {
       setSelectedCalendarEntry(entry);
     },
     [navigate]
+  );
+
+  const gentleExperience = getGentleExperienceSettings(state.preferences);
+  const readyToRecordCount = useMemo(
+    () => getSessionCandidates(state.contents, state.recordingBlocks).length,
+    [state.contents, state.recordingBlocks],
   );
 
   const allCalendarEntries = Array.from(entriesByDate.values()).flat();
@@ -222,6 +241,9 @@ export function EditorialCalendarPage() {
           <AgendaMobileScreen
             contents={state.contents}
             platforms={state.platforms}
+            series={state.series}
+            redeReferenciaId={editorialSettings.redeReferenciaId}
+            platformFilter={platformFilter}
             agendaItems={state.agendaItems}
             projetos={state.projetos}
             listMode={viewMode === 'timeline' ? 'timeline' : 'agenda'}
@@ -258,6 +280,7 @@ export function EditorialCalendarPage() {
         >
           <PostedVideoComposerSheet
             platforms={state.platforms}
+            series={state.series}
             postingTimes={getPostingTimes(state.preferences)}
             onClose={() => setIsAddPostedVideoOpen(false)}
             onSave={content => {
@@ -408,22 +431,46 @@ export function EditorialCalendarPage() {
           actions={(
             <>
               <CalendarModeSwitch />
-              {isMonthView ? (
+              <div className="relative">
                 <AppButton
-                  variant="ghost"
-                  leftIcon={<Radio className="h-4 w-4" />}
-                  onClick={() => setIsAddPostedVideoOpen(true)}
+                  variant="primary"
+                  leftIcon={<Plus className="h-4 w-4" />}
+                  rightIcon={<ChevronDown className="h-4 w-4" />}
+                  aria-expanded={headerCreateMenuOpen}
+                  onClick={() => {
+                    setHeaderCreateMenuOpen(open => !open);
+                    setCalendarToolsOpen(false);
+                  }}
                 >
-                  Vídeo postado
+                  Novo evento
                 </AppButton>
-              ) : null}
-              <AppButton
-                variant="primary"
-                leftIcon={<Plus className="h-4 w-4" />}
-                onClick={() => setQuickCreateDate(selectedDate)}
-              >
-                Novo evento
-              </AppButton>
+                {headerCreateMenuOpen ? (
+                  <div className="absolute right-0 top-full z-30 mt-1 min-w-52 overflow-hidden rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] shadow-[var(--shadow-dropdown)]">
+                    <button
+                      type="button"
+                      className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"
+                      onClick={() => {
+                        setHeaderCreateMenuOpen(false);
+                        setQuickCreateDate(selectedDate);
+                      }}
+                    >
+                      <Plus className="h-4 w-4" />
+                      Evento
+                    </button>
+                    <button
+                      type="button"
+                      className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"
+                      onClick={() => {
+                        setHeaderCreateMenuOpen(false);
+                        setIsAddPostedVideoOpen(true);
+                      }}
+                    >
+                      <Radio className="h-4 w-4" />
+                      Vídeo postado
+                    </button>
+                  </div>
+                ) : null}
+              </div>
             </>
           )}
         />
@@ -463,20 +510,109 @@ export function EditorialCalendarPage() {
                   {id: 'month', label: 'Mês'},
                   {id: 'week', label: 'Semana'},
                   {id: 'agenda', label: 'Agenda'},
-                  {id: 'timeline', label: 'Timeline'},
+                  {id: 'timeline', label: 'Linha do tempo'},
                 ]}
               />
             </div>
-            {isMonthView ? (
+            <FilterBar
+              size="compact"
+              searchValue={searchTerm}
+              onSearchChange={setSearchTerm}
+              searchPlaceholder="Buscar no calendário"
+              showSearch={false}
+              sortValue={sortValue}
+              onSortChange={setSortValue}
+              sortOptions={[
+                {label: 'Próximos', value: 'proximos'},
+                {label: 'Título A–Z', value: 'titulo:asc'},
+                {label: 'Tipo', value: 'tipo:asc'},
+              ]}
+              filters={[
+                {
+                  id: 'platform',
+                  label: 'Plataforma',
+                  value: platformFilter,
+                  onChange: setPlatformFilter,
+                  options: platformFilterOptions(platformNames),
+                },
+                {
+                  id: 'status',
+                  label: 'Status',
+                  value: statusFilter,
+                  onChange: setStatusFilter,
+                  options: CONTENT_STATUS_FILTER_OPTIONS,
+                },
+              ]}
+              panelExtra={(
+                <>
+                  <div className="col-span-full">
+                    <ToolbarSearchInput
+                      value={searchTerm}
+                      onChange={setSearchTerm}
+                      placeholder="Buscar no calendário"
+                      size="compact"
+                      className="w-full"
+                    />
+                  </div>
+                  {isMonthView ? (
+                    <div className="col-span-full stack-sm">
+                      <Text variant="label" as="span" className="px-1">
+                        Camadas
+                      </Text>
+                      <div className="flex flex-wrap gap-2">
+                        {EDITORIAL_LAYER_ITEMS.map(item => {
+                          const active = activeLayers.includes(item.id);
+                          const Icon = item.icon;
+                          return (
+                            <AppButton
+                              key={item.id}
+                              variant={active ? 'secondary' : 'ghost'}
+                              size="xs"
+                              aria-pressed={active}
+                              leftIcon={<Icon className="h-3.5 w-3.5" style={{color: item.color}} />}
+                              onClick={() => handleLayerToggle(item.id)}
+                            >
+                              {item.label}
+                            </AppButton>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ) : null}
+                </>
+              )}
+              extraActiveCount={isMonthView ? hiddenLayerCount : 0}
+              onClearExtra={isMonthView ? () => setActiveLayers(DEFAULT_LAYERS) : undefined}
+            />
+            <div className="relative">
               <AppButton
                 variant="ghost"
                 size="sm"
-                leftIcon={<Clock className="h-3.5 w-3.5" />}
-                onClick={() => navigate('/configuracoes/plataformas')}
-              >
-                Horários
-              </AppButton>
-            ) : null}
+                iconOnly
+                aria-label="Mais opções do calendário"
+                aria-expanded={calendarToolsOpen}
+                leftIcon={<MoreHorizontal className="h-4 w-4" />}
+                onClick={() => {
+                  setCalendarToolsOpen(open => !open);
+                  setHeaderCreateMenuOpen(false);
+                }}
+              />
+              {calendarToolsOpen ? (
+                <div className="absolute right-0 top-full z-30 mt-1 min-w-44 overflow-hidden rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] shadow-[var(--shadow-dropdown)]">
+                  <button
+                    type="button"
+                    className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"
+                    onClick={() => {
+                      setCalendarToolsOpen(false);
+                      navigate('/configuracoes/plataformas');
+                    }}
+                  >
+                    <Clock className="h-4 w-4" />
+                    Horários
+                  </button>
+                </div>
+              ) : null}
+            </div>
             {!showDayPanel ? (
               <AppButton
                 variant="ghost"
@@ -489,62 +625,6 @@ export function EditorialCalendarPage() {
               </AppButton>
             ) : null}
           </div>
-          <FilterBar
-            size="compact"
-            searchValue={searchTerm}
-            onSearchChange={setSearchTerm}
-            searchPlaceholder="Buscar no calendário"
-            sortValue={sortValue}
-            onSortChange={setSortValue}
-            sortOptions={[
-              {label: 'Próximos', value: 'proximos'},
-              {label: 'Título A-Z', value: 'titulo:asc'},
-              {label: 'Tipo', value: 'tipo:asc'},
-            ]}
-            filters={[
-              {
-                id: 'platform',
-                label: 'Plataforma',
-                value: platformFilter,
-                onChange: setPlatformFilter,
-                options: platformFilterOptions(platformNames),
-              },
-              {
-                id: 'status',
-                label: 'Status',
-                value: statusFilter,
-                onChange: setStatusFilter,
-                options: CONTENT_STATUS_FILTER_OPTIONS,
-              },
-            ]}
-            panelExtra={isMonthView ? (
-              <div className="col-span-full stack-sm">
-                <Text variant="label" as="label" className="px-1">
-                  Camadas
-                </Text>
-                <div className="flex flex-wrap gap-2">
-                  {EDITORIAL_LAYER_ITEMS.map(item => {
-                    const active = activeLayers.includes(item.id);
-                    const Icon = item.icon;
-                    return (
-                      <AppButton
-                        key={item.id}
-                        variant={active ? 'secondary' : 'ghost'}
-                        size="xs"
-                        aria-pressed={active}
-                        leftIcon={<Icon className="h-3.5 w-3.5" style={{color: item.color}} />}
-                        onClick={() => handleLayerToggle(item.id)}
-                      >
-                        {item.label}
-                      </AppButton>
-                    );
-                  })}
-                </div>
-              </div>
-            ) : null}
-            extraActiveCount={isMonthView ? hiddenLayerCount : 0}
-            onClearExtra={isMonthView ? () => setActiveLayers(DEFAULT_LAYERS) : undefined}
-          />
         </div>
       }
     >
@@ -561,6 +641,9 @@ export function EditorialCalendarPage() {
               onClose={() => setDayPanelOpen(false)}
               onSelectEntry={handleSelectEntry}
               onAddAgenda={() => setQuickCreateDate(selectedDate)}
+              readyToRecordCount={gentleExperience.calmSuggestions ? readyToRecordCount : 0}
+              showCounts={gentleExperience.dashboardCounts}
+              onOpenRecording={() => navigate('/gravacao?tab=queue')}
             />
           ) : undefined
         }
@@ -677,6 +760,7 @@ export function EditorialCalendarPage() {
       >
         <PostedVideoComposerSheet
           platforms={state.platforms}
+          series={state.series}
           postingTimes={getPostingTimes(state.preferences)}
           onClose={() => setIsAddPostedVideoOpen(false)}
           onSave={content => {
@@ -806,6 +890,7 @@ function CalendarWeekView({
                     <CalendarEventPill
                       key={entry.id}
                       label={entry.label}
+                      icon={entry.platformNames?.length ? <CalendarNetworkIcons names={entry.platformNames} /> : undefined}
                       time={entry.time}
                       secondary={getEntryLabel(entry)}
                       variant="expanded"
@@ -867,7 +952,7 @@ function CalendarAgendaListView({
       <div className="mb-3 flex items-center justify-between gap-3 px-1">
         <div>
           <Text variant="sectionTitle">Agenda editorial</Text>
-          <p className="t-meta text-[var(--text-secondary)]">Lista cronológica de operações planejadas.</p>
+          <p className="t-meta text-[var(--text-secondary)]">Tudo o que está marcado, em ordem de data.</p>
           {showPeriodMeta ? (
             <Text variant="meta" className="mt-1 block text-[var(--text-tertiary)]">
               Lista filtrada para {listPeriodLabel}
@@ -910,7 +995,7 @@ function CalendarAgendaListView({
                           key={`dual-${row.contentId}-${dateKey}`}
                           label={row.label}
                           time={row.publish?.time || row.recording?.time}
-                          secondary="Estados simultâneos · Gravação + Postagem"
+                          secondary="Gravação e postagem no mesmo dia"
                           variant="expanded"
                           style={entryPillStyle(primary)}
                           onClick={() => {
@@ -1004,16 +1089,27 @@ function CalendarDayPanel({
   onClose,
   onSelectEntry,
   onAddAgenda,
+  readyToRecordCount,
+  showCounts,
+  onOpenRecording,
 }: {
   selectedDate: Date;
   entries: CalendarEntry[];
   onClose: () => void;
   onSelectEntry: (entry: CalendarEntry) => void;
   onAddAgenda: () => void;
+  readyToRecordCount: number;
+  showCounts: boolean;
+  onOpenRecording: () => void;
 }) {
   const primaryEntry = entries[0];
   const [eventsOpen, setEventsOpen] = useState(true);
   const [focusOpen, setFocusOpen] = useState(false);
+  const readyToRecordLabel = !showCounts
+    ? 'Há roteiros prontos para gravar.'
+    : readyToRecordCount === 1
+      ? '1 roteiro pronto para gravar.'
+      : `${readyToRecordCount} roteiros prontos para gravar.`;
 
   return (
     <aside className="sticky top-4 h-fit max-h-[calc(100vh-96px)] overflow-y-auto rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-elevated)] p-3 shadow-[var(--shadow-soft)]">
@@ -1057,11 +1153,11 @@ function CalendarDayPanel({
         {eventsOpen ? (
           <div className="stack-sm border-t border-[var(--border-color)] p-2">
             <button type="button" onClick={onAddAgenda} className="text-xs font-semibold text-[var(--accent-blue)]">
-              + Adicionar
+              Adicionar evento
             </button>
             {entries.length === 0 ? (
               <p className="rounded-[var(--radius-input)] bg-[var(--surface-subtle)] px-3 py-3 text-xs text-[var(--text-secondary)]">
-                Nenhuma operacao planejada para este dia.
+                Nada marcado para este dia.
               </p>
             ) : (
               entries.map(entry => (
@@ -1076,7 +1172,7 @@ function CalendarDayPanel({
                 >
                   <p className="text-xs font-semibold text-[var(--text-primary)]">{entry.label}</p>
                   <p className="mt-0.5 text-xs text-[var(--text-secondary)]">
-                    {[entry.time, entry.secondary].filter(Boolean).join(' - ') || 'Sem horario'}
+                    {[entry.time, entry.secondary].filter(Boolean).join(' - ') || 'Sem horário'}
                   </p>
                 </button>
               ))
@@ -1085,26 +1181,33 @@ function CalendarDayPanel({
         ) : null}
       </div>
 
-      <div className="mt-3">
-        <div className="rounded-[var(--radius-input)] border border-[var(--border-color)]">
-          <button
-            type="button"
-            onClick={() => setFocusOpen(prev => !prev)}
-            className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-semibold text-[var(--accent-purple)]"
-          >
-            <Target className="h-3.5 w-3.5" />
-            Talvez util neste dia
-          </button>
-          {focusOpen ? (
-            <div className="border-t border-[var(--border-color)] p-3">
-              <p className="text-xs text-[var(--text-primary)]">Roteiro e um bloco separados para quando fizer sentido</p>
-              <div className="mt-2 h-1.5 rounded-full bg-[var(--bg-hover)]">
-                <div className="h-full w-[72%] rounded-full bg-[var(--accent-purple)]" />
+      {readyToRecordCount > 0 ? (
+        <div className="mt-3">
+          <div className="rounded-[var(--radius-input)] border border-[var(--border-color)]">
+            <button
+              type="button"
+              onClick={() => setFocusOpen(prev => !prev)}
+              aria-expanded={focusOpen}
+              className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-semibold text-[var(--accent-purple)]"
+            >
+              <Target className="h-3.5 w-3.5" />
+              Talvez útil neste dia
+            </button>
+            {focusOpen ? (
+              <div className="stack-sm border-t border-[var(--border-color)] p-3">
+                <p className="text-xs text-[var(--text-primary)]">{readyToRecordLabel}</p>
+                <button
+                  type="button"
+                  onClick={onOpenRecording}
+                  className="self-start text-xs font-semibold text-[var(--accent-blue)]"
+                >
+                  Abrir gravação
+                </button>
               </div>
-            </div>
-          ) : null}
+            ) : null}
+          </div>
         </div>
-      </div>
+      ) : null}
     </aside>
   );
 }
@@ -1119,14 +1222,13 @@ function CalendarInsightCards({
   projects: number;
 }) {
   const cards = [
-    {label: 'Gravacoes', value: recordings, detail: 'agendadas', icon: Mic2, color: 'var(--accent-orange)'},
+    {label: 'Gravações', value: recordings, detail: 'agendadas', icon: Mic2, color: 'var(--accent-orange)'},
     {label: 'Postagens', value: posts, detail: 'programadas', icon: Send, color: 'var(--accent-purple)'},
     {label: 'Projetos', value: projects, detail: 'em movimento', icon: BookOpen, color: 'var(--accent-blue)'},
-    {label: 'Conflitos', value: 0, detail: 'looks repetidos', icon: Target, color: 'var(--warning)'},
   ];
 
   return (
-    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+    <div className="grid gap-3 md:grid-cols-3">
       {cards.map(card => {
         const Icon = card.icon;
         return (
@@ -1155,7 +1257,7 @@ function CalendarInsightCards({
 function FieldRow({label, value}: {label: string; value: string}) {
   return (
     <div className="rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-hover)]/50 px-4 py-3">
-      <p className="text-xs font-semibold  text-[var(--text-tertiary)] opacity-60">
+      <p className="text-xs font-semibold text-[var(--text-tertiary)]">
         {label}
       </p>
       <p className="mt-1 whitespace-pre-wrap text-sm font-bold text-[var(--text-primary)]">
@@ -1306,7 +1408,7 @@ function CalendarEntryDetailModal({
 
   const subtitle =
     entry.type === 'publish'
-      ? 'Publicacao'
+      ? 'Publicação'
       : entry.type === 'recording'
         ? 'Gravação'
         : entry.type === 'agenda'
@@ -1333,8 +1435,8 @@ function CalendarEntryDetailModal({
         {isEditing ? (
           <>
             <label className="block stack-sm">
-              <span className="text-xs font-semibold  text-[var(--text-tertiary)] opacity-60">
-                Titulo
+              <span className="text-xs font-semibold text-[var(--text-tertiary)]">
+                Título
               </span>
               <input
                 autoFocus
@@ -1347,7 +1449,7 @@ function CalendarEntryDetailModal({
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <label className="block stack-sm">
-                <span className="text-xs font-semibold  text-[var(--text-tertiary)] opacity-60">
+                <span className="text-xs font-semibold text-[var(--text-tertiary)]">
                   Data
                 </span>
                 <input
@@ -1360,7 +1462,7 @@ function CalendarEntryDetailModal({
 
               {entry.type !== 'recording' ? (
                 <div className="block stack-sm">
-                  <span className="text-xs font-semibold  text-[var(--text-tertiary)] opacity-60">
+                  <span className="text-xs font-semibold text-[var(--text-tertiary)]">
                     Hora
                   </span>
                   <input
@@ -1400,7 +1502,7 @@ function CalendarEntryDetailModal({
                 </div>
 
                 <label className="block stack-sm">
-                  <span className="text-xs font-semibold  text-[var(--text-tertiary)] opacity-60">
+                  <span className="text-xs font-semibold text-[var(--text-tertiary)]">
                     Projeto vinculado
                   </span>
                   <select
@@ -1424,7 +1526,7 @@ function CalendarEntryDetailModal({
             {content && entry.type === 'publish' ? (
               <>
                 <label className="block stack-sm">
-                  <span className="text-xs font-semibold  text-[var(--text-tertiary)] opacity-60">
+                  <span className="text-xs font-semibold text-[var(--text-tertiary)]">
                     Rede postada
                   </span>
                   <select
@@ -1441,7 +1543,7 @@ function CalendarEntryDetailModal({
                 </label>
 
                 <label className="block stack-sm">
-                  <span className="text-xs font-semibold  text-[var(--text-tertiary)] opacity-60">
+                  <span className="text-xs font-semibold text-[var(--text-tertiary)]">
                     Legenda
                   </span>
                   <textarea
@@ -1595,29 +1697,29 @@ function AddAgendaModal({
   return (
     <>
       <OverlayHeader
-        title="Novo Evento"
+        title="Novo evento"
         subtitle="Agenda editorial"
         onClose={onClose}
       />
 
       <OverlayBody className="stack-xl py-6">
         <div className="stack-sm">
-          <label className="text-xs font-semibold  text-[var(--text-tertiary)] opacity-60">
-            Titulo do evento
+          <label className="text-xs font-semibold text-[var(--text-tertiary)]">
+            Título do evento
           </label>
           <input
             autoFocus
             type="text"
             value={title}
             onChange={event => setTitle(event.target.value)}
-            placeholder="Ex: reuniao, entrega, live..."
-            className="w-full rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-hover)] px-6 py-3.5 text-sm font-bold text-[var(--text-primary)] placeholder:opacity-30 focus:ring-2 focus:ring-[var(--accent-blue)]"
+            placeholder="Ex.: reunião, entrega, live…"
+            className="w-full rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-hover)] px-6 py-3.5 text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:ring-2 focus:ring-[var(--accent-blue)]"
           />
         </div>
 
         <div className="grid grid-cols-2 gap-4">
           <div className="stack-sm">
-            <label className="text-xs font-semibold  text-[var(--text-tertiary)] opacity-60">
+            <label className="text-xs font-semibold text-[var(--text-tertiary)]">
               Data
             </label>
             <input
@@ -1629,7 +1731,7 @@ function AddAgendaModal({
           </div>
 
           <div className="stack-sm">
-            <label className="text-xs font-semibold  text-[var(--text-tertiary)] opacity-60">
+            <label className="text-xs font-semibold text-[var(--text-tertiary)]">
               Hora
             </label>
             <input
@@ -1648,7 +1750,7 @@ function AddAgendaModal({
         </div>
 
         <div className="stack-sm">
-          <label className="text-xs font-semibold  text-[var(--text-tertiary)] opacity-60">
+          <label className="text-xs font-semibold text-[var(--text-tertiary)]">
             Tipo
           </label>
           <div className="grid grid-cols-2 gap-2">
@@ -1670,7 +1772,7 @@ function AddAgendaModal({
         </div>
 
         <div className="stack-sm">
-          <label className="text-xs font-semibold  text-[var(--text-tertiary)] opacity-60">
+          <label className="text-xs font-semibold text-[var(--text-tertiary)]">
             Projeto vinculado
           </label>
           <select

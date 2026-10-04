@@ -6,6 +6,7 @@ import { PageLayout } from '../../../layouts/page/PageLayout';
 import { useAppContext } from '../../../context/AppContext';
 import { useAuth } from '../../../context/AuthContext';
 import { useIsMobile } from '../../../hooks/useIsMobile';
+import { useDomainsReady } from '../../../hooks/useDomainsReady';
 import { DashboardMobileScreen } from '../../../mobile/screens/dashboard/DashboardMobileScreen';
 import type { MobileChromeOutletContext } from '../../../mobile/components/shell';
 import { getModuleFlags } from '../../settings/lib/moduleFlags';
@@ -62,6 +63,10 @@ export function DashboardPage() {
     void ensureDataDomains(['library']);
   }, [ensureDataDomains]);
 
+  const libraryReady = useDomainsReady(['library']);
+  const scriptsReady = useDomainsReady(['content', 'production']);
+  const pulseReady = useDomainsReady(['content', 'production', 'agenda', 'projects']);
+
   const candidates = useMemo(
     () => getSessionCandidates(state.contents, state.recordingBlocks),
     [state.contents, state.recordingBlocks],
@@ -102,10 +107,11 @@ export function DashboardPage() {
     showCounts: gentleExperience.dashboardCounts,
     agendaToday,
     urgentProjects,
+    dataReady: pulseReady,
   });
 
   const handleNovoRoteiro = () => {
-    const newContent = createContentDraft({ title: 'Novo Conteudo', status: CONTENT_STATUS.ROTEIRO });
+    const newContent = createContentDraft({ title: 'Novo roteiro', status: CONTENT_STATUS.ROTEIRO });
     void dispatch({ type: 'ADD_CONTENT', payload: newContent });
     navigate(`${buildContentDetailRoute(newContent.id)}&focus=script`, detailBackState);
   };
@@ -165,7 +171,9 @@ export function DashboardPage() {
     <TodayHome
       state={state}
       book={currentBook}
+      bookLoading={!libraryReady}
       scripts={moduleFlags.recording ? suggestedScripts : []}
+      scriptsLoading={!scriptsReady}
       series={state.series}
       suggestionText={suggestionText}
       recordingEnabled={moduleFlags.recording}
@@ -189,6 +197,9 @@ export function DashboardPage() {
       onOpenQueue={() => navigate('/gravacao?tab=queue')}
       onCreateScript={handleNovoRoteiro}
       onOpenSettings={() => navigate('/configuracoes')}
+      agenda={agendaToday}
+      agendaLoading={!pulseReady}
+      onOpenCalendar={() => navigate('/calendario')}
       density={isMobile ? 'mobile' : 'desktop'}
     />
   );
@@ -221,13 +232,11 @@ export function DashboardPage() {
 
   return (
     <PageLayout
-      contentWidth="wide"
+      contentWidth="full"
       header={
         <DesktopPageHeader
           section="Hoje"
           title={dayTitle}
-          titleVariant="display"
-          className="mx-auto mb-0 w-full max-w-4xl"
           actions={
             <CreateMenuButton
               onCreateIdea={() => navigate('/criacao?compose=idea')}
@@ -240,9 +249,7 @@ export function DashboardPage() {
       }
     >
       {pause}
-      <div className="mx-auto w-full max-w-4xl">
-        {home}
-      </div>
+      {home}
     </PageLayout>
   );
 }

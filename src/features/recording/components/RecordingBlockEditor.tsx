@@ -122,7 +122,7 @@ export function RecordingBlockEditor({
               if (event.key === 'Enter') event.currentTarget.blur();
             }}
             className="w-full rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-primary)] px-4 py-3 text-sm font-semibold text-[var(--text-primary)] outline-none focus:border-[var(--border-strong)]"
-            placeholder="Ex: Sessao da tarde"
+            placeholder="Ex.: Sessão da tarde"
           />
         </label>
 
@@ -133,7 +133,7 @@ export function RecordingBlockEditor({
                 Teleprompter
               </p>
               <p className="mt-2 text-sm font-semibold text-[var(--text-primary)]">
-                {teleprompterEnabled ? 'Ativado' : 'Leitura estatica'}
+                {teleprompterEnabled ? 'Ativado' : 'Leitura estática'}
               </p>
             </div>
             <button
@@ -154,13 +154,13 @@ export function RecordingBlockEditor({
       </div>
 
       <TagSelect
-        label="Marcadores de gravacao"
-        hint="Organize look, cenario ou props deste bloco."
+        label="Marcadores de gravação"
+        hint="Organize look, cenário ou props deste bloco."
         values={tags}
         onChange={handleTagsChange}
         options={availableTags.map(tag => ({value: tag, label: tag}))}
         creatable
-        placeholder="Ex: roupa preta, estante, caneca"
+        placeholder="Ex.: roupa preta, estante, caneca"
       />
 
       <section className="stack-md">
@@ -170,11 +170,11 @@ export function RecordingBlockEditor({
               Roteiros do bloco
             </p>
             <p className="mt-1 text-sm text-[var(--text-secondary)]">
-              Reordene, remova ou adicione conteudos prontos sem bloco.
+              Reordene, remova ou adicione roteiros prontos sem bloco.
             </p>
           </div>
           <span className="rounded-full bg-[var(--bg-hover)] px-3 py-1 text-xs font-semibold text-[var(--text-secondary)]">
-            {orderedEntries.length} itens
+            {orderedEntries.length} {orderedEntries.length === 1 ? 'roteiro' : 'roteiros'}
           </span>
         </div>
 
@@ -203,10 +203,10 @@ export function RecordingBlockEditor({
 
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-semibold text-[var(--text-primary)]">
-                      {content.title || 'Conteudo sem titulo'}
+                      {content.title || 'Roteiro sem título'}
                     </p>
                     <p className="text-xs text-[var(--text-secondary)]">
-                      {completed ? 'Gravado' : 'Pronto para camera'}
+                      {completed ? 'Gravado' : 'Pronto para câmera'}
                     </p>
                   </div>
 
@@ -251,7 +251,7 @@ export function RecordingBlockEditor({
         </p>
         {addableQueueContents.length === 0 ? (
           <p className="mt-3 text-sm text-[var(--text-secondary)]">
-            Nenhum conteudo sem bloco disponivel no momento.
+            Nenhum roteiro sem bloco disponível no momento.
           </p>
         ) : (
           <div className="mt-3 flex flex-col gap-3 sm:flex-row">
@@ -263,7 +263,7 @@ export function RecordingBlockEditor({
               <option value="">Selecione um roteiro pronto</option>
               {addableQueueContents.map(content => (
                 <option key={content.id} value={content.id}>
-                  {content.title || 'Conteudo sem titulo'}
+                  {content.title || 'Roteiro sem título'}
                 </option>
               ))}
             </select>
@@ -273,7 +273,7 @@ export function RecordingBlockEditor({
               disabled={!selectedQueueId}
               onClick={handleAddFromQueue}
             >
-              Adicionar
+              Adicionar ao bloco
             </AppButton>
           </div>
         )}

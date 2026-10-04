@@ -2,6 +2,18 @@
 
 Paridade de **resultados** (não de layout). Aparência/Looks está **adiada** (redirect para o hub).
 
+## Decisões de paridade (2026-10-03)
+
+Diferenças **de propósito** — não alinhar:
+
+| Superfície | Desktop | Mobile | Decisão |
+| --- | --- | --- | --- |
+| Biblioteca | Sem Agora/Fila; sem Principal/Fixar | Abas Agora/Fila e botões Principal/Fixar | Manter só no celular |
+| Cabeçalho rosa | Sem faixa de marca no chrome | Faixa rosa só no Hoje | Não expandir para outras telas |
+| Abas do roteiro | Escrita / Gestão | Roteiro \| Notas \| Legendas | Manter os dois vocabulários |
+
+A rota `/` continua em `/criacao`. Não é um item de paridade de tela; não mudar o redirect.
+
 | Ação | Desktop | Mobile | Lacuna |
 | --- | --- | --- | --- |
 | **Criação** | | | |

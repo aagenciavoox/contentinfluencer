@@ -27,7 +27,7 @@ export function ContentDetailTabs({
   return (
     <nav
       className="flex gap-0 overflow-x-auto border-b border-[var(--border-color)]"
-      aria-label="Etapas do conteudo"
+      aria-label="Etapas do roteiro"
     >
       {visibleTabs.map(tabId => {
         const tab = TAB_META[tabId];

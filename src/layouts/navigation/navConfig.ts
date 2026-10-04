@@ -38,13 +38,13 @@ export const PAGE_SECTION = {
 } as const;
 
 export const STUDIO_ROUTES = [
-  '/configuracoes/pilares',
   '/series',
+  '/editorial',
 ] as const;
 
 /** Left side of mobile bottom nav (before FAB). */
 export const MOBILE_BOTTOM_NAV_LEFT: NavItemDefinition[] = [
-  { to: '/hoje', label: 'Home', icon: SunMedium },
+  { to: '/hoje', label: 'Hoje', icon: SunMedium },
   { to: '/criacao', label: 'Criação', icon: PenLine, badgeKey: 'editorial' },
 ];
 
@@ -68,28 +68,62 @@ export function splitBottomNavItems<T>(items: T[]): { left: T[]; right: T[] } {
   };
 }
 
-export function isBottomNavItemActive(to: string, pathname: string): boolean {
+function pathMatches(pathname: string, target: string): boolean {
+  return pathname === target || pathname.startsWith(`${target}/`);
+}
+
+/** Sidebar / drawer highlight. `/criacao/legendas` marks Legendas, not Criação. */
+export function isNavItemActive(to: string, pathname: string): boolean {
   const target = to.split('?')[0];
 
   if (target === '/hoje') {
     return pathname === '/hoje';
   }
 
+  if (target === '/criacao/legendas') {
+    return pathMatches(pathname, '/criacao/legendas');
+  }
+
   if (target === '/criacao') {
-    return pathname === '/criacao'
-      || pathname.startsWith('/criacao/')
-      || pathname.startsWith('/conteudos/');
+    return (pathMatches(pathname, '/criacao') && !pathMatches(pathname, '/criacao/legendas'))
+      || pathMatches(pathname, '/conteudos');
   }
 
   if (target === '/biblioteca') {
-    return pathname === '/biblioteca' || pathname.startsWith('/biblioteca/');
+    return pathMatches(pathname, '/biblioteca');
+  }
+
+  if (target === '/projetos') {
+    return pathMatches(pathname, '/projetos');
   }
 
   if (target === '/gravacao') {
-    return pathname === '/gravacao' || pathname.startsWith('/gravacao/');
+    return pathMatches(pathname, '/gravacao');
   }
 
-  return pathname === target || pathname.startsWith(`${target}/`);
+  if (target === '/editorial') {
+    return pathMatches(pathname, '/editorial');
+  }
+
+  if (target === '/series') {
+    return pathMatches(pathname, '/series');
+  }
+
+  if (target === '/configuracoes') {
+    if (STUDIO_ROUTES.some(route => pathMatches(pathname, route))) return false;
+    return pathMatches(pathname, '/configuracoes');
+  }
+
+  return pathMatches(pathname, target);
+}
+
+/** Bottom nav keeps Criação highlighted on `/criacao/legendas`. */
+export function isBottomNavItemActive(to: string, pathname: string): boolean {
+  const target = to.split('?')[0];
+  if (target === '/criacao') {
+    return pathMatches(pathname, '/criacao') || pathMatches(pathname, '/conteudos');
+  }
+  return isNavItemActive(to, pathname);
 }
 
 export function buildSidebarSections(moduleFlags: ModuleFlags): NavSectionDefinition[] {
@@ -113,7 +147,7 @@ export function buildSidebarSections(moduleFlags: ModuleFlags): NavSectionDefini
           ],
         },
         { to: '/series', label: 'Séries', icon: ListVideo, end: false },
-        { to: '/configuracoes/pilares', label: 'Pilares', icon: Columns3 },
+        { to: '/editorial', label: 'Editorial', icon: Columns3 },
         { to: '/biblioteca', label: 'Biblioteca', icon: Library, badgeKey: 'library', module: 'library' },
       ],
     },
@@ -147,7 +181,6 @@ export function resolveNavBadge(
   return undefined;
 }
 
-export function isSettingsNavActive(pathname: string, isActive: boolean): boolean {
-  const isStudio = STUDIO_ROUTES.some(route => pathname.startsWith(route));
-  return !isStudio && (isActive || pathname.startsWith('/configuracoes'));
+export function isSettingsNavActive(pathname: string, _isActive = false): boolean {
+  return isNavItemActive('/configuracoes', pathname);
 }

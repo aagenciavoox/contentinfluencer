@@ -5,17 +5,16 @@ import { Layers } from 'lucide-react';
 import { DesktopPageHeader } from '../../../layouts/page/DesktopPageHeader';
 import { SettingsPageScaffold } from '../../../components/settings/SettingsPageScaffold';
 import { AppButton } from '../../../components/ui/AppButton';
+import { SegmentTabs } from '../../../components/ui/SegmentTabs';
 import { Text } from '../../../components/ui/Text';
 import { useAppContext } from '../../../context/AppContext';
-import { useAuth } from '../../../context/AuthContext';
 import { useIsMobile } from '../../../hooks/useIsMobile';
-import type { Content, Serie } from '../../../lib/database';
+import type { Content } from '../../../lib/database';
 import { broadcastDataSync } from '../../../lib/syncBroadcast';
 import { notifySaveFeedback } from '../../../lib/saveFeedback';
 import { PageLayout } from '../../../layouts/page/PageLayout';
 import { SeriesDetailMobileScreen } from '../../../mobile/screens/settings/SeriesDetailMobileScreen';
 import { SeriesDetailHeader } from '../components/series-detail/SeriesDetailHeader';
-import { SeriesContentsTabs } from '../components/series-detail/SeriesContentsTabs';
 import { SeriesContentsFilterBar } from '../components/series-detail/SeriesContentsFilterBar';
 import { SeriesContentList } from '../components/series-detail/SeriesContentList';
 import { SeriesBulkComposer } from '../components/SeriesBulkComposer';
@@ -26,6 +25,9 @@ import {
 } from '../lib/computeSeriesContentStats';
 import { filterAndSortSeriesListItems, type SeriesListItem } from '../lib/seriesContentListUtils';
 import { CONTENT_STATUS } from '../../contents/lib/contentPipeline';
+import { getEditorialSettings } from '../../editorial/lib/editorialSettings';
+import { formatOpenItems, getSerieOpenItems } from '../../editorial/lib/serieCompleteness';
+import { OpenInfoNotice } from '../../editorial/components/OpenInfoNotice';
 
 function contentTypeLabel(status: string) {
   return status === CONTENT_STATUS.IDEIA ? 'ideia' : 'roteiro';
@@ -35,8 +37,8 @@ export function SeriesScriptsPage() {
   const { serieId } = useParams<{ serieId: string }>();
   const navigate = useNavigate();
   const { state, dispatch } = useAppContext();
-  const { user } = useAuth();
   const isMobile = useIsMobile();
+  const editorialSettings = getEditorialSettings(state.preferences);
 
   const [activeTab, setActiveTab] = useState<SeriesContentTab>('roteiros');
   const [searchTerm, setSearchTerm] = useState('');
@@ -118,25 +120,13 @@ export function SeriesScriptsPage() {
     });
   };
 
-  const handleSaveSerie = (updatedSerie: Serie) => {
-    const payload = { ...updatedSerie, userId: updatedSerie.userId || user?.id || '' };
-    dispatch({ type: 'UPDATE_SERIE', payload });
-  };
-
-  const handleToggleActive = (targetSerie: Serie) => {
-    dispatch({
-      type: 'UPDATE_SERIE',
-      payload: { ...targetSerie, ativa: !targetSerie.ativa, updatedAt: new Date().toISOString() },
-    });
-  };
-
   if (!serie) {
     if (isMobile) {
       return (
         <div className="min-h-full bg-[var(--bg-primary)] py-10 text-center">
           <Layers className="mx-auto mb-3 h-8 w-8 opacity-10" />
           <Text variant="body" className="text-[var(--text-tertiary)]">
-            {state.isLoaded ? 'Série não encontrada.' : 'Carregando série...'}
+            {state.isLoaded ? 'Série não encontrada.' : 'Carregando série…'}
           </Text>
           {state.isLoaded ? (
             <AppButton variant="secondary" className="mt-4" onClick={() => navigate('/series')}>
@@ -157,7 +147,7 @@ export function SeriesScriptsPage() {
         <div className="py-12 text-center">
           <Layers className="mx-auto mb-3 h-8 w-8 opacity-10" />
           <p className="text-sm font-medium opacity-50">
-            {state.isLoaded ? 'Série não encontrada.' : 'Carregando série...'}
+            {state.isLoaded ? 'Série não encontrada.' : 'Carregando série…'}
           </p>
           {state.isLoaded ? (
             <AppButton
@@ -182,10 +172,8 @@ export function SeriesScriptsPage() {
           platformNames={platformNames}
           linkedContents={linkedContents}
           linkedInboxIdeas={inboxIdeas}
-          contents={state.contents}
-          onSaveSerie={handleSaveSerie}
-          onToggleActive={handleToggleActive}
           onCreateBulkContents={handleCreateBulkContents}
+          showOpenInfoNotice={editorialSettings.openInfoNotices}
           searchValue={searchTerm}
           onSearchChange={setSearchTerm}
           statusValue={filterStatus}
@@ -216,19 +204,33 @@ export function SeriesScriptsPage() {
           contentCount={linkedContents.length}
           showMoreMenu={showHeaderMenu}
           onToggleMore={() => setShowHeaderMenu(current => !current)}
-          onEdit={() => navigate(`/series/${serie.id}/editar`)}
+          onEdit={() => navigate(`/editorial/series/${serie.id}`)}
           hideChrome
           onMenuAction={action => {
-            if (action === 'toggle-active') handleToggleActive(serie);
+            if (action === 'edit') navigate(`/editorial/series/${serie.id}`);
           }}
         />
 
+        {editorialSettings.openInfoNotices && getSerieOpenItems(serie).length > 0 ? (
+          <OpenInfoNotice
+            items={getSerieOpenItems(serie)}
+            title={`Esta série tem informações em aberto: ${formatOpenItems(getSerieOpenItems(serie))}`}
+            description={null}
+            actionLabel="Completar no Editorial"
+            onAction={() => navigate(`/editorial/series/${serie.id}`)}
+          />
+        ) : null}
+
         <div className="grid-series-detail">
           <div className="min-w-0 order-2 stack-xl lg:order-1">
-            <SeriesContentsTabs
-              activeTab={activeTab}
-              onTabChange={setActiveTab}
-              counts={tabCounts}
+            <SegmentTabs<SeriesContentTab>
+              value={activeTab}
+              onChange={setActiveTab}
+              options={[
+                { id: 'roteiros', label: 'Roteiros', count: tabCounts.roteiros },
+                { id: 'ideias', label: 'Ideias', count: tabCounts.ideias },
+                { id: 'todos', label: 'Todos', count: tabCounts.total },
+              ]}
             />
 
             <SeriesContentsFilterBar

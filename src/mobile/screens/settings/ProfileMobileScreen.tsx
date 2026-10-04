@@ -2,6 +2,7 @@ import { KeyRound, Mail, ShieldCheck, UserCircle2 } from 'lucide-react';
 import { AppButton } from '../../../components/ui/AppButton';
 import { Text } from '../../../components/ui/Text';
 import { MobileSectionHeader } from '../../components/MobileSectionHeader';
+import { ERRORS } from '../../../lib/uiCopy';
 
 interface ProfileMobileScreenProps {
   backendReady: boolean;
@@ -27,6 +28,7 @@ interface ProfileMobileScreenProps {
   onSaveEmail: () => void;
   onSavePassword: () => void;
   emailSubmitDisabled?: boolean;
+  primaryCard?: 'profile' | 'email' | 'password' | null;
 }
 
 function Feedback({ message, tone }: { message: string; tone: 'success' | 'error' }) {
@@ -62,6 +64,7 @@ export function ProfileMobileScreen({
   onSaveEmail,
   onSavePassword,
   emailSubmitDisabled = false,
+  primaryCard = null,
 }: ProfileMobileScreenProps) {
   return (
     <div className="stack-lg">
@@ -70,12 +73,12 @@ export function ProfileMobileScreen({
           icon={UserCircle2}
           tone="blue"
           title="Perfil"
-          description="Atualize nome, e-mail de acesso e senha sem sair do fluxo mobile."
+          description="Nome, e-mail de acesso e senha."
         />
 
         {!backendReady ? (
           <Feedback
-            message="Conecte o Supabase para habilitar alterações de conta."
+            message={ERRORS.supabaseDesconectado}
             tone="error"
           />
         ) : (
@@ -100,13 +103,13 @@ export function ProfileMobileScreen({
           className="input"
         />
         <AppButton
-          variant="primary"
+          variant={primaryCard === 'profile' ? 'primary' : 'secondary'}
           fullWidth
           onClick={onSaveProfile}
           disabled={!backendReady || profileLoading}
           className="mt-4"
         >
-          {profileLoading ? 'Salvando...' : 'Salvar nome'}
+          {profileLoading ? 'Salvando…' : 'Salvar nome'}
         </AppButton>
         {profileMessage ? <div className="mt-3"><Feedback message={profileMessage} tone="success" /></div> : null}
         {profileError ? <div className="mt-3"><Feedback message={profileError} tone="error" /></div> : null}
@@ -134,13 +137,13 @@ export function ProfileMobileScreen({
           validar esse e-mail.
         </p>
         <AppButton
-          variant="primary"
+          variant={primaryCard === 'email' ? 'primary' : 'secondary'}
           fullWidth
           onClick={onSaveEmail}
           disabled={emailSubmitDisabled}
           className="mt-4"
         >
-          {emailLoading ? 'Atualizando...' : 'Atualizar e-mail'}
+          {emailLoading ? 'Atualizando…' : 'Atualizar e-mail'}
         </AppButton>
         {emailMessage ? <div className="mt-3"><Feedback message={emailMessage} tone="success" /></div> : null}
         {emailError ? <div className="mt-3"><Feedback message={emailError} tone="error" /></div> : null}
@@ -184,13 +187,13 @@ export function ProfileMobileScreen({
           </div>
         </div>
         <AppButton
-          variant="primary"
+          variant={primaryCard === 'password' ? 'primary' : 'secondary'}
           fullWidth
           onClick={onSavePassword}
           disabled={!backendReady || passwordLoading}
           className="mt-4"
         >
-          {passwordLoading ? 'Salvando...' : 'Atualizar senha'}
+          {passwordLoading ? 'Salvando…' : 'Atualizar senha'}
         </AppButton>
         {passwordMessage ? <div className="mt-3"><Feedback message={passwordMessage} tone="success" /></div> : null}
         {passwordError ? <div className="mt-3"><Feedback message={passwordError} tone="error" /></div> : null}

@@ -3,7 +3,8 @@ import {format} from 'date-fns';
 import {ptBR} from 'date-fns/locale';
 import {Send, X} from 'lucide-react';
 import {AppButton} from '../../../components/ui/AppButton';
-import type {Content, Platform, PublicationKind} from '../../../lib/database';
+import type {Content, Platform, PublicationKind, Serie} from '../../../lib/database';
+import {MarkPostedSheet} from './MarkPostedSheet';
 import {cn} from '../../../lib/utils';
 import {generateUUID} from '../../../utils/uuid';
 import {getPlatformColor} from '../../programacao/lib/programacao';
@@ -23,9 +24,17 @@ interface PostedVideoComposerSheetProps {
   /** Quando informado, abre em modo edição */
   initialContent?: Content | null;
   platforms: Platform[];
+  series?: Array<Pick<Serie, 'id' | 'funcaoPadrao'>>;
   postingTimes: PostingTimesSettings;
   onSave: (content: Content, options?: {keepOpen?: boolean}) => void | Promise<void>;
   onClose: () => void;
+}
+
+function postedInstant(date: string | null | undefined, time: string | null | undefined): string {
+  const day = (date ?? '').slice(0, 10);
+  const clock = time && /^\d{2}:\d{2}/.test(time) ? time.slice(0, 5) : '12:00';
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return new Date().toISOString();
+  return new Date(day + 'T' + clock + ':00').toISOString();
 }
 
 function resolvePlatformId(platformRef: string, platforms: Platform[]): string {
@@ -84,6 +93,13 @@ export function buildPostedVideoContent(params: {
       publishTime: params.time || null,
       publishDateEnabled: true,
       publicationKind: entry.publicationKind,
+      status: existing?.status ?? 'agendada',
+      realizadaManualEm: existing?.realizadaManualEm ?? null,
+      realizadaApiEm: existing?.realizadaApiEm ?? null,
+      postCodigo: existing?.postCodigo ?? null,
+      postUrl: existing?.postUrl ?? null,
+      legendaPropria: existing?.legendaPropria ?? false,
+      contaNaGrade: existing?.contaNaGrade ?? true,
     };
   });
 
@@ -107,6 +123,7 @@ export function PostedVideoComposerSheet({
   initialDate,
   initialContent,
   platforms,
+  series,
   postingTimes,
   onSave,
   onClose,
@@ -127,6 +144,7 @@ export function PostedVideoComposerSheet({
     return first ? [{platformId: first.id, publicationKind: 'post'}] : [];
   });
   const [isSaving, setIsSaving] = useState(false);
+  const [markIntent, setMarkIntent] = useState<{content: Content; keepOpen: boolean} | null>(null);
 
   const selectedIds = useMemo(() => new Set(platformEntries.map(entry => entry.platformId)), [platformEntries]);
   const canSave = Boolean(title.trim() && date && platformEntries.length > 0);
@@ -154,28 +172,57 @@ export function PostedVideoComposerSheet({
     setPlatformEntries(first ? [{platformId: first.id, publicationKind: 'post'}] : []);
   };
 
-  const handleSave = async (keepOpen: boolean) => {
+  const handleSave = (keepOpen: boolean) => {
     if (!canSave || isSaving) return;
-    setIsSaving(true);
-    try {
-      await onSave(
-        buildPostedVideoContent({
-          title,
-          date,
-          time: time || null,
-          caption,
-          platformEntries,
-          existingContent: initialContent,
-        }),
-        {keepOpen: !isEditing && keepOpen},
-      );
-      if (!isEditing && keepOpen) {
-        resetForAnother();
-      }
-    } finally {
-      setIsSaving(false);
-    }
+    setMarkIntent({
+      content: buildPostedVideoContent({
+        title,
+        date,
+        time: time || null,
+        caption,
+        platformEntries,
+        existingContent: initialContent,
+      }),
+      keepOpen,
+    });
   };
+
+  if (markIntent) {
+    const serie = series?.find(item => item.id === markIntent.content.seriesId) ?? null;
+    return (
+      <MarkPostedSheet
+        embedded
+        open
+        content={markIntent.content}
+        serie={serie}
+        platformName={platformId => platformLabel(platformId, activePlatforms)}
+        initialRealizadaEm={postedInstant(markIntent.content.publishDate, markIntent.content.publishTime)}
+        isSaving={isSaving}
+        onClose={() => {
+          if (!isSaving) setMarkIntent(null);
+        }}
+        onConfirm={async marked => {
+          setIsSaving(true);
+          try {
+            await onSave(
+              {
+                ...markIntent.content,
+                ...marked.content,
+                plataformas: marked.publicacoes,
+              },
+              {keepOpen: !isEditing && markIntent.keepOpen},
+            );
+            if (!isEditing && markIntent.keepOpen) {
+              resetForAnother();
+              setMarkIntent(null);
+            }
+          } finally {
+            setIsSaving(false);
+          }
+        }}
+      />
+    );
+  }
 
   return (
     <div className="stack-lg p-6">
@@ -215,7 +262,7 @@ export function PostedVideoComposerSheet({
           type="text"
           value={title}
           onChange={event => setTitle(event.target.value)}
-          placeholder="Ex: 3 sinais de que..."
+          placeholder="Ex.: 3 sinais de que…"
           className="mt-2 min-h-11 w-full rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-3 py-2 text-sm font-semibold text-[var(--text-primary)] outline-none placeholder:text-[var(--text-tertiary)] focus:border-[var(--accent-blue)]"
           onKeyDown={event => {
             if (event.key === 'Enter' && canSave && !isSaving) void handleSave(false);
@@ -301,8 +348,8 @@ export function PostedVideoComposerSheet({
                 onChange={event => setPublicationKind(entry.platformId, event.target.value as PublicationKind)}
                 className="min-h-9 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-2.5 text-xs font-semibold text-[var(--text-primary)] outline-none focus:border-[var(--accent-blue)]"
               >
-                <option value="post">Postada</option>
-                <option value="repost">Repostada</option>
+                <option value="post">Original</option>
+                <option value="repost">Repostagem</option>
               </select>
             </div>
           ))}
@@ -315,7 +362,7 @@ export function PostedVideoComposerSheet({
           value={caption}
           onChange={event => setCaption(event.target.value)}
           rows={4}
-          placeholder="Cole aqui a legenda que foi publicada..."
+          placeholder="Cole aqui a legenda que foi publicada…"
           className="mt-2 w-full resize-none rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-3 py-2 text-sm font-medium leading-relaxed text-[var(--text-primary)] outline-none placeholder:text-[var(--text-tertiary)] focus:border-[var(--accent-blue)]"
         />
       </div>
@@ -328,7 +375,7 @@ export function PostedVideoComposerSheet({
           leftIcon={<Send className="h-4 w-4" />}
           onClick={() => void handleSave(false)}
         >
-          {isSaving ? 'Salvando...' : isEditing ? 'Salvar alterações' : 'Registrar postagem'}
+          {isSaving ? 'Salvando…' : isEditing ? 'Salvar alterações' : 'Registrar postagem'}
         </AppButton>
         {!isEditing ? (
           <AppButton

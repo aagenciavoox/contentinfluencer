@@ -1,16 +1,15 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CalendarClock, Hash, Layers, Palette, Plus, Quote, Type } from 'lucide-react';
-import { ConfirmModal } from '../../../components/feedback/modals/ConfirmModal';
-import { CONFIRM, type ConfirmState } from '../../../lib/uiCopy';
+import { Layers, Plus } from 'lucide-react';
+import { BottomSheetModal } from '../../../components/feedback/modals/BottomSheetModal';
+import { OverlayBody } from '../../../components/overlays/OverlayBody';
+import { OverlayFooter } from '../../../components/overlays/OverlayFooter';
+import { OverlayHeader } from '../../../components/overlays/OverlayHeader';
 import { AppButton } from '../../../components/ui/AppButton';
-import {
-  PropertyInput,
-  PropertyRow,
-  PropertySection,
-  PropertySelect,
-  PropertyTextarea,
-} from '../../../components/ui/PropertyRow';
+import { Badge } from '../../../components/ui/Badge';
+import { MoreMenu } from '../../../components/ui/MoreMenu';
+import { Surface } from '../../../components/ui/Surface';
+import { Text } from '../../../components/ui/Text';
 import { SegmentTabs } from '../../../components/ui/SegmentTabs';
 import { ToolbarSearchInput } from '../../../components/ui/ToolbarSearchInput';
 import { QueryViewState, resolveQueryViewStatus } from '../../../components/ui/QueryViewState';
@@ -20,13 +19,11 @@ import { useIsMobile } from '../../../hooks/useIsMobile';
 import { SeriesMobileScreen } from '../../../mobile/screens/settings/SeriesMobileScreen';
 import type { Serie } from '../../../lib/database';
 import { SettingsPageScaffold } from '../../../components/settings/SettingsPageScaffold';
-import { SettingsGridCard, SETTINGS_ENTITY_GRID_CLASS } from '../../../components/settings/SettingsGridCard';
+import { SETTINGS_ENTITY_GRID_CLASS } from '../../../components/settings/SettingsGridCard';
 import { generateUUID } from '../../../utils/uuid';
-import { SerieProductionMetricsPanel } from '../components/SerieProductionMetricsPanel';
-import { CoverUploadField } from '../../library/components/CoverUploadField';
-import type { Content } from '../../../lib/database';
-
-const FREQUENCIAS = ['Semanal', 'Quinzenal', 'Mensal', 'Sob demanda'] as const;
+import { getEditorialSettings } from '../../editorial/lib/editorialSettings';
+import { getSerieOpenItems } from '../../editorial/lib/serieCompleteness';
+import { PILAR_PRESET_CORES } from '../lib/pilarConstants';
 
 type SeriesFilter = 'todas' | 'ativas' | 'inativas';
 
@@ -42,229 +39,55 @@ function seriesMetaLine(serie: Serie, roteiroCount: number) {
     .join(' · ');
 }
 
-export function SeriesForm({
-  initial,
-  onSave,
-  onCancel,
-  platformNames,
-  contents = [],
-}: {
-  initial: Partial<Serie>;
-  onSave: (serie: Serie) => void;
-  onCancel: () => void;
-  platformNames: string[];
-  contents?: Content[];
-}) {
-  const [form, setForm] = useState<Serie>(() => ({
-    id: initial.id || generateUUID(),
-    userId: initial.userId || '',
-    name: initial.name || '',
-    template: initial.template || '',
-    notes: initial.notes || '',
-    slotPadrao: initial.slotPadrao || null,
-    formatoVisualPadrao: initial.formatoVisualPadrao || null,
-    estruturaRoteiro: initial.estruturaRoteiro || null,
-    bordao: initial.bordao || null,
-    cor: initial.cor || '#6366f1',
-    capaUrl: initial.capaUrl || null,
-    ativa: initial.ativa ?? true,
-    frequenciaRecomendada: initial.frequenciaRecomendada || 'Semanal',
-    createdAt: initial.createdAt || new Date().toISOString(),
-    updatedAt: initial.updatedAt || new Date().toISOString(),
-    pilarIds: initial.pilarIds || [],
-    plataformas: initial.plataformas || [],
-  }));
-
-  const updatePlatformHashtags = (platformId: string, hashtags: string) => {
-    const current = [...form.plataformas];
-    const index = current.findIndex(item => item.platformId === platformId);
-
-    if (!hashtags.trim()) {
-      if (index >= 0) current.splice(index, 1);
-    } else if (index >= 0) {
-      current[index] = { ...current[index], hashtags: hashtags.trim() };
-    } else {
-      current.push({ serieId: form.id, platformId, hashtags: hashtags.trim() });
-    }
-
-    setForm(previous => ({ ...previous, plataformas: current }));
-  };
-
-  const handleSave = () => {
-    if (!form.name.trim()) return;
-    onSave({
-      ...form,
-      capaUrl: form.capaUrl?.trim() || null,
-      updatedAt: new Date().toISOString(),
-    });
-  };
-
-  return (
-    <div className="space-y-7">
-      <PropertySection label="Identidade">
-        <PropertyRow label="Nome *" icon={<Type />}>
-          <PropertyInput
-            type="text"
-            value={form.name}
-            onChange={event => setForm(previous => ({ ...previous, name: event.target.value }))}
-            placeholder="Nome da série"
-            className={form.name ? '' : 'property-row-value--empty'}
-          />
-        </PropertyRow>
-
-        <PropertyRow label="Frequência" icon={<CalendarClock />}>
-          <PropertySelect
-            value={form.frequenciaRecomendada || 'Semanal'}
-            onChange={event =>
-              setForm(previous => ({ ...previous, frequenciaRecomendada: event.target.value }))
-            }
-          >
-            {FREQUENCIAS.map(item => (
-              <option key={item} value={item}>
-                {item}
-              </option>
-            ))}
-          </PropertySelect>
-        </PropertyRow>
-
-        <PropertyRow label="Bordão" icon={<Quote />}>
-          <PropertyInput
-            type="text"
-            value={form.bordao || ''}
-            onChange={event => setForm(previous => ({ ...previous, bordao: event.target.value || null }))}
-            placeholder="Ex: vamos destrinchar isso"
-            className={form.bordao ? '' : 'property-row-value--empty'}
-          />
-        </PropertyRow>
-
-        <PropertyRow label="Cor" icon={<Palette />}>
-          <input
-            type="color"
-            value={form.cor || '#6366f1'}
-            onChange={event => setForm(previous => ({ ...previous, cor: event.target.value }))}
-            className="h-6 w-10 cursor-pointer rounded-[var(--radius-input)] border border-[var(--border-color)] bg-transparent p-0.5"
-          />
-        </PropertyRow>
-      </PropertySection>
-
-      <CoverUploadField
-        value={form.capaUrl || ''}
-        onChange={capaUrl => setForm(previous => ({ ...previous, capaUrl: capaUrl || null }))}
-        itemId={form.id}
-        title={form.name || 'Série'}
-        typeLabel="Série"
-        description="Opcional. Envie uma imagem ou cole um link."
-        compact
-        urlAlwaysVisible
-      />
-
-      <PropertySection label="Estrutura do roteiro">
-        <PropertyTextarea
-          rows={6}
-          value={form.estruturaRoteiro || ''}
-          onChange={event =>
-            setForm(previous => ({ ...previous, estruturaRoteiro: event.target.value || null }))
-          }
-          placeholder="Estrutura base para roteiros desta série..."
-          className="min-h-[140px] leading-relaxed"
-        />
-      </PropertySection>
-
-      <PropertySection label="Hashtags por plataforma">
-        {platformNames.map(platform => (
-          <PropertyRow key={platform} label={platform} icon={<Hash />}>
-            <PropertyInput
-              type="text"
-              value={form.plataformas.find(item => item.platformId === platform)?.hashtags || ''}
-              onChange={event => updatePlatformHashtags(platform, event.target.value)}
-              placeholder="#hashtag1 #hashtag2"
-              className={
-                form.plataformas.find(item => item.platformId === platform)?.hashtags
-                  ? ''
-                  : 'property-row-value--empty'
-              }
-            />
-          </PropertyRow>
-        ))}
-      </PropertySection>
-
-      {initial.id ? (
-        <SerieProductionMetricsPanel
-          serie={{
-            id: form.id,
-            userId: form.userId,
-            name: form.name,
-            template: form.template,
-            notes: form.notes,
-            slotPadrao: form.slotPadrao,
-            formatoVisualPadrao: form.formatoVisualPadrao,
-            estruturaRoteiro: form.estruturaRoteiro,
-            bordao: form.bordao,
-            cor: form.cor,
-            capaUrl: form.capaUrl,
-            ativa: form.ativa,
-            frequenciaRecomendada: form.frequenciaRecomendada,
-            pilarIds: form.pilarIds,
-            plataformas: form.plataformas,
-            createdAt: form.createdAt,
-            updatedAt: form.updatedAt,
-          }}
-          contents={contents}
-        />
-      ) : null}
-
-      <div className="flex items-center justify-end gap-3 pt-2">
-        <AppButton onClick={onCancel} variant="secondary">
-          Cancelar
-        </AppButton>
-        <AppButton onClick={handleSave} disabled={!form.name.trim()} variant="primary">
-          Salvar
-        </AppButton>
-      </div>
-    </div>
-  );
-}
-
 export function SeriesSettingsPage() {
   const { state, dispatch } = useAppContext();
   const { user } = useAuth();
   const isMobile = useIsMobile();
   const navigate = useNavigate();
-  const [confirm, setConfirm] = useState<ConfirmState | null>(null);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<SeriesFilter>('todas');
-
-  const openEditPage = (serieId: string) => {
-    navigate(`/series/${serieId}/editar`);
-  };
+  const [quickCreateOpen, setQuickCreateOpen] = useState(false);
+  const [quickName, setQuickName] = useState('');
+  const [quickColor, setQuickColor] = useState(PILAR_PRESET_CORES[0] || '#6366f1');
+  const editorialSettings = getEditorialSettings(state.preferences);
 
   const openCreatePage = () => {
-    navigate('/series/nova');
-  };
-
-  const handleSave = (serie: Serie) => {
-    const payload = { ...serie, userId: serie.userId || user?.id || '' };
-    const exists = state.series.find(item => item.id === payload.id);
-
-    if (exists) {
-      dispatch({ type: 'UPDATE_SERIE', payload });
-    } else {
-      dispatch({ type: 'ADD_SERIE', payload });
+    if (editorialSettings.quickSeriesCreate) {
+      setQuickCreateOpen(true);
+      return;
     }
+    navigate('/editorial/series/nova');
   };
 
-  const handleToggleActive = (serie: Serie) => {
-    dispatch({
-      type: 'UPDATE_SERIE',
-      payload: { ...serie, ativa: !serie.ativa, updatedAt: new Date().toISOString() },
-    });
-  };
-
-  const handleDelete = (id: string) => {
-    setConfirm({
-      ...CONFIRM.excluirSerie,
-      onConfirm: () => dispatch({ type: 'DELETE_SERIE', payload: id }),
-    });
+  const handleQuickCreate = () => {
+    const name = quickName.trim();
+    if (!name) return;
+    const now = new Date().toISOString();
+    const serie: Serie = {
+      id: generateUUID(),
+      userId: user?.id || '',
+      name,
+      template: '',
+      notes: '',
+      slotPadrao: null,
+      formatoVisualPadrao: null,
+      estruturaRoteiro: null,
+      bordao: null,
+      cor: quickColor,
+      capaUrl: null,
+      ativa: true,
+      frequenciaRecomendada: null,
+      funcaoPadrao: null,
+      energiaPadrao: null,
+      createdAt: now,
+      updatedAt: now,
+      pilarIds: [],
+      plataformas: [],
+    };
+    dispatch({ type: 'ADD_SERIE', payload: serie });
+    setQuickCreateOpen(false);
+    setQuickName('');
+    navigate(`/series/${serie.id}/roteiros`);
   };
 
   const roteiroCountBySerie = useMemo(() => {
@@ -320,34 +143,26 @@ export function SeriesSettingsPage() {
   };
 
   if (isMobile) {
-    const platformNames = state.platforms
-      .filter(platform => platform.ativo)
-      .map(platform => platform.nome);
-
     return (
       <>
         <div className="min-h-full bg-[var(--bg-primary)]">
           <SeriesMobileScreen
             series={state.series}
             roteiroCountBySerie={roteiroCountBySerie}
-            platformNames={platformNames}
-            contents={state.contents}
-            onSave={handleSave}
-            onToggle={handleToggleActive}
-            onDelete={(serieId) => handleDelete(serieId)}
             onOpen={openBulkPage}
+            onCreate={openCreatePage}
+            onConfigure={serieId => navigate(`/editorial/series/${serieId}`)}
+            showOpenBadges={editorialSettings.openInfoNotices}
           />
         </div>
-        <ConfirmModal
-          open={!!confirm}
-          message={confirm?.message || ''}
-          confirmLabel={confirm?.confirmLabel}
-          cancelLabel={confirm?.cancelLabel}
-          onConfirm={() => {
-            confirm?.onConfirm();
-            setConfirm(null);
-          }}
-          onCancel={() => setConfirm(null)}
+        <QuickCreateSheet
+          open={quickCreateOpen}
+          name={quickName}
+          color={quickColor}
+          onNameChange={setQuickName}
+          onColorChange={setQuickColor}
+          onClose={() => setQuickCreateOpen(false)}
+          onCreate={handleQuickCreate}
         />
       </>
     );
@@ -366,7 +181,7 @@ export function SeriesSettingsPage() {
             <ToolbarSearchInput
               value={search}
               onChange={setSearch}
-              placeholder="Buscar série..."
+              placeholder="Buscar série…"
               className="desktop-subheader-search"
             />
             <SegmentTabs<SeriesFilter>
@@ -391,6 +206,9 @@ export function SeriesSettingsPage() {
         </AppButton>
       }
     >
+      <Text variant="secondary" className="mb-4">
+        Criação em massa: abra uma série para produzir roteiros e ideias. A edição completa fica no Editorial.
+      </Text>
       <QueryViewState
         status={seriesStatus}
         skeletonCount={6}
@@ -415,38 +233,114 @@ export function SeriesSettingsPage() {
               const structure = serie.estruturaRoteiro?.trim();
 
               return (
-                <SettingsGridCard
+                <Surface
                   key={serie.id}
-                  compact
-                  title={serie.name}
-                  imageUrl={serie.capaUrl}
-                  description={structure || undefined}
-                  color={serie.cor || '#6366f1'}
-                  active={serie.ativa}
-                  dimmed={!serie.ativa}
-                  onOpen={() => openBulkPage(serie.id)}
-                  onToggle={() => handleToggleActive(serie)}
-                  onEdit={() => openEditPage(serie.id)}
-                  onDelete={() => handleDelete(serie.id)}
-                  meta={seriesMetaLine(serie, roteiroCount)}
-                />
+                  variant="outlined"
+                  padding="md"
+                  className={!serie.ativa ? 'relative opacity-55' : 'relative'}
+                >
+                  <div className="absolute right-2 top-2 z-10">
+                    <MoreMenu
+                      size="sm"
+                      items={[{
+                        label: 'Configurar no Editorial',
+                        onClick: () => navigate(`/editorial/series/${serie.id}`),
+                      }]}
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => openBulkPage(serie.id)}
+                    className="w-full pr-8 text-left focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+                  >
+                    <div className="mb-2 flex flex-wrap items-center gap-1.5">
+                      <Badge variant="neutral">
+                        <span className="mr-1.5 inline-block h-2 w-2 rounded-full" style={{ backgroundColor: serie.cor || '#6366f1' }} />
+                        {serie.ativa ? 'Ativa' : 'Inativa'}
+                      </Badge>
+                      {editorialSettings.openInfoNotices && getSerieOpenItems(serie).length > 0 ? (
+                        <Badge variant="neutral">Em aberto</Badge>
+                      ) : null}
+                    </div>
+                    <Text variant="itemTitle">{serie.name}</Text>
+                    {structure ? <Text variant="secondary" className="mt-1 line-clamp-2">{structure}</Text> : null}
+                    <Text variant="meta" className="mt-2">{seriesMetaLine(serie, roteiroCount)}</Text>
+                  </button>
+                </Surface>
               );
             })
           )}
         </div>
       </QueryViewState>
 
-      <ConfirmModal
-        open={!!confirm}
-        message={confirm?.message || ''}
-        confirmLabel={confirm?.confirmLabel}
-        cancelLabel={confirm?.cancelLabel}
-        onConfirm={() => {
-          confirm?.onConfirm();
-          setConfirm(null);
-        }}
-        onCancel={() => setConfirm(null)}
+      <QuickCreateSheet
+        open={quickCreateOpen}
+        name={quickName}
+        color={quickColor}
+        onNameChange={setQuickName}
+        onColorChange={setQuickColor}
+        onClose={() => setQuickCreateOpen(false)}
+        onCreate={handleQuickCreate}
       />
     </SettingsPageScaffold>
+  );
+}
+
+function QuickCreateSheet({
+  open,
+  name,
+  color,
+  onNameChange,
+  onColorChange,
+  onClose,
+  onCreate,
+}: {
+  open: boolean;
+  name: string;
+  color: string;
+  onNameChange: (value: string) => void;
+  onColorChange: (value: string) => void;
+  onClose: () => void;
+  onCreate: () => void;
+}) {
+  return (
+    <BottomSheetModal open={open} onClose={onClose} desktopMaxW="max-w-md">
+      <OverlayHeader onClose={onClose}>
+        <Text variant="sectionTitle">Nova série</Text>
+        <Text variant="meta" className="mt-1 text-[var(--text-secondary)]">Comece com nome e cor.</Text>
+      </OverlayHeader>
+      <OverlayBody className="stack-lg">
+        <label className="block">
+          <Text variant="label" className="mb-1.5 block">Nome</Text>
+          <input
+            autoFocus
+            value={name}
+            onChange={event => onNameChange(event.target.value)}
+            placeholder="Nome da série"
+            className="ds-input w-full rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-3 py-2 text-sm"
+          />
+        </label>
+        <div>
+          <Text variant="label" className="mb-2 block">Cor</Text>
+          <div className="flex flex-wrap gap-2">
+            {PILAR_PRESET_CORES.map(item => (
+              <button
+                key={item}
+                type="button"
+                aria-label={`Escolher cor ${item}`}
+                aria-pressed={color === item}
+                onClick={() => onColorChange(item)}
+                className="h-9 w-9 rounded-full border-2 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+                style={{ backgroundColor: item, borderColor: color === item ? 'var(--text-primary)' : 'transparent' }}
+              />
+            ))}
+          </div>
+        </div>
+      </OverlayBody>
+      <OverlayFooter>
+        <AppButton variant="secondary" onClick={onClose}>Cancelar</AppButton>
+        <AppButton variant="primary" onClick={onCreate} disabled={!name.trim()}>Criar série</AppButton>
+      </OverlayFooter>
+    </BottomSheetModal>
   );
 }

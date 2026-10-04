@@ -39,7 +39,7 @@ function testErrorOnlyAfterSettled() {
       itemCount: 0,
       enabled: true,
       fetchAttempted: true,
-      error: 'falhou',
+      error: 'erro de rede',
     }),
     'error',
   );
@@ -48,7 +48,7 @@ function testErrorOnlyAfterSettled() {
       loading: true,
       itemCount: 0,
       enabled: true,
-      error: 'falhou',
+      error: 'erro de rede',
     }),
     'loading',
   );
@@ -58,7 +58,7 @@ function testErrorOnlyAfterSettled() {
       itemCount: 2,
       enabled: true,
       fetchAttempted: true,
-      error: 'falhou',
+      error: 'erro de rede',
     }),
     'ready',
   );

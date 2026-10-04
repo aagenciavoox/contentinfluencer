@@ -2,6 +2,10 @@
   "mcpServers": {
     "supabase": {
       "url": "https://mcp.supabase.com/mcp?project_ref=aftffcaychrfffefkeoj"
+    },
+    "content-os": {
+      "command": "node",
+      "args": ["${workspaceFolder}/mcp/src/index.ts"]
     }
   }
 }

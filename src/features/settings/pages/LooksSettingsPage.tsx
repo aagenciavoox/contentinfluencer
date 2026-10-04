@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Trash2, Edit2, ToggleLeft, ToggleRight, Check, X, Shirt } from 'lucide-react';
+import { Plus, Trash2, Edit2, ToggleLeft, ToggleRight, Check, Shirt } from 'lucide-react';
 import { useAppContext } from '../../../context/AppContext';
 import { useIsMobile } from '../../../hooks/useIsMobile';
 import { Look, Cenario } from '../../../lib/database';
@@ -68,7 +68,7 @@ export function LooksSettingsPage() {
         !isMobile ? (
         <DesktopPageHeader
           section="Configurações"
-          title="Looks & Cenários"
+          title="Looks e cenários"
           icon={Shirt}
           backLabel="Configurações"
           backTo="/configuracoes"
@@ -78,7 +78,7 @@ export function LooksSettingsPage() {
       mobileHeader={
         isMobile ? (
           <div className="px-1 pb-3 pt-1">
-            <Text variant="sectionTitle">Looks & Cenários</Text>
+            <Text variant="sectionTitle">Looks e cenários</Text>
             <Text variant="meta" className="mt-1 text-[var(--text-tertiary)]">
               Catálogo de looks e cenários
             </Text>
@@ -101,7 +101,7 @@ export function LooksSettingsPage() {
               variant="primary"
               leftIcon={<Plus className="w-3.5 h-3.5" />}
             >
-              Novo Look
+              Novo look
             </AppButton>
           </div>
 
@@ -123,13 +123,13 @@ export function LooksSettingsPage() {
                     type="text"
                     value={lookForm.descricao}
                     onChange={e => setLookForm(p => ({ ...p, descricao: e.target.value }))}
-                    placeholder="Ex: Blusa bege, cabelo preso"
-                    className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-lg px-3 py-2 text-[var(--text-primary)] placeholder:opacity-30"
+                    placeholder="Ex.: Blusa bege, cabelo preso"
+                    className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-lg px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]"
                   />
                 </div>
               </div>
               <div>
-                <label className="text-xs font-bold  text-[var(--text-tertiary)] block mb-1">Cenário Associado</label>
+                <label className="text-xs font-bold  text-[var(--text-tertiary)] block mb-1">Cenário associado</label>
                 <select
                   value={lookForm.cenarioId || ''}
                   onChange={e => setLookForm(p => ({ ...p, cenarioId: e.target.value || undefined }))}
@@ -156,7 +156,7 @@ export function LooksSettingsPage() {
             ) : activeLooks.map(look => {
               const cenario = look.cenarioId ? state.cenarios.find(c => c.id === look.cenarioId) : null;
               return (
-                <div key={look.id} className={`flex items-center gap-4 px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] ${!look.ativo ? 'opacity-40' : ''}`}>
+                <div key={look.id} className="flex items-center gap-4 px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)]">
                   {editLookId === look.id ? (
                     <div className="flex-1 flex gap-2">
                       <input
@@ -166,7 +166,7 @@ export function LooksSettingsPage() {
                         className="flex-1 text-sm bg-[var(--bg-hover)] border-none rounded-lg px-3 py-1.5"
                         autoFocus
                       />
-                      <button onClick={() => setEditLookId(null)} className="p-1.5 hover:bg-[var(--bg-hover)] rounded-lg">
+                      <button onClick={() => setEditLookId(null)} aria-label="Concluir edição" className="p-1.5 hover:bg-[var(--bg-hover)] rounded-lg">
                         <Check className="w-4 h-4 text-[var(--accent-green)]" />
                       </button>
                     </div>
@@ -175,19 +175,19 @@ export function LooksSettingsPage() {
                       <span className="text-xs font-semibold text-[var(--text-tertiary)] w-12 shrink-0">Look {look.numero}</span>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-bold text-[var(--text-primary)] truncate">{look.descricao || '—'}</p>
-                        {cenario && <p className="text-xs text-[var(--text-secondary)] opacity-50">{cenario.nome}</p>}
+                        {cenario && <Text variant="meta" className="block">{cenario.nome}</Text>}
                       </div>
                       <div className="flex items-center gap-1.5 shrink-0">
-                        <button onClick={() => dispatch({ type: 'UPDATE_LOOK', payload: { ...look, ativo: !look.ativo } })}>
+                        <button onClick={() => dispatch({ type: 'UPDATE_LOOK', payload: { ...look, ativo: !look.ativo } })} aria-label={look.ativo ? `Desativar look ${look.numero}` : `Ativar look ${look.numero}`}>
                           {look.ativo
                             ? <ToggleRight className="w-5 h-5 text-[var(--accent-green)]" />
                             : <ToggleLeft className="w-5 h-5 text-[var(--text-tertiary)]" />
                           }
                         </button>
-                        <button onClick={() => setEditLookId(look.id)} className="p-1.5 hover:bg-[var(--bg-hover)] rounded-lg">
+                        <button onClick={() => setEditLookId(look.id)} aria-label={`Editar look ${look.numero}`} className="p-1.5 hover:bg-[var(--bg-hover)] rounded-lg">
                           <Edit2 className="w-3.5 h-3.5 text-[var(--text-tertiary)]" />
                         </button>
-                        <button onClick={() => dispatch({ type: 'DELETE_LOOK', payload: look.id })} className="p-1.5 hover:bg-[var(--accent-pink)]/10 rounded-lg">
+                        <button onClick={() => dispatch({ type: 'DELETE_LOOK', payload: look.id })} aria-label={`Excluir look ${look.numero}`} className="p-1.5 hover:bg-[var(--accent-pink)]/10 rounded-lg">
                           <Trash2 className="w-3.5 h-3.5 text-[var(--accent-pink)] opacity-40 hover:opacity-100" />
                         </button>
                       </div>
@@ -210,7 +210,7 @@ export function LooksSettingsPage() {
               className="t-button t-button-uppercase flex items-center gap-1.5 rounded-xl bg-[var(--text-primary)] px-3 py-2 text-[var(--bg-primary)] shadow-sm transition-all hover:scale-[1.02]"
             >
               <Plus className="w-3.5 h-3.5" />
-              Novo Cenário
+              Novo cenário
             </button>
           </div>
 
@@ -223,12 +223,12 @@ export function LooksSettingsPage() {
                     type="text"
                     value={cenarioForm.nome}
                     onChange={e => setCenarioForm(p => ({ ...p, nome: e.target.value }))}
-                    placeholder="Ex: Mesa com livros"
-                    className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-lg px-3 py-2 text-[var(--text-primary)] placeholder:opacity-30"
+                    placeholder="Ex.: Mesa com livros"
+                    className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-lg px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]"
                   />
                 </div>
                 <div>
-                  <label className="t-label block mb-1">Setup (min)</label>
+                  <label className="t-label block mb-1">Montagem (min)</label>
                   <input
                     type="number"
                     value={cenarioForm.tempoSetupMinutos}
@@ -243,17 +243,22 @@ export function LooksSettingsPage() {
                   type="text"
                   value={cenarioForm.descricao}
                   onChange={e => setCenarioForm(p => ({ ...p, descricao: e.target.value }))}
-                  placeholder="Onde fica, como montar..."
-                  className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-lg px-3 py-2 text-[var(--text-primary)] placeholder:opacity-30"
+                  placeholder="Onde fica, como montar…"
+                  className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-lg px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]"
                 />
               </div>
               <div className="flex gap-3">
-                <button onClick={() => setCriandoCenario(false)} className="flex-1 py-2 rounded-xl text-xs font-semibold border border-[var(--border-strong)] opacity-60 hover:opacity-100 transition-all">Cancelar</button>
-                <button
+                <AppButton onClick={() => setCriandoCenario(false)} variant="secondary" className="flex-1">
+                  Cancelar
+                </AppButton>
+                <AppButton
                   onClick={() => cenarioForm.nome.trim() && saveCenario(cenarioForm)}
                   disabled={!cenarioForm.nome.trim()}
-                  className="flex-1 py-2 rounded-xl text-xs font-semibold bg-[var(--text-primary)] text-[var(--bg-primary)] disabled:opacity-40 hover:scale-[1.02] transition-all"
-                >Salvar</button>
+                  variant="primary"
+                  className="flex-1"
+                >
+                  Salvar
+                </AppButton>
               </div>
             </div>
           )}
@@ -262,21 +267,21 @@ export function LooksSettingsPage() {
             {activeCenarios.length === 0 ? (
               <p className="text-xs text-[var(--text-tertiary)] text-center py-8 font-bold">Nenhum cenário cadastrado ainda</p>
             ) : activeCenarios.map(cenario => (
-              <div key={cenario.id} className={`flex items-center gap-4 px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] ${!cenario.ativo ? 'opacity-40' : ''}`}>
+              <div key={cenario.id} className="flex items-center gap-4 px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)]">
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-bold text-[var(--text-primary)]">{cenario.nome}</p>
-                  <p className="text-xs text-[var(--text-secondary)] opacity-50">
-                    {cenario.descricao}{cenario.descricao && ' · '}{cenario.tempoSetupMinutos}min de setup
-                  </p>
+                  <Text variant="meta" className="block">
+                    {cenario.descricao}{cenario.descricao && ' · '}{cenario.tempoSetupMinutos} min de montagem
+                  </Text>
                 </div>
                 <div className="flex items-center gap-1.5 shrink-0">
-                  <button onClick={() => dispatch({ type: 'UPDATE_CENARIO', payload: { ...cenario, ativo: !cenario.ativo } })}>
+                  <button onClick={() => dispatch({ type: 'UPDATE_CENARIO', payload: { ...cenario, ativo: !cenario.ativo } })} aria-label={cenario.ativo ? `Desativar cenário ${cenario.nome}` : `Ativar cenário ${cenario.nome}`}>
                     {cenario.ativo
                       ? <ToggleRight className="w-5 h-5 text-[var(--accent-green)]" />
                       : <ToggleLeft className="w-5 h-5 text-[var(--text-tertiary)]" />
                     }
                   </button>
-                  <button onClick={() => dispatch({ type: 'DELETE_CENARIO', payload: cenario.id })} className="p-1.5 hover:bg-[var(--accent-pink)]/10 rounded-lg">
+                  <button onClick={() => dispatch({ type: 'DELETE_CENARIO', payload: cenario.id })} aria-label={`Excluir cenário ${cenario.nome}`} className="p-1.5 hover:bg-[var(--accent-pink)]/10 rounded-lg">
                     <Trash2 className="w-3.5 h-3.5 text-[var(--accent-pink)] opacity-40 hover:opacity-100" />
                   </button>
                 </div>

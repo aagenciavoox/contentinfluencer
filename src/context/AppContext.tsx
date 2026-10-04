@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useReducer, useRef } from 'react';
+import React, { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import type { AppState } from '../app/providers/appState';
 import { initialState } from '../app/providers/appState';
 import { supabase } from '../lib/supabase';
@@ -6,6 +6,16 @@ import type * as db from '../lib/database';
 import { appReducer, AppAction } from './reducer';
 import { persistAction, persistContentRecord } from './persistAction';
 import { REALTIME_TABLES, shouldSkipRealtimeRefresh } from './realtimeSync';
+import {
+  applyDomainStatus,
+  clearDomainStatus,
+  isDomainAlreadyLoaded,
+  markDomainsLoaded,
+  resolveDomainStatus,
+  subtractInFlightDomains,
+  type DomainLoadStatus,
+  type DomainStatusMap,
+} from './domainLoading';
 import {
   getDomainsForRealtimeTable,
   getListNamespacesForRealtimeTable,
@@ -19,6 +29,7 @@ import { buildDomainCacheKey, dataCache } from '../lib/dataCache';
 import {
   canDomainPayloadSatisfyRequest,
   clearPersistedDomainsForUser,
+  clearPersistedPagesForUser,
   discardObsoleteDomainCache,
   isPersistedDomainFresh,
   readPersistedDomain,
@@ -53,36 +64,6 @@ const ACTION_SAVE_LABELS: Partial<Record<AppAction['type'], string>> = {
   DELETE_PLATFORM: 'Plataforma removida',
 };
 
-/** `content` e `content-schedule` são o mesmo select completo; ambos cobrem o summary limitado. */
-const FULL_CONTENT_LIST_DOMAINS: readonly db.AppDataDomain[] = ['content', 'content-schedule'];
-
-function isDomainAlreadyLoaded(
-  loaded: ReadonlySet<db.AppDataDomain>,
-  domain: db.AppDataDomain,
-): boolean {
-  if (loaded.has(domain)) return true;
-  if (
-    (domain === 'content' || domain === 'content-schedule' || domain === 'content-summary')
-    && (loaded.has('content') || loaded.has('content-schedule'))
-  ) {
-    return true;
-  }
-  return false;
-}
-
-function markDomainsLoaded(
-  loaded: Set<db.AppDataDomain>,
-  domains: readonly db.AppDataDomain[],
-) {
-  for (const domain of domains) {
-    loaded.add(domain);
-    if (FULL_CONTENT_LIST_DOMAINS.includes(domain)) {
-      FULL_CONTENT_LIST_DOMAINS.forEach(alias => loaded.add(alias));
-      loaded.add('content-summary');
-    }
-  }
-}
-
 export type PersistOptions = { silent?: boolean; skipBroadcast?: boolean };
 
 export type RefreshFromServerOptions = {
@@ -94,6 +75,15 @@ export type RefreshFromServerOptions = {
 
 const MIN_SERVER_REFRESH_INTERVAL_MS = 30_000;
 
+/** Domínios cujos dados são esvaziados quando o cache local de uma versão antiga é descartado. */
+const DISCARDED_CACHE_DOMAINS: readonly db.AppDataDomain[] = [
+  'content',
+  'content-schedule',
+  'content-summary',
+  'ideas',
+  'production',
+];
+
 export const AppContext = React.createContext<{
   state: AppState;
   dispatch: (action: AppAction, options?: PersistOptions) => Promise<void>;
@@ -102,6 +92,10 @@ export const AppContext = React.createContext<{
   syncFromServer: (options?: RefreshFromServerOptions) => Promise<void>;
   ensureDataDomains: (domains: readonly db.AppDataDomain[], options?: { force?: boolean }) => Promise<void>;
   invalidateListCaches: (namespaces?: string[]) => void;
+  /** Espelho do carregamento por domínio, para as telas não lerem lista vazia como dado real. */
+  domainStatus: DomainStatusMap;
+  /** Verdadeiro quando o domínio (ou um apelido que o cobre) já tem dados na tela. */
+  isDomainReady: (domain: db.AppDataDomain) => boolean;
 } | null>(null);
 
 function normalizeContentId(content: db.Content): db.Content {
@@ -149,7 +143,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const stateRef = useRef(state);
   const loadDone = useRef(false);
   const loadedDomains = useRef(new Set<db.AppDataDomain>());
-  const loadingDomains = useRef(new Map<string, Promise<void>>());
+  /** Uma promise por domínio em voo: pedidos que se sobrepõem aguardam a mesma busca. */
+  const inFlightDomains = useRef(new Map<db.AppDataDomain, Promise<void>>());
+  const [domainStatus, setDomainStatus] = useState<DomainStatusMap>({});
   const { user, loading: authLoading } = useAuth();
   const userId = user?.id ?? null;
   const realtimeRefreshTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -165,6 +161,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (userId) lastUserIdRef.current = userId;
   }, [userId]);
+
+  const updateDomainStatus = useCallback((
+    domains: readonly db.AppDataDomain[],
+    status: DomainLoadStatus,
+  ) => {
+    if (domains.length === 0) return;
+    setDomainStatus(previous => applyDomainStatus(previous, domains, status));
+  }, []);
+
+  const resetDomainStatus = useCallback(() => {
+    setDomainStatus(previous => (Object.keys(previous).length === 0 ? previous : {}));
+  }, []);
 
   const touchLocalMutation = useCallback(() => {
     lastLocalMutationAt.current = Date.now();
@@ -192,7 +200,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const finishPersist = useCallback((actionType: AppAction['type'], options?: PersistOptions) => {
     if (!options?.silent) {
-      const label = ACTION_SAVE_LABELS[actionType] ?? 'Alteracoes salvas';
+      const label = ACTION_SAVE_LABELS[actionType] ?? 'Alterações salvas';
       notifySaveFeedback({ status: 'success', message: label });
     }
     if (!options?.skipBroadcast) {
@@ -208,6 +216,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       || actionType.includes('IDEA')
     ) {
       invalidateListCaches(['contents', 'library']);
+    }
+
+    // A primeira página guardada da Biblioteca ficou velha: a próxima abertura busca de novo.
+    if (userId && (actionType.includes('BOOK') || actionType.includes('BIBLIOTECA'))) {
+      clearPersistedPagesForUser(userId);
     }
 
     if (
@@ -263,11 +276,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       : domains.filter(domain => !isDomainAlreadyLoaded(loadedDomains.current, domain));
     if (missingDomains.length === 0) return;
 
-    const key = [...missingDomains].sort().join('|');
-    const existing = loadingDomains.current.get(key);
-    if (existing) return existing;
+    // Domínios já em voo em outro pedido não vão ao servidor de novo: aguardamos a busca existente.
+    const { toFetch, pending } = subtractInFlightDomains(missingDomains, inFlightDomains.current);
+    if (toFetch.length === 0) {
+      await Promise.all(pending);
+      return;
+    }
 
-    const cacheKey = buildDomainCacheKey(missingDomains);
+    const cacheKey = buildDomainCacheKey(toFetch);
 
     if (!options?.force) {
       const memoryCached = dataCache.getDomain<Partial<db.AppData>>(cacheKey);
@@ -277,7 +293,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         (memoryCached != null && dataCache.isDomainFresh(cacheKey)) ||
         (persisted != null && isPersistedDomainFresh(persisted));
       const cacheSatisfiesRequest = cachedPayload
-        ? canDomainPayloadSatisfyRequest(missingDomains, cachedPayload)
+        ? canDomainPayloadSatisfyRequest(toFetch, cachedPayload)
         : false;
 
       if (cachedPayload && pendingPersistCount.current === 0) {
@@ -285,17 +301,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           type: 'SET_DATA',
           payload: mergeFetchedAppData(mergeSnapshot(), cachedPayload),
         });
+        // Cache na tela conta como pronto, mesmo vencido: a revalidação segue por trás.
+        if (cacheSatisfiesRequest) updateDomainStatus(toFetch, 'ready');
       }
 
       if (cachedPayload && isFresh && cacheSatisfiesRequest) {
-        markDomainsLoaded(loadedDomains.current, missingDomains);
+        markDomainsLoaded(loadedDomains.current, toFetch);
+        updateDomainStatus(toFetch, 'ready');
+        await Promise.all(pending);
         return;
       }
     } else {
       dataCache.invalidateDomain(cacheKey);
     }
 
-    const loadPromise = fetchDataDomains(missingDomains, userId)
+    updateDomainStatus(toFetch, 'loading');
+
+    const loadPromise: Promise<void> = fetchDataDomains(toFetch, userId)
       .then(data => {
         const merged = mergeFetchedAppData(mergeSnapshot(), data);
         if (
@@ -308,17 +330,26 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         dataCache.setDomain(cacheKey, merged);
         writePersistedDomain(userId, cacheKey, merged);
         dispatch({ type: 'SET_DATA', payload: merged });
+        updateDomainStatus(toFetch, 'ready');
         if (options?.markLoaded !== false) {
-          markDomainsLoaded(loadedDomains.current, missingDomains);
+          markDomainsLoaded(loadedDomains.current, toFetch);
         }
       })
+      .catch(err => {
+        updateDomainStatus(toFetch, 'error');
+        throw err;
+      })
       .finally(() => {
-        loadingDomains.current.delete(key);
+        toFetch.forEach(domain => {
+          if (inFlightDomains.current.get(domain) === loadPromise) {
+            inFlightDomains.current.delete(domain);
+          }
+        });
       });
 
-    loadingDomains.current.set(key, loadPromise);
-    return loadPromise;
-  }, [mergeSnapshot, userId]);
+    toFetch.forEach(domain => inFlightDomains.current.set(domain, loadPromise));
+    await Promise.all([loadPromise, ...pending]);
+  }, [mergeSnapshot, updateDomainStatus, userId]);
 
   const refreshFromServer = useCallback(async (options?: RefreshFromServerOptions) => {
     if (!supabase || !userId) return;
@@ -384,7 +415,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }
       dispatch({ type: 'SET_DATA', payload: {} });
       loadedDomains.current.clear();
-      loadingDomains.current.clear();
+      inFlightDomains.current.clear();
+      resetDomainStatus();
       dataCache.invalidateAll();
       dispatch({ type: 'SET_LOADED', payload: true });
       loadDone.current = true;
@@ -400,6 +432,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         type: 'SET_DATA',
         payload: { contents: [], ideas: [], series: [], pilares: [] },
       });
+      // Só os domínios esvaziados acima voltam a carregar; o bootstrap logo abaixo busca todos eles.
+      setDomainStatus(previous => clearDomainStatus(previous, DISCARDED_CACHE_DOMAINS));
     }
 
     const criticalCacheKey = buildDomainCacheKey(CRITICAL_BOOTSTRAP_DOMAINS);
@@ -417,6 +451,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       loadDone.current = true;
       // Cache fresco já tem o essencial. Cache vencido pinta na hora, mas não marca
       // o domínio como carregado — senão a revalidação nunca busca a capa e o resto.
+      // Nos dois casos a tela já mostra os dados, então o status fica pronto.
+      if (canDomainPayloadSatisfyRequest(CRITICAL_BOOTSTRAP_DOMAINS, persisted.payload)) {
+        updateDomainStatus(CRITICAL_BOOTSTRAP_DOMAINS, 'ready');
+      }
       if (persisted.payload.contents && isPersistedDomainFresh(persisted)) {
         markDomainsLoaded(loadedDomains.current, CRITICAL_BOOTSTRAP_DOMAINS);
       }
@@ -451,7 +489,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [authLoading, loadDomains, mergeSnapshot, userId]);
+  }, [authLoading, loadDomains, mergeSnapshot, resetDomainStatus, updateDomainStatus, userId]);
 
   useEffect(() => {
     if (!supabase || !userId) return;
@@ -670,6 +708,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     document.documentElement.setAttribute('data-theme', state.theme);
   }, [state.theme]);
 
+  // Sem backend ou sem sessão não há nada para buscar: as telas não devem esperar.
+  const hasRemoteData = Boolean(supabase) && (authLoading || Boolean(userId));
+  const isDomainReady = useCallback(
+    (domain: db.AppDataDomain) => !hasRemoteData || resolveDomainStatus(domainStatus, domain) === 'ready',
+    [domainStatus, hasRemoteData],
+  );
+
   const contextValue = React.useMemo(() => ({
     state,
     dispatch: enhancedDispatch,
@@ -678,7 +723,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     syncFromServer: refreshFromServer,
     ensureDataDomains: loadDomains,
     invalidateListCaches,
-  }), [state, enhancedDispatch, createContent, updateContent, refreshFromServer, loadDomains, invalidateListCaches]);
+    domainStatus,
+    isDomainReady,
+  }), [state, enhancedDispatch, createContent, updateContent, refreshFromServer, loadDomains, invalidateListCaches, domainStatus, isDomainReady]);
 
   return (
     <AppContext.Provider value={contextValue}>

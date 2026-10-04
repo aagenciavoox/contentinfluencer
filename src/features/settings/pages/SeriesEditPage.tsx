@@ -14,6 +14,7 @@ import { DesktopPageHeader } from '../../../layouts/page/DesktopPageHeader';
 import { PageLayout } from '../../../layouts/page/PageLayout';
 import type { Serie } from '../../../lib/database';
 import { CONFIRM } from '../../../lib/uiCopy';
+import { getEditorialSettings } from '../../editorial/lib/editorialSettings';
 import {
   SerieEditForm,
   type SerieEditChromeState,
@@ -98,7 +99,8 @@ export function SeriesEditPage() {
     [state.platforms],
   );
 
-  const backToList = () => navigate('/series');
+  const editorialSettings = getEditorialSettings(state.preferences);
+  const backToList = () => navigate('/editorial?aba=series');
 
   const handleSave = (serie: Serie) => {
     const payload = {...serie, userId: serie.userId || user?.id || ''};
@@ -156,6 +158,8 @@ export function SeriesEditPage() {
       platformNames={platformNames}
       pilares={state.pilares}
       contents={state.contents}
+      usedFormatoValues={state.series.map(serie => serie.formatoVisualPadrao)}
+      showOpenInfoNotice={editorialSettings.openInfoNotices}
       onSave={handleSave}
       onCancel={backToList}
       onChromeChange={handleChromeChange}
@@ -219,7 +223,7 @@ export function SeriesEditPage() {
           <DesktopPageHeader
             section="Criação"
             backLabel="Séries"
-            backTo="/series"
+            backTo="/editorial?aba=series"
             title={pageTitle}
             meta={pageMeta}
             hideSearch

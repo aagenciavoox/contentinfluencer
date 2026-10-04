@@ -30,6 +30,7 @@ import {
 import {ContentDetailHeader} from './ContentDetailHeader';
 import {ContentPipelineStepper} from './ContentPipelineStepper';
 import {PublishingSection} from './sections/PublishingSection';
+import {MarkPostedSheet} from '../MarkPostedSheet';
 import {RecordingSection} from './sections/RecordingSection';
 import {ContentOperationalPanel} from './ContentOperationalPanel';
 import {isContentBodyLoaded} from '../../lib/contentBody';
@@ -46,7 +47,7 @@ interface ContentDetailShellProps {
   onRetryBody?: () => void;
 }
 
-type ContentDraft = ScriptDraft;
+type ContentDraft = ScriptDraft & Pick<Content, 'energiaNecessaria'>;
 
 function normalizePlain(value: string | null | undefined): string {
   const trimmed = (value ?? '').trim();
@@ -69,6 +70,11 @@ function draftFromContent(content: Content): ContentDraft {
     bibliotecaItemId: content.bibliotecaItemId,
     slotType: content.slotType,
     formatoVisual: content.formatoVisual,
+    funcao: content.funcao ?? null,
+    funcaoOrigem: content.funcaoOrigem ?? null,
+    classificacaoCongeladaEm: content.classificacaoCongeladaEm ?? null,
+    contaNaGrade: content.contaNaGrade ?? true,
+    energiaNecessaria: content.energiaNecessaria,
     script: content.script,
     scriptNotes: content.scriptNotes || [],
     referencias: content.referencias,
@@ -80,6 +86,7 @@ function draftFromContent(content: Content): ContentDraft {
     recordingDate: content.recordingDate,
     postedAt: content.postedAt,
     plataformas: content.plataformas || [],
+    legendaBase: content.legendaBase ?? null,
   };
 }
 
@@ -119,6 +126,7 @@ export function ContentDetailShell({
   const [isRecordingSheetOpen, setIsRecordingSheetOpen] = useState(false);
   const [recordingBlocksLoading, setRecordingBlocksLoading] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [markPostedOpen, setMarkPostedOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const draftDirtyRef = useRef(false);
   const [draftDirty, setDraftDirty] = useState(false);
@@ -226,6 +234,11 @@ export function ContentDetailShell({
     liveContent.bibliotecaItemId,
     liveContent.slotType,
     liveContent.formatoVisual,
+    liveContent.funcao,
+    liveContent.funcaoOrigem,
+    liveContent.classificacaoCongeladaEm,
+    liveContent.contaNaGrade,
+    liveContent.energiaNecessaria,
     liveContent.scriptNotes,
     liveContent.referencias,
     liveContent.notes,
@@ -235,10 +248,23 @@ export function ContentDetailShell({
     liveContent.recordingDate,
     liveContent.postedAt,
     liveContent.plataformas,
+    liveContent.legendaBase,
   ]);
 
-  const handleDraftChange = useCallback((updates: Partial<ContentDraft>) => {
+  const handleDraftChange = useCallback((incoming: Partial<ContentDraft>) => {
     setDraft(previous => {
+      let updates = incoming;
+      if (
+        updates.status
+        && normalizeContentStatus(updates.status) === CONTENT_STATUS.POSTADO
+        && normalizeContentStatus(previous.status) !== CONTENT_STATUS.POSTADO
+      ) {
+        queueMicrotask(() => setMarkPostedOpen(true));
+        const {status: _status, ...rest} = updates;
+        updates = rest;
+        if (Object.keys(updates).length === 0) return previous;
+      }
+
       const changed = (Object.keys(updates) as Array<keyof ContentDraft>).some(key => {
         const nextValue = updates[key];
         const prevValue = previous[key];
@@ -321,8 +347,9 @@ export function ContentDetailShell({
       const payload: Content = {
         ...liveNow,
         ...draftNow,
-        ...updates,
+        energiaNecessaria: draftNow.energiaNecessaria,
         ...statusMilestones,
+        ...updates,
         tags: nextTags,
         status: nextStatus,
         updatedAt: new Date().toISOString(),
@@ -398,6 +425,11 @@ export function ContentDetailShell({
       }
     };
   }, [
+    draft.energiaNecessaria,
+    draft.funcao,
+    draft.funcaoOrigem,
+    draft.classificacaoCongeladaEm,
+    draft.contaNaGrade,
     draft.formatoVisual,
     draft.bibliotecaItemId,
     draft.notes,
@@ -571,17 +603,21 @@ export function ContentDetailShell({
   const stageLabel: Record<string, string> = {
     IDEIA: 'Ideia',
     ROTEIRO: 'Roteiro',
-    PRODUCAO: 'Producao',
+    PRODUCAO: 'Produção',
     EM_BLOCO: 'Em bloco',
     POSTADO: 'Postado',
   };
 
   const isIdea = normalizeContentStatus(mergedContent.status) === CONTENT_STATUS.IDEIA;
+  const trashConfirmMessage = isIdea
+    ? `Mover esta ideia para a lixeira — ${draft.title || 'Ideia sem título'}? Você pode restaurá-la depois.`
+    : `Mover este roteiro para a lixeira — ${draft.title || 'Roteiro sem título'}? Você pode restaurá-lo depois.`;
 
   const detailSection =
     activeTab === 'roteiro' ? (
       isIdea ? (
         <IdeaDetailSection
+          contentId={mergedContent.id}
           draft={draft}
           series={state.series}
           pilares={state.pilares}
@@ -624,13 +660,14 @@ export function ContentDetailShell({
       )
     ) : activeTab === 'publicacao' ? (
       <PublishingSection
+        contentId={mergedContent.id}
         draft={draft}
         pilar={pillar}
         serie={serie}
         alerts={postingAlerts}
         onChange={handleDraftChange}
         isSaving={explicitSaving}
-        onMarkPosted={() => void persist({status: CONTENT_STATUS.POSTADO})}
+        onMarkPosted={() => setMarkPostedOpen(true)}
       />
     ) : (
       <RecordingSection
@@ -675,6 +712,36 @@ export function ContentDetailShell({
     />
   );
 
+  const markPostedSheet = (
+    <MarkPostedSheet
+      open={markPostedOpen}
+      content={{
+        ...mergedContent,
+        ...draft,
+        plataformas: draft.plataformas,
+      }}
+      serie={serie}
+      platformName={platformId => (
+        state.platforms.find(platform => platform.id === platformId || platform.nome === platformId)?.nome
+        ?? platformId
+      )}
+      isSaving={explicitSaving}
+      onClose={() => setMarkPostedOpen(false)}
+      onConfirm={async marked => {
+        const ok = await persist({
+          status: marked.content.status,
+          postedAt: marked.content.postedAt,
+          funcao: marked.content.funcao,
+          funcaoOrigem: marked.content.funcaoOrigem,
+          classificacaoCongeladaEm: marked.content.classificacaoCongeladaEm,
+          link: marked.content.link,
+          plataformas: marked.publicacoes,
+        });
+        if (ok) setMarkPostedOpen(false);
+      }}
+    />
+  );
+
   if (mode === 'mobile') {
     return (
       <>
@@ -695,6 +762,7 @@ export function ContentDetailShell({
                 series={state.series}
                 pilares={state.pilares}
                 bibliotecaItems={state.bibliotecaItems}
+                contentId={mergedContent.id}
                 onChange={handleDraftChange}
               />
             ) : (
@@ -720,10 +788,11 @@ export function ContentDetailShell({
         />
         {recordingSheet}
         {leaveConfirmModal}
+        {markPostedSheet}
         <ConfirmModal
           open={deleteConfirmOpen}
-          message={`Mover esta ${isIdea ? 'ideia' : 'criação'} para a lixeira — ${draft.title || (isIdea ? 'Ideia sem título' : 'Roteiro sem título')}? Você poderá restaurá-la depois.`}
-          confirmLabel={isDeleting ? 'Movendo...' : 'Mover para a lixeira'}
+          message={trashConfirmMessage}
+          confirmLabel={isDeleting ? 'Movendo…' : 'Mover para a lixeira'}
           cancelLabel={isIdea ? 'Manter ideia' : 'Manter roteiro'}
           confirmDisabled={isDeleting}
           onConfirm={() => void handleDelete()}
@@ -793,10 +862,11 @@ export function ContentDetailShell({
       </PageLayout>
       {recordingSheet}
       {leaveConfirmModal}
+      {markPostedSheet}
       <ConfirmModal
         open={deleteConfirmOpen}
-      message={`Mover esta ${isIdea ? 'ideia' : 'criação'} para a lixeira — ${draft.title || (isIdea ? 'Ideia sem título' : 'Roteiro sem título')}? Você poderá restaurá-la depois.`}
-        confirmLabel={isDeleting ? 'Movendo...' : 'Mover para a lixeira'}
+      message={trashConfirmMessage}
+        confirmLabel={isDeleting ? 'Movendo…' : 'Mover para a lixeira'}
         cancelLabel={isIdea ? 'Manter ideia' : 'Manter roteiro'}
         confirmDisabled={isDeleting}
         onConfirm={() => void handleDelete()}

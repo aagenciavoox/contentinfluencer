@@ -55,7 +55,7 @@ interface FilterBarProps {
 export function FilterBar({
   searchValue,
   onSearchChange,
-  searchPlaceholder = 'Buscar...',
+  searchPlaceholder = 'Buscar…',
   filters = [],
   sortValue,
   onSortChange,

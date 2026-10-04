@@ -30,6 +30,7 @@ import {getUserInitials} from './userInitials';
 import { prefetchRoute } from '../../app/router/routePrefetch';
 import {
   buildSidebarSections,
+  isNavItemActive,
   isNavItemHidden,
   isSettingsNavActive,
   resolveNavBadge,
@@ -223,7 +224,7 @@ export function Sidebar({isOpen, onClose}: SidebarProps) {
   const userName =
     user?.user_metadata?.full_name?.trim() ||
     user?.email?.split('@')[0] ||
-    'Utilizador';
+    'Usuário';
   const userEmail = user?.email || 'user@exemplo.com';
   const userInitials = getUserInitials(userName);
 
@@ -231,14 +232,16 @@ export function Sidebar({isOpen, onClose}: SidebarProps) {
     const {to, label, icon: Icon, end = true} = item;
     const badge = resolveNavBadge(item, navCounts, state.bibliotecaItems.length);
     const accessibleLabel = badge ? `${label}, ${badge} itens` : label;
+    const isActive = isNavItemActive(to, location.pathname);
     const link = (
       <NavLink
         to={to}
         end={end}
+        aria-current={isActive ? 'page' : undefined}
         aria-label={isCollapsed ? accessibleLabel : undefined}
         onMouseEnter={() => prefetchRoute(to)}
         onFocus={() => prefetchRoute(to)}
-        className={({isActive}) =>
+        className={() =>
           cn(
             'group relative flex items-center transition-colors duration-150',
             'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-blue)]',
@@ -254,8 +257,7 @@ export function Sidebar({isOpen, onClose}: SidebarProps) {
           )
         }
       >
-        {({isActive}) => (
-          <>
+        <>
             {isCollapsed && isActive ? <ActiveRailMark /> : null}
             <Icon
               aria-hidden
@@ -288,8 +290,7 @@ export function Sidebar({isOpen, onClose}: SidebarProps) {
             ) : badge ? (
               <NavUpdateDot />
             ) : null}
-          </>
-        )}
+        </>
       </NavLink>
     );
 
@@ -310,10 +311,7 @@ export function Sidebar({isOpen, onClose}: SidebarProps) {
   };
 
   const themeLabel = state.theme === 'light' ? 'Modo escuro' : 'Modo claro';
-  const settingsNavCurrent = isSettingsNavActive(
-    location.pathname,
-    location.pathname.startsWith('/configuracoes'),
-  );
+  const settingsNavCurrent = isSettingsNavActive(location.pathname);
 
   const userMenuPanel = (
     <div className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] shadow-lg overflow-hidden py-1">
@@ -358,11 +356,11 @@ export function Sidebar({isOpen, onClose}: SidebarProps) {
         )}
 
         {isCollapsed ? (
-          <Tooltip label="Expandir sidebar">
+          <Tooltip label="Expandir menu">
             <button
               type="button"
               onClick={toggleCollapsed}
-              aria-label="Expandir sidebar"
+              aria-label="Expandir menu"
               className={collapsedRailClass(false)}
             >
               <PanelLeftOpen className="h-4 w-4" />
@@ -372,8 +370,8 @@ export function Sidebar({isOpen, onClose}: SidebarProps) {
           <button
             type="button"
             onClick={toggleCollapsed}
-            aria-label="Recolher sidebar"
-            title="Recolher sidebar"
+            aria-label="Recolher menu"
+            title="Recolher menu"
             className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[var(--text-tertiary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
           >
             <PanelLeftClose className="h-4 w-4" />
@@ -392,11 +390,11 @@ export function Sidebar({isOpen, onClose}: SidebarProps) {
       </div>
 
       {isCollapsed ? (
-        <Tooltip label="Procurar (Ctrl K)" className="mb-1 w-full justify-center">
+        <Tooltip label="Buscar (Ctrl K)" className="mb-1 w-full justify-center">
           <button
             type="button"
             onClick={openCommandPalette}
-            aria-label="Procurar"
+            aria-label="Buscar"
             className="flex h-11 w-11 items-center justify-center rounded-lg border border-[var(--border-color)] bg-[var(--bg-elevated)] text-[var(--text-tertiary)] transition-colors duration-150 hover:border-[var(--border-strong)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-blue)]"
           >
             <Search className="h-4 w-4" />
@@ -408,7 +406,7 @@ export function Sidebar({isOpen, onClose}: SidebarProps) {
           className="group mb-4 flex w-full items-center gap-2 rounded-md border border-[var(--border-color)] bg-[var(--bg-elevated)] px-3 py-2 text-left text-[var(--text-tertiary)] transition-colors hover:border-[var(--border-strong)]"
         >
           <Search className="h-4 w-4 shrink-0" />
-          <span className="flex-1 text-sm">Procurar...</span>
+          <span className="flex-1 text-sm">Buscar…</span>
           <span className="rounded border border-[var(--border-color)] px-1.5 py-0.5 text-xs font-medium text-[var(--text-tertiary)]">
             Ctrl K
           </span>

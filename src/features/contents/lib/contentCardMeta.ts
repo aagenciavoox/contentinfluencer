@@ -19,7 +19,7 @@ export function resolveContentEntities(
 }
 
 
-const DRAFT_TITLES = new Set(['novo conteudo', 'novo conteúdo', '(sem titulo)', '(sem título)']);
+const DRAFT_TITLES = new Set(['novo roteiro', 'novo conteudo', 'novo conteúdo', '(sem titulo)', '(sem título)']);
 const MIN_EXCERPT_LENGTH = 40;
 
 export function formatLastEdit(iso: string) {

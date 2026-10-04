@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { ChevronLeft, Menu } from 'lucide-react';
+import { ChevronLeft, Menu, Search } from 'lucide-react';
 import { Text } from '../../components/ui/Text';
 import { cn } from '../../lib/utils';
 
@@ -80,11 +80,11 @@ export function MobileHeaderIOS({
 
           <button
             type="button"
-            aria-label={rightActionLabel ?? 'Abrir busca global'}
+            aria-label={rightActionLabel ?? 'Buscar'}
             onClick={onRightAction}
             className={actionButtonClassName}
           >
-            {rightActionIcon ?? <Text variant="label" className="text-xs">CMD</Text>}
+            {rightActionIcon ?? <Search className="h-4 w-4" />}
           </button>
         </div>
       </div>

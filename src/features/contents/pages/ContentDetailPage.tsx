@@ -29,7 +29,7 @@ function ContentDetailBootLoading() {
         <Skeleton className="mt-4 h-40 w-full" />
       </div>
       <p className="text-center text-xs font-semibold t-label-uppercase text-[var(--text-tertiary)]">
-        Carregando conteúdo...
+        Carregando roteiro…
       </p>
     </div>
   );
@@ -92,7 +92,7 @@ export function ContentDetailPage() {
           });
           setFetchError(null);
         } else if (!content) {
-          setFetchError('Conteúdo não encontrado.');
+          setFetchError('Roteiro não encontrado.');
         } else {
           setFetchError('Não foi possível carregar o roteiro completo.');
         }
@@ -153,7 +153,7 @@ export function ContentDetailPage() {
   return (
     <div className="p-4 md:p-6">
       <EmptyState
-        title="Não foi possível abrir este conteúdo"
+        title="Não foi possível abrir este roteiro"
         description={fetchError || 'O item pode ter sido removido ou ainda não sincronizou.'}
         action={
           <div className="flex flex-wrap justify-center gap-2">

@@ -7,9 +7,7 @@ import {
   Info,
   Layers,
   Pencil,
-  Plus,
   Smile,
-  X,
 } from 'lucide-react';
 import { AppButton } from '../../../components/ui/AppButton';
 import { Surface } from '../../../components/ui/Surface';
@@ -20,13 +18,32 @@ import { SerieProductionMetricsPanel } from './SerieProductionMetricsPanel';
 import { TemplatesSettingsPage } from '../pages/TemplatesSettingsPage';
 import { cn } from '../../../lib/utils';
 import { generateUUID } from '../../../utils/uuid';
+import { ChoiceChips } from '../../editorial/components/ChoiceChips';
+import { OpenInfoNotice } from '../../editorial/components/OpenInfoNotice';
+import {
+  collectFormatoSuggestions,
+  ENERGIA_LABELS,
+  ENERGIA_NIVEIS,
+  FREQUENCIAS_SERIE,
+} from '../../editorial/lib/editorialOptions';
+import { getSerieOpenItems } from '../../editorial/lib/serieCompleteness';
+import type { FuncaoPadraoSerie } from '../../../lib/database';
+import { FUNCAO_DESCRICOES, FUNCAO_LABELS, FUNCOES } from '../../editorial/lib/funcoes';
 import {
   PILAR_COR_LABELS,
   PILAR_PRESET_CORES,
 } from '../lib/pilarConstants';
 
-const FREQUENCIAS = ['Semanal', 'Quinzenal', 'Mensal', 'Sob demanda'] as const;
 const SERIE_DEFAULT_COR = '#6366f1';
+
+const FUNCAO_OPTIONS: Array<{ value: FuncaoPadraoSerie; label: string; description: string }> = [
+  ...FUNCOES.map(value => ({
+    value,
+    label: FUNCAO_LABELS[value],
+    description: FUNCAO_DESCRICOES[value],
+  })),
+  { value: 'varia', label: 'Varia por conteúdo', description: 'Cada roteiro escolhe a sua.' },
+];
 
 export type SerieEditChromeState = {
   isDirty: boolean;
@@ -131,35 +148,6 @@ function FieldLabel({ children, required }: { children: React.ReactNode; require
 const inputClass =
   'ds-input w-full rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]';
 
-function PilarPickerMenu({
-  pilares,
-  onSelect,
-}: {
-  pilares: Pilar[];
-  onSelect: (pilarId: string) => void;
-}) {
-  return (
-    <div className="absolute left-0 right-0 top-full z-20 mt-1.5 max-h-72 w-full min-w-0 overflow-y-auto rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] py-1.5 shadow-[var(--shadow-dropdown)]">
-      {pilares.map(item => (
-        <button
-          key={item.id}
-          type="button"
-          className="flex w-full min-h-[2.75rem] items-center gap-2.5 px-4 py-2.5 text-left hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
-          onClick={() => onSelect(item.id)}
-        >
-          <span
-            className="h-3 w-3 shrink-0 rounded-full"
-            style={{backgroundColor: item.cor}}
-          />
-          <Text variant="meta" className="leading-snug text-[var(--text-primary)]">
-            {item.nome}
-          </Text>
-        </button>
-      ))}
-    </div>
-  );
-}
-
 export function SerieEditForm({
   initial,
   platformNames,
@@ -168,6 +156,8 @@ export function SerieEditForm({
   onSave,
   onCancel,
   onChromeChange,
+  usedFormatoValues = [],
+  showOpenInfoNotice = false,
 }: {
   initial: Partial<Serie>;
   platformNames: string[];
@@ -176,6 +166,8 @@ export function SerieEditForm({
   onSave: (serie: Serie) => void;
   onCancel: () => void;
   onChromeChange?: (state: SerieEditChromeState) => void;
+  usedFormatoValues?: Array<string | null | undefined>;
+  showOpenInfoNotice?: boolean;
 }) {
   const initialSnapshot = useRef({
     form: {
@@ -191,7 +183,9 @@ export function SerieEditForm({
       cor: initial.cor || SERIE_DEFAULT_COR,
       capaUrl: initial.capaUrl || '',
       ativa: initial.ativa ?? true,
-      frequenciaRecomendada: initial.frequenciaRecomendada || 'Semanal',
+      frequenciaRecomendada: initial.frequenciaRecomendada || '',
+      funcaoPadrao: initial.funcaoPadrao || null,
+      energiaPadrao: initial.energiaPadrao || null,
       plataformas: initial.plataformas || [],
     },
     linkedPilarIds: [...(initial.pilarIds || [])],
@@ -199,35 +193,6 @@ export function SerieEditForm({
 
   const [form, setForm] = useState(initialSnapshot.current.form);
   const [linkedPilarIds, setLinkedPilarIds] = useState<string[]>(initialSnapshot.current.linkedPilarIds);
-  const [showPilarPicker, setShowPilarPicker] = useState(false);
-  const pilarPickerRef = useRef<HTMLDivElement>(null);
-
-  const addPilar = (pilarId: string) => {
-    setLinkedPilarIds(previous => [...previous, pilarId]);
-    setShowPilarPicker(false);
-  };
-
-  useEffect(() => {
-    if (!showPilarPicker) return;
-
-    const handlePointerDown = (event: MouseEvent) => {
-      if (pilarPickerRef.current?.contains(event.target as Node)) return;
-      setShowPilarPicker(false);
-    };
-
-    document.addEventListener('pointerdown', handlePointerDown);
-    return () => document.removeEventListener('pointerdown', handlePointerDown);
-  }, [showPilarPicker]);
-
-  const linkedPilares = useMemo(
-    () => linkedPilarIds.map(id => pilares.find(item => item.id === id)).filter(Boolean) as Pilar[],
-    [linkedPilarIds, pilares],
-  );
-
-  const availablePilares = useMemo(
-    () => pilares.filter(item => item.ativo && !linkedPilarIds.includes(item.id)),
-    [linkedPilarIds, pilares],
-  );
 
   const isDirty = useMemo(() => {
     const snap = initialSnapshot.current;
@@ -237,6 +202,9 @@ export function SerieEditForm({
     if (form.capaUrl !== snap.form.capaUrl) return true;
     if (form.estruturaRoteiro !== snap.form.estruturaRoteiro) return true;
     if (form.frequenciaRecomendada !== snap.form.frequenciaRecomendada) return true;
+    if (form.formatoVisualPadrao !== snap.form.formatoVisualPadrao) return true;
+    if (form.funcaoPadrao !== snap.form.funcaoPadrao) return true;
+    if (form.energiaPadrao !== snap.form.energiaPadrao) return true;
     if (JSON.stringify(form.plataformas) !== JSON.stringify(snap.form.plataformas)) return true;
     if (linkedPilarIds.length !== snap.linkedPilarIds.length) return true;
     return linkedPilarIds.some((id, index) => id !== snap.linkedPilarIds[index]);
@@ -275,7 +243,9 @@ export function SerieEditForm({
       cor: form.cor,
       capaUrl: form.capaUrl.trim() || null,
       ativa: form.ativa,
-      frequenciaRecomendada: form.frequenciaRecomendada,
+      frequenciaRecomendada: form.frequenciaRecomendada.trim() || null,
+      funcaoPadrao: form.funcaoPadrao,
+      energiaPadrao: form.energiaPadrao,
       pilarIds: linkedPilarIds,
       plataformas: platformNames
         .map(platformId => form.plataformas.find(item => item.platformId === platformId))
@@ -327,7 +297,9 @@ export function SerieEditForm({
         cor: form.cor,
         capaUrl: form.capaUrl.trim() || null,
         ativa: form.ativa,
-        frequenciaRecomendada: form.frequenciaRecomendada,
+        frequenciaRecomendada: form.frequenciaRecomendada.trim() || null,
+        funcaoPadrao: form.funcaoPadrao,
+        energiaPadrao: form.energiaPadrao,
         pilarIds: linkedPilarIds,
         plataformas: form.plataformas,
         createdAt: initial.createdAt || new Date().toISOString(),
@@ -337,6 +309,18 @@ export function SerieEditForm({
 
   return (
     <div className={cn('relative w-full', isDirty && 'pb-28')}>
+      {showOpenInfoNotice ? (
+        <OpenInfoNotice
+          items={getSerieOpenItems({
+            pilarIds: linkedPilarIds,
+            funcaoPadrao: form.funcaoPadrao,
+            frequenciaRecomendada: form.frequenciaRecomendada,
+            formatoVisualPadrao: form.formatoVisualPadrao,
+            energiaPadrao: form.energiaPadrao,
+          })}
+          className="mb-3"
+        />
+      ) : null}
       <Surface variant="outlined" padding="md" className="mb-3 w-full bg-[var(--bg-secondary)]">
         <div className="flex w-full items-center gap-4">
           {coverPreview ? (
@@ -386,26 +370,9 @@ export function SerieEditForm({
                   type="text"
                   value={form.name}
                   onChange={event => setForm(previous => ({...previous, name: event.target.value}))}
-                  placeholder="Ex: Destrinchando"
+                  placeholder="Ex.: Destrinchando"
                   className={inputClass}
                 />
-              </div>
-
-              <div>
-                <FieldLabel>Frequência</FieldLabel>
-                <select
-                  value={form.frequenciaRecomendada || 'Semanal'}
-                  onChange={event =>
-                    setForm(previous => ({...previous, frequenciaRecomendada: event.target.value}))
-                  }
-                  className={inputClass}
-                >
-                  {FREQUENCIAS.map(item => (
-                    <option key={item} value={item}>
-                      {item}
-                    </option>
-                  ))}
-                </select>
               </div>
 
               <div>
@@ -414,7 +381,7 @@ export function SerieEditForm({
                   type="text"
                   value={form.bordao}
                   onChange={event => setForm(previous => ({...previous, bordao: event.target.value}))}
-                  placeholder="Ex: vamos destrinchar isso"
+                  placeholder="Ex.: vamos destrinchar isso"
                   className={inputClass}
                 />
               </div>
@@ -462,6 +429,96 @@ export function SerieEditForm({
 
           <Surface variant="outlined" padding="md" className="bg-[var(--bg-secondary)]">
             <SectionHeader
+              icon={<Layers className="h-4 w-4" />}
+              title="Estratégia"
+              description="Defina os padrões que orientam os novos roteiros."
+              compact
+            />
+
+            <div className="stack-lg">
+              <div>
+                <FieldLabel>Pilares</FieldLabel>
+                <div className="flex flex-wrap gap-2">
+                  {pilares.filter(item => item.ativo).map(item => {
+                    const selected = linkedPilarIds.includes(item.id);
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        aria-pressed={selected}
+                        onClick={() => setLinkedPilarIds(previous =>
+                          selected ? previous.filter(id => id !== item.id) : [...previous, item.id],
+                        )}
+                        className={cn(
+                          'inline-flex items-center gap-2 rounded-[var(--radius-pill)] border px-3 py-1.5 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
+                          selected
+                            ? 'border-[var(--text-primary)] bg-[var(--bg-hover)]'
+                            : 'border-[var(--border-color)] bg-[var(--bg-secondary)]',
+                        )}
+                      >
+                        <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: item.cor }} />
+                        <Text variant="meta" className="font-medium">{item.nome}</Text>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div>
+                <FieldLabel>Função padrão</FieldLabel>
+                <ChoiceChips
+                  options={FUNCAO_OPTIONS}
+                  value={form.funcaoPadrao}
+                  onChange={funcaoPadrao => setForm(previous => ({ ...previous, funcaoPadrao }))}
+                  label="Função padrão"
+                  layout="stacked"
+                />
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <FieldLabel>Frequência</FieldLabel>
+                  <select
+                    value={form.frequenciaRecomendada}
+                    onChange={event => setForm(previous => ({ ...previous, frequenciaRecomendada: event.target.value }))}
+                    className={inputClass}
+                  >
+                    <option value="">Escolher…</option>
+                    {FREQUENCIAS_SERIE.map(item => <option key={item} value={item}>{item}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <FieldLabel>Formato visual padrão</FieldLabel>
+                  <input
+                    list="serie-formato-suggestions"
+                    value={form.formatoVisualPadrao || ''}
+                    onChange={event => setForm(previous => ({
+                      ...previous,
+                      formatoVisualPadrao: event.target.value || null,
+                    }))}
+                    placeholder="Escolher ou escrever…"
+                    className={inputClass}
+                  />
+                  <datalist id="serie-formato-suggestions">
+                    {collectFormatoSuggestions(usedFormatoValues).map(item => <option key={item} value={item} />)}
+                  </datalist>
+                </div>
+              </div>
+
+              <div>
+                <FieldLabel>Energia padrão</FieldLabel>
+                <ChoiceChips
+                  options={ENERGIA_NIVEIS.map(value => ({ value, label: ENERGIA_LABELS[value] }))}
+                  value={form.energiaPadrao}
+                  onChange={energiaPadrao => setForm(previous => ({ ...previous, energiaPadrao }))}
+                  label="Energia padrão"
+                />
+              </div>
+            </div>
+          </Surface>
+
+          <Surface variant="outlined" padding="md" className="bg-[var(--bg-secondary)]">
+            <SectionHeader
               icon={<FileText className="h-4 w-4" />}
               title="Estrutura do roteiro"
               description="Modelo base para roteiros desta série."
@@ -470,7 +527,7 @@ export function SerieEditForm({
             <textarea
               value={form.estruturaRoteiro}
               onChange={event => setForm(previous => ({...previous, estruturaRoteiro: event.target.value}))}
-              placeholder="Estrutura base para roteiros desta série..."
+              placeholder="Estrutura base para roteiros desta série…"
               rows={3}
               className={cn(inputClass, 'min-h-[88px] resize-none leading-relaxed')}
             />
@@ -488,7 +545,7 @@ export function SerieEditForm({
             <SectionHeader
               icon={<Hash className="h-4 w-4 text-[var(--accent-green)]" />}
               title="Hashtags por plataforma"
-              description="Separe os hashtags por espaço."
+              description="Separe as hashtags com espaço."
               compact
             />
 
@@ -533,58 +590,6 @@ export function SerieEditForm({
             )}
           </Surface>
 
-          <Surface variant="outlined" padding="md" className="bg-[var(--bg-secondary)]">
-            <SectionHeader
-              icon={<Layers className="h-4 w-4" />}
-              title="Pilares vinculados"
-              compact
-            />
-
-            <div className="flex flex-col items-start gap-2">
-              {linkedPilares.map(item => (
-                <span
-                  key={item.id}
-                  className="inline-flex max-w-full items-center gap-1.5 rounded-[var(--radius-pill)] border border-[var(--border-color)] bg-[var(--bg-hover)] py-1 pl-2 pr-1.5 text-sm font-medium text-[var(--text-primary)]"
-                >
-                  <span
-                    className="h-2.5 w-2.5 shrink-0 rounded-full"
-                    style={{backgroundColor: item.cor}}
-                  />
-                  <span className="truncate">{item.nome}</span>
-                  <button
-                    type="button"
-                    onClick={() => setLinkedPilarIds(previous => previous.filter(id => id !== item.id))}
-                    className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[var(--text-tertiary)] hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
-                    aria-label={`Remover ${item.nome}`}
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                </span>
-              ))}
-              {availablePilares.length > 0 ? (
-                <div ref={pilarPickerRef} className="relative w-full">
-                  <button
-                    type="button"
-                    onClick={() => setShowPilarPicker(previous => !previous)}
-                    className="inline-flex min-h-[2rem] w-full items-center justify-center gap-1 rounded-[var(--radius-pill)] border border-dashed border-[var(--border-strong)] px-3 py-1 font-medium text-[var(--text-secondary)] hover:border-[var(--text-tertiary)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
-                  >
-                    <Plus className="h-3.5 w-3.5" />
-                    <Text variant="meta" className="font-medium">
-                      Adicionar pilar
-                    </Text>
-                  </button>
-                  {showPilarPicker ? (
-                    <PilarPickerMenu pilares={availablePilares} onSelect={addPilar} />
-                  ) : null}
-                </div>
-              ) : null}
-              {linkedPilares.length === 0 && availablePilares.length === 0 ? (
-                <Text variant="meta" className="text-[var(--text-tertiary)]">
-                  Nenhum pilar disponível para vincular.
-                </Text>
-              ) : null}
-            </div>
-          </Surface>
         </aside>
       </div>
 
@@ -592,7 +597,7 @@ export function SerieEditForm({
         <SectionHeader
           icon={<FileText className="h-4 w-4" />}
           title="Templates de roteiro"
-          description="Modelos reutilizáveis desta série, aplicados na escrita do roteiro."
+          description="Templates desta série para começar um roteiro."
           compact
         />
         {initial.id ? (
@@ -611,9 +616,6 @@ export function SerieEditForm({
               <Info className="mt-0.5 h-4 w-4 shrink-0 text-[var(--text-tertiary)]" />
               <div className="min-w-0">
                 <Text variant="bodyStrong">Alterações não salvas</Text>
-                <Text variant="meta" className="text-[var(--text-secondary)]">
-                  Não se esqueça de salvar suas alterações.
-                </Text>
               </div>
             </div>
             <div className="flex shrink-0 items-center gap-2">

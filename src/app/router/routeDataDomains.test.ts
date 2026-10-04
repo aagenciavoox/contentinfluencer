@@ -19,9 +19,14 @@ function testNavigationSequencePrefetchDomains() {
     'projects',
     'library',
   ]);
-  assert.deepEqual(getRouteDataDomains('/biblioteca'), ['library', 'library-generos']);
+  assert.deepEqual(getRouteDataDomains('/biblioteca'), ['library', 'library-generos', 'content']);
   assert.deepEqual(getRouteDataDomains('/series'), ['production']);
-  assert.deepEqual(getRouteDataDomains('/configuracoes/pilares'), ['production']);
+  assert.deepEqual(getRouteDataDomains('/editorial'), [
+    'production',
+    'content',
+    'bootstrap',
+    'schedule',
+  ]);
 }
 
 function testQueryOnlyNavigationKeepsOutletKey() {
@@ -51,6 +56,17 @@ function testNestedSettingsDomains() {
     'production',
     'content',
     'bootstrap',
+  ]);
+  assert.deepEqual(getRouteDataDomains('/editorial/pilares/xyz'), [
+    'production',
+    'content',
+    'bootstrap',
+  ]);
+  assert.deepEqual(getRouteDataDomains('/editorial/series/xyz'), [
+    'production',
+    'content',
+    'bootstrap',
+    'templates',
   ]);
 }
 

@@ -108,7 +108,7 @@ export function ContentPreviewSheet({
         ) : null}
 
         {loadingBody ? (
-          <p className="text-sm text-[var(--text-tertiary)]">Carregando roteiro...</p>
+          <p className="text-sm text-[var(--text-tertiary)]">Carregando roteiro…</p>
         ) : scriptPreview ? (
           <div>
             <p className="mb-1.5 text-xs font-medium text-[var(--text-tertiary)]">Roteiro</p>

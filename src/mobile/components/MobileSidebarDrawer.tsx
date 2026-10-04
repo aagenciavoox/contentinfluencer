@@ -1,4 +1,5 @@
-import { NavLink, useLocation } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
   ChevronRight,
   LogOut,
@@ -6,6 +7,7 @@ import {
   Search,
   Settings,
   Sun,
+  User,
   X,
 } from 'lucide-react';
 import { Text } from '../../components/ui/Text';
@@ -17,6 +19,7 @@ import { BrandLockup } from '../../layouts/navigation/BrandLockup';
 import { getUserInitials } from '../../layouts/navigation/userInitials';
 import {
   buildSidebarSections,
+  isNavItemActive,
   isNavItemHidden,
   isSettingsNavActive,
   resolveNavBadge,
@@ -37,12 +40,16 @@ function DrawerNavItem({
   end = true,
   indent = false,
 }: NavItemDefinition & { badge?: number; onClose: () => void; indent?: boolean }) {
+  const location = useLocation();
+  const isActive = isNavItemActive(to, location.pathname);
+
   return (
     <NavLink
       to={to}
       end={end}
       onClick={onClose}
-      className={({ isActive }) =>
+      aria-current={isActive ? 'page' : undefined}
+      className={() =>
         cn(
           'relative flex min-h-11 items-center gap-3 rounded-[var(--radius-card-mobile)] px-3 transition-colors',
           indent && 'ml-4',
@@ -52,8 +59,7 @@ function DrawerNavItem({
         )
       }
     >
-      {({ isActive }) => (
-        <>
+      <>
           <Icon
             className={cn(
               'shrink-0 stroke-[1.75]',
@@ -69,10 +75,9 @@ function DrawerNavItem({
               {badge}
             </span>
           ) : (
-            <ChevronRight className="h-4 w-4 shrink-0 text-[var(--text-tertiary)] opacity-40" />
+            <ChevronRight className="h-4 w-4 shrink-0 text-[var(--text-tertiary)]" />
           )}
-        </>
-      )}
+      </>
     </NavLink>
   );
 }
@@ -81,9 +86,11 @@ export function MobileSidebarDrawer({ onClose }: MobileSidebarDrawerProps) {
   const { state, dispatch } = useAppContext();
   const { signOut, user } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   const moduleFlags = getModuleFlags(state.preferences);
   const navCounts = useNavCounts(state.bibliotecaItems.length);
   const sections = buildSidebarSections(moduleFlags);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
 
   const toggleTheme = () => {
     dispatch({ type: 'SET_THEME', payload: state.theme === 'light' ? 'dark' : 'light' });
@@ -94,12 +101,29 @@ export function MobileSidebarDrawer({ onClose }: MobileSidebarDrawerProps) {
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true, ctrlKey: true }));
   };
 
+  useEffect(() => {
+    if (!userMenuOpen) return undefined;
+
+    const handleClickOutside = () => setUserMenuOpen(false);
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setUserMenuOpen(false);
+    };
+
+    document.addEventListener('click', handleClickOutside);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('click', handleClickOutside);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [userMenuOpen]);
+
   const userName =
     user?.user_metadata?.full_name?.trim() ||
     user?.email?.split('@')[0] ||
-    'Utilizador';
+    'Usuário';
   const userEmail = user?.email || 'user@exemplo.com';
   const userInitials = getUserInitials(userName);
+  const settingsNavCurrent = isSettingsNavActive(location.pathname);
 
   return (
     <div className="flex h-full flex-col overflow-hidden border-r border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 pb-safe pt-[max(env(safe-area-inset-top),12px)]">
@@ -121,10 +145,7 @@ export function MobileSidebarDrawer({ onClose }: MobileSidebarDrawerProps) {
         className="mb-4 flex min-h-11 w-full items-center gap-2 rounded-md border border-[var(--border-color)] bg-[var(--bg-elevated)] px-3 text-left text-[var(--text-tertiary)] transition-colors hover:border-[var(--border-strong)]"
       >
         <Search className="h-4 w-4 shrink-0" />
-        <span className="flex-1 text-sm">Procurar...</span>
-        <span className="rounded border border-[var(--border-color)] px-1.5 py-0.5 text-xs font-medium text-[var(--text-tertiary)]">
-          Ctrl K
-        </span>
+        <span className="flex-1 text-sm">Buscar…</span>
       </button>
 
       <nav className="custom-scrollbar flex-1 overflow-y-auto" aria-label="Principal">
@@ -170,10 +191,11 @@ export function MobileSidebarDrawer({ onClose }: MobileSidebarDrawerProps) {
         <NavLink
           to="/configuracoes"
           onClick={onClose}
-          className={({ isActive }) =>
+          aria-current={settingsNavCurrent ? 'page' : undefined}
+          className={() =>
             cn(
               'flex min-h-11 items-center gap-3 rounded-md px-3 transition-colors',
-              isSettingsNavActive(location.pathname, isActive)
+              settingsNavCurrent
                 ? 'bg-[var(--bg-hover)] text-[var(--text-primary)]'
                 : 'text-[var(--text-secondary)] active:bg-[var(--bg-hover)]'
             )
@@ -182,7 +204,7 @@ export function MobileSidebarDrawer({ onClose }: MobileSidebarDrawerProps) {
           <Settings
             className={cn(
               'h-5 w-5 shrink-0',
-              isSettingsNavActive(location.pathname, false)
+              settingsNavCurrent
                 ? 'text-[var(--brand-accent)]'
                 : 'text-[var(--text-tertiary)]',
             )}
@@ -192,11 +214,55 @@ export function MobileSidebarDrawer({ onClose }: MobileSidebarDrawerProps) {
         </NavLink>
       </div>
 
-      <div className="mt-3 shrink-0 border-t border-[var(--border-color)] pt-3">
-        <NavLink
-          to="/configuracoes/perfil"
-          onClick={onClose}
-          className="flex min-h-11 items-center gap-3 rounded-md p-2 transition-colors active:bg-[var(--bg-hover)]"
+      <div className="relative mt-3 shrink-0 border-t border-[var(--border-color)] pt-3">
+        {userMenuOpen ? (
+          <div className="absolute bottom-full left-0 right-0 z-50 mb-1 overflow-hidden rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] py-1 shadow-lg">
+            <button
+              type="button"
+              onClick={() => {
+                navigate('/configuracoes/perfil');
+                setUserMenuOpen(false);
+                onClose();
+              }}
+              className="flex min-h-11 w-full items-center gap-2.5 px-3 text-sm text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
+            >
+              <User className="h-4 w-4 shrink-0" />
+              Meu perfil
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                toggleTheme();
+                setUserMenuOpen(false);
+              }}
+              className="flex min-h-11 w-full items-center gap-2.5 px-3 text-sm text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
+            >
+              {state.theme === 'light' ? <Moon className="h-4 w-4 shrink-0" /> : <Sun className="h-4 w-4 shrink-0" />}
+              {state.theme === 'light' ? 'Modo escuro' : 'Modo claro'}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                void signOut();
+                setUserMenuOpen(false);
+              }}
+              className="flex min-h-11 w-full items-center gap-2.5 px-3 text-sm text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
+            >
+              <LogOut className="h-4 w-4 shrink-0" />
+              Sair
+            </button>
+          </div>
+        ) : null}
+        <button
+          type="button"
+          onClick={event => {
+            event.stopPropagation();
+            setUserMenuOpen(previous => !previous);
+          }}
+          className="flex min-h-11 w-full items-center gap-3 rounded-md p-2 text-left transition-colors active:bg-[var(--bg-hover)]"
+          aria-label="Abrir perfil"
+          aria-haspopup="menu"
+          aria-expanded={userMenuOpen}
         >
           <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[var(--bg-hover)] text-sm font-semibold text-[var(--text-secondary)]">
             {userInitials}
@@ -206,26 +272,7 @@ export function MobileSidebarDrawer({ onClose }: MobileSidebarDrawerProps) {
             <p className="truncate text-xs text-[var(--text-tertiary)]">{userEmail}</p>
           </div>
           <ChevronRight className="h-4 w-4 shrink-0 text-[var(--text-tertiary)]" />
-        </NavLink>
-
-        <div className="mt-2 flex gap-2">
-          <button
-            type="button"
-            onClick={toggleTheme}
-            aria-label={state.theme === 'light' ? 'Modo escuro' : 'Modo claro'}
-            className="flex min-h-11 min-w-11 items-center justify-center rounded-md border border-[var(--border-color)] text-[var(--text-secondary)] transition-colors active:bg-[var(--bg-hover)]"
-          >
-            {state.theme === 'light' ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
-          </button>
-          <button
-            type="button"
-            onClick={() => void signOut()}
-            className="flex min-h-11 flex-1 items-center justify-center gap-2 rounded-md border border-[var(--border-color)] text-sm font-medium text-[var(--text-secondary)] transition-colors active:bg-[var(--bg-hover)]"
-          >
-            <LogOut className="h-4 w-4" />
-            Sair
-          </button>
-        </div>
+        </button>
       </div>
     </div>
   );

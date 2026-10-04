@@ -6,6 +6,7 @@ import { TextStyle } from '@tiptap/extension-text-style';
 import { Color } from '@tiptap/extension-color';
 import TextAlign from '@tiptap/extension-text-align';
 import Typography from '@tiptap/extension-typography';
+import { Placeholder } from '@tiptap/extensions';
 import {
   AlignCenter,
   AlignLeft,
@@ -198,6 +199,8 @@ export function RichTextEditor({
       Color,
       TextAlign.configure({ types: ['heading', 'paragraph'] }),
       Typography,
+      // Extensions are built once with the editor, so the first placeholder value is kept.
+      Placeholder.configure({ placeholder: placeholder ?? '' }),
     ],
     [],
   );
@@ -478,11 +481,11 @@ export function RichTextEditor({
   );
   const saveFooterLabel =
     saveState === 'saving'
-      ? 'Salvando...'
+      ? 'Salvando…'
       : saveState === 'saved'
         ? 'Salvo agora'
         : saveState === 'error'
-          ? 'Erro ao salvar'
+          ? 'Não salvo. Verifique a conexão'
           : null;
 
   const secondaryActions: FormattingAction[] = useMemo(

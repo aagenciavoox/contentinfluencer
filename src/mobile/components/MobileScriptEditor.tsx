@@ -19,7 +19,7 @@ interface MobileScriptEditorProps {
 export function MobileScriptEditor({
   content,
   onChange,
-  placeholder = 'Escreva o roteiro...',
+  placeholder = 'Escreva o roteiro…',
   autoFocus = false,
   documentTitle = 'Roteiro',
   className,

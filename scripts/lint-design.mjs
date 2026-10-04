@@ -1,5 +1,15 @@
+// Design lint. `patterns` and `tsxErrorPatterns` fail the run; every *WarnPatterns list only warns.
+//
+// Warn-only rules added in phase 8 (IMPLEMENTATION_PLAN_2026-10-03.md, 8.1):
+// - classWarnPatterns (.ts/.tsx): a text color token mixed with opacity-10..60 in the same
+//   class string (disabled:, hover: and group-hover: variants are allowed), and wide tracking
+//   (tracking-widest, tracking-[0.2em] up to tracking-[0.5em]).
+// - nativeControlWarnPatterns (.ts/.tsx under src/features and src/mobile only): native
+//   <select> and window.prompt( / window.confirm(.
+// Exceptions for these rules: visualWarnExceptions (BurstMode teleprompter, see DESIGN.md › Exceptions).
+// The older exception sets below are unchanged.
 import { readFileSync, readdirSync, statSync } from 'fs';
-import { join, extname, basename } from 'path';
+import { join, extname, basename, relative, sep } from 'path';
 
 const root = join(import.meta.dirname, '..', 'src');
 
@@ -27,6 +37,16 @@ const tsxWarnPatterns = [
   { name: 'orphan gap-10 (use --space-2xl or --space-3xl)', regex: /\bgap-10\b/g },
 ];
 
+const classWarnPatterns = [
+  { name: 'text token with opacity (use --text-secondary/--text-tertiary em vez de opacidade)', count: countTextOpacityStrings },
+  { name: 'legacy wide tracking (tracking-widest / tracking-[0.2em–0.5em]; use Text variant="eyebrow")', regex: /\btracking-widest\b|tracking-\[0\.(?:[2-4]\d*|50*)em\]/g },
+];
+
+const nativeControlWarnPatterns = [
+  { name: 'native <select> (use TagSelect)', regex: /<select\b/g },
+  { name: 'window.prompt/window.confirm (use ConfirmModal)', regex: /\bwindow\.(?:prompt|confirm)\s*\(/g },
+];
+
 const spacingExceptions = new Set([
   'BurstModeExperience.tsx',
   'BurstModeMobileScreen.tsx',
@@ -51,6 +71,43 @@ const typographyClassExceptions = new Set([
   'ContentOperationalPanel.tsx',
   'RoteiroSection.tsx',
 ]);
+
+const visualWarnExceptions = new Set([
+  'BurstModeExperience.tsx',
+  'BurstModeMobileScreen.tsx',
+]);
+
+const nativeControlDirs = ['features', 'mobile'];
+
+const stringLiteralRegex = /"[^"\n]*"|'[^'\n]*'|`[^`]*`/g;
+const textColorTokenRegex = /text-\[var\(--text-/;
+const opacityClassRegex = /^(?:(.+):)?opacity-(?:10|20|30|40|50|60)$/;
+const allowedOpacityVariants = new Set(['disabled', 'hover', 'group-hover']);
+
+function hasBareOpacityClass(literal) {
+  return literal.split(/[\s'"`{}()?,]+/).some((token) => {
+    const match = token.match(opacityClassRegex);
+    if (!match) return false;
+    const variants = match[1] ? match[1].split(':') : [];
+    return !variants.some((variant) => allowedOpacityVariants.has(variant));
+  });
+}
+
+function countTextOpacityStrings(content) {
+  let count = 0;
+  for (const literal of content.match(stringLiteralRegex) ?? []) {
+    if (textColorTokenRegex.test(literal) && hasBareOpacityClass(literal)) count += 1;
+  }
+  return count;
+}
+
+function countMatches({ regex, count }, content) {
+  return count ? count(content) : content.match(regex)?.length ?? 0;
+}
+
+function isNativeControlScope(file) {
+  return nativeControlDirs.includes(relative(root, file).split(sep)[0]);
+}
 
 function walk(dir) {
   const files = [];
@@ -128,6 +185,19 @@ for (const file of walk(root)) {
       }
     }
   }
+
+  if ((isTsx || extname(file) === '.ts') && !visualWarnExceptions.has(basename(file))) {
+    const warnRules = isNativeControlScope(file)
+      ? [...classWarnPatterns, ...nativeControlWarnPatterns]
+      : classWarnPatterns;
+    for (const rule of warnRules) {
+      const count = countMatches(rule, content);
+      if (count) {
+        console.warn(`${file}: found ${count} × ${rule.name}`);
+        warned = true;
+      }
+    }
+  }
 }
 
 if (failed) {
@@ -136,7 +206,7 @@ if (failed) {
 }
 
 if (warned) {
-  console.warn('\nDesign lint passed with heading warnings.');
+  console.warn('\nDesign lint passed with warnings.');
 } else {
   console.log('Design lint passed.');
 }

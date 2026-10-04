@@ -1,11 +1,17 @@
-import type {Content} from '../../../lib/database.ts';
-import {generateUUID} from '../../../utils/uuid.ts';
-import {CONTENT_STATUS} from './contentPipeline.ts';
+import type { Content, Serie } from '../../../lib/database.ts';
+import { generateUUID } from '../../../utils/uuid.ts';
+import { contaNaGradePadrao, funcaoHerdavelDaSerie } from '../../editorial/lib/funcoes.ts';
+import { CONTENT_STATUS } from './contentPipeline.ts';
 
 type CreateContentDraftOverrides = Partial<Content>;
 
-export function createContentDraft(overrides: CreateContentDraftOverrides = {}): Content {
+export function createContentDraft(
+  overrides: CreateContentDraftOverrides = {},
+  serie?: Pick<Serie, 'funcaoPadrao'> | null,
+): Content {
   const now = new Date().toISOString();
+  const herdada = funcaoHerdavelDaSerie(serie);
+  const formato = overrides.formatoVisual ?? null;
 
   return {
     id: generateUUID(),
@@ -25,6 +31,11 @@ export function createContentDraft(overrides: CreateContentDraftOverrides = {}):
     referencias: null,
     writingNotes: null,
     energiaNecessaria: null,
+    funcao: null,
+    funcaoOrigem: herdada ? 'herdada' : null,
+    classificacaoCongeladaEm: null,
+    contaNaGrade: contaNaGradePadrao(formato, herdada),
+    legendaBase: null,
     publishDate: null,
     publishTime: null,
     recordingDate: null,

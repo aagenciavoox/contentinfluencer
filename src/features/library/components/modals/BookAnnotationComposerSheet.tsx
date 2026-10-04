@@ -63,7 +63,7 @@ export function BookAnnotationComposerSheet({
           <div>
             <p className="text-sm font-bold text-[var(--text-primary)] opacity-45">{book.titulo}</p>
             <span className="mt-1 block text-xs font-semibold  text-[var(--text-tertiary)]">
-              Notas
+              Anotações
             </span>
           </div>
           <button
@@ -96,7 +96,7 @@ export function BookAnnotationComposerSheet({
             <textarea
               value={novaAnotacao}
               onChange={event => setNovaAnotacao(event.target.value)}
-              placeholder="Escreva uma nova nota..."
+              placeholder="Escreva uma nova anotação…"
               rows={5}
               onKeyDown={event => {
                 if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
@@ -109,7 +109,7 @@ export function BookAnnotationComposerSheet({
 
           <div className="mt-5 flex items-center justify-between border-t border-[var(--border-color)] px-1 pt-4">
             <span className="text-xs font-semibold  text-[var(--text-tertiary)] opacity-45">
-              Nova nota
+              Nova anotação
             </span>
             <button
               onClick={handleAddAnotacao}

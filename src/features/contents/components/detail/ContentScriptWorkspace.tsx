@@ -81,7 +81,7 @@ export function ContentScriptWorkspace({
             <Skeleton className="h-4 w-4/6" />
             <Skeleton className="mt-3 h-48 w-full" />
             <p className="pt-2 text-xs font-semibold t-label-uppercase text-[var(--text-tertiary)]">
-              Carregando roteiro...
+              Carregando roteiro…
             </p>
           </div>
         ) : bodyError ? (
@@ -101,7 +101,7 @@ export function ContentScriptWorkspace({
             variant="workspace"
             content={script || ''}
             onChange={onScriptChange}
-            placeholder="Abra o seu coracao e escreva o roteiro..."
+            placeholder="Escreva o roteiro…"
             authorName={authorName}
             documentTitle={documentTitle}
             annotations={scriptNotes || []}
@@ -131,7 +131,7 @@ export function ContentScriptWorkspace({
             onClick={() => setRefsOpen(prev => !prev)}
             className="flex w-full items-center justify-between gap-2 px-4 py-2 text-left transition-colors hover:bg-[var(--bg-hover)] md:px-6"
           >
-            <span className="text-sm font-semibold text-[var(--text-primary)]">Referencias</span>
+            <span className="text-sm font-semibold text-[var(--text-primary)]">Referências</span>
             <ChevronDown className={cn('h-4 w-4 text-[var(--text-tertiary)] transition-transform', refsOpen && 'rotate-180')} />
           </button>
           {refsOpen ? (
@@ -140,7 +140,7 @@ export function ContentScriptWorkspace({
                 value={referencias ?? ''}
                 onChange={event => onReferenciasChange(event.target.value)}
                 className="mt-2 w-full min-h-[80px] resize-none rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-3 py-2 text-sm outline-none focus:border-[var(--accent-blue)]"
-                placeholder="Links, observacoes e contexto do roteiro"
+                placeholder="Links, observações e contexto do roteiro"
               />
             </div>
           ) : null}

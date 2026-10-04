@@ -250,7 +250,7 @@ export function CalendarAgendaView({
                     {item.__type === 'external' && <CalendarIcon className="w-5 h-5 text-[var(--accent-purple)]" />}
                     <div>
                       <p className="font-bold text-sm text-[var(--text-primary)] truncate text-left max-w-[200px]">{item.title || item.description || item.text}</p>
-                      <p className="text-xs font-semibold  opacity-60 text-[var(--text-tertiary)] text-left mt-0.5">
+                      <p className="text-xs font-semibold text-[var(--text-tertiary)] text-left mt-0.5">
                         {item.__type === 'recording' ? 'Gravação' : item.__type === 'post' ? 'Postagem' : item.__type === 'partnership' ? 'Publicidade' : 'Evento'}
                       </p>
                     </div>

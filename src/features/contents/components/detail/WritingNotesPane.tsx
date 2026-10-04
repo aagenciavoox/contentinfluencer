@@ -101,7 +101,7 @@ export function WritingNotesPane({
             if (canRedo) apply(indexRef.current + 1);
           }
         }}
-        placeholder="Anotações ao lado do roteiro..."
+        placeholder="Anotações ao lado do roteiro…"
         aria-label="Notas"
         className="min-h-0 flex-1 resize-none border-0 bg-[var(--bg-elevated)] px-6 py-6 text-base leading-relaxed text-[var(--text-primary)] outline-none placeholder:text-[var(--text-tertiary)]"
       />

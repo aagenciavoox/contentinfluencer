@@ -3,14 +3,14 @@ import {Text} from '../../../../components/ui/Text';
 const LEGEND_ITEMS = [
   {label: 'Roteiro', color: 'var(--status-writing)'},
   {label: 'Legenda', color: 'var(--accent-purple)'},
-  {label: 'Thumbnail', color: 'var(--accent-orange)'},
+  {label: 'Capa', color: 'var(--accent-orange)'},
   {label: 'Publicado', color: 'var(--status-posted)'},
-  {label: 'Analytics', color: 'var(--text-tertiary)'},
+  {label: 'Resultados', color: 'var(--text-tertiary)'},
 ] as const;
 
 const STATUS_HINTS = [
-  {label: 'Pronto para Gravar', color: 'var(--status-ready)'},
-  {label: 'A Editar', color: 'var(--status-editing)'},
+  {label: 'Pronto para gravar', color: 'var(--status-ready)'},
+  {label: 'A editar', color: 'var(--status-editing)'},
   {label: 'Editado', color: 'var(--status-edited)'},
 ] as const;
 

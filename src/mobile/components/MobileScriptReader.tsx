@@ -114,7 +114,7 @@ export function MobileScriptReader({
       >
         <div className="mb-3 flex items-center justify-between gap-2">
           <span className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--text-tertiary)]">
-            {words > 0 ? `${words} palavras` : 'Roteiro vazio'}
+            {words === 0 ? 'Roteiro vazio' : words === 1 ? '1 palavra' : `${words} palavras`}
           </span>
           <div className="flex items-center gap-1">
             {!isEmpty ? (

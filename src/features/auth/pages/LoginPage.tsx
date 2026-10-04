@@ -22,7 +22,7 @@ function normalizeAuthError(error: AuthFailure | null | undefined) {
   const code = (error?.code ?? '').toLowerCase();
 
   if (code === 'invalid_credentials' || msg.includes('invalid login')) {
-    return 'E-mail e senha nao conferem. Revise os dados e tente novamente.';
+    return 'E-mail e senha não conferem. Revise os dados e tente novamente.';
   }
 
   if (code === 'email_not_confirmed' || msg.includes('email not confirmed')) {
@@ -34,7 +34,7 @@ function normalizeAuthError(error: AuthFailure | null | undefined) {
   }
 
   if (code === 'signup_disabled') {
-    return 'Cadastro desativado no Supabase para este projeto.';
+    return 'Novos cadastros estão fechados no momento.';
   }
 
   if (code === 'email_address_invalid' || code === 'validation_failed') {
@@ -259,7 +259,7 @@ export function LoginPage() {
     e.preventDefault();
 
     if (!supabase) {
-      setError('Serviço de autenticação indisponível.');
+      setError('Não foi possível conectar agora. Tente novamente em alguns minutos.');
       return;
     }
 

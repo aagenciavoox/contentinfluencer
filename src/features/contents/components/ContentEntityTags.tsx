@@ -52,7 +52,7 @@ export function ContentEntityTags({
   size = 'md',
 }: ContentEntityTagsProps) {
   const pillarLabel = pillar?.nome ?? (pillarId ? 'Pilar' : null);
-  const seriesLabel = series?.name ?? (seriesId ? 'Serie' : null);
+  const seriesLabel = series?.name ?? (seriesId ? 'Série' : null);
 
   if (!pillarLabel && !seriesLabel) return null;
 

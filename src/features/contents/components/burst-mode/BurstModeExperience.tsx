@@ -177,7 +177,7 @@ function buildPrompterLines(script: string) {
     return index > 0 && lines[index - 1] !== '';
   });
 
-  return compacted.length > 0 ? compacted : ['Sem roteiro. Grave no freestyle.'];
+  return compacted.length > 0 ? compacted : ['Este roteiro ainda não tem texto. Dá para gravar de improviso.'];
 }
 
 function normalizeBurstSettings(value: unknown) {
@@ -220,9 +220,13 @@ export function BurstModeExperience({
   );
   const [settings, setSettings] = useState<BurstModeSettings>(persistedSettings);
 
+  const blockContents = useMemo(
+    () => getBlockContents(block, state.contents),
+    [block, state.contents]
+  );
   const readyContents = useMemo(
-    () => getBlockContents(block, state.contents).filter(content => !recordedIds.has(content.id)),
-    [block, recordedIds, state.contents]
+    () => blockContents.filter(content => !recordedIds.has(content.id)),
+    [blockContents, recordedIds]
   );
   const readyContentIds = useMemo(
     () => readyContents.map(content => content.id),
@@ -232,14 +236,14 @@ export function BurstModeExperience({
 
   const currentContent = readyContents[currentIndex] ?? null;
   const scriptText = useMemo(() => {
-    if (!currentContent) return 'Sem roteiro. Grave no freestyle.';
+    if (!currentContent) return 'Este roteiro ainda não tem texto. Dá para gravar de improviso.';
     if (!isContentBodyLoaded(currentContent)) {
       if (hasHydrationError(currentContent.id)) {
         return 'Não foi possível carregar o roteiro.';
       }
-      return 'Carregando roteiro...';
+      return 'Carregando roteiro…';
     }
-    return getScriptLabel(currentContent.script, 'Sem roteiro. Grave no freestyle.');
+    return getScriptLabel(currentContent.script, 'Este roteiro ainda não tem texto. Dá para gravar de improviso.');
   }, [currentContent, hasHydrationError]);
   const scriptLines = useMemo(() => buildPrompterLines(scriptText), [scriptText]);
   const lineWordCounts = useMemo(() => scriptLines.map(line => Math.max(1, countWords(line))), [scriptLines]);
@@ -511,6 +515,16 @@ export function BurstModeExperience({
   };
 
   if (!currentContent) {
+    // Fim da sessão: todos gravados, ou a pessoa avançou além do último roteiro ainda não gravado.
+    const allRecorded = blockContents.length > 0 && readyContents.length === 0;
+    const pausedEarly = readyContents.length > 0;
+    const endTitle = allRecorded ? 'Bloco gravado' : pausedEarly ? 'Sessão pausada' : 'Sessão encerrada';
+    const endMessage = allRecorded
+      ? 'Todos os roteiros foram marcados como gravados.'
+      : pausedEarly
+        ? 'O bloco continua de onde você parou.'
+        : 'Os roteiros marcados como gravados ficam salvos.';
+
     return (
       <div
         role="dialog"
@@ -521,15 +535,12 @@ export function BurstModeExperience({
         <CheckCircle2 className="mx-auto mb-8 h-24 w-24 animate-bounce text-[var(--accent-green)]" />
         <Text
           variant="display"
-          className="mb-4 text-4xl font-semibold uppercase italic tracking-tight text-[var(--text-primary)] md:text-5xl"
+          className="mb-4 text-4xl font-semibold uppercase tracking-tight text-[var(--text-primary)] md:text-5xl"
         >
-          Parabéns!
+          {endTitle}
         </Text>
-        <p className="mb-4 text-lg font-bold text-[var(--text-tertiary)]">
-          Você finalizou ou pausou a sessão deste bloco.
-        </p>
-        <p className="mb-12 max-w-xl text-sm font-medium text-[var(--text-secondary)]">
-          Todos os roteiros deste bloco foram marcados como gravados.
+        <p className="mb-12 max-w-xl text-lg font-bold text-[var(--text-tertiary)]">
+          {endMessage}
         </p>
         <button
           type="button"
@@ -580,7 +591,7 @@ export function BurstModeExperience({
               <div>
                 <p className="text-xs font-semibold ">Modo gravação</p>
                 <p className={cn('mt-1 text-sm', themeStyle.muted)}>
-                  {teleprompterEnabled ? 'Foco total no roteiro' : 'Leitura estatica do roteiro'}
+                  {teleprompterEnabled ? 'Foco total no roteiro' : 'Leitura estática do roteiro'}
                 </p>
               </div>
             </div>
@@ -769,7 +780,7 @@ export function BurstModeExperience({
                 className={cn('inline-flex items-center gap-2 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border px-4 py-3 text-sm font-semibold transition-colors', themeStyle.panelBorder)}
               >
                 {isPlaying ? <Pause className="h-4 w-4 fill-current" /> : <Play className="h-4 w-4 fill-current" />}
-                {isPlaying ? 'Pausar' : 'Play'}
+                {isPlaying ? 'Pausar' : 'Iniciar'}
                 <span className={cn('rounded-lg border px-2 py-0.5 text-xs font-semibold', themeStyle.panelBorder)}>Espaço</span>
               </button>
 
@@ -779,7 +790,7 @@ export function BurstModeExperience({
                 disabled={currentIndex === 0}
                 className={cn('inline-flex items-center gap-2 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border px-4 py-3 text-sm font-semibold transition-colors disabled:opacity-30', themeStyle.panelBorder)}
               >
-                <SkipBack className="h-4 w-4" /> Vídeo anterior
+                <SkipBack className="h-4 w-4" /> Roteiro anterior
               </button>
 
               <button
@@ -787,7 +798,7 @@ export function BurstModeExperience({
                 onClick={handleNextVideo}
                 className={cn('inline-flex items-center gap-2 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] px-4 py-3 text-sm font-semibold text-white shadow-lg', settings.theme === 'amber' ? 'bg-[#ff9f1a]' : 'bg-[#4f46e5]')}
               >
-                Próximo vídeo <SkipForward className="h-4 w-4 fill-current" />
+                Próximo roteiro <SkipForward className="h-4 w-4 fill-current" />
               </button>
             </div>
 
@@ -810,7 +821,7 @@ export function BurstModeExperience({
                 </button>
                 <div className="min-w-[82px] text-center">
                   <Text variant="label" uppercase className={themeStyle.muted}>Velocidade</Text>
-                  <p className="mt-1 text-sm font-semibold">{effectiveWpm} wpm</p>
+                  <p className="mt-1 text-sm font-semibold">{effectiveWpm} ppm</p>
                 </div>
                 <button
                   type="button"
@@ -955,7 +966,7 @@ export function BurstModeExperience({
                     <ChoiceButton active={settings.advanceType === 'line'} onClick={() => updateSetting('advanceType', 'line')}>Linha</ChoiceButton>
                     <ChoiceButton active={settings.advanceType === 'continuous'} onClick={() => updateSetting('advanceType', 'continuous')}>Contínuo</ChoiceButton>
                   </ChoiceSetting>
-                  <SliderSetting label="Velocidade atual" value={`${settings.wpm} wpm`}>
+                  <SliderSetting label="Velocidade atual" value={`${settings.wpm} ppm`}>
                     <input type="range" min="60" max="280" step="5" value={settings.wpm} onChange={event => updateSetting('wpm', Number(event.target.value))} className="w-full" />
                   </SliderSetting>
                 </SettingsGroup>
@@ -991,7 +1002,7 @@ export function BurstModeExperience({
                   </SliderSetting>
                   <ToggleSetting
                     label="Destacar linha atual"
-                    description="Fade das linhas acima e abaixo"
+                    description="Esmaecer linhas acima e abaixo"
                     checked={settings.highlightCurrentLine}
                     onChange={() => updateSetting('highlightCurrentLine', !settings.highlightCurrentLine)}
                   />
@@ -999,8 +1010,8 @@ export function BurstModeExperience({
                     <Text variant="label" uppercase className={themeStyle.muted}>Atalhos</Text>
                     <div className="mt-3 space-y-2 text-sm">
                       <ShortcutLine label="Iniciar / Pausar" value="Espaço" />
-                      <ShortcutLine label="Próximo vídeo" value="→" />
-                      <ShortcutLine label="Vídeo anterior" value="←" />
+                      <ShortcutLine label="Próximo roteiro" value="→" />
+                      <ShortcutLine label="Roteiro anterior" value="←" />
                       <ShortcutLine label="Aumentar fonte" value="+" />
                       <ShortcutLine label="Diminuir fonte" value="-" />
                       <ShortcutLine label="Marcar como gravado" value="G" />

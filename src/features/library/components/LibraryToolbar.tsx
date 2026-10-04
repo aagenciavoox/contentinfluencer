@@ -100,9 +100,9 @@ export function LibraryToolbar({
       onSortChange={onSortChange}
       sortOptions={[
         { label: 'Recentes', value: 'recentes' },
-        { label: 'Título A-Z', value: 'titulo:asc' },
-        { label: 'Autor A-Z', value: 'autor:asc' },
-        { label: 'Status A-Z', value: 'status:asc' },
+        { label: 'Título A–Z', value: 'titulo:asc' },
+        { label: 'Autor A–Z', value: 'autor:asc' },
+        { label: 'Status A–Z', value: 'status:asc' },
       ]}
     />
   );

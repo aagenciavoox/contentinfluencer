@@ -465,7 +465,7 @@ export function ProgramacaoPage() {
   const requestPromoteIdeia = (card: ProgramacaoCard) => {
     setPromoteConfirm({
       message: 'Transformar esta ideia em roteiro? A data na grade é mantida.',
-      confirmLabel: 'Promover para roteiro',
+      confirmLabel: 'Transformar em roteiro',
       cancelLabel: 'Manter como ideia',
       onConfirm: () => commitPromoteIdeia(card),
     });
@@ -542,7 +542,7 @@ export function ProgramacaoPage() {
       size="compact"
       searchValue={scheduleSearch}
       onSearchChange={setScheduleSearch}
-      searchPlaceholder="Buscar conteúdo"
+      searchPlaceholder="Buscar por título ou rede"
       filters={[
         {
           id: 'platform',
@@ -613,7 +613,7 @@ export function ProgramacaoPage() {
             : ''
         }
         confirmLabel="Agendar mesmo assim"
-        cancelLabel="Cancelar"
+        cancelLabel="Escolher outro dia"
         onConfirm={confirmPendingSchedule}
         onCancel={() => setPendingSchedule(null)}
       />
@@ -621,13 +621,13 @@ export function ProgramacaoPage() {
       <Drawer open={Boolean(previewCard)} onClose={() => setPreviewCard(null)} widthClassName="max-w-xl">
         {previewCard ? (
           <div className="flex h-full min-h-0 flex-col bg-[var(--bg-elevated)]">
-            <OverlayHeader title="Detalhe do conteúdo" onClose={() => setPreviewCard(null)} />
+            <OverlayHeader title={isIdeiaCard(previewCard) ? 'Detalhes da ideia' : 'Detalhes do roteiro'} onClose={() => setPreviewCard(null)} />
             <OverlayBody>
               <CardPreviewContent card={previewCard} content={previewContent} />
             </OverlayBody>
             <OverlayFooter>
               <AppButton variant="primary" fullWidth leftIcon={<Eye className="h-4 w-4" />} onClick={openPreviewContent}>
-                Abrir conteúdo completo
+                {isIdeiaCard(previewCard) ? 'Abrir ideia' : 'Abrir roteiro'}
               </AppButton>
             </OverlayFooter>
           </div>
@@ -710,6 +710,7 @@ export function ProgramacaoPage() {
             initialDate={postedComposerDay}
             initialContent={postedEditContent}
             platforms={state.platforms}
+            series={state.series}
             postingTimes={postingTimes}
             onSave={(content, options) => handleSavePosted(content, options)}
             onClose={() => {
@@ -806,7 +807,7 @@ export function ProgramacaoPage() {
                 leftIcon={<Plus className="h-4 w-4" />}
                 onClick={() => openPostedComposer(dateKey(new Date()))}
               >
-                Registrar postado
+                Registrar vídeo postado
               </AppButton>
             </>
           }
@@ -943,13 +944,13 @@ export function ProgramacaoPage() {
       <Drawer open={Boolean(previewCard)} onClose={() => setPreviewCard(null)} widthClassName="max-w-xl">
         {previewCard ? (
           <div className="flex h-full min-h-0 flex-col bg-[var(--bg-elevated)]">
-            <OverlayHeader title="Detalhe do conteúdo" onClose={() => setPreviewCard(null)} />
+            <OverlayHeader title={isIdeiaCard(previewCard) ? 'Detalhes da ideia' : 'Detalhes do roteiro'} onClose={() => setPreviewCard(null)} />
             <OverlayBody>
               <CardPreviewContent card={previewCard} content={previewContent} />
             </OverlayBody>
             <OverlayFooter>
               <AppButton variant="primary" fullWidth leftIcon={<Eye className="h-4 w-4" />} onClick={openPreviewContent}>
-                Abrir conteúdo completo
+                {isIdeiaCard(previewCard) ? 'Abrir ideia' : 'Abrir roteiro'}
               </AppButton>
             </OverlayFooter>
           </div>
@@ -984,7 +985,7 @@ export function ProgramacaoPage() {
             : ''
         }
         confirmLabel="Agendar mesmo assim"
-        cancelLabel="Cancelar"
+        cancelLabel="Escolher outro dia"
         onConfirm={confirmPendingSchedule}
         onCancel={() => setPendingSchedule(null)}
       />
@@ -1046,6 +1047,7 @@ export function ProgramacaoPage() {
             initialDate={postedComposerDay}
             initialContent={postedEditContent}
             platforms={state.platforms}
+            series={state.series}
             postingTimes={postingTimes}
             onSave={(content, options) => handleSavePosted(content, options)}
             onClose={() => {
@@ -1226,7 +1228,7 @@ function ProgramacaoHelpButton() {
           className="absolute left-0 top-full z-20 mt-1 w-64 rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-elevated)] p-3 shadow-[var(--shadow-dropdown)]"
         >
           <Text variant="body">
-            Toque num dia para escolher o vídeo, ou selecione um vídeo e depois o dia. O horário você define depois.
+            Toque num dia para escolher o roteiro, ou selecione um roteiro e depois o dia. O horário você define depois.
           </Text>
         </div>
       ) : null}
@@ -1263,7 +1265,7 @@ function IdeaComposerSheet({dayKey, onCreate, onClose}: IdeaComposerSheetProps) 
       </div>
 
       <p className="text-sm text-[var(--text-tertiary)]">
-        A ideia fica no dia escolhido. Depois você pode promover para roteiro ou mantê-la só como referência.
+        A ideia fica no dia escolhido. Depois você pode transformá-la em roteiro ou mantê-la só como referência.
       </p>
 
       <div>
@@ -1273,7 +1275,7 @@ function IdeaComposerSheet({dayKey, onCreate, onClose}: IdeaComposerSheetProps) 
           type="text"
           value={title}
           onChange={event => setTitle(event.target.value)}
-          placeholder="Ex: 3 sinais de que..."
+          placeholder="Ex.: 3 sinais de que…"
           className="mt-2 min-h-11 w-full rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-3 py-2 text-sm font-semibold text-[var(--text-primary)] outline-none placeholder:text-[var(--text-tertiary)] focus:border-[var(--accent-blue)]"
           onKeyDown={event => {
             if (event.key === 'Enter' && title.trim()) onCreate(title);
@@ -1328,17 +1330,17 @@ function IdeaActionSheet({card, onPromote, onPreview, onOpen, onClose}: IdeaActi
       </div>
 
       <AppButton variant="primary" fullWidth leftIcon={<ArrowUpRight className="h-4 w-4" />} onClick={onPromote}>
-        Promover para roteiro
+        Transformar em roteiro
       </AppButton>
       <AppButton variant="secondary" fullWidth leftIcon={<Eye className="h-4 w-4" />} onClick={onPreview}>
-        Ver preview
+        Pré-visualizar
       </AppButton>
       <button
         type="button"
         onClick={onOpen}
         className="min-h-10 w-full text-sm font-semibold text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
       >
-        Abrir conteúdo completo
+        Abrir ideia
       </button>
     </div>
   );
@@ -1446,11 +1448,11 @@ function BacklogPanel({cards, selectedKey, isDropTarget, onSelect, onPreview, on
 
       {!expanded ? null : cards.length === 0 ? (
         <p className="mt-3 rounded-md border border-dashed border-[var(--border-color)] px-3 py-2 text-sm text-[var(--text-tertiary)]">
-          Nada por aqui. Roteiros e conteúdos em produção sem data aparecem aqui. Ideias salvas ficam nos dias da grade.
+          Roteiros prontos e sem data aparecem aqui. Ideias ficam nos dias da grade.
         </p>
       ) : filteredCards.length === 0 ? (
         <p className="mt-3 rounded-md border border-dashed border-[var(--border-color)] px-3 py-2 text-sm text-[var(--text-tertiary)]">
-          Nenhum vídeo corresponde a &ldquo;{search.trim()}&rdquo;.
+          Nenhum roteiro corresponde a &ldquo;{search.trim()}&rdquo;.
         </p>
       ) : (
         <div className="mt-3 max-h-[min(28vh,240px)] stack-md overflow-y-auto pr-1">
@@ -1484,7 +1486,7 @@ function BacklogPanel({cards, selectedKey, isDropTarget, onSelect, onPreview, on
             pageSize={pageSize}
             onPageChange={setPage}
             variant="simple"
-            itemLabel="vídeos"
+            itemLabel="roteiros"
           />
         </div>
       )}
@@ -1604,7 +1606,7 @@ function ProgramacaoCardChip({
         </span>
         {card.publicationKind === 'repost' ? (
           <span className="inline-flex rounded border border-[var(--border-color)] bg-[var(--bg-hover)] px-1.5 py-0.5 text-2xs font-bold uppercase tracking-wide text-[var(--text-tertiary)]">
-            Repost
+            Repostagem
           </span>
         ) : null}
       </div>
@@ -1823,7 +1825,7 @@ function DayBacklogSelect({
 }) {
   return (
     <label className="block" onClick={event => event.stopPropagation()}>
-      <span className="sr-only">Escolher vídeo pronto</span>
+      <span className="sr-only">Escolher roteiro pronto</span>
       <select
         autoFocus
         defaultValue=""
@@ -1834,7 +1836,7 @@ function DayBacklogSelect({
         }}
         className="filter-bar-select h-9 w-full bg-[var(--bg-elevated)] text-xs"
       >
-        <option value="">{cards.length === 0 ? 'Nenhum vídeo pronto' : 'Escolher vídeo…'}</option>
+        <option value="">{cards.length === 0 ? 'Nenhum roteiro pronto' : 'Escolher roteiro…'}</option>
         {cards.map(card => (
           <option key={card.key} value={card.key}>
             {card.title} · {card.platformName}
@@ -1888,7 +1890,7 @@ function DayQuickActions({
           onRegisterPosted(dayKey);
         }}
         className="flex h-6 w-6 items-center justify-center rounded-full border border-[var(--border-color)] bg-[var(--bg-elevated)] text-[var(--text-secondary)] shadow-[var(--shadow-soft)] transition-colors hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
-        title="Registrar postado"
+        title="Registrar vídeo postado"
       >
         <Plus className="h-3 w-3" />
       </button>
@@ -2313,7 +2315,7 @@ function MobileDatePickerSheet({
                 'flex min-h-11 flex-col items-center justify-center rounded-lg border text-xs font-semibold transition-colors',
                 inMonth
                   ? 'border-[var(--border-color)] text-[var(--text-primary)] hover:border-[var(--accent-blue)]'
-                  : 'border-transparent text-[var(--text-tertiary)] opacity-40',
+                  : 'border-transparent text-[var(--text-tertiary)]',
                 !selectedCard && 'opacity-40',
               )}
             >

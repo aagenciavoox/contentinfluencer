@@ -3,6 +3,7 @@ import { motion } from 'motion/react';
 import { Content, Projeto } from '../../../lib/database';
 type Partnership = Projeto;
 import { cn } from '../../../lib/utils';
+import { getVisualFormatLabel } from '../../../constants';
 import { Layers, Film, FileText, User } from 'lucide-react';
 
 interface HoverCardProps {
@@ -13,7 +14,9 @@ interface HoverCardProps {
 export function CalendarHoverCard({ item, isVisible }: HoverCardProps) {
   const isContent = 'status' in item && 'pilarId' in item;
   const targetLabel = isContent ? item.pilarId : item.brand || 'Parceria';
-  const formatLabel = isContent ? item.formatoVisual : 'Padrão';
+  const formatLabel = isContent
+    ? (item.formatoVisual ? getVisualFormatLabel(item.formatoVisual) : item.formatoVisual)
+    : 'Padrão';
 
   return (
     <motion.div

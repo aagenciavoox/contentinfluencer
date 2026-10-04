@@ -40,4 +40,16 @@ assert.equal(legendas.title, 'Legendas');
 assert.equal(legendas.mode, 'back');
 assert.equal(legendas.backTo, '/criacao');
 
+const editorial = getMobileRouteMeta('/editorial', '?aba=funil');
+assert.equal(editorial.title, 'Editorial');
+assert.equal(editorial.titleVariant, 'compact-center');
+
+const editorialPilar = getMobileRouteMeta('/editorial/pilares/pilar-1');
+assert.equal(editorialPilar.title, 'Editar pilar');
+assert.equal(editorialPilar.backTo, '/editorial?aba=pilares');
+
+const editorialSerie = getMobileRouteMeta('/editorial/series/nova');
+assert.equal(editorialSerie.title, 'Nova série');
+assert.equal(editorialSerie.backTo, '/editorial?aba=series');
+
 console.log('mobileRouteMeta.test.ts passed');

@@ -26,7 +26,7 @@ export function LibrarySectionTabs({ className }: LibrarySectionTabsProps) {
   };
 
   return (
-    <div className={cn('mobile-h-scroll md:contents', className)}>
+    <div className={cn('mobile-h-scroll', className)}>
       <SegmentTabs
         options={OPTIONS}
         value={activeSection}

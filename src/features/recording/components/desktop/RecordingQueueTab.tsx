@@ -87,6 +87,7 @@ function RecordingBlockCard({block, contents, onOpen, onDelete}: RecordingBlockC
     block,
     contents
   );
+  const isEmpty = totalCount === 0;
 
   return (
     <div
@@ -102,7 +103,7 @@ function RecordingBlockCard({block, contents, onOpen, onDelete}: RecordingBlockC
       aria-label={`Abrir bloco ${block.name}`}
       className={cn(
         'ds-card ds-card-interactive group flex cursor-pointer flex-col justify-between p-6',
-        isCompleted && 'opacity-70'
+        isCompleted && !isEmpty && 'opacity-70'
       )}
     >
       <div>
@@ -110,17 +111,19 @@ function RecordingBlockCard({block, contents, onOpen, onDelete}: RecordingBlockC
           <span
             className={cn(
               'rounded-full border px-3 py-1 text-xs font-semibold ',
-              isCompleted
+              isEmpty
+                ? 'border-[var(--border-color)] bg-[var(--bg-hover)] text-[var(--text-secondary)]'
+                : isCompleted
                 ? 'border-[var(--accent-green)]/20 bg-[var(--accent-green)]/10 text-[var(--accent-green)]'
                 : 'border-[var(--accent-blue)]/20 bg-[var(--accent-blue)]/10 text-[var(--accent-blue)]'
             )}
           >
-            {isCompleted ? 'Finalizado' : 'Aguardando camera'}
+            {isEmpty ? 'Vazio' : isCompleted ? 'Finalizado' : 'Aguardando câmera'}
           </span>
 
           <button
             type="button"
-            aria-label={`Remover bloco ${block.name}`}
+            aria-label={`Excluir bloco ${block.name}`}
             onClick={event => onDelete(block.id, event)}
             className="card-actions rounded-full p-2 text-[var(--accent-pink)] hover:bg-[var(--accent-pink)]/10"
           >
@@ -140,7 +143,7 @@ function RecordingBlockCard({block, contents, onOpen, onDelete}: RecordingBlockC
 
         {firstContent ? (
           <Text variant="secondary" className="mb-6 line-clamp-2">
-            Ex: {firstContent.title}
+            Ex.: {firstContent.title}
           </Text>
         ) : null}
 
@@ -156,7 +159,7 @@ function RecordingBlockCard({block, contents, onOpen, onDelete}: RecordingBlockC
             <div
               className={cn(
                 'h-full rounded-full transition-all duration-500',
-                isCompleted ? 'bg-[var(--accent-green)]' : 'bg-[var(--text-primary)]'
+                isCompleted && !isEmpty ? 'bg-[var(--accent-green)]' : 'bg-[var(--text-primary)]'
               )}
               style={{width: `${progressPercentage}%`}}
             />
@@ -167,7 +170,7 @@ function RecordingBlockCard({block, contents, onOpen, onDelete}: RecordingBlockC
       <div className="mt-6 grid grid-cols-2 gap-3">
         <div className="stack-sm">
           <div className="flex items-center gap-2 text-xs font-semibold  text-[var(--text-tertiary)]">
-            <Layers className="h-3 w-3" /> Videos
+            <Layers className="h-3 w-3" /> Roteiros
           </div>
           <p className="text-lg font-semibold text-[var(--text-primary)]">{contents.length}</p>
         </div>

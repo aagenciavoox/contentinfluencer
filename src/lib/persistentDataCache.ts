@@ -125,3 +125,101 @@ export function clearPersistedDomainsForUser(userId: string) {
 export function isPersistedDomainFresh(entry: PersistedEntry): boolean {
   return Date.now() - entry.fetchedAt <= PERSISTENT_FRESH_MS;
 }
+
+// Primeira página de listas paginadas (ex.: Biblioteca), para a lista aparecer na hora.
+
+/** Consultas guardadas por lista. Buscas digitadas não enchem o armazenamento. */
+export const PERSISTED_PAGE_LIMIT = 4;
+const PAGE_SEGMENT = ':page:';
+
+export type PersistedPageEntry<T> = {
+  items: T[];
+  total: number;
+  fetchedAt: number;
+};
+
+/**
+ * `persistKey` começa com o id do usuário (ex.: `${userId}:library`). A chave fica sob o
+ * mesmo prefixo dos domínios, então o logout e a troca de época apagam estas páginas junto.
+ */
+function pageStorageKey(persistKey: string, queryKey: string) {
+  return `${STORAGE_PREFIX}${persistKey}${PAGE_SEGMENT}${queryKey}`;
+}
+
+export function readPersistedPage<T>(persistKey: string, queryKey: string): PersistedPageEntry<T> | null {
+  discardObsoleteDomainCache();
+  const key = pageStorageKey(persistKey, queryKey);
+  const entry = readStoredJson<PersistedPageEntry<T> | null>(key, null);
+  if (
+    !entry
+    || !Array.isArray(entry.items)
+    || typeof entry.total !== 'number'
+    || typeof entry.fetchedAt !== 'number'
+  ) {
+    return null;
+  }
+  if (Date.now() - entry.fetchedAt > PERSISTENT_MAX_AGE_MS) {
+    try {
+      window.localStorage.removeItem(key);
+    } catch {
+      // ignore
+    }
+    return null;
+  }
+  return entry;
+}
+
+export function writePersistedPage<T>(persistKey: string, queryKey: string, items: T[], total: number) {
+  writeStoredJson(pageStorageKey(persistKey, queryKey), {
+    items,
+    total,
+    fetchedAt: Date.now(),
+  } satisfies PersistedPageEntry<T>);
+  prunePersistedPages(persistKey);
+}
+
+/** Apaga as páginas guardadas do usuário. Usado depois de uma alteração local nos itens da lista. */
+export function clearPersistedPagesForUser(userId: string) {
+  if (typeof window === 'undefined') return;
+  try {
+    const prefix = `${STORAGE_PREFIX}${userId}:`;
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < window.localStorage.length; i++) {
+      const key = window.localStorage.key(i);
+      if (key?.startsWith(prefix) && key.includes(PAGE_SEGMENT)) keysToRemove.push(key);
+    }
+    keysToRemove.forEach(key => window.localStorage.removeItem(key));
+  } catch {
+    // ignore
+  }
+}
+
+/** Chaves a apagar: ficam só as `limit` gravadas por último. */
+export function selectPersistedPagesToPrune(
+  entries: ReadonlyArray<{ key: string; fetchedAt: number }>,
+  limit: number,
+): string[] {
+  if (entries.length <= limit) return [];
+  return [...entries]
+    .sort((left, right) => right.fetchedAt - left.fetchedAt)
+    .slice(limit)
+    .map(entry => entry.key);
+}
+
+function prunePersistedPages(persistKey: string) {
+  if (typeof window === 'undefined') return;
+  try {
+    const prefix = `${STORAGE_PREFIX}${persistKey}${PAGE_SEGMENT}`;
+    const entries: Array<{ key: string; fetchedAt: number }> = [];
+    for (let i = 0; i < window.localStorage.length; i++) {
+      const key = window.localStorage.key(i);
+      if (!key?.startsWith(prefix)) continue;
+      const entry = readStoredJson<{ fetchedAt?: number } | null>(key, null);
+      entries.push({ key, fetchedAt: entry?.fetchedAt ?? 0 });
+    }
+    selectPersistedPagesToPrune(entries, PERSISTED_PAGE_LIMIT)
+      .forEach(key => window.localStorage.removeItem(key));
+  } catch {
+    // ignore
+  }
+}

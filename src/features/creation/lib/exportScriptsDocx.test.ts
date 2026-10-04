@@ -21,6 +21,10 @@ function content(overrides: Partial<Content> = {}): Content {
     bibliotecaItemId: null,
     formatoVisual: null,
     energiaNecessaria: null,
+    funcao: null,
+    funcaoOrigem: null,
+    classificacaoCongeladaEm: null,
+    contaNaGrade: true,
     publishDate: null,
     recordingDate: null,
     link: null,
@@ -81,7 +85,22 @@ assert.deepEqual(sections[0]?.captions, [
     hashtags: '#conteudo #criacao',
   },
 ]);
+assert.equal(sections[0]?.notes, '');
 console.log('ok - creation export includes title, readable script and non-empty captions');
+
+const notesOnly = buildCreationExportSections([content({
+  script: null,
+  writingNotes: 'Gancho forte\nCortar a intro\n\nFechar com CTA',
+})]);
+assert.equal(notesOnly[0]?.body, '');
+assert.equal(notesOnly[0]?.notes, 'Gancho forte\nCortar a intro\n\nFechar com CTA');
+
+const scriptAndNotes = buildCreationExportSections([content({
+  writingNotes: '<p>Notas ao lado</p>',
+})]);
+assert.equal(scriptAndNotes[0]?.body, 'Primeiro bloco.\n\nSegundo bloco.');
+assert.equal(scriptAndNotes[0]?.notes, 'Notas ao lado');
+console.log('ok - creation export includes side notes with or without a script');
 
 const idea = content({
   id: 'idea-1',
@@ -106,7 +125,10 @@ assert.equal(
 );
 console.log('ok - creation export includes ideas and excludes deleted content');
 
-const blob = await createCreationsDocxBlob([idea, source], platforms);
+const blob = await createCreationsDocxBlob(
+  [idea, source, content({id: 'notes-only', script: null, writingNotes: 'Só notas'})],
+  platforms,
+);
 assert.ok(blob.size > 1_000);
 assert.equal(
   blob.type,
