@@ -9,6 +9,8 @@ interface WritingNotesPaneProps {
   onChange: (text: string) => void;
   onClose: () => void;
   className?: string;
+  /** Beside the script, the notes column is the quieter surface. */
+  emphasis?: 'primary' | 'secondary';
 }
 
 export function WritingNotesPane({
@@ -16,6 +18,7 @@ export function WritingNotesPane({
   onChange,
   onClose,
   className,
+  emphasis = 'primary',
 }: WritingNotesPaneProps) {
   const plain = writingNotesToPlain(value);
   const historyRef = useRef<string[]>([plain]);
@@ -56,7 +59,11 @@ export function WritingNotesPane({
   };
 
   return (
-    <section className={cn('cms-panel flex min-h-[28rem] max-h-[calc(100dvh-14rem)] flex-col overflow-hidden', className)}>
+    <section className={cn(
+      'cms-panel flex min-h-[28rem] max-h-[calc(100dvh-14rem)] flex-col overflow-hidden',
+      emphasis === 'secondary' && 'cms-panel-secondary',
+      className,
+    )}>
       <div className="flex shrink-0 items-center justify-between gap-3 border-b border-[var(--border-color)] px-4 py-3 md:px-6">
         <Text variant="sectionTitle">Notas</Text>
         <AppButton
@@ -103,7 +110,10 @@ export function WritingNotesPane({
         }}
         placeholder="Anotações ao lado do roteiro…"
         aria-label="Notas"
-        className="min-h-0 flex-1 resize-none border-0 bg-[var(--bg-elevated)] px-6 py-6 text-base leading-relaxed text-[var(--text-primary)] outline-none placeholder:text-[var(--text-tertiary)]"
+        className={cn(
+          'min-h-0 flex-1 resize-none border-0 px-6 py-6 text-base leading-relaxed text-[var(--text-primary)] outline-none placeholder:text-[var(--text-tertiary)]',
+          emphasis === 'secondary' ? 'bg-[var(--bg-primary)]' : 'bg-[var(--bg-elevated)]',
+        )}
       />
     </section>
   );

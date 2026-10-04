@@ -10,6 +10,8 @@ await import('./features/contents/lib/contentWorkflow.test.ts');
 await import('./features/contents/lib/contentPipeline.test.ts');
 await import('./features/contents/lib/contentBody.test.ts');
 await import('./features/contents/lib/seriesScriptTemplate.test.ts');
+await import('./features/contents/lib/spokenDuration.test.ts');
+await import('./components/editors/writingFormatBar.test.ts');
 await import('./features/contents/lib/creationContent.test.ts');
 await import('./features/contents/lib/postingWindow.test.ts');
 await import('./features/recording/lib/recordingWorkflow.test.ts');

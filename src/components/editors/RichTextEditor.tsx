@@ -33,6 +33,7 @@ import {
   Strikethrough,
   Link as LinkIcon,
   Check,
+  ChevronDown,
   ChevronUp,
 } from 'lucide-react';
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
@@ -44,6 +45,8 @@ import '../../styles/editor.css';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
 import { useVisualViewportKeyboard } from '../../hooks/useVisualViewportKeyboard';
+import { countScriptWords, formatSpokenDuration } from '../../features/contents/lib/spokenDuration';
+import { WRITING_BAR_GROUPS, WRITING_MENU_ACTION_IDS } from './writingFormatBar';
 
 interface Annotation {
   id: string;
@@ -70,6 +73,10 @@ interface RichTextEditorProps {
   compactMobileComposer?: boolean;
   autoFocus?: boolean;
   variant?: 'default' | 'workspace';
+  /** writing: Bloco, template, undo, bold, italic, and Mais. The rest stays in the menu. */
+  formatBar?: 'full' | 'writing';
+  /** spoken: teleprompter pace. reading: the older 2.5 words-per-second estimate. */
+  meter?: 'reading' | 'spoken';
   toolbarStart?: React.ReactNode;
   saveState?: 'idle' | 'saving' | 'saved' | 'error';
   saveAction?: React.ReactNode;
@@ -115,15 +122,16 @@ function sameAnnotationPositions(current: AnnotationPosition[], next: Annotation
   return true;
 }
 
-function getWordCount(value: string) {
-  const text = value
-    .replace(/<[^>]*>/g, ' ')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
+function formatControlClass(active: boolean, neutralBar: boolean) {
+  if (active) {
+    return neutralBar
+      ? 'bg-[var(--bg-secondary)] text-[var(--text-primary)]'
+      : 'bg-[color-mix(in_srgb,var(--accent-blue),transparent_92%)] text-[var(--accent-blue)]';
+  }
 
-  if (!text) return 0;
-  return text.split(' ').length;
+  return neutralBar
+    ? 'text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)]'
+    : 'text-[var(--text-tertiary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]';
 }
 
 function formatSpeakingDuration(wordCount: number, workspace = false) {
@@ -157,11 +165,14 @@ export function RichTextEditor({
   compactMobileComposer = false,
   autoFocus = false,
   variant = 'default',
+  formatBar = 'full',
+  meter = 'reading',
   toolbarStart,
   saveState = 'idle',
   saveAction,
 }: RichTextEditorProps) {
   const isWorkspace = variant === 'workspace';
+  const writingBar = formatBar === 'writing';
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [selectionMenu, setSelectionMenu] = useState<{ x: number; y: number } | null>(null);
   const [marginMenu, setMarginMenu] = useState<{ x: number; y: number } | null>(null);
@@ -474,10 +485,10 @@ export function RichTextEditor({
     [editor],
   );
 
-  const wordCount = useMemo(() => getWordCount(content), [content]);
-  const speakingDuration = useMemo(
-    () => formatSpeakingDuration(wordCount, isWorkspace),
-    [isWorkspace, wordCount],
+  const wordCount = useMemo(() => countScriptWords(content), [content]);
+  const durationLabel = useMemo(
+    () => (meter === 'spoken' ? formatSpokenDuration(wordCount) : formatSpeakingDuration(wordCount, isWorkspace)),
+    [isWorkspace, meter, wordCount],
   );
   const saveFooterLabel =
     saveState === 'saving'
@@ -644,15 +655,36 @@ export function RichTextEditor({
     [topToolbarActions],
   );
 
-  const toolbarGroups = useMemo(
-    () => [
-      ['undo', 'redo'],
-      ['bold', 'italic', 'underline', 'strike'],
-      ['align-left', 'align-center', 'align-right'],
-      ['list', 'ordered', 'link'],
-    ].map(ids => topToolbarActions.filter(action => ids.includes(action.id))),
-    [topToolbarActions],
-  );
+  const toolbarGroups = useMemo(() => {
+    const groups = writingBar
+      ? WRITING_BAR_GROUPS
+      : [
+          ['undo', 'redo'],
+          ['bold', 'italic', 'underline', 'strike'],
+          ['align-left', 'align-center', 'align-right'],
+          ['list', 'ordered', 'link'],
+        ];
+
+    return groups.map(ids =>
+      topToolbarActions.filter(action => (ids as readonly string[]).includes(action.id)),
+    );
+  }, [topToolbarActions, writingBar]);
+
+  const overflowActions = useMemo(() => {
+    if (!writingBar) return secondaryActions;
+
+    const catalog = new Map<string, FormattingAction>();
+    for (const action of topToolbarActions) catalog.set(action.id, action);
+    for (const action of secondaryActions) {
+      if (action.id === 'bullet' || action.id === 'ordered' || action.id === 'link') continue;
+      catalog.set(action.id, action);
+    }
+
+    return WRITING_MENU_ACTION_IDS.flatMap(id => {
+      const action = catalog.get(id);
+      return action ? [action] : [];
+    });
+  }, [secondaryActions, topToolbarActions, writingBar]);
 
   if (!editor) return null;
 
@@ -759,8 +791,10 @@ export function RichTextEditor({
           </div>
         ) : compactMobileComposer ? null : (
           <div
+            data-format-bar={writingBar ? 'writing' : 'full'}
             className={cn(
-              'relative flex shrink-0 items-center border-b border-[var(--border-color)] bg-[var(--bg-elevated)]',
+              'relative flex shrink-0 items-center border-b border-[var(--border-color)]',
+              writingBar ? 'bg-[var(--bg-hover)]' : 'bg-[var(--bg-elevated)]',
               isWorkspace && !isFullscreen && 'sticky top-0 z-10',
             )}
           >
@@ -774,7 +808,11 @@ export function RichTextEditor({
           <div
             className={cn(
               'flex min-w-0 flex-1 items-center gap-0.5',
-              isWorkspace && !isFullscreen ? 'flex-wrap overflow-x-clip' : 'overflow-x-auto',
+              writingBar
+                ? 'flex-wrap'
+                : isWorkspace && !isFullscreen
+                  ? 'flex-wrap overflow-x-clip'
+                  : 'overflow-x-auto',
             )}
           >
             {toolbarStart ? (
@@ -796,9 +834,7 @@ export function RichTextEditor({
                         onClick={action.run}
                         className={cn(
                           'flex h-9 w-9 items-center justify-center rounded-[var(--radius-input)] transition',
-                          active
-                            ? 'bg-[color-mix(in_srgb,var(--accent-blue),transparent_92%)] text-[var(--accent-blue)]'
-                            : 'text-[var(--text-tertiary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]',
+                          formatControlClass(active, writingBar),
                         )}
                         aria-label={action.label}
                         type="button"
@@ -815,10 +851,10 @@ export function RichTextEditor({
           {!isWorkspace ? (
             <div className="ml-3 flex shrink-0 items-center gap-1 text-sm text-[var(--text-tertiary)]">
               <span className="hidden sm:inline">
-                {wordCount} palavras · {speakingDuration}
+                {wordCount} palavras · {durationLabel}
               </span>
               <span className="sm:hidden">
-                {wordCount} · {speakingDuration}
+                {wordCount} · {durationLabel}
               </span>
               <div className="relative" ref={optionsMenuRef}>
                 <button
@@ -838,17 +874,24 @@ export function RichTextEditor({
                       exit={{ opacity: 0, y: 6 }}
                       className="absolute right-0 top-11 z-[130] min-w-[220px] rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-elevated)] p-2 shadow-[var(--shadow-dropdown)]"
                     >
-                      {secondaryActions.map((action) => {
+                      {overflowActions.map((action) => {
                         const Icon = action.icon;
                         const active = action.isActive?.() ?? false;
 
                         return (
                           <button
                             key={action.id}
-                            onClick={action.run}
+                            onClick={() => {
+                              action.run();
+                              setIsOptionsMenuOpen(false);
+                            }}
                             className={cn(
                               'flex w-full items-center gap-3 rounded-[var(--radius-input)] px-3 py-2.5 text-left text-sm transition',
-                              active ? 'bg-[color-mix(in_srgb,var(--accent-blue),transparent_92%)] text-[var(--accent-blue)]' : 'text-[var(--text-primary)] hover:bg-[var(--bg-hover)]',
+                              active
+                                ? writingBar
+                                  ? 'bg-[var(--bg-hover)] text-[var(--text-primary)]'
+                                  : 'bg-[color-mix(in_srgb,var(--accent-blue),transparent_92%)] text-[var(--accent-blue)]'
+                                : 'text-[var(--text-primary)] hover:bg-[var(--bg-hover)]',
                             )}
                             type="button"
                           >
@@ -867,11 +910,24 @@ export function RichTextEditor({
             <div className="relative ml-2 shrink-0" ref={optionsMenuRef}>
               <button
                 onClick={() => setIsOptionsMenuOpen((current) => !current)}
-                className="flex h-9 w-9 items-center justify-center rounded-[var(--radius-input)] text-[var(--text-tertiary)] transition hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
-                aria-label="Mais opções"
+                className={cn(
+                  'flex items-center justify-center rounded-[var(--radius-input)] transition',
+                  writingBar ? 'h-9 gap-1 px-2 text-xs font-medium' : 'h-9 w-9',
+                  formatControlClass(false, writingBar),
+                )}
+                aria-label={writingBar ? 'Mais' : 'Mais opções'}
+                aria-expanded={isOptionsMenuOpen}
+                aria-haspopup="menu"
                 type="button"
               >
-                <MoreVertical className="h-4 w-4" />
+                {writingBar ? (
+                  <>
+                    Mais
+                    <ChevronDown className={cn('h-3.5 w-3.5 transition-transform', isOptionsMenuOpen && 'rotate-180')} />
+                  </>
+                ) : (
+                  <MoreVertical className="h-4 w-4" />
+                )}
               </button>
               <AnimatePresence>
                 {isOptionsMenuOpen && (
@@ -881,17 +937,24 @@ export function RichTextEditor({
                     exit={{ opacity: 0, y: 6 }}
                     className="absolute right-0 top-11 z-[130] min-w-[220px] rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-elevated)] p-2 shadow-[var(--shadow-dropdown)]"
                   >
-                    {secondaryActions.map((action) => {
+                    {overflowActions.map((action) => {
                       const Icon = action.icon;
                       const active = action.isActive?.() ?? false;
 
                       return (
                         <button
                           key={action.id}
-                          onClick={action.run}
+                          onClick={() => {
+                            action.run();
+                            setIsOptionsMenuOpen(false);
+                          }}
                           className={cn(
                             'flex w-full items-center gap-3 rounded-[var(--radius-input)] px-3 py-2.5 text-left text-sm transition',
-                            active ? 'bg-[color-mix(in_srgb,var(--accent-blue),transparent_92%)] text-[var(--accent-blue)]' : 'text-[var(--text-primary)] hover:bg-[var(--bg-hover)]',
+                            active
+                              ? writingBar
+                                ? 'bg-[var(--bg-hover)] text-[var(--text-primary)]'
+                                : 'bg-[color-mix(in_srgb,var(--accent-blue),transparent_92%)] text-[var(--accent-blue)]'
+                              : 'text-[var(--text-primary)] hover:bg-[var(--bg-hover)]',
                           )}
                           type="button"
                         >
@@ -909,7 +972,10 @@ export function RichTextEditor({
           </div>
             <button
               onClick={() => setIsFullscreen(true)}
-              className="mr-2 flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--radius-input)] text-[var(--text-tertiary)] transition hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
+              className={cn(
+                'mr-2 flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--radius-input)] transition',
+                formatControlClass(false, writingBar),
+              )}
               aria-label="Expandir editor"
               type="button"
             >
@@ -1252,11 +1318,9 @@ export function RichTextEditor({
         {isWorkspace && !compactMobileComposer ? (
           <div className="flex shrink-0 items-center justify-between gap-3 border-t border-[var(--border-color)] bg-[var(--bg-elevated)] px-4 py-2.5 text-xs text-[var(--text-tertiary)]">
             <span>
-              {wordCount} palavras · {speakingDuration}
+              {wordCount} {wordCount === 1 ? 'palavra' : 'palavras'} · {durationLabel}
             </span>
-            <div className="flex min-w-0 items-center gap-2">
-              {saveAction}
-            </div>
+            {saveAction ? <div className="flex min-w-0 items-center gap-2">{saveAction}</div> : null}
           </div>
         ) : compactMobileComposer && saveAction ? (
           <div className="shrink-0 pb-16 pt-3">

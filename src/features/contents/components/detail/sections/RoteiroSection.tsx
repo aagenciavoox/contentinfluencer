@@ -170,13 +170,12 @@ export function RoteiroSection({
       onScriptChange={html => onChange({script: html})}
       onReferenciasChange={value => onChange({referencias: value})}
       saveState={saveState}
-      onSave={onSave}
-      hasUnsavedChanges={hasUnsavedChanges}
       showReferencias={layout !== 'workspace'}
+      writingToolbar={writingWorkspace}
       bodyLoading={bodyLoading}
       bodyError={bodyError}
       onRetryBody={onRetryBody}
-      className={writingWorkspace ? splitPanelClass : undefined}
+      className={writingWorkspace ? cn(splitPanelClass, 'min-w-0') : undefined}
       headerAction={
         writingWorkspace && workspacePane === 'write' && !notesOpen ? (
           <AppButton
@@ -235,14 +234,20 @@ export function RoteiroSection({
               saveState={saveState}
             />
           ) : (
-            <div className={cn('grid min-h-0 items-stretch gap-3', notesOpen && 'lg:grid-cols-2')}>
+            <div
+              className={cn(
+                'grid min-h-0 items-stretch gap-3',
+                notesOpen && 'lg:grid-cols-[minmax(0,1fr)_var(--layout-aside)]',
+              )}
+            >
               {scriptWorkspace}
               {notesOpen ? (
                 <WritingNotesPane
                   value={draft.writingNotes ?? ''}
                   onChange={html => onChange({writingNotes: html})}
                   onClose={() => setNotesChoice({contentId, open: false})}
-                  className={splitPanelClass}
+                  emphasis="secondary"
+                  className={cn(splitPanelClass, 'min-w-0')}
                 />
               ) : null}
             </div>
