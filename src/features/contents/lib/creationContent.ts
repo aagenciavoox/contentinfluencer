@@ -1,6 +1,7 @@
-import type {Content, Idea} from '../../../lib/database.ts';
+import type {Content, FuncaoPadraoSerie, Idea} from '../../../lib/database.ts';
 import {htmlToReadableText} from '../../../lib/utils.ts';
 import {generateUUID, isUUID} from '../../../utils/uuid.ts';
+import { isFuncaoEditorial, resolveFuncao } from '../../editorial/lib/funcoes.ts';
 import {CONTENT_STATUS, normalizeContentStatus} from './contentPipeline.ts';
 import {livroIdsEfetivos} from '../../../lib/livroIds.ts';
 import {createContentDraft} from './createContentDraft.ts';
@@ -25,6 +26,8 @@ export interface CreationFilters {
   pilarId?: string;
   seriesId?: string;
   originId?: string;
+  funcao?: string;
+  series?: readonly { id: string; funcaoPadrao?: FuncaoPadraoSerie | null }[];
 }
 
 export type CreationSort = 'recent' | 'oldest' | 'title';
@@ -257,6 +260,11 @@ export function filterCreationContents(
     .filter(content => !filters.pilarId || content.pilarId === filters.pilarId)
     .filter(content => !filters.seriesId || content.seriesId === filters.seriesId)
     .filter(content => !filters.originId || livroIdsEfetivos(content).includes(filters.originId))
+    .filter(content => {
+      if (!filters.funcao || !isFuncaoEditorial(filters.funcao)) return true;
+      const serie = filters.series?.find(item => item.id === content.seriesId) ?? null;
+      return resolveFuncao(content, serie).funcao === filters.funcao;
+    })
     .filter(content => {
       if (!normalizedSearch) return true;
       return [

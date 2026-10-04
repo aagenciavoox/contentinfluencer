@@ -186,7 +186,6 @@ export function PillarEditPage() {
       initial={editingPilar ?? {}}
       platformNames={platformNames}
       series={state.series}
-      contents={state.contents}
       postingTimeEntries={state.postingTimeEntries}
       platforms={state.platforms}
       initialLinkedSerieIds={initialLinkedSerieIds}

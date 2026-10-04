@@ -31,6 +31,8 @@ import {Surface} from '../../../components/ui/Surface';
 import {Text} from '../../../components/ui/Text';
 import type {DayRhythmTone, WeekRhythmQuota} from '../../../utils/pilarRhythm';
 import {WeekRhythmChips} from '../../../features/programacao/components/WeekRhythmRail';
+import {LeiturasLista} from '../../../features/editorial/components/LeiturasLista';
+import type {Leitura} from '../../../features/editorial/lib/editorialReadings';
 import {
   getPlatformColor,
   isIdeiaCard,
@@ -70,6 +72,7 @@ interface ProgramacaoMobileScreenProps {
   onOpenProjetoPublicacao: (marker: ProjetoPublicacaoMarker) => void;
   onPickDate: () => void;
   filters?: ReactNode;
+  leituras?: Leitura[];
 }
 
 function dateKey(date: Date): string {
@@ -98,6 +101,7 @@ export function ProgramacaoMobileScreen({
   onOpenProjetoPublicacao,
   onPickDate,
   filters,
+  leituras = [],
 }: ProgramacaoMobileScreenProps) {
   const [search, setSearch] = useState('');
   const today = new Date();
@@ -165,6 +169,7 @@ export function ProgramacaoMobileScreen({
       />
 
       <WeekRhythmChips quotas={weekQuotas} />
+      <LeiturasLista leituras={leituras} />
 
       {selectedBacklogCard ? (
         <Surface variant="outlined" padding="md" className="border-[var(--accent-blue)]/40 bg-[color-mix(in_srgb,var(--accent-blue),transparent_92%)]">

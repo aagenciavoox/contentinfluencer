@@ -99,7 +99,7 @@ export function PillarsSettingsPage() {
     >
       <Text variant="body" className="mb-2">Total da semana, pilares ativos: {rotuloEspacos(somaEspacosSemana(sortedPilares))}.</Text>
       <Text variant="secondary" className="mb-4">
-        Pilares organizam temas, ritmo editorial e publicação por plataforma. Espaços por semana, meta do ciclo, dias e hashtags ficam aqui.
+        Pilares organizam temas, ritmo editorial e publicação por plataforma. Espaços por semana, dias e hashtags ficam aqui.
       </Text>
 
       <QueryViewState

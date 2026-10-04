@@ -251,6 +251,39 @@ function testSharedCreationFiltersIncludeOriginAndSearch() {
   );
 }
 
+function testCreationFilterByFunctionUsesResolvedSeries() {
+  const contents = [
+    createContent({
+      id: 'escolhida',
+      status: 'Roteiro',
+      funcao: 'converter',
+      funcaoOrigem: 'escolhida',
+    }),
+    createContent({
+      id: 'herdada',
+      status: 'Roteiro',
+      seriesId: 'serie-1',
+      funcao: null,
+      funcaoOrigem: 'herdada',
+    }),
+    createContent({
+      id: 'outra',
+      status: 'Roteiro',
+      funcao: 'atrair',
+      funcaoOrigem: 'escolhida',
+    }),
+  ];
+
+  assert.deepEqual(
+    filterCreationContents(contents, {
+      tab: 'Roteiros',
+      funcao: 'converter',
+      series: [{ id: 'serie-1', funcaoPadrao: 'converter' }],
+    }).map(content => content.id),
+    ['escolhida', 'herdada'],
+  );
+}
+
 function testCreationSortingAndPaginationClampInvalidPages() {
   const contents = Array.from({length: 5}, (_, index) => createContent({
     id: `content-${index + 1}`,
@@ -278,6 +311,7 @@ const tests: Array<[string, () => void]> = [
   ['legacy ideas adapt to canonical contents', testLegacyIdeaAdapterReusesSourceId],
   ['creation tabs classify active and archived content', testCreationTabsExcludeArchivedFromActiveTabs],
   ['creation filters combine search, pilar, series and origin', testSharedCreationFiltersIncludeOriginAndSearch],
+  ['creation filter by function reads the series', testCreationFilterByFunctionUsesResolvedSeries],
   ['creation sorting and pagination remain stable', testCreationSortingAndPaginationClampInvalidPages],
 ];
 
