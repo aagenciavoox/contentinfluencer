@@ -288,7 +288,8 @@ function testCreationSortingAndPaginationClampInvalidPages() {
   const contents = Array.from({length: 5}, (_, index) => createContent({
     id: `content-${index + 1}`,
     title: `Título ${index + 1}`,
-    updatedAt: `2026-07-2${index + 1}T10:00:00.000Z`,
+    createdAt: `2026-07-2${index + 1}T10:00:00.000Z`,
+    updatedAt: `2026-08-0${5 - index}T10:00:00.000Z`,
   }));
 
   const sorted = sortCreationContents(contents, 'recent');

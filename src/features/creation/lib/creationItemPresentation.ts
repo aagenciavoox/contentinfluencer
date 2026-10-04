@@ -139,12 +139,13 @@ type CreationCardDateFields = Pick<
   | 'recordedAt'
   | 'postedAt'
   | 'plataformas'
+  | 'createdAt'
   | 'updatedAt'
 >;
 
 /**
  * Data mais útil para o rodapé do card: próxima publicação, senão próxima
- * gravação, senão a última edição.
+ * gravação, senão criação e última edição.
  */
 export function getCreationCardDateMeta(content: CreationCardDateFields, now: Date = new Date()) {
   const today = startOfLocalDay(now);
@@ -165,8 +166,13 @@ export function getCreationCardDateMeta(content: CreationCardDateFields, now: Da
     if (nextRecording) return `Grava ${formatUpcomingDay(nextRecording, today)}`;
   }
 
+  const created = formatCreationLastEdit(content.createdAt, now);
   const edited = formatCreationLastEdit(content.updatedAt, now);
-  return edited ? `Editado ${edited}` : null;
+  const parts = [
+    created ? `Criado ${created}` : null,
+    edited && edited !== created ? `Editado ${edited}` : null,
+  ].filter(Boolean);
+  return parts.length ? parts.join(' · ') : null;
 }
 
 export function getCreationCardFooterMeta(content: Content, now: Date = new Date()) {

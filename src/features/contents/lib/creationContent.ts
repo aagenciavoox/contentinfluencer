@@ -284,7 +284,7 @@ export function sortCreationContents(
     if (sort === 'title') {
       return left.title.localeCompare(right.title, 'pt-BR');
     }
-    const delta = new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime();
+    const delta = new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime();
     return sort === 'oldest' ? -delta : delta;
   });
 }

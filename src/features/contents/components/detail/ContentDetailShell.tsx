@@ -316,7 +316,10 @@ export function ContentDetailShell({
       const changed = (Object.keys(nextUpdates) as Array<keyof ContentDraft>).some(key => {
         const nextValue = nextUpdates[key];
         const prevValue = previous[key];
-        if (key === 'script' || key === 'notes' || key === 'referencias' || key === 'writingNotes') {
+        if (key === 'writingNotes') {
+          return (prevValue ?? '') !== (nextValue ?? '');
+        }
+        if (key === 'script' || key === 'notes' || key === 'referencias') {
           return normalizePlain(prevValue as string | null) !== normalizePlain(nextValue as string | null);
         }
         if (key === 'scriptNotes' || key === 'plataformas' || key === 'livroIds') {

@@ -9,9 +9,10 @@ import {
 // 3 de outubro de 2026, 10h no fuso local.
 const NOW = new Date(2026, 9, 3, 10, 0);
 const EDITED_TODAY = new Date(2026, 9, 3, 8, 30).toISOString();
+const CREATED_SEP_23 = new Date(2026, 8, 23, 9, 0).toISOString();
 
 function draft(overrides: Parameters<typeof createContentDraft>[0] = {}) {
-  return createContentDraft({ updatedAt: EDITED_TODAY, ...overrides });
+  return createContentDraft({ createdAt: CREATED_SEP_23, updatedAt: EDITED_TODAY, ...overrides });
 }
 
 function plataforma(overrides: Partial<ContentPlataforma>): ContentPlataforma {
@@ -26,6 +27,8 @@ function plataforma(overrides: Partial<ContentPlataforma>): ContentPlataforma {
     ...overrides,
   };
 }
+
+const CREATED_AND_EDITED_TODAY = 'Criado 23 de set. · Editado hoje';
 
 // Publicação futura vem antes da gravação futura.
 assert.equal(
@@ -52,11 +55,11 @@ assert.equal(
 // Data desligada não conta.
 assert.equal(
   getCreationCardDateMeta(draft({ publishDate: '2026-10-12', publishDateEnabled: false }), NOW),
-  'Editado hoje',
+  CREATED_AND_EDITED_TODAY,
 );
 assert.equal(
   getCreationCardDateMeta(draft({ recordingDate: '2026-10-08', recordingDateEnabled: false }), NOW),
-  'Editado hoje',
+  CREATED_AND_EDITED_TODAY,
 );
 
 // A data de uma plataforma conta quando é a próxima.
@@ -75,13 +78,13 @@ assert.equal(
 // Já gravado: a data de gravação não aparece.
 assert.equal(
   getCreationCardDateMeta(draft({ recordingDate: '2026-10-08', recordedAt: '2026-10-02T15:00:00.000Z' }), NOW),
-  'Editado hoje',
+  CREATED_AND_EDITED_TODAY,
 );
 
 // Já publicado: só republicação futura aparece.
 assert.equal(
   getCreationCardDateMeta(draft({ publishDate: '2026-10-12', postedAt: '2026-10-01T15:00:00.000Z' }), NOW),
-  'Editado hoje',
+  CREATED_AND_EDITED_TODAY,
 );
 assert.equal(
   getCreationCardDateMeta(draft({
@@ -91,26 +94,30 @@ assert.equal(
   'Publica 15 de out.',
 );
 
-// Sem datas futuras: última edição.
+// Sem datas futuras: criação e última edição.
 assert.equal(
   getCreationCardDateMeta(draft({ updatedAt: new Date(2026, 9, 2, 22, 0).toISOString() }), NOW),
-  'Editado ontem',
+  'Criado 23 de set. · Editado ontem',
 );
 assert.equal(
   getCreationCardDateMeta(draft({ updatedAt: new Date(2026, 8, 30, 9, 0).toISOString() }), NOW),
-  'Editado 3d atrás',
+  'Criado 23 de set. · Editado 3d atrás',
+);
+// Editado no mesmo dia da criação: só a criação.
+assert.equal(
+  getCreationCardDateMeta(draft({ updatedAt: new Date(2026, 8, 23, 15, 0).toISOString() }), NOW),
+  'Criado 23 de set.',
 );
 assert.equal(
-  getCreationCardDateMeta(draft({ updatedAt: new Date(2026, 8, 23, 9, 0).toISOString() }), NOW),
-  'Editado 23 de set.',
+  getCreationCardDateMeta(draft({ createdAt: 'inválido', updatedAt: 'inválido' }), NOW),
+  null,
 );
-assert.equal(getCreationCardDateMeta(draft({ updatedAt: 'inválido' }), NOW), null);
 
 // O formato visual continua antes da data.
 assert.equal(
   getCreationCardFooterMeta(draft({ formatoVisual: 'Reacao', recordingDate: '2026-10-08' }), NOW),
   'Reação / Grava 08 de out.',
 );
-assert.equal(getCreationCardFooterMeta(draft(), NOW), 'Editado hoje');
+assert.equal(getCreationCardFooterMeta(draft(), NOW), CREATED_AND_EDITED_TODAY);
 
 console.log('creationCardFooterMeta.test.ts passed');
