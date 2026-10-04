@@ -14,7 +14,7 @@
     "public": "node scripts/public.ts",
     "autostart:install": "node scripts/autostart.ts install",
     "autostart:uninstall": "node scripts/autostart.ts uninstall",
-    "check": "tsc --noEmit",
+    "check": "tsc --noEmit && node src/editorial.test.ts",
     "smoke": "node scripts/smoke.ts",
     "smoke:http": "node scripts/smoke-http.ts",
     "smoke:oauth": "node scripts/smoke-oauth.ts",

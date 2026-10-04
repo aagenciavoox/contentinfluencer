@@ -1,10 +1,10 @@
 import type {McpServer} from '@modelcontextprotocol/sdk/server/mcp.js';
 import {z} from 'zod';
+import {descreverColunasOmitidas, livrosDoConteudo, unirLivros} from '../editorial.ts';
 import {
   CONTENT_LIST_COLUMNS,
   CONTENT_STATUSES,
   FUNCOES,
-  check,
   contaNaGradePadrao,
   contentSummary,
   funcaoEfetiva,
@@ -15,6 +15,7 @@ import {
   newId,
   normalizeStatus,
   nowIso,
+  readCompat,
   resolvePilar,
   resolveSerie,
   textToHtml,
@@ -29,6 +30,7 @@ const statusSchema = z.enum(CONTENT_STATUSES);
 const dateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use AAAA-MM-DD');
 const energiaSchema = z.enum(['baixa', 'média', 'alta']);
 const idsSchema = z.array(z.string().min(1)).min(1).max(50);
+const livrosSchema = z.array(z.string().min(1)).max(20);
 const funcaoSchema = z.enum([...FUNCOES, 'da_serie', 'nenhuma']).describe(
   'Função editorial (antigo funil): atrair e converter = topo; aprofundar e comunidade = meio; acao = fundo; reter fica fora do funil. ' +
   '"da_serie" herda a função padrão da série; "nenhuma" marca sem função.',
@@ -45,15 +47,18 @@ function funcaoColumns(choice: z.infer<typeof funcaoSchema> | null): {funcao: st
   return {funcao: choice, funcao_origem: 'escolhida'};
 }
 
+function comGravadoSem<T extends Row>(payload: T, omitidas: string[]): T {
+  if (omitidas.length === 0) return payload;
+  return {...payload, gravado_sem: descreverColunasOmitidas(omitidas, 'contents')};
+}
+
 async function fetchContents(session: Session, ids: string[]): Promise<Row[]> {
-  const rows = check(
+  const {data} = await readCompat(
     'conteúdos',
-    await session.client
-      .from('contents')
-      .select('*, content_plataformas(*)')
-      .eq('user_id', session.userId)
-      .in('id', ids),
-  ) ?? [];
+    '*, content_plataformas(*)',
+    columns => session.client.from('contents').select(columns).eq('user_id', session.userId).in('id', ids),
+  );
+  const rows = (data ?? []) as Row[];
   const missing = ids.filter(id => !rows.some(row => row.id === id));
   if (missing.length > 0) throw new Error(`Conteúdo não encontrado: ${missing.join(', ')}`);
   return rows;
@@ -76,16 +81,20 @@ function contentDetail(row: Row, lookups: Lookups, roteiroFormato: 'texto' | 'ht
       hora: p.publish_time ?? null,
       tipo: p.publication_kind ?? 'post',
       status: p.status ?? null,
+      conta_na_grade: p.conta_na_grade === false ? false : true,
       legenda: p.legenda ?? '',
       hashtags: p.hashtags ?? '',
+      legenda_propria: Boolean(p.legenda_propria),
       link_do_post: p.post_url ?? null,
+      post_codigo: p.post_codigo ?? null,
+      realizada_em: p.realizada_api_em ?? p.realizada_manual_em ?? null,
     })),
     criado_em: row.created_at,
   };
 }
 
-async function updateContent(session: Session, id: string, patch: Row) {
-  await writeCompat('atualizar conteúdo', {...patch, updated_at: nowIso()}, row =>
+async function updateContent(session: Session, id: string, patch: Row): Promise<string[]> {
+  return writeCompat('atualizar conteúdo', {...patch, updated_at: nowIso()}, row =>
     session.client.from('contents').update(row).eq('id', id).eq('user_id', session.userId),
   );
 }
@@ -97,6 +106,7 @@ export function registerConteudos(server: McpServer) {
       title: 'Listar conteúdos',
       description:
         'Lista ideias, roteiros, conteúdos em produção e publicados do Content OS. ' +
+        'Cada item traz função, origem, se conta na grade, a legenda compartilhada e os livro_ids. ' +
         'Ideias são conteúdos com status "Ideia". Retorna resumo sem o texto do roteiro; use ver_conteudo para o texto completo.',
       inputSchema: {
         status: z.array(statusSchema).optional().describe('Filtra por status. Vazio = todos.'),
@@ -114,27 +124,6 @@ export function registerConteudos(server: McpServer) {
     },
     tool(async (args, session) => {
       const lookups = await loadLookups(session);
-      let query = session.client
-        .from('contents')
-        .select(CONTENT_LIST_COLUMNS, {count: 'exact'})
-        .eq('user_id', session.userId);
-
-      if (args.onde === 'lixeira') {
-        query = query.not('deleted_at', 'is', null);
-      } else {
-        query = query.is('deleted_at', null);
-        query = args.onde === 'arquivados' ? query.not('archived_at', 'is', null) : query.is('archived_at', null);
-      }
-      if (args.status?.length) query = query.in('status', args.status);
-      const pilarId = resolvePilar(lookups, args.pilar);
-      if (pilarId) query = query.eq('pilar_id', pilarId);
-      const serieId = resolveSerie(lookups, args.serie);
-      if (serieId) query = query.eq('series_id', serieId);
-      const busca = args.busca ? sanitizeSearch(args.busca) : '';
-      if (busca) query = query.or(`title.ilike.%${busca}%,notes.ilike.%${busca}%`);
-      if (args.publicacao_de) query = query.gte('publish_date', args.publicacao_de);
-      if (args.publicacao_ate) query = query.lte('publish_date', args.publicacao_ate);
-
       const order = {
         recentes: ['updated_at', false],
         antigos: ['updated_at', true],
@@ -143,12 +132,35 @@ export function registerConteudos(server: McpServer) {
       } as const;
       const [column, ascending] = order[args.ordem];
       const from = (args.pagina - 1) * args.limite;
-      const result = await query.order(column, {ascending, nullsFirst: false}).range(from, from + args.limite - 1);
-      const rows = check('listar conteúdos', result) ?? [];
+      const result = await readCompat('listar conteúdos', CONTENT_LIST_COLUMNS, columns => {
+        let query = session.client
+          .from('contents')
+          .select(columns, {count: 'exact'})
+          .eq('user_id', session.userId);
+
+        if (args.onde === 'lixeira') {
+          query = query.not('deleted_at', 'is', null);
+        } else {
+          query = query.is('deleted_at', null);
+          query = args.onde === 'arquivados' ? query.not('archived_at', 'is', null) : query.is('archived_at', null);
+        }
+        if (args.status?.length) query = query.in('status', args.status);
+        const pilarId = resolvePilar(lookups, args.pilar);
+        if (pilarId) query = query.eq('pilar_id', pilarId);
+        const serieId = resolveSerie(lookups, args.serie);
+        if (serieId) query = query.eq('series_id', serieId);
+        const busca = args.busca ? sanitizeSearch(args.busca) : '';
+        if (busca) query = query.or(`title.ilike.%${busca}%,notes.ilike.%${busca}%`);
+        if (args.publicacao_de) query = query.gte('publish_date', args.publicacao_de);
+        if (args.publicacao_ate) query = query.lte('publish_date', args.publicacao_ate);
+        return query.order(column, {ascending, nullsFirst: false}).range(from, from + args.limite - 1);
+      });
+      const rows = (result.data ?? []) as Row[];
       return json({
         total: result.count ?? rows.length,
         pagina: args.pagina,
-        itens: rows.map(row => contentSummary(row as Row, lookups)),
+        ...(result.omitidas.length ? {colunas_ausentes_no_banco: result.omitidas} : {}),
+        itens: rows.map(row => contentSummary(row, lookups)),
       });
     }),
   );
@@ -175,9 +187,12 @@ export function registerConteudos(server: McpServer) {
     notas: z.string().optional().describe('Observações livres. Numa ideia, é o corpo da ideia.'),
     pilar: z.string().optional().describe('Nome ou id do pilar'),
     serie: z.string().optional().describe('Nome ou id da série'),
-    biblioteca_item_id: z.string().optional().describe('Livro, filme ou série da biblioteca que originou o conteúdo'),
+    biblioteca_item_id: z.string().optional().describe('Livro de origem. Também entra em livro_ids.'),
+    livro_ids: livrosSchema.optional().describe('Vários livros ou itens da biblioteca neste roteiro'),
     tags: z.array(z.string()).optional(),
     funcao: funcaoSchema.optional().describe('Se não vier: herda da série quando ela tem função padrão'),
+    conta_na_grade: z.boolean().optional().describe('false tira o roteiro da grade. Padrão: fora para Stories, Live e função reter'),
+    legenda_base: z.string().nullable().optional().describe('Legenda compartilhada, até cada rede adaptar a própria'),
   };
 
   async function createContent(
@@ -194,8 +209,11 @@ export function registerConteudos(server: McpServer) {
       tags?: string[];
       referencias?: string;
       biblioteca_item_id?: string;
+      livro_ids?: string[];
       data_gravacao?: string;
       funcao?: z.infer<typeof funcaoSchema>;
+      conta_na_grade?: boolean;
+      legenda_base?: string | null;
     },
   ) {
     const lookups = await loadLookups(session);
@@ -208,10 +226,11 @@ export function registerConteudos(server: McpServer) {
     const escolha = input.funcao ?? (herdada ? 'da_serie' : null);
     const funcao = funcaoColumns(escolha);
     const funcaoInicial = escolha === 'da_serie' ? herdada : escolha === 'nenhuma' ? null : escolha;
+    const livros = unirLivros(input.livro_ids, input.biblioteca_item_id);
     const now = nowIso();
     const id = newId();
 
-    await writeCompat('criar conteúdo', {
+    const omitidas = await writeCompat('criar conteúdo', {
       id,
       user_id: session.userId,
       title: input.titulo.trim(),
@@ -219,7 +238,8 @@ export function registerConteudos(server: McpServer) {
       series_id: serieId,
       slot_type: serie?.slot_padrao ?? null,
       pilar_id: pilarId,
-      biblioteca_item_id: input.biblioteca_item_id ?? null,
+      biblioteca_item_id: livros[0] ?? null,
+      livro_ids: livros,
       formato_visual: formato,
       energia_necessaria: input.energia ?? serie?.energia_padrao ?? null,
       script: input.roteiro ? textToHtml(input.roteiro) : null,
@@ -231,13 +251,14 @@ export function registerConteudos(server: McpServer) {
       recording_date_enabled: Boolean(input.data_gravacao),
       publish_date_enabled: false,
       ...funcao,
-      conta_na_grade: contaNaGradePadrao(formato, funcaoInicial),
+      conta_na_grade: input.conta_na_grade ?? contaNaGradePadrao(formato, funcaoInicial),
+      legenda_base: input.legenda_base ?? null,
       created_at: now,
       updated_at: now,
     }, row => session.client.from('contents').insert(row));
 
     const [row] = await fetchContents(session, [id]);
-    return contentSummary(row, lookups);
+    return comGravadoSem(contentSummary(row, lookups), omitidas);
   }
 
   server.registerTool(
@@ -256,7 +277,8 @@ export function registerConteudos(server: McpServer) {
       title: 'Criar roteiro',
       description:
         'Cria um conteúdo já como roteiro (ou outro status). Se a série tiver formato ou energia padrão, eles são aplicados. ' +
-        'O roteiro pode ser texto simples: parágrafos separados por linha em branco.',
+        'O roteiro pode ser texto simples: parágrafos separados por linha em branco. ' +
+        'livro_ids aceita vários itens da biblioteca; o primeiro também fica como origem antiga.',
       inputSchema: {
         ...createShape,
         status: statusSchema.default('Roteiro'),
@@ -276,7 +298,7 @@ export function registerConteudos(server: McpServer) {
       title: 'Atualizar conteúdo',
       description:
         'Altera campos de um conteúdo existente. Só os campos enviados mudam. ' +
-        'Para limpar pilar, série ou data, envie string vazia ou null. Para mudar status use mudar_status. ' +
+        'Para limpar pilar, série, data ou livros, envie string vazia, lista vazia ou null. Para mudar status use mudar_status. ' +
         'funcao é o antigo funil; null volta para "sem definição". Mudar formato ou função recalcula conta_na_grade, a menos que ele venha junto.',
       inputSchema: {
         id: z.string().min(1),
@@ -297,6 +319,8 @@ export function registerConteudos(server: McpServer) {
         data_gravacao: dateSchema.nullable().optional(),
         gravado: z.boolean().optional().describe('true marca como gravado agora; false desfaz'),
         biblioteca_item_id: z.string().nullable().optional(),
+        livro_ids: livrosSchema.optional().describe('Substitui a lista de livros. O primeiro vira a origem antiga, se ela não for enviada junto'),
+        legenda_base: z.string().nullable().optional(),
       },
     },
     tool(async (args, session) => {
@@ -330,12 +354,20 @@ export function registerConteudos(server: McpServer) {
         patch.recording_date_enabled = Boolean(args.data_gravacao);
       }
       if (args.gravado !== undefined) patch.recorded_at = args.gravado ? current.recorded_at ?? nowIso() : null;
-      if (args.biblioteca_item_id !== undefined) patch.biblioteca_item_id = args.biblioteca_item_id || null;
+      if (args.legenda_base !== undefined) patch.legenda_base = args.legenda_base || null;
+      if (args.livro_ids !== undefined || args.biblioteca_item_id !== undefined) {
+        const livros = unirLivros(
+          args.livro_ids ?? (Array.isArray(current.livro_ids) ? current.livro_ids : livrosDoConteudo(current)),
+          args.biblioteca_item_id,
+        );
+        patch.livro_ids = livros;
+        patch.biblioteca_item_id = args.biblioteca_item_id === undefined ? livros[0] ?? null : args.biblioteca_item_id || null;
+      }
 
       if (Object.keys(patch).length === 0) throw new Error('Nenhum campo para atualizar.');
-      await updateContent(session, args.id, patch);
+      const omitidas = await updateContent(session, args.id, patch);
       const [row] = await fetchContents(session, [args.id]);
-      return json(contentDetail(row, lookups, 'texto'));
+      return json(comGravadoSem(contentDetail(row, lookups, 'texto'), omitidas));
     }),
   );
 
