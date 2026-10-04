@@ -1,4 +1,4 @@
-import {useCallback, useEffect, useMemo, useState, type DragEvent} from 'react';
+import {useCallback, useEffect, useMemo, useState, type DragEvent, type ReactNode} from 'react';
 import {useLocation, useNavigate, useSearchParams} from 'react-router-dom';
 import {
   eachDayOfInterval,
@@ -43,7 +43,7 @@ import {buildContentDetailRoute} from '../../contents/lib/contentDetailRoute';
 import {buildDetailBackState} from '../../../lib/navigation/detailBack';
 import {PostedVideoComposerSheet} from '../../contents/components/PostedVideoComposerSheet';
 import {buildCalendarEntries, CalendarEntry, MonthlyCalendarView} from '../components/MonthlyCalendarView';
-import {CalendarTimelineView, type TimelinePeriod} from '../components/CalendarTimelineView';
+import {CalendarTimelineView} from '../components/CalendarTimelineView';
 import {
   CALENDAR_VIEW_QUERY,
   parseCalendarViewMode,
@@ -68,7 +68,6 @@ import {
 
 const STORAGE_KEY = 'content-os:calendar-layers';
 const PANEL_STORAGE_KEY = 'content-os:calendar-day-panel';
-const TIMELINE_PERIOD_KEY = 'content-os:calendar-timeline-period';
 const DEFAULT_LAYERS = ['recordings', 'posts', 'projects', 'agenda'];
 
 function loadLayers(): string[] {
@@ -77,11 +76,6 @@ function loadLayers(): string[] {
 
 function loadDayPanelOpen(): boolean {
   return readStoredJson(PANEL_STORAGE_KEY, true);
-}
-
-function loadTimelinePeriod(): TimelinePeriod {
-  const stored = readStoredJson<TimelinePeriod>(TIMELINE_PERIOD_KEY, 'week');
-  return stored === 'month' ? 'month' : 'week';
 }
 
 export function getStatusIcon() {
@@ -105,7 +99,6 @@ export function EditorialCalendarPage() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
   const viewMode = parseCalendarViewMode(searchParams.get(CALENDAR_VIEW_QUERY));
-  const [timelinePeriod, setTimelinePeriodRaw] = useState<TimelinePeriod>(loadTimelinePeriod);
   const [dayPanelOpen, setDayPanelOpenRaw] = useState(loadDayPanelOpen);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [createMenuOpen, setCreateMenuOpen] = useState(false);
@@ -159,11 +152,6 @@ export function EditorialCalendarPage() {
     writeStoredJson(PANEL_STORAGE_KEY, value);
   }, []);
 
-  const setTimelinePeriod = useCallback((value: TimelinePeriod) => {
-    setTimelinePeriodRaw(value);
-    writeStoredJson(TIMELINE_PERIOD_KEY, value);
-  }, []);
-
   const setActiveLayers = useCallback((updater: string[] | ((prev: string[]) => string[])) => {
     setActiveLayersRaw(prev => {
       const next = typeof updater === 'function' ? updater(prev) : updater;
@@ -205,7 +193,7 @@ export function EditorialCalendarPage() {
 
   const agendaPeriod = useMemo(() => {
     const weekStartsOn = 0 as const;
-    if (viewMode === 'week' || (viewMode === 'timeline' && timelinePeriod === 'week')) {
+    if (viewMode === 'week' || viewMode === 'timeline') {
       return {
         start: startOfWeek(currentMonth, {weekStartsOn}),
         end: endOfWeek(currentMonth, {weekStartsOn}),
@@ -217,7 +205,7 @@ export function EditorialCalendarPage() {
       end: endOfMonth(currentMonth),
       label: 'mês',
     };
-  }, [currentMonth, timelinePeriod, viewMode]);
+  }, [currentMonth, viewMode]);
 
   // Spec: projeto -> pagina dedicada; conteudo e evento -> drawer.
   const handleSelectEntry = useCallback(
@@ -363,8 +351,14 @@ export function EditorialCalendarPage() {
   }
 
   const isMonthView = viewMode === 'month';
-  const showDayPanel = dayPanelOpen && viewMode !== 'agenda' && viewMode !== 'timeline';
+  const showUndatedPile = undatedRoteiros.length > 0;
   const hiddenLayerCount = EDITORIAL_LAYER_ITEMS.filter(item => !activeLayers.includes(item.id)).length;
+  const dayPanelCrowdsEmptyDay = !isMonthView && showUndatedPile && selectedEntries.length === 0;
+  const showDayPanel =
+    dayPanelOpen &&
+    viewMode !== 'agenda' &&
+    viewMode !== 'timeline' &&
+    !dayPanelCrowdsEmptyDay;
 
   const handleLayerToggle = (layerId: string) => {
     setActiveLayers(current =>
@@ -543,19 +537,13 @@ export function EditorialCalendarPage() {
                 anchorDate={currentMonth}
                 onAnchorDateChange={date => {
                   setCurrentMonth(date);
-                  if (viewMode === 'week' || (viewMode === 'timeline' && timelinePeriod === 'week')) {
+                  if (viewMode === 'week' || viewMode === 'timeline') {
                     setSelectedDate(date);
                   }
                 }}
                 viewMode={viewMode}
                 onViewModeChange={handleViewChange}
-                weekViewId={
-                  viewMode === 'week'
-                    ? 'week'
-                    : viewMode === 'timeline' && timelinePeriod === 'week'
-                      ? 'timeline'
-                      : undefined
-                }
+                weekViewId={viewMode === 'week' || viewMode === 'timeline' ? viewMode : undefined}
                 views={[
                   {id: 'month', label: 'Mês'},
                   {id: 'week', label: 'Semana'},
@@ -565,6 +553,7 @@ export function EditorialCalendarPage() {
               />
             </div>
             <FilterBar
+              className="filter-bar--inline"
               size="compact"
               searchValue={searchTerm}
               onSearchChange={setSearchTerm}
@@ -609,24 +598,7 @@ export function EditorialCalendarPage() {
                       <Text variant="label" as="span" className="px-1">
                         Camadas
                       </Text>
-                      <div className="flex flex-wrap gap-2">
-                        {EDITORIAL_LAYER_ITEMS.map(item => {
-                          const active = activeLayers.includes(item.id);
-                          const Icon = item.icon;
-                          return (
-                            <AppButton
-                              key={item.id}
-                              variant={active ? 'secondary' : 'ghost'}
-                              size="xs"
-                              aria-pressed={active}
-                              leftIcon={<Icon className="h-3.5 w-3.5" style={{color: item.color}} />}
-                              onClick={() => handleLayerToggle(item.id)}
-                            >
-                              {item.label}
-                            </AppButton>
-                          );
-                        })}
-                      </div>
+                      <LayerFilterChips activeLayers={activeLayers} onToggle={handleLayerToggle} />
                     </div>
                   ) : null}
                 </>
@@ -663,7 +635,7 @@ export function EditorialCalendarPage() {
                 </div>
               ) : null}
             </div>
-            {!showDayPanel ? (
+            {!showDayPanel && !dayPanelCrowdsEmptyDay ? (
               <AppButton
                 variant="ghost"
                 size="sm"
@@ -700,7 +672,7 @@ export function EditorialCalendarPage() {
       >
         <div className="stack-md p-3 md:p-4">
           {viewMode === 'agenda' ? (
-            <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_17rem]">
+            <CalendarMainWithPile showPile={showUndatedPile} pile={undatedPile}>
               <CalendarAgendaListView
                 entriesByDate={entriesByDate}
                 selectedDate={selectedDate}
@@ -711,10 +683,9 @@ export function EditorialCalendarPage() {
                 onSelectDate={setSelectedDate}
                 onSelectEntry={handleSelectEntry}
               />
-              {undatedPile}
-            </div>
+            </CalendarMainWithPile>
           ) : viewMode === 'week' ? (
-            <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_17rem]">
+            <CalendarMainWithPile showPile={showUndatedPile} pile={undatedPile}>
               <CalendarWeekView
                 weekDate={currentMonth}
                 selectedDate={selectedDate}
@@ -726,23 +697,20 @@ export function EditorialCalendarPage() {
                 onDayDragLeave={() => setRoteiroDragOver(null)}
                 onDayDrop={handleRoteiroDrop}
               />
-              {undatedPile}
-            </div>
+            </CalendarMainWithPile>
           ) : viewMode === 'timeline' ? (
-            <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_17rem]">
+            <CalendarMainWithPile showPile={showUndatedPile} pile={undatedPile}>
               <CalendarTimelineView
                 anchorDate={currentMonth}
-                period={timelinePeriod}
+                period="week"
                 entriesByDate={entriesByDate}
                 selectedDate={selectedDate}
                 onSelectDate={setSelectedDate}
                 onSelectEntry={handleSelectEntry}
-                onPeriodChange={setTimelinePeriod}
               />
-              {undatedPile}
-            </div>
+            </CalendarMainWithPile>
           ) : (
-            <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_17rem]">
+            <CalendarMainWithPile showPile={showUndatedPile} pile={undatedPile}>
               <MonthlyCalendarView
                 contents={state.contents}
                 platforms={state.platforms}
@@ -765,8 +733,7 @@ export function EditorialCalendarPage() {
                 onDayDragLeave={() => setRoteiroDragOver(null)}
                 onDayDrop={handleRoteiroDrop}
               />
-              {undatedPile}
-            </div>
+            </CalendarMainWithPile>
           )}
 
           {isMonthView ? null : (
@@ -779,7 +746,7 @@ export function EditorialCalendarPage() {
         </div>
       </CalendarDesktopShell>
 
-      {!showDayPanel ? (
+      {!showDayPanel && !dayPanelCrowdsEmptyDay ? (
         <button
           type="button"
           onClick={() => setDayPanelOpen(true)}
@@ -875,6 +842,56 @@ const EDITORIAL_LAYER_ITEMS = [
   {id: 'projects', label: 'Projetos', color: 'var(--accent-blue)', icon: BookOpen},
   {id: 'agenda', label: 'Eventos', color: 'var(--accent-green)', icon: CalendarDays},
 ];
+
+function LayerFilterChips({
+  activeLayers,
+  onToggle,
+}: {
+  activeLayers: string[];
+  onToggle: (layerId: string) => void;
+}) {
+  return (
+    <div className="flex flex-wrap gap-2">
+      {EDITORIAL_LAYER_ITEMS.map(item => {
+        const active = activeLayers.includes(item.id);
+        const Icon = item.icon;
+        return (
+          <button
+            key={item.id}
+            type="button"
+            aria-pressed={active}
+            onClick={() => onToggle(item.id)}
+            className={cn('filter-chip min-h-9', active && 'filter-chip-active')}
+          >
+            <Icon
+              className="h-3.5 w-3.5 shrink-0"
+              style={active ? undefined : {color: item.color}}
+            />
+            {item.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function CalendarMainWithPile({
+  showPile,
+  pile,
+  children,
+}: {
+  showPile: boolean;
+  pile: ReactNode;
+  children: ReactNode;
+}) {
+  if (!showPile) return children;
+  return (
+    <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_17rem]">
+      {children}
+      {pile}
+    </div>
+  );
+}
 
 function getEntryLabel(entry: CalendarEntry) {
   return entry.type === 'project'

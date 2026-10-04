@@ -1455,7 +1455,10 @@ textarea.property-input {
 }
 
 .filter-chip {
-  border: 1px solid var(--border-color);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  border: 1px solid var(--border-strong);
   border-radius: 8px;
   background: var(--bg-elevated);
   padding: 0.5rem 0.8rem;
@@ -1464,6 +1467,7 @@ textarea.property-input {
   letter-spacing: 0;
   line-height: 1;
   color: var(--text-secondary);
+  cursor: pointer;
   transition:
     background-color 0.16s ease,
     border-color 0.16s ease,
@@ -1481,18 +1485,54 @@ textarea.property-input {
   transform: scale(0.98);
 }
 
+.filter-chip:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
 .filter-chip-active {
-  border-color: var(--accent);
-  background: var(--accent);
-  color: var(--bg-secondary);
+  border-color: var(--text-primary);
+  background: var(--text-primary);
+  color: var(--bg-primary);
   box-shadow: none;
 }
 
 .filter-chip-active:hover {
-  background: var(--accent);
-  color: var(--bg-secondary);
-  border-color: var(--accent);
+  background: var(--text-primary);
+  color: var(--bg-primary);
+  border-color: var(--text-primary);
   opacity: 0.92;
+}
+
+/* Sits in a toolbar row. A full-width bar would wrap the controls beside it. */
+.filter-bar--inline {
+  position: relative;
+  width: auto;
+  flex: 0 0 auto;
+}
+
+.filter-bar--inline .filter-bar-controls {
+  width: auto;
+}
+
+.filter-bar--inline .filter-bar-toggle,
+.filter-bar--inline .filter-bar-select {
+  border-color: var(--border-strong);
+  color: var(--text-secondary);
+}
+
+.filter-bar--inline .filter-bar-toggle-active {
+  border-color: var(--text-primary);
+  background: var(--text-primary);
+  color: var(--bg-primary);
+}
+
+.filter-bar--inline .filter-bar-panel {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 0.5rem);
+  right: 0;
+  width: min(40rem, calc(100vw - 3rem));
 }
 
 .filter-bar {

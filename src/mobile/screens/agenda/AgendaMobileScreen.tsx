@@ -108,6 +108,45 @@ function loadMobileKinds(): AgendaTimelineKind[] {
   return readStoredJson(MOBILE_STORAGE_KEY, ALL_KINDS);
 }
 
+function toggleKind(current: AgendaTimelineKind[], kind: AgendaTimelineKind): AgendaTimelineKind[] {
+  if (!current.includes(kind)) return [...current, kind];
+  if (current.length === 1) return current;
+  return current.filter(item => item !== kind);
+}
+
+function MobileLayerChips({
+  activeKinds,
+  onToggle,
+  className,
+}: {
+  activeKinds: AgendaTimelineKind[];
+  onToggle: (kind: AgendaTimelineKind) => void;
+  className?: string;
+}) {
+  return (
+    <div className={cn('flex gap-2 overflow-x-auto', className)}>
+      {ALL_KINDS.map(kind => {
+        const active = activeKinds.includes(kind);
+        return (
+          <button
+            key={kind}
+            type="button"
+            aria-pressed={active}
+            onClick={() => onToggle(kind)}
+            className={cn('filter-chip min-h-11 shrink-0 whitespace-nowrap', active && 'filter-chip-active')}
+          >
+            <span
+              className="h-1.5 w-1.5 shrink-0 rounded-full"
+              style={{backgroundColor: active ? KIND_ACCENTS[kind] : 'currentColor'}}
+            />
+            {KIND_LABELS[kind]}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 function buildTimelineEntries(contents: Content[], platforms: Platform[], agendaItems: AgendaItem[], projetos: Projeto[], series: Serie[], redeReferenciaId: string | null, platformFilter: string) {
   const projectById = new Map(projetos.map(p => [p.id, p]));
   const platformNameById = new Map(platforms.map(platform => [platform.id, platform.nome]));
@@ -401,38 +440,11 @@ export function AgendaMobileScreen({
           </div>
         </div>
 
-        {/* Layer filter chips */}
-        <div className="flex gap-2 overflow-x-auto px-4 pb-3">
-          {ALL_KINDS.map(kind => {
-            const active = activeKinds.includes(kind);
-            return (
-              <button
-                key={kind}
-                type="button"
-                onClick={() =>
-                  setActiveKinds(current =>
-                    current.includes(kind)
-                      ? current.length === 1 ? current : current.filter(k => k !== kind)
-                      : [...current, kind]
-                  )
-                }
-                className={cn(
-                  'flex min-h-11 items-center gap-1.5 rounded-lg border px-3 text-xs font-bold whitespace-nowrap transition-all shrink-0',
-                  'cursor-pointer active:scale-95 select-none',
-                  active
-                    ? 'border-[var(--border-strong)] bg-[var(--bg-hover)] text-[var(--text-primary)]'
-                    : 'border-[var(--border-color)] text-[var(--text-tertiary)]'
-                )}
-              >
-                <span
-                  className="h-1.5 w-1.5 rounded-full shrink-0"
-                  style={{backgroundColor: active ? KIND_ACCENTS[kind] : 'currentColor'}}
-                />
-                {KIND_LABELS[kind]}
-              </button>
-            );
-          })}
-        </div>
+        <MobileLayerChips
+          activeKinds={activeKinds}
+          onToggle={kind => setActiveKinds(current => toggleKind(current, kind))}
+          className="px-4 pb-3"
+        />
 
         {/* Day-of-week labels */}
         <div className="grid grid-cols-7 border-t border-[var(--border-color)] bg-[var(--bg-hover)]/30">
@@ -544,36 +556,11 @@ export function AgendaMobileScreen({
         />
 
         {isTimeline ? (
-          <div className="flex gap-2 overflow-x-auto pb-1">
-            {ALL_KINDS.map(kind => {
-              const active = activeKinds.includes(kind);
-              return (
-                <button
-                  key={kind}
-                  type="button"
-                  onClick={() =>
-                    setActiveKinds(current =>
-                      current.includes(kind)
-                        ? current.length === 1 ? current : current.filter(k => k !== kind)
-                        : [...current, kind]
-                    )
-                  }
-                  className={cn(
-                    'flex min-h-11 shrink-0 cursor-pointer items-center gap-1.5 rounded-lg border px-3 text-xs font-bold whitespace-nowrap transition-all select-none active:scale-95',
-                    active
-                      ? 'border-[var(--border-strong)] bg-[var(--bg-hover)] text-[var(--text-primary)]'
-                      : 'border-[var(--border-color)] text-[var(--text-tertiary)]',
-                  )}
-                >
-                  <span
-                    className="h-1.5 w-1.5 shrink-0 rounded-full"
-                    style={{backgroundColor: active ? KIND_ACCENTS[kind] : 'currentColor'}}
-                  />
-                  {KIND_LABELS[kind]}
-                </button>
-              );
-            })}
-          </div>
+          <MobileLayerChips
+            activeKinds={activeKinds}
+            onToggle={kind => setActiveKinds(current => toggleKind(current, kind))}
+            className="pb-1"
+          />
         ) : null}
 
         <div className="flex items-center justify-between px-1">

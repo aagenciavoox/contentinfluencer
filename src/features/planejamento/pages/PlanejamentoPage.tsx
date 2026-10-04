@@ -271,11 +271,11 @@ export function PlanejamentoPage() {
           views={[]}
         />
 
-        <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_18rem]">
+        <div className={cn('grid items-start gap-4', undated.length > 0 && 'xl:grid-cols-[minmax(0,1fr)_18rem]')}>
           <CalendarMonthGrid
             anchorDate={month}
             weekStartsOn={0}
-            minCellHeight={128}
+            minCellHeight={72}
             getDayClassName={day => cn(
               dragOverDay === day.dateKey && 'bg-[color-mix(in_srgb,var(--accent-orange)_12%,transparent)]',
             )}
@@ -293,6 +293,7 @@ export function PlanejamentoPage() {
             }}
             renderDayContent={day => {
               const dayPostIts = byDate.get(day.dateKey) ?? [];
+              const dayLabel = format(day.day, "d 'de' MMMM", {locale: ptBR});
               return (
                 <div className="stack-sm">
                   {dayPostIts.map(postIt => (
@@ -307,64 +308,62 @@ export function PlanejamentoPage() {
                       }}
                     />
                   ))}
-                  <div className="flex gap-1">
+                  <div className="flex gap-0.5">
                     <AppButton
                       variant="ghost"
                       size="xs"
-                      className="min-w-0 flex-1"
+                      iconOnly
+                      className="h-6 w-6"
+                      aria-label={`Novo post-it em ${dayLabel}`}
                       onClick={event => {
                         event.stopPropagation();
                         addEmpty(day.dateKey);
                       }}
-                    >
-                      Post-it
-                    </AppButton>
+                      leftIcon={<StickyNote className="h-3.5 w-3.5" />}
+                    />
                     <AppButton
                       variant="ghost"
                       size="xs"
-                      aria-label={`Puxar conteúdo para ${format(day.day, "d 'de' MMMM", {locale: ptBR})}`}
+                      iconOnly
+                      className="h-6 w-6"
+                      aria-label={`Puxar conteúdo para ${dayLabel}`}
                       onClick={event => {
                         event.stopPropagation();
                         setPullDate(day.dateKey);
                         setPullOpen(true);
                       }}
-                    >
-                      Puxar
-                    </AppButton>
+                      leftIcon={<Plus className="h-3.5 w-3.5" />}
+                    />
                   </div>
                 </div>
               );
             }}
           />
 
-          <Surface
-            variant="outlined"
-            padding="sm"
-            className={cn('stack-sm', pileOver && 'ring-2 ring-[var(--accent-orange)]')}
-            onDragOver={event => {
-              event.preventDefault();
-              setPileOver(true);
-              setDragOverDay(null);
-            }}
-            onDragLeave={() => setPileOver(false)}
-            onDrop={event => {
-              event.preventDefault();
-              setPileOver(false);
-              const id = readDragId(event);
-              if (id) moveTo(id, null);
-            }}
-          >
-            <div>
-              <Text variant="sectionTitle">Sem data</Text>
-              <Text variant="meta" className="mt-1 block text-[var(--text-secondary)]">
-                Post-its que ainda não têm dia. Arraste para o mês quando fizer sentido.
-              </Text>
-            </div>
-            {undated.length === 0 ? (
-              <Text variant="meta" className="rounded-[var(--radius-input)] bg-[var(--surface-subtle)] px-3 py-3 text-[var(--text-secondary)]">
-                A pilha está vazia.
-              </Text>
-            ) : (
+          {undated.length > 0 ? (
+            <Surface
+              variant="outlined"
+              padding="sm"
+              className={cn('stack-sm', pileOver && 'ring-2 ring-[var(--accent-orange)]')}
+              onDragOver={event => {
+                event.preventDefault();
+                setPileOver(true);
+                setDragOverDay(null);
+              }}
+              onDragLeave={() => setPileOver(false)}
+              onDrop={event => {
+                event.preventDefault();
+                setPileOver(false);
+                const id = readDragId(event);
+                if (id) moveTo(id, null);
+              }}
+            >
+              <div>
+                <Text variant="sectionTitle">Sem data</Text>
+                <Text variant="meta" className="mt-1 block text-[var(--text-secondary)]">
+                  Post-its que ainda não têm dia. Arraste para o mês quando fizer sentido.
+                </Text>
+              </div>
               <ul className="stack-sm">
                 {undated.map(postIt => (
                   <li key={postIt.id}>
@@ -379,8 +378,8 @@ export function PlanejamentoPage() {
                   </li>
                 ))}
               </ul>
-            )}
-          </Surface>
+            </Surface>
+          ) : null}
         </div>
       </div>
 

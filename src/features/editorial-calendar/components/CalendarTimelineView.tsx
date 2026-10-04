@@ -36,7 +36,6 @@ interface CalendarTimelineViewProps {
   selectedDate?: Date;
   onSelectDate?: (date: Date) => void;
   onSelectEntry?: (entry: CalendarEntry) => void;
-  onPeriodChange?: (period: TimelinePeriod) => void;
 }
 
 function entryPillStyle(entry: CalendarEntry) {
@@ -52,7 +51,6 @@ export function CalendarTimelineView({
   selectedDate,
   onSelectDate,
   onSelectEntry,
-  onPeriodChange,
 }: CalendarTimelineViewProps) {
   const today = new Date();
 
@@ -78,25 +76,6 @@ export function CalendarTimelineView({
             Gravações, publicações e eventos lado a lado, dia a dia.
           </Text>
         </div>
-        {onPeriodChange ? (
-          <div className="flex items-center gap-0.5 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-0.5">
-            {(['week', 'month'] as const).map(option => (
-              <button
-                key={option}
-                type="button"
-                onClick={() => onPeriodChange(option)}
-                className={cn(
-                  'min-h-8 rounded-[var(--radius-sm)] px-3 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
-                  period === option
-                    ? 'bg-[var(--text-primary)] text-[var(--bg-primary)]'
-                    : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]',
-                )}
-              >
-                {option === 'week' ? 'Semana' : 'Mês'}
-              </button>
-            ))}
-          </div>
-        ) : null}
       </div>
 
       <div className="overflow-x-auto">

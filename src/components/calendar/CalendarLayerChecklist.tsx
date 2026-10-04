@@ -3,6 +3,9 @@ import {Check} from 'lucide-react';
 import {Text} from '../ui/Text';
 import {cn} from '../../lib/utils';
 
+/** Layer fills such as orange sit near 3:1 with white. Dark ink stays readable in both themes. */
+const LAYER_CHECK_INK = '#111111';
+
 export interface CalendarChecklistItem {
   id: string;
   label: string;
@@ -48,12 +51,14 @@ export function CalendarLayerChecklist({
                 <span
                   className={cn(
                     'flex h-4 w-4 shrink-0 items-center justify-center rounded-[3px] border transition-colors',
-                    active ? 'border-transparent' : 'border-[var(--border-color)] bg-transparent',
+                    active ? 'border-transparent' : 'border-[var(--border-strong)] bg-[var(--bg-primary)]',
                   )}
                   style={active ? {backgroundColor: item.color} : undefined}
                   aria-hidden
                 >
-                  {active ? <Check className="h-2.5 w-2.5 text-white" strokeWidth={3} /> : null}
+                  {active ? (
+                    <Check className="h-2.5 w-2.5" strokeWidth={3} style={{color: LAYER_CHECK_INK}} />
+                  ) : null}
                 </span>
                 {Icon ? <Icon className="h-3.5 w-3.5 shrink-0 text-[var(--text-tertiary)]" /> : null}
                 <span
