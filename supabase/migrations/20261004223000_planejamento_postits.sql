@@ -5,10 +5,13 @@ create table if not exists public.planejamento_postits (
   user_id uuid not null references auth.users (id) on delete cascade,
   texto text not null default '',
   date date,
-  content_id uuid references public.contents (id) on delete set null,
+  content_id text references public.contents (id) on delete set null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+create index if not exists planejamento_postits_user_id_idx on public.planejamento_postits (user_id);
+create index if not exists planejamento_postits_content_id_idx on public.planejamento_postits (content_id);
 
 alter table public.planejamento_postits enable row level security;
 
