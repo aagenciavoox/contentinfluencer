@@ -522,6 +522,7 @@ export function BookDetailPage() {
       status: 'Planejando',
       dataInicio: campForm.dataInicio || null,
       dataFim: campForm.dataFim || null,
+      avisoDias: null,
       metaConteudos: Number(campForm.metaConteudos) || 5,
       bibliotecaItemId: livro.id,
       brand: null,

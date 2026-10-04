@@ -12,11 +12,21 @@ import { Badge } from '../../../components/ui/Badge';
 import { MoreMenu } from '../../../components/ui/MoreMenu';
 import { TagSelect } from '../../../components/ui/TagSelect';
 import { Text } from '../../../components/ui/Text';
-import type { AgendaItem, Content, Projeto } from '../../../lib/database';
+import type { AgendaItem, Content, FuncaoPadraoSerie, Projeto } from '../../../lib/database';
 import { cn } from '../../../lib/utils';
 import { PostingTimeSuggestions } from '../../../features/settings/components/PostingTimeSuggestions';
 import type { PostingTimesSettings } from '../../../features/settings/lib/postingTimes';
 import { EmptyState } from '../../../components/ui/EmptyState';
+import { FuncaoDoRoteiro } from '../../../features/projects/components/FuncaoDoRoteiro';
+import { ProjetoEventoFields } from '../../../features/projects/components/ProjetoEventoFields';
+import {
+  avisoDiasInvalido,
+  isProjetoEvento,
+  rotuloAvisoDias,
+  rotuloProjetoTipo,
+  type EscolhaFuncaoEvento,
+  type ProjetoTipoFormulario,
+} from '../../../features/projects/lib/evento';
 import { PROJECT_STATUS_LABEL } from '../../../features/projects/pages/ProjectsPage';
 import { MobileListCard } from '../../components/MobileListCard';
 import { MobileSegmentTabs } from '../../components/MobileSegmentTabs';
@@ -63,6 +73,8 @@ export interface ProjectDetailEditFields {
   notes: string;
   color: string;
   driveUrl: string;
+  tipo: ProjetoTipoFormulario;
+  avisoDias: string;
 }
 
 export interface ProjectDetailMobileScreenProps {
@@ -94,6 +106,8 @@ export interface ProjectDetailMobileScreenProps {
   onVincularContent: (contentId: string) => void;
   onOpenContent: (contentId: string) => void;
   onCreateContent: () => void;
+  series: Array<{ id: string; funcaoPadrao?: FuncaoPadraoSerie | null }>;
+  onEscolherFuncao: (contentId: string, escolha: EscolhaFuncaoEvento) => void;
 }
 
 export function ProjectDetailMobileScreen({
@@ -125,6 +139,8 @@ export function ProjectDetailMobileScreen({
   onVincularContent,
   onOpenContent,
   onCreateContent,
+  series,
+  onEscolherFuncao,
 }: ProjectDetailMobileScreenProps) {
   const [activeTab, setActiveTab] = useState<ProjectDetailTab>('eventos');
   const [linkSheetOpen, setLinkSheetOpen] = useState(false);
@@ -132,6 +148,8 @@ export function ProjectDetailMobileScreen({
 
   const { proximoEvento, ultimoEvento } = resolveEventHighlight(agendaItems);
   const statusLabel = PROJECT_STATUS_LABEL[projeto.status] ?? projeto.status;
+  const evento = isProjetoEvento(projeto.tipo);
+  const serieDe = (seriesId: string | null) => series.find(item => item.id === seriesId) ?? null;
   const formattedValue = projeto.value
     ? projeto.value.toLocaleString('pt-BR', { style: 'currency', currency: projeto.currency || 'BRL' })
     : '--';
@@ -168,6 +186,7 @@ export function ProjectDetailMobileScreen({
               {projeto.brand ? (
                 <Text variant="label">{projeto.brand}</Text>
               ) : null}
+              <Badge variant="neutral">{rotuloProjetoTipo(projeto.tipo)}</Badge>
               {projeto.status ? (
                 <Badge variant="neutral">{statusLabel}</Badge>
               ) : null}
@@ -197,6 +216,12 @@ export function ProjectDetailMobileScreen({
             <Text variant="sectionTitle" as="p" className="mt-1 tabular-nums">{formattedValue}</Text>
           </div>
         </div>
+
+        {evento ? (
+          <Text variant="secondary" className="mt-3">
+            {rotuloAvisoDias(projeto.avisoDias)}
+          </Text>
+        ) : null}
 
         {proximoEvento ? (
           <Text variant="secondary" className="mt-3 rounded-[1.2rem] bg-[var(--bg-hover)] px-3 py-3">
@@ -260,15 +285,20 @@ export function ProjectDetailMobileScreen({
           {projetoContents.length === 0 ? (
             <EmptyState compact
               title="Nenhum roteiro vinculado"
-              description="Vincule ideias já existentes ou crie novos roteiros para este projeto."
+              description={evento
+                ? 'Vincule um roteiro. Cada um deste evento fica com a própria função.'
+                : 'Vincule ideias já existentes ou crie novos roteiros para este projeto.'}
               action={tabAction}
               icon={<ClipboardList className="h-8 w-8" />}
             />
           ) : (
             <>
+              {evento ? (
+                <Text variant="secondary">Cada roteiro deste evento tem a própria função.</Text>
+              ) : null}
               {projetoContents.map(content => (
+                <div key={content.id} className="stack-sm">
                 <MobileListCard
-                  key={content.id}
                   title={content.title || '(sem título)'}
                   description={content.status}
                   meta={
@@ -296,6 +326,15 @@ export function ProjectDetailMobileScreen({
                     </AppButton>
                   }
                 />
+                {evento ? (
+                  <FuncaoDoRoteiro
+                    contentId={content.id}
+                    content={content}
+                    serie={serieDe(content.seriesId)}
+                    onChange={escolha => onEscolherFuncao(content.id, escolha)}
+                  />
+                ) : null}
+                </div>
               ))}
               {tabAction}
             </>
@@ -314,6 +353,12 @@ export function ProjectDetailMobileScreen({
             onChange={event => onEditFieldChange('nome', event.target.value)}
             placeholder="Nome"
             className="w-full"
+          />
+          <ProjetoEventoFields
+            tipo={editFields.tipo}
+            avisoDias={editFields.avisoDias}
+            onTipoChange={value => onEditFieldChange('tipo', value)}
+            onAvisoDiasChange={value => onEditFieldChange('avisoDias', value)}
           />
           <input
             value={editFields.brand}
@@ -354,7 +399,12 @@ export function ProjectDetailMobileScreen({
             className="w-full resize-none"
           />
           <div className="grid grid-cols-1 gap-2">
-            <AppButton variant="primary" onClick={onSaveEdit} className="min-h-11 w-full justify-center">
+            <AppButton
+              variant="primary"
+              onClick={onSaveEdit}
+              disabled={avisoDiasInvalido(editFields.tipo, editFields.avisoDias)}
+              className="min-h-11 w-full justify-center"
+            >
               Salvar
             </AppButton>
             <AppButton variant="secondary" onClick={onCancelEdit} className="min-h-11 w-full justify-center">

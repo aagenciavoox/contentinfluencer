@@ -21,6 +21,15 @@ import { OverlayFooter } from '../../../components/overlays/OverlayFooter';
 import { OverlayHeader } from '../../../components/overlays/OverlayHeader';
 import { ProjectsMobileScreen } from '../../../mobile/screens/projects/ProjectsMobileScreen';
 import { generateUUID } from '../../../utils/uuid';
+import { ProjetoEventoFields } from '../components/ProjetoEventoFields';
+import {
+  avisoDiasInvalido,
+  avisoDiasParaSalvar,
+  isProjetoEvento,
+  rotuloAvisoDias,
+  rotuloProjetoTipo,
+  type ProjetoTipoFormulario,
+} from '../lib/evento';
 
 type StatusFilter = 'todos' | 'com_eventos' | 'sem_eventos';
 
@@ -49,6 +58,8 @@ export function ProjectsPage() {
   const [showForm, setShowForm] = useState(false);
 
   const [nome, setNome] = useState('');
+  const [tipo, setTipo] = useState<ProjetoTipoFormulario>('publi');
+  const [avisoDias, setAvisoDias] = useState('');
   const [brand, setBrand] = useState('');
   const [value, setValue] = useState('');
   const [color, setColor] = useState(PROJECT_COLORS[Math.floor(Math.random() * PROJECT_COLORS.length)]);
@@ -76,21 +87,28 @@ export function ProjectsPage() {
 
   const resetForm = () => {
     setNome('');
+    setTipo('publi');
+    setAvisoDias('');
     setBrand('');
     setValue('');
     setColor(PROJECT_COLORS[Math.floor(Math.random() * PROJECT_COLORS.length)]);
   };
 
+  const avisoInvalido = avisoDiasInvalido(tipo, avisoDias);
+
   const handleCreate = () => {
-    if (!nome.trim()) return;
+    if (!nome.trim() || avisoInvalido) return;
+    const aviso = avisoDiasParaSalvar(tipo, avisoDias);
+    if (aviso === 'invalid') return;
     const projeto: Projeto = {
       id: generateUUID(),
       userId: user?.id || '',
       nome: nome.trim(),
-      tipo: 'publi',
+      tipo,
       status: 'pendente',
       dataInicio: null,
       dataFim: null,
+      avisoDias: aviso,
       metaConteudos: null,
       bibliotecaItemId: null,
       brand: brand.trim() || null,
@@ -141,6 +159,12 @@ export function ProjectsPage() {
               placeholder="Nome do projeto"
               className="w-full"
             />
+            <ProjetoEventoFields
+              tipo={tipo}
+              avisoDias={avisoDias}
+              onTipoChange={setTipo}
+              onAvisoDiasChange={setAvisoDias}
+            />
             <input
               value={value}
               onChange={e => setValue(e.target.value)}
@@ -167,7 +191,7 @@ export function ProjectsPage() {
             <AppButton
               variant="primary"
               onClick={handleCreate}
-              disabled={!nome.trim()}
+              disabled={!nome.trim() || avisoInvalido}
               className="flex-1"
             >
               Criar projeto
@@ -303,6 +327,7 @@ export function ProjectsPage() {
                         <Text variant="meta" className="mt-0.5 block truncate">{projeto.brand}</Text>
                       ) : null}
                     </div>
+                    <Badge variant="neutral" className="shrink-0">{rotuloProjetoTipo(projeto.tipo)}</Badge>
                     {projeto.status ? (
                       <Badge variant="neutral" className="shrink-0">{PROJECT_STATUS_LABEL[projeto.status] ?? projeto.status}</Badge>
                     ) : null}
@@ -312,6 +337,11 @@ export function ProjectsPage() {
                       <span className="flex items-center gap-1 text-xs font-medium text-[var(--text-secondary)]">
                         <DollarSign className="h-3.5 w-3.5 text-[var(--text-tertiary)]" />
                         {projeto.value.toLocaleString('pt-BR', { style: 'currency', currency: projeto.currency || 'BRL' })}
+                      </span>
+                    ) : null}
+                    {isProjetoEvento(projeto.tipo) && projeto.avisoDias != null ? (
+                      <span className="text-xs text-[var(--text-tertiary)]">
+                        {rotuloAvisoDias(projeto.avisoDias)}
                       </span>
                     ) : null}
                     {eventoCount > 0 ? (

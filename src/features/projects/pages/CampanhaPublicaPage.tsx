@@ -52,6 +52,7 @@ const TIPO_COLOR: Record<string, string> = {
   campanha: 'var(--accent-blue)',
   publi:    'var(--accent-purple)',
   producao: 'var(--accent-green)',
+  evento:   'var(--accent-orange)',
   outro:    'var(--text-tertiary)',
 };
 
@@ -59,6 +60,7 @@ const TIPO_LABEL: Record<string, string> = {
   campanha: 'Campanha',
   publi:    'Publi',
   producao: 'Produção',
+  evento:   'Evento',
   outro:    'Outro',
 };
 
