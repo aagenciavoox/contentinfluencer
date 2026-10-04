@@ -41,6 +41,8 @@ export type PersistenceApi = Pick<DatabaseModule,
   | 'saveSeriePilares'
   | 'saveSeriePlataformas'
   | 'deleteSerie'
+  | 'saveTema'
+  | 'saveContentTemas'
   | 'saveCenario'
   | 'deleteCenario'
   | 'saveLook'
@@ -83,6 +85,9 @@ export async function persistContentRecord(
   const persistenceApi = await getPersistenceApi(api);
   await persistenceApi.saveContent({ ...content, userId });
   await persistenceApi.saveContentPlataformas(content.id, content.plataformas);
+  if (content.temaIds !== undefined) {
+    await persistenceApi.saveContentTemas(content.id, content.temaIds);
+  }
 }
 
 export async function persistAction({ action, userId, state, api }: PersistActionParams): Promise<void> {
@@ -295,6 +300,10 @@ export async function persistAction({ action, userId, state, api }: PersistActio
 
     case 'DELETE_SERIE':
       await persistenceApi.deleteSerie(action.payload);
+      return;
+
+    case 'ADD_TEMA':
+      await persistenceApi.saveTema({ ...action.payload, userId });
       return;
 
     case 'ADD_CENARIO':

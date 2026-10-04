@@ -7,6 +7,7 @@ export const REALTIME_TABLES = [
   'biblioteca_items',
   'content_metrics',
   'content_plataformas',
+  'content_temas',
   'contents',
   'cenarios',
   'golden_rules',
@@ -26,6 +27,7 @@ export const REALTIME_TABLES = [
   'serie_plataformas',
   'series',
   'templates',
+  'temas',
   'user_preferences',
 ] as const;
 

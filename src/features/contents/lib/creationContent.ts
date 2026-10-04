@@ -27,6 +27,8 @@ export interface CreationFilters {
   seriesId?: string;
   originId?: string;
   funcao?: string;
+  temaId?: string;
+  temas?: readonly { id: string; nome: string }[];
   series?: readonly { id: string; funcaoPadrao?: FuncaoPadraoSerie | null }[];
 }
 
@@ -259,6 +261,7 @@ export function filterCreationContents(
   return filterContentsByCreationTab(contents, filters.tab)
     .filter(content => !filters.pilarId || content.pilarId === filters.pilarId)
     .filter(content => !filters.seriesId || content.seriesId === filters.seriesId)
+    .filter(content => !filters.temaId || (content.temaIds ?? []).includes(filters.temaId))
     .filter(content => !filters.originId || livroIdsEfetivos(content).includes(filters.originId))
     .filter(content => {
       if (!filters.funcao || !isFuncaoEditorial(filters.funcao)) return true;
@@ -272,6 +275,9 @@ export function filterCreationContents(
         content.notes ?? '',
         htmlToReadableText(content.script),
         ...(content.tags ?? []),
+        ...(filters.temas ?? [])
+          .filter(tema => (content.temaIds ?? []).includes(tema.id))
+          .map(tema => tema.nome),
       ].some(value => value.toLocaleLowerCase('pt-BR').includes(normalizedSearch));
     });
 }

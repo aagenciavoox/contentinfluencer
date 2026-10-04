@@ -29,6 +29,7 @@ export function createContentDraft(
     script: null,
     scriptNotes: [],
     tags: [],
+    temaIds: [],
     notes: null,
     referencias: null,
     writingNotes: null,

@@ -146,6 +146,7 @@ export function CreationHubPage() {
   const search = searchParams.get('q') ?? '';
   const pilarId = searchParams.get('pilar') ?? '';
   const seriesId = searchParams.get('serie') ?? '';
+  const temaId = searchParams.get('tema') ?? '';
   const originId = searchParams.get('origem') ?? '';
   const funcaoId = searchParams.get('funcao') ?? '';
   const sortParam = searchParams.get('sort');
@@ -203,13 +204,15 @@ export function CreationHubPage() {
         search,
         pilarId,
         seriesId,
+        temaId,
         originId,
         funcao: funcaoId,
         series: state.series,
+        temas: state.temas,
       }),
       sort,
     ),
-    [activeTab, canonicalContents, funcaoId, originId, pilarId, search, seriesId, sort, state.series],
+    [activeTab, canonicalContents, funcaoId, originId, pilarId, search, seriesId, sort, state.series, state.temas, temaId],
   );
 
   const pageData = useMemo(
@@ -753,6 +756,18 @@ export function CreationHubPage() {
       ],
     },
     {
+      id: 'tema',
+      label: 'Tema',
+      value: temaId,
+      onChange: (value: string) => updateSearchParam('tema', value),
+      options: [
+        { label: 'Todos os temas', value: '' },
+        ...[...state.temas]
+          .sort((left, right) => left.nome.localeCompare(right.nome, 'pt-BR'))
+          .map(tema => ({ label: tema.nome, value: tema.id })),
+      ],
+    },
+    {
       id: 'origem',
       label: 'Origem',
       value: originId,
@@ -780,7 +795,9 @@ export function CreationHubPage() {
     originId,
     pilarId,
     seriesId,
+    temaId,
     state.bibliotecaItems,
+    state.temas,
     state.pilares,
     state.series,
     updateSearchParam,
@@ -988,7 +1005,7 @@ export function CreationHubPage() {
     </Surface>
   ) : null;
 
-  const hasFilters = Boolean(search || pilarId || seriesId || originId || funcaoId);
+  const hasFilters = Boolean(search || pilarId || seriesId || temaId || originId || funcaoId);
   const shownCount = viewMode === 'kanban' ? filteredContents.length : pageData.items.length;
 
   return (

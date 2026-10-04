@@ -14,6 +14,14 @@ const REALTIME_TABLE_MAP: Record<string, RealtimeTableMapping> = {
     domains: ['content', 'content-summary', 'content-schedule'],
     namespaces: ['contents'],
   },
+  content_temas: {
+    domains: ['content', 'content-summary', 'content-schedule', 'production'],
+    namespaces: ['contents'],
+  },
+  temas: {
+    domains: ['production', 'bootstrap'],
+    namespaces: [],
+  },
   ideas: {
     domains: ['ideas'],
     namespaces: [],

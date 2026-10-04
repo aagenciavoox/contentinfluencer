@@ -98,6 +98,33 @@ function patchSeriesDomainCache(userId: string, cacheKey: string, series: AppDat
   writePersistedDomain(userId, cacheKey, next);
 }
 
+/** Mantém o catálogo de temas nos mesmos caches da produção, sem misturar com série. */
+export function patchTemasInDomainCaches(userId: string, temas: AppData['temas']) {
+  const keys = collectDomainCacheKeys(DOMAIN_SETS_WITH_SERIES);
+
+  if (typeof window !== 'undefined') {
+    const prefix = `${STORAGE_PREFIX}${userId}:domain:`;
+    try {
+      for (let index = 0; index < window.localStorage.length; index += 1) {
+        const storageKey = window.localStorage.key(index);
+        if (storageKey?.startsWith(prefix)) keys.add(storageKey.slice(prefix.length));
+      }
+    } catch {
+      // localStorage indisponível: os conjuntos conhecidos ainda são atualizados.
+    }
+  }
+
+  keys.forEach(cacheKey => {
+    const memory = dataCache.getDomain<Partial<AppData>>(cacheKey);
+    const persisted = readPersistedDomain(userId, cacheKey);
+    const base = memory ?? persisted?.payload ?? null;
+    if (!base || (!Array.isArray(base.series) && !Array.isArray(base.temas))) return;
+    const next = { ...base, temas };
+    dataCache.setDomain(cacheKey, next);
+    writePersistedDomain(userId, cacheKey, next);
+  });
+}
+
 /** Mantém caches que já guardam séries alinhados após criar, editar ou apagar. */
 export function patchSeriesInDomainCaches(userId: string, series: AppData['series']) {
   const keys = collectDomainCacheKeys(DOMAIN_SETS_WITH_SERIES);

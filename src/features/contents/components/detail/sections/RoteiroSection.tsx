@@ -44,6 +44,7 @@ export type ScriptDraft = {
   postedAt: string | null;
   plataformas: ContentPlataforma[];
   legendaBase: string | null;
+  temaIds: string[];
 };
 
 type MobilePane = 'script' | 'notes' | 'captions';

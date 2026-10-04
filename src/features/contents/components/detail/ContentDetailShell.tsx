@@ -91,6 +91,7 @@ function draftFromContent(content: Content): ContentDraft {
     postedAt: content.postedAt,
     plataformas: content.plataformas || [],
     legendaBase: content.legendaBase ?? null,
+    temaIds: content.temaIds ?? [],
   };
 }
 
@@ -256,6 +257,7 @@ export function ContentDetailShell({
     liveContent.script,
     liveContent.status,
     liveContent.seriesId,
+    liveContent.temaIds?.join('\0'),
     liveContent.pilarId,
     liveContent.bibliotecaItemId,
     liveContent.livroIds?.join('\0'),
@@ -324,7 +326,7 @@ export function ContentDetailShell({
         if (key === 'script' || key === 'notes' || key === 'referencias') {
           return normalizePlain(prevValue as string | null) !== normalizePlain(nextValue as string | null);
         }
-        if (key === 'scriptNotes' || key === 'plataformas' || key === 'livroIds') {
+        if (key === 'scriptNotes' || key === 'plataformas' || key === 'livroIds' || key === 'temaIds') {
           return JSON.stringify(prevValue ?? null) !== JSON.stringify(nextValue ?? null);
         }
         return prevValue !== nextValue;
@@ -521,6 +523,7 @@ export function ContentDetailShell({
     draft.script,
     draft.scriptNotes,
     draft.seriesId,
+    draft.temaIds,
     draft.slotType,
     draft.title,
     liveContent,
