@@ -17,7 +17,7 @@ import {useAppContext} from '../../../context/AppContext';
 import {useIsMobile} from '../../../hooks/useIsMobile';
 import {PageLayout} from '../../../layouts/page/PageLayout';
 import {DesktopPageHeader} from '../../../layouts/page/DesktopPageHeader';
-import type {Content} from '../../../lib/database';
+import type {Content, Pilar, Serie} from '../../../lib/database';
 import {cn} from '../../../lib/utils';
 import {buildContentDetailRoute} from '../../contents/lib/contentDetailRoute';
 import {CONTENT_STATUS, normalizeContentStatus} from '../../contents/lib/contentPipeline';
@@ -41,6 +41,21 @@ import {
 function contentById(contents: Content[], id: string | null): Content | null {
   if (!id) return null;
   return contents.find(content => content.id === id) ?? null;
+}
+
+function postItAppearance(
+  content: Content | null,
+  series: readonly Serie[],
+  pilares: readonly Pilar[],
+): {seriesColor: string | null; pilar: {nome: string; cor: string} | null} {
+  if (!content) return {seriesColor: null, pilar: null};
+  const serie = content.seriesId ? series.find(item => item.id === content.seriesId) ?? null : null;
+  const pilarId = content.pilarId || serie?.pilarPrincipalId || null;
+  const pilar = pilarId ? pilares.find(item => item.id === pilarId) ?? null : null;
+  return {
+    seriesColor: serie?.cor?.trim() || null,
+    pilar: pilar ? {nome: pilar.nome, cor: pilar.cor} : null,
+  };
 }
 
 function changedPostIts(before: PlanejamentoPostIt[], after: PlanejamentoPostIt[]): {
@@ -212,6 +227,7 @@ export function PlanejamentoPage() {
 
   const options = openPostIt ? postItTransformOptions(openPostIt, openContent) : {ideia: false, roteiro: false};
   const openKind = openPostIt ? postItKind(openPostIt, openContent) : 'vazio';
+  const openAppearance = postItAppearance(openContent, state.series, state.pilares);
 
   return (
     <PageLayout
@@ -297,18 +313,24 @@ export function PlanejamentoPage() {
               const dayLabel = format(day.day, "d 'de' MMMM", {locale: ptBR});
               return (
                 <div className="stack-sm">
-                  {dayPostIts.map(postIt => (
-                    <PostItNote
-                      key={postIt.id}
-                      postIt={postIt}
-                      content={contentById(contents, postIt.contentId)}
-                      compact
-                      onOpen={() => {
-                        setEditing(false);
-                        setOpenId(postIt.id);
-                      }}
-                    />
-                  ))}
+                  {dayPostIts.map(postIt => {
+                    const content = contentById(contents, postIt.contentId);
+                    const appearance = postItAppearance(content, state.series, state.pilares);
+                    return (
+                      <PostItNote
+                        key={postIt.id}
+                        postIt={postIt}
+                        content={content}
+                        seriesColor={appearance.seriesColor}
+                        pilar={appearance.pilar}
+                        compact
+                        onOpen={() => {
+                          setEditing(false);
+                          setOpenId(postIt.id);
+                        }}
+                      />
+                    );
+                  })}
                   <div className="flex gap-0.5">
                     <AppButton
                       variant="ghost"
@@ -366,18 +388,24 @@ export function PlanejamentoPage() {
                 </Text>
               </div>
               <ul className="stack-sm">
-                {undated.map(postIt => (
-                  <li key={postIt.id}>
-                    <PostItNote
-                      postIt={postIt}
-                      content={contentById(contents, postIt.contentId)}
-                      onOpen={() => {
-                        setEditing(false);
-                        setOpenId(postIt.id);
-                      }}
-                    />
-                  </li>
-                ))}
+                {undated.map(postIt => {
+                  const content = contentById(contents, postIt.contentId);
+                  const appearance = postItAppearance(content, state.series, state.pilares);
+                  return (
+                    <li key={postIt.id}>
+                      <PostItNote
+                        postIt={postIt}
+                        content={content}
+                        seriesColor={appearance.seriesColor}
+                        pilar={appearance.pilar}
+                        onOpen={() => {
+                          setEditing(false);
+                          setOpenId(postIt.id);
+                        }}
+                      />
+                    </li>
+                  );
+                })}
               </ul>
             </Surface>
           ) : null}
@@ -438,7 +466,29 @@ export function PlanejamentoPage() {
                   </Text>
                 ) : null}
                 {openContent ? (
-                  <Surface variant="outlined" padding="sm">
+                  <Surface
+                    variant="outlined"
+                    padding="sm"
+                    style={openKind !== 'vazio' && openAppearance.seriesColor
+                      ? {borderColor: openAppearance.seriesColor}
+                      : undefined}
+                  >
+                    {openKind !== 'vazio' && openAppearance.pilar ? (
+                      <span className="mb-2 flex min-w-0 items-start gap-1.5">
+                        {openAppearance.pilar.cor ? (
+                          <span
+                            className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full border border-[var(--border-color)]"
+                            style={{backgroundColor: openAppearance.pilar.cor}}
+                            aria-hidden
+                          />
+                        ) : null}
+                        {openAppearance.pilar.nome ? (
+                          <Text variant="meta" as="span" className="min-w-0 whitespace-normal break-words">
+                            {openAppearance.pilar.nome}
+                          </Text>
+                        ) : null}
+                      </span>
+                    ) : null}
                     <Text variant="itemTitle">{openContent.title?.trim() || 'Sem título'}</Text>
                     <Text variant="meta" className="mt-1 block text-[var(--text-secondary)]">
                       Puxado para este dia. O status continua {normalizeContentStatus(openContent.status)} até você transformar.
