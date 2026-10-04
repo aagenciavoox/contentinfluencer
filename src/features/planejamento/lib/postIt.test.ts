@@ -3,9 +3,13 @@ import {CONTENT_STATUS} from '../../contents/lib/contentPipeline.ts';
 import {createContentDraft} from '../../contents/lib/createContentDraft.ts';
 import {
   canPullContent,
+  cancelPostItEdit,
   createEmptyPostIt,
+  deletePostIt,
+  postItTitle,
   postItTransformOptions,
   pullExistingContent,
+  savePostItEdit,
   transformPostIt,
 } from './postIt.ts';
 
@@ -227,6 +231,145 @@ function testTransformPulledRoteiroKeepsStatusAndDay() {
   assert.equal(content.publishDate, '2026-01-01T12:00:00.000Z');
 }
 
+function testSavePersistsTextAndDay() {
+  const postIt = createEmptyPostIt({
+    id: 'post-vazio',
+    texto: 'original',
+    date: '2026-10-08',
+    now: NOW,
+  });
+  const saved = savePostItEdit(
+    postIt,
+    {texto: 'nota revista', date: '2026-10-21'},
+    '2026-10-04T18:00:00.000Z',
+  );
+
+  assert.equal(saved.texto, 'nota revista');
+  assert.equal(saved.date, '2026-10-21');
+  assert.equal(saved.updatedAt, '2026-10-04T18:00:00.000Z');
+  assert.equal(saved.id, postIt.id);
+  assert.equal(postIt.texto, 'original');
+  assert.equal(postIt.date, '2026-10-08');
+  assert.equal(postIt.updatedAt, NOW);
+}
+
+function testSaveCanClearTheDay() {
+  const postIt = createEmptyPostIt({
+    id: 'post-vazio',
+    texto: 'nota',
+    date: '2026-10-08',
+    now: NOW,
+  });
+  const saved = savePostItEdit(postIt, {texto: 'nota', date: null}, '2026-10-04T18:00:00.000Z');
+  assert.equal(saved.date, null);
+  assert.equal(postIt.date, '2026-10-08');
+}
+
+function testSaveDoesNotChangePulledContent() {
+  const content = ideia({publishDate: null});
+  const pulled = pullExistingContent({
+    postIts: [],
+    content,
+    date: '2026-10-12',
+    id: 'post-ideia',
+    now: NOW,
+  });
+  const saved = savePostItEdit(
+    pulled.postIts[0],
+    {texto: '  gravar na terça  ', date: '2026-11-09'},
+    '2026-10-04T18:00:00.000Z',
+  );
+
+  assert.equal(saved.texto, '  gravar na terça  ');
+  assert.equal(saved.date, '2026-11-09');
+  assert.equal(saved.contentId, content.id);
+  assert.equal(postItTitle(saved, content), 'gravar na terça');
+  assert.equal(content.title, 'Gancho existente');
+  assert.equal(content.status, CONTENT_STATUS.IDEIA);
+  assert.equal(content.publishDate, null);
+  assert.equal(postItTitle(pulled.postIts[0], content), 'Gancho existente');
+}
+
+function testCancelDiscardsUnsavedTextAndDay() {
+  const postIt = createEmptyPostIt({
+    id: 'post-vazio',
+    texto: 'original',
+    date: '2026-10-08',
+    now: NOW,
+  });
+  const draft = {texto: 'não salvar', date: '2026-12-25'};
+  const cancelled = cancelPostItEdit(postIt, draft);
+  const saved = savePostItEdit(postIt, draft, '2026-10-04T18:00:00.000Z');
+
+  assert.equal(cancelled, postIt);
+  assert.equal(cancelled.texto, 'original');
+  assert.equal(cancelled.date, '2026-10-08');
+  assert.equal(cancelled.updatedAt, NOW);
+  assert.equal(saved.texto, 'não salvar');
+  assert.equal(saved.date, '2026-12-25');
+  assert.notEqual(cancelled.texto, saved.texto);
+  assert.notEqual(cancelled.date, saved.date);
+}
+
+function testDeletePulledPostItKeepsIdeiaAndRoteiro() {
+  const idea = ideia();
+  const script = roteiro();
+  const pulledIdea = pullExistingContent({
+    postIts: [],
+    content: idea,
+    date: '2026-10-12',
+    id: 'post-ideia',
+    now: NOW,
+  });
+  const pulled = pullExistingContent({
+    postIts: pulledIdea.postIts,
+    content: script,
+    date: '2026-10-20',
+    id: 'post-roteiro',
+    now: NOW,
+  });
+  const contents = [idea, script];
+  const withoutIdea = deletePostIt({postIts: pulled.postIts, contents, id: 'post-ideia'});
+
+  assert.equal(withoutIdea.postIts.length, 1);
+  assert.equal(withoutIdea.postIts[0].contentId, script.id);
+  assert.equal(withoutIdea.contents, contents);
+  assert.equal(idea.status, CONTENT_STATUS.IDEIA);
+  assert.equal(idea.publishDate, null);
+  assert.equal(script.status, CONTENT_STATUS.ROTEIRO);
+  assert.equal(script.publishDate, '2026-01-01T12:00:00.000Z');
+
+  const withoutBoth = deletePostIt({postIts: withoutIdea.postIts, contents, id: 'post-roteiro'});
+  assert.equal(withoutBoth.postIts.length, 0);
+  assert.equal(withoutBoth.contents, contents);
+  assert.equal(script.title, 'Roteiro existente');
+}
+
+function testDeleteAfterTransformKeepsCreatedContent() {
+  const postIt = createEmptyPostIt({
+    id: 'post-vazio',
+    texto: 'gancho do vídeo',
+    date: '2026-10-08',
+    now: NOW,
+  });
+  const created = transformPostIt({postIt, contents: [], target: 'ideia', now: NOW});
+  assert.equal(created.ok, true);
+  if (!created.ok) return;
+
+  const contents = [created.content];
+  const removed = deletePostIt({
+    postIts: [],
+    contents,
+    id: created.removePostItId,
+  });
+
+  assert.equal(removed.postIts.length, 0);
+  assert.equal(removed.contents, contents);
+  assert.equal(removed.contents[0], created.content);
+  assert.equal(created.content.status, CONTENT_STATUS.IDEIA);
+  assert.equal(created.content.title, 'gancho do vídeo');
+}
+
 const tests = [
   ['creates an empty post-it', testCreateEmptyPostIt],
   ['pulls an ideia without changing status or date', testPullIdeiaDoesNotChangeStatusOrDate],
@@ -238,6 +381,12 @@ const tests = [
   ['places a pulled ideia on the calendar without changing status', testTransformPulledIdeiaIntoIdeiaKeepsStatusAndDay],
   ['places a pulled roteiro on the post-it day without demoting it', testTransformPulledRoteiroKeepsStatusAndDay],
   ['does not create content when the pulled item is gone', testMissingPulledContentDoesNotCreateAnother],
+  ['saves post-it text and day', testSavePersistsTextAndDay],
+  ['saves a post-it with the day cleared', testSaveCanClearTheDay],
+  ['saves a note on a pulled post-it without changing the content', testSaveDoesNotChangePulledContent],
+  ['cancel discards unsaved text and day', testCancelDiscardsUnsavedTextAndDay],
+  ['delete removes a pulled post-it and keeps the ideia and roteiro', testDeletePulledPostItKeepsIdeiaAndRoteiro],
+  ['delete after transform does not remove the created content', testDeleteAfterTransformKeepsCreatedContent],
 ] as const;
 
 for (const [name, test] of tests) {

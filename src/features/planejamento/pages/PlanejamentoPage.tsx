@@ -1,4 +1,4 @@
-import {useEffect, useMemo, useRef, useState, type DragEvent} from 'react';
+import {useEffect, useMemo, useState, type DragEvent} from 'react';
 import {useNavigate} from 'react-router-dom';
 import {format} from 'date-fns';
 import {ptBR} from 'date-fns/locale';
@@ -26,14 +26,16 @@ import {buildDetailBackState} from '../../../lib/navigation/detailBack';
 import {POST_IT_MIME, PostItNote} from '../components/PostItNote';
 import {
   canPullContent,
+  cancelPostItEdit,
   createEmptyPostIt,
+  deletePostIt,
   movePostIt,
+  postItEditDraft,
   postItKind,
-  postItTitle,
   postItTransformOptions,
   pullExistingContent,
+  savePostItEdit,
   transformPostIt,
-  updatePostItText,
   type PlanejamentoPostIt,
 } from '../lib/postIt';
 
@@ -63,24 +65,27 @@ export function PlanejamentoPage() {
   const {state, dispatch} = useAppContext();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
-  const transformingRef = useRef(false);
   const [month, setMonth] = useState(new Date());
   const [dragOverDay, setDragOverDay] = useState<string | null>(null);
   const [pileOver, setPileOver] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
+  const [editing, setEditing] = useState(false);
   const [pullOpen, setPullOpen] = useState(false);
   const [pullDate, setPullDate] = useState<string | null>(null);
   const [pullQuery, setPullQuery] = useState('');
   const [noteDraft, setNoteDraft] = useState('');
+  const [dateDraft, setDateDraft] = useState<string | null>(null);
 
   const contents = state.contents;
   const postIts = state.postIts ?? [];
   const openPostIt = postIts.find(postIt => postIt.id === openId) ?? null;
   const openContent = contentById(contents, openPostIt?.contentId ?? null);
 
+  const openPostItId = openPostIt?.id ?? null;
+
   useEffect(() => {
-    setNoteDraft(openPostIt?.texto ?? '');
-  }, [openPostIt?.id, openPostIt?.texto]);
+    setEditing(false);
+  }, [openPostItId]);
 
   const byDate = useMemo(() => {
     const map = new Map<string, PlanejamentoPostIt[]>();
@@ -107,6 +112,7 @@ export function PlanejamentoPage() {
   const addEmpty = (date: string | null) => {
     const postIt = createEmptyPostIt({date});
     dispatch({type: 'ADD_POST_IT', payload: postIt});
+    setEditing(false);
     setOpenId(postIt.id);
   };
 
@@ -131,19 +137,55 @@ export function PlanejamentoPage() {
     setPullQuery('');
   };
 
-  const commitTransform = (target: 'ideia' | 'roteiro') => {
+  const closePostIt = () => {
+    setEditing(false);
+    setOpenId(null);
+  };
+
+  const startEdit = () => {
     if (!openPostIt) return;
-    transformingRef.current = true;
-    const postIt = openPostIt.contentId ? openPostIt : updatePostItText(openPostIt, noteDraft);
+    const draft = postItEditDraft(openPostIt);
+    setNoteDraft(draft.texto);
+    setDateDraft(draft.date);
+    setEditing(true);
+  };
+
+  const cancelEdit = () => {
+    if (!openPostIt) return;
+    const kept = cancelPostItEdit(openPostIt, {texto: noteDraft, date: dateDraft});
+    setNoteDraft(kept.texto);
+    setDateDraft(kept.date);
+    setEditing(false);
+  };
+
+  const saveEdit = () => {
+    if (!openPostIt) return;
+    const saved = savePostItEdit(openPostIt, {texto: noteDraft, date: dateDraft});
+    if (saved.texto !== openPostIt.texto || saved.date !== openPostIt.date) {
+      dispatch({type: 'UPDATE_POST_IT', payload: saved});
+    }
+    setNoteDraft(saved.texto);
+    setDateDraft(saved.date);
+    setEditing(false);
+  };
+
+  const removeOpenPostIt = () => {
+    if (!openPostIt) return;
+    const removal = deletePostIt({postIts, contents, id: openPostIt.id});
+    if (removal.postIts.length !== postIts.length) {
+      dispatch({type: 'DELETE_POST_IT', payload: openPostIt.id});
+    }
+    closePostIt();
+  };
+
+  const commitTransform = (target: 'ideia' | 'roteiro') => {
+    if (!openPostIt || editing) return;
     const result = transformPostIt({
-      postIt,
+      postIt: openPostIt,
       contents,
       target,
     });
-    if (!result.ok) {
-      transformingRef.current = false;
-      return;
-    }
+    if (!result.ok) return;
     dispatch({
       type: result.mode === 'create' ? 'ADD_CONTENT' : 'UPDATE_CONTENT',
       payload: result.content,
@@ -259,7 +301,10 @@ export function PlanejamentoPage() {
                       postIt={postIt}
                       content={contentById(contents, postIt.contentId)}
                       compact
-                      onOpen={() => setOpenId(postIt.id)}
+                      onOpen={() => {
+                        setEditing(false);
+                        setOpenId(postIt.id);
+                      }}
                     />
                   ))}
                   <div className="flex gap-1">
@@ -326,7 +371,10 @@ export function PlanejamentoPage() {
                     <PostItNote
                       postIt={postIt}
                       content={contentById(contents, postIt.contentId)}
-                      onOpen={() => setOpenId(postIt.id)}
+                      onOpen={() => {
+                        setEditing(false);
+                        setOpenId(postIt.id);
+                      }}
                     />
                   </li>
                 ))}
@@ -336,10 +384,10 @@ export function PlanejamentoPage() {
         </div>
       </div>
 
-      <Drawer open={Boolean(openPostIt)} onClose={() => setOpenId(null)} widthClassName="max-w-md">
+      <Drawer open={Boolean(openPostIt)} onClose={closePostIt} widthClassName="max-w-md">
         {openPostIt ? (
           <div className="flex h-full min-h-0 flex-col bg-[var(--bg-elevated)]">
-            <OverlayHeader title="Post-it" onClose={() => setOpenId(null)} />
+            <OverlayHeader title={editing ? 'Editar post-it' : 'Post-it'} onClose={closePostIt} />
             <OverlayBody>
               <div className="stack-md">
                 <Badge
@@ -356,72 +404,101 @@ export function PlanejamentoPage() {
                     ? 'Vazio'
                     : normalizeContentStatus(openContent?.status || '')}
                 </Badge>
-                <Text variant="meta" className="text-[var(--text-secondary)]">
-                  {openPostIt.date
-                    ? format(new Date(`${openPostIt.date}T12:00:00`), "d 'de' MMMM 'de' yyyy", {locale: ptBR})
-                    : 'Sem data, na pilha ao lado do mês.'}
-                </Text>
+                {editing ? (
+                  <div className="stack-sm">
+                    <label className="stack-sm">
+                      <Text variant="label" as="span">Dia</Text>
+                      <input
+                        type="date"
+                        value={dateDraft ?? ''}
+                        onChange={event => setDateDraft(event.target.value || null)}
+                        className="w-full rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-hover)] px-3 py-2 text-sm text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+                      />
+                    </label>
+                    {dateDraft ? (
+                      <AppButton variant="ghost" size="sm" onClick={() => setDateDraft(null)}>
+                        Sem data
+                      </AppButton>
+                    ) : (
+                      <Text variant="meta" className="text-[var(--text-secondary)]">
+                        Sem data, na pilha ao lado do mês.
+                      </Text>
+                    )}
+                  </div>
+                ) : (
+                  <Text variant="meta" className="text-[var(--text-secondary)]">
+                    {openPostIt.date
+                      ? format(new Date(`${openPostIt.date}T12:00:00`), "d 'de' MMMM 'de' yyyy", {locale: ptBR})
+                      : 'Sem data, na pilha ao lado do mês.'}
+                  </Text>
+                )}
                 {openPostIt.contentId && !openContent ? (
                   <Text variant="meta" className="text-[var(--text-secondary)]">
                     O conteúdo puxado não está mais aqui. Apague o post-it se ele não servir.
                   </Text>
-                ) : openContent ? (
+                ) : null}
+                {openContent ? (
                   <Surface variant="outlined" padding="sm">
-                    <Text variant="itemTitle">{postItTitle(openPostIt, openContent)}</Text>
+                    <Text variant="itemTitle">{openContent.title?.trim() || 'Sem título'}</Text>
                     <Text variant="meta" className="mt-1 block text-[var(--text-secondary)]">
                       Puxado para este dia. O status continua {normalizeContentStatus(openContent.status)} até você transformar.
                     </Text>
                   </Surface>
-                ) : (
+                ) : null}
+                {editing ? (
                   <label className="stack-sm">
                     <Text variant="label" as="span">Nota</Text>
                     <textarea
                       value={noteDraft}
                       onChange={event => setNoteDraft(event.target.value)}
-                      onBlur={() => {
-                        if (transformingRef.current || noteDraft === openPostIt.texto) return;
-                        dispatch({
-                          type: 'UPDATE_POST_IT',
-                          payload: updatePostItText(openPostIt, noteDraft),
-                        });
-                      }}
                       rows={5}
+                      autoFocus
                       placeholder="Pode ficar em branco."
                       className="w-full resize-none rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-hover)] px-3 py-2 text-sm text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
                     />
                   </label>
+                ) : (
+                  <Text variant="body" className="whitespace-pre-wrap">
+                    {openPostIt.texto.trim() ? openPostIt.texto : 'Sem nota.'}
+                  </Text>
                 )}
-                <Text variant="meta" className="text-[var(--text-secondary)]">
-                  Virar ideia ou roteiro grava a data deste post-it como publicação e passa a aparecer no calendário.
-                </Text>
+                {editing ? null : (
+                  <Text variant="meta" className="text-[var(--text-secondary)]">
+                    Virar ideia ou roteiro grava a data deste post-it como publicação e passa a aparecer no calendário.
+                  </Text>
+                )}
               </div>
             </OverlayBody>
             <OverlayFooter>
-              <div className="stack-sm">
-                {options.ideia ? (
-                  <AppButton variant="secondary" fullWidth onClick={() => commitTransform('ideia')}>
-                    Virar ideia
-                  </AppButton>
-                ) : null}
-                {options.roteiro ? (
-                  <AppButton variant="primary" fullWidth onClick={() => commitTransform('roteiro')}>
-                    Virar roteiro
-                  </AppButton>
-                ) : null}
-                {openPostIt.date ? (
-                  <AppButton variant="ghost" fullWidth onClick={() => dispatch({type: 'UPDATE_POST_IT', payload: movePostIt(openPostIt, null)})}>
-                    Tirar a data
-                  </AppButton>
-                ) : null}
-                <AppButton
-                  variant="ghost"
-                  fullWidth
-                  onClick={() => {
-                    dispatch({type: 'DELETE_POST_IT', payload: openPostIt.id});
-                    setOpenId(null);
-                  }}
-                >
-                  Apagar post-it
+              <div className="stack-sm w-full">
+                {editing ? (
+                  <>
+                    <AppButton variant="secondary" fullWidth onClick={cancelEdit}>
+                      Cancelar
+                    </AppButton>
+                    <AppButton variant="primary" fullWidth onClick={saveEdit}>
+                      Salvar
+                    </AppButton>
+                  </>
+                ) : (
+                  <>
+                    {options.ideia ? (
+                      <AppButton variant="secondary" fullWidth onClick={() => commitTransform('ideia')}>
+                        Virar ideia
+                      </AppButton>
+                    ) : null}
+                    {options.roteiro ? (
+                      <AppButton variant="primary" fullWidth onClick={() => commitTransform('roteiro')}>
+                        Virar roteiro
+                      </AppButton>
+                    ) : null}
+                    <AppButton variant="secondary" fullWidth onClick={startEdit}>
+                      Editar
+                    </AppButton>
+                  </>
+                )}
+                <AppButton variant="ghost" fullWidth onClick={removeOpenPostIt}>
+                  Apagar
                 </AppButton>
               </div>
             </OverlayFooter>
