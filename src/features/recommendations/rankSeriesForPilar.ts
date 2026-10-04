@@ -1,4 +1,5 @@
 import type { Serie } from '../../lib/database.ts';
+import { pilarPrincipalDaSerie } from '../editorial/lib/pilarDaSerie.ts';
 import type { SerieProductionMetrics } from './types.ts';
 import { comparePublicationTimestamps } from './contentStock.ts';
 
@@ -28,7 +29,7 @@ export function rankSeriesForPilar(
   metricsBySerieId: Map<string, SerieProductionMetrics>,
 ): RankedSerie[] {
   return series
-    .filter(serie => serie.ativa && serie.pilarIds.includes(pilarId))
+    .filter(serie => serie.ativa && pilarPrincipalDaSerie(serie) === pilarId)
     .map(serie => ({
       serie,
       metrics: metricsBySerieId.get(serie.id) ?? {

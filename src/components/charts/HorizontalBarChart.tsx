@@ -13,7 +13,7 @@ interface HorizontalBarChartProps {
 
 export function HorizontalBarChart({items, valueSuffix = ''}: HorizontalBarChartProps) {
   if (items.length === 0) {
-    return <p className="py-4 text-center text-sm text-[var(--text-tertiary)]">Sem dados no periodo</p>;
+    return <p className="py-4 text-center text-sm text-[var(--text-tertiary)]">Sem dados no período</p>;
   }
 
   return (

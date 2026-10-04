@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Clock, MonitorSpeaker, Plus } from 'lucide-react';
+import { Clock, Lock, MonitorSpeaker, Plus } from 'lucide-react';
 import { PostingTimesEditor } from '../../../features/settings/components/PostingTimesEditor';
 import type { Platform } from '../../../lib/database';
 import { BottomSheetModal } from '../../../components/feedback/modals/BottomSheetModal';
@@ -13,10 +13,14 @@ import { Text } from '../../../components/ui/Text';
 import { CONFIRM } from '../../../lib/uiCopy';
 import { MobileListCard } from '../../components/MobileListCard';
 import { MobileSectionHeader } from '../../components/MobileSectionHeader';
+import { MobileToggleSwitch } from '../../components/MobileToggleSwitch';
+import { platformDisplayName } from '../../../components/ui/platformName';
 
 interface PlatformsMobileScreenProps {
   platforms: Platform[];
   isPadrao: (name: string) => boolean;
+  padraoLockReason: string;
+  historicalReadingMeta: string;
   onAdd: (name: string) => void;
   onToggle: (platform: Platform) => void;
   onDelete: (platformId: string) => void;
@@ -25,6 +29,8 @@ interface PlatformsMobileScreenProps {
 export function PlatformsMobileScreen({
   platforms,
   isPadrao,
+  padraoLockReason,
+  historicalReadingMeta,
   onAdd,
   onToggle,
   onDelete,
@@ -63,12 +69,14 @@ export function PlatformsMobileScreen({
         {platforms.length === 0 ? (
           <EmptyState compact
             title="Nenhuma plataforma cadastrada"
-            description="Adicione o primeiro canal para começar a estruturar a operação."
+            description="Adicione a primeira rede onde você publica."
             icon={<MonitorSpeaker className="h-8 w-8" />}
           />
         ) : (
           platforms.map((platform) => {
             const padrao = isPadrao(platform.nome);
+            const displayName = platformDisplayName(platform.nome);
+            const lockedOn = padrao || platform.ativo;
             const menuItems = [
               ...(!padrao
                 ? [
@@ -93,16 +101,26 @@ export function PlatformsMobileScreen({
             return (
               <MobileListCard
                 key={platform.id}
-                title={platform.nome}
+                title={displayName}
                 description={
                   padrao
-                    ? 'Plataforma padrão do sistema.'
+                    ? padraoLockReason
                     : platform.ativo
                       ? 'Ativa para criação e leitura.'
                       : 'Inativa para criação, mas preservada para leitura histórica.'
                 }
                 trailing={
-                  menuItems.length > 0 ? (
+                  padrao ? (
+                    <div className="flex items-center gap-1.5" title={padraoLockReason}>
+                      <Lock className="h-3.5 w-3.5 shrink-0 text-[var(--text-tertiary)]" aria-hidden />
+                      <MobileToggleSwitch
+                        enabled
+                        onToggle={() => undefined}
+                        label={displayName}
+                        className="pointer-events-none"
+                      />
+                    </div>
+                  ) : menuItems.length > 0 ? (
                     <MoreMenu
                       size="sm"
                       items={menuItems}
@@ -111,15 +129,8 @@ export function PlatformsMobileScreen({
                   ) : undefined
                 }
                 meta={
-                  <Text
-                    variant="meta"
-                    className={
-                      platform.ativo
-                        ? 'font-semibold text-[var(--accent-green)]'
-                        : 'font-semibold text-[var(--text-tertiary)]'
-                    }
-                  >
-                    {platform.ativo ? 'Ativa' : 'Inativa'}
+                  <Text variant="meta" className="font-semibold text-[var(--text-secondary)]">
+                    {lockedOn ? 'Ativa' : 'Inativa'}
                     {padrao ? ' · Padrão' : ''}
                   </Text>
                 }
@@ -127,6 +138,9 @@ export function PlatformsMobileScreen({
             );
           })
         )}
+        <Text variant="meta" className="block px-1">
+          {historicalReadingMeta}
+        </Text>
       </section>
 
       <section className="stack-md">
@@ -157,7 +171,7 @@ export function PlatformsMobileScreen({
               value={name}
               onChange={(event) => setName(event.target.value)}
               onKeyDown={(event) => event.key === 'Enter' && handleAdd()}
-              placeholder="Ex: Instagram, TikTok"
+              placeholder="Ex.: Instagram, TikTok"
               className="min-h-11 w-full"
               aria-label="Nome da plataforma"
             />
@@ -173,7 +187,7 @@ export function PlatformsMobileScreen({
             Cancelar
           </button>
           <AppButton variant="primary" size="lg" onClick={handleAdd} disabled={!name.trim()} className="flex-1">
-            Criar
+            Adicionar plataforma
           </AppButton>
         </OverlayFooter>
       </BottomSheetModal>

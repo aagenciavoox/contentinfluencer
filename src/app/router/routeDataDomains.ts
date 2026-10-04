@@ -9,9 +9,9 @@ export function getRouteDataDomains(pathname: string): AppDataDomain[] {
     // Critical bootstrap already loads full content + production.
     return ['agenda', 'projects', 'library'];
   }
-  if (pathname.startsWith('/biblioteca')) return ['library', 'library-generos'];
+  if (pathname.startsWith('/biblioteca')) return ['library', 'library-generos', 'content'];
   if (pathname.startsWith('/criacao')) return ['production', 'content'];
-  if (pathname.startsWith('/conteudos/')) return ['production', 'recording', 'templates'];
+  if (pathname.startsWith('/conteudos/')) return ['production', 'recording', 'library', 'templates'];
   if (pathname.startsWith('/conteudos')) return ['production'];
   if (pathname.startsWith('/ideias')) return ['production'];
   if (pathname.startsWith('/calendario') || pathname.startsWith('/programacao')) {
@@ -19,6 +19,9 @@ export function getRouteDataDomains(pathname: string): AppDataDomain[] {
   }
   if (pathname.startsWith('/projetos')) return ['content-schedule', 'library'];
   if (pathname.startsWith('/gravacao')) return ['content', 'production', 'recording'];
+  if (pathname.startsWith('/editorial/pilares/')) return ['production', 'content', 'bootstrap'];
+  if (pathname.startsWith('/editorial/series/')) return ['production', 'content', 'bootstrap', 'templates'];
+  if (pathname.startsWith('/editorial')) return ['production', 'content', 'bootstrap', 'schedule'];
   if (pathname.startsWith('/configuracoes/pilares/')) return ['production', 'content', 'bootstrap'];
   if (pathname.startsWith('/configuracoes/pilares')) return ['production'];
   if (pathname.startsWith('/series/')) return ['production', 'content', 'bootstrap', 'templates'];
@@ -29,7 +32,7 @@ export function getRouteDataDomains(pathname: string): AppDataDomain[] {
   return [];
 }
 
-const DETAIL_PATH = /^\/(?:conteudos|projetos|gravacao|series|configuracoes\/pilares)\/.+|^\/biblioteca\/(?!analise$)[^/]+$/;
+const DETAIL_PATH = /^\/(?:conteudos|projetos|gravacao|series|configuracoes\/pilares|editorial\/pilares|editorial\/series)\/.+|^\/biblioteca\/(?!analise$)[^/]+$/;
 
 /**
  * List screens share one outlet key so moving between them does not remount
@@ -53,5 +56,5 @@ export const NAVIGATION_SEQUENCE_PATHS = [
   '/criacao',
   '/biblioteca',
   '/series',
-  '/configuracoes/pilares',
+  '/editorial',
 ] as const;

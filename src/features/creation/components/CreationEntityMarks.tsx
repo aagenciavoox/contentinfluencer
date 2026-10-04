@@ -1,8 +1,6 @@
-import type { ElementType } from 'react';
-import { Columns3, ListVideo } from 'lucide-react';
 import type { Pilar, Serie } from '../../../lib/database';
-import { Tooltip } from '../../../components/ui/Tooltip';
-import { cn, getEntityTagStyle } from '../../../lib/utils';
+import { Text } from '../../../components/ui/Text';
+import { cn } from '../../../lib/utils';
 
 interface CreationEntityMarksProps {
   pillar?: Pilar | null;
@@ -18,33 +16,34 @@ function markLabel(name: string | null | undefined, fallbackId: string | null | 
   return fallbackId ? fallback : null;
 }
 
-function EntityMark({
-  icon: Icon,
-  kind,
-  label,
-  color,
-}: {
-  icon: ElementType;
+interface EntityMarkModel {
   kind: 'Série' | 'Pilar';
   label: string;
   color?: string | null;
-}) {
-  return (
-    <Tooltip label={`${kind}: ${label}`} side="top">
-      <span
-        className={cn(
-          'inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-transparent',
-          !color && 'bg-[var(--bg-hover)] text-[var(--text-tertiary)]',
-        )}
-        style={getEntityTagStyle(color)}
-      >
-        <Icon className="h-3 w-3" aria-hidden />
-      </span>
-    </Tooltip>
-  );
 }
 
-/** Colored series and pillar icons. The name appears on hover. */
+function resolveEntityMarks(
+  pillar?: Pilar | null,
+  series?: Serie | null,
+  pillarId?: string | null,
+  seriesId?: string | null,
+): EntityMarkModel[] {
+  const seriesLabel = markLabel(series?.name, seriesId, 'Série');
+  const pillarLabel = markLabel(pillar?.nome, pillarId, 'Pilar');
+  const marks: EntityMarkModel[] = [];
+  if (seriesLabel) marks.push({ kind: 'Série', label: seriesLabel, color: series?.cor });
+  if (pillarLabel) marks.push({ kind: 'Pilar', label: pillarLabel, color: pillar?.cor });
+  return marks;
+}
+
+function describeMark(mark: EntityMarkModel) {
+  return `${mark.kind}: ${mark.label}`;
+}
+
+/**
+ * Uma etiqueta visível: a série (bolinha na cor dela + nome) ou, sem série, o pilar.
+ * O restante vira "+N"; o `title` lista todos os nomes.
+ */
 export function CreationEntityMarks({
   pillar,
   series,
@@ -52,18 +51,30 @@ export function CreationEntityMarks({
   seriesId,
   className,
 }: CreationEntityMarksProps) {
-  const seriesLabel = markLabel(series?.name, seriesId, 'Série');
-  const pillarLabel = markLabel(pillar?.nome, pillarId, 'Pilar');
+  const marks = resolveEntityMarks(pillar, series, pillarId, seriesId);
+  if (marks.length === 0) return null;
 
-  if (!seriesLabel && !pillarLabel) return null;
+  const [primary, ...rest] = marks;
 
   return (
-    <div className={cn('inline-flex items-center gap-1', className)}>
-      {seriesLabel ? (
-        <EntityMark icon={ListVideo} kind="Série" label={seriesLabel} color={series?.cor} />
-      ) : null}
-      {pillarLabel ? (
-        <EntityMark icon={Columns3} kind="Pilar" label={pillarLabel} color={pillar?.cor} />
+    <div
+      className={cn('inline-flex min-w-0 max-w-full items-center gap-1.5', className)}
+      title={marks.map(describeMark).join(' · ')}
+    >
+      <span className="entity-tag-pill min-w-0 max-w-full px-2 py-0.5 text-2xs">
+        <span
+          className={cn('h-2 w-2 shrink-0 rounded-full', !primary.color && 'bg-[var(--text-tertiary)]')}
+          style={primary.color ? { backgroundColor: primary.color } : undefined}
+          aria-hidden
+        />
+        <span className="sr-only">{primary.kind}: </span>
+        <span className="min-w-0 truncate">{primary.label}</span>
+      </span>
+      {rest.length > 0 ? (
+        <Text variant="meta" as="span" className="shrink-0 leading-none">
+          <span aria-hidden>+{rest.length}</span>
+          <span className="sr-only">{rest.map(describeMark).join(', ')}</span>
+        </Text>
       ) : null}
     </div>
   );

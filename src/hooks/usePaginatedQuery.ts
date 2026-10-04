@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { dataCache } from '../lib/dataCache';
+import { readPersistedPage, writePersistedPage } from '../lib/persistentDataCache';
 import { ERRORS } from '../lib/uiCopy';
 
 type PaginatedResult<T> = {
@@ -12,6 +13,11 @@ type UsePaginatedQueryOptions<T, Q> = {
   query: Q;
   enabled?: boolean;
   fetchPage: (query: Q) => Promise<PaginatedResult<T>>;
+  /**
+   * Guarda a página 1 no armazenamento do navegador, para ela aparecer na hora na próxima abertura.
+   * Comece com o id do usuário (ex.: `${userId}:library`): o logout apaga essas páginas junto.
+   */
+  persistKey?: string;
 };
 
 export function usePaginatedQuery<T, Q extends { page: number; pageSize: number }>({
@@ -19,6 +25,7 @@ export function usePaginatedQuery<T, Q extends { page: number; pageSize: number 
   query,
   enabled = true,
   fetchPage,
+  persistKey,
 }: UsePaginatedQueryOptions<T, Q>) {
   const queryKey = useMemo(() => JSON.stringify(query), [query]);
   const fetchPageRef = useRef(fetchPage);
@@ -40,6 +47,11 @@ export function usePaginatedQuery<T, Q extends { page: number; pageSize: number 
 
     const cached = dataCache.getPage<T>(namespace, queryKey, query.page);
     const isFresh = dataCache.isPageFresh(namespace, queryKey, query.page);
+    // Página 1 guardada de outra abertura: aparece na hora e sempre é revalidada.
+    // Num reload em segundo plano os itens atuais já estão na tela e podem ser mais novos.
+    const persisted = !cached && !options?.background && persistKey && query.page === 1
+      ? readPersistedPage<T>(persistKey, queryKey)
+      : null;
 
     if (cached) {
       setItems(cached.items);
@@ -48,6 +60,12 @@ export function usePaginatedQuery<T, Q extends { page: number; pageSize: number 
       setLoading(false);
       setFetchAttempted(true);
       if (isFresh && !options?.background) return;
+      setRefreshing(true);
+    } else if (persisted) {
+      setItems(persisted.items);
+      setTotal(persisted.total);
+      setLoading(false);
+      setFetchAttempted(true);
       setRefreshing(true);
     } else if (!options?.background) {
       setLoading(true);
@@ -58,13 +76,16 @@ export function usePaginatedQuery<T, Q extends { page: number; pageSize: number 
     try {
       const result = await fetchPageRef.current(query);
       dataCache.setPage(namespace, queryKey, query.page, result.items, result.total);
+      if (persistKey && query.page === 1) {
+        writePersistedPage(persistKey, queryKey, result.items, result.total);
+      }
       setItems(result.items);
       setTotal(result.total);
       setError(null);
     } catch (err) {
       console.error(`[usePaginatedQuery:${namespace}] fetch failed:`, err);
       setError(err instanceof Error ? err.message : ERRORS.carregarDados);
-      if (!cached) {
+      if (!cached && !persisted) {
         setItems([]);
         setTotal(0);
       }
@@ -73,7 +94,7 @@ export function usePaginatedQuery<T, Q extends { page: number; pageSize: number 
       setRefreshing(false);
       setFetchAttempted(true);
     }
-  }, [enabled, namespace, query, queryKey]);
+  }, [enabled, namespace, persistKey, query, queryKey]);
 
   useEffect(() => {
     if (!enabled) {

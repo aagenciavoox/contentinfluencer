@@ -1,30 +1,25 @@
 import { useMemo, useState } from 'react';
 import { ChevronRight, Layers, Plus } from 'lucide-react';
-import { BottomSheetModal } from '../../../components/feedback/modals/BottomSheetModal';
-import { OverlayBody } from '../../../components/overlays/OverlayBody';
-import { OverlayHeader } from '../../../components/overlays/OverlayHeader';
 import { AppButton } from '../../../components/ui/AppButton';
+import { Badge } from '../../../components/ui/Badge';
 import { MoreMenu } from '../../../components/ui/MoreMenu';
 import { Text } from '../../../components/ui/Text';
-import type { Content, Serie } from '../../../lib/database';
+import type { Serie } from '../../../lib/database';
 import { EmptyState } from '../../../components/ui/EmptyState';
-import { CONFIRM } from '../../../lib/uiCopy';
-import { SeriesForm } from '../../../features/settings/pages/SeriesSettingsPage';
 import { MobileListCard } from '../../components/MobileListCard';
 import { MobileSearchBar } from '../../components/MobileSearchBar';
 import { MobileSectionHeader } from '../../components/MobileSectionHeader';
 import { MobileSegmentTabs } from '../../components/MobileSegmentTabs';
 import { cn } from '../../../lib/utils';
+import { getSerieOpenItems } from '../../../features/editorial/lib/serieCompleteness';
 
 interface SeriesMobileScreenProps {
   series: Serie[];
   roteiroCountBySerie: Map<string, number>;
-  platformNames: string[];
-  contents: Content[];
-  onSave: (serie: Serie) => void;
-  onToggle: (serie: Serie) => void;
-  onDelete: (serieId: string) => void;
   onOpen: (serieId: string) => void;
+  onCreate: () => void;
+  onConfigure: (serieId: string) => void;
+  showOpenBadges: boolean;
 }
 
 type SeriesFilter = 'todas' | 'ativas' | 'inativas';
@@ -36,27 +31,13 @@ function formatRoteiroCount(count: number) {
 export function SeriesMobileScreen({
   series,
   roteiroCountBySerie,
-  platformNames,
-  contents,
-  onSave,
-  onToggle,
-  onDelete,
   onOpen,
+  onCreate,
+  onConfigure,
+  showOpenBadges,
 }: SeriesMobileScreenProps) {
-  const [panelMode, setPanelMode] = useState<'create' | 'edit' | null>(null);
-  const [editingSerie, setEditingSerie] = useState<Serie | null>(null);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<SeriesFilter>('todas');
-
-  const closePanel = () => {
-    setPanelMode(null);
-    setEditingSerie(null);
-  };
-
-  const handleSave = (serie: Serie) => {
-    onSave(serie);
-    closePanel();
-  };
 
   const activeCount = series.filter(serie => serie.ativa).length;
 
@@ -102,7 +83,7 @@ export function SeriesMobileScreen({
           title="Séries"
           description={
             series.length === 0
-              ? 'Quadros recorrentes com identidade e roteiros vinculados.'
+              ? 'Criação em massa de roteiros. A configuração completa fica no Editorial.'
               : `${activeCount} ativa${activeCount === 1 ? '' : 's'} · ${series.length} no total`
           }
         />
@@ -110,10 +91,7 @@ export function SeriesMobileScreen({
         <AppButton
           variant="primary"
           fullWidth
-          onClick={() => {
-            setEditingSerie(null);
-            setPanelMode('create');
-          }}
+          onClick={onCreate}
           leftIcon={<Plus className="h-4 w-4" />}
         >
           Nova série
@@ -125,7 +103,7 @@ export function SeriesMobileScreen({
           <MobileSearchBar
             value={search}
             onChange={setSearch}
-            placeholder="Buscar série..."
+            placeholder="Buscar série…"
           />
           <MobileSegmentTabs<SeriesFilter>
             value={filter}
@@ -193,14 +171,8 @@ export function SeriesMobileScreen({
                       size="sm"
                       items={[
                         {
-                          label: serie.ativa ? 'Desativar' : 'Ativar',
-                          tone: serie.ativa ? 'default' : 'success',
-                          onClick: () => onToggle(serie),
-                        },
-                        {
-                          label: CONFIRM.excluirSerie.confirmLabel,
-                          tone: 'danger',
-                          onClick: () => onDelete(serie.id),
+                          label: 'Configurar no Editorial',
+                          onClick: () => onConfigure(serie.id),
                         },
                       ]}
                       triggerClassName="border-transparent bg-transparent"
@@ -210,16 +182,10 @@ export function SeriesMobileScreen({
                 }
                 status={
                   <div className="flex flex-wrap items-center gap-2">
-                    <Text
-                      variant="meta"
-                      className={
-                        serie.ativa
-                          ? 'font-semibold text-[var(--accent-green)]'
-                          : 'font-semibold text-[var(--text-tertiary)]'
-                      }
-                    >
-                      {serie.ativa ? 'Ativa' : 'Inativa'}
-                    </Text>
+                    <Badge variant="neutral">{serie.ativa ? 'Ativa' : 'Inativa'}</Badge>
+                    {showOpenBadges && getSerieOpenItems(serie).length > 0 ? (
+                      <Badge variant="neutral">Em aberto</Badge>
+                    ) : null}
                   </div>
                 }
               />
@@ -229,40 +195,6 @@ export function SeriesMobileScreen({
         )}
       </section>
 
-      <BottomSheetModal
-        open={panelMode !== null}
-        onClose={closePanel}
-        desktopMaxW="max-w-xl"
-        zIndex="z-[110]"
-      >
-        <OverlayHeader onClose={closePanel}>
-          <div className="flex items-center gap-3">
-            <span
-              className="h-10 w-10 shrink-0 rounded-[var(--radius-card)] border border-[var(--border-color)]"
-              style={{ backgroundColor: editingSerie?.cor || '#6366f1' }}
-            />
-            <div className="min-w-0">
-              <Text variant="sectionTitle" className="break-words">
-                {panelMode === 'edit' ? editingSerie?.name : 'Nova série'}
-              </Text>
-              <Text variant="meta" className="mt-1 text-[var(--text-secondary)]">
-                Identidade, estrutura e hashtags
-              </Text>
-            </div>
-          </div>
-        </OverlayHeader>
-
-        <OverlayBody className="stack-lg pb-safe">
-          <SeriesForm
-            key={editingSerie?.id || 'new'}
-            initial={editingSerie ?? {}}
-            onSave={handleSave}
-            onCancel={closePanel}
-            platformNames={platformNames}
-            contents={contents}
-          />
-        </OverlayBody>
-      </BottomSheetModal>
     </div>
   );
 }

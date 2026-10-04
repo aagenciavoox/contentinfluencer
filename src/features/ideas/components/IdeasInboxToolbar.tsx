@@ -80,7 +80,7 @@ export function IdeasInboxToolbar({
         size="compact"
         searchValue={search}
         onSearchChange={onSearchChange}
-        searchPlaceholder="Buscar ideias..."
+        searchPlaceholder="Buscar ideias…"
         sortValue={sort}
         onSortChange={(value) => onSortChange(value as IdeasSort)}
         sortOptions={SORT_OPTIONS}

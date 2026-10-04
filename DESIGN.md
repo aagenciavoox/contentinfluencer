@@ -126,9 +126,16 @@ Applies to `AppButton`, `Surface` (interactive), `ListItem`, `IconButton`, and r
 - `--focus-ring` — unified focus shadow (buttons, inputs)
 - `prefers-reduced-motion` — CSS transitions disabled globally; `MotionConfig reducedMotion="user"` in `AppProviders`
 
+### Accent rules
+- **Primary action:** `--brand-accent-strong` (`#E0185A`) — AppButton `primary` fill/border. At most one per screen. `--brand-on-accent` on this fill is ≥ 4.5:1 in both themes.
+- **Decorative brand:** `--brand-accent` (`#FF2D6F`) — nav mark, login, progress. Not for primary buttons.
+- **Selection:** `--accent` (black in light, white in dark) — active tab, on toggle, current day.
+- **Focus ring only:** blue (`--focus-ring` / `--accent-blue`). Do not use blue for selection or primary actions.
+
 ### Semantic colors
 - `--accent`, `--success`, `--warning`, `--danger`, `--info`
 - `--accent-blue`, `--accent-purple`, `--accent-pink`, `--accent-orange`, `--accent-green`
+- `--brand-accent`, `--brand-accent-strong`, `--brand-on-accent`
 
 ### Content pipeline status
 - Tokens: `--status-idea`, `--status-writing`, `--status-ready`, `--status-recorded`, `--status-editing`, `--status-edited`, `--status-scheduled`, `--status-posted`

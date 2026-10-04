@@ -13,6 +13,8 @@ type ContentLike = Pick<
   'id' | 'status' | 'script' | 'title' | 'recordedAt' | 'postedAt' | 'publishDate' | 'tags' | 'deletedAt' | 'pilarId' | 'seriesId'
 >;
 
+type PublicationTimestampContent = Pick<Content, 'postedAt' | 'publishDate'>;
+
 export function isActiveContent(content: ContentLike): boolean {
   return !content.deletedAt;
 }
@@ -38,7 +40,7 @@ export function isPublishedContent(content: ContentLike): boolean {
   return normalizeContentStatus(content.status) === CONTENT_STATUS.POSTADO;
 }
 
-export function getPublicationTimestamp(content: ContentLike): string | null {
+export function getPublicationTimestamp(content: PublicationTimestampContent): string | null {
   return content.postedAt ?? content.publishDate ?? null;
 }
 

@@ -104,7 +104,7 @@ export function PillarEditPage() {
     return state.series.filter(serie => serie.pilarIds.includes(editingPilar.id)).map(serie => serie.id);
   }, [editingPilar, isCreate, state.series]);
 
-  const backToList = () => navigate('/configuracoes/pilares');
+  const backToList = () => navigate('/editorial?aba=pilares');
 
   const syncSeriesLinks = useCallback(
     (pilarIdToLink: string, linkedSerieIds: string[]) => {
@@ -253,7 +253,7 @@ export function PillarEditPage() {
           <DesktopPageHeader
             section="Criação"
             backLabel="Pilares"
-            backTo="/configuracoes/pilares"
+            backTo="/editorial?aba=pilares"
             title={pageTitle}
             meta={pageMeta}
             hideSearch

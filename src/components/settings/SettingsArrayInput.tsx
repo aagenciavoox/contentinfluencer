@@ -16,7 +16,7 @@ export function SettingsArrayInput({
   items,
   onAdd,
   onRemove,
-  placeholder = "Adicionar item...",
+  placeholder = "Adicionar item…",
   label = "Novo item",
   itemClassName,
   bulletColor = "var(--accent-blue)",
@@ -41,7 +41,7 @@ export function SettingsArrayInput({
             onKeyDown={e => e.key === 'Enter' && handleAdd()}
             placeholder={placeholder}
             aria-label={label}
-            className="flex-1 rounded-xl border-none bg-[var(--bg-hover)] px-4 py-2.5 text-sm text-[var(--text-primary)] placeholder:opacity-30 focus:ring-1 focus:ring-[var(--border-strong)]"
+            className="flex-1 rounded-xl border-none bg-[var(--bg-hover)] px-4 py-2.5 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:ring-1 focus:ring-[var(--border-strong)]"
           />
           <button
             type="button"
@@ -75,7 +75,7 @@ export function SettingsArrayInput({
           </li>
         ))}
         {items.length === 0 && (
-          <p className="py-2 text-center text-xs italic text-[var(--text-tertiary)] opacity-50">
+          <p className="py-2 text-center text-xs italic text-[var(--text-tertiary)]">
             Nenhum item adicionado.
           </p>
         )}

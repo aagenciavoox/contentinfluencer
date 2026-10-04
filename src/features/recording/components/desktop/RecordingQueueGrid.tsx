@@ -82,7 +82,7 @@ export function RecordingQueueGrid({
               <span className="h-0.5 w-2 rounded-full bg-[var(--text-primary)]" />
             ) : null}
           </span>
-          {allSelected ? 'Desmarcar pagina' : 'Selecionar pagina'}
+          {allSelected ? 'Desmarcar página' : 'Selecionar página'}
         </button>
 
         {someSelected ? (
@@ -91,10 +91,10 @@ export function RecordingQueueGrid({
             onClick={onClearSelection}
             className="text-xs font-semibold text-[var(--text-tertiary)] underline-offset-2 hover:text-[var(--text-secondary)] hover:underline"
           >
-            Limpar selecao ({selectedIds.size})
+            Limpar seleção ({selectedIds.size})
           </button>
         ) : (
-          <span className="text-xs text-[var(--text-tertiary)]">{contents.length} roteiros na grade</span>
+          <span className="text-xs text-[var(--text-tertiary)]">{contents.length} {contents.length === 1 ? 'roteiro' : 'roteiros'} na grade</span>
         )}
       </div>
 
@@ -129,7 +129,7 @@ export function RecordingQueueGrid({
                       ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-[var(--bg-primary)]'
                       : 'border-[var(--border-color)] text-[var(--text-secondary)] hover:border-[var(--border-strong)] hover:bg-[var(--bg-hover)]'
                   )}
-                  aria-label={isSelected ? 'Remover da selecao' : 'Selecionar para bloco'}
+                  aria-label={isSelected ? 'Remover da seleção' : 'Selecionar para bloco'}
                 >
                   {isSelected ? <Check className="h-3.5 w-3.5 stroke-[3px]" /> : null}
                 </button>
@@ -148,7 +148,7 @@ export function RecordingQueueGrid({
                     type="button"
                     onClick={() => onOpen(content.id)}
                     className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-[var(--radius-input)] border border-[var(--border-color)] text-[var(--text-secondary)] opacity-70 transition-all hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] group-hover:opacity-100"
-                    aria-label="Abrir detalhe do conteudo"
+                    aria-label="Abrir detalhes do roteiro"
                   >
                     <ExternalLink className="h-3.5 w-3.5" />
                   </button>

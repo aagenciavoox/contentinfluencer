@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {captionHashtagPresets, mergeHashtags, parseHashtags} from './captionHashtags.ts';
+import {captionHashtagPresets, mergeHashtags, parseHashtags, suggestHashtags} from './captionHashtags.ts';
 
 const serie = {
   name: 'Curto e viral',
@@ -27,5 +27,17 @@ assert.deepEqual(
   mergeHashtags(['#livro'], ['#leitura', '#livro', '#extra']),
   ['#livro', '#leitura', '#extra'],
 );
+
+assert.deepEqual(
+  suggestHashtags({ platformId: 'Instagram', serie, pilar, limite: 3 }),
+  ['#livro', '#leitura', '#eu'],
+);
+
+assert.deepEqual(
+  suggestHashtags({ platformId: 'Instagram', serie, pilar, limite: 10 }),
+  ['#livro', '#leitura', '#eu'],
+);
+
+assert.deepEqual(suggestHashtags({ platformId: 'Tiktok', serie, pilar }), []);
 
 console.log('ok - caption hashtag presets keep series and pillar tags');

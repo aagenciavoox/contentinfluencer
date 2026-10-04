@@ -64,8 +64,8 @@ export function SettingsPage() {
       key: 'perfil',
       to: '/configuracoes/perfil',
       icon: UserCircle2,
-      title: 'Perfil e Seguranca',
-      desc: 'Atualize nome, email da conta e senha para desktop e mobile',
+      title: 'Perfil e segurança',
+      desc: 'Nome, e-mail de acesso e senha',
     },
     {
       key: 'plataformas',
@@ -82,8 +82,8 @@ export function SettingsPage() {
     desc: string;
     icon: React.ElementType;
   }> = [
-    {key: 'library', title: 'Biblioteca', desc: 'Acervo e notas de consumo', icon: BookOpen},
-    {key: 'recording', title: 'Gravação', desc: 'Fila, blocos e modo explosão', icon: Camera},
+    {key: 'library', title: 'Biblioteca', desc: 'Obras e anotações', icon: BookOpen},
+    {key: 'recording', title: 'Gravação', desc: 'Fila, blocos e modo gravação', icon: Camera},
     {key: 'calendar', title: 'Calendário', desc: 'Agenda e visão mensal editorial', icon: Calendar},
     {key: 'projects', title: 'Projetos', desc: 'Campanhas, publis e produções', icon: FolderKanban},
   ];
@@ -134,8 +134,8 @@ export function SettingsPage() {
     {
       key: 'enabled',
       icon: HeartHandshake,
-      title: 'Experiencia gentil',
-      desc: 'Troca cobrancas por linguagem de apoio e escolhas sem pressa',
+      title: 'Experiência gentil',
+      desc: 'Troca cobranças por linguagem de apoio e escolhas sem pressa',
       enabled: gentleExperience.enabled,
       onToggle: () => updateGentleExperience({enabled: !gentleExperience.enabled}),
     },
@@ -143,23 +143,23 @@ export function SettingsPage() {
       key: 'pauseMode',
       icon: PauseCircle,
       title: 'Modo pausa',
-      desc: 'Guarda tudo sem sugerir proximos movimentos no dashboard',
+      desc: 'Guarda tudo sem sugerir próximos passos no dashboard',
       enabled: gentleExperience.pauseMode,
       onToggle: () => updateGentleExperience({pauseMode: !gentleExperience.pauseMode}),
     },
     {
       key: 'calmSuggestions',
       icon: Leaf,
-      title: 'Sugestoes calmas',
-      desc: 'Mostra caminhos possiveis em vez de destaques fortes',
+      title: 'Sugestões calmas',
+      desc: 'Mostra caminhos possíveis em vez de destaques fortes',
       enabled: gentleExperience.calmSuggestions,
       onToggle: () => updateGentleExperience({calmSuggestions: !gentleExperience.calmSuggestions}),
     },
     {
       key: 'dashboardCounts',
       icon: Hash,
-      title: 'Numeros no dashboard',
-      desc: 'Permite ocultar contadores quando voce quiser uma leitura mais leve',
+      title: 'Números no dashboard',
+      desc: 'Permite ocultar contadores quando você quiser uma leitura mais leve',
       enabled: gentleExperience.dashboardCounts,
       onToggle: () => updateGentleExperience({dashboardCounts: !gentleExperience.dashboardCounts}),
     },
@@ -209,9 +209,7 @@ export function SettingsPage() {
     >
         <section className="stack-md">
           <div>
-            <p className="text-xs font-semibold t-label-uppercase text-[var(--text-tertiary)] opacity-60">
-              Ritmo
-            </p>
+            <Text variant="eyebrow">Ritmo</Text>
             <Text variant="sectionTitle" className="mt-1 tracking-tight">
               Ajuste como o sistema conversa com você
             </Text>
@@ -228,8 +226,8 @@ export function SettingsPage() {
                     <CardIcon className="h-4 w-4 opacity-50" />
                   </div>
                   <div className="min-w-0">
-                    <p className="t-secondary font-semibold leading-snug text-[var(--text-primary)] truncate">{title}</p>
-                    <p className="mt-0.5 text-xs leading-relaxed text-[var(--text-secondary)] opacity-60 line-clamp-2">{desc}</p>
+                    <Text variant="bodyStrong" truncate className="leading-snug">{title}</Text>
+                    <Text variant="secondary" className="mt-0.5 leading-relaxed">{desc}</Text>
                   </div>
                 </div>
 
@@ -247,9 +245,7 @@ export function SettingsPage() {
 
         <section className="stack-md">
           <div>
-            <p className="text-xs font-semibold t-label-uppercase text-[var(--text-tertiary)] opacity-60">
-              Escrita
-            </p>
+            <Text variant="eyebrow">Escrita</Text>
             <Text variant="sectionTitle" className="mt-1 tracking-tight">
               Escolha como o roteiro ocupa a tela
             </Text>
@@ -262,10 +258,10 @@ export function SettingsPage() {
                   <Columns2 className="h-4 w-4 opacity-50" />
                 </div>
                 <div className="min-w-0">
-                  <p className="t-secondary font-semibold leading-snug text-[var(--text-primary)] truncate">Modo de escrita</p>
-                  <p className="mt-0.5 text-xs leading-relaxed text-[var(--text-secondary)] opacity-60 line-clamp-3">
+                  <Text variant="bodyStrong" truncate className="leading-snug">Modo de escrita</Text>
+                  <Text variant="secondary" className="mt-0.5 leading-relaxed">
                     Separa o roteiro da gestão. Status, agendamento e legendas ficam em outra aba, e você pode abrir uma área de notas ao lado do texto.
-                  </p>
+                  </Text>
                 </div>
               </div>
 
@@ -282,11 +278,9 @@ export function SettingsPage() {
 
         <section className="stack-md">
           <div>
-            <p className="text-xs font-semibold t-label-uppercase text-[var(--text-tertiary)] opacity-60">
-              Módulos
-            </p>
+            <Text variant="eyebrow">Módulos</Text>
             <Text variant="sectionTitle" className="mt-1 tracking-tight">
-              Ligue ou desligue superfícies secundárias
+              Ligue ou desligue áreas do app
             </Text>
           </div>
 
@@ -301,8 +295,8 @@ export function SettingsPage() {
                     <CardIcon className="h-4 w-4 opacity-50" />
                   </div>
                   <div className="min-w-0">
-                    <p className="t-secondary font-semibold leading-snug text-[var(--text-primary)] truncate">{title}</p>
-                    <p className="mt-0.5 text-xs leading-relaxed text-[var(--text-secondary)] opacity-60 line-clamp-2">{desc}</p>
+                    <Text variant="bodyStrong" truncate className="leading-snug">{title}</Text>
+                    <Text variant="secondary" className="mt-0.5 leading-relaxed">{desc}</Text>
                   </div>
                 </div>
 
@@ -320,9 +314,7 @@ export function SettingsPage() {
 
         <section className="stack-md">
           <div>
-            <p className="text-xs font-semibold t-label-uppercase text-[var(--text-tertiary)] opacity-60">
-              Diretrizes & Grade
-            </p>
+            <Text variant="eyebrow">Diretrizes e grade</Text>
             <Text variant="sectionTitle" className="mt-1 tracking-tight">
               Gerencie a base e os parâmetros da sua criação
             </Text>
@@ -346,19 +338,19 @@ export function SettingsPage() {
                         <div className="flex items-center gap-1.5">
                           {(() => {
                             if (status === 'complete') return <Check className="h-3.5 w-3.5 text-[var(--accent-green)]" />;
-                            if (status === 'empty') return <span className="rounded px-1.5 py-0.5 text-xs font-semibold bg-[var(--accent-pink)]/10 text-[var(--accent-pink)]">Pendente</span>;
+                            if (status === 'empty') return <span className="rounded px-1.5 py-0.5 text-xs font-semibold bg-[var(--accent-pink)]/10 text-[var(--accent-pink)]">Em aberto</span>;
                             if (status === 'partial') return <span className="rounded px-1.5 py-0.5 text-xs font-semibold bg-[var(--accent-orange)]/10 text-[var(--accent-orange)]">Parcial</span>;
                             return null;
                           })()}
-                          <ChevronRight className="h-3.5 w-3.5 text-[var(--text-primary)] opacity-20 transition-all duration-300 group-hover:translate-x-1 group-hover:opacity-60" />
+                          <ChevronRight className="h-3.5 w-3.5 text-[var(--text-tertiary)] transition-all duration-300 group-hover:translate-x-1 group-hover:text-[var(--text-primary)]" />
                         </div>
                       </div>
                       <Text variant="itemTitle" truncate className="tracking-tight leading-snug">
                         {title}
                       </Text>
-                      <p className="mt-1 text-xs leading-relaxed text-[var(--text-secondary)] opacity-60 line-clamp-2">
+                      <Text variant="secondary" className="mt-1 leading-relaxed">
                         {desc}
-                      </p>
+                      </Text>
                     </div>
                   </div>
                 </button>

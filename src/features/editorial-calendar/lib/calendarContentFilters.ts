@@ -25,7 +25,7 @@ export function collectPlatformNames(platforms: Platform[], usedNames: Iterable<
 
 export function platformFilterOptions(names: string[]) {
   return [
-    {label: 'Todas as plataformas', value: ALL_PLATFORMS},
+    {label: 'Todas', value: ALL_PLATFORMS},
     ...names.map(name => ({label: name, value: name})),
   ];
 }

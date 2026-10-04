@@ -1,19 +1,24 @@
-import {Check, Copy, Instagram, Plus, Youtube} from 'lucide-react';
+import {Check, Copy} from 'lucide-react';
 import {useEffect, useMemo, useRef, useState} from 'react';
 import {DEFAULT_PLATFORMS} from '../../../../constants';
 import {useAppContext} from '../../../../context/AppContext';
 import type {ContentPlataforma, Pilar, Serie} from '../../../../lib/database';
+import {generateUUID} from '../../../../utils/uuid';
 import {cn} from '../../../../lib/utils';
 import {AppButton} from '../../../../components/ui/AppButton';
-import {Surface} from '../../../../components/ui/Surface';
+import {PlatformIcon as PlatformTabIcon, platformDisplayName, platformKey} from '../../../../components/ui/PlatformIcon';
 import {Text} from '../../../../components/ui/Text';
 import {TagPill} from '../../../../components/ui/TagSelect';
+import {DestinationChips} from '../../../editorial/components/DestinationChips';
+import {adaptarLegenda, definirLegendaCompartilhada, legendaEfetiva} from '../../../editorial/lib/captions';
+import {destinoMarcado, publicacaoDoDestino, type DestinoPlataforma} from '../../../editorial/lib/destinations';
+import {getEditorialSettings, limiteHashtagsDaRede} from '../../../editorial/lib/editorialSettings';
+import {platformShowsField} from '../../../editorial/lib/platformFields';
 import {
-  CAPTION_HASHTAG_MAX,
-  captionHashtagPresets,
   joinHashtags,
   mergeHashtags,
   parseHashtags,
+  suggestHashtags,
 } from '../../lib/captionHashtags';
 
 const CHAR_LIMITS: Record<string, number> = {
@@ -42,117 +47,43 @@ const PLATFORM_BRAND: Record<string, {shell: string; icon: string}> = {
   },
 };
 
-function TikTokIcon({className}: {className?: string}) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} fill="currentColor" aria-hidden>
-      <path d="M16.5 3.5c.7 1.4 1.8 2.5 3.2 3.1V10c-1.1-.1-2.2-.4-3.2-.9v6.8c0 3.4-2.8 6.2-6.2 6.2S4.1 19.3 4.1 15.9 6.9 9.7 10.3 9.7c.4 0 .8 0 1.2.1v3.4c-.3-.1-.7-.2-1.1-.2-1.6 0-2.9 1.3-2.9 2.9s1.3 2.9 2.9 2.9 2.9-1.3 2.9-2.9V3.5h3.2z" />
-    </svg>
-  );
-}
-
-function PlatformTabIcon({platform, className}: {platform: string; className?: string}) {
-  if (platform === 'Instagram') return <Instagram className={className} />;
-  if (platform === 'YouTube') return <Youtube className={className} />;
-  if (platform === 'TikTok') return <TikTokIcon className={className} />;
-  return <span className={cn('text-xs font-bold', className)}>{platform.slice(0, 2)}</span>;
-}
-
-function PlatformIconBadge({platform}: {platform: string}) {
-  const brand = PLATFORM_BRAND[platform] ?? PLATFORM_BRAND.Blog;
-
-  return (
-    <span
-      className={cn(
-        'inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-[var(--radius-sm)]',
-        brand.shell,
-      )}
-    >
-      <PlatformTabIcon platform={platform} className={cn('h-3.5 w-3.5', brand.icon)} />
-    </span>
-  );
-}
-
-function PlatformStatusDot({status}: {status: 'empty' | 'partial' | 'complete'}) {
-  if (status === 'empty') {
-    return <span className="h-4 w-4 shrink-0" aria-hidden />;
-  }
-
-  if (status === 'partial') {
-    return (
-      <span
-        className="h-2 w-2 shrink-0 rounded-full bg-[var(--warning)]"
-        aria-label="Legenda sem hashtags"
-      />
-    );
-  }
-
-  return (
-    <span
-      className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-[var(--success)]"
-      aria-label="Legenda completa"
-    >
-      <Check className="h-2.5 w-2.5 text-[var(--bg-elevated)]" strokeWidth={3} />
-    </span>
-  );
-}
-
-function PlatformToggleButton({
-  platform,
-  isEnabled,
-  isActive,
-  completion,
-  disabled,
-  appearance = 'default',
-  onClick,
+function HashtagInlineField({
+  disabled = false,
+  onAdd,
 }: {
-  platform: string;
-  isEnabled: boolean;
-  isActive: boolean;
-  completion: 'empty' | 'partial' | 'complete' | 'inactive';
   disabled?: boolean;
-  appearance?: 'default' | 'manage';
-  onClick: () => void;
+  onAdd: (raw: string) => void;
 }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      aria-pressed={isEnabled}
-      className={cn(
-        'inline-flex h-10 min-w-[132px] items-center gap-2.5 rounded-[var(--radius-input)] px-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] disabled:opacity-50',
-        appearance === 'manage'
-          ? isActive
-            ? 'border border-[var(--accent-blue)] bg-[color-mix(in_srgb,var(--accent-blue)_12%,var(--bg-elevated))] text-[var(--text-primary)]'
-            : 'border border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] hover:border-[var(--border-strong)]'
-          : isEnabled && isActive
-            ? 'border-2 border-[var(--accent-purple)] bg-[var(--bg-elevated)] text-[var(--text-primary)]'
-            : isEnabled
-              ? 'border border-[var(--border-strong)] bg-[var(--bg-elevated)] text-[var(--text-primary)] hover:border-[var(--accent-purple)]'
-              : 'border border-[var(--border-color)] bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]',
-      )}
-    >
-      <PlatformIconBadge platform={platform} />
-      <span className="min-w-0 flex-1 truncate text-left">{platform}</span>
-      {appearance === 'manage' ? (
-        isEnabled ? (
-          <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-[var(--accent-blue)] text-[var(--bg-primary)]">
-            <Check className="h-2.5 w-2.5" strokeWidth={3} />
-          </span>
-        ) : (
-          <Plus className="h-3.5 w-3.5 text-[var(--text-tertiary)]" />
-        )
-      ) : isEnabled ? (
-        <PlatformStatusDot status={completion === 'inactive' ? 'empty' : completion} />
-      ) : null}
-    </button>
-  );
-}
+  const [value, setValue] = useState('');
 
-function platformCompletion(record: ContentPlataforma | undefined): 'empty' | 'partial' | 'complete' {
-  if (!record?.legenda?.trim()) return 'empty';
-  if (record.hashtags?.trim()) return 'complete';
-  return 'partial';
+  const commit = () => {
+    const next = value.trim();
+    if (!next) return;
+    onAdd(next);
+    setValue('');
+  };
+
+  return (
+    <input
+      type="text"
+      value={value}
+      disabled={disabled}
+      placeholder="Nova hashtag"
+      aria-label="Nova hashtag"
+      className="h-8 min-w-[8.5rem] max-w-[12rem] rounded-[var(--radius-pill)] border border-dashed border-[var(--border-color)] bg-transparent px-2.5 text-xs font-semibold text-[var(--text-primary)] outline-none placeholder:text-[var(--text-secondary)] focus-visible:shadow-[var(--focus-ring)] disabled:opacity-50"
+      onChange={event => setValue(event.target.value)}
+      onKeyDown={event => {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          commit();
+        }
+        if (event.key === 'Escape') {
+          event.preventDefault();
+          setValue('');
+        }
+      }}
+    />
+  );
 }
 
 export function ensurePlatformRecord(
@@ -164,13 +95,20 @@ export function ensurePlatformRecord(
   if (existing) return existing;
 
   return {
-    id: '',
+    id: generateUUID(),
     contentId,
     platformId,
     legenda: '',
     hashtags: '',
     publishDate: null,
     publishDateEnabled: false,
+    status: 'agendada',
+    realizadaManualEm: null,
+    realizadaApiEm: null,
+    postCodigo: null,
+    postUrl: null,
+    legendaPropria: false,
+    contaNaGrade: true,
   } satisfies ContentPlataforma;
 }
 
@@ -181,7 +119,11 @@ interface PlatformCopyEditorProps {
   disabled?: boolean;
   onChange: (plataformas: ContentPlataforma[]) => void;
   embedded?: boolean;
-  presentation?: 'panel' | 'manage';
+  contentId?: string;
+  legendaBase?: string | null;
+  onLegendaBaseChange?: (value: string) => void;
+  titulo?: string;
+  onTituloChange?: (value: string) => void;
 }
 
 export function PlatformCopyEditor({
@@ -191,88 +133,99 @@ export function PlatformCopyEditor({
   disabled = false,
   onChange,
   embedded = false,
-  presentation = 'panel',
+  contentId = '',
+  legendaBase = null,
+  onLegendaBaseChange,
+  titulo = '',
+  onTituloChange,
 }: PlatformCopyEditorProps) {
   const {state} = useAppContext();
-  const registeredPlatforms = useMemo(
+  const registeredPlatforms = useMemo<DestinoPlataforma[]>(
     () => {
-      const active = state.platforms.filter(platform => platform.ativo).map(platform => platform.nome);
-      return active.length > 0 ? active : DEFAULT_PLATFORMS;
+      const active = state.platforms
+        .filter(platform => platform.ativo)
+        .map(platform => ({id: platform.id, nome: platform.nome}));
+      if (active.length > 0) return active;
+      return DEFAULT_PLATFORMS.map(nome => ({id: nome, nome}));
     },
     [state.platforms],
   );
   const [activePlatform, setActivePlatform] = useState<string>(
-    plataformas[0]?.platformId || registeredPlatforms[0] || DEFAULT_PLATFORMS[0],
+    plataformas[0]?.platformId || registeredPlatforms[0]?.id || '',
   );
   const [copied, setCopied] = useState<'legenda' | 'tudo' | null>(null);
   const legendaTextareaRef = useRef<HTMLTextAreaElement>(null);
-
-  const activePlatformIds = plataformas.map(item => item.platformId);
+  
+  const activeDestino = registeredPlatforms.find(platform => platform.id === activePlatform)
+    ?? registeredPlatforms.find(platform => platform.nome === activePlatform)
+    ?? {id: activePlatform, nome: activePlatform};
   const currentPlatform = useMemo(
-    () => ensurePlatformRecord(plataformas, activePlatform),
-    [activePlatform, plataformas]
+    () => publicacaoDoDestino(plataformas, activeDestino) ?? ensurePlatformRecord(plataformas, activeDestino.id, contentId),
+    [activeDestino, contentId, plataformas]
   );
   const hashtagTags = useMemo(() => parseHashtags(currentPlatform.hashtags), [currentPlatform.hashtags]);
-  const hashtagPresets = useMemo(
-    () => captionHashtagPresets(activePlatform, serie, pilar),
-    [activePlatform, pilar, serie],
+  const hashtagLimit = limiteHashtagsDaRede(
+    getEditorialSettings(state.preferences),
+    activeDestino.id,
+    activeDestino.nome,
   );
-  const charLimit = CHAR_LIMITS[activePlatform];
-  const charCount = currentPlatform.legenda.length;
+  const sugestaoHashtags = useMemo(
+    () => suggestHashtags({
+      platformId: activeDestino.nome,
+      serie,
+      pilar,
+      limite: hashtagLimit,
+    }),
+    [activeDestino.nome, hashtagLimit, pilar, serie],
+  );
+  const legendaVisivel = legendaEfetiva(legendaBase, currentPlatform);
+  const charCount = legendaVisivel.length;
+  const redeNome = platformDisplayName(activeDestino.nome || activePlatform);
+  const mostraTitulo = platformShowsField(redeNome, 'titulo');
+  const mostraHashtags = platformShowsField(redeNome, 'hashtags');
+  const charLimit = CHAR_LIMITS[redeNome];
 
   useEffect(() => {
-    if (registeredPlatforms.includes(activePlatform)) return;
-    setActivePlatform(activePlatformIds[0] || registeredPlatforms[0] || DEFAULT_PLATFORMS[0]);
-  }, [activePlatform, activePlatformIds, registeredPlatforms]);
+    const current = registeredPlatforms.find(platform => platform.id === activePlatform);
+    if (current && destinoMarcado(plataformas, current)) return;
+    const marked = registeredPlatforms.find(platform => destinoMarcado(plataformas, platform));
+    if (marked) {
+      setActivePlatform(marked.id);
+      return;
+    }
+    if (!current) setActivePlatform(registeredPlatforms[0]?.id || '');
+  }, [activePlatform, plataformas, registeredPlatforms]);
 
   useEffect(() => {
-    if (presentation === 'manage') return;
     const textarea = legendaTextareaRef.current;
     if (!textarea) return;
     textarea.style.height = 'auto';
     textarea.style.height = `${textarea.scrollHeight}px`;
-  }, [activePlatform, currentPlatform.legenda, presentation]);
-
-  const handlePlatformClick = (platform: string) => {
-    const isEnabled = activePlatformIds.includes(platform);
-
-    if (!isEnabled) {
-      onChange([...plataformas, ensurePlatformRecord(plataformas, platform)]);
-      setActivePlatform(platform);
-      return;
-    }
-
-    if (activePlatform !== platform) {
-      setActivePlatform(platform);
-      return;
-    }
-
-    const next = plataformas.filter(item => item.platformId !== platform);
-    onChange(next);
-    setActivePlatform(next[0]?.platformId || registeredPlatforms.find(name => name !== platform) || '');
-  };
+  }, [activePlatform, legendaVisivel]);
 
   const updatePlatform = (platformId: string, updates: Partial<ContentPlataforma>) => {
+    const alvo = registeredPlatforms.find(platform => platform.id === platformId)
+      ?? {id: platformId, nome: platformId};
     const next = plataformas.map(plataforma =>
-      plataforma.platformId === platformId ? {...plataforma, ...updates} : plataforma
+      plataforma.platformId === alvo.id || plataforma.platformId === alvo.nome
+        ? {...plataforma, ...updates}
+        : plataforma
     );
-
-    if (!plataformas.some(plataforma => plataforma.platformId === platformId)) {
-      next.push({...ensurePlatformRecord(plataformas, platformId), ...updates});
+    if (!next.some(plataforma => plataforma.platformId === alvo.id || plataforma.platformId === alvo.nome)) {
+      next.push({...ensurePlatformRecord(plataformas, alvo.id, contentId), ...updates});
     }
-
     onChange(next);
   };
 
   const setHashtags = (tags: string[]) => {
-    updatePlatform(activePlatform, {hashtags: joinHashtags(tags.slice(0, CAPTION_HASHTAG_MAX))});
+    updatePlatform(activePlatform, {hashtags: joinHashtags(tags.slice(0, hashtagLimit))});
   };
 
   const handleCopy = async (mode: 'legenda' | 'tudo') => {
     const text =
       mode === 'legenda'
-        ? currentPlatform.legenda.trim()
-        : [currentPlatform.legenda.trim(), currentPlatform.hashtags.trim()].filter(Boolean).join('\n\n');
+        ? legendaVisivel.trim()
+        : [legendaVisivel.trim(), mostraHashtags ? currentPlatform.hashtags.trim() : ''].filter(Boolean).join('\n\n');
     if (!text) return;
     await navigator.clipboard.writeText(text);
     setCopied(mode);
@@ -282,79 +235,13 @@ export function PlatformCopyEditor({
   const addHashtag = (raw: string) => {
     const next = parseHashtags(raw);
     if (next.length === 0) return;
-    setHashtags(mergeHashtags(hashtagTags, next));
+    setHashtags(mergeHashtags(hashtagTags, next, hashtagLimit));
   };
-
-  if (presentation === 'manage') {
-    return (
-      <Surface variant="outlined" padding="lg" className="flex h-full flex-col bg-[var(--bg-elevated)]">
-        <Text variant="sectionTitle" as="h3">Legendas</Text>
-        <Text variant="secondary" className="mt-1">
-          Prepare uma versão para cada plataforma.
-        </Text>
-        <span className="mb-2 mt-4 block text-sm text-[var(--text-secondary)]">Plataformas</span>
-        {registeredPlatforms.length > 0 ? (
-          <div className="flex flex-wrap items-center gap-2">
-            {registeredPlatforms.map(platform => {
-              const isEnabled = activePlatformIds.includes(platform);
-              const record = plataformas.find(item => item.platformId === platform);
-              return (
-                <PlatformToggleButton
-                  key={platform}
-                  platform={platform}
-                  isEnabled={isEnabled}
-                  isActive={isEnabled && activePlatform === platform}
-                  completion={isEnabled ? platformCompletion(record) : 'inactive'}
-                  disabled={disabled}
-                  appearance="manage"
-                  onClick={() => handlePlatformClick(platform)}
-                />
-              );
-            })}
-          </div>
-        ) : (
-          <Text variant="secondary">Cadastre uma plataforma em Configurações → Plataformas.</Text>
-        )}
-        {activePlatformIds.length > 0 && activePlatformIds.includes(activePlatform) ? (
-          <div className="mt-4">
-            <p className="text-sm font-semibold text-[var(--text-primary)]">
-              Legenda para {activePlatform}
-            </p>
-            <div className="relative mt-2">
-              <textarea
-                ref={legendaTextareaRef}
-                value={currentPlatform.legenda}
-                disabled={disabled}
-                rows={4}
-                onChange={event => updatePlatform(activePlatform, {legenda: event.target.value})}
-                className="block min-h-28 w-full resize-none rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-primary)] px-3 pb-8 pt-3 text-sm leading-6 text-[var(--text-primary)] outline-none focus-visible:shadow-[var(--focus-ring)] disabled:opacity-60"
-                placeholder="Escreva a legenda desta publicação..."
-              />
-              <span
-                className={cn(
-                  'pointer-events-none absolute bottom-2 right-3 text-xs',
-                  charLimit && charCount > charLimit
-                    ? 'text-[var(--danger)]'
-                    : 'text-[var(--text-tertiary)]',
-                )}
-              >
-                {charCount} caracteres
-              </span>
-            </div>
-          </div>
-        ) : registeredPlatforms.length > 0 ? (
-          <Text variant="secondary" className="mt-4">
-            Ative pelo menos uma plataforma para preparar legendas.
-          </Text>
-        ) : null}
-      </Surface>
-    );
-  }
 
   return (
     <section className="cms-panel overflow-hidden">
       <div className="border-b border-[var(--border-color)] px-4 py-3">
-        <Text variant="sectionTitle">{embedded ? 'Legendas' : 'Preparar distribuicao'}</Text>
+        <Text variant="sectionTitle">{embedded ? 'Legendas' : 'Preparar distribuição'}</Text>
         {embedded ? (
           <Text variant="secondary" className="mt-0.5">
             Gerencie as legendas para cada plataforma.
@@ -363,59 +250,81 @@ export function PlatformCopyEditor({
       </div>
 
       <div className="p-4">
-        {registeredPlatforms.length > 0 ? (
-          <div className="flex flex-wrap items-center gap-2">
-            {registeredPlatforms.map(platform => {
-              const isEnabled = activePlatformIds.includes(platform);
-              const record = plataformas.find(item => item.platformId === platform);
+        <DestinationChips
+          platforms={registeredPlatforms}
+          publications={plataformas}
+          contentId={contentId}
+          disabled={disabled}
+          activePlatformId={activeDestino.id}
+          onActivate={setActivePlatform}
+          onChange={onChange}
+        />
 
-              return (
-                <PlatformToggleButton
-                  key={platform}
-                  platform={platform}
-                  isEnabled={isEnabled}
-                  isActive={activePlatform === platform}
-                  completion={isEnabled ? platformCompletion(record) : 'inactive'}
-                  disabled={disabled}
-                  onClick={() => handlePlatformClick(platform)}
-                />
-              );
-            })}
-          </div>
-        ) : (
-          <p className="text-sm text-[var(--text-secondary)]">
-            Cadastre uma plataforma em Configuracoes → Plataformas.
-          </p>
-        )}
-
-        {activePlatformIds.length > 0 && activePlatformIds.includes(activePlatform) ? (
+        {destinoMarcado(plataformas, activeDestino) ? (
           <>
-            <div className="mt-4 flex items-center justify-between gap-3">
+            {mostraTitulo ? (
+              <label className="mt-4 block">
+                <span className="mb-1.5 block text-xs font-semibold text-[var(--text-tertiary)]">Título</span>
+                <input
+                  value={titulo}
+                  disabled={disabled}
+                  onChange={event => onTituloChange?.(event.target.value)}
+                  className="min-h-11 w-full rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-primary)] px-3 text-sm text-[var(--text-primary)] outline-none focus-visible:shadow-[var(--focus-ring)] disabled:opacity-60"
+                />
+              </label>
+            ) : null}
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
               <p className="text-sm font-semibold text-[var(--text-primary)]">
-                Legenda para {activePlatform}
+                {currentPlatform.legendaPropria ? 'Legenda para ' + redeNome : 'Legenda compartilhada'}
               </p>
-              <p
-                className={cn(
-                  'text-xs font-semibold',
-                  charCount > 0 && charCount <= (charLimit ?? Infinity)
-                    ? 'text-[var(--success)]'
-                    : 'text-[var(--text-tertiary)]',
+              <div className="flex flex-wrap items-center gap-2">
+                {currentPlatform.legendaPropria ? null : (
+                  <button
+                    type="button"
+                    disabled={disabled}
+                    onClick={() => onChange(adaptarLegenda(legendaBase, plataformas, activeDestino))}
+                    className="inline-flex min-h-11 items-center rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-3 text-xs font-semibold text-[var(--text-primary)]"
+                  >
+                    {'Adaptar para ' + redeNome}
+                  </button>
                 )}
-              >
-                {charCount} caracteres
-              </p>
+                <p
+                  className={cn(
+                    'text-xs font-semibold',
+                    charCount > 0 && charCount <= (charLimit ?? Infinity)
+                      ? 'text-[var(--success)]'
+                      : 'text-[var(--text-tertiary)]',
+                  )}
+                >
+                  {charCount} caracteres
+                </p>
+              </div>
             </div>
 
             <div className="mt-3">
               <div className="relative w-full rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-primary)]">
                 <textarea
                   ref={legendaTextareaRef}
-                  value={currentPlatform.legenda}
+                  value={legendaVisivel}
                   disabled={disabled}
                   rows={1}
-                  onChange={event => updatePlatform(activePlatform, {legenda: event.target.value})}
+                  onChange={event => {
+                    const value = event.target.value;
+                    if (currentPlatform.legendaPropria) {
+                      updatePlatform(activeDestino.id, {legenda: value, legendaPropria: true});
+                      return;
+                    }
+                    const shared = definirLegendaCompartilhada({
+                      legendaBaseAtual: legendaBase,
+                      novoTexto: value,
+                      publicacoes: plataformas,
+                      plataformaEditada: activeDestino,
+                    });
+                    onLegendaBaseChange?.(shared.legendaBase);
+                    onChange(shared.publicacoes);
+                  }}
                   className="block min-h-[4.5rem] w-full resize-none overflow-hidden bg-transparent px-4 pt-4 pb-8 text-sm leading-7 text-[var(--text-primary)] outline-none disabled:opacity-60"
-                  placeholder={`Copy para ${activePlatform}`}
+                  placeholder={currentPlatform.legendaPropria ? 'Legenda para ' + redeNome : 'Legenda compartilhada'}
                 />
                 {charLimit ? (
                   <span
@@ -433,65 +342,52 @@ export function PlatformCopyEditor({
                 <button
                   type="button"
                   onClick={() => void handleCopy('legenda')}
-                  disabled={!currentPlatform.legenda.trim()}
-                  className="inline-flex items-center justify-center gap-1.5 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-3 py-2 text-xs font-semibold text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-hover)] disabled:opacity-40"
+                  disabled={!legendaVisivel.trim()}
+                  className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-3 py-2 text-xs font-semibold text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-hover)] disabled:opacity-40"
                 >
                   {copied === 'legenda' ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
                   Copiar legenda
                 </button>
-                <button
-                  type="button"
-                  onClick={() => void handleCopy('tudo')}
-                  disabled={!currentPlatform.legenda.trim() && !currentPlatform.hashtags.trim()}
-                  className="inline-flex items-center justify-center gap-1.5 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-3 py-2 text-xs font-semibold text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-hover)] disabled:opacity-40"
-                >
-                  {copied === 'tudo' ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-                  Copiar tudo (legenda + hashtags)
-                </button>
+                {mostraHashtags ? (
+                  <button
+                    type="button"
+                    onClick={() => void handleCopy('tudo')}
+                    disabled={!legendaVisivel.trim() && !currentPlatform.hashtags.trim()}
+                    className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-3 py-2 text-xs font-semibold text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-hover)] disabled:opacity-40"
+                  >
+                    {copied === 'tudo' ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                    Copiar tudo (legenda + hashtags)
+                  </button>
+                ) : null}
               </div>
             </div>
 
+            {mostraHashtags ? (
             <div className="mt-4 rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-primary)] p-4">
               <p className="text-sm font-semibold text-[var(--text-primary)]">Hashtags</p>
-              {hashtagPresets.length > 0 ? (
-                <div className="mt-3 stack-sm">
-                  {hashtagPresets.map(preset => {
-                    const missing = preset.tags.filter(
-                      tag => !hashtagTags.some(existing => existing.toLowerCase() === tag.toLowerCase()),
-                    );
-                    const alreadyIncluded = missing.length === 0;
-                    const atLimit = hashtagTags.length >= CAPTION_HASHTAG_MAX;
-                    const pullLabel = alreadyIncluded
+              {sugestaoHashtags.length > 0 ? (
+                <div className="mt-3 flex flex-col gap-2 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="min-w-0">
+                    <Text variant="meta" className="font-semibold text-[var(--text-primary)]">
+                      Sugestão
+                    </Text>
+                    <Text variant="secondary" className="mt-0.5 break-words">
+                      {sugestaoHashtags.join(' ')}
+                    </Text>
+                  </div>
+                  <AppButton
+                    size="xs"
+                    variant="secondary"
+                    disabled={disabled || sugestaoHashtags.every(tag => hashtagTags.some(existing => existing.toLowerCase() === tag.toLowerCase())) || hashtagTags.length >= hashtagLimit}
+                    aria-label={`Usar sugestão: ${sugestaoHashtags.join(' ')}`}
+                    onClick={() => addHashtag(sugestaoHashtags.join(' '))}
+                  >
+                    {sugestaoHashtags.every(tag => hashtagTags.some(existing => existing.toLowerCase() === tag.toLowerCase()))
                       ? 'Já incluídas'
-                      : atLimit
-                        ? 'Limite de 10'
-                        : `Puxar da ${preset.sourceLabel}`;
-
-                    return (
-                      <div
-                        key={preset.key}
-                        className="flex flex-col gap-2 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between"
-                      >
-                        <div className="min-w-0">
-                          <Text variant="meta" className="font-semibold text-[var(--text-primary)]">
-                            {preset.sourceLabel === 'série' ? 'Série' : 'Pilar'} · {preset.name}
-                          </Text>
-                          <Text variant="secondary" className="mt-0.5 break-words">
-                            {preset.tags.join(' ')}
-                          </Text>
-                        </div>
-                        <AppButton
-                          size="xs"
-                          variant="secondary"
-                          disabled={disabled || alreadyIncluded || atLimit}
-                          aria-label={`${pullLabel}: ${preset.tags.join(' ')}`}
-                          onClick={() => addHashtag(preset.tags.join(' '))}
-                        >
-                          {pullLabel}
-                        </AppButton>
-                      </div>
-                    );
-                  })}
+                      : hashtagTags.length >= hashtagLimit
+                        ? `Limite de ${hashtagLimit}`
+                        : 'Usar sugestão'}
+                  </AppButton>
                 </div>
               ) : serie || pilar ? (
                 <Text variant="meta" className="mt-2">
@@ -511,30 +407,23 @@ export function PlatformCopyEditor({
                     onRemove={() => setHashtags(hashtagTags.filter(item => item !== tag))}
                   />
                 ))}
-                {hashtagTags.length < CAPTION_HASHTAG_MAX ? (
-                  <button
-                    type="button"
+                {hashtagTags.length < hashtagLimit ? (
+                  <HashtagInlineField
                     disabled={disabled}
-                    onClick={() => {
-                      const value = window.prompt('Nova hashtag');
-                      if (value) addHashtag(value);
-                    }}
-                    className="inline-flex items-center gap-1 rounded-[var(--radius-pill)] border border-dashed border-[var(--border-color)] px-2.5 py-1 text-xs font-semibold text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] disabled:opacity-50"
-                  >
-                    <Plus className="h-3 w-3" />
-                    Adicionar
-                  </button>
+                    onAdd={addHashtag}
+                  />
                 ) : null}
               </div>
               <div className="mt-3 flex items-center justify-between gap-2">
                 <p className="text-xs text-[var(--text-tertiary)]">
-                  Dica: use até 10 hashtags relevantes para aumentar seu alcance.
+                  Até {hashtagLimit} hashtags nesta rede.
                 </p>
                 <p className="text-xs font-semibold text-[var(--text-tertiary)]">
-                  {hashtagTags.length} / {CAPTION_HASHTAG_MAX}
+                  {hashtagTags.length} / {hashtagLimit}
                 </p>
               </div>
             </div>
+            ) : null}
           </>
         ) : registeredPlatforms.length > 0 ? (
           <p className="mt-4 text-sm text-[var(--text-secondary)]">

@@ -277,7 +277,7 @@ export function ContentDetailMobileScreen({
         <summary className="flex h-11 cursor-pointer list-none items-center justify-between gap-2 px-3">
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold text-[var(--text-primary)]">
-              {content.title || 'Conteudo sem titulo'}
+              {content.title || (isIdea ? 'Ideia sem título' : 'Roteiro sem título')}
             </p>
             <p className="text-xs text-[var(--text-tertiary)]">{stageLabel}</p>
           </div>

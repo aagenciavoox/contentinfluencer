@@ -11,6 +11,7 @@ import { useAppContext } from '../../../context/AppContext';
 import { useIsMobile } from '../../../hooks/useIsMobile';
 import { PillarsMobileScreen } from '../../../mobile/screens/settings/PillarsMobileScreen';
 import { sortPilares } from '../lib/activePilares';
+import { rotuloEspacos, somaEspacosSemana } from '../../editorial/lib/distribuirEspacos';
 import { SettingsPageScaffold } from '../../../components/settings/SettingsPageScaffold';
 import { SettingsGridCard, SETTINGS_ENTITY_GRID_CLASS } from '../../../components/settings/SettingsGridCard';
 
@@ -38,8 +39,8 @@ export function PillarsSettingsPage() {
     return map;
   }, [state.contents]);
 
-  const openCreatePage = () => navigate('/configuracoes/pilares/nova');
-  const openEditPage = (pilarId: string) => navigate(`/configuracoes/pilares/${pilarId}/editar`);
+  const openCreatePage = () => navigate('/editorial/pilares/nova');
+  const openEditPage = (pilarId: string) => navigate(`/editorial/pilares/${pilarId}`);
 
   const handleToggleActive = (pilar: (typeof state.pilares)[number]) => {
     dispatch({ type: 'UPDATE_PILAR', payload: { ...pilar, ativo: !pilar.ativo } });
@@ -96,8 +97,9 @@ export function PillarsSettingsPage() {
         </AppButton>
       }
     >
+      <Text variant="body" className="mb-2">Total da semana, pilares ativos: {rotuloEspacos(somaEspacosSemana(sortedPilares))}.</Text>
       <Text variant="secondary" className="mb-4">
-        Pilares organizam temas, ritmo editorial e publicação por plataforma. Frequência semanal, meta do ciclo, dias e hashtags ficam aqui.
+        Pilares organizam temas, ritmo editorial e publicação por plataforma. Espaços por semana, meta do ciclo, dias e hashtags ficam aqui.
       </Text>
 
       <QueryViewState
@@ -135,6 +137,7 @@ export function PillarsSettingsPage() {
                 active={pilar.ativo}
                 dimmed={!pilar.ativo}
                 onToggle={() => handleToggleActive(pilar)}
+                onOpen={() => openEditPage(pilar.id)}
                 onEdit={() => openEditPage(pilar.id)}
                 onDelete={() => handleDelete(pilar.id)}
                 badges={
@@ -152,9 +155,9 @@ export function PillarsSettingsPage() {
                     )}
                     <Badge variant="neutral">{pilar.plataformas.length} redes</Badge>
                     {pilar.frequenciaSemanal != null ? (
-                      <Badge variant="neutral">{pilar.frequenciaSemanal}x/sem</Badge>
+                      <Badge variant="neutral">{rotuloEspacos(pilar.frequenciaSemanal)}/sem</Badge>
                     ) : (
-                      <Badge variant="neutral">Sem ritmo</Badge>
+                      <Badge variant="neutral">Sem espaços</Badge>
                     )}
                   </>
                 }

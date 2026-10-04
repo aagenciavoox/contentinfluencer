@@ -4,6 +4,7 @@ import {Plus} from 'lucide-react';
 import {useAppContext} from '../../../context/AppContext';
 import {useAuth} from '../../../context/AuthContext';
 import {useIsMobile} from '../../../hooks/useIsMobile';
+import {useDomainsReady} from '../../../hooks/useDomainsReady';
 import type {RecordingBlock, RecordingBlockContent} from '../../../lib/database';
 import {fetchContentsByIds} from '../../../lib/database';
 import {buildContentDetailRoute} from '../../contents/lib/contentDetailRoute';
@@ -22,6 +23,7 @@ import {RecordingScriptReader} from '../components/RecordingScriptReader';
 import {FilterBar} from '../../../components/ui/FilterBar';
 import {SegmentTabs} from '../../../components/ui/SegmentTabs';
 import {AppButton} from '../../../components/ui/AppButton';
+import {Skeleton} from '../../../components/ui/Skeleton';
 import {Surface} from '../../../components/ui/Surface';
 import {Text} from '../../../components/ui/Text';
 import {
@@ -38,6 +40,7 @@ function resolveRecordingTab(tab: string | null): RecordingPageTab {
 
 export function RecordingPage() {
   const {state, dispatch} = useAppContext();
+  const recordingReady = useDomainsReady(['content', 'recording']);
   const {user} = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -106,7 +109,7 @@ export function RecordingPage() {
         if (cancelled) return;
         const item = fetched[0];
         if (!item) {
-          setReaderLoadError('O roteiro não foi encontrado no banco de dados.');
+          setReaderLoadError('Não encontramos este roteiro. Ele pode ter ido para a lixeira.');
           return;
         }
         await dispatch({
@@ -354,6 +357,7 @@ export function RecordingPage() {
           <RecordingMobileScreen
           readyContents={queueContents}
           recordingBlocks={state.recordingBlocks}
+          countsReady={recordingReady}
           allContents={state.contents}
           pilares={state.pilares}
           series={state.series}
@@ -394,9 +398,11 @@ export function RecordingPage() {
           section="Produção"
           title="Gravação"
           meta={
-            activeTab === 'queue'
-              ? `${prontos.length} sem bloco`
-              : `${state.recordingBlocks.length} ${state.recordingBlocks.length === 1 ? 'bloco' : 'blocos'}`
+            recordingReady
+              ? activeTab === 'queue'
+                ? `${prontos.length} sem bloco`
+                : `${state.recordingBlocks.length} ${state.recordingBlocks.length === 1 ? 'bloco' : 'blocos'}`
+              : undefined
           }
           actions={
             <AppButton
@@ -427,7 +433,7 @@ export function RecordingPage() {
               className="min-w-0 flex-1"
               searchValue={searchTerm}
               onSearchChange={setSearchTerm}
-              searchPlaceholder="Buscar por roteiro, pilar, serie ou marcador"
+              searchPlaceholder="Buscar por roteiro, pilar, série ou marcador"
               filters={[
                 {
                   id: 'pilar',
@@ -476,8 +482,8 @@ export function RecordingPage() {
               onSortChange={setSortValue}
               sortOptions={[
                 {label: 'Recentes', value: 'recentes'},
-                {label: 'Título A-Z', value: 'titulo:asc'},
-                {label: 'Pilar A-Z', value: 'pilar:asc'},
+                {label: 'Título A–Z', value: 'titulo:asc'},
+                {label: 'Pilar A–Z', value: 'pilar:asc'},
                 {label: 'Energia alta', value: 'energia:desc'},
               ]}
             />
@@ -489,9 +495,9 @@ export function RecordingPage() {
         {activeTab === 'queue' ? (
           <section className={cn('stack-lg', selectedIds.size > 0 && 'pb-28')}>
             <div className="grid-metrics-3">
-              <StatCard label="Sem bloco" value={String(prontos.length)} />
+              <StatCard label="Sem bloco" value={String(prontos.length)} loading={!recordingReady} />
               <StatCard label="Selecionados" value={String(selectedIds.size)} />
-              <StatCard label="Blocos montados" value={String(state.recordingBlocks.length)} />
+              <StatCard label="Blocos montados" value={String(state.recordingBlocks.length)} loading={!recordingReady} />
             </div>
 
             <RecordingQueueGrid
@@ -530,8 +536,8 @@ export function RecordingPage() {
         ) : (
           <section className="stack-lg">
             <div className="grid-metrics">
-              <StatCard label="Blocos" value={String(state.recordingBlocks.length)} />
-              <StatCard label="Roteiros sem bloco" value={String(queueContents.length)} />
+              <StatCard label="Blocos" value={String(state.recordingBlocks.length)} loading={!recordingReady} />
+              <StatCard label="Roteiros sem bloco" value={String(queueContents.length)} loading={!recordingReady} />
             </div>
 
             <RecordingQueueTab />
@@ -556,13 +562,19 @@ interface StatCardProps {
   label: string;
   value: string;
   className?: string;
+  /** Dados ainda carregando: número em skeleton em vez de um 0 falso. */
+  loading?: boolean;
 }
 
-function StatCard({label, value, className}: StatCardProps) {
+function StatCard({label, value, className, loading = false}: StatCardProps) {
   return (
-    <Surface variant="outlined" padding="md" className={className}>
+    <Surface variant="outlined" padding="md" className={className} aria-busy={loading || undefined}>
       <Text variant="label">{label}</Text>
-      <Text variant="sectionTitle" className="mt-1 tabular-nums">{value}</Text>
+      {loading ? (
+        <Skeleton className="mt-1 h-7 w-10" />
+      ) : (
+        <Text variant="sectionTitle" className="mt-1 tabular-nums">{value}</Text>
+      )}
     </Surface>
   );
 }

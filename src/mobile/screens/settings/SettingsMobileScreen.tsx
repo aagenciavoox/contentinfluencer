@@ -56,7 +56,7 @@ export function SettingsMobileScreen({
           icon={SettingsIcon}
           tone="blue"
           title="Configurações"
-          description="Ajustes do sistema organizados para leitura e ação rápida no mobile."
+          description="Ritmo, escrita e áreas do app."
         />
       </section>
 

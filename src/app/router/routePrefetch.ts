@@ -5,12 +5,12 @@ const loadCreation = () => import('../../pages/Creation');
 const loadCaptions = () => import('../../pages/Legendas');
 const loadContentDetail = () => import('../../pages/ContentDetail');
 const loadCalendar = () => import('../../pages/EditorialCalendar');
+const loadEditorial = () => import('../../pages/Editorial');
 const loadLibrary = () => import('../../pages/Biblioteca');
 const loadLibraryAnalysis = () => import('../../pages/Analise');
 const loadBookDetail = () => import('../../pages/BookDetail');
 const loadSettings = () => import('../../pages/Settings');
 const loadProfile = () => import('../../pages/settings/Perfil');
-const loadPillars = () => import('../../pages/settings/Pilares');
 const loadPillarEdit = () => import('../../pages/settings/PilarEditar');
 const loadSeries = () => import('../../pages/settings/Series');
 const loadSeriesEdit = () => import('../../pages/settings/SeriesEditar');
@@ -28,12 +28,12 @@ export const routeLoaders = {
   captions: loadCaptions,
   contentDetail: loadContentDetail,
   calendar: loadCalendar,
+  editorial: loadEditorial,
   library: loadLibrary,
   libraryAnalysis: loadLibraryAnalysis,
   bookDetail: loadBookDetail,
   settings: loadSettings,
   profile: loadProfile,
-  pillars: loadPillars,
   pillarEdit: loadPillarEdit,
   series: loadSeries,
   seriesEdit: loadSeriesEdit,
@@ -60,9 +60,9 @@ const PRIMARY_LOADERS: RouteLoader[] = [
   loadCreation,
   loadCaptions,
   loadCalendar,
+  loadEditorial,
   loadLibrary,
   loadSettings,
-  loadPillars,
   loadSeries,
   loadProjects,
   loadRecording,
@@ -76,6 +76,9 @@ function loaderForPath(pathname: string): RouteLoader | null {
   if (path.startsWith('/criacao') || path === '/conteudos') return loadCreation;
   if (path.startsWith('/conteudos/')) return loadContentDetail;
   if (path.startsWith('/calendario') || path.startsWith('/programacao')) return loadCalendar;
+  if (path === '/editorial') return loadEditorial;
+  if (path === '/editorial/pilares/nova' || path.startsWith('/editorial/pilares/')) return loadPillarEdit;
+  if (path === '/editorial/series/nova' || path.startsWith('/editorial/series/')) return loadSeriesEdit;
   if (path === '/biblioteca/analise') return loadLibraryAnalysis;
   if (path === '/biblioteca') return loadLibrary;
   if (path.startsWith('/biblioteca/')) return loadBookDetail;
@@ -84,7 +87,7 @@ function loaderForPath(pathname: string): RouteLoader | null {
   if (path === '/gravacao') return loadRecording;
   if (path.startsWith('/gravacao/')) return loadRecordingBlock;
   if (path === '/configuracoes/perfil') return loadProfile;
-  if (path === '/configuracoes/pilares') return loadPillars;
+  if (path === '/configuracoes/pilares' || path === '/configuracoes/series') return loadEditorial;
   if (path.startsWith('/configuracoes/pilares/')) return loadPillarEdit;
   if (path === '/series') return loadSeries;
   if (path.includes('/roteiros')) return loadSeriesScripts;

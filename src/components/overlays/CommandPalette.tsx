@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Search, FileText, Sparkles, Handshake, ChevronRight, Command, X, PenLine, CalendarDays, Briefcase, Captions } from 'lucide-react';
+import { Search, FileText, Sparkles, Handshake, ChevronRight, Command, X, PenLine, CalendarDays, Briefcase, Captions, Library } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useIsMobile } from '../../hooks/useIsMobile';
+import { usePointerCoarse } from '../../hooks/usePointerCoarse';
 import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
 import { CONTENT_STATUS } from '../../features/contents/lib/contentPipeline';
 import { buildContentDetailRoute } from '../../features/contents/lib/contentDetailRoute';
@@ -19,6 +20,8 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const isMobile = useIsMobile();
+  const isPointerCoarse = usePointerCoarse();
+  const showKeyboardHints = !isMobile && !isPointerCoarse;
   const [search, setSearch] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -33,8 +36,22 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
     { id: 'nav-3', title: 'Projetos', path: '/projetos', icon: <Briefcase className="w-4 h-4" />, category: 'Navegação' },
   ];
 
+  const libraryResults = state.bibliotecaItems
+    .filter(item => !item.deletedAt)
+    .map(item => ({
+      id: item.id,
+      title: item.titulo,
+      path: `/biblioteca/${item.id}`,
+      icon: <Library className="w-4 h-4" />,
+      category: 'Biblioteca',
+      data: item,
+    }));
+  // Com busca, a obra vem antes dos roteiros sobre ela para não sumir no corte de 10 resultados.
+  const hasSearch = search.trim().length > 0;
+
   const filteredResults = [
     ...navigation,
+    ...(hasSearch ? libraryResults : []),
     ...state.contents.map(c => ({
       id: c.id,
       title: c.title,
@@ -42,10 +59,11 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
       icon: c.status === CONTENT_STATUS.IDEIA
         ? <Sparkles className="w-4 h-4" />
         : <FileText className="w-4 h-4" />,
-      category: c.status === CONTENT_STATUS.IDEIA ? 'Ideia' : 'Criação',
+      category: c.status === CONTENT_STATUS.IDEIA ? 'Ideia' : 'Roteiro',
       data: c,
     })),
-    ...(state.projetos || []).map(p => ({ id: p.id, title: p.brand ? `${p.brand}: ${p.nome}` : p.nome, path: `/projetos`, icon: <Handshake className="w-4 h-4" />, category: 'Projetos', data: p })),
+    ...(state.projetos || []).map(p => ({ id: p.id, title: p.brand ? `${p.brand}: ${p.nome}` : p.nome, path: `/projetos/${p.id}`, icon: <Handshake className="w-4 h-4" />, category: 'Projetos', data: p })),
+    ...(hasSearch ? [] : libraryResults),
   ].filter(item => 
     item.title.toLowerCase().includes(search.toLowerCase()) || 
     item.category.toLowerCase().includes(search.toLowerCase())
@@ -122,11 +140,11 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
               type="search"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder={isMobile ? "Buscar..." : "Busque por conteúdo, ideias, parcerias..."}
+              placeholder={isMobile ? "Buscar…" : "Busque roteiros, ideias e projetos…"}
               className="input-plain flex-1 h-14 bg-transparent text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] text-base px-3"
             />
-            {isMobile ? (
-              <button onClick={onClose} className="p-2 bg-[var(--bg-hover)] rounded-xl">
+            {!showKeyboardHints ? (
+              <button type="button" onClick={onClose} aria-label="Fechar busca" className="p-2 bg-[var(--bg-hover)] rounded-xl">
                 <X className="w-5 h-5" />
               </button>
             ) : (
@@ -170,18 +188,18 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
               </div>
             ) : (
               <div className="py-20 text-center">
-                <Search className="w-12 h-12 text-[var(--text-tertiary)] mx-auto mb-4 opacity-10" />
+                <Search className="mx-auto mb-4 h-12 w-12 text-[var(--text-tertiary)]" />
                 <p className="text-sm text-[var(--text-tertiary)]">Nenhum resultado para "{search}"</p>
               </div>
             )}
           </div>
 
-          {/* Footer - Desktop Only */}
-          {!isMobile && (
+          {/* Footer - only with a fine pointer (mouse/trackpad + keyboard) */}
+          {showKeyboardHints && (
             <div className="px-4 py-3 bg-[var(--bg-primary)] border-t border-[var(--border-color)] flex items-center justify-between text-xs text-[var(--text-tertiary)] font-bold ">
               <div className="flex gap-4">
                 <span className="flex items-center gap-1"><Command className="w-3 h-3" /> + K para buscar</span>
-                <span className="flex items-center gap-1">↑↑ para navegar</span>
+                <span className="flex items-center gap-1">↑↓ para navegar</span>
                 <span className="flex items-center gap-1">↵ para selecionar</span>
               </div>
             </div>

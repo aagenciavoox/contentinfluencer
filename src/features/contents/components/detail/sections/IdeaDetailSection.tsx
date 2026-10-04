@@ -1,16 +1,19 @@
-import {ArrowRight, BookOpen, Layers, Palette} from 'lucide-react';
+import {ArrowRight, Layers, Palette} from 'lucide-react';
 import {RichTextEditor} from '../../../../../components/editors/RichTextEditor';
 import {AppButton} from '../../../../../components/ui/AppButton';
 import {Skeleton} from '../../../../../components/ui/Skeleton';
 import {Surface} from '../../../../../components/ui/Surface';
 import {Text} from '../../../../../components/ui/Text';
 import type {BibliotecaItem, Pilar, Serie} from '../../../../../lib/database';
+import {useAppContext} from '../../../../../context/AppContext';
+import {DestinationChips} from '../../../../editorial/components/DestinationChips';
+import {LivroMultiSelect} from '../LivroMultiSelect';
 import {DraftSaveBar} from '../DraftSaveBar';
 import type {ScriptDraft} from './RoteiroSection';
 
 type IdeaDraft = Pick<
   ScriptDraft,
-  'title' | 'notes' | 'scriptNotes' | 'pilarId' | 'seriesId' | 'bibliotecaItemId'
+  'title' | 'notes' | 'scriptNotes' | 'pilarId' | 'seriesId' | 'bibliotecaItemId' | 'livroIds' | 'plataformas'
 >;
 
 interface IdeaOrganizationPanelProps {
@@ -18,6 +21,7 @@ interface IdeaOrganizationPanelProps {
   series: Serie[];
   pilares: Pilar[];
   bibliotecaItems: BibliotecaItem[];
+  contentId: string;
   onChange: (updates: Partial<ScriptDraft>) => void;
 }
 
@@ -29,8 +33,13 @@ export function IdeaOrganizationPanel({
   series,
   pilares,
   bibliotecaItems,
+  contentId,
   onChange,
 }: IdeaOrganizationPanelProps) {
+  const {state} = useAppContext();
+  const plataformasAtivas = state.platforms
+    .filter(platform => platform.ativo)
+    .map(platform => ({id: platform.id, nome: platform.nome}));
   return (
     <Surface variant="outlined" padding="md" className="grid gap-4 md:grid-cols-3">
       <div className="stack-sm md:col-span-3">
@@ -74,22 +83,22 @@ export function IdeaOrganizationPanel({
         </select>
       </label>
 
-      <label className="stack-sm">
-        <Text variant="label" as="span" className="inline-flex items-center gap-2">
-          <BookOpen className="h-3.5 w-3.5" aria-hidden />
-          Origem
-        </Text>
-        <select
-          value={draft.bibliotecaItemId ?? ''}
-          onChange={event => onChange({bibliotecaItemId: event.target.value || null})}
-          className={selectClassName}
-        >
-          <option value="">Sem origem</option>
-          {bibliotecaItems.filter(item => !item.deletedAt).map(item => (
-            <option key={item.id} value={item.id}>{item.titulo}</option>
-          ))}
-        </select>
-      </label>
+      <div className="stack-sm md:col-span-3">
+        <LivroMultiSelect
+          livroIds={draft.livroIds}
+          bibliotecaItemId={draft.bibliotecaItemId}
+          bibliotecaItems={bibliotecaItems}
+          onChange={onChange}
+        />
+      </div>
+      <div className="md:col-span-3">
+        <DestinationChips
+          platforms={plataformasAtivas}
+          publications={draft.plataformas}
+          contentId={contentId}
+          onChange={plataformas => onChange({plataformas})}
+        />
+      </div>
     </Surface>
   );
 }
@@ -112,6 +121,7 @@ export function IdeaDetailSection({
   series,
   pilares,
   bibliotecaItems,
+  contentId,
   onChange,
   bodyLoading = false,
   bodyError = null,
@@ -226,6 +236,7 @@ export function IdeaDetailSection({
           series={series}
           pilares={pilares}
           bibliotecaItems={bibliotecaItems}
+          contentId={contentId}
           onChange={onChange}
         />
         <AppButton
@@ -251,6 +262,7 @@ export function IdeaDetailSection({
         series={series}
         pilares={pilares}
         bibliotecaItems={bibliotecaItems}
+        contentId={contentId}
         onChange={onChange}
       />
     </div>

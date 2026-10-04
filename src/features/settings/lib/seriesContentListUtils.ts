@@ -19,8 +19,8 @@ export const SERIES_CONTENT_STATUS_OPTIONS = [
 
 export const SERIES_CONTENT_SORT_OPTIONS = [
   { value: 'updatedAt:desc', label: 'Mais recentes' },
-  { value: 'createdAt:desc', label: 'Criação' },
-  { value: 'title:asc', label: 'Título A-Z' },
+  { value: 'createdAt:desc', label: 'Data de criação' },
+  { value: 'title:asc', label: 'Título A–Z' },
 ] as const;
 
 export const DEFAULT_SERIES_CONTENT_SORT = SERIES_CONTENT_SORT_OPTIONS[0].value;

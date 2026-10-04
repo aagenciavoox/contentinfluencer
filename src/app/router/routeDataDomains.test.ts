@@ -19,9 +19,14 @@ function testNavigationSequencePrefetchDomains() {
     'projects',
     'library',
   ]);
-  assert.deepEqual(getRouteDataDomains('/biblioteca'), ['library', 'library-generos']);
+  assert.deepEqual(getRouteDataDomains('/biblioteca'), ['library', 'library-generos', 'content']);
   assert.deepEqual(getRouteDataDomains('/series'), ['production']);
-  assert.deepEqual(getRouteDataDomains('/configuracoes/pilares'), ['production']);
+  assert.deepEqual(getRouteDataDomains('/editorial'), [
+    'production',
+    'content',
+    'bootstrap',
+    'schedule',
+  ]);
 }
 
 function testQueryOnlyNavigationKeepsOutletKey() {
@@ -31,20 +36,21 @@ function testQueryOnlyNavigationKeepsOutletKey() {
   assert.equal(getRouteOutletKey('/biblioteca/livro-1'), '/biblioteca/livro-1');
 }
 
+function testContentDetailLoadsLibraryAndScriptTemplates() {
+  assert.deepEqual(getRouteDataDomains('/conteudos/abc'), [
+    'production',
+    'recording',
+    'library',
+    'templates',
+  ]);
+}
+
 function testPendingPathnameTransition() {
   assert.equal(isPathnameTransitionPending('/criacao', '/biblioteca'), true);
   assert.equal(isPathnameTransitionPending('/criacao', '/criacao'), false);
   assert.equal(isPathnameTransitionPending('/criacao', undefined), false);
   // Query-only pending location should not blank the screen.
   assert.equal(isPathnameTransitionPending('/calendario', '/calendario'), false);
-}
-
-function testContentDetailLoadsScriptTemplates() {
-  assert.deepEqual(getRouteDataDomains('/conteudos/abc'), [
-    'production',
-    'recording',
-    'templates',
-  ]);
 }
 
 function testNestedSettingsDomains() {
@@ -60,13 +66,24 @@ function testNestedSettingsDomains() {
     'content',
     'bootstrap',
   ]);
+  assert.deepEqual(getRouteDataDomains('/editorial/pilares/xyz'), [
+    'production',
+    'content',
+    'bootstrap',
+  ]);
+  assert.deepEqual(getRouteDataDomains('/editorial/series/xyz'), [
+    'production',
+    'content',
+    'bootstrap',
+    'templates',
+  ]);
 }
 
 testNavigationSequenceSharesSectionOutletKey();
 testNavigationSequencePrefetchDomains();
 testQueryOnlyNavigationKeepsOutletKey();
+testContentDetailLoadsLibraryAndScriptTemplates();
 testPendingPathnameTransition();
-testContentDetailLoadsScriptTemplates();
 testNestedSettingsDomains();
 
 console.log('routeDataDomains.test.ts: ok');

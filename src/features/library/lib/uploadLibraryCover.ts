@@ -11,6 +11,7 @@ import { deleteLibraryCoverByUrl } from './libraryCoverStorage';
 export {
   LIBRARY_COVERS_BUCKET,
   LIBRARY_COVER_MAX_BYTES,
+  LIBRARY_COVER_UPLOAD_ERROR,
   validateLibraryCoverFile,
 } from './libraryCoverFile';
 
@@ -21,7 +22,7 @@ export async function uploadLibraryCover(params: {
   previousUrl?: string | null;
 }): Promise<string> {
   if (!supabase) {
-    throw new Error('Supabase nao configurado.');
+    throw new Error('Supabase não configurado.');
   }
 
   const validationError = validateLibraryCoverFile(params.file);
@@ -41,12 +42,12 @@ export async function uploadLibraryCover(params: {
   });
 
   if (error) {
-    throw new Error(error.message || 'Nao foi possivel enviar a capa.');
+    throw new Error(error.message || 'Não foi possível enviar a capa.');
   }
 
   const { data } = supabase.storage.from(LIBRARY_COVERS_BUCKET).getPublicUrl(path);
   if (!data?.publicUrl) {
-    throw new Error('Capa enviada, mas a URL publica nao ficou disponivel.');
+    throw new Error('Capa enviada, mas a URL pública não ficou disponível.');
   }
 
   if (params.previousUrl && params.previousUrl !== data.publicUrl) {

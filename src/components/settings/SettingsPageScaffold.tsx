@@ -36,6 +36,7 @@ export function SettingsPageScaffold({
     <PageLayout
       variant={variant}
       toolbar={toolbar}
+      mobileToolbar={toolbar}
       className={cn(className)}
       header={
         <DesktopPageHeader

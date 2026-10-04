@@ -24,6 +24,14 @@ function buildPilarSnapshot(pilar: Pilar, totalDisponivel: number, gapCiclo: num
   };
 }
 
+function formatCount(count: number, singular: string, plural: string): string {
+  return `${count} ${count === 1 ? singular : plural}`;
+}
+
+function formatRoom(gap: number): string {
+  return gap === 1 ? 'Cabe mais 1 post' : `Cabem mais ${gap} posts`;
+}
+
 function formatLastPublication(timestamp: string | null): string {
   if (!timestamp) return 'ainda não saiu neste ciclo';
   return `última publicação ${formatDistanceToNow(new Date(timestamp), { addSuffix: true, locale: ptBR })}`;
@@ -48,8 +56,8 @@ export function recommendDailyAction({
     return {
       kind: 'configure_meta',
       pilar: buildPilarSnapshot(first, metrics.totalDisponivel, metrics.gapCiclo),
-      message: `Defina a meta do ciclo em "${first.nome}" para o sistema indicar o que falta produzir ou postar.`,
-      href: `/configuracoes/pilares/${first.id}/editar`,
+      message: `Defina uma meta do ciclo em "${first.nome}" para receber sugestões do que produzir ou postar.`,
+      href: `/editorial/pilares/${first.id}`,
     };
   }
 
@@ -84,7 +92,7 @@ export function recommendDailyAction({
           roteirosEscritos: postCandidate.metrics.roteirosEscritos,
         },
         contentIds: postCandidate.metrics.postableContentIds,
-        message: `"${pilar.nome}" precisa de mais ${gap} no ciclo. A série "${postCandidate.serie.name}" tem ${postCandidate.metrics.gravadosProntos} prontos e ${formatLastPublication(postCandidate.metrics.ultimaPublicacao)}.`,
+        message: `${formatRoom(gap)} de "${pilar.nome}" neste ciclo. A série "${postCandidate.serie.name}" tem ${formatCount(postCandidate.metrics.gravadosProntos, 'roteiro gravado', 'roteiros gravados')} e ${formatLastPublication(postCandidate.metrics.ultimaPublicacao)}.`,
         href: '/calendario?modo=agendar',
       };
     }
@@ -101,7 +109,7 @@ export function recommendDailyAction({
           roteirosEscritos: recordCandidate.metrics.roteirosEscritos,
         },
         contentIds: recordCandidate.metrics.scriptContentIds,
-        message: `"${pilar.nome}" tem gap de ${gap}, mas nada gravado pronto. "${recordCandidate.serie.name}" tem ${recordCandidate.metrics.roteirosEscritos} roteiros — vale gravar primeiro.`,
+        message: `"${pilar.nome}" tem espaço para mais ${gap}, mas nada gravado ainda. "${recordCandidate.serie.name}" tem ${formatCount(recordCandidate.metrics.roteirosEscritos, 'roteiro, que pode', 'roteiros, que podem')} ser um bom começo.`,
         href: `/gravacao?seriesId=${recordCandidate.serie.id}`,
       };
     }
@@ -116,7 +124,7 @@ export function recommendDailyAction({
       configuredMetrics.totalDisponivel,
       configuredMetrics.gapCiclo,
     ),
-    message: 'O estoque cobre as metas do ciclo. Você pode seguir com o próximo passo do dia.',
+    message: 'O que já está pronto cobre as metas do ciclo. Dá para seguir no seu ritmo.',
     href: '/criacao',
   };
 }

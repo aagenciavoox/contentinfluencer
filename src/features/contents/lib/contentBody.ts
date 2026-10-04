@@ -40,7 +40,7 @@ export function resolveScriptBodyStatus(
 export function scriptBodyStatusLabel(status: ScriptBodyStatus, wordCount = 0): string {
   switch (status) {
     case 'loading':
-      return 'Carregando roteiro...';
+      return 'Carregando roteiro…';
     case 'error':
       return 'Não foi possível carregar o roteiro';
     case 'empty':

@@ -220,7 +220,6 @@
   "218": "schema-foreign-key-indexes.md",
   "219": "schema-lowercase-identifiers.md",
   "220": "schema-partitioning.md",
-  "221": "PlatformCopyEditor",
   "222": "security-privileges.md",
   "223": "security-rls-basics.md",
   "224": "ContentPipelineStepper.tsx",

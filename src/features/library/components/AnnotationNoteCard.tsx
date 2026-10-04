@@ -44,7 +44,7 @@ export function AnnotationCardActions({
           aria-label={anotacao.contentPotential ? 'Remover destaque' : 'Destacar anotação'}
           className={cn(
             'inline-flex min-h-9 min-w-9 items-center justify-center rounded-md transition-colors',
-            anotacao.contentPotential ? 'text-[var(--accent-orange)]' : 'text-[var(--text-primary)] opacity-40 hover:opacity-80'
+            anotacao.contentPotential ? 'text-[var(--accent-orange)]' : 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'
           )}
         >
           <Star className={cn('h-3.5 w-3.5', anotacao.contentPotential && 'fill-[var(--accent-orange)] text-[var(--accent-orange)]')} />
@@ -65,8 +65,8 @@ export function AnnotationCardActions({
         <button
           type="button"
           onClick={onTransformContent}
-          title="Criar conteudo"
-          aria-label="Criar conteúdo a partir da anotação"
+          title="Criar roteiro"
+          aria-label="Criar roteiro a partir da anotação"
           className="inline-flex min-h-9 min-w-9 items-center justify-center rounded-md transition-colors hover:bg-[var(--accent-blue)]/10"
         >
           <Film className="h-3.5 w-3.5 text-[var(--accent-blue)] opacity-60" />

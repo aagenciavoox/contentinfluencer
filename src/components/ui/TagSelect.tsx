@@ -79,7 +79,7 @@ export function TagSelect({
   onChange,
   options = [],
   creatable = false,
-  placeholder = 'Selecione uma ou mais opcoes',
+  placeholder = 'Selecione uma ou mais opções',
   disabled = false,
   className,
   maxSelections,
@@ -124,6 +124,14 @@ export function TagSelect({
   }, [open]);
 
   const addValue = (rawValue: string) => {
+    const normalizedValue = normalizeTagToken(rawValue);
+    if (!normalizedValue) return;
+    if (maxSelections === 1) {
+      if (values[0]?.toLowerCase() === normalizedValue.toLowerCase()) return;
+      onChange([normalizedValue]);
+      setQuery('');
+      return;
+    }
     const next = appendUniqueTag(values, rawValue);
     if (next.length === values.length) return;
     if (maxSelections && next.length > maxSelections) return;
@@ -236,7 +244,7 @@ export function TagSelect({
               setOpen(previous => !previous);
             }}
             className="shrink-0 rounded p-1 text-[var(--text-tertiary)] transition hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
-            aria-label={open ? 'Fechar opcoes' : 'Abrir opcoes'}
+            aria-label={open ? 'Fechar opções' : 'Abrir opções'}
           >
             <ChevronsUpDown className="h-4 w-4" />
           </button>
@@ -273,7 +281,7 @@ export function TagSelect({
             ) : null}
 
             {availableOptions.length === 0 && !(creatable && creatableMatch) ? (
-              <p className="px-3 py-2 text-sm text-[var(--text-tertiary)]">Nenhuma opcao disponivel</p>
+              <p className="px-3 py-2 text-sm text-[var(--text-tertiary)]">Nenhuma opção disponível</p>
             ) : null}
           </div>
         ) : null}

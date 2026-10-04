@@ -59,7 +59,7 @@ export function ContentDetailHeader({
   const location = useLocation();
   const displayTitle = title ?? content.title;
   const isIdea = contentKind === 'idea';
-  const listLabel = isIdea ? 'Ideias' : breadcrumbMode === 'pipeline' ? 'Roteiros' : 'Conteúdos';
+  const listLabel = isIdea ? 'Ideias' : breadcrumbMode === 'pipeline' ? 'Roteiros' : 'Criação';
   const listTarget = isIdea ? '/criacao?tab=ideias' : breadcrumbMode === 'pipeline' ? '/criacao?tab=roteiros' : '/criacao';
   const origin = resolveContentDetailBack(location.state as {from?: string} | null);
   const backTo = location.state && typeof location.state === 'object' && 'from' in location.state
@@ -251,7 +251,7 @@ export function ContentDetailHeader({
               variant="primary"
               onClick={onPrimaryAction}
               disabled={workflowBusy || primaryAction.disabled}
-              title={primaryAction.disabled && primaryAction.reason ? primaryAction.reason : undefined}
+              disabledReason={primaryAction.disabled ? primaryAction.reason : undefined}
               rightIcon={primaryAction.id === 'advance_to_recording' || primaryAction.id === 'promote_to_script' ? <ArrowRight className="h-4 w-4" /> : undefined}
             >
               {primaryAction.label}

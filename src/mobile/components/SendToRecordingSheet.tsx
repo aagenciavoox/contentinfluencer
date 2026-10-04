@@ -143,14 +143,14 @@ export function SendToRecordingSheet({
       open={open}
       onClose={handleClose}
       zIndex="z-[120]"
-      ariaLabel={attachedBlockId ? 'Roteiro guardado no bloco' : 'Escolha o bloco'}
+      ariaLabel={attachedBlockId ? 'Roteiro adicionado ao bloco' : 'Escolha o bloco'}
     >
       <OverlayHeader onClose={handleClose}>
         <p className="text-xs font-semibold  text-[var(--text-tertiary)]">
-          Guardar em um bloco
+          Adicionar ao bloco
         </p>
         <Text variant="itemTitle" className="mt-2">
-          {attachedBlockId ? 'Roteiro guardado' : 'Escolha o bloco'}
+          {attachedBlockId ? 'Roteiro adicionado' : 'Escolha o bloco'}
         </Text>
         <p className="mt-2 text-sm text-[var(--text-secondary)]">
           {attachedBlockId
@@ -166,7 +166,7 @@ export function SendToRecordingSheet({
                 <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-500" />
                 <div>
                   <p className="text-sm font-semibold text-[var(--text-primary)]">
-                    Guardado em {attachedBlockName}
+                    Adicionado a {attachedBlockName}
                   </p>
                   <p className="mt-1 text-sm text-[var(--text-secondary)]">
                     Já está na fila do bloco. Pode gravar agora ou revisar a ordem depois.
@@ -179,7 +179,7 @@ export function SendToRecordingSheet({
                 className="min-h-11 w-full justify-center"
                 onClick={openTeleprompter}
               >
-                Abrir modo gravacao
+                Iniciar modo gravação
               </AppButton>
               <AppButton
                 variant="secondary"
@@ -187,7 +187,7 @@ export function SendToRecordingSheet({
                 className="min-h-11 w-full justify-center"
                 onClick={openBlockPage}
               >
-                Ver bloco de gravacao
+                Ver bloco de gravação
               </AppButton>
             </div>
           ) : (
@@ -222,7 +222,7 @@ export function SendToRecordingSheet({
                   className="mt-3 min-h-11 w-full rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-primary)] px-4 text-sm font-semibold text-[var(--text-primary)] outline-none"
                 >
                   <option value="">
-                    {blocksLoading && availableBlocks.length === 0 ? 'Carregando blocos...' : 'Selecione um bloco'}
+                    {blocksLoading && availableBlocks.length === 0 ? 'Carregando blocos…' : 'Selecione um bloco'}
                   </option>
                   {availableBlocks.map(block => (
                     <option key={block.id} value={block.id}>
@@ -232,11 +232,11 @@ export function SendToRecordingSheet({
                 </select>
                 {blocksLoading && availableBlocks.length === 0 ? (
                   <p className="mt-3 text-xs font-semibold text-[var(--text-secondary)]">
-                    Buscando blocos salvos...
+                    Buscando blocos salvos…
                   </p>
                 ) : availableBlocks.length === 0 ? (
                   <p className="mt-3 text-xs font-semibold text-[var(--text-secondary)]">
-                    Nenhum bloco disponivel sem este conteudo.
+                    Nenhum bloco disponível sem este roteiro.
                   </p>
                 ) : null}
               </article>
@@ -270,7 +270,7 @@ export function SendToRecordingSheet({
               disabled={isBusy || !canSave}
               onClick={() => void handleSave()}
             >
-              {isBusy ? 'Guardando...' : selectedBlockId ? 'Guardar no bloco' : 'Criar e guardar'}
+              {isBusy ? 'Adicionando…' : selectedBlockId ? 'Adicionar ao bloco' : 'Criar bloco e adicionar'}
             </AppButton>
           </>
         )}

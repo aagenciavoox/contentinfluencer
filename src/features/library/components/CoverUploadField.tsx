@@ -5,7 +5,7 @@ import { Text } from '../../../components/ui/Text';
 import { useAuth } from '../../../context/AuthContext';
 import { cn } from '../../../lib/utils';
 import { deleteLibraryCoverByUrl } from '../lib/libraryCoverStorage';
-import { uploadLibraryCover, validateLibraryCoverFile } from '../lib/uploadLibraryCover';
+import { LIBRARY_COVER_UPLOAD_ERROR, uploadLibraryCover, validateLibraryCoverFile } from '../lib/uploadLibraryCover';
 import { CoverFallback } from './CoverFallback';
 
 interface CoverUploadFieldProps {
@@ -22,6 +22,8 @@ interface CoverUploadFieldProps {
   /** Skip the inner card so the field can sit inside another surface. */
   plain?: boolean;
   description?: string;
+  /** Hide the thumbnail when a larger cover is already on the page. */
+  hidePreview?: boolean;
 }
 
 export function CoverUploadField({
@@ -36,6 +38,7 @@ export function CoverUploadField({
   urlAlwaysVisible = false,
   plain = false,
   description,
+  hidePreview = false,
 }: CoverUploadFieldProps) {
   const { user } = useAuth();
   const inputId = useId();
@@ -83,8 +86,8 @@ export function CoverUploadField({
       onChange(publicUrl);
       setShowUrl(false);
       setBroken(false);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Nao foi possivel enviar a capa.');
+    } catch {
+      setError(LIBRARY_COVER_UPLOAD_ERROR);
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -119,25 +122,27 @@ export function CoverUploadField({
           !plain && (compact ? 'p-3' : 'p-4'),
         )}
       >
-        <div
-          className={cn(
-            'overflow-hidden rounded-[var(--radius-md)] bg-[var(--bg-hover)]',
-            compact ? 'h-20 w-14 shrink-0' : 'aspect-[2/3] w-28',
-          )}
-        >
-          {value && !broken ? (
-            <img
-              src={value}
-              alt=""
-              className="h-full w-full object-cover"
-              onError={() => setBroken(true)}
-            />
-          ) : (
-            <CoverFallback title={title} typeLabel={typeLabel} compact={compact} />
-          )}
-        </div>
+        {hidePreview ? null : (
+          <div
+            className={cn(
+              'overflow-hidden rounded-[var(--radius-md)] bg-[var(--bg-hover)]',
+              compact ? 'h-20 w-14 shrink-0' : 'aspect-[2/3] w-28',
+            )}
+          >
+            {value && !broken ? (
+              <img
+                src={value}
+                alt=""
+                className="h-full w-full object-cover"
+                onError={() => setBroken(true)}
+              />
+            ) : (
+              <CoverFallback title={title} typeLabel={typeLabel} compact={compact} />
+            )}
+          </div>
+        )}
 
-        <div className={cn('min-w-0', compact ? 'flex-1 stack-sm' : 'stack-sm')}>
+        <div className={cn('min-w-0', compact || hidePreview ? 'flex-1 stack-sm' : 'stack-sm')}>
           <div className="flex flex-wrap gap-2">
             <AppButton
               type="button"
@@ -149,7 +154,7 @@ export function CoverUploadField({
                 uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImagePlus className="h-4 w-4" />
               }
             >
-              {uploading ? 'Enviando...' : value ? 'Trocar capa' : 'Enviar capa'}
+              {uploading ? 'Enviando…' : value ? 'Trocar capa' : 'Enviar capa'}
             </AppButton>
 
             {value ? (
@@ -166,7 +171,7 @@ export function CoverUploadField({
             ) : null}
           </div>
 
-          <Text variant="meta">JPG, PNG, WEBP ou GIF · ate 5 MB · compactamos automaticamente</Text>
+          <Text variant="meta">JPG, PNG, WEBP ou GIF · até 5 MB · compactamos automaticamente</Text>
 
           {allowUrlFallback && !urlAlwaysVisible ? (
             <button

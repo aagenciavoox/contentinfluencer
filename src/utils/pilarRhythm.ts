@@ -1,4 +1,9 @@
-import type {Content, Pilar, Platform, PostingTimeEntry, Serie} from '../lib/database.ts';
+import type {Content, FuncaoEditorial, Pilar, Platform, PostingTimeEntry, Serie} from '../lib/database.ts';
+import {buildGradeEntries, type GradeEntry} from '../features/editorial/lib/gradeEntries.ts';
+import {countGrade, distribuicaoFecha, type GradeCounts} from '../features/editorial/lib/gradeCounts.ts';
+import type {EditorialSettings} from '../features/editorial/lib/editorialSettings.ts';
+import {FUNCAO_CURTA} from '../features/editorial/lib/funcoes.ts';
+import {pilarPrincipalDaSerie} from '../features/editorial/lib/pilarDaSerie.ts';
 import {
   getCrossedPostingTimesForPilarPlatform,
   hasPilarPlatformSchedule,
@@ -102,7 +107,7 @@ function serieWindowDays(frequencia: string | null | undefined): number | null {
 }
 
 function windowLabel(dayCount: number): string {
-  if (dayCount === 7) return 'esta semana';
+  if (dayCount === 7) return 'nesta semana';
   if (dayCount === 14) return 'nos últimos 14 dias';
   if (dayCount === 28) return 'nos últimos 28 dias';
   return 'no período';
@@ -126,7 +131,7 @@ function validatePilarFrequency(
         violations.push({
           ruleId: `pilar-${pilar.id}-frequency`,
           type: 'warning',
-          message: `${pilar.nome}: ${count} posts esta semana, acima da frequência de ${target}.`,
+          message: `${pilar.nome}: ${count} posts nesta semana, acima da frequência de ${target}.`,
           affectedContentIds: scheduledIds,
         });
         return;
@@ -146,7 +151,7 @@ function validatePilarFrequency(
         violations.push({
           ruleId: `pilar-${pilar.id}-under-frequency`,
           type: 'deficit',
-          message: `${pilar.nome}: ${count}/${target} posts esta semana — faltam ${missing}.`,
+          message: `${pilar.nome}: ${count} de ${target} posts nesta semana.`,
           affectedContentIds: scheduledIds,
         });
       }
@@ -192,7 +197,7 @@ function validateSerieFrequency(
         violations.push({
           ruleId: `serie-${serie.id}-under-frequency`,
           type: 'deficit',
-          message: `${serie.name}: 0 posts ${period} (meta ${serie.frequenciaRecomendada}).`,
+          message: `${serie.name}: nenhum post ${period} (ritmo ${(serie.frequenciaRecomendada || '').toLowerCase()}).`,
           affectedContentIds: scheduledIds,
         });
       }
@@ -223,10 +228,18 @@ function validateScriptCoverage(contents: Content[], deficits: DeficitTarget[], 
 
     const needScripts = deficit.missing - backlog.count;
     const scope = deficit.kind === 'pilar' ? 'pilar' : 'serie';
+    const room = deficit.missing === 1 ? 'cabe mais 1 post' : `cabem mais ${deficit.missing} posts`;
+    const ready =
+      backlog.count === 0
+        ? 'ainda não há roteiro pronto'
+        : backlog.count === 1
+          ? 'há 1 roteiro pronto'
+          : `há ${backlog.count} roteiros prontos`;
+    const cover = needScripts === 1 ? 'Mais 1 cobriria o ciclo' : `Mais ${needScripts} cobririam o ciclo`;
     violations.push({
       ruleId: `${scope}-${deficit.id}-needs-scripts`,
       type: 'deficit',
-      message: `${deficit.label}: faltam ${deficit.missing} post${deficit.missing === 1 ? '' : 's'} e só há ${backlog.count} roteiro${backlog.count === 1 ? '' : 's'} pronto${backlog.count === 1 ? '' : 's'} — precisa de mais ${needScripts} roteiro${needScripts === 1 ? '' : 's'}.`,
+      message: `${deficit.label}: ${room} e ${ready}. ${cover}.`,
       affectedContentIds: [...deficit.scheduledIds, ...backlog.ids],
     });
   });
@@ -329,10 +342,14 @@ const VIOLATION_TYPE_PRIORITY: Record<Violation['type'], number> = {
   info: 2,
 };
 
-/** Sort by severity, then by deficit magnitude hinted in the message (faltam N). */
+const FREQUENCY_UNDER = /^(.+?): (\d+) de (\d+) posts nesta semana/;
+
+/** Sort by severity, then by deficit magnitude hinted in the message ("1 de 3 posts", "cabem mais N"). */
 export function prioritizeViolations(violations: Violation[]): Violation[] {
   const missingFromMessage = (message: string) => {
-    const match = message.match(/faltam?\s+(\d+)/i) || message.match(/precisa de mais\s+(\d+)/i);
+    const ratio = message.match(FREQUENCY_UNDER);
+    if (ratio) return Math.max(0, Number(ratio[3]) - Number(ratio[2]));
+    const match = message.match(/cabem? mais\s+(\d+)/i);
     return match ? Number(match[1]) : 0;
   };
 
@@ -388,10 +405,9 @@ export interface RhythmNote {
   tone: Violation['type'];
 }
 
-const FREQUENCY_UNDER = /^(.+?): (\d+)\/(\d+) posts/;
-const FREQUENCY_OVER = /^(.+?): (\d+) posts esta semana, acima da frequência de (\d+)/;
-const SERIE_ZERO = /^(.+?): 0 posts .+\(meta /;
-const NEEDS_SCRIPTS = /^(.+?): faltam \d+ posts? .+ precisa de mais (\d+) roteiro/;
+const FREQUENCY_OVER = /^(.+?): (\d+) posts nesta semana, acima da frequência de (\d+)/;
+const SERIE_ZERO = /^(.+?): nenhum post .+\(ritmo /;
+const NEEDS_SCRIPTS = /^(.+?): cabem? mais \d+ posts? e .+\. Mais (\d+) cobririam? o ciclo/;
 
 function noteBucket(message: string): {key: string; label: string} | null {
   if (message.includes('dia fora')) return {key: 'day', label: 'Dia fora do pilar'};
@@ -471,7 +487,7 @@ export function summarizeRhythmProgress(violations: Violation[]): {
   if (scriptGaps > 0) {
     notes.push({
       key: 'scripts',
-      label: scriptGaps === 1 ? 'Falta roteiro em 1 frente' : `Faltam roteiros em ${scriptGaps} frentes`,
+      label: scriptGaps === 1 ? '1 frente com espaço para roteiros' : `${scriptGaps} frentes com espaço para roteiros`,
       tone: 'deficit',
     });
   }
@@ -499,15 +515,15 @@ export interface RhythmSlotSuggestion {
 
 export interface WeekRhythmQuota {
   key: string;
-  kind: 'pilar' | 'serie';
+  kind: 'pilar' | 'serie' | 'funcao' | 'soma';
   id: string;
   label: string;
   color: string | null;
   count: number;
   target: number;
   tone: RhythmQuotaTone;
-  /** Presente em série quinzenal ou mensal. */
-  windowTag: '14d' | '28d' | null;
+  /** Série quinzenal ou mensal, ou a janela de 4 semanas da grade pequena. */
+  windowTag: '14d' | '28d' | '4 sem' | null;
   suggestions: RhythmSlotSuggestion[];
 }
 
@@ -520,6 +536,8 @@ export interface WeekRhythmInput {
   postingTimeEntries: PostingTimeEntry[];
   /** Horários globais antigos, usados quando ainda não há horário por plataforma. */
   fallbackTimes?: PostingTimesSettings;
+  /** Rede de referência e distribuição. Sem isso, a faixa conta o legado e não mostra função. */
+  editorial?: Pick<EditorialSettings, 'redeReferenciaId' | 'distribuicaoFuncoes'>;
 }
 
 function quotaTone(count: number, target: number): RhythmQuotaTone {
@@ -660,7 +678,10 @@ function pilarSources(pilar: Pilar, platforms: Platform[]): SlotSource[] {
 }
 
 function serieSources(serie: Serie, pilares: Pilar[], platforms: Platform[]): SlotSource[] {
-  const linked = pilares.filter(pilar => pilar.ativo && serie.pilarIds.includes(pilar.id));
+  const principalId = pilarPrincipalDaSerie(serie);
+  const linked = principalId
+    ? pilares.filter(pilar => pilar.ativo && pilar.id === principalId)
+    : pilares.filter(pilar => pilar.ativo && serie.pilarIds.includes(pilar.id));
   if (linked.length > 0) {
     return linked.flatMap(pilar => pilarSources(pilar, platforms));
   }
@@ -698,13 +719,30 @@ export function formatRhythmSlot(slot: RhythmSlotSuggestion): string {
   return tag ? `${tag} ${day} ${slot.time}` : `${day} ${slot.time}`;
 }
 
-function pilarQuotas(input: WeekRhythmInput, used: Map<string, Set<string>>): WeekRhythmQuota[] {
-  const weekContents = publishedThisWeek(input.contents, input.weekStart);
+function entriesInInterval(entries: readonly GradeEntry[], interval: {start: Date; end: Date}): GradeEntry[] {
+  return entries.filter(entry => {
+    if (!entry.contaNaGrade || !entry.data) return false;
+    try {
+      return isWithinInterval(parseISO(entry.data), interval);
+    } catch {
+      return false;
+    }
+  });
+}
+
+function pilarQuotas(
+  input: WeekRhythmInput,
+  used: Map<string, Set<string>>,
+  counts: GradeCounts,
+): WeekRhythmQuota[] {
+  const porId = new Map(counts.pilares.map(linha => [linha.id, linha]));
+  const janela = counts.gradePequena ? '4 sem' as const : null;
   return input.pilares
     .filter(pilar => pilar.ativo && pilar.frequenciaSemanal != null)
     .map(pilar => {
-      const target = pilar.frequenciaSemanal!;
-      const count = weekContents.filter(content => content.pilarId === pilar.id).length;
+      const linha = porId.get(pilar.id);
+      const target = linha?.meta ?? 0;
+      const count = linha?.planejado ?? 0;
       const tone = quotaTone(count, target);
       return {
         key: `pilar-${pilar.id}`,
@@ -715,7 +753,7 @@ function pilarQuotas(input: WeekRhythmInput, used: Map<string, Set<string>>): We
         count,
         target,
         tone,
-        windowTag: null,
+        windowTag: janela,
         suggestions:
           tone === 'deficit'
             ? collectSlots(pilarSources(pilar, input.platforms), input.postingTimeEntries, input.weekStart, used, input.fallbackTimes).slice(0, 2)
@@ -724,18 +762,41 @@ function pilarQuotas(input: WeekRhythmInput, used: Map<string, Set<string>>): We
     });
 }
 
-function serieQuotas(input: WeekRhythmInput, used: Map<string, Set<string>>): WeekRhythmQuota[] {
+function funcaoQuotas(counts: GradeCounts, mostrar: boolean): WeekRhythmQuota[] {
+  if (!mostrar) return [];
+  const janela = counts.gradePequena ? '4 sem' as const : null;
+  return counts.funcoes
+    .filter(linha => linha.meta > 0 || linha.planejado > 0)
+    .map(linha => {
+      const id = linha.id as FuncaoEditorial;
+      return {
+        key: `funcao-${linha.id}`,
+        kind: 'funcao' as const,
+        id: linha.id,
+        label: FUNCAO_CURTA[id] ?? linha.rotulo,
+        color: null,
+        count: linha.planejado,
+        target: linha.meta,
+        tone: quotaTone(linha.planejado, linha.meta),
+        windowTag: janela,
+        suggestions: [],
+      };
+    });
+}
+
+function serieQuotas(input: WeekRhythmInput, used: Map<string, Set<string>>, entries: readonly GradeEntry[]): WeekRhythmQuota[] {
   const quotas: WeekRhythmQuota[] = [];
   for (const serie of input.series) {
     if (!serie.ativa) continue;
     const dayCount = serieWindowDays(serie.frequenciaRecomendada);
     if (dayCount == null) continue;
     const interval = dayCount === 7 ? getWeekInterval(input.weekStart) : getRollingIntervalEndingAtWeek(input.weekStart, dayCount);
-    const count = contentsInInterval(input.contents, interval).filter(content => content.seriesId === serie.id).length;
+    const count = entriesInInterval(entries, interval).filter(entry => entry.serieId === serie.id).length;
     const target = 1;
     const tone = quotaTone(count, target);
     if (dayCount !== 7 && tone !== 'deficit') continue;
-    const linked = input.pilares.find(pilar => pilar.ativo && serie.pilarIds.includes(pilar.id));
+    const principalId = pilarPrincipalDaSerie(serie);
+    const linked = input.pilares.find(pilar => pilar.ativo && pilar.id === (principalId ?? serie.pilarIds[0]));
     quotas.push({
       key: `serie-${serie.id}`,
       kind: 'serie',
@@ -755,12 +816,39 @@ function serieQuotas(input: WeekRhythmInput, used: Map<string, Set<string>>): We
   return quotas;
 }
 
-/** Cotas da semana para a faixa de ritmo, incluindo metas já cumpridas. */
+/** Cotas da semana para a faixa de ritmo, lidas das entradas da grade. */
 export function buildWeekRhythmQuotas(input: WeekRhythmInput): WeekRhythmQuota[] {
   const used = collectUsedTimes(input.contents, input.weekStart);
-  const pillars = pilarQuotas(input, used).sort(compareQuotas);
-  const series = serieQuotas(input, used).sort(compareQuotas);
-  return [...pillars, ...series];
+  const entries = buildGradeEntries({
+    contents: input.contents,
+    series: input.series,
+    settings: {redeReferenciaId: input.editorial?.redeReferenciaId ?? null},
+  });
+  const inicio = format(startOfDay(input.weekStart), 'yyyy-MM-dd');
+  const counts = countGrade({
+    entries,
+    pilares: input.pilares,
+    settings: {distribuicaoFuncoes: input.editorial?.distribuicaoFuncoes ?? null},
+    periodo: {inicio, fim: format(addDays(startOfDay(input.weekStart), 6), 'yyyy-MM-dd')},
+  });
+  const pillars = pilarQuotas(input, used, counts).sort(compareQuotas);
+  const funcoes = funcaoQuotas(counts, distribuicaoFecha(input.editorial?.distribuicaoFuncoes)).sort(compareQuotas);
+  const series = serieQuotas(input, used, entries).sort(compareQuotas);
+  const soma: WeekRhythmQuota[] = counts.notaSoma
+    ? [{
+        key: 'soma-pilares',
+        kind: 'soma',
+        id: 'soma',
+        label: counts.notaSoma,
+        color: null,
+        count: counts.somaPlanejado,
+        target: counts.totalMeta,
+        tone: 'met',
+        windowTag: null,
+        suggestions: [],
+      }]
+    : [];
+  return [...pillars, ...funcoes, ...series, ...soma];
 }
 
 function violationKey(violation: Violation): string {

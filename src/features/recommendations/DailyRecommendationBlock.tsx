@@ -22,7 +22,7 @@ export function DailyRecommendationBlock({
     kind === 'post'
       ? serie
         ? `Postar de "${serie.name}"`
-        : `Cobrir gap em "${pilar.nome}"`
+        : `Postar em "${pilar.nome}"`
       : kind === 'record'
         ? serie
           ? `Gravar "${serie.name}"`
@@ -68,8 +68,8 @@ export function DailyRecommendationBlock({
         </Text>
         {pilar.metaCiclo != null ? (
           <Text variant="meta" className="mt-2 text-[var(--text-tertiary)]">
-            Estoque: {pilar.totalDisponivel} · Meta do ciclo: {pilar.metaCiclo}
-            {pilar.gapCiclo != null && pilar.gapCiclo > 0 ? ` · Gap: ${pilar.gapCiclo}` : ''}
+            Prontos: {pilar.totalDisponivel} · Meta do ciclo: {pilar.metaCiclo}
+            {pilar.gapCiclo != null && pilar.gapCiclo > 0 ? ` · Espaço: ${pilar.gapCiclo}` : ''}
           </Text>
         ) : null}
         <SpotlightCta>

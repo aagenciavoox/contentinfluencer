@@ -170,7 +170,7 @@ export function RecordingBlockPage() {
         )}
       >
         <Text variant="secondary">
-          {block.name} · {progress.totalCount} roteiros gravados
+          {block.name} · {progress.totalCount} {progress.totalCount === 1 ? 'roteiro gravado' : 'roteiros gravados'}
         </Text>
       </PageLayout>
     );
@@ -254,7 +254,7 @@ export function RecordingBlockPage() {
                         {!isContentBodyLoaded(entry.content)
                           ? hasHydrationError(entry.content.id)
                             ? 'Não foi possível carregar o roteiro.'
-                            : 'Carregando roteiro...'
+                            : 'Carregando roteiro…'
                           : htmlToReadableText(entry.content.script)
                             ? 'Roteiro pronto para leitura.'
                             : 'Sem roteiro escrito.'}

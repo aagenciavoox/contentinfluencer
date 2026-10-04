@@ -15,6 +15,7 @@ export interface CreationExportSection {
   kind: CreationExportKind;
   title: string;
   body: string;
+  notes: string;
   captions: CreationExportCaption[];
 }
 
@@ -31,6 +32,14 @@ function getCreationExportKind(
   return normalizeContentStatus(content.status) === CONTENT_STATUS.IDEIA
     ? 'idea'
     : 'script';
+}
+
+// The notes pane saves plain text; htmlToReadableText would collapse its line breaks.
+function writingNotesToText(value: string | null | undefined): string {
+  const normalized = value?.trim();
+  if (!normalized) return '';
+  if (/<[a-z/][^>]*>/i.test(normalized)) return htmlToReadableText(normalized);
+  return normalized.replace(/\r\n?/g, '\n').replace(/\n{3,}/g, '\n\n');
 }
 
 export function canExportCreation(
@@ -87,6 +96,7 @@ export function buildCreationExportSections(
         body: kind === 'idea'
           ? ideaBody
           : htmlToReadableText(content.script).trim(),
+        notes: writingNotesToText(content.writingNotes),
         captions: content.plataformas
           .filter(platform => platform.legenda.trim())
           .map(platform => ({
@@ -167,6 +177,13 @@ export async function createCreationsDocxBlob(
     }),
   ];
 
+  const subheading = (text: string) => new Paragraph({
+    text,
+    heading: HeadingLevel.HEADING_2,
+    keepNext: true,
+    widowControl: true,
+  });
+
   sections.forEach((section) => {
     documentChildren.push(
       new Paragraph({
@@ -178,17 +195,25 @@ export async function createCreationsDocxBlob(
         keepNext: true,
         widowControl: true,
       }),
-      new Paragraph({
-        text: section.kind === 'idea' ? 'Ideia' : 'Roteiro',
-        heading: HeadingLevel.HEADING_2,
-        keepNext: true,
-        widowControl: true,
-      }),
     );
 
-    if (section.body) {
-      documentChildren.push(...paragraphsFromText(section.body, Paragraph, TextRun));
+    const bodyLabel = section.kind === 'idea' ? 'Ideia' : 'Roteiro';
+
+    if (section.body || section.notes) {
+      if (section.body) {
+        documentChildren.push(
+          subheading(bodyLabel),
+          ...paragraphsFromText(section.body, Paragraph, TextRun),
+        );
+      }
+      if (section.notes) {
+        documentChildren.push(
+          subheading('Notas'),
+          ...paragraphsFromText(section.notes, Paragraph, TextRun),
+        );
+      }
     } else {
+      documentChildren.push(subheading(bodyLabel));
       documentChildren.push(
         new Paragraph({
           children: [
@@ -249,7 +274,7 @@ export async function createCreationsDocxBlob(
     creator: 'Content OS',
     title: exportCopy.title,
     subject: `Exportação do Content OS: ${exportCopy.title}`,
-    description: 'Ideias, roteiros e respectivas legendas.',
+    description: 'Ideias, roteiros, notas e respectivas legendas.',
     styles: {
       default: {
         document: {

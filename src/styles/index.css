@@ -114,7 +114,7 @@
   --surface-editorial: var(--bg-elevated);
   --text-primary: #111111;
   --text-secondary: #5F5F5A;
-  --text-tertiary: #8B8B85;
+  --text-tertiary: #6F6F69;
   --border-color: #E5E5E1;
   --border-strong: #D7D7D2;
   /* Separators for major blocks only (header/content, modal body/footer) */
@@ -124,8 +124,13 @@
   --accent: #111111;
   --accent-soft: #EFEFEA;
 
-  /* Criaki brand (mobile shell / nav) */
+  /* Criaki brand
+     --brand-accent (#FF2D6F): decorative mark (nav rail, login, progress)
+     --brand-accent-strong (#E0185A): primary button fill; ≥4.5:1 with --brand-on-accent
+     --accent (black/white): selection (active tab, toggle, current day)
+     Blue (--focus-ring / --accent-blue): focus ring only */
   --brand-accent: #FF2D6F;
+  --brand-accent-strong: #E0185A;
   --brand-accent-soft: #FFE4EF;
   --brand-on-accent: #FFFFFF;
   --brand-fab: #0C0C0C;
@@ -202,7 +207,7 @@
   --surface-editorial: var(--bg-elevated);
   --text-primary: #F5F5F2;
   --text-secondary: #A3A39B;
-  --text-tertiary: #7D7D74;
+  --text-tertiary: #8A8A81;
   --border-color: #2A2A26;
   --border-strong: #3A3A34;
   --border-subtle: #1F1F1C;
@@ -212,6 +217,8 @@
   --accent-soft: #23231F;
 
   --brand-accent: #FF2D6F;
+  /* Same strong pink as light: lightening it would drop white text below 4.5:1. */
+  --brand-accent-strong: #E0185A;
   --brand-accent-soft: #3D1528;
   --brand-on-accent: #FFFFFF;
   --brand-fab: #FAFAFA;
@@ -792,9 +799,16 @@ input.caption-locked:focus {
 
 /* Central de Criação — compact note/script cards */
 .creation-hub-card {
-  min-height: 120px;
   height: fit-content;
   padding: 12px 14px;
+}
+
+/* Altura mínima só com a grade em colunas (sm+): mantém as linhas alinhadas.
+   No celular (uma coluna), o card fica com a altura do conteúdo. */
+@media (min-width: 640px) {
+  .creation-hub-card {
+    min-height: 120px;
+  }
 }
 
 .creation-hub-card__header {
@@ -1242,12 +1256,13 @@ textarea.property-input {
 .group:hover .card-actions,
 .group:focus-within .card-actions,
 .card-actions:focus-within,
-.card-actions[data-open='true'] {
+.card-actions[data-open='true'],
+.card-actions:has([aria-expanded='true']) {
   opacity: 1;
 }
 
 /* Touch devices have no hover — keep actions reachable */
-@media (hover: none) {
+@media (hover: none), (pointer: coarse) {
   .card-actions {
     opacity: 1;
   }
@@ -1793,6 +1808,25 @@ input[type="search"]::-webkit-search-results-decoration {
   line-height: 1.2;
   color: var(--text-secondary);
   text-decoration: none;
+}
+
+.desktop-page-header-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-height: var(--control-height-mobile);
+  text-decoration: none;
+}
+
+@media (min-width: 768px) {
+  .desktop-page-header-back {
+    min-height: unset;
+  }
+}
+
+.desktop-page-header-back:hover {
+  color: var(--text-primary);
+  text-decoration: underline;
 }
 
 .desktop-page-header-row {

@@ -4,6 +4,7 @@ import { supabase } from './supabase.ts';
 import { normalizeContentStatus } from '../features/contents/lib/contentPipeline';
 import { hydrateIdeasFromDemotedContents } from '../features/ideas/lib/hydrateIdeasFromDemotedContents';
 import { getIdeaNotes, normalizeIdea } from '../features/ideas/lib/ideaText';
+import { aplicarLivros, livroIdsEfetivos } from './livroIds.ts';
 import { generateUUID } from '../utils/uuid';
 
 // ============================================================================
@@ -59,6 +60,17 @@ export interface SeriePlataforma {
   hashtags: string;
 }
 
+/** Seis funções fixas do produto. O agrupamento topo/meio/fundo é calculado. */
+export type FuncaoEditorial = 'atrair' | 'converter' | 'aprofundar' | 'comunidade' | 'acao' | 'reter';
+
+/** Função padrão da série. `varia` deixa a escolha para cada roteiro. */
+export type FuncaoPadraoSerie = FuncaoEditorial | 'varia';
+
+/** De onde veio a função do roteiro. Vazio = ainda não escolhida. */
+export type FuncaoOrigem = 'herdada' | 'escolhida' | 'nenhuma' | 'aplicada' | 'migrada';
+
+export type EnergiaNivel = 'baixa' | 'média' | 'alta';
+
 export interface Serie {
   id: string;
   userId: string;
@@ -73,6 +85,16 @@ export interface Serie {
   capaUrl: string | null;
   ativa: boolean;
   frequenciaRecomendada: string | null;
+  /** Função herdada pelos roteiros que ainda não escolhem a própria. */
+  funcaoPadrao: FuncaoPadraoSerie | null;
+  /** Energia aplicada aos conteúdos criados a partir da série. */
+  energiaPadrao: EnergiaNivel | null;
+  /** Pilar que o conteúdo herda. Ausente no banco antigo. */
+  pilarPrincipalId?: string | null;
+  /** Como a série aparece na tela. Ausente no banco antigo. */
+  formatoApresentacao?: string | null;
+  motivoSalvar?: string | null;
+  motivoEnviar?: string | null;
   createdAt: string;
   updatedAt: string;
   pilarIds: string[];
@@ -192,6 +214,8 @@ export interface ScriptNote {
 
 export type PublicationKind = 'post' | 'repost';
 
+export type PublicacaoStatus = 'agendada' | 'publicada' | 'nao_publicada' | 'removida';
+
 export interface ContentPlataforma {
   id: string;
   contentId: string;
@@ -203,6 +227,15 @@ export interface ContentPlataforma {
   publishDateEnabled?: boolean;
   /** post = publicação original, repost = republicação */
   publicationKind?: PublicationKind;
+  status?: PublicacaoStatus;
+  /** O que a pessoa informou. A API, na fase 3, não apaga este valor. */
+  realizadaManualEm?: string | null;
+  realizadaApiEm?: string | null;
+  postCodigo?: string | null;
+  postUrl?: string | null;
+  legendaPropria?: boolean;
+  /** Usado em reposts. Ausente no banco antigo conta como verdadeiro. */
+  contaNaGrade?: boolean;
 }
 
 export interface Content {
@@ -217,8 +250,19 @@ export interface Content {
   lookId: string | null;
   cenarioId: string | null;
   bibliotecaItemId: string | null;
+  /** Livros citados. Lista vazia ainda usa o livro único quando ele existir. */
+  livroIds?: string[];
   formatoVisual: string | null;
-  energiaNecessaria: 'baixa' | 'média' | 'alta' | null;
+  energiaNecessaria: EnergiaNivel | null;
+  /** Valor gravado. Vazio quando a origem ainda lê a série. */
+  funcao: FuncaoEditorial | null;
+  funcaoOrigem: FuncaoOrigem | null;
+  /** Preenchido na primeira publicação. A partir daí a série não altera este roteiro. */
+  classificacaoCongeladaEm: string | null;
+  /** Quando falso, o roteiro fica de fora da grade. */
+  contaNaGrade: boolean;
+  /** Legenda compartilhada. Cada rede usa esta até adaptar a própria. */
+  legendaBase?: string | null;
   publishDate: string | null;
   publishTime?: string | null;
   recordingDate: string | null;
@@ -540,6 +584,120 @@ function isMissingCreationColumn(error: {message?: string} | null | undefined) {
   );
 }
 
+function isMissingNamedColumn(message: string, column: string) {
+  const quoted = "'" + column + "'";
+  return (
+    message.includes(quoted + " column") ||
+    (message.includes(quoted) && message.includes("schema cache")) ||
+    (message.includes(column) && message.includes("does not exist"))
+  );
+}
+
+const SERIE_OPTIONAL_COLUMNS = [
+  'energia_padrao',
+  'funcao_padrao',
+  'pilar_principal_id',
+  'formato_apresentacao',
+  'motivo_salvar',
+  'motivo_enviar',
+] as const;
+
+function isMissingLegendaBaseColumn(error: {message?: string} | null | undefined) {
+  return !!error?.message && isMissingNamedColumn(error.message, 'legenda_base');
+}
+
+function isMissingLivroIdsColumn(error: {message?: string} | null | undefined) {
+  return !!error?.message && isMissingNamedColumn(error.message, 'livro_ids');
+}
+
+function readLivroIds(row: Row): string[] {
+  return livroIdsEfetivos({
+    livroIds: Array.isArray(row.livro_ids) ? row.livro_ids.filter((id: unknown): id is string => typeof id === 'string') : undefined,
+    bibliotecaItemId: typeof row.biblioteca_item_id === 'string' ? row.biblioteca_item_id : null,
+  });
+}
+
+function isMissingFuncaoColumns(error: {message?: string} | null | undefined) {
+  const message = error?.message;
+  if (!message) return false;
+  return (
+    isMissingNamedColumn(message, 'funcao') ||
+    isMissingNamedColumn(message, 'funcao_origem') ||
+    isMissingNamedColumn(message, 'classificacao_congelada_em') ||
+    isMissingNamedColumn(message, 'conta_na_grade')
+  );
+}
+
+/** Colunas da M2 em content_plataformas ainda não aplicadas. */
+function isMissingPublicacaoColumns(error: {message?: string} | null | undefined) {
+  const message = error?.message;
+  if (!message) return false;
+  const markers = [
+    'realizada_manual_em',
+    'realizada_api_em',
+    'post_codigo',
+    'post_url',
+    'legenda_propria',
+  ];
+  if (markers.some(column => isMissingNamedColumn(message, column))) return true;
+  if (!message.includes('content_plataformas')) return false;
+  return (
+    isMissingNamedColumn(message, 'status') ||
+    isMissingNamedColumn(message, 'conta_na_grade') ||
+    isMissingNamedColumn(message, 'updated_at')
+  );
+}
+
+function readPublicacaoStatus(value: unknown): PublicacaoStatus {
+  return value === 'publicada' || value === 'nao_publicada' || value === 'removida' || value === 'agendada'
+    ? value
+    : 'agendada';
+}
+
+function mapContentPlataforma(p: Row, platformId: string = p.platform_id): ContentPlataforma {
+  return {
+    id: p.id,
+    contentId: p.content_id,
+    platformId,
+    legenda: p.legenda || '',
+    hashtags: p.hashtags || '',
+    publishDate: p.publish_date,
+    publishTime: p.publish_time,
+    publishDateEnabled: p.publish_date_enabled ?? (p.publish_date != null),
+    publicationKind: p.publication_kind === 'repost' ? 'repost' : 'post',
+    status: readPublicacaoStatus(p.status),
+    realizadaManualEm: p.realizada_manual_em ?? null,
+    realizadaApiEm: p.realizada_api_em ?? null,
+    postCodigo: p.post_codigo ?? null,
+    postUrl: p.post_url ?? null,
+    legendaPropria: p.legenda_propria === true,
+    contaNaGrade: p.conta_na_grade === false ? false : true,
+  };
+}
+
+function readEnergiaNivel(value: unknown): EnergiaNivel | null {
+  return value === 'baixa' || value === 'média' || value === 'alta' ? value : null;
+}
+
+function readFuncaoEditorial(value: unknown): FuncaoEditorial | null {
+  return value === 'atrair' || value === 'converter' || value === 'aprofundar'
+    || value === 'comunidade' || value === 'acao' || value === 'reter'
+    ? value
+    : null;
+}
+
+function readFuncaoPadrao(value: unknown): FuncaoPadraoSerie | null {
+  if (value === 'varia') return 'varia';
+  return readFuncaoEditorial(value);
+}
+
+function readFuncaoOrigem(value: unknown): FuncaoOrigem | null {
+  return value === 'herdada' || value === 'escolhida' || value === 'nenhuma'
+    || value === 'aplicada' || value === 'migrada'
+    ? value
+    : null;
+}
+
 const mp = {
   platform: (r: Row): Platform => ({
     id: r.id, userId: r.user_id, nome: r.nome, ativo: r.ativo, createdAt: r.created_at,
@@ -570,6 +728,12 @@ const mp = {
     estruturaRoteiro: r.estrutura_roteiro, bordao: r.bordao, cor: r.cor,
     capaUrl: r.capa_url || null,
     ativa: r.ativa ?? true, frequenciaRecomendada: r.frequencia_recomendada,
+    funcaoPadrao: readFuncaoPadrao(r.funcao_padrao),
+    energiaPadrao: readEnergiaNivel(r.energia_padrao),
+    pilarPrincipalId: typeof r.pilar_principal_id === 'string' && r.pilar_principal_id ? r.pilar_principal_id : null,
+    formatoApresentacao: typeof r.formato_apresentacao === 'string' ? r.formato_apresentacao : null,
+    motivoSalvar: typeof r.motivo_salvar === 'string' ? r.motivo_salvar : null,
+    motivoEnviar: typeof r.motivo_enviar === 'string' ? r.motivo_enviar : null,
     createdAt: r.created_at, updatedAt: r.updated_at,
     pilarIds: (r.serie_pilares || []).map((sp: Row) => sp.pilar_id),
     plataformas: (r.serie_plataformas || []).map((sp: Row) => ({
@@ -608,7 +772,13 @@ const mp = {
     classificacao: r.classificacao,
     slotType: r.slot_type, seriesId: r.series_id, pilarId: r.pilar_id,
     lookId: r.look_id, cenarioId: r.cenario_id, bibliotecaItemId: r.biblioteca_item_id,
+    livroIds: readLivroIds(r),
     formatoVisual: r.formato_visual, energiaNecessaria: r.energia_necessaria,
+    funcao: readFuncaoEditorial(r.funcao),
+    funcaoOrigem: readFuncaoOrigem(r.funcao_origem),
+    classificacaoCongeladaEm: r.classificacao_congelada_em ?? null,
+    contaNaGrade: r.conta_na_grade === false ? false : true,
+    legendaBase: typeof r.legenda_base === 'string' ? r.legenda_base : null,
     publishDate: r.publish_date, publishTime: r.publish_time, recordingDate: r.recording_date,
     recordedAt: r.recorded_at ?? null, postedAt: r.posted_at ?? null,
     link: r.link,
@@ -620,13 +790,7 @@ const mp = {
     createdAt: r.created_at, updatedAt: r.updated_at, deletedAt: r.deleted_at,
     archivedAt: r.archived_at ?? null,
     legacyIdeaId: r.legacy_idea_id ?? null,
-    plataformas: (r.content_plataformas || []).map((p: Row) => ({
-      id: p.id, contentId: p.content_id, platformId: p.platform_id,
-      legenda: p.legenda || '', hashtags: p.hashtags || '', publishDate: p.publish_date,
-      publishTime: p.publish_time,
-      publishDateEnabled: p.publish_date_enabled ?? (p.publish_date != null),
-      publicationKind: p.publication_kind === 'repost' ? 'repost' : 'post',
-    })),
+    plataformas: (r.content_plataformas || []).map((p: Row) => mapContentPlataforma(p)),
   }),
   idea: (r: Row): Idea => normalizeIdea({
     id: r.id,
@@ -696,17 +860,9 @@ const mp = {
 function mapContentWithPlatforms(row: Row, platformNameById: Map<string, string>): Content {
   return {
     ...mp.content(row),
-    plataformas: (row.content_plataformas || []).map((p: Row) => ({
-      id: p.id,
-      contentId: p.content_id,
-      platformId: normalizePlatformRef(p.platform_id, platformNameById),
-      legenda: p.legenda || '',
-      hashtags: p.hashtags || '',
-      publishDate: p.publish_date,
-      publishTime: p.publish_time,
-      publishDateEnabled: p.publish_date_enabled ?? (p.publish_date != null),
-      publicationKind: p.publication_kind === 'repost' ? 'repost' : 'post',
-    })),
+    plataformas: (row.content_plataformas || []).map((p: Row) => (
+      mapContentPlataforma(p, normalizePlatformRef(p.platform_id, platformNameById))
+    )),
   };
 }
 
@@ -741,11 +897,30 @@ const CONTENT_SCHEDULE_SELECT_COLUMNS = [
   'content_plataformas(id, content_id, platform_id, legenda, hashtags, publish_date, publish_time, publish_date_enabled, publication_kind)',
 ] as const;
 
+const CONTENT_PLATAFORMAS_PUBLICACAO_COLUMNS = 'status, realizada_manual_em, realizada_api_em, post_codigo, post_url, legenda_propria, conta_na_grade';
+
+function contentPlataformasSelect(includePublicacaoColumns: boolean): string {
+  const base = 'content_plataformas(id, content_id, platform_id, legenda, hashtags, publish_date, publish_time, publish_date_enabled, publication_kind';
+  if (!includePublicacaoColumns) return base + ')';
+  return base + ', ' + CONTENT_PLATAFORMAS_PUBLICACAO_COLUMNS + ')';
+}
+
 const CONTENT_SCHEDULE_MILESTONE_COLUMNS = ['recorded_at', 'posted_at'] as const;
+
+const CONTENT_SCHEDULE_FUNCAO_COLUMNS = [
+  'funcao',
+  'funcao_origem',
+  'classificacao_congelada_em',
+  'conta_na_grade',
+] as const;
 
 function buildContentScheduleSelect(
   includeMilestones: boolean,
   includeCreationColumns = true,
+  includeFuncaoColumns = true,
+  includePublicacaoColumns = true,
+  includeLegendaBase = true,
+  includeLivroIds = true,
 ): string {
   let columns: readonly string[] = includeMilestones
     ? [
@@ -759,6 +934,23 @@ function buildContentScheduleSelect(
       column => column !== 'archived_at' && column !== 'legacy_idea_id',
     );
   }
+  if (includeFuncaoColumns) {
+    const relation = columns[columns.length - 1];
+    columns = [...columns.slice(0, -1), ...CONTENT_SCHEDULE_FUNCAO_COLUMNS, relation];
+  }
+  if (includeLegendaBase) {
+    const relation = columns[columns.length - 1];
+    columns = [...columns.slice(0, -1), 'legenda_base', relation];
+  }
+  if (includeLivroIds) {
+    const relation = columns[columns.length - 1];
+    columns = [...columns.slice(0, -1), 'livro_ids', relation];
+  }
+  if (includePublicacaoColumns) {
+    columns = columns.map(column => (
+      column.startsWith('content_plataformas(') ? contentPlataformasSelect(true) : column
+    ));
+  }
   return columns.join(', ');
 }
 
@@ -770,12 +962,39 @@ async function runContentScheduleSelect<T>(
 ): Promise<SupabaseListResult<T>> {
   let includeMilestones = true;
   let includeCreationColumns = true;
+  let includeFuncaoColumns = true;
+  let includePublicacaoColumns = true;
+  let includeLegendaBase = true;
+  let includeLivroIds = true;
 
-  for (let attempt = 0; attempt < 3; attempt += 1) {
+  for (let attempt = 0; attempt < 7; attempt += 1) {
     const result = await run(
-      buildContentScheduleSelect(includeMilestones, includeCreationColumns),
+      buildContentScheduleSelect(
+        includeMilestones,
+        includeCreationColumns,
+        includeFuncaoColumns,
+        includePublicacaoColumns,
+        includeLegendaBase,
+        includeLivroIds,
+      ),
     );
     if (!result.error) return result;
+    if (includeLivroIds && isMissingLivroIdsColumn(result.error)) {
+      includeLivroIds = false;
+      continue;
+    }
+    if (includeLegendaBase && isMissingLegendaBaseColumn(result.error)) {
+      includeLegendaBase = false;
+      continue;
+    }
+    if (includePublicacaoColumns && isMissingPublicacaoColumns(result.error)) {
+      includePublicacaoColumns = false;
+      continue;
+    }
+    if (includeFuncaoColumns && isMissingFuncaoColumns(result.error)) {
+      includeFuncaoColumns = false;
+      continue;
+    }
     if (includeCreationColumns && isMissingCreationColumn(result.error)) {
       includeCreationColumns = false;
       continue;
@@ -787,7 +1006,7 @@ async function runContentScheduleSelect<T>(
     return result;
   }
 
-  return run(buildContentScheduleSelect(false, false));
+  return run(buildContentScheduleSelect(false, false, false, false, false, false));
 }
 const CONTENT_LIST_SORT_COLUMNS: Record<string, string> = {
   createdAt: 'created_at',
@@ -1181,20 +1400,37 @@ export async function fetchBibliotecaContentCounts(userId: string): Promise<Map<
     if (cached) return cached;
   }
 
-  const rows = assertQuerySuccess(
-    'biblioteca content counts fetch',
-    await supabase
-      .from('contents')
-      .select('biblioteca_item_id')
-      .eq('user_id', userId)
-      .is('deleted_at', null)
-      .not('biblioteca_item_id', 'is', null),
-  ) || [];
+  const withList = await supabase
+    .from('contents')
+    .select('biblioteca_item_id, livro_ids')
+    .eq('user_id', userId)
+    .is('deleted_at', null);
+
+  let rows: Row[] = [];
+  if (!withList.error) {
+    rows = withList.data || [];
+  } else if (isMissingLivroIdsColumn(withList.error)) {
+    rows = assertQuerySuccess(
+      'biblioteca content counts fetch',
+      await supabase
+        .from('contents')
+        .select('biblioteca_item_id')
+        .eq('user_id', userId)
+        .is('deleted_at', null)
+        .not('biblioteca_item_id', 'is', null),
+    ) || [];
+  } else {
+    throw new Error(`biblioteca content counts fetch: ${withList.error.message}`);
+  }
 
   const counts = new Map<string, number>();
-  for (const row of rows as Row[]) {
-    const itemId = row.biblioteca_item_id as string;
-    counts.set(itemId, (counts.get(itemId) || 0) + 1);
+  for (const row of rows) {
+    for (const itemId of livroIdsEfetivos({
+      livroIds: Array.isArray(row.livro_ids) ? row.livro_ids.filter((id: unknown): id is string => typeof id === 'string') : undefined,
+      bibliotecaItemId: typeof row.biblioteca_item_id === 'string' ? row.biblioteca_item_id : null,
+    })) {
+      counts.set(itemId, (counts.get(itemId) || 0) + 1);
+    }
   }
 
   dataCache.setValue(cacheKey, counts);
@@ -1643,14 +1879,37 @@ export async function deletePilar(id: string): Promise<void> {
 
 export async function saveSerie(serie: Omit<Serie, 'pilarIds' | 'plataformas' | 'createdAt' | 'updatedAt'>): Promise<void> {
   if (!supabase) return;
-  const { error } = await supabase.from('series').upsert({
+  let row: Record<string, unknown> = {
     id: serie.id, user_id: serie.userId, name: serie.name, template: serie.template,
     notes: serie.notes, slot_padrao: serie.slotPadrao, formato_visual_padrao: serie.formatoVisualPadrao,
     estrutura_roteiro: serie.estruturaRoteiro, bordao: serie.bordao, cor: serie.cor,
     capa_url: serie.capaUrl?.trim() || null,
     ativa: serie.ativa, frequencia_recomendada: serie.frequenciaRecomendada,
-  });
-  if (error) throw new Error(`series: ${error.message}`);
+    energia_padrao: serie.energiaPadrao ?? null,
+    funcao_padrao: serie.funcaoPadrao ?? null,
+    pilar_principal_id: serie.pilarPrincipalId ?? null,
+    formato_apresentacao: serie.formatoApresentacao?.trim() || null,
+    motivo_salvar: serie.motivoSalvar?.trim() || null,
+    motivo_enviar: serie.motivoEnviar?.trim() || null,
+  };
+
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    const { error } = await supabase.from('series').upsert(row);
+    if (!error) return;
+
+    const missing = SERIE_OPTIONAL_COLUMNS.find(column =>
+      column in row && !!error.message && isMissingNamedColumn(error.message, column),
+    );
+    if (missing) {
+      const {[missing]: _removed, ...rest} = row;
+      row = rest;
+      continue;
+    }
+
+    throw new Error(`series: ${error.message}`);
+  }
+
+  throw new Error('series: schema compatibility retries exhausted');
 }
 
 export async function saveSeriePilares(serieId: string, pilarIds: string[]): Promise<void> {
@@ -1788,6 +2047,69 @@ export async function saveItemGeneros(itemId: string, generoIds: string[]): Prom
   if (error) throw new Error(`item_generos: ${error.message}`);
 }
 
+async function detachLivroFromContents(livroId: string): Promise<void> {
+  if (!supabase) return;
+
+  const listed = await supabase
+    .from('contents')
+    .select('id, biblioteca_item_id, livro_ids')
+    .contains('livro_ids', [livroId]);
+
+  let includeLivroIds = true;
+  let rows: Row[] = [];
+
+  if (listed.error && isMissingLivroIdsColumn(listed.error)) {
+    includeLivroIds = false;
+    const primaryOnly = await supabase
+      .from('contents')
+      .select('id, biblioteca_item_id')
+      .eq('biblioteca_item_id', livroId);
+    if (primaryOnly.error) throw new Error(`detach livro: ${primaryOnly.error.message}`);
+    rows = primaryOnly.data || [];
+  } else if (listed.error) {
+    throw new Error(`detach livro: ${listed.error.message}`);
+  } else {
+    const primary = await supabase
+      .from('contents')
+      .select('id, biblioteca_item_id, livro_ids')
+      .eq('biblioteca_item_id', livroId);
+    if (primary.error) throw new Error(`detach livro: ${primary.error.message}`);
+    const byId = new Map<string, Row>();
+    for (const row of [...(listed.data || []), ...(primary.data || [])]) {
+      byId.set(String(row.id), row);
+    }
+    rows = [...byId.values()];
+  }
+
+  for (const row of rows) {
+    const atuais = includeLivroIds
+      ? livroIdsEfetivos({
+        livroIds: Array.isArray(row.livro_ids)
+          ? row.livro_ids.filter((item: unknown): item is string => typeof item === 'string')
+          : undefined,
+        bibliotecaItemId: typeof row.biblioteca_item_id === 'string' ? row.biblioteca_item_id : null,
+      })
+      : [];
+    const livroIds = atuais.filter(item => item !== livroId);
+    const bibliotecaItemId = livroIds[0] ?? null;
+    const payload: Record<string, unknown> = includeLivroIds
+      ? { livro_ids: livroIds, biblioteca_item_id: bibliotecaItemId }
+      : { biblioteca_item_id: null };
+
+    const { error } = await supabase.from('contents').update(payload).eq('id', row.id);
+    if (!error) continue;
+    if (includeLivroIds && isMissingLivroIdsColumn(error)) {
+      const fallback = await supabase
+        .from('contents')
+        .update({ biblioteca_item_id: row.biblioteca_item_id === livroId ? null : row.biblioteca_item_id })
+        .eq('id', row.id);
+      if (fallback.error) throw new Error(`detach livro: ${fallback.error.message}`);
+      continue;
+    }
+    throw new Error(`detach livro: ${error.message}`);
+  }
+}
+
 export async function deleteBibliotecaItem(id: string): Promise<void> {
   if (!supabase) return;
 
@@ -1797,9 +2119,15 @@ export async function deleteBibliotecaItem(id: string): Promise<void> {
     .eq('id', id)
     .maybeSingle();
 
+  await detachLivroFromContents(id);
+
   const { error } = await supabase.from('biblioteca_items')
     .delete().eq('id', id);
   if (error) throw new Error(`delete biblioteca_item: ${error.message}`);
+
+  if (existing?.user_id) {
+    dataCache.invalidateValue(`stats:biblioteca-content-counts:${existing.user_id}`);
+  }
 
   if (existing?.user_id) {
     const { deleteLibraryItemCovers } = await import('../features/library/lib/libraryCoverStorage');
@@ -1837,12 +2165,15 @@ export async function saveContent(
   content: Omit<Content, 'plataformas' | 'updatedAt' | 'deletedAt'>
 ): Promise<void> {
   if (!supabase) return;
+  const livros = aplicarLivros(content);
   let row: Record<string, unknown> = {
     id: content.id, user_id: content.userId, title: content.title,
     status: content.status, classificacao: content.classificacao,
     slot_type: content.slotType, series_id: content.seriesId,
     pilar_id: content.pilarId, look_id: content.lookId, cenario_id: content.cenarioId,
-    biblioteca_item_id: content.bibliotecaItemId, formato_visual: content.formatoVisual,
+    biblioteca_item_id: livros.bibliotecaItemId,
+    livro_ids: livros.livroIds,
+    formato_visual: content.formatoVisual,
     energia_necessaria: content.energiaNecessaria, publish_date: content.publishDate,
     publish_time: content.publishTime,
     publish_date_enabled: content.publishDateEnabled ?? (content.publishDate != null),
@@ -1853,14 +2184,45 @@ export async function saveContent(
     link: content.link, script: content.script,
     script_notes: content.scriptNotes, tags: content.tags,
     notes: content.notes, referencias: content.referencias,
+    funcao: content.funcao ?? null,
+    funcao_origem: content.funcaoOrigem ?? null,
+    classificacao_congelada_em: content.classificacaoCongeladaEm ?? null,
+    conta_na_grade: content.contaNaGrade ?? true,
+    legenda_base: content.legendaBase ?? null,
     ...(content.writingNotes !== undefined ? {writing_notes: content.writingNotes} : {}),
     archived_at: content.archivedAt ?? null,
     legacy_idea_id: content.legacyIdeaId ?? null,
   };
 
-  for (let attempt = 0; attempt < 5; attempt += 1) {
+  for (let attempt = 0; attempt < 10; attempt += 1) {
     const {error} = await supabase.from('contents').upsert(row);
     if (!error) return;
+
+    if (isMissingLivroIdsColumn(error) && 'livro_ids' in row) {
+      const {livro_ids: _livroIds, ...rowWithoutLivroIds} = row;
+      row = rowWithoutLivroIds;
+      continue;
+    }
+
+    if (isMissingLegendaBaseColumn(error) && 'legenda_base' in row) {
+      const {legenda_base: _legendaBase, ...rowWithoutLegendaBase} = row;
+      row = rowWithoutLegendaBase;
+      continue;
+    }
+
+    if (isMissingFuncaoColumns(error) && (
+      'funcao' in row || 'funcao_origem' in row || 'classificacao_congelada_em' in row || 'conta_na_grade' in row
+    )) {
+      const {
+        funcao: _funcao,
+        funcao_origem: _funcaoOrigem,
+        classificacao_congelada_em: _classificacaoCongeladaEm,
+        conta_na_grade: _contaNaGrade,
+        ...rowWithoutFuncao
+      } = row;
+      row = rowWithoutFuncao;
+      continue;
+    }
 
     if (isMissingWritingNotesColumn(error)) {
       const {writing_notes: _writingNotes, ...rowWithoutWritingNotes} = row;
@@ -1902,44 +2264,105 @@ export async function saveContent(
 
 export async function saveContentPlataformas(
   contentId: string,
-  plataformas: Omit<ContentPlataforma, 'id' | 'contentId'>[]
+  plataformas: ContentPlataforma[]
 ): Promise<void> {
   if (!supabase) return;
-  const { error: deleteError } = await supabase.from('content_plataformas').delete().eq('content_id', contentId);
-  if (deleteError) throw new Error(`content_plataformas delete: ${deleteError.message}`);
-  if (plataformas.length === 0) return;
-  const platformIds = await resolvePlatformIds(plataformas.map(p => p.platformId));
-  const rows = plataformas.map(p => ({
-      content_id: contentId, platform_id: platformIds.get(p.platformId),
-      legenda: p.legenda, hashtags: p.hashtags, publish_date: p.publishDate,
-      publish_time: p.publishTime,
-      publish_date_enabled: p.publishDateEnabled ?? (p.publishDate != null),
-      publication_kind: p.publicationKind ?? 'post',
+
+  const {data: existing, error: existingError} = await supabase
+    .from('content_plataformas')
+    .select('id')
+    .eq('content_id', contentId);
+  if (existingError) throw new Error(`content_plataformas list: ${existingError.message}`);
+
+  const existingIds = new Set((existing || []).map((row: Row) => String(row.id)));
+  const withIds = plataformas.map(plataforma => ({
+    ...plataforma,
+    id: plataforma.id?.trim() ? plataforma.id : generateUUID(),
+  }));
+
+  if (withIds.length > 0) {
+    const platformIds = await resolvePlatformIds(withIds.map(plataforma => plataforma.platformId));
+    const rows = withIds.map(plataforma => ({
+      id: plataforma.id,
+      content_id: contentId,
+      platform_id: platformIds.get(plataforma.platformId),
+      legenda: plataforma.legenda,
+      hashtags: plataforma.hashtags,
+      publish_date: plataforma.publishDate,
+      publish_time: plataforma.publishTime,
+      publish_date_enabled: plataforma.publishDateEnabled ?? (plataforma.publishDate != null),
+      publication_kind: plataforma.publicationKind ?? 'post',
+      status: plataforma.status ?? 'agendada',
+      realizada_manual_em: plataforma.realizadaManualEm ?? null,
+      realizada_api_em: plataforma.realizadaApiEm ?? null,
+      post_codigo: plataforma.postCodigo ?? null,
+      post_url: plataforma.postUrl ?? null,
+      legenda_propria: plataforma.legendaPropria ?? false,
+      conta_na_grade: plataforma.contaNaGrade ?? true,
+      updated_at: new Date().toISOString(),
     })).filter(
-      (row): row is typeof row & {platform_id: string} =>
-        typeof row.platform_id === 'string',
+      (row): row is typeof row & {platform_id: string} => typeof row.platform_id === 'string',
     );
 
-  const insertRows = async (payload: Array<Record<string, unknown>>) => {
-    const { error } = await supabase.from('content_plataformas').insert(payload);
-    return error;
-  };
+    let includePublicacao = true;
+    let includeKind = true;
+    let includeTime = true;
+    let saved = rows.length === 0;
 
-  let payload: Array<Record<string, unknown>> = rows;
-  for (let attempt = 0; attempt < 3; attempt += 1) {
-    const error = await insertRows(payload);
-    if (!error) return;
-    if (isMissingPublicationKindColumn(error)) {
-      payload = payload.map(({publication_kind: _publicationKind, ...row}) => row);
-      continue;
+    const upsertRows = async (payload: Array<Record<string, unknown>>) => {
+      const {error} = await supabase.from('content_plataformas').upsert(payload);
+      return error;
+    };
+
+    for (let attempt = 0; attempt < 6 && !saved; attempt += 1) {
+      const payload = rows.map(row => {
+        const next: Record<string, unknown> = {...row};
+        if (!includePublicacao) {
+          delete next.status;
+          delete next.realizada_manual_em;
+          delete next.realizada_api_em;
+          delete next.post_codigo;
+          delete next.post_url;
+          delete next.legenda_propria;
+          delete next.conta_na_grade;
+          delete next.updated_at;
+        }
+        if (!includeKind) delete next.publication_kind;
+        if (!includeTime) delete next.publish_time;
+        return next;
+      });
+      const error = await upsertRows(payload);
+      if (!error) {
+        saved = true;
+        break;
+      }
+      if (includePublicacao && isMissingPublicacaoColumns(error)) {
+        includePublicacao = false;
+        continue;
+      }
+      if (includeKind && isMissingPublicationKindColumn(error)) {
+        includeKind = false;
+        continue;
+      }
+      if (includeTime && isMissingPublishTimeColumn(error)) {
+        includeTime = false;
+        continue;
+      }
+      throw new Error(`content_plataformas: ${error.message}`);
     }
-    if (isMissingPublishTimeColumn(error)) {
-      payload = payload.map(({publish_time: _publishTime, ...row}) => row);
-      continue;
-    }
-    throw new Error(`content_plataformas: ${error.message}`);
+
+    if (!saved) throw new Error('content_plataformas: schema compatibility retries exhausted');
   }
-  throw new Error('content_plataformas: schema compatibility retries exhausted');
+
+  const incomingIds = new Set(withIds.map(plataforma => plataforma.id));
+  const removedIds = [...existingIds].filter(id => !incomingIds.has(id));
+  if (removedIds.length > 0) {
+    const {error: deleteError} = await supabase
+      .from('content_plataformas')
+      .delete()
+      .in('id', removedIds);
+    if (deleteError) throw new Error(`content_plataformas delete: ${deleteError.message}`);
+  }
 }
 
 export async function deleteContent(id: string): Promise<void> {

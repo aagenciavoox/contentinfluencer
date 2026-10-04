@@ -81,7 +81,7 @@ export function RecordingSelectionBar({
                 type="button"
                 onClick={handleHide}
                 className="rounded-full p-2 text-[var(--text-tertiary)] hover:bg-[var(--bg-hover)]"
-                aria-label="Fechar formulario"
+                aria-label="Fechar formulário"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -119,13 +119,13 @@ export function RecordingSelectionBar({
                 />
 
                 <TagSelect
-                  label="Marcadores de gravacao"
-                  hint="Opcional — look, cenario ou props."
+                  label="Marcadores de gravação"
+                  hint="Opcional — look, cenário ou props."
                   values={blockTags}
                   onChange={onBlockTagsChange}
                   options={availableTags.map(tag => ({value: tag, label: tag}))}
                   creatable
-                  placeholder="Ex: roupa preta, estante"
+                  placeholder="Ex.: roupa preta, estante"
                 />
 
                 <div className="flex flex-wrap gap-2">
@@ -206,7 +206,7 @@ export function RecordingSelectionBar({
                 onClick={onClearSelection}
                 className="rounded-[var(--radius-input)] border border-[var(--border-color)] px-4 py-2.5 text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
               >
-                Limpar
+                Limpar seleção
               </button>
               <button
                 type="button"

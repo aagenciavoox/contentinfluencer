@@ -83,7 +83,7 @@ export function HistorySection({content, compact = false}: HistorySectionProps) 
       )}
     >
       <Text variant="sectionTitle" className="mb-4">
-        Historico
+        Histórico
       </Text>
       <ol className="stack-md">
         {milestones.map(milestone => (

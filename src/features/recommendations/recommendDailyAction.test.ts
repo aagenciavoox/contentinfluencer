@@ -40,6 +40,8 @@ function createSerie(overrides: Partial<Serie> = {}): Serie {
     capaUrl: null,
     ativa: true,
     frequenciaRecomendada: 'Semanal',
+    funcaoPadrao: null,
+    energiaPadrao: null,
     createdAt: NOW.toISOString(),
     updatedAt: NOW.toISOString(),
     pilarIds: ['pilar-1'],
@@ -67,6 +69,10 @@ function createContent(overrides: Partial<Content> = {}): Content {
     referencias: '',
     link: '',
     energiaNecessaria: null,
+    funcao: null,
+    funcaoOrigem: null,
+    classificacaoCongeladaEm: null,
+    contaNaGrade: true,
     publishDate: null,
     publishTime: null,
     publishDateEnabled: false,
@@ -97,6 +103,9 @@ function createContent(overrides: Partial<Content> = {}): Content {
   assert.equal(recommendation?.kind, 'post');
   assert.equal(recommendation?.serie?.id, 'serie-1');
   assert.equal(recommendation?.serie?.gravadosProntos, 2);
+  assert.match(recommendation?.message ?? '', /^Cabem? mais \d+ posts? de "Humor" neste ciclo\./);
+  assert.match(recommendation?.message ?? '', /"Destrinchando" tem 2 roteiros gravados/);
+  assert.doesNotMatch(recommendation?.message ?? '', /precisa|gap/);
 }
 
 {
@@ -121,6 +130,10 @@ function createContent(overrides: Partial<Content> = {}): Content {
 
   assert.equal(recommendation?.kind, 'record');
   assert.equal(recommendation?.serie?.roteirosEscritos, 2);
+  assert.match(
+    recommendation?.message ?? '',
+    /^"Humor" tem espaço para mais \d+, mas nada gravado ainda\. "Destrinchando" tem 2 roteiros, que podem ser um bom começo\.$/,
+  );
 }
 
 {
@@ -193,6 +206,8 @@ function createContent(overrides: Partial<Content> = {}): Content {
   });
 
   assert.equal(recommendation?.kind, 'configure_meta');
+  assert.equal(recommendation?.href, '/editorial/pilares/pilar-1');
+  assert.doesNotMatch(recommendation?.message ?? '', /falta|precisa/);
 }
 
 {

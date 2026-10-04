@@ -29,10 +29,10 @@ export function CalendarLayerToggle({ activeLayers, onChange }: LayerToggleProps
   };
 
   const layers = [
-    { id: 'recordings', label: isMobile ? 'Gravar' : 'Ver Gravações', icon: <Video className="w-3.5 h-3.5 md:w-4 md:h-4" />, color: 'orange' },
-    { id: 'posts', label: isMobile ? 'Postar' : 'Ver Postagens', icon: <Send className="w-3.5 h-3.5 md:w-4 md:h-4" />, color: 'blue' },
-    { id: 'partnerships', label: isMobile ? 'Publis' : 'Ver Publicidades', icon: <Star className="w-3.5 h-3.5 md:w-4 md:h-4" />, color: 'amber' },
-    { id: 'agenda', label: isMobile ? 'Agenda' : 'Ver Compromissos Externos', icon: <CalendarIcon className="w-3.5 h-3.5 md:w-4 md:h-4" />, color: 'purple' },
+    { id: 'recordings', label: isMobile ? 'Gravar' : 'Ver gravações', icon: <Video className="w-3.5 h-3.5 md:w-4 md:h-4" />, color: 'orange' },
+    { id: 'posts', label: isMobile ? 'Postar' : 'Ver postagens', icon: <Send className="w-3.5 h-3.5 md:w-4 md:h-4" />, color: 'blue' },
+    { id: 'partnerships', label: isMobile ? 'Publis' : 'Ver publicidades', icon: <Star className="w-3.5 h-3.5 md:w-4 md:h-4" />, color: 'amber' },
+    { id: 'agenda', label: isMobile ? 'Agenda' : 'Ver compromissos externos', icon: <CalendarIcon className="w-3.5 h-3.5 md:w-4 md:h-4" />, color: 'purple' },
   ];
 
   return (

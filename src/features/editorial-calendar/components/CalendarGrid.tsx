@@ -24,7 +24,6 @@ import {
   Star, 
   Calendar as CalendarIcon, 
   Zap, 
-  AlertTriangle,
   RotateCcw,
   CheckCircle2,
   Clock,
@@ -191,7 +190,7 @@ export function CalendarGrid({ activeLayers, searchTerm, sortValue, onItemClick 
            <div className="flex items-center gap-2 shrink-0"><Star className="w-3.5 h-3.5 text-[var(--warning)]" /><span className="text-2xs font-semibold uppercase tracking-normal opacity-60">Publicidade</span></div>
         </div>
 
-        <div className="hidden md:flex items-center gap-4 text-[var(--text-tertiary)] text-xs font-semibold  opacity-60">
+        <div className="hidden items-center gap-4 text-xs font-semibold text-[var(--text-tertiary)] md:flex">
            <div className="flex items-center gap-2"><Video className="w-3 h-3 text-[var(--accent-orange)]" /> Gravação</div>
            <div className="h-1 w-1 bg-[var(--text-tertiary)] rounded-[var(--radius-pill)]" />
            <div className="flex items-center gap-2"><Send className="w-3 h-3 text-[var(--accent-blue)]" /> Postagens</div>
@@ -202,9 +201,18 @@ export function CalendarGrid({ activeLayers, searchTerm, sortValue, onItemClick 
 
       {/* Week Day Labels */}
       <div className="grid grid-cols-7 border-b border-[var(--border-color)] bg-[var(--bg-hover)]/30">
-        {['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'].map(d => (
-          <div key={d} className="py-2 md:py-4 text-center">
-            <Text variant="label" uppercase className="font-semibold text-[var(--text-tertiary)]">{d}</Text>
+        {[
+          {desktop: 'Seg', mobile: 'S'},
+          {desktop: 'Ter', mobile: 'T'},
+          {desktop: 'Qua', mobile: 'Q'},
+          {desktop: 'Qui', mobile: 'Q'},
+          {desktop: 'Sex', mobile: 'S'},
+          {desktop: 'Sáb', mobile: 'S'},
+          {desktop: 'Dom', mobile: 'D'},
+        ].map(day => (
+          <div key={day.desktop} className="py-2 md:py-4 text-center">
+            <Text variant="label" className="font-semibold text-[var(--text-tertiary)] md:hidden">{day.mobile}</Text>
+            <Text variant="label" className="hidden font-semibold text-[var(--text-tertiary)] md:inline">{day.desktop}</Text>
           </div>
         ))}
       </div>
@@ -225,14 +233,14 @@ export function CalendarGrid({ activeLayers, searchTerm, sortValue, onItemClick 
               className={cn(
                 "border-r border-b border-[var(--border-color)] p-1.5 md:p-2 transition-all flex flex-col group min-h-0",
                 !isCurrentMonth ? "opacity-20 bg-[var(--bg-hover)]/30" : "bg-[var(--bg-primary)]/40",
-                activeToday && "relative after:absolute after:inset-x-0 after:bottom-0 after:h-1 after:bg-[var(--accent-blue)]"
+                activeToday && "relative after:absolute after:inset-x-0 after:bottom-0 after:h-1 after:bg-[var(--accent)]"
               )}
             >
               {/* Day Header */}
               <div className="flex items-center justify-between p-2 mb-1">
                 <span className={cn(
                   "text-xs font-semibold w-6 h-6 flex items-center justify-center rounded-full transition-all",
-                  activeToday ? "bg-[var(--accent-blue)] text-[var(--bg-secondary)] shadow-[var(--shadow-soft)]" : "text-[var(--text-tertiary)] group-hover:text-[var(--text-primary)]"
+                  activeToday ? "bg-[var(--accent)] text-[var(--bg-primary)] shadow-[var(--shadow-soft)]" : "text-[var(--text-tertiary)] group-hover:text-[var(--text-primary)]"
                 )}>
                   {format(day, 'd')}
                 </span>
@@ -292,10 +300,10 @@ export function CalendarGrid({ activeLayers, searchTerm, sortValue, onItemClick 
 
               {/* Day Warnings */}
               {loadWarn && (
-                <div className="mt-auto pt-2" title="Cuidado, carga excessiva para sua energia atual">
-                   <div className="flex items-center gap-1.5 px-3 py-1 bg-[var(--danger)]/10 rounded-[var(--radius-pill)] border border-[var(--danger)]/20 animate-pulse">
-                      <AlertTriangle className="w-3 h-3 text-[var(--danger)]" />
-                      <span className="text-2xs font-semibold text-[var(--danger)]">Carga Excessiva</span>
+                <div className="mt-auto pt-2" title="Muita coisa para a energia deste dia. Dá para mover algo, se fizer sentido.">
+                   <div className="flex items-center gap-1.5 px-3 py-1 bg-[var(--warning-bg)] rounded-[var(--radius-pill)] border border-[var(--border-color)]">
+                      <Layers className="w-3 h-3 text-[var(--accent-orange)]" />
+                      <span className="text-2xs font-semibold text-[var(--text-secondary)]">Dia cheio</span>
                    </div>
                 </div>
               )}

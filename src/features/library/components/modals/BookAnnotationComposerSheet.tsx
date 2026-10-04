@@ -66,14 +66,14 @@ export function BookAnnotationComposer({
   const form = (
     <>
       <Text variant="label" uppercase className="mb-3 block font-semibold">
-        Nova nota
+        Nova anotação
       </Text>
       <div className="flex flex-col gap-3 lg:flex-row">
         <select
           value={novoTipo}
           onChange={event => setNovoTipo(event.target.value as TipoAnotacao)}
           className={cn(fieldClass, 'lg:w-52')}
-          aria-label="Tipo da nota"
+          aria-label="Tipo da anotação"
         >
           {TIPOS.map(tipo => <option key={tipo}>{tipo}</option>)}
         </select>
@@ -89,7 +89,7 @@ export function BookAnnotationComposer({
       <textarea
         value={novaAnotacao}
         onChange={event => setNovaAnotacao(event.target.value)}
-        placeholder="Escreva uma nova nota..."
+        placeholder="Escreva uma nova anotação…"
         rows={4}
         onKeyDown={event => {
           if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
@@ -139,7 +139,7 @@ export function BookAnnotationComposerSheet({
           <div>
             <p className="text-sm font-bold text-[var(--text-primary)] opacity-45">{book.titulo}</p>
             <span className="mt-1 block text-xs font-semibold text-[var(--text-tertiary)]">
-              Notas
+              Anotações
             </span>
           </div>
           <button

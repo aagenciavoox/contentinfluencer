@@ -1,16 +1,34 @@
-import {addMonths, format} from 'date-fns';
+import {addMonths, eachDayOfInterval, endOfWeek, format, startOfWeek} from 'date-fns';
+import {ptBR} from 'date-fns/locale';
 import {AgendaItem, Content, Platform, Projeto} from '../../../lib/database';
 import {
   CalendarEventPill,
   CalendarMonthGrid,
   editorialPillStyle,
 } from '../../../components/calendar';
+import {cn} from '../../../lib/utils';
 import {getDisplayStatus} from '../../contents/lib/contentPipeline';
 import {
   ALL_PLATFORMS,
   ALL_STATUSES,
   matchesContentFilters,
 } from '../lib/calendarContentFilters';
+import {buildPublishCalendarItems} from '../lib/publishCalendarItems';
+import type {GradeSerie} from '../../editorial/lib/gradeEntries';
+import {CalendarNetworkIcons} from './CalendarNetworkIcons';
+
+const WEEK_STARTS_ON = 0 as const;
+const TODAY_CIRCLE_CLASS =
+  '[&>div:first-child>span]:!bg-[var(--accent)] [&>div:first-child>span]:!text-[var(--bg-primary)]';
+
+function weekdayHeaderParts(day: Date) {
+  const raw = format(day, 'EEE', {locale: ptBR}).replace('.', '');
+  const label = raw.charAt(0).toUpperCase() + raw.slice(1).toLowerCase();
+  return {
+    compact: format(day, 'EEEEE', {locale: ptBR}).toUpperCase(),
+    full: `${label} ${format(day, 'd')}`,
+  };
+}
 
 type MonthlyCalendarViewProps = {
   contents: Content[];
@@ -29,6 +47,8 @@ type MonthlyCalendarViewProps = {
   onShowMore?: (date: Date) => void;
   platformFilter?: string;
   statusFilter?: string;
+  series?: GradeSerie[];
+  redeReferenciaId?: string | null;
 };
 
 export type CalendarEntry = {
@@ -41,6 +61,7 @@ export type CalendarEntry = {
   color?: string | null;
   contentId?: string;
   plataformaId?: string;
+  platformNames?: string[];
   agendaId?: string;
   projetoId?: string;
 };
@@ -53,7 +74,7 @@ export function buildCalendarEntries(
   activeLayers: string[],
   searchTerm: string,
   sortValue: string,
-  filters?: {platformFilter?: string; statusFilter?: string},
+  filters?: {platformFilter?: string; statusFilter?: string; series?: GradeSerie[]; redeReferenciaId?: string | null},
 ) {
   const map = new Map<string, CalendarEntry[]>();
   const normalizedSearch = searchTerm.trim().toLowerCase();
@@ -87,49 +108,45 @@ export function buildCalendarEntries(
       push(content.recordingDate, {
         id: `${content.id}-rec`,
         type: 'recording',
-        label: content.title || '(sem titulo)',
+        label: content.title || '(sem título)',
         date: '',
         contentId: content.id,
-        secondary: status || 'Gravacao',
+        secondary: status || 'Gravação',
       });
     });
   }
 
   if (activeLayers.includes('posts')) {
-    contents.forEach(content => {
+    const publishItems = buildPublishCalendarItems({
+      contents,
+      platforms,
+      series: filters?.series ?? [],
+      redeReferenciaId: filters?.redeReferenciaId ?? null,
+      platformFilter,
+    });
+    publishItems.forEach(item => {
+      const content = contents.find(candidate => candidate.id === item.contentId);
+      if (!content) return;
       const status = getDisplayStatus(content);
-      if (content.plataformas.length > 0) {
-        content.plataformas.forEach(plataforma => {
-          const platformName = platformNameById.get(plataforma.platformId) || plataforma.platformId;
-          if (!matchesContentFilters({
-            platformNames: [platformName],
-            status,
-            platformFilter,
-            statusFilter,
-          })) return;
-          push(plataforma.publishDate || content.publishDate, {
-            id: `${content.id}-pub-${plataforma.id}`,
-            type: 'publish',
-            label: content.title || '(sem titulo)',
-            date: '',
-            time: plataforma.publishTime || content.publishTime,
-            contentId: content.id,
-            plataformaId: plataforma.id,
-            secondary: `${platformName} - ${status || 'Publicacao'}`,
-          });
-        });
-        return;
-      }
-
-      if (!matchesContentFilters({platformNames: [], status, platformFilter, statusFilter})) return;
-      push(content.publishDate, {
-        id: `${content.id}-pub`,
+      if (!matchesContentFilters({
+        platformNames: item.platformNames,
+        status,
+        platformFilter,
+        statusFilter,
+      })) return;
+      const networkLabel = platformFilter === ALL_PLATFORMS
+        ? (status || 'Publicação')
+        : [(item.platformNames[0] || platformFilter), status || 'Publicação'].join(' - ');
+      push(item.date, {
+        id: item.id,
         type: 'publish',
-        label: content.title || '(sem titulo)',
+        label: content.title || '(sem título)',
         date: '',
-        time: content.publishTime,
+        time: item.time,
         contentId: content.id,
-        secondary: status || 'Publicacao',
+        plataformaId: item.plataformaId,
+        platformNames: item.platformNames,
+        secondary: networkLabel,
       });
     });
   }
@@ -233,6 +250,8 @@ export function MonthlyCalendarView({
   onShowMore,
   platformFilter,
   statusFilter,
+  series,
+  redeReferenciaId,
 }: MonthlyCalendarViewProps) {
   const today = new Date();
   const months = monthDate ? [monthDate] : Array.from({length: monthsToShow}, (_, index) => addMonths(today, index));
@@ -244,19 +263,46 @@ export function MonthlyCalendarView({
     activeLayers,
     searchTerm,
     sortValue,
-    {platformFilter, statusFilter},
+    {platformFilter, statusFilter, series, redeReferenciaId},
   );
 
   return (
     <div className="stack-lg">
-      {months.map(currentMonth => (
+      {months.map(currentMonth => {
+        const headerDays = eachDayOfInterval({
+          start: startOfWeek(currentMonth, {weekStartsOn: WEEK_STARTS_ON}),
+          end: endOfWeek(currentMonth, {weekStartsOn: WEEK_STARTS_ON}),
+        });
+
+        return (
+        <div key={currentMonth.toISOString()} className="stack-none">
+        <div className="grid grid-cols-7 border border-b-0 border-[var(--border-color)] bg-[var(--bg-primary)]">
+          {headerDays.map(day => {
+            const parts = weekdayHeaderParts(day);
+            return (
+              <div
+                key={`header-${day.toISOString()}`}
+                className="min-w-0 border-r border-[var(--border-color)] px-1 py-2 text-center last:border-r-0 sm:px-2"
+              >
+                <span className="text-2xs font-semibold text-[var(--text-tertiary)] sm:hidden">
+                  {parts.compact}
+                </span>
+                <span className="hidden text-2xs font-semibold text-[var(--text-tertiary)] sm:inline">
+                  {parts.full}
+                </span>
+              </div>
+            );
+          })}
+        </div>
         <CalendarMonthGrid
           key={currentMonth.toISOString()}
           anchorDate={currentMonth}
           selectedDate={selectedDate}
           onSelectDate={onSelectDate}
-          weekStartsOn={0}
+          weekStartsOn={WEEK_STARTS_ON}
           minCellHeight={120}
+          className="border-t-0 [&>div:first-child]:hidden"
+          getDayClassName={dayProps => (dayProps.isToday ? TODAY_CIRCLE_CLASS : undefined)}
           onDayClick={(dayProps, event) => {
             const entries = entriesByDate.get(dayProps.dateKey) || [];
             if (entries.length === 0 && onEmptyDayClick) {
@@ -279,6 +325,7 @@ export function MonthlyCalendarView({
                       label={entry.label}
                       time={entry.time}
                       variant="compact"
+                      icon={entry.platformNames?.length ? <CalendarNetworkIcons names={entry.platformNames} /> : undefined}
                       style={editorialPillStyle(useCustomColor ? entry.color : null, entry.type)}
                       onClick={event => {
                         event.stopPropagation();
@@ -305,7 +352,9 @@ export function MonthlyCalendarView({
             );
           }}
         />
-      ))}
+        </div>
+        );
+      })}
     </div>
   );
 }

@@ -25,7 +25,7 @@ interface ProjectsMobileScreenProps {
 
 const TIPO_LABELS: Record<Exclude<TipoFilter, 'todos'>, string> = {
   publi: 'Publi',
-  producao: 'Producao',
+  producao: 'Produção',
   outro: 'Outro',
 };
 
@@ -93,7 +93,7 @@ export function ProjectsMobileScreen({
           icon={FolderKanban}
           tone="green"
           title="Projetos abertos"
-          description="Datas, valor e contexto em cards leves para consulta rapida."
+          description="Datas combinadas, valores e contexto de cada projeto."
         />
 
         <div className="grid-metrics-3">
@@ -137,7 +137,7 @@ export function ProjectsMobileScreen({
         {filteredProjects.length === 0 ? (
           <EmptyState compact
             title="Nenhum projeto encontrado"
-            description="Ajuste a busca ou abra um novo projeto para alimentar essa camada mobile."
+            description="Ajuste a busca ou crie um projeto."
             action={focusAction}
             icon={<SearchCheck className="h-8 w-8" />}
           />
@@ -148,44 +148,50 @@ export function ProjectsMobileScreen({
               const hasEvents = projectIdsWithEvents.has(projeto.id);
 
               return (
-                <MobileListCard
-                  key={projeto.id}
-                  onClick={() => onOpenProject(projeto.id)}
-                  eyebrow={TIPO_LABELS[normalizeProjetoTipo(projeto.tipo)]}
-                  title={projeto.nome}
-                  description={projeto.brand || projeto.notes || 'Sem observacoes adicionais'}
-                  meta={
-                    <>
-                      {projeto.value ? (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-[var(--accent-orange)]/10 px-3 py-1 text-xs font-semibold text-[var(--accent-orange)]">
-                          <CircleDollarSign className="h-3 w-3" />
-                          {projeto.value.toLocaleString('pt-BR', {
-                            style: 'currency',
-                            currency: projeto.currency || 'BRL',
-                          })}
+                <div key={projeto.id} className="relative overflow-hidden rounded-[var(--radius-card)]">
+                  <span
+                    aria-hidden
+                    className="pointer-events-none absolute inset-y-0 left-0 z-10 w-1"
+                    style={{ backgroundColor: projeto.color || '#78716c' }}
+                  />
+                  <MobileListCard
+                    onClick={() => onOpenProject(projeto.id)}
+                    eyebrow={TIPO_LABELS[normalizeProjetoTipo(projeto.tipo)]}
+                    title={projeto.nome}
+                    description={projeto.brand || projeto.notes || 'Sem observações adicionais'}
+                    meta={
+                      <>
+                        {projeto.value ? (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-[var(--accent-orange)]/10 px-3 py-1 text-xs font-semibold text-[var(--accent-orange)]">
+                            <CircleDollarSign className="h-3 w-3" />
+                            {projeto.value.toLocaleString('pt-BR', {
+                              style: 'currency',
+                              currency: projeto.currency || 'BRL',
+                            })}
+                          </span>
+                        ) : null}
+                        <span className="inline-flex items-center gap-1 rounded-full bg-[var(--accent-green)]/10 px-3 py-1 text-xs font-semibold text-[var(--accent-green)]">
+                          <TimerReset className="h-3 w-3" />
+                          {hasEvents ? 'Com eventos' : 'Sem eventos'}
                         </span>
-                      ) : null}
-                      <span className="inline-flex items-center gap-1 rounded-full bg-[var(--accent-green)]/10 px-3 py-1 text-xs font-semibold text-[var(--accent-green)]">
-                        <TimerReset className="h-3 w-3" />
-                        {hasEvents ? 'Com eventos' : 'Sem eventos'}
-                      </span>
-                    </>
-                  }
-                  status={
-                    <div className="stack-sm">
-                      <div className="flex items-center justify-between">
-                        <span className="t-label text-[var(--text-tertiary)]">Progresso</span>
-                        <span className="text-xs font-semibold text-[var(--text-secondary)]">{progress}%</span>
+                      </>
+                    }
+                    status={
+                      <div className="stack-sm">
+                        <div className="flex items-center justify-between">
+                          <Text variant="label">Progresso</Text>
+                          <Text variant="meta">{progress}%</Text>
+                        </div>
+                        <div className="h-2 rounded-full bg-[var(--bg-hover)]">
+                          <div
+                            className="h-full rounded-full bg-[var(--text-primary)] transition-[width]"
+                            style={{ width: `${progress}%` }}
+                          />
+                        </div>
                       </div>
-                      <div className="h-2 rounded-full bg-[var(--bg-hover)]">
-                        <div
-                          className="h-full rounded-full bg-[var(--text-primary)] transition-[width]"
-                          style={{ width: `${progress}%` }}
-                        />
-                      </div>
-                    </div>
-                  }
-                />
+                    }
+                  />
+                </div>
               );
             })}
           </div>
@@ -202,7 +208,7 @@ export function ProjectsMobileScreen({
           <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value as TipoFilter)}>
             <option value="todos">Todos</option>
             <option value="publi">Publi</option>
-            <option value="producao">Producao</option>
+            <option value="producao">Produção</option>
             <option value="outro">Outro</option>
           </select>
         </label>
@@ -217,10 +223,10 @@ export function ProjectsMobileScreen({
         </label>
 
         <label className="block stack-sm">
-          <span className="t-label text-[var(--text-tertiary)]">Ordenacao</span>
+          <span className="t-label text-[var(--text-tertiary)]">Ordenação</span>
           <select value={sortValue} onChange={(event) => setSortValue(event.target.value)}>
             <option value="updatedAt:desc">Atualizados</option>
-            <option value="name:asc">Nome A-Z</option>
+            <option value="name:asc">Nome A–Z</option>
             <option value="value:desc">Maior valor</option>
           </select>
         </label>

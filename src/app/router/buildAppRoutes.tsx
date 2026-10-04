@@ -1,5 +1,5 @@
 import { lazy } from 'react';
-import { Navigate, useLocation, type RouteObject } from 'react-router-dom';
+import { Navigate, useLocation, useParams, type RouteObject } from 'react-router-dom';
 import { AppShell } from '../../layouts/app/AppShell';
 import { CampanhaPublicaPage } from '../../features/projects/pages/CampanhaPublicaPage';
 import { LoginRoute, RequireAuth } from './RequireAuth';
@@ -12,12 +12,12 @@ const Creation = lazy(() => routeLoaders.creation().then(module => ({ default: m
 const Legendas = lazy(() => routeLoaders.captions().then(module => ({ default: module.Legendas })));
 const ContentDetail = lazy(() => routeLoaders.contentDetail().then(module => ({ default: module.ContentDetail })));
 const EditorialCalendar = lazy(() => routeLoaders.calendar().then(module => ({ default: module.EditorialCalendar })));
+const Editorial = lazy(() => routeLoaders.editorial().then(module => ({ default: module.Editorial })));
 const Biblioteca = lazy(() => routeLoaders.library().then(module => ({ default: module.Biblioteca })));
 const Analise = lazy(() => routeLoaders.libraryAnalysis().then(module => ({ default: module.Analise })));
 const BookDetail = lazy(() => routeLoaders.bookDetail().then(module => ({ default: module.BookDetail })));
 const Settings = lazy(() => routeLoaders.settings().then(module => ({ default: module.Settings })));
 const PerfilSettings = lazy(() => routeLoaders.profile().then(module => ({ default: module.PerfilSettings })));
-const PilaresSettings = lazy(() => routeLoaders.pillars().then(module => ({ default: module.PilaresSettings })));
 const PilarEditar = lazy(() => routeLoaders.pillarEdit().then(module => ({ default: module.PilarEditar })));
 const SeriesSettings = lazy(() => routeLoaders.series().then(module => ({ default: module.SeriesSettings })));
 const SeriesEditar = lazy(() => routeLoaders.seriesEdit().then(module => ({ default: module.SeriesEditar })));
@@ -29,10 +29,16 @@ const Gravacao = lazy(() => routeLoaders.recording().then(module => ({ default: 
 const GravacaoBloco = lazy(() => routeLoaders.recordingBlock().then(module => ({ default: module.GravacaoBloco })));
 const Dashboard = lazy(() => routeLoaders.dashboard().then(module => ({ default: module.Dashboard })));
 
-function LegacySeriesRedirect() {
-  const { pathname, search, hash } = useLocation();
-  const next = pathname.replace(/^\/configuracoes\/series/, '/series');
-  return <Navigate to={`${next}${search}${hash}`} replace />;
+function LegacyPillarEditRedirect() {
+  const { pilarId } = useParams<{ pilarId: string }>();
+  const { search, hash } = useLocation();
+  return <Navigate to={`/editorial/pilares/${pilarId ?? ''}${search}${hash}`} replace />;
+}
+
+function LegacySeriesEditRedirect() {
+  const { serieId } = useParams<{ serieId: string }>();
+  const { search, hash } = useLocation();
+  return <Navigate to={`/editorial/series/${serieId ?? ''}${search}${hash}`} replace />;
 }
 
 export function buildAppRoutes(): RouteObject[] {
@@ -72,6 +78,11 @@ export function buildAppRoutes(): RouteObject[] {
                     </ModuleRoute>
                   ),
                 },
+                { path: '/editorial', element: <Editorial /> },
+                { path: '/editorial/pilares/nova', element: <PilarEditar /> },
+                { path: '/editorial/pilares/:pilarId', element: <PilarEditar /> },
+                { path: '/editorial/series/nova', element: <SeriesEditar /> },
+                { path: '/editorial/series/:serieId', element: <SeriesEditar /> },
                 {
                   path: '/programacao',
                   element: <Navigate to="/calendario?modo=agendar" replace />,
@@ -134,24 +145,34 @@ export function buildAppRoutes(): RouteObject[] {
                 },
                 { path: '/configuracoes', element: <Settings /> },
                 { path: '/configuracoes/perfil', element: <PerfilSettings /> },
-                { path: '/configuracoes/pilares', element: <PilaresSettings /> },
-                { path: '/configuracoes/pilares/nova', element: <PilarEditar /> },
-                { path: '/configuracoes/pilares/:pilarId/editar', element: <PilarEditar /> },
+                { path: '/configuracoes/pilares', element: <Navigate to="/editorial?aba=pilares" replace /> },
+                { path: '/configuracoes/pilares/nova', element: <Navigate to="/editorial/pilares/nova" replace /> },
+                {
+                  path: '/configuracoes/pilares/:pilarId/editar',
+                  element: <LegacyPillarEditRedirect />,
+                },
                 { path: '/configuracoes/aparencia', element: <Navigate to="/configuracoes" replace /> },
                 { path: '/configuracoes/looks', element: <Navigate to="/configuracoes" replace /> },
-                { path: '/configuracoes/regras', element: <Navigate to="/configuracoes/pilares" replace /> },
+                { path: '/configuracoes/regras', element: <Navigate to="/editorial?aba=pilares" replace /> },
                 { path: '/series', element: <SeriesSettings /> },
-                { path: '/series/nova', element: <SeriesEditar /> },
-                { path: '/series/:serieId/editar', element: <SeriesEditar /> },
+                { path: '/series/nova', element: <Navigate to="/editorial/series/nova" replace /> },
+                { path: '/series/:serieId/editar', element: <LegacySeriesEditRedirect /> },
                 { path: '/series/:serieId/roteiros', element: <SeriesRoteiros /> },
-                { path: '/configuracoes/series', element: <Navigate to="/series" replace /> },
-                { path: '/configuracoes/series/*', element: <LegacySeriesRedirect /> },
+                { path: '/configuracoes/series', element: <Navigate to="/editorial?aba=series" replace /> },
+                { path: '/configuracoes/series/nova', element: <Navigate to="/editorial/series/nova" replace /> },
+                {
+                  path: '/configuracoes/series/:serieId/editar',
+                  element: <LegacySeriesEditRedirect />,
+                },
+                {
+                  path: '/configuracoes/series/:serieId/roteiros',
+                  element: <SeriesRoteiros />,
+                },
                 { path: '/configuracoes/plataformas', element: <PlataformasSettings /> },
                 { path: '/configuracoes/templates', element: <Navigate to="/series" replace /> },
                 { path: '/configuracoes/horarios', element: <Navigate to="/configuracoes/plataformas" replace /> },
                 { path: '/contents', element: <LegacyCreationRedirect source="contents" /> },
                 { path: '/ideas', element: <LegacyCreationRedirect source="ideas" /> },
-                { path: '/editorial', element: <Navigate to="/calendario" replace /> },
                 { path: '/analise', element: <Navigate to="/biblioteca/analise" replace /> },
                 { path: '/calendar', element: <Navigate to="/calendario" replace /> },
                 { path: '/results', element: <Navigate to="/criacao" replace /> },

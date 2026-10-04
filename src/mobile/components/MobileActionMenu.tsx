@@ -135,7 +135,7 @@ export function MobileActionMenu({ open, onClose }: MobileActionMenuProps) {
         }]
       : []),
     {
-      label: 'Nova anotacao',
+      label: 'Nova anotação',
       icon: <BookOpen className="h-5 w-5" />,
       onClick: handleNewAnnotation,
       accentClassName: 'text-[var(--accent-purple)] bg-[var(--accent-purple)]/10',
@@ -160,7 +160,7 @@ export function MobileActionMenu({ open, onClose }: MobileActionMenuProps) {
             <motion.section
               role="dialog"
               aria-modal="true"
-              aria-label="Acoes rapidas"
+              aria-label="Ações rápidas"
               initial={{ y: '100%' }}
               animate={{ y: 0 }}
               exit={{ y: '100%' }}
@@ -205,10 +205,10 @@ export function MobileActionMenu({ open, onClose }: MobileActionMenuProps) {
                   {preferredBookId === currentBook.id ? (
                     <span className="inline-flex items-center gap-1">
                       <Pin className="h-3 w-3 text-[var(--accent-purple)]" />
-                      Anotacao em {currentBook.titulo}
+                      Anotação em {currentBook.titulo}
                     </span>
                   ) : (
-                    <>Anotacao em {currentBook.titulo}</>
+                    <>Anotação em {currentBook.titulo}</>
                   )}
                 </p>
               ) : null}

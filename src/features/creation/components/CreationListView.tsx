@@ -25,6 +25,24 @@ export interface CreationListItemModel {
   selected: boolean;
 }
 
+/**
+ * Colunas da lista no desktop, iguais no cabeçalho e nas linhas.
+ * Categoria e Formato saem quando nenhuma linha visível tem valor nelas.
+ */
+const LIST_COLUMNS = {
+  categoryAndFormat: 'md:grid-cols-[28px_minmax(0,1.6fr)_minmax(0,0.8fr)_minmax(0,0.55fr)_10rem_36px]',
+  categoryOnly: 'md:grid-cols-[28px_minmax(0,1.6fr)_minmax(0,0.8fr)_10rem_36px]',
+  formatOnly: 'md:grid-cols-[28px_minmax(0,1.6fr)_minmax(0,0.55fr)_10rem_36px]',
+  titleOnly: 'md:grid-cols-[28px_minmax(0,1fr)_10rem_36px]',
+} as const;
+
+function listColumnsClass(showCategory: boolean, showFormat: boolean) {
+  if (showCategory && showFormat) return LIST_COLUMNS.categoryAndFormat;
+  if (showCategory) return LIST_COLUMNS.categoryOnly;
+  if (showFormat) return LIST_COLUMNS.formatOnly;
+  return LIST_COLUMNS.titleOnly;
+}
+
 interface CreationListViewProps {
   items: CreationListItemModel[];
   selectionMode: boolean;
@@ -45,11 +63,17 @@ function CreationListRow({
   onOpen,
   onToggleSelect,
   actions,
+  columnsClassName,
+  showCategory,
+  showFormat,
 }: CreationListItemModel & {
   selectionMode: boolean;
   onOpen: () => void;
   onToggleSelect: () => void;
   actions: CreationItemActionHandlers;
+  columnsClassName: string;
+  showCategory: boolean;
+  showFormat: boolean;
 }) {
   const title = getCreationTitle(content);
   const isIdea = isIdeaContent(content);
@@ -95,13 +119,15 @@ function CreationListRow({
           ? 'creation-hub-row--idea border-[var(--idea-card-border)] bg-[var(--idea-card-bg)]'
           : 'hover:bg-[var(--bg-hover)] focus-within:bg-[var(--bg-hover)]',
         'focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
-        'md:grid-cols-[28px_minmax(0,1.6fr)_minmax(0,0.8fr)_minmax(0,0.55fr)_7.5rem_36px] md:items-center md:gap-3 md:py-0 md:min-h-[56px]',
+        columnsClassName,
+        'md:items-center md:gap-3 md:py-0 md:min-h-[56px]',
         selected && 'border-[var(--border-strong)] bg-[var(--bg-hover)]',
         selectionMode && !selectable && 'opacity-55',
         canActivate ? 'cursor-pointer' : 'cursor-default',
       )}
     >
-      <div className="relative z-[1] flex items-center gap-2 md:contents">
+      {/* No celular: título na primeira linha; etiqueta e ações na segunda. */}
+      <div className="relative z-[1] flex flex-wrap items-center gap-x-2 gap-y-1 md:contents">
         <div
           className="relative z-[1] flex items-center"
           onClick={event => event.stopPropagation()}
@@ -118,37 +144,42 @@ function CreationListRow({
           )}
         </div>
 
-        <Text variant="itemTitle" className="relative z-[1] min-w-0 truncate font-semibold leading-snug">
+        <Text variant="itemTitle" className="relative z-[1] min-w-0 flex-1 line-clamp-2 font-semibold leading-snug md:flex-none md:truncate">
           {title}
         </Text>
 
-        <div className="relative z-[1] min-w-0">
-          {tags.length > 0 ? (
-            <CreationCategoryLabel label={tags[0]} extraCount={tags.length - 1} />
-          ) : (
-            <span className="hidden md:block" aria-hidden />
-          )}
-        </div>
+        {showCategory ? (
+          <div className="relative z-[1] min-w-0">
+            {tags.length > 0 ? (
+              <CreationCategoryLabel label={tags[0]} extraCount={tags.length - 1} />
+            ) : (
+              <span className="hidden md:block" aria-hidden />
+            )}
+          </div>
+        ) : null}
 
-        <div className="relative z-[1] min-w-0">
-          {format ? (
-            <Text variant="meta" as="span" className="truncate">
-              {format}
-            </Text>
-          ) : (
-            <span className="hidden md:block" aria-hidden />
-          )}
-        </div>
+        {showFormat ? (
+          <div className="relative z-[1] min-w-0">
+            {format ? (
+              <Text variant="meta" as="span" className="truncate">
+                {format}
+              </Text>
+            ) : (
+              <span className="hidden md:block" aria-hidden />
+            )}
+          </div>
+        ) : null}
 
-        <div className="relative z-[1] flex min-w-0 items-center gap-2 md:justify-start">
+        <div className="relative z-[1] order-last flex w-full min-w-0 items-center gap-2 pl-7 md:order-none md:w-auto md:justify-start md:pl-0">
           <CreationEntityMarks
             pillar={pillar}
             series={series}
             pillarId={content.pilarId}
             seriesId={content.seriesId}
+            className="max-w-[calc(100%-3rem)] md:max-w-full"
           />
           <span
-            className="md:hidden"
+            className="ml-auto md:hidden"
             onClick={event => event.stopPropagation()}
           >
             <CreationItemMenu
@@ -179,13 +210,23 @@ export function CreationListView({
   onToggleSelect,
   actions,
 }: CreationListViewProps) {
+  const showCategory = items.some(item => getCreationCardTags(item.content).length > 0);
+  const showFormat = items.some(item => Boolean(getCreationFormatLabel(item.content)));
+  const columnsClassName = listColumnsClass(showCategory, showFormat);
+
   return (
     <div className="overflow-hidden rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-elevated)]">
       <div
-        className="sticky top-0 z-10 hidden border-b border-[var(--border-color)] bg-[var(--bg-elevated)] px-3 md:grid md:grid-cols-[28px_minmax(0,1.6fr)_minmax(0,0.8fr)_minmax(0,0.55fr)_7.5rem_36px] md:items-center md:gap-3 md:py-2"
+        className={cn(
+          'sticky top-0 z-10 hidden border-b border-[var(--border-color)] bg-[var(--bg-elevated)] px-3 md:grid md:items-center md:gap-3 md:py-2',
+          columnsClassName,
+        )}
         role="row"
       >
-        <span className="sr-only">Seleção</span>
+        {/* Span estático ocupa a célula; o texto `sr-only` (absoluto) fica dentro. */}
+        <span>
+          <span className="sr-only">Seleção</span>
+        </span>
         <button
           type="button"
           className={cn(
@@ -196,10 +237,12 @@ export function CreationListView({
         >
           Título
         </button>
-        <Text variant="label" as="span">Categoria</Text>
-        <Text variant="label" as="span">Formato</Text>
+        {showCategory ? <Text variant="label" as="span">Categoria</Text> : null}
+        {showFormat ? <Text variant="label" as="span">Formato</Text> : null}
         <Text variant="label" as="span">Pilar / Série</Text>
-        <span className="sr-only">Ações</span>
+        <span>
+          <span className="sr-only">Ações</span>
+        </span>
       </div>
 
       <div className="flex flex-col gap-0.5 p-1 md:p-0">
@@ -211,6 +254,9 @@ export function CreationListView({
             onOpen={() => onOpen(item.content)}
             onToggleSelect={() => onToggleSelect(item.content)}
             actions={actions}
+            columnsClassName={columnsClassName}
+            showCategory={showCategory}
+            showFormat={showFormat}
           />
         ))}
       </div>

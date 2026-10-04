@@ -1,13 +1,18 @@
 import {AlertTriangle, CalendarDays, Image, Send} from 'lucide-react';
 import type {Content, ContentPlataforma, Pilar, Serie} from '../../../../../lib/database';
 import {AppButton} from '../../../../../components/ui/AppButton';
+import {rotuloStatusPublicacao, setPublicacaoStatus} from '../../../../editorial/lib/markPublished';
 import {CONTENT_STATUS, getDisplayStatus} from '../../../lib/contentPipeline';
 import type {PostingAlert} from '../../../lib/contentPipeline';
+import {useState} from 'react';
+import {useAppContext} from '../../../../../context/AppContext';
+import {getEditorialSettings} from '../../../../editorial/lib/editorialSettings';
+import {criarRepost} from '../../../../editorial/lib/destinations';
 import {PlatformCopyEditor} from '../PlatformCopyEditor';
 
 type PublishingDraft = Pick<
   Content,
-  'status' | 'publishDate' | 'publishDateEnabled' | 'plataformas' | 'notes'
+  'status' | 'publishDate' | 'publishDateEnabled' | 'plataformas' | 'notes' | 'legendaBase' | 'title'
 > & Partial<Pick<Content, 'postedAt'>>;
 
 interface PublishingSectionProps {
@@ -18,15 +23,16 @@ interface PublishingSectionProps {
   onChange: (updates: Partial<PublishingDraft>) => void;
   onMarkPosted?: () => void;
   isSaving?: boolean;
+  contentId?: string;
 }
 
 function updatePlatformDate(
   plataformas: ContentPlataforma[],
-  platformId: string,
+  publicationId: string,
   publishDate: string | null
 ) {
   return plataformas.map(plataforma =>
-    plataforma.platformId === platformId
+    plataforma.id === publicationId
       ? {...plataforma, publishDate, publishDateEnabled: Boolean(publishDate)}
       : plataforma
   );
@@ -40,7 +46,12 @@ export function PublishingSection({
   onChange,
   onMarkPosted,
   isSaving = false,
+  contentId = '',
 }: PublishingSectionProps) {
+  const {state} = useAppContext();
+  const editorial = getEditorialSettings(state.preferences);
+  const referencia = state.platforms.find(platform => platform.id === editorial.redeReferenciaId) ?? null;
+  const [repostDate, setRepostDate] = useState('');
   const isPosted = draft.status === CONTENT_STATUS.POSTADO || Boolean(draft.postedAt);
   const activePlatformIds = draft.plataformas.length > 0 ? draft.plataformas.map(item => item.platformId) : [];
 
@@ -115,6 +126,11 @@ export function PublishingSection({
         pilar={pilar}
         serie={serie}
         disabled={isPosted}
+        contentId={contentId}
+        legendaBase={draft.legendaBase ?? null}
+        onLegendaBaseChange={legendaBase => onChange({legendaBase})}
+        titulo={draft.title}
+        onTituloChange={title => onChange({title})}
         onChange={plataformas => onChange({plataformas})}
       />
 
@@ -127,7 +143,7 @@ export function PublishingSection({
           <div className="mt-5 stack-lg">
             {draft.plataformas.map(plataforma => (
               <article
-                key={plataforma.platformId}
+                key={plataforma.id || plataforma.platformId}
                 className="rounded-[24px] border border-[var(--border-color)] bg-[var(--bg-primary)] p-4"
               >
                 <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -142,7 +158,7 @@ export function PublishingSection({
                         onChange({
                           plataformas: updatePlatformDate(
                             draft.plataformas,
-                            plataforma.platformId,
+                            plataforma.id,
                             event.target.value ? `${event.target.value}T12:00:00.000Z` : null
                           ),
                         })
@@ -150,6 +166,38 @@ export function PublishingSection({
                       className="w-full rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-3 text-sm font-semibold text-[var(--text-primary)] outline-none transition-colors focus:border-[var(--text-primary)]/30 disabled:opacity-60 md:rounded-[var(--radius-card)]"
                     />
                   </label>
+                </div>
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <p className="text-xs font-semibold text-[var(--text-tertiary)]">
+                    {rotuloStatusPublicacao(plataforma.status)}
+                  </p>
+                  {plataforma.postCodigo ? (
+                    <p className="text-xs text-[var(--text-tertiary)]">Código {plataforma.postCodigo}</p>
+                  ) : null}
+                  <AppButton
+                    variant="ghost"
+                    size="xs"
+                    disabled={isSaving}
+                    onClick={() =>
+                      onChange({
+                        plataformas: setPublicacaoStatus(draft.plataformas, plataforma.id, 'nao_publicada'),
+                      })
+                    }
+                  >
+                    Não foi ao ar
+                  </AppButton>
+                  <AppButton
+                    variant="ghost"
+                    size="xs"
+                    disabled={isSaving}
+                    onClick={() =>
+                      onChange({
+                        plataformas: setPublicacaoStatus(draft.plataformas, plataforma.id, 'removida'),
+                      })
+                    }
+                  >
+                    Removida
+                  </AppButton>
                 </div>
               </article>
             ))}
@@ -160,7 +208,7 @@ export function PublishingSection({
       <section className="rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-6 md:rounded-[var(--radius-card)] md:p-7">
         <div className="flex items-center gap-2 text-xs font-semibold text-[var(--text-tertiary)]">
           <Image className="h-4 w-4" />
-          Assets e observacoes
+          Assets e observações
         </div>
         <textarea
           value={draft.notes ?? ''}
@@ -171,10 +219,51 @@ export function PublishingSection({
         />
       </section>
 
+
+      {isPosted ? (
+        <section className="rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-6 md:rounded-[var(--radius-card)] md:p-7">
+          <p className="text-sm font-semibold text-[var(--text-primary)]">Repostar</p>
+          <p className="mt-1 text-sm text-[var(--text-secondary)]">
+            {referencia
+              ? 'Cria outra publicação em ' + referencia.nome + ', com a data dela. Ela entra na grade como um item próprio.'
+              : 'Escolha a rede de referência nos Ajustes do Editorial para o repost entrar na grade.'}
+          </p>
+          <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end">
+            <label className="block sm:min-w-[220px]">
+              <span className="mb-2 block text-xs font-semibold text-[var(--text-tertiary)]">Data do repost</span>
+              <input
+                type="date"
+                value={repostDate}
+                onChange={event => setRepostDate(event.target.value)}
+                className="min-h-11 w-full rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-primary)] px-3 text-sm text-[var(--text-primary)]"
+              />
+            </label>
+            <AppButton
+              variant="secondary"
+              disabled={!referencia || !repostDate || isSaving}
+              onClick={() => {
+                if (!referencia || !repostDate) return;
+                onChange({
+                  plataformas: criarRepost({
+                    publicacoes: draft.plataformas,
+                    contentId,
+                    platformId: referencia.id,
+                    publishDate: repostDate + 'T12:00:00.000Z',
+                  }),
+                });
+                setRepostDate('');
+              }}
+            >
+              Repostar
+            </AppButton>
+          </div>
+        </section>
+      ) : null}
+
       {!isPosted && onMarkPosted ? (
         <div className="flex justify-end">
           <AppButton variant="primary" disabled={isSaving} onClick={onMarkPosted}>
-            {isSaving ? 'Salvando...' : 'Registrar como postado'}
+            {isSaving ? 'Salvando…' : 'Registrar como postado'}
           </AppButton>
         </div>
       ) : null}

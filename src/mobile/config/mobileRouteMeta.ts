@@ -86,6 +86,42 @@ export function getMobileRouteMeta(pathname: string, search = ''): MobileRouteMe
     };
   }
 
+  if (pathname === '/editorial/pilares/nova') {
+    return {
+      title: 'Novo pilar',
+      mode: 'back',
+      backTo: '/editorial?aba=pilares',
+      titleVariant: 'compact-center',
+    };
+  }
+
+  if (pathname.startsWith('/editorial/pilares/')) {
+    return {
+      title: 'Editar pilar',
+      mode: 'back',
+      backTo: '/editorial?aba=pilares',
+      titleVariant: 'compact-center',
+    };
+  }
+
+  if (pathname === '/editorial/series/nova') {
+    return {
+      title: 'Nova série',
+      mode: 'back',
+      backTo: '/editorial?aba=series',
+      titleVariant: 'compact-center',
+    };
+  }
+
+  if (pathname.startsWith('/editorial/series/')) {
+    return {
+      title: 'Editar série',
+      mode: 'back',
+      backTo: '/editorial?aba=series',
+      titleVariant: 'compact-center',
+    };
+  }
+
   if (pathname.startsWith('/configuracoes/pilares/') && pathname.endsWith('/editar')) {
     return {
       title: 'Editar pilar',
@@ -184,6 +220,11 @@ export function getMobileRouteMeta(pathname: string, search = ''): MobileRouteMe
     case '/series':
       return {
         title: 'Séries',
+        titleVariant: 'compact-center',
+      };
+    case '/editorial':
+      return {
+        title: 'Editorial',
         titleVariant: 'compact-center',
       };
     case '/biblioteca':

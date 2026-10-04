@@ -3,34 +3,37 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import {
   Briefcase,
   CalendarDays,
-  Check,
   ClipboardList,
   Link2,
-  Pencil,
   Plus,
   Trash2,
-  X,
 } from 'lucide-react';
 import { useAppContext } from '../../../context/AppContext';
 import { useAuth } from '../../../context/AuthContext';
 import {
   type AgendaItem,
   type Content,
-  type Projeto,
 } from '../../../lib/database';
 import { cn } from '../../../lib/utils';
 import { buildDetailBackState } from '../../../lib/navigation/detailBack';
+import { CONFIRM, type ConfirmState } from '../../../lib/uiCopy';
+import { ConfirmModal } from '../../../components/feedback/modals/ConfirmModal';
 import { DesktopPageHeader } from '../../../layouts/page/DesktopPageHeader';
 import { PageLayout } from '../../../layouts/page/PageLayout';
 import { Section } from '../../../components/ui/Section';
 import { AppButton } from '../../../components/ui/AppButton';
+import { Badge } from '../../../components/ui/Badge';
+import { MoreMenu } from '../../../components/ui/MoreMenu';
 import { Surface } from '../../../components/ui/Surface';
+import { TagSelect } from '../../../components/ui/TagSelect';
+import { Text } from '../../../components/ui/Text';
 import { useIsMobile } from '../../../hooks/useIsMobile';
 import { ProjectDetailMobileScreen } from '../../../mobile/screens/projects/ProjectDetailMobileScreen';
 import type { ProjectDetailEditFields } from '../../../mobile/screens/projects/ProjectDetailMobileScreen';
 import { PostingTimeSuggestions } from '../../settings/components/PostingTimeSuggestions';
 import { getPostingTimes } from '../../settings/lib/postingTimes';
 import { generateUUID } from '../../../utils/uuid';
+import { PROJECT_STATUS_LABEL } from './ProjectsPage';
 
 const PROJECT_COLORS = [
   '#ef4444', '#f97316', '#f59e0b', '#84cc16', '#22c55e',
@@ -40,9 +43,36 @@ const PROJECT_COLORS = [
 
 const TIPO_AGENDA: AgendaItem['tipo'][] = ['Reunião', 'Entrega', 'Publicação', 'Outro'];
 
+function localTodayKey() {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+}
+
 function formatDate(value: string | null) {
   if (!value) return '--';
+  const [year, month, day] = value.split('-');
+  if (year && month && day) return `${day}/${month}/${year}`;
   return new Date(value).toLocaleDateString('pt-BR');
+}
+
+function formatDayMonth(value: string) {
+  const [, month, day] = value.split('-');
+  if (month && day) return `${day}/${month}`;
+  return formatDate(value);
+}
+
+function resolveEventHighlight(agendaItems: AgendaItem[]) {
+  const today = localTodayKey();
+  const proximoEvento = agendaItems.find(item => item.date >= today) ?? null;
+  const ultimoEvento = [...agendaItems].reverse().find(item => item.date < today) ?? null;
+  return { proximoEvento, ultimoEvento };
+}
+
+function eventHighlightLabel(agendaItems: AgendaItem[]) {
+  const { proximoEvento, ultimoEvento } = resolveEventHighlight(agendaItems);
+  if (proximoEvento) return `Próximo: ${formatDate(proximoEvento.date)}`;
+  if (ultimoEvento) return `Último: ${formatDayMonth(ultimoEvento.date)}`;
+  return 'Sem eventos';
 }
 
 function SectionCard({
@@ -84,7 +114,7 @@ export function ProjectDetailPage() {
   const [editColor, setEditColor] = useState('');
   const [editDriveUrl, setEditDriveUrl] = useState('');
   const [isEditing, setIsEditing] = useState(false);
-  const [copyFeedback, setCopyFeedback] = useState(false);
+  const [confirm, setConfirm] = useState<ConfirmState | null>(null);
 
   const [agendaTitle, setAgendaTitle] = useState('');
   const [agendaDate, setAgendaDate] = useState('');
@@ -96,10 +126,10 @@ export function ProjectDetailPage() {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[var(--bg-secondary)]">
         <div className="stack-lg text-center">
-          <p className="text-sm font-semibold opacity-30">Projeto nao encontrado</p>
-          <button onClick={() => navigate('/projetos')} className="text-xs font-semibold underline opacity-50">
-            Voltar
-          </button>
+          <Text variant="bodyStrong">Projeto não encontrado</Text>
+          <AppButton variant="secondary" onClick={() => navigate('/projetos')}>
+            Voltar aos projetos
+          </AppButton>
         </div>
       </div>
     );
@@ -110,7 +140,11 @@ export function ProjectDetailPage() {
     .sort((a, b) => `${a.date}${a.time || ''}`.localeCompare(`${b.date}${b.time || ''}`));
   const projetoContents = state.contents.filter(content => projeto.contentIds.includes(content.id));
   const disponiveisParaVincular = state.contents.filter(content => !projeto.contentIds.includes(content.id));
-  const proximoEvento = agendaItems[0] ?? null;
+  const statusLabel = PROJECT_STATUS_LABEL[projeto.status] ?? projeto.status;
+  const projectColor = projeto.color || '#78716c';
+  const formattedValue = projeto.value
+    ? projeto.value.toLocaleString('pt-BR', { style: 'currency', currency: projeto.currency || 'BRL' })
+    : '--';
 
   const startEditing = () => {
     setEditNome(projeto.nome);
@@ -140,19 +174,28 @@ export function ProjectDetailPage() {
   };
 
   const handleDeleteProjeto = () => {
-    if (!window.confirm(`Remover o projeto "${projeto.nome}"?`)) return;
-    dispatch({ type: 'DELETE_PROJETO', payload: projeto.id });
-    navigate('/projetos');
-  };
-
-  const handleCopyShareLink = () => {
-    if (!projeto.shareToken) return;
-    const url = `${window.location.origin}/share/${projeto.shareToken}`;
-    void navigator.clipboard.writeText(url).then(() => {
-      setCopyFeedback(true);
-      setTimeout(() => setCopyFeedback(false), 2000);
+    setConfirm({
+      ...CONFIRM.excluirProjeto(projeto.nome),
+      onConfirm: () => {
+        dispatch({ type: 'DELETE_PROJETO', payload: projeto.id });
+        navigate('/projetos');
+      },
     });
   };
+
+  const confirmModal = (
+    <ConfirmModal
+      open={!!confirm}
+      message={confirm?.message || ''}
+      confirmLabel={confirm?.confirmLabel}
+      cancelLabel={confirm?.cancelLabel}
+      onConfirm={() => {
+        confirm?.onConfirm();
+        setConfirm(null);
+      }}
+      onCancel={() => setConfirm(null)}
+    />
+  );
 
   const vincularContent = (contentId: string) => {
     if (projeto.contentIds.includes(contentId)) return;
@@ -218,7 +261,6 @@ export function ProjectDetailPage() {
           agendaItems={agendaItems}
           projetoContents={projetoContents}
           disponiveisParaVincular={disponiveisParaVincular}
-          proximoEvento={proximoEvento}
           postingTimes={postingTimes}
           isEditing={isEditing}
           editFields={editFields}
@@ -244,52 +286,81 @@ export function ProjectDetailPage() {
           onOpenContent={contentId => navigate(`/conteudos/${contentId}`, detailBackState)}
           onCreateContent={() => navigate('/criacao?compose=script')}
         />
+        {confirmModal}
       </div>
     );
   }
 
   const summaryCards = [
-    { label: 'Eventos', value: `${agendaItems.length}`, helper: proximoEvento ? `Próximo: ${formatDate(proximoEvento.date)}` : 'Sem eventos' },
-    { label: 'Conteúdos', value: `${projetoContents.length}`, helper: disponiveisParaVincular.length > 0 ? `${disponiveisParaVincular.length} disponíveis` : 'Todos vinculados' },
-    { label: 'Valor', value: projeto.value ? projeto.value.toLocaleString('pt-BR', { style: 'currency', currency: projeto.currency || 'BRL' }) : '--', helper: projeto.brand || 'Sem marca' },
+    { label: 'Eventos', value: `${agendaItems.length}`, helper: eventHighlightLabel(agendaItems) },
+    {
+      label: 'Roteiros',
+      value: `${projetoContents.length}`,
+      helper: disponiveisParaVincular.length > 0 ? `${disponiveisParaVincular.length} disponíveis` : 'Todos vinculados',
+    },
+    { label: 'Valor', value: formattedValue, helper: '' },
   ];
 
   return (
+    <>
     <PageLayout
       contentStack="dense"
       header={
         <DesktopPageHeader
           section="Produção"
           title={projeto.nome}
-          meta={projeto.brand || undefined}
+          titleContent={(
+            <div className="min-w-0">
+              <Text variant="pageTitle" className="truncate">{projeto.nome}</Text>
+              <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-2">
+                {projeto.brand ? (
+                  <Text variant="label">{projeto.brand}</Text>
+                ) : null}
+                {projeto.status ? (
+                  <Badge variant="neutral">{statusLabel}</Badge>
+                ) : null}
+              </div>
+            </div>
+          )}
           icon={Briefcase}
           backLabel="Projetos"
           backTo="/projetos"
+          rowAlign="center"
           actions={
-            <AppButton
-              variant="primary"
-              leftIcon={<Plus className="h-4 w-4" />}
-              onClick={() => setShowAgendaForm(true)}
-            >
-              Novo evento
-            </AppButton>
+            <>
+              <MoreMenu
+                label="Mais opções do projeto"
+                items={[
+                  { id: 'edit', label: 'Editar', onClick: startEditing },
+                  { id: 'delete', label: 'Excluir', onClick: handleDeleteProjeto, tone: 'danger' },
+                ]}
+              />
+              <AppButton
+                variant="primary"
+                leftIcon={<Plus className="h-4 w-4" />}
+                onClick={() => setShowAgendaForm(true)}
+              >
+                Novo evento
+              </AppButton>
+            </>
           }
         />
       }
     >
-      <div className="grid grid-metrics md:grid-cols-3">
+      <div className="grid-metrics-3">
         {summaryCards.map(card => (
           <Surface key={card.label} variant="outlined" padding="md">
-            <p className="text-xs font-semibold opacity-40">{card.label}</p>
-            <p className="mt-3 text-xl font-semibold text-[var(--text-primary)]">{card.value}</p>
-            <p className="mt-1 text-xs text-[var(--text-secondary)]">{card.helper}</p>
+            <Text variant="label">{card.label}</Text>
+            <Text variant="sectionTitle" as="p" className="mt-3">{card.value}</Text>
+            {card.helper ? (
+              <Text variant="meta" className="mt-1 block">{card.helper}</Text>
+            ) : null}
           </Surface>
         ))}
       </div>
 
       <div className="grid gap-[var(--space-xl)] xl:grid-cols-[1.2fr_0.8fr]">
         <div className="stack-lg">
-          {/* Eventos */}
           <SectionCard
             eyebrow="Calendário"
             title="Eventos"
@@ -303,7 +374,7 @@ export function ProjectDetailPage() {
                       value={agendaTitle}
                       onChange={event => setAgendaTitle(event.target.value)}
                       placeholder="Título do evento"
-                      className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] placeholder:opacity-30 focus:outline-none"
+                      className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none"
                     />
                     <div className="grid gap-3 md:grid-cols-3">
                       <input
@@ -326,23 +397,21 @@ export function ProjectDetailPage() {
                           onSelect={setAgendaTime}
                         />
                       </div>
-                      <select
-                        value={agendaTipo}
-                        onChange={event => setAgendaTipo(event.target.value as AgendaItem['tipo'])}
-                        className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] px-4 py-3 text-xs font-semibold uppercase text-[var(--text-primary)] focus:outline-none"
-                      >
-                        {TIPO_AGENDA.map(tipo => (
-                          <option key={tipo} value={tipo}>{tipo}</option>
-                        ))}
-                      </select>
+                      <TagSelect
+                        label="Tipo"
+                        values={[agendaTipo]}
+                        onChange={values => setAgendaTipo((values[0] ?? 'Reunião') as AgendaItem['tipo'])}
+                        options={TIPO_AGENDA.map(tipo => ({value: tipo, label: tipo}))}
+                        maxSelections={1}
+                      />
                     </div>
                     <div className="flex flex-wrap gap-3">
-                      <button type="button" onClick={handleAddAgenda} className="rounded-xl bg-[var(--text-primary)] px-6 py-3 text-xs font-semibold text-[var(--bg-primary)] transition-opacity hover:opacity-90">
+                      <AppButton variant="secondary" onClick={handleAddAgenda}>
                         Adicionar evento
-                      </button>
-                      <button type="button" onClick={() => setShowAgendaForm(false)} className="rounded-xl border border-[var(--border-color)] px-6 py-3 text-xs font-semibold opacity-60 transition-opacity hover:opacity-100">
+                      </AppButton>
+                      <AppButton variant="secondary" onClick={() => setShowAgendaForm(false)}>
                         Cancelar
-                      </button>
+                      </AppButton>
                     </div>
                   </div>
                 </div>
@@ -350,8 +419,10 @@ export function ProjectDetailPage() {
 
               {agendaItems.length === 0 && !showAgendaForm && (
                 <div className="rounded-[var(--radius-card)] border border-dashed border-[var(--border-color)] px-6 py-8 text-center">
-                  <p className="text-sm font-semibold opacity-30">Nenhum evento ainda</p>
-                  <p className="mt-2 text-sm text-[var(--text-secondary)]">Crie reunioes, entregas e publicacoes. Tudo aparece no calendario.</p>
+                  <Text variant="bodyStrong">Nenhum evento ainda</Text>
+                  <Text variant="secondary" className="mt-2">
+                    Crie reuniões, entregas e publicações. Tudo aparece no calendário.
+                  </Text>
                 </div>
               )}
 
@@ -361,65 +432,62 @@ export function ProjectDetailPage() {
                     <CalendarDays className="h-5 w-5" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold text-[var(--text-primary)]">{item.title}</p>
-                    <p className="mt-1 text-xs text-[var(--text-secondary)]">
+                    <Text variant="itemTitle" as="p">{item.title}</Text>
+                    <Text variant="meta" className="mt-1 block">
                       {formatDate(item.date)}{item.time ? ` · ${item.time}` : ''} · {item.tipo}
-                    </p>
+                    </Text>
                   </div>
-                  <button
+                  <AppButton
                     type="button"
-                    onClick={() => dispatch({ type: 'DELETE_AGENDA_ITEM', payload: item.id })}
+                    variant="ghost"
+                    iconOnly
                     aria-label={`Remover evento ${item.title}`}
-                    className="inline-flex min-h-9 min-w-9 items-center justify-center rounded-[var(--radius-input)] opacity-20 transition-all hover:text-red-400 hover:opacity-60"
+                    onClick={() => dispatch({ type: 'DELETE_AGENDA_ITEM', payload: item.id })}
+                    leftIcon={<Trash2 className="h-4 w-4" />}
                   >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
+                    Remover
+                  </AppButton>
                 </div>
               ))}
             </div>
           </SectionCard>
 
-          {/* Conteudos */}
           <SectionCard
-            eyebrow="Conteúdo"
-            title="Conteudos vinculados"
+            eyebrow="Criação"
+            title="Roteiros vinculados"
             action={
-              <button
-                type="button"
-                onClick={() => navigate('/criacao')}
-                className="inline-flex items-center gap-2 rounded-xl bg-[var(--text-primary)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.25em] text-[var(--bg-primary)] transition-opacity hover:opacity-90"
+              <AppButton
+                variant="secondary"
+                leftIcon={<Plus className="h-4 w-4" />}
+                onClick={() => navigate('/criacao?compose=script')}
               >
-                <Plus className="h-4 w-4" />
-                Criar conteudo
-              </button>
+                Criar roteiro
+              </AppButton>
             }
           >
             <div className="stack-lg">
               {disponiveisParaVincular.length > 0 && (
                 <div className="rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4">
-                  <p className="mb-3 text-xs font-semibold uppercase tracking-[0.3em] opacity-40">Vincular existente</p>
-                  <select
-                    defaultValue=""
-                    onChange={event => {
-                      if (!event.target.value) return;
-                      vincularContent(event.target.value);
-                      event.target.value = '';
+                  <TagSelect
+                    label="Vincular existente"
+                    values={[]}
+                    onChange={values => {
+                      const contentId = values[0];
+                      if (contentId) vincularContent(contentId);
                     }}
-                    className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] px-4 py-3 text-xs font-bold text-[var(--text-primary)] focus:outline-none"
-                  >
-                    <option value="">Escolha um conteudo para vincular...</option>
-                    {disponiveisParaVincular.map(content => (
-                      <option key={content.id} value={content.id}>
-                        {content.title || '(sem titulo)'}
-                      </option>
-                    ))}
-                  </select>
+                    options={disponiveisParaVincular.map(content => ({
+                      value: content.id,
+                      label: content.title || '(sem título)',
+                    }))}
+                    maxSelections={1}
+                    placeholder="Escolha um roteiro para vincular…"
+                  />
                 </div>
               )}
 
               {projetoContents.length === 0 ? (
                 <div className="rounded-[var(--radius-card)] border border-dashed border-[var(--border-color)] px-6 py-8 text-center">
-                  <p className="text-sm font-semibold opacity-30">Nenhum conteudo vinculado</p>
+                  <Text variant="bodyStrong">Nenhum roteiro vinculado</Text>
                 </div>
               ) : (
                 <div className="stack-md">
@@ -430,17 +498,17 @@ export function ProjectDetailPage() {
                           <ClipboardList className="h-4 w-4" />
                         </div>
                         <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-semibold text-[var(--text-primary)]">{content.title || '(sem titulo)'}</p>
-                          <p className="mt-1 text-xs text-[var(--text-secondary)]">{content.status}</p>
+                          <Text variant="itemTitle" as="p" truncate>{content.title || '(sem título)'}</Text>
+                          <Text variant="meta" className="mt-1 block">{content.status}</Text>
                         </div>
-                        <button
-                          type="button"
+                        <AppButton
+                          variant="secondary"
+                          size="sm"
+                          leftIcon={<Link2 className="h-3.5 w-3.5" />}
                           onClick={() => navigate(`/conteudos/${content.id}`, detailBackState)}
-                          className="inline-flex items-center gap-2 rounded-xl border border-[var(--border-color)] px-3 py-2 text-xs font-semibold opacity-70 transition-opacity hover:opacity-100"
                         >
-                          <Link2 className="h-3.5 w-3.5" />
                           Abrir
-                        </button>
+                        </AppButton>
                       </div>
                     </div>
                   ))}
@@ -450,63 +518,40 @@ export function ProjectDetailPage() {
           </SectionCard>
         </div>
 
-        {/* Sidebar: Resumo + Edit */}
         <div className="stack-lg">
           <SectionCard
             eyebrow="Contexto"
             title="Resumo do projeto"
-            action={
-              !isEditing ? (
-                <button
-                  type="button"
-                  onClick={startEditing}
-                  className="inline-flex items-center gap-2 rounded-xl border border-[var(--border-color)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.25em] opacity-70 transition-opacity hover:opacity-100"
-                >
-                  <Pencil className="h-4 w-4" />
-                  Editar
-                </button>
-              ) : null
-            }
           >
             {!isEditing ? (
               <div className="stack-lg">
                 <div className="grid grid-cols-2 gap-3">
                   {[
                     { label: 'Marca', value: projeto.brand || '--' },
-                    {
-                      label: 'Valor',
-                      value: projeto.value
-                        ? projeto.value.toLocaleString('pt-BR', { style: 'currency', currency: projeto.currency || 'BRL' })
-                        : '--',
-                    },
+                    { label: 'Valor', value: formattedValue },
                   ].map(item => (
                     <div key={item.label} className="rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-4">
-                      <p className="text-xs font-semibold uppercase tracking-[0.3em] opacity-40">{item.label}</p>
-                      <p className="mt-2 text-sm font-semibold text-[var(--text-primary)]">{item.value}</p>
+                      <Text variant="label">{item.label}</Text>
+                      <Text variant="bodyStrong" className="mt-2">{item.value}</Text>
                     </div>
                   ))}
                 </div>
 
-                {/* Cor */}
                 <div className="flex items-center gap-3 rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-4">
-                  <div className="h-8 w-8 rounded-full shrink-0" style={{ backgroundColor: projeto.color || '#78716c' }} />
-                  <p className="text-xs font-semibold uppercase tracking-[0.3em] opacity-40">Cor</p>
+                  <span
+                    aria-hidden
+                    className="h-8 w-1 shrink-0 rounded-full"
+                    style={{ backgroundColor: projectColor }}
+                  />
+                  <Text variant="label">Cor</Text>
                 </div>
 
                 {projeto.notes ? (
                   <div className="rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-4">
-                    <p className="text-xs font-semibold uppercase tracking-[0.3em] opacity-40">Notas</p>
-                    <p className="mt-3 whitespace-pre-wrap text-sm text-[var(--text-secondary)]">{projeto.notes}</p>
+                    <Text variant="label">Notas</Text>
+                    <Text variant="secondary" className="mt-3 whitespace-pre-wrap">{projeto.notes}</Text>
                   </div>
                 ) : null}
-
-                <button
-                  type="button"
-                  onClick={handleDeleteProjeto}
-                  className="w-full rounded-xl border border-red-500/30 px-6 py-3 text-xs font-semibold text-red-400 transition-colors hover:bg-red-500/10"
-                >
-                  Excluir projeto
-                </button>
               </div>
             ) : (
               <div className="stack-lg">
@@ -514,23 +559,23 @@ export function ProjectDetailPage() {
                   value={editNome}
                   onChange={event => setEditNome(event.target.value)}
                   placeholder="Nome"
-                  className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] focus:outline-none"
+                  className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none"
                 />
                 <input
                   value={editBrand}
                   onChange={event => setEditBrand(event.target.value)}
                   placeholder="Marca"
-                  className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-3 text-sm text-[var(--text-primary)] placeholder:opacity-30 focus:outline-none"
+                  className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none"
                 />
                 <input
                   type="number"
                   value={editValue}
                   onChange={event => setEditValue(event.target.value)}
                   placeholder="Valor (R$)"
-                  className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-3 text-xs text-[var(--text-primary)] placeholder:opacity-30 focus:outline-none"
+                  className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-3 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none"
                 />
                 <div>
-                  <p className="mb-2 text-xs font-semibold uppercase tracking-[0.3em] opacity-40">Cor do projeto</p>
+                  <Text variant="label" className="mb-2 block">Cor do projeto</Text>
                   <div className="flex flex-wrap gap-2">
                     {PROJECT_COLORS.map(c => (
                       <button
@@ -548,22 +593,22 @@ export function ProjectDetailPage() {
                   onChange={event => setEditDriveUrl(event.target.value)}
                   placeholder="Link da pasta no Drive (https://...)"
                   type="url"
-                  className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-3 text-sm text-[var(--text-primary)] placeholder:opacity-30 focus:outline-none"
+                  className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none"
                 />
                 <textarea
                   value={editNotes}
                   onChange={event => setEditNotes(event.target.value)}
                   placeholder="Notas do projeto"
                   rows={4}
-                  className="w-full resize-none rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-3 text-sm text-[var(--text-primary)] placeholder:opacity-30 focus:outline-none"
+                  className="w-full resize-none rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none"
                 />
                 <div className="flex flex-wrap gap-3">
-                  <button type="button" onClick={saveEdit} className="rounded-xl bg-[var(--text-primary)] px-6 py-3 text-xs font-semibold text-[var(--bg-primary)] transition-opacity hover:opacity-90">
+                  <AppButton variant="secondary" onClick={saveEdit}>
                     Salvar
-                  </button>
-                  <button type="button" onClick={() => setIsEditing(false)} className="rounded-xl border border-[var(--border-color)] px-6 py-3 text-xs font-semibold opacity-60 transition-opacity hover:opacity-100">
+                  </AppButton>
+                  <AppButton variant="secondary" onClick={() => setIsEditing(false)}>
                     Cancelar
-                  </button>
+                  </AppButton>
                 </div>
               </div>
             )}
@@ -571,5 +616,7 @@ export function ProjectDetailPage() {
         </div>
       </div>
     </PageLayout>
+    {confirmModal}
+    </>
   );
 }

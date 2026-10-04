@@ -36,6 +36,21 @@ describe('dayPulse', () => {
     ]);
   });
 
+  it('does not claim an empty day while the domains are still loading', () => {
+    const segments = buildDayPulse({
+      readyCount: 0,
+      showCounts: true,
+      agendaToday: [],
+      urgentProjects: [],
+      dataReady: false,
+    });
+
+    assert.deepEqual(segments, [
+      { label: 'Roteiros prontos para gravar' },
+      { label: 'Agenda do dia', to: '/calendario' },
+    ]);
+  });
+
   it('hides raw counts when the gentle setting is off', () => {
     const segments = buildDayPulse({
       readyCount: 4,

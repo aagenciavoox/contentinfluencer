@@ -70,7 +70,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const ensureAuthAvailable = () => {
     if (!supabase || !isSupabaseConfigured) {
-      throw new Error('Serviço de autenticação indisponível.');
+      throw new Error('Não foi possível conectar agora. Tente novamente em alguns minutos.');
     }
   };
 

@@ -9,8 +9,9 @@ import { AppButton } from '../../../components/ui/AppButton';
 import { Badge } from '../../../components/ui/Badge';
 import { EmptyState } from '../../../components/ui/EmptyState';
 import { Text } from '../../../components/ui/Text';
-import { SeriesForm } from '../../../features/settings/pages/SeriesSettingsPage';
 import { SeriesBulkComposer } from '../../../features/settings/components/SeriesBulkComposer';
+import { OpenInfoNotice } from '../../../features/editorial/components/OpenInfoNotice';
+import { getSerieOpenItems } from '../../../features/editorial/lib/serieCompleteness';
 import { SeriesContentListRow } from '../../../features/settings/components/series-detail/SeriesContentListRow';
 import {
   computeSeriesContentStats,
@@ -31,7 +32,6 @@ import type { Content, Idea, Pilar, Serie } from '../../../lib/database';
 import { htmlToReadableText } from '../../../lib/utils';
 import { buildDetailBackState } from '../../../lib/navigation/detailBack';
 import { MobileFilterSheet } from '../../components/MobileFilterSheet';
-import { MobilePillButton } from '../../components/MobilePillButton';
 import { MobileSearchBar } from '../../components/MobileSearchBar';
 import { MobileSectionHeader } from '../../components/MobileSectionHeader';
 import { MobileSegmentTabs } from '../../components/MobileSegmentTabs';
@@ -43,10 +43,8 @@ interface SeriesDetailMobileScreenProps {
   platformNames: string[];
   linkedContents: Content[];
   linkedInboxIdeas?: Idea[];
-  contents?: Content[];
-  onSaveSerie: (serie: Serie) => void;
-  onToggleActive: (serie: Serie) => void;
   onCreateBulkContents: (contents: Content[]) => Promise<void>;
+  showOpenInfoNotice?: boolean;
   searchValue?: string;
   onSearchChange?: (value: string) => void;
   statusValue?: string;
@@ -61,10 +59,8 @@ export function SeriesDetailMobileScreen({
   platformNames,
   linkedContents,
   linkedInboxIdeas = [],
-  contents,
-  onSaveSerie,
-  onToggleActive,
   onCreateBulkContents,
+  showOpenInfoNotice = false,
   searchValue: searchValueProp,
   onSearchChange,
   statusValue: statusValueProp,
@@ -76,7 +72,6 @@ export function SeriesDetailMobileScreen({
   const location = useLocation();
   const [activeTab, setActiveTab] = useState<SeriesContentTab>('roteiros');
   const [previewItem, setPreviewItem] = useState<SeriesListItem | null>(null);
-  const [showEditSheet, setShowEditSheet] = useState(false);
   const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
   const [localSearch, setLocalSearch] = useState('');
   const [localStatus, setLocalStatus] = useState('Todos');
@@ -134,6 +129,13 @@ export function SeriesDetailMobileScreen({
 
   return (
     <div className="stack-lg">
+      {showOpenInfoNotice ? (
+        <OpenInfoNotice
+          items={getSerieOpenItems(serie)}
+          actionLabel="Completar no Editorial"
+          onAction={() => navigate(`/editorial/series/${serie.id}`)}
+        />
+      ) : null}
       <section
         className="overflow-hidden rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)]"
         style={{ borderTopColor: serieColor, borderTopWidth: 4 }}
@@ -151,7 +153,7 @@ export function SeriesDetailMobileScreen({
             action={
               <button
                 type="button"
-                onClick={() => setShowEditSheet(true)}
+                onClick={() => navigate(`/editorial/series/${serie.id}`)}
                 aria-label="Editar identidade da série"
                 className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-secondary)] active:scale-95 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
               >
@@ -169,12 +171,7 @@ export function SeriesDetailMobileScreen({
             <Badge variant="neutral">
               {linkedContents.length} vinculado{linkedContents.length === 1 ? '' : 's'}
             </Badge>
-            <MobilePillButton
-              tone={serie.ativa ? 'success' : 'muted'}
-              onClick={() => onToggleActive(serie)}
-            >
-              {serie.ativa ? 'Ativa' : 'Inativa'}
-            </MobilePillButton>
+            <Badge variant="neutral">{serie.ativa ? 'Ativa' : 'Inativa'}</Badge>
           </div>
         </div>
       </section>
@@ -399,43 +396,6 @@ export function SeriesDetailMobileScreen({
         ) : null}
       </BottomSheetModal>
 
-      <BottomSheetModal
-        open={showEditSheet}
-        onClose={() => setShowEditSheet(false)}
-        desktopMaxW="max-w-xl"
-        zIndex="z-[110]"
-      >
-        <OverlayHeader onClose={() => setShowEditSheet(false)}>
-          <div className="flex items-center gap-3">
-            <span
-              className="h-10 w-10 shrink-0 rounded-[var(--radius-card)] border border-[var(--border-color)]"
-              style={{ backgroundColor: serieColor }}
-            />
-            <div className="min-w-0">
-              <Text variant="sectionTitle" truncate>
-                {serie.name}
-              </Text>
-              <Text variant="meta" className="text-[var(--text-secondary)]">
-                Editar identidade da série
-              </Text>
-            </div>
-          </div>
-        </OverlayHeader>
-
-        <OverlayBody className="stack-lg pb-safe">
-          <SeriesForm
-            key={serie.id}
-            initial={serie}
-            onSave={saved => {
-              onSaveSerie(saved);
-              setShowEditSheet(false);
-            }}
-            onCancel={() => setShowEditSheet(false)}
-            platformNames={platformNames}
-            contents={contents ?? linkedContents}
-          />
-        </OverlayBody>
-      </BottomSheetModal>
     </div>
   );
 }

@@ -19,7 +19,6 @@ import type { Content, Pilar, PilarPlataforma, Platform, PostingTimeEntry, Serie
 import { computePilarMetrics } from '../../recommendations/computePilarMetrics';
 import { cn } from '../../../lib/utils';
 import { generateUUID } from '../../../utils/uuid';
-import { useIsMobile } from '../../../hooks/useIsMobile';
 import {
   WEEKDAY_SHORT,
   WEEKDAYS_ORDERED,
@@ -34,7 +33,6 @@ import {
 import {
   PILAR_DEFAULT_COR,
   PILAR_DESCRICAO_MAX,
-  pilarSlugFromNome,
 } from '../lib/pilarConstants';
 import { EntityColorPicker } from './EntityColorPicker';
 
@@ -215,7 +213,6 @@ export function PilarEditForm({
   onCancel: () => void;
   onChromeChange?: (state: PilarEditChromeState) => void;
 }) {
-  const isMobile = useIsMobile();
   const normalizePlataformas = (items: PilarPlataforma[] = []) =>
     items.map(item => ({
       ...createEmptyPilarPlataforma(item.pilarId, item.platformId),
@@ -409,8 +406,7 @@ export function PilarEditForm({
     }
   };
 
-  const slug = pilarSlugFromNome(form.nome || 'pilar');
-  const showDirtyFooter = isDirty && isMobile;
+  const showDirtyFooter = isDirty;
 
   return (
     <div className={cn('relative w-full', showDirtyFooter && 'pb-28')}>
@@ -429,11 +425,6 @@ export function PilarEditForm({
               </Text>
               <Pencil className="mt-1 h-4 w-4 shrink-0 text-[var(--text-tertiary)]" aria-hidden />
             </div>
-            <span className="mt-1.5 inline-flex max-w-full rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-hover)] px-2 py-0.5">
-              <Text variant="meta" className="break-all font-mono text-[var(--text-secondary)]">
-                ID: {slug}
-              </Text>
-            </span>
           </div>
         </div>
       </Surface>
@@ -454,7 +445,7 @@ export function PilarEditForm({
                 type="text"
                 value={form.nome}
                 onChange={event => setForm(previous => ({...previous, nome: event.target.value}))}
-                placeholder="Ex: Humor"
+                placeholder="Ex.: Humor"
                 className={inputClass}
               />
             </div>
@@ -493,7 +484,7 @@ export function PilarEditForm({
         <AccordionSection
           step={2}
           title="Ritmo editorial"
-          description="Frequência semanal, meta do ciclo e alertas na grade de postagem."
+          description="Espaços por semana e meta do ciclo."
           icon={<Target className="h-4 w-4" />}
           open={openStep === 'ritmo'}
           onToggle={() => toggleStep('ritmo')}
@@ -501,18 +492,18 @@ export function PilarEditForm({
             <div className="stack-lg">
               <div className="grid gap-3 sm:grid-cols-2">
                 <div>
-                  <FieldLabel>Frequência semanal</FieldLabel>
+                  <FieldLabel>Espaços por semana</FieldLabel>
                   <input
                     type="number"
                     min={0}
-                    max={14}
+                    max={99}
                     value={form.frequenciaSemanal ?? ''}
                     onChange={event => updateFrequenciaSemanal(event.target.value)}
-                    placeholder="Ex: 2"
+                    placeholder="Ex.: 2"
                     className={inputClass}
                   />
                   <Text variant="meta" className="mt-1 text-[var(--text-tertiary)]">
-                    Posts por semana neste pilar.
+                    Espaços deste pilar na semana. O total da semana é a soma dos pilares.
                   </Text>
                 </div>
                 <div>
@@ -532,7 +523,7 @@ export function PilarEditForm({
                         metaCiclo: Number.isFinite(parsed) ? parsed : null,
                       }));
                     }}
-                    placeholder="Ex: 8"
+                    placeholder="Ex.: 8"
                     className={inputClass}
                   />
                   <Text variant="meta" className="mt-1 text-[var(--text-tertiary)]">
@@ -550,7 +541,7 @@ export function PilarEditForm({
                     Total disponível: <strong>{cycleMetrics.totalDisponivel}</strong>
                   </Text>
                   <Text variant="body">
-                    Gap do ciclo:{' '}
+                    Espaço no ciclo:{' '}
                     <strong>
                       {cycleMetrics.gapCiclo == null ? '—' : cycleMetrics.gapCiclo}
                     </strong>
@@ -730,7 +721,7 @@ export function PilarEditForm({
                   >
                     <Plus className="h-3.5 w-3.5" />
                     <Text variant="meta" className="font-medium">
-                      Adicionar tag
+                      Vincular série
                     </Text>
                   </button>
                   {showSeriePicker ? (
@@ -754,9 +745,6 @@ export function PilarEditForm({
               <Info className="mt-0.5 h-4 w-4 shrink-0 text-[var(--text-tertiary)]" />
               <div className="min-w-0">
                 <Text variant="bodyStrong">Alterações não salvas</Text>
-                <Text variant="meta" className="text-[var(--text-secondary)]">
-                  Não se esqueça de salvar suas alterações.
-                </Text>
               </div>
             </div>
             <div className="flex shrink-0 items-center gap-2">

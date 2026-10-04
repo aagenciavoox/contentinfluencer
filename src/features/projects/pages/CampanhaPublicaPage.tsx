@@ -63,6 +63,7 @@ const TIPO_LABEL: Record<string, string> = {
 };
 
 const STATUS_LABEL: Record<string, string> = {
+  pendente:      'Em aberto',
   Planejando:    'Planejando',
   'Em andamento': 'Em andamento',
   Concluido:     'Concluído',
@@ -147,7 +148,7 @@ export function CampanhaPublicaPage() {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-2 bg-[var(--bg-primary)]">
         <Text variant="bodyStrong">Campanha não encontrada</Text>
-        <Text variant="secondary">O link pode ter expirado ou ser inválido.</Text>
+        <Text variant="secondary">O link pode ter expirado. Peça um novo a quem compartilhou.</Text>
       </div>
     );
   }
@@ -185,7 +186,7 @@ export function CampanhaPublicaPage() {
             <Text variant="secondary" as="span">· {projeto.nome}</Text>
           )}
         </div>
-        <Text variant="label" className="font-medium">Relatório de Campanha</Text>
+        <Text variant="label" className="font-medium">Relatório de campanha</Text>
       </div>
 
       {/* ── Content ── */}
@@ -370,15 +371,15 @@ export function CampanhaPublicaPage() {
                     <div
                       key={pl.nome}
                       className={cn(
-                        'grid grid-cols-[140px_repeat(4,1fr)] items-center gap-2 px-6 py-3.5',
+                        'grid grid-cols-2 items-center gap-x-4 gap-y-3 px-6 py-3.5 md:grid-cols-[140px_repeat(4,minmax(0,1fr))] md:gap-2',
                         idx < metricsByPlatform.length - 1 && 'border-b border-[var(--border-color)]',
                       )}
                     >
-                      <Text variant="bodyStrong" as="span">{pl.nome}</Text>
-                      <StatCell label="Views" value={fmtNum(pl.totals.views)} />
-                      <StatCell label="Likes" value={fmtNum(pl.totals.likes)} />
+                      <Text variant="bodyStrong" as="span" className="col-span-2 md:col-span-1">{pl.nome}</Text>
+                      <StatCell label="Visualizações" value={fmtNum(pl.totals.views)} />
+                      <StatCell label="Curtidas" value={fmtNum(pl.totals.likes)} />
                       <StatCell label="Comentários" value={fmtNum(pl.totals.comments)} />
-                      <StatCell label="Saves" value={fmtNum(pl.totals.saves)} />
+                      <StatCell label="Salvamentos" value={fmtNum(pl.totals.saves)} />
                     </div>
                   ))}
                 </Surface>
@@ -422,12 +423,12 @@ export function CampanhaPublicaPage() {
                           )}
                         </div>
                         <div className="flex flex-wrap gap-4">
-                          {cAgg.views > 0            && <Stat label="Views"        value={fmtNum(cAgg.views)} />}
+                          {cAgg.views > 0            && <Stat label="Visualizações" value={fmtNum(cAgg.views)} />}
                           {cAgg.accounts_reached > 0 && <Stat label="Alcance"      value={fmtNum(cAgg.accounts_reached)} />}
-                          {cAgg.likes > 0            && <Stat label="Likes"        value={fmtNum(cAgg.likes)} />}
+                          {cAgg.likes > 0            && <Stat label="Curtidas"     value={fmtNum(cAgg.likes)} />}
                           {cAgg.comments > 0         && <Stat label="Comentários"  value={fmtNum(cAgg.comments)} />}
-                          {cAgg.saves > 0            && <Stat label="Saves"        value={fmtNum(cAgg.saves)} />}
-                          {cAgg.shares > 0           && <Stat label="Shares"       value={fmtNum(cAgg.shares)} />}
+                          {cAgg.saves > 0            && <Stat label="Salvamentos"  value={fmtNum(cAgg.saves)} />}
+                          {cAgg.shares > 0           && <Stat label="Compartilhamentos" value={fmtNum(cAgg.shares)} />}
                           {cMetrics[0]?.retention_rate  && <Stat label="Retenção"  value={fmtPct(cMetrics[0].retention_rate)} />}
                           {cMetrics[0]?.completion_rate && <Stat label="Conclusão" value={fmtPct(cMetrics[0].completion_rate)} />}
                         </div>
@@ -465,7 +466,7 @@ export function CampanhaPublicaPage() {
         {/* ── Footer ── */}
         <div className="mt-12 text-center">
           <Text variant="meta">
-            Gerado por Content OS · {new Date().toLocaleDateString('pt-BR')}
+            Gerado com Criaki · {new Date().toLocaleDateString('pt-BR')}
           </Text>
         </div>
       </div>
@@ -475,8 +476,8 @@ export function CampanhaPublicaPage() {
 
 function StatCell({ label, value }: { label: string; value: string }) {
   return (
-    <span className="text-xs text-[var(--text-secondary)]">
-      <Text variant="label" uppercase className="mb-0.5 block">{label}</Text>
+    <span className="min-w-0 text-xs text-[var(--text-secondary)]">
+      <Text variant="label" uppercase className="mb-0.5 block break-words">{label}</Text>
       {value}
     </span>
   );

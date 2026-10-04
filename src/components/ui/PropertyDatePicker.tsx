@@ -27,7 +27,7 @@ function parseDateValue(value: string | null): Date | null {
 export function PropertyDatePicker({
   value,
   onChange,
-  placeholder = 'Selecionar...',
+  placeholder = 'Selecionar…',
   className,
   variant = 'property',
   weekStartsOn = 1,

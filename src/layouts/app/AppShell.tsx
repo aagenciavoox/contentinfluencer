@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Lightbulb, Loader2, Search } from 'lucide-react';
+import { Loader2, Search } from 'lucide-react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { Sidebar } from '../navigation/Sidebar';
 import { CommandPalette } from '../../components/overlays/CommandPalette';
@@ -15,17 +15,11 @@ import { resolveMobileRouteMeta } from '../../mobile/config/mobileRouteMeta';
 import { resolveRouteBack } from '../../lib/navigation/detailBack';
 import { SaveFeedbackToast } from '../../components/ui/SaveFeedbackToast';
 import { Text } from '../../components/ui/Text';
-import { AppButton } from '../../components/ui/AppButton';
 import { useAppContext } from '../../context/AppContext';
 import { forceMobileRefresh } from '../../lib/pwaRefresh';
 import { LOADING } from '../../lib/uiCopy';
 import { getModuleFlags } from '../../features/settings/lib/moduleFlags';
 import { prefetchPrimaryRoutes } from '../../app/router/routePrefetch';
-import { createIdeaContent } from '../../features/contents/lib/creationContent';
-import {
-  CreationComposer,
-  type CreationIdeaInput,
-} from '../../features/creation/components/CreationComposer';
 
 function AppDataLoadingScreen() {
   return (
@@ -39,13 +33,12 @@ function AppDataLoadingScreen() {
 export function AppShell() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
-  const [isQuickNoteOpen, setIsQuickNoteOpen] = useState(false);
   const [isActionMenuOpen, setIsActionMenuOpen] = useState(false);
 
   const isMobile = useIsMobile();
   const location = useLocation();
   const navigate = useNavigate();
-  const { state, dispatch, syncFromServer } = useAppContext();
+  const { state, syncFromServer } = useAppContext();
   const { isHidden, handleScroll } = useHideOnScroll(isMobile);
   const moduleFlags = getModuleFlags(state.preferences);
 
@@ -79,13 +72,6 @@ export function AppShell() {
   const handlePullRefresh = useCallback(async () => {
     await forceMobileRefresh(() => syncFromServer({ silent: true, force: true }));
   }, [syncFromServer]);
-
-  const saveQuickNote = useCallback(async (input: CreationIdeaInput) => {
-    await dispatch({
-      type: 'ADD_CONTENT',
-      payload: createIdeaContent(input),
-    });
-  }, [dispatch]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -204,28 +190,6 @@ export function AppShell() {
           <Outlet />
         </div>
       </main>
-
-      {/* Botao flutuante de nota rapida */}
-      <AppButton
-        onClick={() => setIsQuickNoteOpen(true)}
-        title="Nova ideia"
-        aria-label="Nova ideia"
-        variant="secondary"
-        size="lg"
-        iconOnly
-        leftIcon={<Lightbulb className="h-5 w-5" />}
-        className="fixed bottom-6 right-6 z-40 h-12 w-12 rounded-full shadow-[var(--shadow-soft)] hover:scale-105"
-      >
-        Nova ideia
-      </AppButton>
-
-      {/* Modal de nota rapida */}
-      <CreationComposer
-        open={isQuickNoteOpen}
-        state={state}
-        onClose={() => setIsQuickNoteOpen(false)}
-        onSave={saveQuickNote}
-      />
 
       <SaveFeedbackToast />
     </div>

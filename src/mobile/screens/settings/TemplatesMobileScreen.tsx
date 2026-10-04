@@ -70,7 +70,7 @@ export function TemplatesMobileScreen({
           icon={Layout}
           tone="blue"
           title="Templates"
-          description="Um catálogo único com tags de tipo, série e plataforma."
+          description="Estruturas prontas para começar roteiros e legendas."
         />
 
         <AppButton variant="primary" fullWidth onClick={() => setShowForm(true)} leftIcon={<Plus className="h-4 w-4" />}>
@@ -82,7 +82,7 @@ export function TemplatesMobileScreen({
         {templates.length === 0 ? (
           <EmptyState compact
             title="Nenhum template ainda"
-            description="Crie o primeiro item para começar a montar seu catálogo reutilizável."
+            description="Crie um template para reutilizar estruturas de roteiro."
             icon={<Layout className="h-8 w-8" />}
           />
         ) : (
@@ -95,7 +95,7 @@ export function TemplatesMobileScreen({
                 <MobileListCard
                   key={template.id}
                   title={template.nome}
-                  description={`${template.estrutura.length} blocos estruturados`}
+                  description={template.estrutura.length === 1 ? '1 bloco' : `${template.estrutura.length} blocos`}
                   onClick={() => openTemplateEditor(template.id)}
                   meta={
                     <>
@@ -136,7 +136,7 @@ export function TemplatesMobileScreen({
       <BottomSheetModal open={showForm} onClose={() => setShowForm(false)} desktopMaxW="max-w-xl" zIndex="z-[110]">
         <OverlayHeader
           title="Novo template"
-          subtitle="Defina o tipo como uma tag, sem separar o catálogo por abas."
+          subtitle="Escolha se é um template de roteiro, legenda ou outro."
           onClose={() => setShowForm(false)}
         />
 
@@ -183,7 +183,7 @@ export function TemplatesMobileScreen({
             Cancelar
           </button>
           <AppButton variant="primary" onClick={handleCreate} disabled={!name.trim()} className="flex-1">
-            Criar
+            Criar template
           </AppButton>
         </OverlayFooter>
       </BottomSheetModal>

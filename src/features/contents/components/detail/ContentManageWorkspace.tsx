@@ -1,5 +1,5 @@
-import {useEffect, useMemo, type ReactNode} from 'react';
-import {BookOpen, Calendar, ChevronDown, Layers, Sparkles, Target} from 'lucide-react';
+import {useEffect, type ReactNode} from 'react';
+import {Calendar, ChevronDown, Layers, Sparkles, Target} from 'lucide-react';
 import {AppButton} from '../../../../components/ui/AppButton';
 import {PropertyDatePicker} from '../../../../components/ui/PropertyDatePicker';
 import {Surface} from '../../../../components/ui/Surface';
@@ -9,7 +9,9 @@ import type {Pilar, Serie} from '../../../../lib/database';
 import {cn} from '../../../../lib/utils';
 import {getAllowedStatuses} from '../../lib/contentPipeline';
 import {getPostingWindowFromTime, POSTING_WINDOWS, type PostingWindowId} from '../../lib/postingWindow';
-import {ContentStatusField} from './ContentOperationalPanel';
+import {patchAoEscolherSerie} from '../../../editorial/lib/pilarDaSerie';
+import {ContentStatusField, FuncaoEditorialFields} from './ContentOperationalPanel';
+import {LivroMultiSelect} from './LivroMultiSelect';
 import {PlatformCopyEditor} from './PlatformCopyEditor';
 import type {ScriptDraft} from './sections/RoteiroSection';
 
@@ -19,7 +21,9 @@ const selectClass =
   'h-11 w-full appearance-none rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-primary)] px-3 pr-9 text-sm text-[var(--text-primary)] outline-none focus-visible:shadow-[var(--focus-ring)]';
 
 interface ContentManageWorkspaceProps {
+  contentId: string;
   draft: ScriptDraft;
+  disabled?: boolean;
   series: Serie[];
   pilares: Pilar[];
   onChange: (updates: Partial<ScriptDraft>) => void;
@@ -67,7 +71,9 @@ function ManageSelect({
 }
 
 export function ContentManageWorkspace({
+  contentId,
   draft,
+  disabled = false,
   series,
   pilares,
   onChange,
@@ -80,13 +86,6 @@ export function ContentManageWorkspace({
   const publishDateOnly = draft.publishDate ? draft.publishDate.slice(0, 10) : '';
   const postingWindow = getPostingWindowFromTime(draft.publishTime);
   const allowedStatuses = getAllowedStatuses(draft.status);
-  const bibliotecaOptions = useMemo(
-    () =>
-      state.bibliotecaItems
-        .filter(item => !item.deletedAt || item.id === draft.bibliotecaItemId)
-        .sort((left, right) => left.titulo.localeCompare(right.titulo, 'pt-BR')),
-    [draft.bibliotecaItemId, state.bibliotecaItems],
-  );
 
   useEffect(() => {
     void ensureDataDomains(['library']);
@@ -128,10 +127,16 @@ export function ContentManageWorkspace({
 
       <div className="grid items-stretch gap-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(18rem,0.85fr)]">
         <PlatformCopyEditor
-          presentation="manage"
+          embedded
           plataformas={draft.plataformas}
           pilar={linkedPilar}
           serie={linkedSerie}
+          disabled={disabled}
+          contentId={contentId}
+          legendaBase={draft.legendaBase}
+          onLegendaBaseChange={legendaBase => onChange({legendaBase})}
+          titulo={draft.title}
+          onTituloChange={title => onChange({title})}
           onChange={plataformas => onChange({plataformas})}
         />
 
@@ -141,25 +146,21 @@ export function ContentManageWorkspace({
             Classifique e vincule este conteúdo.
           </Text>
           <div className="mt-4 stack-md">
-            <label className="block">
-              <FieldLabel icon={<BookOpen className="h-4 w-4" />}>Biblioteca</FieldLabel>
-              <ManageSelect
-                ariaLabel="Biblioteca"
-                value={draft.bibliotecaItemId ?? ''}
-                onChange={value => onChange({bibliotecaItemId: value || null})}
-              >
-                <option value="">Sem item vinculado</option>
-                {bibliotecaOptions.map(item => (
-                  <option key={item.id} value={item.id}>{item.titulo}</option>
-                ))}
-              </ManageSelect>
-            </label>
+            <LivroMultiSelect
+              livroIds={draft.livroIds}
+              bibliotecaItemId={draft.bibliotecaItemId}
+              bibliotecaItems={state.bibliotecaItems}
+              onChange={onChange}
+            />
             <label className="block">
               <FieldLabel icon={<Layers className="h-4 w-4" />}>Série</FieldLabel>
               <ManageSelect
                 ariaLabel="Série"
                 value={draft.seriesId ?? ''}
-                onChange={value => onChange({seriesId: value || null})}
+                onChange={value => onChange(patchAoEscolherSerie(
+                  draft,
+                  series.find(item => item.id === value) ?? null,
+                ))}
               >
                 <option value="">Selecionar série...</option>
                 {series.map(item => (
@@ -180,6 +181,13 @@ export function ContentManageWorkspace({
                 ))}
               </ManageSelect>
             </label>
+            <FuncaoEditorialFields
+              draft={draft}
+              serie={linkedSerie}
+              onChange={onChange}
+              variant="form"
+              formInputClass={selectClass}
+            />
           </div>
         </Surface>
 
@@ -248,7 +256,7 @@ export function ContentManageWorkspace({
         </Surface>
 
         <Surface variant="outlined" padding="lg" className="flex h-full flex-col bg-[var(--bg-elevated)]">
-          <Text variant="sectionTitle" as="h3">Notas</Text>
+          <Text variant="sectionTitle" as="h3">Observações</Text>
           <Text variant="secondary" className="mt-1">
             Adicione observações, referências e links.
           </Text>

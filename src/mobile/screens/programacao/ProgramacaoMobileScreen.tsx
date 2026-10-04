@@ -136,6 +136,11 @@ export function ProgramacaoMobileScreen({
       .filter((group): group is NonNullable<typeof group> => group !== null);
   }, [periodDays, projetoPublicacaoByDate, scheduledByDate]);
 
+  const scheduledItemCount = scheduledGroups.reduce(
+    (sum, group) => sum + group.cards.length + group.projetoMarkers.length,
+    0,
+  );
+
   const periodLabel =
     viewMode === 'week'
       ? 'Nesta semana'
@@ -189,13 +194,13 @@ export function ProgramacaoMobileScreen({
           tone="orange"
           description={
             backlogCards.length === 0
-              ? 'Roteiros e produções sem data aparecem aqui.'
-              : `${backlogCards.length} vídeo${backlogCards.length > 1 ? 's' : ''} na fila`
+              ? 'Roteiros prontos e sem data aparecem aqui.'
+              : `${backlogCards.length} ${backlogCards.length === 1 ? 'roteiro' : 'roteiros'} na fila`
           }
         />
 
         {backlogCards.length > 6 ? (
-          <MobileSearchBar value={search} onChange={setSearch} placeholder="Buscar na fila..." />
+          <MobileSearchBar value={search} onChange={setSearch} placeholder="Buscar na fila…" />
         ) : null}
 
         {filteredBacklog.length === 0 ? (
@@ -204,8 +209,8 @@ export function ProgramacaoMobileScreen({
             title="Fila vazia"
             description={
               search.trim()
-                ? `Nenhum vídeo corresponde a "${search.trim()}".`
-                : 'Nada por aqui. Roteiros e conteúdos em produção sem data aparecem aqui.'
+                ? `Nenhum roteiro corresponde a “${search.trim()}”.`
+                : 'Roteiros prontos e sem data aparecem aqui.'
             }
           />
         ) : (
@@ -246,7 +251,7 @@ export function ProgramacaoMobileScreen({
                           onPreview(card);
                         }}
                         className="flex min-h-9 min-w-9 items-center justify-center rounded-lg text-[var(--text-tertiary)] transition-colors active:bg-[var(--bg-hover)]"
-                        aria-label="Ver preview"
+                        aria-label="Pré-visualizar"
                       >
                         <Eye className="h-4 w-4" />
                       </button>
@@ -266,7 +271,7 @@ export function ProgramacaoMobileScreen({
               {format(new Date(`${pickerDayKey}T12:00:00`), "EEEE, d 'de' MMMM", {locale: ptBR})}
             </Text>
             <label className="block">
-              <span className="sr-only">Escolher vídeo pronto</span>
+              <span className="sr-only">Escolher roteiro pronto</span>
               <select
                 autoFocus
                 defaultValue=""
@@ -278,7 +283,7 @@ export function ProgramacaoMobileScreen({
                 className="filter-bar-select h-11 w-full bg-[var(--bg-elevated)]"
               >
                 <option value="">
-                  {backlogCards.length === 0 ? 'Nenhum vídeo pronto' : 'Escolher entre os prontos…'}
+                  {backlogCards.length === 0 ? 'Nenhum roteiro pronto' : 'Escolher entre os prontos…'}
                 </option>
                 {backlogCards.map(card => (
                   <option key={card.key} value={card.key}>
@@ -372,7 +377,7 @@ export function ProgramacaoMobileScreen({
             {['S', 'T', 'Q', 'Q', 'S', 'S', 'D'].map((label, index) => (
               <div
                 key={index}
-                className="py-1.5 text-center text-xs font-semibold text-[var(--text-tertiary)] opacity-50"
+                className="py-1.5 text-center text-xs font-semibold text-[var(--text-tertiary)]"
               >
                 {label}
               </div>
@@ -433,7 +438,7 @@ export function ProgramacaoMobileScreen({
             {periodLabel}
           </Text>
           <Text variant="label" className="text-[var(--text-tertiary)]">
-            {scheduledGroups.reduce((sum, group) => sum + group.cards.length + group.projetoMarkers.length, 0)} itens
+            {scheduledItemCount} {scheduledItemCount === 1 ? 'item' : 'itens'}
           </Text>
         </div>
 
@@ -441,7 +446,7 @@ export function ProgramacaoMobileScreen({
           <EmptyState
             compact
             title="Grade vazia"
-            description="Nenhum conteúdo programado neste período."
+            description="Nada programado neste período."
             action={
               <AppButton
                 variant="secondary"
@@ -449,7 +454,7 @@ export function ProgramacaoMobileScreen({
                 leftIcon={<Plus className="h-4 w-4" />}
                 onClick={() => onRegisterPosted(dateKey(today))}
               >
-                Registrar postado
+                Registrar vídeo postado
               </AppButton>
             }
           />
@@ -475,7 +480,7 @@ export function ProgramacaoMobileScreen({
                       type="button"
                       onClick={() => onRegisterPosted(group.dayKey)}
                       className="flex min-h-9 min-w-9 items-center justify-center rounded-lg text-[var(--text-tertiary)] active:bg-[var(--bg-hover)]"
-                      aria-label="Registrar postado"
+                      aria-label="Registrar vídeo postado"
                     >
                       <Plus className="h-4 w-4" />
                     </button>
@@ -540,7 +545,7 @@ export function ProgramacaoMobileScreen({
                                 onPreview(card);
                               }}
                               className="flex min-h-9 min-w-9 items-center justify-center rounded-lg text-[var(--text-tertiary)] active:bg-[var(--bg-hover)]"
-                              aria-label="Ver preview"
+                              aria-label="Pré-visualizar"
                             >
                               <Eye className="h-4 w-4" />
                             </button>

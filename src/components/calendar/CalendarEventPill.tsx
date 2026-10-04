@@ -73,6 +73,7 @@ export function CalendarEventPill({
       )}
       style={style}
     >
+      {icon ? <span className="inline-flex shrink-0 items-center">{icon}</span> : null}
       {time ? <span className="shrink-0 tabular-nums opacity-90">{time}</span> : null}
       <span className="truncate">{label}</span>
     </button>

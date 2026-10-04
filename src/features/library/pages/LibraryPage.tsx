@@ -3,7 +3,9 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { BookOpen, ChevronDown, Clapperboard, Film, LucideIcon, Plus, Tags, Tv } from 'lucide-react';
 import { useAppContext } from '../../../context/AppContext';
 import { useAuth } from '../../../context/AuthContext';
-import { BibliotecaItem, BibliotecaItemMeta, fetchBibliotecaContentCounts, fetchBibliotecaPage } from '../../../lib/database';
+import { BibliotecaItem, BibliotecaItemMeta, fetchBibliotecaPage } from '../../../lib/database';
+import { useDomainsReady } from '../../../hooks/useDomainsReady';
+import { countContentsByBibliotecaItem } from '../lib/libraryContentCounts';
 import { usePaginatedQuery } from '../../../hooks/usePaginatedQuery';
 import { generateUUID } from '../../../utils/uuid';
 import { buildIdeaFields, parseLegacyIdeaText } from '../../ideas/lib/ideaText';
@@ -136,7 +138,7 @@ const TYPE_CONFIG: Record<BibliotecaTipo, BibliotecaTypeConfig> = {
     icon: Clapperboard,
     creatorLabel: 'Direção / estúdio',
     titlePlaceholder: 'Nome do anime',
-    creatorPlaceholder: 'Ex: MAPPA, direção principal',
+    creatorPlaceholder: 'Ex.: MAPPA, direção principal',
     isBookish: false,
     showCover: true,
   },
@@ -204,7 +206,6 @@ export function LibraryPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const isMobile = useIsMobile();
   const [libraryPage, setLibraryPage] = useState(1);
-  const [contentCounts, setContentCounts] = useState<Map<string, number>>(new Map());
   const [filtroTipo, setFiltroTipo] = useState<BibliotecaTipo | 'Todos'>('Todos');
   const [filtroStatus, setFiltroStatus] = useState<StatusLeitura | 'Todos'>('Todos');
   const [filtroGenero, setFiltroGenero] = useState<string>('Todos');
@@ -249,6 +250,7 @@ export function LibraryPage() {
     query: libraryQuery,
     enabled: !!user,
     fetchPage: fetchLibraryPageForUser,
+    persistKey: user ? `${user.id}:library` : undefined,
   });
 
   useEffect(() => {
@@ -256,19 +258,14 @@ export function LibraryPage() {
   }, [filtroCapa, filtroGenero, filtroStatus, filtroTipo, searchTerm, sortValue]);
 
   useEffect(() => {
-    void ensureDataDomains(['library-generos']);
+    void ensureDataDomains(['library-generos', 'content']);
   }, [ensureDataDomains]);
 
-  useEffect(() => {
-    if (!user) return;
-    let active = true;
-    void fetchBibliotecaContentCounts(user.id).then(counts => {
-      if (active) setContentCounts(counts);
-    });
-    return () => {
-      active = false;
-    };
-  }, [user, state.contents.length, state.bibliotecaItems.length]);
+  const contentReady = useDomainsReady(['content']);
+  const contentCounts = useMemo(
+    () => (contentReady ? countContentsByBibliotecaItem(state.contents) : new Map<string, number>()),
+    [contentReady, state.contents],
+  );
 
   const libraryQueryStatus = resolveQueryViewStatus({
     authLoading,
@@ -488,11 +485,11 @@ export function LibraryPage() {
           onClose={() => setModalAberto(false)}
           desktopMaxW="max-w-xl"
           zIndex="z-[110]"
-          ariaLabel="Novo item do acervo"
+          ariaLabel="Novo item da biblioteca"
         >
           <OverlayHeader
-            title="Novo item do acervo"
-            subtitle="Cadastro rapido para consulta e captura no mobile."
+            title="Novo item da biblioteca"
+            subtitle="Só o essencial. Os detalhes podem vir depois."
             onClose={() => setModalAberto(false)}
           />
 
@@ -564,22 +561,22 @@ export function LibraryPage() {
             </label>
 
             <TagSelect
-              label="Generos"
-              hint="Selecione um ou mais generos para categorizar este item."
+              label="Gêneros"
+              hint="Selecione um ou mais gêneros para categorizar este item."
               values={form.generos}
               onChange={generos => setForm(prev => ({ ...prev, generos }))}
               options={GENEROS_SUGERIDOS.map(genero => ({ value: genero, label: genero }))}
               creatable
-              placeholder="Selecione ou digite generos"
+              placeholder="Selecione ou digite gêneros"
             />
 
             <TagSelect
               label="Tags personalizadas"
-              hint="Organize o acervo com tags proprias."
+              hint="Organize o acervo com tags próprias."
               values={form.tagsPersonalizadas}
               onChange={tagsPersonalizadas => setForm(prev => ({ ...prev, tagsPersonalizadas }))}
               creatable
-              placeholder="Ex: comfort read, favorito de infancia"
+              placeholder="Ex.: comfort read, favorito de infância"
             />
           </OverlayBody>
 
@@ -612,7 +609,9 @@ export function LibraryPage() {
         <DesktopPageHeader
           section="Criação"
           title="Biblioteca"
-          meta={`${libraryTotal} ${libraryTotal === 1 ? 'item' : 'itens'}`}
+          meta={libraryLoading && libraryItems.length === 0
+            ? undefined
+            : `${libraryTotal} ${libraryTotal === 1 ? 'item' : 'itens'}`}
           actions={(
             <AppButton
               onClick={handleOpenModal}
@@ -708,7 +707,7 @@ export function LibraryPage() {
         <OverlayBody className="stack-xl py-6">
           <div>
             <p className="mb-3 text-xs font-semibold  text-[var(--text-tertiary)]">
-              Tipo de conteúdo
+              Tipo de obra
             </p>
             <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
               {(Object.entries(TYPE_CONFIG).filter(([key]) => key !== 'outro') as [BibliotecaTipo, BibliotecaTypeConfig][])
@@ -748,7 +747,7 @@ export function LibraryPage() {
                 onChange={event => setForm(prev => ({ ...prev, titulo: event.target.value }))}
                 placeholder={selectedTypeConfig.titlePlaceholder}
                 autoFocus
-                className="w-full rounded-xl border-none bg-[var(--bg-hover)] px-4 py-3 text-sm text-[var(--text-primary)] placeholder:opacity-40 focus:ring-2 focus:ring-[var(--text-primary)]/20"
+                className="w-full rounded-xl border-none bg-[var(--bg-hover)] px-4 py-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:ring-2 focus:ring-[var(--text-primary)]/20"
               />
             </div>
 
@@ -761,7 +760,7 @@ export function LibraryPage() {
                 value={form.autor}
                 onChange={event => setForm(prev => ({ ...prev, autor: event.target.value }))}
                 placeholder={selectedTypeConfig.creatorPlaceholder}
-                className="w-full rounded-xl border-none bg-[var(--bg-hover)] px-4 py-3 text-sm text-[var(--text-primary)] placeholder:opacity-40 focus:ring-2 focus:ring-[var(--text-primary)]/20"
+                className="w-full rounded-xl border-none bg-[var(--bg-hover)] px-4 py-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:ring-2 focus:ring-[var(--text-primary)]/20"
               />
             </div>
           </div>
@@ -788,7 +787,7 @@ export function LibraryPage() {
                   className={`rounded-full border px-3 py-1.5 t-label t-label-uppercase font-semibold transition-all ${
                     form.statusLeitura === status
                       ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-[var(--bg-primary)]'
-                      : 'border-[var(--border-color)] bg-[var(--bg-hover)] text-[var(--text-primary)] opacity-70 hover:opacity-100'
+                      : 'border-[var(--border-color)] bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
                   }`}
                 >
                   {status}
@@ -801,7 +800,7 @@ export function LibraryPage() {
             <button
               type="button"
               onClick={() => setShowClassificacao(value => !value)}
-              className="mb-3 flex items-center gap-2 text-xs font-semibold text-[var(--text-primary)] opacity-50 transition-opacity hover:opacity-80"
+              className="mb-3 flex items-center gap-2 text-xs font-semibold text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
             >
               <ChevronDown className={`h-3.5 w-3.5 transition-transform ${showClassificacao ? 'rotate-180' : ''}`} />
               Classificação
@@ -809,21 +808,21 @@ export function LibraryPage() {
             {showClassificacao ? (
               <div className="stack-lg">
                 <TagSelect
-                  label="Generos"
-                  hint="Selecione um ou mais generos para categorizar este item."
+                  label="Gêneros"
+                  hint="Selecione um ou mais gêneros para categorizar este item."
                   values={form.generos}
                   onChange={generos => setForm(prev => ({ ...prev, generos }))}
                   options={GENEROS_SUGERIDOS.map(genero => ({ value: genero, label: genero }))}
                   creatable
-                  placeholder="Digite e selecione generos"
+                  placeholder="Digite e selecione gêneros"
                 />
                 <TagSelect
                   label="Tags personalizadas"
-                  hint="Organize o acervo com tags proprias."
+                  hint="Organize o acervo com tags próprias."
                   values={form.tagsPersonalizadas}
                   onChange={tagsPersonalizadas => setForm(prev => ({ ...prev, tagsPersonalizadas }))}
                   creatable
-                  placeholder="Ex: comfort read, favorito de infancia..."
+                  placeholder="Ex.: comfort read, favorito de infância…"
                 />
               </div>
             ) : null}
@@ -833,7 +832,7 @@ export function LibraryPage() {
             <button
               type="button"
               onClick={() => setShowDetalhesTipo(value => !value)}
-              className="mb-3 flex items-center gap-2 text-xs font-semibold text-[var(--text-primary)] opacity-50 transition-opacity hover:opacity-80"
+              className="mb-3 flex items-center gap-2 text-xs font-semibold text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
             >
               <ChevronDown className={`h-3.5 w-3.5 transition-transform ${showDetalhesTipo ? 'rotate-180' : ''}`} />
               Detalhes por tipo
@@ -911,7 +910,7 @@ export function LibraryPage() {
                     type="text"
                     value={form.distribuidora}
                     onChange={event => setForm(prev => ({ ...prev, distribuidora: event.target.value }))}
-                    placeholder="Ex: Warner Bros."
+                    placeholder="Ex.: Warner Bros."
                     className="w-full rounded-xl border-none bg-[var(--bg-hover)] px-4 py-3 text-sm text-[var(--text-primary)]"
                   />
                 </div>
@@ -924,7 +923,7 @@ export function LibraryPage() {
                     type="text"
                     value={form.plataforma}
                     onChange={event => setForm(prev => ({ ...prev, plataforma: event.target.value }))}
-                    placeholder="Ex: MUBI, Netflix"
+                    placeholder="Ex.: MUBI, Netflix"
                     className="w-full rounded-xl border-none bg-[var(--bg-hover)] px-4 py-3 text-sm text-[var(--text-primary)]"
                   />
                 </div>
@@ -951,7 +950,7 @@ export function LibraryPage() {
                     type="text"
                     value={form.paisOrigem}
                     onChange={event => setForm(prev => ({ ...prev, paisOrigem: event.target.value }))}
-                    placeholder="Ex: Coreia do Sul"
+                    placeholder="Ex.: Coreia do Sul"
                     className="w-full rounded-xl border-none bg-[var(--bg-hover)] px-4 py-3 text-sm text-[var(--text-primary)]"
                   />
                 </div>
@@ -987,7 +986,7 @@ export function LibraryPage() {
                       type="text"
                       value={form.nomeDaSerie}
                       onChange={event => setForm(prev => ({ ...prev, nomeDaSerie: event.target.value }))}
-                      placeholder="Ex: Duna"
+                      placeholder="Ex.: Duna"
                       className="w-full rounded-xl border-none bg-[var(--bg-hover)] px-4 py-3 text-sm text-[var(--text-primary)]"
                     />
                   </div>
@@ -1039,7 +1038,7 @@ export function LibraryPage() {
                     type="text"
                     value={form.plataforma}
                     onChange={event => setForm(prev => ({ ...prev, plataforma: event.target.value }))}
-                    placeholder="Ex: Crunchyroll, Max"
+                    placeholder="Ex.: Crunchyroll, Max"
                     className="w-full rounded-xl border-none bg-[var(--bg-hover)] px-4 py-3 text-sm text-[var(--text-primary)]"
                   />
                 </div>
@@ -1066,7 +1065,7 @@ export function LibraryPage() {
                     type="text"
                     value={form.paisOrigem}
                     onChange={event => setForm(prev => ({ ...prev, paisOrigem: event.target.value }))}
-                    placeholder="Ex: Japão"
+                    placeholder="Ex.: Japão"
                     className="w-full rounded-xl border-none bg-[var(--bg-hover)] px-4 py-3 text-sm text-[var(--text-primary)]"
                   />
                 </div>
@@ -1102,7 +1101,7 @@ export function LibraryPage() {
                       type="text"
                       value={form.nomeDaSerie}
                       onChange={event => setForm(prev => ({ ...prev, nomeDaSerie: event.target.value }))}
-                      placeholder="Ex: Fate, Monogatari"
+                      placeholder="Ex.: Fate, Monogatari"
                       className="w-full rounded-xl border-none bg-[var(--bg-hover)] px-4 py-3 text-sm text-[var(--text-primary)]"
                     />
                   </div>
@@ -1118,7 +1117,7 @@ export function LibraryPage() {
             <button
               type="button"
               onClick={() => setShowParaVoce(value => !value)}
-              className="mb-3 flex items-center gap-2 text-xs font-semibold text-[var(--text-primary)] opacity-50 transition-opacity hover:opacity-80"
+              className="mb-3 flex items-center gap-2 text-xs font-semibold text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
             >
               <ChevronDown className={`h-3.5 w-3.5 transition-transform ${showParaVoce ? 'rotate-180' : ''}`} />
               <Tags className="h-3.5 w-3.5" />
@@ -1136,7 +1135,7 @@ export function LibraryPage() {
                       type="text"
                       value={form.quemIndicou}
                       onChange={event => setForm(prev => ({ ...prev, quemIndicou: event.target.value }))}
-                      placeholder="Ex: podcast X, amiga Y..."
+                      placeholder="Ex.: podcast X, amiga Y…"
                       className="w-full rounded-xl border-none bg-[var(--bg-hover)] px-4 py-3 text-sm text-[var(--text-primary)]"
                     />
                   </div>
@@ -1176,7 +1175,7 @@ export function LibraryPage() {
                   <textarea
                     value={form.motivoEscolha}
                     onChange={event => setForm(prev => ({ ...prev, motivoEscolha: event.target.value }))}
-                    placeholder={selectedTypeConfig.isBookish ? 'Motivação, contexto...' : 'Contexto, motivo da escolha...'}
+                    placeholder={selectedTypeConfig.isBookish ? 'Motivação, contexto…' : 'Contexto, motivo da escolha…'}
                     rows={selectedTypeConfig.isBookish ? 3 : 2}
                     className="w-full resize-none rounded-xl border-none bg-[var(--bg-hover)] px-4 py-3 text-sm text-[var(--text-primary)]"
                   />

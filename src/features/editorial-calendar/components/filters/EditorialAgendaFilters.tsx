@@ -12,7 +12,7 @@ interface EditorialAgendaFiltersProps {
 }
 
 const LAYER_OPTIONS = [
-  {id: 'recordings', label: 'Gravacoes', icon: Mic2, color: 'orange'},
+  {id: 'recordings', label: 'Gravações', icon: Mic2, color: 'orange'},
   {id: 'posts', label: 'Postagens', icon: Send, color: 'blue'},
   {id: 'projects', label: 'Projetos', icon: BookOpen, color: 'purple'},
   {id: 'agenda', label: 'Agenda', icon: CalendarDays, color: 'green'},
@@ -38,14 +38,14 @@ export function EditorialAgendaFilters({
       <FilterBar
         searchValue={searchTerm}
         onSearchChange={onSearchChange}
-        searchPlaceholder="Buscar por conteúdo, evento, projeto ou entrega"
+        searchPlaceholder="Buscar por roteiro, evento, projeto ou entrega"
         filters={[]}
         sortValue={sortValue}
         onSortChange={onSortChange}
         sortOptions={[
           {label: 'Próximos', value: 'proximos'},
-          {label: 'Título A-Z', value: 'titulo:asc'},
-          {label: 'Tipo A-Z', value: 'tipo:asc'},
+          {label: 'Título A–Z', value: 'titulo:asc'},
+          {label: 'Tipo A–Z', value: 'tipo:asc'},
         ]}
       />
 
@@ -65,7 +65,7 @@ export function EditorialAgendaFilters({
                 'cursor-pointer active:scale-[0.97]',
                 active
                   ? colors.active
-                  : 'border-[var(--border-color)] text-[var(--text-tertiary)] opacity-50 hover:opacity-80'
+                  : 'border-[var(--border-color)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'
               )}
             >
               <Icon className="h-3.5 w-3.5 shrink-0" />

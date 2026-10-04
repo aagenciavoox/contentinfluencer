@@ -1,5 +1,5 @@
 import {useState} from 'react';
-import {MonitorSpeaker, Plus} from 'lucide-react';
+import {Lock, MonitorSpeaker, Plus} from 'lucide-react';
 import {useAppContext} from '../../../context/AppContext';
 import {useAuth} from '../../../context/AuthContext';
 import {useIsMobile} from '../../../hooks/useIsMobile';
@@ -19,8 +19,13 @@ import {MobileToggleSwitch} from '../../../mobile/components/MobileToggleSwitch'
 import {generateUUID} from '../../../utils/uuid';
 import {notifySaveFeedback} from '../../../lib/saveFeedback';
 import {CONFIRM, type ConfirmState} from '../../../lib/uiCopy';
+import {platformDisplayName, platformKey} from '../../../components/ui/platformName';
 
 const PADROES = ['Instagram', 'TikTok', 'YouTube', 'Blog'];
+const PADRAO_KEYS = new Set(PADROES.map(platformKey));
+const PADRAO_LOCK_REASON = 'Canal padrão: permanece ligado para criação e leitura histórica.';
+const HISTORICAL_READING_META =
+  'Plataformas inativas continuam disponíveis para leitura de dados antigos. Os horários de postagem ficam nesta mesma tela, com uma aba global e uma por canal ativo.';
 
 export function PlatformsSettingsPage() {
   const {state, dispatch} = useAppContext();
@@ -43,7 +48,7 @@ export function PlatformsSettingsPage() {
     if (!user?.id) {
       notifySaveFeedback({
         status: 'error',
-        message: 'Faça login para salvar plataformas.',
+        message: 'Entre na conta para salvar plataformas.',
       });
       return;
     }
@@ -99,7 +104,7 @@ export function PlatformsSettingsPage() {
     });
   };
 
-  const isPadrao = (nome: string) => PADROES.includes(nome);
+  const isPadrao = (nome: string) => PADRAO_KEYS.has(platformKey(nome));
 
   const confirmModal = (
     <ConfirmModal
@@ -122,6 +127,8 @@ export function PlatformsSettingsPage() {
           <PlatformsMobileScreen
             platforms={state.platforms}
             isPadrao={isPadrao}
+            padraoLockReason={PADRAO_LOCK_REASON}
+            historicalReadingMeta={HISTORICAL_READING_META}
             onAdd={platformName => {
               void createPlatform(platformName);
             }}
@@ -154,7 +161,7 @@ export function PlatformsSettingsPage() {
               variant="primary"
               leftIcon={<Plus className="h-4 w-4" />}
             >
-              Adicionar
+              Nova plataforma
             </AppButton>
           }
         />
@@ -174,20 +181,16 @@ export function PlatformsSettingsPage() {
                   value={novoNome}
                   onChange={event => setNovoNome(event.target.value)}
                   onKeyDown={event => event.key === 'Enter' && handleAdd()}
-                  placeholder="Ex: Instagram, TikTok"
-                  className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-2.5 text-sm font-bold text-[var(--text-primary)] placeholder:opacity-30 focus:outline-none"
+                  placeholder="Ex.: Instagram, TikTok"
+                  className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-2.5 text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none"
                 />
               </div>
               <div className="flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={closeForm}
-                  className="rounded-xl border border-[var(--border-color)] px-4 py-2.5 text-xs font-semibold opacity-60 hover:opacity-90"
-                >
+                <AppButton type="button" onClick={closeForm} variant="secondary">
                   Cancelar
-                </button>
+                </AppButton>
                 <AppButton onClick={handleAdd} disabled={!novoNome.trim() || isSaving || !user?.id} variant="primary">
-                  {isSaving ? 'Salvando...' : 'Criar'}
+                  {isSaving ? 'Salvando…' : 'Adicionar plataforma'}
                 </AppButton>
               </div>
             </div>
@@ -195,16 +198,9 @@ export function PlatformsSettingsPage() {
         </Dialog>
 
         <div className="stack-xl">
-          <div className="surface-quiet px-6 py-4">
-            <span className="eyebrow-label">Leitura histórica</span>
-            <Text variant="body" className="mt-2 text-[var(--text-secondary)]">
-              Plataformas inativas continuam disponíveis para leitura de dados antigos. Os horários de postagem ficam nesta mesma tela, com uma aba global e uma por canal ativo.
-            </Text>
-          </div>
-
           <section className="stack-xs">
             <header className="px-2">
-              <span className="eyebrow-label">Plataformas</span>
+              <Text variant="eyebrow">Plataformas</Text>
             </header>
 
             {state.platforms.length === 0 ? (
@@ -218,34 +214,42 @@ export function PlatformsSettingsPage() {
               <div className="surface-quiet divide-y divide-[var(--border-color)]">
                 {state.platforms.map(platform => {
                   const padrao = isPadrao(platform.nome);
+                  const displayName = platformDisplayName(platform.nome);
+                  const lockedOn = padrao || platform.ativo;
                   return (
                     <div key={platform.id} className="flex items-center gap-4 px-6 py-3.5">
                       <div className="min-w-0 flex-1">
                         <Text variant="bodyStrong" truncate>
-                          {platform.nome}
+                          {displayName}
                         </Text>
                         {padrao && (
                           <Text variant="meta" className="mt-0.5">
                             Padrão
                           </Text>
                         )}
-                        {!platform.ativo && (
+                        {!platform.ativo && !padrao && (
                           <Text variant="meta" className="mt-0.5">
                             Inativa para criação, mas preservada para leitura histórica
                           </Text>
                         )}
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Text variant="meta" className="text-[var(--text-secondary)]">
-                          {platform.ativo ? 'Ativa' : 'Inativa'}
+                      <div
+                        className="flex items-center gap-2"
+                        title={padrao ? PADRAO_LOCK_REASON : undefined}
+                      >
+                        {padrao ? (
+                          <Lock className="h-3.5 w-3.5 shrink-0 text-[var(--text-tertiary)]" aria-hidden />
+                        ) : null}
+                        <Text variant="meta">
+                          {lockedOn ? 'Ativa' : 'Inativa'}
                         </Text>
                         <MobileToggleSwitch
-                          enabled={platform.ativo}
+                          enabled={lockedOn}
                           onToggle={() => {
                             void toggleAtivo(platform);
                           }}
-                          label={platform.nome}
-                          className={padrao ? 'pointer-events-none opacity-50' : undefined}
+                          label={displayName}
+                          className={padrao ? 'pointer-events-none' : undefined}
                         />
                       </div>
                       {!padrao ? (
@@ -265,6 +269,9 @@ export function PlatformsSettingsPage() {
                 })}
               </div>
             )}
+            <Text variant="meta" className="block px-2">
+              {HISTORICAL_READING_META}
+            </Text>
           </section>
 
           <section className="stack-xs">

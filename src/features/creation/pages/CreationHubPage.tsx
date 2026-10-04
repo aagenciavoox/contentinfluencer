@@ -463,7 +463,11 @@ export function CreationHubPage() {
   }, [setSearchParams]);
 
   const saveIdea = useCallback(async (input: CreationIdeaInput) => {
-    const content = createIdeaContent(input);
+    const content = createIdeaContent({
+      ...input,
+      plataformas: input.plataformas.map(plataforma => ({...plataforma, contentId: ''})),
+    });
+    content.plataformas = content.plataformas.map(plataforma => ({...plataforma, contentId: content.id}));
     await dispatch({ type: 'ADD_CONTENT', payload: content });
     setSearchParams(previous => {
       const next = new URLSearchParams(previous);
@@ -698,7 +702,7 @@ export function CreationHubPage() {
       disabled={deletedContents.length === 0 || isClearingTrash}
       onClick={() => setTrashClearConfirmOpen(true)}
     >
-      {isClearingTrash ? 'Limpando...' : 'Limpar toda a lixeira'}
+      {isClearingTrash ? 'Limpando…' : 'Limpar toda a lixeira'}
     </AppButton>
   );
 
@@ -797,7 +801,7 @@ export function CreationHubPage() {
         className="min-w-0 flex-1"
         searchValue={search}
         onSearchChange={value => updateSearchParam('q', value)}
-        searchPlaceholder="Buscar por título, nota ou tag..."
+        searchPlaceholder="Buscar por título, nota ou tag…"
         filters={filterDefinitions}
       />
       <div className="inline-stack-sm shrink-0">
@@ -955,7 +959,7 @@ export function CreationHubPage() {
           disabled={selectedExportIds.size === 0 || isExporting || isBulkWorking}
           onClick={() => void handleExportCreations()}
         >
-          {isExporting ? 'Gerando DOCX...' : `Exportar DOCX (${selectedExportIds.size})`}
+          {isExporting ? 'Gerando DOCX…' : `Exportar DOCX (${selectedExportIds.size})`}
         </AppButton>
         <AppButton
           variant="ghost"
@@ -1174,7 +1178,7 @@ export function CreationHubPage() {
       <ConfirmModal
         open={Boolean(permanentDeleteTarget)}
         message={`Excluir definitivamente este roteiro — ${permanentDeleteTarget?.title || 'Roteiro sem título'}? Esta ação não pode ser desfeita.`}
-        confirmLabel={isPermanentDeleting ? 'Excluindo...' : 'Excluir definitivamente'}
+        confirmLabel={isPermanentDeleting ? 'Excluindo…' : 'Excluir definitivamente'}
         cancelLabel="Manter na lixeira"
         confirmDisabled={isPermanentDeleting}
         cancelDisabled={isPermanentDeleting}
@@ -1189,7 +1193,7 @@ export function CreationHubPage() {
         message={deletedContents.length === 1
           ? 'Excluir definitivamente o roteiro da lixeira? Esta ação não pode ser desfeita.'
           : `Excluir definitivamente os ${deletedContents.length} roteiros da lixeira? Esta ação não pode ser desfeita.`}
-        confirmLabel={isClearingTrash ? 'Limpando...' : 'Limpar toda a lixeira'}
+        confirmLabel={isClearingTrash ? 'Limpando…' : 'Limpar toda a lixeira'}
         cancelLabel="Manter os roteiros"
         confirmDisabled={isClearingTrash}
         cancelDisabled={isClearingTrash}

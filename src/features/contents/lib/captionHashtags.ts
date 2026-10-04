@@ -29,6 +29,27 @@ function hashtagsForPlatform(
   return parseHashtags(raw);
 }
 
+/**
+ * Uma sugestão só: a série primeiro, depois o pilar, sem repetidas, cortada no limite da rede.
+ * Ausência de limite usa 10.
+ */
+export function suggestHashtags({
+  platformId,
+  serie,
+  pilar,
+  limite = CAPTION_HASHTAG_MAX,
+}: {
+  platformId: string;
+  serie: Pick<Serie, 'plataformas'> | null;
+  pilar: Pick<Pilar, 'plataformas'> | null;
+  limite?: number;
+}): string[] {
+  const max = Number.isInteger(limite) && limite > 0 ? limite : CAPTION_HASHTAG_MAX;
+  const serieTags = hashtagsForPlatform(serie?.plataformas, platformId);
+  const pilarTags = hashtagsForPlatform(pilar?.plataformas, platformId);
+  return mergeHashtags(serieTags, pilarTags, max);
+}
+
 export function captionHashtagPresets(
   platformId: string,
   serie: Pick<Serie, 'name' | 'plataformas'> | null,

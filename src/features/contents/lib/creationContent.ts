@@ -2,6 +2,7 @@ import type {Content, Idea} from '../../../lib/database.ts';
 import {htmlToReadableText} from '../../../lib/utils.ts';
 import {generateUUID, isUUID} from '../../../utils/uuid.ts';
 import {CONTENT_STATUS, normalizeContentStatus} from './contentPipeline.ts';
+import {livroIdsEfetivos} from '../../../lib/livroIds.ts';
 import {createContentDraft} from './createContentDraft.ts';
 
 export const CREATION_TABS = [
@@ -255,7 +256,7 @@ export function filterCreationContents(
   return filterContentsByCreationTab(contents, filters.tab)
     .filter(content => !filters.pilarId || content.pilarId === filters.pilarId)
     .filter(content => !filters.seriesId || content.seriesId === filters.seriesId)
-    .filter(content => !filters.originId || content.bibliotecaItemId === filters.originId)
+    .filter(content => !filters.originId || livroIdsEfetivos(content).includes(filters.originId))
     .filter(content => {
       if (!normalizedSearch) return true;
       return [

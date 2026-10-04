@@ -10,6 +10,7 @@ import {
 } from 'date-fns';
 import {ptBR} from 'date-fns/locale';
 import {CalendarEventPill, editorialPillStyle} from '../../../components/calendar';
+import {CalendarNetworkIcons} from './CalendarNetworkIcons';
 import {Text} from '../../../components/ui/Text';
 import {cn} from '../../../lib/utils';
 import type {CalendarEntry} from './MonthlyCalendarView';
@@ -74,7 +75,7 @@ export function CalendarTimelineView({
         <div>
           <Text variant="sectionTitle">Linha do tempo</Text>
           <Text variant="meta" className="text-[var(--text-secondary)]">
-            Eixo cronológico por dia, com raias por tipo de operação.
+            Gravações, publicações e eventos lado a lado, dia a dia.
           </Text>
         </div>
         {onPeriodChange ? (
@@ -174,6 +175,7 @@ export function CalendarTimelineView({
                           key={entry.id}
                           label={entry.label}
                           time={entry.time}
+                          icon={entry.platformNames?.length ? <CalendarNetworkIcons names={entry.platformNames} /> : undefined}
                           secondary={entry.secondary}
                           variant="compact"
                           style={entryPillStyle(entry)}

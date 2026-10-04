@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus } from 'lucide-react';
 import { useAppContext } from '../../../context/AppContext';
+import { useDomainsReady } from '../../../hooks/useDomainsReady';
 import type { BibliotecaItemMeta } from '../../../lib/database';
 import { DesktopPageHeader } from '../../../layouts/page/DesktopPageHeader';
 import { PageLayout } from '../../../layouts/page/PageLayout';
@@ -13,6 +14,7 @@ import { buildLibraryAnalytics } from '../lib/libraryAnalytics';
 export function AnalyticsPage() {
   const { state } = useAppContext();
   const navigate = useNavigate();
+  const libraryReady = useDomainsReady(['library']);
 
   const analytics = useMemo(
     () => buildLibraryAnalytics(
@@ -53,7 +55,7 @@ export function AnalyticsPage() {
         </div>
       )}
     >
-      <AnalyticsCategoryCards analytics={analytics} />
+      <AnalyticsCategoryCards analytics={analytics} loading={!libraryReady} />
     </PageLayout>
   );
 }

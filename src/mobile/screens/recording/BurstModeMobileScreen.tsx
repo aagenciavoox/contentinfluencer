@@ -173,7 +173,7 @@ function buildPrompterLines(script: string) {
     return index > 0 && lines[index - 1] !== '';
   });
 
-  return compacted.length > 0 ? compacted : ['Sem roteiro. Grave no freestyle.'];
+  return compacted.length > 0 ? compacted : ['Este roteiro ainda não tem texto. Dá para gravar de improviso.'];
 }
 
 function getInitialIndex(entries: BurstModeMobileEntry[]) {
@@ -262,14 +262,14 @@ export function BurstModeMobileScreen({
   const currentEntry = liveEntries[currentIndex] ?? null;
   const currentContent = currentEntry?.content ?? null;
   const currentScript = useMemo(() => {
-    if (!currentContent) return 'Sem roteiro. Grave no freestyle.';
+    if (!currentContent) return 'Este roteiro ainda não tem texto. Dá para gravar de improviso.';
     if (!isContentBodyLoaded(currentContent)) {
       if (hasHydrationError(currentContent.id)) {
         return 'Não foi possível carregar o roteiro.';
       }
-      return 'Carregando roteiro...';
+      return 'Carregando roteiro…';
     }
-    return htmlToReadableText(currentContent.script) || 'Sem roteiro. Grave no freestyle.';
+    return htmlToReadableText(currentContent.script) || 'Este roteiro ainda não tem texto. Dá para gravar de improviso.';
   }, [currentContent, hasHydrationError]);
   const scriptLines = useMemo(() => buildPrompterLines(currentScript), [currentScript]);
   const lineWordCounts = useMemo(() => scriptLines.map(line => Math.max(1, countWords(line))), [scriptLines]);
@@ -449,7 +449,7 @@ export function BurstModeMobileScreen({
             </button>
 
             <div className="min-w-0 flex-1">
-              <p className="truncate text-xs font-semibold">{currentContent.title || 'Sem titulo'}</p>
+              <p className="truncate text-xs font-semibold">{currentContent.title || 'Roteiro sem título'}</p>
               <p className={cn('text-xs font-semibold t-label-uppercase', theme.muted)}>
                 {playbackState === 'preparing'
                   ? 'Preparar'
@@ -469,7 +469,7 @@ export function BurstModeMobileScreen({
                 'flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-full border disabled:opacity-40',
                 theme.border
               )}
-              aria-label="Abrir configuracoes"
+              aria-label="Abrir configurações"
             >
               <Settings2 className="h-4 w-4" />
             </button>
@@ -522,14 +522,14 @@ export function BurstModeMobileScreen({
               <p className={cn('text-xs font-semibold ', theme.muted)}>
                 Modo gravação
               </p>
-              <Text variant="sectionTitle" truncate className="mt-1">{currentContent.title || 'Sem titulo'}</Text>
+              <Text variant="sectionTitle" truncate className="mt-1">{currentContent.title || 'Roteiro sem título'}</Text>
             </div>
 
             <button
               type="button"
               onClick={onClose}
               className={cn('flex h-12 w-12 shrink-0 items-center justify-center rounded-full border', theme.border, theme.card)}
-              aria-label="Fechar modo explosao"
+              aria-label="Fechar modo gravação"
             >
               <X className="h-5 w-5" />
             </button>
@@ -575,20 +575,20 @@ export function BurstModeMobileScreen({
         >
           <ActionIconButton
             icon={isPlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
-            label={isPlaying ? 'Pausar' : 'Play'}
+            label={isPlaying ? 'Pausar' : 'Iniciar'}
             onClick={handleTogglePlayback}
             disabled={!teleprompterEnabled}
           />
           <ActionIconButton
             icon={<CheckCircle2 className="h-5 w-5" />}
-            label="Gravado"
+            label={currentEntry.gravado ? 'Gravado' : 'Marcar como gravado'}
             onClick={handleMarkRecorded}
             disabled={currentEntry.gravado}
             active={currentEntry.gravado}
           />
           <ActionIconButton
             icon={currentIndex > 0 ? <ChevronRight className="h-5 w-5" /> : <SkipForward className="h-5 w-5" />}
-            label="Proximo"
+            label="Próximo"
             onClick={handleNext}
           />
         </div>
@@ -598,27 +598,27 @@ export function BurstModeMobileScreen({
         <section className="flex max-h-[80vh] flex-col overflow-hidden bg-[var(--bg-primary)]">
           <div className="border-b border-[var(--border-color)] px-4 py-3">
             <p className="text-xs font-semibold  text-[var(--text-tertiary)]">
-              Modo Explosao
+              Modo gravação
             </p>
-            <Text variant="itemTitle" className="mt-2">Ajustes mobile</Text>
+            <Text variant="itemTitle" className="mt-2">Ajustes de leitura</Text>
           </div>
 
           <div className="stack-lg overflow-y-auto px-4 py-4">
-            <ChoiceCluster label="Presets">
+            <ChoiceCluster label="Ajustes rápidos">
               <ChoiceButton active={false} onClick={() => applyPreset('perto')}>Perto</ChoiceButton>
-              <ChoiceButton active={false} onClick={() => applyPreset('tripe')}>Tripe</ChoiceButton>
-              <ChoiceButton active={false} onClick={() => applyPreset('mao')}>Mao</ChoiceButton>
+              <ChoiceButton active={false} onClick={() => applyPreset('tripe')}>Tripé</ChoiceButton>
+              <ChoiceButton active={false} onClick={() => applyPreset('mao')}>Mão</ChoiceButton>
               <ChoiceButton active={false} onClick={() => applyPreset('noite')}>Noite</ChoiceButton>
             </ChoiceCluster>
             <MobileSliderSetting label="Tamanho da fonte" value={`${settings.fontSize}px`}>
               <input type="range" min="24" max="56" step="2" value={settings.fontSize} onChange={event => updateSetting('fontSize', Number(event.target.value))} className="w-full" />
             </MobileSliderSetting>
 
-            <MobileSliderSetting label="Espacamento" value={settings.lineHeight.toFixed(2)}>
+            <MobileSliderSetting label="Espaçamento" value={settings.lineHeight.toFixed(2)}>
               <input type="range" min="1.2" max="2" step="0.05" value={settings.lineHeight} onChange={event => updateSetting('lineHeight', Number(event.target.value))} className="w-full" />
             </MobileSliderSetting>
 
-            <MobileSliderSetting label="Velocidade" value={`${settings.wpm} wpm`}>
+            <MobileSliderSetting label="Velocidade" value={`${settings.wpm} ppm`}>
               <input type="range" min="70" max="220" step="5" value={settings.wpm} onChange={event => updateSetting('wpm', Number(event.target.value))} className="w-full" />
             </MobileSliderSetting>
 
@@ -634,7 +634,7 @@ export function BurstModeMobileScreen({
             <ChoiceCluster label="Tema">
               <ChoiceButton active={settings.theme === 'paper'} onClick={() => updateSetting('theme', 'paper')}>Claro</ChoiceButton>
               <ChoiceButton active={settings.theme === 'night'} onClick={() => updateSetting('theme', 'night')}>Noite</ChoiceButton>
-              <ChoiceButton active={settings.theme === 'amber'} onClick={() => updateSetting('theme', 'amber')}>Ambar</ChoiceButton>
+              <ChoiceButton active={settings.theme === 'amber'} onClick={() => updateSetting('theme', 'amber')}>Âmbar</ChoiceButton>
             </ChoiceCluster>
           </div>
         </section>

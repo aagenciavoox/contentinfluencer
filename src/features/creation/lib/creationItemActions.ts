@@ -55,7 +55,7 @@ export function buildCreationItemMenuItems(
   if (currentTab === 'Ideias') {
     items.push({
       id: 'promote',
-      label: 'Virar roteiro',
+      label: 'Transformar em roteiro',
       onClick: () => handlers.onPromote(content),
     });
   }
