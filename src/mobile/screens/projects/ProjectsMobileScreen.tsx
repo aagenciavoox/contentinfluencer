@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { CircleDollarSign, FolderKanban, Plus, SearchCheck, TimerReset } from 'lucide-react';
 import { normalizeProjetoTipo, type Projeto } from '../../../lib/database';
+import { isProjetoEvento, rotuloAvisoDias, rotuloProjetoTipo } from '../../../features/projects/lib/evento';
 import { EmptyState } from '../../../components/ui/EmptyState';
 import { MobileFilterSheet } from '../../components/MobileFilterSheet';
 import { MobileListCard } from '../../components/MobileListCard';
@@ -10,7 +11,7 @@ import { MobileSectionHeader } from '../../components/MobileSectionHeader';
 import { AppButton } from '../../../components/ui/AppButton';
 import { Text } from '../../../components/ui/Text';
 
-type TipoFilter = 'todos' | 'publi' | 'producao' | 'outro';
+type TipoFilter = 'todos' | 'publi' | 'producao' | 'evento' | 'outro';
 /** Matches ProjectsPage desktop FilterBar: agenda linkage, not etapa-derived status. */
 type StatusFilter = 'todos' | 'com_eventos' | 'sem_eventos';
 type ProjectsMobileTab = 'all' | 'com_eventos' | 'sem_eventos';
@@ -22,12 +23,6 @@ interface ProjectsMobileScreenProps {
   onOpenProject: (projectId: string) => void;
   onCreateProject: () => void;
 }
-
-const TIPO_LABELS: Record<Exclude<TipoFilter, 'todos'>, string> = {
-  publi: 'Publi',
-  producao: 'Produção',
-  outro: 'Outro',
-};
 
 function getProgress(projeto: Projeto) {
   if (projeto.etapas.length === 0) return 0;
@@ -156,7 +151,7 @@ export function ProjectsMobileScreen({
                   />
                   <MobileListCard
                     onClick={() => onOpenProject(projeto.id)}
-                    eyebrow={TIPO_LABELS[normalizeProjetoTipo(projeto.tipo)]}
+                    eyebrow={rotuloProjetoTipo(normalizeProjetoTipo(projeto.tipo))}
                     title={projeto.nome}
                     description={projeto.brand || projeto.notes || 'Sem observações adicionais'}
                     meta={
@@ -174,6 +169,11 @@ export function ProjectsMobileScreen({
                           <TimerReset className="h-3 w-3" />
                           {hasEvents ? 'Com eventos' : 'Sem eventos'}
                         </span>
+                        {isProjetoEvento(projeto.tipo) && projeto.avisoDias != null ? (
+                          <span className="inline-flex items-center rounded-full bg-[var(--bg-hover)] px-3 py-1 text-xs font-semibold text-[var(--text-secondary)]">
+                            {rotuloAvisoDias(projeto.avisoDias)}
+                          </span>
+                        ) : null}
                       </>
                     }
                     status={
@@ -209,6 +209,7 @@ export function ProjectsMobileScreen({
             <option value="todos">Todos</option>
             <option value="publi">Publi</option>
             <option value="producao">Produção</option>
+            <option value="evento">Evento</option>
             <option value="outro">Outro</option>
           </select>
         </label>

@@ -11,6 +11,7 @@ import {
 import { useAppContext } from '../../../context/AppContext';
 import { useAuth } from '../../../context/AuthContext';
 import {
+  normalizeProjetoTipo,
   type AgendaItem,
   type Content,
 } from '../../../lib/database';
@@ -33,6 +34,18 @@ import type { ProjectDetailEditFields } from '../../../mobile/screens/projects/P
 import { PostingTimeSuggestions } from '../../settings/components/PostingTimeSuggestions';
 import { getPostingTimes } from '../../settings/lib/postingTimes';
 import { generateUUID } from '../../../utils/uuid';
+import { FuncaoDoRoteiro } from '../components/FuncaoDoRoteiro';
+import { ProjetoEventoFields } from '../components/ProjetoEventoFields';
+import {
+  aplicarFuncaoNoEvento,
+  avisoDiasInvalido,
+  avisoDiasParaSalvar,
+  isProjetoEvento,
+  rotuloAvisoDias,
+  rotuloProjetoTipo,
+  type EscolhaFuncaoEvento,
+  type ProjetoTipoFormulario,
+} from '../lib/evento';
 import { PROJECT_STATUS_LABEL } from './ProjectsPage';
 
 const PROJECT_COLORS = [
@@ -113,6 +126,8 @@ export function ProjectDetailPage() {
   const [editNotes, setEditNotes] = useState('');
   const [editColor, setEditColor] = useState('');
   const [editDriveUrl, setEditDriveUrl] = useState('');
+  const [editTipo, setEditTipo] = useState<ProjetoTipoFormulario>('publi');
+  const [editAvisoDias, setEditAvisoDias] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [confirm, setConfirm] = useState<ConfirmState | null>(null);
 
@@ -140,6 +155,7 @@ export function ProjectDetailPage() {
     .sort((a, b) => `${a.date}${a.time || ''}`.localeCompare(`${b.date}${b.time || ''}`));
   const projetoContents = state.contents.filter(content => projeto.contentIds.includes(content.id));
   const disponiveisParaVincular = state.contents.filter(content => !projeto.contentIds.includes(content.id));
+  const evento = isProjetoEvento(normalizeProjetoTipo(projeto.tipo));
   const statusLabel = PROJECT_STATUS_LABEL[projeto.status] ?? projeto.status;
   const projectColor = projeto.color || '#78716c';
   const formattedValue = projeto.value
@@ -153,15 +169,22 @@ export function ProjectDetailPage() {
     setEditNotes(projeto.notes || '');
     setEditColor(projeto.color || '#78716c');
     setEditDriveUrl(projeto.driveUrl || '');
+    const tipoNormalizado = normalizeProjetoTipo(projeto.tipo);
+    setEditTipo(tipoNormalizado === 'producao' || tipoNormalizado === 'evento' || tipoNormalizado === 'outro' ? tipoNormalizado : 'publi');
+    setEditAvisoDias(projeto.avisoDias == null ? '' : String(projeto.avisoDias));
     setIsEditing(true);
   };
 
   const saveEdit = () => {
+    const aviso = avisoDiasParaSalvar(editTipo, editAvisoDias);
+    if (aviso === 'invalid') return;
     dispatch({
       type: 'UPDATE_PROJETO',
       payload: {
         ...projeto,
         nome: editNome.trim() || projeto.nome,
+        tipo: editTipo,
+        avisoDias: aviso,
         brand: editBrand.trim() || null,
         color: editColor || null,
         value: editValue ? parseFloat(editValue) : null,
@@ -241,7 +264,20 @@ export function ProjectDetailPage() {
       case 'notes': setEditNotes(value as string); break;
       case 'color': setEditColor(value as string); break;
       case 'driveUrl': setEditDriveUrl(value as string); break;
+      case 'tipo': setEditTipo(value as ProjetoTipoFormulario); break;
+      case 'avisoDias': setEditAvisoDias(value as string); break;
     }
+  };
+
+  const escolherFuncao = (contentId: string, escolha: EscolhaFuncaoEvento) => {
+    const content = state.contents.find(item => item.id === contentId);
+    if (!content) return;
+    const next = aplicarFuncaoNoEvento(content, escolha);
+    if (next === content) return;
+    dispatch({
+      type: 'UPDATE_CONTENT',
+      payload: { ...next, updatedAt: new Date().toISOString() },
+    });
   };
 
   const editFields: ProjectDetailEditFields = {
@@ -251,6 +287,8 @@ export function ProjectDetailPage() {
     notes: editNotes,
     color: editColor,
     driveUrl: editDriveUrl,
+    tipo: editTipo,
+    avisoDias: editAvisoDias,
   };
 
   if (isMobile) {
@@ -285,6 +323,8 @@ export function ProjectDetailPage() {
           onVincularContent={vincularContent}
           onOpenContent={contentId => navigate(`/conteudos/${contentId}`, detailBackState)}
           onCreateContent={() => navigate('/criacao?compose=script')}
+          series={state.series}
+          onEscolherFuncao={escolherFuncao}
         />
         {confirmModal}
       </div>
@@ -316,6 +356,7 @@ export function ProjectDetailPage() {
                 {projeto.brand ? (
                   <Text variant="label">{projeto.brand}</Text>
                 ) : null}
+                <Badge variant="neutral">{rotuloProjetoTipo(projeto.tipo)}</Badge>
                 {projeto.status ? (
                   <Badge variant="neutral">{statusLabel}</Badge>
                 ) : null}
@@ -488,11 +529,19 @@ export function ProjectDetailPage() {
               {projetoContents.length === 0 ? (
                 <div className="rounded-[var(--radius-card)] border border-dashed border-[var(--border-color)] px-6 py-8 text-center">
                   <Text variant="bodyStrong">Nenhum roteiro vinculado</Text>
+                  {evento ? (
+                    <Text variant="secondary" className="mt-2">
+                      Cada roteiro deste evento fica com a própria função.
+                    </Text>
+                  ) : null}
                 </div>
               ) : (
                 <div className="stack-md">
+                  {evento ? (
+                    <Text variant="secondary">Cada roteiro deste evento tem a própria função.</Text>
+                  ) : null}
                   {projetoContents.map(content => (
-                    <div key={content.id} className="rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-4">
+                    <div key={content.id} className="stack-md rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-4">
                       <div className="flex items-start gap-3">
                         <div className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-[var(--radius-card)] bg-[var(--bg-primary)] text-[var(--text-primary)]">
                           <ClipboardList className="h-4 w-4" />
@@ -510,6 +559,14 @@ export function ProjectDetailPage() {
                           Abrir
                         </AppButton>
                       </div>
+                      {evento ? (
+                        <FuncaoDoRoteiro
+                          contentId={content.id}
+                          content={content}
+                          serie={state.series.find(serie => serie.id === content.seriesId) ?? null}
+                          onChange={escolha => escolherFuncao(content.id, escolha)}
+                        />
+                      ) : null}
                     </div>
                   ))}
                 </div>
@@ -527,8 +584,10 @@ export function ProjectDetailPage() {
               <div className="stack-lg">
                 <div className="grid grid-cols-2 gap-3">
                   {[
+                    { label: 'Tipo', value: rotuloProjetoTipo(projeto.tipo) },
                     { label: 'Marca', value: projeto.brand || '--' },
                     { label: 'Valor', value: formattedValue },
+                    ...(evento ? [{ label: 'Aviso', value: rotuloAvisoDias(projeto.avisoDias) }] : []),
                   ].map(item => (
                     <div key={item.label} className="rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-4">
                       <Text variant="label">{item.label}</Text>
@@ -560,6 +619,13 @@ export function ProjectDetailPage() {
                   onChange={event => setEditNome(event.target.value)}
                   placeholder="Nome"
                   className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none"
+                />
+                <ProjetoEventoFields
+                  tipo={editTipo}
+                  avisoDias={editAvisoDias}
+                  onTipoChange={setEditTipo}
+                  onAvisoDiasChange={setEditAvisoDias}
+                  inputClassName="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none"
                 />
                 <input
                   value={editBrand}
@@ -603,7 +669,7 @@ export function ProjectDetailPage() {
                   className="w-full resize-none rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none"
                 />
                 <div className="flex flex-wrap gap-3">
-                  <AppButton variant="secondary" onClick={saveEdit}>
+                  <AppButton variant="secondary" onClick={saveEdit} disabled={avisoDiasInvalido(editTipo, editAvisoDias)}>
                     Salvar
                   </AppButton>
                   <AppButton variant="secondary" onClick={() => setIsEditing(false)}>

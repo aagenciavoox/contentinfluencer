@@ -5,6 +5,7 @@ import { normalizeContentStatus } from '../features/contents/lib/contentPipeline
 import { hydrateIdeasFromDemotedContents } from '../features/ideas/lib/hydrateIdeasFromDemotedContents';
 import { getIdeaNotes, normalizeIdea } from '../features/ideas/lib/ideaText';
 import { generateUUID } from '../utils/uuid';
+import { readAvisoDias } from '../features/projects/lib/evento.ts';
 
 // ============================================================================
 // TYPES
@@ -314,10 +315,13 @@ export interface Projeto {
   id: string;
   userId: string;
   nome: string;
-  tipo: 'campanha' | 'publi' | 'producao' | 'outro';
+  /** `'evento'` entra só aqui. A coluna `projetos.tipo` não tem CHECK. */
+  tipo: 'campanha' | 'publi' | 'producao' | 'outro' | 'evento';
   status: string;
   dataInicio: string | null;
   dataFim: string | null;
+  /** Dias de antecedência do aviso. 0–120, ou vazio. Usado quando `tipo` é `evento`. */
+  avisoDias: number | null;
   metaConteudos: number | null;
   bibliotecaItemId: string | null;
   brand: string | null;
@@ -336,6 +340,7 @@ export interface Projeto {
 }
 
 export function normalizeProjetoTipo(tipo: Projeto['tipo'] | string): Projeto['tipo'] {
+  // `campanha` é o valor legado. `evento` permanece; o banco não restringe o texto.
   return tipo === 'campanha' ? 'publi' : (tipo as Projeto['tipo']);
 }
 
@@ -792,7 +797,8 @@ const mp = {
   }),
   projeto: (r: Row): Projeto => ({
     id: r.id, userId: r.user_id, nome: r.nome, tipo: normalizeProjetoTipo(r.tipo), status: r.status,
-    dataInicio: r.data_inicio, dataFim: r.data_fim, metaConteudos: r.meta_conteudos,
+    dataInicio: r.data_inicio, dataFim: r.data_fim, avisoDias: readAvisoDias(r.aviso_dias),
+    metaConteudos: r.meta_conteudos,
     bibliotecaItemId: r.biblioteca_item_id, brand: r.brand, brandColor: r.brand_color,
     color: r.color || null, value: r.value, currency: r.currency || 'BRL',
     driveUrl: r.drive_url || null, shareToken: r.share_token || null, notes: r.notes,
@@ -2327,14 +2333,25 @@ export async function saveProjeto(
   if (!uid) {
     throw new Error('projetos: authenticated session unavailable');
   }
-  const { error } = await supabase.from('projetos').upsert({
-    id: projeto.id, user_id: uid, nome: projeto.nome, tipo: normalizeProjetoTipo(projeto.tipo),
+  const tipo = normalizeProjetoTipo(projeto.tipo);
+  let row: Record<string, unknown> = {
+    id: projeto.id, user_id: uid, nome: projeto.nome, tipo,
     status: projeto.status, data_inicio: projeto.dataInicio, data_fim: projeto.dataFim,
     meta_conteudos: projeto.metaConteudos, biblioteca_item_id: projeto.bibliotecaItemId,
     brand: projeto.brand, brand_color: projeto.brandColor, color: projeto.color,
     drive_url: projeto.driveUrl, value: projeto.value, currency: projeto.currency, notes: projeto.notes,
-  });
-  if (error) throw new Error(`projetos: ${error.message}`);
+    aviso_dias: tipo === 'evento' ? readAvisoDias(projeto.avisoDias) : null,
+  };
+  const { error } = await supabase.from('projetos').upsert(row);
+  if (!error) return;
+  if (error.message && isMissingNamedColumn(error.message, 'aviso_dias') && 'aviso_dias' in row) {
+    const { aviso_dias: _avisoDias, ...withoutAviso } = row;
+    row = withoutAviso;
+    const retry = await supabase.from('projetos').upsert(row);
+    if (retry.error) throw new Error(`projetos: ${retry.error.message}`);
+    return;
+  }
+  throw new Error(`projetos: ${error.message}`);
 }
 
 export async function saveProjetoEtapa(etapa: Omit<ProjetoEtapa, 'createdAt'>): Promise<void> {
