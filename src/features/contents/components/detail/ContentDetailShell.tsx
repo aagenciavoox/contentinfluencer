@@ -38,6 +38,7 @@ import {RoteiroSection, type ScriptDraft} from './sections/RoteiroSection';
 import {isWritingWorkspaceEnabled} from '../../../settings/lib/writingWorkspace';
 import {IdeaDetailSection, IdeaOrganizationPanel} from './sections/IdeaDetailSection';
 import {promoteContentToScript} from '../../lib/creationContent';
+import {livroIdsEfetivos} from '../../../../lib/livroIds';
 
 interface ContentDetailShellProps {
   content: Content;
@@ -68,6 +69,7 @@ function draftFromContent(content: Content): ContentDraft {
     seriesId: content.seriesId,
     pilarId: content.pilarId,
     bibliotecaItemId: content.bibliotecaItemId,
+    livroIds: livroIdsEfetivos(content),
     slotType: content.slotType,
     formatoVisual: content.formatoVisual,
     funcao: content.funcao ?? null,
@@ -232,6 +234,7 @@ export function ContentDetailShell({
     liveContent.seriesId,
     liveContent.pilarId,
     liveContent.bibliotecaItemId,
+    liveContent.livroIds?.join('\0'),
     liveContent.slotType,
     liveContent.formatoVisual,
     liveContent.funcao,
@@ -271,7 +274,7 @@ export function ContentDetailShell({
         if (key === 'script' || key === 'notes' || key === 'referencias' || key === 'writingNotes') {
           return normalizePlain(prevValue as string | null) !== normalizePlain(nextValue as string | null);
         }
-        if (key === 'scriptNotes' || key === 'plataformas') {
+        if (key === 'scriptNotes' || key === 'plataformas' || key === 'livroIds') {
           return JSON.stringify(prevValue ?? null) !== JSON.stringify(nextValue ?? null);
         }
         return prevValue !== nextValue;
@@ -432,6 +435,7 @@ export function ContentDetailShell({
     draft.contaNaGrade,
     draft.formatoVisual,
     draft.bibliotecaItemId,
+    draft.livroIds,
     draft.notes,
     draft.pilarId,
     draft.plataformas,

@@ -37,6 +37,7 @@ import { PageLayout } from '../../../layouts/page/PageLayout';
 import { AnnotationNoteCard } from '../components/AnnotationNoteCard';
 import { TagSelect } from '../../../components/ui/TagSelect';
 import { useIsMobile } from '../../../hooks/useIsMobile';
+import { livroIdsEfetivos } from '../../../lib/livroIds';
 import { BookDetailMobileScreen } from '../../../mobile/screens/library/BookDetailMobileScreen';
 import { Text } from '../../../components/ui/Text';
 import { Surface } from '../../../components/ui/Surface';
@@ -272,7 +273,7 @@ export function BookDetailPage() {
     })
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
-  const conteudosDoLivro = state.contents.filter(c => c.bibliotecaItemId === livro.id);
+  const conteudosDoLivro = state.contents.filter(c => livroIdsEfetivos(c).includes(livro.id));
   const ideiasDeLivro = conteudosDoLivro.filter(
     c =>
       !c.archivedAt &&

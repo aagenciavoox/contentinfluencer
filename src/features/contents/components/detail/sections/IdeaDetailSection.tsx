@@ -1,4 +1,4 @@
-import {ArrowRight, BookOpen, Layers, Palette} from 'lucide-react';
+import {ArrowRight, Layers, Palette} from 'lucide-react';
 import {RichTextEditor} from '../../../../../components/editors/RichTextEditor';
 import {AppButton} from '../../../../../components/ui/AppButton';
 import {Skeleton} from '../../../../../components/ui/Skeleton';
@@ -7,12 +7,13 @@ import {Text} from '../../../../../components/ui/Text';
 import type {BibliotecaItem, Pilar, Serie} from '../../../../../lib/database';
 import {useAppContext} from '../../../../../context/AppContext';
 import {DestinationChips} from '../../../../editorial/components/DestinationChips';
+import {LivroMultiSelect} from '../LivroMultiSelect';
 import {DraftSaveBar} from '../DraftSaveBar';
 import type {ScriptDraft} from './RoteiroSection';
 
 type IdeaDraft = Pick<
   ScriptDraft,
-  'title' | 'notes' | 'scriptNotes' | 'pilarId' | 'seriesId' | 'bibliotecaItemId' | 'plataformas'
+  'title' | 'notes' | 'scriptNotes' | 'pilarId' | 'seriesId' | 'bibliotecaItemId' | 'livroIds' | 'plataformas'
 >;
 
 interface IdeaOrganizationPanelProps {
@@ -82,22 +83,14 @@ export function IdeaOrganizationPanel({
         </select>
       </label>
 
-      <label className="stack-sm">
-        <Text variant="label" as="span" className="inline-flex items-center gap-2">
-          <BookOpen className="h-3.5 w-3.5" aria-hidden />
-          Origem
-        </Text>
-        <select
-          value={draft.bibliotecaItemId ?? ''}
-          onChange={event => onChange({bibliotecaItemId: event.target.value || null})}
-          className={selectClassName}
-        >
-          <option value="">Sem origem</option>
-          {bibliotecaItems.filter(item => !item.deletedAt).map(item => (
-            <option key={item.id} value={item.id}>{item.titulo}</option>
-          ))}
-        </select>
-      </label>
+      <div className="stack-sm md:col-span-3">
+        <LivroMultiSelect
+          livroIds={draft.livroIds}
+          bibliotecaItemId={draft.bibliotecaItemId}
+          bibliotecaItems={bibliotecaItems}
+          onChange={onChange}
+        />
+      </div>
       <div className="md:col-span-3">
         <DestinationChips
           platforms={plataformasAtivas}

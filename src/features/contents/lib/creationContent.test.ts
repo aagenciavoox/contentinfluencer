@@ -229,6 +229,14 @@ function testSharedCreationFiltersIncludeOriginAndSearch() {
       seriesId: 'serie-1',
       bibliotecaItemId: 'book-1',
     }),
+    createContent({
+      id: 'segundo-livro',
+      title: 'Gancho sobre memória',
+      pilarId: 'pilar-1',
+      seriesId: 'serie-1',
+      bibliotecaItemId: 'book-2',
+      livroIds: ['book-2', 'book-1'],
+    }),
   ];
 
   assert.deepEqual(
@@ -239,7 +247,7 @@ function testSharedCreationFiltersIncludeOriginAndSearch() {
       seriesId: 'serie-1',
       originId: 'book-1',
     }).map(content => content.id),
-    ['matching'],
+    ['matching', 'segundo-livro'],
   );
 }
 

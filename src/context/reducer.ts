@@ -1,4 +1,5 @@
 import type { AppState } from '../app/providers/appState';
+import { removerLivroId } from '../lib/livroIds.ts';
 import {
   archiveCreation,
   contentFromLegacyIdea,
@@ -379,7 +380,11 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       return { ...state, bibliotecaItems: state.bibliotecaItems.map(b => b.id === action.payload.id ? action.payload : b) };
     case 'DELETE_BIBLIOTECA_ITEM':
     case 'DELETE_BOOK':
-      return { ...state, bibliotecaItems: state.bibliotecaItems.filter(b => b.id !== action.payload) };
+      return {
+        ...state,
+        bibliotecaItems: state.bibliotecaItems.filter(b => b.id !== action.payload),
+        contents: state.contents.map(content => removerLivroId(content, action.payload)),
+      };
     case 'ADD_ANOTACAO':
       return {
         ...state,

@@ -36,6 +36,10 @@ function testQueryOnlyNavigationKeepsOutletKey() {
   assert.equal(getRouteOutletKey('/biblioteca/livro-1'), '/biblioteca/livro-1');
 }
 
+function testContentDetailLoadsLibrary() {
+  assert.deepEqual(getRouteDataDomains('/conteudos/abc'), ['production', 'recording', 'library']);
+}
+
 function testPendingPathnameTransition() {
   assert.equal(isPathnameTransitionPending('/criacao', '/biblioteca'), true);
   assert.equal(isPathnameTransitionPending('/criacao', '/criacao'), false);
@@ -73,6 +77,7 @@ function testNestedSettingsDomains() {
 testNavigationSequenceSharesSectionOutletKey();
 testNavigationSequencePrefetchDomains();
 testQueryOnlyNavigationKeepsOutletKey();
+testContentDetailLoadsLibrary();
 testPendingPathnameTransition();
 testNestedSettingsDomains();
 

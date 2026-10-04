@@ -35,6 +35,7 @@ import {
   type PostingWindowId,
 } from '../../lib/postingWindow';
 import {getAllowedStatuses, getDisplayStatus} from '../../lib/contentPipeline';
+import {LivroMultiSelect} from './LivroMultiSelect';
 
 const NOTES_MAX = 500;
 type AsideSectionId = 'properties' | 'schedule' | 'notes';
@@ -51,6 +52,8 @@ type OperationalDraft = Pick<
   | 'title'
   | 'seriesId'
   | 'pilarId'
+  | 'bibliotecaItemId'
+  | 'livroIds'
   | 'slotType'
   | 'formatoVisual'
   | 'funcao'
@@ -447,6 +450,14 @@ export function ContentOperationalPanel({
       publishWeekday,
     );
   }, [linkedPilar, publishWeekday, state.platforms, state.postingTimeEntries]);
+  const livrosField = (
+    <LivroMultiSelect
+      livroIds={draft.livroIds}
+      bibliotecaItemId={draft.bibliotecaItemId}
+      bibliotecaItems={state.bibliotecaItems}
+      onChange={onChange}
+    />
+  );
   const compact = density === 'compact';
   const emptySelect = (value: unknown) => (value ? '' : 'property-row-value--empty');
   const [openSection, setOpenSection] = useState<AsideSectionId | null>(null);
@@ -494,6 +505,8 @@ export function ContentOperationalPanel({
             ))}
         </ColoredSelect>
       </PropertyRow>
+
+      {livrosField}
 
       <PropertyRow label="Formato visual" icon={<ImageIcon />}>
         <PropertySelect
@@ -643,6 +656,8 @@ export function ContentOperationalPanel({
           </select>
         </div>
 
+        {livrosField}
+
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="flex flex-col gap-1">
             <span className="text-xs font-medium text-[var(--text-secondary)]">Formato visual</span>
@@ -776,6 +791,8 @@ export function ContentOperationalPanel({
                 ))}
             </RoteiroSelect>
           </RoteiroField>
+
+          {livrosField}
 
           <RoteiroField label="Formato visual" icon={<ImageIcon className="h-3.5 w-3.5" />}>
             <RoteiroSelect

@@ -23,6 +23,7 @@ export type ScriptDraft = {
   seriesId: string | null;
   pilarId: string | null;
   bibliotecaItemId: string | null;
+  livroIds: string[];
   slotType: Content['slotType'];
   formatoVisual: string | null;
   funcao: Content['funcao'];

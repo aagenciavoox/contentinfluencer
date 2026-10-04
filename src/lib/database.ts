@@ -4,6 +4,7 @@ import { supabase } from './supabase.ts';
 import { normalizeContentStatus } from '../features/contents/lib/contentPipeline';
 import { hydrateIdeasFromDemotedContents } from '../features/ideas/lib/hydrateIdeasFromDemotedContents';
 import { getIdeaNotes, normalizeIdea } from '../features/ideas/lib/ideaText';
+import { aplicarLivros, livroIdsEfetivos } from './livroIds.ts';
 import { generateUUID } from '../utils/uuid';
 
 // ============================================================================
@@ -249,6 +250,8 @@ export interface Content {
   lookId: string | null;
   cenarioId: string | null;
   bibliotecaItemId: string | null;
+  /** Livros citados. Lista vazia ainda usa o livro único quando ele existir. */
+  livroIds?: string[];
   formatoVisual: string | null;
   energiaNecessaria: EnergiaNivel | null;
   /** Valor gravado. Vazio quando a origem ainda lê a série. */
@@ -603,6 +606,17 @@ function isMissingLegendaBaseColumn(error: {message?: string} | null | undefined
   return !!error?.message && isMissingNamedColumn(error.message, 'legenda_base');
 }
 
+function isMissingLivroIdsColumn(error: {message?: string} | null | undefined) {
+  return !!error?.message && isMissingNamedColumn(error.message, 'livro_ids');
+}
+
+function readLivroIds(row: Row): string[] {
+  return livroIdsEfetivos({
+    livroIds: Array.isArray(row.livro_ids) ? row.livro_ids.filter((id: unknown): id is string => typeof id === 'string') : undefined,
+    bibliotecaItemId: typeof row.biblioteca_item_id === 'string' ? row.biblioteca_item_id : null,
+  });
+}
+
 function isMissingFuncaoColumns(error: {message?: string} | null | undefined) {
   const message = error?.message;
   if (!message) return false;
@@ -758,6 +772,7 @@ const mp = {
     classificacao: r.classificacao,
     slotType: r.slot_type, seriesId: r.series_id, pilarId: r.pilar_id,
     lookId: r.look_id, cenarioId: r.cenario_id, bibliotecaItemId: r.biblioteca_item_id,
+    livroIds: readLivroIds(r),
     formatoVisual: r.formato_visual, energiaNecessaria: r.energia_necessaria,
     funcao: readFuncaoEditorial(r.funcao),
     funcaoOrigem: readFuncaoOrigem(r.funcao_origem),
@@ -905,6 +920,7 @@ function buildContentScheduleSelect(
   includeFuncaoColumns = true,
   includePublicacaoColumns = true,
   includeLegendaBase = true,
+  includeLivroIds = true,
 ): string {
   let columns: readonly string[] = includeMilestones
     ? [
@@ -926,6 +942,10 @@ function buildContentScheduleSelect(
     const relation = columns[columns.length - 1];
     columns = [...columns.slice(0, -1), 'legenda_base', relation];
   }
+  if (includeLivroIds) {
+    const relation = columns[columns.length - 1];
+    columns = [...columns.slice(0, -1), 'livro_ids', relation];
+  }
   if (includePublicacaoColumns) {
     columns = columns.map(column => (
       column.startsWith('content_plataformas(') ? contentPlataformasSelect(true) : column
@@ -945,8 +965,9 @@ async function runContentScheduleSelect<T>(
   let includeFuncaoColumns = true;
   let includePublicacaoColumns = true;
   let includeLegendaBase = true;
+  let includeLivroIds = true;
 
-  for (let attempt = 0; attempt < 6; attempt += 1) {
+  for (let attempt = 0; attempt < 7; attempt += 1) {
     const result = await run(
       buildContentScheduleSelect(
         includeMilestones,
@@ -954,9 +975,14 @@ async function runContentScheduleSelect<T>(
         includeFuncaoColumns,
         includePublicacaoColumns,
         includeLegendaBase,
+        includeLivroIds,
       ),
     );
     if (!result.error) return result;
+    if (includeLivroIds && isMissingLivroIdsColumn(result.error)) {
+      includeLivroIds = false;
+      continue;
+    }
     if (includeLegendaBase && isMissingLegendaBaseColumn(result.error)) {
       includeLegendaBase = false;
       continue;
@@ -980,7 +1006,7 @@ async function runContentScheduleSelect<T>(
     return result;
   }
 
-  return run(buildContentScheduleSelect(false, false, false, false, false));
+  return run(buildContentScheduleSelect(false, false, false, false, false, false));
 }
 const CONTENT_LIST_SORT_COLUMNS: Record<string, string> = {
   createdAt: 'created_at',
@@ -1374,20 +1400,37 @@ export async function fetchBibliotecaContentCounts(userId: string): Promise<Map<
     if (cached) return cached;
   }
 
-  const rows = assertQuerySuccess(
-    'biblioteca content counts fetch',
-    await supabase
-      .from('contents')
-      .select('biblioteca_item_id')
-      .eq('user_id', userId)
-      .is('deleted_at', null)
-      .not('biblioteca_item_id', 'is', null),
-  ) || [];
+  const withList = await supabase
+    .from('contents')
+    .select('biblioteca_item_id, livro_ids')
+    .eq('user_id', userId)
+    .is('deleted_at', null);
+
+  let rows: Row[] = [];
+  if (!withList.error) {
+    rows = withList.data || [];
+  } else if (isMissingLivroIdsColumn(withList.error)) {
+    rows = assertQuerySuccess(
+      'biblioteca content counts fetch',
+      await supabase
+        .from('contents')
+        .select('biblioteca_item_id')
+        .eq('user_id', userId)
+        .is('deleted_at', null)
+        .not('biblioteca_item_id', 'is', null),
+    ) || [];
+  } else {
+    throw new Error(`biblioteca content counts fetch: ${withList.error.message}`);
+  }
 
   const counts = new Map<string, number>();
-  for (const row of rows as Row[]) {
-    const itemId = row.biblioteca_item_id as string;
-    counts.set(itemId, (counts.get(itemId) || 0) + 1);
+  for (const row of rows) {
+    for (const itemId of livroIdsEfetivos({
+      livroIds: Array.isArray(row.livro_ids) ? row.livro_ids.filter((id: unknown): id is string => typeof id === 'string') : undefined,
+      bibliotecaItemId: typeof row.biblioteca_item_id === 'string' ? row.biblioteca_item_id : null,
+    })) {
+      counts.set(itemId, (counts.get(itemId) || 0) + 1);
+    }
   }
 
   dataCache.setValue(cacheKey, counts);
@@ -2004,6 +2047,69 @@ export async function saveItemGeneros(itemId: string, generoIds: string[]): Prom
   if (error) throw new Error(`item_generos: ${error.message}`);
 }
 
+async function detachLivroFromContents(livroId: string): Promise<void> {
+  if (!supabase) return;
+
+  const listed = await supabase
+    .from('contents')
+    .select('id, biblioteca_item_id, livro_ids')
+    .contains('livro_ids', [livroId]);
+
+  let includeLivroIds = true;
+  let rows: Row[] = [];
+
+  if (listed.error && isMissingLivroIdsColumn(listed.error)) {
+    includeLivroIds = false;
+    const primaryOnly = await supabase
+      .from('contents')
+      .select('id, biblioteca_item_id')
+      .eq('biblioteca_item_id', livroId);
+    if (primaryOnly.error) throw new Error(`detach livro: ${primaryOnly.error.message}`);
+    rows = primaryOnly.data || [];
+  } else if (listed.error) {
+    throw new Error(`detach livro: ${listed.error.message}`);
+  } else {
+    const primary = await supabase
+      .from('contents')
+      .select('id, biblioteca_item_id, livro_ids')
+      .eq('biblioteca_item_id', livroId);
+    if (primary.error) throw new Error(`detach livro: ${primary.error.message}`);
+    const byId = new Map<string, Row>();
+    for (const row of [...(listed.data || []), ...(primary.data || [])]) {
+      byId.set(String(row.id), row);
+    }
+    rows = [...byId.values()];
+  }
+
+  for (const row of rows) {
+    const atuais = includeLivroIds
+      ? livroIdsEfetivos({
+        livroIds: Array.isArray(row.livro_ids)
+          ? row.livro_ids.filter((item: unknown): item is string => typeof item === 'string')
+          : undefined,
+        bibliotecaItemId: typeof row.biblioteca_item_id === 'string' ? row.biblioteca_item_id : null,
+      })
+      : [];
+    const livroIds = atuais.filter(item => item !== livroId);
+    const bibliotecaItemId = livroIds[0] ?? null;
+    const payload: Record<string, unknown> = includeLivroIds
+      ? { livro_ids: livroIds, biblioteca_item_id: bibliotecaItemId }
+      : { biblioteca_item_id: null };
+
+    const { error } = await supabase.from('contents').update(payload).eq('id', row.id);
+    if (!error) continue;
+    if (includeLivroIds && isMissingLivroIdsColumn(error)) {
+      const fallback = await supabase
+        .from('contents')
+        .update({ biblioteca_item_id: row.biblioteca_item_id === livroId ? null : row.biblioteca_item_id })
+        .eq('id', row.id);
+      if (fallback.error) throw new Error(`detach livro: ${fallback.error.message}`);
+      continue;
+    }
+    throw new Error(`detach livro: ${error.message}`);
+  }
+}
+
 export async function deleteBibliotecaItem(id: string): Promise<void> {
   if (!supabase) return;
 
@@ -2013,9 +2119,15 @@ export async function deleteBibliotecaItem(id: string): Promise<void> {
     .eq('id', id)
     .maybeSingle();
 
+  await detachLivroFromContents(id);
+
   const { error } = await supabase.from('biblioteca_items')
     .delete().eq('id', id);
   if (error) throw new Error(`delete biblioteca_item: ${error.message}`);
+
+  if (existing?.user_id) {
+    dataCache.invalidateValue(`stats:biblioteca-content-counts:${existing.user_id}`);
+  }
 
   if (existing?.user_id) {
     const { deleteLibraryItemCovers } = await import('../features/library/lib/libraryCoverStorage');
@@ -2053,12 +2165,15 @@ export async function saveContent(
   content: Omit<Content, 'plataformas' | 'updatedAt' | 'deletedAt'>
 ): Promise<void> {
   if (!supabase) return;
+  const livros = aplicarLivros(content);
   let row: Record<string, unknown> = {
     id: content.id, user_id: content.userId, title: content.title,
     status: content.status, classificacao: content.classificacao,
     slot_type: content.slotType, series_id: content.seriesId,
     pilar_id: content.pilarId, look_id: content.lookId, cenario_id: content.cenarioId,
-    biblioteca_item_id: content.bibliotecaItemId, formato_visual: content.formatoVisual,
+    biblioteca_item_id: livros.bibliotecaItemId,
+    livro_ids: livros.livroIds,
+    formato_visual: content.formatoVisual,
     energia_necessaria: content.energiaNecessaria, publish_date: content.publishDate,
     publish_time: content.publishTime,
     publish_date_enabled: content.publishDateEnabled ?? (content.publishDate != null),
@@ -2079,9 +2194,15 @@ export async function saveContent(
     legacy_idea_id: content.legacyIdeaId ?? null,
   };
 
-  for (let attempt = 0; attempt < 9; attempt += 1) {
+  for (let attempt = 0; attempt < 10; attempt += 1) {
     const {error} = await supabase.from('contents').upsert(row);
     if (!error) return;
+
+    if (isMissingLivroIdsColumn(error) && 'livro_ids' in row) {
+      const {livro_ids: _livroIds, ...rowWithoutLivroIds} = row;
+      row = rowWithoutLivroIds;
+      continue;
+    }
 
     if (isMissingLegendaBaseColumn(error) && 'legenda_base' in row) {
       const {legenda_base: _legendaBase, ...rowWithoutLegendaBase} = row;

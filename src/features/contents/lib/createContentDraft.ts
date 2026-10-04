@@ -1,4 +1,5 @@
 import type { Content, Serie } from '../../../lib/database.ts';
+import { aplicarLivros } from '../../../lib/livroIds.ts';
 import { generateUUID } from '../../../utils/uuid.ts';
 import { contaNaGradePadrao, funcaoHerdavelDaSerie } from '../../editorial/lib/funcoes.ts';
 import { pilarPrincipalDaSerie } from '../../editorial/lib/pilarDaSerie.ts';
@@ -14,7 +15,7 @@ export function createContentDraft(
   const herdada = funcaoHerdavelDaSerie(serie);
   const formato = overrides.formatoVisual ?? serie?.formatoVisualPadrao ?? null;
 
-  return {
+  const draft: Content = {
     id: generateUUID(),
     userId: '',
     title: '',
@@ -44,6 +45,7 @@ export function createContentDraft(
     postedAt: null,
     link: null,
     bibliotecaItemId: null,
+    livroIds: [],
     createdAt: now,
     updatedAt: now,
     deletedAt: null,
@@ -52,4 +54,5 @@ export function createContentDraft(
     plataformas: [],
     ...overrides,
   };
+  return { ...draft, ...aplicarLivros(draft) };
 }
