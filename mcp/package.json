@@ -11,8 +11,14 @@
     "start": "node src/index.ts",
     "http": "node src/http.ts",
     "tunnel": "npx -y cloudflared tunnel --url http://localhost:3333",
+    "public": "node scripts/public.ts",
+    "autostart:install": "node scripts/autostart.ts install",
+    "autostart:uninstall": "node scripts/autostart.ts uninstall",
     "check": "tsc --noEmit",
-    "smoke": "node scripts/smoke.ts"
+    "smoke": "node scripts/smoke.ts",
+    "smoke:http": "node scripts/smoke-http.ts",
+    "smoke:oauth": "node scripts/smoke-oauth.ts",
+    "smoke:funcao": "node scripts/smoke-funcao.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.32.0",

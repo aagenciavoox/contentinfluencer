@@ -2,6 +2,7 @@ import {McpServer} from '@modelcontextprotocol/sdk/server/mcp.js';
 import {registerAgenda} from './tools/agenda.ts';
 import {registerBiblioteca} from './tools/biblioteca.ts';
 import {registerConteudos} from './tools/conteudos.ts';
+import {registerEditorial} from './tools/editorial.ts';
 import {registerEstrutura} from './tools/estrutura.ts';
 
 export function createServer(): McpServer {
@@ -17,6 +18,7 @@ export function createServer(): McpServer {
   );
 
   registerEstrutura(server);
+  registerEditorial(server);
   registerConteudos(server);
   registerAgenda(server);
   registerBiblioteca(server);

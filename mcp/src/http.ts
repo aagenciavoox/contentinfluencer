@@ -3,6 +3,7 @@ import {appendFileSync} from 'node:fs';
 import {createServer as createHttpServer, type IncomingMessage, type ServerResponse} from 'node:http';
 import {resolve} from 'node:path';
 import {StreamableHTTPServerTransport} from '@modelcontextprotocol/sdk/server/streamableHttp.js';
+import {baseUrl, handleOAuth, isValidAccessToken} from './oauth.ts';
 import {createServer} from './server.ts';
 import {getSession, loadEnvFiles, mcpRoot} from './supabase.ts';
 
@@ -15,16 +16,18 @@ if (!token) {
   appendFileSync(resolve(mcpRoot, '.env'), `\n# Chave do modo HTTP (Grok e outros clientes remotos)\nCONTENT_OS_MCP_TOKEN=${token}\n`);
   console.error('Chave nova gerada e salva em mcp/.env (CONTENT_OS_MCP_TOKEN).');
 }
-const expected = Buffer.from(token);
+const secret = token;
 
-/** A chave pode vir no caminho (/mcp/<chave>) para clientes que só aceitam URL, ou no header Authorization. */
+/** A chave pode vir no caminho (/mcp/<chave>) para clientes que só aceitam URL, ou como Bearer (chave ou token OAuth). */
 function authorized(req: IncomingMessage, path: string): boolean {
   const fromPath = path.startsWith('/mcp/') ? path.slice('/mcp/'.length) : '';
-  const fromHeader = req.headers.authorization?.replace(/^Bearer\s+/i, '') ?? '';
-  return [fromPath, fromHeader].some(candidate => {
-    const value = Buffer.from(candidate);
-    return value.length === expected.length && timingSafeEqual(value, expected);
-  });
+  if (fromPath) {
+    const value = Buffer.from(fromPath);
+    const expected = Buffer.from(secret);
+    if (value.length === expected.length && timingSafeEqual(value, expected)) return true;
+  }
+  const bearer = req.headers.authorization?.match(/^Bearer\s+(.+)$/i)?.[1]?.trim();
+  return Boolean(bearer && isValidAccessToken(secret, bearer));
 }
 
 async function readJson(req: IncomingMessage): Promise<unknown> {
@@ -39,31 +42,40 @@ async function readJson(req: IncomingMessage): Promise<unknown> {
   return raw ? JSON.parse(raw) : undefined;
 }
 
-function sendJson(res: ServerResponse, status: number, body: unknown) {
-  res.writeHead(status, {'content-type': 'application/json'}).end(JSON.stringify(body));
+function sendJson(res: ServerResponse, status: number, body: unknown, headers: Record<string, string> = {}) {
+  res.writeHead(status, {'content-type': 'application/json', ...headers}).end(JSON.stringify(body));
+}
+
+function masked(path: string): string {
+  return path.split(secret).join('<chave>');
 }
 
 const httpServer = createHttpServer(async (req, res) => {
-  const path = new URL(req.url ?? '/', 'http://localhost').pathname.replace(/\/+$/, '');
-
-  if (path === '' || path === '/health') {
-    sendJson(res, 200, {ok: true, servidor: 'content-os'});
-    return;
-  }
-  if (path !== '/mcp' && !path.startsWith('/mcp/')) {
-    sendJson(res, 404, {erro: 'não encontrado'});
-    return;
-  }
-  if (!authorized(req, path)) {
-    sendJson(res, 401, {erro: 'chave inválida'});
-    return;
-  }
-  if (req.method !== 'POST') {
-    res.writeHead(405, {allow: 'POST'}).end();
-    return;
-  }
+  const path = new URL(req.url ?? '/', 'http://localhost').pathname.replace(/\/+$/, '') || '/';
+  res.on('finish', () => console.error(`${req.method} ${masked(path)} → ${res.statusCode}`));
 
   try {
+    if (path === '/' || path === '/health') {
+      sendJson(res, 200, {ok: true, servidor: 'content-os'});
+      return;
+    }
+    if (await handleOAuth(req, res, path, secret)) return;
+
+    if (path !== '/mcp' && !path.startsWith('/mcp/')) {
+      sendJson(res, 404, {erro: 'não encontrado'});
+      return;
+    }
+    if (!authorized(req, path)) {
+      sendJson(res, 401, {error: 'invalid_token'}, {
+        'www-authenticate': `Bearer resource_metadata="${baseUrl(req)}/.well-known/oauth-protected-resource"`,
+      });
+      return;
+    }
+    if (req.method !== 'POST') {
+      res.writeHead(405, {allow: 'POST'}).end();
+      return;
+    }
+
     const body = await readJson(req);
     // Sem sessão: cada requisição ganha um servidor novo; o login no Supabase é reaproveitado.
     const server = createServer();
@@ -83,7 +95,7 @@ const httpServer = createHttpServer(async (req, res) => {
 });
 
 httpServer.listen(port, () => {
-  console.error(`content-os MCP (HTTP) em http://localhost:${port}/mcp/<chave>`);
+  console.error(`content-os MCP (HTTP) em http://localhost:${port}/mcp`);
   getSession()
     .then(session => console.error(`Login ok: ${session.email}`))
     .catch(error => console.error(`Aviso: ${error.message}`));

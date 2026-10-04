@@ -66,15 +66,17 @@ export async function writeCompat(
   label: string,
   payload: Row,
   run: (row: Row) => PromiseLike<{data?: unknown; error: {message?: string} | null}>,
-): Promise<void> {
+): Promise<string[]> {
   let row = {...payload};
+  const dropped: string[] = [];
   for (let attempt = 0; attempt < 10; attempt += 1) {
     const {error} = await run(row);
-    if (!error) return;
+    if (!error) return dropped;
     const column = missingColumn(error);
     if (column && column in row) {
       const {[column]: _dropped, ...rest} = row;
       row = rest;
+      dropped.push(column);
       continue;
     }
     throw new Error(`${label}: ${error.message}`);
@@ -191,11 +193,76 @@ export function resolvePlatform(lookups: Lookups, ref: string): string {
 }
 
 // ---------------------------------------------------------------------------
+// Função editorial (substituiu o funil topo/meio/fundo).
+// Espelha src/features/editorial/lib/funcoes.ts do app.
+// ---------------------------------------------------------------------------
+
+export const FUNCOES = ['atrair', 'converter', 'aprofundar', 'comunidade', 'acao', 'reter'] as const;
+export type Funcao = typeof FUNCOES[number];
+
+export const FUNCAO_LABELS: Record<Funcao, string> = {
+  atrair: 'Atrair alcance',
+  converter: 'Converter em seguidor',
+  aprofundar: 'Aprofundar',
+  comunidade: 'Gerar comunidade',
+  acao: 'Levar à ação',
+  reter: 'Reter',
+};
+
+export const FUNIL_DA_FUNCAO: Record<Funcao, 'topo' | 'meio' | 'fundo' | null> = {
+  atrair: 'topo',
+  converter: 'topo',
+  aprofundar: 'meio',
+  comunidade: 'meio',
+  acao: 'fundo',
+  reter: null,
+};
+
+export function isFuncao(value: unknown): value is Funcao {
+  return typeof value === 'string' && (FUNCOES as readonly string[]).includes(value);
+}
+
+/** Só uma função concreta é herdável; `varia` e vazio não passam valor ao roteiro. */
+export function funcaoHerdavel(serie: Row | null | undefined): Funcao | null {
+  return isFuncao(serie?.funcao_padrao) ? serie.funcao_padrao : null;
+}
+
+/** Stories, Live e a função reter ficam fora da grade por padrão. */
+export function contaNaGradePadrao(formato: string | null | undefined, funcao: Funcao | null | undefined): boolean {
+  if (funcao === 'reter') return false;
+  return !['stories', 'story', 'live'].includes(fold(formato ?? ''));
+}
+
+/**
+ * Função efetiva. Enquanto não congela (ao postar), origem `herdada` lê a série;
+ * congelada, vale o valor copiado no conteúdo.
+ */
+export function funcaoEfetiva(row: Row, lookups: Lookups) {
+  const congelada = Boolean(row.classificacao_congelada_em);
+  const stored = isFuncao(row.funcao) ? row.funcao : null;
+  const origem: string = row.funcao_origem ?? (stored ? 'escolhida' : 'indefinida');
+  let funcao: Funcao | null = stored;
+  if (!congelada && origem === 'herdada') {
+    funcao = funcaoHerdavel(lookups.series.find(s => s.id === row.series_id));
+  } else if (origem === 'nenhuma' || origem === 'indefinida') {
+    funcao = null;
+  }
+  return {
+    funcao,
+    funcao_rotulo: funcao ? FUNCAO_LABELS[funcao] : null,
+    etapa_funil: funcao ? FUNIL_DA_FUNCAO[funcao] ?? 'fora' : null,
+    funcao_origem: origem,
+    classificacao_congelada: congelada,
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Formato de saída dos conteúdos
 // ---------------------------------------------------------------------------
 
 export const CONTENT_LIST_COLUMNS = [
   'id', 'title', 'status', 'series_id', 'pilar_id', 'formato_visual', 'energia_necessaria',
+  'funcao', 'funcao_origem', 'classificacao_congelada_em', 'conta_na_grade',
   'publish_date', 'publish_time', 'recording_date', 'recorded_at', 'posted_at', 'tags',
   'biblioteca_item_id', 'archived_at', 'deleted_at', 'created_at', 'updated_at',
   'content_plataformas(id, platform_id, publish_date, publish_time, publication_kind)',
@@ -217,6 +284,8 @@ export function contentSummary(row: Row, lookups: Lookups) {
     pilar: lookups.pilarName(row.pilar_id),
     serie: lookups.serieName(row.series_id),
     formato: row.formato_visual ?? null,
+    ...funcaoEfetiva(row, lookups),
+    conta_na_grade: row.conta_na_grade !== false,
     data_publicacao: row.publish_date ?? null,
     hora_publicacao: row.publish_time ?? null,
     data_gravacao: row.recording_date ?? null,

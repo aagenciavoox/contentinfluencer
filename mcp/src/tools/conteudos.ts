@@ -3,8 +3,12 @@ import {z} from 'zod';
 import {
   CONTENT_LIST_COLUMNS,
   CONTENT_STATUSES,
+  FUNCOES,
   check,
+  contaNaGradePadrao,
   contentSummary,
+  funcaoEfetiva,
+  funcaoHerdavel,
   htmlToText,
   json,
   loadLookups,
@@ -25,15 +29,20 @@ const statusSchema = z.enum(CONTENT_STATUSES);
 const dateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use AAAA-MM-DD');
 const energiaSchema = z.enum(['baixa', 'média', 'alta']);
 const idsSchema = z.array(z.string().min(1)).min(1).max(50);
+const funcaoSchema = z.enum([...FUNCOES, 'da_serie', 'nenhuma']).describe(
+  'Função editorial (antigo funil): atrair e converter = topo; aprofundar e comunidade = meio; acao = fundo; reter fica fora do funil. ' +
+  '"da_serie" herda a função padrão da série; "nenhuma" marca sem função.',
+);
 
 function sanitizeSearch(value: string): string {
   return value.replace(/[,()*%\\]/g, ' ').trim();
 }
 
-/** Stories, lives e conteúdos de retenção não contam na grade de frequência. */
-function contaNaGrade(formato: string | null | undefined): boolean {
-  const normalized = (formato ?? '').trim().toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '');
-  return !['stories', 'story', 'live'].includes(normalized);
+function funcaoColumns(choice: z.infer<typeof funcaoSchema> | null): {funcao: string | null; funcao_origem: string | null} {
+  if (choice === null) return {funcao: null, funcao_origem: null};
+  if (choice === 'da_serie') return {funcao: null, funcao_origem: 'herdada'};
+  if (choice === 'nenhuma') return {funcao: null, funcao_origem: 'nenhuma'};
+  return {funcao: choice, funcao_origem: 'escolhida'};
 }
 
 async function fetchContents(session: Session, ids: string[]): Promise<Row[]> {
@@ -59,7 +68,6 @@ function contentDetail(row: Row, lookups: Lookups, roteiroFormato: 'texto' | 'ht
     referencias: row.referencias ?? null,
     link: row.link ?? null,
     energia: row.energia_necessaria ?? null,
-    funcao: row.funcao ?? null,
     legenda_base: row.legenda_base ?? null,
     plataformas: (row.content_plataformas ?? []).map((p: Row) => ({
       id: p.id,
@@ -169,6 +177,7 @@ export function registerConteudos(server: McpServer) {
     serie: z.string().optional().describe('Nome ou id da série'),
     biblioteca_item_id: z.string().optional().describe('Livro, filme ou série da biblioteca que originou o conteúdo'),
     tags: z.array(z.string()).optional(),
+    funcao: funcaoSchema.optional().describe('Se não vier: herda da série quando ela tem função padrão'),
   };
 
   async function createContent(
@@ -186,14 +195,19 @@ export function registerConteudos(server: McpServer) {
       referencias?: string;
       biblioteca_item_id?: string;
       data_gravacao?: string;
+      funcao?: z.infer<typeof funcaoSchema>;
     },
   ) {
     const lookups = await loadLookups(session);
     const serieId = resolveSerie(lookups, input.serie) ?? null;
     const serie = serieId ? lookups.series.find(s => s.id === serieId) : null;
     let pilarId = resolvePilar(lookups, input.pilar) ?? null;
-    if (!pilarId && serie?.serie_pilares?.length === 1) pilarId = serie.serie_pilares[0].pilar_id;
+    if (!pilarId && serie?.serie_pilares?.length) pilarId = serie.serie_pilares[0].pilar_id;
     const formato = input.formato ?? serie?.formato_visual_padrao ?? null;
+    const herdada = funcaoHerdavel(serie);
+    const escolha = input.funcao ?? (herdada ? 'da_serie' : null);
+    const funcao = funcaoColumns(escolha);
+    const funcaoInicial = escolha === 'da_serie' ? herdada : escolha === 'nenhuma' ? null : escolha;
     const now = nowIso();
     const id = newId();
 
@@ -203,6 +217,7 @@ export function registerConteudos(server: McpServer) {
       title: input.titulo.trim(),
       status: input.status,
       series_id: serieId,
+      slot_type: serie?.slot_padrao ?? null,
       pilar_id: pilarId,
       biblioteca_item_id: input.biblioteca_item_id ?? null,
       formato_visual: formato,
@@ -215,7 +230,8 @@ export function registerConteudos(server: McpServer) {
       recording_date: input.data_gravacao ?? null,
       recording_date_enabled: Boolean(input.data_gravacao),
       publish_date_enabled: false,
-      conta_na_grade: contaNaGrade(formato),
+      ...funcao,
+      conta_na_grade: contaNaGradePadrao(formato, funcaoInicial),
       created_at: now,
       updated_at: now,
     }, row => session.client.from('contents').insert(row));
@@ -260,7 +276,8 @@ export function registerConteudos(server: McpServer) {
       title: 'Atualizar conteúdo',
       description:
         'Altera campos de um conteúdo existente. Só os campos enviados mudam. ' +
-        'Para limpar pilar, série ou data, envie string vazia ou null. Para mudar status use mudar_status.',
+        'Para limpar pilar, série ou data, envie string vazia ou null. Para mudar status use mudar_status. ' +
+        'funcao é o antigo funil; null volta para "sem definição". Mudar formato ou função recalcula conta_na_grade, a menos que ele venha junto.',
       inputSchema: {
         id: z.string().min(1),
         titulo: z.string().min(1).optional(),
@@ -273,6 +290,8 @@ export function registerConteudos(server: McpServer) {
         serie: z.string().nullable().optional(),
         formato: z.string().nullable().optional(),
         energia: energiaSchema.nullable().optional(),
+        funcao: funcaoSchema.nullable().optional(),
+        conta_na_grade: z.boolean().optional().describe('Se a peça conta na grade de frequência'),
         tags: z.array(z.string()).optional(),
         link: z.string().nullable().optional(),
         data_gravacao: dateSchema.nullable().optional(),
@@ -295,9 +314,13 @@ export function registerConteudos(server: McpServer) {
       if (args.referencias !== undefined) patch.referencias = args.referencias || null;
       if (args.pilar !== undefined) patch.pilar_id = resolvePilar(lookups, args.pilar ?? '');
       if (args.serie !== undefined) patch.series_id = resolveSerie(lookups, args.serie ?? '');
-      if (args.formato !== undefined) {
-        patch.formato_visual = args.formato || null;
-        patch.conta_na_grade = contaNaGrade(args.formato);
+      if (args.formato !== undefined) patch.formato_visual = args.formato || null;
+      if (args.funcao !== undefined) Object.assign(patch, funcaoColumns(args.funcao));
+      if (args.conta_na_grade !== undefined) {
+        patch.conta_na_grade = args.conta_na_grade;
+      } else if (args.formato !== undefined || args.funcao !== undefined) {
+        const next = {...current, ...patch};
+        patch.conta_na_grade = contaNaGradePadrao(next.formato_visual, funcaoEfetiva(next, lookups).funcao);
       }
       if (args.energia !== undefined) patch.energia_necessaria = args.energia;
       if (args.tags !== undefined) patch.tags = args.tags;
@@ -323,7 +346,7 @@ export function registerConteudos(server: McpServer) {
       description:
         'Move conteúdos no fluxo Ideia → Roteiro → Produção → Postado. ' +
         'Ideia para Roteiro aproveita as notas da ideia como rascunho do roteiro. ' +
-        'Produção exige título e roteiro escritos. Postado registra a data de postagem.',
+        'Produção exige título e roteiro escritos. Postado registra a data de postagem e fixa a função editorial da peça.',
       inputSchema: {
         ids: idsSchema,
         status: statusSchema,
@@ -331,6 +354,7 @@ export function registerConteudos(server: McpServer) {
     },
     tool(async (args, session) => {
       const rows = await fetchContents(session, args.ids);
+      const lookups = await loadLookups(session);
       const now = nowIso();
       const blocked = rows.filter(
         row => args.status === 'Produção' && (!row.title?.trim() || !htmlToText(row.script)),
@@ -349,6 +373,13 @@ export function registerConteudos(server: McpServer) {
           patch.script = textToHtml(row.notes);
         }
         if (args.status === 'Postado' && !row.posted_at) patch.posted_at = now;
+        // Ao postar, a função fica fixa: mudar a série depois não reclassifica o que já saiu.
+        if (args.status === 'Postado' && !row.classificacao_congelada_em) {
+          if (row.funcao_origem === 'herdada') {
+            patch.funcao = funcaoHerdavel(lookups.series.find(s => s.id === row.series_id));
+          }
+          patch.classificacao_congelada_em = now;
+        }
         if (args.status !== 'Postado' && row.posted_at) patch.posted_at = null;
         await updateContent(session, row.id, patch);
         changed.push({id: row.id, titulo: row.title, de: from, para: args.status});
