@@ -38,6 +38,7 @@ export type ScriptDraft = {
   writingNotes?: string | null;
   status: Content['status'];
   recordingDate: string | null;
+  recordingTime?: string | null;
   publishDate: string | null;
   publishTime: string | null;
   postedAt: string | null;
@@ -231,8 +232,6 @@ export function RoteiroSection({
               series={series}
               pilares={pilares}
               onChange={onChange}
-              onSave={onSave}
-              saveState={saveState}
             />
           ) : (
             <div className={cn('grid min-h-0 items-stretch gap-3', notesOpen && 'lg:grid-cols-2')}>
