@@ -36,6 +36,7 @@ import {
 } from '../../lib/postingWindow';
 import {getAllowedStatuses, getDisplayStatus} from '../../lib/contentPipeline';
 import {LivroMultiSelect} from './LivroMultiSelect';
+import {TemaField} from './TemaField';
 
 const NOTES_MAX = 500;
 type AsideSectionId = 'properties' | 'schedule' | 'notes';
@@ -51,6 +52,7 @@ type OperationalDraft = Pick<
   Content,
   | 'title'
   | 'seriesId'
+  | 'temaIds'
   | 'pilarId'
   | 'bibliotecaItemId'
   | 'livroIds'
@@ -474,6 +476,12 @@ export function ContentOperationalPanel({
       publishWeekday,
     );
   }, [linkedPilar, publishWeekday, state.platforms, state.postingTimeEntries]);
+  const temasField = (
+    <TemaField
+      temaIds={draft.temaIds}
+      onChange={temaIds => onChange({temaIds})}
+    />
+  );
   const livrosField = (
     <LivroMultiSelect
       livroIds={draft.livroIds}
@@ -511,6 +519,8 @@ export function ContentOperationalPanel({
           ))}
         </PropertySelect>
       </PropertyRow>
+
+      {temasField}
 
       <PropertyRow label="Pilar" icon={<Palette />}>
         <ColoredSelect
@@ -680,6 +690,8 @@ export function ContentOperationalPanel({
           </select>
         </div>
 
+        {temasField}
+
         {livrosField}
 
         <div className="grid gap-3 sm:grid-cols-2">
@@ -786,6 +798,7 @@ export function ContentOperationalPanel({
             <Badge variant="neutral">{linkedSerie?.name ?? 'Sem série'}</Badge>
             <Badge variant="tag">{linkedPilar?.nome ?? 'Sem pilar'}</Badge>
           </div>
+          {temasField}
         </Surface>
 
         <AsideAccordion id="properties" title="Propriedades" openId={openSection} onToggle={toggleSection} alwaysOpen={sectionsOpen}>

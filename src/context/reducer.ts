@@ -12,7 +12,7 @@ import {
 } from '../features/contents/lib/creationContent';
 import {
   AppData,
-  Content, Idea, Pilar, Serie, Cenario, Look,
+  Content, Idea, Pilar, Serie, Tema, Cenario, Look,
   BibliotecaItem, Anotacao, Projeto, ProjetoEtapa,
   RecordingBlock, RecordingBlockContent, Template,
   AgendaItem, GoldenRule, ContentMetric, Platform, DnaVoz, PlanejamentoPostIt,
@@ -58,6 +58,7 @@ export type AppAction =
   | { type: 'ADD_SERIE';    payload: Serie }
   | { type: 'UPDATE_SERIE'; payload: Serie }
   | { type: 'DELETE_SERIE'; payload: string }
+  | { type: 'ADD_TEMA';     payload: Tema }
 
   // ─── Cenários ───────────────────────────────────────────────────────────────
   | { type: 'ADD_CENARIO';    payload: Cenario }
@@ -357,6 +358,9 @@ export function appReducer(state: AppState, action: AppAction): AppState {
           c.seriesId === action.payload ? { ...c, seriesId: null } : c
         ),
       };
+    case 'ADD_TEMA':
+      if (state.temas.some(tema => tema.id === action.payload.id)) return state;
+      return { ...state, temas: [...state.temas, action.payload] };
 
     // ─── Cenários ───────────────────────────────────────────────────────────
     case 'ADD_CENARIO':

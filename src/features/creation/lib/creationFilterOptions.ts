@@ -18,4 +18,4 @@ export const CREATION_VIEW_MODE_LABELS: Record<
 };
 
 /** Query keys cleared by the mobile filter sheet "Limpar filtros" action. */
-export const CREATION_FILTER_QUERY_KEYS = ['pilar', 'serie', 'origem', 'funcao', 'sort', 'page'] as const;
+export const CREATION_FILTER_QUERY_KEYS = ['pilar', 'serie', 'tema', 'origem', 'funcao', 'sort', 'page'] as const;

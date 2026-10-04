@@ -11,6 +11,7 @@ export const initialState: AppState = {
   dnaVoz: null,
   pilares: [],
   series: [],
+  temas: [],
   cenarios: [],
   looks: [],
   bibliotecaGeneros: [],

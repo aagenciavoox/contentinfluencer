@@ -102,6 +102,14 @@ export interface Serie {
   plataformas: SeriePlataforma[];
 }
 
+/** Rótulo leve do roteiro. Não herda função, pilar nem estrutura de série. */
+export interface Tema {
+  id: string;
+  userId: string;
+  nome: string;
+  createdAt: string;
+}
+
 export interface Cenario {
   id: string;
   userId: string;
@@ -277,6 +285,8 @@ export interface Content {
   script: string | null;
   scriptNotes: ScriptNote[];
   tags: string[];
+  /** Temas leves, como Halloween. Ausente enquanto o vínculo não foi carregado. */
+  temaIds?: string[];
   notes: string | null;
   referencias: string | null;
   /** Notas livres ao lado do roteiro. Ausente enquanto o corpo não foi carregado. */
@@ -466,6 +476,7 @@ export interface AppData {
   dnaVoz: DnaVoz | null;
   pilares: Pilar[];
   series: Serie[];
+  temas: Tema[];
   cenarios: Cenario[];
   looks: Look[];
   bibliotecaGeneros: BibliotecaGenero[];
@@ -528,7 +539,7 @@ export const BOOTSTRAP_DATA_DOMAINS: AppDataDomain[] = [
 
 function empty(): AppData {
   return {
-    platforms: [], preferences: {}, dnaVoz: null, pilares: [], series: [],
+    platforms: [], preferences: {}, dnaVoz: null, pilares: [], series: [], temas: [],
     cenarios: [], looks: [], bibliotecaGeneros: [], bibliotecaItems: [],
     contents: [], ideas: [], projetos: [], recordingBlocks: [], templates: [],
     agendaItems: [], postIts: [], goldenRules: [], contentMetrics: [], postingTimeEntries: [],
@@ -599,6 +610,15 @@ function isMissingPostedAtColumn(error: {message?: string} | null | undefined) {
 
 function isMissingWritingNotesColumn(error: {message?: string} | null | undefined) {
   return !!error?.message?.includes('writing_notes');
+}
+
+function isMissingTemasTable(error: {message?: string} | null | undefined) {
+  const message = error?.message?.toLowerCase() ?? '';
+  if (!message) return false;
+  const missing = message.includes('schema cache')
+    || message.includes('does not exist')
+    || message.includes('could not find');
+  return missing && (message.includes('content_temas') || message.includes('temas'));
 }
 
 function isMissingCreationColumn(error: {message?: string} | null | undefined) {
@@ -764,6 +784,12 @@ const mp = {
       serieId: sp.serie_id, platformId: sp.platform_id, hashtags: sp.hashtags || '',
     })),
   }),
+  tema: (r: Row): Tema => ({
+    id: r.id,
+    userId: r.user_id,
+    nome: typeof r.nome === 'string' ? r.nome : '',
+    createdAt: r.created_at,
+  }),
   cenario: (r: Row): Cenario => ({
     id: r.id, userId: r.user_id, nome: r.nome, descricao: r.descricao || '',
     tempoSetupMinutos: r.tempo_setup_minutos ?? 0, ativo: r.ativo, createdAt: r.created_at,
@@ -899,6 +925,44 @@ function mapContentWithPlatforms(row: Row, platformNameById: Map<string, string>
       mapContentPlataforma(p, normalizePlatformRef(p.platform_id, platformNameById))
     )),
   };
+}
+
+async function fetchTemaIdsByContent(contentIds: readonly string[]): Promise<Map<string, string[]> | null> {
+  if (!supabase || contentIds.length === 0) return new Map();
+  const links = new Map<string, string[]>();
+  const chunkSize = 100;
+
+  for (let index = 0; index < contentIds.length; index += chunkSize) {
+    const chunk = contentIds.slice(index, index + chunkSize);
+    const {data, error} = await supabase
+      .from('content_temas')
+      .select('content_id, tema_id')
+      .in('content_id', chunk);
+    if (error) {
+      if (isMissingTemasTable(error)) return null;
+      throw new Error(`content_temas: ${error.message}`);
+    }
+    for (const row of data || []) {
+      const contentId = String(row.content_id);
+      const temaId = String(row.tema_id);
+      const current = links.get(contentId) ?? [];
+      current.push(temaId);
+      links.set(contentId, current);
+    }
+  }
+
+  return links;
+}
+
+/** Anexa os temas. Se a tabela ainda não existe, devolve o conteúdo como veio. */
+async function withTemaIds(contents: Content[]): Promise<Content[]> {
+  if (contents.length === 0) return contents;
+  const links = await fetchTemaIdsByContent(contents.map(content => content.id));
+  if (!links) return contents;
+  return contents.map(content => ({
+    ...content,
+    temaIds: links.get(content.id) ?? [],
+  }));
 }
 
 const POSTED_CONTENT_STATUS = 'Postado';
@@ -1165,7 +1229,7 @@ export async function fetchContentsPage(
   const rows = assertQuerySuccess('contents page fetch', result) || [];
 
   return {
-    items: rows.map((row: Row) => mapContentWithPlatforms(row, platformNameById)),
+    items: await withTemaIds(rows.map((row: Row) => mapContentWithPlatforms(row, platformNameById))),
     total: result.count ?? rows.length,
   };
 }
@@ -1198,9 +1262,9 @@ export async function fetchArchivedContents(userId: string): Promise<Content[]> 
   const platformNameById = new Map(
     platforms.map((platform: Row) => [platform.id, platform.nome]),
   );
-  return (contentsResult.data || []).map(
+  return withTemaIds((contentsResult.data || []).map(
     (row: Row) => mapContentWithPlatforms(row, platformNameById),
-  );
+  ));
 }
 
 export async function fetchDeletedContents(userId: string): Promise<Content[]> {
@@ -1229,9 +1293,9 @@ export async function fetchDeletedContents(userId: string): Promise<Content[]> {
   const platformNameById = new Map(
     platforms.map((platform: Row) => [platform.id, platform.nome]),
   );
-  return (contentsResult.data || []).map(
+  return withTemaIds((contentsResult.data || []).map(
     (row: Row) => mapContentWithPlatforms(row, platformNameById),
-  );
+  ));
 }
 
 export async function fetchContentsByIds(
@@ -1265,7 +1329,7 @@ export async function fetchContentsByIds(
   const platformNameById = new Map(platforms.map((platform: Row) => [platform.id, platform.nome]));
   const rows = assertQuerySuccess('contents by ids fetch', contentsResult) || [];
 
-  return rows.map((row: Row) => mapContentWithPlatforms(row, platformNameById));
+  return withTemaIds(rows.map((row: Row) => mapContentWithPlatforms(row, platformNameById)));
 }
 
 export async function fetchContentStatusCounts(
@@ -1616,6 +1680,17 @@ export async function fetchDataDomains(
       }));
       payload.cenarios = (assertQuerySuccess('cenarios fetch', cenariosResult) || []).map(mp.cenario);
       payload.looks = (assertQuerySuccess('looks fetch', looksResult) || []).map(mp.look);
+
+      const temasResult = await supabase
+        .from('temas')
+        .select('id, user_id, nome, created_at')
+        .eq('user_id', uid)
+        .order('nome');
+      if (temasResult.error && isMissingTemasTable(temasResult.error)) {
+        payload.temas = [];
+      } else {
+        payload.temas = (assertQuerySuccess('temas fetch', temasResult) || []).map(mp.tema);
+      }
     })());
   }
 
@@ -1674,7 +1749,9 @@ export async function fetchDataDomains(
         );
       }
       const contentsRows = assertQuerySuccess('contents fetch', contentsResult) || [];
-      payload.contents = contentsRows.map((row: Row) => mapContentWithPlatforms(row, platformNameById));
+      payload.contents = await withTemaIds(
+        contentsRows.map((row: Row) => mapContentWithPlatforms(row, platformNameById)),
+      );
     })());
   }
 
@@ -1999,6 +2076,35 @@ export async function deleteSerie(id: string): Promise<void> {
   if (!supabase) return;
   const { error } = await supabase.from('series').delete().eq('id', id);
   if (error) throw new Error(`delete serie: ${error.message}`);
+}
+
+export async function saveTema(tema: Omit<Tema, 'createdAt'>): Promise<void> {
+  if (!supabase) return;
+  const nome = tema.nome.trim().replace(/\s+/g, ' ');
+  const { error } = await supabase.from('temas').upsert({
+    id: tema.id,
+    user_id: tema.userId,
+    nome,
+  });
+  if (error) {
+    if (isMissingTemasTable(error)) return;
+    throw new Error(`temas: ${error.message}`);
+  }
+}
+
+export async function saveContentTemas(contentId: string, temaIds: readonly string[]): Promise<void> {
+  if (!supabase) return;
+  const unique = [...new Set(temaIds.filter(Boolean))];
+  const removed = await supabase.from('content_temas').delete().eq('content_id', contentId);
+  if (removed.error) {
+    if (isMissingTemasTable(removed.error)) return;
+    throw new Error(`content_temas delete: ${removed.error.message}`);
+  }
+  if (unique.length === 0) return;
+  const { error } = await supabase.from('content_temas').insert(
+    unique.map(temaId => ({ content_id: contentId, tema_id: temaId })),
+  );
+  if (error) throw new Error(`content_temas: ${error.message}`);
 }
 
 // ============================================================================

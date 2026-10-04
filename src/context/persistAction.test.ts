@@ -41,6 +41,8 @@ function createMockApi(contentsById: Content[] = []) {
     saveSeriePilares: record('saveSeriePilares'),
     saveSeriePlataformas: record('saveSeriePlataformas'),
     deleteSerie: record('deleteSerie'),
+    saveTema: record('saveTema'),
+    saveContentTemas: record('saveContentTemas'),
     saveCenario: record('saveCenario'),
     deleteCenario: record('deleteCenario'),
     saveLook: record('saveLook'),
@@ -73,6 +75,7 @@ function createState(overrides: Partial<AppState> = {}): AppState {
     dnaVoz: null,
     pilares: [],
     series: [],
+    temas: [],
     cenarios: [],
     looks: [],
     bibliotecaGeneros: [],
@@ -185,7 +188,7 @@ async function testPersistActionPromoteIdeaUsesStableCanonicalContentId() {
     api,
   });
 
-  assert.deepEqual(calls.map(call => call.name), ['saveContent', 'saveContentPlataformas']);
+  assert.deepEqual(calls.map(call => call.name), ['saveContent', 'saveContentPlataformas', 'saveContentTemas']);
   const savedContent = calls[0]?.args[0] as Content;
   assert.equal(savedContent.id, canonicalId);
   assert.equal(savedContent.legacyIdeaId, 'idea-1');
@@ -290,7 +293,7 @@ async function testPersistActionAdaptsLegacyAddIdeaToContent() {
     api,
   });
 
-  assert.deepEqual(calls.map(call => call.name), ['saveContent', 'saveContentPlataformas']);
+  assert.deepEqual(calls.map(call => call.name), ['saveContent', 'saveContentPlataformas', 'saveContentTemas']);
   const savedContent = calls[0]?.args[0] as Content;
   assert.equal(savedContent.id, '22222222-2222-4222-8222-222222222222');
   assert.equal(savedContent.legacyIdeaId, 'idea-new');
@@ -341,6 +344,44 @@ async function testPersistActionWritesLooksAndCenarios() {
   assert.deepEqual(calls.map(call => call.name), ['saveLook', 'saveCenario']);
 }
 
+async function testTemaPersisteForaDaSerie() {
+  const { api, calls } = createMockApi();
+  const state = createState();
+  const content = createContent({
+    seriesId: 'serie-1',
+    temaIds: ['tema-halloween'],
+  });
+
+  await persistContentRecord(content, 'user-1', api);
+  await persistAction({
+    action: {
+      type: 'ADD_TEMA',
+      payload: {
+        id: 'tema-halloween',
+        userId: 'user-1',
+        nome: 'Halloween',
+        createdAt: '2026-10-04T12:00:00.000Z',
+      },
+    },
+    userId: 'user-1',
+    state,
+    api,
+  });
+
+  assert.deepEqual(calls.map(call => call.name), [
+    'saveContent',
+    'saveContentPlataformas',
+    'saveContentTemas',
+    'saveTema',
+  ]);
+  assert.deepEqual(calls.find(call => call.name === 'saveContentTemas')?.args, [
+    'content-1',
+    ['tema-halloween'],
+  ]);
+  assert.equal(calls.some(call => call.name === 'saveSerie'), false);
+  assert.equal((calls.find(call => call.name === 'saveContent')?.args[0] as Content).seriesId, 'serie-1');
+}
+
 const tests: Array<[string, () => Promise<void>]> = [
   ['persistContentRecord saves content and platforms together', testPersistContentRecordUsesContentAndPlatforms],
   ['persistAction promotes an idea with a stable canonical content id', testPersistActionPromoteIdeaUsesStableCanonicalContentId],
@@ -348,6 +389,7 @@ const tests: Array<[string, () => Promise<void>]> = [
   ['persistAction keeps unlinked demoted content in contents', testPersistActionDemoteUnlinkedContentRemainsContent],
   ['persistAction adapts ADD_IDEA to a canonical content write', testPersistActionAdaptsLegacyAddIdeaToContent],
   ['persistAction persists looks and cenarios through the unified adapter', testPersistActionWritesLooksAndCenarios],
+  ['tema de roteiro persiste sem virar série', testTemaPersisteForaDaSerie],
 ];
 
 for (const [name, fn] of tests) {

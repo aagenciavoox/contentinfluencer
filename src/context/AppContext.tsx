@@ -35,7 +35,7 @@ import {
   readPersistedDomain,
   writePersistedDomain,
 } from '../lib/persistentDataCache';
-import { mergeFetchedAppData, patchContentsInDomainCaches, patchPlatformsInDomainCaches, patchSeriesInDomainCaches } from '../lib/domainCacheSync';
+import { mergeFetchedAppData, patchContentsInDomainCaches, patchPlatformsInDomainCaches, patchSeriesInDomainCaches, patchTemasInDomainCaches } from '../lib/domainCacheSync';
 import {
   BOOTSTRAP_DATA_DOMAINS,
   CRITICAL_BOOTSTRAP_DOMAINS,
@@ -258,6 +258,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       && (actionType === 'ADD_SERIE' || actionType === 'UPDATE_SERIE' || actionType === 'DELETE_SERIE')
     ) {
       patchSeriesInDomainCaches(userId, stateRef.current.series);
+    }
+
+    if (userId && actionType === 'ADD_TEMA') {
+      patchTemasInDomainCaches(userId, stateRef.current.temas);
     }
   }, [invalidateListCaches, userId]);
 
