@@ -11,7 +11,7 @@
     "start": "node src/index.ts",
     "http": "node src/http.ts",
     "tunnel": "npx -y cloudflared tunnel --url http://localhost:3333",
-    "check": "tsc --noEmit",
+    "check": "tsc --noEmit && node src/editorial.test.ts",
     "smoke": "node scripts/smoke.ts"
   },
   "dependencies": {

@@ -1,6 +1,6 @@
 import type {McpServer} from '@modelcontextprotocol/sdk/server/mcp.js';
 import {z} from 'zod';
-import {check, json, newId, nowIso, tool, type Row} from '../lib.ts';
+import {columnAbsence, check, json, newId, nowIso, tool, type Row} from '../lib.ts';
 import type {Session} from '../supabase.ts';
 
 const TIPOS = ['livro', 'filme', 'série', 'anime', 'manga', 'outro'] as const;
@@ -119,18 +119,30 @@ export function registerBiblioteca(server: McpServer) {
     'ver_item_biblioteca',
     {
       title: 'Ver item da biblioteca',
-      description: 'Abre um item da biblioteca com notas gerais, anotações (trechos, reações, análises) e os conteúdos ligados a ele.',
+      description: 'Abre um item da biblioteca com notas gerais, anotações (trechos, reações, análises) e os roteiros que o citam, pela origem antiga ou pela lista livro_ids.',
       inputSchema: {id: z.string().min(1)},
       annotations: {readOnlyHint: true},
     },
     tool(async (args, session) => {
       const row = await fetchItem(session, args.id);
-      const conteudos = check('conteúdos ligados', await session.client
+      const colunas = 'id, title, status, publish_date';
+      const porOrigem = check('conteúdos ligados', await session.client
         .from('contents')
-        .select('id, title, status, publish_date')
+        .select(colunas)
         .eq('user_id', session.userId)
         .eq('biblioteca_item_id', args.id)
         .is('deleted_at', null)) ?? [];
+      const porLista = await session.client
+        .from('contents')
+        .select(colunas)
+        .eq('user_id', session.userId)
+        .contains('livro_ids', [args.id])
+        .is('deleted_at', null);
+      if (porLista.error && !columnAbsence(porLista.error)) {
+        throw new Error(`conteúdos da lista: ${porLista.error.message}`);
+      }
+      const lista = porLista.error ? [] : porLista.data ?? [];
+      const conteudos = [...new Map([...porOrigem, ...lista].map((item: Row) => [item.id, item])).values()];
       return json({
         ...itemSummary(row),
         notas_gerais: row.notas_gerais ?? null,

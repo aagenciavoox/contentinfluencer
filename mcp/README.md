@@ -51,9 +51,18 @@ claude mcp add content-os -- node C:/Users/mente/Desktop/CODING/content-os/mcp/s
 | --- | --- |
 | Visão geral | `resumo_do_momento`, `ver_estrutura_editorial` |
 | Ideias e conteúdos | `listar_conteudos`, `ver_conteudo`, `criar_ideia`, `criar_conteudo`, `atualizar_conteudo`, `mudar_status`, `arquivar_conteudos`, `enviar_para_lixeira` |
-| Agenda | `ver_agenda`, `agendar_publicacao`, `criar_compromisso`, `remover_compromisso` |
+| Agenda | `ver_agenda`, `agendar_publicacao`, `criar_compromisso`, `remover_compromisso`, `salvar_evento`, `remover_evento` |
 | Biblioteca | `buscar_biblioteca`, `ver_item_biblioteca`, `adicionar_item_biblioteca`, `atualizar_item_biblioteca`, `adicionar_anotacao` |
 
-Pilares, séries e plataformas aceitam nome ou id. Nada é apagado de vez: conteúdos vão para a lixeira do app e podem ser restaurados. A única exclusão real é `remover_compromisso`, igual ao app.
+Pilares, séries e plataformas aceitam nome ou id. Nada é apagado de vez nos conteúdos: eles vão para a lixeira do app e podem ser restaurados. `remover_compromisso` e `remover_evento` apagam de verdade, igual ao app.
 
-Se o banco ainda não tiver colunas de migrations recentes (ex.: `funcao`, status por plataforma), o servidor grava sem elas em vez de falhar.
+`ver_estrutura_editorial` traz a função padrão da série e, na seção `ajustes`, a rede de referência, os destinos padrão, a distribuição por função e o estoque desejado. `listar_conteudos` e `ver_conteudo` trazem função, origem, função efetiva, se conta na grade, a legenda compartilhada e a lista `livro_ids`. `agendar_publicacao` grava o status de cada destino (`agendada`, `publicada`, `nao_publicada`, `removida`), o link e o código do post. A primeira publicação congela a função. `salvar_evento` grava `aviso_dias` (0 a 120). `ver_item_biblioteca` acha roteiros pela origem antiga e por `livro_ids`.
+
+Se o banco ainda não tiver uma coluna, a leitura segue sem ela e a gravação também: a resposta vem com `gravado_sem` ou `colunas_ausentes_no_banco`. O arquivo que criaria a coluna:
+
+| Coluna | Arquivo |
+| --- | --- |
+| `funcao`, `funcao_origem`, `classificacao_congelada_em`, `conta_na_grade` do roteiro, `legenda_base`, `livro_ids`, `funcao_padrao` | `supabase/migrations/20261004100000_funcoes_editoriais.sql` |
+| status da publicação, `post_url`, `post_codigo`, `legenda_propria`, `conta_na_grade` do destino, `aviso_dias` | `supabase/migrations/20261004110000_publicacoes.sql` |
+
+A tela de vários livros e a tela do aviso de evento ficam em outros pull requests. Estas ferramentas gravam o mesmo modelo.

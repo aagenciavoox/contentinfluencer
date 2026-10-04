@@ -1,5 +1,6 @@
 import {randomUUID} from 'node:crypto';
 import type {CallToolResult} from '@modelcontextprotocol/sdk/types.js';
+import {livrosDoConteudo, resolveFuncao} from './editorial.ts';
 import {getSession, type Session} from './supabase.ts';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -53,31 +54,110 @@ export function check<T>(label: string, result: {data: T; error: {message?: stri
   return result.data;
 }
 
-function missingColumn(error: {message?: string} | null): string | null {
-  const match = error?.message?.match(/'([a-z_]+)' column/) ?? error?.message?.match(/column "?[a-z_.]*?([a-z_]+)"? does not exist/);
-  return match?.[1] ?? null;
+/** Coluna que o PostgREST ou o Postgres ainda não conhece. */
+export function columnAbsence(error: {message?: string} | null): {column: string; table: string | null} | null {
+  const message = error?.message ?? '';
+  const schema = message.match(/'([a-z_]+)' column of '([a-z_]+)'/);
+  if (schema) return {column: schema[1], table: schema[2]};
+  const qualified = message.match(/column "?([a-z_]+)\.([a-z_]+)"? does not exist/i);
+  if (qualified) return {column: qualified[2], table: qualified[1]};
+  const quoted = message.match(/'([a-z_]+)' column/);
+  if (quoted) return {column: quoted[1], table: null};
+  const bare = message.match(/column "?([a-z_]+)"? does not exist/i);
+  if (bare) return {column: bare[1], table: null};
+  return null;
+}
+
+function stripListToken(list: string, column: string): string {
+  return list
+    .split(',')
+    .map(part => part.trim())
+    .filter(part => part && part !== column)
+    .join(', ');
+}
+
+/** Tira uma coluna do select. Se a tabela for um embed, só mexe dentro dos parênteses dela. */
+export function stripSelectColumn(select: string, column: string, table: string | null): string {
+  if (table) {
+    const match = select.match(new RegExp(`\\b${table}(?:![a-z]+)?\\(([^()]*)\\)`));
+    if (match && match.index !== undefined) {
+      const inner = stripListToken(match[1], column);
+      const full = match[0];
+      const replaced = full.replace(match[1], inner);
+      return select.slice(0, match.index) + replaced + select.slice(match.index + full.length);
+    }
+  }
+  const parts: string[] = [];
+  let current = '';
+  let depth = 0;
+  for (const char of select) {
+    if (char === '(') depth += 1;
+    if (char === ')') depth = Math.max(0, depth - 1);
+    if (char === ',' && depth === 0) {
+      parts.push(current);
+      current = '';
+    } else {
+      current += char;
+    }
+  }
+  parts.push(current);
+  return parts
+    .map(part => part.trim())
+    .filter(part => part && part !== column)
+    .join(', ');
 }
 
 /**
  * O banco em produção pode estar atrás das migrations do repositório.
  * Remove do payload as colunas que o PostgREST ainda não conhece e tenta de novo.
+ * Devolve os nomes que ficaram de fora.
  */
 export async function writeCompat(
   label: string,
   payload: Row,
   run: (row: Row) => PromiseLike<{data?: unknown; error: {message?: string} | null}>,
-): Promise<void> {
+): Promise<string[]> {
   let row = {...payload};
+  const dropped: string[] = [];
   for (let attempt = 0; attempt < 10; attempt += 1) {
     const {error} = await run(row);
-    if (!error) return;
-    const column = missingColumn(error);
-    if (column && column in row) {
-      const {[column]: _dropped, ...rest} = row;
+    if (!error) return dropped;
+    const missing = columnAbsence(error);
+    if (missing && missing.column in row && !dropped.includes(missing.column)) {
+      const {[missing.column]: _dropped, ...rest} = row;
       row = rest;
+      dropped.push(missing.column);
       continue;
     }
     throw new Error(`${label}: ${error.message}`);
+  }
+  throw new Error(`${label}: muitas colunas ausentes no banco`);
+}
+
+type QueryResult<T> = {data: T; error: {message?: string} | null; count?: number | null};
+
+/**
+ * Select com as colunas da fase 1. Se o banco não tiver uma delas, repete sem ela
+ * para a lista e o detalhe continuarem abrindo.
+ */
+export async function readCompat<T>(
+  label: string,
+  columns: string,
+  run: (columns: string) => PromiseLike<QueryResult<T>>,
+): Promise<{data: T; count: number | null; omitidas: string[]}> {
+  let current = columns;
+  const omitidas: string[] = [];
+  for (let attempt = 0; attempt < 12; attempt += 1) {
+    const result = await run(current);
+    if (!result.error) return {data: result.data, count: result.count ?? null, omitidas};
+    const missing = columnAbsence(result.error);
+    if (!missing || omitidas.includes(`${missing.table ?? ''}.${missing.column}`)) {
+      throw new Error(`${label}: ${result.error.message ?? 'erro desconhecido no banco'}`);
+    }
+    const next = stripSelectColumn(current, missing.column, missing.table);
+    if (next === current) throw new Error(`${label}: ${result.error.message ?? 'erro desconhecido no banco'}`);
+    omitidas.push(`${missing.table ?? ''}.${missing.column}`);
+    current = next;
   }
   throw new Error(`${label}: muitas colunas ausentes no banco`);
 }
@@ -197,8 +277,10 @@ export function resolvePlatform(lookups: Lookups, ref: string): string {
 export const CONTENT_LIST_COLUMNS = [
   'id', 'title', 'status', 'series_id', 'pilar_id', 'formato_visual', 'energia_necessaria',
   'publish_date', 'publish_time', 'recording_date', 'recorded_at', 'posted_at', 'tags',
-  'biblioteca_item_id', 'archived_at', 'deleted_at', 'created_at', 'updated_at',
-  'content_plataformas(id, platform_id, publish_date, publish_time, publication_kind)',
+  'biblioteca_item_id', 'livro_ids', 'funcao', 'funcao_origem', 'classificacao_congelada_em',
+  'conta_na_grade', 'legenda_base', 'link',
+  'archived_at', 'deleted_at', 'created_at', 'updated_at',
+  'content_plataformas(id, platform_id, publish_date, publish_time, publication_kind, status, post_url, post_codigo, legenda_propria, conta_na_grade)',
 ].join(', ');
 
 export function displayStatus(row: Row): string {
@@ -208,7 +290,21 @@ export function displayStatus(row: Row): string {
   return status;
 }
 
+export function plataformaResumo(row: Row, lookups: Lookups) {
+  return {
+    plataforma: lookups.platformName(row.platform_id),
+    data: row.publish_date ?? null,
+    hora: row.publish_time ?? null,
+    tipo: row.publication_kind ?? 'post',
+    status: row.status ?? null,
+    conta_na_grade: row.conta_na_grade === false ? false : true,
+    link_do_post: row.post_url ?? null,
+  };
+}
+
 export function contentSummary(row: Row, lookups: Lookups) {
+  const serie = row.series_id ? lookups.series.find(item => item.id === row.series_id) : null;
+  const resolvida = resolveFuncao(row, serie);
   return {
     id: row.id,
     titulo: row.title,
@@ -217,6 +313,12 @@ export function contentSummary(row: Row, lookups: Lookups) {
     pilar: lookups.pilarName(row.pilar_id),
     serie: lookups.serieName(row.series_id),
     formato: row.formato_visual ?? null,
+    funcao: row.funcao ?? null,
+    funcao_origem: row.funcao_origem ?? null,
+    funcao_efetiva: resolvida.funcao,
+    classificacao_congelada: Boolean(row.classificacao_congelada_em),
+    conta_na_grade: row.conta_na_grade === false ? false : true,
+    legenda_base: row.legenda_base ?? null,
     data_publicacao: row.publish_date ?? null,
     hora_publicacao: row.publish_time ?? null,
     data_gravacao: row.recording_date ?? null,
@@ -224,14 +326,10 @@ export function contentSummary(row: Row, lookups: Lookups) {
     postado_em: row.posted_at ?? null,
     tags: row.tags ?? [],
     biblioteca_item_id: row.biblioteca_item_id ?? null,
+    livro_ids: livrosDoConteudo(row),
     arquivado: Boolean(row.archived_at),
     na_lixeira: Boolean(row.deleted_at),
-    plataformas: (row.content_plataformas ?? []).map((p: Row) => ({
-      plataforma: lookups.platformName(p.platform_id),
-      data: p.publish_date ?? null,
-      hora: p.publish_time ?? null,
-      tipo: p.publication_kind ?? 'post',
-    })),
+    plataformas: (row.content_plataformas ?? []).map((p: Row) => plataformaResumo(p, lookups)),
     atualizado_em: row.updated_at,
   };
 }
