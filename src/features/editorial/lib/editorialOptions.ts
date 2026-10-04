@@ -12,6 +12,14 @@ export const ENERGIA_LABELS: Record<EnergiaNivel, string> = {
 
 export const FORMATO_VISUAL_SUGESTOES = ['Reels', 'Carrossel', 'Post estático', 'Vídeo longo', 'Stories'];
 
+export const FORMATO_APRESENTACAO_SUGESTOES = [
+  'Falando para a câmera',
+  'Narrando',
+  'Texto na tela',
+  'Entrevista',
+  'Vlog',
+];
+
 /** Sugestões fixas primeiro, depois formatos já usados (sem repetir, ignorando maiúsculas). */
 export function collectFormatoSuggestions(usedValues: Array<string | null | undefined>): string[] {
   const seen = new Set(FORMATO_VISUAL_SUGESTOES.map(value => value.toLowerCase()));

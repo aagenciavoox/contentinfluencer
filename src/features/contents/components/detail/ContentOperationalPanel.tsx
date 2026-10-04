@@ -12,6 +12,7 @@ import {
   resolveFuncao,
   rotuloDaSerie,
 } from '../../../editorial/lib/funcoes';
+import { patchAoEscolherSerie } from '../../../editorial/lib/pilarDaSerie';
 import type {Weekday} from '../../../settings/lib/postingTimes';
 import {cn} from '../../../../lib/utils';
 import {useAppContext} from '../../../../context/AppContext';
@@ -461,7 +462,10 @@ export function ContentOperationalPanel({
       <PropertyRow label="Série" icon={<Layers />}>
         <PropertySelect
           value={draft.seriesId ?? ''}
-          onChange={event => onChange({seriesId: event.target.value || null})}
+          onChange={event => onChange(patchAoEscolherSerie(
+            draft,
+            series.find(serie => serie.id === event.target.value) ?? null,
+          ))}
           className={emptySelect(draft.seriesId)}
         >
           <option value="">Selecionar série…</option>
@@ -624,7 +628,10 @@ export function ContentOperationalPanel({
           <span className="text-xs font-medium text-[var(--text-secondary)]">Série</span>
           <select
             value={draft.seriesId ?? ''}
-            onChange={event => onChange({seriesId: event.target.value || null})}
+            onChange={event => onChange(patchAoEscolherSerie(
+            draft,
+            series.find(serie => serie.id === event.target.value) ?? null,
+          ))}
             className={formInputClass}
           >
             <option value="">Selecionar série…</option>
@@ -739,7 +746,10 @@ export function ContentOperationalPanel({
           <RoteiroField label="Série" icon={<Layers className="h-3.5 w-3.5" />}>
             <RoteiroSelect
               value={draft.seriesId ?? ''}
-              onChange={event => onChange({seriesId: event.target.value || null})}
+              onChange={event => onChange(patchAoEscolherSerie(
+            draft,
+            series.find(serie => serie.id === event.target.value) ?? null,
+          ))}
             >
               <option value="">Selecionar série…</option>
               {series.map(serie => (

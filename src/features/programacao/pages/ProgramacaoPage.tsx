@@ -79,6 +79,7 @@ import {ProgramacaoMobileScreen} from '../../../mobile/screens/programacao/Progr
 import {CalendarModeSwitch} from '../../editorial-calendar/components/CalendarModeSwitch';
 import {RhythmDiagnosis} from '../components/RhythmDiagnosis';
 import {WeekRhythmRail} from '../components/WeekRhythmRail';
+import {getEditorialSettings} from '../../editorial/lib/editorialSettings';
 
 type ProgramacaoView = 'week' | 'month';
 
@@ -145,6 +146,7 @@ export function ProgramacaoPage() {
   const [mobileDatePickerOpen, setMobileDatePickerOpen] = useState(false);
 
   const postingTimes = useMemo(() => getPostingTimes(state.preferences), [state.preferences]);
+  const editorialSettings = useMemo(() => getEditorialSettings(state.preferences), [state.preferences]);
 
   const allCards = useMemo(
     () => buildProgramacaoCards(state.contents, state.platforms),
@@ -236,11 +238,12 @@ export function ProgramacaoPage() {
         platforms: state.platforms,
         postingTimeEntries: state.postingTimeEntries ?? [],
         fallbackTimes: postingTimes,
+        editorial: editorialSettings,
       }));
       violations.set(key, validateWeeklyContent(state.contents, cursor, state.pilares, state.platforms, state.series));
     }
     return {quotas, violations};
-  }, [anchorDate, postingTimes, state.contents, state.pilares, state.platforms, state.postingTimeEntries, state.series, viewMode, weekStart]);
+  }, [anchorDate, editorialSettings, postingTimes, state.contents, state.pilares, state.platforms, state.postingTimeEntries, state.series, viewMode, weekStart]);
 
   const anchorWeekKey = format(weekStart, 'yyyy-MM-dd');
   const anchorWeekQuotas = rhythmByWeek.quotas.get(anchorWeekKey) ?? [];

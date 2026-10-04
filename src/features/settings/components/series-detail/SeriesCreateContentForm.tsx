@@ -13,6 +13,7 @@ import { DEFAULT_PLATFORMS } from '../../../../constants';
 import { useAppContext } from '../../../../context/AppContext';
 import { DestinationChips } from '../../../editorial/components/DestinationChips';
 import { destinosPadraoAtivos, publicacoesDosDestinos, type DestinoPlataforma } from '../../../editorial/lib/destinations';
+import { pilarPrincipalDaSerie } from '../../../editorial/lib/pilarDaSerie';
 import { getEditorialSettings } from '../../../editorial/lib/editorialSettings';
 import type { Content, ContentPlataforma, Pilar, Serie } from '../../../../lib/database';
 import { htmlToReadableText } from '../../../../lib/utils';
@@ -90,7 +91,7 @@ export const SeriesCreateContentForm = forwardRef<
     const nomes = platformNames.length > 0 ? platformNames : DEFAULT_PLATFORMS;
     return nomes.map(nome => ({ id: nome, nome }));
   }, [platformNames, state.platforms]);
-  const defaultPilarId = serie.pilarIds[0] || '';
+  const defaultPilarId = pilarPrincipalDaSerie(serie) || '';
   const defaultFormato = serie.formatoVisualPadrao || '';
 
   const [title, setTitle] = useState('');

@@ -16,6 +16,12 @@ import type { Serie } from '../../../lib/database';
 import { CONFIRM } from '../../../lib/uiCopy';
 import { getEditorialSettings } from '../../editorial/lib/editorialSettings';
 import {
+  aplicarFuncaoPublicada,
+  conteudosParaAplicarFuncao,
+  devePerguntarAplicarFuncao,
+} from '../../editorial/lib/aplicarFuncao';
+import { FUNCAO_LABELS, isFuncaoEditorial } from '../../editorial/lib/funcoes';
+import {
   SerieEditForm,
   type SerieEditChromeState,
 } from '../components/SerieEditForm';
@@ -87,6 +93,7 @@ export function SeriesEditPage() {
   const { serieId } = useParams<{ serieId: string }>();
   const [chrome, setChrome] = useState<SerieEditChromeState | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [pendingApply, setPendingApply] = useState<Serie | null>(null);
 
   const isCreate = !serieId || serieId === 'nova';
   const editingSerie = useMemo(
@@ -102,7 +109,7 @@ export function SeriesEditPage() {
   const editorialSettings = getEditorialSettings(state.preferences);
   const backToList = () => navigate('/editorial?aba=series');
 
-  const handleSave = (serie: Serie) => {
+  const persistSerie = (serie: Serie, aplicar: boolean) => {
     const payload = {...serie, userId: serie.userId || user?.id || ''};
     const exists = state.series.find(item => item.id === payload.id);
 
@@ -112,8 +119,36 @@ export function SeriesEditPage() {
       dispatch({type: 'ADD_SERIE', payload});
     }
 
+    if (aplicar && isFuncaoEditorial(payload.funcaoPadrao)) {
+      const funcao = payload.funcaoPadrao;
+      for (const content of conteudosParaAplicarFuncao(state.contents, payload.id)) {
+        dispatch({
+          type: 'UPDATE_CONTENT',
+          payload: aplicarFuncaoPublicada(content, funcao),
+        });
+      }
+    }
+
+    setPendingApply(null);
     backToList();
   };
+
+  const handleSave = (serie: Serie) => {
+    const anterior = state.series.find(item => item.id === serie.id);
+    const alvos = conteudosParaAplicarFuncao(state.contents, serie.id);
+    if (devePerguntarAplicarFuncao(anterior?.funcaoPadrao, serie.funcaoPadrao, alvos.length)) {
+      setPendingApply(serie);
+      return;
+    }
+    persistSerie(serie, false);
+  };
+
+  const aplicarQuantidade = pendingApply
+    ? conteudosParaAplicarFuncao(state.contents, pendingApply.id).length
+    : 0;
+  const aplicarMensagem = pendingApply && isFuncaoEditorial(pendingApply.funcaoPadrao)
+    ? `${aplicarQuantidade === 1 ? '1 roteiro já publicado ainda usa' : `${aplicarQuantidade} roteiros já publicados ainda usam`} a função herdada. Aplicar ${FUNCAO_LABELS[pendingApply.funcaoPadrao]} a ${aplicarQuantidade === 1 ? 'ele' : 'eles'}?`
+    : '';
 
   const handleDelete = () => {
     if (!editingSerie) return;
@@ -211,6 +246,14 @@ export function SeriesEditPage() {
           }}
           onCancel={() => setConfirmDelete(false)}
         />
+        <ConfirmModal
+          open={Boolean(pendingApply)}
+          message={aplicarMensagem}
+          confirmLabel="Aplicar aos publicados"
+          cancelLabel="Manter os publicados"
+          onConfirm={() => pendingApply && persistSerie(pendingApply, true)}
+          onCancel={() => pendingApply && persistSerie(pendingApply, false)}
+        />
       </>
     );
   }
@@ -252,6 +295,14 @@ export function SeriesEditPage() {
           setConfirmDelete(false);
         }}
         onCancel={() => setConfirmDelete(false)}
+      />
+      <ConfirmModal
+        open={Boolean(pendingApply)}
+        message={aplicarMensagem}
+        confirmLabel="Aplicar aos publicados"
+        cancelLabel="Manter os publicados"
+        onConfirm={() => pendingApply && persistSerie(pendingApply, true)}
+        onCancel={() => pendingApply && persistSerie(pendingApply, false)}
       />
     </>
   );

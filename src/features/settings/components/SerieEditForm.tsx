@@ -24,8 +24,10 @@ import {
   collectFormatoSuggestions,
   ENERGIA_LABELS,
   ENERGIA_NIVEIS,
+  FORMATO_APRESENTACAO_SUGESTOES,
   FREQUENCIAS_SERIE,
 } from '../../editorial/lib/editorialOptions';
+import { pilarPrincipalDaSerie } from '../../editorial/lib/pilarDaSerie';
 import { getSerieOpenItems } from '../../editorial/lib/serieCompleteness';
 import type { FuncaoPadraoSerie } from '../../../lib/database';
 import { FUNCAO_DESCRICOES, FUNCAO_LABELS, FUNCOES } from '../../editorial/lib/funcoes';
@@ -186,13 +188,15 @@ export function SerieEditForm({
       frequenciaRecomendada: initial.frequenciaRecomendada || '',
       funcaoPadrao: initial.funcaoPadrao || null,
       energiaPadrao: initial.energiaPadrao || null,
+      pilarPrincipalId: pilarPrincipalDaSerie(initial),
+      formatoApresentacao: initial.formatoApresentacao || '',
+      motivoSalvar: initial.motivoSalvar || '',
+      motivoEnviar: initial.motivoEnviar || '',
       plataformas: initial.plataformas || [],
     },
-    linkedPilarIds: [...(initial.pilarIds || [])],
   });
 
   const [form, setForm] = useState(initialSnapshot.current.form);
-  const [linkedPilarIds, setLinkedPilarIds] = useState<string[]>(initialSnapshot.current.linkedPilarIds);
 
   const isDirty = useMemo(() => {
     const snap = initialSnapshot.current;
@@ -205,10 +209,13 @@ export function SerieEditForm({
     if (form.formatoVisualPadrao !== snap.form.formatoVisualPadrao) return true;
     if (form.funcaoPadrao !== snap.form.funcaoPadrao) return true;
     if (form.energiaPadrao !== snap.form.energiaPadrao) return true;
+    if (form.pilarPrincipalId !== snap.form.pilarPrincipalId) return true;
+    if (form.formatoApresentacao !== snap.form.formatoApresentacao) return true;
+    if (form.motivoSalvar !== snap.form.motivoSalvar) return true;
+    if (form.motivoEnviar !== snap.form.motivoEnviar) return true;
     if (JSON.stringify(form.plataformas) !== JSON.stringify(snap.form.plataformas)) return true;
-    if (linkedPilarIds.length !== snap.linkedPilarIds.length) return true;
-    return linkedPilarIds.some((id, index) => id !== snap.linkedPilarIds[index]);
-  }, [form, linkedPilarIds]);
+    return false;
+  }, [form]);
 
   const canSave = Boolean(form.name.trim());
 
@@ -246,14 +253,18 @@ export function SerieEditForm({
       frequenciaRecomendada: form.frequenciaRecomendada.trim() || null,
       funcaoPadrao: form.funcaoPadrao,
       energiaPadrao: form.energiaPadrao,
-      pilarIds: linkedPilarIds,
+      pilarPrincipalId: form.pilarPrincipalId,
+      formatoApresentacao: form.formatoApresentacao.trim() || null,
+      motivoSalvar: form.motivoSalvar.trim() || null,
+      motivoEnviar: form.motivoEnviar.trim() || null,
+      pilarIds: form.pilarPrincipalId ? [form.pilarPrincipalId] : [],
       plataformas: platformNames
         .map(platformId => form.plataformas.find(item => item.platformId === platformId))
         .filter((item): item is NonNullable<typeof item> => Boolean(item?.hashtags.trim())),
       createdAt: initial.createdAt || new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     });
-  }, [form, initial.createdAt, linkedPilarIds, onSave, platformNames]);
+  }, [form, initial.createdAt, onSave, platformNames]);
 
   const onChromeChangeRef = useRef(onChromeChange);
   const handleSaveRef = useRef(handleSave);
@@ -300,7 +311,11 @@ export function SerieEditForm({
         frequenciaRecomendada: form.frequenciaRecomendada.trim() || null,
         funcaoPadrao: form.funcaoPadrao,
         energiaPadrao: form.energiaPadrao,
-        pilarIds: linkedPilarIds,
+        pilarPrincipalId: form.pilarPrincipalId,
+        formatoApresentacao: form.formatoApresentacao.trim() || null,
+        motivoSalvar: form.motivoSalvar.trim() || null,
+        motivoEnviar: form.motivoEnviar.trim() || null,
+        pilarIds: form.pilarPrincipalId ? [form.pilarPrincipalId] : [],
         plataformas: form.plataformas,
         createdAt: initial.createdAt || new Date().toISOString(),
         updatedAt: initial.updatedAt || new Date().toISOString(),
@@ -312,7 +327,8 @@ export function SerieEditForm({
       {showOpenInfoNotice ? (
         <OpenInfoNotice
           items={getSerieOpenItems({
-            pilarIds: linkedPilarIds,
+            pilarIds: form.pilarPrincipalId ? [form.pilarPrincipalId] : [],
+            pilarPrincipalId: form.pilarPrincipalId,
             funcaoPadrao: form.funcaoPadrao,
             frequenciaRecomendada: form.frequenciaRecomendada,
             formatoVisualPadrao: form.formatoVisualPadrao,
@@ -376,7 +392,7 @@ export function SerieEditForm({
               </div>
 
               <div>
-                <FieldLabel>Bordão</FieldLabel>
+                <FieldLabel>Elemento fixo</FieldLabel>
                 <input
                   type="text"
                   value={form.bordao}
@@ -437,20 +453,22 @@ export function SerieEditForm({
 
             <div className="stack-lg">
               <div>
-                <FieldLabel>Pilares</FieldLabel>
-                <div className="flex flex-wrap gap-2">
+                <FieldLabel>Pilar principal</FieldLabel>
+                <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Pilar principal">
                   {pilares.filter(item => item.ativo).map(item => {
-                    const selected = linkedPilarIds.includes(item.id);
+                    const selected = form.pilarPrincipalId === item.id;
                     return (
                       <button
                         key={item.id}
                         type="button"
-                        aria-pressed={selected}
-                        onClick={() => setLinkedPilarIds(previous =>
-                          selected ? previous.filter(id => id !== item.id) : [...previous, item.id],
-                        )}
+                        role="radio"
+                        aria-checked={selected}
+                        onClick={() => setForm(previous => ({
+                          ...previous,
+                          pilarPrincipalId: selected ? null : item.id,
+                        }))}
                         className={cn(
-                          'inline-flex items-center gap-2 rounded-[var(--radius-pill)] border px-3 py-1.5 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
+                          'inline-flex min-h-11 items-center gap-2 rounded-[var(--radius-pill)] border px-3 py-1.5 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
                           selected
                             ? 'border-[var(--text-primary)] bg-[var(--bg-hover)]'
                             : 'border-[var(--border-color)] bg-[var(--bg-secondary)]',
@@ -477,7 +495,7 @@ export function SerieEditForm({
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <div>
-                  <FieldLabel>Frequência</FieldLabel>
+                  <FieldLabel>Recorrência</FieldLabel>
                   <select
                     value={form.frequenciaRecomendada}
                     onChange={event => setForm(previous => ({ ...previous, frequenciaRecomendada: event.target.value }))}
@@ -488,7 +506,7 @@ export function SerieEditForm({
                   </select>
                 </div>
                 <div>
-                  <FieldLabel>Formato visual padrão</FieldLabel>
+                  <FieldLabel>Formato de publicação</FieldLabel>
                   <input
                     list="serie-formato-suggestions"
                     value={form.formatoVisualPadrao || ''}
@@ -506,12 +524,49 @@ export function SerieEditForm({
               </div>
 
               <div>
-                <FieldLabel>Energia padrão</FieldLabel>
+                <FieldLabel>Formato de apresentação</FieldLabel>
+                <input
+                  list="serie-apresentacao-suggestions"
+                  value={form.formatoApresentacao}
+                  onChange={event => setForm(previous => ({ ...previous, formatoApresentacao: event.target.value }))}
+                  placeholder="Escolher ou escrever…"
+                  className={inputClass}
+                />
+                <datalist id="serie-apresentacao-suggestions">
+                  {FORMATO_APRESENTACAO_SUGESTOES.map(item => <option key={item} value={item} />)}
+                </datalist>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <FieldLabel>Motivo para salvar</FieldLabel>
+                  <input
+                    type="text"
+                    value={form.motivoSalvar}
+                    onChange={event => setForm(previous => ({ ...previous, motivoSalvar: event.target.value }))}
+                    placeholder="O que faz a pessoa guardar"
+                    className={inputClass}
+                  />
+                </div>
+                <div>
+                  <FieldLabel>Motivo para mandar</FieldLabel>
+                  <input
+                    type="text"
+                    value={form.motivoEnviar}
+                    onChange={event => setForm(previous => ({ ...previous, motivoEnviar: event.target.value }))}
+                    placeholder="O que faz a pessoa enviar"
+                    className={inputClass}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <FieldLabel>Esforço de produção</FieldLabel>
                 <ChoiceChips
                   options={ENERGIA_NIVEIS.map(value => ({ value, label: ENERGIA_LABELS[value] }))}
                   value={form.energiaPadrao}
                   onChange={energiaPadrao => setForm(previous => ({ ...previous, energiaPadrao }))}
-                  label="Energia padrão"
+                  label="Esforço de produção"
                 />
               </div>
             </div>

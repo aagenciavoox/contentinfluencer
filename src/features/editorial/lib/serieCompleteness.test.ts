@@ -14,7 +14,7 @@ function testQuickSerieHasEverythingOpen() {
     items.map(item => item.key),
     ['pilar', 'funcao', 'frequencia', 'formato', 'energia'],
   );
-  assert.equal(formatOpenItems(items), 'pilar, função, frequência, formato visual e energia');
+  assert.equal(formatOpenItems(items), 'pilar, função, recorrência, formato e esforço');
 }
 
 function testCompleteSerieHasNothingOpen() {
@@ -37,8 +37,8 @@ function testBlankTextCountsAsOpen() {
     energiaPadrao: 'alta',
   });
   assert.deepEqual(items.map(item => item.key), ['frequencia', 'formato']);
-  assert.equal(formatOpenItems(items), 'frequência e formato visual');
-  assert.equal(formatOpenItems(items.slice(0, 1)), 'frequência');
+  assert.equal(formatOpenItems(items), 'recorrência e formato');
+  assert.equal(formatOpenItems(items.slice(0, 1)), 'recorrência');
 }
 
 testQuickSerieHasEverythingOpen();

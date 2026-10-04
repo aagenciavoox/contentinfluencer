@@ -5,6 +5,7 @@ import { ptBR } from 'date-fns/locale';
 import { Badge } from '../../../../components/ui/Badge';
 import { Text } from '../../../../components/ui/Text';
 import type { Pilar, Serie } from '../../../../lib/database';
+import { pilarPrincipalDaSerie } from '../../../editorial/lib/pilarDaSerie';
 import { cn } from '../../../../lib/utils';
 
 export type SeriesDetailMenuAction = 'edit' | 'toggle-active';
@@ -31,7 +32,8 @@ export function SeriesDetailHeader({
   onMenuAction,
   hideChrome = false,
 }: SeriesDetailHeaderProps) {
-  const linkedPilares = pilares.filter(pilar => serie.pilarIds.includes(pilar.id));
+  const principalId = pilarPrincipalDaSerie(serie);
+  const linkedPilares = principalId ? pilares.filter(pilar => pilar.id === principalId) : [];
   const lastEditLabel = serie.updatedAt
     ? formatDistanceToNow(new Date(serie.updatedAt), { addSuffix: true, locale: ptBR })
     : null;

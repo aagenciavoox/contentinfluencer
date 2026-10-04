@@ -1,4 +1,5 @@
 import type { Serie } from '../../../lib/database.ts';
+import { pilarPrincipalDaSerie } from './pilarDaSerie.ts';
 
 export type SerieOpenItemKey = 'pilar' | 'funcao' | 'frequencia' | 'formato' | 'energia';
 
@@ -10,20 +11,20 @@ export interface SerieOpenItem {
 const OPEN_ITEM_LABELS: Record<SerieOpenItemKey, string> = {
   pilar: 'pilar',
   funcao: 'função',
-  frequencia: 'frequência',
-  formato: 'formato visual',
-  energia: 'energia',
+  frequencia: 'recorrência',
+  formato: 'formato',
+  energia: 'esforço',
 };
 
-type SerieCompletenessFields = Pick<
+type SerieCompletenessFields = Partial<Pick<
   Serie,
-  'pilarIds' | 'funcaoPadrao' | 'frequenciaRecomendada' | 'formatoVisualPadrao' | 'energiaPadrao'
->;
+  'pilarIds' | 'pilarPrincipalId' | 'funcaoPadrao' | 'frequenciaRecomendada' | 'formatoVisualPadrao' | 'energiaPadrao'
+>>;
 
 /** O que ainda falta na série para ela orientar a criação sem ajustes manuais. */
 export function getSerieOpenItems(serie: SerieCompletenessFields): SerieOpenItem[] {
   const missing: SerieOpenItemKey[] = [];
-  if (serie.pilarIds.length === 0) missing.push('pilar');
+  if (!pilarPrincipalDaSerie(serie)) missing.push('pilar');
   if (!serie.funcaoPadrao) missing.push('funcao');
   if (!serie.frequenciaRecomendada?.trim()) missing.push('frequencia');
   if (!serie.formatoVisualPadrao?.trim()) missing.push('formato');

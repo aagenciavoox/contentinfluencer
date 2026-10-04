@@ -18,6 +18,16 @@ export const FUNCAO_LABELS: Record<FuncaoEditorial, string> = {
   reter: 'Reter',
 };
 
+/** Rótulo curto para a faixa de ritmo e os chips do celular. */
+export const FUNCAO_CURTA: Record<FuncaoEditorial, string> = {
+  atrair: 'Atrair',
+  converter: 'Converter',
+  aprofundar: 'Aprofundar',
+  comunidade: 'Comunidade',
+  acao: 'Ação',
+  reter: 'Reter',
+};
+
 export const FUNCAO_DESCRICOES: Record<FuncaoEditorial, string> = {
   atrair: 'Traz gente nova pelo humor ou pela curiosidade.',
   converter: 'Convida quem chegou a seguir.',

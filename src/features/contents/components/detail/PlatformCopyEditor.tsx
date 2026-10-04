@@ -12,13 +12,13 @@ import {TagPill} from '../../../../components/ui/TagSelect';
 import {DestinationChips} from '../../../editorial/components/DestinationChips';
 import {adaptarLegenda, definirLegendaCompartilhada, legendaEfetiva} from '../../../editorial/lib/captions';
 import {destinoMarcado, publicacaoDoDestino, type DestinoPlataforma} from '../../../editorial/lib/destinations';
+import {getEditorialSettings, limiteHashtagsDaRede} from '../../../editorial/lib/editorialSettings';
 import {platformShowsField} from '../../../editorial/lib/platformFields';
 import {
-  CAPTION_HASHTAG_MAX,
-  captionHashtagPresets,
   joinHashtags,
   mergeHashtags,
   parseHashtags,
+  suggestHashtags,
 } from '../../lib/captionHashtags';
 
 const CHAR_LIMITS: Record<string, number> = {
@@ -164,9 +164,19 @@ export function PlatformCopyEditor({
     [activeDestino, contentId, plataformas]
   );
   const hashtagTags = useMemo(() => parseHashtags(currentPlatform.hashtags), [currentPlatform.hashtags]);
-  const hashtagPresets = useMemo(
-    () => captionHashtagPresets(activeDestino.nome, serie, pilar),
-    [activeDestino.nome, pilar, serie],
+  const hashtagLimit = limiteHashtagsDaRede(
+    getEditorialSettings(state.preferences),
+    activeDestino.id,
+    activeDestino.nome,
+  );
+  const sugestaoHashtags = useMemo(
+    () => suggestHashtags({
+      platformId: activeDestino.nome,
+      serie,
+      pilar,
+      limite: hashtagLimit,
+    }),
+    [activeDestino.nome, hashtagLimit, pilar, serie],
   );
   const legendaVisivel = legendaEfetiva(legendaBase, currentPlatform);
   const charCount = legendaVisivel.length;
@@ -208,7 +218,7 @@ export function PlatformCopyEditor({
   };
 
   const setHashtags = (tags: string[]) => {
-    updatePlatform(activePlatform, {hashtags: joinHashtags(tags.slice(0, CAPTION_HASHTAG_MAX))});
+    updatePlatform(activePlatform, {hashtags: joinHashtags(tags.slice(0, hashtagLimit))});
   };
 
   const handleCopy = async (mode: 'legenda' | 'tudo') => {
@@ -225,7 +235,7 @@ export function PlatformCopyEditor({
   const addHashtag = (raw: string) => {
     const next = parseHashtags(raw);
     if (next.length === 0) return;
-    setHashtags(mergeHashtags(hashtagTags, next));
+    setHashtags(mergeHashtags(hashtagTags, next, hashtagLimit));
   };
 
   return (
@@ -355,45 +365,29 @@ export function PlatformCopyEditor({
             {mostraHashtags ? (
             <div className="mt-4 rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-primary)] p-4">
               <p className="text-sm font-semibold text-[var(--text-primary)]">Hashtags</p>
-              {hashtagPresets.length > 0 ? (
-                <div className="mt-3 stack-sm">
-                  {hashtagPresets.map(preset => {
-                    const missing = preset.tags.filter(
-                      tag => !hashtagTags.some(existing => existing.toLowerCase() === tag.toLowerCase()),
-                    );
-                    const alreadyIncluded = missing.length === 0;
-                    const atLimit = hashtagTags.length >= CAPTION_HASHTAG_MAX;
-                    const pullLabel = alreadyIncluded
+              {sugestaoHashtags.length > 0 ? (
+                <div className="mt-3 flex flex-col gap-2 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="min-w-0">
+                    <Text variant="meta" className="font-semibold text-[var(--text-primary)]">
+                      Sugestão
+                    </Text>
+                    <Text variant="secondary" className="mt-0.5 break-words">
+                      {sugestaoHashtags.join(' ')}
+                    </Text>
+                  </div>
+                  <AppButton
+                    size="xs"
+                    variant="secondary"
+                    disabled={disabled || sugestaoHashtags.every(tag => hashtagTags.some(existing => existing.toLowerCase() === tag.toLowerCase())) || hashtagTags.length >= hashtagLimit}
+                    aria-label={`Usar sugestão: ${sugestaoHashtags.join(' ')}`}
+                    onClick={() => addHashtag(sugestaoHashtags.join(' '))}
+                  >
+                    {sugestaoHashtags.every(tag => hashtagTags.some(existing => existing.toLowerCase() === tag.toLowerCase()))
                       ? 'Já incluídas'
-                      : atLimit
-                        ? 'Limite de 10'
-                        : `Puxar da ${preset.sourceLabel}`;
-
-                    return (
-                      <div
-                        key={preset.key}
-                        className="flex flex-col gap-2 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between"
-                      >
-                        <div className="min-w-0">
-                          <Text variant="meta" className="font-semibold text-[var(--text-primary)]">
-                            {preset.sourceLabel === 'série' ? 'Série' : 'Pilar'} · {preset.name}
-                          </Text>
-                          <Text variant="secondary" className="mt-0.5 break-words">
-                            {preset.tags.join(' ')}
-                          </Text>
-                        </div>
-                        <AppButton
-                          size="xs"
-                          variant="secondary"
-                          disabled={disabled || alreadyIncluded || atLimit}
-                          aria-label={`${pullLabel}: ${preset.tags.join(' ')}`}
-                          onClick={() => addHashtag(preset.tags.join(' '))}
-                        >
-                          {pullLabel}
-                        </AppButton>
-                      </div>
-                    );
-                  })}
+                      : hashtagTags.length >= hashtagLimit
+                        ? `Limite de ${hashtagLimit}`
+                        : 'Usar sugestão'}
+                  </AppButton>
                 </div>
               ) : serie || pilar ? (
                 <Text variant="meta" className="mt-2">
@@ -413,7 +407,7 @@ export function PlatformCopyEditor({
                     onRemove={() => setHashtags(hashtagTags.filter(item => item !== tag))}
                   />
                 ))}
-                {hashtagTags.length < CAPTION_HASHTAG_MAX ? (
+                {hashtagTags.length < hashtagLimit ? (
                   <HashtagInlineField
                     disabled={disabled}
                     onAdd={addHashtag}
@@ -422,10 +416,10 @@ export function PlatformCopyEditor({
               </div>
               <div className="mt-3 flex items-center justify-between gap-2">
                 <p className="text-xs text-[var(--text-tertiary)]">
-                  Dica: use até 10 hashtags relevantes para aumentar seu alcance.
+                  Até {hashtagLimit} hashtags nesta rede.
                 </p>
                 <p className="text-xs font-semibold text-[var(--text-tertiary)]">
-                  {hashtagTags.length} / {CAPTION_HASHTAG_MAX}
+                  {hashtagTags.length} / {hashtagLimit}
                 </p>
               </div>
             </div>

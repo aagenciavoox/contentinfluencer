@@ -88,6 +88,12 @@ export interface Serie {
   funcaoPadrao: FuncaoPadraoSerie | null;
   /** Energia aplicada aos conteúdos criados a partir da série. */
   energiaPadrao: EnergiaNivel | null;
+  /** Pilar que o conteúdo herda. Ausente no banco antigo. */
+  pilarPrincipalId?: string | null;
+  /** Como a série aparece na tela. Ausente no banco antigo. */
+  formatoApresentacao?: string | null;
+  motivoSalvar?: string | null;
+  motivoEnviar?: string | null;
   createdAt: string;
   updatedAt: string;
   pilarIds: string[];
@@ -575,11 +581,6 @@ function isMissingCreationColumn(error: {message?: string} | null | undefined) {
   );
 }
 
-/** energia_padrao entra na migration de funções e pode ainda não existir no banco. */
-function isMissingEnergiaPadraoColumn(error: {message?: string} | null | undefined) {
-  return !!error?.message?.includes('energia_padrao');
-}
-
 function isMissingNamedColumn(message: string, column: string) {
   const quoted = "'" + column + "'";
   return (
@@ -589,10 +590,14 @@ function isMissingNamedColumn(message: string, column: string) {
   );
 }
 
-/** Colunas da M1 de funções ainda não aplicadas. */
-function isMissingFuncaoPadraoColumn(error: {message?: string} | null | undefined) {
-  return !!error?.message && isMissingNamedColumn(error.message, 'funcao_padrao');
-}
+const SERIE_OPTIONAL_COLUMNS = [
+  'energia_padrao',
+  'funcao_padrao',
+  'pilar_principal_id',
+  'formato_apresentacao',
+  'motivo_salvar',
+  'motivo_enviar',
+] as const;
 
 function isMissingLegendaBaseColumn(error: {message?: string} | null | undefined) {
   return !!error?.message && isMissingNamedColumn(error.message, 'legenda_base');
@@ -711,6 +716,10 @@ const mp = {
     ativa: r.ativa ?? true, frequenciaRecomendada: r.frequencia_recomendada,
     funcaoPadrao: readFuncaoPadrao(r.funcao_padrao),
     energiaPadrao: readEnergiaNivel(r.energia_padrao),
+    pilarPrincipalId: typeof r.pilar_principal_id === 'string' && r.pilar_principal_id ? r.pilar_principal_id : null,
+    formatoApresentacao: typeof r.formato_apresentacao === 'string' ? r.formato_apresentacao : null,
+    motivoSalvar: typeof r.motivo_salvar === 'string' ? r.motivo_salvar : null,
+    motivoEnviar: typeof r.motivo_enviar === 'string' ? r.motivo_enviar : null,
     createdAt: r.created_at, updatedAt: r.updated_at,
     pilarIds: (r.serie_pilares || []).map((sp: Row) => sp.pilar_id),
     plataformas: (r.serie_plataformas || []).map((sp: Row) => ({
@@ -1835,21 +1844,22 @@ export async function saveSerie(serie: Omit<Serie, 'pilarIds' | 'plataformas' | 
     ativa: serie.ativa, frequencia_recomendada: serie.frequenciaRecomendada,
     energia_padrao: serie.energiaPadrao ?? null,
     funcao_padrao: serie.funcaoPadrao ?? null,
+    pilar_principal_id: serie.pilarPrincipalId ?? null,
+    formato_apresentacao: serie.formatoApresentacao?.trim() || null,
+    motivo_salvar: serie.motivoSalvar?.trim() || null,
+    motivo_enviar: serie.motivoEnviar?.trim() || null,
   };
 
-  for (let attempt = 0; attempt < 4; attempt += 1) {
+  for (let attempt = 0; attempt < 8; attempt += 1) {
     const { error } = await supabase.from('series').upsert(row);
     if (!error) return;
 
-    if (isMissingEnergiaPadraoColumn(error) && 'energia_padrao' in row) {
-      const {energia_padrao: _energiaPadrao, ...withoutEnergia} = row;
-      row = withoutEnergia;
-      continue;
-    }
-
-    if (isMissingFuncaoPadraoColumn(error) && 'funcao_padrao' in row) {
-      const {funcao_padrao: _funcaoPadrao, ...withoutFuncao} = row;
-      row = withoutFuncao;
+    const missing = SERIE_OPTIONAL_COLUMNS.find(column =>
+      column in row && !!error.message && isMissingNamedColumn(error.message, column),
+    );
+    if (missing) {
+      const {[missing]: _removed, ...rest} = row;
+      row = rest;
       continue;
     }
 

@@ -18,6 +18,7 @@ function toneColor(tone: WeekRhythmQuota['tone']): string {
 }
 
 function quotaDetail(item: WeekRhythmQuota): string {
+  if (item.kind === 'soma') return item.label;
   const slots = item.suggestions.map(formatRhythmSlot);
   return [`${item.label} ${item.count}/${item.target}`, item.windowTag, ...slots].filter(Boolean).join(' · ');
 }
@@ -85,24 +86,39 @@ export function WeekRhythmRail({
   }
 
   const pillars = quotas.filter(item => item.kind === 'pilar').sort(byAttention);
+  const funcoes = quotas.filter(item => item.kind === 'funcao').sort(byAttention);
   const series = quotas.filter(item => item.kind === 'serie').sort(byAttention);
-  const hiddenWithoutSlots = Math.max(0, pillars.length - maxVisible) + series.length;
+  const nota = quotas.find(item => item.kind === 'soma') ?? null;
+  const primary = [...pillars, ...funcoes];
+  const hiddenWithoutSlots = Math.max(0, primary.length - maxVisible) + series.length;
   const budget = hiddenWithoutSlots > 0 ? Math.max(1, maxVisible - 1) : maxVisible;
-  const visiblePillars = pillars.slice(0, budget);
+  const visiblePrimary = primary.slice(0, budget);
+  const visiblePillars = visiblePrimary.filter(item => item.kind === 'pilar');
+  const visibleFuncoes = visiblePrimary.filter(item => item.kind === 'funcao');
   const slotLines = visiblePillars.filter(item => item.suggestions.length > 0).length;
-  const showSlots = visiblePillars.length === pillars.length && slotLines > 0 && visiblePillars.length + slotLines <= budget;
-  const usedLines = visiblePillars.length + (showSlots ? slotLines : 0);
+  const showSlots = visiblePillars.length === pillars.length
+    && slotLines > 0
+    && visiblePrimary.length + slotLines <= budget;
+  const usedLines = visiblePrimary.length + (showSlots ? slotLines : 0);
   const visibleSeries = series.slice(0, Math.max(0, budget - usedLines));
-  const hidden = [...pillars.slice(visiblePillars.length), ...series.slice(visibleSeries.length)];
+  const hidden = [...primary.slice(visiblePrimary.length), ...series.slice(visibleSeries.length)];
 
   return (
     <div className={cn('flex min-h-0 flex-col gap-0.5', className)}>
       {visiblePillars.map(item => (
         <QuotaRow key={item.key} item={item} showSlot={showSlots} />
       ))}
+      {visibleFuncoes.map(item => (
+        <QuotaRow key={item.key} item={item} />
+      ))}
       {visibleSeries.map(item => (
         <QuotaRow key={item.key} item={item} />
       ))}
+      {nota ? (
+        <Text variant="meta" className="px-1 text-[var(--text-secondary)]">
+          {nota.label}
+        </Text>
+      ) : null}
       {hidden.length > 0 ? (
         <Tooltip side="right" label={hidden.map(quotaDetail).join(' · ')}>
           <Text variant="meta" as="span" className="px-1 font-semibold">
@@ -120,6 +136,18 @@ export function WeekRhythmChips({quotas}: {quotas: WeekRhythmQuota[]}) {
   return (
     <div className="flex gap-1.5 overflow-x-auto pb-1">
       {quotas.map(item => {
+        if (item.kind === 'soma') {
+          return (
+            <span
+              key={item.key}
+              className="inline-flex shrink-0 items-center rounded-full border border-[var(--border-color)] bg-[var(--bg-elevated)] px-2 py-1"
+            >
+              <Text variant="meta" as="span" className="font-semibold text-[var(--text-primary)]">
+                {item.label}
+              </Text>
+            </span>
+          );
+        }
         const slot = item.suggestions[0];
         return (
           <span

@@ -16,6 +16,8 @@ export interface EditorialSettings {
   distribuicaoFuncoes: Record<FuncaoEditorial, number> | null;
   /** Reserva desejada. Vazio não inventa um alvo. */
   estoqueDesejado: number | null;
+  /** Limite de hashtags por plataforma. Ausente usa 10. */
+  limitesHashtags: Record<string, number>;
 }
 
 export const DEFAULT_EDITORIAL_SETTINGS: EditorialSettings = {
@@ -25,6 +27,7 @@ export const DEFAULT_EDITORIAL_SETTINGS: EditorialSettings = {
   destinosPadrao: [],
   distribuicaoFuncoes: null,
   estoqueDesejado: null,
+  limitesHashtags: {},
 };
 
 function readBoolean(value: unknown, fallback: boolean): boolean {
@@ -56,6 +59,30 @@ function readDistribuicao(value: unknown): Record<FuncaoEditorial, number> | nul
   return result;
 }
 
+export const LIMITE_HASHTAGS_PADRAO = 10;
+
+function readLimitesHashtags(value: unknown): Record<string, number> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  const result: Record<string, number> = {};
+  for (const [key, item] of Object.entries(value)) {
+    const id = key.trim();
+    if (!id || typeof item !== 'number' || !Number.isInteger(item) || item < 1 || item > 30) continue;
+    result[id] = item;
+  }
+  return result;
+}
+
+export function limiteHashtagsDaRede(
+  settings: Pick<EditorialSettings, 'limitesHashtags'>,
+  platformId: string | null | undefined,
+  platformName?: string | null,
+): number {
+  const byId = platformId ? settings.limitesHashtags[platformId] : undefined;
+  if (typeof byId === 'number') return byId;
+  const byName = platformName ? settings.limitesHashtags[platformName] : undefined;
+  return typeof byName === 'number' ? byName : LIMITE_HASHTAGS_PADRAO;
+}
+
 function readEstoqueDesejado(value: unknown): number | null {
   if (typeof value !== 'number' || !Number.isInteger(value) || value < 0) return null;
   return value;
@@ -78,5 +105,6 @@ export function getEditorialSettings(
     destinosPadrao: readIdList(saved.destinosPadrao),
     distribuicaoFuncoes: readDistribuicao(saved.distribuicaoFuncoes),
     estoqueDesejado: readEstoqueDesejado(saved.estoqueDesejado),
+    limitesHashtags: readLimitesHashtags(saved.limitesHashtags),
   };
 }

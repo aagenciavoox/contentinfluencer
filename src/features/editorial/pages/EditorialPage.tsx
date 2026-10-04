@@ -26,9 +26,12 @@ import {
 } from '../lib/editorialSettings';
 import { rotuloFuncaoPadrao } from '../lib/funcoes';
 import { DistribuicaoFuncoesPanel } from '../components/DistribuicaoFuncoesPanel';
+import { NotasConfiguracaoEditorial } from '../components/NotasConfiguracaoEditorial';
 import { rotuloEspacos, somaEspacosSemana } from '../lib/distribuirEspacos';
+import { checkEditorialConfig } from '../lib/checkEditorialConfig';
 import { getSerieOpenItems } from '../lib/serieCompleteness';
 import { contarEstoque, textoEstoque } from '../lib/estoque';
+import { LIMITE_HASHTAGS_PADRAO } from '../lib/editorialSettings';
 
 type EditorialTab = 'pilares' | 'series' | 'funil' | 'hashtags' | 'ajustes';
 type SeriesFilter = 'todas' | 'ativas' | 'inativas' | 'abertas';
@@ -240,25 +243,38 @@ function SeriesPanel() {
   );
 }
 
+function notasDaConfiguracao(state: ReturnType<typeof useAppContext>['state']) {
+  const settings = getEditorialSettings(state.preferences);
+  return checkEditorialConfig({
+    pilares: state.pilares,
+    series: state.series,
+    settings,
+    plataformas: state.platforms,
+  });
+}
+
 function FunnelPanel() {
   const { state, dispatch } = useAppContext();
   const navigate = useNavigate();
   const settings = getEditorialSettings(state.preferences);
 
   return (
-    <DistribuicaoFuncoesPanel
-      pilares={state.pilares}
-      series={state.series}
-      settings={settings}
-      onOpenSerie={serieId => navigate(`/editorial/series/${serieId}`)}
-      onChange={distribuicaoFuncoes => dispatch({
-        type: 'SET_PREFERENCE',
-        payload: {
-          key: EDITORIAL_SETTINGS_PREFERENCE_KEY,
-          value: { ...settings, distribuicaoFuncoes },
-        },
-      })}
-    />
+    <div className="stack-lg">
+      <NotasConfiguracaoEditorial notas={notasDaConfiguracao(state)} />
+      <DistribuicaoFuncoesPanel
+        pilares={state.pilares}
+        series={state.series}
+        settings={settings}
+        onOpenSerie={serieId => navigate(`/editorial/series/${serieId}`)}
+        onChange={distribuicaoFuncoes => dispatch({
+          type: 'SET_PREFERENCE',
+          payload: {
+            key: EDITORIAL_SETTINGS_PREFERENCE_KEY,
+            value: { ...settings, distribuicaoFuncoes },
+          },
+        })}
+      />
+    </div>
   );
 }
 
@@ -331,6 +347,30 @@ function HashtagsPanel() {
     );
   }
 
+  const limiteSalvo = platform
+    ? getEditorialSettings(state.preferences).limitesHashtags[platform.id]
+    : undefined;
+
+  const salvarLimite = (value: string) => {
+    if (!platform) return;
+    const settings = getEditorialSettings(state.preferences);
+    const digits = value.replace(/\D/g, '').slice(0, 2);
+    const next = { ...settings.limitesHashtags };
+    if (!digits) {
+      delete next[platform.id];
+    } else {
+      const numero = Math.min(30, Math.max(1, Number.parseInt(digits, 10)));
+      next[platform.id] = numero;
+    }
+    dispatch({
+      type: 'SET_PREFERENCE',
+      payload: {
+        key: EDITORIAL_SETTINGS_PREFERENCE_KEY,
+        value: { ...settings, limitesHashtags: next },
+      },
+    });
+  };
+
   return (
     <div className="stack-lg">
       <div className="max-w-full overflow-x-auto">
@@ -341,6 +381,21 @@ function HashtagsPanel() {
           options={activePlatforms.map(item => ({ id: item.id, label: item.nome }))}
         />
       </div>
+      <Surface>
+        <Text variant="bodyStrong">Limite nesta rede</Text>
+        <Text variant="secondary" className="mt-1">
+          A sugestão corta neste número. Vazio usa {LIMITE_HASHTAGS_PADRAO}.
+        </Text>
+        <input
+          type="text"
+          inputMode="numeric"
+          aria-label={`Limite de hashtags em ${platform?.nome ?? 'rede'}`}
+          placeholder={String(LIMITE_HASHTAGS_PADRAO)}
+          value={limiteSalvo == null ? '' : String(limiteSalvo)}
+          onChange={event => salvarLimite(event.target.value)}
+          className="mt-3 min-h-11 w-full max-w-xs rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]"
+        />
+      </Surface>
       <Surface>
         <Text variant="sectionTitle">Pilares ativos</Text>
         <div className="mt-3 stack-md">
@@ -408,12 +463,13 @@ function SettingsPanel() {
     {
       key: 'openInfoNotices',
       title: 'Avisos de informações em aberto',
-      description: 'Mostrar quando uma série ainda não tem pilar, função, frequência, formato ou energia.',
+      description: 'Mostrar quando uma série ainda não tem pilar, função, recorrência, formato ou esforço.',
       enabled: settings.openInfoNotices,
       toggle: () => update({ openInfoNotices: !settings.openInfoNotices }),
     },
   ] as const;
 
+  const notas = notasDaConfiguracao(state);
   const ativas = state.platforms.filter(platform => platform.ativo);
   const referenciaAtual = state.platforms.find(platform => platform.id === settings.redeReferenciaId);
   const opcoesReferencia = referenciaAtual && !ativas.some(platform => platform.id === referenciaAtual.id)
@@ -422,6 +478,11 @@ function SettingsPanel() {
 
   return (
     <div className="grid gap-3 sm:grid-cols-2">
+      {notas.length > 0 ? (
+        <div className="sm:col-span-2">
+          <NotasConfiguracaoEditorial notas={notas} />
+        </div>
+      ) : null}
       {rows.map(row => (
         <Surface key={row.key} className="flex items-center justify-between gap-4">
           <div>

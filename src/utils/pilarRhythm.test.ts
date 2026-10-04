@@ -344,7 +344,8 @@ function testWeekRhythmKeepsMetQuotaAndSuggestsPlatformTime() {
   });
   assert.equal(quotas.length, 1);
   assert.equal(quotas[0]?.count, 0);
-  assert.equal(quotas[0]?.target, 2);
+  assert.equal(quotas[0]?.target, 8);
+  assert.equal(quotas[0]?.windowTag, '4 sem');
   assert.equal(quotas[0]?.tone, 'deficit');
   assert.equal(quotas[0]?.suggestions.length, 1);
   assert.equal(formatRhythmSlot(quotas[0]!.suggestions[0]!), 'IG ter 18:00');
@@ -428,15 +429,117 @@ function testWeekRhythmUsesGlobalTimesInsidePilarWindow() {
 function testWeekRhythmKeepsMetPilarWithoutSuggestion() {
   const pilar = buildPilar({frequenciaSemanal: 1});
   const quotas = buildWeekRhythmQuotas({
-    contents: [buildContent({publishDate: '2026-04-27'})],
+    contents: [
+      buildContent({id: 'c1', publishDate: '2026-04-27'}),
+      buildContent({id: 'c2', publishDate: '2026-05-04'}),
+      buildContent({id: 'c3', publishDate: '2026-05-11'}),
+      buildContent({id: 'c4', publishDate: '2026-05-18'}),
+    ],
     weekStart: weekOf('2026-04-27'),
     pilares: [pilar],
     series: [],
     platforms,
     postingTimeEntries: [],
   });
+  assert.equal(quotas[0]?.count, 4);
+  assert.equal(quotas[0]?.target, 4);
+  assert.equal(quotas[0]?.windowTag, '4 sem');
   assert.equal(quotas[0]?.tone, 'met');
   assert.equal(quotas[0]?.suggestions.length, 0);
+}
+
+function testWeekRhythmReadsEntriesAndFunctionQuotas() {
+  const pilarA = buildPilar({id: 'pilar-a', nome: 'Literatura', frequenciaSemanal: 8, cor: '#111111'});
+  const pilarB = buildPilar({id: 'pilar-b', nome: 'Bastidores', frequenciaSemanal: 6, cor: '#222222'});
+  const quotas = buildWeekRhythmQuotas({
+    contents: [
+      buildContent({
+        id: 'a1',
+        pilarId: 'pilar-a',
+        publishDate: '2026-04-27',
+        funcao: 'atrair',
+        funcaoOrigem: 'escolhida',
+      }),
+      buildContent({
+        id: 'extra',
+        pilarId: 'pilar-a',
+        publishDate: '2026-04-27',
+        funcao: 'atrair',
+        funcaoOrigem: 'escolhida',
+        plataformas: [{
+          id: 'tt',
+          contentId: 'extra',
+          platformId: 'platform-tt',
+          legenda: '',
+          hashtags: '',
+          publishDate: '2026-04-27',
+          publicationKind: 'post',
+          status: 'agendada',
+        }],
+      }),
+      buildContent({
+        id: 'fora',
+        pilarId: 'pilar-b',
+        publishDate: '2026-04-29',
+        contaNaGrade: false,
+        funcao: 'converter',
+        funcaoOrigem: 'escolhida',
+      }),
+      buildContent({
+        id: 'repost',
+        pilarId: 'pilar-b',
+        seriesId: 'serie-1',
+        publishDate: '2026-04-20',
+        funcao: 'aprofundar',
+        funcaoOrigem: 'escolhida',
+        plataformas: [{
+          id: 'ig-post',
+          contentId: 'repost',
+          platformId: 'platform-ig',
+          legenda: '',
+          hashtags: '',
+          publishDate: '2026-04-20',
+          publicationKind: 'post',
+          status: 'agendada',
+        }, {
+          id: 'ig-repost',
+          contentId: 'repost',
+          platformId: 'platform-ig',
+          legenda: '',
+          hashtags: '',
+          publishDate: '2026-04-29',
+          publicationKind: 'repost',
+          status: 'agendada',
+          contaNaGrade: true,
+        }],
+      }),
+    ],
+    weekStart: weekOf('2026-04-27'),
+    pilares: [pilarA, pilarB],
+    series: [buildSerie({id: 'serie-1', name: 'Serie', pilarIds: ['pilar-b']})],
+    platforms,
+    postingTimeEntries: [],
+    editorial: {
+      redeReferenciaId: 'platform-ig',
+      distribuicaoFuncoes: {
+        atrair: 35,
+        converter: 30,
+        aprofundar: 20,
+        comunidade: 15,
+        acao: 0,
+        reter: 0,
+      },
+    },
+  });
+
+  assert.equal(quotas.find(item => item.id === 'pilar-a')?.count, 1);
+  assert.equal(quotas.find(item => item.id === 'pilar-a')?.target, 8);
+  assert.equal(quotas.find(item => item.id === 'pilar-b')?.count, 1);
+  assert.equal(quotas.find(item => item.kind === 'funcao' && item.id === 'atrair')?.count, 1);
+  assert.equal(quotas.find(item => item.kind === 'funcao' && item.id === 'atrair')?.target, 5);
+  assert.equal(quotas.find(item => item.kind === 'funcao' && item.id === 'converter')?.target, 4);
+  assert.equal(quotas.find(item => item.kind === 'soma')?.label, 'Seus pilares somam 2 de 14.');
+  assert.equal(quotas.find(item => item.kind === 'serie')?.tone, 'met');
 }
 
 function testWeekRhythmShowsShortSeriesWindowOnly() {
@@ -502,6 +605,7 @@ const tests: Array<[string, () => void]> = [
   ['week rhythm keeps a met pilar without a time suggestion', testWeekRhythmKeepsMetPilarWithoutSuggestion],
   ['week rhythm crosses global times with the pilar window', testWeekRhythmUsesGlobalTimesInsidePilarWindow],
   ['week rhythm shows quinzenal only while the window is short', testWeekRhythmShowsShortSeriesWindowOnly],
+  ['week rhythm counts grade entries and function quotas', testWeekRhythmReadsEntriesAndFunctionQuotas],
 ];
 
 for (const [name, fn] of tests) {
