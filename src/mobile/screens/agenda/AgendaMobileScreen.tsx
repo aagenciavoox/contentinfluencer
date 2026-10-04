@@ -32,12 +32,12 @@ import type {CalendarEntry} from '../../../features/editorial-calendar/component
 import {readStoredJson, writeStoredJson} from '../../../lib/browserStorage';
 import {cn} from '../../../lib/utils';
 import {AppButton} from '../../../components/ui/AppButton';
+import {Text} from '../../../components/ui/Text';
 import {FilterBar} from '../../../components/ui/FilterBar';
 import {EmptyState} from '../../../components/ui/EmptyState';
 import {MobileListCard} from '../../components/MobileListCard';
 import {MobileSearchBar} from '../../components/MobileSearchBar';
 import {MobileSegmentTabs} from '../../components/MobileSegmentTabs';
-import {CalendarModeSwitch} from '../../../features/editorial-calendar/components/CalendarModeSwitch';
 import {getDisplayStatus} from '../../../features/contents/lib/contentPipeline';
 import {
   ALL_PLATFORMS,
@@ -67,6 +67,8 @@ interface AgendaMobileScreenProps {
   onAddAgenda: () => void;
   onAddPostedVideo: () => void;
   onSelectEntry?: (entry: CalendarEntry) => void;
+  undatedRoteiros?: Content[];
+  onPlaceUndatedRoteiro?: (contentId: string, dateKey: string) => void;
 }
 
 interface AgendaTimelineEntry {
@@ -229,6 +231,8 @@ export function AgendaMobileScreen({
   onAddAgenda,
   onAddPostedVideo,
   onSelectEntry,
+  undatedRoteiros = [],
+  onPlaceUndatedRoteiro,
 }: AgendaMobileScreenProps) {
   const [search, setSearch] = useState('');
   const [platformFilter, setPlatformFilter] = useState(platformFilterProp);
@@ -336,7 +340,6 @@ export function AgendaMobileScreen({
   return (
     <div className="stack-lg">
       <div className="px-4 stack-md">
-        <CalendarModeSwitch variant="mobile" />
         {onListModeChange ? (
           <MobileSegmentTabs
             tabs={[
@@ -693,6 +696,32 @@ export function AgendaMobileScreen({
           </div>
         )}
       </section>
+
+      {undatedRoteiros.length > 0 ? (
+        <section className="px-4 stack-sm">
+          <Text variant="sectionTitle">Roteiros sem data</Text>
+          <Text variant="meta" className="text-[var(--text-secondary)]">
+            Marque a publicação no dia escolhido. Não é uma nota de planejamento.
+          </Text>
+          {undatedRoteiros.map(content => (
+            <div key={content.id} className="flex items-center justify-between gap-3 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-3 py-2">
+              <p className="min-w-0 truncate text-sm font-semibold text-[var(--text-primary)]">
+                {content.title || 'Sem título'}
+              </p>
+              <AppButton
+                variant="secondary"
+                size="xs"
+                onClick={() => onPlaceUndatedRoteiro?.(
+                  content.id,
+                  format(selectedDate ?? new Date(), 'yyyy-MM-dd'),
+                )}
+              >
+                {selectedDate ? `Colocar em ${format(selectedDate, 'd MMM', {locale: ptBR})}` : 'Colocar hoje'}
+              </AppButton>
+            </div>
+          ))}
+        </section>
+      ) : null}
     </div>
   );
 }

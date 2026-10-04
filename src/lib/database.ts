@@ -398,6 +398,17 @@ export interface AgendaItem {
   createdAt: string;
 }
 
+/** Nota anterior à ideia. Pode estar vazia ou puxar um conteúdo sem alterar o status. */
+export interface PlanejamentoPostIt {
+  id: string;
+  userId: string;
+  texto: string;
+  date: string | null;
+  contentId: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface GoldenRule {
   id: string;
   userId: string;
@@ -463,6 +474,7 @@ export interface AppData {
   recordingBlocks: RecordingBlock[];
   templates: Template[];
   agendaItems: AgendaItem[];
+  postIts: PlanejamentoPostIt[];
   goldenRules: GoldenRule[];
   contentMetrics: ContentMetric[];
   postingTimeEntries: PostingTimeEntry[];
@@ -480,6 +492,7 @@ export type AppDataDomain =
   | 'recording'
   | 'templates'
   | 'agenda'
+  | 'planejamento'
   | 'analytics'
   | 'rules'
   | 'voice'
@@ -516,7 +529,7 @@ function empty(): AppData {
     platforms: [], preferences: {}, dnaVoz: null, pilares: [], series: [],
     cenarios: [], looks: [], bibliotecaGeneros: [], bibliotecaItems: [],
     contents: [], ideas: [], projetos: [], recordingBlocks: [], templates: [],
-    agendaItems: [], goldenRules: [], contentMetrics: [], postingTimeEntries: [],
+    agendaItems: [], postIts: [], goldenRules: [], contentMetrics: [], postingTimeEntries: [],
   };
 }
 
@@ -841,6 +854,15 @@ const mp = {
   agendaItem: (r: Row): AgendaItem => ({
     id: r.id, userId: r.user_id, title: r.title, date: r.date, time: r.time,
     tipo: r.tipo, projetoId: r.projeto_id, createdAt: r.created_at,
+  }),
+  postIt: (r: Row): PlanejamentoPostIt => ({
+    id: r.id,
+    userId: r.user_id,
+    texto: r.texto ?? '',
+    date: r.date ? String(r.date).slice(0, 10) : null,
+    contentId: r.content_id ?? null,
+    createdAt: r.created_at,
+    updatedAt: r.updated_at ?? r.created_at,
   }),
   goldenRule: (r: Row): GoldenRule => ({
     id: r.id, userId: r.user_id, descricao: r.descricao, titulo: r.titulo, cor: r.cor,
@@ -1476,6 +1498,7 @@ export async function fetchAllData(): Promise<AppData> {
       'recording',
       'templates',
       'agenda',
+      'planejamento',
       'analytics',
       'rules',
       'voice',
@@ -1697,6 +1720,15 @@ export async function fetchDataDomains(
         'agenda_items fetch',
         await supabase.from('agenda_items').select('*').eq('user_id', uid).order('date'),
       ) || []).map(mp.agendaItem);
+    })());
+  }
+
+  if (requested.has('planejamento')) {
+    tasks.push((async () => {
+      payload.postIts = (assertQuerySuccess(
+        'planejamento_postits fetch',
+        await supabase.from('planejamento_postits').select('*').eq('user_id', uid).order('created_at'),
+      ) || []).map(mp.postIt);
     })());
   }
 
@@ -2595,6 +2627,25 @@ export async function deleteAgendaItem(id: string): Promise<void> {
   if (!supabase) return;
   const { error } = await supabase.from('agenda_items').delete().eq('id', id);
   if (error) throw new Error(`delete agenda_item: ${error.message}`);
+}
+
+export async function savePlanejamentoPostIt(item: PlanejamentoPostIt): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase.from('planejamento_postits').upsert({
+    id: item.id,
+    user_id: item.userId,
+    texto: item.texto ?? '',
+    date: item.date,
+    content_id: item.contentId,
+    updated_at: item.updatedAt || new Date().toISOString(),
+  });
+  if (error) throw new Error(`planejamento_postits: ${error.message}`);
+}
+
+export async function deletePlanejamentoPostIt(id: string): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase.from('planejamento_postits').delete().eq('id', id);
+  if (error) throw new Error(`delete planejamento_postit: ${error.message}`);
 }
 
 // ============================================================================

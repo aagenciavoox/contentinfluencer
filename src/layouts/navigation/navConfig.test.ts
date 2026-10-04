@@ -101,6 +101,7 @@ function testExactlyOneDesktopItemIsActiveOnRepresentativeRoutes() {
     '/biblioteca',
     '/gravacao?tab=queue',
     '/calendario',
+    '/planejamento',
     '/projetos',
     '/configuracoes',
   ];
@@ -115,6 +116,7 @@ function testExactlyOneDesktopItemIsActiveOnRepresentativeRoutes() {
     '/biblioteca/book-1',
     '/gravacao/block-1',
     '/calendario',
+    '/planejamento',
     '/projetos/project-1',
     '/configuracoes/perfil',
   ];

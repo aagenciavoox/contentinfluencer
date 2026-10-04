@@ -3,6 +3,7 @@ import {
   Briefcase,
   CalendarDays,
   Captions,
+  StickyNote,
   Clapperboard,
   Columns3,
   Library,
@@ -101,6 +102,14 @@ export function isNavItemActive(to: string, pathname: string): boolean {
     return pathMatches(pathname, '/gravacao');
   }
 
+  if (target === '/planejamento') {
+    return pathMatches(pathname, '/planejamento');
+  }
+
+  if (target === '/calendario') {
+    return pathname === '/calendario' || pathname.startsWith('/calendario/');
+  }
+
   if (target === '/editorial') {
     return pathMatches(pathname, '/editorial');
   }
@@ -156,6 +165,7 @@ export function buildSidebarSections(moduleFlags: ModuleFlags): NavSectionDefini
       items: [
         { to: '/gravacao?tab=queue', label: 'Gravação', icon: Clapperboard, module: 'recording' },
         { to: '/calendario', label: 'Calendário', icon: CalendarDays, module: 'calendar' },
+        { to: '/planejamento', label: 'Planejamento', icon: StickyNote, module: 'calendar' },
         { to: '/projetos', label: 'Projetos', icon: Briefcase, module: 'projects' },
       ],
     },

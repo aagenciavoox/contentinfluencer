@@ -15,7 +15,7 @@ import {
   Content, Idea, Pilar, Serie, Cenario, Look,
   BibliotecaItem, Anotacao, Projeto, ProjetoEtapa,
   RecordingBlock, RecordingBlockContent, Template,
-  AgendaItem, GoldenRule, ContentMetric, Platform, DnaVoz,
+  AgendaItem, GoldenRule, ContentMetric, Platform, DnaVoz, PlanejamentoPostIt,
 } from '../lib/database';
 
 // ============================================================================
@@ -117,6 +117,9 @@ export type AppAction =
   // ─── Agenda ─────────────────────────────────────────────────────────────────
   | { type: 'ADD_AGENDA_ITEM';    payload: AgendaItem }
   | { type: 'UPDATE_AGENDA_ITEM'; payload: AgendaItem }
+  | { type: 'ADD_POST_IT';        payload: PlanejamentoPostIt }
+  | { type: 'UPDATE_POST_IT';     payload: PlanejamentoPostIt }
+  | { type: 'DELETE_POST_IT';     payload: string }
   | { type: 'DELETE_AGENDA_ITEM'; payload: string }
   | { type: 'ADD_AGENDA';    payload: any }
   | { type: 'UPDATE_AGENDA'; payload: any }
@@ -524,6 +527,12 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       return { ...state, agendaItems: state.agendaItems.map(a => a.id === action.payload.id ? action.payload : a) };
     case 'DELETE_AGENDA_ITEM':
       return { ...state, agendaItems: state.agendaItems.filter(a => a.id !== action.payload) };
+    case 'ADD_POST_IT':
+      return { ...state, postIts: [...state.postIts, action.payload] };
+    case 'UPDATE_POST_IT':
+      return { ...state, postIts: state.postIts.map(item => item.id === action.payload.id ? action.payload : item) };
+    case 'DELETE_POST_IT':
+      return { ...state, postIts: state.postIts.filter(item => item.id !== action.payload) };
 
     // ─── Regras de Ouro ─────────────────────────────────────────────────────
     case 'ADD_GOLDEN_RULE':

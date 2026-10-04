@@ -1,3 +1,4 @@
+import type {DragEvent} from 'react';
 import {addMonths, eachDayOfInterval, endOfWeek, format, startOfWeek} from 'date-fns';
 import {ptBR} from 'date-fns/locale';
 import {AgendaItem, Content, Platform, Projeto} from '../../../lib/database';
@@ -45,6 +46,10 @@ type MonthlyCalendarViewProps = {
   onSelectDate?: (date: Date) => void;
   onEmptyDayClick?: (date: Date) => void;
   onShowMore?: (date: Date) => void;
+  dragOverDateKey?: string | null;
+  onDayDragOver?: (dateKey: string, event: DragEvent) => void;
+  onDayDragLeave?: () => void;
+  onDayDrop?: (dateKey: string, event: DragEvent) => void;
   platformFilter?: string;
   statusFilter?: string;
   series?: GradeSerie[];
@@ -248,6 +253,10 @@ export function MonthlyCalendarView({
   onSelectDate,
   onEmptyDayClick,
   onShowMore,
+  dragOverDateKey,
+  onDayDragOver,
+  onDayDragLeave,
+  onDayDrop,
   platformFilter,
   statusFilter,
   series,
@@ -302,7 +311,13 @@ export function MonthlyCalendarView({
           weekStartsOn={WEEK_STARTS_ON}
           minCellHeight={120}
           className="border-t-0 [&>div:first-child]:hidden"
-          getDayClassName={dayProps => (dayProps.isToday ? TODAY_CIRCLE_CLASS : undefined)}
+          getDayClassName={dayProps => cn(
+            dayProps.isToday ? TODAY_CIRCLE_CLASS : undefined,
+            dragOverDateKey === dayProps.dateKey && 'bg-[color-mix(in_srgb,var(--accent)_10%,transparent)]',
+          )}
+          onDayDragOver={(dayProps, event) => onDayDragOver?.(dayProps.dateKey, event)}
+          onDayDragLeave={() => onDayDragLeave?.()}
+          onDayDrop={(dayProps, event) => onDayDrop?.(dayProps.dateKey, event)}
           onDayClick={(dayProps, event) => {
             const entries = entriesByDate.get(dayProps.dateKey) || [];
             if (entries.length === 0 && onEmptyDayClick) {

@@ -94,6 +94,10 @@ const REALTIME_TABLE_MAP: Record<string, RealtimeTableMapping> = {
     domains: ['agenda'],
     namespaces: [],
   },
+  planejamento_postits: {
+    domains: ['planejamento'],
+    namespaces: [],
+  },
   templates: {
     domains: ['templates'],
     namespaces: [],

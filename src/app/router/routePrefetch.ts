@@ -5,6 +5,7 @@ const loadCreation = () => import('../../pages/Creation');
 const loadCaptions = () => import('../../pages/Legendas');
 const loadContentDetail = () => import('../../pages/ContentDetail');
 const loadCalendar = () => import('../../pages/EditorialCalendar');
+const loadPlanejamento = () => import('../../pages/Planejamento');
 const loadEditorial = () => import('../../pages/Editorial');
 const loadLibrary = () => import('../../pages/Biblioteca');
 const loadLibraryAnalysis = () => import('../../pages/Analise');
@@ -28,6 +29,7 @@ export const routeLoaders = {
   captions: loadCaptions,
   contentDetail: loadContentDetail,
   calendar: loadCalendar,
+  planejamento: loadPlanejamento,
   editorial: loadEditorial,
   library: loadLibrary,
   libraryAnalysis: loadLibraryAnalysis,
@@ -60,6 +62,7 @@ const PRIMARY_LOADERS: RouteLoader[] = [
   loadCreation,
   loadCaptions,
   loadCalendar,
+  loadPlanejamento,
   loadEditorial,
   loadLibrary,
   loadSettings,
@@ -75,7 +78,8 @@ function loaderForPath(pathname: string): RouteLoader | null {
   if (path === '/criacao/legendas') return loadCaptions;
   if (path.startsWith('/criacao') || path === '/conteudos') return loadCreation;
   if (path.startsWith('/conteudos/')) return loadContentDetail;
-  if (path.startsWith('/calendario') || path.startsWith('/programacao')) return loadCalendar;
+  if (path.startsWith('/calendario')) return loadCalendar;
+  if (path.startsWith('/planejamento') || path.startsWith('/programacao')) return loadPlanejamento;
   if (path === '/editorial') return loadEditorial;
   if (path === '/editorial/pilares/nova' || path.startsWith('/editorial/pilares/')) return loadPillarEdit;
   if (path === '/editorial/series/nova' || path.startsWith('/editorial/series/')) return loadSeriesEdit;
