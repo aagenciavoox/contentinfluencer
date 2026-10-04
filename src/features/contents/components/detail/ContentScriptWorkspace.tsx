@@ -11,7 +11,6 @@ import {
   appendScriptBlock,
   type ScriptBlockLabel,
 } from './ScriptBlockToolbar';
-import {DraftSaveBar} from './DraftSaveBar';
 
 interface ContentScriptWorkspaceProps {
   script: string | null;
@@ -22,9 +21,9 @@ interface ContentScriptWorkspaceProps {
   onScriptChange: (html: string) => void;
   onReferenciasChange: (value: string) => void;
   saveState?: 'idle' | 'saving' | 'saved' | 'error';
-  onSave?: () => void;
-  hasUnsavedChanges?: boolean;
   showReferencias?: boolean;
+  /** Compact neutral format bar used by the desktop Escrita tab. */
+  writingToolbar?: boolean;
   bodyLoading?: boolean;
   bodyError?: string | null;
   onRetryBody?: () => void;
@@ -44,9 +43,8 @@ export function ContentScriptWorkspace({
   onScriptChange,
   onReferenciasChange,
   saveState,
-  onSave,
-  hasUnsavedChanges = false,
   showReferencias = true,
+  writingToolbar = false,
   bodyLoading = false,
   bodyError = null,
   onRetryBody,
@@ -99,6 +97,8 @@ export function ContentScriptWorkspace({
         ) : (
           <RichTextEditor
             variant="workspace"
+            formatBar={writingToolbar ? 'writing' : 'full'}
+            meter="spoken"
             content={script || ''}
             onChange={onScriptChange}
             placeholder="Escreva o roteiro…"
@@ -108,17 +108,14 @@ export function ContentScriptWorkspace({
             onAddAnnotation={onAddAnnotation}
             onRemoveAnnotation={onRemoveAnnotation}
             onUpdateAnnotation={onUpdateAnnotation}
-            toolbarStart={<ScriptBlockToolbar onInsertBlock={handleInsertBlock} onApplyTemplate={handleApplyTemplate} />}
-            saveState={saveState}
-            saveAction={
-              onSave ? (
-                <DraftSaveBar
-                  onSave={onSave}
-                  saveState={saveState}
-                  hasUnsavedChanges={hasUnsavedChanges}
-                />
-              ) : null
+            toolbarStart={
+              <ScriptBlockToolbar
+                neutral={writingToolbar}
+                onInsertBlock={handleInsertBlock}
+                onApplyTemplate={handleApplyTemplate}
+              />
             }
+            saveState={saveState}
             className="h-full min-h-0 border-0 bg-[var(--bg-elevated)] shadow-none"
           />
         )}

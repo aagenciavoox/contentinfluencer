@@ -145,6 +145,39 @@
   color: var(--text-primary);
 }
 
+/* Light tint per script block. The format bar itself stays neutral. */
+.script-block-option[data-block='Gancho'] {
+  background: color-mix(in srgb, var(--warning) 14%, var(--bg-elevated));
+}
+
+.script-block-option[data-block='Fato'] {
+  background: color-mix(in srgb, var(--info) 14%, var(--bg-elevated));
+}
+
+.script-block-option[data-block='Virada'] {
+  background: color-mix(in srgb, var(--accent-purple) 14%, var(--bg-elevated));
+}
+
+.script-block-option[data-block='Veredito'] {
+  background: color-mix(in srgb, var(--success) 14%, var(--bg-elevated));
+}
+
+.script-block-option[data-block='Gancho']:hover {
+  background: color-mix(in srgb, var(--warning) 24%, var(--bg-elevated));
+}
+
+.script-block-option[data-block='Fato']:hover {
+  background: color-mix(in srgb, var(--info) 24%, var(--bg-elevated));
+}
+
+.script-block-option[data-block='Virada']:hover {
+  background: color-mix(in srgb, var(--accent-purple) 24%, var(--bg-elevated));
+}
+
+.script-block-option[data-block='Veredito']:hover {
+  background: color-mix(in srgb, var(--success) 24%, var(--bg-elevated));
+}
+
 @media (max-width: 1023px) {
   .tiptap {
     line-height: 1.5;

@@ -23,12 +23,15 @@ interface ScriptBlockToolbarProps {
   onInsertBlock: (label: ScriptBlockLabel) => void;
   onApplyTemplate: (html: string) => void;
   menuPlacement?: 'bottom' | 'top';
+  /** Neutral controls for the gray Escrita bar. Block types keep a light tint in the menu. */
+  neutral?: boolean;
 }
 
 export function ScriptBlockToolbar({
   onInsertBlock,
   onApplyTemplate,
   menuPlacement = 'bottom',
+  neutral = false,
 }: ScriptBlockToolbarProps) {
   const [open, setOpen] = useState(false);
   const [templatesOpen, setTemplatesOpen] = useState(false);
@@ -55,9 +58,12 @@ export function ScriptBlockToolbar({
         <button
           type="button"
           onClick={() => setOpen(prev => !prev)}
-          className="inline-flex h-10 items-center gap-1 rounded-lg px-2 text-xs font-medium text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-hover)]"
+          className={cn(
+            'inline-flex items-center gap-1 rounded-lg px-2 text-xs font-medium text-[var(--text-primary)] transition-colors',
+            neutral ? 'h-9 hover:bg-[var(--bg-secondary)]' : 'h-10 hover:bg-[var(--bg-hover)]',
+          )}
         >
-          <Plus className="h-3.5 w-3.5 text-[var(--accent-blue)]" />
+          <Plus className={cn('h-3.5 w-3.5', neutral ? 'text-[var(--text-secondary)]' : 'text-[var(--accent-blue)]')} />
           Bloco
           <ChevronDown
             className={cn(
@@ -77,11 +83,12 @@ export function ScriptBlockToolbar({
               <button
                 key={label}
                 type="button"
+                data-block={label}
                 onClick={() => {
                   onInsertBlock(label);
                   setOpen(false);
                 }}
-                className="w-full rounded-md px-2.5 py-2 text-left text-xs text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
+                className="script-block-option w-full rounded-md px-2.5 py-2 text-left text-xs text-[var(--text-primary)] transition-colors"
               >
                 [{label}]
               </button>
@@ -92,7 +99,10 @@ export function ScriptBlockToolbar({
       <button
         type="button"
         onClick={() => setTemplatesOpen(true)}
-        className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-[var(--text-tertiary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
+        className={cn(
+          'inline-flex w-10 items-center justify-center rounded-lg text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]',
+          neutral ? 'h-9 hover:bg-[var(--bg-secondary)]' : 'h-10 hover:bg-[var(--bg-hover)]',
+        )}
         title="Aplicar template"
         aria-label="Aplicar template"
       >

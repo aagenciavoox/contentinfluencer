@@ -764,6 +764,10 @@ input.caption-locked:focus {
   background: var(--bg-elevated);
 }
 
+.cms-panel.cms-panel-secondary {
+  background: var(--bg-primary);
+}
+
 .cms-toolbar {
   display: flex;
   align-items: center;
