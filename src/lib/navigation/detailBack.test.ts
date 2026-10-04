@@ -14,6 +14,7 @@ function backFor(fromPath: string) {
 assert.equal(backFor('/criacao?tab=roteiros'), '/criacao?tab=roteiros');
 assert.equal(backFor('/criacao/legendas'), '/criacao/legendas');
 assert.equal(backFor('/calendario?modo=agendar'), '/calendario?modo=agendar');
+assert.equal(backFor('/planejamento'), '/planejamento');
 assert.equal(backFor('/gravacao'), '/gravacao');
 assert.equal(backFor('/dashboard'), '/dashboard');
 assert.equal(backFor('/'), '/');
@@ -43,6 +44,8 @@ assert.equal(labelForDetailBack('/series/abc/roteiros', 'Roteiros'), 'Séries');
 assert.equal(labelForDetailBack('/projetos/abc', 'Conteúdos'), 'Projetos');
 assert.equal(labelForDetailBack('/criacao?tab=roteiros', 'Roteiros'), 'Roteiros');
 assert.equal(labelForDetailBack('/calendario', 'Roteiros'), 'Calendário');
+assert.equal(labelForDetailBack('/planejamento', 'Roteiros'), 'Planejamento');
+assert.equal(labelForDetailBack('/programacao', 'Roteiros'), 'Planejamento');
 assert.equal(labelForDetailBack('/editorial?aba=funil', 'Roteiros'), 'Editorial');
 
 console.log('detailBack.test.ts passed');

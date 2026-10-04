@@ -1,6 +1,7 @@
 /** Tabelas espelhadas em AppContext e na migration supabase_realtime. */
 export const REALTIME_TABLES = [
   'agenda_items',
+  'planejamento_postits',
   'anotacoes',
   'biblioteca_generos',
   'biblioteca_items',

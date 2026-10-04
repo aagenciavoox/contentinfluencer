@@ -1,4 +1,4 @@
-import {useCallback, useEffect, useMemo, useState} from 'react';
+import {useCallback, useEffect, useMemo, useState, type DragEvent} from 'react';
 import {useLocation, useNavigate, useSearchParams} from 'react-router-dom';
 import {
   eachDayOfInterval,
@@ -44,12 +44,13 @@ import {buildDetailBackState} from '../../../lib/navigation/detailBack';
 import {PostedVideoComposerSheet} from '../../contents/components/PostedVideoComposerSheet';
 import {buildCalendarEntries, CalendarEntry, MonthlyCalendarView} from '../components/MonthlyCalendarView';
 import {CalendarTimelineView, type TimelinePeriod} from '../components/CalendarTimelineView';
-import {CalendarModeSwitch} from '../components/CalendarModeSwitch';
 import {
   CALENDAR_VIEW_QUERY,
   parseCalendarViewMode,
   type CalendarViewMode,
 } from '../lib/calendarMode';
+import {listUndatedRoteiros, placeContentOnDay} from '../lib/scheduleContent';
+import {UNDATED_ROTEIRO_MIME, UndatedRoteiroPile} from '../components/UndatedRoteiroPile';
 import {PostingTimeSuggestions} from '../../settings/components/PostingTimeSuggestions';
 import {getPostingTimes} from '../../settings/lib/postingTimes';
 import {getGentleExperienceSettings} from '../../settings/lib/gentleExperience';
@@ -112,6 +113,46 @@ export function EditorialCalendarPage() {
   const [calendarToolsOpen, setCalendarToolsOpen] = useState(false);
   const [quickCreateDate, setQuickCreateDate] = useState<Date | null>(null);
   const [agendaDraft, setAgendaDraft] = useState<{title: string; date: string; time: string | null} | null>(null);
+  const [roteiroDragOver, setRoteiroDragOver] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (searchParams.get('modo') !== 'agendar') return;
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      next.delete('modo');
+      return next;
+    }, {replace: true});
+  }, [searchParams, setSearchParams]);
+
+  const undatedRoteiros = useMemo(
+    () => listUndatedRoteiros(state.contents),
+    [state.contents],
+  );
+
+  const placeUndatedRoteiro = useCallback((contentId: string, dateKey: string) => {
+    const content = state.contents.find(item => item.id === contentId);
+    if (!content) return;
+    dispatch({type: 'UPDATE_CONTENT', payload: placeContentOnDay(content, dateKey)});
+  }, [dispatch, state.contents]);
+
+  const readRoteiroId = (event: DragEvent) =>
+    event.dataTransfer.getData(UNDATED_ROTEIRO_MIME) || event.dataTransfer.getData('text/plain');
+
+  const handleRoteiroDragOver = (dateKey: string, event: DragEvent) => {
+    if (!event.dataTransfer.types.includes(UNDATED_ROTEIRO_MIME) && !event.dataTransfer.types.includes('text/plain')) {
+      return;
+    }
+    event.preventDefault();
+    setRoteiroDragOver(dateKey);
+  };
+
+  const handleRoteiroDrop = (dateKey: string, event: DragEvent) => {
+    event.preventDefault();
+    setRoteiroDragOver(null);
+    const contentId = readRoteiroId(event);
+    if (!undatedRoteiros.some(item => item.id === contentId)) return;
+    placeUndatedRoteiro(contentId, dateKey);
+  };
 
   const setDayPanelOpen = useCallback((value: boolean) => {
     setDayPanelOpenRaw(value);
@@ -253,6 +294,8 @@ export function EditorialCalendarPage() {
             onAddAgenda={() => setIsAddAgendaOpen(true)}
             onAddPostedVideo={() => setIsAddPostedVideoOpen(true)}
             onSelectEntry={handleSelectEntry}
+            undatedRoteiros={undatedRoteiros}
+            onPlaceUndatedRoteiro={placeUndatedRoteiro}
           />
         </div>
 
@@ -417,6 +460,14 @@ export function EditorialCalendarPage() {
     </div>
   );
 
+  const undatedPile = (
+    <UndatedRoteiroPile
+      contents={undatedRoteiros}
+      placeLabel={`Colocar em ${format(selectedDate, 'd MMM', {locale: ptBR})}`}
+      onPlace={content => placeUndatedRoteiro(content.id, format(selectedDate, 'yyyy-MM-dd'))}
+    />
+  );
+
   return (
     <PageLayout
       contentWidth="full"
@@ -430,7 +481,6 @@ export function EditorialCalendarPage() {
           meta="Roteiros, eventos e projetos na linha do tempo."
           actions={(
             <>
-              <CalendarModeSwitch />
               <div className="relative">
                 <AppButton
                   variant="primary"
@@ -650,53 +700,73 @@ export function EditorialCalendarPage() {
       >
         <div className="stack-md p-3 md:p-4">
           {viewMode === 'agenda' ? (
-            <CalendarAgendaListView
-              entriesByDate={entriesByDate}
-              selectedDate={selectedDate}
-              periodStart={agendaPeriod.start}
-              periodEnd={agendaPeriod.end}
-              periodLabel={agendaPeriod.label}
-              headerPeriodLabel={format(currentMonth, "MMMM 'de' yyyy", {locale: ptBR})}
-              onSelectDate={setSelectedDate}
-              onSelectEntry={handleSelectEntry}
-            />
+            <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_17rem]">
+              <CalendarAgendaListView
+                entriesByDate={entriesByDate}
+                selectedDate={selectedDate}
+                periodStart={agendaPeriod.start}
+                periodEnd={agendaPeriod.end}
+                periodLabel={agendaPeriod.label}
+                headerPeriodLabel={format(currentMonth, "MMMM 'de' yyyy", {locale: ptBR})}
+                onSelectDate={setSelectedDate}
+                onSelectEntry={handleSelectEntry}
+              />
+              {undatedPile}
+            </div>
           ) : viewMode === 'week' ? (
-            <CalendarWeekView
-              weekDate={currentMonth}
-              selectedDate={selectedDate}
-              entriesByDate={entriesByDate}
-              onSelectDate={setSelectedDate}
-              onSelectEntry={handleSelectEntry}
-            />
+            <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_17rem]">
+              <CalendarWeekView
+                weekDate={currentMonth}
+                selectedDate={selectedDate}
+                entriesByDate={entriesByDate}
+                onSelectDate={setSelectedDate}
+                onSelectEntry={handleSelectEntry}
+                dragOverDateKey={roteiroDragOver}
+                onDayDragOver={handleRoteiroDragOver}
+                onDayDragLeave={() => setRoteiroDragOver(null)}
+                onDayDrop={handleRoteiroDrop}
+              />
+              {undatedPile}
+            </div>
           ) : viewMode === 'timeline' ? (
-            <CalendarTimelineView
-              anchorDate={currentMonth}
-              period={timelinePeriod}
-              entriesByDate={entriesByDate}
-              selectedDate={selectedDate}
-              onSelectDate={setSelectedDate}
-              onSelectEntry={handleSelectEntry}
-              onPeriodChange={setTimelinePeriod}
-            />
+            <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_17rem]">
+              <CalendarTimelineView
+                anchorDate={currentMonth}
+                period={timelinePeriod}
+                entriesByDate={entriesByDate}
+                selectedDate={selectedDate}
+                onSelectDate={setSelectedDate}
+                onSelectEntry={handleSelectEntry}
+                onPeriodChange={setTimelinePeriod}
+              />
+              {undatedPile}
+            </div>
           ) : (
-            <MonthlyCalendarView
-              contents={state.contents}
-              platforms={state.platforms}
-              agendaItems={state.agendaItems}
-              projetos={state.projetos}
-              activeLayers={activeLayers}
-              searchTerm={searchTerm}
-              sortValue={sortValue}
-              platformFilter={platformFilter}
-              statusFilter={statusFilter}
-              monthsToShow={1}
-              monthDate={currentMonth}
-              selectedDate={selectedDate}
-              onSelectDate={setSelectedDate}
-              onSelectEntry={handleSelectEntry}
-              onEmptyDayClick={date => setQuickCreateDate(date)}
-              onShowMore={() => setDayPanelOpen(true)}
-            />
+            <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_17rem]">
+              <MonthlyCalendarView
+                contents={state.contents}
+                platforms={state.platforms}
+                agendaItems={state.agendaItems}
+                projetos={state.projetos}
+                activeLayers={activeLayers}
+                searchTerm={searchTerm}
+                sortValue={sortValue}
+                platformFilter={platformFilter}
+                statusFilter={statusFilter}
+                monthsToShow={1}
+                monthDate={currentMonth}
+                selectedDate={selectedDate}
+                onSelectDate={setSelectedDate}
+                onSelectEntry={handleSelectEntry}
+                onEmptyDayClick={date => setQuickCreateDate(date)}
+                onShowMore={() => setDayPanelOpen(true)}
+                dragOverDateKey={roteiroDragOver}
+                onDayDragOver={handleRoteiroDragOver}
+                onDayDragLeave={() => setRoteiroDragOver(null)}
+                onDayDrop={handleRoteiroDrop}
+              />
+              {undatedPile}
+            </div>
           )}
 
           {isMonthView ? null : (
@@ -827,12 +897,20 @@ function CalendarWeekView({
   entriesByDate,
   onSelectDate,
   onSelectEntry,
+  dragOverDateKey,
+  onDayDragOver,
+  onDayDragLeave,
+  onDayDrop,
 }: {
   weekDate: Date;
   selectedDate: Date;
   entriesByDate: Map<string, CalendarEntry[]>;
   onSelectDate: (date: Date) => void;
   onSelectEntry: (entry: CalendarEntry) => void;
+  dragOverDateKey?: string | null;
+  onDayDragOver?: (dateKey: string, event: DragEvent) => void;
+  onDayDragLeave?: () => void;
+  onDayDrop?: (dateKey: string, event: DragEvent) => void;
 }) {
   const days = eachDayOfInterval({
     start: startOfWeek(weekDate, {weekStartsOn: 0}),
@@ -870,14 +948,19 @@ function CalendarWeekView({
 
       <div className="grid min-h-[620px] grid-cols-7">
         {days.map(day => {
-          const entries = entriesByDate.get(format(day, 'yyyy-MM-dd')) || [];
+          const dateKey = format(day, 'yyyy-MM-dd');
+          const entries = entriesByDate.get(dateKey) || [];
           return (
             <div
               key={day.toISOString()}
               onClick={() => onSelectDate(day)}
+              onDragOver={event => onDayDragOver?.(dateKey, event)}
+              onDragLeave={() => onDayDragLeave?.()}
+              onDrop={event => onDayDrop?.(dateKey, event)}
               className={cn(
                 'border-r border-[var(--border-color)] p-3 last:border-r-0 transition-colors hover:bg-[var(--surface-subtle)]',
-                isSameDay(day, selectedDate) && 'bg-[color-mix(in_srgb,var(--accent-blue),transparent_96%)]'
+                isSameDay(day, selectedDate) && 'bg-[color-mix(in_srgb,var(--accent-blue),transparent_96%)]',
+                dragOverDateKey === dateKey && 'bg-[color-mix(in_srgb,var(--accent)_12%,transparent)]',
               )}
             >
               <div className="stack-sm">

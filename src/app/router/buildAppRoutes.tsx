@@ -12,6 +12,7 @@ const Creation = lazy(() => routeLoaders.creation().then(module => ({ default: m
 const Legendas = lazy(() => routeLoaders.captions().then(module => ({ default: module.Legendas })));
 const ContentDetail = lazy(() => routeLoaders.contentDetail().then(module => ({ default: module.ContentDetail })));
 const EditorialCalendar = lazy(() => routeLoaders.calendar().then(module => ({ default: module.EditorialCalendar })));
+const Planejamento = lazy(() => routeLoaders.planejamento().then(module => ({ default: module.Planejamento })));
 const Editorial = lazy(() => routeLoaders.editorial().then(module => ({ default: module.Editorial })));
 const Biblioteca = lazy(() => routeLoaders.library().then(module => ({ default: module.Biblioteca })));
 const Analise = lazy(() => routeLoaders.libraryAnalysis().then(module => ({ default: module.Analise })));
@@ -84,8 +85,16 @@ export function buildAppRoutes(): RouteObject[] {
                 { path: '/editorial/series/nova', element: <SeriesEditar /> },
                 { path: '/editorial/series/:serieId', element: <SeriesEditar /> },
                 {
+                  path: '/planejamento',
+                  element: (
+                    <ModuleRoute module="calendar">
+                      <Planejamento />
+                    </ModuleRoute>
+                  ),
+                },
+                {
                   path: '/programacao',
-                  element: <Navigate to="/calendario?modo=agendar" replace />,
+                  element: <Navigate to="/planejamento" replace />,
                 },
                 {
                   path: '/biblioteca',

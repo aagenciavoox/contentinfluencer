@@ -7,7 +7,7 @@ import type {Content, Platform, PublicationKind, Serie} from '../../../lib/datab
 import {MarkPostedSheet} from './MarkPostedSheet';
 import {cn} from '../../../lib/utils';
 import {generateUUID} from '../../../utils/uuid';
-import {getPlatformColor} from '../../programacao/lib/programacao';
+import {getPlatformColor} from '../lib/platformColor';
 import {PostingTimeSuggestions} from '../../settings/components/PostingTimeSuggestions';
 import type {PostingTimesSettings} from '../../settings/lib/postingTimes';
 import {CONTENT_STATUS} from '../lib/contentPipeline';

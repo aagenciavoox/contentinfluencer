@@ -14,8 +14,11 @@ export function getRouteDataDomains(pathname: string): AppDataDomain[] {
   if (pathname.startsWith('/conteudos/')) return ['production', 'recording', 'library', 'templates'];
   if (pathname.startsWith('/conteudos')) return ['production'];
   if (pathname.startsWith('/ideias')) return ['production'];
-  if (pathname.startsWith('/calendario') || pathname.startsWith('/programacao')) {
+  if (pathname.startsWith('/calendario')) {
     return ['content-schedule', 'agenda', 'projects', 'production'];
+  }
+  if (pathname.startsWith('/planejamento') || pathname.startsWith('/programacao')) {
+    return ['content', 'planejamento'];
   }
   if (pathname.startsWith('/projetos')) return ['content-schedule', 'library'];
   if (pathname.startsWith('/gravacao')) return ['content', 'production', 'recording'];

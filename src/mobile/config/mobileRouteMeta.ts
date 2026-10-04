@@ -212,10 +212,15 @@ export function getMobileRouteMeta(pathname: string, search = ''): MobileRouteMe
         titleVariant: 'compact-center',
       };
     case '/calendario':
-    case '/programacao':
       return {
         title: 'Calendário',
-        subtitle: 'Ver a semana ou agendar postagens.',
+        subtitle: 'Roteiros, eventos e projetos na linha do tempo.',
+      };
+    case '/planejamento':
+    case '/programacao':
+      return {
+        title: 'Planejamento',
+        subtitle: 'Post-its antes da ideia.',
       };
     case '/series':
       return {

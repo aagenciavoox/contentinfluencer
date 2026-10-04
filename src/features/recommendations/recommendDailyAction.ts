@@ -93,7 +93,7 @@ export function recommendDailyAction({
         },
         contentIds: postCandidate.metrics.postableContentIds,
         message: `${formatRoom(gap)} de "${pilar.nome}" neste ciclo. A série "${postCandidate.serie.name}" tem ${formatCount(postCandidate.metrics.gravadosProntos, 'roteiro gravado', 'roteiros gravados')} e ${formatLastPublication(postCandidate.metrics.ultimaPublicacao)}.`,
-        href: '/calendario?modo=agendar',
+        href: '/calendario',
       };
     }
 

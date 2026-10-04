@@ -21,6 +21,7 @@ export const initialState: AppState = {
   recordingBlocks: [],
   templates: [],
   agendaItems: [],
+  postIts: [],
   goldenRules: [],
   contentMetrics: [],
   postingTimeEntries: [],

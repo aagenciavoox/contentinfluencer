@@ -337,6 +337,18 @@ CREATE TABLE public.templates (
   CONSTRAINT templates_platform_id_fkey FOREIGN KEY (platform_id) REFERENCES public.platforms(id),
   CONSTRAINT templates_series_id_fkey FOREIGN KEY (series_id) REFERENCES public.series(id)
 );
+CREATE TABLE public.planejamento_postits (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  texto text NOT NULL DEFAULT ''::text,
+  date date,
+  content_id uuid,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT planejamento_postits_pkey PRIMARY KEY (id),
+  CONSTRAINT planejamento_postits_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
+  CONSTRAINT planejamento_postits_content_id_fkey FOREIGN KEY (content_id) REFERENCES public.contents(id)
+);
 CREATE TABLE public.user_preferences (
   user_id uuid NOT NULL,
   key text NOT NULL,
