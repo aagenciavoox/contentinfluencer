@@ -1,10 +1,21 @@
 import type {CSSProperties} from 'react';
-import {GripVertical} from 'lucide-react';
+import {Columns3, Filter, GripVertical, Layers, type LucideIcon} from 'lucide-react';
 import {Badge} from '../../../components/ui/Badge';
-import {Text} from '../../../components/ui/Text';
 import {cn} from '../../../lib/utils';
 import type {Content} from '../../../lib/database';
 import {postItKind, postItTitle, type PlanejamentoPostIt} from '../lib/postIt';
+
+export type PostItMark = {
+  kind: 'serie' | 'funil' | 'pilar';
+  nome: string;
+  cor: string;
+};
+
+const MARK_ICON: Record<PostItMark['kind'], LucideIcon> = {
+  serie: Layers,
+  funil: Filter,
+  pilar: Columns3,
+};
 
 export const POST_IT_MIME = 'application/x-planejamento-postit';
 
@@ -44,19 +55,18 @@ export function PostItNote({
   onOpen,
   compact = false,
   seriesColor = null,
-  pilar = null,
+  marks = [],
 }: {
   postIt: PlanejamentoPostIt;
   content: Content | null;
   onOpen: () => void;
   compact?: boolean;
   seriesColor?: string | null;
-  pilar?: {nome: string; cor: string} | null;
+  marks?: PostItMark[];
 }) {
   const kind = postItKind(postIt, content);
   const accent = kind === 'vazio' ? null : seriesColor?.trim() || null;
-  const pilarNome = kind === 'vazio' ? '' : pilar?.nome?.trim() || '';
-  const pilarCor = kind === 'vazio' ? '' : pilar?.cor?.trim() || '';
+  const visibleMarks = kind === 'vazio' ? [] : marks;
   return (
     <div
       role="button"
@@ -86,22 +96,7 @@ export function PostItNote({
     >
       <GripVertical className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[var(--text-tertiary)]" aria-hidden />
       <span className="min-w-0 flex-1">
-        {pilarNome || pilarCor ? (
-          <span className="mb-1 flex min-w-0 items-start gap-1">
-            {pilarCor ? (
-              <span
-                className="mt-0.5 h-2 w-2 shrink-0 rounded-full border border-[var(--border-color)]"
-                style={{backgroundColor: pilarCor}}
-                aria-hidden
-              />
-            ) : null}
-            {pilarNome ? (
-              <Text variant="meta" as="span" className="min-w-0 whitespace-normal break-words">
-                {pilarNome}
-              </Text>
-            ) : null}
-          </span>
-        ) : null}
+        <PostItIdentity marks={visibleMarks} />
         <span
           className={cn(
             'block min-w-0 whitespace-normal break-words font-semibold leading-snug text-[var(--text-primary)]',
@@ -117,5 +112,24 @@ export function PostItNote({
         )}
       </span>
     </div>
+  );
+}
+
+export function PostItIdentity({marks}: {marks: PostItMark[]}) {
+  if (marks.length === 0) return null;
+  return (
+    <span className="mb-1 flex items-center gap-1.5">
+      {marks.map(mark => {
+        const Icon = MARK_ICON[mark.kind];
+        return (
+          <span key={mark.kind} title={mark.nome} aria-label={mark.nome} className="group/mark relative inline-flex">
+            <Icon className="h-3.5 w-3.5 shrink-0" style={{color: mark.cor}} aria-hidden />
+            <span className="pointer-events-none absolute bottom-full left-1/2 z-20 mb-1 hidden -translate-x-1/2 whitespace-nowrap rounded-[var(--radius-sm)] bg-[var(--text-primary)] px-1.5 py-0.5 text-2xs text-[var(--bg-elevated)] group-hover/mark:block">
+              {mark.nome}
+            </span>
+          </span>
+        );
+      })}
+    </span>
   );
 }

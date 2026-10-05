@@ -22,7 +22,8 @@ import {cn} from '../../../lib/utils';
 import {buildContentDetailRoute} from '../../contents/lib/contentDetailRoute';
 import {CONTENT_STATUS, normalizeContentStatus} from '../../contents/lib/contentPipeline';
 import {buildDetailBackState} from '../../../lib/navigation/detailBack';
-import {POST_IT_MIME, PostItNote} from '../components/PostItNote';
+import {FUNCAO_CURTA, FUNIL_DA_FUNCAO, funcaoHerdavelDaSerie, resolveFuncao} from '../../editorial/lib/funcoes';
+import {POST_IT_MIME, PostItIdentity, PostItNote, type PostItMark} from '../components/PostItNote';
 import {
   canPullContent,
   cancelPostItEdit,
@@ -43,18 +44,50 @@ function contentById(contents: Content[], id: string | null): Content | null {
   return contents.find(content => content.id === id) ?? null;
 }
 
+const FUNIL_COLOR = {
+  topo: 'var(--accent-blue)',
+  meio: 'var(--accent-purple)',
+  fundo: 'var(--accent-orange)',
+  fora: 'var(--text-tertiary)',
+} as const;
+
 function postItAppearance(
   content: Content | null,
   series: readonly Serie[],
   pilares: readonly Pilar[],
-): {seriesColor: string | null; pilar: {nome: string; cor: string} | null} {
-  if (!content) return {seriesColor: null, pilar: null};
+): {seriesColor: string | null; marks: PostItMark[]} {
+  if (!content) return {seriesColor: null, marks: []};
   const serie = content.seriesId ? series.find(item => item.id === content.seriesId) ?? null : null;
   const pilarId = content.pilarId || serie?.pilarPrincipalId || null;
   const pilar = pilarId ? pilares.find(item => item.id === pilarId) ?? null : null;
+  const resolved = resolveFuncao(content, serie);
+  const funcao = resolved.funcao ?? (resolved.estado === 'indefinida' ? funcaoHerdavelDaSerie(serie) : null);
+  const etapa = funcao ? FUNIL_DA_FUNCAO[funcao] : null;
+  const marks: PostItMark[] = [];
+  if (serie?.name?.trim()) {
+    marks.push({
+      kind: 'serie',
+      nome: serie.name.trim(),
+      cor: serie.cor?.trim() || 'var(--text-tertiary)',
+    });
+  }
+  if (funcao) {
+    marks.push({
+      kind: 'funil',
+      nome: etapa ? `${FUNCAO_CURTA[funcao]} · ${etapa[0].toUpperCase()}${etapa.slice(1)}` : FUNCAO_CURTA[funcao],
+      cor: FUNIL_COLOR[etapa ?? 'fora'],
+    });
+  }
+  if (pilar?.nome?.trim()) {
+    marks.push({
+      kind: 'pilar',
+      nome: pilar.nome.trim(),
+      cor: pilar.cor?.trim() || 'var(--text-tertiary)',
+    });
+  }
   return {
     seriesColor: serie?.cor?.trim() || null,
-    pilar: pilar ? {nome: pilar.nome, cor: pilar.cor} : null,
+    marks,
   };
 }
 
@@ -322,7 +355,7 @@ export function PlanejamentoPage() {
                         postIt={postIt}
                         content={content}
                         seriesColor={appearance.seriesColor}
-                        pilar={appearance.pilar}
+                        marks={appearance.marks}
                         compact
                         onOpen={() => {
                           setEditing(false);
@@ -397,7 +430,7 @@ export function PlanejamentoPage() {
                         postIt={postIt}
                         content={content}
                         seriesColor={appearance.seriesColor}
-                        pilar={appearance.pilar}
+                        marks={appearance.marks}
                         onOpen={() => {
                           setEditing(false);
                           setOpenId(postIt.id);
@@ -473,22 +506,7 @@ export function PlanejamentoPage() {
                       ? {borderColor: openAppearance.seriesColor}
                       : undefined}
                   >
-                    {openKind !== 'vazio' && openAppearance.pilar ? (
-                      <span className="mb-2 flex min-w-0 items-start gap-1.5">
-                        {openAppearance.pilar.cor ? (
-                          <span
-                            className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full border border-[var(--border-color)]"
-                            style={{backgroundColor: openAppearance.pilar.cor}}
-                            aria-hidden
-                          />
-                        ) : null}
-                        {openAppearance.pilar.nome ? (
-                          <Text variant="meta" as="span" className="min-w-0 whitespace-normal break-words">
-                            {openAppearance.pilar.nome}
-                          </Text>
-                        ) : null}
-                      </span>
-                    ) : null}
+                    {openKind !== 'vazio' ? <PostItIdentity marks={openAppearance.marks} /> : null}
                     <Text variant="itemTitle">{openContent.title?.trim() || 'Sem título'}</Text>
                     <Text variant="meta" className="mt-1 block text-[var(--text-secondary)]">
                       Puxado para este dia. O status continua {normalizeContentStatus(openContent.status)} até você transformar.
