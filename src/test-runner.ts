@@ -31,6 +31,7 @@ await import('./features/settings/lib/writingWorkspace.test.ts');
 await import('./features/recommendations/recommendDailyAction.test.ts');
 await import('./features/settings/lib/pilarPostingSchedule.test.ts');
 await import('./features/settings/lib/pilarConstants.test.ts');
+await import('./features/settings/lib/serieColors.test.ts');
 await import('./features/editorial/lib/editorialSettings.test.ts');
 await import('./features/editorial/lib/serieCompleteness.test.ts');
 await import('./features/editorial/lib/funcoes.test.ts');

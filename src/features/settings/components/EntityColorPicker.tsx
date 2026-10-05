@@ -19,30 +19,44 @@ function swatchInk(hex: string): string {
 export function EntityColorPicker({
   value,
   onChange,
+  unavailableColors = [],
 }: {
   value: string;
   onChange: (color: string) => void;
+  unavailableColors?: readonly string[];
 }) {
   const selected = normalizeEntityColor(value || '');
   const pickerValue = /^#[0-9A-F]{6}$/.test(selected) ? selected : '#6366F1';
+  const unavailable = new Set(unavailableColors.map(color => normalizeEntityColor(color)));
+  const selectedTaken = unavailable.has(selected);
+
+  const choose = (color: string) => {
+    const next = normalizeEntityColor(color);
+    if (unavailable.has(next)) return;
+    onChange(next);
+  };
 
   return (
     <div>
       <div className="grid w-full grid-cols-8 justify-items-center gap-y-2.5">
         {PILAR_PRESET_CORES.map(color => {
           const isSelected = selected === color;
+          const isTaken = unavailable.has(color);
           return (
             <button
               key={color}
               type="button"
-              onClick={() => onChange(color)}
-              aria-label={`Cor ${entityColorLabel(color)}`}
+              onClick={() => choose(color)}
+              disabled={isTaken}
+              aria-label={isTaken ? `Cor ${entityColorLabel(color)} já usada em outra série` : `Cor ${entityColorLabel(color)}`}
               aria-pressed={isSelected}
               className={cn(
                 'relative flex aspect-square w-full max-w-14 items-center justify-center rounded-full border-2 transition-transform focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
+                isTaken && 'cursor-not-allowed opacity-30',
                 isSelected
                   ? 'scale-105 border-[var(--text-primary)]'
-                  : 'border-[var(--border-color)] hover:scale-105',
+                  : 'border-[var(--border-color)]',
+                !isSelected && !isTaken && 'hover:scale-105',
               )}
               style={{ backgroundColor: color }}
             >
@@ -58,7 +72,7 @@ export function EntityColorPicker({
           <input
             type="color"
             value={pickerValue.toLowerCase()}
-            onChange={event => onChange(normalizeEntityColor(event.target.value))}
+            onChange={event => choose(event.target.value)}
             aria-label="Escolher outra cor"
             className="h-8 w-10 cursor-pointer rounded-[var(--radius-input)] border border-[var(--border-color)] bg-transparent p-0.5"
           />
@@ -66,8 +80,8 @@ export function EntityColorPicker({
             Outra cor
           </Text>
         </label>
-        <Text variant="meta" className="text-[var(--text-tertiary)]">
-          {entityColorLabel(selected)}
+        <Text variant="meta" className={selectedTaken ? 'text-[var(--accent-red)]' : 'text-[var(--text-tertiary)]'}>
+          {selectedTaken ? 'Essa cor já está em outra série.' : entityColorLabel(selected)}
         </Text>
       </div>
     </div>

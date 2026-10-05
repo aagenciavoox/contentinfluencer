@@ -20,6 +20,7 @@ import { forceMobileRefresh } from '../../lib/pwaRefresh';
 import { LOADING } from '../../lib/uiCopy';
 import { getModuleFlags } from '../../features/settings/lib/moduleFlags';
 import { prefetchPrimaryRoutes } from '../../app/router/routePrefetch';
+import { seriesNeedingUniqueColors } from '../../features/settings/lib/serieColors';
 
 function AppDataLoadingScreen() {
   return (
@@ -38,7 +39,7 @@ export function AppShell() {
   const isMobile = useIsMobile();
   const location = useLocation();
   const navigate = useNavigate();
-  const { state, syncFromServer } = useAppContext();
+  const { state, syncFromServer, dispatch } = useAppContext();
   const { isHidden, handleScroll } = useHideOnScroll(isMobile);
   const moduleFlags = getModuleFlags(state.preferences);
 
@@ -72,6 +73,14 @@ export function AppShell() {
   const handlePullRefresh = useCallback(async () => {
     await forceMobileRefresh(() => syncFromServer({ silent: true, force: true }));
   }, [syncFromServer]);
+
+  useEffect(() => {
+    if (!state.isLoaded) return;
+    const fixes = seriesNeedingUniqueColors(state.series);
+    for (const serie of fixes) {
+      dispatch({type: 'UPDATE_SERIE', payload: serie});
+    }
+  }, [dispatch, state.isLoaded, state.series]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {

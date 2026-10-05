@@ -1,4 +1,5 @@
 import type { AppState } from '../app/providers/appState';
+import { nextFreeSerieColor, serieColorKey } from '../features/settings/lib/serieColors';
 import { removerLivroId } from '../lib/livroIds.ts';
 import {
   archiveCreation,
@@ -157,6 +158,13 @@ function deriveTheme(prefs: Record<string, string>): 'light' | 'dark' {
 // ============================================================================
 // REDUCER
 // ============================================================================
+
+function serieWithFreeColor(serie: Serie, series: readonly Serie[]): Serie {
+  const key = serieColorKey(serie.cor);
+  const taken = Boolean(key) && series.some(item => item.id !== serie.id && serieColorKey(item.cor) === key);
+  if (key && !taken) return serie.cor === key ? serie : {...serie, cor: key};
+  return {...serie, cor: nextFreeSerieColor(series, serie.id)};
+}
 
 export function appReducer(state: AppState, action: AppAction): AppState {
   switch (action.type) {
@@ -347,9 +355,9 @@ export function appReducer(state: AppState, action: AppAction): AppState {
 
     // ─── Séries ─────────────────────────────────────────────────────────────
     case 'ADD_SERIE':
-      return { ...state, series: [...state.series, action.payload] };
+      return { ...state, series: [...state.series, serieWithFreeColor(action.payload, state.series)] };
     case 'UPDATE_SERIE':
-      return { ...state, series: state.series.map(s => s.id === action.payload.id ? action.payload : s) };
+      return { ...state, series: state.series.map(s => s.id === action.payload.id ? serieWithFreeColor(action.payload, state.series) : s) };
     case 'DELETE_SERIE':
       return {
         ...state,

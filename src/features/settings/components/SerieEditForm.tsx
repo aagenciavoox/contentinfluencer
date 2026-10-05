@@ -18,6 +18,7 @@ import { TemplatesSettingsPage } from '../pages/TemplatesSettingsPage';
 import { cn } from '../../../lib/utils';
 import { generateUUID } from '../../../utils/uuid';
 import { EntityColorPicker } from './EntityColorPicker';
+import { isSerieColorTaken } from '../lib/serieColors';
 import { ChoiceChips } from '../../editorial/components/ChoiceChips';
 import { OpenInfoNotice } from '../../editorial/components/OpenInfoNotice';
 import {
@@ -156,6 +157,7 @@ export function SerieEditForm({
   onChromeChange,
   usedFormatoValues = [],
   showOpenInfoNotice = false,
+  takenColors = [],
 }: {
   initial: Partial<Serie>;
   platformNames: string[];
@@ -166,6 +168,7 @@ export function SerieEditForm({
   onChromeChange?: (state: SerieEditChromeState) => void;
   usedFormatoValues?: Array<string | null | undefined>;
   showOpenInfoNotice?: boolean;
+  takenColors?: readonly string[];
 }) {
   const initialSnapshot = useRef({
     form: {
@@ -213,7 +216,11 @@ export function SerieEditForm({
     return false;
   }, [form]);
 
-  const canSave = Boolean(form.name.trim());
+  const colorTaken = isSerieColorTaken(
+    takenColors.map((cor, index) => ({id: `taken-${index}`, cor})),
+    form.cor,
+  );
+  const canSave = Boolean(form.name.trim()) && !colorTaken;
 
   const updatePlatformHashtags = (platformId: string, hashtags: string) => {
     const current = [...form.plataformas];
@@ -231,7 +238,7 @@ export function SerieEditForm({
   };
 
   const handleSave = useCallback(() => {
-    if (!form.name.trim()) return;
+    if (!form.name.trim() || colorTaken) return;
 
     onSave({
       id: form.id,
@@ -260,7 +267,7 @@ export function SerieEditForm({
       createdAt: initial.createdAt || new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     });
-  }, [form, initial.createdAt, onSave, platformNames]);
+  }, [colorTaken, form, initial.createdAt, onSave, platformNames]);
 
   const onChromeChangeRef = useRef(onChromeChange);
   const handleSaveRef = useRef(handleSave);
@@ -401,6 +408,7 @@ export function SerieEditForm({
                 <FieldLabel>Cor</FieldLabel>
                 <EntityColorPicker
                   value={form.cor}
+                  unavailableColors={takenColors}
                   onChange={cor => setForm(previous => ({...previous, cor}))}
                 />
               </div>

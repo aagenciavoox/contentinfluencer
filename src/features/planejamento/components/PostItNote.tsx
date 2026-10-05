@@ -16,9 +16,9 @@ const KIND_LABEL = {
 
 const KIND_SURFACE = {
   vazio: cn(
-    'border-[color-mix(in_srgb,var(--accent-orange)_42%,var(--border-color))]',
-    'bg-[color-mix(in_srgb,var(--accent-orange)_18%,var(--bg-elevated))]',
-    'hover:bg-[color-mix(in_srgb,var(--accent-orange)_28%,var(--bg-elevated))]',
+    'border-[color-mix(in_srgb,var(--status-archived)_55%,var(--border-color))]',
+    'bg-[color-mix(in_srgb,var(--status-archived)_28%,var(--bg-elevated))]',
+    'hover:bg-[color-mix(in_srgb,var(--status-archived)_40%,var(--bg-elevated))]',
   ),
   ideia: cn(
     'border-[color-mix(in_srgb,var(--accent-purple)_42%,var(--border-color))]',

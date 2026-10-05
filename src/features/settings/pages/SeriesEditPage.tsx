@@ -25,6 +25,7 @@ import {
   SerieEditForm,
   type SerieEditChromeState,
 } from '../components/SerieEditForm';
+import {nextFreeSerieColor, takenSerieColorKeys} from '../lib/serieColors';
 
 function SerieEditHeaderActions({
   isDirty,
@@ -189,7 +190,8 @@ export function SeriesEditPage() {
   const formElement = (
     <SerieEditForm
       key={formKey}
-      initial={editingSerie ?? {}}
+      initial={editingSerie ?? {cor: nextFreeSerieColor(state.series)}}
+      takenColors={[...takenSerieColorKeys(state.series, editingSerie?.id)]}
       platformNames={platformNames}
       pilares={state.pilares}
       contents={state.contents}

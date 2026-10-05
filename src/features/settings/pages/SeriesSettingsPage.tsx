@@ -24,6 +24,7 @@ import { generateUUID } from '../../../utils/uuid';
 import { getEditorialSettings } from '../../editorial/lib/editorialSettings';
 import { getSerieOpenItems } from '../../editorial/lib/serieCompleteness';
 import { PILAR_PRESET_CORES } from '../lib/pilarConstants';
+import { isSerieColorTaken, nextFreeSerieColor, serieColorKey, takenSerieColorKeys } from '../lib/serieColors';
 
 type SeriesFilter = 'todas' | 'ativas' | 'inativas';
 
@@ -48,11 +49,12 @@ export function SeriesSettingsPage() {
   const [filter, setFilter] = useState<SeriesFilter>('todas');
   const [quickCreateOpen, setQuickCreateOpen] = useState(false);
   const [quickName, setQuickName] = useState('');
-  const [quickColor, setQuickColor] = useState(PILAR_PRESET_CORES[0] || '#6366f1');
+  const [quickColor, setQuickColor] = useState(() => nextFreeSerieColor([]));
   const editorialSettings = getEditorialSettings(state.preferences);
 
   const openCreatePage = () => {
     if (editorialSettings.quickSeriesCreate) {
+      setQuickColor(nextFreeSerieColor(state.series));
       setQuickCreateOpen(true);
       return;
     }
@@ -73,7 +75,7 @@ export function SeriesSettingsPage() {
       formatoVisualPadrao: null,
       estruturaRoteiro: null,
       bordao: null,
-      cor: quickColor,
+      cor: isSerieColorTaken(state.series, quickColor) ? nextFreeSerieColor(state.series) : quickColor,
       capaUrl: null,
       ativa: true,
       frequenciaRecomendada: null,
@@ -159,6 +161,7 @@ export function SeriesSettingsPage() {
           open={quickCreateOpen}
           name={quickName}
           color={quickColor}
+          takenColors={[...takenSerieColorKeys(state.series)]}
           onNameChange={setQuickName}
           onColorChange={setQuickColor}
           onClose={() => setQuickCreateOpen(false)}
@@ -277,6 +280,7 @@ export function SeriesSettingsPage() {
         open={quickCreateOpen}
         name={quickName}
         color={quickColor}
+        takenColors={[...takenSerieColorKeys(state.series)]}
         onNameChange={setQuickName}
         onColorChange={setQuickColor}
         onClose={() => setQuickCreateOpen(false)}
@@ -290,6 +294,7 @@ function QuickCreateSheet({
   open,
   name,
   color,
+  takenColors,
   onNameChange,
   onColorChange,
   onClose,
@@ -298,11 +303,13 @@ function QuickCreateSheet({
   open: boolean;
   name: string;
   color: string;
+  takenColors: readonly string[];
   onNameChange: (value: string) => void;
   onColorChange: (value: string) => void;
   onClose: () => void;
   onCreate: () => void;
 }) {
+  const taken = new Set(takenColors);
   return (
     <BottomSheetModal open={open} onClose={onClose} desktopMaxW="max-w-md">
       <OverlayHeader onClose={onClose}>
@@ -323,17 +330,21 @@ function QuickCreateSheet({
         <div>
           <Text variant="label" className="mb-2 block">Cor</Text>
           <div className="flex flex-wrap gap-2">
-            {PILAR_PRESET_CORES.map(item => (
-              <button
-                key={item}
-                type="button"
-                aria-label={`Escolher cor ${item}`}
-                aria-pressed={color === item}
-                onClick={() => onColorChange(item)}
-                className="h-9 w-9 rounded-full border-2 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
-                style={{ backgroundColor: item, borderColor: color === item ? 'var(--text-primary)' : 'transparent' }}
-              />
-            ))}
+            {PILAR_PRESET_CORES.map(item => {
+              const used = taken.has(serieColorKey(item) || item);
+              return (
+                <button
+                  key={item}
+                  type="button"
+                  disabled={used}
+                  aria-label={used ? `Cor ${item} já usada em outra série` : `Escolher cor ${item}`}
+                  aria-pressed={color === item}
+                  onClick={() => onColorChange(item)}
+                  className="h-9 w-9 rounded-full border-2 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] disabled:cursor-not-allowed disabled:opacity-30"
+                  style={{ backgroundColor: item, borderColor: color === item ? 'var(--text-primary)' : 'transparent' }}
+                />
+              );
+            })}
           </div>
         </div>
       </OverlayBody>
