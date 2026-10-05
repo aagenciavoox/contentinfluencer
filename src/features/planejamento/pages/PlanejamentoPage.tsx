@@ -22,7 +22,11 @@ import {cn} from '../../../lib/utils';
 import {buildContentDetailRoute} from '../../contents/lib/contentDetailRoute';
 import {CONTENT_STATUS, normalizeContentStatus} from '../../contents/lib/contentPipeline';
 import {buildDetailBackState} from '../../../lib/navigation/detailBack';
+import {getEditorialSettings} from '../../editorial/lib/editorialSettings';
+import {distribuicaoFecha} from '../../editorial/lib/gradeCounts';
 import {FUNCAO_CURTA, FUNIL_DA_FUNCAO, funcaoHerdavelDaSerie, resolveFuncao} from '../../editorial/lib/funcoes';
+import {MonthHealth} from '../components/MonthHealth';
+import {periodoDoMes, saudeDoMes} from '../lib/monthHealth';
 import {POST_IT_MIME, PostItIdentity, PostItNote, type PostItMark} from '../components/PostItNote';
 import {
   canPullContent,
@@ -149,6 +153,21 @@ export function PlanejamentoPage() {
     () => postIts.filter(postIt => !postIt.date),
     [postIts],
   );
+
+  const monthHealth = useMemo(() => {
+    const settings = getEditorialSettings(state.preferences);
+    return {
+      counts: saudeDoMes({
+        postIts,
+        contents,
+        series: state.series,
+        pilares: state.pilares,
+        settings,
+        periodo: periodoDoMes(month),
+      }),
+      temDistribuicao: distribuicaoFecha(settings.distribuicaoFuncoes),
+    };
+  }, [postIts, contents, state.series, state.pilares, state.preferences, month]);
 
   const applyList = (next: PlanejamentoPostIt[]) => {
     const {added, updated} = changedPostIts(postIts, next);
@@ -318,6 +337,11 @@ export function PlanejamentoPage() {
           viewMode="month"
           onViewModeChange={() => undefined}
           views={[]}
+        />
+        <MonthHealth
+          counts={monthHealth.counts}
+          pilares={state.pilares}
+          temDistribuicao={monthHealth.temDistribuicao}
         />
 
         <div className={cn('grid items-start gap-4', undated.length > 0 && 'xl:grid-cols-[minmax(0,1fr)_18rem]')}>
