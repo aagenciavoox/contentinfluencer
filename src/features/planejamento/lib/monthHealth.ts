@@ -1,9 +1,9 @@
 import {endOfMonth, format, startOfMonth} from 'date-fns';
 import type {Content, Pilar, Serie} from '../../../lib/database.ts';
 import {buildGradeEntries, type GradeEntry} from '../../editorial/lib/gradeEntries.ts';
-import {countGrade, type GradeCounts, type PeriodoGrade} from '../../editorial/lib/gradeCounts.ts';
+import {countGrade, distribuicaoFecha, type GradeCounts, type PeriodoGrade} from '../../editorial/lib/gradeCounts.ts';
 import type {EditorialSettings} from '../../editorial/lib/editorialSettings.ts';
-import {funcaoHerdavelDaSerie, resolveFuncao} from '../../editorial/lib/funcoes.ts';
+import {FUNCAO_CURTA, funcaoHerdavelDaSerie, resolveFuncao} from '../../editorial/lib/funcoes.ts';
 import {pilarPrincipalDaSerie} from '../../editorial/lib/pilarDaSerie.ts';
 import type {PlanejamentoPostIt} from './postIt.ts';
 
@@ -125,6 +125,90 @@ export function seriesDoPilarNoMes(
     linhas.push({id: 'sem-serie', nome: 'Sem série', cor: null, quantidade: semSerie});
   }
   return linhas;
+}
+
+export type TomDaSaude = 'vazio' | 'metade' | 'completo' | 'passou';
+
+/** Nenhum ou abaixo da metade fica vermelho. Da metade até a meta, amarelo. Na meta, verde. */
+export function tomDaSaude(planejado: number, meta: number): TomDaSaude {
+  if (meta <= 0) return planejado > 0 ? 'passou' : 'vazio';
+  if (planejado > meta) return 'passou';
+  if (planejado === meta) return 'completo';
+  if (planejado * 2 >= meta) return 'metade';
+  return 'vazio';
+}
+
+export type ExcessoMes = {
+  nome: string;
+  planejado: number;
+  meta: number;
+};
+
+export function periodoDaData(date: string): PeriodoGrade {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
+  if (!match) return {inicio: date, fim: date};
+  const last = new Date(Number(match[1]), Number(match[2]), 0).getDate();
+  const prefix = `${match[1]}-${match[2]}`;
+  return {inicio: `${prefix}-01`, fim: `${prefix}-${String(last).padStart(2, '0')}`};
+}
+
+/**
+ * Avisa quando este conteúdo ainda não está no mês e o próximo espaço passa da meta do pilar ou da função.
+ */
+export function excessosAoAcrescentar({
+  content,
+  date,
+  postIts,
+  contents,
+  series,
+  pilares,
+  settings,
+}: {
+  content: Content | null;
+  date: string | null;
+  postIts: readonly PlanejamentoPostIt[];
+  contents: readonly Content[];
+  series: readonly Serie[];
+  pilares: readonly Pilar[];
+  settings: Pick<EditorialSettings, 'redeReferenciaId' | 'distribuicaoFuncoes'>;
+}): ExcessoMes[] {
+  if (!content || !date || content.contaNaGrade === false || content.deletedAt || content.archivedAt) return [];
+  const saude = saudeDoMes({
+    postIts,
+    contents,
+    series,
+    pilares,
+    settings,
+    periodo: periodoDaData(date),
+  });
+  const jaConta = saude.entries.some(entry =>
+    entry.tipo === 'original' && entry.contaNaGrade && entry.contentId === content.id,
+  );
+  if (jaConta) return [];
+
+  const serie = content.seriesId ? series.find(item => item.id === content.seriesId) : undefined;
+  const resolved = resolveFuncao(content, serie);
+  const funcao = resolved.funcao ?? (resolved.estado === 'indefinida' ? funcaoHerdavelDaSerie(serie) : null);
+  const pilarId = content.pilarId || pilarPrincipalDaSerie(serie);
+  const excessos: ExcessoMes[] = [];
+
+  if (pilarId) {
+    const linha = saude.pilares.find(item => item.id === pilarId);
+    if (linha && linha.meta > 0 && linha.planejado >= linha.meta) {
+      excessos.push({nome: linha.rotulo, planejado: linha.planejado, meta: linha.meta});
+    }
+  }
+
+  if (funcao && distribuicaoFecha(settings.distribuicaoFuncoes)) {
+    const linha = saude.funcoes.find(item => item.id === funcao);
+    const meta = linha?.meta ?? 0;
+    const planejado = linha?.planejado ?? 0;
+    if (meta > 0 && planejado >= meta) {
+      excessos.push({nome: FUNCAO_CURTA[funcao], planejado, meta});
+    }
+  }
+
+  return excessos;
 }
 
 export function saudeDoMes({

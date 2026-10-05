@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import type {Pilar, Serie} from '../../../lib/database.ts';
 import {CONTENT_STATUS} from '../../contents/lib/contentPipeline.ts';
 import {createContentDraft} from '../../contents/lib/createContentDraft.ts';
-import {periodoDoMes, saudeDoMes, seriesDoPilarNoMes} from './monthHealth.ts';
+import {excessosAoAcrescentar, periodoDoMes, saudeDoMes, seriesDoPilarNoMes, tomDaSaude} from './monthHealth.ts';
 import type {PlanejamentoPostIt} from './postIt.ts';
 
 const PERIODO = {inicio: '2026-10-01', fim: '2026-10-31'};
@@ -173,5 +173,67 @@ testPostItHerdadoContaNoPilarENaFuncao();
 testPostItVazioNaoConta();
 testDataOficialContaQuandoNaoHaPostIt();
 testPostItNaoDuplicaOOriginalNoMesmoMes();
+function testTomDaSaude() {
+  assert.equal(tomDaSaude(0, 10), 'vazio');
+  assert.equal(tomDaSaude(4, 10), 'vazio');
+  assert.equal(tomDaSaude(5, 10), 'metade');
+  assert.equal(tomDaSaude(10, 10), 'completo');
+  assert.equal(tomDaSaude(11, 10), 'passou');
+}
+
+function testExcessoQuandoOPilarJaFechou() {
+  const cheio = {
+    ...pilar,
+    frequenciaSemanal: 1,
+  } as Pilar;
+  const contents = [0, 1, 2, 3, 4].map(index => createContentDraft({
+    id: `ideia-${index}`,
+    status: CONTENT_STATUS.IDEIA,
+    seriesId: serie.id,
+    publishDate: `2026-10-${String(index + 1).padStart(2, '0')}`,
+  }, serie));
+  const extra = createContentDraft({
+    id: 'ideia-extra',
+    status: CONTENT_STATUS.IDEIA,
+    seriesId: serie.id,
+    publishDate: null,
+  }, serie);
+  const lista = excessosAoAcrescentar({
+    content: extra,
+    date: '2026-10-20',
+    postIts: [],
+    contents: [...contents, extra],
+    series: [serie],
+    pilares: [cheio],
+    settings: {redeReferenciaId: null, distribuicaoFuncoes: PERCENTUAIS},
+  });
+  assert.equal(lista.length > 0, true);
+  assert.equal(lista[0]?.nome, 'Literatura');
+  assert.equal(lista[0]?.planejado, 5);
+  assert.equal(lista[0]?.meta, 5);
+}
+
+function testSemExcessoEnquantoAindaCabe() {
+  const content = createContentDraft({
+    id: 'ideia-cabe',
+    status: CONTENT_STATUS.IDEIA,
+    seriesId: serie.id,
+    publishDate: null,
+  }, serie);
+  const lista = excessosAoAcrescentar({
+    content,
+    date: '2026-10-20',
+    postIts: [],
+    contents: [content],
+    series: [serie],
+    pilares: [pilar],
+    settings: {redeReferenciaId: null, distribuicaoFuncoes: PERCENTUAIS},
+  });
+  assert.deepEqual(lista, []);
+}
+
 testPostItForaDoMesNaoConta();
 testSeriesDoPilarMostraQuantidadeEZero();
+testTomDaSaude();
+testExcessoQuandoOPilarJaFechou();
+testSemExcessoEnquantoAindaCabe();

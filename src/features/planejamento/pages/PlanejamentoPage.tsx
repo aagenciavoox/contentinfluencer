@@ -1,4 +1,4 @@
-import {useEffect, useMemo, useState, type DragEvent} from 'react';
+import {useEffect, useMemo, useRef, useState, type DragEvent} from 'react';
 import {useNavigate} from 'react-router-dom';
 import {format} from 'date-fns';
 import {ptBR} from 'date-fns/locale';
@@ -26,7 +26,7 @@ import {getEditorialSettings} from '../../editorial/lib/editorialSettings';
 import {distribuicaoFecha} from '../../editorial/lib/gradeCounts';
 import {FUNCAO_CURTA, FUNIL_DA_FUNCAO, funcaoHerdavelDaSerie, resolveFuncao} from '../../editorial/lib/funcoes';
 import {MonthHealth} from '../components/MonthHealth';
-import {periodoDoMes, saudeDoMes} from '../lib/monthHealth';
+import {excessosAoAcrescentar, periodoDoMes, saudeDoMes, type ExcessoMes} from '../lib/monthHealth';
 import {POST_IT_MIME, PostItIdentity, PostItNote, type PostItMark} from '../components/PostItNote';
 import {
   canPullContent,
@@ -126,6 +126,8 @@ export function PlanejamentoPage() {
   const [pullQuery, setPullQuery] = useState('');
   const [noteDraft, setNoteDraft] = useState('');
   const [dateDraft, setDateDraft] = useState<string | null>(null);
+  const [avisos, setAvisos] = useState<ExcessoMes[] | null>(null);
+  const avisoPendente = useRef<(() => void) | null>(null);
 
   const contents = state.contents;
   const postIts = state.postIts ?? [];
@@ -182,10 +184,35 @@ export function PlanejamentoPage() {
     setOpenId(postIt.id);
   };
 
+  const fecharAviso = () => {
+    avisoPendente.current = null;
+    setAvisos(null);
+  };
+
+  const confirmarSeCouber = (content: Content | null, date: string | null, commit: () => void) => {
+    const lista = excessosAoAcrescentar({
+      content,
+      date,
+      postIts,
+      contents,
+      series: state.series,
+      pilares: state.pilares,
+      settings: getEditorialSettings(state.preferences),
+    });
+    if (lista.length === 0) {
+      commit();
+      return;
+    }
+    avisoPendente.current = commit;
+    setAvisos(lista);
+  };
+
   const moveTo = (postItId: string, date: string | null) => {
     const postIt = postIts.find(item => item.id === postItId);
     if (!postIt || postIt.date === date) return;
-    dispatch({type: 'UPDATE_POST_IT', payload: movePostIt(postIt, date)});
+    confirmarSeCouber(contentById(contents, postIt.contentId), date, () => {
+      dispatch({type: 'UPDATE_POST_IT', payload: movePostIt(postIt, date)});
+    });
   };
 
   const readDragId = (event: DragEvent) =>
@@ -198,9 +225,11 @@ export function PlanejamentoPage() {
       date,
     });
     if (!result.pulled) return;
-    applyList(result.postIts);
-    setPullOpen(false);
-    setPullQuery('');
+    confirmarSeCouber(content, date, () => {
+      applyList(result.postIts);
+      setPullOpen(false);
+      setPullQuery('');
+    });
   };
 
   const closePostIt = () => {
@@ -227,12 +256,14 @@ export function PlanejamentoPage() {
   const saveEdit = () => {
     if (!openPostIt) return;
     const saved = savePostItEdit(openPostIt, {texto: noteDraft, date: dateDraft});
-    if (saved.texto !== openPostIt.texto || saved.date !== openPostIt.date) {
-      dispatch({type: 'UPDATE_POST_IT', payload: saved});
-    }
-    setNoteDraft(saved.texto);
-    setDateDraft(saved.date);
-    setEditing(false);
+    confirmarSeCouber(openContent, saved.date, () => {
+      if (saved.texto !== openPostIt.texto || saved.date !== openPostIt.date) {
+        dispatch({type: 'UPDATE_POST_IT', payload: saved});
+      }
+      setNoteDraft(saved.texto);
+      setDateDraft(saved.date);
+      setEditing(false);
+    });
   };
 
   const removeOpenPostIt = () => {
@@ -663,6 +694,45 @@ export function PlanejamentoPage() {
             )}
           </div>
         </OverlayBody>
+      </Dialog>
+      <Dialog
+        open={Boolean(avisos?.length)}
+        onClose={fecharAviso}
+        desktopMaxW="max-w-md"
+        zIndex="z-[140]"
+        ariaLabel="Passa do editorial"
+      >
+        <div className="flex h-full min-h-0 flex-col bg-[var(--bg-elevated)]">
+          <OverlayHeader title="Passa do editorial" onClose={fecharAviso} />
+          <OverlayBody>
+            <div className="stack-sm">
+              {(avisos ?? []).map(aviso => (
+                <Text key={aviso.nome} variant="body">
+                  {aviso.nome} já tem {aviso.planejado} de {aviso.meta} neste mês.
+                </Text>
+              ))}
+              <Text variant="secondary">
+                Colocar mais um passa do que foi definido no editorial.
+              </Text>
+            </div>
+          </OverlayBody>
+          <OverlayFooter>
+            <AppButton variant="secondary" fullWidth onClick={fecharAviso}>
+              Não colocar
+            </AppButton>
+            <AppButton
+              variant="primary"
+              fullWidth
+              onClick={() => {
+                const commit = avisoPendente.current;
+                fecharAviso();
+                commit?.();
+              }}
+            >
+              Colocar mesmo assim
+            </AppButton>
+          </OverlayFooter>
+        </div>
       </Dialog>
     </PageLayout>
   );

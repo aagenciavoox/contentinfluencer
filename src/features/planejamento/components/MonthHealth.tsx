@@ -8,7 +8,7 @@ import type {Pilar, Serie} from '../../../lib/database';
 import type {GradeEntry} from '../../editorial/lib/gradeEntries';
 import type {GradeCounts, LinhaContagem} from '../../editorial/lib/gradeCounts';
 import {FUNCAO_CURTA, FUNIL_DA_FUNCAO, isFuncaoEditorial} from '../../editorial/lib/funcoes';
-import {seriesDoPilarNoMes} from '../lib/monthHealth';
+import {seriesDoPilarNoMes, tomDaSaude, type TomDaSaude} from '../lib/monthHealth';
 
 const FUNIL_COLOR = {
   topo: 'var(--accent-blue)',
@@ -17,18 +17,12 @@ const FUNIL_COLOR = {
   fora: 'var(--text-tertiary)',
 } as const;
 
-function tom(planejado: number, meta: number): 'met' | 'deficit' | 'over' {
-  if (meta <= 0) return planejado > 0 ? 'over' : 'met';
-  if (planejado > meta) return 'over';
-  if (planejado < meta) return 'deficit';
-  return 'met';
-}
-
-const TOM_COLOR = {
-  met: 'var(--accent-green)',
-  deficit: 'var(--accent-orange)',
-  over: 'var(--accent-red)',
-} as const;
+const TOM_COLOR: Record<TomDaSaude, string> = {
+  vazio: 'var(--accent-red)',
+  metade: 'var(--accent-orange)',
+  completo: 'var(--accent-green)',
+  passou: 'var(--accent-green)',
+};
 
 function HealthRow({
   label,
@@ -41,10 +35,11 @@ function HealthRow({
   linha: LinhaContagem;
   onOpen?: () => void;
 }) {
-  const estado = tom(linha.planejado, linha.meta);
+  const estado = tomDaSaude(linha.planejado, linha.meta);
   const pct = linha.meta > 0
     ? Math.min(100, Math.round((linha.planejado / linha.meta) * 100))
     : linha.planejado > 0 ? 100 : 0;
+  const situacao = estado === 'completo' ? 'completo' : estado === 'passou' ? 'passou' : null;
   return (
     <div className="min-w-[10rem] flex-1">
       <div className="flex items-center justify-between gap-2">
@@ -70,6 +65,11 @@ function HealthRow({
         </span>
         <Text variant="meta" as="span" className="shrink-0 text-[var(--text-secondary)]">
           {linha.planejado} de {linha.meta}
+          {situacao ? (
+            <span className={estado === 'passou' ? ' text-[var(--accent-red)]' : ' text-[var(--accent-green)]'}>
+              {` · ${situacao}`}
+            </span>
+          ) : null}
         </Text>
       </div>
       <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-[var(--bg-hover)]">
