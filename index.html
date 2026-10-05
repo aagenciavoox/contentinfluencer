@@ -32,6 +32,29 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      window.addEventListener('vite:preloadError', function (event) {
+        event.preventDefault();
+        var key = 'criaki-chunk-reload';
+        try {
+          if (sessionStorage.getItem(key) === '1') return;
+          sessionStorage.setItem(key, '1');
+        } catch (e) {}
+        var done = function () { window.location.reload(); };
+        if (!window.caches) {
+          done();
+          return;
+        }
+        window.caches.keys().then(function (keys) {
+          return Promise.all(keys.map(function (name) { return window.caches.delete(name); }));
+        }).then(function () {
+          if (!navigator.serviceWorker) return;
+          return navigator.serviceWorker.getRegistrations().then(function (registrations) {
+            return Promise.all(registrations.map(function (registration) { return registration.unregister(); }));
+          });
+        }).finally(done);
+      });
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

@@ -1,26 +1,28 @@
+import {importPage} from './chunkReload';
+
 type RouteLoader = () => Promise<unknown>;
 
-const loadDashboard = () => import('../../pages/Dashboard');
-const loadCreation = () => import('../../pages/Creation');
-const loadCaptions = () => import('../../pages/Legendas');
-const loadContentDetail = () => import('../../pages/ContentDetail');
-const loadCalendar = () => import('../../pages/EditorialCalendar');
-const loadPlanejamento = () => import('../../pages/Planejamento');
-const loadEditorial = () => import('../../pages/Editorial');
-const loadLibrary = () => import('../../pages/Biblioteca');
-const loadLibraryAnalysis = () => import('../../pages/Analise');
-const loadBookDetail = () => import('../../pages/BookDetail');
-const loadSettings = () => import('../../pages/Settings');
-const loadProfile = () => import('../../pages/settings/Perfil');
-const loadPillarEdit = () => import('../../pages/settings/PilarEditar');
-const loadSeries = () => import('../../pages/settings/Series');
-const loadSeriesEdit = () => import('../../pages/settings/SeriesEditar');
-const loadSeriesScripts = () => import('../../pages/settings/SeriesRoteiros');
-const loadPlatforms = () => import('../../pages/settings/Plataformas');
-const loadProjects = () => import('../../pages/Projetos');
-const loadProjectDetail = () => import('../../pages/ProjetoDetalhe');
-const loadRecording = () => import('../../pages/Gravacao');
-const loadRecordingBlock = () => import('../../pages/GravacaoBloco');
+const loadDashboard = () => importPage(() => import('../../pages/Dashboard'));
+const loadCreation = () => importPage(() => import('../../pages/Creation'));
+const loadCaptions = () => importPage(() => import('../../pages/Legendas'));
+const loadContentDetail = () => importPage(() => import('../../pages/ContentDetail'));
+const loadCalendar = () => importPage(() => import('../../pages/EditorialCalendar'));
+const loadPlanejamento = () => importPage(() => import('../../pages/Planejamento'));
+const loadEditorial = () => importPage(() => import('../../pages/Editorial'));
+const loadLibrary = () => importPage(() => import('../../pages/Biblioteca'));
+const loadLibraryAnalysis = () => importPage(() => import('../../pages/Analise'));
+const loadBookDetail = () => importPage(() => import('../../pages/BookDetail'));
+const loadSettings = () => importPage(() => import('../../pages/Settings'));
+const loadProfile = () => importPage(() => import('../../pages/settings/Perfil'));
+const loadPillarEdit = () => importPage(() => import('../../pages/settings/PilarEditar'));
+const loadSeries = () => importPage(() => import('../../pages/settings/Series'));
+const loadSeriesEdit = () => importPage(() => import('../../pages/settings/SeriesEditar'));
+const loadSeriesScripts = () => importPage(() => import('../../pages/settings/SeriesRoteiros'));
+const loadPlatforms = () => importPage(() => import('../../pages/settings/Plataformas'));
+const loadProjects = () => importPage(() => import('../../pages/Projetos'));
+const loadProjectDetail = () => importPage(() => import('../../pages/ProjetoDetalhe'));
+const loadRecording = () => importPage(() => import('../../pages/Gravacao'));
+const loadRecordingBlock = () => importPage(() => import('../../pages/GravacaoBloco'));
 
 /** Same import functions React.lazy uses, so a prefetch fills the module cache. */
 export const routeLoaders = {

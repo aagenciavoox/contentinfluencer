@@ -6,6 +6,7 @@ import { LoginRoute, RequireAuth } from './RequireAuth';
 import { ModuleRoute } from './ModuleRoute';
 import { RouteDataBoundary } from './RouteDataBoundary';
 import { LegacyCreationRedirect } from '../../features/creation/components/LegacyCreationRedirect';
+import { ChunkLoadError } from './ChunkLoadError';
 import { routeLoaders } from './routePrefetch';
 
 const Creation = lazy(() => routeLoaders.creation().then(module => ({ default: module.Creation })));
@@ -60,6 +61,7 @@ export function buildAppRoutes(): RouteObject[] {
           children: [
             {
               element: <RouteDataBoundary />,
+              errorElement: <ChunkLoadError />,
               children: [
                 { path: '/', element: <Navigate to="/criacao" replace /> },
                 { path: '/dashboard', element: <Navigate to="/criacao" replace /> },

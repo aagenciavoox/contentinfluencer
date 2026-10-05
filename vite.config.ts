@@ -78,15 +78,6 @@ export default defineConfig(() => {
           skipWaiting: true,
           runtimeCaching: [
             {
-              urlPattern: ({request}) => request.mode === 'navigate',
-              handler: 'NetworkFirst',
-              options: {
-                cacheName: 'pages',
-                networkTimeoutSeconds: 5,
-                expiration: {maxEntries: 8, maxAgeSeconds: 60 * 10},
-              },
-            },
-            {
               urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,
               handler: 'NetworkOnly',
             },
