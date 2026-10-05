@@ -28,6 +28,7 @@ interface CalendarMonthGridProps {
   minCellHeight?: number;
   expandContent?: boolean;
   className?: string;
+  tone?: 'flat' | 'elevated';
   renderDayContent: (props: CalendarMonthGridDayProps) => ReactNode;
   getDayClassName?: (props: CalendarMonthGridDayProps) => string | undefined;
   onDayClick?: (props: CalendarMonthGridDayProps, event: React.MouseEvent) => void;
@@ -47,6 +48,7 @@ export function CalendarMonthGrid({
   minCellHeight = 120,
   expandContent = false,
   className,
+  tone = 'flat',
   renderDayContent,
   getDayClassName,
   onDayClick,
@@ -79,12 +81,31 @@ export function CalendarMonthGrid({
     ? 'grid grid-cols-[9.5rem_repeat(7,minmax(0,1fr))]'
     : 'grid grid-cols-7';
 
+  const elevated = tone === 'elevated';
+  const headerLabelClass = elevated
+    ? 'text-xs font-semibold uppercase tracking-wide text-[var(--text-secondary)]'
+    : 'text-2xs font-semibold uppercase tracking-wide text-[var(--text-tertiary)]';
+
   return (
-    <div className={cn('w-full min-w-0 border border-[var(--border-color)] bg-[var(--bg-primary)]', className)}>
-      <div className={cn(columnClass, 'border-b border-[var(--border-color)]')}>
+    <div
+      className={cn(
+        'w-full min-w-0 border',
+        elevated
+          ? 'overflow-hidden rounded-[var(--radius-card)] border-[var(--border-strong)] bg-[var(--bg-elevated)] shadow-[var(--shadow-raised)]'
+          : 'border-[var(--border-color)] bg-[var(--bg-primary)]',
+        className,
+      )}
+    >
+      <div
+        className={cn(
+          columnClass,
+          'border-b',
+          elevated ? 'border-[var(--border-strong)] bg-[var(--surface-subtle)]' : 'border-[var(--border-color)]',
+        )}
+      >
         {renderWeekAside ? (
           <div className="flex min-w-0 items-center border-r border-[var(--border-color)] px-2 py-2">
-            <span className="text-2xs font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">
+            <span className={headerLabelClass}>
               {weekAsideLabel ?? 'Ritmo'}
             </span>
           </div>
@@ -94,7 +115,7 @@ export function CalendarMonthGrid({
             key={`header-${day.toISOString()}`}
             className="min-w-0 border-r border-[var(--border-color)] px-1 py-2 text-center last:border-r-0 sm:px-2"
           >
-            <span className="text-2xs font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">
+            <span className={headerLabelClass}>
               {format(day, 'EEE', {locale: ptBR}).replace('.', '')}. {format(day, 'd')}
             </span>
           </div>

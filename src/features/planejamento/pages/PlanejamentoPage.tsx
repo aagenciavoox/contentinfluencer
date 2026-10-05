@@ -381,8 +381,9 @@ export function PlanejamentoPage() {
           <CalendarMonthGrid
             anchorDate={month}
             weekStartsOn={0}
-            minCellHeight={148}
+            minCellHeight={168}
             expandContent
+            tone="elevated"
             getDayClassName={day => cn(
               dragOverDay === day.dateKey && 'bg-[color-mix(in_srgb,var(--accent-orange)_12%,transparent)]',
             )}
@@ -426,7 +427,7 @@ export function PlanejamentoPage() {
                       variant="ghost"
                       size="xs"
                       iconOnly
-                      className="h-6 w-6"
+                      className="h-7 w-7 text-[var(--text-secondary)]"
                       aria-label={`Novo post-it em ${dayLabel}`}
                       onClick={event => {
                         event.stopPropagation();
@@ -438,7 +439,7 @@ export function PlanejamentoPage() {
                       variant="ghost"
                       size="xs"
                       iconOnly
-                      className="h-6 w-6"
+                      className="h-7 w-7 text-[var(--text-secondary)]"
                       aria-label={`Puxar conteúdo para ${dayLabel}`}
                       onClick={event => {
                         event.stopPropagation();

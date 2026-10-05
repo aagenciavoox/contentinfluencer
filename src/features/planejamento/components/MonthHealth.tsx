@@ -24,7 +24,9 @@ const TOM_COLOR: Record<TomDaSaude, string> = {
   passou: 'var(--accent-green)',
 };
 
-function HealthRow({
+const CARD_GRID = 'grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6';
+
+function HealthCard({
   label,
   color,
   linha,
@@ -41,44 +43,38 @@ function HealthRow({
     : linha.planejado > 0 ? 100 : 0;
   const situacao = estado === 'completo' ? 'completo' : estado === 'passou' ? 'passou' : null;
   return (
-    <div className="min-w-[10rem] flex-1">
-      <div className="flex items-center justify-between gap-2">
-        <span className="flex min-w-0 items-center gap-1.5">
-          {color ? (
-            <span
-              className="h-2 w-2 shrink-0 rounded-full"
-              style={{backgroundColor: color}}
-              aria-hidden
-            />
-          ) : null}
-          {onOpen ? (
-            <button
-              type="button"
-              onClick={onOpen}
-              className="min-w-0 truncate rounded-[var(--radius-sm)] text-left text-[var(--text-primary)] underline-offset-2 hover:underline focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
-            >
-              <Text variant="meta" as="span">{label}</Text>
-            </button>
-          ) : (
-            <Text variant="meta" as="span" className="truncate text-[var(--text-primary)]">{label}</Text>
-          )}
-        </span>
-        <Text variant="meta" as="span" className="shrink-0 text-[var(--text-secondary)]">
-          {linha.planejado} de {linha.meta}
-          {situacao ? (
-            <span className={estado === 'passou' ? ' text-[var(--accent-red)]' : ' text-[var(--accent-green)]'}>
-              {` · ${situacao}`}
-            </span>
-          ) : null}
+    <Surface
+      padding="sm"
+      onClick={onOpen}
+      title={label}
+      aria-label={onOpen ? `${label}: ${linha.planejado} de ${linha.meta}. Ver séries` : undefined}
+      className="flex min-w-0 flex-col gap-2"
+    >
+      <span className="flex min-w-0 items-start gap-1.5">
+        <span
+          className="mt-1.5 h-2 w-2 shrink-0 rounded-full"
+          style={{backgroundColor: color ?? 'var(--text-tertiary)'}}
+          aria-hidden
+        />
+        <Text variant="bodyStrong" as="span" className="line-clamp-2 min-w-0 break-words">
+          {label}
         </Text>
-      </div>
-      <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-[var(--bg-hover)]">
-        <div
-          className="h-full rounded-full"
+      </span>
+      <Text variant="meta" as="span" className="text-[var(--text-secondary)]">
+        <span className="font-semibold text-[var(--text-primary)]">{linha.planejado}</span> de {linha.meta}
+        {situacao ? (
+          <span className={estado === 'passou' ? ' text-[var(--accent-red)]' : ' text-[var(--accent-green)]'}>
+            {` · ${situacao}`}
+          </span>
+        ) : null}
+      </Text>
+      <span className="block h-1 w-full overflow-hidden rounded-full bg-[var(--bg-hover)]" aria-hidden>
+        <span
+          className="block h-full rounded-full"
           style={{width: `${pct}%`, backgroundColor: TOM_COLOR[estado]}}
         />
-      </div>
-    </div>
+      </span>
+    </Surface>
   );
 }
 
@@ -107,7 +103,7 @@ export function MonthHealth({
         <Text variant="sectionTitle">Saúde do mês</Text>
         {counts.totalMeta > 0 ? (
           <Text variant="meta" className="text-[var(--text-secondary)]">
-            {counts.somaPlanejado} de {counts.totalMeta} espaços
+            <span className="font-semibold text-[var(--text-primary)]">{counts.somaPlanejado}</span> de {counts.totalMeta} espaços
           </Text>
         ) : null}
       </div>
@@ -119,9 +115,9 @@ export function MonthHealth({
           Os pilares ainda não têm espaços por semana. Defina isso no editorial para comparar o mês.
         </Text>
       ) : (
-        <div className="mt-3 flex flex-wrap gap-x-4 gap-y-3">
+        <div className={`mt-3 ${CARD_GRID}`}>
           {counts.pilares.map(linha => (
-            <HealthRow
+            <HealthCard
               key={linha.id}
               label={linha.rotulo}
               color={corDoPilar.get(linha.id) ?? null}
@@ -132,12 +128,12 @@ export function MonthHealth({
         </div>
       )}
       {temDistribuicao && counts.funcoes.length > 0 ? (
-        <div className="mt-3 flex flex-wrap gap-x-4 gap-y-3 border-t border-[var(--border-color)] pt-3">
+        <div className={`mt-3 border-t border-[var(--border-color)] pt-3 ${CARD_GRID}`}>
           {counts.funcoes.map(linha => {
             const funcao = isFuncaoEditorial(linha.id) ? linha.id : null;
             const etapa = funcao ? FUNIL_DA_FUNCAO[funcao] : null;
             return (
-              <HealthRow
+              <HealthCard
                 key={linha.id}
                 label={funcao ? FUNCAO_CURTA[funcao] : linha.rotulo}
                 color={FUNIL_COLOR[etapa ?? 'fora']}
