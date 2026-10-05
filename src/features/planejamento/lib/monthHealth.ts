@@ -76,6 +76,57 @@ export function entriesDaSaudeDoMes({
   return entries;
 }
 
+export type SaudeDoMes = GradeCounts & {
+  entries: readonly GradeEntry[];
+};
+
+export type SerieNoPilar = {
+  id: string;
+  nome: string;
+  cor: string | null;
+  quantidade: number;
+};
+
+/** Séries do pilar e quantas vezes cada uma entrou na saúde deste mês. */
+export function seriesDoPilarNoMes(
+  pilarId: string,
+  series: readonly Serie[],
+  entries: readonly GradeEntry[],
+): SerieNoPilar[] {
+  const quantidade = new Map<string, number>();
+  let semSerie = 0;
+  for (const entry of entries) {
+    if (!entry.contaNaGrade || entry.pilarId !== pilarId) continue;
+    if (!entry.serieId) {
+      semSerie += 1;
+      continue;
+    }
+    quantidade.set(entry.serieId, (quantidade.get(entry.serieId) ?? 0) + 1);
+  }
+
+  const linhas: SerieNoPilar[] = [];
+  for (const serie of series) {
+    const contagem = quantidade.get(serie.id) ?? 0;
+    const dentro = pilarPrincipalDaSerie(serie) === pilarId;
+    if (!dentro && contagem === 0) continue;
+    if (serie.ativa === false && contagem === 0) continue;
+    linhas.push({
+      id: serie.id,
+      nome: serie.name?.trim() || 'Sem nome',
+      cor: serie.cor?.trim() || null,
+      quantidade: contagem,
+    });
+    quantidade.delete(serie.id);
+  }
+
+  linhas.sort((left, right) => right.quantidade - left.quantidade || left.nome.localeCompare(right.nome, 'pt-BR'));
+
+  if (semSerie > 0) {
+    linhas.push({id: 'sem-serie', nome: 'Sem série', cor: null, quantidade: semSerie});
+  }
+  return linhas;
+}
+
 export function saudeDoMes({
   postIts,
   contents,
@@ -90,11 +141,15 @@ export function saudeDoMes({
   pilares: readonly Pilar[];
   settings: Pick<EditorialSettings, 'redeReferenciaId' | 'distribuicaoFuncoes'>;
   periodo: PeriodoGrade;
-}): GradeCounts {
-  return countGrade({
-    entries: entriesDaSaudeDoMes({postIts, contents, series, settings, periodo}),
-    pilares,
-    settings: {distribuicaoFuncoes: settings.distribuicaoFuncoes},
-    periodo,
-  });
+}): SaudeDoMes {
+  const entries = entriesDaSaudeDoMes({postIts, contents, series, settings, periodo});
+  return {
+    ...countGrade({
+      entries,
+      pilares,
+      settings: {distribuicaoFuncoes: settings.distribuicaoFuncoes},
+      periodo,
+    }),
+    entries,
+  };
 }

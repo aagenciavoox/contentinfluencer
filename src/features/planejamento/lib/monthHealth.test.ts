@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import type {Pilar, Serie} from '../../../lib/database.ts';
 import {CONTENT_STATUS} from '../../contents/lib/contentPipeline.ts';
 import {createContentDraft} from '../../contents/lib/createContentDraft.ts';
-import {periodoDoMes, saudeDoMes} from './monthHealth.ts';
+import {periodoDoMes, saudeDoMes, seriesDoPilarNoMes} from './monthHealth.ts';
 import type {PlanejamentoPostIt} from './postIt.ts';
 
 const PERIODO = {inicio: '2026-10-01', fim: '2026-10-31'};
@@ -125,9 +125,53 @@ function testPostItForaDoMesNaoConta() {
   assert.equal(counts.somaPlanejado, 0);
 }
 
+function testSeriesDoPilarMostraQuantidadeEZero() {
+  const outra = {
+    id: 'serie-2',
+    name: 'Bastidores',
+    funcaoPadrao: 'atrair',
+    pilarPrincipalId: 'pilar-2',
+    pilarIds: ['pilar-2'],
+    cor: '#112233',
+  } as Serie;
+  const vazia = {
+    id: 'serie-3',
+    name: 'Arquivo',
+    funcaoPadrao: null,
+    pilarPrincipalId: 'pilar-1',
+    pilarIds: ['pilar-1'],
+    cor: '#445566',
+  } as Serie;
+  const content = createContentDraft({
+    id: 'ideia-serie',
+    status: CONTENT_STATUS.IDEIA,
+    seriesId: serie.id,
+    publishDate: null,
+  }, serie);
+  const segundo = createContentDraft({
+    id: 'ideia-serie-b',
+    status: CONTENT_STATUS.IDEIA,
+    seriesId: serie.id,
+    publishDate: null,
+  }, serie);
+  const counts = saude({
+    postIts: [
+      postIt({id: 'post-a', contentId: content.id}),
+      postIt({id: 'post-b', contentId: segundo.id, date: '2026-10-18'}),
+    ],
+    contents: [content, segundo],
+  });
+  const linhas = seriesDoPilarNoMes('pilar-1', [serie, outra, vazia], counts.entries);
+  assert.deepEqual(linhas.map(linha => [linha.nome, linha.quantidade]), [
+    ['Leituras', 2],
+    ['Arquivo', 0],
+  ]);
+}
+
 testPeriodoDoMes();
 testPostItHerdadoContaNoPilarENaFuncao();
 testPostItVazioNaoConta();
 testDataOficialContaQuandoNaoHaPostIt();
 testPostItNaoDuplicaOOriginalNoMesmoMes();
 testPostItForaDoMesNaoConta();
+testSeriesDoPilarMostraQuantidadeEZero();

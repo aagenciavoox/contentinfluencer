@@ -340,6 +340,8 @@ export function PlanejamentoPage() {
         />
         <MonthHealth
           counts={monthHealth.counts}
+          entries={monthHealth.counts.entries}
+          series={state.series}
           pilares={state.pilares}
           temDistribuicao={monthHealth.temDistribuicao}
         />
