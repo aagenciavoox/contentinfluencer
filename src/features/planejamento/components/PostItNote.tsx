@@ -1,5 +1,5 @@
 import type {CSSProperties} from 'react';
-import {Columns3, Filter, GripVertical, Layers, type LucideIcon} from 'lucide-react';
+import {Columns3, Filter, GripVertical, Layers, Tag, type LucideIcon} from 'lucide-react';
 import {Badge} from '../../../components/ui/Badge';
 import {cn} from '../../../lib/utils';
 import type {Content} from '../../../lib/database';
@@ -56,6 +56,8 @@ export function PostItNote({
   compact = false,
   seriesColor = null,
   marks = [],
+  temas = [],
+  dimmed = false,
 }: {
   postIt: PlanejamentoPostIt;
   content: Content | null;
@@ -63,10 +65,13 @@ export function PostItNote({
   compact?: boolean;
   seriesColor?: string | null;
   marks?: PostItMark[];
+  temas?: readonly string[];
+  dimmed?: boolean;
 }) {
   const kind = postItKind(postIt, content);
   const accent = kind === 'vazio' ? null : seriesColor?.trim() || null;
   const visibleMarks = kind === 'vazio' ? [] : marks;
+  const visibleTemas = kind === 'vazio' ? [] : temas;
   return (
     <div
       role="button"
@@ -92,6 +97,7 @@ export function PostItNote({
         'flex w-full cursor-grab items-start gap-1 rounded-[var(--radius-sm)] border px-2 py-1.5 text-left shadow-[var(--shadow-soft)] active:cursor-grabbing',
         accent ? SERIES_SURFACE : KIND_SURFACE[kind],
         'focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
+        dimmed && 'opacity-40',
       )}
     >
       <GripVertical className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[var(--text-tertiary)]" aria-hidden />
@@ -105,6 +111,7 @@ export function PostItNote({
         >
           {postItTitle(postIt, content)}
         </span>
+        <PostItTemas temas={visibleTemas} compact={compact} />
         {compact ? null : (
           <Badge variant={kind === 'vazio' ? 'neutral' : 'status'} status={kind === 'vazio' ? undefined : KIND_LABEL[kind]} className="mt-1">
             {KIND_LABEL[kind]}
@@ -112,6 +119,31 @@ export function PostItNote({
         )}
       </span>
     </div>
+  );
+}
+
+const TEMAS_VISIVEIS_COMPACTO = 2;
+
+export function PostItTemas({temas, compact = false}: {temas: readonly string[]; compact?: boolean}) {
+  if (temas.length === 0) return null;
+  const visiveis = compact ? temas.slice(0, TEMAS_VISIVEIS_COMPACTO) : temas;
+  const resto = temas.length - visiveis.length;
+  return (
+    <span className="mt-1 flex flex-wrap gap-1" title={compact && resto > 0 ? temas.join(', ') : undefined}>
+      {visiveis.map(tema => (
+        <Badge
+          key={tema}
+          variant="neutral"
+          className={cn('max-w-full gap-0.5', compact && 'px-1.5 py-0 text-2xs')}
+        >
+          <Tag className="h-2.5 w-2.5 shrink-0" aria-hidden />
+          <span className="truncate">{tema}</span>
+        </Badge>
+      ))}
+      {resto > 0 ? (
+        <Badge variant="neutral" className="px-1.5 py-0 text-2xs">+{resto}</Badge>
+      ) : null}
+    </span>
   );
 }
 

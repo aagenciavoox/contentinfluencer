@@ -1,4 +1,4 @@
-import {useEffect, useMemo, useRef, useState} from 'react';
+import {useEffect, useMemo, useRef, useState, type ReactNode} from 'react';
 import {useNavigate} from 'react-router-dom';
 import {getDay, parseISO} from 'date-fns';
 import {CalendarClock, ChevronDown, Clock, ExternalLink, ImageIcon, Layers, ListChecks, Palette, Sun, Target, Video, Zap} from 'lucide-react';
@@ -347,12 +347,17 @@ export function FuncaoEditorialFields({
   onChange,
   variant,
   formInputClass,
+  formPart,
+  formLabel,
 }: {
   draft: FuncaoDraft;
   serie: Serie | null;
   onChange: (updates: Partial<Pick<Content, 'funcao' | 'funcaoOrigem' | 'contaNaGrade'>>) => void;
   variant: 'property' | 'form' | 'cards';
   formInputClass?: string;
+  /** Só no formulário: mostra apenas a função ou apenas a grade. */
+  formPart?: 'funcao' | 'grade';
+  formLabel?: ReactNode;
 }) {
   const resolved = resolveFuncao(draft, serie);
   const daSerieFuncao = resolved.congelada && resolved.estado === 'herdada'
@@ -383,14 +388,29 @@ export function FuncaoEditorialFields({
   );
 
   if (variant === 'form') {
-    return (
-      <div className="flex flex-col gap-3">
-        <div className="flex flex-col gap-1">
-          <span className="text-xs font-medium text-[var(--text-secondary)]">Função</span>
-          <select value={value} onChange={event => handleFuncao(event.target.value)} className={formInputClass}>
+    if (formPart === 'grade') return grade;
+    const funcaoField = (
+      <label className="flex flex-col gap-1">
+        {formLabel ?? <span className="text-xs font-medium text-[var(--text-secondary)]">Função</span>}
+        <span className="relative block">
+          <select
+            aria-label="Função"
+            value={value}
+            onChange={event => handleFuncao(event.target.value)}
+            className={formInputClass}
+          >
             {options}
           </select>
-        </div>
+          {formPart ? (
+            <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-tertiary)]" aria-hidden />
+          ) : null}
+        </span>
+      </label>
+    );
+    if (formPart === 'funcao') return funcaoField;
+    return (
+      <div className="flex flex-col gap-3">
+        {funcaoField}
         {grade}
       </div>
     );

@@ -8,12 +8,13 @@ import type {BibliotecaItem, Pilar, Serie} from '../../../../../lib/database';
 import {useAppContext} from '../../../../../context/AppContext';
 import {DestinationChips} from '../../../../editorial/components/DestinationChips';
 import {LivroMultiSelect} from '../LivroMultiSelect';
+import {TemaField} from '../TemaField';
 import {DraftSaveBar} from '../DraftSaveBar';
 import type {ScriptDraft} from './RoteiroSection';
 
 type IdeaDraft = Pick<
   ScriptDraft,
-  'title' | 'notes' | 'scriptNotes' | 'pilarId' | 'seriesId' | 'bibliotecaItemId' | 'livroIds' | 'plataformas'
+  'title' | 'notes' | 'scriptNotes' | 'pilarId' | 'seriesId' | 'temaIds' | 'bibliotecaItemId' | 'livroIds' | 'plataformas'
 >;
 
 interface IdeaOrganizationPanelProps {
@@ -82,6 +83,11 @@ export function IdeaOrganizationPanel({
           ))}
         </select>
       </label>
+
+      <TemaField
+        temaIds={draft.temaIds}
+        onChange={temaIds => onChange({temaIds})}
+      />
 
       <div className="stack-sm md:col-span-3">
         <LivroMultiSelect

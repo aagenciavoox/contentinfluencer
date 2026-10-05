@@ -1,4 +1,4 @@
-import { TagSelect } from '../../../../components/ui/TagSelect';
+import { TagSelect, type TagSelectProps } from '../../../../components/ui/TagSelect';
 import type { BibliotecaItem } from '../../../../lib/database';
 import { aplicarLivros, livroIdsEfetivos } from '../../../../lib/livroIds';
 
@@ -7,6 +7,7 @@ interface LivroMultiSelectProps {
   bibliotecaItemId?: string | null;
   bibliotecaItems: readonly BibliotecaItem[];
   onChange: (next: { livroIds: string[]; bibliotecaItemId: string | null }) => void;
+  selectProps?: Pick<TagSelectProps, 'hideLabel' | 'placeholder' | 'controlClassName' | 'leadingIcon' | 'searchable'>;
 }
 
 export function LivroMultiSelect({
@@ -14,6 +15,7 @@ export function LivroMultiSelect({
   bibliotecaItemId,
   bibliotecaItems,
   onChange,
+  selectProps,
 }: LivroMultiSelectProps) {
   const ativos = bibliotecaItems.filter(item => !item.deletedAt);
   const selecionados = livroIdsEfetivos({ livroIds, bibliotecaItemId });
@@ -34,6 +36,7 @@ export function LivroMultiSelect({
       }))}
       options={ativos.map(item => ({ value: item.id, label: item.titulo }))}
       placeholder="Escolher livros"
+      {...selectProps}
     />
   );
 }

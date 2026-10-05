@@ -1,10 +1,11 @@
 import {useState} from 'react';
-import {Columns2} from 'lucide-react';
+import {Columns2, PenLine, SlidersHorizontal} from 'lucide-react';
 import {MobileScriptEditor} from '../../../../../mobile/components/MobileScriptEditor';
 import {MobileSegmentTabs} from '../../../../../mobile/components/MobileSegmentTabs';
 import {AppButton} from '../../../../../components/ui/AppButton';
 import {Skeleton} from '../../../../../components/ui/Skeleton';
 import {Text} from '../../../../../components/ui/Text';
+import {ViewModeToggle} from '../../../../../components/ui/ViewModeToggle';
 import type {Content, ContentPlataforma, Pilar, Serie} from '../../../../../lib/database';
 import {cn, htmlToReadableText} from '../../../../../lib/utils';
 import {CONTENT_STATUS} from '../../../lib/contentPipeline';
@@ -214,16 +215,26 @@ export function RoteiroSection({
   if (layout === 'workspace' && !mobileComposer) {
     if (writingWorkspace) {
       return (
-        <div className="stack-sm">
-          <MobileSegmentTabs<'write' | 'manage'>
-            rounded="tight"
-            tabs={[
-              {value: 'write', label: 'Escrita'},
-              {value: 'manage', label: 'Gestão'},
-            ]}
-            value={workspacePane}
-            onChange={pane => setWorkspacePaneChoice({contentId, pane})}
-          />
+        <div className="stack-md">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <ViewModeToggle<'write' | 'manage'>
+              tone="raised"
+              showLabels
+              ariaLabel="Área do conteúdo"
+              buttonClassName="h-8 px-3 text-sm"
+              options={[
+                {value: 'write', label: 'Escrita', icon: PenLine},
+                {value: 'manage', label: 'Gestão', icon: SlidersHorizontal},
+              ]}
+              value={workspacePane}
+              onChange={pane => setWorkspacePaneChoice({contentId, pane})}
+            />
+            {workspacePane === 'manage' ? (
+              <Text variant="secondary" as="p">
+                Organize os detalhes e prepare a publicação.
+              </Text>
+            ) : null}
+          </div>
           {workspacePane === 'manage' ? (
             <ContentManageWorkspace
               contentId={contentId}

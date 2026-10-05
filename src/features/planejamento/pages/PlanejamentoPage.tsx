@@ -2,7 +2,7 @@ import {useEffect, useMemo, useRef, useState, type DragEvent} from 'react';
 import {useNavigate} from 'react-router-dom';
 import {format} from 'date-fns';
 import {ptBR} from 'date-fns/locale';
-import {Plus, StickyNote} from 'lucide-react';
+import {Plus, StickyNote, Tag} from 'lucide-react';
 import {CalendarMonthGrid, CalendarPeriodNav} from '../../../components/calendar';
 import {AppButton} from '../../../components/ui/AppButton';
 import {Badge} from '../../../components/ui/Badge';
@@ -17,8 +17,9 @@ import {useAppContext} from '../../../context/AppContext';
 import {useIsMobile} from '../../../hooks/useIsMobile';
 import {PageLayout} from '../../../layouts/page/PageLayout';
 import {DesktopPageHeader} from '../../../layouts/page/DesktopPageHeader';
-import type {Content, Pilar, Serie} from '../../../lib/database';
+import type {Content, Pilar, Serie, Tema} from '../../../lib/database';
 import {cn} from '../../../lib/utils';
+import {TemaField} from '../../contents/components/detail/TemaField';
 import {buildContentDetailRoute} from '../../contents/lib/contentDetailRoute';
 import {CONTENT_STATUS, normalizeContentStatus} from '../../contents/lib/contentPipeline';
 import {buildDetailBackState} from '../../../lib/navigation/detailBack';
@@ -28,6 +29,7 @@ import {FUNCAO_CURTA, FUNIL_DA_FUNCAO, funcaoHerdavelDaSerie, resolveFuncao} fro
 import {MonthHealth} from '../components/MonthHealth';
 import {excessosAoAcrescentar, periodoDoMes, saudeDoMes, type ExcessoMes} from '../lib/monthHealth';
 import {POST_IT_MIME, PostItIdentity, PostItNote, type PostItMark} from '../components/PostItNote';
+import {conteudoTemTema, nomesDosTemas, temasEmUso} from '../lib/temasPlanejamento';
 import {
   canPullContent,
   cancelPostItEdit,
@@ -59,8 +61,9 @@ function postItAppearance(
   content: Content | null,
   series: readonly Serie[],
   pilares: readonly Pilar[],
-): {seriesColor: string | null; marks: PostItMark[]} {
-  if (!content) return {seriesColor: null, marks: []};
+  temas: readonly Tema[],
+): {seriesColor: string | null; marks: PostItMark[]; temas: string[]} {
+  if (!content) return {seriesColor: null, marks: [], temas: []};
   const serie = content.seriesId ? series.find(item => item.id === content.seriesId) ?? null : null;
   const pilarId = content.pilarId || serie?.pilarPrincipalId || null;
   const pilar = pilarId ? pilares.find(item => item.id === pilarId) ?? null : null;
@@ -92,6 +95,7 @@ function postItAppearance(
   return {
     seriesColor: serie?.cor?.trim() || null,
     marks,
+    temas: nomesDosTemas(content.temaIds, temas),
   };
 }
 
@@ -127,6 +131,7 @@ export function PlanejamentoPage() {
   const [noteDraft, setNoteDraft] = useState('');
   const [dateDraft, setDateDraft] = useState<string | null>(null);
   const [avisos, setAvisos] = useState<ExcessoMes[] | null>(null);
+  const [temaFiltroId, setTemaFiltroId] = useState<string | null>(null);
   const avisoPendente = useRef<(() => void) | null>(null);
 
   const contents = state.contents;
@@ -155,6 +160,33 @@ export function PlanejamentoPage() {
     () => postIts.filter(postIt => !postIt.date),
     [postIts],
   );
+
+  const temasDoPlanejamento = useMemo(
+    () => temasEmUso(postIts, contents, state.temas),
+    [postIts, contents, state.temas],
+  );
+  const temaFiltro = temasDoPlanejamento.find(tema => tema.id === temaFiltroId) ?? null;
+
+  const renderPostIt = (postIt: PlanejamentoPostIt, compact: boolean) => {
+    const content = contentById(contents, postIt.contentId);
+    const appearance = postItAppearance(content, state.series, state.pilares, state.temas);
+    return (
+      <PostItNote
+        key={postIt.id}
+        postIt={postIt}
+        content={content}
+        seriesColor={appearance.seriesColor}
+        marks={appearance.marks}
+        temas={appearance.temas}
+        dimmed={temaFiltro ? !conteudoTemTema(content, temaFiltro.id) : false}
+        compact={compact}
+        onOpen={() => {
+          setEditing(false);
+          setOpenId(postIt.id);
+        }}
+      />
+    );
+  };
 
   const monthHealth = useMemo(() => {
     const settings = getEditorialSettings(state.preferences);
@@ -310,7 +342,7 @@ export function PlanejamentoPage() {
 
   const options = openPostIt ? postItTransformOptions(openPostIt, openContent) : {ideia: false, roteiro: false};
   const openKind = openPostIt ? postItKind(openPostIt, openContent) : 'vazio';
-  const openAppearance = postItAppearance(openContent, state.series, state.pilares);
+  const openAppearance = postItAppearance(openContent, state.series, state.pilares, state.temas);
 
   return (
     <PageLayout
@@ -377,6 +409,37 @@ export function PlanejamentoPage() {
           temDistribuicao={monthHealth.temDistribuicao}
         />
 
+        {temasDoPlanejamento.length > 0 ? (
+          <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Destacar por tema">
+            <Text variant="label" as="span" className="flex items-center gap-1">
+              <Tag className="h-3.5 w-3.5" aria-hidden />
+              Temas
+            </Text>
+            <AppButton
+              variant={temaFiltro ? 'ghost' : 'secondary'}
+              size="xs"
+              aria-pressed={!temaFiltro}
+              onClick={() => setTemaFiltroId(null)}
+            >
+              Todos
+            </AppButton>
+            {temasDoPlanejamento.map(tema => {
+              const ativo = temaFiltro?.id === tema.id;
+              return (
+                <AppButton
+                  key={tema.id}
+                  variant={ativo ? 'primary' : 'secondary'}
+                  size="xs"
+                  aria-pressed={ativo}
+                  onClick={() => setTemaFiltroId(ativo ? null : tema.id)}
+                >
+                  {tema.nome}
+                </AppButton>
+              );
+            })}
+          </div>
+        ) : null}
+
         <div className={cn('grid items-start gap-4', undated.length > 0 && 'xl:grid-cols-[minmax(0,1fr)_18rem]')}>
           <CalendarMonthGrid
             anchorDate={month}
@@ -404,24 +467,7 @@ export function PlanejamentoPage() {
               const dayLabel = format(day.day, "d 'de' MMMM", {locale: ptBR});
               return (
                 <div className="stack-sm">
-                  {dayPostIts.map(postIt => {
-                    const content = contentById(contents, postIt.contentId);
-                    const appearance = postItAppearance(content, state.series, state.pilares);
-                    return (
-                      <PostItNote
-                        key={postIt.id}
-                        postIt={postIt}
-                        content={content}
-                        seriesColor={appearance.seriesColor}
-                        marks={appearance.marks}
-                        compact
-                        onOpen={() => {
-                          setEditing(false);
-                          setOpenId(postIt.id);
-                        }}
-                      />
-                    );
-                  })}
+                  {dayPostIts.map(postIt => renderPostIt(postIt, true))}
                   <div className="flex gap-0.5">
                     <AppButton
                       variant="ghost"
@@ -479,24 +525,9 @@ export function PlanejamentoPage() {
                 </Text>
               </div>
               <ul className="stack-sm">
-                {undated.map(postIt => {
-                  const content = contentById(contents, postIt.contentId);
-                  const appearance = postItAppearance(content, state.series, state.pilares);
-                  return (
-                    <li key={postIt.id}>
-                      <PostItNote
-                        postIt={postIt}
-                        content={content}
-                        seriesColor={appearance.seriesColor}
-                        marks={appearance.marks}
-                        onOpen={() => {
-                          setEditing(false);
-                          setOpenId(postIt.id);
-                        }}
-                      />
-                    </li>
-                  );
-                })}
+                {undated.map(postIt => (
+                  <li key={postIt.id}>{renderPostIt(postIt, false)}</li>
+                ))}
               </ul>
             </Surface>
           ) : null}
@@ -570,6 +601,12 @@ export function PlanejamentoPage() {
                       Puxado para este dia. O status continua {normalizeContentStatus(openContent.status)} até você transformar.
                     </Text>
                   </Surface>
+                ) : null}
+                {openContent && !editing ? (
+                  <TemaField
+                    temaIds={openContent.temaIds}
+                    onChange={temaIds => dispatch({type: 'UPDATE_CONTENT', payload: {...openContent, temaIds}})}
+                  />
                 ) : null}
                 {editing ? (
                   <label className="stack-sm">

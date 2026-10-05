@@ -1,4 +1,4 @@
-import { TagSelect } from '../../../../components/ui/TagSelect';
+import { TagSelect, type TagSelectProps } from '../../../../components/ui/TagSelect';
 import { useAppContext } from '../../../../context/AppContext';
 import { useAuth } from '../../../../context/AuthContext';
 import { sincronizarTemasDoRoteiro } from '../../lib/temas';
@@ -7,9 +7,10 @@ import { generateUUID } from '../../../../utils/uuid';
 interface TemaFieldProps {
   temaIds?: readonly string[] | null;
   onChange: (temaIds: string[]) => void;
+  selectProps?: Pick<TagSelectProps, 'hideLabel' | 'placeholder' | 'controlClassName' | 'leadingIcon'>;
 }
 
-export function TemaField({ temaIds, onChange }: TemaFieldProps) {
+export function TemaField({ temaIds, onChange, selectProps }: TemaFieldProps) {
   const { state, dispatch } = useAppContext();
   const { user } = useAuth();
   const selecionados = temaIds ?? [];
@@ -38,6 +39,7 @@ export function TemaField({ temaIds, onChange }: TemaFieldProps) {
         .sort((left, right) => left.nome.localeCompare(right.nome, 'pt-BR'))
         .map(tema => ({ value: tema.nome, label: tema.nome }))}
       placeholder="Adicionar tema"
+      {...selectProps}
       onChange={next => {
         void aplicar(next);
       }}

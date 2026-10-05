@@ -1,16 +1,16 @@
 import {useEffect, type ReactNode} from 'react';
-import {Calendar, ChevronDown, Clock, Layers, ListChecks, Target} from 'lucide-react';
-import {Badge} from '../../../../components/ui/Badge';
+import {BookOpen, Calendar, ChevronDown, Clock, Flag, Layers, Search, Tag, Target} from 'lucide-react';
 import {PropertyDatePicker} from '../../../../components/ui/PropertyDatePicker';
 import {Surface} from '../../../../components/ui/Surface';
 import {Text} from '../../../../components/ui/Text';
 import {useAppContext} from '../../../../context/AppContext';
 import type {Pilar, Serie} from '../../../../lib/database';
-import {getDisplayStatus} from '../../lib/contentPipeline';
+import {getAllowedStatuses, normalizeContentStatus} from '../../lib/contentPipeline';
 import {patchAoEscolherSerie} from '../../../editorial/lib/pilarDaSerie';
 import {FuncaoEditorialFields} from './ContentOperationalPanel';
 import {LivroMultiSelect} from './LivroMultiSelect';
 import {PlatformCopyEditor} from './PlatformCopyEditor';
+import {TemaField} from './TemaField';
 import type {ScriptDraft} from './sections/RoteiroSection';
 
 const NOTES_MAX = 500;
@@ -18,7 +18,8 @@ const NOTES_MAX = 500;
 const fieldClass =
   'h-11 w-full rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-primary)] px-3 text-sm text-[var(--text-primary)] outline-none focus-visible:shadow-[var(--focus-ring)] disabled:opacity-60';
 
-const selectClass = `${fieldClass} appearance-none pr-9`;
+const selectClass =
+  'h-11 w-full appearance-none rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-3 pr-9 text-sm text-[var(--text-primary)] outline-none focus-visible:shadow-[var(--focus-ring)] disabled:opacity-60';
 
 interface ContentManageWorkspaceProps {
   contentId: string;
@@ -38,7 +39,7 @@ function clockInputValue(value: string | null | undefined) {
   return match ? `${match[1]}:${match[2]}` : '';
 }
 
-function FieldLabel({icon, children}: {icon: ReactNode; children: string}) {
+function FieldLabel({icon, children}: {icon?: ReactNode; children: string}) {
   return (
     <span className="mb-1.5 flex items-center gap-2 text-sm text-[var(--text-secondary)]">
       {icon}
@@ -135,11 +136,8 @@ export function ContentManageWorkspace({
   const linkedPilar = draft.pilarId ? pilares.find(item => item.id === draft.pilarId) ?? null : null;
   const linkedSerie = draft.seriesId ? series.find(item => item.id === draft.seriesId) ?? null : null;
   const publishDateOnly = draft.publishDate ? draft.publishDate.slice(0, 10) : '';
-  const displayStatus = getDisplayStatus({
-    status: draft.status,
-    publishDate: draft.publishDate,
-    postedAt: draft.postedAt ?? null,
-  });
+  const currentStatus = normalizeContentStatus(draft.status);
+  const etapas = getAllowedStatuses(draft.status);
 
   useEffect(() => {
     void ensureDataDomains(['library']);
@@ -147,12 +145,7 @@ export function ContentManageWorkspace({
 
   return (
     <div className="stack-lg">
-      <div className="min-w-0">
-        <Text variant="sectionTitle" as="h2">Gestão do conteúdo</Text>
-        <Text variant="secondary" className="mt-1">
-          Organize os detalhes e prepare a publicação.
-        </Text>
-      </div>
+      <Text variant="sectionTitle" as="h2" className="sr-only">Gestão do conteúdo</Text>
 
       <div className="grid items-stretch gap-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(18rem,0.85fr)]">
         <PlatformCopyEditor
@@ -169,64 +162,124 @@ export function ContentManageWorkspace({
           onChange={plataformas => onChange({plataformas})}
         />
 
-        <Surface variant="outlined" padding="lg" className="flex h-full flex-col bg-[var(--bg-elevated)]">
-          <Text variant="sectionTitle" as="h3">Organização</Text>
-          <Text variant="secondary" className="mt-1">
-            Classifique e vincule este conteúdo.
-          </Text>
-          <div className="mt-4 stack-md">
-            <div>
-              <FieldLabel icon={<ListChecks className="h-4 w-4" />}>Status</FieldLabel>
-              <div className="flex h-11 items-center">
-                <Badge variant="neutral">{displayStatus}</Badge>
+        <div className="flex min-w-0 flex-col gap-4">
+          <Surface variant="outlined" padding="lg" className="bg-[var(--bg-elevated)]">
+            <Text variant="sectionTitle" as="h3">Organização</Text>
+            <div className="mt-4 stack-md">
+              <label className="block">
+                <FieldLabel>Etapa</FieldLabel>
+                <ManageSelect
+                  ariaLabel="Etapa"
+                  disabled={disabled}
+                  value={currentStatus}
+                  onChange={status => onChange({status})}
+                >
+                  {etapas.map(status => (
+                    <option key={status} value={status}>{status}</option>
+                  ))}
+                </ManageSelect>
+              </label>
+
+              <div className="border-t border-[var(--border-color)]" aria-hidden />
+
+              <label className="block">
+                <FieldLabel icon={<Layers className="h-4 w-4" />}>Série</FieldLabel>
+                <ManageSelect
+                  ariaLabel="Série"
+                  disabled={disabled}
+                  value={draft.seriesId ?? ''}
+                  onChange={value => onChange(patchAoEscolherSerie(
+                    draft,
+                    series.find(item => item.id === value) ?? null,
+                  ))}
+                >
+                  <option value="">Selecionar série...</option>
+                  {series.map(item => (
+                    <option key={item.id} value={item.id}>{item.name}</option>
+                  ))}
+                </ManageSelect>
+              </label>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="block min-w-0">
+                  <FieldLabel icon={<Target className="h-4 w-4" />}>Pilar</FieldLabel>
+                  <ManageSelect
+                    ariaLabel="Pilar"
+                    disabled={disabled}
+                    value={draft.pilarId ?? ''}
+                    onChange={value => onChange({pilarId: value || null})}
+                  >
+                    <option value="">Selecionar pilar...</option>
+                    {pilares.filter(item => item.ativo).map(item => (
+                      <option key={item.id} value={item.id}>{item.nome}</option>
+                    ))}
+                  </ManageSelect>
+                </label>
+                <div className="min-w-0">
+                  <FuncaoEditorialFields
+                    draft={draft}
+                    serie={linkedSerie}
+                    onChange={onChange}
+                    variant="form"
+                    formPart="funcao"
+                    formLabel={<FieldLabel icon={<Flag className="h-4 w-4" />}>Função</FieldLabel>}
+                    formInputClass={selectClass}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <FieldLabel icon={<Tag className="h-4 w-4" />}>Temas</FieldLabel>
+                <TemaField
+                  temaIds={draft.temaIds}
+                  onChange={temaIds => onChange({temaIds})}
+                  selectProps={{
+                    hideLabel: true,
+                    placeholder: 'Adicionar tema, ex.: Halloween',
+                    controlClassName: 'min-h-11',
+                  }}
+                />
+              </div>
+
+              <div className="border-t border-[var(--border-color)]" aria-hidden />
+
+              <FuncaoEditorialFields
+                draft={draft}
+                serie={linkedSerie}
+                onChange={onChange}
+                variant="form"
+                formPart="grade"
+              />
+            </div>
+          </Surface>
+
+          <Surface variant="outlined" padding="lg" className="bg-[var(--bg-elevated)]">
+            <div className="flex items-start gap-3">
+              <BookOpen className="mt-0.5 h-5 w-5 shrink-0 text-[var(--text-primary)]" aria-hidden />
+              <div className="min-w-0">
+                <Text variant="sectionTitle" as="h3">Livros citados</Text>
+                <Text variant="meta" className="mt-0.5 block text-[var(--text-secondary)]">
+                  Vincule um ou mais livros.
+                </Text>
               </div>
             </div>
-            <label className="block">
-              <FieldLabel icon={<Layers className="h-4 w-4" />}>Série</FieldLabel>
-              <ManageSelect
-                ariaLabel="Série"
-                disabled={disabled}
-                value={draft.seriesId ?? ''}
-                onChange={value => onChange(patchAoEscolherSerie(
-                  draft,
-                  series.find(item => item.id === value) ?? null,
-                ))}
-              >
-                <option value="">Selecionar série...</option>
-                {series.map(item => (
-                  <option key={item.id} value={item.id}>{item.name}</option>
-                ))}
-              </ManageSelect>
-            </label>
-            <label className="block">
-              <FieldLabel icon={<Target className="h-4 w-4" />}>Pilar</FieldLabel>
-              <ManageSelect
-                ariaLabel="Pilar"
-                disabled={disabled}
-                value={draft.pilarId ?? ''}
-                onChange={value => onChange({pilarId: value || null})}
-              >
-                <option value="">Selecionar pilar...</option>
-                {pilares.filter(item => item.ativo).map(item => (
-                  <option key={item.id} value={item.id}>{item.nome}</option>
-                ))}
-              </ManageSelect>
-            </label>
-            <FuncaoEditorialFields
-              draft={draft}
-              serie={linkedSerie}
-              onChange={onChange}
-              variant="form"
-              formInputClass={selectClass}
-            />
-            <LivroMultiSelect
-              livroIds={draft.livroIds}
-              bibliotecaItemId={draft.bibliotecaItemId}
-              bibliotecaItems={state.bibliotecaItems}
-              onChange={onChange}
-            />
-          </div>
-        </Surface>
+            <div className="mt-4">
+              <LivroMultiSelect
+                livroIds={draft.livroIds}
+                bibliotecaItemId={draft.bibliotecaItemId}
+                bibliotecaItems={state.bibliotecaItems}
+                onChange={onChange}
+                selectProps={{
+                  hideLabel: true,
+                  searchable: true,
+                  placeholder: 'Buscar livros...',
+                  leadingIcon: <Search className="h-4 w-4" />,
+                  controlClassName: 'min-h-11',
+                }}
+              />
+            </div>
+          </Surface>
+        </div>
       </div>
 
       <Surface variant="outlined" padding="lg" className="bg-[var(--bg-elevated)]">

@@ -1,4 +1,4 @@
-import {useEffect, useMemo, useRef, useState, type KeyboardEvent} from 'react';
+import {useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode} from 'react';
 import {ChevronsUpDown, X} from 'lucide-react';
 import {cn} from '../../lib/utils';
 
@@ -19,6 +19,12 @@ export interface TagSelectProps {
   className?: string;
   maxSelections?: number;
   id?: string;
+  /** Mantém o rótulo só para leitor de tela, quando a tela já mostra um título próprio. */
+  hideLabel?: boolean;
+  /** Permite digitar para filtrar as opções sem criar valores novos. */
+  searchable?: boolean;
+  leadingIcon?: ReactNode;
+  controlClassName?: string;
 }
 
 export function normalizeTagToken(value: string) {
@@ -84,6 +90,10 @@ export function TagSelect({
   className,
   maxSelections,
   id,
+  hideLabel = false,
+  searchable = false,
+  leadingIcon,
+  controlClassName,
 }: TagSelectProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -107,7 +117,7 @@ export function TagSelect({
   );
 
   const canAddMore = maxSelections ? values.length < maxSelections : true;
-  const showInput = creatable && canAddMore;
+  const showInput = (creatable || searchable) && canAddMore;
 
   useEffect(() => {
     if (!open) return;
@@ -147,7 +157,11 @@ export function TagSelect({
     if (event.key === 'Enter' || event.key === ',') {
       event.preventDefault();
       if (!query.trim()) return;
-      addValue(query);
+      if (creatable) {
+        addValue(query);
+      } else if (availableOptions[0]) {
+        addValue(availableOptions[0].value);
+      }
       return;
     }
 
@@ -187,10 +201,13 @@ export function TagSelect({
 
   return (
     <div className={cn('space-y-1.5', className)} ref={containerRef}>
-      <label htmlFor={fieldId} className="block text-sm font-semibold text-[var(--text-primary)]">
+      <label
+        htmlFor={fieldId}
+        className={hideLabel ? 'sr-only' : 'block text-sm font-semibold text-[var(--text-primary)]'}
+      >
         {label}
       </label>
-      {hint ? <p className="text-sm text-[var(--text-tertiary)]">{hint}</p> : null}
+      {hint && !hideLabel ? <p className="text-sm text-[var(--text-tertiary)]">{hint}</p> : null}
 
       <div className="relative">
         <div
@@ -202,9 +219,13 @@ export function TagSelect({
           className={cn(
             'tag-select-control flex min-h-10 w-full cursor-text items-center gap-2 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-3 py-2 transition-colors',
             open && 'border-[var(--border-strong)] ring-2 ring-[var(--shadow-focus)]',
-            disabled && 'cursor-not-allowed opacity-60'
+            disabled && 'cursor-not-allowed opacity-60',
+            controlClassName
           )}
         >
+          {leadingIcon ? (
+            <span className="flex shrink-0 text-[var(--text-tertiary)]" aria-hidden>{leadingIcon}</span>
+          ) : null}
           <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
             {values.map(value => (
               <TagPill
