@@ -1,4 +1,4 @@
-import {useState} from 'react';
+import {useState, type ReactNode} from 'react';
 import {Columns2, PenLine, SlidersHorizontal} from 'lucide-react';
 import {MobileScriptEditor} from '../../../../../mobile/components/MobileScriptEditor';
 import {MobileSegmentTabs} from '../../../../../mobile/components/MobileSegmentTabs';
@@ -105,6 +105,7 @@ export function RoteiroSection({
     pane: 'write' | 'manage';
   } | null>(null);
   const [notesChoice, setNotesChoice] = useState<{contentId: string; open: boolean} | null>(null);
+  const [scriptExpanded, setScriptExpanded] = useState(false);
   const workspacePane = workspacePaneChoice?.contentId === contentId
     ? workspacePaneChoice.pane
     : 'write';
@@ -159,11 +160,17 @@ export function RoteiroSection({
     onChange({script: trimmed ? `${trimmed}${html}` : html});
   };
 
-  const splitPanelClass = notesOpen
-    ? 'h-[calc(100dvh-14rem)] max-h-[calc(100dvh-14rem)] min-h-[24rem]'
-    : 'max-h-[calc(100dvh-14rem)]';
+  const notesPane = (className?: string) => (
+    <WritingNotesPane
+      value={draft.writingNotes ?? ''}
+      onChange={html => onChange({writingNotes: html})}
+      onClose={() => setNotesChoice({contentId, open: false})}
+      emphasis="secondary"
+      className={className}
+    />
+  );
 
-  const scriptWorkspace = (
+  const scriptWorkspace = (fullscreenAside?: ReactNode) => (
     <ContentScriptWorkspace
       script={draft.script}
       scriptNotes={draft.scriptNotes}
@@ -178,7 +185,9 @@ export function RoteiroSection({
       bodyLoading={bodyLoading}
       bodyError={bodyError}
       onRetryBody={onRetryBody}
-      className={writingWorkspace ? cn(splitPanelClass, 'min-w-0') : undefined}
+      className={writingWorkspace ? 'min-w-0' : undefined}
+      fullscreenAside={fullscreenAside}
+      onFullscreenChange={setScriptExpanded}
       headerAction={
         writingWorkspace && workspacePane === 'write' && !notesOpen ? (
           <AppButton
@@ -247,20 +256,16 @@ export function RoteiroSection({
           ) : (
             <div
               className={cn(
-                'grid min-h-0 items-stretch gap-3',
-                notesOpen && 'lg:grid-cols-[minmax(0,1fr)_var(--layout-aside)]',
+                'grid min-h-0 items-start gap-3',
+                notesOpen && !scriptExpanded && 'lg:grid-cols-[minmax(0,1fr)_var(--layout-aside)]',
               )}
             >
-              {scriptWorkspace}
-              {notesOpen ? (
-                <WritingNotesPane
-                  value={draft.writingNotes ?? ''}
-                  onChange={html => onChange({writingNotes: html})}
-                  onClose={() => setNotesChoice({contentId, open: false})}
-                  emphasis="secondary"
-                  className={cn(splitPanelClass, 'min-w-0')}
-                />
-              ) : null}
+              {scriptWorkspace(
+                notesOpen
+                  ? notesPane('h-full max-h-none min-h-0 flex-1 rounded-none border-0')
+                  : undefined,
+              )}
+              {notesOpen && !scriptExpanded ? notesPane('sticky top-4 h-[calc(100dvh-14rem)] max-h-[calc(100dvh-14rem)] min-w-0') : null}
             </div>
           )}
         </div>
@@ -270,7 +275,7 @@ export function RoteiroSection({
     if (!showSidePanel) {
       return (
         <div className="grid gap-3">
-          {scriptWorkspace}
+          {scriptWorkspace()}
           {captionEditor}
         </div>
       );
@@ -279,7 +284,7 @@ export function RoteiroSection({
     return (
       <div className="grid-editor">
         <div className="flex min-w-0 flex-col gap-3">
-          {scriptWorkspace}
+          {scriptWorkspace()}
           {captionEditor}
         </div>
         <div className="sticky top-4 min-w-0">
@@ -390,7 +395,7 @@ export function RoteiroSection({
         authorName={authorName}
         onChange={onChange}
       />
-      {scriptWorkspace}
+      {scriptWorkspace()}
       {captionEditor}
     </div>
   );

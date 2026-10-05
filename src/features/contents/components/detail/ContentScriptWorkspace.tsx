@@ -29,6 +29,8 @@ interface ContentScriptWorkspaceProps {
   onRetryBody?: () => void;
   headerAction?: React.ReactNode;
   className?: string;
+  fullscreenAside?: ReactNode;
+  onFullscreenChange?: (open: boolean) => void;
   onAddAnnotation?: (text: string, selection: {from: number; to: number}, comment: string) => void;
   onRemoveAnnotation?: (id: string) => void;
   onUpdateAnnotation?: (id: string, comment: string, color?: string) => void;
@@ -50,6 +52,8 @@ export function ContentScriptWorkspace({
   onRetryBody,
   headerAction,
   className,
+  fullscreenAside,
+  onFullscreenChange,
   onAddAnnotation,
   onRemoveAnnotation,
   onUpdateAnnotation,
@@ -66,7 +70,12 @@ export function ContentScriptWorkspace({
   };
 
   return (
-    <section className={cn('cms-panel flex max-h-[calc(100dvh-10.5rem)] min-h-[28rem] flex-col overflow-hidden', className)}>
+    <section className={cn(
+      writingToolbar
+        ? 'cms-panel flex min-h-[calc(100dvh-14rem)] flex-col overflow-visible'
+        : 'cms-panel flex max-h-[calc(100dvh-10.5rem)] min-h-[28rem] flex-col overflow-hidden',
+      className,
+    )}>
       <div className="flex shrink-0 items-center justify-between gap-3 border-b border-[var(--border-color)] px-4 py-3 md:px-6">
         <Text variant="sectionTitle">Roteiro</Text>
         {headerAction}
@@ -116,7 +125,11 @@ export function ContentScriptWorkspace({
               />
             }
             saveState={saveState}
-            className="h-full min-h-0 border-0 bg-[var(--bg-elevated)] shadow-none"
+            fullscreenAside={fullscreenAside}
+            onFullscreenChange={onFullscreenChange}
+            className={writingToolbar
+              ? 'min-h-[calc(100dvh-18rem)] border-0 bg-[var(--bg-elevated)] shadow-none'
+              : 'h-full min-h-0 border-0 bg-[var(--bg-elevated)] shadow-none'}
           />
         )}
       </div>

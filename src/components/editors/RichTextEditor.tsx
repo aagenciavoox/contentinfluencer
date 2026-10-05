@@ -80,6 +80,9 @@ interface RichTextEditorProps {
   toolbarStart?: React.ReactNode;
   saveState?: 'idle' | 'saving' | 'saved' | 'error';
   saveAction?: React.ReactNode;
+  /** Shown beside the page when the writing editor is expanded. */
+  fullscreenAside?: React.ReactNode;
+  onFullscreenChange?: (open: boolean) => void;
 }
 
 type FormattingAction = {
@@ -170,10 +173,20 @@ export function RichTextEditor({
   toolbarStart,
   saveState = 'idle',
   saveAction,
+  fullscreenAside,
+  onFullscreenChange,
 }: RichTextEditorProps) {
   const isWorkspace = variant === 'workspace';
   const writingBar = formatBar === 'writing';
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [commentsOpen, setCommentsOpen] = useState(false);
+  const onFullscreenChangeRef = useRef(onFullscreenChange);
+  onFullscreenChangeRef.current = onFullscreenChange;
+
+  const setFullscreen = useCallback((open: boolean) => {
+    setIsFullscreen(open);
+    onFullscreenChangeRef.current?.(open);
+  }, []);
   const [selectionMenu, setSelectionMenu] = useState<{ x: number; y: number } | null>(null);
   const [marginMenu, setMarginMenu] = useState<{ x: number; y: number } | null>(null);
   const [expandedNoteId, setExpandedNoteId] = useState<string | null>(null);
@@ -384,6 +397,7 @@ export function RichTextEditor({
     const text = editor.state.doc.textBetween(from, to, ' ');
 
     if (text) {
+      setCommentsOpen(true);
       setActiveDraft({ text, selection: { from, to } });
       setDraftCommentText('');
       setSelectionMenu(null);
@@ -696,7 +710,7 @@ export function RichTextEditor({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            onClick={() => setIsFullscreen(false)}
+            onClick={() => setFullscreen(false)}
             className="fixed inset-0 z-[90] bg-[color-mix(in_srgb,var(--text-primary)_12%,transparent)] backdrop-blur-[2px]"
           />
         )}
@@ -707,7 +721,11 @@ export function RichTextEditor({
         className={cn(
           'relative transition-all duration-500',
           compactMobileComposer ? 'border-0' : 'border border-[var(--border-color)]',
-          isWorkspace && !isFullscreen ? 'h-full min-h-0 overflow-hidden' : 'overflow-hidden',
+          isWorkspace && !isFullscreen
+            ? writingBar
+              ? 'overflow-visible'
+              : 'h-full min-h-0 overflow-hidden'
+            : 'overflow-hidden',
           isWorkspace
             ? cn(
                 'flex flex-col rounded-[var(--radius-card)] bg-[var(--bg-elevated)]',
@@ -718,7 +736,9 @@ export function RichTextEditor({
           isFullscreen
             ? isMobile
               ? 'fixed inset-0 z-[100] flex flex-col rounded-none border-0 bg-[var(--bg-elevated)] shadow-none'
-              : 'fixed left-1/2 top-1/2 z-[100] flex h-[min(1120px,calc(100dvh-56px))] w-[min(1420px,calc(100vw-56px))] -translate-x-1/2 -translate-y-1/2 flex-col rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-elevated)] shadow-[var(--shadow-modal)]'
+              : writingBar
+                ? 'fixed inset-4 z-[100] flex flex-col rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-elevated)] shadow-[var(--shadow-modal)]'
+                : 'fixed left-1/2 top-1/2 z-[100] flex h-[min(1120px,calc(100dvh-56px))] w-[min(1420px,calc(100vw-56px))] -translate-x-1/2 -translate-y-1/2 flex-col rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-elevated)] shadow-[var(--shadow-modal)]'
             : compactMobileComposer
               ? 'flex min-h-[50dvh] flex-col bg-transparent'
               : isWorkspace
@@ -738,7 +758,7 @@ export function RichTextEditor({
               {isMobile ? (
                 <>
                   <button
-                    onClick={() => setIsFullscreen(false)}
+                    onClick={() => setFullscreen(false)}
                     className="flex h-10 w-10 items-center justify-center rounded-[var(--radius-input)] text-[var(--text-primary)] transition hover:bg-[var(--bg-hover)]"
                     aria-label="Fechar expansão"
                   >
@@ -749,7 +769,7 @@ export function RichTextEditor({
                     <p className="text-xs text-[var(--text-tertiary)]">{saveFooterLabel ?? 'Salvo agora há pouco'}</p>
                   </div>
                   <button
-                    onClick={() => setIsFullscreen(false)}
+                    onClick={() => setFullscreen(false)}
                     className="min-w-[72px] text-sm font-semibold text-[var(--accent-blue)]"
                   >
                     Concluir
@@ -771,14 +791,28 @@ export function RichTextEditor({
                   </div>
                   <div className="flex items-center gap-2">
                     <button
-                      onClick={() => setIsFullscreen(false)}
+                      type="button"
+                      aria-pressed={commentsOpen}
+                      onClick={() => setCommentsOpen(open => !open)}
+                      className={cn(
+                        'inline-flex h-10 items-center gap-2 rounded-[var(--radius-input)] px-3 text-sm font-medium transition',
+                        commentsOpen
+                          ? 'bg-[var(--bg-hover)] text-[var(--text-primary)]'
+                          : 'text-[var(--text-tertiary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]',
+                      )}
+                    >
+                      <MessageSquare className="h-4 w-4" />
+                      Comentários{annotations.length > 0 ? ` ${annotations.length}` : ''}
+                    </button>
+                    <button
+                      onClick={() => setFullscreen(false)}
                       className="flex h-10 w-10 items-center justify-center rounded-[var(--radius-input)] text-[var(--text-tertiary)] transition hover:bg-[var(--bg-hover)]"
                       aria-label="Fechar expansão"
                     >
                       <Minimize2 className="h-4 w-4" />
                     </button>
                     <button
-                      onClick={() => setIsFullscreen(false)}
+                      onClick={() => setFullscreen(false)}
                       className="flex h-10 w-10 items-center justify-center rounded-[var(--radius-input)] text-[var(--text-primary)] transition hover:bg-[var(--bg-hover)]"
                       aria-label="Fechar editor"
                     >
@@ -971,7 +1005,7 @@ export function RichTextEditor({
           )}
           </div>
             <button
-              onClick={() => setIsFullscreen(true)}
+              onClick={() => setFullscreen(true)}
               className={cn(
                 'mr-2 flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--radius-input)] transition',
                 formatControlClass(false, writingBar),
@@ -1058,13 +1092,17 @@ export function RichTextEditor({
           )}
         </AnimatePresence>
 
+        <div className={cn('flex min-h-0', isFullscreen ? 'flex-1' : writingBar ? 'overflow-visible' : 'flex-1')}>
         <div
           ref={editorViewportRef}
           className={cn(
             'transition-all duration-500',
+            isFullscreen && fullscreenAside && !isMobile && 'min-w-0',
             isWorkspace && !isFullscreen
-              ? 'min-h-0 flex-1 overflow-y-auto custom-scrollbar'
-              : 'flex-1 overflow-y-auto custom-scrollbar',
+              ? writingBar
+                ? 'overflow-visible'
+                : 'min-h-0 flex-1 overflow-y-auto custom-scrollbar'
+              : 'min-h-0 flex-1 overflow-y-auto custom-scrollbar',
             isFullscreen
               ? 'bg-[var(--bg-elevated)]'
               : compactMobileComposer
@@ -1078,7 +1116,11 @@ export function RichTextEditor({
           <div
             className={cn(
               'mx-auto flex items-start gap-12',
-              isFullscreen ? 'max-w-none flex-col xl:flex-row' : 'max-w-full flex-col xl:flex-row',
+              isFullscreen
+                ? commentsOpen
+                  ? 'w-full max-w-[72rem] flex-col xl:flex-row'
+                  : 'w-full max-w-[51rem] flex-col'
+                : 'max-w-full flex-col xl:flex-row',
             )}
           >
             <div
@@ -1088,12 +1130,18 @@ export function RichTextEditor({
                 'relative w-full flex-1 cursor-text bg-[var(--bg-elevated)] transition-all',
                 isFullscreen
                   ? cn(
-                      isMobile ? 'min-h-[calc(100vh-112px)] px-4 py-6 pb-28' : 'min-h-[760px] px-8 py-8',
+                      isMobile
+                        ? 'min-h-[calc(100vh-112px)] px-4 py-6 pb-28'
+                        : writingBar
+                          ? 'script-sheet mx-auto min-h-[calc(100dvh-10rem)] w-full max-w-[51rem] px-8 py-10'
+                          : 'min-h-[760px] px-8 py-8',
                     )
                   : compactMobileComposer
                     ? 'min-h-[50dvh] rounded-none border-0 bg-transparent px-0 py-2 shadow-none'
                     : isWorkspace
-                      ? 'script-sheet mx-auto min-h-[12rem] w-full max-w-[72ch] rounded-none border-0 bg-transparent px-1 py-2 shadow-none'
+                      ? writingBar
+                        ? 'script-sheet mx-auto min-h-[calc(100dvh-18rem)] w-full max-w-[51rem] rounded-none border-0 bg-transparent px-2 py-2 shadow-none'
+                        : 'script-sheet mx-auto min-h-[12rem] w-full max-w-[72ch] rounded-none border-0 bg-transparent px-1 py-2 shadow-none'
                       : 'min-h-[800px] rounded-[var(--radius-input)] border border-[var(--border-color)] p-12 shadow-[var(--shadow-editorial)] md:p-24',
                 editorCanvasClassName,
               )}
@@ -1114,7 +1162,7 @@ export function RichTextEditor({
               )}
             </div>
 
-            {isFullscreen && !isMobile && (
+            {isFullscreen && !isMobile && commentsOpen && (
               <div
                 className="relative w-full shrink-0 px-8 pb-8 xl:w-80"
                 style={{ minHeight: editorContainerRef.current?.offsetHeight ?? 0 }}
@@ -1269,6 +1317,12 @@ export function RichTextEditor({
               </div>
             )}
           </div>
+        </div>
+        {isFullscreen && !isMobile && fullscreenAside ? (
+          <div className="flex h-full min-h-0 w-[var(--layout-aside)] shrink-0 flex-col overflow-hidden border-l border-[var(--border-color)]">
+            {fullscreenAside}
+          </div>
+        ) : null}
         </div>
 
         {isFullscreen && isMobile && !compactMobileComposer && (
