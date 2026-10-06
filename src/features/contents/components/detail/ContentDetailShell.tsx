@@ -442,14 +442,6 @@ export function ContentDetailShell({
 
       setDraft(previous => ({...previous, ...updates, status: nextStatus}));
 
-      if (options?.advanceToReady) {
-        setSearchParams(previous => {
-          const next = new URLSearchParams(previous);
-          next.set('tab', 'gravacao');
-          return next;
-        }, {replace: true});
-      }
-
       return true;
     } catch {
       return false;
@@ -457,7 +449,7 @@ export function ContentDetailShell({
       setIsSaving(false);
       if (!silent) setExplicitSaving(false);
     }
-  }, [setSearchParams, updateContent]);
+  }, [updateContent]);
 
   const drainPersistQueue = useCallback(async () => {
     if (persistInFlightRef.current) return;
@@ -658,7 +650,6 @@ export function ContentDetailShell({
       }
       case 'advance_to_recording':
         await persist({}, {advanceToReady: true});
-        setIsRecordingSheetOpen(true);
         return;
       case 'add_to_block':
         setIsRecordingSheetOpen(true);

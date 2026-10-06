@@ -142,7 +142,7 @@ export function CreationHubPage() {
   const legacyType = searchParams.get('tipo');
   const requestedTab = searchParams.get('tab')
     ?? (legacyType === 'ideia' ? 'ideias' : legacyType === 'roteiro' ? 'roteiros' : '');
-  const activeTab = QUERY_TAB[requestedTab] ?? 'Todos';
+  const activeTab = QUERY_TAB[requestedTab] ?? 'Roteiros';
   const search = searchParams.get('q') ?? '';
   const pilarId = searchParams.get('pilar') ?? '';
   const seriesId = searchParams.get('serie') ?? '';
@@ -717,7 +717,7 @@ export function CreationHubPage() {
     <SegmentTabs
       options={tabOptions}
       value={activeTab}
-      onChange={tab => updateSearchParam('tab', TAB_QUERY[tab], 'todos')}
+      onChange={tab => updateSearchParam('tab', TAB_QUERY[tab], 'roteiros')}
     />
   );
 
@@ -730,7 +730,7 @@ export function CreationHubPage() {
         count: tabCounts[tab],
       }))}
       value={activeTab}
-      onChange={tab => updateSearchParam('tab', TAB_QUERY[tab], 'todos')}
+      onChange={tab => updateSearchParam('tab', TAB_QUERY[tab], 'roteiros')}
     />
   );
 
