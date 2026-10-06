@@ -8,6 +8,7 @@ export interface CreationGridItemModel {
   series?: Serie | null;
   selectable: boolean;
   selected: boolean;
+  etiquetas?: readonly string[];
 }
 
 interface CreationGridViewProps {
@@ -38,6 +39,7 @@ export function CreationGridView({
           selectionMode={selectionMode}
           selectable={item.selectable}
           selected={item.selected}
+          etiquetas={item.etiquetas}
           compact={compact}
           onOpen={() => onOpen(item.content)}
           onToggleSelect={() => onToggleSelect(item.content)}

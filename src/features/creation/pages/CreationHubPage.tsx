@@ -84,6 +84,7 @@ import {
 } from '../lib/creationFilterOptions';
 import type { CreationItemActionHandlers } from '../lib/creationItemActions';
 import {
+  etiquetasVisiveis,
   moveCreationToKanbanTab,
   readStoredCreationViewMode,
   storeCreationViewMode,
@@ -664,9 +665,10 @@ export function CreationHubPage() {
     content,
     pillar: state.pilares.find(pilar => pilar.id === content.pilarId) ?? null,
     series: state.series.find(item => item.id === content.seriesId) ?? null,
+    etiquetas: etiquetasVisiveis(content, state.temas),
     selectable: exportableIds.has(content.id),
     selected: selectedExportIds.has(content.id),
-  }), [exportableIds, selectedExportIds, state.pilares, state.series]);
+  }), [exportableIds, selectedExportIds, state.pilares, state.series, state.temas]);
 
   const listItems = useMemo(
     () => visibleContents.map(resolveItem),

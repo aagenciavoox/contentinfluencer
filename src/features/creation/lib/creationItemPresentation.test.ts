@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { createContentDraft } from '../../contents/lib/createContentDraft.ts';
 import { CONTENT_STATUS } from '../../contents/lib/contentPipeline.ts';
 import {
+  etiquetasVisiveis,
   getCreationCardTags,
   getCreationNoteExcerpt,
   isIdeaContent,
@@ -36,6 +37,14 @@ assert.deepEqual(
     tags: ['#Médica', 'POVS', 'gravar', 'médica', 'editar'],
   }),
   ['Médica', 'POVS'],
+);
+
+assert.deepEqual(
+  etiquetasVisiveis(
+    {tags: ['#Médica', 'POVS', 'gravar'], temaIds: ['t1', 't2', 'sumiu']},
+    [{id: 't1', nome: 'Halloween'}, {id: 't2', nome: 'Médica'}],
+  ),
+  ['Halloween', 'Médica', 'POVS'],
 );
 
 assert.equal(isIdeaContent(createContentDraft({ status: CONTENT_STATUS.IDEIA })), true);

@@ -27,6 +27,7 @@ export interface CreationGridCardProps {
   selected: boolean;
   /** Mobile-dense layout: type badge + actions on row 1, title on row 2. */
   compact?: boolean;
+  etiquetas?: readonly string[];
   onOpen: () => void;
   onToggleSelect: () => void;
   actions: CreationItemActionHandlers;
@@ -39,13 +40,14 @@ export function CreationGridCard({
   selectionMode,
   selectable,
   selected,
+  etiquetas,
   onOpen,
   onToggleSelect,
   actions,
 }: CreationGridCardProps) {
   const title = getCreationTitle(content);
   const isIdea = isIdeaContent(content);
-  const tags = getCreationCardTags(content);
+  const tags = etiquetas ?? getCreationCardTags(content);
   const excerpt = getCreationNoteExcerpt(content);
   const footerMeta = getCreationCardFooterMeta(content);
   const canOpen = !content.deletedAt;
@@ -93,6 +95,7 @@ export function CreationGridCard({
                 : `${title} não pode ser selecionado`)
               : (canOpen ? `Abrir ${title}` : title),
             entityHint,
+            tags.length > 0 ? `Tags: ${tags.join(', ')}` : null,
           ].filter(Boolean).join(', ')
         }
       />
@@ -149,10 +152,10 @@ export function CreationGridCard({
           ) : null}
         </div>
 
-        {(!hasMarks && tags.length > 0) || footerMeta ? (
+        {tags.length > 0 || footerMeta ? (
           <div className="creation-hub-card__footer flex min-h-6 items-center justify-between gap-4">
-            {!hasMarks && tags.length > 0 ? (
-              <CreationCategoryLabel label={tags[0]} extraCount={tags.length - 1} />
+            {tags.length > 0 ? (
+              <CreationCategoryLabel label={tags[0]} extraCount={tags.length - 1} names={tags} />
             ) : <span aria-hidden />}
             {footerMeta ? (
               <Text

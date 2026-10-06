@@ -23,13 +23,14 @@ import {TemaField} from '../../contents/components/detail/TemaField';
 import {buildContentDetailRoute} from '../../contents/lib/contentDetailRoute';
 import {CONTENT_STATUS, normalizeContentStatus} from '../../contents/lib/contentPipeline';
 import {buildDetailBackState} from '../../../lib/navigation/detailBack';
+import {etiquetasVisiveis} from '../../creation/lib/creationItemPresentation';
 import {getEditorialSettings} from '../../editorial/lib/editorialSettings';
 import {distribuicaoFecha} from '../../editorial/lib/gradeCounts';
 import {FUNCAO_CURTA, FUNIL_DA_FUNCAO, funcaoHerdavelDaSerie, resolveFuncao} from '../../editorial/lib/funcoes';
 import {MonthHealth} from '../components/MonthHealth';
 import {excessosAoAcrescentar, periodoDoMes, saudeDoMes, type ExcessoMes} from '../lib/monthHealth';
-import {POST_IT_MIME, PostItIdentity, PostItNote, type PostItMark} from '../components/PostItNote';
-import {conteudoTemTema, nomesDosTemas, temasEmUso} from '../lib/temasPlanejamento';
+import {POST_IT_MIME, PostItIdentity, PostItNote, PostItTemas, type PostItMark} from '../components/PostItNote';
+import {conteudoTemTema, temasEmUso} from '../lib/temasPlanejamento';
 import {
   canPullContent,
   cancelPostItEdit,
@@ -95,7 +96,7 @@ function postItAppearance(
   return {
     seriesColor: serie?.cor?.trim() || null,
     marks,
-    temas: nomesDosTemas(content.temaIds, temas),
+    temas: etiquetasVisiveis(content, temas),
   };
 }
 
@@ -603,6 +604,7 @@ export function PlanejamentoPage() {
                   >
                     {openKind !== 'vazio' ? <PostItIdentity marks={openAppearance.marks} /> : null}
                     <Text variant="itemTitle">{openContent.title?.trim() || 'Sem título'}</Text>
+                    <PostItTemas temas={openAppearance.temas} />
                     <Text variant="meta" className="mt-1 block text-[var(--text-secondary)]">
                       Puxado para este dia. O status continua {normalizeContentStatus(openContent.status)} até você transformar.
                     </Text>

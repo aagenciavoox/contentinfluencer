@@ -27,6 +27,7 @@ export interface CreationKanbanItemModel {
   content: Content;
   pillar?: Pilar | null;
   series?: Serie | null;
+  etiquetas?: readonly string[];
 }
 
 interface CreationKanbanViewProps {
@@ -44,6 +45,7 @@ function CreationKanbanCard({
   content,
   pillar,
   series,
+  etiquetas,
   selectionMode,
   isDragging,
   isPersisting,
@@ -64,7 +66,7 @@ function CreationKanbanCard({
 }) {
   const title = getCreationTitle(content);
   const isIdea = isIdeaContent(content);
-  const tags = getCreationCardTags(content);
+  const tags = etiquetas ?? getCreationCardTags(content);
   const excerpt = getCreationNoteExcerpt(content);
   const footerMeta = getCreationCardFooterMeta(content);
   const canOpen = !content.deletedAt && !selectionMode;
@@ -91,7 +93,7 @@ function CreationKanbanCard({
       }}
       role={canOpen ? 'button' : undefined}
       tabIndex={canOpen ? 0 : undefined}
-      aria-label={[canOpen ? `Abrir ${title}` : title, entityHint].filter(Boolean).join(', ')}
+      aria-label={[canOpen ? `Abrir ${title}` : title, entityHint, tags.length > 0 ? `Tags: ${tags.join(', ')}` : null].filter(Boolean).join(', ')}
       className={cn(
         'creation-hub-card group relative flex flex-col rounded-[var(--radius-card)] border shadow-none',
         isIdea
@@ -140,10 +142,10 @@ function CreationKanbanCard({
         ) : null}
       </div>
 
-      {(!hasMarks && tags.length > 0) || footerMeta ? (
+      {tags.length > 0 || footerMeta ? (
         <div className="creation-hub-card__footer flex min-h-6 items-center justify-between gap-4">
-          {!hasMarks && tags.length > 0 ? (
-            <CreationCategoryLabel label={tags[0]} extraCount={tags.length - 1} />
+          {tags.length > 0 ? (
+            <CreationCategoryLabel label={tags[0]} extraCount={tags.length - 1} names={tags} />
           ) : <span aria-hidden />}
           {footerMeta ? (
             <Text

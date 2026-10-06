@@ -12,7 +12,6 @@ import {
 } from '../lib/creationItemActions';
 import {
   getCreationFormatLabel,
-  getCreationCardTags,
   getCreationTitle,
   isIdeaContent,
 } from '../lib/creationItemPresentation';
@@ -23,6 +22,7 @@ export interface CreationListItemModel {
   series?: Serie | null;
   selectable: boolean;
   selected: boolean;
+  etiquetas?: readonly string[];
 }
 
 /**
@@ -62,6 +62,7 @@ function CreationListRow({
   selected,
   onOpen,
   onToggleSelect,
+  etiquetas,
   actions,
   columnsClassName,
   showCategory,
@@ -78,7 +79,7 @@ function CreationListRow({
   const title = getCreationTitle(content);
   const isIdea = isIdeaContent(content);
   const entityHint = creationEntityHint(pillar, series, content.pilarId, content.seriesId);
-  const tags = getCreationCardTags(content);
+  const tags = etiquetas ?? [];
   const format = getCreationFormatLabel(content);
   const canOpen = !content.deletedAt;
   const canActivate = selectionMode ? selectable : canOpen;
@@ -112,6 +113,7 @@ function CreationListRow({
             : `${title} não pode ser selecionado`)
           : (canOpen ? `Abrir ${title}` : title),
         entityHint,
+        tags.length > 0 ? `Tags: ${tags.join(', ')}` : null,
       ].filter(Boolean).join(', ')}
       className={cn(
         'group relative grid grid-cols-1 gap-2 rounded-[var(--radius-input)] border border-transparent px-3 py-2.5 transition-[background-color,border-color] duration-150',
@@ -151,7 +153,7 @@ function CreationListRow({
         {showCategory ? (
           <div className="relative z-[1] min-w-0">
             {tags.length > 0 ? (
-              <CreationCategoryLabel label={tags[0]} extraCount={tags.length - 1} />
+              <CreationCategoryLabel label={tags[0]} extraCount={tags.length - 1} names={tags} />
             ) : (
               <span className="hidden md:block" aria-hidden />
             )}
@@ -210,7 +212,7 @@ export function CreationListView({
   onToggleSelect,
   actions,
 }: CreationListViewProps) {
-  const showCategory = items.some(item => getCreationCardTags(item.content).length > 0);
+  const showCategory = items.some(item => (item.etiquetas ?? []).length > 0);
   const showFormat = items.some(item => Boolean(getCreationFormatLabel(item.content)));
   const columnsClassName = listColumnsClass(showCategory, showFormat);
 
@@ -237,7 +239,7 @@ export function CreationListView({
         >
           Título
         </button>
-        {showCategory ? <Text variant="label" as="span">Categoria</Text> : null}
+        {showCategory ? <Text variant="label" as="span">Tag</Text> : null}
         {showFormat ? <Text variant="label" as="span">Formato</Text> : null}
         <Text variant="label" as="span">Pilar / Série</Text>
         <span>

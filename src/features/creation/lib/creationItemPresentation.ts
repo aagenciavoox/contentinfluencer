@@ -198,6 +198,23 @@ export function getCreationCardTags(
   });
 }
 
+/** Temas do conteúdo e tags de usuário, sem repetir e sem as tags técnicas de produção. */
+export function etiquetasVisiveis(
+  content: Pick<Content, 'tags' | 'temaIds'>,
+  temas: readonly {id: string; nome: string}[] = [],
+) {
+  const porId = new Map(temas.map(tema => [tema.id, tema.nome.trim()]));
+  const nomes = (content.temaIds ?? []).flatMap(id => {
+    const nome = porId.get(id);
+    return nome ? [nome] : [];
+  });
+  const seen = new Set(nomes.map(nome => nome.toLocaleLowerCase('pt-BR')));
+  return [
+    ...nomes,
+    ...getCreationCardTags(content).filter(tag => !seen.has(tag.toLocaleLowerCase('pt-BR'))),
+  ];
+}
+
 export function isCreationKanbanTab(tab: CreationTab): tab is CreationKanbanTab {
   return (CREATION_KANBAN_TABS as readonly string[]).includes(tab);
 }

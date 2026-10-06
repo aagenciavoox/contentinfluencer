@@ -133,8 +133,8 @@ export function PostItTemas({temas, compact = false}: {temas: readonly string[];
       {visiveis.map(tema => (
         <Badge
           key={tema}
-          variant="neutral"
-          className={cn('max-w-full gap-0.5', compact && 'px-1.5 py-0 text-2xs')}
+          variant="tag"
+          className={cn('max-w-full gap-0.5 text-2xs', compact && 'px-1.5 py-0')}
         >
           <Tag className="h-2.5 w-2.5 shrink-0" aria-hidden />
           <span className="truncate">{tema}</span>
