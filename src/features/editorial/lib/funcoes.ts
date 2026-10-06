@@ -13,7 +13,7 @@ export const FUNCAO_LABELS: Record<FuncaoEditorial, string> = {
   atrair: 'Atrair alcance',
   converter: 'Converter em seguidor',
   aprofundar: 'Aprofundar',
-  comunidade: 'Gerar comunidade',
+  comunidade: 'Comunidade',
   acao: 'Levar à ação',
   reter: 'Reter',
 };
@@ -31,8 +31,8 @@ export const FUNCAO_CURTA: Record<FuncaoEditorial, string> = {
 export const FUNCAO_DESCRICOES: Record<FuncaoEditorial, string> = {
   atrair: 'Traz gente nova pelo humor ou pela curiosidade.',
   converter: 'Convida quem chegou a seguir.',
-  aprofundar: 'Aprofunda um assunto com quem já acompanha.',
-  comunidade: 'Gera conversa e sensação de grupo.',
+  aprofundar: 'Dá contexto e desenvolve a análise.',
+  comunidade: 'Cria conversa e identificação.',
   acao: 'Leva a uma ação concreta.',
   reter: 'Mantém o vínculo com quem já acompanha.',
 };

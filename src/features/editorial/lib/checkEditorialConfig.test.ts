@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { checkEditorialConfig, pesoSemanalSerie, type PilarConfig, type SerieConfig } from './checkEditorialConfig.ts';
+import { checkEditorialConfig, excedentesDosPilares, formatarPeso, pesoSemanalSerie, type PilarConfig, type SerieConfig } from './checkEditorialConfig.ts';
 
 const PILAR: PilarConfig = { id: 'pilar-1', nome: 'Literatura', ativo: true, frequenciaSemanal: 2 };
 
@@ -157,6 +157,24 @@ function testSerieContaNoPilarPrincipal() {
   assert.equal(notas.some(nota => nota.chave === 'pilar-capacidade:pilar-2'), true);
 }
 
+function testExcedentesDosPilares() {
+  assert.equal(formatarPeso(2.5), '2,5');
+  assert.equal(formatarPeso(2), '2');
+  const rows = excedentesDosPilares(
+    [PILAR, { id: 'pilar-2', nome: 'Psicologia', ativo: true, frequenciaSemanal: 1 }],
+    [
+      serie({ id: 's1' }),
+      serie({ id: 's2' }),
+      serie({ id: 's3', frequenciaRecomendada: 'Quinzenal' }),
+      serie({ id: 'cabe', pilarIds: ['pilar-2'], frequenciaRecomendada: 'Quinzenal' }),
+    ],
+  );
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0]?.id, 'pilar-1');
+  assert.equal(rows[0]?.ocupado, 2.5);
+  assert.equal(rows[0]?.previsto, 2);
+}
+
 testPesos();
 testDistribuicaoForaDe100();
 testDistribuicaoVaziaNaoApontaSoma();
@@ -165,5 +183,6 @@ testSeriesCabemNoPilar();
 testFuncaoComEspacoSemSerie();
 testRedeDeReferencia();
 testSerieContaNoPilarPrincipal();
+testExcedentesDosPilares();
 
 console.log('checkEditorialConfig tests passed');

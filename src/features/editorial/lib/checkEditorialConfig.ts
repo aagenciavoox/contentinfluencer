@@ -54,7 +54,7 @@ export function pesoSemanalSerie(frequencia: string | null | undefined): number 
   return 0;
 }
 
-function formatarNumero(valor: number): string {
+export function formatarPeso(valor: number): string {
   const arredondado = Math.round(valor * 100) / 100;
   const [inteiro, frac = ''] = arredondado.toFixed(2).split('.');
   const fracao = frac.replace(/0+$/, '');
@@ -62,8 +62,43 @@ function formatarNumero(valor: number): string {
 }
 
 function rotuloEspaco(valor: number): string {
-  const texto = formatarNumero(valor);
+  const texto = formatarPeso(valor);
   return `${texto} ${valor === 1 ? 'espaço' : 'espaços'}`;
+}
+
+export type ExcedentePilar = {
+  id: string;
+  nome: string;
+  ocupado: number;
+  previsto: number;
+};
+
+/** Pilares ativos em que o peso semanal das séries passa da frequência prevista. */
+export function excedentesDosPilares(
+  pilares: readonly PilarConfig[],
+  series: readonly SerieConfig[],
+): ExcedentePilar[] {
+  const ativos = pilares.filter(pilar => pilar.ativo !== false);
+  const ativosIds = new Set(ativos.map(pilar => pilar.id));
+  const pesoPorPilar = new Map<string, number>();
+  for (const serie of series) {
+    if (serie.ativa === false) continue;
+    const peso = pesoSemanalSerie(serie.frequenciaRecomendada);
+    if (peso <= 0) continue;
+    const pilarId = pilarDaSerie(serie, ativosIds);
+    if (!pilarId) continue;
+    pesoPorPilar.set(pilarId, (pesoPorPilar.get(pilarId) ?? 0) + peso);
+  }
+
+  return ativos.flatMap(pilar => {
+    const ocupado = pesoPorPilar.get(pilar.id) ?? 0;
+    if (ocupado <= 0) return [];
+    const previsto = typeof pilar.frequenciaSemanal === 'number' && pilar.frequenciaSemanal > 0
+      ? Math.floor(pilar.frequenciaSemanal)
+      : 0;
+    if (ocupado <= previsto + 0.001) return [];
+    return [{id: pilar.id, nome: pilar.nome, ocupado, previsto}];
+  });
 }
 
 function pilarDaSerie(serie: SerieConfig, ativos: ReadonlySet<string>): string | null {
@@ -89,31 +124,13 @@ export function checkEditorialConfig(input: EditorialConfigInput): ConfigNota[] 
     });
   }
 
-  const ativos = input.pilares.filter(pilar => pilar.ativo !== false);
-  const ativosIds = new Set(ativos.map(pilar => pilar.id));
-  const pesoPorPilar = new Map<string, number>();
-  for (const serie of input.series) {
-    if (serie.ativa === false) continue;
-    const peso = pesoSemanalSerie(serie.frequenciaRecomendada);
-    if (peso <= 0) continue;
-    const pilarId = pilarDaSerie(serie, ativosIds);
-    if (!pilarId) continue;
-    pesoPorPilar.set(pilarId, (pesoPorPilar.get(pilarId) ?? 0) + peso);
-  }
-
-  for (const pilar of ativos) {
-    const peso = pesoPorPilar.get(pilar.id) ?? 0;
-    if (peso <= 0) continue;
-    const capacidade = typeof pilar.frequenciaSemanal === 'number' && pilar.frequenciaSemanal > 0
-      ? Math.floor(pilar.frequenciaSemanal)
-      : 0;
-    if (peso <= capacidade + 0.001) continue;
-    const capacidadeTexto = capacidade > 0
-      ? `o pilar tem ${rotuloEspaco(capacidade)}`
+  for (const excedente of excedentesDosPilares(input.pilares, input.series)) {
+    const capacidadeTexto = excedente.previsto > 0
+      ? `o pilar tem ${rotuloEspaco(excedente.previsto)}`
       : 'o pilar não tem espaços';
     notas.push({
-      chave: `pilar-capacidade:${pilar.id}`,
-      mensagem: `${pilar.nome}: as séries ocupam ${rotuloEspaco(peso)} por semana e ${capacidadeTexto}.`,
+      chave: `pilar-capacidade:${excedente.id}`,
+      mensagem: `${excedente.nome}: as séries ocupam ${rotuloEspaco(excedente.ocupado)} por semana e ${capacidadeTexto}.`,
     });
   }
 

@@ -268,24 +268,25 @@ function FunnelPanel() {
   const { state, dispatch } = useAppContext();
   const navigate = useNavigate();
   const settings = getEditorialSettings(state.preferences);
+  const update = (patch: Partial<EditorialSettings>) => dispatch({
+    type: 'SET_PREFERENCE',
+    payload: {
+      key: EDITORIAL_SETTINGS_PREFERENCE_KEY,
+      value: { ...settings, ...patch },
+    },
+  });
 
   return (
-    <div className="stack-lg">
-      <NotasConfiguracaoEditorial notas={notasDaConfiguracao(state)} />
-      <DistribuicaoFuncoesPanel
-        pilares={state.pilares}
-        series={state.series}
-        settings={settings}
-        onOpenSerie={serieId => navigate(`/editorial/series/${serieId}`)}
-        onChange={distribuicaoFuncoes => dispatch({
-          type: 'SET_PREFERENCE',
-          payload: {
-            key: EDITORIAL_SETTINGS_PREFERENCE_KEY,
-            value: { ...settings, distribuicaoFuncoes },
-          },
-        })}
-      />
-    </div>
+    <DistribuicaoFuncoesPanel
+      pilares={state.pilares}
+      series={state.series}
+      settings={settings}
+      plataformas={state.platforms}
+      onOpenSerie={serieId => navigate(`/editorial/series/${serieId}`)}
+      onOpenPilares={() => navigate('/editorial?aba=pilares')}
+      onChange={distribuicaoFuncoes => update({ distribuicaoFuncoes })}
+      onChangeRede={redeReferenciaId => update({ redeReferenciaId })}
+    />
   );
 }
 
