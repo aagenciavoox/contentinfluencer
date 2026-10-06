@@ -86,6 +86,29 @@ function testPullRoteiroDoesNotChangeStatusOrDate() {
   assert.equal(result.postIts[0].date, '2026-10-20');
 }
 
+function testPullAgainDoesNotDuplicate() {
+  const content = ideia();
+  const first = pullExistingContent({
+    postIts: [],
+    content,
+    date: '2026-10-12',
+    id: 'post-1',
+    now: NOW,
+  });
+  const second = pullExistingContent({
+    postIts: first.postIts,
+    content,
+    date: '2026-10-20',
+    id: 'post-2',
+    now: NOW,
+  });
+  assert.equal(first.pulled, true);
+  assert.equal(second.pulled, false);
+  assert.equal(second.postIts.length, 1);
+  assert.equal(second.postIts[0].id, 'post-1');
+  assert.equal(second.postIts[0].date, '2026-10-12');
+}
+
 function testPullRejectsPostedContent() {
   const content = createContentDraft({
     id: 'postado-1',
@@ -375,6 +398,7 @@ const tests = [
   ['pulls an ideia without changing status or date', testPullIdeiaDoesNotChangeStatusOrDate],
   ['pulls a roteiro without changing status or date', testPullRoteiroDoesNotChangeStatusOrDate],
   ['does not pull posted content', testPullRejectsPostedContent],
+  ['does not pull a content that is already on a post-it', testPullAgainDoesNotDuplicate],
   ['transforms an empty post-it into an ideia on that day', testTransformEmptyIntoIdeiaKeepsDay],
   ['transforms an empty post-it into a roteiro and opens the script', testTransformEmptyIntoRoteiroKeepsDayAndOpensScript],
   ['promotes a pulled ideia into a roteiro on the post-it day', testTransformPulledIdeiaIntoRoteiroKeepsPostItDay],

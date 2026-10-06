@@ -329,16 +329,22 @@ export function PlanejamentoPage() {
     }
   };
 
+  const pulledContentIds = useMemo(
+    () => new Set(postIts.flatMap(postIt => postIt.contentId ? [postIt.contentId] : [])),
+    [postIts],
+  );
+
   const pullable = useMemo(() => {
     const query = pullQuery.trim().toLowerCase();
     return contents
       .filter(canPullContent)
+      .filter(content => !pulledContentIds.has(content.id))
       .filter(content => {
         if (!query) return true;
         return `${content.title} ${content.status}`.toLowerCase().includes(query);
       })
       .sort((left, right) => (left.title || '').localeCompare(right.title || '', 'pt-BR'));
-  }, [contents, pullQuery]);
+  }, [contents, pullQuery, pulledContentIds]);
 
   const options = openPostIt ? postItTransformOptions(openPostIt, openContent) : {ideia: false, roteiro: false};
   const openKind = openPostIt ? postItKind(openPostIt, openContent) : 'vazio';
@@ -709,7 +715,7 @@ export function PlanejamentoPage() {
               size="compact"
             />
             {pullable.length === 0 ? (
-              <Text variant="meta" className="text-[var(--text-secondary)]">Nada para puxar com esse filtro.</Text>
+              <Text variant="meta" className="text-[var(--text-secondary)]">Nada para puxar.</Text>
             ) : (
               <ul className="stack-sm">
                 {pullable.map(content => (

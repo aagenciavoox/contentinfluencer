@@ -80,18 +80,13 @@ export function pullExistingContent(input: {
     return {postIts: [...input.postIts], content: input.content, pulled: false};
   }
 
-  const now = nowIso(input.now);
-  const date = dayKey(input.date);
   const existing = input.postIts.find(postIt => postIt.contentId === input.content.id);
   if (existing) {
-    return {
-      postIts: input.postIts.map(postIt =>
-        postIt.id === existing.id ? {...postIt, date, updatedAt: now} : postIt,
-      ),
-      content: input.content,
-      pulled: true,
-    };
+    return {postIts: [...input.postIts], content: input.content, pulled: false};
   }
+
+  const now = nowIso(input.now);
+  const date = dayKey(input.date);
 
   return {
     postIts: [
