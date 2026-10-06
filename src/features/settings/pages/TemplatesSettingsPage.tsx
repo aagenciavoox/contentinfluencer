@@ -48,9 +48,15 @@ const EMPTY_BLOCO_EDITOR: BlocoEditorState = {
 export function TemplatesSettingsPage({
   seriesId: lockedSeriesId,
   embedded = false,
+  hideCreateButton = false,
+  emptyLabel,
+  onCreateReady,
 }: {
   seriesId?: string;
   embedded?: boolean;
+  hideCreateButton?: boolean;
+  emptyLabel?: string;
+  onCreateReady?: (open: () => void) => void;
 } = {}) {
   const {state, dispatch} = useAppContext();
   const {user} = useAuth();
@@ -73,6 +79,12 @@ export function TemplatesSettingsPage({
   const [novoBlocoLabel, setNovoBlocoLabel] = useState('');
   const [novoBlocoTipo, setNovoBlocoTipo] = useState<'fixo' | 'variavel'>('variavel');
   const [confirm, setConfirm] = useState<ConfirmState | null>(null);
+  const onCreateReadyRef = useRef(onCreateReady);
+  onCreateReadyRef.current = onCreateReady;
+
+  useEffect(() => {
+    onCreateReadyRef.current?.(() => setShowNewForm(true));
+  }, []);
 
   const templates = useMemo(
     () => [...state.templates]
@@ -702,6 +714,11 @@ export function TemplatesSettingsPage({
         )}
 
         {templates.length === 0 && !showNewForm ? (
+          emptyLabel ? (
+            <Text variant="meta" className="block py-6 text-center text-[var(--text-tertiary)]">
+              {emptyLabel}
+            </Text>
+          ) : (
           <EmptyState
             icon={<Layout className="h-10 w-10" />}
             title={EMPTY.templates.title}
@@ -712,6 +729,7 @@ export function TemplatesSettingsPage({
               </AppButton>
             }
           />
+          )
         ) : (
           <div className="grid-content">
             {templates.map(template => {
@@ -771,7 +789,7 @@ export function TemplatesSettingsPage({
   if (embedded) {
     return (
       <div className="stack-md">
-        {templates.length > 0 || showNewForm ? (
+        {!hideCreateButton && (templates.length > 0 || showNewForm) ? (
           <div className="flex justify-end">
             <AppButton
               variant="secondary"

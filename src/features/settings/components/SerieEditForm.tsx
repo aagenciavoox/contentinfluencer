@@ -1,14 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import {
+  ChevronDown,
   Copy,
-  FileText,
-  Hash,
-  Info,
   Layers,
-  Pencil,
-  Smile,
+  Plus,
 } from 'lucide-react';
 import { AppButton } from '../../../components/ui/AppButton';
+import { Badge } from '../../../components/ui/Badge';
 import { Surface } from '../../../components/ui/Surface';
 import { Text } from '../../../components/ui/Text';
 import { CoverUploadField } from '../../library/components/CoverUploadField';
@@ -17,9 +15,8 @@ import { SerieProductionMetricsPanel } from './SerieProductionMetricsPanel';
 import { TemplatesSettingsPage } from '../pages/TemplatesSettingsPage';
 import { cn } from '../../../lib/utils';
 import { generateUUID } from '../../../utils/uuid';
-import { EntityColorPicker } from './EntityColorPicker';
+import { EntityColorPicker, entitySwatchInk } from './EntityColorPicker';
 import { isSerieColorTaken } from '../lib/serieColors';
-import { ChoiceChips } from '../../editorial/components/ChoiceChips';
 import { OpenInfoNotice } from '../../editorial/components/OpenInfoNotice';
 import {
   collectFormatoSuggestions,
@@ -61,33 +58,47 @@ function serieSlugFromName(name: string): string {
     .replace(/^-|-$/g, '') || 'serie';
 }
 
-function PlatformBrand({ platform, compact = false }: { platform: string; compact?: boolean }) {
+function PlatformBrand({ platform }: { platform: string }) {
+  const gradientId = useId().replace(/:/g, '');
   const normalized = platform.toLowerCase();
-  const labelClass = 't-label font-bold text-white';
-  const sizeClass = compact ? 'h-7 w-7' : 'h-9 w-9';
   if (normalized.includes('instagram')) {
     return (
-      <span className={cn('flex shrink-0 items-center justify-center rounded-[var(--radius-input)] bg-gradient-to-br from-[#833AB4] via-[#FD1D1D] to-[#FCAF45]', sizeClass)}>
-        <span className={labelClass}>IG</span>
-      </span>
+      <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" aria-hidden>
+        <defs>
+          <linearGradient id={gradientId} x1="0" y1="1" x2="1" y2="0">
+            <stop offset="0" stopColor="#FEDA75" />
+            <stop offset="0.5" stopColor="#D62976" />
+            <stop offset="1" stopColor="#4F5BD5" />
+          </linearGradient>
+        </defs>
+        <rect width="24" height="24" rx="6" fill={`url(#${gradientId})`} />
+        <rect x="7" y="7" width="10" height="10" rx="3" fill="none" stroke="#fff" strokeWidth="1.6" />
+        <circle cx="12" cy="12" r="2.2" fill="none" stroke="#fff" strokeWidth="1.6" />
+        <circle cx="16.2" cy="7.9" r="0.9" fill="#fff" />
+      </svg>
     );
   }
   if (normalized.includes('tiktok')) {
     return (
-      <span className={cn('flex shrink-0 items-center justify-center rounded-[var(--radius-input)] bg-[#111111]', sizeClass)}>
-        <span className={labelClass}>TT</span>
-      </span>
+      <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" aria-hidden>
+        <rect width="24" height="24" rx="6" fill="#111111" />
+        <path
+          fill="#fff"
+          d="M14.2 6.2c.4 1.7 1.5 2.8 3.2 3.1v2.1c-1.1.1-2.1-.2-3.2-.9v4.4c0 2.6-2 4.6-4.7 4.6S4.8 17.5 4.8 14.9s2.1-4.6 4.7-4.6c.3 0 .6 0 .9.1v2.2c-.3-.1-.6-.2-.9-.2-1.4 0-2.5 1.1-2.5 2.5s1.1 2.5 2.5 2.5 2.5-1.1 2.5-2.5V6.2h2.2z"
+        />
+      </svg>
     );
   }
   if (normalized.includes('youtube')) {
     return (
-      <span className={cn('flex shrink-0 items-center justify-center rounded-[var(--radius-input)] bg-[#FF0000]', sizeClass)}>
-        <span className={labelClass}>YT</span>
-      </span>
+      <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" aria-hidden>
+        <rect width="24" height="24" rx="6" fill="#FF0000" />
+        <path fill="#fff" d="M10 8.5v7l6-3.5-6-3.5z" />
+      </svg>
     );
   }
   return (
-    <span className={cn('flex shrink-0 items-center justify-center rounded-[var(--radius-input)] bg-[var(--bg-hover)]', sizeClass)}>
+    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-[var(--radius-sm)] bg-[var(--bg-hover)]">
       <Text variant="label" className="font-bold text-[var(--text-secondary)]">
         {platform.slice(0, 2).toUpperCase()}
       </Text>
@@ -95,52 +106,135 @@ function PlatformBrand({ platform, compact = false }: { platform: string; compac
   );
 }
 
-function SectionHeader({
-  icon,
+function CardHeading({
   title,
   description,
   action,
-  compact = false,
+  inline = false,
 }: {
-  icon: React.ReactNode;
   title: string;
   description?: string;
   action?: React.ReactNode;
-  compact?: boolean;
+  inline?: boolean;
 }) {
   return (
-    <div className={cn('flex items-start justify-between gap-3', compact ? 'mb-3' : 'mb-4')}>
-      <div className="flex min-w-0 items-start gap-2.5">
-        <span
-          className={cn(
-            'flex shrink-0 items-center justify-center rounded-full bg-[var(--bg-hover)] text-[var(--text-secondary)]',
-            compact ? 'h-8 w-8' : 'h-9 w-9',
-          )}
-        >
-          {icon}
-        </span>
-        <div className="min-w-0">
-          <Text variant="label" className="font-semibold uppercase tracking-[0.06em] text-[var(--text-primary)]">
-            {title}
+    <div className="mb-4 flex items-start justify-between gap-3">
+      <div className={cn('min-w-0', inline ? 'flex flex-wrap items-baseline gap-x-2' : 'stack-sm')}>
+        <Text variant="itemTitle">{title}</Text>
+        {description ? (
+          <Text variant="meta" className="text-[var(--text-secondary)]">
+            {description}
           </Text>
-          {description ? (
-            <Text variant="meta" className="mt-1 text-[var(--text-secondary)]">
-              {description}
-            </Text>
-          ) : null}
-        </div>
+        ) : null}
       </div>
-      {action}
+      {action ? <div className="shrink-0">{action}</div> : null}
     </div>
   );
 }
 
-function FieldLabel({ children, required }: { children: React.ReactNode; required?: boolean }) {
+function FieldLabel({
+  children,
+  required,
+  optional,
+}: {
+  children: React.ReactNode;
+  required?: boolean;
+  optional?: boolean;
+}) {
   return (
     <Text variant="label" className="mb-1.5 block font-medium text-[var(--text-primary)]">
       {children}
-      {required ? <span className="text-[var(--accent-pink)]"> *</span> : null}
+      {required ? <span className="text-[var(--brand-accent-strong)]"> *</span> : null}
+      {optional ? <span className="font-normal text-[var(--text-tertiary)]"> · opcional</span> : null}
     </Text>
+  );
+}
+
+function SuggestField({
+  id,
+  value,
+  onChange,
+  suggestions,
+  placeholder,
+}: {
+  id: string;
+  value: string;
+  onChange: (value: string) => void;
+  suggestions: readonly string[];
+  placeholder: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const query = value.trim().toLowerCase();
+  const options = query
+    ? suggestions.filter(item => item.toLowerCase().includes(query))
+    : [...suggestions];
+
+  useEffect(() => {
+    if (!open) return;
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
+    };
+    document.addEventListener('pointerdown', handlePointerDown);
+    return () => document.removeEventListener('pointerdown', handlePointerDown);
+  }, [open]);
+
+  return (
+    <div className="relative" ref={rootRef}>
+      <input
+        id={id}
+        role="combobox"
+        aria-expanded={open}
+        aria-autocomplete="list"
+        value={value}
+        placeholder={placeholder}
+        onChange={event => {
+          onChange(event.target.value);
+          setOpen(true);
+        }}
+        onFocus={() => setOpen(true)}
+        onKeyDown={event => {
+          if (event.key === 'Escape') setOpen(false);
+        }}
+        className={cn(inputClass, 'pr-9')}
+      />
+      <button
+        type="button"
+        aria-label="Abrir sugestões"
+        onClick={() => setOpen(current => !current)}
+        className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-[var(--text-tertiary)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+      >
+        <ChevronDown className="h-4 w-4" />
+      </button>
+      {open ? (
+        <div
+          role="listbox"
+          className="absolute left-0 right-0 top-[calc(100%+4px)] z-30 max-h-56 overflow-y-auto rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] py-1 shadow-[var(--shadow-dropdown)]"
+        >
+          {options.length > 0 ? (
+            options.map(option => (
+              <button
+                key={option}
+                type="button"
+                role="option"
+                aria-selected={option === value}
+                onClick={() => {
+                  onChange(option);
+                  setOpen(false);
+                }}
+                className="flex w-full items-center px-3 py-2 text-left text-sm text-[var(--text-primary)] hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+              >
+                {option}
+              </button>
+            ))
+          ) : (
+            <Text variant="meta" className="block px-3 py-2 text-[var(--text-tertiary)]">
+              Nenhuma sugestão. O texto digitado permanece.
+            </Text>
+          )}
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -158,6 +252,7 @@ export function SerieEditForm({
   usedFormatoValues = [],
   showOpenInfoNotice = false,
   takenColors = [],
+  lastEditLabel = null,
 }: {
   initial: Partial<Serie>;
   platformNames: string[];
@@ -169,6 +264,7 @@ export function SerieEditForm({
   usedFormatoValues?: Array<string | null | undefined>;
   showOpenInfoNotice?: boolean;
   takenColors?: readonly string[];
+  lastEditLabel?: string | null;
 }) {
   const initialSnapshot = useRef({
     form: {
@@ -212,6 +308,7 @@ export function SerieEditForm({
     if (form.formatoApresentacao !== snap.form.formatoApresentacao) return true;
     if (form.motivoSalvar !== snap.form.motivoSalvar) return true;
     if (form.motivoEnviar !== snap.form.motivoEnviar) return true;
+    if (form.ativa !== snap.form.ativa) return true;
     if (JSON.stringify(form.plataformas) !== JSON.stringify(snap.form.plataformas)) return true;
     return false;
   }, [form]);
@@ -226,12 +323,12 @@ export function SerieEditForm({
     const current = [...form.plataformas];
     const index = current.findIndex(item => item.platformId === platformId);
 
-    if (!hashtags.trim()) {
+    if (!hashtags) {
       if (index >= 0) current.splice(index, 1);
     } else if (index >= 0) {
-      current[index] = {...current[index], hashtags: hashtags.trim()};
+      current[index] = {...current[index], hashtags};
     } else {
-      current.push({serieId: form.id, platformId, hashtags: hashtags.trim()});
+      current.push({serieId: form.id, platformId, hashtags});
     }
 
     setForm(previous => ({...previous, plataformas: current}));
@@ -263,7 +360,8 @@ export function SerieEditForm({
       pilarIds: form.pilarPrincipalId ? [form.pilarPrincipalId] : [],
       plataformas: platformNames
         .map(platformId => form.plataformas.find(item => item.platformId === platformId))
-        .filter((item): item is NonNullable<typeof item> => Boolean(item?.hashtags.trim())),
+        .filter((item): item is NonNullable<typeof item> => Boolean(item?.hashtags.trim()))
+        .map(item => ({...item, hashtags: item.hashtags.trim()})),
       createdAt: initial.createdAt || new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     });
@@ -296,8 +394,16 @@ export function SerieEditForm({
 
   const slug = serieSlugFromName(form.name || 'serie');
   const coverPreview = /^https?:\/\//i.test(form.capaUrl.trim()) ? form.capaUrl.trim() : '';
-  const serieForMetrics: Serie | null = initial.id
-    ? {
+  const openTemplateCreate = useRef<(() => void) | null>(null);
+  const selectedPilar = pilares.find(item => item.id === form.pilarPrincipalId) ?? null;
+  const pilarChoices = pilares.filter(item => item.ativo || item.id === form.pilarPrincipalId);
+  const funcaoDescription = FUNCAO_OPTIONS.find(option => option.value === form.funcaoPadrao)?.description ?? null;
+  const formatoOptions = collectFormatoSuggestions([...usedFormatoValues, form.formatoVisualPadrao]);
+  const apresentacaoOptions = form.formatoApresentacao.trim()
+    && !FORMATO_APRESENTACAO_SUGESTOES.some(item => item.toLowerCase() === form.formatoApresentacao.trim().toLowerCase())
+    ? [form.formatoApresentacao.trim(), ...FORMATO_APRESENTACAO_SUGESTOES]
+    : [...FORMATO_APRESENTACAO_SUGESTOES];
+  const serieForMetrics: Serie = {
         id: form.id,
         userId: form.userId,
         name: form.name,
@@ -321,11 +427,10 @@ export function SerieEditForm({
         plataformas: form.plataformas,
         createdAt: initial.createdAt || new Date().toISOString(),
         updatedAt: initial.updatedAt || new Date().toISOString(),
-      }
-    : null;
+      };
 
   return (
-    <div className={cn('relative w-full', isDirty && 'pb-28')}>
+    <div className="relative w-full">
       {showOpenInfoNotice ? (
         <OpenInfoNotice
           items={getSerieOpenItems({
@@ -339,46 +444,46 @@ export function SerieEditForm({
           className="mb-3"
         />
       ) : null}
-      <Surface variant="outlined" padding="md" className="mb-3 w-full bg-[var(--bg-secondary)]">
-        <div className="flex w-full items-center gap-4">
+      <Surface variant="outlined" padding="md" className="mb-3 w-full">
+        <div className="flex w-full items-center gap-3">
           {coverPreview ? (
             <img
               src={coverPreview}
               alt=""
-              className="h-14 w-14 shrink-0 rounded-[var(--radius-card)] object-cover md:h-16 md:w-16"
+              className="h-10 w-10 shrink-0 rounded-full object-cover"
             />
           ) : (
             <span
-              className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full md:h-16 md:w-16"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full"
               style={{backgroundColor: form.cor}}
             >
-              <Layers className="h-7 w-7 text-[var(--text-primary)] opacity-80 md:h-8 md:w-8" strokeWidth={1.5} />
+              <Layers className="h-5 w-5" strokeWidth={1.75} style={{ color: entitySwatchInk(form.cor) }} />
             </span>
           )}
-          <div className="min-w-0 flex-1">
-            <div className="flex items-start gap-2">
-              <Text variant="pageTitle" className="min-w-0 break-words">
-                {form.name.trim() || 'Nova série'}
-              </Text>
-              <Pencil className="mt-1 h-4 w-4 shrink-0 text-[var(--text-tertiary)]" aria-hidden />
-            </div>
-            <span className="mt-1.5 inline-flex max-w-full rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-hover)] px-2 py-0.5">
-              <Text variant="meta" className="break-all font-mono text-[var(--text-secondary)]">
-                ID: {slug}
-              </Text>
-            </span>
+          <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+            <Text variant="itemTitle" className="min-w-0 break-words">
+              {form.name.trim() || 'Nova série'}
+            </Text>
+            <Badge
+              className={form.ativa
+                ? 'border-transparent bg-[color-mix(in_srgb,var(--accent-green)_16%,transparent)] text-[var(--accent-green)]'
+                : undefined}
+            >
+              {form.ativa ? 'Ativa' : 'Inativa'}
+            </Badge>
+            <Text variant="meta" className="text-[var(--text-tertiary)]">
+              ID: {slug}
+            </Text>
           </div>
         </div>
       </Surface>
 
-      <div className="grid w-full grid-cols-1 gap-3 md:grid-cols-[minmax(0,7fr)_minmax(0,3fr)] md:items-start">
+      <div className="grid w-full grid-cols-1 items-start gap-3 lg:grid-cols-[minmax(0,1.7fr)_minmax(280px,0.95fr)]">
         <div className="flex min-w-0 flex-col gap-3">
-          <Surface variant="outlined" padding="md" className="bg-[var(--bg-secondary)]">
-            <SectionHeader
-              icon={<Smile className="h-4 w-4" />}
+          <Surface variant="outlined" padding="md">
+            <CardHeading
               title="Identidade"
-              description="Defina os atributos que representam esta série."
-              compact
+              description="Como esta série aparece na sua central."
             />
 
             <div className="stack-lg">
@@ -404,83 +509,90 @@ export function SerieEditForm({
                 />
               </div>
 
-              <div>
-                <FieldLabel>Cor</FieldLabel>
-                <EntityColorPicker
-                  value={form.cor}
-                  unavailableColors={takenColors}
-                  onChange={cor => setForm(previous => ({...previous, cor}))}
-                />
+              <div className="grid-form">
+                <div>
+                  <FieldLabel>Cor da série</FieldLabel>
+                  <EntityColorPicker
+                    variant="inline"
+                    value={form.cor}
+                    unavailableColors={takenColors}
+                    onChange={cor => setForm(previous => ({...previous, cor}))}
+                  />
+                </div>
+                <div>
+                  <FieldLabel optional>Capa</FieldLabel>
+                  <CoverUploadField
+                    appearance="series"
+                    value={form.capaUrl}
+                    onChange={capaUrl => setForm(previous => ({...previous, capaUrl}))}
+                    itemId={form.id}
+                    title={form.name.trim() || 'Série'}
+                    plain
+                  />
+                </div>
               </div>
-
-              <CoverUploadField
-                value={form.capaUrl}
-                onChange={capaUrl => setForm(previous => ({...previous, capaUrl}))}
-                itemId={form.id}
-                title={form.name.trim() || 'Série'}
-                typeLabel="Série"
-                description="Opcional. Envie uma imagem ou cole um link."
-                compact
-                plain
-                urlAlwaysVisible
-              />
             </div>
           </Surface>
 
-          <Surface variant="outlined" padding="md" className="bg-[var(--bg-secondary)]">
-            <SectionHeader
-              icon={<Layers className="h-4 w-4" />}
+          <Surface variant="outlined" padding="md">
+            <CardHeading
               title="Estratégia"
-              description="Defina os padrões que orientam os novos roteiros."
-              compact
+              description="Padrões usados ao criar conteúdos desta série."
             />
 
             <div className="stack-lg">
-              <div>
-                <FieldLabel>Pilar principal</FieldLabel>
-                <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Pilar principal">
-                  {pilares.filter(item => item.ativo).map(item => {
-                    const selected = form.pilarPrincipalId === item.id;
-                    return (
-                      <button
-                        key={item.id}
-                        type="button"
-                        role="radio"
-                        aria-checked={selected}
-                        onClick={() => setForm(previous => ({
-                          ...previous,
-                          pilarPrincipalId: selected ? null : item.id,
-                        }))}
-                        className={cn(
-                          'inline-flex min-h-11 items-center gap-2 rounded-[var(--radius-pill)] border px-3 py-1.5 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
-                          selected
-                            ? 'border-[var(--text-primary)] bg-[var(--bg-hover)]'
-                            : 'border-[var(--border-color)] bg-[var(--bg-secondary)]',
-                        )}
-                      >
-                        <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: item.cor }} />
-                        <Text variant="meta" className="font-medium">{item.nome}</Text>
-                      </button>
-                    );
-                  })}
+              <div className="grid-form">
+                <div>
+                  <FieldLabel>Pilar principal</FieldLabel>
+                  <div className="relative">
+                    {selectedPilar ? (
+                      <span
+                        className="pointer-events-none absolute left-3 top-1/2 h-2.5 w-2.5 -translate-y-1/2 rounded-full"
+                        style={{ backgroundColor: selectedPilar.cor }}
+                      />
+                    ) : null}
+                    <select
+                      aria-label="Pilar principal"
+                      value={form.pilarPrincipalId ?? ''}
+                      onChange={event => setForm(previous => ({
+                        ...previous,
+                        pilarPrincipalId: event.target.value || null,
+                      }))}
+                      className={cn(inputClass, selectedPilar && 'pl-8')}
+                    >
+                      <option value="">Escolher…</option>
+                      {pilarChoices.map(item => (
+                        <option key={item.id} value={item.id}>{item.nome}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
-              </div>
-
-              <div>
-                <FieldLabel>Função padrão</FieldLabel>
-                <ChoiceChips
-                  options={FUNCAO_OPTIONS}
-                  value={form.funcaoPadrao}
-                  onChange={funcaoPadrao => setForm(previous => ({ ...previous, funcaoPadrao }))}
-                  label="Função padrão"
-                  layout="stacked"
-                />
-              </div>
-
-              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <FieldLabel>Função padrão</FieldLabel>
+                  <select
+                    aria-label="Função padrão"
+                    value={form.funcaoPadrao ?? ''}
+                    onChange={event => setForm(previous => ({
+                      ...previous,
+                      funcaoPadrao: (event.target.value || null) as typeof previous.funcaoPadrao,
+                    }))}
+                    className={inputClass}
+                  >
+                    <option value="">Escolher…</option>
+                    {FUNCAO_OPTIONS.map(option => (
+                      <option key={option.value} value={option.value}>{option.label}</option>
+                    ))}
+                  </select>
+                  {funcaoDescription ? (
+                    <Text variant="meta" className="mt-1.5 block text-[var(--text-tertiary)]">
+                      {funcaoDescription}
+                    </Text>
+                  ) : null}
+                </div>
                 <div>
                   <FieldLabel>Recorrência</FieldLabel>
                   <select
+                    aria-label="Recorrência"
                     value={form.frequenciaRecomendada}
                     onChange={event => setForm(previous => ({ ...previous, frequenciaRecomendada: event.target.value }))}
                     className={inputClass}
@@ -491,39 +603,33 @@ export function SerieEditForm({
                 </div>
                 <div>
                   <FieldLabel>Formato de publicação</FieldLabel>
-                  <input
-                    list="serie-formato-suggestions"
+                  <SuggestField
+                    id="serie-formato-publicacao"
                     value={form.formatoVisualPadrao || ''}
-                    onChange={event => setForm(previous => ({
+                    onChange={formatoVisualPadrao => setForm(previous => ({
                       ...previous,
-                      formatoVisualPadrao: event.target.value || null,
+                      formatoVisualPadrao: formatoVisualPadrao || null,
                     }))}
+                    suggestions={formatoOptions}
                     placeholder="Escolher ou escrever…"
-                    className={inputClass}
                   />
-                  <datalist id="serie-formato-suggestions">
-                    {collectFormatoSuggestions(usedFormatoValues).map(item => <option key={item} value={item} />)}
-                  </datalist>
                 </div>
               </div>
 
               <div>
                 <FieldLabel>Formato de apresentação</FieldLabel>
-                <input
-                  list="serie-apresentacao-suggestions"
+                <SuggestField
+                  id="serie-formato-apresentacao"
                   value={form.formatoApresentacao}
-                  onChange={event => setForm(previous => ({ ...previous, formatoApresentacao: event.target.value }))}
+                  onChange={formatoApresentacao => setForm(previous => ({ ...previous, formatoApresentacao }))}
+                  suggestions={apresentacaoOptions}
                   placeholder="Escolher ou escrever…"
-                  className={inputClass}
                 />
-                <datalist id="serie-apresentacao-suggestions">
-                  {FORMATO_APRESENTACAO_SUGESTOES.map(item => <option key={item} value={item} />)}
-                </datalist>
               </div>
 
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid-form">
                 <div>
-                  <FieldLabel>Motivo para salvar</FieldLabel>
+                  <FieldLabel optional>Motivo para salvar</FieldLabel>
                   <input
                     type="text"
                     value={form.motivoSalvar}
@@ -533,7 +639,7 @@ export function SerieEditForm({
                   />
                 </div>
                 <div>
-                  <FieldLabel>Motivo para mandar</FieldLabel>
+                  <FieldLabel optional>Motivo para mandar</FieldLabel>
                   <input
                     type="text"
                     value={form.motivoEnviar}
@@ -546,46 +652,94 @@ export function SerieEditForm({
 
               <div>
                 <FieldLabel>Esforço de produção</FieldLabel>
-                <ChoiceChips
-                  options={ENERGIA_NIVEIS.map(value => ({ value, label: ENERGIA_LABELS[value] }))}
-                  value={form.energiaPadrao}
-                  onChange={energiaPadrao => setForm(previous => ({ ...previous, energiaPadrao }))}
-                  label="Esforço de produção"
-                />
+                <div
+                  role="radiogroup"
+                  aria-label="Esforço de produção"
+                  className="grid grid-cols-3 gap-1 rounded-[var(--radius-input)] border border-[var(--border-color)] p-1"
+                >
+                  {ENERGIA_NIVEIS.map(value => {
+                    const selected = form.energiaPadrao === value;
+                    return (
+                      <button
+                        key={value}
+                        type="button"
+                        role="radio"
+                        aria-checked={selected}
+                        onClick={() => setForm(previous => ({
+                          ...previous,
+                          energiaPadrao: selected ? null : value,
+                        }))}
+                        className={cn(
+                          'rounded-[var(--radius-input)] px-3 py-2 text-sm font-medium focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
+                          selected
+                            ? 'bg-[var(--brand-accent-soft)] text-[var(--brand-accent-strong)]'
+                            : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]',
+                        )}
+                      >
+                        {ENERGIA_LABELS[value]}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           </Surface>
 
-          <Surface variant="outlined" padding="md" className="bg-[var(--bg-secondary)]">
-            <SectionHeader
-              icon={<FileText className="h-4 w-4" />}
+          <Surface variant="outlined" padding="md">
+            <CardHeading
               title="Estrutura do roteiro"
-              description="Modelo base para roteiros desta série."
-              compact
+              description="Modelo base para os conteúdos da série."
+              inline
             />
             <textarea
               value={form.estruturaRoteiro}
               onChange={event => setForm(previous => ({...previous, estruturaRoteiro: event.target.value}))}
-              placeholder="Estrutura base para roteiros desta série…"
-              rows={3}
-              className={cn(inputClass, 'min-h-[88px] resize-none leading-relaxed')}
+              placeholder="Estrutura base para os conteúdos desta série…"
+              rows={7}
+              className={cn(inputClass, 'min-h-[140px] resize-y leading-relaxed')}
             />
           </Surface>
 
-          {serieForMetrics ? (
-            <Surface variant="outlined" padding="md" className="bg-[var(--bg-secondary)]">
-              <SerieProductionMetricsPanel serie={serieForMetrics} contents={contents} />
-            </Surface>
-          ) : null}
+          <Surface variant="outlined" padding="md">
+            <CardHeading
+              title="Templates de roteiro"
+              description="Templates desta série para começar um roteiro."
+              inline
+              action={
+                <AppButton
+                  variant="secondary"
+                  size="sm"
+                  disabled={!initial.id}
+                  onClick={() => openTemplateCreate.current?.()}
+                  leftIcon={<Plus className="h-4 w-4" />}
+                >
+                  Adicionar template
+                </AppButton>
+              }
+            />
+            {initial.id ? (
+              <TemplatesSettingsPage
+                seriesId={initial.id}
+                embedded
+                hideCreateButton
+                emptyLabel="Nenhum template adicionado."
+                onCreateReady={open => {
+                  openTemplateCreate.current = open;
+                }}
+              />
+            ) : (
+              <Text variant="meta" className="block py-6 text-center text-[var(--text-tertiary)]">
+                Salve a série para cadastrar templates de roteiro.
+              </Text>
+            )}
+          </Surface>
         </div>
 
-        <aside className="flex min-w-0 flex-col gap-3 md:sticky md:top-24 md:self-start">
-          <Surface variant="outlined" padding="md" className="bg-[var(--bg-secondary)]">
-            <SectionHeader
-              icon={<Hash className="h-4 w-4 text-[var(--accent-green)]" />}
+        <aside className="flex min-w-0 flex-col gap-3 lg:sticky lg:top-24 lg:self-start">
+          <Surface variant="outlined" padding="md">
+            <CardHeading
               title="Hashtags por plataforma"
               description="Separe as hashtags com espaço."
-              compact
             />
 
             {platformNames.length === 0 ? (
@@ -598,30 +752,31 @@ export function SerieEditForm({
                   const value = form.plataformas.find(item => item.platformId === platform)?.hashtags || '';
                   return (
                     <div key={platform}>
-                      <div className="mb-1.5 flex items-center gap-2">
-                        <PlatformBrand platform={platform} compact />
-                        <Text variant="meta" className="font-medium text-[var(--text-primary)]">
-                          {platform}
-                        </Text>
-                      </div>
-                      <div className="flex gap-2">
-                        <input
-                          type="text"
-                          value={value}
-                          onChange={event => updatePlatformHashtags(platform, event.target.value)}
-                          placeholder="#hashtag1 #hashtag2"
-                          className={inputClass}
-                        />
+                      <div className="mb-1.5 flex items-center justify-between gap-2">
+                        <div className="flex min-w-0 items-center gap-2">
+                          <PlatformBrand platform={platform} />
+                          <Text variant="meta" className="font-medium text-[var(--text-primary)]">
+                            {platform}
+                          </Text>
+                        </div>
                         <button
                           type="button"
                           onClick={() => void copyHashtags(value)}
                           disabled={!value.trim()}
-                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-secondary)] text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] disabled:opacity-40 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+                          className="inline-flex items-center gap-1.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-40 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
                           aria-label={`Copiar hashtags de ${platform}`}
                         >
                           <Copy className="h-3.5 w-3.5" />
+                          <Text variant="meta">Copiar</Text>
                         </button>
                       </div>
+                      <textarea
+                        value={value}
+                        onChange={event => updatePlatformHashtags(platform, event.target.value)}
+                        placeholder="#hashtag1 #hashtag2"
+                        rows={2}
+                        className={cn(inputClass, 'min-h-[64px] resize-y leading-relaxed')}
+                      />
                     </div>
                   );
                 })}
@@ -629,45 +784,16 @@ export function SerieEditForm({
             )}
           </Surface>
 
+          <Surface variant="outlined" padding="md">
+            <SerieProductionMetricsPanel
+              serie={serieForMetrics}
+              contents={contents}
+              lastEditLabel={lastEditLabel}
+              onActiveChange={ativa => setForm(previous => ({ ...previous, ativa }))}
+            />
+          </Surface>
         </aside>
       </div>
-
-      <Surface variant="outlined" padding="md" className="mt-3 bg-[var(--bg-secondary)]">
-        <SectionHeader
-          icon={<FileText className="h-4 w-4" />}
-          title="Templates de roteiro"
-          description="Templates desta série para começar um roteiro."
-          compact
-        />
-        {initial.id ? (
-          <TemplatesSettingsPage seriesId={initial.id} embedded />
-        ) : (
-          <Text variant="meta" className="text-[var(--text-tertiary)]">
-            Salve a série para cadastrar templates de roteiro.
-          </Text>
-        )}
-      </Surface>
-
-      {isDirty ? (
-        <div className="fixed inset-x-0 bottom-0 z-30 border-t border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-3 md:px-6">
-          <div className="flex w-full items-center justify-between gap-4">
-            <div className="flex min-w-0 items-start gap-2.5">
-              <Info className="mt-0.5 h-4 w-4 shrink-0 text-[var(--text-tertiary)]" />
-              <div className="min-w-0">
-                <Text variant="bodyStrong">Alterações não salvas</Text>
-              </div>
-            </div>
-            <div className="flex shrink-0 items-center gap-2">
-              <AppButton variant="secondary" size="sm" onClick={onCancel}>
-                Cancelar
-              </AppButton>
-              <AppButton variant="primary" size="sm" onClick={handleSave} disabled={!canSave}>
-                Salvar alterações
-              </AppButton>
-            </div>
-          </div>
-        </div>
-      ) : null}
     </div>
   );
 }

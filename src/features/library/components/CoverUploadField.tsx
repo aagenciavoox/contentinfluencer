@@ -1,12 +1,12 @@
 import { useEffect, useId, useRef, useState } from 'react';
-import { ImagePlus, Loader2, Trash2 } from 'lucide-react';
+import { ImagePlus, Loader2, Trash2, Upload } from 'lucide-react';
 import { AppButton } from '../../../components/ui/AppButton';
 import { Text } from '../../../components/ui/Text';
 import { useAuth } from '../../../context/AuthContext';
 import { cn } from '../../../lib/utils';
 import { deleteLibraryCoverByUrl } from '../lib/libraryCoverStorage';
 import { LIBRARY_COVER_UPLOAD_ERROR, uploadLibraryCover, validateLibraryCoverFile } from '../lib/uploadLibraryCover';
-import { CoverFallback } from './CoverFallback';
+import { CoverFallback, coverInitial } from './CoverFallback';
 
 interface CoverUploadFieldProps {
   value: string;
@@ -24,6 +24,8 @@ interface CoverUploadFieldProps {
   description?: string;
   /** Hide the thumbnail when a larger cover is already on the page. */
   hidePreview?: boolean;
+  /** Compact row used on the series editor: square, upload, and link. */
+  appearance?: 'default' | 'series';
 }
 
 export function CoverUploadField({
@@ -39,6 +41,7 @@ export function CoverUploadField({
   plain = false,
   description,
   hidePreview = false,
+  appearance = 'default',
 }: CoverUploadFieldProps) {
   const { user } = useAuth();
   const inputId = useId();
@@ -101,6 +104,98 @@ export function CoverUploadField({
     setBroken(false);
     void deleteLibraryCoverByUrl(previous);
   };
+
+  if (appearance === 'series') {
+    return (
+      <div className={cn('stack-sm', className)}>
+        <div className="flex items-start gap-3">
+          <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-[var(--radius-md)] bg-[var(--bg-hover)]">
+            {value && !broken ? (
+              <img
+                src={value}
+                alt=""
+                className="h-full w-full object-cover"
+                onError={() => setBroken(true)}
+              />
+            ) : (
+              <span className="text-lg font-semibold text-[var(--text-primary)]" aria-hidden>
+                {coverInitial(title)}
+              </span>
+            )}
+          </div>
+          <div className="min-w-0 flex-1 stack-sm">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+              <AppButton
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={handlePick}
+                disabled={uploading}
+                leftIcon={
+                  uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />
+                }
+              >
+                {uploading ? 'Enviando…' : value ? 'Trocar capa' : 'Enviar capa'}
+              </AppButton>
+              {value ? (
+                <AppButton
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleRemove}
+                  disabled={uploading}
+                  leftIcon={<Trash2 className="h-4 w-4" />}
+                >
+                  Remover
+                </AppButton>
+              ) : null}
+              {allowUrlFallback ? (
+                <button
+                  type="button"
+                  onClick={() => setShowUrl(current => !current)}
+                  className="text-sm font-medium text-[var(--text-secondary)] underline decoration-[var(--border-strong)] underline-offset-2 hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+                >
+                  {showUrl ? 'Ocultar link' : 'Usar link da imagem'}
+                </button>
+              ) : null}
+            </div>
+            <Text variant="meta" className="text-[var(--text-tertiary)]">
+              JPG, PNG, WEBP ou GIF · até 5 MB
+            </Text>
+          </div>
+        </div>
+        <input
+          id={inputId}
+          ref={fileInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp,image/gif"
+          className="hidden"
+          onChange={event => void handleFile(event.target.files?.[0])}
+        />
+        {showUrl && allowUrlFallback ? (
+          <label className="stack-sm">
+            <Text variant="meta" className="text-[var(--text-secondary)]">
+              Link da imagem
+            </Text>
+            <input
+              type="text"
+              inputMode="url"
+              value={value}
+              onChange={event => onChange(event.target.value)}
+              placeholder="https://..."
+              className="w-full"
+              disabled={uploading}
+            />
+          </label>
+        ) : null}
+        {error ? (
+          <Text variant="meta" className="text-[var(--accent-red)]">
+            {error}
+          </Text>
+        ) : null}
+      </div>
+    );
+  }
 
   return (
     <div className={cn('stack-sm', className)}>

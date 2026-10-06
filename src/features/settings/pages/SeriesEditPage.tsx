@@ -1,6 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Clock } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { ConfirmModal } from '../../../components/feedback/modals/ConfirmModal';
@@ -28,15 +27,11 @@ import {
 import {nextFreeSerieColor, takenSerieColorKeys} from '../lib/serieColors';
 
 function SerieEditHeaderActions({
-  isDirty,
   isCreate,
-  lastEditLabel,
   onDelete,
   chrome,
 }: {
-  isDirty: boolean;
   isCreate: boolean;
-  lastEditLabel: string | null;
   onDelete?: () => void;
   chrome: SerieEditChromeState | null;
 }) {
@@ -44,22 +39,6 @@ function SerieEditHeaderActions({
 
   return (
     <div className="flex flex-wrap items-center justify-end gap-2">
-      {isDirty ? (
-        <span className="inline-flex items-center gap-1.5 rounded-[var(--radius-pill)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-2.5 py-1">
-          <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent-orange)]" />
-          <Text variant="meta" className="font-medium text-[var(--text-secondary)]">
-            Alterações não salvas
-          </Text>
-        </span>
-      ) : null}
-      {!isCreate && lastEditLabel ? (
-        <span className="hidden items-center gap-1.5 xl:inline-flex">
-          <Clock className="h-3.5 w-3.5 text-[var(--text-tertiary)]" />
-          <Text variant="meta" className="text-[var(--text-tertiary)]">
-            {lastEditLabel}
-          </Text>
-        </span>
-      ) : null}
       {!isCreate && onDelete ? (
         <MoreMenu
           items={[
@@ -158,13 +137,13 @@ export function SeriesEditPage() {
   };
 
   const lastEditLabel = editingSerie?.updatedAt
-    ? `Última edição ${formatDistanceToNow(new Date(editingSerie.updatedAt), {addSuffix: true, locale: ptBR})} por você`
+    ? `Última edição ${formatDistanceToNow(new Date(editingSerie.updatedAt), {addSuffix: true, locale: ptBR})} por você.`
     : null;
 
   const pageTitle = isCreate ? 'Nova série' : 'Editar série';
   const pageMeta = isCreate
-    ? 'Cadastre as informações desta série.'
-    : 'Atualize as informações desta série.';
+    ? 'Cadastre os padrões e a identidade desta série.'
+    : 'Atualize os padrões e a identidade desta série.';
 
   const handleChromeChange = useCallback((next: SerieEditChromeState) => {
     setChrome(next);
@@ -200,6 +179,7 @@ export function SeriesEditPage() {
       onSave={handleSave}
       onCancel={backToList}
       onChromeChange={handleChromeChange}
+      lastEditLabel={lastEditLabel}
     />
   );
 
@@ -263,7 +243,7 @@ export function SeriesEditPage() {
   return (
     <>
       <PageLayout
-        variant="settings"
+        contentStack="dense"
         header={
           <DesktopPageHeader
             section="Criação"
@@ -274,9 +254,7 @@ export function SeriesEditPage() {
             hideSearch
             actions={
               <SerieEditHeaderActions
-                isDirty={chrome?.isDirty ?? false}
                 isCreate={isCreate}
-                lastEditLabel={lastEditLabel}
                 onDelete={() => setConfirmDelete(true)}
                 chrome={chrome}
               />

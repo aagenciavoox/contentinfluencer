@@ -1,25 +1,18 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import {
-  ChevronDown,
   Clock,
   Copy,
-  Hash,
-  Info,
   Layers,
-  Pencil,
   Plus,
   Smile,
-  Target,
   X,
 } from 'lucide-react';
-import { AppButton } from '../../../components/ui/AppButton';
 import { Surface } from '../../../components/ui/Surface';
 import { Text } from '../../../components/ui/Text';
 import type { Pilar, PilarPlataforma, Platform, PostingTimeEntry, Serie } from '../../../lib/database';
 import { cn } from '../../../lib/utils';
 import { generateUUID } from '../../../utils/uuid';
 import {
-  WEEKDAY_SHORT,
   WEEKDAYS_ORDERED,
   type Weekday,
 } from '../lib/postingTimes';
@@ -29,13 +22,20 @@ import {
   resolvePlatformUuid,
   shouldPersistPilarPlataforma,
 } from '../lib/pilarPostingSchedule';
-import {
-  PILAR_DEFAULT_COR,
-  PILAR_DESCRICAO_MAX,
-} from '../lib/pilarConstants';
-import { EntityColorPicker } from './EntityColorPicker';
+import { PILAR_DEFAULT_COR } from '../lib/pilarConstants';
+import { EntityColorPicker, entitySwatchInk } from './EntityColorPicker';
 
-type AccordionStep = 'identidade' | 'ritmo' | 'plataformas' | 'series';
+const PILAR_QUICK_COLORS = ['#F5C543', '#FB923C', '#EF4444', '#9065B0', '#4A90D9', '#4ADE80'];
+
+const DAY_LABEL: Record<Weekday, string> = {
+  1: 'Seg',
+  2: 'Ter',
+  3: 'Qua',
+  4: 'Qui',
+  5: 'Sex',
+  6: 'Sáb',
+  0: 'Dom',
+};
 
 export type PilarEditSavePayload = {
   pilar: Pilar;
@@ -49,33 +49,47 @@ export type PilarEditChromeState = {
   handleCancel: () => void;
 };
 
-function PlatformBrand({ platform, compact = false }: { platform: string; compact?: boolean }) {
+function PlatformBrand({ platform }: { platform: string }) {
+  const gradientId = useId().replace(/:/g, '');
   const normalized = platform.toLowerCase();
-  const labelClass = 't-label font-bold text-white';
-  const sizeClass = compact ? 'h-7 w-7' : 'h-9 w-9';
   if (normalized.includes('instagram')) {
     return (
-      <span className={cn('flex shrink-0 items-center justify-center rounded-[var(--radius-input)] bg-gradient-to-br from-[#833AB4] via-[#FD1D1D] to-[#FCAF45]', sizeClass)}>
-        <span className={labelClass}>IG</span>
-      </span>
+      <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" aria-hidden>
+        <defs>
+          <linearGradient id={gradientId} x1="0" y1="1" x2="1" y2="0">
+            <stop offset="0" stopColor="#FEDA75" />
+            <stop offset="0.5" stopColor="#D62976" />
+            <stop offset="1" stopColor="#4F5BD5" />
+          </linearGradient>
+        </defs>
+        <rect width="24" height="24" rx="6" fill={`url(#${gradientId})`} />
+        <rect x="7" y="7" width="10" height="10" rx="3" fill="none" stroke="#fff" strokeWidth="1.6" />
+        <circle cx="12" cy="12" r="2.2" fill="none" stroke="#fff" strokeWidth="1.6" />
+        <circle cx="16.2" cy="7.9" r="0.9" fill="#fff" />
+      </svg>
     );
   }
   if (normalized.includes('tiktok')) {
     return (
-      <span className={cn('flex shrink-0 items-center justify-center rounded-[var(--radius-input)] bg-[#111111]', sizeClass)}>
-        <span className={labelClass}>TT</span>
-      </span>
+      <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" aria-hidden>
+        <rect width="24" height="24" rx="6" fill="#111111" />
+        <path
+          fill="#fff"
+          d="M14.2 6.2c.4 1.7 1.5 2.8 3.2 3.1v2.1c-1.1.1-2.1-.2-3.2-.9v4.4c0 2.6-2 4.6-4.7 4.6S4.8 17.5 4.8 14.9s2.1-4.6 4.7-4.6c.3 0 .6 0 .9.1v2.2c-.3-.1-.6-.2-.9-.2-1.4 0-2.5 1.1-2.5 2.5s1.1 2.5 2.5 2.5 2.5-1.1 2.5-2.5V6.2h2.2z"
+        />
+      </svg>
     );
   }
   if (normalized.includes('youtube')) {
     return (
-      <span className={cn('flex shrink-0 items-center justify-center rounded-[var(--radius-input)] bg-[#FF0000]', sizeClass)}>
-        <span className={labelClass}>YT</span>
-      </span>
+      <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" aria-hidden>
+        <rect width="24" height="24" rx="6" fill="#FF0000" />
+        <path fill="#fff" d="M10 8.5v7l6-3.5-6-3.5z" />
+      </svg>
     );
   }
   return (
-    <span className={cn('flex shrink-0 items-center justify-center rounded-[var(--radius-input)] bg-[var(--bg-hover)]', sizeClass)}>
+    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-[var(--radius-sm)] bg-[var(--bg-hover)]">
       <Text variant="label" className="font-bold text-[var(--text-secondary)]">
         {platform.slice(0, 2).toUpperCase()}
       </Text>
@@ -83,67 +97,24 @@ function PlatformBrand({ platform, compact = false }: { platform: string; compac
   );
 }
 
-function AccordionSection({
-  step,
-  title,
-  description,
-  icon,
-  open,
-  onToggle,
-  children,
-}: {
-  step: number;
-  title: string;
-  description?: string;
-  icon: React.ReactNode;
-  open: boolean;
-  onToggle: () => void;
-  children: React.ReactNode;
-}) {
+function CardHeading({ title, description }: { title: string; description?: string }) {
   return (
-    <Surface variant="outlined" padding="none" className="overflow-hidden bg-[var(--bg-secondary)]">
-      <button
-        type="button"
-        onClick={onToggle}
-        aria-expanded={open}
-        className="flex w-full items-start gap-3 px-4 py-3.5 text-left transition-colors hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
-      >
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--bg-hover)] text-[var(--text-secondary)]">
-          {icon}
-        </span>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <Text variant="meta" className="tabular-nums text-[var(--text-tertiary)]">
-              {step}.
-            </Text>
-            <Text variant="label" className="font-semibold uppercase tracking-[0.06em] text-[var(--text-primary)]">
-              {title}
-            </Text>
-          </div>
-          {description ? (
-            <Text variant="meta" className="mt-1 text-[var(--text-secondary)]">
-              {description}
-            </Text>
-          ) : null}
-        </div>
-        <ChevronDown
-          className={cn(
-            'mt-1 h-4 w-4 shrink-0 text-[var(--text-tertiary)] transition-transform',
-            open && 'rotate-180',
-          )}
-          aria-hidden
-        />
-      </button>
-      {open ? <div className="border-t border-[var(--border-color)] px-4 py-4">{children}</div> : null}
-    </Surface>
+    <div className="mb-4">
+      <Text variant="itemTitle">{title}</Text>
+      {description ? (
+        <Text variant="meta" className="mt-1 block text-[var(--text-secondary)]">
+          {description}
+        </Text>
+      ) : null}
+    </div>
   );
 }
 
 function FieldLabel({ children, required }: { children: React.ReactNode; required?: boolean }) {
   return (
-    <Text variant="label" className="mb-1.5 block font-medium text-[var(--text-primary)]">
+    <Text variant="label" className="font-medium text-[var(--text-primary)]">
       {children}
-      {required ? <span className="text-[var(--accent-pink)]"> *</span> : null}
+      {required ? <span className="text-[var(--brand-accent-strong)]"> *</span> : null}
     </Text>
   );
 }
@@ -199,6 +170,7 @@ export function PilarEditForm({
   onSave,
   onCancel,
   onChromeChange,
+  lastEditLabel = null,
 }: {
   initial: Partial<Pilar>;
   platformNames: string[];
@@ -209,6 +181,7 @@ export function PilarEditForm({
   onSave: (payload: PilarEditSavePayload) => void;
   onCancel: () => void;
   onChromeChange?: (state: PilarEditChromeState) => void;
+  lastEditLabel?: string | null;
 }) {
   const normalizePlataformas = (items: PilarPlataforma[] = []) =>
     items.map(item => ({
@@ -238,12 +211,9 @@ export function PilarEditForm({
   const [form, setForm] = useState(initialSnapshot.current.form);
   const [linkedSerieIds, setLinkedSerieIds] = useState<string[]>(initialSnapshot.current.linkedSerieIds);
   const [showSeriePicker, setShowSeriePicker] = useState(false);
-  const [openStep, setOpenStep] = useState<AccordionStep>('identidade');
+  const [activePlatform, setActivePlatform] = useState(platformNames[0] ?? '');
   const seriePickerRef = useRef<HTMLDivElement>(null);
-
-  const toggleStep = (step: AccordionStep) => {
-    setOpenStep(current => (current === step ? current : step));
-  };
+  const selectedPlatform = platformNames.includes(activePlatform) ? activePlatform : platformNames[0] ?? '';
 
   const addSerie = (serieId: string) => {
     setLinkedSerieIds(previous => [...previous, serieId]);
@@ -283,12 +253,6 @@ export function PilarEditForm({
     return linkedSerieIds.some((id, index) => id !== snap.linkedSerieIds[index]);
   }, [form, linkedSerieIds]);
 
-  const updateFrequenciaSemanal = (value: string) => {
-    const parsed = value.trim() === '' ? null : Number.parseInt(value, 10);
-    const frequenciaSemanal = Number.isFinite(parsed) ? parsed : null;
-    setForm(previous => ({ ...previous, frequenciaSemanal }));
-  };
-
   const canSave = Boolean(form.nome.trim());
 
   const getPilarPlataforma = useCallback(
@@ -322,7 +286,19 @@ export function PilarEditForm({
   );
 
   const updatePlatformHashtags = (platformId: string, hashtags: string) => {
-    updatePilarPlataforma(platformId, {hashtags: hashtags.trim()});
+    updatePilarPlataforma(platformId, {hashtags});
+  };
+
+  const adjustFrequencia = (delta: number) => {
+    setForm(previous => {
+      const current = previous.frequenciaSemanal;
+      if (current == null) {
+        if (delta < 0) return previous;
+        return {...previous, frequenciaSemanal: 1};
+      }
+      const next = Math.min(99, Math.max(0, current + delta));
+      return {...previous, frequenciaSemanal: next};
+    });
   };
 
   const toggleMelhorDia = (platformId: string, weekday: Weekday) => {
@@ -348,7 +324,8 @@ export function PilarEditForm({
         metaCiclo: form.metaCiclo,
         plataformas: platformNames
           .map(platformId => form.plataformas.find(item => item.platformId === platformId))
-          .filter((item): item is PilarPlataforma => Boolean(item && shouldPersistPilarPlataforma(item))),
+          .filter((item): item is PilarPlataforma => Boolean(item && shouldPersistPilarPlataforma(item)))
+          .map(item => ({...item, hashtags: item.hashtags.trim()})),
         createdAt: initial.createdAt || new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       },
@@ -381,280 +358,276 @@ export function PilarEditForm({
     }
   };
 
-  const showDirtyFooter = isDirty;
+  const activePlataforma = selectedPlatform ? getPilarPlataforma(selectedPlatform) : null;
+  const activePlatformUuid = selectedPlatform ? resolvePlatformUuid(platforms, selectedPlatform) : null;
+  const hasWindow = Boolean(activePlataforma?.janelaHorarioInicio || activePlataforma?.janelaHorarioFim);
+  const scheduleHint = activePlataforma && hasWindow
+    ? formatCrossedPostingSummary(
+        activePlataforma,
+        postingTimeEntries,
+        activePlatformUuid,
+        activePlataforma.melhoresDias.length > 0 ? activePlataforma.melhoresDias : WEEKDAYS_ORDERED,
+      )
+    : 'Defina uma janela para consultar os horários disponíveis.';
 
   return (
-    <div className={cn('relative w-full', showDirtyFooter && 'pb-28')}>
-      <Surface variant="outlined" padding="md" className="mb-3 w-full bg-[var(--bg-secondary)]">
-        <div className="flex w-full items-start gap-4">
+    <div className="relative w-full">
+      <Surface variant="outlined" padding="md" className="mb-3 w-full">
+        <div className="flex w-full items-center gap-3">
           <span
-            className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full md:h-16 md:w-16"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full"
             style={{backgroundColor: form.cor}}
           >
-            <Smile className="h-7 w-7 text-[var(--text-primary)] opacity-80 md:h-8 md:w-8" strokeWidth={1.5} />
+            <Smile className="h-5 w-5" strokeWidth={1.75} style={{color: entitySwatchInk(form.cor)}} />
           </span>
-          <div className="min-w-0 flex-1">
-            <div className="flex items-start gap-2">
-              <Text variant="pageTitle" className="min-w-0 break-words">
-                {form.nome.trim() || 'Novo pilar'}
-              </Text>
-              <Pencil className="mt-1 h-4 w-4 shrink-0 text-[var(--text-tertiary)]" aria-hidden />
-            </div>
-          </div>
+          <Text variant="itemTitle" className="min-w-0 break-words">
+            {form.nome.trim() || 'Novo pilar'}
+          </Text>
         </div>
       </Surface>
 
-      <div className="flex w-full flex-col gap-3">
-        <AccordionSection
-          step={1}
-          title="Identidade"
-          description="Defina os atributos que representam este pilar."
-          icon={<Smile className="h-4 w-4" />}
-          open={openStep === 'identidade'}
-          onToggle={() => toggleStep('identidade')}
-        >
-          <div className="stack-lg">
-            <div>
-              <FieldLabel required>Nome</FieldLabel>
-              <input
-                type="text"
-                value={form.nome}
-                onChange={event => setForm(previous => ({...previous, nome: event.target.value}))}
-                placeholder="Ex.: Humor"
-                className={inputClass}
-              />
-            </div>
-
-            <div>
-              <FieldLabel>Cor</FieldLabel>
-              <EntityColorPicker
-                value={form.cor}
-                onChange={cor => setForm(previous => ({...previous, cor}))}
-              />
-            </div>
-
-            <div>
-              <FieldLabel>Descrição</FieldLabel>
-              <textarea
-                value={form.descricao}
-                onChange={event =>
-                  setForm(previous => ({
-                    ...previous,
-                    descricao: event.target.value.slice(0, PILAR_DESCRICAO_MAX),
-                  }))
-                }
-                placeholder="Em que conteúdos aparece?"
-                rows={3}
-                className={cn(inputClass, 'min-h-[88px] resize-none leading-relaxed')}
-              />
-              <div className="mt-1 flex items-center justify-end">
-                <Text variant="meta" className="shrink-0 tabular-nums text-[var(--text-tertiary)]">
-                  {form.descricao.length}/{PILAR_DESCRICAO_MAX}
-                </Text>
-              </div>
-            </div>
-          </div>
-        </AccordionSection>
-
-        <AccordionSection
-          step={2}
-          title="Ritmo editorial"
-          description="Espaços deste pilar na semana."
-          icon={<Target className="h-4 w-4" />}
-          open={openStep === 'ritmo'}
-          onToggle={() => toggleStep('ritmo')}
-        >
+      <div className="grid w-full grid-cols-1 items-start gap-3 lg:grid-cols-[minmax(0,1.7fr)_minmax(280px,0.95fr)]">
+        <div className="flex min-w-0 flex-col gap-3">
+          <Surface variant="outlined" padding="md">
+            <CardHeading
+              title="Identidade"
+              description="Como este pilar aparece na sua central."
+            />
             <div className="stack-lg">
-              <div>
-                <FieldLabel>Espaços por semana</FieldLabel>
+              <div className="stack-sm">
+                <FieldLabel required>Nome</FieldLabel>
                 <input
-                  type="number"
-                  min={0}
-                  max={99}
-                  value={form.frequenciaSemanal ?? ''}
-                  onChange={event => updateFrequenciaSemanal(event.target.value)}
-                  placeholder="Ex.: 2"
+                  type="text"
+                  value={form.nome}
+                  onChange={event => setForm(previous => ({...previous, nome: event.target.value}))}
+                  placeholder="Ex.: Humor"
                   className={inputClass}
                 />
-                <Text variant="meta" className="mt-1 text-[var(--text-tertiary)]">
-                  Espaços deste pilar na semana. O total da semana é a soma dos pilares.
-                </Text>
+              </div>
+              <div className="stack-sm">
+                <FieldLabel>Cor do pilar</FieldLabel>
+                <EntityColorPicker
+                  variant="inline"
+                  caption="name"
+                  swatches={PILAR_QUICK_COLORS}
+                  value={form.cor}
+                  onChange={cor => setForm(previous => ({...previous, cor}))}
+                />
               </div>
             </div>
-        </AccordionSection>
+          </Surface>
 
-        <AccordionSection
-          step={3}
-          title="Plataformas"
-          description="Hashtags, melhores dias e janela cruzada com os horários configurados."
-          icon={<Hash className="h-4 w-4 text-[var(--accent-green)]" />}
-          open={openStep === 'plataformas'}
-          onToggle={() => toggleStep('plataformas')}
-        >
-            {platformNames.length === 0 ? (
+          <Surface variant="outlined" padding="md">
+            <CardHeading
+              title="Plataformas"
+              description="Hashtags, dias e janela de publicação por plataforma."
+            />
+            {platformNames.length === 0 || !activePlataforma || !selectedPlatform ? (
               <Text variant="meta" className="text-[var(--text-tertiary)]">
                 Nenhuma plataforma ativa configurada.
               </Text>
             ) : (
-              <div className="stack-xl">
-                {platformNames.map(platform => {
-                  const plataforma = getPilarPlataforma(platform);
-                  const platformUuid = resolvePlatformUuid(platforms, platform);
-                  const previewDays =
-                    plataforma.melhoresDias.length > 0 ? plataforma.melhoresDias : WEEKDAYS_ORDERED;
-                  const summary = formatCrossedPostingSummary(
-                    plataforma,
-                    postingTimeEntries,
-                    platformUuid,
-                    previewDays,
-                  );
+              <div className="stack-lg">
+                <div className="flex gap-4 border-b border-[var(--border-color)]" role="tablist" aria-label="Plataformas">
+                  {platformNames.map(platform => {
+                    const selected = platform === selectedPlatform;
+                    return (
+                      <button
+                        key={platform}
+                        type="button"
+                        role="tab"
+                        aria-selected={selected}
+                        onClick={() => setActivePlatform(platform)}
+                        className={cn(
+                          '-mb-px inline-flex items-center gap-2 border-b-2 pb-2 text-sm font-medium focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
+                          selected
+                            ? 'border-[var(--brand-accent-strong)] text-[var(--text-primary)]'
+                            : 'border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]',
+                        )}
+                      >
+                        <PlatformBrand platform={platform} />
+                        {platform}
+                      </button>
+                    );
+                  })}
+                </div>
 
-                  return (
-                    <div
-                      key={platform}
-                      className="rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-hover)] p-3"
+                <div className="stack-sm">
+                  <div className="flex items-center justify-between gap-2">
+                    <FieldLabel>Hashtags</FieldLabel>
+                    <button
+                      type="button"
+                      onClick={() => void copyHashtags(activePlataforma.hashtags)}
+                      disabled={!activePlataforma.hashtags.trim()}
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-[var(--radius-input)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] disabled:opacity-40 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+                      aria-label={`Copiar hashtags de ${selectedPlatform}`}
                     >
-                      <div className="mb-3 flex items-center gap-2">
-                        <PlatformBrand platform={platform} compact />
-                        <Text variant="meta" className="font-medium text-[var(--text-primary)]">
-                          {platform}
-                        </Text>
-                      </div>
+                      <Copy className="h-4 w-4" />
+                    </button>
+                  </div>
+                  <input
+                    type="text"
+                    value={activePlataforma.hashtags}
+                    onChange={event => updatePlatformHashtags(selectedPlatform, event.target.value)}
+                    placeholder="#hashtag1 #hashtag2"
+                    className={inputClass}
+                  />
+                  <Text variant="meta" className="text-[var(--text-tertiary)]">
+                    Separe as hashtags com espaço.
+                  </Text>
+                </div>
 
-                      <div className="stack-md">
-                        <div>
-                          <FieldLabel>Hashtags</FieldLabel>
-                          <div className="flex gap-2">
-                            <input
-                              type="text"
-                              value={plataforma.hashtags}
-                              onChange={event => updatePlatformHashtags(platform, event.target.value)}
-                              placeholder="#hashtag1 #hashtag2"
-                              className={inputClass}
-                            />
-                            <button
-                              type="button"
-                              onClick={() => void copyHashtags(plataforma.hashtags)}
-                              disabled={!plataforma.hashtags.trim()}
-                              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-secondary)] text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] disabled:opacity-40 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
-                              aria-label={`Copiar hashtags de ${platform}`}
-                            >
-                              <Copy className="h-3.5 w-3.5" />
-                            </button>
-                          </div>
-                        </div>
+                <div className="stack-sm">
+                  <FieldLabel>Melhores dias</FieldLabel>
+                  <div className="flex flex-wrap gap-2">
+                    {WEEKDAYS_ORDERED.map(weekday => {
+                      const selected = activePlataforma.melhoresDias.includes(weekday);
+                      return (
+                        <button
+                          key={weekday}
+                          type="button"
+                          aria-pressed={selected}
+                          onClick={() => toggleMelhorDia(selectedPlatform, weekday)}
+                          className={cn(
+                            'inline-flex h-9 min-w-9 items-center justify-center rounded-full border px-2.5 text-xs font-medium focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
+                            selected
+                              ? 'border-[var(--text-primary)] bg-[var(--bg-hover)] text-[var(--text-primary)]'
+                              : 'border-[var(--border-color)] bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]',
+                          )}
+                        >
+                          {DAY_LABEL[weekday]}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <Text variant="meta" className="text-[var(--text-tertiary)]">
+                    Sem seleção: todos os dias com horário configurado.
+                  </Text>
+                </div>
 
-                        <div>
-                          <FieldLabel>Melhores dias</FieldLabel>
-                          <div className="flex flex-wrap gap-1.5">
-                            {WEEKDAYS_ORDERED.map(weekday => {
-                              const selected = plataforma.melhoresDias.includes(weekday);
-                              return (
-                                <button
-                                  key={`${platform}-${weekday}`}
-                                  type="button"
-                                  onClick={() => toggleMelhorDia(platform, weekday)}
-                                  className={cn(
-                                    'rounded-[var(--radius-pill)] border px-2.5 py-1 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
-                                    selected
-                                      ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-[var(--bg-primary)]'
-                                      : 'border-[var(--border-color)] bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:border-[var(--text-tertiary)]',
-                                  )}
-                                >
-                                  {WEEKDAY_SHORT[weekday]}
-                                </button>
-                              );
-                            })}
-                          </div>
-                          <Text variant="meta" className="mt-1 text-[var(--text-tertiary)]">
-                            Vazio = todos os dias com horário configurado.
-                          </Text>
-                        </div>
-
-                        <div className="grid gap-3 sm:grid-cols-2">
-                          <div>
-                            <FieldLabel>Janela início</FieldLabel>
-                            <input
-                              type="time"
-                              value={plataforma.janelaHorarioInicio ?? ''}
-                              onChange={event =>
-                                updatePilarPlataforma(platform, {
-                                  janelaHorarioInicio: event.target.value || null,
-                                })
-                              }
-                              className={inputClass}
-                            />
-                          </div>
-                          <div>
-                            <FieldLabel>Janela fim</FieldLabel>
-                            <input
-                              type="time"
-                              value={plataforma.janelaHorarioFim ?? ''}
-                              onChange={event =>
-                                updatePilarPlataforma(platform, {
-                                  janelaHorarioFim: event.target.value || null,
-                                })
-                              }
-                              className={inputClass}
-                            />
-                          </div>
-                        </div>
-
-                        <div className="rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-3 py-2.5">
-                          <div className="mb-1.5 flex items-center gap-1.5">
-                            <Clock className="h-3.5 w-3.5 text-[var(--text-tertiary)]" />
-                            <Text variant="label" className="text-[var(--text-tertiary)]">
-                              Cruzamento com horários
-                            </Text>
-                          </div>
-                          <Text variant="meta" className="text-[var(--text-secondary)]">
-                            {summary}
-                          </Text>
-                        </div>
-                      </div>
+                <div className="stack-sm">
+                  <FieldLabel>Janela de publicação</FieldLabel>
+                  <div className="grid-form">
+                    <div className="stack-sm">
+                      <Text variant="meta" className="text-[var(--text-secondary)]">Início</Text>
+                      <input
+                        type="time"
+                        aria-label="Início da janela de publicação"
+                        value={activePlataforma.janelaHorarioInicio ?? ''}
+                        onChange={event =>
+                          updatePilarPlataforma(selectedPlatform, {
+                            janelaHorarioInicio: event.target.value || null,
+                          })
+                        }
+                        className={inputClass}
+                      />
                     </div>
-                  );
-                })}
+                    <div className="stack-sm">
+                      <Text variant="meta" className="text-[var(--text-secondary)]">Fim</Text>
+                      <input
+                        type="time"
+                        aria-label="Fim da janela de publicação"
+                        value={activePlataforma.janelaHorarioFim ?? ''}
+                        onChange={event =>
+                          updatePilarPlataforma(selectedPlatform, {
+                            janelaHorarioFim: event.target.value || null,
+                          })
+                        }
+                        className={inputClass}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-2.5 rounded-[var(--radius-input)] bg-[var(--bg-hover)] px-3 py-3">
+                  <Clock className="mt-0.5 h-4 w-4 shrink-0 text-[var(--text-tertiary)]" />
+                  <div className="min-w-0">
+                    <Text variant="bodyStrong">Horários disponíveis</Text>
+                    <Text variant="meta" className="mt-1 block text-[var(--text-secondary)]">
+                      {scheduleHint}
+                    </Text>
+                  </div>
+                </div>
+
+                <Text variant="meta" className="text-[var(--text-tertiary)]">
+                  As preferências são salvas separadamente para cada plataforma.
+                </Text>
               </div>
             )}
-        </AccordionSection>
+          </Surface>
+        </div>
 
-        <AccordionSection
-          step={4}
-          title="Séries vinculadas"
-          description="Associe séries editoriais a este pilar."
-          icon={<Layers className="h-4 w-4" />}
-          open={openStep === 'series'}
-          onToggle={() => toggleStep('series')}
-        >
-            <div className="flex flex-col items-start gap-2">
-              {linkedSeries.map(item => (
-                <span
-                  key={item.id}
-                  className="inline-flex max-w-full items-center gap-1.5 rounded-[var(--radius-pill)] border border-[var(--border-color)] bg-[var(--bg-hover)] py-1 pl-3 pr-1.5 text-sm font-medium text-[var(--text-primary)]"
+        <aside className="flex min-w-0 flex-col gap-3 lg:sticky lg:top-24 lg:self-start">
+          <Surface variant="outlined" padding="md">
+            <CardHeading
+              title="Ritmo editorial"
+              description="Espaços deste pilar na semana."
+            />
+            <div className="stack-sm">
+              <FieldLabel>Espaços por semana</FieldLabel>
+              <div className="inline-flex items-stretch overflow-hidden rounded-[var(--radius-input)] border border-[var(--border-color)]">
+                <button
+                  type="button"
+                  aria-label="Diminuir espaços por semana"
+                  onClick={() => adjustFrequencia(-1)}
+                  className="inline-flex h-10 w-10 items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
                 >
-                  <span className="min-w-0 break-words">{item.name}</span>
+                  −
+                </button>
+                <span className="inline-flex h-10 min-w-10 items-center justify-center border-x border-[var(--border-color)] px-2 text-sm text-[var(--text-primary)]">
+                  {form.frequenciaSemanal ?? 0}
+                </span>
+                <button
+                  type="button"
+                  aria-label="Aumentar espaços por semana"
+                  onClick={() => adjustFrequencia(1)}
+                  className="inline-flex h-10 w-10 items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+                >
+                  +
+                </button>
+              </div>
+              <Text variant="meta" className="text-[var(--text-tertiary)]">
+                O total da semana é a soma dos espaços de todos os pilares.
+              </Text>
+            </div>
+          </Surface>
+
+          <Surface variant="outlined" padding="md">
+            <CardHeading
+              title="Séries vinculadas"
+              description="Séries associadas a este pilar."
+            />
+            <div className="stack-md">
+              {linkedSeries.map(item => (
+                <div
+                  key={item.id}
+                  className="flex items-center gap-3 rounded-[var(--radius-input)] border border-[var(--border-color)] px-3 py-2"
+                >
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[var(--radius-sm)] bg-[var(--bg-hover)] text-[var(--text-secondary)]">
+                    <Layers className="h-4 w-4" />
+                  </span>
+                  <Text variant="body" className="min-w-0 flex-1 break-words">
+                    {item.name}
+                  </Text>
                   <button
                     type="button"
                     onClick={() => setLinkedSerieIds(previous => previous.filter(id => id !== item.id))}
-                    className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[var(--text-tertiary)] hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[var(--text-tertiary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
                     aria-label={`Remover ${item.name}`}
                   >
-                    <X className="h-3 w-3" />
+                    <X className="h-4 w-4" />
                   </button>
-                </span>
+                </div>
               ))}
               {availableSeries.length > 0 ? (
-                <div ref={seriePickerRef} className="relative w-full">
+                <div ref={seriePickerRef} className="relative">
                   <button
                     type="button"
                     onClick={() => setShowSeriePicker(previous => !previous)}
-                    className="inline-flex min-h-[2rem] w-full items-center justify-center gap-1 rounded-[var(--radius-pill)] border border-dashed border-[var(--border-strong)] px-3 py-1 font-medium text-[var(--text-secondary)] hover:border-[var(--text-tertiary)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+                    className="inline-flex min-h-10 w-full items-center justify-center gap-1.5 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-3 text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
                   >
-                    <Plus className="h-3.5 w-3.5" />
-                    <Text variant="meta" className="font-medium">
-                      Vincular série
-                    </Text>
+                    <Plus className="h-4 w-4" />
+                    Vincular série
                   </button>
                   {showSeriePicker ? (
                     <SeriePickerMenu series={availableSeries} onSelect={addSerie} />
@@ -666,30 +639,18 @@ export function PilarEditForm({
                   Nenhuma série disponível para vincular.
                 </Text>
               ) : null}
+              {lastEditLabel ? (
+                <div className="flex items-center gap-1.5">
+                  <Clock className="h-3.5 w-3.5 text-[var(--text-tertiary)]" />
+                  <Text variant="meta" className="text-[var(--text-tertiary)]">
+                    {lastEditLabel}
+                  </Text>
+                </div>
+              ) : null}
             </div>
-        </AccordionSection>
+          </Surface>
+        </aside>
       </div>
-
-      {showDirtyFooter ? (
-        <div className="fixed inset-x-0 bottom-0 z-30 border-t border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-3 pb-safe">
-          <div className="flex w-full items-center justify-between gap-4">
-            <div className="flex min-w-0 items-start gap-2.5">
-              <Info className="mt-0.5 h-4 w-4 shrink-0 text-[var(--text-tertiary)]" />
-              <div className="min-w-0">
-                <Text variant="bodyStrong">Alterações não salvas</Text>
-              </div>
-            </div>
-            <div className="flex shrink-0 items-center gap-2">
-              <AppButton variant="secondary" size="sm" onClick={onCancel}>
-                Cancelar
-              </AppButton>
-              <AppButton variant="primary" size="sm" onClick={handleSave} disabled={!canSave}>
-                Salvar alterações
-              </AppButton>
-            </div>
-          </div>
-        </div>
-      ) : null}
     </div>
   );
 }
