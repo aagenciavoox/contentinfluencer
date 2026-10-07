@@ -121,9 +121,11 @@ export function transitionCreationStatus(
   status: string,
   now = new Date().toISOString(),
 ): Content {
+  const nextStatus = normalizeContentStatus(status);
   return {
     ...content,
-    status: normalizeContentStatus(status),
+    status: nextStatus,
+    postedAt: nextStatus === CONTENT_STATUS.POSTADO ? content.postedAt : null,
     archivedAt: null,
     updatedAt: now,
   };

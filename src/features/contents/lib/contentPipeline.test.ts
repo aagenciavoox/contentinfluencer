@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import type {Content} from '../../../lib/database.ts';
 import {
+  applyStatusMilestones,
   CONTENT_STATUS,
   DISPLAY_STATUS,
   getDisplayStatus,
@@ -113,7 +114,14 @@ function testRecordingActionExplainsMissingRequirements() {
   assert.equal(action.reason, 'Adicione um título e escreva o roteiro para continuar.');
 }
 
+function testLeavingPostadoClearsPostedAt() {
+  const posted = {status: CONTENT_STATUS.POSTADO, postedAt: '2026-07-20T12:00:00.000Z', recordedAt: null};
+  assert.deepEqual(applyStatusMilestones(posted, CONTENT_STATUS.PRODUCAO), {postedAt: null});
+  assert.deepEqual(applyStatusMilestones(posted, CONTENT_STATUS.POSTADO), {});
+}
+
 const tests: Array<[string, () => void]> = [
+  ['leaving Postado clears postedAt', testLeavingPostadoClearsPostedAt],
   ['future publish date shows Programado', testDisplayStatusFuturePublishDate],
   ['past publish date keeps canonical status', testDisplayStatusPastPublishDateKeepsCanonical],
   ['posted ignores future publish date display', testDisplayStatusPostedIgnoresFutureDate],

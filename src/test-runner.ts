@@ -3,6 +3,7 @@ await import('./context/persistAction.test.ts');
 await import('./context/realtimeSync.test.ts');
 await import('./context/domainLoading.test.ts');
 await import('./lib/persistentDataCache.test.ts');
+await import('./lib/domainCacheSync.test.ts');
 await import('./lib/persistedPages.test.ts');
 await import('./lib/navigation/detailBack.test.ts');
 await import('./features/contents/lib/captionHashtags.test.ts');

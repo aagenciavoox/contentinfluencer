@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import type { Content, Platform } from './database';
-import { mergeContents, mergeFetchedAppData, mergePlatforms } from './domainCacheMerge';
+import { mergeContents, mergeFetchedAppData, mergePlatforms } from './domainCacheMerge.ts';
 
 function platform(id: string, nome: string): Platform {
   return {
@@ -80,6 +80,23 @@ function testMergePrefersLocalVersionOnConflict() {
   assert.equal(merged.contents?.[0]?.title, 'Titulo local');
 }
 
+function testMergePrefersNewerServerVersionOverStaleCache() {
+  const cached = {
+    ...content('c1', 'Roteiro', '2026-07-05T12:00:00.000Z'),
+    status: 'Roteiro',
+    script: '<p>corpo local</p>',
+  };
+  const server = {
+    ...content('c1', 'Roteiro', '2026-07-05T12:00:00.000Z'),
+    status: 'Produção',
+    script: undefined as unknown as string | null,
+    updatedAt: '2026-07-05T14:00:00.000Z',
+  };
+  const merged = mergeFetchedAppData({ platforms: [], contents: [cached] }, { contents: [server] });
+  assert.equal(merged.contents?.[0]?.status, 'Produção');
+  assert.equal(merged.contents?.[0]?.script, '<p>corpo local</p>');
+}
+
 function testMergePlatformsHelper() {
   const merged = mergePlatforms([platform('p1', 'Local')], []);
   assert.equal(merged.length, 1);
@@ -96,5 +113,6 @@ function testMergeContentsHelper() {
 testMergeKeepsLocalPlatformsMissingFromIncoming();
 testMergeKeepsLocalContentsMissingFromIncoming();
 testMergePrefersLocalVersionOnConflict();
+testMergePrefersNewerServerVersionOverStaleCache();
 testMergePlatformsHelper();
 testMergeContentsHelper();

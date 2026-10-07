@@ -2328,6 +2328,8 @@ export async function saveContent(
 ): Promise<void> {
   if (!supabase) return;
   const livros = aplicarLivros(content);
+  const bodyLoaded =
+    content.script !== undefined || content.notes !== undefined || content.referencias !== undefined;
   let row: Record<string, unknown> = {
     id: content.id, user_id: content.userId, title: content.title,
     status: content.status, classificacao: content.classificacao,
@@ -2345,7 +2347,9 @@ export async function saveContent(
     posted_at: content.postedAt,
     recording_date_enabled: content.recordingDateEnabled ?? (content.recordingDate != null),
     link: content.link, script: content.script,
-    script_notes: content.scriptNotes, tags: content.tags,
+    // Listas leves não trazem os comentários: gravar `[]` apagaria os do servidor.
+    ...(bodyLoaded ? {script_notes: content.scriptNotes} : {}),
+    tags: content.tags,
     notes: content.notes, referencias: content.referencias,
     funcao: content.funcao ?? null,
     funcao_origem: content.funcaoOrigem ?? null,
@@ -2355,6 +2359,7 @@ export async function saveContent(
     ...(content.writingNotes !== undefined ? {writing_notes: content.writingNotes} : {}),
     archived_at: content.archivedAt ?? null,
     legacy_idea_id: content.legacyIdeaId ?? null,
+    updated_at: new Date().toISOString(),
   };
 
   for (let attempt = 0; attempt < 10; attempt += 1) {

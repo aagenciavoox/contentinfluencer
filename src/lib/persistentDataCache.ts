@@ -4,7 +4,7 @@ import { readStoredJson, writeStoredJson } from './browserStorage.ts';
 const STORAGE_PREFIX = 'content-os:domain:';
 const EPOCH_KEY = 'content-os:domain-epoch';
 /** Trocar este valor descarta a lista local de roteiros/ideias na próxima abertura. */
-const DOMAIN_CACHE_EPOCH = '2026-10-02-clear-creations';
+const DOMAIN_CACHE_EPOCH = '2026-10-06-server-wins-newer';
 /** Dados persistidos ficam legíveis por até 24h; revalidação em background após 5 min. */
 export const PERSISTENT_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 export const PERSISTENT_FRESH_MS = 5 * 60 * 1000;

@@ -9,7 +9,28 @@ function mergePlatforms(current: Platform[], incoming: Platform[]): Platform[] {
   return [...byId.values()];
 }
 
+function updatedAtMs(content: Content): number {
+  const value = Date.parse(content.updatedAt ?? '');
+  return Number.isNaN(value) ? 0 : value;
+}
+
+/**
+ * O registro local só vence quando é tão recente quanto o do servidor: protege edições
+ * ainda não confirmadas sem deixar um cache antigo esconder o que já foi salvo.
+ */
 function mergeContentRecords(local: Content, remote: Content): Content {
+  if (updatedAtMs(remote) > updatedAtMs(local)) {
+    return {
+      ...local,
+      ...remote,
+      script: remote.script ?? local.script,
+      scriptNotes: remote.scriptNotes?.length ? remote.scriptNotes : local.scriptNotes,
+      notes: remote.notes ?? local.notes,
+      referencias: remote.referencias ?? local.referencias,
+      writingNotes: remote.writingNotes ?? local.writingNotes,
+    };
+  }
+
   return {
     ...remote,
     ...local,

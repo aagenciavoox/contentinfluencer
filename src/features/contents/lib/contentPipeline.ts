@@ -281,6 +281,9 @@ export function applyStatusMilestones(
   if (canonical === CONTENT_STATUS.POSTADO && !content.postedAt) {
     milestones.postedAt = now;
   }
+  if (canonical !== CONTENT_STATUS.POSTADO && content.postedAt) {
+    milestones.postedAt = null;
+  }
 
   return milestones;
 }

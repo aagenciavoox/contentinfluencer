@@ -440,7 +440,7 @@ export function ContentDetailShell({
         setDraftDirty(false);
       }
 
-      setDraft(previous => ({...previous, ...updates, status: nextStatus}));
+      setDraft(previous => ({...previous, ...statusMilestones, ...updates, status: nextStatus}));
 
       return true;
     } catch {
