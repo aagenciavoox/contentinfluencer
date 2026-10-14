@@ -133,9 +133,39 @@ function testPilarInativoESemFrequenciaFicamDeFora() {
   assert.equal(resultado.pilares[0]?.planejado, 0);
 }
 
+function testMetaProporcionalAosDiasDoMes() {
+  const pilares: PilarContagem[] = [{ id: 'pilar-a', nome: 'Literatura', ativo: true, frequenciaSemanal: 6 }];
+  const base = { pilares, settings: { distribuicaoFuncoes: null }, entries: [] };
+
+  const outubro = countGrade({ ...base, periodo: { inicio: '2026-10-01', fim: '2026-10-31' } });
+  assert.equal(outubro.totalMeta, 27);
+
+  const novembro = countGrade({ ...base, periodo: { inicio: '2026-11-01', fim: '2026-11-30' } });
+  assert.equal(novembro.totalMeta, 26);
+
+  const fevereiro = countGrade({ ...base, periodo: { inicio: '2026-02-01', fim: '2026-02-28' } });
+  assert.equal(fevereiro.totalMeta, 24);
+}
+
+function testPilarComMetaZeroNaoGanhaCard() {
+  const resultado = countGrade({
+    pilares: [
+      { id: 'com-espaco', nome: 'Com espaço', ativo: true, frequenciaSemanal: 6 },
+      { id: 'eventos', nome: 'Eventos', ativo: true, frequenciaSemanal: 0 },
+    ],
+    settings: { distribuicaoFuncoes: null },
+    periodo: { inicio: '2026-04-27', fim: '2026-05-03' },
+    entries: [entrada({ id: 'a1', pilarId: 'eventos', funcao: null })],
+  });
+  assert.deepEqual(resultado.pilares.map(linha => linha.id), ['com-espaco']);
+  assert.equal(resultado.somaPlanejado, 1);
+}
+
 testSoContaNaGradeESeparaRealizado();
 testGradePequenaUsaQuatroSemanas();
 testSemDistribuicaoNaoInventaMetaDeFuncao();
 testPilarInativoESemFrequenciaFicamDeFora();
+testMetaProporcionalAosDiasDoMes();
+testPilarComMetaZeroNaoGanhaCard();
 
 console.log('gradeCounts tests passed');

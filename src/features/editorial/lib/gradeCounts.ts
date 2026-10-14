@@ -81,15 +81,12 @@ function noPeriodo(data: string | null, periodo: PeriodoGrade): boolean {
   return Boolean(data && data >= periodo.inicio && data <= periodo.fim);
 }
 
-function metaDoPilar(frequencia: number | null | undefined, semanas: number): number {
-  if (typeof frequencia !== 'number' || !Number.isFinite(frequencia) || frequencia <= 0) return 0;
-  return Math.floor(frequencia) * semanas;
-}
-
 /**
  * Planejado e realizado por pilar e por função, contra a meta em espaços.
- * Só entram linhas com `contaNaGrade`. Abaixo de 8 espaços por semana, um período
- * de até 7 dias passa a contar 4 semanas a partir do início.
+ * Só entram linhas com `contaNaGrade`. A meta do período é proporcional aos
+ * dias (espaços por semana × dias ÷ 7, arredondada), repartida entre os
+ * pilares elegíveis com `distribuirEspacos`. Abaixo de 8 espaços por semana,
+ * um período de até 7 dias passa a contar 4 semanas a partir do início.
  */
 export function countGrade({
   entries,
@@ -105,12 +102,14 @@ export function countGrade({
   const espacosPorSemana = somaEspacosSemana(pilares);
   const pequena = gradePequena(espacosPorSemana);
   const dias = diasInclusivos(periodo);
-  const semanas = pequena && dias <= 7
-    ? SEMANAS_GRADE_PEQUENA
-    : Math.max(1, Math.ceil(dias / 7));
-  const janela = pequena && dias <= 7
-    ? periodoDe(periodo.inicio, semanas)
+  const usaJanelaPequena = pequena && dias <= 7;
+  const semanas = usaJanelaPequena ? SEMANAS_GRADE_PEQUENA : Math.max(1, dias / 7);
+  const janela = usaJanelaPequena
+    ? periodoDe(periodo.inicio, SEMANAS_GRADE_PEQUENA)
     : { inicio: periodo.inicio, fim: periodo.fim };
+  const totalMeta = usaJanelaPequena
+    ? espacosPorSemana * SEMANAS_GRADE_PEQUENA
+    : Math.round((espacosPorSemana * dias) / 7);
 
   const porPilar = new Map<string, { planejado: number; realizado: number }>();
   const porFuncao = new Map<FuncaoEditorial, { planejado: number; realizado: number }>();
@@ -132,22 +131,32 @@ export function countGrade({
     }
   }
 
-  const linhasPilar: LinhaContagem[] = pilares
-    .filter(pilar => pilar.ativo !== false && pilar.frequenciaSemanal != null)
-    .map(pilar => {
-      const contagem = porPilar.get(pilar.id) ?? { planejado: 0, realizado: 0 };
-      return {
-        id: pilar.id,
-        rotulo: pilar.nome,
-        planejado: contagem.planejado,
-        realizado: contagem.realizado,
-        meta: metaDoPilar(pilar.frequenciaSemanal, semanas),
-      };
-    });
+  const pilaresElegiveis = pilares.filter(
+    pilar => pilar.ativo !== false && pilar.frequenciaSemanal != null,
+  );
+  const pesosPilares = pilaresElegiveis.map(pilar =>
+    typeof pilar.frequenciaSemanal === 'number' && pilar.frequenciaSemanal > 0
+      ? pilar.frequenciaSemanal
+      : 0,
+  );
+  const metasPorPilar = distribuirEspacos(totalMeta, pesosPilares);
 
-  const totalMeta = linhasPilar.reduce((soma, linha) => soma + linha.meta, 0);
-  const somaPlanejado = linhasPilar.reduce((soma, linha) => soma + linha.planejado, 0);
-  const pilaresComMeta = linhasPilar.filter(linha => linha.meta > 0).length;
+  const linhasPilarCompletas: LinhaContagem[] = pilaresElegiveis.map((pilar, index) => {
+    const contagem = porPilar.get(pilar.id) ?? { planejado: 0, realizado: 0 };
+    return {
+      id: pilar.id,
+      rotulo: pilar.nome,
+      planejado: contagem.planejado,
+      realizado: contagem.realizado,
+      meta: metasPorPilar[index] ?? 0,
+    };
+  });
+
+  // Pilar com meta 0 não ganha card; o que estiver nele entra na nota de
+  // "em pilar sem espaço" (Fase 6), mas continua contado em somaPlanejado.
+  const linhasPilar = linhasPilarCompletas.filter(linha => linha.meta > 0);
+  const somaPlanejado = linhasPilarCompletas.reduce((soma, linha) => soma + linha.planejado, 0);
+  const pilaresComMeta = linhasPilar.length;
   const notaSoma = pilaresComMeta >= 2 && somaPlanejado !== totalMeta
     ? `Seus pilares somam ${somaPlanejado} de ${totalMeta}.`
     : null;

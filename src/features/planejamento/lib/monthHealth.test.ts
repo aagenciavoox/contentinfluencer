@@ -75,7 +75,7 @@ function testPostItHerdadoContaNoPilarENaFuncao() {
     contents: [content],
   });
   assert.equal(counts.pilares[0]?.planejado, 1);
-  assert.equal(counts.pilares[0]?.meta, 10);
+  assert.equal(counts.pilares[0]?.meta, 9);
   assert.equal(counts.funcoes.find(linha => linha.id === 'atrair')?.planejado, 1);
 }
 
@@ -210,7 +210,7 @@ function testExcessoQuandoOPilarJaFechou() {
   assert.equal(lista.length > 0, true);
   assert.equal(lista[0]?.nome, 'Literatura');
   assert.equal(lista[0]?.planejado, 5);
-  assert.equal(lista[0]?.meta, 5);
+  assert.equal(lista[0]?.meta, 4);
 }
 
 function testSemExcessoEnquantoAindaCabe() {
