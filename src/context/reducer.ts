@@ -121,7 +121,9 @@ export type AppAction =
   | { type: 'UPDATE_AGENDA_ITEM'; payload: AgendaItem }
   | { type: 'ADD_POST_IT';        payload: PlanejamentoPostIt }
   | { type: 'UPDATE_POST_IT';     payload: PlanejamentoPostIt }
+  | { type: 'UPDATE_POST_ITS';    payload: PlanejamentoPostIt[] }
   | { type: 'DELETE_POST_IT';     payload: string }
+  | { type: 'DELETE_POST_ITS';    payload: string[] }
   | { type: 'DELETE_AGENDA_ITEM'; payload: string }
   | { type: 'ADD_AGENDA';    payload: any }
   | { type: 'UPDATE_AGENDA'; payload: any }
@@ -543,8 +545,16 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       return { ...state, postIts: [...state.postIts, action.payload] };
     case 'UPDATE_POST_IT':
       return { ...state, postIts: state.postIts.map(item => item.id === action.payload.id ? action.payload : item) };
+    case 'UPDATE_POST_ITS': {
+      const byId = new Map(action.payload.map(item => [item.id, item]));
+      return { ...state, postIts: state.postIts.map(item => byId.get(item.id) ?? item) };
+    }
     case 'DELETE_POST_IT':
       return { ...state, postIts: state.postIts.filter(item => item.id !== action.payload) };
+    case 'DELETE_POST_ITS': {
+      const ids = new Set(action.payload);
+      return { ...state, postIts: state.postIts.filter(item => !ids.has(item.id)) };
+    }
 
     // ─── Regras de Ouro ─────────────────────────────────────────────────────
     case 'ADD_GOLDEN_RULE':

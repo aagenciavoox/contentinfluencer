@@ -11,15 +11,15 @@ import {
   startOfWeek,
 } from 'date-fns';
 import {ptBR} from 'date-fns/locale';
-import {BookOpen, CalendarDays, ChevronDown, Clock, Mic2, MoreHorizontal, PanelLeft, PanelRight, Plus, Radio, Send, Target, X} from 'lucide-react';
+import {BookOpen, CalendarDays, ChevronDown, Clock, FileText, Mic2, PanelLeft, PanelRight, Plus, Radio, Send, Target, X} from 'lucide-react';
 import {
+  calendarEntryPillStyle,
   CalendarDesktopShell,
   CalendarEventPill,
   CalendarLayerChecklist,
   CalendarMiniMonth,
   CalendarPeriodNav,
   CalendarQuickCreatePopover,
-  editorialPillStyle,
 } from '../../../components/calendar';
 import {AppButton} from '../../../components/ui/AppButton';
 import {FilterBar} from '../../../components/ui/FilterBar';
@@ -38,7 +38,7 @@ import {useIsMobile} from '../../../hooks/useIsMobile';
 import {readStoredJson, writeStoredJson} from '../../../lib/browserStorage';
 import {cn} from '../../../lib/utils';
 import {AgendaMobileScreen} from '../../../mobile/screens/agenda/AgendaMobileScreen';
-import {CONTENT_STATUS, ContentStage, getContentStage} from '../../contents/lib/contentPipeline';
+import {CONTENT_STATUS, ContentStage, DISPLAY_STATUS, getContentStage} from '../../contents/lib/contentPipeline';
 import {buildContentDetailRoute} from '../../contents/lib/contentDetailRoute';
 import {buildDetailBackState} from '../../../lib/navigation/detailBack';
 import {PostedVideoComposerSheet} from '../../contents/components/PostedVideoComposerSheet';
@@ -50,14 +50,14 @@ import {
   type CalendarViewMode,
 } from '../lib/calendarMode';
 import {listUndatedRoteiros, placeContentOnDay} from '../lib/scheduleContent';
-import {UNDATED_ROTEIRO_MIME, UndatedRoteiroPile} from '../components/UndatedRoteiroPile';
+import {UNDATED_PILE_STORAGE_KEY, UNDATED_ROTEIRO_MIME, UndatedRoteiroPile} from '../components/UndatedRoteiroPile';
 import {PostingTimeSuggestions} from '../../settings/components/PostingTimeSuggestions';
 import {getPostingTimes} from '../../settings/lib/postingTimes';
 import {getGentleExperienceSettings} from '../../settings/lib/gentleExperience';
 import {getSessionCandidates} from '../../dashboard/lib/dailySession';
 import {generateUUID} from '../../../utils/uuid';
 import {getEditorialSettings} from '../../editorial/lib/editorialSettings';
-import {CalendarNetworkIcons} from '../components/CalendarNetworkIcons';
+import {calendarEntryIcon} from '../components/CalendarNetworkIcons';
 import {
   ALL_PLATFORMS,
   ALL_STATUSES,
@@ -76,6 +76,10 @@ function loadLayers(): string[] {
 
 function loadDayPanelOpen(): boolean {
   return readStoredJson(PANEL_STORAGE_KEY, true);
+}
+
+function loadUndatedPileOpen(): boolean {
+  return readStoredJson(UNDATED_PILE_STORAGE_KEY, false);
 }
 
 export function getStatusIcon() {
@@ -100,10 +104,10 @@ export function EditorialCalendarPage() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const viewMode = parseCalendarViewMode(searchParams.get(CALENDAR_VIEW_QUERY));
   const [dayPanelOpen, setDayPanelOpenRaw] = useState(loadDayPanelOpen);
+  const [undatedPileOpen, setUndatedPileOpenRaw] = useState(loadUndatedPileOpen);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [createMenuOpen, setCreateMenuOpen] = useState(false);
   const [headerCreateMenuOpen, setHeaderCreateMenuOpen] = useState(false);
-  const [calendarToolsOpen, setCalendarToolsOpen] = useState(false);
   const [quickCreateDate, setQuickCreateDate] = useState<Date | null>(null);
   const [agendaDraft, setAgendaDraft] = useState<{title: string; date: string; time: string | null} | null>(null);
   const [roteiroDragOver, setRoteiroDragOver] = useState<string | null>(null);
@@ -150,6 +154,11 @@ export function EditorialCalendarPage() {
   const setDayPanelOpen = useCallback((value: boolean) => {
     setDayPanelOpenRaw(value);
     writeStoredJson(PANEL_STORAGE_KEY, value);
+  }, []);
+
+  const setUndatedPileOpen = useCallback((value: boolean) => {
+    setUndatedPileOpenRaw(value);
+    writeStoredJson(UNDATED_PILE_STORAGE_KEY, value);
   }, []);
 
   const setActiveLayers = useCallback((updater: string[] | ((prev: string[]) => string[])) => {
@@ -351,7 +360,7 @@ export function EditorialCalendarPage() {
   }
 
   const isMonthView = viewMode === 'month';
-  const showUndatedPile = undatedRoteiros.length > 0;
+  const showUndatedPile = undatedPileOpen && undatedRoteiros.length > 0;
   const hiddenLayerCount = EDITORIAL_LAYER_ITEMS.filter(item => !activeLayers.includes(item.id)).length;
   const dayPanelCrowdsEmptyDay = !isMonthView && showUndatedPile && selectedEntries.length === 0;
   const showDayPanel =
@@ -459,6 +468,7 @@ export function EditorialCalendarPage() {
       contents={undatedRoteiros}
       placeLabel={`Colocar em ${format(selectedDate, 'd MMM', {locale: ptBR})}`}
       onPlace={content => placeUndatedRoteiro(content.id, format(selectedDate, 'yyyy-MM-dd'))}
+      onClose={() => setUndatedPileOpen(false)}
     />
   );
 
@@ -481,10 +491,7 @@ export function EditorialCalendarPage() {
                   leftIcon={<Plus className="h-4 w-4" />}
                   rightIcon={<ChevronDown className="h-4 w-4" />}
                   aria-expanded={headerCreateMenuOpen}
-                  onClick={() => {
-                    setHeaderCreateMenuOpen(open => !open);
-                    setCalendarToolsOpen(false);
-                  }}
+                  onClick={() => setHeaderCreateMenuOpen(open => !open)}
                 >
                   Novo evento
                 </AppButton>
@@ -606,35 +613,25 @@ export function EditorialCalendarPage() {
               extraActiveCount={isMonthView ? hiddenLayerCount : 0}
               onClearExtra={isMonthView ? () => setActiveLayers(DEFAULT_LAYERS) : undefined}
             />
-            <div className="relative">
+            <AppButton
+              variant="ghost"
+              size="sm"
+              leftIcon={<Clock className="h-3.5 w-3.5" />}
+              onClick={() => navigate('/configuracoes/plataformas')}
+            >
+              Horários
+            </AppButton>
+            {undatedRoteiros.length > 0 ? (
               <AppButton
                 variant="ghost"
                 size="sm"
-                iconOnly
-                aria-label="Mais opções do calendário"
-                aria-expanded={calendarToolsOpen}
-                leftIcon={<MoreHorizontal className="h-4 w-4" />}
-                onClick={() => {
-                  setCalendarToolsOpen(open => !open);
-                  setHeaderCreateMenuOpen(false);
-                }}
-              />
-              {calendarToolsOpen ? (
-                <div className="absolute right-0 top-full z-30 mt-1 min-w-44 overflow-hidden rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] shadow-[var(--shadow-dropdown)]">
-                  <button
-                    type="button"
-                    className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"
-                    onClick={() => {
-                      setCalendarToolsOpen(false);
-                      navigate('/configuracoes/plataformas');
-                    }}
-                  >
-                    <Clock className="h-4 w-4" />
-                    Horários
-                  </button>
-                </div>
-              ) : null}
-            </div>
+                aria-pressed={undatedPileOpen}
+                onClick={() => setUndatedPileOpen(!undatedPileOpen)}
+                leftIcon={<FileText className="h-3.5 w-3.5" />}
+              >
+                Sem data ({undatedRoteiros.length})
+              </AppButton>
+            ) : null}
             {!showDayPanel && !dayPanelCrowdsEmptyDay ? (
               <AppButton
                 variant="ghost"
@@ -899,13 +896,8 @@ function getEntryLabel(entry: CalendarEntry) {
     : entry.type === 'recording'
       ? 'Gravação'
       : entry.type === 'publish'
-        ? 'Postagem'
+        ? (entry.posted ? CONTENT_STATUS.POSTADO : entry.scheduled ? DISPLAY_STATUS.PROGRAMADO : 'Postagem')
         : 'Evento';
-}
-
-function entryPillStyle(entry: CalendarEntry) {
-  const useCustomColor = entry.color && (entry.type === 'project' || entry.type === 'agenda');
-  return editorialPillStyle(useCustomColor ? entry.color : null, entry.type);
 }
 
 function CalendarWeekView({
@@ -990,11 +982,11 @@ function CalendarWeekView({
                     <CalendarEventPill
                       key={entry.id}
                       label={entry.label}
-                      icon={entry.platformNames?.length ? <CalendarNetworkIcons names={entry.platformNames} /> : undefined}
+                      icon={calendarEntryIcon(entry)}
                       time={entry.time}
                       secondary={getEntryLabel(entry)}
                       variant="expanded"
-                      style={entryPillStyle(entry)}
+                      style={calendarEntryPillStyle(entry)}
                       onClick={event => {
                         event.stopPropagation();
                         onSelectDate(day);
@@ -1097,7 +1089,7 @@ function CalendarAgendaListView({
                           time={row.publish?.time || row.recording?.time}
                           secondary="Gravação e postagem no mesmo dia"
                           variant="expanded"
-                          style={entryPillStyle(primary)}
+                          style={calendarEntryPillStyle(primary)}
                           onClick={() => {
                             onSelectDate(date);
                             onSelectEntry(primary);
@@ -1112,9 +1104,10 @@ function CalendarAgendaListView({
                         key={entry.id}
                         label={entry.label}
                         time={entry.time}
-                        secondary={[getEntryLabel(entry), entry.secondary].filter(Boolean).join(' · ')}
+                        icon={calendarEntryIcon(entry)}
+                        secondary={[...new Set([getEntryLabel(entry), entry.secondary].filter(Boolean))].join(' · ')}
                         variant="expanded"
-                        style={entryPillStyle(entry)}
+                        style={calendarEntryPillStyle(entry)}
                         onClick={() => {
                           onSelectDate(date);
                           onSelectEntry(entry);
@@ -1233,8 +1226,8 @@ function CalendarDayPanel({
           onClick={() => onSelectEntry(primaryEntry)}
           className="mb-4 w-full rounded-lg border border-[color-mix(in_srgb,var(--accent-blue),transparent_62%)] bg-[color-mix(in_srgb,var(--accent-blue),transparent_94%)] p-4 text-left"
         >
-          <span className="status-pill mb-3" style={editorialPillStyle(null, primaryEntry.type)}>
-            {primaryEntry.type === 'project' ? 'Projeto' : primaryEntry.type === 'recording' ? 'Gravação' : primaryEntry.type === 'publish' ? 'Postagem' : 'Evento'}
+          <span className="status-pill mb-3" style={calendarEntryPillStyle({type: primaryEntry.type, posted: primaryEntry.posted})}>
+            {getEntryLabel(primaryEntry)}
           </span>
           <Text variant="itemTitle">{primaryEntry.label}</Text>
           <p className="mt-1 t-meta text-[var(--text-secondary)]">{primaryEntry.secondary || 'Detalhe editorial'}</p>
@@ -1268,7 +1261,7 @@ function CalendarDayPanel({
                   className={cn(
                     'w-full rounded-[var(--radius-input)] border px-3 py-2 text-left transition-all hover:-translate-y-0.5',
                   )}
-                  style={entryPillStyle(entry)}
+                  style={calendarEntryPillStyle(entry)}
                 >
                   <p className="text-xs font-semibold text-[var(--text-primary)]">{entry.label}</p>
                   <p className="mt-0.5 text-xs text-[var(--text-secondary)]">

@@ -1,6 +1,9 @@
-import type { Content } from '../../../lib/database.ts';
+import { format } from 'date-fns';
+import type { Content, ContentPlataforma } from '../../../lib/database.ts';
 import { platformKey } from '../../../components/ui/platformName.ts';
+import { CONTENT_STATUS, DISPLAY_STATUS, getDisplayStatus, normalizeContentStatus } from '../../contents/lib/contentPipeline.ts';
 import { buildGradeEntries, type GradeSerie } from '../../editorial/lib/gradeEntries.ts';
+import { dataRealizada, earliestRealizadaEm, rotuloStatusPublicacao } from '../../editorial/lib/markPublished.ts';
 const TODAS_AS_REDES = 'todas';
 
 export type PublishCalendarItem = {
@@ -10,9 +13,15 @@ export type PublishCalendarItem = {
   time: string | null;
   plataformaId?: string;
   platformNames: string[];
+  /** A publicação deste item já foi ao ar. */
+  posted: boolean;
+  /** Marcada como não foi ao ar ou removida. */
+  cancelled: boolean;
 };
 
 type PlatformRef = { id: string; nome: string };
+
+type Quando = { date: string | null; time: string | null };
 
 function canonicalPlatformId(ref: string, platforms: readonly PlatformRef[]): string {
   if (platforms.some(platform => platform.id === ref)) return ref;
@@ -40,8 +49,140 @@ function uniqueNames(names: string[]): string[] {
 }
 
 /**
+ * Publicada conta como postada; não foi ao ar e removida, não.
+ * Sem marca na rede, o original segue o roteiro marcado como Postado. O repost, não.
+ */
+function cancelada(publicacao: ContentPlataforma | undefined): boolean {
+  return publicacao?.status === 'nao_publicada' || publicacao?.status === 'removida';
+}
+
+function publicacaoPostada(content: Content, publicacao: ContentPlataforma | undefined): boolean {
+  if (publicacao?.status === 'publicada') return true;
+  if (cancelada(publicacao)) return false;
+  if (publicacao?.publicationKind === 'repost') return false;
+  return getDisplayStatus(content) === CONTENT_STATUS.POSTADO;
+}
+
+function hora(value: string | null | undefined): string | null {
+  const match = value ? /(\d{2}):(\d{2})/.exec(value) : null;
+  return match ? `${match[1]}:${match[2]}` : null;
+}
+
+function planejado(date: string | null | undefined, time: string | null | undefined): Quando {
+  return { date: date || null, time: date ? hora(time) : null };
+}
+
+/** O instante salvo em UTC vira dia e hora locais. */
+function quandoLocal(instante: string | null | undefined): Quando | null {
+  if (!instante) return null;
+  const date = new Date(instante);
+  if (Number.isNaN(date.getTime())) return null;
+  return { date: format(date, 'yyyy-MM-dd'), time: format(date, 'HH:mm') };
+}
+
+function realizadaEm(publicacoes: ReadonlyArray<ContentPlataforma | undefined>): string | null {
+  return earliestRealizadaEm(
+    publicacoes
+      .filter((publicacao): publicacao is ContentPlataforma => publicacao?.status === 'publicada')
+      .map(publicacao => dataRealizada(publicacao)),
+  );
+}
+
+/**
+ * Postado fica no dia em que foi ao ar, quando essa data foi informada.
+ * Sem ela, fica na data planejada e, por último, no dia em que virou Postado.
+ */
+function quandoDoItem(content: Content, plano: Quando, posted: boolean, realizada: string | null): Quando {
+  if (!posted) return plano;
+  return quandoLocal(realizada)
+    ?? (plano.date ? plano : null)
+    ?? quandoLocal(content.postedAt)
+    ?? plano;
+}
+
+/**
+ * Sem rede de referência, cada roteiro entra uma vez, com todas as suas redes,
+ * e cada repost entra na data dele.
+ */
+function itensSemReferencia(content: Content, platforms: readonly PlatformRef[]): PublishCalendarItem[] {
+  if (content.deletedAt || content.archivedAt) return [];
+  const publicacoes = content.plataformas ?? [];
+  const originais = publicacoes.filter(publicacao => publicacao.publicationKind !== 'repost');
+  const primeiraComData = originais
+    .filter(publicacao => publicacao.publishDate)
+    .sort((left, right) => (left.publishDate ?? '').localeCompare(right.publishDate ?? ''))[0];
+  const plano = content.publishDate
+    ? planejado(content.publishDate, content.publishTime)
+    : planejado(primeiraComData?.publishDate, primeiraComData?.publishTime);
+  const posted = getDisplayStatus(content) === CONTENT_STATUS.POSTADO
+    || originais.some(publicacao => publicacao.status === 'publicada');
+  const quando = quandoDoItem(content, plano, posted, realizadaEm(originais));
+
+  const itens: PublishCalendarItem[] = [{
+    id: `${content.id}:original`,
+    contentId: content.id,
+    date: quando.date,
+    time: quando.time,
+    plataformaId: originais[0]?.id,
+    platformNames: uniqueNames(originais.map(publicacao => platformName(publicacao.platformId, platforms))),
+    posted,
+    cancelled: !posted && originais.length > 0 && originais.every(cancelada),
+  }];
+
+  for (const repost of publicacoes) {
+    if (repost.publicationKind !== 'repost') continue;
+    const repostPosted = publicacaoPostada(content, repost);
+    const quandoRepost = quandoDoItem(
+      content,
+      planejado(repost.publishDate, repost.publishTime),
+      repostPosted,
+      realizadaEm([repost]),
+    );
+    itens.push({
+      id: `${content.id}:repost:${repost.id}`,
+      contentId: content.id,
+      date: quandoRepost.date,
+      time: quandoRepost.time,
+      plataformaId: repost.id,
+      platformNames: [platformName(repost.platformId, platforms)],
+      posted: repostPosted,
+      cancelled: cancelada(repost),
+    });
+  }
+
+  return itens;
+}
+
+export function todayKey(now = new Date()): string {
+  return format(now, 'yyyy-MM-dd');
+}
+
+/** Programado: ainda não foi ao ar, não foi descartado e a data é hoje ou depois. */
+export function isScheduledItem(
+  item: Pick<PublishCalendarItem, 'posted' | 'cancelled' | 'date'>,
+  hoje = todayKey(),
+): boolean {
+  return !item.posted && !item.cancelled && Boolean(item.date) && (item.date ?? '').slice(0, 10) >= hoje;
+}
+
+/**
+ * Cada publicação mostra o próprio status: o repost ainda por vir de um roteiro
+ * já postado aparece como Programado, não como Postado.
+ */
+export function publishItemStatus(content: Content, item: PublishCalendarItem, hoje = todayKey()): string {
+  if (item.posted) return CONTENT_STATUS.POSTADO;
+  if (isScheduledItem(item, hoje)) return DISPLAY_STATUS.PROGRAMADO;
+  const status = normalizeContentStatus(content.status);
+  if (status !== CONTENT_STATUS.POSTADO && !content.postedAt) return status;
+  const publicacao = (content.plataformas ?? []).find(candidate => candidate.id === item.plataformaId);
+  return rotuloStatusPublicacao(publicacao?.status);
+}
+
+/**
  * "Todas" mostra um item por entrada da grade, com as redes daquele roteiro.
+ * Sem rede de referência, um item por roteiro.
  * Uma rede mostra um item por publicação dela, na data dessa publicação.
+ * O que já foi ao ar fica no dia em que foi postado.
  */
 export function buildPublishCalendarItems(input: {
   contents: readonly Content[];
@@ -63,17 +204,30 @@ export function buildPublishCalendarItems(input: {
       for (const publicacao of content.plataformas ?? []) {
         const nome = platformName(publicacao.platformId, input.platforms);
         if (platformKey(nome) !== filtro && platformKey(publicacao.platformId) !== filtro) continue;
+        const posted = publicacaoPostada(content, publicacao);
+        const quando = quandoDoItem(
+          content,
+          planejado(publicacao.publishDate, publicacao.publishTime),
+          posted,
+          realizadaEm([publicacao]),
+        );
         itens.push({
           id: `${content.id}:pub:${publicacao.id}`,
           contentId: content.id,
-          date: publicacao.publishDate,
-          time: publicacao.publishTime ?? null,
+          date: quando.date,
+          time: quando.time,
           plataformaId: publicacao.id,
           platformNames: [nome],
+          posted,
+          cancelled: cancelada(publicacao),
         });
       }
     }
     return itens;
+  }
+
+  if (!referenciaId) {
+    return input.contents.flatMap(content => itensSemReferencia(content, input.platforms));
   }
 
   const series: GradeSerie[] = input.series.map(serie => ({
@@ -92,9 +246,10 @@ export function buildPublishCalendarItems(input: {
     settings: { redeReferenciaId: referenciaId },
   });
 
-  return entries.map(entry => {
+  return entries.flatMap(entry => {
     const content = input.contents.find(item => item.id === entry.contentId);
-    const publicacoes = (content?.plataformas ?? []).map(publicacao => ({
+    if (!content) return [];
+    const publicacoes = (content.plataformas ?? []).map(publicacao => ({
       ...publicacao,
       platformId: canonicalPlatformId(publicacao.platformId, input.platforms),
     }));
@@ -111,17 +266,23 @@ export function buildPublishCalendarItems(input: {
     const original = publicacoes.find(publicacao =>
       publicacao.publicationKind !== 'repost' && publicacao.platformId === referenciaId,
     );
+    const repost = repostId ? publicacoes.find(publicacao => publicacao.id === repostId) : undefined;
+    const publicacao = entry.tipo === 'repost' ? repost : original;
+    const posted = publicacaoPostada(content, publicacao);
+    const quando = quandoDoItem(content, { date: entry.data, time: entry.hora }, posted, realizadaEm([publicacao]));
 
-    return {
+    return [{
       id: entry.id,
       contentId: entry.contentId,
-      date: entry.data,
-      time: entry.hora,
+      date: quando.date,
+      time: quando.time,
       plataformaId: repostId || original?.id,
       platformNames: entry.tipo === 'repost' && referenciaId
         ? [platformName(referenciaId, input.platforms)]
         : nomes,
-    };
+      posted,
+      cancelled: cancelada(publicacao),
+    }];
   });
 }
 

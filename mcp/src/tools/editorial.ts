@@ -1,6 +1,10 @@
 import type {McpServer} from '@modelcontextprotocol/sdk/server/mcp.js';
 import {z} from 'zod';
 import {
+  FORMATOS_APRESENTACAO,
+  FORMATO_DESCRICAO,
+} from '../campos.ts';
+import {
   FUNCOES,
   FUNIL_DA_FUNCAO,
   check,
@@ -99,9 +103,14 @@ function serieView(row: Row, lookups: Lookups) {
     etapa_funil: isFuncao(row.funcao_padrao) ? FUNIL_DA_FUNCAO[row.funcao_padrao] ?? 'fora' : null,
     frequencia: row.frequencia_recomendada ?? null,
     formato_padrao: row.formato_visual_padrao ?? null,
+    formato_apresentacao: row.formato_apresentacao ?? null,
     energia_padrao: row.energia_padrao ?? null,
+    motivo_salvar: row.motivo_salvar ?? null,
+    motivo_enviar: row.motivo_enviar ?? null,
+    pilar_principal: lookups.pilarName(row.pilar_principal_id),
     bordao: row.bordao ?? null,
     estrutura_roteiro: row.estrutura_roteiro ?? null,
+    modelo: row.template || null,
     notas: row.notes || null,
     cor: row.cor ?? null,
     capa_url: row.capa_url ?? null,
@@ -155,6 +164,12 @@ async function replaceSeriePilares(session: Session, lookups: Lookups, serieId: 
   if (ids.length > 0) {
     check('ligar pilares da série', await session.client.from('serie_pilares').insert(ids.map(pilarId => ({serie_id: serieId, pilar_id: pilarId}))));
   }
+  return ids;
+}
+
+function idDoPilar(lookups: Lookups, ref: string | null | undefined): string | null {
+  if (!ref) return null;
+  return resolvePilar(lookups, ref) ?? null;
 }
 
 const serieFields = {
@@ -164,8 +179,16 @@ const serieFields = {
     'acao = fundo, reter = fora do funil, varia = cada roteiro escolhe. Antes de postar, mudar aqui reclassifica os roteiros que herdam.',
   ),
   frequencia: z.enum(FREQUENCIAS_SERIE).nullable().optional().describe('"Sob demanda" não cobra ritmo'),
-  formato_padrao: z.string().nullable().optional().describe('Copiado para o roteiro criado pela série, ex.: Reels'),
-  energia_padrao: z.enum(['baixa', 'média', 'alta']).nullable().optional(),
+  formato_padrao: z.string().nullable().optional().describe(FORMATO_DESCRICAO),
+  formato_apresentacao: z.string().nullable().optional().describe(
+    `Como a série aparece na tela. Sugestões: ${FORMATOS_APRESENTACAO.join(', ')}. Texto livre também vale.`,
+  ),
+  energia_padrao: z.enum(['baixa', 'média', 'alta']).nullable().optional().describe('Esforço de produção'),
+  motivo_salvar: z.string().nullable().optional().describe('O que faz a pessoa guardar'),
+  motivo_enviar: z.string().nullable().optional().describe('O que faz a pessoa enviar'),
+  pilar_principal: z.string().nullable().optional().describe(
+    'Nome ou id. Se pilares não vier, a série fica ligada só a este pilar.',
+  ),
   bordao: z.string().nullable().optional(),
   estrutura_roteiro: z.string().nullable().optional().describe('Passo a passo do roteiro da série (referência, não é colado no roteiro)'),
   notas: z.string().optional(),
@@ -177,7 +200,9 @@ const serieFields = {
 function serieColumns(args: Partial<Record<keyof typeof serieFields | 'nome' | 'ativa', unknown>>): Row {
   const map: Record<string, string> = {
     nome: 'name', ativa: 'ativa', funcao_padrao: 'funcao_padrao',
-    frequencia: 'frequencia_recomendada', formato_padrao: 'formato_visual_padrao', energia_padrao: 'energia_padrao',
+    frequencia: 'frequencia_recomendada', formato_padrao: 'formato_visual_padrao',
+    formato_apresentacao: 'formato_apresentacao', energia_padrao: 'energia_padrao',
+    motivo_salvar: 'motivo_salvar', motivo_enviar: 'motivo_enviar',
     bordao: 'bordao', estrutura_roteiro: 'estrutura_roteiro', notas: 'notes', cor: 'cor', capa_url: 'capa_url',
   };
   const row: Row = {};
@@ -339,8 +364,9 @@ export function registerEditorial(server: McpServer) {
     {
       title: 'Criar série',
       description:
-        'Cria uma série (formato recorrente). Formato e energia padrão são copiados para os roteiros criados pela série; ' +
-        'bordão e estrutura do roteiro ficam só como referência.',
+        'Cria uma série (formato recorrente). Formato, apresentação, motivos e energia padrão descrevem a série; ' +
+        'formato e energia são copiados para os roteiros criados por ela. Bordão e estrutura do roteiro ficam só como referência. ' +
+        'pilar_principal é o pilar que o app mostra; sem a lista pilares, a série fica ligada só a ele.',
       inputSchema: {nome: z.string().min(1), ...serieFields},
     },
     tool(async (args, session) => {
@@ -349,15 +375,23 @@ export function registerEditorial(server: McpServer) {
         throw new Error(`Já existe uma série chamada "${args.nome}". Use atualizar_serie.`);
       }
       const id = newId();
+      const row = serieColumns(args);
+      if (args.pilar_principal !== undefined) row.pilar_principal_id = idDoPilar(lookups, args.pilar_principal);
+      else if (args.pilares?.length) row.pilar_principal_id = idDoPilar(lookups, args.pilares[0]);
       const ignorados = await writeCompat('criar série', {
         template: '',
         notes: '',
-        ...serieColumns(args),
+        ...row,
         id,
         user_id: session.userId,
         ativa: true,
-      }, row => session.client.from('series').insert(row));
-      if (args.pilares?.length) await replaceSeriePilares(session, lookups, id, args.pilares);
+      }, payload => session.client.from('series').insert(payload));
+      if (args.pilar_principal !== undefined && args.pilares === undefined) {
+        const principal = idDoPilar(lookups, args.pilar_principal);
+        await replaceSeriePilares(session, lookups, id, principal ? [principal] : []);
+      } else if (args.pilares !== undefined) {
+        await replaceSeriePilares(session, lookups, id, args.pilares);
+      }
       if (args.hashtags?.length) await mergeSerieHashtags(session, lookups, id, args.hashtags);
       invalidateLookups();
       return json({...serieView(await fetchSerie(session, id), await loadLookups(session)), ...avisos(ignorados)});
@@ -370,7 +404,8 @@ export function registerEditorial(server: McpServer) {
       title: 'Atualizar série',
       description:
         'Edita uma série. Só os campos enviados mudam; null limpa. ativa=false desliga a série (conteúdos ligados continuam). ' +
-        'pilares substitui a lista; hashtags muda só as redes enviadas.',
+        'pilares substitui a lista e, se pilar_principal não vier, o primeiro vira o principal. ' +
+        'pilar_principal sem pilares deixa a série ligada só a esse pilar. hashtags muda só as redes enviadas.',
       inputSchema: {
         serie: z.string().describe('Nome ou id da série'),
         nome: z.string().min(1).optional(),
@@ -384,12 +419,19 @@ export function registerEditorial(server: McpServer) {
       if (!id) throw new Error('Informe a série.');
       await fetchSerie(session, id);
       const patch = serieColumns(args);
+      if (args.pilar_principal !== undefined) patch.pilar_principal_id = idDoPilar(lookups, args.pilar_principal);
+      else if (args.pilares !== undefined) patch.pilar_principal_id = idDoPilar(lookups, args.pilares[0]);
       let ignorados: string[] = [];
       if (Object.keys(patch).length > 0) {
         ignorados = await writeCompat('atualizar série', {...patch, updated_at: nowIso()}, row =>
           session.client.from('series').update(row).eq('id', id).eq('user_id', session.userId));
       }
-      if (args.pilares !== undefined) await replaceSeriePilares(session, lookups, id, args.pilares);
+      if (args.pilar_principal !== undefined && args.pilares === undefined) {
+        const principal = idDoPilar(lookups, args.pilar_principal);
+        await replaceSeriePilares(session, lookups, id, principal ? [principal] : []);
+      } else if (args.pilares !== undefined) {
+        await replaceSeriePilares(session, lookups, id, args.pilares);
+      }
       if (args.hashtags?.length) await mergeSerieHashtags(session, lookups, id, args.hashtags);
       invalidateLookups();
       return json({...serieView(await fetchSerie(session, id), await loadLookups(session)), ...avisos(ignorados)});

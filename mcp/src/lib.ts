@@ -1,5 +1,6 @@
 import {randomUUID} from 'node:crypto';
 import type {CallToolResult} from '@modelcontextprotocol/sdk/types.js';
+import {horaCurta, janelaDaHora, type TemaCatalogo} from './campos.ts';
 import {livrosDoConteudo} from './editorial.ts';
 import {getSession, type Session} from './supabase.ts';
 
@@ -342,7 +343,7 @@ export const CONTENT_LIST_COLUMNS = [
   'id', 'title', 'status', 'series_id', 'pilar_id', 'formato_visual', 'energia_necessaria',
   'funcao', 'funcao_origem', 'classificacao_congelada_em', 'conta_na_grade',
   'legenda_base', 'link',
-  'publish_date', 'publish_time', 'recording_date', 'recorded_at', 'posted_at', 'tags',
+  'publish_date', 'publish_time', 'recording_date', 'recording_time', 'recorded_at', 'posted_at', 'tags',
   'biblioteca_item_id', 'livro_ids', 'archived_at', 'deleted_at', 'created_at', 'updated_at',
   'content_plataformas(id, platform_id, publish_date, publish_time, publication_kind, status, post_url, post_codigo, legenda_propria, conta_na_grade)',
 ].join(', ');
@@ -367,13 +368,21 @@ export function contentSummary(row: Row, lookups: Lookups) {
     conta_na_grade: row.conta_na_grade !== false,
     legenda_base: row.legenda_base ?? null,
     data_publicacao: row.publish_date ?? null,
-    hora_publicacao: row.publish_time ?? null,
+    hora_publicacao: horaCurta(row.publish_time),
+    janela: janelaDaHora(row.publish_time),
     data_gravacao: row.recording_date ?? null,
+    hora_gravacao: horaCurta(row.recording_time),
     gravado_em: row.recorded_at ?? null,
     postado_em: row.posted_at ?? null,
     tags: row.tags ?? [],
     biblioteca_item_id: row.biblioteca_item_id ?? null,
     livro_ids: livrosDoConteudo(row),
+    ...(Array.isArray(row.temas)
+      ? {
+        temas: (row.temas as TemaCatalogo[]).map(tema => tema.nome),
+        tema_ids: (row.temas as TemaCatalogo[]).map(tema => tema.id),
+      }
+      : {}),
     arquivado: Boolean(row.archived_at),
     na_lixeira: Boolean(row.deleted_at),
     plataformas: (row.content_plataformas ?? []).map((p: Row) => ({

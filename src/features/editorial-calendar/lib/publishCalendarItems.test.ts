@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import type { Content, ContentPlataforma } from '../../../lib/database.ts';
-import { buildPublishCalendarItems } from './publishCalendarItems.ts';
+import { buildPublishCalendarItems, isScheduledItem, publishItemStatus } from './publishCalendarItems.ts';
 
 const INSTAGRAM = 'plat-instagram';
 const TIKTOK = 'plat-tiktok';
@@ -152,6 +152,204 @@ function testRepostEntraNaGradeComDataPropria() {
   assert.deepEqual(itens[1]?.platformNames, ['Instagram']);
 }
 
+function testPublicacaoMarcadaComoPostadaApareceComoPostado() {
+  const content = conteudo({
+    id: 'semana',
+    status: 'Postado',
+    postedAt: '2026-10-06T18:00:00.000Z',
+    plataformas: [
+      publicacao({
+        id: 'ig',
+        platformId: INSTAGRAM,
+        publishDate: '2026-10-06',
+        status: 'publicada',
+        realizadaManualEm: '2026-10-06T18:00:00.000Z',
+      }),
+      publicacao({
+        id: 'tt',
+        platformId: TIKTOK,
+        publishDate: '2026-10-06',
+        status: 'nao_publicada',
+      }),
+      publicacao({
+        id: 'repost-1',
+        platformId: INSTAGRAM,
+        publicationKind: 'repost',
+        publishDate: '2026-10-20',
+      }),
+    ],
+  });
+  const base = { contents: [content], platforms, series, redeReferenciaId: INSTAGRAM };
+
+  const todas = buildPublishCalendarItems({ ...base, platformFilter: 'todas' });
+  assert.deepEqual(todas.map(item => item.posted), [true, false]);
+  assert.deepEqual(todas.map(item => publishItemStatus(content, item, '2026-10-14')), ['Postado', 'Programado']);
+  assert.deepEqual(todas.map(item => publishItemStatus(content, item, '2026-10-25')), ['Postado', 'Agendada']);
+  assert.equal(isScheduledItem(todas[1]!, '2026-10-14'), true);
+  assert.equal(isScheduledItem(todas[1]!, '2026-10-20'), true);
+  assert.equal(isScheduledItem(todas[1]!, '2026-10-21'), false);
+
+  const soTikTok = buildPublishCalendarItems({ ...base, platformFilter: 'TikTok' });
+  assert.equal(soTikTok[0]?.posted, false);
+  assert.equal(soTikTok[0]?.cancelled, true);
+  assert.equal(publishItemStatus(content, soTikTok[0]!, '2026-10-01'), 'Não foi ao ar');
+  assert.equal(isScheduledItem(soTikTok[0]!, '2026-10-01'), false);
+}
+
+function testRoteiroPostadoSemMarcaNaRedeApareceComoPostado() {
+  const content = conteudo({
+    id: 'semana',
+    status: 'Postado',
+    plataformas: [
+      publicacao({ id: 'ig', platformId: INSTAGRAM, publishDate: '2026-10-06' }),
+    ],
+  });
+  const semRede = conteudo({ id: 'sem-rede', status: 'Postado' });
+  const emProducao = conteudo({
+    id: 'producao',
+    plataformas: [
+      publicacao({ id: 'ig-2', platformId: INSTAGRAM, publishDate: '2026-10-07' }),
+    ],
+  });
+  const itens = buildPublishCalendarItems({
+    contents: [content, semRede, emProducao],
+    platforms,
+    series,
+    redeReferenciaId: INSTAGRAM,
+    platformFilter: 'todas',
+  });
+  assert.deepEqual(
+    itens.map(item => [item.contentId, item.posted]),
+    [['semana', true], ['sem-rede', true], ['producao', false]],
+  );
+
+  const soInstagram = buildPublishCalendarItems({
+    contents: [content],
+    platforms,
+    series,
+    redeReferenciaId: INSTAGRAM,
+    platformFilter: 'Instagram',
+  });
+  assert.equal(soInstagram[0]?.posted, true);
+}
+
+function testPostadoFicaNoDiaEmQueFoiAoAr() {
+  const content = conteudo({
+    id: 'postado',
+    status: 'Postado',
+    publishDate: null,
+    postedAt: '2026-10-10T15:00:00.000Z',
+    plataformas: [
+      publicacao({
+        id: 'ig',
+        contentId: 'postado',
+        platformId: INSTAGRAM,
+        status: 'publicada',
+        realizadaManualEm: '2026-10-11T15:00:00.000Z',
+      }),
+      publicacao({
+        id: 'tt',
+        contentId: 'postado',
+        platformId: TIKTOK,
+        status: 'publicada',
+        realizadaManualEm: '2026-10-10T15:00:00.000Z',
+      }),
+    ],
+  });
+  const base = { contents: [content], platforms, series, redeReferenciaId: INSTAGRAM };
+
+  const todas = buildPublishCalendarItems({ ...base, platformFilter: 'todas' });
+  assert.equal(todas[0]?.date, '2026-10-11');
+  assert.equal(todas[0]?.posted, true);
+
+  const soTikTok = buildPublishCalendarItems({ ...base, platformFilter: 'TikTok' });
+  assert.equal(soTikTok[0]?.date, '2026-10-10');
+}
+
+function testPostadoPeloStatusUsaDataPlanejadaAntesDaMudanca() {
+  const planejado = conteudo({
+    id: 'planejado',
+    status: 'Postado',
+    publishDate: '2026-10-09',
+    postedAt: '2026-10-14T15:00:00.000Z',
+  });
+  const semData = conteudo({
+    id: 'sem-data',
+    status: 'Postado',
+    publishDate: null,
+    postedAt: '2026-10-07T15:00:00.000Z',
+  });
+  const itens = buildPublishCalendarItems({
+    contents: [planejado, semData],
+    platforms,
+    series,
+    redeReferenciaId: INSTAGRAM,
+    platformFilter: 'todas',
+  });
+  assert.deepEqual(itens.map(item => item.date), ['2026-10-09', '2026-10-07']);
+}
+
+function testSemRedeDeReferenciaCadaRoteiroAparece() {
+  const contents = [
+    conteudo({
+      id: 'com-redes',
+      status: 'Postado',
+      publishDate: null,
+      plataformas: [
+        publicacao({
+          id: 'ig',
+          contentId: 'com-redes',
+          platformId: INSTAGRAM,
+          status: 'publicada',
+          realizadaManualEm: '2026-10-11T15:00:00.000Z',
+        }),
+        publicacao({
+          id: 'tt',
+          contentId: 'com-redes',
+          platformId: TIKTOK,
+          status: 'publicada',
+          realizadaManualEm: '2026-10-10T15:00:00.000Z',
+        }),
+        publicacao({
+          id: 'repost-1',
+          contentId: 'com-redes',
+          platformId: INSTAGRAM,
+          publicationKind: 'repost',
+          publishDate: '2026-10-20',
+        }),
+      ],
+    }),
+    conteudo({
+      id: 'agendado',
+      publishDate: null,
+      plataformas: [
+        publicacao({ id: 'tt-2', contentId: 'agendado', platformId: TIKTOK, publishDate: '2026-10-16', publishTime: '19:00:00' }),
+      ],
+    }),
+  ];
+  const itens = buildPublishCalendarItems({
+    contents,
+    platforms,
+    series,
+    redeReferenciaId: null,
+    platformFilter: 'todas',
+  });
+  assert.deepEqual(
+    itens.map(item => ({ id: item.id, date: item.date, posted: item.posted, redes: item.platformNames })),
+    [
+      { id: 'com-redes:original', date: '2026-10-10', posted: true, redes: ['Instagram', 'TikTok'] },
+      { id: 'com-redes:repost:repost-1', date: '2026-10-20', posted: false, redes: ['Instagram'] },
+      { id: 'agendado:original', date: '2026-10-16', posted: false, redes: ['TikTok'] },
+    ],
+  );
+  assert.equal(itens[2]?.time, '19:00');
+}
+
 testSemanaMostraInstagramNaGradeETikTokComoExtra();
 testRepostEntraNaGradeComDataPropria();
+testPublicacaoMarcadaComoPostadaApareceComoPostado();
+testRoteiroPostadoSemMarcaNaRedeApareceComoPostado();
+testPostadoFicaNoDiaEmQueFoiAoAr();
+testPostadoPeloStatusUsaDataPlanejadaAntesDaMudanca();
+testSemRedeDeReferenciaCadaRoteiroAparece();
 console.log('publishCalendarItems tests passed');

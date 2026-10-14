@@ -2,9 +2,9 @@ import type {DragEvent} from 'react';
 import {addMonths} from 'date-fns';
 import {AgendaItem, Content, Platform, Projeto} from '../../../lib/database';
 import {
+  calendarEntryPillStyle,
   CalendarEventPill,
   CalendarMonthGrid,
-  editorialPillStyle,
 } from '../../../components/calendar';
 import {cn} from '../../../lib/utils';
 import {getDisplayStatus} from '../../contents/lib/contentPipeline';
@@ -13,9 +13,9 @@ import {
   ALL_STATUSES,
   matchesContentFilters,
 } from '../lib/calendarContentFilters';
-import {buildPublishCalendarItems} from '../lib/publishCalendarItems';
+import {buildPublishCalendarItems, isScheduledItem, publishItemStatus, todayKey} from '../lib/publishCalendarItems';
 import type {GradeSerie} from '../../editorial/lib/gradeEntries';
-import {CalendarNetworkIcons} from './CalendarNetworkIcons';
+import {calendarEntryIcon} from './CalendarNetworkIcons';
 
 const WEEK_STARTS_ON = 0 as const;
 
@@ -55,6 +55,10 @@ export type CalendarEntry = {
   contentId?: string;
   plataformaId?: string;
   platformNames?: string[];
+  /** Publicação que já foi ao ar. */
+  posted?: boolean;
+  /** Publicação que ainda vai ao ar, hoje ou depois. */
+  scheduled?: boolean;
   agendaId?: string;
   projetoId?: string;
 };
@@ -117,10 +121,11 @@ export function buildCalendarEntries(
       redeReferenciaId: filters?.redeReferenciaId ?? null,
       platformFilter,
     });
+    const hoje = todayKey();
     publishItems.forEach(item => {
       const content = contents.find(candidate => candidate.id === item.contentId);
       if (!content) return;
-      const status = getDisplayStatus(content);
+      const status = publishItemStatus(content, item, hoje);
       if (!matchesContentFilters({
         platformNames: item.platformNames,
         status,
@@ -139,6 +144,8 @@ export function buildCalendarEntries(
         contentId: content.id,
         plataformaId: item.plataformaId,
         platformNames: item.platformNames,
+        posted: item.posted,
+        scheduled: isScheduledItem(item, hoje),
         secondary: networkLabel,
       });
     });
@@ -294,15 +301,15 @@ export function MonthlyCalendarView({
             return (
               <>
                 {visible.map(entry => {
-                  const useCustomColor = entry.color && (entry.type === 'project' || entry.type === 'agenda');
                   return (
                     <CalendarEventPill
                       key={entry.id}
                       label={entry.label}
                       time={entry.time}
+                      secondary={entry.secondary}
                       variant="compact"
-                      icon={entry.platformNames?.length ? <CalendarNetworkIcons names={entry.platformNames} /> : undefined}
-                      style={editorialPillStyle(useCustomColor ? entry.color : null, entry.type)}
+                      icon={calendarEntryIcon(entry)}
+                      style={calendarEntryPillStyle(entry)}
                       onClick={event => {
                         event.stopPropagation();
                         onSelectEntry?.(entry);

@@ -24,6 +24,7 @@ await import('./features/editorial-calendar/lib/calendarMode.test.ts');
 await import('./features/planejamento/lib/postIt.test.ts');
 await import('./features/planejamento/lib/monthHealth.test.ts');
 await import('./features/planejamento/lib/temasPlanejamento.test.ts');
+await import('./features/planejamento/lib/publicacoesDoMes.test.ts');
 await import('./features/creation/lib/legacyCreationRoute.test.ts');
 await import('./features/creation/lib/creationMigrationContract.test.ts');
 await import('./features/creation/lib/creationItemPresentation.test.ts');

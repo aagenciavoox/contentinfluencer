@@ -1,5 +1,6 @@
 import type {McpServer} from '@modelcontextprotocol/sdk/server/mcp.js';
 import {z} from 'zod';
+import {aplicarFicha, lerFicha, type CampoFicha} from '../campos.ts';
 import {check, columnAbsence, json, newId, nowIso, tool, type Row} from '../lib.ts';
 import type {Session} from '../supabase.ts';
 
@@ -17,6 +18,36 @@ const STATUS_POR_TIPO: Record<Tipo, string[]> = {
 
 const TIPOS_ANOTACAO = ['Trecho', 'Reação', 'Análise', 'Ideia de conteúdo', 'Pergunta'] as const;
 const dateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use AAAA-MM-DD');
+const textoFicha = z.string().nullable().optional();
+const simNaoFicha = z.enum(['sim', 'nao']).nullable().optional();
+const listaFicha = z.array(z.string()).nullable().optional();
+const fichaSchema = z.object({
+  editora: textoFicha,
+  ano_publicacao: textoFicha,
+  isbn: textoFicha,
+  idioma: textoFicha,
+  traducao: textoFicha,
+  serie_colecao: textoFicha,
+  colecao_status: simNaoFicha,
+  colecao_nome: textoFicha,
+  genero_autor: textoFicha,
+  pais_autor: textoFicha,
+  raca_autor: textoFicha,
+  duracao: textoFicha.describe('Duração, em filmes. O app também guarda o número em total_paginas'),
+  episodios: textoFicha,
+  duracao_por_episodio: textoFicha,
+  roteirista: textoFicha,
+  distribuidora: textoFicha,
+  plataforma: textoFicha,
+  data_lancamento: textoFicha,
+  pais_origem: textoFicha,
+  faz_parte_de_serie: simNaoFicha,
+  nome_da_serie: textoFicha,
+  tags: listaFicha,
+  quem_indicou: textoFicha,
+  motivo_escolha: textoFicha,
+  capitulos_cobertos: listaFicha,
+}).partial().optional().describe('Ficha extra do item. O app lê isto em preferências (item_meta). null limpa o campo.');
 
 function assertStatus(tipo: Tipo, status: string) {
   if (!STATUS_POR_TIPO[tipo].includes(status)) {
@@ -73,6 +104,50 @@ async function replaceGeneros(session: Session, itemId: string, nomes: string[])
   ));
 }
 
+function objetoJson(value: unknown): Record<string, unknown> {
+  if (value && typeof value === 'object' && !Array.isArray(value)) return value as Record<string, unknown>;
+  if (typeof value !== 'string' || !value.trim()) return {};
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed as Record<string, unknown> : {};
+  } catch {
+    return {};
+  }
+}
+
+async function fichaDoItem(session: Session, id: string, metadata: unknown) {
+  const prefs = check('ficha', await session.client.from('user_preferences').select('key, value')
+    .eq('user_id', session.userId)
+    .in('key', [`item_meta:${id}`, `book_meta:${id}`])) ?? [];
+  const porChave = new Map((prefs as Row[]).map(row => [String(row.key), objetoJson(row.value)]));
+  const preferida = porChave.get(`item_meta:${id}`) ?? {};
+  const legado = porChave.get(`book_meta:${id}`) ?? {};
+  const base = Object.keys(preferida).length
+    ? preferida
+    : Object.keys(legado).length ? legado : objetoJson(metadata);
+  return lerFicha(base);
+}
+
+async function gravarFicha(
+  session: Session,
+  id: string,
+  metadata: unknown,
+  patch: Partial<Record<CampoFicha, string | string[] | null>>,
+) {
+  const atual = await fichaDoItem(session, id, metadata);
+  const stored = aplicarFicha(atual, patch);
+  const value = JSON.stringify(stored);
+  check('salvar ficha', await session.client.from('user_preferences').upsert(
+    {user_id: session.userId, key: `item_meta:${id}`, value},
+    {onConflict: 'user_id,key'},
+  ));
+  check('salvar ficha no item', await session.client.from('biblioteca_items')
+    .update({metadata: stored, updated_at: nowIso()})
+    .eq('id', id)
+    .eq('user_id', session.userId));
+  return lerFicha(stored);
+}
+
 export function registerBiblioteca(server: McpServer) {
   server.registerTool(
     'buscar_biblioteca',
@@ -119,7 +194,7 @@ export function registerBiblioteca(server: McpServer) {
     'ver_item_biblioteca',
     {
       title: 'Ver item da biblioteca',
-      description: 'Abre um item da biblioteca com notas gerais, anotações (trechos, reações, análises) e os roteiros que o citam, pela origem antiga ou pela lista livro_ids.',
+      description: 'Abre um item da biblioteca com notas gerais, a ficha (editora, indicação, tags e o restante do formulário), anotações e os roteiros que o citam.',
       inputSchema: {id: z.string().min(1)},
       annotations: {readOnlyHint: true},
     },
@@ -146,7 +221,7 @@ export function registerBiblioteca(server: McpServer) {
       return json({
         ...itemSummary(row),
         notas_gerais: row.notas_gerais ?? null,
-        metadados: row.metadata ?? {},
+        ficha: await fichaDoItem(session, row.id, row.metadata),
         anotacoes: (row.anotacoes ?? [])
           .filter((a: Row) => !a.deleted_at)
           .sort((a: Row, b: Row) => String(a.created_at).localeCompare(String(b.created_at)))
@@ -180,6 +255,7 @@ export function registerBiblioteca(server: McpServer) {
         generos: z.array(z.string()).optional(),
         notas_gerais: z.string().optional(),
         potencial_conteudo: z.number().int().min(1).max(3).optional(),
+        ficha: fichaSchema,
       },
     },
     tool(async (args, session) => {
@@ -199,7 +275,8 @@ export function registerBiblioteca(server: McpServer) {
         data_inicio: ['Lendo', 'Assistindo', 'Consumindo'].includes(status) ? nowIso() : null,
       }));
       if (args.generos?.length) await replaceGeneros(session, id, args.generos);
-      return json(itemSummary(await fetchItem(session, id)));
+      const ficha = args.ficha ? await gravarFicha(session, id, {}, args.ficha) : {};
+      return json({...itemSummary(await fetchItem(session, id)), ficha});
     }),
   );
 
@@ -207,7 +284,7 @@ export function registerBiblioteca(server: McpServer) {
     'atualizar_item_biblioteca',
     {
       title: 'Atualizar item da biblioteca',
-      description: 'Atualiza progresso, status, avaliação, notas ou gêneros de um item. Só os campos enviados mudam.',
+      description: 'Atualiza progresso, status, avaliação, notas, gêneros ou a ficha do item. Só os campos enviados mudam. Na ficha, null limpa.',
       inputSchema: {
         id: z.string().min(1),
         titulo: z.string().min(1).optional(),
@@ -221,6 +298,7 @@ export function registerBiblioteca(server: McpServer) {
         data_inicio: dateSchema.nullable().optional(),
         data_fim: dateSchema.nullable().optional(),
         generos: z.array(z.string()).optional().describe('Substitui a lista inteira'),
+        ficha: fichaSchema,
       },
     },
     tool(async (args, session) => {
@@ -251,7 +329,10 @@ export function registerBiblioteca(server: McpServer) {
           .eq('user_id', session.userId));
       }
       if (args.generos !== undefined) await replaceGeneros(session, args.id, args.generos);
-      return json(itemSummary(await fetchItem(session, args.id)));
+      const ficha = args.ficha
+        ? await gravarFicha(session, args.id, current.metadata, args.ficha)
+        : await fichaDoItem(session, args.id, current.metadata);
+      return json({...itemSummary(await fetchItem(session, args.id)), ficha});
     }),
   );
 

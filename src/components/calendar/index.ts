@@ -9,4 +9,4 @@ export type {CalendarMonthGridDayProps} from './CalendarMonthGrid';
 export {CalendarPeriodNav} from './CalendarPeriodNav';
 export type {CalendarPeriodViewOption} from './CalendarPeriodNav';
 export {CalendarQuickCreatePopover} from './CalendarQuickCreatePopover';
-export {editorialPillStyle, EDITORIAL_PILL_COLORS} from './calendarPillStyles';
+export {calendarEntryPillStyle, editorialPillStyle, EDITORIAL_PILL_COLORS} from './calendarPillStyles';

@@ -1,6 +1,14 @@
 import type {McpServer} from '@modelcontextprotocol/sdk/server/mcp.js';
 import {z} from 'zod';
 import {
+  FORMATOS_APRESENTACAO,
+  FORMATOS_PUBLICACAO,
+  FORMATOS_VISUAIS,
+  HORA_DA_JANELA,
+  JANELA_ROTULO,
+  JANELAS,
+} from '../campos.ts';
+import {
   FUNCAO_LABELS,
   FUNCOES,
   FUNIL_DA_FUNCAO,
@@ -15,6 +23,7 @@ import {
   type Row,
 } from '../lib.ts';
 import {distribuicaoView} from './editorial.ts';
+import {carregarTemas} from '../temas.ts';
 
 const DIAS = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
 
@@ -28,18 +37,18 @@ export function registerEstrutura(server: McpServer) {
     {
       title: 'Ver estrutura editorial',
       description:
-        'Mostra o DNA da voz, os pilares, as séries (com estrutura de roteiro, bordão e função padrão), ' +
-        'as funções editoriais (antigo funil) com a distribuição desejada, as plataformas, as regras de ouro ' +
-        'e os ajustes (rede de referência, destinos padrão, distribuição e estoque). ' +
+        'Mostra o DNA da voz, os pilares, as séries (com estrutura de roteiro, bordão, função padrão, formato, motivos e pilar principal), ' +
+        'os temas, as opções fechadas (formatos, janelas, energia), as funções editoriais (antigo funil) com a distribuição desejada, ' +
+        'as plataformas, as regras de ouro e os ajustes (rede de referência, destinos padrão, distribuição e estoque). ' +
         'Leia antes de escrever roteiros para manter a voz e o formato do perfil.',
       inputSchema: {
-        secoes: z.array(z.enum(['voz', 'pilares', 'series', 'funcoes', 'plataformas', 'regras', 'ajustes'])).optional().describe('Vazio = tudo'),
+        secoes: z.array(z.enum(['voz', 'pilares', 'series', 'temas', 'opcoes', 'funcoes', 'plataformas', 'regras', 'ajustes'])).optional().describe('Vazio = tudo'),
         incluir_inativos: z.boolean().default(false).describe('Mostra também pilares e séries desligados'),
       },
       annotations: {readOnlyHint: true},
     },
     tool(async (args, session) => {
-      const want = new Set(args.secoes?.length ? args.secoes : ['voz', 'pilares', 'series', 'funcoes', 'plataformas', 'regras', 'ajustes']);
+      const want = new Set(args.secoes?.length ? args.secoes : ['voz', 'pilares', 'series', 'temas', 'opcoes', 'funcoes', 'plataformas', 'regras', 'ajustes']);
       const lookups = await loadLookups(session);
       const {client, userId} = session;
       const result: Row = {};
@@ -80,6 +89,7 @@ export function registerEstrutura(server: McpServer) {
           energia_padrao: s.energia_padrao ?? null,
           motivo_salvar: s.motivo_salvar ?? null,
           motivo_enviar: s.motivo_enviar ?? null,
+          pilar_principal: lookups.pilarName(s.pilar_principal_id),
           frequencia: s.frequencia_recomendada ?? null,
           bordao: s.bordao ?? null,
           estrutura_roteiro: s.estrutura_roteiro ?? null,
@@ -87,6 +97,21 @@ export function registerEstrutura(server: McpServer) {
           notas: s.notes || null,
           hashtags: (s.serie_plataformas ?? []).map((sp: Row) => ({plataforma: lookups.platformName(sp.platform_id), hashtags: sp.hashtags})),
         }));
+      }
+      if (want.has('temas')) {
+        const temas = await carregarTemas(session);
+        result.temas = temas.itens.map(tema => ({id: tema.id, nome: tema.nome}));
+        if (temas.ausente) result.temas_ausentes_no_banco = true;
+      }
+      if (want.has('opcoes')) {
+        result.opcoes = {
+          formatos_visuais: [...FORMATOS_VISUAIS],
+          formatos_publicacao: [...FORMATOS_PUBLICACAO],
+          formatos_apresentacao: [...FORMATOS_APRESENTACAO],
+          energia: ['baixa', 'média', 'alta'],
+          janelas: JANELAS.map(id => ({id, rotulo: JANELA_ROTULO[id], hora: HORA_DA_JANELA[id]})),
+          funcoes: FUNCOES,
+        };
       }
       if (want.has('funcoes')) {
         result.funcoes = {

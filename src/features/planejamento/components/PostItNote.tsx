@@ -53,6 +53,9 @@ export function PostItNote({
   postIt,
   content,
   onOpen,
+  onToggleSelect,
+  selected = false,
+  dragIds,
   compact = false,
   seriesColor = null,
   marks = [],
@@ -62,6 +65,9 @@ export function PostItNote({
   postIt: PlanejamentoPostIt;
   content: Content | null;
   onOpen: () => void;
+  onToggleSelect?: () => void;
+  selected?: boolean;
+  dragIds?: readonly string[];
   compact?: boolean;
   seriesColor?: string | null;
   marks?: PostItMark[];
@@ -77,14 +83,41 @@ export function PostItNote({
       role="button"
       tabIndex={0}
       draggable
+      aria-pressed={onToggleSelect ? selected : undefined}
+      onPointerDown={event => {
+        if (event.button !== 0) return;
+        if (!(event.ctrlKey || event.metaKey) || !onToggleSelect) return;
+        event.currentTarget.setPointerCapture(event.pointerId);
+      }}
+      onMouseDown={event => {
+        if (event.button !== 0) return;
+        if (!(event.ctrlKey || event.metaKey) || !onToggleSelect) return;
+        event.preventDefault();
+        event.stopPropagation();
+      }}
+      onMouseUp={event => {
+        if (event.button !== 0) return;
+        if (!(event.ctrlKey || event.metaKey) || !onToggleSelect) return;
+        event.preventDefault();
+        event.stopPropagation();
+        onToggleSelect();
+      }}
       onDragStart={event => {
-        event.dataTransfer.setData(POST_IT_MIME, postIt.id);
-        event.dataTransfer.setData('text/plain', postIt.id);
+        if ((event.ctrlKey || event.metaKey) && onToggleSelect) {
+          event.preventDefault();
+          return;
+        }
+        const ids = dragIds && dragIds.length > 0 ? [...dragIds] : [postIt.id];
+        if (!ids.includes(postIt.id)) ids.unshift(postIt.id);
+        const payload = ids.join('\n');
+        event.dataTransfer.setData(POST_IT_MIME, payload);
+        event.dataTransfer.setData('text/plain', payload);
         event.dataTransfer.effectAllowed = 'move';
         event.stopPropagation();
       }}
       onClick={event => {
         event.stopPropagation();
+        if ((event.ctrlKey || event.metaKey) && onToggleSelect) return;
         onOpen();
       }}
       onKeyDown={event => {
@@ -92,11 +125,15 @@ export function PostItNote({
         event.preventDefault();
         onOpen();
       }}
-      style={accent ? ({'--post-it-accent': accent} as CSSProperties) : undefined}
+      style={{
+        ...(accent ? ({'--post-it-accent': accent} as CSSProperties) : {}),
+        ...(selected ? {boxShadow: 'inset 0 0 0 2px var(--text-primary)'} : {}),
+      }}
       className={cn(
         'flex w-full cursor-grab items-start gap-1 rounded-[var(--radius-sm)] border px-2 py-1.5 text-left shadow-[var(--shadow-soft)] active:cursor-grabbing',
         accent ? SERIES_SURFACE : KIND_SURFACE[kind],
         'focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
+        selected && 'bg-[var(--bg-hover)]',
         dimmed && 'opacity-40',
       )}
     >

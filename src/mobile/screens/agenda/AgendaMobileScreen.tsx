@@ -19,6 +19,7 @@ import {
 import {ptBR} from 'date-fns/locale';
 import {
   BriefcaseBusiness,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Clapperboard,
@@ -38,7 +39,7 @@ import {EmptyState} from '../../../components/ui/EmptyState';
 import {MobileListCard} from '../../components/MobileListCard';
 import {MobileSearchBar} from '../../components/MobileSearchBar';
 import {MobileSegmentTabs} from '../../components/MobileSegmentTabs';
-import {getDisplayStatus} from '../../../features/contents/lib/contentPipeline';
+import {CONTENT_STATUS, DISPLAY_STATUS, getDisplayStatus} from '../../../features/contents/lib/contentPipeline';
 import {
   ALL_PLATFORMS,
   ALL_STATUSES,
@@ -47,7 +48,8 @@ import {
   matchesContentFilters,
   platformFilterOptions,
 } from '../../../features/editorial-calendar/lib/calendarContentFilters';
-import {buildPublishCalendarItems} from '../../../features/editorial-calendar/lib/publishCalendarItems';
+import {buildPublishCalendarItems, isScheduledItem, publishItemStatus, todayKey} from '../../../features/editorial-calendar/lib/publishCalendarItems';
+import {UNDATED_PILE_STORAGE_KEY} from '../../../features/editorial-calendar/components/UndatedRoteiroPile';
 import {PlatformIcon} from '../../../components/ui/PlatformIcon';
 
 type AgendaTimelineKind = 'agenda' | 'recording' | 'publish' | 'project';
@@ -85,6 +87,8 @@ interface AgendaTimelineEntry {
   projetoId?: string;
   platformNames?: string[];
   contentStatus?: string;
+  posted?: boolean;
+  scheduled?: boolean;
 }
 
 const KIND_LABELS: Record<AgendaTimelineKind, string> = {
@@ -155,6 +159,7 @@ function buildTimelineEntries(contents: Content[], platforms: Platform[], agenda
   const projectById = new Map(projetos.map(p => [p.id, p]));
   const platformNameById = new Map(platforms.map(platform => [platform.id, platform.nome]));
   const entries: AgendaTimelineEntry[] = [];
+  const hoje = todayKey();
 
   agendaItems.forEach(item => {
     const linkedProjeto = item.projetoId ? projectById.get(item.projetoId) : null;
@@ -196,6 +201,7 @@ function buildTimelineEntries(contents: Content[], platforms: Platform[], agenda
     });
     publishItems.forEach(item => {
       if (!item.date) return;
+      const publishStatus = publishItemStatus(content, item, hoje);
       entries.push({
         id: item.id,
         kind: 'publish',
@@ -206,9 +212,11 @@ function buildTimelineEntries(contents: Content[], platforms: Platform[], agenda
         plataformaId: item.plataformaId,
         secondary: item.platformNames.length > 0
           ? item.platformNames.join(' · ')
-          : (displayStatus || 'Publicação'),
+          : (publishStatus || 'Publicação'),
         platformNames: item.platformNames,
-        contentStatus: displayStatus,
+        contentStatus: publishStatus,
+        posted: item.posted,
+        scheduled: isScheduledItem(item, hoje),
       });
     });
   });
@@ -278,6 +286,11 @@ export function AgendaMobileScreen({
   onPlaceUndatedRoteiro,
 }: AgendaMobileScreenProps) {
   const [search, setSearch] = useState('');
+  const [undatedOpen, setUndatedOpenRaw] = useState(() => readStoredJson(UNDATED_PILE_STORAGE_KEY, false));
+  const setUndatedOpen = (value: boolean) => {
+    setUndatedOpenRaw(value);
+    writeStoredJson(UNDATED_PILE_STORAGE_KEY, value);
+  };
   const [platformFilter, setPlatformFilter] = useState(platformFilterProp);
   const [statusFilter, setStatusFilter] = useState(ALL_STATUSES);
   const [activeKinds, setActiveKindsRaw] = useState<AgendaTimelineKind[]>(loadMobileKinds);
@@ -621,7 +634,9 @@ export function AgendaMobileScreen({
 
                 <div className="stack-sm">
                   {group.items.map(entry => {
-                    const accentColor = entry.color || KIND_ACCENTS[entry.kind];
+                    const accentColor = entry.posted
+                      ? 'var(--status-posted)'
+                      : entry.color || KIND_ACCENTS[entry.kind];
                     const calendarType =
                       entry.kind === 'recording'
                         ? 'recording'
@@ -633,7 +648,11 @@ export function AgendaMobileScreen({
                     return (
                       <MobileListCard
                         key={entry.id}
-                        eyebrow={KIND_LABELS[entry.kind]}
+                        eyebrow={entry.posted
+                          ? CONTENT_STATUS.POSTADO
+                          : entry.scheduled
+                            ? DISPLAY_STATUS.PROGRAMADO
+                            : KIND_LABELS[entry.kind]}
                         title={entry.title}
                         description={entry.secondary || ''}
                         onClick={() =>
@@ -647,6 +666,8 @@ export function AgendaMobileScreen({
                             color: entry.color,
                             contentId: entry.contentId,
                             plataformaId: entry.plataformaId,
+                            posted: entry.posted,
+                            scheduled: entry.scheduled,
                             agendaId: entry.agendaId,
                             projetoId: entry.projetoId,
                           })
@@ -692,11 +713,24 @@ export function AgendaMobileScreen({
 
       {undatedRoteiros.length > 0 ? (
         <section className="px-4 stack-sm">
-          <Text variant="sectionTitle">Roteiros sem data</Text>
-          <Text variant="meta" className="text-[var(--text-secondary)]">
-            Marque a publicação no dia escolhido. Não é uma nota de planejamento.
-          </Text>
-          {undatedRoteiros.map(content => (
+          <button
+            type="button"
+            aria-expanded={undatedOpen}
+            onClick={() => setUndatedOpen(!undatedOpen)}
+            className="flex min-h-11 w-full items-center justify-between gap-3 text-left focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+          >
+            <Text variant="sectionTitle">Roteiros sem data ({undatedRoteiros.length})</Text>
+            <ChevronDown
+              className={cn('h-4 w-4 shrink-0 text-[var(--text-secondary)] transition-transform', undatedOpen && 'rotate-180')}
+              aria-hidden
+            />
+          </button>
+          {undatedOpen ? (
+            <Text variant="meta" className="text-[var(--text-secondary)]">
+              Marque a publicação no dia escolhido. Não é uma nota de planejamento.
+            </Text>
+          ) : null}
+          {undatedOpen ? undatedRoteiros.map(content => (
             <div key={content.id} className="flex items-center justify-between gap-3 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-3 py-2">
               <p className="min-w-0 truncate text-sm font-semibold text-[var(--text-primary)]">
                 {content.title || 'Sem título'}
@@ -712,7 +746,7 @@ export function AgendaMobileScreen({
                 {selectedDate ? `Colocar em ${format(selectedDate, 'd MMM', {locale: ptBR})}` : 'Colocar hoje'}
               </AppButton>
             </div>
-          ))}
+          )) : null}
         </section>
       ) : null}
     </div>

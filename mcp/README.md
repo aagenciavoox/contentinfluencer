@@ -95,18 +95,21 @@ O Grok CLI (`grok` no terminal) não precisa disso: ele já lê o `.cursor/mcp.j
 | Pilares e séries | `criar_pilar`, `atualizar_pilar`, `criar_serie`, `atualizar_serie` |
 | Função editorial (antigo funil) | `funcao_padrao` na série; `funcao` em `criar_conteudo` / `atualizar_conteudo`; `definir_distribuicao_funcoes` |
 | Ideias e conteúdos | `listar_conteudos`, `ver_conteudo`, `criar_ideia`, `criar_conteudo`, `atualizar_conteudo`, `mudar_status`, `arquivar_conteudos`, `enviar_para_lixeira` |
-| Agenda | `ver_agenda`, `agendar_publicacao`, `criar_compromisso`, `remover_compromisso`, `salvar_evento`, `remover_evento` |
+| Agenda | `ver_agenda`, `agendar_publicacao`, `criar_compromisso`, `remover_compromisso`, `salvar_evento`, `remover_evento`, `listar_postits`, `salvar_postit`, `remover_postit` |
 | Biblioteca | `buscar_biblioteca`, `ver_item_biblioteca`, `adicionar_item_biblioteca`, `atualizar_item_biblioteca`, `adicionar_anotacao` |
 
 Pilares, séries e plataformas aceitam nome ou id. Nada é apagado de vez nos conteúdos: eles vão para a lixeira do app e podem ser restaurados. `remover_compromisso` e `remover_evento` apagam de verdade, igual ao app.
 
-`ver_estrutura_editorial` traz a função padrão da série e, na seção `ajustes`, a rede de referência, os destinos padrão, a distribuição por função e o estoque desejado. `listar_conteudos` e `ver_conteudo` trazem a função efetiva, a origem, se conta na grade, a legenda compartilhada e a lista `livro_ids`. `agendar_publicacao` grava o status de cada destino (`agendada`, `publicada`, `nao_publicada`, `removida`), o link e o código do post. A primeira publicação congela a função. `salvar_evento` grava `aviso_dias` (0 a 120). `ver_item_biblioteca` acha roteiros pela origem antiga e por `livro_ids`.
+`ver_estrutura_editorial` traz a função padrão da série, o pilar principal, o formato de apresentação, os motivos de salvar e enviar, os temas e, na seção `opcoes`, os formatos, as janelas (manhã 09:00, tarde 14:00, noite 20:00) e a energia. Na seção `ajustes`, a rede de referência, os destinos padrão, a distribuição por função e o estoque desejado. `listar_conteudos` e `ver_conteudo` trazem a função efetiva, a origem, se conta na grade, a legenda compartilhada, a lista `livro_ids`, os temas, a janela e o horário de gravação. `criar_conteudo` e `atualizar_conteudo` gravam esses campos; um nome de tema que ainda não existe é criado. `agendar_publicacao` aceita `janela` ou hora e grava o status de cada destino (`agendada`, `publicada`, `nao_publicada`, `removida`), o link e o código do post. A primeira publicação congela a função. `salvar_evento` grava `aviso_dias` (0 a 120). `salvar_postit` grava o texto, a data e o roteiro puxado, sem mudar o status. `ver_item_biblioteca` devolve a `ficha` que a tela da biblioteca mostra (editora, indicação, tags e o restante); `ficha` em criar ou atualizar grava a mesma preferência.
 
-Se o banco ainda não tiver uma coluna, a leitura segue sem ela e a gravação também: a resposta vem com `gravado_sem` ou `colunas_ausentes_no_banco`. O arquivo que criaria a coluna:
+Se o banco ainda não tiver uma coluna ou tabela, a leitura segue sem ela e a gravação também: a resposta vem com `gravado_sem` ou `colunas_ausentes_no_banco`. O arquivo que criaria o que falta:
 
 | Coluna | Arquivo |
 | --- | --- |
-| `funcao`, `funcao_origem`, `classificacao_congelada_em`, `conta_na_grade` do roteiro, `legenda_base`, `livro_ids`, `funcao_padrao` | `supabase/migrations/20261004100000_funcoes_editoriais.sql` |
+| `funcao`, `funcao_origem`, `classificacao_congelada_em`, `conta_na_grade` do roteiro, `legenda_base`, `livro_ids`, `funcao_padrao`, `formato_apresentacao`, `motivo_salvar`, `motivo_enviar`, `pilar_principal_id` | `supabase/migrations/20261004100000_funcoes_editoriais.sql` |
 | status da publicação, `post_url`, `post_codigo`, `legenda_propria`, `conta_na_grade` do destino, `aviso_dias` | `supabase/migrations/20261004110000_publicacoes.sql` |
+| `recording_time` | `supabase/migrations/20261004230000_content_recording_time.sql` |
+| `temas`, `content_temas` | `supabase/migrations/20261004233000_temas_roteiro.sql` |
+| `planejamento_postits` | `supabase/migrations/20261004223000_planejamento_postits.sql` |
 
-A tela de vários livros e a tela do aviso de evento já estão no app. Estas ferramentas gravam o mesmo modelo.
+A tela de vários livros, a tela do aviso de evento, os temas, o horário de gravação, a janela e os post-its já estão no app. Estas ferramentas gravam o mesmo modelo.

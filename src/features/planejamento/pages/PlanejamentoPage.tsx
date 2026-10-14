@@ -2,8 +2,13 @@ import {useEffect, useMemo, useRef, useState, type DragEvent} from 'react';
 import {useNavigate} from 'react-router-dom';
 import {format} from 'date-fns';
 import {ptBR} from 'date-fns/locale';
-import {Plus, StickyNote, Tag} from 'lucide-react';
-import {CalendarMonthGrid, CalendarPeriodNav} from '../../../components/calendar';
+import {Plus, StickyNote, Tag, Trash2} from 'lucide-react';
+import {
+  calendarEntryPillStyle,
+  CalendarEventPill,
+  CalendarMonthGrid,
+  CalendarPeriodNav,
+} from '../../../components/calendar';
 import {AppButton} from '../../../components/ui/AppButton';
 import {Badge} from '../../../components/ui/Badge';
 import {Surface} from '../../../components/ui/Surface';
@@ -21,7 +26,8 @@ import type {Content, Pilar, Serie, Tema} from '../../../lib/database';
 import {cn} from '../../../lib/utils';
 import {TemaField} from '../../contents/components/detail/TemaField';
 import {buildContentDetailRoute} from '../../contents/lib/contentDetailRoute';
-import {CONTENT_STATUS, normalizeContentStatus} from '../../contents/lib/contentPipeline';
+import {CONTENT_STATUS, DISPLAY_STATUS, normalizeContentStatus} from '../../contents/lib/contentPipeline';
+import {calendarEntryIcon} from '../../editorial-calendar/components/CalendarNetworkIcons';
 import {buildDetailBackState} from '../../../lib/navigation/detailBack';
 import {etiquetasVisiveis} from '../../creation/lib/creationItemPresentation';
 import {getEditorialSettings} from '../../editorial/lib/editorialSettings';
@@ -31,6 +37,7 @@ import {MonthHealth} from '../components/MonthHealth';
 import {excessosAoAcrescentar, periodoDoMes, saudeDoMes, type ExcessoMes} from '../lib/monthHealth';
 import {POST_IT_MIME, PostItIdentity, PostItNote, PostItTemas, type PostItMark} from '../components/PostItNote';
 import {conteudoTemTema, temasEmUso} from '../lib/temasPlanejamento';
+import {publicacoesPorDia} from '../lib/publicacoesDoMes';
 import {
   canPullContent,
   cancelPostItEdit,
@@ -133,6 +140,7 @@ export function PlanejamentoPage() {
   const [dateDraft, setDateDraft] = useState<string | null>(null);
   const [avisos, setAvisos] = useState<ExcessoMes[] | null>(null);
   const [temaFiltroId, setTemaFiltroId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   const avisoPendente = useRef<(() => void) | null>(null);
 
   const contents = state.contents;
@@ -145,6 +153,21 @@ export function PlanejamentoPage() {
   useEffect(() => {
     setEditing(false);
   }, [openPostItId]);
+
+  useEffect(() => {
+    if (isMobile) setSelectedIds(new Set());
+  }, [isMobile]);
+
+  const toggleSelected = (id: string) => {
+    setSelectedIds(current => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const clearSelection = () => setSelectedIds(new Set());
 
   const byDate = useMemo(() => {
     const map = new Map<string, PlanejamentoPostIt[]>();
@@ -160,6 +183,16 @@ export function PlanejamentoPage() {
   const undated = useMemo(
     () => postIts.filter(postIt => !postIt.date),
     [postIts],
+  );
+
+  const publicacoesDoDia = useMemo(
+    () => publicacoesPorDia({
+      contents,
+      platforms: state.platforms,
+      series: state.series,
+      redeReferenciaId: getEditorialSettings(state.preferences).redeReferenciaId,
+    }),
+    [contents, state.platforms, state.series, state.preferences],
   );
 
   const temasDoPlanejamento = useMemo(
@@ -181,6 +214,9 @@ export function PlanejamentoPage() {
         temas={appearance.temas}
         dimmed={temaFiltro ? !conteudoTemTema(content, temaFiltro.id) : false}
         compact={compact}
+        selected={!isMobile && selectedIds.has(postIt.id)}
+        dragIds={!isMobile && selectedIds.has(postIt.id) ? [...selectedIds] : undefined}
+        onToggleSelect={isMobile ? undefined : () => toggleSelected(postIt.id)}
         onOpen={() => {
           setEditing(false);
           setOpenId(postIt.id);
@@ -240,16 +276,54 @@ export function PlanejamentoPage() {
     setAvisos(lista);
   };
 
-  const moveTo = (postItId: string, date: string | null) => {
-    const postIt = postIts.find(item => item.id === postItId);
-    if (!postIt || postIt.date === date) return;
-    confirmarSeCouber(contentById(contents, postIt.contentId), date, () => {
-      dispatch({type: 'UPDATE_POST_IT', payload: movePostIt(postIt, date)});
-    });
+  const moveMany = (ids: readonly string[], date: string | null) => {
+    const targets: PlanejamentoPostIt[] = [];
+    for (const id of ids) {
+      if (targets.some(item => item.id === id)) continue;
+      const postIt = postIts.find(item => item.id === id);
+      if (!postIt || postIt.date === date) continue;
+      targets.push(postIt);
+    }
+    if (targets.length === 0) return;
+
+    let cursor = postIts;
+    const avisosPorNome = new Map<string, ExcessoMes>();
+    const settings = getEditorialSettings(state.preferences);
+    for (const postIt of targets) {
+      const lista = excessosAoAcrescentar({
+        content: contentById(contents, postIt.contentId),
+        date,
+        postIts: cursor,
+        contents,
+        series: state.series,
+        pilares: state.pilares,
+        settings,
+      });
+      for (const aviso of lista) {
+        if (!avisosPorNome.has(aviso.nome)) avisosPorNome.set(aviso.nome, aviso);
+      }
+      cursor = cursor.map(item => item.id === postIt.id ? {...item, date} : item);
+    }
+
+    const commit = () => {
+      dispatch({
+        type: 'UPDATE_POST_ITS',
+        payload: targets.map(postIt => movePostIt(postIt, date)),
+      });
+    };
+    const lista = [...avisosPorNome.values()];
+    if (lista.length === 0) {
+      commit();
+      return;
+    }
+    avisoPendente.current = commit;
+    setAvisos(lista);
   };
 
-  const readDragId = (event: DragEvent) =>
-    event.dataTransfer.getData(POST_IT_MIME) || event.dataTransfer.getData('text/plain');
+  const readDragIds = (event: DragEvent) => {
+    const raw = event.dataTransfer.getData(POST_IT_MIME) || event.dataTransfer.getData('text/plain');
+    return raw.split('\n').map(id => id.trim()).filter(Boolean);
+  };
 
   const pullOnto = (content: Content, date: string | null) => {
     const result = pullExistingContent({
@@ -301,12 +375,55 @@ export function PlanejamentoPage() {
 
   const removeOpenPostIt = () => {
     if (!openPostIt) return;
+    if (!isMobile && selectedIds.size > 1 && selectedIds.has(openPostIt.id)) {
+      removeSelected();
+      return;
+    }
     const removal = deletePostIt({postIts, contents, id: openPostIt.id});
     if (removal.postIts.length !== postIts.length) {
       dispatch({type: 'DELETE_POST_IT', payload: openPostIt.id});
     }
+    setSelectedIds(current => {
+      if (!current.has(openPostIt.id)) return current;
+      const next = new Set(current);
+      next.delete(openPostIt.id);
+      return next;
+    });
     closePostIt();
   };
+
+  const removeSelected = () => {
+    const alive = new Set(postIts.map(postIt => postIt.id));
+    const targets = [...selectedIds].filter(id => alive.has(id));
+    if (targets.length === 0) {
+      clearSelection();
+      return;
+    }
+    if (openId && targets.includes(openId)) closePostIt();
+    clearSelection();
+    dispatch({type: 'DELETE_POST_ITS', payload: targets});
+  };
+
+  useEffect(() => {
+    if (isMobile || selectedIds.size === 0) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      const target = event.target;
+      if (target instanceof HTMLElement) {
+        const tag = target.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target.isContentEditable) return;
+      }
+      if (event.key === 'Escape') {
+        clearSelection();
+        return;
+      }
+      if (event.key !== 'Delete' && event.key !== 'Backspace') return;
+      if (openId || pullOpen || avisos) return;
+      event.preventDefault();
+      removeSelected();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isMobile, selectedIds, openId, pullOpen, avisos, postIts]);
 
   const commitTransform = (target: 'ideia' | 'roteiro') => {
     if (!openPostIt || editing) return;
@@ -364,6 +481,21 @@ export function PlanejamentoPage() {
           meta="Rascunho do mês em post-its. O Calendário só recebe o que você transformar em ideia ou roteiro."
           actions={(
             <>
+              {!isMobile && selectedIds.size > 0 ? (
+                <AppButton variant="ghost" size="sm" onClick={clearSelection}>
+                  Limpar
+                </AppButton>
+              ) : null}
+              {!isMobile && selectedIds.size > 0 ? (
+                <AppButton
+                  variant="secondary"
+                  size="sm"
+                  leftIcon={<Trash2 className="h-4 w-4" />}
+                  onClick={removeSelected}
+                >
+                  {selectedIds.size === 1 ? 'Apagar 1' : `Apagar ${selectedIds.size}`}
+                </AppButton>
+              ) : null}
               <AppButton variant="secondary" leftIcon={<StickyNote className="h-4 w-4" />} onClick={() => addEmpty(null)}>
                 Novo post-it
               </AppButton>
@@ -379,7 +511,13 @@ export function PlanejamentoPage() {
               </AppButton>
             </>
           )}
-        />
+        >
+          {!isMobile && selectedIds.size > 0 ? (
+            <Text variant="meta" className="text-[var(--text-secondary)]">
+              {selectedIds.size === 1 ? '1 post-it selecionado.' : `${selectedIds.size} post-its selecionados.`} Arraste um deles para mover todos. Apagar remove todos.
+            </Text>
+          ) : null}
+        </DesktopPageHeader>
       )}
     >
         <div className="stack-md p-3 md:p-4">
@@ -448,7 +586,7 @@ export function PlanejamentoPage() {
           </div>
         ) : null}
 
-        <div className={cn('grid items-start gap-4', undated.length > 0 && 'xl:grid-cols-[minmax(0,1fr)_18rem]')}>
+        <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_17rem] xl:items-start">
           <CalendarMonthGrid
             anchorDate={month}
             weekStartsOn={0}
@@ -468,14 +606,34 @@ export function PlanejamentoPage() {
             onDayDrop={(day, event) => {
               event.preventDefault();
               setDragOverDay(null);
-              const id = readDragId(event);
-              if (id) moveTo(id, day.dateKey);
+              const ids = readDragIds(event);
+              if (ids.length > 0) moveMany(ids, day.dateKey);
             }}
             renderDayContent={day => {
               const dayPostIts = byDate.get(day.dateKey) ?? [];
               const dayLabel = format(day.day, "d 'de' MMMM", {locale: ptBR});
               return (
                 <div className="stack-sm">
+                  {(publicacoesDoDia.get(day.dateKey) ?? []).map(publicacao => {
+                    const posted = publicacao.estado === 'postado';
+                    return (
+                      <CalendarEventPill
+                        key={publicacao.id}
+                        label={publicacao.titulo}
+                        time={publicacao.time}
+                        secondary={posted ? CONTENT_STATUS.POSTADO : DISPLAY_STATUS.PROGRAMADO}
+                        icon={calendarEntryIcon({platformNames: publicacao.platformNames, posted, scheduled: !posted})}
+                        style={calendarEntryPillStyle({type: 'publish', posted})}
+                        onClick={event => {
+                          event.stopPropagation();
+                          navigate(
+                            buildContentDetailRoute(publicacao.contentId, 'publicacao'),
+                            buildDetailBackState('/planejamento'),
+                          );
+                        }}
+                      />
+                    );
+                  })}
                   {dayPostIts.map(postIt => renderPostIt(postIt, true))}
                   <div className="flex gap-0.5 transition-opacity md:opacity-0 md:focus-within:opacity-100 md:group-hover/day:opacity-100">
                     <AppButton
@@ -509,35 +667,50 @@ export function PlanejamentoPage() {
             }}
           />
 
-          {undated.length > 0 ? (
+          {!isMobile || undated.length > 0 ? (
             <Surface
               variant="outlined"
               padding="sm"
-              className={cn('stack-sm', pileOver && 'ring-2 ring-[var(--accent-orange)]')}
+              className={cn(
+                'stack-sm xl:sticky xl:top-4 xl:max-h-[calc(100vh-2rem)] xl:overflow-y-auto',
+                pileOver && 'bg-[color-mix(in_srgb,var(--accent-orange)_12%,var(--bg-elevated))] ring-2 ring-[var(--accent-orange)]',
+              )}
               onDragOver={event => {
                 event.preventDefault();
                 setPileOver(true);
                 setDragOverDay(null);
               }}
-              onDragLeave={() => setPileOver(false)}
+              onDragLeave={event => {
+                const next = event.relatedTarget;
+                if (next instanceof Node && event.currentTarget.contains(next)) return;
+                setPileOver(false);
+              }}
               onDrop={event => {
                 event.preventDefault();
                 setPileOver(false);
-                const id = readDragId(event);
-                if (id) moveTo(id, null);
+                const ids = readDragIds(event);
+                if (ids.length > 0) moveMany(ids, null);
               }}
             >
               <div>
-                <Text variant="sectionTitle">Sem data</Text>
+                <Text variant="sectionTitle">Fora do calendário</Text>
                 <Text variant="meta" className="mt-1 block text-[var(--text-secondary)]">
-                  Post-its que ainda não têm dia. Arraste para o mês quando fizer sentido.
+                  Arraste um post-it para cá quando quiser tirá-lo do mês. Se vários estiverem selecionados, todos vêm juntos.
                 </Text>
               </div>
-              <ul className="stack-sm">
-                {undated.map(postIt => (
-                  <li key={postIt.id}>{renderPostIt(postIt, false)}</li>
-                ))}
-              </ul>
+              {undated.length === 0 ? (
+                <div className="rounded-[var(--radius-card)] border border-dashed border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-8 text-center">
+                  <Text variant="meta" className="text-[var(--text-secondary)]">
+                    Solte aqui para deixar o card fora do mês.
+                  </Text>
+                </div>
+              ) : (
+                <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-1">
+                  {undated.map(postIt => (
+                    <li key={postIt.id}>{renderPostIt(postIt, false)}</li>
+                  ))}
+                </ul>
+              )}
             </Surface>
           ) : null}
         </div>
@@ -580,7 +753,7 @@ export function PlanejamentoPage() {
                       </AppButton>
                     ) : (
                       <Text variant="meta" className="text-[var(--text-secondary)]">
-                        Sem data, na pilha ao lado do mês.
+                        Sem data, em Fora do calendário.
                       </Text>
                     )}
                   </div>
@@ -588,7 +761,7 @@ export function PlanejamentoPage() {
                   <Text variant="meta" className="text-[var(--text-secondary)]">
                     {openPostIt.date
                       ? format(new Date(`${openPostIt.date}T12:00:00`), "d 'de' MMMM 'de' yyyy", {locale: ptBR})
-                      : 'Sem data, na pilha ao lado do mês.'}
+                      : 'Sem data, em Fora do calendário.'}
                   </Text>
                 )}
                 {openPostIt.contentId && !openContent ? (
@@ -694,7 +867,9 @@ export function PlanejamentoPage() {
                   </>
                 )}
                 <AppButton variant="ghost" fullWidth onClick={removeOpenPostIt}>
-                  Apagar
+                  {!isMobile && openPostIt && selectedIds.size > 1 && selectedIds.has(openPostIt.id)
+                    ? `Apagar ${selectedIds.size}`
+                    : 'Apagar'}
                 </AppButton>
               </div>
             </OverlayFooter>
@@ -704,7 +879,7 @@ export function PlanejamentoPage() {
 
       <Dialog open={pullOpen} onClose={() => setPullOpen(false)} desktopMaxW="max-w-md">
         <OverlayHeader
-          title={pullDate ? 'Puxar para o dia' : 'Puxar para a pilha'}
+          title={pullDate ? 'Puxar para o dia' : 'Puxar para fora do calendário'}
           onClose={() => setPullOpen(false)}
         />
         <OverlayBody>

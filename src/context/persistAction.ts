@@ -353,8 +353,18 @@ export async function persistAction({ action, userId, state, api }: PersistActio
       await persistenceApi.savePlanejamentoPostIt({ ...action.payload, userId });
       return;
 
+    case 'UPDATE_POST_ITS':
+      await Promise.all(action.payload.map(item =>
+        persistenceApi.savePlanejamentoPostIt({ ...item, userId }),
+      ));
+      return;
+
     case 'DELETE_POST_IT':
       await persistenceApi.deletePlanejamentoPostIt(action.payload);
+      return;
+
+    case 'DELETE_POST_ITS':
+      await Promise.all(action.payload.map(id => persistenceApi.deletePlanejamentoPostIt(id)));
       return;
 
     case 'ADD_RECORDING_BLOCK':

@@ -1,5 +1,6 @@
 import type {McpServer} from '@modelcontextprotocol/sdk/server/mcp.js';
 import {z} from 'zod';
+import {JANELAS, horaCurta, horaEscolhida, janelaDaHora} from '../campos.ts';
 import {
   descreverColunasOmitidas,
   parsePostCode,
@@ -24,6 +25,7 @@ import {
 
 const dateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use AAAA-MM-DD');
 const timeSchema = z.string().regex(/^\d{2}:\d{2}$/, 'Use HH:MM');
+const janelaSchema = z.enum(JANELAS);
 const statusPublicacaoSchema = z.enum(PUBLICACAO_STATUS);
 
 function avisoEm(inicio: string, dias: number): string {
@@ -40,14 +42,32 @@ function today(): string {
   return new Intl.DateTimeFormat('en-CA', {timeZone: 'America/Sao_Paulo'}).format(new Date());
 }
 
+function tabelaAusente(error: {message?: string} | null, nome: string): boolean {
+  if (!error) return false;
+  const message = error.message?.toLowerCase() ?? '';
+  const missing = message.includes('does not exist') || message.includes('schema cache') || message.includes('could not find');
+  if (missing && message.includes(nome)) return true;
+  throw new Error(`${nome}: ${error.message}`);
+}
+
+function postitView(row: Row) {
+  return {
+    id: row.id,
+    texto: row.texto ?? '',
+    data: row.date ?? null,
+    conteudo_id: row.content_id ?? null,
+    atualizado_em: row.updated_at ?? null,
+  };
+}
+
 export function registerAgenda(server: McpServer) {
   server.registerTool(
     'ver_agenda',
     {
       title: 'Ver agenda',
       description:
-        'Mostra, dia a dia, as publicações programadas (geral e por plataforma), as gravações marcadas, ' +
-        'os compromissos e os eventos com aviso de antecedência num intervalo. Padrão: hoje + 14 dias.',
+        'Mostra, dia a dia, as publicações programadas (geral e por plataforma), as gravações marcadas com horário, ' +
+        'os post-its de planejamento, os compromissos e os eventos com aviso de antecedência num intervalo. Padrão: hoje + 14 dias.',
       inputSchema: {
         de: dateSchema.optional(),
         ate: dateSchema.optional(),
@@ -59,10 +79,10 @@ export function registerAgenda(server: McpServer) {
       const de = args.de ?? today();
       const ate = args.ate ?? addDays(de, 14);
       const lookups = await loadLookups(session);
-      const contentColumns = 'id, title, status, publish_date, publish_time, recording_date, posted_at, pilar_id, series_id, formato_visual, funcao, funcao_origem, conta_na_grade';
+      const contentColumns = 'id, title, status, publish_date, publish_time, recording_date, recording_time, posted_at, pilar_id, series_id, formato_visual, funcao, funcao_origem, conta_na_grade';
       const platformColumns = 'id, platform_id, publish_date, publish_time, publication_kind, status, post_url, conta_na_grade, contents!inner(id, title, status, posted_at, deleted_at, archived_at)';
 
-      const [publicacoes, porPlataforma, gravacoes, compromissos, projetos] = await Promise.all([
+      const [publicacoes, porPlataforma, gravacoes, compromissos, projetos, postits] = await Promise.all([
         readCompat('publicações', contentColumns, columns => client.from('contents').select(columns).eq('user_id', userId)
           .is('deleted_at', null).is('archived_at', null)
           .gte('publish_date', de).lte('publish_date', ate)),
@@ -77,6 +97,8 @@ export function registerAgenda(server: McpServer) {
         readCompat('projetos', 'id, nome, tipo, status, data_inicio, data_fim, aviso_dias', columns => client.from('projetos').select(columns)
           .eq('user_id', userId).is('deleted_at', null)
           .gte('data_inicio', addDays(de, -120)).lte('data_inicio', addDays(ate, 120))),
+        client.from('planejamento_postits').select('id, texto, date, content_id')
+          .eq('user_id', userId).gte('date', de).lte('date', ate),
       ]);
 
       const dias: Record<string, Row[]> = {};
@@ -87,7 +109,8 @@ export function registerAgenda(server: McpServer) {
       for (const row of (publicacoes.data ?? []) as Row[]) {
         push(row.publish_date, {
           tipo: 'publicação',
-          hora: row.publish_time ?? null,
+          hora: horaCurta(row.publish_time),
+          janela: janelaDaHora(row.publish_time),
           conteudo_id: row.id,
           titulo: row.title,
           status: displayStatus(row),
@@ -102,7 +125,8 @@ export function registerAgenda(server: McpServer) {
         const content = row.contents as Row;
         push(row.publish_date, {
           tipo: row.publication_kind === 'repost' ? 'repost' : 'publicação na plataforma',
-          hora: row.publish_time ?? null,
+          hora: horaCurta(row.publish_time),
+          janela: janelaDaHora(row.publish_time),
           plataforma: lookups.platformName(row.platform_id),
           conteudo_id: content.id,
           titulo: content.title,
@@ -115,6 +139,7 @@ export function registerAgenda(server: McpServer) {
       for (const row of (gravacoes.data ?? []) as Row[]) {
         push(row.recording_date, {
           tipo: 'gravação',
+          hora: horaCurta(row.recording_time),
           conteudo_id: row.id,
           titulo: row.title,
           status: normalizeStatus(row.status),
@@ -157,13 +182,32 @@ export function registerAgenda(server: McpServer) {
         }
       }
 
+      const postitsAusente = tabelaAusente(postits.error, 'planejamento_postits');
+      if (!postitsAusente) {
+        for (const row of (postits.data ?? []) as Row[]) {
+          if (!row.date) continue;
+          push(row.date, {
+            tipo: 'post-it',
+            postit_id: row.id,
+            texto: row.texto ?? '',
+            conteudo_id: row.content_id ?? null,
+          });
+        }
+      }
+
       const ordered = Object.fromEntries(
         Object.keys(dias).sort().map(date => [
           date,
           dias[date].sort((a, b) => String(a.hora ?? '99').localeCompare(String(b.hora ?? '99'))),
         ]),
       );
-      const ausentes = [...publicacoes.omitidas, ...porPlataforma.omitidas, ...gravacoes.omitidas, ...projetos.omitidas];
+      const ausentes = [
+        ...publicacoes.omitidas,
+        ...porPlataforma.omitidas,
+        ...gravacoes.omitidas,
+        ...projetos.omitidas,
+        ...(postitsAusente ? ['planejamento_postits'] : []),
+      ];
       return json({de, ate, ...(ausentes.length ? {colunas_ausentes_no_banco: ausentes} : {}), dias: ordered});
     }),
   );
@@ -175,16 +219,19 @@ export function registerAgenda(server: McpServer) {
       description:
         'Define a data (e hora) de publicação de um conteúdo e, se quiser, por plataforma, com legenda, hashtags e status. ' +
         'Status: agendada, publicada, nao_publicada ou removida. Publicada congela a função na primeira vez e marca o roteiro como Postado. ' +
+        'janela (manha, tarde, noite) define a hora padrão quando hora não vem. ' +
         'Plataformas já ligadas ao conteúdo são atualizadas; as novas são adicionadas. Envie data=null para desagendar.',
       inputSchema: {
         conteudo_id: z.string().min(1),
         data: dateSchema.nullable(),
         hora: timeSchema.optional(),
+        janela: janelaSchema.optional().describe('manha = 09:00, tarde = 14:00, noite = 20:00. A hora explícita ganha'),
         legenda_base: z.string().nullable().optional().describe('Legenda compartilhada do roteiro'),
         plataformas: z.array(z.object({
           plataforma: z.string().describe('Nome ou id, ex.: Instagram, TikTok'),
           data: dateSchema.optional().describe('Padrão: a data geral'),
           hora: timeSchema.optional(),
+          janela: janelaSchema.optional(),
           legenda: z.string().optional(),
           hashtags: z.string().optional(),
           tipo: z.enum(['post', 'repost']).default('post'),
@@ -207,9 +254,10 @@ export function registerAgenda(server: McpServer) {
       const now = nowIso();
       const omitidasConteudo = [...loaded.omitidas];
 
+      const horaGeral = args.data ? horaEscolhida(args.hora, args.janela) ?? null : null;
       omitidasConteudo.push(...await writeCompat('agendar', {
         publish_date: args.data,
-        publish_time: args.data ? args.hora ?? null : null,
+        publish_time: horaGeral,
         publish_date_enabled: Boolean(args.data),
         ...(args.legenda_base !== undefined ? {legenda_base: args.legenda_base || null} : {}),
         updated_at: now,
@@ -230,7 +278,7 @@ export function registerAgenda(server: McpServer) {
         const match = existing.find(row => row.platform_id === platformId && (row.publication_kind ?? 'post') === item.tipo);
         const fields: Row = {
           publish_date: date,
-          publish_time: date ? item.hora ?? args.hora ?? null : null,
+          publish_time: date ? horaEscolhida(item.hora ?? args.hora, item.janela ?? args.janela) ?? null : null,
           publish_date_enabled: Boolean(date),
           publication_kind: item.tipo,
           updated_at: now,
@@ -294,7 +342,8 @@ export function registerAgenda(server: McpServer) {
         titulo: updated.title,
         status: updated.status,
         data_publicacao: updated.publish_date,
-        hora_publicacao: updated.publish_time,
+        hora_publicacao: horaCurta(updated.publish_time),
+        janela: janelaDaHora(updated.publish_time),
         postado_em: updated.posted_at ?? null,
         funcao: updated.funcao ?? null,
         funcao_origem: updated.funcao_origem ?? null,
@@ -305,7 +354,8 @@ export function registerAgenda(server: McpServer) {
         plataformas: (updated.content_plataformas ?? []).map((p: Row) => ({
           plataforma: lookups.platformName(p.platform_id),
           data: p.publish_date,
-          hora: p.publish_time,
+          hora: horaCurta(p.publish_time),
+          janela: janelaDaHora(p.publish_time),
           tipo: p.publication_kind ?? 'post',
           status: p.status ?? null,
           conta_na_grade: p.conta_na_grade === false ? false : true,
@@ -445,6 +495,113 @@ export function registerAgenda(server: McpServer) {
         .delete().eq('id', args.id).eq('user_id', session.userId).select('id, nome'));
       if (!removed?.length) throw new Error(`Evento não encontrado: ${args.id}`);
       return json({removido: removed[0]});
+    }),
+  );
+
+  server.registerTool(
+    'listar_postits',
+    {
+      title: 'Listar post-its',
+      description:
+        'Lista os post-its de planejamento, a etapa anterior à ideia. Não são conteúdos nem eventos. ' +
+        'Podem ter uma data e puxar um roteiro sem mudar o status dele.',
+      inputSchema: {
+        de: dateSchema.optional(),
+        ate: dateSchema.optional(),
+        sem_data: z.boolean().default(false).describe('true = só os que ainda não têm dia'),
+        limite: z.number().int().min(1).max(100).default(50),
+      },
+      annotations: {readOnlyHint: true},
+    },
+    tool(async (args, session) => {
+      let query = session.client
+        .from('planejamento_postits')
+        .select('id, texto, date, content_id, updated_at')
+        .eq('user_id', session.userId)
+        .order('created_at', {ascending: false})
+        .limit(args.limite);
+      if (args.sem_data) query = query.is('date', null);
+      else {
+        if (args.de) query = query.gte('date', args.de);
+        if (args.ate) query = query.lte('date', args.ate);
+      }
+      const result = await query;
+      if (tabelaAusente(result.error, 'planejamento_postits')) {
+        return json({itens: [], colunas_ausentes_no_banco: ['planejamento_postits']});
+      }
+      return json({itens: ((result.data ?? []) as Row[]).map(postitView)});
+    }),
+  );
+
+  server.registerTool(
+    'salvar_postit',
+    {
+      title: 'Salvar post-it',
+      description:
+        'Cria ou atualiza um post-it de planejamento. Sem id, cria. ' +
+        'data e conteudo_id aceitam null para limpar. O roteiro ligado não muda de status.',
+      inputSchema: {
+        id: z.string().uuid().optional().describe('Vazio cria um post-it novo'),
+        texto: z.string().optional(),
+        data: dateSchema.nullable().optional(),
+        conteudo_id: z.string().nullable().optional().describe('Roteiro puxado pelo post-it, sem mudar o status'),
+      },
+    },
+    tool(async (args, session) => {
+      const {client, userId} = session;
+      const creating = !args.id;
+      if (creating && args.texto === undefined && args.data === undefined && args.conteudo_id === undefined) {
+        args = {...args, texto: ''};
+      }
+      if (!creating && args.texto === undefined && args.data === undefined && args.conteudo_id === undefined) {
+        throw new Error('Nenhum campo para atualizar.');
+      }
+      if (args.conteudo_id) {
+        const content = await client.from('contents').select('id').eq('user_id', userId).eq('id', args.conteudo_id).maybeSingle();
+        if (content.error) throw new Error(`roteiro: ${content.error.message}`);
+        if (!content.data) throw new Error(`Conteúdo não encontrado: ${args.conteudo_id}`);
+      }
+      const now = nowIso();
+      const id = args.id ?? newId();
+      const payload: Row = {updated_at: now};
+      if (creating) {
+        payload.id = id;
+        payload.user_id = userId;
+        payload.texto = args.texto ?? '';
+      } else if (args.texto !== undefined) {
+        payload.texto = args.texto;
+      }
+      if (args.data !== undefined) payload.date = args.data;
+      if (args.conteudo_id !== undefined) payload.content_id = args.conteudo_id;
+
+      const saved = await (creating
+        ? client.from('planejamento_postits').insert(payload).select('id, texto, date, content_id, updated_at').single()
+        : client.from('planejamento_postits').update(payload).eq('id', id).eq('user_id', userId).select('id, texto, date, content_id, updated_at').maybeSingle());
+      if (tabelaAusente(saved.error, 'planejamento_postits')) {
+        throw new Error('O banco ainda não tem post-its. Rode supabase/migrations/20261004223000_planejamento_postits.sql.');
+      }
+      if (!saved.data) throw new Error(`Post-it não encontrado: ${id}`);
+      return json(postitView(saved.data as Row));
+    }),
+  );
+
+  server.registerTool(
+    'remover_postit',
+    {
+      title: 'Remover post-it',
+      description: 'Apaga um post-it de planejamento. Não mexe no roteiro ligado.',
+      inputSchema: {id: z.string().uuid()},
+      annotations: {destructiveHint: true},
+    },
+    tool(async (args, session) => {
+      const removed = await session.client.from('planejamento_postits')
+        .delete().eq('id', args.id).eq('user_id', session.userId).select('id, texto');
+      if (tabelaAusente(removed.error, 'planejamento_postits')) {
+        throw new Error('O banco ainda não tem post-its. Rode supabase/migrations/20261004223000_planejamento_postits.sql.');
+      }
+      const rows = (removed.data ?? []) as Row[];
+      if (!rows.length) throw new Error(`Post-it não encontrado: ${args.id}`);
+      return json({removido: rows[0]});
     }),
   );
 }

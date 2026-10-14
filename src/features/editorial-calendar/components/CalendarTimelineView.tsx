@@ -9,8 +9,8 @@ import {
   startOfWeek,
 } from 'date-fns';
 import {ptBR} from 'date-fns/locale';
-import {CalendarEventPill, editorialPillStyle} from '../../../components/calendar';
-import {CalendarNetworkIcons} from './CalendarNetworkIcons';
+import {calendarEntryPillStyle, CalendarEventPill} from '../../../components/calendar';
+import {calendarEntryIcon} from './CalendarNetworkIcons';
 import {Text} from '../../../components/ui/Text';
 import {cn} from '../../../lib/utils';
 import type {CalendarEntry} from './MonthlyCalendarView';
@@ -36,11 +36,6 @@ interface CalendarTimelineViewProps {
   selectedDate?: Date;
   onSelectDate?: (date: Date) => void;
   onSelectEntry?: (entry: CalendarEntry) => void;
-}
-
-function entryPillStyle(entry: CalendarEntry) {
-  const useCustomColor = entry.color && (entry.type === 'project' || entry.type === 'agenda');
-  return editorialPillStyle(useCustomColor ? entry.color : null, entry.type);
 }
 
 export function CalendarTimelineView({
@@ -154,10 +149,10 @@ export function CalendarTimelineView({
                           key={entry.id}
                           label={entry.label}
                           time={entry.time}
-                          icon={entry.platformNames?.length ? <CalendarNetworkIcons names={entry.platformNames} /> : undefined}
+                          icon={calendarEntryIcon(entry)}
                           secondary={entry.secondary}
                           variant="compact"
-                          style={entryPillStyle(entry)}
+                          style={calendarEntryPillStyle(entry)}
                           onClick={event => {
                             event.stopPropagation();
                             onSelectDate?.(day);

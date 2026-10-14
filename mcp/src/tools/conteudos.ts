@@ -1,6 +1,8 @@
 import type {McpServer} from '@modelcontextprotocol/sdk/server/mcp.js';
 import {z} from 'zod';
+import {FORMATO_DESCRICAO, JANELAS, horaEscolhida} from '../campos.ts';
 import {descreverColunasOmitidas, livrosDoConteudo, unirLivros} from '../editorial.ts';
+import {anexarTemas, gravarTemasDoConteudo, idsComTema} from '../temas.ts';
 import {
   CONTENT_LIST_COLUMNS,
   CONTENT_STATUSES,
@@ -28,6 +30,8 @@ import type {Session} from '../supabase.ts';
 
 const statusSchema = z.enum(CONTENT_STATUSES);
 const dateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use AAAA-MM-DD');
+const timeSchema = z.string().regex(/^\d{2}:\d{2}$/, 'Use HH:MM');
+const janelaSchema = z.enum(JANELAS);
 const energiaSchema = z.enum(['baixa', 'média', 'alta']);
 const idsSchema = z.array(z.string().min(1)).min(1).max(50);
 const livrosSchema = z.array(z.string().min(1)).max(20);
@@ -106,13 +110,14 @@ export function registerConteudos(server: McpServer) {
       title: 'Listar conteúdos',
       description:
         'Lista ideias, roteiros, conteúdos em produção e publicados do Content OS. ' +
-        'Cada item traz função, origem, se conta na grade, a legenda compartilhada e os livro_ids. ' +
+        'Cada item traz função, origem, se conta na grade, a legenda compartilhada, os livro_ids, os temas, a janela e o horário de gravação. ' +
         'Ideias são conteúdos com status "Ideia". Retorna resumo sem o texto do roteiro; use ver_conteudo para o texto completo.',
       inputSchema: {
         status: z.array(statusSchema).optional().describe('Filtra por status. Vazio = todos.'),
         onde: z.enum(['ativos', 'arquivados', 'lixeira']).default('ativos'),
         pilar: z.string().optional().describe('Nome ou id do pilar'),
         serie: z.string().optional().describe('Nome ou id da série'),
+        tema: z.string().optional().describe('Nome ou id do tema, ex.: Halloween'),
         busca: z.string().optional().describe('Procura no título e nas notas'),
         publicacao_de: dateSchema.optional().describe('Data de publicação a partir de'),
         publicacao_ate: dateSchema.optional().describe('Data de publicação até'),
@@ -124,6 +129,15 @@ export function registerConteudos(server: McpServer) {
     },
     tool(async (args, session) => {
       const lookups = await loadLookups(session);
+      let somenteIds: string[] | null = null;
+      if (args.tema) {
+        const doTema = await idsComTema(session, args.tema);
+        if (doTema.ausente) throw new Error('O banco ainda não tem a tabela de temas. Rode supabase/migrations/20261004233000_temas_roteiro.sql.');
+        if (doTema.ids.length === 0) {
+          return json({total: 0, pagina: args.pagina, itens: []});
+        }
+        somenteIds = doTema.ids;
+      }
       const order = {
         recentes: ['updated_at', false],
         antigos: ['updated_at', true],
@@ -145,6 +159,7 @@ export function registerConteudos(server: McpServer) {
           query = args.onde === 'arquivados' ? query.not('archived_at', 'is', null) : query.is('archived_at', null);
         }
         if (args.status?.length) query = query.in('status', args.status);
+        if (somenteIds) query = query.in('id', somenteIds);
         const pilarId = resolvePilar(lookups, args.pilar);
         if (pilarId) query = query.eq('pilar_id', pilarId);
         const serieId = resolveSerie(lookups, args.serie);
@@ -155,12 +170,15 @@ export function registerConteudos(server: McpServer) {
         if (args.publicacao_ate) query = query.lte('publish_date', args.publicacao_ate);
         return query.order(column, {ascending, nullsFirst: false}).range(from, from + args.limite - 1);
       });
-      const rows = (result.data ?? []) as Row[];
+      const loaded = (result.data ?? []) as Row[];
+      const comTema = await anexarTemas(session, loaded);
       return json({
-        total: result.count ?? rows.length,
+        total: result.count ?? loaded.length,
         pagina: args.pagina,
-        ...(result.omitidas.length ? {colunas_ausentes_no_banco: result.omitidas} : {}),
-        itens: rows.map(row => contentSummary(row, lookups)),
+        ...(result.omitidas.length || comTema.ausente
+          ? {colunas_ausentes_no_banco: [...result.omitidas, ...(comTema.ausente ? ['temas'] : [])]}
+          : {}),
+        itens: comTema.rows.map(row => contentSummary(row, lookups)),
       });
     }),
   );
@@ -169,7 +187,7 @@ export function registerConteudos(server: McpServer) {
     'ver_conteudo',
     {
       title: 'Ver conteúdo',
-      description: 'Abre um conteúdo completo: roteiro, notas, referências e publicações por plataforma.',
+      description: 'Abre um conteúdo completo: roteiro, notas, referências, temas, janela, horário de gravação e publicações por plataforma.',
       inputSchema: {
         id: z.string().min(1),
         roteiro_formato: z.enum(['texto', 'html']).default('texto'),
@@ -177,8 +195,10 @@ export function registerConteudos(server: McpServer) {
       annotations: {readOnlyHint: true},
     },
     tool(async (args, session) => {
-      const [row] = await fetchContents(session, [args.id]);
-      return json(contentDetail(row, await loadLookups(session), args.roteiro_formato));
+      const [loaded] = await fetchContents(session, [args.id]);
+      const comTema = await anexarTemas(session, [loaded]);
+      const detail = contentDetail(comTema.rows[0], await loadLookups(session), args.roteiro_formato);
+      return json(comTema.ausente ? {...detail, colunas_ausentes_no_banco: ['temas']} : detail);
     }),
   );
 
@@ -190,9 +210,19 @@ export function registerConteudos(server: McpServer) {
     biblioteca_item_id: z.string().optional().describe('Livro de origem. Também entra em livro_ids.'),
     livro_ids: livrosSchema.optional().describe('Vários livros ou itens da biblioteca neste roteiro'),
     tags: z.array(z.string()).optional(),
+    temas: z.array(z.string().min(1)).max(20).optional().describe(
+      'Nomes ou ids. Nome novo cria o tema. Um tema é um rótulo leve, como Halloween, e não é série, pilar nem função.',
+    ),
     funcao: funcaoSchema.optional().describe('Se não vier: herda da série quando ela tem função padrão'),
     conta_na_grade: z.boolean().optional().describe('false tira o roteiro da grade. Padrão: fora para Stories, Live e função reter'),
     legenda_base: z.string().nullable().optional().describe('Legenda compartilhada, até cada rede adaptar a própria'),
+    link: z.string().nullable().optional(),
+    notas_de_escrita: z.string().optional(),
+    data_publicacao: dateSchema.nullable().optional(),
+    hora_publicacao: timeSchema.nullable().optional().describe('Hora exata. Ganha da janela se as duas vierem'),
+    janela: janelaSchema.nullable().optional().describe('manha = 09:00, tarde = 14:00, noite = 20:00'),
+    data_gravacao: dateSchema.nullable().optional(),
+    hora_gravacao: timeSchema.nullable().optional(),
   };
 
   async function createContent(
@@ -210,10 +240,17 @@ export function registerConteudos(server: McpServer) {
       referencias?: string;
       biblioteca_item_id?: string;
       livro_ids?: string[];
-      data_gravacao?: string;
       funcao?: z.infer<typeof funcaoSchema>;
       conta_na_grade?: boolean;
       legenda_base?: string | null;
+      temas?: string[];
+      link?: string | null;
+      notas_de_escrita?: string;
+      data_publicacao?: string | null;
+      hora_publicacao?: string | null;
+      janela?: z.infer<typeof janelaSchema> | null;
+      data_gravacao?: string | null;
+      hora_gravacao?: string | null;
     },
   ) {
     const lookups = await loadLookups(session);
@@ -227,6 +264,7 @@ export function registerConteudos(server: McpServer) {
     const funcao = funcaoColumns(escolha);
     const funcaoInicial = escolha === 'da_serie' ? herdada : escolha === 'nenhuma' ? null : escolha;
     const livros = unirLivros(input.livro_ids, input.biblioteca_item_id);
+    const horaPublicacao = horaEscolhida(input.hora_publicacao, input.janela);
     const now = nowIso();
     const id = newId();
 
@@ -245,11 +283,16 @@ export function registerConteudos(server: McpServer) {
       script: input.roteiro ? textToHtml(input.roteiro) : null,
       script_notes: [],
       notes: input.notas?.trim() || null,
+      writing_notes: input.notas_de_escrita?.trim() || null,
       referencias: input.referencias ?? null,
+      link: input.link || null,
       tags: input.tags ?? [],
       recording_date: input.data_gravacao ?? null,
+      recording_time: input.hora_gravacao ?? null,
       recording_date_enabled: Boolean(input.data_gravacao),
-      publish_date_enabled: false,
+      publish_date: input.data_publicacao ?? null,
+      publish_time: horaPublicacao ?? null,
+      publish_date_enabled: Boolean(input.data_publicacao),
       ...funcao,
       conta_na_grade: input.conta_na_grade ?? contaNaGradePadrao(formato, funcaoInicial),
       legenda_base: input.legenda_base ?? null,
@@ -257,8 +300,14 @@ export function registerConteudos(server: McpServer) {
       updated_at: now,
     }, row => session.client.from('contents').insert(row));
 
+    if (input.temas) {
+      const gravados = await gravarTemasDoConteudo(session, id, input.temas);
+      if (gravados.ausente) omitidas.push('temas');
+    }
+
     const [row] = await fetchContents(session, [id]);
-    return comGravadoSem(contentSummary(row, lookups), omitidas);
+    const comTema = await anexarTemas(session, [row]);
+    return comGravadoSem(contentSummary(comTema.rows[0], lookups), omitidas);
   }
 
   server.registerTool(
@@ -283,10 +332,9 @@ export function registerConteudos(server: McpServer) {
         ...createShape,
         status: statusSchema.default('Roteiro'),
         roteiro: z.string().optional(),
-        formato: z.string().optional().describe('Formato visual, ex.: Reels, Carrossel, Stories'),
+        formato: z.string().optional().describe(FORMATO_DESCRICAO),
         energia: energiaSchema.optional(),
         referencias: z.string().optional(),
-        data_gravacao: dateSchema.optional(),
       },
     },
     tool(async (args, session) => json(await createContent(session, args))),
@@ -298,7 +346,8 @@ export function registerConteudos(server: McpServer) {
       title: 'Atualizar conteúdo',
       description:
         'Altera campos de um conteúdo existente. Só os campos enviados mudam. ' +
-        'Para limpar pilar, série, data ou livros, envie string vazia, lista vazia ou null. Para mudar status use mudar_status. ' +
+        'Para limpar pilar, série, data, hora, janela ou livros, envie string vazia, lista vazia ou null. Para mudar status use mudar_status. ' +
+        'temas substitui a lista; nome novo cria o tema. janela define manha (09:00), tarde (14:00) ou noite (20:00), a menos que hora_publicacao venha junto. ' +
         'funcao é o antigo funil; null volta para "sem definição". Mudar formato ou função recalcula conta_na_grade, a menos que ele venha junto.',
       inputSchema: {
         id: z.string().min(1),
@@ -310,13 +359,18 @@ export function registerConteudos(server: McpServer) {
         referencias: z.string().optional(),
         pilar: z.string().nullable().optional(),
         serie: z.string().nullable().optional(),
-        formato: z.string().nullable().optional(),
+        formato: z.string().nullable().optional().describe(FORMATO_DESCRICAO),
         energia: energiaSchema.nullable().optional(),
         funcao: funcaoSchema.nullable().optional(),
         conta_na_grade: z.boolean().optional().describe('Se a peça conta na grade de frequência'),
         tags: z.array(z.string()).optional(),
+        temas: z.array(z.string().min(1)).max(20).optional().describe('Substitui os temas. Lista vazia tira todos. Nome novo cria o tema'),
         link: z.string().nullable().optional(),
+        data_publicacao: dateSchema.nullable().optional(),
+        hora_publicacao: timeSchema.nullable().optional(),
+        janela: janelaSchema.nullable().optional().describe('manha, tarde ou noite. null limpa a hora se hora_publicacao não vier'),
         data_gravacao: dateSchema.nullable().optional(),
+        hora_gravacao: timeSchema.nullable().optional(),
         gravado: z.boolean().optional().describe('true marca como gravado agora; false desfaz'),
         biblioteca_item_id: z.string().nullable().optional(),
         livro_ids: livrosSchema.optional().describe('Substitui a lista de livros. O primeiro vira a origem antiga, se ela não for enviada junto'),
@@ -352,7 +406,16 @@ export function registerConteudos(server: McpServer) {
       if (args.data_gravacao !== undefined) {
         patch.recording_date = args.data_gravacao;
         patch.recording_date_enabled = Boolean(args.data_gravacao);
+        if (!args.data_gravacao && args.hora_gravacao === undefined) patch.recording_time = null;
       }
+      if (args.hora_gravacao !== undefined) patch.recording_time = args.hora_gravacao;
+      const horaPublicacao = horaEscolhida(args.hora_publicacao, args.janela);
+      if (args.data_publicacao !== undefined) {
+        patch.publish_date = args.data_publicacao;
+        patch.publish_date_enabled = Boolean(args.data_publicacao);
+        if (!args.data_publicacao && horaPublicacao === undefined) patch.publish_time = null;
+      }
+      if (horaPublicacao !== undefined) patch.publish_time = horaPublicacao;
       if (args.gravado !== undefined) patch.recorded_at = args.gravado ? current.recorded_at ?? nowIso() : null;
       if (args.legenda_base !== undefined) patch.legenda_base = args.legenda_base || null;
       if (args.livro_ids !== undefined || args.biblioteca_item_id !== undefined) {
@@ -364,10 +427,18 @@ export function registerConteudos(server: McpServer) {
         patch.biblioteca_item_id = args.biblioteca_item_id === undefined ? livros[0] ?? null : args.biblioteca_item_id || null;
       }
 
-      if (Object.keys(patch).length === 0) throw new Error('Nenhum campo para atualizar.');
-      const omitidas = await updateContent(session, args.id, patch);
+      let temasAusente = false;
+      if (args.temas !== undefined) {
+        const gravados = await gravarTemasDoConteudo(session, args.id, args.temas);
+        temasAusente = gravados.ausente;
+      }
+
+      if (Object.keys(patch).length === 0 && args.temas === undefined) throw new Error('Nenhum campo para atualizar.');
+      const omitidas = Object.keys(patch).length > 0 ? await updateContent(session, args.id, patch) : [];
+      if (temasAusente) omitidas.push('temas');
       const [row] = await fetchContents(session, [args.id]);
-      return json(comGravadoSem(contentDetail(row, lookups, 'texto'), omitidas));
+      const comTema = await anexarTemas(session, [row]);
+      return json(comGravadoSem(contentDetail(comTema.rows[0], lookups, 'texto'), omitidas));
     }),
   );
 

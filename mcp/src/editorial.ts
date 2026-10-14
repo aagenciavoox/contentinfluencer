@@ -5,6 +5,9 @@
 
 export const MIGRACAO_FUNCOES = 'supabase/migrations/20261004100000_funcoes_editoriais.sql';
 export const MIGRACAO_PUBLICACOES = 'supabase/migrations/20261004110000_publicacoes.sql';
+export const MIGRACAO_GRAVACAO = 'supabase/migrations/20261004230000_content_recording_time.sql';
+export const MIGRACAO_TEMAS = 'supabase/migrations/20261004233000_temas_roteiro.sql';
+export const MIGRACAO_POSTITS = 'supabase/migrations/20261004223000_planejamento_postits.sql';
 
 export const FUNCOES = ['atrair', 'converter', 'aprofundar', 'comunidade', 'acao', 'reter'] as const;
 export type FuncaoEditorial = (typeof FUNCOES)[number];
@@ -184,6 +187,9 @@ export function migracaoDaColuna(
   if (coluna === 'funcao_padrao' || coluna === 'formato_apresentacao' || coluna === 'energia_padrao' || coluna === 'motivo_salvar' || coluna === 'motivo_enviar' || coluna === 'pilar_principal_id') {
     return MIGRACAO_FUNCOES;
   }
+  if (coluna === 'recording_time') return MIGRACAO_GRAVACAO;
+  if (coluna === 'temas') return MIGRACAO_TEMAS;
+  if (coluna === 'planejamento_postits') return MIGRACAO_POSTITS;
   if (
     coluna === 'funcao' ||
     coluna === 'funcao_origem' ||

@@ -15,3 +15,10 @@ export function editorialPillStyle(color?: string | null, type?: CalendarEntry['
     color: base,
   } as const;
 }
+
+/** Publicação que já foi ao ar usa a cor de Postado. */
+export function calendarEntryPillStyle(entry: Pick<CalendarEntry, 'type' | 'color' | 'posted'>) {
+  if (entry.posted) return editorialPillStyle('var(--status-posted)', entry.type);
+  const useCustomColor = entry.color && (entry.type === 'project' || entry.type === 'agenda');
+  return editorialPillStyle(useCustomColor ? entry.color : null, entry.type);
+}
