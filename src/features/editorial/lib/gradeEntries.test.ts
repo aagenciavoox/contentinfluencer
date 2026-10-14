@@ -320,11 +320,69 @@ function testPublicacaoGravadaComNomeCasaComReferenciaPorId() {
   assert.equal(entries[0]?.data, '2026-10-05');
 }
 
+function testPostadoSemDataPlanejadaUsaDiaReal() {
+  const entries = buildGradeEntries({
+    series,
+    settings,
+    contents: [
+      conteudo({
+        id: 'sem-planejada',
+        status: 'Postado',
+        publishDate: null,
+        publishTime: null,
+        plataformas: [
+          publicacao({
+            id: 'ig',
+            contentId: 'sem-planejada',
+            platformId: INSTAGRAM,
+            publishDate: null,
+            status: 'publicada',
+            realizadaManualEm: '2026-10-11T15:00:00.000Z',
+          }),
+        ],
+      }),
+    ],
+  });
+
+  assert.equal(entries.length, 1);
+  assert.equal(entries[0]?.data, '2026-10-11');
+}
+
+function testPublicadoEmDiaDiferenteDoPlanejadoUsaODiaReal() {
+  const entries = buildGradeEntries({
+    series,
+    settings,
+    contents: [
+      conteudo({
+        id: 'mudou-de-dia',
+        status: 'Postado',
+        publishDate: '2026-10-09',
+        plataformas: [
+          publicacao({
+            id: 'ig',
+            contentId: 'mudou-de-dia',
+            platformId: INSTAGRAM,
+            publishDate: '2026-10-09',
+            status: 'publicada',
+            realizadaManualEm: '2026-10-11T15:00:00.000Z',
+          }),
+        ],
+      }),
+    ],
+  });
+
+  assert.equal(entries.length, 1);
+  assert.equal(entries[0]?.data, '2026-10-11');
+  assert.notEqual(entries[0]?.data, '2026-10-09');
+}
+
 testOriginalNaRedeDeReferencia();
 testExtraSoNoTikTok();
 testRepostComDataPropria();
 testLegadoSemPublicacoes();
 testExcluidoEArquivadoFicamFora();
 testPublicacaoGravadaComNomeCasaComReferenciaPorId();
+testPostadoSemDataPlanejadaUsaDiaReal();
+testPublicadoEmDiaDiferenteDoPlanejadoUsaODiaReal();
 
 console.log('gradeEntries tests passed');

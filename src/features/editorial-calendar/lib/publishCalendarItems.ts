@@ -2,7 +2,7 @@ import { format } from 'date-fns';
 import type { Content, ContentPlataforma } from '../../../lib/database.ts';
 import { platformKey } from '../../../components/ui/platformName.ts';
 import { CONTENT_STATUS, DISPLAY_STATUS, getDisplayStatus, normalizeContentStatus } from '../../contents/lib/contentPipeline.ts';
-import { buildGradeEntries, type GradeSerie } from '../../editorial/lib/gradeEntries.ts';
+import { buildGradeEntries, quandoDoItem, type GradeSerie, type Quando } from '../../editorial/lib/gradeEntries.ts';
 import { dataRealizada, earliestRealizadaEm, rotuloStatusPublicacao } from '../../editorial/lib/markPublished.ts';
 const TODAS_AS_REDES = 'todas';
 
@@ -20,8 +20,6 @@ export type PublishCalendarItem = {
 };
 
 type PlatformRef = { id: string; nome: string };
-
-type Quando = { date: string | null; time: string | null };
 
 function canonicalPlatformId(ref: string, platforms: readonly PlatformRef[]): string {
   if (platforms.some(platform => platform.id === ref)) return ref;
@@ -72,32 +70,12 @@ function planejado(date: string | null | undefined, time: string | null | undefi
   return { date: date || null, time: date ? hora(time) : null };
 }
 
-/** O instante salvo em UTC vira dia e hora locais. */
-function quandoLocal(instante: string | null | undefined): Quando | null {
-  if (!instante) return null;
-  const date = new Date(instante);
-  if (Number.isNaN(date.getTime())) return null;
-  return { date: format(date, 'yyyy-MM-dd'), time: format(date, 'HH:mm') };
-}
-
 function realizadaEm(publicacoes: ReadonlyArray<ContentPlataforma | undefined>): string | null {
   return earliestRealizadaEm(
     publicacoes
       .filter((publicacao): publicacao is ContentPlataforma => publicacao?.status === 'publicada')
       .map(publicacao => dataRealizada(publicacao)),
   );
-}
-
-/**
- * Postado fica no dia em que foi ao ar, quando essa data foi informada.
- * Sem ela, fica na data planejada e, por último, no dia em que virou Postado.
- */
-function quandoDoItem(content: Content, plano: Quando, posted: boolean, realizada: string | null): Quando {
-  if (!posted) return plano;
-  return quandoLocal(realizada)
-    ?? (plano.date ? plano : null)
-    ?? quandoLocal(content.postedAt)
-    ?? plano;
 }
 
 /**
@@ -264,13 +242,12 @@ export function buildPublishCalendarItems(input: {
     const repost = repostId ? publicacoes.find(publicacao => publicacao.id === repostId) : undefined;
     const publicacao = entry.tipo === 'repost' ? repost : original;
     const posted = publicacaoPostada(content, publicacao);
-    const quando = quandoDoItem(content, { date: entry.data, time: entry.hora }, posted, realizadaEm([publicacao]));
 
     return [{
       id: entry.id,
       contentId: entry.contentId,
-      date: quando.date,
-      time: quando.time,
+      date: entry.data,
+      time: entry.hora,
       plataformaId: repostId || original?.id,
       platformNames: entry.tipo === 'repost' && referenciaId
         ? [platformName(referenciaId, input.platforms)]

@@ -52,6 +52,41 @@ function horaDe(value: string | null | undefined): string | null {
   return match ? `${match[1]}:${match[2]}` : null;
 }
 
+export type Quando = { date: string | null; time: string | null };
+
+function pad2(value: number): string {
+  return String(value).padStart(2, '0');
+}
+
+/** O instante salvo em UTC (API, postedAt) vira dia e hora locais. */
+function quandoLocal(instante: string | null | undefined): Quando | null {
+  if (!instante) return null;
+  const date = new Date(instante);
+  if (Number.isNaN(date.getTime())) return null;
+  return {
+    date: `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`,
+    time: `${pad2(date.getHours())}:${pad2(date.getMinutes())}`,
+  };
+}
+
+/**
+ * Postado fica no dia em que foi ao ar, quando essa data foi informada.
+ * Sem ela, fica na data planejada e, por último, no dia em que virou Postado.
+ * Ainda não postado: a data planejada, sem mudança.
+ */
+export function quandoDoItem(
+  content: Pick<GradeContent, 'postedAt'>,
+  plano: Quando,
+  postado: boolean,
+  realizadaEm: string | null,
+): Quando {
+  if (!postado) return plano;
+  return quandoLocal(realizadaEm)
+    ?? (plano.date ? plano : null)
+    ?? quandoLocal(content.postedAt)
+    ?? plano;
+}
+
 function naReferencia(publicacao: ContentPlataforma, rede: DestinoPlataforma | null): boolean {
   return rede != null && mesmoDestino(publicacao.platformId, rede);
 }
@@ -105,33 +140,45 @@ export function buildGradeEntries({
     const realizada = originalPub
       ? originalPub.status === 'publicada'
       : normalizeContentStatus(content.status) === CONTENT_STATUS.POSTADO;
+    const realizadaEmOriginal = realizada
+      ? (originalPub ? dataRealizada(originalPub) : content.postedAt ?? null)
+      : null;
+    const planoOriginal: Quando = {
+      date: dataDaRede ?? dia(content.publishDate),
+      time: dataDaRede ? horaDe(originalPub?.publishTime) : horaDe(content.publishTime),
+    };
+    // Só a data real na rede entra como 1º critério; sem publicação, content.postedAt
+    // é só o 3º critério do quandoDoItem (dia em que virou Postado), nunca o 1º.
+    const realizadaNaRede = originalPub ? dataRealizada(originalPub) : null;
+    const quandoOriginal = quandoDoItem(content, planoOriginal, realizada, realizadaNaRede);
 
     entradas.push({
       id: `${content.id}:original`,
       contentId: content.id,
       tipo: 'original',
-      data: dataDaRede ?? dia(content.publishDate),
-      hora: dataDaRede ? horaDe(originalPub?.publishTime) : horaDe(content.publishTime),
+      data: quandoOriginal.date,
+      hora: quandoOriginal.time,
       ...classificacao,
       realizada,
-      realizadaEm: realizada
-        ? (originalPub ? dataRealizada(originalPub) : content.postedAt ?? null)
-        : null,
+      realizadaEm: realizadaEmOriginal,
     });
 
     for (const publicacao of daReferencia) {
       if (!ehRepost(publicacao)) continue;
       const publicada = publicacao.status === 'publicada';
+      const realizadaEmRepost = publicada ? dataRealizada(publicacao) : null;
+      const planoRepost: Quando = { date: dia(publicacao.publishDate), time: horaDe(publicacao.publishTime) };
+      const quandoRepost = quandoDoItem(content, planoRepost, publicada, realizadaEmRepost);
       entradas.push({
         id: `${content.id}:repost:${publicacao.id}`,
         contentId: content.id,
         tipo: 'repost',
-        data: dia(publicacao.publishDate),
-        hora: horaDe(publicacao.publishTime),
+        data: quandoRepost.date,
+        hora: quandoRepost.time,
         ...classificacao,
         contaNaGrade: classificacao.contaNaGrade && publicacao.contaNaGrade !== false,
         realizada: publicada,
-        realizadaEm: publicada ? dataRealizada(publicacao) : null,
+        realizadaEm: realizadaEmRepost,
       });
     }
   }

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import type { Content, ContentPlataforma } from '../../../lib/database.ts';
 import { buildPublishCalendarItems, isScheduledItem, publishItemStatus } from './publishCalendarItems.ts';
+import { buildGradeEntries } from '../../editorial/lib/gradeEntries.ts';
 
 const INSTAGRAM = 'plat-instagram';
 const TIKTOK = 'plat-tiktok';
@@ -345,6 +346,68 @@ function testSemRedeDeReferenciaCadaRoteiroAparece() {
   assert.equal(itens[2]?.time, '19:00');
 }
 
+function testPublicadoEmDiaDiferenteDoPlanejadoUsaODiaReal() {
+  const content = conteudo({
+    id: 'mudou-de-dia',
+    status: 'Postado',
+    publishDate: '2026-10-09',
+    plataformas: [
+      publicacao({
+        id: 'ig',
+        contentId: 'mudou-de-dia',
+        platformId: INSTAGRAM,
+        publishDate: '2026-10-09',
+        status: 'publicada',
+        realizadaManualEm: '2026-10-11T15:00:00.000Z',
+      }),
+    ],
+  });
+  const itens = buildPublishCalendarItems({
+    contents: [content],
+    platforms,
+    series,
+    redeReferenciaId: INSTAGRAM,
+    platformFilter: 'todas',
+  });
+  assert.equal(itens[0]?.date, '2026-10-11');
+  assert.notEqual(itens[0]?.date, content.publishDate);
+}
+
+function testMesmoConteudoCaiNoMesmoDiaNaGradeENoCalendario() {
+  const content = conteudo({
+    id: 'consistente',
+    status: 'Postado',
+    publishDate: '2026-10-09',
+    plataformas: [
+      publicacao({
+        id: 'ig',
+        contentId: 'consistente',
+        platformId: INSTAGRAM,
+        publishDate: '2026-10-09',
+        status: 'publicada',
+        realizadaManualEm: '2026-10-11T15:00:00.000Z',
+      }),
+    ],
+  });
+  const [gradeEntry] = buildGradeEntries({
+    contents: [content],
+    series,
+    settings: { redeReferenciaId: INSTAGRAM },
+    platforms,
+  });
+  const [calendarItem] = buildPublishCalendarItems({
+    contents: [content],
+    platforms,
+    series,
+    redeReferenciaId: INSTAGRAM,
+    platformFilter: 'todas',
+  });
+  assert.ok(gradeEntry);
+  assert.ok(calendarItem);
+  assert.equal(gradeEntry.data, calendarItem.date);
+  assert.equal(gradeEntry.hora, calendarItem.time);
+}
+
 testSemanaMostraInstagramNaGradeETikTokComoExtra();
 testRepostEntraNaGradeComDataPropria();
 testPublicacaoMarcadaComoPostadaApareceComoPostado();
@@ -352,4 +415,6 @@ testRoteiroPostadoSemMarcaNaRedeApareceComoPostado();
 testPostadoFicaNoDiaEmQueFoiAoAr();
 testPostadoPeloStatusUsaDataPlanejadaAntesDaMudanca();
 testSemRedeDeReferenciaCadaRoteiroAparece();
+testPublicadoEmDiaDiferenteDoPlanejadoUsaODiaReal();
+testMesmoConteudoCaiNoMesmoDiaNaGradeENoCalendario();
 console.log('publishCalendarItems tests passed');
