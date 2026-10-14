@@ -235,15 +235,10 @@ export function buildPublishCalendarItems(input: {
     funcaoPadrao: serie.funcaoPadrao,
   }));
   const entries = buildGradeEntries({
-    contents: input.contents.map(content => ({
-      ...content,
-      plataformas: (content.plataformas ?? []).map(publicacao => ({
-        ...publicacao,
-        platformId: canonicalPlatformId(publicacao.platformId, input.platforms),
-      })),
-    })),
+    contents: input.contents,
     series,
     settings: { redeReferenciaId: referenciaId },
+    platforms: input.platforms,
   });
 
   return entries.flatMap(entry => {

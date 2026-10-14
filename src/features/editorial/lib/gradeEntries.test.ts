@@ -294,10 +294,37 @@ function testExcluidoEArquivadoFicamFora() {
   assert.deepEqual(entries.map(entry => entry.contentId), ['ativo']);
 }
 
+function testPublicacaoGravadaComNomeCasaComReferenciaPorId() {
+  const platforms = [{ id: INSTAGRAM, nome: 'Instagram' }, { id: TIKTOK, nome: 'TikTok' }];
+  const entries = buildGradeEntries({
+    series,
+    settings,
+    platforms,
+    contents: [
+      conteudo({
+        id: 'gravado-por-nome',
+        plataformas: [
+          publicacao({
+            id: 'ig',
+            contentId: 'gravado-por-nome',
+            platformId: 'Instagram',
+            publishDate: '2026-10-05',
+          }),
+        ],
+      }),
+    ],
+  });
+
+  assert.equal(entries.length, 1);
+  assert.equal(entries[0]?.contentId, 'gravado-por-nome');
+  assert.equal(entries[0]?.data, '2026-10-05');
+}
+
 testOriginalNaRedeDeReferencia();
 testExtraSoNoTikTok();
 testRepostComDataPropria();
 testLegadoSemPublicacoes();
 testExcluidoEArquivadoFicamFora();
+testPublicacaoGravadaComNomeCasaComReferenciaPorId();
 
 console.log('gradeEntries tests passed');

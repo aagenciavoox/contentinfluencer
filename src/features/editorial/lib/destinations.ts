@@ -14,6 +14,16 @@ export function mesmoDestino(ref: string, plataforma: DestinoPlataforma): boolea
   return platformKey(ref) === platformKey(plataforma.nome);
 }
 
+/** Resolve a rede de referência (guardada por id) na lista de plataformas, com nome incluído. */
+export function resolverRedeReferencia(
+  redeReferenciaId: string | null | undefined,
+  plataformas: readonly DestinoPlataforma[],
+): DestinoPlataforma | null {
+  if (!redeReferenciaId) return null;
+  return plataformas.find(plataforma => mesmoDestino(redeReferenciaId, plataforma))
+    ?? { id: redeReferenciaId, nome: redeReferenciaId };
+}
+
 export function publicacaoOriginal(
   publicacao: Pick<ContentPlataforma, 'publicationKind'>,
 ): boolean {

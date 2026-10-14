@@ -4,6 +4,7 @@ import { buildContentDetailRoute } from '../../contents/lib/contentDetailRoute.t
 import { getGentleExperienceSettings } from '../../settings/lib/gentleExperience.ts';
 import { getModuleFlags } from '../../settings/lib/moduleFlags.ts';
 import { contarEstoque, type EstoqueContent } from './estoque.ts';
+import type { DestinoPlataforma } from './destinations.ts';
 import { buildGradeEntries, type GradeContent, type GradeSerie } from './gradeEntries.ts';
 import { countGrade, type PilarContagem } from './gradeCounts.ts';
 import { getEditorialSettings, type EditorialSettings } from './editorialSettings.ts';
@@ -62,6 +63,7 @@ export type ReadingsState = {
   pilares: readonly PilarContagem[];
   projetos: readonly ProjetoLeitura[];
   bibliotecaItems: readonly (Pick<BibliotecaItem, 'id' | 'status' | 'deletedAt'> & { titulo?: string | null })[];
+  platforms?: readonly DestinoPlataforma[];
   pauseMode?: boolean;
   mostrarNumeros?: boolean;
   libraryEnabled?: boolean;
@@ -156,6 +158,7 @@ export function computeReadings(
     contents: state.contents,
     series: state.series,
     settings: { redeReferenciaId: settings.redeReferenciaId },
+    platforms: state.platforms ?? [],
   });
   const contagem = countGrade({
     entries,
@@ -324,6 +327,7 @@ type AppParaLeituras = {
   pilares: readonly PilarContagem[];
   projetos: readonly ProjetoLeitura[];
   bibliotecaItems: readonly (Pick<BibliotecaItem, 'id' | 'status' | 'deletedAt'> & { titulo?: string | null })[];
+  platforms?: readonly DestinoPlataforma[];
   preferences: Record<string, unknown> | null | undefined;
 };
 
@@ -341,6 +345,7 @@ export function computeReadingsFromApp(
       pilares: state.pilares,
       projetos: state.projetos,
       bibliotecaItems: state.bibliotecaItems,
+      platforms: state.platforms,
       pauseMode: gentle.pauseMode,
       mostrarNumeros: gentle.dashboardCounts,
       libraryEnabled: modules.library,

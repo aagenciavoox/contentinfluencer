@@ -5,6 +5,7 @@ import {countGrade, distribuicaoFecha, type GradeCounts, type PeriodoGrade} from
 import type {EditorialSettings} from '../../editorial/lib/editorialSettings.ts';
 import {FUNCAO_CURTA, funcaoHerdavelDaSerie, resolveFuncao} from '../../editorial/lib/funcoes.ts';
 import {pilarPrincipalDaSerie} from '../../editorial/lib/pilarDaSerie.ts';
+import {type DestinoPlataforma, mesmoDestino, resolverRedeReferencia} from '../../editorial/lib/destinations.ts';
 import type {PlanejamentoPostIt} from './postIt.ts';
 
 export function periodoDoMes(anchor: Date): PeriodoGrade {
@@ -28,12 +29,14 @@ export function entriesDaSaudeDoMes({
   series,
   settings,
   periodo,
+  platforms = [],
 }: {
   postIts: readonly PlanejamentoPostIt[];
   contents: readonly Content[];
   series: readonly Serie[];
   settings: Pick<EditorialSettings, 'redeReferenciaId'>;
   periodo: PeriodoGrade;
+  platforms?: readonly DestinoPlataforma[];
 }): GradeEntry[] {
   const contentById = new Map(contents.map(content => [content.id, content]));
   const serieById = new Map(series.map(serie => [serie.id, serie]));
@@ -67,6 +70,7 @@ export function entriesDaSaudeDoMes({
     contents,
     series,
     settings: {redeReferenciaId: settings.redeReferenciaId},
+    platforms,
   });
   for (const entry of oficiais) {
     if (!noPeriodo(entry.data, periodo)) continue;
@@ -89,18 +93,20 @@ export function publicacoesEmOutrasRedes({
   contents,
   settings,
   periodo,
+  platforms = [],
 }: {
   contents: readonly Content[];
   settings: Pick<EditorialSettings, 'redeReferenciaId'>;
   periodo: PeriodoGrade;
+  platforms?: readonly DestinoPlataforma[];
 }): number {
-  const redeId = settings.redeReferenciaId || null;
+  const rede = resolverRedeReferencia(settings.redeReferenciaId, platforms);
   let total = 0;
   for (const content of contents) {
     if (content.deletedAt || content.archivedAt) continue;
     const publicacoes = content.plataformas ?? [];
     if (publicacoes.length === 0) continue;
-    if (redeId && publicacoes.some(publicacao => publicacao.platformId === redeId)) continue;
+    if (rede && publicacoes.some(publicacao => mesmoDestino(publicacao.platformId, rede))) continue;
     const noMes = publicacoes.some(publicacao => noPeriodo(publicacao.publishDate?.slice(0, 10) ?? null, periodo))
       || noPeriodo(content.publishDate?.slice(0, 10) ?? null, periodo);
     if (noMes) total += 1;
@@ -228,6 +234,7 @@ export function excessosAoAcrescentar({
   series,
   pilares,
   settings,
+  platforms = [],
 }: {
   content: Content | null;
   date: string | null;
@@ -236,6 +243,7 @@ export function excessosAoAcrescentar({
   series: readonly Serie[];
   pilares: readonly Pilar[];
   settings: Pick<EditorialSettings, 'redeReferenciaId' | 'distribuicaoFuncoes'>;
+  platforms?: readonly DestinoPlataforma[];
 }): ExcessoMes[] {
   if (!content || !date || content.contaNaGrade === false || content.deletedAt || content.archivedAt) return [];
   const saude = saudeDoMes({
@@ -245,6 +253,7 @@ export function excessosAoAcrescentar({
     pilares,
     settings,
     periodo: periodoDaData(date),
+    platforms,
   });
   const jaConta = saude.entries.some(entry =>
     entry.tipo === 'original' && entry.contaNaGrade && entry.contentId === content.id,
@@ -283,6 +292,7 @@ export function saudeDoMes({
   pilares,
   settings,
   periodo,
+  platforms = [],
 }: {
   postIts: readonly PlanejamentoPostIt[];
   contents: readonly Content[];
@@ -290,8 +300,9 @@ export function saudeDoMes({
   pilares: readonly Pilar[];
   settings: Pick<EditorialSettings, 'redeReferenciaId' | 'distribuicaoFuncoes'>;
   periodo: PeriodoGrade;
+  platforms?: readonly DestinoPlataforma[];
 }): SaudeDoMes {
-  const entries = entriesDaSaudeDoMes({postIts, contents, series, settings, periodo});
+  const entries = entriesDaSaudeDoMes({postIts, contents, series, settings, periodo, platforms});
   return {
     ...countGrade({
       entries,
@@ -300,6 +311,6 @@ export function saudeDoMes({
       periodo,
     }),
     entries,
-    outrasRedes: publicacoesEmOutrasRedes({contents, settings, periodo}),
+    outrasRedes: publicacoesEmOutrasRedes({contents, settings, periodo, platforms}),
   };
 }

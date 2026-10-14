@@ -2,6 +2,7 @@ import type { Content, ContentPlataforma, FuncaoEditorial, Serie } from '../../.
 import { CONTENT_STATUS, normalizeContentStatus } from '../../contents/lib/contentPipeline.ts';
 import { resolveFuncao } from './funcoes.ts';
 import { dataRealizada } from './markPublished.ts';
+import { type DestinoPlataforma, mesmoDestino, resolverRedeReferencia } from './destinations.ts';
 
 export type GradeEntry = {
   id: string;
@@ -51,8 +52,8 @@ function horaDe(value: string | null | undefined): string | null {
   return match ? `${match[1]}:${match[2]}` : null;
 }
 
-function naReferencia(publicacao: ContentPlataforma, redeReferenciaId: string | null): boolean {
-  return Boolean(redeReferenciaId) && publicacao.platformId === redeReferenciaId;
+function naReferencia(publicacao: ContentPlataforma, rede: DestinoPlataforma | null): boolean {
+  return rede != null && mesmoDestino(publicacao.platformId, rede);
 }
 
 function ehRepost(publicacao: ContentPlataforma): boolean {
@@ -70,20 +71,23 @@ export function buildGradeEntries({
   contents,
   series,
   settings,
+  platforms = [],
 }: {
   contents: readonly GradeContent[];
   series: readonly GradeSerie[];
   settings: GradeEntrySettings;
+  /** Resolve a rede de referência por id ou nome. Sem ela, só casa publicações já gravadas com o mesmo id. */
+  platforms?: readonly DestinoPlataforma[];
 }): GradeEntry[] {
   const seriePorId = new Map(series.map(serie => [serie.id, serie]));
-  const redeId = settings.redeReferenciaId || null;
+  const rede = resolverRedeReferencia(settings.redeReferenciaId, platforms);
   const entradas: GradeEntry[] = [];
 
   for (const content of contents) {
     if (content.deletedAt || content.archivedAt) continue;
 
     const publicacoes = content.plataformas ?? [];
-    const daReferencia = publicacoes.filter(publicacao => naReferencia(publicacao, redeId));
+    const daReferencia = publicacoes.filter(publicacao => naReferencia(publicacao, rede));
     const extra = publicacoes.length > 0 && daReferencia.length === 0;
     if (extra) continue;
 

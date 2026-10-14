@@ -235,10 +235,11 @@ export function PlanejamentoPage() {
         pilares: state.pilares,
         settings,
         periodo: periodoDoMes(month),
+        platforms: state.platforms,
       }),
       temDistribuicao: distribuicaoFecha(settings.distribuicaoFuncoes),
     };
-  }, [postIts, contents, state.series, state.pilares, state.preferences, month]);
+  }, [postIts, contents, state.series, state.pilares, state.platforms, state.preferences, month]);
 
   const applyList = (next: PlanejamentoPostIt[]) => {
     const {added, updated} = changedPostIts(postIts, next);
@@ -267,6 +268,7 @@ export function PlanejamentoPage() {
       series: state.series,
       pilares: state.pilares,
       settings: getEditorialSettings(state.preferences),
+      platforms: state.platforms,
     });
     if (lista.length === 0) {
       commit();
@@ -298,6 +300,7 @@ export function PlanejamentoPage() {
         series: state.series,
         pilares: state.pilares,
         settings,
+        platforms: state.platforms,
       });
       for (const aviso of lista) {
         if (!avisosPorNome.has(aviso.nome)) avisosPorNome.set(aviso.nome, aviso);

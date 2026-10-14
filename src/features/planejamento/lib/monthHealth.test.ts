@@ -287,3 +287,53 @@ testTomDaSaude();
 testExcessoQuandoOPilarJaFechou();
 testSemExcessoEnquantoAindaCabe();
 testForaDaContaExplicaOQueNaoEntrou();
+
+function testPublicacaoGravadaComNomeContaQuandoReferenciaEhOId() {
+  const platforms = [{id: 'plat-instagram', nome: 'Instagram'}];
+  const content = createContentDraft({
+    id: 'nome-vs-id',
+    status: CONTENT_STATUS.POSTADO,
+    seriesId: serie.id,
+    publishDate: '2026-10-09',
+  }, serie);
+  content.plataformas = [{
+    id: 'p-ig', contentId: 'nome-vs-id', platformId: 'Instagram', legenda: '', hashtags: '',
+    publishDate: '2026-10-09', publishDateEnabled: true, status: 'publicada',
+  }];
+  const counts = saudeDoMes({
+    postIts: [],
+    contents: [content],
+    series: [serie],
+    pilares: [pilar],
+    settings: {redeReferenciaId: 'plat-instagram', distribuicaoFuncoes: PERCENTUAIS},
+    periodo: PERIODO,
+    platforms,
+  });
+  assert.equal(counts.entries.some(entry => entry.contentId === 'nome-vs-id'), true);
+  assert.equal(counts.pilares[0]?.planejado, 1);
+}
+
+function testPublicacoesEmOutrasRedesNaoContaPublicacaoNaPropriaReferencia() {
+  const platforms = [{id: 'plat-instagram', nome: 'Instagram'}];
+  const insta = createContentDraft({
+    id: 'nome-na-referencia',
+    status: CONTENT_STATUS.POSTADO,
+    publishDate: '2026-10-11',
+  }, serie);
+  insta.plataformas = [{
+    id: 'p-ig', contentId: 'nome-na-referencia', platformId: 'Instagram', legenda: '', hashtags: '',
+    publishDate: '2026-10-11', publishDateEnabled: true,
+  }];
+  assert.equal(
+    publicacoesEmOutrasRedes({
+      contents: [insta],
+      settings: {redeReferenciaId: 'plat-instagram'},
+      periodo: PERIODO,
+      platforms,
+    }),
+    0,
+  );
+}
+
+testPublicacaoGravadaComNomeContaQuandoReferenciaEhOId();
+testPublicacoesEmOutrasRedesNaoContaPublicacaoNaPropriaReferencia();

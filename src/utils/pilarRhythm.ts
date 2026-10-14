@@ -823,6 +823,7 @@ export function buildWeekRhythmQuotas(input: WeekRhythmInput): WeekRhythmQuota[]
     contents: input.contents,
     series: input.series,
     settings: {redeReferenciaId: input.editorial?.redeReferenciaId ?? null},
+    platforms: input.platforms,
   });
   const inicio = format(startOfDay(input.weekStart), 'yyyy-MM-dd');
   const counts = countGrade({
