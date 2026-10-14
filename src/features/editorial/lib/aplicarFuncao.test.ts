@@ -36,8 +36,15 @@ function testPerguntaSoComFuncaoConcreta() {
 function testAplicaEMarcaOrigem() {
   const atualizado = aplicarFuncaoPublicada(base, 'comunidade');
   assert.equal(atualizado.funcao, 'comunidade');
-  assert.equal(atualizado.funcaoOrigem, 'aplicada');
+  assert.equal(atualizado.funcaoOrigem, 'herdada');
   assert.equal(atualizado.classificacaoCongeladaEm, base.classificacaoCongeladaEm);
+
+  const escolhida = aplicarFuncaoPublicada(
+    {...base, funcao: 'atrair', funcaoOrigem: 'escolhida'},
+    'comunidade',
+  );
+  assert.equal(escolhida.funcao, 'atrair');
+  assert.equal(escolhida.funcaoOrigem, 'escolhida');
 }
 
 testSoHerdadosCongelados();

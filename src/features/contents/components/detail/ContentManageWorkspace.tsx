@@ -6,7 +6,7 @@ import {Text} from '../../../../components/ui/Text';
 import {useAppContext} from '../../../../context/AppContext';
 import type {Pilar, Serie} from '../../../../lib/database';
 import {getAllowedStatuses, normalizeContentStatus} from '../../lib/contentPipeline';
-import {patchAoEscolherSerie} from '../../../editorial/lib/pilarDaSerie';
+import {aplicarEscolhasDaSerie, marcarEscolhaManual} from '../../../editorial/lib/escolhasSerie';
 import {FuncaoEditorialFields} from './ContentOperationalPanel';
 import {LivroMultiSelect} from './LivroMultiSelect';
 import {PlatformCopyEditor} from './PlatformCopyEditor';
@@ -188,7 +188,7 @@ export function ContentManageWorkspace({
                   ariaLabel="Série"
                   disabled={disabled}
                   value={draft.seriesId ?? ''}
-                  onChange={value => onChange(patchAoEscolherSerie(
+                  onChange={value => onChange(aplicarEscolhasDaSerie(
                     draft,
                     series.find(item => item.id === value) ?? null,
                   ))}
@@ -207,7 +207,7 @@ export function ContentManageWorkspace({
                     ariaLabel="Pilar"
                     disabled={disabled}
                     value={draft.pilarId ?? ''}
-                    onChange={value => onChange({pilarId: value || null})}
+                    onChange={value => onChange(marcarEscolhaManual(draft, 'pilar', value || null))}
                   >
                     <option value="">Selecionar pilar...</option>
                     {pilares.filter(item => item.ativo).map(item => (
@@ -222,7 +222,7 @@ export function ContentManageWorkspace({
                     onChange={onChange}
                     variant="form"
                     formPart="funcao"
-                    formLabel={<FieldLabel icon={<Flag className="h-4 w-4" />}>Função</FieldLabel>}
+                    formLabel={<FieldLabel icon={<Flag className="h-4 w-4" />}>Objetivo do conteúdo</FieldLabel>}
                     formInputClass={selectClass}
                   />
                 </div>

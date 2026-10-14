@@ -1,5 +1,6 @@
 import type { FuncaoEditorial, FuncaoOrigem, FuncaoPadraoSerie, PublicacaoStatus } from '../../../lib/database.ts';
 import { CONTENT_STATUS } from '../../contents/lib/contentPipeline.ts';
+import { congelarRedeReferencia } from './escolhasSerie.ts';
 import { funcaoHerdavelDaSerie } from './funcoes.ts';
 import { parsePostCode } from './postCode.ts';
 
@@ -19,6 +20,7 @@ type ConteudoPublicavel = {
   classificacaoCongeladaEm?: string | null;
   postedAt?: string | null;
   link?: string | null;
+  redeReferenciaCongeladaId?: string | null;
 };
 
 type PublicacaoPublicavel = {
@@ -32,6 +34,8 @@ type PublicacaoPublicavel = {
 
 export type MarkPublishedOptions = {
   serie?: { funcaoPadrao?: FuncaoPadraoSerie | null } | null;
+  /** Rede de referência das preferências. Congela se o roteiro ainda não tiver uma. */
+  redeReferenciaId?: string | null;
   now?: string | Date;
 };
 
@@ -120,7 +124,7 @@ export function markPublished<C extends ConteudoPublicavel, P extends Publicacao
   }
 
   return {
-    content: {
+    content: congelarRedeReferencia({
       ...content,
       status: CONTENT_STATUS.POSTADO,
       postedAt,
@@ -128,7 +132,7 @@ export function markPublished<C extends ConteudoPublicavel, P extends Publicacao
       funcaoOrigem,
       classificacaoCongeladaEm,
       link,
-    },
+    }, options?.redeReferenciaId),
     publicacoes: nextPublicacoes,
   };
 }

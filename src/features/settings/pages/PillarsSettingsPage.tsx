@@ -11,7 +11,6 @@ import { useAppContext } from '../../../context/AppContext';
 import { useIsMobile } from '../../../hooks/useIsMobile';
 import { PillarsMobileScreen } from '../../../mobile/screens/settings/PillarsMobileScreen';
 import { sortPilares } from '../lib/activePilares';
-import { rotuloEspacos, somaEspacosSemana } from '../../editorial/lib/distribuirEspacos';
 import { SettingsPageScaffold } from '../../../components/settings/SettingsPageScaffold';
 import { SettingsGridCard, SETTINGS_ENTITY_GRID_CLASS } from '../../../components/settings/SettingsGridCard';
 
@@ -97,9 +96,8 @@ export function PillarsSettingsPage() {
         </AppButton>
       }
     >
-      <Text variant="body" className="mb-2">Total da semana, pilares ativos: {rotuloEspacos(somaEspacosSemana(sortedPilares))}.</Text>
       <Text variant="secondary" className="mb-4">
-        Pilares organizam temas, ritmo editorial e publicação por plataforma. Espaços por semana, dias e hashtags ficam aqui.
+        Pilares organizam os assuntos e a publicação por plataforma. O limite da semana fica no Plano do período.
       </Text>
 
       <QueryViewState
@@ -154,11 +152,6 @@ export function PillarsSettingsPage() {
                       <Badge variant="neutral">{volumeLabel}</Badge>
                     )}
                     <Badge variant="neutral">{pilar.plataformas.length} redes</Badge>
-                    {pilar.frequenciaSemanal != null ? (
-                      <Badge variant="neutral">{rotuloEspacos(pilar.frequenciaSemanal)}/sem</Badge>
-                    ) : (
-                      <Badge variant="neutral">Sem espaços</Badge>
-                    )}
                   </>
                 }
               />

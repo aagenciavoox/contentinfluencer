@@ -5,6 +5,7 @@ import {Skeleton} from '../../../../../components/ui/Skeleton';
 import {Surface} from '../../../../../components/ui/Surface';
 import {Text} from '../../../../../components/ui/Text';
 import type {BibliotecaItem, Pilar, Serie} from '../../../../../lib/database';
+import {aplicarEscolhasDaSerie, marcarEscolhaManual} from '../../../../editorial/lib/escolhasSerie';
 import {useAppContext} from '../../../../../context/AppContext';
 import {DestinationChips} from '../../../../editorial/components/DestinationChips';
 import {LivroMultiSelect} from '../LivroMultiSelect';
@@ -57,7 +58,7 @@ export function IdeaOrganizationPanel({
         </Text>
         <select
           value={draft.pilarId ?? ''}
-          onChange={event => onChange({pilarId: event.target.value || null})}
+          onChange={event => onChange(marcarEscolhaManual(draft, 'pilar', event.target.value || null))}
           className={selectClassName}
         >
           <option value="">Sem pilar</option>
@@ -74,7 +75,10 @@ export function IdeaOrganizationPanel({
         </Text>
         <select
           value={draft.seriesId ?? ''}
-          onChange={event => onChange({seriesId: event.target.value || null})}
+          onChange={event => onChange(aplicarEscolhasDaSerie(
+            draft,
+            series.find(serie => serie.id === event.target.value) ?? null,
+          ))}
           className={selectClassName}
         >
           <option value="">Sem série</option>

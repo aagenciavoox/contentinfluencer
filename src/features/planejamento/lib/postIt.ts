@@ -1,8 +1,10 @@
-import type {Content} from '../../../lib/database.ts';
+import type {Content, FuncaoEditorial} from '../../../lib/database.ts';
 import {generateUUID} from '../../../utils/uuid.ts';
 import {CONTENT_STATUS, normalizeContentStatus} from '../../contents/lib/contentPipeline.ts';
 import {createContentDraft} from '../../contents/lib/createContentDraft.ts';
 import {placeContentOnDay} from '../../editorial-calendar/lib/scheduleContent.ts';
+import {aplicarEscolhasHerdadas} from '../../editorial/lib/escolhasSerie.ts';
+import {contaNaGradePadrao} from '../../editorial/lib/funcoes.ts';
 
 /** Nota de planejamento. Existe antes da ideia e não é um Content. */
 export interface PlanejamentoPostIt {
@@ -13,6 +15,10 @@ export interface PlanejamentoPostIt {
   date: string | null;
   /** Ideia ou roteiro puxado. Puxar não altera o conteúdo. */
   contentId: string | null;
+  /** Série, pilar e função anotados antes de virar roteiro. */
+  serieId?: string | null;
+  pilarId?: string | null;
+  objetivo?: FuncaoEditorial | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -24,7 +30,8 @@ export type PostItTransformResult =
       ok: true;
       mode: 'create' | 'update';
       content: Content;
-      removePostItId: string;
+      /** O mesmo post-it, agora ligado ao roteiro. Não se apaga na transformação. */
+      postIt: PlanejamentoPostIt;
       openScript: boolean;
     }
   | {
@@ -45,6 +52,9 @@ export function createEmptyPostIt(input: {
   id?: string;
   texto?: string;
   date?: string | null;
+  serieId?: string | null;
+  pilarId?: string | null;
+  objetivo?: FuncaoEditorial | null;
   now?: string;
 } = {}): PlanejamentoPostIt {
   const now = nowIso(input.now);
@@ -54,6 +64,9 @@ export function createEmptyPostIt(input: {
     texto: input.texto ?? '',
     date: dayKey(input.date),
     contentId: null,
+    serieId: input.serieId ?? null,
+    pilarId: input.pilarId ?? null,
+    objetivo: input.objetivo ?? null,
     createdAt: now,
     updatedAt: now,
   };
@@ -142,7 +155,7 @@ export function cancelPostItEdit(postIt: PlanejamentoPostIt, _edit: PostItEdit):
 
 /**
  * Apaga só o post-it. Puxar é um vínculo, não posse: a ideia ou o roteiro fica.
- * Conteúdo já transformado também fica, porque a transformação já soltou o post-it.
+ * Transformar também deixa o conteúdo: o post-it continua ligado por contentId.
  */
 export function deletePostIt(input: {
   postIts: readonly PlanejamentoPostIt[];
@@ -172,6 +185,25 @@ function stampDay(content: Content, date: string | null): Content {
   return placeContentOnDay(content, date);
 }
 
+/** Copia série, pilar e objetivo do post-it. A origem fica herdada quando o valor veio dele. */
+function conteudoDoPostIt(draft: Content, postIt: PlanejamentoPostIt): Content {
+  const comSerie = postIt.serieId ? {...draft, seriesId: postIt.serieId} : draft;
+  const herdado = aplicarEscolhasHerdadas(comSerie, {
+    pilarId: postIt.pilarId ?? null,
+    funcao: postIt.objetivo ?? null,
+  });
+  if (herdado.contaNaGradeOrigem === 'manual') return herdado;
+  return {
+    ...herdado,
+    contaNaGrade: contaNaGradePadrao(herdado.formatoVisual, herdado.funcao ?? null),
+    contaNaGradeOrigem: 'regra',
+  };
+}
+
+function ligarPostIt(postIt: PlanejamentoPostIt, contentId: string, now: string): PlanejamentoPostIt {
+  return {...postIt, contentId, updatedAt: now};
+}
+
 /**
  * Só a transformação cria ou promove conteúdo.
  * A data do post-it vira a data de publicação. Um post-it vazio que vira roteiro abre o editor.
@@ -193,16 +225,18 @@ export function transformPostIt(input: {
   if (!linked) {
     const texto = input.postIt.texto.trim();
     const status = input.target === 'ideia' ? CONTENT_STATUS.IDEIA : CONTENT_STATUS.ROTEIRO;
-    const draft = createContentDraft({
+    const now = nowIso(input.now);
+    const draft = conteudoDoPostIt(createContentDraft({
       title: texto || 'Sem título',
       status,
       notes: texto || null,
-    });
+    }), input.postIt);
+    const content = stampDay(draft, input.postIt.date);
     return {
       ok: true,
       mode: 'create',
-      content: stampDay(draft, input.postIt.date),
-      removePostItId: input.postIt.id,
+      content,
+      postIt: ligarPostIt(input.postIt, content.id, now),
       openScript: input.target === 'roteiro',
     };
   }
@@ -223,7 +257,7 @@ export function transformPostIt(input: {
     ok: true,
     mode: 'update',
     content,
-    removePostItId: input.postIt.id,
+    postIt: ligarPostIt(input.postIt, content.id, now),
     openScript: false,
   };
 }

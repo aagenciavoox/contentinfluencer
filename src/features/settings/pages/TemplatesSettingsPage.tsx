@@ -3,7 +3,6 @@ import {useSearchParams} from 'react-router-dom';
 import {Check, ChevronDown, ChevronUp, Layout, Plus, Trash2} from 'lucide-react';
 import {useAppContext} from '../../../context/AppContext';
 import {useAuth} from '../../../context/AuthContext';
-import {useIsMobile} from '../../../hooks/useIsMobile';
 import type {Template, TemplateBloco} from '../../../lib/database';
 import {cn} from '../../../lib/utils';
 import {DesktopPageHeader} from '../../../layouts/page/DesktopPageHeader';
@@ -12,7 +11,6 @@ import {Text} from '../../../components/ui/Text';
 import {AppButton} from '../../../components/ui/AppButton';
 import {EmptyState} from '../../../components/ui/EmptyState';
 import {FixedPanelModal} from '../../../components/overlays/FixedPanelModal';
-import {TemplatesMobileScreen} from '../../../mobile/screens/settings/TemplatesMobileScreen';
 import {ConfirmModal} from '../../../components/feedback/modals/ConfirmModal';
 import {CONFIRM, EMPTY, type ConfirmState} from '../../../lib/uiCopy';
 import {generateUUID} from '../../../utils/uuid';
@@ -61,7 +59,6 @@ export function TemplatesSettingsPage({
   const {state, dispatch} = useAppContext();
   const {user} = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
-  const isMobile = useIsMobile();
   const [localEditId, setLocalEditId] = useState<string | null>(null);
   const editParam = embedded ? localEditId : searchParams.get('edit');
   const lastHydratedEditRef = useRef<string | null>(null);
@@ -624,25 +621,6 @@ export function TemplatesSettingsPage({
       />
     </>
   );
-
-  if (isMobile && !embedded) {
-    return (
-      <div className="min-h-full bg-[var(--bg-primary)]">
-        <TemplatesMobileScreen
-          templates={state.templates}
-          series={state.series}
-          platforms={state.platforms}
-          onCreate={template => {
-            const payload = {...template, userId: user?.id || ''};
-            dispatch({type: 'ADD_TEMPLATE', payload});
-            openTemplateEditor(payload);
-          }}
-          onDelete={templateId => deleteTemplate(templateId)}
-        />
-        {templateEditorOverlays}
-      </div>
-    );
-  }
 
   const catalog = (
     <>

@@ -1,12 +1,6 @@
 import type { FuncaoEditorial, FuncaoPadraoSerie } from '../../../lib/database.ts';
-import {
-  distribuirEspacos,
-  percentuaisNaOrdem,
-  somaEspacosSemana,
-  totalDaContagem,
-} from './distribuirEspacos.ts';
+import { percentuaisNaOrdem } from './distribuirEspacos.ts';
 import { distribuicaoFecha } from './gradeCounts.ts';
-import { FUNCAO_LABELS, FUNCOES_DA_GRADE } from './funcoes.ts';
 
 export type ConfigNota = {
   chave: string;
@@ -61,11 +55,6 @@ export function formatarPeso(valor: number): string {
   return fracao ? `${inteiro},${fracao}` : inteiro;
 }
 
-function rotuloEspaco(valor: number): string {
-  const texto = formatarPeso(valor);
-  return `${texto} ${valor === 1 ? 'espaço' : 'espaços'}`;
-}
-
 export type ExcedentePilar = {
   id: string;
   nome: string;
@@ -111,7 +100,8 @@ function pilarDaSerie(serie: SerieConfig, ativos: ReadonlySet<string>): string |
 
 /**
  * Incompatibilidades da configuração, sem olhar a semana.
- * Distribuição fora de 100, séries acima do pilar, função com espaço sem série, rede ausente.
+ * Frequência de pilar e peso de série não viram aviso de capacidade.
+ * Rede ausente continua avisando.
  */
 export function checkEditorialConfig(input: EditorialConfigInput): ConfigNota[] {
   const notas: ConfigNota[] = [];
@@ -121,39 +111,6 @@ export function checkEditorialConfig(input: EditorialConfigInput): ConfigNota[] 
     notas.push({
       chave: 'distribuicao',
       mensagem: `A distribuição por função soma ${soma}. Ela fecha em 100.`,
-    });
-  }
-
-  const reterLegado = distribuicao?.reter;
-  if (typeof reterLegado === 'number' && reterLegado > 0) {
-    notas.push({
-      chave: 'distribuicao-reter',
-      mensagem: `Reter fica fora da grade; esses ${reterLegado}% não dividem espaços.`,
-    });
-  }
-
-  for (const excedente of excedentesDosPilares(input.pilares, input.series)) {
-    const capacidadeTexto = excedente.previsto > 0
-      ? `o pilar tem ${rotuloEspaco(excedente.previsto)}`
-      : 'o pilar não tem espaços';
-    notas.push({
-      chave: `pilar-capacidade:${excedente.id}`,
-      mensagem: `${excedente.nome}: as séries ocupam ${rotuloEspaco(excedente.ocupado)} por semana e ${capacidadeTexto}.`,
-    });
-  }
-
-  if (distribuicaoFecha(distribuicao)) {
-    const total = totalDaContagem(somaEspacosSemana(input.pilares));
-    const metas = distribuirEspacos(total, percentuaisNaOrdem(distribuicao));
-    const seriesAtivas = input.series.filter(serie => serie.ativa !== false);
-    FUNCOES_DA_GRADE.forEach((funcao, index) => {
-      if ((metas[index] ?? 0) <= 0) return;
-      const entrega = seriesAtivas.some(serie => serie.funcaoPadrao === funcao);
-      if (entrega) return;
-      notas.push({
-        chave: `funcao-sem-serie:${funcao}`,
-        mensagem: `${FUNCAO_LABELS[funcao]} tem espaço na grade e nenhuma série com essa função.`,
-      });
     });
   }
 

@@ -174,10 +174,10 @@ export function PlatformCopyEditor({
       platformId: activeDestino.nome,
       serie,
       pilar,
-      limite: hashtagLimit,
     }),
-    [activeDestino.nome, hashtagLimit, pilar, serie],
+    [activeDestino.nome, pilar, serie],
   );
+  const hashtagsAcimaDoAviso = hashtagTags.length > hashtagLimit;
   const legendaVisivel = legendaEfetiva(legendaBase, currentPlatform);
   const charCount = legendaVisivel.length;
   const redeNome = platformDisplayName(activeDestino.nome || activePlatform);
@@ -218,7 +218,7 @@ export function PlatformCopyEditor({
   };
 
   const setHashtags = (tags: string[]) => {
-    updatePlatform(activePlatform, {hashtags: joinHashtags(tags.slice(0, hashtagLimit))});
+    updatePlatform(activePlatform, {hashtags: joinHashtags(tags)});
   };
 
   const handleCopy = async (mode: 'legenda' | 'tudo') => {
@@ -235,7 +235,7 @@ export function PlatformCopyEditor({
   const addHashtag = (raw: string) => {
     const next = parseHashtags(raw);
     if (next.length === 0) return;
-    setHashtags(mergeHashtags(hashtagTags, next, hashtagLimit));
+    setHashtags(mergeHashtags(hashtagTags, next));
   };
 
   return (
@@ -366,15 +366,13 @@ export function PlatformCopyEditor({
                   <AppButton
                     size="xs"
                     variant="secondary"
-                    disabled={disabled || sugestaoHashtags.every(tag => hashtagTags.some(existing => existing.toLowerCase() === tag.toLowerCase())) || hashtagTags.length >= hashtagLimit}
+                    disabled={disabled || sugestaoHashtags.every(tag => hashtagTags.some(existing => existing.toLowerCase() === tag.toLowerCase()))}
                     aria-label={`Usar sugestão: ${sugestaoHashtags.join(' ')}`}
                     onClick={() => addHashtag(sugestaoHashtags.join(' '))}
                   >
                     {sugestaoHashtags.every(tag => hashtagTags.some(existing => existing.toLowerCase() === tag.toLowerCase()))
                       ? 'Já incluídas'
-                      : hashtagTags.length >= hashtagLimit
-                        ? `Limite de ${hashtagLimit}`
-                        : 'Usar sugestão'}
+                      : 'Usar sugestão'}
                   </AppButton>
                 </div>
               ) : serie || pilar ? (
@@ -395,20 +393,23 @@ export function PlatformCopyEditor({
                     onRemove={() => setHashtags(hashtagTags.filter(item => item !== tag))}
                   />
                 ))}
-                {hashtagTags.length < hashtagLimit ? (
-                  <HashtagInlineField
-                    disabled={disabled}
-                    onAdd={addHashtag}
-                  />
-                ) : null}
+                <HashtagInlineField
+                  disabled={disabled}
+                  onAdd={addHashtag}
+                />
               </div>
-              <div className="mt-3 flex items-center justify-between gap-2">
-                <p className="text-xs text-[var(--text-tertiary)]">
-                  Até {hashtagLimit} hashtags nesta rede.
-                </p>
-                <p className="text-xs font-semibold text-[var(--text-tertiary)]">
-                  {hashtagTags.length} / {hashtagLimit}
-                </p>
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+                {hashtagsAcimaDoAviso ? (
+                  <Text variant="meta" className="text-[var(--danger)]">
+                    {`Mais de ${hashtagLimit} hashtags.`}
+                  </Text>
+                ) : null}
+                <Text
+                  variant="meta"
+                  className={cn('ml-auto font-semibold', hashtagsAcimaDoAviso && 'text-[var(--danger)]')}
+                >
+                  {`${hashtagTags.length} de ${hashtagLimit}`}
+                </Text>
               </div>
             </div>
             ) : null}

@@ -738,13 +738,14 @@ function pilarQuotas(
   const porId = new Map(counts.pilares.map(linha => [linha.id, linha]));
   const janela = counts.gradePequena ? '4 sem' as const : null;
   return input.pilares
-    .filter(pilar => pilar.ativo && pilar.frequenciaSemanal != null)
-    .map(pilar => {
+    .filter(pilar => pilar.ativo)
+    .flatMap(pilar => {
       const linha = porId.get(pilar.id);
-      const target = linha?.meta ?? 0;
+      const target = linha?.meta;
+      if (typeof target !== 'number') return [];
       const count = linha?.planejado ?? 0;
       const tone = quotaTone(count, target);
-      return {
+      return [{
         key: `pilar-${pilar.id}`,
         kind: 'pilar' as const,
         id: pilar.id,
@@ -758,7 +759,7 @@ function pilarQuotas(
           tone === 'deficit'
             ? collectSlots(pilarSources(pilar, input.platforms), input.postingTimeEntries, input.weekStart, used, input.fallbackTimes).slice(0, 2)
             : [],
-      };
+      }];
     });
 }
 
@@ -766,10 +767,10 @@ function funcaoQuotas(counts: GradeCounts, mostrar: boolean): WeekRhythmQuota[] 
   if (!mostrar) return [];
   const janela = counts.gradePequena ? '4 sem' as const : null;
   return counts.funcoes
-    .filter(linha => linha.meta > 0 || linha.planejado > 0)
-    .map(linha => {
+    .flatMap(linha => {
+      if (typeof linha.meta !== 'number') return [];
       const id = linha.id as FuncaoEditorial;
-      return {
+      return [{
         key: `funcao-${linha.id}`,
         kind: 'funcao' as const,
         id: linha.id,
@@ -780,7 +781,7 @@ function funcaoQuotas(counts: GradeCounts, mostrar: boolean): WeekRhythmQuota[] 
         tone: quotaTone(linha.planejado, linha.meta),
         windowTag: janela,
         suggestions: [],
-      };
+      }];
     });
 }
 
@@ -868,6 +869,6 @@ export function previewScheduleViolations(
   platforms: Platform[] = [],
   series: Serie[] = [],
 ): Violation[] {
-  const weekStart = startOfWeek(parseISO(dayKey), {weekStartsOn: 1});
+  const weekStart = startOfWeek(parseISO(dayKey), {weekStartsOn: 0});
   return validateWeeklyContent(nextContents, weekStart, pilares, platforms, series);
 }

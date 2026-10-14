@@ -45,9 +45,7 @@ function testDistribuicaoForaDe100() {
   assert.equal(notas.some(nota => nota.chave === 'distribuicao' && nota.mensagem.includes('110')), true);
 }
 
-function testReterLegadoGeraAviso() {
-  // FECHADA já soma 100 nas 5 funções da grade; um reter > 0 salvo antes da
-  // Fase 4 não quebra a soma, mas gera um aviso próprio de dado legado.
+function testReterLegadoNaoGeraAvisoDeCapacidade() {
   const notas = checkEditorialConfig({
     pilares: [PILAR],
     series: [],
@@ -58,9 +56,7 @@ function testReterLegadoGeraAviso() {
     plataformas: [{ id: 'ig', ativo: true }],
   });
   assert.equal(notas.some(nota => nota.chave === 'distribuicao'), false);
-  const aviso = notas.find(nota => nota.chave === 'distribuicao-reter');
-  assert.ok(aviso);
-  assert.match(aviso.mensagem, /10%/);
+  assert.equal(notas.some(nota => nota.chave === 'distribuicao-reter'), false);
 }
 
 function testDistribuicaoVaziaNaoApontaSoma() {
@@ -73,7 +69,7 @@ function testDistribuicaoVaziaNaoApontaSoma() {
   assert.equal(notas.some(nota => nota.chave === 'distribuicao'), false);
 }
 
-function testSeriesAcimaDoPilar() {
+function testSeriesAcimaDoPilarNaoViraErroDeCapacidade() {
   const notas = checkEditorialConfig({
     pilares: [PILAR],
     series: [
@@ -86,10 +82,7 @@ function testSeriesAcimaDoPilar() {
     settings: { redeReferenciaId: 'ig', distribuicaoFuncoes: null },
     plataformas: [{ id: 'ig', ativo: true }],
   });
-  const nota = notas.find(item => item.chave === 'pilar-capacidade:pilar-1');
-  assert.ok(nota);
-  assert.match(nota.mensagem, /2,5 espaços por semana/);
-  assert.match(nota.mensagem, /o pilar tem 2 espaços/);
+  assert.equal(notas.some(item => item.chave.startsWith('pilar-capacidade')), false);
 }
 
 function testSeriesCabemNoPilar() {
@@ -107,7 +100,7 @@ function testSeriesCabemNoPilar() {
   assert.equal(notas.some(nota => nota.chave.startsWith('pilar-capacidade')), false);
 }
 
-function testFuncaoComEspacoSemSerie() {
+function testFuncaoComEspacoSemSerieNaoViraErro() {
   const notas = checkEditorialConfig({
     pilares: [{ id: 'pilar-1', nome: 'Literatura', ativo: true, frequenciaSemanal: 8 }],
     series: [
@@ -118,15 +111,8 @@ function testFuncaoComEspacoSemSerie() {
     settings: { redeReferenciaId: 'ig', distribuicaoFuncoes: FECHADA },
     plataformas: [{ id: 'ig', ativo: true }],
   });
-  const chaves = notas.map(nota => nota.chave);
-  assert.equal(chaves.includes('funcao-sem-serie:atrair'), false);
-  assert.equal(chaves.includes('funcao-sem-serie:converter'), true);
-  assert.equal(chaves.includes('funcao-sem-serie:aprofundar'), true);
-  assert.equal(chaves.includes('funcao-sem-serie:acao'), false);
-  assert.match(
-    notas.find(nota => nota.chave === 'funcao-sem-serie:converter')?.mensagem ?? '',
-    /Converter em seguidor/,
-  );
+  assert.equal(notas.some(nota => nota.chave.startsWith('funcao-sem-serie')), false);
+  assert.equal(notas.some(nota => nota.chave.startsWith('pilar-capacidade')), false);
 }
 
 function testRedeDeReferencia() {
@@ -173,7 +159,7 @@ function testSerieContaNoPilarPrincipal() {
     plataformas: [{ id: 'ig', ativo: true }],
   });
   assert.equal(notas.some(nota => nota.chave === 'pilar-capacidade:pilar-1'), false);
-  assert.equal(notas.some(nota => nota.chave === 'pilar-capacidade:pilar-2'), true);
+  assert.equal(notas.some(nota => nota.chave === 'pilar-capacidade:pilar-2'), false);
 }
 
 function testExcedentesDosPilares() {
@@ -196,11 +182,11 @@ function testExcedentesDosPilares() {
 
 testPesos();
 testDistribuicaoForaDe100();
-testReterLegadoGeraAviso();
+testReterLegadoNaoGeraAvisoDeCapacidade();
 testDistribuicaoVaziaNaoApontaSoma();
-testSeriesAcimaDoPilar();
+testSeriesAcimaDoPilarNaoViraErroDeCapacidade();
 testSeriesCabemNoPilar();
-testFuncaoComEspacoSemSerie();
+testFuncaoComEspacoSemSerieNaoViraErro();
 testRedeDeReferencia();
 testSerieContaNoPilarPrincipal();
 testExcedentesDosPilares();

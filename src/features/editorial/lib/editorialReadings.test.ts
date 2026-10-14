@@ -155,22 +155,18 @@ function testCotaDeFuncaoEstoqueEEvento() {
   }), settings, NOW);
 
   const semana = leiturasDaSemana(leituras);
-  assert.equal(
-    semana.find(leitura => leitura.chave === 'funcao:atrair')?.mensagem,
-    'Esta semana ainda cabem 5 de Atração',
-  );
-  assert.equal(semana.find(leitura => leitura.chave === 'funcao:atrair')?.acao.href, '/criacao?funcao=atrair');
-  assert.equal(semana.filter(leitura => leitura.destrava).length, 1);
-  assert.equal(semana.some(leitura => leitura.chave === 'funcao:converter'), false);
+  assert.equal(semana.some(leitura => leitura.chave.startsWith('funcao:')), false);
+  assert.equal(semana.some(leitura => leitura.chave === 'limite-semana'), false);
+  assert.equal(semana.filter(leitura => leitura.destrava).length, 0);
 
-  const soConversao = leiturasDaSemana(computeReadings(baseState({
-    pilares: [{ id: 'pilar-1', nome: 'Literatura', ativo: true, frequenciaSemanal: 8 }],
-    contents: [0, 1, 2, 3, 4, 5].map(index => conteudo({
-      id: `conv-${index}`,
-      funcao: 'converter',
-      funcaoOrigem: 'escolhida',
-      publishDate: '2026-10-06',
-    })),
+  const muitos = [0, 1, 2, 3, 4, 5].map(index => conteudo({
+    id: `conv-${index}`,
+    funcao: 'converter',
+    funcaoOrigem: 'escolhida',
+    publishDate: '2026-10-06',
+  }));
+  const semLimite = leiturasDaSemana(computeReadings(baseState({
+    contents: muitos,
   }), {
     ...settings,
     distribuicaoFuncoes: {
@@ -183,10 +179,34 @@ function testCotaDeFuncaoEstoqueEEvento() {
     },
     estoqueDesejado: null,
   }, NOW));
+  assert.equal(semLimite.some(leitura => leitura.chave === 'limite-semana'), false);
+  assert.equal(semLimite.some(leitura => leitura.chave.startsWith('funcao:')), false);
+
+  const comLimite = leiturasDaSemana(computeReadings(baseState({
+    contents: [
+      conteudo({ id: 'domingo', publishDate: '2026-10-04' }),
+      conteudo({ id: 'sabado', publishDate: '2026-10-10' }),
+      conteudo({ id: 'antes', publishDate: '2026-10-03' }),
+      conteudo({ id: 'depois', publishDate: '2026-10-11' }),
+    ],
+  }), {
+    ...settings,
+    estoqueDesejado: null,
+    preferencias: {
+      limiteSemanal: 1,
+      reservaForaSeriesSemanal: null,
+      redeReferenciaId: 'ig',
+      reservaProntos: null,
+      publicoLinguagem: '',
+      disponibilidade: '',
+      hashtagsForaSeries: '',
+    },
+  }, NOW));
   assert.equal(
-    soConversao.find(leitura => leitura.chave === 'funcao:converter')?.mensagem,
-    'Esta semana ainda cabem 2 de Conversão',
+    comLimite.find(leitura => leitura.chave === 'limite-semana')?.mensagem,
+    'Esta semana tem 2 e o limite é 1',
   );
+
   assert.equal(semana.some(leitura => leitura.chave === 'estoque'), true);
   assert.equal(
     semana.find(leitura => leitura.chave === 'evento:bienal')?.mensagem,
@@ -239,7 +259,7 @@ function testSerieEPausaENumeros() {
   const textos = semNumeros.map(leitura => leitura.mensagem).join(' ');
   assert.equal(/\d/.test(textos), false);
   assert.match(textos, /em breve/);
-  assert.match(textos, /espaço de Conversão/);
+  assert.equal(textos.includes('espaço de Conversão'), false);
 }
 
 function testHojeMostraTresEUmaDestrava() {

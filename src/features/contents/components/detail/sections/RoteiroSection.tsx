@@ -33,6 +33,10 @@ export type ScriptDraft = {
   funcaoOrigem: Content['funcaoOrigem'];
   classificacaoCongeladaEm: Content['classificacaoCongeladaEm'];
   contaNaGrade: Content['contaNaGrade'];
+  contaNaGradeOrigem?: Content['contaNaGradeOrigem'];
+  pilarOrigem?: Content['pilarOrigem'];
+  scriptOrigem?: Content['scriptOrigem'];
+  redeReferenciaCongeladaId?: Content['redeReferenciaCongeladaId'];
   script: string | null;
   scriptNotes: Content['scriptNotes'];
   referencias: string | null;

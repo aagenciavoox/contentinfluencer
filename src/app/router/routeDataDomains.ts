@@ -28,7 +28,9 @@ export function getRouteDataDomains(pathname: string): AppDataDomain[] {
   if (pathname.startsWith('/editorial')) return ['production', 'content', 'bootstrap', 'schedule'];
   if (pathname.startsWith('/configuracoes/pilares/')) return ['production', 'content', 'bootstrap'];
   if (pathname.startsWith('/configuracoes/pilares')) return ['production'];
-  if (pathname.startsWith('/series/')) return ['production', 'content', 'bootstrap', 'templates'];
+  if (pathname.startsWith('/series/') || pathname.startsWith('/configuracoes/series/')) {
+    return ['production', 'content', 'bootstrap', 'templates'];
+  }
   if (pathname === '/series') return ['production'];
   if (pathname.startsWith('/configuracoes/plataformas') || pathname.startsWith('/configuracoes/horarios')) {
     return ['bootstrap', 'schedule'];

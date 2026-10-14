@@ -1,8 +1,12 @@
 import type { Content, ContentPlataforma, FuncaoEditorial, Serie } from '../../../lib/database.ts';
 import { CONTENT_STATUS, normalizeContentStatus } from '../../contents/lib/contentPipeline.ts';
+import { contaNaGradeEfetiva, type ContaNaGradeOrigem } from './contaNaGradeOrigem.ts';
+import { type DestinoPlataforma, mesmoDestino, resolverRedeReferencia } from './destinations.ts';
 import { resolveFuncao } from './funcoes.ts';
 import { dataRealizada } from './markPublished.ts';
-import { type DestinoPlataforma, mesmoDestino, resolverRedeReferencia } from './destinations.ts';
+import { roteiroTemPauta } from './pautaConteudo.ts';
+import { pilarPrincipalDaSerie } from './pilarDaSerie.ts';
+import { referenciaPublicacao } from './referenciaPublicacao.ts';
 
 export type GradeEntry = {
   id: string;
@@ -16,9 +20,11 @@ export type GradeEntry = {
   funcao: FuncaoEditorial | null;
   realizada: boolean;
   realizadaEm: string | null;
+  /** Pauta do roteiro. O post-it ligado entra na contagem, não aqui. */
+  temPauta?: boolean;
 };
 
-/** A rede de referência vem das preferências. Sem ela, publicação em qualquer rede fica de fora. */
+/** A rede de referência vem das preferências. O espelho do topo continua valendo. */
 export type GradeEntrySettings = {
   redeReferenciaId: string | null;
 };
@@ -36,9 +42,14 @@ export type GradeContent = Pick<
   | 'publishDate'
   | 'plataformas'
   | 'deletedAt'
-> & Partial<Pick<Content, 'publishTime' | 'postedAt' | 'archivedAt'>>;
+> & Partial<Pick<Content, 'publishTime' | 'postedAt' | 'archivedAt' | 'formatoVisual' | 'script' | 'title'>> & {
+  redeReferenciaCongeladaId?: string | null;
+  scriptOrigem?: 'autor' | 'modelo' | string | null;
+  contaNaGradeOrigem?: ContaNaGradeOrigem | null;
+  pilarOrigem?: string | null;
+};
 
-export type GradeSerie = Pick<Serie, 'id' | 'funcaoPadrao'>;
+export type GradeSerie = Pick<Serie, 'id' | 'funcaoPadrao'> & Partial<Pick<Serie, 'pilarPrincipalId' | 'pilarIds'>>;
 
 function dia(value: string | null | undefined): string | null {
   if (!value) return null;
@@ -87,8 +98,10 @@ export function quandoDoItem(
     ?? plano;
 }
 
-function naReferencia(publicacao: ContentPlataforma, rede: DestinoPlataforma | null): boolean {
-  return rede != null && mesmoDestino(publicacao.platformId, rede);
+function naRede(platformId: string, redeId: string | null, platforms: readonly DestinoPlataforma[]): boolean {
+  if (!redeId) return false;
+  const rede = resolverRedeReferencia(redeId, platforms);
+  return rede != null && mesmoDestino(platformId, rede);
 }
 
 function ehRepost(publicacao: ContentPlataforma): boolean {
@@ -97,10 +110,10 @@ function ehRepost(publicacao: ContentPlataforma): boolean {
 
 /**
  * Entradas da grade, calculadas. Não há tabela de entradas.
- * Original: data da publicação na rede de referência, ou a do roteiro se essa rede não tiver data.
- * Roteiro só com publicações em outras redes é extra e não entra.
- * Roteiro sem nenhuma publicação usa a data do próprio roteiro.
- * Cada repost na rede de referência entra com a data dele e a classificação do original.
+ * Cada roteiro conta uma vez, na data da publicação de referência —
+ * mesmo quando essa publicação está fora da rede de base.
+ * Repost sai com tipo próprio para o calendário e não entra no limite.
+ * Sem publicação, a data do roteiro.
  */
 export function buildGradeEntries({
   contents,
@@ -115,42 +128,40 @@ export function buildGradeEntries({
   platforms?: readonly DestinoPlataforma[];
 }): GradeEntry[] {
   const seriePorId = new Map(series.map(serie => [serie.id, serie]));
-  const rede = resolverRedeReferencia(settings.redeReferenciaId, platforms);
   const entradas: GradeEntry[] = [];
 
   for (const content of contents) {
     if (content.deletedAt || content.archivedAt) continue;
 
-    const publicacoes = content.plataformas ?? [];
-    const daReferencia = publicacoes.filter(publicacao => naReferencia(publicacao, rede));
-    const extra = publicacoes.length > 0 && daReferencia.length === 0;
-    if (extra) continue;
-
     const serie = content.seriesId ? seriePorId.get(content.seriesId) : undefined;
     const resolvida = resolveFuncao(content, serie);
+    const contaNaGrade = contaNaGradeEfetiva({
+      contaNaGrade: content.contaNaGrade !== false,
+      contaNaGradeOrigem: content.contaNaGradeOrigem,
+      formato: content.formatoVisual,
+      funcao: resolvida.funcao,
+    });
     const classificacao = {
-      pilarId: content.pilarId ?? null,
+      pilarId: content.pilarId || pilarPrincipalDaSerie(serie),
       serieId: content.seriesId ?? null,
       funcao: resolvida.funcao,
-      contaNaGrade: content.contaNaGrade !== false,
+      contaNaGrade,
+      temPauta: roteiroTemPauta(content.scriptOrigem, content.script),
     };
 
-    const originalPub = daReferencia.find(publicacao => !ehRepost(publicacao)) ?? null;
-    const dataDaRede = originalPub ? dia(originalPub.publishDate) : null;
-    const realizada = originalPub
-      ? originalPub.status === 'publicada'
-      : normalizeContentStatus(content.status) === CONTENT_STATUS.POSTADO;
+    const ref = referenciaPublicacao(content, settings, platforms);
+    const realizada = ref.publicada
+      || normalizeContentStatus(content.status) === CONTENT_STATUS.POSTADO;
     const realizadaEmOriginal = realizada
-      ? (originalPub ? dataRealizada(originalPub) : content.postedAt ?? null)
+      ? (ref.publicacao ? dataRealizada(ref.publicacao) : content.postedAt ?? null)
       : null;
-    const planoOriginal: Quando = {
-      date: dataDaRede ?? dia(content.publishDate),
-      time: dataDaRede ? horaDe(originalPub?.publishTime) : horaDe(content.publishTime),
-    };
-    // Só a data real na rede entra como 1º critério; sem publicação, content.postedAt
-    // é só o 3º critério do quandoDoItem (dia em que virou Postado), nunca o 1º.
-    const realizadaNaRede = originalPub ? dataRealizada(originalPub) : null;
-    const quandoOriginal = quandoDoItem(content, planoOriginal, realizada, realizadaNaRede);
+    const planoOriginal: Quando = { date: ref.data, time: ref.hora };
+    const quandoOriginal = quandoDoItem(
+      content,
+      planoOriginal,
+      realizada,
+      ref.publicacao ? dataRealizada(ref.publicacao) : null,
+    );
 
     entradas.push({
       id: `${content.id}:original`,
@@ -163,8 +174,10 @@ export function buildGradeEntries({
       realizadaEm: realizadaEmOriginal,
     });
 
-    for (const publicacao of daReferencia) {
+    const publicacoes = content.plataformas ?? [];
+    for (const publicacao of publicacoes) {
       if (!ehRepost(publicacao)) continue;
+      if (!naRede(publicacao.platformId, ref.redeBaseId, platforms)) continue;
       const publicada = publicacao.status === 'publicada';
       const realizadaEmRepost = publicada ? dataRealizada(publicacao) : null;
       const planoRepost: Quando = { date: dia(publicacao.publishDate), time: horaDe(publicacao.publishTime) };

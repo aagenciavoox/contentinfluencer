@@ -70,6 +70,15 @@ export type FuncaoPadraoSerie = FuncaoEditorial | 'varia';
 /** De onde veio a função do roteiro. Vazio = ainda não escolhida. */
 export type FuncaoOrigem = 'herdada' | 'escolhida' | 'nenhuma' | 'aplicada' | 'migrada';
 
+/** De onde veio o pilar. `aplicada` não existe aqui. */
+export type PilarOrigem = 'herdada' | 'escolhida' | 'nenhuma';
+
+/** O roteiro ainda é o modelo da série, ou a pessoa já escreveu por cima. */
+export type ScriptOrigem = 'modelo' | 'autor';
+
+/** `regra` segue Stories/Live/reter. `manual` foi a pessoa que marcou. */
+export type ContaNaGradeOrigem = 'regra' | 'manual';
+
 export type EnergiaNivel = 'baixa' | 'média' | 'alta';
 
 export interface Serie {
@@ -86,6 +95,12 @@ export interface Serie {
   capaUrl: string | null;
   ativa: boolean;
   frequenciaRecomendada: string | null;
+  /** Quantas vezes a série entra no período. Ausente no banco antigo. */
+  frequenciaVezes?: number | null;
+  /** semana, mes ou outro texto livre. Ausente no banco antigo. */
+  frequenciaUnidade?: string | null;
+  /** Primeiro dia em que a frequência passa a valer. */
+  frequenciaAPartirDe?: string | null;
   /** Função herdada pelos roteiros que ainda não escolhem a própria. */
   funcaoPadrao: FuncaoPadraoSerie | null;
   /** Energia aplicada aos conteúdos criados a partir da série. */
@@ -270,6 +285,14 @@ export interface Content {
   classificacaoCongeladaEm: string | null;
   /** Quando falso, o roteiro fica de fora da grade. */
   contaNaGrade: boolean;
+  /** Por que conta ou não. Ausente no banco antigo. */
+  contaNaGradeOrigem?: ContaNaGradeOrigem | null;
+  /** Pilar veio da série, foi escolhido, ou a pessoa tirou. */
+  pilarOrigem?: PilarOrigem | null;
+  /** Modelo da série ou texto da pessoa. Não é análise do conteúdo. */
+  scriptOrigem?: ScriptOrigem | null;
+  /** Rede de referência no momento da primeira publicação. */
+  redeReferenciaCongeladaId?: string | null;
   /** Legenda compartilhada. Cada rede usa esta até adaptar a própria. */
   legendaBase?: string | null;
   publishDate: string | null;
@@ -417,6 +440,10 @@ export interface PlanejamentoPostIt {
   texto: string;
   date: string | null;
   contentId: string | null;
+  /** Série, pilar e função anotados antes de virar roteiro. */
+  serieId?: string | null;
+  pilarId?: string | null;
+  objetivo?: FuncaoEditorial | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -644,7 +671,19 @@ const SERIE_OPTIONAL_COLUMNS = [
   'formato_apresentacao',
   'motivo_salvar',
   'motivo_enviar',
+  'frequencia_vezes',
+  'frequencia_unidade',
+  'frequencia_a_partir_de',
 ] as const;
+
+const CONTENT_CONTAGEM_ORIGEM_COLUMNS = [
+  'rede_referencia_congelada_id',
+  'script_origem',
+  'conta_na_grade_origem',
+  'pilar_origem',
+] as const;
+
+const POSTIT_OPTIONAL_COLUMNS = ['serie_id', 'pilar_id', 'objetivo'] as const;
 
 function isMissingLegendaBaseColumn(error: {message?: string} | null | undefined) {
   return !!error?.message && isMissingNamedColumn(error.message, 'legenda_base');
@@ -659,6 +698,24 @@ function readLivroIds(row: Row): string[] {
     livroIds: Array.isArray(row.livro_ids) ? row.livro_ids.filter((id: unknown): id is string => typeof id === 'string') : undefined,
     bibliotecaItemId: typeof row.biblioteca_item_id === 'string' ? row.biblioteca_item_id : null,
   });
+}
+
+function isMissingContagemOrigemColumns(error: {message?: string} | null | undefined) {
+  const message = error?.message;
+  if (!message) return false;
+  return CONTENT_CONTAGEM_ORIGEM_COLUMNS.some(column => isMissingNamedColumn(message, column));
+}
+
+function readScriptOrigem(value: unknown): ScriptOrigem | null {
+  return value === 'modelo' || value === 'autor' ? value : null;
+}
+
+function readContaNaGradeOrigem(value: unknown): ContaNaGradeOrigem | null {
+  return value === 'regra' || value === 'manual' ? value : null;
+}
+
+function readPilarOrigem(value: unknown): PilarOrigem | null {
+  return value === 'herdada' || value === 'escolhida' || value === 'nenhuma' ? value : null;
 }
 
 function isMissingFuncaoColumns(error: {message?: string} | null | undefined) {
@@ -772,6 +829,13 @@ const mp = {
     estruturaRoteiro: r.estrutura_roteiro, bordao: r.bordao, cor: r.cor,
     capaUrl: r.capa_url || null,
     ativa: r.ativa ?? true, frequenciaRecomendada: r.frequencia_recomendada,
+    frequenciaVezes: typeof r.frequencia_vezes === 'number' ? r.frequencia_vezes : null,
+    frequenciaUnidade: typeof r.frequencia_unidade === 'string' && r.frequencia_unidade
+      ? r.frequencia_unidade
+      : null,
+    frequenciaAPartirDe: typeof r.frequencia_a_partir_de === 'string' && r.frequencia_a_partir_de
+      ? String(r.frequencia_a_partir_de).slice(0, 10)
+      : null,
     funcaoPadrao: readFuncaoPadrao(r.funcao_padrao),
     energiaPadrao: readEnergiaNivel(r.energia_padrao),
     pilarPrincipalId: typeof r.pilar_principal_id === 'string' && r.pilar_principal_id ? r.pilar_principal_id : null,
@@ -828,6 +892,12 @@ const mp = {
     funcaoOrigem: readFuncaoOrigem(r.funcao_origem),
     classificacaoCongeladaEm: r.classificacao_congelada_em ?? null,
     contaNaGrade: r.conta_na_grade === false ? false : true,
+    contaNaGradeOrigem: readContaNaGradeOrigem(r.conta_na_grade_origem),
+    pilarOrigem: readPilarOrigem(r.pilar_origem),
+    scriptOrigem: readScriptOrigem(r.script_origem),
+    redeReferenciaCongeladaId: typeof r.rede_referencia_congelada_id === 'string' && r.rede_referencia_congelada_id
+      ? r.rede_referencia_congelada_id
+      : null,
     legendaBase: typeof r.legenda_base === 'string' ? r.legenda_base : null,
     publishDate: r.publish_date, publishTime: r.publish_time, recordingDate: r.recording_date,
     recordingTime: typeof r.recording_time === 'string' ? r.recording_time : null,
@@ -894,6 +964,9 @@ const mp = {
     texto: r.texto ?? '',
     date: r.date ? String(r.date).slice(0, 10) : null,
     contentId: r.content_id ?? null,
+    serieId: typeof r.serie_id === 'string' && r.serie_id ? r.serie_id : null,
+    pilarId: typeof r.pilar_id === 'string' && r.pilar_id ? r.pilar_id : null,
+    objetivo: readFuncaoEditorial(r.objetivo),
     createdAt: r.created_at,
     updatedAt: r.updated_at ?? r.created_at,
   }),
@@ -1021,6 +1094,7 @@ function buildContentScheduleSelect(
   includeLegendaBase = true,
   includeLivroIds = true,
   includeRecordingTime = true,
+  includeContagemOrigem = true,
 ): string {
   let columns: readonly string[] = includeMilestones
     ? [
@@ -1050,6 +1124,10 @@ function buildContentScheduleSelect(
     const relation = columns[columns.length - 1];
     columns = [...columns.slice(0, -1), 'recording_time', relation];
   }
+  if (includeContagemOrigem) {
+    const relation = columns[columns.length - 1];
+    columns = [...columns.slice(0, -1), ...CONTENT_CONTAGEM_ORIGEM_COLUMNS, relation];
+  }
   if (includePublicacaoColumns) {
     columns = columns.map(column => (
       column.startsWith('content_plataformas(') ? contentPlataformasSelect(true) : column
@@ -1071,8 +1149,9 @@ async function runContentScheduleSelect<T>(
   let includeLegendaBase = true;
   let includeLivroIds = true;
   let includeRecordingTime = true;
+  let includeContagemOrigem = true;
 
-  for (let attempt = 0; attempt < 8; attempt += 1) {
+  for (let attempt = 0; attempt < 10; attempt += 1) {
     const result = await run(
       buildContentScheduleSelect(
         includeMilestones,
@@ -1082,9 +1161,14 @@ async function runContentScheduleSelect<T>(
         includeLegendaBase,
         includeLivroIds,
         includeRecordingTime,
+        includeContagemOrigem,
       ),
     );
     if (!result.error) return result;
+    if (includeContagemOrigem && isMissingContagemOrigemColumns(result.error)) {
+      includeContagemOrigem = false;
+      continue;
+    }
     if (includeRecordingTime && isMissingRecordingTimeColumn(result.error)) {
       includeRecordingTime = false;
       continue;
@@ -1116,7 +1200,7 @@ async function runContentScheduleSelect<T>(
     return result;
   }
 
-  return run(buildContentScheduleSelect(false, false, false, false, false, false, false));
+  return run(buildContentScheduleSelect(false, false, false, false, false, false, false, false));
 }
 const CONTENT_LIST_SORT_COLUMNS: Record<string, string> = {
   createdAt: 'created_at',
@@ -2025,8 +2109,11 @@ export async function saveSerie(serie: Omit<Serie, 'pilarIds' | 'plataformas' | 
     motivo_salvar: serie.motivoSalvar?.trim() || null,
     motivo_enviar: serie.motivoEnviar?.trim() || null,
   };
+  if ('frequenciaVezes' in serie) row.frequencia_vezes = serie.frequenciaVezes ?? null;
+  if ('frequenciaUnidade' in serie) row.frequencia_unidade = serie.frequenciaUnidade?.trim() || null;
+  if ('frequenciaAPartirDe' in serie) row.frequencia_a_partir_de = serie.frequenciaAPartirDe || null;
 
-  for (let attempt = 0; attempt < 8; attempt += 1) {
+  for (let attempt = 0; attempt < 12; attempt += 1) {
     const { error } = await supabase.from('series').upsert(row);
     if (!error) return;
 
@@ -2356,13 +2443,19 @@ export async function saveContent(
     classificacao_congelada_em: content.classificacaoCongeladaEm ?? null,
     conta_na_grade: content.contaNaGrade ?? true,
     legenda_base: content.legendaBase ?? null,
+    ...('contaNaGradeOrigem' in content ? {conta_na_grade_origem: content.contaNaGradeOrigem ?? null} : {}),
+    ...('pilarOrigem' in content ? {pilar_origem: content.pilarOrigem ?? null} : {}),
+    ...('scriptOrigem' in content ? {script_origem: content.scriptOrigem ?? null} : {}),
+    ...('redeReferenciaCongeladaId' in content
+      ? {rede_referencia_congelada_id: content.redeReferenciaCongeladaId ?? null}
+      : {}),
     ...(content.writingNotes !== undefined ? {writing_notes: content.writingNotes} : {}),
     archived_at: content.archivedAt ?? null,
     legacy_idea_id: content.legacyIdeaId ?? null,
     updated_at: new Date().toISOString(),
   };
 
-  for (let attempt = 0; attempt < 10; attempt += 1) {
+  for (let attempt = 0; attempt < 16; attempt += 1) {
     const {error} = await supabase.from('contents').upsert(row);
     if (!error) return;
 
@@ -2375,6 +2468,15 @@ export async function saveContent(
     if (isMissingLegendaBaseColumn(error) && 'legenda_base' in row) {
       const {legenda_base: _legendaBase, ...rowWithoutLegendaBase} = row;
       row = rowWithoutLegendaBase;
+      continue;
+    }
+
+    const missingContagem = CONTENT_CONTAGEM_ORIGEM_COLUMNS.find(column =>
+      column in row && !!error.message && isMissingNamedColumn(error.message, column),
+    );
+    if (missingContagem) {
+      const {[missingContagem]: _removed, ...rowWithoutContagem} = row;
+      row = rowWithoutContagem;
       continue;
     }
 
@@ -2767,15 +2869,30 @@ export async function deleteAgendaItem(id: string): Promise<void> {
 
 export async function savePlanejamentoPostIt(item: PlanejamentoPostIt): Promise<void> {
   if (!supabase) return;
-  const { error } = await supabase.from('planejamento_postits').upsert({
+  let row: Record<string, unknown> = {
     id: item.id,
     user_id: item.userId,
     texto: item.texto ?? '',
     date: item.date,
     content_id: item.contentId,
+    serie_id: item.serieId ?? null,
+    pilar_id: item.pilarId ?? null,
+    objetivo: item.objetivo ?? null,
     updated_at: item.updatedAt || new Date().toISOString(),
-  });
-  if (error) throw new Error(`planejamento_postits: ${error.message}`);
+  };
+
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    const {error} = await supabase.from('planejamento_postits').upsert(row);
+    if (!error) return;
+    const missing = POSTIT_OPTIONAL_COLUMNS.find(column =>
+      column in row && !!error.message && isMissingNamedColumn(error.message, column),
+    );
+    if (!missing) throw new Error(`planejamento_postits: ${error.message}`);
+    const {[missing]: _removed, ...rest} = row;
+    row = rest;
+  }
+
+  throw new Error('planejamento_postits: schema compatibility retries exhausted');
 }
 
 export async function deletePlanejamentoPostIt(id: string): Promise<void> {

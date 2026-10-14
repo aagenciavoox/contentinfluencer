@@ -75,15 +75,28 @@ function testPostItHerdadoContaNoPilarENaFuncao() {
     contents: [content],
   });
   assert.equal(counts.pilares[0]?.planejado, 1);
-  assert.equal(counts.pilares[0]?.meta, 9);
+  assert.equal(counts.pilares[0]?.meta, null);
+  assert.equal(counts.limite, null);
   assert.equal(counts.funcoes.find(linha => linha.id === 'atrair')?.planejado, 1);
 }
 
-function testPostItVazioNaoConta() {
-  const counts = saude({
-    postIts: [postIt({id: 'vazio', contentId: null, texto: 'nota'})],
+function testPostItVazioNaoTemPautaESemDataNaoEntra() {
+  const semData = saude({
+    postIts: [postIt({id: 'pilha', contentId: null, texto: 'nota', date: null})],
   });
-  assert.equal(counts.somaPlanejado, 0);
+  assert.equal(semData.previsto, 0);
+
+  const semPauta = saude({
+    postIts: [postIt({id: 'vazio', contentId: null, texto: 'Post-it vazio'})],
+  });
+  assert.equal(semPauta.previsto, 1);
+  assert.equal(semPauta.comPauta, 0);
+
+  const comNota = saude({
+    postIts: [postIt({id: 'nota', contentId: null, texto: 'nota'})],
+  });
+  assert.equal(comNota.previsto, 1);
+  assert.equal(comNota.comPauta, 1);
 }
 
 function testDataOficialContaQuandoNaoHaPostIt() {
@@ -170,7 +183,7 @@ function testSeriesDoPilarMostraQuantidadeEZero() {
 
 testPeriodoDoMes();
 testPostItHerdadoContaNoPilarENaFuncao();
-testPostItVazioNaoConta();
+testPostItVazioNaoTemPautaESemDataNaoEntra();
 testDataOficialContaQuandoNaoHaPostIt();
 testPostItNaoDuplicaOOriginalNoMesmoMes();
 function testTomDaSaude() {
@@ -181,7 +194,7 @@ function testTomDaSaude() {
   assert.equal(tomDaSaude(11, 10), 'passou');
 }
 
-function testExcessoQuandoOPilarJaFechou() {
+function testFrequenciaDoPilarNaoFechaOMes() {
   const cheio = {
     ...pilar,
     frequenciaSemanal: 1,
@@ -198,7 +211,7 @@ function testExcessoQuandoOPilarJaFechou() {
     seriesId: serie.id,
     publishDate: null,
   }, serie);
-  const lista = excessosAoAcrescentar({
+  const semLimite = excessosAoAcrescentar({
     content: extra,
     date: '2026-10-20',
     postIts: [],
@@ -207,8 +220,31 @@ function testExcessoQuandoOPilarJaFechou() {
     pilares: [cheio],
     settings: {redeReferenciaId: null, distribuicaoFuncoes: PERCENTUAIS},
   });
-  assert.equal(lista.length > 0, true);
-  assert.equal(lista[0]?.nome, 'Literatura');
+  assert.deepEqual(semLimite, []);
+
+  const lista = excessosAoAcrescentar({
+    content: extra,
+    date: '2026-10-20',
+    postIts: [],
+    contents: [...contents, extra],
+    series: [serie],
+    pilares: [cheio],
+    settings: {
+      redeReferenciaId: null,
+      distribuicaoFuncoes: PERCENTUAIS,
+      preferencias: {
+        limiteSemanal: 1,
+        reservaForaSeriesSemanal: null,
+        redeReferenciaId: null,
+        reservaProntos: null,
+        publicoLinguagem: '',
+        disponibilidade: '',
+        hashtagsForaSeries: '',
+      },
+    },
+  });
+  assert.equal(lista.length, 1);
+  assert.equal(lista[0]?.nome, 'Limite do período');
   assert.equal(lista[0]?.planejado, 5);
   assert.equal(lista[0]?.meta, 4);
 }
@@ -244,7 +280,7 @@ function testForaDaContaExplicaOQueNaoEntrou() {
   };
   const counts = {
     periodo: {inicio: '2026-10-01', fim: '2026-10-31'},
-    pilares: [{id: 'p1', rotulo: 'Literatura', planejado: 1, realizado: 0, meta: 5}],
+    pilares: [{id: 'p1', rotulo: 'Literatura', planejado: 1, realizado: 0, meta: 5, previsto: 1, comPauta: 0, publicado: 0}],
   };
   const fora = foraDaContaDoMes(counts, [
     {...base, id: 'a', data: '2026-10-07', contaNaGrade: true, pilarId: 'p1'},
@@ -253,11 +289,11 @@ function testForaDaContaExplicaOQueNaoEntrou() {
     {...base, id: 'd', data: '2026-10-12', contaNaGrade: true, pilarId: 'inativo'},
     {...base, id: 'e', data: '2026-10-13', contaNaGrade: false, pilarId: 'p1'},
     {...base, id: 'f', data: '2026-11-02', contaNaGrade: true, pilarId: null},
-  ], 2);
-  assert.deepEqual(fora, {semPilar: 2, foraDaGrade: 1, pilarSemEspaco: 1, outrasRedes: 2});
+  ], 0);
+  assert.deepEqual(fora, {semPilar: 0, foraDaGrade: 1, pilarSemEspaco: 0, outrasRedes: 0});
   assert.equal(
     textoForaDaConta(fora),
-    '6 itens com data neste mês não entram na conta: 2 sem pilar, 1 em pilar sem espaço por semana, 1 marcados fora da grade, 2 só em redes fora da rede de referência.',
+    '1 item com data neste mês não entra na conta: 1 marcados fora da grade.',
   );
   assert.equal(textoForaDaConta({semPilar: 0, foraDaGrade: 0, pilarSemEspaco: 0, outrasRedes: 0}), null);
 
@@ -277,14 +313,14 @@ function testForaDaContaExplicaOQueNaoEntrou() {
       settings: {redeReferenciaId: 'instagram'},
       periodo: {inicio: '2026-10-01', fim: '2026-10-31'},
     }),
-    1,
+    0,
   );
 }
 
 testPostItForaDoMesNaoConta();
 testSeriesDoPilarMostraQuantidadeEZero();
 testTomDaSaude();
-testExcessoQuandoOPilarJaFechou();
+testFrequenciaDoPilarNaoFechaOMes();
 testSemExcessoEnquantoAindaCabe();
 testForaDaContaExplicaOQueNaoEntrou();
 

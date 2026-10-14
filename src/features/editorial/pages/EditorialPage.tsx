@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Hash, Layers3, Palette, Plus, Settings2, SlidersHorizontal } from 'lucide-react';
+import { CalendarRange, Layers3, LayoutDashboard, Palette, Plus } from 'lucide-react';
 import { ConfirmModal } from '../../../components/feedback/modals/ConfirmModal';
 import { SettingsGridCard, SETTINGS_ENTITY_GRID_CLASS } from '../../../components/settings/SettingsGridCard';
 import { SettingsPageScaffold } from '../../../components/settings/SettingsPageScaffold';
@@ -12,63 +12,77 @@ import { Text } from '../../../components/ui/Text';
 import { useAppContext } from '../../../context/AppContext';
 import type { Pilar, Serie } from '../../../lib/database';
 import { CONFIRM, type ConfirmState } from '../../../lib/uiCopy';
-import { MobileToggleSwitch } from '../../../mobile/components/MobileToggleSwitch';
+import { PlanoPeriodoPanel } from '../components/plano/PlanoPeriodoPanel';
 import {
-  createEmptyPilarPlataforma,
-  resolvePlatformUuid,
-  shouldPersistPilarPlataforma,
-} from '../../settings/lib/pilarPostingSchedule';
-import { sortPilares } from '../../settings/lib/activePilares';
-import {
-  EDITORIAL_SETTINGS_PREFERENCE_KEY,
-  getEditorialSettings,
-  type EditorialSettings,
-} from '../lib/editorialSettings';
-import { rotuloFuncaoPadrao } from '../lib/funcoes';
-import { DistribuicaoFuncoesPanel } from '../components/DistribuicaoFuncoesPanel';
-import { NotasConfiguracaoEditorial } from '../components/NotasConfiguracaoEditorial';
+  periodoInicial,
+  useContagemDoPeriodo,
+  type PeriodoSelecionado,
+} from '../components/plano/PeriodoEditorialControl';
+import { VisaoGeralPanel } from '../components/plano/VisaoGeralPanel';
 import { LeiturasLista } from '../components/LeiturasLista';
+import { getEditorialSettings } from '../lib/editorialSettings';
+import { expectativaNoIntervalo, lerFrequencia } from '../lib/frequenciaSerie';
+import { rotuloFuncaoPadrao } from '../lib/funcoes';
+import type { GradeCounts } from '../lib/gradeCounts';
 import { computeReadingsFromApp, leiturasDoEditorial } from '../lib/editorialReadings';
-import { rotuloEspacos, somaEspacosSemana } from '../lib/distribuirEspacos';
-import { checkEditorialConfig } from '../lib/checkEditorialConfig';
 import { getSerieOpenItems } from '../lib/serieCompleteness';
-import { contarEstoque, textoEstoque } from '../lib/estoque';
-import { LIMITE_HASHTAGS_PADRAO } from '../lib/editorialSettings';
+import { sortPilares } from '../../settings/lib/activePilares';
 
-type EditorialTab = 'pilares' | 'series' | 'funil' | 'hashtags' | 'ajustes';
+type EditorialTab = 'pilares' | 'series' | 'visao' | 'plano';
 type SeriesFilter = 'todas' | 'ativas' | 'inativas' | 'abertas';
 
 const TABS: Array<{ id: EditorialTab; label: string }> = [
   { id: 'pilares', label: 'Pilares' },
   { id: 'series', label: 'Séries' },
-  { id: 'funil', label: 'Funil' },
-  { id: 'hashtags', label: 'Hashtags' },
-  { id: 'ajustes', label: 'Ajustes' },
+  { id: 'visao', label: 'Visão geral' },
+  { id: 'plano', label: 'Plano do período' },
 ];
 
+const TAB_ICONS = {
+  pilares: Palette,
+  series: Layers3,
+  visao: LayoutDashboard,
+  plano: CalendarRange,
+} satisfies Record<EditorialTab, typeof Palette>;
 
 function nomeChave(nome: string): string {
   return nome.trim().toLocaleLowerCase('pt-BR');
 }
 
-function isEditorialTab(value: string | null): value is EditorialTab {
-  return TABS.some(tab => tab.id === value);
+function abaPedida(value: string | null): EditorialTab {
+  if (value === 'pilares' || value === 'series' || value === 'visao' || value === 'plano') return value;
+  if (value === 'funil') return 'visao';
+  if (value === 'hashtags' || value === 'ajustes') return 'plano';
+  return 'pilares';
 }
 
-function PillarsPanel() {
+function contagemDoPilar(contagem: GradeCounts, pilarId: string): number {
+  return contagem.pilares.find(linha => linha.id === pilarId)?.previsto ?? 0;
+}
+
+function comparacaoDaSerie(
+  serie: Serie,
+  itens: GradeCounts['itens'],
+  inicio: string,
+  fim: string,
+): string {
+  const expectativa = expectativaNoIntervalo(lerFrequencia({
+    frequenciaRecomendada: serie.frequenciaRecomendada,
+    vezes: serie.frequenciaVezes,
+    unidade: serie.frequenciaUnidade,
+    aPartirDe: serie.frequenciaAPartirDe,
+  }), inicio, fim);
+  if (expectativa == null) return 'Quando houver pauta';
+  const contados = itens.filter(item => item.serieId === serie.id).length;
+  return `${contados} de ${expectativa} neste período`;
+}
+
+function PillarsPanel({ contagem }: { contagem: GradeCounts }) {
   const { state, dispatch } = useAppContext();
   const navigate = useNavigate();
   const [confirm, setConfirm] = useState<ConfirmState | null>(null);
   const pilares = useMemo(() => sortPilares(state.pilares), [state.pilares]);
-  const counts = useMemo(() => {
-    const result = new Map<string, number>();
-    state.contents.forEach(content => {
-      if (content.pilarId) result.set(content.pilarId, (result.get(content.pilarId) ?? 0) + 1);
-    });
-    return result;
-  }, [state.contents]);
 
-  // Dois pilares com o mesmo nome (um ativo, outro inativo) passavam despercebidos.
   const nomesRepetidos = useMemo(() => {
     const result = new Map<string, number>();
     pilares.forEach(pilar => {
@@ -88,9 +102,8 @@ function PillarsPanel() {
   return (
     <>
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-        <Text variant="secondary">
-          Organize os temas, o ritmo editorial e a publicação por plataforma.
-          Total da semana, pilares ativos: {rotuloEspacos(somaEspacosSemana(pilares))}.
+        <Text variant="secondary" className="max-w-xl">
+          Organize os assuntos que fazem parte do perfil. As quantidades são calculadas a partir do que foi previsto e planejado.
         </Text>
         <AppButton
           variant="primary"
@@ -110,7 +123,7 @@ function PillarsPanel() {
       ) : (
         <div className={SETTINGS_ENTITY_GRID_CLASS}>
           {pilares.map(pilar => {
-            const count = counts.get(pilar.id) ?? 0;
+            const count = contagemDoPilar(contagem, pilar.id);
             const nomeRepetido = (nomesRepetidos.get(nomeChave(pilar.nome)) ?? 0) > 1;
             return (
               <SettingsGridCard
@@ -133,13 +146,12 @@ function PillarsPanel() {
                         </Badge>
                       </span>
                     ) : null}
-                    <Badge>{count} roteiro{count === 1 ? '' : 's'}</Badge>
+                    <Badge>{count} neste período</Badge>
                     <Badge>
                       {pilar.plataformas.length === 0
                         ? 'Sem redes'
                         : `${pilar.plataformas.length} ${pilar.plataformas.length === 1 ? 'rede' : 'redes'}`}
                     </Badge>
-                    <Badge>{pilar.frequenciaSemanal == null ? 'Sem espaços' : `${rotuloEspacos(pilar.frequenciaSemanal)}/sem`}</Badge>
                   </>
                 }
               />
@@ -162,7 +174,15 @@ function PillarsPanel() {
   );
 }
 
-function SeriesPanel() {
+function SeriesPanel({
+  contagem,
+  inicio,
+  fim,
+}: {
+  contagem: GradeCounts;
+  inicio: string;
+  fim: string;
+}) {
   const { state, dispatch } = useAppContext();
   const navigate = useNavigate();
   const [filter, setFilter] = useState<SeriesFilter>('todas');
@@ -219,13 +239,18 @@ function SeriesPanel() {
             { id: 'abertas', label: `Em aberto ${counts.abertas}` },
           ]}
         />
-        <AppButton
-          variant="primary"
-          leftIcon={<Plus className="h-4 w-4" />}
-          onClick={() => navigate('/editorial/series/nova')}
-        >
-          Nova série
-        </AppButton>
+        <div className="flex flex-wrap gap-2">
+          <AppButton variant="secondary" onClick={() => navigate('/series')}>
+            Criação em massa
+          </AppButton>
+          <AppButton
+            variant="primary"
+            leftIcon={<Plus className="h-4 w-4" />}
+            onClick={() => navigate('/editorial/series/nova')}
+          >
+            Nova série
+          </AppButton>
+        </div>
       </div>
       {filtered.length === 0 ? (
         <Surface className="text-center">
@@ -243,7 +268,6 @@ function SeriesPanel() {
                 key={serie.id}
                 compact
                 title={serie.name}
-                description={serie.estruturaRoteiro || undefined}
                 color={serie.cor || undefined}
                 imageUrl={serie.capaUrl}
                 active={serie.ativa}
@@ -261,7 +285,14 @@ function SeriesPanel() {
                 badges={settings.openInfoNotices && items.length > 0
                   ? <Badge variant="neutral">Em aberto · {items.length}</Badge>
                   : undefined}
-              />
+              >
+                <div className="stack-sm mt-1">
+                  {serie.estruturaRoteiro ? (
+                    <Text variant="secondary" className="line-clamp-2">{serie.estruturaRoteiro}</Text>
+                  ) : null}
+                  <Text variant="meta" as="p">{comparacaoDaSerie(serie, contagem.itens, inicio, fim)}</Text>
+                </div>
+              </SettingsGridCard>
             );
           })}
         </div>
@@ -281,348 +312,11 @@ function SeriesPanel() {
   );
 }
 
-function notasDaConfiguracao(state: ReturnType<typeof useAppContext>['state']) {
-  const settings = getEditorialSettings(state.preferences);
-  return checkEditorialConfig({
-    pilares: state.pilares,
-    series: state.series,
-    settings,
-    plataformas: state.platforms,
-  });
-}
-
-function FunnelPanel() {
-  const { state, dispatch } = useAppContext();
-  const navigate = useNavigate();
-  const settings = getEditorialSettings(state.preferences);
-  const update = (patch: Partial<EditorialSettings>) => dispatch({
-    type: 'SET_PREFERENCE',
-    payload: {
-      key: EDITORIAL_SETTINGS_PREFERENCE_KEY,
-      value: { ...settings, ...patch },
-    },
-  });
-
-  return (
-    <DistribuicaoFuncoesPanel
-      pilares={state.pilares}
-      series={state.series}
-      settings={settings}
-      plataformas={state.platforms}
-      onOpenSerie={serieId => navigate(`/editorial/series/${serieId}`)}
-      onOpenPilares={() => navigate('/editorial?aba=pilares')}
-      onChange={distribuicaoFuncoes => update({ distribuicaoFuncoes })}
-      onChangeRede={redeReferenciaId => update({ redeReferenciaId })}
-    />
-  );
-}
-
-function HashtagsPanel() {
-  const { state, dispatch } = useAppContext();
-  const activePlatforms = state.platforms.filter(platform => platform.ativo);
-  const [platformId, setPlatformId] = useState(activePlatforms[0]?.id ?? '');
-  const platform = activePlatforms.find(item => item.id === platformId) ?? activePlatforms[0];
-  const [drafts, setDrafts] = useState<Record<string, string>>({});
-
-  const readPilarValue = (pilar: Pilar) => {
-    if (!platform) return '';
-    return pilar.plataformas.find(item => resolvePlatformUuid(state.platforms, item.platformId) === platform.id)?.hashtags ?? '';
-  };
-  const readSerieValue = (serie: Serie) => {
-    if (!platform) return '';
-    return serie.plataformas.find(item => item.platformId === platform.id || item.platformId === platform.nome)?.hashtags ?? '';
-  };
-  const draftKey = (kind: 'pilar' | 'serie', id: string) => `${platform?.id ?? ''}:${kind}:${id}`;
-  const draftValue = (kind: 'pilar' | 'serie', id: string, stored: string) =>
-    drafts[draftKey(kind, id)] ?? stored;
-
-  const save = () => {
-    if (!platform) return;
-    state.pilares.filter(item => item.ativo).forEach(pilar => {
-      const key = draftKey('pilar', pilar.id);
-      if (!(key in drafts)) return;
-      const existingIndex = pilar.plataformas.findIndex(
-        item => resolvePlatformUuid(state.platforms, item.platformId) === platform.id,
-      );
-      const current = existingIndex >= 0
-        ? pilar.plataformas[existingIndex]
-        : createEmptyPilarPlataforma(pilar.id, platform.nome);
-      const next = { ...current, hashtags: drafts[key].trim() };
-      const plataformas = [...pilar.plataformas];
-      if (existingIndex >= 0) plataformas.splice(existingIndex, 1);
-      if (shouldPersistPilarPlataforma(next)) plataformas.push(next);
-      dispatch({
-        type: 'UPDATE_PILAR',
-        payload: { ...pilar, plataformas, updatedAt: new Date().toISOString() },
-      });
-    });
-    state.series.filter(item => item.ativa).forEach(serie => {
-      const key = draftKey('serie', serie.id);
-      if (!(key in drafts)) return;
-      const plataformas = serie.plataformas.filter(
-        item => item.platformId !== platform.id && item.platformId !== platform.nome,
-      );
-      const hashtags = drafts[key].trim();
-      if (hashtags) plataformas.push({ serieId: serie.id, platformId: platform.nome, hashtags });
-      dispatch({
-        type: 'UPDATE_SERIE',
-        payload: { ...serie, plataformas, updatedAt: new Date().toISOString() },
-      });
-    });
-    const prefix = `${platform.id}:`;
-    setDrafts(current => Object.fromEntries(
-      Object.entries(current).filter(([key]) => !key.startsWith(prefix)),
-    ));
-  };
-
-  if (activePlatforms.length === 0) {
-    return (
-      <Surface className="text-center">
-        <Text variant="sectionTitle">Nenhuma plataforma ativa</Text>
-        <Text variant="secondary" className="mt-1">
-          Ative uma plataforma em Configurações para editar hashtags.
-        </Text>
-      </Surface>
-    );
-  }
-
-  const limiteSalvo = platform
-    ? getEditorialSettings(state.preferences).limitesHashtags[platform.id]
-    : undefined;
-
-  const salvarLimite = (value: string) => {
-    if (!platform) return;
-    const settings = getEditorialSettings(state.preferences);
-    const digits = value.replace(/\D/g, '').slice(0, 2);
-    const next = { ...settings.limitesHashtags };
-    if (!digits) {
-      delete next[platform.id];
-    } else {
-      const numero = Math.min(30, Math.max(1, Number.parseInt(digits, 10)));
-      next[platform.id] = numero;
-    }
-    dispatch({
-      type: 'SET_PREFERENCE',
-      payload: {
-        key: EDITORIAL_SETTINGS_PREFERENCE_KEY,
-        value: { ...settings, limitesHashtags: next },
-      },
-    });
-  };
-
-  return (
-    <div className="stack-lg">
-      <div className="max-w-full overflow-x-auto">
-        <SegmentTabs
-          value={platform?.id ?? ''}
-          onChange={setPlatformId}
-          className="w-max min-w-full"
-          options={activePlatforms.map(item => ({ id: item.id, label: item.nome }))}
-        />
-      </div>
-      <Surface>
-        <Text variant="bodyStrong">Limite nesta rede</Text>
-        <Text variant="secondary" className="mt-1">
-          A sugestão corta neste número. Vazio usa {LIMITE_HASHTAGS_PADRAO}.
-        </Text>
-        <input
-          type="text"
-          inputMode="numeric"
-          aria-label={`Limite de hashtags em ${platform?.nome ?? 'rede'}`}
-          placeholder={String(LIMITE_HASHTAGS_PADRAO)}
-          value={limiteSalvo == null ? '' : String(limiteSalvo)}
-          onChange={event => salvarLimite(event.target.value)}
-          className="mt-3 min-h-11 w-full max-w-xs rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]"
-        />
-      </Surface>
-      <Surface>
-        <Text variant="sectionTitle">Pilares ativos</Text>
-        <div className="mt-3 stack-md">
-          {state.pilares.filter(item => item.ativo).map(pilar => (
-            <label key={pilar.id} className="grid gap-2 sm:grid-cols-[minmax(10rem,1fr)_2fr] sm:items-center">
-              <Text variant="bodyStrong">{pilar.nome}</Text>
-              <input
-                value={draftValue('pilar', pilar.id, readPilarValue(pilar))}
-                onChange={event => setDrafts(current => ({ ...current, [draftKey('pilar', pilar.id)]: event.target.value }))}
-                placeholder="#hashtag1 #hashtag2"
-                className="w-full rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-3 py-2 text-[var(--text-primary)]"
-              />
-            </label>
-          ))}
-        </div>
-      </Surface>
-      <Surface>
-        <Text variant="sectionTitle">Séries ativas</Text>
-        <div className="mt-3 stack-md">
-          {state.series.filter(item => item.ativa).map(serie => (
-            <label key={serie.id} className="grid gap-2 sm:grid-cols-[minmax(10rem,1fr)_2fr] sm:items-center">
-              <Text variant="bodyStrong">{serie.name}</Text>
-              <input
-                value={draftValue('serie', serie.id, readSerieValue(serie))}
-                onChange={event => setDrafts(current => ({ ...current, [draftKey('serie', serie.id)]: event.target.value }))}
-                placeholder="#hashtag1 #hashtag2"
-                className="w-full rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-3 py-2 text-[var(--text-primary)]"
-              />
-            </label>
-          ))}
-        </div>
-      </Surface>
-      <div className="sticky bottom-0 z-20 flex justify-end border-t border-[var(--border-color)] bg-[var(--bg-primary)] py-3">
-        <AppButton
-          variant="primary"
-          onClick={save}
-          disabled={!Object.keys(drafts).some(key => key.startsWith(`${platform?.id ?? ''}:`))}
-        >
-          Salvar alterações
-        </AppButton>
-      </div>
-    </div>
-  );
-}
-
-function SettingsPanel() {
-  const { state, dispatch } = useAppContext();
-  const settings = getEditorialSettings(state.preferences);
-  const estoque = contarEstoque(state.contents);
-  const update = (patch: Partial<EditorialSettings>) => dispatch({
-    type: 'SET_PREFERENCE',
-    payload: {
-      key: EDITORIAL_SETTINGS_PREFERENCE_KEY,
-      value: { ...settings, ...patch },
-    },
-  });
-  const rows = [
-    {
-      key: 'quickSeriesCreate',
-      title: 'Criação rápida de série',
-      description: 'Na tela Séries, criar uma série só com nome e cor e completar aqui depois.',
-      enabled: settings.quickSeriesCreate,
-      toggle: () => update({ quickSeriesCreate: !settings.quickSeriesCreate }),
-    },
-    {
-      key: 'openInfoNotices',
-      title: 'Avisos de informações em aberto',
-      description: 'Mostrar quando uma série ainda não tem pilar, função, recorrência, formato ou esforço.',
-      enabled: settings.openInfoNotices,
-      toggle: () => update({ openInfoNotices: !settings.openInfoNotices }),
-    },
-  ] as const;
-
-  const notas = notasDaConfiguracao(state);
-  const leiturasSerie = useMemo(
-    () => leiturasDoEditorial(computeReadingsFromApp(state)),
-    [state],
-  );
-  const ativas = state.platforms.filter(platform => platform.ativo);
-  const referenciaAtual = state.platforms.find(platform => platform.id === settings.redeReferenciaId);
-  const opcoesReferencia = referenciaAtual && !ativas.some(platform => platform.id === referenciaAtual.id)
-    ? [referenciaAtual, ...ativas]
-    : ativas;
-
-  return (
-    <div className="grid gap-3 sm:grid-cols-2">
-      {notas.length > 0 ? (
-        <div className="sm:col-span-2">
-          <NotasConfiguracaoEditorial notas={notas} />
-        </div>
-      ) : null}
-      {leiturasSerie.length > 0 ? (
-        <div className="sm:col-span-2">
-          <LeiturasLista leituras={leiturasSerie} />
-        </div>
-      ) : null}
-      {rows.map(row => (
-        <Surface key={row.key} className="flex items-center justify-between gap-4">
-          <div>
-            <Text variant="bodyStrong">{row.title}</Text>
-            <Text variant="secondary" className="mt-1">{row.description}</Text>
-          </div>
-          <MobileToggleSwitch enabled={row.enabled} onToggle={row.toggle} label={row.title} />
-        </Surface>
-      ))}
-      <Surface className="grid gap-4 sm:col-span-2">
-        <div>
-          <Text variant="bodyStrong">Rede de referência</Text>
-          <Text variant="secondary" className="mt-1">
-            A grade lê a data desta rede. O que sai só em outra rede aparece como extra.
-          </Text>
-          <select
-            value={settings.redeReferenciaId ?? ''}
-            onChange={event => update({ redeReferenciaId: event.target.value || null })}
-            className="mt-3 min-h-11 w-full rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-3 text-sm text-[var(--text-primary)]"
-          >
-            <option value="">Nenhuma</option>
-            {opcoesReferencia.map(platform => (
-              <option key={platform.id} value={platform.id}>{platform.nome}</option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <Text variant="bodyStrong">Destinos padrão</Text>
-          <Text variant="secondary" className="mt-1">
-            Roteiros novos já nascem com estas redes marcadas.
-          </Text>
-          <div className="mt-3 flex flex-wrap gap-2" role="group" aria-label="Destinos padrão">
-            {ativas.map(platform => {
-              const marcado = settings.destinosPadrao.includes(platform.id);
-              return (
-                <button
-                  key={platform.id}
-                  type="button"
-                  aria-pressed={marcado}
-                  onClick={() => update({
-                    destinosPadrao: marcado
-                      ? settings.destinosPadrao.filter(id => id !== platform.id)
-                      : [...settings.destinosPadrao, platform.id],
-                  })}
-                  className={marcado
-                    ? 'inline-flex min-h-11 items-center rounded-[var(--radius-input)] border border-[var(--accent)] bg-[var(--accent)] px-3 text-sm font-medium text-[var(--bg-primary)]'
-                    : 'inline-flex min-h-11 items-center rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-3 text-sm font-medium text-[var(--text-secondary)]'}
-                >
-                  {platform.nome}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      </Surface>
-      <Surface className="grid gap-3 sm:col-span-2">
-        <div>
-          <Text variant="bodyStrong">Estoque desejado</Text>
-          <Text variant="secondary" className="mt-1">
-            Vídeos gravados que entram na grade e estão prontos para postar.
-          </Text>
-        </div>
-        <Text variant="bodyStrong">{textoEstoque(estoque, settings.estoqueDesejado)}</Text>
-        <input
-          type="text"
-          inputMode="numeric"
-          placeholder="7"
-          aria-label="Estoque desejado"
-          value={settings.estoqueDesejado == null ? '' : String(settings.estoqueDesejado)}
-          onChange={event => {
-            const digits = event.target.value.replace(/\D/g, '').slice(0, 4);
-            update({ estoqueDesejado: digits ? Number.parseInt(digits, 10) : null });
-          }}
-          className="min-h-11 w-full max-w-xs rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]"
-        />
-      </Surface>
-    </div>
-  );
-}
-
-const TAB_ICONS = {
-  pilares: Palette,
-  series: Layers3,
-  funil: SlidersHorizontal,
-  hashtags: Hash,
-  ajustes: Settings2,
-} satisfies Record<EditorialTab, typeof Palette>;
-
 export function EditorialPage() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const requestedTab = searchParams.get('aba');
-  const tab: EditorialTab = isEditorialTab(requestedTab) ? requestedTab : 'pilares';
+  const [periodo, setPeriodo] = useState<PeriodoSelecionado>(() => periodoInicial());
+  const contagem = useContagemDoPeriodo(periodo.inicio, periodo.fim);
+  const tab = abaPedida(searchParams.get('aba'));
   const Icon = TAB_ICONS[tab];
 
   const changeTab = (next: EditorialTab) => {
@@ -649,11 +343,21 @@ export function EditorialPage() {
         </div>
       }
     >
-      {tab === 'pilares' ? <PillarsPanel /> : null}
-      {tab === 'series' ? <SeriesPanel /> : null}
-      {tab === 'funil' ? <FunnelPanel /> : null}
-      {tab === 'hashtags' ? <HashtagsPanel /> : null}
-      {tab === 'ajustes' ? <SettingsPanel /> : null}
+      {tab === 'pilares' ? <PillarsPanel contagem={contagem} /> : null}
+      {tab === 'series' ? (
+        <SeriesPanel contagem={contagem} inicio={periodo.inicio} fim={periodo.fim} />
+      ) : null}
+      {tab === 'visao' ? (
+        <VisaoGeralPanel
+          periodo={periodo}
+          onPeriodoChange={setPeriodo}
+          contagem={contagem}
+          onAbrirPlano={() => changeTab('plano')}
+        />
+      ) : null}
+      {tab === 'plano' ? (
+        <PlanoPeriodoPanel periodo={periodo} onPeriodoChange={setPeriodo} />
+      ) : null}
     </SettingsPageScaffold>
   );
 }

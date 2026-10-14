@@ -191,7 +191,6 @@ function CaptionGridRow({
         platformId: platform,
         serie,
         pilar,
-        limite: limiteHashtagsDaRede(editorial, platform, platform),
       });
       if (tags.length === 0) continue;
       const record = next.find(item => item.platformId === platform);
@@ -202,7 +201,7 @@ function CaptionGridRow({
 
     pulledRef.current = true;
     if (changed) void commit(next);
-  }, [commit, content.id, content.pilarId, content.seriesId, editorial, isFocused, pilar, plataformas, platforms, serie]);
+  }, [commit, content.id, content.pilarId, content.seriesId, isFocused, pilar, plataformas, platforms, serie]);
 
   const updatePlatform = (platformId: string, patch: Partial<ContentPlataforma>) => {
     update(mergePlatform(plataformas, content.id, platformId, patch));
@@ -286,6 +285,9 @@ function CaptionGridRow({
         const record = plataformas.find(item => item.platformId === platform);
         const legenda = record?.legenda ?? '';
         const hashtags = record?.hashtags ?? '';
+        const hashtagCount = parseHashtags(hashtags).length;
+        const hashtagLimit = limiteHashtagsDaRede(editorial, platform, platform);
+        const hashtagsOver = hashtagCount > hashtagLimit;
         const limit = CHAR_LIMITS[platformKey(platform)];
         const overLimit = Boolean(limit && legenda.length > limit);
         const canCopy = Boolean(record && formatCaptionBlock(record));
@@ -317,11 +319,23 @@ function CaptionGridRow({
               hashtags={hashtags}
               serie={serie}
               pilar={pilar}
-              limite={limiteHashtagsDaRede(editorial, platform, platform)}
               onPull={tags => void persist(mergePlatform(plataformas, content.id, platform, {
-                hashtags: joinHashtags(mergeHashtags(parseHashtags(hashtags), tags, limiteHashtagsDaRede(editorial, platform, platform))),
+                hashtags: joinHashtags(mergeHashtags(parseHashtags(hashtags), tags)),
               }))}
             />
+            <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+              {hashtagsOver ? (
+                <Text variant="meta" className="text-[var(--danger)]">
+                  {`Mais de ${hashtagLimit} hashtags.`}
+                </Text>
+              ) : null}
+              <Text
+                variant="meta"
+                className={cn('ml-auto font-semibold', hashtagsOver && 'text-[var(--danger)]')}
+              >
+                {`${hashtagCount} de ${hashtagLimit}`}
+              </Text>
+            </div>
             <div className="mt-2 flex items-center justify-between gap-2">
               <div className="flex min-w-0 flex-wrap items-center gap-2">
                 <Text variant="meta" className={overLimit ? 'text-[var(--danger)]' : undefined}>
@@ -362,7 +376,6 @@ function CaptionHashtagSources({
   hashtags,
   serie,
   pilar,
-  limite,
   readOnly = false,
   onPull,
 }: {
@@ -370,11 +383,10 @@ function CaptionHashtagSources({
   hashtags: string;
   serie: Serie | null;
   pilar: Pilar | null;
-  limite: number;
   readOnly?: boolean;
   onPull: (tags: string[]) => void;
 }) {
-  const sugestao = suggestHashtags({ platformId: platform, serie, pilar, limite });
+  const sugestao = suggestHashtags({ platformId: platform, serie, pilar });
   if (sugestao.length === 0) return null;
 
   const missing = missingPresetTags(sugestao, hashtags);

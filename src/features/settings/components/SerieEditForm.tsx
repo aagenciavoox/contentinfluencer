@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { format } from 'date-fns';
 import {
   ChevronDown,
   Copy,
@@ -25,12 +26,47 @@ import {
   FORMATO_APRESENTACAO_SUGESTOES,
   FREQUENCIAS_SERIE,
 } from '../../editorial/lib/editorialOptions';
+import { expectativaNoIntervalo, lerFrequencia } from '../../editorial/lib/frequenciaSerie';
+import { semanaDe } from '../../editorial/lib/periodoEditorial';
 import { pilarPrincipalDaSerie } from '../../editorial/lib/pilarDaSerie';
 import { getSerieOpenItems } from '../../editorial/lib/serieCompleteness';
 import type { FuncaoPadraoSerie } from '../../../lib/database';
 import { FUNCAO_DESCRICOES, FUNCAO_LABELS, FUNCOES } from '../../editorial/lib/funcoes';
 
 const SERIE_DEFAULT_COR = '#6366f1';
+
+const UNIDADES_FREQUENCIA = [
+  { value: 'semana', label: 'Semana' },
+  { value: 'quinzena', label: 'Quinzena' },
+  { value: 'mes', label: 'Mês' },
+] as const;
+
+function escolhaSobDemanda(value: string): boolean {
+  return value
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '') === 'sob demanda';
+}
+
+function diaFrequencia(value: string | null | undefined): string {
+  const candidato = value?.trim().slice(0, 10) ?? '';
+  return /^\d{4}-\d{2}-\d{2}$/.test(candidato) ? candidato : '';
+}
+
+function parseVezes(raw: string): number | null {
+  if (!raw.trim()) return null;
+  if (!/^\d+$/.test(raw.trim())) return null;
+  return Number(raw.trim());
+}
+
+function opcoesFrequencia(atual: string): string[] {
+  const valor = atual.trim();
+  if (!valor || (FREQUENCIAS_SERIE as readonly string[]).includes(valor)) {
+    return [...FREQUENCIAS_SERIE];
+  }
+  return [valor, ...FREQUENCIAS_SERIE];
+}
 
 const FUNCAO_OPTIONS: Array<{ value: FuncaoPadraoSerie; label: string; description: string }> = [
   ...FUNCOES.map(value => ({
@@ -281,6 +317,9 @@ export function SerieEditForm({
       capaUrl: initial.capaUrl || '',
       ativa: initial.ativa ?? true,
       frequenciaRecomendada: initial.frequenciaRecomendada || '',
+      frequenciaVezes: initial.frequenciaVezes ?? null,
+      frequenciaUnidade: initial.frequenciaUnidade?.trim() || '',
+      frequenciaAPartirDe: diaFrequencia(initial.frequenciaAPartirDe),
       funcaoPadrao: initial.funcaoPadrao || null,
       energiaPadrao: initial.energiaPadrao || null,
       pilarPrincipalId: pilarPrincipalDaSerie(initial),
@@ -301,6 +340,9 @@ export function SerieEditForm({
     if (form.capaUrl !== snap.form.capaUrl) return true;
     if (form.estruturaRoteiro !== snap.form.estruturaRoteiro) return true;
     if (form.frequenciaRecomendada !== snap.form.frequenciaRecomendada) return true;
+    if (form.frequenciaVezes !== snap.form.frequenciaVezes) return true;
+    if (form.frequenciaUnidade !== snap.form.frequenciaUnidade) return true;
+    if (form.frequenciaAPartirDe !== snap.form.frequenciaAPartirDe) return true;
     if (form.formatoVisualPadrao !== snap.form.formatoVisualPadrao) return true;
     if (form.funcaoPadrao !== snap.form.funcaoPadrao) return true;
     if (form.energiaPadrao !== snap.form.energiaPadrao) return true;
@@ -351,6 +393,9 @@ export function SerieEditForm({
       capaUrl: form.capaUrl.trim() || null,
       ativa: form.ativa,
       frequenciaRecomendada: form.frequenciaRecomendada.trim() || null,
+      frequenciaVezes: form.frequenciaVezes,
+      frequenciaUnidade: form.frequenciaUnidade.trim() || null,
+      frequenciaAPartirDe: form.frequenciaAPartirDe || null,
       funcaoPadrao: form.funcaoPadrao,
       energiaPadrao: form.energiaPadrao,
       pilarPrincipalId: form.pilarPrincipalId,
@@ -398,6 +443,23 @@ export function SerieEditForm({
   const selectedPilar = pilares.find(item => item.id === form.pilarPrincipalId) ?? null;
   const pilarChoices = pilares.filter(item => item.ativo || item.id === form.pilarPrincipalId);
   const funcaoDescription = FUNCAO_OPTIONS.find(option => option.value === form.funcaoPadrao)?.description ?? null;
+  const selecionouSobDemanda = escolhaSobDemanda(form.frequenciaRecomendada);
+  const frequenciaLida = lerFrequencia({
+    frequenciaRecomendada: form.frequenciaRecomendada,
+    vezes: form.frequenciaVezes,
+    unidade: form.frequenciaUnidade,
+    aPartirDe: form.frequenciaAPartirDe || null,
+  });
+  const mostrarFrequenciaDetalhe = !selecionouSobDemanda
+    || form.frequenciaVezes !== null
+    || Boolean(form.frequenciaUnidade.trim());
+  const semanaAtual = semanaDe(format(new Date(), 'yyyy-MM-dd'));
+  const expectativaPeriodo = expectativaNoIntervalo(frequenciaLida, semanaAtual.inicio, semanaAtual.fim);
+  const frequenciaOpcoes = opcoesFrequencia(form.frequenciaRecomendada);
+  const unidadeExtra = form.frequenciaUnidade.trim()
+    && !UNIDADES_FREQUENCIA.some(item => item.value === form.frequenciaUnidade)
+    ? form.frequenciaUnidade.trim()
+    : '';
   const formatoOptions = collectFormatoSuggestions([...usedFormatoValues, form.formatoVisualPadrao]);
   const apresentacaoOptions = form.formatoApresentacao.trim()
     && !FORMATO_APRESENTACAO_SUGESTOES.some(item => item.toLowerCase() === form.formatoApresentacao.trim().toLowerCase())
@@ -417,6 +479,9 @@ export function SerieEditForm({
         capaUrl: form.capaUrl.trim() || null,
         ativa: form.ativa,
         frequenciaRecomendada: form.frequenciaRecomendada.trim() || null,
+        frequenciaVezes: form.frequenciaVezes,
+        frequenciaUnidade: form.frequenciaUnidade.trim() || null,
+        frequenciaAPartirDe: form.frequenciaAPartirDe || null,
         funcaoPadrao: form.funcaoPadrao,
         energiaPadrao: form.energiaPadrao,
         pilarPrincipalId: form.pilarPrincipalId,
@@ -589,17 +654,91 @@ export function SerieEditForm({
                     </Text>
                   ) : null}
                 </div>
-                <div>
-                  <FieldLabel>Recorrência</FieldLabel>
+                <div className="col-span-full stack-sm">
+                  <FieldLabel>Frequência de publicação</FieldLabel>
                   <select
-                    aria-label="Recorrência"
+                    aria-label="Frequência de publicação"
                     value={form.frequenciaRecomendada}
-                    onChange={event => setForm(previous => ({ ...previous, frequenciaRecomendada: event.target.value }))}
+                    onChange={event => {
+                      const frequenciaRecomendada = event.target.value;
+                      setForm(previous => ({
+                        ...previous,
+                        frequenciaRecomendada,
+                        ...(escolhaSobDemanda(frequenciaRecomendada)
+                          ? { frequenciaVezes: null, frequenciaUnidade: '' }
+                          : {}),
+                      }));
+                    }}
                     className={inputClass}
                   >
                     <option value="">Escolher…</option>
-                    {FREQUENCIAS_SERIE.map(item => <option key={item} value={item}>{item}</option>)}
+                    {frequenciaOpcoes.map(item => <option key={item} value={item}>{item}</option>)}
                   </select>
+                  {selecionouSobDemanda && frequenciaLida.unidade === 'sob-demanda' ? (
+                    <Text variant="meta" className="text-[var(--text-tertiary)]">
+                      Quando houver pauta
+                    </Text>
+                  ) : null}
+                  {mostrarFrequenciaDetalhe ? (
+                    <div className="grid-form">
+                      <div>
+                        <FieldLabel>Vezes</FieldLabel>
+                        <input
+                          type="number"
+                          inputMode="numeric"
+                          min={0}
+                          step={1}
+                          aria-label="Vezes"
+                          value={form.frequenciaVezes ?? ''}
+                          onChange={event => {
+                            const frequenciaVezes = parseVezes(event.target.value);
+                            if (event.target.value.trim() && frequenciaVezes === null) return;
+                            setForm(previous => ({ ...previous, frequenciaVezes }));
+                          }}
+                          className={inputClass}
+                        />
+                      </div>
+                      <div>
+                        <FieldLabel>Unidade</FieldLabel>
+                        <select
+                          aria-label="Unidade"
+                          value={form.frequenciaUnidade}
+                          onChange={event => setForm(previous => ({
+                            ...previous,
+                            frequenciaUnidade: event.target.value,
+                          }))}
+                          className={inputClass}
+                        >
+                          <option value="">Escolher…</option>
+                          {unidadeExtra ? <option value={unidadeExtra}>{unidadeExtra}</option> : null}
+                          {UNIDADES_FREQUENCIA.map(item => (
+                            <option key={item.value} value={item.value}>{item.label}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  ) : null}
+                  <div>
+                    <FieldLabel>A partir de</FieldLabel>
+                    <input
+                      type="date"
+                      aria-label="A partir de"
+                      value={form.frequenciaAPartirDe}
+                      onChange={event => setForm(previous => ({
+                        ...previous,
+                        frequenciaAPartirDe: event.target.value,
+                      }))}
+                      className={inputClass}
+                    />
+                  </div>
+                  <Text variant="meta" className="text-[var(--text-secondary)]">
+                    A frequência serve para comparar com o que já está no período. Ela não cria datas nem post-its.
+                  </Text>
+                  <Text variant="body">
+                    {expectativaPeriodo == null
+                      ? 'Quando houver pauta'
+                      : `Neste período, a frequência pede ${expectativaPeriodo}.`}
+                  </Text>
                 </div>
                 <div>
                   <FieldLabel>Formato de publicação</FieldLabel>

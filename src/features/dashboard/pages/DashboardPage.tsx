@@ -15,6 +15,7 @@ import { buildContentDetailRoute } from '../../contents/lib/contentDetailRoute';
 import { buildDetailBackState } from '../../../lib/navigation/detailBack';
 import { createContentDraft } from '../../contents/lib/createContentDraft';
 import { createIdeaContent } from '../../contents/lib/creationContent';
+import { aplicarEscolhasDaSerie } from '../../editorial/lib/escolhasSerie';
 import { getGentleExperienceSettings } from '../../settings/lib/gentleExperience';
 import { CreateMenuButton } from '../../../components/ui/CreateMenuButton';
 import { Surface } from '../../../components/ui/Surface';
@@ -131,14 +132,19 @@ export function DashboardPage() {
     if (!title && !notes) return;
 
     try {
-      const content = createIdeaContent({
+      const serie = ideaSeriesId
+        ? state.series.find(item => item.id === ideaSeriesId) ?? {id: ideaSeriesId}
+        : null;
+      let content = createIdeaContent({
         userId: user?.id || '',
         title: title || 'Ideia sem título',
         notes: notes || null,
         pilarId: ideaPilarId || null,
+        pilarOrigem: ideaPilarId ? 'escolhida' : null,
         seriesId: ideaSeriesId || null,
         bibliotecaItemId: ideaOriginId || null,
       });
+      if (serie) content = aplicarEscolhasDaSerie(content, serie);
       await dispatch({ type: 'ADD_CONTENT', payload: content });
       setIdeaTitle('');
       setIdeaNotes('');

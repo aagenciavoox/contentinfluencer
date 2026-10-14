@@ -1,7 +1,5 @@
 import type {Pilar, Serie} from '../../../lib/database';
 
-export const CAPTION_HASHTAG_MAX = 10;
-
 export type CaptionHashtagPreset = {
   key: 'serie' | 'pilar';
   sourceLabel: 'série' | 'pilar';
@@ -30,24 +28,21 @@ function hashtagsForPlatform(
 }
 
 /**
- * Uma sugestão só: a série primeiro, depois o pilar, sem repetidas, cortada no limite da rede.
- * Ausência de limite usa 10.
+ * Uma sugestão só: a série primeiro, depois o pilar, sem repetidas.
+ * O aviso da rede não corta a lista.
  */
 export function suggestHashtags({
   platformId,
   serie,
   pilar,
-  limite = CAPTION_HASHTAG_MAX,
 }: {
   platformId: string;
   serie: Pick<Serie, 'plataformas'> | null;
   pilar: Pick<Pilar, 'plataformas'> | null;
-  limite?: number;
 }): string[] {
-  const max = Number.isInteger(limite) && limite > 0 ? limite : CAPTION_HASHTAG_MAX;
   const serieTags = hashtagsForPlatform(serie?.plataformas, platformId);
   const pilarTags = hashtagsForPlatform(pilar?.plataformas, platformId);
-  return mergeHashtags(serieTags, pilarTags, max);
+  return mergeHashtags(serieTags, pilarTags);
 }
 
 export function captionHashtagPresets(
@@ -77,10 +72,9 @@ export function captionHashtagPresets(
   return presets;
 }
 
-export function mergeHashtags(current: string[], incoming: string[], max = CAPTION_HASHTAG_MAX): string[] {
+export function mergeHashtags(current: string[], incoming: string[]): string[] {
   const merged = [...current];
   incoming.forEach(tag => {
-    if (merged.length >= max) return;
     if (!merged.some(existing => existing.toLowerCase() === tag.toLowerCase())) {
       merged.push(tag);
     }

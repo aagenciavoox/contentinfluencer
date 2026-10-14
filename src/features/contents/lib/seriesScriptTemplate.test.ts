@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import type {Template} from '../../../lib/database.ts';
 import {
+  origemDoRoteiro,
   resolveSeriesScriptTemplate,
   seriesScriptTemplateHtml,
   templateToHtml,
@@ -80,6 +81,7 @@ describe('resolveSeriesScriptTemplate', () => {
 
     assert.equal(result.script, html);
     assert.equal(result.appliedTemplateHtml, html);
+    assert.equal(result.scriptOrigem, 'modelo');
     assert.equal(result.pendingSeriesId, null);
   });
 
@@ -94,6 +96,7 @@ describe('resolveSeriesScriptTemplate', () => {
     });
 
     assert.equal(result.script, undefined);
+    assert.equal(result.scriptOrigem, undefined);
     assert.equal(result.appliedTemplateHtml, null);
   });
 
@@ -117,6 +120,7 @@ describe('resolveSeriesScriptTemplate', () => {
 
     assert.equal(result.script, nextHtml);
     assert.equal(result.appliedTemplateHtml, nextHtml);
+    assert.equal(result.scriptOrigem, 'modelo');
   });
 
   it('clears the applied template when the new series has none', () => {
@@ -130,6 +134,7 @@ describe('resolveSeriesScriptTemplate', () => {
     });
 
     assert.equal(result.script, '');
+    assert.equal(result.scriptOrigem, null);
     assert.equal(result.appliedTemplateHtml, null);
   });
 
@@ -159,5 +164,26 @@ describe('resolveSeriesScriptTemplate', () => {
 
     assert.equal(result.pendingSeriesId, 'serie-1');
     assert.equal(result.script, undefined);
+  });
+});
+
+describe('origemDoRoteiro', () => {
+  const modelo = '<p><strong>[Gancho]</strong></p><p>Abra com a tensão</p>';
+
+  it('returns null for a blank script', () => {
+    assert.equal(origemDoRoteiro('<p></p>', modelo), null);
+    assert.equal(origemDoRoteiro(null, modelo), null);
+  });
+
+  it('returns modelo when the script matches the applied template', () => {
+    assert.equal(origemDoRoteiro(modelo, modelo), 'modelo');
+    const withBreak = modelo.replace('</p>', '</p><p><br></p>');
+    const withEmpty = modelo.replace('</p>', '</p><p></p>');
+    assert.equal(origemDoRoteiro(withBreak, withEmpty), 'modelo');
+  });
+
+  it('returns autor when the text differs from the template', () => {
+    assert.equal(origemDoRoteiro('<p>Texto próprio</p>', modelo), 'autor');
+    assert.equal(origemDoRoteiro('<p>Texto próprio</p>', null), 'autor');
   });
 });

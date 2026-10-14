@@ -29,12 +29,12 @@ assert.deepEqual(
 );
 
 assert.deepEqual(
-  suggestHashtags({ platformId: 'Instagram', serie, pilar, limite: 3 }),
-  ['#livro', '#leitura', '#eu'],
+  mergeHashtags(['#a', '#b', '#c', '#d', '#e', '#f'], ['#g', '#a']),
+  ['#a', '#b', '#c', '#d', '#e', '#f', '#g'],
 );
 
 assert.deepEqual(
-  suggestHashtags({ platformId: 'Instagram', serie, pilar, limite: 10 }),
+  suggestHashtags({ platformId: 'Instagram', serie, pilar }),
   ['#livro', '#leitura', '#eu'],
 );
 

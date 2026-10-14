@@ -38,7 +38,8 @@ import {RoteiroSection, type ScriptDraft} from './sections/RoteiroSection';
 import {isWritingWorkspaceEnabled} from '../../../settings/lib/writingWorkspace';
 import {IdeaDetailSection, IdeaOrganizationPanel} from './sections/IdeaDetailSection';
 import {promoteContentToScript} from '../../lib/creationContent';
-import {resolveSeriesScriptTemplate} from '../../lib/seriesScriptTemplate';
+import {origemDoRoteiro, resolveSeriesScriptTemplate} from '../../lib/seriesScriptTemplate';
+import {getEditorialSettings} from '../../../editorial/lib/editorialSettings';
 import {livroIdsEfetivos} from '../../../../lib/livroIds';
 
 interface ContentDetailShellProps {
@@ -77,6 +78,10 @@ function draftFromContent(content: Content): ContentDraft {
     funcaoOrigem: content.funcaoOrigem ?? null,
     classificacaoCongeladaEm: content.classificacaoCongeladaEm ?? null,
     contaNaGrade: content.contaNaGrade ?? true,
+    contaNaGradeOrigem: content.contaNaGradeOrigem ?? null,
+    pilarOrigem: content.pilarOrigem ?? null,
+    scriptOrigem: content.scriptOrigem ?? null,
+    redeReferenciaCongeladaId: content.redeReferenciaCongeladaId ?? null,
     energiaNecessaria: content.energiaNecessaria,
     script: content.script,
     scriptNotes: content.scriptNotes || [],
@@ -315,6 +320,16 @@ export function ContentDetailShell({
         if (resolution.script !== undefined) {
           nextUpdates.script = resolution.script;
         }
+        if (resolution.scriptOrigem !== undefined) {
+          nextUpdates.scriptOrigem = resolution.scriptOrigem;
+        }
+      }
+
+      if ('script' in updates && !('scriptOrigem' in updates) && !('scriptOrigem' in nextUpdates)) {
+        nextUpdates.scriptOrigem = origemDoRoteiro(
+          nextUpdates.script ?? updates.script,
+          appliedSeriesTemplateRef.current,
+        );
       }
 
       const changed = (Object.keys(nextUpdates) as Array<keyof ContentDraft>).some(key => {
@@ -366,8 +381,11 @@ export function ContentDetailShell({
 
     pendingSeriesTemplateRef.current = null;
     appliedSeriesTemplateRef.current = resolution.appliedTemplateHtml;
-    if (resolution.script !== undefined) {
-      handleDraftChange({script: resolution.script});
+    if (resolution.script !== undefined || resolution.scriptOrigem !== undefined) {
+      handleDraftChange({
+        ...(resolution.script !== undefined ? {script: resolution.script} : {}),
+        ...(resolution.scriptOrigem !== undefined ? {scriptOrigem: resolution.scriptOrigem} : {}),
+      });
     }
   }, [draft.script, draft.seriesId, draft.status, handleDraftChange, state.templates, templatesReady]);
 
@@ -793,6 +811,7 @@ export function ContentDetailShell({
         plataformas: draft.plataformas,
       }}
       serie={serie}
+      redeReferenciaId={getEditorialSettings(state.preferences).redeReferenciaId}
       platformName={platformId => (
         state.platforms.find(platform => platform.id === platformId || platform.nome === platformId)?.nome
         ?? platformId
@@ -806,6 +825,7 @@ export function ContentDetailShell({
           funcao: marked.content.funcao,
           funcaoOrigem: marked.content.funcaoOrigem,
           classificacaoCongeladaEm: marked.content.classificacaoCongeladaEm,
+          redeReferenciaCongeladaId: marked.content.redeReferenciaCongeladaId,
           link: marked.content.link,
           plataformas: marked.publicacoes,
         });

@@ -1,5 +1,5 @@
-import { addDays, differenceInCalendarDays, endOfWeek, format, parseISO, startOfWeek } from 'date-fns';
-import type { BibliotecaItem, FuncaoEditorial, Pilar, Serie } from '../../../lib/database.ts';
+import { addDays, differenceInCalendarDays, format, parseISO } from 'date-fns';
+import type { BibliotecaItem, Pilar, Serie } from '../../../lib/database.ts';
 import { buildContentDetailRoute } from '../../contents/lib/contentDetailRoute.ts';
 import { getGentleExperienceSettings } from '../../settings/lib/gentleExperience.ts';
 import { getModuleFlags } from '../../settings/lib/moduleFlags.ts';
@@ -8,8 +8,8 @@ import type { DestinoPlataforma } from './destinations.ts';
 import { buildGradeEntries, type GradeContent, type GradeSerie } from './gradeEntries.ts';
 import { countGrade, type PilarContagem } from './gradeCounts.ts';
 import { getEditorialSettings, type EditorialSettings } from './editorialSettings.ts';
-import { FUNCOES } from './funcoes.ts';
 import { getSerieOpenItems } from './serieCompleteness.ts';
+import { semanaDe } from './periodoEditorial.ts';
 
 export type Leitura = {
   chave: string;
@@ -70,16 +70,6 @@ export type ReadingsState = {
   semana?: PeriodoLeitura;
 };
 
-/** Nome usado na frase da semana. O exemplo do plano é "Conversão" e "Ação". */
-const FUNCAO_NA_LEITURA: Record<FuncaoEditorial, string> = {
-  atrair: 'Atração',
-  converter: 'Conversão',
-  aprofundar: 'Aprofundamento',
-  comunidade: 'Comunidade',
-  acao: 'Ação',
-  reter: 'Retenção',
-};
-
 function dia(value: Date): string {
   return format(value, 'yyyy-MM-dd');
 }
@@ -133,6 +123,9 @@ function comoEstoque(content: ConteudoLeitura): EstoqueContent {
     pilarId: content.pilarId ?? null,
     seriesId: content.seriesId ?? null,
     contaNaGrade: content.contaNaGrade,
+    formatoVisual: content.formatoVisual,
+    plataformas: content.plataformas,
+    redeReferenciaCongeladaId: content.redeReferenciaCongeladaId,
   };
 }
 
@@ -142,7 +135,7 @@ function comoEstoque(content: ConteudoLeitura): EstoqueContent {
  */
 export function computeReadings(
   state: ReadingsState,
-  settings: Pick<EditorialSettings, 'redeReferenciaId' | 'distribuicaoFuncoes' | 'estoqueDesejado' | 'openInfoNotices'>,
+  settings: Pick<EditorialSettings, 'redeReferenciaId' | 'distribuicaoFuncoes' | 'estoqueDesejado' | 'openInfoNotices'> & Partial<Pick<EditorialSettings, 'preferencias' | 'periodos'>>,
   now: Date = new Date(),
 ): Leitura[] {
   if (state.pauseMode) return [];
@@ -150,20 +143,22 @@ export function computeReadings(
   const mostrarNumeros = state.mostrarNumeros !== false;
   const hoje = dia(now);
   const limite = dia(addDays(now, 3));
-  const semana = state.semana ?? {
-    inicio: dia(startOfWeek(now, { weekStartsOn: 1 })),
-    fim: dia(endOfWeek(now, { weekStartsOn: 1 })),
-  };
+  const semana = state.semana ?? semanaDe(hoje);
+  const redeReferenciaId = settings.preferencias?.redeReferenciaId ?? settings.redeReferenciaId;
   const entries = buildGradeEntries({
     contents: state.contents,
     series: state.series,
-    settings: { redeReferenciaId: settings.redeReferenciaId },
+    settings: { redeReferenciaId },
     platforms: state.platforms ?? [],
   });
   const contagem = countGrade({
     entries,
     pilares: state.pilares,
-    settings: { distribuicaoFuncoes: settings.distribuicaoFuncoes },
+    settings: {
+      distribuicaoFuncoes: null,
+      preferencias: settings.preferencias,
+      periodos: settings.periodos,
+    },
     periodo: semana,
   });
   const livros = new Map(state.bibliotecaItems.filter(item => !item.deletedAt).map(item => [item.id, item]));
@@ -216,32 +211,21 @@ export function computeReadings(
     }
   }
 
-  const funcoesComEspaco = contagem.funcoes
-    .map(linha => ({ linha, falta: linha.meta - linha.planejado }))
-    .filter(item => item.linha.meta > 0 && item.falta > 0)
-    .sort((left, right) => right.falta - left.falta || left.linha.id.localeCompare(right.linha.id));
-
-  for (const item of funcoesComEspaco) {
-    const funcao = item.linha.id as FuncaoEditorial;
-    if (!FUNCOES.includes(funcao)) continue;
-    const nome = FUNCAO_NA_LEITURA[funcao];
-    const mensagem = mostrarNumeros
-      ? (item.falta === 1
-        ? `Esta semana ainda cabe 1 de ${nome}`
-        : `Esta semana ainda cabem ${item.falta} de ${nome}`)
-      : `Esta semana ainda cabe espaço de ${nome}`;
+  if (contagem.limite != null && contagem.previsto > contagem.limite) {
     leituras.push({
-      chave: `funcao:${funcao}`,
+      chave: 'limite-semana',
       prioridade: 2,
-      mensagem,
-      acao: { rotulo: 'Ver na criação', href: `/criacao?funcao=${funcao}` },
-      destrava: true,
+      mensagem: mostrarNumeros
+        ? `Esta semana tem ${contagem.previsto} e o limite é ${contagem.limite}`
+        : 'Esta semana passou do limite',
+      acao: { rotulo: 'Ver a semana', href: '/editorial' },
     });
   }
 
-  if (typeof settings.estoqueDesejado === 'number') {
-    const estoque = contarEstoque(state.contents.map(comoEstoque));
-    if (estoque < settings.estoqueDesejado) {
+  const desejado = settings.preferencias ? settings.preferencias.reservaProntos : settings.estoqueDesejado;
+  if (typeof desejado === 'number') {
+    const estoque = contarEstoque(state.contents.map(comoEstoque), { redeReferenciaId });
+    if (estoque < desejado) {
       leituras.push({
         chave: 'estoque',
         prioridade: 2,

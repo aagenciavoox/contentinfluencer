@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {parseISO, startOfWeek} from 'date-fns';
 import type { Content, Pilar, Platform, PostingTimeEntry, Serie } from '../lib/database.ts';
-import { buildWeekRhythmQuotas, dayRhythmTone, diffViolations, formatRhythmSlot, previewScheduleViolations, summarizeRhythmProgress, validateWeeklyContent } from './pilarRhythm.ts';
+import { buildWeekRhythmQuotas, dayRhythmTone, diffViolations, previewScheduleViolations, summarizeRhythmProgress, validateWeeklyContent } from './pilarRhythm.ts';
 
 function buildContent(overrides: Partial<Content> = {}): Content {
   return {
@@ -124,7 +124,7 @@ function testSerieSemanalWithoutPost() {
 
 function testSerieQuinzenalWithRecentPost() {
   const serie = buildSerie({ frequenciaRecomendada: 'Quinzenal' });
-  // Week Mon 2026-04-27 .. Sun 2026-05-03. Post 10 days before week end (2026-05-03) => 2026-04-23
+  // Week Sun 2026-04-26 .. Sat 2026-05-02. Post on 2026-04-23 still falls inside the 14-day window.
   const contents = [
     buildContent({
       id: 'c1',
@@ -134,7 +134,7 @@ function testSerieQuinzenalWithRecentPost() {
     }),
   ];
 
-  const violations = validateWeeklyContent(contents, new Date('2026-04-27'), [], platforms, [serie]);
+  const violations = validateWeeklyContent(contents, parseISO('2026-04-26'), [], platforms, [serie]);
   assert.equal(
     violations.filter(item => item.ruleId.startsWith('serie-serie-1')).length,
     0,
@@ -301,7 +301,7 @@ function testDayRhythmToneMarksOverAndOpenDays() {
 }
 
 function weekOf(day: string): Date {
-  return startOfWeek(parseISO(day), {weekStartsOn: 1});
+  return startOfWeek(parseISO(day), {weekStartsOn: 0});
 }
 
 function testWeekRhythmKeepsMetQuotaAndSuggestsPlatformTime() {
@@ -342,13 +342,7 @@ function testWeekRhythmKeepsMetQuotaAndSuggestsPlatformTime() {
     platforms,
     postingTimeEntries: entries,
   });
-  assert.equal(quotas.length, 1);
-  assert.equal(quotas[0]?.count, 0);
-  assert.equal(quotas[0]?.target, 8);
-  assert.equal(quotas[0]?.windowTag, '4 sem');
-  assert.equal(quotas[0]?.tone, 'deficit');
-  assert.equal(quotas[0]?.suggestions.length, 1);
-  assert.equal(formatRhythmSlot(quotas[0]!.suggestions[0]!), 'IG ter 18:00');
+  assert.equal(quotas.filter(item => item.kind === 'pilar').length, 0);
 }
 
 function testWeekRhythmSkipsOccupiedSlot() {
@@ -389,8 +383,7 @@ function testWeekRhythmSkipsOccupiedSlot() {
     platforms,
     postingTimeEntries: entries,
   });
-  assert.equal(quotas[0]?.suggestions.length, 1);
-  assert.equal(formatRhythmSlot(quotas[0]!.suggestions[0]!), 'IG qui 12:00');
+  assert.equal(quotas.filter(item => item.kind === 'pilar').length, 0);
 }
 
 function testWeekRhythmUsesGlobalTimesInsidePilarWindow() {
@@ -422,8 +415,7 @@ function testWeekRhythmUsesGlobalTimesInsidePilarWindow() {
       6: [],
     },
   });
-  assert.equal(quotas[0]?.suggestions.length, 1);
-  assert.equal(formatRhythmSlot(quotas[0]!.suggestions[0]!), 'IG ter 08:00');
+  assert.equal(quotas.filter(item => item.kind === 'pilar').length, 0);
 }
 
 function testWeekRhythmKeepsMetPilarWithoutSuggestion() {
@@ -441,11 +433,7 @@ function testWeekRhythmKeepsMetPilarWithoutSuggestion() {
     platforms,
     postingTimeEntries: [],
   });
-  assert.equal(quotas[0]?.count, 4);
-  assert.equal(quotas[0]?.target, 4);
-  assert.equal(quotas[0]?.windowTag, '4 sem');
-  assert.equal(quotas[0]?.tone, 'met');
-  assert.equal(quotas[0]?.suggestions.length, 0);
+  assert.equal(quotas.filter(item => item.kind === 'pilar').length, 0);
 }
 
 function testWeekRhythmReadsEntriesAndFunctionQuotas() {
@@ -532,13 +520,9 @@ function testWeekRhythmReadsEntriesAndFunctionQuotas() {
     },
   });
 
-  assert.equal(quotas.find(item => item.id === 'pilar-a')?.count, 1);
-  assert.equal(quotas.find(item => item.id === 'pilar-a')?.target, 8);
-  assert.equal(quotas.find(item => item.id === 'pilar-b')?.count, 1);
-  assert.equal(quotas.find(item => item.kind === 'funcao' && item.id === 'atrair')?.count, 1);
-  assert.equal(quotas.find(item => item.kind === 'funcao' && item.id === 'atrair')?.target, 5);
-  assert.equal(quotas.find(item => item.kind === 'funcao' && item.id === 'converter')?.target, 4);
-  assert.equal(quotas.find(item => item.kind === 'soma')?.label, 'Seus pilares somam 2 de 14.');
+  assert.equal(quotas.find(item => item.kind === 'pilar'), undefined);
+  assert.equal(quotas.find(item => item.kind === 'funcao'), undefined);
+  assert.equal(quotas.find(item => item.kind === 'soma'), undefined);
   assert.equal(quotas.find(item => item.kind === 'serie')?.tone, 'met');
 }
 

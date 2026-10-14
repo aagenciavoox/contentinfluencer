@@ -18,7 +18,7 @@ function item(partial: Partial<EstoqueContent> & Pick<EstoqueContent, 'id'>): Es
   };
 }
 
-function testContaSoQuemEntraNaGrade() {
+function testContaProntoSemDataDeReferencia() {
   const total = contarEstoque([
     item({ id: 'pronto' }),
     item({ id: 'fora', contaNaGrade: false }),
@@ -28,8 +28,22 @@ function testContaSoQuemEntraNaGrade() {
     item({ id: 'apagado', deletedAt: '2026-10-02T00:00:00.000Z' }),
     item({ id: 'editar', tags: ['Editar'] }),
     item({ id: 'sem-flag', contaNaGrade: undefined }),
-  ]);
-  assert.equal(total, 2);
+    item({ id: 'agendado', publishDate: '2026-10-20' }),
+    item({
+      id: 'na-rede',
+      plataformas: [{
+        id: 'ig',
+        contentId: 'na-rede',
+        platformId: 'ig',
+        legenda: '',
+        hashtags: '',
+        publishDate: '2026-10-21',
+        publicationKind: 'post',
+        status: 'agendada',
+      }],
+    }),
+  ], { redeReferenciaId: 'ig' });
+  assert.equal(total, 3);
 }
 
 function testTextoNaoInventaAlvo() {
@@ -38,7 +52,7 @@ function testTextoNaoInventaAlvo() {
   assert.equal(textoEstoque(0, null).includes('de'), false);
 }
 
-testContaSoQuemEntraNaGrade();
+testContaProntoSemDataDeReferencia();
 testTextoNaoInventaAlvo();
 
 console.log('estoque tests passed');

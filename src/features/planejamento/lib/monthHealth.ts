@@ -1,11 +1,12 @@
 import {endOfMonth, format, startOfMonth} from 'date-fns';
 import type {Content, Pilar, Serie} from '../../../lib/database.ts';
 import {buildGradeEntries, type GradeEntry} from '../../editorial/lib/gradeEntries.ts';
-import {countGrade, distribuicaoFecha, type GradeCounts, type PeriodoGrade} from '../../editorial/lib/gradeCounts.ts';
+import {contaNaGradeEfetiva} from '../../editorial/lib/contaNaGradeOrigem.ts';
+import {countGrade, type GradeCounts, type PeriodoGrade, type PostItContagem} from '../../editorial/lib/gradeCounts.ts';
 import type {EditorialSettings} from '../../editorial/lib/editorialSettings.ts';
-import {FUNCAO_CURTA, funcaoHerdavelDaSerie, resolveFuncao} from '../../editorial/lib/funcoes.ts';
+import {resolveFuncao} from '../../editorial/lib/funcoes.ts';
 import {pilarPrincipalDaSerie} from '../../editorial/lib/pilarDaSerie.ts';
-import {type DestinoPlataforma, mesmoDestino, resolverRedeReferencia} from '../../editorial/lib/destinations.ts';
+import type {DestinoPlataforma} from '../../editorial/lib/destinations.ts';
 import type {PlanejamentoPostIt} from './postIt.ts';
 
 export function periodoDoMes(anchor: Date): PeriodoGrade {
@@ -19,9 +20,34 @@ function noPeriodo(data: string | null, periodo: PeriodoGrade): boolean {
   return Boolean(data && data >= periodo.inicio && data <= periodo.fim);
 }
 
+type AjustesDoMes = Pick<EditorialSettings, 'redeReferenciaId'> & Partial<
+  Pick<EditorialSettings, 'distribuicaoFuncoes' | 'preferencias' | 'periodos'>
+>;
+
+function postItsParaContagem(
+  postIts: readonly PlanejamentoPostIt[],
+  contents: readonly Content[],
+): PostItContagem[] {
+  const contentById = new Map(contents.map(content => [content.id, content]));
+  const notas: PostItContagem[] = [];
+  for (const postIt of postIts) {
+    if (postIt.contentId) {
+      const content = contentById.get(postIt.contentId);
+      if (!content || content.deletedAt || content.archivedAt) continue;
+    }
+    notas.push({
+      id: postIt.id,
+      date: postIt.date,
+      texto: postIt.texto,
+      contentId: postIt.contentId,
+    });
+  }
+  return notas;
+}
+
 /**
- * O mês do planejamento junta o que ainda é post-it com o que já tem data oficial.
- * O post-it no mês vale no lugar do original, para não contar o mesmo roteiro duas vezes.
+ * O mês junta post-it e data oficial sem contar o mesmo roteiro duas vezes.
+ * Quem só publicou fora da rede de base continua, na data de referência.
  */
 export function entriesDaSaudeDoMes({
   postIts,
@@ -34,102 +60,48 @@ export function entriesDaSaudeDoMes({
   postIts: readonly PlanejamentoPostIt[];
   contents: readonly Content[];
   series: readonly Serie[];
-  settings: Pick<EditorialSettings, 'redeReferenciaId'>;
+  settings: AjustesDoMes;
   periodo: PeriodoGrade;
   platforms?: readonly DestinoPlataforma[];
-}): GradeEntry[] {
-  const contentById = new Map(contents.map(content => [content.id, content]));
-  const serieById = new Map(series.map(serie => [serie.id, serie]));
-  const covered = new Set<string>();
-  const entries: GradeEntry[] = [];
-
-  for (const postIt of postIts) {
-    if (!postIt.contentId || !noPeriodo(postIt.date, periodo)) continue;
-    const content = contentById.get(postIt.contentId);
-    if (!content || content.deletedAt || content.archivedAt) continue;
-    const serie = content.seriesId ? serieById.get(content.seriesId) : undefined;
-    const resolved = resolveFuncao(content, serie);
-    const funcao = resolved.funcao ?? (resolved.estado === 'indefinida' ? funcaoHerdavelDaSerie(serie) : null);
-    covered.add(content.id);
-    entries.push({
-      id: `post-it:${postIt.id}`,
-      contentId: content.id,
-      tipo: 'original',
-      data: postIt.date,
-      hora: null,
-      contaNaGrade: content.contaNaGrade !== false,
-      pilarId: content.pilarId || pilarPrincipalDaSerie(serie),
-      serieId: content.seriesId ?? null,
-      funcao,
-      realizada: false,
-      realizadaEm: null,
-    });
-  }
-
-  const oficiais = buildGradeEntries({
-    contents,
-    series,
-    settings: {redeReferenciaId: settings.redeReferenciaId},
-    platforms,
-  });
-  for (const entry of oficiais) {
-    if (!noPeriodo(entry.data, periodo)) continue;
-    if (entry.tipo === 'original' && covered.has(entry.contentId)) continue;
-    entries.push(entry);
-  }
-  return entries;
+}): readonly GradeEntry[] {
+  return saudeDoMes({ postIts, contents, series, pilares: [], settings, periodo, platforms }).entries;
 }
 
 export type ForaDaConta = {
   semPilar: number;
   foraDaGrade: number;
   pilarSemEspaco: number;
-  /** Publicadas ou marcadas só em redes que não são a de referência: pela regra da grade, são extras. */
+  /** Mantido no tipo. Publicação fora da rede de base já entra na conta. */
   outrasRedes: number;
 };
 
-/** Conteúdos com publicação no mês só fora da rede de referência. Não viram entrada na grade. */
-export function publicacoesEmOutrasRedes({
-  contents,
-  settings,
-  periodo,
-  platforms = [],
-}: {
+/**
+ * Publicação fora da rede de base entra na conta, na data de referência.
+ * Não há mais um extra para explicar fora dos números.
+ */
+export function publicacoesEmOutrasRedes(_input: {
   contents: readonly Content[];
   settings: Pick<EditorialSettings, 'redeReferenciaId'>;
   periodo: PeriodoGrade;
   platforms?: readonly DestinoPlataforma[];
 }): number {
-  const rede = resolverRedeReferencia(settings.redeReferenciaId, platforms);
-  let total = 0;
-  for (const content of contents) {
-    if (content.deletedAt || content.archivedAt) continue;
-    const publicacoes = content.plataformas ?? [];
-    if (publicacoes.length === 0) continue;
-    if (rede && publicacoes.some(publicacao => mesmoDestino(publicacao.platformId, rede))) continue;
-    const noMes = publicacoes.some(publicacao => noPeriodo(publicacao.publishDate?.slice(0, 10) ?? null, periodo))
-      || noPeriodo(content.publishDate?.slice(0, 10) ?? null, periodo);
-    if (noMes) total += 1;
-  }
-  return total;
+  return 0;
 }
 
 /**
- * O que tem data no mês mas não entrou nos números da saúde. Sem isso, um mês com
- * publicações no calendário aparece como "0 de 30" e parece erro.
+ * O que tem data no mês e ficou de fora do limite.
+ * Sem pilar e pilar sem frequência continuam na conta. Rede fora da base também.
  */
 export function foraDaContaDoMes(
   counts: Pick<GradeCounts, 'pilares' | 'periodo'>,
   entries: readonly GradeEntry[],
   outrasRedes = 0,
 ): ForaDaConta {
-  const pilaresContados = new Set(counts.pilares.map(linha => linha.id));
   const resultado: ForaDaConta = {semPilar: 0, foraDaGrade: 0, pilarSemEspaco: 0, outrasRedes};
   for (const entry of entries) {
     if (!noPeriodo(entry.data, counts.periodo)) continue;
+    if (entry.tipo === 'repost') continue;
     if (!entry.contaNaGrade) resultado.foraDaGrade += 1;
-    else if (!entry.pilarId) resultado.semPilar += 1;
-    else if (!pilaresContados.has(entry.pilarId)) resultado.pilarSemEspaco += 1;
   }
   return resultado;
 }
@@ -224,7 +196,8 @@ export function periodoDaData(date: string): PeriodoGrade {
 }
 
 /**
- * Avisa quando este conteúdo ainda não está no mês e o próximo espaço passa da meta do pilar ou da função.
+ * Avisa quando este conteúdo ainda não está no mês e o próximo item passa do limite.
+ * Frequência de pilar ou de série não fecha a conta. Sem limite, não há aviso.
  */
 export function excessosAoAcrescentar({
   content,
@@ -242,10 +215,20 @@ export function excessosAoAcrescentar({
   contents: readonly Content[];
   series: readonly Serie[];
   pilares: readonly Pilar[];
-  settings: Pick<EditorialSettings, 'redeReferenciaId' | 'distribuicaoFuncoes'>;
+  settings: AjustesDoMes;
   platforms?: readonly DestinoPlataforma[];
 }): ExcessoMes[] {
-  if (!content || !date || content.contaNaGrade === false || content.deletedAt || content.archivedAt) return [];
+  if (!content || !date || content.deletedAt || content.archivedAt) return [];
+  const serie = content.seriesId ? series.find(item => item.id === content.seriesId) : undefined;
+  const resolved = resolveFuncao(content, serie);
+  const efetiva = contaNaGradeEfetiva({
+    contaNaGrade: content.contaNaGrade !== false,
+    contaNaGradeOrigem: (content as { contaNaGradeOrigem?: 'manual' | 'regra' | null }).contaNaGradeOrigem,
+    formato: content.formatoVisual,
+    funcao: resolved.funcao,
+  });
+  if (!efetiva) return [];
+
   const saude = saudeDoMes({
     postIts,
     contents,
@@ -258,31 +241,9 @@ export function excessosAoAcrescentar({
   const jaConta = saude.entries.some(entry =>
     entry.tipo === 'original' && entry.contaNaGrade && entry.contentId === content.id,
   );
-  if (jaConta) return [];
-
-  const serie = content.seriesId ? series.find(item => item.id === content.seriesId) : undefined;
-  const resolved = resolveFuncao(content, serie);
-  const funcao = resolved.funcao ?? (resolved.estado === 'indefinida' ? funcaoHerdavelDaSerie(serie) : null);
-  const pilarId = content.pilarId || pilarPrincipalDaSerie(serie);
-  const excessos: ExcessoMes[] = [];
-
-  if (pilarId) {
-    const linha = saude.pilares.find(item => item.id === pilarId);
-    if (linha && linha.meta > 0 && linha.planejado >= linha.meta) {
-      excessos.push({nome: linha.rotulo, planejado: linha.planejado, meta: linha.meta});
-    }
-  }
-
-  if (funcao && distribuicaoFecha(settings.distribuicaoFuncoes)) {
-    const linha = saude.funcoes.find(item => item.id === funcao);
-    const meta = linha?.meta ?? 0;
-    const planejado = linha?.planejado ?? 0;
-    if (meta > 0 && planejado >= meta) {
-      excessos.push({nome: FUNCAO_CURTA[funcao], planejado, meta});
-    }
-  }
-
-  return excessos;
+  if (jaConta || saude.limite == null) return [];
+  if (saude.previsto < saude.limite) return [];
+  return [{ nome: 'Limite do período', planejado: saude.previsto, meta: saude.limite }];
 }
 
 export function saudeDoMes({
@@ -298,19 +259,26 @@ export function saudeDoMes({
   contents: readonly Content[];
   series: readonly Serie[];
   pilares: readonly Pilar[];
-  settings: Pick<EditorialSettings, 'redeReferenciaId' | 'distribuicaoFuncoes'>;
+  settings: AjustesDoMes;
   periodo: PeriodoGrade;
   platforms?: readonly DestinoPlataforma[];
 }): SaudeDoMes {
-  const entries = entriesDaSaudeDoMes({postIts, contents, series, settings, periodo, platforms});
+  const oficiais = buildGradeEntries({
+    contents,
+    series,
+    settings: { redeReferenciaId: settings.preferencias?.redeReferenciaId ?? settings.redeReferenciaId },
+    platforms,
+  });
+  const contagem = countGrade({
+    entries: oficiais,
+    postIts: postItsParaContagem(postIts, contents),
+    pilares,
+    settings,
+    periodo,
+  });
   return {
-    ...countGrade({
-      entries,
-      pilares,
-      settings: {distribuicaoFuncoes: settings.distribuicaoFuncoes},
-      periodo,
-    }),
-    entries,
-    outrasRedes: publicacoesEmOutrasRedes({contents, settings, periodo, platforms}),
+    ...contagem,
+    entries: contagem.itens,
+    outrasRedes: 0,
   };
 }

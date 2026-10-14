@@ -44,6 +44,7 @@ import { buildDetailBackState } from '../../../lib/navigation/detailBack';
 import { getErrorMessage, notifySaveFeedback } from '../../../lib/saveFeedback';
 import { CONFIRM, ERRORS } from '../../../lib/uiCopy';
 import { buildContentDetailRoute } from '../../contents/lib/contentDetailRoute';
+import { aplicarEscolhasDaSerie, marcarEscolhaManual } from '../../editorial/lib/escolhasSerie';
 import { FUNCAO_LABELS, FUNCOES } from '../../editorial/lib/funcoes';
 import {
   archiveCreation,
@@ -388,9 +389,14 @@ export function CreationHubPage() {
       for (const content of fetched) {
         const currentValue = assignField === 'seriesId' ? content.seriesId : content.pilarId;
         if (currentValue === nextValue) continue;
+        const next = assignField === 'seriesId'
+          ? aplicarEscolhasDaSerie(
+            content,
+            nextValue ? state.series.find(item => item.id === nextValue) ?? {id: nextValue} : null,
+          )
+          : marcarEscolhaManual(content, 'pilar', nextValue);
         await updateContent({
-          ...content,
-          [assignField]: nextValue,
+          ...next,
           updatedAt: now,
         }, { silent: true });
       }
@@ -414,7 +420,7 @@ export function CreationHubPage() {
     } finally {
       setIsBulkWorking(false);
     }
-  }, [assignField, assignValue, isBulkWorking, selectedContents, updateContent, user?.id]);
+  }, [assignField, assignValue, isBulkWorking, selectedContents, state.series, updateContent, user?.id]);
 
   const confirmBulkDelete = useCallback(async () => {
     if (selectedContents.length === 0 || isBulkWorking) return;
@@ -491,10 +497,15 @@ export function CreationHubPage() {
   }, [setSearchParams]);
 
   const saveIdea = useCallback(async (input: CreationIdeaInput) => {
-    const content = createIdeaContent({
+    const serie = input.seriesId
+      ? state.series.find(item => item.id === input.seriesId) ?? {id: input.seriesId}
+      : null;
+    let content = createIdeaContent({
       ...input,
+      pilarOrigem: input.pilarId ? 'escolhida' : null,
       plataformas: input.plataformas.map(plataforma => ({...plataforma, contentId: ''})),
     });
+    if (serie) content = aplicarEscolhasDaSerie(content, serie);
     content.plataformas = content.plataformas.map(plataforma => ({...plataforma, contentId: content.id}));
     await dispatch({ type: 'ADD_CONTENT', payload: content });
     setSearchParams(previous => {
@@ -507,7 +518,7 @@ export function CreationHubPage() {
       }
       return next;
     }, { replace: true });
-  }, [dispatch, setSearchParams]);
+  }, [dispatch, setSearchParams, state.series]);
 
   useEffect(() => {
     if (!user?.id) {

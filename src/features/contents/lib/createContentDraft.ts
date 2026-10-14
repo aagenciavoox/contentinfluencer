@@ -1,15 +1,20 @@
 import type { Content, Serie } from '../../../lib/database.ts';
 import { aplicarLivros } from '../../../lib/livroIds.ts';
 import { generateUUID } from '../../../utils/uuid.ts';
+import { aplicarEscolhasDaSerie } from '../../editorial/lib/escolhasSerie.ts';
 import { contaNaGradePadrao, funcaoHerdavelDaSerie } from '../../editorial/lib/funcoes.ts';
-import { pilarPrincipalDaSerie } from '../../editorial/lib/pilarDaSerie.ts';
 import { CONTENT_STATUS } from './contentPipeline.ts';
 
 type CreateContentDraftOverrides = Partial<Content>;
 
+type SerieDoRascunho = Pick<
+  Serie,
+  'id' | 'funcaoPadrao' | 'formatoVisualPadrao' | 'energiaPadrao' | 'pilarPrincipalId' | 'pilarIds'
+>;
+
 export function createContentDraft(
   overrides: CreateContentDraftOverrides = {},
-  serie?: Pick<Serie, 'funcaoPadrao' | 'formatoVisualPadrao' | 'energiaPadrao'> & Parameters<typeof pilarPrincipalDaSerie>[0] | null,
+  serie?: SerieDoRascunho | null,
 ): Content {
   const now = new Date().toISOString();
   const herdada = funcaoHerdavelDaSerie(serie);
@@ -22,11 +27,13 @@ export function createContentDraft(
     status: CONTENT_STATUS.ROTEIRO,
     slotType: null,
     seriesId: null,
-    pilarId: pilarPrincipalDaSerie(serie),
+    pilarId: null,
+    pilarOrigem: null,
     cenarioId: null,
     lookId: null,
     formatoVisual: formato,
     script: null,
+    scriptOrigem: null,
     scriptNotes: [],
     tags: [],
     temaIds: [],
@@ -35,9 +42,11 @@ export function createContentDraft(
     writingNotes: null,
     energiaNecessaria: serie?.energiaPadrao ?? null,
     funcao: null,
-    funcaoOrigem: herdada ? 'herdada' : null,
+    funcaoOrigem: null,
     classificacaoCongeladaEm: null,
     contaNaGrade: contaNaGradePadrao(formato, herdada),
+    contaNaGradeOrigem: 'regra',
+    redeReferenciaCongeladaId: null,
     legendaBase: null,
     publishDate: null,
     publishTime: null,
@@ -56,5 +65,6 @@ export function createContentDraft(
     plataformas: [],
     ...overrides,
   };
-  return { ...draft, ...aplicarLivros(draft) };
+  const comSerie = serie?.id ? aplicarEscolhasDaSerie(draft, serie) : draft;
+  return { ...comSerie, ...aplicarLivros(comSerie) };
 }

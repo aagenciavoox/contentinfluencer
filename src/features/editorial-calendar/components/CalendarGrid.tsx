@@ -59,8 +59,8 @@ export function CalendarGrid({ activeLayers, searchTerm, sortValue, onItemClick 
   // Grid Logic
   const monthStart = startOfMonth(currentDate);
   const monthEnd = endOfMonth(monthStart);
-  const startDate = startOfWeek(monthStart, { weekStartsOn: 1 });
-  const endDate = endOfWeek(monthEnd, { weekStartsOn: 1 });
+  const startDate = startOfWeek(monthStart, { weekStartsOn: 0 });
+  const endDate = endOfWeek(monthEnd, { weekStartsOn: 0 });
 
   const days = eachDayOfInterval({
     start: startDate,
@@ -202,13 +202,13 @@ export function CalendarGrid({ activeLayers, searchTerm, sortValue, onItemClick 
       {/* Week Day Labels */}
       <div className="grid grid-cols-7 border-b border-[var(--border-color)] bg-[var(--bg-hover)]/30">
         {[
+          {desktop: 'Dom', mobile: 'D'},
           {desktop: 'Seg', mobile: 'S'},
           {desktop: 'Ter', mobile: 'T'},
           {desktop: 'Qua', mobile: 'Q'},
           {desktop: 'Qui', mobile: 'Q'},
           {desktop: 'Sex', mobile: 'S'},
           {desktop: 'Sáb', mobile: 'S'},
-          {desktop: 'Dom', mobile: 'D'},
         ].map(day => (
           <div key={day.desktop} className="py-2 md:py-4 text-center">
             <Text variant="label" className="font-semibold text-[var(--text-tertiary)] md:hidden">{day.mobile}</Text>

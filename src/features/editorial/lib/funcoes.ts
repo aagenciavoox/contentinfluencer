@@ -9,8 +9,10 @@ export const FUNCOES: FuncaoEditorial[] = [
   'reter',
 ];
 
-/** As 5 funções que entram na grade. Reter fica fora (Fase 4): nasce como
- * Stories, nunca conta espaço, e por isso não divide % com as outras. */
+/**
+ * As 5 funções do percentual antigo. A contagem do período usa as 6,
+ * Reter inclusive. Este recorte não tira ninguém da grade.
+ */
 export const FUNCOES_DA_GRADE: FuncaoEditorial[] = FUNCOES.filter(funcao => funcao !== 'reter');
 
 export const FUNCAO_LABELS: Record<FuncaoEditorial, string> = {
@@ -150,19 +152,21 @@ export function resolveFuncao(
   return { funcao: stored, estado, congelada: false };
 }
 
-/** Stories, Live e a função reter ficam fora da grade por padrão. */
-export function contaNaGradePadrao(
-  formato: string | null | undefined,
-  funcao: FuncaoEditorial | null | undefined,
-): boolean {
-  if (funcao === 'reter') return false;
-  const normalized = (formato ?? '')
+export function normalizarFormato(formato: string | null | undefined): string {
+  return (formato ?? '')
     .trim()
     .toLowerCase()
     .normalize('NFD')
     .replace(/\p{Diacritic}/gu, '');
-  if (normalized === 'stories' || normalized === 'story' || normalized === 'live') return false;
-  return true;
+}
+
+/** Só Stories/Story ficam fora. Live conta, Reter conta, formato vazio conta. */
+export function contaNaGradePadrao(
+  formato: string | null | undefined,
+  _funcao: FuncaoEditorial | null | undefined,
+): boolean {
+  const normalized = normalizarFormato(formato);
+  return normalized !== 'stories' && normalized !== 'story';
 }
 
 export function rotuloDaSerie(funcao: FuncaoEditorial | null | undefined): string {

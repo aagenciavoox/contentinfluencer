@@ -30,7 +30,7 @@ export function PropertyDatePicker({
   placeholder = 'Selecionar…',
   className,
   variant = 'property',
-  weekStartsOn = 1,
+  weekStartsOn = 0,
   disabled = false,
 }: PropertyDatePickerProps) {
   const [open, setOpen] = useState(false);

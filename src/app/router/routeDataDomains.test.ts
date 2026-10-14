@@ -61,6 +61,13 @@ function testNestedSettingsDomains() {
     'bootstrap',
     'templates',
   ]);
+  // Legacy alias for the same SeriesRoteiros page as /series/:id/roteiros.
+  assert.deepEqual(getRouteDataDomains('/configuracoes/series/abc/roteiros'), [
+    'production',
+    'content',
+    'bootstrap',
+    'templates',
+  ]);
   assert.deepEqual(getRouteDataDomains('/configuracoes/plataformas'), ['bootstrap', 'schedule']);
   assert.deepEqual(getRouteDataDomains('/configuracoes/pilares/xyz'), [
     'production',

@@ -12,7 +12,7 @@ import {
   resolveFuncao,
   rotuloDaSerie,
 } from '../../../editorial/lib/funcoes';
-import { patchAoEscolherSerie } from '../../../editorial/lib/pilarDaSerie';
+import { aplicarEscolhasDaSerie, marcarEscolhaManual } from '../../../editorial/lib/escolhasSerie';
 import type {Weekday} from '../../../settings/lib/postingTimes';
 import {cn} from '../../../../lib/utils';
 import {useAppContext} from '../../../../context/AppContext';
@@ -62,6 +62,8 @@ type OperationalDraft = Pick<
   | 'funcaoOrigem'
   | 'classificacaoCongeladaEm'
   | 'contaNaGrade'
+  | 'contaNaGradeOrigem'
+  | 'pilarOrigem'
   | 'notes'
   | 'recordingDate'
   | 'publishDate'
@@ -323,7 +325,7 @@ function StatusPropertyRow({
 }
 
 
-type FuncaoDraft = Pick<Content, 'funcao' | 'funcaoOrigem' | 'classificacaoCongeladaEm' | 'contaNaGrade'>;
+type FuncaoDraft = Pick<Content, 'funcao' | 'funcaoOrigem' | 'classificacaoCongeladaEm' | 'contaNaGrade' | 'contaNaGradeOrigem'>;
 
 function funcaoChoiceValue(draft: Pick<Content, 'funcao' | 'funcaoOrigem'>): string {
   const origem = draft.funcaoOrigem ?? null;
@@ -352,7 +354,7 @@ export function FuncaoEditorialFields({
 }: {
   draft: FuncaoDraft;
   serie: Serie | null;
-  onChange: (updates: Partial<Pick<Content, 'funcao' | 'funcaoOrigem' | 'contaNaGrade'>>) => void;
+  onChange: (updates: Partial<Pick<Content, 'funcao' | 'funcaoOrigem' | 'contaNaGrade' | 'contaNaGradeOrigem'>>) => void;
   variant: 'property' | 'form' | 'cards';
   formInputClass?: string;
   /** Só no formulário: mostra apenas a função ou apenas a grade. */
@@ -371,7 +373,7 @@ export function FuncaoEditorialFields({
       <input
         type="checkbox"
         checked={draft.contaNaGrade !== false}
-        onChange={event => onChange({contaNaGrade: event.target.checked})}
+        onChange={event => onChange({contaNaGrade: event.target.checked, contaNaGradeOrigem: 'manual'})}
       />
       Conta na grade
     </label>
@@ -391,10 +393,10 @@ export function FuncaoEditorialFields({
     if (formPart === 'grade') return grade;
     const funcaoField = (
       <label className="flex flex-col gap-1">
-        {formLabel ?? <span className="text-xs font-medium text-[var(--text-secondary)]">Função</span>}
+        {formLabel ?? <span className="text-xs font-medium text-[var(--text-secondary)]">Objetivo do conteúdo</span>}
         <span className="relative block">
           <select
-            aria-label="Função"
+            aria-label="Objetivo do conteúdo"
             value={value}
             onChange={event => handleFuncao(event.target.value)}
             className={formInputClass}
@@ -419,7 +421,7 @@ export function FuncaoEditorialFields({
   if (variant === 'cards') {
     return (
       <>
-        <RoteiroField label="Função" icon={<ListChecks className="h-3.5 w-3.5" />}>
+        <RoteiroField label="Objetivo do conteúdo" icon={<ListChecks className="h-3.5 w-3.5" />}>
           <RoteiroSelect value={value} onChange={event => handleFuncao(event.target.value)}>
             {options}
           </RoteiroSelect>
@@ -433,7 +435,7 @@ export function FuncaoEditorialFields({
 
   return (
     <>
-      <PropertyRow label="Função" icon={<ListChecks />}>
+      <PropertyRow label="Objetivo do conteúdo" icon={<ListChecks />}>
         <PropertySelect
           value={value}
           onChange={event => handleFuncao(event.target.value)}
@@ -525,7 +527,7 @@ export function ContentOperationalPanel({
       <PropertyRow label="Série" icon={<Layers />}>
         <PropertySelect
           value={draft.seriesId ?? ''}
-          onChange={event => onChange(patchAoEscolherSerie(
+          onChange={event => onChange(aplicarEscolhasDaSerie(
             draft,
             series.find(serie => serie.id === event.target.value) ?? null,
           ))}
@@ -545,7 +547,7 @@ export function ContentOperationalPanel({
       <PropertyRow label="Pilar" icon={<Palette />}>
         <ColoredSelect
           value={draft.pilarId ?? ''}
-          onChange={event => onChange({pilarId: event.target.value || null})}
+          onChange={event => onChange(marcarEscolhaManual(draft, 'pilar', event.target.value || null))}
           empty={!draft.pilarId}
           dotColor={linkedPilar?.cor ?? null}
         >
@@ -677,7 +679,7 @@ export function ContentOperationalPanel({
           <span className="text-xs font-medium text-[var(--text-secondary)]">Pilar</span>
           <select
             value={draft.pilarId ?? ''}
-            onChange={event => onChange({pilarId: event.target.value || null})}
+            onChange={event => onChange(marcarEscolhaManual(draft, 'pilar', event.target.value || null))}
             className={formInputClass}
           >
             <option value="">Selecionar pilar…</option>
@@ -695,7 +697,7 @@ export function ContentOperationalPanel({
           <span className="text-xs font-medium text-[var(--text-secondary)]">Série</span>
           <select
             value={draft.seriesId ?? ''}
-            onChange={event => onChange(patchAoEscolherSerie(
+            onChange={event => onChange(aplicarEscolhasDaSerie(
             draft,
             series.find(serie => serie.id === event.target.value) ?? null,
           ))}
@@ -825,7 +827,7 @@ export function ContentOperationalPanel({
           <RoteiroField label="Série" icon={<Layers className="h-3.5 w-3.5" />}>
             <RoteiroSelect
               value={draft.seriesId ?? ''}
-              onChange={event => onChange(patchAoEscolherSerie(
+              onChange={event => onChange(aplicarEscolhasDaSerie(
             draft,
             series.find(serie => serie.id === event.target.value) ?? null,
           ))}
@@ -842,7 +844,7 @@ export function ContentOperationalPanel({
           <RoteiroField label="Pilar" icon={<Target className="h-3.5 w-3.5" />}>
             <RoteiroSelect
               value={draft.pilarId ?? ''}
-              onChange={event => onChange({pilarId: event.target.value || null})}
+              onChange={event => onChange(marcarEscolhaManual(draft, 'pilar', event.target.value || null))}
               dotColor={linkedPilar?.cor ?? null}
             >
               <option value="">Selecionar pilar…</option>

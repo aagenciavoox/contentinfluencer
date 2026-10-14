@@ -11,6 +11,7 @@ import { EmptyState } from '../../../components/ui/EmptyState';
 import { Text } from '../../../components/ui/Text';
 import { SeriesBulkComposer } from '../../../features/settings/components/SeriesBulkComposer';
 import { OpenInfoNotice } from '../../../features/editorial/components/OpenInfoNotice';
+import { lerFrequencia } from '../../../features/editorial/lib/frequenciaSerie';
 import { getSerieOpenItems } from '../../../features/editorial/lib/serieCompleteness';
 import { SeriesContentListRow } from '../../../features/settings/components/series-detail/SeriesContentListRow';
 import {
@@ -36,6 +37,23 @@ import { MobileSearchBar } from '../../components/MobileSearchBar';
 import { MobileSectionHeader } from '../../components/MobileSectionHeader';
 import { MobileSegmentTabs } from '../../components/MobileSegmentTabs';
 import { CONTENT_STATUS } from '../../../features/contents/lib/contentPipeline';
+
+function rotuloFrequenciaSerie(serie: Serie): string {
+  const freq = lerFrequencia({
+    frequenciaRecomendada: serie.frequenciaRecomendada,
+    vezes: serie.frequenciaVezes,
+    unidade: serie.frequenciaUnidade,
+    aPartirDe: serie.frequenciaAPartirDe,
+  });
+  if (freq.unidade === 'sob-demanda') return 'Quando houver pauta';
+  const vezes = freq.vezes ?? 1;
+  const unidade = freq.unidade === 'semana'
+    ? 'semana'
+    : freq.unidade === 'quinzena'
+      ? 'quinzena'
+      : 'mês';
+  return `${vezes} ${vezes === 1 ? 'vez' : 'vezes'} por ${unidade}`;
+}
 
 interface SeriesDetailMobileScreenProps {
   serie: Serie;
@@ -167,7 +185,7 @@ export function SeriesDetailMobileScreen({
             </Text>
           ) : null}
           <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="neutral">{serie.frequenciaRecomendada || 'Sob demanda'}</Badge>
+            <Badge variant="neutral">{rotuloFrequenciaSerie(serie)}</Badge>
             <Badge variant="neutral">
               {linkedContents.length} vinculado{linkedContents.length === 1 ? '' : 's'}
             </Badge>

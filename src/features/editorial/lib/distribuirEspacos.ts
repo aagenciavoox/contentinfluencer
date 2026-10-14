@@ -1,7 +1,10 @@
 import type { FuncaoEditorial } from '../../../lib/database.ts';
 import { FUNCOES_DA_GRADE } from './funcoes.ts';
 
-/** Abaixo deste total semanal, a prévia e a contagem olham 4 semanas. */
+/**
+ * Janela antiga da prévia. A contagem do período não usa este corte:
+ * `countGrade` não alarga a semana quando os espaços ficam abaixo de 8.
+ */
 export const LIMITE_GRADE_PEQUENA = 8;
 export const SEMANAS_GRADE_PEQUENA = 4;
 

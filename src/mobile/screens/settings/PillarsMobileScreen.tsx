@@ -11,7 +11,6 @@ import { MobileListCard } from '../../components/MobileListCard';
 import { MobilePillButton } from '../../components/MobilePillButton';
 import { MobileSectionHeader } from '../../components/MobileSectionHeader';
 import { sortPilares } from '../../../features/settings/lib/activePilares';
-import { rotuloEspacos, somaEspacosSemana } from '../../../features/editorial/lib/distribuirEspacos';
 
 interface PillarsMobileScreenProps {
   pilares: Pilar[];
@@ -40,8 +39,8 @@ export function PillarsMobileScreen({
           title="Pilares editoriais"
           description={
             pilares.length === 0
-              ? 'Nome, espaços por semana e hashtags por plataforma.'
-              : `${activeCount} ativo${activeCount === 1 ? '' : 's'} · ${rotuloEspacos(somaEspacosSemana(pilares))} na semana`
+              ? 'Nome e publicação por plataforma. O limite fica no Plano do período.'
+              : `${activeCount} ativo${activeCount === 1 ? '' : 's'}`
           }
         />
 
@@ -84,9 +83,6 @@ export function PillarsMobileScreen({
                   </span>
                   <Badge variant="neutral">
                     {pilar.plataformas.length} plataforma{pilar.plataformas.length === 1 ? '' : 's'}
-                  </Badge>
-                  <Badge variant="neutral">
-                    {pilar.frequenciaSemanal == null ? 'Sem espaços' : `${rotuloEspacos(pilar.frequenciaSemanal)}/sem`}
                   </Badge>
                 </>
               }

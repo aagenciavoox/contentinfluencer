@@ -112,7 +112,7 @@ function testOriginalNaRedeDeReferencia() {
   assert.equal(semData.realizadaEm, null);
 }
 
-function testExtraSoNoTikTok() {
+function testForaDaBaseAindaEntraUmaVez() {
   const entries = buildGradeEntries({
     series,
     settings,
@@ -147,8 +147,10 @@ function testExtraSoNoTikTok() {
     ],
   });
 
-  assert.deepEqual(entries.map(entry => entry.contentId), ['na-grade']);
-  assert.equal(entries[0]?.data, '2026-10-06');
+  assert.deepEqual(entries.map(entry => entry.contentId), ['extra', 'na-grade']);
+  assert.equal(entries.find(entry => entry.contentId === 'extra')?.tipo, 'original');
+  assert.equal(entries.find(entry => entry.contentId === 'extra')?.data, '2026-10-05');
+  assert.equal(entries.find(entry => entry.contentId === 'na-grade')?.data, '2026-10-06');
 }
 
 function testRepostComDataPropria() {
@@ -376,13 +378,112 @@ function testPublicadoEmDiaDiferenteDoPlanejadoUsaODiaReal() {
   assert.notEqual(entries[0]?.data, '2026-10-09');
 }
 
+function testDesempateForaDaBaseNaoUsaAOrdemDoArray() {
+  const entries = buildGradeEntries({
+    series,
+    settings,
+    contents: [
+      conteudo({
+        id: 'empate',
+        status: 'Postado',
+        publishDate: '2026-11-01',
+        plataformas: [
+          publicacao({
+            id: 'z',
+            contentId: 'empate',
+            platformId: TIKTOK,
+            publishDate: '2026-10-08',
+            publishTime: '07:00',
+            status: 'publicada',
+          }),
+          publicacao({
+            id: 'm',
+            contentId: 'empate',
+            platformId: TIKTOK,
+            publishDate: '2026-10-04',
+            publishTime: '18:00',
+            status: 'publicada',
+          }),
+          publicacao({
+            id: 'a',
+            contentId: 'empate',
+            platformId: 'plat-youtube',
+            publishDate: '2026-10-04',
+            publishTime: '09:00',
+            status: 'publicada',
+          }),
+        ],
+      }),
+    ],
+  });
+
+  assert.equal(entries.filter(entry => entry.tipo === 'original').length, 1);
+  assert.equal(entries[0]?.data, '2026-10-04');
+  assert.equal(entries[0]?.hora, '09:00');
+}
+
+function testRedeCongeladaNaoMudaComABaseNova() {
+  const plataformas = [
+    publicacao({
+      id: 'ig',
+      contentId: 'congelado',
+      platformId: INSTAGRAM,
+      publishDate: '2026-10-01',
+      status: 'publicada',
+    }),
+    publicacao({
+      id: 'tt',
+      contentId: 'congelado',
+      platformId: TIKTOK,
+      publishDate: '2026-10-08',
+      status: 'publicada',
+    }),
+  ];
+  const baseInstagram = buildGradeEntries({
+    series,
+    settings,
+    contents: [conteudo({
+      id: 'congelado',
+      status: 'Postado',
+      redeReferenciaCongeladaId: TIKTOK,
+      plataformas,
+    })],
+  });
+  const baseTrocada = buildGradeEntries({
+    series,
+    settings: { redeReferenciaId: 'plat-youtube' },
+    contents: [conteudo({
+      id: 'congelado',
+      status: 'Postado',
+      redeReferenciaCongeladaId: TIKTOK,
+      plataformas,
+    })],
+  });
+  const aindaAberto = buildGradeEntries({
+    series,
+    settings,
+    contents: [conteudo({
+      id: 'aberto',
+      status: 'Produção',
+      redeReferenciaCongeladaId: TIKTOK,
+      plataformas: plataformas.map(item => ({ ...item, status: 'agendada' as const, contentId: 'aberto' })),
+    })],
+  });
+
+  assert.equal(baseInstagram[0]?.data, '2026-10-08');
+  assert.equal(baseTrocada[0]?.data, '2026-10-08');
+  assert.equal(aindaAberto[0]?.data, '2026-10-01');
+}
+
 testOriginalNaRedeDeReferencia();
-testExtraSoNoTikTok();
+testForaDaBaseAindaEntraUmaVez();
 testRepostComDataPropria();
 testLegadoSemPublicacoes();
 testExcluidoEArquivadoFicamFora();
 testPublicacaoGravadaComNomeCasaComReferenciaPorId();
 testPostadoSemDataPlanejadaUsaDiaReal();
 testPublicadoEmDiaDiferenteDoPlanejadoUsaODiaReal();
+testDesempateForaDaBaseNaoUsaAOrdemDoArray();
+testRedeCongeladaNaoMudaComABaseNova();
 
 console.log('gradeEntries tests passed');

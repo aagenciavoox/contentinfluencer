@@ -126,8 +126,27 @@ function testDataMinima() {
   assert.equal(soManuais.content.postedAt, '2026-10-02T08:00:00.000Z');
 }
 
+function testCongelaRedeReferencia() {
+  const marked = markPublished(
+    {...base, redeReferenciaCongeladaId: null as string | null},
+    [publicacao({id: 'p1'})],
+    [{id: 'p1', realizadaEm: '2026-10-02T08:00:00.000Z'}],
+    {redeReferenciaId: 'ig', now: '2026-10-02T12:00:00.000Z'},
+  );
+  assert.equal(marked.content.redeReferenciaCongeladaId, 'ig');
+
+  const deNovo = markPublished(
+    marked.content,
+    marked.publicacoes,
+    [{id: 'p1', realizadaEm: '2026-10-03T08:00:00.000Z'}],
+    {redeReferenciaId: 'tt', now: '2026-10-03T12:00:00.000Z'},
+  );
+  assert.equal(deNovo.content.redeReferenciaCongeladaId, 'ig');
+}
+
 testCongelaUmaVez();
 testNaoSobrescreveEscolhida();
 testDataMinima();
+testCongelaRedeReferencia();
 
 console.log('markPublished tests passed');

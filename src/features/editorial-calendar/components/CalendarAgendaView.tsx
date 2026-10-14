@@ -138,8 +138,8 @@ export function CalendarAgendaView({
   return (
     <div className="flex flex-col gap-8 pb-32">
       {months.map((month, mIdx) => {
-        const startDate = startOfWeek(month.date, { weekStartsOn: 1 });
-        const endDate = endOfWeek(endOfMonth(month.date), { weekStartsOn: 1 });
+        const startDate = startOfWeek(month.date, { weekStartsOn: 0 });
+        const endDate = endOfWeek(endOfMonth(month.date), { weekStartsOn: 0 });
         const gridDays = eachDayOfInterval({ start: startDate, end: endDate });
 
         return (
@@ -152,7 +152,7 @@ export function CalendarAgendaView({
             </div>
             
             <div className="grid grid-cols-7 border-b border-[var(--border-color)] bg-[var(--bg-hover)]/30">
-              {['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'].map(d => (
+              {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(d => (
                 <div key={d} className="py-3 text-center">
                   <Text variant="label" uppercase className="font-semibold text-[var(--text-tertiary)]">{d}</Text>
                 </div>

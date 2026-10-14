@@ -18,6 +18,8 @@ interface MarkPostedSheetProps {
   open: boolean;
   content: Content;
   serie?: Pick<Serie, 'funcaoPadrao'> | null;
+  /** Rede de referência das preferências, congelada na primeira publicação. */
+  redeReferenciaId?: string | null;
   platformName?: (platformId: string) => string;
   /** Quando verdadeiro, o formulário entra no diálogo que já está aberto. */
   embedded?: boolean;
@@ -93,6 +95,7 @@ export function MarkPostedSheet({
   open,
   content,
   serie = null,
+  redeReferenciaId = null,
   platformName = platformId => platformId,
   embedded = false,
   initialRealizadaEm = null,
@@ -131,7 +134,7 @@ export function MarkPostedSheet({
     }));
     setSaving(true);
     try {
-      const marked = markPublished(content, content.plataformas, entradas, { serie });
+      const marked = markPublished(content, content.plataformas, entradas, { serie, redeReferenciaId });
       await onConfirm({
         content: { ...content, ...marked.content },
         publicacoes: marked.publicacoes,

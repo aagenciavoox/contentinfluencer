@@ -1,4 +1,5 @@
 import type { FuncaoEditorial, FuncaoOrigem } from '../../../lib/database.ts';
+import { copiarFuncaoHerdada } from './escolhasSerie.ts';
 import { isFuncaoEditorial } from './funcoes.ts';
 
 export type ConteudoAplicavel = {
@@ -30,14 +31,13 @@ export function devePerguntarAplicarFuncao(
   return quantidade > 0 && anterior !== proxima && isFuncaoEditorial(proxima);
 }
 
-/** Copia a função da série e marca a origem como aplicada. */
+/**
+ * Copia a função confirmada. A origem continua herdada.
+ * `aplicada` deixou de ser um terceiro caminho, e escolha manual não é sobrescrita.
+ */
 export function aplicarFuncaoPublicada<T extends ConteudoAplicavel>(
   content: T,
   funcao: FuncaoEditorial,
 ): T {
-  return {
-    ...content,
-    funcao,
-    funcaoOrigem: 'aplicada',
-  };
+  return copiarFuncaoHerdada(content, funcao);
 }

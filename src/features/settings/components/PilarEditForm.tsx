@@ -22,7 +22,7 @@ import {
   resolvePlatformUuid,
   shouldPersistPilarPlataforma,
 } from '../lib/pilarPostingSchedule';
-import { PILAR_DEFAULT_COR } from '../lib/pilarConstants';
+import { PILAR_DEFAULT_COR, PILAR_DESCRICAO_MAX } from '../lib/pilarConstants';
 import { EntityColorPicker, entitySwatchInk } from './EntityColorPicker';
 
 const PILAR_QUICK_COLORS = ['#F5C543', '#FB923C', '#EF4444', '#9065B0', '#4A90D9', '#4ADE80'];
@@ -247,7 +247,6 @@ export function PilarEditForm({
     if (form.nome !== snap.form.nome) return true;
     if (form.descricao !== snap.form.descricao) return true;
     if (form.cor !== snap.form.cor) return true;
-    if (form.frequenciaSemanal !== snap.form.frequenciaSemanal) return true;
     if (JSON.stringify(form.plataformas) !== JSON.stringify(snap.form.plataformas)) return true;
     if (linkedSerieIds.length !== snap.linkedSerieIds.length) return true;
     return linkedSerieIds.some((id, index) => id !== snap.linkedSerieIds[index]);
@@ -289,18 +288,6 @@ export function PilarEditForm({
     updatePilarPlataforma(platformId, {hashtags});
   };
 
-  const adjustFrequencia = (delta: number) => {
-    setForm(previous => {
-      const current = previous.frequenciaSemanal;
-      if (current == null) {
-        if (delta < 0) return previous;
-        return {...previous, frequenciaSemanal: 1};
-      }
-      const next = Math.min(99, Math.max(0, current + delta));
-      return {...previous, frequenciaSemanal: next};
-    });
-  };
-
   const toggleMelhorDia = (platformId: string, weekday: Weekday) => {
     const existing = getPilarPlataforma(platformId);
     const melhoresDias = existing.melhoresDias.includes(weekday)
@@ -320,8 +307,8 @@ export function PilarEditForm({
         descricao: form.descricao.trim(),
         cor: form.cor,
         ativo: form.ativo,
-        frequenciaSemanal: form.frequenciaSemanal,
-        metaCiclo: form.metaCiclo,
+        frequenciaSemanal: initial.frequenciaSemanal ?? null,
+        metaCiclo: initial.metaCiclo ?? null,
         plataformas: platformNames
           .map(platformId => form.plataformas.find(item => item.platformId === platformId))
           .filter((item): item is PilarPlataforma => Boolean(item && shouldPersistPilarPlataforma(item)))
@@ -331,7 +318,7 @@ export function PilarEditForm({
       },
       linkedSerieIds,
     });
-  }, [form, initial.createdAt, linkedSerieIds, onSave, platformNames]);
+  }, [form, initial.createdAt, initial.frequenciaSemanal, initial.metaCiclo, linkedSerieIds, onSave, platformNames]);
 
   const onChromeChangeRef = useRef(onChromeChange);
   const handleSaveRef = useRef(handleSave);
@@ -403,6 +390,19 @@ export function PilarEditForm({
                   placeholder="Ex.: Humor"
                   className={inputClass}
                 />
+              </div>
+              <div className="stack-sm">
+                <FieldLabel>Descrição</FieldLabel>
+                <textarea
+                  value={form.descricao}
+                  onChange={event => setForm(previous => ({...previous, descricao: event.target.value}))}
+                  maxLength={PILAR_DESCRICAO_MAX}
+                  rows={3}
+                  className={cn(inputClass, 'min-h-[88px] resize-y leading-relaxed')}
+                />
+                <Text variant="meta" className="text-[var(--text-tertiary)]">
+                  Diz quais pautas pertencem ao assunto.
+                </Text>
               </div>
               <div className="stack-sm">
                 <FieldLabel>Cor do pilar</FieldLabel>
@@ -559,35 +559,13 @@ export function PilarEditForm({
 
         <aside className="flex min-w-0 flex-col gap-3 lg:sticky lg:top-24 lg:self-start">
           <Surface variant="outlined" padding="md">
-            <CardHeading
-              title="Ritmo editorial"
-              description="Espaços deste pilar na semana."
-            />
+            <CardHeading title="Ritmo editorial" />
             <div className="stack-sm">
-              <FieldLabel>Espaços por semana</FieldLabel>
-              <div className="inline-flex items-stretch overflow-hidden rounded-[var(--radius-input)] border border-[var(--border-color)]">
-                <button
-                  type="button"
-                  aria-label="Diminuir espaços por semana"
-                  onClick={() => adjustFrequencia(-1)}
-                  className="inline-flex h-10 w-10 items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
-                >
-                  −
-                </button>
-                <span className="inline-flex h-10 min-w-10 items-center justify-center border-x border-[var(--border-color)] px-2 text-sm text-[var(--text-primary)]">
-                  {form.frequenciaSemanal ?? 0}
-                </span>
-                <button
-                  type="button"
-                  aria-label="Aumentar espaços por semana"
-                  onClick={() => adjustFrequencia(1)}
-                  className="inline-flex h-10 w-10 items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
-                >
-                  +
-                </button>
-              </div>
-              <Text variant="meta" className="text-[var(--text-tertiary)]">
-                O total da semana é a soma dos espaços de todos os pilares.
+              {form.frequenciaSemanal != null ? (
+                <Text variant="body">{form.frequenciaSemanal}</Text>
+              ) : null}
+              <Text variant="meta" className="text-[var(--text-secondary)]">
+                Este número não define mais o limite. O limite fica no Plano do período.
               </Text>
             </div>
           </Surface>

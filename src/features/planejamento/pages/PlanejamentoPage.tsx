@@ -436,11 +436,13 @@ export function PlanejamentoPage() {
       target,
     });
     if (!result.ok) return;
-    dispatch({
-      type: result.mode === 'create' ? 'ADD_CONTENT' : 'UPDATE_CONTENT',
-      payload: result.content,
-    });
-    dispatch({type: 'DELETE_POST_IT', payload: result.removePostItId});
+    void (async () => {
+      await dispatch({
+        type: result.mode === 'create' ? 'ADD_CONTENT' : 'UPDATE_CONTENT',
+        payload: result.content,
+      });
+      await dispatch({type: 'UPDATE_POST_IT', payload: result.postIt});
+    })();
     setOpenId(null);
     if (result.openScript) {
       navigate(

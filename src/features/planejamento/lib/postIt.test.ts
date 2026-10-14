@@ -139,7 +139,8 @@ function testTransformEmptyIntoIdeiaKeepsDay() {
   assert.equal(result.content.publishDate?.slice(0, 10), '2026-10-08');
   assert.equal(result.content.publishDateEnabled, true);
   assert.equal(result.openScript, false);
-  assert.equal(result.removePostItId, postIt.id);
+  assert.equal(result.postIt.id, postIt.id);
+  assert.equal(result.postIt.contentId, result.content.id);
 }
 
 function testTransformEmptyIntoRoteiroKeepsDayAndOpensScript() {
@@ -156,7 +157,8 @@ function testTransformEmptyIntoRoteiroKeepsDayAndOpensScript() {
   assert.equal(result.content.status, CONTENT_STATUS.ROTEIRO);
   assert.equal(result.content.publishDate?.slice(0, 10), '2026-10-18');
   assert.equal(result.openScript, true);
-  assert.equal(result.removePostItId, postIt.id);
+  assert.equal(result.postIt.id, postIt.id);
+  assert.equal(result.postIt.contentId, result.content.id);
 }
 
 function testTransformPulledIdeiaIntoRoteiroKeepsPostItDay() {
@@ -368,6 +370,29 @@ function testDeletePulledPostItKeepsIdeiaAndRoteiro() {
   assert.equal(script.title, 'Roteiro existente');
 }
 
+function testTransformCopiesInheritedChoices() {
+  const postIt = createEmptyPostIt({
+    id: 'post-serie',
+    texto: 'gancho da série',
+    date: '2026-10-08',
+    now: NOW,
+    serieId: 'serie-1',
+    pilarId: 'pilar-1',
+    objetivo: 'reter',
+  });
+  const result = transformPostIt({postIt, contents: [], target: 'roteiro', now: NOW});
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  assert.equal(result.postIt.id, postIt.id);
+  assert.equal(result.postIt.contentId, result.content.id);
+  assert.equal(result.content.seriesId, 'serie-1');
+  assert.equal(result.content.pilarId, 'pilar-1');
+  assert.equal(result.content.pilarOrigem, 'herdada');
+  assert.equal(result.content.funcao, 'reter');
+  assert.equal(result.content.funcaoOrigem, 'herdada');
+  assert.equal(result.content.contaNaGradeOrigem, 'regra');
+}
+
 function testDeleteAfterTransformKeepsCreatedContent() {
   const postIt = createEmptyPostIt({
     id: 'post-vazio',
@@ -379,11 +404,12 @@ function testDeleteAfterTransformKeepsCreatedContent() {
   assert.equal(created.ok, true);
   if (!created.ok) return;
 
+  assert.equal(created.postIt.contentId, created.content.id);
   const contents = [created.content];
   const removed = deletePostIt({
-    postIts: [],
+    postIts: [created.postIt],
     contents,
-    id: created.removePostItId,
+    id: created.postIt.id,
   });
 
   assert.equal(removed.postIts.length, 0);
@@ -401,6 +427,7 @@ const tests = [
   ['does not pull a content that is already on a post-it', testPullAgainDoesNotDuplicate],
   ['transforms an empty post-it into an ideia on that day', testTransformEmptyIntoIdeiaKeepsDay],
   ['transforms an empty post-it into a roteiro and opens the script', testTransformEmptyIntoRoteiroKeepsDayAndOpensScript],
+  ['keeps the post-it and copies series choices onto the new content', testTransformCopiesInheritedChoices],
   ['promotes a pulled ideia into a roteiro on the post-it day', testTransformPulledIdeiaIntoRoteiroKeepsPostItDay],
   ['places a pulled ideia on the calendar without changing status', testTransformPulledIdeiaIntoIdeiaKeepsStatusAndDay],
   ['places a pulled roteiro on the post-it day without demoting it', testTransformPulledRoteiroKeepsStatusAndDay],

@@ -50,7 +50,29 @@ export type SeriesTemplateResolution = {
   script?: string;
   appliedTemplateHtml: string | null;
   pendingSeriesId: string | null;
+  /** Só `modelo` quando o texto é o modelo aplicado. Autor não é marcado aqui. */
+  scriptOrigem?: 'modelo' | null;
 };
+
+/**
+ * `modelo` quando o texto é o modelo aplicado.
+ * `autor` quando há texto e ele não é o modelo.
+ * `null` quando o roteiro está vazio.
+ */
+export function origemDoRoteiro(
+  script: string | null | undefined,
+  appliedTemplateHtml: string | null | undefined,
+): 'modelo' | 'autor' | null {
+  if (isBlankScriptHtml(script)) return null;
+  if (
+    appliedTemplateHtml
+    && !isBlankScriptHtml(appliedTemplateHtml)
+    && normalizeScriptHtml(script) === normalizeScriptHtml(appliedTemplateHtml)
+  ) {
+    return 'modelo';
+  }
+  return 'autor';
+}
 
 /**
  * Fills an empty script when the series changes.
@@ -94,14 +116,14 @@ export function resolveSeriesScriptTemplate(input: {
   const html = seriesScriptTemplateHtml(input.nextSeriesId, input.templates);
   if (!html) {
     if (matchesApplied) {
-      return {script: '', appliedTemplateHtml: null, pendingSeriesId: null};
+      return {script: '', appliedTemplateHtml: null, pendingSeriesId: null, scriptOrigem: null};
     }
     return {appliedTemplateHtml: null, pendingSeriesId: null};
   }
 
   if (normalizeScriptHtml(input.script) === normalizeScriptHtml(html)) {
-    return {appliedTemplateHtml: html, pendingSeriesId: null};
+    return {appliedTemplateHtml: html, pendingSeriesId: null, scriptOrigem: 'modelo'};
   }
 
-  return {script: html, appliedTemplateHtml: html, pendingSeriesId: null};
+  return {script: html, appliedTemplateHtml: html, pendingSeriesId: null, scriptOrigem: 'modelo'};
 }

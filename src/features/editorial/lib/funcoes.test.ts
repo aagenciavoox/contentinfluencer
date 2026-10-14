@@ -85,8 +85,10 @@ function testCongeladaNaoAcompanhaASerie() {
 function testContaNaGradePadrao() {
   assert.equal(contaNaGradePadrao('Reels', 'atrair'), true);
   assert.equal(contaNaGradePadrao('Stories', 'atrair'), false);
-  assert.equal(contaNaGradePadrao('Live', 'converter'), false);
-  assert.equal(contaNaGradePadrao('Reels', 'reter'), false);
+  assert.equal(contaNaGradePadrao('Story', 'comunidade'), false);
+  assert.equal(contaNaGradePadrao('Live', 'converter'), true);
+  assert.equal(contaNaGradePadrao('Reels', 'reter'), true);
+  assert.equal(contaNaGradePadrao(null, 'reter'), true);
   assert.equal(contaNaGradePadrao(null, null), true);
 }
 
