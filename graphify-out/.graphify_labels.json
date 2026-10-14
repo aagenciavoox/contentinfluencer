@@ -297,6 +297,7 @@
   "295": "@tiptap/extension-floating-menu",
   "296": "CacheableResponsePlugin",
   "297": "PrecacheCacheKeyPlugin",
+  "298": "@tiptap/extensions",
   "304": "CLAUDE.md",
   "310": "index.ts",
   "315": "index.ts",

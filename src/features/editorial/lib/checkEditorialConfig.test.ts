@@ -32,6 +32,22 @@ function testPesos() {
 }
 
 function testDistribuicaoForaDe100() {
+  // Fase 4: só as 5 funções da grade entram na soma — Reter não conta aqui.
+  const notas = checkEditorialConfig({
+    pilares: [PILAR],
+    series: [],
+    settings: {
+      redeReferenciaId: 'ig',
+      distribuicaoFuncoes: { ...FECHADA, atrair: 45 },
+    },
+    plataformas: [{ id: 'ig', ativo: true }],
+  });
+  assert.equal(notas.some(nota => nota.chave === 'distribuicao' && nota.mensagem.includes('110')), true);
+}
+
+function testReterLegadoGeraAviso() {
+  // FECHADA já soma 100 nas 5 funções da grade; um reter > 0 salvo antes da
+  // Fase 4 não quebra a soma, mas gera um aviso próprio de dado legado.
   const notas = checkEditorialConfig({
     pilares: [PILAR],
     series: [],
@@ -41,7 +57,10 @@ function testDistribuicaoForaDe100() {
     },
     plataformas: [{ id: 'ig', ativo: true }],
   });
-  assert.equal(notas.some(nota => nota.chave === 'distribuicao' && nota.mensagem.includes('110')), true);
+  assert.equal(notas.some(nota => nota.chave === 'distribuicao'), false);
+  const aviso = notas.find(nota => nota.chave === 'distribuicao-reter');
+  assert.ok(aviso);
+  assert.match(aviso.mensagem, /10%/);
 }
 
 function testDistribuicaoVaziaNaoApontaSoma() {
@@ -177,6 +196,7 @@ function testExcedentesDosPilares() {
 
 testPesos();
 testDistribuicaoForaDe100();
+testReterLegadoGeraAviso();
 testDistribuicaoVaziaNaoApontaSoma();
 testSeriesAcimaDoPilar();
 testSeriesCabemNoPilar();

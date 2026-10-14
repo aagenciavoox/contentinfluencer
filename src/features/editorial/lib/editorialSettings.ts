@@ -1,5 +1,5 @@
 import type { FuncaoEditorial } from '../../../lib/database.ts';
-import { FUNCOES } from './funcoes.ts';
+import { FUNCOES_DA_GRADE } from './funcoes.ts';
 
 export const EDITORIAL_SETTINGS_PREFERENCE_KEY = 'editorial_settings';
 
@@ -47,15 +47,23 @@ function readIdList(value: unknown): string[] {
 }
 
 
+/**
+ * Só as 5 funções da grade precisam fechar em 100% (Fase 4). Reter fica fora:
+ * se um dado salvo antigo ainda tiver um valor nela, ele é preservado aqui
+ * (para o aviso de legado em checkEditorialConfig), mas a ausência não
+ * invalida a distribuição.
+ */
 function readDistribuicao(value: unknown): Record<FuncaoEditorial, number> | null {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
   const raw = value as Record<string, unknown>;
   const result = {} as Record<FuncaoEditorial, number>;
-  for (const funcao of FUNCOES) {
+  for (const funcao of FUNCOES_DA_GRADE) {
     const item = raw[funcao];
     if (typeof item !== 'number' || !Number.isInteger(item) || item < 0 || item > 100) return null;
     result[funcao] = item;
   }
+  const reter = raw.reter;
+  result.reter = typeof reter === 'number' && Number.isInteger(reter) && reter >= 0 && reter <= 100 ? reter : 0;
   return result;
 }
 

@@ -21,17 +21,17 @@ import {
   FUNCAO_DESCRICOES,
   FUNCAO_LABELS,
   FUNCOES,
+  FUNCOES_DA_GRADE,
   FUNIL_DA_FUNCAO,
 } from '../lib/funcoes';
 
 type PercentDraft = Record<FuncaoEditorial, string>;
-type EtapaId = 'topo' | 'meio' | 'fundo' | 'fora';
+type EtapaId = 'topo' | 'meio' | 'fundo';
 
 const AGRUPAMENTOS: Array<{ id: EtapaId; titulo: string }> = [
   { id: 'topo', titulo: 'Topo' },
   { id: 'meio', titulo: 'Meio' },
   { id: 'fundo', titulo: 'Fundo' },
-  { id: 'fora', titulo: 'Fora do funil' },
 ];
 
 const COLUNAS = 'grid grid-cols-[minmax(12rem,1.6fr)_9rem_8rem_4.5rem] items-center gap-3';
@@ -66,7 +66,7 @@ function lerInteiro(value: string, max: number): number {
 }
 
 function funcoesDaEtapa(etapa: EtapaId): FuncaoEditorial[] {
-  return FUNCOES.filter(funcao => (FUNIL_DA_FUNCAO[funcao] ?? 'fora') === etapa);
+  return FUNCOES_DA_GRADE.filter(funcao => FUNIL_DA_FUNCAO[funcao] === etapa);
 }
 
 function rotuloPeriodo(espacos: number): string {
@@ -129,7 +129,7 @@ export function DistribuicaoFuncoesPanel({
   }, [somaPilares]);
 
   const numeros = useMemo(
-    () => FUNCOES.map(funcao => lerInteiro(draft[funcao], 100)),
+    () => FUNCOES_DA_GRADE.map(funcao => lerInteiro(draft[funcao], 100)),
     [draft],
   );
   const soma = numeros.reduce((acc, valor) => acc + valor, 0);
@@ -140,6 +140,7 @@ export function DistribuicaoFuncoesPanel({
   const ativas = seriesAtivas(series);
   const semFuncao = ativas.filter(serie => !serie.funcaoPadrao);
   const variam = ativas.filter(serie => serie.funcaoPadrao === 'varia');
+  const seriesDeReter = ativas.filter(serie => serie.funcaoPadrao === 'reter');
   const excedentes = excedentesDosPilares(pilares, series);
   const redes = plataformas.filter(plataforma => plataforma.ativo !== false);
   const redeAtual = plataformas.find(plataforma => plataforma.id === settings.redeReferenciaId) ?? null;
@@ -151,9 +152,10 @@ export function DistribuicaoFuncoesPanel({
 
   const salvar = () => {
     if (!fecha) return;
-    const distribuicaoFuncoes = Object.fromEntries(
-      FUNCOES.map((funcao, index) => [funcao, numeros[index]]),
-    ) as Record<FuncaoEditorial, number>;
+    const distribuicaoFuncoes = {
+      ...Object.fromEntries(FUNCOES_DA_GRADE.map((funcao, index) => [funcao, numeros[index]])),
+      reter: 0,
+    } as Record<FuncaoEditorial, number>;
     onChange(distribuicaoFuncoes);
   };
 
@@ -246,7 +248,7 @@ export function DistribuicaoFuncoesPanel({
               <div className="stack-sm">
                 {AGRUPAMENTOS.map(grupo => {
                   const funcoes = funcoesDaEtapa(grupo.id);
-                  const pct = funcoes.reduce((acc, funcao) => acc + numeros[FUNCOES.indexOf(funcao)], 0);
+                  const pct = funcoes.reduce((acc, funcao) => acc + numeros[FUNCOES_DA_GRADE.indexOf(funcao)], 0);
                   return (
                     <section key={grupo.id} aria-label={grupo.titulo} className="stack-sm">
                       <div className={cn(COLUNAS, 'rounded-[var(--radius-sm)] bg-[var(--bg-hover)] px-3 py-2')}>
@@ -256,7 +258,7 @@ export function DistribuicaoFuncoesPanel({
                         <Text variant="meta" as="span" className="text-right text-[var(--text-secondary)]">{pct}%</Text>
                       </div>
                       {funcoes.map(funcao => {
-                        const indice = FUNCOES.indexOf(funcao);
+                        const indice = FUNCOES_DA_GRADE.indexOf(funcao);
                         const seriesDaFuncao = ativas.filter(serie => serie.funcaoPadrao === funcao);
                         return (
                           <div key={funcao} className={cn(COLUNAS, 'border-b border-[var(--border-color)] px-3 py-3')}>
@@ -289,6 +291,17 @@ export function DistribuicaoFuncoesPanel({
                     </section>
                   );
                 })}
+                <section aria-label="Reter" className="stack-sm">
+                  <div className={cn(COLUNAS, 'border-b border-[var(--border-color)] px-3 py-3')}>
+                    <div className="min-w-0">
+                      <Text variant="bodyStrong">{FUNCAO_LABELS.reter}</Text>
+                      <Text variant="secondary" className="mt-0.5">{FUNCAO_DESCRICOES.reter}</Text>
+                    </div>
+                    <SeriesDaFuncao series={seriesDeReter} onOpen={onOpenSerie} />
+                    <Text variant="meta" as="span" className="text-[var(--text-tertiary)]">Fora da grade (Stories)</Text>
+                    <span />
+                  </div>
+                </section>
               </div>
 
               <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -359,9 +372,9 @@ export function DistribuicaoFuncoesPanel({
             <div className="mt-4 stack-sm">
               {AGRUPAMENTOS.map(grupo => {
                 const funcoes = funcoesDaEtapa(grupo.id);
-                const pct = funcoes.reduce((acc, funcao) => acc + numeros[FUNCOES.indexOf(funcao)], 0);
+                const pct = funcoes.reduce((acc, funcao) => acc + numeros[FUNCOES_DA_GRADE.indexOf(funcao)], 0);
                 const spaces = previa
-                  ? funcoes.reduce((acc, funcao) => acc + previa[FUNCOES.indexOf(funcao)], 0)
+                  ? funcoes.reduce((acc, funcao) => acc + previa[FUNCOES_DA_GRADE.indexOf(funcao)], 0)
                   : null;
                 return (
                   <div key={grupo.id} className="flex items-center justify-between gap-3 border-b border-[var(--border-color)] py-2 last:border-b-0">

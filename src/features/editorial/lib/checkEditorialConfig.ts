@@ -6,7 +6,7 @@ import {
   totalDaContagem,
 } from './distribuirEspacos.ts';
 import { distribuicaoFecha } from './gradeCounts.ts';
-import { FUNCAO_LABELS, FUNCOES } from './funcoes.ts';
+import { FUNCAO_LABELS, FUNCOES_DA_GRADE } from './funcoes.ts';
 
 export type ConfigNota = {
   chave: string;
@@ -124,6 +124,14 @@ export function checkEditorialConfig(input: EditorialConfigInput): ConfigNota[] 
     });
   }
 
+  const reterLegado = distribuicao?.reter;
+  if (typeof reterLegado === 'number' && reterLegado > 0) {
+    notas.push({
+      chave: 'distribuicao-reter',
+      mensagem: `Reter fica fora da grade; esses ${reterLegado}% não dividem espaços.`,
+    });
+  }
+
   for (const excedente of excedentesDosPilares(input.pilares, input.series)) {
     const capacidadeTexto = excedente.previsto > 0
       ? `o pilar tem ${rotuloEspaco(excedente.previsto)}`
@@ -138,7 +146,7 @@ export function checkEditorialConfig(input: EditorialConfigInput): ConfigNota[] 
     const total = totalDaContagem(somaEspacosSemana(input.pilares));
     const metas = distribuirEspacos(total, percentuaisNaOrdem(distribuicao));
     const seriesAtivas = input.series.filter(serie => serie.ativa !== false);
-    FUNCOES.forEach((funcao, index) => {
+    FUNCOES_DA_GRADE.forEach((funcao, index) => {
       if ((metas[index] ?? 0) <= 0) return;
       const entrega = seriesAtivas.some(serie => serie.funcaoPadrao === funcao);
       if (entrega) return;

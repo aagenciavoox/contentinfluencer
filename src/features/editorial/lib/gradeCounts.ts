@@ -9,7 +9,7 @@ import {
   SEMANAS_GRADE_PEQUENA,
   somaEspacosSemana,
 } from './distribuirEspacos.ts';
-import { FUNCAO_LABELS, FUNCOES } from './funcoes.ts';
+import { FUNCAO_LABELS, FUNCOES_DA_GRADE } from './funcoes.ts';
 
 export type PeriodoGrade = {
   /** Inclusivo, `aaaa-mm-dd`. */
@@ -165,9 +165,9 @@ export function countGrade({
   const fecha = distribuicaoFecha(distribuicao);
   const metasFuncao = fecha
     ? distribuirEspacos(totalMeta, percentuaisNaOrdem(distribuicao))
-    : FUNCOES.map(() => 0);
+    : FUNCOES_DA_GRADE.map(() => 0);
 
-  const funcoes: LinhaContagem[] = FUNCOES.flatMap((funcao, index) => {
+  const funcoes: LinhaContagem[] = FUNCOES_DA_GRADE.flatMap((funcao, index) => {
     const contagem = porFuncao.get(funcao) ?? { planejado: 0, realizado: 0 };
     const meta = metasFuncao[index] ?? 0;
     if (meta === 0 && contagem.planejado === 0) return [];

@@ -9,6 +9,10 @@ export const FUNCOES: FuncaoEditorial[] = [
   'reter',
 ];
 
+/** As 5 funções que entram na grade. Reter fica fora (Fase 4): nasce como
+ * Stories, nunca conta espaço, e por isso não divide % com as outras. */
+export const FUNCOES_DA_GRADE: FuncaoEditorial[] = FUNCOES.filter(funcao => funcao !== 'reter');
+
 export const FUNCAO_LABELS: Record<FuncaoEditorial, string> = {
   atrair: 'Atrair alcance',
   converter: 'Converter em seguidor',

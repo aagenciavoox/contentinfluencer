@@ -279,6 +279,9 @@ export function resolvePlatform(lookups: Lookups, ref: string): string {
 export const FUNCOES = ['atrair', 'converter', 'aprofundar', 'comunidade', 'acao', 'reter'] as const;
 export type Funcao = typeof FUNCOES[number];
 
+/** As 5 funções que entram na grade. Reter fica fora (não divide % com as outras). */
+export const FUNCOES_DA_GRADE: readonly Funcao[] = FUNCOES.filter(f => f !== 'reter');
+
 export const FUNCAO_LABELS: Record<Funcao, string> = {
   atrair: 'Atrair alcance',
   converter: 'Converter em seguidor',

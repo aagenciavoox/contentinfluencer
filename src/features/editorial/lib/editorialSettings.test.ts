@@ -79,6 +79,29 @@ function testDistribuicaoFuncoes() {
   assert.equal(partial.distribuicaoFuncoes, null);
 }
 
+// Fase 4: Reter fica fora da grade — ausente é válido e vira 0.
+function testDistribuicaoFuncoesSemReter() {
+  const semReter = getEditorialSettings({
+    [EDITORIAL_SETTINGS_PREFERENCE_KEY]: {
+      distribuicaoFuncoes: {
+        atrair: 20,
+        converter: 20,
+        aprofundar: 20,
+        comunidade: 20,
+        acao: 20,
+      },
+    },
+  });
+  assert.deepEqual(semReter.distribuicaoFuncoes, {
+    atrair: 20,
+    converter: 20,
+    aprofundar: 20,
+    comunidade: 20,
+    acao: 20,
+    reter: 0,
+  });
+}
+
 function testEstoqueDesejado() {
   assert.equal(getEditorialSettings({}).estoqueDesejado, null);
 
@@ -99,6 +122,7 @@ testDefaults();
 testReadsSavedValues();
 testRejectsInvalidValues();
 testDistribuicaoFuncoes();
+testDistribuicaoFuncoesSemReter();
 testEstoqueDesejado();
 
 console.log('editorialSettings tests passed');

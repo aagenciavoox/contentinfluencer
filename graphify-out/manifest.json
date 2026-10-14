@@ -1080,13 +1080,13 @@
     "semantic_hash": ""
   },
   "src/features/editorial/lib/editorialSettings.test.ts": {
-    "mtime": 1792001151.5983024,
-    "ast_hash": "dc0d9358ab3535355f055827e37efd38",
+    "mtime": 1792006837.545303,
+    "ast_hash": "4fbdc61447ea0174c476596349010446",
     "semantic_hash": ""
   },
   "src/features/editorial/lib/editorialSettings.ts": {
-    "mtime": 1792001151.8135505,
-    "ast_hash": "a4cf10fc0f80d5801fe6defe16a6c033",
+    "mtime": 1792006626.8431752,
+    "ast_hash": "4f57a1b90d5388e819265d027b90df78",
     "semantic_hash": ""
   },
   "src/features/editorial/lib/serieCompleteness.test.ts": {
@@ -2555,8 +2555,8 @@
     "semantic_hash": ""
   },
   "src/features/editorial/lib/funcoes.ts": {
-    "mtime": 1792001152.5931995,
-    "ast_hash": "f674d735dbea41c765ecaf51fcc964f9",
+    "mtime": 1792006588.4673362,
+    "ast_hash": "28948bb9e30acb553e949c4189107a75",
     "semantic_hash": ""
   },
   "src/features/editorial/lib/gradeEntries.test.ts": {
@@ -2845,8 +2845,8 @@
     "semantic_hash": ""
   },
   "mcp/src/lib.ts": {
-    "mtime": 1792001216.537846,
-    "ast_hash": "6d20fe9ee74526bff018476c9227aa57",
+    "mtime": 1792006762.1003516,
+    "ast_hash": "04a3a63a00fc434a2d8e5dacc72fe770",
     "semantic_hash": ""
   },
   "mcp/src/supabase.ts": {
@@ -2880,8 +2880,8 @@
     "semantic_hash": ""
   },
   "src/features/editorial/components/DistribuicaoFuncoesPanel.tsx": {
-    "mtime": 1792001469.861178,
-    "ast_hash": "937d9108fd4161241e8278e18e328668",
+    "mtime": 1792006716.643908,
+    "ast_hash": "65bbdd14ca91d5f4437fe07949d36898",
     "semantic_hash": ""
   },
   "src/features/editorial/lib/distribuirEspacos.test.ts": {
@@ -2890,8 +2890,8 @@
     "semantic_hash": ""
   },
   "src/features/editorial/lib/distribuirEspacos.ts": {
-    "mtime": 1792001150.7762964,
-    "ast_hash": "ffb1be3854d6d223aced9918d080f1fe",
+    "mtime": 1792006598.7053864,
+    "ast_hash": "320c2e6c5110cc3a81dc2e5c9fcd5b61",
     "semantic_hash": ""
   },
   "mcp/README.md": {
@@ -2950,8 +2950,8 @@
     "semantic_hash": ""
   },
   "mcp/src/tools/editorial.ts": {
-    "mtime": 1792001219.233036,
-    "ast_hash": "e5494f2940a5f9e1ac720cc4a10e0809",
+    "mtime": 1792006791.0003264,
+    "ast_hash": "548ab12a98872ead9c5e1d695340d964",
     "semantic_hash": ""
   },
   "src/app/router/ChunkLoadError.tsx": {
@@ -3055,13 +3055,13 @@
     "semantic_hash": ""
   },
   "src/features/editorial/lib/checkEditorialConfig.test.ts": {
-    "mtime": 1792001149.6217272,
-    "ast_hash": "e1efbb07d0a5faacae8eaa61ccff8999",
+    "mtime": 1792006861.3014882,
+    "ast_hash": "775bdf2d9618d054fefbf14211aff9f8",
     "semantic_hash": ""
   },
   "src/features/editorial/lib/checkEditorialConfig.ts": {
-    "mtime": 1792001149.8780859,
-    "ast_hash": "80f97bfa078f9ba3ec4e1fdebaffe934",
+    "mtime": 1792006650.0442936,
+    "ast_hash": "915e5f4a6fed69cf1227c06e4b53429a",
     "semantic_hash": ""
   },
   "src/features/editorial/lib/editorialReadings.test.ts": {
@@ -3090,8 +3090,8 @@
     "semantic_hash": ""
   },
   "src/features/editorial/lib/gradeCounts.ts": {
-    "mtime": 1792005442.1529648,
-    "ast_hash": "e8b5f336112d130c09fa2f6e2ef0a4f8",
+    "mtime": 1792006607.6643124,
+    "ast_hash": "ccfaac26441db5c0f3cb993c4b177c91",
     "semantic_hash": ""
   },
   "src/features/editorial/lib/pilarDaSerie.ts": {

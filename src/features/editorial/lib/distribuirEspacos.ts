@@ -1,5 +1,5 @@
 import type { FuncaoEditorial } from '../../../lib/database.ts';
-import { FUNCOES } from './funcoes.ts';
+import { FUNCOES_DA_GRADE } from './funcoes.ts';
 
 /** Abaixo deste total semanal, a prévia e a contagem olham 4 semanas. */
 export const LIMITE_GRADE_PEQUENA = 8;
@@ -85,10 +85,11 @@ export function distribuirEspacos(total: number, percentuais: readonly number[])
   return resultado;
 }
 
+/** Ordem fixa das 5 funções da grade (sem Reter — Fase 4). */
 export function percentuaisNaOrdem(
   distribuicao: Partial<Record<FuncaoEditorial, number>> | null | undefined,
 ): number[] {
-  return FUNCOES.map(funcao => {
+  return FUNCOES_DA_GRADE.map(funcao => {
     const valor = distribuicao?.[funcao];
     return typeof valor === 'number' && Number.isFinite(valor) ? valor : 0;
   });

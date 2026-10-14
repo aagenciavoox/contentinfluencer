@@ -6,6 +6,7 @@ import {
 } from '../campos.ts';
 import {
   FUNCOES,
+  FUNCOES_DA_GRADE,
   FUNIL_DA_FUNCAO,
   check,
   invalidateLookups,
@@ -228,14 +229,23 @@ async function readEditorialSettings(session: Session): Promise<Row> {
   }
 }
 
-/** Distribuição salva + agrupamento por etapa do funil (calculado, não salvo). */
+/**
+ * Distribuição salva + agrupamento por etapa do funil (calculado, não salvo).
+ * Reter fica fora da grade (Fase 4): não entra na validação dos 100% nem no
+ * agrupamento por etapa, mas um valor legado salvo nela ainda é devolvido.
+ */
 export async function distribuicaoView(session: Session) {
   const raw = (await readEditorialSettings(session)).distribuicaoFuncoes;
-  const valida = raw && typeof raw === 'object' && FUNCOES.every(f => Number.isInteger(raw[f]) && raw[f] >= 0 && raw[f] <= 100);
+  const valida = raw && typeof raw === 'object'
+    && FUNCOES_DA_GRADE.every(f => Number.isInteger(raw[f]) && raw[f] >= 0 && raw[f] <= 100);
   if (!valida) return {distribuicao: null, por_etapa: null};
-  const porEtapa = {topo: 0, meio: 0, fundo: 0, fora: 0};
-  for (const f of FUNCOES) porEtapa[FUNIL_DA_FUNCAO[f] ?? 'fora'] += raw[f];
-  return {distribuicao: Object.fromEntries(FUNCOES.map(f => [f, raw[f]])), por_etapa: porEtapa};
+  const reter = Number.isInteger(raw.reter) && raw.reter >= 0 && raw.reter <= 100 ? raw.reter : 0;
+  const porEtapa = {topo: 0, meio: 0, fundo: 0};
+  for (const f of FUNCOES_DA_GRADE) porEtapa[FUNIL_DA_FUNCAO[f] as 'topo' | 'meio' | 'fundo'] += raw[f];
+  return {
+    distribuicao: {...Object.fromEntries(FUNCOES_DA_GRADE.map(f => [f, raw[f]])), reter},
+    por_etapa: porEtapa,
+  };
 }
 
 export function registerEditorial(server: McpServer) {
@@ -245,8 +255,9 @@ export function registerEditorial(server: McpServer) {
       title: 'Definir distribuição por função (funil)',
       description:
         'Define a proporção desejada de conteúdos por função editorial (aba Editorial → Distribuição). ' +
-        'Percentuais inteiros que somam 100; funções não enviadas ficam com 0. ' +
-        'O funil é calculado a partir daqui: topo = atrair + converter, meio = aprofundar + comunidade, fundo = acao; reter fica fora. ' +
+        'Percentuais inteiros que somam 100 entre as 5 funções da grade; funções não enviadas ficam com 0. ' +
+        'O funil é calculado a partir daqui: topo = atrair + converter, meio = aprofundar + comunidade, fundo = acao. ' +
+        'Reter fica fora da grade (é conteúdo de Stories) e não entra nessa distribuição. ' +
         'limpar=true apaga a distribuição. Não gera alertas em outras telas.',
       inputSchema: {
         atrair: z.number().int().min(0).max(100).optional(),
@@ -254,7 +265,6 @@ export function registerEditorial(server: McpServer) {
         aprofundar: z.number().int().min(0).max(100).optional(),
         comunidade: z.number().int().min(0).max(100).optional(),
         acao: z.number().int().min(0).max(100).optional(),
-        reter: z.number().int().min(0).max(100).optional(),
         limpar: z.boolean().optional(),
       },
     },
@@ -263,10 +273,10 @@ export function registerEditorial(server: McpServer) {
       if (args.limpar) {
         settings.distribuicaoFuncoes = null;
       } else {
-        const distribuicao = Object.fromEntries(FUNCOES.map(f => [f, args[f] ?? 0]));
+        const distribuicao = Object.fromEntries(FUNCOES_DA_GRADE.map(f => [f, args[f] ?? 0]));
         const soma = Object.values(distribuicao).reduce((acc, v) => acc + v, 0);
         if (soma !== 100) throw new Error(`A soma está em ${soma}%. Ela precisa fechar em 100.`);
-        settings.distribuicaoFuncoes = distribuicao;
+        settings.distribuicaoFuncoes = {...distribuicao, reter: 0};
       }
       check('salvar distribuição', await session.client.from('user_preferences').upsert(
         {user_id: session.userId, key: EDITORIAL_SETTINGS_KEY, value: JSON.stringify(settings)},
