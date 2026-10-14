@@ -11,7 +11,7 @@ import {
   type CreationItemActionHandlers,
 } from '../lib/creationItemActions';
 import {
-  getCreationCardFooterMeta,
+  getCreationCardDateMeta,
   getCreationCardTags,
   getCreationNoteExcerpt,
   getCreationTitle,
@@ -49,7 +49,8 @@ export function CreationGridCard({
   const isIdea = isIdeaContent(content);
   const tags = etiquetas ?? getCreationCardTags(content);
   const excerpt = getCreationNoteExcerpt(content);
-  const footerMeta = getCreationCardFooterMeta(content);
+  // Só a data no rodapé: o formato vai para a lista, onde há espaço para ele sem cortar.
+  const footerMeta = getCreationCardDateMeta(content);
   const canOpen = !content.deletedAt;
   const canActivate = selectionMode ? selectable : canOpen;
   const showSelect = selectable;
@@ -162,7 +163,7 @@ export function CreationGridCard({
                 variant="meta"
                 as="span"
                 className={cn(
-                  'truncate text-right text-2xs text-[var(--text-tertiary)]',
+                  'truncate text-right text-[var(--text-tertiary)]',
                   tags.length > 0 ? 'max-w-[60%] shrink-0' : 'max-w-full',
                 )}
               >

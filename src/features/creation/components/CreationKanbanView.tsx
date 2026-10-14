@@ -13,7 +13,7 @@ import {
 } from '../lib/creationItemActions';
 import {
   CREATION_KANBAN_TABS,
-  getCreationCardFooterMeta,
+  getCreationCardDateMeta,
   getCreationCardTags,
   getCreationNoteExcerpt,
   getCreationTitle,
@@ -68,7 +68,8 @@ function CreationKanbanCard({
   const isIdea = isIdeaContent(content);
   const tags = etiquetas ?? getCreationCardTags(content);
   const excerpt = getCreationNoteExcerpt(content);
-  const footerMeta = getCreationCardFooterMeta(content);
+  // Só a data no rodapé: o formato vai para a lista, onde há espaço para ele sem cortar.
+  const footerMeta = getCreationCardDateMeta(content);
   const canOpen = !content.deletedAt && !selectionMode;
   const entityHint = creationEntityHint(pillar, series, content.pilarId, content.seriesId);
   const hasMarks = entityHint.length > 0;
@@ -152,7 +153,7 @@ function CreationKanbanCard({
               variant="meta"
               as="span"
               className={cn(
-                'truncate text-right text-2xs text-[var(--text-tertiary)]',
+                'truncate text-right text-[var(--text-tertiary)]',
                 tags.length > 0 ? 'max-w-[60%] shrink-0' : 'max-w-full',
               )}
             >
@@ -179,7 +180,9 @@ export function CreationKanbanView({
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<CreationTab | null>(null);
 
-  const columns: CreationTab[] = activeTab === 'Todos'
+  // As colunas já são as etapas: uma aba de etapa só destaca a coluna, não some com as outras.
+  const showAllStages = activeTab === 'Todos' || isCreationKanbanTab(activeTab);
+  const columns: CreationTab[] = showAllStages
     ? [...CREATION_KANBAN_TABS]
     : [activeTab];
 
@@ -197,7 +200,9 @@ export function CreationKanbanView({
             key={tab}
             className={cn(
               'flex h-full w-[min(300px,86vw)] shrink-0 flex-col rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-hover)]/20',
+              'md:w-auto md:min-w-[240px] md:flex-1 md:basis-0',
               'transition-[border-color,background-color] duration-150',
+              showAllStages && activeTab === tab && 'border-[var(--border-strong)] bg-[var(--bg-hover)]/40',
               isActiveDrop && 'border-[var(--border-strong)] bg-[var(--bg-hover)]/45',
             )}
             onDragOver={event => {

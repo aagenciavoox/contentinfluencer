@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { LucideIcon, CheckCircle2, ImagePlus, Lightbulb, Loader2, NotebookPen, Pencil, Pin, Star } from 'lucide-react';
+import { LucideIcon, CheckCircle2, FileText, ImagePlus, Lightbulb, Loader2, NotebookPen, Pencil, Pin, Star } from 'lucide-react';
 import { motion } from 'motion/react';
 import { MediaCard } from '../../../components/ui/MediaCard';
 import { OverflowTags } from '../../../components/ui/OverflowTags';
@@ -21,7 +21,8 @@ interface LibraryItemCardProps {
   metadata: BibliotecaItemMeta;
   contentsCount: number;
   isPrimaryMobileBook: boolean;
-  statusClassName: string;
+  /** Só mostra o tipo (Livro, Filme…) quando a grade mistura tipos. */
+  showTypeLabel?: boolean;
   onOpen: () => void;
   onEdit: () => void;
   onMarkComplete: () => void;
@@ -29,6 +30,17 @@ interface LibraryItemCardProps {
   onTogglePrimary: () => void;
   onCoverChange: (capaUrl: string) => void;
 }
+
+const STATUS_DOT: Record<string, string> = {
+  Consumindo: 'var(--accent-blue)',
+  Lendo: 'var(--accent-blue)',
+  Assistindo: 'var(--accent-blue)',
+  Pausado: 'var(--accent-orange)',
+  Abandonado: 'var(--accent-orange)',
+  Concluído: 'var(--accent-green)',
+  Lido: 'var(--accent-green)',
+  Assistido: 'var(--accent-green)',
+};
 
 function isWishlistStatus(status: BibliotecaItem['status']) {
   return status === 'Quero consumir' || status === 'Quero ler' || status === 'Quero ver';
@@ -40,7 +52,7 @@ export function LibraryItemCard({
   metadata,
   contentsCount,
   isPrimaryMobileBook,
-  statusClassName,
+  showTypeLabel = true,
   onOpen,
   onEdit,
   onMarkComplete,
@@ -177,11 +189,19 @@ export function LibraryItemCard({
               </button>
             </div>
 
-            <div className="pointer-events-none absolute bottom-2 left-2 flex flex-col gap-1 transition-opacity duration-200 group-hover:opacity-0">
-              <span className="rounded-full bg-[var(--backdrop-strong)] px-2 py-0.5 text-xs font-semibold text-white ">
-                {typeConfig.label}
-              </span>
-              <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${statusClassName}`}>
+            {/* Etiquetas com fundo sólido: texto direto sobre a arte sumia em capas claras. */}
+            <div className="pointer-events-none absolute bottom-2 left-2 flex flex-col items-start gap-1 transition-opacity duration-200 group-hover:opacity-0">
+              {showTypeLabel ? (
+                <span className="rounded-full bg-[var(--bg-elevated)] px-2 py-0.5 text-xs font-semibold text-[var(--text-primary)]">
+                  {typeConfig.label}
+                </span>
+              ) : null}
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--bg-elevated)] px-2 py-0.5 text-xs font-semibold text-[var(--text-primary)]">
+                <span
+                  aria-hidden
+                  className="h-1.5 w-1.5 shrink-0 rounded-full"
+                  style={{ backgroundColor: STATUS_DOT[item.status] ?? 'var(--text-tertiary)' }}
+                />
                 {item.status}
               </span>
             </div>
@@ -203,7 +223,12 @@ export function LibraryItemCard({
             </button>
 
             {contentsCount > 0 ? (
-              <div className="pointer-events-none absolute right-2 top-2 z-20 flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--text-primary)] px-1 text-xs font-semibold text-[var(--bg-primary)] transition-all group-hover:top-9">
+              <div
+                title={contentsCount === 1 ? '1 conteúdo usa esta obra' : `${contentsCount} conteúdos usam esta obra`}
+                aria-label={contentsCount === 1 ? '1 conteúdo usa esta obra' : `${contentsCount} conteúdos usam esta obra`}
+                className="absolute right-2 top-2 z-20 flex h-6 items-center gap-1 rounded-full bg-[var(--text-primary)] px-2 text-xs font-semibold text-[var(--bg-primary)] transition-all group-hover:top-10"
+              >
+                <FileText className="h-3 w-3" aria-hidden />
                 {contentsCount}
               </div>
             ) : null}

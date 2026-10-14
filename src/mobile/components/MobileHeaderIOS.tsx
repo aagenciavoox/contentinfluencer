@@ -33,7 +33,7 @@ export function MobileHeaderIOS({
   const isCompactCenter = titleVariant === 'compact-center';
 
   const actionButtonClassName = cn(
-    'flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[var(--border-color)]',
+    'flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[var(--border-color)]',
     'bg-[var(--bg-secondary)] text-[var(--text-primary)] touch-manipulation active:scale-95',
     'focus-visible:outline-none focus-visible:shadow-[var(--focus-ring-brand)]',
   );

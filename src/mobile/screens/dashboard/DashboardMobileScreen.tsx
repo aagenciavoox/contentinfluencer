@@ -28,24 +28,26 @@ export function DashboardMobileScreen({
 
   return (
     <div>
+      {/* Mesmo cabeçalho neutro das outras telas: a faixa rosa deixava o Hoje com cara de outro app
+          e o texto branco pequeno sobre ela não passava no contraste mínimo. */}
       <section
-        className="bg-[var(--brand-accent)] px-4 pb-4"
-        style={{ paddingTop: 'calc(env(safe-area-inset-top) + 12px)' }}
+        className="border-b border-[var(--border-color)] bg-[var(--bg-primary)] px-4 pb-3"
+        style={{ paddingTop: 'calc(env(safe-area-inset-top) + 8px)' }}
       >
         <div className="flex items-center justify-between gap-3">
           <button
             type="button"
             onClick={onOpenMenu}
             aria-label="Abrir menu"
-            className="flex min-h-11 min-w-0 flex-1 items-center gap-3 text-left touch-manipulation focus-visible:outline-none focus-visible:shadow-[var(--focus-ring-brand)]"
+            className="flex min-h-11 min-w-0 flex-1 items-center gap-3 text-left touch-manipulation focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
           >
             <span
               aria-hidden
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--brand-on-accent)] text-sm font-semibold text-[var(--brand-accent)]"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[var(--border-color)] bg-[var(--bg-secondary)] text-sm font-semibold text-[var(--text-primary)]"
             >
               {initial}
             </span>
-            <Text variant="bodyStrong" truncate className="!text-[var(--brand-on-accent)]">
+            <Text variant="pageTitle" as="span" truncate>
               {greetingName} · {weekdayLabel}
             </Text>
           </button>
@@ -54,14 +56,14 @@ export function DashboardMobileScreen({
             type="button"
             aria-label="Abrir busca global"
             onClick={onOpenSearch}
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[var(--bg-elevated)] text-[var(--text-primary)] touch-manipulation active:scale-95 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring-brand)]"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[var(--border-color)] bg-[var(--bg-secondary)] text-[var(--text-primary)] touch-manipulation active:scale-95 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
           >
             <Search className="h-4 w-4" />
           </button>
         </div>
 
-        <div className="mt-3">
-          <DayPulse segments={pulseSegments} tone="onAccent" />
+        <div className="mt-1 pl-14">
+          <DayPulse segments={pulseSegments} />
         </div>
       </section>
 

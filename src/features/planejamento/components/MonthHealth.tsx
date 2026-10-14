@@ -8,7 +8,7 @@ import type {Pilar, Serie} from '../../../lib/database';
 import type {GradeEntry} from '../../editorial/lib/gradeEntries';
 import type {GradeCounts, LinhaContagem} from '../../editorial/lib/gradeCounts';
 import {FUNCAO_CURTA, FUNIL_DA_FUNCAO, isFuncaoEditorial} from '../../editorial/lib/funcoes';
-import {seriesDoPilarNoMes, tomDaSaude, type TomDaSaude} from '../lib/monthHealth';
+import {foraDaContaDoMes, seriesDoPilarNoMes, textoForaDaConta, tomDaSaude, type TomDaSaude} from '../lib/monthHealth';
 
 const FUNIL_COLOR = {
   topo: 'var(--accent-blue)',
@@ -84,8 +84,11 @@ export function MonthHealth({
   series,
   pilares,
   temDistribuicao,
+  outrasRedes = 0,
 }: {
   counts: GradeCounts;
+  /** Publicações do mês só fora da rede de referência; entram só na explicação. */
+  outrasRedes?: number;
   entries: readonly GradeEntry[];
   series: readonly Serie[];
   pilares: readonly Pilar[];
@@ -96,6 +99,7 @@ export function MonthHealth({
   const pilar = pilares.find(item => item.id === pilarAberto) ?? null;
   const seriesDoPilar = pilar ? seriesDoPilarNoMes(pilar.id, series, entries) : [];
   const semMeta = counts.totalMeta === 0 && counts.pilares.length === 0;
+  const notaForaDaConta = textoForaDaConta(foraDaContaDoMes(counts, entries, outrasRedes));
 
   return (
     <Surface padding="sm">
@@ -111,7 +115,7 @@ export function MonthHealth({
         Post-its de ideia e roteiro neste mês, mais o que já tem data, contra os espaços e a distribuição do editorial.
       </Text>
       {semMeta ? (
-        <Text variant="meta" className="mt-3 text-[var(--text-secondary)]">
+        <Text variant="meta" as="p" className="mt-3 text-[var(--text-secondary)]">
           Os pilares ainda não têm espaços por semana. Defina isso no editorial para comparar o mês.
         </Text>
       ) : (
@@ -143,12 +147,15 @@ export function MonthHealth({
           })}
         </div>
       ) : !semMeta && !temDistribuicao ? (
-        <Text variant="meta" className="mt-3 text-[var(--text-secondary)]">
+        <Text variant="meta" as="p" className="mt-3 text-[var(--text-secondary)]">
           A distribuição por função aparece quando estiver salva no editorial.
         </Text>
       ) : null}
       {counts.notaSoma ? (
-        <Text variant="meta" className="mt-3 text-[var(--text-secondary)]">{counts.notaSoma}</Text>
+        <Text variant="meta" as="p" className="mt-1 text-[var(--text-secondary)]">{counts.notaSoma}</Text>
+      ) : null}
+      {notaForaDaConta ? (
+        <Text variant="meta" as="p" className="mt-1 text-[var(--text-secondary)]">{notaForaDaConta}</Text>
       ) : null}
       <Dialog
         open={Boolean(pilar)}

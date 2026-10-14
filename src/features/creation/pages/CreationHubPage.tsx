@@ -17,7 +17,6 @@ import { Dialog } from '../../../components/overlays/Dialog';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { AppButton } from '../../../components/ui/AppButton';
 import { FilterBar } from '../../../components/ui/FilterBar';
-import { PaginationBar } from '../../../components/ui/PaginationBar';
 import { SegmentTabs } from '../../../components/ui/SegmentTabs';
 import { Surface } from '../../../components/ui/Surface';
 import { Text } from '../../../components/ui/Text';
@@ -85,6 +84,7 @@ import {
 import type { CreationItemActionHandlers } from '../lib/creationItemActions';
 import {
   etiquetasVisiveis,
+  isCreationKanbanTab,
   moveCreationToKanbanTab,
   readStoredCreationViewMode,
   storeCreationViewMode,
@@ -216,12 +216,32 @@ export function CreationHubPage() {
     [activeTab, canonicalContents, funcaoId, originId, pilarId, search, seriesId, sort, state.series, state.temas, temaId],
   );
 
+  // No kanban, as colunas são as etapas; a aba de etapa só destaca a coluna.
+  const kanbanContents = useMemo(() => {
+    if (viewMode !== 'kanban' || !isCreationKanbanTab(activeTab)) return filteredContents;
+    return sortCreationContents(
+      filterCreationContents(canonicalContents, {
+        tab: 'Todos',
+        search,
+        pilarId,
+        seriesId,
+        temaId,
+        originId,
+        funcao: funcaoId,
+        series: state.series,
+        temas: state.temas,
+      }),
+      sort,
+    );
+  }, [activeTab, canonicalContents, filteredContents, funcaoId, originId, pilarId, search, seriesId, sort, state.series, state.temas, temaId, viewMode]);
+
+  // "Mostrar mais" acumula páginas em vez de trocar de página: a coleção é pequena.
   const pageData = useMemo(
-    () => paginateCreationContents(filteredContents, requestedPage),
+    () => paginateCreationContents(filteredContents, 1, CREATION_PAGE_SIZE * requestedPage),
     [filteredContents, requestedPage],
   );
 
-  const visibleContents = viewMode === 'kanban' ? filteredContents : pageData.items;
+  const visibleContents = viewMode === 'kanban' ? kanbanContents : pageData.items;
   const exportableContents = useMemo(
     () => filteredContents.filter(canExportCreation),
     [filteredContents],
@@ -1008,7 +1028,12 @@ export function CreationHubPage() {
   ) : null;
 
   const hasFilters = Boolean(search || pilarId || seriesId || temaId || originId || funcaoId);
-  const shownCount = viewMode === 'kanban' ? filteredContents.length : pageData.items.length;
+  const shownCount = viewMode === 'kanban' ? kanbanContents.length : pageData.items.length;
+  const totalCount = viewMode === 'kanban' ? kanbanContents.length : filteredContents.length;
+  const hiddenCount = totalCount - shownCount;
+  const countMeta = hiddenCount > 0
+    ? `Mostrando ${shownCount} de ${totalCount}`
+    : `${totalCount} ${totalCount === 1 ? 'item' : 'itens'}`;
 
   return (
     <>
@@ -1019,7 +1044,7 @@ export function CreationHubPage() {
           <DesktopPageHeader
             section="Criação"
             title="Criação"
-            meta={`${shownCount} de ${filteredContents.length} itens`}
+            meta={countMeta}
             actions={activeTab === 'Lixeira' ? trashActions : (
               <CreateMenuButton
                 onCreateIdea={openIdeaComposer}
@@ -1095,7 +1120,7 @@ export function CreationHubPage() {
 
             {viewMode === 'kanban' ? (
               <CreationKanbanView
-                contents={filteredContents}
+                contents={kanbanContents}
                 activeTab={activeTab}
                 resolveItem={resolveItem}
                 selectionMode={exportMode}
@@ -1106,17 +1131,15 @@ export function CreationHubPage() {
               />
             ) : null}
 
-            {viewMode !== 'kanban' ? (
-              <PaginationBar
-                variant={isMobile ? 'simple' : 'full'}
-                itemLabel="criações"
-                showSummary={false}
-                totalItems={pageData.totalItems}
-                currentPage={pageData.page}
-                totalPages={pageData.totalPages}
-                pageSize={CREATION_PAGE_SIZE}
-                onPageChange={page => updateSearchParam('page', String(page), '1', false)}
-              />
+            {viewMode !== 'kanban' && hiddenCount > 0 ? (
+              <div className="flex justify-center">
+                <AppButton
+                  variant="secondary"
+                  onClick={() => updateSearchParam('page', String(requestedPage + 1), '1', false)}
+                >
+                  Mostrar mais ({Math.min(hiddenCount, CREATION_PAGE_SIZE)})
+                </AppButton>
+              </div>
             ) : null}
           </div>
         </QueryViewState>

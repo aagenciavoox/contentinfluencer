@@ -35,7 +35,7 @@ export function ViewModeToggle<T extends string>({
       role="group"
       aria-label={ariaLabel}
       className={cn(
-        'flex shrink-0 rounded-xl border border-[var(--border-color)] p-1',
+        'flex h-[var(--control-height)] shrink-0 items-stretch rounded-xl border border-[var(--border-color)] p-1',
         raised ? 'bg-[var(--surface-subtle)]' : 'bg-[var(--bg-hover)]',
         className,
       )}
@@ -50,7 +50,7 @@ export function ViewModeToggle<T extends string>({
             type="button"
             onClick={() => onChange(option.value)}
             className={cn(
-              'inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-all focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
+              'inline-flex items-center gap-1.5 rounded-lg px-2.5 text-xs font-semibold transition-all focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
               active
                 ? raised
                   ? 'bg-[var(--bg-elevated)] text-[var(--text-primary)] shadow-[var(--shadow-raised)]'

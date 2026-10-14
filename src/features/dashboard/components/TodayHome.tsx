@@ -4,6 +4,7 @@ import { AppButton } from '../../../components/ui/AppButton';
 import { Skeleton } from '../../../components/ui/Skeleton';
 import { Surface } from '../../../components/ui/Surface';
 import { Text } from '../../../components/ui/Text';
+import { cn } from '../../../lib/utils';
 import type { AgendaItem, BibliotecaItem, Content, Serie } from '../../../lib/database';
 import type { DetailBackState } from '../../../lib/navigation/detailBack';
 import type { AppState } from '../../../app/providers/appState';
@@ -125,6 +126,8 @@ export function TodayHome({
   leituras?: Leitura[];
 }) {
   const progress = book ? readingProgress(book) : null;
+  // Agenda vazia não ganha card: o subtítulo do dia já diz "nada na agenda".
+  const showAgendaCard = density === 'desktop' && (agenda.length > 0 || agendaLoading);
 
   return (
     <div className="stack-lg">
@@ -149,7 +152,11 @@ export function TodayHome({
         />
       </section>
 
-      <div className={density === 'desktop' ? 'grid grid-cols-3 items-stretch gap-4' : 'stack-md'}>
+      <div
+        className={density === 'desktop'
+          ? cn('grid items-stretch gap-4', showAgendaCard ? 'grid-cols-3' : 'grid-cols-2')
+          : 'stack-md'}
+      >
         {book ? (
           <Surface variant="outlined" padding="md" className="h-full" onClick={onOpenBook}>
             <div className="flex gap-4">
@@ -200,7 +207,7 @@ export function TodayHome({
         <Surface variant="outlined" padding="lg" className="flex h-full flex-col stack-md">
           <div className="stack-xs">
             <Text variant="eyebrow">Para gravar</Text>
-            {recordingEnabled && scripts.length > 0 ? (
+            {recordingEnabled && scripts.length > 0 && !scriptsLoading ? (
               <Text variant="secondary">{suggestionText}</Text>
             ) : null}
           </div>
@@ -212,7 +219,8 @@ export function TodayHome({
                 Abrir configurações
               </AppButton>
             </>
-          ) : scripts.length === 0 && scriptsLoading ? (
+          ) : scriptsLoading ? (
+            // Mesmo com roteiros na mão, espera os blocos: senão a lista mostra 3 e encolhe para 1.
             <ScriptListSkeleton />
           ) : scripts.length === 0 ? (
             <>
@@ -263,7 +271,7 @@ export function TodayHome({
           )}
         </Surface>
 
-        {density === 'desktop' ? (
+        {showAgendaCard ? (
           agenda.length === 0 && agendaLoading ? (
             <Surface variant="outlined" padding="lg" className="flex h-full flex-col stack-md" aria-busy="true">
               <Text variant="eyebrow">Agenda do dia</Text>
@@ -299,22 +307,7 @@ export function TodayHome({
                 </div>
               ) : null}
             </Surface>
-          ) : (
-            <Surface variant="outlined" padding="lg" className="flex h-full flex-col justify-between stack-md">
-              <div className="stack-sm">
-                <Text variant="eyebrow">Agenda do dia</Text>
-                <Text variant="bodyStrong">Nada na agenda</Text>
-                <Text variant="secondary">
-                  Os compromissos de hoje aparecem aqui.
-                </Text>
-              </div>
-              {onOpenCalendar ? (
-                <AppButton variant="secondary" onClick={onOpenCalendar}>
-                  Abrir calendário
-                </AppButton>
-              ) : null}
-            </Surface>
-          )
+          ) : null
         ) : null}
       </div>
     </div>

@@ -4,13 +4,16 @@ import { AppButton } from './AppButton';
 
 interface CreateMenuButtonProps {
   label?: string;
+  /** Secundário quando a tela já tem outra ação principal (ex.: Hoje). */
+  variant?: 'primary' | 'secondary';
   onCreateIdea: () => void;
   onCreateScript: () => void;
 }
 
-/** Single primary header action that expands into similar create options. */
+/** Header create action that expands into similar create options. */
 export function CreateMenuButton({
   label = 'Criar',
+  variant = 'primary',
   onCreateIdea,
   onCreateScript,
 }: CreateMenuButtonProps) {
@@ -42,7 +45,7 @@ export function CreateMenuButton({
   return (
     <div ref={rootRef} className="relative">
       <AppButton
-        variant="primary"
+        variant={variant}
         leftIcon={<Plus className="h-4 w-4" />}
         rightIcon={<ChevronDown className="h-4 w-4" />}
         aria-haspopup="menu"

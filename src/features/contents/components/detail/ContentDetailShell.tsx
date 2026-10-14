@@ -852,7 +852,8 @@ export function ContentDetailShell({
           blockOrder={blockSummary?.order ?? null}
           section={detailSection}
           onRetrySave={() => void persist()}
-          saveHint={saveHint}
+          // Enquanto o texto carrega não há o que dizer sobre salvar; antes aparecia "Salvo" sobre o esqueleto.
+          saveHint={bodyLoading ? undefined : saveHint}
           saveState={editorSaveState}
           onBack={() => handleMobileBack()}
           onDelete={() => setDeleteConfirmOpen(true)}

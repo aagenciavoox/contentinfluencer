@@ -103,33 +103,28 @@ export function SettingsGridCard({
   const moreItems = buildMoreItems({ active, onToggle, onDelete });
   const showLegacyActions = !compact && Boolean(onEdit || moreItems.length > 0 || footer);
   const showCompactActions = compact && Boolean(onEdit || moreItems.length > 0);
-  const toggleLabel = active ? 'Desativar' : 'Ativar';
-  const statusBadge = color || compact ? (
-    <Badge variant="neutral">
-      {color ? (
-        <span
-          className="mr-1.5 inline-block h-2 w-2 rounded-full border border-[var(--border-color)]"
-          style={{ backgroundColor: color }}
-          aria-hidden
-        />
-      ) : null}
-      {active ? 'Ativa' : 'Inativa'}
-    </Badge>
+  // Ordem de leitura: nome (com a cor) primeiro, descrição, e os números no rodapé.
+  // "Ativa" não vira selo: só o estado fora do normal aparece.
+  const statusBadge = compact && !active ? <Badge variant="neutral">Inativa</Badge> : null;
+  const colorDot = color ? (
+    <span
+      className="h-2.5 w-2.5 shrink-0 rounded-full border border-[var(--border-color)]"
+      style={{ backgroundColor: color }}
+      aria-hidden
+    />
   ) : null;
 
   const body = (
     <>
       {coverSrc ? <CardCover src={coverSrc} alt="" /> : null}
-      {statusBadge || badges ? (
-        <div className="mb-2 flex flex-wrap items-center gap-1">
-          {statusBadge}
-          {badges}
-        </div>
-      ) : null}
+      {statusBadge ? <div className="mb-2 flex flex-wrap items-center gap-1">{statusBadge}</div> : null}
 
-      <Text variant="itemTitle" className="leading-snug">
-        {title}
-      </Text>
+      <span className="flex min-w-0 items-center gap-2">
+        {compact || !leading ? colorDot : null}
+        <Text variant="itemTitle" as="span" className="min-w-0 leading-snug">
+          {title}
+        </Text>
+      </span>
 
       {children ?? (
         description ? (
@@ -138,6 +133,8 @@ export function SettingsGridCard({
           </Text>
         ) : null
       )}
+
+      {badges ? <div className="mt-3 flex flex-wrap items-center gap-1">{badges}</div> : null}
 
       {meta ? (
         <Text variant="meta" as="p" className="mt-2 truncate leading-none">
@@ -155,31 +152,25 @@ export function SettingsGridCard({
         className,
       )}
     >
-      {!compact && (leading || color || onToggle) ? (
-        <div className="mb-2.5 flex items-center justify-between gap-2">
-          {leading ?? (
-            color ? (
-              <span
-                className="h-3 w-3 shrink-0 rounded-full border border-[var(--border-color)]"
-                style={{ backgroundColor: color }}
-              />
-            ) : (
-              <span />
-            )
-          )}
+      {!compact && (leading || onToggle) ? (
+        <div className="-mb-1 flex items-center justify-between gap-2">
+          {leading ?? <span />}
           {onToggle ? (
+            // O rótulo diz o estado ("Ativo"), não a ação: "Desativar" ao lado de uma chave ligada confundia.
             <button
               type="button"
+              role="switch"
+              aria-checked={active}
               onClick={onToggle}
-              className="inline-flex items-center gap-1.5 rounded-[var(--radius-input)] px-1.5 py-1 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
-              aria-label={toggleLabel}
+              className="inline-flex items-center gap-1.5 rounded-[var(--radius-input)] px-1.5 py-1 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+              aria-label={`${title}: ${active ? 'ativo' : 'inativo'}`}
             >
               {active ? (
-                <ToggleRight className="h-5 w-5 text-[var(--accent-green)]" />
+                <ToggleRight className="h-5 w-5 text-[var(--text-primary)]" />
               ) : (
                 <ToggleLeft className="h-5 w-5 text-[var(--text-tertiary)]" />
               )}
-              <span>{toggleLabel}</span>
+              <span>{active ? 'Ativo' : 'Inativo'}</span>
             </button>
           ) : null}
         </div>

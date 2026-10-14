@@ -36,11 +36,15 @@ function MobileBottomNavItem({
         'touch-manipulation select-none',
         'transition-colors duration-200 motion-reduce:transition-none',
         'focus-visible:outline-none focus-visible:shadow-[var(--focus-ring-brand)]',
-        isActive ? 'text-[var(--brand-accent)]' : 'text-[var(--text-tertiary)]',
+        // Rosa só no ícone: como texto pequeno ele fica abaixo do contraste mínimo.
+        isActive ? 'text-[var(--text-primary)]' : 'text-[var(--text-tertiary)]',
       )}
     >
       <Icon
-        className={cn('h-6 w-6 shrink-0', isActive ? 'stroke-[2.25]' : 'stroke-[1.75]')}
+        className={cn(
+          'h-6 w-6 shrink-0',
+          isActive ? 'stroke-[2.25] text-[var(--brand-accent)]' : 'stroke-[1.75]',
+        )}
         aria-hidden
       />
       <span

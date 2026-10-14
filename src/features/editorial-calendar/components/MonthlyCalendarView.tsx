@@ -1,6 +1,5 @@
 import type {DragEvent} from 'react';
-import {addMonths, eachDayOfInterval, endOfWeek, format, startOfWeek} from 'date-fns';
-import {ptBR} from 'date-fns/locale';
+import {addMonths} from 'date-fns';
 import {AgendaItem, Content, Platform, Projeto} from '../../../lib/database';
 import {
   CalendarEventPill,
@@ -19,17 +18,6 @@ import type {GradeSerie} from '../../editorial/lib/gradeEntries';
 import {CalendarNetworkIcons} from './CalendarNetworkIcons';
 
 const WEEK_STARTS_ON = 0 as const;
-const TODAY_CIRCLE_CLASS =
-  '[&>div:first-child>span]:!bg-[var(--accent)] [&>div:first-child>span]:!text-[var(--bg-primary)]';
-
-function weekdayHeaderParts(day: Date) {
-  const raw = format(day, 'EEE', {locale: ptBR}).replace('.', '');
-  const label = raw.charAt(0).toUpperCase() + raw.slice(1).toLowerCase();
-  return {
-    compact: format(day, 'EEEEE', {locale: ptBR}).toUpperCase(),
-    full: `${label} ${format(day, 'd')}`,
-  };
-}
 
 type MonthlyCalendarViewProps = {
   contents: Content[];
@@ -277,32 +265,7 @@ export function MonthlyCalendarView({
 
   return (
     <div className="stack-lg">
-      {months.map(currentMonth => {
-        const headerDays = eachDayOfInterval({
-          start: startOfWeek(currentMonth, {weekStartsOn: WEEK_STARTS_ON}),
-          end: endOfWeek(currentMonth, {weekStartsOn: WEEK_STARTS_ON}),
-        });
-
-        return (
-        <div key={currentMonth.toISOString()} className="stack-none">
-        <div className="grid grid-cols-7 border border-b-0 border-[var(--border-color)] bg-[var(--bg-primary)]">
-          {headerDays.map(day => {
-            const parts = weekdayHeaderParts(day);
-            return (
-              <div
-                key={`header-${day.toISOString()}`}
-                className="min-w-0 border-r border-[var(--border-color)] px-1 py-2 text-center last:border-r-0 sm:px-2"
-              >
-                <span className="text-2xs font-semibold text-[var(--text-tertiary)] sm:hidden">
-                  {parts.compact}
-                </span>
-                <span className="hidden text-2xs font-semibold text-[var(--text-tertiary)] sm:inline">
-                  {parts.full}
-                </span>
-              </div>
-            );
-          })}
-        </div>
+      {months.map(currentMonth => (
         <CalendarMonthGrid
           key={currentMonth.toISOString()}
           anchorDate={currentMonth}
@@ -310,9 +273,7 @@ export function MonthlyCalendarView({
           onSelectDate={onSelectDate}
           weekStartsOn={WEEK_STARTS_ON}
           minCellHeight={120}
-          className="border-t-0 [&>div:first-child]:hidden"
           getDayClassName={dayProps => cn(
-            dayProps.isToday ? TODAY_CIRCLE_CLASS : undefined,
             dragOverDateKey === dayProps.dateKey && 'bg-[color-mix(in_srgb,var(--accent)_10%,transparent)]',
           )}
           onDayDragOver={(dayProps, event) => onDayDragOver?.(dayProps.dateKey, event)}
@@ -358,7 +319,7 @@ export function MonthlyCalendarView({
                       onSelectDate?.(dayProps.day);
                       onShowMore?.(dayProps.day);
                     }}
-                    className="w-full px-1 py-0.5 text-left text-xs font-semibold text-[var(--accent-blue)] hover:underline focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+                    className="w-full px-1 py-0.5 text-left text-xs font-semibold text-[var(--text-secondary)] hover:underline focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
                   >
                     +{overflow} mais
                   </button>
@@ -367,9 +328,7 @@ export function MonthlyCalendarView({
             );
           }}
         />
-        </div>
-        );
-      })}
+      ))}
     </div>
   );
 }

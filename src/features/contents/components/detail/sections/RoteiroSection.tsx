@@ -3,12 +3,13 @@ import {Columns2, PenLine, SlidersHorizontal} from 'lucide-react';
 import {MobileScriptEditor} from '../../../../../mobile/components/MobileScriptEditor';
 import {MobileSegmentTabs} from '../../../../../mobile/components/MobileSegmentTabs';
 import {AppButton} from '../../../../../components/ui/AppButton';
+import {Badge} from '../../../../../components/ui/Badge';
 import {Skeleton} from '../../../../../components/ui/Skeleton';
 import {Text} from '../../../../../components/ui/Text';
 import {ViewModeToggle} from '../../../../../components/ui/ViewModeToggle';
 import type {Content, ContentPlataforma, Pilar, Serie} from '../../../../../lib/database';
 import {cn, htmlToReadableText} from '../../../../../lib/utils';
-import {CONTENT_STATUS} from '../../../lib/contentPipeline';
+import {CONTENT_STATUS, getDisplayStatus} from '../../../lib/contentPipeline';
 import {ContentManageWorkspace} from '../ContentManageWorkspace';
 import {ContentOperationalPanel} from '../ContentOperationalPanel';
 import {ContentScriptWorkspace} from '../ContentScriptWorkspace';
@@ -230,7 +231,7 @@ export function RoteiroSection({
               tone="raised"
               showLabels
               ariaLabel="Área do conteúdo"
-              buttonClassName="h-8 px-3 text-sm"
+              buttonClassName="px-3 text-sm"
               options={[
                 {value: 'write', label: 'Escrita', icon: PenLine},
                 {value: 'manage', label: 'Gestão', icon: SlidersHorizontal},
@@ -238,6 +239,21 @@ export function RoteiroSection({
               value={workspacePane}
               onChange={pane => setWorkspacePaneChoice({contentId, pane})}
             />
+            {workspacePane === 'write' ? (
+              // A etapa só existe em Gestão; aqui ela fica à vista enquanto se escreve.
+              <button
+                type="button"
+                onClick={() => setWorkspacePaneChoice({contentId, pane: 'manage'})}
+                className="inline-flex items-center gap-1.5 rounded-[var(--radius-pill)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+                aria-label={`Etapa: ${getDisplayStatus(draft)}. Mudar em Gestão`}
+                title="Mudar a etapa em Gestão"
+              >
+                <Text variant="meta" as="span">Etapa</Text>
+                <Badge variant="status" status={getDisplayStatus(draft)}>
+                  {getDisplayStatus(draft)}
+                </Badge>
+              </button>
+            ) : null}
             {workspacePane === 'manage' ? (
               <Text variant="secondary" as="p">
                 Organize os detalhes e prepare a publicação.
@@ -333,7 +349,8 @@ export function RoteiroSection({
         <input
           value={draft.title === 'Novo roteiro' ? '' : draft.title}
           onChange={event => onChange({title: event.target.value})}
-          className="t-page-title w-full border-0 bg-transparent py-1 text-[var(--text-primary)] outline-none placeholder:text-[var(--text-tertiary)]"
+          // Title 2 (22px): o campo herdava 16px e ficava menor que o texto do roteiro (17px).
+          className="t-page-title w-full border-0 bg-transparent py-1 !text-[length:var(--font-size-title-2)] text-[var(--text-primary)] outline-none placeholder:text-[var(--text-tertiary)]"
           placeholder="Título"
           aria-label="Título do roteiro"
         />

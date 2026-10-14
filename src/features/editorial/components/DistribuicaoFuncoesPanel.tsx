@@ -403,7 +403,7 @@ export function DistribuicaoFuncoesPanel({
               <button
                 type="button"
                 onClick={onOpenPilares}
-                className="mt-3 text-sm font-medium text-[var(--brand-accent)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+                className="mt-3 text-sm font-medium text-[var(--brand-accent-strong)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
               >
                 Ajustar pilares →
               </button>
@@ -429,7 +429,7 @@ function SeriesDaFuncao({
     <MoreMenu
       label={rotuloContagemSeries(series.length)}
       align="left"
-      triggerClassName="h-auto w-auto gap-1 border-0 bg-transparent px-0 text-sm font-medium text-[var(--brand-accent)] hover:bg-transparent"
+      triggerClassName="h-auto w-auto gap-1 border-0 bg-transparent px-0 text-sm font-medium text-[var(--brand-accent-strong)] hover:bg-transparent"
       trigger={(
         <>
           <span>{rotuloContagemSeries(series.length)}</span>

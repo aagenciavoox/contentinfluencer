@@ -18,6 +18,7 @@ function testNavigationSequencePrefetchDomains() {
     'agenda',
     'projects',
     'library',
+    'recording',
   ]);
   assert.deepEqual(getRouteDataDomains('/biblioteca'), ['library', 'library-generos', 'content']);
   assert.deepEqual(getRouteDataDomains('/series'), ['production']);

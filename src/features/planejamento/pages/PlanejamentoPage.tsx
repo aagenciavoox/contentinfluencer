@@ -361,7 +361,7 @@ export function PlanejamentoPage() {
         <DesktopPageHeader
           section="Produção"
           title="Planejamento"
-          meta="Post-its antes da ideia. O calendário só recebe o que você transformar."
+          meta="Rascunho do mês em post-its. O Calendário só recebe o que você transformar em ideia ou roteiro."
           actions={(
             <>
               <AppButton variant="secondary" leftIcon={<StickyNote className="h-4 w-4" />} onClick={() => addEmpty(null)}>
@@ -414,6 +414,7 @@ export function PlanejamentoPage() {
           series={state.series}
           pilares={state.pilares}
           temDistribuicao={monthHealth.temDistribuicao}
+          outrasRedes={monthHealth.counts.outrasRedes}
         />
 
         {temasDoPlanejamento.length > 0 ? (
@@ -455,6 +456,7 @@ export function PlanejamentoPage() {
             expandContent
             tone="elevated"
             getDayClassName={day => cn(
+              'group/day',
               dragOverDay === day.dateKey && 'bg-[color-mix(in_srgb,var(--accent-orange)_12%,transparent)]',
             )}
             onDayDragOver={(day, event) => {
@@ -475,7 +477,7 @@ export function PlanejamentoPage() {
               return (
                 <div className="stack-sm">
                   {dayPostIts.map(postIt => renderPostIt(postIt, true))}
-                  <div className="flex gap-0.5">
+                  <div className="flex gap-0.5 transition-opacity md:opacity-0 md:focus-within:opacity-100 md:group-hover/day:opacity-100">
                     <AppButton
                       variant="ghost"
                       size="xs"

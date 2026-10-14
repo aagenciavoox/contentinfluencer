@@ -23,8 +23,6 @@ import {RecordingScriptReader} from '../components/RecordingScriptReader';
 import {FilterBar} from '../../../components/ui/FilterBar';
 import {SegmentTabs} from '../../../components/ui/SegmentTabs';
 import {AppButton} from '../../../components/ui/AppButton';
-import {Skeleton} from '../../../components/ui/Skeleton';
-import {Surface} from '../../../components/ui/Surface';
 import {Text} from '../../../components/ui/Text';
 import {
   buildMarkStandaloneContentRecordedTransition,
@@ -400,21 +398,30 @@ export function RecordingPage() {
           meta={
             recordingReady
               ? activeTab === 'queue'
-                ? `${prontos.length} sem bloco`
+                ? `${prontos.length} ${prontos.length === 1 ? 'roteiro' : 'roteiros'} sem bloco · selecione para montar um bloco e gravar`
                 : `${state.recordingBlocks.length} ${state.recordingBlocks.length === 1 ? 'bloco' : 'blocos'}`
               : undefined
           }
           actions={
-            <AppButton
-              variant="primary"
-              leftIcon={<Plus className="h-4 w-4" />}
-              onClick={() => {
-                handleTabChange('queue');
-                setShowBlockForm(true);
-              }}
-            >
-              Criar bloco
-            </AppButton>
+            activeTab === 'queue' ? (
+              <AppButton
+                variant="primary"
+                leftIcon={<Plus className="h-4 w-4" />}
+                disabled={selectedIds.size === 0}
+                disabledReason="Selecione os roteiros que vão para o bloco."
+                onClick={() => setShowBlockForm(true)}
+              >
+                {selectedIds.size > 0 ? `Criar bloco (${selectedIds.size})` : 'Criar bloco'}
+              </AppButton>
+            ) : (
+              <AppButton
+                variant="secondary"
+                leftIcon={<Plus className="h-4 w-4" />}
+                onClick={() => handleTabChange('queue')}
+              >
+                Montar bloco
+              </AppButton>
+            )
           }
         />
       }
@@ -494,12 +501,6 @@ export function RecordingPage() {
         <div className="stack-lg">
         {activeTab === 'queue' ? (
           <section className={cn('stack-lg', selectedIds.size > 0 && 'pb-28')}>
-            <div className="grid-metrics-3">
-              <StatCard label="Sem bloco" value={String(prontos.length)} loading={!recordingReady} />
-              <StatCard label="Selecionados" value={String(selectedIds.size)} />
-              <StatCard label="Blocos montados" value={String(state.recordingBlocks.length)} loading={!recordingReady} />
-            </div>
-
             <RecordingQueueGrid
               contents={prontos}
               selectedIds={selectedIds}
@@ -535,11 +536,6 @@ export function RecordingPage() {
           </section>
         ) : (
           <section className="stack-lg">
-            <div className="grid-metrics">
-              <StatCard label="Blocos" value={String(state.recordingBlocks.length)} loading={!recordingReady} />
-              <StatCard label="Roteiros sem bloco" value={String(queueContents.length)} loading={!recordingReady} />
-            </div>
-
             <RecordingQueueTab />
           </section>
         )}
@@ -555,26 +551,5 @@ export function RecordingPage() {
         />
       ) : null}
     </>
-  );
-}
-
-interface StatCardProps {
-  label: string;
-  value: string;
-  className?: string;
-  /** Dados ainda carregando: número em skeleton em vez de um 0 falso. */
-  loading?: boolean;
-}
-
-function StatCard({label, value, className, loading = false}: StatCardProps) {
-  return (
-    <Surface variant="outlined" padding="md" className={className} aria-busy={loading || undefined}>
-      <Text variant="label">{label}</Text>
-      {loading ? (
-        <Skeleton className="mt-1 h-7 w-10" />
-      ) : (
-        <Text variant="sectionTitle" className="mt-1 tabular-nums">{value}</Text>
-      )}
-    </Surface>
   );
 }

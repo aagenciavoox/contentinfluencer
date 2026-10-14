@@ -275,7 +275,8 @@ export function IdeaQuickCapture({
 
         <AppButton
           type="button"
-          variant="primary"
+          // Compacto vive em telas com outra ação principal (Hoje).
+          variant={isCompact ? 'secondary' : 'primary'}
           size="sm"
           onClick={onSave}
           disabled={!canSave}

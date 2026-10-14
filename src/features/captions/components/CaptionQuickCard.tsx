@@ -37,24 +37,30 @@ function captionSnapshot(items: ContentPlataforma[]) {
     .join('\u0001');
 }
 
+/**
+ * Legenda editável direto, salva ao sair do campo. Antes era preciso clicar em Editar,
+ * digitar e Salvar em cada rede; os campos pareciam editáveis e não eram.
+ */
 function useCaptionDraft(
   content: Content,
   onSave: (content: Content) => Promise<void>,
 ) {
   const [plataformas, setPlataformas] = useState(content.plataformas);
-  const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [failed, setFailed] = useState(false);
   const baselineRef = useRef(content.plataformas);
+  const focusedRef = useRef(false);
   const contentRef = useRef(content);
   const onSaveRef = useRef(onSave);
   contentRef.current = content;
   onSaveRef.current = onSave;
 
   useEffect(() => {
-    if (editing) return;
+    // Atualização de fora (realtime, outra aba) não atropela o que está sendo digitado.
+    if (focusedRef.current) return;
     baselineRef.current = content.plataformas;
     setPlataformas(content.plataformas);
-  }, [content.id, content.plataformas, content.updatedAt, editing]);
+  }, [content.id, content.plataformas, content.updatedAt]);
 
   const commit = useCallback(async (snapshot: ContentPlataforma[]) => {
     setPlataformas(snapshot);
@@ -65,37 +71,35 @@ function useCaptionDraft(
     baselineRef.current = snapshot;
   }, []);
 
+  const persist = useCallback(async (snapshot: ContentPlataforma[]) => {
+    if (captionSnapshot(snapshot) === captionSnapshot(baselineRef.current)) return;
+    setSaving(true);
+    setFailed(false);
+    try {
+      await commit(snapshot);
+    } catch {
+      setFailed(true);
+    } finally {
+      setSaving(false);
+    }
+  }, [commit]);
+
   const update = useCallback((next: ContentPlataforma[]) => {
     setPlataformas(next);
   }, []);
 
-  const startEdit = useCallback(() => {
-    baselineRef.current = plataformas;
-    setEditing(true);
-  }, [plataformas]);
-
-  const cancel = useCallback(() => {
-    setPlataformas(baselineRef.current);
-    setEditing(false);
+  const begin = useCallback(() => {
+    focusedRef.current = true;
   }, []);
 
-  const save = useCallback(async () => {
-    if (captionSnapshot(plataformas) === captionSnapshot(baselineRef.current)) {
-      setEditing(false);
-      return;
-    }
-    setSaving(true);
-    try {
-      await commit(plataformas);
-      setEditing(false);
-    } finally {
-      setSaving(false);
-    }
-  }, [commit, plataformas]);
+  const finish = useCallback((snapshot: ContentPlataforma[]) => {
+    focusedRef.current = false;
+    void persist(snapshot);
+  }, [persist]);
 
-  const dirty = captionSnapshot(plataformas) !== captionSnapshot(baselineRef.current);
+  const isFocused = useCallback(() => focusedRef.current, []);
 
-  return { plataformas, update, editing, saving, dirty, startEdit, cancel, save, commit };
+  return { plataformas, update, saving, failed, begin, finish, persist, commit, isFocused };
 }
 
 function mergePlatform(
@@ -156,7 +160,7 @@ function CaptionGridRow({
 }) {
   const { state } = useAppContext();
   const editorial = getEditorialSettings(state.preferences);
-  const { plataformas, update, editing, saving, dirty, startEdit, cancel, save, commit } = useCaptionDraft(content, onSave);
+  const { plataformas, update, saving, failed, begin, finish, persist, commit, isFocused } = useCaptionDraft(content, onSave);
   const [copiedPlatform, setCopiedPlatform] = useState<string | null>(null);
   const [copiedScript, setCopiedScript] = useState(false);
   const pulledRef = useRef(false);
@@ -176,7 +180,7 @@ function CaptionGridRow({
   }, [content.pilarId, pilares, platforms]);
 
   useEffect(() => {
-    if (pulledRef.current || editing) return;
+    if (pulledRef.current || isFocused()) return;
     if (content.seriesId && !serie) return;
     if (content.pilarId && !pilar) return;
 
@@ -198,7 +202,7 @@ function CaptionGridRow({
 
     pulledRef.current = true;
     if (changed) void commit(next);
-  }, [commit, content.id, content.pilarId, content.seriesId, editing, editorial, pilar, plataformas, platforms, serie]);
+  }, [commit, content.id, content.pilarId, content.seriesId, editorial, isFocused, pilar, plataformas, platforms, serie]);
 
   const updatePlatform = (platformId: string, patch: Partial<ContentPlataforma>) => {
     update(mergePlatform(plataformas, content.id, platformId, patch));
@@ -291,23 +295,21 @@ function CaptionGridRow({
             <textarea
               value={legenda}
               rows={4}
-              readOnly={!editing}
-              tabIndex={editing ? 0 : -1}
               placeholder={`Legenda para ${platformDisplayName(platform)}`}
               aria-label={`Legenda de ${platformDisplayName(platform)} para ${title}`}
-              aria-readonly={!editing}
-              className={cn('w-full', !editing && 'caption-locked')}
+              className="w-full placeholder:text-[var(--text-tertiary)]"
+              onFocus={begin}
+              onBlur={() => finish(plataformas)}
               onChange={event => updatePlatform(platform, { legenda: event.target.value })}
             />
             <input
               type="text"
               value={hashtags}
-              readOnly={!editing}
-              tabIndex={editing ? 0 : -1}
               placeholder="#leitura #livros"
               aria-label={`Hashtags de ${platformDisplayName(platform)} para ${title}`}
-              aria-readonly={!editing}
-              className={cn('mt-2 w-full', !editing && 'caption-locked')}
+              className="mt-2 w-full placeholder:text-[var(--text-tertiary)]"
+              onFocus={begin}
+              onBlur={() => finish(plataformas)}
               onChange={event => updatePlatform(platform, { hashtags: event.target.value })}
             />
             <CaptionHashtagSources
@@ -316,35 +318,27 @@ function CaptionGridRow({
               serie={serie}
               pilar={pilar}
               limite={limiteHashtagsDaRede(editorial, platform, platform)}
-              readOnly={!editing}
-              onPull={tags => updatePlatform(platform, {
+              onPull={tags => void persist(mergePlatform(plataformas, content.id, platform, {
                 hashtags: joinHashtags(mergeHashtags(parseHashtags(hashtags), tags, limiteHashtagsDaRede(editorial, platform, platform))),
-              })}
+              }))}
             />
             <div className="mt-2 flex items-center justify-between gap-2">
               <div className="flex min-w-0 flex-wrap items-center gap-2">
-                {editing ? (
-                  <>
-                    <AppButton size="xs" variant="secondary" disabled={saving} onClick={cancel}>
-                      Cancelar
-                    </AppButton>
-                    <AppButton
-                      size="xs"
-                      variant="primary"
-                      disabled={saving || !dirty}
-                      onClick={() => void save()}
-                    >
-                      {saving ? 'Salvando…' : 'Salvar'}
-                    </AppButton>
-                  </>
-                ) : (
-                  <AppButton size="xs" variant="secondary" onClick={startEdit}>
-                    Editar
-                  </AppButton>
-                )}
                 <Text variant="meta" className={overLimit ? 'text-[var(--danger)]' : undefined}>
                   {limit ? `${legenda.length} / ${limit}` : `${legenda.length}`}
                 </Text>
+                {saving ? (
+                  <Text variant="meta" as="span">Salvando…</Text>
+                ) : failed ? (
+                  <AppButton
+                    size="xs"
+                    variant="ghost"
+                    className="text-[var(--danger)]"
+                    onClick={() => void persist(plataformas)}
+                  >
+                    Não salvou. Tentar de novo
+                  </AppButton>
+                ) : null}
               </div>
               <AppButton
                 size="xs"

@@ -191,6 +191,17 @@ export function resolveNavBadge(
   return undefined;
 }
 
+/** O que o número ao lado do item conta, para não parecer outra contagem da mesma tela. */
+export function navBadgeHint(item: NavItemDefinition, count: number): string {
+  if (item.badgeKey === 'editorial') {
+    return `${count} em andamento: ideias, roteiros e produção`;
+  }
+  if (item.badgeKey === 'library') {
+    return count === 1 ? '1 obra na biblioteca' : `${count} obras na biblioteca`;
+  }
+  return `${count} itens`;
+}
+
 export function isSettingsNavActive(pathname: string, _isActive = false): boolean {
   return isNavItemActive('/configuracoes', pathname);
 }

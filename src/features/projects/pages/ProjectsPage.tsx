@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Handshake, DollarSign, CalendarDays } from 'lucide-react';
+import { Plus, Handshake, DollarSign, CalendarDays, AlertTriangle } from 'lucide-react';
+import { format, parseISO } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 import { useAppContext } from '../../../context/AppContext';
 import { useAuth } from '../../../context/AuthContext';
 import { EMPTY } from '../../../lib/uiCopy';
@@ -22,6 +24,8 @@ import { OverlayHeader } from '../../../components/overlays/OverlayHeader';
 import { ProjectsMobileScreen } from '../../../mobile/screens/projects/ProjectsMobileScreen';
 import { generateUUID } from '../../../utils/uuid';
 import { ProjetoEventoFields } from '../components/ProjetoEventoFields';
+import { entregaDoProjeto } from '../lib/entrega';
+import { getGentleExperienceSettings } from '../../settings/lib/gentleExperience';
 import {
   avisoDiasInvalido,
   avisoDiasParaSalvar,
@@ -48,6 +52,9 @@ const PROJECT_COLORS = [
 
 export function ProjectsPage() {
   const { state, dispatch } = useAppContext();
+  const hojeKey = format(new Date(), 'yyyy-MM-dd');
+  // Publi é compromisso externo: data que passou ganha destaque se a opção de prazos reais estiver ligada.
+  const destacarPrazos = getGentleExperienceSettings(state.preferences).realDeadlineHighlights;
   const { user } = useAuth();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
@@ -286,7 +293,9 @@ export function ProjectsPage() {
           </div>
           <div className="grid-content">
             {projetos.map(projeto => {
-              const eventoCount = state.agendaItems.filter(a => a.projetoId === projeto.id).length;
+              const eventosDoProjeto = state.agendaItems.filter(a => a.projetoId === projeto.id);
+              const eventoCount = eventosDoProjeto.length;
+              const entrega = entregaDoProjeto(projeto, eventosDoProjeto, hojeKey);
               const coverUrl = state.bibliotecaItems.find(item => item.id === projeto.bibliotecaItemId)?.capaUrl;
               return (
                 <Surface
@@ -332,6 +341,25 @@ export function ProjectsPage() {
                       <Badge variant="neutral" className="shrink-0">{PROJECT_STATUS_LABEL[projeto.status] ?? projeto.status}</Badge>
                     ) : null}
                   </div>
+                  {entrega ? (
+                    <Text
+                      variant="meta"
+                      as="p"
+                      className={cn(
+                        'flex min-w-0 items-center gap-1.5 pl-1',
+                        // Texto escuro e ícone colorido: a cor como texto pequeno fica abaixo de 4,5:1.
+                        entrega.tipo === 'passou' && destacarPrazos && 'font-semibold text-[var(--text-primary)]',
+                      )}
+                    >
+                      {entrega.tipo === 'passou' && destacarPrazos
+                        ? <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-[var(--danger)]" aria-hidden />
+                        : <CalendarDays className="h-3.5 w-3.5 shrink-0 text-[var(--text-tertiary)]" aria-hidden />}
+                      <span className="truncate">
+                        {entrega.tipo === 'passou' ? 'Data combinada passou: ' : 'Próxima: '}
+                        {format(parseISO(entrega.data), "d 'de' MMM", { locale: ptBR })} · {entrega.titulo}
+                      </span>
+                    </Text>
+                  ) : null}
                   <div className="flex flex-wrap items-center gap-x-4 gap-y-1 pl-1">
                     {projeto.value ? (
                       <span className="flex items-center gap-1 text-xs font-medium text-[var(--text-secondary)]">

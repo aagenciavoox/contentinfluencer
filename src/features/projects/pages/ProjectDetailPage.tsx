@@ -36,6 +36,8 @@ import { getPostingTimes } from '../../settings/lib/postingTimes';
 import { generateUUID } from '../../../utils/uuid';
 import { FuncaoDoRoteiro } from '../components/FuncaoDoRoteiro';
 import { ProjetoEventoFields } from '../components/ProjetoEventoFields';
+import { entregaDoProjeto } from '../lib/entrega';
+import { getGentleExperienceSettings } from '../../settings/lib/gentleExperience';
 import {
   aplicarFuncaoNoEvento,
   avisoDiasInvalido,
@@ -157,7 +159,6 @@ export function ProjectDetailPage() {
   const disponiveisParaVincular = state.contents.filter(content => !projeto.contentIds.includes(content.id));
   const evento = isProjetoEvento(normalizeProjetoTipo(projeto.tipo));
   const statusLabel = PROJECT_STATUS_LABEL[projeto.status] ?? projeto.status;
-  const projectColor = projeto.color || '#78716c';
   const formattedValue = projeto.value
     ? projeto.value.toLocaleString('pt-BR', { style: 'currency', currency: projeto.currency || 'BRL' })
     : '--';
@@ -331,14 +332,23 @@ export function ProjectDetailPage() {
     );
   }
 
+  // Valor fica só no resumo; aqui entra a data que importa, com aviso quando passou.
+  const entrega = entregaDoProjeto(projeto, agendaItems, localTodayKey());
+  const destacarPrazos = getGentleExperienceSettings(state.preferences).realDeadlineHighlights;
   const summaryCards = [
-    { label: 'Eventos', value: `${agendaItems.length}`, helper: eventHighlightLabel(agendaItems) },
+    {
+      label: entrega?.tipo === 'passou' ? 'Data combinada passou' : 'Próxima entrega',
+      value: entrega ? formatDayMonth(entrega.data) : '--',
+      helper: entrega ? entrega.titulo : 'Sem datas no projeto',
+      alert: entrega?.tipo === 'passou' && destacarPrazos,
+    },
+    { label: 'Eventos', value: `${agendaItems.length}`, helper: eventHighlightLabel(agendaItems), alert: false },
     {
       label: 'Roteiros',
       value: `${projetoContents.length}`,
       helper: disponiveisParaVincular.length > 0 ? `${disponiveisParaVincular.length} disponíveis` : 'Todos vinculados',
+      alert: false,
     },
-    { label: 'Valor', value: formattedValue, helper: '' },
   ];
 
   return (
@@ -390,8 +400,15 @@ export function ProjectDetailPage() {
     >
       <div className="grid-metrics-3">
         {summaryCards.map(card => (
-          <Surface key={card.label} variant="outlined" padding="md">
-            <Text variant="label">{card.label}</Text>
+          <Surface
+            key={card.label}
+            variant="outlined"
+            padding="md"
+            className={card.alert ? 'border-[var(--danger)]' : undefined}
+          >
+            <Text variant="label" className={card.alert ? 'font-semibold text-[var(--text-primary)]' : undefined}>
+              {card.label}
+            </Text>
             <Text variant="sectionTitle" as="p" className="mt-3">{card.value}</Text>
             {card.helper ? (
               <Text variant="meta" className="mt-1 block">{card.helper}</Text>
@@ -582,33 +599,25 @@ export function ProjectDetailPage() {
           >
             {!isEditing ? (
               <div className="stack-lg">
-                <div className="grid grid-cols-2 gap-3">
+                {/* Lista simples em vez de cards dentro do card. A cor é ajuste, fica só na edição. */}
+                <dl className="stack-sm">
                   {[
                     { label: 'Tipo', value: rotuloProjetoTipo(projeto.tipo) },
                     { label: 'Marca', value: projeto.brand || '--' },
                     { label: 'Valor', value: formattedValue },
                     ...(evento ? [{ label: 'Aviso', value: rotuloAvisoDias(projeto.avisoDias) }] : []),
                   ].map(item => (
-                    <div key={item.label} className="rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-4">
-                      <Text variant="label">{item.label}</Text>
-                      <Text variant="bodyStrong" className="mt-2">{item.value}</Text>
+                    <div key={item.label} className="flex items-baseline justify-between gap-4 border-b border-[var(--border-subtle)] pb-2 last:border-b-0 last:pb-0">
+                      <dt><Text variant="label" as="span">{item.label}</Text></dt>
+                      <dd><Text variant="bodyStrong" as="span">{item.value}</Text></dd>
                     </div>
                   ))}
-                </div>
-
-                <div className="flex items-center gap-3 rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-4">
-                  <span
-                    aria-hidden
-                    className="h-8 w-1 shrink-0 rounded-full"
-                    style={{ backgroundColor: projectColor }}
-                  />
-                  <Text variant="label">Cor</Text>
-                </div>
+                </dl>
 
                 {projeto.notes ? (
-                  <div className="rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-4">
+                  <div>
                     <Text variant="label">Notas</Text>
-                    <Text variant="secondary" className="mt-3 whitespace-pre-wrap">{projeto.notes}</Text>
+                    <Text variant="secondary" className="mt-2 whitespace-pre-wrap">{projeto.notes}</Text>
                   </div>
                 ) : null}
               </div>

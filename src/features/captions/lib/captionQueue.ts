@@ -68,6 +68,24 @@ export function filterCaptionQueue<T extends Content>(
     .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
 }
 
+/**
+ * Mantém a fila parada enquanto se escreve. Salvar uma legenda muda o updatedAt e tiraria
+ * a linha de "Sem legenda"; ela só sai quando o filtro ou a busca mudam.
+ */
+export function stableCaptionOrder<T extends { id: string }>(
+  previousOrder: readonly string[],
+  matched: readonly T[],
+  pool: readonly T[],
+): T[] {
+  const byId = new Map(pool.map(item => [item.id, item]));
+  const kept = previousOrder.flatMap(id => {
+    const item = byId.get(id);
+    return item ? [item] : [];
+  });
+  const keptIds = new Set(previousOrder);
+  return [...kept, ...matched.filter(item => !keptIds.has(item.id))];
+}
+
 export function paginateCaptionQueue<T>(
   items: readonly T[],
   requestedPage: number,

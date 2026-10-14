@@ -29,7 +29,7 @@ export function CreationOverflowMenu({
       className={className}
       size="sm"
       triggerClassName={cn(
-        'h-9 w-9 border-[var(--border-color)] bg-[var(--bg-secondary)]',
+        'h-[var(--control-height)] w-[var(--control-height)] border-[var(--border-color)] bg-[var(--bg-secondary)]',
       )}
       items={[
         {

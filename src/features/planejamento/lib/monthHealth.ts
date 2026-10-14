@@ -76,8 +76,73 @@ export function entriesDaSaudeDoMes({
   return entries;
 }
 
+export type ForaDaConta = {
+  semPilar: number;
+  foraDaGrade: number;
+  pilarSemEspaco: number;
+  /** Publicadas ou marcadas só em redes que não são a de referência: pela regra da grade, são extras. */
+  outrasRedes: number;
+};
+
+/** Conteúdos com publicação no mês só fora da rede de referência. Não viram entrada na grade. */
+export function publicacoesEmOutrasRedes({
+  contents,
+  settings,
+  periodo,
+}: {
+  contents: readonly Content[];
+  settings: Pick<EditorialSettings, 'redeReferenciaId'>;
+  periodo: PeriodoGrade;
+}): number {
+  const redeId = settings.redeReferenciaId || null;
+  let total = 0;
+  for (const content of contents) {
+    if (content.deletedAt || content.archivedAt) continue;
+    const publicacoes = content.plataformas ?? [];
+    if (publicacoes.length === 0) continue;
+    if (redeId && publicacoes.some(publicacao => publicacao.platformId === redeId)) continue;
+    const noMes = publicacoes.some(publicacao => noPeriodo(publicacao.publishDate?.slice(0, 10) ?? null, periodo))
+      || noPeriodo(content.publishDate?.slice(0, 10) ?? null, periodo);
+    if (noMes) total += 1;
+  }
+  return total;
+}
+
+/**
+ * O que tem data no mês mas não entrou nos números da saúde. Sem isso, um mês com
+ * publicações no calendário aparece como "0 de 30" e parece erro.
+ */
+export function foraDaContaDoMes(
+  counts: Pick<GradeCounts, 'pilares' | 'periodo'>,
+  entries: readonly GradeEntry[],
+  outrasRedes = 0,
+): ForaDaConta {
+  const pilaresContados = new Set(counts.pilares.map(linha => linha.id));
+  const resultado: ForaDaConta = {semPilar: 0, foraDaGrade: 0, pilarSemEspaco: 0, outrasRedes};
+  for (const entry of entries) {
+    if (!noPeriodo(entry.data, counts.periodo)) continue;
+    if (!entry.contaNaGrade) resultado.foraDaGrade += 1;
+    else if (!entry.pilarId) resultado.semPilar += 1;
+    else if (!pilaresContados.has(entry.pilarId)) resultado.pilarSemEspaco += 1;
+  }
+  return resultado;
+}
+
+export function textoForaDaConta(fora: ForaDaConta): string | null {
+  const partes: string[] = [];
+  if (fora.semPilar > 0) partes.push(`${fora.semPilar} sem pilar`);
+  if (fora.pilarSemEspaco > 0) partes.push(`${fora.pilarSemEspaco} em pilar sem espaço por semana`);
+  if (fora.foraDaGrade > 0) partes.push(`${fora.foraDaGrade} marcados fora da grade`);
+  if (fora.outrasRedes > 0) partes.push(`${fora.outrasRedes} só em redes fora da rede de referência`);
+  const total = fora.semPilar + fora.pilarSemEspaco + fora.foraDaGrade + fora.outrasRedes;
+  if (total === 0) return null;
+  const sujeito = total === 1 ? '1 item com data neste mês não entra' : `${total} itens com data neste mês não entram`;
+  return `${sujeito} na conta: ${partes.join(', ')}.`;
+}
+
 export type SaudeDoMes = GradeCounts & {
   entries: readonly GradeEntry[];
+  outrasRedes: number;
 };
 
 export type SerieNoPilar = {
@@ -235,5 +300,6 @@ export function saudeDoMes({
       periodo,
     }),
     entries,
+    outrasRedes: publicacoesEmOutrasRedes({contents, settings, periodo}),
   };
 }

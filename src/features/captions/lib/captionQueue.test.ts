@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import type { Content } from '../../../lib/database.ts';
 import {
+  stableCaptionOrder,
   captionClipboardText,
   filterCaptionQueue,
   isCaptionQueueContent,
@@ -101,5 +102,18 @@ assert.equal(pages.page, 2);
 assert.deepEqual(pages.items, ['c', 'd']);
 assert.equal(pages.totalPages, 3);
 assert.equal(paginateCaptionQueue(['a'], 9, 2).page, 1);
+
+{
+  const a = { id: 'a' };
+  const b = { id: 'b' };
+  const c = { id: 'c' };
+  // 'a' ganhou legenda (saiu de matched) mas segue na fila; 'c' é novo e entra no fim.
+  assert.deepEqual(
+    stableCaptionOrder(['a', 'b'], [b, c], [c, a, b]).map(item => item.id),
+    ['a', 'b', 'c'],
+  );
+  // Item apagado some mesmo estando na ordem anterior.
+  assert.deepEqual(stableCaptionOrder(['a', 'b'], [b], [b]).map(item => item.id), ['b']);
+}
 
 console.log('captionQueue.test.ts passed');

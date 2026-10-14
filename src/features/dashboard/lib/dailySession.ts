@@ -78,7 +78,9 @@ export function suggestionSummary(
   limit = SUGGESTED_SESSION_LIMIT,
 ): string {
   if (candidates.length === 0) return '';
-  if (candidates.length <= limit) return 'Todos os roteiros prontos.';
+  if (candidates.length <= limit) {
+    return candidates.length === 1 ? '1 pronto para gravar.' : `${candidates.length} prontos para gravar.`;
+  }
 
   const chosenIds = new Set(suggestSessionIds(candidates, limit));
   const chosen = candidates.filter(content => chosenIds.has(content.id));

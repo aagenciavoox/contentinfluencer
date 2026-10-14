@@ -72,7 +72,7 @@ function testChecarNosProximosTresDias() {
   }), settings, NOW);
   const checar = leituras.filter(leitura => leitura.chave.startsWith('checar:'));
   assert.deepEqual(checar.map(leitura => leitura.chave), ['checar:perto']);
-  assert.equal(checar[0]?.mensagem, "Este roteiro tem 'checar' e sai em 2 dias");
+  assert.equal(checar[0]?.mensagem, "«perto» tem 'checar' e sai em 2 dias");
   assert.equal(checar[0]?.prioridade, 1);
 }
 
@@ -83,7 +83,7 @@ function testLivroNaoLidoSoComBiblioteca() {
     conteudo({ id: 'lista', livroIds: ['livro-3'], bibliotecaItemId: null }),
   ];
   const bibliotecaItems = [
-    { id: 'livro-1', status: 'Lendo' as const, deletedAt: null },
+    { id: 'livro-1', status: 'Lendo' as const, deletedAt: null, titulo: 'O Nome do Vento' },
     { id: 'livro-2', status: 'Lido' as const, deletedAt: null },
     { id: 'livro-3', status: 'Quero ler' as const, deletedAt: null },
   ];
@@ -92,7 +92,13 @@ function testLivroNaoLidoSoComBiblioteca() {
     ligadas.filter(leitura => leitura.chave.startsWith('livro:')).map(leitura => leitura.chave),
     ['livro:aberto', 'livro:lista'],
   );
-  assert.equal(ligadas.find(leitura => leitura.chave === 'livro:aberto')?.mensagem, 'Este roteiro cita um livro ainda não lido');
+  const aberto = ligadas.find(leitura => leitura.chave === 'livro:aberto');
+  assert.equal(aberto?.mensagem, '«aberto» cita «O Nome do Vento», ainda não marcado como lido');
+  assert.deepEqual(aberto?.resolver, { rotulo: 'Marcar como lido', tipo: 'marcar-lido', livroId: 'livro-1' });
+  assert.equal(
+    ligadas.find(leitura => leitura.chave === 'livro:lista')?.mensagem,
+    '«lista» cita um livro, ainda não marcado como lido',
+  );
 
   const desligadas = computeReadings(baseState({
     contents,

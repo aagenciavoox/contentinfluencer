@@ -472,7 +472,7 @@ export function EditorialCalendarPage() {
         <DesktopPageHeader
           section="Produção"
           title="Calendário"
-          meta="Roteiros, eventos e projetos na linha do tempo."
+          meta="Publicações, gravações, eventos e projetos com data. O rascunho do mês fica no Planejamento."
           actions={(
             <>
               <div className="relative">

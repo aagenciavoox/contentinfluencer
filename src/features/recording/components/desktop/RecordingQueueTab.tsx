@@ -1,6 +1,9 @@
-import React, {useState} from 'react';
+import React, {useMemo, useState} from 'react';
 import {useNavigate} from 'react-router-dom';
-import {Layers, Pencil, Tags, Trash2, Video} from 'lucide-react';
+import {format, parseISO} from 'date-fns';
+import {ptBR} from 'date-fns/locale';
+import {Layers, Pencil, Play, Tags, Trash2, Video} from 'lucide-react';
+import {AppButton} from '../../../../components/ui/AppButton';
 import {ConfirmModal} from '../../../../components/feedback/modals/ConfirmModal';
 import {CONFIRM, EMPTY, type ConfirmState} from '../../../../lib/uiCopy';
 import {Text} from '../../../../components/ui/Text';
@@ -27,6 +30,31 @@ export function RecordingQueueTab() {
   const navigate = useNavigate();
   const [confirm, setConfirm] = useState<ConfirmStateLocal>(null);
 
+  // Blocos com roteiro primeiro, mais novos antes; os vazios ficam num grupo à parte.
+  const {filled, empty} = useMemo(() => {
+    const withContents = state.recordingBlocks.map(block => ({
+      block,
+      contents: getBlockContents(block, state.contents),
+    }));
+    const byNewest = (left: {block: RecordingBlock}, right: {block: RecordingBlock}) =>
+      right.block.createdAt.localeCompare(left.block.createdAt);
+    return {
+      filled: withContents.filter(item => item.contents.length > 0).sort(byNewest),
+      empty: withContents.filter(item => item.contents.length === 0).sort(byNewest),
+    };
+  }, [state.contents, state.recordingBlocks]);
+
+  const handleDeleteEmpty = () => {
+    setConfirm({
+      message: empty.length === 1
+        ? 'Excluir o bloco vazio? Ele não tem roteiros.'
+        : `Excluir os ${empty.length} blocos vazios? Nenhum deles tem roteiros.`,
+      confirmLabel: empty.length === 1 ? 'Excluir bloco' : 'Excluir blocos',
+      cancelLabel: 'Manter',
+      onConfirm: () => empty.forEach(item => dispatch({type: 'DELETE_RECORDING_BLOCK', payload: item.block.id})),
+    });
+  };
+
   const handleDeleteBlock = (id: string, event: React.MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation();
     setConfirm({
@@ -38,7 +66,7 @@ export function RecordingQueueTab() {
   return (
     <div className="stack-2xl">
       <div className="grid-content">
-        {state.recordingBlocks.length === 0 ? (
+        {filled.length === 0 && empty.length === 0 ? (
           <div className="col-span-full mt-8 flex flex-col items-center gap-6 rounded-[3rem] border-2 border-dashed border-[var(--border-color)] py-32 text-center opacity-30">
             <Video className="h-12 w-12" />
             <p className="text-sm font-semibold uppercase tracking-[0.3em]">{EMPTY.blocos.title}</p>
@@ -47,17 +75,43 @@ export function RecordingQueueTab() {
             </span>
           </div>
         ) : (
-          state.recordingBlocks.map(block => (
+          filled.map(({block, contents}) => (
             <RecordingBlockCard
               key={block.id}
               block={block}
-              contents={getBlockContents(block, state.contents)}
+              contents={contents}
               onOpen={() => navigate(`/gravacao/${block.id}`)}
+              onRecord={() => navigate(`/gravacao/${block.id}?burst=1`)}
               onDelete={handleDeleteBlock}
             />
           ))
         )}
       </div>
+
+      {empty.length > 0 ? (
+        <section className="stack-md">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <Text variant="sectionTitle">Vazios</Text>
+              <Text variant="meta" as="p">Blocos sem roteiro. Abra para adicionar ou exclua.</Text>
+            </div>
+            <AppButton variant="ghost" size="sm" leftIcon={<Trash2 className="h-4 w-4" />} onClick={handleDeleteEmpty}>
+              {empty.length === 1 ? 'Excluir o vazio' : `Excluir os ${empty.length} vazios`}
+            </AppButton>
+          </div>
+          <div className="grid-content">
+            {empty.map(({block, contents}) => (
+              <RecordingBlockCard
+                key={block.id}
+                block={block}
+                contents={contents}
+                onOpen={() => navigate(`/gravacao/${block.id}`)}
+                onDelete={handleDeleteBlock}
+              />
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       <ConfirmModal
         open={!!confirm}
@@ -78,16 +132,23 @@ type RecordingBlockCardProps = {
   block: RecordingBlock;
   contents: Content[];
   onOpen: () => void;
+  onRecord?: () => void;
   onDelete: (id: string, event: React.MouseEvent<HTMLButtonElement>) => void;
 };
 
-function RecordingBlockCard({block, contents, onOpen, onDelete}: RecordingBlockCardProps) {
+function formatBlockDate(value: string): string | null {
+  const parsed = parseISO(value);
+  return Number.isNaN(parsed.getTime()) ? null : format(parsed, "d 'de' MMM", {locale: ptBR});
+}
+
+function RecordingBlockCard({block, contents, onOpen, onRecord, onDelete}: RecordingBlockCardProps) {
   const firstContent = contents[0] ?? null;
   const {completedCount, isCompleted, progressPercentage, totalCount} = getRecordingBlockProgress(
     block,
     contents
   );
   const isEmpty = totalCount === 0;
+  const createdLabel = formatBlockDate(block.createdAt);
 
   return (
     <div
@@ -141,6 +202,10 @@ function RecordingBlockCard({block, contents, onOpen, onDelete}: RecordingBlockC
           </span>
         </div>
 
+        {createdLabel ? (
+          <Text variant="meta" as="p" className="mb-2">Criado em {createdLabel}</Text>
+        ) : null}
+
         {firstContent ? (
           <Text variant="secondary" className="mb-6 line-clamp-2">
             Ex.: {firstContent.title}
@@ -184,6 +249,21 @@ function RecordingBlockCard({block, contents, onOpen, onDelete}: RecordingBlockC
           </p>
         </div>
       </div>
+
+      {onRecord && !isEmpty && !isCompleted ? (
+        <AppButton
+          variant="secondary"
+          fullWidth
+          className="mt-5"
+          leftIcon={<Play className="h-4 w-4" />}
+          onClick={event => {
+            event.stopPropagation();
+            onRecord();
+          }}
+        >
+          Gravar
+        </AppButton>
+      ) : null}
     </div>
   );
 }

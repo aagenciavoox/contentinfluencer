@@ -35,9 +35,20 @@ interface CalendarMonthGridProps {
   onDayDragOver?: (props: CalendarMonthGridDayProps, event: React.DragEvent) => void;
   onDayDragLeave?: (props: CalendarMonthGridDayProps) => void;
   onDayDrop?: (props: CalendarMonthGridDayProps, event: React.DragEvent) => void;
-  headerWeekDate?: Date;
   weekAsideLabel?: string;
   renderWeekAside?: (weekStart: Date) => ReactNode;
+}
+
+/**
+ * Rótulo da coluna de um calendário mensal: só o dia da semana, sem data,
+ * porque a linha de cabeçalho vale para todas as semanas da grade.
+ */
+export function weekdayHeaderLabel(day: Date) {
+  const full = format(day, 'EEEE', {locale: ptBR}).split('-')[0];
+  return {
+    compact: format(day, 'EEEEE', {locale: ptBR}).toUpperCase(),
+    full: full.charAt(0).toUpperCase() + full.slice(1),
+  };
 }
 
 export function CalendarMonthGrid({
@@ -55,7 +66,6 @@ export function CalendarMonthGrid({
   onDayDragOver,
   onDayDragLeave,
   onDayDrop,
-  headerWeekDate,
   weekAsideLabel,
   renderWeekAside,
 }: CalendarMonthGridProps) {
@@ -70,12 +80,7 @@ export function CalendarMonthGrid({
     weeks.push(days.slice(i, i + 7));
   }
 
-  const headerDays = headerWeekDate
-    ? eachDayOfInterval({
-        start: startOfWeek(headerWeekDate, {weekStartsOn}),
-        end: endOfWeek(headerWeekDate, {weekStartsOn}),
-      })
-    : weeks[0];
+  const headerDays = weeks[0];
 
   const columnClass = renderWeekAside
     ? 'grid grid-cols-[9.5rem_repeat(7,minmax(0,1fr))]'
@@ -115,9 +120,8 @@ export function CalendarMonthGrid({
             key={`header-${day.toISOString()}`}
             className="min-w-0 border-r border-[var(--border-color)] px-1 py-2 text-center last:border-r-0 sm:px-2"
           >
-            <span className={headerLabelClass}>
-              {format(day, 'EEE', {locale: ptBR}).replace('.', '')}. {format(day, 'd')}
-            </span>
+            <span className={cn(headerLabelClass, 'sm:hidden')}>{weekdayHeaderLabel(day).compact}</span>
+            <span className={cn(headerLabelClass, 'hidden sm:inline')}>{weekdayHeaderLabel(day).full}</span>
           </div>
         ))}
       </div>
@@ -157,7 +161,7 @@ export function CalendarMonthGrid({
                   'flex min-w-0 cursor-pointer flex-col border-b border-r border-[var(--border-color)] p-1 transition-colors last:border-r-0 hover:bg-[color-mix(in_srgb,var(--surface-subtle),transparent_30%)] sm:p-1.5',
                   expandContent && 'h-auto',
                   !inMonth && 'bg-[var(--bg-hover)]/25 opacity-50',
-                  isSelected && 'bg-[color-mix(in_srgb,var(--accent-blue),transparent_95%)]',
+                  isSelected && 'bg-[color-mix(in_srgb,var(--accent),transparent_95%)]',
                   extraClass,
                 )}
               >
@@ -166,9 +170,9 @@ export function CalendarMonthGrid({
                     className={cn(
                       'flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold',
                       isToday
-                        ? 'bg-[var(--accent-blue)] text-white'
+                        ? 'bg-[var(--accent)] text-[var(--bg-primary)]'
                         : isSelected
-                          ? 'bg-[color-mix(in_srgb,var(--accent-blue),transparent_82%)] text-[var(--accent-blue)]'
+                          ? 'bg-[color-mix(in_srgb,var(--accent),transparent_88%)] text-[var(--text-primary)]'
                           : inMonth
                             ? 'text-[var(--text-primary)]'
                             : 'text-[var(--text-tertiary)]',

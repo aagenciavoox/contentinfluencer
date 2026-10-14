@@ -65,3 +65,4 @@ await import('./app/router/routeDataDomains.test.ts');
 await import('./components/ui/queryViewState.test.ts');
 await import('./components/ui/platformName.test.ts');
 await import('./styles/tokenContrast.test.ts');
+await import('./features/projects/lib/entrega.test.ts');

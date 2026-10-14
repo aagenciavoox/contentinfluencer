@@ -64,12 +64,13 @@ export function DashboardPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    void ensureDataDomains(['library']);
+    void ensureDataDomains(['library', 'recording']);
   }, [ensureDataDomains]);
 
   const libraryReady = useDomainsReady(['library']);
-  const scriptsReady = useDomainsReady(['content', 'production']);
-  const pulseReady = useDomainsReady(['content', 'production', 'agenda', 'projects']);
+  // "Pronto para gravar" exclui o que já está num bloco: espera os blocos para não mostrar 3 e depois 1.
+  const scriptsReady = useDomainsReady(['content', 'production', 'recording']);
+  const pulseReady = useDomainsReady(['content', 'production', 'recording', 'agenda', 'projects']);
 
   const candidates = useMemo(
     () => getSessionCandidates(state.contents, state.recordingBlocks),
@@ -248,6 +249,7 @@ export function DashboardPage() {
           title={dayTitle}
           actions={
             <CreateMenuButton
+              variant="secondary"
               onCreateIdea={() => navigate('/criacao?compose=idea')}
               onCreateScript={handleNovoRoteiro}
             />

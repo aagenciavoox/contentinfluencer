@@ -256,7 +256,7 @@ export function RecordingMobileScreen({
                               event.stopPropagation();
                               onReadContent(content.id);
                             }}
-                            className="border-[var(--border-color)]"
+                            className="h-11 w-11 border-[var(--border-color)]"
                             aria-label="Abrir modo leitura"
                           />
                           <button
@@ -265,7 +265,7 @@ export function RecordingMobileScreen({
                               event.stopPropagation();
                               onOpenContent(content.id);
                             }}
-                            className="inline-flex h-8 w-8 items-center justify-center rounded-[var(--radius-input)] border border-[var(--border-color)] text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
+                            className="inline-flex h-11 w-11 items-center justify-center rounded-[var(--radius-input)] border border-[var(--border-color)] text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
                             aria-label="Abrir detalhes do roteiro"
                           >
                             <ExternalLink className="h-3.5 w-3.5" />

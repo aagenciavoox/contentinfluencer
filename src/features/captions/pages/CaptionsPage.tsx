@@ -1,5 +1,5 @@
 import { Captions } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { EmptyState } from '../../../components/ui/EmptyState';
 import { FilterBar } from '../../../components/ui/FilterBar';
 import { PaginationBar } from '../../../components/ui/PaginationBar';
@@ -17,6 +17,7 @@ import { CaptionGrid } from '../components/CaptionQuickCard';
 import {
   filterCaptionQueue,
   paginateCaptionQueue,
+  stableCaptionOrder,
   CAPTION_PAGE_SIZE,
   type CaptionListFilter,
 } from '../lib/captionQueue';
@@ -30,7 +31,8 @@ const FILTERS: { id: CaptionListFilter; label: string }[] = [
 export function CaptionsPage() {
   const { state, updateContent } = useAppContext();
   const isMobile = useIsMobile();
-  const [filter, setFilter] = useState<CaptionListFilter>('todos');
+  // Abre no que falta fazer.
+  const [filter, setFilter] = useState<CaptionListFilter>('sem-legenda');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
 
@@ -39,10 +41,16 @@ export function CaptionsPage() {
     return active.length > 0 ? active : DEFAULT_PLATFORMS;
   }, [state.platforms]);
 
-  const items = useMemo(
-    () => filterCaptionQueue(state.contents, filter, search),
-    [filter, search, state.contents],
-  );
+  const orderRef = useRef<{ key: string; ids: string[] }>({ key: '', ids: [] });
+  const items = useMemo(() => {
+    const key = `${filter}|${search}`;
+    const matched = filterCaptionQueue(state.contents, filter, search);
+    const next = orderRef.current.key === key
+      ? stableCaptionOrder(orderRef.current.ids, matched, filterCaptionQueue(state.contents, 'todos', search))
+      : matched;
+    orderRef.current = { key, ids: next.map(item => item.id) };
+    return next;
+  }, [filter, search, state.contents]);
   const pageData = useMemo(
     () => paginateCaptionQueue(items, page),
     [items, page],
@@ -62,7 +70,7 @@ export function CaptionsPage() {
     await updateContent(content, { silent: true, skipBroadcast: true });
   }, [updateContent]);
 
-  const hasQuery = search.trim().length > 0 || filter !== 'todos';
+  const hasQuery = search.trim().length > 0 || filter === 'com-legenda';
 
   const filters = isMobile ? (
     <div className="stack-sm">
@@ -98,7 +106,7 @@ export function CaptionsPage() {
           title="Legendas"
           backLabel="Criação"
           backTo="/criacao"
-          meta={items.length === 1 ? '1 roteiro' : `${items.length} roteiros`}
+          meta={items.length === 1 ? '1 conteúdo' : `${items.length} conteúdos`}
         />
       )}
       toolbar={isMobile ? undefined : filters}
@@ -107,11 +115,15 @@ export function CaptionsPage() {
       {items.length === 0 ? (
         <EmptyState
           icon={<Captions className="h-6 w-6" />}
-          title={hasQuery ? 'Nenhum roteiro encontrado' : 'Nenhum roteiro para legendar'}
+          title={hasQuery
+            ? 'Nenhum roteiro encontrado'
+            : filter === 'sem-legenda' ? 'Tudo legendado' : 'Nenhum roteiro para legendar'}
           description={
             hasQuery
               ? 'Tente outro termo ou mostre todos os roteiros.'
-              : 'Quando um roteiro sair da ideia, ele aparece aqui para você escrever as legendas.'
+              : filter === 'sem-legenda'
+                ? 'Nenhum conteúdo está sem legenda. Os já legendados ficam em Todos.'
+                : 'Quando um roteiro sair da ideia, ele aparece aqui para você escrever as legendas.'
           }
         />
       ) : (

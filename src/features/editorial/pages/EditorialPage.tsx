@@ -46,6 +46,11 @@ const TABS: Array<{ id: EditorialTab; label: string }> = [
   { id: 'ajustes', label: 'Ajustes' },
 ];
 
+
+function nomeChave(nome: string): string {
+  return nome.trim().toLocaleLowerCase('pt-BR');
+}
+
 function isEditorialTab(value: string | null): value is EditorialTab {
   return TABS.some(tab => tab.id === value);
 }
@@ -62,6 +67,16 @@ function PillarsPanel() {
     });
     return result;
   }, [state.contents]);
+
+  // Dois pilares com o mesmo nome (um ativo, outro inativo) passavam despercebidos.
+  const nomesRepetidos = useMemo(() => {
+    const result = new Map<string, number>();
+    pilares.forEach(pilar => {
+      const chave = nomeChave(pilar.nome);
+      result.set(chave, (result.get(chave) ?? 0) + 1);
+    });
+    return result;
+  }, [pilares]);
 
   const remove = (pilar: Pilar) => {
     setConfirm({
@@ -96,6 +111,7 @@ function PillarsPanel() {
         <div className={SETTINGS_ENTITY_GRID_CLASS}>
           {pilares.map(pilar => {
             const count = counts.get(pilar.id) ?? 0;
+            const nomeRepetido = (nomesRepetidos.get(nomeChave(pilar.nome)) ?? 0) > 1;
             return (
               <SettingsGridCard
                 key={pilar.id}
@@ -110,8 +126,19 @@ function PillarsPanel() {
                 onDelete={() => remove(pilar)}
                 badges={
                   <>
+                    {nomeRepetido ? (
+                      <span title="Outro pilar tem o mesmo nome. Renomeie ou exclua um deles.">
+                        <Badge variant="neutral" className="border-[var(--warning)] text-[var(--text-primary)]">
+                          Nome repetido
+                        </Badge>
+                      </span>
+                    ) : null}
                     <Badge>{count} roteiro{count === 1 ? '' : 's'}</Badge>
-                    <Badge>{pilar.plataformas.length} redes</Badge>
+                    <Badge>
+                      {pilar.plataformas.length === 0
+                        ? 'Sem redes'
+                        : `${pilar.plataformas.length} ${pilar.plataformas.length === 1 ? 'rede' : 'redes'}`}
+                    </Badge>
                     <Badge>{pilar.frequenciaSemanal == null ? 'Sem espaços' : `${rotuloEspacos(pilar.frequenciaSemanal)}/sem`}</Badge>
                   </>
                 }

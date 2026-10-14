@@ -33,6 +33,7 @@ import {
   isNavItemActive,
   isNavItemHidden,
   isSettingsNavActive,
+  navBadgeHint,
   resolveNavBadge,
   type NavItemDefinition,
 } from './navConfig';
@@ -231,7 +232,8 @@ export function Sidebar({isOpen, onClose}: SidebarProps) {
   const renderNavItem = (item: NavItemDefinition, nested = false) => {
     const {to, label, icon: Icon, end = true} = item;
     const badge = resolveNavBadge(item, navCounts, state.bibliotecaItems.length);
-    const accessibleLabel = badge ? `${label}, ${badge} itens` : label;
+    const badgeHint = badge ? navBadgeHint(item, badge) : undefined;
+    const accessibleLabel = badgeHint ? `${label}, ${badgeHint}` : label;
     const isActive = isNavItemActive(to, location.pathname);
     const link = (
       <NavLink
@@ -282,7 +284,11 @@ export function Sidebar({isOpen, onClose}: SidebarProps) {
                   {label}
                 </span>
                 {badge ? (
-                  <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--bg-primary)] px-1.5 text-xs font-semibold text-[var(--text-secondary)]">
+                  <span
+                    title={badgeHint}
+                    aria-label={badgeHint}
+                    className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--bg-primary)] px-1.5 text-xs font-semibold text-[var(--text-secondary)]"
+                  >
                     {badge}
                   </span>
                 ) : null}

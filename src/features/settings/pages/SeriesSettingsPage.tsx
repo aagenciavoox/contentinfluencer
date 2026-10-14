@@ -23,6 +23,7 @@ import { SETTINGS_ENTITY_GRID_CLASS } from '../../../components/settings/Setting
 import { generateUUID } from '../../../utils/uuid';
 import { getEditorialSettings } from '../../editorial/lib/editorialSettings';
 import { getSerieOpenItems } from '../../editorial/lib/serieCompleteness';
+import { pilarPrincipalDaSerie } from '../../editorial/lib/pilarDaSerie';
 import { PILAR_PRESET_CORES } from '../lib/pilarConstants';
 import { isSerieColorTaken, nextFreeSerieColor, serieColorKey, takenSerieColorKeys } from '../lib/serieColors';
 
@@ -32,10 +33,9 @@ function formatRoteiroCount(count: number) {
   return `${count} roteiro${count === 1 ? '' : 's'}`;
 }
 
-function seriesMetaLine(serie: Serie, roteiroCount: number) {
+function seriesMetaLine(serie: Serie, roteiroCount: number, pilarNome: string | null) {
   const frequency = serie.frequenciaRecomendada || 'Sob demanda';
-  const activeLabel = serie.ativa ? null : 'Inativa';
-  return [frequency, formatRoteiroCount(roteiroCount), activeLabel]
+  return [pilarNome, frequency, formatRoteiroCount(roteiroCount)]
     .filter(Boolean)
     .join(' · ');
 }
@@ -233,16 +233,18 @@ export function SeriesSettingsPage() {
           ) : (
             filteredSeries.map(serie => {
               const roteiroCount = roteiroCountBySerie.get(serie.id) || 0;
-              const structure = serie.estruturaRoteiro?.trim();
+              const pilarId = pilarPrincipalDaSerie(serie);
+              const pilarNome = pilarId ? state.pilares.find(pilar => pilar.id === pilarId)?.nome ?? null : null;
+              const emAberto = editorialSettings.openInfoNotices && getSerieOpenItems(serie).length > 0;
 
               return (
                 <Surface
                   key={serie.id}
                   variant="outlined"
                   padding="md"
-                  className={!serie.ativa ? 'relative opacity-55' : 'relative'}
+                  className={!serie.ativa ? 'group relative opacity-55' : 'group relative'}
                 >
-                  <div className="absolute right-2 top-2 z-10">
+                  <div className="card-actions absolute right-2 top-2 z-10">
                     <MoreMenu
                       size="sm"
                       items={[{
@@ -256,18 +258,22 @@ export function SeriesSettingsPage() {
                     onClick={() => openBulkPage(serie.id)}
                     className="w-full pr-8 text-left focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
                   >
-                    <div className="mb-2 flex flex-wrap items-center gap-1.5">
-                      <Badge variant="neutral">
-                        <span className="mr-1.5 inline-block h-2 w-2 rounded-full" style={{ backgroundColor: serie.cor || '#6366f1' }} />
-                        {serie.ativa ? 'Ativa' : 'Inativa'}
-                      </Badge>
-                      {editorialSettings.openInfoNotices && getSerieOpenItems(serie).length > 0 ? (
-                        <Badge variant="neutral">Em aberto</Badge>
-                      ) : null}
-                    </div>
-                    <Text variant="itemTitle">{serie.name}</Text>
-                    {structure ? <Text variant="secondary" className="mt-1 line-clamp-2">{structure}</Text> : null}
-                    <Text variant="meta" className="mt-2">{seriesMetaLine(serie, roteiroCount)}</Text>
+                    {/* Só o que foge do normal vira selo: "Ativa" em todas as séries era ruído. */}
+                    {!serie.ativa || emAberto ? (
+                      <div className="mb-2 flex flex-wrap items-center gap-1.5">
+                        {!serie.ativa ? <Badge variant="neutral">Inativa</Badge> : null}
+                        {emAberto ? <Badge variant="neutral">Em aberto</Badge> : null}
+                      </div>
+                    ) : null}
+                    <span className="flex min-w-0 items-center gap-2">
+                      <span
+                        aria-hidden
+                        className="h-2.5 w-2.5 shrink-0 rounded-full border border-[var(--border-strong)]"
+                        style={serie.cor ? { backgroundColor: serie.cor, borderColor: serie.cor } : undefined}
+                      />
+                      <Text variant="itemTitle" as="span" className="min-w-0 truncate">{serie.name}</Text>
+                    </span>
+                    <Text variant="meta" className="mt-2">{seriesMetaLine(serie, roteiroCount, pilarNome)}</Text>
                   </button>
                 </Surface>
               );

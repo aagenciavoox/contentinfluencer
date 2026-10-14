@@ -74,7 +74,7 @@ export function MoreMenu({
         }}
         className={cn(
           'inline-flex items-center justify-center rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-secondary)] text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
-          size === 'sm' ? 'h-8 w-8' : 'h-9 w-9',
+          size === 'sm' ? 'h-8 w-8 pointer-coarse:h-11 pointer-coarse:w-11' : 'h-9 w-9 pointer-coarse:h-11 pointer-coarse:w-11',
           open && 'opacity-100',
           triggerClassName,
         )}

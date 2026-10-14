@@ -7,7 +7,8 @@ export function getRouteDataDomains(pathname: string): AppDataDomain[] {
   }
   if (pathname === '/hoje' || pathname === '/dashboard') {
     // Critical bootstrap already loads full content + production.
-    return ['agenda', 'projects', 'library'];
+    // Blocos de gravação também: sem eles, roteiro que já está num bloco contava como pronto.
+    return ['agenda', 'projects', 'library', 'recording'];
   }
   if (pathname.startsWith('/biblioteca')) return ['library', 'library-generos', 'content'];
   if (pathname.startsWith('/criacao')) return ['production', 'content'];

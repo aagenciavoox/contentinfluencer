@@ -15,6 +15,8 @@ export type Leitura = {
   prioridade: 1 | 2 | 4;
   mensagem: string;
   acao: { rotulo: string; href: string };
+  /** Atalho que resolve o aviso sem sair da tela, quando existe um. */
+  resolver?: { rotulo: string; tipo: 'marcar-lido'; livroId: string };
   /** Frase que aponta o próximo espaço a preencher. No máximo uma por tela. */
   destrava?: boolean;
 };
@@ -59,7 +61,7 @@ export type ReadingsState = {
   series: readonly SerieLeitura[];
   pilares: readonly PilarContagem[];
   projetos: readonly ProjetoLeitura[];
-  bibliotecaItems: readonly Pick<BibliotecaItem, 'id' | 'status' | 'deletedAt'>[];
+  bibliotecaItems: readonly (Pick<BibliotecaItem, 'id' | 'status' | 'deletedAt'> & { titulo?: string | null })[];
   pauseMode?: boolean;
   mostrarNumeros?: boolean;
   libraryEnabled?: boolean;
@@ -89,6 +91,11 @@ function textoQuando(dias: number, mostrarNumeros: boolean): string {
   if (dias <= 0) return 'hoje';
   if (dias === 1) return 'em 1 dia';
   return `em ${dias} dias`;
+}
+
+function nomeDoRoteiro(content: ConteudoLeitura): string {
+  const titulo = content.title?.trim();
+  return titulo ? `«${titulo}»` : 'Um roteiro sem título';
 }
 
 function idsDeLivros(content: ConteudoLeitura): string[] {
@@ -174,7 +181,7 @@ export function computeReadings(
     leituras.push({
       chave: `checar:${item.content.id}`,
       prioridade: 1,
-      mensagem: `Este roteiro tem 'checar' e sai ${textoQuando(item.dias, mostrarNumeros)}`,
+      mensagem: `${nomeDoRoteiro(item.content)} tem 'checar' e sai ${textoQuando(item.dias, mostrarNumeros)}`,
       acao: { rotulo: 'Abrir roteiro', href: buildContentDetailRoute(item.content.id) },
     });
   }
@@ -188,11 +195,20 @@ export function computeReadings(
       });
     });
     for (const content of comLivroAberto) {
+      const abertos = idsDeLivros(content)
+        .map(id => livros.get(id))
+        .filter((livro): livro is NonNullable<typeof livro> => Boolean(livro) && livro!.status !== 'Lido');
+      const primeiro = abertos[0];
+      const nomeLivro = primeiro?.titulo?.trim() ? `«${primeiro.titulo.trim()}»` : 'um livro';
+      const outros = abertos.length > 1 ? ` e mais ${abertos.length - 1}` : '';
       leituras.push({
         chave: `livro:${content.id}`,
         prioridade: 1,
-        mensagem: 'Este roteiro cita um livro ainda não lido',
+        mensagem: `${nomeDoRoteiro(content)} cita ${nomeLivro}${outros}, ainda não marcado como lido`,
         acao: { rotulo: 'Abrir roteiro', href: buildContentDetailRoute(content.id) },
+        ...(abertos.length === 1 && primeiro
+          ? { resolver: { rotulo: 'Marcar como lido', tipo: 'marcar-lido' as const, livroId: primeiro.id } }
+          : {}),
       });
     }
   }
@@ -307,7 +323,7 @@ type AppParaLeituras = {
   series: readonly SerieLeitura[];
   pilares: readonly PilarContagem[];
   projetos: readonly ProjetoLeitura[];
-  bibliotecaItems: readonly Pick<BibliotecaItem, 'id' | 'status' | 'deletedAt'>[];
+  bibliotecaItems: readonly (Pick<BibliotecaItem, 'id' | 'status' | 'deletedAt'> & { titulo?: string | null })[];
   preferences: Record<string, unknown> | null | undefined;
 };
 

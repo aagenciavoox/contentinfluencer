@@ -161,8 +161,8 @@ export function SeriesMobileScreen({
                     {[
                       frequency,
                       formatRoteiroCount(roteiroCount),
-                      serie.ativa ? 'Ativa' : 'Inativa',
-                    ].join(' · ')}
+                      serie.ativa ? null : 'Inativa',
+                    ].filter(Boolean).join(' · ')}
                   </Text>
                 }
                 trailing={
@@ -181,12 +181,14 @@ export function SeriesMobileScreen({
                   </div>
                 }
                 status={
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Badge variant="neutral">{serie.ativa ? 'Ativa' : 'Inativa'}</Badge>
-                    {showOpenBadges && getSerieOpenItems(serie).length > 0 ? (
-                      <Badge variant="neutral">Em aberto</Badge>
-                    ) : null}
-                  </div>
+                  !serie.ativa || (showOpenBadges && getSerieOpenItems(serie).length > 0) ? (
+                    <div className="flex flex-wrap items-center gap-2">
+                      {!serie.ativa ? <Badge variant="neutral">Inativa</Badge> : null}
+                      {showOpenBadges && getSerieOpenItems(serie).length > 0 ? (
+                        <Badge variant="neutral">Em aberto</Badge>
+                      ) : null}
+                    </div>
+                  ) : undefined
                 }
               />
               </div>

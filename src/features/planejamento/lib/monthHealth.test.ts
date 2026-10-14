@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import type {Pilar, Serie} from '../../../lib/database.ts';
 import {CONTENT_STATUS} from '../../contents/lib/contentPipeline.ts';
 import {createContentDraft} from '../../contents/lib/createContentDraft.ts';
-import {excessosAoAcrescentar, periodoDoMes, saudeDoMes, seriesDoPilarNoMes, tomDaSaude} from './monthHealth.ts';
+import {excessosAoAcrescentar, foraDaContaDoMes, publicacoesEmOutrasRedes, periodoDoMes, saudeDoMes, seriesDoPilarNoMes, textoForaDaConta, tomDaSaude} from './monthHealth.ts';
 import type {PlanejamentoPostIt} from './postIt.ts';
 
 const PERIODO = {inicio: '2026-10-01', fim: '2026-10-31'};
@@ -232,8 +232,58 @@ function testSemExcessoEnquantoAindaCabe() {
   assert.deepEqual(lista, []);
 }
 
+function testForaDaContaExplicaOQueNaoEntrou() {
+  const base = {
+    contentId: 'c',
+    tipo: 'original' as const,
+    hora: null,
+    serieId: null,
+    funcao: null,
+    realizada: false,
+    realizadaEm: null,
+  };
+  const counts = {
+    periodo: {inicio: '2026-10-01', fim: '2026-10-31'},
+    pilares: [{id: 'p1', rotulo: 'Literatura', planejado: 1, realizado: 0, meta: 5}],
+  };
+  const fora = foraDaContaDoMes(counts, [
+    {...base, id: 'a', data: '2026-10-07', contaNaGrade: true, pilarId: 'p1'},
+    {...base, id: 'b', data: '2026-10-10', contaNaGrade: true, pilarId: null},
+    {...base, id: 'c', data: '2026-10-11', contaNaGrade: true, pilarId: null},
+    {...base, id: 'd', data: '2026-10-12', contaNaGrade: true, pilarId: 'inativo'},
+    {...base, id: 'e', data: '2026-10-13', contaNaGrade: false, pilarId: 'p1'},
+    {...base, id: 'f', data: '2026-11-02', contaNaGrade: true, pilarId: null},
+  ], 2);
+  assert.deepEqual(fora, {semPilar: 2, foraDaGrade: 1, pilarSemEspaco: 1, outrasRedes: 2});
+  assert.equal(
+    textoForaDaConta(fora),
+    '6 itens com data neste mês não entram na conta: 2 sem pilar, 1 em pilar sem espaço por semana, 1 marcados fora da grade, 2 só em redes fora da rede de referência.',
+  );
+  assert.equal(textoForaDaConta({semPilar: 0, foraDaGrade: 0, pilarSemEspaco: 0, outrasRedes: 0}), null);
+
+  const tiktok = createContentDraft({id: 'so-tiktok', status: CONTENT_STATUS.POSTADO, publishDate: '2026-10-10'}, serie);
+  tiktok.plataformas = [{
+    id: 'p-tt', contentId: 'so-tiktok', platformId: 'tiktok', legenda: '', hashtags: '',
+    publishDate: '2026-10-10', publishDateEnabled: true,
+  }];
+  const insta = createContentDraft({id: 'no-insta', status: CONTENT_STATUS.POSTADO, publishDate: '2026-10-11'}, serie);
+  insta.plataformas = [{
+    id: 'p-ig', contentId: 'no-insta', platformId: 'instagram', legenda: '', hashtags: '',
+    publishDate: '2026-10-11', publishDateEnabled: true,
+  }];
+  assert.equal(
+    publicacoesEmOutrasRedes({
+      contents: [tiktok, insta],
+      settings: {redeReferenciaId: 'instagram'},
+      periodo: {inicio: '2026-10-01', fim: '2026-10-31'},
+    }),
+    1,
+  );
+}
+
 testPostItForaDoMesNaoConta();
 testSeriesDoPilarMostraQuantidadeEZero();
 testTomDaSaude();
 testExcessoQuandoOPilarJaFechou();
 testSemExcessoEnquantoAindaCabe();
+testForaDaContaExplicaOQueNaoEntrou();

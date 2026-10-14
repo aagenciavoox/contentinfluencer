@@ -82,20 +82,20 @@
   --text-h3: 1.25rem;       /* 20 */
   --text-body: var(--font-size-callout);
   --text-small: var(--font-size-footnote);
-  --text-meta: var(--font-size-caption);
+  --text-meta: var(--font-size-footnote); /* 13 — 12px deixava a tela quase toda em letra miúda */
   --font-size-page-title-mobile: 1.125rem;                 /* 18 — compact mobile chrome */
   --font-size-page-title-desktop: 1.5rem;                      /* 24 */
   --font-size-section-title-mobile: var(--font-size-body-reading); /* 17 */
   --font-size-section-title-desktop: var(--font-size-title-3);  /* 20 */
   --font-size-item-title: 0.875rem;                             /* 14 mobile list cards */
-  --font-size-item-title-desktop: 1rem;                         /* 16 */
+  --font-size-item-title-desktop: 0.9375rem;                   /* 15 */
   --font-size-panel-section: 0.875rem;                          /* 14 */
   --font-size-label-mobile: var(--font-size-caption);
   --font-size-label-desktop: var(--font-size-caption);
   --font-size-body: var(--font-size-callout);                   /* 15 UI */
   --font-size-body-mobile: var(--font-size-callout);            /* 15 UI */
-  --font-size-secondary: var(--font-size-caption);              /* 12 */
-  --font-size-secondary-mobile: var(--font-size-caption);       /* 12 */
+  --font-size-secondary: var(--font-size-footnote);             /* 13 */
+  --font-size-secondary-mobile: var(--font-size-footnote);      /* 13 */
   --font-size-button: var(--font-size-footnote);
   --font-size-button-mobile: var(--font-size-footnote);
   --font-size-nav-mobile: 0.6875rem;          /* 11 */
@@ -323,7 +323,7 @@ html.mobile-app-shell {
   --text-h3: var(--font-size-body-reading);
   --font-size-page-title-mobile: 1.125rem;
   --font-size-item-title: 0.875rem;
-  --font-size-secondary-mobile: var(--font-size-caption);
+  --font-size-secondary-mobile: var(--font-size-footnote);
   --space-xl: 16px;
   --space-2xl: 20px;
   --space-3xl: 28px;
@@ -695,7 +695,7 @@ input.caption-locked:focus {
 }
 
 /* Micro label/badge size token (use instead of arbitrary sub-12px sizes) */
-.text-2xs { font-size: 0.6875rem; line-height: 1.1; }
+.text-2xs { font-size: 0.75rem; line-height: 1.15; } /* 12 — piso de leitura para chips e rótulos */
 
 /* Radius token utilities — prefer over arbitrary rem radii */
 .rounded-token-card { border-radius: var(--radius-card); }
@@ -928,7 +928,7 @@ input.caption-locked:focus {
   display: inline-flex;
   align-items: center;
   gap: var(--space-xs);
-  font-size: var(--text-meta);
+  font-size: var(--font-size-caption); /* 12, maiúsculas — não acompanha o meta em 13 */
   font-weight: 600;
   letter-spacing: 0.06em;
   line-height: 1.2;
@@ -1278,6 +1278,14 @@ textarea.property-input {
   line-height: 1.4;
 }
 
+/* Declarado depois da regra base acima: sem isso o título de item ficava em 14px no desktop. */
+@media (min-width: 1024px) {
+  .t-item-title,
+  .creation-hub-card__title {
+    font-size: var(--font-size-item-title-desktop);
+  }
+}
+
 .entity-tag-pill {
   display: inline-flex;
   align-items: center;
@@ -1462,7 +1470,7 @@ textarea.property-input {
   border-radius: 8px;
   background: var(--bg-elevated);
   padding: 0.5rem 0.8rem;
-  font-size: 0.6875rem;
+  font-size: var(--font-size-caption);
   font-weight: 600;
   letter-spacing: 0;
   line-height: 1;
@@ -1504,8 +1512,9 @@ textarea.property-input {
   opacity: 0.92;
 }
 
-/* Sits in a toolbar row. A full-width bar would wrap the controls beside it. */
-.filter-bar--inline {
+/* Sits in a toolbar row. A full-width bar would wrap the controls beside it.
+   Doubled class so it wins over the base `.filter-bar` declared below. */
+.filter-bar.filter-bar--inline {
   position: relative;
   width: auto;
   flex: 0 0 auto;

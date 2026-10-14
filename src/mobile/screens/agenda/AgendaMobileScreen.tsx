@@ -133,7 +133,11 @@ function MobileLayerChips({
             type="button"
             aria-pressed={active}
             onClick={() => onToggle(kind)}
-            className={cn('filter-chip min-h-11 shrink-0 whitespace-nowrap', active && 'filter-chip-active')}
+            className={cn(
+              'filter-chip min-h-11 shrink-0 whitespace-nowrap',
+              // Camadas começam todas ligadas: preenchimento preto em todas virava ruído.
+              active ? 'border-[var(--border-strong)] text-[var(--text-primary)]' : 'text-[var(--text-tertiary)] opacity-70',
+            )}
           >
             <span
               className="h-1.5 w-1.5 shrink-0 rounded-full"
@@ -405,8 +409,8 @@ export function AgendaMobileScreen({
             >
               <ChevronLeft className="h-4 w-4 text-[var(--text-tertiary)]" />
             </button>
-            <span className="min-w-[120px] text-center text-sm font-semibold uppercase tracking-wider text-[var(--text-primary)]">
-              {format(calendarMonth, 'MMM yyyy', {locale: ptBR})}
+            <span className="min-w-[120px] text-center text-sm font-semibold first-letter:uppercase text-[var(--text-primary)]">
+              {format(calendarMonth, "MMMM 'de' yyyy", {locale: ptBR})}
             </span>
             <button
               type="button"
@@ -423,16 +427,17 @@ export function AgendaMobileScreen({
               type="button"
               onClick={onAddPostedVideo}
               aria-label="Registrar vídeo postado"
-              className="flex min-h-11 min-w-11 items-center justify-center rounded-xl border border-[var(--border-color)] transition-all active:scale-95"
+              className="flex min-h-11 items-center gap-1.5 rounded-xl border border-[var(--border-color)] px-3 text-xs font-semibold text-[var(--text-primary)] transition-all active:scale-95"
             >
-              <Radio className="h-4 w-4 text-[var(--text-primary)]" />
+              <Radio className="h-4 w-4" />
+              Já postei
             </button>
 
             <button
               type="button"
               onClick={onAddAgenda}
               aria-label="Novo evento"
-              className="flex min-h-11 items-center gap-1.5 rounded-xl bg-[var(--text-primary)] px-4 text-xs font-semibold  text-[var(--bg-primary)] transition-all active:scale-95"
+              className="flex min-h-11 items-center gap-1.5 rounded-xl bg-[var(--brand-accent-strong)] px-4 text-xs font-semibold text-[var(--brand-on-accent)] transition-all active:scale-95"
             >
               <Plus className="h-4 w-4" />
               Novo evento
@@ -482,8 +487,8 @@ export function AgendaMobileScreen({
                 <div
                   className={cn(
                     'flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold',
-                    isSelected && 'bg-[var(--accent-blue)] text-white',
-                    isToday && !isSelected && 'bg-[var(--text-primary)] text-[var(--bg-primary)]',
+                    isToday && 'bg-[var(--accent)] text-[var(--bg-primary)]',
+                    isSelected && !isToday && 'ring-1 ring-[var(--text-primary)] text-[var(--text-primary)]',
                     !isToday && !isSelected && 'text-[var(--text-primary)]'
                   )}
                 >
@@ -510,15 +515,16 @@ export function AgendaMobileScreen({
             type="button"
             onClick={onAddPostedVideo}
             aria-label="Registrar vídeo postado"
-            className="flex min-h-11 min-w-11 items-center justify-center rounded-xl border border-[var(--border-color)] transition-all active:scale-95"
+            className="flex min-h-11 items-center gap-1.5 rounded-xl border border-[var(--border-color)] px-3 text-xs font-semibold text-[var(--text-primary)] transition-all active:scale-95"
           >
-            <Radio className="h-4 w-4 text-[var(--text-primary)]" />
+            <Radio className="h-4 w-4" />
+            Já postei
           </button>
           <button
             type="button"
             onClick={onAddAgenda}
             aria-label="Novo evento"
-            className="flex min-h-11 items-center gap-1.5 rounded-xl bg-[var(--text-primary)] px-4 text-xs font-semibold text-[var(--bg-primary)] transition-all active:scale-95"
+            className="flex min-h-11 items-center gap-1.5 rounded-xl bg-[var(--brand-accent-strong)] px-4 text-xs font-semibold text-[var(--brand-on-accent)] transition-all active:scale-95"
           >
             <Plus className="h-4 w-4" />
             Novo evento

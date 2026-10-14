@@ -82,19 +82,6 @@ interface NovoLivroForm {
   potencialConteudo: '' | '1' | '2' | '3';
 }
 
-const STATUS_CORES: Record<string, string> = {
-  'Quero consumir': 'bg-[var(--text-primary)]/5 text-[var(--text-primary)]/50',
-  'Quero ler': 'bg-[var(--text-primary)]/5 text-[var(--text-primary)]/50',
-  'Quero ver': 'bg-[var(--text-primary)]/5 text-[var(--text-primary)]/50',
-  Consumindo: 'bg-[var(--accent-blue)]/10 text-[var(--accent-blue)]',
-  Lendo: 'bg-[var(--accent-blue)]/10 text-[var(--accent-blue)]',
-  Assistindo: 'bg-[var(--accent-blue)]/10 text-[var(--accent-blue)]',
-  Pausado: 'bg-[var(--accent-orange)]/10 text-[var(--accent-orange)]',
-  Abandonado: 'bg-[var(--accent-orange)]/10 text-[var(--accent-orange)]',
-  Concluído: 'bg-[var(--accent-green)]/10 text-[var(--accent-green)]',
-  Lido: 'bg-[var(--accent-green)]/10 text-[var(--accent-green)]',
-  Assistido: 'bg-[var(--accent-green)]/10 text-[var(--accent-green)]',
-};
 
 const STATUS_BY_TYPE: Record<BibliotecaTipo, StatusLeitura[]> = {
   livro: ['Quero ler', 'Lendo', 'Lido', 'Abandonado'],
@@ -278,6 +265,7 @@ export function LibraryPage() {
   });
   const totalLibraryPages = Math.max(1, Math.ceil(libraryTotal / LIBRARY_PAGE_SIZE));
   const livrosFiltrados = libraryItems;
+  const tiposNaGrade = new Set(livrosFiltrados.map(livro => livro.tipo)).size;
 
   const selectedTypeConfig = TYPE_CONFIG[form.tipo];
   const selectedStatusOptions = STATUS_BY_TYPE[form.tipo];
@@ -669,7 +657,7 @@ export function LibraryPage() {
                 metadata={getItemMeta(livro.id)}
                 contentsCount={contarConteudos(livro.id)}
                 isPrimaryMobileBook={mobilePrimaryBookId === livro.id}
-                statusClassName={STATUS_CORES[livro.status] || ''}
+                showTypeLabel={tiposNaGrade > 1}
                 onOpen={() => navigate(`/biblioteca/${livro.id}?tab=anotacoes`)}
                 onEdit={() => navigate(`/biblioteca/${livro.id}?tab=info`)}
                 onMarkComplete={() => handleMarkComplete(livro)}

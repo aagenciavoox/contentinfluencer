@@ -76,10 +76,22 @@ export function ContentScriptWorkspace({
         : 'cms-panel flex max-h-[calc(100dvh-10.5rem)] min-h-[28rem] flex-col overflow-hidden',
       className,
     )}>
-      <div className="flex shrink-0 items-center justify-between gap-3 border-b border-[var(--border-color)] px-4 py-3 md:px-6">
-        <Text variant="sectionTitle">Roteiro</Text>
-        {headerAction}
-      </div>
+      {writingToolbar ? (
+        // Na aba Escrita o título "Roteiro" repetia a aba; só a ação fica, quando existe.
+        <>
+          <Text variant="sectionTitle" className="sr-only">Roteiro</Text>
+          {headerAction ? (
+            <div className="flex shrink-0 items-center justify-end gap-3 border-b border-[var(--border-color)] px-4 py-2 md:px-6">
+              {headerAction}
+            </div>
+          ) : null}
+        </>
+      ) : (
+        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-[var(--border-color)] px-4 py-3 md:px-6">
+          <Text variant="sectionTitle">Roteiro</Text>
+          {headerAction}
+        </div>
+      )}
       <div className="flex min-h-0 flex-1 flex-col">
         {bodyLoading ? (
           <div className="stack-sm p-4 md:p-6" aria-busy="true" aria-label="Carregando roteiro">

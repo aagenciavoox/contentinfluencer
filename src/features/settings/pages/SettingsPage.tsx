@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import {DesktopPageHeader} from '../../../layouts/page/DesktopPageHeader';
 import {PageLayout} from '../../../layouts/page/PageLayout';
+import {SegmentTabs} from '../../../components/ui/SegmentTabs';
 import {Text} from '../../../components/ui/Text';
 import {useAppContext} from '../../../context/AppContext';
 import {useIsMobile} from '../../../hooks/useIsMobile';
@@ -207,6 +208,25 @@ export function SettingsPage() {
         />
       }
     >
+        {/* O tema só existia no menu do avatar; /configuracoes/aparencia caía aqui sem a opção. */}
+        <section className="stack-md">
+          <div>
+            <Text variant="eyebrow">Aparência</Text>
+            <Text variant="sectionTitle" className="mt-1 tracking-tight">
+              Tema do app
+            </Text>
+          </div>
+          <SegmentTabs<'light' | 'dark'>
+            className="self-start"
+            options={[
+              {id: 'light', label: 'Claro'},
+              {id: 'dark', label: 'Escuro'},
+            ]}
+            value={state.theme === 'dark' ? 'dark' : 'light'}
+            onChange={theme => dispatch({type: 'SET_THEME', payload: theme})}
+          />
+        </section>
+
         <section className="stack-md">
           <div>
             <Text variant="eyebrow">Ritmo</Text>

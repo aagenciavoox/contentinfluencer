@@ -59,7 +59,7 @@ export function MobileSegmentTabs<T extends string>({
                 : undefined
             }
             className={cn(
-              'inline-flex h-9 shrink-0 items-center justify-center gap-1.5 px-3 transition-colors',
+              'inline-flex h-11 shrink-0 items-center justify-center gap-1.5 px-3 transition-colors',
               isTight ? 'rounded-[var(--radius-sm)]' : 'rounded-[var(--radius-md)]',
               active
                 ? 'bg-[var(--text-primary)] text-[var(--bg-primary)]'
