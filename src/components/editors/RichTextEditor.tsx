@@ -232,7 +232,11 @@ export function RichTextEditor({
   const editor = useEditor({
     extensions,
     content,
-    onUpdate: ({ editor: currentEditor }) => {
+    onUpdate: ({ editor: currentEditor, transaction }) => {
+      // Só conta como edição o que mudou o texto. O TrailingNode acrescenta um parágrafo
+      // no fim ao primeiro clique ou foco; essa mudança vem do plugin, não de quem escreve.
+      if (!transaction.docChanged) return;
+
       const html = currentEditor.getHTML();
       const current = contentRef.current ?? '';
       const normalizedHtml = html.trim();

@@ -34,6 +34,7 @@ import {MarkPostedSheet} from '../MarkPostedSheet';
 import {RecordingSection} from './sections/RecordingSection';
 import {ContentOperationalPanel} from './ContentOperationalPanel';
 import {isContentBodyLoaded} from '../../lib/contentBody';
+import {draftDiffers, draftFieldChanged} from '../../lib/draftChanges';
 import {RoteiroSection, type ScriptDraft} from './sections/RoteiroSection';
 import {isWritingWorkspaceEnabled} from '../../../settings/lib/writingWorkspace';
 import {IdeaDetailSection, IdeaOrganizationPanel} from './sections/IdeaDetailSection';
@@ -52,19 +53,6 @@ interface ContentDetailShellProps {
 }
 
 type ContentDraft = ScriptDraft & Pick<Content, 'energiaNecessaria'>;
-
-function normalizePlain(value: string | null | undefined): string {
-  const trimmed = (value ?? '').trim();
-  if (
-    !trimmed
-    || trimmed === '<p></p>'
-    || trimmed === '<p><br></p>'
-    || trimmed === '<p><br/></p>'
-  ) {
-    return '';
-  }
-  return trimmed;
-}
 
 function draftFromContent(content: Content): ContentDraft {
   return {
@@ -151,6 +139,8 @@ export function ContentDetailShell({
   const [explicitSaving, setExplicitSaving] = useState(false);
   const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const saveGenRef = useRef(0);
+  // Gravação que falhou deixa o estado local à frente do servidor: comparar com ele não basta.
+  const saveFailedRef = useRef(false);
   const persistInFlightRef = useRef(false);
   const drainPersistQueueRef = useRef<() => Promise<void>>(async () => undefined);
   const persistQueueRef = useRef<Array<{
@@ -185,6 +175,7 @@ export function ContentDetailShell({
   useEffect(() => {
     appliedSeriesTemplateRef.current = null;
     pendingSeriesTemplateRef.current = null;
+    saveFailedRef.current = false;
   }, [content.id]);
 
   useEffect(() => {
@@ -326,33 +317,31 @@ export function ContentDetailShell({
         }
       }
 
-      if ('script' in updates && !('scriptOrigem' in updates) && !('scriptOrigem' in nextUpdates)) {
+      // A origem só é recalculada quando o texto mudou; o mesmo texto vindo do editor não é edição.
+      if (
+        'script' in updates
+        && !('scriptOrigem' in updates)
+        && !('scriptOrigem' in nextUpdates)
+        && draftFieldChanged('script', previous.script, nextUpdates.script)
+      ) {
         nextUpdates.scriptOrigem = origemDoRoteiro(
           nextUpdates.script ?? updates.script,
           appliedSeriesTemplateRef.current,
         );
       }
 
-      const changed = (Object.keys(nextUpdates) as Array<keyof ContentDraft>).some(key => {
-        const nextValue = nextUpdates[key];
-        const prevValue = previous[key];
-        if (key === 'writingNotes') {
-          return (prevValue ?? '') !== (nextValue ?? '');
-        }
-        if (key === 'script' || key === 'notes' || key === 'referencias') {
-          return normalizePlain(prevValue as string | null) !== normalizePlain(nextValue as string | null);
-        }
-        if (key === 'scriptNotes' || key === 'plataformas' || key === 'livroIds' || key === 'temaIds') {
-          return JSON.stringify(prevValue ?? null) !== JSON.stringify(nextValue ?? null);
-        }
-        return prevValue !== nextValue;
-      });
+      const changed = (Object.keys(nextUpdates) as Array<keyof ContentDraft>).some(key =>
+        draftFieldChanged(key, previous[key], nextUpdates[key]),
+      );
 
       if (!changed) return previous;
 
-      draftDirtyRef.current = true;
+      const next = {...previous, ...nextUpdates};
+      // "Não salvo" é diferença do que está gravado: desfazer a alteração volta a "Salvo".
+      const dirty = saveFailedRef.current || draftDiffers(next, draftFromContent(liveContentRef.current));
+      draftDirtyRef.current = dirty;
       saveGenRef.current += 1;
-      setDraftDirty(true);
+      setDraftDirty(dirty);
 
       if (updates.status && updates.status !== previous.status) {
         queueMicrotask(() => {
@@ -360,7 +349,7 @@ export function ContentDetailShell({
         });
       }
 
-      return {...previous, ...nextUpdates};
+      return next;
     });
   }, []);
 
@@ -424,6 +413,18 @@ export function ContentDetailShell({
     }
 
     const sentGen = saveGenRef.current;
+
+    // Sem alteração não há gravação: "Editado" só muda quando algo mudou.
+    const nothingToSave = !saveFailedRef.current
+      && !options?.advanceToReady
+      && Object.keys(updates ?? {}).length === 0
+      && !draftDiffers(draftNow, draftFromContent(liveNow));
+    if (nothingToSave) {
+      draftDirtyRef.current = false;
+      setDraftDirty(false);
+      return true;
+    }
+
     const silent = Boolean(options?.silent);
     setIsSaving(true);
     if (!silent) setExplicitSaving(true);
@@ -453,6 +454,7 @@ export function ContentDetailShell({
       };
 
       await updateContent(payload, {silent, skipBroadcast: silent});
+      saveFailedRef.current = false;
 
       if (saveGenRef.current === sentGen) {
         draftDirtyRef.current = false;
@@ -463,6 +465,7 @@ export function ContentDetailShell({
 
       return true;
     } catch {
+      saveFailedRef.current = true;
       return false;
     } finally {
       setIsSaving(false);
