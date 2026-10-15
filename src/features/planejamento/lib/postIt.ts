@@ -1,10 +1,11 @@
-import type {Content, FuncaoEditorial} from '../../../lib/database.ts';
+import type {Content, FuncaoEditorial, FuncaoPadraoSerie} from '../../../lib/database.ts';
 import {generateUUID} from '../../../utils/uuid.ts';
 import {CONTENT_STATUS, normalizeContentStatus} from '../../contents/lib/contentPipeline.ts';
 import {createContentDraft} from '../../contents/lib/createContentDraft.ts';
 import {placeContentOnDay} from '../../editorial-calendar/lib/scheduleContent.ts';
 import {aplicarEscolhasHerdadas} from '../../editorial/lib/escolhasSerie.ts';
-import {contaNaGradePadrao} from '../../editorial/lib/funcoes.ts';
+import {contaNaGradePadrao, funcaoHerdavelDaSerie} from '../../editorial/lib/funcoes.ts';
+import {pilarPrincipalDaSerie} from '../../editorial/lib/pilarDaSerie.ts';
 
 /** Nota de planejamento. Existe antes da ideia e não é um Content. */
 export interface PlanejamentoPostIt {
@@ -13,9 +14,12 @@ export interface PlanejamentoPostIt {
   texto: string;
   /** yyyy-MM-dd. Null fica na pilha ao lado do mês. */
   date: string | null;
-  /** Ideia ou roteiro puxado. Puxar não altera o conteúdo. */
+  /** Ideia, roteiro ou conteúdo em Produção puxado. Puxar não altera o conteúdo. */
   contentId: string | null;
-  /** Série, pilar e função anotados antes de virar roteiro. */
+  /**
+   * Série, pilar e objetivo do espaço, anotados antes de ter conteúdo.
+   * Com conteúdo ligado, a contagem usa os do conteúdo.
+   */
   serieId?: string | null;
   pilarId?: string | null;
   objetivo?: FuncaoEditorial | null;
@@ -72,14 +76,35 @@ export function createEmptyPostIt(input: {
   };
 }
 
+/** Ideia, roteiro ou Produção. Postado já saiu e não ocupa espaço novo. */
 export function canPullContent(content: Content): boolean {
-  if (content.deletedAt || content.archivedAt) return false;
+  if (content.deletedAt || content.archivedAt || content.postedAt) return false;
   const status = normalizeContentStatus(content.status);
-  return status === CONTENT_STATUS.IDEIA || status === CONTENT_STATUS.ROTEIRO;
+  return status === CONTENT_STATUS.IDEIA
+    || status === CONTENT_STATUS.ROTEIRO
+    || status === CONTENT_STATUS.PRODUCAO;
 }
 
 /**
- * Puxa uma ideia ou um roteiro para o dia (ou para a pilha).
+ * Liga um conteúdo que já existe a um post-it que já existe: o espaço planejado ganha conteúdo.
+ * Como puxar, não muda status nem data do conteúdo. Recusa conteúdo já ligado a outro post-it.
+ */
+export function encaixarConteudo(input: {
+  postIts: readonly PlanejamentoPostIt[];
+  postItId: string;
+  content: Content;
+  now?: string;
+}): {ok: true; postIt: PlanejamentoPostIt} | {ok: false; reason: 'post-it-ausente' | 'nao-encaixa' | 'ja-ligado'} {
+  const postIt = input.postIts.find(item => item.id === input.postItId);
+  if (!postIt) return {ok: false, reason: 'post-it-ausente'};
+  if (!canPullContent(input.content)) return {ok: false, reason: 'nao-encaixa'};
+  const outro = input.postIts.find(item => item.id !== postIt.id && item.contentId === input.content.id);
+  if (outro) return {ok: false, reason: 'ja-ligado'};
+  return {ok: true, postIt: {...postIt, contentId: input.content.id, updatedAt: nowIso(input.now)}};
+}
+
+/**
+ * Puxa uma ideia, um roteiro ou um conteúdo em Produção para o dia (ou para a pilha).
  * O Content devolvido é o mesmo objeto: status e data de publicação não mudam.
  */
 export function pullExistingContent(input: {
@@ -133,19 +158,67 @@ export function updatePostItText(
 export interface PostItEdit {
   texto: string;
   date: string | null;
+  /** Ausente não mexe no valor gravado. */
+  serieId?: string | null;
+  pilarId?: string | null;
+  objetivo?: FuncaoEditorial | null;
 }
 
 export function postItEditDraft(postIt: PlanejamentoPostIt): PostItEdit {
-  return {texto: postIt.texto, date: postIt.date};
+  return {
+    texto: postIt.texto,
+    date: postIt.date,
+    serieId: postIt.serieId ?? null,
+    pilarId: postIt.pilarId ?? null,
+    objetivo: postIt.objetivo ?? null,
+  };
 }
 
-/** Grava o texto e o dia do post-it. O conteúdo puxado não muda. */
+/**
+ * Escolher a série preenche pilar e objetivo que ainda estão vazios, como no roteiro.
+ * O que já foi escolhido não muda.
+ */
+export function escolherSerieNoPostIt(
+  edit: PostItEdit,
+  serie: {
+    id: string;
+    funcaoPadrao?: FuncaoPadraoSerie | null;
+    pilarPrincipalId?: string | null;
+    pilarIds?: readonly string[] | null;
+  } | null,
+): PostItEdit {
+  if (!serie) return {...edit, serieId: null};
+  return {
+    ...edit,
+    serieId: serie.id,
+    pilarId: edit.pilarId || pilarPrincipalDaSerie(serie),
+    objetivo: edit.objetivo ?? funcaoHerdavelDaSerie(serie),
+  };
+}
+
+/** Grava texto, dia e classificação do post-it. O conteúdo puxado não muda. */
 export function savePostItEdit(
   postIt: PlanejamentoPostIt,
   edit: PostItEdit,
   now?: string,
 ): PlanejamentoPostIt {
-  return movePostIt(updatePostItText(postIt, edit.texto, now), edit.date, now);
+  const comTexto = movePostIt(updatePostItText(postIt, edit.texto, now), edit.date, now);
+  return {
+    ...comTexto,
+    ...('serieId' in edit ? {serieId: edit.serieId ?? null} : {}),
+    ...('pilarId' in edit ? {pilarId: edit.pilarId ?? null} : {}),
+    ...('objetivo' in edit ? {objetivo: edit.objetivo ?? null} : {}),
+  };
+}
+
+/** Mudou algo que precisa ser gravado. */
+export function postItMudou(antes: PlanejamentoPostIt, depois: PlanejamentoPostIt): boolean {
+  return antes.texto !== depois.texto
+    || antes.date !== depois.date
+    || antes.contentId !== depois.contentId
+    || (antes.serieId ?? null) !== (depois.serieId ?? null)
+    || (antes.pilarId ?? null) !== (depois.pilarId ?? null)
+    || (antes.objetivo ?? null) !== (depois.objetivo ?? null);
 }
 
 /** Descarta o rascunho. O post-it gravado continua o mesmo. */
@@ -270,12 +343,16 @@ export function postItTitle(postIt: PlanejamentoPostIt, content: Content | null)
   return 'Post-it vazio';
 }
 
+export type PostItKind = 'vazio' | 'ideia' | 'roteiro' | 'producao' | 'postado';
+
 export function postItKind(
   postIt: PlanejamentoPostIt,
   content: Content | null,
-): 'vazio' | 'ideia' | 'roteiro' {
+): PostItKind {
   if (!postIt.contentId || !content) return 'vazio';
   const status = normalizeContentStatus(content.status);
+  if (status === CONTENT_STATUS.POSTADO || content.postedAt) return 'postado';
+  if (status === CONTENT_STATUS.PRODUCAO) return 'producao';
   if (status === CONTENT_STATUS.ROTEIRO) return 'roteiro';
   if (status === CONTENT_STATUS.IDEIA) return 'ideia';
   return 'vazio';

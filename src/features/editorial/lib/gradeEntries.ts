@@ -3,6 +3,7 @@ import { CONTENT_STATUS, normalizeContentStatus } from '../../contents/lib/conte
 import { contaNaGradeEfetiva, type ContaNaGradeOrigem } from './contaNaGradeOrigem.ts';
 import { type DestinoPlataforma, mesmoDestino, resolverRedeReferencia } from './destinations.ts';
 import { resolveFuncao } from './funcoes.ts';
+import { etapaDoStatus, type Etapa } from './etapas.ts';
 import { dataRealizada } from './markPublished.ts';
 import { roteiroTemPauta } from './pautaConteudo.ts';
 import { pilarPrincipalDaSerie } from './pilarDaSerie.ts';
@@ -22,6 +23,10 @@ export type GradeEntry = {
   realizadaEm: string | null;
   /** Pauta do roteiro. O post-it ligado entra na contagem, não aqui. */
   temPauta?: boolean;
+  /** Etapa do conteúdo. Postado na referência vira `postado`, qualquer que seja o status. */
+  etapa?: Etapa;
+  /** Só no item que nasce de um post-it na contagem do período. */
+  postItId?: string | null;
 };
 
 /** A rede de referência vem das preferências. O espelho do topo continua valendo. */
@@ -152,6 +157,7 @@ export function buildGradeEntries({
     const ref = referenciaPublicacao(content, settings, platforms);
     const realizada = ref.publicada
       || normalizeContentStatus(content.status) === CONTENT_STATUS.POSTADO;
+    const etapa: Etapa = realizada ? 'postado' : etapaDoStatus(content.status);
     const realizadaEmOriginal = realizada
       ? (ref.publicacao ? dataRealizada(ref.publicacao) : content.postedAt ?? null)
       : null;
@@ -172,6 +178,7 @@ export function buildGradeEntries({
       ...classificacao,
       realizada,
       realizadaEm: realizadaEmOriginal,
+      etapa,
     });
 
     const publicacoes = content.plataformas ?? [];
@@ -192,6 +199,7 @@ export function buildGradeEntries({
         contaNaGrade: classificacao.contaNaGrade && publicacao.contaNaGrade !== false,
         realizada: publicada,
         realizadaEm: realizadaEmRepost,
+        etapa: publicada ? 'postado' : etapa,
       });
     }
   }

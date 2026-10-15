@@ -6,6 +6,11 @@ import {
   cancelPostItEdit,
   createEmptyPostIt,
   deletePostIt,
+  encaixarConteudo,
+  escolherSerieNoPostIt,
+  postItEditDraft,
+  postItKind,
+  postItMudou,
   postItTitle,
   postItTransformOptions,
   pullExistingContent,
@@ -419,8 +424,80 @@ function testDeleteAfterTransformKeepsCreatedContent() {
   assert.equal(created.content.title, 'gancho do vídeo');
 }
 
+function testPullProducao() {
+  const content = createContentDraft({
+    id: 'gravado-1',
+    title: 'Já gravado',
+    status: CONTENT_STATUS.PRODUCAO,
+    publishDate: null,
+  });
+  const result = pullExistingContent({postIts: [], content, date: '2026-10-12', id: 'p', now: NOW});
+  assert.equal(canPullContent(content), true);
+  assert.equal(result.pulled, true);
+  assert.equal(result.content.status, CONTENT_STATUS.PRODUCAO);
+  assert.equal(postItKind(result.postIts[0], content), 'producao');
+}
+
+function testEncaixarLigaSemMudarConteudo() {
+  const espaco = createEmptyPostIt({id: 'espaco', date: '2026-10-15', objetivo: 'atrair', now: NOW});
+  const content = roteiro({publishDate: null});
+  const result = encaixarConteudo({postIts: [espaco], postItId: 'espaco', content, now: NOW});
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  assert.equal(result.postIt.contentId, content.id);
+  assert.equal(result.postIt.date, '2026-10-15');
+  assert.equal(result.postIt.objetivo, 'atrair');
+  assert.equal(content.status, CONTENT_STATUS.ROTEIRO);
+  assert.equal(content.publishDate, null);
+}
+
+function testEncaixarRecusaJaLigadoEPostado() {
+  const espaco = createEmptyPostIt({id: 'espaco', date: '2026-10-15', now: NOW});
+  const outro = {...createEmptyPostIt({id: 'outro', date: '2026-10-16', now: NOW}), contentId: 'roteiro-1'};
+  const ligado = encaixarConteudo({postIts: [espaco, outro], postItId: 'espaco', content: roteiro()});
+  assert.deepEqual(ligado, {ok: false, reason: 'ja-ligado'});
+  const postado = createContentDraft({id: 'p', title: 'Foi', status: CONTENT_STATUS.POSTADO});
+  assert.deepEqual(
+    encaixarConteudo({postIts: [espaco], postItId: 'espaco', content: postado}),
+    {ok: false, reason: 'nao-encaixa'},
+  );
+}
+
+function testClassificaOPostIt() {
+  const postIt = createEmptyPostIt({id: 'espaco', date: '2026-10-15', now: NOW});
+  const serie = {id: 'serie-a', funcaoPadrao: 'converter' as const, pilarPrincipalId: 'pilar-a'};
+
+  // Série preenche o que está vazio.
+  const comSerie = escolherSerieNoPostIt(postItEditDraft(postIt), serie);
+  assert.equal(comSerie.serieId, 'serie-a');
+  assert.equal(comSerie.pilarId, 'pilar-a');
+  assert.equal(comSerie.objetivo, 'converter');
+
+  // O que já foi escolhido não muda.
+  const escolhido = escolherSerieNoPostIt({...postItEditDraft(postIt), objetivo: 'atrair', pilarId: 'pilar-b'}, serie);
+  assert.equal(escolhido.objetivo, 'atrair');
+  assert.equal(escolhido.pilarId, 'pilar-b');
+
+  // "Varia por conteúdo" não vira objetivo.
+  assert.equal(escolherSerieNoPostIt(postItEditDraft(postIt), {...serie, funcaoPadrao: 'varia'}).objetivo, null);
+
+  const salvo = savePostItEdit(postIt, comSerie, NOW);
+  assert.equal(salvo.objetivo, 'converter');
+  assert.equal(salvo.serieId, 'serie-a');
+  assert.equal(postItMudou(postIt, salvo), true);
+
+  // Edição antiga, só com texto e dia, não apaga a classificação.
+  const soTexto = savePostItEdit(salvo, {texto: 'gancho', date: salvo.date}, NOW);
+  assert.equal(soTexto.objetivo, 'converter');
+  assert.equal(postItMudou(salvo, {...salvo}), false);
+}
+
 const tests = [
   ['creates an empty post-it', testCreateEmptyPostIt],
+  ['classifies a post-it with objetivo, série and pilar', testClassificaOPostIt],
+  ['pulls content in Produção', testPullProducao],
+  ['fills an existing post-it without changing the content', testEncaixarLigaSemMudarConteudo],
+  ['does not fill a post-it with linked or posted content', testEncaixarRecusaJaLigadoEPostado],
   ['pulls an ideia without changing status or date', testPullIdeiaDoesNotChangeStatusOrDate],
   ['pulls a roteiro without changing status or date', testPullRoteiroDoesNotChangeStatusOrDate],
   ['does not pull posted content', testPullRejectsPostedContent],

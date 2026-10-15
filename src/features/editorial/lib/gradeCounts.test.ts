@@ -218,7 +218,8 @@ function testMetaDoPeriodoNaoEscala() {
   assert.equal(resultado.comPauta, 4);
   assert.equal(resultado.publicado, 1);
   assert.equal(resultado.espacosLivres, 1);
-  assert.equal(resultado.semObjetivo, 1);
+  // Sem objetivo conta o conteúdo, com ou sem pauta: "sem" e "livre".
+  assert.equal(resultado.semObjetivo, 2);
   assert.equal(resultado.semSerie, 2);
   assert.equal(resultado.objetivos.find(linha => linha.id === 'acao')?.publicado, 1);
   assert.equal(resultado.objetivos.find(linha => linha.id === 'acao')?.comPauta, 1);
@@ -374,6 +375,68 @@ function testPublicadoForaDaBaseAindaConta() {
   assert.equal(entries.filter(entry => entry.tipo === 'original').length, 1);
 }
 
+function testContaPorEtapa() {
+  const entries = buildGradeEntries({
+    series: serie,
+    settings: { redeReferenciaId: 'plat-instagram' },
+    contents: [
+      conteudoGrade({ id: 'ideia', status: 'Ideia', publishDate: '2026-04-27' }),
+      conteudoGrade({ id: 'roteiro', status: 'Roteiro', publishDate: '2026-04-28' }),
+      conteudoGrade({ id: 'gravado', status: 'Gravado', publishDate: '2026-04-28' }),
+      conteudoGrade({
+        id: 'no-ar',
+        status: 'Produção',
+        publishDate: '2026-04-29',
+        plataformas: [{
+          id: 'pub',
+          contentId: 'no-ar',
+          platformId: 'plat-instagram',
+          legenda: '',
+          hashtags: '',
+          publishDate: '2026-04-29',
+          publishTime: '18:00',
+          publicationKind: 'post',
+          status: 'publicada',
+        }],
+      }),
+      conteudoGrade({ id: 'sem-data', status: 'Roteiro', publishDate: null, funcao: 'converter' }),
+      conteudoGrade({ id: 'sem-objetivo', status: 'Roteiro', publishDate: '2026-04-30', funcao: null, funcaoOrigem: null }),
+    ],
+  });
+  const postIts: PostItContagem[] = [
+    { id: 'solto', date: '2026-04-27', texto: '', contentId: null, objetivo: 'atrair' },
+    { id: 'solto-sem-objetivo', date: '2026-04-28', texto: 'ideia de gancho', contentId: null },
+    // O post-it diz Atrair, o roteiro ligado diz Converter: vale o roteiro.
+    { id: 'ligado', date: '2026-04-30', texto: '', contentId: 'sem-data', objetivo: 'atrair' },
+    { id: 'orfao', date: '2026-05-01', texto: '', contentId: 'apagado', objetivo: 'atrair' },
+  ];
+  const resultado = countGrade({
+    entries,
+    pilares: [],
+    settings: {},
+    periodo: SEMANA,
+    postIts,
+  });
+
+  assert.equal(entries.find(entry => entry.contentId === 'ideia')?.etapa, 'ideia');
+  assert.equal(entries.find(entry => entry.contentId === 'gravado')?.etapa, 'producao');
+  assert.equal(entries.find(entry => entry.contentId === 'no-ar')?.etapa, 'postado');
+
+  const atrair = resultado.objetivos.find(linha => linha.id === 'atrair');
+  assert.deepEqual(atrair?.porEtapa, { planejamento: 2, ideia: 1, roteiro: 1, producao: 1, postado: 1 });
+  assert.equal(atrair?.previsto, 6);
+  assert.deepEqual(
+    resultado.objetivos.find(linha => linha.id === 'converter')?.porEtapa,
+    { planejamento: 0, ideia: 0, roteiro: 1, producao: 0, postado: 0 },
+  );
+  assert.deepEqual(resultado.porEtapa, { planejamento: 3, ideia: 1, roteiro: 3, producao: 1, postado: 1 });
+  assert.deepEqual(resultado.semObjetivoPorEtapa, { planejamento: 1, ideia: 0, roteiro: 1, producao: 0, postado: 0 });
+  // O post-it sem conteúdo não entra no aviso: só o roteiro.
+  assert.equal(resultado.semObjetivo, 1);
+  assert.equal(resultado.itens.find(item => item.postItId === 'solto')?.etapa, 'planejamento');
+  assert.equal(resultado.itens.find(item => item.contentId === 'sem-data')?.postItId, 'ligado');
+}
+
 testIgnoraRepostEQuemEstaFora();
 testPercentualAntigoNaoViraLimite();
 testSemanaParcialUsaLimiteDoIntervalo();
@@ -383,5 +446,6 @@ testMetaDoPeriodoNaoEscala();
 testPostItLigadoContaUmaVez();
 testOrigemEPautaNoFluxoDaGrade();
 testPublicadoForaDaBaseAindaConta();
+testContaPorEtapa();
 
 console.log('gradeCounts tests passed');

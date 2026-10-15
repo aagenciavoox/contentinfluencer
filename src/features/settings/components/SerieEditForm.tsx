@@ -78,7 +78,7 @@ const FUNCAO_OPTIONS: Array<{ value: FuncaoPadraoSerie; label: string; descripti
     label: FUNCAO_LABELS[value],
     description: FUNCAO_DESCRICOES[value],
   })),
-  { value: 'varia', label: 'Varia por conteúdo', description: 'Cada roteiro escolhe a sua.' },
+  { value: 'varia', label: 'Varia por conteúdo', description: 'Cada roteiro escolhe o seu.' },
 ];
 
 export type SerieEditChromeState = {
@@ -612,9 +612,9 @@ export function SerieEditForm({
                   </div>
                 </div>
                 <div>
-                  <FieldLabel>Função padrão</FieldLabel>
+                  <FieldLabel>Objetivo padrão</FieldLabel>
                   <select
-                    aria-label="Função padrão"
+                    aria-label="Objetivo padrão"
                     value={form.funcaoPadrao ?? ''}
                     onChange={event => setForm(previous => ({
                       ...previous,

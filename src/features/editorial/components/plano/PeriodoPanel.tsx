@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -11,11 +11,13 @@ import type { FuncaoEditorial } from '../../../../lib/database';
 import { BREAKPOINTS } from '../../../../shared/breakpoints';
 import { contarEstoque } from '../../lib/estoque';
 import type { MetasPeriodo } from '../../lib/editorialSettings';
+import { ETAPA_LABEL, ETAPAS, ETAPAS_DE_CONTEUDO, contagemPorEtapaVazia, somaDasEtapas, type ContagemPorEtapa, type Etapa } from '../../lib/etapas';
 import { expectativaNoIntervalo, lerFrequencia } from '../../lib/frequenciaSerie';
 import { FUNCAO_CURTA, FUNCOES } from '../../lib/funcoes';
 import { decisaoDoPeriodo } from '../../lib/periodoEditorial';
 import { sortPilares } from '../../../settings/lib/activePilares';
 import { CAMPO_BASE, CampoTexto, digitos, inteiroOuNull } from './campos';
+import { ItensDoPeriodoDialog, type FiltroDosItens } from './ItensDoPeriodoDialog';
 import {
   PeriodoEditorialControl,
   rotuloSemanaAjustada,
@@ -113,72 +115,143 @@ function Aviso({ texto, acao }: { texto: string; acao?: { rotulo: string; onClic
   );
 }
 
+/** Uma linha da distribuição. `funcao` null é "Sem objetivo": não tem meta. */
 type LinhaObjetivo = {
-  funcao: FuncaoEditorial;
+  funcao: FuncaoEditorial | null;
+  nome: string;
+  cor: string;
   meta: number | null;
   previsto: number;
-  comPauta: number;
-  publicado: number;
+  porEtapa: ContagemPorEtapa;
 };
 
-const COLUNAS = [
-  { id: 'previsto', rotulo: 'Previsto' },
-  { id: 'comPauta', rotulo: 'Com pauta' },
-  { id: 'publicado', rotulo: 'Publicado' },
-] as const;
+function chaveDaLinha(linha: LinhaObjetivo): string {
+  return linha.funcao ?? 'sem-objetivo';
+}
 
 function CampoMeta({ linha, onChange }: { linha: LinhaObjetivo; onChange: (value: string) => void }) {
   return (
     <input
-      id={`meta-${linha.funcao}`}
+      id={`meta-${chaveDaLinha(linha)}`}
       type="text"
       inputMode="numeric"
       autoComplete="off"
       placeholder="—"
       value={linha.meta == null ? '' : String(linha.meta)}
       onChange={event => onChange(digitos(event.target.value))}
-      aria-label={`Meta de ${FUNCAO_CURTA[linha.funcao]}`}
+      aria-label={`Meta de ${linha.nome}`}
       className={`${CAMPO_BASE} block min-h-9 w-16 py-1 text-center tabular-nums pointer-coarse:min-h-11`}
     />
   );
 }
 
-/** Tabela no computador; no celular, uma linha por objetivo, para as quatro colunas não cortarem. */
+/** Número que abre a lista do que está nele. Zero não abre nada. */
+function NumeroQueAbre({
+  valor,
+  rotulo,
+  onAbrir,
+}: {
+  valor: number;
+  rotulo: string;
+  onAbrir: () => void;
+}) {
+  if (valor === 0) {
+    return <Text variant="body" as="span" className="tabular-nums text-[var(--text-tertiary)]">0</Text>;
+  }
+  return (
+    <button
+      type="button"
+      onClick={onAbrir}
+      aria-label={rotulo}
+      className="inline-flex min-h-9 min-w-9 items-center justify-center rounded-[var(--radius-input)] px-2 t-body font-semibold tabular-nums text-[var(--text-primary)] underline decoration-[var(--border-color)] underline-offset-4 hover:bg-[var(--bg-hover)] hover:decoration-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] pointer-coarse:min-h-11"
+    >
+      {valor}
+    </button>
+  );
+}
+
+function rotuloDoNumero(valor: number, linha: LinhaObjetivo, etapa: Etapa | null): string {
+  const quantos = valor === 1 ? 'o item' : `os ${valor} itens`;
+  return etapa
+    ? `Ver ${quantos} de ${linha.nome} em ${ETAPA_LABEL[etapa]}`
+    : `Ver ${quantos} previstos de ${linha.nome}`;
+}
+
+/**
+ * Tabela no computador; no celular, uma linha por objetivo com as etapas que têm item.
+ * Cada número abre a lista do que está nele.
+ */
 function MetasPorObjetivo({
   linhas,
   onMetaChange,
+  onAbrir,
 }: {
   linhas: LinhaObjetivo[];
   onMetaChange: (funcao: FuncaoEditorial, value: string) => void;
+  onAbrir: (filtro: FiltroDosItens) => void;
 }) {
   const estreito = useMediaQuery(`(max-width: ${BREAKPOINTS.sm - 1}px)`);
+  const abrir = (linha: LinhaObjetivo, etapa: Etapa | null) => onAbrir({
+    titulo: etapa ? `${linha.nome} · ${ETAPA_LABEL[etapa]}` : `${linha.nome} · Previstos`,
+    objetivo: linha.funcao,
+    etapas: etapa ? [etapa] : ETAPAS,
+  });
 
   if (estreito) {
     return (
       <ul className="mt-3">
-        {linhas.map(linha => (
-          <li
-            key={linha.funcao}
-            className="flex items-center justify-between gap-3 border-b border-[var(--border-color)] py-2 last:border-b-0"
-          >
-            <div className="min-w-0">
-              <label htmlFor={`meta-${linha.funcao}`}>
-                <Text variant="body" as="span">{FUNCAO_CURTA[linha.funcao]}</Text>
-              </label>
-              <Text variant="meta" as="p" className="tabular-nums">
-                {COLUNAS.map(coluna => `${coluna.rotulo} ${linha[coluna.id]}`).join(' · ')}
-              </Text>
-            </div>
-            <span className="flex shrink-0 items-center gap-2">
-              <Text variant="label" as="span" aria-hidden>Meta</Text>
-              <CampoMeta linha={linha} onChange={value => onMetaChange(linha.funcao, value)} />
-            </span>
-          </li>
-        ))}
+        {linhas.map(linha => {
+          const etapasComItem = ETAPAS.filter(etapa => linha.porEtapa[etapa] > 0);
+          const funcao = linha.funcao;
+          return (
+            <li
+              key={chaveDaLinha(linha)}
+              className="stack-xs border-b border-[var(--border-color)] py-2 last:border-b-0"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <label htmlFor={funcao ? `meta-${funcao}` : undefined} className="flex min-w-0 items-center gap-2.5">
+                  <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: linha.cor }} aria-hidden />
+                  <Text variant="body" as="span">{linha.nome}</Text>
+                </label>
+                {funcao ? (
+                  <span className="flex shrink-0 items-center gap-2">
+                    <Text variant="label" as="span" aria-hidden>Meta</Text>
+                    <CampoMeta linha={linha} onChange={value => onMetaChange(funcao, value)} />
+                  </span>
+                ) : null}
+              </div>
+              {linha.previsto === 0 ? (
+                <Text variant="meta" as="p" className="text-[var(--text-secondary)]">Nada previsto</Text>
+              ) : (
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                  <span className="inline-flex items-center gap-1">
+                    <Text variant="meta" as="span">Previstos</Text>
+                    <NumeroQueAbre
+                      valor={linha.previsto}
+                      rotulo={rotuloDoNumero(linha.previsto, linha, null)}
+                      onAbrir={() => abrir(linha, null)}
+                    />
+                  </span>
+                  {etapasComItem.map(etapa => (
+                    <span key={etapa} className="inline-flex items-center gap-1">
+                      <Text variant="meta" as="span" className="text-[var(--text-secondary)]">{ETAPA_LABEL[etapa]}</Text>
+                      <NumeroQueAbre
+                        valor={linha.porEtapa[etapa]}
+                        rotulo={rotuloDoNumero(linha.porEtapa[etapa], linha, etapa)}
+                        onAbrir={() => abrir(linha, etapa)}
+                      />
+                    </span>
+                  ))}
+                </div>
+              )}
+            </li>
+          );
+        })}
       </ul>
     );
   }
 
+  const colunas = ['Meta', 'Previstos', ...ETAPAS.map(etapa => ETAPA_LABEL[etapa])];
   return (
     <div className="overflow-x-auto">
       <table className="w-full border-collapse text-left">
@@ -187,11 +260,11 @@ function MetasPorObjetivo({
             <th scope="col" className="rounded-l-[var(--radius-input)] py-2 pl-3 pr-3">
               <Text variant="label" as="span" className="text-[var(--text-secondary)]">Objetivo</Text>
             </th>
-            {['Meta', ...COLUNAS.map(coluna => coluna.rotulo)].map((coluna, index, todas) => (
+            {colunas.map((coluna, index) => (
               <th
                 key={coluna}
                 scope="col"
-                className={`px-3 py-2 text-center ${index === todas.length - 1 ? 'rounded-r-[var(--radius-input)]' : ''}`}
+                className={`px-2 py-2 text-center ${index === colunas.length - 1 ? 'rounded-r-[var(--radius-input)]' : ''}`}
               >
                 <Text variant="label" as="span" className="text-[var(--text-secondary)]">{coluna}</Text>
               </th>
@@ -199,28 +272,50 @@ function MetasPorObjetivo({
           </tr>
         </thead>
         <tbody>
-          {linhas.map(linha => (
-            <tr key={linha.funcao} className="border-b border-[var(--border-color)] last:border-b-0">
-              <th scope="row" className="py-2 pl-3 pr-3 font-normal">
-                <span className="flex items-center gap-2.5">
-                  <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: COR_DA_FUNCAO[linha.funcao] }} aria-hidden />
-                  <label htmlFor={`meta-${linha.funcao}`}>
-                    <Text variant="body" as="span">{FUNCAO_CURTA[linha.funcao]}</Text>
-                  </label>
-                </span>
-              </th>
-              <td className="px-3 py-1.5">
-                <span className="flex justify-center">
-                  <CampoMeta linha={linha} onChange={value => onMetaChange(linha.funcao, value)} />
-                </span>
-              </td>
-              {COLUNAS.map(coluna => (
-                <td key={coluna.id} className="px-3 py-2 text-center tabular-nums">
-                  <Text variant={linha[coluna.id] > 0 ? 'bodyStrong' : 'body'} as="span">{linha[coluna.id]}</Text>
+          {linhas.map(linha => {
+            const funcao = linha.funcao;
+            return (
+              <tr key={chaveDaLinha(linha)} className="border-b border-[var(--border-color)] last:border-b-0">
+                <th scope="row" className="py-2 pl-3 pr-3 font-normal">
+                  <span className="flex items-center gap-2.5">
+                    <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: linha.cor }} aria-hidden />
+                    {funcao ? (
+                      <label htmlFor={`meta-${funcao}`}>
+                        <Text variant="body" as="span">{linha.nome}</Text>
+                      </label>
+                    ) : (
+                      <Text variant="body" as="span">{linha.nome}</Text>
+                    )}
+                  </span>
+                </th>
+                <td className="px-2 py-1.5">
+                  <span className="flex justify-center">
+                    {funcao ? (
+                      <CampoMeta linha={linha} onChange={value => onMetaChange(funcao, value)} />
+                    ) : (
+                      <Text variant="body" as="span" className="text-[var(--text-tertiary)]">—</Text>
+                    )}
+                  </span>
                 </td>
-              ))}
-            </tr>
-          ))}
+                <td className="border-r border-[var(--border-color)] px-2 py-1 text-center">
+                  <NumeroQueAbre
+                    valor={linha.previsto}
+                    rotulo={rotuloDoNumero(linha.previsto, linha, null)}
+                    onAbrir={() => abrir(linha, null)}
+                  />
+                </td>
+                {ETAPAS.map(etapa => (
+                  <td key={etapa} className="px-2 py-1 text-center">
+                    <NumeroQueAbre
+                      valor={linha.porEtapa[etapa]}
+                      rotulo={rotuloDoNumero(linha.porEtapa[etapa], linha, etapa)}
+                      onAbrir={() => abrir(linha, etapa)}
+                    />
+                  </td>
+                ))}
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>
@@ -278,6 +373,7 @@ export function PeriodoPanel({
 }) {
   const navigate = useNavigate();
   const { state, settings, salvarDecisao } = useEditorialPlano();
+  const [filtroItens, setFiltroItens] = useState<FiltroDosItens | null>(null);
   const contagem = useContagemDoPeriodo(periodo.inicio, periodo.fim);
   const decisao = decisaoDoPeriodo(settings.periodos, periodo.inicio, periodo.fim);
   const parciais = semanasParciais(periodo.inicio, periodo.fim);
@@ -309,17 +405,43 @@ export function PeriodoPanel({
     const n = contagem.semObjetivo;
     avisos.push({
       id: 'sem-objetivo',
-      texto: n === 1 ? '1 roteiro sem objetivo definido.' : `${n} roteiros sem objetivo definido.`,
-      acao: { rotulo: 'Ver roteiros', onClick: () => navigate('/criacao?tab=roteiros') },
+      texto: n === 1 ? '1 conteúdo sem objetivo definido.' : `${n} conteúdos sem objetivo definido.`,
+      acao: {
+        rotulo: 'Ver quais',
+        onClick: () => setFiltroItens({ titulo: 'Sem objetivo', objetivo: null, etapas: ETAPAS_DE_CONTEUDO }),
+      },
     });
   }
 
   const numeros = [
     { id: 'limite', rotulo: periodo.modo === 'semana' ? 'Limite da semana' : 'Limite do período', valor: celula(contagem.limite) },
     { id: 'previstos', rotulo: 'Previstos', valor: String(contagem.previsto) },
-    { id: 'com-pauta', rotulo: 'Com pauta', valor: String(contagem.comPauta) },
-    { id: 'publicados', rotulo: 'Publicados', valor: String(contagem.publicado) },
+    { id: 'postados', rotulo: 'Postados', valor: String(contagem.porEtapa.postado) },
   ];
+
+  const linhasObjetivo: LinhaObjetivo[] = FUNCOES.map(funcao => {
+    const porEtapa = objetivos.get(funcao)?.porEtapa ?? contagemPorEtapaVazia();
+    return {
+      funcao,
+      nome: FUNCAO_CURTA[funcao],
+      cor: COR_DA_FUNCAO[funcao],
+      meta: decisao?.metas[funcao] ?? null,
+      previsto: somaDasEtapas(porEtapa),
+      porEtapa,
+    };
+  });
+  // Sem objetivo entra como linha para a soma bater com os previstos do período.
+  const previstosSemObjetivo = somaDasEtapas(contagem.semObjetivoPorEtapa);
+  if (previstosSemObjetivo > 0) {
+    linhasObjetivo.push({
+      funcao: null,
+      nome: 'Sem objetivo',
+      cor: 'var(--text-tertiary)',
+      meta: null,
+      previsto: previstosSemObjetivo,
+      porEtapa: contagem.semObjetivoPorEtapa,
+    });
+  }
 
   // As contas que antes ficavam nos cards de pilar e de série: aqui, junto do período que as define.
   const previstosPorPilar = new Map(contagem.pilares.map(linha => [linha.id, linha.previsto]));
@@ -390,7 +512,7 @@ export function PeriodoPanel({
             </div>
           ) : (
             <div className="stack-sm">
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-2 xl:grid-cols-4">
+              <div className="grid grid-cols-3 gap-2">
                 {numeros.map(item => (
                   <Surface key={item.id} variant="info" padding="sm">
                     <Text variant="label">{item.rotulo}</Text>
@@ -413,22 +535,27 @@ export function PeriodoPanel({
       <CardPeriodo
         icone={<Target className="h-5 w-5" />}
         titulo="Distribuição por objetivo"
-        descricao="Metas opcionais para este período."
+        descricao="Metas opcionais para este período. Cada número abre o que está nele."
       >
         {avisoObjetivo ? <Aviso texto={avisoObjetivo.texto} acao={avisoObjetivo.acao} /> : null}
         <MetasPorObjetivo
-          linhas={FUNCOES.map(funcao => ({
-            funcao,
-            meta: decisao?.metas[funcao] ?? null,
-            previsto: objetivos.get(funcao)?.previsto ?? 0,
-            comPauta: objetivos.get(funcao)?.comPauta ?? 0,
-            publicado: objetivos.get(funcao)?.publicado ?? 0,
-          }))}
+          linhas={linhasObjetivo}
           onMetaChange={(funcao, value) => salvarDecisao(periodo, {
             metas: metasCom(decisao?.metas ?? {}, funcao, value),
           })}
+          onAbrir={setFiltroItens}
         />
+        <Text variant="secondary" className="text-[var(--text-secondary)]">
+          Planejamento é o post-it com data e sem conteúdo. As outras colunas seguem o status de cada conteúdo.
+        </Text>
       </CardPeriodo>
+
+      <ItensDoPeriodoDialog
+        filtro={filtroItens}
+        itens={contagem.itens}
+        periodo={periodo}
+        onClose={() => setFiltroItens(null)}
+      />
 
       {parciais.length > 0 ? (
         <CardPeriodo icone={<CalendarRange className="h-5 w-5" />} titulo="Semanas que cruzam o período" descricao="Ajuste a capacidade das semanas parciais.">

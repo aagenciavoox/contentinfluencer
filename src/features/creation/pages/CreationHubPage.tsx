@@ -45,7 +45,15 @@ import { getErrorMessage, notifySaveFeedback } from '../../../lib/saveFeedback';
 import { CONFIRM, ERRORS } from '../../../lib/uiCopy';
 import { buildContentDetailRoute } from '../../contents/lib/contentDetailRoute';
 import { aplicarEscolhasDaSerie, marcarEscolhaManual } from '../../editorial/lib/escolhasSerie';
+import { datasNaGrade } from '../../editorial/lib/datasNaGrade';
+import { getEditorialSettings } from '../../editorial/lib/editorialSettings';
 import { FUNCAO_LABELS, FUNCOES } from '../../editorial/lib/funcoes';
+import {
+  aplicarFiltroData,
+  lerFiltroData,
+  opcoesDoFiltroData,
+  valorDoFiltroData,
+} from '../lib/creationDateFilter';
 import {
   archiveCreation,
   CREATION_PAGE_SIZE,
@@ -151,6 +159,8 @@ export function CreationHubPage() {
   const temaId = searchParams.get('tema') ?? '';
   const originId = searchParams.get('origem') ?? '';
   const funcaoId = searchParams.get('funcao') ?? '';
+  const filtroData = useMemo(() => lerFiltroData(searchParams), [searchParams]);
+  const valorFiltroData = valorDoFiltroData(filtroData);
   const sortParam = searchParams.get('sort');
   const sort: CreationSort =
     sortParam === 'oldest' || sortParam === 'title' ? sortParam : 'recent';
@@ -199,6 +209,15 @@ export function CreationHubPage() {
     [canonicalContents],
   );
 
+  // A data de cada conteúdo na grade, pela mesma regra do Editorial (publicação de referência e post-its).
+  const datas = useMemo(() => datasNaGrade({
+    contents: state.contents,
+    series: state.series,
+    postIts: state.postIts ?? [],
+    redeReferenciaId: getEditorialSettings(state.preferences).preferencias.redeReferenciaId,
+    platforms: state.platforms,
+  }), [state.contents, state.series, state.postIts, state.preferences, state.platforms]);
+
   const filteredContents = useMemo(
     () => sortCreationContents(
       filterCreationContents(canonicalContents, {
@@ -209,12 +228,14 @@ export function CreationHubPage() {
         temaId,
         originId,
         funcao: funcaoId,
+        filtroData,
+        datasNaGrade: datas,
         series: state.series,
         temas: state.temas,
       }),
       sort,
     ),
-    [activeTab, canonicalContents, funcaoId, originId, pilarId, search, seriesId, sort, state.series, state.temas, temaId],
+    [activeTab, canonicalContents, datas, filtroData, funcaoId, originId, pilarId, search, seriesId, sort, state.series, state.temas, temaId],
   );
 
   // No kanban, as colunas são as etapas; a aba de etapa só destaca a coluna.
@@ -229,12 +250,14 @@ export function CreationHubPage() {
         temaId,
         originId,
         funcao: funcaoId,
+        filtroData,
+        datasNaGrade: datas,
         series: state.series,
         temas: state.temas,
       }),
       sort,
     );
-  }, [activeTab, canonicalContents, filteredContents, funcaoId, originId, pilarId, search, seriesId, sort, state.series, state.temas, temaId, viewMode]);
+  }, [activeTab, canonicalContents, datas, filteredContents, filtroData, funcaoId, originId, pilarId, search, seriesId, sort, state.series, state.temas, temaId, viewMode]);
 
   // "Mostrar mais" acumula páginas em vez de trocar de página: a coleção é pequena.
   const pageData = useMemo(
@@ -823,8 +846,18 @@ export function CreationHubPage() {
         ...FUNCOES.map(funcao => ({ label: FUNCAO_LABELS[funcao], value: funcao })),
       ],
     },
+    {
+      id: 'data',
+      label: 'Data',
+      value: valorFiltroData,
+      onChange: (value: string) => setSearchParams(previous => aplicarFiltroData(previous, value), { replace: true }),
+      options: opcoesDoFiltroData(new Date(), filtroData),
+    },
   ], [
+    filtroData,
     funcaoId,
+    setSearchParams,
+    valorFiltroData,
     originId,
     pilarId,
     seriesId,
@@ -1038,7 +1071,7 @@ export function CreationHubPage() {
     </Surface>
   ) : null;
 
-  const hasFilters = Boolean(search || pilarId || seriesId || temaId || originId || funcaoId);
+  const hasFilters = Boolean(search || pilarId || seriesId || temaId || originId || funcaoId || filtroData);
   const shownCount = viewMode === 'kanban' ? kanbanContents.length : pageData.items.length;
   const totalCount = viewMode === 'kanban' ? kanbanContents.length : filteredContents.length;
   const hiddenCount = totalCount - shownCount;

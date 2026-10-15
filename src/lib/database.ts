@@ -94,7 +94,7 @@ export interface SeriePlataforma {
 /** Seis funções fixas do produto. O agrupamento topo/meio/fundo é calculado. */
 export type FuncaoEditorial = 'atrair' | 'converter' | 'aprofundar' | 'comunidade' | 'acao' | 'reter';
 
-/** Função padrão da série. `varia` deixa a escolha para cada roteiro. */
+/** Objetivo padrão da série. `varia` deixa a escolha para cada roteiro. */
 export type FuncaoPadraoSerie = FuncaoEditorial | 'varia';
 
 /** De onde veio a função do roteiro. Vazio = ainda não escolhida. */

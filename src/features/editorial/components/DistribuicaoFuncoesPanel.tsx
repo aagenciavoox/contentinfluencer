@@ -307,7 +307,7 @@ export function DistribuicaoFuncoesPanel({
               <div className="mt-4 grid gap-3 sm:grid-cols-2">
                 <ResumoSeries
                   titulo="Séries sem função"
-                  descricao="Séries que ainda não têm uma função padrão."
+                  descricao="Séries que ainda não têm um objetivo padrão."
                   series={semFuncao}
                   onOpen={onOpenSerie}
                 />

@@ -1,5 +1,5 @@
 import {useEffect, useMemo, useRef, useState, type DragEvent} from 'react';
-import {useNavigate} from 'react-router-dom';
+import {useNavigate, useSearchParams} from 'react-router-dom';
 import {format} from 'date-fns';
 import {ptBR} from 'date-fns/locale';
 import {CalendarDays, Pencil, Plus, StickyNote, Tag, Trash2} from 'lucide-react';
@@ -12,6 +12,7 @@ import {
 import {AppButton} from '../../../components/ui/AppButton';
 import {Badge} from '../../../components/ui/Badge';
 import {Surface} from '../../../components/ui/Surface';
+import {TagSelect} from '../../../components/ui/TagSelect';
 import {Text} from '../../../components/ui/Text';
 import {ToolbarSearchInput} from '../../../components/ui/ToolbarSearchInput';
 import {Dialog} from '../../../components/overlays/Dialog';
@@ -32,7 +33,9 @@ import {buildDetailBackState} from '../../../lib/navigation/detailBack';
 import {etiquetasVisiveis} from '../../creation/lib/creationItemPresentation';
 import {getEditorialSettings} from '../../editorial/lib/editorialSettings';
 import {distribuicaoFecha} from '../../editorial/lib/gradeCounts';
-import {FUNCAO_CURTA, FUNIL_DA_FUNCAO, funcaoHerdavelDaSerie, resolveFuncao} from '../../editorial/lib/funcoes';
+import {FUNCAO_CURTA, FUNCAO_LABELS, FUNCOES, FUNIL_DA_FUNCAO, isFuncaoEditorial, resolveFuncao} from '../../editorial/lib/funcoes';
+import {sortPilares} from '../../settings/lib/activePilares';
+import {EncaixeDialog} from '../components/EncaixeDialog';
 import {MonthHealth} from '../components/MonthHealth';
 import {excessosAoAcrescentar, periodoDoMes, saudeDoMes, type ExcessoMes} from '../lib/monthHealth';
 import {POST_IT_MIME, PostItIdentity, PostItNote, PostItTemas, type PostItMark} from '../components/PostItNote';
@@ -43,14 +46,17 @@ import {
   cancelPostItEdit,
   createEmptyPostIt,
   deletePostIt,
+  escolherSerieNoPostIt,
   movePostIt,
   postItEditDraft,
+  postItMudou,
   postItKind,
   postItTransformOptions,
   pullExistingContent,
   savePostItEdit,
   transformPostIt,
   type PlanejamentoPostIt,
+  type PostItEdit,
 } from '../lib/postIt';
 
 function contentById(contents: Content[], id: string | null): Content | null {
@@ -65,18 +71,23 @@ const FUNIL_COLOR = {
   fora: 'var(--text-tertiary)',
 } as const;
 
+/**
+ * Marcas do post-it. Com conteúdo, as do conteúdo; sem conteúdo, as do próprio espaço.
+ * O objetivo é o mesmo que a contagem do Editorial usa.
+ */
 function postItAppearance(
   content: Content | null,
   series: readonly Serie[],
   pilares: readonly Pilar[],
   temas: readonly Tema[],
+  postIt?: PlanejamentoPostIt | null,
 ): {seriesColor: string | null; marks: PostItMark[]; temas: string[]} {
-  if (!content) return {seriesColor: null, marks: [], temas: []};
-  const serie = content.seriesId ? series.find(item => item.id === content.seriesId) ?? null : null;
-  const pilarId = content.pilarId || serie?.pilarPrincipalId || null;
+  if (!content && !postIt) return {seriesColor: null, marks: [], temas: []};
+  const serieId = content ? content.seriesId : postIt?.serieId ?? null;
+  const serie = serieId ? series.find(item => item.id === serieId) ?? null : null;
+  const pilarId = content ? content.pilarId || serie?.pilarPrincipalId || null : postIt?.pilarId ?? null;
   const pilar = pilarId ? pilares.find(item => item.id === pilarId) ?? null : null;
-  const resolved = resolveFuncao(content, serie);
-  const funcao = resolved.funcao ?? (resolved.estado === 'indefinida' ? funcaoHerdavelDaSerie(serie) : null);
+  const funcao = content ? resolveFuncao(content, serie).funcao : postIt?.objetivo ?? null;
   const etapa = funcao ? FUNIL_DA_FUNCAO[funcao] : null;
   const marks: PostItMark[] = [];
   if (serie?.name?.trim()) {
@@ -101,9 +112,9 @@ function postItAppearance(
     });
   }
   return {
-    seriesColor: serie?.cor?.trim() || null,
+    seriesColor: content ? serie?.cor?.trim() || null : null,
     marks,
-    temas: etiquetasVisiveis(content, temas),
+    temas: content ? etiquetasVisiveis(content, temas) : [],
   };
 }
 
@@ -117,7 +128,7 @@ function changedPostIts(before: PlanejamentoPostIt[], after: PlanejamentoPostIt[
   for (const postIt of after) {
     const previous = beforeById.get(postIt.id);
     if (!previous) added.push(postIt);
-    else if (previous.date !== postIt.date || previous.contentId !== postIt.contentId || previous.texto !== postIt.texto) {
+    else if (postItMudou(previous, postIt)) {
       updated.push(postIt);
     }
   }
@@ -138,7 +149,10 @@ export function PlanejamentoPage() {
   const [pullQuery, setPullQuery] = useState('');
   const [noteDraft, setNoteDraft] = useState('');
   const [dateDraft, setDateDraft] = useState<string | null>(null);
+  const [classeDraft, setClasseDraft] = useState<PostItEdit>({texto: '', date: null});
   const [avisos, setAvisos] = useState<ExcessoMes[] | null>(null);
+  const [encaixeId, setEncaixeId] = useState<string | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
   const [temaFiltroId, setTemaFiltroId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   const avisoPendente = useRef<(() => void) | null>(null);
@@ -149,6 +163,22 @@ export function PlanejamentoPage() {
   const openContent = contentById(contents, openPostIt?.contentId ?? null);
 
   const openPostItId = openPostIt?.id ?? null;
+  const encaixePostIt = postIts.find(postIt => postIt.id === encaixeId) ?? null;
+
+  // `?postit=<id>` abre o post-it no mês dele: o Editorial manda para cá.
+  const postItPedido = searchParams.get('postit');
+  useEffect(() => {
+    if (!postItPedido) return;
+    const pedido = postIts.find(postIt => postIt.id === postItPedido);
+    if (!pedido) return;
+    if (pedido.date) setMonth(new Date(`${pedido.date}T12:00:00`));
+    setOpenId(pedido.id);
+    setSearchParams(previous => {
+      const next = new URLSearchParams(previous);
+      next.delete('postit');
+      return next;
+    }, {replace: true});
+  }, [postItPedido, postIts, setSearchParams]);
 
   useEffect(() => {
     setEditing(false);
@@ -203,7 +233,7 @@ export function PlanejamentoPage() {
 
   const renderPostIt = (postIt: PlanejamentoPostIt, compact: boolean) => {
     const content = contentById(contents, postIt.contentId);
-    const appearance = postItAppearance(content, state.series, state.pilares, state.temas);
+    const appearance = postItAppearance(content, state.series, state.pilares, state.temas, postIt);
     return (
       <PostItNote
         key={postIt.id}
@@ -352,6 +382,7 @@ export function PlanejamentoPage() {
     const draft = postItEditDraft(openPostIt);
     setNoteDraft(draft.texto);
     setDateDraft(draft.date);
+    setClasseDraft(draft);
     setEditing(true);
   };
 
@@ -365,9 +396,13 @@ export function PlanejamentoPage() {
 
   const saveEdit = () => {
     if (!openPostIt) return;
-    const saved = savePostItEdit(openPostIt, {texto: noteDraft, date: dateDraft});
+    // Com conteúdo ligado, a classificação é a do conteúdo: o post-it não grava a dele.
+    const classe = openContent
+      ? {}
+      : {serieId: classeDraft.serieId, pilarId: classeDraft.pilarId, objetivo: classeDraft.objetivo};
+    const saved = savePostItEdit(openPostIt, {texto: noteDraft, date: dateDraft, ...classe});
     confirmarSeCouber(openContent, saved.date, () => {
-      if (saved.texto !== openPostIt.texto || saved.date !== openPostIt.date) {
+      if (postItMudou(openPostIt, saved)) {
         dispatch({type: 'UPDATE_POST_IT', payload: saved});
       }
       setNoteDraft(saved.texto);
@@ -471,7 +506,14 @@ export function PlanejamentoPage() {
 
   const options = openPostIt ? postItTransformOptions(openPostIt, openContent) : {ideia: false, roteiro: false};
   const openKind = openPostIt ? postItKind(openPostIt, openContent) : 'vazio';
-  const openAppearance = postItAppearance(openContent, state.series, state.pilares, state.temas);
+  const openAppearance = postItAppearance(openContent, state.series, state.pilares, state.temas, openPostIt);
+  const opcoesDeSerie = [...state.series]
+    .filter(serie => serie.ativa || serie.id === classeDraft.serieId)
+    .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
+    .map(serie => ({value: serie.id, label: serie.name}));
+  const opcoesDePilar = sortPilares(state.pilares)
+    .filter(pilar => pilar.ativo || pilar.id === classeDraft.pilarId)
+    .map(pilar => ({value: pilar.id, label: pilar.nome}));
 
   return (
     <PageLayout
@@ -735,13 +777,7 @@ export function PlanejamentoPage() {
                   <div>
                     <Badge
                       variant={openKind === 'vazio' ? 'neutral' : 'status'}
-                      status={
-                        openKind === 'roteiro'
-                          ? CONTENT_STATUS.ROTEIRO
-                          : openKind === 'ideia'
-                            ? CONTENT_STATUS.IDEIA
-                            : undefined
-                      }
+                      status={openKind === 'vazio' ? undefined : normalizeContentStatus(openContent?.status || '')}
                     >
                       {openKind === 'vazio'
                         ? 'Vazio'
@@ -778,6 +814,9 @@ export function PlanejamentoPage() {
                     </p>
                   )}
                 </div>
+                {!openContent && !editing && openAppearance.marks.length > 0 ? (
+                  <PostItIdentity marks={openAppearance.marks} />
+                ) : null}
                 {openPostIt.contentId && !openContent ? (
                   <Text variant="secondary" className="text-[var(--text-secondary)]">
                     O conteúdo puxado não está mais aqui. Apague o post-it se ele não servir.
@@ -795,7 +834,9 @@ export function PlanejamentoPage() {
                     <Text variant="itemTitle">{openContent.title?.trim() || 'Sem título'}</Text>
                     <PostItTemas temas={openAppearance.temas} />
                     <Text variant="meta" className="mt-1 block text-[var(--text-secondary)]">
-                      Puxado para este dia. O status continua {normalizeContentStatus(openContent.status)} até você transformar.
+                      {options.ideia || options.roteiro
+                        ? `Puxado para este dia. O status continua ${normalizeContentStatus(openContent.status)} até você transformar.`
+                        : `Puxado para este dia. O status continua ${normalizeContentStatus(openContent.status)}.`}
                     </Text>
                   </Surface>
                 ) : null}
@@ -827,6 +868,70 @@ export function PlanejamentoPage() {
                     </Text>
                   </Surface>
                 )}
+                {editing ? (
+                  openContent ? (
+                    <Text variant="secondary" className="text-[var(--text-secondary)]">
+                      Objetivo, série e pilar vêm do conteúdo ligado.
+                    </Text>
+                  ) : (
+                    <section className="stack-sm" aria-labelledby="postit-espaco">
+                      <Text variant="label" as="h3"><span id="postit-espaco">Para que é este espaço</span></Text>
+                      <TagSelect
+                        id="postit-objetivo"
+                        label="Objetivo"
+                        placeholder="Sem objetivo"
+                        maxSelections={1}
+                        values={classeDraft.objetivo ? [classeDraft.objetivo] : []}
+                        options={FUNCOES.map(funcao => ({value: funcao, label: FUNCAO_LABELS[funcao]}))}
+                        onChange={values => setClasseDraft(atual => ({
+                          ...atual,
+                          objetivo: isFuncaoEditorial(values[0]) ? values[0] : null,
+                        }))}
+                      />
+                      <TagSelect
+                        id="postit-serie"
+                        label="Série"
+                        placeholder="Sem série"
+                        searchable
+                        maxSelections={1}
+                        values={classeDraft.serieId ? [classeDraft.serieId] : []}
+                        options={opcoesDeSerie}
+                        onChange={values => setClasseDraft(atual => escolherSerieNoPostIt(
+                          atual,
+                          state.series.find(serie => serie.id === values[0]) ?? null,
+                        ))}
+                      />
+                      <TagSelect
+                        id="postit-pilar"
+                        label="Pilar"
+                        placeholder="Sem pilar"
+                        maxSelections={1}
+                        values={classeDraft.pilarId ? [classeDraft.pilarId] : []}
+                        options={opcoesDePilar}
+                        onChange={values => setClasseDraft(atual => ({...atual, pilarId: values[0] ?? null}))}
+                      />
+                      <Text variant="meta" className="text-[var(--text-secondary)]">
+                        Escolher a série preenche pilar e objetivo vazios. Quando um conteúdo ocupar este espaço,
+                        valem os dele.
+                      </Text>
+                    </section>
+                  )
+                ) : null}
+                {!editing && openKind === 'vazio' ? (
+                  <section className="stack-md border-t border-[var(--border-color)] pt-6" aria-labelledby="postit-encaixar">
+                    <div className="stack-xs">
+                      <Text variant="itemTitle" as="h3" className="font-semibold">
+                        <span id="postit-encaixar">Usar um conteúdo que já existe</span>
+                      </Text>
+                      <Text variant="secondary" className="text-[var(--text-secondary)]">
+                        Veja as ideias, os roteiros e os conteúdos em produção ainda sem data que podem ocupar este espaço.
+                      </Text>
+                    </div>
+                    <AppButton variant="secondary" fullWidth onClick={() => setEncaixeId(openPostIt.id)}>
+                      Ver o que encaixa
+                    </AppButton>
+                  </section>
+                ) : null}
                 {!editing && openKind !== 'roteiro' && (options.ideia || options.roteiro) ? (
                   <section className="stack-md border-t border-[var(--border-color)] pt-6" aria-labelledby="postit-transformar">
                     <div className="stack-xs">
@@ -886,7 +991,7 @@ export function PlanejamentoPage() {
                     <AppButton variant="secondary" leftIcon={<Pencil className="h-4 w-4" />} onClick={startEdit}>
                       Editar
                     </AppButton>
-                    {(openKind === 'ideia' || openKind === 'roteiro') && openContent ? (
+                    {openKind !== 'vazio' && openContent ? (
                       <AppButton
                         variant="primary"
                         onClick={() => {
@@ -908,6 +1013,8 @@ export function PlanejamentoPage() {
         ) : null}
       </Dialog>
 
+      <EncaixeDialog postIt={encaixePostIt} onClose={() => setEncaixeId(null)} zIndex="z-[140]" />
+
       <Dialog open={pullOpen} onClose={() => setPullOpen(false)} desktopMaxW="max-w-md">
         <OverlayHeader
           title={pullDate ? 'Puxar para o dia' : 'Puxar para fora do calendário'}
@@ -916,12 +1023,12 @@ export function PlanejamentoPage() {
         <OverlayBody>
           <div className="stack-md">
             <Text variant="meta" className="text-[var(--text-secondary)]">
-              A ideia ou o roteiro entra no planejamento sem mudar de status. Transformar é outro passo.
+              A ideia, o roteiro ou o conteúdo em produção entra no planejamento sem mudar de status.
             </Text>
             <ToolbarSearchInput
               value={pullQuery}
               onChange={setPullQuery}
-              placeholder="Buscar ideia ou roteiro"
+              placeholder="Buscar pelo título"
               size="compact"
             />
             {pullable.length === 0 ? (

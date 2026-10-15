@@ -3,7 +3,7 @@ import {Columns3, Filter, GripVertical, Layers, Tag, type LucideIcon} from 'luci
 import {Badge} from '../../../components/ui/Badge';
 import {cn} from '../../../lib/utils';
 import type {Content} from '../../../lib/database';
-import {postItKind, postItTitle, type PlanejamentoPostIt} from '../lib/postIt';
+import {postItKind, postItTitle, type PlanejamentoPostIt, type PostItKind} from '../lib/postIt';
 
 export type PostItMark = {
   kind: 'serie' | 'funil' | 'pilar';
@@ -19,11 +19,13 @@ const MARK_ICON: Record<PostItMark['kind'], LucideIcon> = {
 
 export const POST_IT_MIME = 'application/x-planejamento-postit';
 
-const KIND_LABEL = {
+export const KIND_LABEL: Record<PostItKind, string> = {
   vazio: 'Vazio',
   ideia: 'Ideia',
   roteiro: 'Roteiro',
-} as const;
+  producao: 'Produção',
+  postado: 'Postado',
+};
 
 // Faixa de 3px à esquerda na cor do tipo (ou da série) e fundo levemente tingido.
 const KIND_SURFACE = {
@@ -45,7 +47,19 @@ const KIND_SURFACE = {
     'bg-[color-mix(in_srgb,var(--accent-green)_12%,var(--bg-elevated))]',
     'hover:bg-[color-mix(in_srgb,var(--accent-green)_20%,var(--bg-elevated))]',
   ),
-} as const;
+  producao: cn(
+    'border-[color-mix(in_srgb,var(--status-production)_30%,var(--border-color))]',
+    'border-l-[color:var(--status-production)]',
+    'bg-[color-mix(in_srgb,var(--status-production)_12%,var(--bg-elevated))]',
+    'hover:bg-[color-mix(in_srgb,var(--status-production)_20%,var(--bg-elevated))]',
+  ),
+  postado: cn(
+    'border-[color-mix(in_srgb,var(--status-posted)_30%,var(--border-color))]',
+    'border-l-[color:var(--status-posted)]',
+    'bg-[color-mix(in_srgb,var(--status-posted)_12%,var(--bg-elevated))]',
+    'hover:bg-[color-mix(in_srgb,var(--status-posted)_20%,var(--bg-elevated))]',
+  ),
+} satisfies Record<PostItKind, string>;
 
 const SERIES_SURFACE = cn(
   'border-[color-mix(in_srgb,var(--post-it-accent)_30%,var(--border-color))]',
@@ -81,7 +95,8 @@ export function PostItNote({
 }) {
   const kind = postItKind(postIt, content);
   const accent = kind === 'vazio' ? null : seriesColor?.trim() || null;
-  const visibleMarks = kind === 'vazio' ? [] : marks;
+  // Sem conteúdo, as marcas são as do espaço: objetivo, série e pilar do próprio post-it.
+  const visibleMarks = marks;
   const visibleTemas = kind === 'vazio' ? [] : temas;
   return (
     <div

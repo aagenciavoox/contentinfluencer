@@ -3,6 +3,7 @@ import { differenceInCalendarDays, parseISO } from 'date-fns';
 import type { AjusteSemana, DecisaoPeriodo, PreferenciasGerais } from './editorialSettings.ts';
 import type { GradeEntry } from './gradeEntries.ts';
 import { percentuaisFechamEm100, percentuaisNaOrdem } from './distribuirEspacos.ts';
+import { contagemPorEtapaVazia, type ContagemPorEtapa, type Etapa } from './etapas.ts';
 import { FUNCAO_LABELS, FUNCOES, isFuncaoEditorial } from './funcoes.ts';
 import { postItTemPauta } from './pautaConteudo.ts';
 import { decisaoDoPeriodo, limiteDoIntervalo } from './periodoEditorial.ts';
@@ -62,6 +63,8 @@ export type ContagemObjetivo = {
   previsto: number;
   comPauta: number;
   publicado: number;
+  /** Os previstos separados pela etapa de cada item. A soma é `previsto`. */
+  porEtapa: ContagemPorEtapa;
 };
 
 export type GradeCounts = {
@@ -82,7 +85,12 @@ export type GradeCounts = {
   comPauta: number;
   publicado: number;
   espacosLivres: number;
+  /** Conteúdos (de Ideia em diante) sem objetivo. Post-it sem conteúdo não entra. */
   semObjetivo: number;
+  /** Todos os previstos por etapa. */
+  porEtapa: ContagemPorEtapa;
+  /** Previstos sem objetivo, por etapa, incluindo post-it sem conteúdo. */
+  semObjetivoPorEtapa: ContagemPorEtapa;
   /** Itens datados sem série. A reserva semanal não preenche vaga. */
   semSerie: number;
   reservaForaSeriesSemanal: number | null;
@@ -224,6 +232,8 @@ function montarItens(
     if (entry && !entry.contaNaGrade) continue;
     const temPauta = ordenados.some(nota => postItTemPauta(nota.texto)) || entry?.temPauta === true;
     const publicado = Boolean(entry?.realizada && noPeriodo(entry.data, periodo));
+    // Conteúdo que sumiu da lista: o post-it volta a ser só planejamento.
+    const etapa: Etapa = !entry ? 'planejamento' : publicado ? 'postado' : entry.etapa ?? 'roteiro';
     const sintetico: GradeEntry = {
       id: `post-it:${escolhido.id}`,
       contentId,
@@ -231,12 +241,16 @@ function montarItens(
       data: escolhido.date,
       hora: null,
       contaNaGrade: true,
-      pilarId: escolhido.pilarId ?? entry?.pilarId ?? null,
-      serieId: escolhido.serieId ?? entry?.serieId ?? null,
-      funcao: objetivoDe(escolhido.objetivo) ?? entry?.funcao ?? null,
+      // Com conteúdo ligado, vale a classificação do conteúdo, mesmo vazia.
+      // A do post-it só vale enquanto ele é planejamento (conteúdo que sumiu da lista).
+      pilarId: entry ? entry.pilarId : escolhido.pilarId ?? null,
+      serieId: entry ? entry.serieId : escolhido.serieId ?? null,
+      funcao: entry ? entry.funcao : objetivoDe(escolhido.objetivo),
       realizada: publicado,
       realizadaEm: publicado ? entry?.realizadaEm ?? null : null,
       temPauta,
+      etapa,
+      postItId: escolhido.id,
     };
     itens.push(itemDeEntrada(sintetico, temPauta));
   }
@@ -256,6 +270,8 @@ function montarItens(
       realizada: false,
       realizadaEm: null,
       temPauta,
+      etapa: 'planejamento',
+      postItId: postIt.id,
     };
     itens.push(itemDeEntrada(sintetico, temPauta));
   }
@@ -282,14 +298,27 @@ function linhaDe(id: string, rotulo: string, grupo: readonly ItemContado[], meta
   };
 }
 
-function contaGrupo(grupo: readonly ItemContado[]): { previsto: number; comPauta: number; publicado: number } {
+/** Publicado no período manda; sem etapa gravada, o item é um conteúdo em Roteiro. */
+export function etapaDoItem(item: Pick<GradeEntry, 'etapa' | 'realizada'>): Etapa {
+  if (item.realizada) return 'postado';
+  return item.etapa ?? 'roteiro';
+}
+
+function contaGrupo(grupo: readonly ItemContado[]): {
+  previsto: number;
+  comPauta: number;
+  publicado: number;
+  porEtapa: ContagemPorEtapa;
+} {
   let comPauta = 0;
   let publicado = 0;
+  const porEtapa = contagemPorEtapaVazia();
   for (const item of grupo) {
     if (item.temPauta || item.publicado) comPauta += 1;
     if (item.publicado) publicado += 1;
+    porEtapa[etapaDoItem(item.entry)] += 1;
   }
-  return { previsto: grupo.length, comPauta, publicado };
+  return { previsto: grupo.length, comPauta, publicado, porEtapa };
 }
 
 /**
@@ -327,12 +356,19 @@ export function contarPeriodo({
   let espacosLivres = 0;
   let semObjetivo = 0;
   let semSerie = 0;
+  const porEtapa = contagemPorEtapaVazia();
+  const semObjetivoPorEtapa = contagemPorEtapaVazia();
   for (const item of itens) {
     const entraComPauta = item.temPauta || item.publicado;
+    const etapa = etapaDoItem(item.entry);
     if (entraComPauta) comPauta += 1;
     if (item.publicado) publicado += 1;
     if (!item.temPauta && !item.publicado) espacosLivres += 1;
-    if (entraComPauta && !item.entry.funcao) semObjetivo += 1;
+    porEtapa[etapa] += 1;
+    if (!item.entry.funcao) {
+      semObjetivoPorEtapa[etapa] += 1;
+      if (etapa !== 'planejamento') semObjetivo += 1;
+    }
     if (!item.entry.serieId) semSerie += 1;
   }
 
@@ -396,6 +432,8 @@ export function contarPeriodo({
     publicado,
     espacosLivres,
     semObjetivo,
+    porEtapa,
+    semObjetivoPorEtapa,
     semSerie,
     reservaForaSeriesSemanal: reservaForaDe(settings),
     excesso,
