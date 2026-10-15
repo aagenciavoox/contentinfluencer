@@ -15,7 +15,15 @@ function TikTokIcon({ className }: { className?: string }) {
 interface PlatformIconProps {
   platform: string;
   className?: string;
+  /** Na cor da marca da rede (`--platform-*`). Sem isso, herda a cor do texto. */
+  colored?: boolean;
 }
+
+const COR_DA_REDE = {
+  instagram: 'text-[var(--platform-instagram)]',
+  youtube: 'text-[var(--platform-youtube)]',
+  tiktok: 'text-[var(--platform-tiktok)]',
+} as const;
 
 /** A rede pelo começo do texto: "instagram", "Instagram @diza" e "Instagram · Leituras" dão Instagram. */
 function redeDoTexto(texto: string): 'instagram' | 'tiktok' | 'youtube' | null {
@@ -30,14 +38,38 @@ function redeDoTexto(texto: string): 'instagram' | 'tiktok' | 'youtube' | null {
  * Ícone da plataforma. Aceita a rede (`instagram`) ou o rótulo da conta
  * (`Instagram @diza`); para plataformas sem ícone, mostra as 2 primeiras letras.
  */
-export function PlatformIcon({ platform, className }: PlatformIconProps) {
+export function PlatformIcon({ platform, className, colored = false }: PlatformIconProps) {
   const rede = redeDoTexto(platform);
-  if (rede === 'instagram') return <Instagram className={className} aria-hidden />;
-  if (rede === 'youtube') return <Youtube className={className} aria-hidden />;
-  if (rede === 'tiktok') return <TikTokIcon className={className} />;
+  const cor = colored && rede ? COR_DA_REDE[rede] : undefined;
+  if (rede === 'instagram') return <Instagram className={cn(cor, className)} aria-hidden />;
+  if (rede === 'youtube') return <Youtube className={cn(cor, className)} aria-hidden />;
+  if (rede === 'tiktok') return <TikTokIcon className={cn(cor, className)} />;
   return (
     <span className={cn('text-xs font-semibold', className)} aria-hidden>
       {platform.trim().slice(0, 2)}
+    </span>
+  );
+}
+
+const FUNDO_DA_REDE = {
+  instagram: 'bg-[var(--platform-instagram)] text-[var(--brand-on-accent)]',
+  youtube: 'bg-[var(--platform-youtube)] text-[var(--brand-on-accent)]',
+  tiktok: 'bg-[var(--platform-tiktok)] text-[var(--bg-elevated)]',
+} as const;
+
+/** Ícone da rede num quadrado na cor da marca, para listas de contas. */
+export function PlatformTile({ platform, className }: { platform: string; className?: string }) {
+  const rede = redeDoTexto(platform);
+  return (
+    <span
+      className={cn(
+        'inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--radius-sm)]',
+        rede ? FUNDO_DA_REDE[rede] : 'bg-[var(--surface-subtle)] text-[var(--text-primary)]',
+        className,
+      )}
+      aria-hidden
+    >
+      <PlatformIcon platform={platform} className="h-5 w-5" />
     </span>
   );
 }

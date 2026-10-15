@@ -24,7 +24,8 @@ const TOM_COLOR: Record<TomDaSaude, string> = {
   passou: 'var(--accent-green)',
 };
 
-const CARD_GRID = 'grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6';
+// Fichas do tamanho do nome: crescem para ocupar a linha e quebram para a próxima quando não cabem.
+const CARD_GRID = 'flex flex-wrap gap-2';
 
 function HealthCard({
   label,
@@ -37,7 +38,7 @@ function HealthCard({
   linha: LinhaContagem;
   onOpen?: () => void;
 }) {
-  // Desde a Fase 4 o pilar não orça a grade: sem meta, o card mostra só o planejado,
+  // Desde a Fase 4 o pilar não orça a grade: sem meta, a ficha mostra só o planejado,
   // sem "de" solto, sem barra e sem tom vermelho contra uma meta que não existe.
   const meta = linha.meta !== null && linha.meta > 0 ? linha.meta : null;
   const estado = meta !== null ? tomDaSaude(linha.planejado, meta) : null;
@@ -48,31 +49,35 @@ function HealthCard({
     : `${linha.planejado} ${linha.planejado === 1 ? 'previsto' : 'previstos'}`;
   return (
     <Surface
-      padding="sm"
+      padding="none"
       onClick={onOpen}
-      title={label}
+      title={situacao ? `${label}: ${resumo}, ${situacao}` : `${label}: ${resumo}`}
       aria-label={onOpen ? `${label}: ${resumo}. Ver séries` : undefined}
-      className="flex min-w-0 flex-col gap-2"
+      className="flex w-auto min-w-[9rem] max-w-full flex-auto flex-col justify-center gap-1.5 px-3 py-2.5"
     >
-      <span className="flex min-w-0 items-start gap-1.5">
+      <span className="flex min-w-0 items-center gap-2">
         <span
-          className="mt-1.5 h-2 w-2 shrink-0 rounded-full"
+          className="h-2.5 w-2.5 shrink-0 rounded-full"
           style={{backgroundColor: color ?? 'var(--text-tertiary)'}}
           aria-hidden
         />
-        <Text variant="bodyStrong" as="span" className="line-clamp-2 min-w-0 break-words">
+        <Text variant="body" as="span" className="min-w-0 flex-1 truncate pr-2">
           {label}
         </Text>
+        <Text variant="bodyStrong" as="span" className="shrink-0 tabular-nums">
+          {meta !== null ? (
+            <>
+              {linha.planejado}
+              <span className="font-normal text-[var(--text-secondary)]"> de {meta}</span>
+            </>
+          ) : (
+            <>
+              {linha.planejado}
+              <span className="sr-only">{linha.planejado === 1 ? ' previsto' : ' previstos'}</span>
+            </>
+          )}
+        </Text>
       </span>
-      <Text variant="meta" as="span" className="text-[var(--text-secondary)]">
-        <span className="font-semibold text-[var(--text-primary)]">{linha.planejado}</span>
-        {meta !== null ? ` de ${meta}` : ` ${linha.planejado === 1 ? 'previsto' : 'previstos'}`}
-        {situacao ? (
-          <span className={estado === 'passou' ? ' text-[var(--accent-red)]' : ' text-[var(--accent-green)]'}>
-            {` · ${situacao}`}
-          </span>
-        ) : null}
-      </Text>
       {estado !== null ? (
         <span className="block h-1 w-full overflow-hidden rounded-full bg-[var(--bg-hover)]" aria-hidden>
           <span
@@ -112,18 +117,20 @@ export function MonthHealth({
   const notaForaDaConta = textoForaDaConta(foraDaContaDoMes(counts, entries, outrasRedes));
 
   return (
-    <Surface padding="sm">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <Text variant="sectionTitle">Saúde do mês</Text>
+    <Surface padding="md">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+        <div className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1">
+          <Text variant="sectionTitle">Distribuição do mês</Text>
+          <Text variant="secondary" className="border-l border-[var(--border-color)] pl-3 text-[var(--text-secondary)]">
+            Rascunhos do mês e conteúdos com data, comparados ao Editorial.
+          </Text>
+        </div>
         {counts.totalMeta > 0 ? (
           <Text variant="meta" className="text-[var(--text-secondary)]">
             <span className="font-semibold text-[var(--text-primary)]">{counts.somaPlanejado}</span> de {counts.totalMeta} espaços
           </Text>
         ) : null}
       </div>
-      <Text variant="secondary" className="mt-1">
-        Post-its de ideia e roteiro neste mês, mais o que já tem data, contra os espaços e a distribuição do editorial.
-      </Text>
       {semMeta ? (
         <Text variant="meta" as="p" className="mt-3 text-[var(--text-secondary)]">
           Os pilares ainda não têm espaços por semana. Defina isso no editorial para comparar o mês.

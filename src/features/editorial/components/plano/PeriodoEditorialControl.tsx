@@ -3,12 +3,13 @@ import { addDays, addMonths, differenceInCalendarDays, endOfMonth, format, parse
 import { ptBR } from 'date-fns/locale';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { AppButton } from '../../../../components/ui/AppButton';
-import { SegmentTabs } from '../../../../components/ui/SegmentTabs';
+import { Surface } from '../../../../components/ui/Surface';
 import { Text } from '../../../../components/ui/Text';
 import { useAppContext } from '../../../../context/AppContext';
 import { buildGradeEntries } from '../../lib/gradeEntries';
 import { contarPeriodo, type GradeCounts } from '../../lib/gradeCounts';
 import { getEditorialSettings } from '../../lib/editorialSettings';
+import { cn } from '../../../../lib/utils';
 import { semanaDe } from '../../lib/periodoEditorial';
 
 export type ModoPeriodo = 'semana' | 'mes' | 'intervalo';
@@ -181,58 +182,58 @@ export function PeriodoEditorialControl({
     if (next.inicio <= next.fim) onChange(next);
   };
 
+  const navClass =
+    'flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] pointer-coarse:h-11 pointer-coarse:w-11';
+
   return (
-    <div className="stack-sm">
-      <div className="flex flex-col gap-1">
-        <Text variant="bodyStrong" as="h2">Qual período você quer organizar?</Text>
-        <Text variant="secondary">
-          O período define quais roteiros, metas e comparações aparecem. Trocar a vista carrega a configuração deste intervalo e não altera datas planejadas nem os outros períodos.
-        </Text>
-      </div>
-      <div className="max-w-full overflow-x-auto">
-        <SegmentTabs<ModoPeriodo>
-          ariaLabel="Qual período você quer organizar?"
-          className="w-max"
-          value={periodo.modo}
-          onChange={escolherModo}
-          options={MODOS.map(modo => ({ id: modo.id, label: modo.rotulo }))}
-        />
-      </div>
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="flex min-w-0 items-center gap-1">
-          <AppButton
-            variant="ghost"
-            size="sm"
-            iconOnly
-            aria-label="Período anterior"
-            leftIcon={<ChevronLeft className="h-4 w-4" />}
-            onClick={() => onChange(periodoVizinho(periodo, -1))}
-          />
-          <div className="min-w-0 px-1">
-            <Text variant="sectionTitle" as="p">{rotuloDoPeriodo(periodo)}</Text>
-            <Text variant="meta">
-              {format(parseISO(periodo.inicio), 'dd/MM/yyyy')} a {format(parseISO(periodo.fim), 'dd/MM/yyyy')}
-            </Text>
-          </div>
-          <AppButton
-            variant="ghost"
-            size="sm"
-            iconOnly
-            aria-label="Próximo período"
-            leftIcon={<ChevronRight className="h-4 w-4" />}
-            onClick={() => onChange(periodoVizinho(periodo, 1))}
-          />
+    <Surface padding="none" className="stack-sm px-4 py-3">
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+        {/* O modo é um valor, não uma aba: a página já tem a fileira de abas do Editorial. */}
+        <div
+          role="radiogroup"
+          aria-label="Período"
+          className="inline-flex shrink-0 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] p-0.5"
+        >
+          {MODOS.map(modo => {
+            const ativo = periodo.modo === modo.id;
+            return (
+              <button
+                key={modo.id}
+                type="button"
+                role="radio"
+                aria-checked={ativo}
+                onClick={() => escolherModo(modo.id)}
+                className={cn(
+                  'min-h-9 rounded-[calc(var(--radius-input)-2px)] border px-4 t-body transition-colors focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] pointer-coarse:min-h-11',
+                  ativo
+                    ? 'border-[var(--text-primary)] bg-[var(--bg-hover)] font-semibold text-[var(--text-primary)]'
+                    : 'border-transparent text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]',
+                )}
+              >
+                {modo.rotulo}
+              </button>
+            );
+          })}
         </div>
-        {!contemHoje && periodo.modo !== 'intervalo' ? (
-          <AppButton variant="secondary" size="sm" onClick={() => escolherModo(periodo.modo)}>
-            Hoje
-          </AppButton>
-        ) : null}
-      </div>
-      {periodo.modo === 'intervalo' ? (
-        <div className="flex flex-wrap gap-3">
-          <label className="stack-sm" htmlFor="periodo-inicio">
-            <Text variant="label" as="span">De</Text>
+
+        <div className="flex min-w-0 items-center gap-3">
+          <button type="button" className={navClass} aria-label="Período anterior" onClick={() => onChange(periodoVizinho(periodo, -1))}>
+            <ChevronLeft className="h-4 w-4" aria-hidden />
+          </button>
+          <Text variant="sectionTitle" as="h2" className="min-w-0 tabular-nums">{rotuloDoPeriodo(periodo)}</Text>
+          <button type="button" className={navClass} aria-label="Próximo período" onClick={() => onChange(periodoVizinho(periodo, 1))}>
+            <ChevronRight className="h-4 w-4" aria-hidden />
+          </button>
+          {!contemHoje && periodo.modo !== 'intervalo' ? (
+            <AppButton variant="secondary" size="sm" onClick={() => escolherModo(periodo.modo)}>
+              Hoje
+            </AppButton>
+          ) : null}
+        </div>
+
+        <div className="flex flex-wrap items-end gap-3 lg:ml-auto">
+          <label className="flex flex-col gap-1" htmlFor="periodo-inicio">
+            <Text variant="meta" as="span" className="text-[var(--text-secondary)]">De</Text>
             <input
               id="periodo-inicio"
               type="date"
@@ -241,8 +242,8 @@ export function PeriodoEditorialControl({
               className={CAMPO_DATA}
             />
           </label>
-          <label className="stack-sm" htmlFor="periodo-fim">
-            <Text variant="label" as="span">Até</Text>
+          <label className="flex flex-col gap-1" htmlFor="periodo-fim">
+            <Text variant="meta" as="span" className="text-[var(--text-secondary)]">Até</Text>
             <input
               id="periodo-fim"
               type="date"
@@ -251,13 +252,16 @@ export function PeriodoEditorialControl({
               className={CAMPO_DATA}
             />
           </label>
+          <Text variant="secondary" as="p" className="hidden max-w-[11rem] self-center border-l border-[var(--border-color)] pl-4 text-[var(--text-secondary)] xl:block">
+            Metas e comparações deste intervalo.
+          </Text>
         </div>
-      ) : null}
+      </div>
       {intervaloInvalido ? (
         <Text variant="meta" className="text-[var(--accent-red)]">
           A data inicial precisa vir antes da final.
         </Text>
       ) : null}
-    </div>
+    </Surface>
   );
 }

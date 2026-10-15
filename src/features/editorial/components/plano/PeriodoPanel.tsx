@@ -1,4 +1,8 @@
-import { useNavigate } from 'react-router-dom';
+import type { ReactNode } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { format, parseISO } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import { AlertCircle, ArrowRight, CalendarDays, CalendarRange, Flag, FileText, Layers, Target } from 'lucide-react';
 import { AppButton } from '../../../../components/ui/AppButton';
 import { Surface } from '../../../../components/ui/Surface';
 import { Text } from '../../../../components/ui/Text';
@@ -11,7 +15,7 @@ import { expectativaNoIntervalo, lerFrequencia } from '../../lib/frequenciaSerie
 import { FUNCAO_CURTA, FUNCOES } from '../../lib/funcoes';
 import { decisaoDoPeriodo } from '../../lib/periodoEditorial';
 import { sortPilares } from '../../../settings/lib/activePilares';
-import { CAMPO_BASE, CampoNumero, CampoTexto, digitos, inteiroOuNull } from './campos';
+import { CAMPO_BASE, CampoTexto, digitos, inteiroOuNull } from './campos';
 import {
   PeriodoEditorialControl,
   rotuloSemanaAjustada,
@@ -47,6 +51,68 @@ function metasCom(metas: MetasPeriodo, funcao: FuncaoEditorial, value: string): 
   return next;
 }
 
+/** "27 de set. a 3 de out.": a semana parcial no cartão; o rótulo longo fica para o leitor de tela. */
+function rotuloCurtoDaSemana(inicio: string, fim: string): string {
+  const dia = (iso: string) => format(parseISO(iso), "d 'de' MMM", { locale: ptBR });
+  return `${dia(inicio)}. a ${dia(fim)}.`;
+}
+
+/** Cor de cada objetivo: só enfeita, o nome vem sempre ao lado. */
+const COR_DA_FUNCAO: Record<FuncaoEditorial, string> = {
+  atrair: 'var(--accent-pink)',
+  converter: 'var(--accent-blue)',
+  aprofundar: 'var(--accent-orange)',
+  comunidade: 'var(--accent-green)',
+  acao: 'var(--accent-red)',
+  reter: 'var(--accent-purple)',
+};
+
+/** Card da aba Período: ícone da marca, título, frase curta e, à direita, uma ação. */
+function CardPeriodo({
+  icone,
+  titulo,
+  descricao,
+  acao,
+  children,
+  className,
+}: {
+  icone: ReactNode;
+  titulo: string;
+  descricao?: string;
+  acao?: ReactNode;
+  children?: ReactNode;
+  className?: string;
+}) {
+  return (
+    <Surface padding="none" className={`stack-md p-4 md:p-6 ${className ?? ''}`}>
+      <div className="flex items-start gap-3">
+        <span className="mt-0.5 shrink-0 text-[var(--brand-accent-strong)]" aria-hidden>{icone}</span>
+        <div className="min-w-0 flex-1">
+          <Text variant="sectionTitle" as="h2">{titulo}</Text>
+          {descricao ? <Text variant="secondary" className="mt-0.5 text-[var(--text-secondary)]">{descricao}</Text> : null}
+        </div>
+        {acao ? <div className="shrink-0">{acao}</div> : null}
+      </div>
+      {children}
+    </Surface>
+  );
+}
+
+/** Faixa de aviso com uma ação. O texto fica em `--text-primary`; a cor de alerta só tinge o fundo e o ícone. */
+function Aviso({ texto, acao }: { texto: string; acao?: { rotulo: string; onClick: () => void } }) {
+  return (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-[var(--radius-input)] border border-[color-mix(in_srgb,var(--warning)_40%,var(--border-color))] bg-[color-mix(in_srgb,var(--warning)_12%,var(--bg-elevated))] px-3 py-2">
+      <AlertCircle className="h-5 w-5 shrink-0 text-[var(--warning)]" aria-hidden />
+      <Text variant="bodyStrong" as="p" className="min-w-[12rem] flex-1">{texto}</Text>
+      {acao ? (
+        <AppButton variant="secondary" size="sm" rightIcon={<ArrowRight className="h-4 w-4" />} onClick={acao.onClick}>
+          {acao.rotulo}
+        </AppButton>
+      ) : null}
+    </div>
+  );
+}
+
 type LinhaObjetivo = {
   funcao: FuncaoEditorial;
   meta: number | null;
@@ -71,7 +137,8 @@ function CampoMeta({ linha, onChange }: { linha: LinhaObjetivo; onChange: (value
       placeholder="—"
       value={linha.meta == null ? '' : String(linha.meta)}
       onChange={event => onChange(digitos(event.target.value))}
-      className={`${CAMPO_BASE} block min-h-9 w-16 py-1 text-right tabular-nums pointer-coarse:min-h-11`}
+      aria-label={`Meta de ${FUNCAO_CURTA[linha.funcao]}`}
+      className={`${CAMPO_BASE} block min-h-9 w-16 py-1 text-center tabular-nums pointer-coarse:min-h-11`}
     />
   );
 }
@@ -113,16 +180,20 @@ function MetasPorObjetivo({
   }
 
   return (
-    <div className="mt-3 overflow-x-auto">
+    <div className="overflow-x-auto">
       <table className="w-full border-collapse text-left">
         <thead>
-          <tr className="border-b border-[var(--border-color)]">
-            <th scope="col" className="py-2 pr-3">
-              <Text variant="label" as="span">Objetivo</Text>
+          <tr className="bg-[var(--surface-subtle)]">
+            <th scope="col" className="rounded-l-[var(--radius-input)] py-2 pl-3 pr-3">
+              <Text variant="label" as="span" className="text-[var(--text-secondary)]">Objetivo</Text>
             </th>
-            {['Meta', ...COLUNAS.map(coluna => coluna.rotulo)].map(coluna => (
-              <th key={coluna} scope="col" className="px-3 py-2 text-right">
-                <Text variant="label" as="span">{coluna}</Text>
+            {['Meta', ...COLUNAS.map(coluna => coluna.rotulo)].map((coluna, index, todas) => (
+              <th
+                key={coluna}
+                scope="col"
+                className={`px-3 py-2 text-center ${index === todas.length - 1 ? 'rounded-r-[var(--radius-input)]' : ''}`}
+              >
+                <Text variant="label" as="span" className="text-[var(--text-secondary)]">{coluna}</Text>
               </th>
             ))}
           </tr>
@@ -130,19 +201,22 @@ function MetasPorObjetivo({
         <tbody>
           {linhas.map(linha => (
             <tr key={linha.funcao} className="border-b border-[var(--border-color)] last:border-b-0">
-              <th scope="row" className="py-2 pr-3">
-                <label htmlFor={`meta-${linha.funcao}`}>
-                  <Text variant="body" as="span">{FUNCAO_CURTA[linha.funcao]}</Text>
-                </label>
+              <th scope="row" className="py-2 pl-3 pr-3 font-normal">
+                <span className="flex items-center gap-2.5">
+                  <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: COR_DA_FUNCAO[linha.funcao] }} aria-hidden />
+                  <label htmlFor={`meta-${linha.funcao}`}>
+                    <Text variant="body" as="span">{FUNCAO_CURTA[linha.funcao]}</Text>
+                  </label>
+                </span>
               </th>
-              <td className="px-3 py-1.5 text-right">
-                <span className="flex justify-end">
+              <td className="px-3 py-1.5">
+                <span className="flex justify-center">
                   <CampoMeta linha={linha} onChange={value => onMetaChange(linha.funcao, value)} />
                 </span>
               </td>
               {COLUNAS.map(coluna => (
-                <td key={coluna.id} className="px-3 py-2 text-right tabular-nums">
-                  <Text variant="body" as="span">{linha[coluna.id]}</Text>
+                <td key={coluna.id} className="px-3 py-2 text-center tabular-nums">
+                  <Text variant={linha[coluna.id] > 0 ? 'bodyStrong' : 'body'} as="span">{linha[coluna.id]}</Text>
                 </td>
               ))}
             </tr>
@@ -155,14 +229,23 @@ function MetasPorObjetivo({
 
 type LinhaDoPeriodo = { id: string; nome: string; cor?: string | null; texto: string };
 
-function ListaDoPeriodo({ titulo, linhas }: { titulo: string; linhas: LinhaDoPeriodo[] }) {
+function ListaDoPeriodo({
+  titulo,
+  icone,
+  linhas,
+  rodape,
+}: {
+  titulo: string;
+  icone: ReactNode;
+  linhas: LinhaDoPeriodo[];
+  rodape?: ReactNode;
+}) {
   return (
-    <Surface variant="info">
-      <Text variant="bodyStrong">{titulo}</Text>
-      <ul className="mt-3 stack-sm">
+    <CardPeriodo icone={icone} titulo={titulo}>
+      <ul className="stack-xs">
         {linhas.map(linha => (
           <li key={linha.id} className="flex items-center justify-between gap-3">
-            <span className="flex min-w-0 items-center gap-2">
+            <span className="flex min-w-0 items-center gap-2.5">
               <span
                 aria-hidden
                 className="h-2.5 w-2.5 shrink-0 rounded-full border border-[var(--border-color)]"
@@ -170,11 +253,12 @@ function ListaDoPeriodo({ titulo, linhas }: { titulo: string; linhas: LinhaDoPer
               />
               <Text variant="body" as="span" className="truncate">{linha.nome}</Text>
             </span>
-            <Text variant="secondary" as="span" className="shrink-0 tabular-nums">{linha.texto}</Text>
+            <Text variant="secondary" as="span" className="shrink-0 tabular-nums text-[var(--text-secondary)]">{linha.texto}</Text>
           </li>
         ))}
       </ul>
-    </Surface>
+      {rodape}
+    </CardPeriodo>
   );
 }
 
@@ -265,74 +349,73 @@ export function PeriodoPanel({
       return { id: serie.id, nome: serie.name, cor: serie.cor, texto: textoDaSerie(contados, esperado) };
     });
 
+  const avisoObjetivo = avisos.find(aviso => aviso.id === 'sem-objetivo');
+  const avisosCapacidade = avisos.filter(aviso => aviso.id !== 'sem-objetivo');
+
   return (
-    <div className="stack-md">
+    <div className="stack-lg">
       <PeriodoEditorialControl periodo={periodo} onChange={onPeriodoChange} />
 
-      <Surface padding="sm">
-        <CampoTexto
-          key={`${periodo.inicio}:${periodo.fim}`}
-          id="prioridade-periodo"
-          label="Prioridade deste período"
-          rows={2}
-          placeholder="Ex.: lançar a série Leia comigo e testar o horário das 19h"
-          value={decisao?.prioridade ?? ''}
-          onSave={prioridade => {
-            if (prioridade === (decisao?.prioridade ?? '')) return;
-            salvarDecisao(periodo, { prioridade });
-          }}
-        />
-      </Surface>
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
+        <CardPeriodo icone={<Flag className="h-5 w-5" />} titulo="Prioridade do período">
+          <CampoTexto
+            key={`${periodo.inicio}:${periodo.fim}`}
+            id="prioridade-periodo"
+            nome="Prioridade do período"
+            rows={2}
+            placeholder={'O que merece atenção neste período?\nEx.: lançar a série Leia comigo e testar o horário das 19h.'}
+            value={decisao?.prioridade ?? ''}
+            onSave={prioridade => {
+              if (prioridade === (decisao?.prioridade ?? '')) return;
+              salvarDecisao(periodo, { prioridade });
+            }}
+          />
+        </CardPeriodo>
 
-      {semLimite ? (
-        <Surface padding="sm" className="flex flex-wrap items-center justify-between gap-3">
-          <Text variant="body">Defina quantos roteiros cabem por semana para ver a conta do período.</Text>
-          <AppButton variant="secondary" size="sm" onClick={onAbrirAjustes}>
-            Definir limite
-          </AppButton>
-        </Surface>
-      ) : (
-        <div className="stack-sm">
-        <Text variant="secondary">
-          {periodo.modo === 'semana'
-            ? `O limite semanal dos ajustes é ${limiteSemanal}. Nesta semana ele entra inteiro, salvo um ajuste próprio desta semana.`
-            : `O limite semanal dos ajustes é ${limiteSemanal}. O limite deste período soma as semanas inteiras e, nas semanas cortadas, usa limite × dias ÷ 7, arredondado.`}
-          {' '}A unidade é o roteiro: cada um entra uma vez, na data da publicação original que conta na grade. Reposts e roteiros fora da grade não entram.
-        </Text>
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          {numeros.map(item => (
-            <Surface key={item.id} variant="info">
-              <Text variant="label">{item.rotulo}</Text>
-              <Text variant="itemTitle" as="p" className="mt-1 tabular-nums">{item.valor}</Text>
-            </Surface>
-          ))}
-        </div>
-        </div>
-      )}
+        <CardPeriodo
+          icone={<CalendarDays className="h-5 w-5" />}
+          titulo="Capacidade de produção"
+          acao={semLimite ? (
+            <AppButton variant="secondary" size="sm" onClick={onAbrirAjustes}>
+              Definir limite
+            </AppButton>
+          ) : null}
+        >
+          {semLimite ? (
+            <div>
+              <Text variant="body">Limite semanal não definido.</Text>
+              <Text variant="secondary" className="mt-0.5 text-[var(--text-secondary)]">
+                Defina quantos roteiros cabem na sua semana.
+              </Text>
+            </div>
+          ) : (
+            <div className="stack-sm">
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-2 xl:grid-cols-4">
+                {numeros.map(item => (
+                  <Surface key={item.id} variant="info" padding="sm">
+                    <Text variant="label">{item.rotulo}</Text>
+                    <Text variant="itemTitle" as="p" className="mt-1 tabular-nums">{item.valor}</Text>
+                  </Surface>
+                ))}
+              </div>
+              <Text variant="secondary" className="text-[var(--text-secondary)]">
+                {periodo.modo === 'semana'
+                  ? `Limite semanal de ${limiteSemanal}, salvo um ajuste desta semana.`
+                  : `Soma das semanas inteiras; nas semanas cortadas, ${limiteSemanal} × dias ÷ 7, arredondado.`}
+                {' '}Cada roteiro conta uma vez, na publicação original da grade.
+              </Text>
+            </div>
+          )}
+          {avisosCapacidade.map(aviso => <Aviso key={aviso.id} texto={aviso.texto} acao={aviso.acao} />)}
+        </CardPeriodo>
+      </div>
 
-      {avisos.length > 0 ? (
-        <Surface>
-          <Text variant="bodyStrong">Avisos</Text>
-          <ul className="mt-3 stack-sm">
-            {avisos.map(aviso => (
-              <li key={aviso.id} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-                <Text variant="secondary" className="min-w-[12rem] flex-1">{aviso.texto}</Text>
-                {aviso.acao ? (
-                  <AppButton variant="secondary" size="sm" onClick={aviso.acao.onClick}>
-                    {aviso.acao.rotulo}
-                  </AppButton>
-                ) : null}
-              </li>
-            ))}
-          </ul>
-        </Surface>
-      ) : null}
-
-      <Surface>
-        <div className="stack-sm">
-          <Text variant="bodyStrong">Por objetivo</Text>
-          <Text variant="secondary">A meta é opcional e vale só para este período.</Text>
-        </div>
+      <CardPeriodo
+        icone={<Target className="h-5 w-5" />}
+        titulo="Distribuição por objetivo"
+        descricao="Metas opcionais para este período."
+      >
+        {avisoObjetivo ? <Aviso texto={avisoObjetivo.texto} acao={avisoObjetivo.acao} /> : null}
         <MetasPorObjetivo
           linhas={FUNCOES.map(funcao => ({
             funcao,
@@ -345,32 +428,36 @@ export function PeriodoPanel({
             metas: metasCom(decisao?.metas ?? {}, funcao, value),
           })}
         />
-      </Surface>
+      </CardPeriodo>
 
       {parciais.length > 0 ? (
-        <Surface>
-          <div className="stack-md">
-            <div className="stack-sm">
-              <Text variant="bodyStrong">Semanas que cruzam o período</Text>
-              <Text variant="secondary">
-                {semLimite
-                  ? 'Limite só para estas semanas, de domingo a sábado.'
-                  : `Limite só para estas semanas, de domingo a sábado. Vazio usa o limite de sempre (${limiteSemanal}).`}
-              </Text>
-            </div>
-            <div className="grid gap-3 sm:grid-cols-2">
-              {parciais.map(semana => {
-                const ajuste = decisao?.ajustesSemana.find(
-                  item => item.inicio === semana.inicio && item.fim === semana.fim,
-                );
-                return (
-                  <CampoNumero
-                    key={`${semana.inicio}:${semana.fim}`}
-                    id={`ajuste-${semana.inicio}`}
-                    label={rotuloSemanaAjustada(semana.inicio, semana.fim)}
+        <CardPeriodo icone={<CalendarRange className="h-5 w-5" />} titulo="Semanas que cruzam o período" descricao="Ajuste a capacidade das semanas parciais.">
+          <ul className="stack-sm">
+            {parciais.map(semana => {
+              const ajuste = decisao?.ajustesSemana.find(
+                item => item.inicio === semana.inicio && item.fim === semana.fim,
+              );
+              const id = `ajuste-${semana.inicio}`;
+              return (
+                <li
+                  key={`${semana.inicio}:${semana.fim}`}
+                  className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-[var(--radius-input)] bg-[var(--surface-subtle)] px-4 py-2.5"
+                >
+                  <Text variant="bodyStrong" as="span">{rotuloCurtoDaSemana(semana.inicio, semana.fim)}</Text>
+                  <span className="flex items-center gap-2" aria-hidden>
+                    <CalendarDays className="h-4 w-4 text-[var(--text-secondary)]" />
+                    <Text variant="secondary" as="span" className="text-[var(--text-secondary)]">Limite ajustado</Text>
+                  </span>
+                  <input
+                    id={id}
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="off"
+                    placeholder={semLimite ? '—' : String(limiteSemanal)}
+                    aria-label={rotuloSemanaAjustada(semana.inicio, semana.fim)}
                     value={ajuste == null ? '' : String(ajuste.limite)}
-                    onChange={value => {
-                      const quantidade = inteiroOuNull(value);
+                    onChange={event => {
+                      const quantidade = inteiroOuNull(digitos(event.target.value));
                       const outros = (decisao?.ajustesSemana ?? []).filter(
                         item => !(item.inicio === semana.inicio && item.fim === semana.fim),
                       );
@@ -378,22 +465,43 @@ export function PeriodoPanel({
                         ajustesSemana: quantidade == null ? outros : [...outros, { ...semana, limite: quantidade }],
                       });
                     }}
+                    className={`${CAMPO_BASE} min-h-9 w-16 py-1 text-center tabular-nums pointer-coarse:min-h-11`}
                   />
-                );
-              })}
-            </div>
-          </div>
-        </Surface>
+                  <Text variant="secondary" as="span" className="border-l border-[var(--border-color)] pl-4 text-[var(--text-secondary)]">
+                    {semLimite ? 'Domingo a sábado.' : `Domingo a sábado. Vazio usa o limite de sempre (${limiteSemanal}).`}
+                  </Text>
+                </li>
+              );
+            })}
+          </ul>
+        </CardPeriodo>
       ) : null}
 
       {pilares.length > 0 || series.length > 0 ? (
-        <div className="grid gap-3 md:grid-cols-2">
-          {pilares.length > 0 ? <ListaDoPeriodo titulo="Pilares neste período" linhas={pilares} /> : null}
-          {series.length > 0 ? <ListaDoPeriodo titulo="Séries neste período" linhas={series} /> : null}
+        <div className="grid gap-4 md:grid-cols-2">
+          {pilares.length > 0 ? (
+            <ListaDoPeriodo titulo="Pilares no período" icone={<FileText className="h-5 w-5" />} linhas={pilares} />
+          ) : null}
+          {series.length > 0 ? (
+            <ListaDoPeriodo
+              titulo="Séries no período"
+              icone={<Layers className="h-5 w-5" />}
+              linhas={series}
+              rodape={(
+                <Link
+                  to="/editorial?aba=series"
+                  className="inline-flex items-center gap-1 self-start rounded-[var(--radius-sm)] t-secondary font-semibold text-[var(--text-primary)] underline underline-offset-2 hover:no-underline focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+                >
+                  Ver todas as séries
+                  <ArrowRight className="h-3.5 w-3.5" aria-hidden />
+                </Link>
+              )}
+            />
+          ) : null}
         </div>
       ) : null}
 
-      <Text variant="secondary">{fraseProntos(estoque, reserva)}</Text>
+      <Text variant="secondary" className="text-[var(--text-secondary)]">{fraseProntos(estoque, reserva)}</Text>
     </div>
   );
 }

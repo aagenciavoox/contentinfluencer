@@ -1,5 +1,5 @@
 import {useEffect, useRef, useState, type ReactNode} from 'react';
-import {Redo, Undo, X} from 'lucide-react';
+import {NotebookText, Redo, Undo, X} from 'lucide-react';
 import {AppButton} from '../../../../components/ui/AppButton';
 import {Text} from '../../../../components/ui/Text';
 import {cn} from '../../../../lib/utils';
@@ -65,7 +65,10 @@ export function WritingNotesPane({
       className,
     )}>
       <div className="flex shrink-0 items-center justify-between gap-3 border-b border-[var(--border-color)] px-4 py-3 md:px-6">
-        <Text variant="sectionTitle">Notas</Text>
+        <span className="flex items-center gap-2.5">
+          <NotebookText className="h-5 w-5 text-[var(--text-secondary)]" aria-hidden />
+          <Text variant="sectionTitle">Notas</Text>
+        </span>
         <AppButton
           type="button"
           variant="ghost"

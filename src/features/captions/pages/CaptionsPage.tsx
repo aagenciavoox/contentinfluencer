@@ -3,7 +3,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { EmptyState } from '../../../components/ui/EmptyState';
 import { FilterBar } from '../../../components/ui/FilterBar';
 import { PaginationBar } from '../../../components/ui/PaginationBar';
-import { SegmentTabs } from '../../../components/ui/SegmentTabs';
+import { Badge } from '../../../components/ui/Badge';
+import { FilterChips } from '../../../components/ui/FilterChips';
 import { useAppContext } from '../../../context/AppContext';
 import type { Content } from '../../../lib/database';
 import { DesktopPageHeader } from '../../../layouts/page/DesktopPageHeader';
@@ -39,6 +40,8 @@ export function CaptionsPage() {
   const [filter, setFilter] = useState<CaptionListFilter>('sem-legenda');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
+  // Um card aberto por vez: só ele mostra as abas de conta. `undefined` abre o primeiro.
+  const [abertoId, setAbertoId] = useState<string | null | undefined>(undefined);
 
   const orderRef = useRef<{ key: string; ids: string[] }>({ key: '', ids: [] });
   const items = useMemo(() => {
@@ -58,6 +61,7 @@ export function CaptionsPage() {
 
   useEffect(() => {
     setPage(1);
+    setAbertoId(undefined);
   }, [filter, search]);
 
   useEffect(() => {
@@ -76,7 +80,7 @@ export function CaptionsPage() {
       onSearchChange={setSearch}
       searchPlaceholder="Buscar roteiro, conta ou legenda"
       leading={(
-        <SegmentTabs<CaptionListFilter>
+        <FilterChips<CaptionListFilter>
           ariaLabel="Filtrar legendas"
           className="max-w-full"
           options={FILTERS}
@@ -97,7 +101,11 @@ export function CaptionsPage() {
           title="Legendas"
           backLabel="Criação"
           backTo="/criacao"
-          meta={items.length === 1 ? '1 publicação' : `${items.length} publicações`}
+          titleAside={(
+            <Badge variant="neutral" className="px-3 py-1 text-sm">
+              {items.length === 1 ? '1 publicação' : `${items.length} publicações`}
+            </Badge>
+          )}
         />
       )}
       toolbar={filtros}
@@ -117,16 +125,21 @@ export function CaptionsPage() {
         />
       ) : (
         <div className="stack-md min-w-0">
-          {agruparPagina(pageData.items).map(grupo => (
-            <CaptionFilaCard
-              key={grupo.content.id}
-              content={grupo.content}
-              publicacoes={grupo.publicacoes}
-              series={state.series}
-              pilares={state.pilares}
-              onSave={saveCaption}
-            />
-          ))}
+          {agruparPagina(pageData.items).map((grupo, index) => {
+            const aberto = abertoId === undefined ? index === 0 : abertoId === grupo.content.id;
+            return (
+              <CaptionFilaCard
+                key={grupo.content.id}
+                content={grupo.content}
+                publicacoes={grupo.publicacoes}
+                series={state.series}
+                pilares={state.pilares}
+                open={aberto}
+                onToggle={() => setAbertoId(aberto ? null : grupo.content.id)}
+                onSave={saveCaption}
+              />
+            );
+          })}
           <PaginationBar
             variant="full"
             itemLabel="publicações"
@@ -136,6 +149,7 @@ export function CaptionsPage() {
             pageSize={CAPTION_PAGE_SIZE}
             onPageChange={nextPage => {
               setPage(nextPage);
+              setAbertoId(undefined);
               document.querySelector('main')?.scrollTo({ top: 0 });
             }}
           />

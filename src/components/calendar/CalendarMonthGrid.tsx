@@ -88,18 +88,16 @@ export function CalendarMonthGrid({
     : 'grid grid-cols-7';
 
   const elevated = tone === 'elevated';
-  const headerLabelClass = elevated
-    ? 'text-xs font-semibold uppercase tracking-wide text-[var(--text-secondary)]'
-    : 'text-2xs font-semibold uppercase tracking-wide text-[var(--text-tertiary)]';
+  const headerLabelClass = 'text-xs font-medium uppercase tracking-wide text-[var(--text-secondary)]';
 
   return (
     <div
       role="grid"
       className={cn(
-        'w-full min-w-0 border',
+        'w-full min-w-0 overflow-hidden rounded-[var(--radius-card)] border bg-[var(--bg-elevated)] [&>[role=row]:last-child>*]:border-b-0',
         elevated
-          ? 'overflow-hidden rounded-[var(--radius-card)] border-[var(--border-strong)] bg-[var(--bg-elevated)] shadow-[var(--shadow-raised)]'
-          : 'border-[var(--border-color)] bg-[var(--bg-primary)]',
+          ? 'border-[var(--border-strong)] shadow-[var(--shadow-raised)]'
+          : 'border-[var(--border-color)]',
         className,
       )}
     >
@@ -108,7 +106,8 @@ export function CalendarMonthGrid({
         className={cn(
           columnClass,
           'border-b',
-          elevated ? 'border-[var(--border-strong)] bg-[var(--surface-subtle)]' : 'border-[var(--border-color)]',
+          'border-[var(--border-color)]',
+          elevated && 'bg-[var(--surface-subtle)]',
         )}
       >
         {renderWeekAside ? (
@@ -122,7 +121,7 @@ export function CalendarMonthGrid({
           <div
             key={`header-${day.toISOString()}`}
             role="columnheader"
-            className="min-w-0 border-r border-[var(--border-color)] px-1 py-2 text-center last:border-r-0 sm:px-2"
+            className="min-w-0 border-r border-[var(--border-color)] px-1 py-2.5 text-center last:border-r-0 sm:px-2"
           >
             <span className={cn(headerLabelClass, 'sm:hidden')}>{weekdayHeaderLabel(day).compact}</span>
             <span className={cn(headerLabelClass, 'hidden sm:inline')}>{weekdayHeaderLabel(day).full}</span>
@@ -177,18 +176,20 @@ export function CalendarMonthGrid({
                 onDragLeave={() => onDayDragLeave?.(dayProps)}
                 onDrop={event => onDayDrop?.(dayProps, event)}
                 className={cn(
-                  'flex min-w-0 flex-col border-b border-r border-[var(--border-color)] p-1 transition-colors last:border-r-0 sm:p-1.5',
+                  'flex min-w-0 flex-col border-b border-r border-[var(--border-color)] p-1 transition-colors last:border-r-0 sm:p-2',
                   interactive && 'cursor-pointer hover:bg-[color-mix(in_srgb,var(--surface-subtle),transparent_30%)] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--accent-blue)]',
                   expandContent && 'h-auto',
-                  !inMonth && 'bg-[var(--bg-hover)]/25 opacity-50',
-                  isSelected && 'bg-[color-mix(in_srgb,var(--accent),transparent_95%)]',
+                  // Fora do mês: fundo da página e número apagado, sem opacidade (o texto mantém contraste).
+                  !inMonth && 'bg-[var(--bg-primary)]',
+                  isToday && 'bg-[var(--bg-hover)]',
+                  isSelected && !isToday && 'bg-[color-mix(in_srgb,var(--accent),transparent_95%)]',
                   extraClass,
                 )}
               >
                 <div className="mb-1 flex shrink-0 justify-end">
                   <span
                     className={cn(
-                      'flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold',
+                      'flex h-7 w-7 items-center justify-center rounded-full text-sm font-semibold',
                       isToday
                         ? 'bg-[var(--accent)] text-[var(--bg-primary)]'
                         : isSelected

@@ -44,6 +44,7 @@ export function LegendaVersaoField({
   limite = null,
   publicadaEm = null,
   compact = false,
+  semTitulo = false,
   acoes,
 }: {
   id: string;
@@ -66,6 +67,8 @@ export function LegendaVersaoField({
   limite?: number | null;
   publicadaEm?: string | null;
   compact?: boolean;
+  /** Sem ícone e sem "Legenda desta publicação": a aba da conta já diz qual é. */
+  semTitulo?: boolean;
   /** Copiar e afins, no rodapé. */
   acoes?: ReactNode;
 }) {
@@ -86,10 +89,10 @@ export function LegendaVersaoField({
     <div className={cn('stack-sm rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-primary)]', compact ? 'p-3' : 'p-4')}>
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="flex min-w-0 items-center gap-2">
-          <PlatformIcon platform={icone} className="h-4 w-4 shrink-0 text-[var(--text-secondary)]" />
+          {semTitulo ? null : <PlatformIcon platform={icone} className="h-4 w-4 shrink-0 text-[var(--text-secondary)]" />}
           <div className="min-w-0">
-            <Text variant="meta" as="p" className="text-[var(--text-tertiary)]">{titulo}</Text>
-            <Text variant="bodyStrong" as="p" className="truncate text-sm">
+            {semTitulo ? null : <Text variant="meta" as="p" className="text-[var(--text-tertiary)]">{titulo}</Text>}
+            <Text variant="bodyStrong" as="p" className={cn('truncate', !semTitulo && 'text-sm')}>
               {rotulo}
               {detalhe ? <span className="font-normal text-[var(--text-secondary)]">{` · ${detalhe}`}</span> : null}
             </Text>

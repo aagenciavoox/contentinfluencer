@@ -166,6 +166,10 @@
   --accent-orange: #C58A2B;
   --accent-green: #4F8A5B;
   --accent-red: #B95C5C;
+  /* Cor de marca das redes, só no ícone (com o nome ao lado). */
+  --platform-instagram: #D62976;
+  --platform-youtube: #FF0000;
+  --platform-tiktok: var(--text-primary);
 
   /* Elevation: cards = border only; hover = light lift; overlays = deep shadow */
   --shadow-card: none;
@@ -263,6 +267,9 @@
   --accent-orange: #D6A24E;
   --accent-green: #6FA87A;
   --accent-red: #CE7B7B;
+  --platform-instagram: #F06292;
+  --platform-youtube: #FF4E45;
+  --platform-tiktok: var(--text-primary);
 
   --shadow-card: none;
   --shadow-card-hover: 0 4px 6px -1px rgba(0, 0, 0, 0.28);
@@ -1901,7 +1908,7 @@ input[type="search"]::-webkit-search-results-decoration {
 }
 
 .desktop-page-header-crumb {
-  font-size: var(--font-size-caption);
+  font-size: var(--font-size-footnote);
   font-weight: 500;
   line-height: 1.2;
   color: var(--text-secondary);

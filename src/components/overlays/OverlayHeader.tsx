@@ -6,13 +6,15 @@ import { Text } from '../ui/Text';
 
 interface OverlayHeaderProps {
   title?: string;
+  /** Ícone decorativo antes do título. */
+  icon?: ReactNode;
   subtitle?: string;
   onClose?: () => void;
   children?: ReactNode;
   className?: string;
 }
 
-export function OverlayHeader({ title, subtitle, onClose, children, className }: OverlayHeaderProps) {
+export function OverlayHeader({ title, icon, subtitle, onClose, children, className }: OverlayHeaderProps) {
   return (
     <div className={cn('overlay-header shrink-0 border-b border-[var(--border-color)] px-6 py-4', className)}>
       <div className="flex items-start justify-between gap-4">
@@ -20,9 +22,12 @@ export function OverlayHeader({ title, subtitle, onClose, children, className }:
           {children ?? (
             <>
               {title ? (
-                <Text variant="sectionTitle" as="h2">
-                  {title}
-                </Text>
+                <div className="flex min-w-0 items-center gap-3">
+                  {icon ? <span className="inline-flex shrink-0" aria-hidden>{icon}</span> : null}
+                  <Text variant="sectionTitle" as="h2">
+                    {title}
+                  </Text>
+                </div>
               ) : null}
               {subtitle ? (
                 <Text variant="meta" className="mt-1 text-[var(--text-secondary)]">
