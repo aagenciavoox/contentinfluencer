@@ -1,6 +1,7 @@
 import type { ElementType } from 'react';
 import {
   AtSign,
+  AudioLines,
   Briefcase,
   CalendarDays,
   Captions,
@@ -75,7 +76,9 @@ function pathMatches(pathname: string, target: string): boolean {
   return pathname === target || pathname.startsWith(`${target}/`);
 }
 
-/** Sidebar / drawer highlight. `/criacao/legendas` marks Legendas, not Criação. */
+const CREATION_SUBPAGES = ['/criacao/legendas', '/criacao/transcricao'] as const;
+
+/** Sidebar / drawer highlight. `/criacao/legendas` marks Legendas, not Criação (same for Transcrição). */
 export function isNavItemActive(to: string, pathname: string): boolean {
   const target = to.split('?')[0];
 
@@ -83,12 +86,12 @@ export function isNavItemActive(to: string, pathname: string): boolean {
     return pathname === '/hoje';
   }
 
-  if (target === '/criacao/legendas') {
-    return pathMatches(pathname, '/criacao/legendas');
+  if ((CREATION_SUBPAGES as readonly string[]).includes(target)) {
+    return pathMatches(pathname, target);
   }
 
   if (target === '/criacao') {
-    return (pathMatches(pathname, '/criacao') && !pathMatches(pathname, '/criacao/legendas'))
+    return (pathMatches(pathname, '/criacao') && !CREATION_SUBPAGES.some(sub => pathMatches(pathname, sub)))
       || pathMatches(pathname, '/conteudos');
   }
 
@@ -136,7 +139,7 @@ export function isNavItemActive(to: string, pathname: string): boolean {
   return pathMatches(pathname, target);
 }
 
-/** Bottom nav keeps Criação highlighted on `/criacao/legendas`. */
+/** Bottom nav keeps Criação highlighted on `/criacao/legendas` and `/criacao/transcricao`. */
 export function isBottomNavItemActive(to: string, pathname: string): boolean {
   const target = to.split('?')[0];
   if (target === '/criacao') {
@@ -163,6 +166,7 @@ export function buildSidebarSections(moduleFlags: ModuleFlags): NavSectionDefini
           badgeKey: 'editorial',
           nested: [
             { to: '/criacao/legendas', label: 'Legendas', icon: Captions },
+            { to: '/criacao/transcricao', label: 'Transcrição', icon: AudioLines },
           ],
         },
         { to: '/series', label: 'Séries', icon: ListVideo, end: false },

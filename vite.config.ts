@@ -123,6 +123,8 @@ export default defineConfig(() => {
             if (id.includes('react-router')) return 'router';
             if (id.includes('@supabase')) return 'supabase';
             if (id.includes('lucide-react')) return 'icons';
+            // Só a tela de Transcrição usa; fica fora do vendor que toda tela carrega.
+            if (id.includes('mediabunny')) return 'media';
 
             return 'vendor';
           },

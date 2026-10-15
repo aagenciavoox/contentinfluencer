@@ -11,6 +11,7 @@ import { routeLoaders } from './routePrefetch';
 
 const Creation = lazy(() => routeLoaders.creation().then(module => ({ default: module.Creation })));
 const Legendas = lazy(() => routeLoaders.captions().then(module => ({ default: module.Legendas })));
+const Transcricao = lazy(() => routeLoaders.transcription().then(module => ({ default: module.Transcricao })));
 const ContentDetail = lazy(() => routeLoaders.contentDetail().then(module => ({ default: module.ContentDetail })));
 const EditorialCalendar = lazy(() => routeLoaders.calendar().then(module => ({ default: module.EditorialCalendar })));
 const Planejamento = lazy(() => routeLoaders.planejamento().then(module => ({ default: module.Planejamento })));
@@ -69,6 +70,7 @@ export function buildAppRoutes(): RouteObject[] {
                 { path: '/hoje', element: <Dashboard /> },
                 { path: '/criacao', element: <Creation /> },
                 { path: '/criacao/legendas', element: <Legendas /> },
+                { path: '/criacao/transcricao', element: <Transcricao /> },
                 { path: '/conteudos', element: <LegacyCreationRedirect source="contents" /> },
                 { path: '/conteudos/historico', element: <LegacyCreationRedirect source="contents" /> },
                 { path: '/conteudos/publicados', element: <LegacyCreationRedirect source="contents" /> },

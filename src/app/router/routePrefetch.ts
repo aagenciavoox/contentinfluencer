@@ -5,6 +5,7 @@ type RouteLoader = () => Promise<unknown>;
 const loadDashboard = () => importPage(() => import('../../pages/Dashboard'));
 const loadCreation = () => importPage(() => import('../../pages/Creation'));
 const loadCaptions = () => importPage(() => import('../../pages/Legendas'));
+const loadTranscription = () => importPage(() => import('../../pages/Transcricao'));
 const loadContentDetail = () => importPage(() => import('../../pages/ContentDetail'));
 const loadCalendar = () => importPage(() => import('../../pages/EditorialCalendar'));
 const loadPlanejamento = () => importPage(() => import('../../pages/Planejamento'));
@@ -30,6 +31,7 @@ export const routeLoaders = {
   dashboard: loadDashboard,
   creation: loadCreation,
   captions: loadCaptions,
+  transcription: loadTranscription,
   contentDetail: loadContentDetail,
   calendar: loadCalendar,
   planejamento: loadPlanejamento,
@@ -80,6 +82,7 @@ function loaderForPath(pathname: string): RouteLoader | null {
 
   if (path === '/hoje' || path === '/dashboard') return loadDashboard;
   if (path === '/criacao/legendas') return loadCaptions;
+  if (path === '/criacao/transcricao') return loadTranscription;
   if (path.startsWith('/criacao') || path === '/conteudos') return loadCreation;
   if (path.startsWith('/conteudos/')) return loadContentDetail;
   if (path.startsWith('/calendario')) return loadCalendar;

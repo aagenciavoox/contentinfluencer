@@ -75,6 +75,8 @@ await import('./mobile/config/mobileRouteMeta.test.ts');
 await import('./layouts/navigation/userInitials.test.ts');
 await import('./layouts/navigation/navConfig.test.ts');
 await import('./features/captions/lib/captionQueue.test.ts');
+await import('./features/transcription/lib/transcriptFormats.test.ts');
+await import('../supabase/functions/transcrever/handler.test.ts');
 await import('./app/router/routeDataDomains.test.ts');
 await import('./components/ui/queryViewState.test.ts');
 await import('./components/ui/platformName.test.ts');

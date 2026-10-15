@@ -31,6 +31,7 @@ function testHomeRouteOnlyMatchesHoje() {
 function testContentDetailHighlightsCriacao() {
   assert.equal(isBottomNavItemActive('/criacao', '/criacao'), true);
   assert.equal(isBottomNavItemActive('/criacao', '/criacao/legendas'), true);
+  assert.equal(isBottomNavItemActive('/criacao', '/criacao/transcricao'), true);
   assert.equal(isBottomNavItemActive('/criacao', '/conteudos/abc'), true);
   assert.equal(isBottomNavItemActive('/criacao', '/calendario'), false);
   assert.equal(isBottomNavItemActive('/criacao', '/gravacao'), false);
@@ -54,6 +55,22 @@ function testSidebarLegendasIsNotCriacao() {
   assert.equal(isNavItemActive('/criacao', '/criacao/legendas'), false);
   assert.equal(isNavItemActive('/criacao/legendas', '/criacao/legendas'), true);
   assert.equal(isNavItemActive('/criacao/legendas', '/criacao'), false);
+}
+
+function testSidebarTranscricaoIsNotCriacao() {
+  assert.equal(isNavItemActive('/criacao', '/criacao/transcricao'), false);
+  assert.equal(isNavItemActive('/criacao/transcricao', '/criacao/transcricao'), true);
+  assert.equal(isNavItemActive('/criacao/transcricao', '/criacao/legendas'), false);
+  const creation = buildSidebarSections(DEFAULT_MODULE_FLAGS)
+    .find(section => section.label === 'Criação')
+    ?.items.find(item => item.to === '/criacao');
+  assert.deepEqual(
+    creation?.nested?.map(item => [item.label, item.to]),
+    [
+      ['Legendas', '/criacao/legendas'],
+      ['Transcrição', '/criacao/transcricao'],
+    ],
+  );
 }
 
 function testSidebarDetailRoutesHighlightParents() {
@@ -98,6 +115,7 @@ function testExactlyOneDesktopItemIsActiveOnRepresentativeRoutes() {
     '/hoje',
     '/criacao',
     '/criacao/legendas',
+    '/criacao/transcricao',
     '/series',
     '/editorial',
     '/analises',
@@ -113,6 +131,7 @@ function testExactlyOneDesktopItemIsActiveOnRepresentativeRoutes() {
     '/hoje',
     '/criacao',
     '/criacao/legendas',
+    '/criacao/transcricao',
     '/conteudos/content-1',
     '/series/serie-1/roteiros',
     '/editorial/pilares/pilar-1',
@@ -145,6 +164,7 @@ const tests = [
   ['highlights biblioteca for detail routes', testBibliotecaHighlightsDetailRoutes],
   ['highlights gravacao for recording block routes', testRecordingDetailHighlightsGravacao],
   ['sidebar marks legendas instead of criacao', testSidebarLegendasIsNotCriacao],
+  ['sidebar marks transcricao instead of criacao', testSidebarTranscricaoIsNotCriacao],
   ['sidebar marks detail routes on the parent item', testSidebarDetailRoutesHighlightParents],
   ['settings excludes editorial and series routes', testSettingsExcludesEditorialAndSeries],
   ['shows the editorial creation menu', testCreationMenuIncludesEditorial],

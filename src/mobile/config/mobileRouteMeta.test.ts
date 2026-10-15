@@ -40,6 +40,11 @@ assert.equal(legendas.title, 'Legendas');
 assert.equal(legendas.mode, 'back');
 assert.equal(legendas.backTo, '/criacao');
 
+const transcricao = getMobileRouteMeta('/criacao/transcricao');
+assert.equal(transcricao.title, 'Transcrição');
+assert.equal(transcricao.mode, 'back');
+assert.equal(transcricao.backTo, '/criacao');
+
 const editorial = getMobileRouteMeta('/editorial', '?aba=funil');
 assert.equal(editorial.title, 'Editorial');
 assert.equal(editorial.titleVariant, 'compact-center');

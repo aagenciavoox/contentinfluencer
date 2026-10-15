@@ -202,6 +202,13 @@ export function getMobileRouteMeta(pathname: string, search = ''): MobileRouteMe
         backTo: '/criacao',
         titleVariant: 'compact-center',
       };
+    case '/criacao/transcricao':
+      return {
+        title: 'Transcrição',
+        mode: 'back',
+        backTo: '/criacao',
+        titleVariant: 'compact-center',
+      };
     case '/conteudos':
       return {
         title: GLOSSARY.roteiros,
