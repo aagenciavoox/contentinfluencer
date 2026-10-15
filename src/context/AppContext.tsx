@@ -31,7 +31,9 @@ import {
   clearPersistedDomainsForUser,
   clearPersistedPagesForUser,
   discardObsoleteDomainCache,
+  hasNewerOverlappingDomainCache,
   isPersistedDomainFresh,
+  listPersistedDomainStamps,
   readPersistedDomain,
   writePersistedDomain,
 } from '../lib/persistentDataCache';
@@ -296,16 +298,27 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     if (!options?.force) {
       const memoryCached = dataCache.getDomain<Partial<db.AppData>>(cacheKey);
+      const memoryFetchedAt = dataCache.getDomainFetchedAt(cacheKey);
       const persisted = readPersistedDomain(userId, cacheKey);
       const cachedPayload = memoryCached ?? persisted?.payload ?? null;
+      const candidateFetchedAt = memoryFetchedAt ?? persisted?.fetchedAt ?? 0;
+      // Horários (e outros domínios) são gravados em chaves diferentes conforme a tela.
+      // A combinação antiga não pode vencer a chave mais nova do mesmo domínio.
+      const superseded = cachedPayload != null && hasNewerOverlappingDomainCache(
+        cacheKey,
+        candidateFetchedAt,
+        [...dataCache.listDomainStamps(), ...listPersistedDomainStamps(userId)],
+      );
       const isFresh =
-        (memoryCached != null && dataCache.isDomainFresh(cacheKey)) ||
-        (persisted != null && isPersistedDomainFresh(persisted));
+        !superseded && (
+          (memoryCached != null && dataCache.isDomainFresh(cacheKey)) ||
+          (persisted != null && isPersistedDomainFresh(persisted))
+        );
       const cacheSatisfiesRequest = cachedPayload
         ? canDomainPayloadSatisfyRequest(toFetch, cachedPayload)
         : false;
 
-      if (cachedPayload && pendingPersistCount.current === 0) {
+      if (cachedPayload && !superseded && pendingPersistCount.current === 0) {
         dispatch({
           type: 'SET_DATA',
           payload: mergeFetchedAppData(mergeSnapshot(), cachedPayload),

@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { CalendarDays, Clock, Hash, Info, Settings, Share2, UserRound } from 'lucide-react';
+import { useState } from 'react';
+import { CalendarDays, Clock, Hash, Info, Pencil, Settings, Share2, UserRound } from 'lucide-react';
 import { AppButton } from '../../../../components/ui/AppButton';
 import { SidePanel } from '../../../../components/layout/SidePanel';
 import { Badge } from '../../../../components/ui/Badge';
@@ -12,7 +12,7 @@ import { cn } from '../../../../lib/utils';
 import { iconeDaConta, rotuloConta } from '../../../contas/lib/contas';
 import { atualizarPreferencias } from '../../lib/editorialSettings';
 import { PostingTimesEditor } from '../../../settings/components/PostingTimesEditor';
-import { CampoStepper, CampoTexto, CardConfiguracao, digitos, inteiroOuNull } from './campos';
+import { CampoStepper, CampoTexto, CardConfiguracao, inteiroOuNull } from './campos';
 import { useEditorialPlano } from './useEditorialPlano';
 
 function resumoHorarios(entries: readonly PostingTimeEntry[], platforms: readonly Platform[]): string {
@@ -29,6 +29,57 @@ function resumoHorarios(entries: readonly PostingTimeEntry[], platforms: readonl
   return global ? `${frase}. Há também um horário geral.` : `${frase}.`;
 }
 
+type RitmoDraft = {
+  limite: string;
+  reserva: string;
+  prontos: string;
+};
+
+function textoNumero(valor: number | null): string {
+  return valor == null ? '' : String(valor);
+}
+
+function ritmoSalvo(preferencias: {
+  limiteSemanal: number | null;
+  reservaForaSeriesSemanal: number | null;
+  reservaProntos: number | null;
+}): RitmoDraft {
+  return {
+    limite: textoNumero(preferencias.limiteSemanal),
+    reserva: textoNumero(preferencias.reservaForaSeriesSemanal),
+    prontos: textoNumero(preferencias.reservaProntos),
+  };
+}
+
+function reservaCabeNoLimite(ritmo: RitmoDraft): boolean {
+  const limite = inteiroOuNull(ritmo.limite);
+  const reserva = inteiroOuNull(ritmo.reserva);
+  return !(reserva != null && limite != null && reserva > limite);
+}
+
+function ValorDoRitmo({
+  rotulo,
+  valor,
+  unidade,
+  hint,
+}: {
+  rotulo: string;
+  valor: number | null;
+  unidade: string;
+  hint: string;
+}) {
+  return (
+    <div className="min-w-0 stack-xs">
+      <Text variant="bodyStrong" as="p">{rotulo}</Text>
+      <Text variant="itemTitle" as="p" className="tabular-nums">{valor == null ? '—' : String(valor)}</Text>
+      <Text variant="secondary" as="p" className="text-[var(--text-secondary)]">
+        {valor == null ? 'Não definido' : unidade}
+      </Text>
+      <Text variant="secondary" as="p" className="text-[var(--text-secondary)]">{hint}</Text>
+    </div>
+  );
+}
+
 /**
  * Aba Ajustes: o que vale para todos os períodos. Não tem seletor de período; o que muda
  * de um período para outro fica na aba Período.
@@ -36,31 +87,34 @@ function resumoHorarios(entries: readonly PostingTimeEntry[], platforms: readonl
 export function AjustesEditorialPanel() {
   const { state, settings, gravar, salvarPreferencias } = useEditorialPlano();
   const preferencias = settings.preferencias;
-  const limite = preferencias.limiteSemanal;
-  const [reservaDraft, setReservaDraft] = useState<string | null>(null);
   const [horariosAbertos, setHorariosAbertos] = useState(false);
-  const reservaSalva = preferencias.reservaForaSeriesSemanal;
-  const reservaMostrada = reservaDraft ?? (reservaSalva == null ? '' : String(reservaSalva));
+  const [editandoRitmo, setEditandoRitmo] = useState(false);
+  const [ritmo, setRitmo] = useState<RitmoDraft>(() => ritmoSalvo(preferencias));
+  const reservaInvalida = !reservaCabeNoLimite(ritmo);
 
-  const aoMudarReserva = (value: string) => {
-    const quantidade = inteiroOuNull(value);
-    if (quantidade != null && limite != null && quantidade > limite) {
-      setReservaDraft(digitos(value));
-      return;
-    }
-    setReservaDraft(null);
-    salvarPreferencias({ reservaForaSeriesSemanal: quantidade });
+  const abrirRitmo = () => {
+    setRitmo(ritmoSalvo(preferencias));
+    setEditandoRitmo(true);
   };
 
-  // Uma reserva que não cabia volta a valer assim que o limite cresce o bastante.
-  useEffect(() => {
-    if (reservaDraft == null) return;
-    const quantidade = inteiroOuNull(reservaDraft);
-    if (quantidade != null && limite != null && quantidade > limite) return;
-    setReservaDraft(null);
-    if (quantidade === preferencias.reservaForaSeriesSemanal) return;
-    salvarPreferencias({ reservaForaSeriesSemanal: quantidade });
-  }, [limite, reservaDraft]);
+  const cancelarRitmo = () => {
+    setRitmo(ritmoSalvo(preferencias));
+    setEditandoRitmo(false);
+  };
+
+  const salvarRitmo = () => {
+    if (reservaInvalida) return;
+    const salvo = ritmoSalvo(preferencias);
+    const mudou = ritmo.limite !== salvo.limite || ritmo.reserva !== salvo.reserva || ritmo.prontos !== salvo.prontos;
+    if (mudou) {
+      salvarPreferencias({
+        limiteSemanal: inteiroOuNull(ritmo.limite),
+        reservaForaSeriesSemanal: inteiroOuNull(ritmo.reserva),
+        reservaProntos: inteiroOuNull(ritmo.prontos),
+      });
+    }
+    setEditandoRitmo(false);
+  };
 
   const ativas = state.platforms.filter(platform => platform.ativo);
   const referenciaAtual = state.platforms.find(platform => platform.id === preferencias.redeReferenciaId);
@@ -99,39 +153,88 @@ export function AjustesEditorialPanel() {
       <CardConfiguracao
         icone={<CalendarDays className="h-5 w-5" />}
         titulo="Ritmo de criação"
-        descricao="Defina sua capacidade semanal e a reserva de conteúdos."
+        descricao={editandoRitmo
+          ? 'Ajuste os números e salve. Nada é gravado a cada clique.'
+          : 'Capacidade semanal e reserva de conteúdos.'}
+        acao={editandoRitmo ? (
+          <div className="flex flex-wrap justify-end gap-2">
+            <AppButton variant="secondary" size="sm" onClick={cancelarRitmo}>
+              Cancelar
+            </AppButton>
+            <AppButton
+              variant="primary"
+              size="sm"
+              onClick={salvarRitmo}
+              disabled={reservaInvalida}
+              disabledReason={reservaInvalida ? 'A reserva precisa caber no limite semanal.' : undefined}
+            >
+              Salvar
+            </AppButton>
+          </div>
+        ) : (
+          <AppButton variant="secondary" size="sm" leftIcon={<Pencil className="h-4 w-4" />} onClick={abrirRitmo}>
+            Editar
+          </AppButton>
+        )}
       >
-        <div className="grid gap-6 md:grid-cols-3">
-          <CampoStepper
-            id="limite-semanal"
-            label="Publicações por semana"
-            unidade="roteiros"
-            hint="Cada roteiro conta uma vez, na publicação original da grade. Reposts e roteiros fora da grade não entram."
-            value={limite == null ? '' : String(limite)}
-            onChange={value => salvarPreferencias({ limiteSemanal: inteiroOuNull(value) })}
-          />
-          <div className={divisor}>
+        {editandoRitmo ? (
+          <div className="grid gap-6 md:grid-cols-3">
             <CampoStepper
-              id="reserva-fora-series"
-              label="Espaços fora das séries"
-              unidade="por semana"
-              hint="Para publicidades, ideias e oportunidades. Já incluídos no total semanal."
-              value={reservaMostrada}
-              onChange={aoMudarReserva}
-              erro={reservaDraft != null ? 'A reserva precisa caber no limite semanal.' : undefined}
-            />
-          </div>
-          <div className={divisor}>
-            <CampoStepper
-              id="reserva-prontos"
-              label="Conteúdos prontos de reserva"
+              id="limite-semanal"
+              label="Publicações por semana"
               unidade="roteiros"
-              hint="Finalizados e sem data de publicação. Exclui os que ainda precisam de edição e os já agendados."
-              value={preferencias.reservaProntos == null ? '' : String(preferencias.reservaProntos)}
-              onChange={value => salvarPreferencias({ reservaProntos: inteiroOuNull(value) })}
+              hint="Cada roteiro conta uma vez, na publicação original da grade. Reposts e roteiros fora da grade não entram."
+              value={ritmo.limite}
+              onChange={limite => setRitmo(atual => ({ ...atual, limite }))}
             />
+            <div className={divisor}>
+              <CampoStepper
+                id="reserva-fora-series"
+                label="Espaços fora das séries"
+                unidade="por semana"
+                hint="Para publicidades, ideias e oportunidades. Já incluídos no total semanal."
+                value={ritmo.reserva}
+                onChange={reserva => setRitmo(atual => ({ ...atual, reserva }))}
+                erro={reservaInvalida ? 'A reserva precisa caber no limite semanal.' : undefined}
+              />
+            </div>
+            <div className={divisor}>
+              <CampoStepper
+                id="reserva-prontos"
+                label="Conteúdos prontos de reserva"
+                unidade="roteiros"
+                hint="Finalizados e sem data de publicação. Exclui os que ainda precisam de edição e os já agendados."
+                value={ritmo.prontos}
+                onChange={prontos => setRitmo(atual => ({ ...atual, prontos }))}
+              />
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="grid gap-6 md:grid-cols-3">
+            <ValorDoRitmo
+              rotulo="Publicações por semana"
+              valor={preferencias.limiteSemanal}
+              unidade="roteiros"
+              hint="Cada roteiro conta uma vez, na publicação original da grade. Reposts e roteiros fora da grade não entram."
+            />
+            <div className={divisor}>
+              <ValorDoRitmo
+                rotulo="Espaços fora das séries"
+                valor={preferencias.reservaForaSeriesSemanal}
+                unidade="por semana"
+                hint="Para publicidades, ideias e oportunidades. Já incluídos no total semanal."
+              />
+            </div>
+            <div className={divisor}>
+              <ValorDoRitmo
+                rotulo="Conteúdos prontos de reserva"
+                valor={preferencias.reservaProntos}
+                unidade="roteiros"
+                hint="Finalizados e sem data de publicação. Exclui os que ainda precisam de edição e os já agendados."
+              />
+            </div>
+          </div>
+        )}
       </CardConfiguracao>
 
       <div className="grid gap-4 lg:grid-cols-2">
@@ -259,6 +362,7 @@ export function AjustesEditorialPanel() {
       >
         <PostingTimesEditor
           contaInicialId={preferencias.redeReferenciaId}
+          comecarEditando
           aoSalvar={() => setHorariosAbertos(false)}
         />
       </SidePanel>

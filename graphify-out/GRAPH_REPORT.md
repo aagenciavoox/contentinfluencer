@@ -1,16 +1,16 @@
 # Graph Report - content-os  (2026-10-15)
 
 ## Corpus Check
-- 674 files · ~507,029 words
+- 685 files · ~516,863 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 5159 nodes · 13910 edges · 306 communities (224 shown, 82 thin omitted)
-- Extraction: 98% EXTRACTED · 2% INFERRED · 0% AMBIGUOUS · INFERRED: 210 edges (avg confidence: 0.57)
+- 5252 nodes · 14329 edges · 302 communities (220 shown, 82 thin omitted)
+- Extraction: 98% EXTRACTED · 2% INFERRED · 0% AMBIGUOUS · INFERRED: 218 edges (avg confidence: 0.57)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `e835a022`
+- Built from commit: `60e70c61`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -170,7 +170,7 @@
 - fetchDataDomains
 - CacheableResponsePlugin
 - IconButton.tsx
-- seriesScriptTemplate.ts
+- supabase.ts
 - domainCacheSync.ts
 - Sistema de botões
 - waitUntil
@@ -179,16 +179,16 @@
 - Mapeamento de Experiencia por Pagina
 - MobileActionMenu.tsx
 - BookAnnotationComposerSheet.tsx
-- ContentManageWorkspace.tsx
+- ContentPipelineStepper.tsx
 - tokenContrast.test.ts
 - Supabase Postgres Best Practices
-- currentUserId
+- detailBack.ts
 - CONTENT_STATUS
 - SettingsPage.tsx
-- dailySession.ts
+- creationDateFilter.test.ts
 - Product Voice - Core Creator
 - SeriesDetailMobileScreen.tsx
-- legendaSerie.ts
+- seriesScriptTemplate.ts
 - resolvePlatformIds
 - CacheableResponsePlugin
 - format
@@ -198,7 +198,7 @@
 - Otimizacao de bundle frontend
 - Plano de Implementacao
 - Fase 7 - Settings especificos
-- buildPublishCalendarItems
+- currentUserId
 - SYSTEM_GUIDE.md — Core Creator
 - HorizontalBarChart.tsx
 - Regras propostas (para incluir no `PRODUCT_VOICE.md`)
@@ -206,14 +206,14 @@
 - NetworkFirst
 - AGENTS.md
 - isArray
-- FuncaoEditorial
+- estoque.ts
 - query-missing-indexes.md
 - PostingTimesSettingsPage.tsx
-- usePaginatedQuery.ts
+- getGentleExperienceSettings
 - DataCache
 - clsx
-- contaNaGradeOrigem.ts
-- estoque.ts
+- getUserInitials
+- isWritingWorkspaceEnabled
 - Fase 1 — Carregando ≠ vazio
 - Fase 2 — Roteiro no celular
 - pautaConteudo.ts
@@ -229,19 +229,17 @@
 - Fase 5 - Calendario e Projetos
 - Fase 6 - Configuracoes e modulos
 - Fase 8 - Biblioteca
-- getGentleExperienceSettings
+- HistorySection.tsx
 - Core Creator
-- RequireAuth.tsx
-- gradeEntries.ts
+- LooksSettingsPage
+- ContaMigracaoPendenteError
 - 2. ARQUITETURA DE INFORMAÇÃO
 - Fase 3 — Contraste e estados desabilitados
-- PostItNote.tsx
 - PrecacheInstallReportPlugin
 - Fase 1 - Dominio central e queries
 - Arquitetura-Alvo
 - Ordem Recomendada de Arquivos
-- writingFormatBar.ts
-- ref_node_test
+- Fase 1 — Integridade de dados
 - dotenv
 - motion
 - Matriz de paridade desktop ↔ mobile
@@ -286,7 +284,6 @@
 - @tiptap/starter-kit
 - @vitejs/plugin-react
 - src_styles_editor
-- advanced-jsonb-indexing.md
 - PeriodoEditorialControl.tsx
 - Navegacao Mobile Desejada
 - Estrategia de Implementacao
@@ -316,17 +313,16 @@
 - src_pages_login_login
 - CLAUDE.md
 - src_styles_index
-- MoreMenuItem
 
 ## God Nodes (most connected - your core abstractions)
-1. `cn()` - 338 edges
-2. `Content` - 152 edges
-3. `Text()` - 133 edges
-4. `useAppContext()` - 124 edges
+1. `cn()` - 348 edges
+2. `Content` - 154 edges
+3. `Text()` - 135 edges
+4. `useAppContext()` - 128 edges
 5. `Serie` - 85 edges
-6. `AppButton` - 83 edges
+6. `AppButton` - 84 edges
 7. `Pilar` - 74 edges
-8. `normalizeContentStatus()` - 67 edges
+8. `normalizeContentStatus()` - 73 edges
 9. `useIsMobile()` - 60 edges
 10. `generateUUID()` - 59 edges
 
@@ -345,35 +341,35 @@
 ## Import Cycles
 - 3-file cycle: `src/components/calendar/calendarPillStyles.ts -> src/features/editorial-calendar/components/MonthlyCalendarView.tsx -> src/components/calendar/index.ts -> src/components/calendar/calendarPillStyles.ts`
 
-## Communities (306 total, 82 thin omitted)
+## Communities (302 total, 82 thin omitted)
 
 ### Community 0 - "BookDetailPage.tsx"
-Cohesion: 0.09
-Nodes (49): agruparPorRede(), chavePadrao(), complementoDoRotulo(), CONEXAO_ROTULO, ContaDraft, detalheConta(), ehRedePrincipal(), ErrosConta (+41 more)
+Cohesion: 0.07
+Nodes (66): agruparPorRede(), chavePadrao(), complementoDoRotulo(), CONEXAO_ROTULO, ContaDraft, ContaRef, detalheConta(), ehRedePrincipal() (+58 more)
 
 ### Community 1 - "programacao.ts"
 Cohesion: 0.09
 Nodes (43): descreverColunasOmitidas(), migracaoDaColuna(), contaNaGradePadrao(), CONTENT_LIST_COLUMNS, CONTENT_STATUSES, ContentStatus, contentSummary(), displayStatus() (+35 more)
 
 ### Community 2 - "useAppContext"
-Cohesion: 0.16
-Nodes (11): ref_supabase_supabase_js, AppProviders(), AppProvidersProps, appRouter, buildAppRoutes(), AuthContext, AuthContextType, AuthProvider() (+3 more)
+Cohesion: 0.07
+Nodes (36): AnnotationCardActions(), AnnotationNoteCard(), AnnotationNoteCardProps, TIPO_CORES, BookAnnotationComposer(), BookAnnotationComposerProps, BookAnnotationComposerSheet(), BookAnnotationComposerSheetProps (+28 more)
 
 ### Community 3 - "PilarEditForm.tsx"
 Cohesion: 0.03
-Nodes (24): BibliotecaGenero, CampanhaPublicaAgendaItem, CampanhaPublicaConteudo, CampanhaPublicaMetric, CampanhaPublicaPlatform, ContaConexao, ContaNaGradeOrigem, CONTENT_LIST_SORT_COLUMNS (+16 more)
+Nodes (33): BibliotecaGenero, buildContentScheduleSelect(), CampanhaPublicaAgendaItem, CampanhaPublicaConteudo, CampanhaPublicaMetric, CampanhaPublicaPlatform, ConexaoStatus, ContaConexao (+25 more)
 
 ### Community 4 - "Etapas"
 Cohesion: 0.07
 Nodes (29): Banco de dados, D1. A entrada na grade é calculada, não é tabela, D2. A publicação por rede é a `content_plataformas` evoluída, D3. Funções: seis valores fixos, funil calculado, D4. A classificação congela no conteúdo, na primeira publicação, D5. Ajustes ficam nas preferências, Decisões de arquitetura, Deixado registrado para as fases seguintes (+21 more)
 
 ### Community 5 - "referenciaPublicacao.ts"
-Cohesion: 0.14
-Nodes (29): AppParaLeituras, avisoDiasDe(), comoEstoque(), computeReadings(), computeReadingsFromApp(), ConteudoLeitura, dia(), diasEntre() (+21 more)
+Cohesion: 0.05
+Nodes (71): resolverRedeReferencia(), AppParaLeituras, avisoDiasDe(), comoEstoque(), computeReadings(), computeReadingsFromApp(), ConteudoLeitura, dia() (+63 more)
 
 ### Community 6 - "cn"
-Cohesion: 0.10
-Nodes (25): AppButtonProps, ButtonSize, ButtonVariant, iconOnlySizeClasses, sizeClasses, variantClasses, Skeleton(), ContentScriptWorkspace() (+17 more)
+Cohesion: 0.04
+Nodes (74): Dialog(), SettingsArrayInput(), SettingsArrayInputProps, SettingsSectionCardProps, Card(), CardProps, FilterChipOption, FilterChips() (+66 more)
 
 ### Community 7 - "3. Problemas Identificados"
 Cohesion: 0.07
@@ -385,19 +381,19 @@ Nodes (45): 1. META, 2. NAVEGAÇÃO, 3. SCHEMA, 4. TELAS — SPEC FUNCIONAL, 5. 
 
 ### Community 9 - "workbox-ca84f546.js"
 Cohesion: 0.07
-Nodes (54): readAnchor(), Tooltip(), TooltipPoint, TooltipProps, AGRUPAMENTOS, DistribuicaoFuncoesPanel(), draftDaDistribuicao(), draftVazio() (+46 more)
+Nodes (55): readAnchor(), Tooltip(), TooltipPoint, TooltipProps, AGRUPAMENTOS, DistribuicaoFuncoesPanel(), draftDaDistribuicao(), draftVazio() (+47 more)
 
 ### Community 10 - "generateUUID"
-Cohesion: 0.14
-Nodes (21): ModuleRoute(), ModuleRouteProps, CommandPalette(), CommandPaletteProps, paletteDestinations(), buildContentDetailRoute(), DEFAULT_MODULE_FLAGS, getModuleFlags() (+13 more)
+Cohesion: 0.17
+Nodes (21): DISPLAY_STATUS, buildCalendarEntries(), MonthlyCalendarViewProps, WEEK_STARTS_ON, collectPlatformNames(), CONTENT_STATUS_FILTER_OPTIONS, matchesContentFilters(), platformFilterOptions() (+13 more)
 
 ### Community 11 - "PeriodoPanel.tsx"
-Cohesion: 0.16
-Nodes (20): SidePanel(), AjustesEditorialPanel(), resumoHorarios(), CampoNumero(), CampoTexto(), digitos(), inteiroOuNull(), rotuloSemanaAjustada() (+12 more)
+Cohesion: 0.08
+Nodes (28): AjustesEditorialPanel(), reservaCabeNoLimite(), resumoHorarios(), inteiroOuNull(), rotuloSemanaAjustada(), semanasParciais(), CampoMeta(), celula() (+20 more)
 
 ### Community 12 - "ContentOperationalPanel.tsx"
-Cohesion: 0.10
-Nodes (23): PropertyInput(), PropertyList(), PropertyListProps, PropertyRow(), PropertyRowProps, PropertySection(), PropertySectionProps, PropertySelect() (+15 more)
+Cohesion: 0.08
+Nodes (28): parseDateValue(), PropertyDatePicker(), PropertyDatePickerProps, PropertyInput(), PropertyList(), PropertyListProps, PropertyRow(), PropertyRowProps (+20 more)
 
 ### Community 13 - "LibraryPage.tsx"
 Cohesion: 0.05
@@ -408,16 +404,16 @@ Cohesion: 0.05
 Nodes (37): Analise, Biblioteca, Bloco de Gravacao, Calendario Editorial, Calendario Editorial - Agenda, Calendario Editorial - Cronograma, Calendario Editorial - Projetos, Calendario Editorial - Visao Geral (+29 more)
 
 ### Community 15 - "ProjectDetailPage.tsx"
-Cohesion: 0.18
-Nodes (27): OverflowTags(), OverflowTagsProps, ContentEntityTags(), EntityTag(), ContentGrid(), ContentGridProps, ContentKanban(), ContentKanbanProps (+19 more)
+Cohesion: 0.29
+Nodes (20): useAppContext(), ContentEntityTags(), ContentGrid(), ContentKanban(), KANBAN_STATUSES, ContentPreviewSheet(), ContentTable(), PipelineContentCard() (+12 more)
 
 ### Community 16 - "recordingWorkflow.ts"
 Cohesion: 0.12
-Nodes (31): getRecordingQueueContents(), ConfirmStateLocal, formatBlockDate(), getBlockContents(), RecordingBlockCard(), RecordingBlockCardProps, RecordingQueueTab(), RecordingBlockEditor() (+23 more)
+Nodes (32): RecordingBlockEditor(), RecordingBlockEditorProps, addBlockContent(), buildMarkContentRecordedTransition(), buildMarkStandaloneContentRecordedTransition(), getOrderedBlockContents(), getRecordingBlockProgress(), getRecordingBlockTags() (+24 more)
 
 ### Community 17 - "LibraryPage.tsx"
-Cohesion: 0.07
-Nodes (40): DisclosureButton(), DisclosureButtonProps, appendUniqueTag(), normalizeTagToken(), removeTag(), TagSelect(), TagSelectOption, AnnotationCardActions() (+32 more)
+Cohesion: 0.53
+Nodes (5): getStatusCalendarClass(), getStatusClassName(), getStatusColorVar(), getStatusToken(), STATUS_TOKEN
 
 ### Community 18 - "Fase 4 - Gravacao e blocos"
 Cohesion: 0.40
@@ -440,16 +436,16 @@ Cohesion: 0.06
 Nodes (33): 01 · Crítico · Detalhe do roteiro, Gravação, Editorial › Série, 02 · Grave · Planejamento › Saúde do mês, 03 · Grave · Séries, Séries › roteiros, Editorial › Editar série, 04 · Grave · Biblioteca › Análise, 05 · Grave · Gravação › Sem bloco, 06 · Grave · Gravação (celular), 07 · Grave · Biblioteca e Detalhe de livro, 08 · Grave · Editar pilar, Editar série, Plataformas (+25 more)
 
 ### Community 23 - "CacheTimestampsModel"
-Cohesion: 0.17
-Nodes (19): ajustesDe(), ContagemObjetivo, contaGrupo(), contarPeriodo(), dia(), diasInclusivos(), diaValido(), GradeCountSettings (+11 more)
+Cohesion: 0.09
+Nodes (40): ABA_DA_ETAPA, dataCurta(), FiltroDosItens, ItensDoPeriodoDialog(), linkDaCriacao(), STATUS_DA_ETAPA, useContagemDoPeriodo(), PreferenciasGerais (+32 more)
 
 ### Community 24 - "FilterBar.tsx"
 Cohesion: 0.06
 Nodes (33): A1 — Deletar schema.new.sql, A2 — Corrigir links em Settings.tsx, A3 — Atualizar Sidebar.tsx, B1 — Reescrever itens da MobileNavBar, C1 — src/pages/Projetos.tsx, C2 — src/pages/ProjetoDetalhe.tsx, CHECKLIST DE PROGRESSO, Componentes compartilhados (+25 more)
 
 ### Community 25 - "SettingsPage.tsx"
-Cohesion: 0.16
-Nodes (24): DatabaseModule, PersistActionParams, AppAction, appReducer(), deriveTheme(), archiveCreation(), contentFromLegacyIdea(), CreationFilters (+16 more)
+Cohesion: 0.40
+Nodes (14): getPersistenceApi(), persistAction(), persistContentRecord(), createContent(), createMockApi(), createState(), testPersistActionAdaptsLegacyAddIdeaToContent(), testPersistActionDemoteContentKeepsStableId() (+6 more)
 
 ### Community 26 - "getDisplayStatus"
 Cohesion: 0.06
@@ -457,15 +453,15 @@ Nodes (31): dependencies, @modelcontextprotocol/sdk, @supabase/supabase-js, zod,
 
 ### Community 27 - "AppButton.tsx"
 Cohesion: 0.11
-Nodes (30): canAdvanceToRecording(), computeAllPilarMetrics(), computePilarMetrics(), computeAllSerieMetrics(), computeSerieMetrics(), comparePublicationTimestamps(), ContentLike, getPublicationTimestamp() (+22 more)
+Nodes (31): canAdvanceToRecording(), computeAllPilarMetrics(), computePilarMetrics(), computeAllSerieMetrics(), computeSerieMetrics(), comparePublicationTimestamps(), ContentLike, getPublicationTimestamp() (+23 more)
 
 ### Community 28 - "contentPipeline.ts"
-Cohesion: 0.08
-Nodes (42): ContentDetailTabs(), ContentDetailTabsProps, TAB_META, ContentStatusField(), ContentPipelineStepper(), ContentPipelineStepperProps, STEP_LABELS, StepIndicator() (+34 more)
+Cohesion: 0.11
+Nodes (22): CalendarDesktopShell(), CalendarDesktopShellProps, CalendarEventPill(), CalendarEventPillProps, CalendarEventPillVariant, CalendarChecklistItem, CalendarLayerChecklist(), CalendarLayerChecklistProps (+14 more)
 
 ### Community 29 - "Router"
 Cohesion: 0.09
-Nodes (55): KIND_LABEL, KIND_SURFACE, MARK_ICON, PostItIdentity(), PostItMark, PostItNote(), PostItTemas(), SERIES_SURFACE (+47 more)
+Nodes (61): normalizeContentStatus(), KIND_LABEL, MARK_ICON, PostItIdentity(), PostItMark, PostItNote(), PostItTemas(), SERIES_SURFACE (+53 more)
 
 ### Community 30 - "MobileAppShell.tsx"
 Cohesion: 0.06
@@ -476,36 +472,36 @@ Cohesion: 0.11
 Nodes (19): AdvanceType, buildPrompterLines(), BurstModeExperience(), BurstModeExperienceProps, BurstModeSettings, BurstTextAlign, BurstTextColor, BurstTheme (+11 more)
 
 ### Community 32 - "IdeasMobileScreen.tsx"
-Cohesion: 0.21
-Nodes (13): TagSelectProps, LivroMultiSelect(), LivroMultiSelectProps, TemaFieldProps, countContentsByBibliotecaItem(), readLivroIds(), aplicarLivros(), livroIdsEfetivos() (+5 more)
+Cohesion: 0.18
+Nodes (15): TagSelectProps, LivroMultiSelect(), LivroMultiSelectProps, TemaFieldProps, countContentsByBibliotecaItem(), deleteBibliotecaItem(), detachLivroFromContents(), readLivroIds() (+7 more)
 
 ### Community 33 - "PlatformCopyEditor.tsx"
 Cohesion: 0.06
 Nodes (30): agenda_item, Alias e nomes legados que nao sao tabelas reais hoje, anotacao, biblioteca_genero, biblioteca_item, cenario, content_metric, content_plataforma (+22 more)
 
 ### Community 34 - "Sidebar.tsx"
-Cohesion: 0.12
-Nodes (20): react, react, NavCounts, useNavCounts(), BrandLockup(), BrandLockupProps, navBadgeHint(), resolveNavBadge() (+12 more)
+Cohesion: 0.11
+Nodes (30): react, react, CommandPalette(), CommandPaletteProps, paletteDestinations(), getModuleFlags(), ModuleFlags, NavCounts (+22 more)
 
 ### Community 35 - "RecordingMobileScreen.tsx"
 Cohesion: 0.07
 Nodes (46): PilarPlatformSchedule, clockTime(), collectSlots(), collectUsedTimes(), compareQuotas(), contentsInInterval(), countHashtags(), countScriptBacklog() (+38 more)
 
 ### Community 36 - "navConfig.ts"
-Cohesion: 0.19
-Nodes (18): isBottomNavItemActive(), isNavItemActive(), isSettingsNavActive(), pathMatches(), splitBottomNavItems(), STUDIO_ROUTES, testBibliotecaHighlightsDetailRoutes(), testContentDetailHighlightsCriacao() (+10 more)
+Cohesion: 0.60
+Nodes (5): normalizeAction(), normalizeContentId(), contentFromLegacyIdea(), testLegacyIdeaAdapterReusesSourceId(), isUUID()
 
 ### Community 37 - "utils.ts"
-Cohesion: 0.04
-Nodes (78): CalendarLayerChecklistProps, CalendarQuickCreatePopoverProps, PipelineActionBar(), PipelineActionBarProps, SettingsArrayInput(), SettingsArrayInputProps, SettingsSectionCardProps, Badge() (+70 more)
+Cohesion: 0.06
+Nodes (46): buildMoreItems(), httpImageUrl(), SettingsGridCard(), SettingsGridCardProps, Badge(), BadgeProps, BadgeVariant, variantClasses (+38 more)
 
 ### Community 38 - "pilarConstants.ts"
-Cohesion: 0.14
-Nodes (20): calendarEntryPillStyle(), EDITORIAL_PILL_COLORS, editorialPillStyle(), calendarEntryIcon(), CalendarTimelineView(), CalendarTimelineViewProps, TIMELINE_LANES, TimelineLaneId (+12 more)
+Cohesion: 0.16
+Nodes (21): datasNaGrade(), dia(), passaNoFiltroData(), PostItComData, etapaDoStatus(), patchAoEscolherSerie(), pilarPrincipalDaSerie(), criterioDoPostIt() (+13 more)
 
 ### Community 39 - "constants.ts"
-Cohesion: 0.15
-Nodes (26): ContaRef, resolverConta(), testNomeAntigoSoResolveSemAmbiguidade(), anexarPublicacaoComLink(), CasoRevisao, contasParaLinkAntigo(), ConteudoRevisao, ItemRevisao (+18 more)
+Cohesion: 0.16
+Nodes (23): horaCurta(), horaEscolhida(), janelaDaHora(), testJanela(), parsePostCode(), patchPrimeiraPublicacao(), testPostECongelamento(), columnAbsence() (+15 more)
 
 ### Community 40 - "campos.ts"
 Cohesion: 0.12
@@ -520,16 +516,16 @@ Cohesion: 0.15
 Nodes (19): buildCreationExportSections(), canExportCreation(), createCreationsDocxBlob(), CreationExportCaption, CreationExportCopy, CreationExportKind, CreationExportSection, downloadCreationsDocx() (+11 more)
 
 ### Community 43 - "CreationHubPage.tsx"
-Cohesion: 0.14
-Nodes (21): AppRouter(), CreationViewMode, CreationDisplayMenu(), CreationDisplayMenuProps, CreationGridView(), CREATION_FILTER_QUERY_KEYS, CREATION_SORT_OPTIONS, CREATION_VIEW_MODE_LABELS (+13 more)
+Cohesion: 0.08
+Nodes (29): CalendarQuickCreatePopoverProps, PipelineActionBar(), PipelineActionBarProps, AppButton, AppButtonProps, ButtonSize, ButtonVariant, iconOnlySizeClasses (+21 more)
 
 ### Community 44 - "EditorialCalendarPage.tsx"
-Cohesion: 0.08
-Nodes (29): AppState, initialState, FilterBar(), FilterBarProps, FilterDefinition, FilterOption, INACTIVE_FILTER_VALUES, inactiveFilterValue() (+21 more)
+Cohesion: 0.17
+Nodes (18): DatabaseModule, PersistActionParams, PersistenceApi, AppAction, appReducer(), deriveTheme(), archiveCreation(), findContentForLegacyIdea() (+10 more)
 
 ### Community 45 - "DataCache"
-Cohesion: 0.15
-Nodes (23): PatchDecisao, useEditorialPlano(), atualizarPreferencias(), DecisaoPeriodo, DEFAULT_EDITORIAL_SETTINGS, EditorialSettings, getEditorialSettings(), montar() (+15 more)
+Cohesion: 0.11
+Nodes (40): PatchDecisao, useEditorialPlano(), atualizarPreferencias(), caberNoLimite(), datasDoIntervalo(), dataValida(), DEFAULT_EDITORIAL_SETTINGS, ehInstagramFeedOuReels() (+32 more)
 
 ### Community 46 - "BurstModeMobileScreen.tsx"
 Cohesion: 0.12
@@ -537,79 +533,79 @@ Nodes (28): FUNCOES_DA_GRADE, invalidateLookups(), Lookups, resolvePilar(), avis
 
 ### Community 47 - "htmlToReadableText"
 Cohesion: 0.13
-Nodes (37): CONTENT_STATUS, normalizeContentStatus(), OpenInfoNotice(), SeriesContentList(), SeriesContentListProps, tabLabel(), SeriesContentListRow(), SeriesContentListRowProps (+29 more)
+Nodes (24): SeriesContentList(), SeriesContentListProps, tabLabel(), SeriesContentsFilterBar(), SeriesContentsFilterBarProps, SeriesContentsTabsProps, SeriesBulkComposer(), computeSeriesContentStats() (+16 more)
 
 ### Community 48 - "normalizeContentStatus"
-Cohesion: 0.14
-Nodes (19): DAY_LABEL, PILAR_QUICK_COLORS, PilarEditChromeState, PilarEditForm(), PilarEditSavePayload, PilarFormState, createEmptyPilarPlataforma(), formatCrossedPostingSummary() (+11 more)
+Cohesion: 0.09
+Nodes (37): PostedVideoComposerSheetProps, DAY_LABEL, PILAR_QUICK_COLORS, PilarEditChromeState, PilarEditForm(), PilarEditSavePayload, PilarFormState, PostingTimeSuggestions() (+29 more)
 
 ### Community 49 - "ProjectDetailPage.tsx"
-Cohesion: 0.10
-Nodes (46): ProjetoEventoFields(), tipoDoFormulario(), TIPOS, entregaDoProjeto, Marco, projetoConcluido(), aberto, aplicarFuncaoNoEvento() (+38 more)
+Cohesion: 0.06
+Nodes (74): appendUniqueTag(), normalizeTagToken(), removeTag(), TagPill(), TagSelect(), TagSelectOption, AgendaViewProps, rotuloDaSerie() (+66 more)
 
 ### Community 50 - "getGentleExperienceSettings"
 Cohesion: 0.29
 Nodes (6): Conectar, Content OS MCP, Endereço fixo (ngrok), Ferramentas, Grok (grok.com, app e Grok Bot), Instalação
 
 ### Community 51 - "getDisplayStatus"
-Cohesion: 0.13
-Nodes (23): ConfirmModal(), ConfirmModalProps, BottomSheet(), BottomSheetProps, DialogProps, Drawer(), DrawerProps, DESKTOP_DIALOG_ANIMATE (+15 more)
+Cohesion: 0.16
+Nodes (19): ConfirmModalProps, BottomSheet(), BottomSheetProps, DialogProps, Drawer(), DrawerProps, DESKTOP_DIALOG_ANIMATE, DESKTOP_DIALOG_EXIT (+11 more)
 
 ### Community 52 - "dependencies"
 Cohesion: 0.09
 Nodes (23): dependencies, clsx, date-fns, docx, express, motion, tailwind-merge, @tiptap/extension-highlight (+15 more)
 
 ### Community 53 - "platformKey"
-Cohesion: 0.12
-Nodes (32): PlatformIcon(), PlatformIconProps, redeDoTexto(), DISPLAY_NAMES, platformDisplayName(), platformKey(), testDisplayNameKeepsUnknownPlatformsAsSaved(), testDisplayNameUsesOfficialSpelling() (+24 more)
+Cohesion: 0.10
+Nodes (35): COR_DA_REDE, FUNDO_DA_REDE, PlatformIconProps, PlatformTile(), redeDoTexto(), DISPLAY_NAMES, platformDisplayName(), platformKey() (+27 more)
 
 ### Community 54 - "AppShell.tsx"
-Cohesion: 0.15
-Nodes (15): ref_virtual_pwa_register, MobileScrollLockContext, MobileScrollLockContextValue, MobileScrollLockProvider(), useMobileScrollLock(), useHideOnScroll(), usePullToRefresh(), AppShell() (+7 more)
+Cohesion: 0.24
+Nodes (13): isContentBodyLoaded(), resolveScriptBodyStatus(), ScriptBodyStatus, scriptBodyStatusLabel(), upsertContent(), upsertContents(), ContentDetailPage(), RecordingPage() (+5 more)
 
 ### Community 55 - "Série, pilar, funil e hashtags"
 Cohesion: 0.09
 Nodes (21): 1. Pilar, 2. Série, 3. Funil, 4. Hashtags, Escrita (`series`), Estratégia (`series`), Fluxo, Herança ao criar um roteiro pela série (+13 more)
 
 ### Community 56 - "saveContent"
-Cohesion: 0.18
-Nodes (19): CONTENT_CONTAGEM_ORIGEM_COLUMNS, deleteBibliotecaItem(), detachLivroFromContents(), isMissingContagemOrigemColumns(), isMissingExternoIdColumn(), isMissingFuncaoColumns(), isMissingLegendaBaseColumn(), isMissingLivroIdsColumn() (+11 more)
+Cohesion: 0.16
+Nodes (22): BibliotecaListQuery, CONTENT_CONTAGEM_ORIGEM_COLUMNS, isMissingContagemOrigemColumns(), isMissingExternoIdColumn(), isMissingFuncaoColumns(), isMissingLegendaBaseColumn(), isMissingLivroIdsColumn(), isMissingMilestoneColumn() (+14 more)
 
 ### Community 57 - "useAuth"
 Cohesion: 0.06
-Nodes (30): Analise, Analises, Biblioteca, BookDetail, ContentDetail, Creation, Dashboard, Editorial (+22 more)
+Nodes (31): Analise, Analises, Biblioteca, BookDetail, ContentDetail, Creation, Dashboard, Editorial (+23 more)
 
 ### Community 58 - "index.ts"
-Cohesion: 0.12
-Nodes (26): PaginatedResult, usePaginatedQuery(), UsePaginatedQueryOptions, AppData, patchSeriesDomainCache(), patchTemasInDomainCaches(), testKeepsEverythingUnderTheLimit(), testPrunesOldestBeyondTheLimit() (+18 more)
+Cohesion: 0.13
+Nodes (21): AppData, testKeepsEverythingUnderTheLimit(), testPrunesOldestBeyondTheLimit(), testReadsNothingOutsideTheBrowser(), tests, canDomainPayloadSatisfyRequest(), clearPersistedDomainsForUser(), discardObsoleteDomainCache() (+13 more)
 
 ### Community 59 - "SeriesCreateContentForm.tsx"
-Cohesion: 0.15
-Nodes (28): applyDomainStatus(), clearDomainStatus(), DomainLoadStatus, DomainStatusMap, FULL_CONTENT_LIST_DOMAINS, getCoveringDomains(), isDomainAlreadyLoaded(), markDomainsLoaded() (+20 more)
+Cohesion: 0.14
+Nodes (29): applyDomainStatus(), clearDomainStatus(), DomainLoadStatus, DomainStatusMap, FULL_CONTENT_LIST_DOMAINS, getCoveringDomains(), isDomainAlreadyLoaded(), markDomainsLoaded() (+21 more)
 
 ### Community 60 - "ContentDetailHeader.tsx"
 Cohesion: 0.11
-Nodes (20): ActionIconButton(), buildPrompterLines(), BURST_PRESETS, BurstModeMobileEntry, BurstModeMobileScreen(), BurstModeMobileScreenProps, BurstTextAlign, BurstTheme (+12 more)
+Nodes (19): ActionIconButton(), buildPrompterLines(), BURST_PRESETS, BurstModeMobileEntry, BurstModeMobileScreen(), BurstTextAlign, BurstTheme, ChoiceButton() (+11 more)
 
 ### Community 61 - "compilerOptions"
 Cohesion: 0.09
 Nodes (21): compilerOptions, allowImportingTsExtensions, allowJs, experimentalDecorators, isolatedModules, jsx, lib, module (+13 more)
 
 ### Community 62 - "PropertyDatePicker.tsx"
-Cohesion: 0.26
-Nodes (10): ConteudoComTemas, conteudoTemTema(), nomesDosTemas(), TemaDoCatalogo, temasEmUso(), catalogo, testFiltroPorTema(), testNomesIgnoramTemaQueSaiuDoCatalogo() (+2 more)
+Cohesion: 0.29
+Nodes (9): ConteudoComTemas, conteudoTemTema(), nomesDosTemas(), TemaDoCatalogo, temasEmUso(), catalogo, testFiltroPorTema(), testNomesIgnoramTemaQueSaiuDoCatalogo() (+1 more)
 
 ### Community 63 - "SendToRecordingSheet.tsx"
 Cohesion: 0.06
 Nodes (38): launcher, startupDir, authtoken, domain, lock, log(), logDir, logFile (+30 more)
 
 ### Community 64 - "dailySession.ts"
-Cohesion: 0.12
-Nodes (20): CalendarDesktopShell(), CalendarEventPill(), CalendarEventPillProps, CalendarEventPillVariant, CalendarChecklistItem, CalendarLayerChecklist(), CalendarMiniMonth(), CalendarMiniMonthProps (+12 more)
+Cohesion: 0.62
+Nodes (5): draftDiffers(), draftFieldChanged(), LIST_FIELDS, normalizeEditorText(), TEXT_FIELDS
 
 ### Community 65 - "Content"
-Cohesion: 0.10
-Nodes (39): CaptionGridProps, ContentEntityTagsProps, ContentPreviewSheetProps, ContentTableProps, PipelineContentCardProps, ContentDetailHeaderProps, ContentManageWorkspaceProps, ContentOperationalPanelProps (+31 more)
+Cohesion: 0.09
+Nodes (41): CaptionGridProps, ContentEntityTagsProps, ContentGridProps, ContentKanbanProps, ContentPreviewSheetProps, ContentTableProps, PipelineContentCardProps, ContentDetailHeaderProps (+33 more)
 
 ### Community 66 - "Contrato minimo por componente"
 Cohesion: 0.18
@@ -620,40 +616,40 @@ Cohesion: 0.16
 Nodes (4): PrecacheStrategy, Strategy, StrategyHandler, toRequest()
 
 ### Community 68 - "PlanejamentoPage.tsx"
-Cohesion: 0.08
-Nodes (41): DISPLAY_STATUS, AgendaViewProps, UndatedRoteiroPile(), collectPlatformNames(), CONTENT_STATUS_FILTER_OPTIONS, matchesContentFilters(), platformFilterOptions(), buildCalendarPath() (+33 more)
+Cohesion: 0.16
+Nodes (18): calendarEntryPillStyle(), EDITORIAL_PILL_COLORS, editorialPillStyle(), calendarEntryIcon(), CalendarLegend(), CalendarTimelineView(), CalendarTimelineViewProps, TIMELINE_LANES (+10 more)
 
 ### Community 69 - "currentUserId"
-Cohesion: 0.15
-Nodes (29): CreationSort, CreationTab, CreationCategoryLabel(), creationEntityHint(), CreationEntityMarks(), describeMark(), EntityMarkModel, markLabel() (+21 more)
+Cohesion: 0.08
+Nodes (54): MoreMenuItem, CreationSort, CreationTab, CreationCategoryLabel(), creationEntityHint(), CreationEntityMarks(), describeMark(), EntityMarkModel (+46 more)
 
 ### Community 70 - "fetchDataDomains"
 Cohesion: 0.19
 Nodes (30): buildWeekRhythmQuotas(), dayRhythmTone, diffViolations(), previewScheduleViolations(), buildContent(), buildPilar(), buildSerie(), platforms (+22 more)
 
 ### Community 71 - "resolvePlatformIds"
-Cohesion: 0.10
-Nodes (35): ChunkLoadError(), importPage(), isChunkLoadError(), markChunksHealthy(), recoverFromChunkError(), loadAnalises(), loadBookDetail(), loadCalendar() (+27 more)
+Cohesion: 0.09
+Nodes (34): ChunkLoadError(), importPage(), isChunkLoadError(), markChunksHealthy(), recoverFromChunkError(), loadAnalises(), loadBookDetail(), loadCalendar() (+26 more)
 
 ### Community 72 - "buildPublishCalendarItems"
-Cohesion: 0.15
-Nodes (36): contaDaRef(), rotuloDaRef(), buildCalendarEntries(), buildPublishCalendarItems(), cancelada(), canonicalPlatformId(), hora(), isScheduledItem() (+28 more)
+Cohesion: 0.38
+Nodes (14): buildPublishCalendarItems(), conteudo(), platforms, publicacao(), series, testMesmoConteudoCaiNoMesmoDiaNaGradeENoCalendario(), testPostadoFicaNoDiaEmQueFoiAoAr(), testPostadoPeloStatusUsaDataPlanejadaAntesDaMudanca() (+6 more)
 
 ### Community 73 - "demoteContentToIdea.ts"
-Cohesion: 0.24
-Nodes (12): PILAR_HASHTAG_PLATFORMS, COLOR_FAMILIES, entityColorLabel(), NAMED_CORES, normalizeEntityColor(), PILAR_COR_LABELS, PILAR_PRESET_CORES, pilarSlugFromNome() (+4 more)
+Cohesion: 0.13
+Nodes (16): FilterBar(), FilterBarProps, FilterDefinition, FilterOption, INACTIVE_FILTER_VALUES, inactiveFilterValue(), ToolbarSearchInput(), ToolbarSearchInputProps (+8 more)
 
 ### Community 74 - ".constructor"
 Cohesion: 0.16
 Nodes (4): PrecacheStrategy, Strategy, StrategyHandler, toRequest()
 
 ### Community 75 - "DashboardPage.tsx"
-Cohesion: 0.14
-Nodes (24): CreateMenuButton(), CreateMenuButtonProps, createIdeaContent(), DayPulse(), getSessionCandidates(), suggestionSummary(), suggestSessionIds(), getUpcomingAgenda() (+16 more)
+Cohesion: 0.20
+Nodes (17): createIdeaContent(), getSessionCandidates(), getUpcomingAgenda(), AgendaPulseItem, buildDayPulse(), capitalize(), formatAgendaLabel(), formatDayTitle() (+9 more)
 
 ### Community 76 - "SeriesScriptsPage.tsx"
-Cohesion: 0.33
-Nodes (10): PlatformCopyEditor(), LIMITE_DE_CARACTERES, limiteDeCaracteres(), PLATFORM_COPY_FIELDS, PlatformCopyField, platformShowsField(), testInstagramETikTokMostramHashtags(), testOutrasRedesSoTemLegenda() (+2 more)
+Cohesion: 0.21
+Nodes (21): PlatformIcon(), CaptionFilaCard(), contaDaRef(), iconeDaConta(), redeDaRef(), rotuloConta(), testVinculoPeloIdSobreviveATrocaDoArroba(), PlatformCopyEditor() (+13 more)
 
 ### Community 77 - "Briefing Dev — Content OS"
 Cohesion: 0.10
@@ -665,27 +661,27 @@ Nodes (24): challenge, Json, location, params, verifier, authorized(), httpServe
 
 ### Community 79 - "PLAYBOOK — Core Creator"
 Cohesion: 0.19
-Nodes (17): EDITORIAL_CONTENT_STATUSES, EditorialContentStatus, getEditorialContents(), getPostedContents(), getPostingContents(), getProductionContents(), isActiveCreation(), isEditorialContentStatus() (+9 more)
+Nodes (18): EDITORIAL_CONTENT_STATUSES, EditorialContentStatus, getEditorialContents(), getPostedContents(), getPostingContents(), getProductionContents(), getRecordingQueueContents(), isActiveCreation() (+10 more)
 
 ### Community 80 - "supabase.ts"
-Cohesion: 0.09
-Nodes (37): SaveFeedbackToast(), ContentDetailShell(), ContentDetailShellProps, ContentDraft, draftFromContent(), mergeLoadedBody(), normalizePlain(), PersistDraftOptions (+29 more)
+Cohesion: 0.15
+Nodes (24): ContentDetailShell(), ContentDetailShellProps, ContentDraft, draftFromContent(), mergeLoadedBody(), PersistDraftOptions, IdeaDetailSection(), RecordingSection() (+16 more)
 
 ### Community 81 - "serieColors.ts"
-Cohesion: 0.12
-Nodes (26): ASPECT_CLASSES, MediaCard(), MediaCardProps, CoverFallback(), CoverFallbackProps, CoverUploadField(), CoverUploadFieldProps, BibliotecaTypeConfig (+18 more)
+Cohesion: 0.05
+Nodes (64): ASPECT_CLASSES, MediaCard(), MediaCardProps, buildPaginationItems(), PaginationBar(), PaginationBarProps, AuthContext, AuthContextType (+56 more)
 
 ### Community 82 - "AppContext.tsx"
-Cohesion: 0.10
-Nodes (30): ACTION_SAVE_LABELS, AppContext, AppProvider(), DISCARDED_CACHE_DOMAINS, normalizeAction(), normalizeContentId(), PersistOptions, RefreshFromServerOptions (+22 more)
+Cohesion: 0.16
+Nodes (17): ACTION_SAVE_LABELS, AppContext, AppProvider(), DISCARDED_CACHE_DOMAINS, PersistOptions, RefreshFromServerOptions, getDomainsForRealtimeTable(), getListNamespacesForRealtimeTable() (+9 more)
 
 ### Community 83 - "pilarPrincipalDaSerie"
-Cohesion: 0.29
-Nodes (10): formatOpenItems(), getSerieOpenItems(), OPEN_ITEM_LABELS, SerieCompletenessFields, SerieOpenItem, SerieOpenItemKey, testBlankTextCountsAsOpen(), testCompleteSerieHasNothingOpen() (+2 more)
+Cohesion: 0.21
+Nodes (12): buildContentDetailRoute(), createScriptContent(), useBodyScrollLock(), fetchBibliotecaItemById(), ACTIVE_READING_STATUSES, MobileActionMenu(), MobileActionMenuProps, countWords() (+4 more)
 
 ### Community 85 - "CaptionQuickCard.tsx"
-Cohesion: 0.11
-Nodes (20): SettingsPageScaffold(), SettingsPageScaffoldProps, SegmentTabOption, SegmentTabs(), SegmentTabsProps, ViewModeOption, ViewModeToggle(), ViewModeToggleProps (+12 more)
+Cohesion: 0.12
+Nodes (19): DisclosureButton(), DisclosureButtonProps, UndatedRoteiroPile(), buildCalendarPath(), CALENDAR_VIEW_MODES, CalendarViewMode, parseCalendarViewMode(), AddAgendaModal() (+11 more)
 
 ### Community 86 - "DATABASE.md"
 Cohesion: 0.17
@@ -708,84 +704,80 @@ Cohesion: 0.20
 Nodes (8): BLOCKED_PATTERNS, DOC_FILES, files, findings, ROOT, SOURCE_DIR, SOURCE_EXTENSIONS, walk()
 
 ### Community 91 - "SeriesEditPage.tsx"
-Cohesion: 0.13
-Nodes (19): BaseDoPeriodo, dataEfetivaDaPublicacao(), dia(), filtrarPublicacoes(), FiltroAnalise, interacoesDaMetrica(), LinhaAnalise, metricaDaPublicacao() (+11 more)
+Cohesion: 0.14
+Nodes (18): dataEfetivaDaPublicacao(), dia(), filtrarPublicacoes(), FiltroAnalise, interacoesDaMetrica(), LinhaAnalise, metricaDaPublicacao(), noIntervalo() (+10 more)
 
 ### Community 92 - "funcoes.ts"
 Cohesion: 0.09
-Nodes (43): FuncaoEditorialFields(), updatesFromFuncaoChoice(), aplicarFuncaoPublicada(), ConteudoAplicavel, conteudosParaAplicarFuncao(), devePerguntarAplicarFuncao(), base, testAplicaEMarcaOrigem() (+35 more)
+Nodes (38): aplicarFuncaoPublicada(), ConteudoAplicavel, conteudosParaAplicarFuncao(), devePerguntarAplicarFuncao(), base, testAplicaEMarcaOrigem(), testPerguntaSoComFuncaoConcreta(), testSoHerdadosCongelados() (+30 more)
 
 ### Community 93 - "Content"
 Cohesion: 0.06
 Nodes (22): ref_fs, ref_path, replacements, root, replacements, root, allowedOpacityVariants, classWarnPatterns (+14 more)
 
 ### Community 94 - "captionQueue.ts"
-Cohesion: 0.11
-Nodes (25): CaptionListFilter, CaptionSource, casaBusca(), ConteudoDaFila, filtrarFilaLegendas(), isCaptionQueueContent(), ItemFilaLegenda, paginateCaptionQueue() (+17 more)
+Cohesion: 0.10
+Nodes (23): CaptionListFilter, CaptionSource, casaBusca(), ConteudoDaFila, filtrarFilaLegendas(), isCaptionQueueContent(), ItemFilaLegenda, paginateCaptionQueue() (+15 more)
 
 ### Community 95 - "ideaFilters.ts"
-Cohesion: 0.12
-Nodes (34): buildIdeaBodyFromContent(), buildIdeaFromContent(), buildIdeaTextFromContent(), createIdeaFromContent(), DemoteContentsPlan, planDemoteContentsToIdeas(), restoreIdeaFromContent(), IdeaInboxCard() (+26 more)
+Cohesion: 0.14
+Nodes (26): EntityTag(), buildIdeaBodyFromContent(), buildIdeaFromContent(), buildIdeaTextFromContent(), createIdeaFromContent(), DemoteContentsPlan, planDemoteContentsToIdeas(), restoreIdeaFromContent() (+18 more)
 
 ### Community 96 - "temasPlanejamento.ts"
-Cohesion: 0.36
-Nodes (15): getPersistenceApi(), persistAction(), persistContentRecord(), PersistenceApi, createContent(), createMockApi(), createState(), testPersistActionAdaptsLegacyAddIdeaToContent() (+7 more)
+Cohesion: 0.29
+Nodes (15): SeriesContentListRow(), SeriesContentListRowProps, SeriesContentPreviewModal(), SeriesContentPreviewModalProps, wordCount(), SeriesCreateContentPanel(), formatContentListTimestamp(), SeriesListItem (+7 more)
 
 ### Community 97 - "pilarRhythm.test.ts"
 Cohesion: 0.11
 Nodes (18): 1. ENTIDADES E DADOS, `agenda_items`, `app_config`, `book_annotations`, `books`, `campaigns`, `contents`, `dna_voz` (+10 more)
 
 ### Community 98 - "EditorialPage.tsx"
-Cohesion: 0.39
-Nodes (7): testEmptyOnlyAfterSettled(), testErrorOnlyAfterSettled(), testLoadingWhileAuthOrDisabled(), testLoadingWhileFetchInFlight(), testReadyWithItems(), resolveQueryViewStatus(), ResolveQueryViewStatusInput
+Cohesion: 0.14
+Nodes (10): ref_supabase_supabase_js, AppRouter(), AppProviders(), AppProvidersProps, appRouter, buildAppRoutes(), AuthProvider(), supabaseAnonKey (+2 more)
 
 ### Community 99 - "destinations.ts"
-Cohesion: 0.09
-Nodes (36): DEFAULT_PLATFORMS, STATUS_CONFIG, STATUS_STAGES, VISUAL_FORMAT_LABELS, VISUAL_FORMATS, contasAtivas(), ensurePlatformRecord(), PlatformCopyEditorProps (+28 more)
+Cohesion: 0.16
+Nodes (30): DEFAULT_PLATFORMS, rotuloCurtoConta(), CreationComposer(), CreationIdeaInput, DestinationChips(), migrarLegendas(), alternarDestino(), contaComoDestino() (+22 more)
 
 ### Community 100 - "PostingTimesSettingsPage.tsx"
-Cohesion: 0.21
-Nodes (14): buildInitialPlatformEntries(), buildPostedVideoContent(), normalizeDateInput(), normalizeTimeInput(), platformLabel(), postedInstant(), PostedPlatformEntry, PostedVideoComposerSheet() (+6 more)
+Cohesion: 0.20
+Nodes (15): contasAtivas(), buildInitialPlatformEntries(), buildPostedVideoContent(), normalizeDateInput(), normalizeTimeInput(), platformLabel(), postedInstant(), PostedPlatformEntry (+7 more)
 
 ### Community 101 - "Auditoria de Design System — Tela Inicial"
-Cohesion: 0.19
-Nodes (16): blankToNull(), ConteudoPublicavel, freezeInstant(), markPublished(), MarkPublishedOptions, PublicacaoPublicavel, base, publicacao() (+8 more)
+Cohesion: 0.07
+Nodes (47): rotuloDaRef(), PublishingDraft, PublishingSection(), updatePlatformDate(), fromDatetimeLocal(), Marked, MarkPostedSheet(), pad() (+39 more)
 
 ### Community 102 - "computeSeriesContentStats.ts"
-Cohesion: 0.17
-Nodes (17): isContentBodyLoaded(), resolveScriptBodyStatus(), ScriptBodyStatus, scriptBodyStatusLabel(), upsertContent(), upsertContents(), ContentDetailPage(), RecordingSelectionBar() (+9 more)
-
-### Community 103 - "ContentScriptWorkspace.tsx"
-Cohesion: 0.17
-Nodes (16): createScriptContent(), clamp(), DEFAULT_SETTINGS, loadReaderSettings(), ReaderSettings, RecordingScriptReader(), useBodyScrollLock(), fetchBibliotecaItemById() (+8 more)
+Cohesion: 0.09
+Nodes (25): SettingsPageScaffold(), SettingsPageScaffoldProps, FILTERS, LibrarySection, LibrarySectionTabs(), LibrarySectionTabsProps, RecordingSelectionBar(), RecordingPageTab (+17 more)
 
 ### Community 104 - "compilerOptions"
-Cohesion: 0.13
-Nodes (17): GLOSSARY, getMobileRouteMeta(), isContentScriptTab(), MobileRouteContext, MobileRouteMeta, resolveMobileRouteMeta(), criacao, editorial (+9 more)
+Cohesion: 0.12
+Nodes (16): GLOSSARY, getMobileRouteMeta(), isContentScriptTab(), MobileRouteContext, MobileRouteMeta, criacao, editorial, editorialPilar (+8 more)
 
 ### Community 105 - "publicacoesDoMes.test.ts"
-Cohesion: 0.33
-Nodes (7): GradeSerie, PublicacaoNoDia, publicacoesPorDia(), conteudo(), platforms, publicacao(), testMostraPostadosEProgramadosMasNaoOQueFicouParaTras()
+Cohesion: 0.22
+Nodes (11): buildDailySessionBlock(), buildDailySessionName(), DailySessionDraft, groupCandidatesBySeries(), moveSessionId(), resolveSessionSelection(), SessionGroup, SessionSeriesRef (+3 more)
 
 ### Community 107 - "contentPipeline.ts"
-Cohesion: 0.40
-Nodes (8): DEFAULT_WRITING_WORKSPACE, getWritingWorkspaceSettings(), isWritingWorkspaceEnabled(), testIgnoresInvalidPreference(), testReadsSavedToggle(), tests, testStartsDisabledForEveryAccount(), WritingWorkspaceSettings
+Cohesion: 0.23
+Nodes (10): AppState, initialState, CreationComposerProps, IdeaQuickCapture(), IdeaQuickCaptureProps, MetaField, IdeasInboxToolbar(), QUICK_FILTERS (+2 more)
 
 ### Community 108 - "1. ENTIDADES E DADOS"
 Cohesion: 0.14
 Nodes (12): aggregateMetrics(), CampanhaPublicaPage(), ETAPA_STATUS, fmtDate(), fmtNum(), fmtPct(), STATUS_LABEL, TIPO_COLOR (+4 more)
 
 ### Community 109 - "getGentleExperienceSettings"
-Cohesion: 0.23
-Nodes (17): countGrade, PilarContagem, conteudoGrade(), entrada(), PERCENTUAIS, pilaresGrandes, SEMANA, serie (+9 more)
+Cohesion: 0.24
+Nodes (17): countGrade, conteudoGrade(), entrada(), PERCENTUAIS, pilaresGrandes, SEMANA, serie, testContaPorEtapa() (+9 more)
 
 ### Community 111 - "PostingTimesEditor.tsx"
-Cohesion: 0.22
-Nodes (15): DayCard(), DayCardProps, DayMap, draftsMatch(), entriesToDraft(), isUsingGlobalFallback(), normalizeTime(), PostingTimesEditor() (+7 more)
+Cohesion: 0.24
+Nodes (14): DayMap, DayRow(), DayRowProps, draftsMatch(), entriesToDraft(), isUsingGlobalFallback(), NOME_DO_DIA, normalizeTime() (+6 more)
 
 ### Community 112 - "RequireAuth.tsx"
-Cohesion: 0.19
-Nodes (19): CREATION_TABS, filterContentsByCreationTab(), filterCreationContents(), getCreationTabCounts(), paginateCreationContents(), removeDeletedCreations(), restoreDeletedCreation(), sortCreationContents() (+11 more)
+Cohesion: 0.14
+Nodes (28): CREATION_TABS, CreationFilters, CreationPage, CreationViewMode, demoteContentToIdea(), escapeHtml(), filterContentsByCreationTab(), filterCreationContents() (+20 more)
 
 ### Community 113 - "index.ts"
 Cohesion: 0.11
@@ -793,7 +785,7 @@ Nodes (17): BLOCO 10 — PÁGINAS ÓRFÃS, BLOCO 11 — NAVEGAÇÃO, BLOCO 12 �
 
 ### Community 114 - "QUESTIONNAIRE.md — Content OS"
 Cohesion: 0.12
-Nodes (24): collectFormatoSuggestions(), ENERGIA_LABELS, ENERGIA_NIVEIS, FORMATO_APRESENTACAO_SUGESTOES, FORMATO_VISUAL_SUGESTOES, FREQUENCIAS_SERIE, FUNCAO_DESCRICOES, patchAoEscolherSerie() (+16 more)
+Nodes (22): ConfirmModal(), dataCurta(), LegendaVersaoField(), ROTULO_ESTADO, collectFormatoSuggestions(), ENERGIA_LABELS, ENERGIA_NIVEIS, FORMATO_APRESENTACAO_SUGESTOES (+14 more)
 
 ### Community 115 - "2. Problemas identificados"
 Cohesion: 0.12
@@ -805,7 +797,7 @@ Nodes (16): 0.1 DNA DA VOZ, 0.2 PILARES EDITORIAIS, 0.3 SÉRIES, 0.4 REGRAS DE O
 
 ### Community 117 - "buildDetailBackState"
 Cohesion: 0.20
-Nodes (21): conteudoJaPublicado(), ConteudoReferencia, dia(), ehRepost(), ehStories(), formatoDaPublicacao(), horaDe(), maisCedo() (+13 more)
+Nodes (12): clockInputValue(), ContentManageWorkspace(), ContentManageWorkspaceProps, ScheduleMoment(), toIsoDate(), IdeaDetailSectionProps, IdeaDraft, IdeaOrganizationPanel() (+4 more)
 
 ### Community 118 - "Plano de implementação — crítica de design das telas (Criaki)"
 Cohesion: 0.14
@@ -828,12 +820,12 @@ Cohesion: 0.15
 Nodes (5): createCacheKey(), _nestedGroup(), PrecacheController, PrecacheRoute, printInstallDetails()
 
 ### Community 123 - "Mobile Parallel Layer Guide"
-Cohesion: 0.16
-Nodes (23): horaCurta(), horaEscolhida(), janelaDaHora(), testJanela(), parsePostCode(), patchPrimeiraPublicacao(), testPostECongelamento(), columnAbsence() (+15 more)
+Cohesion: 0.22
+Nodes (16): IdeaInboxCardProps, IdeasInboxToolbarProps, useIdeasInboxFilters(), filterIdeas(), ideaHasClassification(), ideaReadyForScript(), IdeasListFilters, IdeasQuickFilter (+8 more)
 
 ### Community 124 - "captions.test.ts"
-Cohesion: 0.12
-Nodes (43): CaptionFilaCard(), redeDaRef(), CalendarEntryDetailModal(), ConteudoComLegenda, PublicacaoLegenda(), textoParaCopiar(), adaptarLegenda(), atualizarLegendaBase() (+35 more)
+Cohesion: 0.10
+Nodes (48): CalendarEntryDetailModal(), adaptarLegenda(), atualizarLegendaBase(), congelarLegenda(), ConteudoDaLegenda, criarVersaoPropria(), definirLegendaCompartilhada(), editarLegendaBase() (+40 more)
 
 ### Community 125 - "5. AUTOMAÇÕES (sem IA — baseadas em dados internos)"
 Cohesion: 0.12
@@ -852,12 +844,12 @@ Cohesion: 0.12
 Nodes (15): Acoplamentos confirmados no codigo, Auditoria Atual, Direcao de isolamento adotada, Fase 1 - Fundacao mobile global, Fase 2 - Primeira tela mobile nativa, Fase 3 - Fluxos operacionais leves, Fase 4 - Configuracoes mobile, Fase 5 - Detalhes e guardrails finais (+7 more)
 
 ### Community 129 - "Key tokens"
-Cohesion: 0.20
-Nodes (23): buildGradeEntries(), dia(), ehRepost(), GradeContent, GradeEntrySettings, horaDe(), pad2(), Quando (+15 more)
+Cohesion: 0.14
+Nodes (29): buildGradeEntries(), dia(), ehRepost(), GradeContent, GradeEntrySettings, GradeSerie, horaDe(), pad2() (+21 more)
 
 ### Community 130 - "isWritingWorkspaceEnabled"
-Cohesion: 0.08
-Nodes (32): useAppContext(), useAuth(), AnalyticsPage(), TemaField(), LibraryPage(), normalizeProfileAuthError(), EditingCenario, EditingLook (+24 more)
+Cohesion: 0.10
+Nodes (23): FixedPanelModal(), FixedPanelModalProps, CSVUploadModal(), CSVUploadModalProps, ConfirmStateLocal, formatBlockDate(), getBlockContents(), RecordingBlockCard() (+15 more)
 
 ### Community 131 - "Key tokens"
 Cohesion: 0.10
@@ -872,16 +864,16 @@ Cohesion: 0.13
 Nodes (12): Fix suggestion, Source, What happened, Skill Feedback, Steps, Core Principles, Making and Committing Schema Changes, Reference Guides (+4 more)
 
 ### Community 134 - "calendarMode.ts"
-Cohesion: 0.33
-Nodes (12): CAMPOS_DE_SERIE, chaveTema(), normalizarNomeTema(), NovoTema, sincronizarTemasDoRoteiro(), temaNaoESerie(), ids(), roteiroBase() (+4 more)
+Cohesion: 0.30
+Nodes (13): CAMPOS_DE_SERIE, chaveTema(), normalizarNomeTema(), NovoTema, sincronizarTemasDoRoteiro(), temaNaoESerie(), ids(), roteiroBase() (+5 more)
 
 ### Community 135 - "Fase 3 - Modal de roteiro"
-Cohesion: 0.50
-Nodes (4): 1.1 Coluna ausente não é o mesmo que valor recusado (review #1), 1.2 `force: true` volta a buscar de verdade (review #2), 1.3 Não apagar o que não foi lido (review #6), Fase 1 — Integridade de dados
+Cohesion: 0.36
+Nodes (7): CONTENT_STATUS, applyScheduleToContent(), earliestPlatformDate(), isUndatedRoteiro(), listUndatedRoteiros(), placeContentOnDay(), stampDay()
 
 ### Community 136 - "Contrato minimo por componente"
-Cohesion: 0.09
-Nodes (35): parseDateValue(), PropertyDatePicker(), PropertyDatePickerProps, clockInputValue(), ContentManageWorkspace(), ScheduleMoment(), toIsoDate(), IdeaOrganizationPanel() (+27 more)
+Cohesion: 0.13
+Nodes (27): CreateContentDraftOverrides, SerieDoRascunho, aplicarEscolhasDaSerie(), aplicarEscolhasHerdadas(), aplicarFuncao(), aplicarPilar(), congelarRedeReferencia(), ConteudoHerdavel (+19 more)
 
 ### Community 138 - "Plano de implementação — correções do code review (Editorial e carregamento)"
 Cohesion: 0.15
@@ -896,20 +888,20 @@ Cohesion: 0.14
 Nodes (19): ref_prosemirror_view, Annotation, AnnotationPosition, COMMENT_COLORS, EMPTY_ANNOTATIONS, formatControlClass(), formatSpeakingDuration(), FormattingAction (+11 more)
 
 ### Community 141 - "audit-product-voice.mjs"
-Cohesion: 0.18
-Nodes (17): assertQuerySuccess(), empty(), fetchAllData(), fetchArchivedContents(), fetchBibliotecaContentCounts(), fetchBibliotecaPage(), fetchContentsPage(), fetchDataDomains() (+9 more)
+Cohesion: 0.19
+Nodes (16): assertQuerySuccess(), empty(), fetchAllData(), fetchArchivedContents(), fetchBibliotecaContentCounts(), fetchContentsPage(), fetchDataDomains(), fetchDeletedContents() (+8 more)
 
 ### Community 142 - "AnnotationNoteCard.tsx"
-Cohesion: 0.25
-Nodes (16): CaptionGrid(), mergeContentRecords(), mergeContents(), mergeFetchedAppData(), mergePlatforms(), MergeSnapshot, updatedAtMs(), content() (+8 more)
+Cohesion: 0.30
+Nodes (14): mergeContentRecords(), mergeContents(), mergeFetchedAppData(), mergePlatforms(), MergeSnapshot, updatedAtMs(), content(), platform() (+6 more)
 
 ### Community 143 - "IconButton.tsx"
 Cohesion: 0.15
 Nodes (13): 4. TELAS, `/analise` -- Analise, `/biblioteca` — Biblioteca, `/biblioteca/:id` — Item da Biblioteca, `/calendario` — Calendário, `/configuracoes` — Configurações, `/conteudos` — Conteúdos, `/conteudos/:id` — Detalhe do Conteúdo (+5 more)
 
 ### Community 144 - "pautaConteudo.ts"
-Cohesion: 0.20
-Nodes (18): serieWithFreeColor(), colorFromHue(), isSerieColorTaken(), nextFreeFrom(), nextFreeSerieColor(), serieColorKey(), SerieColorSource, seriesNeedingUniqueColors() (+10 more)
+Cohesion: 0.10
+Nodes (33): serieWithFreeColor(), EntityColorPicker(), entitySwatchInk(), INLINE_SWATCHES, PILAR_HASHTAG_PLATFORMS, COLOR_FAMILIES, entityColorLabel(), NAMED_CORES (+25 more)
 
 ### Community 145 - "biblioteca.ts"
 Cohesion: 0.17
@@ -924,8 +916,8 @@ Cohesion: 0.17
 Nodes (11): Design Fixes — Fase 2, FIX 1 · Substituir `transition-all` por transições específicas, FIX 2 · Escala de hover — dois valores, não dez, FIX 3 · Sistema de elevação com 3 níveis de sombra, FIX 4 · Usar tokens de texto em vez de `opacity`, FIX 5 · `italic` — duas regras, usar em dois lugares só, FIX 6 · Padrão único de título de página, FIX 7 · Dois containers, não doze (+3 more)
 
 ### Community 148 - "statusClasses.ts"
-Cohesion: 0.16
-Nodes (15): CalendarAgendaView(), CalendarGrid(), CalendarGridProps, Partnership, CalendarHoverCard(), Partnership, getStatusIcon(), Cenario (+7 more)
+Cohesion: 0.24
+Nodes (8): getVisualFormatLabel(), STATUS_CONFIG, STATUS_STAGES, VISUAL_FORMAT_LABELS, VISUAL_FORMATS, CalendarHoverCard(), HoverCardProps, Partnership
 
 ### Community 150 - "Plano de Implementacao"
 Cohesion: 0.18
@@ -936,16 +928,16 @@ Cohesion: 0.20
 Nodes (9): 1. Query Performance (query), 2. Connection Management (conn), 3. Security & RLS (security), 4. Schema Design (schema), 5. Concurrency & Locking (lock), 6. Data Access Patterns (data), 7. Monitoring & Diagnostics (monitor), 8. Advanced Features (advanced) (+1 more)
 
 ### Community 152 - "fetchDataDomains"
-Cohesion: 0.23
-Nodes (18): caberNoLimite(), datasDoIntervalo(), dataValida(), ehInstagramFeedOuReels(), objeto(), PREFERENCIAS_PADRAO, preferenciasLegadas(), preferenciasVersao2() (+10 more)
+Cohesion: 0.14
+Nodes (23): ContentStatusField(), EtapaSelect(), applyStatusMilestones(), canSchedulePosting(), getAllowedStatuses(), getDisplayStatus(), getPostingAutomationStatus(), getPrimaryAction() (+15 more)
 
-### Community 155 - "seriesScriptTemplate.ts"
-Cohesion: 0.26
-Nodes (12): PostingTimeSuggestions(), PostingTimeSuggestionsProps, DayTimes, DEFAULT_POSTING_TIMES, getPostingTimesForPlatform(), getTimesForDay(), getTimesForDayFromEntries(), getUnionTimesForWeekday() (+4 more)
+### Community 155 - "supabase.ts"
+Cohesion: 0.29
+Nodes (11): SaveFeedbackToast(), clearSaveFeedback(), emit(), getSaveFeedbackState(), listeners, pauseSaveFeedbackHide(), resumeSaveFeedbackHide(), SaveFeedbackState (+3 more)
 
 ### Community 156 - "domainCacheSync.ts"
-Cohesion: 0.18
-Nodes (15): BOOTSTRAP_DATA_DOMAINS, CRITICAL_BOOTSTRAP_DOMAINS, buildDomainCacheKey(), DomainCacheEntry, PageCacheBucket, collectDomainCacheKeys(), DOMAIN_SETS_WITH_CONTENTS, DOMAIN_SETS_WITH_PLATFORMS (+7 more)
+Cohesion: 0.16
+Nodes (21): BOOTSTRAP_DATA_DOMAINS, CRITICAL_BOOTSTRAP_DOMAINS, buildDomainCacheKey(), DomainCacheEntry, PageCacheBucket, collectDomainCacheKeys(), DOMAIN_SETS_WITH_CONTENTS, DOMAIN_SETS_WITH_PLATFORMS (+13 more)
 
 ### Community 157 - "Sistema de botões"
 Cohesion: 0.20
@@ -964,16 +956,16 @@ Cohesion: 0.12
 Nodes (16): Analise, Biblioteca -> Acervo, Calendario -> Agenda, Conteudos, Dashboard, DNA da Voz, Gravacao, Ideias (+8 more)
 
 ### Community 162 - "MobileActionMenu.tsx"
-Cohesion: 0.09
-Nodes (43): createContentDraft(), FUNCAO_CURTA, GradeCounts, LinhaContagem, GradeEntry, FUNIL_COLOR, HealthCard(), MonthHealth() (+35 more)
+Cohesion: 0.08
+Nodes (46): createContentDraft(), draft(), EditorialSettings, FUNCAO_CURTA, GradeCounts, LinhaContagem, PeriodoGrade, PostItContagem (+38 more)
 
 ### Community 163 - "BookAnnotationComposerSheet.tsx"
 Cohesion: 0.24
 Nodes (9): DEFAULTS, loadPipelinePreferences(), PipelinePreferences, savePipelinePreferences(), ContentsListView, ContentsViewMode, PostingTab, SortDirection (+1 more)
 
-### Community 164 - "ContentManageWorkspace.tsx"
-Cohesion: 0.21
-Nodes (7): CalendarDesktopShellProps, MetasPorObjetivo(), useMediaQuery(), useCanHover(), usePointerCoarse(), BreakpointName, BREAKPOINTS
+### Community 164 - "ContentPipelineStepper.tsx"
+Cohesion: 0.22
+Nodes (11): ContentDetailTabs(), ContentDetailTabsProps, TAB_META, ContentPipelineStepper(), ContentPipelineStepperProps, STEP_LABELS, StepIndicator(), CONTENT_PIPELINE_TABS (+3 more)
 
 ### Community 165 - "tokenContrast.test.ts"
 Cohesion: 0.12
@@ -983,37 +975,37 @@ Nodes (14): accentTokens, backgroundTokens, contrastRatio(), css, darkTokens, li
 Cohesion: 0.22
 Nodes (8): 1. Resumo do veredito, 2. O que já existe (reuso direto), 3. O que falta (a construir), 4. Regras de negócio propostas, 5. Plano de implementação (fases), 6. Riscos e pontos de atenção, 7. Decisões em aberto (para você), Auditoria — Tela "Programação"
 
-### Community 167 - "currentUserId"
-Cohesion: 0.22
-Nodes (9): currentUserId(), PLATFORM_ACCOUNT_COLUMNS, replacePostingTimesForPlatform(), saveDnaVoz(), saveItemGeneros(), savePlatform(), savePostingTimeEntry(), savePreference() (+1 more)
+### Community 167 - "detailBack.ts"
+Cohesion: 0.40
+Nodes (8): ALLOWED_BACK_PATHS, ALLOWED_BACK_PREFIXES, DetailBackState, isAllowedDetailBackPath(), resolveContentDetailBack(), resolveRouteBack(), backFor(), withDetailBack()
 
 ### Community 168 - "CONTENT_STATUS"
-Cohesion: 0.14
-Nodes (22): CREATED_SEP_23, draft(), EDITED_TODAY, NOW, CreationCardDateFields, creationTabForContent(), decodeCommonEntities(), etiquetasVisiveis() (+14 more)
+Cohesion: 0.36
+Nodes (7): REALTIME_TABLES, shouldSkipRealtimeRefresh(), testAllowsRealtimeRefreshAfterSuppressionWindow(), testAllowsRealtimeRefreshWithoutLocalMutation(), tests, testSkipsRealtimeRefreshForRecentLocalMutation(), testSkipsRealtimeRefreshWhilePersistInFlight()
 
 ### Community 169 - "SettingsPage.tsx"
-Cohesion: 0.12
-Nodes (23): EmptyState(), EmptyStateProps, MobileFilterSheet(), MobileListCard(), MobileListCardProps, MobileSearchBar(), MobileSearchBarProps, AccentTone (+15 more)
+Cohesion: 0.06
+Nodes (46): BottomSheetModal(), BottomSheetModalProps, SidePanelProps, OverlayBody(), OverlayBodyProps, OverlayFooter(), OverlayFooterProps, OverlayHeader() (+38 more)
 
-### Community 170 - "dailySession.ts"
-Cohesion: 0.22
-Nodes (9): buildDailySessionBlock(), buildDailySessionName(), DailySessionDraft, groupCandidatesBySeries(), moveSessionId(), resolveSessionSelection(), SessionGroup, SessionSeriesRef (+1 more)
+### Community 170 - "creationDateFilter.test.ts"
+Cohesion: 0.19
+Nodes (18): aplicarFiltroData(), DATE_FILTER_QUERY_KEYS, dia(), intervalo(), lerFiltroData(), opcoesDoFiltroData(), rotuloDoIntervalo(), testFiltraPelaDataNaGrade() (+10 more)
 
 ### Community 171 - "Product Voice - Core Creator"
 Cohesion: 0.25
 Nodes (7): Copy Patterns, Copy Rules (R1–R5), Glossary (PT-BR UI), Implementation Notes, North Star, Product Rules, Product Voice - Core Creator
 
 ### Community 172 - "SeriesDetailMobileScreen.tsx"
-Cohesion: 0.09
-Nodes (32): BottomSheetModal(), BottomSheetModalProps, SidePanelProps, OverlayBody(), OverlayBodyProps, OverlayFooter(), OverlayFooterProps, OverlayHeader() (+24 more)
+Cohesion: 0.12
+Nodes (18): SidePanel(), KNOB, ToggleRow(), ToggleRowProps, ToggleSwitch(), ToggleSwitchProps, TRACK, RitmoDraft (+10 more)
 
-### Community 173 - "legendaSerie.ts"
-Cohesion: 0.23
-Nodes (14): AlteracaoDeRoteiro, LegendaDaSerie, RoteiroDaSerie, roteirosQueSeguemASerie(), anterior, nova, pub(), roteiro() (+6 more)
+### Community 173 - "seriesScriptTemplate.ts"
+Cohesion: 0.33
+Nodes (9): isBlankScriptHtml(), normalizeScriptHtml(), origemDoRoteiro(), resolveSeriesScriptTemplate(), seriesScriptTemplateHtml(), SeriesTemplateResolution, templateToHtml(), Template (+1 more)
 
 ### Community 174 - "resolvePlatformIds"
 Cohesion: 0.09
-Nodes (27): DonutChart(), DonutChartProps, BarChartItem, HorizontalBarChart(), HorizontalBarChartProps, AnalyticsCategoryCards(), AnalyticsCategoryCardsProps, formatAverage() (+19 more)
+Nodes (28): DonutChart(), DonutChartProps, BarChartItem, HorizontalBarChart(), HorizontalBarChartProps, AnalyticsCategoryCards(), AnalyticsCategoryCardsProps, formatAverage() (+20 more)
 
 ### Community 175 - "CacheableResponsePlugin"
 Cohesion: 0.25
@@ -1047,9 +1039,9 @@ Nodes (8): Entrega, Escopo, Fase 0 - Banco e compatibilidade, Objetivo, Ordem re
 Cohesion: 0.29
 Nodes (7): Fase 7 - Settings especificos, Pilares, Plataformas, Regras de ouro, Series, Status, Templates
 
-### Community 183 - "buildPublishCalendarItems"
-Cohesion: 0.20
-Nodes (10): BibliotecaListQuery, fetchContentStats(), isMissingPostedAtColumn(), isMissingPublicationKindColumn(), isMissingPublishTimeColumn(), resolvePlatformIds(), saveContentMetric(), saveContentPlataformas() (+2 more)
+### Community 183 - "currentUserId"
+Cohesion: 0.22
+Nodes (9): currentUserId(), PLATFORM_ACCOUNT_COLUMNS, replacePostingTimesForPlatform(), saveDnaVoz(), saveItemGeneros(), savePlatform(), savePostingTimeEntry(), savePreference() (+1 more)
 
 ### Community 184 - "SYSTEM_GUIDE.md — Core Creator"
 Cohesion: 0.29
@@ -1075,29 +1067,29 @@ Nodes (5): How to Use, References, Rule Categories by Priority, Supabase Postgre
 Cohesion: 0.33
 Nodes (6): 3. DESIGN E IDENTIDADE VISUAL, Componentes Visuais Recorrentes, Cores (CSS Variables), Espaçamentos, Tailwind Config, Tipografia
 
-### Community 191 - "FuncaoEditorial"
-Cohesion: 0.31
-Nodes (6): ContentHistoryPanelProps, formatDateTime(), HistorySection(), HistorySectionProps, STATUS_RANK, statusRank()
+### Community 191 - "estoque.ts"
+Cohesion: 0.50
+Nodes (5): LegacyCreationRedirect(), LegacyCreationRedirectProps, buildLegacyCreationTarget(), LegacyCreationSource, resolveLegacyCreationTab()
 
 ### Community 192 - "query-missing-indexes.md"
 Cohesion: 0.33
 Nodes (6): 7. DECISÕES DE DESIGN, Componentes, Cores, Identidade visual, Mobile, Tipografia
 
-### Community 194 - "usePaginatedQuery.ts"
-Cohesion: 0.33
-Nodes (8): fromDatetimeLocal(), Marked, MarkPostedSheet(), pad(), RowState, seedRows(), toDatetimeLocal(), EntradaPublicacao
+### Community 194 - "getGentleExperienceSettings"
+Cohesion: 0.16
+Nodes (19): DEFAULT_MODULE_FLAGS, isBottomNavItemActive(), isNavItemActive(), pathMatches(), splitBottomNavItems(), STUDIO_ROUTES, testBibliotecaHighlightsDetailRoutes(), testContentDetailHighlightsCriacao() (+11 more)
 
 ### Community 196 - "clsx"
-Cohesion: 0.16
-Nodes (21): periodoInicial(), AjusteSemana, ajusteDaSemana(), decisaoDoPeriodo(), diaIso(), limiteDoIntervalo(), limiteProporcional(), SEMANA (+13 more)
+Cohesion: 0.17
+Nodes (21): AjusteSemana, DecisaoPeriodo, ajusteDaSemana(), decisaoDoPeriodo(), diaIso(), limiteDoIntervalo(), limiteProporcional(), SEMANA (+13 more)
 
-### Community 197 - "contaNaGradeOrigem.ts"
-Cohesion: 0.32
-Nodes (10): classificarOrigemContaNaGrade(), contaNaGradeEfetiva(), ContaNaGradeOrigem, excecaoLegada(), testClassificaOLegadoAntesDaRegraNova(), testOrigemExplicitaNaoReclassifica(), testRegraNovaContaLiveEReter(), contaNaGradePadrao() (+2 more)
+### Community 197 - "getUserInitials"
+Cohesion: 0.48
+Nodes (5): getUserInitials(), testInitialsFallback(), testInitialsFromFullName(), testInitialsFromSingleName(), tests
 
-### Community 198 - "estoque.ts"
-Cohesion: 0.31
-Nodes (9): contarEstoque(), entraNoEstoque(), EstoqueContent, PostableContent, item(), testContaProntoSemDataDeReferencia(), testTextoNaoInventaAlvo(), textoEstoque() (+1 more)
+### Community 198 - "isWritingWorkspaceEnabled"
+Cohesion: 0.40
+Nodes (8): DEFAULT_WRITING_WORKSPACE, getWritingWorkspaceSettings(), isWritingWorkspaceEnabled(), testIgnoresInvalidPreference(), testReadsSavedToggle(), tests, testStartsDisabledForEveryAccount(), WritingWorkspaceSettings
 
 ### Community 199 - "Fase 1 — Carregando ≠ vazio"
 Cohesion: 0.40
@@ -1108,12 +1100,12 @@ Cohesion: 0.40
 Nodes (5): Aceite, Causa (verificada), Fase 2 — Roteiro no celular, Mudanças, Problema
 
 ### Community 201 - "pautaConteudo.ts"
-Cohesion: 0.38
-Nodes (9): HTML_VAZIO, htmlEmBranco(), POST_IT_SEM_PAUTA, postItTemPauta(), roteiroTemPauta(), temPautaLigada(), testPostIt(), testRoteiro() (+1 more)
+Cohesion: 0.47
+Nodes (4): ref_node_test, ACTIVE_READING, resolveCurrentRead(), book()
 
 ### Community 202 - "currentUserId"
-Cohesion: 0.05
-Nodes (51): Dialog(), FixedPanelModal(), FixedPanelModalProps, buildPaginationItems(), PaginationBar(), PaginationBarProps, QueryViewState(), QueryViewStateProps (+43 more)
+Cohesion: 0.16
+Nodes (16): QueryViewState(), QueryViewStateProps, testEmptyOnlyAfterSettled(), testErrorOnlyAfterSettled(), testLoadingWhileAuthOrDisabled(), testLoadingWhileFetchInFlight(), testReadyWithItems(), QueryViewStatus (+8 more)
 
 ### Community 203 - "Fase 3 — Editorial"
 Cohesion: 0.40
@@ -1124,8 +1116,8 @@ Cohesion: 0.40
 Nodes (5): Arquivos impactados, Decisoes tecnicas, Fase 2 - Conteudos e Historico, Ordem, Status
 
 ### Community 205 - "getUserInitials"
-Cohesion: 0.16
-Nodes (18): ContentDetailHeader(), BookDetailPage(), getCoverageLabels(), getCreatorLabel(), getItemTypeLabel(), getProgressLabels(), getTechnicalLabels(), SeriesCreateContentPanel() (+10 more)
+Cohesion: 0.13
+Nodes (19): ref_virtual_pwa_register, prefetchPrimaryRoutes(), MobileScrollLockContext, MobileScrollLockContextValue, MobileScrollLockProvider(), useMobileScrollLock(), useHideOnScroll(), usePullToRefresh() (+11 more)
 
 ### Community 206 - "Auditoria do Sistema Atual"
 Cohesion: 0.22
@@ -1155,17 +1147,17 @@ Nodes (5): Arquivos impactados, Decisoes tecnicas, Fase 6 - Configuracoes e modu
 Cohesion: 0.40
 Nodes (5): Arquivos impactados, Decisoes tecnicas, Fase 8 - Biblioteca, Ordem, Status
 
-### Community 214 - "getGentleExperienceSettings"
+### Community 214 - "HistorySection.tsx"
 Cohesion: 0.31
-Nodes (9): DEFAULT_GENTLE_EXPERIENCE, GentleExperienceSettings, getGentleExperienceSettings(), readBooleanSetting(), testDefaultsToGentleExperience(), testIgnoresInvalidIndividualValues(), testIgnoresInvalidPreferenceShape(), testMergesSavedPartialPreferences() (+1 more)
+Nodes (6): ContentHistoryPanelProps, formatDateTime(), HistorySection(), HistorySectionProps, STATUS_RANK, statusRank()
 
 ### Community 215 - "Core Creator"
 Cohesion: 0.40
 Nodes (4): Core Creator, Product Voice Guardrail, Run Locally, Validation
 
-### Community 216 - "RequireAuth.tsx"
-Cohesion: 0.46
-Nodes (7): buildMarkStandaloneContentRecordedTransition(), createContent(), testAddsScriptToExistingBlock(), testDoesNotDuplicateScriptInBlock(), testMarksStandaloneContentAsRecorded(), testPreservesExistingRecordingMilestone(), tests
+### Community 216 - "LooksSettingsPage"
+Cohesion: 0.50
+Nodes (3): LooksSettingsPage(), saveCenario(), saveLook()
 
 ### Community 218 - "2. ARQUITETURA DE INFORMAÇÃO"
 Cohesion: 0.40
@@ -1174,10 +1166,6 @@ Nodes (5): 2. ARQUITETURA DE INFORMAÇÃO, 4 sistemas que organizam o produto, B
 ### Community 219 - "Fase 3 — Contraste e estados desabilitados"
 Cohesion: 0.50
 Nodes (4): Aceite, Fase 3 — Contraste e estados desabilitados, Medições, Mudanças
-
-### Community 220 - "PostItNote.tsx"
-Cohesion: 0.67
-Nodes (3): buildContentScheduleSelect(), CONTENT_SCHEDULE_SELECT_COLUMNS, contentPlataformasSelect()
 
 ### Community 222 - "Fase 1 - Dominio central e queries"
 Cohesion: 0.50
@@ -1191,9 +1179,9 @@ Nodes (4): Arquitetura-Alvo, Estrutura sugerida, Principio, Shell mobile
 Cohesion: 0.50
 Nodes (4): Depois adaptar containers, Ordem Recomendada de Arquivos, Por ultimo, Primeiro criar
 
-### Community 227 - "ref_node_test"
-Cohesion: 0.47
-Nodes (4): ref_node_test, ACTIVE_READING, resolveCurrentRead(), book()
+### Community 227 - "Fase 1 — Integridade de dados"
+Cohesion: 0.50
+Nodes (4): 1.1 Coluna ausente não é o mesmo que valor recusado (review #1), 1.2 `force: true` volta a buscar de verdade (review #2), 1.3 Não apagar o que não foi lido (review #6), Fase 1 — Integridade de dados
 
 ### Community 229 - "dotenv"
 Cohesion: 0.67
@@ -1207,13 +1195,9 @@ Nodes (3): `projetos` (substitui `campaigns` + absorve `partnerships`), Tabela r
 Cohesion: 0.50
 Nodes (3): content-os, supabase, node
 
-### Community 274 - "advanced-jsonb-indexing.md"
-Cohesion: 0.50
-Nodes (5): LegacyCreationRedirect(), LegacyCreationRedirectProps, buildLegacyCreationTarget(), LegacyCreationSource, resolveLegacyCreationTab()
-
 ### Community 275 - "PeriodoEditorialControl.tsx"
-Cohesion: 0.21
-Nodes (13): textoDeMetrica(), AnalisesPage(), ModoVista, REDE_ROTULO, capitalizar(), hojeIso(), intervaloDoModo(), ModoPeriodo (+5 more)
+Cohesion: 0.15
+Nodes (18): BaseDoPeriodo, textoDeMetrica(), AnalisesPage(), ModoVista, capitalizar(), hojeIso(), intervaloDoModo(), ModoPeriodo (+10 more)
 
 ### Community 276 - "Navegacao Mobile Desejada"
 Cohesion: 0.67
@@ -1223,12 +1207,8 @@ Nodes (3): Bottom nav, Navegacao Mobile Desejada, Observacao importante
 Cohesion: 0.67
 Nodes (3): Estrategia de Implementacao, Padrao tecnico recomendado, Regra de ouro de implementacao
 
-### Community 307 - "MoreMenuItem"
-Cohesion: 0.50
-Nodes (4): MoreMenuItem, CreationItemMenuProps, CreationOverflowMenu(), CreationOverflowMenuProps
-
 ## Knowledge Gaps
-- **1673 isolated node(s):** `supabase`, `node`, `name`, `private`, `version` (+1668 more)
+- **1684 isolated node(s):** `supabase`, `node`, `name`, `private`, `version` (+1679 more)
   These have ≤1 connection - possible missing edges or undocumented components.
 - **82 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
@@ -1236,16 +1216,16 @@ Nodes (4): MoreMenuItem, CreationItemMenuProps, CreationOverflowMenu(), Creation
 _Questions this graph is uniquely positioned to answer:_
 
 - **Why does `log()` connect `SendToRecordingSheet.tsx` to `.constructor`, `domainCacheSync.ts`, `NetworkFirst`?**
-  _High betweenness centrality (0.088) - this node is a cross-community bridge._
-- **Why does `cn()` connect `utils.ts` to `BookDetailPage.tsx`, `isWritingWorkspaceEnabled`, `cn`, `Contrato minimo por componente`, `workbox-ca84f546.js`, `generateUUID`, `Dialog.tsx`, `ContentOperationalPanel.tsx`, `AnnotationNoteCard.tsx`, `ProjectDetailPage.tsx`, `recordingWorkflow.ts`, `LibraryPage.tsx`, `statusClasses.ts`, `seriesScriptTemplate.ts`, `contentPipeline.ts`, `Router`, `.constructor`, `Sidebar.tsx`, `ContentManageWorkspace.tsx`, `pilarConstants.ts`, `SettingsPage.tsx`, `CreationHubPage.tsx`, `SeriesDetailMobileScreen.tsx`, `EditorialCalendarPage.tsx`, `htmlToReadableText`, `normalizeContentStatus`, `ProjectDetailPage.tsx`, `getDisplayStatus`, `platformKey`, `AppShell.tsx`, `ContentDetailHeader.tsx`, `FuncaoEditorial`, `dailySession.ts`, `PlanejamentoPage.tsx`, `currentUserId`, `resolvePlatformIds`, `currentUserId`, `DashboardPage.tsx`, `SeriesScriptsPage.tsx`, `getUserInitials`, `supabase.ts`, `serieColors.ts`, `CaptionQuickCard.tsx`, `ideaFilters.ts`, `destinations.ts`, `PostingTimesSettingsPage.tsx`, `computeSeriesContentStats.ts`, `ContentScriptWorkspace.tsx`, `1. ENTIDADES E DADOS`, `PostingTimesEditor.tsx`, `QUESTIONNAIRE.md — Content OS`?**
-  _High betweenness centrality (0.058) - this node is a cross-community bridge._
+  _High betweenness centrality (0.086) - this node is a cross-community bridge._
+- **Why does `cn()` connect `cn` to `isWritingWorkspaceEnabled`, `useAppContext`, `workbox-ca84f546.js`, `generateUUID`, `PeriodoPanel.tsx`, `Dialog.tsx`, `ContentOperationalPanel.tsx`, `ProjectDetailPage.tsx`, `recordingWorkflow.ts`, `pautaConteudo.ts`, `PeriodoEditorialControl.tsx`, `statusClasses.ts`, `fetchDataDomains`, `supabase.ts`, `contentPipeline.ts`, `Router`, `.constructor`, `Sidebar.tsx`, `ContentPipelineStepper.tsx`, `utils.ts`, `SettingsPage.tsx`, `CreationHubPage.tsx`, `SeriesDetailMobileScreen.tsx`, `normalizeContentStatus`, `ProjectDetailPage.tsx`, `getDisplayStatus`, `platformKey`, `AppShell.tsx`, `ContentDetailHeader.tsx`, `getGentleExperienceSettings`, `PlanejamentoPage.tsx`, `currentUserId`, `resolvePlatformIds`, `demoteContentToIdea.ts`, `currentUserId`, `SeriesScriptsPage.tsx`, `getUserInitials`, `supabase.ts`, `serieColors.ts`, `pilarPrincipalDaSerie`, `CaptionQuickCard.tsx`, `HistorySection.tsx`, `ideaFilters.ts`, `temasPlanejamento.ts`, `destinations.ts`, `PostingTimesSettingsPage.tsx`, `computeSeriesContentStats.ts`, `contentPipeline.ts`, `1. ENTIDADES E DADOS`, `PostingTimesEditor.tsx`, `QUESTIONNAIRE.md — Content OS`?**
+  _High betweenness centrality (0.061) - this node is a cross-community bridge._
 - **Why does `CacheFirst` connect `useIsMobile` to `.constructor`?**
-  _High betweenness centrality (0.046) - this node is a cross-community bridge._
+  _High betweenness centrality (0.045) - this node is a cross-community bridge._
 - **What connects `supabase`, `node`, `name` to the rest of the system?**
-  _1673 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _1684 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `BookDetailPage.tsx` be split into smaller, more focused modules?**
-  _Cohesion score 0.0936026936026936 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.06812291743798593 - nodes in this community are weakly interconnected._
 - **Should `programacao.ts` be split into smaller, more focused modules?**
   _Cohesion score 0.09158186864014801 - nodes in this community are weakly interconnected._
-- **Should `PilarEditForm.tsx` be split into smaller, more focused modules?**
-  _Cohesion score 0.03273809523809524 - nodes in this community are weakly interconnected._
+- **Should `useAppContext` be split into smaller, more focused modules?**
+  _Cohesion score 0.07439024390243902 - nodes in this community are weakly interconnected._

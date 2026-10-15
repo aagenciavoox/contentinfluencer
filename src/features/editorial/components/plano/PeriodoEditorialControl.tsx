@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { addDays, addMonths, differenceInCalendarDays, endOfMonth, format, parseISO, startOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Pencil } from 'lucide-react';
+import { ConfirmModal } from '../../../../components/feedback/modals/ConfirmModal';
 import { AppButton } from '../../../../components/ui/AppButton';
 import { Surface } from '../../../../components/ui/Surface';
 import { Text } from '../../../../components/ui/Text';
@@ -147,9 +148,13 @@ export function periodoVizinho(periodo: PeriodoSelecionado, direcao: -1 | 1): Pe
   };
 }
 
+function periodosIguais(a: PeriodoSelecionado, b: PeriodoSelecionado): boolean {
+  return a.modo === b.modo && a.inicio === b.inicio && a.fim === b.fim;
+}
+
 /**
- * Escolhe o período do Editorial. Aparece uma vez, no topo da aba Período, e não tem cara
- * de aba: setas para andar no tempo e um botão para trocar entre semana, mês e intervalo.
+ * Período do Editorial. A análise e os dados são calculados a partir do intervalo salvo:
+ * a pessoa vê o período atual e só troca depois de editar e confirmar, porque os cálculos mudam.
  */
 export function PeriodoEditorialControl({
   periodo,
@@ -158,28 +163,49 @@ export function PeriodoEditorialControl({
   periodo: PeriodoSelecionado;
   onChange: (periodo: PeriodoSelecionado) => void;
 }) {
+  const [editando, setEditando] = useState(false);
   const [rascunho, setRascunho] = useState(periodo);
+  const [confirmarTroca, setConfirmarTroca] = useState(false);
   const intervaloInvalido = rascunho.modo === 'intervalo' && rascunho.inicio > rascunho.fim;
   const hoje = hojeIso();
-  const contemHoje = periodo.inicio <= hoje && hoje <= periodo.fim;
+  const contemHoje = rascunho.inicio <= hoje && hoje <= rascunho.fim;
 
   useEffect(() => {
-    setRascunho(periodo);
-  }, [periodo]);
+    if (!editando) setRascunho(periodo);
+  }, [editando, periodo]);
 
   const escolherModo = (modo: ModoPeriodo) => {
     if (modo === 'intervalo') {
-      onChange({ ...periodo, modo: 'intervalo' });
+      setRascunho(atual => ({ ...atual, modo: 'intervalo' }));
       return;
     }
-    onChange({ modo, ...intervaloDoModo(modo) });
+    setRascunho({ modo, ...intervaloDoModo(modo) });
   };
 
   const mudarData = (lado: 'inicio' | 'fim', valor: string) => {
     if (!DATA.test(valor)) return;
-    const next: PeriodoSelecionado = { ...rascunho, modo: 'intervalo', [lado]: valor };
-    setRascunho(next);
-    if (next.inicio <= next.fim) onChange(next);
+    setRascunho(atual => ({ ...atual, modo: 'intervalo', [lado]: valor }));
+  };
+
+  const pedirSalvar = () => {
+    if (intervaloInvalido) return;
+    if (periodosIguais(rascunho, periodo)) {
+      setEditando(false);
+      return;
+    }
+    setConfirmarTroca(true);
+  };
+
+  const aplicarTroca = () => {
+    onChange(rascunho);
+    setConfirmarTroca(false);
+    setEditando(false);
+  };
+
+  const cancelar = () => {
+    setRascunho(periodo);
+    setConfirmarTroca(false);
+    setEditando(false);
   };
 
   const navClass =
@@ -187,81 +213,127 @@ export function PeriodoEditorialControl({
 
   return (
     <Surface padding="none" className="stack-sm px-4 py-3">
-      <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
-        {/* O modo é um valor, não uma aba: a página já tem a fileira de abas do Editorial. */}
-        <div
-          role="radiogroup"
-          aria-label="Período"
-          className="inline-flex shrink-0 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] p-0.5"
-        >
-          {MODOS.map(modo => {
-            const ativo = periodo.modo === modo.id;
-            return (
-              <button
-                key={modo.id}
-                type="button"
-                role="radio"
-                aria-checked={ativo}
-                onClick={() => escolherModo(modo.id)}
-                className={cn(
-                  'min-h-9 rounded-[calc(var(--radius-input)-2px)] border px-4 t-body transition-colors focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] pointer-coarse:min-h-11',
-                  ativo
-                    ? 'border-[var(--text-primary)] bg-[var(--bg-hover)] font-semibold text-[var(--text-primary)]'
-                    : 'border-transparent text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]',
-                )}
-              >
-                {modo.rotulo}
+      {editando ? (
+        <>
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+            <div
+              role="radiogroup"
+              aria-label="Período"
+              className="inline-flex shrink-0 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] p-0.5"
+            >
+              {MODOS.map(modo => {
+                const ativo = rascunho.modo === modo.id;
+                return (
+                  <button
+                    key={modo.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={ativo}
+                    onClick={() => escolherModo(modo.id)}
+                    className={cn(
+                      'min-h-9 rounded-[calc(var(--radius-input)-2px)] border px-4 t-body transition-colors focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] pointer-coarse:min-h-11',
+                      ativo
+                        ? 'border-[var(--text-primary)] bg-[var(--bg-hover)] font-semibold text-[var(--text-primary)]'
+                        : 'border-transparent text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]',
+                    )}
+                  >
+                    {modo.rotulo}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="flex min-w-0 items-center gap-3">
+              <button type="button" className={navClass} aria-label="Período anterior" onClick={() => setRascunho(periodoVizinho(rascunho, -1))}>
+                <ChevronLeft className="h-4 w-4" aria-hidden />
               </button>
-            );
-          })}
-        </div>
+              <Text variant="sectionTitle" as="h2" className="min-w-0 tabular-nums">{rotuloDoPeriodo(rascunho)}</Text>
+              <button type="button" className={navClass} aria-label="Próximo período" onClick={() => setRascunho(periodoVizinho(rascunho, 1))}>
+                <ChevronRight className="h-4 w-4" aria-hidden />
+              </button>
+              {!contemHoje && rascunho.modo !== 'intervalo' ? (
+                <AppButton variant="secondary" size="sm" onClick={() => escolherModo(rascunho.modo)}>
+                  Hoje
+                </AppButton>
+              ) : null}
+            </div>
 
-        <div className="flex min-w-0 items-center gap-3">
-          <button type="button" className={navClass} aria-label="Período anterior" onClick={() => onChange(periodoVizinho(periodo, -1))}>
-            <ChevronLeft className="h-4 w-4" aria-hidden />
-          </button>
-          <Text variant="sectionTitle" as="h2" className="min-w-0 tabular-nums">{rotuloDoPeriodo(periodo)}</Text>
-          <button type="button" className={navClass} aria-label="Próximo período" onClick={() => onChange(periodoVizinho(periodo, 1))}>
-            <ChevronRight className="h-4 w-4" aria-hidden />
-          </button>
-          {!contemHoje && periodo.modo !== 'intervalo' ? (
-            <AppButton variant="secondary" size="sm" onClick={() => escolherModo(periodo.modo)}>
-              Hoje
-            </AppButton>
+            <div className="flex flex-wrap items-end gap-3 lg:ml-auto">
+              <label className="flex flex-col gap-1" htmlFor="periodo-inicio">
+                <Text variant="meta" as="span" className="text-[var(--text-secondary)]">De</Text>
+                <input
+                  id="periodo-inicio"
+                  type="date"
+                  value={rascunho.inicio}
+                  onChange={event => mudarData('inicio', event.target.value)}
+                  className={CAMPO_DATA}
+                />
+              </label>
+              <label className="flex flex-col gap-1" htmlFor="periodo-fim">
+                <Text variant="meta" as="span" className="text-[var(--text-secondary)]">Até</Text>
+                <input
+                  id="periodo-fim"
+                  type="date"
+                  value={rascunho.fim}
+                  onChange={event => mudarData('fim', event.target.value)}
+                  className={CAMPO_DATA}
+                />
+              </label>
+            </div>
+          </div>
+          {intervaloInvalido ? (
+            <Text variant="meta" className="text-[var(--accent-red)]">
+              A data inicial precisa vir antes da final.
+            </Text>
           ) : null}
+          <div className="flex flex-wrap items-center justify-end gap-2 border-t border-[var(--border-color)] pt-3">
+            <Text variant="secondary" as="p" className="mr-auto max-w-xl text-[var(--text-secondary)]">
+              Escolha semana, mês ou intervalo e salve. Os dados e a análise são calculados a partir deste intervalo.
+            </Text>
+            <AppButton variant="secondary" size="sm" onClick={cancelar}>
+              Cancelar
+            </AppButton>
+            <AppButton
+              variant="primary"
+              size="sm"
+              onClick={pedirSalvar}
+              disabled={intervaloInvalido}
+              disabledReason={intervaloInvalido ? 'A data inicial precisa vir antes da final.' : undefined}
+            >
+              Salvar
+            </AppButton>
+          </div>
+        </>
+      ) : (
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0 stack-xs">
+            <Text variant="label" as="p">{MODOS.find(modo => modo.id === periodo.modo)?.rotulo}</Text>
+            <Text variant="sectionTitle" as="h2" className="tabular-nums">{rotuloDoPeriodo(periodo)}</Text>
+            <Text variant="secondary" className="text-[var(--text-secondary)]">
+              Os dados e a análise são calculados a partir deste intervalo.
+            </Text>
+          </div>
+          <AppButton
+            variant="secondary"
+            size="sm"
+            leftIcon={<Pencil className="h-4 w-4" />}
+            onClick={() => {
+              setRascunho(periodo);
+              setEditando(true);
+            }}
+          >
+            Editar
+          </AppButton>
         </div>
-
-        <div className="flex flex-wrap items-end gap-3 lg:ml-auto">
-          <label className="flex flex-col gap-1" htmlFor="periodo-inicio">
-            <Text variant="meta" as="span" className="text-[var(--text-secondary)]">De</Text>
-            <input
-              id="periodo-inicio"
-              type="date"
-              value={rascunho.inicio}
-              onChange={event => mudarData('inicio', event.target.value)}
-              className={CAMPO_DATA}
-            />
-          </label>
-          <label className="flex flex-col gap-1" htmlFor="periodo-fim">
-            <Text variant="meta" as="span" className="text-[var(--text-secondary)]">Até</Text>
-            <input
-              id="periodo-fim"
-              type="date"
-              value={rascunho.fim}
-              onChange={event => mudarData('fim', event.target.value)}
-              className={CAMPO_DATA}
-            />
-          </label>
-          <Text variant="secondary" as="p" className="hidden max-w-[11rem] self-center border-l border-[var(--border-color)] pl-4 text-[var(--text-secondary)] xl:block">
-            Metas e comparações deste intervalo.
-          </Text>
-        </div>
-      </div>
-      {intervaloInvalido ? (
-        <Text variant="meta" className="text-[var(--accent-red)]">
-          A data inicial precisa vir antes da final.
-        </Text>
-      ) : null}
+      )}
+      <ConfirmModal
+        open={confirmarTroca}
+        message="Trocar o período muda os cálculos. Os dados e a análise passam a ser criados a partir do novo intervalo."
+        confirmLabel="Trocar período"
+        cancelLabel="Manter este período"
+        onConfirm={aplicarTroca}
+        onCancel={() => setConfirmarTroca(false)}
+      />
     </Surface>
   );
 }

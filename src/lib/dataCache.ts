@@ -37,6 +37,26 @@ class DataCache {
     return Date.now() - entry.fetchedAt <= FRESH_TTL_MS;
   }
 
+  getDomainFetchedAt(key: string): number | null {
+    const entry = this.domainEntries.get(key);
+    if (!entry) return null;
+    if (Date.now() - entry.fetchedAt > STALE_TTL_MS) {
+      this.domainEntries.delete(key);
+      return null;
+    }
+    return entry.fetchedAt;
+  }
+
+  listDomainStamps(): Array<{ key: string; fetchedAt: number }> {
+    const now = Date.now();
+    const stamps: Array<{ key: string; fetchedAt: number }> = [];
+    for (const [key, entry] of this.domainEntries) {
+      if (now - entry.fetchedAt > STALE_TTL_MS) continue;
+      stamps.push({ key, fetchedAt: entry.fetchedAt });
+    }
+    return stamps;
+  }
+
   getValue<T>(key: string): T | null {
     const entry = this.valueEntries.get(key);
     if (!entry) return null;

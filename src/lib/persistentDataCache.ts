@@ -129,6 +129,49 @@ export function isPersistedDomainFresh(entry: PersistedEntry): boolean {
   return Date.now() - entry.fetchedAt <= PERSISTENT_FRESH_MS;
 }
 
+export function domainNamesFromCacheKey(cacheKey: string): string[] {
+  const body = cacheKey.startsWith('domain:') ? cacheKey.slice('domain:'.length) : cacheKey;
+  return body.split('|').filter(Boolean);
+}
+
+/**
+ * Uma busca combinada (analytics|schedule) pode ficar fresca com lista vazia
+ * enquanto a busca só do horário já gravou a versão nova. A chave mais antiga
+ * não pode esconder essa versão.
+ */
+export function hasNewerOverlappingDomainCache(
+  cacheKey: string,
+  fetchedAt: number,
+  others: ReadonlyArray<{ key: string; fetchedAt: number }>,
+): boolean {
+  const names = new Set(domainNamesFromCacheKey(cacheKey));
+  return others.some(other => {
+    if (other.key === cacheKey || other.fetchedAt <= fetchedAt) return false;
+    return domainNamesFromCacheKey(other.key).some(name => names.has(name));
+  });
+}
+
+/** Idade de cada cache de domínio deste usuário, sem as páginas de lista. */
+export function listPersistedDomainStamps(userId: string): Array<{ key: string; fetchedAt: number }> {
+  if (typeof window === 'undefined') return [];
+  const prefix = `${STORAGE_PREFIX}${userId}:`;
+  const stamps: Array<{ key: string; fetchedAt: number }> = [];
+  try {
+    for (let index = 0; index < window.localStorage.length; index += 1) {
+      const storageKey = window.localStorage.key(index);
+      if (!storageKey?.startsWith(prefix) || storageKey.includes(PAGE_SEGMENT)) continue;
+      const cacheKey = storageKey.slice(prefix.length);
+      if (!cacheKey.startsWith('domain:')) continue;
+      const entry = readStoredJson<PersistedEntry | null>(storageKey, null);
+      if (typeof entry?.fetchedAt !== 'number') continue;
+      stamps.push({ key: cacheKey, fetchedAt: entry.fetchedAt });
+    }
+  } catch {
+    return stamps;
+  }
+  return stamps;
+}
+
 // Primeira página de listas paginadas (ex.: Biblioteca), para a lista aparecer na hora.
 
 /** Consultas guardadas por lista. Buscas digitadas não enchem o armazenamento. */

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import type {AppData, Content} from './database.ts';
-import {canDomainPayloadSatisfyRequest, sanitizeDomainPayload} from './persistentDataCache.ts';
+import {canDomainPayloadSatisfyRequest, hasNewerOverlappingDomainCache, sanitizeDomainPayload} from './persistentDataCache.ts';
 
 function content(overrides: Partial<Content> = {}): Content {
   return {
@@ -46,4 +46,21 @@ assert.equal(canDomainPayloadSatisfyRequest(['content-schedule'], lightweightPay
 assert.equal(canDomainPayloadSatisfyRequest(['content-summary'], lightweightPayload), true);
 assert.equal(canDomainPayloadSatisfyRequest(['content'], emptyPayload), false);
 assert.equal(canDomainPayloadSatisfyRequest(['production'], emptyPayload), true);
+
+assert.equal(hasNewerOverlappingDomainCache('domain:analytics|schedule', 100, [
+  {key: 'domain:schedule', fetchedAt: 200},
+]), true);
+assert.equal(hasNewerOverlappingDomainCache('domain:analytics|schedule', 200, [
+  {key: 'domain:schedule', fetchedAt: 100},
+]), false);
+assert.equal(hasNewerOverlappingDomainCache('domain:analytics|schedule', 100, [
+  {key: 'domain:analytics|schedule', fetchedAt: 300},
+]), false);
+assert.equal(hasNewerOverlappingDomainCache('domain:schedule', 100, [
+  {key: 'domain:library', fetchedAt: 300},
+]), false);
+assert.equal(hasNewerOverlappingDomainCache('domain:content', 100, [
+  {key: 'domain:content-schedule', fetchedAt: 300},
+]), false);
+
 console.log('persistentDataCache.test.ts passed');

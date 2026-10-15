@@ -6,7 +6,7 @@
 CREATE TABLE IF NOT EXISTS posting_times (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id     UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  platform_id UUID REFERENCES platforms(id) ON DELETE CASCADE, -- NULL = horário global
+  platform_id TEXT REFERENCES platforms(id) ON DELETE CASCADE, -- NULL = horário global
   weekday     SMALLINT NOT NULL CHECK (weekday BETWEEN 0 AND 6),
   time        TEXT NOT NULL CHECK (time ~ '^\d{2}:\d{2}$'),
   created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),

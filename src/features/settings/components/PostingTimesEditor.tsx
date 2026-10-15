@@ -1,5 +1,5 @@
-import {useEffect, useMemo, useState} from 'react';
-import {Globe, Plus, Trash2, UserRound, X} from 'lucide-react';
+import {useEffect, useMemo, useRef, useState} from 'react';
+import {Globe, Pencil, Plus, Trash2, UserRound, X} from 'lucide-react';
 import {useAppContext} from '../../../context/AppContext';
 import {AppButton} from '../../../components/ui/AppButton';
 import {SelectField} from '../../../components/ui/SelectField';
@@ -80,14 +80,16 @@ const NOME_DO_DIA: Record<Weekday, string> = {
 };
 
 /**
- * Horários de postagem numa tabela por dia, sempre editável. As mudanças ficam
- * nesta tela até "Salvar alterações". O padrão geral vale nos dias sem horário da conta.
+ * Horários de postagem numa tabela por dia. A pessoa vê os horários e só altera
+ * depois de editar; "Salvar alterações" grava o rascunho. O padrão geral vale
+ * nos dias sem horário da conta.
  */
 export function PostingTimesEditor({
   contaInicialId,
   aoSalvar,
   layout = 'painel',
   onDirtyChange,
+  comecarEditando = false,
 }: {
   /** Conta já escolhida na tela que abriu o editor. Null abre no padrão geral. */
   contaInicialId?: string | null;
@@ -96,6 +98,8 @@ export function PostingTimesEditor({
   layout?: 'pagina' | 'painel';
   /** Avisa a tela quando há alteração sem salvar (para ela não ter dois botões principais). */
   onDirtyChange?: (dirty: boolean) => void;
+  /** O painel de configurar já abre pronto para editar. */
+  comecarEditando?: boolean;
 } = {}) {
   const {state, ensureDataDomains} = useAppContext();
   const [selectedPlatformId, setSelectedPlatformId] = useState<string | null>(contaInicialId ?? null);
@@ -104,14 +108,16 @@ export function PostingTimesEditor({
     [state.postingTimeEntries],
   );
   const [draft, setDraft] = useState<ScheduleDraft>(savedDraft);
+  const [editando, setEditando] = useState(comecarEditando);
   // Enquanto ninguém mexeu, o rascunho acompanha o que chega do servidor.
   const [touched, setTouched] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const isDirty = touched && !draftsMatch(draft, savedDraft);
+  const pendentesRef = useRef<Partial<Record<Weekday, string>>>({});
+  const isDirty = editando && touched && !draftsMatch(draft, savedDraft);
 
   useEffect(() => {
-    if (!touched) setDraft(savedDraft);
-  }, [savedDraft, touched]);
+    if (!editando) setDraft(savedDraft);
+  }, [savedDraft, editando]);
 
   useEffect(() => {
     onDirtyChange?.(isDirty);
@@ -144,12 +150,35 @@ export function PostingTimesEditor({
     }));
   }
 
-  function handleAdd(weekday: Weekday, time: string) {
+  function incluirHorario(base: ScheduleDraft, weekday: Weekday, time: string): ScheduleDraft {
     const normalized = normalizeTime(time);
-    if (!normalized) return;
-    const current = timesFor(draft, selectedKey, weekday);
-    if (current.length >= MAX_TIMES_PER_DAY || current.includes(normalized)) return;
-    updateDay(weekday, [...current, normalized]);
+    if (!normalized) return base;
+    const current = timesFor(base, selectedKey, weekday);
+    if (current.length >= MAX_TIMES_PER_DAY || current.includes(normalized)) return base;
+    return {
+      ...base,
+      [selectedKey]: {
+        ...base[selectedKey],
+        [weekday]: [...current, normalized].sort(),
+      },
+    };
+  }
+
+  function rascunhoPronto(base: ScheduleDraft): ScheduleDraft {
+    let next = base;
+    for (const weekday of WEEKDAYS) {
+      const pendente = pendentesRef.current[weekday];
+      if (pendente) next = incluirHorario(next, weekday, pendente);
+    }
+    return next;
+  }
+
+  function handleAdd(weekday: Weekday, time: string) {
+    const next = incluirHorario(draft, weekday, time);
+    if (next === draft) return;
+    delete pendentesRef.current[weekday];
+    setTouched(true);
+    setDraft(next);
   }
 
   function handleRemove(weekday: Weekday, time: string) {
@@ -168,20 +197,39 @@ export function PostingTimesEditor({
     });
   }
 
-  function cancelEditing() {
+  function comecarEdicao() {
+    pendentesRef.current = {};
     setDraft(savedDraft);
     setTouched(false);
+    setEditando(true);
+  }
+
+  function cancelEditing() {
+    pendentesRef.current = {};
+    setDraft(savedDraft);
+    setTouched(false);
+    setEditando(false);
   }
 
   async function handleSave() {
-    const keys = new Set([...Object.keys(savedDraft), ...Object.keys(draft)]);
+    const pronto = rascunhoPronto(draft);
+    pendentesRef.current = {};
+    if (draftsMatch(pronto, savedDraft)) {
+      setDraft(savedDraft);
+      setTouched(false);
+      setEditando(false);
+      return;
+    }
+    setDraft(pronto);
+    setTouched(true);
+    const keys = new Set([...Object.keys(savedDraft), ...Object.keys(pronto)]);
     setIsSaving(true);
     try {
       notifySaveFeedback({status: 'saving', message: 'Salvando horários…'});
       for (const key of keys) {
         const platformId = key === GLOBAL_TAB_ID ? null : key;
         for (const weekday of WEEKDAYS) {
-          const next = timesFor(draft, key, weekday);
+          const next = timesFor(pronto, key, weekday);
           const previous = timesFor(savedDraft, key, weekday);
           if (next.join('|') === previous.join('|')) continue;
           await replacePostingTimesForPlatform(platformId, weekday, next);
@@ -191,6 +239,7 @@ export function PostingTimesEditor({
       broadcastDataSync();
       notifySaveFeedback({status: 'success', message: 'Horários salvos'});
       setTouched(false);
+      setEditando(false);
       aoSalvar?.();
     } catch (err) {
       notifySaveFeedback({status: 'error', message: 'Não foi possível salvar os horários. Verifique sua conexão e tente novamente.', detail: getErrorMessage(err)});
@@ -199,19 +248,24 @@ export function PostingTimesEditor({
     }
   }
 
-  const acoes = (
+  const acoes = editando ? (
     <div className="flex flex-wrap items-center gap-2">
-      <AppButton variant="secondary" onClick={cancelEditing} disabled={!touched || isSaving}>
+      <AppButton variant="secondary" size="sm" onClick={cancelEditing} disabled={isSaving}>
         Cancelar
       </AppButton>
       <AppButton
-        variant={isDirty ? 'primary' : 'secondary'}
+        variant="primary"
+        size="sm"
         onClick={() => void handleSave()}
-        disabled={!isDirty || isSaving}
+        disabled={isSaving}
       >
         {isSaving ? 'Salvando…' : 'Salvar alterações'}
       </AppButton>
     </div>
+  ) : (
+    <AppButton variant="secondary" size="sm" leftIcon={<Pencil className="h-4 w-4" />} onClick={comecarEdicao}>
+      Editar
+    </AppButton>
   );
 
   const escolha = 'inline-flex min-h-11 items-center gap-2 rounded-[var(--radius-input)] border px-4 t-body transition-colors focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]';
@@ -224,7 +278,9 @@ export function PostingTimesEditor({
         <div className="min-w-0 max-w-2xl">
           {layout === 'pagina' ? <Text variant="sectionTitle" as="h2">Horários de postagem</Text> : null}
           <Text variant="secondary" className="mt-0.5 text-[var(--text-secondary)]">
-            Até {MAX_TIMES_PER_DAY} horários por dia. Os dias sem horário próprio usam o padrão geral. Usados também no Editorial.
+            {editando
+              ? `Até ${MAX_TIMES_PER_DAY} horários por dia. Nada é gravado até salvar.`
+              : `Até ${MAX_TIMES_PER_DAY} horários por dia. Os dias sem horário próprio usam o padrão geral.`}
           </Text>
         </div>
         {acoes}
@@ -277,12 +333,16 @@ export function PostingTimesEditor({
             const fallbackTimes = usingFallback ? timesFor(draft, GLOBAL_TAB_ID, day) : [];
             return (
               <DayRow
-                key={day}
+                key={`${selectedKey}:${day}`}
                 day={day}
                 fimDeSemana={day === 0 || day === 6}
                 specificTimes={specificTimes}
                 fallbackTimes={fallbackTimes}
+                editando={editando}
                 disabled={isSaving}
+                onPending={time => {
+                  pendentesRef.current = {...pendentesRef.current, [day]: time};
+                }}
                 onAdd={time => handleAdd(day, time)}
                 onRemove={time => handleRemove(day, time)}
               />
@@ -291,21 +351,23 @@ export function PostingTimesEditor({
         </ul>
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <Text variant="secondary" className="text-[var(--text-secondary)]" aria-live="polite">
-          {isDirty ? 'Há alterações não salvas.' : 'Nenhuma alteração pendente.'}
-        </Text>
-        <AppButton
-          variant="secondary"
-          size="sm"
-          leftIcon={<Trash2 className="h-4 w-4" />}
-          style={{color: tintedTextColor('var(--danger)')}}
-          disabled={isSaving || !temHorarioNaAba}
-          onClick={handleClearTab}
-        >
-          {contaSelecionada ? `Limpar horários de ${rotuloConta(contaSelecionada)}` : 'Limpar horários'}
-        </AppButton>
-      </div>
+      {editando ? (
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <Text variant="secondary" className="text-[var(--text-secondary)]" aria-live="polite">
+            {isDirty ? 'Há alterações não salvas.' : 'Adicione ou remova horários e salve.'}
+          </Text>
+          <AppButton
+            variant="secondary"
+            size="sm"
+            leftIcon={<Trash2 className="h-4 w-4" />}
+            style={{color: tintedTextColor('var(--danger)')}}
+            disabled={isSaving || !temHorarioNaAba}
+            onClick={handleClearTab}
+          >
+            {contaSelecionada ? `Limpar horários de ${rotuloConta(contaSelecionada)}` : 'Limpar horários'}
+          </AppButton>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -319,15 +381,21 @@ interface DayRowProps {
   fimDeSemana: boolean;
   specificTimes: string[];
   fallbackTimes: string[];
+  editando: boolean;
   disabled: boolean;
+  onPending: (time: string) => void;
   onAdd: (time: string) => void;
   onRemove: (time: string) => void;
 }
 
-function DayRow({day, fimDeSemana, specificTimes, fallbackTimes, disabled, onAdd, onRemove}: DayRowProps) {
+function DayRow({day, fimDeSemana, specificTimes, fallbackTimes, editando, disabled, onPending, onAdd, onRemove}: DayRowProps) {
   const [input, setInput] = useState('');
   const canAdd = specificTimes.length < MAX_TIMES_PER_DAY;
   const nome = NOME_DO_DIA[day];
+
+  useEffect(() => {
+    if (!editando) setInput('');
+  }, [editando]);
 
   function handleAdd() {
     if (!input) return;
@@ -348,18 +416,23 @@ function DayRow({day, fimDeSemana, specificTimes, fallbackTimes, disabled, onAdd
         {specificTimes.map(time => (
           <span
             key={time}
-            className="inline-flex h-9 items-center gap-1 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] pl-3 t-body font-semibold tabular-nums text-[var(--text-primary)]"
+            className={cn(
+              'inline-flex h-9 items-center gap-1 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] t-body font-semibold tabular-nums text-[var(--text-primary)]',
+              editando ? 'pl-3' : 'px-3',
+            )}
           >
             {time}
-            <button
-              type="button"
-              onClick={() => onRemove(time)}
-              disabled={disabled}
-              className="inline-flex h-9 w-9 items-center justify-center rounded-[var(--radius-input)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
-              aria-label={`Remover ${time} de ${nome}`}
-            >
-              <X className="h-3.5 w-3.5" aria-hidden />
-            </button>
+            {editando ? (
+              <button
+                type="button"
+                onClick={() => onRemove(time)}
+                disabled={disabled}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-[var(--radius-input)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+                aria-label={`Remover ${time} de ${nome}`}
+              >
+                <X className="h-3.5 w-3.5" aria-hidden />
+              </button>
+            ) : null}
           </span>
         ))}
         {specificTimes.length === 0 && fallbackTimes.map(time => (
@@ -373,13 +446,19 @@ function DayRow({day, fimDeSemana, specificTimes, fallbackTimes, disabled, onAdd
             <span className="sr-only">(padrão geral)</span>
           </span>
         ))}
-        {canAdd ? (
+        {!editando && specificTimes.length === 0 && fallbackTimes.length === 0 ? (
+          <Text variant="secondary" as="span" className="text-[var(--text-secondary)]">Nenhum horário</Text>
+        ) : null}
+        {editando && canAdd ? (
           <>
             <input
               type="time"
               value={input}
               disabled={disabled}
-              onChange={event => setInput(event.target.value)}
+              onChange={event => {
+                setInput(event.target.value);
+                onPending(event.target.value);
+              }}
               onKeyDown={event => {
                 if (event.key === 'Enter') {
                   event.preventDefault();
