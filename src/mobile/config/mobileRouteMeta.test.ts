@@ -44,6 +44,7 @@ const transcricao = getMobileRouteMeta('/criacao/transcricao');
 assert.equal(transcricao.title, 'Transcrição');
 assert.equal(transcricao.mode, 'back');
 assert.equal(transcricao.backTo, '/criacao');
+assert.equal(getMobileRouteMeta('/criacao/transcricao', '?ver=item-1').backTo, '/criacao/transcricao');
 
 const editorial = getMobileRouteMeta('/editorial', '?aba=funil');
 assert.equal(editorial.title, 'Editorial');

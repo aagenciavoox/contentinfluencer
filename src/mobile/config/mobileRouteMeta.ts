@@ -206,7 +206,8 @@ export function getMobileRouteMeta(pathname: string, search = ''): MobileRouteMe
       return {
         title: 'Transcrição',
         mode: 'back',
-        backTo: '/criacao',
+        // Lendo o texto de um vídeo (`?ver=`), voltar leva para a fila.
+        backTo: new URLSearchParams(search).has('ver') ? '/criacao/transcricao' : '/criacao',
         titleVariant: 'compact-center',
       };
     case '/conteudos':

@@ -1,3 +1,5 @@
+export type TranscriptLanguage = 'pt' | 'en' | 'es' | 'auto';
+
 export type TranscriptSegment = {
   start: number;
   end: number;
@@ -56,4 +58,13 @@ export function buildPlainText(transcript: Pick<Transcript, 'text' | 'segments'>
 export function transcriptFileName(sourceName: string, extension: 'txt' | 'srt') {
   const base = sourceName.replace(/\.[^./\\]+$/, '').trim() || 'transcricao';
   return `${base}.${extension}`;
+}
+
+export type NamedTranscript = { fileName: string; transcript: Pick<Transcript, 'text' | 'segments'> };
+
+/** Várias transcrições num .txt só, cada uma abaixo do nome do vídeo. */
+export function buildCombinedText(items: readonly NamedTranscript[]) {
+  return items
+    .map(item => `${item.fileName}\n\n${buildPlainText(item.transcript)}`)
+    .join('\n\n\n');
 }

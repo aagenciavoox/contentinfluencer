@@ -33,11 +33,13 @@ The dev server uses port `3030`.
 
 ## Transcrição de vídeo
 
-A tela `/criacao/transcricao` (menu Criação › Transcrição) transcreve um vídeo sem guardar nada:
+A tela `/criacao/transcricao` (menu Criação › Transcrição) transcreve vídeos sem guardar nada. Dá para escolher vários de uma vez: eles entram numa fila e são transcritos um por vez. A fila continua andando se a pessoa trocar de tela; fechar ou recarregar a aba limpa a fila.
+
+Para cada vídeo:
 
 1. O navegador separa só o áudio do vídeo e comprime (Opus mono, ~24 kbps) com `mediabunny`. O vídeo não sai do aparelho.
 2. A Edge Function `supabase/functions/transcrever` confere o login e repassa o áudio para o Whisper do Groq (`whisper-large-v3-turbo`).
-3. A tela mostra o texto, com opções de copiar e baixar `.txt` / `.srt`. Nada vai para o banco nem para o Storage.
+3. Cada vídeo pronto abre o texto (com botão de voltar para a fila), com opções de copiar e baixar `.txt` / `.srt`; "Baixar todas" junta as prontas num `.txt`. Nada vai para o banco nem para o Storage.
 
 Custo zero: o plano gratuito do Groq não pede cartão (limite aproximado de 2 h de áudio por hora e 8 h por dia; acima disso a tela pede para tentar mais tarde). Vídeos de até 2 horas.
 

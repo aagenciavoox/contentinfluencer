@@ -1,28 +1,29 @@
 import { FunctionsHttpError } from '@supabase/supabase-js';
 import { supabase } from '../../../lib/supabase';
 import { TranscriptionUserError } from './transcriptionErrors';
-import type { Transcript } from './transcriptFormats';
+import type { Transcript, TranscriptLanguage } from './transcriptFormats';
 
-export type TranscriptLanguage = 'pt' | 'en' | 'es' | 'auto';
+export type { TranscriptLanguage };
 
 export class TranscriptionRequestError extends TranscriptionUserError {}
 
 const FALLBACK_MESSAGE = 'A transcrição não voltou desta vez. Dá para tentar de novo em instantes.';
 
-async function readFunctionError(error: unknown) {
-  if (error instanceof FunctionsHttpError) {
-    try {
-      const body = await (error.context as Response).json();
-      if (typeof body?.error === 'string') return body.error;
-    } catch {
-      // Resposta sem JSON: fica a mensagem padrão.
-    }
-    const status = (error.context as Response).status;
-    if (status === 404) {
-      return 'A função de transcrição ainda não foi publicada no Supabase.';
-    }
+async function toRequestError(error: unknown) {
+  if (!(error instanceof FunctionsHttpError)) return new TranscriptionRequestError(FALLBACK_MESSAGE);
+
+  const response = error.context as Response;
+  const kind = response.status === 429 ? 'rate-limit' : 'other';
+  try {
+    const body = await response.json();
+    if (typeof body?.error === 'string') return new TranscriptionRequestError(body.error, kind);
+  } catch {
+    // Resposta sem JSON: fica a mensagem padrão.
   }
-  return FALLBACK_MESSAGE;
+  if (response.status === 404) {
+    return new TranscriptionRequestError('A função de transcrição ainda não foi publicada no Supabase.');
+  }
+  return new TranscriptionRequestError(FALLBACK_MESSAGE, kind);
 }
 
 /** Manda só o áudio para a Edge Function `transcrever`, que não guarda nada. */
@@ -43,7 +44,7 @@ export async function transcribeAudio(
   const { data, error } = await supabase.functions.invoke<Transcript>('transcrever', { body, signal });
   if (error) {
     if (signal?.aborted) throw new DOMException('Transcrição cancelada', 'AbortError');
-    throw new TranscriptionRequestError(await readFunctionError(error));
+    throw await toRequestError(error);
   }
   if (!data) throw new TranscriptionRequestError(FALLBACK_MESSAGE);
 
