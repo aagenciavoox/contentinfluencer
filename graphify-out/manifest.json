@@ -496,9 +496,9 @@
     "semantic_hash": ""
   },
   "src/components/ui/index.ts": {
-    "mtime": 1792017698.3185587,
-    "seen": 1792028007.0273,
-    "ast_hash": "9cf03e2af12bacbd056b847ea97a79d0",
+    "mtime": 1792030810.116251,
+    "seen": 1792031265.2561128,
+    "ast_hash": "6b5a7d0891f385a260eb5261ea0d48d1",
     "semantic_hash": ""
   },
   "src/components/ui/ListItem.tsx": {
@@ -1300,9 +1300,9 @@
     "semantic_hash": ""
   },
   "src/features/editorial/pages/EditorialPage.tsx": {
-    "mtime": 1792026790.6968508,
-    "seen": 1792028007.027579,
-    "ast_hash": "9f2d11c26c9c3af2fb2617d33b44311d",
+    "mtime": 1792030946.6265023,
+    "seen": 1792031265.2630296,
+    "ast_hash": "b2f0bbb65b62b5bded4207ac6d3b5ffe",
     "semantic_hash": ""
   },
   "src/features/editorial-calendar/components/CalendarAgendaView.tsx": {
@@ -1666,9 +1666,9 @@
     "semantic_hash": ""
   },
   "src/features/settings/components/PilarEditForm.tsx": {
-    "mtime": 1792026972.0469248,
-    "seen": 1792028007.0276642,
-    "ast_hash": "29b6c8d5567b54b8e1a96e01c3bcc480",
+    "mtime": 1792031239.2148864,
+    "seen": 1792031265.2655945,
+    "ast_hash": "9b73728d82604d0b67895133e30aa5b5",
     "semantic_hash": ""
   },
   "src/features/settings/components/PilarForm.tsx": {
@@ -1846,9 +1846,9 @@
     "semantic_hash": ""
   },
   "src/features/settings/pages/PillarsSettingsPage.tsx": {
-    "mtime": 1792017896.6389143,
-    "seen": 1792028007.0277016,
-    "ast_hash": "1b5d6d38a5aa16f8925b9381d11a8472",
+    "mtime": 1792031239.2161655,
+    "seen": 1792031265.266729,
+    "ast_hash": "4c3ea376006498f26e463f9d090f6f6e",
     "semantic_hash": ""
   },
   "src/features/settings/pages/PlatformsSettingsPage.tsx": {
@@ -1882,9 +1882,9 @@
     "semantic_hash": ""
   },
   "src/features/settings/pages/SeriesSettingsPage.tsx": {
-    "mtime": 1792027693.9668658,
-    "seen": 1792028007.0277078,
-    "ast_hash": "43ff249b04acc6fe861d98f9b952733d",
+    "mtime": 1792030810.115767,
+    "seen": 1792031265.2668896,
+    "ast_hash": "c64e0495bcc8e296200c19a6e8e73796",
     "semantic_hash": ""
   },
   "src/features/settings/pages/SettingsPage.tsx": {
@@ -2326,9 +2326,9 @@
     "semantic_hash": ""
   },
   "src/mobile/screens/settings/PillarsMobileScreen.tsx": {
-    "mtime": 1792017896.6429412,
-    "seen": 1792028007.0277972,
-    "ast_hash": "ec98062adf74c93247b2af70484123a3",
+    "mtime": 1792031239.2156744,
+    "seen": 1792031265.269417,
+    "ast_hash": "e265f1e02efda6f1504a41f16142cd02",
     "semantic_hash": ""
   },
   "src/mobile/screens/settings/PlatformsMobileScreen.tsx": {
@@ -2730,9 +2730,9 @@
     "semantic_hash": ""
   },
   "DESIGN.md": {
-    "mtime": 1792027787.924619,
-    "seen": 1792028007.0279086,
-    "ast_hash": "63e1be2ff27f0d61db7f489539338a6b",
+    "mtime": 1792030823.2762492,
+    "seen": 1792031265.2721887,
+    "ast_hash": "800bec6385203edbbd59dd1a02efa163",
     "semantic_hash": ""
   },
   "DESIGN_FIXES.md": {
@@ -3633,9 +3633,9 @@
     "semantic_hash": ""
   },
   "src/features/editorial/lib/editorialReadings.ts": {
-    "mtime": 1792027587.2641864,
-    "seen": 1792028007.0275338,
-    "ast_hash": "e8f71c2e660374674fd0700107657a10",
+    "mtime": 1792030584.666791,
+    "seen": 1792031265.2619348,
+    "ast_hash": "7d1b298219a120a67a696cebe3f222b1",
     "semantic_hash": ""
   },
   "src/features/editorial/lib/estoque.test.ts": {
@@ -3923,21 +3923,9 @@
     "semantic_hash": ""
   },
   "src/features/editorial/components/plano/PeriodoEditorialControl.tsx": {
-    "mtime": 1792017896.6241486,
-    "seen": 1792028007.0275064,
-    "ast_hash": "2ca40be51e3591152658ccc4a0830530",
-    "semantic_hash": ""
-  },
-  "src/features/editorial/components/plano/PlanoPeriodoPanel.tsx": {
-    "mtime": 1792026385.522611,
-    "seen": 1792028007.0275083,
-    "ast_hash": "683209196bf317c02b948761e99dc14c",
-    "semantic_hash": ""
-  },
-  "src/features/editorial/components/plano/VisaoGeralPanel.tsx": {
-    "mtime": 1792026990.4907293,
-    "seen": 1792028007.0275097,
-    "ast_hash": "0a67c9df313e30ba8ca8cafbb526ec01",
+    "mtime": 1792030311.9628193,
+    "seen": 1792031265.261439,
+    "ast_hash": "d3383db54389a14b4040eee7aed74d98",
     "semantic_hash": ""
   },
   "src/components/ui/DisclosureButton.tsx": {
@@ -3959,9 +3947,39 @@
     "semantic_hash": ""
   },
   "graphify-out/converted/Content_OS_Architecture_Report_34381279.md": {
-    "mtime": 1792027998.4541497,
-    "seen": 1792028007.02794,
+    "mtime": 1792031255.8373249,
+    "seen": 1792031265.2729695,
     "ast_hash": "2a7e2390b756703823e23990a7a6b7d3",
+    "semantic_hash": ""
+  },
+  "src/components/ui/FilterChips.tsx": {
+    "mtime": 1792030787.1220596,
+    "seen": 1792031265.2552173,
+    "ast_hash": "e7e7b68bb36aa263ad9ca479fdce2739",
+    "semantic_hash": ""
+  },
+  "src/features/editorial/components/plano/AjustesEditorialPanel.tsx": {
+    "mtime": 1792030573.6780467,
+    "seen": 1792031265.261435,
+    "ast_hash": "be1b4e58ecd0e2f88389cb1549ac145b",
+    "semantic_hash": ""
+  },
+  "src/features/editorial/components/plano/PeriodoPanel.tsx": {
+    "mtime": 1792031162.125607,
+    "seen": 1792031265.2614412,
+    "ast_hash": "6f8b2d6d8ab1d7db989e9aaab350510d",
+    "semantic_hash": ""
+  },
+  "src/features/editorial/components/plano/campos.tsx": {
+    "mtime": 1792030720.684903,
+    "seen": 1792031265.261444,
+    "ast_hash": "595d426d198fc0af5ecc69b125415cf1",
+    "semantic_hash": ""
+  },
+  "src/features/editorial/components/plano/useEditorialPlano.ts": {
+    "mtime": 1792030345.6700332,
+    "seen": 1792031265.2614465,
+    "ast_hash": "310792a36723caf7f5f655244ab1f1d1",
     "semantic_hash": ""
   }
 }

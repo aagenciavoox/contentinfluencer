@@ -39,7 +39,7 @@ export function PillarsMobileScreen({
           title="Pilares editoriais"
           description={
             pilares.length === 0
-              ? 'Nome e publicação por plataforma. O limite fica no Plano do período.'
+              ? 'Nome e publicação por plataforma. O limite fica na aba Ajustes do Editorial.'
               : `${activeCount} ativo${activeCount === 1 ? '' : 's'}`
           }
         />

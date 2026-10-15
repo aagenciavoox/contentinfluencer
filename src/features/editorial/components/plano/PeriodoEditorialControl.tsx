@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import { addDays, differenceInCalendarDays, endOfMonth, format, parseISO, startOfMonth } from 'date-fns';
+import { addDays, addMonths, differenceInCalendarDays, endOfMonth, format, parseISO, startOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { SegmentTabs } from '../../../../components/ui/SegmentTabs';
+import { CalendarRange, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
+import { AppButton } from '../../../../components/ui/AppButton';
+import { MoreMenu } from '../../../../components/ui/MoreMenu';
 import { Text } from '../../../../components/ui/Text';
 import { useAppContext } from '../../../../context/AppContext';
 import { buildGradeEntries } from '../../lib/gradeEntries';
@@ -80,7 +82,7 @@ export function rotuloDoPeriodo(periodo: PeriodoSelecionado): string {
   const texto = mesmoMes
     ? `${format(inicio, 'd', { locale: ptBR })} a ${format(fim, "d 'de' MMMM 'de' yyyy", { locale: ptBR })}`
     : `${format(inicio, "d 'de' MMM", { locale: ptBR })} a ${format(fim, "d 'de' MMM 'de' yyyy", { locale: ptBR })}`;
-  return periodo.modo === 'semana' ? `Semana de domingo a sábado, ${texto}` : capitalizar(texto);
+  return periodo.modo === 'semana' ? `Semana de ${texto}` : capitalizar(texto);
 }
 
 export function useContagemDoPeriodo(inicio: string, fim: string): GradeCounts {
@@ -116,6 +118,38 @@ export function useContagemDoPeriodo(inicio: string, fim: string): GradeCounts {
   ]);
 }
 
+const MODOS: Array<{ id: ModoPeriodo; rotulo: string }> = [
+  { id: 'semana', rotulo: 'Semana' },
+  { id: 'mes', rotulo: 'Mês' },
+  { id: 'intervalo', rotulo: 'Intervalo' },
+];
+
+/** Anda um período para trás ou para frente, no tamanho do modo atual. */
+export function periodoVizinho(periodo: PeriodoSelecionado, direcao: -1 | 1): PeriodoSelecionado {
+  const inicio = parseISO(periodo.inicio);
+  if (periodo.modo === 'semana') {
+    return { modo: 'semana', ...semanaDe(format(addDays(inicio, 7 * direcao), 'yyyy-MM-dd')) };
+  }
+  if (periodo.modo === 'mes') {
+    const mes = addMonths(inicio, direcao);
+    return {
+      modo: 'mes',
+      inicio: format(startOfMonth(mes), 'yyyy-MM-dd'),
+      fim: format(endOfMonth(mes), 'yyyy-MM-dd'),
+    };
+  }
+  const dias = differenceInCalendarDays(parseISO(periodo.fim), inicio) + 1;
+  return {
+    modo: 'intervalo',
+    inicio: format(addDays(inicio, dias * direcao), 'yyyy-MM-dd'),
+    fim: format(addDays(parseISO(periodo.fim), dias * direcao), 'yyyy-MM-dd'),
+  };
+}
+
+/**
+ * Escolhe o período do Editorial. Aparece uma vez, no topo da aba Período, e não tem cara
+ * de aba: setas para andar no tempo e um botão para trocar entre semana, mês e intervalo.
+ */
 export function PeriodoEditorialControl({
   periodo,
   onChange,
@@ -125,6 +159,9 @@ export function PeriodoEditorialControl({
 }) {
   const [rascunho, setRascunho] = useState(periodo);
   const intervaloInvalido = rascunho.modo === 'intervalo' && rascunho.inicio > rascunho.fim;
+  const hoje = hojeIso();
+  const contemHoje = periodo.inicio <= hoje && hoje <= periodo.fim;
+  const modoAtual = MODOS.find(modo => modo.id === periodo.modo) ?? MODOS[0];
 
   useEffect(() => {
     setRascunho(periodo);
@@ -147,17 +184,52 @@ export function PeriodoEditorialControl({
 
   return (
     <div className="stack-sm">
-      <div className="max-w-full overflow-x-auto">
-        <SegmentTabs<ModoPeriodo>
-          value={periodo.modo}
-          onChange={escolherModo}
-          className="w-max min-w-full"
-          options={[
-            { id: 'semana', label: 'Semana' },
-            { id: 'mes', label: 'Mês' },
-            { id: 'intervalo', label: 'Intervalo' },
-          ]}
-        />
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="flex min-w-0 items-center gap-1">
+          <AppButton
+            variant="ghost"
+            size="sm"
+            iconOnly
+            aria-label="Período anterior"
+            leftIcon={<ChevronLeft className="h-4 w-4" />}
+            onClick={() => onChange(periodoVizinho(periodo, -1))}
+          />
+          <Text variant="sectionTitle" as="h2" className="min-w-0 px-1">
+            {rotuloDoPeriodo(periodo)}
+          </Text>
+          <AppButton
+            variant="ghost"
+            size="sm"
+            iconOnly
+            aria-label="Próximo período"
+            leftIcon={<ChevronRight className="h-4 w-4" />}
+            onClick={() => onChange(periodoVizinho(periodo, 1))}
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          {!contemHoje && periodo.modo !== 'intervalo' ? (
+            <AppButton variant="secondary" size="sm" onClick={() => escolherModo(periodo.modo)}>
+              Hoje
+            </AppButton>
+          ) : null}
+          <MoreMenu
+            align="left"
+            label={`Ver por: ${modoAtual.rotulo}`}
+            items={MODOS.map(modo => ({
+              id: modo.id,
+              label: modo.id === periodo.modo ? `${modo.rotulo} ✓` : modo.rotulo,
+              onClick: () => escolherModo(modo.id),
+            }))}
+            trigger={(
+              <span className="inline-flex items-center gap-1.5">
+                <CalendarRange className="h-3.5 w-3.5 text-[var(--text-tertiary)]" aria-hidden />
+                {modoAtual.rotulo}
+                <ChevronDown className="h-3.5 w-3.5 text-[var(--text-tertiary)]" aria-hidden />
+              </span>
+            )}
+            triggerClassName="w-auto px-3 text-xs font-semibold text-[var(--text-primary)]"
+          />
+        </div>
       </div>
       {periodo.modo === 'intervalo' ? (
         <div className="flex flex-wrap gap-3">
@@ -187,9 +259,7 @@ export function PeriodoEditorialControl({
         <Text variant="meta" className="text-[var(--accent-red)]">
           A data inicial precisa vir antes da final.
         </Text>
-      ) : (
-        <Text variant="secondary">{rotuloDoPeriodo(periodo)}</Text>
-      )}
+      ) : null}
     </div>
   );
 }

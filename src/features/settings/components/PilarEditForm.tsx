@@ -558,7 +558,7 @@ export function PilarEditForm({
                 <Text variant="body">{form.frequenciaSemanal}</Text>
               ) : null}
               <Text variant="meta" className="text-[var(--text-secondary)]">
-                Este número não define mais o limite. O limite fica no Plano do período.
+                Este número não define mais o limite. O limite fica na aba Ajustes do Editorial.
               </Text>
             </div>
           </Surface>

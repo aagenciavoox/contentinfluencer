@@ -10,7 +10,7 @@ import { Badge } from '../../../components/ui/Badge';
 import { MoreMenu } from '../../../components/ui/MoreMenu';
 import { Surface } from '../../../components/ui/Surface';
 import { Text } from '../../../components/ui/Text';
-import { SegmentTabs } from '../../../components/ui/SegmentTabs';
+import { FilterChips } from '../../../components/ui/FilterChips';
 import { ToolbarSearchInput } from '../../../components/ui/ToolbarSearchInput';
 import { QueryViewState, resolveQueryViewStatus } from '../../../components/ui/QueryViewState';
 import { useAppContext } from '../../../context/AppContext';
@@ -187,13 +187,14 @@ export function SeriesSettingsPage() {
               placeholder="Buscar série…"
               className="desktop-subheader-search"
             />
-            <SegmentTabs<SeriesFilter>
+            <FilterChips<SeriesFilter>
               value={filter}
               onChange={setFilter}
+              ariaLabel="Filtrar séries"
               options={[
-                { id: 'todas', label: `Todas ${filterCounts.todas}` },
-                { id: 'ativas', label: `Ativas ${filterCounts.ativas}` },
-                { id: 'inativas', label: `Inativas ${filterCounts.inativas}` },
+                { id: 'todas', label: 'Todas', count: filterCounts.todas },
+                { id: 'ativas', label: 'Ativas', count: filterCounts.ativas },
+                { id: 'inativas', label: 'Inativas', count: filterCounts.inativas },
               ]}
             />
           </div>

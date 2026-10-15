@@ -21,7 +21,8 @@ Content OS uses a token-based design system. Pages compose with shared UI primit
 | **Section** | `src/components/ui/Section.tsx` | Seção com `sectionTitle`, descrição opcional e ação à direita |
 | **PaginationBar** | `src/components/ui/PaginationBar.tsx` | Paginação — `variant="full"` (numerada) ou `simple` (mobile) |
 | **ToolbarSearchInput** | `src/components/ui/ToolbarSearchInput.tsx` | Campo de busca em toolbars e `FilterBar` |
-| **SegmentTabs** | `src/components/ui/SegmentTabs.tsx` | O único seletor de aba e de vista (abas da página, período, Grade/Lista/Kanban, Mês/Semana, redes). Aceita `icon` e `count`; setas trocam a aba |
+| **SegmentTabs** | `src/components/ui/SegmentTabs.tsx` | O único seletor de aba e de vista (abas da página, Grade/Lista/Kanban, Mês/Semana, redes). Aceita `icon` e `count`; setas trocam a aba. Uma fileira por tela |
+| **FilterChips** | `src/components/ui/FilterChips.tsx` | Filtro de uma escolha só (Todas/Ativas/Inativas). Chips `.filter-chip` com contagem; nunca `SegmentTabs` |
 | **MediaCard** | `src/components/ui/MediaCard.tsx` | Capa/thumbnail para grids de catálogo |
 | **MobileSectionHeader** | `src/mobile/components/MobileSectionHeader.tsx` | Cabeçalho in-card em telas mobile |
 
@@ -116,13 +117,14 @@ O que clica tem que parecer clicável, e o que não clica não pode parecer. Aud
 3. **Card clicável abre em qualquer ponto.** Um `<button class="absolute inset-0">` cobre o card; título e textos ficam com `pointer-events-none`; a chave e o "⋯" ficam por cima (`relative z-[2]`). Referências: `CreationGridCard`, `SettingsGridCard`, card de template.
 4. **Card que só informa não parece botão.** `Surface variant="info"`: sem borda, fundo rebaixado, sem hover.
 5. **Selo não é chip.** `Badge` informa: fundo suave, sem borda. Pílula com borda (`.filter-chip`) só para filtrar; etiqueta com "×" (`TagPill`) só para remover.
-6. **Escolher uma opção tem dois componentes.** `SegmentTabs` para aba e vista; `ChoiceChips` (ou o grupo de rádio segmentado) para valor. Seleção sempre em `--text-primary` (preto/branco), nunca no rosa da marca.
+6. **Escolher uma opção tem três componentes.** `SegmentTabs` para aba e vista; `FilterChips` para filtrar uma lista; `ChoiceChips` (ou o grupo de rádio segmentado) para valor. Seleção sempre em `--text-primary` (preto/branco), nunca no rosa da marca.
 7. **Uma chave só** (`ToggleSwitch`), e o texto da opção também liga (`ToggleRow` ou `<label htmlFor>`).
 8. **Ação não fica escondida.** O "⋯" fica sempre visível. O que aparece no hover aparece também no foco do teclado e no toque. Exceção: as ações de cada dia em grades de calendário, que aparecem no hover e quando o dia recebe foco.
 9. **Nada de `div` com clique.** Se clica, é `button` ou `a`. Quando não pode ser (um dia de calendário com botões dentro), use `role="gridcell"` com `tabIndex` ou `keyboardActivation()` (`src/lib/a11y/keyboardActivation.ts`), com Enter e Espaço.
 10. **Toque mínimo de 44px no celular** (`pointer-coarse:`), mesmo que o desenho seja menor; o `AppButton xs` e o `MoreMenu` já fazem isso. Exceção: dentro da grade do mês (eventos e ações do dia), onde 44px não cabem na coluna; ali o mínimo é 24px (WCAG 2.5.8).
 11. **Seção que abre e fecha** usa `DisclosureButton` (ou o `summary` com seta à direita e a faixa inteira clicável).
 12. **Inativo não usa opacidade.** Card inativo ganha fundo rebaixado (`.is-dimmed`) e um selo; o texto mantém contraste AA.
+13. **Aba não fica dentro de aba.** Uma tela tem no máximo uma fileira de `SegmentTabs`. Dentro de uma aba, filtro é `FilterChips` e período é o seletor ‹ título › com o modo num menu (`PeriodoEditorialControl`). Cada número mora num lugar só: as contas de um período ficam na aba Período, não repetidas nos cards de pilar e série.
 
 ## Key tokens
 

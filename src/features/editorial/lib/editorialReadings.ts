@@ -218,7 +218,7 @@ export function computeReadings(
       mensagem: mostrarNumeros
         ? `Esta semana tem ${contagem.previsto} e o limite é ${contagem.limite}`
         : 'Esta semana passou do limite',
-      acao: { rotulo: 'Ver a semana', href: '/editorial?aba=visao' },
+      acao: { rotulo: 'Ver a semana', href: '/editorial?aba=periodo' },
     });
   }
 
@@ -230,7 +230,7 @@ export function computeReadings(
         chave: 'estoque',
         prioridade: 2,
         mensagem: 'Estoque abaixo do que você definiu',
-        acao: { rotulo: 'Ver estoque', href: '/editorial?aba=visao' },
+        acao: { rotulo: 'Ver estoque', href: '/editorial?aba=periodo' },
       });
     }
   }
