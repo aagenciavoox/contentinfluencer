@@ -153,7 +153,7 @@ export function CoverUploadField({
                 <button
                   type="button"
                   onClick={() => setShowUrl(current => !current)}
-                  className="text-sm font-medium text-[var(--text-secondary)] underline decoration-[var(--border-strong)] underline-offset-2 hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+                  className="inline-flex min-h-8 items-center text-sm font-medium text-[var(--text-primary)] underline decoration-[var(--border-strong)] underline-offset-2 hover:decoration-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] pointer-coarse:min-h-11"
                 >
                   {showUrl ? 'Ocultar link' : 'Usar link da imagem'}
                 </button>
@@ -272,7 +272,7 @@ export function CoverUploadField({
             <button
               type="button"
               onClick={() => setShowUrl(current => !current)}
-              className="text-left text-xs font-medium text-[var(--text-secondary)] underline-offset-2 hover:underline"
+              className="inline-flex min-h-8 items-center self-start text-left text-xs font-medium text-[var(--text-primary)] underline decoration-[var(--border-strong)] underline-offset-2 hover:decoration-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] pointer-coarse:min-h-11"
             >
               {showUrl ? 'Ocultar URL' : 'Ou colar URL'}
             </button>

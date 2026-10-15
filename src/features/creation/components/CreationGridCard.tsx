@@ -113,8 +113,8 @@ export function CreationGridCard({
                 />
               </span>
             ) : null}
-            {/* `.card-actions`: aparece no hover/foco do card; fica visível no toque, com o menu aberto ou com o card selecionado. */}
-            <span className="card-actions" data-open={selected ? 'true' : undefined}>
+            {/* O ⋯ fica sempre visível: é a única ação do card além de abrir. */}
+            <span>
               <CreationItemMenu
                 items={menuItems}
                 label={`Ações de ${title}`}

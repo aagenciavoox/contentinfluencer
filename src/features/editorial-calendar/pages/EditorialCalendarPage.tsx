@@ -36,6 +36,8 @@ import {useAppContext} from '../../../context/AppContext';
 import {AgendaItem, Content, Platform, Projeto} from '../../../lib/database';
 import {useIsMobile} from '../../../hooks/useIsMobile';
 import {readStoredJson, writeStoredJson} from '../../../lib/browserStorage';
+import {DisclosureButton} from '../../../components/ui/DisclosureButton';
+import {keyboardActivation} from '../../../lib/a11y/keyboardActivation';
 import {cn} from '../../../lib/utils';
 import {AgendaMobileScreen} from '../../../mobile/screens/agenda/AgendaMobileScreen';
 import {CONTENT_STATUS, ContentStage, DISPLAY_STATUS, getContentStage} from '../../contents/lib/contentPipeline';
@@ -963,11 +965,12 @@ function CalendarWeekView({
             <div
               key={day.toISOString()}
               onClick={() => onSelectDate(day)}
+              {...keyboardActivation(() => onSelectDate(day), format(day, "EEEE, d 'de' MMMM", {locale: ptBR}))}
               onDragOver={event => onDayDragOver?.(dateKey, event)}
               onDragLeave={() => onDayDragLeave?.()}
               onDrop={event => onDayDrop?.(dateKey, event)}
               className={cn(
-                'border-r border-[var(--border-color)] p-3 last:border-r-0 transition-colors hover:bg-[var(--surface-subtle)]',
+                'cursor-pointer border-r border-[var(--border-color)] p-3 last:border-r-0 transition-colors hover:bg-[var(--surface-subtle)] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--accent-blue)]',
                 isSameDay(day, selectedDate) && 'bg-[color-mix(in_srgb,var(--accent-blue),transparent_96%)]',
                 dragOverDateKey === dateKey && 'bg-[color-mix(in_srgb,var(--accent)_12%,transparent)]',
               )}
@@ -1235,19 +1238,19 @@ function CalendarDayPanel({
       ) : null}
 
       <div className="rounded-[var(--radius-input)] border border-[var(--border-color)]">
-        <button
-          type="button"
-          onClick={() => setEventsOpen(prev => !prev)}
-          className="flex w-full items-center justify-between px-3 py-2 text-left"
+        <DisclosureButton
+          open={eventsOpen}
+          onToggle={() => setEventsOpen(prev => !prev)}
+          className="rounded-[inherit] px-3"
+          trailing={<span className="text-xs tabular-nums text-[var(--text-tertiary)]">{entries.length}</span>}
         >
-          <p className="ds-meta">Eventos do dia</p>
-          <span className="text-xs text-[var(--text-tertiary)]">{entries.length}</span>
-        </button>
+          <span className="ds-meta">Eventos do dia</span>
+        </DisclosureButton>
         {eventsOpen ? (
           <div className="stack-sm border-t border-[var(--border-color)] p-2">
-            <button type="button" onClick={onAddAgenda} className="text-xs font-semibold text-[var(--accent-blue)]">
+            <AppButton variant="secondary" size="xs" className="self-start pointer-coarse:h-11" leftIcon={<Plus className="h-3.5 w-3.5" />} onClick={onAddAgenda}>
               Adicionar evento
-            </button>
+            </AppButton>
             {entries.length === 0 ? (
               <p className="rounded-[var(--radius-input)] bg-[var(--surface-subtle)] px-3 py-3 text-xs text-[var(--text-secondary)]">
                 Nada marcado para este dia.
@@ -1325,7 +1328,7 @@ function CalendarInsightCards({
       {cards.map(card => {
         const Icon = card.icon;
         return (
-          <div key={card.label} className="rounded-lg border border-[var(--border-color)] bg-[var(--bg-elevated)] p-4 shadow-[var(--shadow-soft)]">
+          <div key={card.label} className="surface-info p-4">
             <div
               className="mb-3 flex h-9 w-9 items-center justify-center rounded-lg"
               style={{

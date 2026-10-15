@@ -181,22 +181,18 @@ export function ContentDetailHeader({
       />
     </div>
   ) : !hideTitle && onTitleChange ? (
-    <AppButton
-      variant="ghost"
+    // Título editável: fundo no hover e lápis sempre à vista, para dizer que dá para editar.
+    <button
+      type="button"
       onClick={() => setTitleEditing(true)}
       aria-label={`Editar título ${contentReference}`}
-      rightIcon={
-        <Pencil
-          className="h-4 w-4 text-[var(--text-tertiary)] opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"
-          aria-hidden
-        />
-      }
-      className="group h-auto max-w-full justify-start px-0 py-1 text-left hover:bg-transparent"
+      className="group -mx-2 inline-flex max-w-full items-center gap-2 rounded-[var(--radius-input)] px-2 py-1 text-left transition-colors hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
     >
       <Text as="span" variant="pageTitle" truncate>
         {displayTitle || (isIdea ? 'Ideia sem título' : 'Roteiro sem título')}
       </Text>
-    </AppButton>
+      <Pencil className="h-4 w-4 shrink-0 text-[var(--text-tertiary)] transition-colors group-hover:text-[var(--text-primary)]" aria-hidden />
+    </button>
   ) : !hideTitle ? (
     <Text variant="pageTitle" className="break-words">
       {displayTitle || (isIdea ? 'Ideia sem título' : 'Roteiro sem título')}

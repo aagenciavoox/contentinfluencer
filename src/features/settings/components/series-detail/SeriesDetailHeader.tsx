@@ -94,7 +94,7 @@ export function SeriesDetailHeader({
           <button
             type="button"
             onClick={onToggleMore}
-            className="flex h-9 w-9 items-center justify-center rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+            className="flex h-[var(--control-height)] w-[var(--control-height)] items-center justify-center rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] pointer-coarse:h-11 pointer-coarse:w-11 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
             aria-label="Mais opções"
           >
             <MoreHorizontal className="h-4 w-4" />

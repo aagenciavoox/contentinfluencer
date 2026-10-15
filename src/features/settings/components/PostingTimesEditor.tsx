@@ -257,7 +257,13 @@ function DayCard({day, editing, specificTimes, fallbackTimes, isFallback, onAdd,
   }
 
   return (
-    <div className="stack-md rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-primary)] px-6 py-4">
+    <div
+      className={cn(
+        'stack-md rounded-[var(--radius-card)] border px-6 py-4',
+        // Fora da edição o dia só informa: sem borda, para não parecer clicável.
+        editing ? 'border-[var(--border-color)] bg-[var(--bg-primary)]' : 'border-transparent bg-[var(--surface-subtle)]',
+      )}
+    >
       <div className="flex items-center justify-between">
         <Text variant="bodyStrong">{WEEKDAY_LABELS[day]}</Text>
         <div className="flex items-center gap-2">

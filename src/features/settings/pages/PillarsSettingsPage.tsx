@@ -97,7 +97,7 @@ export function PillarsSettingsPage() {
       }
     >
       <Text variant="secondary" className="mb-4">
-        Pilares organizam os assuntos e a publicação por plataforma. O limite da semana fica no Plano do período.
+        Pilares organizam os assuntos e a publicação por plataforma. O limite da semana fica na aba Ajustes do Editorial.
       </Text>
 
       <QueryViewState

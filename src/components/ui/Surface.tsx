@@ -1,11 +1,13 @@
 import { ElementType, HTMLAttributes, KeyboardEvent, ReactNode } from 'react';
 import { cn } from '../../lib/utils';
 
-export type SurfaceVariant = 'plain' | 'outlined' | 'interactive' | 'elevated';
+export type SurfaceVariant = 'plain' | 'outlined' | 'interactive' | 'elevated' | 'info';
 
 const variantClasses: Record<SurfaceVariant, string> = {
   plain: 'surface-plain',
   outlined: 'surface-outlined',
+  /** Só informa (número, prévia, resumo): sem borda e sem hover, para não parecer clicável. */
+  info: 'surface-info',
   /** Neutral card with light lift on hover — border color stays stable */
   interactive: 'surface-interactive',
   /** Floating overlays only (menus, popovers, dialogs) */

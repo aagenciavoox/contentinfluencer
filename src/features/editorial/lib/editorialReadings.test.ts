@@ -231,7 +231,8 @@ function testSerieEPausaENumeros() {
   };
   const abertas = computeReadings(baseState({ series: [serie] }), settings, NOW);
   assert.equal(leiturasDoEditorial(abertas).length, 1);
-  assert.equal(leiturasDoEditorial(abertas)[0]?.mensagem, 'Esta série tem informações em aberto');
+  // A mensagem nomeia a série e o que falta, para o aviso dizer qual é.
+  assert.match(leiturasDoEditorial(abertas)[0]?.mensagem ?? '', /^«Clube» tem em aberto: .*pilar/);
   assert.equal(leiturasDoEditorial(abertas)[0]?.acao.href, '/editorial/series/serie-1');
 
   const semAviso = computeReadings(baseState({ series: [serie] }), { ...settings, openInfoNotices: false }, NOW);

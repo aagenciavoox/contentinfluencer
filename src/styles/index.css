@@ -15,6 +15,23 @@
 /* App theme toggle (data-theme) drives Tailwind `dark:` utilities */
 @custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
 
+/* Tudo que clica mostra a mãozinha. O Tailwind 4 deixou de pôr `cursor: pointer`
+   nos botões; a regra fica na camada base para `cursor-*` em className continuar valendo. */
+@layer base {
+  button:not(:disabled),
+  [role='button']:not([aria-disabled='true']),
+  [role='tab'],
+  [role='switch'],
+  [role='option'],
+  [role='menuitem'],
+  [role='checkbox'],
+  [role='gridcell'][tabindex],
+  summary,
+  select {
+    cursor: pointer;
+  }
+}
+
 :root {
   /* Breakpoint tokens (mirror src/shared/breakpoints.ts) */
   --bp-sm: 640px;
@@ -801,6 +818,12 @@ input.caption-locked:focus {
   box-shadow: var(--shadow-card-hover);
 }
 
+/* Inativo: fundo rebaixado em vez de opacidade, para o texto continuar legível (AA). */
+.ds-card.is-dimmed,
+.surface-interactive.is-dimmed {
+  background: var(--surface-subtle);
+}
+
 /* Central de Criação — compact note/script cards */
 .creation-hub-card {
   height: fit-content;
@@ -1203,7 +1226,8 @@ textarea.property-input {
 .surface-plain,
 .surface-outlined,
 .surface-interactive,
-.surface-elevated {
+.surface-elevated,
+.surface-info {
   border-radius: var(--radius-card-mobile);
   box-shadow: none;
 }
@@ -1212,9 +1236,16 @@ textarea.property-input {
   .surface-plain,
   .surface-outlined,
   .surface-interactive,
-  .surface-elevated {
+  .surface-elevated,
+  .surface-info {
     border-radius: var(--radius-card);
   }
+}
+
+/* Card que só informa: sem borda, fundo rebaixado, sem hover. Não pode parecer clicável. */
+.surface-info {
+  border: 1px solid transparent;
+  background: var(--surface-subtle);
 }
 
 .surface-plain {
@@ -1286,16 +1317,17 @@ textarea.property-input {
   }
 }
 
+/* Marca de pilar ou série: é selo, não chip. Sem borda, para não parecer filtro. */
 .entity-tag-pill {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
   border-radius: var(--radius-pill);
-  border: 1px solid var(--border-color);
+  border: 1px solid transparent;
   font-weight: 500;
   line-height: 1;
   color: var(--text-secondary);
-  background: color-mix(in srgb, var(--bg-elevated), transparent 18%);
+  background: var(--tag-bg);
 }
 
 .status-pill {
@@ -2194,8 +2226,8 @@ html.mobile-app-shell .segment-tabs {
 
 html.mobile-app-shell .segment-tabs-item {
   flex: 0 0 auto;
-  height: 2.25rem;
-  min-height: 2.25rem;
+  height: var(--control-height-mobile);
+  min-height: var(--control-height-mobile);
   display: inline-flex;
   align-items: center;
   white-space: nowrap;
@@ -2209,6 +2241,11 @@ html.mobile-app-shell .segment-tabs-item-active {
 
 .segment-tabs-item:hover {
   color: var(--text-primary);
+  background: color-mix(in srgb, var(--text-primary) 6%, transparent);
+}
+
+.segment-tabs-item-active:hover {
+  background: var(--text-primary);
 }
 
 .segment-tabs-item-active {

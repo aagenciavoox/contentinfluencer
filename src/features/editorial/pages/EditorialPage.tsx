@@ -1,83 +1,56 @@
 import { useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { CalendarRange, Layers3, LayoutDashboard, Palette, Plus } from 'lucide-react';
+import { CalendarRange, Layers3, Palette, Plus, SlidersHorizontal } from 'lucide-react';
 import { ConfirmModal } from '../../../components/feedback/modals/ConfirmModal';
 import { SettingsGridCard, SETTINGS_ENTITY_GRID_CLASS } from '../../../components/settings/SettingsGridCard';
 import { SettingsPageScaffold } from '../../../components/settings/SettingsPageScaffold';
 import { AppButton } from '../../../components/ui/AppButton';
 import { Badge } from '../../../components/ui/Badge';
+import { FilterChips } from '../../../components/ui/FilterChips';
 import { SegmentTabs } from '../../../components/ui/SegmentTabs';
 import { Surface } from '../../../components/ui/Surface';
 import { Text } from '../../../components/ui/Text';
 import { useAppContext } from '../../../context/AppContext';
 import type { Pilar, Serie } from '../../../lib/database';
 import { CONFIRM, type ConfirmState } from '../../../lib/uiCopy';
-import { PlanoPeriodoPanel } from '../components/plano/PlanoPeriodoPanel';
-import {
-  periodoInicial,
-  useContagemDoPeriodo,
-  type PeriodoSelecionado,
-} from '../components/plano/PeriodoEditorialControl';
-import { VisaoGeralPanel } from '../components/plano/VisaoGeralPanel';
-import { LeiturasLista } from '../components/LeiturasLista';
+import { AjustesEditorialPanel } from '../components/plano/AjustesEditorialPanel';
+import { PeriodoPanel } from '../components/plano/PeriodoPanel';
+import { periodoInicial, type PeriodoSelecionado } from '../components/plano/PeriodoEditorialControl';
 import { getEditorialSettings } from '../lib/editorialSettings';
-import { expectativaNoIntervalo, lerFrequencia } from '../lib/frequenciaSerie';
 import { rotuloFuncaoPadrao } from '../lib/funcoes';
-import type { GradeCounts } from '../lib/gradeCounts';
-import { computeReadingsFromApp, leiturasDoEditorial } from '../lib/editorialReadings';
-import { getSerieOpenItems } from '../lib/serieCompleteness';
+import { formatOpenItems, getSerieOpenItems } from '../lib/serieCompleteness';
 import { sortPilares } from '../../settings/lib/activePilares';
 
-type EditorialTab = 'pilares' | 'series' | 'visao' | 'plano';
+type EditorialTab = 'pilares' | 'series' | 'periodo' | 'ajustes';
 type SeriesFilter = 'todas' | 'ativas' | 'inativas' | 'abertas';
 
 const TABS: Array<{ id: EditorialTab; label: string }> = [
   { id: 'pilares', label: 'Pilares' },
   { id: 'series', label: 'Séries' },
-  { id: 'visao', label: 'Visão geral' },
-  { id: 'plano', label: 'Plano do período' },
+  { id: 'periodo', label: 'Período' },
+  { id: 'ajustes', label: 'Ajustes' },
 ];
 
 const TAB_ICONS = {
   pilares: Palette,
   series: Layers3,
-  visao: LayoutDashboard,
-  plano: CalendarRange,
+  periodo: CalendarRange,
+  ajustes: SlidersHorizontal,
 } satisfies Record<EditorialTab, typeof Palette>;
 
 function nomeChave(nome: string): string {
   return nome.trim().toLocaleLowerCase('pt-BR');
 }
 
+// Endereços antigos continuam abrindo a aba certa: links salvos e telas que ainda apontam para eles.
 function abaPedida(value: string | null): EditorialTab {
-  if (value === 'pilares' || value === 'series' || value === 'visao' || value === 'plano') return value;
-  if (value === 'funil') return 'visao';
-  if (value === 'hashtags' || value === 'ajustes') return 'plano';
+  if (value === 'pilares' || value === 'series' || value === 'periodo' || value === 'ajustes') return value;
+  if (value === 'visao' || value === 'plano' || value === 'funil') return 'periodo';
+  if (value === 'hashtags') return 'ajustes';
   return 'pilares';
 }
 
-function contagemDoPilar(contagem: GradeCounts, pilarId: string): number {
-  return contagem.pilares.find(linha => linha.id === pilarId)?.previsto ?? 0;
-}
-
-function comparacaoDaSerie(
-  serie: Serie,
-  itens: GradeCounts['itens'],
-  inicio: string,
-  fim: string,
-): string {
-  const expectativa = expectativaNoIntervalo(lerFrequencia({
-    frequenciaRecomendada: serie.frequenciaRecomendada,
-    vezes: serie.frequenciaVezes,
-    unidade: serie.frequenciaUnidade,
-    aPartirDe: serie.frequenciaAPartirDe,
-  }), inicio, fim);
-  if (expectativa == null) return 'Quando houver pauta';
-  const contados = itens.filter(item => item.serieId === serie.id).length;
-  return `${contados} de ${expectativa} neste período`;
-}
-
-function PillarsPanel({ contagem }: { contagem: GradeCounts }) {
+function PillarsPanel() {
   const { state, dispatch } = useAppContext();
   const navigate = useNavigate();
   const [confirm, setConfirm] = useState<ConfirmState | null>(null);
@@ -101,9 +74,9 @@ function PillarsPanel({ contagem }: { contagem: GradeCounts }) {
 
   return (
     <>
-      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <Text variant="secondary" className="max-w-xl">
-          Organize os assuntos que fazem parte do perfil. As quantidades são calculadas a partir do que foi previsto e planejado.
+          Organize os assuntos que fazem parte do perfil. Quantos roteiros cada um tem num período fica na aba Período.
         </Text>
         <AppButton
           variant="primary"
@@ -123,7 +96,6 @@ function PillarsPanel({ contagem }: { contagem: GradeCounts }) {
       ) : (
         <div className={SETTINGS_ENTITY_GRID_CLASS}>
           {pilares.map(pilar => {
-            const count = contagemDoPilar(contagem, pilar.id);
             const nomeRepetido = (nomesRepetidos.get(nomeChave(pilar.nome)) ?? 0) > 1;
             return (
               <SettingsGridCard
@@ -135,18 +107,15 @@ function PillarsPanel({ contagem }: { contagem: GradeCounts }) {
                 dimmed={!pilar.ativo}
                 onToggle={() => dispatch({ type: 'UPDATE_PILAR', payload: { ...pilar, ativo: !pilar.ativo } })}
                 onOpen={() => navigate(`/editorial/pilares/${pilar.id}`)}
-                onEdit={() => navigate(`/editorial/pilares/${pilar.id}`)}
                 onDelete={() => remove(pilar)}
+                meta={nomeRepetido ? 'Outro pilar tem o mesmo nome. Renomeie ou exclua um deles.' : undefined}
                 badges={
                   <>
                     {nomeRepetido ? (
-                      <span title="Outro pilar tem o mesmo nome. Renomeie ou exclua um deles.">
-                        <Badge variant="neutral" className="border-[var(--warning)] text-[var(--text-primary)]">
-                          Nome repetido
-                        </Badge>
-                      </span>
+                      <Badge variant="neutral" className="bg-[color-mix(in_srgb,var(--warning)_18%,transparent)] text-[var(--text-primary)]">
+                        Nome repetido
+                      </Badge>
                     ) : null}
-                    <Badge>{count} neste período</Badge>
                     <Badge>
                       {pilar.plataformas.length === 0
                         ? 'Sem redes'
@@ -174,24 +143,12 @@ function PillarsPanel({ contagem }: { contagem: GradeCounts }) {
   );
 }
 
-function SeriesPanel({
-  contagem,
-  inicio,
-  fim,
-}: {
-  contagem: GradeCounts;
-  inicio: string;
-  fim: string;
-}) {
+function SeriesPanel() {
   const { state, dispatch } = useAppContext();
   const navigate = useNavigate();
   const [filter, setFilter] = useState<SeriesFilter>('todas');
   const [confirm, setConfirm] = useState<ConfirmState | null>(null);
   const settings = getEditorialSettings(state.preferences);
-  const leiturasSerie = useMemo(
-    () => leiturasDoEditorial(computeReadingsFromApp(state)),
-    [state],
-  );
   const openItems = useMemo(
     () => new Map(state.series.map(serie => [serie.id, getSerieOpenItems(serie)])),
     [state.series],
@@ -222,21 +179,16 @@ function SeriesPanel({
 
   return (
     <>
-      {leiturasSerie.length > 0 ? (
-        <div className="mb-4">
-          <LeiturasLista leituras={leiturasSerie} />
-        </div>
-      ) : null}
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <SegmentTabs<SeriesFilter>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <FilterChips<SeriesFilter>
           value={filter}
-          onChange={value => setFilter(value)}
-          className="max-w-full overflow-x-auto"
+          onChange={setFilter}
+          ariaLabel="Filtrar séries"
           options={[
-            { id: 'todas', label: `Todas ${counts.todas}` },
-            { id: 'ativas', label: `Ativas ${counts.ativas}` },
-            { id: 'inativas', label: `Inativas ${counts.inativas}` },
-            { id: 'abertas', label: `Em aberto ${counts.abertas}` },
+            { id: 'todas', label: 'Todas', count: counts.todas },
+            { id: 'ativas', label: 'Ativas', count: counts.ativas },
+            { id: 'inativas', label: 'Inativas', count: counts.inativas },
+            { id: 'abertas', label: 'Em aberto', count: counts.abertas },
           ]}
         />
         <div className="flex flex-wrap gap-2">
@@ -263,6 +215,7 @@ function SeriesPanel({
         <div className={SETTINGS_ENTITY_GRID_CLASS}>
           {filtered.map(serie => {
             const items = openItems.get(serie.id) ?? [];
+            const aberta = settings.openInfoNotices && items.length > 0;
             return (
               <SettingsGridCard
                 key={serie.id}
@@ -273,7 +226,6 @@ function SeriesPanel({
                 active={serie.ativa}
                 dimmed={!serie.ativa}
                 onOpen={() => navigate(`/editorial/series/${serie.id}`)}
-                onEdit={() => navigate(`/editorial/series/${serie.id}`)}
                 onToggle={() => dispatch({
                   type: 'UPDATE_SERIE',
                   payload: { ...serie, ativa: !serie.ativa, updatedAt: new Date().toISOString() },
@@ -282,16 +234,20 @@ function SeriesPanel({
                 meta={[serie.frequenciaRecomendada || 'Sob demanda', rotuloFuncaoPadrao(serie.funcaoPadrao)]
                   .filter(Boolean)
                   .join(' · ')}
-                badges={settings.openInfoNotices && items.length > 0
-                  ? <Badge variant="neutral">Em aberto · {items.length}</Badge>
-                  : undefined}
               >
-                <div className="stack-sm mt-1">
-                  {serie.estruturaRoteiro ? (
-                    <Text variant="secondary" className="line-clamp-2">{serie.estruturaRoteiro}</Text>
-                  ) : null}
-                  <Text variant="meta" as="p">{comparacaoDaSerie(serie, contagem.itens, inicio, fim)}</Text>
-                </div>
+                {serie.estruturaRoteiro || aberta ? (
+                  <div className="stack-sm mt-1">
+                    {serie.estruturaRoteiro ? (
+                      <Text variant="secondary" className="line-clamp-2">{serie.estruturaRoteiro}</Text>
+                    ) : null}
+                    {/* O que falta aparece no próprio card: o card já abre a série para completar. */}
+                    {aberta ? (
+                      <Text variant="meta" as="p" className="text-[var(--text-primary)]">
+                        Em aberto: {formatOpenItems(items)}
+                      </Text>
+                    ) : null}
+                  </div>
+                ) : null}
               </SettingsGridCard>
             );
           })}
@@ -315,7 +271,6 @@ function SeriesPanel({
 export function EditorialPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [periodo, setPeriodo] = useState<PeriodoSelecionado>(() => periodoInicial());
-  const contagem = useContagemDoPeriodo(periodo.inicio, periodo.fim);
   const tab = abaPedida(searchParams.get('aba'));
   const Icon = TAB_ICONS[tab];
 
@@ -343,21 +298,16 @@ export function EditorialPage() {
         </div>
       }
     >
-      {tab === 'pilares' ? <PillarsPanel contagem={contagem} /> : null}
-      {tab === 'series' ? (
-        <SeriesPanel contagem={contagem} inicio={periodo.inicio} fim={periodo.fim} />
-      ) : null}
-      {tab === 'visao' ? (
-        <VisaoGeralPanel
+      {tab === 'pilares' ? <PillarsPanel /> : null}
+      {tab === 'series' ? <SeriesPanel /> : null}
+      {tab === 'periodo' ? (
+        <PeriodoPanel
           periodo={periodo}
           onPeriodoChange={setPeriodo}
-          contagem={contagem}
-          onAbrirPlano={() => changeTab('plano')}
+          onAbrirAjustes={() => changeTab('ajustes')}
         />
       ) : null}
-      {tab === 'plano' ? (
-        <PlanoPeriodoPanel periodo={periodo} onPeriodoChange={setPeriodo} />
-      ) : null}
+      {tab === 'ajustes' ? <AjustesEditorialPanel /> : null}
     </SettingsPageScaffold>
   );
 }

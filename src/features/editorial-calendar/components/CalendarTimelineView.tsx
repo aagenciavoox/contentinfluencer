@@ -12,6 +12,7 @@ import {ptBR} from 'date-fns/locale';
 import {calendarEntryPillStyle, CalendarEventPill} from '../../../components/calendar';
 import {calendarEntryIcon} from './CalendarNetworkIcons';
 import {Text} from '../../../components/ui/Text';
+import {keyboardActivation} from '../../../lib/a11y/keyboardActivation';
 import {cn} from '../../../lib/utils';
 import type {CalendarEntry} from './MonthlyCalendarView';
 
@@ -138,8 +139,10 @@ export function CalendarTimelineView({
                   <div
                     key={`${lane.id}-${dateKey}`}
                     onClick={() => onSelectDate?.(day)}
+                    {...(onSelectDate ? keyboardActivation(() => onSelectDate(day), format(day, "EEEE, d 'de' MMMM", {locale: ptBR})) : {})}
                     className={cn(
                       'min-h-[4.5rem] border-r border-[var(--border-color)] p-1.5 last:border-r-0',
+                      onSelectDate && 'cursor-pointer hover:bg-[var(--surface-subtle)] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--accent-blue)]',
                       isToday && 'bg-[color-mix(in_srgb,var(--accent-blue),transparent_97%)]',
                     )}
                   >

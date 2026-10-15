@@ -12,6 +12,7 @@ export { PaginationBar } from './PaginationBar';
 export { ToolbarSearchInput } from './ToolbarSearchInput';
 export { MediaCard } from './MediaCard';
 export { SegmentTabs } from './SegmentTabs';
+export { FilterChips, type FilterChipOption } from './FilterChips';
 export { EmptyState } from './EmptyState';
 export { Skeleton, SkeletonCard, SkeletonContentCard, SkeletonList, SkeletonRow } from './Skeleton';
 export { OperationalList } from './OperationalList';

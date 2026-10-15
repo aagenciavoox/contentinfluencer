@@ -11,6 +11,7 @@ import {
 import {ptBR} from 'date-fns/locale';
 import {CalendarDays, ChevronLeft, ChevronRight} from 'lucide-react';
 import {cn} from '../../lib/utils';
+import {SegmentTabs} from '../ui/SegmentTabs';
 
 export interface CalendarPeriodViewOption<T extends string = string> {
   id: T;
@@ -40,10 +41,10 @@ function applyMonthYear(anchorDate: Date, year: number, month: number): Date {
 }
 
 const navButtonClass =
-  'flex min-h-9 min-w-9 items-center justify-center rounded-[var(--radius-sm)] text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]';
+  'flex min-h-9 min-w-9 items-center justify-center rounded-[var(--radius-sm)] text-[var(--text-secondary)] pointer-coarse:min-h-11 pointer-coarse:min-w-11 transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]';
 
 const todayButtonClass =
-  'min-h-9 rounded-[var(--radius-sm)] border border-[var(--border-strong)] bg-[var(--bg-elevated)] px-3 py-1.5 text-sm font-semibold text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]';
+  'min-h-9 rounded-[var(--radius-sm)] border border-[var(--border-strong)] bg-[var(--bg-elevated)] px-3 py-1.5 pointer-coarse:min-h-11 text-sm font-semibold text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]';
 
 export function CalendarPeriodNav<T extends string = string>({
   anchorDate,
@@ -90,23 +91,12 @@ export function CalendarPeriodNav<T extends string = string>({
   return (
     <div className={cn('flex flex-wrap items-center gap-2', className)}>
       {views.length > 0 ? (
-        <div className="flex items-center gap-0.5 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-0.5">
-          {views.map(view => (
-            <button
-              key={view.id}
-              type="button"
-              onClick={() => onViewModeChange(view.id)}
-              className={cn(
-                'min-h-8 rounded-[var(--radius-sm)] px-3 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
-                viewMode === view.id
-                  ? 'bg-[var(--text-primary)] text-[var(--bg-primary)]'
-                  : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]',
-              )}
-            >
-              {view.label}
-            </button>
-          ))}
-        </div>
+        <SegmentTabs<T>
+          ariaLabel="Vista"
+          value={viewMode}
+          onChange={onViewModeChange}
+          options={views.map(view => ({id: view.id, label: view.label}))}
+        />
       ) : null}
 
       <button type="button" onClick={() => onAnchorDateChange(new Date())} className={todayButtonClass}>
@@ -133,7 +123,7 @@ export function CalendarPeriodNav<T extends string = string>({
             onClick={() => monthInputRef.current?.showPicker?.() ?? monthInputRef.current?.click()}
             className={cn(
               todayButtonClass,
-              'inline-flex min-w-[9.5rem] items-center justify-center gap-1.5 border-0 bg-transparent px-2',
+              'inline-flex min-w-[9.5rem] items-center justify-center gap-1.5 border-0 bg-transparent px-2 hover:bg-[var(--bg-hover)]',
             )}
             aria-labelledby={monthInputId}
             title="Escolher mês"

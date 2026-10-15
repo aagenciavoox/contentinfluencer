@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import { Text } from '../../../components/ui/Text';
 import { MobileListCard } from '../../components/MobileListCard';
-import { MobileToggleSwitch } from '../../components/MobileToggleSwitch';
+import { ToggleRow } from '../../../components/ui/ToggleSwitch';
 import { MobileSectionHeader } from '../../components/MobileSectionHeader';
 
 interface SettingsMobileScreenProps {
@@ -65,26 +65,24 @@ export function SettingsMobileScreen({
 
         <div className="stack-md">
           {gentleCards.map((item) => (
-            <div
+            <ToggleRow
               key={item.key}
-              className="flex items-center justify-between gap-4 rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-4"
+              id={`opcao-celular-${item.key}`}
+              enabled={item.enabled}
+              onToggle={item.onToggle}
+              title={item.title}
+              className="gap-4 rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-4"
             >
-              <div className="flex min-w-0 items-start gap-3">
-                <div className="mt-0.5 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] bg-[var(--bg-hover)] p-2 text-[var(--text-primary)]">
+              <span className="flex min-w-0 items-start gap-3">
+                <span className="mt-0.5 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] bg-[var(--bg-hover)] p-2 text-[var(--text-primary)]">
                   <HeartHandshake className="h-4 w-4 opacity-60" />
-                </div>
-                <div>
-                  <Text variant="bodyStrong">{item.title}</Text>
-                  <Text variant="meta" className="mt-1 block">{item.desc}</Text>
-                </div>
-              </div>
-
-              <MobileToggleSwitch
-                enabled={item.enabled}
-                onToggle={item.onToggle}
-                label={item.title}
-              />
-            </div>
+                </span>
+                <span>
+                  <Text variant="bodyStrong" as="span" className="block">{item.title}</Text>
+                  <Text variant="meta" as="span" className="mt-1 block">{item.desc}</Text>
+                </span>
+              </span>
+            </ToggleRow>
           ))}
         </div>
       </section>
@@ -92,20 +90,18 @@ export function SettingsMobileScreen({
       <section className="stack-lg">
         <MobileSectionHeader icon={Columns2} tone="blue" title="Escrita" className="px-1" />
 
-        <div className="flex items-center justify-between gap-4 rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-4">
-          <div className="min-w-0">
-            <Text variant="bodyStrong">Modo de escrita</Text>
-            <Text variant="meta" className="mt-1 block">
-              Separa o roteiro da gestão. Status, agendamento e legendas ficam em outra aba, e você pode abrir uma área de notas ao lado do texto.
-            </Text>
-          </div>
-
-          <MobileToggleSwitch
-            enabled={writingEnabled}
-            onToggle={onToggleWriting}
-            label="Modo de escrita"
-          />
-        </div>
+        <ToggleRow
+          id="opcao-celular-modo-escrita"
+          enabled={writingEnabled}
+          onToggle={onToggleWriting}
+          title="Modo de escrita"
+          className="gap-4 rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-4"
+        >
+          <Text variant="bodyStrong" as="span" className="block">Modo de escrita</Text>
+          <Text variant="meta" as="span" className="mt-1 block">
+            Separa o roteiro da gestão. Status, agendamento e legendas ficam em outra aba, e você pode abrir uma área de notas ao lado do texto.
+          </Text>
+        </ToggleRow>
       </section>
 
       <section className="stack-lg">
@@ -113,21 +109,17 @@ export function SettingsMobileScreen({
 
         <div className="stack-md">
           {moduleCards.map((item) => (
-            <div
+            <ToggleRow
               key={item.key}
-              className="flex items-center justify-between gap-4 rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-4"
+              id={`modulo-celular-${item.key}`}
+              enabled={item.enabled}
+              onToggle={item.onToggle}
+              title={`Módulo ${item.title}`}
+              className="gap-4 rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-4"
             >
-              <div className="min-w-0">
-                <Text variant="bodyStrong">{item.title}</Text>
-                <Text variant="meta" className="mt-1 block">{item.desc}</Text>
-              </div>
-
-              <MobileToggleSwitch
-                enabled={item.enabled}
-                onToggle={item.onToggle}
-                label={`módulo ${item.title}`}
-              />
-            </div>
+              <Text variant="bodyStrong" as="span" className="block">{item.title}</Text>
+              <Text variant="meta" as="span" className="mt-1 block">{item.desc}</Text>
+            </ToggleRow>
           ))}
         </div>
       </section>

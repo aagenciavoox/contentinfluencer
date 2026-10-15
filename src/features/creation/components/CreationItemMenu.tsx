@@ -26,9 +26,8 @@ export function CreationItemMenu({
       size="sm"
       className={className}
       triggerClassName={cn(
-        'border-transparent bg-transparent text-[var(--text-tertiary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]',
-        'opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100',
-        'aria-expanded:opacity-100',
+        // O ⋯ fica sempre visível: ação escondida até o hover não existe para quem não passou o mouse.
+        'text-[var(--text-tertiary)] hover:text-[var(--text-primary)]',
         alwaysVisible && 'opacity-100',
         triggerClassName,
       )}

@@ -10,7 +10,7 @@ import { Badge } from '../../../components/ui/Badge';
 import { MoreMenu } from '../../../components/ui/MoreMenu';
 import { Surface } from '../../../components/ui/Surface';
 import { Text } from '../../../components/ui/Text';
-import { SegmentTabs } from '../../../components/ui/SegmentTabs';
+import { FilterChips } from '../../../components/ui/FilterChips';
 import { ToolbarSearchInput } from '../../../components/ui/ToolbarSearchInput';
 import { QueryViewState, resolveQueryViewStatus } from '../../../components/ui/QueryViewState';
 import { useAppContext } from '../../../context/AppContext';
@@ -187,13 +187,14 @@ export function SeriesSettingsPage() {
               placeholder="Buscar série…"
               className="desktop-subheader-search"
             />
-            <SegmentTabs<SeriesFilter>
+            <FilterChips<SeriesFilter>
               value={filter}
               onChange={setFilter}
+              ariaLabel="Filtrar séries"
               options={[
-                { id: 'todas', label: `Todas ${filterCounts.todas}` },
-                { id: 'ativas', label: `Ativas ${filterCounts.ativas}` },
-                { id: 'inativas', label: `Inativas ${filterCounts.inativas}` },
+                { id: 'todas', label: 'Todas', count: filterCounts.todas },
+                { id: 'ativas', label: 'Ativas', count: filterCounts.ativas },
+                { id: 'inativas', label: 'Inativas', count: filterCounts.inativas },
               ]}
             />
           </div>
@@ -238,13 +239,15 @@ export function SeriesSettingsPage() {
               const emAberto = editorialSettings.openInfoNotices && getSerieOpenItems(serie).length > 0;
 
               return (
+                // Card clicável: o botão ocupa o card inteiro e o fundo muda no hover.
+                // Inativa: fundo rebaixado em vez de texto apagado.
                 <Surface
                   key={serie.id}
-                  variant="outlined"
-                  padding="md"
-                  className={!serie.ativa ? 'group relative opacity-55' : 'group relative'}
+                  variant="interactive"
+                  padding="none"
+                  className={!serie.ativa ? 'group relative is-dimmed' : 'group relative'}
                 >
-                  <div className="card-actions absolute right-2 top-2 z-10">
+                  <div className="absolute right-2 top-2 z-10">
                     <MoreMenu
                       size="sm"
                       items={[{
@@ -256,7 +259,7 @@ export function SeriesSettingsPage() {
                   <button
                     type="button"
                     onClick={() => openBulkPage(serie.id)}
-                    className="w-full pr-8 text-left focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+                    className="h-full w-full rounded-[inherit] p-4 pr-12 text-left focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
                   >
                     {/* Só o que foge do normal vira selo: "Ativa" em todas as séries era ruído. */}
                     {!serie.ativa || emAberto ? (

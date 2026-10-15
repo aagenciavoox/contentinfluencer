@@ -13,7 +13,7 @@ import { Text } from '../../../components/ui/Text';
 import { CONFIRM } from '../../../lib/uiCopy';
 import { MobileListCard } from '../../components/MobileListCard';
 import { MobileSectionHeader } from '../../components/MobileSectionHeader';
-import { MobileToggleSwitch } from '../../components/MobileToggleSwitch';
+import { ToggleSwitch } from '../../../components/ui/ToggleSwitch';
 import { platformDisplayName } from '../../../components/ui/platformName';
 
 interface PlatformsMobileScreenProps {
@@ -113,11 +113,11 @@ export function PlatformsMobileScreen({
                   padrao ? (
                     <div className="flex items-center gap-1.5" title={padraoLockReason}>
                       <Lock className="h-3.5 w-3.5 shrink-0 text-[var(--text-tertiary)]" aria-hidden />
-                      <MobileToggleSwitch
+                      <ToggleSwitch
                         enabled
                         onToggle={() => undefined}
                         label={displayName}
-                        className="pointer-events-none"
+                        disabled
                       />
                     </div>
                   ) : menuItems.length > 0 ? (

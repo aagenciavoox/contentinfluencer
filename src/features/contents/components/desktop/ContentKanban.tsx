@@ -98,7 +98,7 @@ export function ContentKanban({
                             event.stopPropagation();
                             onPreview(content);
                           }}
-                          className="inline-flex h-6 w-6 items-center justify-center rounded-[var(--radius-input)] text-[var(--text-tertiary)] opacity-0 transition-opacity group-hover:opacity-100 hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
+                          className="inline-flex h-6 w-6 items-center justify-center rounded-[var(--radius-input)] text-[var(--text-tertiary)] opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100 pointer-coarse:opacity-100 hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
                           aria-label={`Pré-visualizar ${content.title}`}
                         >
                           <Eye className="h-3 w-3" />

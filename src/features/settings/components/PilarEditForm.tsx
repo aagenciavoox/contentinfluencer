@@ -7,9 +7,11 @@ import {
   Smile,
   X,
 } from 'lucide-react';
+import { AppButton } from '../../../components/ui/AppButton';
 import { Surface } from '../../../components/ui/Surface';
 import { Text } from '../../../components/ui/Text';
 import type { Pilar, PilarPlataforma, Platform, PostingTimeEntry, Serie } from '../../../lib/database';
+import { SegmentTabs } from '../../../components/ui/SegmentTabs';
 import { cn } from '../../../lib/utils';
 import { generateUUID } from '../../../utils/uuid';
 import {
@@ -359,7 +361,7 @@ export function PilarEditForm({
 
   return (
     <div className="relative w-full">
-      <Surface variant="outlined" padding="md" className="mb-3 w-full">
+      <Surface variant="info" padding="md" className="mb-3 w-full">
         <div className="flex w-full items-center gap-3">
           <span
             className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full"
@@ -428,42 +430,33 @@ export function PilarEditForm({
               </Text>
             ) : (
               <div className="stack-lg">
-                <div className="flex gap-4 border-b border-[var(--border-color)]" role="tablist" aria-label="Plataformas">
-                  {platformNames.map(platform => {
-                    const selected = platform === selectedPlatform;
-                    return (
-                      <button
-                        key={platform}
-                        type="button"
-                        role="tab"
-                        aria-selected={selected}
-                        onClick={() => setActivePlatform(platform)}
-                        className={cn(
-                          '-mb-px inline-flex items-center gap-2 border-b-2 pb-2 text-sm font-medium focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
-                          selected
-                            ? 'border-[var(--brand-accent-strong)] text-[var(--text-primary)]'
-                            : 'border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]',
-                        )}
-                      >
-                        <PlatformBrand platform={platform} />
-                        {platform}
-                      </button>
-                    );
-                  })}
-                </div>
+                {/* Mesmo seletor de abas do resto do app (antes era a única aba sublinhada). */}
+                <SegmentTabs<string>
+                  ariaLabel="Plataformas"
+                  className="self-start"
+                  value={selectedPlatform}
+                  onChange={setActivePlatform}
+                  options={platformNames.map(platform => ({
+                    id: platform,
+                    label: platform,
+                    icon: <PlatformBrand platform={platform} />,
+                  }))}
+                />
 
                 <div className="stack-sm">
                   <div className="flex items-center justify-between gap-2">
                     <FieldLabel>Hashtags</FieldLabel>
-                    <button
-                      type="button"
+                    <AppButton
+                      variant="secondary"
+                      size="xs"
                       onClick={() => void copyHashtags(activePlataforma.hashtags)}
                       disabled={!activePlataforma.hashtags.trim()}
-                      className="inline-flex h-8 w-8 items-center justify-center rounded-[var(--radius-input)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] disabled:opacity-40 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+                      leftIcon={<Copy className="h-3.5 w-3.5" />}
+                      className="pointer-coarse:h-11"
                       aria-label={`Copiar hashtags de ${selectedPlatform}`}
                     >
-                      <Copy className="h-4 w-4" />
-                    </button>
+                      Copiar
+                    </AppButton>
                   </div>
                   <input
                     type="text"
@@ -558,14 +551,14 @@ export function PilarEditForm({
         </div>
 
         <aside className="flex min-w-0 flex-col gap-3 lg:sticky lg:top-24 lg:self-start">
-          <Surface variant="outlined" padding="md">
+          <Surface variant="info" padding="md">
             <CardHeading title="Ritmo editorial" />
             <div className="stack-sm">
               {form.frequenciaSemanal != null ? (
                 <Text variant="body">{form.frequenciaSemanal}</Text>
               ) : null}
               <Text variant="meta" className="text-[var(--text-secondary)]">
-                Este número não define mais o limite. O limite fica no Plano do período.
+                Este número não define mais o limite. O limite fica na aba Ajustes do Editorial.
               </Text>
             </div>
           </Surface>

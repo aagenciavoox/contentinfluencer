@@ -73,8 +73,12 @@ export function MoreMenu({
           setOpen(previous => !previous);
         }}
         className={cn(
-          'inline-flex items-center justify-center rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-secondary)] text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
-          size === 'sm' ? 'h-8 w-8 pointer-coarse:h-11 pointer-coarse:w-11' : 'h-9 w-9 pointer-coarse:h-11 pointer-coarse:w-11',
+          // Dois tamanhos, pelo lugar: `md` em cabeçalhos e barras, com a altura e a borda dos
+          // botões ao lado; `sm` dentro de cards e linhas, sem borda. No toque, sempre 44px.
+          'inline-flex items-center justify-center rounded-[var(--radius-input)] text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
+          size === 'sm'
+            ? 'h-8 w-8 border border-transparent bg-transparent pointer-coarse:h-11 pointer-coarse:w-11'
+            : 'h-[var(--control-height)] w-[var(--control-height)] border border-[var(--border-color)] bg-[var(--bg-secondary)] pointer-coarse:h-11 pointer-coarse:w-11',
           open && 'opacity-100',
           triggerClassName,
         )}

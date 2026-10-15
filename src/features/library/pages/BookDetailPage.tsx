@@ -11,8 +11,6 @@ import {
   X,
   Check,
   Film,
-  ChevronDown,
-  ChevronUp,
   Copy,
   Hash,
   Target,
@@ -43,6 +41,7 @@ import { Text } from '../../../components/ui/Text';
 import { Surface } from '../../../components/ui/Surface';
 import { AppButton } from '../../../components/ui/AppButton';
 import { PropertyDatePicker } from '../../../components/ui/PropertyDatePicker';
+import { DisclosureButton } from '../../../components/ui/DisclosureButton';
 import { SegmentTabs } from '../../../components/ui/SegmentTabs';
 import { cn } from '../../../lib/utils';
 import { CoverUploadField } from '../components/CoverUploadField';
@@ -873,14 +872,9 @@ export function BookDetailPage() {
 
               {/* Seção 3 — Detalhes técnicos (colapsável) */}
               <section className="border-t border-[var(--border-color)] pt-6">
-                <button
-                  type="button"
-                  onClick={() => setShowTechnical(v => !v)}
-                  className={cn('mb-3 flex w-full items-center gap-2 text-left', FOCUS_INTERACTIVE)}
-                >
+                <DisclosureButton open={showTechnical} onToggle={() => setShowTechnical(v => !v)} className="-mx-2 mb-3 w-[calc(100%+1rem)]">
                   <SectionLabel className="mb-0">Detalhes técnicos</SectionLabel>
-                  {showTechnical ? <ChevronUp className="w-3.5 h-3.5 text-[var(--text-tertiary)]" /> : <ChevronDown className="w-3.5 h-3.5 text-[var(--text-tertiary)]" />}
-                </button>
+                </DisclosureButton>
                 {showTechnical && (
                   <div className="grid-form">
                     <div>
@@ -944,14 +938,9 @@ export function BookDetailPage() {
 
               {/* Seção 4 — Para você (colapsável) */}
               <section className="border-t border-[var(--border-color)] pt-6">
-                <button
-                  type="button"
-                  onClick={() => setShowParaVoce(v => !v)}
-                  className={cn('mb-3 flex w-full items-center gap-2 text-left', FOCUS_INTERACTIVE)}
-                >
+                <DisclosureButton open={showParaVoce} onToggle={() => setShowParaVoce(v => !v)} className="-mx-2 mb-3 w-[calc(100%+1rem)]">
                   <SectionLabel className="mb-0">Para você</SectionLabel>
-                  {showParaVoce ? <ChevronUp className="w-3.5 h-3.5 text-[var(--text-tertiary)]" /> : <ChevronDown className="w-3.5 h-3.5 text-[var(--text-tertiary)]" />}
-                </button>
+                </DisclosureButton>
                 {showParaVoce && (
                   <div className="stack-lg">
                     <div>
@@ -1034,14 +1023,10 @@ export function BookDetailPage() {
                   <button
                     key={t}
                     type="button"
+                    aria-pressed={filtroTipo === t}
                     onClick={() => setFiltroTipo(t)}
-                    className={cn(
-                      'rounded-full border px-3 py-1.5 text-xs font-bold transition-all',
-                      FOCUS_INTERACTIVE,
-                      filtroTipo === t
-                        ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-[var(--bg-secondary)]'
-                        : 'border-[var(--border-strong)] bg-transparent text-[var(--text-tertiary)] hover:text-[var(--text-primary)]',
-                    )}
+                    // Mesmo chip de filtro do Calendário: um desenho só para filtrar.
+                    className={cn('filter-chip pointer-coarse:min-h-11', filtroTipo === t && 'filter-chip-active')}
                   >
                     {t === 'Destaques' ? '⭐ Destaques' : t}
                   </button>
@@ -1343,16 +1328,10 @@ export function BookDetailPage() {
 
             {/* ── Hashtag Manager ── */}
             <section className="bg-[var(--bg-primary)] rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] p-6">
-              <button
-                type="button"
-                onClick={() => setHashtagsAberto(v => !v)}
-                className={cn('group flex w-full items-center gap-2 text-left', FOCUS_INTERACTIVE)}
-              >
-                <Hash className="w-4 h-4 text-[var(--text-tertiary)]" />
-                <span className="flex-1 text-xs font-semibold text-[var(--text-secondary)] transition-colors group-hover:text-[var(--text-primary)]">
-                  {hashtagsAberto ? 'Ocultar hashtags sugeridas ▴' : 'Ver hashtags sugeridas ▾'}
-                </span>
-              </button>
+              <DisclosureButton open={hashtagsAberto} onToggle={() => setHashtagsAberto(v => !v)} className="-mx-2 w-[calc(100%+1rem)]">
+                <Hash className="h-4 w-4 text-[var(--text-tertiary)]" />
+                <span className="text-xs font-semibold text-[var(--text-primary)]">Hashtags sugeridas</span>
+              </DisclosureButton>
               {hashtagsAberto && (
                 <div className="mt-4">
                   <div className="flex gap-1 mb-3">
