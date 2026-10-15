@@ -25,28 +25,33 @@ const KIND_LABEL = {
   roteiro: 'Roteiro',
 } as const;
 
+// Faixa de 3px à esquerda na cor do tipo (ou da série) e fundo levemente tingido.
 const KIND_SURFACE = {
   vazio: cn(
     'border-[color-mix(in_srgb,var(--status-archived)_55%,var(--border-color))]',
-    'bg-[color-mix(in_srgb,var(--status-archived)_28%,var(--bg-elevated))]',
-    'hover:bg-[color-mix(in_srgb,var(--status-archived)_40%,var(--bg-elevated))]',
+    'border-l-[color:var(--status-archived)]',
+    'bg-[color-mix(in_srgb,var(--status-archived)_24%,var(--bg-elevated))]',
+    'hover:bg-[color-mix(in_srgb,var(--status-archived)_34%,var(--bg-elevated))]',
   ),
   ideia: cn(
-    'border-[color-mix(in_srgb,var(--accent-purple)_42%,var(--border-color))]',
-    'bg-[color-mix(in_srgb,var(--accent-purple)_18%,var(--bg-elevated))]',
-    'hover:bg-[color-mix(in_srgb,var(--accent-purple)_28%,var(--bg-elevated))]',
+    'border-[color-mix(in_srgb,var(--accent-purple)_30%,var(--border-color))]',
+    'border-l-[color:var(--accent-purple)]',
+    'bg-[color-mix(in_srgb,var(--accent-purple)_12%,var(--bg-elevated))]',
+    'hover:bg-[color-mix(in_srgb,var(--accent-purple)_20%,var(--bg-elevated))]',
   ),
   roteiro: cn(
-    'border-[color-mix(in_srgb,var(--accent-green)_42%,var(--border-color))]',
-    'bg-[color-mix(in_srgb,var(--accent-green)_18%,var(--bg-elevated))]',
-    'hover:bg-[color-mix(in_srgb,var(--accent-green)_28%,var(--bg-elevated))]',
+    'border-[color-mix(in_srgb,var(--accent-green)_30%,var(--border-color))]',
+    'border-l-[color:var(--accent-green)]',
+    'bg-[color-mix(in_srgb,var(--accent-green)_12%,var(--bg-elevated))]',
+    'hover:bg-[color-mix(in_srgb,var(--accent-green)_20%,var(--bg-elevated))]',
   ),
 } as const;
 
 const SERIES_SURFACE = cn(
-  'border-[color-mix(in_srgb,var(--post-it-accent)_42%,var(--border-color))]',
-  'bg-[color-mix(in_srgb,var(--post-it-accent)_18%,var(--bg-elevated))]',
-  'hover:bg-[color-mix(in_srgb,var(--post-it-accent)_28%,var(--bg-elevated))]',
+  'border-[color-mix(in_srgb,var(--post-it-accent)_30%,var(--border-color))]',
+  'border-l-[color:var(--post-it-accent)]',
+  'bg-[color-mix(in_srgb,var(--post-it-accent)_12%,var(--bg-elevated))]',
+  'hover:bg-[color-mix(in_srgb,var(--post-it-accent)_20%,var(--bg-elevated))]',
 );
 
 export function PostItNote({
@@ -130,7 +135,7 @@ export function PostItNote({
         ...(selected ? {boxShadow: 'inset 0 0 0 2px var(--text-primary)'} : {}),
       }}
       className={cn(
-        'flex w-full cursor-grab items-start gap-1 rounded-[var(--radius-sm)] border px-2 py-1.5 text-left shadow-[var(--shadow-soft)] active:cursor-grabbing',
+        'flex w-full cursor-grab items-start gap-1.5 rounded-[var(--radius-sm)] border border-l-[3px] px-2 py-2 text-left shadow-[var(--shadow-soft)] active:cursor-grabbing',
         accent ? SERIES_SURFACE : KIND_SURFACE[kind],
         'focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
         selected && 'bg-[var(--bg-hover)]',

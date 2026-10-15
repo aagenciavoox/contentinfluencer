@@ -306,7 +306,8 @@ export function RichTextEditor({
   });
 
   useEffect(() => {
-    if (editor && content !== editor.getHTML()) {
+    // Editor destruído (remontagem do StrictMode, troca de roteiro) não tem schema para gerar o HTML.
+    if (editor && !editor.isDestroyed && content !== editor.getHTML()) {
       // Avoid marking the parent draft dirty on hydrate / external sync.
       editor.commands.setContent(content, { emitUpdate: false });
     }

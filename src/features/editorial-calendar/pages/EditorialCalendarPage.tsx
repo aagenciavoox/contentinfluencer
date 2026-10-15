@@ -59,7 +59,7 @@ import {getGentleExperienceSettings} from '../../settings/lib/gentleExperience';
 import {getSessionCandidates} from '../../dashboard/lib/dailySession';
 import {generateUUID} from '../../../utils/uuid';
 import {getEditorialSettings} from '../../editorial/lib/editorialSettings';
-import {calendarEntryIcon} from '../components/CalendarNetworkIcons';
+import {calendarEntryIcon, CalendarLegend} from '../components/CalendarNetworkIcons';
 import {contasAtivas, rotuloConta, rotuloDaRef} from '../../contas/lib/contas';
 import {editarVersaoPropria, ESTADO_LEGENDA_ROTULO, estadoLegenda, legendaEfetiva} from '../../editorial/lib/captions';
 import {
@@ -79,7 +79,8 @@ function loadLayers(): string[] {
 }
 
 function loadDayPanelOpen(): boolean {
-  return readStoredJson(PANEL_STORAGE_KEY, true);
+  // Fechado de início: o mês ocupa a largura toda e "Dia (N)" abre o painel.
+  return readStoredJson(PANEL_STORAGE_KEY, false);
 }
 
 function loadUndatedPileOpen(): boolean {
@@ -483,7 +484,8 @@ export function EditorialCalendarPage() {
         <DesktopPageHeader
           section="Produção"
           title="Calendário"
-          meta="Publicações, gravações, eventos e projetos com data. O rascunho do mês fica no Planejamento."
+          meta="Publicações, gravações, eventos e projetos com data."
+          metaNote="Rascunhos ficam no Planejamento."
           actions={(
             <>
               <div className="relative">
@@ -540,7 +542,7 @@ export function EditorialCalendarPage() {
                 <PanelLeft className="h-4 w-4" />
               </button>
             )}
-            <div className="min-w-0 flex-1">
+            <div className="min-w-0 shrink-0">
               <CalendarPeriodNav
                 anchorDate={currentMonth}
                 onAnchorDateChange={date => {
@@ -560,6 +562,8 @@ export function EditorialCalendarPage() {
                 ]}
               />
             </div>
+            {/* As ações descem juntas para a linha de baixo quando não cabem; a navegação não se parte. */}
+            <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
             <FilterBar
               className="filter-bar--inline"
               size="compact"
@@ -644,6 +648,7 @@ export function EditorialCalendarPage() {
                 Dia ({selectedEntries.length})
               </AppButton>
             ) : null}
+            </div>
           </div>
         </div>
       }
@@ -709,6 +714,7 @@ export function EditorialCalendarPage() {
             </CalendarMainWithPile>
           ) : (
             <CalendarMainWithPile showPile={showUndatedPile} pile={undatedPile}>
+              <div className="stack-md min-w-0">
               <MonthlyCalendarView
                 contents={state.contents}
                 platforms={state.platforms}
@@ -731,6 +737,8 @@ export function EditorialCalendarPage() {
                 onDayDragLeave={() => setRoteiroDragOver(null)}
                 onDayDrop={handleRoteiroDrop}
               />
+              <CalendarLegend />
+              </div>
             </CalendarMainWithPile>
           )}
 

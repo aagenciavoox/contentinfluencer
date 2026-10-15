@@ -23,6 +23,8 @@ Content OS uses a token-based design system. Pages compose with shared UI primit
 | **ToolbarSearchInput** | `src/components/ui/ToolbarSearchInput.tsx` | Campo de busca em toolbars e `FilterBar` |
 | **SegmentTabs** | `src/components/ui/SegmentTabs.tsx` | O único seletor de aba e de vista (abas da página, Grade/Lista/Kanban, Mês/Semana, redes). Aceita `icon` e `count`; setas trocam a aba. Uma fileira por tela |
 | **FilterChips** | `src/components/ui/FilterChips.tsx` | Filtro de uma escolha só (Todas/Ativas/Inativas). Chips `.filter-chip` com contagem; nunca `SegmentTabs` |
+| **SelectField** | `src/components/ui/SelectField.tsx` | Escolha única que não fica vazia (etapa, rede de referência, conta dos horários). Aceita ícone e prefixo ("Etapa: Roteiro"). Valor que pode ficar vazio ou ser vários usa `TagSelect` |
+| **PlatformIcon / PlatformTile** | `src/components/ui/PlatformIcon.tsx` | Ícone da rede; `colored` usa a cor da marca (`--platform-*`). `PlatformTile` é o quadrado colorido das listas de contas. Sempre com o nome da conta ao lado |
 | **MediaCard** | `src/components/ui/MediaCard.tsx` | Capa/thumbnail para grids de catálogo |
 | **MobileSectionHeader** | `src/mobile/components/MobileSectionHeader.tsx` | Cabeçalho in-card em telas mobile |
 
@@ -203,6 +205,7 @@ Regras tiradas da auditoria de 15/10/2026 (`AUDIT-UX-2026-10-15.md`). Cada uma c
 
 ### Semantic colors
 - `--accent`, `--success`, `--warning`, `--danger`, `--info`
+- `--platform-instagram`, `--platform-youtube`, `--platform-tiktok` — só no ícone da rede, nunca em texto
 - `--accent-blue`, `--accent-purple`, `--accent-pink`, `--accent-orange`, `--accent-green`
 - `--brand-accent`, `--brand-accent-strong`, `--brand-on-accent`
 

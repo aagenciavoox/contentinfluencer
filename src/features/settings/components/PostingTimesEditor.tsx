@@ -1,14 +1,13 @@
 import {useEffect, useMemo, useState} from 'react';
-import {Globe, Pencil, Plus, Trash2} from 'lucide-react';
+import {Globe, Plus, Trash2, UserRound, X} from 'lucide-react';
 import {useAppContext} from '../../../context/AppContext';
 import {AppButton} from '../../../components/ui/AppButton';
-import {SegmentTabs} from '../../../components/ui/SegmentTabs';
+import {SelectField} from '../../../components/ui/SelectField';
 import {Text} from '../../../components/ui/Text';
-import {cn} from '../../../lib/utils';
+import {cn, tintedTextColor} from '../../../lib/utils';
 import {
   WEEKDAYS_ORDERED,
   Weekday,
-  WEEKDAY_LABELS,
 } from '../lib/postingTimes';
 import {replacePostingTimesForPlatform} from '../../../lib/database';
 import type {PostingTimeEntry} from '../../../lib/database';
@@ -70,19 +69,58 @@ function isUsingGlobalFallback(
   return specific.length === 0 && global.length > 0;
 }
 
+const NOME_DO_DIA: Record<Weekday, string> = {
+  0: 'Domingo',
+  1: 'Segunda-feira',
+  2: 'Terça-feira',
+  3: 'Quarta-feira',
+  4: 'Quinta-feira',
+  5: 'Sexta-feira',
+  6: 'Sábado',
+};
+
+/**
+ * Horários de postagem numa tabela por dia, sempre editável. As mudanças ficam
+ * nesta tela até "Salvar alterações". O padrão geral vale nos dias sem horário da conta.
+ */
 export function PostingTimesEditor({
   contaInicialId,
   aoSalvar,
+  layout = 'painel',
+  onDirtyChange,
 }: {
-  /** Conta já escolhida na tela que abriu o editor. Null abre no horário global. */
+  /** Conta já escolhida na tela que abriu o editor. Null abre no padrão geral. */
   contaInicialId?: string | null;
   aoSalvar?: () => void;
+  /** `pagina` mostra o título da seção; no painel lateral o título é do painel. */
+  layout?: 'pagina' | 'painel';
+  /** Avisa a tela quando há alteração sem salvar (para ela não ter dois botões principais). */
+  onDirtyChange?: (dirty: boolean) => void;
 } = {}) {
   const {state, ensureDataDomains} = useAppContext();
   const [selectedPlatformId, setSelectedPlatformId] = useState<string | null>(contaInicialId ?? null);
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState<ScheduleDraft>({});
+  const savedDraft = useMemo(
+    () => entriesToDraft(state.postingTimeEntries ?? []),
+    [state.postingTimeEntries],
+  );
+  const [draft, setDraft] = useState<ScheduleDraft>(savedDraft);
+  // Enquanto ninguém mexeu, o rascunho acompanha o que chega do servidor.
+  const [touched, setTouched] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const isDirty = touched && !draftsMatch(draft, savedDraft);
+
+  useEffect(() => {
+    if (!touched) setDraft(savedDraft);
+  }, [savedDraft, touched]);
+
+  useEffect(() => {
+    onDirtyChange?.(isDirty);
+  }, [isDirty, onDirtyChange]);
+
+  useEffect(() => {
+    if (contaInicialId === undefined) return;
+    setSelectedPlatformId(contaInicialId);
+  }, [contaInicialId]);
 
   const activePlatforms = useMemo(() => {
     const ativas = state.platforms.filter(platform => platform.ativo);
@@ -91,36 +129,12 @@ export function PostingTimesEditor({
     return extra ? [extra, ...ativas] : ativas;
   }, [contaInicialId, state.platforms]);
 
-  useEffect(() => {
-    if (contaInicialId === undefined) return;
-    setSelectedPlatformId(contaInicialId);
-  }, [contaInicialId]);
-
-  const savedDraft = useMemo(
-    () => entriesToDraft(state.postingTimeEntries ?? []),
-    [state.postingTimeEntries],
-  );
-  const visibleDraft = editing ? draft : savedDraft;
-  const isDirty = editing && !draftsMatch(draft, savedDraft);
-
-  const platformTabs = [
-    {id: GLOBAL_TAB_ID, label: 'Global'},
-    ...activePlatforms.map(platform => ({id: platform.id, label: rotuloConta(platform)})),
-  ];
-  const selectedTabId = selectedPlatformId ?? GLOBAL_TAB_ID;
   const selectedKey = tabKey(selectedPlatformId);
-
-  function startEditing() {
-    setDraft(entriesToDraft(state.postingTimeEntries ?? []));
-    setEditing(true);
-  }
-
-  function cancelEditing() {
-    setDraft({});
-    setEditing(false);
-  }
+  const contaSelecionada = activePlatforms.find(platform => platform.id === selectedPlatformId) ?? null;
+  const temHorarioNaAba = WEEKDAYS.some(weekday => timesFor(draft, selectedKey, weekday).length > 0);
 
   function updateDay(weekday: Weekday, nextTimes: string[]) {
+    setTouched(true);
     setDraft(previous => ({
       ...previous,
       [selectedKey]: {
@@ -133,17 +147,18 @@ export function PostingTimesEditor({
   function handleAdd(weekday: Weekday, time: string) {
     const normalized = normalizeTime(time);
     if (!normalized) return;
-    const current = timesFor(visibleDraft, selectedKey, weekday);
+    const current = timesFor(draft, selectedKey, weekday);
     if (current.length >= MAX_TIMES_PER_DAY || current.includes(normalized)) return;
     updateDay(weekday, [...current, normalized]);
   }
 
   function handleRemove(weekday: Weekday, time: string) {
-    const current = timesFor(visibleDraft, selectedKey, weekday);
+    const current = timesFor(draft, selectedKey, weekday);
     updateDay(weekday, current.filter(item => item !== normalizeTime(time)));
   }
 
   function handleClearTab() {
+    setTouched(true);
     setDraft(previous => {
       const next = {...previous, [selectedKey]: {}};
       for (const weekday of WEEKDAYS) {
@@ -151,6 +166,11 @@ export function PostingTimesEditor({
       }
       return next;
     });
+  }
+
+  function cancelEditing() {
+    setDraft(savedDraft);
+    setTouched(false);
   }
 
   async function handleSave() {
@@ -170,9 +190,8 @@ export function PostingTimesEditor({
       await ensureDataDomains(['schedule'], {force: true});
       broadcastDataSync();
       notifySaveFeedback({status: 'success', message: 'Horários salvos'});
+      setTouched(false);
       aoSalvar?.();
-      setEditing(false);
-      setDraft({});
     } catch (err) {
       notifySaveFeedback({status: 'error', message: 'Não foi possível salvar os horários. Verifique sua conexão e tente novamente.', detail: getErrorMessage(err)});
     } finally {
@@ -180,91 +199,135 @@ export function PostingTimesEditor({
     }
   }
 
+  const acoes = (
+    <div className="flex flex-wrap items-center gap-2">
+      <AppButton variant="secondary" onClick={cancelEditing} disabled={!touched || isSaving}>
+        Cancelar
+      </AppButton>
+      <AppButton
+        variant={isDirty ? 'primary' : 'secondary'}
+        onClick={() => void handleSave()}
+        disabled={!isDirty || isSaving}
+      >
+        {isSaving ? 'Salvando…' : 'Salvar alterações'}
+      </AppButton>
+    </div>
+  );
+
+  const escolha = 'inline-flex min-h-11 items-center gap-2 rounded-[var(--radius-input)] border px-4 t-body transition-colors focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]';
+  const escolhida = 'border-[var(--text-primary)] bg-[var(--bg-hover)] font-semibold text-[var(--text-primary)]';
+  const livre = 'border-[var(--border-color)] bg-[var(--bg-elevated)] text-[var(--text-primary)] hover:bg-[var(--bg-hover)]';
+
   return (
-    <div className="stack-xl">
+    <div className="stack-md">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <Text variant="body" className="max-w-2xl text-[var(--text-secondary)]">
-          {editing
-            ? `Até ${MAX_TIMES_PER_DAY} horários por dia. As mudanças ficam nesta tela até você salvar.`
-            : 'Horários sugeridos por dia. Um horário da plataforma substitui o Global naquele dia.'}
-        </Text>
-        <div className="flex flex-wrap items-center gap-2">
-          {editing ? (
-            <>
-              <AppButton variant="ghost" size="sm" onClick={handleClearTab} disabled={isSaving}>
-                Limpar aba
-              </AppButton>
-              <AppButton variant="secondary" size="sm" onClick={cancelEditing} disabled={isSaving}>
-                Cancelar
-              </AppButton>
-              <AppButton variant="primary" size="sm" onClick={() => void handleSave()} disabled={!isDirty || isSaving}>
-                {isSaving ? 'Salvando…' : 'Salvar'}
-              </AppButton>
-            </>
-          ) : (
-            <AppButton
-              variant="secondary"
-              size="sm"
-              onClick={startEditing}
-              leftIcon={<Pencil className="h-3.5 w-3.5" />}
-            >
-              Editar
-            </AppButton>
-          )}
+        <div className="min-w-0 max-w-2xl">
+          {layout === 'pagina' ? <Text variant="sectionTitle" as="h2">Horários de postagem</Text> : null}
+          <Text variant="secondary" className="mt-0.5 text-[var(--text-secondary)]">
+            Até {MAX_TIMES_PER_DAY} horários por dia. Os dias sem horário próprio usam o padrão geral. Usados também no Editorial.
+          </Text>
         </div>
+        {acoes}
       </div>
 
-      <SegmentTabs
-        options={platformTabs}
-        value={selectedTabId}
-        onChange={id => setSelectedPlatformId(id === GLOBAL_TAB_ID ? null : id)}
-        className="flex flex-wrap"
-      />
-
-      {selectedPlatformId !== null ? (
-        <Text variant="meta" className="text-[var(--text-secondary)]">
-          Dias sem horário próprio usam o Global, mostrado tracejado.
-        </Text>
-      ) : null}
-
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-        {WEEKDAYS_ORDERED.map(day => {
-          const specificTimes = timesFor(visibleDraft, selectedKey, day);
-          const usingFallback = isUsingGlobalFallback(visibleDraft, selectedPlatformId, day);
-          const fallbackTimes = usingFallback ? timesFor(visibleDraft, GLOBAL_TAB_ID, day) : [];
-
-          return (
-            <DayCard
-              key={day}
-              day={day}
-              editing={editing}
-              specificTimes={specificTimes}
-              fallbackTimes={fallbackTimes}
-              isFallback={usingFallback}
-              onAdd={time => handleAdd(day, time)}
-              onRemove={time => handleRemove(day, time)}
+      <div className="stack-sm">
+        <div className="flex flex-wrap items-center gap-2" role="radiogroup" aria-label="Horários de">
+          <button
+            type="button"
+            role="radio"
+            aria-checked={selectedPlatformId === null}
+            onClick={() => setSelectedPlatformId(null)}
+            className={cn(escolha, selectedPlatformId === null ? escolhida : livre)}
+          >
+            <Globe className="h-4 w-4" aria-hidden />
+            Padrão geral
+          </button>
+          {activePlatforms.length > 0 ? (
+            <SelectField
+              ariaLabel="Personalizar por conta"
+              selected={selectedPlatformId !== null}
+              className="min-h-11 md:min-h-11"
+              leadingIcon={<UserRound className="h-4 w-4 text-[var(--text-primary)]" />}
+              value={selectedPlatformId ?? ''}
+              onChange={value => setSelectedPlatformId(value || null)}
+              options={[
+                {value: '', label: 'Personalizar por conta'},
+                ...activePlatforms.map(platform => ({value: platform.id, label: rotuloConta(platform)})),
+              ]}
             />
-          );
-        })}
+          ) : null}
+        </div>
+        <Text variant="secondary" className="text-[var(--text-secondary)]">
+          {contaSelecionada
+            ? `Exceções de ${rotuloConta(contaSelecionada)}. Dias sem horário desta conta usam o padrão geral, mostrado tracejado.`
+            : 'Selecione uma conta para definir exceções.'}
+        </Text>
+      </div>
+
+      <div className="overflow-hidden rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-elevated)]">
+        <div className={`${LINHA_DIA} border-b border-[var(--border-color)] bg-[var(--surface-subtle)] py-2.5`} aria-hidden>
+          <Text variant="label" as="span" className="text-[var(--text-secondary)]">Dia</Text>
+          <Text variant="label" as="span" className="text-[var(--text-secondary)]">Horários</Text>
+          <Text variant="label" as="span" className="text-right text-[var(--text-secondary)]">Limite</Text>
+        </div>
+        <ul>
+          {WEEKDAYS_ORDERED.map(day => {
+            const specificTimes = timesFor(draft, selectedKey, day);
+            const usingFallback = isUsingGlobalFallback(draft, selectedPlatformId, day);
+            const fallbackTimes = usingFallback ? timesFor(draft, GLOBAL_TAB_ID, day) : [];
+            return (
+              <DayRow
+                key={day}
+                day={day}
+                fimDeSemana={day === 0 || day === 6}
+                specificTimes={specificTimes}
+                fallbackTimes={fallbackTimes}
+                disabled={isSaving}
+                onAdd={time => handleAdd(day, time)}
+                onRemove={time => handleRemove(day, time)}
+              />
+            );
+          })}
+        </ul>
+      </div>
+
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <Text variant="secondary" className="text-[var(--text-secondary)]" aria-live="polite">
+          {isDirty ? 'Há alterações não salvas.' : 'Nenhuma alteração pendente.'}
+        </Text>
+        <AppButton
+          variant="secondary"
+          size="sm"
+          leftIcon={<Trash2 className="h-4 w-4" />}
+          style={{color: tintedTextColor('var(--danger)')}}
+          disabled={isSaving || !temHorarioNaAba}
+          onClick={handleClearTab}
+        >
+          {contaSelecionada ? `Limpar horários de ${rotuloConta(contaSelecionada)}` : 'Limpar horários'}
+        </AppButton>
       </div>
     </div>
   );
 }
 
-interface DayCardProps {
+/** Dia, horários e limite. No celular, o dia fica em cima dos horários. */
+const LINHA_DIA =
+  'grid grid-cols-[minmax(0,1fr)_3rem] items-center gap-x-4 gap-y-2 px-4 sm:grid-cols-[9rem_minmax(0,1fr)_3rem]';
+
+interface DayRowProps {
   day: Weekday;
-  editing: boolean;
+  fimDeSemana: boolean;
   specificTimes: string[];
   fallbackTimes: string[];
-  isFallback: boolean;
+  disabled: boolean;
   onAdd: (time: string) => void;
   onRemove: (time: string) => void;
 }
 
-function DayCard({day, editing, specificTimes, fallbackTimes, isFallback, onAdd, onRemove}: DayCardProps) {
+function DayRow({day, fimDeSemana, specificTimes, fallbackTimes, disabled, onAdd, onRemove}: DayRowProps) {
   const [input, setInput] = useState('');
   const canAdd = specificTimes.length < MAX_TIMES_PER_DAY;
-  const displayTimes = specificTimes.length > 0 ? specificTimes : fallbackTimes;
+  const nome = NOME_DO_DIA[day];
 
   function handleAdd() {
     if (!input) return;
@@ -273,92 +336,76 @@ function DayCard({day, editing, specificTimes, fallbackTimes, isFallback, onAdd,
   }
 
   return (
-    <div
+    <li
       className={cn(
-        'stack-md rounded-[var(--radius-card)] border px-6 py-4',
-        // Fora da edição o dia só informa: sem borda, para não parecer clicável.
-        editing ? 'border-[var(--border-color)] bg-[var(--bg-primary)]' : 'border-transparent bg-[var(--surface-subtle)]',
+        LINHA_DIA,
+        'border-b border-[var(--border-color)] py-2 last:border-b-0',
+        fimDeSemana && 'bg-[var(--bg-primary)]',
       )}
     >
-      <div className="flex items-center justify-between">
-        <Text variant="bodyStrong">{WEEKDAY_LABELS[day]}</Text>
-        <div className="flex items-center gap-2">
-          {isFallback ? (
-            <span className="flex items-center gap-1 text-[var(--text-secondary)]">
-              <Globe className="h-2.5 w-2.5" />
-              <Text variant="meta">global</Text>
-            </span>
-          ) : null}
-          {editing ? (
-            <Text variant="meta" className="text-[var(--text-secondary)]">
-              {specificTimes.length}/{MAX_TIMES_PER_DAY}
-            </Text>
-          ) : null}
-        </div>
-      </div>
-
-      {displayTimes.length > 0 ? (
-        <div className="flex flex-wrap gap-2">
-          {displayTimes.map(time => {
-            const isOwn = specificTimes.includes(time);
-            return (
-              <span
-                key={time}
-                className={cn(
-                  'flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold',
-                  isOwn
-                    ? 'border-[var(--border-color)] bg-[var(--bg-secondary)] text-[var(--text-primary)]'
-                    : 'border-dashed border-[var(--border-color)] bg-transparent text-[var(--text-secondary)]',
-                )}
-              >
-                {time}
-                {editing && isOwn ? (
-                  <button
-                    type="button"
-                    onClick={() => onRemove(time)}
-                    className="inline-flex min-h-9 min-w-9 items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-                    aria-label={`Remover horário ${time}`}
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
-                ) : null}
-              </span>
-            );
-          })}
-        </div>
-      ) : (
-        <Text variant="meta" className="text-[var(--text-tertiary)]">
-          Nenhum horário
-        </Text>
-      )}
-
-      {editing && canAdd ? (
-        <div className="flex items-center gap-2">
-          <input
-            type="time"
-            value={input}
-            onChange={event => setInput(event.target.value)}
-            onKeyDown={event => event.key === 'Enter' && handleAdd()}
-            aria-label={`Novo horário para ${WEEKDAY_LABELS[day]}`}
-            className="flex-1 rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-3 py-2 text-sm font-bold text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
-          />
-          <AppButton
-            onClick={handleAdd}
-            variant="ghost"
-            size="sm"
-            disabled={!input}
-            leftIcon={<Plus className="h-3.5 w-3.5" />}
+      <Text variant="body" as="span" className="col-span-2 sm:col-span-1">{nome}</Text>
+      <div className="flex min-w-0 flex-wrap items-center gap-2">
+        {specificTimes.map(time => (
+          <span
+            key={time}
+            className="inline-flex h-9 items-center gap-1 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] pl-3 t-body font-semibold tabular-nums text-[var(--text-primary)]"
           >
-            Adicionar horário
-          </AppButton>
-        </div>
-      ) : null}
-
-      {editing && !canAdd ? (
-        <Text variant="meta" className="text-[var(--text-secondary)]">
-          Máximo de {MAX_TIMES_PER_DAY} horários atingido
-        </Text>
-      ) : null}
-    </div>
+            {time}
+            <button
+              type="button"
+              onClick={() => onRemove(time)}
+              disabled={disabled}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-[var(--radius-input)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+              aria-label={`Remover ${time} de ${nome}`}
+            >
+              <X className="h-3.5 w-3.5" aria-hidden />
+            </button>
+          </span>
+        ))}
+        {specificTimes.length === 0 && fallbackTimes.map(time => (
+          <span
+            key={time}
+            className="inline-flex h-9 items-center gap-1.5 rounded-[var(--radius-input)] border border-dashed border-[var(--border-strong)] px-3 t-body tabular-nums text-[var(--text-secondary)]"
+            title="Do padrão geral"
+          >
+            {time}
+            <Globe className="h-3.5 w-3.5" aria-hidden />
+            <span className="sr-only">(padrão geral)</span>
+          </span>
+        ))}
+        {canAdd ? (
+          <>
+            <input
+              type="time"
+              value={input}
+              disabled={disabled}
+              onChange={event => setInput(event.target.value)}
+              onKeyDown={event => {
+                if (event.key === 'Enter') {
+                  event.preventDefault();
+                  handleAdd();
+                }
+              }}
+              aria-label={`Novo horário para ${nome}`}
+              className="h-9 w-36 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-3 t-body tabular-nums text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+            />
+            <AppButton
+              onClick={handleAdd}
+              variant="secondary"
+              size="xs"
+              className="h-9"
+              disabled={!input || disabled}
+              leftIcon={<Plus className="h-3.5 w-3.5" />}
+              aria-label={`Adicionar horário em ${nome}`}
+            >
+              Adicionar
+            </AppButton>
+          </>
+        ) : null}
+      </div>
+      <Text variant="secondary" as="span" className="text-right tabular-nums text-[var(--text-secondary)]">
+        {specificTimes.length}/{MAX_TIMES_PER_DAY}
+      </Text>
+    </li>
   );
 }

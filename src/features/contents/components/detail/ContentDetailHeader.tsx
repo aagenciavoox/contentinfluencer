@@ -94,7 +94,7 @@ export function ContentDetailHeader({
       <span
         className={cn(
           'h-1.5 w-1.5 shrink-0 rounded-full',
-          saveState === 'saved' && 'bg-[var(--text-tertiary)]',
+          saveState === 'saved' && 'bg-[var(--success)]',
           saveState === 'saving' && 'animate-pulse bg-[var(--accent-blue)]',
           saveState === 'idle' && 'bg-[var(--text-tertiary)]',
           saveState === 'error' && 'bg-[var(--accent-red)]',

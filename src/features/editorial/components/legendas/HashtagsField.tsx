@@ -48,6 +48,7 @@ export function HashtagsField({
   limite,
   disabled = false,
   semSugestao = null,
+  boxed = false,
   onChange,
 }: {
   /** Plataforma e @ da conta, para os nomes acessíveis. */
@@ -58,6 +59,8 @@ export function HashtagsField({
   disabled?: boolean;
   /** Frase quando série ou pilar existem mas não têm hashtags para esta conta. */
   semSugestao?: string | null;
+  /** Em caixa própria, com a contagem na linha das hashtags. */
+  boxed?: boolean;
   onChange: (hashtags: string) => void;
 }) {
   const tags = parseHashtags(hashtags);
@@ -71,9 +74,15 @@ export function HashtagsField({
     onChange(joinHashtags(mergeHashtags(tags, novas)));
   };
 
+  const contagem = (
+    <Text variant="meta" className={cn('ml-auto font-semibold tabular-nums', acima && 'text-[var(--danger)]')}>
+      {`${tags.length} de ${limite}`}
+    </Text>
+  );
+
   return (
-    <div className="stack-sm">
-      <Text variant="bodyStrong" as="p" className="text-sm">Hashtags</Text>
+    <div className={cn('stack-sm', boxed && 'stack-md rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-elevated)] p-4')}>
+      <Text variant="bodyStrong" as="p" className={cn(!boxed && 'text-sm')}>Hashtags</Text>
       {sugestao.length > 0 ? (
         <div className="flex flex-col gap-2 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
@@ -103,15 +112,16 @@ export function HashtagsField({
           />
         ))}
         <NovaHashtag disabled={disabled} rotulo={rotulo} onAdd={adicionar} />
+        {boxed ? contagem : null}
       </div>
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        {acima ? (
-          <Text variant="meta" className="text-[var(--danger)]">{`Mais de ${limite} hashtags.`}</Text>
-        ) : null}
-        <Text variant="meta" className={cn('ml-auto font-semibold tabular-nums', acima && 'text-[var(--danger)]')}>
-          {`${tags.length} de ${limite}`}
-        </Text>
-      </div>
+      {acima || !boxed ? (
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          {acima ? (
+            <Text variant="meta" className="text-[var(--danger)]">{`Mais de ${limite} hashtags.`}</Text>
+          ) : null}
+          {boxed ? null : contagem}
+        </div>
+      ) : null}
     </div>
   );
 }

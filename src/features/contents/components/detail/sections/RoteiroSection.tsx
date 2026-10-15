@@ -3,13 +3,13 @@ import {Columns2, PenLine, SlidersHorizontal} from 'lucide-react';
 import {MobileScriptEditor} from '../../../../../mobile/components/MobileScriptEditor';
 import {MobileSegmentTabs} from '../../../../../mobile/components/MobileSegmentTabs';
 import {AppButton} from '../../../../../components/ui/AppButton';
-import {Badge} from '../../../../../components/ui/Badge';
 import {Skeleton} from '../../../../../components/ui/Skeleton';
 import {Text} from '../../../../../components/ui/Text';
-import {ViewModeToggle} from '../../../../../components/ui/ViewModeToggle';
+import {SegmentTabs} from '../../../../../components/ui/SegmentTabs';
+import {SelectField} from '../../../../../components/ui/SelectField';
 import type {Content, ContentPlataforma, Pilar, Serie} from '../../../../../lib/database';
 import {cn, htmlToReadableText} from '../../../../../lib/utils';
-import {CONTENT_STATUS, getDisplayStatus} from '../../../lib/contentPipeline';
+import {CONTENT_STATUS, getStatusOptions, normalizeContentStatus} from '../../../lib/contentPipeline';
 import {ContentManageWorkspace} from '../ContentManageWorkspace';
 import {ContentOperationalPanel} from '../ContentOperationalPanel';
 import {ContentScriptWorkspace} from '../ContentScriptWorkspace';
@@ -232,32 +232,25 @@ export function RoteiroSection({
       return (
         <div className="stack-md">
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-            <ViewModeToggle<'write' | 'manage'>
-              tone="raised"
-              showLabels
+            <SegmentTabs<'write' | 'manage'>
               ariaLabel="Área do conteúdo"
-              buttonClassName="px-3 text-sm"
               options={[
-                {value: 'write', label: 'Escrita', icon: PenLine},
-                {value: 'manage', label: 'Gestão', icon: SlidersHorizontal},
+                {id: 'write', label: 'Escrita', icon: <PenLine className="h-4 w-4" />},
+                {id: 'manage', label: 'Gestão', icon: <SlidersHorizontal className="h-4 w-4" />},
               ]}
               value={workspacePane}
               onChange={pane => setWorkspacePaneChoice({contentId, pane})}
             />
             {workspacePane === 'write' ? (
-              // A etapa só existe em Gestão; aqui ela fica à vista enquanto se escreve.
-              <button
-                type="button"
-                onClick={() => setWorkspacePaneChoice({contentId, pane: 'manage'})}
-                className="inline-flex items-center gap-1.5 rounded-[var(--radius-pill)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
-                aria-label={`Etapa: ${getDisplayStatus(draft)}. Mudar em Gestão`}
-                title="Mudar a etapa em Gestão"
-              >
-                <Text variant="meta" as="span">Etapa</Text>
-                <Badge variant="status" status={getDisplayStatus(draft)}>
-                  {getDisplayStatus(draft)}
-                </Badge>
-              </button>
+              <>
+                <span className="hidden h-6 w-px bg-[var(--border-color)] sm:block" aria-hidden />
+                {/* A etapa fica à vista enquanto se escreve, com as mesmas regras da aba Gestão. */}
+                <EtapaSelect
+                  status={draft.status}
+                  disabled={isPosted}
+                  onChange={status => onChange({status})}
+                />
+              </>
             ) : null}
             {workspacePane === 'manage' ? (
               <Text variant="secondary" as="p">
@@ -429,4 +422,32 @@ function hasWritingNotesText(value: string | null | undefined) {
     .replace(/&nbsp;/g, ' ')
     .trim();
   return text.length > 0;
+}
+
+/** "Etapa: Roteiro" como seletor. Só as etapas vizinhas podem ser escolhidas, como em Gestão. */
+function EtapaSelect({
+  status,
+  disabled,
+  onChange,
+}: {
+  status: string;
+  disabled: boolean;
+  onChange: (status: string) => void;
+}) {
+  const atual = normalizeContentStatus(status);
+  const etapas = getStatusOptions(status);
+  return (
+    <SelectField
+      ariaLabel="Etapa"
+      prefix="Etapa:"
+      value={atual}
+      disabled={disabled}
+      onChange={onChange}
+      options={etapas.map(etapa => ({
+        value: etapa.status,
+        label: etapa.disponivel || etapa.atual ? etapa.status : `${etapa.status} (indisponível)`,
+        disabled: !etapa.disponivel,
+      }))}
+    />
+  );
 }

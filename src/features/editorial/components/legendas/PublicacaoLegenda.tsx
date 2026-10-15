@@ -53,6 +53,7 @@ export function PublicacaoLegenda({
   editorial,
   disabled = false,
   compact = false,
+  painel = false,
   onChange,
 }: {
   publicacao: ContentPlataforma;
@@ -63,6 +64,8 @@ export function PublicacaoLegenda({
   editorial: Pick<EditorialSettings, 'limitesHashtags'>;
   disabled?: boolean;
   compact?: boolean;
+  /** Em Legendas, ao lado da base: a aba já nomeia a conta e as hashtags ficam numa caixa. */
+  painel?: boolean;
   onChange: (publicacoes: ContentPlataforma[]) => void;
 }) {
   const [copiado, setCopiado] = useState(false);
@@ -91,7 +94,7 @@ export function PublicacaoLegenda({
   };
 
   return (
-    <div className="stack-sm">
+    <div className={painel ? 'stack-md' : 'stack-sm'}>
       <LegendaVersaoField
         id={`legenda-${publicacao.id}`}
         icone={conta ? iconeDaConta(conta) : publicacao.platformId}
@@ -104,6 +107,7 @@ export function PublicacaoLegenda({
         publicadaEm={publicacao.realizadaApiEm ?? publicacao.realizadaManualEm ?? null}
         disabled={disabled}
         compact={compact}
+        semTitulo={painel}
         onCriarPropria={() => onChange(criarVersaoPropria(base, conteudo.plataformas, publicacao.id, conteudo))}
         onEditar={valor => onChange(editarVersaoPropria(conteudo.plataformas, publicacao.id, valor, conteudo))}
         onVoltarParaBase={() => onChange(voltarParaBase(base, conteudo.plataformas, publicacao.id, conteudo))}
@@ -127,6 +131,7 @@ export function PublicacaoLegenda({
           sugestao={sugestao}
           limite={limiteHashtagsDaRede(editorial, publicacao.platformId, chaveDaRede)}
           disabled={bloqueada}
+          boxed={painel}
           semSugestao={!compact && (serie || pilar) && sugestao.length === 0
             ? `Nenhuma hashtag definida${serie ? ` em ${serie.name}` : ''}${serie && pilar ? ' ou' : ''}${pilar ? ` em ${pilar.nome}` : ''} para ${rotulo}.`
             : null}

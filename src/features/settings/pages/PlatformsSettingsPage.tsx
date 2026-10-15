@@ -1,6 +1,6 @@
 import {useMemo, useState} from 'react';
 import {Link} from 'react-router-dom';
-import {AtSign, Plus} from 'lucide-react';
+import {AlertCircle, ArrowUpRight, AtSign, Plus} from 'lucide-react';
 import {useAppContext} from '../../../context/AppContext';
 import {useAuth} from '../../../context/AuthContext';
 import type {Content, ContentPlataforma, Platform, RedeSocial} from '../../../lib/database';
@@ -8,6 +8,8 @@ import {DesktopPageHeader} from '../../../layouts/page/DesktopPageHeader';
 import {PageLayout} from '../../../layouts/page/PageLayout';
 import {AppButton} from '../../../components/ui/AppButton';
 import {Badge} from '../../../components/ui/Badge';
+import {DisclosureButton} from '../../../components/ui/DisclosureButton';
+import {PlatformTile} from '../../../components/ui/PlatformIcon';
 import {MoreMenu} from '../../../components/ui/MoreMenu';
 import {TagSelect} from '../../../components/ui/TagSelect';
 import {Surface} from '../../../components/ui/Surface';
@@ -36,6 +38,7 @@ import {
   rotuloDaRef,
   complementoDoRotulo,
   contaDaRef,
+  iconeDaConta,
 } from '../../contas/lib/contas';
 import {anexarPublicacaoComLink, contasParaLinkAntigo, moverLinkParaPublicacao, revisoesDeContas} from '../../contas/lib/revisaoContas';
 import {parsePostCode} from '../../editorial/lib/postCode';
@@ -50,6 +53,10 @@ type Rascunho = {
   handle: string;
 };
 
+/** Colunas da tabela de contas: conta, integração, na criação e o menu. No celular, uma coluna só. */
+const LINHA_CONTA =
+  'grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2 px-4 md:grid-cols-[minmax(0,2.2fr)_minmax(0,1.2fr)_minmax(0,1fr)_2.5rem]';
+
 const RASCUNHO_NOVO: Rascunho = { id: null, rede: 'instagram', nome: '', handle: '' };
 
 export function PlatformsSettingsPage() {
@@ -59,6 +66,9 @@ export function PlatformsSettingsPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [confirm, setConfirm] = useState<ConfirmState | null>(null);
   const [salvandoLink, setSalvandoLink] = useState<string | null>(null);
+  const [revisaoAberta, setRevisaoAberta] = useState(true);
+  // Com horário sem salvar, "Salvar alterações" vira o botão principal e "Nova conta" cede o lugar.
+  const [horariosPendentes, setHorariosPendentes] = useState(false);
 
   const contas = useMemo(() => ordenarContas(state.platforms), [state.platforms]);
   const revisoes = useMemo(
@@ -212,13 +222,14 @@ export function PlatformsSettingsPage() {
         <DesktopPageHeader
           section="Criação"
           title="Contas e horários"
+          meta="Gerencie seus perfis e os horários de postagem."
           icon={AtSign}
           backLabel="Criação"
           backTo="/criacao"
           actions={
             <AppButton
               onClick={() => setRascunho(RASCUNHO_NOVO)}
-              variant="primary"
+              variant={horariosPendentes ? 'secondary' : 'primary'}
               leftIcon={<Plus className="h-4 w-4" />}
             >
               Nova conta
@@ -277,165 +288,217 @@ export function PlatformsSettingsPage() {
         </OverlayBody>
       </Dialog>
 
-      <div className="stack-lg">
-        <Text variant="secondary" className="max-w-2xl">
-          Cada linha é uma conta. Dá para ter mais de um Instagram, TikTok ou YouTube. O estado de cadastro é independente de uma integração: nenhuma conta fica conectada só por estar cadastrada.
-        </Text>
-
+      <div className="stack-xl">
         {revisoes.length > 0 ? (
-          <Surface padding="sm" className="stack-sm">
-            <Text variant="bodyStrong">Para revisar</Text>
-            <Text variant="secondary">Estes casos não foram resolvidos sozinhos, para não apontar uma publicação para a conta errada.</Text>
-            <ul className="stack-sm">
-              {revisoes.map(item => {
-                const conteudo = item.caso === 'link_sem_publicacao' && item.contentId
-                  ? state.contents.find(content => content.id === item.contentId)
-                  : null;
-                const link = conteudo?.link?.trim() ?? '';
-                const publicacoes = conteudo?.plataformas ?? [];
-                return (
-                  <li key={item.id} className="min-w-0 stack-xs">
-                    <Text variant="bodyStrong" as="p">{item.titulo}</Text>
-                    <Text variant="secondary">{item.detalhe}</Text>
-                    {link ? (
-                      <Text variant="meta" as="p" className="break-all">
-                        <a href={link} target="_blank" rel="noreferrer" className="underline underline-offset-2">
-                          {link}
-                        </a>
-                      </Text>
-                    ) : null}
-                    {conteudo ? (
-                      publicacoes.length > 0 ? (
-                        <div className="flex flex-wrap gap-2">
-                          {publicacoes.map(publicacao => {
-                            const conta = contaDaRef(publicacao.platformId, state.platforms);
-                            const extra = conta ? complementoDoRotulo(conta) : null;
-                            const nome = `${rotuloDaRef(publicacao.platformId, state.platforms)}${extra ? ` · ${extra}` : ''}`;
-                            const rotulo = publicacao.publicationKind === 'repost' ? `${nome} (repost)` : nome;
-                            return (
-                              <AppButton
-                                key={publicacao.id}
-                                type="button"
-                                size="sm"
-                                variant="secondary"
-                                disabled={salvandoLink === conteudo.id}
-                                onClick={() => { void colocarLink(conteudo.id, publicacao.id); }}
-                              >
-                                {`Colocar em ${rotulo}`}
-                              </AppButton>
-                            );
-                          })}
+          <section
+            className="rounded-[var(--radius-card)] border border-[color-mix(in_srgb,var(--warning)_40%,var(--border-color))] bg-[color-mix(in_srgb,var(--warning)_10%,var(--bg-elevated))] p-2"
+            aria-label="Pendências para revisar"
+          >
+            <DisclosureButton
+              open={revisaoAberta}
+              onToggle={() => setRevisaoAberta(aberta => !aberta)}
+              controls="contas-revisao"
+              className="min-h-14 items-start py-2 hover:bg-[color-mix(in_srgb,var(--warning)_14%,var(--bg-elevated))]"
+            >
+              <span className="flex min-w-0 items-start gap-3">
+                <AlertCircle className="mt-0.5 h-6 w-6 shrink-0 text-[var(--warning)]" aria-hidden />
+                <span className="min-w-0">
+                  <Text variant="bodyStrong" as="span" className="block">
+                    {revisoes.length === 1 ? '1 pendência para revisar' : `${revisoes.length} pendências para revisar`}
+                  </Text>
+                  <Text variant="secondary" as="span" className="block text-[var(--text-secondary)]">
+                    Escolha a publicação correta para os links antigos.
+                  </Text>
+                </span>
+              </span>
+            </DisclosureButton>
+            {revisaoAberta ? (
+              <ul id="contas-revisao" className="mt-2 stack-xs px-1 pb-1">
+                {revisoes.map(item => {
+                  const conteudo = item.caso === 'link_sem_publicacao' && item.contentId
+                    ? state.contents.find(content => content.id === item.contentId)
+                    : null;
+                  const link = conteudo?.link?.trim() ?? '';
+                  const publicacoes = conteudo?.plataformas ?? [];
+                  return (
+                    <li key={item.id} className="min-w-0 stack-sm rounded-[var(--radius-input)] border border-[color-mix(in_srgb,var(--warning)_25%,var(--border-color))] bg-[var(--bg-elevated)] px-4 py-3">
+                      <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-1">
+                        <div className="min-w-0 flex-1">
+                          <Text variant="bodyStrong" as="p">{item.titulo}</Text>
+                          <Text variant="secondary" className="text-[var(--text-secondary)]">{item.detalhe}</Text>
                         </div>
-                      ) : (
-                        <div className="stack-xs">
-                          <Text variant="meta">
-                            Este roteiro não tem publicação. A conta escolhida recebe o link numa publicação já marcada como feita.
-                          </Text>
+                        {item.contentId ? (
+                          <Link
+                            to={`/conteudos/${item.contentId}?tab=publicacao`}
+                            className="inline-flex shrink-0 items-center gap-1 rounded-[var(--radius-sm)] t-secondary font-semibold text-[var(--text-primary)] underline underline-offset-2 hover:no-underline focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+                          >
+                            Abrir roteiro
+                            <ArrowUpRight className="h-3.5 w-3.5" aria-hidden />
+                          </Link>
+                        ) : null}
+                      </div>
+                      {link ? (
+                        <Text variant="meta" as="p" className="break-all">
+                          <a href={link} target="_blank" rel="noreferrer" className="underline underline-offset-2">
+                            {link}
+                          </a>
+                        </Text>
+                      ) : null}
+                      {conteudo ? (
+                        publicacoes.length > 0 ? (
                           <div className="flex flex-wrap gap-2">
-                            {contasParaLinkAntigo(link, state.platforms).map(conta => {
-                              const extra = complementoDoRotulo(conta);
-                              const nome = `${rotuloConta(conta)}${extra ? ` · ${extra}` : ''}`;
+                            {publicacoes.map(publicacao => {
+                              const conta = contaDaRef(publicacao.platformId, state.platforms);
+                              const extra = conta ? complementoDoRotulo(conta) : null;
+                              const nome = `${rotuloDaRef(publicacao.platformId, state.platforms)}${extra ? ` · ${extra}` : ''}`;
+                              const rotulo = publicacao.publicationKind === 'repost' ? `${nome} (repost)` : nome;
                               return (
                                 <AppButton
-                                  key={conta.id}
+                                  key={publicacao.id}
                                   type="button"
                                   size="sm"
                                   variant="secondary"
                                   disabled={salvandoLink === conteudo.id}
-                                  onClick={() => { void criarPublicacaoComLink(conteudo, conta.id); }}
+                                  onClick={() => { void colocarLink(conteudo.id, publicacao.id); }}
                                 >
-                                  {`Criar em ${nome}`}
+                                  {`Colocar em ${rotulo}`}
                                 </AppButton>
                               );
                             })}
                           </div>
-                        </div>
-                      )
-                    ) : null}
-                    {item.contentId ? (
-                      <Link
-                        to={`/conteudos/${item.contentId}?tab=publicacao`}
-                        className="text-sm text-[var(--text-primary)] underline underline-offset-2"
-                      >
-                        Abrir o roteiro
-                      </Link>
-                    ) : null}
-                  </li>
-                );
-              })}
-            </ul>
-          </Surface>
+                        ) : (
+                          <div className="stack-xs">
+                            <Text variant="meta">
+                              Este roteiro não tem publicação. A conta escolhida recebe o link numa publicação já marcada como feita.
+                            </Text>
+                            <div className="flex flex-wrap gap-2">
+                              {contasParaLinkAntigo(link, state.platforms).map(conta => {
+                                const extra = complementoDoRotulo(conta);
+                                const nome = `${rotuloConta(conta)}${extra ? ` · ${extra}` : ''}`;
+                                return (
+                                  <AppButton
+                                    key={conta.id}
+                                    type="button"
+                                    size="sm"
+                                    variant="secondary"
+                                    disabled={salvandoLink === conteudo.id}
+                                    onClick={() => { void criarPublicacaoComLink(conteudo, conta.id); }}
+                                  >
+                                    {`Criar em ${nome}`}
+                                  </AppButton>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )
+                      ) : null}
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : null}
+          </section>
         ) : null}
 
-        <section className="stack-sm">
-          <Text variant="eyebrow">Contas</Text>
+        <section className="stack-sm" aria-labelledby="contas-titulo">
+          <div className="flex flex-wrap items-center gap-3">
+            <Text variant="sectionTitle" as="h2"><span id="contas-titulo">Contas</span></Text>
+            <Badge variant="neutral">
+              {contasAtivas(contas).length === 1 ? '1 ativa' : `${contasAtivas(contas).length} ativas`}
+            </Badge>
+          </div>
           {contas.length === 0 ? (
             <Surface padding="sm">
               <Text variant="secondary">Nenhuma conta ainda. Cadastre a primeira para escolher o destino dos roteiros.</Text>
             </Surface>
           ) : (
-            <div className="stack-sm">
-              {contas.map(platform => {
-                const compartilhada = platform.userId === null;
-                const estado = estadoCadastro(platform);
-                const handle = exibirHandle(platform.handle);
-                const usada = emUso(platform.id);
-                return (
-                  <Surface key={platform.id} padding="sm" className="flex flex-wrap items-center gap-3">
-                    <div className="min-w-0 flex-1">
-                      <Text variant="bodyStrong" truncate>{rotuloConta(platform)}</Text>
-                      <Text variant="meta" className="mt-0.5">
-                        {REDE_ROTULO[redeDaConta(platform) ?? 'outra']}
-                        {handle ? ` · ${handle}` : ' · sem @'}
-                        {platform.nome.trim() && handle ? ` · ${platform.nome.trim()}` : ''}
-                      </Text>
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        <Badge variant="neutral">{ESTADO_CADASTRO_ROTULO[estado]}</Badge>
+            <Surface padding="none" className="overflow-hidden">
+              <div className={`${LINHA_CONTA} hidden border-b border-[var(--border-color)] bg-[var(--surface-subtle)] py-2.5 md:grid`} aria-hidden>
+                <Text variant="label" as="span" className="text-[var(--text-secondary)]">Conta</Text>
+                <Text variant="label" as="span" className="text-[var(--text-secondary)]">Integração</Text>
+                <Text variant="label" as="span" className="text-[var(--text-secondary)]">Na criação</Text>
+                <span />
+              </div>
+              <ul>
+                {contas.map(platform => {
+                  const compartilhada = platform.userId === null;
+                  const estado = estadoCadastro(platform);
+                  const handle = exibirHandle(platform.handle);
+                  const usada = emUso(platform.id);
+                  const rede = redeDaConta(platform);
+                  const rotulo = rotuloConta(platform);
+                  return (
+                    <li key={platform.id} className={`${LINHA_CONTA} border-b border-[var(--border-color)] py-3 last:border-b-0`}>
+                      <div className="flex min-w-0 items-center gap-3">
+                        <PlatformTile platform={iconeDaConta(platform)} />
+                        <div className="min-w-0">
+                          <Text variant="body" truncate>{rede && rede !== 'outra' ? REDE_ROTULO[rede] : platform.nome}</Text>
+                          {handle ? (
+                            <Text variant="secondary" truncate className="text-[var(--text-secondary)]">
+                              {handle}
+                              {platform.nome.trim() && platform.nome.trim() !== REDE_ROTULO[rede ?? 'outra'] ? ` · ${platform.nome.trim()}` : ''}
+                            </Text>
+                          ) : compartilhada ? (
+                            <Text variant="secondary" className="text-[var(--text-secondary)]">sem @</Text>
+                          ) : (
+                            <AppButton
+                              variant="secondary"
+                              size="xs"
+                              className="mt-1 h-7 px-2"
+                              aria-label={`Adicionar @ em ${rotulo}`}
+                              onClick={() => abrirEdicao(platform)}
+                            >
+                              Adicionar @
+                            </AppButton>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
                         <Badge variant="neutral">{rotuloConexao(platform)}</Badge>
+                        {estado === 'revisar' ? <Badge variant="neutral">{ESTADO_CADASTRO_ROTULO[estado]}</Badge> : null}
                         {compartilhada ? <Badge variant="neutral">Cadastro compartilhado</Badge> : null}
                       </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Text variant="meta" as="span">{platform.ativo ? 'Ativa' : 'Inativa'}</Text>
-                      <ToggleSwitch
-                        id={`conta-${platform.id}`}
-                        enabled={platform.ativo}
-                        onToggle={() => { void toggleAtivo(platform); }}
-                        label={rotuloConta(platform)}
-                        disabled={compartilhada}
-                      />
-                    </div>
-                    {compartilhada ? null : (
-                      <MoreMenu
-                        size="sm"
-                        items={[
-                          { label: 'Editar conta', onClick: () => abrirEdicao(platform) },
-                          ...(usada ? [] : [{
-                            label: CONFIRM.excluirPlataforma.confirmLabel,
-                            tone: 'danger' as const,
-                            onClick: () => pedirExclusao(platform),
-                          }]),
-                        ]}
-                      />
-                    )}
-                    {usada ? (
-                      <Text variant="meta" className="w-full">Em uso por publicações, séries, pilares ou horários. Inative para tirar da criação; os vínculos permanecem.</Text>
-                    ) : null}
-                  </Surface>
-                );
-              })}
-            </div>
+                      <div className="flex items-center gap-2">
+                        <ToggleSwitch
+                          id={`conta-${platform.id}`}
+                          enabled={platform.ativo}
+                          onToggle={() => { void toggleAtivo(platform); }}
+                          label={`${rotulo} na criação`}
+                          disabled={compartilhada}
+                        />
+                        <label htmlFor={`conta-${platform.id}`}>
+                          <Text variant="secondary" as="span" className="text-[var(--text-secondary)]">{platform.ativo ? 'Ativa' : 'Inativa'}</Text>
+                        </label>
+                      </div>
+                      <div className="flex justify-end">
+                        {compartilhada ? null : (
+                          <MoreMenu
+                            size="sm"
+                            label={`Mais opções de ${rotulo}`}
+                            items={[
+                              { label: 'Editar conta', onClick: () => abrirEdicao(platform) },
+                              ...(usada ? [] : [{
+                                label: CONFIRM.excluirPlataforma.confirmLabel,
+                                tone: 'danger' as const,
+                                onClick: () => pedirExclusao(platform),
+                              }]),
+                            ]}
+                          />
+                        )}
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </Surface>
           )}
-          <Text variant="meta">
-            {contasAtivas(contas).length === 1 ? '1 conta ativa na criação.' : `${contasAtivas(contas).length} contas ativas na criação.`}
-            {' '}Contas inativas continuam disponíveis para ler o que já foi publicado.
+          <Text variant="secondary" className="text-[var(--text-secondary)]">
+            Desativar uma conta preserva seu histórico. Conta em uso por publicações, séries, pilares ou horários não pode ser excluída.
           </Text>
         </section>
 
-        <section className="stack-sm">
-          <Text variant="eyebrow">Horários de postagem</Text>
-          <Text variant="secondary">O mesmo cadastro usado no Editorial. Cada conta pode ter horários diferentes; o dia sem horário próprio usa o Global.</Text>
-          <PostingTimesEditor />
+        <section aria-label="Horários de postagem">
+          <PostingTimesEditor layout="pagina" onDirtyChange={setHorariosPendentes} />
         </section>
       </div>
 

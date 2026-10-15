@@ -15,6 +15,10 @@ interface DesktopPageHeaderProps {
   /** @deprecated Use meta or inline hints in page content instead. */
   subtitle?: string;
   meta?: string;
+  /** Observação curta depois do meta, num tom mais leve (ex.: onde fica outra coisa). */
+  metaNote?: string;
+  /** Ao lado do título: contagem ou selo (ex.: "69 publicações"). */
+  titleAside?: ReactNode;
   icon?: unknown;
   actions?: ReactNode;
   children?: ReactNode;
@@ -34,6 +38,8 @@ export function DesktopPageHeader({
   titleContent,
   titleVariant = 'default',
   meta,
+  metaNote,
+  titleAside,
   actions,
   children,
   className,
@@ -73,19 +79,28 @@ export function DesktopPageHeader({
 
       <div className={cn('desktop-page-header-row', rowAlign === 'center' && 'items-center')}>
         <div className="min-w-0 flex-1">
-          {titleContent ?? (
-            titleVariant === 'display' ? (
-              <Text variant="display" className="truncate">{title}</Text>
-            ) : (
-              <Text variant="pageTitle" className="truncate">
-                {title}
-              </Text>
-            )
-          )}
+          <div className={cn('min-w-0', titleAside && 'flex items-center gap-3')}>
+            {titleContent ?? (
+              titleVariant === 'display' ? (
+                <Text variant="display" className="truncate">{title}</Text>
+              ) : (
+                <Text variant="pageTitle" className="truncate">
+                  {title}
+                </Text>
+              )
+            )}
+            {titleAside ? <div className="flex shrink-0 items-center gap-2">{titleAside}</div> : null}
+          </div>
           {meta ? (
-            <Text variant="meta" className="mt-1.5 truncate">
+            <p className="mt-1.5 truncate t-body text-[var(--text-secondary)]">
               {meta}
-            </Text>
+              {metaNote ? (
+                <>
+                  <span aria-hidden className="mx-2 text-[var(--text-tertiary)]">·</span>
+                  <span className="t-secondary text-[var(--text-tertiary)]">{metaNote}</span>
+                </>
+              ) : null}
+            </p>
           ) : null}
         </div>
 

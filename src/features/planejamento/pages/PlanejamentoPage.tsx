@@ -2,7 +2,7 @@ import {useEffect, useMemo, useRef, useState, type DragEvent} from 'react';
 import {useNavigate} from 'react-router-dom';
 import {format} from 'date-fns';
 import {ptBR} from 'date-fns/locale';
-import {Plus, StickyNote, Tag, Trash2} from 'lucide-react';
+import {CalendarDays, Pencil, Plus, StickyNote, Tag, Trash2} from 'lucide-react';
 import {
   calendarEntryPillStyle,
   CalendarEventPill,
@@ -23,7 +23,7 @@ import {useIsMobile} from '../../../hooks/useIsMobile';
 import {PageLayout} from '../../../layouts/page/PageLayout';
 import {DesktopPageHeader} from '../../../layouts/page/DesktopPageHeader';
 import type {Content, Pilar, Serie, Tema} from '../../../lib/database';
-import {cn} from '../../../lib/utils';
+import {cn, tintedTextColor} from '../../../lib/utils';
 import {TemaField} from '../../contents/components/detail/TemaField';
 import {buildContentDetailRoute} from '../../contents/lib/contentDetailRoute';
 import {CONTENT_STATUS, DISPLAY_STATUS, normalizeContentStatus} from '../../contents/lib/contentPipeline';
@@ -483,7 +483,7 @@ export function PlanejamentoPage() {
         <DesktopPageHeader
           section="Produção"
           title="Planejamento"
-          meta="Rascunho do mês em post-its. O Calendário só recebe o que você transformar em ideia ou roteiro."
+          meta="Rascunhe o mês com post-its. Transforme em ideia ou roteiro para levar ao Calendário."
           actions={(
             <>
               {!isMobile && selectedIds.size > 0 ? (
@@ -700,7 +700,7 @@ export function PlanejamentoPage() {
               <div>
                 <Text variant="sectionTitle">Fora do calendário</Text>
                 <Text variant="meta" className="mt-1 block text-[var(--text-secondary)]">
-                  Arraste um post-it para cá quando quiser tirá-lo do mês. Se vários estiverem selecionados, todos vêm juntos.
+                  Arraste para cá para retirar do mês.
                 </Text>
               </div>
               {undated.length === 0 ? (
@@ -721,56 +721,65 @@ export function PlanejamentoPage() {
         </div>
       </div>
 
-      <Dialog open={Boolean(openPostIt)} onClose={closePostIt} desktopMaxW="max-w-md" ariaLabel="Post-it">
+      <Dialog open={Boolean(openPostIt)} onClose={closePostIt} desktopMaxW="max-w-lg" ariaLabel="Post-it">
         {openPostIt ? (
           <div className="flex h-full min-h-0 flex-col bg-[var(--bg-elevated)]">
-            <OverlayHeader title={editing ? 'Editar post-it' : 'Post-it'} onClose={closePostIt} />
+            <OverlayHeader
+              title={editing ? 'Editar post-it' : 'Post-it'}
+              icon={<StickyNote className="h-6 w-6 text-[var(--brand-accent-strong)]" />}
+              onClose={closePostIt}
+            />
             <OverlayBody>
-              <div className="stack-md">
-                <Badge
-                  variant={postItKind(openPostIt, openContent) === 'vazio' ? 'neutral' : 'status'}
-                  status={
-                    postItKind(openPostIt, openContent) === 'roteiro'
-                      ? CONTENT_STATUS.ROTEIRO
-                      : postItKind(openPostIt, openContent) === 'ideia'
-                        ? CONTENT_STATUS.IDEIA
-                        : undefined
-                  }
-                >
-                  {postItKind(openPostIt, openContent) === 'vazio'
-                    ? 'Vazio'
-                    : normalizeContentStatus(openContent?.status || '')}
-                </Badge>
-                {editing ? (
-                  <div className="stack-sm">
-                    <label className="stack-sm">
-                      <Text variant="label" as="span">Dia</Text>
-                      <input
-                        type="date"
-                        value={dateDraft ?? ''}
-                        onChange={event => setDateDraft(event.target.value || null)}
-                        className="w-full rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-hover)] px-3 py-2 text-sm text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
-                      />
-                    </label>
-                    {dateDraft ? (
-                      <AppButton variant="ghost" size="sm" onClick={() => setDateDraft(null)}>
-                        Sem data
-                      </AppButton>
-                    ) : (
-                      <Text variant="meta" className="text-[var(--text-secondary)]">
-                        Sem data, em Fora do calendário.
-                      </Text>
-                    )}
+              <div className="stack-lg">
+                <div className="stack-sm">
+                  <div>
+                    <Badge
+                      variant={openKind === 'vazio' ? 'neutral' : 'status'}
+                      status={
+                        openKind === 'roteiro'
+                          ? CONTENT_STATUS.ROTEIRO
+                          : openKind === 'ideia'
+                            ? CONTENT_STATUS.IDEIA
+                            : undefined
+                      }
+                    >
+                      {openKind === 'vazio'
+                        ? 'Vazio'
+                        : normalizeContentStatus(openContent?.status || '')}
+                    </Badge>
                   </div>
-                ) : (
-                  <Text variant="meta" className="text-[var(--text-secondary)]">
-                    {openPostIt.date
-                      ? format(new Date(`${openPostIt.date}T12:00:00`), "d 'de' MMMM 'de' yyyy", {locale: ptBR})
-                      : 'Sem data, em Fora do calendário.'}
-                  </Text>
-                )}
+                  {editing ? (
+                    <div className="stack-sm">
+                      <label className="stack-sm">
+                        <Text variant="label" as="span">Dia</Text>
+                        <input
+                          type="date"
+                          value={dateDraft ?? ''}
+                          onChange={event => setDateDraft(event.target.value || null)}
+                          className="w-full rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-hover)] px-3 py-2 text-sm text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+                        />
+                      </label>
+                      {dateDraft ? (
+                        <AppButton variant="secondary" size="sm" className="self-start" onClick={() => setDateDraft(null)}>
+                          Sem data
+                        </AppButton>
+                      ) : (
+                        <Text variant="secondary" className="text-[var(--text-secondary)]">
+                          Sem data · Fora do calendário
+                        </Text>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="flex items-center gap-2 t-body text-[var(--text-secondary)]">
+                      <CalendarDays className="h-4 w-4 shrink-0 text-[var(--text-tertiary)]" aria-hidden />
+                      {openPostIt.date
+                        ? format(new Date(`${openPostIt.date}T12:00:00`), "d 'de' MMMM 'de' yyyy", {locale: ptBR})
+                        : 'Sem data · Fora do calendário'}
+                    </p>
+                  )}
+                </div>
                 {openPostIt.contentId && !openContent ? (
-                  <Text variant="meta" className="text-[var(--text-secondary)]">
+                  <Text variant="secondary" className="text-[var(--text-secondary)]">
                     O conteúdo puxado não está mais aqui. Apague o post-it se ele não servir.
                   </Text>
                 ) : null}
@@ -809,38 +818,77 @@ export function PlanejamentoPage() {
                     />
                   </label>
                 ) : (
-                  <Text variant="body" className="whitespace-pre-wrap">
-                    {openPostIt.texto.trim() ? openPostIt.texto : 'Sem nota.'}
-                  </Text>
+                  <Surface variant="info" padding="md">
+                    <Text
+                      variant="body"
+                      className={cn('whitespace-pre-wrap', !openPostIt.texto.trim() && 'text-[var(--text-secondary)]')}
+                    >
+                      {openPostIt.texto.trim() ? openPostIt.texto : 'Sem nota.'}
+                    </Text>
+                  </Surface>
                 )}
-                {editing ? null : (
-                  <Text variant="meta" className="text-[var(--text-secondary)]">
-                    {openKind === 'roteiro'
-                      ? 'Visualizar abre o roteiro.'
-                      : openKind === 'ideia'
-                        ? 'Visualizar abre a ideia. Virar roteiro grava a data deste post-it como publicação.'
-                        : 'Virar ideia ou roteiro grava a data deste post-it como publicação e passa a aparecer no calendário.'}
-                  </Text>
-                )}
+                {!editing && openKind !== 'roteiro' && (options.ideia || options.roteiro) ? (
+                  <section className="stack-md border-t border-[var(--border-color)] pt-6" aria-labelledby="postit-transformar">
+                    <div className="stack-xs">
+                      <Text variant="itemTitle" as="h3" className="font-semibold">
+                        <span id="postit-transformar">Transformar post-it</span>
+                      </Text>
+                      <Text variant="secondary" className="text-[var(--text-secondary)]">
+                        {openKind === 'ideia'
+                          ? 'Ao virar roteiro, a data do post-it será usada na publicação.'
+                          : 'Ao virar ideia ou roteiro, a data do post-it será usada na publicação e o conteúdo aparecerá no Calendário.'}
+                      </Text>
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      {openKind === 'vazio' && options.ideia ? (
+                        <AppButton variant="secondary" fullWidth onClick={() => commitTransform('ideia')}>
+                          Virar ideia
+                        </AppButton>
+                      ) : null}
+                      {options.roteiro ? (
+                        <AppButton
+                          variant={openKind === 'vazio' ? 'primary' : 'secondary'}
+                          fullWidth
+                          className={openKind === 'vazio' && options.ideia ? undefined : 'sm:col-span-2'}
+                          onClick={() => commitTransform('roteiro')}
+                        >
+                          Virar roteiro
+                        </AppButton>
+                      ) : null}
+                    </div>
+                  </section>
+                ) : null}
               </div>
             </OverlayBody>
-            <OverlayFooter>
-              <div className="stack-sm w-full">
-                {editing ? (
-                  <>
-                    <AppButton variant="secondary" fullWidth onClick={cancelEdit}>
-                      Cancelar
+            <OverlayFooter className="justify-between">
+              {editing ? (
+                <>
+                  <AppButton variant="secondary" onClick={cancelEdit}>
+                    Cancelar
+                  </AppButton>
+                  <AppButton variant="primary" onClick={saveEdit}>
+                    Salvar
+                  </AppButton>
+                </>
+              ) : (
+                <>
+                  <AppButton
+                    variant="secondary"
+                    leftIcon={<Trash2 className="h-4 w-4" />}
+                    style={{color: tintedTextColor('var(--danger)')}}
+                    onClick={removeOpenPostIt}
+                  >
+                    {!isMobile && openPostIt && selectedIds.size > 1 && selectedIds.has(openPostIt.id)
+                      ? `Apagar ${selectedIds.size}`
+                      : 'Apagar'}
+                  </AppButton>
+                  <div className="flex items-center gap-2">
+                    <AppButton variant="secondary" leftIcon={<Pencil className="h-4 w-4" />} onClick={startEdit}>
+                      Editar
                     </AppButton>
-                    <AppButton variant="primary" fullWidth onClick={saveEdit}>
-                      Salvar
-                    </AppButton>
-                  </>
-                ) : (
-                  <>
                     {(openKind === 'ideia' || openKind === 'roteiro') && openContent ? (
                       <AppButton
                         variant="primary"
-                        fullWidth
                         onClick={() => {
                           navigate(
                             buildContentDetailRoute(openContent.id, 'roteiro'),
@@ -852,31 +900,9 @@ export function PlanejamentoPage() {
                         Visualizar
                       </AppButton>
                     ) : null}
-                    {openKind === 'vazio' && options.ideia ? (
-                      <AppButton variant="secondary" fullWidth onClick={() => commitTransform('ideia')}>
-                        Virar ideia
-                      </AppButton>
-                    ) : null}
-                    {openKind !== 'roteiro' && options.roteiro ? (
-                      <AppButton
-                        variant={openKind === 'vazio' ? 'primary' : 'secondary'}
-                        fullWidth
-                        onClick={() => commitTransform('roteiro')}
-                      >
-                        Virar roteiro
-                      </AppButton>
-                    ) : null}
-                    <AppButton variant="secondary" fullWidth onClick={startEdit}>
-                      Editar
-                    </AppButton>
-                  </>
-                )}
-                <AppButton variant="ghost" fullWidth onClick={removeOpenPostIt}>
-                  {!isMobile && openPostIt && selectedIds.size > 1 && selectedIds.has(openPostIt.id)
-                    ? `Apagar ${selectedIds.size}`
-                    : 'Apagar'}
-                </AppButton>
-              </div>
+                  </div>
+                </>
+              )}
             </OverlayFooter>
           </div>
         ) : null}
