@@ -63,7 +63,7 @@ export function EntityColorPicker({
                 aria-label={isTaken ? `Cor ${entityColorLabel(color)} já usada em outra série` : `Cor ${entityColorLabel(color)}`}
                 aria-pressed={isSelected}
                 className={cn(
-                  'relative flex h-8 w-8 items-center justify-center rounded-full focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
+                  'relative flex h-8 w-8 items-center justify-center rounded-full transition-transform focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] pointer-coarse:h-11 pointer-coarse:w-11',
                   isTaken && 'cursor-not-allowed opacity-30',
                   !isSelected && !isTaken && 'hover:scale-105',
                 )}

@@ -1,5 +1,5 @@
 import { LucideIcon } from 'lucide-react';
-import { cn } from '../../lib/utils';
+import { SegmentTabs } from './SegmentTabs';
 
 export interface ViewModeOption<T extends string> {
   value: T;
@@ -12,66 +12,36 @@ interface ViewModeToggleProps<T extends string> {
   options: ViewModeOption<T>[];
   onChange: (value: T) => void;
   className?: string;
+  /** @deprecated O seletor segue o `SegmentTabs`; o tamanho é o mesmo em todo o app. */
   buttonClassName?: string;
+  /** @deprecated O rótulo aparece sempre: ícone sozinho não dizia qual vista era. */
   showLabels?: boolean;
-  /** `raised`: a opção ativa vira um cartão branco com sombra, para trilhos sobre fundo cinza. */
+  /** @deprecated Mantido para chamadas antigas; o visual é o do `SegmentTabs`. */
   tone?: 'default' | 'raised';
   ariaLabel?: string;
 }
 
+/**
+ * Trocar de vista (Grade, Lista, Kanban; Escrita, Gestão) usa o mesmo seletor das abas,
+ * para "escolher uma opção" ter um desenho só no app.
+ */
 export function ViewModeToggle<T extends string>({
   value,
   options,
   onChange,
   className,
-  buttonClassName,
-  showLabels = false,
-  tone = 'default',
   ariaLabel,
 }: ViewModeToggleProps<T>) {
-  const raised = tone === 'raised';
   return (
-    <div
-      role="group"
-      aria-label={ariaLabel}
-      className={cn(
-        'flex h-[var(--control-height)] shrink-0 items-stretch rounded-xl border border-[var(--border-color)] p-1',
-        raised ? 'bg-[var(--surface-subtle)]' : 'bg-[var(--bg-hover)]',
-        className,
-      )}
-    >
-      {options.map(option => {
+    <SegmentTabs<T>
+      ariaLabel={ariaLabel}
+      className={className}
+      value={value}
+      onChange={onChange}
+      options={options.map(option => {
         const Icon = option.icon;
-        const active = option.value === value;
-
-        return (
-          <button
-            key={option.value}
-            type="button"
-            onClick={() => onChange(option.value)}
-            className={cn(
-              'inline-flex items-center gap-1.5 rounded-lg px-2.5 text-xs font-semibold transition-all focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
-              active
-                ? raised
-                  ? 'bg-[var(--bg-elevated)] text-[var(--text-primary)] shadow-[var(--shadow-raised)]'
-                  : 'bg-[var(--bg-primary)] text-[var(--text-primary)] shadow-sm'
-                : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]',
-              buttonClassName,
-            )}
-            title={option.label}
-            aria-pressed={active}
-          >
-            {showLabels ? (
-              <>
-                <Icon className="h-3.5 w-3.5 shrink-0" />
-                <span>{option.label}</span>
-              </>
-            ) : (
-              <Icon className="h-4 w-4 shrink-0" />
-            )}
-          </button>
-        );
+        return { id: option.value, label: option.label, icon: <Icon className="h-3.5 w-3.5" /> };
       })}
-    </div>
+    />
   );
 }

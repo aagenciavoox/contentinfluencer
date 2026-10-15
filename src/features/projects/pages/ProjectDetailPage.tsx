@@ -95,14 +95,17 @@ function SectionCard({
   eyebrow,
   action,
   children,
+  informative = false,
 }: {
   title: string;
   eyebrow?: string;
   action?: React.ReactNode;
   children: React.ReactNode;
+  /** Só leitura: sem borda, para não parecer clicável. */
+  informative?: boolean;
 }) {
   return (
-    <Surface variant="outlined" padding="lg">
+    <Surface variant={informative ? 'info' : 'outlined'} padding="lg">
       <Section title={title} description={eyebrow} action={action}>
         {children}
       </Section>
@@ -402,7 +405,7 @@ export function ProjectDetailPage() {
         {summaryCards.map(card => (
           <Surface
             key={card.label}
-            variant="outlined"
+            variant="info"
             padding="md"
             className={card.alert ? 'border-[var(--danger)]' : undefined}
           >
@@ -596,6 +599,7 @@ export function ProjectDetailPage() {
           <SectionCard
             eyebrow="Contexto"
             title="Resumo do projeto"
+            informative={!isEditing}
           >
             {!isEditing ? (
               <div className="stack-lg">

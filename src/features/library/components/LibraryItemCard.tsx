@@ -212,7 +212,7 @@ export function LibraryItemCard({
                 event.stopPropagation();
                 onTogglePrimary();
               }}
-              className={`absolute right-2 top-2 z-20 inline-flex items-center gap-1 rounded-full px-2 py-1 t-label t-label-uppercase font-semibold opacity-0  transition-all group-hover:opacity-100 ${
+              className={`absolute right-2 top-2 z-20 inline-flex items-center gap-1 rounded-full px-2 py-1 t-label t-label-uppercase font-semibold opacity-0 transition-all group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100 pointer-coarse:opacity-100 ${
                 isPrimaryMobileBook
                   ? 'bg-[var(--text-primary)] text-[var(--bg-primary)]'
                   : 'bg-[var(--backdrop-strong)] text-[var(--bg-elevated)] hover:bg-[color-mix(in_srgb,var(--text-primary)_80%,transparent)]'

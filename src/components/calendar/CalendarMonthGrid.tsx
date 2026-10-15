@@ -31,7 +31,8 @@ interface CalendarMonthGridProps {
   tone?: 'flat' | 'elevated';
   renderDayContent: (props: CalendarMonthGridDayProps) => ReactNode;
   getDayClassName?: (props: CalendarMonthGridDayProps) => string | undefined;
-  onDayClick?: (props: CalendarMonthGridDayProps, event: React.MouseEvent) => void;
+  /** Clique ou Enter/Espaço no dia. */
+  onDayClick?: (props: CalendarMonthGridDayProps, event: React.MouseEvent | React.KeyboardEvent) => void;
   onDayDragOver?: (props: CalendarMonthGridDayProps, event: React.DragEvent) => void;
   onDayDragLeave?: (props: CalendarMonthGridDayProps) => void;
   onDayDrop?: (props: CalendarMonthGridDayProps, event: React.DragEvent) => void;
@@ -93,6 +94,7 @@ export function CalendarMonthGrid({
 
   return (
     <div
+      role="grid"
       className={cn(
         'w-full min-w-0 border',
         elevated
@@ -102,6 +104,7 @@ export function CalendarMonthGrid({
       )}
     >
       <div
+        role="row"
         className={cn(
           columnClass,
           'border-b',
@@ -109,7 +112,7 @@ export function CalendarMonthGrid({
         )}
       >
         {renderWeekAside ? (
-          <div className="flex min-w-0 items-center border-r border-[var(--border-color)] px-2 py-2">
+          <div role="columnheader" className="flex min-w-0 items-center border-r border-[var(--border-color)] px-2 py-2">
             <span className={headerLabelClass}>
               {weekAsideLabel ?? 'Ritmo'}
             </span>
@@ -118,6 +121,7 @@ export function CalendarMonthGrid({
         {headerDays.map(day => (
           <div
             key={`header-${day.toISOString()}`}
+            role="columnheader"
             className="min-w-0 border-r border-[var(--border-color)] px-1 py-2 text-center last:border-r-0 sm:px-2"
           >
             <span className={cn(headerLabelClass, 'sm:hidden')}>{weekdayHeaderLabel(day).compact}</span>
@@ -127,9 +131,10 @@ export function CalendarMonthGrid({
       </div>
 
       {weeks.map(week => (
-        <div key={week[0].toISOString()} className={columnClass}>
+        <div key={week[0].toISOString()} role="row" className={columnClass}>
           {renderWeekAside ? (
             <div
+              role="rowheader"
               style={{minHeight: minCellHeight}}
               className="relative min-h-0 border-b border-r border-[var(--border-color)] bg-[var(--bg-elevated)]"
             >
@@ -146,19 +151,34 @@ export function CalendarMonthGrid({
             const dayProps: CalendarMonthGridDayProps = {day, dateKey, inMonth, isToday, isSelected};
             const extraClass = getDayClassName?.(dayProps);
 
+            const interactive = Boolean(onSelectDate || onDayClick);
+
             return (
+              // O dia é uma célula da grade que recebe foco: Enter e Espaço fazem o mesmo que o clique.
+              // Não vira <button> porque dentro dele há outros botões (eventos, novo post-it).
               <div
                 key={dateKey}
+                role="gridcell"
+                tabIndex={interactive ? 0 : undefined}
+                aria-selected={interactive ? isSelected : undefined}
                 style={{minHeight: minCellHeight}}
-                onClick={event => {
+                onClick={interactive ? event => {
                   onSelectDate?.(day);
                   onDayClick?.(dayProps, event);
-                }}
+                } : undefined}
+                onKeyDown={interactive ? event => {
+                  if (event.target !== event.currentTarget) return;
+                  if (event.key !== 'Enter' && event.key !== ' ') return;
+                  event.preventDefault();
+                  onSelectDate?.(day);
+                  onDayClick?.(dayProps, event);
+                } : undefined}
                 onDragOver={event => onDayDragOver?.(dayProps, event)}
                 onDragLeave={() => onDayDragLeave?.(dayProps)}
                 onDrop={event => onDayDrop?.(dayProps, event)}
                 className={cn(
-                  'flex min-w-0 cursor-pointer flex-col border-b border-r border-[var(--border-color)] p-1 transition-colors last:border-r-0 hover:bg-[color-mix(in_srgb,var(--surface-subtle),transparent_30%)] sm:p-1.5',
+                  'flex min-w-0 flex-col border-b border-r border-[var(--border-color)] p-1 transition-colors last:border-r-0 sm:p-1.5',
+                  interactive && 'cursor-pointer hover:bg-[color-mix(in_srgb,var(--surface-subtle),transparent_30%)] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--accent-blue)]',
                   expandContent && 'h-auto',
                   !inMonth && 'bg-[var(--bg-hover)]/25 opacity-50',
                   isSelected && 'bg-[color-mix(in_srgb,var(--accent),transparent_95%)]',

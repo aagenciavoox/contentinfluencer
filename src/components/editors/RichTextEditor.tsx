@@ -1256,7 +1256,7 @@ export function RichTextEditor({
                           <span className="flex-1 text-xs font-semibold text-[var(--text-primary)]">
                             {currentAuthor}
                           </span>
-                          <div className="flex items-center opacity-0 transition-all group-hover:opacity-100">
+                          <div className="flex items-center opacity-0 transition-all group-hover:opacity-100 group-focus-within:opacity-100 pointer-coarse:opacity-100">
                             <button
                               onClick={(event) => {
                                 event.stopPropagation();

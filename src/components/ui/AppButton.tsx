@@ -32,15 +32,16 @@ interface AppButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 const responsiveControlHeight =
   '[--app-button-height:var(--control-height-mobile)] md:[--app-button-height:var(--control-height)]';
 
+// `xs` é pequeno no desenho, mas no toque vai a 44px (mínimo do DESIGN.md para o celular).
 const sizeClasses: Record<ButtonSize, string> = {
-  xs: 'h-8 px-3',
+  xs: 'h-8 px-3 pointer-coarse:h-11',
   sm: `${responsiveControlHeight} h-[var(--app-button-height)] px-4`,
   md: `${responsiveControlHeight} h-[var(--app-button-height)] px-4`,
   lg: 'h-11 px-4',
 };
 
 const iconOnlySizeClasses: Record<ButtonSize, string> = {
-  xs: 'h-8 w-8',
+  xs: 'h-8 w-8 pointer-coarse:h-11 pointer-coarse:w-11',
   sm: `${responsiveControlHeight} h-[var(--app-button-height)] w-[var(--app-button-height)]`,
   md: `${responsiveControlHeight} h-[var(--app-button-height)] w-[var(--app-button-height)]`,
   lg: 'h-11 w-11',
@@ -75,6 +76,9 @@ export const AppButton = React.forwardRef<HTMLButtonElement, AppButtonProps>(
     ref
   ) => {
     const reasonId = React.useId();
+    // Botão com texto tem moldura. Sem moldura (`ghost`) só vale para botão de ícone:
+    // com texto, ele ficava igual à frase ao lado e não parecia clicável.
+    const resolvedVariant: ButtonVariant = variant === 'ghost' && !iconOnly ? 'secondary' : variant;
     const showDisabledReason = Boolean(disabled && disabledReason);
     const describedBy = showDisabledReason
       ? [ariaDescribedBy, reasonId].filter(Boolean).join(' ')
@@ -88,12 +92,12 @@ export const AppButton = React.forwardRef<HTMLButtonElement, AppButtonProps>(
         aria-describedby={describedBy}
         className={cn(
           'inline-flex shrink-0 items-center justify-center gap-2 rounded-[var(--radius-input)] text-[length:var(--font-size-button)] font-semibold tracking-normal transition-[background-color,border-color,color,box-shadow,transform,opacity,filter] duration-150',
-          variant === 'primary'
+          resolvedVariant === 'primary'
             ? 'focus-visible:outline-none focus-visible:shadow-[var(--focus-ring-brand)]'
             : 'focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
           'disabled:pointer-events-none disabled:opacity-45',
           iconOnly ? iconOnlySizeClasses[size] : sizeClasses[size],
-          variantClasses[variant],
+          variantClasses[resolvedVariant],
           fullWidth && 'w-full',
           className
         )}

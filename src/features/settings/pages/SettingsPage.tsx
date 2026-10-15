@@ -22,7 +22,7 @@ import {SegmentTabs} from '../../../components/ui/SegmentTabs';
 import {Text} from '../../../components/ui/Text';
 import {useAppContext} from '../../../context/AppContext';
 import {useIsMobile} from '../../../hooks/useIsMobile';
-import {MobileToggleSwitch} from '../../../mobile/components/MobileToggleSwitch';
+import {ToggleRow} from '../../../components/ui/ToggleSwitch';
 import {SettingsMobileScreen} from '../../../mobile/screens/settings/SettingsMobileScreen';
 import {
   DEFAULT_MODULE_FLAGS,
@@ -237,28 +237,24 @@ export function SettingsPage() {
 
           <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
             {gentleCards.map(({key, icon: CardIcon, title, desc, enabled, onToggle}) => (
-              <div
+              <ToggleRow
                 key={key}
-                className="flex items-center justify-between gap-3 rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] px-4 py-3 transition-[box-shadow] hover:shadow-[var(--shadow-card-hover)]"
+                id={`opcao-${key}`}
+                enabled={enabled}
+                onToggle={onToggle}
+                title={title}
+                className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] px-4 py-3 transition-[box-shadow] hover:shadow-[var(--shadow-card-hover)]"
               >
-                <div className="flex min-w-0 items-start gap-2.5">
-                  <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[var(--bg-hover)] text-[var(--text-primary)]">
+                <span className="flex min-w-0 items-start gap-2.5">
+                  <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[var(--bg-hover)] text-[var(--text-primary)]">
                     <CardIcon className="h-4 w-4 opacity-50" />
-                  </div>
-                  <div className="min-w-0">
-                    <Text variant="bodyStrong" truncate className="leading-snug">{title}</Text>
-                    <Text variant="secondary" className="mt-0.5 leading-relaxed">{desc}</Text>
-                  </div>
-                </div>
-
-                <div className="shrink-0 scale-90">
-                  <MobileToggleSwitch
-                    enabled={enabled}
-                    onToggle={onToggle}
-                    label={title}
-                  />
-                </div>
-              </div>
+                  </span>
+                  <span className="min-w-0">
+                    <Text variant="bodyStrong" as="span" truncate className="block leading-snug">{title}</Text>
+                    <Text variant="secondary" as="span" className="mt-0.5 block leading-relaxed">{desc}</Text>
+                  </span>
+                </span>
+              </ToggleRow>
             ))}
           </div>
         </section>
@@ -272,27 +268,25 @@ export function SettingsPage() {
           </div>
 
           <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
-            <div className="flex items-center justify-between gap-3 rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] px-4 py-3 transition-[box-shadow] hover:shadow-[var(--shadow-card-hover)]">
-              <div className="flex min-w-0 items-start gap-2.5">
-                <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[var(--bg-hover)] text-[var(--text-primary)]">
+            <ToggleRow
+              id="opcao-modo-escrita"
+              enabled={writingWorkspace.enabled}
+              onToggle={toggleWritingWorkspace}
+              title="Modo de escrita"
+              className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] px-4 py-3 transition-[box-shadow] hover:shadow-[var(--shadow-card-hover)]"
+            >
+              <span className="flex min-w-0 items-start gap-2.5">
+                <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[var(--bg-hover)] text-[var(--text-primary)]">
                   <Columns2 className="h-4 w-4 opacity-50" />
-                </div>
-                <div className="min-w-0">
-                  <Text variant="bodyStrong" truncate className="leading-snug">Modo de escrita</Text>
-                  <Text variant="secondary" className="mt-0.5 leading-relaxed">
+                </span>
+                <span className="min-w-0">
+                  <Text variant="bodyStrong" as="span" truncate className="block leading-snug">Modo de escrita</Text>
+                  <Text variant="secondary" as="span" className="mt-0.5 block leading-relaxed">
                     Separa o roteiro da gestão. Status, agendamento e legendas ficam em outra aba, e você pode abrir uma área de notas ao lado do texto.
                   </Text>
-                </div>
-              </div>
-
-              <div className="shrink-0 scale-90">
-                <MobileToggleSwitch
-                  enabled={writingWorkspace.enabled}
-                  onToggle={toggleWritingWorkspace}
-                  label="Modo de escrita"
-                />
-              </div>
-            </div>
+                </span>
+              </span>
+            </ToggleRow>
           </div>
         </section>
 
@@ -306,28 +300,24 @@ export function SettingsPage() {
 
           <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
             {moduleCards.map(({key, icon: CardIcon, title, desc}) => (
-              <div
+              <ToggleRow
                 key={key}
-                className="flex items-center justify-between gap-3 rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] px-4 py-3 transition-[box-shadow] hover:shadow-[var(--shadow-card-hover)]"
+                id={`modulo-${key}`}
+                enabled={moduleFlags[key]}
+                onToggle={() => toggleModuleFlag(key)}
+                title={`Módulo ${title}`}
+                className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] px-4 py-3 transition-[box-shadow] hover:shadow-[var(--shadow-card-hover)]"
               >
-                <div className="flex min-w-0 items-start gap-2.5">
-                  <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[var(--bg-hover)] text-[var(--text-primary)]">
+                <span className="flex min-w-0 items-start gap-2.5">
+                  <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[var(--bg-hover)] text-[var(--text-primary)]">
                     <CardIcon className="h-4 w-4 opacity-50" />
-                  </div>
-                  <div className="min-w-0">
-                    <Text variant="bodyStrong" truncate className="leading-snug">{title}</Text>
-                    <Text variant="secondary" className="mt-0.5 leading-relaxed">{desc}</Text>
-                  </div>
-                </div>
-
-                <div className="shrink-0 scale-90">
-                  <MobileToggleSwitch
-                    enabled={moduleFlags[key]}
-                    onToggle={() => toggleModuleFlag(key)}
-                    label={`módulo ${title}`}
-                  />
-                </div>
-              </div>
+                  </span>
+                  <span className="min-w-0">
+                    <Text variant="bodyStrong" as="span" truncate className="block leading-snug">{title}</Text>
+                    <Text variant="secondary" as="span" className="mt-0.5 block leading-relaxed">{desc}</Text>
+                  </span>
+                </span>
+              </ToggleRow>
             ))}
           </div>
         </section>

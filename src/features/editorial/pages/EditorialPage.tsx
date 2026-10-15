@@ -135,16 +135,14 @@ function PillarsPanel({ contagem }: { contagem: GradeCounts }) {
                 dimmed={!pilar.ativo}
                 onToggle={() => dispatch({ type: 'UPDATE_PILAR', payload: { ...pilar, ativo: !pilar.ativo } })}
                 onOpen={() => navigate(`/editorial/pilares/${pilar.id}`)}
-                onEdit={() => navigate(`/editorial/pilares/${pilar.id}`)}
                 onDelete={() => remove(pilar)}
+                meta={nomeRepetido ? 'Outro pilar tem o mesmo nome. Renomeie ou exclua um deles.' : undefined}
                 badges={
                   <>
                     {nomeRepetido ? (
-                      <span title="Outro pilar tem o mesmo nome. Renomeie ou exclua um deles.">
-                        <Badge variant="neutral" className="border-[var(--warning)] text-[var(--text-primary)]">
-                          Nome repetido
-                        </Badge>
-                      </span>
+                      <Badge variant="neutral" className="bg-[color-mix(in_srgb,var(--warning)_18%,transparent)] text-[var(--text-primary)]">
+                        Nome repetido
+                      </Badge>
                     ) : null}
                     <Badge>{count} neste período</Badge>
                     <Badge>
@@ -273,7 +271,6 @@ function SeriesPanel({
                 active={serie.ativa}
                 dimmed={!serie.ativa}
                 onOpen={() => navigate(`/editorial/series/${serie.id}`)}
-                onEdit={() => navigate(`/editorial/series/${serie.id}`)}
                 onToggle={() => dispatch({
                   type: 'UPDATE_SERIE',
                   payload: { ...serie, ativa: !serie.ativa, updatedAt: new Date().toISOString() },

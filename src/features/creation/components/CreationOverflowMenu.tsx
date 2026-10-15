@@ -1,5 +1,4 @@
 import { MoreMenu, type MoreMenuItem } from '../../../components/ui/MoreMenu';
-import { cn } from '../../../lib/utils';
 
 interface CreationOverflowMenuProps {
   exportLabel: string;
@@ -27,10 +26,7 @@ export function CreationOverflowMenu({
     <MoreMenu
       label="Mais opções da página"
       className={className}
-      size="sm"
-      triggerClassName={cn(
-        'h-[var(--control-height)] w-[var(--control-height)] border-[var(--border-color)] bg-[var(--bg-secondary)]',
-      )}
+      size="md"
       items={[
         {
           id: 'export',

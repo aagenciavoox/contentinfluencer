@@ -81,20 +81,23 @@ export function VisaoGeralPanel({
       <PeriodoEditorialControl periodo={periodo} onChange={onPeriodoChange} />
 
       {prioridade ? (
-        <Surface>
+        <Surface variant="info">
           <Text variant="label">Prioridade</Text>
           <Text variant="body" className="mt-1">{prioridade}</Text>
         </Surface>
       ) : null}
 
       {semLimite ? (
-        <Surface>
+        <Surface className="flex flex-wrap items-center justify-between gap-3">
           <Text variant="body">Defina seu limite semanal.</Text>
+          <AppButton variant="secondary" size="sm" onClick={onAbrirPlano}>
+            Definir limite
+          </AppButton>
         </Surface>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {numeros.map(item => (
-            <Surface key={item.id}>
+            <Surface key={item.id} variant="info">
               <Text variant="label">{item.rotulo}</Text>
               <Text variant="itemTitle" as="p" className="mt-1">{item.valor}</Text>
             </Surface>
@@ -102,7 +105,7 @@ export function VisaoGeralPanel({
         </div>
       )}
 
-      <Surface>
+      <Surface variant="info">
         <Text variant="bodyStrong">Por objetivo</Text>
         <div className="mt-3 overflow-x-auto">
           <table className="w-full min-w-[36rem] border-collapse text-left">
@@ -187,7 +190,7 @@ export function VisaoGeralPanel({
             <li key={aviso.id} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
               <Text variant="secondary" className="min-w-[12rem] flex-1">{aviso.texto}</Text>
               {aviso.acao ? (
-                <AppButton variant="ghost" size="sm" onClick={aviso.acao.onClick}>
+                <AppButton variant="secondary" size="sm" onClick={aviso.acao.onClick}>
                   {aviso.acao.rotulo}
                 </AppButton>
               ) : null}

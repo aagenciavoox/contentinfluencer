@@ -15,7 +15,7 @@ import {OverlayBody} from '../../../components/overlays/OverlayBody';
 import {ConfirmModal} from '../../../components/feedback/modals/ConfirmModal';
 import {PlatformsMobileScreen} from '../../../mobile/screens/settings/PlatformsMobileScreen';
 import {PostingTimesEditor} from '../components/PostingTimesEditor';
-import {MobileToggleSwitch} from '../../../mobile/components/MobileToggleSwitch';
+import {ToggleSwitch} from '../../../components/ui/ToggleSwitch';
 import {generateUUID} from '../../../utils/uuid';
 import {notifySaveFeedback} from '../../../lib/saveFeedback';
 import {CONFIRM, type ConfirmState} from '../../../lib/uiCopy';
@@ -218,7 +218,8 @@ export function PlatformsSettingsPage() {
                   const lockedOn = padrao || platform.ativo;
                   return (
                     <div key={platform.id} className="flex items-center gap-4 px-6 py-3.5">
-                      <div className="min-w-0 flex-1">
+                      {/* O nome e a descrição ligam a chave da rede, como em qualquer linha com chave. */}
+                      <label htmlFor={`rede-${platform.id}`} className={padrao ? 'min-w-0 flex-1' : 'min-w-0 flex-1 cursor-pointer'}>
                         <Text variant="bodyStrong" truncate>
                           {displayName}
                         </Text>
@@ -232,7 +233,7 @@ export function PlatformsSettingsPage() {
                             Inativa para criação, mas preservada para leitura histórica
                           </Text>
                         )}
-                      </div>
+                      </label>
                       <div
                         className="flex items-center gap-2"
                         title={padrao ? PADRAO_LOCK_REASON : undefined}
@@ -240,16 +241,19 @@ export function PlatformsSettingsPage() {
                         {padrao ? (
                           <Lock className="h-3.5 w-3.5 shrink-0 text-[var(--text-tertiary)]" aria-hidden />
                         ) : null}
-                        <Text variant="meta">
-                          {lockedOn ? 'Ativa' : 'Inativa'}
-                        </Text>
-                        <MobileToggleSwitch
+                        <label htmlFor={`rede-${platform.id}`} className={padrao ? undefined : 'cursor-pointer'}>
+                          <Text variant="meta" as="span">
+                            {lockedOn ? 'Ativa' : 'Inativa'}
+                          </Text>
+                        </label>
+                        <ToggleSwitch
+                          id={`rede-${platform.id}`}
                           enabled={lockedOn}
                           onToggle={() => {
                             void toggleAtivo(platform);
                           }}
                           label={displayName}
-                          className={padrao ? 'pointer-events-none' : undefined}
+                          disabled={padrao}
                         />
                       </div>
                       {!padrao ? (

@@ -68,7 +68,7 @@ export function TagPill({
             event.stopPropagation();
             onRemove();
           }}
-          className="rounded p-0.5 text-[var(--tag-text)]/70 transition hover:bg-[var(--tag-bg-hover)] hover:text-[var(--tag-text)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+          className="relative rounded p-0.5 text-[var(--tag-text)]/70 transition before:absolute before:-inset-2 before:content-[''] hover:bg-[var(--tag-bg-hover)] hover:text-[var(--tag-text)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] pointer-coarse:before:-inset-3"
           aria-label={`Remover ${label}`}
         >
           <X className="h-3 w-3" />
@@ -210,14 +210,28 @@ export function TagSelect({
       {hint && !hideLabel ? <p className="text-sm text-[var(--text-tertiary)]">{hint}</p> : null}
 
       <div className="relative">
+        {/* Sem busca não há campo de texto: o próprio controle recebe foco e abre com o teclado. */}
         <div
           role="combobox"
+          id={showInput ? undefined : fieldId}
+          tabIndex={showInput || disabled ? undefined : 0}
           aria-expanded={open}
           aria-haspopup="listbox"
           aria-controls={`${fieldId}-listbox`}
+          aria-disabled={disabled || undefined}
           onClick={handleControlClick}
+          onKeyDown={showInput ? undefined : event => {
+            if (disabled) return;
+            if (event.key === 'Enter' || event.key === ' ' || event.key === 'ArrowDown') {
+              event.preventDefault();
+              setOpen(true);
+            } else if (event.key === 'Escape') {
+              setOpen(false);
+            }
+          }}
           className={cn(
-            'tag-select-control flex min-h-10 w-full cursor-text items-center gap-2 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-3 py-2 transition-colors',
+            'tag-select-control flex min-h-10 w-full items-center gap-2 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-3 py-2 transition-colors hover:border-[var(--border-strong)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
+            showInput ? 'cursor-text' : 'cursor-pointer',
             open && 'border-[var(--border-strong)] ring-2 ring-[var(--shadow-focus)]',
             disabled && 'cursor-not-allowed opacity-60',
             controlClassName

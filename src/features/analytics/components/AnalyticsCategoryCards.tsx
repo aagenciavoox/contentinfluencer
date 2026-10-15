@@ -28,7 +28,7 @@ function MetricCard({
   loading?: boolean;
 }) {
   return (
-    <Surface variant="outlined" padding="sm" className="min-w-0">
+    <Surface variant="plain" padding="sm" className="min-w-0">
       <div className="mb-3 flex h-8 w-8 items-center justify-center rounded-[var(--radius-input)] bg-[var(--bg-hover)] text-[var(--text-secondary)]">
         <Icon className="h-4 w-4" />
       </div>
@@ -77,7 +77,7 @@ export function AnalyticsCategoryCards({ analytics, loading = false }: Analytics
 
   return (
     <div className="stack-xl">
-      <Surface variant="outlined" padding="lg">
+      <Surface variant="info" padding="lg">
         <div className="mb-5">
           <Text variant="eyebrow">Biblioteca em números</Text>
           <Text variant="sectionTitle" className="mt-1">Seu consumo cultural</Text>
@@ -135,7 +135,7 @@ export function AnalyticsCategoryCards({ analytics, loading = false }: Analytics
       </Surface>
 
       <div className="grid gap-6 xl:grid-cols-2">
-        <Surface variant="outlined" padding="lg">
+        <Surface variant="info" padding="lg">
           <Text variant="eyebrow">Progresso</Text>
           <Text variant="sectionTitle" className="mt-1">Ritmo do acervo</Text>
 
@@ -189,7 +189,7 @@ export function AnalyticsCategoryCards({ analytics, loading = false }: Analytics
           </div>
         </Surface>
 
-        <Surface variant="outlined" padding="lg">
+        <Surface variant="info" padding="lg">
           <Text variant="eyebrow">Situação</Text>
           <Text variant="sectionTitle" className="mt-1">Status do acervo</Text>
           <div className="mt-6">
@@ -199,7 +199,7 @@ export function AnalyticsCategoryCards({ analytics, loading = false }: Analytics
       </div>
 
       <div className="grid gap-6 xl:grid-cols-2">
-        <Surface variant="outlined" padding="lg">
+        <Surface variant="info" padding="lg">
           <Text variant="eyebrow">Formatos</Text>
           <Text variant="sectionTitle" className="mt-1">Composição da biblioteca</Text>
           <div className="mt-6">
@@ -207,7 +207,7 @@ export function AnalyticsCategoryCards({ analytics, loading = false }: Analytics
           </div>
         </Surface>
 
-        <Surface variant="outlined" padding="lg">
+        <Surface variant="info" padding="lg">
           <Text variant="eyebrow">Preferências</Text>
           <Text variant="sectionTitle" className="mt-1">Gêneros mais presentes</Text>
           <div className="mt-6">
@@ -217,7 +217,7 @@ export function AnalyticsCategoryCards({ analytics, loading = false }: Analytics
       </div>
 
       <div className="grid gap-6 xl:grid-cols-2">
-        <Surface variant="outlined" padding="lg">
+        <Surface variant="info" padding="lg">
           <Text variant="eyebrow">Anotações</Text>
           <Text variant="sectionTitle" className="mt-1">Livros que mais renderam notas</Text>
 
@@ -240,7 +240,7 @@ export function AnalyticsCategoryCards({ analytics, loading = false }: Analytics
           </div>
         </Surface>
 
-        <Surface variant="outlined" padding="lg">
+        <Surface variant="info" padding="lg">
           <Text variant="eyebrow">Avaliações</Text>
           <Text variant="sectionTitle" className="mt-1">Distribuição das notas</Text>
           {loading ? (

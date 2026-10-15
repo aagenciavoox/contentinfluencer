@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
+import { ChevronDown } from 'lucide-react';
 import { Surface } from '../../../../components/ui/Surface';
 import { TagSelect } from '../../../../components/ui/TagSelect';
 import { Text } from '../../../../components/ui/Text';
 import { useAppContext } from '../../../../context/AppContext';
 import type { FuncaoEditorial, Platform, PostingTimeEntry } from '../../../../lib/database';
-import { MobileToggleSwitch } from '../../../../mobile/components/MobileToggleSwitch';
+import { ToggleRow } from '../../../../components/ui/ToggleSwitch';
 import {
   atualizarPreferencias,
   EDITORIAL_SETTINGS_PREFERENCE_KEY,
@@ -163,12 +164,14 @@ function CampoTexto({
 }
 
 function SecaoRecolhida({ titulo, children }: { titulo: string; children: ReactNode }) {
+  // A faixa inteira abre e fecha, com a seta à direita, como as outras seções que recolhem.
   return (
-    <Surface as="details">
-      <summary className="cursor-pointer marker:text-[var(--text-secondary)]">
+    <Surface as="details" padding="none" className="group/secao">
+      <summary className="flex min-h-11 list-none items-center justify-between gap-3 rounded-[inherit] p-4 transition-colors hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] [&::-webkit-details-marker]:hidden">
         <Text variant="bodyStrong" as="span">{titulo}</Text>
+        <ChevronDown className="h-4 w-4 shrink-0 text-[var(--text-secondary)] transition-transform group-open/secao:rotate-180" aria-hidden />
       </summary>
-      <div className="mt-3 stack-md">{children}</div>
+      <div className="stack-md px-4 pb-4">{children}</div>
     </Surface>
   );
 }
@@ -426,12 +429,17 @@ export function PlanoPeriodoPanel({
         <Text variant="secondary">Estas opções não entram na conta do período.</Text>
         <div className="grid gap-3 sm:grid-cols-2">
           {linhas.map(row => (
-            <Surface key={row.key} className="flex items-center justify-between gap-4">
-              <div>
-                <Text variant="bodyStrong">{row.title}</Text>
-                <Text variant="secondary" className="mt-1">{row.description}</Text>
-              </div>
-              <MobileToggleSwitch enabled={row.enabled} onToggle={row.toggle} label={row.title} />
+            <Surface key={row.key} padding="none">
+              <ToggleRow
+                id={`plano-${row.key}`}
+                enabled={row.enabled}
+                onToggle={row.toggle}
+                title={row.title}
+                className="gap-4 p-4"
+              >
+                <Text variant="bodyStrong" as="span" className="block">{row.title}</Text>
+                <Text variant="secondary" as="span" className="mt-1 block">{row.description}</Text>
+              </ToggleRow>
             </Surface>
           ))}
         </div>

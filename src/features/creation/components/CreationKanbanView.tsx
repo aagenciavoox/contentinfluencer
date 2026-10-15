@@ -111,7 +111,7 @@ function CreationKanbanCard({
     >
       <div className="relative">
         <span
-          className="card-actions absolute top-0 right-0 z-[2]"
+          className="absolute top-0 right-0 z-[2]"
           onClick={event => event.stopPropagation()}
           onKeyDown={event => event.stopPropagation()}
         >

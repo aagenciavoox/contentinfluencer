@@ -221,9 +221,9 @@ export function IdeaQuickCapture({
           <button
             type="button"
             onClick={expandCapture}
-            className="min-h-11 shrink-0 rounded-md px-2 py-1.5 text-xs font-medium text-[var(--text-tertiary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--accent-blue)] md:min-h-0"
+            className="inline-flex min-h-11 shrink-0 items-center gap-1 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-2.5 text-xs font-semibold text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] md:min-h-8"
           >
-            Observações
+            + Observações
           </button>
         ) : null}
       </div>

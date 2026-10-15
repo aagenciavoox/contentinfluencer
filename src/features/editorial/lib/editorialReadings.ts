@@ -8,7 +8,7 @@ import type { DestinoPlataforma } from './destinations.ts';
 import { buildGradeEntries, type GradeContent, type GradeSerie } from './gradeEntries.ts';
 import { countGrade, type PilarContagem } from './gradeCounts.ts';
 import { getEditorialSettings, type EditorialSettings } from './editorialSettings.ts';
-import { getSerieOpenItems } from './serieCompleteness.ts';
+import { formatOpenItems, getSerieOpenItems } from './serieCompleteness.ts';
 import { semanaDe } from './periodoEditorial.ts';
 
 export type Leitura = {
@@ -218,7 +218,7 @@ export function computeReadings(
       mensagem: mostrarNumeros
         ? `Esta semana tem ${contagem.previsto} e o limite é ${contagem.limite}`
         : 'Esta semana passou do limite',
-      acao: { rotulo: 'Ver a semana', href: '/editorial' },
+      acao: { rotulo: 'Ver a semana', href: '/editorial?aba=visao' },
     });
   }
 
@@ -230,7 +230,7 @@ export function computeReadings(
         chave: 'estoque',
         prioridade: 2,
         mensagem: 'Estoque abaixo do que você definiu',
-        acao: { rotulo: 'Ver estoque', href: '/editorial?aba=ajustes' },
+        acao: { rotulo: 'Ver estoque', href: '/editorial?aba=visao' },
       });
     }
   }
@@ -268,7 +268,8 @@ export function computeReadings(
       leituras.push({
         chave: `serie:${serie.id}`,
         prioridade: 4,
-        mensagem: 'Esta série tem informações em aberto',
+        // Diz qual série e o que falta: "Esta série" repetido três vezes não dizia nada.
+        mensagem: `«${serie.name}» tem em aberto: ${formatOpenItems(getSerieOpenItems(serie))}`,
         acao: { rotulo: 'Abrir série', href: `/editorial/series/${serie.id}` },
       });
     }

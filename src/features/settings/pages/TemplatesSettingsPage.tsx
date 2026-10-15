@@ -717,10 +717,16 @@ export function TemplatesSettingsPage({
               return (
                 <div
                   key={template.id}
-                  onClick={() => openTemplateEditor(template)}
-                  className="group flex cursor-pointer items-start gap-3 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-primary)] p-6 transition-all hover:shadow-[var(--shadow-card-hover)]"
+                  className="group relative flex items-start gap-3 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-primary)] p-6 transition-all hover:shadow-[var(--shadow-card-hover)]"
                 >
-                  <div className="min-w-0 flex-1 stack-md">
+                  {/* O card inteiro abre o template: botão que cobre o card, como na Criação. */}
+                  <button
+                    type="button"
+                    onClick={() => openTemplateEditor(template)}
+                    aria-label={`Abrir template ${template.nome}`}
+                    className="absolute inset-0 z-0 rounded-[inherit] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+                  />
+                  <div className="pointer-events-none relative z-[1] min-w-0 flex-1 stack-md">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="rounded-full bg-[var(--bg-hover)] px-3 py-1 text-xs font-semibold  text-[var(--text-primary)]">
                         {template.type || 'roteiro'}
@@ -752,7 +758,7 @@ export function TemplatesSettingsPage({
                       deleteTemplate(template.id);
                     }}
                     aria-label={`Excluir template ${template.nome}`}
-                    className="inline-flex min-h-9 min-w-9 shrink-0 items-center justify-center rounded-full opacity-20 transition-all hover:bg-red-400/10 hover:text-red-400 hover:opacity-80"
+                    className="relative z-[2] inline-flex min-h-9 min-w-9 shrink-0 items-center justify-center rounded-full text-[var(--text-tertiary)] transition-all hover:bg-red-400/10 hover:text-red-400 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] pointer-coarse:min-h-11 pointer-coarse:min-w-11"
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>

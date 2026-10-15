@@ -640,7 +640,7 @@ export function PlanejamentoPage() {
                     );
                   })}
                   {dayPostIts.map(postIt => renderPostIt(postIt, true))}
-                  <div className="flex gap-0.5 transition-opacity md:opacity-0 md:focus-within:opacity-100 md:group-hover/day:opacity-100">
+                  <div className="flex gap-0.5 transition-opacity md:opacity-0 md:focus-within:opacity-100 md:group-hover/day:opacity-100 md:group-focus-within/day:opacity-100 pointer-coarse:opacity-100">
                     <AppButton
                       variant="ghost"
                       size="xs"

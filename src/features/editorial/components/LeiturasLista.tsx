@@ -31,11 +31,11 @@ export function LeiturasLista({ leituras }: { leituras: Leitura[] }) {
             <Text variant="secondary" className="min-w-[12rem] flex-1">{leitura.mensagem}</Text>
             <div className="flex shrink-0 items-center gap-1">
               {leitura.resolver ? (
-                <AppButton variant="ghost" size="sm" onClick={() => resolver(leitura)}>
+                <AppButton variant="secondary" size="sm" onClick={() => resolver(leitura)}>
                   {leitura.resolver.rotulo}
                 </AppButton>
               ) : null}
-              <AppButton variant="ghost" size="sm" onClick={() => navigate(leitura.acao.href)}>
+              <AppButton variant="secondary" size="sm" onClick={() => navigate(leitura.acao.href)}>
                 {leitura.acao.rotulo}
               </AppButton>
             </div>

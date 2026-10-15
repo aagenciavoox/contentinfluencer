@@ -68,7 +68,8 @@ export function CalendarEventPill({
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
       className={cn(
-        'flex w-full min-w-0 items-center gap-1 rounded-[var(--radius-sm)] px-1.5 py-0.5 text-left text-xs font-semibold leading-tight transition-colors hover:brightness-95 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
+        // Na grade do mês não cabe 44px por evento; no toque ele fica com 24px, o mínimo do WCAG.
+        'flex w-full min-w-0 items-center gap-1 rounded-[var(--radius-sm)] px-1.5 py-0.5 text-left text-xs font-semibold leading-tight transition-colors hover:brightness-95 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] pointer-coarse:min-h-6',
         className,
       )}
       style={style}

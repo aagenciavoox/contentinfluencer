@@ -1,8 +1,8 @@
-import { useState, type ReactNode } from 'react';
-import { Edit2, ToggleLeft, ToggleRight } from 'lucide-react';
+import { useId, useState, type ReactNode } from 'react';
 import { Badge } from '../ui/Badge';
 import { Text } from '../ui/Text';
 import { MoreMenu, type MoreMenuItem } from '../ui/MoreMenu';
+import { ToggleSwitch } from '../ui/ToggleSwitch';
 import { cn } from '../../lib/utils';
 
 export const SETTINGS_ENTITY_GRID_CLASS = 'grid-content';
@@ -19,12 +19,13 @@ interface SettingsGridCardProps {
   imageUrl?: string | null;
   active?: boolean;
   onToggle?: () => void;
+  /** Só vale sem `onOpen`: com `onOpen`, abrir o card já edita, e "Editar" repetiria a ação. */
   onEdit?: () => void;
   onDelete?: () => void;
-  /** Makes the card body open the primary destination. */
+  /** O card inteiro abre o destino principal. */
   onOpen?: () => void;
   dimmed?: boolean;
-  /** Dense layout: no footer divider, hover icon actions. */
+  /** Sem a chave à vista: ativar e desativar ficam no menu ⋯. */
   compact?: boolean;
   className?: string;
   children?: ReactNode;
@@ -34,14 +35,19 @@ interface SettingsGridCardProps {
 function buildMoreItems({
   active,
   onToggle,
+  onEdit,
   onDelete,
+  includeToggle,
 }: {
   active: boolean;
   onToggle?: () => void;
+  onEdit?: () => void;
   onDelete?: () => void;
+  includeToggle: boolean;
 }): MoreMenuItem[] {
   const items: MoreMenuItem[] = [];
-  if (onToggle) {
+  if (onEdit) items.push({ id: 'edit', label: 'Editar', onClick: onEdit });
+  if (onToggle && includeToggle) {
     items.push({
       id: 'toggle',
       label: active ? 'Desativar' : 'Ativar',
@@ -80,6 +86,10 @@ function CardCover({ src, alt }: { src: string; alt: string }) {
   );
 }
 
+/**
+ * Card de pilar e de série. Segue o card clicável do app (o da Criação): um botão cobre
+ * o card todo e a chave e o menu ⋯ ficam por cima, sempre visíveis.
+ */
 export function SettingsGridCard({
   title,
   description,
@@ -99,10 +109,19 @@ export function SettingsGridCard({
   children,
   footer,
 }: SettingsGridCardProps) {
+  const switchId = useId();
   const coverSrc = httpImageUrl(imageUrl);
-  const moreItems = buildMoreItems({ active, onToggle, onDelete });
-  const showLegacyActions = !compact && Boolean(onEdit || moreItems.length > 0 || footer);
-  const showCompactActions = compact && Boolean(onEdit || moreItems.length > 0);
+  const showSwitch = !compact && Boolean(onToggle);
+  const moreItems = buildMoreItems({
+    active,
+    onToggle,
+    onEdit: onOpen ? undefined : onEdit,
+    onDelete,
+    includeToggle: !showSwitch,
+  });
+  // No modo compacto não há chave: o ⋯ fica no canto, por cima do card, sem abrir uma faixa vazia.
+  const hasTopRow = !compact && Boolean(leading || showSwitch || moreItems.length > 0);
+  const cornerMenu = compact && moreItems.length > 0;
   // Ordem de leitura: nome (com a cor) primeiro, descrição, e os números no rodapé.
   // "Ativa" não vira selo: só o estado fora do normal aparece.
   const statusBadge = compact && !active ? <Badge variant="neutral">Inativa</Badge> : null;
@@ -114,145 +133,87 @@ export function SettingsGridCard({
     />
   ) : null;
 
-  const body = (
-    <>
-      {coverSrc ? <CardCover src={coverSrc} alt="" /> : null}
-      {statusBadge ? <div className="mb-2 flex flex-wrap items-center gap-1">{statusBadge}</div> : null}
-
-      <span className="flex min-w-0 items-center gap-2">
-        {compact || !leading ? colorDot : null}
-        <Text variant="itemTitle" as="span" className="min-w-0 leading-snug">
-          {title}
-        </Text>
-      </span>
-
-      {children ?? (
-        description ? (
-          <Text variant="secondary" className="mt-1 line-clamp-2">
-            {description}
-          </Text>
-        ) : null
-      )}
-
-      {badges ? <div className="mt-3 flex flex-wrap items-center gap-1">{badges}</div> : null}
-
-      {meta ? (
-        <Text variant="meta" as="p" className="mt-2 truncate leading-none">
-          {meta}
-        </Text>
-      ) : null}
-    </>
-  );
-
   return (
     <div
       className={cn(
-        'ds-card ds-card-interactive group relative flex flex-col gap-3 bg-[var(--bg-elevated)] p-4 text-left',
-        dimmed && 'opacity-55',
+        'ds-card group relative flex flex-col gap-3 p-4 text-left',
+        onOpen && 'ds-card-interactive',
+        // Inativo: fundo rebaixado em vez de texto apagado, para a leitura continuar boa.
+        dimmed && 'is-dimmed',
         className,
       )}
     >
-      {!compact && (leading || onToggle) ? (
-        <div className="-mb-1 flex items-center justify-between gap-2">
-          {leading ?? <span />}
-          {onToggle ? (
-            // O rótulo diz o estado ("Ativo"), não a ação: "Desativar" ao lado de uma chave ligada confundia.
-            <button
-              type="button"
-              role="switch"
-              aria-checked={active}
-              onClick={onToggle}
-              className="inline-flex items-center gap-1.5 rounded-[var(--radius-input)] px-1.5 py-1 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
-              aria-label={`${title}: ${active ? 'ativo' : 'inativo'}`}
-            >
-              {active ? (
-                <ToggleRight className="h-5 w-5 text-[var(--text-primary)]" />
-              ) : (
-                <ToggleLeft className="h-5 w-5 text-[var(--text-tertiary)]" />
-              )}
-              <span>{active ? 'Ativo' : 'Inativo'}</span>
-            </button>
-          ) : null}
-        </div>
-      ) : null}
-
-      {showCompactActions ? (
-        <div
-          className={cn(
-            'card-actions absolute right-2 top-2 z-10 flex items-center gap-0.5 rounded-[var(--radius-input)] bg-[var(--bg-elevated)]/90 p-0.5',
-          )}
-        >
-          {onEdit ? (
-            <button
-              type="button"
-              onClick={onEdit}
-              className="rounded-md p-1.5 text-[var(--text-tertiary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
-              aria-label={`Editar ${title}`}
-              title="Editar"
-            >
-              <Edit2 className="h-3.5 w-3.5" />
-            </button>
-          ) : null}
-          {moreItems.length > 0 ? (
-            <MoreMenu
-              size="sm"
-              items={moreItems}
-              triggerClassName="border-transparent bg-transparent hover:bg-[var(--bg-hover)]"
-            />
-          ) : null}
-        </div>
-      ) : null}
-
       {onOpen ? (
         <button
           type="button"
           onClick={onOpen}
-          className={cn(
-            'min-w-0 flex-1 rounded-[var(--radius-input)] text-left focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
-            showCompactActions && 'pr-8',
-          )}
+          className="absolute inset-0 z-0 rounded-[inherit] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
           aria-label={`Abrir ${title}`}
-        >
-          {body}
-        </button>
-      ) : (
-        <div className={cn('min-w-0 flex-1', showCompactActions && 'pr-8')}>{body}</div>
-      )}
+        />
+      ) : null}
 
-      {showLegacyActions ? (
-        <div className="card-actions mt-1 flex items-center justify-between gap-2">
-          {footer ?? (
-            <>
-              {onEdit ? (
-                <button
-                  type="button"
-                  onClick={onEdit}
-                  className="inline-flex items-center gap-1 rounded-[var(--radius-input)] px-2 py-1 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
-                >
-                  <Edit2 className="h-3 w-3" />
-                  Editar
-                </button>
-              ) : (
-                <span />
-              )}
-              {onDelete ? (
-                <MoreMenu
-                  size="sm"
-                  items={[
-                    {
-                      id: 'delete',
-                      label: 'Excluir',
-                      tone: 'danger',
-                      onClick: onDelete,
-                    },
-                  ]}
-                  triggerClassName="border-transparent bg-transparent text-[var(--text-tertiary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
-                />
-              ) : null}
-            </>
-          )}
+      {cornerMenu ? (
+        <div className="absolute right-2 top-2 z-[2]">
+          <MoreMenu size="sm" items={moreItems} label={`Mais opções de ${title}`} />
         </div>
       ) : null}
+
+      {hasTopRow ? (
+        <div className="relative z-[2] -mb-1 flex items-center justify-between gap-2">
+          <div className="pointer-events-none min-w-0">{leading ?? statusBadge}</div>
+          <div className="flex items-center gap-1">
+            {showSwitch && onToggle ? (
+              <>
+                <label
+                  htmlFor={switchId}
+                  className="cursor-pointer text-xs font-medium text-[var(--text-secondary)]"
+                >
+                  {active ? 'Ativo' : 'Inativo'}
+                </label>
+                <ToggleSwitch
+                  id={switchId}
+                  size="sm"
+                  enabled={active}
+                  onToggle={onToggle}
+                  label={`${title}: ${active ? 'ativo' : 'inativo'}`}
+                  className="min-h-8 min-w-8 pointer-coarse:min-h-11 pointer-coarse:min-w-11"
+                />
+              </>
+            ) : null}
+            {moreItems.length > 0 ? <MoreMenu size="sm" items={moreItems} label={`Mais opções de ${title}`} /> : null}
+          </div>
+        </div>
+      ) : null}
+
+      <div className={cn('pointer-events-none relative z-[1] min-w-0 flex-1', cornerMenu && 'pr-8')}>
+        {coverSrc ? <CardCover src={coverSrc} alt="" /> : null}
+        {!hasTopRow && statusBadge ? <div className="mb-2 flex flex-wrap items-center gap-1">{statusBadge}</div> : null}
+
+        <span className="flex min-w-0 items-center gap-2">
+          {compact || !leading ? colorDot : null}
+          <Text variant="itemTitle" as="span" className="min-w-0 leading-snug">
+            {title}
+          </Text>
+        </span>
+
+        {children ?? (
+          description ? (
+            <Text variant="secondary" className="mt-1 line-clamp-2">
+              {description}
+            </Text>
+          ) : null
+        )}
+
+        {badges ? <div className="mt-3 flex flex-wrap items-center gap-1">{badges}</div> : null}
+
+        {meta ? (
+          <Text variant="meta" as="p" className="mt-2 line-clamp-2 leading-snug">
+            {meta}
+          </Text>
+        ) : null}
+      </div>
+
+      {footer ? <div className="relative z-[2]">{footer}</div> : null}
     </div>
   );
 }

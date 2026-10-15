@@ -509,7 +509,7 @@ export function SerieEditForm({
           className="mb-3"
         />
       ) : null}
-      <Surface variant="outlined" padding="md" className="mb-3 w-full">
+      <Surface variant="info" padding="md" className="mb-3 w-full">
         <div className="flex w-full items-center gap-3">
           {coverPreview ? (
             <img
@@ -810,9 +810,10 @@ export function SerieEditForm({
                         }))}
                         className={cn(
                           'rounded-[var(--radius-input)] px-3 py-2 text-sm font-medium focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
+                          // Seleção é preta, como em todo o app; o rosa fica só para a ação principal.
                           selected
-                            ? 'bg-[var(--brand-accent-soft)] text-[var(--brand-accent-strong)]'
-                            : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]',
+                            ? 'bg-[var(--text-primary)] text-[var(--bg-primary)]'
+                            : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]',
                         )}
                       >
                         {ENERGIA_LABELS[value]}
@@ -898,16 +899,17 @@ export function SerieEditForm({
                             {platform}
                           </Text>
                         </div>
-                        <button
-                          type="button"
+                        <AppButton
+                          variant="secondary"
+                          size="xs"
                           onClick={() => void copyHashtags(value)}
                           disabled={!value.trim()}
-                          className="inline-flex items-center gap-1.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-40 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+                          leftIcon={<Copy className="h-3.5 w-3.5" />}
+                          className="pointer-coarse:h-11"
                           aria-label={`Copiar hashtags de ${platform}`}
                         >
-                          <Copy className="h-3.5 w-3.5" />
-                          <Text variant="meta">Copiar</Text>
-                        </button>
+                          Copiar
+                        </AppButton>
                       </div>
                       <textarea
                         value={value}
