@@ -1,13 +1,18 @@
-import type { ContentPlataforma } from '../../../lib/database.ts';
+import type { ContentPlataforma, RedeSocial } from '../../../lib/database.ts';
 import { platformKey } from '../../../components/ui/platformName.ts';
 import { generateUUID } from '../../../utils/uuid.ts';
 
+/** Uma conta de destino. `rede` e `handle` vêm quando a tela tem o cadastro completo. */
 export type DestinoPlataforma = {
   id: string;
   nome: string;
+  rede?: RedeSocial | null;
+  handle?: string | null;
+  ativo?: boolean;
+  userId?: string | null;
 };
 
-/** A publicação no cliente pode guardar o id ou o nome da rede. */
+/** O vínculo é o id da conta. O nome só aparece em dado antigo (cache, preferência). */
 export function mesmoDestino(ref: string, plataforma: DestinoPlataforma): boolean {
   if (!ref) return false;
   if (ref === plataforma.id || ref === plataforma.nome) return true;

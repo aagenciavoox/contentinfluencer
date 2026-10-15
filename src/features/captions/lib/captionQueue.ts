@@ -1,5 +1,7 @@
 import type { Content, ContentPlataforma } from '../../../lib/database.ts';
 import { CONTENT_STATUS, normalizeContentStatus } from '../../contents/lib/contentPipeline.ts';
+import { publicacaoJaPostada, temLegenda } from '../../editorial/lib/captions.ts';
+import { contaDaRef, rotuloConta, type ContaRef } from '../../contas/lib/contas.ts';
 
 export type CaptionListFilter = 'todos' | 'sem-legenda' | 'com-legenda';
 
@@ -33,6 +35,9 @@ export function captionClipboardText(
   return blocks.map(block => `${block.platformId}\n${block.text}`).join('\n\n');
 }
 
+type ConteudoDaFila = Pick<Content, 'status' | 'deletedAt' | 'archivedAt' | 'legendaBase' | 'plataformas'>;
+
+/** O roteiro ainda pode ter legenda pendente. Postado só entra se alguma publicação não foi ao ar. */
 export function isCaptionQueueContent(
   content: Pick<Content, 'status' | 'deletedAt' | 'archivedAt'>,
 ): boolean {
@@ -43,29 +48,66 @@ export function isCaptionQueueContent(
     || status === CONTENT_STATUS.POSTADO;
 }
 
-export function contentHasCaption(content: Pick<Content, 'plataformas'>): boolean {
-  return content.plataformas.some(item => formatCaptionBlock(item).length > 0);
+/**
+ * Uma publicação sai da fila quando já foi postada.
+ * Concluir o Instagram não tira o TikTok, nem outra conta, da fila.
+ */
+export function publicacaoNaFila(
+  content: ConteudoDaFila,
+  publicacao: Pick<ContentPlataforma, 'status'>,
+): boolean {
+  if (!isCaptionQueueContent(content)) return false;
+  return !publicacaoJaPostada(publicacao, content);
 }
 
-export function filterCaptionQueue<T extends Content>(
-  contents: T[],
+export type ItemFilaLegenda = {
+  /** Id da publicação, para a ordem da fila não pular enquanto se escreve. */
+  id: string;
+  content: Content;
+  publicacao: ContentPlataforma;
+};
+
+function casaBusca(item: ItemFilaLegenda, query: string, contas: readonly ContaRef[]): boolean {
+  if (!query) return true;
+  const conta = contaDaRef(item.publicacao.platformId, contas);
+  const campos = [
+    item.content.title,
+    item.publicacao.legenda,
+    item.content.legendaBase ?? '',
+    conta ? rotuloConta(conta) : item.publicacao.platformId,
+    conta?.nome ?? '',
+    conta?.handle ?? '',
+  ];
+  return campos.some(campo => campo.toLocaleLowerCase('pt-BR').includes(query));
+}
+
+/** Fila por publicação. Busca e filtro valem juntos. A classificação usa o texto efetivo. */
+export function filtrarFilaLegendas(
+  contents: readonly Content[],
   filter: CaptionListFilter,
   search: string,
-): T[] {
+  contas: readonly ContaRef[] = [],
+): ItemFilaLegenda[] {
   const query = search.trim().toLocaleLowerCase('pt-BR');
+  const itens: ItemFilaLegenda[] = [];
 
-  return contents
-    .filter(isCaptionQueueContent)
-    .filter(content => {
-      if (filter === 'sem-legenda') return !contentHasCaption(content);
-      if (filter === 'com-legenda') return contentHasCaption(content);
-      return true;
-    })
-    .filter(content => {
-      if (!query) return true;
-      return content.title.toLocaleLowerCase('pt-BR').includes(query);
-    })
-    .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
+  for (const content of contents) {
+    for (const publicacao of content.plataformas) {
+      if (!publicacaoNaFila(content, publicacao)) continue;
+      const comLegenda = temLegenda(content.legendaBase, publicacao);
+      if (filter === 'sem-legenda' && comLegenda) continue;
+      if (filter === 'com-legenda' && !comLegenda) continue;
+      const item = { id: publicacao.id, content, publicacao };
+      if (!casaBusca(item, query, contas)) continue;
+      itens.push(item);
+    }
+  }
+
+  return itens.sort((left, right) => {
+    const porData = right.content.updatedAt.localeCompare(left.content.updatedAt);
+    if (porData !== 0) return porData;
+    return left.id.localeCompare(right.id);
+  });
 }
 
 /**

@@ -131,7 +131,8 @@
   --surface-editorial: var(--bg-elevated);
   --text-primary: #111111;
   --text-secondary: #5F5F5A;
-  --text-tertiary: #6F6F69;
+  /* ≥ 4.5:1 também sobre --surface-subtle (cards informativos), não só sobre os fundos de página. */
+  --text-tertiary: #6B6B65;
   --border-color: #E5E5E1;
   --border-strong: #D7D7D2;
   /* Separators for major blocks only (header/content, modal body/footer) */
@@ -151,7 +152,8 @@
   --brand-accent-soft: #FFE4EF;
   --brand-on-accent: #FFFFFF;
   --brand-fab: #0C0C0C;
-  --focus-ring-brand: 0 0 0 3px color-mix(in srgb, var(--brand-accent) 28%, transparent);
+  /* O foco é sempre azul (DESIGN.md). O nome fica para não quebrar quem já usa. */
+  --focus-ring-brand: var(--focus-ring);
 
   /* Semantic / status palette (DESIGN.md — dessaturado) */
   --success: #4F8A5B;
@@ -177,7 +179,10 @@
   --segment-track: #E2E8F0;
   --shadow-focus: 0 0 0 3px rgba(17, 17, 17, 0.12);
   --surface-transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out, background-color 0.2s ease-in-out;
-  --focus-ring: 0 0 0 3px color-mix(in srgb, var(--accent-blue) 24%, transparent);
+  /* Folga de 2px na cor do fundo + anel sólido de 2px: ≥ 3:1 sobre qualquer fundo de página (WCAG 1.4.11),
+     inclusive em volta do botão rosa. Um halo translúcido ficava em 1,33:1. */
+  --focus-ring-color: var(--accent-blue);
+  --focus-ring: 0 0 0 2px var(--bg-elevated), 0 0 0 4px var(--focus-ring-color);
   --backdrop-soft: color-mix(in srgb, var(--text-primary) 20%, transparent);
   --backdrop-medium: color-mix(in srgb, var(--text-primary) 40%, transparent);
   --backdrop-strong: color-mix(in srgb, var(--text-primary) 60%, transparent);
@@ -201,6 +206,13 @@
   --status-scheduled: #4F8A5B;
   --status-posted:    #3E8E68;
   --status-archived:  #7D7D78;
+
+  /* Texto tingido: o tom puro sobre o próprio fundo claro fica abaixo de 4,5:1 (idea 2,40:1).
+     O texto mistura o tom com --text-primary; quanto menor a parte do tom, mais contraste.
+     --tint-text-share: cores do sistema (status, acentos). --user-tint-text-share: cores que a
+     pessoa escolhe (pilar, série, projeto), que podem ser quase brancas. Testado em tokenContrast.test.ts. */
+  --tint-text-share: 55%;
+  --user-tint-text-share: 36%;
 
   /* Status background tints — pre-computed, respects dark-mode overrides automatically */
   --status-ready-bg:     color-mix(in srgb, var(--status-ready), transparent 90%);
@@ -239,7 +251,6 @@
   --brand-accent-soft: #3D1528;
   --brand-on-accent: #FFFFFF;
   --brand-fab: #FAFAFA;
-  --focus-ring-brand: 0 0 0 3px color-mix(in srgb, var(--brand-accent) 36%, transparent);
 
   /* Semantic / status palette — dark */
   --success: #6FA87A;
@@ -263,7 +274,6 @@
   --shadow-raised: 0 1px 3px rgba(0, 0, 0, 0.45);
   --segment-track: #161614;
   --shadow-focus: 0 0 0 3px rgba(245, 245, 242, 0.18);
-  --focus-ring: 0 0 0 3px color-mix(in srgb, var(--accent-blue) 32%, transparent);
   --scrollbar-thumb: #3A3A34;
   --scrollbar-hover: #53534B;
 
@@ -284,6 +294,9 @@
   --status-scheduled: #6FA87A;
   --status-posted:    #5FA37E;
   --status-archived:  #8A8A82;
+
+  --tint-text-share: 72%;
+  --user-tint-text-share: 50%;
 }
 
 /* GLOBAL RESET & BEHAVIOR */
@@ -1356,7 +1369,7 @@ textarea.property-input {
 .status-pill-posted,
 .status-pill-archived {
   border-color: color-mix(in srgb, var(--status-color) 28%, var(--border-color));
-  color: var(--status-color);
+  color: color-mix(in srgb, var(--status-color) var(--tint-text-share), var(--text-primary));
   background: color-mix(in srgb, var(--status-color) 12%, var(--bg-elevated));
 }
 
@@ -1380,7 +1393,7 @@ textarea.property-input {
 .status-calendar-scheduled,
 .status-calendar-posted,
 .status-calendar-archived {
-  color: var(--status-color);
+  color: color-mix(in srgb, var(--status-color) var(--tint-text-share), var(--text-primary));
   background: color-mix(in srgb, var(--status-color) 15%, transparent);
   border-color: color-mix(in srgb, var(--status-color) 30%, transparent);
 }

@@ -1,4 +1,4 @@
-import {useMemo, useState} from 'react';
+import {useEffect, useMemo, useState} from 'react';
 import {Globe, Pencil, Plus, Trash2} from 'lucide-react';
 import {useAppContext} from '../../../context/AppContext';
 import {AppButton} from '../../../components/ui/AppButton';
@@ -14,6 +14,7 @@ import {replacePostingTimesForPlatform} from '../../../lib/database';
 import type {PostingTimeEntry} from '../../../lib/database';
 import {notifySaveFeedback, getErrorMessage} from '../../../lib/saveFeedback';
 import {broadcastDataSync} from '../../../lib/syncBroadcast';
+import {rotuloConta} from '../../contas/lib/contas';
 
 const MAX_TIMES_PER_DAY = 3;
 const GLOBAL_TAB_ID = 'global';
@@ -69,17 +70,31 @@ function isUsingGlobalFallback(
   return specific.length === 0 && global.length > 0;
 }
 
-export function PostingTimesEditor() {
+export function PostingTimesEditor({
+  contaInicialId,
+  aoSalvar,
+}: {
+  /** Conta já escolhida na tela que abriu o editor. Null abre no horário global. */
+  contaInicialId?: string | null;
+  aoSalvar?: () => void;
+} = {}) {
   const {state, ensureDataDomains} = useAppContext();
-  const [selectedPlatformId, setSelectedPlatformId] = useState<string | null>(null);
+  const [selectedPlatformId, setSelectedPlatformId] = useState<string | null>(contaInicialId ?? null);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<ScheduleDraft>({});
   const [isSaving, setIsSaving] = useState(false);
 
-  const activePlatforms = useMemo(
-    () => state.platforms.filter(platform => platform.ativo),
-    [state.platforms],
-  );
+  const activePlatforms = useMemo(() => {
+    const ativas = state.platforms.filter(platform => platform.ativo);
+    if (!contaInicialId || ativas.some(platform => platform.id === contaInicialId)) return ativas;
+    const extra = state.platforms.find(platform => platform.id === contaInicialId);
+    return extra ? [extra, ...ativas] : ativas;
+  }, [contaInicialId, state.platforms]);
+
+  useEffect(() => {
+    if (contaInicialId === undefined) return;
+    setSelectedPlatformId(contaInicialId);
+  }, [contaInicialId]);
 
   const savedDraft = useMemo(
     () => entriesToDraft(state.postingTimeEntries ?? []),
@@ -90,7 +105,7 @@ export function PostingTimesEditor() {
 
   const platformTabs = [
     {id: GLOBAL_TAB_ID, label: 'Global'},
-    ...activePlatforms.map(platform => ({id: platform.id, label: platform.nome})),
+    ...activePlatforms.map(platform => ({id: platform.id, label: rotuloConta(platform)})),
   ];
   const selectedTabId = selectedPlatformId ?? GLOBAL_TAB_ID;
   const selectedKey = tabKey(selectedPlatformId);
@@ -155,6 +170,7 @@ export function PostingTimesEditor() {
       await ensureDataDomains(['schedule'], {force: true});
       broadcastDataSync();
       notifySaveFeedback({status: 'success', message: 'Horários salvos'});
+      aoSalvar?.();
       setEditing(false);
       setDraft({});
     } catch (err) {

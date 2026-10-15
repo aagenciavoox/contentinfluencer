@@ -105,6 +105,36 @@ export function getAllowedStatuses(current: string): string[] {
   return order.filter(status => allowed.has(status));
 }
 
+export type OpcaoDeEtapa = {
+  status: string;
+  atual: boolean;
+  /** Falso quando a transição não é permitida a partir da etapa atual. */
+  disponivel: boolean;
+  /** Por que não dá para escolher agora. Vazio quando disponível. */
+  motivo: string | null;
+};
+
+/**
+ * Todas as etapas, na ordem do processo, com a atual marcada. Mostrar uma etapa
+ * não libera a transição: só as de `getAllowedStatuses` ficam disponíveis.
+ */
+export function getStatusOptions(current: string): OpcaoDeEtapa[] {
+  const canonical = normalizeContentStatus(current);
+  const allowed = new Set(getAllowedStatuses(current));
+  const order = STATUS_ORDER as readonly string[];
+  const atualIdx = order.indexOf(canonical);
+  return order.map((status, idx) => {
+    const disponivel = allowed.has(status);
+    let motivo: string | null = null;
+    if (!disponivel) {
+      motivo = idx > atualIdx
+        ? `Avance uma etapa por vez: passe por ${order[idx - 1]} antes.`
+        : `Volte uma etapa por vez: passe por ${order[idx + 1]} antes.`;
+    }
+    return { status, atual: status === canonical, disponivel, motivo };
+  });
+}
+
 export const CONTENT_PIPELINE_TABS: ContentDetailTab[] = ['roteiro', 'gravacao', 'publicacao'];
 
 export function isScheduledForDisplay(content: Pick<Content, 'publishDate' | 'status'>): boolean {

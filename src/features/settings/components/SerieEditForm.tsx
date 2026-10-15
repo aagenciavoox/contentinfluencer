@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { format } from 'date-fns';
 import {
   ChevronDown,
@@ -11,7 +11,7 @@ import { Badge } from '../../../components/ui/Badge';
 import { Surface } from '../../../components/ui/Surface';
 import { Text } from '../../../components/ui/Text';
 import { CoverUploadField } from '../../library/components/CoverUploadField';
-import type { Content, Pilar, Serie } from '../../../lib/database';
+import type { Content, Pilar, Platform, Serie } from '../../../lib/database';
 import { SerieProductionMetricsPanel } from './SerieProductionMetricsPanel';
 import { TemplatesSettingsPage } from '../pages/TemplatesSettingsPage';
 import { cn } from '../../../lib/utils';
@@ -19,6 +19,10 @@ import { generateUUID } from '../../../utils/uuid';
 import { EntityColorPicker, entitySwatchInk } from './EntityColorPicker';
 import { isSerieColorTaken } from '../lib/serieColors';
 import { OpenInfoNotice } from '../../editorial/components/OpenInfoNotice';
+import { LegendaBaseField } from '../../editorial/components/legendas/LegendaBaseField';
+import { LegendaVersaoField } from '../../editorial/components/legendas/LegendaVersaoField';
+import { complementoDoRotulo, iconeDaConta, rotuloConta } from '../../contas/lib/contas';
+import { PlatformIcon } from '../../../components/ui/PlatformIcon';
 import {
   collectFormatoSuggestions,
   ENERGIA_LABELS,
@@ -92,54 +96,6 @@ function serieSlugFromName(name: string): string {
     .trim()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-|-$/g, '') || 'serie';
-}
-
-function PlatformBrand({ platform }: { platform: string }) {
-  const gradientId = useId().replace(/:/g, '');
-  const normalized = platform.toLowerCase();
-  if (normalized.includes('instagram')) {
-    return (
-      <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" aria-hidden>
-        <defs>
-          <linearGradient id={gradientId} x1="0" y1="1" x2="1" y2="0">
-            <stop offset="0" stopColor="#FEDA75" />
-            <stop offset="0.5" stopColor="#D62976" />
-            <stop offset="1" stopColor="#4F5BD5" />
-          </linearGradient>
-        </defs>
-        <rect width="24" height="24" rx="6" fill={`url(#${gradientId})`} />
-        <rect x="7" y="7" width="10" height="10" rx="3" fill="none" stroke="#fff" strokeWidth="1.6" />
-        <circle cx="12" cy="12" r="2.2" fill="none" stroke="#fff" strokeWidth="1.6" />
-        <circle cx="16.2" cy="7.9" r="0.9" fill="#fff" />
-      </svg>
-    );
-  }
-  if (normalized.includes('tiktok')) {
-    return (
-      <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" aria-hidden>
-        <rect width="24" height="24" rx="6" fill="#111111" />
-        <path
-          fill="#fff"
-          d="M14.2 6.2c.4 1.7 1.5 2.8 3.2 3.1v2.1c-1.1.1-2.1-.2-3.2-.9v4.4c0 2.6-2 4.6-4.7 4.6S4.8 17.5 4.8 14.9s2.1-4.6 4.7-4.6c.3 0 .6 0 .9.1v2.2c-.3-.1-.6-.2-.9-.2-1.4 0-2.5 1.1-2.5 2.5s1.1 2.5 2.5 2.5 2.5-1.1 2.5-2.5V6.2h2.2z"
-        />
-      </svg>
-    );
-  }
-  if (normalized.includes('youtube')) {
-    return (
-      <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" aria-hidden>
-        <rect width="24" height="24" rx="6" fill="#FF0000" />
-        <path fill="#fff" d="M10 8.5v7l6-3.5-6-3.5z" />
-      </svg>
-    );
-  }
-  return (
-    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-[var(--radius-sm)] bg-[var(--bg-hover)]">
-      <Text variant="label" className="font-bold text-[var(--text-secondary)]">
-        {platform.slice(0, 2).toUpperCase()}
-      </Text>
-    </span>
-  );
 }
 
 function CardHeading({
@@ -279,7 +235,7 @@ const inputClass =
 
 export function SerieEditForm({
   initial,
-  platformNames,
+  contas,
   pilares,
   contents = [],
   onSave,
@@ -291,7 +247,7 @@ export function SerieEditForm({
   lastEditLabel = null,
 }: {
   initial: Partial<Serie>;
-  platformNames: string[];
+  contas: Platform[];
   pilares: Pilar[];
   contents?: Content[];
   onSave: (serie: Serie) => void;
@@ -326,6 +282,7 @@ export function SerieEditForm({
       formatoApresentacao: initial.formatoApresentacao || '',
       motivoSalvar: initial.motivoSalvar || '',
       motivoEnviar: initial.motivoEnviar || '',
+      legendaBase: initial.legendaBase || '',
       plataformas: initial.plataformas || [],
     },
   });
@@ -350,6 +307,7 @@ export function SerieEditForm({
     if (form.formatoApresentacao !== snap.form.formatoApresentacao) return true;
     if (form.motivoSalvar !== snap.form.motivoSalvar) return true;
     if (form.motivoEnviar !== snap.form.motivoEnviar) return true;
+    if (form.legendaBase !== snap.form.legendaBase) return true;
     if (form.ativa !== snap.form.ativa) return true;
     if (JSON.stringify(form.plataformas) !== JSON.stringify(snap.form.plataformas)) return true;
     return false;
@@ -366,7 +324,10 @@ export function SerieEditForm({
     const index = current.findIndex(item => item.platformId === platformId);
 
     if (!hashtags) {
-      if (index >= 0) current.splice(index, 1);
+      if (index >= 0) {
+        if ((current[index].legenda ?? '').trim()) current[index] = { ...current[index], hashtags: '' };
+        else current.splice(index, 1);
+      }
     } else if (index >= 0) {
       current[index] = {...current[index], hashtags};
     } else {
@@ -374,6 +335,23 @@ export function SerieEditForm({
     }
 
     setForm(previous => ({...previous, plataformas: current}));
+  };
+
+  const updatePlatformLegenda = (platformId: string, legenda: string | null) => {
+    const current = [...form.plataformas];
+    const index = current.findIndex(item => item.platformId === platformId);
+    const texto = legenda?.trim() ?? '';
+    if (!texto) {
+      if (index >= 0) {
+        if (current[index].hashtags.trim()) current[index] = { ...current[index], legenda: null };
+        else current.splice(index, 1);
+      }
+    } else if (index >= 0) {
+      current[index] = { ...current[index], legenda: texto };
+    } else {
+      current.push({ serieId: form.id, platformId, hashtags: '', legenda: texto });
+    }
+    setForm(previous => ({ ...previous, plataformas: current }));
   };
 
   const handleSave = useCallback(() => {
@@ -402,15 +380,16 @@ export function SerieEditForm({
       formatoApresentacao: form.formatoApresentacao.trim() || null,
       motivoSalvar: form.motivoSalvar.trim() || null,
       motivoEnviar: form.motivoEnviar.trim() || null,
+      legendaBase: form.legendaBase.trim() || null,
       pilarIds: form.pilarPrincipalId ? [form.pilarPrincipalId] : [],
-      plataformas: platformNames
-        .map(platformId => form.plataformas.find(item => item.platformId === platformId))
-        .filter((item): item is NonNullable<typeof item> => Boolean(item?.hashtags.trim()))
-        .map(item => ({...item, hashtags: item.hashtags.trim()})),
+      plataformas: contas
+        .map(conta => form.plataformas.find(item => item.platformId === conta.id))
+        .filter((item): item is NonNullable<typeof item> => Boolean(item && (item.hashtags.trim() || (item.legenda ?? '').trim())))
+        .map(item => ({...item, hashtags: item.hashtags.trim(), legenda: item.legenda?.trim() || null})),
       createdAt: initial.createdAt || new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     });
-  }, [colorTaken, form, initial.createdAt, onSave, platformNames]);
+  }, [colorTaken, contas, form, initial.createdAt, onSave]);
 
   const onChromeChangeRef = useRef(onChromeChange);
   const handleSaveRef = useRef(handleSave);
@@ -876,27 +855,70 @@ export function SerieEditForm({
         </div>
 
         <aside className="flex min-w-0 flex-col gap-3 lg:sticky lg:top-24 lg:self-start">
+          <Surface variant="outlined" padding="sm" className="stack-sm">
+            <CardHeading
+              title="Legenda da série"
+              description="Orienta os roteiros novos. Ao salvar, só atualiza roteiros que ainda seguem este texto e não foram publicados."
+            />
+            <LegendaBaseField
+              id={`serie-legenda-base-${form.id}`}
+              label="Legenda-base da série"
+              compact
+              value={form.legendaBase}
+              descricao="Versões por conta ficam abaixo. Adaptações feitas no roteiro e textos já publicados não são reescritos."
+              placeholder="Texto de origem para os roteiros novos desta série."
+              onChange={legendaBase => setForm(previous => ({ ...previous, legendaBase }))}
+            />
+            {contas.length === 0 ? (
+              <Text variant="meta">Cadastre uma conta para criar uma versão por plataforma.</Text>
+            ) : (
+              contas.map(conta => {
+                const versao = form.plataformas.find(item => item.platformId === conta.id)?.legenda ?? '';
+                const propria = versao.trim().length > 0;
+                return (
+                  <LegendaVersaoField
+                    key={conta.id}
+                    id={`serie-legenda-${conta.id}`}
+                    icone={iconeDaConta(conta)}
+                    rotulo={rotuloConta(conta)}
+                    detalhe={complementoDoRotulo(conta)}
+                    titulo="Versão desta conta"
+                    estado={propria ? 'propria' : 'base'}
+                    texto={propria ? versao : form.legendaBase}
+                    baseVazia={!form.legendaBase.trim()}
+                    nomeDaBase="legenda-base da série"
+                    alcanceDaBase="Esta conta voltará a acompanhar a legenda-base da série. Roteiros novos usam esse texto. Roteiros já publicados e adaptações manuais não mudam ao salvar."
+                    compact
+                    onCriarPropria={() => updatePlatformLegenda(conta.id, form.legendaBase)}
+                    onEditar={valor => updatePlatformLegenda(conta.id, valor)}
+                    onVoltarParaBase={() => updatePlatformLegenda(conta.id, null)}
+                  />
+                );
+              })
+            )}
+          </Surface>
+
           <Surface variant="outlined" padding="md">
             <CardHeading
-              title="Hashtags por plataforma"
+              title="Hashtags por conta"
               description="Separe as hashtags com espaço."
             />
 
-            {platformNames.length === 0 ? (
+            {contas.length === 0 ? (
               <Text variant="meta" className="text-[var(--text-tertiary)]">
-                Nenhuma plataforma ativa configurada.
+                Nenhuma conta ativa configurada.
               </Text>
             ) : (
               <div className="stack-md">
-                {platformNames.map(platform => {
-                  const value = form.plataformas.find(item => item.platformId === platform)?.hashtags || '';
+                {contas.map(conta => {
+                  const value = form.plataformas.find(item => item.platformId === conta.id)?.hashtags || '';
                   return (
-                    <div key={platform}>
+                    <div key={conta.id}>
                       <div className="mb-1.5 flex items-center justify-between gap-2">
                         <div className="flex min-w-0 items-center gap-2">
-                          <PlatformBrand platform={platform} />
+                          <PlatformIcon platform={iconeDaConta(conta)} className="h-4 w-4 shrink-0" />
                           <Text variant="meta" className="font-medium text-[var(--text-primary)]">
-                            {platform}
+                            {rotuloConta(conta)}
                           </Text>
                         </div>
                         <AppButton
@@ -906,14 +928,14 @@ export function SerieEditForm({
                           disabled={!value.trim()}
                           leftIcon={<Copy className="h-3.5 w-3.5" />}
                           className="pointer-coarse:h-11"
-                          aria-label={`Copiar hashtags de ${platform}`}
+                          aria-label={`Copiar hashtags de ${rotuloConta(conta)}`}
                         >
                           Copiar
                         </AppButton>
                       </div>
                       <textarea
                         value={value}
-                        onChange={event => updatePlatformHashtags(platform, event.target.value)}
+                        onChange={event => updatePlatformHashtags(conta.id, event.target.value)}
                         placeholder="#hashtag1 #hashtag2"
                         rows={2}
                         className={cn(inputClass, 'min-h-[64px] resize-y leading-relaxed')}

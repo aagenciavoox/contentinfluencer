@@ -13,6 +13,7 @@ import {
   isRecentlyCreated,
 } from '../../lib/contentCardMeta';
 import {getDisplayStatus} from '../../lib/contentPipeline';
+import { rotuloDaRef } from '../../../contas/lib/contas';
 
 interface PipelineContentCardProps {
   content: Content;
@@ -29,7 +30,7 @@ interface PipelineContentCardProps {
 function resolvePrimaryPlatformName(content: Content, platforms: Platform[]): string | null {
   const first = content.plataformas[0];
   if (!first) return null;
-  return platforms.find(platform => platform.id === first.platformId)?.nome ?? first.platformId;
+  return rotuloDaRef(first.platformId, platforms);
 }
 
 export function PipelineContentCard({

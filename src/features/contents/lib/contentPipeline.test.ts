@@ -4,8 +4,10 @@ import {
   applyStatusMilestones,
   CONTENT_STATUS,
   DISPLAY_STATUS,
+  getAllowedStatuses,
   getDisplayStatus,
   getPrimaryAction,
+  getStatusOptions,
   normalizeContentStatus,
 } from './contentPipeline.ts';
 
@@ -120,7 +122,27 @@ function testLeavingPostadoClearsPostedAt() {
   assert.deepEqual(applyStatusMilestones(posted, CONTENT_STATUS.POSTADO), {});
 }
 
+function testEveryStageVisibleButTransitionsKept() {
+  const opcoes = getStatusOptions(CONTENT_STATUS.ROTEIRO);
+  assert.deepEqual(opcoes.map(item => item.status), ['Ideia', 'Roteiro', 'Produção', 'Postado']);
+  assert.deepEqual(opcoes.filter(item => item.atual).map(item => item.status), ['Roteiro']);
+  assert.deepEqual(
+    opcoes.filter(item => item.disponivel).map(item => item.status),
+    getAllowedStatuses(CONTENT_STATUS.ROTEIRO),
+  );
+  const postado = opcoes.find(item => item.status === 'Postado');
+  assert.equal(postado?.disponivel, false);
+  assert.equal(postado?.motivo, 'Avance uma etapa por vez: passe por Produção antes.');
+
+  // Etapa antiga (Gravado) aparece como Produção e mantém as mesmas transições.
+  const legado = getStatusOptions('Gravado');
+  assert.equal(legado.find(item => item.atual)?.status, 'Produção');
+  assert.equal(legado.find(item => item.status === 'Ideia')?.disponivel, false);
+  assert.equal(legado.find(item => item.status === 'Ideia')?.motivo, 'Volte uma etapa por vez: passe por Roteiro antes.');
+}
+
 const tests: Array<[string, () => void]> = [
+  ['every stage is listed and transitions keep their limits', testEveryStageVisibleButTransitionsKept],
   ['leaving Postado clears postedAt', testLeavingPostadoClearsPostedAt],
   ['future publish date shows Programado', testDisplayStatusFuturePublishDate],
   ['past publish date keeps canonical status', testDisplayStatusPastPublishDateKeepsCanonical],

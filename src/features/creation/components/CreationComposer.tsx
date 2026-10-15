@@ -8,6 +8,7 @@ import {Dialog} from '../../../components/overlays/Dialog';
 import {OverlayBody} from '../../../components/overlays/OverlayBody';
 import {OverlayHeader} from '../../../components/overlays/OverlayHeader';
 import {IdeaQuickCapture} from '../../ideas/components/IdeaQuickCapture';
+import {contasAtivas} from '../../contas/lib/contas';
 
 export interface CreationIdeaInput {
   title: string;
@@ -41,7 +42,7 @@ export function CreationComposer({
   const [plataformas, setPlataformas] = useState<ContentPlataforma[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const catalogo = useMemo(
-    () => state.platforms.filter(platform => platform.ativo).map(platform => ({id: platform.id, nome: platform.nome})),
+    () => contasAtivas(state.platforms),
     [state.platforms],
   );
 

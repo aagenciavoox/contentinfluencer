@@ -9,6 +9,7 @@ import {useAppContext} from '../../../../../context/AppContext';
 import {getEditorialSettings} from '../../../../editorial/lib/editorialSettings';
 import {criarRepost} from '../../../../editorial/lib/destinations';
 import {PlatformCopyEditor} from '../PlatformCopyEditor';
+import {rotuloConta, rotuloDaRef} from '../../../../contas/lib/contas';
 
 type PublishingDraft = Pick<
   Content,
@@ -125,7 +126,8 @@ export function PublishingSection({
         plataformas={draft.plataformas}
         pilar={pilar}
         serie={serie}
-        disabled={isPosted}
+        // Cada publicação protege o próprio texto depois de ir ao ar; as pendentes seguem editáveis.
+        status={draft.status}
         contentId={contentId}
         legendaBase={draft.legendaBase ?? null}
         onLegendaBaseChange={legendaBase => onChange({legendaBase})}
@@ -147,7 +149,7 @@ export function PublishingSection({
                 className="rounded-[24px] border border-[var(--border-color)] bg-[var(--bg-primary)] p-4"
               >
                 <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                  <p className="text-sm font-semibold text-[var(--text-primary)]">{plataforma.platformId}</p>
+                  <p className="text-sm font-semibold text-[var(--text-primary)]">{rotuloDaRef(plataforma.platformId, state.platforms)}</p>
                   <label className="block md:min-w-[220px]">
                     <span className="mb-2 block text-xs font-semibold text-[var(--text-tertiary)]">Data</span>
                     <input
@@ -225,8 +227,8 @@ export function PublishingSection({
           <p className="text-sm font-semibold text-[var(--text-primary)]">Repostar</p>
           <p className="mt-1 text-sm text-[var(--text-secondary)]">
             {referencia
-              ? 'Cria outra publicação em ' + referencia.nome + ', com a data dela. Ela entra na grade como um item próprio.'
-              : 'Escolha a rede de referência nos Ajustes do Editorial para o repost entrar na grade.'}
+              ? 'Cria outra publicação em ' + rotuloConta(referencia) + ', com a data dela. Ela entra na grade como um item próprio.'
+              : 'Escolha a conta base nos Ajustes do Editorial para o repost entrar na grade.'}
           </p>
           <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end">
             <label className="block sm:min-w-[220px]">

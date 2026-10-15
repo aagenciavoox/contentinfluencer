@@ -1,6 +1,7 @@
 import { format } from 'date-fns';
 import type { Content, ContentPlataforma } from '../../../lib/database.ts';
 import { platformKey } from '../../../components/ui/platformName.ts';
+import { contaDaRef, rotuloDaRef, type ContaRef } from '../../contas/lib/contas.ts';
 import { CONTENT_STATUS, DISPLAY_STATUS, getDisplayStatus, normalizeContentStatus } from '../../contents/lib/contentPipeline.ts';
 import { buildGradeEntries, quandoDoItem, type GradeSerie, type Quando } from '../../editorial/lib/gradeEntries.ts';
 import { dataRealizada, earliestRealizadaEm, rotuloStatusPublicacao } from '../../editorial/lib/markPublished.ts';
@@ -12,6 +13,7 @@ export type PublishCalendarItem = {
   date: string | null;
   time: string | null;
   plataformaId?: string;
+  /** Rótulo das contas: plataforma e @. Também serve ao `PlatformIcon`. */
   platformNames: string[];
   /** A publicação deste item já foi ao ar. */
   posted: boolean;
@@ -19,19 +21,24 @@ export type PublishCalendarItem = {
   cancelled: boolean;
 };
 
-type PlatformRef = { id: string; nome: string };
+type PlatformRef = ContaRef;
 
 function canonicalPlatformId(ref: string, platforms: readonly PlatformRef[]): string {
-  if (platforms.some(platform => platform.id === ref)) return ref;
-  const key = platformKey(ref);
-  return platforms.find(platform => platformKey(platform.nome) === key)?.id ?? ref;
+  return contaDaRef(ref, platforms)?.id ?? ref;
 }
 
 function platformName(ref: string, platforms: readonly PlatformRef[]): string {
-  const id = canonicalPlatformId(ref, platforms);
-  return platforms.find(platform => platform.id === id)?.nome
-    ?? platforms.find(platform => platformKey(platform.nome) === platformKey(ref))?.nome
-    ?? ref;
+  return rotuloDaRef(ref, platforms);
+}
+
+/** Filtro de conta: o id da conta, o rótulo (plataforma e @) ou, em dado antigo, o nome. */
+function passaNoFiltro(ref: string, filtro: string, platforms: readonly PlatformRef[]): boolean {
+  if (ref === filtro) return true;
+  const conta = contaDaRef(ref, platforms);
+  if (conta && conta.id === filtro) return true;
+  const chave = platformKey(filtro);
+  return platformKey(platformName(ref, platforms)) === chave
+    || (conta ? platformKey(conta.nome) === chave : platformKey(ref) === chave);
 }
 
 function uniqueNames(names: string[]): string[] {
@@ -175,13 +182,12 @@ export function buildPublishCalendarItems(input: {
     : null;
 
   if (platformFilter !== TODAS_AS_REDES) {
-    const filtro = platformKey(platformFilter);
     const itens: PublishCalendarItem[] = [];
     for (const content of input.contents) {
       if (content.deletedAt || content.archivedAt) continue;
       for (const publicacao of content.plataformas ?? []) {
         const nome = platformName(publicacao.platformId, input.platforms);
-        if (platformKey(nome) !== filtro && platformKey(publicacao.platformId) !== filtro) continue;
+        if (!passaNoFiltro(publicacao.platformId, platformFilter, input.platforms)) continue;
         const posted = publicacaoPostada(content, publicacao);
         const quando = quandoDoItem(
           content,

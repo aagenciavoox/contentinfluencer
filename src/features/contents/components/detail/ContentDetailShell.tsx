@@ -41,6 +41,7 @@ import {promoteContentToScript} from '../../lib/creationContent';
 import {origemDoRoteiro, resolveSeriesScriptTemplate} from '../../lib/seriesScriptTemplate';
 import {getEditorialSettings} from '../../../editorial/lib/editorialSettings';
 import {livroIdsEfetivos} from '../../../../lib/livroIds';
+import {rotuloDaRef} from '../../../contas/lib/contas';
 
 interface ContentDetailShellProps {
   content: Content;
@@ -813,8 +814,7 @@ export function ContentDetailShell({
       serie={serie}
       redeReferenciaId={getEditorialSettings(state.preferences).redeReferenciaId}
       platformName={platformId => (
-        state.platforms.find(platform => platform.id === platformId || platform.nome === platformId)?.nome
-        ?? platformId
+        rotuloDaRef(platformId, state.platforms)
       )}
       isSaving={explicitSaving}
       onClose={() => setMarkPostedOpen(false)}

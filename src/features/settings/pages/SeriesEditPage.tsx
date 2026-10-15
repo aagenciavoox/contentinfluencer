@@ -25,6 +25,8 @@ import {
   type SerieEditChromeState,
 } from '../components/SerieEditForm';
 import {nextFreeSerieColor, takenSerieColorKeys} from '../lib/serieColors';
+import {ordenarContas} from '../../contas/lib/contas';
+import {roteirosQueSeguemASerie, type AlteracaoDeRoteiro} from '../../editorial/lib/legendaSerie';
 
 function SerieEditHeaderActions({
   isCreate,
@@ -74,6 +76,11 @@ export function SeriesEditPage() {
   const [chrome, setChrome] = useState<SerieEditChromeState | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [pendingApply, setPendingApply] = useState<Serie | null>(null);
+  const [legendaPendente, setLegendaPendente] = useState<{
+    serie: Serie;
+    alvos: AlteracaoDeRoteiro[];
+    aplicarFuncao: boolean;
+  } | null>(null);
 
   const isCreate = !serieId || serieId === 'nova';
   const editingSerie = useMemo(
@@ -81,15 +88,26 @@ export function SeriesEditPage() {
     [isCreate, serieId, state.series],
   );
 
-  const platformNames = useMemo(
-    () => state.platforms.filter(platform => platform.ativo).map(platform => platform.nome),
-    [state.platforms],
-  );
+  const contas = useMemo(() => {
+    const ligadas = new Set((editingSerie?.plataformas ?? []).map(item => item.platformId));
+    return ordenarContas(state.platforms.filter(platform => platform.ativo || ligadas.has(platform.id)));
+  }, [editingSerie?.plataformas, state.platforms]);
 
   const editorialSettings = getEditorialSettings(state.preferences);
   const backToList = () => navigate('/editorial?aba=series');
 
-  const persistSerie = (serie: Serie, aplicar: boolean) => {
+  const alteracoesDeLegenda = (serie: Serie) => {
+    const anterior = state.series.find(item => item.id === serie.id);
+    if (!anterior) return [];
+    return roteirosQueSeguemASerie({
+      serieId: serie.id,
+      anterior,
+      nova: serie,
+      contents: state.contents,
+    });
+  };
+
+  const persistSerie = (serie: Serie, aplicar: boolean, alvosLegenda: AlteracaoDeRoteiro[] = []) => {
     const payload = {...serie, userId: serie.userId || user?.id || ''};
     const exists = state.series.find(item => item.id === payload.id);
 
@@ -109,8 +127,28 @@ export function SeriesEditPage() {
       }
     }
 
+    for (const alvo of alvosLegenda) {
+      const content = state.contents.find(item => item.id === alvo.contentId);
+      if (!content) continue;
+      dispatch({
+        type: 'UPDATE_CONTENT',
+        payload: { ...content, legendaBase: alvo.legendaBase, plataformas: alvo.publicacoes },
+      });
+    }
+
     setPendingApply(null);
+    setLegendaPendente(null);
     backToList();
+  };
+
+  const seguirParaLegenda = (serie: Serie, aplicarFuncao: boolean) => {
+    const alvos = alteracoesDeLegenda(serie);
+    if (alvos.length > 0) {
+      setPendingApply(null);
+      setLegendaPendente({ serie, alvos, aplicarFuncao });
+      return;
+    }
+    persistSerie(serie, aplicarFuncao);
   };
 
   const handleSave = (serie: Serie) => {
@@ -120,7 +158,7 @@ export function SeriesEditPage() {
       setPendingApply(serie);
       return;
     }
-    persistSerie(serie, false);
+    seguirParaLegenda(serie, false);
   };
 
   const aplicarQuantidade = pendingApply
@@ -171,7 +209,7 @@ export function SeriesEditPage() {
       key={formKey}
       initial={editingSerie ?? {cor: nextFreeSerieColor(state.series)}}
       takenColors={[...takenSerieColorKeys(state.series, editingSerie?.id)]}
-      platformNames={platformNames}
+      contas={contas}
       pilares={state.pilares}
       contents={state.contents}
       usedFormatoValues={state.series.map(serie => serie.formatoVisualPadrao)}
@@ -233,8 +271,18 @@ export function SeriesEditPage() {
           message={aplicarMensagem}
           confirmLabel="Aplicar aos publicados"
           cancelLabel="Manter os publicados"
-          onConfirm={() => pendingApply && persistSerie(pendingApply, true)}
-          onCancel={() => pendingApply && persistSerie(pendingApply, false)}
+          onConfirm={() => pendingApply && seguirParaLegenda(pendingApply, true)}
+          onCancel={() => pendingApply && seguirParaLegenda(pendingApply, false)}
+        />
+        <ConfirmModal
+          open={Boolean(legendaPendente)}
+          message={legendaPendente
+            ? `${legendaPendente.alvos.length === 1 ? '1 roteiro ainda segue a legenda desta série e não foi publicado. Atualizar esse texto?' : `${legendaPendente.alvos.length} roteiros ainda seguem a legenda desta série e não foram publicados. Atualizar esses textos?`} Versões editadas à mão e publicações já feitas ficam como estão.`
+            : ''}
+          confirmLabel="Atualizar esses roteiros"
+          cancelLabel="Só salvar a série"
+          onConfirm={() => legendaPendente && persistSerie(legendaPendente.serie, legendaPendente.aplicarFuncao, legendaPendente.alvos)}
+          onCancel={() => legendaPendente && persistSerie(legendaPendente.serie, legendaPendente.aplicarFuncao)}
         />
       </>
     );
@@ -281,8 +329,18 @@ export function SeriesEditPage() {
         message={aplicarMensagem}
         confirmLabel="Aplicar aos publicados"
         cancelLabel="Manter os publicados"
-        onConfirm={() => pendingApply && persistSerie(pendingApply, true)}
-        onCancel={() => pendingApply && persistSerie(pendingApply, false)}
+        onConfirm={() => pendingApply && seguirParaLegenda(pendingApply, true)}
+        onCancel={() => pendingApply && seguirParaLegenda(pendingApply, false)}
+      />
+      <ConfirmModal
+        open={Boolean(legendaPendente)}
+        message={legendaPendente
+          ? `${legendaPendente.alvos.length === 1 ? '1 roteiro ainda segue a legenda desta série e não foi publicado. Atualizar esse texto?' : `${legendaPendente.alvos.length} roteiros ainda seguem a legenda desta série e não foram publicados. Atualizar esses textos?`} Versões editadas à mão e publicações já feitas ficam como estão.`
+          : ''}
+        confirmLabel="Atualizar esses roteiros"
+        cancelLabel="Só salvar a série"
+        onConfirm={() => legendaPendente && persistSerie(legendaPendente.serie, legendaPendente.aplicarFuncao, legendaPendente.alvos)}
+        onCancel={() => legendaPendente && persistSerie(legendaPendente.serie, legendaPendente.aplicarFuncao)}
       />
     </>
   );

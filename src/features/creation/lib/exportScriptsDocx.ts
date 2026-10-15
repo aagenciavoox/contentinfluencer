@@ -1,6 +1,8 @@
 import type {Content, Platform} from '../../../lib/database.ts';
 import {htmlToReadableText} from '../../../lib/utils.ts';
 import {CONTENT_STATUS, normalizeContentStatus} from '../../contents/lib/contentPipeline.ts';
+import { rotuloDaRef } from '../../contas/lib/contas.ts';
+import { legendaEfetiva } from '../../editorial/lib/captions.ts';
 
 export type CreationExportKind = 'idea' | 'script';
 
@@ -80,7 +82,6 @@ export function buildCreationExportSections(
   contents: readonly Content[],
   platforms: readonly Platform[] = [],
 ): CreationExportSection[] {
-  const platformNames = new Map(platforms.map(platform => [platform.id, platform.nome]));
 
   return contents
     .filter(canExportCreation)
@@ -97,11 +98,12 @@ export function buildCreationExportSections(
           ? ideaBody
           : htmlToReadableText(content.script).trim(),
         notes: writingNotesToText(content.writingNotes),
+        // O texto efetivo de cada publicação, venha da legenda-base ou de versão própria.
         captions: content.plataformas
-          .filter(platform => platform.legenda.trim())
+          .filter(platform => legendaEfetiva(content.legendaBase, platform).trim())
           .map(platform => ({
-            platform: platformNames.get(platform.platformId) ?? platform.platformId,
-            text: htmlToReadableText(platform.legenda).trim(),
+            platform: rotuloDaRef(platform.platformId, platforms),
+            text: htmlToReadableText(legendaEfetiva(content.legendaBase, platform)).trim(),
             hashtags: platform.hashtags.trim(),
           })),
       };

@@ -12,6 +12,9 @@ import { Text } from '../../../../components/ui/Text';
 import { DEFAULT_PLATFORMS } from '../../../../constants';
 import { useAppContext } from '../../../../context/AppContext';
 import { DestinationChips } from '../../../editorial/components/DestinationChips';
+import { LegendaBaseField } from '../../../editorial/components/legendas/LegendaBaseField';
+import { PublicacaoLegenda } from '../../../editorial/components/legendas/PublicacaoLegenda';
+import { definirLegendaCompartilhada } from '../../../editorial/lib/captions';
 import { destinosPadraoAtivos, publicacoesDosDestinos, type DestinoPlataforma } from '../../../editorial/lib/destinations';
 import { pilarPrincipalDaSerie } from '../../../editorial/lib/pilarDaSerie';
 import { getEditorialSettings } from '../../../editorial/lib/editorialSettings';
@@ -71,7 +74,7 @@ export const SeriesCreateContentForm = forwardRef<
 >(function SeriesCreateContentForm(
   {
     serie,
-    pilares: _pilares,
+    pilares,
     platformNames,
     mode,
     variant: _variant = 'default',
@@ -97,8 +100,7 @@ export const SeriesCreateContentForm = forwardRef<
   const [title, setTitle] = useState('');
   const [script, setScript] = useState('');
   const [publicacoes, setPublicacoes] = useState<ContentPlataforma[]>([]);
-  const [legendaBase, setLegendaBase] = useState('');
-  const [adapted, setAdapted] = useState<Record<string, string>>({});
+  const [legendaBase, setLegendaBase] = useState(serie.legendaBase ?? '');
   const [destinosTouched, setDestinosTouched] = useState(false);
   const [includePublish, setIncludePublish] = useState(false);
   const [publishDate, setPublishDate] = useState('');
@@ -144,18 +146,13 @@ export const SeriesCreateContentForm = forwardRef<
 
     try {
       const contentId = generateUUID();
-      const plataformas = publicacoes.map(plataforma => {
-        const propria = Object.prototype.hasOwnProperty.call(adapted, plataforma.platformId);
-        return {
-          ...plataforma,
-          contentId,
-          legenda: propria ? (adapted[plataforma.platformId] ?? '') : legendaBase.trim(),
-          legendaPropria: propria,
-          publishDate: includePublish && publishDate ? publishDate : null,
-          publishTime: includePublish && publishTime ? publishTime : null,
-          publishDateEnabled: includePublish && Boolean(publishDate),
-        };
-      });
+      const plataformas = publicacoes.map(plataforma => ({
+        ...plataforma,
+        contentId,
+        publishDate: includePublish && publishDate ? publishDate : null,
+        publishTime: includePublish && publishTime ? publishTime : null,
+        publishDateEnabled: includePublish && Boolean(publishDate),
+      }));
 
       const content = createContentDraft({
         id: contentId,
@@ -179,8 +176,7 @@ export const SeriesCreateContentForm = forwardRef<
       onSuccess?.(contentId, action);
       setTitle('');
       setScript('');
-      setLegendaBase('');
-      setAdapted({});
+      setLegendaBase(serie.legendaBase ?? '');
       setDestinosTouched(false);
       setIncludePublish(false);
       setPublishDate('');
@@ -293,47 +289,44 @@ export const SeriesCreateContentForm = forwardRef<
           contentId=""
           onChange={next => {
             setDestinosTouched(true);
-            setPublicacoes(next);
+            setPublicacoes(anteriores => next.map(item => {
+              const ja = anteriores.find(atual => atual.id === item.id);
+              if (ja) return { ...item, legenda: ja.legenda, legendaPropria: ja.legendaPropria, hashtags: ja.hashtags };
+              const versao = serie.plataformas.find(plataforma => plataforma.platformId === item.platformId)?.legenda?.trim();
+              if (versao) return { ...item, legenda: versao, legendaPropria: true };
+              return { ...item, legenda: legendaBase, legendaPropria: false };
+            }));
           }}
         />
-        <label className="block">
-          <span className="mb-1.5 block text-xs font-semibold text-[var(--text-tertiary)]">Legenda compartilhada</span>
-          <textarea
-            value={legendaBase}
-            onChange={event => setLegendaBase(event.target.value)}
-            placeholder="A mesma legenda vale para as redes marcadas, até adaptar uma delas."
-            rows={4}
-            className="min-h-[110px] w-full resize-y rounded-[var(--radius-card)] border border-dashed border-[var(--border-strong)] bg-[var(--bg-secondary)] px-4 py-3 text-sm leading-6 text-[var(--text-primary)]"
+        <LegendaBaseField
+          id="series-create-legenda-base"
+          label="Legenda-base deste roteiro"
+          compact
+          value={legendaBase}
+          descricao="Começa pela legenda da série. Mudar aqui vale só para este roteiro."
+          onChange={texto => {
+            const resultado = definirLegendaCompartilhada({
+              legendaBaseAtual: legendaBase,
+              novoTexto: texto,
+              publicacoes,
+            });
+            setLegendaBase(resultado.legendaBase);
+            setPublicacoes(resultado.publicacoes);
+          }}
+        />
+        {publicacoes.map(plataforma => (
+          <PublicacaoLegenda
+            key={plataforma.id}
+            publicacao={plataforma}
+            conteudo={{ legendaBase, plataformas: publicacoes, status: CONTENT_STATUS.ROTEIRO }}
+            contas={state.platforms}
+            serie={serie}
+            pilar={pilares.find(item => item.id === defaultPilarId) ?? null}
+            editorial={getEditorialSettings(state.preferences)}
+            compact
+            onChange={setPublicacoes}
           />
-        </label>
-        {publicacoes.map(plataforma => {
-          const destino = catalogo.find(item => item.id === plataforma.platformId || item.nome === plataforma.platformId);
-          const nome = destino?.nome || plataforma.platformId;
-          const propria = Object.prototype.hasOwnProperty.call(adapted, plataforma.platformId);
-          return (
-            <div key={plataforma.id} className="stack-sm">
-              {propria ? (
-                <label className="block">
-                  <span className="mb-1.5 block text-xs font-semibold text-[var(--text-tertiary)]">Legenda para {nome}</span>
-                  <textarea
-                    value={adapted[plataforma.platformId] ?? ''}
-                    onChange={event => setAdapted(current => ({ ...current, [plataforma.platformId]: event.target.value }))}
-                    rows={3}
-                    className="min-h-[88px] w-full resize-y rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-3 text-sm text-[var(--text-primary)]"
-                  />
-                </label>
-              ) : (
-                <button
-                  type="button"
-                  className="inline-flex min-h-11 items-center self-start rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-3 text-xs font-semibold text-[var(--text-primary)]"
-                  onClick={() => setAdapted(current => ({ ...current, [plataforma.platformId]: legendaBase }))}
-                >
-                  Adaptar para {nome}
-                </button>
-              )}
-            </div>
-          );
-        })}
+        ))}
       </section>
 
       <section className="grid gap-3 rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-primary)] p-4">

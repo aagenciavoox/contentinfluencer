@@ -1,4 +1,5 @@
 import type {Pilar, Serie} from '../../../lib/database';
+import {contaDaRef, redeDaConta, type ContaRef} from '../../contas/lib/contas.ts';
 
 export type CaptionHashtagPreset = {
   key: 'serie' | 'pilar';
@@ -19,12 +20,29 @@ export function joinHashtags(tags: string[]): string {
   return tags.join(' ');
 }
 
+/**
+ * Hashtags de série e pilar ficam por conta. A conta sem linha própria usa as
+ * da outra conta da mesma plataforma, para uma conta nova não começar vazia.
+ */
 function hashtagsForPlatform(
   plataformas: Array<{platformId: string; hashtags: string}> | undefined,
   platformId: string,
+  contas: readonly ContaRef[] = [],
 ): string[] {
-  const raw = plataformas?.find(item => item.platformId === platformId)?.hashtags ?? '';
-  return parseHashtags(raw);
+  const linhas = plataformas ?? [];
+  const exata = linhas.find(item => item.platformId === platformId && item.hashtags.trim());
+  if (exata) return parseHashtags(exata.hashtags);
+  const conta = contaDaRef(platformId, contas);
+  if (!conta) return [];
+  const daConta = linhas.find(item => contaDaRef(item.platformId, contas)?.id === conta.id && item.hashtags.trim());
+  if (daConta) return parseHashtags(daConta.hashtags);
+  const rede = redeDaConta(conta);
+  if (!rede || rede === 'outra') return [];
+  const daRede = linhas.filter(item => {
+    const outra = contaDaRef(item.platformId, contas);
+    return outra != null && redeDaConta(outra) === rede && item.hashtags.trim();
+  });
+  return daRede.reduce<string[]>((tags, item) => mergeHashtags(tags, parseHashtags(item.hashtags)), []);
 }
 
 /**
@@ -35,13 +53,16 @@ export function suggestHashtags({
   platformId,
   serie,
   pilar,
+  contas = [],
 }: {
+  /** Id da conta da publicação. */
   platformId: string;
   serie: Pick<Serie, 'plataformas'> | null;
   pilar: Pick<Pilar, 'plataformas'> | null;
+  contas?: readonly ContaRef[];
 }): string[] {
-  const serieTags = hashtagsForPlatform(serie?.plataformas, platformId);
-  const pilarTags = hashtagsForPlatform(pilar?.plataformas, platformId);
+  const serieTags = hashtagsForPlatform(serie?.plataformas, platformId, contas);
+  const pilarTags = hashtagsForPlatform(pilar?.plataformas, platformId, contas);
   return mergeHashtags(serieTags, pilarTags);
 }
 
@@ -49,9 +70,10 @@ export function captionHashtagPresets(
   platformId: string,
   serie: Pick<Serie, 'name' | 'plataformas'> | null,
   pilar: Pick<Pilar, 'nome' | 'plataformas'> | null,
+  contas: readonly ContaRef[] = [],
 ): CaptionHashtagPreset[] {
   const presets: CaptionHashtagPreset[] = [];
-  const serieTags = hashtagsForPlatform(serie?.plataformas, platformId);
+  const serieTags = hashtagsForPlatform(serie?.plataformas, platformId, contas);
   if (serie && serieTags.length > 0) {
     presets.push({
       key: 'serie',
@@ -60,7 +82,7 @@ export function captionHashtagPresets(
       tags: serieTags,
     });
   }
-  const pilarTags = hashtagsForPlatform(pilar?.plataformas, platformId);
+  const pilarTags = hashtagsForPlatform(pilar?.plataformas, platformId, contas);
   if (pilar && pilarTags.length > 0) {
     presets.push({
       key: 'pilar',

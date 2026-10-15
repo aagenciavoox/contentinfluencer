@@ -12,7 +12,7 @@ import {
   getUsefulExcerpt,
   resolveContentEntities,
 } from '../../../contents/lib/contentCardMeta';
-import {normalizeRecordingTags} from '../../lib/recordingWorkflow';
+import {normalizeRecordingTags, recordingTagChipStyle} from '../../lib/recordingWorkflow';
 import {
   resolveScriptBodyStatus,
   scriptBodyStatusLabel,
@@ -176,21 +176,7 @@ export function RecordingQueueGrid({
                 {excerpt ? (
                   <p className="mt-2 line-clamp-3 text-xs leading-relaxed text-[var(--text-secondary)]">{excerpt}</p>
                 ) : (
-                  <div className="mt-2 stack-sm">
-                    <p className="text-xs text-[var(--text-tertiary)]">{statusLabel}</p>
-                    {bodyStatus === 'error' && onRetryHydration ? (
-                      <button
-                        type="button"
-                        className="text-xs font-semibold text-[var(--text-secondary)] underline underline-offset-2 hover:text-[var(--text-primary)]"
-                        onClick={event => {
-                          event.stopPropagation();
-                          onRetryHydration(content.id);
-                        }}
-                      >
-                        Tentar novamente
-                      </button>
-                    ) : null}
-                  </div>
+                  <p className="mt-2 text-xs text-[var(--text-tertiary)]">{statusLabel}</p>
                 )}
 
                 <div className="mt-auto flex flex-wrap items-center gap-2 pt-3">
@@ -203,13 +189,23 @@ export function RecordingQueueGrid({
                   {recordingTags.slice(0, 2).map(tag => (
                     <span
                       key={`${content.id}-${tag}`}
-                      className="rounded-full bg-[var(--accent-orange)]/10 px-2 py-0.5 text-xs font-semibold text-[var(--accent-orange)]"
+                      className="rounded-full px-2 py-0.5 text-xs font-semibold"
+                      style={recordingTagChipStyle}
                     >
                       {tag}
                     </span>
                   ))}
                 </div>
               </button>
+              {bodyStatus === 'error' && onRetryHydration ? (
+                <button
+                  type="button"
+                  className="mt-2 self-start rounded-sm text-xs font-semibold text-[var(--text-secondary)] underline underline-offset-2 hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+                  onClick={() => onRetryHydration(content.id)}
+                >
+                  Tentar novamente
+                </button>
+              ) : null}
             </article>
           );
         })}

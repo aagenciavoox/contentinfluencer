@@ -8,13 +8,25 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+/**
+ * Texto tingido com legibilidade garantida. A cor pura sobre o próprio fundo claro
+ * fica abaixo de 4,5:1; o texto mistura a cor com --text-primary.
+ * Tokens do sistema (`var(--…)`) usam --tint-text-share; cores que a pessoa
+ * escolheu (hex de pilar, série, projeto) usam --user-tint-text-share, mais escura,
+ * porque a paleta tem tons quase brancos.
+ */
+export function tintedTextColor(color: string): string {
+  const share = color.trim().startsWith('var(') ? 'var(--tint-text-share)' : 'var(--user-tint-text-share)';
+  return `color-mix(in srgb, ${color} ${share}, var(--text-primary))`;
+}
+
 export function getEntityTagStyle(color?: string | null): CSSProperties | undefined {
   if (!color) return undefined;
 
   return {
     backgroundColor: `color-mix(in srgb, ${color} 12%, transparent)`,
     borderColor: `color-mix(in srgb, ${color} 24%, transparent)`,
-    color,
+    color: tintedTextColor(color),
   };
 }
 

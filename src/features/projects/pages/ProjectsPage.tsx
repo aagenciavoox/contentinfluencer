@@ -273,14 +273,27 @@ export function ProjectsPage() {
       )}
     >
       {/* Lista */}
-      {projetos.length === 0 ? (
+      {projetos.length === 0 && state.projetos.length > 0 ? (
+        // Há projetos, mas a busca ou o filtro esconderam todos: o caminho é limpar, não criar outro.
+        <EmptyState
+          icon={<Handshake className="h-10 w-10" />}
+          title={searchTerm.trim() ? `Nada encontrado para "${searchTerm.trim()}"` : 'Nenhum projeto neste filtro'}
+          description="Os seus projetos continuam aqui. Limpe a busca e o filtro para ver todos."
+          action={
+            <AppButton variant="secondary" onClick={() => { setSearchTerm(''); setStatusFilter('todos'); }}>
+              Limpar busca e filtro
+            </AppButton>
+          }
+        />
+      ) : projetos.length === 0 ? (
         <EmptyState
           icon={<Handshake className="h-10 w-10" />}
           title={EMPTY.projetos.title}
           description={EMPTY.projetos.description}
           action={
-            <AppButton variant="primary" onClick={() => setShowForm(true)} leftIcon={<Plus className="h-4 w-4" />}>
-              Criar projeto
+            // Secundário: o primário da tela já é "Novo projeto", no cabeçalho (BUTTON_SYSTEM: 1 por tela).
+            <AppButton variant="secondary" onClick={() => setShowForm(true)} leftIcon={<Plus className="h-4 w-4" />}>
+              Novo projeto
             </AppButton>
           }
         />

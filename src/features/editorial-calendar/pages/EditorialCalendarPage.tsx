@@ -60,6 +60,8 @@ import {getSessionCandidates} from '../../dashboard/lib/dailySession';
 import {generateUUID} from '../../../utils/uuid';
 import {getEditorialSettings} from '../../editorial/lib/editorialSettings';
 import {calendarEntryIcon} from '../components/CalendarNetworkIcons';
+import {contasAtivas, rotuloConta, rotuloDaRef} from '../../contas/lib/contas';
+import {editarVersaoPropria, ESTADO_LEGENDA_ROTULO, estadoLegenda, legendaEfetiva} from '../../editorial/lib/captions';
 import {
   ALL_PLATFORMS,
   ALL_STATUSES,
@@ -173,10 +175,7 @@ export function EditorialCalendarPage() {
 
   const platformNames = useMemo(() => {
     const used = state.contents.flatMap(content =>
-      content.plataformas.map(item => {
-        const platform = state.platforms.find(candidate => candidate.id === item.platformId);
-        return platform?.nome || item.platformId;
-      }),
+      content.plataformas.map(item => rotuloDaRef(item.platformId, state.platforms)),
     );
     return collectPlatformNames(state.platforms, used);
   }, [state.contents, state.platforms]);
@@ -456,7 +455,7 @@ export function EditorialCalendarPage() {
 
       <button
         type="button"
-        onClick={() => navigate('/configuracoes/plataformas')}
+        onClick={() => navigate('/contas')}
         className="flex w-full items-center gap-2 rounded-[var(--radius-sm)] px-1 py-1.5 text-sm font-semibold text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
       >
         <Clock className="h-4 w-4" />
@@ -619,7 +618,7 @@ export function EditorialCalendarPage() {
               variant="ghost"
               size="sm"
               leftIcon={<Clock className="h-3.5 w-3.5" />}
-              onClick={() => navigate('/configuracoes/plataformas')}
+              onClick={() => navigate('/contas')}
             >
               Horários
             </AppButton>
@@ -1391,10 +1390,11 @@ function CalendarEntryDetailModal({
   const agendaItem = entry.agendaId ? agendaItems.find(item => item.id === entry.agendaId) : null;
   const projeto = entry.projetoId ? projetos.find(item => item.id === entry.projetoId) : null;
   const plataforma = content?.plataformas.find(item => item.id === entry.plataformaId);
-  const activePlatforms = platforms.filter(platform => platform.ativo);
-  const platformName = plataforma
-    ? platforms.find(platform => platform.id === plataforma.platformId)?.nome || plataforma.platformId
-    : '';
+  const activePlatforms = contasAtivas(platforms);
+  const platformName = plataforma ? rotuloDaRef(plataforma.platformId, platforms) : '';
+  // A legenda mostrada é a efetiva: a da base, enquanto a publicação a acompanha.
+  const legendaAtual = plataforma ? legendaEfetiva(content?.legendaBase, plataforma) : '';
+  const estadoDaLegenda = plataforma ? estadoLegenda(plataforma, content) : null;
   const canEdit = Boolean(content || agendaItem);
   const contentStage = content ? getContentStage(content) : null;
   const canSchedulePosting =
@@ -1411,7 +1411,7 @@ function CalendarEntryDetailModal({
   );
   const [time, setTime] = useState(plataforma?.publishTime || content?.publishTime || agendaItem?.time || '');
   const [platformId, setPlatformId] = useState(plataforma?.platformId || activePlatforms[0]?.id || '');
-  const [caption, setCaption] = useState(plataforma?.legenda || '');
+  const [caption, setCaption] = useState(legendaAtual);
   const [agendaType, setAgendaType] = useState<AgendaItem['tipo']>(agendaItem?.tipo || 'Outro');
   const [projetoId, setProjetoId] = useState(agendaItem?.projetoId || '');
 
@@ -1424,7 +1424,7 @@ function CalendarEntryDetailModal({
     );
     setTime(plataforma?.publishTime || content?.publishTime || agendaItem?.time || '');
     setPlatformId(plataforma?.platformId || activePlatforms[0]?.id || '');
-    setCaption(plataforma?.legenda || '');
+    setCaption(legendaAtual);
     setAgendaType(agendaItem?.tipo || 'Outro');
     setProjetoId(agendaItem?.projetoId || '');
   };
@@ -1464,13 +1464,16 @@ function CalendarEntryDetailModal({
 
     const platformRecordId = plataforma?.id || generateUUID();
     const nextPlatformId = platformId || plataforma?.platformId || activePlatforms[0]?.id || '';
+    // Mudar o texto aqui cria a versão própria desta publicação; as outras contas não mudam.
+    const comLegenda = plataforma && caption !== legendaAtual
+      ? editarVersaoPropria(content.plataformas, plataforma.id, caption, content)
+      : content.plataformas;
     const nextPlataformas = content.plataformas.some(item => item.id === platformRecordId)
-      ? content.plataformas.map(item =>
+      ? comLegenda.map(item =>
           item.id === platformRecordId
             ? {
                 ...item,
                 platformId: nextPlatformId,
-                legenda: caption,
                 publishDate: date,
                 publishTime: time || null,
                 publishDateEnabled: true,
@@ -1623,7 +1626,7 @@ function CalendarEntryDetailModal({
               <>
                 <label className="block stack-sm">
                   <span className="text-xs font-semibold text-[var(--text-tertiary)]">
-                    Rede postada
+                    Conta
                   </span>
                   <select
                     value={platformId}
@@ -1632,7 +1635,7 @@ function CalendarEntryDetailModal({
                   >
                     {activePlatforms.map(platform => (
                       <option key={platform.id} value={platform.id}>
-                        {platform.nome}
+                        {rotuloConta(platform)}
                       </option>
                     ))}
                   </select>
@@ -1640,10 +1643,17 @@ function CalendarEntryDetailModal({
 
                 <label className="block stack-sm">
                   <span className="text-xs font-semibold text-[var(--text-tertiary)]">
-                    Legenda
+                    Legenda desta publicação
+                    {estadoDaLegenda ? ` · ${ESTADO_LEGENDA_ROTULO[estadoDaLegenda]}` : ''}
                   </span>
+                  {estadoDaLegenda === 'base' ? (
+                    <span className="block text-xs text-[var(--text-secondary)]">
+                      Editar aqui cria uma versão própria só desta publicação.
+                    </span>
+                  ) : null}
                   <textarea
                     value={caption}
+                    readOnly={estadoDaLegenda === 'publicada'}
                     onChange={event => setCaption(event.target.value)}
                     rows={7}
                     className="w-full resize-none rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-hover)] px-6 py-3.5 text-sm font-medium leading-relaxed text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--accent-blue)]"
@@ -1663,8 +1673,11 @@ function CalendarEntryDetailModal({
 
             {entry.type === 'publish' ? (
               <>
-                <FieldRow label="Rede" value={platformName || entry.secondary || '-'} />
-                <FieldRow label="Legenda" value={caption || 'Sem legenda registrada.'} />
+                <FieldRow label="Conta" value={platformName || entry.secondary || '-'} />
+                <FieldRow
+                  label={estadoDaLegenda ? `Legenda · ${ESTADO_LEGENDA_ROTULO[estadoDaLegenda]}` : 'Legenda'}
+                  value={caption || 'Sem legenda registrada.'}
+                />
               </>
             ) : null}
 

@@ -129,7 +129,8 @@ function MobileCoverThumb({
 
   return (
     <div className="relative">
-      <button type="button" onClick={onOpen} className="block w-full text-left active:opacity-90">
+      {/* Atalho de toque: o botão do título, logo abaixo, abre o mesmo item e já tem nome. */}
+      <button type="button" onClick={onOpen} tabIndex={-1} aria-hidden="true" className="block w-full text-left active:opacity-90">
         {item.capaUrl && !broken ? (
           <img
             src={item.capaUrl}

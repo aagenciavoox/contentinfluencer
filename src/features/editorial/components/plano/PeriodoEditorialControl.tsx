@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { addDays, addMonths, differenceInCalendarDays, endOfMonth, format, parseISO, startOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { CalendarRange, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { AppButton } from '../../../../components/ui/AppButton';
-import { MoreMenu } from '../../../../components/ui/MoreMenu';
+import { SegmentTabs } from '../../../../components/ui/SegmentTabs';
 import { Text } from '../../../../components/ui/Text';
 import { useAppContext } from '../../../../context/AppContext';
 import { buildGradeEntries } from '../../lib/gradeEntries';
@@ -161,7 +161,6 @@ export function PeriodoEditorialControl({
   const intervaloInvalido = rascunho.modo === 'intervalo' && rascunho.inicio > rascunho.fim;
   const hoje = hojeIso();
   const contemHoje = periodo.inicio <= hoje && hoje <= periodo.fim;
-  const modoAtual = MODOS.find(modo => modo.id === periodo.modo) ?? MODOS[0];
 
   useEffect(() => {
     setRascunho(periodo);
@@ -184,6 +183,21 @@ export function PeriodoEditorialControl({
 
   return (
     <div className="stack-sm">
+      <div className="flex flex-col gap-1">
+        <Text variant="bodyStrong" as="h2">Qual período você quer organizar?</Text>
+        <Text variant="secondary">
+          O período define quais roteiros, metas e comparações aparecem. Trocar a vista carrega a configuração deste intervalo e não altera datas planejadas nem os outros períodos.
+        </Text>
+      </div>
+      <div className="max-w-full overflow-x-auto">
+        <SegmentTabs<ModoPeriodo>
+          ariaLabel="Qual período você quer organizar?"
+          className="w-max"
+          value={periodo.modo}
+          onChange={escolherModo}
+          options={MODOS.map(modo => ({ id: modo.id, label: modo.rotulo }))}
+        />
+      </div>
       <div className="flex flex-wrap items-center gap-2">
         <div className="flex min-w-0 items-center gap-1">
           <AppButton
@@ -194,9 +208,12 @@ export function PeriodoEditorialControl({
             leftIcon={<ChevronLeft className="h-4 w-4" />}
             onClick={() => onChange(periodoVizinho(periodo, -1))}
           />
-          <Text variant="sectionTitle" as="h2" className="min-w-0 px-1">
-            {rotuloDoPeriodo(periodo)}
-          </Text>
+          <div className="min-w-0 px-1">
+            <Text variant="sectionTitle" as="p">{rotuloDoPeriodo(periodo)}</Text>
+            <Text variant="meta">
+              {format(parseISO(periodo.inicio), 'dd/MM/yyyy')} a {format(parseISO(periodo.fim), 'dd/MM/yyyy')}
+            </Text>
+          </div>
           <AppButton
             variant="ghost"
             size="sm"
@@ -206,30 +223,11 @@ export function PeriodoEditorialControl({
             onClick={() => onChange(periodoVizinho(periodo, 1))}
           />
         </div>
-        <div className="flex items-center gap-2">
-          {!contemHoje && periodo.modo !== 'intervalo' ? (
-            <AppButton variant="secondary" size="sm" onClick={() => escolherModo(periodo.modo)}>
-              Hoje
-            </AppButton>
-          ) : null}
-          <MoreMenu
-            align="left"
-            label={`Ver por: ${modoAtual.rotulo}`}
-            items={MODOS.map(modo => ({
-              id: modo.id,
-              label: modo.id === periodo.modo ? `${modo.rotulo} ✓` : modo.rotulo,
-              onClick: () => escolherModo(modo.id),
-            }))}
-            trigger={(
-              <span className="inline-flex items-center gap-1.5">
-                <CalendarRange className="h-3.5 w-3.5 text-[var(--text-tertiary)]" aria-hidden />
-                {modoAtual.rotulo}
-                <ChevronDown className="h-3.5 w-3.5 text-[var(--text-tertiary)]" aria-hidden />
-              </span>
-            )}
-            triggerClassName="w-auto px-3 text-xs font-semibold text-[var(--text-primary)]"
-          />
-        </div>
+        {!contemHoje && periodo.modo !== 'intervalo' ? (
+          <AppButton variant="secondary" size="sm" onClick={() => escolherModo(periodo.modo)}>
+            Hoje
+          </AppButton>
+        ) : null}
       </div>
       {periodo.modo === 'intervalo' ? (
         <div className="flex flex-wrap gap-3">

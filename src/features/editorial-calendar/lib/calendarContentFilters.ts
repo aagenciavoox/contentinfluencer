@@ -1,4 +1,5 @@
 import type {Platform} from '../../../lib/database';
+import {rotuloConta} from '../../contas/lib/contas.ts';
 import {CONTENT_STATUS, DISPLAY_STATUS} from '../../contents/lib/contentPipeline';
 
 export const ALL_PLATFORMS = 'todas';
@@ -15,7 +16,8 @@ export const CONTENT_STATUS_FILTER_OPTIONS = [
 
 export function collectPlatformNames(platforms: Platform[], usedNames: Iterable<string> = []) {
   const names = new Set<string>();
-  platforms.filter(platform => platform.ativo).forEach(platform => names.add(platform.nome));
+  // Cada conta aparece com plataforma e @, para separar duas contas da mesma rede.
+  platforms.filter(platform => platform.ativo).forEach(platform => names.add(rotuloConta(platform)));
   for (const name of usedNames) {
     const trimmed = name.trim();
     if (trimmed) names.add(trimmed);

@@ -54,9 +54,48 @@ function contrastRatio(foreground: string, background: string): number {
   return (lighter + 0.05) / (darker + 0.05);
 }
 
+function toRgb(hex: string): number[] {
+  const digits = hex.slice(1);
+  const full = digits.length === 3 ? [...digits].map((digit) => digit + digit).join('') : digits;
+  return [0, 2, 4].map((offset) => parseInt(full.slice(offset, offset + 2), 16));
+}
+
+/** Same math as CSS `color-mix(in srgb, a share, b)`. */
+function mixHex(a: string, b: string, share: number): string {
+  const [left, right] = [toRgb(a), toRgb(b)];
+  return `#${left
+    .map((channel, index) => Math.round(channel * share + right[index] * (1 - share)).toString(16).padStart(2, '0'))
+    .join('')}`;
+}
+
+function resolvePercent(tokens: Map<string, string>, name: string): number {
+  const value = tokens.get(name);
+  assert.ok(value, `${name} is not defined`);
+  const match = value.match(/^(\d+(?:\.\d+)?)%$/);
+  assert.ok(match, `${name} must be a percentage, got "${value}"`);
+  return Number(match[1]) / 100;
+}
+
 const MIN_TEXT_CONTRAST = 4.5;
+const MIN_NON_TEXT_CONTRAST = 3;
 const textTokens = ['--text-primary', '--text-secondary', '--text-tertiary'];
-const backgroundTokens = ['--bg-primary', '--bg-secondary', '--bg-elevated'];
+// --surface-subtle is the fill of `Surface variant="info"`; --bg-hover sits under hovered rows and today's cell.
+const backgroundTokens = ['--bg-primary', '--bg-secondary', '--bg-elevated', '--surface-subtle', '--bg-hover'];
+const statusTokens = [
+  '--status-idea', '--status-writing', '--status-production', '--status-ready', '--status-recorded',
+  '--status-editing', '--status-edited', '--status-scheduled', '--status-posted', '--status-archived',
+];
+// Calendar pills fall back to these per entry type (calendarPillStyles.ts).
+const accentTokens = ['--accent-orange', '--accent-purple', '--accent-blue', '--accent-green'];
+// Tints used behind tinted text: status pill (12%), calendar pill (22%).
+const tintShares = [0.12, 0.22];
+
+const pilarSource = readFileSync(new URL('../features/settings/lib/pilarConstants.ts', import.meta.url), 'utf8');
+const userPalette = [
+  ...pilarSource
+    .slice(pilarSource.indexOf('COLOR_FAMILIES'), pilarSource.indexOf('PILAR_PRESET_CORES'))
+    .matchAll(/#[0-9a-f]{6}/gi),
+].map((match) => match[0]);
 
 describe('WCAG contrast math', () => {
   it('matches the reference values', () => {
@@ -93,6 +132,51 @@ for (const [theme, tokens] of [['light (:root)', lightTokens], ["dark ([data-the
         ratio >= MIN_TEXT_CONTRAST,
         `--brand-on-accent ${foregroundHex} on --brand-accent-strong ${backgroundHex} is ${ratio.toFixed(2)}:1`,
       );
+    });
+  });
+
+  describe(`tinted text (status, accents, user colors), ${theme}`, () => {
+    const textPrimary = resolveHex(tokens, '--text-primary');
+    const cases: Array<[string, string[], string]> = [
+      ['status and accent tokens', [...statusTokens, ...accentTokens].map((name) => resolveHex(tokens, name)), '--tint-text-share'],
+      ['pillar, series and project palette', userPalette, '--user-tint-text-share'],
+    ];
+    for (const [label, colors, shareToken] of cases) {
+      it(`${label} mixed by ${shareToken} >= ${MIN_TEXT_CONTRAST}:1 over their own tint`, () => {
+        const share = resolvePercent(tokens, shareToken);
+        const failures: string[] = [];
+        for (const color of colors) {
+          const ink = mixHex(color, textPrimary, share);
+          for (const background of backgroundTokens) {
+            for (const tint of tintShares) {
+              const fill = mixHex(color, resolveHex(tokens, background), tint);
+              const ratio = contrastRatio(ink, fill);
+              if (ratio < MIN_TEXT_CONTRAST) failures.push(`${color} on ${tint * 100}% over ${background}: ${ratio.toFixed(2)}:1`);
+            }
+          }
+        }
+        assert.deepEqual(failures, []);
+      });
+    }
+  });
+
+  describe(`focus ring, ${theme}`, () => {
+    for (const background of backgroundTokens) {
+      it(`--focus-ring-color on ${background} >= ${MIN_NON_TEXT_CONTRAST}:1`, () => {
+        const ringHex = resolveHex(tokens, '--focus-ring-color');
+        const backgroundHex = resolveHex(tokens, background);
+        const ratio = contrastRatio(ringHex, backgroundHex);
+        assert.ok(ratio >= MIN_NON_TEXT_CONTRAST, `ring ${ringHex} on ${backgroundHex} is ${ratio.toFixed(2)}:1`);
+      });
+    }
+
+    it('the ring is a solid color, not a translucent halo', () => {
+      assert.match(tokens.get('--focus-ring') ?? '', /var\(--focus-ring-color\)/);
+      assert.doesNotMatch(tokens.get('--focus-ring') ?? '', /transparent/);
+    });
+
+    it('--focus-ring-brand is the same blue ring (focus is always blue)', () => {
+      assert.equal(tokens.get('--focus-ring-brand'), 'var(--focus-ring)');
     });
   });
 }

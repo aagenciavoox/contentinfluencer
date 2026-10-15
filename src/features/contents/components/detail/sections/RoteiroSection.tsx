@@ -215,7 +215,8 @@ export function RoteiroSection({
       plataformas={draft.plataformas}
       pilar={pilar}
       serie={serie}
-      disabled={isPosted}
+      // Cada publicação protege o próprio texto depois de ir ao ar; as pendentes seguem editáveis.
+      status={draft.status}
       embedded
       contentId={contentId}
       legendaBase={draft.legendaBase}

@@ -25,6 +25,7 @@ const SeriesSettings = lazy(() => routeLoaders.series().then(module => ({ defaul
 const SeriesEditar = lazy(() => routeLoaders.seriesEdit().then(module => ({ default: module.SeriesEditar })));
 const SeriesRoteiros = lazy(() => routeLoaders.seriesScripts().then(module => ({ default: module.SeriesRoteiros })));
 const PlataformasSettings = lazy(() => routeLoaders.platforms().then(module => ({ default: module.PlataformasSettings })));
+const Analises = lazy(() => routeLoaders.analises().then(module => ({ default: module.Analises })));
 const Projetos = lazy(() => routeLoaders.projects().then(module => ({ default: module.Projetos })));
 const ProjetoDetalhe = lazy(() => routeLoaders.projectDetail().then(module => ({ default: module.ProjetoDetalhe })));
 const Gravacao = lazy(() => routeLoaders.recording().then(module => ({ default: module.Gravacao })));
@@ -82,6 +83,8 @@ export function buildAppRoutes(): RouteObject[] {
                   ),
                 },
                 { path: '/editorial', element: <Editorial /> },
+                { path: '/analises', element: <Analises /> },
+                { path: '/contas', element: <PlataformasSettings /> },
                 { path: '/editorial/pilares/nova', element: <PilarEditar /> },
                 { path: '/editorial/pilares/:pilarId', element: <PilarEditar /> },
                 { path: '/editorial/series/nova', element: <SeriesEditar /> },
@@ -179,9 +182,9 @@ export function buildAppRoutes(): RouteObject[] {
                   path: '/configuracoes/series/:serieId/roteiros',
                   element: <SeriesRoteiros />,
                 },
-                { path: '/configuracoes/plataformas', element: <PlataformasSettings /> },
+                { path: '/configuracoes/plataformas', element: <Navigate to="/contas" replace /> },
                 { path: '/configuracoes/templates', element: <Navigate to="/series" replace /> },
-                { path: '/configuracoes/horarios', element: <Navigate to="/configuracoes/plataformas" replace /> },
+                { path: '/configuracoes/horarios', element: <Navigate to="/contas" replace /> },
                 { path: '/contents', element: <LegacyCreationRedirect source="contents" /> },
                 { path: '/ideas', element: <LegacyCreationRedirect source="ideas" /> },
                 { path: '/analise', element: <Navigate to="/biblioteca/analise" replace /> },

@@ -25,12 +25,14 @@ import { getEditorialSettings } from '../../editorial/lib/editorialSettings';
 import { getSerieOpenItems } from '../../editorial/lib/serieCompleteness';
 import { pilarPrincipalDaSerie } from '../../editorial/lib/pilarDaSerie';
 import { PILAR_PRESET_CORES } from '../lib/pilarConstants';
+import { CONTENT_STATUS, normalizeContentStatus } from '../../contents/lib/contentPipeline';
+import { isActiveCreation } from '../../contents/lib/contentWorkflow';
 import { isSerieColorTaken, nextFreeSerieColor, serieColorKey, takenSerieColorKeys } from '../lib/serieColors';
 
 type SeriesFilter = 'todas' | 'ativas' | 'inativas';
 
 function formatRoteiroCount(count: number) {
-  return `${count} roteiro${count === 1 ? '' : 's'}`;
+  return count === 1 ? '1 roteiro' : `${count} roteiros`;
 }
 
 function seriesMetaLine(serie: Serie, roteiroCount: number, pilarNome: string | null) {
@@ -92,10 +94,13 @@ export function SeriesSettingsPage() {
     navigate(`/series/${serie.id}/roteiros`);
   };
 
+  // "Roteiros" conta só roteiros ativos: ideia, arquivado e lixeira ficam fora (R1).
   const roteiroCountBySerie = useMemo(() => {
     const map = new Map<string, number>();
     for (const content of state.contents) {
-      if (content.seriesId) map.set(content.seriesId, (map.get(content.seriesId) || 0) + 1);
+      if (!content.seriesId || !isActiveCreation(content)) continue;
+      if (normalizeContentStatus(content.status) === CONTENT_STATUS.IDEIA) continue;
+      map.set(content.seriesId, (map.get(content.seriesId) || 0) + 1);
     }
     return map;
   }, [state.contents]);

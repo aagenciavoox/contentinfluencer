@@ -32,6 +32,12 @@ export function getRouteDataDomains(pathname: string): AppDataDomain[] {
     return ['production', 'content', 'bootstrap', 'templates'];
   }
   if (pathname === '/series') return ['production'];
+  if (pathname === '/contas') {
+    return ['bootstrap', 'schedule', 'content', 'production', 'analytics'];
+  }
+  if (pathname === '/analises') {
+    return ['bootstrap', 'content', 'production', 'analytics'];
+  }
   if (pathname.startsWith('/configuracoes/plataformas') || pathname.startsWith('/configuracoes/horarios')) {
     return ['bootstrap', 'schedule'];
   }

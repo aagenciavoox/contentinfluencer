@@ -1,5 +1,6 @@
 import type { FuncaoEditorial, FuncaoOrigem, FuncaoPadraoSerie, PublicacaoStatus } from '../../../lib/database.ts';
 import { CONTENT_STATUS } from '../../contents/lib/contentPipeline.ts';
+import { legendaEfetiva } from './captions.ts';
 import { congelarRedeReferencia } from './escolhasSerie.ts';
 import { funcaoHerdavelDaSerie } from './funcoes.ts';
 import { parsePostCode } from './postCode.ts';
@@ -21,6 +22,8 @@ type ConteudoPublicavel = {
   postedAt?: string | null;
   link?: string | null;
   redeReferenciaCongeladaId?: string | null;
+  /** Para guardar na publicação o texto que foi ao ar. */
+  legendaBase?: string | null;
 };
 
 type PublicacaoPublicavel = {
@@ -30,6 +33,8 @@ type PublicacaoPublicavel = {
   realizadaApiEm?: string | null;
   postCodigo?: string | null;
   postUrl?: string | null;
+  legenda?: string;
+  legendaPropria?: boolean;
 };
 
 export type MarkPublishedOptions = {
@@ -88,8 +93,13 @@ export function markPublished<C extends ConteudoPublicavel, P extends Publicacao
     const entrada = porId.get(publicacao.id);
     if (!entrada) return publicacao;
     const postUrl = blankToNull(entrada.postUrl);
+    // O texto que foi ao ar fica na publicação: mudar a base depois não o altera.
+    const legendaUsada = typeof publicacao.legenda === 'string'
+      ? { legenda: legendaEfetiva(content.legendaBase, { legenda: publicacao.legenda, legendaPropria: publicacao.legendaPropria }), legendaPropria: true }
+      : {};
     return {
       ...publicacao,
+      ...legendaUsada,
       status: 'publicada' as const,
       realizadaManualEm: entrada.realizadaEm,
       postUrl,

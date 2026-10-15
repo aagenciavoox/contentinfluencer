@@ -16,6 +16,7 @@ import {
 import {buildPublishCalendarItems, isScheduledItem, publishItemStatus, todayKey} from '../lib/publishCalendarItems';
 import type {GradeSerie} from '../../editorial/lib/gradeEntries';
 import {calendarEntryIcon} from './CalendarNetworkIcons';
+import {rotuloDaRef} from '../../contas/lib/contas';
 
 const WEEK_STARTS_ON = 0 as const;
 
@@ -75,7 +76,6 @@ export function buildCalendarEntries(
 ) {
   const map = new Map<string, CalendarEntry[]>();
   const normalizedSearch = searchTerm.trim().toLowerCase();
-  const platformNameById = new Map(platforms.map(platform => [platform.id, platform.nome]));
 
   const push = (date: string | null | undefined, entry: CalendarEntry) => {
     if (!date) return;
@@ -99,7 +99,7 @@ export function buildCalendarEntries(
     contents.forEach(content => {
       const status = getDisplayStatus(content);
       const platformNames = content.plataformas.map(
-        plataforma => platformNameById.get(plataforma.platformId) || plataforma.platformId,
+        plataforma => rotuloDaRef(plataforma.platformId, platforms),
       );
       if (!matchesContentFilters({platformNames, status, platformFilter, statusFilter})) return;
       push(content.recordingDate, {

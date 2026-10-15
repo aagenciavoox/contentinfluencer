@@ -1,26 +1,32 @@
 import { Captions } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { EmptyState } from '../../../components/ui/EmptyState';
 import { FilterBar } from '../../../components/ui/FilterBar';
 import { PaginationBar } from '../../../components/ui/PaginationBar';
 import { SegmentTabs } from '../../../components/ui/SegmentTabs';
 import { useAppContext } from '../../../context/AppContext';
-import { DEFAULT_PLATFORMS } from '../../../constants';
-import { useHydrateContentBodies } from '../../../hooks/useHydrateContentBodies';
-import { useIsMobile } from '../../../hooks/useIsMobile';
 import type { Content } from '../../../lib/database';
 import { DesktopPageHeader } from '../../../layouts/page/DesktopPageHeader';
 import { PageLayout } from '../../../layouts/page/PageLayout';
-import { MobileSearchBar } from '../../../mobile/components/MobileSearchBar';
-import { MobileSegmentTabs } from '../../../mobile/components/MobileSegmentTabs';
-import { CaptionGrid } from '../components/CaptionQuickCard';
+import { CaptionFilaCard } from '../components/CaptionFilaCard';
 import {
-  filterCaptionQueue,
+  filtrarFilaLegendas,
   paginateCaptionQueue,
   stableCaptionOrder,
   CAPTION_PAGE_SIZE,
   type CaptionListFilter,
+  type ItemFilaLegenda,
 } from '../lib/captionQueue';
+
+function agruparPagina(items: readonly ItemFilaLegenda[]) {
+  const grupos: Array<{ content: ItemFilaLegenda['content']; publicacoes: ItemFilaLegenda['publicacao'][] }> = [];
+  for (const item of items) {
+    const grupo = grupos.find(atual => atual.content.id === item.content.id);
+    if (grupo) grupo.publicacoes.push(item.publicacao);
+    else grupos.push({ content: item.content, publicacoes: [item.publicacao] });
+  }
+  return grupos;
+}
 
 const FILTERS: { id: CaptionListFilter; label: string }[] = [
   { id: 'todos', label: 'Todos' },
@@ -30,33 +36,25 @@ const FILTERS: { id: CaptionListFilter; label: string }[] = [
 
 export function CaptionsPage() {
   const { state, updateContent } = useAppContext();
-  const isMobile = useIsMobile();
-  // Abre no que falta fazer.
   const [filter, setFilter] = useState<CaptionListFilter>('sem-legenda');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
 
-  const platforms = useMemo(() => {
-    const active = state.platforms.filter(platform => platform.ativo).map(platform => platform.nome);
-    return active.length > 0 ? active : DEFAULT_PLATFORMS;
-  }, [state.platforms]);
-
   const orderRef = useRef<{ key: string; ids: string[] }>({ key: '', ids: [] });
   const items = useMemo(() => {
     const key = `${filter}|${search}`;
-    const matched = filterCaptionQueue(state.contents, filter, search);
+    const matched = filtrarFilaLegendas(state.contents, filter, search, state.platforms);
+    const pool = filtrarFilaLegendas(state.contents, 'todos', search, state.platforms);
     const next = orderRef.current.key === key
-      ? stableCaptionOrder(orderRef.current.ids, matched, filterCaptionQueue(state.contents, 'todos', search))
+      ? stableCaptionOrder(orderRef.current.ids, matched, pool)
       : matched;
     orderRef.current = { key, ids: next.map(item => item.id) };
     return next;
-  }, [filter, search, state.contents]);
+  }, [filter, search, state.contents, state.platforms]);
   const pageData = useMemo(
     () => paginateCaptionQueue(items, page),
     [items, page],
   );
-  const pageIds = useMemo(() => pageData.items.map(item => item.id), [pageData.items]);
-  const { hasHydrationError, retryHydration } = useHydrateContentBodies(pageIds);
 
   useEffect(() => {
     setPage(1);
@@ -66,34 +64,27 @@ export function CaptionsPage() {
     if (pageData.page !== page) setPage(pageData.page);
   }, [page, pageData.page]);
 
-  const saveCaption = useCallback(async (content: Content) => {
+  const saveCaption = async (content: Content) => {
     await updateContent(content, { silent: true, skipBroadcast: true });
-  }, [updateContent]);
+  };
 
-  const hasQuery = search.trim().length > 0 || filter === 'com-legenda';
-
-  const filters = isMobile ? (
-    <div className="stack-sm">
-      <MobileSegmentTabs<CaptionListFilter>
-        tabs={FILTERS.map(item => ({ value: item.id, label: item.label }))}
-        value={filter}
-        onChange={setFilter}
-      />
-      <MobileSearchBar
-        value={search}
-        onChange={setSearch}
-        placeholder="Buscar roteiro"
-      />
-    </div>
-  ) : (
-    <div className="stack-md">
-      <SegmentTabs<CaptionListFilter> options={FILTERS} value={filter} onChange={setFilter} />
-      <FilterBar
-        searchValue={search}
-        onSearchChange={setSearch}
-        searchPlaceholder="Buscar roteiro…"
-      />
-    </div>
+  const hasQuery = search.trim().length > 0 || filter !== 'sem-legenda';
+  const filtros = (
+    <FilterBar
+      size="compact"
+      searchValue={search}
+      onSearchChange={setSearch}
+      searchPlaceholder="Buscar roteiro, conta ou legenda"
+      leading={(
+        <SegmentTabs<CaptionListFilter>
+          ariaLabel="Filtrar legendas"
+          className="max-w-full"
+          options={FILTERS}
+          value={filter}
+          onChange={setFilter}
+        />
+      )}
+    />
   );
 
   return (
@@ -106,40 +97,39 @@ export function CaptionsPage() {
           title="Legendas"
           backLabel="Criação"
           backTo="/criacao"
-          meta={items.length === 1 ? '1 conteúdo' : `${items.length} conteúdos`}
+          meta={items.length === 1 ? '1 publicação' : `${items.length} publicações`}
         />
       )}
-      toolbar={isMobile ? undefined : filters}
-      mobileHeader={filters}
+      toolbar={filtros}
+      mobileHeader={filtros}
     >
       {items.length === 0 ? (
         <EmptyState
           icon={<Captions className="h-6 w-6" />}
           title={hasQuery
-            ? 'Nenhum roteiro encontrado'
-            : filter === 'sem-legenda' ? 'Tudo legendado' : 'Nenhum roteiro para legendar'}
+            ? 'Nenhuma publicação encontrada'
+            : 'Tudo legendado'}
           description={
             hasQuery
-              ? 'Tente outro termo ou mostre todos os roteiros.'
-              : filter === 'sem-legenda'
-                ? 'Nenhum conteúdo está sem legenda. Os já legendados ficam em Todos.'
-                : 'Quando um roteiro sair da ideia, ele aparece aqui para você escrever as legendas.'
+              ? 'A busca vale junto com o filtro. Tente outro termo ou mostre todas as publicações pendentes.'
+              : 'Nenhuma publicação pendente está sem legenda. As já postadas saem desta fila; outra conta do mesmo roteiro continua aqui se ainda faltar texto.'
           }
         />
       ) : (
         <div className="stack-md min-w-0">
-          <CaptionGrid
-            contents={pageData.items}
-            platforms={platforms}
-            series={state.series}
-            pilares={state.pilares}
-            onSave={saveCaption}
-            hasHydrationError={hasHydrationError}
-            onRetryHydration={retryHydration}
-          />
+          {agruparPagina(pageData.items).map(grupo => (
+            <CaptionFilaCard
+              key={grupo.content.id}
+              content={grupo.content}
+              publicacoes={grupo.publicacoes}
+              series={state.series}
+              pilares={state.pilares}
+              onSave={saveCaption}
+            />
+          ))}
           <PaginationBar
-            variant={isMobile ? 'simple' : 'full'}
-            itemLabel="roteiros"
+            variant="full"
+            itemLabel="publicações"
             totalItems={pageData.totalItems}
             currentPage={pageData.page}
             totalPages={pageData.totalPages}

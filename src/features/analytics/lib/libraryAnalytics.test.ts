@@ -79,6 +79,25 @@ assert.equal(snapshot.totals.averageCompletionDays, 10);
 assert.equal(snapshot.annotations.total, 2);
 assert.equal(snapshot.annotations.highlights, 1);
 assert.equal(snapshot.genreData[0]?.label, 'Fantasia');
+// 2 de 4 itens têm o gênero: 50%, não 100% (a soma das barras não é o total).
+assert.equal(snapshot.genreData[0]?.percent, 50);
+assert.equal(snapshot.mostAnnotated[0]?.percent, 100);
+assert.equal(snapshot.ratingData.find(entry => entry.id === '1')?.label, '1 estrela');
+assert.equal(snapshot.ratingData.find(entry => entry.id === '5')?.label, '5 estrelas');
+
+// Ranking cortado: o percentual usa o total de anotações, não a soma do top 5.
+const note = (itemId: string, index: number) => ({
+  id: `${itemId}-${index}`, userId: 'u', itemId, texto: 'x', tipo: 'Anotação' as const,
+  capituloRef: null, contentPotential: false, createdAt: '2026-01-01', deletedAt: null,
+});
+const manyAnnotated = [14, 11, 6, 4, 3, 2, 2, 2, 1].map((count, index) =>
+  item({ id: `book-${index}`, tipo: 'livro', status: 'Lendo', anotacoes: Array.from({ length: count }, (_, n) => note(`book-${index}`, n)) }),
+);
+const ranking = buildLibraryAnalytics(manyAnnotated, () => ({}), new Date('2026-08-02T12:00:00.000Z'));
+assert.equal(ranking.annotations.total, 45);
+assert.equal(ranking.mostAnnotated.length, 5);
+assert.equal(ranking.mostAnnotated[0]?.percent, 31);
+
 assert.equal(formatWatchTime(265), '4h 25min');
 
 console.log('libraryAnalytics.test.ts passed');

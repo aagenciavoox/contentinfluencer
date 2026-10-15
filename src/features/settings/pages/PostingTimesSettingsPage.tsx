@@ -1,6 +1,6 @@
 import {Navigate} from 'react-router-dom';
 
-/** Horários de postagem agora ficam em Plataformas. */
+/** Horários de postagem ficam em Contas e horários. */
 export function PostingTimesSettingsPage() {
-  return <Navigate to="/configuracoes/plataformas" replace />;
+  return <Navigate to="/contas" replace />;
 }

@@ -40,7 +40,8 @@ function MetricCard({
         </>
       ) : (
         <>
-          <Text variant="sectionTitle" className="mt-1 truncate">{value}</Text>
+          {/* Número tem o tamanho de título, mas não é título: não entra na navegação por títulos. */}
+          <Text variant="sectionTitle" as="p" className="mt-1 truncate">{value}</Text>
           {hint ? <Text variant="meta" className="mt-1 block">{hint}</Text> : null}
         </>
       )}

@@ -1,4 +1,5 @@
 import type {CalendarEntry} from '../../features/editorial-calendar/components/MonthlyCalendarView';
+import {tintedTextColor} from '../../lib/utils';
 
 /** Editorial calendar entry type → CSS color token for pills. */
 export const EDITORIAL_PILL_COLORS: Record<CalendarEntry['type'], string> = {
@@ -12,7 +13,7 @@ export function editorialPillStyle(color?: string | null, type?: CalendarEntry['
   const base = color || (type ? EDITORIAL_PILL_COLORS[type] : 'var(--accent-blue)');
   return {
     backgroundColor: `color-mix(in srgb, ${base} 22%, transparent)`,
-    color: base,
+    color: tintedTextColor(base),
   } as const;
 }
 

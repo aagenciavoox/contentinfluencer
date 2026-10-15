@@ -1,17 +1,20 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { Link } from 'react-router-dom';
+import { AppButton } from '../../../../components/ui/AppButton';
+import { SidePanel } from '../../../../components/layout/SidePanel';
 import { Surface } from '../../../../components/ui/Surface';
 import { TagSelect } from '../../../../components/ui/TagSelect';
 import { Text } from '../../../../components/ui/Text';
 import { ToggleRow } from '../../../../components/ui/ToggleSwitch';
 import type { Platform, PostingTimeEntry } from '../../../../lib/database';
+import { rotuloConta } from '../../../contas/lib/contas';
 import { atualizarPreferencias } from '../../lib/editorialSettings';
+import { PostingTimesEditor } from '../../../settings/components/PostingTimesEditor';
 import { CampoNumero, CampoTexto, digitos, inteiroOuNull } from './campos';
 import { useEditorialPlano } from './useEditorialPlano';
 
 function resumoHorarios(entries: readonly PostingTimeEntry[], platforms: readonly Platform[]): string {
   const ids = new Set(entries.flatMap(entry => (entry.platformId ? [entry.platformId] : [])));
-  const nomes = platforms.filter(platform => ids.has(platform.id)).map(platform => platform.nome);
+  const nomes = platforms.filter(platform => ids.has(platform.id)).map(platform => rotuloConta(platform));
   const global = entries.some(entry => !entry.platformId);
   if (nomes.length === 0 && !global) return 'Nenhuma rede tem horário de postagem definido.';
   if (nomes.length === 0) return 'Há um horário geral, sem rede específica.';
@@ -44,6 +47,7 @@ export function AjustesEditorialPanel() {
   const preferencias = settings.preferencias;
   const limite = preferencias.limiteSemanal;
   const [reservaDraft, setReservaDraft] = useState<string | null>(null);
+  const [horariosAbertos, setHorariosAbertos] = useState(false);
   const reservaSalva = preferencias.reservaForaSeriesSemanal;
   const reservaMostrada = reservaDraft ?? (reservaSalva == null ? '' : String(reservaSalva));
 
@@ -91,17 +95,17 @@ export function AjustesEditorialPanel() {
   ] as const;
 
   return (
-    <div className="stack-xl">
+    <div className="stack-md">
       <Text variant="secondary" className="max-w-xl">
         Vale para todos os períodos. O que muda de um período para outro, como prioridade e metas, fica na aba Período.
       </Text>
 
       <Grupo titulo="Ritmo">
-        <Surface className="stack-lg">
+        <Surface padding="sm" className="stack-sm">
           <CampoNumero
             id="limite-semanal"
             label="Quantos roteiros você consegue publicar por semana?"
-            hint="Conte posts de feed, vídeos e lives. Stories e reposts ficam separados. É o limite, não uma obrigação de preenchê-lo."
+            hint="Cada roteiro entra uma vez, na data da publicação original que conta na grade. Reposts e roteiros fora da grade não entram. É o limite semanal, não o total do mês."
             value={limite == null ? '' : String(limite)}
             onChange={value => salvarPreferencias({ limiteSemanal: inteiroOuNull(value) })}
           />
@@ -124,7 +128,7 @@ export function AjustesEditorialPanel() {
       </Grupo>
 
       <Grupo titulo="Redes">
-        <Surface className="stack-lg">
+        <Surface padding="sm" className="stack-sm">
           <TagSelect
             id="rede-referencia"
             label="Qual rede usar como base para o calendário?"
@@ -132,20 +136,17 @@ export function AjustesEditorialPanel() {
             searchable
             maxSelections={1}
             values={preferencias.redeReferenciaId ? [preferencias.redeReferenciaId] : []}
-            options={opcoesReferencia.map(platform => ({ value: platform.id, label: platform.nome }))}
+            options={opcoesReferencia.map(platform => ({ value: platform.id, label: rotuloConta(platform) }))}
             onChange={values => salvarPreferencias({ redeReferenciaId: values[0] ?? null })}
           />
-          <div className="stack-sm">
+          <div className="flex flex-col gap-1">
             <Text variant="bodyStrong" as="span">Horários de postagem</Text>
             <Text variant="secondary">
-              {resumoHorarios(state.postingTimeEntries ?? [], state.platforms)}{' '}
-              <Link
-                to="/configuracoes/plataformas"
-                className="text-[var(--text-primary)] underline underline-offset-2 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
-              >
-                Editar nas plataformas
-              </Link>
+              {resumoHorarios(state.postingTimeEntries ?? [], state.platforms)} O cadastro é o mesmo de Contas e horários.
             </Text>
+            <AppButton variant="secondary" size="sm" className="mt-1 self-start" onClick={() => setHorariosAbertos(true)}>
+              Editar horários
+            </AppButton>
           </div>
           <CampoTexto
             id="hashtags-fora-series"
@@ -162,7 +163,7 @@ export function AjustesEditorialPanel() {
       </Grupo>
 
       <Grupo titulo="Perfil">
-        <Surface className="stack-lg">
+        <Surface padding="sm" className="stack-sm">
           <CampoTexto
             id="publico-linguagem"
             label="Público, linguagem e assuntos do perfil"
@@ -202,6 +203,21 @@ export function AjustesEditorialPanel() {
           ))}
         </div>
       </Grupo>
+
+      <SidePanel
+        open={horariosAbertos}
+        onClose={() => setHorariosAbertos(false)}
+        title="Horários de postagem"
+        subtitle={referenciaAtual
+          ? `Preferências atuais de ${rotuloConta(referenciaAtual)}. Salvar atualiza este resumo e a tela Contas e horários.`
+          : 'Nenhuma conta está marcada como base. Escolha a conta nas abas antes de alterar o horário dela. Global vale nos dias sem horário próprio.'}
+        widthClassName="max-w-3xl"
+      >
+        <PostingTimesEditor
+          contaInicialId={preferencias.redeReferenciaId}
+          aoSalvar={() => setHorariosAbertos(false)}
+        />
+      </SidePanel>
     </div>
   );
 }

@@ -232,6 +232,17 @@ export function getMobileRouteMeta(pathname: string, search = ''): MobileRouteMe
         title: 'Editorial',
         titleVariant: 'compact-center',
       };
+    case '/analises':
+      return {
+        title: 'Análises',
+        subtitle: 'Publicações, vínculos e métricas por conta.',
+        titleVariant: 'compact-center',
+      };
+    case '/contas':
+      return {
+        title: 'Contas e horários',
+        titleVariant: 'compact-center',
+      };
     case '/biblioteca':
       return {
         title: GLOSSARY.biblioteca,

@@ -37,17 +37,21 @@ function HealthCard({
   linha: LinhaContagem;
   onOpen?: () => void;
 }) {
-  const estado = tomDaSaude(linha.planejado, linha.meta);
-  const pct = linha.meta > 0
-    ? Math.min(100, Math.round((linha.planejado / linha.meta) * 100))
-    : linha.planejado > 0 ? 100 : 0;
+  // Desde a Fase 4 o pilar não orça a grade: sem meta, o card mostra só o planejado,
+  // sem "de" solto, sem barra e sem tom vermelho contra uma meta que não existe.
+  const meta = linha.meta !== null && linha.meta > 0 ? linha.meta : null;
+  const estado = meta !== null ? tomDaSaude(linha.planejado, meta) : null;
+  const pct = meta !== null ? Math.min(100, Math.round((linha.planejado / meta) * 100)) : 0;
   const situacao = estado === 'completo' ? 'completo' : estado === 'passou' ? 'passou' : null;
+  const resumo = meta !== null
+    ? `${linha.planejado} de ${meta}`
+    : `${linha.planejado} ${linha.planejado === 1 ? 'previsto' : 'previstos'}`;
   return (
     <Surface
       padding="sm"
       onClick={onOpen}
       title={label}
-      aria-label={onOpen ? `${label}: ${linha.planejado} de ${linha.meta}. Ver séries` : undefined}
+      aria-label={onOpen ? `${label}: ${resumo}. Ver séries` : undefined}
       className="flex min-w-0 flex-col gap-2"
     >
       <span className="flex min-w-0 items-start gap-1.5">
@@ -61,19 +65,22 @@ function HealthCard({
         </Text>
       </span>
       <Text variant="meta" as="span" className="text-[var(--text-secondary)]">
-        <span className="font-semibold text-[var(--text-primary)]">{linha.planejado}</span> de {linha.meta}
+        <span className="font-semibold text-[var(--text-primary)]">{linha.planejado}</span>
+        {meta !== null ? ` de ${meta}` : ` ${linha.planejado === 1 ? 'previsto' : 'previstos'}`}
         {situacao ? (
           <span className={estado === 'passou' ? ' text-[var(--accent-red)]' : ' text-[var(--accent-green)]'}>
             {` · ${situacao}`}
           </span>
         ) : null}
       </Text>
-      <span className="block h-1 w-full overflow-hidden rounded-full bg-[var(--bg-hover)]" aria-hidden>
-        <span
-          className="block h-full rounded-full"
-          style={{width: `${pct}%`, backgroundColor: TOM_COLOR[estado]}}
-        />
-      </span>
+      {estado !== null ? (
+        <span className="block h-1 w-full overflow-hidden rounded-full bg-[var(--bg-hover)]" aria-hidden>
+          <span
+            className="block h-full rounded-full"
+            style={{width: `${pct}%`, backgroundColor: TOM_COLOR[estado]}}
+          />
+        </span>
+      ) : null}
     </Surface>
   );
 }
@@ -98,7 +105,10 @@ export function MonthHealth({
   const corDoPilar = new Map(pilares.map(pilar => [pilar.id, pilar.cor?.trim() || null]));
   const pilar = pilares.find(item => item.id === pilarAberto) ?? null;
   const seriesDoPilar = pilar ? seriesDoPilarNoMes(pilar.id, series, entries) : [];
-  const semMeta = counts.totalMeta === 0 && counts.pilares.length === 0;
+  const pilarInativo = new Set(pilares.filter(item => !item.ativo).map(item => item.id));
+  // Pilar inativo só aparece se ainda tiver algo no mês; senão some, como em Editorial › Período.
+  const linhasDePilar = counts.pilares.filter(linha => !pilarInativo.has(linha.id) || linha.planejado > 0);
+  const semMeta = counts.totalMeta === 0 && linhasDePilar.length === 0;
   const notaForaDaConta = textoForaDaConta(foraDaContaDoMes(counts, entries, outrasRedes));
 
   return (
@@ -120,7 +130,7 @@ export function MonthHealth({
         </Text>
       ) : (
         <div className={`mt-3 ${CARD_GRID}`}>
-          {counts.pilares.map(linha => (
+          {linhasDePilar.map(linha => (
             <HealthCard
               key={linha.id}
               label={linha.rotulo}

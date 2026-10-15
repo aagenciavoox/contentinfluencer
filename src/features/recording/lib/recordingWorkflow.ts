@@ -1,5 +1,13 @@
+import type {CSSProperties} from 'react';
 import type {Content, RecordingBlock, RecordingBlockContent} from '../../../lib/database.ts';
+import {tintedTextColor} from '../../../lib/utils.ts';
 import {CONTENT_STATUS} from '../../contents/lib/contentPipeline.ts';
+
+/** Marcador da fila (ex.: "gravar"). O laranja puro sobre o fundo de 10% ficava em 2,70:1. */
+export const recordingTagChipStyle: CSSProperties = {
+  backgroundColor: 'color-mix(in srgb, var(--accent-orange) 12%, var(--bg-elevated))',
+  color: tintedTextColor('var(--accent-orange)'),
+};
 
 type MarkContentRecordedParams = {
   block: RecordingBlock;

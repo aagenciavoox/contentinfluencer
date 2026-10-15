@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { platformShowsField, visiblePlatformFields } from './platformFields.ts';
+import { limiteDeCaracteres, platformShowsField, visiblePlatformFields } from './platformFields.ts';
 
 function testYouTubeMostraTitulo() {
   assert.deepEqual(visiblePlatformFields('YouTube'), ['titulo', 'legenda']);
@@ -23,4 +23,7 @@ function testOutrasRedesSoTemLegenda() {
 testYouTubeMostraTitulo();
 testInstagramETikTokMostramHashtags();
 testOutrasRedesSoTemLegenda();
+assert.equal(limiteDeCaracteres('instagram'), 2200);
+assert.equal(limiteDeCaracteres('YouTube'), 5000);
+assert.equal(limiteDeCaracteres('Pinterest'), null);
 console.log('platformFields tests passed');

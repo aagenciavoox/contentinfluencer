@@ -18,3 +18,15 @@ export function visiblePlatformFields(platformName: string): PlatformCopyField[]
 export function platformShowsField(platformName: string, field: PlatformCopyField): boolean {
   return visiblePlatformFields(platformName).includes(field);
 }
+const LIMITE_DE_CARACTERES: Record<string, number> = {
+  instagram: 2200,
+  tiktok: 2200,
+  youtube: 5000,
+  blog: 10000,
+};
+
+/** Limite de caracteres da legenda pela rede (ou pelo nome, em conta antiga). Vazio quando não há. */
+export function limiteDeCaracteres(redeOuNome: string | null | undefined): number | null {
+  if (!redeOuNome) return null;
+  return LIMITE_DE_CARACTERES[platformKey(redeOuNome)] ?? null;
+}

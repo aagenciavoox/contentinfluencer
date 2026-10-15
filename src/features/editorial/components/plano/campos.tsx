@@ -37,7 +37,7 @@ export function CampoNumero({
   erro?: string;
 }) {
   return (
-    <label className="stack-sm" htmlFor={id}>
+    <label className="flex flex-col gap-1" htmlFor={id}>
       <Text variant="bodyStrong" as="span">{label}</Text>
       {hint ? <Text variant="secondary">{hint}</Text> : null}
       <input
@@ -114,7 +114,7 @@ export function CampoTexto({
   if (!label) return campo;
 
   return (
-    <label className="stack-sm" htmlFor={id}>
+    <label className="flex flex-col gap-1" htmlFor={id}>
       <Text variant="bodyStrong" as="span">{label}</Text>
       {campo}
     </label>

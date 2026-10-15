@@ -12,6 +12,7 @@ import {buildDetailBackState} from '../../../lib/navigation/detailBack';
 import {isContentBodyLoaded, upsertContent} from '../../contents/lib/contentBody';
 import {getRecordingQueueContents} from '../../contents/lib/contentWorkflow';
 import {cn} from '../../../lib/utils';
+import {SkeletonList} from '../../../components/ui/Skeleton';
 import {useHydrateContentBodies} from '../../../hooks/useHydrateContentBodies';
 import {DesktopPageHeader} from '../../../layouts/page/DesktopPageHeader';
 import {PageLayout} from '../../../layouts/page/PageLayout';
@@ -501,18 +502,24 @@ export function RecordingPage() {
         <div className="stack-lg">
         {activeTab === 'queue' ? (
           <section className={cn('stack-lg', selectedIds.size > 0 && 'pb-28')}>
-            <RecordingQueueGrid
-              contents={prontos}
-              selectedIds={selectedIds}
-              onToggleSelect={toggleSelect}
-              onSelectAll={handleSelectAll}
-              onClearSelection={handleClearSelection}
-              onOpen={openContentDetail}
-              onRead={openScriptReader}
-              isHydrating={isHydrating}
-              hasHydrationError={hasHydrationError}
-              onRetryHydration={retryHydration}
-            />
+            {/* A fila exclui o que já está em bloco; antes dos blocos chegarem, tudo pareceria "sem bloco"
+                e daria para pôr o mesmo roteiro em dois blocos. */}
+            {recordingReady ? (
+              <RecordingQueueGrid
+                contents={prontos}
+                selectedIds={selectedIds}
+                onToggleSelect={toggleSelect}
+                onSelectAll={handleSelectAll}
+                onClearSelection={handleClearSelection}
+                onOpen={openContentDetail}
+                onRead={openScriptReader}
+                isHydrating={isHydrating}
+                hasHydrationError={hasHydrationError}
+                onRetryHydration={retryHydration}
+              />
+            ) : (
+              <SkeletonList count={3} variant="content" />
+            )}
 
             <RecordingSelectionBar
               selectedCount={selectedIds.size}

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Search, FileText, Sparkles, Handshake, ChevronRight, Command, X, PenLine, CalendarDays, Briefcase, Captions, Library, StickyNote } from 'lucide-react';
+import { Search, FileText, Sparkles, Handshake, ChevronRight, Command, X, Library, Settings } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useIsMobile } from '../../hooks/useIsMobile';
@@ -9,6 +9,17 @@ import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
 import { CONTENT_STATUS } from '../../features/contents/lib/contentPipeline';
 import { buildContentDetailRoute } from '../../features/contents/lib/contentDetailRoute';
 import { buildDetailBackState } from '../../lib/navigation/detailBack';
+import { getModuleFlags } from '../../features/settings/lib/moduleFlags';
+import { buildSidebarSections, isNavItemHidden, type NavItemDefinition } from '../../layouts/navigation/navConfig';
+
+/** Os mesmos destinos do menu lateral, na mesma ordem, sem os módulos desligados. */
+function paletteDestinations(moduleFlags: ReturnType<typeof getModuleFlags>): NavItemDefinition[] {
+  const items = buildSidebarSections(moduleFlags)
+    .flatMap(section => section.items)
+    .flatMap(item => [item, ...(item.nested ?? [])])
+    .filter(item => !isNavItemHidden(item, moduleFlags));
+  return [...items, { to: '/configuracoes', label: 'Configurações', icon: Settings }];
+}
 
 interface CommandPaletteProps {
   isOpen: boolean;
@@ -28,13 +39,10 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
 
   useBodyScrollLock(isOpen);
 
-  const navigation = [
-    { id: 'nav-1', title: 'Central de criação', path: '/criacao', icon: <PenLine className="w-4 h-4" />, category: 'Navegação' },
-    { id: 'nav-1b', title: 'Legendas', path: '/criacao/legendas', icon: <Captions className="w-4 h-4" />, category: 'Navegação' },
-    { id: 'nav-2', title: 'Calendário', path: '/calendario', icon: <CalendarDays className="w-4 h-4" />, category: 'Navegação' },
-    { id: 'nav-2b', title: 'Planejamento', path: '/planejamento', icon: <StickyNote className="w-4 h-4" />, category: 'Navegação' },
-    { id: 'nav-3', title: 'Projetos', path: '/projetos', icon: <Briefcase className="w-4 h-4" />, category: 'Navegação' },
-  ];
+  const navigation = paletteDestinations(getModuleFlags(state.preferences)).map(item => {
+    const Icon = item.icon;
+    return { id: `nav-${item.to}`, title: item.label, path: item.to, icon: <Icon className="w-4 h-4" />, category: 'Navegação' };
+  });
 
   const libraryResults = state.bibliotecaItems
     .filter(item => !item.deletedAt)
@@ -49,8 +57,11 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
   // Com busca, a obra vem antes dos roteiros sobre ela para não sumir no corte de 10 resultados.
   const hasSearch = search.trim().length > 0;
 
-  const filteredResults = [
-    ...navigation,
+  const matches = (item: { title: string; category: string }) =>
+    item.title.toLowerCase().includes(search.toLowerCase()) ||
+    item.category.toLowerCase().includes(search.toLowerCase());
+
+  const itemResults = [
     ...(hasSearch ? libraryResults : []),
     ...state.contents.map(c => ({
       id: c.id,
@@ -64,10 +75,10 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
     })),
     ...(state.projetos || []).map(p => ({ id: p.id, title: p.brand ? `${p.brand}: ${p.nome}` : p.nome, path: `/projetos/${p.id}`, icon: <Handshake className="w-4 h-4" />, category: 'Projetos', data: p })),
     ...(hasSearch ? [] : libraryResults),
-  ].filter(item => 
-    item.title.toLowerCase().includes(search.toLowerCase()) || 
-    item.category.toLowerCase().includes(search.toLowerCase())
-  ).slice(0, 10);
+  ].filter(matches).slice(0, hasSearch ? 10 : 5);
+
+  // Destinos aparecem inteiros (são poucos); o corte vale só para obras, roteiros e projetos.
+  const filteredResults = [...navigation.filter(matches), ...itemResults];
 
   useEffect(() => {
     if (isOpen) {
@@ -127,6 +138,9 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
           animate={isMobile ? { y: 0 } : { opacity: 1, scale: 1, y: 0 }}
           exit={isMobile ? { y: '100%' } : { opacity: 0, scale: 0.95, y: -10 }}
           transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Buscar no app"
           className={`relative w-full ${isMobile ? 'h-full bg-[var(--bg-primary)] flex flex-col' : 'max-w-xl bg-[var(--bg-secondary)] rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] overflow-hidden shadow-none'}`}
         >
           {/* Header */}
@@ -140,7 +154,8 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
               type="search"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder={isMobile ? "Buscar…" : "Busque roteiros, ideias e projetos…"}
+              aria-label="Buscar telas, roteiros, ideias, obras e projetos"
+              placeholder={isMobile ? "Buscar…" : "Busque telas, roteiros, ideias e projetos…"}
               className="input-plain flex-1 h-14 bg-transparent text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] text-base px-3"
             />
             {!showKeyboardHints ? (

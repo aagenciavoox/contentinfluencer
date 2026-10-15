@@ -179,7 +179,8 @@ export const EMPTY = {
       'Finalize roteiros e deixe-os prontos para gravação, ou ajuste os filtros acima.',
   },
   projetos: {
-    title: 'Nenhum projeto encontrado',
+    // Conta sem projetos. Busca sem resultado tem texto próprio na tela de Projetos.
+    title: 'Nenhum projeto ainda',
     description:
       'Crie um projeto para reunir etapas, eventos e roteiros.',
   },

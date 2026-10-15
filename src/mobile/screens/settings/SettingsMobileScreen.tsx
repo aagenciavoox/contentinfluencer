@@ -39,7 +39,7 @@ interface SettingsMobileScreenProps {
 
 const ICON_BY_ROUTE: Record<string, React.ElementType> = {
   '/configuracoes/perfil': UserCircle2,
-  '/configuracoes/plataformas': MonitorSpeaker,
+  '/contas': MonitorSpeaker,
 };
 
 export function SettingsMobileScreen({

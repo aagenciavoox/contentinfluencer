@@ -97,8 +97,13 @@ function progressForItem(item: BibliotecaItem, metadata: BibliotecaItemMeta) {
   return { current: item.paginasLidas || 0, total: item.totalPaginas || 0 };
 }
 
-function percentageData(entries: Array<{ id: string; label: string; value: number }>) {
-  const total = entries.reduce((sum, entry) => sum + entry.value, 0);
+/**
+ * `total` é o universo real. Sem ele, a soma das próprias barras vira o total, o que só
+ * vale quando as barras cobrem tudo (tipos, avaliações). Em listas cortadas (top 5, top 6)
+ * isso inflava o percentual: 14 de 45 anotações aparecia como 37%.
+ */
+function percentageData(entries: Array<{ id: string; label: string; value: number }>, totalOverride?: number) {
+  const total = totalOverride ?? entries.reduce((sum, entry) => sum + entry.value, 0);
   return entries.map(entry => ({
     ...entry,
     percent: total > 0 ? Math.round((entry.value / total) * 100) : 0,
@@ -182,7 +187,7 @@ export function buildLibraryAnalytics(
 
   const ratingEntries = [5, 4, 3, 2, 1].map(rating => ({
     id: String(rating),
-    label: `${rating} estrelas`,
+    label: rating === 1 ? '1 estrela' : `${rating} estrelas`,
     value: ratedItems.filter(item => Math.round(item.avaliacao || 0) === rating).length,
   }));
 
@@ -235,9 +240,10 @@ export function buildLibraryAnalytics(
     },
     typeData: percentageData(typeCounts),
     statusData: percentageData(statusCounts),
-    genreData: percentageData(genreEntries),
+    // Gênero: parte dos itens da biblioteca. Anotações: parte do total de anotações.
+    genreData: percentageData(genreEntries, items.length),
     ratingData: percentageData(ratingEntries),
-    mostAnnotated: percentageData(mostAnnotatedEntries),
+    mostAnnotated: percentageData(mostAnnotatedEntries, annotationsTotal),
     completedThisMonth,
     completedThisYear,
   };

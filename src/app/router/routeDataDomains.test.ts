@@ -69,6 +69,8 @@ function testNestedSettingsDomains() {
     'templates',
   ]);
   assert.deepEqual(getRouteDataDomains('/configuracoes/plataformas'), ['bootstrap', 'schedule']);
+  assert.deepEqual(getRouteDataDomains('/contas'), ['bootstrap', 'schedule', 'content', 'production', 'analytics']);
+  assert.deepEqual(getRouteDataDomains('/analises'), ['bootstrap', 'content', 'production', 'analytics']);
   assert.deepEqual(getRouteDataDomains('/configuracoes/pilares/xyz'), [
     'production',
     'content',

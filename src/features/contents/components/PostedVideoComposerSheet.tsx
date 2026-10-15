@@ -12,6 +12,8 @@ import {PostingTimeSuggestions} from '../../settings/components/PostingTimeSugge
 import type {PostingTimesSettings} from '../../settings/lib/postingTimes';
 import {CONTENT_STATUS} from '../lib/contentPipeline';
 import {createContentDraft} from '../lib/createContentDraft';
+import {contaDaRef, contasAtivas, iconeDaConta, rotuloConta, rotuloDaRef} from '../../contas/lib/contas';
+import {PlatformIcon} from '../../../components/ui/PlatformIcon';
 
 export interface PostedPlatformEntry {
   platformId: string;
@@ -38,14 +40,11 @@ function postedInstant(date: string | null | undefined, time: string | null | un
 }
 
 function resolvePlatformId(platformRef: string, platforms: Platform[]): string {
-  const byId = platforms.find(platform => platform.id === platformRef);
-  if (byId) return byId.id;
-  const byName = platforms.find(platform => platform.nome === platformRef);
-  return byName?.id ?? platformRef;
+  return contaDaRef(platformRef, platforms)?.id ?? platformRef;
 }
 
 function platformLabel(platformId: string, platforms: Platform[]): string {
-  return platforms.find(platform => platform.id === platformId)?.nome ?? platformId;
+  return rotuloDaRef(platformId, platforms);
 }
 
 function normalizeDateInput(value: string | null | undefined): string {
@@ -128,7 +127,7 @@ export function PostedVideoComposerSheet({
   onSave,
   onClose,
 }: PostedVideoComposerSheetProps) {
-  const activePlatforms = platforms.filter(platform => platform.ativo);
+  const activePlatforms = contasAtivas(platforms);
   const isEditing = Boolean(initialContent);
 
   const [title, setTitle] = useState(initialContent?.title ?? '');
@@ -300,14 +299,14 @@ export function PostedVideoComposerSheet({
       </div>
 
       <div>
-        <label className="text-sm font-medium text-[var(--text-secondary)]">Redes publicadas</label>
+        <label className="text-sm font-medium text-[var(--text-secondary)]">Contas em que foi publicado</label>
         {activePlatforms.length === 0 ? (
-          <p className="mt-2 text-sm text-[var(--text-tertiary)]">Cadastre uma rede em Configurações → Plataformas.</p>
+          <p className="mt-2 text-sm text-[var(--text-tertiary)]">Cadastre uma conta em Contas e horários.</p>
         ) : (
           <div className="mt-2 flex flex-wrap gap-1.5">
             {activePlatforms.map(platform => {
               const selected = selectedIds.has(platform.id);
-              const color = getPlatformColor(platform.nome);
+              const color = getPlatformColor(iconeDaConta(platform));
               return (
                 <button
                   key={platform.id}
@@ -318,13 +317,8 @@ export function PostedVideoComposerSheet({
                     selected ? color.chip : 'border-[var(--border-color)] text-[var(--text-secondary)] hover:border-[var(--text-primary)]',
                   )}
                 >
-                  <span
-                    className="flex h-4 min-w-4 items-center justify-center rounded-full text-2xs font-bold text-white"
-                    style={{backgroundColor: color.dot}}
-                  >
-                    {platform.nome.slice(0, 1).toUpperCase()}
-                  </span>
-                  {platform.nome}
+                  <PlatformIcon platform={iconeDaConta(platform)} className="h-3.5 w-3.5 shrink-0" />
+                  {rotuloConta(platform)}
                 </button>
               );
             })}

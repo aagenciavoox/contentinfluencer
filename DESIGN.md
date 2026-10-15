@@ -108,6 +108,8 @@ focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]
 
 Applies to `AppButton`, `Surface` (interactive), `ListItem`, `IconButton`, and raw `<button>`/`<a>` in feature code. Never nest `<button>` inside `<button>`.
 
+`--focus-ring` is a 2px gap in `--bg-elevated` plus a solid 2px ring in `--focus-ring-color` (blue). It stays ≥ 3:1 on every page background, including around the pink primary button. `--focus-ring-brand` is an alias of the same blue ring, kept only so old call sites keep working.
+
 ## Clicabilidade
 
 O que clica tem que parecer clicável, e o que não clica não pode parecer. Auditoria de 14/10/2026 com as regras abaixo.
@@ -125,6 +127,48 @@ O que clica tem que parecer clicável, e o que não clica não pode parecer. Aud
 11. **Seção que abre e fecha** usa `DisclosureButton` (ou o `summary` com seta à direita e a faixa inteira clicável).
 12. **Inativo não usa opacidade.** Card inativo ganha fundo rebaixado (`.is-dimmed`) e um selo; o texto mantém contraste AA.
 13. **Aba não fica dentro de aba.** Uma tela tem no máximo uma fileira de `SegmentTabs`. Dentro de uma aba, filtro é `FilterChips` e período é o seletor ‹ título › com o modo num menu (`PeriodoEditorialControl`). Cada número mora num lugar só: as contas de um período ficam na aba Período, não repetidas nos cards de pilar e série.
+
+## Leitura, números e acesso
+
+Regras tiradas da auditoria de 15/10/2026 (`AUDIT-UX-2026-10-15.md`). Cada uma corrige um defeito medido nas telas. As de contraste estão travadas em `src/styles/tokenContrast.test.ts`.
+
+**Contraste**
+
+1. **Texto tem 4,5:1 sobre todo fundo onde aparece.** Não só `--bg-primary`, `--bg-secondary` e `--bg-elevated`: também `--surface-subtle` (fundo do `Surface variant="info"`) e `--bg-hover` (linha em hover, dia atual). O teste cobre os cinco fundos.
+2. **Texto tingido nunca usa a cor pura.** Sobre o próprio fundo claro, o tom puro fica abaixo de 4,5:1 (status "Ideia" dava 2,40:1). O texto mistura o tom com `--text-primary`:
+   - cores do sistema (status, acentos): `color-mix(in srgb, <cor> var(--tint-text-share), var(--text-primary))`;
+   - cores que a pessoa escolhe (pilar, série, projeto): `--user-tint-text-share`, mais escuro, porque a paleta tem tons quase brancos.
+   Já fazem isso: `.status-pill-*`, `.status-calendar-*`, `getEntityTagStyle()`, `calendarPillStyles.ts` e o helper `tintedTextColor()` (`src/lib/utils.ts`). O fundo pode continuar com o tom (12% a 22%).
+3. **Cor sozinha não identifica nada.** O ponto colorido de pilar ou série é decorativo (`aria-hidden`) e sempre vem com o nome ao lado: 49 das 88 cores da paleta ficam abaixo de 3:1 sobre o card branco.
+4. **Foco é um anel sólido e azul.** `--focus-ring` (folga de 2px + anel de 2px em `--focus-ring-color`), ≥ 3:1 sobre qualquer fundo de página. Halo translúcido não serve (o antigo dava 1,33:1).
+
+**Nome e estrutura**
+
+5. **Todo campo tem nome programático.** `<label htmlFor>` ou `aria-label`. Placeholder não é rótulo: o leitor de tela anunciava o campo Nome do pilar como "Ex.: Humor". Texto de ajuda vai em `aria-describedby`, não dentro do `<label>`.
+6. **Select sem rótulo visível ganha `aria-label`.** A ordenação do `FilterBar` se chama "Ordenar"; os selects de filtro usam o rótulo do próprio filtro.
+7. **Botão só com ícone tem `aria-label`** (fechar painel, trocar capa). Um atalho de toque que repete um botão vizinho com nome sai da ordem de foco (`tabIndex={-1}` + `aria-hidden`).
+8. **Uma `h1` por tela, também no celular.** Número grande com cara de título usa `Text variant="sectionTitle" as="p"`: número não entra na navegação por títulos.
+9. **Link dentro de frase é sublinhado.** Mesma cor e mesmo peso do texto em volta, sem sublinhado, não dizem que é link (WCAG 1.4.1).
+10. **Diálogo se anuncia como diálogo.** Sobreposição modal tem `role="dialog"`, `aria-modal="true"` e nome (a busca global é "Buscar no app").
+
+**Números**
+
+11. **Um número, uma definição.** "N roteiros" conta só roteiros ativos: ideia, arquivado e lixeira ficam fora, e ideia conta à parte (R1). Duas telas não mostram a mesma contagem com nomes ou fórmulas diferentes.
+12. **Percentual divide pelo universo real.** Num ranking cortado (top 5), a soma das barras não é o total: "14 de 45 anotações" é 31%, não 37%. Use `percentageData(entries, total)`.
+13. **Valor ausente não vira texto.** Nunca "de null", "0 de" sem denominador ou "--". Sem meta, mostre só o que existe ("3 previstos") e não pinte tom de alerta contra uma meta que não existe. Valor vazio é "—".
+14. **Regra que mudou leva a tela junto.** Se um número deixou de valer (o ritmo do pilar depois da Fase 4), ele sai da tela; não fica exibido com uma nota dizendo que não vale.
+
+**Estados**
+
+15. **Busca vazia não é conta vazia.** Busca ou filtro sem resultado diz o que foi buscado e oferece **Limpar busca e filtro** (secundário). "Crie o primeiro" fica só para quando não existe nada.
+16. **Lista que depende de dois dados espera os dois.** A fila "Sem bloco" exclui o que já está em bloco; antes dos blocos carregarem, mostra esqueleto, não a fila (`useDomainsReady`). Senão o mesmo roteiro vai para dois blocos.
+
+**Texto**
+
+17. **"Ex.:" só em placeholder.** Num conteúdo real, o prefixo faz o texto parecer campo vazio.
+18. **Rede social sempre pela grafia oficial.** Rótulo de plataforma passa por `platformDisplayName()` (`TikTok`, `YouTube`), nunca o nome cru salvo no banco.
+19. **Os nomes do glossário valem em toda parte**, inclusive na busca global e nas configurações: "Hoje" (não "dashboard"), "Criação" (não "Central de criação"), "roteiro" e nunca "conteúdo" como item.
+20. **A busca global leva aos mesmos destinos do menu.** A lista vem de `buildSidebarSections()`, então tela nova no menu aparece na busca sem outra edição.
 
 ## Key tokens
 
@@ -146,7 +190,9 @@ O que clica tem que parecer clicável, e o que não clica não pode parecer. Aud
 - `.t-page-title`, `.t-section-title`, `.t-item-title`, `.t-body`, `.t-meta`, `.t-label`
 
 ### Focus & motion
-- `--focus-ring` — unified focus shadow (buttons, inputs)
+- `--focus-ring` — unified focus shadow (buttons, inputs): 2px gap in `--bg-elevated` + 2px solid `--focus-ring-color`
+- `--focus-ring-color` — the ring color (`--accent-blue`); ≥ 3:1 on every page background
+- `--focus-ring-brand` — alias of `--focus-ring` (focus is always blue)
 - `prefers-reduced-motion` — CSS transitions disabled globally; `MotionConfig reducedMotion="user"` in `AppProviders`
 
 ### Accent rules
@@ -162,8 +208,13 @@ O que clica tem que parecer clicável, e o que não clica não pode parecer. Aud
 
 ### Content pipeline status
 - Tokens: `--status-idea`, `--status-writing`, `--status-ready`, `--status-recorded`, `--status-editing`, `--status-edited`, `--status-scheduled`, `--status-posted`
-- CSS classes: `.status-pill-{token}`, `.status-calendar-{token}`
+- CSS classes: `.status-pill-{token}`, `.status-calendar-{token}` (text mixed by `--tint-text-share`, see "Leitura, números e acesso" rule 2)
 - Helpers: `getStatusClassName()`, `getStatusChipClass()` in `src/lib/statusClasses.ts`
+
+### Tinted text
+- `--tint-text-share` — share of a system color (status, accent) in tinted text; the rest is `--text-primary` (55% light, 72% dark)
+- `--user-tint-text-share` — same for colors the person picks (pillar, series, project) (36% light, 50% dark)
+- `tintedTextColor(color)` in `src/lib/utils.ts` picks the right share (`var(--…)` → system, hex → user)
 
 ## Lint
 

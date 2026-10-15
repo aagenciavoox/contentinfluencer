@@ -12,6 +12,7 @@ import {LivroMultiSelect} from '../LivroMultiSelect';
 import {TemaField} from '../TemaField';
 import {DraftSaveBar} from '../DraftSaveBar';
 import type {ScriptDraft} from './RoteiroSection';
+import {contasAtivas} from '../../../../contas/lib/contas';
 
 type IdeaDraft = Pick<
   ScriptDraft,
@@ -39,9 +40,7 @@ export function IdeaOrganizationPanel({
   onChange,
 }: IdeaOrganizationPanelProps) {
   const {state} = useAppContext();
-  const plataformasAtivas = state.platforms
-    .filter(platform => platform.ativo)
-    .map(platform => ({id: platform.id, nome: platform.nome}));
+  const plataformasAtivas = contasAtivas(state.platforms);
   return (
     <Surface variant="outlined" padding="md" className="grid gap-4 md:grid-cols-3">
       <div className="stack-sm md:col-span-3">

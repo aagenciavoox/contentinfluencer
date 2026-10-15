@@ -1,291 +1,455 @@
-import {useState} from 'react';
-import {Lock, MonitorSpeaker, Plus} from 'lucide-react';
+import {useMemo, useState} from 'react';
+import {Link} from 'react-router-dom';
+import {AtSign, Plus} from 'lucide-react';
 import {useAppContext} from '../../../context/AppContext';
 import {useAuth} from '../../../context/AuthContext';
-import {useIsMobile} from '../../../hooks/useIsMobile';
-import type {Platform} from '../../../lib/database';
+import type {Content, ContentPlataforma, Platform, RedeSocial} from '../../../lib/database';
 import {DesktopPageHeader} from '../../../layouts/page/DesktopPageHeader';
 import {PageLayout} from '../../../layouts/page/PageLayout';
 import {AppButton} from '../../../components/ui/AppButton';
+import {Badge} from '../../../components/ui/Badge';
 import {MoreMenu} from '../../../components/ui/MoreMenu';
+import {TagSelect} from '../../../components/ui/TagSelect';
+import {Surface} from '../../../components/ui/Surface';
 import {Text} from '../../../components/ui/Text';
 import {Dialog} from '../../../components/overlays/Dialog';
 import {OverlayHeader} from '../../../components/overlays/OverlayHeader';
 import {OverlayBody} from '../../../components/overlays/OverlayBody';
 import {ConfirmModal} from '../../../components/feedback/modals/ConfirmModal';
-import {PlatformsMobileScreen} from '../../../mobile/screens/settings/PlatformsMobileScreen';
 import {PostingTimesEditor} from '../components/PostingTimesEditor';
 import {ToggleSwitch} from '../../../components/ui/ToggleSwitch';
 import {generateUUID} from '../../../utils/uuid';
 import {notifySaveFeedback} from '../../../lib/saveFeedback';
 import {CONFIRM, type ConfirmState} from '../../../lib/uiCopy';
-import {platformDisplayName, platformKey} from '../../../components/ui/platformName';
+import {
+  ESTADO_CADASTRO_ROTULO,
+  REDES,
+  REDE_ROTULO,
+  contasAtivas,
+  estadoCadastro,
+  exibirHandle,
+  normalizarHandle,
+  ordenarContas,
+  redeDaConta,
+  rotuloConexao,
+  rotuloConta,
+  rotuloDaRef,
+  complementoDoRotulo,
+  contaDaRef,
+} from '../../contas/lib/contas';
+import {anexarPublicacaoComLink, contasParaLinkAntigo, moverLinkParaPublicacao, revisoesDeContas} from '../../contas/lib/revisaoContas';
+import {parsePostCode} from '../../editorial/lib/postCode';
 
-const PADROES = ['Instagram', 'TikTok', 'YouTube', 'Blog'];
-const PADRAO_KEYS = new Set(PADROES.map(platformKey));
-const PADRAO_LOCK_REASON = 'Canal padrão: permanece ligado para criação e leitura histórica.';
-const HISTORICAL_READING_META =
-  'Plataformas inativas continuam disponíveis para leitura de dados antigos. Os horários de postagem ficam nesta mesma tela, com uma aba global e uma por canal ativo.';
+const CAMPO =
+  'min-h-11 w-full rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-3 text-sm text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]';
+
+type Rascunho = {
+  id: string | null;
+  rede: RedeSocial;
+  nome: string;
+  handle: string;
+};
+
+const RASCUNHO_NOVO: Rascunho = { id: null, rede: 'instagram', nome: '', handle: '' };
 
 export function PlatformsSettingsPage() {
   const {state, dispatch} = useAppContext();
   const {user} = useAuth();
-  const isMobile = useIsMobile();
-
-  const [novoNome, setNovoNome] = useState('');
-  const [showForm, setShowForm] = useState(false);
+  const [rascunho, setRascunho] = useState<Rascunho | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [confirm, setConfirm] = useState<ConfirmState | null>(null);
+  const [salvandoLink, setSalvandoLink] = useState<string | null>(null);
 
-  const closeForm = () => {
-    setShowForm(false);
-    setNovoNome('');
-  };
+  const contas = useMemo(() => ordenarContas(state.platforms), [state.platforms]);
+  const revisoes = useMemo(
+    () => revisoesDeContas({
+      contas: state.platforms,
+      contents: state.contents,
+      metricas: state.contentMetrics,
+    }),
+    [state.contentMetrics, state.contents, state.platforms],
+  );
 
-  const createPlatform = async (nome: string) => {
-    const trimmed = nome.trim();
-    if (!trimmed) return;
-    if (!user?.id) {
-      notifySaveFeedback({
-        status: 'error',
-        message: 'Entre na conta para salvar plataformas.',
+  const emUso = (platformId: string) => (
+    state.contents.some(content => content.plataformas.some(item => item.platformId === platformId))
+    || state.series.some(serie => serie.plataformas.some(item => item.platformId === platformId))
+    || state.pilares.some(pilar => pilar.plataformas.some(item => item.platformId === platformId))
+    || (state.postingTimeEntries ?? []).some(entry => entry.platformId === platformId)
+  );
+
+  const fechar = () => setRascunho(null);
+
+  const colocarLink = async (contentId: string, publicacaoId: string) => {
+    const content = state.contents.find(item => item.id === contentId);
+    if (!content) return;
+    const atualizado = moverLinkParaPublicacao(content, publicacaoId);
+    if (!atualizado) return;
+    const destino = content.plataformas.find(item => item.id === publicacaoId);
+    const outro = destino?.postUrl?.trim();
+    const executar = async () => {
+      setSalvandoLink(contentId);
+      try {
+        await dispatch({ type: 'UPDATE_CONTENT', payload: atualizado });
+      } catch {
+        // O AppContext já mostra o erro.
+      } finally {
+        setSalvandoLink(null);
+      }
+    };
+    if (outro && outro !== content.link?.trim()) {
+      setConfirm({
+        message: 'Esta publicação já tem outro link. Substituir por este?',
+        confirmLabel: 'Substituir',
+        cancelLabel: 'Manter o link atual',
+        onConfirm: () => { void executar(); },
       });
       return;
     }
+    await executar();
+  };
+
+  const criarPublicacaoComLink = async (content: Content, contaId: string) => {
+    const link = content.link?.trim();
+    if (!link) return;
+    const publicacao: ContentPlataforma = {
+      id: generateUUID(),
+      contentId: content.id,
+      platformId: contaId,
+      legenda: '',
+      hashtags: '',
+      publishDate: content.postedAt?.slice(0, 10) ?? content.publishDate,
+      publicationKind: 'post',
+      status: 'publicada',
+      realizadaManualEm: content.postedAt,
+      postUrl: link,
+      postCodigo: parsePostCode(link),
+      contaNaGrade: content.contaNaGrade !== false,
+    };
+    const atualizado = anexarPublicacaoComLink(content, publicacao);
+    if (!atualizado) return;
+    setSalvandoLink(content.id);
+    try {
+      await dispatch({ type: 'UPDATE_CONTENT', payload: atualizado });
+    } catch {
+      // O AppContext já mostra o erro.
+    } finally {
+      setSalvandoLink(null);
+    }
+  };
+
+  const abrirEdicao = (platform: Platform) => {
+    setRascunho({
+      id: platform.id,
+      rede: redeDaConta(platform) ?? 'instagram',
+      nome: platform.nome,
+      handle: platform.handle ?? '',
+    });
+  };
+
+  const salvar = async () => {
+    if (!rascunho) return;
+    const nome = rascunho.nome.trim();
+    if (!nome) return;
+    if (!user?.id) {
+      notifySaveFeedback({ status: 'error', message: 'Entre na conta para salvar.' });
+      return;
+    }
+    const handle = normalizarHandle(rascunho.handle);
+    const atual = rascunho.id ? state.platforms.find(item => item.id === rascunho.id) : null;
+    if (atual?.userId === null) return;
 
     const platform: Platform = {
-      id: generateUUID(),
-      userId: user.id,
-      nome: trimmed,
-      ativo: true,
-      createdAt: new Date().toISOString(),
+      id: atual?.id ?? generateUUID(),
+      userId: atual?.userId ?? user.id,
+      nome,
+      ativo: atual?.ativo ?? true,
+      createdAt: atual?.createdAt ?? new Date().toISOString(),
+      rede: rascunho.rede,
+      handle,
+      conexao: atual?.conexao ?? {
+        status: 'nao_conectada',
+        provedor: null,
+        contaExternaId: null,
+        atualizadaEm: null,
+      },
+      updatedAt: new Date().toISOString(),
     };
 
     setIsSaving(true);
     try {
-      await dispatch({type: 'ADD_PLATFORM', payload: platform});
-      setNovoNome('');
-      setShowForm(false);
+      await dispatch({ type: atual ? 'UPDATE_PLATFORM' : 'ADD_PLATFORM', payload: platform });
+      fechar();
     } catch {
-      // feedback já exibido pelo AppContext
+      // O AppContext já mostra o erro, inclusive @ repetido na mesma plataforma.
     } finally {
       setIsSaving(false);
     }
   };
 
-  const handleAdd = () => {
-    void createPlatform(novoNome);
-  };
-
   const toggleAtivo = async (platform: Platform) => {
-    if (isPadrao(platform.nome) || !user?.id) return;
+    if (platform.userId === null || !user?.id) return;
     try {
-      await dispatch({type: 'UPDATE_PLATFORM', payload: {...platform, ativo: !platform.ativo}});
+      await dispatch({ type: 'UPDATE_PLATFORM', payload: { ...platform, ativo: !platform.ativo } });
     } catch {
       // feedback já exibido pelo AppContext
     }
   };
 
-  const removePlatform = async (platformId: string) => {
-    if (!user?.id) return;
-    try {
-      await dispatch({type: 'DELETE_PLATFORM', payload: platformId});
-    } catch {
-      // feedback já exibido pelo AppContext
-    }
-  };
-
-  const handleDelete = (platformId: string) => {
+  const pedirExclusao = (platform: Platform) => {
+    if (emUso(platform.id)) return;
     setConfirm({
       ...CONFIRM.excluirPlataforma,
       onConfirm: () => {
-        void removePlatform(platformId);
+        void dispatch({ type: 'DELETE_PLATFORM', payload: platform.id });
       },
     });
   };
-
-  const isPadrao = (nome: string) => PADRAO_KEYS.has(platformKey(nome));
-
-  const confirmModal = (
-    <ConfirmModal
-      open={!!confirm}
-      message={confirm?.message || ''}
-      confirmLabel={confirm?.confirmLabel}
-      cancelLabel={confirm?.cancelLabel}
-      onConfirm={() => {
-        confirm?.onConfirm();
-        setConfirm(null);
-      }}
-      onCancel={() => setConfirm(null)}
-    />
-  );
-
-  if (isMobile) {
-    return (
-      <>
-        <div className="min-h-full bg-[var(--bg-primary)]">
-          <PlatformsMobileScreen
-            platforms={state.platforms}
-            isPadrao={isPadrao}
-            padraoLockReason={PADRAO_LOCK_REASON}
-            historicalReadingMeta={HISTORICAL_READING_META}
-            onAdd={platformName => {
-              void createPlatform(platformName);
-            }}
-            onToggle={platform => {
-              void toggleAtivo(platform);
-            }}
-            onDelete={platformId => {
-              handleDelete(platformId);
-            }}
-          />
-        </div>
-        {confirmModal}
-      </>
-    );
-  }
 
   return (
     <PageLayout
       variant="settings"
       header={
         <DesktopPageHeader
-          section="Configurações"
-          title="Plataformas e horários"
-          icon={MonitorSpeaker}
-          backLabel="Configurações"
-          backTo="/configuracoes"
+          section="Criação"
+          title="Contas e horários"
+          icon={AtSign}
+          backLabel="Criação"
+          backTo="/criacao"
           actions={
             <AppButton
-              onClick={() => setShowForm(true)}
+              onClick={() => setRascunho(RASCUNHO_NOVO)}
               variant="primary"
               leftIcon={<Plus className="h-4 w-4" />}
             >
-              Nova plataforma
+              Nova conta
             </AppButton>
           }
         />
       }
     >
-        <Dialog open={showForm} onClose={closeForm} desktopMaxW="max-w-md">
-          <OverlayHeader title="Nova plataforma" onClose={closeForm} />
-          <OverlayBody>
-            <div className="flex flex-col gap-4">
-              <div className="stack-sm">
-                <label htmlFor="nova-plataforma-nome" className="t-label text-[var(--text-tertiary)]">
-                  Nome
-                </label>
+      <Dialog open={rascunho != null} onClose={fechar} desktopMaxW="max-w-md">
+        <OverlayHeader title={rascunho?.id ? 'Editar conta' : 'Nova conta'} onClose={fechar} />
+        <OverlayBody>
+          {rascunho ? (
+            <div className="stack-sm">
+              <TagSelect
+                id="conta-rede"
+                label="Plataforma"
+                maxSelections={1}
+                values={[rascunho.rede]}
+                options={REDES.map(rede => ({ value: rede, label: REDE_ROTULO[rede] }))}
+                onChange={values => {
+                  const rede = values[0];
+                  if (rede !== 'instagram' && rede !== 'tiktok' && rede !== 'youtube' && rede !== 'outra') return;
+                  setRascunho({ ...rascunho, rede });
+                }}
+              />
+              <label className="flex flex-col gap-1" htmlFor="conta-nome">
+                <Text variant="label" as="span">Nome de identificação</Text>
                 <input
-                  id="nova-plataforma-nome"
+                  id="conta-nome"
                   autoFocus
-                  value={novoNome}
-                  onChange={event => setNovoNome(event.target.value)}
-                  onKeyDown={event => event.key === 'Enter' && handleAdd()}
-                  placeholder="Ex.: Instagram, TikTok"
-                  className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-2.5 text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none"
+                  value={rascunho.nome}
+                  onChange={event => setRascunho({ ...rascunho, nome: event.target.value })}
+                  placeholder="Ex.: Diza principal"
+                  className={CAMPO}
                 />
-              </div>
-              <div className="flex justify-end gap-2">
-                <AppButton type="button" onClick={closeForm} variant="secondary">
-                  Cancelar
-                </AppButton>
-                <AppButton onClick={handleAdd} disabled={!novoNome.trim() || isSaving || !user?.id} variant="primary">
-                  {isSaving ? 'Salvando…' : 'Adicionar plataforma'}
+              </label>
+              <label className="flex flex-col gap-1" htmlFor="conta-handle">
+                <Text variant="label" as="span">@</Text>
+                <input
+                  id="conta-handle"
+                  value={rascunho.handle}
+                  onChange={event => setRascunho({ ...rascunho, handle: event.target.value })}
+                  placeholder="@dizaianne"
+                  className={CAMPO}
+                />
+                <Text variant="meta">O @ identifica a conta na tela e pode mudar. Os vínculos usam o identificador interno. Informar o @ não conecta a conta.</Text>
+              </label>
+              <div className="flex justify-end gap-2 pt-2">
+                <AppButton type="button" onClick={fechar} variant="secondary">Cancelar</AppButton>
+                <AppButton onClick={() => void salvar()} disabled={!rascunho.nome.trim() || isSaving || !user?.id} variant="primary">
+                  {isSaving ? 'Salvando…' : 'Salvar conta'}
                 </AppButton>
               </div>
             </div>
-          </OverlayBody>
-        </Dialog>
+          ) : null}
+        </OverlayBody>
+      </Dialog>
 
-        <div className="stack-xl">
-          <section className="stack-xs">
-            <header className="px-2">
-              <Text variant="eyebrow">Plataformas</Text>
-            </header>
+      <div className="stack-lg">
+        <Text variant="secondary" className="max-w-2xl">
+          Cada linha é uma conta. Dá para ter mais de um Instagram, TikTok ou YouTube. O estado de cadastro é independente de uma integração: nenhuma conta fica conectada só por estar cadastrada.
+        </Text>
 
-            {state.platforms.length === 0 ? (
-              <div className="py-16 text-center">
-                <MonitorSpeaker className="mx-auto mb-3 h-10 w-10 text-[var(--text-tertiary)] opacity-40" />
-                <Text variant="body" className="text-[var(--text-tertiary)]">
-                  Nenhuma plataforma ainda
-                </Text>
-              </div>
-            ) : (
-              <div className="surface-quiet divide-y divide-[var(--border-color)]">
-                {state.platforms.map(platform => {
-                  const padrao = isPadrao(platform.nome);
-                  const displayName = platformDisplayName(platform.nome);
-                  const lockedOn = padrao || platform.ativo;
-                  return (
-                    <div key={platform.id} className="flex items-center gap-4 px-6 py-3.5">
-                      {/* O nome e a descrição ligam a chave da rede, como em qualquer linha com chave. */}
-                      <label htmlFor={`rede-${platform.id}`} className={padrao ? 'min-w-0 flex-1' : 'min-w-0 flex-1 cursor-pointer'}>
-                        <Text variant="bodyStrong" truncate>
-                          {displayName}
-                        </Text>
-                        {padrao && (
-                          <Text variant="meta" className="mt-0.5">
-                            Padrão
+        {revisoes.length > 0 ? (
+          <Surface padding="sm" className="stack-sm">
+            <Text variant="bodyStrong">Para revisar</Text>
+            <Text variant="secondary">Estes casos não foram resolvidos sozinhos, para não apontar uma publicação para a conta errada.</Text>
+            <ul className="stack-sm">
+              {revisoes.map(item => {
+                const conteudo = item.caso === 'link_sem_publicacao' && item.contentId
+                  ? state.contents.find(content => content.id === item.contentId)
+                  : null;
+                const link = conteudo?.link?.trim() ?? '';
+                const publicacoes = conteudo?.plataformas ?? [];
+                return (
+                  <li key={item.id} className="min-w-0 stack-xs">
+                    <Text variant="bodyStrong" as="p">{item.titulo}</Text>
+                    <Text variant="secondary">{item.detalhe}</Text>
+                    {link ? (
+                      <Text variant="meta" as="p" className="break-all">
+                        <a href={link} target="_blank" rel="noreferrer" className="underline underline-offset-2">
+                          {link}
+                        </a>
+                      </Text>
+                    ) : null}
+                    {conteudo ? (
+                      publicacoes.length > 0 ? (
+                        <div className="flex flex-wrap gap-2">
+                          {publicacoes.map(publicacao => {
+                            const conta = contaDaRef(publicacao.platformId, state.platforms);
+                            const extra = conta ? complementoDoRotulo(conta) : null;
+                            const nome = `${rotuloDaRef(publicacao.platformId, state.platforms)}${extra ? ` · ${extra}` : ''}`;
+                            const rotulo = publicacao.publicationKind === 'repost' ? `${nome} (repost)` : nome;
+                            return (
+                              <AppButton
+                                key={publicacao.id}
+                                type="button"
+                                size="sm"
+                                variant="secondary"
+                                disabled={salvandoLink === conteudo.id}
+                                onClick={() => { void colocarLink(conteudo.id, publicacao.id); }}
+                              >
+                                {`Colocar em ${rotulo}`}
+                              </AppButton>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div className="stack-xs">
+                          <Text variant="meta">
+                            Este roteiro não tem publicação. A conta escolhida recebe o link numa publicação já marcada como feita.
                           </Text>
-                        )}
-                        {!platform.ativo && !padrao && (
-                          <Text variant="meta" className="mt-0.5">
-                            Inativa para criação, mas preservada para leitura histórica
-                          </Text>
-                        )}
-                      </label>
-                      <div
-                        className="flex items-center gap-2"
-                        title={padrao ? PADRAO_LOCK_REASON : undefined}
+                          <div className="flex flex-wrap gap-2">
+                            {contasParaLinkAntigo(link, state.platforms).map(conta => {
+                              const extra = complementoDoRotulo(conta);
+                              const nome = `${rotuloConta(conta)}${extra ? ` · ${extra}` : ''}`;
+                              return (
+                                <AppButton
+                                  key={conta.id}
+                                  type="button"
+                                  size="sm"
+                                  variant="secondary"
+                                  disabled={salvandoLink === conteudo.id}
+                                  onClick={() => { void criarPublicacaoComLink(conteudo, conta.id); }}
+                                >
+                                  {`Criar em ${nome}`}
+                                </AppButton>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )
+                    ) : null}
+                    {item.contentId ? (
+                      <Link
+                        to={`/conteudos/${item.contentId}?tab=publicacao`}
+                        className="text-sm text-[var(--text-primary)] underline underline-offset-2"
                       >
-                        {padrao ? (
-                          <Lock className="h-3.5 w-3.5 shrink-0 text-[var(--text-tertiary)]" aria-hidden />
-                        ) : null}
-                        <label htmlFor={`rede-${platform.id}`} className={padrao ? undefined : 'cursor-pointer'}>
-                          <Text variant="meta" as="span">
-                            {lockedOn ? 'Ativa' : 'Inativa'}
-                          </Text>
-                        </label>
-                        <ToggleSwitch
-                          id={`rede-${platform.id}`}
-                          enabled={lockedOn}
-                          onToggle={() => {
-                            void toggleAtivo(platform);
-                          }}
-                          label={displayName}
-                          disabled={padrao}
-                        />
-                      </div>
-                      {!padrao ? (
-                        <MoreMenu
-                          size="sm"
-                          items={[
-                            {
-                              label: CONFIRM.excluirPlataforma.confirmLabel,
-                              tone: 'danger',
-                              onClick: () => handleDelete(platform.id),
-                            },
-                          ]}
-                        />
-                      ) : null}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-            <Text variant="meta" className="block px-2">
-              {HISTORICAL_READING_META}
-            </Text>
-          </section>
+                        Abrir o roteiro
+                      </Link>
+                    ) : null}
+                  </li>
+                );
+              })}
+            </ul>
+          </Surface>
+        ) : null}
 
-          <section className="stack-xs">
-            <header className="px-2">
-              <span className="eyebrow-label">Horários de postagem</span>
-            </header>
-            <PostingTimesEditor />
-          </section>
-        </div>
-        {confirmModal}
+        <section className="stack-sm">
+          <Text variant="eyebrow">Contas</Text>
+          {contas.length === 0 ? (
+            <Surface padding="sm">
+              <Text variant="secondary">Nenhuma conta ainda. Cadastre a primeira para escolher o destino dos roteiros.</Text>
+            </Surface>
+          ) : (
+            <div className="stack-sm">
+              {contas.map(platform => {
+                const compartilhada = platform.userId === null;
+                const estado = estadoCadastro(platform);
+                const handle = exibirHandle(platform.handle);
+                const usada = emUso(platform.id);
+                return (
+                  <Surface key={platform.id} padding="sm" className="flex flex-wrap items-center gap-3">
+                    <div className="min-w-0 flex-1">
+                      <Text variant="bodyStrong" truncate>{rotuloConta(platform)}</Text>
+                      <Text variant="meta" className="mt-0.5">
+                        {REDE_ROTULO[redeDaConta(platform) ?? 'outra']}
+                        {handle ? ` · ${handle}` : ' · sem @'}
+                        {platform.nome.trim() && handle ? ` · ${platform.nome.trim()}` : ''}
+                      </Text>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        <Badge variant="neutral">{ESTADO_CADASTRO_ROTULO[estado]}</Badge>
+                        <Badge variant="neutral">{rotuloConexao(platform)}</Badge>
+                        {compartilhada ? <Badge variant="neutral">Cadastro compartilhado</Badge> : null}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Text variant="meta" as="span">{platform.ativo ? 'Ativa' : 'Inativa'}</Text>
+                      <ToggleSwitch
+                        id={`conta-${platform.id}`}
+                        enabled={platform.ativo}
+                        onToggle={() => { void toggleAtivo(platform); }}
+                        label={rotuloConta(platform)}
+                        disabled={compartilhada}
+                      />
+                    </div>
+                    {compartilhada ? null : (
+                      <MoreMenu
+                        size="sm"
+                        items={[
+                          { label: 'Editar conta', onClick: () => abrirEdicao(platform) },
+                          ...(usada ? [] : [{
+                            label: CONFIRM.excluirPlataforma.confirmLabel,
+                            tone: 'danger' as const,
+                            onClick: () => pedirExclusao(platform),
+                          }]),
+                        ]}
+                      />
+                    )}
+                    {usada ? (
+                      <Text variant="meta" className="w-full">Em uso por publicações, séries, pilares ou horários. Inative para tirar da criação; os vínculos permanecem.</Text>
+                    ) : null}
+                  </Surface>
+                );
+              })}
+            </div>
+          )}
+          <Text variant="meta">
+            {contasAtivas(contas).length === 1 ? '1 conta ativa na criação.' : `${contasAtivas(contas).length} contas ativas na criação.`}
+            {' '}Contas inativas continuam disponíveis para ler o que já foi publicado.
+          </Text>
+        </section>
+
+        <section className="stack-sm">
+          <Text variant="eyebrow">Horários de postagem</Text>
+          <Text variant="secondary">O mesmo cadastro usado no Editorial. Cada conta pode ter horários diferentes; o dia sem horário próprio usa o Global.</Text>
+          <PostingTimesEditor />
+        </section>
+      </div>
+
+      <ConfirmModal
+        open={!!confirm}
+        message={confirm?.message || ''}
+        confirmLabel={confirm?.confirmLabel}
+        cancelLabel={confirm?.cancelLabel}
+        onConfirm={() => {
+          confirm?.onConfirm();
+          setConfirm(null);
+        }}
+        onCancel={() => setConfirm(null)}
+      />
     </PageLayout>
   );
 }

@@ -1,8 +1,10 @@
 import type { ElementType } from 'react';
 import {
+  AtSign,
   Briefcase,
   CalendarDays,
   Captions,
+  ChartColumn,
   StickyNote,
   Clapperboard,
   Columns3,
@@ -118,6 +120,14 @@ export function isNavItemActive(to: string, pathname: string): boolean {
     return pathMatches(pathname, '/series');
   }
 
+  if (target === '/contas') {
+    return pathMatches(pathname, '/contas');
+  }
+
+  if (target === '/analises') {
+    return pathMatches(pathname, '/analises');
+  }
+
   if (target === '/configuracoes') {
     if (STUDIO_ROUTES.some(route => pathMatches(pathname, route))) return false;
     return pathMatches(pathname, '/configuracoes');
@@ -157,6 +167,8 @@ export function buildSidebarSections(moduleFlags: ModuleFlags): NavSectionDefini
         },
         { to: '/series', label: 'Séries', icon: ListVideo, end: false },
         { to: '/editorial', label: 'Editorial', icon: Columns3 },
+        { to: '/analises', label: 'Análises', icon: ChartColumn },
+        { to: '/contas', label: 'Contas e horários', icon: AtSign },
         { to: '/biblioteca', label: 'Biblioteca', icon: Library, badgeKey: 'library', module: 'library' },
       ],
     },

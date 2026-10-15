@@ -46,6 +46,7 @@ import { SegmentTabs } from '../../../components/ui/SegmentTabs';
 import { cn } from '../../../lib/utils';
 import { CoverUploadField } from '../components/CoverUploadField';
 import { CoverFallback } from '../components/CoverFallback';
+import { REDE_ROTULO, redeDaRef, rotuloDaRef } from '../../contas/lib/contas';
 
 type BookAnnotation = Anotacao;
 type TipoAnotacao = Anotacao['tipo'];
@@ -303,7 +304,7 @@ export function BookDetailPage() {
   }, {});
 
   const conteudosPorPlataforma = conteudosDoLivro.reduce<Record<string, typeof conteudosDoLivro>>((acc, c) => {
-    const plats = c.plataformas?.length ? c.plataformas.map(pp => pp.platformId) : ['Geral'];
+    const plats = c.plataformas?.length ? c.plataformas.map(pp => rotuloDaRef(pp.platformId, state.platforms)) : ['Geral'];
     plats.forEach(p => {
       if (!acc[p]) acc[p] = [];
       if (!acc[p].find(x => x.id === c.id)) acc[p].push(c);
@@ -322,7 +323,9 @@ export function BookDetailPage() {
     const pilar = state.pilares.find(p => p.id === c.pilarId);
     if (pilar) {
       pilar.plataformas.forEach(pp => {
-        const key = pp.platformId as 'Instagram' | 'TikTok' | 'YouTube';
+        // Hashtags do pilar ficam por conta; aqui somam por plataforma.
+        const rede = redeDaRef(pp.platformId, state.platforms);
+        const key = (rede && rede !== 'outra' ? REDE_ROTULO[rede] : '') as 'Instagram' | 'TikTok' | 'YouTube';
         if (hashtagsAgregadas[key] && pp.hashtags) {
           hashtagsAgregadas[key].push(...pp.hashtags.split(' ').filter(Boolean));
         }

@@ -26,6 +26,7 @@ import {
 } from '../lib/pilarPostingSchedule';
 import { PILAR_DEFAULT_COR, PILAR_DESCRICAO_MAX } from '../lib/pilarConstants';
 import { EntityColorPicker, entitySwatchInk } from './EntityColorPicker';
+import { rotuloDaRef } from '../../contas/lib/contas';
 
 const PILAR_QUICK_COLORS = ['#F5C543', '#FB923C', '#EF4444', '#9065B0', '#4A90D9', '#4ADE80'];
 
@@ -311,8 +312,11 @@ export function PilarEditForm({
         ativo: form.ativo,
         frequenciaSemanal: initial.frequenciaSemanal ?? null,
         metaCiclo: initial.metaCiclo ?? null,
-        plataformas: platformNames
-          .map(platformId => form.plataformas.find(item => item.platformId === platformId))
+        plataformas: [
+          ...platformNames.map(platformId => form.plataformas.find(item => item.platformId === platformId)),
+          // Contas inativas não aparecem nas abas, mas o que já estava guardado nelas fica.
+          ...form.plataformas.filter(item => !platformNames.includes(item.platformId)),
+        ]
           .filter((item): item is PilarPlataforma => Boolean(item && shouldPersistPilarPlataforma(item)))
           .map(item => ({...item, hashtags: item.hashtags.trim()})),
         createdAt: initial.createdAt || new Date().toISOString(),
@@ -422,7 +426,7 @@ export function PilarEditForm({
           <Surface variant="outlined" padding="md">
             <CardHeading
               title="Plataformas"
-              description="Hashtags, dias e janela de publicação por plataforma."
+              description="Hashtags, dias e janela de publicação por conta."
             />
             {platformNames.length === 0 || !activePlataforma || !selectedPlatform ? (
               <Text variant="meta" className="text-[var(--text-tertiary)]">
@@ -438,8 +442,8 @@ export function PilarEditForm({
                   onChange={setActivePlatform}
                   options={platformNames.map(platform => ({
                     id: platform,
-                    label: platform,
-                    icon: <PlatformBrand platform={platform} />,
+                    label: rotuloDaRef(platform, platforms),
+                    icon: <PlatformBrand platform={rotuloDaRef(platform, platforms)} />,
                   }))}
                 />
 
@@ -453,7 +457,7 @@ export function PilarEditForm({
                       disabled={!activePlataforma.hashtags.trim()}
                       leftIcon={<Copy className="h-3.5 w-3.5" />}
                       className="pointer-coarse:h-11"
-                      aria-label={`Copiar hashtags de ${selectedPlatform}`}
+                      aria-label={`Copiar hashtags de ${rotuloDaRef(selectedPlatform, platforms)}`}
                     >
                       Copiar
                     </AppButton>

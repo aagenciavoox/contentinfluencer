@@ -34,7 +34,7 @@ import {
   POSTING_WINDOWS,
   type PostingWindowId,
 } from '../../lib/postingWindow';
-import {getAllowedStatuses, getDisplayStatus} from '../../lib/contentPipeline';
+import {getAllowedStatuses, getDisplayStatus, getStatusOptions} from '../../lib/contentPipeline';
 import {LivroMultiSelect} from './LivroMultiSelect';
 import {TemaField} from './TemaField';
 
@@ -274,24 +274,35 @@ export function ContentStatusField({
       </button>
       {open ? (
         <div className="absolute left-0 right-0 top-full z-50 mt-1 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] p-1 shadow-[var(--shadow-dropdown)]">
-          {allowedStatuses.map(option => (
-            <button
-              key={option}
-              type="button"
-              onClick={() => {
-                onStatusChange(option);
-                setOpen(false);
-              }}
-              className={cn(
-                'w-full rounded-md px-3 py-2 text-left text-sm transition-colors',
-                status === option
-                  ? 'bg-[var(--bg-hover)] font-semibold text-[var(--text-primary)]'
-                  : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]',
-              )}
-            >
-              {option}
-            </button>
-          ))}
+          {/* Todas as etapas na ordem; as que a regra não permite agora ficam visíveis e travadas. */}
+          {getStatusOptions(status).map(option => {
+            const permitida = option.disponivel && allowedStatuses.includes(option.status);
+            return (
+              <button
+                key={option.status}
+                type="button"
+                disabled={!permitida}
+                title={option.motivo ?? undefined}
+                aria-current={option.atual ? 'true' : undefined}
+                onClick={() => {
+                  if (!permitida) return;
+                  onStatusChange(option.status);
+                  setOpen(false);
+                }}
+                className={cn(
+                  'w-full rounded-md px-3 py-2 text-left text-sm transition-colors disabled:cursor-not-allowed',
+                  option.atual
+                    ? 'bg-[var(--bg-hover)] font-semibold text-[var(--text-primary)]'
+                    : permitida
+                      ? 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]'
+                      : 'text-[var(--text-tertiary)] opacity-60',
+                )}
+              >
+                <span className="block">{option.status}{option.atual ? ' · atual' : ''}</span>
+                {option.motivo ? <span className="block text-xs">{option.motivo}</span> : null}
+              </button>
+            );
+          })}
         </div>
       ) : null}
     </div>

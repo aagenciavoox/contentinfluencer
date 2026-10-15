@@ -231,7 +231,7 @@ export function PeriodoPanel({
   }
 
   const numeros = [
-    { id: 'limite', rotulo: 'Limite', valor: celula(contagem.limite) },
+    { id: 'limite', rotulo: periodo.modo === 'semana' ? 'Limite da semana' : 'Limite do período', valor: celula(contagem.limite) },
     { id: 'previstos', rotulo: 'Previstos', valor: String(contagem.previsto) },
     { id: 'com-pauta', rotulo: 'Com pauta', valor: String(contagem.comPauta) },
     { id: 'publicados', rotulo: 'Publicados', valor: String(contagem.publicado) },
@@ -266,11 +266,12 @@ export function PeriodoPanel({
     });
 
   return (
-    <div className="stack-lg">
+    <div className="stack-md">
       <PeriodoEditorialControl periodo={periodo} onChange={onPeriodoChange} />
 
-      <Surface>
+      <Surface padding="sm">
         <CampoTexto
+          key={`${periodo.inicio}:${periodo.fim}`}
           id="prioridade-periodo"
           label="Prioridade deste período"
           rows={2}
@@ -284,13 +285,20 @@ export function PeriodoPanel({
       </Surface>
 
       {semLimite ? (
-        <Surface className="flex flex-wrap items-center justify-between gap-3">
+        <Surface padding="sm" className="flex flex-wrap items-center justify-between gap-3">
           <Text variant="body">Defina quantos roteiros cabem por semana para ver a conta do período.</Text>
           <AppButton variant="secondary" size="sm" onClick={onAbrirAjustes}>
             Definir limite
           </AppButton>
         </Surface>
       ) : (
+        <div className="stack-sm">
+        <Text variant="secondary">
+          {periodo.modo === 'semana'
+            ? `O limite semanal dos ajustes é ${limiteSemanal}. Nesta semana ele entra inteiro, salvo um ajuste próprio desta semana.`
+            : `O limite semanal dos ajustes é ${limiteSemanal}. O limite deste período soma as semanas inteiras e, nas semanas cortadas, usa limite × dias ÷ 7, arredondado.`}
+          {' '}A unidade é o roteiro: cada um entra uma vez, na data da publicação original que conta na grade. Reposts e roteiros fora da grade não entram.
+        </Text>
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           {numeros.map(item => (
             <Surface key={item.id} variant="info">
@@ -298,6 +306,7 @@ export function PeriodoPanel({
               <Text variant="itemTitle" as="p" className="mt-1 tabular-nums">{item.valor}</Text>
             </Surface>
           ))}
+        </div>
         </div>
       )}
 

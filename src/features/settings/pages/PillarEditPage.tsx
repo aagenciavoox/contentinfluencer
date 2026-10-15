@@ -13,6 +13,7 @@ import { DesktopPageHeader } from '../../../layouts/page/DesktopPageHeader';
 import { PageLayout } from '../../../layouts/page/PageLayout';
 import type { Pilar } from '../../../lib/database';
 import { CONFIRM } from '../../../lib/uiCopy';
+import { contasAtivas } from '../../contas/lib/contas';
 import {
   PilarEditForm,
   type PilarEditChromeState,
@@ -73,8 +74,9 @@ export function PillarEditPage() {
     [isCreate, pilarId, state.pilares],
   );
 
+  // Ids das contas ativas. O formulário mostra cada uma com plataforma e @.
   const platformNames = useMemo(
-    () => state.platforms.filter(platform => platform.ativo).map(platform => platform.nome),
+    () => contasAtivas(state.platforms).map(platform => platform.id),
     [state.platforms],
   );
 

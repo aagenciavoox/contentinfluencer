@@ -208,7 +208,8 @@ function RecordingBlockCard({block, contents, onOpen, onRecord, onDelete}: Recor
 
         {firstContent ? (
           <Text variant="secondary" className="mb-6 line-clamp-2">
-            Ex.: {firstContent.title}
+            {/* "Ex.:" é o prefixo de placeholder da casa; num título real parecia campo vazio. */}
+            Começa com: {firstContent.title}
           </Text>
         ) : null}
 

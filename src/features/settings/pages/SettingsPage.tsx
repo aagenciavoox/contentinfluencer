@@ -70,10 +70,10 @@ export function SettingsPage() {
     },
     {
       key: 'plataformas',
-      to: '/configuracoes/plataformas',
+      to: '/contas',
       icon: MonitorSpeaker,
-      title: 'Plataformas',
-      desc: 'Canais de publicação e horários de postagem por dia da semana',
+      title: 'Contas e horários',
+      desc: 'Contas de cada rede e horários de postagem',
     },
   ].map(item => ({...item, status: getItemStatus(item.key)}));
 

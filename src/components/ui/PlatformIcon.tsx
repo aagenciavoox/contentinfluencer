@@ -17,12 +17,24 @@ interface PlatformIconProps {
   className?: string;
 }
 
-/** Ícone da plataforma; para plataformas sem ícone, mostra as 2 primeiras letras. */
+/** A rede pelo começo do texto: "instagram", "Instagram @diza" e "Instagram · Leituras" dão Instagram. */
+function redeDoTexto(texto: string): 'instagram' | 'tiktok' | 'youtube' | null {
+  const key = platformKey(texto);
+  if (key.startsWith('instagram')) return 'instagram';
+  if (key.startsWith('tiktok')) return 'tiktok';
+  if (key.startsWith('youtube')) return 'youtube';
+  return null;
+}
+
+/**
+ * Ícone da plataforma. Aceita a rede (`instagram`) ou o rótulo da conta
+ * (`Instagram @diza`); para plataformas sem ícone, mostra as 2 primeiras letras.
+ */
 export function PlatformIcon({ platform, className }: PlatformIconProps) {
-  const key = platformKey(platform);
-  if (key === 'instagram') return <Instagram className={className} aria-hidden />;
-  if (key === 'youtube') return <Youtube className={className} aria-hidden />;
-  if (key === 'tiktok') return <TikTokIcon className={className} />;
+  const rede = redeDoTexto(platform);
+  if (rede === 'instagram') return <Instagram className={className} aria-hidden />;
+  if (rede === 'youtube') return <Youtube className={className} aria-hidden />;
+  if (rede === 'tiktok') return <TikTokIcon className={className} />;
   return (
     <span className={cn('text-xs font-semibold', className)} aria-hidden>
       {platform.trim().slice(0, 2)}

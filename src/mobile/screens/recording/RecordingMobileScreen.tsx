@@ -2,12 +2,13 @@ import { useMemo, useState } from 'react';
 import { BookOpenText, Check, Clapperboard, ExternalLink, Layers3, Plus, SearchCheck, Tags, Video } from 'lucide-react';
 import type { Content, Pilar, RecordingBlock, Serie } from '../../../lib/database';
 import { EmptyState } from '../../../components/ui/EmptyState';
+import { SkeletonList } from '../../../components/ui/Skeleton';
 import { EMPTY } from '../../../lib/uiCopy';
 import { MobileFilterSheet } from '../../components/MobileFilterSheet';
 import { MobileListCard } from '../../components/MobileListCard';
 import { MobileSearchBar } from '../../components/MobileSearchBar';
 import { MobileSegmentTabs } from '../../components/MobileSegmentTabs';
-import {getRecordingBlockProgress, normalizeRecordingTags, resolveRecordingContextSummary} from '../../../features/recording/lib/recordingWorkflow';
+import {getRecordingBlockProgress, normalizeRecordingTags, recordingTagChipStyle, resolveRecordingContextSummary} from '../../../features/recording/lib/recordingWorkflow';
 import { TagSelect } from '../../../components/ui/TagSelect';
 import { AppButton } from '../../../components/ui/AppButton';
 import { cn, getEntityTagStyle } from '../../../lib/utils';
@@ -198,7 +199,10 @@ export function RecordingMobileScreen({
               onFilterClick={() => setIsFilterSheetOpen(true)}
             />
 
-            {filteredQueue.length === 0 ? (
+            {!countsReady ? (
+              // Sem os blocos, roteiros que já estão num bloco apareceriam aqui como "sem bloco".
+              <SkeletonList count={3} />
+            ) : filteredQueue.length === 0 ? (
               <EmptyState compact
                 title={EMPTY.roteirosSemBloco.title}
                 description={EMPTY.roteirosSemBloco.description}
@@ -221,8 +225,8 @@ export function RecordingMobileScreen({
                   const statusLabel = scriptBodyStatusLabel(bodyStatus, scriptWordCount);
 
                   return (
+                    <div key={content.id} className="stack-sm">
                     <MobileListCard
-                      key={content.id}
                       onClick={() => toggleSelect(content.id)}
                       className={selected ? 'ring-1 ring-[var(--text-primary)]' : undefined}
                       status={
@@ -234,19 +238,6 @@ export function RecordingMobileScreen({
                       description={statusLabel}
                       trailing={
                         <div className="flex items-center gap-1">
-                          {bodyStatus === 'error' && onRetryHydration ? (
-                            <AppButton
-                              variant="ghost"
-                              size="xs"
-                              onClick={event => {
-                                event.stopPropagation();
-                                onRetryHydration(content.id);
-                              }}
-                              className="border-[var(--border-color)]"
-                            >
-                              Tentar novamente
-                            </AppButton>
-                          ) : null}
                           <AppButton
                             variant="ghost"
                             size="xs"
@@ -293,7 +284,8 @@ export function RecordingMobileScreen({
                           {recordingTags.slice(0, 2).map((tag) => (
                             <span
                               key={`${content.id}-${tag}`}
-                              className="inline-flex items-center gap-1 rounded-md bg-[var(--accent-orange)]/10 px-1.5 py-0.5 text-xs font-semibold text-[var(--accent-orange)]"
+                              className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-semibold"
+                              style={recordingTagChipStyle}
                             >
                               <Tags className="h-3 w-3" />
                               {tag}
@@ -302,6 +294,17 @@ export function RecordingMobileScreen({
                         </>
                       }
                     />
+                    {bodyStatus === 'error' && onRetryHydration ? (
+                      <AppButton
+                        variant="ghost"
+                        size="xs"
+                        onClick={() => onRetryHydration(content.id)}
+                        className="self-start border-[var(--border-color)]"
+                      >
+                        Tentar novamente
+                      </AppButton>
+                    ) : null}
+                    </div>
                   );
                 })}
               </div>

@@ -1,5 +1,4 @@
 import { dataCache } from './dataCache.ts';
-import { getCachedPlatforms } from './platformsCache.ts';
 import { supabase } from './supabase.ts';
 import { normalizeContentStatus } from '../features/contents/lib/contentPipeline';
 import { hydrateIdeasFromDemotedContents } from '../features/ideas/lib/hydrateIdeasFromDemotedContents';
@@ -12,12 +11,40 @@ import { readAvisoDias } from '../features/projects/lib/evento.ts';
 // TYPES
 // ============================================================================
 
+/** Plataforma da conta. `outra` cobre Blog e cadastros fora das três redes. */
+export type RedeSocial = 'instagram' | 'tiktok' | 'youtube' | 'outra';
+
+/** Estado da conexão com uma integração. Cadastrar o @ não muda este valor. */
+export type ConexaoStatus = 'nao_conectada' | 'conectada' | 'expirada' | 'erro';
+
+export interface ContaConexao {
+  status: ConexaoStatus;
+  /** Ex.: `instagram_graph`. Vazio enquanto não há integração. */
+  provedor: string | null;
+  /** Id da conta na integração, quando ela devolver. */
+  contaExternaId: string | null;
+  atualizadaEm: string | null;
+}
+
+/**
+ * Uma conta de publicação. O nome da tabela continua `platforms`: cada linha
+ * é uma conta, e os vínculos (publicações, horários, hashtags, métricas)
+ * usam o `id`. O `handle` só identifica na tela e pode mudar.
+ */
 export interface Platform {
   id: string;
   userId: string | null;
+  /** Nome de identificação da conta. */
   nome: string;
+  /** Estado de cadastro: ativa para criação ou guardada só para histórico. */
   ativo: boolean;
   createdAt: string;
+  /** Vazio no banco antigo ou quando o nome não indica a plataforma. */
+  rede?: RedeSocial | null;
+  /** O @, guardado sem arroba. */
+  handle?: string | null;
+  conexao?: ContaConexao;
+  updatedAt?: string | null;
 }
 
 export interface DnaVoz {
@@ -57,8 +84,11 @@ export interface Pilar {
 
 export interface SeriePlataforma {
   serieId: string;
+  /** Id da conta. */
   platformId: string;
   hashtags: string;
+  /** Versão da legenda da série para esta conta. Vazio usa a legenda-base da série. */
+  legenda?: string | null;
 }
 
 /** Seis funções fixas do produto. O agrupamento topo/meio/fundo é calculado. */
@@ -111,6 +141,8 @@ export interface Serie {
   formatoApresentacao?: string | null;
   motivoSalvar?: string | null;
   motivoEnviar?: string | null;
+  /** Legenda que orienta os roteiros novos da série. Ausente no banco antigo. */
+  legendaBase?: string | null;
   createdAt: string;
   updatedAt: string;
   pilarIds: string[];
@@ -240,9 +272,14 @@ export type PublicationKind = 'post' | 'repost';
 
 export type PublicacaoStatus = 'agendada' | 'publicada' | 'nao_publicada' | 'removida';
 
+/**
+ * Publicação: a ocorrência de um conteúdo numa conta. Conta, legenda, datas,
+ * status, link e métricas são desta publicação, não do conteúdo.
+ */
 export interface ContentPlataforma {
   id: string;
   contentId: string;
+  /** Id da conta (`platforms.id`). */
   platformId: string;
   legenda: string;
   hashtags: string;
@@ -257,6 +294,9 @@ export interface ContentPlataforma {
   realizadaApiEm?: string | null;
   postCodigo?: string | null;
   postUrl?: string | null;
+  /** Id da publicação na integração. Só a integração preenche. */
+  externoId?: string | null;
+  /** Verdadeiro: versão própria. Falso: acompanha a legenda-base do conteúdo. */
   legendaPropria?: boolean;
   /** Usado em reposts. Ausente no banco antigo conta como verdadeiro. */
   contaNaGrade?: boolean;
@@ -464,11 +504,20 @@ export interface GoldenRule {
   createdAt: string;
 }
 
+/** De onde vieram os números. Nada é estimado pelo app. */
+export type MetricaOrigem = 'manual' | 'importacao' | 'api';
+
 export interface ContentMetric {
   id: string;
   userId: string;
   contentId: string;
+  /** Id da conta. */
   platformId: string;
+  /** Publicação dona destes números. Vazio em métrica antiga ainda sem publicação única. */
+  publicacaoId?: string | null;
+  origem?: MetricaOrigem;
+  /** Última atualização dos números. */
+  atualizadoEm?: string | null;
   views: number | null;
   likes: number | null;
   comments: number | null;
@@ -488,7 +537,7 @@ export interface ContentMetric {
 export interface PostingTimeEntry {
   id: string;
   userId: string;
-  /** null = horário global (fallback para todas as plataformas) */
+  /** Id da conta. null = horário geral, usado pelas contas sem horário próprio no dia. */
   platformId: string | null;
   /** 0 = domingo … 6 = sábado */
   weekday: 0 | 1 | 2 | 3 | 4 | 5 | 6;
@@ -606,14 +655,6 @@ function assertQuerySuccess<T>(label: string, result: { data: T; error: { messag
   return result.data;
 }
 
-function looksLikeUuid(value: string) {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
-}
-
-function normalizePlatformRef(platformId: string, platformNameById: Map<string, string>) {
-  return platformNameById.get(platformId) || platformId;
-}
-
 function isMissingPublishTimeColumn(error: {message?: string} | null | undefined) {
   return !!error?.message?.includes("'publish_time' column");
 }
@@ -674,7 +715,10 @@ const SERIE_OPTIONAL_COLUMNS = [
   'frequencia_vezes',
   'frequencia_unidade',
   'frequencia_a_partir_de',
+  'legenda_base',
 ] as const;
+
+const MIGRACAO_CONTAS = '20261015120000_contas_legendas_metricas';
 
 const CONTENT_CONTAGEM_ORIGEM_COLUMNS = [
   'rede_referencia_congelada_id',
@@ -755,11 +799,29 @@ function readPublicacaoStatus(value: unknown): PublicacaoStatus {
     : 'agendada';
 }
 
-function mapContentPlataforma(p: Row, platformId: string = p.platform_id): ContentPlataforma {
+function readRede(value: unknown): RedeSocial | null {
+  return value === 'instagram' || value === 'tiktok' || value === 'youtube' || value === 'outra'
+    ? value
+    : null;
+}
+
+function readConexaoStatus(value: unknown): ConexaoStatus {
+  return value === 'conectada' || value === 'expirada' || value === 'erro' ? value : 'nao_conectada';
+}
+
+function readTextoOpcional(value: unknown): string | null {
+  return typeof value === 'string' && value.trim() ? value : null;
+}
+
+function readMetricaOrigem(value: unknown): MetricaOrigem {
+  return value === 'importacao' || value === 'api' ? value : 'manual';
+}
+
+function mapContentPlataforma(p: Row): ContentPlataforma {
   return {
     id: p.id,
     contentId: p.content_id,
-    platformId,
+    platformId: String(p.platform_id),
     legenda: p.legenda || '',
     hashtags: p.hashtags || '',
     publishDate: p.publish_date,
@@ -771,6 +833,7 @@ function mapContentPlataforma(p: Row, platformId: string = p.platform_id): Conte
     realizadaApiEm: p.realizada_api_em ?? null,
     postCodigo: p.post_codigo ?? null,
     postUrl: p.post_url ?? null,
+    externoId: readTextoOpcional(p.externo_id),
     legendaPropria: p.legenda_propria === true,
     contaNaGrade: p.conta_na_grade === false ? false : true,
   };
@@ -801,7 +864,16 @@ function readFuncaoOrigem(value: unknown): FuncaoOrigem | null {
 
 const mp = {
   platform: (r: Row): Platform => ({
-    id: r.id, userId: r.user_id, nome: r.nome, ativo: r.ativo, createdAt: r.created_at,
+    id: String(r.id), userId: r.user_id, nome: r.nome, ativo: r.ativo, createdAt: r.created_at,
+    rede: readRede(r.rede),
+    handle: readTextoOpcional(r.handle),
+    conexao: {
+      status: readConexaoStatus(r.conexao_status),
+      provedor: readTextoOpcional(r.conexao_provedor),
+      contaExternaId: readTextoOpcional(r.conexao_conta_externa_id),
+      atualizadaEm: readTextoOpcional(r.conexao_atualizada_em),
+    },
+    updatedAt: readTextoOpcional(r.updated_at),
   }),
   dnaVoz: (r: Row): DnaVoz => ({
     id: r.id, userId: r.user_id,
@@ -842,10 +914,14 @@ const mp = {
     formatoApresentacao: typeof r.formato_apresentacao === 'string' ? r.formato_apresentacao : null,
     motivoSalvar: typeof r.motivo_salvar === 'string' ? r.motivo_salvar : null,
     motivoEnviar: typeof r.motivo_enviar === 'string' ? r.motivo_enviar : null,
+    legendaBase: typeof r.legenda_base === 'string' ? r.legenda_base : null,
     createdAt: r.created_at, updatedAt: r.updated_at,
     pilarIds: (r.serie_pilares || []).map((sp: Row) => sp.pilar_id),
     plataformas: (r.serie_plataformas || []).map((sp: Row) => ({
-      serieId: sp.serie_id, platformId: sp.platform_id, hashtags: sp.hashtags || '',
+      serieId: sp.serie_id,
+      platformId: String(sp.platform_id),
+      hashtags: sp.hashtags || '',
+      legenda: typeof sp.legenda === 'string' ? sp.legenda : null,
     })),
   }),
   tema: (r: Row): Tema => ({
@@ -977,7 +1053,10 @@ const mp = {
     createdAt: r.created_at,
   }),
   contentMetric: (r: Row): ContentMetric => ({
-    id: r.id, userId: r.user_id, contentId: r.content_id, platformId: r.platform_id,
+    id: r.id, userId: r.user_id, contentId: r.content_id, platformId: String(r.platform_id),
+    publicacaoId: r.publicacao_id == null ? null : String(r.publicacao_id),
+    origem: readMetricaOrigem(r.origem),
+    atualizadoEm: readTextoOpcional(r.atualizado_em) ?? readTextoOpcional(r.created_at),
     views: r.views, likes: r.likes, comments: r.comments, saves: r.saves,
     shares: r.shares, reposts: r.reposts, newFollowers: r.new_followers,
     accountsReached: r.accounts_reached, watchTime: r.watch_time,
@@ -991,13 +1070,12 @@ const mp = {
   }),
 };
 
-function mapContentWithPlatforms(row: Row, platformNameById: Map<string, string>): Content {
-  return {
-    ...mp.content(row),
-    plataformas: (row.content_plataformas || []).map((p: Row) => (
-      mapContentPlataforma(p, normalizePlatformRef(p.platform_id, platformNameById))
-    )),
-  };
+/**
+ * Publicações chegam com o id da conta. Antes o app trocava o id pelo nome da
+ * plataforma, o que confundia duas contas da mesma rede.
+ */
+function mapContentWithPlatforms(row: Row): Content {
+  return mp.content(row);
 }
 
 async function fetchTemaIdsByContent(contentIds: readonly string[]): Promise<Map<string, string[]> | null> {
@@ -1071,10 +1149,14 @@ const CONTENT_SCHEDULE_SELECT_COLUMNS = [
 
 const CONTENT_PLATAFORMAS_PUBLICACAO_COLUMNS = 'status, realizada_manual_em, realizada_api_em, post_codigo, post_url, legenda_propria, conta_na_grade';
 
-function contentPlataformasSelect(includePublicacaoColumns: boolean): string {
+function contentPlataformasSelect(includePublicacaoColumns: boolean, includeExternoId = false): string {
   const base = 'content_plataformas(id, content_id, platform_id, legenda, hashtags, publish_date, publish_time, publish_date_enabled, publication_kind';
   if (!includePublicacaoColumns) return base + ')';
-  return base + ', ' + CONTENT_PLATAFORMAS_PUBLICACAO_COLUMNS + ')';
+  return base + ', ' + CONTENT_PLATAFORMAS_PUBLICACAO_COLUMNS + (includeExternoId ? ', externo_id' : '') + ')';
+}
+
+function isMissingExternoIdColumn(error: {message?: string} | null | undefined) {
+  return !!error?.message && isMissingNamedColumn(error.message, 'externo_id');
 }
 
 const CONTENT_SCHEDULE_MILESTONE_COLUMNS = ['recorded_at', 'posted_at'] as const;
@@ -1095,6 +1177,7 @@ function buildContentScheduleSelect(
   includeLivroIds = true,
   includeRecordingTime = true,
   includeContagemOrigem = true,
+  includeExternoId = true,
 ): string {
   let columns: readonly string[] = includeMilestones
     ? [
@@ -1130,7 +1213,7 @@ function buildContentScheduleSelect(
   }
   if (includePublicacaoColumns) {
     columns = columns.map(column => (
-      column.startsWith('content_plataformas(') ? contentPlataformasSelect(true) : column
+      column.startsWith('content_plataformas(') ? contentPlataformasSelect(true, includeExternoId) : column
     ));
   }
   return columns.join(', ');
@@ -1150,8 +1233,9 @@ async function runContentScheduleSelect<T>(
   let includeLivroIds = true;
   let includeRecordingTime = true;
   let includeContagemOrigem = true;
+  let includeExternoId = true;
 
-  for (let attempt = 0; attempt < 10; attempt += 1) {
+  for (let attempt = 0; attempt < 11; attempt += 1) {
     const result = await run(
       buildContentScheduleSelect(
         includeMilestones,
@@ -1162,9 +1246,14 @@ async function runContentScheduleSelect<T>(
         includeLivroIds,
         includeRecordingTime,
         includeContagemOrigem,
+        includeExternoId,
       ),
     );
     if (!result.error) return result;
+    if (includeExternoId && isMissingExternoIdColumn(result.error)) {
+      includeExternoId = false;
+      continue;
+    }
     if (includeContagemOrigem && isMissingContagemOrigemColumns(result.error)) {
       includeContagemOrigem = false;
       continue;
@@ -1200,7 +1289,7 @@ async function runContentScheduleSelect<T>(
     return result;
   }
 
-  return run(buildContentScheduleSelect(false, false, false, false, false, false, false, false));
+  return run(buildContentScheduleSelect(false, false, false, false, false, false, false, false, false));
 }
 const CONTENT_LIST_SORT_COLUMNS: Record<string, string> = {
   createdAt: 'created_at',
@@ -1303,17 +1392,10 @@ export async function fetchContentsPage(
     );
   }
 
-  const platforms = await getCachedPlatforms(userId, async () =>
-    assertQuerySuccess(
-      'platforms fetch',
-      await supabase.from('platforms').select('*').or(`user_id.is.null,user_id.eq.${userId}`),
-    ) || [],
-  );
-  const platformNameById = new Map(platforms.map((platform: Row) => [platform.id, platform.nome]));
   const rows = assertQuerySuccess('contents page fetch', result) || [];
 
   return {
-    items: await withTemaIds(rows.map((row: Row) => mapContentWithPlatforms(row, platformNameById))),
+    items: await withTemaIds(rows.map((row: Row) => mapContentWithPlatforms(row))),
     total: result.count ?? rows.length,
   };
 }
@@ -1337,17 +1419,8 @@ export async function fetchArchivedContents(userId: string): Promise<Content[]> 
     throw new Error(`archived contents fetch: ${contentsResult.error.message}`);
   }
 
-  const platforms = await getCachedPlatforms(userId, async () =>
-    assertQuerySuccess(
-      'platforms fetch',
-      await supabase.from('platforms').select('*').or(`user_id.is.null,user_id.eq.${userId}`),
-    ) || [],
-  );
-  const platformNameById = new Map(
-    platforms.map((platform: Row) => [platform.id, platform.nome]),
-  );
   return withTemaIds((contentsResult.data || []).map(
-    (row: Row) => mapContentWithPlatforms(row, platformNameById),
+    (row: Row) => mapContentWithPlatforms(row),
   ));
 }
 
@@ -1368,17 +1441,8 @@ export async function fetchDeletedContents(userId: string): Promise<Content[]> {
     throw new Error(`deleted contents fetch: ${contentsResult.error.message}`);
   }
 
-  const platforms = await getCachedPlatforms(userId, async () =>
-    assertQuerySuccess(
-      'platforms fetch',
-      await supabase.from('platforms').select('*').or(`user_id.is.null,user_id.eq.${userId}`),
-    ) || [],
-  );
-  const platformNameById = new Map(
-    platforms.map((platform: Row) => [platform.id, platform.nome]),
-  );
   return withTemaIds((contentsResult.data || []).map(
-    (row: Row) => mapContentWithPlatforms(row, platformNameById),
+    (row: Row) => mapContentWithPlatforms(row),
   ));
 }
 
@@ -1400,20 +1464,10 @@ export async function fetchContentsByIds(
     contentsQuery = contentsQuery.is('deleted_at', null);
   }
 
-  const [platforms, contentsResult] = await Promise.all([
-    getCachedPlatforms(userId, async () =>
-      assertQuerySuccess(
-        'platforms fetch',
-        await supabase.from('platforms').select('*').or(`user_id.is.null,user_id.eq.${userId}`),
-      ) || [],
-    ),
-    contentsQuery,
-  ]);
-
-  const platformNameById = new Map(platforms.map((platform: Row) => [platform.id, platform.nome]));
+  const contentsResult = await contentsQuery;
   const rows = assertQuerySuccess('contents by ids fetch', contentsResult) || [];
 
-  return withTemaIds(rows.map((row: Row) => mapContentWithPlatforms(row, platformNameById)));
+  return withTemaIds(rows.map((row: Row) => mapContentWithPlatforms(row)));
 }
 
 export async function fetchContentStatusCounts(
@@ -1683,24 +1737,10 @@ export async function fetchDataDomains(
   const requested = new Set(domains);
   const payload: Partial<AppData> = {};
 
-  const needsPlatforms =
-    requested.has('bootstrap') ||
-    requested.has('production') ||
-    requested.has('content') ||
-    requested.has('content-schedule') ||
-    requested.has('content-summary') ||
-    requested.has('analytics');
-
-  const platformsPromise = needsPlatforms
+  // As contas vêm no bootstrap. Os vínculos usam o id, então os outros domínios não precisam delas.
+  const platformsPromise = requested.has('bootstrap')
     ? supabase.from('platforms').select('*').or(`user_id.is.null,user_id.eq.${uid}`)
     : null;
-
-  const platformNameByIdPromise = platformsPromise
-    ? platformsPromise.then(result => {
-      const platforms = assertQuerySuccess('platforms fetch', result) || [];
-      return new Map(platforms.map((platform: Row) => [platform.id, platform.nome]));
-    })
-    : Promise.resolve(new Map<string, string>());
 
   const tasks: Promise<void>[] = [];
 
@@ -1732,7 +1772,6 @@ export async function fetchDataDomains(
 
   if (requested.has('production')) {
     tasks.push((async () => {
-      const platformNameById = await platformNameByIdPromise;
       const [pilaresResult, seriesResult, cenariosResult, looksResult] = await Promise.all([
         supabase.from('pilares').select('*, pilar_plataformas(*)').eq('user_id', uid).is('deleted_at', null),
         supabase.from('series').select('*, serie_pilares(pilar_id), serie_plataformas(*)').eq('user_id', uid).is('deleted_at', null),
@@ -1745,7 +1784,7 @@ export async function fetchDataDomains(
         ...mp.pilar(row),
         plataformas: (row.pilar_plataformas || []).map((p: Row) => ({
           pilarId: p.pilar_id,
-          platformId: normalizePlatformRef(p.platform_id, platformNameById),
+          platformId: String(p.platform_id),
           hashtags: p.hashtags || '',
           melhoresDias: Array.isArray(p.melhores_dias)
             ? p.melhores_dias.filter((day: number) => day >= 0 && day <= 6)
@@ -1754,14 +1793,7 @@ export async function fetchDataDomains(
           janelaHorarioFim: p.janela_fim ?? null,
         })),
       }));
-      payload.series = seriesRows.map((row: Row) => ({
-        ...mp.serie(row),
-        plataformas: (row.serie_plataformas || []).map((p: Row) => ({
-          serieId: p.serie_id,
-          platformId: normalizePlatformRef(p.platform_id, platformNameById),
-          hashtags: p.hashtags || '',
-        })),
-      }));
+      payload.series = seriesRows.map((row: Row) => mp.serie(row));
       payload.cenarios = (assertQuerySuccess('cenarios fetch', cenariosResult) || []).map(mp.cenario);
       payload.looks = (assertQuerySuccess('looks fetch', looksResult) || []).map(mp.look);
 
@@ -1795,8 +1827,6 @@ export async function fetchDataDomains(
 
   if (requested.has('content') || requested.has('content-summary') || requested.has('content-schedule')) {
     tasks.push((async () => {
-      const platformNameById = await platformNameByIdPromise;
-
       const buildDomainContentsRequest = (
         select: string,
         includeArchiveFilter = true,
@@ -1834,7 +1864,7 @@ export async function fetchDataDomains(
       }
       const contentsRows = assertQuerySuccess('contents fetch', contentsResult) || [];
       payload.contents = await withTemaIds(
-        contentsRows.map((row: Row) => mapContentWithPlatforms(row, platformNameById)),
+        contentsRows.map((row: Row) => mapContentWithPlatforms(row)),
       );
     })());
   }
@@ -1922,14 +1952,10 @@ export async function fetchDataDomains(
 
   if (requested.has('analytics')) {
     tasks.push((async () => {
-      const platformNameById = await platformNameByIdPromise;
       payload.contentMetrics = (assertQuerySuccess(
         'content_metrics fetch',
         await supabase.from('content_metrics').select('*').eq('user_id', uid),
-      ) || []).map((row: Row) => ({
-        ...mp.contentMetric(row),
-        platformId: normalizePlatformRef(row.platform_id, platformNameById),
-      }));
+      ) || []).map(mp.contentMetric);
     })());
   }
 
@@ -1951,25 +1977,34 @@ export async function fetchDataDomains(
   return payload;
 }
 
+/**
+ * Resolve o vínculo de conta para o id gravado no banco.
+ * O app manda o id. Um nome só aparece em dado antigo (cache, preferência) e só
+ * resolve quando uma única conta tem aquele nome: com duas, fica sem resolver
+ * em vez de escolher uma delas em silêncio.
+ */
 async function resolvePlatformIds(platformRefs: string[]): Promise<Map<string, string>> {
   const resolved = new Map<string, string>();
   const refs = [...new Set(platformRefs.filter(Boolean))];
   if (!supabase || refs.length === 0) return resolved;
 
-  refs.forEach(ref => {
-    if (looksLikeUuid(ref)) resolved.set(ref, ref);
-  });
-
-  const unresolvedRefs = refs.filter(ref => !resolved.has(ref));
-  if (unresolvedRefs.length === 0) return resolved;
-
+  // A tabela é pequena; ler tudo evita comparar texto com coluna uuid.
   const uid = await currentUserId();
-  const query = supabase.from('platforms').select('id, nome').in('nome', unresolvedRefs);
+  const query = supabase.from('platforms').select('id, nome');
   const scopedQuery = uid ? query.or(`user_id.is.null,user_id.eq.${uid}`) : query.is('user_id', null);
   const { data, error } = await scopedQuery;
   if (error) throw new Error(`platforms resolve: ${error.message}`);
 
-  (data || []).forEach((platform: Row) => resolved.set(platform.nome, platform.id));
+  const contas = (data || []).map((row: Row) => ({ id: String(row.id), nome: String(row.nome ?? '') }));
+  const ids = new Set(contas.map(conta => conta.id));
+  for (const ref of refs) {
+    if (ids.has(ref)) {
+      resolved.set(ref, ref);
+      continue;
+    }
+    const mesmoNome = contas.filter(conta => conta.nome === ref);
+    if (mesmoNome.length === 1) resolved.set(ref, mesmoNome[0].id);
+  }
   return resolved;
 }
 
@@ -1986,20 +2021,45 @@ export async function savePreference(key: string, value: any): Promise<void> {
   if (error) throw new Error(`preferences: ${error.message}`);
 }
 
+const PLATFORM_ACCOUNT_COLUMNS = ['rede', 'handle', 'updated_at'] as const;
+
+export class ContaMigracaoPendenteError extends Error {
+  constructor() {
+    super('Para guardar a plataforma e o @ da conta, aplique a migração 20261015120000_contas_legendas_metricas.');
+    this.name = 'ContaMigracaoPendenteError';
+  }
+}
+
+/** Grava a conta. A conexão não é gravada aqui: só a integração muda esse estado. */
 export async function savePlatform(platform: Omit<Platform, 'createdAt'>): Promise<void> {
   if (!supabase) throw new Error('Supabase não configurado');
   const uid = platform.userId ?? (await currentUserId());
   if (!uid) throw new Error('Usuário não autenticado');
-  const { error } = await supabase.from('platforms').upsert(
-    {
-      id: platform.id,
-      user_id: uid,
-      nome: platform.nome,
-      ativo: platform.ativo,
-    },
-    { onConflict: 'id' },
-  );
-  if (error) throw new Error(`platforms: ${error.message}`);
+  let row: Record<string, unknown> = {
+    id: platform.id,
+    user_id: uid,
+    nome: platform.nome,
+    ativo: platform.ativo,
+    rede: platform.rede ?? null,
+    handle: platform.handle?.trim() || null,
+    updated_at: new Date().toISOString(),
+  };
+
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    const { error } = await supabase.from('platforms').upsert(row, { onConflict: 'id' });
+    if (!error) return;
+    const missing = PLATFORM_ACCOUNT_COLUMNS.find(column =>
+      column in row && !!error.message && isMissingNamedColumn(error.message, column),
+    );
+    if (!missing) throw new Error(`platforms: ${error.message}`);
+    // Sem a migração, só dá para gravar nome e estado. Plataforma e @ não podem sumir calados.
+    if ((missing === 'rede' || missing === 'handle') && row[missing] != null) {
+      throw new ContaMigracaoPendenteError();
+    }
+    const { [missing]: _removed, ...rest } = row;
+    row = rest;
+  }
+  throw new Error('platforms: schema compatibility retries exhausted');
 }
 
 export async function deletePlatform(id: string): Promise<void> {
@@ -2112,6 +2172,7 @@ export async function saveSerie(serie: Omit<Serie, 'pilarIds' | 'plataformas' | 
   if ('frequenciaVezes' in serie) row.frequencia_vezes = serie.frequenciaVezes ?? null;
   if ('frequenciaUnidade' in serie) row.frequencia_unidade = serie.frequenciaUnidade?.trim() || null;
   if ('frequenciaAPartirDe' in serie) row.frequencia_a_partir_de = serie.frequenciaAPartirDe || null;
+  if ('legendaBase' in serie) row.legenda_base = serie.legendaBase?.trim() ? serie.legendaBase : null;
 
   for (let attempt = 0; attempt < 12; attempt += 1) {
     const { error } = await supabase.from('series').upsert(row);
@@ -2121,6 +2182,10 @@ export async function saveSerie(serie: Omit<Serie, 'pilarIds' | 'plataformas' | 
       column in row && !!error.message && isMissingNamedColumn(error.message, column),
     );
     if (missing) {
+      // A legenda da série não pode sumir calada quando a coluna ainda não existe.
+      if (missing === 'legenda_base' && row.legenda_base != null) {
+        throw new Error(`Para guardar a legenda da série, aplique a migração ${MIGRACAO_CONTAS}.`);
+      }
       const {[missing]: _removed, ...rest} = row;
       row = rest;
       continue;
@@ -2145,17 +2210,27 @@ export async function saveSeriePilares(serieId: string, pilarIds: string[]): Pro
 
 export async function saveSeriePlataformas(serieId: string, plataformas: SeriePlataforma[]): Promise<void> {
   if (!supabase) return;
+  const platformIds = await resolvePlatformIds(plataformas.map(plataforma => plataforma.platformId));
+  const rows = plataformas.map(plataforma => ({
+    serie_id: serieId,
+    platform_id: platformIds.get(plataforma.platformId),
+    hashtags: plataforma.hashtags,
+    legenda: plataforma.legenda?.trim() ? plataforma.legenda : null,
+  })).filter((row): row is typeof row & { platform_id: string } => !!row.platform_id);
+
   const { error: deleteError } = await supabase.from('serie_plataformas').delete().eq('serie_id', serieId);
   if (deleteError) throw new Error(`serie_plataformas delete: ${deleteError.message}`);
-  if (plataformas.length === 0) return;
-  const platformIds = await resolvePlatformIds(plataformas.map(plataforma => plataforma.platformId));
-  const { error } = await supabase.from('serie_plataformas').insert(
-    plataformas.map(plataforma => ({
-      serie_id: serieId,
-      platform_id: platformIds.get(plataforma.platformId),
-      hashtags: plataforma.hashtags,
-    })).filter((row): row is { serie_id: string; platform_id: string; hashtags: string } => !!row.platform_id)
-  );
+  if (rows.length === 0) return;
+
+  let { error } = await supabase.from('serie_plataformas').insert(rows);
+  if (error && isMissingNamedColumn(error.message ?? '', 'legenda')) {
+    if (rows.some(row => row.legenda != null)) {
+      // Sem a coluna, as versões por conta não têm onde ficar. As hashtags voltam a ser gravadas.
+      await supabase.from('serie_plataformas').insert(rows.map(({ legenda: _legenda, ...rest }) => rest));
+      throw new Error(`Para guardar as versões da legenda por conta, aplique a migração ${MIGRACAO_CONTAS}.`);
+    }
+    ({ error } = await supabase.from('serie_plataformas').insert(rows.map(({ legenda: _legenda, ...rest }) => rest)));
+  }
   if (error) throw new Error(`serie_plataformas: ${error.message}`);
 }
 
@@ -2925,12 +3000,17 @@ export async function deleteGoldenRule(id: string): Promise<void> {
 // MÉTRICAS
 // ============================================================================
 
-export async function saveContentMetric(metric: Omit<ContentMetric, 'id' | 'createdAt'>): Promise<void> {
+/**
+ * Métrica da publicação. Com `publicacaoId`, cada publicação tem a sua linha:
+ * o mesmo vídeo em duas contas guarda dois resultados.
+ * Sem a migração, volta ao formato antigo (uma linha por conteúdo e conta).
+ */
+export async function saveContentMetric(metric: Omit<ContentMetric, 'id' | 'createdAt'> & { id?: string }): Promise<void> {
   if (!supabase) return;
   const platformIds = await resolvePlatformIds([metric.platformId]);
   const platformId = platformIds.get(metric.platformId);
-  if (!platformId) throw new Error(`content_metrics: platform not found for "${metric.platformId}"`);
-  const { error } = await supabase.from('content_metrics').upsert({
+  if (!platformId) throw new Error(`content_metrics: conta não encontrada para "${metric.platformId}"`);
+  const numeros = {
     user_id: metric.userId, content_id: metric.contentId, platform_id: platformId,
     views: metric.views, likes: metric.likes, comments: metric.comments,
     saves: metric.saves, shares: metric.shares, reposts: metric.reposts,
@@ -2938,7 +3018,33 @@ export async function saveContentMetric(metric: Omit<ContentMetric, 'id' | 'crea
     watch_time: metric.watchTime, retention_rate: metric.retentionRate,
     completion_rate: metric.completionRate, qualitative_notes: metric.qualitativeNotes,
     registered_at: metric.registeredAt,
-  }, { onConflict: 'content_id,platform_id' });
+  };
+
+  if (metric.publicacaoId) {
+    const row = {
+      ...numeros,
+      publicacao_id: metric.publicacaoId,
+      origem: metric.origem ?? 'manual',
+      atualizado_em: metric.atualizadoEm ?? new Date().toISOString(),
+    };
+    const existente = metric.id
+      ? { data: { id: metric.id }, error: null }
+      : await supabase.from('content_metrics').select('id').eq('publicacao_id', metric.publicacaoId).maybeSingle();
+    if (existente.error && !isMissingNamedColumn(existente.error.message ?? '', 'publicacao_id')) {
+      throw new Error(`content_metrics: ${existente.error.message}`);
+    }
+    if (!existente.error) {
+      const { error } = existente.data?.id
+        ? await supabase.from('content_metrics').update(row).eq('id', existente.data.id)
+        : await supabase.from('content_metrics').insert(row);
+      if (!error) return;
+      if (!['publicacao_id', 'origem', 'atualizado_em'].some(column => isMissingNamedColumn(error.message ?? '', column))) {
+        throw new Error(`content_metrics: ${error.message}`);
+      }
+    }
+  }
+
+  const { error } = await supabase.from('content_metrics').upsert(numeros, { onConflict: 'content_id,platform_id' });
   if (error) throw new Error(`content_metrics: ${error.message}`);
 }
 

@@ -51,6 +51,7 @@ import {
 import {buildPublishCalendarItems, isScheduledItem, publishItemStatus, todayKey} from '../../../features/editorial-calendar/lib/publishCalendarItems';
 import {UNDATED_PILE_STORAGE_KEY} from '../../../features/editorial-calendar/components/UndatedRoteiroPile';
 import {PlatformIcon} from '../../../components/ui/PlatformIcon';
+import {rotuloDaRef} from '../../../features/contas/lib/contas';
 
 type AgendaTimelineKind = 'agenda' | 'recording' | 'publish' | 'project';
 
@@ -157,7 +158,6 @@ function MobileLayerChips({
 
 function buildTimelineEntries(contents: Content[], platforms: Platform[], agendaItems: AgendaItem[], projetos: Projeto[], series: Serie[], redeReferenciaId: string | null, platformFilter: string) {
   const projectById = new Map(projetos.map(p => [p.id, p]));
-  const platformNameById = new Map(platforms.map(platform => [platform.id, platform.nome]));
   const entries: AgendaTimelineEntry[] = [];
   const hoje = todayKey();
 
@@ -178,7 +178,7 @@ function buildTimelineEntries(contents: Content[], platforms: Platform[], agenda
   contents.forEach(content => {
     const displayStatus = getDisplayStatus(content);
     const platformNames = content.plataformas.map(
-      plataforma => platformNameById.get(plataforma.platformId) || plataforma.platformId,
+      plataforma => rotuloDaRef(plataforma.platformId, platforms),
     );
     if (content.recordingDate) {
       entries.push({

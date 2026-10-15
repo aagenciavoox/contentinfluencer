@@ -113,6 +113,7 @@ export function FilterBar({
               <select
                 value={sortValue}
                 onChange={(e) => onSortChange(e.target.value)}
+                aria-label="Ordenar"
                 className="filter-bar-select min-w-[140px] appearance-none pr-10"
               >
                 {sortOptions.map((opt) => (
@@ -138,6 +139,7 @@ export function FilterBar({
                 <select
                   value={filter.value}
                   onChange={(e) => filter.onChange(e.target.value)}
+                  aria-label={filter.label}
                   className={cn(
                     'filter-bar-select h-9 w-full appearance-none pr-8',
                     filter.value !== inactiveFilterValue(filter)

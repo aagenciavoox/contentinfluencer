@@ -5,7 +5,7 @@ import {Surface} from '../../../../components/ui/Surface';
 import {Text} from '../../../../components/ui/Text';
 import {useAppContext} from '../../../../context/AppContext';
 import type {Pilar, Serie} from '../../../../lib/database';
-import {getAllowedStatuses, normalizeContentStatus} from '../../lib/contentPipeline';
+import {CONTENT_STATUS, getStatusOptions, normalizeContentStatus} from '../../lib/contentPipeline';
 import {aplicarEscolhasDaSerie, marcarEscolhaManual} from '../../../editorial/lib/escolhasSerie';
 import {FuncaoEditorialFields} from './ContentOperationalPanel';
 import {LivroMultiSelect} from './LivroMultiSelect';
@@ -137,7 +137,8 @@ export function ContentManageWorkspace({
   const linkedSerie = draft.seriesId ? series.find(item => item.id === draft.seriesId) ?? null : null;
   const publishDateOnly = draft.publishDate ? draft.publishDate.slice(0, 10) : '';
   const currentStatus = normalizeContentStatus(draft.status);
-  const etapas = getAllowedStatuses(draft.status);
+  const etapas = getStatusOptions(draft.status);
+  const indisponiveis = etapas.filter(etapa => !etapa.disponivel);
 
   useEffect(() => {
     void ensureDataDomains(['library']);
@@ -155,6 +156,7 @@ export function ContentManageWorkspace({
           serie={linkedSerie}
           disabled={disabled}
           contentId={contentId}
+          status={draft.status}
           legendaBase={draft.legendaBase}
           onLegendaBaseChange={legendaBase => onChange({legendaBase})}
           titulo={draft.title}
@@ -174,10 +176,21 @@ export function ContentManageWorkspace({
                   value={currentStatus}
                   onChange={status => onChange({status})}
                 >
-                  {etapas.map(status => (
-                    <option key={status} value={status}>{status}</option>
+                  {/* Todas as etapas, na ordem. As fora de sequência aparecem, mas não podem ser escolhidas. */}
+                  {etapas.map(etapa => (
+                    <option key={etapa.status} value={etapa.status} disabled={!etapa.disponivel}>
+                      {etapa.atual
+                        ? `${etapa.status} (atual)`
+                        : etapa.disponivel ? etapa.status : `${etapa.status} (indisponível)`}
+                    </option>
                   ))}
                 </ManageSelect>
+                <Text variant="meta" as="p" className="mt-1.5 text-[var(--text-secondary)]">
+                  {indisponiveis.length > 0
+                    ? `Avance ou volte uma etapa por vez. ${indisponiveis.map(etapa => etapa.status).join(' e ')} ${indisponiveis.length === 1 ? 'fica' : 'ficam'} para depois.`
+                    : 'Avance ou volte uma etapa por vez.'}
+                  {currentStatus !== CONTENT_STATUS.POSTADO ? ' Postado pede a data e o link de cada conta.' : ''}
+                </Text>
               </label>
 
               <div className="border-t border-[var(--border-color)]" aria-hidden />
