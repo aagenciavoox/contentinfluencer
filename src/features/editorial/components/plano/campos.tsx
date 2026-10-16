@@ -92,7 +92,16 @@ export function CampoTexto({
     if (draftRef.current !== savedRef.current) onSaveRef.current(draftRef.current);
   }, []);
 
+  const timerRef = useRef<number | null>(null);
+  useEffect(() => () => {
+    if (timerRef.current != null) window.clearTimeout(timerRef.current);
+  }, []);
+
   const commit = () => {
+    if (timerRef.current != null) {
+      window.clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
     if (draftRef.current === savedRef.current) return;
     savedRef.current = draftRef.current;
     onSaveRef.current(draftRef.current);
@@ -108,6 +117,9 @@ export function CampoTexto({
       onChange={event => {
         draftRef.current = event.target.value;
         setDraft(event.target.value);
+        // Salva apos uma pausa curta na digitacao, sem esperar sair do campo.
+        if (timerRef.current != null) window.clearTimeout(timerRef.current);
+        timerRef.current = window.setTimeout(commit, 900);
       }}
       onBlur={commit}
       className={`${CAMPO} min-h-24 resize-y`}

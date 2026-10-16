@@ -260,6 +260,20 @@ export function BookDetailPage() {
     Boolean(livro) && JSON.stringify(infoLocal) !== infoSavedSnapshotRef.current,
     () => salvarInfoRef.current(),
   );
+  // A ficha salva sozinha ~0,9s depois da ultima mudanca (antes so no botao Salvar)
+  // e grava o que faltar ao sair da tela.
+  const infoJson = JSON.stringify(infoLocal);
+  const hasLivro = Boolean(livro);
+  useEffect(() => {
+    if (!hasLivro || infoJson === infoSavedSnapshotRef.current) return;
+    const timer = window.setTimeout(() => salvarInfoRef.current(), 900);
+    return () => window.clearTimeout(timer);
+  }, [hasLivro, infoJson]);
+  const infoJsonRef = useRef(infoJson);
+  infoJsonRef.current = infoJson;
+  useEffect(() => () => {
+    if (infoJsonRef.current !== infoSavedSnapshotRef.current) salvarInfoRef.current();
+  }, []);
 
   if (!livro) {
     return (

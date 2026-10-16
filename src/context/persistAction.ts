@@ -83,14 +83,25 @@ async function getPersistenceApi(api?: PersistenceApi): Promise<PersistenceApi> 
 export async function persistContentRecord(
   content: db.Content,
   userId: string,
-  api?: PersistenceApi
+  api?: PersistenceApi,
+  previous?: db.Content
 ): Promise<void> {
   const persistenceApi = await getPersistenceApi(api);
   await persistenceApi.saveContent({ ...content, userId });
-  await persistenceApi.saveContentPlataformas(content.id, content.plataformas);
-  if (content.temaIds !== undefined) {
-    await persistenceApi.saveContentTemas(content.id, content.temaIds);
+  // Plataformas e temas so regravam quando mudaram, e em paralelo: antes eram
+  // ~5 idas ao servidor em fila a cada tecla salva no roteiro.
+  const samePlataformas = previous !== undefined
+    && JSON.stringify(previous.plataformas ?? []) === JSON.stringify(content.plataformas ?? []);
+  const sameTemas = previous !== undefined
+    && JSON.stringify(previous.temaIds ?? []) === JSON.stringify(content.temaIds ?? []);
+  const jobs: Promise<void>[] = [];
+  if (!samePlataformas) {
+    jobs.push(persistenceApi.saveContentPlataformas(content.id, content.plataformas));
   }
+  if (content.temaIds !== undefined && !sameTemas) {
+    jobs.push(persistenceApi.saveContentTemas(content.id, content.temaIds));
+  }
+  await Promise.all(jobs);
 }
 
 export async function persistAction({ action, userId, state, api }: PersistActionParams): Promise<void> {
@@ -101,6 +112,14 @@ export async function persistAction({ action, userId, state, api }: PersistActio
     case 'UPDATE_BOOK':
     case 'ADD_BIBLIOTECA_ITEM':
     case 'UPDATE_BIBLIOTECA_ITEM':
+      if (action.payload.generoIds && (action.type === 'UPDATE_BOOK' || action.type === 'UPDATE_BIBLIOTECA_ITEM')) {
+        // O item ja existe: item e generos gravam ao mesmo tempo.
+        await Promise.all([
+          persistenceApi.saveBibliotecaItem({ ...action.payload, userId }),
+          persistenceApi.saveItemGeneros(action.payload.id, action.payload.generoIds),
+        ]);
+        return;
+      }
       await persistenceApi.saveBibliotecaItem({ ...action.payload, userId });
       if (action.payload.generoIds) {
         await persistenceApi.saveItemGeneros(action.payload.id, action.payload.generoIds);
@@ -149,29 +168,27 @@ export async function persistAction({ action, userId, state, api }: PersistActio
     case 'SET_CONTENT_STATUS': {
       const contentIds = new Set(action.payload.contentIds);
       const contents = state.contents.filter(content => contentIds.has(content.id));
-      for (const content of contents) {
-        await persistContentRecord(
-          transitionCreationStatus(content, action.payload.status),
-          userId,
-          persistenceApi,
-        );
-      }
+      await Promise.all(contents.map(content => persistContentRecord(
+        transitionCreationStatus(content, action.payload.status),
+        userId,
+        persistenceApi,
+      )));
       return;
     }
 
     case 'ARCHIVE_CONTENTS': {
       const contentIds = new Set(action.payload);
-      for (const content of state.contents.filter(item => contentIds.has(item.id))) {
-        await persistContentRecord(archiveCreation(content), userId, persistenceApi);
-      }
+      await Promise.all(state.contents
+        .filter(item => contentIds.has(item.id))
+        .map(content => persistContentRecord(archiveCreation(content), userId, persistenceApi)));
       return;
     }
 
     case 'RESTORE_CONTENTS': {
       const contentIds = new Set(action.payload);
-      for (const content of state.contents.filter(item => contentIds.has(item.id))) {
-        await persistContentRecord(restoreCreation(content), userId, persistenceApi);
-      }
+      await Promise.all(state.contents
+        .filter(item => contentIds.has(item.id))
+        .map(content => persistContentRecord(restoreCreation(content), userId, persistenceApi)));
       return;
     }
 
@@ -233,13 +250,11 @@ export async function persistAction({ action, userId, state, api }: PersistActio
         .map(contentId => fetchedById.get(contentId) ?? payloadById.get(contentId) ?? state.contents.find(content => content.id === contentId))
         .filter((content): content is db.Content => Boolean(content));
 
-      for (const content of demoteContents) {
-        await persistContentRecord(
-          demoteContentToIdea(content),
-          userId,
-          persistenceApi,
-        );
-      }
+      await Promise.all(demoteContents.map(content => persistContentRecord(
+        demoteContentToIdea(content),
+        userId,
+        persistenceApi,
+      )));
       return;
     }
 
@@ -259,8 +274,10 @@ export async function persistAction({ action, userId, state, api }: PersistActio
     case 'ADD_PROJETO':
     case 'UPDATE_PROJETO':
       await persistenceApi.saveProjeto({ ...action.payload, userId });
-      await persistenceApi.saveProjetoEtapas(action.payload.etapas || []);
-      await persistenceApi.saveProjetoConteudos(action.payload.id, action.payload.contentIds || []);
+      await Promise.all([
+        persistenceApi.saveProjetoEtapas(action.payload.etapas || []),
+        persistenceApi.saveProjetoConteudos(action.payload.id, action.payload.contentIds || []),
+      ]);
       return;
 
     case 'ADD_PROJETO_ETAPA':
@@ -293,12 +310,14 @@ export async function persistAction({ action, userId, state, api }: PersistActio
     case 'ADD_SERIE':
     case 'UPDATE_SERIE':
       await persistenceApi.saveSerie({ ...action.payload, userId });
-      if (action.payload.pilarIds) {
-        await persistenceApi.saveSeriePilares(action.payload.id, action.payload.pilarIds);
-      }
-      if (action.payload.plataformas) {
-        await persistenceApi.saveSeriePlataformas(action.payload.id, action.payload.plataformas);
-      }
+      await Promise.all([
+        action.payload.pilarIds
+          ? persistenceApi.saveSeriePilares(action.payload.id, action.payload.pilarIds)
+          : undefined,
+        action.payload.plataformas
+          ? persistenceApi.saveSeriePlataformas(action.payload.id, action.payload.plataformas)
+          : undefined,
+      ]);
       return;
 
     case 'DELETE_SERIE':
@@ -431,9 +450,7 @@ export async function persistAction({ action, userId, state, api }: PersistActio
       return;
 
     case 'DELETE_MULTIPLE_CONTENTS':
-      for (const id of action.payload) {
-        await persistenceApi.deleteContent(id);
-      }
+      await Promise.all(action.payload.map(id => persistenceApi.deleteContent(id)));
       return;
 
     case 'SET_THEME':

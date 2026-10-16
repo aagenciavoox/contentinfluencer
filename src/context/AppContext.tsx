@@ -190,6 +190,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     lastLocalMutationAt.current = Date.now();
   }, []);
 
+  const failedContentSaves = useRef(new Set<string>());
+
   const runPersist = useCallback(async <T,>(fn: () => Promise<T>): Promise<T> => {
     pendingPersistCount.current += 1;
     touchLocalMutation();
@@ -682,8 +684,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
 
     try {
+      // Depois de uma falha nao ha base confiavel: regrava plataformas e temas por inteiro.
+      const previousContent = failedContentSaves.current.has(normalizedContent.id)
+        ? undefined
+        : stateRef.current.contents.find(item => item.id === normalizedContent.id);
       dispatch({ type: 'UPDATE_CONTENT', payload: normalizedContent });
-      await runPersist(() => persistContentRecord(normalizedContent, userId));
+      failedContentSaves.current.add(normalizedContent.id);
+      await runPersist(() => persistContentRecord(normalizedContent, userId, undefined, previousContent));
+      failedContentSaves.current.delete(normalizedContent.id);
       finishPersist('UPDATE_CONTENT', options);
     } catch (err) {
       console.error('[AppContext] updateContent failed:', err);

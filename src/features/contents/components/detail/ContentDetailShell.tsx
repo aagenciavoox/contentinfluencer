@@ -104,7 +104,10 @@ function mergeLoadedBody(draft: ContentDraft, live: Content): ContentDraft {
   return next;
 }
 
-const AUTOSAVE_IDLE_MS = 5000;
+// Texto salva logo apos a pausa na digitacao; campos discretos (selects, chips,
+// datas, plataformas) salvam quase na hora.
+const AUTOSAVE_IDLE_MS = 900;
+const AUTOSAVE_DISCRETE_MS = 150;
 
 type PersistDraftOptions = {advanceToReady?: boolean; silent?: boolean};
 
@@ -518,6 +521,9 @@ export function ContentDetailShell({
   draftRef.current = draft;
   liveContentRef.current = liveContent;
 
+  const textKey = JSON.stringify([draft.title, draft.script, draft.notes, draft.writingNotes, draft.referencias]);
+  const lastTextKeyRef = useRef(textKey);
+
   useEffect(() => {
     if (!draftDirtyRef.current) return;
     if (!isContentBodyLoaded(liveContent)) return;
@@ -526,9 +532,11 @@ export function ContentDetailShell({
       clearTimeout(autosaveTimerRef.current);
     }
 
+    const textChanged = lastTextKeyRef.current !== textKey;
+    lastTextKeyRef.current = textKey;
     autosaveTimerRef.current = setTimeout(() => {
       void persistRef.current(undefined, {silent: true});
-    }, AUTOSAVE_IDLE_MS);
+    }, textChanged ? AUTOSAVE_IDLE_MS : AUTOSAVE_DISCRETE_MS);
 
     return () => {
       if (autosaveTimerRef.current) {

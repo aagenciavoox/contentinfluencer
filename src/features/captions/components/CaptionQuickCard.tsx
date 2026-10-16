@@ -84,9 +84,31 @@ function useCaptionDraft(
     }
   }, [commit]);
 
+  // Antes so salvava ao sair do campo; agora tambem ~0,9s depois da ultima tecla.
+  const timerRef = useRef<number | null>(null);
+  const pendingRef = useRef<ContentPlataforma[] | null>(null);
+  const persistRef = useRef(persist);
+  persistRef.current = persist;
+  const clearTimer = useCallback(() => {
+    if (timerRef.current != null) window.clearTimeout(timerRef.current);
+    timerRef.current = null;
+  }, []);
+  useEffect(() => () => {
+    if (timerRef.current != null) window.clearTimeout(timerRef.current);
+    if (pendingRef.current) void persistRef.current(pendingRef.current);
+  }, []);
+
   const update = useCallback((next: ContentPlataforma[]) => {
     setPlataformas(next);
-  }, []);
+    pendingRef.current = next;
+    clearTimer();
+    timerRef.current = window.setTimeout(() => {
+      timerRef.current = null;
+      const snapshot = pendingRef.current;
+      pendingRef.current = null;
+      if (snapshot) void persistRef.current(snapshot);
+    }, 900);
+  }, [clearTimer]);
 
   const begin = useCallback(() => {
     focusedRef.current = true;
@@ -94,8 +116,10 @@ function useCaptionDraft(
 
   const finish = useCallback((snapshot: ContentPlataforma[]) => {
     focusedRef.current = false;
+    clearTimer();
+    pendingRef.current = null;
     void persist(snapshot);
-  }, [persist]);
+  }, [clearTimer, persist]);
 
   const isFocused = useCallback(() => focusedRef.current, []);
 
