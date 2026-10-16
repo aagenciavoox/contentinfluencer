@@ -889,7 +889,7 @@ export function CreationHubPage() {
       exportEnabled={exportableContents.length > 0}
       exportMode={exportMode}
       onToggleExport={toggleExportMode}
-      cancelLabel="Sair da seleção"
+      cancelLabel="Cancelar seleção"
       extraItems={[
         { id: 'bulk-series', label: 'Mudar série em massa', onClick: beginSelection },
         { id: 'bulk-pillar', label: 'Mudar pilar em massa', onClick: beginSelection },

@@ -1,6 +1,5 @@
-import { Check, Download, Layers, Minus, Target } from 'lucide-react';
+import { Check, Download, Layers, Minus, Target, Trash2, X } from 'lucide-react';
 import { AppButton } from '../../../components/ui/AppButton';
-import { MoreMenu } from '../../../components/ui/MoreMenu';
 import { Text } from '../../../components/ui/Text';
 import { cn } from '../../../lib/utils';
 import type { CreationExportCopy } from '../lib/exportScriptsDocx';
@@ -44,7 +43,7 @@ function selectionDetail({
   availableNoun,
 }: Pick<CreationSelectionBarProps, 'selectedCount' | 'availableCount' | 'hiddenSelectedCount' | 'availableNoun'>) {
   const available = `${availableCount} ${nounFor(availableNoun, availableCount)}`;
-  if (selectedCount === 0) return `${available} no filtro atual. Marque os cards para escolher.`;
+  if (selectedCount === 0) return `${available} no filtro atual. Marque os cards, ou a caixa para escolher todos.`;
   if (selectedCount === availableCount) {
     return hiddenSelectedCount > 0
       ? 'Todos os resultados do filtro, incluindo os não exibidos.'
@@ -58,7 +57,7 @@ function selectionDetail({
   return `De ${available} no filtro.`;
 }
 
-/** Barra da seleção em massa da Criação: marcar todos, série, pilar, exportar e excluir. */
+/** Barra da seleção em massa da Criação: marcar todos, cancelar, série, pilar, excluir e exportar. */
 export function CreationSelectionBar({
   selectedCount,
   availableCount,
@@ -83,12 +82,12 @@ export function CreationSelectionBar({
     <section
       aria-label="Seleção em massa"
       className={cn(
-        'flex flex-col gap-3 rounded-[var(--radius-card-mobile)] border p-3 md:flex-row md:items-center md:gap-4 md:rounded-[var(--radius-card)] md:px-4',
+        'flex flex-col gap-3 rounded-[var(--radius-card-mobile)] border p-3 md:rounded-[var(--radius-card)] md:px-4',
         'border-[color-mix(in_srgb,var(--brand-accent),transparent_70%)]',
         'bg-[color-mix(in_srgb,var(--brand-accent-soft),var(--bg-elevated)_80%)]',
       )}
     >
-      <div className="flex min-w-0 flex-1 items-start gap-3">
+      <div className="flex items-start gap-3">
         <button
           type="button"
           onClick={onToggleAll}
@@ -103,32 +102,44 @@ export function CreationSelectionBar({
           role="checkbox"
           aria-checked={allSelected ? true : someSelected ? 'mixed' : false}
           aria-label={toggleAllLabel}
+          title={toggleAllLabel}
         >
           {allSelected ? <Check className="h-3 w-3 stroke-[3px]" /> : null}
           {someSelected ? <Minus className="h-3 w-3 stroke-[3px]" /> : null}
         </button>
 
         <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
-            <p className="t-item-title text-[var(--text-primary)]" aria-live="polite">
-              {selectedTitle(nothingSelected ? availableNoun : selectedNoun, selectedCount)}
-            </p>
-            {/* No escuro, o rosa forte não chega a 4.5:1 sobre o fundo rosado; o rosa claro chega. */}
-            <button
-              type="button"
-              onClick={onToggleAll}
-              className="text-[length:var(--font-size-secondary)] font-medium text-[var(--brand-accent-strong)] underline underline-offset-2 hover:opacity-80 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] dark:text-[var(--brand-accent)] pointer-coarse:py-2"
-            >
-              {toggleAllLabel}
-            </button>
-          </div>
+          <p className="t-item-title text-[var(--text-primary)]" aria-live="polite">
+            {selectedTitle(nothingSelected ? availableNoun : selectedNoun, selectedCount)}
+          </p>
           <Text variant="meta" as="p">
             {selectionDetail({ selectedCount, availableCount, hiddenSelectedCount, availableNoun })}
           </Text>
         </div>
+
+        {/* No celular só o X, para o título não espremer; no desktop, com o texto. */}
+        <AppButton
+          variant="secondary"
+          size="sm"
+          className="hidden shrink-0 md:inline-flex"
+          leftIcon={<X className="h-4 w-4" />}
+          onClick={onCancel}
+        >
+          Cancelar seleção
+        </AppButton>
+        <AppButton
+          variant="secondary"
+          size="sm"
+          iconOnly
+          className="shrink-0 md:hidden"
+          aria-label="Cancelar seleção"
+          onClick={onCancel}
+        >
+          <X className="h-4 w-4" />
+        </AppButton>
       </div>
 
-      <div className="grid grid-cols-2 gap-2 md:flex md:shrink-0 md:items-center">
+      <div className="grid grid-cols-2 gap-2 border-t border-[color-mix(in_srgb,var(--brand-accent),transparent_85%)] pt-3 md:flex md:items-center md:justify-end">
         <AppButton
           variant="secondary"
           size="sm"
@@ -149,33 +160,38 @@ export function CreationSelectionBar({
         >
           Mudar pilar
         </AppButton>
-        {/* No celular, exportar e ••• dividem a segunda linha; no desktop, tudo numa fila. */}
-        <div className="col-span-2 flex gap-2 md:contents">
-          <AppButton
-            variant="primary"
-            size="sm"
-            className="min-w-0 flex-1 md:flex-none"
-            leftIcon={<Download className="h-4 w-4" />}
-            disabled={nothingSelected || isExporting}
-            onClick={onExport}
-          >
-            {isExporting ? 'Gerando DOCX…' : `Exportar DOCX (${selectedCount})`}
-          </AppButton>
-          <MoreMenu
-            label="Mais ações da seleção"
-            className="shrink-0"
-            items={[
-              {
-                id: 'delete',
-                label: 'Mover para a lixeira',
-                tone: 'danger',
-                disabled: nothingSelected,
-                onClick: onDelete,
-              },
-              { id: 'cancel', label: 'Sair da seleção', onClick: onCancel },
-            ]}
-          />
-        </div>
+        {/* Rosa forte no claro e rosa claro no escuro: os dois passam de 4.5:1 sobre o fundo do botão. */}
+        <AppButton
+          variant="secondary"
+          size="sm"
+          className={cn(
+            'w-full md:w-auto',
+            'border-[color-mix(in_srgb,var(--brand-accent),transparent_45%)] bg-[color-mix(in_srgb,var(--brand-accent-soft),var(--bg-elevated)_85%)]',
+            'text-[var(--brand-accent-strong)] dark:text-[var(--brand-accent)]',
+            'hover:border-[var(--brand-accent-strong)] hover:bg-[var(--brand-accent-soft)]',
+          )}
+          leftIcon={<Trash2 className="h-4 w-4" />}
+          disabled={nothingSelected}
+          onClick={onDelete}
+        >
+          Excluir
+        </AppButton>
+        <AppButton
+          variant="primary"
+          size="sm"
+          className="w-full md:w-auto"
+          leftIcon={<Download className="h-4 w-4" />}
+          disabled={nothingSelected || isExporting}
+          onClick={onExport}
+        >
+          {isExporting ? 'Gerando DOCX…' : (
+            <>
+              {/* No celular, meia largura não cabe "DOCX". */}
+              <span className="md:hidden">Exportar ({selectedCount})</span>
+              <span className="hidden md:inline">Exportar DOCX ({selectedCount})</span>
+            </>
+          )}
+        </AppButton>
       </div>
     </section>
   );
