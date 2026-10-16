@@ -314,6 +314,7 @@ type AppParaLeituras = {
   bibliotecaItems: readonly (Pick<BibliotecaItem, 'id' | 'status' | 'deletedAt'> & { titulo?: string | null })[];
   platforms?: readonly DestinoPlataforma[];
   preferences: Record<string, unknown> | null | undefined;
+  editorial?: EditorialSettings;
 };
 
 export function computeReadingsFromApp(
@@ -322,7 +323,7 @@ export function computeReadingsFromApp(
 ): Leitura[] {
   const gentle = getGentleExperienceSettings(state.preferences);
   const modules = getModuleFlags(state.preferences);
-  const settings = getEditorialSettings(state.preferences);
+  const settings = state.editorial ?? getEditorialSettings(state.preferences);
   return computeReadings(
     {
       contents: state.contents,

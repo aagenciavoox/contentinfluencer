@@ -365,30 +365,6 @@ export function LibraryPage() {
           ? (form.episodios ? Number(form.episodios) : null)
           : null;
 
-    const novoLivro: BibliotecaItem = {
-      id: generateUUID(),
-      userId: '',
-      tipo: form.tipo,
-      titulo: form.titulo.trim(),
-      autorDiretor: form.autor.trim(),
-      generoIds: form.generos,
-      capaUrl: form.capaUrl.trim() || null,
-      status: form.statusLeitura,
-      dataInicio: null,
-      dataFim: null,
-      avaliacao: form.avaliacao ? Number(form.avaliacao) : null,
-      notasGerais: null,
-      potencialConteudo: form.potencialConteudo ? Number(form.potencialConteudo) : null,
-      totalPaginas,
-      paginasLidas: null,
-      anotacoes: [],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      deletedAt: null,
-    };
-
-    dispatch({ type: 'ADD_BOOK', payload: novoLivro });
-
     const metadata: BibliotecaItemMeta = {
       editora: form.editora,
       anoPublicacao: form.anoPublicacao || form.dataLancamento,
@@ -416,12 +392,30 @@ export function LibraryPage() {
       motivoEscolha: form.motivoEscolha,
     };
 
-    if (Object.values(metadata).some(value => Array.isArray(value) ? value.length > 0 : Boolean(value))) {
-      dispatch({
-        type: 'SET_PREFERENCE',
-        payload: { key: `item_meta:${novoLivro.id}`, value: metadata },
-      });
-    }
+    const novoLivro: BibliotecaItem = {
+      id: generateUUID(),
+      userId: '',
+      tipo: form.tipo,
+      titulo: form.titulo.trim(),
+      autorDiretor: form.autor.trim(),
+      generoIds: form.generos,
+      capaUrl: form.capaUrl.trim() || null,
+      status: form.statusLeitura,
+      dataInicio: null,
+      dataFim: null,
+      avaliacao: form.avaliacao ? Number(form.avaliacao) : null,
+      notasGerais: null,
+      potencialConteudo: form.potencialConteudo ? Number(form.potencialConteudo) : null,
+      totalPaginas,
+      paginasLidas: null,
+      anotacoes: [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      deletedAt: null,
+      ficha: metadata,
+    };
+
+    dispatch({ type: 'ADD_BOOK', payload: novoLivro });
 
     setModalAberto(false);
     resetForm();
@@ -441,7 +435,7 @@ export function LibraryPage() {
   };
 
   const getItemMeta = (itemId: string) =>
-    ((state.preferences[`item_meta:${itemId}`] || {}) as BibliotecaItemMeta);
+    state.bibliotecaItems.find(item => item.id === itemId)?.ficha ?? {};
 
   if (isMobile) {
     return (

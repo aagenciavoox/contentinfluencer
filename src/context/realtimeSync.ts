@@ -29,6 +29,12 @@ export const REALTIME_TABLES = [
   'templates',
   'temas',
   'user_preferences',
+  'editorial_conta',
+  'editorial_visao',
+  'editorial_destino_padrao',
+  'editorial_limite_hashtag',
+  'decisao_periodo',
+  'ajuste_semana',
 ] as const;
 
 export const LOCAL_REALTIME_SUPPRESSION_MS = 3000;

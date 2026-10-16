@@ -2,7 +2,6 @@ import {useEffect, useMemo, useState} from 'react';
 import type {ContentPlataforma} from '../../../lib/database';
 import {DestinationChips} from '../../editorial/components/DestinationChips';
 import {destinosPadraoAtivos, publicacoesDosDestinos} from '../../editorial/lib/destinations';
-import {getEditorialSettings} from '../../editorial/lib/editorialSettings';
 import type {AppState} from '../../../app/providers/appState';
 import {Dialog} from '../../../components/overlays/Dialog';
 import {OverlayBody} from '../../../components/overlays/OverlayBody';
@@ -40,7 +39,6 @@ export function CreationComposer({
   const [seriesId, setSeriesId] = useState('');
   const [originId, setOriginId] = useState('');
   const [plataformas, setPlataformas] = useState<ContentPlataforma[]>([]);
-  const [isSaving, setIsSaving] = useState(false);
   const catalogo = useMemo(
     () => contasAtivas(state.platforms),
     [state.platforms],
@@ -49,7 +47,7 @@ export function CreationComposer({
   useEffect(() => {
     if (!open) return;
     setOriginId(initialOriginId);
-    const destinos = destinosPadraoAtivos(getEditorialSettings(state.preferences).destinosPadrao, catalogo);
+    const destinos = destinosPadraoAtivos(state.editorial.destinosPadrao, catalogo);
     setPlataformas(publicacoesDosDestinos({destinos, contentId: ''}));
   }, [catalogo, initialOriginId, open, state.preferences]);
 
@@ -63,31 +61,28 @@ export function CreationComposer({
   };
 
   const close = () => {
-    if (isSaving) return;
     reset();
     onClose();
   };
 
-  const save = async () => {
+  const save = () => {
     const normalizedTitle = title.trim();
     const normalizedNotes = notes.trim();
     if (!normalizedTitle && !normalizedNotes) return;
 
-    setIsSaving(true);
-    try {
-      await onSave({
-        title: normalizedTitle || 'Ideia sem título',
-        notes: normalizedNotes || null,
-        pilarId: pilarId || null,
-        seriesId: seriesId || null,
-        bibliotecaItemId: originId || null,
-        plataformas,
-      });
-      reset();
-      onClose();
-    } finally {
-      setIsSaving(false);
-    }
+    const input: CreationIdeaInput = {
+      title: normalizedTitle || 'Ideia sem título',
+      notes: normalizedNotes || null,
+      pilarId: pilarId || null,
+      seriesId: seriesId || null,
+      bibliotecaItemId: originId || null,
+      plataformas,
+    };
+    reset();
+    onClose();
+    void Promise.resolve(onSave(input)).catch(() => {
+      // O aviso de sucesso ou erro aparece sem segurar o formulário.
+    });
   };
 
   return (

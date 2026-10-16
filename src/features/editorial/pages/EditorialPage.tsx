@@ -16,7 +16,7 @@ import { CONFIRM, type ConfirmState } from '../../../lib/uiCopy';
 import { AjustesEditorialPanel } from '../components/plano/AjustesEditorialPanel';
 import { PeriodoPanel } from '../components/plano/PeriodoPanel';
 import { periodoInicial, type PeriodoSelecionado } from '../components/plano/PeriodoEditorialControl';
-import { getEditorialSettings } from '../lib/editorialSettings';
+import { lerPeriodoSalvo } from '../lib/periodoEditorial';
 import { rotuloFuncaoPadrao } from '../lib/funcoes';
 import { formatOpenItems, getSerieOpenItems } from '../lib/serieCompleteness';
 import { sortPilares } from '../../settings/lib/activePilares';
@@ -148,7 +148,7 @@ function SeriesPanel() {
   const navigate = useNavigate();
   const [filter, setFilter] = useState<SeriesFilter>('todas');
   const [confirm, setConfirm] = useState<ConfirmState | null>(null);
-  const settings = getEditorialSettings(state.preferences);
+  const settings = state.editorial;
   const openItems = useMemo(
     () => new Map(state.series.map(serie => [serie.id, getSerieOpenItems(serie)])),
     [state.series],
@@ -270,7 +270,14 @@ function SeriesPanel() {
 
 export function EditorialPage() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const [periodo, setPeriodo] = useState<PeriodoSelecionado>(() => periodoInicial());
+  const { state, dispatch } = useAppContext();
+  const periodo = useMemo(
+    () => (state.editorialVisao ? lerPeriodoSalvo(state.editorialVisao) : null) ?? periodoInicial(),
+    [state.editorialVisao],
+  );
+  const salvarPeriodo = (next: PeriodoSelecionado) => {
+    dispatch({ type: 'SET_EDITORIAL_VISAO', payload: next });
+  };
   const tab = abaPedida(searchParams.get('aba'));
   const Icon = TAB_ICONS[tab];
 
@@ -303,7 +310,7 @@ export function EditorialPage() {
       {tab === 'periodo' ? (
         <PeriodoPanel
           periodo={periodo}
-          onPeriodoChange={setPeriodo}
+          onPeriodoChange={salvarPeriodo}
           onAbrirAjustes={() => changeTab('ajustes')}
         />
       ) : null}

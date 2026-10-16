@@ -54,11 +54,10 @@ import {
 import {listUndatedRoteiros, placeContentOnDay} from '../lib/scheduleContent';
 import {UNDATED_PILE_STORAGE_KEY, UNDATED_ROTEIRO_MIME, UndatedRoteiroPile} from '../components/UndatedRoteiroPile';
 import {PostingTimeSuggestions} from '../../settings/components/PostingTimeSuggestions';
-import {getPostingTimes} from '../../settings/lib/postingTimes';
+import {getPostingTimesForPlatform} from '../../settings/lib/postingTimes';
 import {getGentleExperienceSettings} from '../../settings/lib/gentleExperience';
 import {getSessionCandidates} from '../../dashboard/lib/dailySession';
 import {generateUUID} from '../../../utils/uuid';
-import {getEditorialSettings} from '../../editorial/lib/editorialSettings';
 import {calendarEntryIcon, CalendarLegend} from '../components/CalendarNetworkIcons';
 import {contasAtivas, rotuloConta, rotuloDaRef} from '../../contas/lib/contas';
 import {editarVersaoPropria, ESTADO_LEGENDA_ROTULO, estadoLegenda, legendaEfetiva} from '../../editorial/lib/captions';
@@ -93,7 +92,7 @@ export function getStatusIcon() {
 
 export function EditorialCalendarPage() {
   const {state, dispatch} = useAppContext();
-  const editorialSettings = getEditorialSettings(state.preferences);
+  const editorialSettings = state.editorial;
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const isMobile = useIsMobile();
@@ -323,7 +322,7 @@ export function EditorialCalendarPage() {
           <PostedVideoComposerSheet
             platforms={state.platforms}
             series={state.series}
-            postingTimes={getPostingTimes(state.preferences)}
+            postingTimes={getPostingTimesForPlatform(state.postingTimeEntries, null)}
             onClose={() => setIsAddPostedVideoOpen(false)}
             onSave={content => {
               dispatch({type: 'ADD_CONTENT', payload: content});
@@ -804,7 +803,7 @@ export function EditorialCalendarPage() {
         <PostedVideoComposerSheet
           platforms={state.platforms}
           series={state.series}
-          postingTimes={getPostingTimes(state.preferences)}
+          postingTimes={getPostingTimesForPlatform(state.postingTimeEntries, null)}
           onClose={() => setIsAddPostedVideoOpen(false)}
           onSave={content => {
             dispatch({type: 'ADD_CONTENT', payload: content});
@@ -1393,7 +1392,7 @@ function CalendarEntryDetailModal({
   const location = useLocation();
   const detailBackState = buildDetailBackState(`${location.pathname}${location.search}`);
   const {state: calendarState} = useAppContext();
-  const postingTimes = getPostingTimes(calendarState.preferences);
+  const postingTimes = getPostingTimesForPlatform(calendarState.postingTimeEntries, null);
   const content = entry.contentId ? contents.find(item => item.id === entry.contentId) : null;
   const agendaItem = entry.agendaId ? agendaItems.find(item => item.id === entry.agendaId) : null;
   const projeto = entry.projetoId ? projetos.find(item => item.id === entry.projetoId) : null;
@@ -1782,7 +1781,7 @@ function AddAgendaModal({
   onClose: () => void;
 }) {
   const {state: agendaState} = useAppContext();
-  const agendaPostingTimes = getPostingTimes(agendaState.preferences);
+  const agendaPostingTimes = getPostingTimesForPlatform(agendaState.postingTimeEntries, null);
   const [title, setTitle] = useState(initialDraft?.title ?? '');
   const [date, setDate] = useState(initialDraft?.date ?? format(new Date(), 'yyyy-MM-dd'));
   const [time, setTime] = useState(initialDraft?.time ?? '');

@@ -13,7 +13,6 @@ import { DesktopPageHeader } from '../../../layouts/page/DesktopPageHeader';
 import { PageLayout } from '../../../layouts/page/PageLayout';
 import type { Serie } from '../../../lib/database';
 import { CONFIRM } from '../../../lib/uiCopy';
-import { getEditorialSettings } from '../../editorial/lib/editorialSettings';
 import {
   aplicarFuncaoPublicada,
   conteudosParaAplicarFuncao,
@@ -93,7 +92,7 @@ export function SeriesEditPage() {
     return ordenarContas(state.platforms.filter(platform => platform.ativo || ligadas.has(platform.id)));
   }, [editingSerie?.plataformas, state.platforms]);
 
-  const editorialSettings = getEditorialSettings(state.preferences);
+  const editorialSettings = state.editorial;
   const backToList = () => navigate('/editorial?aba=series');
 
   const alteracoesDeLegenda = (serie: Serie) => {

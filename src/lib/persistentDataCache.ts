@@ -7,7 +7,7 @@ const EPOCH_KEY = 'content-os:domain-epoch';
  * Trocar este valor descarta a lista local de roteiros/ideias na próxima abertura.
  * 2026-10-15: as publicações passaram a guardar o id da conta, não o nome da rede.
  */
-const DOMAIN_CACHE_EPOCH = '2026-10-15-contas-por-id';
+const DOMAIN_CACHE_EPOCH = '2026-10-15-editorial-tabelas';
 /** Dados persistidos ficam legíveis por até 24h; revalidação em background após 5 min. */
 export const PERSISTENT_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 export const PERSISTENT_FRESH_MS = 5 * 60 * 1000;
@@ -94,10 +94,16 @@ export function readPersistedDomain(userId: string, cacheKey: string): Persisted
   };
 }
 
-export function writePersistedDomain(userId: string, cacheKey: string, payload: Partial<AppData>) {
+/** `fetchedAt` só vem quando um ajuste local não deve contar como busca nova. */
+export function writePersistedDomain(
+  userId: string,
+  cacheKey: string,
+  payload: Partial<AppData>,
+  fetchedAt = Date.now(),
+) {
   writeStoredJson(storageKey(userId, cacheKey), {
     payload: sanitizeDomainPayload(payload),
-    fetchedAt: Date.now(),
+    fetchedAt,
   } satisfies PersistedEntry);
 }
 

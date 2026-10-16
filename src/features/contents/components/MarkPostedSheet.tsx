@@ -24,7 +24,6 @@ interface MarkPostedSheetProps {
   /** Quando verdadeiro, o formulário entra no diálogo que já está aberto. */
   embedded?: boolean;
   initialRealizadaEm?: string | null;
-  isSaving?: boolean;
   onClose: () => void;
   onConfirm: (result: Marked) => void | Promise<void>;
 }
@@ -99,14 +98,11 @@ export function MarkPostedSheet({
   platformName = platformId => platformId,
   embedded = false,
   initialRealizadaEm = null,
-  isSaving = false,
   onClose,
   onConfirm,
 }: MarkPostedSheetProps) {
   const [rows, setRows] = useState<RowState[]>([]);
-  const [saving, setSaving] = useState(false);
   const wasOpen = useRef(false);
-  const busy = isSaving || saving;
   const canConfirm = rows.length > 0 && rows.every(row => Boolean(fromDatetimeLocal(row.realizadaLocal)));
 
   useEffect(() => {
@@ -125,23 +121,18 @@ export function MarkPostedSheet({
     )));
   };
 
-  const confirm = async () => {
-    if (!canConfirm || busy) return;
+  const confirm = () => {
+    if (!canConfirm) return;
     const entradas: EntradaPublicacao[] = rows.map(row => ({
       id: row.id,
       realizadaEm: fromDatetimeLocal(row.realizadaLocal) || new Date().toISOString(),
       postUrl: row.postUrl,
     }));
-    setSaving(true);
-    try {
-      const marked = markPublished(content, content.plataformas, entradas, { serie, redeReferenciaId });
-      await onConfirm({
-        content: { ...content, ...marked.content },
-        publicacoes: marked.publicacoes,
-      });
-    } finally {
-      setSaving(false);
-    }
+    const marked = markPublished(content, content.plataformas, entradas, { serie, redeReferenciaId });
+    void Promise.resolve(onConfirm({
+      content: { ...content, ...marked.content },
+      publicacoes: marked.publicacoes,
+    }));
   };
 
   if (!open && embedded) return null;
@@ -202,11 +193,11 @@ export function MarkPostedSheet({
       </div>
 
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-        <AppButton variant="secondary" fullWidth disabled={busy} onClick={onClose}>
+        <AppButton variant="secondary" fullWidth onClick={onClose}>
           {embedded ? 'Voltar' : 'Agora não'}
         </AppButton>
-        <AppButton variant="primary" fullWidth disabled={!canConfirm || busy} onClick={() => void confirm()}>
-          {busy ? 'Salvando…' : 'Marcar como postado'}
+        <AppButton variant="primary" fullWidth disabled={!canConfirm} onClick={confirm}>
+          Marcar como postado
         </AppButton>
       </div>
     </div>

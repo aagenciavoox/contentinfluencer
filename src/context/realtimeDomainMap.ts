@@ -78,6 +78,30 @@ const REALTIME_TABLE_MAP: Record<string, RealtimeTableMapping> = {
     domains: ['production', 'bootstrap'],
     namespaces: [],
   },
+  editorial_conta: {
+    domains: ['bootstrap'],
+    namespaces: [],
+  },
+  editorial_visao: {
+    domains: ['bootstrap'],
+    namespaces: [],
+  },
+  editorial_destino_padrao: {
+    domains: ['bootstrap'],
+    namespaces: [],
+  },
+  editorial_limite_hashtag: {
+    domains: ['bootstrap'],
+    namespaces: [],
+  },
+  decisao_periodo: {
+    domains: ['bootstrap'],
+    namespaces: [],
+  },
+  ajuste_semana: {
+    domains: ['bootstrap'],
+    namespaces: [],
+  },
   recording_blocks: {
     domains: ['recording'],
     namespaces: [],

@@ -1,6 +1,8 @@
 # DATABASE.md
 
-Baseado no schema atual em `schema.sql`. Este documento descreve as tabelas reais do banco em singular e `snake_case`, mesmo quando o nome fisico no SQL esta no plural.
+Mapa do que o app grava. `schema.sql` é um snapshot; tabelas e colunas posteriores estão nas migrations em `supabase/migrations` e em `migrations/`. Este documento descreve as tabelas em singular e `snake_case`, mesmo quando o nome físico no SQL está no plural.
+
+Uma linha nova no banco não escapa do cache de abertura. A foto do domínio (memória e navegador) vale 5 minutos. Se o salvamento não atualizar essa foto, recarregar dentro da janela devolve a cópia anterior. A seção [Cache de domínio](#cache-de-dominio) lista onde a atualização já existe e onde ainda falta.
 
 ## Convencoes gerais
 
@@ -39,15 +41,27 @@ Baseado no schema atual em `schema.sql`. Este documento descreve as tabelas reai
 - Campos:
   - `user_id` uuid obrigatorio -> referencia: `auth.users.id`
   - `key` text obrigatorio
-  - `value` text obrigatorio
+  - `value` text obrigatorio (JSON serializado; string pura entra como está)
 - Relacionamentos:
   - `user_preference` pertence a um usuario
 - Regras de negocio:
   - chave primaria composta: (`user_id`, `key`)
   - preferencia sempre isolada por usuario via RLS
-  - trigger de onboarding cria `theme` e `onboarding_completo`
-- O que nao salvar:
-  - `❌ app_config` global sem `user_id` -> substituido por preferencia por usuario
+  - entra no domínio `bootstrap`, junto com `platform`
+  - `SET_PREFERENCE` e `UPDATE_PREFERENCE` atualizam a foto do cache
+- Chaves ainda mapeadas:
+  - `module_flags` — biblioteca, gravação, calendário, projetos
+  - `gentle_experience` — experiência calma
+  - `writing_workspace` — workspace de escrita
+  - `burstModeSettings` — teleprompter, compartilhado entre desktop e celular
+- O que pode sair:
+  - `❌ app_config` global sem `user_id`
+  - `❌ funnelTargets` e `funnelQuietDays` — a meta por intervalo vive em `editorial_settings.periodos[].metas`
+  - `❌ distribuicaoFuncoes` — a leitura da versão 2 devolve sempre null. O percentual antigo não vira meta
+  - `❌ editorial_settings` e `editorial_periodo` — viraram `editorial_conta`, `editorial_visao`, `editorial_destino_padrao`, `editorial_limite_hashtag`, `decisao_periodo` e `ajuste_semana`
+  - `❌ item_meta:` e `book_meta:` — a ficha está nas colunas de `biblioteca_item`
+  - `❌ posting_times` na preferência — horários estão em `posting_time`
+  - `theme` e `onboarding_completo` não são gravados pelo app atual. `SET_THEME` não persiste
 
 ## dna_voz
 
@@ -144,6 +158,7 @@ Baseado no schema atual em `schema.sql`. Este documento descreve as tabelas reai
 - O que nao salvar:
   - `❌ pilar_id` unico em serie -> substituido por `serie_pilar` para N:N
   - `❌ plataformas_principais` JSON -> substituido por `serie_plataforma`
+  - `❌ funil_padrao` (`topo|meio|fundo`) -> substituido por `funcao_padrao` (`atrair|converter|aprofundar|comunidade|acao|reter|varia`)
 
 ## serie_pilar
 
@@ -254,6 +269,7 @@ Baseado no schema atual em `schema.sql`. Este documento descreve as tabelas reai
   - `created_at` timestamptz automatico
   - `updated_at` timestamptz automatico
   - `deleted_at` timestamptz opcional
+  - ficha: `editora`, `ano_publicacao`, `isbn`, `idioma`, `traducao`, `serie_colecao`, `colecao_status` (`sim` ou `nao`), `colecao_nome`, `genero_autor`, `pais_autor`, `raca_autor`, `duracao`, `episodios`, `duracao_por_episodio`, `roteirista`, `distribuidora`, `plataforma`, `data_lancamento`, `pais_origem`, `faz_parte_de_serie` (`sim` ou `nao`), `nome_da_serie`, `tags_personalizadas` (text[]), `quem_indicou`, `motivo_escolha`, `capitulos_cobertos` (text[])
 - Relacionamentos:
   - `biblioteca_item` tem muitos `item_genero`
   - `biblioteca_item` tem muitas `anotacao`
@@ -267,6 +283,7 @@ Baseado no schema atual em `schema.sql`. Este documento descreve as tabelas reai
   - RLS esconde registros soft deleted nas queries principais
 - O que nao salvar:
   - `❌ books` como tabela separada de nomenclatura antiga -> consolidado em `biblioteca_item`
+  - `❌ item_meta:` e `book_meta:` em `user_preference` -> a ficha está nas colunas acima
 
 ## item_genero
 
@@ -354,6 +371,7 @@ Baseado no schema atual em `schema.sql`. Este documento descreve as tabelas reai
   - `❌ scenario` string -> substituido por FK `cenario_id`
   - `❌ livro_origem_id` -> substituido por `biblioteca_item_id`
   - `❌ format` -> consolidado em `formato_visual`
+  - `❌ funil` no conteúdo -> substituido por `funcao` e `funcao_origem`
 
 ## content_plataforma
 
@@ -614,10 +632,134 @@ Baseado no schema atual em `schema.sql`. Este documento descreve as tabelas reai
 - Coerencia entre `paginas_lidas` e `total_paginas`
 - Padronizacao fechada de enums textuais, que hoje estao documentados em comentarios e tipagem TS, nao em `CHECK` para todos os campos
 
+## tema
+
+- Nome: `tema`
+- Campos:
+  - `id` text obrigatorio
+  - `user_id` uuid obrigatorio -> referencia: `auth.users.id`
+  - `nome` text obrigatorio
+  - `created_at` timestamptz automatico
+  - `updated_at` timestamptz automatico
+- Relacionamentos:
+  - `tema` tem muitos `content_tema`
+- Regras de negocio:
+  - rótulo leve do roteiro (Halloween). Não é série, pilar nem função
+  - nome único por usuário, comparado sem caixa e sem espaço nas pontas
+  - `ADD_TEMA` atualiza a foto do cache
+- O que nao salvar:
+  - `❌ tema como tag solta em contents.tags`
+
+## content_tema
+
+- Nome: `content_tema`
+- Campos:
+  - `content_id` text obrigatorio -> referencia: `contents.id`
+  - `tema_id` text obrigatorio -> referencia: `temas.id`
+  - `created_at` timestamptz automatico
+- Regras de negocio:
+  - chave primaria composta: (`content_id`, `tema_id`)
+  - apagar o conteúdo ou o tema remove o vínculo
+
+## planejamento_postit
+
+- Nome: `planejamento_postit`
+- Campos:
+  - `id` uuid obrigatorio
+  - `user_id` uuid obrigatorio -> referencia: `auth.users.id`
+  - `texto` text obrigatorio -> default: `''`
+  - `date` date opcional
+  - `content_id` text opcional -> referencia: `contents.id`
+  - `created_at` timestamptz automatico
+  - `updated_at` timestamptz automatico
+- Regras de negocio:
+  - etapa anterior à ideia. Não é conteúdo nem evento de agenda
+  - apagar o conteúdo zera `content_id`
+  - domínio `planejamento`. O salvamento ainda não atualiza a foto do cache
+
+## posting_time
+
+- Nome: `posting_time`
+- Campos:
+  - `id` uuid obrigatorio
+  - `user_id` uuid obrigatorio -> referencia: `auth.users.id`
+  - `platform_id` text opcional -> referencia: `platforms.id`. Null é o horário global
+  - `weekday` smallint obrigatorio -> 0 domingo … 6 sábado
+  - `time` text obrigatorio -> `HH:MM`
+  - `created_at` timestamptz automatico
+- Regras de negocio:
+  - único em (`user_id`, `platform_id`, `weekday`, `time`)
+  - domínio `rules` e `schedule`
+  - calendário e projeto leem esta tabela
+- O que nao salvar:
+  - `❌ posting_times` em `user_preference`
+
+## editorial_conta
+
+- Uma linha por conta. Limite semanal, reserva fora de série, rede de referência, reserva de prontos, público, disponibilidade, hashtags fora de série, criação rápida de série e avisos abertos.
+- `rede_referencia_id` aponta para `platforms.id` e fica nula se a rede some.
+
+## editorial_visao
+
+- Uma linha por conta: `modo` (`semana`, `mes` ou `intervalo`), `inicio`, `fim`.
+- É a janela que a aba Período reabre. Sem linha, a tela abre na semana de hoje.
+
+## editorial_destino_padrao
+
+- Chave (`user_id`, `platform_id`). Redes marcadas por padrão na conta.
+
+## editorial_limite_hashtag
+
+- Chave (`user_id`, `platform_id`) e `limite`. Sem linha, o teto da rede é 10.
+
+## decisao_periodo
+
+- Uma linha por intervalo fechado. Única em (`user_id`, `inicio`, `fim`).
+- Prioridade e metas `meta_atrair`, `meta_converter`, `meta_aprofundar`, `meta_comunidade`, `meta_acao`, `meta_reter`. Vazio não é zero.
+- A semana dentro do mês não herda a meta do mês.
+
+## ajuste_semana
+
+- Exceção de uma semana, domingo a sábado, ligada à decisão.
+- Chave estrangeira (`decisao_id`, `user_id`) para `decisao_periodo` (`id`, `user_id`). A decisão apagada leva os ajustes.
+
+## Cache de domínio
+
+A abertura pinta com a última foto e, se ela tiver menos de 5 minutos, não busca o banco. A cópia no navegador dura até 24 horas e, depois dos 5 minutos, só aparece na hora enquanto o banco revalida. Realtime pede a busca de novo para o outro aparelho. O mesmo navegador, no reload imediato, depende da foto ter sido atualizada no salvamento.
+
+Já atualizam a foto:
+
+- preferência (`SET_PREFERENCE`, `UPDATE_PREFERENCE`) — toda cópia que já guarda preferências, sem renovar a idade do resto
+- editorial (`SET_EDITORIAL`, `SET_EDITORIAL_VISAO`) — a mesma foto, com `editorial` e `editorialVisao`
+- biblioteca (`BOOK`, `BIBLIOTECA`) — fotos que já trazem `bibliotecaItems`
+- plataforma
+- conteúdo e ideia
+- série
+- tema (`ADD_TEMA`)
+
+Ainda sem essa atualização. Recarregar dentro de 5 minutos pode mostrar a cópia anterior:
+
+- pilar, cenário, look
+- gêneros da biblioteca, quando a lista de itens já foi atualizada
+- projeto, agenda, post-it de planejamento
+- bloco de gravação, template
+- regra de ouro, horário (`posting_time`), métrica, DNA da voz
+
 ## Alias e nomes legados que nao sao tabelas reais hoje
+
+Ainda mapeados no app:
 
 - `books` -> alias de app para `biblioteca_item`
 - `partnerships` -> alias de app para `projeto`
 - `results` -> alias de app para `content_metric`
 - `agenda` -> alias de app para `agenda_item`
 - `campaigns` -> conceito absorvido por `projeto`
+- `book_meta:<id>` e `item_meta:<id>` -> colunas de `biblioteca_item`
+- `posting_times` em preferência -> `posting_time`
+
+Podem sair, porque o schema atual não usa mais:
+
+- `funil_padrao` e `contents.funil`
+- `funnelTargets`, `funnelQuietDays`, `distribuicaoFuncoes` como meta vigente
+- `app_config`
+- `DistribuicaoFuncoesPanel` — o componente não é montado em nenhuma tela, e a leitura já descarta o percentual

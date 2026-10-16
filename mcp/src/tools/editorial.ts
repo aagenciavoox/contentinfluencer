@@ -6,7 +6,6 @@ import {
 } from '../campos.ts';
 import {
   FUNCOES,
-  FUNCOES_DA_GRADE,
   FUNIL_DA_FUNCAO,
   check,
   invalidateLookups,
@@ -215,37 +214,9 @@ function serieColumns(args: Partial<Record<keyof typeof serieFields | 'nome' | '
   return row;
 }
 
-const EDITORIAL_SETTINGS_KEY = 'editorial_settings';
-
-async function readEditorialSettings(session: Session): Promise<Row> {
-  const row = check('preferências', await session.client.from('user_preferences').select('value')
-    .eq('user_id', session.userId).eq('key', EDITORIAL_SETTINGS_KEY).maybeSingle());
-  if (!row?.value) return {};
-  try {
-    const parsed = JSON.parse(row.value);
-    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
-  } catch {
-    return {};
-  }
-}
-
-/**
- * Distribuição salva + agrupamento por etapa do funil (calculado, não salvo).
- * Reter fica fora da grade (Fase 4): não entra na validação dos 100% nem no
- * agrupamento por etapa, mas um valor legado salvo nela ainda é devolvido.
- */
-export async function distribuicaoView(session: Session) {
-  const raw = (await readEditorialSettings(session)).distribuicaoFuncoes;
-  const valida = raw && typeof raw === 'object'
-    && FUNCOES_DA_GRADE.every(f => Number.isInteger(raw[f]) && raw[f] >= 0 && raw[f] <= 100);
-  if (!valida) return {distribuicao: null, por_etapa: null};
-  const reter = Number.isInteger(raw.reter) && raw.reter >= 0 && raw.reter <= 100 ? raw.reter : 0;
-  const porEtapa = {topo: 0, meio: 0, fundo: 0};
-  for (const f of FUNCOES_DA_GRADE) porEtapa[FUNIL_DA_FUNCAO[f] as 'topo' | 'meio' | 'fundo'] += raw[f];
-  return {
-    distribuicao: {...Object.fromEntries(FUNCOES_DA_GRADE.map(f => [f, raw[f]])), reter},
-    por_etapa: porEtapa,
-  };
+/** A proporção em percentual saiu. A meta de cada função fica em `decisao_periodo`. */
+export async function distribuicaoView(_session: Session) {
+  return {distribuicao: null, por_etapa: null};
 }
 
 export function registerEditorial(server: McpServer) {
@@ -254,11 +225,8 @@ export function registerEditorial(server: McpServer) {
     {
       title: 'Definir distribuição por função (funil)',
       description:
-        'Define a proporção desejada de conteúdos por função editorial (aba Editorial → Distribuição). ' +
-        'Percentuais inteiros que somam 100 entre as 5 funções da grade; funções não enviadas ficam com 0. ' +
-        'O funil é calculado a partir daqui: topo = atrair + converter, meio = aprofundar + comunidade, fundo = acao. ' +
-        'Reter fica fora da grade (é conteúdo de Stories) e não entra nessa distribuição. ' +
-        'limpar=true apaga a distribuição. Não gera alertas em outras telas.',
+        'A proporção em percentual não fica mais salva. A meta de cada função fica na decisão do intervalo (decisao_periodo). ' +
+        'Esta chamada não grava nada.',
       inputSchema: {
         atrair: z.number().int().min(0).max(100).optional(),
         converter: z.number().int().min(0).max(100).optional(),
@@ -268,22 +236,10 @@ export function registerEditorial(server: McpServer) {
         limpar: z.boolean().optional(),
       },
     },
-    tool(async (args, session) => {
-      const settings = await readEditorialSettings(session);
-      if (args.limpar) {
-        settings.distribuicaoFuncoes = null;
-      } else {
-        const distribuicao = Object.fromEntries(FUNCOES_DA_GRADE.map(f => [f, args[f] ?? 0]));
-        const soma = Object.values(distribuicao).reduce((acc, v) => acc + v, 0);
-        if (soma !== 100) throw new Error(`A soma está em ${soma}%. Ela precisa fechar em 100.`);
-        settings.distribuicaoFuncoes = {...distribuicao, reter: 0};
-      }
-      check('salvar distribuição', await session.client.from('user_preferences').upsert(
-        {user_id: session.userId, key: EDITORIAL_SETTINGS_KEY, value: JSON.stringify(settings)},
-        {onConflict: 'user_id,key'},
-      ));
-      return json(await distribuicaoView(session));
-    }),
+    tool(async (_args, session) => json({
+      ...(await distribuicaoView(session)),
+      aviso: 'A proporção em percentual não fica mais salva. A meta de cada função fica na decisão do intervalo.',
+    })),
   );
 
   server.registerTool(

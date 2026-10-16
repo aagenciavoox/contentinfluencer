@@ -25,7 +25,6 @@ export function DraftSaveBar({
         type="button"
         variant="secondary"
         onClick={onSave}
-        disabled={saveState === 'saving'}
       >
         {saveState === 'saving' ? 'Salvando…' : saveState === 'error' ? 'Tentar novamente' : 'Salvar'}
       </AppButton>

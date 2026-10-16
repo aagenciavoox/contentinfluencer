@@ -3,6 +3,7 @@ import type { DecisaoPeriodo } from './editorialSettings.ts';
 import {
   decisaoDoPeriodo,
   limiteDoIntervalo,
+  lerPeriodoSalvo,
   limiteProporcional,
   semanaDe,
 } from './periodoEditorial.ts';
@@ -135,7 +136,36 @@ function testDecisaoNaoHerdaDoMes() {
   assert.equal(decisaoDoPeriodo(periodos, '2026-10-01', '2026-11-30'), null);
 }
 
+function testPeriodoSalvoVoltaComoFoiConfirmado() {
+  assert.deepEqual(
+    lerPeriodoSalvo({ modo: 'mes', inicio: '2026-11-01', fim: '2026-11-30' }),
+    { modo: 'mes', inicio: '2026-11-01', fim: '2026-11-30' },
+  );
+  assert.deepEqual(
+    lerPeriodoSalvo({ modo: 'intervalo', inicio: '2026-10-05', fim: '2026-10-20' }),
+    { modo: 'intervalo', inicio: '2026-10-05', fim: '2026-10-20' },
+  );
+  assert.deepEqual(
+    lerPeriodoSalvo({ modo: 'semana', inicio: '2026-10-14', fim: '2026-10-14' }),
+    { modo: 'semana', inicio: '2026-10-11', fim: '2026-10-17' },
+  );
+  assert.deepEqual(
+    lerPeriodoSalvo({ modo: 'mes', inicio: '2026-10-15', fim: '2026-10-15' }),
+    { modo: 'mes', inicio: '2026-10-01', fim: '2026-10-31' },
+  );
+}
+
+function testPeriodoSalvoQuebradoNaoVale() {
+  assert.equal(lerPeriodoSalvo(undefined), null);
+  assert.equal(lerPeriodoSalvo('semana'), null);
+  assert.equal(lerPeriodoSalvo({ modo: 'ano', inicio: '2026-01-01', fim: '2026-12-31' }), null);
+  assert.equal(lerPeriodoSalvo({ modo: 'intervalo', inicio: '2026-10-20', fim: '2026-10-05' }), null);
+  assert.equal(lerPeriodoSalvo({ modo: 'intervalo', inicio: '2026-02-30', fim: '2026-03-05' }), null);
+}
+
 testSemanaDeDomingoASabado();
+testPeriodoSalvoVoltaComoFoiConfirmado();
+testPeriodoSalvoQuebradoNaoVale();
 testProporcionalDeTresDias();
 testSemanaCheiaIgualAoLimite();
 testAjusteSubstituiOProporcional();

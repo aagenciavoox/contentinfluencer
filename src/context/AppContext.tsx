@@ -38,7 +38,7 @@ import {
   readPersistedDomain,
   writePersistedDomain,
 } from '../lib/persistentDataCache';
-import { mergeFetchedAppData, patchContentsInDomainCaches, patchPlatformsInDomainCaches, patchSeriesInDomainCaches, patchTemasInDomainCaches } from '../lib/domainCacheSync';
+import { mergeFetchedAppData, patchBibliotecaItemsInDomainCaches, patchContentsInDomainCaches, patchEditorialInDomainCaches, patchPlatformsInDomainCaches, patchPreferencesInDomainCaches, patchSeriesInDomainCaches, patchTemasInDomainCaches } from '../lib/domainCacheSync';
 import {
   BOOTSTRAP_DATA_DOMAINS,
   CRITICAL_BOOTSTRAP_DOMAINS,
@@ -166,6 +166,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const lastLocalMutationAt = useRef<number | null>(null);
   const lastUserIdRef = useRef<string | null>(null);
   const pendingPersistCount = useRef(0);
+  const persistTail = useRef(Promise.resolve());
 
   stateRef.current = state;
 
@@ -192,8 +193,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const runPersist = useCallback(async <T,>(fn: () => Promise<T>): Promise<T> => {
     pendingPersistCount.current += 1;
     touchLocalMutation();
+    // Gravações seguem em fila para não se atropelarem, sem prender quem já seguiu na tela.
+    const job = persistTail.current.then(fn, fn);
+    persistTail.current = job.then(() => undefined, () => undefined);
     try {
-      return await fn();
+      return await job;
     } finally {
       pendingPersistCount.current = Math.max(0, pendingPersistCount.current - 1);
       touchLocalMutation();
@@ -239,6 +243,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       && (actionType === 'ADD_PLATFORM' || actionType === 'UPDATE_PLATFORM' || actionType === 'DELETE_PLATFORM')
     ) {
       patchPlatformsInDomainCaches(userId, stateRef.current.platforms);
+    }
+
+    if (userId && (actionType === 'SET_PREFERENCE' || actionType === 'UPDATE_PREFERENCE' || actionType === 'SET_THEME')) {
+      patchPreferencesInDomainCaches(userId, stateRef.current.preferences);
+    }
+
+    if (userId && (actionType === 'SET_EDITORIAL' || actionType === 'SET_EDITORIAL_VISAO')) {
+      patchEditorialInDomainCaches(
+        userId,
+        stateRef.current.editorial,
+        stateRef.current.editorialVisao,
+      );
+    }
+
+    if (userId && (actionType.includes('BOOK') || actionType.includes('BIBLIOTECA'))) {
+      patchBibliotecaItemsInDomainCaches(userId, stateRef.current.bibliotecaItems);
     }
 
     if (

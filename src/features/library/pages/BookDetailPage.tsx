@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { useAppContext } from '../../../context/AppContext';
 import { useAuth } from '../../../context/AuthContext';
-import { Anotacao, BibliotecaItem, BibliotecaItemMeta, Content, fetchBibliotecaItemById, Projeto } from '../../../lib/database';
+import { Anotacao, BibliotecaItem, Content, fetchBibliotecaItemById, Projeto } from '../../../lib/database';
 import { generateUUID as _uuid } from '../../../utils/uuid';
 import { GENEROS_SUGERIDOS } from '../lib/libraryGenres';
 import { ConfirmModal } from '../../../components/feedback/modals/ConfirmModal';
@@ -213,7 +213,7 @@ export function BookDetailPage() {
 
   const _livro = livro as any;
   const itemType = livro?.tipo ?? 'livro';
-  const metadata = ((livro && (state.preferences[`item_meta:${livro.id}`] || state.preferences[`book_meta:${livro.id}`])) || {}) as BibliotecaItemMeta;
+  const metadata = livro?.ficha ?? {};
   const itemTypeLabel = getItemTypeLabel(itemType);
   const creatorLabel = getCreatorLabel(itemType);
   const progressLabels = getProgressLabels(itemType);
@@ -402,13 +402,7 @@ export function BookDetailPage() {
         totalPaginas: infoLocal.totalPaginas === '' ? null : Number(infoLocal.totalPaginas),
         potencialConteudo: infoLocal.potencialConteudo ?? null,
         updatedAt: new Date().toISOString(),
-      },
-    });
-    dispatch({
-      type: 'SET_PREFERENCE',
-      payload: {
-        key: `item_meta:${livro.id}`,
-        value: {
+        ficha: {
           ...metadata,
           editora: infoLocal.editora,
           anoPublicacao: infoLocal.anoPublicacao,
@@ -424,7 +418,7 @@ export function BookDetailPage() {
           quemIndicou: infoLocal.quemIndicou,
           motivoEscolha: infoLocal.motivoEscolha,
           capitulosCobertos,
-        } satisfies BibliotecaItemMeta,
+        },
       },
     });
     setInfoSalvo(true);
@@ -489,13 +483,13 @@ export function BookDetailPage() {
   const handleAdicionarCapitulo = () => {
     if (!novoCapituloCoberto.trim()) return;
     dispatch({
-      type: 'SET_PREFERENCE',
+      type: 'UPDATE_BOOK',
       payload: {
-        key: `item_meta:${livro.id}`,
-        value: {
+        ...livro,
+        ficha: {
           ...metadata,
           capitulosCobertos: [...capitulosCobertos, novoCapituloCoberto.trim()],
-        } satisfies BibliotecaItemMeta,
+        },
       },
     });
     setNovoCapituloCoberto('');
@@ -503,13 +497,13 @@ export function BookDetailPage() {
 
   const handleRemoverCapitulo = (cap: string) => {
     dispatch({
-      type: 'SET_PREFERENCE',
+      type: 'UPDATE_BOOK',
       payload: {
-        key: `item_meta:${livro.id}`,
-        value: {
+        ...livro,
+        ficha: {
           ...metadata,
           capitulosCobertos: capitulosCobertos.filter(c => c !== cap),
-        } satisfies BibliotecaItemMeta,
+        },
       },
     });
   };

@@ -59,6 +59,8 @@ export type PersistenceApi = Pick<DatabaseModule,
   | 'saveTemplate'
   | 'deleteTemplate'
   | 'savePreference'
+  | 'saveEditorial'
+  | 'saveEditorialVisao'
   | 'saveGoldenRule'
   | 'deleteGoldenRule'
   | 'savePlatform'
@@ -396,6 +398,14 @@ export async function persistAction({ action, userId, state, api }: PersistActio
     case 'SET_PREFERENCE':
     case 'UPDATE_PREFERENCE':
       await persistenceApi.savePreference(action.payload.key, action.payload.value);
+      return;
+
+    case 'SET_EDITORIAL':
+      await persistenceApi.saveEditorial(action.payload);
+      return;
+
+    case 'SET_EDITORIAL_VISAO':
+      await persistenceApi.saveEditorialVisao(action.payload);
       return;
 
     case 'ADD_GOLDEN_RULE':

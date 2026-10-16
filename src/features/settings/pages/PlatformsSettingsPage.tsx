@@ -63,9 +63,7 @@ export function PlatformsSettingsPage() {
   const {state, dispatch} = useAppContext();
   const {user} = useAuth();
   const [rascunho, setRascunho] = useState<Rascunho | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
   const [confirm, setConfirm] = useState<ConfirmState | null>(null);
-  const [salvandoLink, setSalvandoLink] = useState<string | null>(null);
   const [revisaoAberta, setRevisaoAberta] = useState(true);
   // Com horário sem salvar, "Salvar alterações" vira o botão principal e "Nova conta" cede o lugar.
   const [horariosPendentes, setHorariosPendentes] = useState(false);
@@ -96,15 +94,10 @@ export function PlatformsSettingsPage() {
     if (!atualizado) return;
     const destino = content.plataformas.find(item => item.id === publicacaoId);
     const outro = destino?.postUrl?.trim();
-    const executar = async () => {
-      setSalvandoLink(contentId);
-      try {
-        await dispatch({ type: 'UPDATE_CONTENT', payload: atualizado });
-      } catch {
+    const executar = () => {
+      void dispatch({ type: 'UPDATE_CONTENT', payload: atualizado }).catch(() => {
         // O AppContext já mostra o erro.
-      } finally {
-        setSalvandoLink(null);
-      }
+      });
     };
     if (outro && outro !== content.link?.trim()) {
       setConfirm({
@@ -137,14 +130,9 @@ export function PlatformsSettingsPage() {
     };
     const atualizado = anexarPublicacaoComLink(content, publicacao);
     if (!atualizado) return;
-    setSalvandoLink(content.id);
-    try {
-      await dispatch({ type: 'UPDATE_CONTENT', payload: atualizado });
-    } catch {
+    void dispatch({ type: 'UPDATE_CONTENT', payload: atualizado }).catch(() => {
       // O AppContext já mostra o erro.
-    } finally {
-      setSalvandoLink(null);
-    }
+    });
   };
 
   const abrirEdicao = (platform: Platform) => {
@@ -185,24 +173,17 @@ export function PlatformsSettingsPage() {
       updatedAt: new Date().toISOString(),
     };
 
-    setIsSaving(true);
-    try {
-      await dispatch({ type: atual ? 'UPDATE_PLATFORM' : 'ADD_PLATFORM', payload: platform });
-      fechar();
-    } catch {
+    fechar();
+    void dispatch({ type: atual ? 'UPDATE_PLATFORM' : 'ADD_PLATFORM', payload: platform }).catch(() => {
       // O AppContext já mostra o erro, inclusive @ repetido na mesma plataforma.
-    } finally {
-      setIsSaving(false);
-    }
+    });
   };
 
-  const toggleAtivo = async (platform: Platform) => {
+  const toggleAtivo = (platform: Platform) => {
     if (platform.userId === null || !user?.id) return;
-    try {
-      await dispatch({ type: 'UPDATE_PLATFORM', payload: { ...platform, ativo: !platform.ativo } });
-    } catch {
+    void dispatch({ type: 'UPDATE_PLATFORM', payload: { ...platform, ativo: !platform.ativo } }).catch(() => {
       // feedback já exibido pelo AppContext
-    }
+    });
   };
 
   const pedirExclusao = (platform: Platform) => {
@@ -279,8 +260,8 @@ export function PlatformsSettingsPage() {
               </label>
               <div className="flex justify-end gap-2 pt-2">
                 <AppButton type="button" onClick={fechar} variant="secondary">Cancelar</AppButton>
-                <AppButton onClick={() => void salvar()} disabled={!rascunho.nome.trim() || isSaving || !user?.id} variant="primary">
-                  {isSaving ? 'Salvando…' : 'Salvar conta'}
+                <AppButton onClick={salvar} disabled={!rascunho.nome.trim() || !user?.id} variant="primary">
+                  Salvar conta
                 </AppButton>
               </div>
             </div>
@@ -358,7 +339,6 @@ export function PlatformsSettingsPage() {
                                   type="button"
                                   size="sm"
                                   variant="secondary"
-                                  disabled={salvandoLink === conteudo.id}
                                   onClick={() => { void colocarLink(conteudo.id, publicacao.id); }}
                                 >
                                   {`Colocar em ${rotulo}`}
@@ -381,7 +361,6 @@ export function PlatformsSettingsPage() {
                                     type="button"
                                     size="sm"
                                     variant="secondary"
-                                    disabled={salvandoLink === conteudo.id}
                                     onClick={() => { void criarPublicacaoComLink(conteudo, conta.id); }}
                                   >
                                     {`Criar em ${nome}`}

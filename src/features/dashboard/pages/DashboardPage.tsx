@@ -61,7 +61,6 @@ export function DashboardPage() {
   const [ideaPilarId, setIdeaPilarId] = useState('');
   const [ideaSeriesId, setIdeaSeriesId] = useState('');
   const [ideaOriginId, setIdeaOriginId] = useState('');
-  const [isBusy, setIsBusy] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
@@ -126,39 +125,37 @@ export function DashboardPage() {
     navigate(`${buildContentDetailRoute(newContent.id)}&focus=script`, detailBackState);
   };
 
-  const saveIdea = async () => {
+  const saveIdea = () => {
     const title = ideaTitle.trim();
     const notes = ideaNotes.trim();
     if (!title && !notes) return;
 
-    try {
-      const serie = ideaSeriesId
-        ? state.series.find(item => item.id === ideaSeriesId) ?? {id: ideaSeriesId}
-        : null;
-      let content = createIdeaContent({
-        userId: user?.id || '',
-        title: title || 'Ideia sem título',
-        notes: notes || null,
-        pilarId: ideaPilarId || null,
-        pilarOrigem: ideaPilarId ? 'escolhida' : null,
-        seriesId: ideaSeriesId || null,
-        bibliotecaItemId: ideaOriginId || null,
-      });
-      if (serie) content = aplicarEscolhasDaSerie(content, serie);
-      await dispatch({ type: 'ADD_CONTENT', payload: content });
-      setIdeaTitle('');
-      setIdeaNotes('');
-      setIdeaPilarId('');
-      setIdeaSeriesId('');
-      setIdeaOriginId('');
-      notifySaveFeedback({ status: 'success', message: 'Ideia guardada.' });
-    } catch (error) {
-      notifySaveFeedback({ status: 'error', message: getErrorMessage(error) });
-    }
+    const serie = ideaSeriesId
+      ? state.series.find(item => item.id === ideaSeriesId) ?? {id: ideaSeriesId}
+      : null;
+    let content = createIdeaContent({
+      userId: user?.id || '',
+      title: title || 'Ideia sem título',
+      notes: notes || null,
+      pilarId: ideaPilarId || null,
+      pilarOrigem: ideaPilarId ? 'escolhida' : null,
+      seriesId: ideaSeriesId || null,
+      bibliotecaItemId: ideaOriginId || null,
+    });
+    if (serie) content = aplicarEscolhasDaSerie(content, serie);
+    setIdeaTitle('');
+    setIdeaNotes('');
+    setIdeaPilarId('');
+    setIdeaSeriesId('');
+    setIdeaOriginId('');
+    notifySaveFeedback({ status: 'saving', message: 'Salvando ideia…' });
+    void dispatch({ type: 'ADD_CONTENT', payload: content }, { silent: true })
+      .then(() => notifySaveFeedback({ status: 'success', message: 'Ideia guardada.' }))
+      .catch(error => notifySaveFeedback({ status: 'error', message: getErrorMessage(error) }));
   };
 
-  const startSession = async () => {
-    if (isBusy || suggestedScripts.length === 0 || !moduleFlags.recording) return;
+  const startSession = () => {
+    if (suggestedScripts.length === 0 || !moduleFlags.recording) return;
     const payload = buildDailySessionBlock({
       contents: state.contents,
       contentIds: suggestedScripts.map(content => content.id),
@@ -166,20 +163,17 @@ export function DashboardPage() {
     });
     if (!payload) return;
 
-    setIsBusy(true);
     setErrorMessage(null);
-    try {
-      await dispatch({ type: 'ADD_RECORDING_BLOCK', payload: payload.block });
-      await dispatch({
-        type: 'UPDATE_BLOCK_CONTENTS',
-        payload: { blockId: payload.block.id, contents: payload.blockContents },
-      });
-      navigate(`/gravacao/${payload.block.id}?burst=1`);
-    } catch (error) {
+    void dispatch({ type: 'ADD_RECORDING_BLOCK', payload: payload.block }).catch(error => {
       setErrorMessage(getErrorMessage(error));
-    } finally {
-      setIsBusy(false);
-    }
+    });
+    void dispatch({
+      type: 'UPDATE_BLOCK_CONTENTS',
+      payload: { blockId: payload.block.id, contents: payload.blockContents },
+    }).catch(error => {
+      setErrorMessage(getErrorMessage(error));
+    });
+    navigate(`/gravacao/${payload.block.id}?burst=1`);
   };
 
   const home = (
@@ -192,7 +186,7 @@ export function DashboardPage() {
       series={state.series}
       suggestionText={suggestionText}
       recordingEnabled={moduleFlags.recording}
-      isBusy={isBusy}
+      isBusy={false}
       errorMessage={errorMessage}
       detailBack={detailBackState.state}
       ideaTitle={ideaTitle}

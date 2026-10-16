@@ -47,7 +47,7 @@ const fichaSchema = z.object({
   quem_indicou: textoFicha,
   motivo_escolha: textoFicha,
   capitulos_cobertos: listaFicha,
-}).partial().optional().describe('Ficha extra do item. O app lê isto em preferências (item_meta). null limpa o campo.');
+}).partial().optional().describe('Ficha extra do item, nas colunas de biblioteca_items. null limpa o campo.');
 
 function assertStatus(tipo: Tipo, status: string) {
   if (!STATUS_POR_TIPO[tipo].includes(status)) {
@@ -104,45 +104,77 @@ async function replaceGeneros(session: Session, itemId: string, nomes: string[])
   ));
 }
 
-function objetoJson(value: unknown): Record<string, unknown> {
-  if (value && typeof value === 'object' && !Array.isArray(value)) return value as Record<string, unknown>;
-  if (typeof value !== 'string' || !value.trim()) return {};
-  try {
-    const parsed = JSON.parse(value);
-    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed as Record<string, unknown> : {};
-  } catch {
-    return {};
-  }
+function fichaDaLinha(row: Row) {
+  return lerFicha({
+    editora: row.editora,
+    anoPublicacao: row.ano_publicacao,
+    isbn: row.isbn,
+    idioma: row.idioma,
+    traducao: row.traducao,
+    serieColecao: row.serie_colecao,
+    colecaoStatus: row.colecao_status,
+    colecaoNome: row.colecao_nome,
+    generoAutor: row.genero_autor,
+    paisAutor: row.pais_autor,
+    racaAutor: row.raca_autor,
+    duracao: row.duracao,
+    episodios: row.episodios,
+    duracaoPorEpisodio: row.duracao_por_episodio,
+    roteirista: row.roteirista,
+    distribuidora: row.distribuidora,
+    plataforma: row.plataforma,
+    dataLancamento: row.data_lancamento,
+    paisOrigem: row.pais_origem,
+    fazParteDeSerie: row.faz_parte_de_serie,
+    nomeDaSerie: row.nome_da_serie,
+    tagsPersonalizadas: row.tags_personalizadas,
+    quemIndicou: row.quem_indicou,
+    motivoEscolha: row.motivo_escolha,
+    capitulosCobertos: row.capitulos_cobertos,
+  });
 }
 
-async function fichaDoItem(session: Session, id: string, metadata: unknown) {
-  const prefs = check('ficha', await session.client.from('user_preferences').select('key, value')
-    .eq('user_id', session.userId)
-    .in('key', [`item_meta:${id}`, `book_meta:${id}`])) ?? [];
-  const porChave = new Map((prefs as Row[]).map(row => [String(row.key), objetoJson(row.value)]));
-  const preferida = porChave.get(`item_meta:${id}`) ?? {};
-  const legado = porChave.get(`book_meta:${id}`) ?? {};
-  const base = Object.keys(preferida).length
-    ? preferida
-    : Object.keys(legado).length ? legado : objetoJson(metadata);
-  return lerFicha(base);
+function colunasDaFicha(stored: Record<string, string | string[]>) {
+  const lista = (value: string | string[] | undefined) => Array.isArray(value) ? value : [];
+  const texto = (value: string | string[] | undefined) => typeof value === 'string' ? value : null;
+  return {
+    editora: texto(stored.editora),
+    ano_publicacao: texto(stored.anoPublicacao),
+    isbn: texto(stored.isbn),
+    idioma: texto(stored.idioma),
+    traducao: texto(stored.traducao),
+    serie_colecao: texto(stored.serieColecao),
+    colecao_status: stored.colecaoStatus === 'sim' || stored.colecaoStatus === 'nao' ? stored.colecaoStatus : null,
+    colecao_nome: texto(stored.colecaoNome),
+    genero_autor: texto(stored.generoAutor),
+    pais_autor: texto(stored.paisAutor),
+    raca_autor: texto(stored.racaAutor),
+    duracao: texto(stored.duracao),
+    episodios: texto(stored.episodios),
+    duracao_por_episodio: texto(stored.duracaoPorEpisodio),
+    roteirista: texto(stored.roteirista),
+    distribuidora: texto(stored.distribuidora),
+    plataforma: texto(stored.plataforma),
+    data_lancamento: texto(stored.dataLancamento),
+    pais_origem: texto(stored.paisOrigem),
+    faz_parte_de_serie: stored.fazParteDeSerie === 'sim' || stored.fazParteDeSerie === 'nao' ? stored.fazParteDeSerie : null,
+    nome_da_serie: texto(stored.nomeDaSerie),
+    tags_personalizadas: lista(stored.tagsPersonalizadas),
+    quem_indicou: texto(stored.quemIndicou),
+    motivo_escolha: texto(stored.motivoEscolha),
+    capitulos_cobertos: lista(stored.capitulosCobertos),
+  };
 }
 
 async function gravarFicha(
   session: Session,
   id: string,
-  metadata: unknown,
+  atual: Row,
   patch: Partial<Record<CampoFicha, string | string[] | null>>,
 ) {
-  const atual = await fichaDoItem(session, id, metadata);
-  const stored = aplicarFicha(atual, patch);
-  const value = JSON.stringify(stored);
-  check('salvar ficha', await session.client.from('user_preferences').upsert(
-    {user_id: session.userId, key: `item_meta:${id}`, value},
-    {onConflict: 'user_id,key'},
-  ));
-  check('salvar ficha no item', await session.client.from('biblioteca_items')
-    .update({metadata: stored, updated_at: nowIso()})
+  const stored = aplicarFicha(fichaDaLinha(atual), patch);
+  check('salvar ficha', await session.client.from('biblioteca_items')
+    .update({...colunasDaFicha(stored), updated_at: nowIso()})
     .eq('id', id)
     .eq('user_id', session.userId));
   return lerFicha(stored);
@@ -221,7 +253,7 @@ export function registerBiblioteca(server: McpServer) {
       return json({
         ...itemSummary(row),
         notas_gerais: row.notas_gerais ?? null,
-        ficha: await fichaDoItem(session, row.id, row.metadata),
+        ficha: fichaDaLinha(row),
         anotacoes: (row.anotacoes ?? [])
           .filter((a: Row) => !a.deleted_at)
           .sort((a: Row, b: Row) => String(a.created_at).localeCompare(String(b.created_at)))
@@ -330,8 +362,8 @@ export function registerBiblioteca(server: McpServer) {
       }
       if (args.generos !== undefined) await replaceGeneros(session, args.id, args.generos);
       const ficha = args.ficha
-        ? await gravarFicha(session, args.id, current.metadata, args.ficha)
-        : await fichaDoItem(session, args.id, current.metadata);
+        ? await gravarFicha(session, args.id, current, args.ficha)
+        : fichaDaLinha(current);
       return json({...itemSummary(await fetchItem(session, args.id)), ficha});
     }),
   );

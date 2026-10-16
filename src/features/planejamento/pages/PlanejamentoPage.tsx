@@ -14,7 +14,6 @@ import {Badge} from '../../../components/ui/Badge';
 import {Surface} from '../../../components/ui/Surface';
 import {TagSelect} from '../../../components/ui/TagSelect';
 import {Text} from '../../../components/ui/Text';
-import {ToolbarSearchInput} from '../../../components/ui/ToolbarSearchInput';
 import {Dialog} from '../../../components/overlays/Dialog';
 import {OverlayBody} from '../../../components/overlays/OverlayBody';
 import {OverlayFooter} from '../../../components/overlays/OverlayFooter';
@@ -31,12 +30,12 @@ import {CONTENT_STATUS, DISPLAY_STATUS, normalizeContentStatus} from '../../cont
 import {calendarEntryIcon} from '../../editorial-calendar/components/CalendarNetworkIcons';
 import {buildDetailBackState} from '../../../lib/navigation/detailBack';
 import {etiquetasVisiveis} from '../../creation/lib/creationItemPresentation';
-import {getEditorialSettings} from '../../editorial/lib/editorialSettings';
 import {distribuicaoFecha} from '../../editorial/lib/gradeCounts';
 import {FUNCAO_CURTA, FUNCAO_LABELS, FUNCOES, FUNIL_DA_FUNCAO, isFuncaoEditorial, resolveFuncao} from '../../editorial/lib/funcoes';
 import {sortPilares} from '../../settings/lib/activePilares';
 import {EncaixeDialog} from '../components/EncaixeDialog';
 import {MonthHealth} from '../components/MonthHealth';
+import {PuxarConteudoDialog} from '../components/PuxarConteudoDialog';
 import {excessosAoAcrescentar, periodoDoMes, saudeDoMes, type ExcessoMes} from '../lib/monthHealth';
 import {POST_IT_MIME, PostItIdentity, PostItNote, PostItTemas, type PostItMark} from '../components/PostItNote';
 import {conteudoTemTema, temasEmUso} from '../lib/temasPlanejamento';
@@ -146,7 +145,6 @@ export function PlanejamentoPage() {
   const [editing, setEditing] = useState(false);
   const [pullOpen, setPullOpen] = useState(false);
   const [pullDate, setPullDate] = useState<string | null>(null);
-  const [pullQuery, setPullQuery] = useState('');
   const [noteDraft, setNoteDraft] = useState('');
   const [dateDraft, setDateDraft] = useState<string | null>(null);
   const [classeDraft, setClasseDraft] = useState<PostItEdit>({texto: '', date: null});
@@ -220,7 +218,7 @@ export function PlanejamentoPage() {
       contents,
       platforms: state.platforms,
       series: state.series,
-      redeReferenciaId: getEditorialSettings(state.preferences).redeReferenciaId,
+      redeReferenciaId: state.editorial.redeReferenciaId,
     }),
     [contents, state.platforms, state.series, state.preferences],
   );
@@ -256,7 +254,7 @@ export function PlanejamentoPage() {
   };
 
   const monthHealth = useMemo(() => {
-    const settings = getEditorialSettings(state.preferences);
+    const settings = state.editorial;
     return {
       counts: saudeDoMes({
         postIts,
@@ -297,7 +295,7 @@ export function PlanejamentoPage() {
       contents,
       series: state.series,
       pilares: state.pilares,
-      settings: getEditorialSettings(state.preferences),
+      settings: state.editorial,
       platforms: state.platforms,
     });
     if (lista.length === 0) {
@@ -320,7 +318,7 @@ export function PlanejamentoPage() {
 
     let cursor = postIts;
     const avisosPorNome = new Map<string, ExcessoMes>();
-    const settings = getEditorialSettings(state.preferences);
+    const settings = state.editorial;
     for (const postIt of targets) {
       const lista = excessosAoAcrescentar({
         content: contentById(contents, postIt.contentId),
@@ -368,7 +366,6 @@ export function PlanejamentoPage() {
     confirmarSeCouber(content, date, () => {
       applyList(result.postIts);
       setPullOpen(false);
-      setPullQuery('');
     });
   };
 
@@ -492,17 +489,10 @@ export function PlanejamentoPage() {
     [postIts],
   );
 
-  const pullable = useMemo(() => {
-    const query = pullQuery.trim().toLowerCase();
-    return contents
-      .filter(canPullContent)
-      .filter(content => !pulledContentIds.has(content.id))
-      .filter(content => {
-        if (!query) return true;
-        return `${content.title} ${content.status}`.toLowerCase().includes(query);
-      })
-      .sort((left, right) => (left.title || '').localeCompare(right.title || '', 'pt-BR'));
-  }, [contents, pullQuery, pulledContentIds]);
+  const pullable = useMemo(
+    () => contents.filter(content => canPullContent(content) && !pulledContentIds.has(content.id)),
+    [contents, pulledContentIds],
+  );
 
   const options = openPostIt ? postItTransformOptions(openPostIt, openContent) : {ideia: false, roteiro: false};
   const openKind = openPostIt ? postItKind(openPostIt, openContent) : 'vazio';
@@ -1015,47 +1005,13 @@ export function PlanejamentoPage() {
 
       <EncaixeDialog postIt={encaixePostIt} onClose={() => setEncaixeId(null)} zIndex="z-[140]" />
 
-      <Dialog open={pullOpen} onClose={() => setPullOpen(false)} desktopMaxW="max-w-md">
-        <OverlayHeader
-          title={pullDate ? 'Puxar para o dia' : 'Puxar para fora do calendário'}
-          onClose={() => setPullOpen(false)}
-        />
-        <OverlayBody>
-          <div className="stack-md">
-            <Text variant="meta" className="text-[var(--text-secondary)]">
-              A ideia, o roteiro ou o conteúdo em produção entra no planejamento sem mudar de status.
-            </Text>
-            <ToolbarSearchInput
-              value={pullQuery}
-              onChange={setPullQuery}
-              placeholder="Buscar pelo título"
-              size="compact"
-            />
-            {pullable.length === 0 ? (
-              <Text variant="meta" className="text-[var(--text-secondary)]">Nada para puxar.</Text>
-            ) : (
-              <ul className="stack-sm">
-                {pullable.map(content => (
-                  <li key={content.id}>
-                    <button
-                      type="button"
-                      onClick={() => pullOnto(content, pullDate)}
-                      className="flex w-full items-start justify-between gap-3 rounded-[var(--radius-input)] border border-[var(--border-color)] px-3 py-2 text-left hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
-                    >
-                      <span className="min-w-0 flex-1 whitespace-normal break-words text-sm font-semibold text-[var(--text-primary)]">
-                        {content.title || 'Sem título'}
-                      </span>
-                      <Badge variant="status" status={normalizeContentStatus(content.status)}>
-                        {normalizeContentStatus(content.status)}
-                      </Badge>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        </OverlayBody>
-      </Dialog>
+      <PuxarConteudoDialog
+        open={pullOpen}
+        date={pullDate}
+        candidatos={pullable}
+        onClose={() => setPullOpen(false)}
+        onPuxar={content => pullOnto(content, pullDate)}
+      />
       <Dialog
         open={Boolean(avisos?.length)}
         onClose={fecharAviso}

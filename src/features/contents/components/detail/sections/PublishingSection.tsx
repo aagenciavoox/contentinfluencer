@@ -6,7 +6,6 @@ import {CONTENT_STATUS, getDisplayStatus} from '../../../lib/contentPipeline';
 import type {PostingAlert} from '../../../lib/contentPipeline';
 import {useState} from 'react';
 import {useAppContext} from '../../../../../context/AppContext';
-import {getEditorialSettings} from '../../../../editorial/lib/editorialSettings';
 import {criarRepost} from '../../../../editorial/lib/destinations';
 import {PlatformCopyEditor} from '../PlatformCopyEditor';
 import {rotuloConta, rotuloDaRef} from '../../../../contas/lib/contas';
@@ -23,7 +22,6 @@ interface PublishingSectionProps {
   alerts: PostingAlert[];
   onChange: (updates: Partial<PublishingDraft>) => void;
   onMarkPosted?: () => void;
-  isSaving?: boolean;
   contentId?: string;
 }
 
@@ -46,11 +44,10 @@ export function PublishingSection({
   alerts,
   onChange,
   onMarkPosted,
-  isSaving = false,
   contentId = '',
 }: PublishingSectionProps) {
   const {state} = useAppContext();
-  const editorial = getEditorialSettings(state.preferences);
+  const editorial = state.editorial;
   const referencia = state.platforms.find(platform => platform.id === editorial.redeReferenciaId) ?? null;
   const [repostDate, setRepostDate] = useState('');
   const isPosted = draft.status === CONTENT_STATUS.POSTADO || Boolean(draft.postedAt);
@@ -179,7 +176,6 @@ export function PublishingSection({
                   <AppButton
                     variant="ghost"
                     size="xs"
-                    disabled={isSaving}
                     onClick={() =>
                       onChange({
                         plataformas: setPublicacaoStatus(draft.plataformas, plataforma.id, 'nao_publicada'),
@@ -191,7 +187,6 @@ export function PublishingSection({
                   <AppButton
                     variant="ghost"
                     size="xs"
-                    disabled={isSaving}
                     onClick={() =>
                       onChange({
                         plataformas: setPublicacaoStatus(draft.plataformas, plataforma.id, 'removida'),
@@ -242,7 +237,7 @@ export function PublishingSection({
             </label>
             <AppButton
               variant="secondary"
-              disabled={!referencia || !repostDate || isSaving}
+              disabled={!referencia || !repostDate}
               onClick={() => {
                 if (!referencia || !repostDate) return;
                 onChange({
@@ -264,8 +259,8 @@ export function PublishingSection({
 
       {!isPosted && onMarkPosted ? (
         <div className="flex justify-end">
-          <AppButton variant="primary" disabled={isSaving} onClick={onMarkPosted}>
-            {isSaving ? 'Salvando…' : 'Registrar como postado'}
+          <AppButton variant="primary" onClick={onMarkPosted}>
+            Registrar como postado
           </AppButton>
         </div>
       ) : null}

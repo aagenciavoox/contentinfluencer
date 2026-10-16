@@ -6,6 +6,8 @@ import { getIdeaNotes, normalizeIdea } from '../features/ideas/lib/ideaText';
 import { aplicarLivros, livroIdsEfetivos } from './livroIds.ts';
 import { generateUUID } from '../utils/uuid';
 import { readAvisoDias } from '../features/projects/lib/evento.ts';
+import { DEFAULT_EDITORIAL_SETTINGS, type EditorialSettings } from '../features/editorial/lib/editorialSettings.ts';
+import type { PeriodoSelecionado } from '../features/editorial/lib/periodoEditorial.ts';
 
 // ============================================================================
 // TYPES
@@ -229,6 +231,8 @@ export interface BibliotecaItem {
   deletedAt: string | null;
   generoIds: string[];
   anotacoes: Anotacao[];
+  /** Ficha do item. Colunas próprias em `biblioteca_items`, não preferência. */
+  ficha?: BibliotecaItemMeta;
 }
 
 export interface BibliotecaItemMeta {
@@ -567,6 +571,10 @@ export interface AppData {
   goldenRules: GoldenRule[];
   contentMetrics: ContentMetric[];
   postingTimeEntries: PostingTimeEntry[];
+  /** Ajustes e decisões do editorial. Uma conta, várias decisões de intervalo. */
+  editorial: EditorialSettings;
+  /** Janela reaberta na aba Período. Null abre na semana de hoje. */
+  editorialVisao: PeriodoSelecionado | null;
 }
 
 export type AppDataDomain =
@@ -619,6 +627,8 @@ function empty(): AppData {
     cenarios: [], looks: [], bibliotecaGeneros: [], bibliotecaItems: [],
     contents: [], ideas: [], projetos: [], recordingBlocks: [], templates: [],
     agendaItems: [], postIts: [], goldenRules: [], contentMetrics: [], postingTimeEntries: [],
+    editorial: DEFAULT_EDITORIAL_SETTINGS,
+    editorialVisao: null,
   };
 }
 
@@ -862,6 +872,95 @@ function readFuncaoOrigem(value: unknown): FuncaoOrigem | null {
     : null;
 }
 
+function textoFicha(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined;
+  const trimmed = value.trim();
+  return trimmed || undefined;
+}
+
+function simNaoFicha(value: unknown): 'sim' | 'nao' | undefined {
+  return value === 'sim' || value === 'nao' ? value : undefined;
+}
+
+function listaFicha(value: unknown): string[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const itens = value.map(item => (typeof item === 'string' ? item.trim() : '')).filter(Boolean);
+  return itens.length ? itens : undefined;
+}
+
+function fichaDaLinha(r: Row): BibliotecaItemMeta {
+  const ficha: BibliotecaItemMeta = {};
+  const texto = (coluna: string, campo: keyof BibliotecaItemMeta) => {
+    const valor = textoFicha(r[coluna]);
+    if (valor) (ficha as Record<string, unknown>)[campo] = valor;
+  };
+  texto('editora', 'editora');
+  texto('ano_publicacao', 'anoPublicacao');
+  texto('isbn', 'isbn');
+  texto('idioma', 'idioma');
+  texto('traducao', 'traducao');
+  texto('serie_colecao', 'serieColecao');
+  texto('colecao_nome', 'colecaoNome');
+  texto('genero_autor', 'generoAutor');
+  texto('pais_autor', 'paisAutor');
+  texto('raca_autor', 'racaAutor');
+  texto('duracao', 'duracao');
+  texto('episodios', 'episodios');
+  texto('duracao_por_episodio', 'duracaoPorEpisodio');
+  texto('roteirista', 'roteirista');
+  texto('distribuidora', 'distribuidora');
+  texto('plataforma', 'plataforma');
+  texto('data_lancamento', 'dataLancamento');
+  texto('pais_origem', 'paisOrigem');
+  texto('nome_da_serie', 'nomeDaSerie');
+  texto('quem_indicou', 'quemIndicou');
+  texto('motivo_escolha', 'motivoEscolha');
+  const colecao = simNaoFicha(r.colecao_status);
+  if (colecao) ficha.colecaoStatus = colecao;
+  const serie = simNaoFicha(r.faz_parte_de_serie);
+  if (serie) ficha.fazParteDeSerie = serie;
+  const tags = listaFicha(r.tags_personalizadas);
+  if (tags) ficha.tagsPersonalizadas = tags;
+  const capitulos = listaFicha(r.capitulos_cobertos);
+  if (capitulos) ficha.capitulosCobertos = capitulos;
+  return ficha;
+}
+
+function colunaTextoFicha(value: string | undefined): string | null {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : null;
+}
+
+function fichaParaColunas(ficha: BibliotecaItemMeta) {
+  return {
+    editora: colunaTextoFicha(ficha.editora),
+    ano_publicacao: colunaTextoFicha(ficha.anoPublicacao),
+    isbn: colunaTextoFicha(ficha.isbn),
+    idioma: colunaTextoFicha(ficha.idioma),
+    traducao: colunaTextoFicha(ficha.traducao),
+    serie_colecao: colunaTextoFicha(ficha.serieColecao),
+    colecao_status: ficha.colecaoStatus === 'sim' || ficha.colecaoStatus === 'nao' ? ficha.colecaoStatus : null,
+    colecao_nome: colunaTextoFicha(ficha.colecaoNome),
+    genero_autor: colunaTextoFicha(ficha.generoAutor),
+    pais_autor: colunaTextoFicha(ficha.paisAutor),
+    raca_autor: colunaTextoFicha(ficha.racaAutor),
+    duracao: colunaTextoFicha(ficha.duracao),
+    episodios: colunaTextoFicha(ficha.episodios),
+    duracao_por_episodio: colunaTextoFicha(ficha.duracaoPorEpisodio),
+    roteirista: colunaTextoFicha(ficha.roteirista),
+    distribuidora: colunaTextoFicha(ficha.distribuidora),
+    plataforma: colunaTextoFicha(ficha.plataforma),
+    data_lancamento: colunaTextoFicha(ficha.dataLancamento),
+    pais_origem: colunaTextoFicha(ficha.paisOrigem),
+    faz_parte_de_serie: ficha.fazParteDeSerie === 'sim' || ficha.fazParteDeSerie === 'nao' ? ficha.fazParteDeSerie : null,
+    nome_da_serie: colunaTextoFicha(ficha.nomeDaSerie),
+    tags_personalizadas: (ficha.tagsPersonalizadas ?? []).map(tag => tag.trim()).filter(Boolean),
+    quem_indicou: colunaTextoFicha(ficha.quemIndicou),
+    motivo_escolha: colunaTextoFicha(ficha.motivoEscolha),
+    capitulos_cobertos: (ficha.capitulosCobertos ?? []).map(capitulo => capitulo.trim()).filter(Boolean),
+  };
+}
+
 const mp = {
   platform: (r: Row): Platform => ({
     id: String(r.id), userId: r.user_id, nome: r.nome, ativo: r.ativo, createdAt: r.created_at,
@@ -956,6 +1055,7 @@ const mp = {
     createdAt: r.created_at, updatedAt: r.updated_at, deletedAt: r.deleted_at,
     generoIds: (r.item_generos || []).map((g: Row) => g.biblioteca_generos?.nome || g.genero_id),
     anotacoes: (r.anotacoes || []).filter((a: Row) => !a.deleted_at).map(mp.anotacao),
+    ficha: fichaDaLinha(r),
   }),
   content: (r: Row): Content => ({
     id: r.id, userId: r.user_id, title: r.title, status: normalizeContentStatus(r.status),
@@ -1746,9 +1846,15 @@ export async function fetchDataDomains(
 
   if (requested.has('bootstrap')) {
     tasks.push((async () => {
-      const [platformsResult, prefsResult] = await Promise.all([
+      const [platformsResult, prefsResult, contaResult, visaoResult, destinosResult, limitesResult, decisoesResult, ajustesResult] = await Promise.all([
         platformsPromise!,
         supabase.from('user_preferences').select('*').eq('user_id', uid),
+        supabase.from('editorial_conta').select('*').eq('user_id', uid).maybeSingle(),
+        supabase.from('editorial_visao').select('*').eq('user_id', uid).maybeSingle(),
+        supabase.from('editorial_destino_padrao').select('platform_id').eq('user_id', uid),
+        supabase.from('editorial_limite_hashtag').select('platform_id, limite').eq('user_id', uid),
+        supabase.from('decisao_periodo').select('*').eq('user_id', uid),
+        supabase.from('ajuste_semana').select('decisao_id, inicio, fim, limite').eq('user_id', uid),
       ]);
       const platforms = assertQuerySuccess('platforms fetch', platformsResult) || [];
       const prefs = assertQuerySuccess('preferences fetch', prefsResult) || [];
@@ -1757,6 +1863,14 @@ export async function fetchDataDomains(
         (acc: Record<string, unknown>, p: Row) => ({ ...acc, [p.key]: parsePreferenceValue(p.value) }),
         {},
       );
+      payload.editorial = editorialDasLinhas(
+        assertQuerySuccess('editorial_conta fetch', contaResult),
+        assertQuerySuccess('editorial_destino_padrao fetch', destinosResult) || [],
+        assertQuerySuccess('editorial_limite_hashtag fetch', limitesResult) || [],
+        assertQuerySuccess('decisao_periodo fetch', decisoesResult) || [],
+        assertQuerySuccess('ajuste_semana fetch', ajustesResult) || [],
+      );
+      payload.editorialVisao = visaoDaLinha(assertQuerySuccess('editorial_visao fetch', visaoResult));
     })());
   }
 
@@ -2011,6 +2125,201 @@ async function resolvePlatformIds(platformRefs: string[]): Promise<Map<string, s
 // ============================================================================
 // PREFERENCES
 // ============================================================================
+
+function inteiroOpcional(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 0 ? value : undefined;
+}
+
+function diaDaLinha(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const dia = value.slice(0, 10);
+  return /^\d{4}-\d{2}-\d{2}$/.test(dia) ? dia : null;
+}
+
+function editorialDasLinhas(
+  conta: Row | null,
+  destinos: Row[],
+  limites: Row[],
+  decisoes: Row[],
+  ajustes: Row[],
+): EditorialSettings {
+  const limitesHashtags: Record<string, number> = {};
+  for (const limite of limites) {
+    const quantidade = inteiroOpcional(limite.limite);
+    if (typeof limite.platform_id === 'string' && quantidade != null) {
+      limitesHashtags[limite.platform_id] = quantidade;
+    }
+  }
+
+  const ajustesPorDecisao = new Map<string, EditorialSettings['periodos'][number]['ajustesSemana']>();
+  for (const ajuste of ajustes) {
+    const inicio = diaDaLinha(ajuste.inicio);
+    const fim = diaDaLinha(ajuste.fim);
+    const limite = inteiroOpcional(ajuste.limite);
+    if (!inicio || !fim || limite == null || typeof ajuste.decisao_id !== 'string') continue;
+    const lista = ajustesPorDecisao.get(ajuste.decisao_id) ?? [];
+    lista.push({ inicio, fim, limite });
+    ajustesPorDecisao.set(ajuste.decisao_id, lista);
+  }
+
+  const periodos = decisoes.flatMap(decisao => {
+    const inicio = diaDaLinha(decisao.inicio);
+    const fim = diaDaLinha(decisao.fim);
+    if (!inicio || !fim) return [];
+    const metas: EditorialSettings['periodos'][number]['metas'] = {};
+    const atrair = inteiroOpcional(decisao.meta_atrair);
+    const converter = inteiroOpcional(decisao.meta_converter);
+    const aprofundar = inteiroOpcional(decisao.meta_aprofundar);
+    const comunidade = inteiroOpcional(decisao.meta_comunidade);
+    const acao = inteiroOpcional(decisao.meta_acao);
+    const reter = inteiroOpcional(decisao.meta_reter);
+    if (atrair != null) metas.atrair = atrair;
+    if (converter != null) metas.converter = converter;
+    if (aprofundar != null) metas.aprofundar = aprofundar;
+    if (comunidade != null) metas.comunidade = comunidade;
+    if (acao != null) metas.acao = acao;
+    if (reter != null) metas.reter = reter;
+    return [{
+      inicio,
+      fim,
+      prioridade: typeof decisao.prioridade === 'string' ? decisao.prioridade : '',
+      metas,
+      ajustesSemana: ajustesPorDecisao.get(String(decisao.id)) ?? [],
+    }];
+  });
+
+  if (!conta) {
+    return {
+      ...DEFAULT_EDITORIAL_SETTINGS,
+      destinosPadrao: destinos.map(destino => String(destino.platform_id)),
+      limitesHashtags,
+      periodos,
+    };
+  }
+
+  const rede = typeof conta.rede_referencia_id === 'string' ? conta.rede_referencia_id : null;
+  const reservaProntos = inteiroOpcional(conta.reserva_prontos) ?? null;
+  return {
+    versao: DEFAULT_EDITORIAL_SETTINGS.versao,
+    quickSeriesCreate: conta.quick_series_create !== false,
+    openInfoNotices: conta.open_info_notices !== false,
+    redeReferenciaId: rede,
+    destinosPadrao: destinos.map(destino => String(destino.platform_id)),
+    distribuicaoFuncoes: null,
+    estoqueDesejado: reservaProntos,
+    limitesHashtags,
+    preferencias: {
+      limiteSemanal: inteiroOpcional(conta.limite_semanal) ?? null,
+      reservaForaSeriesSemanal: inteiroOpcional(conta.reserva_fora_series_semanal) ?? null,
+      redeReferenciaId: rede,
+      reservaProntos,
+      publicoLinguagem: typeof conta.publico_linguagem === 'string' ? conta.publico_linguagem : '',
+      disponibilidade: typeof conta.disponibilidade === 'string' ? conta.disponibilidade : '',
+      hashtagsForaSeries: typeof conta.hashtags_fora_series === 'string' ? conta.hashtags_fora_series : '',
+    },
+    periodos,
+  };
+}
+
+function visaoDaLinha(row: Row | null): PeriodoSelecionado | null {
+  if (!row) return null;
+  const inicio = diaDaLinha(row.inicio);
+  const fim = diaDaLinha(row.fim);
+  if (!inicio || !fim || inicio > fim) return null;
+  if (row.modo !== 'semana' && row.modo !== 'mes' && row.modo !== 'intervalo') return null;
+  return { modo: row.modo, inicio, fim };
+}
+
+export async function saveEditorial(settings: EditorialSettings): Promise<void> {
+  if (!supabase) return;
+  const uid = await currentUserId();
+  if (!uid) return;
+  const preferencias = settings.preferencias;
+  const { error: contaError } = await supabase.from('editorial_conta').upsert({
+    user_id: uid,
+    limite_semanal: preferencias.limiteSemanal,
+    reserva_fora_series_semanal: preferencias.reservaForaSeriesSemanal,
+    rede_referencia_id: preferencias.redeReferenciaId,
+    reserva_prontos: preferencias.reservaProntos,
+    publico_linguagem: preferencias.publicoLinguagem,
+    disponibilidade: preferencias.disponibilidade,
+    hashtags_fora_series: preferencias.hashtagsForaSeries,
+    quick_series_create: settings.quickSeriesCreate,
+    open_info_notices: settings.openInfoNotices,
+    updated_at: new Date().toISOString(),
+  }, { onConflict: 'user_id' });
+  if (contaError) throw new Error(`editorial_conta: ${contaError.message}`);
+
+  const { error: destinosDeleteError } = await supabase.from('editorial_destino_padrao').delete().eq('user_id', uid);
+  if (destinosDeleteError) throw new Error(`editorial_destino_padrao: ${destinosDeleteError.message}`);
+  if (settings.destinosPadrao.length > 0) {
+    const { error } = await supabase.from('editorial_destino_padrao').insert(
+      settings.destinosPadrao.map(platformId => ({ user_id: uid, platform_id: platformId })),
+    );
+    if (error) throw new Error(`editorial_destino_padrao: ${error.message}`);
+  }
+
+  const { error: limitesDeleteError } = await supabase.from('editorial_limite_hashtag').delete().eq('user_id', uid);
+  if (limitesDeleteError) throw new Error(`editorial_limite_hashtag: ${limitesDeleteError.message}`);
+  const limites = Object.entries(settings.limitesHashtags).filter((entry): entry is [string, number] => (
+    Number.isInteger(entry[1]) && entry[1] >= 0
+  ));
+  if (limites.length > 0) {
+    const { error } = await supabase.from('editorial_limite_hashtag').insert(
+      limites.map(([platformId, limite]) => ({ user_id: uid, platform_id: platformId, limite })),
+    );
+    if (error) throw new Error(`editorial_limite_hashtag: ${error.message}`);
+  }
+
+  const { error: ajustesDeleteError } = await supabase.from('ajuste_semana').delete().eq('user_id', uid);
+  if (ajustesDeleteError) throw new Error(`ajuste_semana: ${ajustesDeleteError.message}`);
+  const { error: decisoesDeleteError } = await supabase.from('decisao_periodo').delete().eq('user_id', uid);
+  if (decisoesDeleteError) throw new Error(`decisao_periodo: ${decisoesDeleteError.message}`);
+
+  if (settings.periodos.length === 0) return;
+  const linhas = settings.periodos.map(periodo => ({
+    id: generateUUID(),
+    user_id: uid,
+    inicio: periodo.inicio,
+    fim: periodo.fim,
+    prioridade: periodo.prioridade,
+    meta_atrair: periodo.metas.atrair ?? null,
+    meta_converter: periodo.metas.converter ?? null,
+    meta_aprofundar: periodo.metas.aprofundar ?? null,
+    meta_comunidade: periodo.metas.comunidade ?? null,
+    meta_acao: periodo.metas.acao ?? null,
+    meta_reter: periodo.metas.reter ?? null,
+    ajustes: periodo.ajustesSemana,
+  }));
+  const { error: decisoesError } = await supabase.from('decisao_periodo').insert(
+    linhas.map(({ ajustes: _ajustes, ...linha }) => linha),
+  );
+  if (decisoesError) throw new Error(`decisao_periodo: ${decisoesError.message}`);
+  const ajustes = linhas.flatMap(linha => linha.ajustes.map(ajuste => ({
+    decisao_id: linha.id,
+    user_id: uid,
+    inicio: ajuste.inicio,
+    fim: ajuste.fim,
+    limite: ajuste.limite,
+  })));
+  if (ajustes.length === 0) return;
+  const { error: ajustesError } = await supabase.from('ajuste_semana').insert(ajustes);
+  if (ajustesError) throw new Error(`ajuste_semana: ${ajustesError.message}`);
+}
+
+export async function saveEditorialVisao(visao: PeriodoSelecionado): Promise<void> {
+  if (!supabase) return;
+  const uid = await currentUserId();
+  if (!uid) return;
+  const { error } = await supabase.from('editorial_visao').upsert({
+    user_id: uid,
+    modo: visao.modo,
+    inicio: visao.inicio,
+    fim: visao.fim,
+    updated_at: new Date().toISOString(),
+  }, { onConflict: 'user_id' });
+  if (error) throw new Error(`editorial_visao: ${error.message}`);
+}
 
 export async function savePreference(key: string, value: any): Promise<void> {
   if (!supabase) return;
@@ -2321,6 +2630,7 @@ export async function saveBibliotecaItem(
     data_inicio: item.dataInicio, data_fim: item.dataFim, avaliacao: item.avaliacao,
     notas_gerais: item.notasGerais, potencial_conteudo: item.potencialConteudo,
     total_paginas: item.totalPaginas, paginas_lidas: item.paginasLidas,
+    ...(item.ficha ? fichaParaColunas(item.ficha) : {}),
   });
   if (error) throw new Error(`biblioteca_items: ${error.message}`);
 }

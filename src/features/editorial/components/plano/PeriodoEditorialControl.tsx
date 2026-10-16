@@ -9,17 +9,10 @@ import { Text } from '../../../../components/ui/Text';
 import { useAppContext } from '../../../../context/AppContext';
 import { buildGradeEntries } from '../../lib/gradeEntries';
 import { contarPeriodo, type GradeCounts } from '../../lib/gradeCounts';
-import { getEditorialSettings } from '../../lib/editorialSettings';
 import { cn } from '../../../../lib/utils';
-import { semanaDe } from '../../lib/periodoEditorial';
+import { semanaDe, type ModoPeriodo, type PeriodoSelecionado } from '../../lib/periodoEditorial';
 
-export type ModoPeriodo = 'semana' | 'mes' | 'intervalo';
-
-export type PeriodoSelecionado = {
-  modo: ModoPeriodo;
-  inicio: string;
-  fim: string;
-};
+export type { ModoPeriodo, PeriodoSelecionado };
 
 const DATA = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -91,7 +84,7 @@ export function useContagemDoPeriodo(inicio: string, fim: string): GradeCounts {
   const { state } = useAppContext();
 
   return useMemo(() => {
-    const settings = getEditorialSettings(state.preferences);
+    const settings = state.editorial;
     const entries = buildGradeEntries({
       contents: state.contents,
       series: state.series,

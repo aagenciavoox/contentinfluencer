@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { DEFAULT_EDITORIAL_SETTINGS } from '../features/editorial/lib/editorialSettings.ts';
 import type { AppState } from '../app/providers/appState.ts';
 import type { Content } from '../lib/database.ts';
 import { persistAction, persistContentRecord, type PersistenceApi } from './persistAction.ts';
@@ -59,6 +60,8 @@ function createMockApi(contentsById: Content[] = []) {
     saveTemplate: record('saveTemplate'),
     deleteTemplate: record('deleteTemplate'),
     savePreference: record('savePreference'),
+    saveEditorial: record('saveEditorial'),
+    saveEditorialVisao: record('saveEditorialVisao'),
     saveGoldenRule: record('saveGoldenRule'),
     deleteGoldenRule: record('deleteGoldenRule'),
     savePlatform: record('savePlatform'),
@@ -90,6 +93,8 @@ function createState(overrides: Partial<AppState> = {}): AppState {
     goldenRules: [],
     contentMetrics: [],
     postingTimeEntries: [],
+    editorial: DEFAULT_EDITORIAL_SETTINGS,
+    editorialVisao: null,
     theme: 'light',
     isLoaded: true,
     ...overrides,

@@ -142,7 +142,6 @@ export function PostedVideoComposerSheet({
     const first = activePlatforms[0];
     return first ? [{platformId: first.id, publicationKind: 'post'}] : [];
   });
-  const [isSaving, setIsSaving] = useState(false);
   const [markIntent, setMarkIntent] = useState<{content: Content; keepOpen: boolean} | null>(null);
 
   const selectedIds = useMemo(() => new Set(platformEntries.map(entry => entry.platformId)), [platformEntries]);
@@ -172,7 +171,7 @@ export function PostedVideoComposerSheet({
   };
 
   const handleSave = (keepOpen: boolean) => {
-    if (!canSave || isSaving) return;
+    if (!canSave) return;
     setMarkIntent({
       content: buildPostedVideoContent({
         title,
@@ -196,28 +195,23 @@ export function PostedVideoComposerSheet({
         serie={serie}
         platformName={platformId => platformLabel(platformId, activePlatforms)}
         initialRealizadaEm={postedInstant(markIntent.content.publishDate, markIntent.content.publishTime)}
-        isSaving={isSaving}
-        onClose={() => {
-          if (!isSaving) setMarkIntent(null);
-        }}
-        onConfirm={async marked => {
-          setIsSaving(true);
-          try {
-            await onSave(
-              {
-                ...markIntent.content,
-                ...marked.content,
-                plataformas: marked.publicacoes,
-              },
-              {keepOpen: !isEditing && markIntent.keepOpen},
-            );
-            if (!isEditing && markIntent.keepOpen) {
-              resetForAnother();
-              setMarkIntent(null);
-            }
-          } finally {
-            setIsSaving(false);
+        onClose={() => setMarkIntent(null)}
+        onConfirm={marked => {
+          const keepOpen = !isEditing && markIntent.keepOpen;
+          if (keepOpen) {
+            resetForAnother();
+            setMarkIntent(null);
           }
+          void Promise.resolve(onSave(
+            {
+              ...markIntent.content,
+              ...marked.content,
+              plataformas: marked.publicacoes,
+            },
+            {keepOpen},
+          )).catch(() => {
+            // O aviso de sucesso ou erro aparece sem segurar o formulário.
+          });
         }}
       />
     );
@@ -264,7 +258,7 @@ export function PostedVideoComposerSheet({
           placeholder="Ex.: 3 sinais de que…"
           className="mt-2 min-h-11 w-full rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-3 py-2 text-sm font-semibold text-[var(--text-primary)] outline-none placeholder:text-[var(--text-tertiary)] focus:border-[var(--accent-blue)]"
           onKeyDown={event => {
-            if (event.key === 'Enter' && canSave && !isSaving) void handleSave(false);
+            if (event.key === 'Enter' && canSave) void handleSave(false);
           }}
         />
       </div>
@@ -365,17 +359,17 @@ export function PostedVideoComposerSheet({
         <AppButton
           variant="primary"
           fullWidth
-          disabled={!canSave || isSaving}
+          disabled={!canSave}
           leftIcon={<Send className="h-4 w-4" />}
           onClick={() => void handleSave(false)}
         >
-          {isSaving ? 'Salvando…' : isEditing ? 'Salvar alterações' : 'Registrar postagem'}
+          {isEditing ? 'Salvar alterações' : 'Registrar postagem'}
         </AppButton>
         {!isEditing ? (
           <AppButton
             variant="secondary"
             fullWidth
-            disabled={!canSave || isSaving}
+            disabled={!canSave}
             leftIcon={<Send className="h-4 w-4" />}
             onClick={() => void handleSave(true)}
           >

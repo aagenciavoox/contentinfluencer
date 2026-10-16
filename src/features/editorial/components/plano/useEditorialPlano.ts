@@ -1,8 +1,6 @@
 import { useAppContext } from '../../../../context/AppContext';
 import {
   atualizarPreferencias,
-  EDITORIAL_SETTINGS_PREFERENCE_KEY,
-  getEditorialSettings,
   upsertDecisaoPeriodo,
   type DecisaoPeriodo,
   type EditorialSettings,
@@ -18,13 +16,10 @@ type PatchDecisao = Partial<Pick<DecisaoPeriodo, 'prioridade' | 'metas' | 'ajust
  */
 export function useEditorialPlano() {
   const { state, dispatch } = useAppContext();
-  const settings = getEditorialSettings(state.preferences);
+  const settings = state.editorial;
 
   const gravar = (value: EditorialSettings) => {
-    dispatch({
-      type: 'SET_PREFERENCE',
-      payload: { key: EDITORIAL_SETTINGS_PREFERENCE_KEY, value },
-    });
+    dispatch({ type: 'SET_EDITORIAL', payload: value });
   };
 
   const salvarPreferencias = (patch: Partial<PreferenciasGerais>) => {

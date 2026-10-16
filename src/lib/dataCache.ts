@@ -27,8 +27,9 @@ class DataCache {
     return entry.payload as T;
   }
 
-  setDomain(key: string, payload: unknown) {
-    this.domainEntries.set(key, { payload, fetchedAt: Date.now() });
+  /** `fetchedAt` só vem quando um ajuste local não deve contar como busca nova. */
+  setDomain(key: string, payload: unknown, fetchedAt = Date.now()) {
+    this.domainEntries.set(key, { payload, fetchedAt });
   }
 
   isDomainFresh(key: string): boolean {

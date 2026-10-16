@@ -40,7 +40,6 @@ import {isWritingWorkspaceEnabled} from '../../../settings/lib/writingWorkspace'
 import {IdeaDetailSection, IdeaOrganizationPanel} from './sections/IdeaDetailSection';
 import {promoteContentToScript} from '../../lib/creationContent';
 import {origemDoRoteiro, resolveSeriesScriptTemplate} from '../../lib/seriesScriptTemplate';
-import {getEditorialSettings} from '../../../editorial/lib/editorialSettings';
 import {livroIdsEfetivos} from '../../../../lib/livroIds';
 import {rotuloDaRef} from '../../../contas/lib/contas';
 
@@ -121,6 +120,7 @@ export function ContentDetailShell({
   const [searchParams, setSearchParams] = useSearchParams();
   const [draft, setDraft] = useState<ContentDraft>(() => draftFromContent(content));
   const [isSaving, setIsSaving] = useState(false);
+  const [leaving, setLeaving] = useState(false);
   const [saveFeedback, setSaveFeedback] = useState<SaveFeedbackState>(() => getSaveFeedbackState());
   const [isRecordingSheetOpen, setIsRecordingSheetOpen] = useState(false);
   const [recordingBlocksLoading, setRecordingBlocksLoading] = useState(false);
@@ -136,7 +136,6 @@ export function ContentDetailShell({
   templatesRef.current = state.templates;
   templatesReadyRef.current = templatesReady || state.templates.length > 0;
   const [draftDirty, setDraftDirty] = useState(false);
-  const [explicitSaving, setExplicitSaving] = useState(false);
   const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const saveGenRef = useRef(0);
   // Gravação que falhou deixa o estado local à frente do servidor: comparar com ele não basta.
@@ -427,7 +426,6 @@ export function ContentDetailShell({
 
     const silent = Boolean(options?.silent);
     setIsSaving(true);
-    if (!silent) setExplicitSaving(true);
 
     try {
       let nextStatus =
@@ -469,7 +467,6 @@ export function ContentDetailShell({
       return false;
     } finally {
       setIsSaving(false);
-      if (!silent) setExplicitSaving(false);
     }
   }, [updateContent]);
 
@@ -606,13 +603,18 @@ export function ContentDetailShell({
       autosaveTimerRef.current = null;
     }
 
-    for (let attempt = 0; attempt < 4 && draftDirtyRef.current; attempt += 1) {
-      const ok = await persistRef.current(undefined, {silent: true});
-      if (!ok) return;
-    }
+    setLeaving(true);
+    try {
+      for (let attempt = 0; attempt < 4 && draftDirtyRef.current; attempt += 1) {
+        const ok = await persistRef.current(undefined, {silent: true});
+        if (!ok) return;
+      }
 
-    if (draftDirtyRef.current) return;
-    blocker.proceed?.();
+      if (draftDirtyRef.current) return;
+      blocker.proceed?.();
+    } finally {
+      setLeaving(false);
+    }
   };
 
   const handleDiscardAndLeave = () => {
@@ -721,7 +723,6 @@ export function ContentDetailShell({
           bodyError={bodyError}
           onRetryBody={onRetryBody}
           mobile={mode === 'mobile'}
-          isSaving={explicitSaving}
           onPromote={() => void handlePrimaryAction()}
           authorName={user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Usuario'}
           saveState={editorSaveState}
@@ -760,7 +761,6 @@ export function ContentDetailShell({
         serie={serie}
         alerts={postingAlerts}
         onChange={handleDraftChange}
-        isSaving={explicitSaving}
         onMarkPosted={() => setMarkPostedOpen(true)}
       />
     ) : (
@@ -795,11 +795,10 @@ export function ContentDetailShell({
     <ConfirmModal
       open={blocker.state === 'blocked'}
       message="Você tem alterações não salvas."
-      confirmLabel={isSaving ? 'Salvando…' : 'Salvar e sair'}
+      confirmLabel={leaving ? 'Salvando…' : 'Salvar e sair'}
       cancelLabel="Continuar editando"
       altLabel="Sair sem salvar"
-      confirmDisabled={isSaving}
-      altDisabled={isSaving}
+      confirmDisabled={leaving}
       onConfirm={() => void handleSaveAndLeave()}
       onCancel={() => blocker.reset?.()}
       onAlt={handleDiscardAndLeave}
@@ -815,14 +814,14 @@ export function ContentDetailShell({
         plataformas: draft.plataformas,
       }}
       serie={serie}
-      redeReferenciaId={getEditorialSettings(state.preferences).redeReferenciaId}
+      redeReferenciaId={state.editorial.redeReferenciaId}
       platformName={platformId => (
         rotuloDaRef(platformId, state.platforms)
       )}
-      isSaving={explicitSaving}
       onClose={() => setMarkPostedOpen(false)}
-      onConfirm={async marked => {
-        const ok = await persist({
+      onConfirm={marked => {
+        setMarkPostedOpen(false);
+        void persist({
           status: marked.content.status,
           postedAt: marked.content.postedAt,
           funcao: marked.content.funcao,
@@ -832,7 +831,6 @@ export function ContentDetailShell({
           link: marked.content.link,
           plataformas: marked.publicacoes,
         });
-        if (ok) setMarkPostedOpen(false);
       }}
     />
   );
@@ -847,7 +845,7 @@ export function ContentDetailShell({
           onTabChange={setTab}
           primaryAction={primaryAction}
           onPrimaryAction={() => void handlePrimaryAction()}
-          isSaving={explicitSaving || isDeleting}
+          isSaving={isDeleting}
           postingAlerts={postingAlerts}
           stageLabel={stageLabel[stage]}
           operationalPanel={
@@ -911,8 +909,8 @@ export function ContentDetailShell({
             onPrimaryAction={() => void handlePrimaryAction()}
             onRetrySave={() => void persist()}
             onDelete={() => setDeleteConfirmOpen(true)}
-            isSaving={isSaving || isDeleting}
-            primaryBusy={explicitSaving || isDeleting}
+            isSaving={isDeleting}
+            primaryBusy={isDeleting}
             blockName={blockSummary?.block.name ?? null}
             blockOrder={blockSummary?.order ?? null}
             saveHint={saveHint}

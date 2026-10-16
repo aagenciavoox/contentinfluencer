@@ -46,7 +46,6 @@ import { CONFIRM, ERRORS } from '../../../lib/uiCopy';
 import { buildContentDetailRoute } from '../../contents/lib/contentDetailRoute';
 import { aplicarEscolhasDaSerie, marcarEscolhaManual } from '../../editorial/lib/escolhasSerie';
 import { datasNaGrade } from '../../editorial/lib/datasNaGrade';
-import { getEditorialSettings } from '../../editorial/lib/editorialSettings';
 import { FUNCAO_LABELS, FUNCOES } from '../../editorial/lib/funcoes';
 import {
   aplicarFiltroData,
@@ -143,7 +142,6 @@ export function CreationHubPage() {
   const [assignField, setAssignField] = useState<'seriesId' | 'pilarId' | null>(null);
   const [assignValue, setAssignValue] = useState('');
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
-  const [isBulkWorking, setIsBulkWorking] = useState(false);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [persistingIds, setPersistingIds] = useState<Set<string>>(new Set());
   const handledComposeRef = useRef<string | null>(null);
@@ -214,7 +212,7 @@ export function CreationHubPage() {
     contents: state.contents,
     series: state.series,
     postIts: state.postIts ?? [],
-    redeReferenciaId: getEditorialSettings(state.preferences).preferencias.redeReferenciaId,
+    redeReferenciaId: state.editorial.preferencias.redeReferenciaId,
     platforms: state.platforms,
   }), [state.contents, state.series, state.postIts, state.preferences, state.platforms]);
 
@@ -391,62 +389,66 @@ export function CreationHubPage() {
   }, [bulkOrganize]);
 
   const openBulkAssign = useCallback((field: 'seriesId' | 'pilarId') => {
-    if (selectedExportIds.size === 0 || isBulkWorking) return;
+    if (selectedExportIds.size === 0) return;
     setAssignValue('');
     setAssignField(field);
-  }, [isBulkWorking, selectedExportIds.size]);
+  }, [selectedExportIds.size]);
 
-  const applyBulkAssign = useCallback(async () => {
-    if (!assignField || !assignValue || selectedContents.length === 0 || isBulkWorking) return;
+  const applyBulkAssign = useCallback(() => {
+    if (!assignField || !assignValue || selectedContents.length === 0) return;
 
+    const field = assignField;
     const nextValue = assignValue === '__none__' ? null : assignValue;
-    setIsBulkWorking(true);
-    try {
-      const ids = selectedContents.map(content => content.id);
-      const fetched = user?.id ? await fetchContentsByIds(user.id, ids) : selectedContents;
-      if (user?.id && fetched.length !== ids.length) {
-        throw new Error('Nem todos os itens selecionados puderam ser carregados.');
+    const selected = selectedContents;
+    const series = state.series;
+    setAssignField(null);
+    setAssignValue('');
+    setSelectedExportIds(new Set());
+    setExportMode(false);
+    notifySaveFeedback({ status: 'saving', message: 'Salvando alterações…' });
+
+    void (async () => {
+      try {
+        const ids = selected.map(content => content.id);
+        const fetched = user?.id ? await fetchContentsByIds(user.id, ids) : selected;
+        if (user?.id && fetched.length !== ids.length) {
+          throw new Error('Nem todos os itens selecionados puderam ser carregados.');
+        }
+
+        const now = new Date().toISOString();
+        for (const content of fetched) {
+          const currentValue = field === 'seriesId' ? content.seriesId : content.pilarId;
+          if (currentValue === nextValue) continue;
+          const next = field === 'seriesId'
+            ? aplicarEscolhasDaSerie(
+              content,
+              nextValue ? series.find(item => item.id === nextValue) ?? {id: nextValue} : null,
+            )
+            : marcarEscolhaManual(content, 'pilar', nextValue);
+          await updateContent({
+            ...next,
+            updatedAt: now,
+          }, { silent: true });
+        }
+
+        notifySaveFeedback({
+          status: 'success',
+          message: field === 'seriesId'
+            ? 'Série atualizada na seleção'
+            : 'Pilar atualizado na seleção',
+        });
+      } catch (error) {
+        notifySaveFeedback({
+          status: 'error',
+          message: ERRORS.aplicarAlteracoesMassa,
+          detail: getErrorMessage(error),
+        });
       }
+    })();
+  }, [assignField, assignValue, selectedContents, state.series, updateContent, user?.id]);
 
-      const now = new Date().toISOString();
-      for (const content of fetched) {
-        const currentValue = assignField === 'seriesId' ? content.seriesId : content.pilarId;
-        if (currentValue === nextValue) continue;
-        const next = assignField === 'seriesId'
-          ? aplicarEscolhasDaSerie(
-            content,
-            nextValue ? state.series.find(item => item.id === nextValue) ?? {id: nextValue} : null,
-          )
-          : marcarEscolhaManual(content, 'pilar', nextValue);
-        await updateContent({
-          ...next,
-          updatedAt: now,
-        }, { silent: true });
-      }
-
-      notifySaveFeedback({
-        status: 'success',
-        message: assignField === 'seriesId'
-          ? 'Série atualizada na seleção'
-          : 'Pilar atualizado na seleção',
-      });
-      setAssignField(null);
-      setAssignValue('');
-      setSelectedExportIds(new Set());
-      setExportMode(false);
-    } catch (error) {
-      notifySaveFeedback({
-        status: 'error',
-        message: ERRORS.aplicarAlteracoesMassa,
-        detail: getErrorMessage(error),
-      });
-    } finally {
-      setIsBulkWorking(false);
-    }
-  }, [assignField, assignValue, isBulkWorking, selectedContents, state.series, updateContent, user?.id]);
-
-  const confirmBulkDelete = useCallback(async () => {
-    if (selectedContents.length === 0 || isBulkWorking) return;
+  const confirmBulkDelete = useCallback(() => {
+    if (selectedContents.length === 0) return;
     const ids = selectedContents.map(content => content.id);
     const removedAt = new Date().toISOString();
     const removed = selectedContents.map(content => ({
@@ -454,31 +456,29 @@ export function CreationHubPage() {
       deletedAt: removedAt,
       updatedAt: removedAt,
     }));
+    const noun = activeTab === 'Ideias'
+      ? (ids.length === 1 ? 'Ideia movida para a lixeira' : `${ids.length} ideias movidas para a lixeira`)
+      : (ids.length === 1 ? 'Roteiro movido para a lixeira' : `${ids.length} roteiros movidos para a lixeira`);
 
-    setIsBulkWorking(true);
-    try {
-      await dispatch({ type: 'DELETE_MULTIPLE_CONTENTS', payload: ids }, { silent: true });
-      setDeletedContents(previous => [
-        ...removed,
-        ...previous.filter(item => !ids.includes(item.id)),
-      ]);
-      const noun = activeTab === 'Ideias'
-        ? (ids.length === 1 ? 'Ideia movida para a lixeira' : `${ids.length} ideias movidas para a lixeira`)
-        : (ids.length === 1 ? 'Roteiro movido para a lixeira' : `${ids.length} roteiros movidos para a lixeira`);
-      notifySaveFeedback({ status: 'success', message: noun });
-      setBulkDeleteOpen(false);
-      setSelectedExportIds(new Set());
-      setExportMode(false);
-    } catch (error) {
-      notifySaveFeedback({
-        status: 'error',
-        message: ERRORS.salvarGenerico,
-        detail: getErrorMessage(error),
+    setDeletedContents(previous => [
+      ...removed,
+      ...previous.filter(item => !ids.includes(item.id)),
+    ]);
+    setBulkDeleteOpen(false);
+    setSelectedExportIds(new Set());
+    setExportMode(false);
+    notifySaveFeedback({ status: 'saving', message: 'Salvando alterações…' });
+    void dispatch({ type: 'DELETE_MULTIPLE_CONTENTS', payload: ids }, { silent: true })
+      .then(() => notifySaveFeedback({ status: 'success', message: noun }))
+      .catch(error => {
+        setDeletedContents(previous => previous.filter(item => !ids.includes(item.id)));
+        notifySaveFeedback({
+          status: 'error',
+          message: ERRORS.salvarGenerico,
+          detail: getErrorMessage(error),
+        });
       });
-    } finally {
-      setIsBulkWorking(false);
-    }
-  }, [activeTab, dispatch, isBulkWorking, selectedContents]);
+  }, [activeTab, dispatch, selectedContents]);
 
   const createScript = useCallback((replace = false) => {
     const content = createScriptContent({ title: 'Novo roteiro' });
@@ -1024,7 +1024,7 @@ export function CreationHubPage() {
               variant="secondary"
               size="sm"
               leftIcon={<Layers className="h-4 w-4" />}
-              disabled={selectedExportIds.size === 0 || isBulkWorking}
+              disabled={selectedExportIds.size === 0}
               onClick={() => openBulkAssign('seriesId')}
             >
               Mudar série
@@ -1033,7 +1033,7 @@ export function CreationHubPage() {
               variant="secondary"
               size="sm"
               leftIcon={<Target className="h-4 w-4" />}
-              disabled={selectedExportIds.size === 0 || isBulkWorking}
+              disabled={selectedExportIds.size === 0}
               onClick={() => openBulkAssign('pilarId')}
             >
               Mudar pilar
@@ -1042,7 +1042,7 @@ export function CreationHubPage() {
               variant="ghost"
               size="sm"
               leftIcon={<Trash2 className="h-4 w-4" />}
-              disabled={selectedExportIds.size === 0 || isBulkWorking}
+              disabled={selectedExportIds.size === 0}
               onClick={() => setBulkDeleteOpen(true)}
               className="text-[var(--accent-pink)]"
             >
@@ -1054,7 +1054,7 @@ export function CreationHubPage() {
           variant="primary"
           size="sm"
           leftIcon={<Download className="h-4 w-4" />}
-          disabled={selectedExportIds.size === 0 || isExporting || isBulkWorking}
+          disabled={selectedExportIds.size === 0 || isExporting}
           onClick={() => void handleExportCreations()}
         >
           {isExporting ? 'Gerando DOCX…' : `Exportar DOCX (${selectedExportIds.size})`}
@@ -1201,9 +1201,7 @@ export function CreationHubPage() {
 
       <Dialog
         open={assignField !== null}
-        onClose={() => {
-          if (!isBulkWorking) setAssignField(null);
-        }}
+        onClose={() => setAssignField(null)}
         desktopMaxW="max-w-md"
         ariaLabel={assignField === 'seriesId' ? 'Mudar série' : 'Mudar pilar'}
       >
@@ -1240,7 +1238,6 @@ export function CreationHubPage() {
             <AppButton
               variant="secondary"
               size="sm"
-              disabled={isBulkWorking}
               onClick={() => setAssignField(null)}
             >
               Cancelar
@@ -1248,10 +1245,10 @@ export function CreationHubPage() {
             <AppButton
               variant="primary"
               size="sm"
-              disabled={!assignValue || isBulkWorking}
+              disabled={!assignValue}
               onClick={() => void applyBulkAssign()}
             >
-              {isBulkWorking ? 'Aplicando...' : 'Aplicar'}
+              Aplicar
             </AppButton>
           </div>
         </div>
@@ -1262,18 +1259,13 @@ export function CreationHubPage() {
         message={activeTab === 'Ideias'
           ? `Mover ${selectedExportIds.size} ideia${selectedExportIds.size === 1 ? '' : 's'} para a lixeira? ${selectedExportIds.size === 1 ? 'Ela poderá' : 'Elas poderão'} ser restaurada${selectedExportIds.size === 1 ? '' : 's'} depois.`
           : CONFIRM.excluirRoteiros(Math.max(selectedExportIds.size, 1)).message}
-        confirmLabel={isBulkWorking
-          ? 'Movendo...'
-          : activeTab === 'Ideias'
+        confirmLabel={activeTab === 'Ideias'
             ? (selectedExportIds.size === 1 ? 'Mover para a lixeira' : `Mover ${selectedExportIds.size} para a lixeira`)
             : CONFIRM.excluirRoteiros(Math.max(selectedExportIds.size, 1)).confirmLabel}
         cancelLabel="Manter seleção"
-        confirmDisabled={isBulkWorking || selectedExportIds.size === 0}
-        cancelDisabled={isBulkWorking}
+        confirmDisabled={selectedExportIds.size === 0}
         onConfirm={() => void confirmBulkDelete()}
-        onCancel={() => {
-          if (!isBulkWorking) setBulkDeleteOpen(false);
-        }}
+        onCancel={() => setBulkDeleteOpen(false)}
       />
 
       <ConfirmModal

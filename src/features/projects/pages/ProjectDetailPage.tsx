@@ -32,7 +32,7 @@ import { useIsMobile } from '../../../hooks/useIsMobile';
 import { ProjectDetailMobileScreen } from '../../../mobile/screens/projects/ProjectDetailMobileScreen';
 import type { ProjectDetailEditFields } from '../../../mobile/screens/projects/ProjectDetailMobileScreen';
 import { PostingTimeSuggestions } from '../../settings/components/PostingTimeSuggestions';
-import { getPostingTimes } from '../../settings/lib/postingTimes';
+import { getPostingTimesForPlatform } from '../../settings/lib/postingTimes';
 import { generateUUID } from '../../../utils/uuid';
 import { FuncaoDoRoteiro } from '../components/FuncaoDoRoteiro';
 import { ProjetoEventoFields } from '../components/ProjetoEventoFields';
@@ -121,7 +121,7 @@ export function ProjectDetailPage() {
   const location = useLocation();
   const detailBackState = buildDetailBackState(`${location.pathname}${location.search}`);
   const isMobile = useIsMobile();
-  const postingTimes = getPostingTimes(state.preferences);
+  const postingTimes = getPostingTimesForPlatform(state.postingTimeEntries, null);
 
   const projeto = state.projetos.find(p => p.id === id);
 

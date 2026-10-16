@@ -1,3 +1,4 @@
+import { DEFAULT_EDITORIAL_SETTINGS } from '../../features/editorial/lib/editorialSettings';
 import type * as db from '../../lib/database';
 
 export interface AppState extends db.AppData {
@@ -26,6 +27,8 @@ export const initialState: AppState = {
   goldenRules: [],
   contentMetrics: [],
   postingTimeEntries: [],
+  editorial: DEFAULT_EDITORIAL_SETTINGS,
+  editorialVisao: null,
 
   theme: 'light',
   isLoaded: false,

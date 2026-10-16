@@ -1,7 +1,9 @@
 import type { AppData, Platform } from './database';
+import type { EditorialSettings } from '../features/editorial/lib/editorialSettings.ts';
+import type { PeriodoSelecionado } from '../features/editorial/lib/periodoEditorial.ts';
 import { BOOTSTRAP_DATA_DOMAINS, CRITICAL_BOOTSTRAP_DOMAINS, type AppDataDomain } from './database';
 import { buildDomainCacheKey, dataCache } from './dataCache';
-import { readPersistedDomain, writePersistedDomain } from './persistentDataCache';
+import { listPersistedDomainStamps, readPersistedDomain, writePersistedDomain } from './persistentDataCache';
 
 const STORAGE_PREFIX = 'content-os:domain:';
 
@@ -78,6 +80,89 @@ export function patchPlatformsInDomainCaches(userId: string, platforms: Platform
 /** Mantém caches alinhados após mutações de conteúdo (grade, postados, roteiros). */
 export function patchContentsInDomainCaches(userId: string, contents: AppData['contents']) {
   patchDomainCaches(userId, DOMAIN_SETS_WITH_CONTENTS, { contents });
+}
+
+/**
+ * Mantém editorial e a janela da aba Período nas fotos que já trazem preferências.
+ * Sem isso, recarregar dentro do prazo do cache abre na semana padrão.
+ * A idade de cada foto fica a mesma.
+ */
+export function patchEditorialInDomainCaches(
+  userId: string,
+  editorial: EditorialSettings,
+  editorialVisao: PeriodoSelecionado | null,
+) {
+  const keys = new Set<string>();
+  dataCache.listDomainStamps().forEach(stamp => keys.add(stamp.key));
+  listPersistedDomainStamps(userId).forEach(stamp => keys.add(stamp.key));
+
+  keys.forEach(cacheKey => {
+    const memory = dataCache.getDomain<Partial<AppData>>(cacheKey);
+    const memoryFetchedAt = dataCache.getDomainFetchedAt(cacheKey);
+    if ((memory?.preferences || memory?.editorial) && memoryFetchedAt != null) {
+      dataCache.setDomain(cacheKey, { ...memory, editorial, editorialVisao }, memoryFetchedAt);
+    }
+
+    const persisted = readPersistedDomain(userId, cacheKey);
+    if (persisted?.payload.preferences || persisted?.payload.editorial) {
+      writePersistedDomain(
+        userId,
+        cacheKey,
+        { ...persisted.payload, editorial, editorialVisao },
+        persisted.fetchedAt,
+      );
+    }
+  });
+}
+
+/**
+ * Mantém a ficha e o restante do item nas fotos que já trazem a biblioteca.
+ * A gravação está nas colunas de `biblioteca_items`.
+ */
+export function patchBibliotecaItemsInDomainCaches(
+  userId: string,
+  bibliotecaItems: AppData['bibliotecaItems'],
+) {
+  const keys = new Set<string>();
+  dataCache.listDomainStamps().forEach(stamp => keys.add(stamp.key));
+  listPersistedDomainStamps(userId).forEach(stamp => keys.add(stamp.key));
+
+  keys.forEach(cacheKey => {
+    const memory = dataCache.getDomain<Partial<AppData>>(cacheKey);
+    const memoryFetchedAt = dataCache.getDomainFetchedAt(cacheKey);
+    if (Array.isArray(memory?.bibliotecaItems) && memoryFetchedAt != null) {
+      dataCache.setDomain(cacheKey, { ...memory, bibliotecaItems }, memoryFetchedAt);
+    }
+
+    const persisted = readPersistedDomain(userId, cacheKey);
+    if (Array.isArray(persisted?.payload.bibliotecaItems)) {
+      writePersistedDomain(
+        userId,
+        cacheKey,
+        { ...persisted.payload, bibliotecaItems },
+        persisted.fetchedAt,
+      );
+    }
+  });
+}
+
+export function patchPreferencesInDomainCaches(userId: string, preferences: AppData['preferences']) {
+  const keys = new Set<string>();
+  dataCache.listDomainStamps().forEach(stamp => keys.add(stamp.key));
+  listPersistedDomainStamps(userId).forEach(stamp => keys.add(stamp.key));
+
+  keys.forEach(cacheKey => {
+    const memory = dataCache.getDomain<Partial<AppData>>(cacheKey);
+    const memoryFetchedAt = dataCache.getDomainFetchedAt(cacheKey);
+    if (memory?.preferences && memoryFetchedAt != null) {
+      dataCache.setDomain(cacheKey, { ...memory, preferences }, memoryFetchedAt);
+    }
+
+    const persisted = readPersistedDomain(userId, cacheKey);
+    if (persisted?.payload.preferences) {
+      writePersistedDomain(userId, cacheKey, { ...persisted.payload, preferences }, persisted.fetchedAt);
+    }
+  });
 }
 
 const DOMAIN_SETS_WITH_SERIES: readonly (readonly AppDataDomain[])[] = [

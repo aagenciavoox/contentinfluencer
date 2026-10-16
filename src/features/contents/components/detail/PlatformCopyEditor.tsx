@@ -12,7 +12,6 @@ import {DestinationChips} from '../../../editorial/components/DestinationChips';
 import {LegendaBaseField} from '../../../editorial/components/legendas/LegendaBaseField';
 import {PublicacaoLegenda} from '../../../editorial/components/legendas/PublicacaoLegenda';
 import {definirLegendaCompartilhada, estadoLegenda} from '../../../editorial/lib/captions';
-import {getEditorialSettings} from '../../../editorial/lib/editorialSettings';
 import {limiteDeCaracteres, platformShowsField} from '../../../editorial/lib/platformFields';
 import type {DestinoPlataforma} from '../../../editorial/lib/destinations';
 
@@ -77,7 +76,7 @@ export function PlatformCopyEditor({
   status = null,
 }: PlatformCopyEditorProps) {
   const {state} = useAppContext();
-  const editorial = getEditorialSettings(state.preferences);
+  const editorial = state.editorial;
   const destinos = useMemo<DestinoPlataforma[]>(() => {
     const ativas = contasAtivas(state.platforms);
     if (ativas.length > 0) return ativas;

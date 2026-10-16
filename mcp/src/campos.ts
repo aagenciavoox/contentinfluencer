@@ -2,7 +2,7 @@
  * Campos e opções que o app já edita e a API precisa devolver no mesmo vocabulário.
  * Janelas espelham src/features/contents/lib/postingWindow.ts.
  * Temas espelham src/features/contents/lib/temas.ts.
- * A ficha da biblioteca espelha BibliotecaItemMeta, gravada em user_preferences (`item_meta:<id>`).
+ * A ficha da biblioteca espelha BibliotecaItemMeta, em colunas de `biblioteca_items`.
  */
 
 export const JANELAS = ['manha', 'tarde', 'noite'] as const;

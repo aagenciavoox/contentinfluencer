@@ -13,7 +13,7 @@ import {
   parseHashtags,
   suggestHashtags,
 } from '../../contents/lib/captionHashtags';
-import { getEditorialSettings, limiteHashtagsDaRede } from '../../editorial/lib/editorialSettings';
+import { limiteHashtagsDaRede } from '../../editorial/lib/editorialSettings';
 import { useAppContext } from '../../../context/AppContext';
 import { isContentBodyLoaded } from '../../contents/lib/contentBody';
 import { getDisplayStatus } from '../../contents/lib/contentPipeline';
@@ -159,7 +159,7 @@ function CaptionGridRow({
   stickyEdge?: boolean;
 }) {
   const { state } = useAppContext();
-  const editorial = getEditorialSettings(state.preferences);
+  const editorial = state.editorial;
   const { plataformas, update, saving, failed, begin, finish, persist, commit, isFocused } = useCaptionDraft(content, onSave);
   const [copiedPlatform, setCopiedPlatform] = useState<string | null>(null);
   const [copiedScript, setCopiedScript] = useState(false);

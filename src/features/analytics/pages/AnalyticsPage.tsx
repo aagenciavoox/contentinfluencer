@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { Plus } from 'lucide-react';
 import { useAppContext } from '../../../context/AppContext';
 import { useDomainsReady } from '../../../hooks/useDomainsReady';
-import type { BibliotecaItemMeta } from '../../../lib/database';
 import { DesktopPageHeader } from '../../../layouts/page/DesktopPageHeader';
 import { PageLayout } from '../../../layouts/page/PageLayout';
 import { AppButton } from '../../../components/ui/AppButton';
@@ -19,13 +18,9 @@ export function AnalyticsPage() {
   const analytics = useMemo(
     () => buildLibraryAnalytics(
       state.bibliotecaItems,
-      itemId => (
-        (state.preferences[`item_meta:${itemId}`]
-          || state.preferences[`book_meta:${itemId}`]
-          || {}) as BibliotecaItemMeta
-      ),
+      itemId => state.bibliotecaItems.find(item => item.id === itemId)?.ficha ?? {},
     ),
-    [state.bibliotecaItems, state.preferences],
+    [state.bibliotecaItems],
   );
 
   return (

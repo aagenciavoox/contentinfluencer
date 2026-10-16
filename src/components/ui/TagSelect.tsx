@@ -1,4 +1,4 @@
-import {useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode} from 'react';
+import {useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent, type ReactNode} from 'react';
 import {ChevronsUpDown, X} from 'lucide-react';
 import {cn} from '../../lib/utils';
 
@@ -186,8 +186,13 @@ export function TagSelect({
     }
   };
 
-  const handleControlClick = () => {
+  const handleControlClick = (event: MouseEvent<HTMLDivElement>) => {
     if (disabled) return;
+    // O foco no campo de busca já abriu a lista; alternar aqui fecharia no mesmo clique.
+    if (event.target === inputRef.current) {
+      setOpen(true);
+      return;
+    }
     setOpen(previous => !previous);
     if (!open) {
       window.setTimeout(() => inputRef.current?.focus(), 0);

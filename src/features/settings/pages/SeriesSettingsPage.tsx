@@ -21,7 +21,6 @@ import type { Serie } from '../../../lib/database';
 import { SettingsPageScaffold } from '../../../components/settings/SettingsPageScaffold';
 import { SETTINGS_ENTITY_GRID_CLASS } from '../../../components/settings/SettingsGridCard';
 import { generateUUID } from '../../../utils/uuid';
-import { getEditorialSettings } from '../../editorial/lib/editorialSettings';
 import { getSerieOpenItems } from '../../editorial/lib/serieCompleteness';
 import { pilarPrincipalDaSerie } from '../../editorial/lib/pilarDaSerie';
 import { PILAR_PRESET_CORES } from '../lib/pilarConstants';
@@ -52,7 +51,7 @@ export function SeriesSettingsPage() {
   const [quickCreateOpen, setQuickCreateOpen] = useState(false);
   const [quickName, setQuickName] = useState('');
   const [quickColor, setQuickColor] = useState(() => nextFreeSerieColor([]));
-  const editorialSettings = getEditorialSettings(state.preferences);
+  const editorialSettings = state.editorial;
 
   const openCreatePage = () => {
     if (editorialSettings.quickSeriesCreate) {

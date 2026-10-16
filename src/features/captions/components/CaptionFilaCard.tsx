@@ -15,8 +15,6 @@ import { contaDaRef, iconeDaConta, rotuloConta } from '../../contas/lib/contas';
 import { definirLegendaCompartilhada } from '../../editorial/lib/captions';
 import { LegendaBaseField } from '../../editorial/components/legendas/LegendaBaseField';
 import { PublicacaoLegenda } from '../../editorial/components/legendas/PublicacaoLegenda';
-import { getEditorialSettings } from '../../editorial/lib/editorialSettings';
-
 /**
  * Um card por roteiro com publicação pendente. Fechado, mostra o status e as contas;
  * aberto, a legenda-base à esquerda e a publicação escolhida à direita.
@@ -47,7 +45,7 @@ export function CaptionFilaCard({
   const timerRef = useRef<number | null>(null);
   const onSaveRef = useRef(onSave);
   onSaveRef.current = onSave;
-  const editorial = getEditorialSettings(state.preferences);
+  const editorial = state.editorial;
   const serie = series.find(item => item.id === content.seriesId) ?? null;
   const pilar = pilares.find(item => item.id === content.pilarId) ?? null;
   const visiveis = publicacoes.map(item => draft.plataformas.find(atual => atual.id === item.id) ?? item);

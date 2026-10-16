@@ -134,28 +134,20 @@ export function registerEstrutura(server: McpServer) {
         }));
       }
       if (want.has('ajustes')) {
-        const prefs = check('ajustes editoriais', await client.from('user_preferences')
-          .select('value')
+        const conta = check('ajustes editoriais', await client.from('editorial_conta')
+          .select('rede_referencia_id, reserva_prontos')
           .eq('user_id', userId)
-          .eq('key', 'editorial_settings')
           .maybeSingle());
-        let saved: Row = {};
-        if (prefs?.value) {
-          try {
-            const parsed = JSON.parse(prefs.value);
-            if (parsed && typeof parsed === 'object') saved = parsed as Row;
-          } catch {
-            saved = {};
-          }
-        }
-        const destinos = Array.isArray(saved.destinosPadrao) ? saved.destinosPadrao.filter((id: unknown) => typeof id === 'string') : [];
+        const destinos = check('destinos padrão', await client.from('editorial_destino_padrao')
+          .select('platform_id')
+          .eq('user_id', userId)) ?? [];
         result.ajustes = {
-          rede_de_referencia: typeof saved.redeReferenciaId === 'string' && saved.redeReferenciaId
-            ? lookups.platformName(saved.redeReferenciaId)
+          rede_de_referencia: typeof conta?.rede_referencia_id === 'string' && conta.rede_referencia_id
+            ? lookups.platformName(conta.rede_referencia_id)
             : null,
-          destinos_padrao: destinos.map((id: string) => lookups.platformName(id)),
-          distribuicao_funcoes: saved.distribuicaoFuncoes ?? null,
-          estoque_desejado: typeof saved.estoqueDesejado === 'number' ? saved.estoqueDesejado : null,
+          destinos_padrao: destinos.map((row: Row) => lookups.platformName(row.platform_id)),
+          distribuicao_funcoes: null,
+          estoque_desejado: typeof conta?.reserva_prontos === 'number' ? conta.reserva_prontos : null,
         };
       }
       return json(result);

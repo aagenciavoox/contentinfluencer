@@ -1,8 +1,28 @@
-import { addDays, differenceInCalendarDays, endOfWeek, format, parseISO, startOfWeek } from 'date-fns';
+import {
+  addDays,
+  differenceInCalendarDays,
+  endOfMonth,
+  endOfWeek,
+  format,
+  parseISO,
+  startOfMonth,
+  startOfWeek,
+} from 'date-fns';
 import type { AjusteSemana, DecisaoPeriodo } from './editorialSettings.ts';
 
 const FORMATO = 'yyyy-MM-dd';
 const SEMANA = { weekStartsOn: 0 as const };
+
+export type ModoPeriodo = 'semana' | 'mes' | 'intervalo';
+
+export type PeriodoSelecionado = {
+  modo: ModoPeriodo;
+  inicio: string;
+  fim: string;
+};
+
+/** Nome antigo da janela. A gravação atual é a linha `editorial_visao`. */
+export const PERIODO_EDITORIAL_PREFERENCE_KEY = 'editorial_periodo';
 
 /**
  * Contas de período, sem React.
@@ -110,4 +130,29 @@ export function decisaoDoPeriodo(
     if (periodo.inicio === inicio && periodo.fim === fim) encontrada = periodo;
   }
   return encontrada;
+}
+
+/**
+ * Lê a janela gravada em `editorial_visao`.
+ * Semana volta a ser domingo–sábado e mês volta a ser o mês inteiro do início salvo.
+ * Valor ausente ou quebrado devolve null: quem chama abre na semana de hoje.
+ */
+export function lerPeriodoSalvo(value: unknown): PeriodoSelecionado | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const raw = value as Record<string, unknown>;
+  const { modo, inicio, fim } = raw;
+  if (typeof inicio !== 'string' || typeof fim !== 'string') return null;
+  if (!diaIso(inicio) || !diaIso(fim)) return null;
+
+  if (modo === 'semana') return { modo, ...semanaDe(inicio) };
+  if (modo === 'mes') {
+    const dia = parseISO(inicio);
+    return {
+      modo,
+      inicio: format(startOfMonth(dia), FORMATO),
+      fim: format(endOfMonth(dia), FORMATO),
+    };
+  }
+  if (modo === 'intervalo' && inicio <= fim) return { modo, inicio, fim };
+  return null;
 }

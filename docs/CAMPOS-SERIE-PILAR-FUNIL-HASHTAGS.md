@@ -5,8 +5,8 @@ O que cada campo grava e o que ele muda no app.
 **Como se encaixam**
 
 - **Pilar** = tema + ritmo da semana/ciclo + janela de postagem por rede.
-- **Série** = formato recorrente. Herda pilares, define funil/energia/formato padrão e hashtags da peça.
-- **Funil** = estágio da peça (topo / meio / fundo). A série sugere; o conteúdo pode sobrescrever.
+- **Série** = formato recorrente. Herda pilares, define função/energia/formato padrão e hashtags da peça.
+- **Função** = papel da peça (`atrair`, `converter`, `aprofundar`, `comunidade`, `acao`, `reter`). A série sugere; o conteúdo pode sobrescrever. `topo` / `meio` / `fundo` saíram.
 - **Hashtags** = presets por rede no pilar e na série. Só entram na peça quando o conteúdo puxa ou a fila de legendas preenche.
 
 Nada disso apaga o outro. Desligar um pilar ou série só tira das regras e dos seletores.
@@ -71,12 +71,12 @@ Tabelas: `series` + `serie_pilares` + `serie_plataformas`. Templates de roteiro 
 | Campo | Nome salvo | Efeito |
 |---|---|---|
 | **Pilares** | `pilarIds` → `serie_pilares` | Liga a série a um ou mais temas. Sem pilar, a série aparece como “em aberto”. Na criação de roteiro, o primeiro pilar vira `content.pilarId` se você não escolher outro. |
-| **Funil padrão** | `funilPadrao` | `topo` \| `meio` \| `fundo`. Herdado pelo conteúdo que **não** define funil próprio. Agrupa a série na aba Funil. Ver [Funil](#3-funil). |
+| **Função padrão** | `funcaoPadrao` | `atrair` \| `converter` \| `aprofundar` \| `comunidade` \| `acao` \| `reter` \| `varia`. A peça com origem herdada acompanha. Ver [Função](#3-função). |
 | **Frequência** | `frequenciaRecomendada` | `Semanal` / `Quinzenal` / `Mensal` / `Sob demanda`. Semanal = 1 post na semana. Quinzenal = 1 nos últimos 14 dias. Mensal = 1 nos últimos 28. “Sob demanda” ou vazio: **não cobra** ritmo. |
 | **Formato visual padrão** | `formatoVisualPadrao` | Copiado para `content.formatoVisual` ao criar roteiro pela série. Depois o conteúdo tem o próprio valor (Reels, carrossel, etc.). |
 | **Energia padrão** | `energiaPadrao` | `baixa` \| `média` \| `alta`. Copiada para `content.energiaNecessaria` ao criar pela série. Filtra e ordena a fila de gravação. |
 
-Faltando pilar, funil, frequência, formato ou energia, a série fica “em aberto” (aviso na ficha, se a preferência `openInfoNotices` estiver ligada).
+Faltando pilar, função, frequência, formato ou energia, a série fica “em aberto” (aviso na ficha, se a preferência `openInfoNotices` estiver ligada).
 
 ### Escrita (`series`)
 
@@ -89,45 +89,37 @@ Campos que ainda existem no banco e quase não aparecem na tela: `notes` (texto 
 
 ---
 
-## 3. Funil
+## 3. Função
 
-Três lugares, com precedência.
+Dois lugares, com precedência. `series.funil_padrao` e `contents.funil` podem sair: a migration já troca topo/meio/fundo por função e apaga as colunas antigas.
 
-### Na série — `series.funil_padrao`
+### Na série — `series.funcao_padrao`
 
-| Valor | Significado | Efeito |
-|---|---|---|
-| `topo` | Atrair gente nova | Série entra no card Topo. Conteúdos sem funil próprio contam como topo. |
-| `meio` | Conectar / confiança | Idem para Meio. |
-| `fundo` | Converter / ação | Idem para Fundo. |
-| vazio | Sem estágio | Série vai para “Sem funil”. Conteúdos só com essa série e sem ajuste manual **não entram** na contagem dos estágios. |
+`atrair`, `converter`, `aprofundar`, `comunidade`, `acao`, `reter` ou `varia`. Vazio: a série não sugere função. Não muda roteiro, hashtags nem calendário.
 
-Não muda o texto do roteiro. Não muda hashtags. Não muda o calendário.
-
-### No conteúdo — `contents.funil`
+### No conteúdo — `contents.funcao` e `contents.funcao_origem`
 
 | Campo | Nome salvo | Efeito |
 |---|---|---|
-| **Funil** (painel do roteiro) | `funil` | Ajuste **desta peça**. Preenchido: vale o do conteúdo. Vazio: herda `serie.funilPadrao`. Sem série e sem valor: sem funil. |
+| **Função** | `funcao` | Papel desta peça. |
+| **Origem** | `funcao_origem` | `herdada` acompanha a série. `escolhida` fica nesta peça. |
 
-Ao criar roteiro pela série, o conteúdo nasce com `funil: null` de propósito — para herdar. Se você mudar o funil da série depois, as peças sem ajuste acompanham.
+Peça herdada: mudar a função da série muda a peça. Peça escolhida: a série nova não sobrescreve.
 
-Funil efetivo:
+### Na aba Editorial — tabelas
 
-```
-content.funil  →  senão  serie.funilPadrao  →  senão  nenhum
-```
-
-### Na aba Editorial → Funil — `user_preferences.editorial_settings`
-
-| Campo na tela | Nome salvo | Efeito |
+| Tabela | O que guarda | Efeito |
 |---|---|---|
-| **Proporção desejada** | `funnelTargets` `{ topo, meio, fundo }` | % que devem somar 100. Na leitura dos últimos 28 dias, calcula `meta proporcional` de cada estágio. Vazio: só mostra contagem, sem meta. |
-| **Avisar estágio quieto** | `funnelQuietDays` | Dias sem publicação daquele estágio para marcar “Mais quieto”. Vazio: desligado. |
+| `editorial_visao` | uma linha por conta: `modo`, `inicio`, `fim` | Janela que a aba Período reabre. Sem linha, ou com valor quebrado: semana de hoje. |
+| `editorial_conta` | limite semanal, reserva, rede de referência, reserva de prontos, público, disponibilidade, hashtags fora de série | Ajustes da conta. |
+| `editorial_destino_padrao` | `(user_id, platform_id)` | Redes marcadas por padrão. |
+| `editorial_limite_hashtag` | `(user_id, platform_id, limite)` | Teto de hashtags da rede. Sem linha: 10. |
+| `decisao_periodo` | uma linha por intervalo fechado: prioridade e metas por função | A semana dentro do mês não herda a meta do mês. Meta vazia não é zero. |
+| `ajuste_semana` | exceção de uma semana (domingo–sábado) ligada à decisão | Some junto com a decisão. |
 
-Essa leitura **não gera alerta** em dashboard, calendário ou programação. Fica só na aba Funil.
+`funnelTargets`, `funnelQuietDays` e `distribuicaoFuncoes` podem sair. A leitura da versão 2 não copia o percentual antigo para metas.
 
-Conta publicação (ou data de post) no ciclo de 28 dias. Peça sem funil efetivo incrementa “Sem funil”.
+Essa leitura **não gera alerta** em dashboard, calendário ou programação. Fica na aba Editorial. Peça sem função não entra na meta daquele intervalo.
 
 ---
 

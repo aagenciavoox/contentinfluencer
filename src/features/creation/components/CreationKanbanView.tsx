@@ -106,7 +106,6 @@ function CreationKanbanCard({
         'focus-within:shadow-[var(--shadow-card-hover)]',
         canOpen && 'cursor-pointer',
         isDragging && 'opacity-60',
-        isPersisting && 'opacity-70',
       )}
     >
       <div className="relative">
@@ -239,8 +238,7 @@ export function CreationKanbanView({
                   const canDrag = canDropOn(tab)
                     && !content.deletedAt
                     && !content.archivedAt
-                    && !selectionMode
-                    && !persistingIds?.has(content.id);
+                    && !selectionMode;
 
                   return (
                     <CreationKanbanCard

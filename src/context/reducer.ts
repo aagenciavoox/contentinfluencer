@@ -31,6 +31,8 @@ export type AppAction =
   | { type: 'SET_THEME';   payload: 'light' | 'dark' }
   | { type: 'SET_PREFERENCE'; payload: { key: string; value: any } }
   | { type: 'UPDATE_PREFERENCE'; payload: { key: string; value: any } }
+  | { type: 'SET_EDITORIAL'; payload: AppData['editorial'] }
+  | { type: 'SET_EDITORIAL_VISAO'; payload: NonNullable<AppData['editorialVisao']> }
 
   // ─── DNA de Voz ─────────────────────────────────────────────────────────────
   | { type: 'UPDATE_DNA_VOZ'; payload: Pick<DnaVoz, 'promessaCentral' | 'publico' | 'tom' | 'naoFaco' | 'alertas'> }
@@ -184,6 +186,10 @@ export function appReducer(state: AppState, action: AppAction): AppState {
     case 'SET_PREFERENCE':
     case 'UPDATE_PREFERENCE':
       return { ...state, preferences: { ...state.preferences, [action.payload.key]: action.payload.value } };
+    case 'SET_EDITORIAL':
+      return { ...state, editorial: action.payload };
+    case 'SET_EDITORIAL_VISAO':
+      return { ...state, editorialVisao: action.payload };
 
     // ─── DNA de Voz ─────────────────────────────────────────────────────────
     case 'UPDATE_DNA_VOZ':
@@ -395,7 +401,14 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       return { ...state, bibliotecaItems: [action.payload, ...state.bibliotecaItems] };
     case 'UPDATE_BIBLIOTECA_ITEM':
     case 'UPDATE_BOOK':
-      return { ...state, bibliotecaItems: state.bibliotecaItems.map(b => b.id === action.payload.id ? action.payload : b) };
+      return {
+        ...state,
+        bibliotecaItems: state.bibliotecaItems.map(b => (
+          b.id === action.payload.id
+            ? { ...b, ...action.payload, ficha: action.payload.ficha ?? b.ficha }
+            : b
+        )),
+      };
     case 'DELETE_BIBLIOTECA_ITEM':
     case 'DELETE_BOOK':
       return {

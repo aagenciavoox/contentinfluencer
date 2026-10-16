@@ -117,7 +117,6 @@ interface IdeaDetailSectionProps extends IdeaOrganizationPanelProps {
   bodyError?: string | null;
   onRetryBody?: () => void;
   mobile?: boolean;
-  isSaving?: boolean;
   onPromote: () => void;
   authorName: string;
   saveState?: 'idle' | 'saving' | 'saved' | 'error';
@@ -136,7 +135,6 @@ export function IdeaDetailSection({
   bodyError = null,
   onRetryBody,
   mobile = false,
-  isSaving = false,
   onPromote,
   authorName,
   saveState = 'idle',
@@ -254,10 +252,9 @@ export function IdeaDetailSection({
           size="lg"
           fullWidth
           rightIcon={<ArrowRight className="h-4 w-4" />}
-          disabled={isSaving}
           onClick={onPromote}
         >
-          {isSaving ? 'Transformando…' : 'Transformar em roteiro'}
+          Transformar em roteiro
         </AppButton>
       </div>
     );

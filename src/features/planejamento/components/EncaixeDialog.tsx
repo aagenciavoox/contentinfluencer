@@ -11,7 +11,6 @@ import {OverlayHeader} from '../../../components/overlays/OverlayHeader';
 import {useAppContext} from '../../../context/AppContext';
 import {normalizeContentStatus} from '../../contents/lib/contentPipeline';
 import {datasNaGrade} from '../../editorial/lib/datasNaGrade';
-import {getEditorialSettings} from '../../editorial/lib/editorialSettings';
 import {FUNCAO_CURTA} from '../../editorial/lib/funcoes';
 import {candidatosDoEncaixe, descricaoDoCandidato, type CandidatoEncaixe} from '../lib/encaixe';
 import {encaixarConteudo, type PlanejamentoPostIt} from '../lib/postIt';
@@ -94,7 +93,7 @@ export function EncaixeDialog({
     contents: state.contents,
     series: state.series,
     postIts,
-    redeReferenciaId: getEditorialSettings(state.preferences).preferencias.redeReferenciaId,
+    redeReferenciaId: state.editorial.preferencias.redeReferenciaId,
     platforms: state.platforms,
   }), [state.contents, state.series, postIts, state.preferences, state.platforms]);
 

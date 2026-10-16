@@ -25,8 +25,6 @@ function expect(label: string, ok: boolean, detail: unknown = '') {
 }
 
 const session = await getSession();
-const prefs = await session.client.from('user_preferences').select('value').eq('user_id', session.userId).eq('key', 'editorial_settings').maybeSingle();
-const originalPrefs: string | null = prefs.data?.value ?? null;
 const nome = `__teste funcao ${Date.now()}`;
 let serieId: string | undefined;
 let contentId: string | undefined;
@@ -56,21 +54,16 @@ try {
   const postado = await call('ver_conteudo', {id: contentId});
   expect('postado fica congelado', postado.funcao === 'aprofundar' && postado.classificacao_congelada === true, postado);
 
-  const dist = await call('definir_distribuicao_funcoes', {atrair: 30, converter: 10, aprofundar: 25, comunidade: 15, acao: 10, reter: 10});
-  expect('distribuição salva', dist.por_etapa?.topo === 40 && dist.por_etapa?.meio === 40 && dist.por_etapa?.fundo === 10 && dist.por_etapa?.fora === 10, dist);
-
-  const errada = await client.callTool({name: 'definir_distribuicao_funcoes', arguments: {atrair: 50}});
-  expect('soma diferente de 100 é recusada', Boolean(errada.isError));
+  const dist = await call('definir_distribuicao_funcoes', {atrair: 30, converter: 10, aprofundar: 25, comunidade: 15, acao: 10});
+  expect('proporção em percentual não fica salva', dist.distribuicao === null && typeof dist.aviso === 'string', dist);
 
   const estrutura = await call('ver_estrutura_editorial', {secoes: ['funcoes']});
-  expect('estrutura mostra funções', estrutura.funcoes?.opcoes?.length === 6 && estrutura.funcoes?.distribuicao?.atrair === 30, estrutura);
+  expect('estrutura mostra funções', estrutura.funcoes?.opcoes?.length === 6 && estrutura.funcoes?.distribuicao === null, estrutura);
 
   const resumo = await call('resumo_do_momento', {});
   expect('resumo conta por função', typeof resumo.postados_por_funcao_28_dias?.aprofundar === 'number', resumo.postados_por_funcao_28_dias);
 } finally {
   const {client: db, userId} = session;
-  if (originalPrefs === null) await db.from('user_preferences').delete().eq('user_id', userId).eq('key', 'editorial_settings');
-  else await db.from('user_preferences').upsert({user_id: userId, key: 'editorial_settings', value: originalPrefs}, {onConflict: 'user_id,key'});
   if (contentId) await db.from('contents').delete().eq('id', contentId).eq('user_id', userId);
   if (serieId) await db.from('series').delete().eq('id', serieId).eq('user_id', userId);
   console.log('limpeza feita');

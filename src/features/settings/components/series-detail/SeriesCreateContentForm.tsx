@@ -6,7 +6,7 @@ import {
   useRef,
   useState,
 } from 'react';
-import { Check, Eraser, Sparkles } from 'lucide-react';
+import { Check, Eraser } from 'lucide-react';
 import { AppButton } from '../../../../components/ui/AppButton';
 import { Text } from '../../../../components/ui/Text';
 import { DEFAULT_PLATFORMS } from '../../../../constants';
@@ -17,13 +17,12 @@ import { PublicacaoLegenda } from '../../../editorial/components/legendas/Public
 import { definirLegendaCompartilhada } from '../../../editorial/lib/captions';
 import { destinosPadraoAtivos, publicacoesDosDestinos, type DestinoPlataforma } from '../../../editorial/lib/destinations';
 import { pilarPrincipalDaSerie } from '../../../editorial/lib/pilarDaSerie';
-import { getEditorialSettings } from '../../../editorial/lib/editorialSettings';
 import type { Content, ContentPlataforma, Pilar, Serie } from '../../../../lib/database';
 import { htmlToReadableText } from '../../../../lib/utils';
 import { generateUUID } from '../../../../utils/uuid';
 import { createContentDraft } from '../../../contents/lib/createContentDraft';
 import { CONTENT_STATUS } from '../../../contents/lib/contentPipeline';
-import { ERRORS, LOADING } from '../../../../lib/uiCopy';
+import { ERRORS } from '../../../../lib/uiCopy';
 
 interface SeriesCreateContentFormProps {
   serie: Serie;
@@ -105,19 +104,18 @@ export const SeriesCreateContentForm = forwardRef<
   const [includePublish, setIncludePublish] = useState(false);
   const [publishDate, setPublishDate] = useState('');
   const [publishTime, setPublishTime] = useState('');
-  const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
   const scriptTextareaRef = useRef<HTMLTextAreaElement>(null);
   const openAfterSaveRef = useRef(false);
 
   const words = useMemo(() => wordCount(script), [script]);
-  const canSave = Boolean(title.trim() && (isIdeia || htmlToReadableText(script).trim())) && !isSaving;
+  const canSave = Boolean(title.trim() && (isIdeia || htmlToReadableText(script).trim()));
 
   useEffect(() => {
     if (destinosTouched) return;
     const destinos = destinosPadraoAtivos(
-      getEditorialSettings(state.preferences).destinosPadrao,
+      state.editorial.destinosPadrao,
       catalogo,
     );
     setPublicacoes(publicacoesDosDestinos({ destinos, contentId: '' }));
@@ -141,7 +139,6 @@ export const SeriesCreateContentForm = forwardRef<
       return null;
     }
 
-    setIsSaving(true);
     setError(null);
 
     try {
@@ -171,9 +168,13 @@ export const SeriesCreateContentForm = forwardRef<
         legendaBase: legendaBase.trim() || null,
       }, serie);
 
-      await onCreate([content]);
       const action = openAfterSaveRef.current ? 'open' : 'draft';
-      onSuccess?.(contentId, action);
+      openAfterSaveRef.current = false;
+      if (action === 'open') onSuccess?.(contentId, action);
+      void onCreate([content]).catch(err => {
+        console.error('[SeriesCreateContentForm] create failed:', err);
+        setError(ERRORS.criarRoteiro);
+      });
       setTitle('');
       setScript('');
       setLegendaBase(serie.legendaBase ?? '');
@@ -188,7 +189,6 @@ export const SeriesCreateContentForm = forwardRef<
       setError(ERRORS.criarRoteiro);
       return null;
     } finally {
-      setIsSaving(false);
       openAfterSaveRef.current = false;
     }
   };
@@ -322,7 +322,7 @@ export const SeriesCreateContentForm = forwardRef<
             contas={state.platforms}
             serie={serie}
             pilar={pilares.find(item => item.id === defaultPilarId) ?? null}
-            editorial={getEditorialSettings(state.preferences)}
+            editorial={state.editorial}
             compact
             onChange={setPublicacoes}
           />
@@ -374,9 +374,9 @@ export const SeriesCreateContentForm = forwardRef<
             variant="primary"
             onClick={() => void saveDraft()}
             disabled={!canSave}
-            leftIcon={isSaving ? <Sparkles className="h-4 w-4" /> : <Check className="h-4 w-4" />}
+            leftIcon={<Check className="h-4 w-4" />}
           >
-            {isSaving ? LOADING.salvandoAlteracoes : isIdeia ? 'Salvar ideia' : 'Salvar roteiro'}
+            {isIdeia ? 'Salvar ideia' : 'Salvar roteiro'}
           </AppButton>
         </div>
       ) : null}

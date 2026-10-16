@@ -111,12 +111,18 @@ export function PostingTimesEditor({
   const [editando, setEditando] = useState(comecarEditando);
   // Enquanto ninguém mexeu, o rascunho acompanha o que chega do servidor.
   const [touched, setTouched] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
   const pendentesRef = useRef<Partial<Record<Weekday, string>>>({});
+  const saveEpoch = useRef(0);
+  const manterRascunhoSalvo = useRef(false);
   const isDirty = editando && touched && !draftsMatch(draft, savedDraft);
 
   useEffect(() => {
-    if (!editando) setDraft(savedDraft);
+    if (editando) return;
+    if (manterRascunhoSalvo.current) {
+      manterRascunhoSalvo.current = false;
+      return;
+    }
+    setDraft(savedDraft);
   }, [savedDraft, editando]);
 
   useEffect(() => {
@@ -198,6 +204,7 @@ export function PostingTimesEditor({
   }
 
   function comecarEdicao() {
+    saveEpoch.current += 1;
     pendentesRef.current = {};
     setDraft(savedDraft);
     setTouched(false);
@@ -220,46 +227,50 @@ export function PostingTimesEditor({
       setEditando(false);
       return;
     }
+    manterRascunhoSalvo.current = true;
     setDraft(pronto);
-    setTouched(true);
+    setTouched(false);
+    setEditando(false);
+    const epoch = saveEpoch.current;
     const keys = new Set([...Object.keys(savedDraft), ...Object.keys(pronto)]);
-    setIsSaving(true);
-    try {
-      notifySaveFeedback({status: 'saving', message: 'Salvando horários…'});
-      for (const key of keys) {
-        const platformId = key === GLOBAL_TAB_ID ? null : key;
-        for (const weekday of WEEKDAYS) {
-          const next = timesFor(pronto, key, weekday);
-          const previous = timesFor(savedDraft, key, weekday);
-          if (next.join('|') === previous.join('|')) continue;
-          await replacePostingTimesForPlatform(platformId, weekday, next);
+    notifySaveFeedback({status: 'saving', message: 'Salvando horários…'});
+    void (async () => {
+      try {
+        for (const key of keys) {
+          const platformId = key === GLOBAL_TAB_ID ? null : key;
+          for (const weekday of WEEKDAYS) {
+            const next = timesFor(pronto, key, weekday);
+            const previous = timesFor(savedDraft, key, weekday);
+            if (next.join('|') === previous.join('|')) continue;
+            await replacePostingTimesForPlatform(platformId, weekday, next);
+          }
         }
+        await ensureDataDomains(['schedule'], {force: true});
+        broadcastDataSync();
+        if (saveEpoch.current !== epoch) return;
+        notifySaveFeedback({status: 'success', message: 'Horários salvos'});
+        aoSalvar?.();
+      } catch (err) {
+        if (saveEpoch.current !== epoch) return;
+        notifySaveFeedback({status: 'error', message: 'Não foi possível salvar os horários. Verifique sua conexão e tente novamente.', detail: getErrorMessage(err)});
+        setDraft(pronto);
+        setTouched(true);
+        setEditando(true);
       }
-      await ensureDataDomains(['schedule'], {force: true});
-      broadcastDataSync();
-      notifySaveFeedback({status: 'success', message: 'Horários salvos'});
-      setTouched(false);
-      setEditando(false);
-      aoSalvar?.();
-    } catch (err) {
-      notifySaveFeedback({status: 'error', message: 'Não foi possível salvar os horários. Verifique sua conexão e tente novamente.', detail: getErrorMessage(err)});
-    } finally {
-      setIsSaving(false);
-    }
+    })();
   }
 
   const acoes = editando ? (
     <div className="flex flex-wrap items-center gap-2">
-      <AppButton variant="secondary" size="sm" onClick={cancelEditing} disabled={isSaving}>
+      <AppButton variant="secondary" size="sm" onClick={cancelEditing}>
         Cancelar
       </AppButton>
       <AppButton
         variant="primary"
         size="sm"
         onClick={() => void handleSave()}
-        disabled={isSaving}
       >
-        {isSaving ? 'Salvando…' : 'Salvar alterações'}
+        Salvar alterações
       </AppButton>
     </div>
   ) : (
@@ -339,7 +350,6 @@ export function PostingTimesEditor({
                 specificTimes={specificTimes}
                 fallbackTimes={fallbackTimes}
                 editando={editando}
-                disabled={isSaving}
                 onPending={time => {
                   pendentesRef.current = {...pendentesRef.current, [day]: time};
                 }}
@@ -361,7 +371,7 @@ export function PostingTimesEditor({
             size="sm"
             leftIcon={<Trash2 className="h-4 w-4" />}
             style={{color: tintedTextColor('var(--danger)')}}
-            disabled={isSaving || !temHorarioNaAba}
+            disabled={!temHorarioNaAba}
             onClick={handleClearTab}
           >
             {contaSelecionada ? `Limpar horários de ${rotuloConta(contaSelecionada)}` : 'Limpar horários'}
@@ -382,13 +392,12 @@ interface DayRowProps {
   specificTimes: string[];
   fallbackTimes: string[];
   editando: boolean;
-  disabled: boolean;
   onPending: (time: string) => void;
   onAdd: (time: string) => void;
   onRemove: (time: string) => void;
 }
 
-function DayRow({day, fimDeSemana, specificTimes, fallbackTimes, editando, disabled, onPending, onAdd, onRemove}: DayRowProps) {
+function DayRow({day, fimDeSemana, specificTimes, fallbackTimes, editando, onPending, onAdd, onRemove}: DayRowProps) {
   const [input, setInput] = useState('');
   const canAdd = specificTimes.length < MAX_TIMES_PER_DAY;
   const nome = NOME_DO_DIA[day];
@@ -426,7 +435,6 @@ function DayRow({day, fimDeSemana, specificTimes, fallbackTimes, editando, disab
               <button
                 type="button"
                 onClick={() => onRemove(time)}
-                disabled={disabled}
                 className="inline-flex h-9 w-9 items-center justify-center rounded-[var(--radius-input)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
                 aria-label={`Remover ${time} de ${nome}`}
               >
@@ -454,7 +462,6 @@ function DayRow({day, fimDeSemana, specificTimes, fallbackTimes, editando, disab
             <input
               type="time"
               value={input}
-              disabled={disabled}
               onChange={event => {
                 setInput(event.target.value);
                 onPending(event.target.value);
@@ -473,7 +480,7 @@ function DayRow({day, fimDeSemana, specificTimes, fallbackTimes, editando, disab
               variant="secondary"
               size="xs"
               className="h-9"
-              disabled={!input || disabled}
+              disabled={!input}
               leftIcon={<Plus className="h-3.5 w-3.5" />}
               aria-label={`Adicionar horário em ${nome}`}
             >

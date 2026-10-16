@@ -25,7 +25,6 @@ import {
 } from '../lib/computeSeriesContentStats';
 import { filterAndSortSeriesListItems, type SeriesListItem } from '../lib/seriesContentListUtils';
 import { CONTENT_STATUS } from '../../contents/lib/contentPipeline';
-import { getEditorialSettings } from '../../editorial/lib/editorialSettings';
 import { formatOpenItems, getSerieOpenItems } from '../../editorial/lib/serieCompleteness';
 import { OpenInfoNotice } from '../../editorial/components/OpenInfoNotice';
 
@@ -38,7 +37,7 @@ export function SeriesScriptsPage() {
   const navigate = useNavigate();
   const { state, dispatch } = useAppContext();
   const isMobile = useIsMobile();
-  const editorialSettings = getEditorialSettings(state.preferences);
+  const editorialSettings = state.editorial;
 
   const [activeTab, setActiveTab] = useState<SeriesContentTab>('roteiros');
   const [searchTerm, setSearchTerm] = useState('');
