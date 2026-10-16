@@ -2430,6 +2430,80 @@ html.mobile-app-shell .segment-tabs-item-active {
   }
 }
 
+/* ÔöÇÔöÇ Slider rosa (configura├º├Áes do teleprompter) ÔöÇÔöÇ
+   O trilho fica rosa at├® --range-fill, que o componente calcula a partir do valor.
+   No Firefox quem pinta o trecho preenchido ├® ::-moz-range-progress. */
+.range-brand {
+  --range-fill: 50%;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 24px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.range-brand::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 999px;
+  background: linear-gradient(
+    to right,
+    var(--brand-accent-strong) 0 var(--range-fill),
+    var(--border-strong) var(--range-fill) 100%
+  );
+}
+
+.range-brand::-moz-range-track {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--border-strong);
+}
+
+.range-brand::-moz-range-progress {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--brand-accent-strong);
+}
+
+.range-brand::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  box-sizing: border-box;
+  width: 22px;
+  height: 22px;
+  margin-top: -8px;
+  border: 3px solid var(--bg-elevated);
+  border-radius: 50%;
+  background: var(--brand-accent-strong);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.28);
+  transition: transform 0.15s ease;
+}
+
+.range-brand::-moz-range-thumb {
+  box-sizing: border-box;
+  width: 22px;
+  height: 22px;
+  border: 3px solid var(--bg-elevated);
+  border-radius: 50%;
+  background: var(--brand-accent-strong);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.28);
+}
+
+.range-brand:active::-webkit-slider-thumb {
+  transform: scale(1.1);
+}
+
+.range-brand:focus-visible {
+  outline: none;
+}
+
+.range-brand:focus-visible::-webkit-slider-thumb {
+  box-shadow: var(--focus-ring);
+}
+
+.range-brand:focus-visible::-moz-range-thumb {
+  box-shadow: var(--focus-ring);
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

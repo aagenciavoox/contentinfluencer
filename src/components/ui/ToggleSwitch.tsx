@@ -9,6 +9,8 @@ interface ToggleSwitchProps {
   /** Permite que um `<label htmlFor>` ao lado ligue e desligue a chave. */
   id?: string;
   size?: 'sm' | 'md';
+  /** `brand`: ligada em rosa da marca. Só onde a tela segue a referência rosa (configurações do teleprompter). */
+  tone?: 'default' | 'brand';
   disabled?: boolean;
   className?: string;
 }
@@ -30,10 +32,16 @@ export function ToggleSwitch({
   label,
   id,
   size = 'md',
+  tone = 'default',
   disabled = false,
   className,
 }: ToggleSwitchProps) {
   const knob = KNOB[size];
+  const onTrack =
+    tone === 'brand'
+      ? 'border-[var(--brand-accent-strong)] bg-[var(--brand-accent-strong)] group-hover/switch:opacity-90'
+      : 'border-[var(--text-primary)] bg-[var(--text-primary)] group-hover/switch:opacity-85';
+  const onKnob = tone === 'brand' ? 'bg-[var(--brand-on-accent)]' : 'bg-[var(--bg-elevated)]';
   return (
     <button
       id={id}
@@ -56,7 +64,7 @@ export function ToggleSwitch({
           'relative rounded-full border-[1.5px] transition-colors',
           TRACK[size],
           enabled
-            ? 'border-[var(--text-primary)] bg-[var(--text-primary)] group-hover/switch:opacity-85'
+            ? onTrack
             : 'border-[var(--text-tertiary)] bg-transparent group-hover/switch:border-[var(--text-primary)]'
         )}
       >
@@ -64,7 +72,7 @@ export function ToggleSwitch({
           className={cn(
             'absolute rounded-full transition-all',
             knob.size,
-            enabled ? `${knob.on} bg-[var(--bg-elevated)]` : `${knob.off} bg-[var(--text-tertiary)] group-hover/switch:bg-[var(--text-primary)]`
+            enabled ? `${knob.on} ${onKnob}` : `${knob.off} bg-[var(--text-tertiary)] group-hover/switch:bg-[var(--text-primary)]`
           )}
         />
       </span>
@@ -82,17 +90,18 @@ interface ToggleRowProps {
   children: ReactNode;
   className?: string;
   size?: 'sm' | 'md';
+  tone?: 'default' | 'brand';
 }
 
 /**
  * Linha de opção com chave: clicar em qualquer ponto da linha liga e desliga.
  * A linha inteira é o `<label>` da chave, então o clique no texto chega nela.
  */
-export function ToggleRow({ id, enabled, onToggle, title, children, className, size }: ToggleRowProps) {
+export function ToggleRow({ id, enabled, onToggle, title, children, className, size, tone }: ToggleRowProps) {
   return (
     <label htmlFor={id} className={cn('flex cursor-pointer items-center justify-between gap-3', className)}>
       <span className="min-w-0 flex-1">{children}</span>
-      <ToggleSwitch id={id} enabled={enabled} onToggle={onToggle} label={title} size={size} />
+      <ToggleSwitch id={id} enabled={enabled} onToggle={onToggle} label={title} size={size} tone={tone} />
     </label>
   );
 }

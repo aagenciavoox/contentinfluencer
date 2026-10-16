@@ -1,20 +1,7 @@
-import { CSSProperties, ReactNode, useEffect, useMemo, useRef, useState } from 'react';
+import { CSSProperties, useEffect, useMemo, useRef, useState } from 'react';
 import {
   CheckCircle2,
-  ChevronLeft,
-  ChevronRight,
-  Minus,
-  Pause,
-  Play,
-  Plus,
-  Settings2,
-  SkipBack,
-  SkipForward,
-  Type,
-  X,
 } from 'lucide-react';
-import { FixedPanelModal } from '../../../../components/overlays/FixedPanelModal';
-import { Surface } from '../../../../components/ui/Surface';
 import { Text } from '../../../../components/ui/Text';
 import { useAppContext } from '../../../../context/AppContext';
 import { useHydrateContentBodies } from '../../../../hooks/useHydrateContentBodies';
@@ -22,15 +9,23 @@ import { Content, RecordingBlock } from '../../../../lib/database';
 import { cn, htmlToReadableText } from '../../../../lib/utils';
 import { isContentBodyLoaded } from '../../lib/contentBody';
 import { isRecordingBlockTeleprompterEnabled } from '../../../recording/lib/recordingWorkflow';
+import { TeleprompterSettingsDialog } from './TeleprompterSettingsDialog';
+import {
+  ReadingMarker,
+  TELEPROMPTER_COLUMN_CLASS,
+  TeleprompterControls,
+  TeleprompterHeader,
+  getTeleprompterThemeVars,
+} from './TeleprompterLayout';
 
 const BURST_SETTINGS_PREFERENCE_KEY = 'burstModeSettings'; // Shared with BurstModeMobileScreen via app preferences.
 
-type BurstTheme = 'light' | 'dark' | 'amber';
-type BurstTextColor = 'theme' | 'ink' | 'paper' | 'amber';
-type BurstTextAlign = 'left' | 'center';
-type AdvanceType = 'line' | 'continuous';
+export type BurstTheme = 'light' | 'dark' | 'amber';
+export type BurstTextColor = 'theme' | 'ink' | 'paper' | 'amber';
+export type BurstTextAlign = 'left' | 'center';
+export type AdvanceType = 'line' | 'continuous';
 
-type BurstModeSettings = {
+export type BurstModeSettings = {
   fontSize: number;
   lineHeight: number;
   fontWeight: number;
@@ -247,9 +242,10 @@ export function BurstModeExperience({
   }, [currentContent, hasHydrationError]);
   const scriptLines = useMemo(() => buildPrompterLines(scriptText), [scriptText]);
   const lineWordCounts = useMemo(() => scriptLines.map(line => Math.max(1, countWords(line))), [scriptLines]);
+  // Conta só palavras de verdade: lineWordCounts dá 1 às linhas vazias entre parágrafos (para o ritmo).
   const totalWords = useMemo(
-    () => lineWordCounts.reduce((sum, value) => sum + value, 0),
-    [lineWordCounts]
+    () => scriptLines.reduce((sum, line) => sum + countWords(line), 0),
+    [scriptLines]
   );
   const effectiveWpm = Math.max(60, Math.round(settings.wpm * settings.speedSensitivity));
   const totalEstimatedSeconds = totalWords > 0 ? (totalWords / effectiveWpm) * 60 : 0;
@@ -258,6 +254,10 @@ export function BurstModeExperience({
   const elapsedSeconds = totalEstimatedSeconds * elapsedRatio;
   const isCurrentCompleted = currentContent ? recordedIds.has(currentContent.id) : false;
   const teleprompterEnabled = isRecordingBlockTeleprompterEnabled(block);
+  // Posição no bloco inteiro (gravados incluídos), para "Roteiro 2 de 5" não mudar ao marcar como gravado.
+  const blockPosition = currentContent
+    ? blockContents.findIndex(content => content.id === currentContent.id) + 1
+    : 0;
 
   const themeStyle = THEME_STYLES[settings.theme];
   const teleprompterViewportRef = useRef<HTMLDivElement>(null);
@@ -297,7 +297,8 @@ export function BurstModeExperience({
   }, [currentIndex, readyContents.length]);
 
   useEffect(() => {
-    if (!currentContent || !settings.shortcutsEnabled) return;
+    // Com as configurações abertas, Esc fecha só o painel e Espaço/setas ficam com os controles dele.
+    if (!currentContent || !settings.shortcutsEnabled || isSettingsOpen) return;
 
     const handleKeyDown = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
@@ -361,7 +362,8 @@ export function BurstModeExperience({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentContent, readyContents.length, settings, teleprompterEnabled]);
+    // isPlaying e countdownRemaining entram para o Espaço pausar: sem eles o atalho via sempre "parado" e recomeçava a contagem.
+  }, [countdownRemaining, currentContent, isPlaying, isSettingsOpen, readyContents.length, settings, teleprompterEnabled]);
 
   useEffect(() => {
     if (!teleprompterEnabled || countdownRemaining === null) return;
@@ -554,193 +556,102 @@ export function BurstModeExperience({
     );
   }
 
-  const shellStyle: CSSProperties = {
-    backgroundImage:
-      settings.theme === 'dark'
-        ? 'radial-gradient(circle at center, rgba(124,131,255,0.12), transparent 42%)'
-        : settings.theme === 'amber'
-          ? 'radial-gradient(circle at center, rgba(255,179,71,0.12), transparent 40%)'
-          : 'radial-gradient(circle at center, rgba(79,70,229,0.08), transparent 38%)',
-  };
-
   const textStyle: CSSProperties = {
     fontSize: `${settings.fontSize}px`,
     lineHeight: settings.lineHeight,
     fontWeight: settings.fontWeight,
     color: getResolvedTextColor(settings.theme, settings.textColor),
     textAlign: settings.textAlign,
-    maxWidth: `${settings.textWidth}%`,
     whiteSpace: settings.wrapText ? 'normal' : 'pre',
   };
+  const maxPlayhead = Math.max(0, scriptLines.length - 1);
 
   return (
     <div
       role="dialog"
       aria-modal="true"
       aria-label={`Sessão de gravação do bloco ${block.name}`}
-      className={cn('fixed inset-0 z-[100] overflow-hidden', themeStyle.shell, themeStyle.text)}
-      style={shellStyle}
+      className="fixed inset-0 z-[100] overflow-hidden bg-[var(--tp-bg)] text-[var(--tp-text)]"
+      style={getTeleprompterThemeVars(settings.theme)}
     >
-      <div className="absolute inset-0 backdrop-blur-[1px]" />
-
       <div className="relative flex h-full flex-col">
-        <header className={cn('border-b px-4 py-4 md:px-7 md:py-5', themeStyle.panel, themeStyle.panelBorder)}>
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className="flex items-start gap-3">
-              <div className={cn('mt-1 h-3 w-3 rounded-full shadow-[0_0_20px_currentColor]', themeStyle.accent)} />
-              <div>
-                <p className="text-xs font-semibold ">Modo gravação</p>
-                <p className={cn('mt-1 text-sm', themeStyle.muted)}>
-                  {teleprompterEnabled ? 'Foco total no roteiro' : 'Leitura estática do roteiro'}
-                </p>
-              </div>
-            </div>
+        <TeleprompterHeader
+          title={currentContent.title}
+          position={blockPosition}
+          total={blockContents.length}
+          estimatedLabel={formatSeconds(totalEstimatedSeconds)}
+          totalWords={totalWords}
+          onOpenSettings={() => setIsSettingsOpen(previous => !previous)}
+          onExit={handleFinishBlock}
+        />
 
-            <div className="grid min-w-[280px] grid-cols-1 gap-3 text-sm md:grid-cols-3 md:gap-6">
-              <div className="border-l border-transparent pl-0 md:border-l md:border-[currentColor]/15 md:pl-6">
-                <p className={cn('text-xs font-bold ', themeStyle.muted)}>Roteiro atual</p>
-                <p className="mt-1 truncate text-base font-semibold">{currentContent.title}</p>
-              </div>
-              <div className="border-l border-transparent pl-0 md:border-l md:border-[currentColor]/15 md:pl-6">
-                <p className={cn('text-xs font-bold ', themeStyle.muted)}>Tempo estimado</p>
-                <p className="mt-1 text-base font-semibold">{formatSeconds(totalEstimatedSeconds)}</p>
-              </div>
-              <div className="border-l border-transparent pl-0 md:border-l md:border-[currentColor]/15 md:pl-6">
-                <p className={cn('text-xs font-bold ', themeStyle.muted)}>Palavras</p>
-                <p className="mt-1 text-base font-semibold">{totalWords}</p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setIsSettingsOpen(previous => !previous)}
-                className={cn('rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border px-4 py-3 text-sm font-semibold transition-colors', themeStyle.panelBorder, themeStyle.panel)}
-              >
-                <span className="inline-flex items-center gap-2">
-                  <Settings2 className="h-4 w-4" /> Configurações
-                </span>
-              </button>
-              <button
-                type="button"
-                onClick={handleFinishBlock}
-                className={cn('rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border px-4 py-3 text-sm font-semibold transition-colors', themeStyle.panelBorder, themeStyle.panel)}
-              >
-                <span className="inline-flex items-center gap-2">
-                  <X className="h-4 w-4" /> Sair do modo gravação
-                  <span className={cn('rounded-lg border px-2 py-0.5 text-xs font-semibold', themeStyle.panelBorder)}>ESC</span>
-                </span>
-              </button>
-            </div>
-          </div>
-        </header>
-
-        <main className="relative flex-1 overflow-hidden">
-          <div className="pointer-events-none absolute inset-y-0 left-4 z-10 hidden items-center md:flex">
-            <button
-              type="button"
-              onClick={handlePreviousVideo}
-              disabled={currentIndex === 0}
-              className={cn('pointer-events-auto rounded-full border p-4 transition-opacity disabled:opacity-20', themeStyle.panel, themeStyle.panelBorder)}
-            >
-              <ChevronLeft className="h-5 w-5" />
-            </button>
-          </div>
-
-          <div className="pointer-events-none absolute inset-y-0 right-4 z-10 hidden items-center md:flex">
-            <button
-              type="button"
-              onClick={handleNextVideo}
-              className={cn('pointer-events-auto rounded-full border p-4 transition-opacity', themeStyle.panel, themeStyle.panelBorder)}
-            >
-              <ChevronRight className="h-5 w-5" />
-            </button>
-          </div>
-
+        <main className="relative min-h-0 flex-1 overflow-hidden">
           {teleprompterEnabled ? (
             <>
-              <div
-                className={cn(
-                  'pointer-events-none absolute left-0 right-0 z-20',
-                  themeStyle.glow
-                )}
-                style={{ top: `${settings.verticalMargin}%` }}
-              >
-                <div className="relative mx-auto max-w-6xl">
-                  <div className="absolute left-4 top-1/2 hidden -translate-y-1/2 items-center gap-3 md:flex">
-                    <div className={cn('h-4 w-4 rounded-full animate-pulse', themeStyle.cursor)} />
-                    <div className={cn('h-px w-16', themeStyle.cursor)} />
-                  </div>
-                </div>
-              </div>
-
+              {/* Nada posicionado entre o viewport e as linhas: o offsetTop delas é medido a partir dele. */}
               <div
                 ref={teleprompterViewportRef}
-                className="custom-scrollbar relative h-full overflow-y-auto px-5 pb-[14rem] pt-10 md:px-16 md:pb-[18rem] md:pt-20"
+                className="absolute inset-0 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
               >
-                <div className="mx-auto max-w-7xl">
-                  <div className="relative mx-auto flex min-h-full flex-col items-center">
-                    <div className={cn('pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b to-transparent md:h-36', settings.theme === 'dark' ? 'from-[#090d16]' : settings.theme === 'amber' ? 'from-[#1a1307]' : 'from-[#fbfaf7]')} />
-                    <div className={cn('pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t to-transparent md:h-36', settings.theme === 'dark' ? 'from-[#090d16]' : settings.theme === 'amber' ? 'from-[#1a1307]' : 'from-[#fbfaf7]')} />
+                <div aria-hidden="true" style={{ height: `${settings.verticalMargin}%` }} />
+                <div className={TELEPROMPTER_COLUMN_CLASS}>
+                  <div className="mx-auto" style={{ maxWidth: `${settings.textWidth}%` }}>
+                    {scriptLines.map((line, index) => {
+                      const distance = Math.abs(index - currentLineIndex);
+                      const opacity = settings.highlightCurrentLine
+                        ? distance === 0
+                          ? 1
+                          : distance === 1
+                            ? 0.4
+                            : distance === 2
+                              ? 0.22
+                              : 0.1
+                        : distance === 0
+                          ? 1
+                          : 0.5;
 
-                    <div className="w-full pt-[28vh] md:pt-[30vh]">
-                      <div className="mx-auto" style={{ maxWidth: `${settings.textWidth}%` }}>
-                        {scriptLines.map((line, index) => {
-                          const distance = Math.abs(index - currentLineIndex);
-                          const opacity = settings.highlightCurrentLine
-                            ? distance < 0.55
-                              ? 1
-                              : distance < 1.4
-                                ? 0.42
-                                : distance < 2.4
-                                  ? 0.18
-                                  : 0.08
-                            : distance < 1
-                              ? 1
-                              : 0.5;
-                          const scale = distance < 0.55 ? 1 : distance < 1.4 ? 0.985 : 0.96;
-                          const blur = settings.highlightCurrentLine ? Math.min(distance * 0.7, 3.2) : 0;
-                          const isCurrentLine = index === currentLineIndex;
-
-                          return (
-                            <p
-                              key={`${index}-${line}`}
-                              ref={element => {
-                                lineRefs.current[index] = element;
-                              }}
-                              className={cn(
-                                'relative mx-auto mb-4 break-words transition-all duration-300 md:mb-5',
-                                line === '' && 'mb-8 md:mb-10'
-                              )}
-                              style={{
-                                ...textStyle,
-                                opacity: line === '' ? 0 : opacity,
-                                transform: `scale(${scale})`,
-                                filter: `blur(${blur}px)`,
-                              }}
-                            >
-                              {line === '' ? '\u00a0' : line}
-                              {isCurrentLine && (
-                                <span className={cn('ml-2 inline-block h-[1em] w-[3px] animate-pulse align-middle', themeStyle.cursor)} />
-                              )}
-                            </p>
-                          );
-                        })}
-                      </div>
-                    </div>
+                      return (
+                        <p
+                          key={`${index}-${line}`}
+                          ref={element => {
+                            lineRefs.current[index] = element;
+                          }}
+                          className={cn('mb-3 break-words transition-opacity duration-300', line === '' && 'mb-6')}
+                          style={{ ...textStyle, opacity: line === '' ? 0 : opacity }}
+                        >
+                          {line === '' ? ' ' : line}
+                        </p>
+                      );
+                    })}
                   </div>
                 </div>
+                <div aria-hidden="true" style={{ height: `${100 - settings.verticalMargin}%` }} />
               </div>
+
+              <div
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-[var(--tp-bg)] to-transparent"
+              />
+              <div
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-x-0 bottom-0 h-72 bg-gradient-to-t from-[var(--tp-bg)] from-45% to-transparent"
+              />
+
+              <ReadingMarker
+                topPercent={settings.verticalMargin}
+                offsetPx={(settings.fontSize * settings.lineHeight) / 2}
+                textWidth={settings.textWidth}
+              />
             </>
           ) : (
-            <div className="custom-scrollbar relative h-full overflow-y-auto px-5 pb-[14rem] pt-10 md:px-16 md:pb-[18rem] md:pt-20">
+            <div className="absolute inset-0 overflow-y-auto px-6 pb-64 pt-10 md:px-16 md:pt-16">
               <div className="mx-auto max-w-4xl">
-                <div className={cn('rounded-[var(--radius-card-mobile)] border p-5 shadow-[0_20px_80px_rgba(0,0,0,0.08)] md:p-8', themeStyle.panel, themeStyle.panelBorder)}>
-                  <div className="mb-5 flex flex-wrap items-center gap-3">
-                    <span className={cn('rounded-full border px-3 py-1 t-label t-label-uppercase font-semibold', themeStyle.panelBorder, themeStyle.accentSoft)}>
+                <div className="rounded-xl border border-[var(--tp-border)] bg-[var(--tp-surface)] p-6 md:p-8">
+                  <div className="mb-6 flex flex-wrap items-center gap-3">
+                    <span className="rounded-full border border-[var(--tp-border)] bg-[var(--tp-subtle)] px-3 py-1 t-label t-label-uppercase font-semibold">
                       Teleprompter desativado
                     </span>
-                    <span className={cn('t-label t-label-uppercase font-semibold', themeStyle.muted)}>
+                    <span className="t-label t-label-uppercase font-semibold text-[var(--tp-muted)]">
                       Leitura livre no mobile e no desktop
                     </span>
                   </div>
@@ -760,412 +671,49 @@ export function BurstModeExperience({
           )}
 
           {teleprompterEnabled && countdownRemaining !== null && (
-            <div className="absolute inset-0 z-40 flex items-center justify-center bg-[var(--text-primary)]/22">
-              <div className={cn('rounded-[var(--radius-card-mobile)] border px-10 py-8 text-center shadow-none', themeStyle.panel, themeStyle.panelBorder)}>
-                <Text variant="label" uppercase className={themeStyle.muted}>Preparar</Text>
-                <p className="mt-3 text-6xl font-semibold">{countdownRemaining}</p>
-                <p className={cn('mt-3 text-sm', themeStyle.muted)}>A leitura pode ser pausada a qualquer momento.</p>
+            <div className="absolute inset-0 z-30 flex items-center justify-center bg-[var(--tp-bg)]/70 backdrop-blur-sm">
+              <div className="rounded-xl border border-[var(--tp-border)] bg-[var(--tp-surface)] px-10 py-8 text-center shadow-[0_12px_40px_rgba(0,0,0,0.08)]">
+                <Text variant="label" uppercase className="text-[var(--tp-muted)]">Preparar</Text>
+                <p className="mt-3 text-6xl font-semibold tabular-nums">{countdownRemaining}</p>
+                <p className="mt-3 text-sm text-[var(--tp-muted)]">A leitura pode ser pausada a qualquer momento.</p>
               </div>
             </div>
           )}
         </main>
 
-        <div className="pointer-events-none absolute inset-x-0 bottom-6 z-40 px-4 md:bottom-8">
-          <div className={cn('pointer-events-auto mx-auto flex max-w-5xl flex-col gap-4 rounded-[var(--radius-card-mobile)] border p-4 shadow-[0_25px_80px_rgba(0,0,0,0.12)] backdrop-blur-xl md:flex-row md:items-center md:justify-between md:px-6', themeStyle.controls, themeStyle.panelBorder)}>
-            <div className="flex flex-wrap items-center gap-3">
-              <button
-                type="button"
-                onClick={togglePlayback}
-                disabled={!teleprompterEnabled}
-                className={cn('inline-flex items-center gap-2 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border px-4 py-3 text-sm font-semibold transition-colors', themeStyle.panelBorder)}
-              >
-                {isPlaying ? <Pause className="h-4 w-4 fill-current" /> : <Play className="h-4 w-4 fill-current" />}
-                {isPlaying ? 'Pausar' : 'Iniciar'}
-                <span className={cn('rounded-lg border px-2 py-0.5 text-xs font-semibold', themeStyle.panelBorder)}>Espaço</span>
-              </button>
+        <TeleprompterControls
+          teleprompterEnabled={teleprompterEnabled}
+          isPlaying={isPlaying}
+          onTogglePlayback={togglePlayback}
+          elapsedLabel={formatSeconds(elapsedSeconds)}
+          totalLabel={formatSeconds(totalEstimatedSeconds)}
+          playhead={playhead}
+          maxPlayhead={maxPlayhead}
+          onSeek={value => setPlayhead(clamp(value, 0, maxPlayhead))}
+          wpm={effectiveWpm}
+          onSlower={() => updateSetting('wpm', clamp(settings.wpm - speedStep, 60, 280))}
+          onFaster={() => updateSetting('wpm', clamp(settings.wpm + speedStep, 60, 280))}
+          fontSize={settings.fontSize}
+          onSmaller={() => updateSetting('fontSize', clamp(settings.fontSize - 2, 24, 96))}
+          onBigger={() => updateSetting('fontSize', clamp(settings.fontSize + 2, 24, 96))}
+          isCompleted={isCurrentCompleted}
+          onMarkRecorded={() => toggleComplete(currentContent.id)}
+          position={blockPosition}
+          total={blockContents.length}
+          canGoPrevious={currentIndex > 0}
+          onPrevious={handlePreviousVideo}
+          onNext={handleNextVideo}
+        />
 
-              <button
-                type="button"
-                onClick={handlePreviousVideo}
-                disabled={currentIndex === 0}
-                className={cn('inline-flex items-center gap-2 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border px-4 py-3 text-sm font-semibold transition-colors disabled:opacity-30', themeStyle.panelBorder)}
-              >
-                <SkipBack className="h-4 w-4" /> Roteiro anterior
-              </button>
-
-              <button
-                type="button"
-                onClick={handleNextVideo}
-                className={cn('inline-flex items-center gap-2 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] px-4 py-3 text-sm font-semibold text-white shadow-lg', settings.theme === 'amber' ? 'bg-[#ff9f1a]' : 'bg-[#4f46e5]')}
-              >
-                Próximo roteiro <SkipForward className="h-4 w-4 fill-current" />
-              </button>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border px-4 py-3 text-center" style={{ borderColor: 'rgba(148, 163, 184, 0.25)' }}>
-                <Text variant="label" uppercase className={themeStyle.muted}>Tempo</Text>
-                <p className="mt-1 text-sm font-semibold">
-                  {formatSeconds(elapsedSeconds)} / {formatSeconds(totalEstimatedSeconds)}
-                </p>
-              </div>
-
-              <div className="flex items-center gap-2 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border px-3 py-3" style={{ borderColor: 'rgba(148, 163, 184, 0.25)' }}>
-                <button
-                  type="button"
-                  onClick={() => updateSetting('wpm', clamp(settings.wpm - speedStep, 60, 280))}
-                  disabled={!teleprompterEnabled}
-                  className="rounded-xl border p-2"
-                >
-                  <Minus className="h-3.5 w-3.5" />
-                </button>
-                <div className="min-w-[82px] text-center">
-                  <Text variant="label" uppercase className={themeStyle.muted}>Velocidade</Text>
-                  <p className="mt-1 text-sm font-semibold">{effectiveWpm} ppm</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => updateSetting('wpm', clamp(settings.wpm + speedStep, 60, 280))}
-                  disabled={!teleprompterEnabled}
-                  className="rounded-xl border p-2"
-                >
-                  <Plus className="h-3.5 w-3.5" />
-                </button>
-              </div>
-
-              <div className="flex items-center gap-2 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border px-3 py-3" style={{ borderColor: 'rgba(148, 163, 184, 0.25)' }}>
-                <button
-                  type="button"
-                  onClick={() => updateSetting('fontSize', clamp(settings.fontSize - 2, 24, 96))}
-                  className="rounded-xl border p-2"
-                >
-                  <Minus className="h-3.5 w-3.5" />
-                </button>
-                <div className="min-w-[82px] text-center">
-                  <Text variant="label" uppercase className={themeStyle.muted}>Fonte</Text>
-                  <p className="mt-1 text-sm font-semibold">{settings.fontSize}px</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => updateSetting('fontSize', clamp(settings.fontSize + 2, 24, 96))}
-                  className="rounded-xl border p-2"
-                >
-                  <Plus className="h-3.5 w-3.5" />
-                </button>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => currentContent && toggleComplete(currentContent.id)}
-                className={cn(
-                  'inline-flex items-center gap-2 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border px-4 py-3 text-sm font-semibold transition-colors',
-                  isCurrentCompleted
-                    ? 'border-emerald-500 bg-emerald-500 text-white'
-                    : themeStyle.panelBorder
-                )}
-              >
-                <CheckCircle2 className="h-4 w-4" />
-                {isCurrentCompleted ? 'Marcado como gravado' : 'Marcar como gravado'}
-                <span className={cn('rounded-lg border px-2 py-0.5 text-xs font-semibold', isCurrentCompleted ? 'border-white/40' : themeStyle.panelBorder)}>
-                  G
-                </span>
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <FixedPanelModal
+        <TeleprompterSettingsDialog
           open={isSettingsOpen}
           onClose={() => setIsSettingsOpen(false)}
-          desktopMaxW="md:max-w-[1240px]"
-          desktopPanelClassName="md:h-[78vh]"
-          zIndex="z-[140]"
-        >
-          <section className={cn('flex h-full flex-col overflow-hidden', themeStyle.controls, themeStyle.text)}>
-            <div className={cn('flex items-center justify-between border-b px-5 py-4 md:px-8', themeStyle.panelBorder)}>
-              <div>
-                <p className={cn('text-xs font-semibold ', themeStyle.muted)}>
-                  Modo gravação
-                </p>
-                <Text
-                  variant="sectionTitle"
-                  className="mt-1 text-lg font-semibold uppercase tracking-tight md:text-2xl"
-                >
-                  Configurações
-                </Text>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={resetSettings}
-                  className={cn('rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border px-4 py-2 text-xs font-semibold', themeStyle.panelBorder)}
-                >
-                  Restaurar padrões
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setIsSettingsOpen(false)}
-                  className={cn('rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border px-4 py-2 text-xs font-semibold', themeStyle.panelBorder)}
-                >
-                  Fechar
-                </button>
-              </div>
-            </div>
-
-            <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 md:px-8 md:py-6">
-              {!teleprompterEnabled && (
-                <div className="mb-5 rounded-[var(--radius-card-mobile)] border border-amber-400/30 bg-amber-400/10 px-4 py-4">
-                  <p className="text-sm font-semibold  text-amber-500">
-                    Leitura estática ativa
-                  </p>
-                  <p className="mt-2 text-sm leading-relaxed text-current/80">
-                    Os ajustes visuais continuam funcionando aqui. Controles de rolagem, velocidade e contagem regressiva
-                    ficam salvos para quando o teleprompter do bloco for reativado.
-                  </p>
-                </div>
-              )}
-
-              <div className="grid grid-cols-1 gap-4 pb-2 md:grid-cols-2 xl:grid-cols-4">
-                <SettingsGroup title="Aparência">
-                  <RangeSetting label="Tamanho da fonte" value={`${settings.fontSize}px`}>
-                    <button type="button" onClick={() => updateSetting('fontSize', clamp(settings.fontSize - 2, 24, 96))} className="rounded-xl border p-2"><Minus className="h-4 w-4" /></button>
-                    <span className="min-w-[64px] text-center text-sm font-semibold">{settings.fontSize}</span>
-                    <button type="button" onClick={() => updateSetting('fontSize', clamp(settings.fontSize + 2, 24, 96))} className="rounded-xl border p-2"><Plus className="h-4 w-4" /></button>
-                  </RangeSetting>
-                  <SliderSetting label="Espaçamento entre linhas" value={settings.lineHeight.toFixed(1)}>
-                    <input type="range" min="1.1" max="2.2" step="0.1" value={settings.lineHeight} onChange={event => updateSetting('lineHeight', Number(event.target.value))} className="w-full" />
-                  </SliderSetting>
-                  <SliderSetting label="Peso da fonte" value={String(settings.fontWeight)}>
-                    <input type="range" min="500" max="900" step="100" value={settings.fontWeight} onChange={event => updateSetting('fontWeight', Number(event.target.value))} className="w-full" />
-                  </SliderSetting>
-                  <ChoiceSetting label="Cor do texto">
-                    <ChoiceButton active={settings.textColor === 'theme'} onClick={() => updateSetting('textColor', 'theme')}>Tema</ChoiceButton>
-                    <ChoiceButton active={settings.textColor === 'ink'} onClick={() => updateSetting('textColor', 'ink')}>Tinta</ChoiceButton>
-                    <ChoiceButton active={settings.textColor === 'paper'} onClick={() => updateSetting('textColor', 'paper')}>Clara</ChoiceButton>
-                    <ChoiceButton active={settings.textColor === 'amber'} onClick={() => updateSetting('textColor', 'amber')}>Âmbar</ChoiceButton>
-                  </ChoiceSetting>
-                  <ChoiceSetting label="Tema">
-                    <ChoiceButton active={settings.theme === 'light'} onClick={() => updateSetting('theme', 'light')}>Claro</ChoiceButton>
-                    <ChoiceButton active={settings.theme === 'dark'} onClick={() => updateSetting('theme', 'dark')}>Escuro</ChoiceButton>
-                    <ChoiceButton active={settings.theme === 'amber'} onClick={() => updateSetting('theme', 'amber')}>Âmbar</ChoiceButton>
-                  </ChoiceSetting>
-                </SettingsGroup>
-
-                <SettingsGroup title="Controles">
-                  <ToggleSetting
-                    label="Atalhos"
-                    description="Ativar/desativar atalhos"
-                    checked={settings.shortcutsEnabled}
-                    onChange={() => updateSetting('shortcutsEnabled', !settings.shortcutsEnabled)}
-                  />
-                  <SliderSetting label="Sensibilidade da velocidade" value={`${settings.speedSensitivity.toFixed(1)}x`}>
-                    <input type="range" min="0.6" max="1.8" step="0.1" value={settings.speedSensitivity} onChange={event => updateSetting('speedSensitivity', Number(event.target.value))} className="w-full" />
-                  </SliderSetting>
-                  <ChoiceSetting label="Tipo de avanço">
-                    <ChoiceButton active={settings.advanceType === 'line'} onClick={() => updateSetting('advanceType', 'line')}>Linha</ChoiceButton>
-                    <ChoiceButton active={settings.advanceType === 'continuous'} onClick={() => updateSetting('advanceType', 'continuous')}>Contínuo</ChoiceButton>
-                  </ChoiceSetting>
-                  <SliderSetting label="Velocidade atual" value={`${settings.wpm} ppm`}>
-                    <input type="range" min="60" max="280" step="5" value={settings.wpm} onChange={event => updateSetting('wpm', Number(event.target.value))} className="w-full" />
-                  </SliderSetting>
-                </SettingsGroup>
-
-                <SettingsGroup title="Texto / Layout">
-                  <ChoiceSetting label="Alinhamento">
-                    <ChoiceButton active={settings.textAlign === 'center'} onClick={() => updateSetting('textAlign', 'center')}>Centro</ChoiceButton>
-                    <ChoiceButton active={settings.textAlign === 'left'} onClick={() => updateSetting('textAlign', 'left')}>Esquerda</ChoiceButton>
-                  </ChoiceSetting>
-                  <SliderSetting label="Largura do texto" value={`${settings.textWidth}%`}>
-                    <input type="range" min="42" max="88" step="2" value={settings.textWidth} onChange={event => updateSetting('textWidth', Number(event.target.value))} className="w-full" />
-                  </SliderSetting>
-                  <SliderSetting label="Margem vertical" value={`${settings.verticalMargin}%`}>
-                    <input type="range" min="18" max="60" step="1" value={settings.verticalMargin} onChange={event => updateSetting('verticalMargin', Number(event.target.value))} className="w-full" />
-                  </SliderSetting>
-                  <ToggleSetting
-                    label="Quebra automática"
-                    description="Quebrar linha automaticamente"
-                    checked={settings.wrapText}
-                    onChange={() => updateSetting('wrapText', !settings.wrapText)}
-                  />
-                </SettingsGroup>
-
-                <SettingsGroup title="Comportamento">
-                  <ToggleSetting
-                    label="Rolagem assistida"
-                    description="O texto acompanha o ritmo escolhido"
-                    checked={settings.autoScroll}
-                    onChange={() => updateSetting('autoScroll', !settings.autoScroll)}
-                  />
-                  <SliderSetting label="Contagem regressiva" value={`${settings.countdown}s`}>
-                    <input type="range" min="0" max="6" step="1" value={settings.countdown} onChange={event => updateSetting('countdown', Number(event.target.value))} className="w-full" />
-                  </SliderSetting>
-                  <ToggleSetting
-                    label="Destacar linha atual"
-                    description="Esmaecer linhas acima e abaixo"
-                    checked={settings.highlightCurrentLine}
-                    onChange={() => updateSetting('highlightCurrentLine', !settings.highlightCurrentLine)}
-                  />
-                  <div className="rounded-[var(--radius-card-mobile)] border border-[currentColor]/12 p-4">
-                    <Text variant="label" uppercase className={themeStyle.muted}>Atalhos</Text>
-                    <div className="mt-3 space-y-2 text-sm">
-                      <ShortcutLine label="Iniciar / Pausar" value="Espaço" />
-                      <ShortcutLine label="Próximo roteiro" value="→" />
-                      <ShortcutLine label="Roteiro anterior" value="←" />
-                      <ShortcutLine label="Aumentar fonte" value="+" />
-                      <ShortcutLine label="Diminuir fonte" value="-" />
-                      <ShortcutLine label="Marcar como gravado" value="G" />
-                      <ShortcutLine label="Sair" value="ESC" />
-                    </div>
-                  </div>
-                </SettingsGroup>
-              </div>
-            </div>
-          </section>
-        </FixedPanelModal>
-      </div>
-    </div>
-  );
-}
-
-function SettingsGroup({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <Surface variant="outlined" padding="md" className="border-[currentColor]/10 bg-[var(--bg-elevated)]/30">
-      <Text variant="label" uppercase className="mb-4 opacity-60">
-        {title}
-      </Text>
-      <div className="space-y-4">{children}</div>
-    </Surface>
-  );
-}
-
-function RangeSetting({
-  label,
-  value,
-  children,
-}: {
-  label: string;
-  value: string;
-  children: ReactNode;
-}) {
-  return (
-    <div>
-      <div className="mb-2 flex items-center justify-between gap-4">
-        <Text variant="bodyStrong">{label}</Text>
-        <Text variant="label" uppercase className="opacity-50">
-          {value}
-        </Text>
-      </div>
-      <div className="flex items-center gap-3">{children}</div>
-    </div>
-  );
-}
-
-function SliderSetting({
-  label,
-  value,
-  children,
-}: {
-  label: string;
-  value: string;
-  children: ReactNode;
-}) {
-  return (
-    <div>
-      <div className="mb-2 flex items-center justify-between gap-4">
-        <Text variant="bodyStrong">{label}</Text>
-        <Text variant="label" uppercase className="opacity-50">
-          {value}
-        </Text>
-      </div>
-      {children}
-    </div>
-  );
-}
-
-function ChoiceSetting({
-  label,
-  children,
-}: {
-  label: string;
-  children: ReactNode;
-}) {
-  return (
-    <div>
-      <div className="mb-2 text-sm font-bold">{label}</div>
-      <div className="flex flex-wrap gap-2">{children}</div>
-    </div>
-  );
-}
-
-function ChoiceButton({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        'rounded-xl border px-3 py-2 text-xs font-semibold  transition-all',
-        active ? 'border-[#4f46e5] bg-[#4f46e5]/10 text-[#4f46e5]' : 'border-[currentColor]/12 opacity-70'
-      )}
-    >
-      {children}
-    </button>
-  );
-}
-
-function ToggleSetting({
-  label,
-  description,
-  checked,
-  onChange,
-}: {
-  label: string;
-  description: string;
-  checked: boolean;
-  onChange: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onChange}
-      className="flex w-full items-center justify-between gap-4 rounded-[var(--radius-md)] border border-[currentColor]/12 px-4 py-3 text-left"
-    >
-      <div>
-        <p className="text-sm font-bold">{label}</p>
-        <p className="mt-1 text-xs opacity-55">{description}</p>
-      </div>
-      <div
-        className={cn(
-          'relative h-7 w-12 rounded-full transition-colors',
-          checked ? 'bg-[#4f46e5]' : 'bg-[var(--text-primary)]/12'
-        )}
-      >
-        <div
-          className={cn(
-            'absolute top-1 h-5 w-5 rounded-full bg-[var(--bg-elevated)] transition-all',
-            checked ? 'left-6' : 'left-1'
-          )}
+          settings={settings}
+          onChange={updateSetting}
+          onReset={resetSettings}
+          teleprompterEnabled={teleprompterEnabled}
         />
       </div>
-    </button>
-  );
-}
-
-function ShortcutLine({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-center justify-between gap-3">
-      <span className="font-medium opacity-80">{label}</span>
-      <span className="rounded-lg border border-[currentColor]/12 px-2 py-1 text-xs font-semibold  opacity-70">
-        {value}
-      </span>
     </div>
   );
 }
