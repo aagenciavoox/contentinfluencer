@@ -113,6 +113,38 @@ export type ContaNaGradeOrigem = 'regra' | 'manual';
 
 export type EnergiaNivel = 'baixa' | 'média' | 'alta';
 
+/** Lista limpa, sem vazios nem repetidos (ignora maiúsculas). */
+export function normalizeFormatoList(values: ReadonlyArray<string | null | undefined> | null | undefined): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const raw of values ?? []) {
+    const value = typeof raw === 'string' ? raw.trim() : '';
+    if (!value || seen.has(value.toLowerCase())) continue;
+    seen.add(value.toLowerCase());
+    out.push(value);
+  }
+  return out;
+}
+
+/**
+ * Lê formato_visual_padrao / formato_apresentacao. Aceita text[] (depois da migração
+ * 20261016190000) e o texto único antigo, que vira lista de um item.
+ */
+export function readFormatoList(value: unknown): string[] {
+  if (Array.isArray(value)) return normalizeFormatoList(value.map(item => (typeof item === 'string' ? item : null)));
+  if (typeof value !== 'string') return [];
+  const text = value.trim();
+  if (text.startsWith('[') && text.endsWith(']')) {
+    try {
+      const parsed: unknown = JSON.parse(text);
+      if (Array.isArray(parsed)) return readFormatoList(parsed);
+    } catch {
+      // texto comum
+    }
+  }
+  return normalizeFormatoList([text]);
+}
+
 export interface Serie {
   id: string;
   userId: string;
@@ -120,7 +152,8 @@ export interface Serie {
   template: string;
   notes: string;
   slotPadrao: string | null;
-  formatoVisualPadrao: string | null;
+  /** Formatos de publicação (vários). Banco antigo guardava texto único. */
+  formatoVisualPadrao: string[];
   estruturaRoteiro: string | null;
   bordao: string | null;
   cor: string | null;
@@ -140,7 +173,7 @@ export interface Serie {
   /** Pilar que o conteúdo herda. Ausente no banco antigo. */
   pilarPrincipalId?: string | null;
   /** Como a série aparece na tela. Ausente no banco antigo. */
-  formatoApresentacao?: string | null;
+  formatoApresentacao?: string[];
   motivoSalvar?: string | null;
   motivoEnviar?: string | null;
   /** Legenda que orienta os roteiros novos da série. Ausente no banco antigo. */
@@ -233,6 +266,30 @@ export interface BibliotecaItem {
   anotacoes: Anotacao[];
   /** Ficha do item. Colunas próprias em `biblioteca_items`, não preferência. */
   ficha?: BibliotecaItemMeta;
+  /** Unidade gravada no item; nula usa o padrão do formato (ver `unidadeProgressoDoItem`). */
+  unidadeProgresso?: BibliotecaUnidadeProgresso | null;
+  /** Histórico de progresso (tabela `biblioteca_progresso_eventos`). Vazio se a tabela não existir. */
+  progressoEventos?: BibliotecaProgressoEvento[];
+}
+
+export type BibliotecaUnidadeProgresso = 'paginas' | 'capitulos' | 'episodios' | 'minutos';
+
+export interface BibliotecaProgressoEvento {
+  id: string;
+  itemId: string;
+  occurredAt: string;
+  delta: number;
+  valorAtual: number;
+  unidade: BibliotecaUnidadeProgresso;
+}
+
+/** Unidade de progresso do item: a gravada, ou o padrão do formato (mangá conta capítulos). */
+export function unidadeProgressoDoItem(item: Pick<BibliotecaItem, 'tipo' | 'unidadeProgresso'>): BibliotecaUnidadeProgresso {
+  if (item.unidadeProgresso) return item.unidadeProgresso;
+  if (item.tipo === 'manga') return 'capitulos';
+  if (item.tipo === 'filme') return 'minutos';
+  if (item.tipo === 'série' || item.tipo === 'anime') return 'episodios';
+  return 'paginas';
 }
 
 export interface BibliotecaItemMeta {
@@ -1017,7 +1074,7 @@ const mp = {
   }),
   serie: (r: Row): Serie => ({
     id: r.id, userId: r.user_id, name: r.name, template: r.template || '',
-    notes: r.notes || '', slotPadrao: r.slot_padrao, formatoVisualPadrao: r.formato_visual_padrao,
+    notes: r.notes || '', slotPadrao: r.slot_padrao, formatoVisualPadrao: readFormatoList(r.formato_visual_padrao),
     estruturaRoteiro: r.estrutura_roteiro, bordao: r.bordao, cor: r.cor,
     capaUrl: r.capa_url || null,
     ativa: r.ativa ?? true, frequenciaRecomendada: r.frequencia_recomendada,
@@ -1031,7 +1088,7 @@ const mp = {
     funcaoPadrao: readFuncaoPadrao(r.funcao_padrao),
     energiaPadrao: readEnergiaNivel(r.energia_padrao),
     pilarPrincipalId: typeof r.pilar_principal_id === 'string' && r.pilar_principal_id ? r.pilar_principal_id : null,
-    formatoApresentacao: typeof r.formato_apresentacao === 'string' ? r.formato_apresentacao : null,
+    formatoApresentacao: readFormatoList(r.formato_apresentacao),
     motivoSalvar: typeof r.motivo_salvar === 'string' ? r.motivo_salvar : null,
     motivoEnviar: typeof r.motivo_enviar === 'string' ? r.motivo_enviar : null,
     legendaBase: typeof r.legenda_base === 'string' ? r.legenda_base : null,
@@ -1077,6 +1134,11 @@ const mp = {
     generoIds: (r.item_generos || []).map((g: Row) => g.biblioteca_generos?.nome || g.genero_id),
     anotacoes: (r.anotacoes || []).filter((a: Row) => !a.deleted_at).map(mp.anotacao),
     ficha: fichaDaLinha(r),
+    unidadeProgresso: r.unidade_progresso ?? null,
+  }),
+  progressoEvento: (r: Row): BibliotecaProgressoEvento => ({
+    id: r.id, itemId: r.item_id, occurredAt: r.occurred_at,
+    delta: Number(r.delta) || 0, valorAtual: Number(r.valor_atual) || 0, unidade: r.unidade,
   }),
   content: (r: Row): Content => ({
     id: r.id, userId: r.user_id, title: r.title, status: normalizeContentStatus(r.status),
@@ -1972,7 +2034,8 @@ export async function fetchDataDomains(
         .select('*, item_generos(genero_id, biblioteca_generos(nome)), anotacoes(*)')
         .eq('user_id', uid).is('deleted_at', null)
         .order('created_at', { ascending: false });
-      payload.bibliotecaItems = (assertQuerySuccess('biblioteca_items fetch', bibliotecaResult) || []).map(mp.bibliotecaItem);
+      const items = (assertQuerySuccess('biblioteca_items fetch', bibliotecaResult) || []).map(mp.bibliotecaItem);
+      payload.bibliotecaItems = await anexarProgressoEventos(uid, items);
     })());
   }
 
@@ -2504,14 +2567,14 @@ export async function saveSerie(serie: Omit<Serie, 'pilarIds' | 'plataformas' | 
   if (!supabase) return;
   let row: Record<string, unknown> = {
     id: serie.id, user_id: serie.userId, name: serie.name, template: serie.template,
-    notes: serie.notes, slot_padrao: serie.slotPadrao, formato_visual_padrao: serie.formatoVisualPadrao,
+    notes: serie.notes, slot_padrao: serie.slotPadrao, formato_visual_padrao: normalizeFormatoList(serie.formatoVisualPadrao),
     estrutura_roteiro: serie.estruturaRoteiro, bordao: serie.bordao, cor: serie.cor,
     capa_url: serie.capaUrl?.trim() || null,
     ativa: serie.ativa, frequencia_recomendada: serie.frequenciaRecomendada,
     energia_padrao: serie.energiaPadrao ?? null,
     funcao_padrao: serie.funcaoPadrao ?? null,
     pilar_principal_id: serie.pilarPrincipalId ?? null,
-    formato_apresentacao: serie.formatoApresentacao?.trim() || null,
+    formato_apresentacao: normalizeFormatoList(serie.formatoApresentacao),
     motivo_salvar: serie.motivoSalvar?.trim() || null,
     motivo_enviar: serie.motivoEnviar?.trim() || null,
   };
@@ -2657,10 +2720,64 @@ export async function deleteLook(id: string): Promise<void> {
 // BIBLIOTECA
 // ============================================================================
 
+/**
+ * Anexa o histórico de progresso aos itens. Se a tabela ainda não existir (migração
+ * não aplicada) ou a leitura falhar, os itens seguem sem histórico.
+ */
+async function anexarProgressoEventos(uid: string, items: BibliotecaItem[]): Promise<BibliotecaItem[]> {
+  if (!supabase || items.length === 0) return items;
+  try {
+    const { data, error } = await supabase.from('biblioteca_progresso_eventos')
+      .select('id, item_id, occurred_at, delta, valor_atual, unidade')
+      .eq('user_id', uid)
+      .order('occurred_at', { ascending: true });
+    if (error || !data) return items;
+    const porItem = new Map<string, BibliotecaProgressoEvento[]>();
+    (data as Row[]).map(mp.progressoEvento).forEach(evento => {
+      const lista = porItem.get(evento.itemId) ?? [];
+      lista.push(evento);
+      porItem.set(evento.itemId, lista);
+    });
+    return items.map(item => ({ ...item, progressoEventos: porItem.get(item.id) ?? [] }));
+  } catch {
+    return items;
+  }
+}
+
+/**
+ * Registra a mudança de progresso. Nunca derruba o salvamento do item:
+ * sem a tabela (migração pendente) ou sem permissão, só não registra.
+ */
+async function registrarProgressoEvento(
+  item: Pick<BibliotecaItem, 'id' | 'userId' | 'tipo' | 'unidadeProgresso' | 'paginasLidas'>,
+  anterior: number | null,
+): Promise<void> {
+  if (!supabase) return;
+  const atual = item.paginasLidas ?? 0;
+  const delta = atual - (anterior ?? 0);
+  if (delta === 0) return;
+  try {
+    await supabase.from('biblioteca_progresso_eventos').insert({
+      user_id: item.userId, item_id: item.id, delta, valor_atual: atual,
+      unidade: unidadeProgressoDoItem(item),
+    });
+  } catch {
+    // Histórico é opcional.
+  }
+}
+
 export async function saveBibliotecaItem(
   item: Omit<BibliotecaItem, 'anotacoes' | 'generoIds' | 'createdAt' | 'updatedAt' | 'deletedAt'>
 ): Promise<void> {
   if (!supabase) return;
+  let progressoAnterior: number | null | undefined;
+  try {
+    const { data: atual } = await supabase.from('biblioteca_items')
+      .select('paginas_lidas').eq('id', item.id).maybeSingle();
+    progressoAnterior = atual ? (atual as Row).paginas_lidas ?? null : undefined;
+  } catch {
+    progressoAnterior = undefined;
+  }
   const { error } = await supabase.from('biblioteca_items').upsert({
     id: item.id, user_id: item.userId, tipo: item.tipo, titulo: item.titulo,
     autor_diretor: item.autorDiretor, capa_url: item.capaUrl, status: item.status,
@@ -2670,6 +2787,10 @@ export async function saveBibliotecaItem(
     ...(item.ficha ? fichaParaColunas(item.ficha) : {}),
   });
   if (error) throw new Error(`biblioteca_items: ${error.message}`);
+  // Item novo (sem linha antes) com progresso também registra, a partir de zero.
+  if (progressoAnterior !== undefined || (item.paginasLidas ?? 0) > 0) {
+    await registrarProgressoEvento(item, progressoAnterior ?? null);
+  }
 }
 
 export async function saveItemGeneros(itemId: string, generoIds: string[]): Promise<void> {

@@ -1,0 +1,372 @@
+import type { ReactNode } from 'react';
+import { Link } from 'react-router-dom';
+import {
+  ArrowRight,
+  BookOpen,
+  BookOpenText,
+  Check,
+  Clapperboard,
+  Clock3,
+  Info,
+  LayoutGrid,
+  Library,
+  NotebookPen,
+  Sparkles,
+  Star,
+  Tv,
+  type LucideIcon,
+} from 'lucide-react';
+import { AppButton } from '../../../components/ui/AppButton';
+import { Skeleton } from '../../../components/ui/Skeleton';
+import { Surface } from '../../../components/ui/Surface';
+import { Text } from '../../../components/ui/Text';
+import { cn } from '../../../lib/utils';
+import { LibraryGenreIcon } from '../../library/components/LibraryGenreIcon';
+import type { BibliotecaItem } from '../../../lib/database';
+import {
+  LIBRARY_FORMATS,
+  formatConsumption,
+  formatInfo,
+  formatProgress,
+  type LibraryFormatFilter,
+  type LibraryPeriodAnalysis,
+} from '../lib/libraryPeriodAnalysis';
+
+const FORMAT_ICONS: Record<string, LucideIcon> = {
+  todos: LayoutGrid,
+  livro: BookOpen,
+  manga: BookOpenText,
+  quadrinho: Library,
+  filme: Clapperboard,
+  'série': Tv,
+  anime: Star,
+  outro: Sparkles,
+};
+
+export function FormatIcon({ tipo, className }: { tipo: string; className?: string }) {
+  const Icon = FORMAT_ICONS[tipo] ?? Sparkles;
+  return <Icon className={cn('h-4 w-4', className)} aria-hidden />;
+}
+
+export function IconTile({ children }: { children: ReactNode }) {
+  return (
+    <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] text-[var(--text-primary)]">
+      {children}
+    </span>
+  );
+}
+
+export function FormatTag({ tipo }: { tipo: BibliotecaItem['tipo'] }) {
+  return (
+    <span className="inline-flex shrink-0 items-center rounded-full bg-[var(--bg-hover)] px-2 py-0.5 text-xs text-[var(--text-secondary)]">
+      {formatInfo(tipo).singular}
+    </span>
+  );
+}
+
+function CardHeader({ title, subtitle, aside }: { title: string; subtitle: string; aside?: ReactNode }) {
+  return (
+    <div className="flex flex-wrap items-start justify-between gap-3">
+      <div className="min-w-0">
+        <Text variant="sectionTitle">{title}</Text>
+        <Text variant="meta" className="mt-1 block">{subtitle}</Text>
+      </div>
+      {aside}
+    </div>
+  );
+}
+
+function FooterNote({ children }: { children: ReactNode }) {
+  return (
+    <p className="mt-4 flex items-center gap-2 text-xs text-[var(--text-tertiary)]">
+      <Info className="h-3.5 w-3.5 shrink-0" aria-hidden />
+      {children}
+    </p>
+  );
+}
+
+function AccentLink({ to, children }: { to: string; children: ReactNode }) {
+  return (
+    <Link
+      to={to}
+      className="inline-flex items-center gap-1.5 text-sm font-semibold text-[var(--brand-accent-strong)] hover:opacity-80 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+    >
+      {children}
+      <ArrowRight className="h-4 w-4" aria-hidden />
+    </Link>
+  );
+}
+
+const FORMAT_OPTIONS: Array<{ id: LibraryFormatFilter; label: string }> = [
+  { id: 'todos', label: 'Todos' },
+  ...LIBRARY_FORMATS.map(format => ({ id: format.id, label: format.label })),
+];
+
+export function LibraryFormatChips({ value, onChange }: { value: LibraryFormatFilter; onChange: (value: LibraryFormatFilter) => void }) {
+  return (
+    <div className="flex items-center gap-3">
+      <Text variant="bodyStrong" as="span" className="hidden shrink-0 md:inline">Formato</Text>
+      <div role="group" aria-label="Formato" className="mobile-h-scroll flex gap-2 md:flex-wrap">
+        {FORMAT_OPTIONS.map(option => {
+          const active = option.id === value;
+          return (
+            <button
+              key={option.id}
+              type="button"
+              aria-pressed={active}
+              onClick={() => onChange(option.id)}
+              className={cn(
+                'filter-chip min-h-9 shrink-0 pointer-coarse:min-h-11',
+                active && 'border-[var(--brand-accent-soft)] bg-[var(--brand-accent-soft)] text-[var(--brand-accent-strong)] hover:border-[var(--brand-accent-soft)] hover:bg-[var(--brand-accent-soft)] hover:text-[var(--brand-accent-strong)]',
+              )}
+            >
+              <FormatIcon tipo={option.id} />
+              {option.label}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function KpiCard({ icon: Icon, label, value, caption, loading }: { icon: LucideIcon; label: string; value: number; caption: string; loading: boolean }) {
+  return (
+    <Surface variant="info" padding="md" className="flex items-start gap-3">
+      <span className="hidden sm:inline-flex"><IconTile><Icon className="h-4 w-4" aria-hidden /></IconTile></span>
+      <div className="min-w-0">
+        <Text variant="meta" className="block">{label}</Text>
+        {loading
+          ? <Skeleton className="mt-1 h-8 w-14" />
+          : <p className="mt-0.5 text-2xl font-semibold tabular-nums text-[var(--text-primary)]">{value.toLocaleString('pt-BR')}</p>}
+        <Text variant="meta" className="mt-0.5 block text-[var(--text-tertiary)]">{caption}</Text>
+      </div>
+    </Surface>
+  );
+}
+
+export function LibraryKpis({ analysis, formatLabel, rangeText, loading }: { analysis: LibraryPeriodAnalysis; formatLabel: string; rangeText: string; loading: boolean }) {
+  return (
+    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <KpiCard icon={Library} label="Itens no acervo" value={analysis.inCollection} caption={formatLabel} loading={loading} />
+      <KpiCard icon={Check} label="Concluídos no período" value={analysis.completed} caption={rangeText} loading={loading} />
+      <KpiCard icon={Clock3} label="Em andamento" value={analysis.active} caption="Situação atual" loading={loading} />
+      <KpiCard icon={NotebookPen} label="Anotações" value={analysis.notes} caption="Registradas no período" loading={loading} />
+    </div>
+  );
+}
+
+export function LibraryConsumptionTable({ analysis, periodLabel, loading }: { analysis: LibraryPeriodAnalysis; periodLabel: string; loading: boolean }) {
+  return (
+    <Surface variant="info" padding="lg">
+      <CardHeader
+        title="Consumo por formato"
+        subtitle="Cada formato com sua própria medida de progresso."
+        aside={<Text variant="meta">Período: {periodLabel}</Text>}
+      />
+      <div className="mt-4 overflow-x-auto">
+        {loading ? (
+          <div className="stack-md" aria-busy="true">
+            {['a', 'b', 'c'].map(key => <Skeleton key={key} className="h-9 w-full" />)}
+          </div>
+        ) : (
+          <table className="w-full min-w-[560px] text-sm">
+            <thead>
+              <tr className="bg-[var(--bg-hover)] text-left text-xs text-[var(--text-secondary)]">
+                <th className="rounded-l-[var(--radius-input)] px-3 py-2.5 font-medium">Formato</th>
+                <th className="px-3 py-2.5 font-medium">No acervo</th>
+                <th className="px-3 py-2.5 font-medium">Concluídos</th>
+                <th className="px-3 py-2.5 font-medium">Em andamento</th>
+                <th className="rounded-r-[var(--radius-input)] px-3 py-2.5 font-medium">Consumo registrado</th>
+              </tr>
+            </thead>
+            <tbody>
+              {analysis.formats.map(row => (
+                <tr key={row.id} className="border-b border-[var(--border-color)] text-[var(--text-primary)] last:border-b-0">
+                  <td className="px-3 py-2">
+                    <span className="flex items-center gap-3">
+                      <IconTile><FormatIcon tipo={row.id} /></IconTile>
+                      <span className="font-medium">{row.label}</span>
+                    </span>
+                  </td>
+                  <td className="px-3 py-2 tabular-nums">{row.inCollection}</td>
+                  <td className="px-3 py-2 tabular-nums">{row.completed}</td>
+                  <td className="px-3 py-2 tabular-nums">{row.active}</td>
+                  <td className="px-3 py-2 tabular-nums">{formatConsumption(row)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+      <FooterNote>O consumo considera os registros feitos no período selecionado.</FooterNote>
+    </Surface>
+  );
+}
+
+const ACTIVE_LIMIT = 4;
+
+export function LibraryActiveCard({ analysis, loading }: { analysis: LibraryPeriodAnalysis; loading: boolean }) {
+  const visible = analysis.activeItems.slice(0, ACTIVE_LIMIT);
+  return (
+    <Surface variant="info" padding="lg" className="flex flex-col">
+      <CardHeader
+        title="Em andamento"
+        subtitle="Itens que você está consumindo no momento."
+        aside={analysis.activeItems.length > 0 ? <AccentLink to="/biblioteca?status=andamento">Ver todos</AccentLink> : undefined}
+      />
+      <div className="mt-4 flex-1">
+        {loading ? (
+          <div className="stack-md" aria-busy="true">
+            {['a', 'b', 'c'].map(key => <Skeleton key={key} className="h-9 w-full" />)}
+          </div>
+        ) : visible.length === 0 ? (
+          <Text variant="meta">Nada em andamento agora.</Text>
+        ) : (
+          <ul>
+            {visible.map(entry => (
+              <li key={entry.id} className="border-b border-[var(--border-color)] last:border-b-0">
+                <Link to={`/biblioteca/${entry.id}`} className="flex items-center gap-3 py-2 hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]">
+                  <IconTile><FormatIcon tipo={entry.tipo} /></IconTile>
+                  <span className="min-w-0 flex-1 truncate text-sm font-medium text-[var(--text-primary)]">{entry.title}</span>
+                  <span className="hidden sm:inline-flex"><FormatTag tipo={entry.tipo} /></span>
+                  <span className="shrink-0 text-right text-sm tabular-nums text-[var(--text-secondary)]">
+                    {formatProgress(entry.current, entry.total, entry.unit)}
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+      {!loading && analysis.activeItems.length > 0 ? (
+        <Text variant="meta" className="mt-3 block text-[var(--text-tertiary)]">
+          Exibindo {visible.length} de {analysis.activeItems.length} {analysis.activeItems.length === 1 ? 'item' : 'itens'} em andamento.
+        </Text>
+      ) : null}
+    </Surface>
+  );
+}
+
+function plural(count: number, one: string, many: string) {
+  return `${count.toLocaleString('pt-BR')} ${count === 1 ? one : many}`;
+}
+
+export function LibraryNotesCard({ analysis, loading }: { analysis: LibraryPeriodAnalysis; loading: boolean }) {
+  return (
+    <Surface variant="info" padding="lg" className="flex flex-col">
+      <CardHeader
+        title="Anotações"
+        subtitle="Suas reflexões, destaques e registros."
+        aside={(
+          <div className="flex items-center gap-4 text-center">
+            <div>
+              <p className="text-xl font-semibold tabular-nums text-[var(--text-primary)]">{analysis.notes}</p>
+              <Text variant="meta">{analysis.notes === 1 ? 'nota' : 'notas'}</Text>
+            </div>
+            <span className="h-8 w-px bg-[var(--border-color)]" aria-hidden />
+            <div>
+              <p className="text-xl font-semibold tabular-nums text-[var(--text-primary)]">{analysis.itemsAnnotated}</p>
+              <Text variant="meta">{analysis.itemsAnnotated === 1 ? 'item anotado' : 'itens anotados'}</Text>
+            </div>
+          </div>
+        )}
+      />
+      <div className="mt-4 flex-1 border-t border-[var(--border-color)] pt-4">
+        <Text variant="bodyStrong" className="text-sm">Itens com mais notas</Text>
+        {loading ? (
+          <Skeleton className="mt-3 h-9 w-full" />
+        ) : analysis.topAnnotated.length === 0 ? (
+          <Text variant="meta" className="mt-2 block">Nenhuma anotação registrada neste período.</Text>
+        ) : (
+          <ul className="mt-2">
+            {analysis.topAnnotated.map(entry => (
+              <li key={entry.id} className="border-b border-[var(--border-color)] last:border-b-0">
+                <Link to={`/biblioteca/${entry.id}`} className="flex items-center gap-3 py-2 hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]">
+                  <IconTile><FormatIcon tipo={entry.tipo} /></IconTile>
+                  <span className="min-w-0 flex-1 truncate text-sm font-medium text-[var(--text-primary)]">{entry.title}</span>
+                  <span className="hidden sm:inline-flex"><FormatTag tipo={entry.tipo} /></span>
+                  <span className="shrink-0 text-sm tabular-nums text-[var(--text-secondary)]">{plural(entry.notes, 'nota', 'notas')}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+      <div className="mt-3">
+        <AccentLink to="/biblioteca/anotacoes">Ver todas as anotações</AccentLink>
+      </div>
+    </Surface>
+  );
+}
+
+export function LibraryGenresCard({ analysis, loading }: { analysis: LibraryPeriodAnalysis; loading: boolean }) {
+  return (
+    <Surface variant="info" padding="lg">
+      <CardHeader title="Gêneros no acervo" subtitle="Presença entre os itens cadastrados." />
+      <div className="mt-4">
+        {loading ? (
+          <Skeleton className="h-9 w-full" />
+        ) : analysis.genres.length === 0 ? (
+          <Text variant="meta">Nenhum gênero marcado nos itens ainda.</Text>
+        ) : (
+          <ul>
+            {analysis.genres.map(genre => (
+              <li key={genre.id} className="flex items-center gap-3 border-b border-[var(--border-color)] py-2 last:border-b-0">
+                <LibraryGenreIcon name={genre.label} className="text-[var(--text-secondary)]" />
+                <span className="min-w-0 flex-1 truncate text-sm text-[var(--text-primary)]">{genre.label}</span>
+                <span className="shrink-0 text-sm tabular-nums text-[var(--text-secondary)]">{plural(genre.count, 'item', 'itens')}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </Surface>
+  );
+}
+
+export function LibraryRatingsCard({ analysis, loading, onRate }: { analysis: LibraryPeriodAnalysis; loading: boolean; onRate: () => void }) {
+  const { ratings } = analysis;
+  const max = Math.max(1, ...ratings.distribution.map(entry => entry.count));
+  return (
+    <Surface variant="info" padding="lg" className="flex flex-col">
+      <CardHeader title="Avaliações" subtitle="Suas notas para livros, filmes, séries e outros." />
+      {loading ? (
+        <Skeleton className="mt-4 h-24 w-full" />
+      ) : ratings.count === 0 || ratings.average === null ? (
+        <div className="flex flex-1 flex-col items-center justify-center gap-1 py-4 text-center">
+          <Star className="h-6 w-6 text-[var(--text-secondary)]" aria-hidden />
+          <Text variant="bodyStrong" className="mt-2 text-sm">Nenhum item avaliado neste período.</Text>
+          <Text variant="meta">As avaliações aparecem aqui conforme você registra suas notas.</Text>
+          <AppButton variant="secondary" size="sm" className="mt-3 border-[var(--brand-accent-strong)] text-[var(--brand-accent-strong)]" onClick={onRate}>
+            Avaliar itens concluídos
+          </AppButton>
+        </div>
+      ) : (
+        <div className="mt-4 flex flex-col gap-5 sm:flex-row sm:items-center">
+          <div className="shrink-0 text-center sm:w-28">
+            <p className="text-3xl font-semibold tabular-nums text-[var(--text-primary)]">
+              {ratings.average.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}
+            </p>
+            <Text variant="meta">média de {plural(ratings.count, 'item', 'itens')}</Text>
+          </div>
+          <ul className="flex-1 space-y-1.5">
+            {ratings.distribution.map(entry => (
+              <li key={entry.stars} className="flex items-center gap-2 text-xs text-[var(--text-secondary)]">
+                <span className="flex w-8 items-center gap-0.5 tabular-nums">{entry.stars}<Star className="h-3 w-3" aria-hidden /></span>
+                <span className="h-2 flex-1 overflow-hidden rounded-full bg-[var(--bg-hover)]">
+                  <span className="block h-full rounded-full bg-[var(--brand-accent)]" style={{ width: `${(entry.count / max) * 100}%` }} />
+                </span>
+                <span className="w-6 text-right tabular-nums">{entry.count}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </Surface>
+  );
+}
+
+export function LibraryAnalysisFooter() {
+  return <FooterNote>Os resultados acompanham o período e o formato selecionados.</FooterNote>;
+}

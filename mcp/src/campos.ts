@@ -52,6 +52,42 @@ export const FORMATO_DESCRICAO =
   'Formato visual do roteiro (Talking Head, Tela Verde, Voiceover, POV Texto, Reacao, Vlog, Misto) ' +
   'ou formato de publicação (Reels, Carrossel, Post estático, Vídeo longo, Stories). Texto livre também vale.';
 
+/**
+ * Lista de formatos da série (formato_visual_padrao / formato_apresentacao).
+ * Aceita text[] (depois da migração 20261016190000), o texto único antigo e
+ * texto com lista JSON gravado antes da migração. Sem vazios nem repetidos.
+ */
+export function listaDeFormatos(value: unknown): string[] {
+  let itens: unknown[] = [];
+  if (Array.isArray(value)) itens = value;
+  else if (typeof value === 'string') {
+    const texto = value.trim();
+    itens = [texto];
+    if (texto.startsWith('[') && texto.endsWith(']')) {
+      try {
+        const lido: unknown = JSON.parse(texto);
+        if (Array.isArray(lido)) itens = lido;
+      } catch {
+        // texto comum
+      }
+    }
+  }
+  const vistos = new Set<string>();
+  const saida: string[] = [];
+  for (const item of itens) {
+    const texto = typeof item === 'string' ? item.trim() : '';
+    if (!texto || vistos.has(texto.toLowerCase())) continue;
+    vistos.add(texto.toLowerCase());
+    saida.push(texto);
+  }
+  return saida;
+}
+
+/** Primeiro formato de publicação da série, herdado pelo conteúdo novo. */
+export function primeiroFormato(value: unknown): string | null {
+  return listaDeFormatos(value)[0] ?? null;
+}
+
 export function horaCurta(value: string | null | undefined): string | null {
   if (!value?.trim()) return null;
   const match = value.trim().match(/^(\d{2}):(\d{2})/);

@@ -8,10 +8,11 @@ import {
 } from 'lucide-react';
 import { AppButton } from '../../../components/ui/AppButton';
 import { Badge } from '../../../components/ui/Badge';
+import { MultiFilterChips } from '../../../components/ui/MultiFilterChips';
 import { Surface } from '../../../components/ui/Surface';
 import { Text } from '../../../components/ui/Text';
 import { CoverUploadField } from '../../library/components/CoverUploadField';
-import type { Content, Pilar, Platform, Serie } from '../../../lib/database';
+import { normalizeFormatoList, type Content, type Pilar, type Platform, type Serie } from '../../../lib/database';
 import { SerieProductionMetricsPanel } from './SerieProductionMetricsPanel';
 import { TemplatesSettingsPage } from '../pages/TemplatesSettingsPage';
 import { cn } from '../../../lib/utils';
@@ -142,6 +143,59 @@ function FieldLabel({
   );
 }
 
+/** Várias escolhas em chips, mais um campo para um valor próprio. */
+function MultiChoiceField({
+  id,
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  id: string;
+  label: string;
+  value: string[];
+  onChange: (value: string[]) => void;
+  options: readonly string[];
+}) {
+  const [draft, setDraft] = useState('');
+  const chips = normalizeFormatoList([...options, ...value]);
+  const addDraft = () => {
+    const next = draft.trim();
+    if (!next) return;
+    onChange(normalizeFormatoList([...value, next]));
+    setDraft('');
+  };
+  return (
+    <div className="space-y-2">
+      <MultiFilterChips
+        value={value}
+        onChange={next => onChange(normalizeFormatoList(next))}
+        options={chips.map(item => ({ id: item, label: item }))}
+        ariaLabel={label}
+      />
+      <div className="flex gap-2">
+        <input
+          id={id}
+          type="text"
+          value={draft}
+          placeholder="Outro formato…"
+          onChange={event => setDraft(event.target.value)}
+          onKeyDown={event => {
+            if (event.key === 'Enter') {
+              event.preventDefault();
+              addDraft();
+            }
+          }}
+          className={inputClass}
+        />
+        <AppButton variant="secondary" size="sm" onClick={addDraft} disabled={!draft.trim()}>
+          Adicionar
+        </AppButton>
+      </div>
+    </div>
+  );
+}
+
 function SuggestField({
   id,
   value,
@@ -266,7 +320,7 @@ export function SerieEditForm({
       template: initial.template || '',
       notes: initial.notes || '',
       slotPadrao: initial.slotPadrao || null,
-      formatoVisualPadrao: initial.formatoVisualPadrao || null,
+      formatoVisualPadrao: normalizeFormatoList(initial.formatoVisualPadrao),
       estruturaRoteiro: initial.estruturaRoteiro || '',
       bordao: initial.bordao || '',
       cor: initial.cor || SERIE_DEFAULT_COR,
@@ -279,7 +333,7 @@ export function SerieEditForm({
       funcaoPadrao: initial.funcaoPadrao || null,
       energiaPadrao: initial.energiaPadrao || null,
       pilarPrincipalId: pilarPrincipalDaSerie(initial),
-      formatoApresentacao: initial.formatoApresentacao || '',
+      formatoApresentacao: normalizeFormatoList(initial.formatoApresentacao),
       motivoSalvar: initial.motivoSalvar || '',
       motivoEnviar: initial.motivoEnviar || '',
       legendaBase: initial.legendaBase || '',
@@ -300,11 +354,11 @@ export function SerieEditForm({
     if (form.frequenciaVezes !== snap.form.frequenciaVezes) return true;
     if (form.frequenciaUnidade !== snap.form.frequenciaUnidade) return true;
     if (form.frequenciaAPartirDe !== snap.form.frequenciaAPartirDe) return true;
-    if (form.formatoVisualPadrao !== snap.form.formatoVisualPadrao) return true;
+    if (JSON.stringify(form.formatoVisualPadrao) !== JSON.stringify(snap.form.formatoVisualPadrao)) return true;
     if (form.funcaoPadrao !== snap.form.funcaoPadrao) return true;
     if (form.energiaPadrao !== snap.form.energiaPadrao) return true;
     if (form.pilarPrincipalId !== snap.form.pilarPrincipalId) return true;
-    if (form.formatoApresentacao !== snap.form.formatoApresentacao) return true;
+    if (JSON.stringify(form.formatoApresentacao) !== JSON.stringify(snap.form.formatoApresentacao)) return true;
     if (form.motivoSalvar !== snap.form.motivoSalvar) return true;
     if (form.motivoEnviar !== snap.form.motivoEnviar) return true;
     if (form.legendaBase !== snap.form.legendaBase) return true;
@@ -377,7 +431,7 @@ export function SerieEditForm({
       funcaoPadrao: form.funcaoPadrao,
       energiaPadrao: form.energiaPadrao,
       pilarPrincipalId: form.pilarPrincipalId,
-      formatoApresentacao: form.formatoApresentacao.trim() || null,
+      formatoApresentacao: form.formatoApresentacao,
       motivoSalvar: form.motivoSalvar.trim() || null,
       motivoEnviar: form.motivoEnviar.trim() || null,
       legendaBase: form.legendaBase.trim() || null,
@@ -439,11 +493,8 @@ export function SerieEditForm({
     && !UNIDADES_FREQUENCIA.some(item => item.value === form.frequenciaUnidade)
     ? form.frequenciaUnidade.trim()
     : '';
-  const formatoOptions = collectFormatoSuggestions([...usedFormatoValues, form.formatoVisualPadrao]);
-  const apresentacaoOptions = form.formatoApresentacao.trim()
-    && !FORMATO_APRESENTACAO_SUGESTOES.some(item => item.toLowerCase() === form.formatoApresentacao.trim().toLowerCase())
-    ? [form.formatoApresentacao.trim(), ...FORMATO_APRESENTACAO_SUGESTOES]
-    : [...FORMATO_APRESENTACAO_SUGESTOES];
+  const formatoOptions = collectFormatoSuggestions([...usedFormatoValues, ...form.formatoVisualPadrao]);
+  const apresentacaoOptions = normalizeFormatoList([...FORMATO_APRESENTACAO_SUGESTOES, ...form.formatoApresentacao]);
   const serieForMetrics: Serie = {
         id: form.id,
         userId: form.userId,
@@ -464,7 +515,7 @@ export function SerieEditForm({
         funcaoPadrao: form.funcaoPadrao,
         energiaPadrao: form.energiaPadrao,
         pilarPrincipalId: form.pilarPrincipalId,
-        formatoApresentacao: form.formatoApresentacao.trim() || null,
+        formatoApresentacao: form.formatoApresentacao,
         motivoSalvar: form.motivoSalvar.trim() || null,
         motivoEnviar: form.motivoEnviar.trim() || null,
         pilarIds: form.pilarPrincipalId ? [form.pilarPrincipalId] : [],
@@ -721,27 +772,24 @@ export function SerieEditForm({
                 </div>
                 <div>
                   <FieldLabel>Formato de publicação</FieldLabel>
-                  <SuggestField
+                  <MultiChoiceField
                     id="serie-formato-publicacao"
-                    value={form.formatoVisualPadrao || ''}
-                    onChange={formatoVisualPadrao => setForm(previous => ({
-                      ...previous,
-                      formatoVisualPadrao: formatoVisualPadrao || null,
-                    }))}
-                    suggestions={formatoOptions}
-                    placeholder="Escolher ou escrever…"
+                    label="Formato de publicação"
+                    value={form.formatoVisualPadrao}
+                    onChange={formatoVisualPadrao => setForm(previous => ({ ...previous, formatoVisualPadrao }))}
+                    options={formatoOptions}
                   />
                 </div>
               </div>
 
               <div>
                 <FieldLabel>Formato de apresentação</FieldLabel>
-                <SuggestField
+                <MultiChoiceField
                   id="serie-formato-apresentacao"
+                  label="Formato de apresentação"
                   value={form.formatoApresentacao}
                   onChange={formatoApresentacao => setForm(previous => ({ ...previous, formatoApresentacao }))}
-                  suggestions={apresentacaoOptions}
-                  placeholder="Escolher ou escrever…"
+                  options={apresentacaoOptions}
                 />
               </div>
 

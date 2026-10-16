@@ -53,7 +53,7 @@ type SerieLeitura = GradeSerie & {
   pilarIds?: string[];
   pilarPrincipalId?: string | null;
   frequenciaRecomendada?: string | null;
-  formatoVisualPadrao?: string | null;
+  formatoVisualPadrao?: string[];
   energiaPadrao?: Serie['energiaPadrao'];
 };
 

@@ -18,7 +18,7 @@ export function createContentDraft(
 ): Content {
   const now = new Date().toISOString();
   const herdada = funcaoHerdavelDaSerie(serie);
-  const formato = overrides.formatoVisual ?? serie?.formatoVisualPadrao ?? null;
+  const formato = overrides.formatoVisual ?? serie?.formatoVisualPadrao?.[0] ?? null;
 
   const draft: Content = {
     id: generateUUID(),

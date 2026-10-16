@@ -226,7 +226,7 @@ function testSerieEPausaENumeros() {
     pilarIds: [],
     pilarPrincipalId: null,
     frequenciaRecomendada: null,
-    formatoVisualPadrao: null,
+    formatoVisualPadrao: [],
     energiaPadrao: null,
   };
   const abertas = computeReadings(baseState({ series: [serie] }), settings, NOW);

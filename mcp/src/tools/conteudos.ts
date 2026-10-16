@@ -1,6 +1,6 @@
 import type {McpServer} from '@modelcontextprotocol/sdk/server/mcp.js';
 import {z} from 'zod';
-import {FORMATO_DESCRICAO, JANELAS, horaEscolhida} from '../campos.ts';
+import {FORMATO_DESCRICAO, JANELAS, horaEscolhida, primeiroFormato} from '../campos.ts';
 import {descreverColunasOmitidas, livrosDoConteudo, unirLivros} from '../editorial.ts';
 import {anexarTemas, gravarTemasDoConteudo, idsComTema} from '../temas.ts';
 import {
@@ -258,7 +258,7 @@ export function registerConteudos(server: McpServer) {
     const serie = serieId ? lookups.series.find(s => s.id === serieId) : null;
     let pilarId = resolvePilar(lookups, input.pilar) ?? null;
     if (!pilarId && serie?.serie_pilares?.length) pilarId = serie.serie_pilares[0].pilar_id;
-    const formato = input.formato ?? serie?.formato_visual_padrao ?? null;
+    const formato = input.formato?.trim() || primeiroFormato(serie?.formato_visual_padrao);
     const herdada = funcaoHerdavel(serie);
     const escolha = input.funcao ?? (herdada ? 'da_serie' : null);
     const funcao = funcaoColumns(escolha);

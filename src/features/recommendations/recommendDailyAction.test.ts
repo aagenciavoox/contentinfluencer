@@ -33,7 +33,7 @@ function createSerie(overrides: Partial<Serie> = {}): Serie {
     template: '',
     notes: '',
     slotPadrao: null,
-    formatoVisualPadrao: null,
+    formatoVisualPadrao: [],
     estruturaRoteiro: null,
     bordao: null,
     cor: '#6366f1',

@@ -6,7 +6,7 @@ function testQuickSerieHasEverythingOpen() {
     pilarIds: [],
     funcaoPadrao: null,
     frequenciaRecomendada: null,
-    formatoVisualPadrao: null,
+    formatoVisualPadrao: [],
     energiaPadrao: null,
   });
 
@@ -22,7 +22,7 @@ function testCompleteSerieHasNothingOpen() {
     pilarIds: ['pilar-1'],
     funcaoPadrao: 'aprofundar',
     frequenciaRecomendada: 'Semanal',
-    formatoVisualPadrao: 'Reels',
+    formatoVisualPadrao: ['Reels', 'Carrossel'],
     energiaPadrao: 'baixa',
   });
   assert.equal(items.length, 0);
@@ -33,7 +33,7 @@ function testBlankTextCountsAsOpen() {
     pilarIds: ['pilar-1'],
     funcaoPadrao: 'atrair',
     frequenciaRecomendada: '  ',
-    formatoVisualPadrao: '',
+    formatoVisualPadrao: ['  '],
     energiaPadrao: 'alta',
   });
   assert.deepEqual(items.map(item => item.key), ['frequencia', 'formato']);

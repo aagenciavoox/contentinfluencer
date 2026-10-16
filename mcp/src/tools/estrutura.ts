@@ -7,6 +7,7 @@ import {
   HORA_DA_JANELA,
   JANELA_ROTULO,
   JANELAS,
+  listaDeFormatos,
 } from '../campos.ts';
 import {
   FUNCAO_LABELS,
@@ -84,8 +85,8 @@ export function registerEstrutura(server: McpServer) {
           pilares: (s.serie_pilares ?? []).map((sp: Row) => lookups.pilarName(sp.pilar_id)),
           funcao_padrao: s.funcao_padrao ?? null,
           etapa_funil: isFuncao(s.funcao_padrao) ? FUNIL_DA_FUNCAO[s.funcao_padrao] ?? 'fora' : null,
-          formato_apresentacao: s.formato_apresentacao ?? null,
-          formato_padrao: s.formato_visual_padrao ?? null,
+          formato_apresentacao: listaDeFormatos(s.formato_apresentacao),
+          formato_padrao: listaDeFormatos(s.formato_visual_padrao),
           energia_padrao: s.energia_padrao ?? null,
           motivo_salvar: s.motivo_salvar ?? null,
           motivo_enviar: s.motivo_enviar ?? null,

@@ -62,7 +62,7 @@ function buildSerie(overrides: Partial<Serie> = {}): Serie {
     template: '',
     notes: '',
     slotPadrao: null,
-    formatoVisualPadrao: null,
+    formatoVisualPadrao: [],
     estruturaRoteiro: null,
     bordao: null,
     cor: null,

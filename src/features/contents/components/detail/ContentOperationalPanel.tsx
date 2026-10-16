@@ -485,7 +485,7 @@ export function ContentOperationalPanel({
   const visualFormats = useMemo(
     () => Array.from(new Set([
       ...VISUAL_FORMATS,
-      ...series.map(serie => serie.formatoVisualPadrao).filter((value): value is string => Boolean(value)),
+      ...series.flatMap(serie => serie.formatoVisualPadrao ?? []).filter(Boolean),
       ...(draft.formatoVisual ? [draft.formatoVisual] : []),
     ])),
     [draft.formatoVisual, series],

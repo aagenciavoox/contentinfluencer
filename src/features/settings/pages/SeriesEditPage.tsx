@@ -211,7 +211,7 @@ export function SeriesEditPage() {
       contas={contas}
       pilares={state.pilares}
       contents={state.contents}
-      usedFormatoValues={state.series.map(serie => serie.formatoVisualPadrao)}
+      usedFormatoValues={state.series.flatMap(serie => serie.formatoVisualPadrao ?? [])}
       showOpenInfoNotice={editorialSettings.openInfoNotices}
       onSave={handleSave}
       onCancel={backToList}

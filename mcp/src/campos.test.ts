@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import {
   aplicarFicha,
   horaEscolhida,
+  listaDeFormatos,
+  primeiroFormato,
   janelaDaHora,
   lerFicha,
   resolverTemas,
@@ -58,4 +60,11 @@ function testFicha() {
 testJanela();
 testTemas();
 testFicha();
+
+assert.deepEqual(listaDeFormatos('Reels'), ['Reels']);
+assert.deepEqual(listaDeFormatos(['Reels', ' reels ', '', 'Carrossel']), ['Reels', 'Carrossel']);
+assert.deepEqual(listaDeFormatos('["Reels","Stories"]'), ['Reels', 'Stories']);
+assert.deepEqual(listaDeFormatos(null), []);
+assert.equal(primeiroFormato(['Carrossel', 'Reels']), 'Carrossel');
+assert.equal(primeiroFormato(''), null);
 console.log('campos mcp ok');

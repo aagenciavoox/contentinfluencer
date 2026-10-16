@@ -18,6 +18,7 @@ const Planejamento = lazy(() => routeLoaders.planejamento().then(module => ({ de
 const Editorial = lazy(() => routeLoaders.editorial().then(module => ({ default: module.Editorial })));
 const Biblioteca = lazy(() => routeLoaders.library().then(module => ({ default: module.Biblioteca })));
 const Analise = lazy(() => routeLoaders.libraryAnalysis().then(module => ({ default: module.Analise })));
+const LibraryAnnotations = lazy(() => import('../../features/library/pages/LibraryAnnotationsPage').then(module => ({ default: module.LibraryAnnotationsPage })));
 const BookDetail = lazy(() => routeLoaders.bookDetail().then(module => ({ default: module.BookDetail })));
 const Settings = lazy(() => routeLoaders.settings().then(module => ({ default: module.Settings })));
 const PerfilSettings = lazy(() => routeLoaders.profile().then(module => ({ default: module.PerfilSettings })));
@@ -116,6 +117,14 @@ export function buildAppRoutes(): RouteObject[] {
                   element: (
                     <ModuleRoute module="library">
                       <Analise />
+                    </ModuleRoute>
+                  ),
+                },
+                {
+                  path: '/biblioteca/anotacoes',
+                  element: (
+                    <ModuleRoute module="library">
+                      <LibraryAnnotations />
                     </ModuleRoute>
                   ),
                 },

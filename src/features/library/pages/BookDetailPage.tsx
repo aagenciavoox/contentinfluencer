@@ -105,6 +105,7 @@ function getCreatorLabel(tipo: BibliotecaItem['tipo']) {
 function getProgressLabels(tipo: BibliotecaItem['tipo']) {
   if (tipo === 'filme') return { current: 'Minutos vistos', total: 'Duração total', unit: 'min' };
   if (tipo === 'série' || tipo === 'anime') return { current: 'Episódios vistos', total: 'Total de episódios', unit: 'eps' };
+  if (tipo === 'manga') return { current: 'Capítulos lidos', total: 'Total de capítulos', unit: 'capítulos' };
   return { current: 'Páginas lidas', total: 'Total de páginas', unit: 'páginas' };
 }
 
@@ -248,6 +249,7 @@ export function BookDetailPage() {
     racaAutor: metadata.racaAutor ?? '',
     quemIndicou: metadata.quemIndicou ?? '',
     motivoEscolha: metadata.motivoEscolha ?? '',
+    duracaoPorEpisodio: metadata.duracaoPorEpisodio ?? '',
     potencialConteudo: livro?.potencialConteudo as 1 | 2 | 3 | undefined,
   }));
 
@@ -420,6 +422,7 @@ export function BookDetailPage() {
           racaAutor: infoLocal.racaAutor,
           quemIndicou: infoLocal.quemIndicou,
           motivoEscolha: infoLocal.motivoEscolha,
+          duracaoPorEpisodio: infoLocal.duracaoPorEpisodio,
           capitulosCobertos,
         },
       },
@@ -848,12 +851,18 @@ export function BookDetailPage() {
                   </div>
                   <div>
                     <label className="text-xs font-bold  text-[var(--text-tertiary)] block mb-1.5">{progressLabels.current}</label>
-                    <input type="number" min={0} value={infoLocal.paginasLidas} onChange={e => setInfoLocal(prev => ({ ...prev, paginasLidas: e.target.value === '' ? '' : Number(e.target.value) }))} placeholder={livro.tipo === 'filme' ? 'Ex.: 95' : livro.tipo === 'série' || livro.tipo === 'anime' ? 'Ex.: 8' : 'Ex.: 120'} className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]" />
+                    <input type="number" min={0} value={infoLocal.paginasLidas} onChange={e => setInfoLocal(prev => ({ ...prev, paginasLidas: e.target.value === '' ? '' : Number(e.target.value) }))} placeholder={livro.tipo === 'filme' ? 'Ex.: 95' : livro.tipo === 'série' || livro.tipo === 'anime' ? 'Ex.: 8' : livro.tipo === 'manga' ? 'Ex.: 12' : 'Ex.: 120'} className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]" />
                   </div>
                   <div>
                     <label className="text-xs font-bold  text-[var(--text-tertiary)] block mb-1.5">{progressLabels.total}</label>
                     <input type="number" min={1} value={infoLocal.totalPaginas} onChange={e => setInfoLocal(prev => ({ ...prev, totalPaginas: e.target.value === '' ? '' : Number(e.target.value) }))} placeholder={livro.tipo === 'filme' ? 'Ex.: 130' : livro.tipo === 'série' || livro.tipo === 'anime' ? 'Ex.: 10' : 'Ex.: 380'} className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]" />
                   </div>
+                  {(livro.tipo === 'série' || livro.tipo === 'anime') && (
+                    <div>
+                      <label className="text-xs font-bold  text-[var(--text-tertiary)] block mb-1.5">Duração por episódio</label>
+                      <input type="text" value={infoLocal.duracaoPorEpisodio} onChange={e => setInfoLocal(prev => ({ ...prev, duracaoPorEpisodio: e.target.value }))} placeholder="Ex.: 45 min" className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]" />
+                    </div>
+                  )}
                 </div>
                 {(infoLocal.totalPaginas as number) > 0 && (
                   <div className="mt-4">

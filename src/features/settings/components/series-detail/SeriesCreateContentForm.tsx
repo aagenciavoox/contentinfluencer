@@ -8,6 +8,7 @@ import {
 } from 'react';
 import { Check, Eraser } from 'lucide-react';
 import { AppButton } from '../../../../components/ui/AppButton';
+import { FilterChips } from '../../../../components/ui/FilterChips';
 import { Text } from '../../../../components/ui/Text';
 import { DEFAULT_PLATFORMS } from '../../../../constants';
 import { useAppContext } from '../../../../context/AppContext';
@@ -94,7 +95,8 @@ export const SeriesCreateContentForm = forwardRef<
     return nomes.map(nome => ({ id: nome, nome }));
   }, [platformNames, state.platforms]);
   const defaultPilarId = pilarPrincipalDaSerie(serie) || '';
-  const defaultFormato = serie.formatoVisualPadrao || '';
+  const formatosDaSerie = serie.formatoVisualPadrao ?? [];
+  const [formato, setFormato] = useState(formatosDaSerie[0] ?? '');
 
   const [title, setTitle] = useState('');
   const [script, setScript] = useState('');
@@ -157,7 +159,7 @@ export const SeriesCreateContentForm = forwardRef<
         status: isIdeia ? CONTENT_STATUS.IDEIA : CONTENT_STATUS.ROTEIRO,
         seriesId: serie.id,
         pilarId: defaultPilarId || null,
-        formatoVisual: defaultFormato || null,
+        formatoVisual: formato || null,
         energiaNecessaria: serie.energiaPadrao,
         slotType: serie.slotPadrao as Content['slotType'],
         script: isIdeia ? null : script,
@@ -241,6 +243,20 @@ export const SeriesCreateContentForm = forwardRef<
           />
         </label>
       </section>
+
+      {formatosDaSerie.length > 1 ? (
+        <section className="stack-md">
+          <Text variant="label" className="text-[var(--text-tertiary)]">
+            Formato de publicação
+          </Text>
+          <FilterChips
+            value={formato}
+            onChange={setFormato}
+            options={formatosDaSerie.map(item => ({ id: item, label: item }))}
+            ariaLabel="Formato de publicação deste roteiro"
+          />
+        </section>
+      ) : null}
 
       <section className="stack-md">
         <Text variant="label" className="text-[var(--text-tertiary)]">

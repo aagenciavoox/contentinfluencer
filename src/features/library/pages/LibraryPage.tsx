@@ -352,6 +352,17 @@ export function LibraryPage() {
     setSearchParams(next, { replace: true });
   }, [searchParams, setSearchParams]);
 
+  // Links da Análise: "Ver todos" (em andamento) e "Avaliar itens concluídos".
+  useEffect(() => {
+    const statusParam = searchParams.get('status');
+    if (!statusParam) return;
+    if (statusParam === 'andamento') setFiltroStatus('Lendo');
+    else if (statusParam === 'concluidos') setFiltroStatus('Lido');
+    const next = new URLSearchParams(searchParams);
+    next.delete('status');
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
+
   const updateTipo = (tipo: BibliotecaTipo) => {
     setForm(prev => ({
       ...prev,

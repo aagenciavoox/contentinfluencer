@@ -44,7 +44,7 @@ export function getRouteDataDomains(pathname: string): AppDataDomain[] {
   return [];
 }
 
-const DETAIL_PATH = /^\/(?:conteudos|projetos|gravacao|series|configuracoes\/pilares|editorial\/pilares|editorial\/series)\/.+|^\/biblioteca\/(?!analise$)[^/]+$/;
+const DETAIL_PATH = /^\/(?:conteudos|projetos|gravacao|series|configuracoes\/pilares|editorial\/pilares|editorial\/series)\/.+|^\/biblioteca\/(?!analise$|anotacoes$)[^/]+$/;
 
 /**
  * List screens share one outlet key so moving between them does not remount

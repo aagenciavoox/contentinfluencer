@@ -27,7 +27,7 @@ export function getSerieOpenItems(serie: SerieCompletenessFields): SerieOpenItem
   if (!pilarPrincipalDaSerie(serie)) missing.push('pilar');
   if (!serie.funcaoPadrao) missing.push('funcao');
   if (!serie.frequenciaRecomendada?.trim()) missing.push('frequencia');
-  if (!serie.formatoVisualPadrao?.trim()) missing.push('formato');
+  if (!(serie.formatoVisualPadrao ?? []).some(item => item.trim())) missing.push('formato');
   if (!serie.energiaPadrao) missing.push('energia');
   return missing.map(key => ({ key, label: OPEN_ITEM_LABELS[key] }));
 }

@@ -1,34 +1,71 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus } from 'lucide-react';
+import { CalendarDays, Plus } from 'lucide-react';
 import { useAppContext } from '../../../context/AppContext';
 import { useDomainsReady } from '../../../hooks/useDomainsReady';
 import { DesktopPageHeader } from '../../../layouts/page/DesktopPageHeader';
 import { PageLayout } from '../../../layouts/page/PageLayout';
 import { AppButton } from '../../../components/ui/AppButton';
+import { SelectField } from '../../../components/ui/SelectField';
 import { LibrarySectionTabs } from '../../library/components/LibrarySectionTabs';
-import { AnalyticsCategoryCards } from '../components/AnalyticsCategoryCards';
-import { buildLibraryAnalytics } from '../lib/libraryAnalytics';
-import { groupLibraryByPeriod, type LibraryPeriodGrouping } from '../lib/libraryPeriods';
-import { LibraryPeriodBreakdown } from '../components/LibraryPeriodBreakdown';
+import {
+  LIBRARY_FORMATS,
+  buildLibraryPeriodAnalysis,
+  currentPeriodLabel,
+  findPeriod,
+  libraryPeriodOptions,
+  periodRangeText,
+  type LibraryFormatFilter,
+} from '../lib/libraryPeriodAnalysis';
+import {
+  LibraryActiveCard,
+  LibraryAnalysisFooter,
+  LibraryConsumptionTable,
+  LibraryFormatChips,
+  LibraryGenresCard,
+  LibraryKpis,
+  LibraryNotesCard,
+  LibraryRatingsCard,
+} from '../components/LibraryAnalysisSections';
+
+const GROUP_LABELS = { ano: 'Ano', semestre: 'Semestre', trimestre: 'Trimestre' } as const;
 
 export function AnalyticsPage() {
-  const { state } = useAppContext();
+  const { state, ensureDataDomains } = useAppContext();
   const navigate = useNavigate();
   const libraryReady = useDomainsReady(['library']);
+  const loading = !libraryReady;
 
-  const analytics = useMemo(
-    () => buildLibraryAnalytics(
-      state.bibliotecaItems,
-      itemId => state.bibliotecaItems.find(item => item.id === itemId)?.ficha ?? {},
-    ),
-    [state.bibliotecaItems],
+  useEffect(() => {
+    void ensureDataDomains(['library-generos']);
+  }, [ensureDataDomains]);
+
+  const periodOptions = useMemo(() => libraryPeriodOptions(state.bibliotecaItems), [state.bibliotecaItems]);
+  const [periodId, setPeriodId] = useState('ano:' + new Date().getFullYear());
+  const [format, setFormat] = useState<LibraryFormatFilter>('todos');
+  const period = findPeriod(periodOptions, periodId);
+
+  const analysis = useMemo(
+    () => buildLibraryPeriodAnalysis(state.bibliotecaItems, period, format, state.bibliotecaGeneros),
+    [state.bibliotecaItems, state.bibliotecaGeneros, period, format],
   );
-  const [periodGrouping, setPeriodGrouping] = useState<LibraryPeriodGrouping>('ano');
-  const periodBuckets = useMemo(
-    () => groupLibraryByPeriod(state.bibliotecaItems, periodGrouping),
-    [state.bibliotecaItems, periodGrouping],
+
+  const selectOptions = periodOptions.map(option => ({
+    value: option.id,
+    label: `${GROUP_LABELS[option.grouping]} · ${currentPeriodLabel(option)}`,
+  }));
+  const formatLabel = format === 'todos' ? 'Todos os formatos' : LIBRARY_FORMATS.find(entry => entry.id === format)?.label ?? '';
+
+  const periodSelect = (
+    <SelectField
+      value={period.id}
+      onChange={setPeriodId}
+      options={selectOptions}
+      ariaLabel="Período"
+      leadingIcon={<CalendarDays className="h-4 w-4" aria-hidden />}
+    />
   );
+  const newItem = () => navigate('/biblioteca?compose=novo');
 
   return (
     <PageLayout
@@ -37,34 +74,43 @@ export function AnalyticsPage() {
         <DesktopPageHeader
           section="Criação"
           title="Análise"
+          subtitle="Seu consumo de livros, filmes, séries e outras histórias."
           backLabel="Biblioteca"
           backTo="/biblioteca"
-          actions={
-            <AppButton
-              variant="primary"
-              leftIcon={<Plus className="h-4 w-4" />}
-              onClick={() => navigate('/biblioteca?compose=novo')}
-            >
-              Novo item
-            </AppButton>
-          }
+          actions={(
+            <div className="flex items-center gap-2">
+              {periodSelect}
+              <AppButton variant="primary" leftIcon={<Plus className="h-4 w-4" />} onClick={newItem}>
+                Novo item
+              </AppButton>
+            </div>
+          )}
         />
       )}
       toolbar={<LibrarySectionTabs />}
       mobileHeader={(
-        <div className="pb-1 pt-1">
+        <div className="flex flex-col gap-2 pb-1 pt-1">
           <LibrarySectionTabs />
+          <div className="flex items-center gap-2 [&>*:first-child]:min-w-0 [&>*:first-child]:flex-1">
+            {periodSelect}
+            <AppButton variant="primary" leftIcon={<Plus className="h-4 w-4" />} onClick={newItem}>
+              Novo item
+            </AppButton>
+          </div>
         </div>
       )}
     >
-      <div className="stack-xl">
-        <AnalyticsCategoryCards analytics={analytics} loading={!libraryReady} />
-        <LibraryPeriodBreakdown
-          grouping={periodGrouping}
-          onGroupingChange={setPeriodGrouping}
-          buckets={periodBuckets}
-          loading={!libraryReady}
-        />
+      <div className="stack-lg">
+        <LibraryFormatChips value={format} onChange={setFormat} />
+        <LibraryKpis analysis={analysis} formatLabel={formatLabel} rangeText={periodRangeText(period)} loading={loading} />
+        <LibraryConsumptionTable analysis={analysis} periodLabel={period.label} loading={loading} />
+        <div className="grid gap-4 lg:grid-cols-2">
+          <LibraryActiveCard analysis={analysis} loading={loading} />
+          <LibraryNotesCard analysis={analysis} loading={loading} />
+          <LibraryGenresCard analysis={analysis} loading={loading} />
+          <LibraryRatingsCard analysis={analysis} loading={loading} onRate={() => navigate('/biblioteca?status=concluidos')} />
+        </div>
+        <LibraryAnalysisFooter />
       </div>
     </PageLayout>
   );

@@ -98,7 +98,7 @@ export function SeriesSettingsPage() {
       template: '',
       notes: '',
       slotPadrao: null,
-      formatoVisualPadrao: null,
+      formatoVisualPadrao: [],
       estruturaRoteiro: null,
       bordao: null,
       cor: isSerieColorTaken(state.series, quickColor) ? nextFreeSerieColor(state.series) : quickColor,

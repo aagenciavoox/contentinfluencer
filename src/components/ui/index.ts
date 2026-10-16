@@ -13,6 +13,7 @@ export { ToolbarSearchInput } from './ToolbarSearchInput';
 export { MediaCard } from './MediaCard';
 export { SegmentTabs } from './SegmentTabs';
 export { FilterChips, type FilterChipOption } from './FilterChips';
+export { MultiFilterChips } from './MultiFilterChips';
 export { EmptyState } from './EmptyState';
 export { InlineNotice, type InlineNoticeAction } from './InlineNotice';
 export { Skeleton, SkeletonCard, SkeletonContentCard, SkeletonList, SkeletonRow } from './Skeleton';

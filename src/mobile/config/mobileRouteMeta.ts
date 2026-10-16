@@ -47,6 +47,15 @@ export function getMobileRouteMeta(pathname: string, search = ''): MobileRouteMe
     };
   }
 
+  if (pathname === '/biblioteca/anotacoes') {
+    return {
+      title: 'Anotações',
+      subtitle: 'Todas as notas da Biblioteca.',
+      mode: 'back',
+      backTo: '/biblioteca/analise',
+    };
+  }
+
   if (pathname.startsWith('/biblioteca/')) {
     return {
       title: GLOSSARY.biblioteca,
