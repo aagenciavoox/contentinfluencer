@@ -28,6 +28,7 @@ const session = await getSession();
 const nome = `__teste funcao ${Date.now()}`;
 let serieId: string | undefined;
 let contentId: string | undefined;
+let proporcaoAntes: Record<string, number> | null | undefined;
 
 try {
   const serie = await call('criar_serie', {nome, funcao_padrao: 'atrair'});
@@ -54,11 +55,13 @@ try {
   const postado = await call('ver_conteudo', {id: contentId});
   expect('postado fica congelado', postado.funcao === 'aprofundar' && postado.classificacao_congelada === true, postado);
 
-  const dist = await call('definir_distribuicao_funcoes', {atrair: 30, converter: 10, aprofundar: 25, comunidade: 15, acao: 10});
-  expect('proporção em percentual não fica salva', dist.distribuicao === null && typeof dist.aviso === 'string', dist);
+  const antes = (await call('ver_estrutura_editorial', {secoes: ['funcoes']})).funcoes?.distribuicao ?? null;
+  proporcaoAntes = antes;
+  const dist = await call('definir_distribuicao_funcoes', {atrair: 30, converter: 10, aprofundar: 25, comunidade: 15, acao: 10, reter: 10});
+  expect('proporção fica salva', dist.distribuicao?.atrair === 30 && dist.soma === 100 && dist.por_etapa?.topo === 40, dist);
 
   const estrutura = await call('ver_estrutura_editorial', {secoes: ['funcoes']});
-  expect('estrutura mostra funções', estrutura.funcoes?.opcoes?.length === 6 && estrutura.funcoes?.distribuicao === null, estrutura);
+  expect('estrutura mostra funções e proporção', estrutura.funcoes?.opcoes?.length === 6 && estrutura.funcoes?.distribuicao?.reter === 10, estrutura);
 
   const resumo = await call('resumo_do_momento', {});
   expect('resumo conta por função', typeof resumo.postados_por_funcao_28_dias?.aprofundar === 'number', resumo.postados_por_funcao_28_dias);
@@ -66,6 +69,9 @@ try {
   const {client: db, userId} = session;
   if (contentId) await db.from('contents').delete().eq('id', contentId).eq('user_id', userId);
   if (serieId) await db.from('series').delete().eq('id', serieId).eq('user_id', userId);
+  if (proporcaoAntes !== undefined) {
+    await call('definir_distribuicao_funcoes', proporcaoAntes ? proporcaoAntes : {limpar: true});
+  }
   console.log('limpeza feita');
   await client.close();
 }

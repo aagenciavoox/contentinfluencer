@@ -37,10 +37,10 @@ import {EncaixeDialog} from '../components/EncaixeDialog';
 import {MonthHealth} from '../components/MonthHealth';
 import {PostItRapidoDialog} from '../components/PostItRapidoDialog';
 import {PuxarConteudoDialog} from '../components/PuxarConteudoDialog';
-import {MultiFilterChips} from '../../../components/ui/MultiFilterChips';
-import type {RedeSocial} from '../../../lib/database';
+import {PlatformIcons} from '../../../components/ui/PlatformIcons';
+import {RedeChips} from '../components/RedeChips';
+import {redesDoCartao} from '../lib/redesDoCartao';
 import {REDE_ROTULO} from '../../contas/lib/contas';
-import {REDES_DO_POSTIT} from '../lib/redesPostIt';
 import {excessosAoAcrescentar, periodoDoMes, saudeDoMes, type ExcessoMes} from '../lib/monthHealth';
 import {POST_IT_MIME, PostItIdentity, PostItNote, PostItTemas, type PostItMark} from '../components/PostItNote';
 import {conteudoTemTema, temasEmUso} from '../lib/temasPlanejamento';
@@ -254,6 +254,7 @@ export function PlanejamentoPage() {
         seriesColor={appearance.seriesColor}
         marks={appearance.marks}
         temas={appearance.temas}
+        redes={redesDoCartao({content, postIt, contas: state.platforms})}
         dimmed={temaFiltro ? !conteudoTemTema(content, temaFiltro.id) : false}
         compact={compact}
         selected={!isMobile && selectedIds.has(postIt.id)}
@@ -533,6 +534,7 @@ export function PlanejamentoPage() {
 
   const options = openPostIt ? postItTransformOptions(openPostIt, openContent) : {ideia: false, roteiro: false};
   const openKind = openPostIt ? postItKind(openPostIt, openContent) : 'vazio';
+  const openRedes = openPostIt ? redesDoCartao({content: openContent, postIt: openPostIt, contas: state.platforms}) : [];
   const openAppearance = postItAppearance(openContent, state.series, state.pilares, state.temas, openPostIt);
   const opcoesDeSerie = [...state.series]
     .filter(serie => serie.ativa || serie.id === classeDraft.serieId)
@@ -841,10 +843,11 @@ export function PlanejamentoPage() {
                     </p>
                   )}
                 </div>
-                {!editing && (openPostIt.redes ?? []).length > 0 ? (
-                  <Text variant="secondary" className="text-[var(--text-secondary)]">
-                    {(openPostIt.redes ?? []).map(rede => REDE_ROTULO[rede]).join(' · ')}
-                  </Text>
+                {!editing && openRedes.length > 0 ? (
+                  <p className="flex items-center gap-2 t-body text-[var(--text-secondary)]">
+                    <PlatformIcons redes={openRedes} max={4} size="md" />
+                    {openRedes.map(rede => REDE_ROTULO[rede]).join(' · ')}
+                  </p>
                 ) : null}
                 {!openContent && !editing && openAppearance.marks.length > 0 ? (
                   <PostItIdentity marks={openAppearance.marks} />
@@ -952,10 +955,8 @@ export function PlanejamentoPage() {
                 {editing ? (
                   <div className="stack-sm">
                     <Text variant="label" as="span">Rede</Text>
-                    <MultiFilterChips<RedeSocial>
-                      ariaLabel="Rede onde vai sair"
+                    <RedeChips
                       value={classeDraft.redes ?? []}
-                      options={REDES_DO_POSTIT.map(rede => ({id: rede, label: REDE_ROTULO[rede]}))}
                       onChange={redes => setClasseDraft(atual => ({...atual, redes}))}
                     />
                   </div>

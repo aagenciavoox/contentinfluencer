@@ -2,7 +2,8 @@ import type {CSSProperties} from 'react';
 import {Columns3, Filter, GripVertical, Layers, Tag, type LucideIcon} from 'lucide-react';
 import {Badge} from '../../../components/ui/Badge';
 import {cn} from '../../../lib/utils';
-import type {Content} from '../../../lib/database';
+import type {Content, RedeSocial} from '../../../lib/database';
+import {PlatformIcons} from '../../../components/ui/PlatformIcons';
 import {postItKind, postItTitle, type PlanejamentoPostIt, type PostItKind} from '../lib/postIt';
 
 export type PostItMark = {
@@ -79,6 +80,7 @@ export function PostItNote({
   seriesColor = null,
   marks = [],
   temas = [],
+  redes = [],
   dimmed = false,
 }: {
   postIt: PlanejamentoPostIt;
@@ -91,6 +93,8 @@ export function PostItNote({
   seriesColor?: string | null;
   marks?: PostItMark[];
   temas?: readonly string[];
+  /** Redes onde vai sair: as do conteúdo puxado ou, sem elas, as do post-it. */
+  redes?: readonly RedeSocial[];
   dimmed?: boolean;
 }) {
   const kind = postItKind(postIt, content);
@@ -159,7 +163,12 @@ export function PostItNote({
     >
       <GripVertical className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[var(--text-tertiary)]" aria-hidden />
       <span className="min-w-0 flex-1">
-        <PostItIdentity marks={visibleMarks} />
+        {visibleMarks.length > 0 || redes.length > 0 ? (
+          <span className="mb-1 flex items-center justify-between gap-1.5">
+            <PostItIdentity marks={visibleMarks} className="mb-0" />
+            <PlatformIcons redes={redes} className="ml-auto" />
+          </span>
+        ) : null}
         <span
           className={cn(
             'block min-w-0 whitespace-normal break-words font-semibold leading-snug text-[var(--text-primary)]',
@@ -204,10 +213,10 @@ export function PostItTemas({temas, compact = false}: {temas: readonly string[];
   );
 }
 
-export function PostItIdentity({marks}: {marks: PostItMark[]}) {
+export function PostItIdentity({marks, className}: {marks: PostItMark[]; className?: string}) {
   if (marks.length === 0) return null;
   return (
-    <span className="mb-1 flex items-center gap-1.5">
+    <span className={cn('mb-1 flex items-center gap-1.5', className)}>
       {marks.map(mark => {
         const Icon = MARK_ICON[mark.kind];
         return (

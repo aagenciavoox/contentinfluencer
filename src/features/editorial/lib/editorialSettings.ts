@@ -1,6 +1,7 @@
 import { platformKey } from '../../../components/ui/platformName.ts';
 import type { FuncaoEditorial } from '../../../lib/database.ts';
 import { FUNCOES } from './funcoes.ts';
+import { readProporcao, type ProporcaoFuncoes } from './proporcaoObjetivos.ts';
 
 export const EDITORIAL_SETTINGS_PREFERENCE_KEY = 'editorial_settings';
 
@@ -67,6 +68,11 @@ export interface EditorialSettings {
    * o número antigo não vira meta de período.
    */
   distribuicaoFuncoes: Record<FuncaoEditorial, number> | null;
+  /**
+   * Proporção fixa por objetivo, em %. A meta de cada período sai dela × limite;
+   * `periodos[].metas` passa a ser o ajuste daquele período.
+   */
+  proporcaoFuncoes: ProporcaoFuncoes | null;
   /** Espelha `preferencias.reservaProntos`. Vazio não inventa um alvo. */
   estoqueDesejado: number | null;
   /** Limite de hashtags por plataforma. Ausente usa 10. */
@@ -92,6 +98,7 @@ export const DEFAULT_EDITORIAL_SETTINGS: EditorialSettings = {
   redeReferenciaId: null,
   destinosPadrao: [],
   distribuicaoFuncoes: null,
+  proporcaoFuncoes: null,
   estoqueDesejado: null,
   limitesHashtags: {},
   preferencias: PREFERENCIAS_PADRAO,
@@ -247,7 +254,8 @@ function versaoNova(value: unknown): boolean {
 }
 
 function montar(
-  base: Pick<EditorialSettings, 'quickSeriesCreate' | 'openInfoNotices' | 'destinosPadrao' | 'limitesHashtags'>,
+  base: Pick<EditorialSettings, 'quickSeriesCreate' | 'openInfoNotices' | 'destinosPadrao' | 'limitesHashtags'>
+    & Partial<Pick<EditorialSettings, 'proporcaoFuncoes'>>,
   preferencias: PreferenciasGerais,
   periodos: DecisaoPeriodo[],
 ): EditorialSettings {
@@ -258,6 +266,7 @@ function montar(
     redeReferenciaId: preferencias.redeReferenciaId,
     destinosPadrao: base.destinosPadrao,
     distribuicaoFuncoes: null,
+    proporcaoFuncoes: base.proporcaoFuncoes ?? null,
     estoqueDesejado: preferencias.reservaProntos,
     limitesHashtags: base.limitesHashtags,
     preferencias,
@@ -327,6 +336,7 @@ export function getEditorialSettings(
       openInfoNotices: readBoolean(saved.openInfoNotices, DEFAULT_EDITORIAL_SETTINGS.openInfoNotices),
       destinosPadrao: readIdList(saved.destinosPadrao),
       limitesHashtags: readLimitesHashtags(saved.limitesHashtags),
+      proporcaoFuncoes: readProporcao(saved.proporcaoFuncoes),
     },
     nova ? preferenciasVersao2(saved) : preferenciasLegadas(saved),
     nova ? readPeriodos(saved.periodos) : [],
@@ -358,4 +368,16 @@ export function atualizarPreferencias(
     if (patch[chave] !== undefined) bruto[chave] = patch[chave];
   }
   return montar(settings, preferenciasVersao2({ preferencias: bruto }), settings.periodos);
+}
+
+/** Grava a proporção por objetivo. Vale para todos os períodos; null apaga. */
+export function atualizarProporcao(
+  settings: EditorialSettings,
+  proporcao: ProporcaoFuncoes | null,
+): EditorialSettings {
+  return montar(
+    { ...settings, proporcaoFuncoes: readProporcao(proporcao) },
+    settings.preferencias,
+    settings.periodos,
+  );
 }

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { CalendarDays, Clock, Hash, Pencil, Share2, UserRound } from 'lucide-react';
+import { CalendarDays, Clock, Hash, Pencil, Share2, Target, UserRound } from 'lucide-react';
 import { AppButton } from '../../../../components/ui/AppButton';
 import { SidePanel } from '../../../../components/layout/SidePanel';
 import { Badge } from '../../../../components/ui/Badge';
@@ -10,6 +10,7 @@ import type { Platform, PostingTimeEntry } from '../../../../lib/database';
 import { iconeDaConta, rotuloConta } from '../../../contas/lib/contas';
 import { PostingTimesEditor } from '../../../settings/components/PostingTimesEditor';
 import { CampoStepper, CampoTexto, CardConfiguracao, inteiroOuNull } from './campos';
+import { ProporcaoObjetivosEditor, ResumoDaProporcao } from './ProporcaoObjetivosEditor';
 import { useEditorialPlano } from './useEditorialPlano';
 
 function resumoHorarios(entries: readonly PostingTimeEntry[], platforms: readonly Platform[]): string {
@@ -79,10 +80,11 @@ function ValorDoRitmo({
  * de um período para outro fica na aba Período.
  */
 export function AjustesEditorialPanel() {
-  const { state, settings, salvarPreferencias } = useEditorialPlano();
+  const { state, settings, salvarPreferencias, salvarProporcao } = useEditorialPlano();
   const preferencias = settings.preferencias;
   const [horariosAbertos, setHorariosAbertos] = useState(false);
   const [editandoRitmo, setEditandoRitmo] = useState(false);
+  const [editandoProporcao, setEditandoProporcao] = useState(false);
   const [ritmo, setRitmo] = useState<RitmoDraft>(() => ritmoSalvo(preferencias));
   const reservaInvalida = !reservaCabeNoLimite(ritmo);
 
@@ -121,7 +123,7 @@ export function AjustesEditorialPanel() {
   return (
     <div className="stack-lg">
       <Text variant="secondary" as="p">
-        Estas configurações valem para todos os períodos. Prioridades e metas ficam na aba Período.
+        Estas configurações valem para todos os períodos. Prioridades e ajustes de meta de um período ficam na aba Período.
       </Text>
 
       <CardConfiguracao
@@ -205,6 +207,31 @@ export function AjustesEditorialPanel() {
               />
             </div>
           </div>
+        )}
+      </CardConfiguracao>
+
+      <CardConfiguracao
+        icone={<Target className="h-5 w-5" />}
+        titulo="Proporção por objetivo"
+        descricao="Quanto do limite vai para cada objetivo, em %. A meta de cada período sai daqui."
+        acao={editandoProporcao ? undefined : (
+          <AppButton variant="secondary" size="sm" leftIcon={<Pencil className="h-4 w-4" />} onClick={() => setEditandoProporcao(true)}>
+            {settings.proporcaoFuncoes ? 'Editar proporção' : 'Definir proporção'}
+          </AppButton>
+        )}
+      >
+        {editandoProporcao ? (
+          <ProporcaoObjetivosEditor
+            idBase="proporcao-ajustes"
+            valor={settings.proporcaoFuncoes}
+            onCancelar={() => setEditandoProporcao(false)}
+            onSalvar={proporcao => {
+              salvarProporcao(proporcao);
+              setEditandoProporcao(false);
+            }}
+          />
+        ) : (
+          <ResumoDaProporcao proporcao={settings.proporcaoFuncoes} />
         )}
       </CardConfiguracao>
 

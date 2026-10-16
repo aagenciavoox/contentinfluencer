@@ -1,18 +1,21 @@
 import { useAppContext } from '../../../../context/AppContext';
 import {
   atualizarPreferencias,
+  atualizarProporcao,
   upsertDecisaoPeriodo,
   type DecisaoPeriodo,
   type EditorialSettings,
   type PreferenciasGerais,
 } from '../../lib/editorialSettings';
 import { decisaoDoPeriodo } from '../../lib/periodoEditorial';
+import type { ProporcaoFuncoes } from '../../lib/proporcaoObjetivos';
 
 type PatchDecisao = Partial<Pick<DecisaoPeriodo, 'prioridade' | 'metas' | 'ajustesSemana'>>;
 
 /**
  * Lê e grava as configurações do Editorial. O que vale sempre fica em `preferencias`
- * (aba Ajustes); o que vale para um intervalo fica numa decisão de período (aba Período).
+ * e na proporção por objetivo (aba Ajustes); o que vale para um intervalo fica numa
+ * decisão de período (aba Período).
  */
 export function useEditorialPlano() {
   const { state, dispatch } = useAppContext();
@@ -24,6 +27,10 @@ export function useEditorialPlano() {
 
   const salvarPreferencias = (patch: Partial<PreferenciasGerais>) => {
     gravar(atualizarPreferencias(settings, patch));
+  };
+
+  const salvarProporcao = (proporcao: ProporcaoFuncoes | null) => {
+    gravar(atualizarProporcao(settings, proporcao));
   };
 
   const salvarDecisao = (periodo: { inicio: string; fim: string }, patch: PatchDecisao) => {
@@ -43,5 +50,5 @@ export function useEditorialPlano() {
     }));
   };
 
-  return { state, settings, gravar, salvarPreferencias, salvarDecisao };
+  return { state, settings, gravar, salvarPreferencias, salvarProporcao, salvarDecisao };
 }

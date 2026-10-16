@@ -147,7 +147,7 @@ export function registerEstrutura(server: McpServer) {
             ? lookups.platformName(conta.rede_referencia_id)
             : null,
           destinos_padrao: destinos.map((row: Row) => lookups.platformName(row.platform_id)),
-          distribuicao_funcoes: null,
+          distribuicao_funcoes: (await distribuicaoView(session)).distribuicao,
           estoque_desejado: typeof conta?.reserva_prontos === 'number' ? conta.reserva_prontos : null,
         };
       }

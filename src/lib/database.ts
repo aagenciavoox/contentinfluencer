@@ -8,6 +8,7 @@ import { generateUUID } from '../utils/uuid';
 import { normalizarRedesPostIt } from '../features/planejamento/lib/redesPostIt.ts';
 import { readAvisoDias } from '../features/projects/lib/evento.ts';
 import { DEFAULT_EDITORIAL_SETTINGS, type EditorialSettings } from '../features/editorial/lib/editorialSettings.ts';
+import { readProporcao } from '../features/editorial/lib/proporcaoObjetivos.ts';
 import type { PeriodoSelecionado } from '../features/editorial/lib/periodoEditorial.ts';
 
 // ============================================================================
@@ -2310,6 +2311,7 @@ function editorialDasLinhas(
     redeReferenciaId: rede,
     destinosPadrao: destinos.map(destino => String(destino.platform_id)),
     distribuicaoFuncoes: null,
+    proporcaoFuncoes: readProporcao(conta.proporcao_funcoes),
     estoqueDesejado: reservaProntos,
     limitesHashtags,
     preferencias: {
@@ -2339,7 +2341,7 @@ export async function saveEditorial(settings: EditorialSettings): Promise<void> 
   const uid = await currentUserId();
   if (!uid) return;
   const preferencias = settings.preferencias;
-  const { error: contaError } = await supabase.from('editorial_conta').upsert({
+  const contaRow: Record<string, unknown> = {
     user_id: uid,
     limite_semanal: preferencias.limiteSemanal,
     reserva_fora_series_semanal: preferencias.reservaForaSeriesSemanal,
@@ -2350,8 +2352,15 @@ export async function saveEditorial(settings: EditorialSettings): Promise<void> 
     hashtags_fora_series: preferencias.hashtagsForaSeries,
     quick_series_create: settings.quickSeriesCreate,
     open_info_notices: settings.openInfoNotices,
+    proporcao_funcoes: settings.proporcaoFuncoes,
     updated_at: new Date().toISOString(),
-  }, { onConflict: 'user_id' });
+  };
+  let { error: contaError } = await supabase.from('editorial_conta').upsert(contaRow, { onConflict: 'user_id' });
+  // Sem a migração 20261016220000 a coluna não existe: o resto grava, a proporção fica só nesta sessão.
+  if (contaError && /proporcao_funcoes/.test(contaError.message)) {
+    const { proporcao_funcoes: _proporcao, ...semProporcao } = contaRow;
+    ({ error: contaError } = await supabase.from('editorial_conta').upsert(semProporcao, { onConflict: 'user_id' }));
+  }
   if (contaError) throw new Error(`editorial_conta: ${contaError.message}`);
 
   const { error: destinosDeleteError } = await supabase.from('editorial_destino_padrao').delete().eq('user_id', uid);

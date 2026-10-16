@@ -7,6 +7,7 @@ import { contagemPorEtapaVazia, type ContagemPorEtapa, type Etapa } from './etap
 import { FUNCAO_LABELS, FUNCOES, isFuncaoEditorial } from './funcoes.ts';
 import { postItTemPauta } from './pautaConteudo.ts';
 import { decisaoDoPeriodo, limiteDoIntervalo } from './periodoEditorial.ts';
+import { metasDoPeriodo, type ProporcaoFuncoes } from './proporcaoObjetivos.ts';
 
 export type PeriodoGrade = {
   /** Inclusivo, `aaaa-mm-dd`. */
@@ -35,6 +36,8 @@ export type PostItContagem = {
 /** O percentual antigo pode vir no objeto. A conta não lê esse campo. */
 export type GradeCountSettings = {
   distribuicaoFuncoes?: Partial<Record<FuncaoEditorial, number>> | null;
+  /** Proporção fixa por objetivo. A meta do período é ela × limite, salvo ajuste em `metas`. */
+  proporcaoFuncoes?: ProporcaoFuncoes | null;
   preferencias?: Pick<
     PreferenciasGerais,
     'limiteSemanal' | 'reservaForaSeriesSemanal' | 'redeReferenciaId' | 'reservaProntos'
@@ -375,9 +378,13 @@ export function contarPeriodo({
   const previsto = itens.length;
   const excesso = limite == null ? null : Math.max(0, previsto - limite);
 
+  const metasDoIntervalo = metasDoPeriodo({
+    limite,
+    proporcao: settings.proporcaoFuncoes,
+    ajustes: decisao?.metas,
+  });
   const objetivos: ContagemObjetivo[] = FUNCOES.map(funcao => {
-    const bruto = decisao?.metas?.[funcao];
-    const meta = typeof bruto === 'number' ? bruto : null;
+    const meta = metasDoIntervalo[funcao].meta;
     const grupo = itens.filter(item => item.entry.funcao === funcao);
     const contagem = contaGrupo(grupo);
     return {

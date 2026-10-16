@@ -222,32 +222,91 @@ function serieColumns(args: Partial<Record<keyof typeof serieFields | 'nome' | '
   return row;
 }
 
-/** A proporção em percentual saiu. A meta de cada função fica em `decisao_periodo`. */
-export async function distribuicaoView(_session: Session) {
-  return {distribuicao: null, por_etapa: null};
+const percentualSchema = z.number().int().min(0).max(100).optional();
+
+type Proporcao = Partial<Record<(typeof FUNCOES)[number], number>>;
+
+function lerProporcao(value: unknown): Proporcao | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const raw = value as Record<string, unknown>;
+  const proporcao: Proporcao = {};
+  for (const funcao of FUNCOES) {
+    const valor = raw[funcao];
+    if (typeof valor === 'number' && Number.isInteger(valor) && valor >= 0 && valor <= 100) proporcao[funcao] = valor;
+  }
+  return Object.keys(proporcao).length > 0 ? proporcao : null;
+}
+
+function somaDe(proporcao: Proporcao | null): number {
+  return proporcao ? Object.values(proporcao).reduce((total, valor) => total + (valor ?? 0), 0) : 0;
+}
+
+function viewDaProporcao(proporcao: Proporcao | null) {
+  if (!proporcao) return {distribuicao: null, soma: 0, por_etapa: null};
+  const porEtapa: Record<string, number> = {};
+  for (const funcao of FUNCOES) {
+    const valor = proporcao[funcao];
+    if (valor == null) continue;
+    const etapa = FUNIL_DA_FUNCAO[funcao] ?? 'fora';
+    porEtapa[etapa] = (porEtapa[etapa] ?? 0) + valor;
+  }
+  return {distribuicao: proporcao, soma: somaDe(proporcao), por_etapa: porEtapa};
+}
+
+/**
+ * Proporção fixa por função, em % (`editorial_conta.proporcao_funcoes`). A meta de cada período
+ * é proporção × limite; `decisao_periodo.meta_*` é o ajuste daquele período e passa na frente.
+ * Sem a migração 20261016220000 a coluna não existe e a leitura devolve null.
+ */
+export async function distribuicaoView(session: Session) {
+  const {data, error} = await session.client.from('editorial_conta')
+    .select('proporcao_funcoes')
+    .eq('user_id', session.userId)
+    .maybeSingle();
+  if (error) return {distribuicao: null, soma: 0, por_etapa: null};
+  return viewDaProporcao(lerProporcao((data as Row | null)?.proporcao_funcoes));
 }
 
 export function registerEditorial(server: McpServer) {
   server.registerTool(
     'definir_distribuicao_funcoes',
     {
-      title: 'Definir distribuição por função (funil)',
+      title: 'Definir proporção por função (funil)',
       description:
-        'A proporção em percentual não fica mais salva. A meta de cada função fica na decisão do intervalo (decisao_periodo). ' +
-        'Esta chamada não grava nada.',
+        'Grava a proporção fixa de cada função editorial, em %, para todos os períodos. ' +
+        'A meta de cada período é proporção × limite do período (maior resto, a soma bate com o limite). ' +
+        'Um ajuste de meta num período (decisao_periodo) passa na frente da proporção só naquele período. ' +
+        'As funções enviadas substituem a proporção inteira; função ausente fica sem proporção. A soma deve ser 100. ' +
+        'limpar: true apaga a proporção.',
       inputSchema: {
-        atrair: z.number().int().min(0).max(100).optional(),
-        converter: z.number().int().min(0).max(100).optional(),
-        aprofundar: z.number().int().min(0).max(100).optional(),
-        comunidade: z.number().int().min(0).max(100).optional(),
-        acao: z.number().int().min(0).max(100).optional(),
+        atrair: percentualSchema,
+        converter: percentualSchema,
+        aprofundar: percentualSchema,
+        comunidade: percentualSchema,
+        acao: percentualSchema,
+        reter: percentualSchema,
         limpar: z.boolean().optional(),
       },
     },
-    tool(async (_args, session) => json({
-      ...(await distribuicaoView(session)),
-      aviso: 'A proporção em percentual não fica mais salva. A meta de cada função fica na decisão do intervalo.',
-    })),
+    tool(async (args: Record<string, unknown>, session) => {
+      const nova = args.limpar === true ? null : lerProporcao(args);
+      if (args.limpar !== true && !nova) {
+        return json({...(await distribuicaoView(session)), aviso: 'Nenhuma função enviada. Nada foi gravado.'});
+      }
+      const {error} = await session.client.from('editorial_conta')
+        .upsert({user_id: session.userId, proporcao_funcoes: nova, updated_at: nowIso()}, {onConflict: 'user_id'});
+      if (error) {
+        if (/proporcao_funcoes/.test(error.message ?? '')) {
+          throw new Error('A proporção ainda não pode ser salva: aplique a migração 20261016220000_editorial_proporcao_funcoes.');
+        }
+        throw new Error(`proporção por função: ${error.message}`);
+      }
+      const soma = somaDe(nova);
+      return json({
+        ...viewDaProporcao(nova),
+        ...(nova && soma !== 100 ? {aviso: `A soma está em ${soma}%. As metas são repartidas sobre esse total; o ideal é fechar em 100.`} : {}),
+      });
+    }),
   );
 
   server.registerTool(

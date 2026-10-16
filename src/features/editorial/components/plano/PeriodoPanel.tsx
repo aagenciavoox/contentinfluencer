@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { ArrowRight, CalendarRange, Flag, Layers, Target } from 'lucide-react';
+import { ArrowRight, CalendarRange, Flag, Layers, RotateCcw, Target } from 'lucide-react';
 import { AppButton } from '../../../../components/ui/AppButton';
+import { Badge } from '../../../../components/ui/Badge';
 import { DisclosureButton } from '../../../../components/ui/DisclosureButton';
 import { InlineNotice, type InlineNoticeAction } from '../../../../components/ui/InlineNotice';
 import { Surface } from '../../../../components/ui/Surface';
@@ -17,9 +18,17 @@ import { ETAPA_LABEL, ETAPAS, ETAPAS_DE_CONTEUDO, contagemPorEtapaVazia, somaDas
 import { expectativaNoIntervalo, lerFrequencia } from '../../lib/frequenciaSerie';
 import { FUNCAO_CURTA, FUNCOES } from '../../lib/funcoes';
 import { decisaoDoPeriodo } from '../../lib/periodoEditorial';
+import {
+  frasesDoResumo,
+  metasDoPeriodo,
+  resumoDasMetas,
+  somaDaProporcao,
+  type OrigemDaMeta,
+} from '../../lib/proporcaoObjetivos';
 import { sortPilares } from '../../../settings/lib/activePilares';
 import { CAMPO_BASE, CampoTexto, CardConfiguracao, digitos, inteiroOuNull } from './campos';
 import { ItensDoPeriodoDialog, type FiltroDosItens } from './ItensDoPeriodoDialog';
+import { ProporcaoObjetivosEditor } from './ProporcaoObjetivosEditor';
 import {
   PeriodoEditorialControl,
   rotuloSemanaAjustada,
@@ -40,9 +49,9 @@ function textoDaSerie(contados: number, esperado: number | null): string {
   return `${contados} de ${esperado}`;
 }
 
-function metasCom(metas: MetasPeriodo, funcao: FuncaoEditorial, value: string): MetasPeriodo {
+/** `metas` do período guarda só os ajustes. Null tira o ajuste e volta à proporção. */
+function metasCom(metas: MetasPeriodo, funcao: FuncaoEditorial, quantidade: number | null): MetasPeriodo {
   const next = { ...metas };
-  const quantidade = inteiroOuNull(value);
   if (quantidade == null) delete next[funcao];
   else next[funcao] = quantidade;
   return next;
@@ -69,7 +78,12 @@ type LinhaObjetivo = {
   funcao: FuncaoEditorial | null;
   nome: string;
   cor: string;
+  /** Meta que vale no período: o ajuste, ou a proporção × limite. */
   meta: number | null;
+  /** O que a proporção daria, para o "voltar à proporção". */
+  calculada: number | null;
+  percentual: number | null;
+  origem: OrigemDaMeta;
   previsto: number;
   porEtapa: ContagemPorEtapa;
 };
@@ -78,7 +92,37 @@ function chaveDaLinha(linha: LinhaObjetivo): string {
   return linha.funcao ?? 'sem-objetivo';
 }
 
-function CampoMeta({ linha, onChange }: { linha: LinhaObjetivo; onChange: (value: string) => void }) {
+/**
+ * Meta do objetivo neste período. Grava ao sair do campo ou no Enter; vazio volta à proporção.
+ * Digitar o mesmo número da proporção não cria ajuste.
+ */
+function CampoMeta({
+  linha,
+  onChange,
+}: {
+  linha: LinhaObjetivo;
+  onChange: (quantidade: number | null) => void;
+}) {
+  const salvo = linha.meta == null ? '' : String(linha.meta);
+  const [draft, setDraft] = useState(salvo);
+  const [editando, setEditando] = useState(false);
+  useEffect(() => {
+    if (!editando) setDraft(salvo);
+  }, [salvo, editando]);
+
+  const commit = () => {
+    setEditando(false);
+    const quantidade = inteiroOuNull(draft);
+    if (quantidade == null) {
+      if (linha.origem === 'ajustada') onChange(null);
+      else setDraft(salvo);
+      return;
+    }
+    if (linha.origem !== 'ajustada' && quantidade === linha.calculada) return;
+    if (linha.origem === 'ajustada' && quantidade === linha.meta) return;
+    onChange(quantidade);
+  };
+
   return (
     <input
       id={`meta-${chaveDaLinha(linha)}`}
@@ -86,11 +130,79 @@ function CampoMeta({ linha, onChange }: { linha: LinhaObjetivo; onChange: (value
       inputMode="numeric"
       autoComplete="off"
       placeholder="—"
-      value={linha.meta == null ? '' : String(linha.meta)}
-      onChange={event => onChange(digitos(event.target.value))}
-      aria-label={`Meta de ${linha.nome}`}
+      value={draft}
+      onFocus={() => setEditando(true)}
+      onChange={event => {
+        setEditando(true);
+        setDraft(digitos(event.target.value));
+      }}
+      onBlur={commit}
+      onKeyDown={event => {
+        if (event.key === 'Enter') event.currentTarget.blur();
+      }}
+      aria-label={`Meta de ${linha.nome} neste período`}
       className={`${CAMPO_BASE} block min-h-9 w-16 py-1 text-center tabular-nums pointer-coarse:min-h-11`}
     />
+  );
+}
+
+/** "ajustado" e o atalho de volta. Só aparece quando o número deste período foi digitado. */
+function AjusteDaMeta({ linha, onVoltar }: { linha: LinhaObjetivo; onVoltar: () => void }) {
+  if (linha.origem !== 'ajustada') return null;
+  const temProporcao = linha.calculada != null;
+  return (
+    <span className="flex flex-wrap items-center gap-1.5">
+      <Badge variant="neutral">ajustado</Badge>
+      <AppButton
+        variant="secondary"
+        size="xs"
+        leftIcon={<RotateCcw className="h-3.5 w-3.5" />}
+        onClick={onVoltar}
+        aria-label={temProporcao
+          ? `Voltar ${linha.nome} à proporção (${linha.calculada})`
+          : `Tirar a meta de ${linha.nome} deste período`}
+      >
+        {temProporcao ? 'Voltar à proporção' : 'Tirar meta'}
+      </AppButton>
+    </span>
+  );
+}
+
+/** Barra fina de previstos sobre a meta. Sem meta, não desenha nada. */
+function BarraDaMeta({ linha }: { linha: LinhaObjetivo }) {
+  if (linha.meta == null || linha.meta === 0) return null;
+  const parte = Math.min(1, linha.previsto / linha.meta);
+  return (
+    <span
+      aria-hidden
+      className="mt-1 block h-1 w-full min-w-12 overflow-hidden rounded-[var(--radius-pill)] bg-[var(--bg-hover)]"
+    >
+      <span className="block h-full rounded-[var(--radius-pill)]" style={{ width: `${parte * 100}%`, backgroundColor: linha.cor }} />
+    </span>
+  );
+}
+
+function PrevistosDaMeta({
+  linha,
+  onAbrir,
+}: {
+  linha: LinhaObjetivo;
+  onAbrir: () => void;
+}) {
+  return (
+    <span className="inline-flex flex-col items-stretch">
+      <span className="inline-flex items-center justify-center gap-1">
+        <NumeroQueAbre
+          valor={linha.previsto}
+          rotulo={rotuloDoNumero(linha.previsto, linha, null)}
+          onAbrir={onAbrir}
+        />
+        {linha.meta != null ? (
+          <Text variant="secondary" as="span" className="tabular-nums">de {linha.meta}</Text>
+        ) : null}
+      </span>
+      <BarraDaMeta linha={linha} />
+    </span>
   );
 }
 
@@ -136,7 +248,7 @@ function MetasPorObjetivo({
   onAbrir,
 }: {
   linhas: LinhaObjetivo[];
-  onMetaChange: (funcao: FuncaoEditorial, value: string) => void;
+  onMetaChange: (funcao: FuncaoEditorial, quantidade: number | null) => void;
   onAbrir: (filtro: FiltroDosItens) => void;
 }) {
   const estreito = useMediaQuery(`(max-width: ${BREAKPOINTS.sm - 1}px)`);
@@ -145,6 +257,11 @@ function MetasPorObjetivo({
     objetivo: linha.funcao,
     etapas: etapa ? [etapa] : ETAPAS,
   });
+  const percentual = (linha: LinhaObjetivo) => (
+    linha.percentual != null ? (
+      <Text variant="meta" as="span" className="tabular-nums">{linha.percentual}%</Text>
+    ) : null
+  );
 
   if (estreito) {
     return (
@@ -161,36 +278,46 @@ function MetasPorObjetivo({
                 <label htmlFor={funcao ? `meta-${funcao}` : undefined} className="flex min-w-0 items-center gap-2.5">
                   <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: linha.cor }} aria-hidden />
                   <Text variant="body" as="span">{linha.nome}</Text>
+                  {percentual(linha)}
                 </label>
                 {funcao ? (
                   <span className="flex shrink-0 items-center gap-2">
                     <Text variant="label" as="span" aria-hidden>Meta</Text>
-                    <CampoMeta linha={linha} onChange={value => onMetaChange(funcao, value)} />
+                    <CampoMeta linha={linha} onChange={quantidade => onMetaChange(funcao, quantidade)} />
                   </span>
                 ) : null}
               </div>
-              {linha.previsto === 0 ? (
+              {funcao ? <AjusteDaMeta linha={linha} onVoltar={() => onMetaChange(funcao, null)} /> : null}
+              {linha.previsto === 0 && linha.meta == null ? (
                 <Text variant="meta" as="p" className="text-[var(--text-secondary)]">Nada previsto</Text>
               ) : (
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                  <span className="inline-flex items-center gap-1">
+                <div className="stack-xs">
+                  <span className="flex items-center gap-1">
                     <Text variant="meta" as="span">Previstos</Text>
                     <NumeroQueAbre
                       valor={linha.previsto}
                       rotulo={rotuloDoNumero(linha.previsto, linha, null)}
                       onAbrir={() => abrir(linha, null)}
                     />
+                    {linha.meta != null ? (
+                      <Text variant="meta" as="span" className="tabular-nums">de {linha.meta}</Text>
+                    ) : null}
                   </span>
-                  {etapasComItem.map(etapa => (
-                    <span key={etapa} className="inline-flex items-center gap-1">
-                      <Text variant="meta" as="span" className="text-[var(--text-secondary)]">{ETAPA_LABEL[etapa]}</Text>
-                      <NumeroQueAbre
-                        valor={linha.porEtapa[etapa]}
-                        rotulo={rotuloDoNumero(linha.porEtapa[etapa], linha, etapa)}
-                        onAbrir={() => abrir(linha, etapa)}
-                      />
-                    </span>
-                  ))}
+                  <BarraDaMeta linha={linha} />
+                  {etapasComItem.length > 0 ? (
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                      {etapasComItem.map(etapa => (
+                        <span key={etapa} className="inline-flex items-center gap-1">
+                          <Text variant="meta" as="span" className="text-[var(--text-secondary)]">{ETAPA_LABEL[etapa]}</Text>
+                          <NumeroQueAbre
+                            valor={linha.porEtapa[etapa]}
+                            rotulo={rotuloDoNumero(linha.porEtapa[etapa], linha, etapa)}
+                            onAbrir={() => abrir(linha, etapa)}
+                          />
+                        </span>
+                      ))}
+                    </div>
+                  ) : null}
                 </div>
               )}
             </li>
@@ -200,7 +327,7 @@ function MetasPorObjetivo({
     );
   }
 
-  const colunas = ['Meta', 'Previstos', ...ETAPAS.map(etapa => ETAPA_LABEL[etapa])];
+  const colunas = ['Meta', 'Previstos de meta', ...ETAPAS.map(etapa => ETAPA_LABEL[etapa])];
   return (
     <div className="overflow-x-auto">
       <table className="w-full border-collapse text-left">
@@ -235,23 +362,23 @@ function MetasPorObjetivo({
                     ) : (
                       <Text variant="body" as="span">{linha.nome}</Text>
                     )}
+                    {percentual(linha)}
                   </span>
                 </th>
                 <td className="px-2 py-1.5">
-                  <span className="flex justify-center">
+                  <span className="flex flex-col items-center gap-1">
                     {funcao ? (
-                      <CampoMeta linha={linha} onChange={value => onMetaChange(funcao, value)} />
+                      <>
+                        <CampoMeta linha={linha} onChange={quantidade => onMetaChange(funcao, quantidade)} />
+                        <AjusteDaMeta linha={linha} onVoltar={() => onMetaChange(funcao, null)} />
+                      </>
                     ) : (
                       <Text variant="body" as="span" className="text-[var(--text-tertiary)]">—</Text>
                     )}
                   </span>
                 </td>
                 <td className="border-r border-[var(--border-color)] px-2 py-1 text-center">
-                  <NumeroQueAbre
-                    valor={linha.previsto}
-                    rotulo={rotuloDoNumero(linha.previsto, linha, null)}
-                    onAbrir={() => abrir(linha, null)}
-                  />
+                  <PrevistosDaMeta linha={linha} onAbrir={() => abrir(linha, null)} />
                 </td>
                 {ETAPAS.map(etapa => (
                   <td key={etapa} className="px-2 py-1 text-center">
@@ -311,8 +438,9 @@ export function PeriodoPanel({
   onAbrirAjustes: () => void;
 }) {
   const navigate = useNavigate();
-  const { state, settings, salvarDecisao } = useEditorialPlano();
+  const { state, settings, salvarDecisao, salvarProporcao } = useEditorialPlano();
   const [filtroItens, setFiltroItens] = useState<FiltroDosItens | null>(null);
+  const [editandoProporcao, setEditandoProporcao] = useState(false);
   const [semanasAbertas, setSemanasAbertas] = useState(false);
   const contagem = useContagemDoPeriodo(periodo.inicio, periodo.fim);
   const decisao = decisaoDoPeriodo(settings.periodos, periodo.inicio, periodo.fim);
@@ -360,17 +488,27 @@ export function PeriodoPanel({
     { id: 'prontos', rotulo: 'Prontos de reserva', valor: reserva == null ? String(estoque) : `${estoque} de ${reserva}` },
   ];
 
+  const proporcao = settings.proporcaoFuncoes;
+  const somaProporcao = somaDaProporcao(proporcao);
+  const metas = metasDoPeriodo({ limite: contagem.limite, proporcao, ajustes: decisao?.metas });
   const linhasObjetivo: LinhaObjetivo[] = FUNCOES.map(funcao => {
     const porEtapa = objetivos.get(funcao)?.porEtapa ?? contagemPorEtapaVazia();
+    const meta = metas[funcao];
     return {
       funcao,
       nome: FUNCAO_CURTA[funcao],
       cor: COR_DA_FUNCAO[funcao],
-      meta: decisao?.metas[funcao] ?? null,
+      meta: meta.meta,
+      calculada: meta.calculada,
+      percentual: meta.percentual,
+      origem: meta.origem,
       previsto: somaDasEtapas(porEtapa),
       porEtapa,
     };
   });
+  const frasesDasMetas = frasesDoResumo(resumoDasMetas(
+    linhasObjetivo.flatMap(linha => (linha.funcao ? [{ funcao: linha.funcao, meta: linha.meta, previsto: linha.previsto }] : [])),
+  ));
   // Sem objetivo entra como linha para a soma bater com os previstos do período.
   const previstosSemObjetivo = somaDasEtapas(contagem.semObjetivoPorEtapa);
   if (previstosSemObjetivo > 0) {
@@ -379,6 +517,9 @@ export function PeriodoPanel({
       nome: 'Sem objetivo',
       cor: 'var(--text-tertiary)',
       meta: null,
+      calculada: null,
+      percentual: null,
+      origem: null,
       previsto: previstosSemObjetivo,
       porEtapa: contagem.semObjetivoPorEtapa,
     });
@@ -496,12 +637,45 @@ export function PeriodoPanel({
       <CardConfiguracao
         icone={<Target className="h-5 w-5" />}
         titulo="Distribuição por objetivo"
-        descricao="Metas opcionais para este período. Cada número abre o que está nele."
+        descricao="A meta de cada objetivo vem da proporção × limite do período. Ajuste um número só para este período, se quiser."
+        acao={editandoProporcao ? undefined : (
+          <AppButton variant="secondary" size="sm" onClick={() => setEditandoProporcao(true)}>
+            {proporcao ? 'Editar proporção' : 'Definir proporção'}
+          </AppButton>
+        )}
       >
+        {editandoProporcao ? (
+          <ProporcaoObjetivosEditor
+            idBase="proporcao-periodo"
+            valor={proporcao}
+            onCancelar={() => setEditandoProporcao(false)}
+            onSalvar={nova => {
+              salvarProporcao(nova);
+              setEditandoProporcao(false);
+            }}
+          />
+        ) : null}
+        {!editandoProporcao && proporcao && somaProporcao !== 100 ? (
+          <InlineNotice
+            texto={`A proporção soma ${somaProporcao}%. As metas são repartidas sobre esse total; para ficar exato, ajuste para 100%.`}
+            acao={{ rotulo: 'Ajustar a proporção', onClick: () => setEditandoProporcao(true) }}
+          />
+        ) : null}
+        {!editandoProporcao && !proporcao ? (
+          <Text variant="secondary">Sem proporção definida, as metas ficam em branco. Você ainda pode digitar uma meta só para este período.</Text>
+        ) : null}
+        {proporcao && contagem.limite == null ? (
+          <Text variant="secondary" as="p">Sem limite no período, a proporção aparece só em %. Defina o limite para ver quantos roteiros cabem em cada objetivo.</Text>
+        ) : null}
+        {frasesDasMetas.length > 0 ? (
+          <Surface variant="info" padding="sm">
+            <p role="status"><Text variant="body" as="span">{frasesDasMetas.join(' · ')}</Text></p>
+          </Surface>
+        ) : null}
         <MetasPorObjetivo
           linhas={linhasObjetivo}
-          onMetaChange={(funcao, value) => salvarDecisao(periodo, {
-            metas: metasCom(decisao?.metas ?? {}, funcao, value),
+          onMetaChange={(funcao, quantidade) => salvarDecisao(periodo, {
+            metas: metasCom(decisao?.metas ?? {}, funcao, quantidade),
           })}
           onAbrir={setFiltroItens}
         />

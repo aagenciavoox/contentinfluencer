@@ -3,19 +3,18 @@ import {format} from 'date-fns';
 import {ptBR} from 'date-fns/locale';
 import {StickyNote} from 'lucide-react';
 import {AppButton} from '../../../components/ui/AppButton';
-import {MultiFilterChips} from '../../../components/ui/MultiFilterChips';
+import {RedeChips} from './RedeChips';
 import {TagSelect} from '../../../components/ui/TagSelect';
 import {Text} from '../../../components/ui/Text';
 import {Dialog} from '../../../components/overlays/Dialog';
 import {OverlayBody} from '../../../components/overlays/OverlayBody';
 import {OverlayFooter} from '../../../components/overlays/OverlayFooter';
 import {OverlayHeader} from '../../../components/overlays/OverlayHeader';
-import type {Pilar, RedeSocial, Serie} from '../../../lib/database';
-import {REDE_ROTULO} from '../../contas/lib/contas';
+import type {Pilar, Serie} from '../../../lib/database';
 import {FUNCAO_LABELS, FUNCOES, isFuncaoEditorial} from '../../editorial/lib/funcoes';
 import {sortPilares} from '../../settings/lib/activePilares';
 import {escolherSerieNoPostIt, type PostItEdit} from '../lib/postIt';
-import {postItRapidoPodeSalvar, REDES_DO_POSTIT} from '../lib/redesPostIt';
+import {postItRapidoPodeSalvar} from '../lib/redesPostIt';
 
 function rascunhoVazio(date: string | null): PostItEdit {
   return {texto: '', date, serieId: null, pilarId: null, objetivo: null, redes: []};
@@ -135,12 +134,7 @@ export function PostItRapidoDialog({
             />
             <div className="stack-sm">
               <Text variant="label" as="span">Rede</Text>
-              <MultiFilterChips<RedeSocial>
-                ariaLabel="Rede onde vai sair"
-                value={draft.redes ?? []}
-                options={REDES_DO_POSTIT.map(rede => ({id: rede, label: REDE_ROTULO[rede]}))}
-                onChange={redes => setDraft(atual => ({...atual, redes}))}
-              />
+              <RedeChips value={draft.redes ?? []} onChange={redes => setDraft(atual => ({...atual, redes}))} />
             </div>
           </form>
         </OverlayBody>
