@@ -3,6 +3,7 @@ import { FileText, Gauge, Keyboard, type LucideIcon, Minus, Palette, Plus, Setti
 import { Dialog } from '../../../../components/overlays/Dialog';
 import { ToggleRow } from '../../../../components/ui/ToggleSwitch';
 import { cn } from '../../../../lib/utils';
+import { getSpeedStep } from './TeleprompterLayout';
 import type {
   AdvanceType,
   BurstModeSettings,
@@ -42,6 +43,8 @@ const SHORTCUTS: Array<{ key: string; spokenKey?: string; label: string }> = [
   { key: '←', spokenKey: 'Seta para a esquerda', label: 'Roteiro anterior' },
   { key: '+', spokenKey: 'Mais', label: 'Aumentar fonte' },
   { key: '−', spokenKey: 'Menos', label: 'Diminuir fonte' },
+  { key: ']', spokenKey: 'Fecha colchete', label: 'Aumentar velocidade' },
+  { key: '[', spokenKey: 'Abre colchete', label: 'Diminuir velocidade' },
   { key: 'G', label: 'Marcar como gravado' },
   { key: 'Esc', label: 'Sair' },
 ];
@@ -220,12 +223,12 @@ export function TeleprompterSettingsDialog({
                 onChange={value => onChange('wpm', value)}
               />
               <SliderRow
-                label="Sensibilidade da velocidade"
+                label="Passo do + e − da velocidade"
                 min={0.6}
                 max={1.8}
                 step={0.1}
                 value={settings.speedSensitivity}
-                display={`${formatDecimal(settings.speedSensitivity)}×`}
+                display={`${getSpeedStep(settings.speedSensitivity)} ppm`}
                 onChange={value => onChange('speedSensitivity', value)}
               />
               <CardDivider />

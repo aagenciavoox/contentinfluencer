@@ -13,6 +13,7 @@ await import('./features/contents/lib/contentBody.test.ts');
 await import('./features/contents/lib/seriesScriptTemplate.test.ts');
 await import('./features/contents/lib/draftChanges.test.ts');
 await import('./features/contents/lib/spokenDuration.test.ts');
+await import('./features/contents/lib/prompterLines.test.ts');
 await import('./components/editors/writingFormatBar.test.ts');
 await import('./features/contents/lib/creationContent.test.ts');
 await import('./features/contents/lib/temas.test.ts');

@@ -1,17 +1,22 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
+  FileText,
+  Gauge,
+  Palette,
   Pause,
   Play,
+  Settings,
   Settings2,
   SkipForward,
   Video,
   X,
+  Zap,
 } from 'lucide-react';
-import { BottomSheetModal } from '../../../components/feedback/modals/BottomSheetModal';
+import { Dialog } from '../../../components/overlays/Dialog';
 import { Text } from '../../../components/ui/Text';
 import { useAppContext } from '../../../context/AppContext';
 import { useBodyScrollLock } from '../../../hooks/useBodyScrollLock';
@@ -19,6 +24,19 @@ import { useHydrateContentBodies } from '../../../hooks/useHydrateContentBodies'
 import type { Content, RecordingBlock } from '../../../lib/database';
 import { cn, htmlToReadableText } from '../../../lib/utils';
 import { isContentBodyLoaded } from '../../../features/contents/lib/contentBody';
+import { buildPrompterLines } from '../../../features/contents/lib/prompterLines';
+import {
+  CardDivider,
+  type ChoiceOption,
+  ChoiceRow,
+  choiceButtonClass,
+  FontSizeStepper,
+  SettingRow,
+  SettingsCard,
+  SettingsHeader,
+  SliderRow,
+  SwitchRow,
+} from '../../../features/contents/components/burst-mode/TeleprompterSettingsControls';
 import { isRecordingBlockTeleprompterEnabled } from '../../../features/recording/lib/recordingWorkflow';
 
 type BurstTheme = 'paper' | 'night' | 'amber';
@@ -49,7 +67,12 @@ interface BurstModeMobileScreenProps {
 }
 
 // Shared with BurstModeExperience via app preferences key `burstModeSettings` (not a separate localStorage key).
+// O tamanho da fonte do celular fica em `mobileFontSize`; `fontSize` é o do desktop.
 const BURST_SETTINGS_PREFERENCE_KEY = 'burstModeSettings';
+const PROMPTER_LINE_MAX_WORDS = 10;
+/** Altura da linha de leitura, em fração da área do texto. */
+const READING_POSITION = 0.28;
+const CONTROLS_HIDE_DELAY_MS = 3500;
 
 const DEFAULT_SETTINGS: MobileBurstSettings = {
   fontSize: 30,
@@ -68,6 +91,32 @@ const BURST_PRESETS: Record<string, Partial<MobileBurstSettings>> = {
   noite: { fontSize: 32, lineHeight: 1.5, wpm: 115, theme: 'night', textAlign: 'center' },
 };
 
+const PRESET_OPTIONS: ChoiceOption<keyof typeof BURST_PRESETS>[] = [
+  { value: 'perto', label: 'Perto' },
+  { value: 'tripe', label: 'Tripé' },
+  { value: 'mao', label: 'Mão' },
+  { value: 'noite', label: 'Noite' },
+];
+
+const THEME_OPTIONS: ChoiceOption<BurstTheme>[] = [
+  { value: 'paper', label: 'Claro' },
+  { value: 'night', label: 'Escuro' },
+  { value: 'amber', label: 'Âmbar' },
+];
+
+const TEXT_ALIGN_OPTIONS: ChoiceOption<BurstTextAlign>[] = [
+  { value: 'center', label: 'Centro' },
+  { value: 'left', label: 'Esquerda' },
+];
+
+const MOBILE_FONT_SIZE_MIN = 24;
+const MOBILE_FONT_SIZE_MAX = 56;
+
+/** 1,45 · 1,5 · 2,0: o passo do celular é 0,05, então mostra até duas casas. */
+function formatLineHeight(value: number) {
+  return value.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 2 });
+}
+
 function toMobileTheme(theme: unknown): BurstTheme {
   if (theme === 'night' || theme === 'dark') return 'night';
   if (theme === 'amber') return 'amber';
@@ -82,9 +131,9 @@ function toDesktopTheme(theme: BurstTheme): DesktopBurstTheme {
 
 function normalizeMobileBurstSettings(value: unknown): MobileBurstSettings {
   if (!value || typeof value !== 'object') return DEFAULT_SETTINGS;
-  const parsed = value as Partial<MobileBurstSettings> & { theme?: string };
+  const parsed = value as Partial<MobileBurstSettings> & { theme?: string; mobileFontSize?: unknown };
   return {
-    fontSize: typeof parsed.fontSize === 'number' ? parsed.fontSize : DEFAULT_SETTINGS.fontSize,
+    fontSize: typeof parsed.mobileFontSize === 'number' ? parsed.mobileFontSize : DEFAULT_SETTINGS.fontSize,
     lineHeight: typeof parsed.lineHeight === 'number' ? parsed.lineHeight : DEFAULT_SETTINGS.lineHeight,
     textAlign: parsed.textAlign === 'center' ? 'center' : 'left',
     theme: toMobileTheme(parsed.theme),
@@ -136,46 +185,6 @@ function formatSeconds(totalSeconds: number) {
   return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 }
 
-function buildPrompterLines(script: string) {
-  const paragraphs = script
-    .replace(/\r/g, '')
-    .split('\n')
-    .map(item => item.trim())
-    .filter(Boolean);
-
-  const lines: string[] = [];
-
-  paragraphs.forEach(paragraph => {
-    const sentences = paragraph.split(/(?<=[.!?…:;])\s+/).filter(Boolean);
-
-    sentences.forEach(sentence => {
-      const words = sentence.split(/\s+/).filter(Boolean);
-
-      if (words.length <= 10) {
-        lines.push(words.join(' '));
-        return;
-      }
-
-      let cursor = 0;
-      while (cursor < words.length) {
-        const remaining = words.length - cursor;
-        const size = remaining <= 8 ? remaining : remaining >= 16 ? 8 : Math.min(10, remaining);
-        lines.push(words.slice(cursor, cursor + size).join(' '));
-        cursor += size;
-      }
-    });
-
-    lines.push('');
-  });
-
-  const compacted = lines.filter((line, index) => {
-    if (line !== '') return true;
-    return index > 0 && lines[index - 1] !== '';
-  });
-
-  return compacted.length > 0 ? compacted : ['Este roteiro ainda não tem texto. Dá para gravar de improviso.'];
-}
-
 function getInitialIndex(entries: BurstModeMobileEntry[]) {
   const firstPendingIndex = entries.findIndex(entry => !entry.gravado);
   return firstPendingIndex >= 0 ? firstPendingIndex : 0;
@@ -200,6 +209,7 @@ export function BurstModeMobileScreen({
   );
   const [settings, setSettings] = useState<MobileBurstSettings>(persistedSettings);
   const [controlsVisible, setControlsVisible] = useState(true);
+  const hideControlsTimerRef = useRef<number | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const lineRefs = useRef<Array<HTMLParagraphElement | null>>([]);
   const [playhead, setPlayhead] = useState(0);
@@ -241,7 +251,7 @@ export function BurstModeMobileScreen({
         key: BURST_SETTINGS_PREFERENCE_KEY,
         value: {
           ...existing,
-          fontSize: settings.fontSize,
+          mobileFontSize: settings.fontSize,
           lineHeight: settings.lineHeight,
           textAlign: settings.textAlign,
           theme: toDesktopTheme(settings.theme),
@@ -271,9 +281,8 @@ export function BurstModeMobileScreen({
     }
     return htmlToReadableText(currentContent.script) || 'Este roteiro ainda não tem texto. Dá para gravar de improviso.';
   }, [currentContent, hasHydrationError]);
-  const scriptLines = useMemo(() => buildPrompterLines(currentScript), [currentScript]);
-  const lineWordCounts = useMemo(() => scriptLines.map(line => Math.max(1, countWords(line))), [scriptLines]);
-  const totalWords = useMemo(() => lineWordCounts.reduce((sum, count) => sum + count, 0), [lineWordCounts]);
+  const scriptLines = useMemo(() => buildPrompterLines(currentScript, PROMPTER_LINE_MAX_WORDS), [currentScript]);
+  const totalWords = useMemo(() => scriptLines.reduce((sum, line) => sum + countWords(line), 0), [scriptLines]);
   const totalEstimatedSeconds = useMemo(() => (totalWords > 0 ? (totalWords / settings.wpm) * 60 : 0), [settings.wpm, totalWords]);
   const currentLineIndex = clamp(Math.round(playhead), 0, Math.max(scriptLines.length - 1, 0));
   const elapsedRatio = scriptLines.length <= 1 ? 0 : clamp(playhead / Math.max(scriptLines.length - 1, 1), 0, 1);
@@ -347,9 +356,46 @@ export function BurstModeMobileScreen({
     if (!currentLine) return;
 
     const container = containerRef.current;
-    const offset = currentLine.offsetTop - container.clientHeight * 0.28;
+    const offset = currentLine.offsetTop - container.clientHeight * READING_POSITION;
     container.scrollTo({ top: Math.max(0, offset), behavior: 'smooth' });
   }, [playhead, scriptLines.length, teleprompterEnabled]);
+
+  const revealControls = useCallback(() => {
+    setControlsVisible(true);
+    if (hideControlsTimerRef.current !== null) window.clearTimeout(hideControlsTimerRef.current);
+    hideControlsTimerRef.current = window.setTimeout(() => setControlsVisible(false), CONTROLS_HIDE_DELAY_MS);
+  }, []);
+
+  useEffect(() => {
+    if (isPlaying) {
+      revealControls();
+      return;
+    }
+    if (hideControlsTimerRef.current !== null) window.clearTimeout(hideControlsTimerRef.current);
+    setControlsVisible(true);
+  }, [isPlaying, revealControls]);
+
+  useEffect(
+    () => () => {
+      if (hideControlsTimerRef.current !== null) window.clearTimeout(hideControlsTimerRef.current);
+    },
+    []
+  );
+
+  /** Linha na altura de leitura, para retomar de onde a pessoa arrastou o texto parado. */
+  const getLineAtReadingPosition = () => {
+    const container = containerRef.current;
+    if (!container) return null;
+    const readingY = container.scrollTop + container.clientHeight * READING_POSITION + 1;
+    let index = 0;
+    for (let lineIndex = 0; lineIndex < scriptLines.length; lineIndex++) {
+      const element = lineRefs.current[lineIndex];
+      if (!element) continue;
+      if (element.offsetTop > readingY) break;
+      index = lineIndex;
+    }
+    return index;
+  };
 
   const handleTogglePlayback = () => {
     if (!teleprompterEnabled) return;
@@ -363,6 +409,16 @@ export function BurstModeMobileScreen({
     if (isPlaying) {
       setIsPlaying(false);
       return;
+    }
+
+    // Retoma de onde a pessoa arrastou o texto; no fim do roteiro, recomeça do início.
+    const maxPlayhead = Math.max(0, scriptLines.length - 1);
+    const scrolledLine = getLineAtReadingPosition();
+    const resumeFrom = scrolledLine !== null && Math.abs(scrolledLine - playhead) >= 1.5 ? scrolledLine : playhead;
+    if (resumeFrom >= maxPlayhead) {
+      setPlayhead(0);
+    } else if (resumeFrom !== playhead) {
+      setPlayhead(resumeFrom);
     }
 
     if (settings.countdown > 0) {
@@ -410,6 +466,15 @@ export function BurstModeMobileScreen({
     setSettings((previous) => ({ ...previous, ...BURST_PRESETS[presetId] }));
   };
 
+  const resetSettings = () => setSettings(DEFAULT_SETTINGS);
+
+  // O ajuste rápido fica aceso enquanto os valores dele continuam iguais aos atuais.
+  const activePreset = PRESET_OPTIONS.find(option =>
+    Object.entries(BURST_PRESETS[option.value]).every(
+      ([key, value]) => settings[key as keyof MobileBurstSettings] === value
+    )
+  )?.value;
+
   const isPreparing = countdownRemaining !== null;
   const playbackState = isPreparing ? 'preparing' : isPlaying ? 'reading' : 'paused';
 
@@ -427,7 +492,7 @@ export function BurstModeMobileScreen({
     <div
       data-burst-portal
       className={cn('fixed inset-0 z-[200] flex min-h-[100dvh] flex-col overflow-hidden', theme.shell, theme.text)}
-      onClick={() => setControlsVisible(true)}
+      onClick={revealControls}
     >
       {teleprompterEnabled ? (
         <>
@@ -479,9 +544,6 @@ export function BurstModeMobileScreen({
             <div
               ref={containerRef}
               className="h-full overflow-y-auto px-4 py-4"
-              onScroll={() => {
-                if (isPlaying) setControlsVisible(false);
-              }}
             >
               <div style={fullTextStyle}>
                 {scriptLines.map((line, index) => {
@@ -570,9 +632,18 @@ export function BurstModeMobileScreen({
         style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 12px)' }}
       >
         <div
-          className={cn('pointer-events-auto mx-auto grid grid-cols-3 gap-2 rounded-[1.4rem] border p-2 shadow-[0_16px_40px_rgba(0,0,0,0.12)]', theme.card, theme.border)}
-          onClick={event => event.stopPropagation()}
+          className={cn('pointer-events-auto mx-auto grid grid-cols-4 gap-2 rounded-[1.4rem] border p-2 shadow-[0_16px_40px_rgba(0,0,0,0.12)]', theme.card, theme.border)}
+          onClick={event => {
+            event.stopPropagation();
+            revealControls();
+          }}
         >
+          <ActionIconButton
+            icon={<ChevronLeft className="h-5 w-5" />}
+            label="Anterior"
+            onClick={handlePrevious}
+            disabled={currentIndex === 0}
+          />
           <ActionIconButton
             icon={isPlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
             label={isPlaying ? 'Pausar' : 'Iniciar'}
@@ -594,51 +665,105 @@ export function BurstModeMobileScreen({
         </div>
       </div>
 
-      <BottomSheetModal open={isSettingsOpen && !isPreparing} onClose={() => setIsSettingsOpen(false)} zIndex="z-[220]">
-        <section className="flex max-h-[80vh] flex-col overflow-hidden bg-[var(--bg-primary)]">
-          <div className="border-b border-[var(--border-color)] px-4 py-3">
-            <p className="text-xs font-semibold  text-[var(--text-tertiary)]">
-              Modo gravação
-            </p>
-            <Text variant="itemTitle" className="mt-2">Ajustes de leitura</Text>
-          </div>
+      {/* Mesmo visual do TeleprompterSettingsDialog do desktop, sem o card de atalhos de teclado.
+          Espaçamento, velocidade e contagem usam as faixas do desktop porque o valor é compartilhado. */}
+      <Dialog
+        open={isSettingsOpen && !isPreparing}
+        onClose={() => setIsSettingsOpen(false)}
+        ariaLabel="Configurações do modo gravação"
+        zIndex="z-[220]"
+      >
+        <section className="flex min-h-0 flex-1 flex-col bg-[var(--bg-elevated)] text-[var(--text-primary)]">
+          <SettingsHeader onReset={resetSettings} onClose={() => setIsSettingsOpen(false)} />
 
-          <div className="stack-lg overflow-y-auto px-4 py-4">
-            <ChoiceCluster label="Ajustes rápidos">
-              <ChoiceButton active={false} onClick={() => applyPreset('perto')}>Perto</ChoiceButton>
-              <ChoiceButton active={false} onClick={() => applyPreset('tripe')}>Tripé</ChoiceButton>
-              <ChoiceButton active={false} onClick={() => applyPreset('mao')}>Mão</ChoiceButton>
-              <ChoiceButton active={false} onClick={() => applyPreset('noite')}>Noite</ChoiceButton>
-            </ChoiceCluster>
-            <MobileSliderSetting label="Tamanho da fonte" value={`${settings.fontSize}px`}>
-              <input type="range" min="24" max="56" step="2" value={settings.fontSize} onChange={event => updateSetting('fontSize', Number(event.target.value))} className="w-full" />
-            </MobileSliderSetting>
+          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 pb-[max(env(safe-area-inset-bottom),16px)] pt-4">
+            <SettingsCard icon={Zap} title="Ajustes rápidos">
+              <div className="grid grid-cols-4 gap-2">
+                {PRESET_OPTIONS.map(option => {
+                  const active = option.value === activePreset;
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      aria-pressed={active}
+                      onClick={() => applyPreset(option.value)}
+                      className={choiceButtonClass(active)}
+                    >
+                      {option.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </SettingsCard>
 
-            <MobileSliderSetting label="Espaçamento" value={settings.lineHeight.toFixed(2)}>
-              <input type="range" min="1.2" max="2" step="0.05" value={settings.lineHeight} onChange={event => updateSetting('lineHeight', Number(event.target.value))} className="w-full" />
-            </MobileSliderSetting>
+            <SettingsCard icon={Palette} title="Aparência">
+              <SettingRow label="Tamanho da fonte">
+                <FontSizeStepper
+                  value={settings.fontSize}
+                  onChange={value => updateSetting('fontSize', clamp(value, MOBILE_FONT_SIZE_MIN, MOBILE_FONT_SIZE_MAX))}
+                  min={MOBILE_FONT_SIZE_MIN}
+                  max={MOBILE_FONT_SIZE_MAX}
+                />
+              </SettingRow>
+              <SliderRow
+                label="Espaçamento entre linhas"
+                min={1.1}
+                max={2.2}
+                step={0.05}
+                value={settings.lineHeight}
+                display={formatLineHeight(settings.lineHeight)}
+                onChange={value => updateSetting('lineHeight', value)}
+              />
+              <ChoiceRow
+                label="Tema"
+                options={THEME_OPTIONS}
+                value={settings.theme}
+                onChange={value => updateSetting('theme', value)}
+              />
+            </SettingsCard>
 
-            <MobileSliderSetting label="Velocidade" value={`${settings.wpm} ppm`}>
-              <input type="range" min="70" max="220" step="5" value={settings.wpm} onChange={event => updateSetting('wpm', Number(event.target.value))} className="w-full" />
-            </MobileSliderSetting>
+            <SettingsCard icon={FileText} title="Texto e layout">
+              <ChoiceRow
+                label="Alinhamento"
+                options={TEXT_ALIGN_OPTIONS}
+                value={settings.textAlign}
+                onChange={value => updateSetting('textAlign', value)}
+              />
+            </SettingsCard>
 
-            <MobileSliderSetting label="Contagem regressiva" value={`${settings.countdown}s`}>
-              <input type="range" min="0" max="5" step="1" value={settings.countdown} onChange={event => updateSetting('countdown', Number(event.target.value))} className="w-full" />
-            </MobileSliderSetting>
+            <SettingsCard icon={Gauge} title="Avanço e velocidade">
+              <SliderRow
+                label="Velocidade de leitura"
+                min={60}
+                max={280}
+                step={5}
+                value={settings.wpm}
+                display={`${settings.wpm} ppm`}
+                onChange={value => updateSetting('wpm', value)}
+              />
+            </SettingsCard>
 
-            <ChoiceCluster label="Alinhamento">
-              <ChoiceButton active={settings.textAlign === 'left'} onClick={() => updateSetting('textAlign', 'left')}>Esquerda</ChoiceButton>
-              <ChoiceButton active={settings.textAlign === 'center'} onClick={() => updateSetting('textAlign', 'center')}>Centro</ChoiceButton>
-            </ChoiceCluster>
-
-            <ChoiceCluster label="Tema">
-              <ChoiceButton active={settings.theme === 'paper'} onClick={() => updateSetting('theme', 'paper')}>Claro</ChoiceButton>
-              <ChoiceButton active={settings.theme === 'night'} onClick={() => updateSetting('theme', 'night')}>Noite</ChoiceButton>
-              <ChoiceButton active={settings.theme === 'amber'} onClick={() => updateSetting('theme', 'amber')}>Âmbar</ChoiceButton>
-            </ChoiceCluster>
+            <SettingsCard icon={Settings} title="Comportamento">
+              <SliderRow
+                label="Contagem regressiva"
+                min={0}
+                max={6}
+                step={1}
+                value={settings.countdown}
+                display={`${settings.countdown} s`}
+                onChange={value => updateSetting('countdown', value)}
+              />
+              <CardDivider />
+              <SwitchRow
+                label="Destacar linha atual"
+                description="Reduz o destaque das linhas acima e abaixo."
+                checked={settings.highlightCurrentLine}
+                onChange={() => updateSetting('highlightCurrentLine', !settings.highlightCurrentLine)}
+              />
+            </SettingsCard>
           </div>
         </section>
-      </BottomSheetModal>
+      </Dialog>
     </div>
   );
 
@@ -692,66 +817,6 @@ function ActionIconButton({
     >
       {icon}
       <span className="text-xs font-semibold ">{label}</span>
-    </button>
-  );
-}
-
-function MobileSliderSetting({
-  label,
-  value,
-  children,
-}: {
-  label: string;
-  value: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between gap-3">
-        <span className="text-sm font-bold text-[var(--text-primary)]">{label}</span>
-        <span className="text-xs font-semibold t-label-uppercase text-[var(--text-tertiary)]">{value}</span>
-      </div>
-      {children}
-    </div>
-  );
-}
-
-function ChoiceCluster({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="space-y-2">
-      <span className="text-sm font-bold text-[var(--text-primary)]">{label}</span>
-      <div className="flex flex-wrap gap-2">{children}</div>
-    </div>
-  );
-}
-
-function ChoiceButton({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        'rounded-full border px-4 py-2 text-sm font-semibold transition-colors',
-        active
-          ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-[var(--bg-primary)]'
-          : 'border-[var(--border-color)] text-[var(--text-secondary)]'
-      )}
-    >
-      {children}
     </button>
   );
 }

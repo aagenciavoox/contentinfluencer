@@ -1,4 +1,5 @@
-import { CSSProperties, useEffect, useMemo, useRef, useState } from 'react';
+import { CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   CheckCircle2,
 } from 'lucide-react';
@@ -8,6 +9,7 @@ import { useHydrateContentBodies } from '../../../../hooks/useHydrateContentBodi
 import { Content, RecordingBlock } from '../../../../lib/database';
 import { cn, htmlToReadableText } from '../../../../lib/utils';
 import { isContentBodyLoaded } from '../../lib/contentBody';
+import { buildPrompterLines } from '../../lib/prompterLines';
 import { isRecordingBlockTeleprompterEnabled } from '../../../recording/lib/recordingWorkflow';
 import { TeleprompterSettingsDialog } from './TeleprompterSettingsDialog';
 import {
@@ -15,10 +17,12 @@ import {
   TELEPROMPTER_COLUMN_CLASS,
   TeleprompterControls,
   TeleprompterHeader,
+  getSpeedStep,
   getTeleprompterThemeVars,
 } from './TeleprompterLayout';
 
 const BURST_SETTINGS_PREFERENCE_KEY = 'burstModeSettings'; // Shared with BurstModeMobileScreen via app preferences.
+const PROMPTER_LINE_MAX_WORDS = 11;
 
 export type BurstTheme = 'light' | 'dark' | 'amber';
 export type BurstTextColor = 'theme' | 'ink' | 'paper' | 'amber';
@@ -135,46 +139,6 @@ function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
 }
 
-function buildPrompterLines(script: string) {
-  const paragraphs = script
-    .replace(/\r/g, '')
-    .split('\n')
-    .map(item => item.trim())
-    .filter(Boolean);
-
-  const lines: string[] = [];
-
-  paragraphs.forEach(paragraph => {
-    const sentences = paragraph.split(/(?<=[.!?…:;])\s+/).filter(Boolean);
-
-    sentences.forEach(sentence => {
-      const words = sentence.split(/\s+/).filter(Boolean);
-
-      if (words.length <= 11) {
-        lines.push(words.join(' '));
-        return;
-      }
-
-      let cursor = 0;
-      while (cursor < words.length) {
-        const remaining = words.length - cursor;
-        const size = remaining <= 8 ? remaining : remaining >= 16 ? 8 : Math.min(10, remaining);
-        lines.push(words.slice(cursor, cursor + size).join(' '));
-        cursor += size;
-      }
-    });
-
-    lines.push('');
-  });
-
-  const compacted = lines.filter((line, index) => {
-    if (line !== '') return true;
-    return index > 0 && lines[index - 1] !== '';
-  });
-
-  return compacted.length > 0 ? compacted : ['Este roteiro ainda não tem texto. Dá para gravar de improviso.'];
-}
-
 function normalizeBurstSettings(value: unknown) {
   try {
     if (!value || typeof value !== 'object') return DEFAULT_SETTINGS;
@@ -207,6 +171,7 @@ export function BurstModeExperience({
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [playhead, setPlayhead] = useState(0);
+  const [readingLineIndex, setReadingLineIndex] = useState(0);
   const [countdownRemaining, setCountdownRemaining] = useState<number | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const persistedSettings = useMemo(
@@ -240,17 +205,22 @@ export function BurstModeExperience({
     }
     return getScriptLabel(currentContent.script, 'Este roteiro ainda não tem texto. Dá para gravar de improviso.');
   }, [currentContent, hasHydrationError]);
-  const scriptLines = useMemo(() => buildPrompterLines(scriptText), [scriptText]);
+  const scriptLines = useMemo(() => buildPrompterLines(scriptText, PROMPTER_LINE_MAX_WORDS), [scriptText]);
   const lineWordCounts = useMemo(() => scriptLines.map(line => Math.max(1, countWords(line))), [scriptLines]);
   // Conta só palavras de verdade: lineWordCounts dá 1 às linhas vazias entre parágrafos (para o ritmo).
   const totalWords = useMemo(
     () => scriptLines.reduce((sum, line) => sum + countWords(line), 0),
     [scriptLines]
   );
-  const effectiveWpm = Math.max(60, Math.round(settings.wpm * settings.speedSensitivity));
+  // A sensibilidade só muda o passo do + e − (getSpeedStep): a velocidade é a mesma do painel e do celular.
+  const effectiveWpm = Math.max(60, settings.wpm);
   const totalEstimatedSeconds = totalWords > 0 ? (totalWords / effectiveWpm) * 60 : 0;
-  const currentLineIndex = clamp(Math.round(playhead), 0, Math.max(0, scriptLines.length - 1));
-  const elapsedRatio = scriptLines.length <= 1 ? 0 : clamp(playhead / Math.max(scriptLines.length - 1, 1), 0, 1);
+  const maxPlayhead = Math.max(0, scriptLines.length - 1);
+  const playheadLine = clamp(Math.floor(playhead), 0, maxPlayhead);
+  const isManualScroll = !settings.autoScroll;
+  // Sem rolagem assistida, o tempo e a barra seguem a linha sob a guia: quem rola o texto é a pessoa.
+  const progressPosition = isManualScroll ? readingLineIndex : playhead;
+  const elapsedRatio = maxPlayhead === 0 ? 0 : clamp(progressPosition / maxPlayhead, 0, 1);
   const elapsedSeconds = totalEstimatedSeconds * elapsedRatio;
   const isCurrentCompleted = currentContent ? recordedIds.has(currentContent.id) : false;
   const teleprompterEnabled = isRecordingBlockTeleprompterEnabled(block);
@@ -262,6 +232,9 @@ export function BurstModeExperience({
   const themeStyle = THEME_STYLES[settings.theme];
   const teleprompterViewportRef = useRef<HTMLDivElement>(null);
   const lineRefs = useRef<Array<HTMLParagraphElement | null>>([]);
+  const handleKeyDownRef = useRef<(event: KeyboardEvent) => void>(() => {});
+  const readingLineRef = useRef(0);
+  const lastScrolledPlayheadRef = useRef<number | null>(null);
   const lastPersistedSettings = useRef(JSON.stringify(persistedSettings));
 
   useEffect(() => {
@@ -300,70 +273,12 @@ export function BurstModeExperience({
     // Com as configurações abertas, Esc fecha só o painel e Espaço/setas ficam com os controles dele.
     if (!currentContent || !settings.shortcutsEnabled || isSettingsOpen) return;
 
-    const handleKeyDown = (event: KeyboardEvent) => {
-      const target = event.target as HTMLElement | null;
-      if (target && ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) return;
-
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        handleFinishBlock();
-        return;
-      }
-
-      if (event.key === ' ' && teleprompterEnabled) {
-        event.preventDefault();
-        togglePlayback();
-        return;
-      }
-
-      if (event.key.toLowerCase() === 'g') {
-        event.preventDefault();
-        if (currentContent) {
-          toggleComplete(currentContent.id);
-        }
-        return;
-      }
-
-      if (event.key === 'ArrowRight') {
-        event.preventDefault();
-        handleNextVideo();
-        return;
-      }
-
-      if (event.key === 'ArrowLeft') {
-        event.preventDefault();
-        handlePreviousVideo();
-        return;
-      }
-
-      if ((event.key === '+' || event.key === '=') && teleprompterEnabled) {
-        event.preventDefault();
-        updateSetting('fontSize', clamp(settings.fontSize + 2, 24, 96));
-        return;
-      }
-
-      if (event.key === '-' && teleprompterEnabled) {
-        event.preventDefault();
-        updateSetting('fontSize', clamp(settings.fontSize - 2, 24, 96));
-        return;
-      }
-
-      if (event.key === ']' && teleprompterEnabled) {
-        event.preventDefault();
-        updateSetting('wpm', clamp(settings.wpm + speedStep, 60, 280));
-        return;
-      }
-
-      if (event.key === '[' && teleprompterEnabled) {
-        event.preventDefault();
-        updateSetting('wpm', clamp(settings.wpm - speedStep, 60, 280));
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-    // isPlaying e countdownRemaining entram para o Espaço pausar: sem eles o atalho via sempre "parado" e recomeçava a contagem.
-  }, [countdownRemaining, currentContent, isPlaying, isSettingsOpen, readyContents.length, settings, teleprompterEnabled]);
+    // Chama sempre o handler mais novo (ref atualizado a cada render): assim o Espaço vê o estado atual
+    // (tocando, posição, linha rolada) e não o do momento em que o ouvinte foi registrado.
+    const listener = (event: KeyboardEvent) => handleKeyDownRef.current(event);
+    window.addEventListener('keydown', listener);
+    return () => window.removeEventListener('keydown', listener);
+  }, [currentContent, isSettingsOpen, settings.shortcutsEnabled]);
 
   useEffect(() => {
     if (!teleprompterEnabled || countdownRemaining === null) return;
@@ -385,7 +300,7 @@ export function BurstModeExperience({
     if (!teleprompterEnabled || !isPlaying || !settings.autoScroll || scriptLines.length <= 1) return;
 
     if (settings.advanceType === 'line') {
-      const currentWords = lineWordCounts[currentLineIndex] ?? 8;
+      const currentWords = lineWordCounts[playheadLine] ?? 8;
       const lineDuration = clamp((currentWords / effectiveWpm) * 60000, 700, 5000);
 
       const timer = window.setTimeout(() => {
@@ -424,7 +339,7 @@ export function BurstModeExperience({
     frameId = window.requestAnimationFrame(animate);
     return () => window.cancelAnimationFrame(frameId);
   }, [
-    currentLineIndex,
+    playheadLine,
     effectiveWpm,
     isPlaying,
     lineWordCounts,
@@ -435,16 +350,44 @@ export function BurstModeExperience({
     totalWords,
   ]);
 
+  // Linha acesa = a que está sob a guia, medida na rolagem real (contínua, por linha ou com o mouse).
+  const syncReadingLine = useCallback(() => {
+    const container = teleprompterViewportRef.current;
+    if (!container || scriptLines.length === 0) return;
+
+    const guideY =
+      container.scrollTop +
+      container.clientHeight * (settings.verticalMargin / 100) +
+      (settings.fontSize * settings.lineHeight) / 2;
+    let index = 0;
+    for (let lineIndex = 0; lineIndex < scriptLines.length; lineIndex++) {
+      const element = lineRefs.current[lineIndex];
+      if (!element) continue;
+      if (element.offsetTop > guideY) break;
+      index = lineIndex;
+    }
+    // Na linha em branco entre parágrafos, acende a frase seguinte.
+    while (index < scriptLines.length - 1 && scriptLines[index] === '') index++;
+
+    readingLineRef.current = index;
+    setReadingLineIndex(index);
+  }, [scriptLines, settings.fontSize, settings.lineHeight, settings.verticalMargin]);
+
   useEffect(() => {
     const container = teleprompterViewportRef.current;
     if (!teleprompterEnabled || !container || scriptLines.length === 0) return;
 
-    const currentEl = lineRefs.current[Math.floor(playhead)];
+    // Na rolagem manual, mudar fonte/largura mantém a linha sob a guia em vez de voltar ao playhead.
+    const playheadChanged = lastScrolledPlayheadRef.current !== playhead;
+    lastScrolledPlayheadRef.current = playhead;
+    const target = isManualScroll && !playheadChanged ? readingLineRef.current : playhead;
+
+    const currentEl = lineRefs.current[Math.floor(target)];
     if (!currentEl) return;
 
-    const nextIndex = Math.min(Math.floor(playhead) + 1, scriptLines.length - 1);
+    const nextIndex = Math.min(Math.floor(target) + 1, scriptLines.length - 1);
     const nextEl = lineRefs.current[nextIndex];
-    const fraction = playhead - Math.floor(playhead);
+    const fraction = target - Math.floor(target);
     const currentTop = currentEl.offsetTop;
     const nextTop = nextEl?.offsetTop ?? currentTop;
     const interpolatedTop = currentTop + (nextTop - currentTop) * fraction;
@@ -454,9 +397,10 @@ export function BurstModeExperience({
       top: Math.max(0, desiredTop),
       behavior: settings.advanceType === 'line' ? 'smooth' : 'auto',
     });
-  }, [playhead, scriptLines.length, settings.advanceType, settings.verticalMargin, settings.fontSize, settings.lineHeight, settings.textWidth, teleprompterEnabled]);
+    syncReadingLine();
+  }, [isManualScroll, playhead, scriptLines.length, settings.advanceType, settings.verticalMargin, settings.fontSize, settings.lineHeight, settings.textWidth, syncReadingLine, teleprompterEnabled]);
 
-  const speedStep = Math.max(5, Math.round(settings.speedSensitivity * 10));
+  const speedStep = getSpeedStep(settings.speedSensitivity);
 
   const handleFinishBlock = () => {
     onExit();
@@ -482,7 +426,8 @@ export function BurstModeExperience({
   };
 
   const togglePlayback = () => {
-    if (!teleprompterEnabled) return;
+    // Sem rolagem assistida não há o que iniciar: a pessoa rola o texto e a guia acompanha.
+    if (!teleprompterEnabled || isManualScroll) return;
 
     if (countdownRemaining !== null) {
       setCountdownRemaining(null);
@@ -495,9 +440,12 @@ export function BurstModeExperience({
       return;
     }
 
-    if (!settings.autoScroll) {
-      setIsPlaying(true);
-      return;
+    // Retoma da linha sob a guia se a pessoa rolou o texto parado; no fim do roteiro, recomeça do início.
+    const resumeFrom = Math.abs(readingLineIndex - playhead) >= 1.5 ? readingLineIndex : playhead;
+    if (resumeFrom >= maxPlayhead) {
+      setPlayhead(0);
+    } else if (resumeFrom !== playhead) {
+      setPlayhead(resumeFrom);
     }
 
     if (settings.countdown > 0) {
@@ -516,6 +464,70 @@ export function BurstModeExperience({
     setSettings(DEFAULT_SETTINGS);
   };
 
+  const handleKeyDown = (event: KeyboardEvent) => {
+    const target = event.target as HTMLElement | null;
+    if (target && ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) return;
+
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      handleFinishBlock();
+      return;
+    }
+
+    if (event.key === ' ' && teleprompterEnabled) {
+      event.preventDefault();
+      togglePlayback();
+      return;
+    }
+
+    if (event.key.toLowerCase() === 'g') {
+      event.preventDefault();
+      if (currentContent) {
+        toggleComplete(currentContent.id);
+      }
+      return;
+    }
+
+    if (event.key === 'ArrowRight') {
+      event.preventDefault();
+      handleNextVideo();
+      return;
+    }
+
+    if (event.key === 'ArrowLeft') {
+      event.preventDefault();
+      handlePreviousVideo();
+      return;
+    }
+
+    if ((event.key === '+' || event.key === '=') && teleprompterEnabled) {
+      event.preventDefault();
+      updateSetting('fontSize', clamp(settings.fontSize + 2, 24, 96));
+      return;
+    }
+
+    if (event.key === '-' && teleprompterEnabled) {
+      event.preventDefault();
+      updateSetting('fontSize', clamp(settings.fontSize - 2, 24, 96));
+      return;
+    }
+
+    if (event.key === ']' && teleprompterEnabled) {
+      event.preventDefault();
+      updateSetting('wpm', clamp(settings.wpm + speedStep, 60, 280));
+      return;
+    }
+
+    if (event.key === '[' && teleprompterEnabled) {
+      event.preventDefault();
+      updateSetting('wpm', clamp(settings.wpm - speedStep, 60, 280));
+    }
+  };
+
+  useEffect(() => {
+    handleKeyDownRef.current = handleKeyDown;
+  });
+
   if (!currentContent) {
     // Fim da sessão: todos gravados, ou a pessoa avançou além do último roteiro ainda não gravado.
     const allRecorded = blockContents.length > 0 && readyContents.length === 0;
@@ -527,12 +539,13 @@ export function BurstModeExperience({
         ? 'O bloco continua de onde você parou.'
         : 'Os roteiros marcados como gravados ficam salvos.';
 
-    return (
+    // Portal no body e z acima da barra lateral (z-[105]), que antes cobria o modo gravação.
+    return createPortal(
       <div
         role="dialog"
         aria-modal="true"
         aria-label={`Sessão de gravação do bloco ${block.name}`}
-        className="fixed inset-0 z-[100] flex min-h-screen flex-col items-center justify-center bg-[var(--bg-primary)] p-6 text-center"
+        className="fixed inset-0 z-[120] flex min-h-screen flex-col items-center justify-center bg-[var(--bg-primary)] p-6 text-center"
       >
         <CheckCircle2 className="mx-auto mb-8 h-24 w-24 animate-bounce text-[var(--accent-green)]" />
         <Text
@@ -552,7 +565,8 @@ export function BurstModeExperience({
         >
           Fechar modo gravação
         </button>
-      </div>
+      </div>,
+      document.body
     );
   }
 
@@ -564,14 +578,13 @@ export function BurstModeExperience({
     textAlign: settings.textAlign,
     whiteSpace: settings.wrapText ? 'normal' : 'pre',
   };
-  const maxPlayhead = Math.max(0, scriptLines.length - 1);
 
-  return (
+  return createPortal(
     <div
       role="dialog"
       aria-modal="true"
       aria-label={`Sessão de gravação do bloco ${block.name}`}
-      className="fixed inset-0 z-[100] overflow-hidden bg-[var(--tp-bg)] text-[var(--tp-text)]"
+      className="fixed inset-0 z-[120] overflow-hidden bg-[var(--tp-bg)] text-[var(--tp-text)]"
       style={getTeleprompterThemeVars(settings.theme)}
     >
       <div className="relative flex h-full flex-col">
@@ -591,13 +604,14 @@ export function BurstModeExperience({
               {/* Nada posicionado entre o viewport e as linhas: o offsetTop delas é medido a partir dele. */}
               <div
                 ref={teleprompterViewportRef}
+                onScroll={syncReadingLine}
                 className="absolute inset-0 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
               >
                 <div aria-hidden="true" style={{ height: `${settings.verticalMargin}%` }} />
                 <div className={TELEPROMPTER_COLUMN_CLASS}>
                   <div className="mx-auto" style={{ maxWidth: `${settings.textWidth}%` }}>
                     {scriptLines.map((line, index) => {
-                      const distance = Math.abs(index - currentLineIndex);
+                      const distance = Math.abs(index - readingLineIndex);
                       const opacity = settings.highlightCurrentLine
                         ? distance === 0
                           ? 1
@@ -684,10 +698,11 @@ export function BurstModeExperience({
         <TeleprompterControls
           teleprompterEnabled={teleprompterEnabled}
           isPlaying={isPlaying}
+          manualScroll={isManualScroll}
           onTogglePlayback={togglePlayback}
           elapsedLabel={formatSeconds(elapsedSeconds)}
           totalLabel={formatSeconds(totalEstimatedSeconds)}
-          playhead={playhead}
+          playhead={progressPosition}
           maxPlayhead={maxPlayhead}
           onSeek={value => setPlayhead(clamp(value, 0, maxPlayhead))}
           wpm={effectiveWpm}
@@ -714,6 +729,7 @@ export function BurstModeExperience({
           teleprompterEnabled={teleprompterEnabled}
         />
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

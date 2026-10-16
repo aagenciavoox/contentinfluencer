@@ -1,6 +1,7 @@
 import { CSSProperties, ReactNode } from 'react';
 import {
   CheckCircle2,
+  Hand,
   Minus,
   Pause,
   Play,
@@ -94,6 +95,11 @@ export function getTeleprompterThemeVars(theme: TeleprompterTheme): CSSPropertie
     '--tp-track': tokens.track,
     '--tp-knob': tokens.knob,
   } as CSSProperties;
+}
+
+/** Quanto o + e o − mudam a velocidade (ppm). A "sensibilidade" das configurações só muda esse passo. */
+export function getSpeedStep(speedSensitivity: number) {
+  return Math.max(5, Math.round(speedSensitivity * 10));
 }
 
 /** Mesma largura no texto rolando e na marca de leitura, para a marca ficar colada à coluna. */
@@ -309,6 +315,8 @@ function ProgressSeek({ value, max, disabled, valueText, onSeek }: ProgressSeekP
 type TeleprompterControlsProps = {
   teleprompterEnabled: boolean;
   isPlaying: boolean;
+  /** Rolagem assistida desligada: não há o que iniciar, a pessoa rola o texto. */
+  manualScroll: boolean;
   onTogglePlayback: () => void;
   elapsedLabel: string;
   totalLabel: string;
@@ -333,6 +341,7 @@ type TeleprompterControlsProps = {
 export function TeleprompterControls({
   teleprompterEnabled,
   isPlaying,
+  manualScroll,
   onTogglePlayback,
   elapsedLabel,
   totalLabel,
@@ -358,17 +367,27 @@ export function TeleprompterControls({
       <div className="pointer-events-auto rounded-xl border border-[var(--tp-border)] bg-[var(--tp-surface)] shadow-[0_12px_40px_rgba(0,0,0,0.08)]">
         {/* Abaixo de 1280px a primeira linha ainda cabe inteira: sem divisores, espaços menores e sem as dicas de tecla. */}
         <div className="flex flex-wrap items-center gap-x-4 gap-y-3 px-4 py-4 xl:gap-x-6 xl:px-6">
-          <button
-            type="button"
-            onClick={onTogglePlayback}
-            disabled={!teleprompterEnabled}
-            aria-keyshortcuts="Space"
-            className={cn(ACCENT_BUTTON, 'h-12 gap-3 px-4 xl:min-w-[11rem] xl:px-6')}
-          >
-            {isPlaying ? <Pause className="h-4 w-4 fill-current" /> : <Play className="h-4 w-4 fill-current" />}
-            <span className="flex-1 text-left">{isPlaying ? 'Pausar' : 'Iniciar'}</span>
-            <Kbd onAccent className="hidden xl:inline-block">Espaço</Kbd>
-          </button>
+          {manualScroll && teleprompterEnabled ? (
+            <span
+              title="A rolagem assistida está desligada nas configurações: role o texto e a guia acompanha."
+              className="inline-flex h-12 shrink-0 items-center gap-2 rounded-lg border border-[var(--tp-border)] bg-[var(--tp-subtle)] px-4 text-sm font-semibold text-[var(--tp-muted)] xl:min-w-[11rem] xl:px-6"
+            >
+              <Hand className="h-4 w-4" />
+              Rolagem manual
+            </span>
+          ) : (
+            <button
+              type="button"
+              onClick={onTogglePlayback}
+              disabled={!teleprompterEnabled}
+              aria-keyshortcuts="Space"
+              className={cn(ACCENT_BUTTON, 'h-12 gap-3 px-4 xl:min-w-[11rem] xl:px-6')}
+            >
+              {isPlaying ? <Pause className="h-4 w-4 fill-current" /> : <Play className="h-4 w-4 fill-current" />}
+              <span className="flex-1 text-left">{isPlaying ? 'Pausar' : 'Iniciar'}</span>
+              <Kbd onAccent className="hidden xl:inline-block">Espaço</Kbd>
+            </button>
+          )}
 
           <Divider className="hidden xl:block" />
 
