@@ -1,4 +1,5 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useUnsavedChangesRegistration } from '../../../hooks/useUnsavedChangesRegistration';
 import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { Dialog } from '../../../components/overlays/Dialog';
 import {
@@ -252,6 +253,13 @@ export function BookDetailPage() {
     duracaoPorEpisodio: metadata.duracaoPorEpisodio ?? '',
     potencialConteudo: livro?.potencialConteudo as 1 | 2 | 3 | undefined,
   }));
+  // Ficha editada e ainda não salva segura a troca de versão do app.
+  const infoSavedSnapshotRef = useRef(JSON.stringify(infoLocal));
+  const salvarInfoRef = useRef<() => void>(() => {});
+  useUnsavedChangesRegistration(
+    Boolean(livro) && JSON.stringify(infoLocal) !== infoSavedSnapshotRef.current,
+    () => salvarInfoRef.current(),
+  );
 
   if (!livro) {
     return (
@@ -427,9 +435,11 @@ export function BookDetailPage() {
         },
       },
     });
+    infoSavedSnapshotRef.current = JSON.stringify(infoLocal);
     setInfoSalvo(true);
     setTimeout(() => setInfoSalvo(false), 2000);
   };
+  salvarInfoRef.current = handleSalvarInfo;
 
   const handleTransformarLeituraEmIdeia = () => {
     const fields = buildIdeaFields({

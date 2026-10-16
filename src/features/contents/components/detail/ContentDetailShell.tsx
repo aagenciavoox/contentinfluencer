@@ -2,6 +2,7 @@ import {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {getSaveFeedbackState, subscribeSaveFeedback, type SaveFeedbackState} from '../../../../lib/saveFeedback';
 import {useLocation, useNavigate, useSearchParams} from 'react-router-dom';
 import {useNavigationBlocker} from '../../../../lib/navigation/NavigationBlockerContext';
+import {useUnsavedChangesRegistration} from '../../../../hooks/useUnsavedChangesRegistration';
 import {resolveContentDetailBack} from '../../../../lib/navigation/detailBack';
 import {SendToRecordingSheet} from '../../../../mobile/components/SendToRecordingSheet';
 import {ConfirmModal} from '../../../../components/feedback/modals/ConfirmModal';
@@ -159,6 +160,18 @@ export function ContentDetailShell({
   // Read the ref so clearing dirty before navigate is honored immediately
   // (state updates would still look dirty for one render and cancel leave).
   const blocker = useNavigationBlocker(() => draftDirtyRef.current);
+
+  // Nova versão do app espera este rascunho ser gravado (ver src/lib/appUpdate.ts).
+  useUnsavedChangesRegistration(draftDirty, async () => {
+    if (autosaveTimerRef.current) {
+      clearTimeout(autosaveTimerRef.current);
+      autosaveTimerRef.current = null;
+    }
+    for (let attempt = 0; attempt < 4 && draftDirtyRef.current; attempt += 1) {
+      const ok = await persistRef.current(undefined, {silent: true});
+      if (!ok) return;
+    }
+  });
 
   useEffect(() => subscribeSaveFeedback(() => setSaveFeedback(getSaveFeedbackState())), []);
 

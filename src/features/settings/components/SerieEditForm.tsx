@@ -16,6 +16,7 @@ import { normalizeFormatoList, type Content, type Pilar, type Platform, type Ser
 import { SerieProductionMetricsPanel } from './SerieProductionMetricsPanel';
 import { TemplatesSettingsPage } from '../pages/TemplatesSettingsPage';
 import { cn } from '../../../lib/utils';
+import { useUnsavedChangesRegistration } from '../../../hooks/useUnsavedChangesRegistration';
 import { generateUUID } from '../../../utils/uuid';
 import { EntityColorPicker, entitySwatchInk } from './EntityColorPicker';
 import { isSerieColorTaken } from '../lib/serieColors';
@@ -444,6 +445,10 @@ export function SerieEditForm({
       updatedAt: new Date().toISOString(),
     });
   }, [colorTaken, contas, form, initial.createdAt, onSave]);
+
+  useUnsavedChangesRegistration(isDirty, () => {
+    if (canSave) handleSaveRef.current();
+  });
 
   const onChromeChangeRef = useRef(onChromeChange);
   const handleSaveRef = useRef(handleSave);

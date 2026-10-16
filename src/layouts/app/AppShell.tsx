@@ -14,6 +14,7 @@ import { MobileScrollLockProvider } from '../../context/MobileScrollLockContext'
 import { resolveMobileRouteMeta } from '../../mobile/config/mobileRouteMeta';
 import { resolveRouteBack } from '../../lib/navigation/detailBack';
 import { SaveFeedbackToast } from '../../components/ui/SaveFeedbackToast';
+import { AppUpdateToast } from '../../components/ui/AppUpdateToast';
 import { Text } from '../../components/ui/Text';
 import { useAppContext } from '../../context/AppContext';
 import { forceMobileRefresh } from '../../lib/pwaRefresh';
@@ -176,6 +177,7 @@ export function AppShell() {
           onClose={() => setIsActionMenuOpen(false)}
         />
         <SaveFeedbackToast />
+        <AppUpdateToast />
         </div>
       </MobileScrollLockProvider>
     );
@@ -201,6 +203,8 @@ export function AppShell() {
       </main>
 
       <SaveFeedbackToast />
+
+      <AppUpdateToast />
     </div>
   );
 }

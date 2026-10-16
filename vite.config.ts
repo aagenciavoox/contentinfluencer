@@ -26,7 +26,8 @@ export default defineConfig(() => {
       },
       tailwindcss(),
       VitePWA({
-        registerType: 'autoUpdate',
+        // prompt: o SW novo espera updateSW(true) (ver src/lib/pwaRegister.ts).
+        registerType: 'prompt',
         injectRegister: false,
         includeAssets: [
           'favicon.ico',
@@ -92,7 +93,6 @@ export default defineConfig(() => {
           navigateFallback: null,
           cleanupOutdatedCaches: true,
           clientsClaim: true,
-          skipWaiting: true,
           runtimeCaching: [
             {
               urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,

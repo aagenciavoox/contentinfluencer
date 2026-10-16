@@ -1,4 +1,4 @@
-import { notifySaveFeedback } from './saveFeedback';
+import { announceAppUpdate } from './appUpdate';
 
 declare const __APP_VERSION__: string;
 
@@ -17,17 +17,11 @@ export function setAppUpdateReload(handler: () => void): void {
   reloadHandler = handler;
 }
 
-/** Toast discreto e persistente: "Nova versão disponível · Atualizar". */
+/** Aviso persistente: "Nova versão disponível · Atualizar". */
 export function announceNewVersion(): void {
   if (notified) return;
   notified = true;
-  notifySaveFeedback({
-    status: 'success',
-    message: 'Nova versão disponível',
-    undoLabel: 'Atualizar',
-    onUndo: () => reloadHandler(),
-    persistent: true,
-  });
+  announceAppUpdate(() => reloadHandler(), 'version');
 }
 
 async function checkVersion(): Promise<void> {

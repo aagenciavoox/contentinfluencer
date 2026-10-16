@@ -1,4 +1,5 @@
 import { notifySaveFeedback } from './saveFeedback';
+import { flushUnsavedChanges } from './unsavedChanges';
 
 let applyPwaUpdate: ((reloadPage?: boolean) => Promise<void>) | null = null;
 
@@ -18,6 +19,7 @@ export async function checkForPwaUpdate(): Promise<boolean> {
     await registration.update();
 
     if (registration.waiting) {
+      await flushUnsavedChanges();
       if (applyPwaUpdate) {
         await applyPwaUpdate(true);
       } else {
