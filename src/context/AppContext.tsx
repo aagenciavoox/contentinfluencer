@@ -365,7 +365,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     updateDomainStatus(toFetch, 'loading');
 
+    // Uma consulta que falha (ex.: lock de auth quebrado, rede oscilando) derrubava o Promise.all
+    // inteiro e a tela (Gravação, Biblioteca) ficava sem dados. Tenta de novo uma vez antes de desistir.
     const loadPromise: Promise<void> = fetchDataDomains(toFetch, userId)
+      .catch(async firstError => {
+        console.warn('[AppContext] domain fetch failed, retrying once:', toFetch, firstError);
+        // Espera 1,5–3 s com sorteio: as abas abertas não voltam todas juntas ao banco.
+        await new Promise(resolve => setTimeout(resolve, 1500 + Math.random() * 1500));
+        return fetchDataDomains(toFetch, userId);
+      })
       .then(data => {
         const merged = mergeFetchedAppData(mergeSnapshot(), data);
         if (
@@ -539,6 +547,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     };
   }, [authLoading, loadDomains, mergeSnapshot, resetDomainStatus, updateDomainStatus, userId]);
 
+  const refreshFromServerRef = useRef(refreshFromServer);
+  refreshFromServerRef.current = refreshFromServer;
+
   useEffect(() => {
     if (!supabase || !userId) return;
 
@@ -565,12 +576,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         );
         if (domains.length === 0) return;
 
-        void refreshFromServer({
+        void refreshFromServerRef.current({
           silent: true,
           domains,
           namespaces: tableNamespaces,
         });
-      }, 120);
+      }, 1500);
     };
 
     const handleTableChange = (table: string) => {
@@ -586,6 +597,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       scheduleRefresh(table);
     };
 
+    // Um canal só por usuário. Depende apenas do userId: antes recriava o canal sempre que
+    // refreshFromServer mudava de identidade, e cada nova inscrição pesava no Realtime.
     let channel = supabase.channel(`content-os-realtime:${userId}`);
 
     for (const table of REALTIME_TABLES) {
@@ -610,7 +623,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
       void supabase.removeChannel(channel);
     };
-  }, [refreshFromServer, userId]);
+  }, [userId]);
 
   useEffect(() => {
     return subscribeDataSync(() => {

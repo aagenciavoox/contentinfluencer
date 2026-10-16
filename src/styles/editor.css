@@ -218,3 +218,10 @@
     margin: 1.25rem 0;
   }
 }
+
+/* Fonte e tamanho escolhidos no editor do roteiro (RoteiroTypographyControls). */
+.roteiro-typography .tiptap,
+.roteiro-typography .script-sheet .tiptap {
+  font-family: var(--roteiro-font-family, var(--font-sans));
+  font-size: var(--roteiro-font-size, var(--font-size-body-reading));
+}

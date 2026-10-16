@@ -4,8 +4,44 @@ export const TEMA_FILTER_PARAM = 'temas';
 export const LEGACY_TEMA_PARAM = 'tema';
 export const LEGACY_TAGS_PARAM = 'tags';
 
-function chave(nome: string): string {
-  return nome.trim().replace(/^#+/, '').replace(/\s+/g, ' ').toLocaleLowerCase('pt-BR');
+/** Nome comparavel: sem #, espacos extras, maiusculas nem acentos ("Vampíro " = "vampiro"). */
+export function chaveTemaFiltro(nome: string): string {
+  return nome
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .replace(/^#+/, '')
+    .replace(/\s+/g, ' ')
+    .toLocaleLowerCase('pt-BR');
+}
+const chave = chaveTemaFiltro;
+
+/**
+ * Temas repetidos com o mesmo nome (ex.: "Vampiro" e "vampiro" criados em momentos
+ * diferentes) contam como um so: escolher um seleciona todos os ids desse nome.
+ */
+export function expandTemaFilterIds(
+  selected: readonly string[],
+  temas: readonly {id: string; nome: string}[] | undefined,
+): string[] {
+  if (!temas?.length || selected.length === 0) return [...selected];
+  const chaves = new Set(selected.flatMap(id => {
+    const tema = temas.find(item => item.id === id);
+    return tema ? [chave(tema.nome)] : [];
+  }));
+  const extras = temas.filter(tema => chaves.has(chave(tema.nome))).map(tema => tema.id);
+  return [...new Set([...selected, ...extras])];
+}
+
+/** Um item por nome no seletor; o id escolhido e o do primeiro tema com aquele nome. */
+export function dedupeTemasPorNome<T extends {id: string; nome: string}>(temas: readonly T[]): T[] {
+  const vistos = new Set<string>();
+  return temas.filter(tema => {
+    const key = chave(tema.nome);
+    if (vistos.has(key)) return false;
+    vistos.add(key);
+    return true;
+  });
 }
 
 export function parseTemaFilterParam(value: string | null | undefined, legacyTemaId?: string | null): string[] {
@@ -17,10 +53,14 @@ export function serializeTemaFilterParam(ids: readonly string[]): string {
   return [...new Set(ids.map(id => id.trim()).filter(Boolean))].join(',');
 }
 
-export function matchesTemaFilter(temaIds: readonly string[] | null | undefined, selected: readonly string[]): boolean {
+export function matchesTemaFilter(
+  temaIds: readonly string[] | null | undefined,
+  selected: readonly string[],
+  temas?: readonly {id: string; nome: string}[],
+): boolean {
   if (selected.length === 0) return true;
   const own = new Set(temaIds ?? []);
-  return selected.some(id => own.has(id));
+  return expandTemaFilterIds(selected, temas).some(id => own.has(id));
 }
 
 /** `?tags=` antigo vira ids de tema pelo nome (sem diferenciar maiúsculas). Nome sem tema some. */

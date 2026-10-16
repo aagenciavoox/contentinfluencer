@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { Session, User } from '@supabase/supabase-js';
+import { isAuthRetryableFetchError, Session, User } from '@supabase/supabase-js';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
 
 interface AuthContextType {
@@ -26,39 +26,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
+    const applySession = (nextSession: Session | null) => {
+      setSession(nextSession);
+      // Mesmo usuário sem alteração → mantém a referência. Várias telas refazem buscas quando o user muda.
+      setUser(current => {
+        const nextUser = nextSession?.user ?? null;
+        return current && nextUser && current.id === nextUser.id && current.updated_at === nextUser.updated_at
+          ? current
+          : nextUser;
+      });
       setLoading(false);
+    };
 
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      applySession(session);
       if (!session) return;
 
-      void supabase.auth.getUser().then(({ data, error }) => {
+      // Confere uma vez no servidor se a sessão salva ainda vale. Com o token explícito o
+      // getUser não pega o lock de auth, então as consultas iniciais não esperam essa ida à rede.
+      void supabase.auth.getUser(session.access_token).then(({ data, error }) => {
+        // Sem rede: mantém a sessão local em vez de deslogar.
+        if (error && isAuthRetryableFetchError(error)) return;
         if (error || !data.user) {
           setUser(null);
           setSession(null);
           return;
         }
-        // Evita trocar a referência do user sem necessidade (reinicia bootstrap no AppContext).
         setUser(current => (current?.id === data.user.id ? current : data.user));
       });
     });
 
+    // Este callback roda dentro do lock de auth, e o Supabase dispara SIGNED_IN toda vez que a aba
+    // volta a ficar visível. Só atualiza o estado: chamar a API de auth daqui segura o lock durante
+    // uma ida à rede, e as outras consultas estouram a espera ("Lock ... was not released within 5000ms").
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, nextSession) => {
-      setSession(nextSession);
-      setUser(nextSession?.user ?? null);
-      setLoading(false);
-
-      if (!nextSession) return;
-
-      void supabase.auth.getUser().then(({ data, error }) => {
-        if (error || !data.user) {
-          setUser(null);
-          setSession(null);
-          return;
-        }
-        setUser(current => (current?.id === data.user.id ? current : data.user));
-      });
+      applySession(nextSession);
     });
 
     return () => subscription.unsubscribe();

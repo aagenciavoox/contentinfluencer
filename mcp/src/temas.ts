@@ -126,7 +126,11 @@ export async function idsComTema(session: Session, ref: string): Promise<{ids: s
   if (catalogo.ausente) return {ids: [], ausente: true};
   const tema = acharTema(catalogo.itens, ref);
   if (!tema) return {ids: [], ausente: false};
-  const links = await session.client.from('content_temas').select('content_id').eq('tema_id', tema.id);
+  // Temas repetidos com o mesmo nome (maiusculas/acentos) contam como um so.
+  const semAcento = (nome: string) => chaveTema(nome).normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const alvo = semAcento(tema.nome);
+  const temaIds = [...new Set([tema.id, ...catalogo.itens.filter(item => semAcento(item.nome) === alvo).map(item => item.id)])];
+  const links = await session.client.from('content_temas').select('content_id').in('tema_id', temaIds);
   if (links.error) {
     if (tabelaDeTemasAusente(links.error)) return {ids: [], ausente: true};
     throw new Error(`roteiros do tema: ${links.error.message}`);

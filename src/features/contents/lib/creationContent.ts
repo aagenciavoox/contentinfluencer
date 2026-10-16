@@ -271,7 +271,7 @@ export function filterCreationContents(
     .filter(content => !filters.pilarId || content.pilarId === filters.pilarId)
     .filter(content => !filters.seriesId || content.seriesId === filters.seriesId)
     .filter(content => !filters.temaId || (content.temaIds ?? []).includes(filters.temaId))
-    .filter(content => matchesTemaFilter(content.temaIds, filters.temaIds ?? []))
+    .filter(content => matchesTemaFilter(content.temaIds, filters.temaIds ?? [], filters.temas))
     .filter(content => !filters.originId || livroIdsEfetivos(content).includes(filters.originId))
     .filter(content => passaNoFiltroData(filters.datasNaGrade?.get(content.id), filters.filtroData ?? null))
     .filter(content => {

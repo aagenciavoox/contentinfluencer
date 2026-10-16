@@ -1,6 +1,9 @@
 import {useState, type ReactNode} from 'react';
 import {ChevronDown} from 'lucide-react';
 import {RichTextEditor} from '../../../../components/editors/RichTextEditor';
+import {useAuth} from '../../../../context/AuthContext';
+import {roteiroTypographyStyle, useRoteiroTypography} from '../../lib/roteiroTypography';
+import {RoteiroTypographyControls} from './RoteiroTypographyControls';
 import {AppButton} from '../../../../components/ui/AppButton';
 import {Skeleton} from '../../../../components/ui/Skeleton';
 import {Text} from '../../../../components/ui/Text';
@@ -69,6 +72,9 @@ export function ContentScriptWorkspace({
     onScriptChange(trimmed ? `${trimmed}${html}` : html);
   };
 
+  const {user} = useAuth();
+  const {typography, setTypography} = useRoteiroTypography(user?.id);
+
   return (
     <section className={cn(
       writingToolbar
@@ -116,6 +122,7 @@ export function ContentScriptWorkspace({
             ) : null}
           </div>
         ) : (
+          <div className="roteiro-typography contents" style={roteiroTypographyStyle(typography)}>
           <RichTextEditor
             variant="workspace"
             formatBar={writingToolbar ? 'writing' : 'full'}
@@ -130,11 +137,14 @@ export function ContentScriptWorkspace({
             onRemoveAnnotation={onRemoveAnnotation}
             onUpdateAnnotation={onUpdateAnnotation}
             toolbarStart={
+              <>
               <ScriptBlockToolbar
                 neutral={writingToolbar}
                 onInsertBlock={handleInsertBlock}
                 onApplyTemplate={handleApplyTemplate}
               />
+              <RoteiroTypographyControls typography={typography} onChange={setTypography} />
+              </>
             }
             saveState={saveState}
             fullscreenAside={fullscreenAside}
@@ -143,6 +153,7 @@ export function ContentScriptWorkspace({
               ? 'min-h-[calc(100dvh-18rem)] border-0 bg-[var(--bg-elevated)] shadow-none'
               : 'h-full min-h-0 border-0 bg-[var(--bg-elevated)] shadow-none'}
           />
+          </div>
         )}
       </div>
 

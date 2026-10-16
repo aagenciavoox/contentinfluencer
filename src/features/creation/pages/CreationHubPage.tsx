@@ -10,7 +10,7 @@ import {
 import { ConfirmModal } from '../../../components/feedback/modals/ConfirmModal';
 import { Dialog } from '../../../components/overlays/Dialog';
 import { TagSelect } from '../../../components/ui/TagSelect';
-import { LEGACY_TAGS_PARAM, TEMA_FILTER_PARAM, migrateLegacyTemaParams, parseTemaFilterParam, serializeTemaFilterParam } from '../../contents/lib/temaFilter';
+import { LEGACY_TAGS_PARAM, TEMA_FILTER_PARAM, dedupeTemasPorNome, migrateLegacyTemaParams, parseTemaFilterParam, serializeTemaFilterParam } from '../../contents/lib/temaFilter';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { AppButton } from '../../../components/ui/AppButton';
 import { FilterBar } from '../../../components/ui/FilterBar';
@@ -810,8 +810,8 @@ export function CreationHubPage() {
   }, [searchParams, setSearchParams, state.temas]);
 
   const temaOptions = useMemo(
-    () => [...state.temas]
-      .sort((left, right) => left.nome.localeCompare(right.nome, 'pt-BR'))
+    () => dedupeTemasPorNome([...state.temas]
+      .sort((left, right) => left.nome.localeCompare(right.nome, 'pt-BR')))
       .map(tema => ({ value: tema.id, label: tema.nome })),
     [state.temas],
   );

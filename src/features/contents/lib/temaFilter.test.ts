@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import {
+  dedupeTemasPorNome,
   matchesTemaFilter,
   migrateLegacyTemaParams,
   parseTemaFilterParam,
@@ -31,3 +32,12 @@ assert.equal(immediateSaveUpdates({temaIds: ['t1']}, {temaIds: ['t1']}), null);
 assert.equal(immediateSaveUpdates({temaIds: ['t1'], title: 'a'}, {title: 'b'}), null);
 
 console.log('ok - tema filter (multi, legacy ?tema/?tags) and immediate tema save');
+
+// Temas repetidos com o mesmo nome contam como um so no filtro.
+{
+  const repetidos = [{id: 'a', nome: 'Vampiro'}, {id: 'b', nome: ' vampíro'}, {id: 'c', nome: 'Bruxa'}];
+  assert.equal(matchesTemaFilter(['b'], ['a'], repetidos), true);
+  assert.equal(matchesTemaFilter(['c'], ['a'], repetidos), false);
+  assert.equal(matchesTemaFilter(['c', 'b'], ['a', 'c'], repetidos), true);
+  assert.deepEqual(dedupeTemasPorNome(repetidos).map(tema => tema.id), ['a', 'c']);
+}

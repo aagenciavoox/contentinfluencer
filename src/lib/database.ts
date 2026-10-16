@@ -1,5 +1,5 @@
 import { dataCache } from './dataCache.ts';
-import { supabase } from './supabase.ts';
+import { getCachedUserId, supabase } from './supabase.ts';
 import { normalizeContentStatus } from '../features/contents/lib/contentPipeline';
 import { hydrateIdeasFromDemotedContents } from '../features/ideas/lib/hydrateIdeasFromDemotedContents';
 import { getIdeaNotes, normalizeIdea } from '../features/ideas/lib/ideaText';
@@ -716,9 +716,11 @@ function empty(): AppData {
 
 async function currentUserId(): Promise<string | null> {
   if (!supabase) return null;
-  const { data, error } = await supabase.auth.getUser();
-  if (error) return null;
-  return data.user?.id ?? null;
+  const cached = getCachedUserId();
+  if (cached) return cached;
+  // Sem evento de auth ainda: getSession le o storage local, sem ida ao servidor.
+  const { data } = await supabase.auth.getSession();
+  return data.session?.user?.id ?? null;
 }
 
 // ============================================================================
@@ -1710,7 +1712,8 @@ export async function fetchContentStats(userId: string): Promise<{ editorialCoun
   ) => {
     let query = supabase
       .from('contents')
-      .select('*', {count: 'exact', head: true})
+      // Contador do menu: 'estimated' é exato em tabela pequena e usa a estimativa do planner nas grandes.
+      .select('id', {count: 'estimated', head: true})
       .eq('user_id', userId)
       .is('deleted_at', null);
     if (includeArchiveFilter) {
@@ -1758,7 +1761,7 @@ export async function fetchContentStats(userId: string): Promise<{ editorialCoun
     runContentCounts(),
     supabase
       .from('biblioteca_items')
-      .select('*', { count: 'exact', head: true })
+      .select('id', { count: 'estimated', head: true })
       .eq('user_id', userId)
       .is('deleted_at', null),
   ]);
