@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { CircleDollarSign, FolderKanban, Plus, SearchCheck, TimerReset } from 'lucide-react';
 import { normalizeProjetoTipo, type Projeto } from '../../../lib/database';
-import { isProjetoEvento, rotuloAvisoDias, rotuloProjetoTipo } from '../../../features/projects/lib/evento';
+import { isProjetoEvento, isProjetoPubli, rotuloAvisoDias, rotuloProjetoTipo } from '../../../features/projects/lib/evento';
 import { EmptyState } from '../../../components/ui/EmptyState';
 import { MobileFilterSheet } from '../../components/MobileFilterSheet';
 import { MobileListCard } from '../../components/MobileListCard';
@@ -11,7 +11,7 @@ import { MobileSectionHeader } from '../../components/MobileSectionHeader';
 import { AppButton } from '../../../components/ui/AppButton';
 import { Text } from '../../../components/ui/Text';
 
-type TipoFilter = 'todos' | 'publi' | 'producao' | 'evento' | 'outro';
+type TipoFilter = 'todos' | 'publi' | 'parceria' | 'producao' | 'evento' | 'maratona' | 'outro';
 /** Matches ProjectsPage desktop FilterBar: agenda linkage, not etapa-derived status. */
 type StatusFilter = 'todos' | 'com_eventos' | 'sem_eventos';
 type ProjectsMobileTab = 'all' | 'com_eventos' | 'sem_eventos';
@@ -151,12 +151,12 @@ export function ProjectsMobileScreen({
                   />
                   <MobileListCard
                     onClick={() => onOpenProject(projeto.id)}
-                    eyebrow={rotuloProjetoTipo(normalizeProjetoTipo(projeto.tipo))}
+                    eyebrow={rotuloProjetoTipo(normalizeProjetoTipo(projeto.tipo), projeto.tipoPersonalizado)}
                     title={projeto.nome}
                     description={projeto.brand || projeto.notes || 'Sem observações adicionais'}
                     meta={
                       <>
-                        {projeto.value ? (
+                        {isProjetoPubli(projeto.tipo) && projeto.value ? (
                           <span className="inline-flex items-center gap-1 rounded-full bg-[var(--accent-orange)]/10 px-3 py-1 text-xs font-semibold text-[var(--accent-orange)]">
                             <CircleDollarSign className="h-3 w-3" />
                             {projeto.value.toLocaleString('pt-BR', {
@@ -208,8 +208,10 @@ export function ProjectsMobileScreen({
           <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value as TipoFilter)}>
             <option value="todos">Todos</option>
             <option value="publi">Publi</option>
+            <option value="parceria">Parceria</option>
             <option value="producao">Produção</option>
             <option value="evento">Evento</option>
+            <option value="maratona">Maratona de leitura</option>
             <option value="outro">Outro</option>
           </select>
         </label>

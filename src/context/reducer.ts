@@ -15,7 +15,7 @@ import {
 import {
   AppData,
   Content, Idea, Pilar, Serie, Tema, Cenario, Look,
-  BibliotecaItem, Anotacao, Projeto, ProjetoEtapa,
+  BibliotecaItem, Anotacao, Projeto, ProjetoEtapa, ProjetoLivro,
   RecordingBlock, RecordingBlockContent, Template,
   AgendaItem, GoldenRule, ContentMetric, Platform, DnaVoz, PlanejamentoPostIt,
 } from '../lib/database';
@@ -120,8 +120,8 @@ export type AppAction =
   | { type: 'DELETE_TEMPLATE'; payload: string }
 
   // ─── Agenda ─────────────────────────────────────────────────────────────────
-  | { type: 'ADD_AGENDA_ITEM';    payload: AgendaItem }
-  | { type: 'UPDATE_AGENDA_ITEM'; payload: AgendaItem }
+  | { type: 'ADD_AGENDA_ITEM';    payload: AgendaItem; livroNovo?: ProjetoLivro }
+  | { type: 'UPDATE_AGENDA_ITEM'; payload: AgendaItem; livroNovo?: ProjetoLivro }
   | { type: 'ADD_POST_IT';        payload: PlanejamentoPostIt }
   | { type: 'UPDATE_POST_IT';     payload: PlanejamentoPostIt }
   | { type: 'UPDATE_POST_ITS';    payload: PlanejamentoPostIt[] }
@@ -169,6 +169,19 @@ function serieWithFreeColor(serie: Serie, series: readonly Serie[]): Serie {
   const taken = Boolean(key) && series.some(item => item.id !== serie.id && serieColorKey(item.cor) === key);
   if (key && !taken) return serie.cor === key ? serie : {...serie, cor: key};
   return {...serie, cor: nextFreeSerieColor(series, serie.id)};
+}
+
+function comLivroNoProjeto(state: AppState, livro: ProjetoLivro | undefined): AppState {
+  if (!livro) return state;
+  return {
+    ...state,
+    projetos: state.projetos.map(projeto => {
+      if (projeto.id !== livro.projetoId) return projeto;
+      const livros = projeto.livros ?? [];
+      if (livros.some(atual => atual.id === livro.id)) return projeto;
+      return {...projeto, livros: [...livros, livro]};
+    }),
+  };
 }
 
 export function appReducer(state: AppState, action: AppAction): AppState {
@@ -550,9 +563,15 @@ export function appReducer(state: AppState, action: AppAction): AppState {
 
     // ─── Agenda ─────────────────────────────────────────────────────────────
     case 'ADD_AGENDA_ITEM':
-      return { ...state, agendaItems: [...state.agendaItems, action.payload] };
+      return {
+        ...comLivroNoProjeto(state, action.livroNovo),
+        agendaItems: [...state.agendaItems, action.payload],
+      };
     case 'UPDATE_AGENDA_ITEM':
-      return { ...state, agendaItems: state.agendaItems.map(a => a.id === action.payload.id ? action.payload : a) };
+      return {
+        ...comLivroNoProjeto(state, action.livroNovo),
+        agendaItems: state.agendaItems.map(a => a.id === action.payload.id ? action.payload : a),
+      };
     case 'DELETE_AGENDA_ITEM':
       return { ...state, agendaItems: state.agendaItems.filter(a => a.id !== action.payload) };
     case 'ADD_POST_IT':

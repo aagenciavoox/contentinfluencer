@@ -393,12 +393,27 @@ export interface ProjetoEtapa {
   createdAt: string;
 }
 
+/** Livro usado nas atividades de um projeto. Pode apontar para a biblioteca ou só ter nome. */
+export interface ProjetoLivro {
+  id: string;
+  projetoId: string;
+  userId: string;
+  nome: string;
+  bibliotecaItemId: string | null;
+  createdAt: string;
+}
+
 export interface Projeto {
   id: string;
   userId: string;
   nome: string;
-  /** `'evento'` entra só aqui. A coluna `projetos.tipo` não tem CHECK. */
-  tipo: 'campanha' | 'publi' | 'producao' | 'outro' | 'evento';
+  /**
+   * A coluna `projetos.tipo` não tem CHECK.
+   * `campanha` é legado de publi. `producao` permanece e não é reclassificado sozinho.
+   */
+  tipo: 'campanha' | 'publi' | 'parceria' | 'producao' | 'outro' | 'evento' | 'maratona';
+  /** Nome livre quando `tipo` é `outro`. Reaparece como opção nos outros projetos. */
+  tipoPersonalizado?: string | null;
   status: string;
   dataInicio: string | null;
   dataFim: string | null;
@@ -419,6 +434,7 @@ export interface Projeto {
   deletedAt: string | null;
   etapas: ProjetoEtapa[];
   contentIds: string[];
+  livros?: ProjetoLivro[];
 }
 
 export function normalizeProjetoTipo(tipo: Projeto['tipo'] | string): Projeto['tipo'] {
@@ -472,8 +488,13 @@ export interface AgendaItem {
   title: string;
   date: string;
   time: string | null;
-  tipo: 'Reunião' | 'Entrega' | 'Publicação' | 'Outro';
+  /** `Entrega` é o valor antigo. Os novos tipos não reescrevem os registros existentes. */
+  tipo: 'Reunião' | 'Escrever roteiro' | 'Enviar roteiro' | 'Publicação' | 'Período de leitura' | 'Outro' | 'Entrega';
   projetoId: string | null;
+  notes?: string | null;
+  /** Último dia inclusive. Usado pelo período de leitura. Vazio = só `date`. */
+  dateEnd?: string | null;
+  projetoLivroId?: string | null;
   createdAt: string;
 }
 
@@ -1109,12 +1130,23 @@ const mp = {
     bibliotecaItemId: r.biblioteca_item_id, brand: r.brand, brandColor: r.brand_color,
     color: r.color || null, value: r.value, currency: r.currency || 'BRL',
     driveUrl: r.drive_url || null, shareToken: r.share_token || null, notes: r.notes,
+    tipoPersonalizado: typeof r.tipo_personalizado === 'string' && r.tipo_personalizado.trim()
+      ? r.tipo_personalizado.trim()
+      : null,
     createdAt: r.created_at, updatedAt: r.updated_at, deletedAt: r.deleted_at,
     etapas: (r.projeto_etapas || []).map((e: Row) => ({
       id: e.id, projetoId: e.projeto_id, nome: e.nome, ordem: e.ordem,
       status: e.status, dataPrazo: e.data_prazo, createdAt: e.created_at,
     })),
     contentIds: (r.projeto_conteudos || []).map((pc: Row) => pc.content_id),
+    livros: (r.projeto_livros || []).map((livro: Row) => ({
+      id: livro.id,
+      projetoId: livro.projeto_id,
+      userId: livro.user_id,
+      nome: livro.nome,
+      bibliotecaItemId: livro.biblioteca_item_id ?? null,
+      createdAt: livro.created_at,
+    })),
   }),
   recordingBlock: (r: Row): RecordingBlock => ({
     id: r.id, userId: r.user_id, name: r.name,
@@ -1131,8 +1163,13 @@ const mp = {
     createdAt: r.created_at, updatedAt: r.updated_at,
   }),
   agendaItem: (r: Row): AgendaItem => ({
-    id: r.id, userId: r.user_id, title: r.title, date: r.date, time: r.time,
+    id: r.id, userId: r.user_id, title: r.title,
+    date: r.date ? String(r.date).slice(0, 10) : r.date,
+    time: r.time,
     tipo: r.tipo, projetoId: r.projeto_id, createdAt: r.created_at,
+    notes: r.notes ?? null,
+    dateEnd: r.date_end ? String(r.date_end).slice(0, 10) : null,
+    projetoLivroId: r.projeto_livro_id ?? null,
   }),
   postIt: (r: Row): PlanejamentoPostIt => ({
     id: r.id,
@@ -2009,7 +2046,7 @@ export async function fetchDataDomains(
       payload.projetos = (assertQuerySuccess(
         'projetos fetch',
         await supabase.from('projetos')
-          .select('*, projeto_etapas(*), projeto_conteudos(content_id)')
+          .select('*, projeto_etapas(*), projeto_conteudos(content_id), projeto_livros(*)')
           .eq('user_id', uid).is('deleted_at', null)
           .order('created_at', { ascending: false }),
       ) || []).map(mp.projeto);
@@ -3116,6 +3153,7 @@ export async function saveProjeto(
     meta_conteudos: projeto.metaConteudos, biblioteca_item_id: projeto.bibliotecaItemId,
     brand: projeto.brand, brand_color: projeto.brandColor, color: projeto.color,
     drive_url: projeto.driveUrl, value: projeto.value, currency: projeto.currency, notes: projeto.notes,
+    tipo_personalizado: tipo === 'outro' ? (projeto.tipoPersonalizado?.trim() || null) : null,
     aviso_dias: tipo === 'evento' ? readAvisoDias(projeto.avisoDias) : null,
   };
   const { error } = await supabase.from('projetos').upsert(row);
@@ -3237,11 +3275,29 @@ export async function deleteTemplate(id: string): Promise<void> {
 // AGENDA
 // ============================================================================
 
+export async function saveProjetoLivro(livro: ProjetoLivro): Promise<void> {
+  if (!supabase) return;
+  const uid = await currentUserId();
+  if (!uid) throw new Error('projeto_livros: authenticated session unavailable');
+  const { error } = await supabase.from('projeto_livros').upsert({
+    id: livro.id,
+    projeto_id: livro.projetoId,
+    user_id: uid,
+    nome: livro.nome.trim(),
+    biblioteca_item_id: livro.bibliotecaItemId,
+  });
+  if (error) throw new Error(`projeto_livros: ${error.message}`);
+}
+
 export async function saveAgendaItem(item: Omit<AgendaItem, 'createdAt'>): Promise<void> {
   if (!supabase) return;
+  const periodo = item.tipo === 'Período de leitura';
   const { error } = await supabase.from('agenda_items').upsert({
     id: item.id, user_id: item.userId, title: item.title, date: item.date,
-    time: item.time, tipo: item.tipo, projeto_id: item.projetoId,
+    time: item.time || null, tipo: item.tipo, projeto_id: item.projetoId,
+    notes: item.notes?.trim() || null,
+    date_end: periodo ? (item.dateEnd || null) : null,
+    projeto_livro_id: periodo ? (item.projetoLivroId || null) : null,
   });
   if (error) throw new Error(`agenda_items: ${error.message}`);
 }

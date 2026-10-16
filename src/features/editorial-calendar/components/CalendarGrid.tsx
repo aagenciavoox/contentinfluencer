@@ -35,6 +35,8 @@ import {
 } from 'lucide-react';
 import { useAppContext } from '../../../context/AppContext';
 import { Content, Projeto, AgendaItem, Look, Cenario } from '../../../lib/database';
+import { eventoCobreDia } from '../../projects/lib/agendaEventos';
+import { AgendaTipoIcon } from '../../projects/components/AgendaTipoIcon';
 type Partnership = Projeto;
 import { cn, getEventDates } from '../../../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
@@ -122,13 +124,13 @@ export function CalendarGrid({ activeLayers, searchTerm, sortValue, onItemClick 
           return true;
         })
         .forEach(a => {
-        if (a.date === dayStr) {
+        if (eventoCobreDia(a, dayStr)) {
           const linkedProjeto = a.projetoId ? state.projetos.find(proj => proj.id === a.projetoId) : null;
           items.push({
             ...a,
             type: 'agenda',
             projetoColor: linkedProjeto?.color || null,
-            icon: <CalendarIcon className="w-2.5 h-2.5" />
+            icon: <AgendaTipoIcon tipo={a.tipo} className="h-3 w-3" />
           });
         }
       });

@@ -15,6 +15,7 @@ import {
 } from '../lib/calendarContentFilters';
 import {buildPublishCalendarItems, isScheduledItem, publishItemStatus, todayKey} from '../lib/publishCalendarItems';
 import type {GradeSerie} from '../../editorial/lib/gradeEntries';
+import {diasCobertos, papelNoIntervalo} from '../../projects/lib/agendaEventos';
 import {calendarEntryIcon} from './CalendarNetworkIcons';
 import {rotuloDaRef} from '../../contas/lib/contas';
 
@@ -62,6 +63,8 @@ export type CalendarEntry = {
   scheduled?: boolean;
   agendaId?: string;
   projetoId?: string;
+  agendaTipo?: string;
+  span?: 'single' | 'start' | 'middle' | 'end';
 };
 
 export function buildCalendarEntries(
@@ -154,15 +157,23 @@ export function buildCalendarEntries(
   if (activeLayers.includes('agenda') && !contentFilterActive) {
     agendaItems.forEach(item => {
       const linkedProjeto = item.projetoId ? projetos.find(p => p.id === item.projetoId) : null;
-      push(item.date, {
-        id: item.id,
-        type: 'agenda',
-        label: item.title,
-        date: '',
-        time: item.time,
-        agendaId: item.id,
-        secondary: item.tipo,
-        color: linkedProjeto?.color,
+      const dias = diasCobertos(item);
+      const fim = item.dateEnd || item.date;
+      dias.forEach(dia => {
+        const papel = papelNoIntervalo(dia, item.date, fim);
+        push(dia, {
+          id: dias.length > 1 ? `${item.id}:${dia}` : item.id,
+          type: 'agenda',
+          label: linkedProjeto ? `${item.title} · ${linkedProjeto.nome}` : item.title,
+          date: '',
+          time: papel === 'start' || papel === 'single' ? item.time : null,
+          agendaId: item.id,
+          projetoId: item.projetoId,
+          agendaTipo: item.tipo,
+          span: papel,
+          secondary: linkedProjeto?.nome || item.tipo,
+          color: linkedProjeto?.color,
+        });
       });
     });
   }
@@ -310,6 +321,15 @@ export function MonthlyCalendarView({
                       variant="compact"
                       icon={calendarEntryIcon(entry)}
                       style={calendarEntryPillStyle(entry)}
+                      className={
+                        entry.span === 'start'
+                          ? 'rounded-r-none'
+                          : entry.span === 'end'
+                            ? 'rounded-l-none'
+                            : entry.span === 'middle'
+                              ? 'rounded-none'
+                              : undefined
+                      }
                       onClick={event => {
                         event.stopPropagation();
                         onSelectEntry?.(entry);

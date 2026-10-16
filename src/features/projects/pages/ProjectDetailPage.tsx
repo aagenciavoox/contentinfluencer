@@ -29,13 +29,15 @@ import { Surface } from '../../../components/ui/Surface';
 import { TagSelect } from '../../../components/ui/TagSelect';
 import { Text } from '../../../components/ui/Text';
 import { useIsMobile } from '../../../hooks/useIsMobile';
+import { Dialog } from '../../../components/overlays/Dialog';
 import { ProjectDetailMobileScreen } from '../../../mobile/screens/projects/ProjectDetailMobileScreen';
 import type { ProjectDetailEditFields } from '../../../mobile/screens/projects/ProjectDetailMobileScreen';
-import { PostingTimeSuggestions } from '../../settings/components/PostingTimeSuggestions';
 import { getPostingTimesForPlatform } from '../../settings/lib/postingTimes';
-import { generateUUID } from '../../../utils/uuid';
+import { AgendaEventoDialog } from '../components/AgendaEventoDialog';
 import { FuncaoDoRoteiro } from '../components/FuncaoDoRoteiro';
+import { ProjetoCorPicker } from '../components/ProjetoCorPicker';
 import { ProjetoEventoFields } from '../components/ProjetoEventoFields';
+import { ProjectMonthCalendar } from '../components/ProjectMonthCalendar';
 import { entregaDoProjeto } from '../lib/entrega';
 import { getGentleExperienceSettings } from '../../settings/lib/gentleExperience';
 import {
@@ -43,20 +45,21 @@ import {
   avisoDiasInvalido,
   avisoDiasParaSalvar,
   isProjetoEvento,
+  isProjetoPubli,
   rotuloAvisoDias,
   rotuloProjetoTipo,
+  tipoDoFormulario,
+  tiposPersonalizadosUsados,
   type EscolhaFuncaoEvento,
   type ProjetoTipoFormulario,
 } from '../lib/evento';
+import type { ProjetoLivro } from '../../../lib/database';
 import { PROJECT_STATUS_LABEL } from './ProjectsPage';
 
-const PROJECT_COLORS = [
-  '#ef4444', '#f97316', '#f59e0b', '#84cc16', '#22c55e',
-  '#14b8a6', '#06b6d4', '#3b82f6', '#6366f1', '#8b5cf6',
-  '#a855f7', '#ec4899', '#f43f5e', '#78716c',
-];
-
-const TIPO_AGENDA: AgendaItem['tipo'][] = ['Reunião', 'Entrega', 'Publicação', 'Outro'];
+type EventoDialogState =
+  | null
+  | { mode: 'create'; date: string }
+  | { mode: 'edit'; item: AgendaItem };
 
 function localTodayKey() {
   const now = new Date();
@@ -132,15 +135,11 @@ export function ProjectDetailPage() {
   const [editColor, setEditColor] = useState('');
   const [editDriveUrl, setEditDriveUrl] = useState('');
   const [editTipo, setEditTipo] = useState<ProjetoTipoFormulario>('publi');
+  const [editTipoPersonalizado, setEditTipoPersonalizado] = useState('');
   const [editAvisoDias, setEditAvisoDias] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [confirm, setConfirm] = useState<ConfirmState | null>(null);
-
-  const [agendaTitle, setAgendaTitle] = useState('');
-  const [agendaDate, setAgendaDate] = useState('');
-  const [agendaTime, setAgendaTime] = useState('');
-  const [agendaTipo, setAgendaTipo] = useState<AgendaItem['tipo']>('Reunião');
-  const [showAgendaForm, setShowAgendaForm] = useState(false);
+  const [eventoDialog, setEventoDialog] = useState<EventoDialogState>(null);
 
   if (!projeto) {
     return (
@@ -173,8 +172,8 @@ export function ProjectDetailPage() {
     setEditNotes(projeto.notes || '');
     setEditColor(projeto.color || '#78716c');
     setEditDriveUrl(projeto.driveUrl || '');
-    const tipoNormalizado = normalizeProjetoTipo(projeto.tipo);
-    setEditTipo(tipoNormalizado === 'producao' || tipoNormalizado === 'evento' || tipoNormalizado === 'outro' ? tipoNormalizado : 'publi');
+    setEditTipo(tipoDoFormulario(normalizeProjetoTipo(projeto.tipo)));
+    setEditTipoPersonalizado(projeto.tipoPersonalizado || '');
     setEditAvisoDias(projeto.avisoDias == null ? '' : String(projeto.avisoDias));
     setIsEditing(true);
   };
@@ -188,10 +187,11 @@ export function ProjectDetailPage() {
         ...projeto,
         nome: editNome.trim() || projeto.nome,
         tipo: editTipo,
+        tipoPersonalizado: editTipo === 'outro' ? (editTipoPersonalizado.trim() || null) : null,
         avisoDias: aviso,
         brand: editBrand.trim() || null,
         color: editColor || null,
-        value: editValue ? parseFloat(editValue) : null,
+        value: isProjetoPubli(editTipo) ? (editValue ? parseFloat(editValue) : null) : projeto.value,
         driveUrl: editDriveUrl.trim() || null,
         notes: editNotes.trim() || null,
         updatedAt: new Date().toISOString(),
@@ -238,23 +238,14 @@ export function ProjectDetailPage() {
     });
   };
 
-  const handleAddAgenda = () => {
-    if (!agendaTitle.trim() || !agendaDate) return;
-    const item: AgendaItem = {
-      id: generateUUID(),
-      userId: user?.id || '',
-      title: agendaTitle.trim(),
-      date: agendaDate,
-      time: agendaTime || null,
-      tipo: agendaTipo,
-      projetoId: projeto.id,
-      createdAt: new Date().toISOString(),
-    };
-    dispatch({ type: 'ADD_AGENDA_ITEM', payload: item });
-    setAgendaTitle('');
-    setAgendaDate('');
-    setAgendaTime('');
-    setShowAgendaForm(false);
+  const salvarEvento = (item: AgendaItem, livroNovo?: ProjetoLivro) => {
+    const existe = state.agendaItems.some(atual => atual.id === item.id);
+    dispatch({
+      type: existe ? 'UPDATE_AGENDA_ITEM' : 'ADD_AGENDA_ITEM',
+      payload: {...item, userId: user?.id || item.userId, projetoId: projeto.id},
+      livroNovo,
+    });
+    setEventoDialog(null);
   };
 
   const handleEditFieldChange = <K extends keyof ProjectDetailEditFields>(
@@ -269,6 +260,7 @@ export function ProjectDetailPage() {
       case 'color': setEditColor(value as string); break;
       case 'driveUrl': setEditDriveUrl(value as string); break;
       case 'tipo': setEditTipo(value as ProjetoTipoFormulario); break;
+      case 'tipoPersonalizado': setEditTipoPersonalizado(value as string); break;
       case 'avisoDias': setEditAvisoDias(value as string); break;
     }
   };
@@ -292,8 +284,30 @@ export function ProjectDetailPage() {
     color: editColor,
     driveUrl: editDriveUrl,
     tipo: editTipo,
+    tipoPersonalizado: editTipoPersonalizado,
     avisoDias: editAvisoDias,
   };
+
+  const eventoDialogNode = (
+    <Dialog open={eventoDialog != null} onClose={() => setEventoDialog(null)} desktopMaxW="max-w-xl" ariaLabel="Evento do projeto">
+      {eventoDialog ? (
+        <AgendaEventoDialog
+          key={eventoDialog.mode === 'edit' ? eventoDialog.item.id : `novo-${eventoDialog.date}`}
+          item={eventoDialog.mode === 'edit' ? eventoDialog.item : null}
+          projetos={state.projetos}
+          bibliotecaItems={state.bibliotecaItems}
+          projetoIdFixo={projeto.id}
+          dataInicial={eventoDialog.mode === 'create' ? eventoDialog.date : undefined}
+          onClose={() => setEventoDialog(null)}
+          onSave={salvarEvento}
+          onDelete={evento => {
+            dispatch({type: 'DELETE_AGENDA_ITEM', payload: evento.id});
+            setEventoDialog(null);
+          }}
+        />
+      ) : null}
+    </Dialog>
+  );
 
   if (isMobile) {
     return (
@@ -303,7 +317,6 @@ export function ProjectDetailPage() {
           agendaItems={agendaItems}
           projetoContents={projetoContents}
           disponiveisParaVincular={disponiveisParaVincular}
-          postingTimes={postingTimes}
           isEditing={isEditing}
           editFields={editFields}
           onEditFieldChange={handleEditFieldChange}
@@ -311,25 +324,16 @@ export function ProjectDetailPage() {
           onSaveEdit={saveEdit}
           onCancelEdit={() => setIsEditing(false)}
           onDeleteProjeto={handleDeleteProjeto}
-          showAgendaForm={showAgendaForm}
-          agendaTitle={agendaTitle}
-          agendaDate={agendaDate}
-          agendaTime={agendaTime}
-          agendaTipo={agendaTipo}
-          onAgendaTitleChange={setAgendaTitle}
-          onAgendaDateChange={setAgendaDate}
-          onAgendaTimeChange={setAgendaTime}
-          onAgendaTipoChange={setAgendaTipo}
-          onOpenAgendaForm={() => setShowAgendaForm(true)}
-          onCloseAgendaForm={() => setShowAgendaForm(false)}
-          onAddAgenda={handleAddAgenda}
-          onDeleteAgendaItem={itemId => dispatch({ type: 'DELETE_AGENDA_ITEM', payload: itemId })}
+          onCreateEvent={date => setEventoDialog({mode: 'create', date})}
+          onOpenEvent={item => setEventoDialog({mode: 'edit', item})}
+          tiposSalvos={tiposPersonalizadosUsados(state.projetos)}
           onVincularContent={vincularContent}
           onOpenContent={contentId => navigate(`/conteudos/${contentId}`, detailBackState)}
           onCreateContent={() => navigate('/criacao?compose=script')}
           series={state.series}
           onEscolherFuncao={escolherFuncao}
         />
+        {eventoDialogNode}
         {confirmModal}
       </div>
     );
@@ -369,7 +373,7 @@ export function ProjectDetailPage() {
                 {projeto.brand ? (
                   <Text variant="label">{projeto.brand}</Text>
                 ) : null}
-                <Badge variant="neutral">{rotuloProjetoTipo(projeto.tipo)}</Badge>
+                <Badge variant="neutral">{rotuloProjetoTipo(projeto.tipo, projeto.tipoPersonalizado)}</Badge>
                 {projeto.status ? (
                   <Badge variant="neutral">{statusLabel}</Badge>
                 ) : null}
@@ -392,7 +396,7 @@ export function ProjectDetailPage() {
               <AppButton
                 variant="primary"
                 leftIcon={<Plus className="h-4 w-4" />}
-                onClick={() => setShowAgendaForm(true)}
+                onClick={() => setEventoDialog({mode: 'create', date: localTodayKey()})}
               >
                 Novo evento
               </AppButton>
@@ -424,93 +428,15 @@ export function ProjectDetailPage() {
         <div className="stack-lg">
           <SectionCard
             eyebrow="Calendário"
-            title="Eventos"
+            title="Eventos do projeto"
           >
-            <div className="stack-md">
-              {showAgendaForm && (
-                <div className="rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4">
-                  <div className="stack-md">
-                    <input
-                      autoFocus
-                      value={agendaTitle}
-                      onChange={event => setAgendaTitle(event.target.value)}
-                      placeholder="Título do evento"
-                      className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none"
-                    />
-                    <div className="grid gap-3 md:grid-cols-3">
-                      <input
-                        type="date"
-                        value={agendaDate}
-                        onChange={event => setAgendaDate(event.target.value)}
-                        className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] px-4 py-3 text-xs text-[var(--text-primary)] focus:outline-none"
-                      />
-                      <div className="stack-xs">
-                        <input
-                          type="time"
-                          value={agendaTime}
-                          onChange={event => setAgendaTime(event.target.value)}
-                          className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] px-4 py-3 text-xs text-[var(--text-primary)] focus:outline-none"
-                        />
-                        <PostingTimeSuggestions
-                          date={agendaDate}
-                          selectedTime={agendaTime}
-                          postingTimes={postingTimes}
-                          onSelect={setAgendaTime}
-                        />
-                      </div>
-                      <TagSelect
-                        label="Tipo"
-                        values={[agendaTipo]}
-                        onChange={values => setAgendaTipo((values[0] ?? 'Reunião') as AgendaItem['tipo'])}
-                        options={TIPO_AGENDA.map(tipo => ({value: tipo, label: tipo}))}
-                        maxSelections={1}
-                      />
-                    </div>
-                    <div className="flex flex-wrap gap-3">
-                      <AppButton variant="secondary" onClick={handleAddAgenda}>
-                        Adicionar evento
-                      </AppButton>
-                      <AppButton variant="secondary" onClick={() => setShowAgendaForm(false)}>
-                        Cancelar
-                      </AppButton>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {agendaItems.length === 0 && !showAgendaForm && (
-                <div className="rounded-[var(--radius-card)] border border-dashed border-[var(--border-color)] px-6 py-8 text-center">
-                  <Text variant="bodyStrong">Nenhum evento ainda</Text>
-                  <Text variant="secondary" className="mt-2">
-                    Crie reuniões, entregas e publicações. Tudo aparece no calendário.
-                  </Text>
-                </div>
-              )}
-
-              {agendaItems.map(item => (
-                <div key={item.id} className="flex items-center gap-4 rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-4">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-[var(--radius-card)] bg-[var(--bg-primary)] text-[var(--text-primary)]">
-                    <CalendarDays className="h-5 w-5" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <Text variant="itemTitle" as="p">{item.title}</Text>
-                    <Text variant="meta" className="mt-1 block">
-                      {formatDate(item.date)}{item.time ? ` · ${item.time}` : ''} · {item.tipo}
-                    </Text>
-                  </div>
-                  <AppButton
-                    type="button"
-                    variant="ghost"
-                    iconOnly
-                    aria-label={`Remover evento ${item.title}`}
-                    onClick={() => dispatch({ type: 'DELETE_AGENDA_ITEM', payload: item.id })}
-                    leftIcon={<Trash2 className="h-4 w-4" />}
-                  >
-                    Remover
-                  </AppButton>
-                </div>
-              ))}
-            </div>
+            <ProjectMonthCalendar
+              eventos={agendaItems}
+              livros={projeto.livros ?? []}
+              cor={projeto.color}
+              onCreate={date => setEventoDialog({mode: 'create', date})}
+              onOpen={item => setEventoDialog({mode: 'edit', item})}
+            />
           </SectionCard>
 
           <SectionCard
@@ -606,9 +532,9 @@ export function ProjectDetailPage() {
                 {/* Lista simples em vez de cards dentro do card. A cor é ajuste, fica só na edição. */}
                 <dl className="stack-sm">
                   {[
-                    { label: 'Tipo', value: rotuloProjetoTipo(projeto.tipo) },
-                    { label: 'Marca', value: projeto.brand || '--' },
-                    { label: 'Valor', value: formattedValue },
+                    { label: 'Tipo', value: rotuloProjetoTipo(projeto.tipo, projeto.tipoPersonalizado) },
+                    { label: 'Marca ou parceiro', value: projeto.brand || '--' },
+                    ...(isProjetoPubli(projeto.tipo) ? [{ label: 'Valor', value: formattedValue }] : []),
                     ...(evento ? [{ label: 'Aviso', value: rotuloAvisoDias(projeto.avisoDias) }] : []),
                   ].map(item => (
                     <div key={item.label} className="flex items-baseline justify-between gap-4 border-b border-[var(--border-subtle)] pb-2 last:border-b-0 last:pb-0">
@@ -636,37 +562,30 @@ export function ProjectDetailPage() {
                 <ProjetoEventoFields
                   tipo={editTipo}
                   avisoDias={editAvisoDias}
+                  tipoPersonalizado={editTipoPersonalizado}
+                  tiposSalvos={tiposPersonalizadosUsados(state.projetos)}
+                  incluirProducao={editTipo === 'producao' || projeto.tipo === 'producao'}
                   onTipoChange={setEditTipo}
                   onAvisoDiasChange={setEditAvisoDias}
+                  onTipoPersonalizadoChange={setEditTipoPersonalizado}
                   inputClassName="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none"
                 />
                 <input
                   value={editBrand}
                   onChange={event => setEditBrand(event.target.value)}
-                  placeholder="Marca"
+                  placeholder="Marca ou parceiro"
                   className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none"
                 />
-                <input
-                  type="number"
-                  value={editValue}
-                  onChange={event => setEditValue(event.target.value)}
-                  placeholder="Valor (R$)"
-                  className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-3 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none"
-                />
-                <div>
-                  <Text variant="label" className="mb-2 block">Cor do projeto</Text>
-                  <div className="flex flex-wrap gap-2">
-                    {PROJECT_COLORS.map(c => (
-                      <button
-                        key={c}
-                        type="button"
-                        onClick={() => setEditColor(c)}
-                        className={cn('h-7 w-7 rounded-full border-2 transition-all', editColor === c ? 'border-[var(--text-primary)] scale-110' : 'border-transparent opacity-50 hover:opacity-80')}
-                        style={{ backgroundColor: c }}
-                      />
-                    ))}
-                  </div>
-                </div>
+                {isProjetoPubli(editTipo) ? (
+                  <input
+                    type="number"
+                    value={editValue}
+                    onChange={event => setEditValue(event.target.value)}
+                    placeholder="Valor (R$)"
+                    className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-3 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none"
+                  />
+                ) : null}
+                <ProjetoCorPicker value={editColor} onChange={setEditColor} />
                 <input
                   value={editDriveUrl}
                   onChange={event => setEditDriveUrl(event.target.value)}
@@ -695,6 +614,7 @@ export function ProjectDetailPage() {
         </div>
       </div>
     </PageLayout>
+    {eventoDialogNode}
     {confirmModal}
     </>
   );

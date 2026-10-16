@@ -20,6 +20,7 @@ import { Dialog } from '../../../components/overlays/Dialog';
 import { Surface } from '../../../components/ui/Surface';
 import { Text } from '../../../components/ui/Text';
 import { Content, Projeto, AgendaItem } from '../../../lib/database';
+import { eventoCobreDia } from '../../projects/lib/agendaEventos';
 type Partnership = Projeto;
 
 interface AgendaViewProps {
@@ -79,7 +80,7 @@ export function CalendarAgendaView({
     }
 
     if (activeLayers.includes('agenda')) {
-      externalEvents.filter(e => e.date === dateStr)
+      externalEvents.filter(e => eventoCobreDia(e, dateStr))
         .forEach(e => items.push({ ...e, __type: 'external' }));
     }
 

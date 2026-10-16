@@ -51,6 +51,8 @@ import {
 import {buildPublishCalendarItems, isScheduledItem, publishItemStatus, todayKey} from '../../../features/editorial-calendar/lib/publishCalendarItems';
 import {UNDATED_PILE_STORAGE_KEY} from '../../../features/editorial-calendar/components/UndatedRoteiroPile';
 import {PlatformIcon} from '../../../components/ui/PlatformIcon';
+import {AgendaTipoIcon} from '../../../features/projects/components/AgendaTipoIcon';
+import {diasCobertos} from '../../../features/projects/lib/agendaEventos';
 import {rotuloDaRef} from '../../../features/contas/lib/contas';
 
 type AgendaTimelineKind = 'agenda' | 'recording' | 'publish' | 'project';
@@ -85,6 +87,7 @@ interface AgendaTimelineEntry {
   contentId?: string;
   plataformaId?: string;
   agendaId?: string;
+  agendaTipo?: string;
   projetoId?: string;
   platformNames?: string[];
   contentStatus?: string;
@@ -163,15 +166,19 @@ function buildTimelineEntries(contents: Content[], platforms: Platform[], agenda
 
   agendaItems.forEach(item => {
     const linkedProjeto = item.projetoId ? projectById.get(item.projetoId) : null;
-    entries.push({
-      id: item.id,
-      kind: 'agenda',
-      title: item.title,
-      date: item.date,
-      time: item.time,
-      agendaId: item.id,
-      secondary: linkedProjeto ? linkedProjeto.nome : item.tipo,
-      color: linkedProjeto?.color,
+    diasCobertos(item).forEach(dia => {
+      entries.push({
+        id: dia === item.date.slice(0, 10) ? item.id : `${item.id}:${dia}`,
+        kind: 'agenda',
+        title: item.title,
+        date: dia,
+        time: dia === item.date.slice(0, 10) ? item.time : null,
+        agendaId: item.id,
+        agendaTipo: item.tipo,
+        projetoId: item.projetoId,
+        secondary: linkedProjeto ? linkedProjeto.nome : item.tipo,
+        color: linkedProjeto?.color,
+      });
     });
   });
 
@@ -652,7 +659,9 @@ export function AgendaMobileScreen({
                           ? CONTENT_STATUS.POSTADO
                           : entry.scheduled
                             ? DISPLAY_STATUS.PROGRAMADO
-                            : KIND_LABELS[entry.kind]}
+                            : entry.kind === 'agenda' && entry.agendaTipo
+                              ? entry.agendaTipo
+                              : KIND_LABELS[entry.kind]}
                         title={entry.title}
                         description={entry.secondary || ''}
                         onClick={() =>
@@ -669,6 +678,7 @@ export function AgendaMobileScreen({
                             posted: entry.posted,
                             scheduled: entry.scheduled,
                             agendaId: entry.agendaId,
+                            agendaTipo: entry.agendaTipo,
                             projetoId: entry.projetoId,
                           })
                         }
@@ -698,7 +708,9 @@ export function AgendaMobileScreen({
                           ) : entry.kind === 'project' ? (
                             <BriefcaseBusiness className="h-4 w-4" style={entry.color ? { color: entry.color } : { color: 'var(--accent-purple)' }} />
                           ) : (
-                            <Clapperboard className="h-4 w-4 text-[var(--accent-green)]" />
+                            <span style={{color: entry.color || 'var(--accent-green)'}}>
+                              <AgendaTipoIcon tipo={entry.agendaTipo || 'Outro'} className="h-4 w-4" />
+                            </span>
                           )
                         }
                       />

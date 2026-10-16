@@ -20,15 +20,25 @@ export function projetoConcluido(status: string | null | undefined): boolean {
  */
 export function entregaDoProjeto(
   projeto: Pick<Projeto, 'status' | 'dataFim' | 'etapas'>,
-  eventos: readonly Pick<AgendaItem, 'date' | 'title'>[],
+  eventos: readonly Pick<AgendaItem, 'date' | 'title' | 'dateEnd'>[],
   hoje: string,
 ): EntregaDoProjeto | null {
   if (projetoConcluido(projeto.status)) return null;
 
   const marcos: Marco[] = [
-    ...eventos
-      .filter(evento => Boolean(evento.date))
-      .map(evento => ({data: evento.date.slice(0, 10), titulo: evento.title.trim() || 'Evento'})),
+    ...eventos.flatMap(evento => {
+      if (!evento.date) return [];
+      const titulo = evento.title.trim() || 'Evento';
+      const inicio = evento.date.slice(0, 10);
+      const fim = evento.dateEnd?.slice(0, 10);
+      if (fim && fim > inicio) {
+        return [
+          {data: inicio, titulo},
+          {data: fim, titulo},
+        ];
+      }
+      return [{data: inicio, titulo}];
+    }),
     ...projeto.etapas
       .filter(etapa => etapa.dataPrazo && !projetoConcluido(etapa.status))
       .map(etapa => ({data: etapa.dataPrazo!.slice(0, 10), titulo: etapa.nome.trim() || 'Etapa'})),

@@ -31,6 +31,7 @@ export type PersistenceApi = Pick<DatabaseModule,
   | 'saveProjetoEtapa'
   | 'saveProjetoEtapas'
   | 'saveProjetoConteudos'
+  | 'saveProjetoLivro'
   | 'deleteProjetoEtapa'
   | 'deleteProjeto'
   | 'savePilar'
@@ -342,6 +343,9 @@ export async function persistAction({ action, userId, state, api }: PersistActio
     case 'UPDATE_AGENDA':
     case 'ADD_AGENDA_ITEM':
     case 'UPDATE_AGENDA_ITEM':
+      if ('livroNovo' in action && action.livroNovo) {
+        await persistenceApi.saveProjetoLivro({ ...action.livroNovo, userId });
+      }
       await persistenceApi.saveAgendaItem({ ...action.payload, userId });
       return;
 

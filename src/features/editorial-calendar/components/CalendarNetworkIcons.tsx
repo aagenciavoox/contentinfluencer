@@ -1,10 +1,12 @@
 import {Check, Clock} from 'lucide-react';
 import {PlatformIcon} from '../../../components/ui/PlatformIcon';
 import {editorialPillStyle} from '../../../components/calendar/calendarPillStyles';
+import {AgendaTipoIcon} from '../../projects/components/AgendaTipoIcon';
 import type {CalendarEntry} from './MonthlyCalendarView';
 
-/** Ícones do item: ✓ para postado, relógio para programado e as redes. */
-export function calendarEntryIcon(entry: Pick<CalendarEntry, 'platformNames' | 'posted' | 'scheduled'>) {
+/** Ícones do item: atividade do projeto, ✓ para postado, relógio para programado e as redes. */
+export function calendarEntryIcon(entry: Pick<CalendarEntry, 'platformNames' | 'posted' | 'scheduled' | 'agendaTipo'>) {
+  if (entry.agendaTipo) return <AgendaTipoIcon tipo={entry.agendaTipo} />;
   if (!entry.platformNames?.length && !entry.posted && !entry.scheduled) return undefined;
   return <CalendarNetworkIcons names={entry.platformNames} posted={entry.posted} scheduled={entry.scheduled} />;
 }

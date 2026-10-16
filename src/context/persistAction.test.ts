@@ -32,6 +32,7 @@ function createMockApi(contentsById: Content[] = []) {
     saveProjetoEtapa: record('saveProjetoEtapa'),
     saveProjetoEtapas: record('saveProjetoEtapas'),
     saveProjetoConteudos: record('saveProjetoConteudos'),
+    saveProjetoLivro: record('saveProjetoLivro'),
     deleteProjetoEtapa: record('deleteProjetoEtapa'),
     deleteProjeto: record('deleteProjeto'),
     savePilar: record('savePilar'),

@@ -1,27 +1,70 @@
 import type { FuncaoEditorial, FuncaoOrigem, Projeto } from '../../../lib/database.ts';
 import { FUNCAO_LABELS, FUNCOES, funcaoHerdavelDaSerie, isFuncaoEditorial, rotuloDaSerie } from '../../editorial/lib/funcoes.ts';
 
-/** Tipos oferecidos no formulário. `campanha` segue como legado e vira `publi`. */
-export const PROJETO_TIPOS_FORMULARIO = ['publi', 'producao', 'evento', 'outro'] as const;
+/** `campanha` é o valor legado de Publi. Produção e os demais tipos ficam como estão. */
+function tipoCanonico(tipo: string | null | undefined): string {
+  if (tipo === 'campanha') return 'publi';
+  return tipo || '';
+}
 
-export type ProjetoTipoFormulario = (typeof PROJETO_TIPOS_FORMULARIO)[number];
+/** Tipos novos do formulário. `producao` só aparece ao editar um projeto que já é Produção. */
+export const PROJETO_TIPOS_FORMULARIO = ['publi', 'parceria', 'evento', 'maratona', 'outro'] as const;
+
+export type ProjetoTipoFormulario = (typeof PROJETO_TIPOS_FORMULARIO)[number] | 'producao';
 
 export const PROJETO_TIPO_OPCOES: Array<{ value: ProjetoTipoFormulario; label: string }> = [
   { value: 'publi', label: 'Publi' },
-  { value: 'producao', label: 'Produção' },
+  { value: 'parceria', label: 'Parceria' },
   { value: 'evento', label: 'Evento' },
+  { value: 'maratona', label: 'Maratona de leitura' },
   { value: 'outro', label: 'Outro' },
 ];
+
+const TIPOS_FORMULARIO = new Set<string>([
+  ...PROJETO_TIPOS_FORMULARIO,
+  'producao',
+]);
+
+export function tipoDoFormulario(tipo: string | null | undefined): ProjetoTipoFormulario {
+  const normalizado = tipoCanonico(tipo);
+  if (TIPOS_FORMULARIO.has(normalizado)) return normalizado as ProjetoTipoFormulario;
+  return 'publi';
+}
+
+export function isProjetoPubli(tipo: string | null | undefined): boolean {
+  return tipoCanonico(tipo) === 'publi';
+}
+
+/** Nomes já usados em Outro, para reaparecer no cadastro de outro projeto. */
+export function tiposPersonalizadosUsados(
+  projetos: readonly { tipo: string; tipoPersonalizado?: string | null }[],
+): string[] {
+  const vistos = new Set<string>();
+  const nomes: string[] = [];
+  for (const projeto of projetos) {
+    if (tipoCanonico(projeto.tipo) !== 'outro') continue;
+    const nome = projeto.tipoPersonalizado?.trim();
+    if (!nome) continue;
+    const chave = nome.toLocaleLowerCase('pt-BR');
+    if (vistos.has(chave)) continue;
+    vistos.add(chave);
+    nomes.push(nome);
+  }
+  return nomes.sort((left, right) => left.localeCompare(right, 'pt-BR'));
+}
 
 export function isProjetoEvento(tipo: string | null | undefined): boolean {
   return tipo === 'evento';
 }
 
-export function rotuloProjetoTipo(tipo: string | null | undefined): string {
-  if (tipo === 'evento') return 'Evento';
-  if (tipo === 'producao') return 'Produção';
-  if (tipo === 'outro') return 'Outro';
-  if (tipo === 'publi' || tipo === 'campanha') return 'Publi';
+export function rotuloProjetoTipo(tipo: string | null | undefined, personalizado?: string | null): string {
+  const canonico = tipoCanonico(tipo);
+  if (canonico === 'evento') return 'Evento';
+  if (canonico === 'producao') return 'Produção';
+  if (canonico === 'parceria') return 'Parceria';
+  if (canonico === 'maratona') return 'Maratona de leitura';
+  if (canonico === 'outro') return personalizado?.trim() || 'Outro';
+  if (canonico === 'publi') return 'Publi';
   return 'Projeto';
 }
 

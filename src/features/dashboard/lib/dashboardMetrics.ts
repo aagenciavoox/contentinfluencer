@@ -16,7 +16,7 @@ export function getInProduction(contents: Content[]): Content[] {
 
 export function getUpcomingAgenda(agendaItems: AgendaItem[], limit = 5): AgendaItem[] {
   return [...agendaItems]
-    .filter(item => item.date >= new Date().toISOString().slice(0, 10))
+    .filter(item => (item.dateEnd || item.date) >= new Date().toISOString().slice(0, 10))
     .sort((a, b) => `${a.date}${a.time || ''}`.localeCompare(`${b.date}${b.time || ''}`))
     .slice(0, limit);
 }

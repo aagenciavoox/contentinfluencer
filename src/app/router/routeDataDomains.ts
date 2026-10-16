@@ -16,7 +16,7 @@ export function getRouteDataDomains(pathname: string): AppDataDomain[] {
   if (pathname.startsWith('/conteudos')) return ['production'];
   if (pathname.startsWith('/ideias')) return ['production'];
   if (pathname.startsWith('/calendario')) {
-    return ['content-schedule', 'agenda', 'projects', 'production'];
+    return ['content-schedule', 'agenda', 'projects', 'production', 'library'];
   }
   if (pathname.startsWith('/planejamento') || pathname.startsWith('/programacao')) {
     return ['content', 'planejamento'];

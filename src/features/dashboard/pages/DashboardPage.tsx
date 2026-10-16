@@ -27,6 +27,7 @@ import { buildDailySessionBlock, getSessionCandidates, suggestionSummary, sugges
 import { buildDayPulse, formatDayTitle, formatWeekdayShort, localDateKey } from '../lib/dayPulse';
 import { resolveCurrentRead } from '../lib/currentRead';
 import { getUpcomingAgenda } from '../lib/dashboardMetrics';
+import { eventoCobreDia } from '../../projects/lib/agendaEventos';
 import {
   computeReadingsFromApp,
   leiturasDoHoje,
@@ -92,7 +93,7 @@ export function DashboardPage() {
   }, [state.bibliotecaItems, state.preferences.mobile_notes_primary_book_id]);
 
   const agendaToday = useMemo(
-    () => getUpcomingAgenda(state.agendaItems, 20).filter(item => item.date === todayKey),
+    () => getUpcomingAgenda(state.agendaItems, 20).filter(item => eventoCobreDia(item, todayKey)),
     [state.agendaItems, todayKey],
   );
   const in7days = format(addDays(today, 7), 'yyyy-MM-dd');

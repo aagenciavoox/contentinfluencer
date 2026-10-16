@@ -14,16 +14,18 @@ import { TagSelect } from '../../../components/ui/TagSelect';
 import { Text } from '../../../components/ui/Text';
 import type { AgendaItem, Content, FuncaoPadraoSerie, Projeto } from '../../../lib/database';
 import { cn } from '../../../lib/utils';
-import { PostingTimeSuggestions } from '../../../features/settings/components/PostingTimeSuggestions';
-import type { PostingTimesSettings } from '../../../features/settings/lib/postingTimes';
 import { EmptyState } from '../../../components/ui/EmptyState';
 import { FuncaoDoRoteiro } from '../../../features/projects/components/FuncaoDoRoteiro';
+import { ProjetoCorPicker } from '../../../features/projects/components/ProjetoCorPicker';
 import { ProjetoEventoFields } from '../../../features/projects/components/ProjetoEventoFields';
+import { ProjectMonthCalendar } from '../../../features/projects/components/ProjectMonthCalendar';
 import {
   avisoDiasInvalido,
   isProjetoEvento,
+  isProjetoPubli,
   rotuloAvisoDias,
   rotuloProjetoTipo,
+  tiposPersonalizadosUsados,
   type EscolhaFuncaoEvento,
   type ProjetoTipoFormulario,
 } from '../../../features/projects/lib/evento';
@@ -32,14 +34,6 @@ import { MobileListCard } from '../../components/MobileListCard';
 import { MobileSegmentTabs } from '../../components/MobileSegmentTabs';
 
 type ProjectDetailTab = 'eventos' | 'conteudos';
-
-const PROJECT_COLORS = [
-  '#ef4444', '#f97316', '#f59e0b', '#84cc16', '#22c55e',
-  '#14b8a6', '#06b6d4', '#3b82f6', '#6366f1', '#8b5cf6',
-  '#a855f7', '#ec4899', '#f43f5e', '#78716c',
-];
-
-const TIPO_AGENDA: AgendaItem['tipo'][] = ['Reunião', 'Entrega', 'Publicação', 'Outro'];
 
 function localTodayKey() {
   const now = new Date();
@@ -74,6 +68,7 @@ export interface ProjectDetailEditFields {
   color: string;
   driveUrl: string;
   tipo: ProjetoTipoFormulario;
+  tipoPersonalizado: string;
   avisoDias: string;
 }
 
@@ -82,7 +77,6 @@ export interface ProjectDetailMobileScreenProps {
   agendaItems: AgendaItem[];
   projetoContents: Content[];
   disponiveisParaVincular: Content[];
-  postingTimes: PostingTimesSettings;
   isEditing: boolean;
   editFields: ProjectDetailEditFields;
   onEditFieldChange: <K extends keyof ProjectDetailEditFields>(key: K, value: ProjectDetailEditFields[K]) => void;
@@ -90,19 +84,9 @@ export interface ProjectDetailMobileScreenProps {
   onSaveEdit: () => void;
   onCancelEdit: () => void;
   onDeleteProjeto: () => void;
-  showAgendaForm: boolean;
-  agendaTitle: string;
-  agendaDate: string;
-  agendaTime: string;
-  agendaTipo: AgendaItem['tipo'];
-  onAgendaTitleChange: (value: string) => void;
-  onAgendaDateChange: (value: string) => void;
-  onAgendaTimeChange: (value: string) => void;
-  onAgendaTipoChange: (value: AgendaItem['tipo']) => void;
-  onOpenAgendaForm: () => void;
-  onCloseAgendaForm: () => void;
-  onAddAgenda: () => void;
-  onDeleteAgendaItem: (itemId: string) => void;
+  onCreateEvent: (date: string) => void;
+  onOpenEvent: (item: AgendaItem) => void;
+  tiposSalvos: string[];
   onVincularContent: (contentId: string) => void;
   onOpenContent: (contentId: string) => void;
   onCreateContent: () => void;
@@ -115,7 +99,6 @@ export function ProjectDetailMobileScreen({
   agendaItems,
   projetoContents,
   disponiveisParaVincular,
-  postingTimes,
   isEditing,
   editFields,
   onEditFieldChange,
@@ -123,19 +106,9 @@ export function ProjectDetailMobileScreen({
   onSaveEdit,
   onCancelEdit,
   onDeleteProjeto,
-  showAgendaForm,
-  agendaTitle,
-  agendaDate,
-  agendaTime,
-  agendaTipo,
-  onAgendaTitleChange,
-  onAgendaDateChange,
-  onAgendaTimeChange,
-  onAgendaTipoChange,
-  onOpenAgendaForm,
-  onCloseAgendaForm,
-  onAddAgenda,
-  onDeleteAgendaItem,
+  onCreateEvent,
+  onOpenEvent,
+  tiposSalvos,
   onVincularContent,
   onOpenContent,
   onCreateContent,
@@ -157,7 +130,7 @@ export function ProjectDetailMobileScreen({
   const tabAction = (() => {
     if (activeTab === 'eventos') {
       return (
-        <AppButton variant="primary" fullWidth onClick={onOpenAgendaForm} leftIcon={<Plus className="h-4 w-4" />}>
+        <AppButton variant="primary" fullWidth onClick={() => onCreateEvent(localTodayKey())} leftIcon={<Plus className="h-4 w-4" />}>
           Novo evento
         </AppButton>
       );
@@ -186,7 +159,7 @@ export function ProjectDetailMobileScreen({
               {projeto.brand ? (
                 <Text variant="label">{projeto.brand}</Text>
               ) : null}
-              <Badge variant="neutral">{rotuloProjetoTipo(projeto.tipo)}</Badge>
+              <Badge variant="neutral">{rotuloProjetoTipo(projeto.tipo, projeto.tipoPersonalizado)}</Badge>
               {projeto.status ? (
                 <Badge variant="neutral">{statusLabel}</Badge>
               ) : null}
@@ -212,8 +185,10 @@ export function ProjectDetailMobileScreen({
             <Text variant="sectionTitle" as="p" className="mt-1 tabular-nums">{projetoContents.length}</Text>
           </div>
           <div className="rounded-[1.2rem] bg-[var(--bg-hover)] px-3 py-3">
-            <Text variant="label">Valor</Text>
-            <Text variant="sectionTitle" as="p" className="mt-1 tabular-nums">{formattedValue}</Text>
+            <Text variant="label">{isProjetoPubli(projeto.tipo) ? 'Valor' : 'Etapas'}</Text>
+            <Text variant="sectionTitle" as="p" className="mt-1 tabular-nums">
+              {isProjetoPubli(projeto.tipo) ? formattedValue : projeto.etapas.length}
+            </Text>
           </div>
         </div>
 
@@ -246,37 +221,13 @@ export function ProjectDetailMobileScreen({
 
       {activeTab === 'eventos' && (
         <section className="stack-md">
-          {agendaItems.length === 0 ? (
-            <EmptyState compact
-              title="Nenhum evento ainda"
-              description="Adicione reuniões, entregas e publicações. Tudo vai aparecer no calendário."
-              action={tabAction}
-              icon={<CalendarDays className="h-8 w-8" />}
-            />
-          ) : (
-            <>
-              {agendaItems.map(item => (
-                <MobileListCard
-                  key={item.id}
-                  eyebrow={item.tipo}
-                  title={item.title}
-                  description={`${formatDate(item.date)}${item.time ? ` · ${item.time}` : ''}`}
-                  trailing={
-                    <AppButton
-                      variant="ghost"
-                      iconOnly
-                      onClick={() => onDeleteAgendaItem(item.id)}
-                      aria-label="Remover evento"
-                      leftIcon={<Trash2 className="h-4 w-4" />}
-                    >
-                      Remover
-                    </AppButton>
-                  }
-                />
-              ))}
-              {tabAction}
-            </>
-          )}
+          <ProjectMonthCalendar
+            eventos={agendaItems}
+            livros={projeto.livros ?? []}
+            cor={projeto.color}
+            onCreate={onCreateEvent}
+            onOpen={onOpenEvent}
+          />
         </section>
       )}
 
@@ -357,40 +308,36 @@ export function ProjectDetailMobileScreen({
           <ProjetoEventoFields
             tipo={editFields.tipo}
             avisoDias={editFields.avisoDias}
+            tipoPersonalizado={editFields.tipoPersonalizado}
+            tiposSalvos={tiposSalvos}
+            incluirProducao={editFields.tipo === 'producao'}
             onTipoChange={value => onEditFieldChange('tipo', value)}
             onAvisoDiasChange={value => onEditFieldChange('avisoDias', value)}
+            onTipoPersonalizadoChange={value => onEditFieldChange('tipoPersonalizado', value)}
           />
           <input
             value={editFields.brand}
             onChange={event => onEditFieldChange('brand', event.target.value)}
-            placeholder="Marca"
+            placeholder="Marca ou parceiro"
             className="w-full"
           />
+          {isProjetoPubli(editFields.tipo) ? (
+            <input
+              type="number"
+              value={editFields.value}
+              onChange={event => onEditFieldChange('value', event.target.value)}
+              placeholder="Valor (R$)"
+              className="w-full"
+            />
+          ) : null}
+          <ProjetoCorPicker value={editFields.color} onChange={color => onEditFieldChange('color', color)} />
           <input
-            type="number"
-            value={editFields.value}
-            onChange={event => onEditFieldChange('value', event.target.value)}
-            placeholder="Valor (R$)"
+            value={editFields.driveUrl}
+            onChange={event => onEditFieldChange('driveUrl', event.target.value)}
+            type="url"
+            placeholder="Link da pasta no Drive (https://...)"
             className="w-full"
           />
-          <div>
-            <Text variant="label" className="mb-2 block">Cor do projeto</Text>
-            <div className="flex flex-wrap gap-2">
-              {PROJECT_COLORS.map(color => (
-                <button
-                  key={color}
-                  type="button"
-                  onClick={() => onEditFieldChange('color', color)}
-                  className={cn(
-                    'h-7 w-7 rounded-full border-2 transition-all',
-                    editFields.color === color ? 'scale-110 border-[var(--text-primary)]' : 'border-transparent opacity-50 hover:opacity-80'
-                  )}
-                  style={{ backgroundColor: color }}
-                  aria-label={`Cor ${color}`}
-                />
-              ))}
-            </div>
-          </div>
           <textarea
             value={editFields.notes}
             onChange={event => onEditFieldChange('notes', event.target.value)}
@@ -411,55 +358,6 @@ export function ProjectDetailMobileScreen({
               Cancelar
             </AppButton>
           </div>
-        </div>
-      </BottomSheetModal>
-
-      <BottomSheetModal open={showAgendaForm} onClose={onCloseAgendaForm} desktopMaxW="max-w-xl" zIndex="z-[110]">
-        <div className="border-b border-[var(--border-color)] px-4 py-3">
-          <Text variant="sectionTitle">Novo evento</Text>
-        </div>
-        <div className="stack-lg px-4 pb-safe">
-          <input
-            autoFocus
-            value={agendaTitle}
-            onChange={event => onAgendaTitleChange(event.target.value)}
-            placeholder="Título do evento"
-            className="w-full"
-          />
-          <label className="block space-y-1.5">
-            <Text variant="label">Data</Text>
-            <input
-              type="date"
-              value={agendaDate}
-              onChange={event => onAgendaDateChange(event.target.value)}
-              className="w-full"
-            />
-          </label>
-          <label className="block space-y-1.5">
-            <Text variant="label">Horário</Text>
-            <input
-              type="time"
-              value={agendaTime}
-              onChange={event => onAgendaTimeChange(event.target.value)}
-              className="w-full"
-            />
-            <PostingTimeSuggestions
-              date={agendaDate}
-              selectedTime={agendaTime}
-              postingTimes={postingTimes}
-              onSelect={onAgendaTimeChange}
-            />
-          </label>
-          <TagSelect
-            label="Tipo"
-            values={[agendaTipo]}
-            onChange={values => onAgendaTipoChange((values[0] ?? 'Reunião') as AgendaItem['tipo'])}
-            options={TIPO_AGENDA.map(tipo => ({value: tipo, label: tipo}))}
-            maxSelections={1}
-          />
-          <AppButton variant="primary" onClick={onAddAgenda} className="min-h-11 w-full justify-center">
-            Adicionar evento
-          </AppButton>
         </div>
       </BottomSheetModal>
 

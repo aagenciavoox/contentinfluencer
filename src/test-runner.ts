@@ -49,6 +49,7 @@ await import('./features/editorial/lib/frequenciaSerie.test.ts');
 await import('./features/editorial/lib/serieCompleteness.test.ts');
 await import('./features/editorial/lib/funcoes.test.ts');
 await import('./features/projects/lib/evento.test.ts');
+await import('./features/projects/lib/agendaEventos.test.ts');
 await import('./features/editorial/lib/distribuirEspacos.test.ts');
 await import('./features/editorial/lib/estoque.test.ts');
 await import('./features/editorial/lib/gradeCounts.test.ts');

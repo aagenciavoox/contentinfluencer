@@ -23,6 +23,7 @@ import { OverlayFooter } from '../../../components/overlays/OverlayFooter';
 import { OverlayHeader } from '../../../components/overlays/OverlayHeader';
 import { ProjectsMobileScreen } from '../../../mobile/screens/projects/ProjectsMobileScreen';
 import { generateUUID } from '../../../utils/uuid';
+import { ProjetoCorPicker } from '../components/ProjetoCorPicker';
 import { ProjetoEventoFields } from '../components/ProjetoEventoFields';
 import { entregaDoProjeto } from '../lib/entrega';
 import { getGentleExperienceSettings } from '../../settings/lib/gentleExperience';
@@ -30,10 +31,13 @@ import {
   avisoDiasInvalido,
   avisoDiasParaSalvar,
   isProjetoEvento,
+  isProjetoPubli,
   rotuloAvisoDias,
   rotuloProjetoTipo,
+  tiposPersonalizadosUsados,
   type ProjetoTipoFormulario,
 } from '../lib/evento';
+import { PROJECT_COLORS } from '../lib/projetoCores';
 
 type StatusFilter = 'todos' | 'com_eventos' | 'sem_eventos';
 
@@ -43,12 +47,6 @@ export const PROJECT_STATUS_LABEL: Record<string, string> = {
   em_andamento: 'Em andamento',
   Concluido: 'Concluído',
 };
-
-const PROJECT_COLORS = [
-  '#ef4444', '#f97316', '#f59e0b', '#84cc16', '#22c55e',
-  '#14b8a6', '#06b6d4', '#3b82f6', '#6366f1', '#8b5cf6',
-  '#a855f7', '#ec4899', '#f43f5e', '#78716c',
-];
 
 export function ProjectsPage() {
   const { state, dispatch } = useAppContext();
@@ -66,9 +64,12 @@ export function ProjectsPage() {
 
   const [nome, setNome] = useState('');
   const [tipo, setTipo] = useState<ProjetoTipoFormulario>('publi');
+  const [tipoPersonalizado, setTipoPersonalizado] = useState('');
   const [avisoDias, setAvisoDias] = useState('');
   const [brand, setBrand] = useState('');
   const [value, setValue] = useState('');
+  const [notes, setNotes] = useState('');
+  const [driveUrl, setDriveUrl] = useState('');
   const [color, setColor] = useState(PROJECT_COLORS[Math.floor(Math.random() * PROJECT_COLORS.length)]);
 
   const projetosComEventos = new Set(
@@ -95,9 +96,12 @@ export function ProjectsPage() {
   const resetForm = () => {
     setNome('');
     setTipo('publi');
+    setTipoPersonalizado('');
     setAvisoDias('');
     setBrand('');
     setValue('');
+    setNotes('');
+    setDriveUrl('');
     setColor(PROJECT_COLORS[Math.floor(Math.random() * PROJECT_COLORS.length)]);
   };
 
@@ -112,6 +116,7 @@ export function ProjectsPage() {
       userId: user?.id || '',
       nome: nome.trim(),
       tipo,
+      tipoPersonalizado: tipo === 'outro' ? (tipoPersonalizado.trim() || null) : null,
       status: 'pendente',
       dataInicio: null,
       dataFim: null,
@@ -121,11 +126,11 @@ export function ProjectsPage() {
       brand: brand.trim() || null,
       brandColor: null,
       color,
-      value: value ? parseFloat(value) : null,
+      value: isProjetoPubli(tipo) && value ? parseFloat(value) : null,
       currency: 'BRL',
-      driveUrl: null,
+      driveUrl: driveUrl.trim() || null,
       shareToken: null,
-      notes: null,
+      notes: notes.trim() || null,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       deletedAt: null,
@@ -139,19 +144,7 @@ export function ProjectsPage() {
 
   const handleClose = () => { resetForm(); setShowForm(false); };
 
-  const colorPicker = (
-    <div className="flex flex-wrap gap-2">
-      {PROJECT_COLORS.map(c => (
-        <button
-          key={c}
-          type="button"
-          onClick={() => setColor(c)}
-          className={cn('h-7 w-7 rounded-full border-2 transition-all', color === c ? 'border-[var(--text-primary)] scale-110' : 'border-transparent opacity-50 hover:opacity-80')}
-          style={{ backgroundColor: c }}
-        />
-      ))}
-    </div>
-  );
+  const tiposSalvos = tiposPersonalizadosUsados(state.projetos);
 
   const createProjectDialog = (
         <Dialog open={showForm} onClose={handleClose} desktopMaxW="max-w-xl" ariaLabel="Novo projeto">
@@ -169,26 +162,42 @@ export function ProjectsPage() {
             <ProjetoEventoFields
               tipo={tipo}
               avisoDias={avisoDias}
+              tipoPersonalizado={tipoPersonalizado}
+              tiposSalvos={tiposSalvos}
               onTipoChange={setTipo}
               onAvisoDiasChange={setAvisoDias}
+              onTipoPersonalizadoChange={setTipoPersonalizado}
             />
-            <input
-              value={value}
-              onChange={e => setValue(e.target.value)}
-              type="number"
-              placeholder="Valor (R$)"
-              className="w-full"
-            />
+            {isProjetoPubli(tipo) ? (
+              <input
+                value={value}
+                onChange={e => setValue(e.target.value)}
+                type="number"
+                placeholder="Valor (R$)"
+                className="w-full"
+              />
+            ) : null}
             <input
               value={brand}
               onChange={e => setBrand(e.target.value)}
-              placeholder="Marca"
+              placeholder="Marca ou parceiro"
               className="w-full"
             />
-            <div>
-              <Text variant="label" className="mb-2 block">Cor do projeto</Text>
-              {colorPicker}
-            </div>
+            <ProjetoCorPicker value={color} onChange={setColor} />
+            <input
+              value={driveUrl}
+              onChange={e => setDriveUrl(e.target.value)}
+              type="url"
+              placeholder="Link da pasta no Drive (https://...)"
+              className="w-full"
+            />
+            <textarea
+              value={notes}
+              onChange={e => setNotes(e.target.value)}
+              placeholder="Notas do projeto"
+              rows={3}
+              className="w-full resize-none"
+            />
           </OverlayBody>
 
           <OverlayFooter className="pb-safe">
@@ -349,7 +358,7 @@ export function ProjectsPage() {
                         <Text variant="meta" className="mt-0.5 block truncate">{projeto.brand}</Text>
                       ) : null}
                     </div>
-                    <Badge variant="neutral" className="shrink-0">{rotuloProjetoTipo(projeto.tipo)}</Badge>
+                    <Badge variant="neutral" className="shrink-0">{rotuloProjetoTipo(projeto.tipo, projeto.tipoPersonalizado)}</Badge>
                     {projeto.status ? (
                       <Badge variant="neutral" className="shrink-0">{PROJECT_STATUS_LABEL[projeto.status] ?? projeto.status}</Badge>
                     ) : null}
@@ -374,7 +383,7 @@ export function ProjectsPage() {
                     </Text>
                   ) : null}
                   <div className="flex flex-wrap items-center gap-x-4 gap-y-1 pl-1">
-                    {projeto.value ? (
+                    {isProjetoPubli(projeto.tipo) && projeto.value ? (
                       <span className="flex items-center gap-1 text-xs font-medium text-[var(--text-secondary)]">
                         <DollarSign className="h-3.5 w-3.5 text-[var(--text-tertiary)]" />
                         {projeto.value.toLocaleString('pt-BR', { style: 'currency', currency: projeto.currency || 'BRL' })}

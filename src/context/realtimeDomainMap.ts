@@ -118,6 +118,10 @@ const REALTIME_TABLE_MAP: Record<string, RealtimeTableMapping> = {
     domains: ['projects'],
     namespaces: [],
   },
+  projeto_livros: {
+    domains: ['projects'],
+    namespaces: [],
+  },
   projeto_conteudos: {
     domains: ['projects'],
     namespaces: [],

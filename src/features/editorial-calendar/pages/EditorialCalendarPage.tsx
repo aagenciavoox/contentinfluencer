@@ -33,7 +33,8 @@ import {OverlayFooter} from '../../../components/overlays/OverlayFooter';
 import {OverlayHeader} from '../../../components/overlays/OverlayHeader';
 import {Drawer} from '../../../components/overlays/Drawer';
 import {useAppContext} from '../../../context/AppContext';
-import {AgendaItem, Content, Platform, Projeto} from '../../../lib/database';
+import {AgendaItem, Content, Platform, Projeto, type ProjetoLivro} from '../../../lib/database';
+import {AgendaEventoDialog} from '../../projects/components/AgendaEventoDialog';
 import {useIsMobile} from '../../../hooks/useIsMobile';
 import {readStoredJson, writeStoredJson} from '../../../lib/browserStorage';
 import {DisclosureButton} from '../../../components/ui/DisclosureButton';
@@ -96,7 +97,6 @@ export function EditorialCalendarPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const isMobile = useIsMobile();
-  const [isAddAgendaOpen, setIsAddAgendaOpen] = useState(false);
   const [isAddPostedVideoOpen, setIsAddPostedVideoOpen] = useState(false);
   const [selectedCalendarEntry, setSelectedCalendarEntry] = useState<CalendarEntry | null>(null);
   const [activeLayers, setActiveLayersRaw] = useState<string[]>(loadLayers);
@@ -113,7 +113,12 @@ export function EditorialCalendarPage() {
   const [createMenuOpen, setCreateMenuOpen] = useState(false);
   const [headerCreateMenuOpen, setHeaderCreateMenuOpen] = useState(false);
   const [quickCreateDate, setQuickCreateDate] = useState<Date | null>(null);
-  const [agendaDraft, setAgendaDraft] = useState<{title: string; date: string; time: string | null} | null>(null);
+  const [agendaDialog, setAgendaDialog] = useState<null | {
+    item: AgendaItem | null;
+    date?: string;
+    time?: string | null;
+    title?: string;
+  }>(null);
   const [roteiroDragOver, setRoteiroDragOver] = useState<string | null>(null);
 
   useEffect(() => {
@@ -220,13 +225,20 @@ export function EditorialCalendarPage() {
   // Spec: projeto -> pagina dedicada; conteudo e evento -> drawer.
   const handleSelectEntry = useCallback(
     (entry: CalendarEntry) => {
-      if (entry.type === 'project' && entry.projetoId) {
+      if (entry.type === 'project' && entry.projetoId && !entry.agendaId) {
         navigate(`/projetos/${entry.projetoId}`);
         return;
       }
+      if (entry.agendaId) {
+        const item = state.agendaItems.find(atual => atual.id === entry.agendaId);
+        if (item) {
+          setAgendaDialog({item});
+          return;
+        }
+      }
       setSelectedCalendarEntry(entry);
     },
-    [navigate]
+    [navigate, state.agendaItems]
   );
 
   const gentleExperience = getGentleExperienceSettings(state.preferences);
@@ -273,6 +285,47 @@ export function EditorialCalendarPage() {
     [setDayPanelOpen],
   );
 
+  const salvarAgenda = (item: AgendaItem, livroNovo?: ProjetoLivro) => {
+    const existe = state.agendaItems.some(atual => atual.id === item.id);
+    dispatch({
+      type: existe ? 'UPDATE_AGENDA_ITEM' : 'ADD_AGENDA_ITEM',
+      payload: item,
+      livroNovo,
+    });
+    setAgendaDialog(null);
+  };
+
+  const agendaEditor = (
+    <Dialog
+      open={agendaDialog != null}
+      onClose={() => setAgendaDialog(null)}
+      desktopMaxW="max-w-xl"
+      ariaLabel="Evento"
+    >
+      {agendaDialog ? (
+        <AgendaEventoDialog
+          key={agendaDialog.item?.id || `novo-${agendaDialog.date || 'hoje'}`}
+          item={agendaDialog.item}
+          projetos={state.projetos}
+          bibliotecaItems={state.bibliotecaItems}
+          dataInicial={agendaDialog.date}
+          horaInicial={agendaDialog.time}
+          tituloInicial={agendaDialog.title}
+          onClose={() => setAgendaDialog(null)}
+          onSave={salvarAgenda}
+          onDelete={evento => {
+            dispatch({type: 'DELETE_AGENDA_ITEM', payload: evento.id});
+            setAgendaDialog(null);
+          }}
+          onOpenProjeto={projetoId => {
+            setAgendaDialog(null);
+            navigate(`/projetos/${projetoId}`);
+          }}
+        />
+      ) : null}
+    </Dialog>
+  );
+
   if (isMobile) {
     return (
       <>
@@ -289,7 +342,7 @@ export function EditorialCalendarPage() {
             onListModeChange={mode => handleViewChange(mode === 'timeline' ? 'timeline' : 'agenda')}
             periodStart={agendaPeriod.start}
             periodEnd={agendaPeriod.end}
-            onAddAgenda={() => setIsAddAgendaOpen(true)}
+            onAddAgenda={() => setAgendaDialog({item: null})}
             onAddPostedVideo={() => setIsAddPostedVideoOpen(true)}
             onSelectEntry={handleSelectEntry}
             undatedRoteiros={undatedRoteiros}
@@ -297,22 +350,7 @@ export function EditorialCalendarPage() {
           />
         </div>
 
-        <Dialog
-          open={isAddAgendaOpen}
-          onClose={() => setIsAddAgendaOpen(false)}
-          desktopMaxW="max-w-md"
-          zIndex="z-[110]"
-        >
-          <AddAgendaModal
-            projetos={state.projetos}
-            initialDraft={null}
-            onClose={() => setIsAddAgendaOpen(false)}
-            onSave={item => {
-              dispatch({type: 'ADD_AGENDA_ITEM', payload: item});
-              setIsAddAgendaOpen(false);
-            }}
-          />
-        </Dialog>
+        {agendaEditor}
 
         <Dialog
           open={isAddPostedVideoOpen}
@@ -769,31 +807,12 @@ export function EditorialCalendarPage() {
         onClose={() => setQuickCreateDate(null)}
         onSave={handleQuickCreateSave}
         onMoreOptions={payload => {
-          setAgendaDraft(payload);
           setQuickCreateDate(null);
-          setIsAddAgendaOpen(true);
+          setAgendaDialog({item: null, title: payload.title, date: payload.date, time: payload.time});
         }}
       />
 
-      <Dialog
-        open={isAddAgendaOpen}
-        onClose={() => setIsAddAgendaOpen(false)}
-        desktopMaxW="max-w-md"
-      >
-        <AddAgendaModal
-          projetos={state.projetos}
-          initialDraft={agendaDraft}
-          onClose={() => {
-            setIsAddAgendaOpen(false);
-            setAgendaDraft(null);
-          }}
-          onSave={item => {
-            dispatch({type: 'ADD_AGENDA_ITEM', payload: item});
-            setIsAddAgendaOpen(false);
-            setAgendaDraft(null);
-          }}
-        />
-      </Dialog>
+      {agendaEditor}
 
       <Dialog
         open={isAddPostedVideoOpen}
@@ -1766,157 +1785,5 @@ function CalendarEntryDetailModal({
         )}
       </div>
     </div>
-  );
-}
-
-function AddAgendaModal({
-  projetos,
-  initialDraft,
-  onSave,
-  onClose,
-}: {
-  projetos: Projeto[];
-  initialDraft?: {title: string; date: string; time: string | null} | null;
-  onSave: (item: AgendaItem) => void;
-  onClose: () => void;
-}) {
-  const {state: agendaState} = useAppContext();
-  const agendaPostingTimes = getPostingTimesForPlatform(agendaState.postingTimeEntries, null);
-  const [title, setTitle] = useState(initialDraft?.title ?? '');
-  const [date, setDate] = useState(initialDraft?.date ?? format(new Date(), 'yyyy-MM-dd'));
-  const [time, setTime] = useState(initialDraft?.time ?? '');
-
-  useEffect(() => {
-    if (!initialDraft) return;
-    setTitle(initialDraft.title);
-    setDate(initialDraft.date);
-    setTime(initialDraft.time ?? '');
-  }, [initialDraft]);
-  const [agendaType, setAgendaType] = useState<AgendaItem['tipo']>('Reunião');
-  const [projetoId, setProjetoId] = useState('');
-
-  const handleSave = () => {
-    if (!title.trim() || !date) return;
-
-    onSave({
-      id: generateUUID(),
-      userId: '',
-      title: title.trim(),
-      date,
-      time: time || null,
-      tipo: agendaType,
-      projetoId: projetoId || null,
-      createdAt: new Date().toISOString(),
-    });
-  };
-
-  return (
-    <>
-      <OverlayHeader
-        title="Novo evento"
-        subtitle="Agenda editorial"
-        onClose={onClose}
-      />
-
-      <OverlayBody className="stack-xl py-6">
-        <div className="stack-sm">
-          <label className="text-xs font-semibold text-[var(--text-tertiary)]">
-            Título do evento
-          </label>
-          <input
-            autoFocus
-            type="text"
-            value={title}
-            onChange={event => setTitle(event.target.value)}
-            placeholder="Ex.: reunião, entrega, live…"
-            className="w-full rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-hover)] px-6 py-3.5 text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:ring-2 focus:ring-[var(--accent-blue)]"
-          />
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <div className="stack-sm">
-            <label className="text-xs font-semibold text-[var(--text-tertiary)]">
-              Data
-            </label>
-            <input
-              type="date"
-              value={date}
-              onChange={event => setDate(event.target.value)}
-              className="w-full rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-hover)] px-6 py-3.5 text-sm font-bold text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--accent-blue)]"
-            />
-          </div>
-
-          <div className="stack-sm">
-            <label className="text-xs font-semibold text-[var(--text-tertiary)]">
-              Hora
-            </label>
-            <input
-              type="time"
-              value={time}
-              onChange={event => setTime(event.target.value)}
-              className="w-full rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-hover)] px-6 py-3.5 text-sm font-bold text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--accent-blue)]"
-            />
-            <PostingTimeSuggestions
-              date={date}
-              selectedTime={time}
-              postingTimes={agendaPostingTimes}
-              onSelect={setTime}
-            />
-          </div>
-        </div>
-
-        <div className="stack-sm">
-          <label className="text-xs font-semibold text-[var(--text-tertiary)]">
-            Tipo
-          </label>
-          <div className="grid grid-cols-2 gap-2">
-            {(['Reunião', 'Entrega', 'Publicação', 'Outro'] as AgendaItem['tipo'][]).map(type => (
-              <button
-                key={type}
-                type="button"
-                onClick={() => setAgendaType(type)}
-                className={`rounded-xl border px-3 py-2.5 text-xs font-semibold  transition-all ${
-                  agendaType === type
-                    ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-[var(--bg-primary)]'
-                    : 'border-[var(--border-color)] text-[var(--text-tertiary)]'
-                }`}
-              >
-                {type}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="stack-sm">
-          <label className="text-xs font-semibold text-[var(--text-tertiary)]">
-            Projeto vinculado
-          </label>
-          <select
-            value={projetoId}
-            onChange={event => setProjetoId(event.target.value)}
-            className="w-full rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-hover)] px-6 py-3.5 text-sm font-bold text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--accent-blue)]"
-          >
-            <option value="">Sem projeto</option>
-            {projetos
-              .filter(projeto => !projeto.deletedAt)
-              .map(projeto => (
-                <option key={projeto.id} value={projeto.id}>
-                  {projeto.nome}
-                </option>
-              ))}
-          </select>
-        </div>
-      </OverlayBody>
-
-      <OverlayFooter>
-        <button
-          onClick={handleSave}
-          disabled={!title.trim() || !date}
-          className="w-full rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] bg-[var(--text-primary)] py-4 text-xs font-semibold  text-[var(--bg-primary)] shadow-lg transition-all hover:scale-[1.01] disabled:pointer-events-none disabled:opacity-30"
-        >
-          Adicionar evento
-        </button>
-      </OverlayFooter>
-    </>
   );
 }

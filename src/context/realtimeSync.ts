@@ -20,6 +20,7 @@ export const REALTIME_TABLES = [
   'posting_times',
   'projeto_conteudos',
   'projeto_etapas',
+  'projeto_livros',
   'projetos',
   'recording_block_contents',
   'recording_blocks',
