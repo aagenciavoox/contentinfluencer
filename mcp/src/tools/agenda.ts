@@ -50,12 +50,25 @@ function tabelaAusente(error: {message?: string} | null, nome: string): boolean 
   throw new Error(`${nome}: ${error.message}`);
 }
 
+const REDES_POSTIT = ['instagram', 'tiktok', 'youtube', 'outra'] as const;
+
+/** Só redes conhecidas, sem repetir, na ordem fixa. Igual ao app (redesPostIt.ts). */
+function redesDoPostit(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  const escolhidas = new Set(value.filter((item): item is string => typeof item === 'string').map(item => item.trim().toLowerCase()));
+  return REDES_POSTIT.filter(rede => escolhidas.has(rede));
+}
+
 function postitView(row: Row) {
   return {
     id: row.id,
     texto: row.texto ?? '',
     data: row.date ?? null,
     conteudo_id: row.content_id ?? null,
+    serie_id: row.serie_id ?? null,
+    pilar_id: row.pilar_id ?? null,
+    objetivo: row.objetivo ?? null,
+    redes: redesDoPostit(row.redes),
     atualizado_em: row.updated_at ?? null,
   };
 }
@@ -516,7 +529,7 @@ export function registerAgenda(server: McpServer) {
     tool(async (args, session) => {
       let query = session.client
         .from('planejamento_postits')
-        .select('id, texto, date, content_id, updated_at')
+        .select('*')
         .eq('user_id', session.userId)
         .order('created_at', {ascending: false})
         .limit(args.limite);
@@ -539,12 +552,14 @@ export function registerAgenda(server: McpServer) {
       title: 'Salvar post-it',
       description:
         'Cria ou atualiza um post-it de planejamento. Sem id, cria. ' +
-        'data e conteudo_id aceitam null para limpar. O roteiro ligado não muda de status.',
+        'data e conteudo_id aceitam null para limpar. O roteiro ligado não muda de status. ' +
+        'redes guarda só a plataforma (instagram, tiktok, youtube, outra), sem conta; [] limpa.',
       inputSchema: {
         id: z.string().uuid().optional().describe('Vazio cria um post-it novo'),
         texto: z.string().optional(),
         data: dateSchema.nullable().optional(),
         conteudo_id: z.string().nullable().optional().describe('Roteiro puxado pelo post-it, sem mudar o status'),
+        redes: z.array(z.enum(REDES_POSTIT)).optional().describe('Redes onde vai sair. Só a plataforma'),
       },
     },
     tool(async (args, session) => {
@@ -553,7 +568,7 @@ export function registerAgenda(server: McpServer) {
       if (creating && args.texto === undefined && args.data === undefined && args.conteudo_id === undefined) {
         args = {...args, texto: ''};
       }
-      if (!creating && args.texto === undefined && args.data === undefined && args.conteudo_id === undefined) {
+      if (!creating && args.texto === undefined && args.data === undefined && args.conteudo_id === undefined && args.redes === undefined) {
         throw new Error('Nenhum campo para atualizar.');
       }
       if (args.conteudo_id) {
@@ -573,13 +588,18 @@ export function registerAgenda(server: McpServer) {
       }
       if (args.data !== undefined) payload.date = args.data;
       if (args.conteudo_id !== undefined) payload.content_id = args.conteudo_id;
+      if (args.redes !== undefined) payload.redes = redesDoPostit(args.redes);
 
       const saved = await (creating
-        ? client.from('planejamento_postits').insert(payload).select('id, texto, date, content_id, updated_at').single()
-        : client.from('planejamento_postits').update(payload).eq('id', id).eq('user_id', userId).select('id, texto, date, content_id, updated_at').maybeSingle());
+        ? client.from('planejamento_postits').insert(payload).select('*').single()
+        : client.from('planejamento_postits').update(payload).eq('id', id).eq('user_id', userId).select('*').maybeSingle());
       if (tabelaAusente(saved.error, 'planejamento_postits')) {
         throw new Error('O banco ainda não tem post-its. Rode supabase/migrations/20261004223000_planejamento_postits.sql.');
       }
+      if (args.redes !== undefined && saved.error && /redes/.test(saved.error.message ?? '')) {
+        throw new Error('O banco ainda não tem redes no post-it. Rode supabase/migrations/20261016210000_planejamento_postits_redes.sql.');
+      }
+      if (saved.error) throw new Error(`post-it: ${saved.error.message}`);
       if (!saved.data) throw new Error(`Post-it não encontrado: ${id}`);
       return json(postitView(saved.data as Row));
     }),

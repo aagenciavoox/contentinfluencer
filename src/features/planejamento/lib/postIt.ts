@@ -1,4 +1,5 @@
-import type {Content, FuncaoEditorial, FuncaoPadraoSerie} from '../../../lib/database.ts';
+import type {Content, FuncaoEditorial, FuncaoPadraoSerie, RedeSocial} from '../../../lib/database.ts';
+import {mesmasRedes, normalizarRedesPostIt} from './redesPostIt.ts';
 import {generateUUID} from '../../../utils/uuid.ts';
 import {CONTENT_STATUS, normalizeContentStatus} from '../../contents/lib/contentPipeline.ts';
 import {createContentDraft} from '../../contents/lib/createContentDraft.ts';
@@ -23,6 +24,8 @@ export interface PlanejamentoPostIt {
   serieId?: string | null;
   pilarId?: string | null;
   objetivo?: FuncaoEditorial | null;
+  /** Redes onde vai sair. Só a plataforma, sem conta. */
+  redes?: RedeSocial[];
   createdAt: string;
   updatedAt: string;
 }
@@ -59,6 +62,7 @@ export function createEmptyPostIt(input: {
   serieId?: string | null;
   pilarId?: string | null;
   objetivo?: FuncaoEditorial | null;
+  redes?: readonly RedeSocial[] | null;
   now?: string;
 } = {}): PlanejamentoPostIt {
   const now = nowIso(input.now);
@@ -71,6 +75,7 @@ export function createEmptyPostIt(input: {
     serieId: input.serieId ?? null,
     pilarId: input.pilarId ?? null,
     objetivo: input.objetivo ?? null,
+    redes: normalizarRedesPostIt(input.redes ?? []),
     createdAt: now,
     updatedAt: now,
   };
@@ -162,6 +167,7 @@ export interface PostItEdit {
   serieId?: string | null;
   pilarId?: string | null;
   objetivo?: FuncaoEditorial | null;
+  redes?: RedeSocial[];
 }
 
 export function postItEditDraft(postIt: PlanejamentoPostIt): PostItEdit {
@@ -171,6 +177,7 @@ export function postItEditDraft(postIt: PlanejamentoPostIt): PostItEdit {
     serieId: postIt.serieId ?? null,
     pilarId: postIt.pilarId ?? null,
     objetivo: postIt.objetivo ?? null,
+    redes: normalizarRedesPostIt(postIt.redes ?? []),
   };
 }
 
@@ -208,6 +215,7 @@ export function savePostItEdit(
     ...('serieId' in edit ? {serieId: edit.serieId ?? null} : {}),
     ...('pilarId' in edit ? {pilarId: edit.pilarId ?? null} : {}),
     ...('objetivo' in edit ? {objetivo: edit.objetivo ?? null} : {}),
+    ...('redes' in edit ? {redes: normalizarRedesPostIt(edit.redes ?? [])} : {}),
   };
 }
 
@@ -218,7 +226,8 @@ export function postItMudou(antes: PlanejamentoPostIt, depois: PlanejamentoPostI
     || antes.contentId !== depois.contentId
     || (antes.serieId ?? null) !== (depois.serieId ?? null)
     || (antes.pilarId ?? null) !== (depois.pilarId ?? null)
-    || (antes.objetivo ?? null) !== (depois.objetivo ?? null);
+    || (antes.objetivo ?? null) !== (depois.objetivo ?? null)
+    || !mesmasRedes(antes.redes, depois.redes);
 }
 
 /** Descarta o rascunho. O post-it gravado continua o mesmo. */

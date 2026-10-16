@@ -35,7 +35,12 @@ import {FUNCAO_CURTA, FUNCAO_LABELS, FUNCOES, FUNIL_DA_FUNCAO, isFuncaoEditorial
 import {sortPilares} from '../../settings/lib/activePilares';
 import {EncaixeDialog} from '../components/EncaixeDialog';
 import {MonthHealth} from '../components/MonthHealth';
+import {PostItRapidoDialog} from '../components/PostItRapidoDialog';
 import {PuxarConteudoDialog} from '../components/PuxarConteudoDialog';
+import {MultiFilterChips} from '../../../components/ui/MultiFilterChips';
+import type {RedeSocial} from '../../../lib/database';
+import {REDE_ROTULO} from '../../contas/lib/contas';
+import {REDES_DO_POSTIT} from '../lib/redesPostIt';
 import {excessosAoAcrescentar, periodoDoMes, saudeDoMes, type ExcessoMes} from '../lib/monthHealth';
 import {POST_IT_MIME, PostItIdentity, PostItNote, PostItTemas, type PostItMark} from '../components/PostItNote';
 import {conteudoTemTema, temasEmUso} from '../lib/temasPlanejamento';
@@ -154,6 +159,10 @@ export function PlanejamentoPage() {
   const [temaFiltroId, setTemaFiltroId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   const avisoPendente = useRef<(() => void) | null>(null);
+  /** Dia do post-it rápido. `undefined` = fechado; `null` = fora do calendário. */
+  const [rapidoDate, setRapidoDate] = useState<string | null | undefined>(undefined);
+  /** "Mais opções" abre o post-it recém-criado já no editor completo. */
+  const editarAoAbrir = useRef(false);
 
   const contents = state.contents;
   const postIts = state.postIts ?? [];
@@ -179,6 +188,11 @@ export function PlanejamentoPage() {
   }, [postItPedido, postIts, setSearchParams]);
 
   useEffect(() => {
+    if (openPostItId && editarAoAbrir.current) {
+      editarAoAbrir.current = false;
+      setEditing(true);
+      return;
+    }
     setEditing(false);
   }, [openPostItId]);
 
@@ -275,10 +289,33 @@ export function PlanejamentoPage() {
     updated.forEach(postIt => dispatch({type: 'UPDATE_POST_IT', payload: postIt}));
   };
 
+  // Novo post-it abre primeiro o formulário rápido. O dia clicado vai junto, sem campo de data.
   const addEmpty = (date: string | null) => {
-    const postIt = createEmptyPostIt({date});
+    setRapidoDate(date);
+  };
+
+  const fecharRapido = () => setRapidoDate(undefined);
+
+  const criarDoRapido = (draft: PostItEdit): PlanejamentoPostIt => {
+    const postIt = savePostItEdit(createEmptyPostIt({date: rapidoDate ?? null}), draft);
     dispatch({type: 'ADD_POST_IT', payload: postIt});
-    setEditing(false);
+    return postIt;
+  };
+
+  const salvarRapido = (draft: PostItEdit) => {
+    const postIt = criarDoRapido(draft);
+    fecharRapido();
+    if (postIt.date) setMonth(new Date(`${postIt.date}T12:00:00`));
+  };
+
+  const maisOpcoesDoRapido = (draft: PostItEdit) => {
+    const postIt = criarDoRapido(draft);
+    fecharRapido();
+    const edit = postItEditDraft(postIt);
+    setNoteDraft(edit.texto);
+    setDateDraft(edit.date);
+    setClasseDraft(edit);
+    editarAoAbrir.current = true;
     setOpenId(postIt.id);
   };
 
@@ -395,8 +432,8 @@ export function PlanejamentoPage() {
     if (!openPostIt) return;
     // Com conteúdo ligado, a classificação é a do conteúdo: o post-it não grava a dele.
     const classe = openContent
-      ? {}
-      : {serieId: classeDraft.serieId, pilarId: classeDraft.pilarId, objetivo: classeDraft.objetivo};
+      ? {redes: classeDraft.redes ?? []}
+      : {serieId: classeDraft.serieId, pilarId: classeDraft.pilarId, objetivo: classeDraft.objetivo, redes: classeDraft.redes ?? []};
     const saved = savePostItEdit(openPostIt, {texto: noteDraft, date: dateDraft, ...classe});
     confirmarSeCouber(openContent, saved.date, () => {
       if (postItMudou(openPostIt, saved)) {
@@ -804,6 +841,11 @@ export function PlanejamentoPage() {
                     </p>
                   )}
                 </div>
+                {!editing && (openPostIt.redes ?? []).length > 0 ? (
+                  <Text variant="secondary" className="text-[var(--text-secondary)]">
+                    {(openPostIt.redes ?? []).map(rede => REDE_ROTULO[rede]).join(' · ')}
+                  </Text>
+                ) : null}
                 {!openContent && !editing && openAppearance.marks.length > 0 ? (
                   <PostItIdentity marks={openAppearance.marks} />
                 ) : null}
@@ -907,6 +949,17 @@ export function PlanejamentoPage() {
                     </section>
                   )
                 ) : null}
+                {editing ? (
+                  <div className="stack-sm">
+                    <Text variant="label" as="span">Rede</Text>
+                    <MultiFilterChips<RedeSocial>
+                      ariaLabel="Rede onde vai sair"
+                      value={classeDraft.redes ?? []}
+                      options={REDES_DO_POSTIT.map(rede => ({id: rede, label: REDE_ROTULO[rede]}))}
+                      onChange={redes => setClasseDraft(atual => ({...atual, redes}))}
+                    />
+                  </div>
+                ) : null}
                 {!editing && openKind === 'vazio' ? (
                   <section className="stack-md border-t border-[var(--border-color)] pt-6" aria-labelledby="postit-encaixar">
                     <div className="stack-xs">
@@ -1002,6 +1055,16 @@ export function PlanejamentoPage() {
           </div>
         ) : null}
       </Dialog>
+
+      <PostItRapidoDialog
+        open={rapidoDate !== undefined}
+        date={rapidoDate ?? null}
+        series={state.series}
+        pilares={state.pilares}
+        onClose={fecharRapido}
+        onSalvar={salvarRapido}
+        onMaisOpcoes={maisOpcoesDoRapido}
+      />
 
       <EncaixeDialog postIt={encaixePostIt} onClose={() => setEncaixeId(null)} zIndex="z-[140]" />
 

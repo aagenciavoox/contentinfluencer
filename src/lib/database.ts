@@ -5,6 +5,7 @@ import { hydrateIdeasFromDemotedContents } from '../features/ideas/lib/hydrateId
 import { getIdeaNotes, normalizeIdea } from '../features/ideas/lib/ideaText';
 import { aplicarLivros, livroIdsEfetivos } from './livroIds.ts';
 import { generateUUID } from '../utils/uuid';
+import { normalizarRedesPostIt } from '../features/planejamento/lib/redesPostIt.ts';
 import { readAvisoDias } from '../features/projects/lib/evento.ts';
 import { DEFAULT_EDITORIAL_SETTINGS, type EditorialSettings } from '../features/editorial/lib/editorialSettings.ts';
 import type { PeriodoSelecionado } from '../features/editorial/lib/periodoEditorial.ts';
@@ -566,6 +567,8 @@ export interface PlanejamentoPostIt {
   serieId?: string | null;
   pilarId?: string | null;
   objetivo?: FuncaoEditorial | null;
+  /** Redes onde vai sair. Só a plataforma, sem conta. */
+  redes?: RedeSocial[];
   createdAt: string;
   updatedAt: string;
 }
@@ -815,7 +818,7 @@ const CONTENT_CONTAGEM_ORIGEM_COLUMNS = [
   'pilar_origem',
 ] as const;
 
-const POSTIT_OPTIONAL_COLUMNS = ['serie_id', 'pilar_id', 'objetivo'] as const;
+const POSTIT_OPTIONAL_COLUMNS = ['serie_id', 'pilar_id', 'objetivo', 'redes'] as const;
 
 function isMissingLegendaBaseColumn(error: {message?: string} | null | undefined) {
   return !!error?.message && isMissingNamedColumn(error.message, 'legenda_base');
@@ -1242,6 +1245,7 @@ const mp = {
     serieId: typeof r.serie_id === 'string' && r.serie_id ? r.serie_id : null,
     pilarId: typeof r.pilar_id === 'string' && r.pilar_id ? r.pilar_id : null,
     objetivo: readFuncaoEditorial(r.objetivo),
+    redes: normalizarRedesPostIt(r.redes),
     createdAt: r.created_at,
     updatedAt: r.updated_at ?? r.created_at,
   }),
@@ -3440,10 +3444,11 @@ export async function savePlanejamentoPostIt(item: PlanejamentoPostIt): Promise<
     serie_id: item.serieId ?? null,
     pilar_id: item.pilarId ?? null,
     objetivo: item.objetivo ?? null,
+    redes: normalizarRedesPostIt(item.redes ?? []),
     updated_at: item.updatedAt || new Date().toISOString(),
   };
 
-  for (let attempt = 0; attempt < 4; attempt += 1) {
+  for (let attempt = 0; attempt <= POSTIT_OPTIONAL_COLUMNS.length; attempt += 1) {
     const {error} = await supabase.from('planejamento_postits').upsert(row);
     if (!error) return;
     const missing = POSTIT_OPTIONAL_COLUMNS.find(column =>

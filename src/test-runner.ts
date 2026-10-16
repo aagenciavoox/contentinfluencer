@@ -25,6 +25,7 @@ await import('./features/dashboard/lib/dayPulse.test.ts');
 await import('./features/dashboard/lib/currentRead.test.ts');
 await import('./features/editorial-calendar/lib/calendarMode.test.ts');
 await import('./features/planejamento/lib/postIt.test.ts');
+await import('./features/planejamento/lib/redesPostIt.test.ts');
 await import('./features/planejamento/lib/encaixe.test.ts');
 await import('./features/planejamento/lib/monthHealth.test.ts');
 await import('./features/planejamento/lib/temasPlanejamento.test.ts');
