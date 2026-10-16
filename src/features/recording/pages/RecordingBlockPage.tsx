@@ -212,16 +212,14 @@ export function RecordingBlockPage() {
             </div>
           </section>
 
-          <section className="rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4">
-            <RecordingBlockEditor
-              block={block}
-              blockContents={resolvedContents}
-              queueContents={queueContents}
-              availableTags={availableTags}
-              onUpdateBlock={handleUpdateBlock}
-              onUpdateContents={handleUpdateContents}
-            />
-          </section>
+          <RecordingBlockEditor
+            block={block}
+            blockContents={resolvedContents}
+            queueContents={queueContents}
+            availableTags={availableTags}
+            onUpdateBlock={handleUpdateBlock}
+            onUpdateContents={handleUpdateContents}
+          />
 
           <section className="rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4">
             <div className="mb-4 flex items-center justify-between gap-3">
@@ -299,15 +297,40 @@ export function RecordingBlockPage() {
     );
   }
 
+  const completedCount = progress?.completedCount ?? 0;
+  const totalCount = progress?.totalCount ?? 0;
+  const progressLabel = `${completedCount} de ${totalCount} ${totalCount === 1 ? 'gravado' : 'gravados'}`;
+
   return (
     <PageLayout
       header={(
         <DesktopPageHeader
           section={PAGE_SECTION.producao}
           title={block.name}
+          titleContent={(
+            <>
+              <Text variant="pageTitle" className="truncate">{block.name}</Text>
+              <div className="mt-1.5 flex items-center gap-4">
+                <p className="shrink-0 t-body text-[var(--text-secondary)]">{progressLabel}</p>
+                <div
+                  role="progressbar"
+                  aria-label="Roteiros gravados"
+                  aria-valuemin={0}
+                  aria-valuemax={totalCount}
+                  aria-valuenow={completedCount}
+                  aria-valuetext={progressLabel}
+                  className="h-2 w-full max-w-md overflow-hidden rounded-full border border-[var(--border-color)] bg-[var(--bg-hover)]"
+                >
+                  <div
+                    className="h-full rounded-full bg-[var(--brand-accent)] transition-[width] duration-300"
+                    style={{width: `${progress?.progressPercentage ?? 0}%`}}
+                  />
+                </div>
+              </div>
+            </>
+          )}
           backLabel="Gravação"
           backTo="/gravacao?tab=blocks"
-          meta={`${progress?.completedCount ?? 0}/${progress?.totalCount ?? 0} gravados`}
           actions={(
             <AppButton
               variant="primary"
@@ -321,16 +344,14 @@ export function RecordingBlockPage() {
         />
       )}
     >
-      <div className="rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-primary)] p-6 md:p-8">
-        <RecordingBlockEditor
-          block={block}
-          blockContents={resolvedContents}
-          queueContents={queueContents}
-          availableTags={availableTags}
-          onUpdateBlock={handleUpdateBlock}
-          onUpdateContents={handleUpdateContents}
-        />
-      </div>
+      <RecordingBlockEditor
+        block={block}
+        blockContents={resolvedContents}
+        queueContents={queueContents}
+        availableTags={availableTags}
+        onUpdateBlock={handleUpdateBlock}
+        onUpdateContents={handleUpdateContents}
+      />
     </PageLayout>
   );
 }
