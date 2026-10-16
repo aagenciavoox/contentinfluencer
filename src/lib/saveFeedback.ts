@@ -9,6 +9,8 @@ export type SaveFeedbackState = {
   /** Reversible action undo handler (cleared when toast hides). */
   onUndo?: () => void;
   undoLabel?: string;
+  /** Não some sozinho (ex.: aviso de nova versão). */
+  persistent?: boolean;
   updatedAt: number;
 };
 
@@ -54,6 +56,7 @@ export function pauseSaveFeedbackHide(): void {
 
 export function resumeSaveFeedbackHide(): void {
   if (state.status !== 'success' && state.status !== 'error') return;
+  if (state.persistent) return;
   if (hideTimer) clearTimeout(hideTimer);
   hideTimer = setTimeout(() => {
     state = { status: 'idle', message: '', updatedAt: Date.now() };
@@ -65,7 +68,7 @@ export function resumeSaveFeedbackHide(): void {
 export function notifySaveFeedback(
   next: Pick<
     SaveFeedbackState,
-    'status' | 'message' | 'detail' | 'href' | 'actionLabel' | 'onUndo' | 'undoLabel'
+    'status' | 'message' | 'detail' | 'href' | 'actionLabel' | 'onUndo' | 'undoLabel' | 'persistent'
   >,
 ): void {
   if (hideTimer) {
@@ -79,7 +82,7 @@ export function notifySaveFeedback(
   };
   emit();
 
-  if (next.status === 'success' || next.status === 'error') {
+  if (!next.persistent && (next.status === 'success' || next.status === 'error')) {
     // Keep undo toasts visible longer.
     const hideMs = next.onUndo ? AUTO_HIDE_MS + 2000 : AUTO_HIDE_MS;
     hideTimer = setTimeout(() => {

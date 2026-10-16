@@ -16,6 +16,8 @@ await import('./features/contents/lib/spokenDuration.test.ts');
 await import('./components/editors/writingFormatBar.test.ts');
 await import('./features/contents/lib/creationContent.test.ts');
 await import('./features/contents/lib/temas.test.ts');
+await import('./features/contents/lib/contentTags.test.ts');
+await import('./features/contents/lib/draftTagsSave.test.ts');
 await import('./features/contents/lib/postingWindow.test.ts');
 await import('./features/recording/lib/recordingWorkflow.test.ts');
 await import('./features/dashboard/lib/dailySession.test.ts');

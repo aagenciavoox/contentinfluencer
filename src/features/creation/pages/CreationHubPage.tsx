@@ -9,6 +9,8 @@ import {
 } from 'lucide-react';
 import { ConfirmModal } from '../../../components/feedback/modals/ConfirmModal';
 import { Dialog } from '../../../components/overlays/Dialog';
+import { TagSelect } from '../../../components/ui/TagSelect';
+import { TAG_FILTER_PARAM, collectTagOptions, parseTagFilterParam, serializeTagFilterParam } from '../../contents/lib/contentTags';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { AppButton } from '../../../components/ui/AppButton';
 import { FilterBar } from '../../../components/ui/FilterBar';
@@ -150,6 +152,8 @@ export function CreationHubPage() {
   const pilarId = searchParams.get('pilar') ?? '';
   const seriesId = searchParams.get('serie') ?? '';
   const temaId = searchParams.get('tema') ?? '';
+  const tagsParam = searchParams.get(TAG_FILTER_PARAM);
+  const tagFilter = useMemo(() => parseTagFilterParam(tagsParam), [tagsParam]);
   const originId = searchParams.get('origem') ?? '';
   const funcaoId = searchParams.get('funcao') ?? '';
   const filtroData = useMemo(() => lerFiltroData(searchParams), [searchParams]);
@@ -219,6 +223,7 @@ export function CreationHubPage() {
         pilarId,
         seriesId,
         temaId,
+        tags: tagFilter,
         originId,
         funcao: funcaoId,
         filtroData,
@@ -228,7 +233,7 @@ export function CreationHubPage() {
       }),
       sort,
     ),
-    [activeTab, canonicalContents, datas, filtroData, funcaoId, originId, pilarId, search, seriesId, sort, state.series, state.temas, temaId],
+    [activeTab, canonicalContents, datas, filtroData, funcaoId, originId, pilarId, search, seriesId, sort, state.series, state.temas, tagFilter, temaId],
   );
 
   // No kanban, as colunas são as etapas; a aba de etapa só destaca a coluna.
@@ -241,6 +246,7 @@ export function CreationHubPage() {
         pilarId,
         seriesId,
         temaId,
+        tags: tagFilter,
         originId,
         funcao: funcaoId,
         filtroData,
@@ -250,7 +256,7 @@ export function CreationHubPage() {
       }),
       sort,
     );
-  }, [activeTab, canonicalContents, datas, filteredContents, filtroData, funcaoId, originId, pilarId, search, seriesId, sort, state.series, state.temas, temaId, viewMode]);
+  }, [activeTab, canonicalContents, datas, filteredContents, filtroData, funcaoId, originId, pilarId, search, seriesId, sort, state.series, state.temas, tagFilter, temaId, viewMode]);
 
   // "Mostrar mais" acumula páginas em vez de trocar de página: a coleção é pequena.
   const pageData = useMemo(
@@ -795,6 +801,26 @@ export function CreationHubPage() {
     />
   );
 
+  const tagOptions = useMemo(
+    () => collectTagOptions(canonicalContents).map(tag => ({ value: tag, label: tag })),
+    [canonicalContents],
+  );
+  const setTagFilter = useCallback((tags: string[]) => {
+    updateSearchParam(TAG_FILTER_PARAM, serializeTagFilterParam(tags));
+  }, [updateSearchParam]);
+  const tagFilterField = (
+    <TagSelect
+      id="criacao-filtro-tags"
+      label="Tags"
+      values={tagFilter}
+      options={tagOptions}
+      searchable
+      disabled={tagOptions.length === 0 && tagFilter.length === 0}
+      placeholder={tagOptions.length === 0 ? 'Nenhuma tag ainda' : 'Todas as tags'}
+      onChange={setTagFilter}
+    />
+  );
+
   const filterDefinitions = useMemo(() => [
     {
       id: 'pilar',
@@ -906,6 +932,9 @@ export function CreationHubPage() {
         onSearchChange={value => updateSearchParam('q', value)}
         searchPlaceholder="Buscar por título, nota ou tag…"
         filters={filterDefinitions}
+        panelExtra={tagFilterField}
+        extraActiveCount={tagFilter.length > 0 ? 1 : 0}
+        onClearExtra={() => setTagFilter([])}
       />
       <div className="inline-stack-sm shrink-0">
         <CreationDisplayMenu
@@ -956,6 +985,8 @@ export function CreationHubPage() {
           </select>
         </label>
       ))}
+
+      <div className="block">{tagFilterField}</div>
 
       <label className="block stack-sm">
         <Text variant="label" as="span">Ordenar</Text>
@@ -1010,7 +1041,7 @@ export function CreationHubPage() {
     />
   ) : null;
 
-  const hasFilters = Boolean(search || pilarId || seriesId || temaId || originId || funcaoId || filtroData);
+  const hasFilters = Boolean(search || pilarId || seriesId || temaId || tagFilter.length > 0 || originId || funcaoId || filtroData);
   const shownCount = viewMode === 'kanban' ? kanbanContents.length : pageData.items.length;
   const totalCount = viewMode === 'kanban' ? kanbanContents.length : filteredContents.length;
   const hiddenCount = totalCount - shownCount;

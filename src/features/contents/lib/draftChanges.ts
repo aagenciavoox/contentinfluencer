@@ -10,7 +10,7 @@ export function normalizeEditorText(value: string | null | undefined): string {
 }
 
 const TEXT_FIELDS = new Set(['script', 'notes', 'referencias']);
-const LIST_FIELDS = new Set(['scriptNotes', 'plataformas', 'livroIds', 'temaIds']);
+const LIST_FIELDS = new Set(['scriptNotes', 'plataformas', 'livroIds', 'temaIds', 'tags']);
 
 /** Um campo do rascunho mudou de verdade. Abrir, focar ou reformatar o mesmo texto não conta. */
 export function draftFieldChanged(key: string, previous: unknown, next: unknown): boolean {
@@ -32,4 +32,21 @@ export function draftDiffers<T extends object>(draft: T, saved: T): boolean {
   return (Object.keys(draft) as Array<keyof T & string>).some(key =>
     draftFieldChanged(key, draft[key], saved[key]),
   );
+}
+
+/** Campos discretos que gravam na hora, sem esperar o autosave: tags mudam filtros e listas. */
+const IMMEDIATE_FIELDS = ['tags'] as const;
+
+/** O que precisa ir para o servidor já, a partir de uma edição do rascunho. */
+export function immediateSaveUpdates<T extends {tags?: string[]}>(
+  previous: T,
+  updates: Partial<T>,
+): Partial<T> | null {
+  const out: Partial<T> = {};
+  for (const key of IMMEDIATE_FIELDS) {
+    if (!(key in updates)) continue;
+    if (!draftFieldChanged(key, previous[key], updates[key])) continue;
+    out[key] = updates[key];
+  }
+  return Object.keys(out).length > 0 ? out : null;
 }

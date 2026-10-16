@@ -51,6 +51,7 @@ export type ScriptDraft = {
   plataformas: ContentPlataforma[];
   legendaBase: string | null;
   temaIds: string[];
+  tags: string[];
 };
 
 type MobilePane = 'script' | 'notes' | 'captions';

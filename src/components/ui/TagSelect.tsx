@@ -124,6 +124,8 @@ export function TagSelect({
 
     const handlePointerDown = (event: PointerEvent) => {
       if (!containerRef.current?.contains(event.target as Node)) {
+        // Texto digitado e não confirmado vira valor ao sair: senão a tag some sem aviso.
+        if (creatable && query.trim()) addValue(query);
         setOpen(false);
         setQuery('');
       }
@@ -131,7 +133,8 @@ export function TagSelect({
 
     document.addEventListener('pointerdown', handlePointerDown);
     return () => document.removeEventListener('pointerdown', handlePointerDown);
-  }, [open]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, query, creatable, values]);
 
   const addValue = (rawValue: string) => {
     const normalizedValue = normalizeTagToken(rawValue);
@@ -268,6 +271,11 @@ export function TagSelect({
                 }}
                 onKeyDown={handleInputKeyDown}
                 onFocus={() => setOpen(true)}
+                onBlur={event => {
+                  if (!creatable || !query.trim()) return;
+                  if (containerRef.current?.contains(event.relatedTarget as Node | null)) return;
+                  addValue(query);
+                }}
                 placeholder={values.length === 0 ? placeholder : ''}
                 className="input-plain min-w-[120px] flex-1 bg-transparent px-0 py-0.5 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]"
               />

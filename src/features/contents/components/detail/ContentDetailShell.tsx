@@ -34,7 +34,7 @@ import {MarkPostedSheet} from '../MarkPostedSheet';
 import {RecordingSection} from './sections/RecordingSection';
 import {ContentOperationalPanel} from './ContentOperationalPanel';
 import {isContentBodyLoaded} from '../../lib/contentBody';
-import {draftDiffers, draftFieldChanged} from '../../lib/draftChanges';
+import {draftDiffers, draftFieldChanged, immediateSaveUpdates} from '../../lib/draftChanges';
 import {RoteiroSection, type ScriptDraft} from './sections/RoteiroSection';
 import {isWritingWorkspaceEnabled} from '../../../settings/lib/writingWorkspace';
 import {IdeaDetailSection, IdeaOrganizationPanel} from './sections/IdeaDetailSection';
@@ -85,6 +85,7 @@ function draftFromContent(content: Content): ContentDraft {
     plataformas: content.plataformas || [],
     legendaBase: content.legendaBase ?? null,
     temaIds: content.temaIds ?? [],
+    tags: content.tags ?? [],
   };
 }
 
@@ -254,6 +255,7 @@ export function ContentDetailShell({
     liveContent.status,
     liveContent.seriesId,
     liveContent.temaIds?.join('\0'),
+    liveContent.tags?.join('\0'),
     liveContent.pilarId,
     liveContent.bibliotecaItemId,
     liveContent.livroIds?.join('\0'),
@@ -341,6 +343,14 @@ export function ContentDetailShell({
       draftDirtyRef.current = dirty;
       saveGenRef.current += 1;
       setDraftDirty(dirty);
+
+      // Tags gravam na hora: o filtro da lista e a recarga já enxergam a mudança.
+      const immediate = immediateSaveUpdates(previous, nextUpdates);
+      if (immediate && !(updates.status && updates.status !== previous.status)) {
+        queueMicrotask(() => {
+          void persistRef.current(immediate, {silent: true});
+        });
+      }
 
       if (updates.status && updates.status !== previous.status) {
         queueMicrotask(() => {
@@ -435,8 +445,8 @@ export function ContentDetailShell({
 
       const nextTags =
         options?.advanceToReady && draftNow.status === CONTENT_STATUS.ROTEIRO
-          ? withProductionTag(updates?.tags ?? liveNow.tags ?? [], PRODUCTION_TAGS.GRAVAR)
-          : updates?.tags ?? liveNow.tags;
+          ? withProductionTag(updates?.tags ?? draftNow.tags ?? liveNow.tags ?? [], PRODUCTION_TAGS.GRAVAR)
+          : updates?.tags ?? draftNow.tags ?? liveNow.tags;
 
       const statusMilestones = applyStatusMilestones(liveNow, nextStatus);
 
@@ -535,6 +545,7 @@ export function ContentDetailShell({
     draft.scriptNotes,
     draft.seriesId,
     draft.temaIds,
+    draft.tags,
     draft.slotType,
     draft.title,
     liveContent,

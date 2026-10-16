@@ -4,10 +4,26 @@ import path from 'path';
 import {defineConfig} from 'vite';
 import {VitePWA} from 'vite-plugin-pwa';
 
+const APP_VERSION = new Date().toISOString();
+
 export default defineConfig(() => {
   return {
+    define: {
+      __APP_VERSION__: JSON.stringify(APP_VERSION),
+    },
     plugins: [
       react(),
+      {
+        name: 'criaki-version-json',
+        apply: 'build',
+        generateBundle() {
+          this.emitFile({
+            type: 'asset',
+            fileName: 'version.json',
+            source: JSON.stringify({version: APP_VERSION}),
+          });
+        },
+      },
       tailwindcss(),
       VitePWA({
         registerType: 'autoUpdate',
@@ -72,6 +88,7 @@ export default defineConfig(() => {
         workbox: {
           // Não precacheia HTML — evita shell antigo preso no PWA instalado.
           globPatterns: ['**/*.{js,css,ico,png,svg,woff2}'],
+          globIgnores: ['**/version.json'],
           navigateFallback: null,
           cleanupOutdatedCaches: true,
           clientsClaim: true,
