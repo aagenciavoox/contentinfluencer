@@ -184,6 +184,7 @@ export function SeriesSettingsPage() {
             onCreate={openCreatePage}
             onConfigure={serieId => navigate(`/editorial/series/${serieId}`)}
             showOpenBadges={editorialSettings.openInfoNotices}
+            preferencias={preferenciasSeries}
           />
         </div>
         <QuickCreateSheet

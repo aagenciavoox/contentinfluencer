@@ -3,7 +3,6 @@ import { CalendarDays, Clock, Hash, Pencil, Share2, UserRound } from 'lucide-rea
 import { AppButton } from '../../../../components/ui/AppButton';
 import { SidePanel } from '../../../../components/layout/SidePanel';
 import { Badge } from '../../../../components/ui/Badge';
-import { Section } from '../../../../components/ui/Section';
 import { PlatformIcon } from '../../../../components/ui/PlatformIcon';
 import { SelectField } from '../../../../components/ui/SelectField';
 import { Text } from '../../../../components/ui/Text';
@@ -120,10 +119,10 @@ export function AjustesEditorialPanel() {
   const horarios = state.postingTimeEntries ?? [];
 
   return (
-    <Section
-      title="Ajustes gerais"
-      description="Estas configurações valem para todos os períodos. Prioridades e metas ficam na aba Período."
-    >
+    <div className="stack-lg">
+      <Text variant="secondary" as="p">
+        Estas configurações valem para todos os períodos. Prioridades e metas ficam na aba Período.
+      </Text>
 
       <CardConfiguracao
         icone={<CalendarDays className="h-5 w-5" />}
@@ -316,6 +315,6 @@ export function AjustesEditorialPanel() {
           aoSalvar={() => setHorariosAbertos(false)}
         />
       </SidePanel>
-    </Section>
+    </div>
   );
 }

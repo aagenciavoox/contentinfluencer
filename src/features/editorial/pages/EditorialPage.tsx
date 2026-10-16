@@ -289,7 +289,7 @@ export function EditorialPage() {
     </AppButton>
   ) : null;
 
-  const abas = <SegmentTabs value={tab} onChange={changeTab} options={TABS} ariaLabel="Abas do Editorial" />;
+  const abas = <SegmentTabs value={tab} onChange={changeTab} options={TABS} ariaLabel="Abas do Editorial" iconOnlyOnMobile />;
 
   return (
     <PageLayout

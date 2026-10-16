@@ -138,7 +138,7 @@ export function ContentDetailShell({
   const [draftDirty, setDraftDirty] = useState(false);
   const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const saveGenRef = useRef(0);
-  // Gravação que falhou deixa o estado local à frente do servidor: comparar com ele não basta.
+  // Gravação que não chegou ao servidor deixa o estado local à frente do servidor: comparar com ele não basta.
   const saveFailedRef = useRef(false);
   const persistInFlightRef = useRef(false);
   const drainPersistQueueRef = useRef<() => Promise<void>>(async () => undefined);

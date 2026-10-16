@@ -16,6 +16,8 @@ interface SegmentTabsProps<T extends string = string> {
   className?: string;
   /** Nome do grupo para leitor de tela (ex.: "Vista do calendário"). */
   ariaLabel?: string;
+  /** Em telas estreitas mostra só o ícone; o rótulo continua para leitor de tela. Exige `icon` em cada opção. */
+  iconOnlyOnMobile?: boolean;
 }
 
 /**
@@ -28,6 +30,7 @@ export function SegmentTabs<T extends string = string>({
   onChange,
   className,
   ariaLabel,
+  iconOnlyOnMobile = false,
 }: SegmentTabsProps<T>) {
   const refs = useRef<Array<HTMLButtonElement | null>>([]);
 
@@ -59,6 +62,7 @@ export function SegmentTabs<T extends string = string>({
             aria-selected={active}
             tabIndex={active ? 0 : -1}
             onClick={() => onChange(option.id)}
+            title={iconOnlyOnMobile ? option.label : undefined}
             className={cn(
               'segment-tabs-item inline-flex items-center gap-1.5',
               active && 'segment-tabs-item-active',
@@ -72,7 +76,11 @@ export function SegmentTabs<T extends string = string>({
             {/* Na aba ativa a cor fica no texto: o `:hover` de `.segment-tabs-item` trocava
                 para --text-primary sobre o fundo --text-primary e o rótulo (com o contador) sumia. */}
             <span
-              className={cn('text-xs font-semibold', active && 'text-[var(--bg-primary)]')}
+              className={cn(
+                'text-xs font-semibold',
+                active && 'text-[var(--bg-primary)]',
+                iconOnlyOnMobile && option.icon && 'sr-only sm:not-sr-only',
+              )}
             >
               {option.label}
             </span>

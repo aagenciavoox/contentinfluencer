@@ -4,6 +4,7 @@ import { AppButton } from '../../../components/ui/AppButton';
 import { Badge } from '../../../components/ui/Badge';
 import { MoreMenu } from '../../../components/ui/MoreMenu';
 import { Text } from '../../../components/ui/Text';
+import { ToggleRow } from '../../../components/ui/ToggleSwitch';
 import type { Serie } from '../../../lib/database';
 import { EmptyState } from '../../../components/ui/EmptyState';
 import { MobileListCard } from '../../components/MobileListCard';
@@ -20,6 +21,8 @@ interface SeriesMobileScreenProps {
   onCreate: () => void;
   onConfigure: (serieId: string) => void;
   showOpenBadges: boolean;
+  /** Preferências de séries (criação rápida, avisos em aberto); as mesmas do computador. */
+  preferencias?: Array<{ key: string; title: string; description: string; enabled: boolean; toggle: () => void }>;
 }
 
 type SeriesFilter = 'todas' | 'ativas' | 'inativas';
@@ -35,6 +38,7 @@ export function SeriesMobileScreen({
   onCreate,
   onConfigure,
   showOpenBadges,
+  preferencias = [],
 }: SeriesMobileScreenProps) {
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<SeriesFilter>('todas');
@@ -97,6 +101,26 @@ export function SeriesMobileScreen({
           Nova série
         </AppButton>
       </section>
+
+      {preferencias.length > 0 ? (
+        <section className="stack-sm rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4">
+          {preferencias.map(row => (
+            <ToggleRow
+              key={row.key}
+              id={`series-mobile-${row.key}`}
+              enabled={row.enabled}
+              onToggle={row.toggle}
+              title={row.title}
+              className="gap-4"
+            >
+              <span className="stack-xs">
+                <Text variant="body" as="span">{row.title}</Text>
+                <Text variant="secondary" as="span">{row.description}</Text>
+              </span>
+            </ToggleRow>
+          ))}
+        </section>
+      ) : null}
 
       {series.length > 0 ? (
         <section className="stack-sm">
