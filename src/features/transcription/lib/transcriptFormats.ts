@@ -46,12 +46,68 @@ export function buildSrt(segments: readonly TranscriptSegment[]) {
     .join('\n');
 }
 
-/** Texto corrido, um trecho por linha, para copiar ou baixar em .txt. */
+/** Uma linha da transcrição. `start` é nulo quando o áudio veio sem tempos. */
+export type TranscriptLine = { text: string; start: number | null };
+
+const SENTENCE_END = /[.!?…]["'”»)]*$/;
+/** Silêncio entre dois trechos que já fecha o parágrafo. */
+const PARAGRAPH_PAUSE_SECONDS = 1.2;
+/** A partir de quantas linhas um fim de frase fecha o parágrafo. */
+const LINES_BEFORE_SENTENCE_BREAK = 3;
+const MAX_PARAGRAPH_LINES = 6;
+const SENTENCES_PER_TEXT_PARAGRAPH = 3;
+
+function chunk<T>(items: readonly T[], size: number) {
+  const chunks: T[][] = [];
+  for (let index = 0; index < items.length; index += size) chunks.push(items.slice(index, index + size));
+  return chunks;
+}
+
+function paragraphsFromText(text: string): TranscriptLine[][] {
+  const blocks = text
+    .split(/\n\s*\n/)
+    .map(block => block.split('\n').map(line => line.trim()).filter(Boolean))
+    .filter(block => block.length > 0);
+  // Texto corrido numa linha só: uma frase por linha, poucas frases por parágrafo.
+  const lines = blocks.length === 1 && blocks[0].length === 1
+    ? chunk(blocks[0][0].split(/(?<=[.!?…])\s+/).filter(Boolean), SENTENCES_PER_TEXT_PARAGRAPH)
+    : blocks;
+  return lines.map(block => block.map(line => ({ text: line, start: null })));
+}
+
+/**
+ * Um trecho por linha, agrupados em parágrafos: fecha o parágrafo numa pausa longa,
+ * num fim de frase depois de algumas linhas, ou quando ele fica comprido demais.
+ */
+export function buildParagraphs(transcript: Pick<Transcript, 'text' | 'segments'>): TranscriptLine[][] {
+  const segments = transcript.segments
+    .map(segment => ({ ...segment, text: segment.text.trim() }))
+    .filter(segment => segment.text);
+  if (segments.length === 0) return paragraphsFromText(transcript.text);
+
+  const paragraphs: TranscriptLine[][] = [];
+  let current: TranscriptLine[] = [];
+  segments.forEach((segment, index) => {
+    const previous = segments[index - 1];
+    if (previous && current.length > 0) {
+      const paused = segment.start - previous.end >= PARAGRAPH_PAUSE_SECONDS;
+      const sentenceDone = current.length >= LINES_BEFORE_SENTENCE_BREAK && SENTENCE_END.test(previous.text);
+      if (paused || sentenceDone || current.length >= MAX_PARAGRAPH_LINES) {
+        paragraphs.push(current);
+        current = [];
+      }
+    }
+    current.push({ text: segment.text, start: segment.start });
+  });
+  if (current.length > 0) paragraphs.push(current);
+  return paragraphs;
+}
+
+/** Texto como aparece na tela: um trecho por linha e uma linha em branco entre parágrafos. */
 export function buildPlainText(transcript: Pick<Transcript, 'text' | 'segments'>) {
-  if (transcript.segments.length > 0) {
-    return transcript.segments.map(segment => segment.text.trim()).filter(Boolean).join('\n');
-  }
-  return transcript.text.trim();
+  return buildParagraphs(transcript)
+    .map(paragraph => paragraph.map(line => line.text).join('\n'))
+    .join('\n\n');
 }
 
 /** `meu vídeo.mp4` → `meu vídeo.txt`. */

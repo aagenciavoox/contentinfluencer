@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import {
+  buildParagraphs,
   buildPlainText,
   buildSrt,
   formatClock,
@@ -43,6 +44,57 @@ function testPlainTextUsesOneLinePerSegment() {
   assert.equal(buildPlainText({ text: ' Só texto. ', segments: [] }), 'Só texto.');
 }
 
+function lines(texts: string[], gap = 0) {
+  let clock = 0;
+  return texts.map(text => {
+    const segment = { start: clock, end: clock + 2, text };
+    clock += 2 + gap;
+    return segment;
+  });
+}
+
+function testBreaksParagraphOnLongPause() {
+  const segments = [
+    { start: 0, end: 2, text: 'Coisas que ninguém fala.' },
+    { start: 2, end: 4, text: 'Você não precisa' },
+    { start: 5.5, end: 7, text: 'E eu digo isso,' },
+  ];
+  assert.deepEqual(
+    buildParagraphs({ text: '', segments }).map(paragraph => paragraph.map(line => line.text)),
+    [['Coisas que ninguém fala.', 'Você não precisa'], ['E eu digo isso,']],
+  );
+}
+
+function testBreaksParagraphOnSentenceEndAfterSomeLines() {
+  const paragraphs = buildParagraphs({ text: '', segments: lines(['Um,', 'dois.', 'três,', 'quatro.', 'Cinco']) });
+  assert.deepEqual(paragraphs.map(paragraph => paragraph.length), [4, 1]);
+}
+
+function testCapsParagraphLength() {
+  const paragraphs = buildParagraphs({ text: '', segments: lines(['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']) });
+  assert.deepEqual(paragraphs.map(paragraph => paragraph.length), [6, 2]);
+}
+
+function testKeepsSegmentStartAndSkipsEmptySegments() {
+  const paragraphs = buildParagraphs({ text: '', segments: [{ start: 0, end: 1, text: ' ' }, { start: 1, end: 2, text: ' Oi.' }] });
+  assert.deepEqual(paragraphs, [[{ text: 'Oi.', start: 1 }]]);
+}
+
+function testSplitsTextWithoutTimesIntoSentences() {
+  assert.equal(
+    buildPlainText({ text: 'Um. Dois! Três? Quatro.', segments: [] }),
+    'Um.\nDois!\nTrês?\n\nQuatro.',
+  );
+  assert.equal(buildPlainText({ text: 'Linha um\nlinha dois\n\nOutro bloco', segments: [] }), 'Linha um\nlinha dois\n\nOutro bloco');
+}
+
+function testPlainTextSeparatesParagraphsWithBlankLine() {
+  assert.equal(
+    buildPlainText({ text: '', segments: [{ start: 0, end: 1, text: 'Antes.' }, { start: 3, end: 4, text: 'Depois.' }] }),
+    'Antes.\n\nDepois.',
+  );
+}
+
 function testNamesDownloadAfterSourceFile() {
   assert.equal(transcriptFileName('meu vídeo.final.mp4', 'txt'), 'meu vídeo.final.txt');
   assert.equal(transcriptFileName('reels', 'srt'), 'reels.srt');
@@ -55,6 +107,12 @@ const tests = [
   ['builds a numbered SRT and skips empty segments', testBuildsNumberedSrtSkippingEmptyLines],
   ['keeps SRT end at or after start', testSrtNeverEndsBeforeItStarts],
   ['builds plain text one segment per line', testPlainTextUsesOneLinePerSegment],
+  ['breaks a paragraph on a long pause', testBreaksParagraphOnLongPause],
+  ['breaks a paragraph on a sentence end after some lines', testBreaksParagraphOnSentenceEndAfterSomeLines],
+  ['caps paragraph length', testCapsParagraphLength],
+  ['keeps segment start and skips empty segments', testKeepsSegmentStartAndSkipsEmptySegments],
+  ['splits text without times into sentences', testSplitsTextWithoutTimesIntoSentences],
+  ['separates paragraphs with a blank line', testPlainTextSeparatesParagraphsWithBlankLine],
   ['names downloads after the source file', testNamesDownloadAfterSourceFile],
 ] as const;
 

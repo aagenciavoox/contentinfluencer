@@ -600,6 +600,35 @@ input.caption-locked:focus {
   break-inside: avoid;
 }
 
+/* Texto da transcrição: leitura longa, um trecho por linha e uma linha em branco entre
+   parágrafos. Vira duas colunas quando cabem duas de 26rem (desktop); no celular, uma. */
+.transcript-text {
+  --transcript-leading: 1.7;
+  columns: 2 26rem;
+  column-gap: 3rem;
+  column-rule: 1px solid var(--border-subtle);
+  font-size: var(--font-size-body-reading);
+  line-height: var(--transcript-leading);
+  color: var(--text-primary);
+  overflow-wrap: break-word;
+}
+
+.transcript-text > * {
+  break-inside: avoid;
+}
+
+.transcript-text > * + * {
+  margin-top: calc(var(--transcript-leading) * 1em);
+}
+
+/* Um trecho por linha. Se o trecho não cabe na coluna, a continuação entra recuada
+   para não parecer um trecho novo. */
+.transcript-line {
+  display: block;
+  padding-left: 1.25em;
+  text-indent: -1.25em;
+}
+
 .elevation-0 { box-shadow: none; }
 .elevation-1 { box-shadow: none; } /* flat card — border only */
 .elevation-2 { box-shadow: var(--shadow-card-hover); } /* interactive hover */

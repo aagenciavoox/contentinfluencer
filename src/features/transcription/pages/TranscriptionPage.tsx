@@ -8,6 +8,7 @@ import { Text } from '../../../components/ui/Text';
 import { useIsMobile } from '../../../hooks/useIsMobile';
 import { DesktopPageHeader } from '../../../layouts/page/DesktopPageHeader';
 import { PageLayout } from '../../../layouts/page/PageLayout';
+import { TranscriptActions } from '../components/TranscriptActions';
 import { TranscriptView } from '../components/TranscriptView';
 import { TranscriptionDropzone } from '../components/TranscriptionDropzone';
 import { TranscriptionQueueItem } from '../components/TranscriptionQueueItem';
@@ -64,6 +65,7 @@ export function TranscriptionPage() {
             backLabel="Fila de transcrição"
             onBack={backToQueue}
             meta={transcriptMeta(viewing.transcript) || undefined}
+            actions={<TranscriptActions fileName={viewing.file.name} transcript={viewing.transcript} />}
           />
         )}
       >
@@ -71,8 +73,7 @@ export function TranscriptionPage() {
           key={viewing.id}
           fileName={viewing.file.name}
           transcript={viewing.transcript}
-          onBack={backToQueue}
-          showTitle={isMobile}
+          mobile={isMobile}
         />
       </PageLayout>
     );
