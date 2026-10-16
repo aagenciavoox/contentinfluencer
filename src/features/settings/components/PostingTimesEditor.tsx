@@ -6,6 +6,8 @@ import {SelectField} from '../../../components/ui/SelectField';
 import {Text} from '../../../components/ui/Text';
 import {cn, tintedTextColor} from '../../../lib/utils';
 import {
+  MAX_TIMES_PER_DAY,
+  WEEKDAY_FULL,
   WEEKDAYS_ORDERED,
   Weekday,
 } from '../lib/postingTimes';
@@ -15,7 +17,6 @@ import {notifySaveFeedback, getErrorMessage} from '../../../lib/saveFeedback';
 import {broadcastDataSync} from '../../../lib/syncBroadcast';
 import {rotuloConta} from '../../contas/lib/contas';
 
-const MAX_TIMES_PER_DAY = 3;
 const GLOBAL_TAB_ID = 'global';
 const WEEKDAYS = [0, 1, 2, 3, 4, 5, 6] as Weekday[];
 
@@ -69,16 +70,6 @@ function isUsingGlobalFallback(
   return specific.length === 0 && global.length > 0;
 }
 
-const NOME_DO_DIA: Record<Weekday, string> = {
-  0: 'Domingo',
-  1: 'Segunda-feira',
-  2: 'Terça-feira',
-  3: 'Quarta-feira',
-  4: 'Quinta-feira',
-  5: 'Sexta-feira',
-  6: 'Sábado',
-};
-
 /**
  * Horários de postagem numa tabela por dia. A pessoa vê os horários e só altera
  * depois de editar; "Salvar alterações" grava o rascunho. O padrão geral vale
@@ -87,17 +78,14 @@ const NOME_DO_DIA: Record<Weekday, string> = {
 export function PostingTimesEditor({
   contaInicialId,
   aoSalvar,
-  layout = 'painel',
-  onDirtyChange,
+  aoCancelar,
   comecarEditando = false,
 }: {
   /** Conta já escolhida na tela que abriu o editor. Null abre no padrão geral. */
   contaInicialId?: string | null;
   aoSalvar?: () => void;
-  /** `pagina` mostra o título da seção; no painel lateral o título é do painel. */
-  layout?: 'pagina' | 'painel';
-  /** Avisa a tela quando há alteração sem salvar (para ela não ter dois botões principais). */
-  onDirtyChange?: (dirty: boolean) => void;
+  /** Cancelar também fecha o painel que abriu o editor. */
+  aoCancelar?: () => void;
   /** O painel de configurar já abre pronto para editar. */
   comecarEditando?: boolean;
 } = {}) {
@@ -124,10 +112,6 @@ export function PostingTimesEditor({
     }
     setDraft(savedDraft);
   }, [savedDraft, editando]);
-
-  useEffect(() => {
-    onDirtyChange?.(isDirty);
-  }, [isDirty, onDirtyChange]);
 
   useEffect(() => {
     if (contaInicialId === undefined) return;
@@ -216,6 +200,7 @@ export function PostingTimesEditor({
     setDraft(savedDraft);
     setTouched(false);
     setEditando(false);
+    aoCancelar?.();
   }
 
   async function handleSave() {
@@ -287,8 +272,7 @@ export function PostingTimesEditor({
     <div className="stack-md">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0 max-w-2xl">
-          {layout === 'pagina' ? <Text variant="sectionTitle" as="h2">Horários de postagem</Text> : null}
-          <Text variant="secondary" className="mt-0.5 text-[var(--text-secondary)]">
+          <Text variant="secondary" className="text-[var(--text-secondary)]">
             {editando
               ? `Até ${MAX_TIMES_PER_DAY} horários por dia. Nada é gravado até salvar.`
               : `Até ${MAX_TIMES_PER_DAY} horários por dia. Os dias sem horário próprio usam o padrão geral.`}
@@ -400,7 +384,7 @@ interface DayRowProps {
 function DayRow({day, fimDeSemana, specificTimes, fallbackTimes, editando, onPending, onAdd, onRemove}: DayRowProps) {
   const [input, setInput] = useState('');
   const canAdd = specificTimes.length < MAX_TIMES_PER_DAY;
-  const nome = NOME_DO_DIA[day];
+  const nome = WEEKDAY_FULL[day];
 
   useEffect(() => {
     if (!editando) setInput('');

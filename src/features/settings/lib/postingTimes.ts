@@ -6,6 +6,8 @@ export type Weekday = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 // Ate 3 horarios por dia no formato "HH:MM"
 export type DayTimes = [string?, string?, string?];
 
+export const MAX_TIMES_PER_DAY = 3;
+
 export type PostingTimesSettings = Record<Weekday, DayTimes>;
 
 /** @deprecated Usado so para migracao do blob antigo em user_preferences */
@@ -18,6 +20,16 @@ export const WEEKDAY_LABELS: Record<Weekday, string> = {
   3: 'Quarta',
   4: 'Quinta',
   5: 'Sexta',
+  6: 'Sábado',
+};
+
+export const WEEKDAY_FULL: Record<Weekday, string> = {
+  0: 'Domingo',
+  1: 'Segunda-feira',
+  2: 'Terça-feira',
+  3: 'Quarta-feira',
+  4: 'Quinta-feira',
+  5: 'Sexta-feira',
   6: 'Sábado',
 };
 

@@ -18,7 +18,7 @@ import {Dialog} from '../../../components/overlays/Dialog';
 import {OverlayHeader} from '../../../components/overlays/OverlayHeader';
 import {OverlayBody} from '../../../components/overlays/OverlayBody';
 import {ConfirmModal} from '../../../components/feedback/modals/ConfirmModal';
-import {PostingTimesEditor} from '../components/PostingTimesEditor';
+import {PostingTimesOverview} from '../components/PostingTimesOverview';
 import {ToggleSwitch} from '../../../components/ui/ToggleSwitch';
 import {generateUUID} from '../../../utils/uuid';
 import {notifySaveFeedback} from '../../../lib/saveFeedback';
@@ -65,8 +65,6 @@ export function PlatformsSettingsPage() {
   const [rascunho, setRascunho] = useState<Rascunho | null>(null);
   const [confirm, setConfirm] = useState<ConfirmState | null>(null);
   const [revisaoAberta, setRevisaoAberta] = useState(true);
-  // Com horário sem salvar, "Salvar alterações" vira o botão principal e "Nova conta" cede o lugar.
-  const [horariosPendentes, setHorariosPendentes] = useState(false);
 
   const contas = useMemo(() => ordenarContas(state.platforms), [state.platforms]);
   const revisoes = useMemo(
@@ -210,7 +208,7 @@ export function PlatformsSettingsPage() {
           actions={
             <AppButton
               onClick={() => setRascunho(RASCUNHO_NOVO)}
-              variant={horariosPendentes ? 'secondary' : 'primary'}
+              variant="primary"
               leftIcon={<Plus className="h-4 w-4" />}
             >
               Nova conta
@@ -476,9 +474,7 @@ export function PlatformsSettingsPage() {
           </Text>
         </section>
 
-        <section aria-label="Horários de postagem">
-          <PostingTimesEditor layout="pagina" onDirtyChange={setHorariosPendentes} />
-        </section>
+        <PostingTimesOverview />
       </div>
 
       <ConfirmModal
