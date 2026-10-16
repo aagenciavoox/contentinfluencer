@@ -34,11 +34,11 @@ export function draftDiffers<T extends object>(draft: T, saved: T): boolean {
   );
 }
 
-/** Campos discretos que gravam na hora, sem esperar o autosave: tags mudam filtros e listas. */
-const IMMEDIATE_FIELDS = ['tags'] as const;
+/** Campos discretos que gravam na hora, sem esperar o autosave: temas mudam filtros e listas. */
+const IMMEDIATE_FIELDS = ['temaIds'] as const;
 
 /** O que precisa ir para o servidor já, a partir de uma edição do rascunho. */
-export function immediateSaveUpdates<T extends {tags?: string[]}>(
+export function immediateSaveUpdates<T extends {temaIds?: string[]}>(
   previous: T,
   updates: Partial<T>,
 ): Partial<T> | null {

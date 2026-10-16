@@ -6,7 +6,7 @@ import { isFuncaoEditorial, resolveFuncao } from '../../editorial/lib/funcoes.ts
 import {CONTENT_STATUS, normalizeContentStatus} from './contentPipeline.ts';
 import {livroIdsEfetivos} from '../../../lib/livroIds.ts';
 import {createContentDraft} from './createContentDraft.ts';
-import {matchesTagFilter} from './contentTags.ts';
+import {matchesTemaFilter} from './temaFilter.ts';
 
 export const CREATION_TABS = [
   'Todos',
@@ -30,8 +30,8 @@ export interface CreationFilters {
   originId?: string;
   funcao?: string;
   temaId?: string;
-  /** Tags de usuário; passa quem tiver qualquer uma. */
-  tags?: readonly string[];
+  /** Vários temas; passa quem tiver qualquer um. */
+  temaIds?: readonly string[];
   temas?: readonly { id: string; nome: string }[];
   series?: readonly { id: string; funcaoPadrao?: FuncaoPadraoSerie | null }[];
   /** Data na grade, pela mesma regra do Editorial. Precisa de `datasNaGrade`. */
@@ -271,7 +271,7 @@ export function filterCreationContents(
     .filter(content => !filters.pilarId || content.pilarId === filters.pilarId)
     .filter(content => !filters.seriesId || content.seriesId === filters.seriesId)
     .filter(content => !filters.temaId || (content.temaIds ?? []).includes(filters.temaId))
-    .filter(content => matchesTagFilter(content.tags, filters.tags ?? []))
+    .filter(content => matchesTemaFilter(content.temaIds, filters.temaIds ?? []))
     .filter(content => !filters.originId || livroIdsEfetivos(content).includes(filters.originId))
     .filter(content => passaNoFiltroData(filters.datasNaGrade?.get(content.id), filters.filtroData ?? null))
     .filter(content => {

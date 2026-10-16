@@ -10,7 +10,7 @@ import {
 import { ConfirmModal } from '../../../components/feedback/modals/ConfirmModal';
 import { Dialog } from '../../../components/overlays/Dialog';
 import { TagSelect } from '../../../components/ui/TagSelect';
-import { TAG_FILTER_PARAM, collectTagOptions, parseTagFilterParam, serializeTagFilterParam } from '../../contents/lib/contentTags';
+import { LEGACY_TAGS_PARAM, TEMA_FILTER_PARAM, migrateLegacyTemaParams, parseTemaFilterParam, serializeTemaFilterParam } from '../../contents/lib/temaFilter';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { AppButton } from '../../../components/ui/AppButton';
 import { FilterBar } from '../../../components/ui/FilterBar';
@@ -151,9 +151,12 @@ export function CreationHubPage() {
   const search = searchParams.get('q') ?? '';
   const pilarId = searchParams.get('pilar') ?? '';
   const seriesId = searchParams.get('serie') ?? '';
-  const temaId = searchParams.get('tema') ?? '';
-  const tagsParam = searchParams.get(TAG_FILTER_PARAM);
-  const tagFilter = useMemo(() => parseTagFilterParam(tagsParam), [tagsParam]);
+  const temasParam = searchParams.get(TEMA_FILTER_PARAM);
+  const legacyTemaParam = searchParams.get('tema');
+  const temaFilter = useMemo(
+    () => parseTemaFilterParam(temasParam, legacyTemaParam),
+    [legacyTemaParam, temasParam],
+  );
   const originId = searchParams.get('origem') ?? '';
   const funcaoId = searchParams.get('funcao') ?? '';
   const filtroData = useMemo(() => lerFiltroData(searchParams), [searchParams]);
@@ -222,8 +225,7 @@ export function CreationHubPage() {
         search,
         pilarId,
         seriesId,
-        temaId,
-        tags: tagFilter,
+        temaIds: temaFilter,
         originId,
         funcao: funcaoId,
         filtroData,
@@ -233,7 +235,7 @@ export function CreationHubPage() {
       }),
       sort,
     ),
-    [activeTab, canonicalContents, datas, filtroData, funcaoId, originId, pilarId, search, seriesId, sort, state.series, state.temas, tagFilter, temaId],
+    [activeTab, canonicalContents, datas, filtroData, funcaoId, originId, pilarId, search, seriesId, sort, state.series, state.temas, temaFilter],
   );
 
   // No kanban, as colunas são as etapas; a aba de etapa só destaca a coluna.
@@ -245,8 +247,7 @@ export function CreationHubPage() {
         search,
         pilarId,
         seriesId,
-        temaId,
-        tags: tagFilter,
+        temaIds: temaFilter,
         originId,
         funcao: funcaoId,
         filtroData,
@@ -256,7 +257,7 @@ export function CreationHubPage() {
       }),
       sort,
     );
-  }, [activeTab, canonicalContents, datas, filteredContents, filtroData, funcaoId, originId, pilarId, search, seriesId, sort, state.series, state.temas, tagFilter, temaId, viewMode]);
+  }, [activeTab, canonicalContents, datas, filteredContents, filtroData, funcaoId, originId, pilarId, search, seriesId, sort, state.series, state.temas, temaFilter, viewMode]);
 
   // "Mostrar mais" acumula páginas em vez de trocar de página: a coleção é pequena.
   const pageData = useMemo(
@@ -801,23 +802,40 @@ export function CreationHubPage() {
     />
   );
 
-  const tagOptions = useMemo(
-    () => collectTagOptions(canonicalContents).map(tag => ({ value: tag, label: tag })),
-    [canonicalContents],
+  // URL antiga: ?tema=id e ?tags=nome viram ?temas=. Tags só se resolvem com os temas carregados.
+  useEffect(() => {
+    if (searchParams.has(LEGACY_TAGS_PARAM) && state.temas.length === 0) return;
+    const next = migrateLegacyTemaParams(searchParams, state.temas);
+    if (next) setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams, state.temas]);
+
+  const temaOptions = useMemo(
+    () => [...state.temas]
+      .sort((left, right) => left.nome.localeCompare(right.nome, 'pt-BR'))
+      .map(tema => ({ value: tema.id, label: tema.nome })),
+    [state.temas],
   );
-  const setTagFilter = useCallback((tags: string[]) => {
-    updateSearchParam(TAG_FILTER_PARAM, serializeTagFilterParam(tags));
-  }, [updateSearchParam]);
-  const tagFilterField = (
+  const setTemaFilter = useCallback((ids: string[]) => {
+    setSearchParams(previous => {
+      const next = new URLSearchParams(previous);
+      next.delete('tema');
+      const value = serializeTemaFilterParam(ids);
+      if (value) next.set(TEMA_FILTER_PARAM, value);
+      else next.delete(TEMA_FILTER_PARAM);
+      next.delete('page');
+      return next;
+    }, { replace: true });
+  }, [setSearchParams]);
+  const temaFilterField = (
     <TagSelect
-      id="criacao-filtro-tags"
-      label="Tags"
-      values={tagFilter}
-      options={tagOptions}
+      id="criacao-filtro-temas"
+      label="Temas"
+      values={temaFilter}
+      options={temaOptions}
       searchable
-      disabled={tagOptions.length === 0 && tagFilter.length === 0}
-      placeholder={tagOptions.length === 0 ? 'Nenhuma tag ainda' : 'Todas as tags'}
-      onChange={setTagFilter}
+      disabled={temaOptions.length === 0 && temaFilter.length === 0}
+      placeholder={temaOptions.length === 0 ? 'Nenhum tema ainda' : 'Todos os temas'}
+      onChange={setTemaFilter}
     />
   );
 
@@ -840,18 +858,6 @@ export function CreationHubPage() {
       options: [
         { label: 'Todas as séries', value: '' },
         ...state.series.map(series => ({ label: series.name, value: series.id })),
-      ],
-    },
-    {
-      id: 'tema',
-      label: 'Tema',
-      value: temaId,
-      onChange: (value: string) => updateSearchParam('tema', value),
-      options: [
-        { label: 'Todos os temas', value: '' },
-        ...[...state.temas]
-          .sort((left, right) => left.nome.localeCompare(right.nome, 'pt-BR'))
-          .map(tema => ({ label: tema.nome, value: tema.id })),
       ],
     },
     {
@@ -892,7 +898,6 @@ export function CreationHubPage() {
     originId,
     pilarId,
     seriesId,
-    temaId,
     state.bibliotecaItems,
     state.temas,
     state.pilares,
@@ -930,11 +935,11 @@ export function CreationHubPage() {
         className="min-w-0 flex-1"
         searchValue={search}
         onSearchChange={value => updateSearchParam('q', value)}
-        searchPlaceholder="Buscar por título, nota ou tag…"
+        searchPlaceholder="Buscar por título, nota ou tema…"
         filters={filterDefinitions}
-        panelExtra={tagFilterField}
-        extraActiveCount={tagFilter.length > 0 ? 1 : 0}
-        onClearExtra={() => setTagFilter([])}
+        panelExtra={temaFilterField}
+        extraActiveCount={temaFilter.length > 0 ? 1 : 0}
+        onClearExtra={() => setTemaFilter([])}
       />
       <div className="inline-stack-sm shrink-0">
         <CreationDisplayMenu
@@ -956,7 +961,7 @@ export function CreationHubPage() {
     <MobileSearchBar
       value={search}
       onChange={value => updateSearchParam('q', value)}
-      placeholder="Buscar por título, nota ou tag"
+      placeholder="Buscar por título, nota ou tema"
       onFilterClick={() => setMobileFiltersOpen(true)}
       rounded="tight"
       trailing={selectionMenu ?? undefined}
@@ -986,7 +991,7 @@ export function CreationHubPage() {
         </label>
       ))}
 
-      <div className="block">{tagFilterField}</div>
+      <div className="block">{temaFilterField}</div>
 
       <label className="block stack-sm">
         <Text variant="label" as="span">Ordenar</Text>
@@ -1041,7 +1046,7 @@ export function CreationHubPage() {
     />
   ) : null;
 
-  const hasFilters = Boolean(search || pilarId || seriesId || temaId || tagFilter.length > 0 || originId || funcaoId || filtroData);
+  const hasFilters = Boolean(search || pilarId || seriesId || temaFilter.length > 0 || originId || funcaoId || filtroData);
   const shownCount = viewMode === 'kanban' ? kanbanContents.length : pageData.items.length;
   const totalCount = viewMode === 'kanban' ? kanbanContents.length : filteredContents.length;
   const hiddenCount = totalCount - shownCount;

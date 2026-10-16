@@ -9,7 +9,7 @@ import {cn} from '../../../../lib/utils';
 import type {Content, Pilar} from '../../../../lib/database';
 import type {ContentPrimaryAction} from '../../lib/contentPipeline';
 import {getDisplayStatus} from '../../lib/contentPipeline';
-import {ContentTagChips} from '../ContentTagChips';
+import {ContentTemaChips} from '../ContentTemaChips';
 import {DesktopPageHeader} from '../../../../layouts/page/DesktopPageHeader';
 import {PAGE_SECTION} from '../../../../layouts/navigation/navConfig';
 import {labelForDetailBack, resolveContentDetailBack} from '../../../../lib/navigation/detailBack';
@@ -207,7 +207,7 @@ export function ContentDetailHeader({
           <div className="min-w-0 flex-1">{titleBlock}</div>
           {saveIndicator ? <div className="shrink-0">{saveIndicator}</div> : null}
         </div>
-        <ContentTagChips tags={content.tags} max={6} />
+        <ContentTemaChips temaIds={content.temaIds} max={6} />
       </div>
     ) : (
       <div className="min-w-0 stack-sm">
@@ -216,7 +216,7 @@ export function ContentDetailHeader({
           <Badge variant="status" status={displayStatus}>
             {displayStatus}
           </Badge>
-          <ContentTagChips tags={content.tags} max={6} />
+          <ContentTemaChips temaIds={content.temaIds} max={6} />
           {saveIndicator ? (
             <>
               <span className="text-[var(--border-strong)]" aria-hidden>

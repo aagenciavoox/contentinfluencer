@@ -357,7 +357,7 @@ export function ContentDetailShell({
       saveGenRef.current += 1;
       setDraftDirty(dirty);
 
-      // Tags gravam na hora: o filtro da lista e a recarga já enxergam a mudança.
+      // Temas gravam na hora: o filtro da lista e a recarga já enxergam a mudança.
       const immediate = immediateSaveUpdates(previous, nextUpdates);
       if (immediate && !(updates.status && updates.status !== previous.status)) {
         queueMicrotask(() => {

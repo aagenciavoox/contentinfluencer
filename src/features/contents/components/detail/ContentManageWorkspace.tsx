@@ -1,5 +1,5 @@
 import {useEffect, type ReactNode} from 'react';
-import {BookOpen, Calendar, ChevronDown, Clock, Flag, Hash, Layers, Search, Tag, Target} from 'lucide-react';
+import {BookOpen, Calendar, ChevronDown, Clock, Flag, Layers, Search, Tag, Target} from 'lucide-react';
 import {PropertyDatePicker} from '../../../../components/ui/PropertyDatePicker';
 import {Surface} from '../../../../components/ui/Surface';
 import {Text} from '../../../../components/ui/Text';
@@ -11,7 +11,6 @@ import {FuncaoEditorialFields} from './ContentOperationalPanel';
 import {LivroMultiSelect} from './LivroMultiSelect';
 import {PlatformCopyEditor} from './PlatformCopyEditor';
 import {TemaField} from './TemaField';
-import {ContentTagsField} from './ContentTagsField';
 import type {ScriptDraft} from './sections/RoteiroSection';
 
 const NOTES_MAX = 500;
@@ -255,19 +254,6 @@ export function ContentManageWorkspace({
                 />
               </div>
 
-              <div>
-                <FieldLabel icon={<Hash className="h-4 w-4" />}>Tags</FieldLabel>
-                <ContentTagsField
-                  tags={draft.tags}
-                  disabled={disabled}
-                  onChange={tags => onChange({tags})}
-                  selectProps={{
-                    hideLabel: true,
-                    placeholder: 'Adicionar tag, ex.: dica rápida',
-                    controlClassName: 'min-h-11',
-                  }}
-                />
-              </div>
 
               <div className="border-t border-[var(--border-color)]" aria-hidden />
 

@@ -2,7 +2,8 @@ import type {McpServer} from '@modelcontextprotocol/sdk/server/mcp.js';
 import {z} from 'zod';
 import {FORMATO_DESCRICAO, JANELAS, horaEscolhida, primeiroFormato} from '../campos.ts';
 import {descreverColunasOmitidas, livrosDoConteudo, unirLivros} from '../editorial.ts';
-import {anexarTemas, gravarTemasDoConteudo, idsComTema} from '../temas.ts';
+import {anexarTemas, gravarTemasDoConteudo, idsComTema, temasDosConteudos} from '../temas.ts';
+import {juntarTemas, separarTags} from '../tagsTemas.ts';
 import {
   CONTENT_LIST_COLUMNS,
   CONTENT_STATUSES,
@@ -209,9 +210,9 @@ export function registerConteudos(server: McpServer) {
     serie: z.string().optional().describe('Nome ou id da série'),
     biblioteca_item_id: z.string().optional().describe('Livro de origem. Também entra em livro_ids.'),
     livro_ids: livrosSchema.optional().describe('Vários livros ou itens da biblioteca neste roteiro'),
-    tags: z.array(z.string()).optional(),
+    tags: z.array(z.string()).optional().describe('Compatibilidade: gravar e editar ficam como marca de produção; o resto vira tema. Prefira temas.'),
     temas: z.array(z.string().min(1)).max(20).optional().describe(
-      'Nomes ou ids. Nome novo cria o tema. Um tema é um rótulo leve, como Halloween, e não é série, pilar nem função.',
+      'Nomes ou ids. Nome novo cria o tema. Tema é o jeito de agrupar roteiros (ex.: Halloween), com ou sem série; não é série, pilar nem função.',
     ),
     funcao: funcaoSchema.optional().describe('Se não vier: herda da série quando ela tem função padrão'),
     conta_na_grade: z.boolean().optional().describe('false tira o roteiro da grade. Padrão: fora para Stories, Live e função reter'),
@@ -267,6 +268,10 @@ export function registerConteudos(server: McpServer) {
     const horaPublicacao = horaEscolhida(input.hora_publicacao, input.janela);
     const now = nowIso();
     const id = newId();
+    const tagsSeparadas = separarTags(input.tags);
+    const temasPedidos = input.temas !== undefined || tagsSeparadas.temas.length > 0
+      ? juntarTemas(input.temas, tagsSeparadas.temas)
+      : undefined;
 
     const omitidas = await writeCompat('criar conteúdo', {
       id,
@@ -286,7 +291,7 @@ export function registerConteudos(server: McpServer) {
       writing_notes: input.notas_de_escrita?.trim() || null,
       referencias: input.referencias ?? null,
       link: input.link || null,
-      tags: input.tags ?? [],
+      tags: tagsSeparadas.producao,
       recording_date: input.data_gravacao ?? null,
       recording_time: input.hora_gravacao ?? null,
       recording_date_enabled: Boolean(input.data_gravacao),
@@ -300,8 +305,8 @@ export function registerConteudos(server: McpServer) {
       updated_at: now,
     }, row => session.client.from('contents').insert(row));
 
-    if (input.temas) {
-      const gravados = await gravarTemasDoConteudo(session, id, input.temas);
+    if (temasPedidos) {
+      const gravados = await gravarTemasDoConteudo(session, id, temasPedidos);
       if (gravados.ausente) omitidas.push('temas');
     }
 
@@ -347,7 +352,7 @@ export function registerConteudos(server: McpServer) {
       description:
         'Altera campos de um conteúdo existente. Só os campos enviados mudam. ' +
         'Para limpar pilar, série, data, hora, janela ou livros, envie string vazia, lista vazia ou null. Para mudar status use mudar_status. ' +
-        'temas substitui a lista; nome novo cria o tema. janela define manha (09:00), tarde (14:00) ou noite (20:00), a menos que hora_publicacao venha junto. ' +
+        'temas (o agrupamento do roteiro) substitui a lista; nome novo cria o tema. tags é só compatibilidade: o que não for gravar/editar vira tema. janela define manha (09:00), tarde (14:00) ou noite (20:00), a menos que hora_publicacao venha junto. ' +
         'funcao é o antigo funil; null volta para "sem definição". Mudar formato ou função recalcula conta_na_grade, a menos que ele venha junto.',
       inputSchema: {
         id: z.string().min(1),
@@ -363,7 +368,7 @@ export function registerConteudos(server: McpServer) {
         energia: energiaSchema.nullable().optional(),
         funcao: funcaoSchema.nullable().optional(),
         conta_na_grade: z.boolean().optional().describe('Se a peça conta na grade de frequência'),
-        tags: z.array(z.string()).optional(),
+        tags: z.array(z.string()).optional().describe('Compatibilidade: gravar e editar ficam como marca de produção; o resto vira tema. Os temas vindos daqui somam aos atuais. Prefira temas.'),
         temas: z.array(z.string().min(1)).max(20).optional().describe('Substitui os temas. Lista vazia tira todos. Nome novo cria o tema'),
         link: z.string().nullable().optional(),
         data_publicacao: dateSchema.nullable().optional(),
@@ -401,7 +406,8 @@ export function registerConteudos(server: McpServer) {
         patch.conta_na_grade = contaNaGradePadrao(next.formato_visual, funcaoEfetiva(next, lookups).funcao);
       }
       if (args.energia !== undefined) patch.energia_necessaria = args.energia;
-      if (args.tags !== undefined) patch.tags = args.tags;
+      const tagsSeparadas = args.tags !== undefined ? separarTags(args.tags) : null;
+      if (tagsSeparadas) patch.tags = tagsSeparadas.producao;
       if (args.link !== undefined) patch.link = args.link || null;
       if (args.data_gravacao !== undefined) {
         patch.recording_date = args.data_gravacao;
@@ -428,12 +434,22 @@ export function registerConteudos(server: McpServer) {
       }
 
       let temasAusente = false;
-      if (args.temas !== undefined) {
-        const gravados = await gravarTemasDoConteudo(session, args.id, args.temas);
+      let temasPedidos = args.temas;
+      if (tagsSeparadas?.temas.length) {
+        // Tags antigas somam aos temas: aos enviados, ou aos que o roteiro já tem.
+        let base = args.temas;
+        if (base === undefined) {
+          const atuais = await temasDosConteudos(session, [args.id]);
+          base = (atuais.porConteudo.get(args.id) ?? []).map(tema => tema.id);
+        }
+        temasPedidos = juntarTemas(base, tagsSeparadas.temas);
+      }
+      if (temasPedidos !== undefined) {
+        const gravados = await gravarTemasDoConteudo(session, args.id, temasPedidos);
         temasAusente = gravados.ausente;
       }
 
-      if (Object.keys(patch).length === 0 && args.temas === undefined) throw new Error('Nenhum campo para atualizar.');
+      if (Object.keys(patch).length === 0 && temasPedidos === undefined) throw new Error('Nenhum campo para atualizar.');
       const omitidas = Object.keys(patch).length > 0 ? await updateContent(session, args.id, patch) : [];
       if (temasAusente) omitidas.push('temas');
       const [row] = await fetchContents(session, [args.id]);
