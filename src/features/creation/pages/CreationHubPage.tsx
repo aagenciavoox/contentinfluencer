@@ -1,16 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Check,
   Columns3,
-  Download,
   FileText,
-  Layers,
   LayoutGrid,
   Lightbulb,
   List,
-  Target,
   Trash2,
-  X,
 } from 'lucide-react';
 import { ConfirmModal } from '../../../components/feedback/modals/ConfirmModal';
 import { Dialog } from '../../../components/overlays/Dialog';
@@ -18,7 +13,6 @@ import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { AppButton } from '../../../components/ui/AppButton';
 import { FilterBar } from '../../../components/ui/FilterBar';
 import { SegmentTabs } from '../../../components/ui/SegmentTabs';
-import { Surface } from '../../../components/ui/Surface';
 import { Text } from '../../../components/ui/Text';
 import { QueryViewState, resolveQueryViewStatus } from '../../../components/ui/QueryViewState';
 import { ViewModeToggle } from '../../../components/ui/ViewModeToggle';
@@ -77,6 +71,7 @@ import { CreationGridView } from '../components/CreationGridView';
 import { CreationKanbanView } from '../components/CreationKanbanView';
 import { CreationListView } from '../components/CreationListView';
 import { CreationOverflowMenu } from '../components/CreationOverflowMenu';
+import { CreationSelectionBar } from '../components/CreationSelectionBar';
 import {
   canExportCreation,
   downloadCreationsDocx,
@@ -372,21 +367,23 @@ export function CreationHubPage() {
     user?.id,
   ]);
 
-  const bulkOrganize = activeTab === 'Ideias' || activeTab === 'Roteiros';
   const selectedContents = useMemo(
     () => exportableContents.filter(content => selectedExportIds.has(content.id)),
     [exportableContents, selectedExportIds],
   );
+  const selectedCopy = useMemo(
+    () => getCreationExportCopy(selectedContents),
+    [selectedContents],
+  );
+  // "Selecionar todos" pega o filtro inteiro, inclusive o que "Mostrar mais" ainda não abriu.
+  const hiddenSelectedCount = useMemo(() => {
+    const visibleIds = new Set(visibleContents.map(content => content.id));
+    return [...selectedExportIds].filter(id => !visibleIds.has(id)).length;
+  }, [selectedExportIds, visibleContents]);
 
   const beginSelection = useCallback(() => {
     setExportMode(true);
   }, []);
-
-  useEffect(() => {
-    if (bulkOrganize) return;
-    setAssignField(null);
-    setBulkDeleteOpen(false);
-  }, [bulkOrganize]);
 
   const openBulkAssign = useCallback((field: 'seriesId' | 'pilarId') => {
     if (selectedExportIds.size === 0) return;
@@ -456,14 +453,18 @@ export function CreationHubPage() {
       deletedAt: removedAt,
       updatedAt: removedAt,
     }));
-    const noun = activeTab === 'Ideias'
-      ? (ids.length === 1 ? 'Ideia movida para a lixeira' : `${ids.length} ideias movidas para a lixeira`)
-      : (ids.length === 1 ? 'Roteiro movido para a lixeira' : `${ids.length} roteiros movidos para a lixeira`);
+    const final = selectedCopy.feminine ? 'a' : 'o';
+    const noun = ids.length === 1
+      ? `${selectedCopy.singular[0].toUpperCase()}${selectedCopy.singular.slice(1)} movid${final} para a lixeira`
+      : `${ids.length} ${selectedCopy.plural} movid${final}s para a lixeira`;
+    // Arquivados vivem numa lista à parte; sem tirar de lá, a cópia arquivada encobriria a da lixeira.
+    const archivedRemoved = archivedContents.filter(item => ids.includes(item.id));
 
     setDeletedContents(previous => [
       ...removed,
       ...previous.filter(item => !ids.includes(item.id)),
     ]);
+    setArchivedContents(previous => previous.filter(item => !ids.includes(item.id)));
     setBulkDeleteOpen(false);
     setSelectedExportIds(new Set());
     setExportMode(false);
@@ -472,13 +473,17 @@ export function CreationHubPage() {
       .then(() => notifySaveFeedback({ status: 'success', message: noun }))
       .catch(error => {
         setDeletedContents(previous => previous.filter(item => !ids.includes(item.id)));
+        setArchivedContents(previous => [
+          ...archivedRemoved,
+          ...previous.filter(item => !ids.includes(item.id)),
+        ]);
         notifySaveFeedback({
           status: 'error',
           message: ERRORS.salvarGenerico,
           detail: getErrorMessage(error),
         });
       });
-  }, [activeTab, dispatch, selectedContents]);
+  }, [archivedContents, dispatch, selectedContents, selectedCopy]);
 
   const createScript = useCallback((replace = false) => {
     const content = createScriptContent({ title: 'Novo roteiro' });
@@ -884,12 +889,12 @@ export function CreationHubPage() {
       exportEnabled={exportableContents.length > 0}
       exportMode={exportMode}
       onToggleExport={toggleExportMode}
-      cancelLabel={bulkOrganize ? 'Cancelar seleção' : 'Cancelar exportação'}
-      extraItems={bulkOrganize ? [
+      cancelLabel="Sair da seleção"
+      extraItems={[
         { id: 'bulk-series', label: 'Mudar série em massa', onClick: beginSelection },
         { id: 'bulk-pillar', label: 'Mudar pilar em massa', onClick: beginSelection },
-        { id: 'bulk-delete', label: 'Excluir', tone: 'danger', onClick: beginSelection },
-      ] : []}
+        { id: 'bulk-delete', label: 'Mover para a lixeira', tone: 'danger', onClick: beginSelection },
+      ]}
     />
   );
 
@@ -989,86 +994,20 @@ export function CreationHubPage() {
   );
 
   const exportSelectionToolbar = exportMode ? (
-    <Surface
-      variant="outlined"
-      padding="sm"
-      className="flex flex-col gap-3 border-[var(--border-strong)] md:flex-row md:items-center"
-    >
-      <div className="min-w-0 flex-1">
-        <Text variant="label">
-          Seleção: {selectedExportIds.size} {selectedExportIds.size === 1
-            ? exportCopy.singular
-            : exportCopy.plural}
-        </Text>
-        <Text variant="meta" as="p">
-          Disponíveis nos filtros: {exportableContents.length} {
-            exportableContents.length === 1 ? exportCopy.singular : exportCopy.plural
-          }
-        </Text>
-      </div>
-
-      <div className="flex flex-wrap gap-2">
-        <AppButton
-          variant="secondary"
-          size="sm"
-          leftIcon={allExportableSelected
-            ? <X className="h-4 w-4" />
-            : <Check className="h-4 w-4" />}
-          onClick={toggleSelectAllExportable}
-        >
-          {allExportableSelected ? 'Desmarcar todos' : 'Selecionar todos'}
-        </AppButton>
-        {bulkOrganize ? (
-          <>
-            <AppButton
-              variant="secondary"
-              size="sm"
-              leftIcon={<Layers className="h-4 w-4" />}
-              disabled={selectedExportIds.size === 0}
-              onClick={() => openBulkAssign('seriesId')}
-            >
-              Mudar série
-            </AppButton>
-            <AppButton
-              variant="secondary"
-              size="sm"
-              leftIcon={<Target className="h-4 w-4" />}
-              disabled={selectedExportIds.size === 0}
-              onClick={() => openBulkAssign('pilarId')}
-            >
-              Mudar pilar
-            </AppButton>
-            <AppButton
-              variant="ghost"
-              size="sm"
-              leftIcon={<Trash2 className="h-4 w-4" />}
-              disabled={selectedExportIds.size === 0}
-              onClick={() => setBulkDeleteOpen(true)}
-              className="text-[var(--accent-pink)]"
-            >
-              Excluir
-            </AppButton>
-          </>
-        ) : null}
-        <AppButton
-          variant="primary"
-          size="sm"
-          leftIcon={<Download className="h-4 w-4" />}
-          disabled={selectedExportIds.size === 0 || isExporting}
-          onClick={() => void handleExportCreations()}
-        >
-          {isExporting ? 'Gerando DOCX…' : `Exportar DOCX (${selectedExportIds.size})`}
-        </AppButton>
-        <AppButton
-          variant="ghost"
-          size="sm"
-          leftIcon={<X className="h-4 w-4" />}
-          onClick={toggleExportMode}
-        >
-          Cancelar
-        </AppButton>
-      </div>
-    </Surface>
+    <CreationSelectionBar
+      selectedCount={selectedExportIds.size}
+      availableCount={exportableContents.length}
+      hiddenSelectedCount={hiddenSelectedCount}
+      selectedNoun={selectedCopy}
+      availableNoun={exportCopy}
+      isExporting={isExporting}
+      onToggleAll={toggleSelectAllExportable}
+      onChangeSeries={() => openBulkAssign('seriesId')}
+      onChangePillar={() => openBulkAssign('pilarId')}
+      onExport={() => void handleExportCreations()}
+      onDelete={() => setBulkDeleteOpen(true)}
+      onCancel={toggleExportMode}
+    />
   ) : null;
 
   const hasFilters = Boolean(search || pilarId || seriesId || temaId || originId || funcaoId || filtroData);
@@ -1256,12 +1195,8 @@ export function CreationHubPage() {
 
       <ConfirmModal
         open={bulkDeleteOpen}
-        message={activeTab === 'Ideias'
-          ? `Mover ${selectedExportIds.size} ideia${selectedExportIds.size === 1 ? '' : 's'} para a lixeira? ${selectedExportIds.size === 1 ? 'Ela poderá' : 'Elas poderão'} ser restaurada${selectedExportIds.size === 1 ? '' : 's'} depois.`
-          : CONFIRM.excluirRoteiros(Math.max(selectedExportIds.size, 1)).message}
-        confirmLabel={activeTab === 'Ideias'
-            ? (selectedExportIds.size === 1 ? 'Mover para a lixeira' : `Mover ${selectedExportIds.size} para a lixeira`)
-            : CONFIRM.excluirRoteiros(Math.max(selectedExportIds.size, 1)).confirmLabel}
+        message={CONFIRM.excluirCriacoes(Math.max(selectedExportIds.size, 1), selectedCopy).message}
+        confirmLabel={CONFIRM.excluirCriacoes(Math.max(selectedExportIds.size, 1), selectedCopy).confirmLabel}
         cancelLabel="Manter seleção"
         confirmDisabled={selectedExportIds.size === 0}
         onConfirm={() => void confirmBulkDelete()}

@@ -60,14 +60,21 @@ export const CONFIRM = {
     confirmLabel: 'Excluir projeto',
     cancelLabel: 'Manter projeto',
   }),
-  excluirRoteiros: (count: number) => ({
-    message:
-      count === 1
-        ? 'Mover 1 roteiro para a lixeira? Ele poderá ser restaurado depois.'
-        : `Mover ${count} roteiros para a lixeira? Eles poderão ser restaurados depois.`,
-    confirmLabel: count === 1 ? 'Mover para a lixeira' : `Mover ${count} para a lixeira`,
-    cancelLabel: 'Manter seleção',
-  }),
+  excluirCriacoes: (
+    count: number,
+    noun: { singular: string; plural: string; feminine: boolean },
+  ) => {
+    const pronome = noun.feminine ? 'Ela' : 'Ele';
+    const final = noun.feminine ? 'a' : 'o';
+    return {
+      message:
+        count === 1
+          ? `Mover 1 ${noun.singular} para a lixeira? ${pronome} poderá ser restaurad${final} depois.`
+          : `Mover ${count} ${noun.plural} para a lixeira? ${pronome}s poderão ser restaurad${final}s depois.`,
+      confirmLabel: count === 1 ? 'Mover para a lixeira' : `Mover ${count} para a lixeira`,
+      cancelLabel: 'Manter seleção',
+    };
+  },
   moverParaIdeias: (count: number) => ({
     message:
       count === 1

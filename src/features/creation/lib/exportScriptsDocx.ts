@@ -25,6 +25,8 @@ export interface CreationExportCopy {
   title: string;
   singular: string;
   plural: string;
+  /** "ideia" pede concordância no feminino ("selecionadas", "movidas"). */
+  feminine: boolean;
   filenamePrefix: string;
 }
 
@@ -59,6 +61,7 @@ export function getCreationExportCopy(
       title: 'Ideias',
       singular: 'ideia',
       plural: 'ideias',
+      feminine: true,
       filenamePrefix: 'ideias',
     };
   }
@@ -67,6 +70,7 @@ export function getCreationExportCopy(
       title: 'Roteiros',
       singular: 'roteiro',
       plural: 'roteiros',
+      feminine: false,
       filenamePrefix: 'roteiros',
     };
   }
@@ -74,6 +78,7 @@ export function getCreationExportCopy(
     title: 'Ideias e roteiros',
     singular: 'item',
     plural: 'itens',
+    feminine: false,
     filenamePrefix: 'ideias-e-roteiros',
   };
 }
