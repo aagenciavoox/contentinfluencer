@@ -600,8 +600,8 @@ input.caption-locked:focus {
   break-inside: avoid;
 }
 
-/* Texto da transcrição: leitura longa, um trecho por linha e uma linha em branco entre
-   parágrafos. Vira duas colunas quando cabem duas de 26rem (desktop); no celular, uma. */
+/* Texto da transcrição: leitura longa, parágrafos corridos e uma linha em branco entre
+   eles. Vira duas colunas quando cabem duas de 26rem (desktop); no celular, uma. */
 .transcript-text {
   --transcript-leading: 1.7;
   columns: 2 26rem;
@@ -619,14 +619,6 @@ input.caption-locked:focus {
 
 .transcript-text > * + * {
   margin-top: calc(var(--transcript-leading) * 1em);
-}
-
-/* Um trecho por linha. Se o trecho não cabe na coluna, a continuação entra recuada
-   para não parecer um trecho novo. */
-.transcript-line {
-  display: block;
-  padding-left: 1.25em;
-  text-indent: -1.25em;
 }
 
 .elevation-0 { box-shadow: none; }
@@ -2430,9 +2422,9 @@ html.mobile-app-shell .segment-tabs-item-active {
   }
 }
 
-/* ÔöÇÔöÇ Slider rosa (configura├º├Áes do teleprompter) ÔöÇÔöÇ
-   O trilho fica rosa at├® --range-fill, que o componente calcula a partir do valor.
-   No Firefox quem pinta o trecho preenchido ├® ::-moz-range-progress. */
+/* ── Slider rosa (configurações do teleprompter) ──
+   O trilho fica rosa até --range-fill, que o componente calcula a partir do valor.
+   No Firefox quem pinta o trecho preenchido é ::-moz-range-progress. */
 .range-brand {
   --range-fill: 50%;
   -webkit-appearance: none;
