@@ -220,7 +220,7 @@ export const SeriesCreateContentForm = forwardRef<
   return (
     <div className="flex flex-col gap-[var(--space-xl)]" onKeyDown={handleKeyDown}>
       {error ? (
-        <p className="rounded-[var(--radius-card)] border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+        <p className="rounded-[var(--radius-card)] border border-[color-mix(in_srgb,var(--danger)_30%,var(--border-color))] bg-[color-mix(in_srgb,var(--danger)_10%,var(--bg-elevated))] px-4 py-3 text-sm font-semibold text-[var(--text-primary)]">
           {error}
         </p>
       ) : null}
@@ -293,7 +293,7 @@ export const SeriesCreateContentForm = forwardRef<
             placeholder={isIdeia ? 'Descreva a ideia, referências ou ângulo…' : 'Escreva ou cole o roteiro…'}
             rows={1}
             spellCheck
-            className="block w-full min-h-[2.75rem] resize-none overflow-hidden rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-primary)] px-3 py-2.5 text-sm leading-7 text-[var(--text-primary)] outline-none placeholder:text-[var(--text-tertiary)] focus:border-[var(--border-strong)]"
+            className="block w-full min-h-[2.75rem] resize-none overflow-hidden rounded-[var(--radius-card)] border border-[var(--border-input)] bg-[var(--bg-primary)] px-3 py-2.5 text-sm leading-7 text-[var(--text-primary)] outline-none placeholder:text-[var(--text-tertiary)] focus:border-[var(--border-strong)]"
           />
         </div>
       </section>

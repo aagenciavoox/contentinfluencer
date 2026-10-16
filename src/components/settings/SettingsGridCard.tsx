@@ -127,7 +127,7 @@ export function SettingsGridCard({
   const statusBadge = compact && !active ? <Badge variant="neutral">Inativa</Badge> : null;
   const colorDot = color ? (
     <span
-      className="h-2.5 w-2.5 shrink-0 rounded-full border border-[var(--border-color)]"
+      className="entity-color-dot h-2.5 w-2.5 shrink-0 rounded-full"
       style={{ backgroundColor: color }}
       aria-hidden
     />

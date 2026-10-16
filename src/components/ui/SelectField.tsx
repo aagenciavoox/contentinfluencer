@@ -52,7 +52,7 @@ export function SelectField({
         block ? 'flex w-full' : 'inline-flex',
         selected
           ? 'border-[var(--text-primary)] bg-[var(--bg-hover)]'
-          : 'border-[var(--border-color)] bg-[var(--bg-elevated)] hover:border-[var(--border-strong)]',
+          : 'border-[var(--border-input)] bg-[var(--bg-elevated)] hover:border-[var(--text-tertiary)]',
         disabled && 'opacity-60',
         className,
       )}

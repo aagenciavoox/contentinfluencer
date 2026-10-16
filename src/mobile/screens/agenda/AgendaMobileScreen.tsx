@@ -31,7 +31,7 @@ import {
 import type {AgendaItem, Content, Platform, Projeto, Serie} from '../../../lib/database';
 import type {CalendarEntry} from '../../../features/editorial-calendar/components/MonthlyCalendarView';
 import {readStoredJson, writeStoredJson} from '../../../lib/browserStorage';
-import {cn} from '../../../lib/utils';
+import {cn, getEntityTagStyle, tintedTextColor} from '../../../lib/utils';
 import {AppButton} from '../../../components/ui/AppButton';
 import {Text} from '../../../components/ui/Text';
 import {FilterBar} from '../../../components/ui/FilterBar';
@@ -685,10 +685,7 @@ export function AgendaMobileScreen({
                         meta={
                           <span
                             className="rounded-full px-2.5 py-1 text-xs font-semibold"
-                            style={{
-                              backgroundColor: `${accentColor}18`,
-                              color: accentColor,
-                            }}
+                            style={getEntityTagStyle(accentColor)}
                           >
                             {entry.time ? `${entry.time} · ` : ''}
                             {format(parseISO(entry.date), 'dd/MM')}
@@ -706,9 +703,9 @@ export function AgendaMobileScreen({
                           ) : entry.kind === 'publish' ? (
                             <Radio className="h-4 w-4 text-[var(--accent-blue)]" />
                           ) : entry.kind === 'project' ? (
-                            <BriefcaseBusiness className="h-4 w-4" style={entry.color ? { color: entry.color } : { color: 'var(--accent-purple)' }} />
+                            <BriefcaseBusiness className="h-4 w-4" style={{ color: tintedTextColor(entry.color || 'var(--accent-purple)') }} />
                           ) : (
-                            <span style={{color: entry.color || 'var(--accent-green)'}}>
+                            <span style={{color: tintedTextColor(entry.color || 'var(--accent-green)')}}>
                               <AgendaTipoIcon tipo={entry.agendaTipo || 'Outro'} className="h-4 w-4" />
                             </span>
                           )

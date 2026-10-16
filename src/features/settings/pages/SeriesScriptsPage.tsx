@@ -145,7 +145,7 @@ export function SeriesScriptsPage() {
       >
         <div className="py-12 text-center">
           <Layers className="mx-auto mb-3 h-8 w-8 opacity-10" />
-          <p className="text-sm font-medium opacity-50">
+          <p className="text-sm font-medium text-[var(--text-tertiary)]">
             {state.isLoaded ? 'Série não encontrada.' : 'Carregando série…'}
           </p>
           {state.isLoaded ? (

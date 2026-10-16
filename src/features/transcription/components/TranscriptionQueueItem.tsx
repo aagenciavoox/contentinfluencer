@@ -30,7 +30,7 @@ function StatusIcon({ item }: { item: QueueItem }) {
   if (item.status === 'done') return <CheckCircle2 className={cn(className, 'text-[var(--success)]')} aria-hidden />;
   if (item.status === 'error') return <AlertCircle className={cn(className, 'text-[var(--text-tertiary)]')} aria-hidden />;
   if (item.status === 'waiting') return <Clock className={cn(className, 'text-[var(--text-tertiary)]')} aria-hidden />;
-  return <AudioLines className={cn(className, 'text-[var(--brand-accent-strong)]')} aria-hidden />;
+  return <AudioLines className={cn(className, 'text-[var(--brand-accent-text)]')} aria-hidden />;
 }
 
 export function TranscriptionQueueItem({

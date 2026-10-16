@@ -30,7 +30,7 @@ const STATUS_ICONS: Partial<Record<StatusLeitura, LucideIcon>> = {
   Abandonado: Ban,
 };
 
-const SELECTED = 'border-[var(--brand-accent-strong)] bg-[var(--brand-accent-soft)] text-[var(--brand-accent-strong)]';
+const SELECTED = 'border-[var(--brand-accent-strong)] bg-[var(--brand-accent-soft)] text-[var(--brand-accent-text)]';
 const IDLE = 'border-[var(--border-color)] bg-[var(--bg-secondary)] text-[var(--text-primary)] hover:bg-[var(--bg-hover)]';
 
 export interface LibraryCreateFormValue {
@@ -64,7 +64,7 @@ function FieldLabel({ children, optional, htmlFor }: { children: ReactNode; opti
   );
 }
 
-const INPUT = 'w-full rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:border-[var(--brand-accent-strong)] focus:outline-none';
+const INPUT = 'w-full rounded-[var(--radius-input)] border border-[var(--border-input)] bg-[var(--bg-secondary)] px-4 py-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:border-[var(--brand-accent-strong)] focus:outline-none';
 
 export function LibraryCreateForm({
   value,

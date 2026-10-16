@@ -68,7 +68,7 @@ export function PostItRapidoDialog({
         <OverlayHeader
           title="Novo post-it"
           subtitle={date ? format(new Date(`${date}T12:00:00`), "d 'de' MMMM", {locale: ptBR}) : 'Fora do calendário'}
-          icon={<StickyNote className="h-6 w-6 text-[var(--brand-accent-strong)]" />}
+          icon={<StickyNote className="h-6 w-6 text-[var(--brand-accent-text)]" />}
           onClose={onClose}
         />
         <OverlayBody>

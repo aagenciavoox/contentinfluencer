@@ -276,7 +276,7 @@ function MetasPorObjetivo({
             >
               <div className="flex items-center justify-between gap-3">
                 <label htmlFor={funcao ? `meta-${funcao}` : undefined} className="flex min-w-0 items-center gap-2.5">
-                  <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: linha.cor }} aria-hidden />
+                  <span className="entity-color-dot h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: linha.cor }} aria-hidden />
                   <Text variant="body" as="span">{linha.nome}</Text>
                   {percentual(linha)}
                 </label>
@@ -354,7 +354,7 @@ function MetasPorObjetivo({
               <tr key={chaveDaLinha(linha)} className="border-b border-[var(--border-color)] last:border-b-0">
                 <th scope="row" className="py-2 pl-3 pr-3 font-normal">
                   <span className="flex items-center gap-2.5">
-                    <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: linha.cor }} aria-hidden />
+                    <span className="entity-color-dot h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: linha.cor }} aria-hidden />
                     {funcao ? (
                       <label htmlFor={`meta-${funcao}`}>
                         <Text variant="body" as="span">{linha.nome}</Text>

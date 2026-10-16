@@ -51,7 +51,7 @@ const variantClasses: Record<ButtonVariant, string> = {
   primary:
     'border border-[var(--brand-accent-strong)] bg-[var(--brand-accent-strong)] text-[var(--brand-on-accent)] shadow-none hover:opacity-90',
   secondary:
-    'border border-[var(--border-color)] bg-[var(--bg-elevated)] text-[var(--text-primary)] shadow-none hover:bg-[var(--bg-hover)] hover:border-[var(--border-strong)]',
+    'border border-[var(--border-input)] bg-[var(--bg-elevated)] text-[var(--text-primary)] shadow-none hover:bg-[var(--bg-hover)] hover:border-[var(--text-tertiary)]',
   ghost:
     'border border-transparent bg-transparent text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]',
 };

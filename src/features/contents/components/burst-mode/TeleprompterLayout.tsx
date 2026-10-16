@@ -46,8 +46,8 @@ const THEME_TOKENS: Record<TeleprompterTheme, TeleprompterTokens> = {
     onAccent: '#FFFFFF',
     accentKbd: 'rgba(255, 255, 255, 0.22)',
     marker: '#FF2D6F',
-    track: '#E7E5E0',
-    knob: '#CFCDC7',
+    track: '#95938C',
+    knob: '#8A8882',
   },
   dark: {
     bg: '#0F0F0E',
@@ -60,8 +60,8 @@ const THEME_TOKENS: Record<TeleprompterTheme, TeleprompterTokens> = {
     onAccent: '#FFFFFF',
     accentKbd: 'rgba(255, 255, 255, 0.2)',
     marker: '#FF2D6F',
-    track: '#2E2E29',
-    knob: '#55554E',
+    track: '#727269',
+    knob: '#7A7A71',
   },
   amber: {
     bg: '#1A1307',
@@ -74,8 +74,8 @@ const THEME_TOKENS: Record<TeleprompterTheme, TeleprompterTokens> = {
     onAccent: '#1A1307',
     accentKbd: 'rgba(26, 19, 7, 0.16)',
     marker: '#FFB347',
-    track: '#4B3920',
-    knob: '#6B5530',
+    track: '#8C6E40',
+    knob: '#94784A',
   },
 };
 

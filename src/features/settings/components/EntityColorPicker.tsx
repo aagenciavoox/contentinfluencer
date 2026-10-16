@@ -1,6 +1,6 @@
 import { Check } from 'lucide-react';
 import { Text } from '../../../components/ui/Text';
-import { cn } from '../../../lib/utils';
+import { cn, readableInkOn } from '../../../lib/utils';
 import {
   PILAR_PRESET_CORES,
   entityColorLabel,
@@ -9,13 +9,9 @@ import {
 
 const INLINE_SWATCHES = ['#EC4899', '#F5F0E4', '#F5C543', '#FB923C', '#EF4444', '#C084FC'];
 
+/** Preto ou branco, o que der MAIOR contraste WCAG sobre a cor (a formula antiga punha branco no amarelo, 1,62:1). */
 export function entitySwatchInk(hex: string): string {
-  const raw = hex.replace('#', '');
-  const red = Number.parseInt(raw.slice(0, 2), 16);
-  const green = Number.parseInt(raw.slice(2, 4), 16);
-  const blue = Number.parseInt(raw.slice(4, 6), 16);
-  const luminance = (0.299 * red + 0.587 * green + 0.114 * blue) / 255;
-  return luminance > 0.62 ? '#1C1917' : '#FFFFFF';
+  return readableInkOn(hex, '#1C1917', '#FFFFFF');
 }
 
 export function EntityColorPicker({

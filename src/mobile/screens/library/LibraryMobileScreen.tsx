@@ -149,7 +149,7 @@ function MobileCoverThumb({
         type="button"
         onClick={() => fileInputRef.current?.click()}
         disabled={uploading}
-        className="absolute bottom-2 right-2 inline-flex h-8 w-8 items-center justify-center rounded-full bg-[var(--backdrop-strong)] text-white"
+        className="absolute bottom-2 right-2 inline-flex h-8 w-8 items-center justify-center rounded-full bg-[var(--overlay-scrim)] text-white"
         aria-label={`Trocar capa de ${item.titulo}`}
       >
         {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ImagePlus className="h-3.5 w-3.5" />}

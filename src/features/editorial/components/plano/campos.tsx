@@ -8,7 +8,7 @@ import { cn } from '../../../../lib/utils';
 
 /** Sem largura: quem usa decide (`CAMPO` ocupa a linha toda). */
 export const CAMPO_BASE =
-  'ds-input rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]';
+  'ds-input rounded-[var(--radius-input)] border border-[var(--border-input)] bg-[var(--bg-secondary)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]';
 
 export const CAMPO = `${CAMPO_BASE} w-full`;
 
@@ -189,7 +189,7 @@ export function CampoStepper({
             placeholder="—"
             aria-describedby={[hintId, erroId].filter(Boolean).join(' ') || undefined}
             onChange={event => onChange(digitos(event.target.value))}
-            className="!h-11 w-16 !rounded-none !border-0 !border-x !border-[var(--border-color)] !bg-transparent !px-2 text-center t-body tabular-nums text-[var(--text-primary)] !shadow-none outline-none placeholder:text-[var(--text-secondary)] focus-visible:shadow-[inset_0_0_0_2px_var(--focus-ring-color)]"
+            className="!h-11 w-16 !rounded-none !border-0 !border-x !border-[var(--border-input)] !bg-transparent !px-2 text-center t-body tabular-nums text-[var(--text-primary)] !shadow-none outline-none placeholder:text-[var(--text-secondary)] focus-visible:shadow-[inset_0_0_0_2px_var(--focus-ring-color)]"
           />
           <button
             type="button"

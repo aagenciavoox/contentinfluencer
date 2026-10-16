@@ -236,7 +236,7 @@ export function RecordingBlockPage() {
                   className={cn(
                     'rounded-[1.4rem] border px-4 py-4',
                     entry.gravado || recordedIds.has(entry.content.id)
-                      ? 'border-emerald-500/20 bg-emerald-500/8'
+                      ? 'border-[color-mix(in_srgb,var(--success)_20%,transparent)] bg-[color-mix(in_srgb,var(--success)_8%,transparent)]'
                       : 'border-[var(--border-color)] bg-[var(--bg-primary)]'
                   )}
                 >
@@ -259,7 +259,7 @@ export function RecordingBlockPage() {
                       </p>
                     </div>
                     {entry.gravado || recordedIds.has(entry.content.id) ? (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-500">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-[color-mix(in_srgb,var(--success)_10%,transparent)] px-3 py-1 text-xs font-semibold text-[var(--success)]">
                         <CheckCircle2 className="h-3 w-3" />
                         Gravado
                       </span>

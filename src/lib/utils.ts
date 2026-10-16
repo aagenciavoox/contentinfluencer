@@ -20,6 +20,33 @@ export function tintedTextColor(color: string): string {
   return `color-mix(in srgb, ${color} ${share}, var(--text-primary))`;
 }
 
+function hexLuminance(hex: string): number | null {
+  const raw = hex.trim().replace('#', '');
+  const full = raw.length === 3 ? [...raw].map(digit => digit + digit).join('') : raw;
+  if (!/^[0-9a-f]{6}$/i.test(full)) return null;
+  const [red, green, blue] = [0, 2, 4].map(offset => {
+    const channel = parseInt(full.slice(offset, offset + 2), 16) / 255;
+    return channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * red + 0.7152 * green + 0.0722 * blue;
+}
+
+/** Contraste WCAG entre duas cores hex (null se alguma nao for hex). */
+export function hexContrastRatio(first: string, second: string): number | null {
+  const [a, b] = [hexLuminance(first), hexLuminance(second)];
+  if (a === null || b === null) return null;
+  return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+}
+
+/** Tinta (quase preto ou branco) com o MAIOR contraste WCAG sobre um fundo hex. Cor nao-hex: quase preto. */
+export function readableInkOn(background: string | null | undefined, dark = '#111111', light = '#FFFFFF'): string {
+  if (!background) return dark;
+  const onDark = hexContrastRatio(dark, background);
+  const onLight = hexContrastRatio(light, background);
+  if (onDark === null || onLight === null) return dark;
+  return onDark >= onLight ? dark : light;
+}
+
 export function getEntityTagStyle(color?: string | null): CSSProperties | undefined {
   if (!color) return undefined;
 

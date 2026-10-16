@@ -7,7 +7,7 @@ import { useAppContext } from '../../../context/AppContext';
 import { useAuth } from '../../../context/AuthContext';
 import { EMPTY } from '../../../lib/uiCopy';
 import { type Projeto } from '../../../lib/database';
-import { cn } from '../../../lib/utils';
+import { cn, tintedTextColor } from '../../../lib/utils';
 import { DesktopPageHeader } from '../../../layouts/page/DesktopPageHeader';
 import { PageLayout } from '../../../layouts/page/PageLayout';
 import { AppButton } from '../../../components/ui/AppButton';
@@ -346,7 +346,7 @@ export function ProjectsPage() {
                         className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--radius-input)] text-sm font-semibold text-[var(--text-primary)]"
                         style={{
                           backgroundColor: `color-mix(in srgb, ${projeto.color || '#78716c'} 18%, var(--bg-secondary))`,
-                          color: projeto.color || 'var(--text-primary)',
+                          color: projeto.color ? tintedTextColor(projeto.color) : 'var(--text-primary)',
                         }}
                       >
                         {(projeto.brand || projeto.nome).trim().charAt(0).toUpperCase() || 'P'}

@@ -7,7 +7,7 @@ import { Text } from '../../../../components/ui/Text';
 import { useAppContext } from '../../../../context/AppContext';
 import { useHydrateContentBodies } from '../../../../hooks/useHydrateContentBodies';
 import { Content, RecordingBlock } from '../../../../lib/database';
-import { cn, htmlToReadableText } from '../../../../lib/utils';
+import { cn, hexContrastRatio, htmlToReadableText } from '../../../../lib/utils';
 import { isContentBodyLoaded } from '../../lib/contentBody';
 import { buildPrompterLines } from '../../lib/prompterLines';
 import { isRecordingBlockTeleprompterEnabled } from '../../../recording/lib/recordingWorkflow';
@@ -79,7 +79,7 @@ const THEME_STYLES: Record<BurstTheme, { shell: string; panel: string; panelBord
     shell: 'bg-[#fbfaf7]',
     panel: 'bg-[var(--bg-elevated)]/88',
     panelBorder: 'border-[#e7e0d5]',
-    muted: 'text-[#8f9582]',
+    muted: 'text-[#6b705f]',
     accent: 'text-[#4f46e5]',
     accentSoft: 'bg-[#4f46e5]/10 border-[#4f46e5]/20',
     text: 'text-[#141824]',
@@ -149,7 +149,17 @@ function normalizeBurstSettings(value: unknown) {
   }
 }
 
+const BURST_SHELL_BG: Record<BurstTheme, string> = { light: '#fbfaf7', dark: '#090d16', amber: '#1a1307' };
+
+/** Cor escolhida que ficaria ilegivel no fundo do tema (ex.: texto papel no tema claro) volta para a cor do tema. */
 function getResolvedTextColor(theme: BurstTheme, textColor: BurstTextColor) {
+  const chosen = getChosenTextColor(theme, textColor);
+  if (textColor === 'theme') return chosen;
+  const ratio = hexContrastRatio(chosen, BURST_SHELL_BG[theme]);
+  return ratio !== null && ratio < 4.5 ? getChosenTextColor(theme, 'theme') : chosen;
+}
+
+function getChosenTextColor(theme: BurstTheme, textColor: BurstTextColor) {
   if (textColor === 'theme') {
     if (theme === 'dark') return '#f5f7ff';
     if (theme === 'amber') return '#fff2d9';

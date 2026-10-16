@@ -28,7 +28,7 @@ interface BookAnnotationComposerSheetProps {
 const TIPOS: TipoAnotacao[] = ['Anotação', 'Trecho', 'Reação', 'Análise', 'Ideia de conteúdo', 'Pergunta'];
 
 const fieldClass =
-  'w-full rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-hover)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder:opacity-40 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]';
+  'w-full rounded-[var(--radius-input)] border border-[var(--border-input)] bg-[var(--bg-hover)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder:opacity-40 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]';
 
 export function BookAnnotationComposer({
   book,

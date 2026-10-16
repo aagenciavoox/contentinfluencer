@@ -81,6 +81,8 @@
   /* Highlight */
   mark {
     background-color: #ffcc00;
+    /* Fundo amarelo fixo: o texto tambem e fixo e escuro (o texto claro do tema escuro dava 1,38:1). */
+    color: #111111;
     border-radius: 0.25rem;
     padding: 0.125rem 0.25rem;
     box-decoration-break: clone;

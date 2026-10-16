@@ -26,8 +26,8 @@ function AppRouter() {
   if (!backendReady) {
     return (
       <div className="min-h-screen w-full bg-[var(--bg-primary)] text-[var(--text-primary)] flex items-center justify-center p-6">
-        <div className="w-full max-w-lg rounded-[var(--radius-card-mobile)] border border-red-500/20 bg-[var(--bg-secondary)] p-8 shadow-none">
-          <div className="mb-5 inline-flex h-14 w-14 items-center justify-center rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] bg-red-500/10 text-red-500">
+        <div className="w-full max-w-lg rounded-[var(--radius-card-mobile)] border border-[color-mix(in_srgb,var(--danger)_20%,transparent)] bg-[var(--bg-secondary)] p-8 shadow-none">
+          <div className="mb-5 inline-flex h-14 w-14 items-center justify-center rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] text-[var(--danger)]">
             <AlertTriangle className="h-7 w-7" />
           </div>
           <h1 className="text-2xl font-semibold t-label-uppercase">Backend obrigatório</h1>
@@ -35,10 +35,10 @@ function AppRouter() {
             Este app não opera mais em modo offline. Preencha o arquivo <code>.env.local</code> na raiz do projeto e reinicie o servidor (<code>npm run dev</code>).
           </p>
           <ul className="mt-4 stack-sm text-sm font-mono">
-            <li className={supabaseConfigStatus.url ? 'text-emerald-500' : 'text-red-400'}>
+            <li className={supabaseConfigStatus.url ? 'text-[var(--success)]' : 'text-[var(--danger)]'}>
               {supabaseConfigStatus.url ? '✔' : '✗'} VITE_SUPABASE_URL
             </li>
-            <li className={supabaseConfigStatus.anonKey ? 'text-emerald-500' : 'text-red-400'}>
+            <li className={supabaseConfigStatus.anonKey ? 'text-[var(--success)]' : 'text-[var(--danger)]'}>
               {supabaseConfigStatus.anonKey ? '✔' : '✗'} VITE_SUPABASE_ANON_KEY
             </li>
           </ul>

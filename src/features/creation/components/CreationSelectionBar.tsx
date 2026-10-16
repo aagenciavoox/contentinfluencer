@@ -167,7 +167,7 @@ export function CreationSelectionBar({
           className={cn(
             'w-full md:w-auto',
             'border-[color-mix(in_srgb,var(--brand-accent),transparent_45%)] bg-[color-mix(in_srgb,var(--brand-accent-soft),var(--bg-elevated)_85%)]',
-            'text-[var(--brand-accent-strong)] dark:text-[var(--brand-accent)]',
+            'text-[var(--brand-accent-text)]',
             'hover:border-[var(--brand-accent-strong)] hover:bg-[var(--brand-accent-soft)]',
           )}
           leftIcon={<Trash2 className="h-4 w-4" />}

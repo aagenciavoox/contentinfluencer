@@ -33,7 +33,7 @@ function EntityTag({
     >
       {color ? (
         <span
-          className="h-2 w-2 shrink-0 rounded-full border border-black/10"
+          className="entity-color-dot h-2 w-2 shrink-0 rounded-full"
           style={{ backgroundColor: color }}
           aria-hidden
         />

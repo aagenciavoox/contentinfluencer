@@ -154,7 +154,7 @@ export function CSVUploadModal({ onClose }: CSVUploadModalProps) {
         <div className="flex-1 overflow-y-auto p-10 custom-scrollbar">
           {isSuccess ? (
             <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="flex flex-col items-center justify-center py-20 text-center">
-              <div className="w-20 h-20 bg-green-500/10 text-green-500 rounded-full flex items-center justify-center mb-6 border-4 border-green-500/20">
+              <div className="w-20 h-20 bg-[color-mix(in_srgb,var(--success)_10%,transparent)] text-[var(--success)] rounded-full flex items-center justify-center mb-6 border-4 border-[color-mix(in_srgb,var(--success)_20%,transparent)]">
                 <Check className="w-10 h-10" />
               </div>
               <Text variant="itemTitle" uppercase className="mb-2">
@@ -217,7 +217,7 @@ export function CSVUploadModal({ onClose }: CSVUploadModalProps) {
                     </div>
                     
                     {error && (
-                      <div className="p-4 flex items-center gap-3 text-red-500 bg-red-50/50 dark:bg-red-500/5 text-xs font-bold">
+                      <div className="p-4 flex items-center gap-3 text-[var(--danger)] bg-[color-mix(in_srgb,var(--danger)_6%,transparent)] text-xs font-bold">
                         <AlertCircle className="w-4 h-4 shrink-0" />
                         {error}
                       </div>

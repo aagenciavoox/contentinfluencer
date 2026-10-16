@@ -117,13 +117,13 @@ function FieldLabel({ children, required }: { children: React.ReactNode; require
   return (
     <Text variant="label" className="font-medium text-[var(--text-primary)]">
       {children}
-      {required ? <span className="text-[var(--brand-accent-strong)]"> *</span> : null}
+      {required ? <span className="text-[var(--brand-accent-text)]"> *</span> : null}
     </Text>
   );
 }
 
 const inputClass =
-  'ds-input w-full rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]';
+  'ds-input w-full rounded-[var(--radius-input)] border border-[var(--border-input)] bg-[var(--bg-secondary)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]';
 
 type PilarFormState = Pick<
   Pilar,

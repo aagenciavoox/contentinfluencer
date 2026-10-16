@@ -108,7 +108,7 @@ export function CalendarMiniMonth({
                 !inMonth && 'text-[var(--text-tertiary)] opacity-45',
                 inMonth && !isToday && !isSelected && 'text-[var(--text-primary)] hover:bg-[var(--bg-hover)]',
                 isSelected && !isToday && 'bg-[color-mix(in_srgb,var(--accent-blue),transparent_82%)] text-[var(--accent-blue)]',
-                isToday && 'bg-[var(--accent-blue)] text-white',
+                isToday && 'bg-[var(--accent-blue)] text-[var(--text-on-accent-color)]',
               )}
             >
               {format(day, 'd')}

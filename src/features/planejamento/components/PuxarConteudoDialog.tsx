@@ -96,7 +96,7 @@ export function PuxarConteudoDialog({
           subtitle={date
             ? format(new Date(`${date}T12:00:00`), "EEEE, d 'de' MMMM", {locale: ptBR})
             : undefined}
-          icon={<Plus className="h-6 w-6 text-[var(--brand-accent-strong)]" />}
+          icon={<Plus className="h-6 w-6 text-[var(--brand-accent-text)]" />}
           onClose={onClose}
         />
         <div className="overlay-body stack-sm shrink-0 border-b border-[var(--border-color)]">

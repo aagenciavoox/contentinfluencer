@@ -256,7 +256,7 @@ export function PostedVideoComposerSheet({
           value={title}
           onChange={event => setTitle(event.target.value)}
           placeholder="Ex.: 3 sinais de que…"
-          className="mt-2 min-h-11 w-full rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-3 py-2 text-sm font-semibold text-[var(--text-primary)] outline-none placeholder:text-[var(--text-tertiary)] focus:border-[var(--accent-blue)]"
+          className="mt-2 min-h-11 w-full rounded-[var(--radius-input)] border border-[var(--border-input)] bg-[var(--bg-elevated)] px-3 py-2 text-sm font-semibold text-[var(--text-primary)] outline-none placeholder:text-[var(--text-tertiary)] focus:border-[var(--accent-blue)]"
           onKeyDown={event => {
             if (event.key === 'Enter' && canSave) void handleSave(false);
           }}
@@ -351,7 +351,7 @@ export function PostedVideoComposerSheet({
           onChange={event => setCaption(event.target.value)}
           rows={4}
           placeholder="Cole aqui a legenda que foi publicada…"
-          className="mt-2 w-full resize-none rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-3 py-2 text-sm font-medium leading-relaxed text-[var(--text-primary)] outline-none placeholder:text-[var(--text-tertiary)] focus:border-[var(--accent-blue)]"
+          className="mt-2 w-full resize-none rounded-[var(--radius-input)] border border-[var(--border-input)] bg-[var(--bg-elevated)] px-3 py-2 text-sm font-medium leading-relaxed text-[var(--text-primary)] outline-none placeholder:text-[var(--text-tertiary)] focus:border-[var(--accent-blue)]"
         />
       </div>
 

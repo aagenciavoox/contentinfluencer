@@ -1,7 +1,7 @@
 import type {CSSProperties} from 'react';
 import {Columns3, Filter, GripVertical, Layers, Tag, type LucideIcon} from 'lucide-react';
 import {Badge} from '../../../components/ui/Badge';
-import {cn} from '../../../lib/utils';
+import {cn, tintedTextColor} from '../../../lib/utils';
 import type {Content, RedeSocial} from '../../../lib/database';
 import {PlatformIcons} from '../../../components/ui/PlatformIcons';
 import {postItKind, postItTitle, type PlanejamentoPostIt, type PostItKind} from '../lib/postIt';
@@ -158,7 +158,7 @@ export function PostItNote({
         accent ? SERIES_SURFACE : KIND_SURFACE[kind],
         'focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
         selected && 'bg-[var(--bg-hover)]',
-        dimmed && 'opacity-40',
+        dimmed && 'opacity-70',
       )}
     >
       <GripVertical className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[var(--text-tertiary)]" aria-hidden />
@@ -221,7 +221,7 @@ export function PostItIdentity({marks, className}: {marks: PostItMark[]; classNa
         const Icon = MARK_ICON[mark.kind];
         return (
           <span key={mark.kind} title={mark.nome} aria-label={mark.nome} className="group/mark relative inline-flex">
-            <Icon className="h-3.5 w-3.5 shrink-0" style={{color: mark.cor}} aria-hidden />
+            <Icon className="h-3.5 w-3.5 shrink-0" style={{color: mark.cor ? tintedTextColor(mark.cor) : undefined}} aria-hidden />
             <span className="pointer-events-none absolute bottom-full left-1/2 z-20 mb-1 hidden -translate-x-1/2 whitespace-nowrap rounded-[var(--radius-sm)] bg-[var(--text-primary)] px-1.5 py-0.5 text-2xs text-[var(--bg-elevated)] group-hover/mark:block">
               {mark.nome}
             </span>

@@ -107,7 +107,7 @@ export function CalendarTimelineView({
                     className={cn(
                       'flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold',
                       isToday
-                        ? 'bg-[var(--accent-blue)] text-white'
+                        ? 'bg-[var(--accent-blue)] text-[var(--text-on-accent-color)]'
                         : isSelected
                           ? 'bg-[color-mix(in_srgb,var(--accent-blue),transparent_82%)] text-[var(--accent-blue)]'
                           : 'text-[var(--text-primary)]',

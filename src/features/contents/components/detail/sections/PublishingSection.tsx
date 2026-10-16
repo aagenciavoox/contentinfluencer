@@ -109,9 +109,9 @@ export function PublishingSection({
               className="flex items-start gap-3 rounded-[22px] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-4"
             >
               {alert.tone === 'warning' ? (
-                <AlertTriangle className="mt-0.5 h-5 w-5 text-amber-500" />
+                <AlertTriangle className="mt-0.5 h-5 w-5 text-[var(--warning)]" />
               ) : (
-                <CalendarDays className="mt-0.5 h-5 w-5 text-sky-500" />
+                <CalendarDays className="mt-0.5 h-5 w-5 text-[var(--info)]" />
               )}
               <p className="text-sm font-semibold text-[var(--text-primary)]">{alert.message}</p>
             </article>

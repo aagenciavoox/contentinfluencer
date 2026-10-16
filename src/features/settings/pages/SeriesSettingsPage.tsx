@@ -276,7 +276,7 @@ export function SeriesSettingsPage() {
         <div className={SETTINGS_ENTITY_GRID_CLASS}>
           {filteredSeries.length === 0 ? (
             <div className="col-span-full py-10 text-center">
-              <p className="text-sm font-medium opacity-40">Nenhuma série encontrada</p>
+              <p className="text-sm font-medium text-[var(--text-tertiary)]">Nenhuma série encontrada</p>
             </div>
           ) : (
             filteredSeries.map(serie => {
@@ -318,8 +318,8 @@ export function SeriesSettingsPage() {
                     <span className="flex min-w-0 items-center gap-2">
                       <span
                         aria-hidden
-                        className="h-2.5 w-2.5 shrink-0 rounded-full border border-[var(--border-strong)]"
-                        style={serie.cor ? { backgroundColor: serie.cor, borderColor: serie.cor } : undefined}
+                        className="entity-color-dot h-2.5 w-2.5 shrink-0 rounded-full"
+                        style={serie.cor ? { backgroundColor: serie.cor } : undefined}
                       />
                       <Text variant="itemTitle" as="span" className="min-w-0 truncate">{serie.name}</Text>
                     </span>

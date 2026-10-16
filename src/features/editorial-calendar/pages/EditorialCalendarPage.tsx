@@ -973,7 +973,7 @@ function CalendarWeekView({
               </span>
               <span className={cn(
                 'flex h-9 w-9 items-center justify-center rounded-full text-base font-semibold text-[var(--text-primary)]',
-                active && 'bg-[var(--accent-blue)] text-white'
+                active && 'bg-[var(--accent-blue)] text-[var(--text-on-accent-color)]'
               )}>
                 {format(day, 'd')}
               </span>

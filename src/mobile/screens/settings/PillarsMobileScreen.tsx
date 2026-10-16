@@ -76,7 +76,7 @@ export function PillarsMobileScreen({
                     style={{ backgroundColor: `${pilar.cor}22` }}
                   >
                     <span
-                      className="h-2 w-2 shrink-0 rounded-full"
+                      className="entity-color-dot h-2 w-2 shrink-0 rounded-full"
                       style={{ backgroundColor: pilar.cor }}
                     />
                     Cor

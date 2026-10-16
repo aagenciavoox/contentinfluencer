@@ -49,7 +49,7 @@ export function ContentDetailTabs({
             <tab.icon className="h-4 w-4" />
             {tab.label}
             {alerts > 0 ? (
-              <span className="ds-pill ml-0.5 inline-flex h-4 min-w-4 items-center justify-center bg-[var(--accent-orange)] px-1 text-xs font-bold text-white">
+              <span className="ds-pill ml-0.5 inline-flex h-4 min-w-4 items-center justify-center bg-[var(--accent-orange)] px-1 text-xs font-bold text-[var(--text-on-accent-color)]">
                 {alerts}
               </span>
             ) : null}

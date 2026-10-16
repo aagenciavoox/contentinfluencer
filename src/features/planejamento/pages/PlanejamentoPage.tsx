@@ -797,7 +797,7 @@ export function PlanejamentoPage() {
           <div className="flex h-full min-h-0 flex-col bg-[var(--bg-elevated)]">
             <OverlayHeader
               title={editing ? 'Editar post-it' : 'Post-it'}
-              icon={<StickyNote className="h-6 w-6 text-[var(--brand-accent-strong)]" />}
+              icon={<StickyNote className="h-6 w-6 text-[var(--brand-accent-text)]" />}
               onClose={closePostIt}
             />
             <OverlayBody>

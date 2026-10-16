@@ -1,10 +1,9 @@
 import type {LucideIcon} from 'lucide-react';
 import {Check} from 'lucide-react';
 import {Text} from '../ui/Text';
-import {cn} from '../../lib/utils';
+import {cn, readableInkOn} from '../../lib/utils';
 
-/** Layer fills such as orange sit near 3:1 with white. Dark ink stays readable in both themes. */
-const LAYER_CHECK_INK = '#111111';
+/** O visto usa preto ou branco, o que der mais contraste WCAG sobre a cor da camada. */
 
 export interface CalendarChecklistItem {
   id: string;
@@ -57,7 +56,7 @@ export function CalendarLayerChecklist({
                   aria-hidden
                 >
                   {active ? (
-                    <Check className="h-2.5 w-2.5" strokeWidth={3} style={{color: LAYER_CHECK_INK}} />
+                    <Check className="h-2.5 w-2.5" strokeWidth={3} style={{color: readableInkOn(item.color)}} />
                   ) : null}
                 </span>
                 {Icon ? <Icon className="h-3.5 w-3.5 shrink-0 text-[var(--text-tertiary)]" /> : null}

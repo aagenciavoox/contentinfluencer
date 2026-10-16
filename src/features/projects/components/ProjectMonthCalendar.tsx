@@ -8,6 +8,7 @@ import {AppButton} from '../../../components/ui/AppButton';
 import {Surface} from '../../../components/ui/Surface';
 import {Text} from '../../../components/ui/Text';
 import {useIsMobile} from '../../../hooks/useIsMobile';
+import {tintedTextColor} from '../../../lib/utils';
 import type {AgendaItem, ProjetoLivro} from '../../../lib/database';
 import {
   eventoCobreDia,
@@ -133,7 +134,7 @@ export function ProjectMonthCalendar({
                 onClick={() => onOpen(item)}
                 className="flex w-full items-start gap-3 rounded-[var(--radius-input)] px-2 py-2 text-left hover:bg-[var(--bg-hover)]"
               >
-                <span className="mt-0.5" style={{color: cor || 'var(--text-secondary)'}}>
+                <span className="mt-0.5" style={{color: cor ? tintedTextColor(cor) : 'var(--text-secondary)'}}>
                   <AgendaTipoIcon tipo={item.tipo} className="h-4 w-4" />
                 </span>
                 <span className="min-w-0">

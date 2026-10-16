@@ -151,7 +151,7 @@ const THEME_CLASSNAMES: Record<BurstTheme, { shell: string; card: string; border
     shell: 'bg-[#f7f4ef]',
     card: 'bg-[#fcfaf7]',
     border: 'border-[#e5ddd2]',
-    muted: 'text-[#9e9588]',
+    muted: 'text-[#736b5f]',
     text: 'text-[#312c27]',
   },
   night: {
@@ -606,7 +606,7 @@ export function BurstModeMobileScreen({
       )}
 
       {teleprompterEnabled && countdownRemaining !== null && (
-        <div className="absolute inset-0 z-[10] flex flex-col items-center justify-center bg-[color-mix(in_srgb,var(--text-primary)_25%,transparent)] px-6">
+        <div className="absolute inset-0 z-[10] flex flex-col items-center justify-center bg-[var(--overlay-scrim)] px-6">
           <div className={cn('rounded-[var(--radius-card-mobile)] border px-10 py-8 text-center shadow-none', theme.card, theme.border)}>
             <p className={cn('text-xs font-semibold ', theme.muted)}>Preparar</p>
             <p className="mt-2 text-6xl font-semibold">{countdownRemaining}</p>
@@ -811,7 +811,7 @@ function ActionIconButton({
       className={cn(
         'flex flex-col items-center justify-center gap-1 rounded-[var(--radius-md)] border px-3 py-3 text-center transition-colors disabled:opacity-40',
         active
-          ? 'border-emerald-500/30 bg-emerald-500/12 text-emerald-500'
+          ? 'border-[color-mix(in_srgb,var(--success)_30%,transparent)] bg-[color-mix(in_srgb,var(--success)_12%,transparent)] text-[var(--success)]'
           : 'border-[var(--border-color)] text-[var(--text-primary)]'
       )}
     >

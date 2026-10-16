@@ -349,7 +349,7 @@ export function TemplatesSettingsPage({
                 </div>
                 <button
                   onClick={() => deleteTemplate(selectedTemplate.id)}
-                  className="rounded-xl border border-red-400/20 bg-red-400/5 px-4 py-3 text-xs font-semibold  text-red-400 hover:bg-red-400/10"
+                  className="rounded-xl border border-[color-mix(in_srgb,var(--danger)_20%,transparent)] bg-[color-mix(in_srgb,var(--danger)_5%,transparent)] px-4 py-3 text-xs font-semibold  text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)]"
                 >
                   Excluir template
                 </button>
@@ -484,8 +484,8 @@ export function TemplatesSettingsPage({
                                 className={cn(
                                   'rounded-full px-2 py-1 text-xs font-semibold ',
                                   bloco.tipo === 'fixo'
-                                    ? 'bg-blue-400/10 text-blue-400'
-                                    : 'bg-orange-400/10 text-orange-400'
+                                    ? 'bg-[color-mix(in_srgb,var(--info)_10%,transparent)] text-[var(--info)]'
+                                    : 'bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] text-[var(--warning)]'
                                 )}
                               >
                                 {bloco.tipo === 'fixo' ? 'Fixo' : 'Variável'}
@@ -508,7 +508,7 @@ export function TemplatesSettingsPage({
                       onChange={event => setNovoBlocoLabel(event.target.value)}
                       onKeyDown={event => event.key === 'Enter' && addBloco()}
                       placeholder="Novo bloco"
-                      className="flex-1 rounded-lg border border-[var(--border-color)] bg-[var(--bg-primary)] px-3 py-2 text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none"
+                      className="flex-1 rounded-lg border border-[var(--border-input)] bg-[var(--bg-primary)] px-3 py-2 text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none"
                     />
                     <select
                       value={novoBlocoTipo}
@@ -568,7 +568,7 @@ export function TemplatesSettingsPage({
                             : 'Explique o que entra neste bloco…'
                         }
                         rows={editingBloco.tipo === 'fixo' ? 16 : 12}
-                        className="min-h-[340px] w-full resize-y rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-4 text-sm leading-7 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none"
+                        className="min-h-[340px] w-full resize-y rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-input)] bg-[var(--bg-secondary)] px-4 py-4 text-sm leading-7 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none"
                       />
                     </div>
 
@@ -583,7 +583,7 @@ export function TemplatesSettingsPage({
                       </button>
                       <button
                         onClick={() => deleteBloco(editingBloco.id)}
-                        className="rounded-xl border border-red-400/20 bg-red-400/5 px-6 py-3 text-xs font-semibold  text-red-400 hover:bg-red-400/10"
+                        className="rounded-xl border border-[color-mix(in_srgb,var(--danger)_20%,transparent)] bg-[color-mix(in_srgb,var(--danger)_5%,transparent)] px-6 py-3 text-xs font-semibold  text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)]"
                       >
                         Excluir bloco
                       </button>
@@ -632,7 +632,7 @@ export function TemplatesSettingsPage({
               value={novoNome}
               onChange={event => setNovoNome(event.target.value)}
               placeholder="Nome do template"
-              className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none"
+              className="w-full rounded-xl border border-[var(--border-input)] bg-[var(--bg-secondary)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none"
             />
             <div className="flex flex-wrap gap-3">
               {lockedSeriesId ? null : (
@@ -758,7 +758,7 @@ export function TemplatesSettingsPage({
                       deleteTemplate(template.id);
                     }}
                     aria-label={`Excluir template ${template.nome}`}
-                    className="relative z-[2] inline-flex min-h-9 min-w-9 shrink-0 items-center justify-center rounded-full text-[var(--text-tertiary)] transition-all hover:bg-red-400/10 hover:text-red-400 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] pointer-coarse:min-h-11 pointer-coarse:min-w-11"
+                    className="relative z-[2] inline-flex min-h-9 min-w-9 shrink-0 items-center justify-center rounded-full text-[var(--text-tertiary)] transition-all hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] hover:text-[var(--danger)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] pointer-coarse:min-h-11 pointer-coarse:min-w-11"
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>

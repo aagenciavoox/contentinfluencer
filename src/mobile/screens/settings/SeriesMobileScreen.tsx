@@ -178,7 +178,7 @@ export function SeriesMobileScreen({
                 meta={
                   <Text variant="meta" as="p" className="leading-none">
                     <span
-                      className="mr-1.5 inline-block h-2 w-2 rounded-full align-middle"
+                      className="entity-color-dot mr-1.5 inline-block h-2 w-2 rounded-full align-middle"
                       style={{ backgroundColor: serieColor }}
                       aria-hidden
                     />

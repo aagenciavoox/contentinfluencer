@@ -155,6 +155,14 @@
   --brand-accent-soft: #FFE4EF;
   --brand-on-accent: #FFFFFF;
   --brand-fab: #0C0C0C;
+  /* Rosa usado como TEXTO/icone (links, selecionado, asterisco). >= 4,5:1 sobre os fundos e sobre --brand-accent-soft. */
+  --brand-accent-text: #D0104F;
+  /* Texto sobre preenchimento colorido (dia de hoje azul, selo laranja). Escuro nos dois temas. */
+  --text-on-accent-color: #111111;
+  /* Contorno de controles de formulario (input, select, botao secundario): >= 3:1 (WCAG 1.4.11). */
+  --border-input: #85857E;
+  /* Veu fixo escuro para texto branco sobre imagem/overlay, igual nos dois temas. */
+  --overlay-scrim: rgba(0, 0, 0, 0.6);
   /* O foco é sempre azul (DESIGN.md). O nome fica para não quebrar quem já usa. */
   --focus-ring-brand: var(--focus-ring);
 
@@ -260,6 +268,13 @@
   --brand-accent-soft: #3D1528;
   --brand-on-accent: #FFFFFF;
   --brand-fab: #FAFAFA;
+  --brand-accent-text: #FF5C8D;
+  --text-on-accent-color: #0F0F0E;
+  --border-input: #737369;
+  /* No escuro o veu e preto (antes era o texto claro, que clareava a tela). */
+  --backdrop-soft: rgba(0, 0, 0, 0.45);
+  --backdrop-medium: rgba(0, 0, 0, 0.6);
+  --backdrop-strong: rgba(0, 0, 0, 0.72);
 
   /* Semantic / status palette — dark */
   --success: #6FA87A;
@@ -1376,6 +1391,11 @@ textarea.property-input {
 }
 
 /* Marca de pilar ou série: é selo, não chip. Sem borda, para não parecer filtro. */
+/* Bolinha com a cor que a pessoa escolheu (pilar, serie, projeto): anel fino >= 3:1 para cores que somem no fundo. */
+.entity-color-dot {
+  box-shadow: 0 0 0 1px var(--border-input);
+}
+
 .entity-tag-pill {
   display: inline-flex;
   align-items: center;
@@ -1472,7 +1492,7 @@ textarea.property-input {
 
 .filter-select {
   min-height: 2.25rem;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--border-input);
   border-radius: var(--radius-sm);
   background: var(--bg-elevated);
   padding: 0.55rem 2.25rem 0.55rem 0.9rem;
@@ -1484,7 +1504,7 @@ textarea.property-input {
 }
 
 .filter-select:hover {
-  border-color: var(--border-strong);
+  border-color: var(--text-tertiary);
   background: var(--bg-primary);
 }
 

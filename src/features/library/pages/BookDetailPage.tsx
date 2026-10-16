@@ -1174,7 +1174,7 @@ export function BookDetailPage() {
                     value={campForm.nome}
                     onChange={e => setCampForm(p => ({ ...p, nome: e.target.value }))}
                     placeholder="Nome da produção editorial"
-                    className="w-full text-sm bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]"
+                    className="w-full text-sm bg-[var(--bg-secondary)] border border-[var(--border-input)] rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]"
                   />
                   <div className="grid grid-cols-2 gap-3">
                     <div>

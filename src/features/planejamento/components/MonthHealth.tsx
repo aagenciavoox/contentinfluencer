@@ -199,7 +199,7 @@ export function MonthHealth({
                         <span className="flex min-w-0 items-center gap-1.5">
                           {item.cor ? (
                             <span
-                              className="h-2.5 w-2.5 shrink-0 rounded-full"
+                              className="entity-color-dot h-2.5 w-2.5 shrink-0 rounded-full"
                               style={{backgroundColor: item.cor}}
                               aria-hidden
                             />

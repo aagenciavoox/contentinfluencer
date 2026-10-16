@@ -92,7 +92,7 @@ function AccentLink({ to, children }: { to: string; children: ReactNode }) {
   return (
     <Link
       to={to}
-      className="inline-flex items-center gap-1.5 text-sm font-semibold text-[var(--brand-accent-strong)] hover:opacity-80 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+      className="inline-flex items-center gap-1.5 text-sm font-semibold text-[var(--brand-accent-text)] hover:opacity-80 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
     >
       {children}
       <ArrowRight className="h-4 w-4" aria-hidden />
@@ -120,7 +120,7 @@ export function LibraryFormatChips({ value, onChange }: { value: LibraryFormatFi
               onClick={() => onChange(option.id)}
               className="filter-chip min-h-9 shrink-0 pointer-coarse:min-h-11"
               // .filter-chip é CSS fora das camadas do Tailwind: utilitário não sobrescreve, estilo inline sim.
-              style={active ? { background: 'var(--brand-accent-soft)', borderColor: 'var(--brand-accent-soft)', color: 'var(--brand-accent-strong)' } : undefined}
+              style={active ? { background: 'var(--brand-accent-soft)', borderColor: 'var(--brand-accent-soft)', color: 'var(--brand-accent-text)' } : undefined}
             >
               <FormatIcon tipo={option.id} />
               {option.label}
@@ -135,7 +135,7 @@ export function LibraryFormatChips({ value, onChange }: { value: LibraryFormatFi
 function KpiCard({ icon: Icon, label, value, caption, loading }: { icon: LucideIcon; label: string; value: number; caption: string; loading: boolean }) {
   return (
     <Surface variant="outlined" padding="md" className={cn(CARD_CLASS, 'flex items-start gap-3')}>
-      <span className="hidden h-10 w-10 shrink-0 items-center justify-center rounded-[var(--radius-input)] bg-[var(--brand-accent-soft)] text-[var(--brand-accent-strong)] sm:inline-flex">
+      <span className="hidden h-10 w-10 shrink-0 items-center justify-center rounded-[var(--radius-input)] bg-[var(--brand-accent-soft)] text-[var(--brand-accent-text)] sm:inline-flex">
         <Icon className="h-5 w-5" aria-hidden />
       </span>
       <div className="min-w-0">
@@ -288,7 +288,7 @@ export function LibraryActiveCard({ analysis, loading }: { analysis: LibraryPeri
                       <span className="text-[var(--text-tertiary)]">Sem progresso</span>
                       <Link
                         to={`/biblioteca/${entry.id}`}
-                        className="font-medium text-[var(--brand-accent-strong)] hover:opacity-80 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+                        className="font-medium text-[var(--brand-accent-text)] hover:opacity-80 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
                       >
                         Atualizar
                       </Link>
@@ -399,7 +399,7 @@ export function LibraryRatingsCard({ analysis, loading, onRate }: { analysis: Li
           <Star className="h-6 w-6 text-[var(--text-secondary)]" aria-hidden />
           <Text variant="bodyStrong" className="mt-2 text-sm">Nenhum item avaliado neste período.</Text>
           <Text variant="meta">As avaliações aparecem aqui conforme você registra suas notas.</Text>
-          <AppButton variant="secondary" size="sm" className="mt-3 border-[var(--brand-accent-strong)] text-[var(--brand-accent-strong)]" onClick={onRate}>
+          <AppButton variant="secondary" size="sm" className="mt-3 border-[var(--brand-accent-text)] text-[var(--brand-accent-text)]" onClick={onRate}>
             Avaliar itens concluídos
           </AppButton>
         </div>

@@ -132,7 +132,7 @@ export function EncaixeDialog({
           subtitle={postIt?.date
             ? format(new Date(`${postIt.date}T12:00:00`), "d 'de' MMMM", {locale: ptBR})
             : 'Post-it fora do calendário'}
-          icon={<CalendarDays className="h-6 w-6 text-[var(--brand-accent-strong)]" />}
+          icon={<CalendarDays className="h-6 w-6 text-[var(--brand-accent-text)]" />}
           onClose={fechar}
         />
         <OverlayBody>

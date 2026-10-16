@@ -63,7 +63,7 @@ export function CreationEntityMarks({
     >
       <span className="entity-tag-pill min-w-0 max-w-full px-2 py-0.5 text-2xs">
         <span
-          className={cn('h-2 w-2 shrink-0 rounded-full', !primary.color && 'bg-[var(--text-tertiary)]')}
+          className={cn('entity-color-dot h-2 w-2 shrink-0 rounded-full', !primary.color && 'bg-[var(--text-tertiary)]')}
           style={primary.color ? { backgroundColor: primary.color } : undefined}
           aria-hidden
         />

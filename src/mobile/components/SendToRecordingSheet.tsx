@@ -162,8 +162,8 @@ export function SendToRecordingSheet({
       <OverlayBody className="stack-lg">
           {attachedBlockId ? (
             <div className="stack-md">
-              <div className="flex items-start gap-3 rounded-[var(--radius-card-mobile)] border border-emerald-500/20 bg-emerald-500/8 px-4 py-4">
-                <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-500" />
+              <div className="flex items-start gap-3 rounded-[var(--radius-card-mobile)] border border-[color-mix(in_srgb,var(--success)_20%,transparent)] bg-[color-mix(in_srgb,var(--success)_8%,transparent)] px-4 py-4">
+                <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-[var(--success)]" />
                 <div>
                   <p className="text-sm font-semibold text-[var(--text-primary)]">
                     Adicionado a {attachedBlockName}

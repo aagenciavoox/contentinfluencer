@@ -25,7 +25,7 @@ interface IdeaQuickCaptureProps {
 type MetaField = 'pilar' | 'serie' | 'origem';
 
 const fieldClassName =
-  'w-full rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] text-[var(--text-primary)] transition-colors placeholder:text-[var(--text-tertiary)] hover:border-[var(--border-strong)] focus:border-[var(--accent-blue)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-blue)]/20';
+  'w-full rounded-[var(--radius-input)] border border-[var(--border-input)] bg-[var(--bg-elevated)] text-[var(--text-primary)] transition-colors placeholder:text-[var(--text-tertiary)] hover:border-[var(--border-strong)] focus:border-[var(--accent-blue)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-blue)]/20';
 
 export function IdeaQuickCapture({
   title,

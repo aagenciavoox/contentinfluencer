@@ -169,7 +169,7 @@ export function ItensDoPeriodoDialog({
           <OverlayHeader
             title={filtro?.titulo ?? ''}
             subtitle={doFiltro.length === 1 ? '1 item neste período' : `${doFiltro.length} itens neste período`}
-            icon={<ListChecks className="h-6 w-6 text-[var(--brand-accent-strong)]" />}
+            icon={<ListChecks className="h-6 w-6 text-[var(--brand-accent-text)]" />}
             onClose={onClose}
           />
           <OverlayBody>

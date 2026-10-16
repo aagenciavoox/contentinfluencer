@@ -38,7 +38,7 @@ import { Content, Projeto, AgendaItem, Look, Cenario } from '../../../lib/databa
 import { eventoCobreDia } from '../../projects/lib/agendaEventos';
 import { AgendaTipoIcon } from '../../projects/components/AgendaTipoIcon';
 type Partnership = Projeto;
-import { cn, getEventDates } from '../../../lib/utils';
+import { cn, getEntityTagStyle, getEventDates } from '../../../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import { getStatusCalendarClass } from '../../../lib/statusClasses';
 import { getStatusIcon } from '../pages/EditorialCalendarPage';
@@ -271,22 +271,10 @@ export function CalendarGrid({ activeLayers, searchTerm, sortValue, onItemClick 
                         item.type === 'partnership' && !item.color && getStatusCalendarClass(item.status),
                         item.type === 'partnership' && "hover:border-current",
                         item.type === 'agenda' && !item.brandColor && !item.projetoColor && "bg-[var(--accent-purple)]/5 text-[var(--accent-purple)] hover:bg-[var(--accent-purple)]/10 hover:border-[var(--accent-purple)]/20",
-                        item.status === 'Postado' && "opacity-40 grayscale"
+                        item.status === 'Postado' && "line-through decoration-[var(--text-tertiary)] opacity-70"
                       )}
                       style={
-                        item.type === 'partnership' && item.color ? {
-                          backgroundColor: `${item.color}15`,
-                          color: item.color,
-                          borderColor: `${item.color}30`
-                        } : item.type === 'agenda' && item.projetoColor ? {
-                          backgroundColor: `${item.projetoColor}15`,
-                          color: item.projetoColor,
-                          borderColor: `${item.projetoColor}30`
-                        } : item.type === 'agenda' && item.brandColor ? {
-                          backgroundColor: `${item.brandColor}15`,
-                          color: item.brandColor,
-                          borderColor: `${item.brandColor}30`
-                        } : {}
+                        item.type === 'partnership' && item.color ? getEntityTagStyle(item.color) : item.type === 'agenda' && item.projetoColor ? getEntityTagStyle(item.projetoColor) : item.type === 'agenda' && item.brandColor ? getEntityTagStyle(item.brandColor) : {}
                       }
                     >
                       <span className="shrink-0">{item.icon}</span>

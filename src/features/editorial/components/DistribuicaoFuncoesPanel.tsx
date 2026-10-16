@@ -37,7 +37,7 @@ const AGRUPAMENTOS: Array<{ id: EtapaId; titulo: string }> = [
 const COLUNAS = 'grid grid-cols-[minmax(12rem,1.6fr)_9rem_8rem_4.5rem] items-center gap-3';
 
 const campoClass =
-  'h-11 w-full rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]';
+  'h-11 w-full rounded-[var(--radius-input)] border border-[var(--border-input)] bg-[var(--bg-secondary)] px-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]';
 
 function draftVazio(): PercentDraft {
   return {
@@ -416,7 +416,7 @@ export function DistribuicaoFuncoesPanel({
               <button
                 type="button"
                 onClick={onOpenPilares}
-                className="mt-3 text-sm font-medium text-[var(--brand-accent-strong)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+                className="mt-3 text-sm font-medium text-[var(--brand-accent-text)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
               >
                 Ajustar pilares →
               </button>
@@ -442,7 +442,7 @@ function SeriesDaFuncao({
     <MoreMenu
       label={rotuloContagemSeries(series.length)}
       align="left"
-      triggerClassName="h-auto w-auto gap-1 border-0 bg-transparent px-0 text-sm font-medium text-[var(--brand-accent-strong)] hover:bg-transparent"
+      triggerClassName="h-auto w-auto gap-1 border-0 bg-transparent px-0 text-sm font-medium text-[var(--brand-accent-text)] hover:bg-transparent"
       trigger={(
         <>
           <span>{rotuloContagemSeries(series.length)}</span>

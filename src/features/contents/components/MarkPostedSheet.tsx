@@ -185,7 +185,7 @@ export function MarkPostedSheet({
                 value={row.postUrl}
                 onChange={event => updateRow(index, { postUrl: event.target.value })}
                 placeholder="https://"
-                className="min-h-11 w-full rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-3 py-2 text-sm font-medium text-[var(--text-primary)] outline-none placeholder:text-[var(--text-tertiary)] focus:border-[var(--accent-blue)]"
+                className="min-h-11 w-full rounded-[var(--radius-input)] border border-[var(--border-input)] bg-[var(--bg-secondary)] px-3 py-2 text-sm font-medium text-[var(--text-primary)] outline-none placeholder:text-[var(--text-tertiary)] focus:border-[var(--accent-blue)]"
               />
             </label>
           </article>

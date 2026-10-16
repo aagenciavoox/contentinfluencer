@@ -160,6 +160,31 @@ for (const [theme, tokens] of [['light (:root)', lightTokens], ["dark ([data-the
     }
   });
 
+  describe(`brand text, colored fills and form borders, ${theme}`, () => {
+    const check = (fg: string, bg: string, min: number) => {
+      const ratio = contrastRatio(resolveHex(tokens, fg), resolveHex(tokens, bg));
+      assert.ok(ratio >= min, `${fg} on ${bg} is ${ratio.toFixed(2)}:1 (min ${min})`);
+    };
+    for (const background of [...backgroundTokens, '--brand-accent-soft']) {
+      it(`--brand-accent-text on ${background} >= ${MIN_TEXT_CONTRAST}:1`, () => check('--brand-accent-text', background, MIN_TEXT_CONTRAST));
+    }
+    // Dia de hoje (azul) e selo de contagem (laranja): branco ficava em 2,80:1 e 2,30:1 no escuro.
+    for (const fill of ['--accent-blue', '--accent-orange']) {
+      it(`--text-on-accent-color on ${fill} >= ${MIN_TEXT_CONTRAST}:1`, () => check('--text-on-accent-color', fill, MIN_TEXT_CONTRAST));
+    }
+    for (const background of backgroundTokens) {
+      it(`--border-input on ${background} >= ${MIN_NON_TEXT_CONTRAST}:1`, () => check('--border-input', background, MIN_NON_TEXT_CONTRAST));
+    }
+    it('backdrops never use the theme text color (dark theme must darken, not lighten)', () => {
+      if (theme.startsWith('dark')) {
+        for (const name of ['--backdrop-soft', '--backdrop-medium', '--backdrop-strong']) {
+          assert.doesNotMatch(tokens.get(name) ?? '', /--text-primary/, `${name} must be black-based in dark`);
+        }
+      }
+      assert.match(tokens.get('--overlay-scrim') ?? '', /rgba\(0, 0, 0/);
+    });
+  });
+
   describe(`focus ring, ${theme}`, () => {
     for (const background of backgroundTokens) {
       it(`--focus-ring-color on ${background} >= ${MIN_NON_TEXT_CONTRAST}:1`, () => {

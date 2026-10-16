@@ -238,7 +238,7 @@ export function TagSelect({
             }
           }}
           className={cn(
-            'tag-select-control flex min-h-10 w-full items-center gap-2 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-3 py-2 transition-colors hover:border-[var(--border-strong)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
+            'tag-select-control flex min-h-10 w-full items-center gap-2 rounded-[var(--radius-input)] border border-[var(--border-input)] bg-[var(--bg-elevated)] px-3 py-2 transition-colors hover:border-[var(--text-tertiary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
             showInput ? 'cursor-text' : 'cursor-pointer',
             open && 'border-[var(--border-strong)] ring-2 ring-[var(--shadow-focus)]',
             disabled && 'cursor-not-allowed opacity-60',

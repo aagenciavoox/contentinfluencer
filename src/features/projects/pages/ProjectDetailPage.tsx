@@ -557,7 +557,7 @@ export function ProjectDetailPage() {
                   value={editNome}
                   onChange={event => setEditNome(event.target.value)}
                   placeholder="Nome"
-                  className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none"
+                  className="w-full rounded-xl border border-[var(--border-input)] bg-[var(--bg-secondary)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none"
                 />
                 <ProjetoEventoFields
                   tipo={editTipo}
@@ -568,13 +568,13 @@ export function ProjectDetailPage() {
                   onTipoChange={setEditTipo}
                   onAvisoDiasChange={setEditAvisoDias}
                   onTipoPersonalizadoChange={setEditTipoPersonalizado}
-                  inputClassName="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none"
+                  inputClassName="w-full rounded-xl border border-[var(--border-input)] bg-[var(--bg-secondary)] px-4 py-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none"
                 />
                 <input
                   value={editBrand}
                   onChange={event => setEditBrand(event.target.value)}
                   placeholder="Marca ou parceiro"
-                  className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none"
+                  className="w-full rounded-xl border border-[var(--border-input)] bg-[var(--bg-secondary)] px-4 py-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none"
                 />
                 {isProjetoPubli(editTipo) ? (
                   <input
@@ -582,7 +582,7 @@ export function ProjectDetailPage() {
                     value={editValue}
                     onChange={event => setEditValue(event.target.value)}
                     placeholder="Valor (R$)"
-                    className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-3 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none"
+                    className="w-full rounded-xl border border-[var(--border-input)] bg-[var(--bg-secondary)] px-4 py-3 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none"
                   />
                 ) : null}
                 <ProjetoCorPicker value={editColor} onChange={setEditColor} />
@@ -591,14 +591,14 @@ export function ProjectDetailPage() {
                   onChange={event => setEditDriveUrl(event.target.value)}
                   placeholder="Link da pasta no Drive (https://...)"
                   type="url"
-                  className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none"
+                  className="w-full rounded-xl border border-[var(--border-input)] bg-[var(--bg-secondary)] px-4 py-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none"
                 />
                 <textarea
                   value={editNotes}
                   onChange={event => setEditNotes(event.target.value)}
                   placeholder="Notas do projeto"
                   rows={4}
-                  className="w-full resize-none rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none"
+                  className="w-full resize-none rounded-xl border border-[var(--border-input)] bg-[var(--bg-secondary)] px-4 py-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none"
                 />
                 <div className="flex flex-wrap gap-3">
                   <AppButton variant="secondary" onClick={saveEdit} disabled={avisoDiasInvalido(editTipo, editAvisoDias)}>
