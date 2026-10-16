@@ -68,7 +68,7 @@ function paragraphsFromText(text: string): TranscriptLine[][] {
     .split(/\n\s*\n/)
     .map(block => block.split('\n').map(line => line.trim()).filter(Boolean))
     .filter(block => block.length > 0);
-  // Texto corrido numa linha só: uma frase por linha, poucas frases por parágrafo.
+  // Texto corrido numa linha só: poucas frases por parágrafo.
   const lines = blocks.length === 1 && blocks[0].length === 1
     ? chunk(blocks[0][0].split(/(?<=[.!?…])\s+/).filter(Boolean), SENTENCES_PER_TEXT_PARAGRAPH)
     : blocks;
@@ -76,7 +76,7 @@ function paragraphsFromText(text: string): TranscriptLine[][] {
 }
 
 /**
- * Um trecho por linha, agrupados em parágrafos: fecha o parágrafo numa pausa longa,
+ * Agrupa os trechos em parágrafos: fecha o parágrafo numa pausa longa,
  * num fim de frase depois de algumas linhas, ou quando ele fica comprido demais.
  */
 export function buildParagraphs(transcript: Pick<Transcript, 'text' | 'segments'>): TranscriptLine[][] {
@@ -103,10 +103,10 @@ export function buildParagraphs(transcript: Pick<Transcript, 'text' | 'segments'
   return paragraphs;
 }
 
-/** Texto como aparece na tela: um trecho por linha e uma linha em branco entre parágrafos. */
+/** Texto como aparece na tela: trechos seguidos no parágrafo e uma linha em branco entre parágrafos. */
 export function buildPlainText(transcript: Pick<Transcript, 'text' | 'segments'>) {
   return buildParagraphs(transcript)
-    .map(paragraph => paragraph.map(line => line.text).join('\n'))
+    .map(paragraph => paragraph.map(line => line.text).join(' '))
     .join('\n\n');
 }
 

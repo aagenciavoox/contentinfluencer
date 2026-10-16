@@ -36,10 +36,10 @@ function testSrtNeverEndsBeforeItStarts() {
   assert.match(buildSrt([{ start: 3, end: 2, text: 'a' }]), /00:00:03,000 --> 00:00:03,000/);
 }
 
-function testPlainTextUsesOneLinePerSegment() {
+function testPlainTextJoinsSegmentsIntoAParagraph() {
   assert.equal(
     buildPlainText({ text: 'ignorado', segments: [{ start: 0, end: 1, text: ' Um.' }, { start: 1, end: 2, text: 'Dois. ' }] }),
-    'Um.\nDois.',
+    'Um. Dois.',
   );
   assert.equal(buildPlainText({ text: ' Só texto. ', segments: [] }), 'Só texto.');
 }
@@ -83,9 +83,9 @@ function testKeepsSegmentStartAndSkipsEmptySegments() {
 function testSplitsTextWithoutTimesIntoSentences() {
   assert.equal(
     buildPlainText({ text: 'Um. Dois! Três? Quatro.', segments: [] }),
-    'Um.\nDois!\nTrês?\n\nQuatro.',
+    'Um. Dois! Três?\n\nQuatro.',
   );
-  assert.equal(buildPlainText({ text: 'Linha um\nlinha dois\n\nOutro bloco', segments: [] }), 'Linha um\nlinha dois\n\nOutro bloco');
+  assert.equal(buildPlainText({ text: 'Linha um\nlinha dois\n\nOutro bloco', segments: [] }), 'Linha um linha dois\n\nOutro bloco');
 }
 
 function testPlainTextSeparatesParagraphsWithBlankLine() {
@@ -106,7 +106,7 @@ const tests = [
   ['formats short clock times', testFormatsClock],
   ['builds a numbered SRT and skips empty segments', testBuildsNumberedSrtSkippingEmptyLines],
   ['keeps SRT end at or after start', testSrtNeverEndsBeforeItStarts],
-  ['builds plain text one segment per line', testPlainTextUsesOneLinePerSegment],
+  ['joins segments of a paragraph into one line', testPlainTextJoinsSegmentsIntoAParagraph],
   ['breaks a paragraph on a long pause', testBreaksParagraphOnLongPause],
   ['breaks a paragraph on a sentence end after some lines', testBreaksParagraphOnSentenceEndAfterSomeLines],
   ['caps paragraph length', testCapsParagraphLength],

@@ -80,11 +80,7 @@ export function TranscriptView({
           ) : (
             <div className="transcript-text select-text">
               {paragraphs.map((paragraph, index) => (
-                <p key={index}>
-                  {paragraph.map((line, lineIndex) => (
-                    <span key={`${line.start}-${lineIndex}`} className="transcript-line">{line.text}</span>
-                  ))}
-                </p>
+                <p key={index}>{paragraph.map(line => line.text).join(' ')}</p>
               ))}
             </div>
           )}
