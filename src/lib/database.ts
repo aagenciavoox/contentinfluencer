@@ -203,7 +203,7 @@ export interface Anotacao {
 export interface BibliotecaItem {
   id: string;
   userId: string;
-  tipo: 'livro' | 'filme' | 'série' | 'anime' | 'manga' | 'outro';
+  tipo: 'livro' | 'quadrinho' | 'filme' | 'série' | 'anime' | 'manga' | 'outro';
   titulo: string;
   autorDiretor: string;
   capaUrl: string | null;

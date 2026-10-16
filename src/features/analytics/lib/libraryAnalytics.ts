@@ -4,12 +4,13 @@ const COMPLETED_STATUSES = new Set<BibliotecaItem['status']>(['Lido', 'Assistido
 const ACTIVE_STATUSES = new Set<BibliotecaItem['status']>(['Lendo', 'Assistindo', 'Consumindo']);
 const WISHLIST_STATUSES = new Set<BibliotecaItem['status']>(['Quero ler', 'Quero ver', 'Quero consumir']);
 const PAUSED_STATUSES = new Set<BibliotecaItem['status']>(['Pausado', 'Abandonado']);
-const BOOKISH_TYPES = new Set<BibliotecaItem['tipo']>(['livro', 'manga']);
+const BOOKISH_TYPES = new Set<BibliotecaItem['tipo']>(['livro', 'manga', 'quadrinho']);
 const EPISODIC_TYPES = new Set<BibliotecaItem['tipo']>(['série', 'anime']);
 
 const TYPE_LABELS: Record<BibliotecaItem['tipo'], string> = {
   livro: 'Livros',
   manga: 'Mangás',
+  quadrinho: 'Quadrinhos',
   filme: 'Filmes',
   série: 'Séries',
   anime: 'Animes',

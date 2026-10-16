@@ -62,6 +62,7 @@ export function LibraryToolbar({
             { label: 'Série', value: 'série' },
             { label: 'Anime', value: 'anime' },
             { label: 'Mangá', value: 'manga' },
+            { label: 'Quadrinho', value: 'quadrinho' },
           ],
         },
         {

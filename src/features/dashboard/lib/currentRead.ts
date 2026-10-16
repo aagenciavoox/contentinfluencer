@@ -14,6 +14,7 @@ export function resolveCurrentRead<T extends { id: string; tipo: string; status:
   return (
     active.find(item => item.tipo === 'livro')
     ?? active.find(item => item.tipo === 'manga')
+    ?? active.find(item => item.tipo === 'quadrinho')
     ?? active[0]
     ?? null
   );

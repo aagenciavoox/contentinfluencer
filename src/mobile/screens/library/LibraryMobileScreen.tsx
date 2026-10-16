@@ -51,6 +51,7 @@ const TYPE_LABELS: Record<BibliotecaTipo, string> = {
   'série': 'Série',
   anime: 'Anime',
   manga: 'Mangá',
+  quadrinho: 'Quadrinho',
   outro: 'Outro',
 };
 
@@ -458,6 +459,7 @@ export function LibraryMobileScreen({
             <option value="série">Série</option>
             <option value="anime">Anime</option>
             <option value="manga">Mangá</option>
+            <option value="quadrinho">Quadrinho</option>
             <option value="outro">Outro</option>
           </select>
         </label>

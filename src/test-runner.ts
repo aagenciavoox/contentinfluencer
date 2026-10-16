@@ -68,6 +68,7 @@ await import('./features/contas/lib/contas.test.ts');
 await import('./features/contas/lib/revisaoContas.test.ts');
 await import('./features/editorial-calendar/lib/publishCalendarItems.test.ts');
 await import('./features/analytics/lib/libraryAnalytics.test.ts');
+await import('./features/analytics/lib/libraryPeriods.test.ts');
 await import('./features/analises/lib/publicacoes.test.ts');
 await import('./features/library/lib/libraryCoverFile.test.ts');
 await import('./lib/livroIds.test.ts');

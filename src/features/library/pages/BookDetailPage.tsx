@@ -68,6 +68,7 @@ const TIPOS: TipoAnotacao[] = ['Trecho', 'Reação', 'Análise', 'Ideia de conte
 const STATUS_LEITURA: Record<BibliotecaItem['tipo'], StatusLeitura[]> = {
   livro: ['Quero ler', 'Lendo', 'Lido', 'Abandonado'],
   manga: ['Quero ler', 'Lendo', 'Lido', 'Abandonado'],
+  quadrinho: ['Quero ler', 'Lendo', 'Lido', 'Abandonado'],
   filme: ['Quero ver', 'Assistido', 'Abandonado'],
   'série': ['Quero ver', 'Assistindo', 'Assistido', 'Abandonado'],
   anime: ['Quero ver', 'Assistindo', 'Assistido', 'Abandonado'],
@@ -88,6 +89,7 @@ function getItemTypeLabel(tipo: BibliotecaItem['tipo']) {
   if (tipo === 'série') return 'Série';
   if (tipo === 'anime') return 'Anime';
   if (tipo === 'manga') return 'Mangá';
+  if (tipo === 'quadrinho') return 'Quadrinho';
   return 'Livro';
 }
 
@@ -96,6 +98,7 @@ function getCreatorLabel(tipo: BibliotecaItem['tipo']) {
   if (tipo === 'série') return 'Diretor';
   if (tipo === 'anime') return 'Direção / estúdio';
   if (tipo === 'manga') return 'Mangaká';
+  if (tipo === 'quadrinho') return 'Roteiro / arte';
   return 'Autor';
 }
 
@@ -219,7 +222,7 @@ export function BookDetailPage() {
   const progressLabels = getProgressLabels(itemType);
   const technicalLabels = getTechnicalLabels(itemType);
   const coverageLabels = getCoverageLabels(itemType);
-  const ItemIcon = itemType === 'livro' || itemType === 'manga' ? BookOpen : Film;
+  const ItemIcon = itemType === 'livro' || itemType === 'manga' || itemType === 'quadrinho' ? BookOpen : Film;
   const [infoLocal, setInfoLocal] = useState(() => ({
     titulo: livro?.titulo ?? '',
     autor: livro?.autorDiretor ?? '',
@@ -882,7 +885,7 @@ export function BookDetailPage() {
                       <label className="text-xs font-bold  text-[var(--text-tertiary)] block mb-1.5">Ano de publicação</label>
                       <input type="number" value={infoLocal.anoPublicacao} onChange={e => setInfoLocal(prev => ({ ...prev, anoPublicacao: e.target.value }))} placeholder="2024" className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]" />
                     </div>
-                    {(livro.tipo === 'livro' || livro.tipo === 'manga') && (
+                    {(livro.tipo === 'livro' || livro.tipo === 'manga' || livro.tipo === 'quadrinho') && (
                       <div>
                         <label className="text-xs font-bold  text-[var(--text-tertiary)] block mb-1.5">ISBN</label>
                         <input type="text" value={infoLocal.isbn} onChange={e => setInfoLocal(prev => ({ ...prev, isbn: e.target.value }))} placeholder="978-…" className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]" />
@@ -900,7 +903,7 @@ export function BookDetailPage() {
                       <label className="text-xs font-bold  text-[var(--text-tertiary)] block mb-1.5">{technicalLabels.collection}</label>
                       <input type="text" value={infoLocal.serieColecao} onChange={e => setInfoLocal(prev => ({ ...prev, serieColecao: e.target.value }))} placeholder={technicalLabels.collectionPlaceholder} className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]" />
                     </div>
-                    {(livro.tipo === 'livro' || livro.tipo === 'manga') && (
+                    {(livro.tipo === 'livro' || livro.tipo === 'manga' || livro.tipo === 'quadrinho') && (
                       <>
                         <div>
                           <label className="text-xs font-bold  text-[var(--text-tertiary)] block mb-1.5">Série ou coleção?</label>

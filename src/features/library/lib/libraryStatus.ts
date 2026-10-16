@@ -6,6 +6,7 @@ type StatusLeitura = BibliotecaItem['status'];
 export const COMPLETED_STATUS_BY_TYPE: Record<BibliotecaTipo, StatusLeitura> = {
   livro: 'Lido',
   manga: 'Lido',
+  quadrinho: 'Lido',
   filme: 'Assistido',
   'série': 'Assistido',
   anime: 'Assistido',

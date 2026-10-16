@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { BookOpen, ChevronDown, Clapperboard, Film, LucideIcon, Plus, Tags, Tv } from 'lucide-react';
+import { BookOpen, Clapperboard, Film, LucideIcon, Plus, Tv } from 'lucide-react';
 import { useAppContext } from '../../../context/AppContext';
 import { useAuth } from '../../../context/AuthContext';
 import { BibliotecaItem, BibliotecaItemMeta, fetchBibliotecaPage } from '../../../lib/database';
@@ -25,7 +25,7 @@ import { LibraryItemCard } from '../components/LibraryItemCard';
 import { LibraryToolbar } from '../components/LibraryToolbar';
 import type { BibliotecaCapaFilter } from '../components/LibraryToolbar';
 import { COMPLETED_STATUS_BY_TYPE } from '../lib/libraryStatus';
-import { GENEROS_SUGERIDOS } from '../lib/libraryGenres';
+import { GENEROS_SUGERIDOS, GENEROS_POR_TIPO } from '../lib/libraryGenres';
 import { TagSelect } from '../../../components/ui/TagSelect';
 import { createIdeaContent } from '../../contents/lib/creationContent';
 import { LibrarySectionTabs } from '../components/LibrarySectionTabs';
@@ -86,6 +86,7 @@ interface NovoLivroForm {
 const STATUS_BY_TYPE: Record<BibliotecaTipo, StatusLeitura[]> = {
   livro: ['Quero ler', 'Lendo', 'Lido', 'Abandonado'],
   manga: ['Quero ler', 'Lendo', 'Lido', 'Abandonado'],
+  quadrinho: ['Quero ler', 'Lendo', 'Lido', 'Abandonado'],
   filme: ['Quero ver', 'Assistido', 'Abandonado'],
   'série': ['Quero ver', 'Assistindo', 'Assistido', 'Abandonado'],
   anime: ['Quero ver', 'Assistindo', 'Assistido', 'Abandonado'],
@@ -135,6 +136,15 @@ const TYPE_CONFIG: Record<BibliotecaTipo, BibliotecaTypeConfig> = {
     creatorLabel: 'Mangaká',
     titlePlaceholder: 'Nome do mangá',
     creatorPlaceholder: 'Nome do mangaká',
+    isBookish: true,
+    showCover: true,
+  },
+  quadrinho: {
+    label: 'Quadrinho',
+    icon: BookOpen,
+    creatorLabel: 'Roteiro / arte',
+    titlePlaceholder: 'Nome do quadrinho',
+    creatorPlaceholder: 'Quem escreveu ou desenhou',
     isBookish: true,
     showCover: true,
   },
@@ -200,9 +210,6 @@ export function LibraryPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortValue, setSortValue] = useState('recentes');
   const [modalAberto, setModalAberto] = useState(false);
-  const [showParaVoce, setShowParaVoce] = useState(false);
-  const [showClassificacao, setShowClassificacao] = useState(false);
-  const [showDetalhesTipo, setShowDetalhesTipo] = useState(false);
   const [form, setForm] = useState<NovoLivroForm>(INITIAL_FORM);
 
   const libraryQuery = useMemo(() => ({
@@ -269,6 +276,8 @@ export function LibraryPage() {
 
   const selectedTypeConfig = TYPE_CONFIG[form.tipo];
   const selectedStatusOptions = STATUS_BY_TYPE[form.tipo];
+  const selectedGenreOptions = (form.tipo === 'quadrinho' ? GENEROS_POR_TIPO.quadrinho : GENEROS_SUGERIDOS)
+    .map(genero => ({ value: genero, label: genero }));
   const mobilePrimaryBookId = typeof state.preferences.mobile_notes_primary_book_id === 'string'
     ? state.preferences.mobile_notes_primary_book_id
     : null;
@@ -328,9 +337,6 @@ export function LibraryPage() {
 
   const resetForm = () => {
     setForm(INITIAL_FORM);
-    setShowParaVoce(false);
-    setShowClassificacao(false);
-    setShowDetalhesTipo(false);
   };
 
   const handleOpenModal = () => {
@@ -547,7 +553,7 @@ export function LibraryPage() {
               hint="Selecione um ou mais gêneros para categorizar este item."
               values={form.generos}
               onChange={generos => setForm(prev => ({ ...prev, generos }))}
-              options={GENEROS_SUGERIDOS.map(genero => ({ value: genero, label: genero }))}
+              options={selectedGenreOptions}
               creatable
               placeholder="Selecione ou digite gêneros"
             />
@@ -682,7 +688,7 @@ export function LibraryPage() {
       >
         <OverlayHeader
           title="Novo item da biblioteca"
-          subtitle="O formulário muda conforme o tipo escolhido."
+          subtitle="Só o essencial. Os detalhes podem vir depois."
           onClose={() => setModalAberto(false)}
         />
 
@@ -691,7 +697,7 @@ export function LibraryPage() {
             <p className="mb-3 text-xs font-semibold  text-[var(--text-tertiary)]">
               Tipo de obra
             </p>
-            <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
               {(Object.entries(TYPE_CONFIG).filter(([key]) => key !== 'outro') as [BibliotecaTipo, BibliotecaTypeConfig][])
                 .map(([tipo, config]) => {
                   const Icon = config.icon;
@@ -778,393 +784,28 @@ export function LibraryPage() {
             </div>
           </div>
 
-          <div className="border-t border-[var(--border-color)] pt-2">
-            <button
-              type="button"
-              onClick={() => setShowClassificacao(value => !value)}
-              className="mb-3 flex items-center gap-2 text-xs font-semibold text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
-            >
-              <ChevronDown className={`h-3.5 w-3.5 transition-transform ${showClassificacao ? 'rotate-180' : ''}`} />
-              Classificação
-            </button>
-            {showClassificacao ? (
-              <div className="stack-lg">
-                <TagSelect
-                  label="Gêneros"
-                  hint="Selecione um ou mais gêneros para categorizar este item."
-                  values={form.generos}
-                  onChange={generos => setForm(prev => ({ ...prev, generos }))}
-                  options={GENEROS_SUGERIDOS.map(genero => ({ value: genero, label: genero }))}
-                  creatable
-                  placeholder="Digite e selecione gêneros"
-                />
-                <TagSelect
-                  label="Tags personalizadas"
-                  hint="Organize o acervo com tags próprias."
-                  values={form.tagsPersonalizadas}
-                  onChange={tagsPersonalizadas => setForm(prev => ({ ...prev, tagsPersonalizadas }))}
-                  creatable
-                  placeholder="Ex.: comfort read, favorito de infância…"
-                />
-              </div>
-            ) : null}
-          </div>
+          <TagSelect
+            label="Gêneros"
+            hint="Selecione um ou mais gêneros para categorizar este item."
+            values={form.generos}
+            onChange={generos => setForm(prev => ({ ...prev, generos }))}
+            options={selectedGenreOptions}
+            creatable
+            placeholder="Digite e selecione gêneros"
+          />
 
-          <div className="border-t border-[var(--border-color)] pt-2">
-            <button
-              type="button"
-              onClick={() => setShowDetalhesTipo(value => !value)}
-              className="mb-3 flex items-center gap-2 text-xs font-semibold text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
-            >
-              <ChevronDown className={`h-3.5 w-3.5 transition-transform ${showDetalhesTipo ? 'rotate-180' : ''}`} />
-              Detalhes por tipo
-            </button>
-            {showDetalhesTipo ? (
-              <div className="stack-lg">
-          {selectedTypeConfig.isBookish ? (
-            <div className="rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-primary)] p-4">
-              <p className="t-label t-label-uppercase font-semibold text-[var(--text-primary)]">
-                Detalhes técnicos
-              </p>
-              <p className="mt-2 text-sm text-[var(--text-secondary)]">
-                Para livros e mangás, os detalhes técnicos ficam no painel <strong>Info</strong> dentro do item.
-              </p>
-            </div>
-          ) : null}
+          <TagSelect
+            label="Tags personalizadas"
+            hint="Organize o acervo com tags próprias."
+            values={form.tagsPersonalizadas}
+            onChange={tagsPersonalizadas => setForm(prev => ({ ...prev, tagsPersonalizadas }))}
+            creatable
+            placeholder="Ex.: comfort read, favorito de infância…"
+          />
 
-          {form.tipo === 'filme' ? (
-            <div className="stack-lg rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-primary)] p-4">
-              <p className="t-label t-label-uppercase font-semibold text-[var(--text-primary)]">
-                Dados do filme
-              </p>
-
-              <div className="grid gap-4 md:grid-cols-2">
-                <div>
-                  <label className="mb-1.5 block text-xs font-medium text-[var(--text-tertiary)]">
-                    Duração (min)
-                  </label>
-                  <input
-                    type="number"
-                    min={1}
-                    value={form.duracao}
-                    onChange={event => setForm(prev => ({ ...prev, duracao: event.target.value }))}
-                    placeholder="120"
-                    className="w-full rounded-xl border-none bg-[var(--bg-hover)] px-4 py-3 text-sm text-[var(--text-primary)]"
-                  />
-                </div>
-
-                <div>
-                  <label className="mb-1.5 block text-xs font-medium text-[var(--text-tertiary)]">
-                    Avaliação
-                  </label>
-                  <select
-                    value={form.avaliacao}
-                    onChange={event => setForm(prev => ({ ...prev, avaliacao: event.target.value as NovoLivroForm['avaliacao'] }))}
-                    className="w-full rounded-xl border-none bg-[var(--bg-hover)] px-4 py-3 text-sm text-[var(--text-primary)]"
-                  >
-                    <option value="">Sem nota</option>
-                    <option value="1">1</option>
-                    <option value="2">2</option>
-                    <option value="3">3</option>
-                    <option value="4">4</option>
-                    <option value="5">5</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="mb-1.5 block text-xs font-medium text-[var(--text-tertiary)]">
-                    Roteirista
-                  </label>
-                  <input
-                    type="text"
-                    value={form.roteirista}
-                    onChange={event => setForm(prev => ({ ...prev, roteirista: event.target.value }))}
-                    placeholder="Nome do roteirista"
-                    className="w-full rounded-xl border-none bg-[var(--bg-hover)] px-4 py-3 text-sm text-[var(--text-primary)]"
-                  />
-                </div>
-
-                <div>
-                  <label className="mb-1.5 block text-xs font-medium text-[var(--text-tertiary)]">
-                    Distribuidora
-                  </label>
-                  <input
-                    type="text"
-                    value={form.distribuidora}
-                    onChange={event => setForm(prev => ({ ...prev, distribuidora: event.target.value }))}
-                    placeholder="Ex.: Warner Bros."
-                    className="w-full rounded-xl border-none bg-[var(--bg-hover)] px-4 py-3 text-sm text-[var(--text-primary)]"
-                  />
-                </div>
-
-                <div>
-                  <label className="mb-1.5 block text-xs font-medium text-[var(--text-tertiary)]">
-                    Plataforma
-                  </label>
-                  <input
-                    type="text"
-                    value={form.plataforma}
-                    onChange={event => setForm(prev => ({ ...prev, plataforma: event.target.value }))}
-                    placeholder="Ex.: MUBI, Netflix"
-                    className="w-full rounded-xl border-none bg-[var(--bg-hover)] px-4 py-3 text-sm text-[var(--text-primary)]"
-                  />
-                </div>
-
-                <div>
-                  <label className="mb-1.5 block text-xs font-medium text-[var(--text-tertiary)]">
-                    Ano de lançamento
-                  </label>
-                  <input
-                    type="number"
-                    min={1888}
-                    value={form.dataLancamento}
-                    onChange={event => setForm(prev => ({ ...prev, dataLancamento: event.target.value }))}
-                    placeholder="2024"
-                    className="w-full rounded-xl border-none bg-[var(--bg-hover)] px-4 py-3 text-sm text-[var(--text-primary)]"
-                  />
-                </div>
-
-                <div>
-                  <label className="mb-1.5 block text-xs font-medium text-[var(--text-tertiary)]">
-                    País de origem
-                  </label>
-                  <input
-                    type="text"
-                    value={form.paisOrigem}
-                    onChange={event => setForm(prev => ({ ...prev, paisOrigem: event.target.value }))}
-                    placeholder="Ex.: Coreia do Sul"
-                    className="w-full rounded-xl border-none bg-[var(--bg-hover)] px-4 py-3 text-sm text-[var(--text-primary)]"
-                  />
-                </div>
-
-                <div className="md:col-span-2">
-                  <label className="mb-2 block text-xs font-medium text-[var(--text-tertiary)]">
-                    Faz parte de uma série?
-                  </label>
-                  <div className="flex flex-wrap gap-2">
-                    {(['nao', 'sim'] as const).map(value => (
-                      <button
-                        key={value}
-                        type="button"
-                        onClick={() => setForm(prev => ({ ...prev, fazParteDeSerie: value, nomeDaSerie: value === 'nao' ? '' : prev.nomeDaSerie }))}
-                        className={`rounded-full border px-3 py-1.5 t-label t-label-uppercase font-semibold transition-all ${
-                          form.fazParteDeSerie === value
-                            ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-[var(--bg-primary)]'
-                            : 'border-[var(--border-color)] bg-[var(--bg-hover)] text-[var(--text-primary)] opacity-70'
-                        }`}
-                      >
-                        {value === 'sim' ? 'Sim' : 'Não'}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {form.fazParteDeSerie === 'sim' ? (
-                  <div className="md:col-span-2">
-                    <label className="mb-1.5 block text-xs font-medium text-[var(--text-tertiary)]">
-                      Qual série / franquia?
-                    </label>
-                    <input
-                      type="text"
-                      value={form.nomeDaSerie}
-                      onChange={event => setForm(prev => ({ ...prev, nomeDaSerie: event.target.value }))}
-                      placeholder="Ex.: Duna"
-                      className="w-full rounded-xl border-none bg-[var(--bg-hover)] px-4 py-3 text-sm text-[var(--text-primary)]"
-                    />
-                  </div>
-                ) : null}
-              </div>
-            </div>
-          ) : null}
-
-          {(form.tipo === 'série' || form.tipo === 'anime') ? (
-            <div className="stack-lg rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-primary)] p-4">
-              <p className="t-label t-label-uppercase font-semibold text-[var(--text-primary)]">
-                Dados {form.tipo === 'anime' ? 'do anime' : 'da série'}
-              </p>
-
-              <div className="grid gap-4 md:grid-cols-2">
-                <div>
-                  <label className="mb-1.5 block text-xs font-medium text-[var(--text-tertiary)]">
-                    Episódios
-                  </label>
-                  <input
-                    type="number"
-                    min={1}
-                    value={form.episodios}
-                    onChange={event => setForm(prev => ({ ...prev, episodios: event.target.value }))}
-                    placeholder="12"
-                    className="w-full rounded-xl border-none bg-[var(--bg-hover)] px-4 py-3 text-sm text-[var(--text-primary)]"
-                  />
-                </div>
-
-                <div>
-                  <label className="mb-1.5 block text-xs font-medium text-[var(--text-tertiary)]">
-                    Duração por ep. (min)
-                  </label>
-                  <input
-                    type="number"
-                    min={1}
-                    value={form.duracaoPorEpisodio}
-                    onChange={event => setForm(prev => ({ ...prev, duracaoPorEpisodio: event.target.value }))}
-                    placeholder="45"
-                    className="w-full rounded-xl border-none bg-[var(--bg-hover)] px-4 py-3 text-sm text-[var(--text-primary)]"
-                  />
-                </div>
-
-                <div>
-                  <label className="mb-1.5 block text-xs font-medium text-[var(--text-tertiary)]">
-                    Plataforma
-                  </label>
-                  <input
-                    type="text"
-                    value={form.plataforma}
-                    onChange={event => setForm(prev => ({ ...prev, plataforma: event.target.value }))}
-                    placeholder="Ex.: Crunchyroll, Max"
-                    className="w-full rounded-xl border-none bg-[var(--bg-hover)] px-4 py-3 text-sm text-[var(--text-primary)]"
-                  />
-                </div>
-
-                <div>
-                  <label className="mb-1.5 block text-xs font-medium text-[var(--text-tertiary)]">
-                    Ano de lançamento
-                  </label>
-                  <input
-                    type="number"
-                    min={1900}
-                    value={form.dataLancamento}
-                    onChange={event => setForm(prev => ({ ...prev, dataLancamento: event.target.value }))}
-                    placeholder="2024"
-                    className="w-full rounded-xl border-none bg-[var(--bg-hover)] px-4 py-3 text-sm text-[var(--text-primary)]"
-                  />
-                </div>
-
-                <div>
-                  <label className="mb-1.5 block text-xs font-medium text-[var(--text-tertiary)]">
-                    País de origem
-                  </label>
-                  <input
-                    type="text"
-                    value={form.paisOrigem}
-                    onChange={event => setForm(prev => ({ ...prev, paisOrigem: event.target.value }))}
-                    placeholder="Ex.: Japão"
-                    className="w-full rounded-xl border-none bg-[var(--bg-hover)] px-4 py-3 text-sm text-[var(--text-primary)]"
-                  />
-                </div>
-
-                <div className="md:col-span-2">
-                  <label className="mb-2 block text-xs font-medium text-[var(--text-tertiary)]">
-                    Faz parte de uma franquia?
-                  </label>
-                  <div className="flex flex-wrap gap-2">
-                    {(['nao', 'sim'] as const).map(value => (
-                      <button
-                        key={value}
-                        type="button"
-                        onClick={() => setForm(prev => ({ ...prev, fazParteDeSerie: value, nomeDaSerie: value === 'nao' ? '' : prev.nomeDaSerie }))}
-                        className={`rounded-full border px-3 py-1.5 t-label t-label-uppercase font-semibold transition-all ${
-                          form.fazParteDeSerie === value
-                            ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-[var(--bg-primary)]'
-                            : 'border-[var(--border-color)] bg-[var(--bg-hover)] text-[var(--text-primary)] opacity-70'
-                        }`}
-                      >
-                        {value === 'sim' ? 'Sim' : 'Não'}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {form.fazParteDeSerie === 'sim' ? (
-                  <div className="md:col-span-2">
-                    <label className="mb-1.5 block text-xs font-medium text-[var(--text-tertiary)]">
-                      Qual série / universo?
-                    </label>
-                    <input
-                      type="text"
-                      value={form.nomeDaSerie}
-                      onChange={event => setForm(prev => ({ ...prev, nomeDaSerie: event.target.value }))}
-                      placeholder="Ex.: Fate, Monogatari"
-                      className="w-full rounded-xl border-none bg-[var(--bg-hover)] px-4 py-3 text-sm text-[var(--text-primary)]"
-                    />
-                  </div>
-                ) : null}
-              </div>
-            </div>
-          ) : null}
-              </div>
-            ) : null}
-          </div>
-
-          <div className="border-t border-[var(--border-color)] pt-2">
-            <button
-              type="button"
-              onClick={() => setShowParaVoce(value => !value)}
-              className="mb-3 flex items-center gap-2 text-xs font-semibold text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
-            >
-              <ChevronDown className={`h-3.5 w-3.5 transition-transform ${showParaVoce ? 'rotate-180' : ''}`} />
-              <Tags className="h-3.5 w-3.5" />
-              Para você
-            </button>
-
-            {showParaVoce ? (
-              <div className="stack-lg">
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div>
-                    <label className="mb-1.5 block text-xs font-medium text-[var(--text-tertiary)]">
-                      Quem indicou
-                    </label>
-                    <input
-                      type="text"
-                      value={form.quemIndicou}
-                      onChange={event => setForm(prev => ({ ...prev, quemIndicou: event.target.value }))}
-                      placeholder="Ex.: podcast X, amiga Y…"
-                      className="w-full rounded-xl border-none bg-[var(--bg-hover)] px-4 py-3 text-sm text-[var(--text-primary)]"
-                    />
-                  </div>
-
-                  {selectedTypeConfig.isBookish ? (
-                    <div>
-                      <label className="mb-2 block text-xs font-medium text-[var(--text-tertiary)]">
-                        Potencial de conteúdo
-                      </label>
-                      <div className="flex gap-2">
-                        {(['1', '2', '3'] as const).map(value => (
-                          <button
-                            key={value}
-                            type="button"
-                            onClick={() => setForm(prev => ({
-                              ...prev,
-                              potencialConteudo: prev.potencialConteudo === value ? '' : value,
-                            }))}
-                            className={`rounded-xl border px-3 py-2 text-sm font-semibold transition-all ${
-                              form.potencialConteudo === value
-                                ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-[var(--bg-primary)]'
-                                : 'border-[var(--border-strong)] opacity-50 hover:opacity-80'
-                            }`}
-                          >
-                            {value}/3
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  ) : null}
-                </div>
-
-                <div>
-                  <label className="mb-1.5 block text-xs font-medium text-[var(--text-tertiary)]">
-                    {selectedTypeConfig.isBookish ? 'Por que quer consumir' : 'Observação pessoal'}
-                  </label>
-                  <textarea
-                    value={form.motivoEscolha}
-                    onChange={event => setForm(prev => ({ ...prev, motivoEscolha: event.target.value }))}
-                    placeholder={selectedTypeConfig.isBookish ? 'Motivação, contexto…' : 'Contexto, motivo da escolha…'}
-                    rows={selectedTypeConfig.isBookish ? 3 : 2}
-                    className="w-full resize-none rounded-xl border-none bg-[var(--bg-hover)] px-4 py-3 text-sm text-[var(--text-primary)]"
-                  />
-                </div>
-              </div>
-            ) : null}
-          </div>
+          <p className="text-xs text-[var(--text-tertiary)]">
+            Detalhes como editora, avaliação e quem indicou ficam na edição do item.
+          </p>
         </OverlayBody>
 
         <OverlayFooter className="pb-safe">

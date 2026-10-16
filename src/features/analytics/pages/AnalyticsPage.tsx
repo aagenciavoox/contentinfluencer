@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus } from 'lucide-react';
 import { useAppContext } from '../../../context/AppContext';
@@ -9,6 +9,8 @@ import { AppButton } from '../../../components/ui/AppButton';
 import { LibrarySectionTabs } from '../../library/components/LibrarySectionTabs';
 import { AnalyticsCategoryCards } from '../components/AnalyticsCategoryCards';
 import { buildLibraryAnalytics } from '../lib/libraryAnalytics';
+import { groupLibraryByPeriod, type LibraryPeriodGrouping } from '../lib/libraryPeriods';
+import { LibraryPeriodBreakdown } from '../components/LibraryPeriodBreakdown';
 
 export function AnalyticsPage() {
   const { state } = useAppContext();
@@ -21,6 +23,11 @@ export function AnalyticsPage() {
       itemId => state.bibliotecaItems.find(item => item.id === itemId)?.ficha ?? {},
     ),
     [state.bibliotecaItems],
+  );
+  const [periodGrouping, setPeriodGrouping] = useState<LibraryPeriodGrouping>('ano');
+  const periodBuckets = useMemo(
+    () => groupLibraryByPeriod(state.bibliotecaItems, periodGrouping),
+    [state.bibliotecaItems, periodGrouping],
   );
 
   return (
@@ -50,7 +57,15 @@ export function AnalyticsPage() {
         </div>
       )}
     >
-      <AnalyticsCategoryCards analytics={analytics} loading={!libraryReady} />
+      <div className="stack-xl">
+        <AnalyticsCategoryCards analytics={analytics} loading={!libraryReady} />
+        <LibraryPeriodBreakdown
+          grouping={periodGrouping}
+          onGroupingChange={setPeriodGrouping}
+          buckets={periodBuckets}
+          loading={!libraryReady}
+        />
+      </div>
     </PageLayout>
   );
 }
