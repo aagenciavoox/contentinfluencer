@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react';
-import { ImagePlus, Loader2, Trash2, Upload } from 'lucide-react';
+import { BookOpen, ImagePlus, Loader2, Trash2, Upload } from 'lucide-react';
 import { AppButton } from '../../../components/ui/AppButton';
 import { Text } from '../../../components/ui/Text';
 import { useAuth } from '../../../context/AuthContext';
@@ -25,7 +25,7 @@ interface CoverUploadFieldProps {
   /** Hide the thumbnail when a larger cover is already on the page. */
   hidePreview?: boolean;
   /** Compact row used on the series editor: square, upload, and link. */
-  appearance?: 'default' | 'series';
+  appearance?: 'default' | 'series' | 'create';
 }
 
 export function CoverUploadField({
@@ -104,6 +104,95 @@ export function CoverUploadField({
     setBroken(false);
     void deleteLibraryCoverByUrl(previous);
   };
+
+  const fileInput = (
+    <input
+      id={inputId}
+      ref={fileInputRef}
+      type="file"
+      accept="image/jpeg,image/png,image/webp,image/gif"
+      className="hidden"
+      onChange={event => void handleFile(event.target.files?.[0])}
+    />
+  );
+
+  if (appearance === 'create') {
+    return (
+      <div className={cn('stack-sm', className)}>
+        <Text variant="label" className="text-sm font-semibold text-[var(--text-primary)]">
+          Capa
+        </Text>
+        <div className="flex items-stretch gap-4 rounded-[var(--radius-md)] border border-[var(--border-color)] bg-[var(--bg-hover)] p-4">
+          <div className="flex aspect-[2/3] w-24 shrink-0 flex-col items-center justify-center gap-2 overflow-hidden rounded-[var(--radius-md)] bg-[var(--bg-tertiary,var(--bg-secondary))] text-[var(--text-tertiary)] md:w-28">
+            {value && !broken ? (
+              <img src={value} alt="" className="h-full w-full object-cover" onError={() => setBroken(true)} />
+            ) : (
+              <>
+                <BookOpen className="h-7 w-7" />
+                <span className="text-xs">Sem capa</span>
+              </>
+            )}
+          </div>
+          <div className="w-px shrink-0 bg-[var(--border-color)]" aria-hidden />
+          <div className="flex min-w-0 flex-1 flex-col justify-center gap-3">
+            <div className="flex flex-wrap gap-2">
+              <AppButton
+                type="button"
+                variant="secondary"
+                onClick={handlePick}
+                disabled={uploading}
+                leftIcon={uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImagePlus className="h-4 w-4" />}
+              >
+                {uploading ? 'Enviando…' : value ? 'Trocar capa' : 'Enviar capa'}
+              </AppButton>
+              {value ? (
+                <AppButton
+                  type="button"
+                  variant="ghost"
+                  onClick={handleRemove}
+                  disabled={uploading}
+                  leftIcon={<Trash2 className="h-4 w-4" />}
+                >
+                  Remover
+                </AppButton>
+              ) : null}
+            </div>
+            <div className="text-xs text-[var(--text-tertiary)]">
+              <p>JPG, PNG, WEBP ou GIF · até 5 MB</p>
+              <p>Compactamos automaticamente.</p>
+            </div>
+            {allowUrlFallback ? (
+              <button
+                type="button"
+                onClick={() => setShowUrl(current => !current)}
+                className="self-start text-xs font-semibold text-[var(--text-primary)] underline underline-offset-2 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+              >
+                {showUrl ? 'Ocultar URL' : 'Ou colar URL'}
+              </button>
+            ) : null}
+          </div>
+        </div>
+        {fileInput}
+        {showUrl && allowUrlFallback ? (
+          <input
+            type="text"
+            inputMode="url"
+            value={value}
+            onChange={event => onChange(event.target.value)}
+            placeholder="https://..."
+            aria-label="URL da capa"
+            className="w-full"
+            disabled={uploading}
+          />
+        ) : null}
+        {error ? (
+          <Text variant="meta" className="text-[var(--accent-red)]">
+            {error}
+          </Text>
+        ) : null}
+      </div>
+    );
+  }
 
   if (appearance === 'series') {
     return (

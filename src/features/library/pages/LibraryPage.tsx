@@ -26,10 +26,9 @@ import { LibraryToolbar } from '../components/LibraryToolbar';
 import type { BibliotecaCapaFilter } from '../components/LibraryToolbar';
 import { COMPLETED_STATUS_BY_TYPE } from '../lib/libraryStatus';
 import { GENEROS_SUGERIDOS, GENEROS_POR_TIPO } from '../lib/libraryGenres';
-import { TagSelect } from '../../../components/ui/TagSelect';
 import { createIdeaContent } from '../../contents/lib/creationContent';
 import { LibrarySectionTabs } from '../components/LibrarySectionTabs';
-import { CoverUploadField } from '../components/CoverUploadField';
+import { LibraryCreateForm, type LibraryCreateFormValue } from '../components/LibraryCreateForm';
 
 type StatusLeitura = BibliotecaItem['status'];
 type GeneroLivro = string;
@@ -443,6 +442,36 @@ export function LibraryPage() {
   const getItemMeta = (itemId: string) =>
     state.bibliotecaItems.find(item => item.id === itemId)?.ficha ?? {};
 
+  const createFormNode = (
+    <LibraryCreateForm
+      value={form}
+      onTipoChange={updateTipo}
+      onPatch={(patch: Partial<LibraryCreateFormValue>) => setForm(prev => ({ ...prev, ...patch }))}
+      statusOptions={selectedStatusOptions}
+      genreOptions={selectedGenreOptions}
+      titlePlaceholder={selectedTypeConfig.titlePlaceholder}
+      creatorLabel={selectedTypeConfig.creatorLabel}
+      creatorPlaceholder={selectedTypeConfig.creatorPlaceholder}
+      typeLabel={selectedTypeConfig.label}
+    />
+  );
+
+  const createFooterNode = (
+    <OverlayFooter className="pb-safe">
+      <AppButton variant="secondary" onClick={() => setModalAberto(false)} className="flex-1 md:max-w-[240px]">
+        Cancelar
+      </AppButton>
+      <AppButton
+        variant="primary"
+        onClick={handleCriarLivro}
+        disabled={!form.titulo.trim()}
+        className="flex-1 md:ml-auto md:max-w-[240px]"
+      >
+        Criar item
+      </AppButton>
+    </OverlayFooter>
+  );
+
   if (isMobile) {
     return (
       <>
@@ -471,7 +500,7 @@ export function LibraryPage() {
         <Dialog
           open={modalAberto}
           onClose={() => setModalAberto(false)}
-          desktopMaxW="max-w-xl"
+          desktopMaxW="max-w-[760px]"
           zIndex="z-[110]"
           ariaLabel="Novo item da biblioteca"
         >
@@ -481,110 +510,11 @@ export function LibraryPage() {
             onClose={() => setModalAberto(false)}
           />
 
-          <OverlayBody className="stack-lg py-6">
-            <div className="grid grid-cols-2 gap-2">
-              {(Object.entries(TYPE_CONFIG) as [BibliotecaTipo, BibliotecaTypeConfig][])
-                .filter(([tipo]) => tipo !== 'outro')
-                .map(([tipo, config]) => {
-                  const Icon = config.icon;
-                  const active = form.tipo === tipo;
-
-                  return (
-                    <button
-                      key={tipo}
-                      type="button"
-                      onClick={() => updateTipo(tipo)}
-                      className={`flex items-center justify-center gap-2 rounded-[var(--radius-md)] border px-3 py-3 t-label t-label-uppercase font-semibold ${
-                        active
-                          ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-[var(--bg-primary)]'
-                          : 'border-[var(--border-color)] bg-[var(--bg-secondary)] text-[var(--text-primary)]'
-                      }`}
-                    >
-                      <Icon className="h-4 w-4" />
-                      {config.label}
-                    </button>
-                  );
-                })}
-            </div>
-
-            <input
-              type="text"
-              value={form.titulo}
-              onChange={event => setForm(prev => ({ ...prev, titulo: event.target.value }))}
-              placeholder={selectedTypeConfig.titlePlaceholder}
-              autoFocus
-              className="w-full"
-            />
-
-            <input
-              type="text"
-              value={form.autor}
-              onChange={event => setForm(prev => ({ ...prev, autor: event.target.value }))}
-              placeholder={selectedTypeConfig.creatorPlaceholder}
-              className="w-full"
-            />
-
-            {selectedTypeConfig.showCover ? (
-              <CoverUploadField
-                value={form.capaUrl}
-                onChange={capaUrl => setForm(prev => ({ ...prev, capaUrl }))}
-                title={form.titulo || selectedTypeConfig.titlePlaceholder}
-                typeLabel={selectedTypeConfig.label}
-                compact
-              />
-            ) : null}
-
-            <label className="block stack-sm">
-              <span className="t-label text-[var(--text-tertiary)]">Status</span>
-              <select
-                value={form.statusLeitura}
-                onChange={event => setForm(prev => ({ ...prev, statusLeitura: event.target.value as StatusLeitura }))}
-              >
-                {selectedStatusOptions.map(status => (
-                  <option key={status} value={status}>
-                    {status}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <TagSelect
-              label="Gêneros"
-              hint="Selecione um ou mais gêneros para categorizar este item."
-              values={form.generos}
-              onChange={generos => setForm(prev => ({ ...prev, generos }))}
-              options={selectedGenreOptions}
-              creatable
-              placeholder="Selecione ou digite gêneros"
-            />
-
-            <TagSelect
-              label="Tags personalizadas"
-              hint="Organize o acervo com tags próprias."
-              values={form.tagsPersonalizadas}
-              onChange={tagsPersonalizadas => setForm(prev => ({ ...prev, tagsPersonalizadas }))}
-              creatable
-              placeholder="Ex.: comfort read, favorito de infância"
-            />
+          <OverlayBody className="py-6">
+            {createFormNode}
           </OverlayBody>
 
-          <OverlayFooter className="pb-safe">
-            <button
-              type="button"
-              onClick={() => setModalAberto(false)}
-              className="flex-1 rounded-[var(--radius-md)] border border-[var(--border-color)] py-3 text-xs font-semibold  text-[var(--text-secondary)]"
-            >
-              Cancelar
-            </button>
-            <AppButton
-              variant="primary"
-              onClick={handleCriarLivro}
-              disabled={!form.titulo.trim()}
-              className="flex-1"
-            >
-              Criar item
-            </AppButton>
-          </OverlayFooter>
+          {createFooterNode}
         </Dialog>
       </>
     );
@@ -684,7 +614,7 @@ export function LibraryPage() {
       <Dialog
         open={modalAberto}
         onClose={() => setModalAberto(false)}
-        desktopMaxW="max-w-[720px]"
+        desktopMaxW="max-w-[760px]"
       >
         <OverlayHeader
           title="Novo item da biblioteca"
@@ -692,139 +622,11 @@ export function LibraryPage() {
           onClose={() => setModalAberto(false)}
         />
 
-        <OverlayBody className="stack-xl py-6">
-          <div>
-            <p className="mb-3 text-xs font-semibold  text-[var(--text-tertiary)]">
-              Tipo de obra
-            </p>
-            <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
-              {(Object.entries(TYPE_CONFIG).filter(([key]) => key !== 'outro') as [BibliotecaTipo, BibliotecaTypeConfig][])
-                .map(([tipo, config]) => {
-                  const Icon = config.icon;
-                  const active = form.tipo === tipo;
-
-                  return (
-                    <button
-                      key={tipo}
-                      type="button"
-                      onClick={() => updateTipo(tipo)}
-                      className={`flex flex-col items-center gap-2 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border px-4 py-4 text-center transition-all ${
-                        active
-                          ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-[var(--bg-primary)] shadow-none'
-                          : 'border-[var(--border-color)] bg-[var(--bg-hover)] text-[var(--text-primary)] hover:border-[var(--text-primary)]/40'
-                      }`}
-                    >
-                      <Icon className="h-5 w-5" />
-                      <span className="t-label t-label-uppercase font-semibold">
-                        {config.label}
-                      </span>
-                    </button>
-                  );
-                })}
-            </div>
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-2">
-            <div>
-              <label className="mb-1.5 block text-xs font-medium text-[var(--text-tertiary)]">
-                Título *
-              </label>
-              <input
-                type="text"
-                value={form.titulo}
-                onChange={event => setForm(prev => ({ ...prev, titulo: event.target.value }))}
-                placeholder={selectedTypeConfig.titlePlaceholder}
-                autoFocus
-                className="w-full rounded-xl border-none bg-[var(--bg-hover)] px-4 py-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:ring-2 focus:ring-[var(--text-primary)]/20"
-              />
-            </div>
-
-            <div>
-              <label className="mb-1.5 block text-xs font-medium text-[var(--text-tertiary)]">
-                {selectedTypeConfig.creatorLabel}
-              </label>
-              <input
-                type="text"
-                value={form.autor}
-                onChange={event => setForm(prev => ({ ...prev, autor: event.target.value }))}
-                placeholder={selectedTypeConfig.creatorPlaceholder}
-                className="w-full rounded-xl border-none bg-[var(--bg-hover)] px-4 py-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:ring-2 focus:ring-[var(--text-primary)]/20"
-              />
-            </div>
-          </div>
-
-          {selectedTypeConfig.showCover ? (
-            <CoverUploadField
-              value={form.capaUrl}
-              onChange={capaUrl => setForm(prev => ({ ...prev, capaUrl }))}
-              title={form.titulo || selectedTypeConfig.titlePlaceholder}
-              typeLabel={selectedTypeConfig.label}
-            />
-          ) : null}
-
-          <div>
-            <label className="mb-2 block text-xs font-medium text-[var(--text-tertiary)]">
-              Status
-            </label>
-            <div className="flex flex-wrap gap-2">
-              {selectedStatusOptions.map(status => (
-                <button
-                  key={status}
-                  type="button"
-                  onClick={() => setForm(prev => ({ ...prev, statusLeitura: status }))}
-                  className={`rounded-full border px-3 py-1.5 t-label t-label-uppercase font-semibold transition-all ${
-                    form.statusLeitura === status
-                      ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-[var(--bg-primary)]'
-                      : 'border-[var(--border-color)] bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-                  }`}
-                >
-                  {status}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <TagSelect
-            label="Gêneros"
-            hint="Selecione um ou mais gêneros para categorizar este item."
-            values={form.generos}
-            onChange={generos => setForm(prev => ({ ...prev, generos }))}
-            options={selectedGenreOptions}
-            creatable
-            placeholder="Digite e selecione gêneros"
-          />
-
-          <TagSelect
-            label="Tags personalizadas"
-            hint="Organize o acervo com tags próprias."
-            values={form.tagsPersonalizadas}
-            onChange={tagsPersonalizadas => setForm(prev => ({ ...prev, tagsPersonalizadas }))}
-            creatable
-            placeholder="Ex.: comfort read, favorito de infância…"
-          />
-
-          <p className="text-xs text-[var(--text-tertiary)]">
-            Detalhes como editora, avaliação e quem indicou ficam na edição do item.
-          </p>
+        <OverlayBody className="py-6">
+          {createFormNode}
         </OverlayBody>
 
-        <OverlayFooter className="pb-safe">
-          <button
-            type="button"
-            onClick={() => setModalAberto(false)}
-            className="flex-1 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] py-3 text-xs font-semibold  text-[var(--text-secondary)] transition-all hover:bg-[var(--bg-hover)]"
-          >
-            Cancelar
-          </button>
-          <button
-            type="button"
-            onClick={handleCriarLivro}
-            disabled={!form.titulo.trim()}
-            className="hover-action flex-1 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] bg-[var(--text-primary)] py-3 text-xs font-semibold  text-[var(--bg-primary)] shadow-none transition-all disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            Criar item
-          </button>
-        </OverlayFooter>
+        {createFooterNode}
       </Dialog>
     </PageLayout>
   );
