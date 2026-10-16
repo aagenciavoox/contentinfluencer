@@ -1,6 +1,7 @@
 import {useState, type ReactNode} from 'react';
 import {Columns2, PenLine, SlidersHorizontal} from 'lucide-react';
 import {MobileScriptEditor} from '../../../../../mobile/components/MobileScriptEditor';
+import type {CommentPatch} from '../../../../../components/editors/commentModel';
 import {MobileSegmentTabs} from '../../../../../mobile/components/MobileSegmentTabs';
 import {AppButton} from '../../../../../components/ui/AppButton';
 import {Skeleton} from '../../../../../components/ui/Skeleton';
@@ -131,12 +132,13 @@ export function RoteiroSection({
   };
 
   const annotationHandlers = {
-    onAddAnnotation: (text: string, selection: {from: number; to: number}, comment: string) =>
+    onAddAnnotation: (text: string, selection: {from: number; to: number}, comment: string, id?: string) =>
       onChange({
         scriptNotes: [
           ...(draft.scriptNotes || []),
           {
-            id: Math.random().toString(36).slice(2, 11),
+            id: id ?? Math.random().toString(36).slice(2, 11),
+            authorName,
             text,
             selection,
             comment,
@@ -153,6 +155,12 @@ export function RoteiroSection({
       onChange({
         scriptNotes: (draft.scriptNotes || []).map(note =>
           note.id === id ? {...note, comment, color} : note
+        ),
+      }),
+    onPatchAnnotation: (id: string, patch: CommentPatch) =>
+      onChange({
+        scriptNotes: (draft.scriptNotes || []).map(note =>
+          note.id === id ? {...note, ...patch, color: patch.color ?? note.color, comment: patch.comment ?? note.comment} : note
         ),
       }),
   };
@@ -396,6 +404,9 @@ export function RoteiroSection({
             }
             onSave={onSave}
             hasUnsavedChanges={hasUnsavedChanges}
+            authorName={authorName}
+            annotations={draft.scriptNotes || []}
+            {...annotationHandlers}
           />
         )}
       </div>

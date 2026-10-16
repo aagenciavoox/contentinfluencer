@@ -227,3 +227,31 @@
   font-family: var(--roteiro-font-family, var(--font-sans));
   font-size: var(--roteiro-font-size, var(--font-size-body-reading));
 }
+/* Destaque (marca-texto). A tinta escura vem no style do <mark>; o fallback cobre <mark> sem cor. */
+.tiptap mark {
+  border-radius: 2px;
+  padding: 0 1px;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+
+.tiptap mark:not([data-color]) {
+  background-color: #FFF3A3;
+  color: #111111;
+}
+
+/* Buscar e substituir */
+.tiptap .find-match {
+  background-color: color-mix(in srgb, var(--warning), transparent 65%);
+  border-radius: 2px;
+}
+
+.tiptap .find-match-current {
+  background-color: color-mix(in srgb, var(--accent-orange), transparent 30%);
+  outline: 1px solid var(--accent-orange);
+}
+
+/* Âncora de comentário: a cor vem de uma decoração (por comentário); resolvidos ficam sem fundo. */
+.tiptap .comment-anchor {
+  border-radius: 2px;
+}

@@ -322,6 +322,17 @@ export interface BibliotecaItemMeta {
   capitulosCobertos?: string[];
 }
 
+export interface ScriptNoteReply {
+  id: string;
+  comment: string;
+  authorName?: string;
+  createdAt: string;
+}
+
+/**
+ * Comentário do roteiro (JSON em contents.script_notes).
+ * A âncora fica no próprio roteiro (<span data-comment-id="id">); `selection` é a posição na criação (legado).
+ */
 export interface ScriptNote {
   id: string;
   text: string;
@@ -329,6 +340,9 @@ export interface ScriptNote {
   comment: string;
   color: string;
   createdAt: string;
+  authorName?: string;
+  replies?: ScriptNoteReply[];
+  resolvedAt?: string | null;
 }
 
 export type PublicationKind = 'post' | 'repost';

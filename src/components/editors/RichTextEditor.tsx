@@ -1,7 +1,7 @@
-import { useEditor, EditorContent } from '@tiptap/react';
+import { useEditor, useEditorState, EditorContent } from '@tiptap/react';
+import { BubbleMenu } from '@tiptap/react/menus';
 import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
-import Highlight from '@tiptap/extension-highlight';
 import { TextStyle } from '@tiptap/extension-text-style';
 import { Color } from '@tiptap/extension-color';
 import TextAlign from '@tiptap/extension-text-align';
@@ -35,6 +35,7 @@ import {
   Check,
   ChevronDown,
   ChevronUp,
+  RemoveFormatting,
 } from 'lucide-react';
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
@@ -46,16 +47,16 @@ import { useIsMobile } from '../../hooks/useIsMobile';
 import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
 import { useVisualViewportKeyboard } from '../../hooks/useVisualViewportKeyboard';
 import { countScriptWords, formatSpokenDuration } from '../../features/contents/lib/spokenDuration';
-import { WRITING_BAR_GROUPS, WRITING_MENU_ACTION_IDS } from './writingFormatBar';
+import { EditorShortcuts, ReadableHighlight, SelectionClicks, clearFormatting } from './editorExtensions';
+import { EditorColorMenu } from './EditorColorMenu';
+import { EditorToolbar } from './EditorToolbar';
+import { FindReplaceBar } from './FindReplaceBar';
+import { FindReplace } from './findReplace';
+import { COMMENT_MIGRATION_META, CommentAnchor, addCommentAnchor, collectCommentRanges, migrateLegacyComments, removeCommentAnchor, type CommentRange } from './commentAnchors';
+import { newCommentId, orderComments, type CommentPatch, type ScriptComment } from './commentModel';
+import { CommentCard, CommentRail, CommentsPanel, DEFAULT_COMMENT_HIGHLIGHT } from './ScriptComments';
 
-interface Annotation {
-  id: string;
-  text: string;
-  comment: string;
-  color?: string;
-  authorName?: string;
-  selection: { from: number; to: number };
-}
+type Annotation = ScriptComment;
 
 interface RichTextEditorProps {
   content: string;
@@ -64,7 +65,10 @@ interface RichTextEditorProps {
   className?: string;
   editorViewportClassName?: string;
   editorCanvasClassName?: string;
-  onAddAnnotation?: (text: string, selection: { from: number; to: number }, comment: string) => void;
+  /** `id` vem do editor: é o mesmo id gravado na marca <span data-comment-id> do texto. */
+  onAddAnnotation?: (text: string, selection: { from: number; to: number }, comment: string, id?: string) => void;
+  /** Respostas, resolver/reabrir (gravados dentro do JSON script_notes). */
+  onPatchAnnotation?: (id: string, patch: CommentPatch) => void;
   annotations?: Annotation[];
   onRemoveAnnotation?: (id: string) => void;
   onUpdateAnnotation?: (id: string, comment: string, color?: string) => void;
@@ -78,6 +82,8 @@ interface RichTextEditorProps {
   /** spoken: teleprompter pace. reading: the older 2.5 words-per-second estimate. */
   meter?: 'reading' | 'spoken';
   toolbarStart?: React.ReactNode;
+  /** Fonte e tamanho (valem para o roteiro inteiro), mostrados depois de Estilo. */
+  typographySlot?: React.ReactNode;
   saveState?: 'idle' | 'saving' | 'saved' | 'error';
   saveAction?: React.ReactNode;
   /** Shown beside the page when the writing editor is expanded. */
@@ -98,17 +104,7 @@ type AnnotationPosition = {
   top: number;
 };
 
-const COMMENT_COLORS = [
-  { name: 'Yellow', value: 'color-mix(in srgb, var(--warning), transparent 50%)' },
-  { name: 'Orange', value: 'color-mix(in srgb, var(--accent-orange), transparent 50%)' },
-  { name: 'Blue', value: 'color-mix(in srgb, var(--accent-blue), transparent 50%)' },
-  { name: 'Pink', value: 'color-mix(in srgb, var(--accent-pink), transparent 50%)' },
-];
-
-const DEFAULT_COMMENT_HIGHLIGHT = 'color-mix(in srgb, var(--warning), transparent 70%)';
 const DEFAULT_COMMENT_BORDER = 'color-mix(in srgb, var(--warning), transparent 55%)';
-const DEFAULT_COMMENT_STRIPE = 'color-mix(in srgb, var(--warning), transparent 60%)';
-const DEFAULT_COMMENT_MODAL_STRIPE = 'color-mix(in srgb, var(--warning), transparent 25%)';
 
 const WORDS_PER_SECOND = 2.5;
 const EMPTY_ANNOTATIONS: Annotation[] = [];
@@ -163,6 +159,7 @@ export function RichTextEditor({
   annotations = EMPTY_ANNOTATIONS,
   onRemoveAnnotation,
   onUpdateAnnotation,
+  onPatchAnnotation,
   authorName = 'Você',
   documentTitle = 'Novo roteiro',
   compactMobileComposer = false,
@@ -171,6 +168,7 @@ export function RichTextEditor({
   formatBar = 'full',
   meter = 'reading',
   toolbarStart,
+  typographySlot,
   saveState = 'idle',
   saveAction,
   fullscreenAside,
@@ -187,15 +185,22 @@ export function RichTextEditor({
     setIsFullscreen(open);
     onFullscreenChangeRef.current?.(open);
   }, []);
-  const [selectionMenu, setSelectionMenu] = useState<{ x: number; y: number } | null>(null);
   const [marginMenu, setMarginMenu] = useState<{ x: number; y: number } | null>(null);
   const [expandedNoteId, setExpandedNoteId] = useState<string | null>(null);
   const [draftCommentText, setDraftCommentText] = useState('');
   const [activeDraft, setActiveDraft] = useState<{ text: string; selection: { from: number; to: number } } | null>(null);
-  const [activeAnnotationModal, setActiveAnnotationModal] = useState<Annotation | null>(null);
+  const [commentsPanelOpen, setCommentsPanelOpen] = useState(false);
+  const [showResolved, setShowResolved] = useState(false);
+  const [commentRanges, setCommentRanges] = useState<Map<string, CommentRange>>(() => new Map());
+  const [wideLayout, setWideLayout] = useState(() => typeof window !== 'undefined' && window.innerWidth >= 1280);
   const [isOptionsMenuOpen, setIsOptionsMenuOpen] = useState(false);
   const [isMobileQuickbarOpen, setIsMobileQuickbarOpen] = useState(true);
   const [annotationPositions, setAnnotationPositions] = useState<AnnotationPosition[]>([]);
+  const notesRef = useRef<Annotation[]>(annotations);
+  notesRef.current = annotations;
+  const activeCommentRef = useRef<string | null>(null);
+  const migratedRef = useRef(new Set<string>());
+  const commentsEnabled = !!onAddAnnotation;
   const [draftCommentTop, setDraftCommentTop] = useState<number | null>(null);
 
   const editorContainerRef = useRef<HTMLDivElement>(null);
@@ -206,6 +211,17 @@ export function RichTextEditor({
   contentRef.current = content;
   onChangeRef.current = onChange;
   const isMobile = useIsMobile();
+  const isMobileRef = useRef(isMobile);
+  isMobileRef.current = isMobile;
+  const commentShortcutRef = useRef<() => void>(() => {});
+  const linkShortcutRef = useRef<() => void>(() => {});
+  const [findMode, setFindMode] = useState<'find' | 'replace' | null>(null);
+  const [findToken, setFindToken] = useState(0);
+  const openFind = useCallback((mode: 'find' | 'replace') => {
+    setFindMode(mode);
+    setFindToken(token => token + 1);
+  }, []);
+  const bubbleBlockedRef = useRef(false);
   const keyboard = useVisualViewportKeyboard();
 
   useBodyScrollLock(isFullscreen);
@@ -218,11 +234,19 @@ export function RichTextEditor({
         orderedList: { keepMarks: true, keepAttributes: false },
       }),
       Underline,
-      Highlight.configure({ multicolor: true }),
+      ReadableHighlight,
       TextStyle,
       Color,
       TextAlign.configure({ types: ['heading', 'paragraph'] }),
       Typography,
+      SelectionClicks,
+      EditorShortcuts.configure({
+        onComment: () => commentShortcutRef.current(),
+        onFind: mode => openFind(mode),
+        onLink: () => linkShortcutRef.current(),
+      }),
+      FindReplace,
+      CommentAnchor,
       // Extensions are built once with the editor, so the first placeholder value is kept.
       Placeholder.configure({ placeholder: placeholder ?? '' }),
     ],
@@ -236,6 +260,8 @@ export function RichTextEditor({
       // Só conta como edição o que mudou o texto. O TrailingNode acrescenta um parágrafo
       // no fim ao primeiro clique ou foco; essa mudança vem do plugin, não de quem escreve.
       if (!transaction.docChanged) return;
+      // A migracao automatica dos comentarios antigos nao marca o rascunho como alterado.
+      if (transaction.getMeta(COMMENT_MIGRATION_META)) return;
 
       const html = currentEditor.getHTML();
       const current = contentRef.current ?? '';
@@ -252,7 +278,6 @@ export function RichTextEditor({
     onSelectionUpdate: ({ editor: currentEditor }) => {
       const { empty } = currentEditor.state.selection;
       if (empty) {
-        setSelectionMenu(null);
         setMarginMenu(null);
         return;
       }
@@ -266,11 +291,6 @@ export function RichTextEditor({
         const start = view.coordsAtPos(selection.from);
         const end = view.coordsAtPos(selection.to);
 
-        setSelectionMenu({
-          x: (start.left + end.left) / 2,
-          y: Math.max(10, Math.min(start.top, end.top) - 48),
-        });
-
         if (editorContainerRef.current) {
           const rect = editorContainerRef.current.getBoundingClientRect();
           setMarginMenu({
@@ -279,7 +299,6 @@ export function RichTextEditor({
           });
         }
       } catch {
-        setSelectionMenu(null);
         setMarginMenu(null);
       }
     },
@@ -289,20 +308,27 @@ export function RichTextEditor({
           'tiptap focus:outline-none min-h-[inherit] max-w-none text-base md:text-[inherit] text-[var(--text-primary)] transition-all duration-300',
       },
       decorations: (state) => {
+        const notes = notesRef.current;
+        if (notes.length === 0) return DecorationSet.empty;
+        const byId = new Map(notes.map(note => [note.id, note]));
         const decorations: Decoration[] = [];
-        annotations.forEach((note) => {
-          const isExpanded = expandedNoteId === note.id;
-          decorations.push(
-            Decoration.inline(note.selection.from, note.selection.to, {
-              class: cn(
-                'annotation-highlight transition-all duration-300 cursor-pointer',
-                isExpanded && 'active-annotation',
-              ),
-              style: `background-color: ${note.color || DEFAULT_COMMENT_HIGHLIGHT}; border-bottom: 2px solid ${
-                isExpanded ? 'var(--accent-blue)' : DEFAULT_COMMENT_BORDER
-              }`,
-            }),
-          );
+        state.doc.descendants((node, pos) => {
+          if (!node.isText) return true;
+          for (const mark of node.marks) {
+            if (mark.type.name !== 'comment') continue;
+            const note = byId.get(mark.attrs.commentId as string);
+            if (!note || note.resolvedAt) continue;
+            const isActive = activeCommentRef.current === note.id;
+            decorations.push(
+              Decoration.inline(pos, pos + node.nodeSize, {
+                class: cn('annotation-highlight cursor-pointer', isActive && 'active-annotation'),
+                style: `background-color: ${note.color || DEFAULT_COMMENT_HIGHLIGHT}; border-bottom: 2px solid ${
+                  isActive ? 'var(--accent-blue)' : DEFAULT_COMMENT_BORDER
+                }`,
+              }),
+            );
+          }
+          return false;
         });
         return DecorationSet.create(state.doc, decorations);
       },
@@ -349,33 +375,87 @@ export function RichTextEditor({
   }, [isOptionsMenuOpen]);
 
   const annotationSource = annotations.length === 0 ? EMPTY_ANNOTATIONS : annotations;
+  activeCommentRef.current = expandedNoteId;
 
-  const sortedAnnotations = useMemo(() => {
-    return [...annotationSource]
-      .filter((annotation) => !!annotation.id)
-      .sort((a, b) => a.selection.from - b.selection.from);
-  }, [annotationSource]);
+  // Ranges come from the comment marks in the document, so they follow every edit.
+  useEffect(() => {
+    if (!editor || editor.isDestroyed) return;
+    const refresh = () => {
+      if (editor.isDestroyed) return;
+      const next = collectCommentRanges(editor.state.doc);
+      setCommentRanges(current => {
+        if (current.size === next.size && [...next].every(([id, r]) => current.get(id)?.from === r.from && current.get(id)?.to === r.to)) {
+          return current;
+        }
+        return next;
+      });
+    };
+    refresh();
+    editor.on('update', refresh);
+    return () => {
+      editor.off('update', refresh);
+    };
+    // `content` too: hydration uses setContent without an update event.
+  }, [content, editor]);
+
+  // One-time, best-effort migration of old {from,to} comments into marks (only where the text still matches).
+  useEffect(() => {
+    if (!editor || editor.isDestroyed || !commentsEnabled) return;
+    if (editor.state.doc.textContent.trim().length === 0) return;
+    const pending = annotationSource.filter(note => note.id && !migratedRef.current.has(note.id));
+    if (pending.length === 0) return;
+    pending.forEach(note => migratedRef.current.add(note.id));
+    migrateLegacyComments(editor, pending);
+  }, [annotationSource, commentsEnabled, content, editor]);
+
+  // Redraw comment colors when notes or the active comment change.
+  useEffect(() => {
+    if (!editor || editor.isDestroyed) return;
+    editor.view.dispatch(editor.state.tr.setMeta('commentDecorations', true).setMeta('addToHistory', false));
+  }, [annotationSource, editor, expandedNoteId]);
+
+  useEffect(() => {
+    const onResize = () => setWideLayout(window.innerWidth >= 1280);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  const commentPositions = useMemo(() => new Map([...commentRanges].map(([id, range]) => [id, range.from])), [commentRanges]);
+  const unanchoredIds = useMemo(
+    () => new Set(annotationSource.filter(note => note.id && !commentRanges.has(note.id)).map(note => note.id)),
+    [annotationSource, commentRanges],
+  );
+  const resolvedCount = useMemo(() => annotationSource.filter(note => note.resolvedAt).length, [annotationSource]);
+  const openCount = annotationSource.length - resolvedCount;
+  const sortedAnnotations = useMemo(
+    () => orderComments(annotationSource.filter(note => !!note.id && (showResolved || !note.resolvedAt)), commentPositions),
+    [annotationSource, commentPositions, showResolved],
+  );
+  const railNotes = useMemo(() => sortedAnnotations.filter(note => commentRanges.has(note.id)), [commentRanges, sortedAnnotations]);
+  const railVisible =
+    commentsEnabled && !isMobile && wideLayout && (isFullscreen ? commentsOpen : true) && (railNotes.length > 0 || !!activeDraft);
 
   const updateAnnotationAnchors = useCallback(() => {
-    if (!editor || !editorContainerRef.current || !isFullscreen || isMobile) {
+    if (!editor || editor.isDestroyed || !editorContainerRef.current || !railVisible) {
       setAnnotationPositions((current) => (current.length === 0 ? current : []));
       setDraftCommentTop((current) => (current === null ? current : null));
       return;
     }
 
     const editorRect = editorContainerRef.current.getBoundingClientRect();
+    const topOf = (pos: number) => {
+      try {
+        return Math.max(0, editor.view.coordsAtPos(pos).top - editorRect.top - 4);
+      } catch {
+        return null;
+      }
+    };
 
-    const resolvedPositions = sortedAnnotations
+    const resolvedPositions = railNotes
       .map((note) => {
-        try {
-          const coords = editor.view.coordsAtPos(note.selection.from);
-          return {
-            id: note.id,
-            top: Math.max(0, coords.top - editorRect.top - 4),
-          };
-        } catch {
-          return null;
-        }
+        const range = commentRanges.get(note.id);
+        const top = range ? topOf(range.from) : null;
+        return top === null ? null : { id: note.id, top };
       })
       .filter((value): value is AnnotationPosition => value !== null);
 
@@ -383,18 +463,9 @@ export function RichTextEditor({
       sameAnnotationPositions(current, resolvedPositions) ? current : resolvedPositions,
     );
 
-    let nextDraftTop: number | null = null;
-    if (activeDraft) {
-      try {
-        const coords = editor.view.coordsAtPos(activeDraft.selection.from);
-        nextDraftTop = Math.max(0, coords.top - editorRect.top - 4);
-      } catch {
-        nextDraftTop = null;
-      }
-    }
-
+    const nextDraftTop = activeDraft ? topOf(activeDraft.selection.from) : null;
     setDraftCommentTop((current) => (current === nextDraftTop ? current : nextDraftTop));
-  }, [activeDraft, editor, isFullscreen, isMobile, sortedAnnotations]);
+  }, [activeDraft, commentRanges, editor, railNotes, railVisible]);
 
   const startCommenting = useCallback(() => {
     if (!editor) return;
@@ -403,27 +474,112 @@ export function RichTextEditor({
 
     if (text) {
       setCommentsOpen(true);
+      setCommentsPanelOpen(false);
       setActiveDraft({ text, selection: { from, to } });
       setDraftCommentText('');
-      setSelectionMenu(null);
       setMarginMenu(null);
     }
   }, [editor]);
 
+  commentShortcutRef.current = () => {
+    if (onAddAnnotation) startCommenting();
+  };
+  bubbleBlockedRef.current = !!activeDraft;
+
+  const hasSelection = useEditorState({
+    editor,
+    selector: ({ editor: instance }) => !!instance && !instance.state.selection.empty,
+  });
+
+  // Re-render the toolbar when the formatting under the cursor changes (TipTap v3 does not re-render on every transaction).
+  useEditorState({
+    editor,
+    selector: ({ editor: instance }) => {
+      if (!instance) return '';
+      const marks = ['bold', 'italic', 'underline', 'strike', 'link', 'bulletList', 'orderedList', 'blockquote'];
+      const active = marks.filter(name => instance.isActive(name));
+      for (const level of [1, 2] as const) if (instance.isActive('heading', { level })) active.push(`h${level}`);
+      for (const align of ['left', 'center', 'right']) if (instance.isActive({ textAlign: align })) active.push(align);
+      return active.join(',');
+    },
+  });
+
   const submitComment = useCallback(() => {
-    if (activeDraft && draftCommentText.trim() && onAddAnnotation) {
-      onAddAnnotation(activeDraft.text, activeDraft.selection, draftCommentText);
-      setActiveDraft(null);
-      setDraftCommentText('');
+    if (!activeDraft || !draftCommentText.trim() || !onAddAnnotation || !editor) return;
+    const id = newCommentId();
+    const { from, to } = activeDraft.selection;
+    const size = editor.state.doc.content.size;
+    let anchored = false;
+    if (to <= size) {
+      try {
+        anchored = editor.state.doc.textBetween(from, to, ' ') === activeDraft.text;
+      } catch {
+        anchored = false;
+      }
     }
-  }, [activeDraft, draftCommentText, onAddAnnotation]);
+    onAddAnnotation(activeDraft.text, activeDraft.selection, draftCommentText.trim(), id);
+    if (anchored) addCommentAnchor(editor, id, from, to);
+    migratedRef.current.add(id);
+    setExpandedNoteId(id);
+    setActiveDraft(null);
+    setDraftCommentText('');
+  }, [activeDraft, draftCommentText, editor, onAddAnnotation]);
+
+  const selectComment = useCallback(
+    (id: string) => {
+      setExpandedNoteId(id);
+      const range = commentRanges.get(id);
+      if (range && editor && !editor.isDestroyed) {
+        editor.chain().setTextSelection(range).scrollIntoView().run();
+      }
+    },
+    [commentRanges, editor],
+  );
+
+  const renderCommentCard = (note: Annotation, inPanel = false) => (
+    <CommentCard
+      note={note}
+      authorName={authorName}
+      active={expandedNoteId === note.id}
+      unanchored={unanchoredIds.has(note.id)}
+      showQuote={inPanel}
+      onActivate={() => (expandedNoteId === note.id && !inPanel ? setExpandedNoteId(null) : selectComment(note.id))}
+      onReply={
+        onPatchAnnotation
+          ? text =>
+              onPatchAnnotation(note.id, {
+                replies: [...(note.replies ?? []), { id: newCommentId(), comment: text, authorName, createdAt: new Date().toISOString() }],
+              })
+          : undefined
+      }
+      onToggleResolved={
+        onPatchAnnotation
+          ? () => {
+              const resolving = !note.resolvedAt;
+              onPatchAnnotation(note.id, { resolvedAt: resolving ? new Date().toISOString() : null });
+              if (resolving && expandedNoteId === note.id) setExpandedNoteId(null);
+            }
+          : undefined
+      }
+      onDelete={
+        onRemoveAnnotation
+          ? () => {
+              if (editor && !editor.isDestroyed) removeCommentAnchor(editor, note.id);
+              onRemoveAnnotation(note.id);
+              if (expandedNoteId === note.id) setExpandedNoteId(null);
+            }
+          : undefined
+      }
+      onColor={onUpdateAnnotation ? color => onUpdateAnnotation(note.id, note.comment, color) : undefined}
+    />
+  );
 
   useEffect(() => {
     updateAnnotationAnchors();
   }, [updateAnnotationAnchors]);
 
   useEffect(() => {
-    if (!isFullscreen || isMobile) return;
+    if (!railVisible) return;
 
     const handleUpdate = () => updateAnnotationAnchors();
     const viewport = editorViewportRef.current;
@@ -435,17 +591,7 @@ export function RichTextEditor({
       viewport?.removeEventListener('scroll', handleUpdate);
       window.removeEventListener('resize', handleUpdate);
     };
-  }, [isFullscreen, isMobile, updateAnnotationAnchors]);
-
-  const handleNoteExpand = (id: string) => {
-    const isExpanding = expandedNoteId !== id;
-    setExpandedNoteId(isExpanding ? id : null);
-
-    if (isExpanding && editor) {
-      const note = annotations.find((annotation) => annotation.id === id);
-      if (note) editor.commands.setTextSelection(note.selection);
-    }
-  };
+  }, [railVisible, updateAnnotationAnchors]);
 
   const handleEditorAreaPointerDown = useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
@@ -457,14 +603,21 @@ export function RichTextEditor({
       }
 
       const pos = editor.view.posAtCoords({ left: event.clientX, top: event.clientY });
-      const clicked = pos
-        ? annotations.find((note) => pos.pos >= note.selection.from && pos.pos <= note.selection.to)
-        : null;
+      const clickedId =
+        pos && commentsEnabled
+          ? [...commentRanges].find(([id, range]) => {
+              const note = annotations.find(item => item.id === id);
+              return note && !note.resolvedAt && pos.pos >= range.from && pos.pos <= range.to;
+            })?.[0]
+          : undefined;
 
-      if (!isFullscreen && clicked) {
-        event.preventDefault();
-        setActiveAnnotationModal(clicked);
-        return;
+      if (clickedId) {
+        setExpandedNoteId(clickedId);
+        if (!railVisible && event.detail === 1 && editor.state.selection.empty) {
+          event.preventDefault();
+          setCommentsPanelOpen(true);
+          return;
+        }
       }
 
       requestAnimationFrame(() => {
@@ -473,7 +626,7 @@ export function RichTextEditor({
         }
       });
     },
-    [annotations, editor, isFullscreen],
+    [annotations, commentRanges, commentsEnabled, editor, railVisible],
   );
 
   const requestLink = useCallback(() => {
@@ -490,6 +643,8 @@ export function RichTextEditor({
     editor.chain().focus().setLink({ href: url.trim() }).run();
     setIsOptionsMenuOpen(false);
   }, [editor]);
+
+  linkShortcutRef.current = requestLink;
 
   const applyRule = useCallback(() => {
     editor?.chain().focus().setHorizontalRule().run();
@@ -665,45 +820,17 @@ export function RichTextEditor({
         run: requestLink,
         isActive: () => !!editor?.isActive('link'),
       },
+      {
+        id: 'clear',
+        label: 'Limpar formatação (Ctrl+\\)',
+        icon: RemoveFormatting,
+        run: () => {
+          if (editor) clearFormatting(editor);
+        },
+      },
     ],
     [editor, requestLink],
   );
-
-  const canvasToolbarActions = useMemo(
-    () => topToolbarActions.filter(action => ['undo', 'bold', 'italic', 'list'].includes(action.id)),
-    [topToolbarActions],
-  );
-
-  const toolbarGroups = useMemo(() => {
-    const groups = writingBar
-      ? WRITING_BAR_GROUPS
-      : [
-          ['undo', 'redo'],
-          ['bold', 'italic', 'underline', 'strike'],
-          ['align-left', 'align-center', 'align-right'],
-          ['list', 'ordered', 'link'],
-        ];
-
-    return groups.map(ids =>
-      topToolbarActions.filter(action => (ids as readonly string[]).includes(action.id)),
-    );
-  }, [topToolbarActions, writingBar]);
-
-  const overflowActions = useMemo(() => {
-    if (!writingBar) return secondaryActions;
-
-    const catalog = new Map<string, FormattingAction>();
-    for (const action of topToolbarActions) catalog.set(action.id, action);
-    for (const action of secondaryActions) {
-      if (action.id === 'bullet' || action.id === 'ordered' || action.id === 'link') continue;
-      catalog.set(action.id, action);
-    }
-
-    return WRITING_MENU_ACTION_IDS.flatMap(id => {
-      const action = catalog.get(id);
-      return action ? [action] : [];
-    });
-  }, [secondaryActions, topToolbarActions, writingBar]);
 
   if (!editor) return null;
 
@@ -798,7 +925,7 @@ export function RichTextEditor({
                     <button
                       type="button"
                       aria-pressed={commentsOpen}
-                      onClick={() => setCommentsOpen(open => !open)}
+                      onClick={() => (wideLayout ? setCommentsOpen(open => !open) : setCommentsPanelOpen(true))}
                       className={cn(
                         'inline-flex h-10 items-center gap-2 rounded-[var(--radius-input)] px-3 text-sm font-medium transition',
                         commentsOpen
@@ -807,7 +934,7 @@ export function RichTextEditor({
                       )}
                     >
                       <MessageSquare className="h-4 w-4" />
-                      Comentários{annotations.length > 0 ? ` ${annotations.length}` : ''}
+                      Comentários{openCount > 0 ? ` ${openCount}` : ''}
                     </button>
                     <button
                       onClick={() => setFullscreen(false)}
@@ -844,170 +971,20 @@ export function RichTextEditor({
                 !isFullscreen && 'rounded-t-[var(--radius-input)]',
               )}
             >
-          <div
-            className={cn(
-              'flex min-w-0 flex-1 items-center gap-0.5',
-              writingBar
-                ? 'flex-wrap'
-                : isWorkspace && !isFullscreen
-                  ? 'flex-wrap overflow-x-clip'
-                  : 'overflow-x-auto',
-            )}
-          >
-            {toolbarStart ? (
-              <div className="mr-1 flex shrink-0 items-center gap-1 border-r border-[var(--border-color)] pr-2">
-                {toolbarStart}
-              </div>
-            ) : null}
-            {toolbarGroups.map((group, groupIndex) => (
-              <div key={group.map(action => action.id).join('-')} className="flex shrink-0 items-center">
-                {groupIndex > 0 ? <div className="mx-1.5 h-5 w-px bg-[var(--border-color)]" aria-hidden /> : null}
-                <div className="flex items-center gap-0.5">
-                  {group.map(action => {
-                    const Icon = action.icon;
-                    const active = action.isActive?.() ?? false;
-
-                    return (
-                      <button
-                        key={action.id}
-                        onClick={action.run}
-                        className={cn(
-                          'flex h-9 w-9 items-center justify-center rounded-[var(--radius-input)] transition',
-                          formatControlClass(active, writingBar),
-                        )}
-                        aria-label={action.label}
-                        type="button"
-                      >
-                        <Icon className="h-4 w-4" />
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
-          </div>
-
+          <EditorToolbar
+            editor={editor}
+            mode={writingBar ? 'writing' : 'full'}
+            toolbarStart={toolbarStart}
+            typographySlot={typographySlot}
+            onComment={onAddAnnotation ? startCommenting : undefined}
+            onFind={openFind}
+            onLink={requestLink}
+          />
           {!isWorkspace ? (
-            <div className="ml-3 flex shrink-0 items-center gap-1 text-sm text-[var(--text-tertiary)]">
-              <span className="hidden sm:inline">
-                {wordCount} palavras · {durationLabel}
-              </span>
-              <span className="sm:hidden">
-                {wordCount} · {durationLabel}
-              </span>
-              <div className="relative" ref={optionsMenuRef}>
-                <button
-                  onClick={() => setIsOptionsMenuOpen((current) => !current)}
-                  className="ml-1 flex h-9 w-9 items-center justify-center rounded-[var(--radius-input)] text-[var(--text-tertiary)] transition hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
-                  aria-label="Mais opções"
-                  type="button"
-                >
-                  <MoreVertical className="h-4 w-4" />
-                </button>
-
-                <AnimatePresence>
-                  {isOptionsMenuOpen && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 6 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: 6 }}
-                      className="absolute right-0 top-11 z-[130] min-w-[220px] rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-elevated)] p-2 shadow-[var(--shadow-dropdown)]"
-                    >
-                      {overflowActions.map((action) => {
-                        const Icon = action.icon;
-                        const active = action.isActive?.() ?? false;
-
-                        return (
-                          <button
-                            key={action.id}
-                            onClick={() => {
-                              action.run();
-                              setIsOptionsMenuOpen(false);
-                            }}
-                            className={cn(
-                              'flex w-full items-center gap-3 rounded-[var(--radius-input)] px-3 py-2.5 text-left text-sm transition',
-                              active
-                                ? writingBar
-                                  ? 'bg-[var(--bg-hover)] text-[var(--text-primary)]'
-                                  : 'bg-[color-mix(in_srgb,var(--accent-blue),transparent_92%)] text-[var(--accent-blue)]'
-                                : 'text-[var(--text-primary)] hover:bg-[var(--bg-hover)]',
-                            )}
-                            type="button"
-                          >
-                            <Icon className="h-4 w-4" />
-                            <span className="flex-1">{action.label}</span>
-                            {active && <Check className="h-4 w-4" />}
-                          </button>
-                        );
-                      })}
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
+            <div className="ml-3 hidden shrink-0 items-center gap-1 text-sm text-[var(--text-tertiary)] sm:flex">
+              {wordCount} palavras · {durationLabel}
             </div>
-          ) : (
-            <div className="relative ml-2 shrink-0" ref={optionsMenuRef}>
-              <button
-                onClick={() => setIsOptionsMenuOpen((current) => !current)}
-                className={cn(
-                  'flex items-center justify-center rounded-[var(--radius-input)] transition',
-                  writingBar ? 'h-9 gap-1 px-2 text-xs font-medium' : 'h-9 w-9',
-                  formatControlClass(false, writingBar),
-                )}
-                aria-label={writingBar ? 'Mais' : 'Mais opções'}
-                aria-expanded={isOptionsMenuOpen}
-                aria-haspopup="menu"
-                type="button"
-              >
-                {writingBar ? (
-                  <>
-                    Mais
-                    <ChevronDown className={cn('h-3.5 w-3.5 transition-transform', isOptionsMenuOpen && 'rotate-180')} />
-                  </>
-                ) : (
-                  <MoreVertical className="h-4 w-4" />
-                )}
-              </button>
-              <AnimatePresence>
-                {isOptionsMenuOpen && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 6 }}
-                    className="absolute right-0 top-11 z-[130] min-w-[220px] rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-elevated)] p-2 shadow-[var(--shadow-dropdown)]"
-                  >
-                    {overflowActions.map((action) => {
-                      const Icon = action.icon;
-                      const active = action.isActive?.() ?? false;
-
-                      return (
-                        <button
-                          key={action.id}
-                          onClick={() => {
-                            action.run();
-                            setIsOptionsMenuOpen(false);
-                          }}
-                          className={cn(
-                            'flex w-full items-center gap-3 rounded-[var(--radius-input)] px-3 py-2.5 text-left text-sm transition',
-                            active
-                              ? writingBar
-                                ? 'bg-[var(--bg-hover)] text-[var(--text-primary)]'
-                                : 'bg-[color-mix(in_srgb,var(--accent-blue),transparent_92%)] text-[var(--accent-blue)]'
-                              : 'text-[var(--text-primary)] hover:bg-[var(--bg-hover)]',
-                          )}
-                          type="button"
-                        >
-                          <Icon className="h-4 w-4" />
-                          <span className="flex-1">{action.label}</span>
-                          {active && <Check className="h-4 w-4" />}
-                        </button>
-                      );
-                    })}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-          )}
+          ) : null}
           </div>
             <button
               onClick={() => setFullscreen(true)}
@@ -1023,61 +1000,71 @@ export function RichTextEditor({
           </div>
         )}
 
-        <AnimatePresence>
-          {selectionMenu && editor && !activeDraft && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              className="fixed z-[120] flex -translate-x-1/2 items-center gap-0.5 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] p-1 shadow-[var(--shadow-dropdown)]"
-              style={{ top: selectionMenu.y, left: selectionMenu.x }}
-            >
-              <button
-                onClick={() => editor.chain().focus().toggleBold().run()}
-                className={cn(
-                  'rounded-[var(--radius-input)] p-2',
-                  editor.isActive('bold') ? 'text-[var(--accent-blue)]' : 'opacity-60',
-                )}
-                type="button"
-              >
-                <Bold className="h-4 w-4" />
-              </button>
-              <button
-                onClick={() => editor.chain().focus().toggleItalic().run()}
-                className={cn(
-                  'rounded-[var(--radius-input)] p-2',
-                  editor.isActive('italic') ? 'text-[var(--accent-blue)]' : 'opacity-60',
-                )}
-                type="button"
-              >
-                <Italic className="h-4 w-4" />
-              </button>
-              <button
-                onClick={() => editor.chain().focus().toggleUnderline().run()}
-                className={cn(
-                  'rounded-[var(--radius-input)] p-2',
-                  editor.isActive('underline') ? 'text-[var(--accent-blue)]' : 'opacity-60',
-                )}
-                type="button"
-              >
-                <UnderlineIcon className="h-4 w-4" />
-              </button>
-              {onAddAnnotation && (
-                <>
-                  <div className="mx-1 h-5 w-px bg-[var(--border-color)]" />
-                  <button
-                    onClick={startCommenting}
-                    className="rounded-[var(--radius-input)] p-2 text-[var(--accent-blue)] opacity-80 transition hover:bg-[color-mix(in_srgb,var(--accent-blue),transparent_90%)] hover:opacity-100"
-                    type="button"
-                    aria-label="Comentar trecho selecionado"
-                  >
-                    <MessageSquarePlus className="h-4 w-4" />
-                  </button>
-                </>
-              )}
-            </motion.div>
-          )}
+        {findMode ? (
+          <div className="relative z-[125] h-0">
+            <div className="absolute right-3 top-2 w-[min(26rem,calc(100%-1.5rem))]">
+              <FindReplaceBar editor={editor} mode={findMode} focusToken={findToken} onClose={() => setFindMode(null)} />
+            </div>
+          </div>
+        ) : null}
 
+        <BubbleMenu
+          editor={editor}
+          options={{ placement: 'top', offset: 8 }}
+          shouldShow={({ editor: instance, state }) =>
+            !state.selection.empty && instance.isEditable && !isMobileRef.current && !bubbleBlockedRef.current
+          }
+          className="z-[120] flex items-center gap-0.5 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] p-1 shadow-[var(--shadow-dropdown)]"
+        >
+          {([
+            { id: 'bold', label: 'Negrito (Ctrl+B)', icon: Bold, run: () => editor.chain().focus().toggleBold().run() },
+            { id: 'italic', label: 'Itálico (Ctrl+I)', icon: Italic, run: () => editor.chain().focus().toggleItalic().run() },
+            { id: 'underline', label: 'Sublinhado (Ctrl+U)', icon: UnderlineIcon, run: () => editor.chain().focus().toggleUnderline().run() },
+          ] as const).map(item => {
+            const Icon = item.icon;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onMouseDown={event => event.preventDefault()}
+                onClick={item.run}
+                aria-label={item.label}
+                title={item.label}
+                className={cn('flex h-8 w-8 items-center justify-center rounded-[var(--radius-input)] transition', formatControlClass(editor.isActive(item.id), true))}
+              >
+                <Icon className="h-4 w-4" />
+              </button>
+            );
+          })}
+          <EditorColorMenu editor={editor} kind="highlight" size="sm" neutral />
+          <button
+            type="button"
+            onMouseDown={event => event.preventDefault()}
+            onClick={requestLink}
+            aria-label="Link"
+            title="Link"
+            className={cn('flex h-8 w-8 items-center justify-center rounded-[var(--radius-input)] transition', formatControlClass(editor.isActive('link'), true))}
+          >
+            <LinkIcon className="h-4 w-4" />
+          </button>
+          {onAddAnnotation && (
+            <>
+              <div className="mx-1 h-5 w-px bg-[var(--border-color)]" aria-hidden />
+              <button
+                type="button"
+                onMouseDown={event => event.preventDefault()}
+                onClick={startCommenting}
+                aria-label="Comentar trecho selecionado (Ctrl+Alt+M)"
+                title="Comentar (Ctrl+Alt+M)"
+                className="flex h-8 w-8 items-center justify-center rounded-[var(--radius-input)] text-[var(--accent-blue)] transition hover:bg-[color-mix(in_srgb,var(--accent-blue),transparent_90%)]"
+              >
+                <MessageSquarePlus className="h-4 w-4" />
+              </button>
+            </>
+          )}
+        </BubbleMenu>
+
+        <AnimatePresence>
           {marginMenu && !activeDraft && !isMobile && onAddAnnotation && (
             <motion.div
               initial={{ opacity: 0, scale: 0.8 }}
@@ -1120,12 +1107,13 @@ export function RichTextEditor({
         >
           <div
             className={cn(
-              'mx-auto flex items-start gap-12',
+              'mx-auto flex items-start',
+              railVisible ? 'flex-row gap-8' : 'flex-col gap-12',
               isFullscreen
-                ? commentsOpen
-                  ? 'w-full max-w-[72rem] flex-col xl:flex-row'
-                  : 'w-full max-w-[51rem] flex-col'
-                : 'max-w-full flex-col xl:flex-row',
+                ? railVisible
+                  ? 'w-full max-w-[72rem]'
+                  : 'w-full max-w-[51rem]'
+                : 'max-w-full',
             )}
           >
             <div
@@ -1159,167 +1147,70 @@ export function RichTextEditor({
                 )}
               />
 
-              {!isFullscreen && annotations.length > 0 && (
-                <div className="pointer-events-none absolute right-3 top-3 flex select-none items-center gap-1.5 rounded-[var(--radius-pill)] border border-[color-mix(in_srgb,var(--warning),transparent_72%)] bg-[color-mix(in_srgb,var(--warning),transparent_90%)] px-2.5 py-1 text-xs font-bold text-[var(--warning)]">
+              {commentsEnabled && !isFullscreen && annotationSource.length > 0 && !compactMobileComposer && (
+                <button
+                  type="button"
+                  onClick={() => setCommentsPanelOpen(true)}
+                  aria-label={`Comentários (${openCount})`}
+                  title="Ver todos os comentários"
+                  className="absolute right-3 top-3 z-[5] flex select-none items-center gap-1.5 rounded-[var(--radius-pill)] border border-[color-mix(in_srgb,var(--warning),transparent_72%)] bg-[color-mix(in_srgb,var(--warning),transparent_90%)] px-2.5 py-1 text-xs font-bold text-[var(--text-primary)] transition hover:bg-[color-mix(in_srgb,var(--warning),transparent_80%)]"
+                >
                   <MessageSquare className="h-3 w-3" />
-                  {annotations.length}
-                </div>
+                  {openCount}
+                  {unanchoredIds.size > 0 ? <span className="font-medium text-[var(--text-tertiary)]">· {unanchoredIds.size} sem trecho</span> : null}
+                </button>
               )}
             </div>
 
-            {isFullscreen && !isMobile && commentsOpen && (
-              <div
-                className="relative w-full shrink-0 px-8 pb-8 xl:w-80"
-                style={{ minHeight: editorContainerRef.current?.offsetHeight ?? 0 }}
-              >
-                <AnimatePresence>
-                  {activeDraft && (
-                    <motion.div
-                      key="active-draft"
-                      initial={{ opacity: 0, y: -20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0 }}
-                      style={{ top: draftCommentTop ?? 0 }}
-                      className="absolute left-0 right-0 z-20 rounded-[var(--radius-card-mobile)] border-2 border-[color-mix(in_srgb,var(--accent-blue),transparent_78%)] bg-[var(--bg-elevated)] p-6 shadow-none md:rounded-[var(--radius-card)]"
-                    >
-                      <div className="mb-4 flex items-center gap-3">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-[var(--radius-pill)] bg-[color-mix(in_srgb,var(--accent-blue),transparent_90%)] text-xs font-bold text-[var(--accent-blue)]">
-                          {authorName[0]}
-                        </div>
-                        <span className="text-xs font-semibold text-[var(--text-primary)]">
-                          {authorName}
-                        </span>
-                      </div>
-                      <div className="mb-4 overflow-hidden rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[color-mix(in_srgb,var(--surface-subtle)_80%,transparent)] p-3">
-                        <span className="line-clamp-2 text-xs font-medium italic text-[var(--text-tertiary)]">
-                          "{activeDraft.text}"
-                        </span>
-                      </div>
-                      <textarea
-                        autoFocus
-                        value={draftCommentText}
-                        onChange={(event) => setDraftCommentText(event.target.value)}
-                        placeholder="O que você quer comentar?"
-                        className="mb-4 min-h-[80px] w-full resize-none rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-4 py-3 text-base text-[var(--text-primary)] transition-all focus:border-[var(--accent-blue)] focus:outline-none focus:ring-4 focus:ring-[color-mix(in_srgb,var(--accent-blue),transparent_88%)] md:text-xs"
-                        onKeyDown={(event) => {
-                          if (event.key === 'Enter' && !event.shiftKey) {
-                            event.preventDefault();
-                            submitComment();
-                          }
-                        }}
-                      />
-                      <div className="flex items-center justify-end gap-3">
-                        <button
-                          onClick={() => setActiveDraft(null)}
-                          className="text-xs font-semibold text-[var(--text-tertiary)]"
-                          type="button"
-                        >
-                          Cancelar
-                        </button>
-                        <button
-                          onClick={submitComment}
-                          disabled={!draftCommentText.trim()}
-                          className={cn(
-                            'rounded-[var(--radius-pill)] px-6 py-2 text-xs font-semibold transition-all',
-                            draftCommentText.trim()
-                              ? 'bg-[var(--accent-blue)] text-[var(--bg-secondary)] shadow-[var(--shadow-soft)] active:scale-95'
-                              : 'bg-[var(--bg-hover)] text-[var(--text-tertiary)]',
-                          )}
-                          type="button"
-                        >
-                          Comentar
-                        </button>
-                      </div>
-                    </motion.div>
-                  )}
-
-                  {sortedAnnotations.map((note) => {
-                    const isExpanded = expandedNoteId === note.id;
-                    const currentAuthor = note.authorName || authorName;
-                    const anchoredPosition = annotationPositions.find((position) => position.id === note.id);
-
-                    return (
-                      <motion.div
-                        key={note.id}
-                        onClick={() => handleNoteExpand(note.id)}
-                        style={{ top: anchoredPosition?.top ?? 0 }}
-                        className={cn(
-                          'group absolute left-0 right-0 cursor-pointer overflow-hidden rounded-[var(--radius-card-mobile)] border bg-[var(--bg-elevated)] transition-all md:rounded-[var(--radius-card)]',
-                          isExpanded
-                            ? 'z-10 scale-105 border-[color-mix(in_srgb,var(--accent-blue),transparent_70%)] p-6 shadow-[var(--shadow-card)]'
-                            : 'border-[var(--border-color)] p-4 shadow-[var(--shadow-soft)] hover:border-[var(--border-strong)]',
-                        )}
-                      >
-                        <div
-                          className="absolute bottom-0 left-0 top-0 w-1.5"
-                          style={{ backgroundColor: note.color || DEFAULT_COMMENT_STRIPE }}
-                        />
-                        <div className="mb-3 flex items-center gap-3">
-                          <div className="flex h-7 w-7 items-center justify-center rounded-[var(--radius-pill)] border border-[var(--border-color)] bg-[var(--surface-subtle)] text-xs font-bold text-[var(--accent-blue)]">
-                            {currentAuthor[0]}
-                          </div>
-                          <span className="flex-1 text-xs font-semibold text-[var(--text-primary)]">
-                            {currentAuthor}
-                          </span>
-                          <div className="flex items-center opacity-0 transition-all group-hover:opacity-100 group-focus-within:opacity-100 pointer-coarse:opacity-100">
-                            <button
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                onRemoveAnnotation?.(note.id);
+            {railVisible && (
+              <CommentRail
+                items={railNotes}
+                anchors={new Map(annotationPositions.map(position => [position.id, position.top]))}
+                activeId={expandedNoteId}
+                minHeight={editorContainerRef.current?.offsetHeight ?? 0}
+                renderCard={note => renderCommentCard(note)}
+                draft={
+                  activeDraft && draftCommentTop !== null
+                    ? {
+                        top: draftCommentTop,
+                        node: (
+                          <div className="rounded-[var(--radius-card-mobile)] border-2 border-[color-mix(in_srgb,var(--accent-blue),transparent_70%)] bg-[var(--bg-elevated)] p-4 shadow-[var(--shadow-card)] md:rounded-[var(--radius-card)]">
+                            <p className="mb-2 text-xs font-semibold text-[var(--text-primary)]">{authorName}</p>
+                            <p className="mb-3 line-clamp-2 border-l-2 border-[var(--border-strong)] pl-2 text-xs italic text-[var(--text-tertiary)]">“{activeDraft.text}”</p>
+                            <textarea
+                              autoFocus
+                              value={draftCommentText}
+                              onChange={(event) => setDraftCommentText(event.target.value)}
+                              placeholder="O que você quer comentar?"
+                              aria-label="Comentário"
+                              className="mb-3 min-h-[72px] w-full resize-none rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-3 py-2 text-sm text-[var(--text-primary)] focus:border-[var(--accent-blue)] focus:outline-none"
+                              onKeyDown={(event) => {
+                                if (event.key === 'Enter' && !event.shiftKey) {
+                                  event.preventDefault();
+                                  submitComment();
+                                }
+                                if (event.key === 'Escape') setActiveDraft(null);
                               }}
-                              className="rounded-[var(--radius-input)] p-1.5 text-[color-mix(in_srgb,var(--danger),transparent_35%)] transition hover:bg-[color-mix(in_srgb,var(--danger),transparent_90%)] hover:text-[var(--danger)]"
-                              type="button"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </button>
-                          </div>
-                        </div>
-                        <div>
-                          <p
-                            className={cn(
-                              't-meta font-medium leading-relaxed text-[var(--text-secondary)] transition-all duration-300',
-                              !isExpanded && 'line-clamp-2 overflow-hidden text-ellipsis',
-                            )}
-                          >
-                            {note.comment}
-                          </p>
-                          <AnimatePresence>
-                            {isExpanded && (
-                              <motion.div
-                                initial={{ height: 0, opacity: 0 }}
-                                animate={{ height: 'auto', opacity: 1 }}
-                                exit={{ height: 0, opacity: 0 }}
-                                className="mt-4 flex items-center justify-between overflow-hidden border-t border-[var(--border-color)] pt-4"
+                            />
+                            <div className="flex items-center justify-end gap-3">
+                              <button onClick={() => setActiveDraft(null)} className="text-xs font-semibold text-[var(--text-tertiary)]" type="button">
+                                Cancelar
+                              </button>
+                              <button
+                                onClick={submitComment}
+                                disabled={!draftCommentText.trim()}
+                                className="rounded-[var(--radius-pill)] bg-[var(--accent-blue)] px-5 py-2 text-xs font-semibold text-[var(--bg-secondary)] transition disabled:bg-[var(--bg-hover)] disabled:text-[var(--text-tertiary)]"
+                                type="button"
                               >
-                                <div className="flex items-center gap-2">
-                                  {COMMENT_COLORS.map((color) => (
-                                    <button
-                                      key={color.value}
-                                      onClick={(event) => {
-                                        event.stopPropagation();
-                                        onUpdateAnnotation?.(note.id, note.comment, color.value);
-                                      }}
-                                      className={cn(
-                                        'h-3.5 w-3.5 rounded-[var(--radius-pill)] ring-offset-2 ring-offset-[var(--bg-elevated)] transition-all hover:scale-125',
-                                        note.color === color.value && 'ring-2 ring-[var(--accent-blue)]',
-                                      )}
-                                      style={{ backgroundColor: color.value }}
-                                      type="button"
-                                    />
-                                  ))}
-                                </div>
-                                <span className="text-xs font-bold text-[var(--text-tertiary)]">
-                                  Fechar
-                                </span>
-                              </motion.div>
-                            )}
-                          </AnimatePresence>
-                        </div>
-                      </motion.div>
-                    );
-                  })}
-                </AnimatePresence>
-              </div>
+                                Comentar
+                              </button>
+                            </div>
+                          </div>
+                        ),
+                      }
+                    : null
+                }
+              />
             )}
           </div>
         </div>
@@ -1404,122 +1295,76 @@ export function RichTextEditor({
                     {toolbarStart}
                   </div>
                 ) : null}
-                {canvasToolbarActions.map(action => {
-                  const Icon = action.icon;
-                  const active = action.isActive?.() ?? false;
-                  return (
+                {topToolbarActions
+                  .filter(action => action.id === 'bold' || action.id === 'italic')
+                  .map(action => {
+                    const Icon = action.icon;
+                    const active = action.isActive?.() ?? false;
+                    return (
+                      <button
+                        key={action.id}
+                        type="button"
+                        onMouseDown={event => event.preventDefault()}
+                        onClick={action.run}
+                        aria-label={action.label}
+                        className={cn(
+                          'flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors',
+                          active
+                            ? 'bg-[color-mix(in_srgb,var(--brand-accent),transparent_88%)] text-[var(--brand-accent)]'
+                            : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]',
+                        )}
+                      >
+                        <Icon className="h-4 w-4" />
+                      </button>
+                    );
+                  })}
+                <EditorColorMenu editor={editor} kind="highlight" presentation="sheet" />
+                {commentsEnabled ? (
+                  <>
                     <button
-                      key={action.id}
                       type="button"
-                      onClick={action.run}
-                      aria-label={action.label}
-                      className={cn(
-                        'flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors',
-                        active
-                          ? 'bg-[color-mix(in_srgb,var(--brand-accent),transparent_88%)] text-[var(--brand-accent)]'
-                          : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]',
-                      )}
+                      onMouseDown={event => event.preventDefault()}
+                      onClick={startCommenting}
+                      disabled={!hasSelection}
+                      aria-label="Comentar trecho selecionado"
+                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] disabled:opacity-40"
                     >
-                      <Icon className="h-4 w-4" />
+                      <MessageSquarePlus className="h-4 w-4" />
                     </button>
-                  );
-                })}
+                    {annotationSource.length > 0 ? (
+                      <button
+                        type="button"
+                        onMouseDown={event => event.preventDefault()}
+                        onClick={() => setCommentsPanelOpen(true)}
+                        aria-label={`Comentários (${openCount})`}
+                        className="flex h-10 shrink-0 items-center gap-1 rounded-full px-3 text-xs font-semibold text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
+                      >
+                        <MessageSquare className="h-4 w-4" />
+                        {openCount}
+                      </button>
+                    ) : null}
+                  </>
+                ) : null}
               </div>
             </div>,
             document.body,
           )
         : null}
 
-      <AnimatePresence>
-        {activeAnnotationModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={() => setActiveAnnotationModal(null)}
-            className="fixed inset-0 z-[200] flex items-end justify-center bg-[color-mix(in_srgb,var(--text-primary)_40%,transparent)] p-4 sm:items-center"
-          >
-            <motion.div
-              initial={{ opacity: 0, y: 40, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 40, scale: 0.95 }}
-              onClick={(event) => event.stopPropagation()}
-              className="w-full max-w-sm overflow-hidden rounded-[var(--radius-card-mobile)] bg-[var(--bg-elevated)] shadow-none md:rounded-[var(--radius-card)]"
-            >
-              <div
-                className="h-1.5 w-full"
-                style={{ backgroundColor: activeAnnotationModal.color || DEFAULT_COMMENT_MODAL_STRIPE }}
-              />
-              <div className="p-6">
-                <div className="mb-4 flex items-center gap-3">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-[var(--radius-pill)] border border-[var(--border-color)] bg-[var(--surface-subtle)] text-xs font-bold text-[var(--accent-blue)]">
-                    {(activeAnnotationModal.authorName || authorName)[0]}
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-xs font-semibold text-[var(--text-primary)]">
-                      {activeAnnotationModal.authorName || authorName}
-                    </p>
-                    <p className="text-xs text-[var(--text-tertiary)]">Comentário</p>
-                  </div>
-                  <button
-                    onClick={() => setActiveAnnotationModal(null)}
-                    className="rounded-[var(--radius-input)] p-1.5 text-[var(--text-tertiary)] transition-colors hover:bg-[var(--bg-hover)]"
-                    type="button"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                </div>
-
-                <div className="mb-4 rounded-[var(--radius-input)] border border-[color-mix(in_srgb,var(--warning),transparent_82%)] bg-[color-mix(in_srgb,var(--warning),transparent_92%)] p-3">
-                  <p className="line-clamp-2 text-xs font-medium italic text-[var(--warning)]">
-                    "{activeAnnotationModal.text}"
-                  </p>
-                </div>
-
-                <p className="text-sm leading-relaxed text-[var(--text-secondary)]">{activeAnnotationModal.comment}</p>
-
-                <div className="mt-5 flex items-center justify-between border-t border-[var(--border-color)] pt-4">
-                  <div className="flex items-center gap-2">
-                    {COMMENT_COLORS.map((color) => (
-                      <button
-                        key={color.value}
-                        onClick={() => {
-                          onUpdateAnnotation?.(
-                            activeAnnotationModal.id,
-                            activeAnnotationModal.comment,
-                            color.value,
-                          );
-                          setActiveAnnotationModal({ ...activeAnnotationModal, color: color.value });
-                        }}
-                        className={cn(
-                          'h-4 w-4 rounded-[var(--radius-pill)] ring-offset-2 ring-offset-[var(--bg-elevated)] transition-all hover:scale-125',
-                          activeAnnotationModal.color === color.value && 'ring-2 ring-[var(--accent-blue)]',
-                        )}
-                        style={{ backgroundColor: color.value }}
-                        type="button"
-                      />
-                    ))}
-                  </div>
-                  <button
-                    onClick={() => {
-                      onRemoveAnnotation?.(activeAnnotationModal.id);
-                      setActiveAnnotationModal(null);
-                    }}
-                    className="flex items-center gap-1.5 rounded-[var(--radius-input)] px-3 py-1.5 text-xs font-bold text-[var(--danger)] transition-colors hover:bg-[color-mix(in_srgb,var(--danger),transparent_90%)]"
-                    type="button"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                    Excluir
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <CommentsPanel
+        open={commentsEnabled && commentsPanelOpen}
+        onClose={() => setCommentsPanelOpen(false)}
+        presentation={isMobile ? 'sheet' : 'drawer'}
+        items={sortedAnnotations}
+        total={openCount}
+        showResolved={showResolved}
+        onShowResolvedChange={setShowResolved}
+        resolvedCount={resolvedCount}
+        renderCard={note => renderCommentCard(note, true)}
+      />
 
       <AnimatePresence>
-        {activeDraft && !isFullscreen && (
+        {activeDraft && !railVisible && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}

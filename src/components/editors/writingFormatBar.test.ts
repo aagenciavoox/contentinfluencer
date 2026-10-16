@@ -9,7 +9,7 @@ import {
 describe('writing format bar', () => {
   it('keeps list, numbered list, and link only in Mais', () => {
     assert.equal(writingBarHidesMenuOnlyActions(), true);
-    assert.deepEqual([...WRITING_BAR_ACTION_IDS], ['undo', 'bold', 'italic']);
+    assert.deepEqual([...WRITING_BAR_ACTION_IDS], ['undo', 'bold', 'italic', 'highlight', 'comment']);
   });
 
   it('does not repeat a visible control inside Mais', () => {

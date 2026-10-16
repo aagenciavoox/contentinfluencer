@@ -27,7 +27,7 @@ export function RoteiroTypographyControls({
   onChange: (updates: Partial<RoteiroTypography>) => void;
 }) {
   return (
-    <div className="flex shrink-0 items-center gap-1">
+    <div className="flex shrink-0 items-center gap-1" title="Fonte e tamanho do roteiro inteiro (não só do trecho selecionado)">
       <SelectField
         ariaLabel="Fonte do roteiro"
         leadingIcon={<Type className="h-3.5 w-3.5 text-[var(--text-secondary)]" />}

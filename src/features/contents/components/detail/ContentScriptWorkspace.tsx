@@ -1,6 +1,7 @@
 import {useState, type ReactNode} from 'react';
 import {ChevronDown} from 'lucide-react';
 import {RichTextEditor} from '../../../../components/editors/RichTextEditor';
+import type {CommentPatch} from '../../../../components/editors/commentModel';
 import {useAuth} from '../../../../context/AuthContext';
 import {roteiroTypographyStyle, useRoteiroTypography} from '../../lib/roteiroTypography';
 import {RoteiroTypographyControls} from './RoteiroTypographyControls';
@@ -34,9 +35,10 @@ interface ContentScriptWorkspaceProps {
   className?: string;
   fullscreenAside?: ReactNode;
   onFullscreenChange?: (open: boolean) => void;
-  onAddAnnotation?: (text: string, selection: {from: number; to: number}, comment: string) => void;
+  onAddAnnotation?: (text: string, selection: {from: number; to: number}, comment: string, id?: string) => void;
   onRemoveAnnotation?: (id: string) => void;
   onUpdateAnnotation?: (id: string, comment: string, color?: string) => void;
+  onPatchAnnotation?: (id: string, patch: CommentPatch) => void;
 }
 
 export function ContentScriptWorkspace({
@@ -60,6 +62,7 @@ export function ContentScriptWorkspace({
   onAddAnnotation,
   onRemoveAnnotation,
   onUpdateAnnotation,
+  onPatchAnnotation,
 }: ContentScriptWorkspaceProps) {
   const [refsOpen, setRefsOpen] = useState(() => (referencias?.trim().length ?? 0) > 0);
 
@@ -136,6 +139,7 @@ export function ContentScriptWorkspace({
             onAddAnnotation={onAddAnnotation}
             onRemoveAnnotation={onRemoveAnnotation}
             onUpdateAnnotation={onUpdateAnnotation}
+            onPatchAnnotation={onPatchAnnotation}
             toolbarStart={
               <>
               <ScriptBlockToolbar
@@ -143,9 +147,9 @@ export function ContentScriptWorkspace({
                 onInsertBlock={handleInsertBlock}
                 onApplyTemplate={handleApplyTemplate}
               />
-              <RoteiroTypographyControls typography={typography} onChange={setTypography} />
               </>
             }
+            typographySlot={<RoteiroTypographyControls typography={typography} onChange={setTypography} />}
             saveState={saveState}
             fullscreenAside={fullscreenAside}
             onFullscreenChange={onFullscreenChange}
