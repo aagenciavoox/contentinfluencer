@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import {
   ArrowRight,
@@ -32,6 +32,9 @@ import {
   type LibraryPeriodAnalysis,
 } from '../lib/libraryPeriodAnalysis';
 
+/** Card branco sobre o fundo da página: borda sutil e sombra leve. */
+export const CARD_CLASS = 'shadow-[var(--shadow-input)]!';
+
 const FORMAT_ICONS: Record<string, LucideIcon> = {
   todos: LayoutGrid,
   livro: BookOpen,
@@ -50,7 +53,7 @@ export function FormatIcon({ tipo, className }: { tipo: string; className?: stri
 
 export function IconTile({ children }: { children: ReactNode }) {
   return (
-    <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] text-[var(--text-primary)]">
+    <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--radius-input)] bg-[var(--surface-subtle)] text-[var(--text-primary)]">
       {children}
     </span>
   );
@@ -115,10 +118,9 @@ export function LibraryFormatChips({ value, onChange }: { value: LibraryFormatFi
               type="button"
               aria-pressed={active}
               onClick={() => onChange(option.id)}
-              className={cn(
-                'filter-chip min-h-9 shrink-0 pointer-coarse:min-h-11',
-                active && 'border-[var(--brand-accent-soft)] bg-[var(--brand-accent-soft)] text-[var(--brand-accent-strong)] hover:border-[var(--brand-accent-soft)] hover:bg-[var(--brand-accent-soft)] hover:text-[var(--brand-accent-strong)]',
-              )}
+              className="filter-chip min-h-9 shrink-0 pointer-coarse:min-h-11"
+              // .filter-chip é CSS fora das camadas do Tailwind: utilitário não sobrescreve, estilo inline sim.
+              style={active ? { background: 'var(--brand-accent-soft)', borderColor: 'var(--brand-accent-soft)', color: 'var(--brand-accent-strong)' } : undefined}
             >
               <FormatIcon tipo={option.id} />
               {option.label}
@@ -132,14 +134,16 @@ export function LibraryFormatChips({ value, onChange }: { value: LibraryFormatFi
 
 function KpiCard({ icon: Icon, label, value, caption, loading }: { icon: LucideIcon; label: string; value: number; caption: string; loading: boolean }) {
   return (
-    <Surface variant="info" padding="md" className="flex items-start gap-3">
-      <span className="hidden sm:inline-flex"><IconTile><Icon className="h-4 w-4" aria-hidden /></IconTile></span>
+    <Surface variant="outlined" padding="md" className={cn(CARD_CLASS, 'flex items-start gap-3')}>
+      <span className="hidden h-10 w-10 shrink-0 items-center justify-center rounded-[var(--radius-input)] bg-[var(--brand-accent-soft)] text-[var(--brand-accent-strong)] sm:inline-flex">
+        <Icon className="h-5 w-5" aria-hidden />
+      </span>
       <div className="min-w-0">
         <Text variant="meta" className="block">{label}</Text>
         {loading
           ? <Skeleton className="mt-1 h-8 w-14" />
-          : <p className="mt-0.5 text-2xl font-semibold tabular-nums text-[var(--text-primary)]">{value.toLocaleString('pt-BR')}</p>}
-        <Text variant="meta" className="mt-0.5 block text-[var(--text-tertiary)]">{caption}</Text>
+          : <p className="mt-1 text-3xl font-bold leading-none tabular-nums text-[var(--text-primary)]">{value.toLocaleString('pt-BR')}</p>}
+        <Text variant="meta" className="mt-1.5 block text-[var(--text-tertiary)]">{caption}</Text>
       </div>
     </Surface>
   );
@@ -149,56 +153,81 @@ export function LibraryKpis({ analysis, formatLabel, rangeText, loading }: { ana
   return (
     <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
       <KpiCard icon={Library} label="Itens no acervo" value={analysis.inCollection} caption={formatLabel} loading={loading} />
-      <KpiCard icon={Check} label="Concluídos no período" value={analysis.completed} caption={rangeText} loading={loading} />
+      <KpiCard icon={Check} label="Concluídos no período" value={analysis.completed} caption={analysis.completedUndated > 0 ? `${rangeText} · ${analysis.completedUndated} sem data de conclusão` : rangeText} loading={loading} />
       <KpiCard icon={Clock3} label="Em andamento" value={analysis.active} caption="Situação atual" loading={loading} />
       <KpiCard icon={NotebookPen} label="Anotações" value={analysis.notes} caption="Registradas no período" loading={loading} />
     </div>
   );
 }
 
-export function LibraryConsumptionTable({ analysis, periodLabel, loading }: { analysis: LibraryPeriodAnalysis; periodLabel: string; loading: boolean }) {
+export function LibraryConsumptionTable({ analysis, periodLabel, loading, showAllFormats }: { analysis: LibraryPeriodAnalysis; periodLabel: string; loading: boolean; showAllFormats: boolean }) {
+  const [showEmpty, setShowEmpty] = useState(false);
+  const emptyRows = analysis.formats.filter(row => row.inCollection === 0);
+  // Em "Todos", formatos sem itens ficam recolhidos; com um formato escolhido, a linha sempre aparece.
+  const collapsible = showAllFormats && emptyRows.length > 0 && emptyRows.length < analysis.formats.length;
+  const rows = collapsible && !showEmpty ? analysis.formats.filter(row => row.inCollection > 0) : analysis.formats;
+  const numCell = 'px-4 py-3 text-right tabular-nums';
   return (
-    <Surface variant="info" padding="lg">
+    <Surface variant="outlined" padding="lg" className={CARD_CLASS}>
       <CardHeader
         title="Consumo por formato"
         subtitle="Cada formato com sua própria medida de progresso."
         aside={<Text variant="meta">Período: {periodLabel}</Text>}
       />
-      <div className="mt-4 overflow-x-auto">
+      <div className="mt-5 overflow-x-auto">
         {loading ? (
           <div className="stack-md" aria-busy="true">
             {['a', 'b', 'c'].map(key => <Skeleton key={key} className="h-9 w-full" />)}
           </div>
         ) : (
-          <table className="w-full min-w-[560px] text-sm">
+          <table className="w-full min-w-[600px] text-sm">
             <thead>
-              <tr className="bg-[var(--bg-hover)] text-left text-xs text-[var(--text-secondary)]">
-                <th className="rounded-l-[var(--radius-input)] px-3 py-2.5 font-medium">Formato</th>
-                <th className="px-3 py-2.5 font-medium">No acervo</th>
-                <th className="px-3 py-2.5 font-medium">Concluídos</th>
-                <th className="px-3 py-2.5 font-medium">Em andamento</th>
-                <th className="rounded-r-[var(--radius-input)] px-3 py-2.5 font-medium">Consumo registrado</th>
+              <tr className="bg-[var(--surface-subtle)] text-xs text-[var(--text-secondary)]">
+                <th className="rounded-l-[var(--radius-input)] px-4 py-2.5 text-left font-medium">Formato</th>
+                <th className="px-4 py-2.5 text-right font-medium">No acervo</th>
+                <th className="px-4 py-2.5 text-right font-medium">Concluídos</th>
+                <th className="px-4 py-2.5 text-right font-medium">Em andamento</th>
+                <th className="rounded-r-[var(--radius-input)] px-4 py-2.5 text-right font-medium">Consumo registrado</th>
               </tr>
             </thead>
             <tbody>
-              {analysis.formats.map(row => (
-                <tr key={row.id} className="border-b border-[var(--border-color)] text-[var(--text-primary)] last:border-b-0">
-                  <td className="px-3 py-2">
-                    <span className="flex items-center gap-3">
-                      <IconTile><FormatIcon tipo={row.id} /></IconTile>
-                      <span className="font-medium">{row.label}</span>
-                    </span>
-                  </td>
-                  <td className="px-3 py-2 tabular-nums">{row.inCollection}</td>
-                  <td className="px-3 py-2 tabular-nums">{row.completed}</td>
-                  <td className="px-3 py-2 tabular-nums">{row.active}</td>
-                  <td className="px-3 py-2 tabular-nums">{formatConsumption(row)}</td>
-                </tr>
-              ))}
+              {rows.map(row => {
+                const empty = row.inCollection === 0;
+                return (
+                  <tr
+                    key={row.id}
+                    className={cn(
+                      'border-b border-[var(--border-subtle)] last:border-b-0',
+                      empty ? 'text-[var(--text-tertiary)]' : 'text-[var(--text-primary)]',
+                    )}
+                  >
+                    <td className="px-4 py-3">
+                      <span className="flex items-center gap-3">
+                        <span className={cn(empty && 'opacity-60')}><IconTile><FormatIcon tipo={row.id} /></IconTile></span>
+                        <span className={cn(!empty && 'font-medium')}>{row.label}</span>
+                      </span>
+                    </td>
+                    <td className={cn(numCell, !empty && 'font-semibold')}>{row.inCollection}</td>
+                    <td className={numCell}>{row.completed}</td>
+                    <td className={numCell}>{row.active}</td>
+                    <td className={numCell}>{formatConsumption(row)}</td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         )}
       </div>
+      {!loading && collapsible ? (
+        <button
+          type="button"
+          onClick={() => setShowEmpty(value => !value)}
+          aria-expanded={showEmpty}
+          className="mt-3 text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+        >
+          {showEmpty ? 'Ocultar formatos sem itens' : `Mostrar formatos sem itens (${emptyRows.length})`}
+        </button>
+      ) : null}
       <FooterNote>O consumo considera os registros feitos no período selecionado.</FooterNote>
     </Surface>
   );
@@ -206,10 +235,26 @@ export function LibraryConsumptionTable({ analysis, periodLabel, loading }: { an
 
 const ACTIVE_LIMIT = 4;
 
-export function LibraryActiveCard({ analysis, loading }: { analysis: LibraryPeriodAnalysis; loading: boolean }) {
-  const visible = analysis.activeItems.slice(0, ACTIVE_LIMIT);
+function ProgressLine({ current, total, unit }: { current: number; total: number; unit: LibraryPeriodAnalysis['activeItems'][number]['unit'] }) {
+  const percent = total > 0 ? Math.min(100, Math.round((current / total) * 100)) : 0;
   return (
-    <Surface variant="info" padding="lg" className="flex flex-col">
+    <span className="flex w-36 shrink-0 flex-col items-end gap-1 sm:w-44">
+      <span className="text-sm tabular-nums text-[var(--text-secondary)]">{formatProgress(current, total, unit)}</span>
+      {total > 0 ? (
+        <span className="h-1 w-full overflow-hidden rounded-full bg-[var(--surface-subtle)]" role="progressbar" aria-valuenow={percent} aria-valuemin={0} aria-valuemax={100}>
+          <span className="block h-full rounded-full bg-[var(--brand-accent)]" style={{ width: `${percent}%` }} />
+        </span>
+      ) : null}
+    </span>
+  );
+}
+
+export function LibraryActiveCard({ analysis, loading }: { analysis: LibraryPeriodAnalysis; loading: boolean }) {
+  // Itens com progresso informado primeiro.
+  const ordered = [...analysis.activeItems].sort((a, b) => Number(b.total > 0 || b.current > 0) - Number(a.total > 0 || a.current > 0));
+  const visible = ordered.slice(0, ACTIVE_LIMIT);
+  return (
+    <Surface variant="outlined" padding="lg" className={cn(CARD_CLASS, 'flex flex-col')}>
       <CardHeader
         title="Em andamento"
         subtitle="Itens que você está consumindo no momento."
@@ -224,18 +269,34 @@ export function LibraryActiveCard({ analysis, loading }: { analysis: LibraryPeri
           <Text variant="meta">Nada em andamento agora.</Text>
         ) : (
           <ul>
-            {visible.map(entry => (
-              <li key={entry.id} className="border-b border-[var(--border-color)] last:border-b-0">
-                <Link to={`/biblioteca/${entry.id}`} className="flex items-center gap-3 py-2 hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]">
+            {visible.map(entry => {
+              const hasProgress = entry.total > 0 || entry.current > 0;
+              return (
+                <li key={entry.id} className="flex items-center gap-3 border-b border-[var(--border-subtle)] py-2.5 last:border-b-0">
                   <IconTile><FormatIcon tipo={entry.tipo} /></IconTile>
-                  <span className="min-w-0 flex-1 truncate text-sm font-medium text-[var(--text-primary)]">{entry.title}</span>
+                  <Link
+                    to={`/biblioteca/${entry.id}`}
+                    className="min-w-0 flex-1 truncate text-sm font-medium text-[var(--text-primary)] hover:underline focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+                  >
+                    {entry.title}
+                  </Link>
                   <span className="hidden sm:inline-flex"><FormatTag tipo={entry.tipo} /></span>
-                  <span className="shrink-0 text-right text-sm tabular-nums text-[var(--text-secondary)]">
-                    {formatProgress(entry.current, entry.total, entry.unit)}
-                  </span>
-                </Link>
-              </li>
-            ))}
+                  {hasProgress ? (
+                    <ProgressLine current={entry.current} total={entry.total} unit={entry.unit} />
+                  ) : (
+                    <span className="flex shrink-0 items-center gap-2 text-sm">
+                      <span className="text-[var(--text-tertiary)]">Sem progresso</span>
+                      <Link
+                        to={`/biblioteca/${entry.id}`}
+                        className="font-medium text-[var(--brand-accent-strong)] hover:opacity-80 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+                      >
+                        Atualizar
+                      </Link>
+                    </span>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         )}
       </div>
@@ -254,7 +315,7 @@ function plural(count: number, one: string, many: string) {
 
 export function LibraryNotesCard({ analysis, loading }: { analysis: LibraryPeriodAnalysis; loading: boolean }) {
   return (
-    <Surface variant="info" padding="lg" className="flex flex-col">
+    <Surface variant="outlined" padding="lg" className={cn(CARD_CLASS, 'flex flex-col')}>
       <CardHeader
         title="Anotações"
         subtitle="Suas reflexões, destaques e registros."
@@ -302,7 +363,7 @@ export function LibraryNotesCard({ analysis, loading }: { analysis: LibraryPerio
 
 export function LibraryGenresCard({ analysis, loading }: { analysis: LibraryPeriodAnalysis; loading: boolean }) {
   return (
-    <Surface variant="info" padding="lg">
+    <Surface variant="outlined" padding="lg" className={CARD_CLASS}>
       <CardHeader title="Gêneros no acervo" subtitle="Presença entre os itens cadastrados." />
       <div className="mt-4">
         {loading ? (
@@ -329,7 +390,7 @@ export function LibraryRatingsCard({ analysis, loading, onRate }: { analysis: Li
   const { ratings } = analysis;
   const max = Math.max(1, ...ratings.distribution.map(entry => entry.count));
   return (
-    <Surface variant="info" padding="lg" className="flex flex-col">
+    <Surface variant="outlined" padding="lg" className={cn(CARD_CLASS, 'flex flex-col')}>
       <CardHeader title="Avaliações" subtitle="Suas notas para livros, filmes, séries e outros." />
       {loading ? (
         <Skeleton className="mt-4 h-24 w-full" />

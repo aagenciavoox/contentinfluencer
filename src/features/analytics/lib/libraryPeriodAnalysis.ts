@@ -142,6 +142,8 @@ export interface LibraryFormatRow {
 export interface LibraryPeriodAnalysis {
   inCollection: number;
   completed: number;
+  /** Concluídos sem data de conclusão: não entram em nenhum período. */
+  completedUndated: number;
   active: number;
   notes: number;
   itemsAnnotated: number;
@@ -166,6 +168,7 @@ export function buildLibraryPeriodAnalysis(
   }));
 
   let completed = 0;
+  let completedUndated = 0;
   let active = 0;
   let notes = 0;
   const annotated: LibraryPeriodAnalysis['topAnnotated'] = [];
@@ -186,6 +189,7 @@ export function buildLibraryPeriodAnalysis(
     const isCompleted = COMPLETED_STATUSES.has(item.status) && inRange(item.dataFim, range);
     const isActive = ACTIVE_STATUSES.has(item.status);
 
+    if (COMPLETED_STATUSES.has(item.status) && !item.dataFim) completedUndated += 1;
     const history = item.progressoEventos ?? [];
     let consumed = 0;
     if (isCompleted) {
@@ -232,6 +236,7 @@ export function buildLibraryPeriodAnalysis(
   return {
     inCollection: items.length,
     completed,
+    completedUndated,
     active,
     notes,
     itemsAnnotated: annotated.length,

@@ -8,7 +8,7 @@ import { Skeleton } from '../../../components/ui/Skeleton';
 import { Surface } from '../../../components/ui/Surface';
 import { Text } from '../../../components/ui/Text';
 import type { LibraryFormatFilter } from '../../analytics/lib/libraryPeriodAnalysis';
-import { FormatIcon, FormatTag, IconTile, LibraryFormatChips } from '../../analytics/components/LibraryAnalysisSections';
+import { CARD_CLASS, FormatIcon, FormatTag, IconTile, LibraryFormatChips } from '../../analytics/components/LibraryAnalysisSections';
 
 function formatDate(value: string) {
   const date = new Date(value);
@@ -50,7 +50,7 @@ export function LibraryAnnotationsPage() {
             {['a', 'b', 'c'].map(key => <Skeleton key={key} className="h-20 w-full" />)}
           </div>
         ) : notes.length === 0 ? (
-          <Surface variant="info" padding="lg">
+          <Surface variant="outlined" padding="lg" className={CARD_CLASS}>
             <Text variant="bodyStrong">Nenhuma anotação por aqui ainda.</Text>
             <Text variant="meta" className="mt-1 block">As notas que você registra nos itens aparecem nesta lista.</Text>
           </Surface>
@@ -62,7 +62,7 @@ export function LibraryAnnotationsPage() {
             <ul className="stack-md">
               {notes.map(({ note, item }) => (
                 <li key={note.id}>
-                  <Surface variant="info" padding="md">
+                  <Surface variant="outlined" padding="md" className={CARD_CLASS}>
                     <Link to={`/biblioteca/${item.id}`} className="flex items-center gap-3 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]">
                       <IconTile><FormatIcon tipo={item.tipo} /></IconTile>
                       <span className="min-w-0 flex-1 truncate text-sm font-semibold text-[var(--text-primary)] hover:underline">{item.titulo}</span>

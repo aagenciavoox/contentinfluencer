@@ -103,7 +103,7 @@ export function AnalyticsPage() {
       <div className="stack-lg">
         <LibraryFormatChips value={format} onChange={setFormat} />
         <LibraryKpis analysis={analysis} formatLabel={formatLabel} rangeText={periodRangeText(period)} loading={loading} />
-        <LibraryConsumptionTable analysis={analysis} periodLabel={period.label} loading={loading} />
+        <LibraryConsumptionTable analysis={analysis} periodLabel={period.label} loading={loading} showAllFormats={format === 'todos'} />
         <div className="grid gap-4 lg:grid-cols-2">
           <LibraryActiveCard analysis={analysis} loading={loading} />
           <LibraryNotesCard analysis={analysis} loading={loading} />
