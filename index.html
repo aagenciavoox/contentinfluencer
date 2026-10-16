@@ -11,6 +11,15 @@
     <meta name="theme-color" content="#0C0C0C" media="(prefers-color-scheme: dark)" />
     <meta name="theme-color" content="#F6F5F3" media="(prefers-color-scheme: light)" />
     <meta name="color-scheme" content="dark light" />
+    <script>
+      // Aplica o tema salvo (src/lib/themeStorage.ts) antes do app montar, sem piscar o claro.
+      try {
+        var savedTheme = JSON.parse(localStorage.getItem('criaki-theme'));
+        if (savedTheme === 'dark' || savedTheme === 'light') {
+          document.documentElement.setAttribute('data-theme', savedTheme);
+        }
+      } catch (e) {}
+    </script>
 
     <!-- PWA / iOS home screen -->
     <meta name="mobile-web-app-capable" content="yes" />

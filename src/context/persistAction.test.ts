@@ -382,6 +382,19 @@ async function testTemaPersisteForaDaSerie() {
   assert.equal((calls.find(call => call.name === 'saveContent')?.args[0] as Content).seriesId, 'serie-1');
 }
 
+async function testTemaClaroEscuroFicaSalvo() {
+  const { api, calls } = createMockApi();
+
+  await persistAction({
+    action: { type: 'SET_THEME', payload: 'dark' },
+    userId: 'user-1',
+    state: createState(),
+    api,
+  });
+
+  assert.deepEqual(calls, [{ name: 'savePreference', args: ['theme', 'dark'] }]);
+}
+
 const tests: Array<[string, () => Promise<void>]> = [
   ['persistContentRecord saves content and platforms together', testPersistContentRecordUsesContentAndPlatforms],
   ['persistAction promotes an idea with a stable canonical content id', testPersistActionPromoteIdeaUsesStableCanonicalContentId],
@@ -390,6 +403,7 @@ const tests: Array<[string, () => Promise<void>]> = [
   ['persistAction adapts ADD_IDEA to a canonical content write', testPersistActionAdaptsLegacyAddIdeaToContent],
   ['persistAction persists looks and cenarios through the unified adapter', testPersistActionWritesLooksAndCenarios],
   ['tema de roteiro persiste sem virar série', testTemaPersisteForaDaSerie],
+  ['modo claro/escuro fica salvo nas preferências', testTemaClaroEscuroFicaSalvo],
 ];
 
 for (const [name, fn] of tests) {

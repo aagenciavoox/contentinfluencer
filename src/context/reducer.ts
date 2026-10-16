@@ -1,6 +1,7 @@
 import type { AppState } from '../app/providers/appState';
 import { nextFreeSerieColor, serieColorKey } from '../features/settings/lib/serieColors';
 import { removerLivroId } from '../lib/livroIds.ts';
+import { isAppTheme, type AppTheme } from '../lib/themeStorage';
 import {
   archiveCreation,
   contentFromLegacyIdea,
@@ -151,10 +152,10 @@ export type AppAction =
 // HELPERS
 // ============================================================================
 
-function deriveTheme(prefs: Record<string, string>): 'light' | 'dark' {
+// Sem tema salvo nas preferências, fica o que já está na tela (vindo do navegador).
+function deriveTheme(prefs: Record<string, string>, current: AppTheme): AppTheme {
   const saved = prefs?.['theme'];
-  if (saved === 'dark' || saved === 'light') return saved;
-  return 'light';
+  return isAppTheme(saved) ? saved : current;
 }
 
 // ============================================================================
@@ -174,12 +175,12 @@ export function appReducer(state: AppState, action: AppAction): AppState {
     // ─── Sincronização ──────────────────────────────────────────────────────
     case 'SET_DATA': {
       const prefs = action.payload.preferences ?? state.preferences;
-      return { ...state, ...action.payload, theme: deriveTheme(prefs) };
+      return { ...state, ...action.payload, theme: deriveTheme(prefs, state.theme) };
     }
     case 'SET_LOADED':
       return { ...state, isLoaded: action.payload !== false };
     case 'SET_THEME':
-      return { ...state, theme: action.payload };
+      return { ...state, theme: action.payload, preferences: { ...state.preferences, theme: action.payload } };
     case 'SET_PREFERENCE':
     case 'UPDATE_PREFERENCE':
       return { ...state, preferences: { ...state.preferences, [action.payload.key]: action.payload.value } };

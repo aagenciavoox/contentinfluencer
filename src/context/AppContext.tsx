@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useReducer, useRef, useState } from 'rea
 import type { AppState } from '../app/providers/appState';
 import { initialState } from '../app/providers/appState';
 import { supabase } from '../lib/supabase';
+import { readStoredTheme, writeStoredTheme } from '../lib/themeStorage';
 import type * as db from '../lib/database';
 import { appReducer, AppAction } from './reducer';
 import { persistAction, persistContentRecord } from './persistAction';
@@ -146,7 +147,10 @@ function normalizeAction(action: AppAction): AppAction {
 }
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
-  const [state, dispatch] = useReducer(appReducer, initialState);
+  const [state, dispatch] = useReducer(appReducer, initialState, initial => ({
+    ...initial,
+    theme: readStoredTheme() ?? initial.theme,
+  }));
   const stateRef = useRef(state);
   const loadDone = useRef(false);
   const loadedDomains = useRef(new Set<db.AppDataDomain>());
@@ -686,9 +690,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    const shouldPersist = !['SET_DATA', 'SET_LOADED', 'SET_THEME', 'LOG_ENERGY'].includes(
+    const shouldPersist = !['SET_DATA', 'SET_LOADED', 'LOG_ENERGY'].includes(
       normalizedAction.type
     );
+    // Trocar o tema não mostra "salvando"; só um erro de gravação aparece.
+    const persistOptions = normalizedAction.type === 'SET_THEME' ? { ...options, silent: true } : options;
 
     // Snapshot before optimistic dispatch so we can restore on double-failure.
     const snapshot = shouldPersist && userId ? stateRef.current : null;
@@ -697,7 +703,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     if (!userId || !shouldPersist) return;
 
-    if (!options?.silent) {
+    if (!persistOptions?.silent) {
       notifySaveFeedback({ status: 'saving', message: LOADING.salvandoAlteracoes });
     }
 
@@ -705,7 +711,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       await runPersist(() =>
         persistAction({ action: normalizedAction, userId, state: stateRef.current })
       );
-      finishPersist(normalizedAction.type, options);
+      finishPersist(normalizedAction.type, persistOptions);
     } catch (err) {
       console.error('[Sync] Error persisting action:', normalizedAction.type, err);
       notifySaveFeedback({
@@ -728,6 +734,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', state.theme);
+    writeStoredTheme(state.theme);
   }, [state.theme]);
 
   // Sem backend ou sem sessão não há nada para buscar: as telas não devem esperar.

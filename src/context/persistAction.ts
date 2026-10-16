@@ -422,10 +422,13 @@ export async function persistAction({ action, userId, state, api }: PersistActio
       }
       return;
 
+    case 'SET_THEME':
+      await persistenceApi.savePreference('theme', action.payload);
+      return;
+
     case 'LOG_ENERGY':
     case 'SET_DATA':
     case 'SET_LOADED':
-    case 'SET_THEME':
       return;
 
     default: {
