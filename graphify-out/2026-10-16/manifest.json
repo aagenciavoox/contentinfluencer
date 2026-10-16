@@ -675,8 +675,8 @@
     "semantic_hash": ""
   },
   "src/features/contents/components/burst-mode/BurstModeExperience.tsx": {
-    "mtime": 1792001118.6983998,
-    "ast_hash": "8c6dbd27df149ec8a26c339e4717ed4e",
+    "mtime": 1792168099.5538373,
+    "ast_hash": "74ce709ca61a8d7ab6e32a5d7660e7ae",
     "semantic_hash": ""
   },
   "src/features/contents/components/desktop/ContentGrid.tsx": {
@@ -995,8 +995,8 @@
     "semantic_hash": ""
   },
   "src/features/creation/lib/exportScriptsDocx.ts": {
-    "mtime": 1792071185.8626308,
-    "ast_hash": "cafffad33b55394ff5f0455701a15aa2",
+    "mtime": 1792164495.4470446,
+    "ast_hash": "9d0e20a599867a05ef2b6519787dfa97",
     "semantic_hash": ""
   },
   "src/features/creation/lib/legacyCreationRoute.test.ts": {
@@ -1010,8 +1010,8 @@
     "semantic_hash": ""
   },
   "src/features/creation/pages/CreationHubPage.tsx": {
-    "mtime": 1792162538.105986,
-    "ast_hash": "730874b79b00645c8c11f9ccd4b94b52",
+    "mtime": 1792166696.5065231,
+    "ast_hash": "9af81010228a2fe164b801a635b5c881",
     "semantic_hash": ""
   },
   "src/features/dashboard/components/DayPulse.tsx": {
@@ -1360,8 +1360,8 @@
     "semantic_hash": ""
   },
   "src/features/recording/components/RecordingBlockEditor.tsx": {
-    "mtime": 1792001178.621572,
-    "ast_hash": "3d763fbcc5c704a1d7fad4c1d6baffcc",
+    "mtime": 1792167423.255805,
+    "ast_hash": "5bfcf4f8767e4d3296150752c962cb6e",
     "semantic_hash": ""
   },
   "src/features/recording/components/RecordingScriptReader.tsx": {
@@ -1395,8 +1395,8 @@
     "semantic_hash": ""
   },
   "src/features/recording/pages/RecordingBlockPage.tsx": {
-    "mtime": 1792001180.0416436,
-    "ast_hash": "87837e87a7a974442230fd4174f6950b",
+    "mtime": 1792167158.4841142,
+    "ast_hash": "ae88a163a9adc934be9fd9d4a8f68924",
     "semantic_hash": ""
   },
   "src/features/recording/pages/RecordingPage.tsx": {
@@ -1415,8 +1415,8 @@
     "semantic_hash": ""
   },
   "src/features/settings/components/PostingTimesEditor.tsx": {
-    "mtime": 1792162669.8423245,
-    "ast_hash": "e302f6a8e7e0bbfef25bba2359245437",
+    "mtime": 1792167862.7910066,
+    "ast_hash": "67d0161f03c865682f598e852473c80c",
     "semantic_hash": ""
   },
   "src/features/settings/components/PostingTimeSuggestions.tsx": {
@@ -1520,8 +1520,8 @@
     "semantic_hash": ""
   },
   "src/features/settings/lib/postingTimes.ts": {
-    "mtime": 1792001185.373862,
-    "ast_hash": "32884f0f1019b600b1d19218325fd75c",
+    "mtime": 1792167848.9754646,
+    "ast_hash": "b10ceb1673439dcc771e91c3235290da",
     "semantic_hash": ""
   },
   "src/features/settings/lib/profileAuth.ts": {
@@ -1560,8 +1560,8 @@
     "semantic_hash": ""
   },
   "src/features/settings/pages/PlatformsSettingsPage.tsx": {
-    "mtime": 1792162288.069089,
-    "ast_hash": "50c829aa73ad828de0b49baed29078c1",
+    "mtime": 1792167966.1077497,
+    "ast_hash": "a83f07033b812f8bce5165f8cd1ca73b",
     "semantic_hash": ""
   },
   "src/features/settings/pages/PostingTimesSettingsPage.tsx": {
@@ -1790,8 +1790,8 @@
     "semantic_hash": ""
   },
   "src/lib/uiCopy.ts": {
-    "mtime": 1792071548.899628,
-    "ast_hash": "172a921556866016c6886567036d112b",
+    "mtime": 1792164495.4518266,
+    "ast_hash": "7eafeef2b61292f7d3fe6aabfa705490",
     "semantic_hash": ""
   },
   "src/lib/utils.ts": {
@@ -3315,8 +3315,8 @@
     "semantic_hash": ""
   },
   "src/components/ui/ToggleSwitch.tsx": {
-    "mtime": 1792068554.5567102,
-    "ast_hash": "3309201b7439150dfca0846fc4b5fa7d",
+    "mtime": 1792167396.7710855,
+    "ast_hash": "0ff250b7ae6dab7dc527b0558c13a37d",
     "semantic_hash": ""
   },
   "src/lib/a11y/keyboardActivation.ts": {
@@ -3614,9 +3614,24 @@
     "ast_hash": "4e3dddb34c423ebf46c957e0ae75138b",
     "semantic_hash": ""
   },
-  "tmp-unlock-saves.mjs": {
-    "mtime": 1792162528.7488298,
-    "ast_hash": "44f2830de2941202132a003c4bfe4fa8",
+  "src/features/creation/components/CreationSelectionBar.tsx": {
+    "mtime": 1792166858.994779,
+    "ast_hash": "61c3e10f8ce4ebeb5b0c2d58206c1164",
+    "semantic_hash": ""
+  },
+  "src/features/contents/components/burst-mode/TeleprompterLayout.tsx": {
+    "mtime": 1792168015.7197082,
+    "ast_hash": "94653e075a88ccdbf65a4eab53ae59a6",
+    "semantic_hash": ""
+  },
+  "src/features/contents/components/burst-mode/TeleprompterSettingsDialog.tsx": {
+    "mtime": 1792168062.3560257,
+    "ast_hash": "e646c2d9c33987d26adb8f69739c9b04",
+    "semantic_hash": ""
+  },
+  "src/features/settings/components/PostingTimesOverview.tsx": {
+    "mtime": 1792167955.2187934,
+    "ast_hash": "fa1fcf79fb1e8bdf2f13e6d8149a459d",
     "semantic_hash": ""
   }
 }
