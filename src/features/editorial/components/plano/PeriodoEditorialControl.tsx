@@ -5,11 +5,11 @@ import { ChevronLeft, ChevronRight, Pencil } from 'lucide-react';
 import { ConfirmModal } from '../../../../components/feedback/modals/ConfirmModal';
 import { AppButton } from '../../../../components/ui/AppButton';
 import { Surface } from '../../../../components/ui/Surface';
+import { ChoiceChips } from '../ChoiceChips';
 import { Text } from '../../../../components/ui/Text';
 import { useAppContext } from '../../../../context/AppContext';
 import { buildGradeEntries } from '../../lib/gradeEntries';
 import { contarPeriodo, type GradeCounts } from '../../lib/gradeCounts';
-import { cn } from '../../../../lib/utils';
 import { semanaDe, type ModoPeriodo, type PeriodoSelecionado } from '../../lib/periodoEditorial';
 
 export type { ModoPeriodo, PeriodoSelecionado };
@@ -209,32 +209,12 @@ export function PeriodoEditorialControl({
       {editando ? (
         <>
           <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
-            <div
-              role="radiogroup"
-              aria-label="Período"
-              className="inline-flex shrink-0 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] p-0.5"
-            >
-              {MODOS.map(modo => {
-                const ativo = rascunho.modo === modo.id;
-                return (
-                  <button
-                    key={modo.id}
-                    type="button"
-                    role="radio"
-                    aria-checked={ativo}
-                    onClick={() => escolherModo(modo.id)}
-                    className={cn(
-                      'min-h-9 rounded-[calc(var(--radius-input)-2px)] border px-4 t-body transition-colors focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] pointer-coarse:min-h-11',
-                      ativo
-                        ? 'border-[var(--text-primary)] bg-[var(--bg-hover)] font-semibold text-[var(--text-primary)]'
-                        : 'border-transparent text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]',
-                    )}
-                  >
-                    {modo.rotulo}
-                  </button>
-                );
-              })}
-            </div>
+            <ChoiceChips<ModoPeriodo>
+              label="Período"
+              value={rascunho.modo}
+              onChange={modo => { if (modo) escolherModo(modo); }}
+              options={MODOS.map(modo => ({ value: modo.id, label: modo.rotulo }))}
+            />
 
             <div className="flex min-w-0 items-center gap-3">
               <button type="button" className={navClass} aria-label="Período anterior" onClick={() => setRascunho(periodoVizinho(rascunho, -1))}>
@@ -279,8 +259,8 @@ export function PeriodoEditorialControl({
               A data inicial precisa vir antes da final.
             </Text>
           ) : null}
-          <div className="flex flex-wrap items-center justify-end gap-2 border-t border-[var(--border-color)] pt-3">
-            <Text variant="secondary" as="p" className="mr-auto max-w-xl text-[var(--text-secondary)]">
+          <div className="flex flex-wrap items-center justify-end gap-2 pt-1">
+            <Text variant="secondary" as="p" className="mr-auto max-w-xl">
               Escolha semana, mês ou intervalo e salve. Os dados e a análise são calculados a partir deste intervalo.
             </Text>
             <AppButton variant="secondary" size="sm" onClick={cancelar}>
@@ -302,7 +282,7 @@ export function PeriodoEditorialControl({
           <div className="min-w-0 stack-xs">
             <Text variant="label" as="p">{MODOS.find(modo => modo.id === periodo.modo)?.rotulo}</Text>
             <Text variant="sectionTitle" as="h2" className="tabular-nums">{rotuloDoPeriodo(periodo)}</Text>
-            <Text variant="secondary" className="text-[var(--text-secondary)]">
+            <Text variant="secondary">
               Os dados e a análise são calculados a partir deste intervalo.
             </Text>
           </div>
@@ -315,7 +295,7 @@ export function PeriodoEditorialControl({
               setEditando(true);
             }}
           >
-            Editar
+            Editar período
           </AppButton>
         </div>
       )}

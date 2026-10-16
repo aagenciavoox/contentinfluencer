@@ -1,14 +1,15 @@
-import { useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { CalendarRange, Layers3, Palette, Plus, SlidersHorizontal } from 'lucide-react';
+import { CalendarRange, Compass, Layers3, Palette, Plus, SlidersHorizontal } from 'lucide-react';
 import { ConfirmModal } from '../../../components/feedback/modals/ConfirmModal';
 import { SettingsGridCard, SETTINGS_ENTITY_GRID_CLASS } from '../../../components/settings/SettingsGridCard';
-import { SettingsPageScaffold } from '../../../components/settings/SettingsPageScaffold';
+import { DesktopPageHeader } from '../../../layouts/page/DesktopPageHeader';
+import { PageLayout } from '../../../layouts/page/PageLayout';
 import { AppButton } from '../../../components/ui/AppButton';
 import { Badge } from '../../../components/ui/Badge';
+import { EmptyState } from '../../../components/ui/EmptyState';
 import { FilterChips } from '../../../components/ui/FilterChips';
 import { SegmentTabs } from '../../../components/ui/SegmentTabs';
-import { Surface } from '../../../components/ui/Surface';
 import { Text } from '../../../components/ui/Text';
 import { useAppContext } from '../../../context/AppContext';
 import type { Pilar, Serie } from '../../../lib/database';
@@ -24,19 +25,20 @@ import { sortPilares } from '../../settings/lib/activePilares';
 type EditorialTab = 'pilares' | 'series' | 'periodo' | 'ajustes';
 type SeriesFilter = 'todas' | 'ativas' | 'inativas' | 'abertas';
 
-const TABS: Array<{ id: EditorialTab; label: string }> = [
-  { id: 'pilares', label: 'Pilares' },
-  { id: 'series', label: 'Séries' },
-  { id: 'periodo', label: 'Período' },
-  { id: 'ajustes', label: 'Ajustes' },
-];
+const TABS = [
+  { id: 'pilares', label: 'Pilares', icon: <Palette className="h-4 w-4" aria-hidden /> },
+  { id: 'series', label: 'Séries', icon: <Layers3 className="h-4 w-4" aria-hidden /> },
+  { id: 'periodo', label: 'Período', icon: <CalendarRange className="h-4 w-4" aria-hidden /> },
+  { id: 'ajustes', label: 'Ajustes', icon: <SlidersHorizontal className="h-4 w-4" aria-hidden /> },
+] satisfies Array<{ id: EditorialTab; label: string; icon: React.ReactNode }>;
 
-const TAB_ICONS = {
-  pilares: Palette,
-  series: Layers3,
-  periodo: CalendarRange,
-  ajustes: SlidersHorizontal,
-} satisfies Record<EditorialTab, typeof Palette>;
+/** Frase curta do header: diz o que cada aba guarda. */
+const TAB_META: Record<EditorialTab, string> = {
+  pilares: 'Os assuntos que fazem parte do perfil. Quantos roteiros cada um tem num período fica na aba Período.',
+  series: 'Os formatos que se repetem. Produzir roteiros em lote fica na página Séries.',
+  periodo: 'O que muda de um período para outro: prioridade, metas e capacidade.',
+  ajustes: 'O que vale para todos os períodos.',
+};
 
 function nomeChave(nome: string): string {
   return nome.trim().toLocaleLowerCase('pt-BR');
@@ -74,25 +76,17 @@ function PillarsPanel() {
 
   return (
     <>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <Text variant="secondary" className="max-w-xl">
-          Organize os assuntos que fazem parte do perfil. Quantos roteiros cada um tem num período fica na aba Período.
-        </Text>
-        <AppButton
-          variant="primary"
-          leftIcon={<Plus className="h-4 w-4" />}
-          onClick={() => navigate('/editorial/pilares/nova')}
-        >
-          Novo pilar
-        </AppButton>
-      </div>
       {pilares.length === 0 ? (
-        <Surface className="text-center">
-          <Text variant="sectionTitle">Nenhum pilar cadastrado</Text>
-          <Text variant="secondary" className="mt-1">
-            Adicione o primeiro pilar para organizar os temas editoriais.
-          </Text>
-        </Surface>
+        <EmptyState
+          icon={<Palette className="h-8 w-8" />}
+          title="Nenhum pilar cadastrado"
+          description="Adicione o primeiro pilar para organizar os temas editoriais."
+          action={(
+            <AppButton variant="primary" leftIcon={<Plus className="h-4 w-4" />} onClick={() => navigate('/editorial/pilares/nova')}>
+              Novo pilar
+            </AppButton>
+          )}
+        />
       ) : (
         <div className={SETTINGS_ENTITY_GRID_CLASS}>
           {pilares.map(pilar => {
@@ -101,28 +95,20 @@ function PillarsPanel() {
               <SettingsGridCard
                 key={pilar.id}
                 title={pilar.nome}
-                description={pilar.descricao || 'Descrição ainda não preenchida'}
+                description={pilar.descricao || undefined}
                 color={pilar.cor}
                 active={pilar.ativo}
                 dimmed={!pilar.ativo}
                 onToggle={() => dispatch({ type: 'UPDATE_PILAR', payload: { ...pilar, ativo: !pilar.ativo } })}
                 onOpen={() => navigate(`/editorial/pilares/${pilar.id}`)}
                 onDelete={() => remove(pilar)}
-                meta={nomeRepetido ? 'Outro pilar tem o mesmo nome. Renomeie ou exclua um deles.' : undefined}
-                badges={
-                  <>
-                    {nomeRepetido ? (
-                      <Badge variant="neutral" className="bg-[color-mix(in_srgb,var(--warning)_18%,transparent)] text-[var(--text-primary)]">
-                        Nome repetido
-                      </Badge>
-                    ) : null}
-                    <Badge>
-                      {pilar.plataformas.length === 0
-                        ? 'Sem redes'
-                        : `${pilar.plataformas.length} ${pilar.plataformas.length === 1 ? 'rede' : 'redes'}`}
-                    </Badge>
-                  </>
-                }
+                meta={[
+                  pilar.plataformas.length === 0
+                    ? 'Sem redes'
+                    : pilar.plataformas.length === 1 ? '1 rede' : `${pilar.plataformas.length} redes`,
+                  nomeRepetido ? 'Outro pilar tem o mesmo nome. Renomeie ou exclua um deles.' : null,
+                ].filter(Boolean).join(' · ')}
+                badges={nomeRepetido ? <Badge variant="warning">Nome repetido</Badge> : undefined}
               />
             );
           })}
@@ -153,6 +139,9 @@ function SeriesPanel() {
     () => new Map(state.series.map(serie => [serie.id, getSerieOpenItems(serie)])),
     [state.series],
   );
+  const avisosLigados = settings.openInfoNotices;
+  // Sem os avisos, o filtro "Em aberto" mostraria séries sem nada no card dizendo por quê.
+  const filtroAtivo: SeriesFilter = !avisosLigados && filter === 'abertas' ? 'todas' : filter;
   const counts = useMemo(() => {
     const active = state.series.filter(serie => serie.ativa).length;
     const opened = state.series.filter(serie => (openItems.get(serie.id)?.length ?? 0) > 0).length;
@@ -161,13 +150,13 @@ function SeriesPanel() {
   const filtered = useMemo(
     () => state.series
       .filter(serie => {
-        if (filter === 'ativas') return serie.ativa;
-        if (filter === 'inativas') return !serie.ativa;
-        if (filter === 'abertas') return (openItems.get(serie.id)?.length ?? 0) > 0;
+        if (filtroAtivo === 'ativas') return serie.ativa;
+        if (filtroAtivo === 'inativas') return !serie.ativa;
+        if (filtroAtivo === 'abertas') return (openItems.get(serie.id)?.length ?? 0) > 0;
         return true;
       })
       .sort((a, b) => Number(b.ativa) - Number(a.ativa) || a.name.localeCompare(b.name, 'pt-BR')),
-    [filter, openItems, state.series],
+    [filtroAtivo, openItems, state.series],
   );
 
   const remove = (serie: Serie) => {
@@ -179,43 +168,45 @@ function SeriesPanel() {
 
   return (
     <>
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      {state.series.length > 0 ? (
         <FilterChips<SeriesFilter>
-          value={filter}
+          value={filtroAtivo}
           onChange={setFilter}
           ariaLabel="Filtrar séries"
           options={[
             { id: 'todas', label: 'Todas', count: counts.todas },
             { id: 'ativas', label: 'Ativas', count: counts.ativas },
             { id: 'inativas', label: 'Inativas', count: counts.inativas },
-            { id: 'abertas', label: 'Em aberto', count: counts.abertas },
+            ...(avisosLigados ? [{ id: 'abertas' as const, label: 'Em aberto', count: counts.abertas }] : []),
           ]}
         />
-        <div className="flex flex-wrap gap-2">
-          <AppButton variant="secondary" onClick={() => navigate('/series')}>
-            Criação em massa
-          </AppButton>
-          <AppButton
-            variant="primary"
-            leftIcon={<Plus className="h-4 w-4" />}
-            onClick={() => navigate('/editorial/series/nova')}
-          >
-            Nova série
-          </AppButton>
-        </div>
-      </div>
-      {filtered.length === 0 ? (
-        <Surface className="text-center">
-          <Text variant="sectionTitle">Nenhuma série neste filtro</Text>
-          <Text variant="secondary" className="mt-1">
-            Escolha outro filtro ou crie uma série.
-          </Text>
-        </Surface>
+      ) : null}
+      {state.series.length === 0 ? (
+        <EmptyState
+          icon={<Layers3 className="h-8 w-8" />}
+          title="Nenhuma série criada"
+          description="Crie a primeira série para agrupar roteiros recorrentes."
+          action={(
+            <AppButton variant="primary" leftIcon={<Plus className="h-4 w-4" />} onClick={() => navigate('/editorial/series/nova')}>
+              Nova série
+            </AppButton>
+          )}
+        />
+      ) : filtered.length === 0 ? (
+        <EmptyState
+          title="Nenhuma série neste filtro"
+          description="O filtro escolhido não tem séries agora."
+          action={(
+            <AppButton variant="secondary" onClick={() => setFilter('todas')}>
+              Limpar filtro
+            </AppButton>
+          )}
+        />
       ) : (
         <div className={SETTINGS_ENTITY_GRID_CLASS}>
           {filtered.map(serie => {
             const items = openItems.get(serie.id) ?? [];
-            const aberta = settings.openInfoNotices && items.length > 0;
+            const aberta = avisosLigados && items.length > 0;
             return (
               <SettingsGridCard
                 key={serie.id}
@@ -278,8 +269,8 @@ export function EditorialPage() {
   const salvarPeriodo = (next: PeriodoSelecionado) => {
     dispatch({ type: 'SET_EDITORIAL_VISAO', payload: next });
   };
+  const navigate = useNavigate();
   const tab = abaPedida(searchParams.get('aba'));
-  const Icon = TAB_ICONS[tab];
 
   const changeTab = (next: EditorialTab) => {
     const params = new URLSearchParams(searchParams);
@@ -287,23 +278,37 @@ export function EditorialPage() {
     setSearchParams(params, { replace: true });
   };
 
+  // A ação principal da aba sobe para o header: uma só por tela.
+  const acao = tab === 'pilares' ? (
+    <AppButton variant="primary" leftIcon={<Plus className="h-4 w-4" />} onClick={() => navigate('/editorial/pilares/nova')}>
+      Novo pilar
+    </AppButton>
+  ) : tab === 'series' ? (
+    <AppButton variant="primary" leftIcon={<Plus className="h-4 w-4" />} onClick={() => navigate('/editorial/series/nova')}>
+      Nova série
+    </AppButton>
+  ) : null;
+
+  const abas = <SegmentTabs value={tab} onChange={changeTab} options={TABS} ariaLabel="Abas do Editorial" />;
+
   return (
-    <SettingsPageScaffold
-      section="Criação"
-      title="Editorial"
-      icon={Icon}
-      showBack={false}
-      variant="default"
-      toolbar={
-        <div className="max-w-full overflow-x-auto pb-1">
-          <SegmentTabs
-            value={tab}
-            onChange={changeTab}
-            options={TABS}
-            className="w-max min-w-full"
-          />
+    <PageLayout
+      header={(
+        <DesktopPageHeader
+          section="Criação"
+          title="Editorial"
+          icon={Compass}
+          meta={TAB_META[tab]}
+          actions={acao}
+        />
+      )}
+      toolbar={abas}
+      mobileToolbar={(
+        <div className="stack-sm">
+          {abas}
+          {acao ? <div className="flex justify-end">{acao}</div> : null}
         </div>
-      }
+      )}
     >
       {tab === 'pilares' ? <PillarsPanel /> : null}
       {tab === 'series' ? <SeriesPanel /> : null}
@@ -315,6 +320,6 @@ export function EditorialPage() {
         />
       ) : null}
       {tab === 'ajustes' ? <AjustesEditorialPanel /> : null}
-    </SettingsPageScaffold>
+    </PageLayout>
   );
 }

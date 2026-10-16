@@ -11,6 +11,8 @@ import { MoreMenu } from '../../../components/ui/MoreMenu';
 import { Surface } from '../../../components/ui/Surface';
 import { Text } from '../../../components/ui/Text';
 import { FilterChips } from '../../../components/ui/FilterChips';
+import { ToggleRow } from '../../../components/ui/ToggleSwitch';
+import { atualizarPreferencias } from '../../editorial/lib/editorialSettings';
 import { ToolbarSearchInput } from '../../../components/ui/ToolbarSearchInput';
 import { QueryViewState, resolveQueryViewStatus } from '../../../components/ui/QueryViewState';
 import { useAppContext } from '../../../context/AppContext';
@@ -52,6 +54,29 @@ export function SeriesSettingsPage() {
   const [quickName, setQuickName] = useState('');
   const [quickColor, setQuickColor] = useState(() => nextFreeSerieColor([]));
   const editorialSettings = state.editorial;
+  // Preferências de séries: moram aqui, junto da criação de séries (antes ficavam em Editorial > Ajustes).
+  const preferenciasSeries = [
+    {
+      key: 'quickSeriesCreate',
+      title: 'Criação rápida de séries',
+      description: 'Crie com nome e cor e complete os detalhes depois.',
+      enabled: editorialSettings.quickSeriesCreate,
+      toggle: () => dispatch({
+        type: 'SET_EDITORIAL',
+        payload: atualizarPreferencias({ ...editorialSettings, quickSeriesCreate: !editorialSettings.quickSeriesCreate }, {}),
+      }),
+    },
+    {
+      key: 'openInfoNotices',
+      title: 'Avisar sobre informações em aberto',
+      description: 'Sinaliza séries sem pilar, função, recorrência, formato ou esforço.',
+      enabled: editorialSettings.openInfoNotices,
+      toggle: () => dispatch({
+        type: 'SET_EDITORIAL',
+        payload: atualizarPreferencias({ ...editorialSettings, openInfoNotices: !editorialSettings.openInfoNotices }, {}),
+      }),
+    },
+  ];
 
   const openCreatePage = () => {
     if (editorialSettings.quickSeriesCreate) {
@@ -217,6 +242,23 @@ export function SeriesSettingsPage() {
       <Text variant="secondary" className="mb-4">
         Criação em massa: abra uma série para produzir roteiros e ideias. A edição completa fica no Editorial.
       </Text>
+      <Surface padding="sm" className="mb-4 grid gap-x-6 gap-y-2 md:grid-cols-2">
+        {preferenciasSeries.map(row => (
+          <ToggleRow
+            key={row.key}
+            id={`series-${row.key}`}
+            enabled={row.enabled}
+            onToggle={row.toggle}
+            title={row.title}
+            className="gap-4 py-1"
+          >
+            <span className="stack-xs">
+              <Text variant="body" as="span">{row.title}</Text>
+              <Text variant="secondary" as="span">{row.description}</Text>
+            </span>
+          </ToggleRow>
+        ))}
+      </Surface>
       <QueryViewState
         status={seriesStatus}
         skeletonCount={6}

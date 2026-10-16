@@ -14,6 +14,7 @@ export { MediaCard } from './MediaCard';
 export { SegmentTabs } from './SegmentTabs';
 export { FilterChips, type FilterChipOption } from './FilterChips';
 export { EmptyState } from './EmptyState';
+export { InlineNotice, type InlineNoticeAction } from './InlineNotice';
 export { Skeleton, SkeletonCard, SkeletonContentCard, SkeletonList, SkeletonRow } from './Skeleton';
 export { OperationalList } from './OperationalList';
 export { ContentRow } from './ContentRow';

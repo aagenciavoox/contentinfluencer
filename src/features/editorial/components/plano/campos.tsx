@@ -228,7 +228,7 @@ export function CardConfiguracao({
         </span>
         <div className="min-w-0 flex-1 pt-0.5">
           <Text variant="sectionTitle" as="h2">{titulo}</Text>
-          {descricao ? <Text variant="secondary" className="mt-0.5 text-[var(--text-secondary)]">{descricao}</Text> : null}
+          {descricao ? <Text variant="secondary" className="mt-0.5">{descricao}</Text> : null}
         </div>
         {acao ? <div className="shrink-0">{acao}</div> : null}
       </div>
