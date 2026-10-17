@@ -1,7 +1,8 @@
-import {useState} from 'react';
+import {useId, useState, type ReactNode} from 'react';
 import {Dialog} from '../../../components/overlays/Dialog';
 import {OverlayBody} from '../../../components/overlays/OverlayBody';
 import {OverlayHeader} from '../../../components/overlays/OverlayHeader';
+import {DisclosureButton} from '../../../components/ui/DisclosureButton';
 import {Surface} from '../../../components/ui/Surface';
 import {Text} from '../../../components/ui/Text';
 import type {Pilar, Serie} from '../../../lib/database';
@@ -97,6 +98,7 @@ export function MonthHealth({
   pilares,
   temDistribuicao,
   outrasRedes = 0,
+  collapsible = false,
 }: {
   counts: GradeCounts;
   /** Publicações do mês só fora da rede de referência; entram só na explicação. */
@@ -105,7 +107,11 @@ export function MonthHealth({
   series: readonly Serie[];
   pilares: readonly Pilar[];
   temDistribuicao: boolean;
+  /** Celular: fecha numa linha ("14 de 35 espaços") e abre a grade dos pilares no toque. */
+  collapsible?: boolean;
 }) {
+  const [aberto, setAberto] = useState(false);
+  const corpoId = useId();
   const [pilarAberto, setPilarAberto] = useState<string | null>(null);
   const corDoPilar = new Map(pilares.map(pilar => [pilar.id, pilar.cor?.trim() || null]));
   const pilar = pilares.find(item => item.id === pilarAberto) ?? null;
@@ -116,21 +122,14 @@ export function MonthHealth({
   const semMeta = counts.totalMeta === 0 && linhasDePilar.length === 0;
   const notaForaDaConta = textoForaDaConta(foraDaContaDoMes(counts, entries, outrasRedes));
 
-  return (
-    <Surface padding="md">
-      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-        <div className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1">
-          <Text variant="sectionTitle">Distribuição do mês</Text>
-          <Text variant="secondary" className="border-l border-[var(--border-color)] pl-3 text-[var(--text-secondary)]">
-            Rascunhos do mês e conteúdos com data, comparados ao Editorial.
-          </Text>
-        </div>
-        {counts.totalMeta > 0 ? (
-          <Text variant="meta" className="text-[var(--text-secondary)]">
-            <span className="font-semibold text-[var(--text-primary)]">{counts.somaPlanejado}</span> de {counts.totalMeta} espaços
-          </Text>
-        ) : null}
-      </div>
+  const resumo = counts.totalMeta > 0 ? (
+    <Text variant="meta" as="span" className="shrink-0 text-[var(--text-secondary)]">
+      <span className="font-semibold text-[var(--text-primary)]">{counts.somaPlanejado}</span> de {counts.totalMeta} espaços
+    </Text>
+  ) : null;
+
+  const corpo: ReactNode = (
+    <>
       {semMeta ? (
         <Text variant="meta" as="p" className="mt-3 text-[var(--text-secondary)]">
           Os pilares ainda não têm espaços por semana. Defina isso no editorial para comparar o mês.
@@ -174,6 +173,10 @@ export function MonthHealth({
       {notaForaDaConta ? (
         <Text variant="meta" as="p" className="mt-1 text-[var(--text-secondary)]">{notaForaDaConta}</Text>
       ) : null}
+    </>
+  );
+
+  const detalhe = (
       <Dialog
         open={Boolean(pilar)}
         onClose={() => setPilarAberto(null)}
@@ -220,6 +223,44 @@ export function MonthHealth({
           </div>
         ) : null}
       </Dialog>
+  );
+
+  if (collapsible) {
+    return (
+      <Surface padding="none" className="p-1">
+        <DisclosureButton open={aberto} onToggle={() => setAberto(open => !open)} controls={corpoId} trailing={resumo}>
+          <Text variant="sectionTitle" as="span">Distribuição do mês</Text>
+        </DisclosureButton>
+        {aberto ? (
+          <div id={corpoId} className="px-2 pb-2">
+            <Text variant="secondary" as="p" className="mt-1 text-[var(--text-secondary)]">
+              Rascunhos do mês e conteúdos com data, comparados ao Editorial.
+            </Text>
+            {corpo}
+          </div>
+        ) : null}
+        {detalhe}
+      </Surface>
+    );
+  }
+
+  return (
+    <Surface padding="md">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+        <div className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1">
+          <Text variant="sectionTitle">Distribuição do mês</Text>
+          <Text variant="secondary" className="border-l border-[var(--border-color)] pl-3 text-[var(--text-secondary)]">
+            Rascunhos do mês e conteúdos com data, comparados ao Editorial.
+          </Text>
+        </div>
+        {counts.totalMeta > 0 ? (
+          <Text variant="meta" className="text-[var(--text-secondary)]">
+            <span className="font-semibold text-[var(--text-primary)]">{counts.somaPlanejado}</span> de {counts.totalMeta} espaços
+          </Text>
+        ) : null}
+      </div>
+      {corpo}
+      {detalhe}
     </Surface>
   );
 }

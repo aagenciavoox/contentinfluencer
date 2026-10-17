@@ -82,6 +82,8 @@ export function PostItNote({
   temas = [],
   redes = [],
   dimmed = false,
+  draggable = true,
+  className,
 }: {
   postIt: PlanejamentoPostIt;
   content: Content | null;
@@ -96,6 +98,9 @@ export function PostItNote({
   /** Redes onde vai sair: as do conteúdo puxado ou, sem elas, as do post-it. */
   redes?: readonly RedeSocial[];
   dimmed?: boolean;
+  /** Celular: sem arrastar e sem alça; mover fica no menu do card. */
+  draggable?: boolean;
+  className?: string;
 }) {
   const kind = postItKind(postIt, content);
   const accent = kind === 'vazio' ? null : seriesColor?.trim() || null;
@@ -106,7 +111,7 @@ export function PostItNote({
     <div
       role="button"
       tabIndex={0}
-      draggable
+      draggable={draggable}
       aria-pressed={onToggleSelect ? selected : undefined}
       onPointerDown={event => {
         if (event.button !== 0) return;
@@ -127,6 +132,7 @@ export function PostItNote({
         onToggleSelect();
       }}
       onDragStart={event => {
+        if (!draggable) return;
         if ((event.ctrlKey || event.metaKey) && onToggleSelect) {
           event.preventDefault();
           return;
@@ -154,14 +160,16 @@ export function PostItNote({
         ...(selected ? {boxShadow: 'inset 0 0 0 2px var(--text-primary)'} : {}),
       }}
       className={cn(
-        'flex w-full cursor-grab items-start gap-1.5 rounded-[var(--radius-sm)] border border-l-[3px] px-2 py-2 text-left shadow-[var(--shadow-soft)] active:cursor-grabbing',
+        'flex w-full items-start gap-1.5 rounded-[var(--radius-sm)] border border-l-[3px] px-2 py-2 text-left shadow-[var(--shadow-soft)]',
+        draggable ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer',
         accent ? SERIES_SURFACE : KIND_SURFACE[kind],
         'focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
         selected && 'bg-[var(--bg-hover)]',
         dimmed && 'opacity-70',
+        className,
       )}
     >
-      <GripVertical className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[var(--text-tertiary)]" aria-hidden />
+      {draggable ? <GripVertical className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[var(--text-tertiary)]" aria-hidden /> : null}
       <span className="min-w-0 flex-1">
         {visibleMarks.length > 0 || redes.length > 0 ? (
           <span className="mb-1 flex items-center justify-between gap-1.5">

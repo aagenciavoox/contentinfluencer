@@ -2,7 +2,7 @@ import {useEffect, useMemo, useRef, useState, type DragEvent} from 'react';
 import {useNavigate, useSearchParams} from 'react-router-dom';
 import {format} from 'date-fns';
 import {ptBR} from 'date-fns/locale';
-import {CalendarDays, Pencil, Plus, StickyNote, Tag, Trash2} from 'lucide-react';
+import {CalendarDays, ChevronRight, Pencil, Plus, StickyNote, Tag, Trash2} from 'lucide-react';
 import {
   calendarEntryPillStyle,
   CalendarEventPill,
@@ -11,6 +11,7 @@ import {
 } from '../../../components/calendar';
 import {AppButton} from '../../../components/ui/AppButton';
 import {Badge} from '../../../components/ui/Badge';
+import {MoreMenu, type MoreMenuItem} from '../../../components/ui/MoreMenu';
 import {Surface} from '../../../components/ui/Surface';
 import {TagSelect} from '../../../components/ui/TagSelect';
 import {Text} from '../../../components/ui/Text';
@@ -27,7 +28,7 @@ import {cn, tintedTextColor} from '../../../lib/utils';
 import {TemaField} from '../../contents/components/detail/TemaField';
 import {buildContentDetailRoute} from '../../contents/lib/contentDetailRoute';
 import {CONTENT_STATUS, DISPLAY_STATUS, normalizeContentStatus} from '../../contents/lib/contentPipeline';
-import {calendarEntryIcon} from '../../editorial-calendar/components/CalendarNetworkIcons';
+import {calendarEntryIcon, CalendarNetworkIcons} from '../../editorial-calendar/components/CalendarNetworkIcons';
 import {buildDetailBackState} from '../../../lib/navigation/detailBack';
 import {etiquetasVisiveis} from '../../creation/lib/creationItemPresentation';
 import {distribuicaoFecha} from '../../editorial/lib/gradeCounts';
@@ -37,6 +38,7 @@ import {EncaixeDialog} from '../components/EncaixeDialog';
 import {MonthHealth} from '../components/MonthHealth';
 import {PostItRapidoDialog} from '../components/PostItRapidoDialog';
 import {PuxarConteudoDialog} from '../components/PuxarConteudoDialog';
+import {PlanejamentoMobileView} from '../components/PlanejamentoMobileView';
 import {PlatformIcons} from '../../../components/ui/PlatformIcons';
 import {RedeChips} from '../components/RedeChips';
 import {redesDoCartao} from '../lib/redesDoCartao';
@@ -44,7 +46,7 @@ import {REDE_ROTULO} from '../../contas/lib/contas';
 import {excessosAoAcrescentar, periodoDoMes, saudeDoMes, type ExcessoMes} from '../lib/monthHealth';
 import {POST_IT_MIME, PostItIdentity, PostItNote, PostItTemas, type PostItMark} from '../components/PostItNote';
 import {conteudoTemTema, temasEmUso} from '../lib/temasPlanejamento';
-import {publicacoesPorDia} from '../lib/publicacoesDoMes';
+import {publicacoesPorDia, type PublicacaoNoDia} from '../lib/publicacoesDoMes';
 import {
   canPullContent,
   cancelPostItEdit,
@@ -163,6 +165,9 @@ export function PlanejamentoPage() {
   const [rapidoDate, setRapidoDate] = useState<string | null | undefined>(undefined);
   /** "Mais opções" abre o post-it recém-criado já no editor completo. */
   const editarAoAbrir = useRef(false);
+  /** Celular: post-it sendo movido pelo menu ⋯ (ou "Mover para…" do post-it aberto). */
+  const [moveId, setMoveId] = useState<string | null>(null);
+  const [moveDate, setMoveDate] = useState<string | null>(null);
 
   const contents = state.contents;
   const postIts = state.postIts ?? [];
@@ -243,7 +248,7 @@ export function PlanejamentoPage() {
   );
   const temaFiltro = temasDoPlanejamento.find(tema => tema.id === temaFiltroId) ?? null;
 
-  const renderPostIt = (postIt: PlanejamentoPostIt, compact: boolean) => {
+  const renderPostIt = (postIt: PlanejamentoPostIt, compact: boolean, className?: string) => {
     const content = contentById(contents, postIt.contentId);
     const appearance = postItAppearance(content, state.series, state.pilares, state.temas, postIt);
     return (
@@ -257,6 +262,8 @@ export function PlanejamentoPage() {
         redes={redesDoCartao({content, postIt, contas: state.platforms})}
         dimmed={temaFiltro ? !conteudoTemTema(content, temaFiltro.id) : false}
         compact={compact}
+        draggable={!isMobile}
+        className={className}
         selected={!isMobile && selectedIds.has(postIt.id)}
         dragIds={!isMobile && selectedIds.has(postIt.id) ? [...selectedIds] : undefined}
         onToggleSelect={isMobile ? undefined : () => toggleSelected(postIt.id)}
@@ -265,6 +272,115 @@ export function PlanejamentoPage() {
           setOpenId(postIt.id);
         }}
       />
+    );
+  };
+
+  const renderPublicacao = (publicacao: PublicacaoNoDia) => {
+    const posted = publicacao.estado === 'postado';
+    return (
+      <CalendarEventPill
+        key={publicacao.id}
+        label={publicacao.titulo}
+        time={publicacao.time}
+        secondary={posted ? CONTENT_STATUS.POSTADO : DISPLAY_STATUS.PROGRAMADO}
+        icon={calendarEntryIcon({platformNames: publicacao.platformNames, posted, scheduled: !posted})}
+        style={calendarEntryPillStyle({type: 'publish', posted})}
+        onClick={event => {
+          event.stopPropagation();
+          navigate(
+            buildContentDetailRoute(publicacao.contentId, 'publicacao'),
+            buildDetailBackState('/planejamento'),
+          );
+        }}
+      />
+    );
+  };
+
+  /**
+   * Celular: publicação já programada ou postada. Só leitura (abre o conteúdo), mais apagada
+   * que os post-its editáveis e com o estado por extenso.
+   */
+  const renderPublicacaoMobile = (publicacao: PublicacaoNoDia) => {
+    const status = publicacao.estado === 'postado' ? CONTENT_STATUS.POSTADO : DISPLAY_STATUS.PROGRAMADO;
+    return (
+      <button
+        type="button"
+        onClick={() =>
+          navigate(buildContentDetailRoute(publicacao.contentId, 'publicacao'), buildDetailBackState('/planejamento'))
+        }
+        aria-label={`${publicacao.titulo}, ${status}${publicacao.time ? ` às ${publicacao.time}` : ''}. Abrir conteúdo`}
+        className="flex min-h-11 w-full min-w-0 flex-col gap-1 rounded-[var(--radius-sm)] border border-[var(--border-color)] bg-[var(--bg-primary)] px-2.5 py-2 text-left transition-colors hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+      >
+        <span className="flex min-w-0 items-center gap-2">
+          <Badge variant="status" status={status}>{status}</Badge>
+          {publicacao.time ? (
+            <Text variant="meta" as="span" className="shrink-0 tabular-nums text-[var(--text-secondary)]">
+              {publicacao.time}
+            </Text>
+          ) : null}
+          <span className="ml-auto flex shrink-0 items-center gap-1 text-[var(--text-tertiary)]">
+            <CalendarNetworkIcons names={publicacao.platformNames} />
+            <ChevronRight className="h-4 w-4" aria-hidden />
+          </span>
+        </span>
+        <Text variant="body" as="span" className="block min-w-0 break-words text-[var(--text-secondary)]">
+          {publicacao.titulo}
+        </Text>
+      </button>
+    );
+  };
+
+  const abrirMover = (postIt: PlanejamentoPostIt) => {
+    setMoveDate(postIt.date ?? null);
+    setMoveId(postIt.id);
+  };
+
+  const fecharMover = () => setMoveId(null);
+
+  const confirmarMover = () => {
+    const id = moveId;
+    setMoveId(null);
+    if (!id) return;
+    const postIt = postIts.find(item => item.id === id);
+    if (!postIt || (postIt.date ?? null) === moveDate) return;
+    // moveMany mantém os avisos de "Passa do editorial".
+    moveMany([id], moveDate);
+  };
+
+  const removePostItById = (id: string) => {
+    const removal = deletePostIt({postIts, contents, id});
+    if (removal.postIts.length !== postIts.length) {
+      dispatch({type: 'DELETE_POST_IT', payload: id});
+    }
+    setSelectedIds(current => {
+      if (!current.has(id)) return current;
+      const next = new Set(current);
+      next.delete(id);
+      return next;
+    });
+    if (openId === id) closePostIt();
+  };
+
+  /** Celular: post-it em largura toda com ⋯ (mover, tirar do mês, apagar) no lugar de arrastar. */
+  const renderMobilePostIt = (postIt: PlanejamentoPostIt) => {
+    const items: MoreMenuItem[] = [
+      {
+        id: 'mover',
+        label: postIt.date ? 'Mover para outro dia…' : 'Colocar em um dia…',
+        onClick: () => abrirMover(postIt),
+      },
+      ...(postIt.date
+        ? [{id: 'tirar', label: 'Tirar do mês', onClick: () => moveMany([postIt.id], null)} satisfies MoreMenuItem]
+        : []),
+      {id: 'apagar', label: 'Apagar', tone: 'danger', onClick: () => removePostItById(postIt.id)},
+    ];
+    return (
+      <div className="relative min-w-0">
+        {renderPostIt(postIt, false, 'min-h-11 pr-12')}
+        <div className="absolute right-0.5 top-0.5">
+          <MoreMenu items={items} align="right" label="Opções do post-it" size="sm" />
+        </div>
+      </div>
     );
   };
 
@@ -596,6 +712,37 @@ export function PlanejamentoPage() {
         </DesktopPageHeader>
       )}
     >
+      {isMobile ? (
+        // Sem padding próprio: o <main> do MobileAppShell já dá 16px dos dois lados.
+        <PlanejamentoMobileView
+            month={month}
+            onMonthChange={setMonth}
+            byDate={byDate}
+            publicacoesDoDia={publicacoesDoDia}
+            undated={undated}
+            renderPostIt={renderMobilePostIt}
+            renderPublicacao={renderPublicacaoMobile}
+            onNovoPostIt={addEmpty}
+            onPuxar={date => {
+              setPullDate(date);
+              setPullOpen(true);
+            }}
+            monthHealth={
+              <MonthHealth
+                counts={monthHealth.counts}
+                entries={monthHealth.counts.entries}
+                series={state.series}
+                pilares={state.pilares}
+                temDistribuicao={monthHealth.temDistribuicao}
+                outrasRedes={monthHealth.counts.outrasRedes}
+                collapsible
+              />
+            }
+            temas={temasDoPlanejamento}
+            temaFiltroId={temaFiltroId}
+            onTemaFiltroChange={setTemaFiltroId}
+          />
+      ) : (
         <div className="stack-md p-3 md:p-4">
         {isMobile ? (
           <div className="flex flex-wrap gap-2">
@@ -690,26 +837,7 @@ export function PlanejamentoPage() {
               const dayLabel = format(day.day, "d 'de' MMMM", {locale: ptBR});
               return (
                 <div className="stack-sm">
-                  {(publicacoesDoDia.get(day.dateKey) ?? []).map(publicacao => {
-                    const posted = publicacao.estado === 'postado';
-                    return (
-                      <CalendarEventPill
-                        key={publicacao.id}
-                        label={publicacao.titulo}
-                        time={publicacao.time}
-                        secondary={posted ? CONTENT_STATUS.POSTADO : DISPLAY_STATUS.PROGRAMADO}
-                        icon={calendarEntryIcon({platformNames: publicacao.platformNames, posted, scheduled: !posted})}
-                        style={calendarEntryPillStyle({type: 'publish', posted})}
-                        onClick={event => {
-                          event.stopPropagation();
-                          navigate(
-                            buildContentDetailRoute(publicacao.contentId, 'publicacao'),
-                            buildDetailBackState('/planejamento'),
-                          );
-                        }}
-                      />
-                    );
-                  })}
+                  {(publicacoesDoDia.get(day.dateKey) ?? []).map(renderPublicacao)}
                   {dayPostIts.map(postIt => renderPostIt(postIt, true))}
                   <div className="flex gap-0.5 transition-opacity md:opacity-0 md:focus-within:opacity-100 md:group-hover/day:opacity-100 md:group-focus-within/day:opacity-100 pointer-coarse:opacity-100">
                     <AppButton
@@ -791,6 +919,7 @@ export function PlanejamentoPage() {
           ) : null}
         </div>
       </div>
+      )}
 
       <Dialog open={Boolean(openPostIt)} onClose={closePostIt} desktopMaxW="max-w-lg" ariaLabel="Post-it">
         {openPostIt ? (
@@ -842,6 +971,11 @@ export function PlanejamentoPage() {
                         : 'Sem data · Fora do calendário'}
                     </p>
                   )}
+                  {!editing && isMobile ? (
+                    <AppButton variant="secondary" size="sm" className="self-start" onClick={() => abrirMover(openPostIt)}>
+                      Mover para…
+                    </AppButton>
+                  ) : null}
                 </div>
                 {!editing && openRedes.length > 0 ? (
                   <p className="flex items-center gap-2 t-body text-[var(--text-secondary)]">
@@ -1055,6 +1189,42 @@ export function PlanejamentoPage() {
             </OverlayFooter>
           </div>
         ) : null}
+      </Dialog>
+
+      <Dialog open={moveId !== null} onClose={fecharMover} desktopMaxW="max-w-sm" zIndex="z-[140]" ariaLabel="Mover post-it">
+        <div className="flex h-full min-h-0 flex-col bg-[var(--bg-elevated)]">
+          <OverlayHeader title="Mover post-it" onClose={fecharMover} />
+          <OverlayBody>
+            <div className="stack-sm">
+              <label className="stack-sm">
+                <Text variant="label" as="span">Dia</Text>
+                <input
+                  type="date"
+                  value={moveDate ?? ''}
+                  onChange={event => setMoveDate(event.target.value || null)}
+                  className="w-full rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-hover)] px-3 py-2 text-sm text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+                />
+              </label>
+              {moveDate ? (
+                <AppButton variant="secondary" size="sm" className="self-start" onClick={() => setMoveDate(null)}>
+                  Sem data
+                </AppButton>
+              ) : (
+                <Text variant="secondary" className="text-[var(--text-secondary)]">
+                  Sem data · Fora do calendário
+                </Text>
+              )}
+            </div>
+          </OverlayBody>
+          <OverlayFooter className="justify-between">
+            <AppButton variant="secondary" onClick={fecharMover}>
+              Cancelar
+            </AppButton>
+            <AppButton variant="primary" onClick={confirmarMover}>
+              Mover
+            </AppButton>
+          </OverlayFooter>
+        </div>
       </Dialog>
 
       <PostItRapidoDialog
