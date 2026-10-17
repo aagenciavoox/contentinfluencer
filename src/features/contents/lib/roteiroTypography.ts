@@ -74,6 +74,11 @@ function ensureFontLoaded(font: RoteiroFontId) {
   document.head.appendChild(link);
 }
 
+/** Carrega todas as fontes do roteiro: usado ao abrir a lista, para cada opção aparecer na própria fonte. */
+export function preloadRoteiroFonts() {
+  ROTEIRO_FONTS.forEach(font => ensureFontLoaded(font.id));
+}
+
 const CHANGE_EVENT = 'criaki-roteiro-typography-change';
 
 export function useRoteiroTypography(userId: string | null | undefined) {

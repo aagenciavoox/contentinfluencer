@@ -1,6 +1,6 @@
 import {useEffect, useRef, useState} from 'react';
-import {useLocation} from 'react-router-dom';
-import {ArrowRight, MoreHorizontal, Pencil, Trash2} from 'lucide-react';
+import {Link, useLocation} from 'react-router-dom';
+import {ArrowRight, ChevronLeft, MoreHorizontal, Pencil, Trash2} from 'lucide-react';
 import {AppButton} from '../../../../components/ui/AppButton';
 import {Badge} from '../../../../components/ui/Badge';
 import {Surface} from '../../../../components/ui/Surface';
@@ -34,6 +34,35 @@ interface ContentDetailHeaderProps {
   breadcrumbMode?: 'content' | 'pipeline';
   saveState?: 'idle' | 'saving' | 'saved' | 'error';
   contentKind?: 'idea' | 'script';
+  /**
+   * document: só "‹ Criação" à esquerda e "Salvo" + "⋯" à direita. O título e o botão
+   * de avançar ficam na área de escrita (aba Roteiro com Escrita/Gestão, no computador).
+   */
+  variant?: 'default' | 'document';
+}
+
+/** Botão principal do fluxo (ex.: "Avançar para gravação"), com o rótulo de cada etapa. */
+export function ContentPrimaryActionButton({
+  primaryAction,
+  onPrimaryAction,
+  busy = false,
+}: {
+  primaryAction: ContentPrimaryAction;
+  onPrimaryAction: () => void;
+  busy?: boolean;
+}) {
+  if (primaryAction.id === 'none') return null;
+  return (
+    <AppButton
+      variant="primary"
+      onClick={onPrimaryAction}
+      disabled={busy || primaryAction.disabled}
+      disabledReason={primaryAction.disabled ? primaryAction.reason : undefined}
+      rightIcon={primaryAction.id === 'advance_to_recording' || primaryAction.id === 'promote_to_script' ? <ArrowRight className="h-4 w-4" /> : undefined}
+    >
+      {primaryAction.label}
+    </AppButton>
+  );
 }
 
 export function ContentDetailHeader({
@@ -56,6 +85,7 @@ export function ContentDetailHeader({
   breadcrumbMode = 'content',
   saveState = 'idle',
   contentKind = 'script',
+  variant = 'default',
 }: ContentDetailHeaderProps) {
   const location = useLocation();
   const displayTitle = title ?? content.title;
@@ -230,6 +260,27 @@ export function ContentDetailHeader({
     )
   ) : undefined;
 
+  if (variant === 'document') {
+    const crumbLabel = labelForDetailBack(backTo, listLabel);
+    return (
+      <header className="desktop-page-header">
+        <div className="flex min-w-0 items-center justify-between gap-3">
+          <Link
+            to={backTo}
+            className="desktop-page-header-crumb desktop-page-header-back transition-colors hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+          >
+            <ChevronLeft className="h-3.5 w-3.5 shrink-0" aria-hidden />
+            {crumbLabel === 'Roteiros' ? 'Criação' : crumbLabel}
+          </Link>
+          <div className="flex min-w-0 items-center justify-end gap-3">
+            {saveIndicator}
+            {overflowMenu}
+          </div>
+        </div>
+      </header>
+    );
+  }
+
   const meta = [
     authorName,
     pilar?.nome,
@@ -248,15 +299,11 @@ export function ContentDetailHeader({
       actions={(
         <>
           {hasPrimaryAction ? (
-            <AppButton
-              variant="primary"
-              onClick={onPrimaryAction}
-              disabled={workflowBusy || primaryAction.disabled}
-              disabledReason={primaryAction.disabled ? primaryAction.reason : undefined}
-              rightIcon={primaryAction.id === 'advance_to_recording' || primaryAction.id === 'promote_to_script' ? <ArrowRight className="h-4 w-4" /> : undefined}
-            >
-              {primaryAction.label}
-            </AppButton>
+            <ContentPrimaryActionButton
+              primaryAction={primaryAction}
+              onPrimaryAction={onPrimaryAction}
+              busy={workflowBusy}
+            />
           ) : null}
           {overflowMenu}
         </>

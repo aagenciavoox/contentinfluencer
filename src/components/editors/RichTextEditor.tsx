@@ -79,9 +79,11 @@ interface RichTextEditorProps {
   variant?: 'default' | 'workspace';
   /** writing: Bloco, template, undo, bold, italic, and Mais. The rest stays in the menu. */
   formatBar?: 'full' | 'writing';
-  /** spoken: teleprompter pace. reading: the older 2.5 words-per-second estimate. */
-  meter?: 'reading' | 'spoken';
+  /** spoken: teleprompter pace. reading: the older 2.5 words-per-second estimate. none: sem contador (telas de carrossel). */
+  meter?: 'reading' | 'spoken' | 'none';
   toolbarStart?: React.ReactNode;
+  /** Na barra, antes de "Mais" (ex.: botão "Notas"). */
+  toolbarEnd?: React.ReactNode;
   /** Fonte e tamanho (valem para o roteiro inteiro), mostrados depois de Estilo. */
   typographySlot?: React.ReactNode;
   saveState?: 'idle' | 'saving' | 'saved' | 'error';
@@ -168,6 +170,7 @@ export function RichTextEditor({
   formatBar = 'full',
   meter = 'reading',
   toolbarStart,
+  toolbarEnd,
   typographySlot,
   saveState = 'idle',
   saveAction,
@@ -975,12 +978,13 @@ export function RichTextEditor({
             editor={editor}
             mode={writingBar ? 'writing' : 'full'}
             toolbarStart={toolbarStart}
+            toolbarEnd={toolbarEnd}
             typographySlot={typographySlot}
             onComment={onAddAnnotation ? startCommenting : undefined}
             onFind={openFind}
             onLink={requestLink}
           />
-          {!isWorkspace ? (
+          {!isWorkspace && meter !== 'none' ? (
             <div className="ml-3 hidden shrink-0 items-center gap-1 text-sm text-[var(--text-tertiary)] sm:flex">
               {wordCount} palavras · {durationLabel}
             </div>
@@ -989,9 +993,11 @@ export function RichTextEditor({
             <button
               onClick={() => setFullscreen(true)}
               className={cn(
-                'mr-2 flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--radius-input)] transition',
+                'mr-2 flex shrink-0 items-center justify-center rounded-[var(--radius-input)] transition',
+                writingBar ? 'h-8 w-8' : 'h-9 w-9',
                 formatControlClass(false, writingBar),
               )}
+              title="Tela cheia"
               aria-label="Expandir editor"
               type="button"
             >
@@ -1265,7 +1271,13 @@ export function RichTextEditor({
           </div>
         )}
 
-        {isWorkspace && !compactMobileComposer ? (
+        {isWorkspace && !compactMobileComposer && meter === 'none' ? (
+          saveAction ? (
+            <div className="flex shrink-0 items-center justify-end gap-3 border-t border-[var(--border-color)] bg-[var(--bg-elevated)] px-4 py-2.5 text-xs text-[var(--text-tertiary)]">
+              <div className="flex min-w-0 items-center gap-2">{saveAction}</div>
+            </div>
+          ) : null
+        ) : isWorkspace && !compactMobileComposer ? (
           <div className="flex shrink-0 items-center justify-between gap-3 border-t border-[var(--border-color)] bg-[var(--bg-elevated)] px-4 py-2.5 text-xs text-[var(--text-tertiary)]">
             <span>
               {wordCount} {wordCount === 1 ? 'palavra' : 'palavras'} · {durationLabel}

@@ -32,6 +32,8 @@ interface ContentScriptWorkspaceProps {
   bodyError?: string | null;
   onRetryBody?: () => void;
   headerAction?: React.ReactNode;
+  /** Na barra do editor, antes de "Mais" (ex.: botão "Notas"). */
+  toolbarEnd?: ReactNode;
   className?: string;
   fullscreenAside?: ReactNode;
   onFullscreenChange?: (open: boolean) => void;
@@ -56,6 +58,7 @@ export function ContentScriptWorkspace({
   bodyError = null,
   onRetryBody,
   headerAction,
+  toolbarEnd,
   className,
   fullscreenAside,
   onFullscreenChange,
@@ -149,7 +152,8 @@ export function ContentScriptWorkspace({
               />
               </>
             }
-            typographySlot={<RoteiroTypographyControls typography={typography} onChange={setTypography} />}
+            toolbarEnd={toolbarEnd}
+            typographySlot={<RoteiroTypographyControls variant="toolbar" typography={typography} onChange={setTypography} />}
             saveState={saveState}
             fullscreenAside={fullscreenAside}
             onFullscreenChange={onFullscreenChange}

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useEditorState, type Editor } from '@tiptap/react';
-import { Baseline, Ban, ChevronDown, Highlighter } from 'lucide-react';
+import { Baseline, Ban, Check, ChevronDown, Highlighter } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { HIGHLIGHT_COLORS, HIGHLIGHT_INK, TEXT_COLORS } from './editorColors';
 
@@ -33,46 +33,69 @@ export function ColorSwatches({
   large?: boolean;
 }) {
   const palette = kind === 'highlight' ? HIGHLIGHT_COLORS : TEXT_COLORS;
-  const size = large ? 'h-10 w-10' : 'h-7 w-7';
+  const selected = current?.toLowerCase() ?? null;
   return (
-    <div className={cn('grid gap-1.5', large ? 'grid-cols-4' : 'grid-cols-4')}>
+    <div className={large ? 'stack-md' : 'stack-sm'}>
+      {/* "Sem destaque" / "Cor padrão" numa linha própria, como o "Nenhuma" do Google Docs. */}
       <button
         type="button"
         onMouseDown={event => event.preventDefault()}
         onClick={() => onPick(null)}
-        aria-label={LABELS[kind].none}
+        aria-pressed={!selected}
         title={LABELS[kind].none}
         className={cn(
-          size,
-          'flex items-center justify-center rounded-[var(--radius-pill)] border border-[var(--border-color)] text-[var(--text-tertiary)] transition hover:bg-[var(--bg-hover)]',
-          !current && 'ring-2 ring-[var(--accent-blue)] ring-offset-1 ring-offset-[var(--bg-elevated)]',
+          'flex w-full items-center gap-2 whitespace-nowrap rounded-[var(--radius-input)] px-2 text-left text-sm text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
+          large ? 'min-h-11' : 'min-h-8',
+          !selected && 'bg-[var(--bg-hover)] font-semibold',
         )}
       >
-        <Ban className="h-3.5 w-3.5" />
-      </button>
-      {palette.map(color => (
-        <button
-          key={color.value}
-          type="button"
-          onMouseDown={event => event.preventDefault()}
-          onClick={() => onPick(color.value)}
-          aria-label={`${LABELS[kind].title}: ${color.name}`}
-          title={color.name}
-          className={cn(
-            size,
-            'flex items-center justify-center rounded-[var(--radius-pill)] border border-[color-mix(in_srgb,var(--text-primary),transparent_85%)] text-xs font-semibold transition hover:scale-110',
-            current?.toLowerCase() === color.value.toLowerCase() &&
-              'ring-2 ring-[var(--accent-blue)] ring-offset-1 ring-offset-[var(--bg-elevated)]',
-          )}
-          style={
-            kind === 'highlight'
-              ? { backgroundColor: color.value, color: HIGHLIGHT_INK }
-              : { backgroundColor: 'var(--bg-elevated)', color: color.value }
-          }
+        <span
+          className="flex h-5 w-5 shrink-0 items-center justify-center rounded-[var(--radius-pill)] border border-[var(--border-strong)] text-[var(--text-tertiary)]"
+          aria-hidden
         >
-          {kind === 'text' ? 'A' : null}
-        </button>
-      ))}
+          <Ban className="h-3 w-3" />
+        </span>
+        <span className="flex-1">{LABELS[kind].none}</span>
+        {!selected ? <Check className="h-4 w-4 shrink-0" aria-hidden /> : null}
+      </button>
+      <div
+        role="group"
+        aria-label={kind === 'highlight' ? 'Cores de destaque' : 'Cores do texto'}
+        // gap-2 (8px) dá folga para o anel de seleção (2px + 2px de afastamento) sem tocar nas vizinhas.
+        className={cn('grid w-max', large ? 'grid-cols-4 gap-4' : 'grid-cols-7 gap-2')}
+      >
+        {palette.map(color => {
+          const isSelected = selected === color.value.toLowerCase();
+          return (
+            <button
+              key={color.value}
+              type="button"
+              onMouseDown={event => event.preventDefault()}
+              onClick={() => onPick(color.value)}
+              aria-label={`${LABELS[kind].title}: ${color.name}`}
+              aria-pressed={isSelected}
+              title={color.name}
+              className={cn(
+                large ? 'h-11 w-11' : 'h-7 w-7',
+                'flex shrink-0 items-center justify-center rounded-[var(--radius-pill)] border text-xs font-semibold transition-shadow focus-visible:outline-none',
+                kind === 'highlight'
+                  ? 'border-[color-mix(in_srgb,var(--text-primary),transparent_82%)]'
+                  : 'border-[var(--border-color)]',
+                isSelected
+                  ? 'ring-2 ring-[var(--text-primary)] ring-offset-2 ring-offset-[var(--bg-elevated)]'
+                  : 'hover:ring-2 hover:ring-[var(--border-strong)] hover:ring-offset-2 hover:ring-offset-[var(--bg-elevated)] focus-visible:ring-2 focus-visible:ring-[var(--accent-blue)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-elevated)]',
+              )}
+              style={
+                kind === 'highlight'
+                  ? { backgroundColor: color.value, color: HIGHLIGHT_INK }
+                  : { backgroundColor: 'var(--bg-elevated)', color: color.value }
+              }
+            >
+              {kind === 'text' ? 'A' : isSelected ? <Check className="h-3.5 w-3.5" aria-hidden /> : null}
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -162,9 +185,10 @@ export function EditorColorMenu({
         <div
           role="dialog"
           aria-label={LABELS[kind].title}
-          className="absolute left-0 top-full z-[140] mt-1 rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-elevated)] p-2.5 shadow-[var(--shadow-dropdown)] md:rounded-[var(--radius-card)]"
+          // Largura do conteúdo (w-max): o popover não encolhe dentro da barra e nada se sobrepõe.
+          className="absolute left-0 top-full z-[140] mt-1 w-max min-w-[15rem] rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-elevated)] p-3 shadow-[var(--shadow-dropdown)] md:rounded-[var(--radius-card)]"
         >
-          <p className="mb-2 text-xs font-medium text-[var(--text-tertiary)]">{LABELS[kind].title}</p>
+          <p className="mb-2 whitespace-nowrap text-xs font-semibold leading-5 text-[var(--text-secondary)]">{LABELS[kind].title}</p>
           <ColorSwatches kind={kind} current={current} onPick={pick} />
         </div>
       ) : null}
