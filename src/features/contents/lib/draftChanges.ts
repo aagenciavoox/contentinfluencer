@@ -10,7 +10,7 @@ export function normalizeEditorText(value: string | null | undefined): string {
 }
 
 const TEXT_FIELDS = new Set(['script', 'notes', 'referencias']);
-const LIST_FIELDS = new Set(['scriptNotes', 'plataformas', 'livroIds', 'temaIds', 'tags']);
+const LIST_FIELDS = new Set(['scriptNotes', 'plataformas', 'livroIds', 'temaIds', 'tags', 'carouselSlides']);
 
 /** Um campo do rascunho mudou de verdade. Abrir, focar ou reformatar o mesmo texto não conta. */
 export function draftFieldChanged(key: string, previous: unknown, next: unknown): boolean {

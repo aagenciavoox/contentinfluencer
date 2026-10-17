@@ -28,6 +28,8 @@ function mergeContentRecords(local: Content, remote: Content): Content {
       notes: remote.notes ?? local.notes,
       referencias: remote.referencias ?? local.referencias,
       writingNotes: remote.writingNotes ?? local.writingNotes,
+      writingMode: remote.writingMode ?? local.writingMode,
+      carouselSlides: remote.carouselSlides ?? local.carouselSlides,
     };
   }
 
@@ -39,6 +41,8 @@ function mergeContentRecords(local: Content, remote: Content): Content {
     notes: local.notes ?? remote.notes,
     referencias: local.referencias ?? remote.referencias,
     writingNotes: local.writingNotes ?? remote.writingNotes,
+    writingMode: local.writingMode ?? remote.writingMode,
+    carouselSlides: local.carouselSlides ?? remote.carouselSlides,
     plataformas: local.plataformas?.length ? local.plataformas : remote.plataformas,
   };
 }

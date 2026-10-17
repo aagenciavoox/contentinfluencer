@@ -1,6 +1,7 @@
 import type { Content, Pilar, Serie } from '../../../lib/database';
 import { getDisplayStatus } from './contentPipeline';
 import { htmlToReadableText } from '../../../lib/utils';
+import { contentReadableBody } from './carouselSlides.ts';
 
 export function resolveContentEntities(
   content: Pick<Content, 'pilarId' | 'seriesId'>,
@@ -39,7 +40,7 @@ export function formatLastEdit(iso: string) {
 }
 
 export function getScriptWordCount(content: Content) {
-  const text = htmlToReadableText(content.script || content.notes || '');
+  const text = contentReadableBody(content) || htmlToReadableText(content.notes || '');
   if (!text.trim()) return 0;
   return text.trim().split(/\s+/).length;
 }

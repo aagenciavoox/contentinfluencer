@@ -230,7 +230,7 @@ export function PlatformsSettingsPage() {
                 options={REDES.map(rede => ({ value: rede, label: REDE_ROTULO[rede] }))}
                 onChange={values => {
                   const rede = values[0];
-                  if (rede !== 'instagram' && rede !== 'tiktok' && rede !== 'youtube' && rede !== 'outra') return;
+                  if (rede !== 'instagram' && rede !== 'tiktok' && rede !== 'youtube' && rede !== 'blog' && rede !== 'outra') return;
                   setRascunho({ ...rascunho, rede });
                 }}
               />

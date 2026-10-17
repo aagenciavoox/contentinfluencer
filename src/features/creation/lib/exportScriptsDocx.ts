@@ -1,5 +1,12 @@
 import type {Content, Platform} from '../../../lib/database.ts';
 import {htmlToReadableText} from '../../../lib/utils.ts';
+import {
+  carouselExportSlides,
+  carouselPlainText,
+  imageRefHref,
+  isCarouselContent,
+  type CarouselExportSlide,
+} from '../../contents/lib/carouselSlides.ts';
 import {CONTENT_STATUS, normalizeContentStatus} from '../../contents/lib/contentPipeline.ts';
 import { rotuloDaRef } from '../../contas/lib/contas.ts';
 import { legendaEfetiva } from '../../editorial/lib/captions.ts';
@@ -19,6 +26,8 @@ export interface CreationExportSection {
   body: string;
   notes: string;
   captions: CreationExportCaption[];
+  /** Só no modo Carrossel: as telas, cada uma com texto e imagens. */
+  slides?: CarouselExportSlide[];
 }
 
 export interface CreationExportCopy {
@@ -92,6 +101,8 @@ export function buildCreationExportSections(
     .filter(canExportCreation)
     .map(content => {
       const kind = getCreationExportKind(content);
+      const carousel = kind === 'script' && isCarouselContent(content) && content.carouselSlides !== undefined;
+      const slides = carousel ? carouselExportSlides(content.carouselSlides) : undefined;
       const ideaBody = htmlToReadableText(content.notes).trim()
         || htmlToReadableText(content.script).trim();
       return {
@@ -101,7 +112,10 @@ export function buildCreationExportSections(
           || (kind === 'idea' ? 'Ideia sem título' : 'Roteiro sem título'),
         body: kind === 'idea'
           ? ideaBody
-          : htmlToReadableText(content.script).trim(),
+          : carousel
+            ? carouselPlainText(content.carouselSlides, {labels: true})
+            : htmlToReadableText(content.script).trim(),
+        ...(slides ? {slides} : {}),
         notes: writingNotesToText(content.writingNotes),
         // O texto efetivo de cada publicação, venha da legenda-base ou de versão própria.
         captions: content.plataformas
@@ -150,6 +164,7 @@ export async function createCreationsDocxBlob(
 
   const {
     Document,
+    ExternalHyperlink,
     HeadingLevel,
     Packer,
     Paragraph,
@@ -206,7 +221,44 @@ export async function createCreationsDocxBlob(
 
     const bodyLabel = section.kind === 'idea' ? 'Ideia' : 'Roteiro';
 
-    if (section.body || section.notes) {
+    if (section.slides && section.slides.length > 0) {
+      documentChildren.push(subheading('Carrossel'));
+      section.slides.forEach(slide => {
+        documentChildren.push(
+          new Paragraph({
+            text: slide.label,
+            heading: HeadingLevel.HEADING_3,
+            keepNext: true,
+            widowControl: true,
+          }),
+          ...paragraphsFromText(slide.text, Paragraph, TextRun),
+        );
+        slide.images.forEach(image => {
+          const href = imageRefHref(image);
+          documentChildren.push(
+            new Paragraph({
+              children: [
+                new TextRun({text: 'Imagem: ', color: '4B5563', bold: true}),
+                href
+                  ? new ExternalHyperlink({
+                    link: href,
+                    children: [new TextRun({text: image, color: '1D4ED8', underline: {}})],
+                  })
+                  : new TextRun({text: image, color: '4B5563'}),
+              ],
+              spacing: {after: 120, line: 276},
+              widowControl: true,
+            }),
+          );
+        });
+      });
+      if (section.notes) {
+        documentChildren.push(
+          subheading('Notas'),
+          ...paragraphsFromText(section.notes, Paragraph, TextRun),
+        );
+      }
+    } else if (section.body || section.notes) {
       if (section.body) {
         documentChildren.push(
           subheading(bodyLabel),

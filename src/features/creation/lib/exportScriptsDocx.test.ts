@@ -135,3 +135,26 @@ assert.equal(
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
 );
 console.log('ok - creation export creates a valid DOCX blob');
+
+const carousel = content({
+  id: 'carousel-1',
+  title: 'Carrossel de dicas',
+  writingMode: 'carrossel',
+  script: '<p>Texto antigo que virou a Tela 1.</p>',
+  carouselSlides: [
+    {id: 's1', html: '<p>Capa forte</p>', images: [{id: 'i1', value: 'https://exemplo.com/capa.png'}]},
+    {id: 's2', html: '<p></p>', images: []},
+    {id: 's3', html: '<p>Dica final</p>', images: [{id: 'i2', value: 'foto minha no espelho'}]},
+  ],
+});
+const carouselSections = buildCreationExportSections([carousel], platforms);
+assert.deepEqual(carouselSections[0]?.slides, [
+  {label: 'Tela 1', text: 'Capa forte', images: ['https://exemplo.com/capa.png']},
+  {label: 'Tela 3', text: 'Dica final', images: ['foto minha no espelho']},
+]);
+assert.equal(carouselSections[0]?.body, 'Tela 1\nCapa forte\n\nTela 3\nDica final');
+// Roteiro em texto não ganha telas.
+assert.equal(buildCreationExportSections([source])[0]?.slides, undefined);
+const carouselBlob = await createCreationsDocxBlob([carousel, source], platforms);
+assert.ok(carouselBlob.size > 1_000);
+console.log('ok - creation export writes carousel screens as Tela 1, Tela 2… with image links');

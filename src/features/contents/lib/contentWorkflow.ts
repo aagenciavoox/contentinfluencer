@@ -1,5 +1,6 @@
 import type {Content, RecordingBlock} from '../../../lib/database.ts';
 import {CONTENT_STATUS, normalizeContentStatus} from './contentPipeline.ts';
+import {isCarouselContent} from './carouselSlides.ts';
 
 export const EDITORIAL_CONTENT_STATUSES = [
   CONTENT_STATUS.IDEIA,
@@ -65,6 +66,8 @@ export function getRecordingQueueContents(contents: Content[], blocks: Recording
     content =>
       isActiveCreation(content) &&
       normalizeContentStatus(content.status) === RECORDING_READY_STATUS &&
+      // Carrossel não é gravado: fica fora da fila, dos blocos e do teleprompter.
+      !isCarouselContent(content) &&
       !blockedIds.has(content.id)
   );
 }

@@ -1,5 +1,6 @@
-import {useState, type ReactNode} from 'react';
+import {useRef, useState, type ReactNode} from 'react';
 import {Columns2, PenLine, SlidersHorizontal} from 'lucide-react';
+import {ToolbarTextButton} from '../../../../../components/editors/EditorToolbar';
 import {MobileScriptEditor} from '../../../../../mobile/components/MobileScriptEditor';
 import type {CommentPatch} from '../../../../../components/editors/commentModel';
 import {MobileSegmentTabs} from '../../../../../mobile/components/MobileSegmentTabs';
@@ -8,9 +9,18 @@ import {Skeleton} from '../../../../../components/ui/Skeleton';
 import {Text} from '../../../../../components/ui/Text';
 import {SegmentTabs} from '../../../../../components/ui/SegmentTabs';
 import {SelectField} from '../../../../../components/ui/SelectField';
-import type {Content, ContentPlataforma, Pilar, Serie} from '../../../../../lib/database';
+import type {CarouselSlide, Content, ContentPlataforma, Pilar, Serie, WritingMode} from '../../../../../lib/database';
 import {cn, htmlToReadableText} from '../../../../../lib/utils';
-import {CONTENT_STATUS, getStatusOptions, normalizeContentStatus} from '../../../lib/contentPipeline';
+import {WRITING_MODE_LABELS, normalizeWritingMode, slidesForCarouselMode} from '../../../lib/carouselSlides';
+import {
+  CONTENT_STATUS,
+  getStatusOptions,
+  normalizeContentStatus,
+  type ContentPrimaryAction,
+} from '../../../lib/contentPipeline';
+import {ContentPrimaryActionButton} from '../ContentDetailHeader';
+import {CarouselSlidesEditor} from '../CarouselSlidesEditor';
+import {ContentTemaChips} from '../../ContentTemaChips';
 import {ContentManageWorkspace} from '../ContentManageWorkspace';
 import {ContentOperationalPanel} from '../ContentOperationalPanel';
 import {ContentScriptWorkspace} from '../ContentScriptWorkspace';
@@ -43,6 +53,9 @@ export type ScriptDraft = {
   referencias: string | null;
   notes: string | null;
   writingNotes?: string | null;
+  /** Ausente vale como texto. */
+  writingMode?: WritingMode;
+  carouselSlides?: CarouselSlide[];
   status: Content['status'];
   recordingDate: string | null;
   recordingTime?: string | null;
@@ -79,6 +92,12 @@ interface RoteiroSectionProps {
   onRetryBody?: () => void;
   writingWorkspace?: boolean;
   contentId?: string;
+  /** Falso enquanto o banco não tem as colunas do carrossel (migration pendente). */
+  carouselAvailable?: boolean;
+  /** Botão de avançar na linha de controles (Escrita/Gestão no computador). */
+  primaryAction?: ContentPrimaryAction;
+  onPrimaryAction?: () => void;
+  primaryBusy?: boolean;
 }
 
 export function RoteiroSection({
@@ -101,8 +120,17 @@ export function RoteiroSection({
   onRetryBody,
   writingWorkspace = false,
   contentId = '',
+  carouselAvailable = true,
+  title,
+  onTitleChange,
+  primaryAction,
+  onPrimaryAction,
+  primaryBusy = false,
 }: RoteiroSectionProps) {
+  const writingAreaRef = useRef<HTMLDivElement>(null);
   const isPosted = draft.status === CONTENT_STATUS.POSTADO;
+  const writingMode = normalizeWritingMode(draft.writingMode);
+  const isCarousel = writingMode === 'carrossel';
   const [mobilePaneChoice, setMobilePaneChoice] = useState<{
     contentId: string;
     pane: MobilePane;
@@ -165,6 +193,26 @@ export function RoteiroSection({
       }),
   };
 
+  // Texto -> Carrossel: o texto vira a Tela 1 (ou volta às telas já salvas).
+  // Carrossel -> Texto: as telas ficam guardadas; nada é apagado nos dois sentidos.
+  const handleWritingModeChange = (mode: WritingMode) => {
+    if (mode === writingMode) return;
+    if (mode === 'carrossel') {
+      onChange({writingMode: 'carrossel', carouselSlides: slidesForCarouselMode(draft.script, draft.carouselSlides)});
+      return;
+    }
+    onChange({writingMode: 'texto'});
+  };
+
+  const writingModeSelect = (
+    <WritingModeSelect
+      value={writingMode}
+      disabled={bodyLoading || Boolean(bodyError)}
+      carouselAvailable={carouselAvailable}
+      onChange={handleWritingModeChange}
+    />
+  );
+
   const handleInsertBlock = (label: ScriptBlockLabel) => {
     onChange({script: appendScriptBlock(draft.script, label)});
   };
@@ -184,6 +232,17 @@ export function RoteiroSection({
     />
   );
 
+  // "Notas" mora na barra do editor (antes de "Mais") e abre/fecha a área de notas ao lado.
+  const notesButton = writingWorkspace && workspacePane === 'write' ? (
+    <ToolbarTextButton
+      label="Notas"
+      icon={Columns2}
+      active={notesOpen}
+      title={notesOpen ? 'Fechar área de notas' : 'Abrir área de notas'}
+      onClick={() => setNotesChoice({contentId, open: !notesOpen})}
+    />
+  ) : null;
+
   const scriptWorkspace = (fullscreenAside?: ReactNode) => (
     <ContentScriptWorkspace
       script={draft.script}
@@ -202,22 +261,31 @@ export function RoteiroSection({
       className={writingWorkspace ? 'min-w-0' : undefined}
       fullscreenAside={fullscreenAside}
       onFullscreenChange={setScriptExpanded}
-      headerAction={
-        writingWorkspace && workspacePane === 'write' && !notesOpen ? (
-          <AppButton
-            type="button"
-            variant="secondary"
-            size="xs"
-            leftIcon={<Columns2 className="h-3.5 w-3.5" />}
-            onClick={() => setNotesChoice({contentId, open: true})}
-          >
-            Área de notas
-          </AppButton>
-        ) : null
-      }
+      toolbarEnd={notesButton}
       {...annotationHandlers}
     />
   );
+
+  const carouselEditor = (
+    <CarouselSlidesEditor
+      slides={draft.carouselSlides ?? []}
+      onChange={carouselSlides => {
+        if (mobileComposer) keepMobilePane();
+        onChange({carouselSlides});
+      }}
+      documentTitle={draft.title?.trim() || 'Novo roteiro'}
+      authorName={authorName}
+      saveState={saveState}
+      bodyLoading={bodyLoading}
+      bodyError={bodyError}
+      onRetryBody={onRetryBody}
+      toolbarEnd={notesButton}
+      className="min-w-0"
+    />
+  );
+
+  /** Área de escrita do modo atual: roteiro em texto ou telas do carrossel. */
+  const writingArea = (fullscreenAside?: ReactNode) => (isCarousel ? carouselEditor : scriptWorkspace(fullscreenAside));
 
   const captionEditor = (
     <PlatformCopyEditor
@@ -238,8 +306,15 @@ export function RoteiroSection({
 
   if (layout === 'workspace' && !mobileComposer) {
     if (writingWorkspace) {
+      const titleValue = title ?? draft.title;
+      const changeTitle = onTitleChange ?? ((value: string) => onChange({title: value}));
+      // Enter no título leva o cursor para o texto (ou para a primeira tela do carrossel).
+      const focusWritingArea = () => {
+        writingAreaRef.current?.querySelector<HTMLElement>('.ProseMirror[contenteditable="true"]')?.focus();
+      };
       return (
         <div className="stack-md">
+          {/* Linha de controles: abas e modo à esquerda; etapa e avançar juntos na ponta direita. */}
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
             <SegmentTabs<'write' | 'manage'>
               ariaLabel="Área do conteúdo"
@@ -253,20 +328,53 @@ export function RoteiroSection({
             {workspacePane === 'write' ? (
               <>
                 <span className="hidden h-6 w-px bg-[var(--border-color)] sm:block" aria-hidden />
-                {/* A etapa fica à vista enquanto se escreve, com as mesmas regras da aba Gestão. */}
+                {writingModeSelect}
+              </>
+            ) : (
+              <Text variant="secondary" as="p">
+                Organize os detalhes e prepare a publicação.
+              </Text>
+            )}
+            <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
+              {workspacePane === 'write' ? (
+                // A etapa fica à vista enquanto se escreve, com as mesmas regras da aba Gestão.
                 <EtapaSelect
                   status={draft.status}
                   disabled={isPosted}
                   onChange={status => onChange({status})}
                 />
-              </>
-            ) : null}
-            {workspacePane === 'manage' ? (
-              <Text variant="secondary" as="p">
-                Organize os detalhes e prepare a publicação.
-              </Text>
-            ) : null}
+              ) : null}
+              {primaryAction && onPrimaryAction ? (
+                <ContentPrimaryActionButton
+                  primaryAction={primaryAction}
+                  onPrimaryAction={onPrimaryAction}
+                  busy={primaryBusy}
+                />
+              ) : null}
+            </div>
           </div>
+
+          {/* Título do documento: editável direto, acima da barra do editor (também em Gestão). */}
+          <div className="min-w-0 stack-sm">
+          <input
+            type="text"
+            value={titleValue === 'Novo roteiro' ? '' : titleValue}
+            onChange={event => changeTitle(event.target.value)}
+            onKeyDown={event => {
+              if (event.key !== 'Enter' || event.nativeEvent.isComposing) return;
+              event.preventDefault();
+              if (workspacePane === 'write') focusWritingArea();
+              else event.currentTarget.blur();
+            }}
+            placeholder="Sem título"
+            aria-label="Título do roteiro"
+            autoComplete="off"
+            className="t-page-title w-full min-w-0 border-0 bg-transparent px-0 py-1 text-[var(--text-primary)] outline-none placeholder:text-[var(--text-tertiary)]"
+          />
+          {/* Os temas ficavam sob o título no cabeçalho; seguem junto do título. */}
+          <ContentTemaChips temaIds={draft.temaIds} max={6} />
+          </div>
+
           {workspacePane === 'manage' ? (
             <ContentManageWorkspace
               contentId={contentId}
@@ -278,17 +386,18 @@ export function RoteiroSection({
             />
           ) : (
             <div
+              ref={writingAreaRef}
               className={cn(
                 'grid min-h-0 items-start gap-3',
-                notesOpen && !scriptExpanded && 'lg:grid-cols-[minmax(0,1fr)_var(--layout-aside)]',
+                notesOpen && (!scriptExpanded || isCarousel) && 'lg:grid-cols-[minmax(0,1fr)_var(--layout-aside)]',
               )}
             >
-              {scriptWorkspace(
+              {writingArea(
                 notesOpen
                   ? notesPane('h-full max-h-none min-h-0 flex-1 rounded-none border-0')
                   : undefined,
               )}
-              {notesOpen && !scriptExpanded ? notesPane('sticky top-4 h-[calc(100dvh-14rem)] max-h-[calc(100dvh-14rem)] min-w-0') : null}
+              {notesOpen && (!scriptExpanded || isCarousel) ? notesPane('sticky top-4 h-[calc(100dvh-14rem)] max-h-[calc(100dvh-14rem)] min-w-0') : null}
             </div>
           )}
         </div>
@@ -298,7 +407,8 @@ export function RoteiroSection({
     if (!showSidePanel) {
       return (
         <div className="grid gap-3">
-          {scriptWorkspace()}
+          <div>{writingModeSelect}</div>
+          {writingArea()}
           {captionEditor}
         </div>
       );
@@ -307,7 +417,8 @@ export function RoteiroSection({
     return (
       <div className="grid-editor">
         <div className="flex min-w-0 flex-col gap-3">
-          {scriptWorkspace()}
+          <div>{writingModeSelect}</div>
+          {writingArea()}
           {captionEditor}
         </div>
         <div className="sticky top-4 min-w-0">
@@ -372,8 +483,11 @@ export function RoteiroSection({
           value={mobilePane}
           onChange={selectMobilePane}
         />
+        {mobilePane === 'script' ? <div>{writingModeSelect}</div> : null}
         {mobilePane === 'captions' ? (
           captionEditor
+        ) : mobilePane === 'script' && isCarousel ? (
+          carouselEditor
         ) : mobilePane === 'notes' ? (
           <WritingNotesPane
             value={draft.writingNotes ?? ''}
@@ -422,7 +536,8 @@ export function RoteiroSection({
         authorName={authorName}
         onChange={onChange}
       />
-      {scriptWorkspace()}
+      <div>{writingModeSelect}</div>
+      {writingArea()}
       {captionEditor}
     </div>
   );
@@ -434,6 +549,38 @@ function hasWritingNotesText(value: string | null | undefined) {
     .replace(/&nbsp;/g, ' ')
     .trim();
   return text.length > 0;
+}
+
+/** "Modo: Texto | Carrossel". Antes da migration, Carrossel aparece indisponível. */
+function WritingModeSelect({
+  value,
+  disabled,
+  carouselAvailable,
+  onChange,
+}: {
+  value: WritingMode;
+  disabled: boolean;
+  carouselAvailable: boolean;
+  onChange: (mode: WritingMode) => void;
+}) {
+  const carouselBlocked = !carouselAvailable && value !== 'carrossel';
+  return (
+    <SelectField
+      ariaLabel="Modo de escrita"
+      prefix="Modo:"
+      value={value}
+      disabled={disabled}
+      onChange={next => onChange(normalizeWritingMode(next))}
+      options={[
+        {value: 'texto', label: WRITING_MODE_LABELS.texto},
+        {
+          value: 'carrossel',
+          label: carouselBlocked ? `${WRITING_MODE_LABELS.carrossel} (indisponível)` : WRITING_MODE_LABELS.carrossel,
+          disabled: carouselBlocked,
+        },
+      ]}
+    />
+  );
 }
 
 /** "Etapa: Roteiro" como seletor. Só as etapas vizinhas podem ser escolhidas, como em Gestão. */

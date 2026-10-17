@@ -1,7 +1,7 @@
 import type {RedeSocial} from '../../../lib/database.ts';
 
 /** Ordem fixa das redes no post-it. Só a plataforma: conta, formato e horário ficam para depois. */
-export const REDES_DO_POSTIT: readonly RedeSocial[] = ['instagram', 'tiktok', 'youtube', 'outra'];
+export const REDES_DO_POSTIT: readonly RedeSocial[] = ['instagram', 'tiktok', 'youtube', 'blog', 'outra'];
 
 /** Lê `redes` do banco ou do MCP: só valores conhecidos, sem repetir, na ordem fixa. */
 export function normalizarRedesPostIt(value: unknown): RedeSocial[] {

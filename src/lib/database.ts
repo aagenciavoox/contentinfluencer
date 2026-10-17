@@ -6,6 +6,8 @@ import { getIdeaNotes, normalizeIdea } from '../features/ideas/lib/ideaText';
 import { aplicarLivros, livroIdsEfetivos } from './livroIds.ts';
 import { generateUUID } from '../utils/uuid';
 import { normalizarRedesPostIt } from '../features/planejamento/lib/redesPostIt.ts';
+import { normalizeWritingMode, readCarouselSlides, slidesHaveContent } from '../features/contents/lib/carouselSlides.ts';
+import { nomeIndicaBlog } from '../features/contas/lib/contas.ts';
 import { readAvisoDias } from '../features/projects/lib/evento.ts';
 import { DEFAULT_EDITORIAL_SETTINGS, type EditorialSettings } from '../features/editorial/lib/editorialSettings.ts';
 import { readProporcao } from '../features/editorial/lib/proporcaoObjetivos.ts';
@@ -15,8 +17,8 @@ import type { PeriodoSelecionado } from '../features/editorial/lib/periodoEditor
 // TYPES
 // ============================================================================
 
-/** Plataforma da conta. `outra` cobre Blog e cadastros fora das três redes. */
-export type RedeSocial = 'instagram' | 'tiktok' | 'youtube' | 'outra';
+/** Plataforma da conta. `blog` é Blog/site; `outra` cobre cadastros fora dessas redes. */
+export type RedeSocial = 'instagram' | 'tiktok' | 'youtube' | 'blog' | 'outra';
 
 /** Estado da conexão com uma integração. Cadastrar o @ não muda este valor. */
 export type ConexaoStatus = 'nao_conectada' | 'conectada' | 'expirada' | 'erro';
@@ -345,6 +347,25 @@ export interface ScriptNote {
   resolvedAt?: string | null;
 }
 
+/** Como o roteiro é escrito: texto corrido ou telas de carrossel. */
+export type WritingMode = 'texto' | 'carrossel';
+
+/** Link (URL) ou nota livre de imagem de uma tela, para usar depois no design. */
+export interface CarouselImageRef {
+  id: string;
+  value: string;
+}
+
+/** Uma tela do carrossel (JSON em contents.carousel_slides). */
+export interface CarouselSlide {
+  id: string;
+  /** HTML do editor de texto. */
+  html: string;
+  images: CarouselImageRef[];
+  /** Comentários ancorados no texto desta tela. */
+  comments?: ScriptNote[];
+}
+
 export type PublicationKind = 'post' | 'repost';
 
 export type PublicacaoStatus = 'agendada' | 'publicada' | 'nao_publicada' | 'removida';
@@ -431,6 +452,10 @@ export interface Content {
   referencias: string | null;
   /** Notas livres ao lado do roteiro. Ausente enquanto o corpo não foi carregado. */
   writingNotes?: string | null;
+  /** Modo de escrita. Ausente quando o banco ainda não tem a coluna (vale como texto). */
+  writingMode?: WritingMode;
+  /** Telas do modo Carrossel. Ausente enquanto o corpo não foi carregado. */
+  carouselSlides?: CarouselSlide[];
   createdAt: string;
   updatedAt: string;
   deletedAt: string | null;
@@ -845,6 +870,52 @@ function isMissingLivroIdsColumn(error: {message?: string} | null | undefined) {
   return !!error?.message && isMissingNamedColumn(error.message, 'livro_ids');
 }
 
+/** Migração que cria o modo de escrita Carrossel e a rede Blog/site. */
+export const MIGRACAO_CARROSSEL_BLOG = '20261017120000_rede_blog_site_carrossel';
+
+export class CarrosselMigracaoPendenteError extends Error {
+  constructor() {
+    super(`Para guardar o carrossel, aplique a migração ${MIGRACAO_CARROSSEL_BLOG}. O resto do roteiro foi salvo.`);
+    this.name = 'CarrosselMigracaoPendenteError';
+  }
+}
+
+export class BlogMigracaoPendenteError extends Error {
+  constructor() {
+    super(`Para usar Blog/site como plataforma, aplique a migração ${MIGRACAO_CARROSSEL_BLOG}.`);
+    this.name = 'BlogMigracaoPendenteError';
+  }
+}
+
+const CONTENT_CAROUSEL_COLUMNS = ['writing_mode', 'carousel_slides'] as const;
+
+/** `null` = ainda não se sabe; `false` = o banco não tem as colunas do carrossel. */
+let contentCarouselColumnsAvailable: boolean | null = null;
+
+/** O banco aceita o modo Carrossel? Enquanto não se sabe, conta como sim. */
+export function isCarouselStorageAvailable(): boolean {
+  return contentCarouselColumnsAvailable !== false;
+}
+
+function isMissingCarouselColumns(error: {message?: string} | null | undefined) {
+  const message = error?.message;
+  if (!message) return false;
+  return CONTENT_CAROUSEL_COLUMNS.some(column => isMissingNamedColumn(message, column));
+}
+
+/** Colunas ausentes no select (banco antigo) ficam `undefined`, não "texto vazio". */
+function readCarouselColumns(row: Row): Pick<Content, 'writingMode' | 'carouselSlides'> {
+  const out: Pick<Content, 'writingMode' | 'carouselSlides'> = {};
+  if (row && 'writing_mode' in row) {
+    contentCarouselColumnsAvailable = true;
+    out.writingMode = normalizeWritingMode(row.writing_mode);
+  }
+  if (row && 'carousel_slides' in row) {
+    out.carouselSlides = readCarouselSlides(row.carousel_slides);
+  }
+  return out;
+}
+
 function readLivroIds(row: Row): string[] {
   return livroIdsEfetivos({
     livroIds: Array.isArray(row.livro_ids) ? row.livro_ids.filter((id: unknown): id is string => typeof id === 'string') : undefined,
@@ -908,7 +979,7 @@ function readPublicacaoStatus(value: unknown): PublicacaoStatus {
 }
 
 function readRede(value: unknown): RedeSocial | null {
-  return value === 'instagram' || value === 'tiktok' || value === 'youtube' || value === 'outra'
+  return value === 'instagram' || value === 'tiktok' || value === 'youtube' || value === 'blog' || value === 'outra'
     ? value
     : null;
 }
@@ -1187,6 +1258,7 @@ const mp = {
     script: r.script, scriptNotes: r.script_notes || [], tags: r.tags || [],
     notes: r.notes, referencias: r.referencias,
     writingNotes: r.writing_notes,
+    ...readCarouselColumns(r),
     createdAt: r.created_at, updatedAt: r.updated_at, deletedAt: r.deleted_at,
     archivedAt: r.archived_at ?? null,
     legacyIdeaId: r.legacy_idea_id ?? null,
@@ -1398,6 +1470,7 @@ function buildContentScheduleSelect(
   includeRecordingTime = true,
   includeContagemOrigem = true,
   includeExternoId = true,
+  includeWritingMode = true,
 ): string {
   let columns: readonly string[] = includeMilestones
     ? [
@@ -1431,6 +1504,11 @@ function buildContentScheduleSelect(
     const relation = columns[columns.length - 1];
     columns = [...columns.slice(0, -1), ...CONTENT_CONTAGEM_ORIGEM_COLUMNS, relation];
   }
+  if (includeWritingMode) {
+    // Leve: só o modo. As telas vêm com o corpo, como o roteiro.
+    const relation = columns[columns.length - 1];
+    columns = [...columns.slice(0, -1), 'writing_mode', relation];
+  }
   if (includePublicacaoColumns) {
     columns = columns.map(column => (
       column.startsWith('content_plataformas(') ? contentPlataformasSelect(true, includeExternoId) : column
@@ -1454,8 +1532,9 @@ async function runContentScheduleSelect<T>(
   let includeRecordingTime = true;
   let includeContagemOrigem = true;
   let includeExternoId = true;
+  let includeWritingMode = true;
 
-  for (let attempt = 0; attempt < 11; attempt += 1) {
+  for (let attempt = 0; attempt < 12; attempt += 1) {
     const result = await run(
       buildContentScheduleSelect(
         includeMilestones,
@@ -1467,9 +1546,16 @@ async function runContentScheduleSelect<T>(
         includeRecordingTime,
         includeContagemOrigem,
         includeExternoId,
+        includeWritingMode,
       ),
     );
     if (!result.error) return result;
+    if (includeWritingMode && isMissingCarouselColumns(result.error)) {
+      // Migração do carrossel ainda não rodou: a lista carrega sem o modo.
+      contentCarouselColumnsAvailable = false;
+      includeWritingMode = false;
+      continue;
+    }
     if (includeExternoId && isMissingExternoIdColumn(result.error)) {
       includeExternoId = false;
       continue;
@@ -1509,7 +1595,7 @@ async function runContentScheduleSelect<T>(
     return result;
   }
 
-  return run(buildContentScheduleSelect(false, false, false, false, false, false, false, false, false));
+  return run(buildContentScheduleSelect(false, false, false, false, false, false, false, false, false, false));
 }
 const CONTENT_LIST_SORT_COLUMNS: Record<string, string> = {
   createdAt: 'created_at',
@@ -2484,9 +2570,16 @@ export async function savePlatform(platform: Omit<Platform, 'createdAt'>): Promi
     updated_at: new Date().toISOString(),
   };
 
-  for (let attempt = 0; attempt < 4; attempt += 1) {
+  for (let attempt = 0; attempt < 5; attempt += 1) {
     const { error } = await supabase.from('platforms').upsert(row, { onConflict: 'id' });
     if (!error) return;
+    if (row.rede === 'blog' && error.message?.includes('platforms_rede_check')) {
+      // Banco sem a migração do Blog/site. Uma conta chamada Blog/site volta a ser lida
+      // como Blog/site pelo nome; outro nome perderia a escolha, então avisa.
+      if (!nomeIndicaBlog(platform.nome)) throw new BlogMigracaoPendenteError();
+      row = { ...row, rede: 'outra' };
+      continue;
+    }
     const missing = PLATFORM_ACCOUNT_COLUMNS.find(column =>
       column in row && !!error.message && isMissingNamedColumn(error.message, column),
     );
@@ -3023,14 +3116,33 @@ export async function saveContent(
       ? {rede_referencia_congelada_id: content.redeReferenciaCongeladaId ?? null}
       : {}),
     ...(content.writingNotes !== undefined ? {writing_notes: content.writingNotes} : {}),
+    // Só grava o que veio carregado: lista leve não traz as telas e não pode apagá-las.
+    ...(content.writingMode !== undefined ? {writing_mode: content.writingMode} : {}),
+    ...(content.carouselSlides !== undefined ? {carousel_slides: content.carouselSlides} : {}),
     archived_at: content.archivedAt ?? null,
     legacy_idea_id: content.legacyIdeaId ?? null,
     updated_at: new Date().toISOString(),
   };
 
+  // Sem a migração do carrossel, o resto do roteiro é salvo e o carrossel avisa que não foi.
+  let carouselDropped = false;
+
   for (let attempt = 0; attempt < 16; attempt += 1) {
     const {error} = await supabase.from('contents').upsert(row);
-    if (!error) return;
+    if (!error) {
+      if (carouselDropped) throw new CarrosselMigracaoPendenteError();
+      return;
+    }
+
+    if (isMissingCarouselColumns(error) && ('writing_mode' in row || 'carousel_slides' in row)) {
+      contentCarouselColumnsAvailable = false;
+      const slides = row.carousel_slides;
+      carouselDropped = row.writing_mode === 'carrossel'
+        || (Array.isArray(slides) && slidesHaveContent(slides as CarouselSlide[]));
+      const {writing_mode: _writingMode, carousel_slides: _carouselSlides, ...rowWithoutCarousel} = row;
+      row = rowWithoutCarousel;
+      continue;
+    }
 
     if (isMissingLivroIdsColumn(error) && 'livro_ids' in row) {
       const {livro_ids: _livroIds, ...rowWithoutLivroIds} = row;
@@ -3477,6 +3589,9 @@ export async function savePlanejamentoPostIt(item: PlanejamentoPostIt): Promise<
   for (let attempt = 0; attempt <= POSTIT_OPTIONAL_COLUMNS.length; attempt += 1) {
     const {error} = await supabase.from('planejamento_postits').upsert(row);
     if (!error) return;
+    if (error.message?.includes('planejamento_postits_redes_check') && Array.isArray(row.redes) && row.redes.includes('blog')) {
+      throw new BlogMigracaoPendenteError();
+    }
     const missing = POSTIT_OPTIONAL_COLUMNS.find(column =>
       column in row && !!error.message && isMissingNamedColumn(error.message, column),
     );

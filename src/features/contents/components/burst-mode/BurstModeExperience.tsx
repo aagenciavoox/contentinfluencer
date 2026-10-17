@@ -9,6 +9,7 @@ import { useHydrateContentBodies } from '../../../../hooks/useHydrateContentBodi
 import { Content, RecordingBlock } from '../../../../lib/database';
 import { cn, hexContrastRatio, htmlToReadableText } from '../../../../lib/utils';
 import { isContentBodyLoaded } from '../../lib/contentBody';
+import { isCarouselContent } from '../../lib/carouselSlides';
 import { buildPrompterLines } from '../../lib/prompterLines';
 import { isRecordingBlockTeleprompterEnabled } from '../../../recording/lib/recordingWorkflow';
 import { TeleprompterSettingsDialog } from './TeleprompterSettingsDialog';
@@ -116,7 +117,8 @@ const THEME_STYLES: Record<BurstTheme, { shell: string; panel: string; panelBord
 function getBlockContents(block: RecordingBlock, contents: Content[]) {
   return block.contents
     .map(({ contentId }) => contents.find(content => content.id === contentId) ?? null)
-    .filter((content): content is Content => content !== null);
+    // Carrossel não vai para o teleprompter, mesmo que tenha entrado no bloco antes da troca de modo.
+    .filter((content): content is Content => content !== null && !isCarouselContent(content));
 }
 
 function getScriptLabel(script: string | null | undefined, fallback: string) {

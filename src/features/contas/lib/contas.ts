@@ -11,21 +11,29 @@ export type ContaRef = Pick<Platform, 'id' | 'nome'>
   & Partial<Pick<Platform, 'rede' | 'handle' | 'ativo' | 'userId' | 'conexao'>>;
 
 export const REDES_PRINCIPAIS = ['instagram', 'tiktok', 'youtube'] as const satisfies readonly RedeSocial[];
-export const REDES: readonly RedeSocial[] = ['instagram', 'tiktok', 'youtube', 'outra'];
+export const REDES: readonly RedeSocial[] = ['instagram', 'tiktok', 'youtube', 'blog', 'outra'];
 
 export const REDE_ROTULO: Record<RedeSocial, string> = {
   instagram: 'Instagram',
   tiktok: 'TikTok',
   youtube: 'YouTube',
+  blog: 'Blog/site',
   outra: 'Outra plataforma',
 };
 
-/** Nomes que indicam a plataforma sem dúvida. Blog é a única "outra" padrão. */
+/**
+ * Nomes que indicam a plataforma sem dúvida, já normalizados por `platformKey`
+ * (minúsculas, sem acento e sem espaço). A migração 20261017120000 usa a mesma lista.
+ */
 const NOMES_DE_REDE: Record<string, RedeSocial> = {
   instagram: 'instagram',
   tiktok: 'tiktok',
   youtube: 'youtube',
-  blog: 'outra',
+  blog: 'blog',
+  site: 'blog',
+  'blog/site': 'blog',
+  blogsite: 'blog',
+  'blog-site': 'blog',
 };
 
 /** Só nomes inequívocos. "Insta da Diza" não vira Instagram: fica para a pessoa escolher. */
@@ -34,9 +42,18 @@ export function inferirRedePeloNome(nome: string | null | undefined): RedeSocial
   return NOMES_DE_REDE[platformKey(nome)] ?? null;
 }
 
-/** A plataforma gravada; no banco antigo, a que o nome indica sem dúvida. */
+/** O nome da conta é Blog, Site ou Blog/site (com qualquer grafia). */
+export function nomeIndicaBlog(nome: string | null | undefined): boolean {
+  return inferirRedePeloNome(nome) === 'blog';
+}
+
+/**
+ * A plataforma gravada; no banco antigo, a que o nome indica sem dúvida.
+ * Antes da migração do Blog/site, a conta "Blog" estava gravada como `outra`: o nome decide.
+ */
 export function redeDaConta(conta: Pick<ContaRef, 'nome' | 'rede'> | null | undefined): RedeSocial | null {
   if (!conta) return null;
+  if (conta.rede === 'outra' && nomeIndicaBlog(conta.nome)) return 'blog';
   return conta.rede ?? inferirRedePeloNome(conta.nome);
 }
 
@@ -186,7 +203,7 @@ export function contaConectada(conta: Pick<ContaRef, 'conexao'>): boolean {
   return conta.conexao?.status === 'conectada';
 }
 
-const ORDEM_REDE: Record<RedeSocial, number> = { instagram: 0, tiktok: 1, youtube: 2, outra: 3 };
+const ORDEM_REDE: Record<RedeSocial, number> = { instagram: 0, tiktok: 1, youtube: 2, blog: 3, outra: 4 };
 
 /** Instagram, TikTok, YouTube, outras e, por último, as sem plataforma definida. */
 export function ordenarContas<T extends ContaRef>(contas: readonly T[]): T[] {
@@ -217,11 +234,11 @@ export function agruparPorRede<T extends ContaRef>(contas: readonly T[]): GrupoD
   return grupos;
 }
 
-/** Chave da plataforma padrão: as três redes e o Blog. */
+/** Chave da plataforma padrão: as três redes e o Blog/site. */
 function chavePadrao(conta: ContaRef): string | null {
   const rede = redeDaConta(conta);
   if (ehRedePrincipal(rede)) return rede;
-  return platformKey(conta.nome) === 'blog' ? 'blog' : null;
+  return rede === 'blog' || platformKey(conta.nome) === 'blog' ? 'blog' : null;
 }
 
 /**

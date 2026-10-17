@@ -1,4 +1,4 @@
-import type {Content, FuncaoPadraoSerie, Idea} from '../../../lib/database.ts';
+import type {Content, FuncaoPadraoSerie, Idea, RedeSocial} from '../../../lib/database.ts';
 import {htmlToReadableText} from '../../../lib/utils.ts';
 import {generateUUID, isUUID} from '../../../utils/uuid.ts';
 import { passaNoFiltroData, type FiltroData } from '../../editorial/lib/datasNaGrade.ts';
@@ -7,6 +7,8 @@ import {CONTENT_STATUS, normalizeContentStatus} from './contentPipeline.ts';
 import {livroIdsEfetivos} from '../../../lib/livroIds.ts';
 import {createContentDraft} from './createContentDraft.ts';
 import {matchesTemaFilter} from './temaFilter.ts';
+import {contentReadableBody} from './carouselSlides.ts';
+import {passaNoFiltroRede} from '../../creation/lib/creationRedeFilter.ts';
 
 export const CREATION_TABS = [
   'Todos',
@@ -37,6 +39,9 @@ export interface CreationFilters {
   /** Data na grade, pela mesma regra do Editorial. Precisa de `datasNaGrade`. */
   filtroData?: FiltroData | null;
   datasNaGrade?: ReadonlyMap<string, readonly string[]>;
+  /** Rede (`instagram`, `blog`…) ou `sem-rede`. Precisa de `redesPorConteudo`. */
+  rede?: string;
+  redesPorConteudo?: ReadonlyMap<string, readonly RedeSocial[]>;
 }
 
 export type CreationSort = 'recent' | 'oldest' | 'title';
@@ -274,6 +279,7 @@ export function filterCreationContents(
     .filter(content => matchesTemaFilter(content.temaIds, filters.temaIds ?? [], filters.temas))
     .filter(content => !filters.originId || livroIdsEfetivos(content).includes(filters.originId))
     .filter(content => passaNoFiltroData(filters.datasNaGrade?.get(content.id), filters.filtroData ?? null))
+    .filter(content => passaNoFiltroRede(filters.redesPorConteudo?.get(content.id), filters.rede))
     .filter(content => {
       if (!filters.funcao || !isFuncaoEditorial(filters.funcao)) return true;
       const serie = filters.series?.find(item => item.id === content.seriesId) ?? null;
@@ -284,7 +290,7 @@ export function filterCreationContents(
       return [
         content.title,
         content.notes ?? '',
-        htmlToReadableText(content.script),
+        contentReadableBody(content),
         ...(content.tags ?? []),
         ...(filters.temas ?? [])
           .filter(tema => (content.temaIds ?? []).includes(tema.id))

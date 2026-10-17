@@ -50,7 +50,8 @@ function tabelaAusente(error: {message?: string} | null, nome: string): boolean 
   throw new Error(`${nome}: ${error.message}`);
 }
 
-const REDES_POSTIT = ['instagram', 'tiktok', 'youtube', 'outra'] as const;
+// 'blog' (Blog/site) entrou em 2026-10-17; sem ele, post-it com blog perderia a rede ao passar pelo MCP.
+const REDES_POSTIT = ['instagram', 'tiktok', 'youtube', 'blog', 'outra'] as const;
 
 /** Só redes conhecidas, sem repetir, na ordem fixa. Igual ao app (redesPostIt.ts). */
 function redesDoPostit(value: unknown): string[] {

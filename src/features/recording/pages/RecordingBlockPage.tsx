@@ -8,6 +8,7 @@ import {cn, htmlToReadableText} from '../../../lib/utils';
 import {BurstModeExperience} from '../../contents/components/burst-mode/BurstModeExperience';
 import {isContentBodyLoaded} from '../../contents/lib/contentBody';
 import {getRecordingQueueContents} from '../../contents/lib/contentWorkflow';
+import {isCarouselContent} from '../../contents/lib/carouselSlides';
 import {RecordingBlockEditor} from '../components/RecordingBlockEditor';
 import {
   buildMarkContentRecordedTransition,
@@ -72,7 +73,8 @@ export function RecordingBlockPage() {
       blockContents
         .map(blockContent => {
           const content = state.contents.find(item => item.id === blockContent.contentId);
-          if (!content) return null;
+          // Carrossel não vai para o teleprompter.
+          if (!content || isCarouselContent(content)) return null;
           return {content, gravado: blockContent.gravado};
         })
         .filter((entry): entry is {content: Content; gravado: boolean} => entry !== null),

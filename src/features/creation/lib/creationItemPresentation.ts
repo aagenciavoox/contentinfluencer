@@ -7,6 +7,7 @@ import {
 } from '../../contents/lib/contentPipeline.ts';
 import { transitionCreationStatus, type CreationTab } from '../../contents/lib/creationContent.ts';
 import { getVisualFormatLabel } from '../../../constants.ts';
+import { contentReadableBody } from '../../contents/lib/carouselSlides.ts';
 
 export const CREATION_KANBAN_TABS = [
   'Ideias',
@@ -70,7 +71,8 @@ export function sanitizeCreationPreviewText(value: string | null | undefined) {
 export function getCreationNoteExcerpt(content: Content) {
   return (
     sanitizeCreationPreviewText(content.notes)
-    || sanitizeCreationPreviewText(content.script)
+    // No carrossel, a prévia vem das telas (texto simples).
+    || sanitizeCreationPreviewText(contentReadableBody(content))
     || null
   );
 }

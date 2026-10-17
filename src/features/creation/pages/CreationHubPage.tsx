@@ -88,6 +88,12 @@ import {
 } from '../lib/creationFilterOptions';
 import type { CreationItemActionHandlers } from '../lib/creationItemActions';
 import {
+  REDE_FILTER_PARAM,
+  mapaDeRedesDaCriacao,
+  opcoesDoFiltroRede,
+  parseRedeFilter,
+} from '../lib/creationRedeFilter';
+import {
   etiquetasVisiveis,
   isCreationKanbanTab,
   moveCreationToKanbanTab,
@@ -122,7 +128,7 @@ function parseViewMode(value: string | null): CreationViewMode | null {
 }
 
 export function CreationHubPage() {
-  const { state, dispatch, updateContent } = useAppContext();
+  const { state, dispatch, updateContent, ensureDataDomains } = useAppContext();
   const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -157,6 +163,7 @@ export function CreationHubPage() {
     () => parseTemaFilterParam(temasParam, legacyTemaParam),
     [legacyTemaParam, temasParam],
   );
+  const redeFilter = parseRedeFilter(searchParams.get(REDE_FILTER_PARAM));
   const originId = searchParams.get('origem') ?? '';
   const funcaoId = searchParams.get('funcao') ?? '';
   const filtroData = useMemo(() => lerFiltroData(searchParams), [searchParams]);
@@ -218,6 +225,17 @@ export function CreationHubPage() {
     platforms: state.platforms,
   }), [state.contents, state.series, state.postIts, state.preferences, state.platforms]);
 
+  // As redes anotadas nos post-its só são carregadas quando o filtro de rede é usado.
+  useEffect(() => {
+    if (redeFilter) void ensureDataDomains(['planejamento']);
+  }, [ensureDataDomains, redeFilter]);
+
+  // Rede de cada item pelas contas das publicações; sem publicação, pelas redes do post-it ligado.
+  const redesPorConteudo = useMemo(
+    () => (redeFilter ? mapaDeRedesDaCriacao(canonicalContents, state.platforms, state.postIts ?? []) : undefined),
+    [canonicalContents, redeFilter, state.platforms, state.postIts],
+  );
+
   const filteredContents = useMemo(
     () => sortCreationContents(
       filterCreationContents(canonicalContents, {
@@ -230,12 +248,14 @@ export function CreationHubPage() {
         funcao: funcaoId,
         filtroData,
         datasNaGrade: datas,
+        rede: redeFilter,
+        redesPorConteudo,
         series: state.series,
         temas: state.temas,
       }),
       sort,
     ),
-    [activeTab, canonicalContents, datas, filtroData, funcaoId, originId, pilarId, search, seriesId, sort, state.series, state.temas, temaFilter],
+    [activeTab, canonicalContents, datas, filtroData, funcaoId, originId, pilarId, redeFilter, redesPorConteudo, search, seriesId, sort, state.series, state.temas, temaFilter],
   );
 
   // No kanban, as colunas são as etapas; a aba de etapa só destaca a coluna.
@@ -252,12 +272,14 @@ export function CreationHubPage() {
         funcao: funcaoId,
         filtroData,
         datasNaGrade: datas,
+        rede: redeFilter,
+        redesPorConteudo,
         series: state.series,
         temas: state.temas,
       }),
       sort,
     );
-  }, [activeTab, canonicalContents, datas, filteredContents, filtroData, funcaoId, originId, pilarId, search, seriesId, sort, state.series, state.temas, temaFilter, viewMode]);
+  }, [activeTab, canonicalContents, datas, filteredContents, filtroData, funcaoId, originId, pilarId, redeFilter, redesPorConteudo, search, seriesId, sort, state.series, state.temas, temaFilter, viewMode]);
 
   // "Mostrar mais" acumula páginas em vez de trocar de página: a coleção é pequena.
   const pageData = useMemo(
@@ -861,6 +883,13 @@ export function CreationHubPage() {
       ],
     },
     {
+      id: 'rede',
+      label: 'Rede',
+      value: redeFilter,
+      onChange: (value: string) => updateSearchParam(REDE_FILTER_PARAM, value),
+      options: opcoesDoFiltroRede(state.platforms, redeFilter),
+    },
+    {
       id: 'origem',
       label: 'Origem',
       value: originId,
@@ -897,8 +926,10 @@ export function CreationHubPage() {
     valorFiltroData,
     originId,
     pilarId,
+    redeFilter,
     seriesId,
     state.bibliotecaItems,
+    state.platforms,
     state.temas,
     state.pilares,
     state.series,
@@ -1046,7 +1077,7 @@ export function CreationHubPage() {
     />
   ) : null;
 
-  const hasFilters = Boolean(search || pilarId || seriesId || temaFilter.length > 0 || originId || funcaoId || filtroData);
+  const hasFilters = Boolean(search || pilarId || seriesId || redeFilter || temaFilter.length > 0 || originId || funcaoId || filtroData);
   const shownCount = viewMode === 'kanban' ? kanbanContents.length : pageData.items.length;
   const totalCount = viewMode === 'kanban' ? kanbanContents.length : filteredContents.length;
   const hiddenCount = totalCount - shownCount;

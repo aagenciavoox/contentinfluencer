@@ -8,6 +8,7 @@ import {
   type ContentStage,
 } from '../../../lib/contentPipeline';
 import { buildMarkContentRecordedTransition } from '../../../../recording/lib/recordingWorkflow';
+import { isCarouselContent } from '../../../lib/carouselSlides';
 
 interface RecordingSectionProps {
   content: Content;
@@ -31,6 +32,7 @@ export function RecordingSection({
   const navigate = useNavigate();
   const blockSummary = getContentBlockSummary(content.id, recordingBlocks, allContents ?? [content]);
   const isRecorded = Boolean(content.recordedAt);
+  const isCarousel = isCarouselContent(content);
 
   const markRecorded = async () => {
     if (!blockSummary?.block) return;
@@ -77,13 +79,15 @@ export function RecordingSection({
               >
                 Abrir bloco
               </AppButton>
-              <AppButton
-                variant="secondary"
-                leftIcon={<Layers3 className="h-4 w-4" />}
-                onClick={() => navigate(`/gravacao/${blockSummary.block.id}?burst=1`)}
-              >
-                Iniciar modo gravação
-              </AppButton>
+              {!isCarousel ? (
+                <AppButton
+                  variant="secondary"
+                  leftIcon={<Layers3 className="h-4 w-4" />}
+                  onClick={() => navigate(`/gravacao/${blockSummary.block.id}?burst=1`)}
+                >
+                  Iniciar modo gravação
+                </AppButton>
+              ) : null}
               {!isRecorded ? (
                 <AppButton
                   variant="secondary"
@@ -94,6 +98,12 @@ export function RecordingSection({
                 </AppButton>
               ) : null}
             </div>
+          </div>
+        ) : isCarousel ? (
+          <div className="mt-4 stack-lg">
+            <p className="text-sm text-[var(--text-secondary)]">
+              Carrossel não passa pela gravação nem pelo teleprompter. Quando as telas estiverem prontas, siga para a publicação.
+            </p>
           </div>
         ) : (
           <div className="mt-4 stack-lg">

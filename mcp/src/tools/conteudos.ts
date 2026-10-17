@@ -1,6 +1,7 @@
 import type {McpServer} from '@modelcontextprotocol/sdk/server/mcp.js';
 import {z} from 'zod';
 import {FORMATO_DESCRICAO, JANELAS, horaEscolhida, primeiroFormato} from '../campos.ts';
+import {modoEscrita, rascunhoDasNotas, roteiroDoConteudo, scriptEditado, temRoteiroEscrito} from '../carrossel.ts';
 import {descreverColunasOmitidas, livrosDoConteudo, unirLivros} from '../editorial.ts';
 import {anexarTemas, gravarTemasDoConteudo, idsComTema, temasDosConteudos} from '../temas.ts';
 import {juntarTemas, separarTags} from '../tagsTemas.ts';
@@ -41,6 +42,9 @@ const funcaoSchema = z.enum([...FUNCOES, 'da_serie', 'nenhuma']).describe(
   '"da_serie" herda a função padrão da série; "nenhuma" marca sem função.',
 );
 
+// writing_mode mostra quais roteiros são carrossel. Sem a coluna no banco, readCompat tira e segue.
+const LIST_COLUMNS = `writing_mode, ${CONTENT_LIST_COLUMNS}`;
+
 function sanitizeSearch(value: string): string {
   return value.replace(/[,()*%\\]/g, ' ').trim();
 }
@@ -72,7 +76,7 @@ async function fetchContents(session: Session, ids: string[]): Promise<Row[]> {
 function contentDetail(row: Row, lookups: Lookups, roteiroFormato: 'texto' | 'html') {
   return {
     ...contentSummary(row, lookups),
-    roteiro: roteiroFormato === 'html' ? row.script ?? '' : htmlToText(row.script),
+    ...roteiroDoConteudo(row, roteiroFormato),
     notas: htmlToText(row.notes),
     notas_de_escrita: htmlToText(row.writing_notes),
     referencias: row.referencias ?? null,
@@ -147,7 +151,7 @@ export function registerConteudos(server: McpServer) {
       } as const;
       const [column, ascending] = order[args.ordem];
       const from = (args.pagina - 1) * args.limite;
-      const result = await readCompat('listar conteúdos', CONTENT_LIST_COLUMNS, columns => {
+      const result = await readCompat('listar conteúdos', LIST_COLUMNS, columns => {
         let query = session.client
           .from('contents')
           .select(columns, {count: 'exact'})
@@ -179,7 +183,7 @@ export function registerConteudos(server: McpServer) {
         ...(result.omitidas.length || comTema.ausente
           ? {colunas_ausentes_no_banco: [...result.omitidas, ...(comTema.ausente ? ['temas'] : [])]}
           : {}),
-        itens: comTema.rows.map(row => contentSummary(row, lookups)),
+        itens: comTema.rows.map(row => ({...contentSummary(row, lookups), modo_escrita: modoEscrita(row)})),
       });
     }),
   );
@@ -188,7 +192,10 @@ export function registerConteudos(server: McpServer) {
     'ver_conteudo',
     {
       title: 'Ver conteúdo',
-      description: 'Abre um conteúdo completo: roteiro, notas, referências, temas, janela, horário de gravação e publicações por plataforma.',
+      description:
+        'Abre um conteúdo completo: roteiro, notas, referências, temas, janela, horário de gravação e publicações por plataforma. ' +
+        'modo_escrita diz se o roteiro é texto corrido ou carrossel. No carrossel, telas traz cada tela na ordem (Tela 1, Tela 2…) ' +
+        'com o texto (ou html, se roteiro_formato for html) e as imagens; roteiro junta o texto das telas.',
       inputSchema: {
         id: z.string().min(1),
         roteiro_formato: z.enum(['texto', 'html']).default('texto'),
@@ -357,7 +364,7 @@ export function registerConteudos(server: McpServer) {
       inputSchema: {
         id: z.string().min(1),
         titulo: z.string().min(1).optional(),
-        roteiro: z.string().optional().describe('Texto do roteiro'),
+        roteiro: z.string().optional().describe('Texto do roteiro. Roteiro em modo Carrossel não aceita: as telas são editadas no app'),
         modo_roteiro: z.enum(['substituir', 'acrescentar']).default('substituir'),
         notas: z.string().optional(),
         notas_de_escrita: z.string().optional(),
@@ -387,11 +394,9 @@ export function registerConteudos(server: McpServer) {
       const [current] = await fetchContents(session, [args.id]);
       const patch: Row = {};
 
+      // Antes de qualquer gravação (temas inclusive): no carrossel a chamada inteira é recusada.
+      if (args.roteiro !== undefined) patch.script = scriptEditado(current, args.roteiro, args.modo_roteiro);
       if (args.titulo !== undefined) patch.title = args.titulo.trim();
-      if (args.roteiro !== undefined) {
-        const incoming = textToHtml(args.roteiro);
-        patch.script = args.modo_roteiro === 'acrescentar' && current.script ? `${current.script}${incoming}` : incoming;
-      }
       if (args.notas !== undefined) patch.notes = args.notas.trim() || null;
       if (args.notas_de_escrita !== undefined) patch.writing_notes = args.notas_de_escrita.trim() || null;
       if (args.referencias !== undefined) patch.referencias = args.referencias || null;
@@ -465,7 +470,7 @@ export function registerConteudos(server: McpServer) {
       description:
         'Move conteúdos no fluxo Ideia → Roteiro → Produção → Postado. ' +
         'Ideia para Roteiro aproveita as notas da ideia como rascunho do roteiro. ' +
-        'Produção exige título e roteiro escritos. Postado registra a data de postagem e fixa a função editorial da peça.',
+        'Produção exige título e roteiro escritos (no carrossel, alguma tela com texto ou imagem). Postado registra a data de postagem e fixa a função editorial da peça.',
       inputSchema: {
         ids: idsSchema,
         status: statusSchema,
@@ -476,11 +481,12 @@ export function registerConteudos(server: McpServer) {
       const lookups = await loadLookups(session);
       const now = nowIso();
       const blocked = rows.filter(
-        row => args.status === 'Produção' && (!row.title?.trim() || !htmlToText(row.script)),
+        row => args.status === 'Produção' && (!row.title?.trim() || !temRoteiroEscrito(row)),
       );
       if (blocked.length > 0) {
         throw new Error(
-          `Sem título ou roteiro escrito, não dá para ir para Produção: ${blocked.map(row => `${row.title || '(sem título)'} [${row.id}]`).join('; ')}`,
+          'Sem título ou roteiro escrito (no carrossel, alguma tela com texto ou imagem), não dá para ir para Produção: ' +
+          blocked.map(row => `${row.title || '(sem título)'} [${row.id}]`).join('; '),
         );
       }
 
@@ -488,9 +494,8 @@ export function registerConteudos(server: McpServer) {
       for (const row of rows) {
         const from = normalizeStatus(row.status);
         const patch: Row = {status: args.status, archived_at: null};
-        if (args.status === 'Roteiro' && !htmlToText(row.script) && htmlToText(row.notes)) {
-          patch.script = textToHtml(row.notes);
-        }
+        const rascunho = args.status === 'Roteiro' ? rascunhoDasNotas(row) : null;
+        if (rascunho) patch.script = rascunho;
         if (args.status === 'Postado' && !row.posted_at) patch.posted_at = now;
         // Ao postar, a função fica fixa: mudar a série depois não reclassifica o que já saiu.
         if (args.status === 'Postado' && !row.classificacao_congelada_em) {

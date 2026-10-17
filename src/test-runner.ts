@@ -43,6 +43,8 @@ await import('./features/creation/lib/creationItemPresentation.test.ts');
 await import('./features/creation/lib/creationCardFooterMeta.test.ts');
 await import('./features/creation/lib/exportScriptsDocx.test.ts');
 await import('./features/creation/lib/creationDateFilter.test.ts');
+await import('./features/creation/lib/creationRedeFilter.test.ts');
+await import('./features/contents/lib/carouselSlides.test.ts');
 await import('./features/settings/lib/gentleExperience.test.ts');
 await import('./features/settings/lib/writingWorkspace.test.ts');
 await import('./features/recommendations/recommendDailyAction.test.ts');

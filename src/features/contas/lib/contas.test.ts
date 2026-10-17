@@ -52,7 +52,11 @@ function testNomeAntigoSoResolveSemAmbiguidade() {
 
 function testRedeSoPorNomeInequivoco() {
   assert.equal(inferirRedePeloNome(' Tik Tok '), 'tiktok');
-  assert.equal(inferirRedePeloNome('Blog'), 'outra');
+  assert.equal(inferirRedePeloNome('Blog'), 'blog');
+  assert.equal(inferirRedePeloNome('Blog/site'), 'blog');
+  assert.equal(inferirRedePeloNome(' SITE '), 'blog');
+  assert.equal(redeDaConta({ nome: 'Blog', rede: 'outra' }), 'blog');
+  assert.equal(redeDaConta({ nome: 'Newsletter', rede: 'outra' }), 'outra');
   assert.equal(inferirRedePeloNome('Insta da Diza'), null);
   assert.equal(redeDaConta(legado), 'youtube');
   assert.equal(redeDaConta({ nome: 'Reels', rede: null }), null);

@@ -8,7 +8,7 @@ import {SendToRecordingSheet} from '../../../../mobile/components/SendToRecordin
 import {ConfirmModal} from '../../../../components/feedback/modals/ConfirmModal';
 import {useAppContext} from '../../../../context/AppContext';
 import {useAuth} from '../../../../context/AuthContext';
-import type {Content} from '../../../../lib/database';
+import {isCarouselStorageAvailable, type Content} from '../../../../lib/database';
 import {cn} from '../../../../lib/utils';
 import {PageLayout} from '../../../../layouts/page/PageLayout';
 import {ContentDetailMobileScreen} from '../../../../mobile/screens/contents/ContentDetailMobileScreen';
@@ -43,6 +43,7 @@ import {promoteContentToScript} from '../../lib/creationContent';
 import {origemDoRoteiro, resolveSeriesScriptTemplate} from '../../lib/seriesScriptTemplate';
 import {livroIdsEfetivos} from '../../../../lib/livroIds';
 import {rotuloDaRef} from '../../../contas/lib/contas';
+import {isCarouselContent} from '../../lib/carouselSlides';
 
 interface ContentDetailShellProps {
   content: Content;
@@ -77,6 +78,9 @@ function draftFromContent(content: Content): ContentDraft {
     referencias: content.referencias,
     notes: content.notes,
     writingNotes: content.writingNotes,
+    // Ausente = banco sem a coluna ou lista leve; vale como texto e não é gravado.
+    writingMode: content.writingMode,
+    carouselSlides: content.carouselSlides,
     status: content.status,
     publishDate: content.publishDate,
     publishTime: content.publishTime,
@@ -92,7 +96,7 @@ function draftFromContent(content: Content): ContentDraft {
 
 function mergeLoadedBody(draft: ContentDraft, live: Content): ContentDraft {
   let next = draft;
-  const assignIfMissing = <K extends 'script' | 'notes' | 'referencias' | 'writingNotes'>(key: K, value: ContentDraft[K]) => {
+  const assignIfMissing = <K extends 'script' | 'notes' | 'referencias' | 'writingNotes' | 'writingMode' | 'carouselSlides'>(key: K, value: ContentDraft[K]) => {
     if (draft[key] !== undefined || value === undefined) return;
     if (next === draft) next = {...draft};
     next[key] = value;
@@ -101,6 +105,8 @@ function mergeLoadedBody(draft: ContentDraft, live: Content): ContentDraft {
   assignIfMissing('notes', live.notes);
   assignIfMissing('referencias', live.referencias);
   assignIfMissing('writingNotes', live.writingNotes);
+  assignIfMissing('writingMode', live.writingMode);
+  assignIfMissing('carouselSlides', live.carouselSlides);
   return next;
 }
 
@@ -286,6 +292,8 @@ export function ContentDetailShell({
     liveContent.referencias,
     liveContent.notes,
     liveContent.writingNotes,
+    liveContent.writingMode,
+    liveContent.carouselSlides,
     liveContent.publishDate,
     liveContent.publishTime,
     liveContent.recordingDate,
@@ -459,8 +467,9 @@ export function ContentDetailShell({
           ? CONTENT_STATUS.PRODUCAO
           : updates?.status ?? draftNow.status;
 
+      // Carrossel avança para Produção sem a etiqueta "gravar": não passa pela gravação.
       const nextTags =
-        options?.advanceToReady && draftNow.status === CONTENT_STATUS.ROTEIRO
+        options?.advanceToReady && draftNow.status === CONTENT_STATUS.ROTEIRO && !isCarouselContent(draftNow)
           ? withProductionTag(updates?.tags ?? draftNow.tags ?? liveNow.tags ?? [], PRODUCTION_TAGS.GRAVAR)
           : updates?.tags ?? draftNow.tags ?? liveNow.tags;
 
@@ -521,7 +530,7 @@ export function ContentDetailShell({
   draftRef.current = draft;
   liveContentRef.current = liveContent;
 
-  const textKey = JSON.stringify([draft.title, draft.script, draft.notes, draft.writingNotes, draft.referencias]);
+  const textKey = JSON.stringify([draft.title, draft.script, draft.notes, draft.writingNotes, draft.referencias, draft.carouselSlides]);
   const lastTextKeyRef = useRef(textKey);
 
   useEffect(() => {
@@ -562,6 +571,8 @@ export function ContentDetailShell({
     draft.recordingTime,
     draft.referencias,
     draft.writingNotes,
+    draft.writingMode,
+    draft.carouselSlides,
     draft.script,
     draft.scriptNotes,
     draft.seriesId,
@@ -737,6 +748,10 @@ export function ContentDetailShell({
   };
 
   const isIdea = normalizeContentStatus(mergedContent.status) === CONTENT_STATUS.IDEIA;
+  const writingWorkspace = mode === 'desktop' && isWritingWorkspaceEnabled(state.preferences);
+  // Roteiro no computador com Escrita/Gestão: título e "Avançar" descem para a área de escrita;
+  // o cabeçalho fica só com "‹ Criação", "Salvo" e "⋯". Ideia, Gravação e Publicação não mudam.
+  const documentHeader = activeTab === 'roteiro' && !isIdea && writingWorkspace;
   const trashConfirmMessage = isIdea
     ? `Mover esta ideia para a lixeira — ${draft.title || 'Ideia sem título'}? Você pode restaurá-la depois.`
     : `Mover este roteiro para a lixeira — ${draft.title || 'Roteiro sem título'}? Você pode restaurá-lo depois.`;
@@ -773,8 +788,12 @@ export function ContentDetailShell({
           mobileComposer={mode === 'mobile'}
           autoFocusScript={mode === 'mobile' && searchParams.get('focus') === 'script'}
           layout={mode === 'desktop' ? 'workspace' : 'stack'}
-          writingWorkspace={mode === 'desktop' && isWritingWorkspaceEnabled(state.preferences)}
+          writingWorkspace={writingWorkspace}
+          primaryAction={documentHeader ? primaryAction : undefined}
+          onPrimaryAction={documentHeader ? () => void handlePrimaryAction() : undefined}
+          primaryBusy={isDeleting}
           contentId={mergedContent.id}
+          carouselAvailable={isCarouselStorageAvailable()}
           title={draft.title}
           onTitleChange={value => handleDraftChange({title: value})}
           saveState={editorSaveState}
@@ -811,7 +830,8 @@ export function ContentDetailShell({
 
   const recordingSheet = (
     <SendToRecordingSheet
-      open={isRecordingSheetOpen}
+      // Carrossel não entra em bloco de gravação.
+      open={isRecordingSheetOpen && !isCarouselContent(mergedContent)}
       onClose={() => setIsRecordingSheetOpen(false)}
       content={mergedContent}
       recordingBlocks={state.recordingBlocks}
@@ -952,6 +972,7 @@ export function ContentDetailShell({
             breadcrumbMode={activeTab === 'roteiro' ? 'pipeline' : 'content'}
             saveState={editorSaveState}
             contentKind={isIdea ? 'idea' : 'script'}
+            variant={documentHeader ? 'document' : 'default'}
           />
         )}
       >

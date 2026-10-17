@@ -1,11 +1,12 @@
-import {Globe} from 'lucide-react';
+import {Globe, Newspaper} from 'lucide-react';
 import type {RedeSocial} from '../../lib/database';
 import {cn} from '../../lib/utils';
 import {REDE_ROTULO} from '../../features/contas/lib/contas';
 import {PlatformIcon} from './PlatformIcon';
 
-/** Ícone de uma rede, herdando a cor do texto. `outra` usa um globo. */
+/** Ícone de uma rede, herdando a cor do texto. Blog/site usa um jornal; `outra`, um globo. */
 export function RedeIcon({rede, className}: {rede: RedeSocial; className?: string}) {
+  if (rede === 'blog') return <Newspaper className={className} aria-hidden />;
   if (rede === 'outra') return <Globe className={className} aria-hidden />;
   return <PlatformIcon platform={rede} className={className} />;
 }

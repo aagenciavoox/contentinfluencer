@@ -37,7 +37,8 @@ function hashtagsForPlatform(
   const daConta = linhas.find(item => contaDaRef(item.platformId, contas)?.id === conta.id && item.hashtags.trim());
   if (daConta) return parseHashtags(daConta.hashtags);
   const rede = redeDaConta(conta);
-  if (!rede || rede === 'outra') return [];
+  // Blog/site e outras plataformas não somam hashtags por rede.
+  if (!rede || rede === 'outra' || rede === 'blog') return [];
   const daRede = linhas.filter(item => {
     const outra = contaDaRef(item.platformId, contas);
     return outra != null && redeDaConta(outra) === rede && item.hashtags.trim();

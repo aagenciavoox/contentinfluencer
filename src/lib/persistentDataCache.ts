@@ -9,7 +9,9 @@ const EPOCH_KEY = 'content-os:domain-epoch';
  */
 // 2026-10-16: tags viraram temas no banco; a lista guardada antes nao tinha os vinculos
 // e mostrava o filtro de tema vazio (e podia regravar o roteiro sem os temas).
-const DOMAIN_CACHE_EPOCH = '2026-10-16-tags-viram-temas';
+// 2026-10-17: roteiros ganharam o modo de escrita (texto/carrossel); a lista guardada antes
+// não tinha o modo e mostraria carrossel como texto (inclusive na fila de gravação).
+const DOMAIN_CACHE_EPOCH = '2026-10-17-modo-carrossel';
 /** Dados persistidos ficam legíveis por até 24h; revalidação em background após 5 min. */
 export const PERSISTENT_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 export const PERSISTENT_FRESH_MS = 5 * 60 * 1000;
@@ -78,6 +80,8 @@ function stripContentForCache(content: Content): Content {
     notes: undefined,
     referencias: undefined,
     writingNotes: undefined,
+    // As telas são corpo, como o roteiro; o modo de escrita fica (é leve e decide a fila de gravação).
+    carouselSlides: undefined,
   } as Content;
 }
 

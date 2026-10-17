@@ -1,6 +1,6 @@
 import {isAfter, isBefore, startOfDay} from 'date-fns';
 import type {Content, RecordingBlock} from '../../../lib/database';
-import {htmlToReadableText} from '../../../lib/utils.ts';
+import {contentReadableBody, isCarouselContent} from './carouselSlides.ts';
 
 export const CONTENT_STATUS = {
   IDEIA: 'Ideia',
@@ -178,6 +178,12 @@ export function isTabLocked(_tab: ContentDetailTab, _content: Content, _options:
 
 export function getVisibleTabsForContent(content: Content, options: StageOptions = {}): ContentDetailTab[] {
   const stage = getContentStage(content, options);
+  // Carrossel não passa pela gravação: da escrita vai direto para a publicação.
+  if (isCarouselContent(content) && stage !== ContentStage.EM_BLOCO) {
+    return stage === ContentStage.IDEIA || stage === ContentStage.ROTEIRO
+      ? ['roteiro']
+      : ['roteiro', 'publicacao'];
+  }
   if (shouldShowPublishingSection(stage, content)) {
     return ['roteiro', 'gravacao', 'publicacao'];
   }
@@ -231,8 +237,10 @@ export function getContentStage(content: Content, options: StageOptions = {}): C
   return ContentStage.ROTEIRO;
 }
 
-export function canAdvanceToRecording(content: Pick<Content, 'title' | 'script'>) {
-  return content.title.trim().length > 0 && htmlToReadableText(content.script).trim().length > 0;
+export function canAdvanceToRecording(
+  content: Pick<Content, 'title' | 'script'> & Partial<Pick<Content, 'writingMode' | 'carouselSlides'>>,
+) {
+  return content.title.trim().length > 0 && contentReadableBody(content).length > 0;
 }
 
 export function canSchedulePosting(content: Pick<Content, 'publishDate' | 'plataformas'>) {
@@ -338,6 +346,17 @@ export function getPrimaryAction(content: Content, options: StageOptions = {}): 
         targetTab: 'roteiro',
       };
     case ContentStage.ROTEIRO:
+      if (isCarouselContent(content)) {
+        return {
+          id: 'advance_to_recording',
+          label: 'Avançar para produção',
+          targetTab: 'publicacao',
+          disabled: !canAdvanceToRecording(content),
+          reason: !canAdvanceToRecording(content)
+            ? 'Adicione um título e escreva as telas para continuar.'
+            : undefined,
+        };
+      }
       return {
         id: 'advance_to_recording',
         label: 'Avançar para gravação',
@@ -356,7 +375,7 @@ export function getPrimaryAction(content: Content, options: StageOptions = {}): 
           disabled: !canSchedulePosting(content),
         };
       }
-      if (content.recordedAt) {
+      if (content.recordedAt || isCarouselContent(content)) {
         return {
           id: 'send_to_posting',
           label: 'Preparar publicação com calma',
