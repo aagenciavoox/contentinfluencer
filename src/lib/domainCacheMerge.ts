@@ -79,4 +79,23 @@ export function mergeFetchedAppData<T extends Partial<AppData>>(
   return next;
 }
 
+/**
+ * Foto guardada com as partes que mudaram numa gravação, ou `null` se ela não traz nenhuma.
+ * Só entram as partes que a foto já guardava. Roteiros ficam de fora: têm ajuste próprio,
+ * que conhece a lista leve.
+ */
+export function patchChangedSlices(
+  payload: Partial<AppData>,
+  before: Partial<AppData>,
+  after: Partial<AppData>,
+): Partial<AppData> | null {
+  const patch: Record<string, unknown> = {};
+  (Object.keys(payload) as (keyof AppData)[]).forEach(key => {
+    if (key === 'contents') return;
+    if (after[key] === undefined || before[key] === after[key]) return;
+    patch[key] = after[key];
+  });
+  return Object.keys(patch).length > 0 ? { ...payload, ...patch } : null;
+}
+
 export { mergeContents, mergePlatforms };

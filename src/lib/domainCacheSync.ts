@@ -4,6 +4,7 @@ import type { PeriodoSelecionado } from '../features/editorial/lib/periodoEditor
 import { BOOTSTRAP_DATA_DOMAINS, CRITICAL_BOOTSTRAP_DOMAINS, type AppDataDomain } from './database';
 import { buildDomainCacheKey, dataCache } from './dataCache';
 import { listPersistedDomainStamps, readPersistedDomain, writePersistedDomain } from './persistentDataCache';
+import { patchChangedSlices } from './domainCacheMerge';
 
 const STORAGE_PREFIX = 'content-os:domain:';
 
@@ -142,6 +143,36 @@ export function patchBibliotecaItemsInDomainCaches(
         { ...persisted.payload, bibliotecaItems },
         persisted.fetchedAt,
       );
+    }
+  });
+}
+
+/**
+ * Depois de uma gravação, cada foto guardada recebe as partes que mudaram.
+ * Sem isso, recarregar dentro do prazo do cache (5 min) mostrava o que havia antes de salvar:
+ * os post-its do Planejamento voltavam para a bandeja. A idade de cada foto fica a mesma.
+ */
+export function patchChangedSlicesInDomainCaches(
+  userId: string,
+  before: Partial<AppData>,
+  after: Partial<AppData>,
+) {
+  const keys = new Set<string>();
+  dataCache.listDomainStamps().forEach(stamp => keys.add(stamp.key));
+  listPersistedDomainStamps(userId).forEach(stamp => keys.add(stamp.key));
+
+  keys.forEach(cacheKey => {
+    const memory = dataCache.getDomain<Partial<AppData>>(cacheKey);
+    const memoryFetchedAt = dataCache.getDomainFetchedAt(cacheKey);
+    const memoryNext = memory ? patchChangedSlices(memory, before, after) : null;
+    if (memoryNext && memoryFetchedAt != null) {
+      dataCache.setDomain(cacheKey, memoryNext, memoryFetchedAt);
+    }
+
+    const persisted = readPersistedDomain(userId, cacheKey);
+    const persistedNext = persisted ? patchChangedSlices(persisted.payload, before, after) : null;
+    if (persisted && persistedNext) {
+      writePersistedDomain(userId, cacheKey, persistedNext, persisted.fetchedAt);
     }
   });
 }

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
-import type { Content, Platform } from './database';
-import { mergeContents, mergeFetchedAppData, mergePlatforms } from './domainCacheMerge.ts';
+import type { Content, PlanejamentoPostIt, Platform } from './database';
+import { mergeContents, mergeFetchedAppData, mergePlatforms, patchChangedSlices } from './domainCacheMerge.ts';
 
 function platform(id: string, nome: string): Platform {
   return {
@@ -110,9 +110,45 @@ function testMergeContentsHelper() {
   assert.equal(merged.length, 1);
 }
 
+function postIt(id: string, date: string | null): PlanejamentoPostIt {
+  return {
+    id,
+    userId: 'user-1',
+    texto: '',
+    date,
+    contentId: null,
+    createdAt: '2026-10-17T15:00:00.000Z',
+    updatedAt: '2026-10-17T15:00:00.000Z',
+  };
+}
+
+function testPatchPutsSavedPostItsIntoCachedPhoto() {
+  const before = { postIts: [postIt('n1', null)], platforms: [] as Platform[] };
+  const after = { ...before, postIts: [postIt('n1', '2026-10-26')] };
+  const cached = { postIts: before.postIts, goldenRules: [] };
+  const next = patchChangedSlices(cached, before, after);
+  assert.equal(next?.postIts?.[0]?.date, '2026-10-26');
+  assert.equal(next?.goldenRules, cached.goldenRules);
+}
+
+function testPatchSkipsPhotoWithoutChangedSlice() {
+  const before = { postIts: [postIt('n1', null)], agendaItems: [] };
+  const after = { ...before, postIts: [postIt('n1', '2026-10-26')] };
+  assert.equal(patchChangedSlices({ agendaItems: [] }, before, after), null);
+}
+
+function testPatchLeavesContentsToTheirOwnSync() {
+  const before = { contents: [] as Content[] };
+  const after = { contents: [content('c1', 'Novo', '2026-10-17T15:00:00.000Z')] };
+  assert.equal(patchChangedSlices({ contents: [] }, before, after), null);
+}
+
 testMergeKeepsLocalPlatformsMissingFromIncoming();
 testMergeKeepsLocalContentsMissingFromIncoming();
 testMergePrefersLocalVersionOnConflict();
 testMergePrefersNewerServerVersionOverStaleCache();
 testMergePlatformsHelper();
 testMergeContentsHelper();
+testPatchPutsSavedPostItsIntoCachedPhoto();
+testPatchSkipsPhotoWithoutChangedSlice();
+testPatchLeavesContentsToTheirOwnSync();

@@ -38,7 +38,7 @@ import {
   readPersistedDomain,
   writePersistedDomain,
 } from '../lib/persistentDataCache';
-import { mergeFetchedAppData, patchBibliotecaItemsInDomainCaches, patchContentsInDomainCaches, patchEditorialInDomainCaches, patchPlatformsInDomainCaches, patchPreferencesInDomainCaches, patchSeriesInDomainCaches, patchTemasInDomainCaches } from '../lib/domainCacheSync';
+import { mergeFetchedAppData, patchBibliotecaItemsInDomainCaches, patchChangedSlicesInDomainCaches, patchContentsInDomainCaches, patchEditorialInDomainCaches, patchPlatformsInDomainCaches, patchPreferencesInDomainCaches, patchSeriesInDomainCaches, patchTemasInDomainCaches } from '../lib/domainCacheSync';
 import {
   BOOTSTRAP_DATA_DOMAINS,
   CRITICAL_BOOTSTRAP_DOMAINS,
@@ -753,6 +753,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         persistAction({ action: normalizedAction, userId, state: stateRef.current })
       );
       finishPersist(normalizedAction.type, persistOptions);
+      // O que foi salvo entra no cache do navegador: recarregar não traz a versão de antes.
+      if (snapshot) patchChangedSlicesInDomainCaches(userId, snapshot, stateRef.current);
     } catch (err) {
       console.error('[Sync] Error persisting action:', normalizedAction.type, err);
       notifySaveFeedback({
