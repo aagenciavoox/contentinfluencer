@@ -56,20 +56,20 @@ export function MobileAppShell({
         style={{
           top: hideHeader
             ? 'calc(env(safe-area-inset-top, 0px) + 1rem)'
-            : 'calc(env(safe-area-inset-top, 0px) + 3.5rem)',
+            : 'calc(env(safe-area-inset-top, 0px) + 3.5rem + 1px)',
           transform: `translateY(${Math.max(pullDistance - 28, 0)}px)`,
         }}
       >
         <div
           className={cn(
-            'flex h-9 w-9 items-center justify-center rounded-full border border-[var(--border-color)] bg-[var(--bg-elevated)] shadow-sm',
-            isRefreshing && 'border-[var(--accent-blue)]',
+            'flex h-9 w-9 items-center justify-center rounded-full border border-[var(--border-color)] bg-[var(--bg-elevated)] shadow-[var(--shadow-dropdown)]',
+            isRefreshing && 'border-[var(--border-strong)]',
           )}
         >
           <Loader2
             className={cn(
               'h-4 w-4 text-[var(--text-secondary)]',
-              isRefreshing && 'animate-spin text-[var(--accent-blue)]',
+              isRefreshing && 'animate-spin text-[var(--text-primary)]',
             )}
             style={!isRefreshing ? { transform: `rotate(${progress * 360}deg)` } : undefined}
           />
@@ -80,13 +80,14 @@ export function MobileAppShell({
         ref={setMainRef}
         onScroll={onScroll}
         className={cn(
-          'flex-1 min-h-0 overflow-y-auto overscroll-y-contain',
-          hideBottomNav
-            ? 'pb-0'
-            : 'pb-[calc(env(safe-area-inset-bottom)+5.5rem)]',
-          hideHeader
-            ? 'px-0 pt-0'
-            : 'px-4 pt-[calc(env(safe-area-inset-top)+3.5rem)]',
+          // overflow-x explícito: com overflow-y auto o eixo x viraria auto e um filho largo
+          // criaria rolagem lateral em 360px.
+          // mobile-shell-scroll: sem a barra de rolagem global de 8px, que no Android aparecia
+          // como uma alça "||" na borda direita e roubava largura (conteúdo parecia descentralizado).
+          'mobile-shell-scroll flex-1 min-h-0 overflow-x-hidden overflow-y-auto overscroll-y-contain',
+          // Com header: o espaço do topo (área segura + header + borda + respiro) vem de
+          // .mobile-shell-scroll--header no index.css, junto com o scroll-padding-top.
+          hideHeader ? 'px-0 pt-0' : 'mobile-shell-scroll--header px-4',
         )}
         style={{
           transform: isActive ? `translateY(${pullDistance}px)` : undefined,
@@ -94,6 +95,8 @@ export function MobileAppShell({
         }}
       >
         <div className="min-h-full">{children}</div>
+        {/* Espaço real para a barra inferior não cobrir o último item da tela. */}
+        {hideBottomNav ? null : <div aria-hidden className="mobile-shell-bottom-spacer" />}
       </main>
 
       {hideBottomNav ? null : bottomNav}

@@ -3,6 +3,7 @@ import {format} from 'date-fns';
 import {ptBR} from 'date-fns/locale';
 import {Send, X} from 'lucide-react';
 import {AppButton} from '../../../components/ui/AppButton';
+import {SelectField} from '../../../components/ui/SelectField';
 import type {Content, Platform, PublicationKind, Serie} from '../../../lib/database';
 import {MarkPostedSheet} from './MarkPostedSheet';
 import {cn} from '../../../lib/utils';
@@ -322,7 +323,7 @@ export function PostedVideoComposerSheet({
 
       {platformEntries.length > 0 ? (
         <div className="stack-sm">
-          <label className="text-sm font-medium text-[var(--text-secondary)]">Tipo por rede</label>
+          <p className="text-sm font-medium text-[var(--text-secondary)]">Tipo por rede</p>
           {platformEntries.map(entry => (
             <div
               key={entry.platformId}
@@ -331,14 +332,15 @@ export function PostedVideoComposerSheet({
               <span className="text-sm font-semibold text-[var(--text-primary)]">
                 {platformLabel(entry.platformId, activePlatforms)}
               </span>
-              <select
+              <SelectField
+                ariaLabel={`Tipo da publicação em ${platformLabel(entry.platformId, activePlatforms)}`}
                 value={entry.publicationKind}
-                onChange={event => setPublicationKind(entry.platformId, event.target.value as PublicationKind)}
-                className="min-h-9 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-2.5 text-xs font-semibold text-[var(--text-primary)] outline-none focus:border-[var(--accent-blue)]"
-              >
-                <option value="post">Original</option>
-                <option value="repost">Repostagem</option>
-              </select>
+                onChange={value => setPublicationKind(entry.platformId, value as PublicationKind)}
+                options={[
+                  {value: 'post', label: 'Original'},
+                  {value: 'repost', label: 'Repostagem'},
+                ]}
+              />
             </div>
           ))}
         </div>

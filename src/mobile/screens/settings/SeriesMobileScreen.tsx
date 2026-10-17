@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { ChevronRight, Layers, Plus } from 'lucide-react';
+import { Layers, Plus } from 'lucide-react';
 import { AppButton } from '../../../components/ui/AppButton';
 import { Badge } from '../../../components/ui/Badge';
 import { MoreMenu } from '../../../components/ui/MoreMenu';
@@ -9,9 +9,7 @@ import type { Serie } from '../../../lib/database';
 import { EmptyState } from '../../../components/ui/EmptyState';
 import { MobileListCard } from '../../components/MobileListCard';
 import { MobileSearchBar } from '../../components/MobileSearchBar';
-import { MobileSectionHeader } from '../../components/MobileSectionHeader';
-import { MobileSegmentTabs } from '../../components/MobileSegmentTabs';
-import { cn } from '../../../lib/utils';
+import { FilterChips } from '../../../components/ui/FilterChips';
 import { getSerieOpenItems } from '../../../features/editorial/lib/serieCompleteness';
 
 interface SeriesMobileScreenProps {
@@ -80,17 +78,13 @@ export function SeriesMobileScreen({
 
   return (
     <div className="stack-lg">
-      <section className="rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4">
-        <MobileSectionHeader
-          icon={Layers}
-          tone="purple"
-          title="Séries"
-          description={
-            series.length === 0
-              ? 'Criação em massa de roteiros. A configuração completa fica no Editorial.'
-              : `${activeCount} ativa${activeCount === 1 ? '' : 's'} · ${series.length} no total`
-          }
-        />
+      {/* O cabeçalho já diz "Séries": aqui fica só o resumo e a ação da tela. */}
+      <section className="stack-md">
+        <Text variant="secondary" className="px-1">
+          {series.length === 0
+            ? 'Criação em massa de roteiros. A configuração completa fica no Editorial.'
+            : `${activeCount} ativa${activeCount === 1 ? '' : 's'} · ${series.length} no total`}
+        </Text>
 
         <AppButton
           variant="primary"
@@ -129,13 +123,14 @@ export function SeriesMobileScreen({
             onChange={setSearch}
             placeholder="Buscar série…"
           />
-          <MobileSegmentTabs<SeriesFilter>
+          <FilterChips<SeriesFilter>
+            ariaLabel="Filtrar séries"
             value={filter}
             onChange={setFilter}
-            tabs={[
-              { value: 'todas', label: 'Todas', count: filterCounts.todas },
-              { value: 'ativas', label: 'Ativas', count: filterCounts.ativas },
-              { value: 'inativas', label: 'Inativas', count: filterCounts.inativas },
+            options={[
+              { id: 'todas', label: 'Todas', count: filterCounts.todas },
+              { id: 'ativas', label: 'Ativas', count: filterCounts.ativas },
+              { id: 'inativas', label: 'Inativas', count: filterCounts.inativas },
             ]}
           />
         </section>
@@ -148,6 +143,11 @@ export function SeriesMobileScreen({
             title="Nenhuma série criada"
             description="Adicione a primeira série recorrente para estruturar o calendário editorial."
             icon={<Layers className="h-8 w-8" />}
+            action={
+              <AppButton variant="secondary" onClick={onCreate} leftIcon={<Plus className="h-4 w-4" />}>
+                Nova série
+              </AppButton>
+            }
           />
         ) : filteredSeries.length === 0 ? (
           <EmptyState
@@ -155,20 +155,31 @@ export function SeriesMobileScreen({
             title="Nenhuma série encontrada"
             description="Ajuste a busca ou o filtro para ver outras séries."
             icon={<Layers className="h-8 w-8" />}
+            action={
+              <AppButton
+                variant="secondary"
+                onClick={() => {
+                  setSearch('');
+                  setFilter('todas');
+                }}
+              >
+                Limpar busca e filtro
+              </AppButton>
+            }
           />
         ) : (
           filteredSeries.map(serie => {
             const roteiroCount = roteiroCountBySerie.get(serie.id) || 0;
-            const serieColor = serie.cor || '#6366f1';
+            // Sem cor própria, o ponto usa a cor neutra do tema (não um roxo fixo).
+            const serieColor = serie.cor || 'var(--text-tertiary)';
             const structure = serie.estruturaRoteiro?.trim();
             const frequency = serie.frequenciaRecomendada || 'Sob demanda';
 
             return (
-              <div
-                key={serie.id}
-                className={cn(!serie.ativa && 'opacity-55')}
-              >
+              // Série inativa: o selo "Inativa" já diz o estado; o card não fica apagado
+              // (a opacidade derrubava o contraste do texto).
               <MobileListCard
+                key={serie.id}
                 title={serie.name}
                 imageUrl={serie.capaUrl}
                 description={structure
@@ -185,12 +196,11 @@ export function SeriesMobileScreen({
                     {[
                       frequency,
                       formatRoteiroCount(roteiroCount),
-                      serie.ativa ? null : 'Inativa',
                     ].filter(Boolean).join(' · ')}
                   </Text>
                 }
                 trailing={
-                  <div className="mt-1 flex items-start gap-1">
+                  <div className="mt-1 flex items-start">
                     <MoreMenu
                       size="sm"
                       items={[
@@ -201,7 +211,6 @@ export function SeriesMobileScreen({
                       ]}
                       triggerClassName="border-transparent bg-transparent"
                     />
-                    <ChevronRight className="h-5 w-5 shrink-0 text-[var(--text-tertiary)]" />
                   </div>
                 }
                 status={
@@ -215,7 +224,6 @@ export function SeriesMobileScreen({
                   ) : undefined
                 }
               />
-              </div>
             );
           })
         )}

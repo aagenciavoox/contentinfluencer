@@ -1,6 +1,8 @@
 import {useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent, type ReactNode} from 'react';
 import {ChevronsUpDown, X} from 'lucide-react';
+import {createPortal} from 'react-dom';
 import {cn} from '../../lib/utils';
+import {FLOATING_MENU_HIDDEN_STYLE, FLOATING_MENU_Z_INDEX, useAnchoredPosition} from './anchoredPosition';
 
 export interface TagSelectOption {
   value: string;
@@ -99,6 +101,11 @@ export function TagSelect({
   const [query, setQuery] = useState('');
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const controlRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+  // A lista vai num portal: nenhum `overflow` (folha, card, painel) a corta, e ela abre para
+  // cima quando falta espaço embaixo.
+  const position = useAnchoredPosition(open && !disabled, controlRef, listRef);
   const fieldId = id || label.toLowerCase().replace(/\s+/g, '-');
 
   const optionMap = useMemo(
@@ -123,7 +130,8 @@ export function TagSelect({
     if (!open) return;
 
     const handlePointerDown = (event: PointerEvent) => {
-      if (!containerRef.current?.contains(event.target as Node)) {
+      const target = event.target as Node;
+      if (!containerRef.current?.contains(target) && !listRef.current?.contains(target)) {
         // Texto digitado e não confirmado vira valor ao sair: senão a tag some sem aviso.
         if (creatable && query.trim()) addValue(query);
         setOpen(false);
@@ -220,6 +228,7 @@ export function TagSelect({
       <div className="relative">
         {/* Sem busca não há campo de texto: o próprio controle recebe foco e abre com o teclado. */}
         <div
+          ref={controlRef}
           role="combobox"
           id={showInput ? undefined : fieldId}
           tabIndex={showInput || disabled ? undefined : 0}
@@ -273,7 +282,8 @@ export function TagSelect({
                 onFocus={() => setOpen(true)}
                 onBlur={event => {
                   if (!creatable || !query.trim()) return;
-                  if (containerRef.current?.contains(event.relatedTarget as Node | null)) return;
+                  const next = event.relatedTarget as Node | null;
+                  if (containerRef.current?.contains(next) || listRef.current?.contains(next)) return;
                   addValue(query);
                 }}
                 placeholder={values.length === 0 ? placeholder : ''}
@@ -298,11 +308,17 @@ export function TagSelect({
           </button>
         </div>
 
-        {open && !disabled ? (
+        {open && !disabled && typeof document !== 'undefined' ? createPortal(
           <div
+            ref={listRef}
             id={`${fieldId}-listbox`}
             role="listbox"
-            className="absolute left-0 right-0 top-[calc(100%+4px)] z-50 max-h-56 overflow-y-auto rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] py-1 shadow-[var(--shadow-dropdown)]"
+            data-placement={position?.placement}
+            style={position?.style ?? FLOATING_MENU_HIDDEN_STYLE}
+            className={cn(
+              'fixed overflow-y-auto overscroll-contain rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] py-1 shadow-[var(--shadow-dropdown)]',
+              FLOATING_MENU_Z_INDEX,
+            )}
           >
             {availableOptions.length > 0 ? (
               availableOptions.map(option => (
@@ -331,7 +347,8 @@ export function TagSelect({
             {availableOptions.length === 0 && !(creatable && creatableMatch) ? (
               <p className="px-3 py-2 text-sm text-[var(--text-tertiary)]">Nenhuma opção disponível</p>
             ) : null}
-          </div>
+          </div>,
+          document.body,
         ) : null}
       </div>
     </div>

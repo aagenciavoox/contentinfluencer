@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { BookOpen, CornerDownLeft, PencilLine, Plus, X } from 'lucide-react';
 import type { AppState } from '../../../app/providers/appState';
 import { AppButton } from '../../../components/ui/AppButton';
+import { SelectMenu } from '../../../components/ui/SelectMenu';
 import { getActivePilares } from '../../settings/lib/activePilares';
 import { cn, getEntityTagStyle } from '../../../lib/utils';
 
@@ -44,7 +45,6 @@ export function IdeaQuickCapture({
   autoFocus = true,
 }: IdeaQuickCaptureProps) {
   const [expanded, setExpanded] = useState(variant === 'default');
-  const [openMeta, setOpenMeta] = useState<MetaField | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const consumindo = state.bibliotecaItems.filter((item) =>
@@ -58,19 +58,6 @@ export function IdeaQuickCapture({
   const selectedSerie = state.series.find((serie) => serie.id === selectedSeries) ?? null;
   const selectedOrigem =
     state.bibliotecaItems.find((item) => item.id === selectedBibliotecaId) ?? null;
-
-  useEffect(() => {
-    if (!openMeta) return;
-
-    const handlePointerDown = (event: MouseEvent) => {
-      if (!containerRef.current?.contains(event.target as Node)) {
-        setOpenMeta(null);
-      }
-    };
-
-    document.addEventListener('pointerdown', handlePointerDown);
-    return () => document.removeEventListener('pointerdown', handlePointerDown);
-  }, [openMeta]);
 
   const handleNotesKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key === 'Enter' && !event.shiftKey) {
@@ -97,94 +84,67 @@ export function IdeaQuickCapture({
     chipStyle?: React.CSSProperties,
     filledIcon?: React.ReactNode,
   ) => {
-    const isOpen = openMeta === field;
     const filled = Boolean(valueLabel);
+    const value =
+      field === 'pilar' ? selectedPilarId : field === 'serie' ? selectedSeries : selectedBibliotecaId;
+    const handleSelect = (next: string) => {
+      if (field === 'pilar') onSelectedPilarIdChange(next);
+      if (field === 'serie') onSelectedSeriesChange(next);
+      if (field === 'origem') onSelectedBibliotecaIdChange(next);
+    };
+    const options =
+      field === 'pilar'
+        ? getActivePilares(state.pilares).map((pilar) => ({ value: pilar.id, label: pilar.nome }))
+        : field === 'serie'
+          ? state.series.map((serie) => ({ value: serie.id, label: serie.name }))
+          : consumindo.map((item) => ({ value: item.id, label: item.titulo.slice(0, 40) }));
 
     return (
       <div className="relative">
-        <button
-          type="button"
-          onClick={() => setOpenMeta(isOpen ? null : field)}
-          className={cn(
-            'inline-flex min-h-11 max-w-full items-center gap-1 rounded-[var(--radius-pill)] border px-2 py-1 text-xs font-medium transition-colors md:min-h-0',
-            filled
-              ? 'border-transparent'
-              : 'border-dashed border-[var(--border-color)] text-[var(--text-tertiary)] hover:border-[var(--border-strong)] hover:text-[var(--text-secondary)]',
-          )}
-          style={filled ? chipStyle : undefined}
-        >
-          {filled ? (
-            <>
+        {filled ? (
+          // Botão dentro de botão não é HTML válido e o X ficava com 16px. Agora são dois botões
+          // lado a lado dentro do mesmo chip; no toque, os dois têm 44px de altura.
+          <div
+            className="inline-flex min-h-11 max-w-full items-center rounded-[var(--radius-pill)] border border-transparent text-xs font-medium md:min-h-0"
+            style={chipStyle}
+          >
+            {/* Toque abre a lista do design system (folha no celular) direto no chip. */}
+            <SelectMenu
+              value={value}
+              onChange={handleSelect}
+              options={options}
+              ariaLabel={label}
+              triggerClassName="inline-flex min-h-11 min-w-0 items-center gap-1 rounded-l-[var(--radius-pill)] py-1 pl-2 pr-1 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] md:min-h-0"
+            >
               {filledIcon}
               <span className="truncate">{valueLabel}</span>
-              <button
-                type="button"
-                aria-label={`Remover ${label}`}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  if (field === 'pilar') onSelectedPilarIdChange('');
-                  if (field === 'serie') onSelectedSeriesChange('');
-                  if (field === 'origem') onSelectedBibliotecaIdChange('');
-                  setOpenMeta(null);
-                }}
-                className="rounded p-0.5 opacity-60 transition hover:opacity-100"
-              >
-                <X className="h-3 w-3 shrink-0" />
-              </button>
-            </>
-          ) : (
-            <>
-              <Plus className="h-3 w-3 shrink-0" />
-              <span>{label}</span>
-            </>
-          )}
-        </button>
-
-        {isOpen ? (
-          <div className="absolute left-0 top-full z-20 mt-1 min-w-[180px] rounded-lg border border-[var(--border-color)] bg-[var(--bg-elevated)] p-1 shadow-[var(--shadow-soft)]">
-            <select
-              autoFocus
-              value={
-                field === 'pilar'
-                  ? selectedPilarId
-                  : field === 'serie'
-                    ? selectedSeries
-                    : selectedBibliotecaId
-              }
-              onChange={(event) => {
-                const value = event.target.value;
-                if (field === 'pilar') onSelectedPilarIdChange(value);
-                if (field === 'serie') onSelectedSeriesChange(value);
-                if (field === 'origem') onSelectedBibliotecaIdChange(value);
-                setOpenMeta(null);
+            </SelectMenu>
+            <button
+              type="button"
+              aria-label={`Remover ${label}`}
+              onClick={() => {
+                if (field === 'pilar') onSelectedPilarIdChange('');
+                if (field === 'serie') onSelectedSeriesChange('');
+                if (field === 'origem') onSelectedBibliotecaIdChange('');
               }}
-              className="w-full rounded-md border border-[var(--border-color)] bg-[var(--bg-hover)] px-2 py-1.5 text-xs font-medium text-[var(--text-primary)] focus:border-[var(--accent-blue)] focus:ring-1 focus:ring-[var(--accent-blue)]/20"
+              className="inline-flex min-h-11 min-w-9 shrink-0 items-center justify-center rounded-r-[var(--radius-pill)] pr-1 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] md:min-h-0 md:min-w-0 md:p-0.5"
             >
-              <option value="">{label}</option>
-              {field === 'pilar'
-                ? getActivePilares(state.pilares).map((pilar) => (
-                    <option key={pilar.id} value={pilar.id}>
-                      {pilar.nome}
-                    </option>
-                  ))
-                : null}
-              {field === 'serie'
-                ? state.series.map((serie) => (
-                    <option key={serie.id} value={serie.id}>
-                      {serie.name}
-                    </option>
-                  ))
-                : null}
-              {field === 'origem'
-                ? consumindo.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.titulo.slice(0, 40)}
-                    </option>
-                  ))
-                : null}
-            </select>
+              <X className="h-3.5 w-3.5 shrink-0" aria-hidden />
+            </button>
           </div>
-        ) : null}
+        ) : (
+          <SelectMenu
+            value={value}
+            onChange={handleSelect}
+            options={options}
+            ariaLabel={label}
+            triggerClassName="inline-flex min-h-11 max-w-full items-center gap-1 rounded-[var(--radius-pill)] border border-dashed border-[var(--border-color)] px-2 py-1 text-xs font-medium text-[var(--text-tertiary)] transition-colors hover:border-[var(--border-strong)] hover:text-[var(--text-secondary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] md:min-h-0"
+          >
+            <Plus className="h-3 w-3 shrink-0" aria-hidden />
+            <span>{label}</span>
+          </SelectMenu>
+        )}
+
       </div>
     );
   };

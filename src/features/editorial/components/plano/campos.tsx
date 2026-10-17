@@ -231,18 +231,19 @@ export function CardConfiguracao({
 }) {
   return (
     <Surface padding="none" className={cn('stack-lg p-4 md:p-6', className)}>
-      <div className="flex items-start gap-3">
+      {/* No celular a ação desce para baixo do texto: ao lado, ela espremia a descrição numa coluna estreita. */}
+      <div className="flex flex-wrap items-start gap-3 md:flex-nowrap">
         <span
           className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--radius-sm)] border border-[var(--border-color)] text-[var(--text-primary)]"
           aria-hidden
         >
           {icone}
         </span>
-        <div className="min-w-0 flex-1 pt-0.5">
+        <div className="min-w-0 flex-1 basis-[calc(100%-3.25rem)] pt-0.5 md:basis-auto">
           <Text variant="sectionTitle" as="h2">{titulo}</Text>
           {descricao ? <Text variant="secondary" className="mt-0.5">{descricao}</Text> : null}
         </div>
-        {acao ? <div className="shrink-0">{acao}</div> : null}
+        {acao ? <div className="w-full pl-[3.25rem] md:w-auto md:shrink-0 md:pl-0">{acao}</div> : null}
       </div>
       {children}
     </Surface>

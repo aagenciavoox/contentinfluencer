@@ -185,9 +185,17 @@ export function getMobileRouteMeta(pathname: string, search = ''): MobileRouteMe
     };
   }
 
+  if (pathname === '/configuracoes/perfil') {
+    return {
+      title: 'Perfil',
+      mode: 'back',
+      backTo: '/configuracoes',
+    };
+  }
+
   if (pathname.startsWith('/configuracoes/')) {
     return {
-      title: 'Configuração',
+      title: 'Configurações',
       mode: 'back',
       backTo: '/configuracoes',
     };
@@ -291,7 +299,8 @@ export function resolveMobileRouteMeta(
   context: MobileRouteContext = {},
   search = '',
 ): MobileRouteMeta {
-  const meta = getMobileRouteMeta(pathname, search);
+  // Um alinhamento só para o título em todas as telas: centralizado entre os dois botões.
+  const meta: MobileRouteMeta = { ...getMobileRouteMeta(pathname, search), titleVariant: 'compact-center' };
 
   if (pathname.startsWith('/conteudos/') && context.contentTitle?.trim()) {
     return {

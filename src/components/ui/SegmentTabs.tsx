@@ -1,4 +1,5 @@
-import { useRef, type KeyboardEvent, type ReactNode } from 'react';
+import { useEffect, useRef, type KeyboardEvent, type ReactNode } from 'react';
+import { useScrollEdgeFade } from '../../hooks/useScrollEdgeFade';
 import { cn } from '../../lib/utils';
 
 export interface SegmentTabOption<T extends string = string> {
@@ -16,8 +17,18 @@ interface SegmentTabsProps<T extends string = string> {
   className?: string;
   /** Nome do grupo para leitor de tela (ex.: "Vista do calendário"). */
   ariaLabel?: string;
-  /** Em telas estreitas mostra só o ícone; o rótulo continua para leitor de tela. Exige `icon` em cada opção. */
+  /**
+   * Em telas estreitas as abas inativas mostram só o ícone; a aba ativa mantém o rótulo,
+   * para a pessoa saber onde está. O rótulo continua para leitor de tela. Exige `icon` em cada opção.
+   */
   iconOnlyOnMobile?: boolean;
+  /**
+   * iOS + contenteditable: o primeiro toque só tira o foco do editor e o clique se perde.
+   * Com isto a aba troca no pointerdown (usado ao lado do editor de roteiro).
+   */
+  activateOnPointerDown?: boolean;
+  /** Trilho de largura toda com abas em partes iguais (também no celular). */
+  fullWidth?: boolean;
 }
 
 /**
@@ -31,8 +42,16 @@ export function SegmentTabs<T extends string = string>({
   className,
   ariaLabel,
   iconOnlyOnMobile = false,
+  activateOnPointerDown = false,
+  fullWidth = false,
 }: SegmentTabsProps<T>) {
   const refs = useRef<Array<HTMLButtonElement | null>>([]);
+  const edgeFade = useScrollEdgeFade<HTMLDivElement>();
+  const { update: updateEdgeFade } = edgeFade;
+
+  useEffect(() => {
+    updateEdgeFade();
+  }, [options, value, updateEdgeFade]);
 
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     const current = options.findIndex(option => option.id === value);
@@ -48,7 +67,13 @@ export function SegmentTabs<T extends string = string>({
   };
 
   return (
-    <div className={cn('segment-tabs', className)} role="tablist" aria-label={ariaLabel} onKeyDown={handleKeyDown}>
+    <div
+      ref={edgeFade.ref}
+      className={cn('segment-tabs', fullWidth ? 'segment-tabs--full' : 'scroll-edge-fade', className)}
+      role="tablist"
+      aria-label={ariaLabel}
+      onKeyDown={handleKeyDown}
+    >
       {options.map((option, index) => {
         const active = value === option.id;
         return (
@@ -61,7 +86,24 @@ export function SegmentTabs<T extends string = string>({
             role="tab"
             aria-selected={active}
             tabIndex={active ? 0 : -1}
-            onClick={() => onChange(option.id)}
+            onClick={activateOnPointerDown ? undefined : () => onChange(option.id)}
+            onPointerDown={
+              activateOnPointerDown
+                ? event => {
+                    event.preventDefault();
+                    onChange(option.id);
+                  }
+                : undefined
+            }
+            onKeyUp={
+              activateOnPointerDown
+                ? event => {
+                    if (event.key !== 'Enter' && event.key !== ' ') return;
+                    event.preventDefault();
+                    onChange(option.id);
+                  }
+                : undefined
+            }
             title={iconOnlyOnMobile ? option.label : undefined}
             className={cn(
               'segment-tabs-item inline-flex items-center gap-1.5',
@@ -78,8 +120,9 @@ export function SegmentTabs<T extends string = string>({
             <span
               className={cn(
                 'text-xs font-semibold',
+                fullWidth && 'truncate',
                 active && 'text-[var(--bg-primary)]',
-                iconOnlyOnMobile && option.icon && 'sr-only sm:not-sr-only',
+                iconOnlyOnMobile && option.icon && !active && 'sr-only sm:not-sr-only',
               )}
             >
               {option.label}

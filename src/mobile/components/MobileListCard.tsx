@@ -12,6 +12,10 @@ interface MobileListCardProps {
   trailing?: ReactNode;
   imageUrl?: string | null;
   onClick?: () => void;
+  /** Nome do botão que cobre o card (padrão: o título). */
+  actionLabel?: string;
+  /** Card que liga e desliga uma seleção: anuncia o estado com aria-pressed. */
+  selected?: boolean;
   className?: string;
 }
 
@@ -24,12 +28,15 @@ export function MobileListCard({
   trailing,
   imageUrl,
   onClick,
+  actionLabel,
+  selected,
   className,
 }: MobileListCardProps) {
+  const isClickable = Boolean(onClick);
   const coverSrc = /^https?:\/\//i.test(imageUrl?.trim() ?? '') ? imageUrl!.trim() : null;
   const [coverBroken, setCoverBroken] = useState(false);
   const content = (
-    <div className={cn('flex gap-3', className)}>
+    <div className={cn('flex gap-3', isClickable && 'pointer-events-none relative z-[1]', className)}>
       {coverSrc && !coverBroken ? (
         <img
           src={coverSrc}
@@ -45,7 +52,11 @@ export function MobileListCard({
           <div className="min-w-0 flex-1">
             {status ?? (eyebrow ? <Text variant="label">{eyebrow}</Text> : null)}
           </div>
-          {trailing ? <div className="card-actions shrink-0">{trailing}</div> : null}
+          {trailing ? (
+            <div className={cn('card-actions shrink-0', isClickable && 'pointer-events-auto relative z-[2]')}>
+              {trailing}
+            </div>
+          ) : null}
         </div>
       ) : null}
 
@@ -71,14 +82,22 @@ export function MobileListCard({
   );
 
   if (onClick) {
+    // Card clicável em qualquer ponto (DESIGN.md › Clicabilidade, regra 3): um botão cobre o card,
+    // o texto deixa o toque passar e as ações à direita ficam por cima.
     return (
       <Surface
         variant="interactive"
         padding="sm"
         as="div"
-        onClick={onClick}
-        className="group w-full cursor-pointer text-left"
+        className="group relative w-full text-left"
       >
+        <button
+          type="button"
+          onClick={onClick}
+          aria-label={actionLabel ?? title}
+          aria-pressed={selected}
+          className="absolute inset-0 z-0 rounded-[inherit] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+        />
         {content}
       </Surface>
     );

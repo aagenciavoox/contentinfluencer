@@ -9,6 +9,8 @@ import {DesktopPageHeader} from '../../../layouts/page/DesktopPageHeader';
 import {PageLayout} from '../../../layouts/page/PageLayout';
 import {Text} from '../../../components/ui/Text';
 import {AppButton} from '../../../components/ui/AppButton';
+import {SelectField} from '../../../components/ui/SelectField';
+import {TagSelect} from '../../../components/ui/TagSelect';
 import {EmptyState} from '../../../components/ui/EmptyState';
 import {FixedPanelModal} from '../../../components/overlays/FixedPanelModal';
 import {ConfirmModal} from '../../../components/feedback/modals/ConfirmModal';
@@ -16,6 +18,12 @@ import {CONFIRM, EMPTY, type ConfirmState} from '../../../lib/uiCopy';
 import {generateUUID} from '../../../utils/uuid';
 
 type TemplateTypeFilter = 'roteiro' | 'legenda' | 'outro';
+
+const TEMPLATE_TYPE_OPTIONS: {value: TemplateTypeFilter; label: string}[] = [
+  {value: 'roteiro', label: 'Roteiro'},
+  {value: 'legenda', label: 'Legenda'},
+  {value: 'outro', label: 'Outro'},
+];
 
 type TemplateEditorState = {
   nome: string;
@@ -57,6 +65,14 @@ export function TemplatesSettingsPage({
   onCreateReady?: (open: () => void) => void;
 } = {}) {
   const {state, dispatch} = useAppContext();
+  const serieOptions = useMemo(
+    () => state.series.map(serie => ({value: serie.id, label: serie.name})),
+    [state.series],
+  );
+  const platformOptions = useMemo(
+    () => state.platforms.filter(platform => platform.ativo).map(platform => ({value: platform.id, label: platform.nome})),
+    [state.platforms],
+  );
   const {user} = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const [localEditId, setLocalEditId] = useState<string | null>(null);
@@ -373,36 +389,32 @@ export function TemplatesSettingsPage({
                   {lockedSeriesId ? null : (
                     <>
                       <div className="stack-sm">
-                        <label className="text-xs font-semibold  text-[var(--text-tertiary)]">
+                        <label htmlFor="template-editor-tipo" className="text-xs font-semibold  text-[var(--text-tertiary)]">
                           Tipo
                         </label>
-                        <select
+                        <SelectField
+                          id="template-editor-tipo"
+                          block
                           value={templateEditor.type}
-                          onChange={event => setTemplateEditor(previous => ({...previous, type: event.target.value as TemplateTypeFilter}))}
-                          className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] px-4 py-3 text-xs font-semibold uppercase text-[var(--text-primary)] focus:outline-none"
-                        >
-                          <option value="roteiro">Roteiro</option>
-                          <option value="legenda">Legenda</option>
-                          <option value="outro">Outro</option>
-                        </select>
+                          onChange={value => setTemplateEditor(previous => ({...previous, type: value as TemplateTypeFilter}))}
+                          options={TEMPLATE_TYPE_OPTIONS}
+                        />
                       </div>
 
                       <div className="stack-sm">
                         <label className="text-xs font-semibold  text-[var(--text-tertiary)]">
                           Série
                         </label>
-                        <select
-                          value={templateEditor.seriesId}
-                          onChange={event => setTemplateEditor(previous => ({...previous, seriesId: event.target.value}))}
-                          className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] px-4 py-3 text-sm text-[var(--text-primary)] focus:outline-none"
-                        >
-                          <option value="">Sem série</option>
-                          {state.series.map(serie => (
-                            <option key={serie.id} value={serie.id}>
-                              {serie.name}
-                            </option>
-                          ))}
-                        </select>
+                        <TagSelect
+                          label="Série"
+                          hideLabel
+                          id="template-editor-serie"
+                          maxSelections={1}
+                          placeholder="Sem série"
+                          values={templateEditor.seriesId ? [templateEditor.seriesId] : []}
+                          onChange={values => setTemplateEditor(previous => ({...previous, seriesId: values[0] ?? ''}))}
+                          options={serieOptions}
+                        />
                       </div>
                     </>
                   )}
@@ -411,18 +423,16 @@ export function TemplatesSettingsPage({
                     <label className="text-xs font-semibold  text-[var(--text-tertiary)]">
                       Plataforma
                     </label>
-                    <select
-                      value={templateEditor.platformId}
-                      onChange={event => setTemplateEditor(previous => ({...previous, platformId: event.target.value}))}
-                      className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] px-4 py-3 text-sm text-[var(--text-primary)] focus:outline-none"
-                    >
-                      <option value="">Sem plataforma</option>
-                      {state.platforms.filter(platform => platform.ativo).map(platform => (
-                        <option key={platform.id} value={platform.id}>
-                          {platform.nome}
-                        </option>
-                      ))}
-                    </select>
+                    <TagSelect
+                      label="Plataforma"
+                      hideLabel
+                      id="template-editor-plataforma"
+                      maxSelections={1}
+                      placeholder="Sem plataforma"
+                      values={templateEditor.platformId ? [templateEditor.platformId] : []}
+                      onChange={values => setTemplateEditor(previous => ({...previous, platformId: values[0] ?? ''}))}
+                      options={platformOptions}
+                    />
                   </div>
 
                   <button
@@ -510,14 +520,15 @@ export function TemplatesSettingsPage({
                       placeholder="Novo bloco"
                       className="flex-1 rounded-lg border border-[var(--border-input)] bg-[var(--bg-primary)] px-3 py-2 text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none"
                     />
-                    <select
+                    <SelectField
+                      ariaLabel="Tipo do novo bloco"
                       value={novoBlocoTipo}
-                      onChange={event => setNovoBlocoTipo(event.target.value as 'fixo' | 'variavel')}
-                      className="rounded-lg border border-[var(--border-color)] bg-[var(--bg-primary)] px-3 py-2 text-xs font-semibold uppercase text-[var(--text-primary)] focus:outline-none"
-                    >
-                      <option value="variavel">Variável</option>
-                      <option value="fixo">Fixo</option>
-                    </select>
+                      onChange={value => setNovoBlocoTipo(value as 'fixo' | 'variavel')}
+                      options={[
+                        {value: 'variavel', label: 'Variável'},
+                        {value: 'fixo', label: 'Fixo'},
+                      ]}
+                    />
                     <button
                       onClick={addBloco}
                       disabled={!novoBlocoLabel.trim()}
@@ -637,41 +648,37 @@ export function TemplatesSettingsPage({
             <div className="flex flex-wrap gap-3">
               {lockedSeriesId ? null : (
                 <>
-                  <select
+                  <SelectField
+                    ariaLabel="Tipo do template"
                     value={novoTipo}
-                    onChange={event => setNovoTipo(event.target.value as TemplateTypeFilter)}
-                    className="flex-1 min-w-[120px] rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-2.5 text-xs font-semibold uppercase text-[var(--text-primary)] focus:outline-none"
-                  >
-                    <option value="roteiro">Roteiro</option>
-                    <option value="legenda">Legenda</option>
-                    <option value="outro">Outro</option>
-                  </select>
-                  <select
-                    value={novaSerieId}
-                    onChange={event => setNovaSerieId(event.target.value)}
-                    className="flex-1 min-w-[120px] rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-2.5 text-xs font-bold text-[var(--text-primary)] focus:outline-none"
-                  >
-                    <option value="">Série (opcional)</option>
-                    {state.series.map(serie => (
-                      <option key={serie.id} value={serie.id}>
-                        {serie.name}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={value => setNovoTipo(value as TemplateTypeFilter)}
+                    options={TEMPLATE_TYPE_OPTIONS}
+                    className="min-w-[120px] flex-1"
+                  />
+                  <TagSelect
+                    label="Série"
+                    hideLabel
+                    id="template-novo-serie"
+                    maxSelections={1}
+                    placeholder="Série (opcional)"
+                    values={novaSerieId ? [novaSerieId] : []}
+                    onChange={values => setNovaSerieId(values[0] ?? '')}
+                    options={serieOptions}
+                    className="min-w-[120px] flex-1"
+                  />
                 </>
               )}
-              <select
-                value={novaPlatformId}
-                onChange={event => setNovaPlatformId(event.target.value)}
-                className="flex-1 min-w-[120px] rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-2.5 text-xs font-bold text-[var(--text-primary)] focus:outline-none"
-              >
-                <option value="">Plataforma (opcional)</option>
-                {state.platforms.filter(platform => platform.ativo).map(platform => (
-                  <option key={platform.id} value={platform.id}>
-                    {platform.nome}
-                  </option>
-                ))}
-              </select>
+              <TagSelect
+                label="Plataforma"
+                hideLabel
+                id="template-novo-plataforma"
+                maxSelections={1}
+                placeholder="Plataforma (opcional)"
+                values={novaPlatformId ? [novaPlatformId] : []}
+                onChange={values => setNovaPlatformId(values[0] ?? '')}
+                options={platformOptions}
+                className="min-w-[120px] flex-1"
+              />
             </div>
             <div className="flex gap-3">
               <AppButton

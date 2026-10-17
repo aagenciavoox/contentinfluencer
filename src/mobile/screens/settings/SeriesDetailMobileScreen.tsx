@@ -32,7 +32,9 @@ import {
 import type { Content, Idea, Pilar, Serie } from '../../../lib/database';
 import { htmlToReadableText } from '../../../lib/utils';
 import { buildDetailBackState } from '../../../lib/navigation/detailBack';
-import { MobileFilterSheet } from '../../components/MobileFilterSheet';
+import { MobileFilterSelect, MobileFilterSheet } from '../../components/MobileFilterSheet';
+import { MOBILE_HEADER_ACTION_CLASS } from '../../components/MobileHeaderIOS';
+import { platformDisplayName } from '../../../components/ui/platformName';
 import { MobileSearchBar } from '../../components/MobileSearchBar';
 import { MobileSectionHeader } from '../../components/MobileSectionHeader';
 import { MobileSegmentTabs } from '../../components/MobileSegmentTabs';
@@ -103,7 +105,8 @@ export function SeriesDetailMobileScreen({
   const handleStatusChange = onStatusChange ?? setLocalStatus;
   const handleSortChange = onSortChange ?? setLocalSort;
 
-  const serieColor = serie.cor || '#6366f1';
+  // Sem cor própria, a faixa usa a borda forte do tema (não um roxo fixo).
+  const serieColor = serie.cor || 'var(--border-strong)';
 
   const stats = useMemo(
     () => computeSeriesContentStats(linkedContents, linkedInboxIdeas),
@@ -136,6 +139,12 @@ export function SeriesDetailMobileScreen({
     [activeTab, linkedContents, linkedInboxIdeas, searchValue, sortValue, statusValue],
   );
 
+  const hasActiveFilters = Boolean(searchValue.trim()) || statusValue !== 'Todos';
+  const clearSearchAndFilters = () => {
+    handleSearchChange('');
+    handleStatusChange('Todos');
+  };
+
   useEffect(() => {
     if (!previewItem) return;
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -161,7 +170,7 @@ export function SeriesDetailMobileScreen({
         <div className="stack-md p-4">
           <MobileSectionHeader
             icon={FileText}
-            tone="purple"
+            tone="neutral"
             title={serie.name}
             description={
               serie.bordao
@@ -173,9 +182,9 @@ export function SeriesDetailMobileScreen({
                 type="button"
                 onClick={() => navigate(`/editorial/series/${serie.id}`)}
                 aria-label="Editar identidade da série"
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-secondary)] active:scale-95 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+                className={MOBILE_HEADER_ACTION_CLASS}
               >
-                <Pencil className="h-4 w-4" />
+                <Pencil className="h-4 w-4" aria-hidden />
               </button>
             }
           />
@@ -226,7 +235,7 @@ export function SeriesDetailMobileScreen({
             compact
             title="Nenhum conteúdo encontrado"
             description={
-              searchValue.trim() || statusValue !== 'Todos'
+              hasActiveFilters
                 ? 'Ajuste a busca ou os filtros para ver conteúdos desta série.'
                 : activeTab === 'ideias'
                   ? 'Crie a primeira ideia no formulário acima.'
@@ -235,6 +244,13 @@ export function SeriesDetailMobileScreen({
                     : 'Crie roteiros ou ideias no formulário acima.'
             }
             icon={<FileText className="h-8 w-8" />}
+            action={
+              hasActiveFilters ? (
+                <AppButton variant="secondary" onClick={clearSearchAndFilters}>
+                  Limpar busca e filtros
+                </AppButton>
+              ) : undefined
+            }
           />
         ) : (
           <>
@@ -242,14 +258,14 @@ export function SeriesDetailMobileScreen({
               <Text variant="label" className="text-[var(--text-tertiary)]">
                 {filteredItems.length} de {listTotalCount}
               </Text>
-              <button
-                type="button"
+              <AppButton
+                variant="secondary"
+                size="xs"
                 onClick={() => navigate('/criacao')}
-                className="inline-flex items-center gap-1 text-xs font-semibold text-[var(--text-secondary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+                rightIcon={<ArrowUpRight className="h-3.5 w-3.5" aria-hidden />}
               >
-                Roteiros
-                <ArrowUpRight className="h-3.5 w-3.5" />
-              </button>
+                Ver na Criação
+              </AppButton>
             </div>
 
             <div className="stack-sm">
@@ -269,52 +285,24 @@ export function SeriesDetailMobileScreen({
         open={isFilterSheetOpen}
         title="Filtrar conteúdos"
         onClose={() => setIsFilterSheetOpen(false)}
+        onClear={() => {
+          handleStatusChange('Todos');
+          handleSortChange(DEFAULT_SERIES_CONTENT_SORT);
+          setIsFilterSheetOpen(false);
+        }}
       >
-        <label className="block stack-sm">
-          <Text variant="label" className="text-[var(--text-tertiary)]">
-            Status
-          </Text>
-          <select
-            value={statusValue}
-            onChange={event => handleStatusChange(event.target.value)}
-            className="min-h-11 w-full rounded-[var(--radius-md)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-3 text-sm text-[var(--text-primary)]"
-          >
-            {SERIES_CONTENT_STATUS_OPTIONS.map(option => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label className="block stack-sm">
-          <Text variant="label" className="text-[var(--text-tertiary)]">
-            Ordenar
-          </Text>
-          <select
-            value={sortValue}
-            onChange={event => handleSortChange(event.target.value)}
-            className="min-h-11 w-full rounded-[var(--radius-md)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-3 text-sm text-[var(--text-primary)]"
-          >
-            {SERIES_CONTENT_SORT_OPTIONS.map(option => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <AppButton
-          variant="primary"
-          fullWidth
-          onClick={() => {
-            handleStatusChange('Todos');
-            handleSortChange(DEFAULT_SERIES_CONTENT_SORT);
-            setIsFilterSheetOpen(false);
-          }}
-        >
-          Limpar filtros
-        </AppButton>
+        <MobileFilterSelect
+          label="Status"
+          value={statusValue}
+          onChange={handleStatusChange}
+          options={SERIES_CONTENT_STATUS_OPTIONS}
+        />
+        <MobileFilterSelect
+          label="Ordenar"
+          value={sortValue}
+          onChange={handleSortChange}
+          options={SERIES_CONTENT_SORT_OPTIONS}
+        />
       </MobileFilterSheet>
 
       <BottomSheetModal
@@ -377,10 +365,10 @@ export function SeriesDetailMobileScreen({
                     .map(platformItem => (
                       <div
                         key={platformItem.platformId}
-                        className="mb-2 rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4"
+                        className="mb-2 rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4"
                       >
                         <Text variant="label" className="text-[var(--text-tertiary)]">
-                          {platformItem.platformId}
+                          {platformDisplayName(platformItem.platformId)}
                         </Text>
                         <Text variant="body" className="mt-1 whitespace-pre-wrap text-[var(--text-secondary)]">
                           {htmlToReadableText(platformItem.legenda)}
@@ -407,7 +395,11 @@ export function SeriesDetailMobileScreen({
                 }}
                 leftIcon={<ArrowUpRight className="h-4 w-4" />}
               >
-                {previewItem.kind === 'inbox-idea' ? 'Abrir na caixa de ideias' : 'Abrir'}
+                {previewItem.kind === 'inbox-idea'
+                  ? 'Abrir na caixa de ideias'
+                  : previewItem.data.status === CONTENT_STATUS.IDEIA
+                    ? 'Abrir ideia'
+                    : 'Abrir roteiro'}
               </AppButton>
             </OverlayFooter>
           </>

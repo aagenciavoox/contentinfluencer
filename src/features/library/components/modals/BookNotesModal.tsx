@@ -8,6 +8,7 @@ import { buildIdeaFields, parseLegacyIdeaText } from '../../../ideas/lib/ideaTex
 import { createIdeaContent } from '../../../contents/lib/creationContent';
 import { cn } from '../../../../lib/utils';
 import { Dialog } from '../../../../components/overlays/Dialog';
+import { SelectField } from '../../../../components/ui/SelectField';
 
 type TipoAnotacao = Anotacao['tipo'];
 
@@ -108,13 +109,14 @@ export function BookNotesModal({ book, onClose }: BookNotesModalProps) {
       <div className="custom-scrollbar flex-1 overflow-y-auto p-4 md:p-8" style={{ minHeight: 0 }}>
         <div className="rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-primary)] p-4 md:p-6">
           <div className="flex flex-col gap-3 sm:flex-row">
-            <select
+            <SelectField
+              ariaLabel="Tipo da anotação"
               value={novoTipo}
-              onChange={event => setNovoTipo(event.target.value as TipoAnotacao)}
-              className="w-full cursor-pointer rounded-xl border-none bg-[var(--bg-hover)] px-3 py-2.5 text-xs font-semibold  text-[var(--text-primary)] focus:ring-1 focus:ring-[var(--accent-purple)] sm:w-auto"
-            >
-              {TIPOS.map(tipo => <option key={tipo}>{tipo}</option>)}
-            </select>
+              onChange={value => setNovoTipo(value as TipoAnotacao)}
+              options={TIPOS.map(tipo => ({ value: tipo, label: tipo }))}
+              block
+              className="sm:w-auto sm:flex-none"
+            />
 
             <input
               type="text"

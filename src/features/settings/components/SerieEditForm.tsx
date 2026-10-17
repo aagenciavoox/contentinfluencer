@@ -10,6 +10,8 @@ import { AppButton } from '../../../components/ui/AppButton';
 import { Badge } from '../../../components/ui/Badge';
 import { MultiFilterChips } from '../../../components/ui/MultiFilterChips';
 import { Surface } from '../../../components/ui/Surface';
+import { SelectField } from '../../../components/ui/SelectField';
+import { TagSelect } from '../../../components/ui/TagSelect';
 import { Text } from '../../../components/ui/Text';
 import { CoverUploadField } from '../../library/components/CoverUploadField';
 import { normalizeFormatoList, type Content, type Pilar, type Platform, type Serie } from '../../../lib/database';
@@ -644,45 +646,35 @@ export function SerieEditForm({
               <div className="grid-form">
                 <div>
                   <FieldLabel>Pilar principal</FieldLabel>
-                  <div className="relative">
-                    {selectedPilar ? (
-                      <span
-                        className="pointer-events-none absolute left-3 top-1/2 h-2.5 w-2.5 -translate-y-1/2 rounded-full"
-                        style={{ backgroundColor: selectedPilar.cor }}
-                      />
-                    ) : null}
-                    <select
-                      aria-label="Pilar principal"
-                      value={form.pilarPrincipalId ?? ''}
-                      onChange={event => setForm(previous => ({
-                        ...previous,
-                        pilarPrincipalId: event.target.value || null,
-                      }))}
-                      className={cn(inputClass, selectedPilar && 'pl-8')}
-                    >
-                      <option value="">Escolher…</option>
-                      {pilarChoices.map(item => (
-                        <option key={item.id} value={item.id}>{item.nome}</option>
-                      ))}
-                    </select>
-                  </div>
+                  <TagSelect
+                    label="Pilar principal"
+                    hideLabel
+                    id="serie-pilar-principal"
+                    maxSelections={1}
+                    placeholder="Escolher…"
+                    values={form.pilarPrincipalId ? [form.pilarPrincipalId] : []}
+                    onChange={values => setForm(previous => ({
+                      ...previous,
+                      pilarPrincipalId: values[0] ?? null,
+                    }))}
+                    options={pilarChoices.map(item => ({ value: item.id, label: item.nome }))}
+                    leadingIcon={selectedPilar ? (
+                      <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: selectedPilar.cor }} />
+                    ) : undefined}
+                  />
                 </div>
                 <div>
                   <FieldLabel>Objetivo padrão</FieldLabel>
-                  <select
-                    aria-label="Objetivo padrão"
+                  <SelectField
+                    block
+                    ariaLabel="Objetivo padrão"
                     value={form.funcaoPadrao ?? ''}
-                    onChange={event => setForm(previous => ({
+                    onChange={value => setForm(previous => ({
                       ...previous,
-                      funcaoPadrao: (event.target.value || null) as typeof previous.funcaoPadrao,
+                      funcaoPadrao: (value || null) as typeof previous.funcaoPadrao,
                     }))}
-                    className={inputClass}
-                  >
-                    <option value="">Escolher…</option>
-                    {FUNCAO_OPTIONS.map(option => (
-                      <option key={option.value} value={option.value}>{option.label}</option>
-                    ))}
-                  </select>
+                    options={[{ value: '', label: 'Escolher…' }, ...FUNCAO_OPTIONS.map(option => ({ value: option.value, label: option.label }))]}
+                  />
                   {funcaoDescription ? (
                     <Text variant="meta" className="mt-1.5 block text-[var(--text-tertiary)]">
                       {funcaoDescription}
@@ -691,11 +683,11 @@ export function SerieEditForm({
                 </div>
                 <div className="col-span-full stack-sm">
                   <FieldLabel>Frequência de publicação</FieldLabel>
-                  <select
-                    aria-label="Frequência de publicação"
+                  <SelectField
+                    block
+                    ariaLabel="Frequência de publicação"
                     value={form.frequenciaRecomendada}
-                    onChange={event => {
-                      const frequenciaRecomendada = event.target.value;
+                    onChange={frequenciaRecomendada => {
                       setForm(previous => ({
                         ...previous,
                         frequenciaRecomendada,
@@ -704,11 +696,8 @@ export function SerieEditForm({
                           : {}),
                       }));
                     }}
-                    className={inputClass}
-                  >
-                    <option value="">Escolher…</option>
-                    {frequenciaOpcoes.map(item => <option key={item} value={item}>{item}</option>)}
-                  </select>
+                    options={[{ value: '', label: 'Escolher…' }, ...frequenciaOpcoes.map(item => ({ value: item, label: item }))]}
+                  />
                   {selecionouSobDemanda && frequenciaLida.unidade === 'sob-demanda' ? (
                     <Text variant="meta" className="text-[var(--text-tertiary)]">
                       Quando houver pauta
@@ -735,21 +724,20 @@ export function SerieEditForm({
                       </div>
                       <div>
                         <FieldLabel>Unidade</FieldLabel>
-                        <select
-                          aria-label="Unidade"
+                        <SelectField
+                          block
+                          ariaLabel="Unidade"
                           value={form.frequenciaUnidade}
-                          onChange={event => setForm(previous => ({
+                          onChange={frequenciaUnidade => setForm(previous => ({
                             ...previous,
-                            frequenciaUnidade: event.target.value,
+                            frequenciaUnidade,
                           }))}
-                          className={inputClass}
-                        >
-                          <option value="">Escolher…</option>
-                          {unidadeExtra ? <option value={unidadeExtra}>{unidadeExtra}</option> : null}
-                          {UNIDADES_FREQUENCIA.map(item => (
-                            <option key={item.value} value={item.value}>{item.label}</option>
-                          ))}
-                        </select>
+                          options={[
+                            { value: '', label: 'Escolher…' },
+                            ...(unidadeExtra ? [{ value: unidadeExtra, label: unidadeExtra }] : []),
+                            ...UNIDADES_FREQUENCIA.map(item => ({ value: item.value, label: item.label })),
+                          ]}
+                        />
                       </div>
                     </div>
                   ) : null}

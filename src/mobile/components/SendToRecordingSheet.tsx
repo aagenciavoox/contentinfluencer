@@ -7,6 +7,7 @@ import { OverlayFooter } from '../../components/overlays/OverlayFooter';
 import { OverlayHeader } from '../../components/overlays/OverlayHeader';
 import { AppButton } from '../../components/ui/AppButton';
 import { Text } from '../../components/ui/Text';
+import { TagSelect } from '../../components/ui/TagSelect';
 import type { Content, RecordingBlock } from '../../lib/database';
 import { CONTENT_STATUS, canAdvanceToRecording } from '../../features/contents/lib/contentPipeline';
 import { normalizeRecordingTags, addBlockContent, getOrderedBlockContents } from '../../features/recording/lib/recordingWorkflow';
@@ -192,7 +193,7 @@ export function SendToRecordingSheet({
             </div>
           ) : (
             <>
-              <article className="rounded-[1.4rem] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-4">
+              <article className="rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-4">
                 <p className="text-xs font-semibold  text-[var(--text-tertiary)]">
                   Criar bloco novo
                 </p>
@@ -208,28 +209,27 @@ export function SendToRecordingSheet({
                 />
               </article>
 
-              <article className="rounded-[1.4rem] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-4">
-                <p className="text-xs font-semibold  text-[var(--text-tertiary)]">
+              <article className="rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-4">
+                <p className="text-xs font-semibold  text-[var(--text-tertiary)]" aria-hidden>
                   Bloco existente
                 </p>
-                <select
-                  value={selectedBlockId}
-                  onChange={event => {
-                    setSelectedBlockId(event.target.value);
-                    if (event.target.value) setBlockName('');
-                  }}
+                <TagSelect
+                  label="Bloco existente"
+                  hideLabel
+                  id="send-to-recording-bloco"
+                  className="mt-3"
+                  controlClassName="min-h-11"
+                  maxSelections={1}
                   disabled={isBusy || (blocksLoading && availableBlocks.length === 0)}
-                  className="mt-3 min-h-11 w-full rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-primary)] px-4 text-sm font-semibold text-[var(--text-primary)] outline-none"
-                >
-                  <option value="">
-                    {blocksLoading && availableBlocks.length === 0 ? 'Carregando blocos…' : 'Selecione um bloco'}
-                  </option>
-                  {availableBlocks.map(block => (
-                    <option key={block.id} value={block.id}>
-                      {block.name}
-                    </option>
-                  ))}
-                </select>
+                  placeholder={blocksLoading && availableBlocks.length === 0 ? 'Carregando blocos…' : 'Selecione um bloco'}
+                  values={selectedBlockId ? [selectedBlockId] : []}
+                  onChange={values => {
+                    const next = values[0] ?? '';
+                    setSelectedBlockId(next);
+                    if (next) setBlockName('');
+                  }}
+                  options={availableBlocks.map(block => ({ value: block.id, label: block.name }))}
+                />
                 {blocksLoading && availableBlocks.length === 0 ? (
                   <p className="mt-3 text-xs font-semibold text-[var(--text-secondary)]">
                     Buscando blocos salvos…

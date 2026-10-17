@@ -3,9 +3,7 @@ import {
   Columns2,
   HeartHandshake,
   Layout,
-  MonitorSpeaker,
   Settings as SettingsIcon,
-  UserCircle2,
 } from 'lucide-react';
 import { Text } from '../../../components/ui/Text';
 import { MobileListCard } from '../../components/MobileListCard';
@@ -37,11 +35,6 @@ interface SettingsMobileScreenProps {
   }>;
 }
 
-const ICON_BY_ROUTE: Record<string, React.ElementType> = {
-  '/configuracoes/perfil': UserCircle2,
-  '/contas': MonitorSpeaker,
-};
-
 export function SettingsMobileScreen({
   gentleCards,
   writingEnabled,
@@ -51,17 +44,11 @@ export function SettingsMobileScreen({
 }: SettingsMobileScreenProps) {
   return (
     <div className="stack-lg">
-      <section className="rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4">
-        <MobileSectionHeader
-          icon={SettingsIcon}
-          tone="blue"
-          title="Configurações"
-          description="Ritmo, escrita e áreas do app."
-        />
-      </section>
+      {/* O título "Configurações" já está no cabeçalho; aqui fica só a frase de apoio. */}
+      <Text variant="secondary" className="px-1">Ritmo, escrita e áreas do app.</Text>
 
       <section className="stack-lg">
-        <MobileSectionHeader icon={HeartHandshake} tone="green" title="Ritmo" className="px-1" />
+        <MobileSectionHeader icon={HeartHandshake} tone="neutral" title="Ritmo" className="px-1" />
 
         <div className="stack-md">
           {gentleCards.map((item) => (
@@ -75,7 +62,7 @@ export function SettingsMobileScreen({
             >
               <span className="flex min-w-0 items-start gap-3">
                 <span className="mt-0.5 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] bg-[var(--bg-hover)] p-2 text-[var(--text-primary)]">
-                  <HeartHandshake className="h-4 w-4 opacity-60" />
+                  <HeartHandshake className="h-4 w-4 text-[var(--text-tertiary)]" aria-hidden />
                 </span>
                 <span>
                   <Text variant="bodyStrong" as="span" className="block">{item.title}</Text>
@@ -88,7 +75,7 @@ export function SettingsMobileScreen({
       </section>
 
       <section className="stack-lg">
-        <MobileSectionHeader icon={Columns2} tone="blue" title="Escrita" className="px-1" />
+        <MobileSectionHeader icon={Columns2} tone="neutral" title="Escrita" className="px-1" />
 
         <ToggleRow
           id="opcao-celular-modo-escrita"
@@ -105,7 +92,7 @@ export function SettingsMobileScreen({
       </section>
 
       <section className="stack-lg">
-        <MobileSectionHeader icon={Layout} tone="blue" title="Módulos" className="px-1" />
+        <MobileSectionHeader icon={Layout} tone="neutral" title="Módulos" className="px-1" />
 
         <div className="stack-md">
           {moduleCards.map((item) => (
@@ -129,21 +116,14 @@ export function SettingsMobileScreen({
 
         <div className="stack-md">
           {items.map((item) => {
-            const Icon = ICON_BY_ROUTE[item.to] || SettingsIcon;
-
             return (
               <MobileListCard
                 key={item.to}
                 onClick={item.onOpen}
                 title={item.title}
                 description={item.desc}
-                trailing={<ChevronRight className="h-4 w-4 text-[var(--text-tertiary)]" />}
-                meta={
-                  <span className="inline-flex items-center gap-2 rounded-full bg-[var(--bg-hover)] px-3 py-1 text-xs font-semibold text-[var(--text-secondary)]">
-                    <Icon className="h-3.5 w-3.5" />
-                    Abrir
-                  </span>
-                }
+                // O card inteiro abre a área; a seta já diz isso, sem a pílula "Abrir" que parecia um botão à parte.
+                trailing={<ChevronRight className="h-4 w-4 text-[var(--text-tertiary)]" aria-hidden />}
               />
             );
           })}

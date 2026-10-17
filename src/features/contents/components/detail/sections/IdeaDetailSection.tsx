@@ -3,6 +3,7 @@ import {RichTextEditor} from '../../../../../components/editors/RichTextEditor';
 import {AppButton} from '../../../../../components/ui/AppButton';
 import {Skeleton} from '../../../../../components/ui/Skeleton';
 import {Surface} from '../../../../../components/ui/Surface';
+import {TagSelect} from '../../../../../components/ui/TagSelect';
 import {Text} from '../../../../../components/ui/Text';
 import type {BibliotecaItem, Pilar, Serie} from '../../../../../lib/database';
 import {aplicarEscolhasDaSerie, marcarEscolhaManual} from '../../../../editorial/lib/escolhasSerie';
@@ -28,9 +29,6 @@ interface IdeaOrganizationPanelProps {
   onChange: (updates: Partial<ScriptDraft>) => void;
 }
 
-const selectClassName =
-  'min-h-10 w-full rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-3 py-2 text-sm text-[var(--text-primary)] outline-none transition-colors focus:border-[var(--accent-blue)]';
-
 export function IdeaOrganizationPanel({
   draft,
   series,
@@ -50,42 +48,44 @@ export function IdeaOrganizationPanel({
         </Text>
       </div>
 
-      <label className="stack-sm">
+      <div className="stack-sm">
         <Text variant="label" as="span" className="inline-flex items-center gap-2">
           <Palette className="h-3.5 w-3.5" aria-hidden />
           Pilar
         </Text>
-        <select
-          value={draft.pilarId ?? ''}
-          onChange={event => onChange(marcarEscolhaManual(draft, 'pilar', event.target.value || null))}
-          className={selectClassName}
-        >
-          <option value="">Sem pilar</option>
-          {pilares.filter(pilar => pilar.ativo).map(pilar => (
-            <option key={pilar.id} value={pilar.id}>{pilar.nome}</option>
-          ))}
-        </select>
-      </label>
+        <TagSelect
+          label="Pilar"
+          hideLabel
+          id={`idea-${contentId}-pilar`}
+          maxSelections={1}
+          placeholder="Sem pilar"
+          values={draft.pilarId ? [draft.pilarId] : []}
+          onChange={values => onChange(marcarEscolhaManual(draft, 'pilar', values[0] ?? null))}
+          options={pilares
+            .filter(pilar => pilar.ativo || pilar.id === draft.pilarId)
+            .map(pilar => ({value: pilar.id, label: pilar.nome}))}
+        />
+      </div>
 
-      <label className="stack-sm">
+      <div className="stack-sm">
         <Text variant="label" as="span" className="inline-flex items-center gap-2">
           <Layers className="h-3.5 w-3.5" aria-hidden />
           Série
         </Text>
-        <select
-          value={draft.seriesId ?? ''}
-          onChange={event => onChange(aplicarEscolhasDaSerie(
+        <TagSelect
+          label="Série"
+          hideLabel
+          id={`idea-${contentId}-serie`}
+          maxSelections={1}
+          placeholder="Sem série"
+          values={draft.seriesId ? [draft.seriesId] : []}
+          onChange={values => onChange(aplicarEscolhasDaSerie(
             draft,
-            series.find(serie => serie.id === event.target.value) ?? null,
+            series.find(serie => serie.id === values[0]) ?? null,
           ))}
-          className={selectClassName}
-        >
-          <option value="">Sem série</option>
-          {series.map(serie => (
-            <option key={serie.id} value={serie.id}>{serie.name}</option>
-          ))}
-        </select>
-      </label>
+          options={series.map(serie => ({value: serie.id, label: serie.name}))}
+        />
+      </div>
 
       <TemaField
         temaIds={draft.temaIds}

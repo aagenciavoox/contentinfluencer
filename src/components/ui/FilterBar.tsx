@@ -3,7 +3,12 @@ import { ChevronDown, Filter } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { AppButton } from './AppButton';
 import { Text } from './Text';
+import { SelectMenu } from './SelectMenu';
 import { ToolbarSearchInput } from './ToolbarSearchInput';
+
+function selectedLabel(options: readonly FilterOption[], value: string | undefined) {
+  return options.find((option) => option.value === value)?.label ?? value ?? '';
+}
 
 export interface FilterOption {
   label: string;
@@ -110,19 +115,16 @@ export function FilterBar({
 
           {sortOptions.length > 0 && onSortChange ? (
             <div className="relative hidden shrink-0 md:block">
-              <select
-                value={sortValue}
-                onChange={(e) => onSortChange(e.target.value)}
-                aria-label="Ordenar"
-                className="filter-bar-select min-w-[140px] appearance-none pr-10"
+              <SelectMenu
+                value={sortValue ?? ''}
+                onChange={onSortChange}
+                options={sortOptions}
+                ariaLabel="Ordenar"
+                triggerClassName="filter-bar-select relative min-w-[140px] pr-10 focus-visible:shadow-[var(--shadow-focus)]"
               >
-                {sortOptions.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-tertiary)]" />
+                <span className="truncate">{selectedLabel(sortOptions, sortValue)}</span>
+                <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-tertiary)]" aria-hidden />
+              </SelectMenu>
             </div>
           ) : null}
         </div>
@@ -136,24 +138,21 @@ export function FilterBar({
                 {filter.label}
               </Text>
               <div className="relative">
-                <select
+                <SelectMenu
                   value={filter.value}
-                  onChange={(e) => filter.onChange(e.target.value)}
-                  aria-label={filter.label}
-                  className={cn(
-                    'filter-bar-select h-9 w-full appearance-none pr-8',
+                  onChange={filter.onChange}
+                  options={filter.options}
+                  ariaLabel={filter.label}
+                  triggerClassName={cn(
+                    'filter-bar-select relative h-9 w-full pr-8 focus-visible:shadow-[var(--shadow-focus)]',
                     filter.value !== inactiveFilterValue(filter)
                       ? 'filter-bar-select-active'
                       : 'bg-[var(--bg-hover)]',
                   )}
                 >
-                  {filter.options.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--text-tertiary)]" />
+                  <span className="min-w-0 flex-1 truncate">{selectedLabel(filter.options, filter.value)}</span>
+                  <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--text-tertiary)]" aria-hidden />
+                </SelectMenu>
               </div>
             </div>
           ))}

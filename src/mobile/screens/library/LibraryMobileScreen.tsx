@@ -1,11 +1,14 @@
-import { useMemo, useRef, useState, type ReactNode } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { BookOpen, ChevronLeft, ChevronRight, ImagePlus, Loader2, Pin, Plus, SearchCheck } from 'lucide-react';
 import type { BibliotecaItem, BibliotecaItemMeta } from '../../../lib/database';
 import { cn } from '../../../lib/utils';
 import { EmptyState } from '../../../components/ui/EmptyState';
 import { QueryViewState, type QueryViewStatus } from '../../../components/ui/QueryViewState';
-import { MobileFilterSheet } from '../../components/MobileFilterSheet';
+import { MobileFilterSelect, MobileFilterSheet } from '../../components/MobileFilterSheet';
+import { Badge } from '../../../components/ui/Badge';
+import { FilterChips } from '../../../components/ui/FilterChips';
+import { SegmentTabs } from '../../../components/ui/SegmentTabs';
 import { MobileSearchBar } from '../../components/MobileSearchBar';
 import { AppButton } from '../../../components/ui/AppButton';
 import { EMPTY } from '../../../lib/uiCopy';
@@ -65,21 +68,6 @@ function isCurrentStatus(status: StatusLeitura) {
 
 function isDoneStatus(status: StatusLeitura) {
   return status === 'Concluído' || status === 'Lido' || status === 'Assistido' || status === 'Abandonado';
-}
-
-function LibraryBadge({ children, tone = 'neutral' }: { children: ReactNode; tone?: 'neutral' | 'blue' | 'green' }) {
-  return (
-    <span
-      className={cn(
-        'inline-flex max-w-full truncate rounded-md px-1.5 py-0.5 text-xs font-semibold leading-tight',
-        tone === 'blue' && 'bg-[var(--accent-blue)]/10 text-[var(--accent-blue)]',
-        tone === 'green' && 'bg-[var(--accent-green)]/10 text-[var(--accent-green)]',
-        tone === 'neutral' && 'bg-[var(--bg-hover)] text-[var(--text-secondary)]'
-      )}
-    >
-      {children}
-    </span>
-  );
 }
 
 function MobileCoverThumb({
@@ -149,10 +137,10 @@ function MobileCoverThumb({
         type="button"
         onClick={() => fileInputRef.current?.click()}
         disabled={uploading}
-        className="absolute bottom-2 right-2 inline-flex h-8 w-8 items-center justify-center rounded-full bg-[var(--overlay-scrim)] text-white"
+        className="absolute bottom-1 right-1 inline-flex h-11 w-11 items-center justify-center rounded-full bg-[var(--overlay-scrim)] text-white focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
         aria-label={`Trocar capa de ${item.titulo}`}
       >
-        {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ImagePlus className="h-3.5 w-3.5" />}
+        {uploading ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <ImagePlus className="h-4 w-4" aria-hidden />}
       </button>
       <input
         ref={fileInputRef}
@@ -237,75 +225,52 @@ export function LibraryMobileScreen({
     [items]
   );
 
+  // O "+" ao lado da busca já é a ação principal; no estado vazio o mesmo atalho fica secundário.
   const focusAction = (
-    <AppButton variant="primary" fullWidth onClick={onOpenCreate} leftIcon={<Plus className="h-4 w-4" />}>
+    <AppButton variant="secondary" fullWidth onClick={onOpenCreate} leftIcon={<Plus className="h-4 w-4" />}>
       Novo item
     </AppButton>
   );
 
-  const chipClass = (active: boolean) =>
-    cn(
-      'inline-flex h-9 shrink-0 items-center gap-1.5 rounded-[var(--radius-sm)] px-3 t-button whitespace-nowrap transition-colors',
-      active
-        ? 'bg-[var(--text-primary)] text-[var(--bg-primary)]'
-        : 'bg-[var(--bg-hover)] text-[var(--text-secondary)]',
-    );
+  const hasActiveFilters =
+    Boolean(search.trim()) || typeFilter !== 'all' || statusFilter !== 'all' || filtroCapa !== 'Todos';
+  const clearSearchAndFilters = () => {
+    setSearch('');
+    setTypeFilter('all');
+    setStatusFilter('all');
+    onFiltroCapaChange('Todos');
+  };
 
   return (
-    <div className="stack-md">
-      <div className="mobile-h-scroll" role="tablist" aria-label="Seções da biblioteca">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={activeSection === 'collection'}
-          className={chipClass(activeSection === 'collection')}
-          onClick={() => {
-            if (activeSection !== 'collection') navigate('/biblioteca');
+    <div className="stack-md pt-2">
+      {/* Seção (Acervo / Análise) é aba: trilho de largura toda, metades iguais, preenchido.
+          Momento (Agora / Fila / Feitos) é filtro: chip baixo e contornado, abaixo da aba. */}
+      <div className="stack-sm">
+        <SegmentTabs<LibrarySection>
+          ariaLabel="Seções da biblioteca"
+          fullWidth
+          options={[
+            { id: 'collection', label: 'Acervo' },
+            { id: 'analysis', label: 'Análise' },
+          ]}
+          value={activeSection}
+          onChange={section => {
+            if (section === activeSection) return;
+            navigate(section === 'analysis' ? '/biblioteca/analise' : '/biblioteca');
           }}
-        >
-          Acervo
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={activeSection === 'analysis'}
-          className={chipClass(activeSection === 'analysis')}
-          onClick={() => {
-            if (activeSection !== 'analysis') navigate('/biblioteca/analise');
-          }}
-        >
-          Análise
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={activeTab === 'current'}
-          className={chipClass(activeTab === 'current')}
-          onClick={() => setActiveTab('current')}
-        >
-          Agora
-          <span className="t-meta tabular-nums opacity-80">{tabCounts.current}</span>
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={activeTab === 'wishlist'}
-          className={chipClass(activeTab === 'wishlist')}
-          onClick={() => setActiveTab('wishlist')}
-        >
-          Fila
-          <span className="t-meta tabular-nums opacity-80">{tabCounts.wishlist}</span>
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={activeTab === 'done'}
-          className={chipClass(activeTab === 'done')}
-          onClick={() => setActiveTab('done')}
-        >
-          Feitos
-          <span className="t-meta tabular-nums opacity-80">{tabCounts.done}</span>
-        </button>
+        />
+
+        <FilterChips<LibraryMobileTab>
+          ariaLabel="Filtrar por momento"
+          size="sm"
+          options={[
+            { id: 'current', label: 'Agora', count: tabCounts.current },
+            { id: 'wishlist', label: 'Fila', count: tabCounts.wishlist },
+            { id: 'done', label: 'Feitos', count: tabCounts.done },
+          ]}
+          value={activeTab}
+          onChange={setActiveTab}
+        />
       </div>
 
       <MobileSearchBar
@@ -313,6 +278,7 @@ export function LibraryMobileScreen({
         onChange={setSearch}
         placeholder="Buscar título, autoria ou tag"
         onFilterClick={() => setIsFilterSheetOpen(true)}
+        filterLabel="Abrir filtros da biblioteca"
         rounded="tight"
         trailing={
           <AppButton
@@ -344,8 +310,14 @@ export function LibraryMobileScreen({
         {filteredItems.length === 0 ? (
           <EmptyState compact
             title="Nada nessa visão da biblioteca"
-            description="Ajuste os filtros ou adicione um novo item."
-            action={focusAction}
+            description={hasActiveFilters ? 'Nada com essa busca ou filtro.' : 'Troque o momento acima ou adicione um novo item.'}
+            action={
+              hasActiveFilters ? (
+                <AppButton variant="secondary" onClick={clearSearchAndFilters}>
+                  Limpar busca e filtros
+                </AppButton>
+              ) : focusAction
+            }
             icon={<SearchCheck className="h-8 w-8" />}
           />
         ) : (
@@ -359,7 +331,7 @@ export function LibraryMobileScreen({
               return (
                 <article
                   key={item.id}
-                  className="flex flex-col overflow-hidden rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)]"
+                  className="flex flex-col overflow-hidden rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-secondary)]"
                 >
                   <MobileCoverThumb
                     item={item}
@@ -380,32 +352,33 @@ export function LibraryMobileScreen({
                         {item.autorDiretor || TYPE_LABELS[item.tipo]}
                       </p>
 
-                      <div className="flex flex-wrap gap-1">
-                        <LibraryBadge>{TYPE_LABELS[item.tipo]}</LibraryBadge>
+                      <div className="flex min-w-0 flex-wrap gap-1">
+                        <Badge variant="neutral">{TYPE_LABELS[item.tipo]}</Badge>
                         {relatedContents > 0 ? (
-                          <LibraryBadge tone="green">{relatedContents}</LibraryBadge>
+                          <Badge variant="neutral">
+                            {relatedContents} roteiro{relatedContents === 1 ? '' : 's'}
+                          </Badge>
                         ) : null}
                         {metadata.tagsPersonalizadas?.[0] ? (
-                          <LibraryBadge>{metadata.tagsPersonalizadas[0]}</LibraryBadge>
+                          <Badge variant="neutral" className="max-w-full truncate">{metadata.tagsPersonalizadas[0]}</Badge>
                         ) : null}
                       </div>
                     </div>
                   </button>
 
                   <div className="border-t border-[var(--border-color)] p-1.5">
-                    <button
-                      type="button"
+                    <AppButton
+                      variant="secondary"
+                      size="xs"
+                      fullWidth
+                      aria-pressed={isPrimary}
+                      aria-label={isPrimary ? `${item.titulo} é o item principal` : `Fixar ${item.titulo} como principal`}
                       onClick={() => onTogglePrimary(item.id)}
-                      className={cn(
-                        'inline-flex h-8 w-full items-center justify-center gap-1 rounded-md border text-[length:var(--font-size-nav-mobile)] font-semibold t-label-uppercase transition-colors',
-                        isPrimary
-                          ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-[var(--bg-primary)]'
-                          : 'border-[var(--border-color)] bg-transparent text-[var(--text-secondary)]'
-                      )}
+                      leftIcon={<Pin className={cn('h-3.5 w-3.5', isPrimary && 'fill-current')} aria-hidden />}
+                      className={cn(isPrimary && 'border-[var(--text-primary)]')}
                     >
-                      <Pin className="h-3 w-3" />
                       {isPrimary ? 'Principal' : 'Fixar'}
-                    </button>
+                    </AppButton>
                   </div>
                 </article>
               );
@@ -445,66 +418,38 @@ export function LibraryMobileScreen({
         open={isFilterSheetOpen}
         title="Filtrar biblioteca"
         onClose={() => setIsFilterSheetOpen(false)}
+        onClear={() => {
+          setTypeFilter('all');
+          setStatusFilter('all');
+          onFiltroCapaChange('Todos');
+          setIsFilterSheetOpen(false);
+        }}
       >
-        <label className="block stack-sm">
-          <span className="t-label text-[var(--text-tertiary)]">Tipo</span>
-          <select
-            value={typeFilter}
-            onChange={(event) => setTypeFilter(event.target.value as 'all' | BibliotecaTipo)}
-            className="min-h-11 w-full rounded-lg"
-          >
-            <option value="all">Todos</option>
-            <option value="livro">Livro</option>
-            <option value="filme">Filme</option>
-            <option value="série">Série</option>
-            <option value="anime">Anime</option>
-            <option value="manga">Mangá</option>
-            <option value="quadrinho">Quadrinho</option>
-            <option value="outro">Outro</option>
-          </select>
-        </label>
-
-        <label className="block stack-sm">
-          <span className="t-label text-[var(--text-tertiary)]">Status</span>
-          <select
-            value={statusFilter}
-            onChange={(event) => setStatusFilter(event.target.value as 'all' | StatusLeitura)}
-            className="min-h-11 w-full rounded-lg"
-          >
-            <option value="all">Todos</option>
-            {statusOptions.map((status) => (
-              <option key={status} value={status}>
-                {status}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label className="block stack-sm">
-          <span className="t-label text-[var(--text-tertiary)]">Capa</span>
-          <select
-            value={filtroCapa}
-            onChange={(event) => onFiltroCapaChange(event.target.value as BibliotecaCapaFilter)}
-            className="min-h-11 w-full rounded-lg"
-          >
-            <option value="Todos">Todas</option>
-            <option value="sem">Sem capa</option>
-            <option value="com">Com capa</option>
-          </select>
-        </label>
-
-        <AppButton
-          variant="primary"
-          fullWidth
-          onClick={() => {
-            setTypeFilter('all');
-            setStatusFilter('all');
-            onFiltroCapaChange('Todos');
-            setIsFilterSheetOpen(false);
-          }}
-        >
-          Limpar filtros
-        </AppButton>
+        <MobileFilterSelect
+          label="Tipo"
+          value={typeFilter}
+          onChange={value => setTypeFilter(value as 'all' | BibliotecaTipo)}
+          options={[
+            { value: 'all', label: 'Todos' },
+            ...(Object.entries(TYPE_LABELS) as Array<[BibliotecaTipo, string]>).map(([value, label]) => ({ value, label })),
+          ]}
+        />
+        <MobileFilterSelect
+          label="Status"
+          value={statusFilter}
+          onChange={value => setStatusFilter(value as 'all' | StatusLeitura)}
+          options={[{ value: 'all', label: 'Todos' }, ...statusOptions.map(status => ({ value: status, label: status }))]}
+        />
+        <MobileFilterSelect
+          label="Capa"
+          value={filtroCapa}
+          onChange={value => onFiltroCapaChange(value as BibliotecaCapaFilter)}
+          options={[
+            { value: 'Todos', label: 'Todas' },
+            { value: 'sem', label: 'Sem capa' },
+            { value: 'com', label: 'Com capa' },
+          ]}
+        />
       </MobileFilterSheet>
     </div>
   );

@@ -43,7 +43,7 @@ export function AnnotationCardActions({
           title={anotacao.contentPotential ? 'Remover destaque' : 'Destacar'}
           aria-label={anotacao.contentPotential ? 'Remover destaque' : 'Destacar anotação'}
           className={cn(
-            'inline-flex min-h-9 min-w-9 items-center justify-center rounded-md transition-colors',
+            'inline-flex min-h-9 min-w-9 pointer-coarse:min-h-11 pointer-coarse:min-w-11 items-center justify-center rounded-md transition-colors',
             anotacao.contentPotential ? 'text-[var(--accent-orange)]' : 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'
           )}
         >
@@ -56,7 +56,7 @@ export function AnnotationCardActions({
           onClick={onTransformIdea}
           title="Transformar em ideia"
           aria-label="Transformar em ideia"
-          className="inline-flex min-h-9 min-w-9 items-center justify-center rounded-md text-[var(--accent-green)] transition-colors hover:bg-[var(--accent-green)]/10"
+          className="inline-flex min-h-9 min-w-9 pointer-coarse:min-h-11 pointer-coarse:min-w-11 items-center justify-center rounded-md text-[var(--accent-green)] transition-colors hover:bg-[var(--accent-green)]/10"
         >
           <Lightbulb className="h-3.5 w-3.5" />
         </button>
@@ -67,9 +67,9 @@ export function AnnotationCardActions({
           onClick={onTransformContent}
           title="Criar roteiro"
           aria-label="Criar roteiro a partir da anotação"
-          className="inline-flex min-h-9 min-w-9 items-center justify-center rounded-md transition-colors hover:bg-[var(--accent-blue)]/10"
+          className="inline-flex min-h-9 min-w-9 pointer-coarse:min-h-11 pointer-coarse:min-w-11 items-center justify-center rounded-md transition-colors hover:bg-[var(--bg-hover)]"
         >
-          <Film className="h-3.5 w-3.5 text-[var(--accent-blue)] opacity-60" />
+          <Film className="h-3.5 w-3.5 text-[var(--text-secondary)]" aria-hidden />
         </button>
       ) : null}
       <button
@@ -77,9 +77,9 @@ export function AnnotationCardActions({
         onClick={onDelete}
         title="Excluir"
         aria-label="Excluir anotação"
-        className="inline-flex min-h-9 min-w-9 items-center justify-center rounded-md transition-colors hover:bg-[var(--accent-pink)]/10"
+        className="inline-flex min-h-9 min-w-9 pointer-coarse:min-h-11 pointer-coarse:min-w-11 items-center justify-center rounded-md transition-colors hover:bg-[var(--danger)]/10"
       >
-        <Trash2 className="h-3.5 w-3.5 text-[var(--accent-pink)] opacity-60" />
+        <Trash2 className="h-3.5 w-3.5 text-[var(--danger)]" aria-hidden />
       </button>
     </div>
   );
@@ -151,9 +151,10 @@ export function AnnotationNoteCard({
             type="button"
             onClick={onDelete}
             title="Excluir"
-            className="card-actions rounded-md p-1.5 transition-colors hover:bg-[var(--accent-pink)]/10"
+            aria-label="Excluir anotação"
+            className="card-actions inline-flex min-h-9 min-w-9 pointer-coarse:min-h-11 pointer-coarse:min-w-11 items-center justify-center rounded-md transition-colors hover:bg-[var(--danger)]/10"
           >
-            <Trash2 className="h-3.5 w-3.5 text-[var(--accent-pink)] opacity-60" />
+            <Trash2 className="h-3.5 w-3.5 text-[var(--danger)]" aria-hidden />
           </button>
         )}
       </div>

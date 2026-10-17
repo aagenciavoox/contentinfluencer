@@ -2,12 +2,9 @@ import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Clock } from 'lucide-react';
 import { Text } from '../../../components/ui/Text';
+import { SelectField } from '../../../components/ui/SelectField';
 import type { Content, Serie } from '../../../lib/database';
-import { cn } from '../../../lib/utils';
 import { computeSerieMetrics } from '../../recommendations/computeSerieMetrics';
-
-const selectClass =
-  'ds-input w-[7.5rem] rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-3 py-2 text-sm text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]';
 
 function Metric({ label, value }: { label: string; value: number }) {
   return (
@@ -58,15 +55,15 @@ export function SerieProductionMetricsPanel({
         <Text variant="meta" className="text-[var(--text-secondary)]">
           Status da série
         </Text>
-        <select
-          aria-label="Status da série"
+        <SelectField
+          ariaLabel="Status da série"
           value={serie.ativa ? 'ativa' : 'inativa'}
-          onChange={event => onActiveChange?.(event.target.value === 'ativa')}
-          className={cn(selectClass)}
-        >
-          <option value="ativa">Ativa</option>
-          <option value="inativa">Inativa</option>
-        </select>
+          onChange={value => onActiveChange?.(value === 'ativa')}
+          options={[
+            { value: 'ativa', label: 'Ativa' },
+            { value: 'inativa', label: 'Inativa' },
+          ]}
+        />
       </div>
       {lastEditLabel ? (
         <div className="mt-4 flex items-center gap-1.5">

@@ -8,6 +8,7 @@ import { DesktopPageHeader } from '../../../layouts/page/DesktopPageHeader';
 import { PageLayout } from '../../../layouts/page/PageLayout';
 import { AppButton } from '../../../components/ui/AppButton';
 import { Text } from '../../../components/ui/Text';
+import { TagSelect } from '../../../components/ui/TagSelect';
 
 type EditingLook = Partial<Look> & { numero: number; descricao: string; ativo: boolean };
 type EditingCenario = Partial<Cenario> & { nome: string; descricao: string; tempoSetupMinutos: number; ativo: boolean };
@@ -129,15 +130,17 @@ export function LooksSettingsPage() {
                 </div>
               </div>
               <div>
-                <label className="text-xs font-bold  text-[var(--text-tertiary)] block mb-1">Cenário associado</label>
-                <select
-                  value={lookForm.cenarioId || ''}
-                  onChange={e => setLookForm(p => ({ ...p, cenarioId: e.target.value || undefined }))}
-                  className="text-sm bg-[var(--bg-hover)] border-none rounded-lg px-3 py-2 text-[var(--text-primary)]"
-                >
-                  <option value="">—</option>
-                  {activeCenarios.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
-                </select>
+                <span className="text-xs font-bold  text-[var(--text-tertiary)] block mb-1" aria-hidden>Cenário associado</span>
+                <TagSelect
+                  label="Cenário associado"
+                  hideLabel
+                  id="look-cenario"
+                  maxSelections={1}
+                  placeholder="—"
+                  values={lookForm.cenarioId ? [lookForm.cenarioId] : []}
+                  onChange={values => setLookForm(p => ({ ...p, cenarioId: values[0] || undefined }))}
+                  options={activeCenarios.map(c => ({ value: c.id, label: c.nome }))}
+                />
               </div>
               <div className="flex items-center justify-end gap-3">
                 <AppButton onClick={() => setCriandoLook(false)} variant="secondary">

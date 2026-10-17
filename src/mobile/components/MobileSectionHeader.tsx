@@ -27,7 +27,8 @@ export function MobileSectionHeader({
   icon: Icon,
   title,
   description,
-  tone = 'blue',
+  // Neutro por padrão: azul é só do anel de foco (DESIGN.md › Accent rules).
+  tone = 'neutral',
   className,
   action,
 }: MobileSectionHeaderProps) {

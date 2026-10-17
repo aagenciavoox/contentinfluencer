@@ -13,7 +13,14 @@ import {
 import type { Anotacao, BibliotecaItem, Content } from '../../../lib/database';
 import { CONTENT_STATUS, getDisplayStatus } from '../../../features/contents/lib/contentPipeline';
 import { BottomSheetModal } from '../../../components/feedback/modals/BottomSheetModal';
+import { OverlayBody } from '../../../components/overlays/OverlayBody';
+import { OverlayFooter } from '../../../components/overlays/OverlayFooter';
+import { OverlayHeader } from '../../../components/overlays/OverlayHeader';
 import { AppButton } from '../../../components/ui/AppButton';
+import { Badge } from '../../../components/ui/Badge';
+import { FilterChips } from '../../../components/ui/FilterChips';
+import { InlineNotice } from '../../../components/ui/InlineNotice';
+import { SelectField } from '../../../components/ui/SelectField';
 import { TagSelect } from '../../../components/ui/TagSelect';
 import { Text } from '../../../components/ui/Text';
 import { Surface } from '../../../components/ui/Surface';
@@ -77,19 +84,6 @@ interface BookDetailMobileScreenProps {
   onStartBrainstorm: () => void;
 }
 
-function StatusBadge({ children, className }: { children: React.ReactNode; className?: string }) {
-  return (
-    <span
-      className={cn(
-        'inline-flex max-w-full truncate rounded-md px-2 py-0.5 text-xs font-semibold leading-tight',
-        className
-      )}
-    >
-      {children}
-    </span>
-  );
-}
-
 export function BookDetailMobileScreen({
   livro,
   tab,
@@ -148,7 +142,7 @@ export function BookDetailMobileScreen({
     <div className="stack-md pb-24">
       <Surface variant="outlined" padding="sm" className="bg-[var(--bg-secondary)]">
         <div className="flex gap-3">
-          <div className="h-16 w-11 shrink-0 overflow-hidden rounded-lg bg-[var(--bg-hover)]">
+          <div className="h-16 w-11 shrink-0 overflow-hidden rounded-[var(--radius-input)] bg-[var(--bg-hover)]">
             {infoLocal.capaUrl ? (
               <img
                 src={infoLocal.capaUrl}
@@ -168,20 +162,16 @@ export function BookDetailMobileScreen({
           </div>
 
           <div className="min-w-0 flex-1 stack-xs">
-            <Text variant="itemTitle" className="line-clamp-2 font-semibold">{livro.titulo}</Text>
-            <p className="text-xs text-[var(--text-secondary)]">
+            {/* O título da obra já está no cabeçalho; aqui ficam autoria, tipo, status e nota. */}
+            <p className="text-sm text-[var(--text-secondary)]">
               {livro.autorDiretor || 'Sem autoria'}
             </p>
             <div className="flex flex-wrap gap-1.5">
-              <StatusBadge className="bg-[var(--bg-hover)] text-[var(--text-secondary)]">
-                {itemTypeLabel}
-              </StatusBadge>
-              <StatusBadge className="bg-[var(--accent-blue)]/10 text-[var(--accent-blue)]">
-                {livro.status}
-              </StatusBadge>
+              <Badge variant="neutral">{itemTypeLabel}</Badge>
+              <Badge variant="neutral">{livro.status}</Badge>
             </div>
             {livro.avaliacao ? (
-              <div className="flex gap-0.5">
+              <div className="flex gap-0.5" role="img" aria-label={`Avaliação: ${livro.avaliacao} de 5`}>
                 {Array.from({ length: 5 }).map((_, index) => (
                   <Star
                     key={index}
@@ -201,6 +191,8 @@ export function BookDetailMobileScreen({
 
       <MobileSegmentTabs
         rounded="tight"
+        fullWidth
+        ariaLabel="Seções do item"
         tabs={[
           { value: 'info', label: 'Info' },
           { value: 'anotacoes', label: 'Anotações', count: livro.anotacoes.length },
@@ -215,17 +207,17 @@ export function BookDetailMobileScreen({
           <Surface variant="outlined" padding="sm" className="bg-[var(--bg-secondary)]">
             <MobileSectionHeader
               icon={BookOpen}
-              tone="purple"
+              tone="neutral"
               title="Leitura"
               action={
-                <button
-                  type="button"
+                <AppButton
+                  variant="secondary"
+                  size="xs"
                   onClick={() => setEditInfoOpen(true)}
-                  className="inline-flex min-h-9 items-center gap-1 rounded-lg border border-[var(--border-color)] px-2.5 text-xs font-semibold text-[var(--text-primary)]"
+                  leftIcon={<Pencil className="h-3.5 w-3.5" aria-hidden />}
                 >
-                  <Pencil className="h-3.5 w-3.5" />
                   Editar
-                </button>
+                </AppButton>
               }
             />
 
@@ -248,12 +240,7 @@ export function BookDetailMobileScreen({
                   {infoLocal.generos.length > 0 ? (
                     <div className="flex flex-wrap gap-1.5">
                       {infoLocal.generos.map((genero) => (
-                        <StatusBadge
-                          key={genero}
-                          className="bg-[var(--accent-purple)]/10 text-[var(--accent-purple)]"
-                        >
-                          {genero}
-                        </StatusBadge>
+                        <Badge key={genero} variant="neutral">{genero}</Badge>
                       ))}
                     </div>
                   ) : (
@@ -275,7 +262,7 @@ export function BookDetailMobileScreen({
                     </p>
                     <div className="h-1.5 overflow-hidden rounded-full bg-[var(--bg-hover)]">
                       <div
-                        className="h-full rounded-full bg-[var(--accent-purple)] transition-all"
+                        className="h-full rounded-full bg-[var(--text-primary)] transition-all"
                         style={{ width: `${progressPercent}%` }}
                       />
                     </div>
@@ -292,37 +279,38 @@ export function BookDetailMobileScreen({
             </p>
           </Surface>
 
-          <button
-            type="button"
-            onClick={onRequestDelete}
-            className="w-full py-2 text-center text-xs font-semibold text-[var(--accent-pink)] opacity-70"
-          >
+          {/* Ação destrutiva com moldura (antes era texto rosa a 70% de opacidade, quase invisível).
+              A confirmação continua no ConfirmModal. */}
+          <AppButton variant="secondary" fullWidth onClick={onRequestDelete} className="text-[var(--danger)]">
             Remover da biblioteca
-          </button>
+          </AppButton>
         </div>
       ) : null}
 
       {tab === 'anotacoes' ? (
         <div className="stack-md">
-          <div className="mobile-h-scroll">
-            {filterOptions.map((option) => (
-              <button
-                key={option}
-                type="button"
-                onClick={() => onFiltroTipoChange(option)}
-                className={cn(
-                  'inline-flex h-9 shrink-0 items-center rounded-[var(--radius-sm)] border px-3 text-xs font-semibold transition-colors',
-                  filtroTipo === option
-                    ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-[var(--bg-primary)]'
-                    : 'border-[var(--border-color)] bg-[var(--bg-hover)] text-[var(--text-secondary)]'
-                )}
-              >
-                {option === 'Destaques' ? 'Destaques' : option}
-              </button>
-            ))}
-          </div>
+          {/* Uma fileira só, rolando para o lado (antes quebrava em duas linhas). */}
+          <FilterChips<AnotacaoFiltro>
+            ariaLabel="Filtrar anotações"
+            size="sm"
+            layout="scroll"
+            options={filterOptions.map(option => ({ id: option, label: option }))}
+            value={filtroTipo}
+            onChange={onFiltroTipoChange}
+          />
 
-          {anotacoesFiltradas.length === 0 ? (
+          {anotacoesFiltradas.length === 0 && livro.anotacoes.length > 0 ? (
+            <EmptyState compact
+              title="Nenhuma anotação nesse filtro"
+              description="Troque o filtro acima para ver as outras anotações."
+              action={
+                <AppButton variant="secondary" onClick={() => onFiltroTipoChange('Todos')}>
+                  Ver todas
+                </AppButton>
+              }
+              icon={<BookOpen className="h-8 w-8" />}
+            />
+          ) : anotacoesFiltradas.length === 0 ? (
             <EmptyState compact
               title="Nenhuma anotação ainda"
               description="Registre trechos, reações ou ideias de conteúdo."
@@ -353,10 +341,10 @@ export function BookDetailMobileScreen({
             <button
               type="button"
               onClick={onOpenAnnotationComposer}
-              className="fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom))] right-4 z-20 inline-flex h-14 w-14 items-center justify-center rounded-full bg-[var(--text-primary)] text-[var(--bg-primary)] shadow-lg"
+              className="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] right-4 z-20 inline-flex h-14 w-14 items-center justify-center rounded-full bg-[var(--text-primary)] text-[var(--bg-primary)] shadow-[var(--shadow-dropdown)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
               aria-label="Nova anotação"
             >
-              <Plus className="h-6 w-6" />
+              <Plus className="h-6 w-6" aria-hidden />
             </button>
           ) : null}
         </div>
@@ -365,21 +353,17 @@ export function BookDetailMobileScreen({
       {tab === 'conteudos' ? (
         <div className="stack-md">
           {alertaEcossistema ? (
-            <Surface
-              variant="outlined"
-              padding="sm"
-              className="bg-[var(--bg-hover)]"
-            >
+            <Surface variant="info" padding="sm">
               <div className="flex items-start gap-2">
-                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-[var(--text-secondary)]" />
-                <p className="text-xs text-[var(--text-secondary)]">
+                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-[var(--text-secondary)]" aria-hidden />
+                <Text variant="secondary" as="p">
                   Concluído. Ainda pode render conteúdo quando fizer sentido.
-                </p>
+                </Text>
               </div>
             </Surface>
           ) : null}
 
-          <div className="mobile-h-scroll">
+          <div className="flex flex-wrap gap-2">
             {[
               { label: 'roteiros', value: conteudosDoLivro.length },
               {
@@ -399,13 +383,10 @@ export function BookDetailMobileScreen({
                 }).length,
               },
             ].map((stat) => (
-              <div
-                key={stat.label}
-                className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md border border-[var(--border-color)] bg-[var(--bg-secondary)] px-2.5"
-              >
-                <span className="text-xs font-semibold text-[var(--text-primary)]">{stat.value}</span>
-                <span className="text-xs text-[var(--text-secondary)]">{stat.label}</span>
-              </div>
+              <Badge key={stat.label} variant="neutral">
+                <span className="mr-1 font-semibold tabular-nums text-[var(--text-primary)]">{stat.value}</span>
+                {stat.label}
+              </Badge>
             ))}
           </div>
 
@@ -414,31 +395,19 @@ export function BookDetailMobileScreen({
           </AppButton>
 
           {anotacoesDestaqueCount > 0 ? (
-            <Surface
-              variant="outlined"
-              padding="md"
-              className="border-[var(--warning)]/25 bg-[var(--warning)]/10"
-            >
-              <p className="text-sm font-semibold text-[var(--warning)]">
-                {anotacoesDestaqueCount === 1
-                  ? '1 destaque pode virar roteiro.'
-                  : `${anotacoesDestaqueCount} destaques podem virar roteiro.`}
-              </p>
-              <button
-                type="button"
-                onClick={onStartBrainstorm}
-                className="mt-2 text-xs font-semibold text-[var(--warning)] transition-opacity hover:opacity-80"
-              >
-                Gerar ideias
-              </button>
-            </Surface>
+            <InlineNotice
+              texto={anotacoesDestaqueCount === 1
+                ? '1 destaque pode virar roteiro.'
+                : `${anotacoesDestaqueCount} destaques podem virar roteiro.`}
+              acao={{ rotulo: 'Gerar ideias', onClick: onStartBrainstorm }}
+            />
           ) : null}
 
           {ideiasDeLivro.length > 0 ? (
             <Surface variant="outlined" padding="md" className="bg-[var(--bg-secondary)]">
               <MobileSectionHeader
                 icon={Lightbulb}
-                tone="orange"
+                tone="neutral"
                 title={`Ideias (${ideiasDeLivro.length})`}
               />
               <div className="stack-sm">
@@ -447,17 +416,13 @@ export function BookDetailMobileScreen({
                     key={ideia.id}
                     className="flex items-start gap-2 border-b border-[var(--border-color)] pb-2 last:border-0 last:pb-0"
                   >
-                    <Lightbulb className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[var(--warning)]" />
+                    <Lightbulb className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[var(--text-tertiary)]" aria-hidden />
                     <p className="min-w-0 flex-1 text-sm text-[var(--text-primary)]">
                       {ideia.title || 'Ideia sem título'}
                     </p>
-                    <button
-                      type="button"
-                      onClick={() => onPromoteIdeia(ideia)}
-                      className="shrink-0 text-xs font-semibold text-[var(--accent-blue)]"
-                    >
-                      Transformar em roteiro
-                    </button>
+                    <AppButton variant="secondary" size="xs" onClick={() => onPromoteIdeia(ideia)}>
+                      Virar roteiro
+                    </AppButton>
                   </div>
                 ))}
               </div>
@@ -469,7 +434,7 @@ export function BookDetailMobileScreen({
               title="Nenhum roteiro criado a partir desta obra ainda"
               description="Roteiros e ideias criados a partir desta obra aparecem aqui."
               action={
-                <AppButton variant="primary" fullWidth onClick={onCreateContent} leftIcon={<Plus className="h-4 w-4" />}>
+                <AppButton variant="secondary" fullWidth onClick={onCreateContent} leftIcon={<Plus className="h-4 w-4" />}>
                   Criar roteiro
                 </AppButton>
               }
@@ -480,17 +445,12 @@ export function BookDetailMobileScreen({
               {conteudosDoLivro.map((content) => (
                 <MobileListCard
                   key={content.id}
-                  title={content.title || 'Sem título'}
+                  title={content.title || 'Roteiro sem título'}
                   description={content.notes || undefined}
                   meta={
-                    <span
-                      className={cn(
-                        'rounded-full px-2 py-0.5 text-xs font-semibold',
-                        statusCores[getDisplayStatus(content)] || 'bg-[var(--bg-hover)] text-[var(--text-primary)]'
-                      )}
-                    >
+                    <Badge variant="status" status={getDisplayStatus(content)}>
                       {getDisplayStatus(content)}
-                    </span>
+                    </Badge>
                   }
                   onClick={() => onOpenContent(content.id)}
                 />
@@ -500,9 +460,15 @@ export function BookDetailMobileScreen({
         </div>
       ) : null}
 
-      <BottomSheetModal open={editInfoOpen} onClose={() => setEditInfoOpen(false)} desktopMaxW="max-w-md">
-        <div className="stack-lg p-1">
-          <Text variant="sectionTitle">Editar item</Text>
+      <BottomSheetModal
+        open={editInfoOpen}
+        onClose={() => setEditInfoOpen(false)}
+        desktopMaxW="max-w-md"
+        zIndex="z-[110]"
+        ariaLabel="Editar item"
+      >
+        <OverlayHeader title="Editar item" onClose={() => setEditInfoOpen(false)} />
+        <OverlayBody className="stack-lg">
 
           <label className="block stack-sm">
             <span className="t-label text-[var(--text-tertiary)]">Título</span>
@@ -510,7 +476,7 @@ export function BookDetailMobileScreen({
               type="text"
               value={infoLocal.titulo}
               onChange={(event) => onInfoLocalPatch({ titulo: event.target.value })}
-              className="min-h-11 w-full rounded-lg"
+              className="min-h-11 w-full"
             />
           </label>
 
@@ -520,25 +486,19 @@ export function BookDetailMobileScreen({
               type="text"
               value={infoLocal.autor}
               onChange={(event) => onInfoLocalPatch({ autor: event.target.value })}
-              className="min-h-11 w-full rounded-lg"
+              className="min-h-11 w-full"
             />
           </label>
 
           <label className="block stack-sm">
             <span className="t-label text-[var(--text-tertiary)]">Status de leitura</span>
-            <select
+            <SelectField
+              block
+              ariaLabel="Status de leitura"
               value={infoLocal.statusLeitura}
-              onChange={(event) =>
-                onInfoLocalPatch({ statusLeitura: event.target.value as StatusLeitura })
-              }
-              className="min-h-11 w-full rounded-lg"
-            >
-              {statusLeituraOptions.map((status) => (
-                <option key={status} value={status}>
-                  {status}
-                </option>
-              ))}
-            </select>
+              onChange={(value) => onInfoLocalPatch({ statusLeitura: value as StatusLeitura })}
+              options={statusLeituraOptions.map((status) => ({ value: status, label: status }))}
+            />
           </label>
 
           <CoverUploadField
@@ -558,13 +518,16 @@ export function BookDetailMobileScreen({
             placeholder="Selecione gêneros"
           />
 
-          <label className="block stack-sm">
-            <span className="t-label text-[var(--text-tertiary)]">Avaliação</span>
+          <div className="stack-sm" role="group" aria-label="Avaliação">
+            <span className="t-label text-[var(--text-tertiary)]" aria-hidden>Avaliação</span>
             <div className="flex gap-1">
               {[1, 2, 3, 4, 5].map((rating) => (
                 <button
                   key={rating}
                   type="button"
+                  aria-label={`${rating} de 5`}
+                  aria-pressed={rating <= (infoLocal.avaliacao || 0)}
+                  className="inline-flex h-11 w-11 items-center justify-center rounded-[var(--radius-input)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
                   onClick={() => onInfoLocalPatch({ avaliacao: rating as 1 | 2 | 3 | 4 | 5 })}
                 >
                   <Star
@@ -574,11 +537,12 @@ export function BookDetailMobileScreen({
                         ? 'fill-[var(--warning)] text-[var(--warning)]'
                         : 'text-[var(--border-strong)]'
                     )}
+                    aria-hidden
                   />
                 </button>
               ))}
             </div>
-          </label>
+          </div>
 
           <div className="grid-metrics">
             <label className="block stack-sm">
@@ -592,7 +556,7 @@ export function BookDetailMobileScreen({
                     paginasLidas: event.target.value === '' ? '' : Number(event.target.value),
                   })
                 }
-                className="min-h-11 w-full rounded-lg"
+                className="min-h-11 w-full"
               />
             </label>
             <label className="block stack-sm">
@@ -606,7 +570,7 @@ export function BookDetailMobileScreen({
                     totalPaginas: event.target.value === '' ? '' : Number(event.target.value),
                   })
                 }
-                className="min-h-11 w-full rounded-lg"
+                className="min-h-11 w-full"
               />
             </label>
           </div>
@@ -617,14 +581,15 @@ export function BookDetailMobileScreen({
               value={infoLocal.notasGerais}
               onChange={(event) => onInfoLocalPatch({ notasGerais: event.target.value })}
               rows={4}
-              className="w-full rounded-lg"
+              className="w-full"
             />
           </label>
-
+        </OverlayBody>
+        <OverlayFooter className="pb-safe px-4">
           <AppButton variant="primary" fullWidth onClick={handleSaveInfo} leftIcon={<Check className="h-4 w-4" />}>
-            {infoSalvo ? 'Salvo!' : 'Salvar'}
+            {infoSalvo ? 'Salvo' : 'Salvar'}
           </AppButton>
-        </div>
+        </OverlayFooter>
       </BottomSheetModal>
     </div>
   );

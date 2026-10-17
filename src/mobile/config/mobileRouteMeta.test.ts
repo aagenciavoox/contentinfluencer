@@ -58,4 +58,8 @@ const editorialSerie = getMobileRouteMeta('/editorial/series/nova');
 assert.equal(editorialSerie.title, 'Nova série');
 assert.equal(editorialSerie.backTo, '/editorial?aba=series');
 
+assert.equal(getMobileRouteMeta('/configuracoes/perfil').title, 'Perfil');
+assert.equal(getMobileRouteMeta('/configuracoes/dna').title, 'Configurações');
+assert.equal(resolveMobileRouteMeta('/calendario').titleVariant, 'compact-center');
+
 console.log('mobileRouteMeta.test.ts passed');

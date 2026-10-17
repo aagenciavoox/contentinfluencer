@@ -36,6 +36,9 @@ import {
 } from '../../lib/postingWindow';
 import {getAllowedStatuses, getDisplayStatus, getStatusOptions} from '../../lib/contentPipeline';
 import {LivroMultiSelect} from './LivroMultiSelect';
+import {SelectField} from '../../../../components/ui/SelectField';
+import {SelectMenu, selectChangeEvent, selectOptionsFromChildren} from '../../../../components/ui/SelectMenu';
+import {TagSelect} from '../../../../components/ui/TagSelect';
 import {TemaField} from './TemaField';
 
 const NOTES_MAX = 500;
@@ -161,26 +164,30 @@ function RoteiroSelect({
   dotColor?: string | null;
   children: React.ReactNode;
 }) {
+  const options = selectOptionsFromChildren(children);
+  const currentLabel = options.find(option => option.value === value)?.label ?? value;
   return (
     <div className="relative">
       {dotColor ? (
         <span
-          className="pointer-events-none absolute left-3 top-1/2 h-2 w-2 -translate-y-1/2 rounded-full"
+          className="pointer-events-none absolute left-3 top-1/2 z-10 h-2 w-2 -translate-y-1/2 rounded-full"
           style={{backgroundColor: dotColor}}
           aria-hidden
         />
       ) : null}
-      <select
+      {/* Lista do design system (flutuante no mouse, folha no toque) com a mesma moldura discreta. */}
+      <SelectMenu
         value={value}
-        onChange={onChange}
-        className={cn(
+        onChange={next => onChange(selectChangeEvent(next))}
+        options={options}
+        triggerClassName={cn(
           quietFieldClass,
-          'appearance-none py-2 pr-8',
+          'flex items-center py-2 pr-8 text-left',
           dotColor ? 'pl-7' : 'pl-3',
         )}
       >
-        {children}
-      </select>
+        <span className="min-w-0 flex-1 truncate">{currentLabel}</span>
+      </SelectMenu>
       <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--text-tertiary)]" />
     </div>
   );
@@ -405,19 +412,13 @@ export function FuncaoEditorialFields({
     const funcaoField = (
       <label className="flex flex-col gap-1">
         {formLabel ?? <span className="text-xs font-medium text-[var(--text-secondary)]">Objetivo do conteúdo</span>}
-        <span className="relative block">
-          <select
-            aria-label="Objetivo do conteúdo"
-            value={value}
-            onChange={event => handleFuncao(event.target.value)}
-            className={formInputClass}
-          >
-            {options}
-          </select>
-          {formPart ? (
-            <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-tertiary)]" aria-hidden />
-          ) : null}
-        </span>
+        <SelectField
+          block
+          ariaLabel="Objetivo do conteúdo"
+          value={value}
+          onChange={handleFuncao}
+          options={selectOptionsFromChildren(options)}
+        />
       </label>
     );
     if (formPart === 'funcao') return funcaoField;
@@ -482,6 +483,10 @@ export function ContentOperationalPanel({
   const publishDateOnly = draft.publishDate ? draft.publishDate.slice(0, 10) : '';
   const linkedSerie = draft.seriesId ? series.find(serie => serie.id === draft.seriesId) ?? null : null;
   const linkedPilar = draft.pilarId ? pilares.find(pilar => pilar.id === draft.pilarId) ?? null : null;
+  // Pilares ativos; o pilar já escolhido entra mesmo inativo, para a etiqueta mostrar o nome.
+  const pilarTagOptions = pilares
+    .filter(pilar => pilar.ativo || pilar.id === draft.pilarId)
+    .map(pilar => ({value: pilar.id, label: pilar.nome}));
   const visualFormats = useMemo(
     () => Array.from(new Set([
       ...VISUAL_FORMATS,
@@ -687,40 +692,34 @@ export function ContentOperationalPanel({
     return (
       <aside className={cn('cms-panel flex flex-col gap-4 p-4', className)}>
         <div className="flex flex-col gap-1">
-          <span className="text-xs font-medium text-[var(--text-secondary)]">Pilar</span>
-          <select
-            value={draft.pilarId ?? ''}
-            onChange={event => onChange(marcarEscolhaManual(draft, 'pilar', event.target.value || null))}
-            className={formInputClass}
-          >
-            <option value="">Selecionar pilar…</option>
-            {pilares
-              .filter(pilar => pilar.ativo)
-              .map(pilar => (
-                <option key={pilar.id} value={pilar.id}>
-                  {pilar.nome}
-                </option>
-              ))}
-          </select>
+          <span className="text-xs font-medium text-[var(--text-secondary)]" aria-hidden>Pilar</span>
+          <TagSelect
+            label="Pilar"
+            hideLabel
+            id="content-form-pilar"
+            maxSelections={1}
+            placeholder="Selecionar pilar…"
+            values={draft.pilarId ? [draft.pilarId] : []}
+            onChange={values => onChange(marcarEscolhaManual(draft, 'pilar', values[0] ?? null))}
+            options={pilarTagOptions}
+          />
         </div>
 
         <div className="flex flex-col gap-1">
-          <span className="text-xs font-medium text-[var(--text-secondary)]">Série</span>
-          <select
-            value={draft.seriesId ?? ''}
-            onChange={event => onChange(aplicarEscolhasDaSerie(
-            draft,
-            series.find(serie => serie.id === event.target.value) ?? null,
-          ))}
-            className={formInputClass}
-          >
-            <option value="">Selecionar série…</option>
-            {series.map(serie => (
-              <option key={serie.id} value={serie.id}>
-                {serie.name}
-              </option>
+          <span className="text-xs font-medium text-[var(--text-secondary)]" aria-hidden>Série</span>
+          <TagSelect
+            label="Série"
+            hideLabel
+            id="content-form-serie"
+            maxSelections={1}
+            placeholder="Selecionar série…"
+            values={draft.seriesId ? [draft.seriesId] : []}
+            onChange={values => onChange(aplicarEscolhasDaSerie(
+              draft,
+              series.find(serie => serie.id === values[0]) ?? null,
             ))}
-          </select>
+            options={series.map(serie => ({value: serie.id, label: serie.name}))}
+          />
         </div>
 
         {temasField}
@@ -729,30 +728,32 @@ export function ContentOperationalPanel({
 
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="flex flex-col gap-1">
-            <span className="text-xs font-medium text-[var(--text-secondary)]">Formato visual</span>
-            <select
+            <span className="text-xs font-medium text-[var(--text-secondary)]" aria-hidden>Formato visual</span>
+            <SelectField
+              block
+              ariaLabel="Formato visual"
               value={draft.formatoVisual ?? ''}
-              onChange={event => onChange({formatoVisual: event.target.value || null})}
-              className={formInputClass}
-            >
-              <option value="">Sem formato</option>
-              {visualFormats.map(format => (
-                <option key={format} value={format}>{getVisualFormatLabel(format)}</option>
-              ))}
-            </select>
+              onChange={value => onChange({formatoVisual: value || null})}
+              options={[
+                {value: '', label: 'Sem formato'},
+                ...visualFormats.map(format => ({value: format, label: getVisualFormatLabel(format)})),
+              ]}
+            />
           </div>
           <div className="flex flex-col gap-1">
-            <span className="text-xs font-medium text-[var(--text-secondary)]">Energia</span>
-            <select
+            <span className="text-xs font-medium text-[var(--text-secondary)]" aria-hidden>Energia</span>
+            <SelectField
+              block
+              ariaLabel="Energia"
               value={draft.energiaNecessaria ?? ''}
-              onChange={event => onChange({energiaNecessaria: (event.target.value || null) as EnergiaNivel | null})}
-              className={formInputClass}
-            >
-              <option value="">Sem energia</option>
-              <option value="baixa">Baixa</option>
-              <option value="média">Média</option>
-              <option value="alta">Alta</option>
-            </select>
+              onChange={value => onChange({energiaNecessaria: (value || null) as EnergiaNivel | null})}
+              options={[
+                {value: '', label: 'Sem energia'},
+                {value: 'baixa', label: 'Baixa'},
+                {value: 'média', label: 'Média'},
+                {value: 'alta', label: 'Alta'},
+              ]}
+            />
           </div>
         </div>
 

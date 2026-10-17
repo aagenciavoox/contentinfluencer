@@ -24,6 +24,8 @@ import {
 import {AppButton} from '../../../components/ui/AppButton';
 import {FilterBar} from '../../../components/ui/FilterBar';
 import {Text} from '../../../components/ui/Text';
+import {SelectField} from '../../../components/ui/SelectField';
+import {TagSelect} from '../../../components/ui/TagSelect';
 import {ToolbarSearchInput} from '../../../components/ui/ToolbarSearchInput';
 import {PageLayout} from '../../../layouts/page/PageLayout';
 import {DesktopPageHeader} from '../../../layouts/page/DesktopPageHeader';
@@ -1626,25 +1628,24 @@ function CalendarEntryDetailModal({
                   ))}
                 </div>
 
-                <label className="block stack-sm">
-                  <span className="text-xs font-semibold text-[var(--text-tertiary)]">
+                {/* div, não label: dentro de um <label> o clique no TagSelect abriria e fecharia a lista. */}
+                <div className="block stack-sm">
+                  <span className="text-xs font-semibold text-[var(--text-tertiary)]" aria-hidden>
                     Projeto vinculado
                   </span>
-                  <select
-                    value={projetoId}
-                    onChange={event => setProjetoId(event.target.value)}
-                    className="w-full rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-hover)] px-6 py-3.5 text-sm font-bold text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--accent-blue)]"
-                  >
-                    <option value="">Sem projeto</option>
-                    {projetos
-                      .filter(item => !item.deletedAt)
-                      .map(item => (
-                        <option key={item.id} value={item.id}>
-                          {item.nome}
-                        </option>
-                      ))}
-                  </select>
-                </label>
+                  <TagSelect
+                    label="Projeto vinculado"
+                    hideLabel
+                    id="calendar-entry-projeto"
+                    maxSelections={1}
+                    placeholder="Sem projeto"
+                    values={projetoId ? [projetoId] : []}
+                    onChange={values => setProjetoId(values[0] ?? '')}
+                    options={projetos
+                      .filter(item => !item.deletedAt || item.id === projetoId)
+                      .map(item => ({value: item.id, label: item.nome}))}
+                  />
+                </div>
               </>
             ) : null}
 
@@ -1654,17 +1655,13 @@ function CalendarEntryDetailModal({
                   <span className="text-xs font-semibold text-[var(--text-tertiary)]">
                     Conta
                   </span>
-                  <select
+                  <SelectField
+                    block
+                    ariaLabel="Conta"
                     value={platformId}
-                    onChange={event => setPlatformId(event.target.value)}
-                    className="w-full rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-hover)] px-6 py-3.5 text-sm font-bold text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--accent-blue)]"
-                  >
-                    {activePlatforms.map(platform => (
-                      <option key={platform.id} value={platform.id}>
-                        {rotuloConta(platform)}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={setPlatformId}
+                    options={activePlatforms.map(platform => ({value: platform.id, label: rotuloConta(platform)}))}
+                  />
                 </label>
 
                 <label className="block stack-sm">

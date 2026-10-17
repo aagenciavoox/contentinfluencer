@@ -8,7 +8,7 @@ interface MobilePillButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> 
 const TONE_CLASS: Record<NonNullable<MobilePillButtonProps['tone']>, string> = {
   default: 'bg-[var(--bg-hover)] text-[var(--text-secondary)]',
   success: 'bg-[var(--accent-green)]/10 text-[var(--accent-green)]',
-  danger: 'bg-[var(--accent-pink)]/10 text-[var(--accent-pink)]',
+  danger: 'bg-[var(--danger)]/10 text-[var(--danger)]',
   muted: 'bg-[var(--bg-hover)] text-[var(--text-tertiary)]',
 };
 

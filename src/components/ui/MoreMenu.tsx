@@ -1,6 +1,8 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { MoreHorizontal } from 'lucide-react';
+import { createPortal } from 'react-dom';
 import { cn } from '../../lib/utils';
+import { FLOATING_MENU_HIDDEN_STYLE, FLOATING_MENU_Z_INDEX, useAnchoredPosition } from './anchoredPosition';
 
 export type MoreMenuItem = {
   id?: string;
@@ -37,14 +39,21 @@ export function MoreMenu({
 }: MoreMenuProps) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
   const menuId = useId();
+  // Menu em portal: cards e painéis com `overflow` não o cortam, e ele abre para cima perto do fim da tela.
+  const position = useAnchoredPosition(open, triggerRef, menuRef, {
+    align: align === 'right' ? 'end' : 'start',
+    matchWidth: false,
+  });
 
   useEffect(() => {
     if (!open) return;
 
     const handlePointerDown = (event: MouseEvent | TouchEvent) => {
       const target = event.target as Node | null;
-      if (target && rootRef.current?.contains(target)) return;
+      if (target && (rootRef.current?.contains(target) || menuRef.current?.contains(target))) return;
       setOpen(false);
     };
 
@@ -67,6 +76,7 @@ export function MoreMenu({
   return (
     <div ref={rootRef} className={cn('relative', className)}>
       <button
+        ref={triggerRef}
         type="button"
         onClick={event => {
           event.stopPropagation();
@@ -90,13 +100,16 @@ export function MoreMenu({
         {trigger ?? <MoreHorizontal className={size === 'sm' ? 'h-3.5 w-3.5' : 'h-4 w-4'} />}
       </button>
 
-      {open ? (
+      {open && typeof document !== 'undefined' ? createPortal(
         <div
+          ref={menuRef}
           id={menuId}
           role="menu"
+          data-placement={position?.placement}
+          style={position?.style ?? FLOATING_MENU_HIDDEN_STYLE}
           className={cn(
-            'absolute top-full z-20 mt-1 min-w-[160px] rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-secondary)] py-1 shadow-[var(--shadow-dropdown)]',
-            align === 'right' ? 'right-0' : 'left-0',
+            'fixed min-w-[160px] overflow-y-auto rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-secondary)] py-1 shadow-[var(--shadow-dropdown)]',
+            FLOATING_MENU_Z_INDEX,
           )}
         >
           {items.map((item, index) => (
@@ -118,7 +131,8 @@ export function MoreMenu({
               {item.label}
             </button>
           ))}
-        </div>
+        </div>,
+        document.body,
       ) : null}
     </div>
   );

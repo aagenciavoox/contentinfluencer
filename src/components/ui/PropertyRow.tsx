@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { SelectMenu, selectChangeEvent, selectOptionsFromChildren } from './SelectMenu';
 import { cn } from '../../lib/utils';
 
 /**
@@ -95,13 +96,47 @@ export function PropertyInput(props: React.InputHTMLAttributes<HTMLInputElement>
   return <input {...rest} className={cn('property-input', className)} />;
 }
 
-/** Chromeless inline `<select>` for use inside a PropertyRow value slot. */
+/**
+ * Chromeless inline select for use inside a PropertyRow value slot.
+ * Mesma API de `<select>` (filhos `<option>`, `onChange` com `event.target.value`), mas abre a
+ * lista do design system (`SelectMenu`) em vez da lista nativa.
+ */
 export function PropertySelect(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
-  const { className, children, ...rest } = props;
+  const {
+    className,
+    children,
+    value,
+    defaultValue,
+    onChange,
+    disabled,
+    id,
+    'aria-label': ariaLabel,
+    'aria-describedby': describedBy,
+  } = props;
+  const options = selectOptionsFromChildren(children);
+  const current = String(value ?? defaultValue ?? options[0]?.value ?? '');
+  const currentLabel = options.find(option => option.value === current)?.label ?? current;
+
+  const handleChange = (next: string) => {
+    onChange?.(selectChangeEvent(next));
+  };
+
   return (
-    <select {...rest} className={cn('property-input', className)}>
-      {children}
-    </select>
+    <SelectMenu
+      id={id}
+      value={current}
+      onChange={handleChange}
+      options={options}
+      ariaLabel={ariaLabel}
+      describedBy={describedBy}
+      disabled={disabled}
+      triggerClassName={cn(
+        'property-input flex min-w-0 cursor-pointer items-center pr-6 aria-expanded:bg-[var(--bg-elevated)]',
+        className,
+      )}
+    >
+      <span className="min-w-0 flex-1 truncate">{currentLabel}</span>
+    </SelectMenu>
   );
 }
 

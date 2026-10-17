@@ -132,7 +132,8 @@ function MobileLayerChips({
   className?: string;
 }) {
   return (
-    <div className={cn('flex gap-2 overflow-x-auto', className)}>
+    // Quebra linha em vez de rolar de lado: a última camada não fica cortada sem aviso.
+    <div role="group" aria-label="Camadas da agenda" className={cn('flex flex-wrap gap-2', className)}>
       {ALL_KINDS.map(kind => {
         const active = activeKinds.includes(kind);
         return (
@@ -144,10 +145,11 @@ function MobileLayerChips({
             className={cn(
               'filter-chip min-h-11 shrink-0 whitespace-nowrap',
               // Camadas começam todas ligadas: preenchimento preto em todas virava ruído.
-              active ? 'border-[var(--border-strong)] text-[var(--text-primary)]' : 'text-[var(--text-tertiary)] opacity-70',
+              active ? 'border-[var(--border-strong)] text-[var(--text-primary)]' : 'text-[var(--text-tertiary)]',
             )}
           >
             <span
+              aria-hidden
               className="h-1.5 w-1.5 shrink-0 rounded-full"
               style={{backgroundColor: active ? KIND_ACCENTS[kind] : 'currentColor'}}
             />
@@ -402,7 +404,8 @@ export function AgendaMobileScreen({
 
   return (
     <div className="stack-lg">
-      <div className="px-4 stack-md">
+      {/* O <main> do shell já tem px-4; o px-4 daqui dobrava a margem lateral. */}
+      <div className="stack-md">
         {onListModeChange ? (
           <MobileSegmentTabs
             tabs={[
@@ -425,7 +428,7 @@ export function AgendaMobileScreen({
               type="button"
               onClick={() => setCalendarMonth(m => subMonths(m, 1))}
               aria-label="Mês anterior"
-              className="flex min-h-11 min-w-11 items-center justify-center rounded-xl transition-all active:scale-90 hover:bg-[var(--bg-hover)]"
+              className="flex min-h-11 min-w-11 items-center justify-center rounded-[var(--radius-input)] transition-all active:scale-90 hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
             >
               <ChevronLeft className="h-4 w-4 text-[var(--text-tertiary)]" />
             </button>
@@ -436,32 +439,19 @@ export function AgendaMobileScreen({
               type="button"
               onClick={() => setCalendarMonth(m => addMonths(m, 1))}
               aria-label="Próximo mês"
-              className="flex min-h-11 min-w-11 items-center justify-center rounded-xl transition-all active:scale-90 hover:bg-[var(--bg-hover)]"
+              className="flex min-h-11 min-w-11 items-center justify-center rounded-[var(--radius-input)] transition-all active:scale-90 hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
             >
               <ChevronRight className="h-4 w-4 text-[var(--text-tertiary)]" />
             </button>
           </div>
 
           <div className="flex items-center justify-end gap-2">
-            <button
-              type="button"
-              onClick={onAddPostedVideo}
-              aria-label="Registrar vídeo postado"
-              className="flex min-h-11 items-center gap-1.5 rounded-xl border border-[var(--border-color)] px-3 text-xs font-semibold text-[var(--text-primary)] transition-all active:scale-95"
-            >
-              <Radio className="h-4 w-4" />
+            <AppButton variant="secondary" onClick={onAddPostedVideo} aria-label="Registrar vídeo postado" leftIcon={<Radio className="h-4 w-4" aria-hidden />}>
               Já postei
-            </button>
-
-            <button
-              type="button"
-              onClick={onAddAgenda}
-              aria-label="Novo evento"
-              className="flex min-h-11 items-center gap-1.5 rounded-xl bg-[var(--brand-accent-strong)] px-4 text-xs font-semibold text-[var(--brand-on-accent)] transition-all active:scale-95"
-            >
-              <Plus className="h-4 w-4" />
+            </AppButton>
+            <AppButton variant="primary" onClick={onAddAgenda} leftIcon={<Plus className="h-4 w-4" aria-hidden />}>
               Novo evento
-            </button>
+            </AppButton>
           </div>
         </div>
 
@@ -496,10 +486,11 @@ export function AgendaMobileScreen({
                 key={dateKey}
                 type="button"
                 onClick={() => handleSelectDate(day)}
+                aria-label={`${format(day, "d 'de' MMMM", {locale: ptBR})}${isToday ? ', hoje' : ''}${kindsArray.length > 0 ? `, ${kindsArray.map(kind => KIND_LABELS[kind]).join(', ')}` : ''}`}
+                aria-pressed={isSelected}
                 className={cn(
                   'flex flex-col items-center gap-1 border-b border-r border-[var(--border-color)] py-2 transition-all',
-                  'cursor-pointer active:scale-95 select-none',
-                  !isCurrentMonth && 'opacity-20',
+                  'cursor-pointer active:scale-95 select-none focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
                   isLastCol && 'border-r-0',
                   isSelected && 'bg-[var(--bg-hover)]'
                 )}
@@ -509,13 +500,14 @@ export function AgendaMobileScreen({
                     'flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold',
                     isToday && 'bg-[var(--accent)] text-[var(--bg-primary)]',
                     isSelected && !isToday && 'ring-1 ring-[var(--text-primary)] text-[var(--text-primary)]',
-                    !isToday && !isSelected && 'text-[var(--text-primary)]'
+                    // Dia de outro mês: texto terciário em vez de opacidade 20% (que derrubava o contraste).
+                    !isToday && !isSelected && (isCurrentMonth ? 'text-[var(--text-primary)]' : 'text-[var(--text-tertiary)]')
                   )}
                 >
                   {format(day, 'd')}
                 </div>
 
-                <div className="flex gap-0.5 min-h-[5px]">
+                <div className={cn('flex gap-0.5 min-h-[5px]', !isCurrentMonth && 'opacity-50')} aria-hidden>
                   {kindsArray.slice(0, 3).map(kind => (
                     <span
                       key={kind}
@@ -530,29 +522,17 @@ export function AgendaMobileScreen({
         </div>
       </section>
       ) : (
-        <div className="flex items-center justify-end gap-2 px-4">
-          <button
-            type="button"
-            onClick={onAddPostedVideo}
-            aria-label="Registrar vídeo postado"
-            className="flex min-h-11 items-center gap-1.5 rounded-xl border border-[var(--border-color)] px-3 text-xs font-semibold text-[var(--text-primary)] transition-all active:scale-95"
-          >
-            <Radio className="h-4 w-4" />
+        <div className="flex items-center justify-end gap-2">
+          <AppButton variant="secondary" onClick={onAddPostedVideo} aria-label="Registrar vídeo postado" leftIcon={<Radio className="h-4 w-4" aria-hidden />}>
             Já postei
-          </button>
-          <button
-            type="button"
-            onClick={onAddAgenda}
-            aria-label="Novo evento"
-            className="flex min-h-11 items-center gap-1.5 rounded-xl bg-[var(--brand-accent-strong)] px-4 text-xs font-semibold text-[var(--brand-on-accent)] transition-all active:scale-95"
-          >
-            <Plus className="h-4 w-4" />
+          </AppButton>
+          <AppButton variant="primary" onClick={onAddAgenda} leftIcon={<Plus className="h-4 w-4" aria-hidden />}>
             Novo evento
-          </button>
+          </AppButton>
         </div>
       )}
 
-      <section className="stack-md px-4">
+      <section className="stack-md">
         <MobileSearchBar
           value={search}
           onChange={setSearch}
@@ -598,13 +578,9 @@ export function AgendaMobileScreen({
                   · {filteredEntries.length}
                 </span>
               </p>
-              <button
-                type="button"
-                onClick={() => setSelectedDate(null)}
-                className="text-xs font-semibold text-[var(--text-tertiary)] transition-all"
-              >
+              <AppButton variant="secondary" size="xs" onClick={() => setSelectedDate(null)}>
                 Ver todos
-              </button>
+              </AppButton>
             </>
           ) : (
             <p className="text-xs font-semibold text-[var(--text-tertiary)]">
@@ -620,16 +596,24 @@ export function AgendaMobileScreen({
           <EmptyState compact
             title="Nada por aqui"
             description={
-              selectedDate
-                ? 'Nenhum evento nesse dia. Toque em Novo evento para adicionar.'
-                : isTimeline
-                  ? 'Nenhum evento neste período com as camadas ativas.'
-                  : 'Nenhum evento nos próximos 60 dias com as camadas ativas.'
+              search.trim()
+                ? 'Nada com essa busca.'
+                : selectedDate
+                  ? 'Nenhum evento nesse dia. Toque em Novo evento para adicionar.'
+                  : isTimeline
+                    ? 'Nenhum evento neste período com as camadas ativas.'
+                    : 'Nenhum evento nos próximos 60 dias com as camadas ativas.'
             }
             action={
-              <AppButton variant="primary" fullWidth onClick={onAddAgenda} leftIcon={<Plus className="h-4 w-4" />}>
-                Novo evento
-              </AppButton>
+              search.trim() ? (
+                <AppButton variant="secondary" fullWidth onClick={() => setSearch('')}>
+                  Limpar busca
+                </AppButton>
+              ) : (
+                <AppButton variant="secondary" fullWidth onClick={onAddAgenda} leftIcon={<Plus className="h-4 w-4" />}>
+                  Novo evento
+                </AppButton>
+              )
             }
             icon={<SearchCheck className="h-8 w-8" />}
           />
@@ -701,7 +685,7 @@ export function AgendaMobileScreen({
                           ) : entry.kind === 'recording' ? (
                             <Mic2 className="h-4 w-4 text-[var(--accent-orange)]" />
                           ) : entry.kind === 'publish' ? (
-                            <Radio className="h-4 w-4 text-[var(--accent-blue)]" />
+                            <Radio className="h-4 w-4 text-[var(--text-secondary)]" aria-hidden />
                           ) : entry.kind === 'project' ? (
                             <BriefcaseBusiness className="h-4 w-4" style={{ color: tintedTextColor(entry.color || 'var(--accent-purple)') }} />
                           ) : (
@@ -721,7 +705,7 @@ export function AgendaMobileScreen({
       </section>
 
       {undatedRoteiros.length > 0 ? (
-        <section className="px-4 stack-sm">
+        <section className="stack-sm">
           <button
             type="button"
             aria-expanded={undatedOpen}
@@ -742,7 +726,7 @@ export function AgendaMobileScreen({
           {undatedOpen ? undatedRoteiros.map(content => (
             <div key={content.id} className="flex items-center justify-between gap-3 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-3 py-2">
               <p className="min-w-0 truncate text-sm font-semibold text-[var(--text-primary)]">
-                {content.title || 'Sem título'}
+                {content.title || 'Roteiro sem título'}
               </p>
               <AppButton
                 variant="secondary"

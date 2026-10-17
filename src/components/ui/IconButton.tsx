@@ -12,7 +12,8 @@ interface IconButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const sizeClasses: Record<IconButtonSize, string> = {
-  sm: 'min-h-9 min-w-9 p-1.5',
+  // `sm` é pequeno no desenho; no toque vai a 44px (mínimo do DESIGN.md para o celular).
+  sm: 'min-h-9 min-w-9 p-1.5 pointer-coarse:min-h-11 pointer-coarse:min-w-11',
   md: 'min-h-11 min-w-11 p-2',
 };
 

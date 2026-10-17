@@ -4,6 +4,7 @@ import { useAppContext } from '../../../../context/AppContext';
 import { Dialog } from '../../../../components/overlays/Dialog';
 import { AppButton } from '../../../../components/ui/AppButton';
 import { Surface } from '../../../../components/ui/Surface';
+import { SelectField } from '../../../../components/ui/SelectField';
 import { Text } from '../../../../components/ui/Text';
 import type { Anotacao, BibliotecaItem } from '../../../../lib/database';
 import { cn } from '../../../../lib/utils';
@@ -69,14 +70,14 @@ export function BookAnnotationComposer({
         Nova anotação
       </Text>
       <div className="flex flex-col gap-3 lg:flex-row">
-        <select
+        <SelectField
+          ariaLabel="Tipo da anotação"
           value={novoTipo}
-          onChange={event => setNovoTipo(event.target.value as TipoAnotacao)}
-          className={cn(fieldClass, 'lg:w-52')}
-          aria-label="Tipo da anotação"
-        >
-          {TIPOS.map(tipo => <option key={tipo}>{tipo}</option>)}
-        </select>
+          onChange={value => setNovoTipo(value as TipoAnotacao)}
+          options={TIPOS.map(tipo => ({ value: tipo, label: tipo }))}
+          block
+          className="lg:w-52 lg:flex-none"
+        />
         <input
           type="text"
           value={novoCapitulo}

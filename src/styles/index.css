@@ -1608,18 +1608,50 @@ textarea.property-input {
   box-shadow: var(--focus-ring);
 }
 
+/* Ativo contornado, não preenchido: o preenchido é da aba ativa (`.segment-tabs-item-active`).
+   Assim um filtro nunca parece uma segunda aba escolhida. */
 .filter-chip-active {
   border-color: var(--text-primary);
-  background: var(--text-primary);
-  color: var(--bg-primary);
+  background: var(--bg-hover);
+  color: var(--text-primary);
   box-shadow: none;
 }
 
 .filter-chip-active:hover {
-  background: var(--text-primary);
-  color: var(--bg-primary);
+  background: var(--bg-hover);
+  color: var(--text-primary);
   border-color: var(--text-primary);
-  opacity: 0.92;
+}
+
+/* Contador com respiro do rótulo. */
+.filter-chip-count {
+  margin-left: 0.125rem;
+  font-weight: 500;
+}
+
+/* Chip baixo: o desenho é menor, a área de toque continua com 44px (DESIGN.md, regra 10). */
+.filter-chip--sm {
+  position: relative;
+  padding: 0.375rem 0.7rem;
+}
+
+@media (pointer: coarse) {
+  .filter-chip--sm::after {
+    content: '';
+    position: absolute;
+    inset: -4px 0;
+  }
+}
+
+/* Fileira de chips que rola para o lado: sem barra, com folga para a área de toque. */
+.filter-chips-scroll {
+  scrollbar-width: none;
+  padding-block: 4px;
+  margin-block: -4px;
+}
+
+.filter-chips-scroll::-webkit-scrollbar {
+  display: none;
 }
 
 /* Sits in a toolbar row. A full-width bar would wrap the controls beside it.
@@ -2115,6 +2147,33 @@ input[type="search"]::-webkit-search-results-decoration {
 .inline-stack-sm { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-sm); }
 .inline-stack-md { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-md); }
 
+/* Rolagem principal do MobileAppShell com o MobileHeaderIOS fixo por cima.
+   O header mede área segura + 56px (h-14) + 1px de borda inferior. Antes o <main> descontava
+   só área segura + 56px: a borda cobria 1px do primeiro item e nada separava o conteúdo do
+   header. Agora desconta a altura inteira + o respiro --space-md, igual em todas as telas.
+   O scroll-padding-top faz scrollIntoView/âncoras pararem abaixo do header, não por baixo dele. */
+.mobile-shell-scroll--header {
+  padding-top: calc(env(safe-area-inset-top, 0px) + 3.5rem + 1px + var(--space-md));
+  scroll-padding-top: calc(env(safe-area-inset-top, 0px) + 3.5rem + 1px + var(--space-md));
+}
+
+/* O respiro do topo já vem do <main> do shell: o PageContainer que abre a página não soma outro. */
+html.mobile-app-shell .mobile-shell-scroll--header main > .desktop-content-frame:first-child {
+  padding-top: 0;
+}
+
+/* Rolagem principal do MobileAppShell: no toque não há barra fixa de 8px na borda direita. */
+.mobile-shell-scroll {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.mobile-shell-scroll::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
 /* Mobile chrome: single-row horizontal chip/tab scroller */
 .mobile-h-scroll {
   display: flex;
@@ -2130,6 +2189,51 @@ input[type="search"]::-webkit-search-results-decoration {
   display: none;
   width: 0;
   height: 0;
+}
+
+/* Fileira rolável com a borda esmaecida quando há mais itens escondidos (useScrollEdgeFade). */
+.scroll-edge-fade[data-fade-end] {
+  -webkit-mask-image: linear-gradient(to right, black calc(100% - var(--space-xl)), transparent);
+  mask-image: linear-gradient(to right, black calc(100% - var(--space-xl)), transparent);
+}
+
+.scroll-edge-fade[data-fade-start] {
+  -webkit-mask-image: linear-gradient(to right, transparent, black var(--space-xl));
+  mask-image: linear-gradient(to right, transparent, black var(--space-xl));
+}
+
+.scroll-edge-fade[data-fade-start][data-fade-end] {
+  -webkit-mask-image: linear-gradient(to right, transparent, black var(--space-xl), black calc(100% - var(--space-xl)), transparent);
+  mask-image: linear-gradient(to right, transparent, black var(--space-xl), black calc(100% - var(--space-xl)), transparent);
+}
+
+.scroll-edge-fade-y[data-fade-end] {
+  -webkit-mask-image: linear-gradient(to bottom, black calc(100% - var(--space-xl)), transparent);
+  mask-image: linear-gradient(to bottom, black calc(100% - var(--space-xl)), transparent);
+}
+
+.scroll-edge-fade-y[data-fade-start] {
+  -webkit-mask-image: linear-gradient(to bottom, transparent, black var(--space-xl));
+  mask-image: linear-gradient(to bottom, transparent, black var(--space-xl));
+}
+
+.scroll-edge-fade-y[data-fade-start][data-fade-end] {
+  -webkit-mask-image: linear-gradient(to bottom, transparent, black var(--space-xl), black calc(100% - var(--space-xl)), transparent);
+  mask-image: linear-gradient(to bottom, transparent, black var(--space-xl), black calc(100% - var(--space-xl)), transparent);
+}
+
+/* Espaço no fim da rolagem do shell mobile: altura da barra inferior (3.25rem + respiro da
+   área segura) mais um respiro. Elemento real, e não padding do <main>, porque o WebKit
+   ignora o padding-bottom de contêiner rolável em alguns layouts. */
+.mobile-shell-bottom-spacer {
+  height: calc(3.25rem + max(0.75rem, env(safe-area-inset-bottom, 0px)) + var(--space-xl));
+  flex-shrink: 0;
+}
+
+/* Editor de roteiro no celular: a barra flutuante (+Bloco, Padrão, tamanho) fica fixa embaixo.
+   O scroll-padding faz o navegador deixar a linha do cursor acima dela ao rolar. */
+html.mobile-app-shell main:has(.roteiro-typography) {
+  scroll-padding-bottom: calc(max(0.75rem, env(safe-area-inset-bottom, 0px)) + 6rem);
 }
 
 /* Compact meta chips inside list cards */
@@ -2287,12 +2391,19 @@ html.mobile-app-shell .mobile-list-card-meta .rounded-full {
 
 html.mobile-app-shell .segment-tabs {
   display: flex;
-  width: max-content;
-  min-width: 100%;
+  width: auto;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
   gap: var(--space-sm);
   background: transparent;
   padding: 0;
   border-radius: 0;
+}
+
+html.mobile-app-shell .segment-tabs::-webkit-scrollbar {
+  display: none;
 }
 
 .segment-tabs-item {
@@ -2335,6 +2446,46 @@ html.mobile-app-shell .segment-tabs-item-active {
 .segment-tabs-item:focus-visible {
   outline: none;
   box-shadow: var(--focus-ring);
+}
+
+/* Trilho de largura toda, abas em partes iguais (Acervo/Análise, Info/Anotações/Roteiros).
+   No celular também volta a ter trilho, como no computador. */
+.segment-tabs.segment-tabs--full,
+html.mobile-app-shell .segment-tabs.segment-tabs--full {
+  display: flex;
+  width: 100%;
+  max-width: 100%;
+  gap: 2px;
+  border-radius: var(--radius-md);
+  background: var(--bg-hover);
+  padding: 2px;
+  overflow: hidden;
+}
+
+.segment-tabs--full .segment-tabs-item,
+html.mobile-app-shell .segment-tabs--full .segment-tabs-item {
+  flex: 1 1 0;
+  min-width: 0;
+  justify-content: center;
+  background: transparent;
+}
+
+html.mobile-app-shell .segment-tabs--full .segment-tabs-item {
+  height: calc(var(--control-height-mobile) - 4px);
+  min-height: calc(var(--control-height-mobile) - 4px);
+}
+
+@media (hover: hover) {
+  .segment-tabs--full .segment-tabs-item:hover {
+    background: color-mix(in srgb, var(--text-primary) 6%, transparent);
+  }
+}
+
+.segment-tabs--full .segment-tabs-item-active,
+.segment-tabs--full .segment-tabs-item-active:hover,
+html.mobile-app-shell .segment-tabs--full .segment-tabs-item-active {
+  background: var(--text-primary);
+  color: var(--bg-primary);
 }
 
 /* ── Pagination bar ── */

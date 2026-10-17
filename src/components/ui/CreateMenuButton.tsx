@@ -1,6 +1,8 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { ChevronDown, FileText, Lightbulb, Plus } from 'lucide-react';
+import { createPortal } from 'react-dom';
 import { AppButton } from './AppButton';
+import { FLOATING_MENU_HIDDEN_STYLE, FLOATING_MENU_Z_INDEX, useAnchoredPosition } from './anchoredPosition';
 
 interface CreateMenuButtonProps {
   label?: string;
@@ -19,14 +21,17 @@ export function CreateMenuButton({
 }: CreateMenuButtonProps) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
   const menuId = useId();
+  // Menu em portal, alinhado pela direita do botão; abre para cima se faltar espaço embaixo.
+  const position = useAnchoredPosition(open, rootRef, menuRef, { align: 'end', matchWidth: false });
 
   useEffect(() => {
     if (!open) return;
 
     const handlePointerDown = (event: MouseEvent | TouchEvent) => {
       const target = event.target as Node | null;
-      if (target && rootRef.current?.contains(target)) return;
+      if (target && (rootRef.current?.contains(target) || menuRef.current?.contains(target))) return;
       setOpen(false);
     };
 
@@ -56,11 +61,14 @@ export function CreateMenuButton({
         {label}
       </AppButton>
 
-      {open ? (
+      {open && typeof document !== 'undefined' ? createPortal(
         <div
+          ref={menuRef}
           id={menuId}
           role="menu"
-          className="absolute right-0 top-full z-20 mt-2 min-w-[200px] rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] py-1 shadow-[var(--shadow-dropdown)]"
+          data-placement={position?.placement}
+          style={position?.style ?? FLOATING_MENU_HIDDEN_STYLE}
+          className={`fixed ${FLOATING_MENU_Z_INDEX} min-w-[200px] rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] py-1 shadow-[var(--shadow-dropdown)]`}
         >
           <button
             type="button"
@@ -86,7 +94,8 @@ export function CreateMenuButton({
             <FileText className="h-4 w-4 text-[var(--text-tertiary)]" />
             Novo roteiro
           </button>
-        </div>
+        </div>,
+        document.body,
       ) : null}
     </div>
   );

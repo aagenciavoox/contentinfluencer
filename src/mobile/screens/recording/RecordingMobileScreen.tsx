@@ -4,13 +4,16 @@ import type { Content, Pilar, RecordingBlock, Serie } from '../../../lib/databas
 import { EmptyState } from '../../../components/ui/EmptyState';
 import { SkeletonList } from '../../../components/ui/Skeleton';
 import { EMPTY } from '../../../lib/uiCopy';
-import { MobileFilterSheet } from '../../components/MobileFilterSheet';
+import { MobileFilterSelect, MobileFilterSheet } from '../../components/MobileFilterSheet';
+import { Badge } from '../../../components/ui/Badge';
+import { SegmentTabs } from '../../../components/ui/SegmentTabs';
 import { MobileListCard } from '../../components/MobileListCard';
 import { MobileSearchBar } from '../../components/MobileSearchBar';
 import { MobileSegmentTabs } from '../../components/MobileSegmentTabs';
 import {getRecordingBlockProgress, normalizeRecordingTags, recordingTagChipStyle, resolveRecordingContextSummary} from '../../../features/recording/lib/recordingWorkflow';
 import { TagSelect } from '../../../components/ui/TagSelect';
 import { AppButton } from '../../../components/ui/AppButton';
+import { Text } from '../../../components/ui/Text';
 import { cn, getEntityTagStyle } from '../../../lib/utils';
 import { getScriptWordCount } from '../../../features/contents/lib/contentCardMeta';
 import {
@@ -160,6 +163,25 @@ export function RecordingMobileScreen({
     setTargetBlockId('');
   };
 
+  const hasActiveFilters =
+    Boolean(search.trim())
+    || pilarFilter !== 'all'
+    || seriesFilter !== 'all'
+    || tagFilter !== 'all'
+    || energiaFilter !== 'all';
+  const clearFilters = () => {
+    setPilarFilter('all');
+    setSeriesFilter('all');
+    setTagFilter('all');
+    setEnergiaFilter('all');
+  };
+  const cancelBlockForm = () => {
+    setShowCreateForm(false);
+    setBlockTags([]);
+    setBlockMode('novo');
+    setTargetBlockId('');
+  };
+
   const handleCreate = async () => {
     const orderedIds = selectedQueueIds();
     if (!blockName.trim() || orderedIds.length === 0) return;
@@ -197,17 +219,37 @@ export function RecordingMobileScreen({
               onChange={setSearch}
               placeholder="Buscar roteiro, pilar ou série"
               onFilterClick={() => setIsFilterSheetOpen(true)}
+              filterLabel="Abrir filtros da gravação"
             />
 
             {!countsReady ? (
               // Sem os blocos, roteiros que já estão num bloco apareceriam aqui como "sem bloco".
               <SkeletonList count={3} />
             ) : filteredQueue.length === 0 ? (
-              <EmptyState compact
-                title={EMPTY.roteirosSemBloco.title}
-                description={EMPTY.roteirosSemBloco.description}
-                icon={<SearchCheck className="h-8 w-8" />}
-              />
+              hasActiveFilters ? (
+                <EmptyState compact
+                  title="Nenhum roteiro com esse filtro"
+                  description="Nada com essa busca ou filtro."
+                  action={
+                    <AppButton
+                      variant="secondary"
+                      onClick={() => {
+                        setSearch('');
+                        clearFilters();
+                      }}
+                    >
+                      Limpar busca e filtros
+                    </AppButton>
+                  }
+                  icon={<SearchCheck className="h-8 w-8" />}
+                />
+              ) : (
+                <EmptyState compact
+                  title={EMPTY.roteirosSemBloco.title}
+                  description={EMPTY.roteirosSemBloco.description}
+                  icon={<SearchCheck className="h-8 w-8" />}
+                />
+              )
             ) : (
               <div className="stack-sm">
                 {filteredQueue.map((content) => {
@@ -228,12 +270,10 @@ export function RecordingMobileScreen({
                     <div key={content.id} className="stack-sm">
                     <MobileListCard
                       onClick={() => toggleSelect(content.id)}
+                      selected={selected}
+                      actionLabel={`Selecionar ${content.title || 'roteiro sem título'}`}
                       className={selected ? 'ring-1 ring-[var(--text-primary)]' : undefined}
-                      status={
-                        <span className="inline-flex rounded-md bg-[var(--bg-hover)] px-1.5 py-0.5 text-xs font-semibold text-[var(--text-secondary)]">
-                          {selected ? 'Selecionado' : 'Roteiro'}
-                        </span>
-                      }
+                      status={<Badge variant="neutral">{selected ? 'Selecionado' : 'Roteiro'}</Badge>}
                       title={content.title || 'Roteiro sem título'}
                       description={statusLabel}
                       trailing={
@@ -250,17 +290,18 @@ export function RecordingMobileScreen({
                             className="h-11 w-11 border-[var(--border-color)]"
                             aria-label="Abrir modo leitura"
                           />
-                          <button
-                            type="button"
+                          <AppButton
+                            variant="ghost"
+                            size="xs"
+                            iconOnly
+                            leftIcon={<ExternalLink className="h-3.5 w-3.5" />}
                             onClick={event => {
                               event.stopPropagation();
                               onOpenContent(content.id);
                             }}
-                            className="inline-flex h-11 w-11 items-center justify-center rounded-[var(--radius-input)] border border-[var(--border-color)] text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
+                            className="h-11 w-11 border-[var(--border-color)]"
                             aria-label="Abrir detalhes do roteiro"
-                          >
-                            <ExternalLink className="h-3.5 w-3.5" />
-                          </button>
+                          />
                         </div>
                       }
                       meta={
@@ -315,29 +356,22 @@ export function RecordingMobileScreen({
                 {showCreateForm ? (
                   <>
                     {recordingBlocks.length > 0 ? (
-                      <div className="flex w-fit rounded-xl border border-[var(--border-color)] bg-[var(--bg-hover)] p-0.5">
-                        {(['novo', 'existente'] as const).map(mode => (
-                          <button
-                            key={mode}
-                            type="button"
-                            onClick={() => setBlockMode(mode)}
-                            className={cn(
-                              'rounded-lg px-4 py-1.5 text-xs font-semibold transition-all',
-                              blockMode === mode
-                                ? 'bg-[var(--bg-primary)] text-[var(--text-primary)] shadow-sm'
-                                : 'text-[var(--text-secondary)]'
-                            )}
-                          >
-                            {mode === 'novo' ? 'Novo bloco' : 'Bloco existente'}
-                          </button>
-                        ))}
-                      </div>
+                      <SegmentTabs<'novo' | 'existente'>
+                        ariaLabel="Onde guardar os roteiros"
+                        options={[
+                          { id: 'novo', label: 'Novo bloco' },
+                          { id: 'existente', label: 'Bloco existente' },
+                        ]}
+                        value={blockMode}
+                        onChange={setBlockMode}
+                      />
                     ) : null}
 
                     {blockMode === 'novo' ? (
                       <>
                         <input
                           autoFocus
+                          aria-label="Nome do bloco"
                           value={blockName}
                           onChange={(event) => setBlockName(event.target.value)}
                           placeholder={`Nome do bloco (${selectedIds.size} ${selectedIds.size === 1 ? 'selecionado' : 'selecionados'})`}
@@ -356,31 +390,23 @@ export function RecordingMobileScreen({
                           <AppButton variant="primary" onClick={handleCreate} disabled={!blockName.trim()} className="flex-1">
                             Criar bloco
                           </AppButton>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setShowCreateForm(false);
-                              setBlockTags([]);
-                              setBlockMode('novo');
-                              setTargetBlockId('');
-                            }}
-                            className="flex-1 rounded-[var(--radius-md)] border border-[var(--border-color)] py-3 text-xs font-semibold  text-[var(--text-secondary)]"
-                          >
+                          <AppButton variant="secondary" onClick={cancelBlockForm} className="flex-1">
                             Cancelar
-                          </button>
+                          </AppButton>
                         </div>
                       </>
                     ) : (
                       <>
-                        <p className="text-xs font-semibold text-[var(--text-tertiary)]">Escolher bloco existente</p>
-                        <div className="grid max-h-48 gap-2 overflow-y-auto">
+                        <p id="recording-existing-block-label" className="t-label text-[var(--text-tertiary)]">Escolher bloco existente</p>
+                        <div className="grid max-h-48 gap-2 overflow-y-auto" role="group" aria-labelledby="recording-existing-block-label">
                           {recordingBlocks.map(block => (
                             <button
                               key={block.id}
                               type="button"
                               onClick={() => setTargetBlockId(block.id)}
+                              aria-pressed={targetBlockId === block.id}
                               className={cn(
-                                'flex min-h-11 items-center justify-between rounded-[var(--radius-input)] border px-4 py-3 text-left text-sm',
+                                'flex min-h-11 items-center justify-between rounded-[var(--radius-input)] border px-4 py-3 text-left text-sm focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
                                 targetBlockId === block.id
                                   ? 'border-[var(--text-primary)] bg-[var(--text-primary)]/5 font-semibold text-[var(--text-primary)]'
                                   : 'border-[var(--border-color)] text-[var(--text-primary)]'
@@ -403,18 +429,9 @@ export function RecordingMobileScreen({
                           >
                             Adicionar ao bloco
                           </AppButton>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setShowCreateForm(false);
-                              setBlockTags([]);
-                              setBlockMode('novo');
-                              setTargetBlockId('');
-                            }}
-                            className="flex-1 rounded-[var(--radius-md)] border border-[var(--border-color)] py-3 text-xs font-semibold  text-[var(--text-secondary)]"
-                          >
+                          <AppButton variant="secondary" onClick={cancelBlockForm} className="flex-1">
                             Cancelar
-                          </button>
+                          </AppButton>
                         </div>
                       </>
                     )}
@@ -422,7 +439,7 @@ export function RecordingMobileScreen({
                 ) : (
                   <AppButton variant="primary" fullWidth onClick={() => setShowCreateForm(true)} leftIcon={<Plus className="h-4 w-4" />}>
                     {recordingBlocks.length > 0
-                      ? `Criar / adicionar ao bloco (${selectedIds.size})`
+                      ? `Criar ou adicionar ao bloco (${selectedIds.size})`
                       : `Criar bloco (${selectedIds.size})`}
                   </AppButton>
                 )}
@@ -444,29 +461,27 @@ export function RecordingMobileScreen({
                     key={block.id}
                     onClick={() => onOpenBlock(block.id)}
                     status={
-                      <span className="inline-flex rounded-md bg-[var(--bg-hover)] px-1.5 py-0.5 text-xs font-semibold text-[var(--text-secondary)]">
-                        {total === 0 ? 'Vazio' : ready === 0 ? 'Finalizado' : 'Bloco'}
-                      </span>
+                      <Badge variant="neutral">{total === 0 ? 'Vazio' : ready === 0 ? 'Finalizado' : 'Bloco'}</Badge>
                     }
                     title={block.name}
                     description={first?.title || 'Sem roteiro inicial'}
                     meta={
                       <>
-                        <span className="inline-flex items-center gap-1 rounded-md bg-[var(--accent-blue)]/10 px-1.5 py-0.5 text-xs font-semibold text-[var(--accent-blue)]">
-                          <Clapperboard className="h-3 w-3" />
+                        <Badge variant="neutral">
+                          <Clapperboard className="mr-1 h-3 w-3" aria-hidden />
                           {total} {total === 1 ? 'roteiro' : 'roteiros'}
-                        </span>
-                        <span className="inline-flex items-center gap-1 rounded-md bg-[var(--accent-green)]/10 px-1.5 py-0.5 text-xs font-semibold text-[var(--accent-green)]">
-                          <Layers3 className="h-3 w-3" />
-                          {progress}%
-                        </span>
-                        <span className="inline-flex items-center gap-1 rounded-md bg-[var(--bg-hover)] px-1.5 py-0.5 text-xs font-semibold text-[var(--text-secondary)]">
-                          <Tags className="h-3 w-3" />
+                        </Badge>
+                        <Badge variant="neutral">
+                          <Layers3 className="mr-1 h-3 w-3" aria-hidden />
+                          {progress}% gravado
+                        </Badge>
+                        <Badge variant="neutral">
+                          <Tags className="mr-1 h-3 w-3" aria-hidden />
                           {resolveRecordingContextSummary({ block, content: first })}
-                        </span>
+                        </Badge>
                       </>
                     }
-                    trailing={<Video className="h-4 w-4 text-[var(--text-tertiary)]" />}
+                    trailing={<Video className="h-4 w-4 text-[var(--text-tertiary)]" aria-hidden />}
                   />
                 ))}
               </div>
@@ -479,77 +494,52 @@ export function RecordingMobileScreen({
         open={isFilterSheetOpen}
         title="Filtrar itens"
         onClose={() => setIsFilterSheetOpen(false)}
+        onClear={() => {
+          clearFilters();
+          setSortValue('recentes');
+          setIsFilterSheetOpen(false);
+        }}
       >
-        <label className="block stack-sm">
-          <span className="t-label text-[var(--text-tertiary)]">Pilar</span>
-          <select value={pilarFilter} onChange={(event) => setPilarFilter(event.target.value)}>
-            <option value="all">Todos</option>
-            {pilares.map((pilar) => (
-              <option key={pilar.id} value={pilar.id}>
-                {pilar.nome}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label className="block stack-sm">
-          <span className="t-label text-[var(--text-tertiary)]">Série</span>
-          <select value={seriesFilter} onChange={(event) => setSeriesFilter(event.target.value)}>
-            <option value="all">Todas</option>
-            {series.map((serie) => (
-              <option key={serie.id} value={serie.id}>
-                {serie.name}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label className="block stack-sm">
-          <span className="t-label text-[var(--text-tertiary)]">Marcador</span>
-          <select value={tagFilter} onChange={(event) => setTagFilter(event.target.value)}>
-            <option value="all">Todos</option>
-            {availableTags.map((tag) => (
-              <option key={tag} value={tag}>
-                {tag}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label className="block stack-sm">
-          <span className="t-label text-[var(--text-tertiary)]">Energia</span>
-          <select value={energiaFilter} onChange={(event) => setEnergiaFilter(event.target.value)}>
-            <option value="all">Todas</option>
-            <option value="baixa">Baixa</option>
-            <option value="média">Média</option>
-            <option value="alta">Alta</option>
-          </select>
-        </label>
-
-        <label className="block stack-sm">
-          <span className="t-label text-[var(--text-tertiary)]">Ordenação</span>
-          <select value={sortValue} onChange={(event) => setSortValue(event.target.value)}>
-            <option value="recentes">Mais recentes</option>
-            <option value="titulo:asc">Título A–Z</option>
-            <option value="pilar:asc">Pilar A–Z</option>
-            <option value="energia:desc">Energia alta</option>
-          </select>
-        </label>
-
-        <AppButton
-          variant="primary"
-          fullWidth
-          onClick={() => {
-            setPilarFilter('all');
-            setSeriesFilter('all');
-            setTagFilter('all');
-            setEnergiaFilter('all');
-            setSortValue('recentes');
-            setIsFilterSheetOpen(false);
-          }}
-        >
-          Limpar filtros
-        </AppButton>
+        <MobileFilterSelect
+          label="Pilar"
+          value={pilarFilter}
+          onChange={setPilarFilter}
+          options={[{ value: 'all', label: 'Todos' }, ...pilares.map(pilar => ({ value: pilar.id, label: pilar.nome }))]}
+        />
+        <MobileFilterSelect
+          label="Série"
+          value={seriesFilter}
+          onChange={setSeriesFilter}
+          options={[{ value: 'all', label: 'Todas' }, ...series.map(serie => ({ value: serie.id, label: serie.name }))]}
+        />
+        <MobileFilterSelect
+          label="Marcador"
+          value={tagFilter}
+          onChange={setTagFilter}
+          options={[{ value: 'all', label: 'Todos' }, ...availableTags.map(tag => ({ value: tag, label: tag }))]}
+        />
+        <MobileFilterSelect
+          label="Energia"
+          value={energiaFilter}
+          onChange={setEnergiaFilter}
+          options={[
+            { value: 'all', label: 'Todas' },
+            { value: 'baixa', label: 'Baixa' },
+            { value: 'média', label: 'Média' },
+            { value: 'alta', label: 'Alta' },
+          ]}
+        />
+        <MobileFilterSelect
+          label="Ordenação"
+          value={sortValue}
+          onChange={setSortValue}
+          options={[
+            { value: 'recentes', label: 'Mais recentes' },
+            { value: 'titulo:asc', label: 'Título A–Z' },
+            { value: 'pilar:asc', label: 'Pilar A–Z' },
+            { value: 'energia:desc', label: 'Energia alta' },
+          ]}
+        />
       </MobileFilterSheet>
     </div>
   );

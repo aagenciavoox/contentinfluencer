@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { BookOpen, BookPlus, FileText, Lightbulb, Pin } from 'lucide-react';
+import { BookOpen, BookPlus, FileText, Lightbulb, Pin, X } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
 import { useAppContext } from '../../context/AppContext';
@@ -11,6 +11,7 @@ import { getModuleFlags } from '../../features/settings/lib/moduleFlags';
 import { fetchBibliotecaItemById, type BibliotecaItem } from '../../lib/database';
 import { buildDetailBackState } from '../../lib/navigation/detailBack';
 import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
+import { IconButton } from '../../components/ui/IconButton';
 import { cn } from '../../lib/utils';
 
 interface MobileActionMenuProps {
@@ -171,11 +172,18 @@ export function MobileActionMenu({ open, onClose }: MobileActionMenuProps) {
               onDragEnd={(_, info) => {
                 if (info.offset.y > 72 || info.velocity.y > 600) onClose();
               }}
-              className="fixed inset-x-0 bottom-0 z-[110] rounded-t-[1.75rem] border border-b-0 border-[var(--border-color)] bg-[var(--bg-secondary)] shadow-[0_-12px_40px_rgba(0,0,0,0.18)]"
+              className="fixed inset-x-0 bottom-0 z-[110] rounded-t-[var(--radius-overlay)] border border-b-0 border-[var(--border-color)] bg-[var(--bg-secondary)] shadow-[var(--shadow-modal)]"
               style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 4.5rem)' }}
             >
-              <div className="flex justify-center pt-3 pb-2">
+              <div className="relative flex h-14 items-start justify-center pt-3">
                 <div className="h-1 w-10 rounded-full bg-[var(--border-strong)]" aria-hidden="true" />
+                <IconButton
+                  label="Fechar"
+                  onClick={onClose}
+                  className="absolute right-3 top-2 rounded-full border border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-secondary)]"
+                >
+                  <X className="h-4 w-4" aria-hidden />
+                </IconButton>
               </div>
 
               <div className={cn('grid gap-2 px-4 pb-3', actions.length > 3 ? 'grid-cols-2' : 'grid-cols-3')}>
@@ -193,7 +201,7 @@ export function MobileActionMenu({ open, onClose }: MobileActionMenuProps) {
                     <div className={cn('rounded-xl p-2.5', action.accentClassName)}>
                       {action.icon}
                     </div>
-                    <span className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--text-primary)]">
+                    <span className="text-sm font-medium text-[var(--text-primary)]">
                       {action.label.replace('Nova ', '').replace('Novo ', '')}
                     </span>
                   </button>

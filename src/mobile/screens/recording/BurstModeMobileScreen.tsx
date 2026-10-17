@@ -584,7 +584,7 @@ export function BurstModeMobileScreen({
               <p className={cn('text-xs font-semibold ', theme.muted)}>
                 Modo gravação
               </p>
-              <Text variant="sectionTitle" truncate className="mt-1">{currentContent.title || 'Roteiro sem título'}</Text>
+              <Text variant="sectionTitle" truncate className={cn('mt-1', theme.text)}>{currentContent.title || 'Roteiro sem título'}</Text>
             </div>
 
             <button
@@ -632,25 +632,28 @@ export function BurstModeMobileScreen({
         style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 12px)' }}
       >
         <div
-          className={cn('pointer-events-auto mx-auto grid grid-cols-4 gap-2 rounded-[1.4rem] border p-2 shadow-[0_16px_40px_rgba(0,0,0,0.12)]', theme.card, theme.border)}
+          className={cn('pointer-events-auto mx-auto grid grid-cols-4 gap-2 rounded-[var(--radius-overlay)] border p-2 shadow-[var(--shadow-dropdown)]', theme.card, theme.border)}
           onClick={event => {
             event.stopPropagation();
             revealControls();
           }}
         >
           <ActionIconButton
+            textClassName={theme.text}
             icon={<ChevronLeft className="h-5 w-5" />}
             label="Anterior"
             onClick={handlePrevious}
             disabled={currentIndex === 0}
           />
           <ActionIconButton
+            textClassName={theme.text}
             icon={isPlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
             label={isPlaying ? 'Pausar' : 'Iniciar'}
             onClick={handleTogglePlayback}
             disabled={!teleprompterEnabled}
           />
           <ActionIconButton
+            textClassName={theme.text}
             icon={<CheckCircle2 className="h-5 w-5" />}
             label={currentEntry.gravado ? 'Gravado' : 'Marcar como gravado'}
             onClick={handleMarkRecorded}
@@ -658,6 +661,7 @@ export function BurstModeMobileScreen({
             active={currentEntry.gravado}
           />
           <ActionIconButton
+            textClassName={theme.text}
             icon={currentIndex > 0 ? <ChevronRight className="h-5 w-5" /> : <SkipForward className="h-5 w-5" />}
             label="Próximo"
             onClick={handleNext}
@@ -772,7 +776,7 @@ export function BurstModeMobileScreen({
 
 function MetricCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-[1.15rem] bg-[var(--bg-hover)] px-3 py-3">
+    <div className="rounded-[var(--radius-input)] bg-[var(--bg-hover)] px-3 py-3">
       <p className="text-xs font-semibold  text-[var(--text-tertiary)]">
         {label}
       </p>
@@ -796,12 +800,15 @@ function ActionIconButton({
   onClick,
   disabled = false,
   active = false,
+  textClassName,
 }: {
   icon: React.ReactNode;
   label: string;
   onClick: () => void;
   disabled?: boolean;
   active?: boolean;
+  /** Cor do texto do tema do teleprompter: --text-primary sumia no tema escuro/âmbar. */
+  textClassName?: string;
 }) {
   return (
     <button
@@ -812,7 +819,7 @@ function ActionIconButton({
         'flex flex-col items-center justify-center gap-1 rounded-[var(--radius-md)] border px-3 py-3 text-center transition-colors disabled:opacity-40',
         active
           ? 'border-[color-mix(in_srgb,var(--success)_30%,transparent)] bg-[color-mix(in_srgb,var(--success)_12%,transparent)] text-[var(--success)]'
-          : 'border-[var(--border-color)] text-[var(--text-primary)]'
+          : cn('border-[var(--border-color)]', textClassName ?? 'text-[var(--text-primary)]')
       )}
     >
       {icon}

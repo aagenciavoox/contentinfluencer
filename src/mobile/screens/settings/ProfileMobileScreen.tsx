@@ -1,7 +1,6 @@
 import { KeyRound, Mail, ShieldCheck, UserCircle2 } from 'lucide-react';
 import { AppButton } from '../../../components/ui/AppButton';
 import { Text } from '../../../components/ui/Text';
-import { MobileSectionHeader } from '../../components/MobileSectionHeader';
 import { ERRORS } from '../../../lib/uiCopy';
 
 interface ProfileMobileScreenProps {
@@ -31,13 +30,21 @@ interface ProfileMobileScreenProps {
   primaryCard?: 'profile' | 'email' | 'password' | null;
 }
 
+// A cor só tinge fundo e borda; o texto fica em --text-primary para manter o contraste (DESIGN.md).
 function Feedback({ message, tone }: { message: string; tone: 'success' | 'error' }) {
   const classes =
     tone === 'success'
-      ? 'border-[var(--accent-green)]/20 bg-[var(--accent-green)]/8 text-[var(--accent-green)]'
-      : 'border-[var(--accent-pink)]/20 bg-[var(--accent-pink)]/8 text-[var(--accent-pink)]';
+      ? 'border-[color-mix(in_srgb,var(--success)_35%,var(--border-color))] bg-[color-mix(in_srgb,var(--success)_10%,var(--bg-elevated))]'
+      : 'border-[color-mix(in_srgb,var(--danger)_35%,var(--border-color))] bg-[color-mix(in_srgb,var(--danger)_10%,var(--bg-elevated))]';
 
-  return <p className={`rounded-[1rem] border px-4 py-3 text-sm ${classes}`}>{message}</p>;
+  return (
+    <p
+      role={tone === 'error' ? 'alert' : 'status'}
+      className={`rounded-[var(--radius-input)] border px-4 py-3 text-sm text-[var(--text-primary)] ${classes}`}
+    >
+      {message}
+    </p>
+  );
 }
 
 export function ProfileMobileScreen({
@@ -68,21 +75,16 @@ export function ProfileMobileScreen({
 }: ProfileMobileScreenProps) {
   return (
     <div className="stack-lg">
-      <section className="rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4">
-        <MobileSectionHeader
-          icon={UserCircle2}
-          tone="blue"
-          title="Perfil"
-          description="Nome, e-mail de acesso e senha."
-        />
-
+      {/* "Perfil" já é o título do cabeçalho; o primeiro card mostra só o e-mail atual. */}
+      <section className="stack-md">
+        <Text variant="secondary" className="px-1">Nome, e-mail de acesso e senha.</Text>
         {!backendReady ? (
           <Feedback
             message={ERRORS.supabaseDesconectado}
             tone="error"
           />
         ) : (
-          <div className="rounded-[var(--radius-md)] bg-[var(--bg-primary)] px-4 py-3">
+          <div className="rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-3">
             <p className="t-label text-[var(--text-tertiary)]">E-mail atual</p>
             <p className="mt-1 text-sm font-semibold text-[var(--text-primary)]">{accountEmail}</p>
           </div>
@@ -91,10 +93,11 @@ export function ProfileMobileScreen({
 
       <section className="rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4">
         <div className="mb-3 flex items-center gap-2 text-[var(--text-secondary)]">
-          <UserCircle2 className="h-4 w-4" />
-          <p className="t-label">Nome do perfil</p>
+          <UserCircle2 className="h-4 w-4" aria-hidden />
+          <label htmlFor="mobile-profile-name" className="t-label">Nome do perfil</label>
         </div>
         <input
+          id="mobile-profile-name"
           type="text"
           value={fullName}
           onChange={(event) => onFullNameChange(event.target.value)}
@@ -120,7 +123,7 @@ export function ProfileMobileScreen({
           <Mail className="h-4 w-4" />
           <p className="t-label">Trocar e-mail</p>
         </div>
-        <label htmlFor="mobile-profile-email" className="mb-2 block text-xs font-semibold t-label-uppercase text-[var(--text-tertiary)]">
+        <label htmlFor="mobile-profile-email" className="mb-2 block t-label text-[var(--text-tertiary)]">
           Novo e-mail
         </label>
         <input
@@ -145,6 +148,10 @@ export function ProfileMobileScreen({
         >
           {emailLoading ? 'Atualizando…' : 'Atualizar e-mail'}
         </AppButton>
+        {/* O botão fica apagado até haver um e-mail novo; a frase explica, para não parecer quebrado. */}
+        {backendReady && emailSubmitDisabled && !emailLoading ? (
+          <Text variant="meta" className="mt-2">Digite um e-mail diferente do atual para atualizar.</Text>
+        ) : null}
         {emailMessage ? <div className="mt-3"><Feedback message={emailMessage} tone="success" /></div> : null}
         {emailError ? <div className="mt-3"><Feedback message={emailError} tone="error" /></div> : null}
       </section>
@@ -156,33 +163,35 @@ export function ProfileMobileScreen({
         </div>
         <div className="stack-md">
           <div className="stack-sm">
-            <p className="t-label text-[var(--text-tertiary)]">Nova senha</p>
+            <label htmlFor="mobile-profile-password" className="t-label text-[var(--text-tertiary)]">Nova senha</label>
             <input
+              id="mobile-profile-password"
               type="password"
               value={password}
               onChange={(event) => onPasswordChange(event.target.value)}
               placeholder="Mínimo de 6 caracteres"
               disabled={!backendReady || passwordLoading}
               className="input"
-              aria-label="Nova senha"
+              autoComplete="new-password"
             />
           </div>
           <div className="stack-sm">
-            <p className="t-label text-[var(--text-tertiary)]">Confirmar nova senha</p>
+            <label htmlFor="mobile-profile-password-confirm" className="t-label text-[var(--text-tertiary)]">Confirmar nova senha</label>
             <input
+              id="mobile-profile-password-confirm"
               type="password"
               value={confirmPassword}
               onChange={(event) => onConfirmPasswordChange(event.target.value)}
               placeholder="Repita a nova senha"
               disabled={!backendReady || passwordLoading}
               className="input"
-              aria-label="Confirmar nova senha"
+              autoComplete="new-password"
             />
           </div>
         </div>
-        <div className="mt-3 rounded-[var(--radius-md)] bg-[var(--bg-primary)] px-4 py-3 text-xs text-[var(--text-secondary)]">
+        <div className="mt-3 rounded-[var(--radius-input)] bg-[var(--bg-primary)] px-4 py-3 text-xs text-[var(--text-secondary)]">
           <div className="flex items-center gap-2">
-            <ShieldCheck className="h-4 w-4 text-[var(--accent-green)]" />
+            <ShieldCheck className="h-4 w-4 text-[var(--text-tertiary)]" aria-hidden />
             <span>Use pelo menos 6 caracteres para manter o acesso seguro.</span>
           </div>
         </div>

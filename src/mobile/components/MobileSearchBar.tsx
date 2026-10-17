@@ -48,11 +48,11 @@ export function MobileSearchBar({
           aria-label={filterLabel}
           onClick={onFilterClick}
           className={cn(
-            'flex h-[44px] w-[44px] shrink-0 items-center justify-center border border-[var(--border-color)] bg-[var(--bg-elevated)] text-[var(--text-primary)] active:scale-95',
+            'flex h-11 w-11 shrink-0 items-center justify-center border border-[var(--border-color)] bg-[var(--bg-elevated)] text-[var(--text-primary)] active:scale-95 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
             radius,
           )}
         >
-          <SlidersHorizontal className="h-4 w-4" />
+          <SlidersHorizontal className="h-4 w-4" aria-hidden />
         </button>
       ) : null}
 

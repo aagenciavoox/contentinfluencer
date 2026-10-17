@@ -143,7 +143,7 @@ export function ProjectDetailPage() {
 
   if (!projeto) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[var(--bg-secondary)]">
+      <div className="flex min-h-full items-center justify-center bg-[var(--bg-primary)] px-4 py-16">
         <div className="stack-lg text-center">
           <Text variant="bodyStrong">Projeto não encontrado</Text>
           <AppButton variant="secondary" onClick={() => navigate('/projetos')}>

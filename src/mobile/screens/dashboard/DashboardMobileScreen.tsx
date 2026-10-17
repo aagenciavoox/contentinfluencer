@@ -2,6 +2,8 @@ import type { ReactNode } from 'react';
 import { Search } from 'lucide-react';
 import { Text } from '../../../components/ui/Text';
 import { Surface } from '../../../components/ui/Surface';
+import { cn } from '../../../lib/utils';
+import { MOBILE_HEADER_ACTION_CLASS } from '../../components/MobileHeaderIOS';
 import { DayPulse } from '../../../features/dashboard/components/DayPulse';
 import type { DayPulseSegment } from '../../../features/dashboard/lib/dayPulse';
 
@@ -35,30 +37,29 @@ export function DashboardMobileScreen({
         style={{ paddingTop: 'calc(env(safe-area-inset-top) + 8px)' }}
       >
         <div className="flex items-center justify-between gap-3">
-          <button
-            type="button"
-            onClick={onOpenMenu}
-            aria-label="Abrir menu"
-            className="flex min-h-11 min-w-0 flex-1 items-center gap-3 text-left touch-manipulation focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
-          >
-            <span
-              aria-hidden
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[var(--border-color)] bg-[var(--bg-secondary)] text-sm font-semibold text-[var(--text-primary)]"
+          <div className="flex min-w-0 flex-1 items-center gap-3">
+            {/* O avatar abre o menu (mesma posição do botão de menu das outras telas). O título
+                fica fora do botão para a tela ter um h1 e o nome do botão bater com o que ele faz. */}
+            <button
+              type="button"
+              onClick={onOpenMenu}
+              aria-label="Abrir menu"
+              className={cn(MOBILE_HEADER_ACTION_CLASS, 'text-sm font-semibold')}
             >
-              {initial}
-            </span>
-            <Text variant="pageTitle" as="span" truncate>
+              <span aria-hidden>{initial}</span>
+            </button>
+            <Text variant="pageTitle" as="h1" truncate className="min-w-0">
               {greetingName} · {weekdayLabel}
             </Text>
-          </button>
+          </div>
 
           <button
             type="button"
             aria-label="Abrir busca global"
             onClick={onOpenSearch}
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[var(--border-color)] bg-[var(--bg-secondary)] text-[var(--text-primary)] touch-manipulation active:scale-95 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+            className={MOBILE_HEADER_ACTION_CLASS}
           >
-            <Search className="h-4 w-4" />
+            <Search className="h-4 w-4" aria-hidden />
           </button>
         </div>
 

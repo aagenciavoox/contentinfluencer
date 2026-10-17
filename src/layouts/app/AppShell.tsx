@@ -113,6 +113,15 @@ export function AppShell() {
     };
   }, [isMobile]);
 
+  // A barra de status do PWA segue o tema escolhido no app, não só o do sistema.
+  // Mesmas cores das meta tags theme-color de index.html.
+  useEffect(() => {
+    const color = state.theme === 'dark' ? '#0C0C0C' : '#F6F5F3';
+    document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]').forEach(meta => {
+      meta.setAttribute('content', color);
+    });
+  }, [state.theme]);
+
   const chromeActions: MobileChromeOutletContext = {
     openMobileMenu: () => setIsMobileMenuOpen(true),
     openSearch: () => setIsCommandPaletteOpen(true),

@@ -48,6 +48,7 @@ import { cn } from '../../../lib/utils';
 import { CoverUploadField } from '../components/CoverUploadField';
 import { CoverFallback } from '../components/CoverFallback';
 import { REDE_ROTULO, redeDaRef, rotuloDaRef } from '../../contas/lib/contas';
+import { SelectField } from '../../../components/ui/SelectField';
 
 type BookAnnotation = Anotacao;
 type TipoAnotacao = Anotacao['tipo'];
@@ -277,16 +278,12 @@ export function BookDetailPage() {
 
   if (!livro) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <Text variant="bodyStrong" className="mb-4 text-[var(--text-tertiary)]">Item não encontrado</Text>
-          <button
-            type="button"
-            onClick={() => navigate('/biblioteca')}
-            className={cn('text-xs font-bold text-[var(--accent-blue)] hover:underline', FOCUS_INTERACTIVE)}
-          >
+      <div className="flex min-h-full items-center justify-center px-4 py-16">
+        <div className="stack-lg text-center">
+          <Text variant="bodyStrong">Item não encontrado</Text>
+          <AppButton variant="secondary" onClick={() => navigate('/biblioteca')}>
             Voltar à biblioteca
-          </button>
+          </AppButton>
         </div>
       </div>
     );
@@ -939,11 +936,17 @@ export function BookDetailPage() {
                     {(livro.tipo === 'livro' || livro.tipo === 'manga' || livro.tipo === 'quadrinho') && (
                       <>
                         <div>
-                          <label className="text-xs font-bold  text-[var(--text-tertiary)] block mb-1.5">Série ou coleção?</label>
-                          <select value={infoLocal.colecaoStatus} onChange={e => setInfoLocal(prev => ({ ...prev, colecaoStatus: e.target.value as 'sim' | 'nao', colecaoNome: e.target.value === 'nao' ? '' : prev.colecaoNome }))} className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)]">
-                            <option value="nao">Não</option>
-                            <option value="sim">Sim</option>
-                          </select>
+                          <label htmlFor="book-colecao-status" className="text-xs font-bold  text-[var(--text-tertiary)] block mb-1.5">Série ou coleção?</label>
+                          <SelectField
+                            id="book-colecao-status"
+                            block
+                            value={infoLocal.colecaoStatus}
+                            onChange={value => setInfoLocal(prev => ({ ...prev, colecaoStatus: value as 'sim' | 'nao', colecaoNome: value === 'nao' ? '' : prev.colecaoNome }))}
+                            options={[
+                              { value: 'nao', label: 'Não' },
+                              { value: 'sim', label: 'Sim' },
+                            ]}
+                          />
                         </div>
                         {infoLocal.colecaoStatus === 'sim' && (
                           <div>

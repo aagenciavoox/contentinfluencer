@@ -202,7 +202,7 @@ export function ContentDetailMobileScreen({
                         ? 'h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--accent-red)]'
                         : saveState === 'saved'
                           ? 'h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--success)]'
-                          : 'h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-[var(--accent-blue)]'
+                          : 'h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-[var(--text-tertiary)]'
                     }
                     aria-hidden
                   />
@@ -223,7 +223,7 @@ export function ContentDetailMobileScreen({
                 onPointerDown={event => activateWhileEditing(event, dismissKeyboard)}
                 className={cn(
                   'relative z-[1] flex h-11 w-11 shrink-0 items-center justify-center rounded-full',
-                  'border border-[var(--brand-accent)] bg-[var(--brand-accent)] text-[var(--brand-on-accent)]',
+                  'border border-[var(--brand-accent-strong)] bg-[var(--brand-accent-strong)] text-[var(--brand-on-accent)]',
                   'touch-manipulation active:scale-95',
                   'focus-visible:outline-none focus-visible:shadow-[var(--focus-ring-brand)]',
                 )}
@@ -251,7 +251,11 @@ export function ContentDetailMobileScreen({
           className="flex-1 px-4"
           style={{
             paddingTop: 'calc(env(safe-area-inset-top, 0px) + 3.5rem + 0.75rem)',
-            paddingBottom: keyboard.open ? keyboard.inset + 64 : 88,
+            // Folga para a barra flutuante do editor (+Bloco, Padrão, tamanho): ~50px de barra
+            // + respiro. Antes sobravam poucos px e a barra cobria a última linha do texto.
+            paddingBottom: keyboard.open
+              ? keyboard.inset + 96
+              : 'calc(max(0.75rem, env(safe-area-inset-bottom, 0px)) + 6rem)',
           }}
         >
           {section}
@@ -264,24 +268,24 @@ export function ContentDetailMobileScreen({
 
   return (
     <div className="stack-md pb-8">
-      <button
-        type="button"
+      <AppButton
+        variant="secondary"
+        fullWidth
         onClick={() => onTabChange('roteiro')}
-        className="flex h-9 w-full items-center justify-center gap-2 rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] text-xs font-semibold text-[var(--text-primary)]"
+        leftIcon={<FileText className="h-4 w-4" aria-hidden />}
       >
-        <FileText className="h-4 w-4" />
         Ver roteiro
-      </button>
+      </AppButton>
 
-      <details className="overflow-hidden rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)]">
-        <summary className="flex h-11 cursor-pointer list-none items-center justify-between gap-2 px-3">
+      <details className="group overflow-hidden rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-secondary)]">
+        <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 px-3 py-1 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]">
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold text-[var(--text-primary)]">
               {content.title || (isIdea ? 'Ideia sem título' : 'Roteiro sem título')}
             </p>
             <p className="text-xs text-[var(--text-tertiary)]">{stageLabel}</p>
           </div>
-          <ChevronDown className="h-4 w-4 shrink-0 text-[var(--text-tertiary)]" />
+          <ChevronDown className="h-4 w-4 shrink-0 text-[var(--text-tertiary)] transition-transform group-open:rotate-180" aria-hidden />
         </summary>
 
         <div className="stack-sm border-t border-[var(--border-color)] p-3">

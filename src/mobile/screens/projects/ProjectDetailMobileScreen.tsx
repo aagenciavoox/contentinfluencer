@@ -1,13 +1,18 @@
 import { useState } from 'react';
 import {
   CalendarDays,
+  ChevronRight,
   ClipboardList,
   Link2,
   Plus,
   Trash2,
 } from 'lucide-react';
 import { BottomSheetModal } from '../../../components/feedback/modals/BottomSheetModal';
+import { OverlayBody } from '../../../components/overlays/OverlayBody';
+import { OverlayFooter } from '../../../components/overlays/OverlayFooter';
+import { OverlayHeader } from '../../../components/overlays/OverlayHeader';
 import { AppButton } from '../../../components/ui/AppButton';
+import { FormField } from '../../../components/ui/FormField';
 import { Badge } from '../../../components/ui/Badge';
 import { MoreMenu } from '../../../components/ui/MoreMenu';
 import { TagSelect } from '../../../components/ui/TagSelect';
@@ -41,7 +46,7 @@ function localTodayKey() {
 }
 
 function formatDate(value: string | null) {
-  if (!value) return '--';
+  if (!value) return '—';
   const [year, month, day] = value.split('-');
   if (year && month && day) return `${day}/${month}/${year}`;
   return new Date(value).toLocaleDateString('pt-BR');
@@ -125,7 +130,7 @@ export function ProjectDetailMobileScreen({
   const serieDe = (seriesId: string | null) => series.find(item => item.id === seriesId) ?? null;
   const formattedValue = projeto.value
     ? projeto.value.toLocaleString('pt-BR', { style: 'currency', currency: projeto.currency || 'BRL' })
-    : '--';
+    : '—';
 
   const tabAction = (() => {
     if (activeTab === 'eventos') {
@@ -170,21 +175,21 @@ export function ProjectDetailMobileScreen({
             triggerClassName="min-h-11 min-w-11"
             items={[
               { id: 'edit', label: 'Editar', onClick: onStartEditing },
-              { id: 'delete', label: 'Excluir', onClick: onDeleteProjeto, tone: 'danger' },
+              { id: 'delete', label: 'Excluir projeto', onClick: onDeleteProjeto, tone: 'danger' },
             ]}
           />
         </div>
 
         <div className="grid-metrics-3">
-          <div className="rounded-[1.2rem] bg-[var(--bg-hover)] px-3 py-3">
+          <div className="rounded-[var(--radius-input)] bg-[var(--bg-hover)] px-3 py-3">
             <Text variant="label">Eventos</Text>
             <Text variant="sectionTitle" as="p" className="mt-1 tabular-nums">{agendaItems.length}</Text>
           </div>
-          <div className="rounded-[1.2rem] bg-[var(--bg-hover)] px-3 py-3">
+          <div className="rounded-[var(--radius-input)] bg-[var(--bg-hover)] px-3 py-3">
             <Text variant="label">Roteiros</Text>
             <Text variant="sectionTitle" as="p" className="mt-1 tabular-nums">{projetoContents.length}</Text>
           </div>
-          <div className="rounded-[1.2rem] bg-[var(--bg-hover)] px-3 py-3">
+          <div className="rounded-[var(--radius-input)] bg-[var(--bg-hover)] px-3 py-3">
             <Text variant="label">{isProjetoPubli(projeto.tipo) ? 'Valor' : 'Etapas'}</Text>
             <Text variant="sectionTitle" as="p" className="mt-1 tabular-nums">
               {isProjetoPubli(projeto.tipo) ? formattedValue : projeto.etapas.length}
@@ -199,11 +204,11 @@ export function ProjectDetailMobileScreen({
         ) : null}
 
         {proximoEvento ? (
-          <Text variant="secondary" className="mt-3 rounded-[1.2rem] bg-[var(--bg-hover)] px-3 py-3">
+          <Text variant="secondary" className="mt-3 rounded-[var(--radius-input)] bg-[var(--bg-hover)] px-3 py-3">
             Próximo: {proximoEvento.title} em {formatDate(proximoEvento.date)}
           </Text>
         ) : ultimoEvento ? (
-          <Text variant="secondary" className="mt-3 rounded-[1.2rem] bg-[var(--bg-hover)] px-3 py-3">
+          <Text variant="secondary" className="mt-3 rounded-[var(--radius-input)] bg-[var(--bg-hover)] px-3 py-3">
             Último: {formatDayMonth(ultimoEvento.date)}
           </Text>
         ) : null}
@@ -250,32 +255,21 @@ export function ProjectDetailMobileScreen({
               {projetoContents.map(content => (
                 <div key={content.id} className="stack-sm">
                 <MobileListCard
-                  title={content.title || '(sem título)'}
+                  title={content.title || 'Roteiro sem título'}
+                  onClick={() => onOpenContent(content.id)}
+                  actionLabel={`Abrir roteiro ${content.title || 'sem título'}`}
                   description={content.status}
                   meta={
                     <>
                       {content.publishDate ? (
-                        <span className="rounded-full bg-[var(--bg-hover)] px-3 py-1 text-xs font-semibold text-[var(--text-secondary)]">
-                          Publicação: {formatDate(content.publishDate)}
-                        </span>
+                        <Badge variant="neutral">Publicação: {formatDate(content.publishDate)}</Badge>
                       ) : null}
                       {content.recordingDate ? (
-                        <span className="rounded-full bg-[var(--bg-hover)] px-3 py-1 text-xs font-semibold text-[var(--text-secondary)]">
-                          Gravação: {formatDate(content.recordingDate)}
-                        </span>
+                        <Badge variant="neutral">Gravação: {formatDate(content.recordingDate)}</Badge>
                       ) : null}
                     </>
                   }
-                  trailing={
-                    <AppButton
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => onOpenContent(content.id)}
-                      leftIcon={<Link2 className="h-3.5 w-3.5" />}
-                    >
-                      Abrir
-                    </AppButton>
-                  }
+                  trailing={<ChevronRight className="mt-1 h-4 w-4 text-[var(--text-tertiary)]" aria-hidden />}
                 />
                 {evento ? (
                   <FuncaoDoRoteiro
@@ -293,18 +287,19 @@ export function ProjectDetailMobileScreen({
         </section>
       )}
 
-      <BottomSheetModal open={isEditing} onClose={onCancelEdit} desktopMaxW="max-w-xl" zIndex="z-[110]">
-        <div className="border-b border-[var(--border-color)] px-4 py-3">
-          <Text variant="sectionTitle">Editar projeto</Text>
-        </div>
-        <div className="stack-lg px-4 pb-safe">
-          <input
-            autoFocus
-            value={editFields.nome}
-            onChange={event => onEditFieldChange('nome', event.target.value)}
-            placeholder="Nome"
-            className="w-full"
-          />
+      <BottomSheetModal open={isEditing} onClose={onCancelEdit} desktopMaxW="max-w-xl" zIndex="z-[110]" ariaLabel="Editar projeto">
+        <OverlayHeader title="Editar projeto" onClose={onCancelEdit} />
+        <OverlayBody className="stack-lg">
+          <FormField label="Nome" htmlFor="projeto-edit-nome">
+            <input
+              id="projeto-edit-nome"
+              autoFocus
+              value={editFields.nome}
+              onChange={event => onEditFieldChange('nome', event.target.value)}
+              placeholder="Nome do projeto"
+              className="w-full"
+            />
+          </FormField>
           <ProjetoEventoFields
             tipo={editFields.tipo}
             avisoDias={editFields.avisoDias}
@@ -315,82 +310,93 @@ export function ProjectDetailMobileScreen({
             onAvisoDiasChange={value => onEditFieldChange('avisoDias', value)}
             onTipoPersonalizadoChange={value => onEditFieldChange('tipoPersonalizado', value)}
           />
-          <input
-            value={editFields.brand}
-            onChange={event => onEditFieldChange('brand', event.target.value)}
-            placeholder="Marca ou parceiro"
-            className="w-full"
-          />
-          {isProjetoPubli(editFields.tipo) ? (
+          <FormField label="Marca ou parceiro" htmlFor="projeto-edit-marca">
             <input
-              type="number"
-              value={editFields.value}
-              onChange={event => onEditFieldChange('value', event.target.value)}
-              placeholder="Valor (R$)"
+              id="projeto-edit-marca"
+              value={editFields.brand}
+              onChange={event => onEditFieldChange('brand', event.target.value)}
               className="w-full"
             />
+          </FormField>
+          {isProjetoPubli(editFields.tipo) ? (
+            <FormField label="Valor (R$)" htmlFor="projeto-edit-valor">
+              <input
+                id="projeto-edit-valor"
+                type="number"
+                inputMode="decimal"
+                value={editFields.value}
+                onChange={event => onEditFieldChange('value', event.target.value)}
+                className="w-full"
+              />
+            </FormField>
           ) : null}
           <ProjetoCorPicker value={editFields.color} onChange={color => onEditFieldChange('color', color)} />
-          <input
-            value={editFields.driveUrl}
-            onChange={event => onEditFieldChange('driveUrl', event.target.value)}
-            type="url"
-            placeholder="Link da pasta no Drive (https://...)"
-            className="w-full"
-          />
-          <textarea
-            value={editFields.notes}
-            onChange={event => onEditFieldChange('notes', event.target.value)}
-            placeholder="Notas do projeto"
-            rows={4}
-            className="w-full resize-none"
-          />
-          <div className="grid grid-cols-1 gap-2">
-            <AppButton
-              variant="primary"
-              onClick={onSaveEdit}
-              disabled={avisoDiasInvalido(editFields.tipo, editFields.avisoDias)}
-              className="min-h-11 w-full justify-center"
-            >
-              Salvar
-            </AppButton>
-            <AppButton variant="secondary" onClick={onCancelEdit} className="min-h-11 w-full justify-center">
-              Cancelar
-            </AppButton>
-          </div>
-        </div>
+          <FormField label="Link da pasta no Drive" htmlFor="projeto-edit-drive">
+            <input
+              id="projeto-edit-drive"
+              value={editFields.driveUrl}
+              onChange={event => onEditFieldChange('driveUrl', event.target.value)}
+              type="url"
+              placeholder="https://..."
+              className="w-full"
+            />
+          </FormField>
+          <FormField label="Notas do projeto" htmlFor="projeto-edit-notas">
+            <textarea
+              id="projeto-edit-notas"
+              value={editFields.notes}
+              onChange={event => onEditFieldChange('notes', event.target.value)}
+              rows={4}
+              className="w-full resize-none"
+            />
+          </FormField>
+        </OverlayBody>
+        <OverlayFooter className="pb-safe flex-col-reverse items-stretch gap-2 px-4">
+          <AppButton variant="secondary" fullWidth onClick={onCancelEdit}>
+            Cancelar
+          </AppButton>
+          <AppButton
+            variant="primary"
+            fullWidth
+            onClick={onSaveEdit}
+            disabled={avisoDiasInvalido(editFields.tipo, editFields.avisoDias)}
+          >
+            Salvar
+          </AppButton>
+        </OverlayFooter>
       </BottomSheetModal>
 
-      <BottomSheetModal open={linkSheetOpen} onClose={() => setLinkSheetOpen(false)} desktopMaxW="max-w-xl" zIndex="z-[110]">
-        <div className="border-b border-[var(--border-color)] px-4 py-3">
-          <Text variant="sectionTitle">Vincular roteiro</Text>
-        </div>
-        <div className="stack-lg px-4 pb-safe">
+      <BottomSheetModal open={linkSheetOpen} onClose={() => setLinkSheetOpen(false)} desktopMaxW="max-w-xl" zIndex="z-[110]" ariaLabel="Vincular roteiro">
+        <OverlayHeader title="Vincular roteiro" onClose={() => setLinkSheetOpen(false)} />
+        <OverlayBody className="stack-lg">
           <TagSelect
-            label="Vincular existente"
+            label="Roteiro"
             values={selectedContentId ? [selectedContentId] : []}
             onChange={values => setSelectedContentId(values[0] ?? '')}
             options={disponiveisParaVincular.map(content => ({
               value: content.id,
-              label: content.title || '(sem título)',
+              label: content.title || 'Roteiro sem título',
             }))}
             maxSelections={1}
             placeholder="Escolha um roteiro…"
           />
+        </OverlayBody>
+        <OverlayFooter className="pb-safe px-4">
           <AppButton
             variant="primary"
+            fullWidth
             disabled={!selectedContentId}
+            disabledReason="Escolha um roteiro para vincular."
             onClick={() => {
               if (!selectedContentId) return;
               onVincularContent(selectedContentId);
               setSelectedContentId('');
               setLinkSheetOpen(false);
             }}
-            className="min-h-11 w-full justify-center"
           >
             Vincular
           </AppButton>
-        </div>
+        </OverlayFooter>
       </BottomSheetModal>
     </div>
   );

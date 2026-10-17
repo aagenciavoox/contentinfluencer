@@ -1,15 +1,14 @@
 import { useMemo } from 'react';
-import { ChevronRight, Palette, Plus } from 'lucide-react';
+import { Palette, Plus } from 'lucide-react';
 import { AppButton } from '../../../components/ui/AppButton';
 import { Badge } from '../../../components/ui/Badge';
 import { MoreMenu } from '../../../components/ui/MoreMenu';
 import { Text } from '../../../components/ui/Text';
 import type { Pilar } from '../../../lib/database';
+import { getEntityTagStyle } from '../../../lib/utils';
 import { CONFIRM } from '../../../lib/uiCopy';
 import { EmptyState } from '../../../components/ui/EmptyState';
 import { MobileListCard } from '../../components/MobileListCard';
-import { MobilePillButton } from '../../components/MobilePillButton';
-import { MobileSectionHeader } from '../../components/MobileSectionHeader';
 import { sortPilares } from '../../../features/settings/lib/activePilares';
 
 interface PillarsMobileScreenProps {
@@ -32,17 +31,13 @@ export function PillarsMobileScreen({
 
   return (
     <div className="stack-lg">
-      <section className="rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4">
-        <MobileSectionHeader
-          icon={Palette}
-          tone="orange"
-          title="Pilares editoriais"
-          description={
-            pilares.length === 0
-              ? 'Nome e publicação por plataforma. O limite fica na aba Ajustes do Editorial.'
-              : `${activeCount} ativo${activeCount === 1 ? '' : 's'}`
-          }
-        />
+      {/* O cabeçalho já diz "Pilares": aqui fica só o resumo e a ação da tela. */}
+      <section className="stack-md">
+        <Text variant="secondary" className="px-1">
+          {pilares.length === 0
+            ? 'Nome e publicação por plataforma. O limite fica na aba Ajustes do Editorial.'
+            : `${activeCount} ativo${activeCount === 1 ? '' : 's'}`}
+        </Text>
 
         <AppButton
           variant="primary"
@@ -69,11 +64,12 @@ export function PillarsMobileScreen({
               title={pilar.nome}
               description={pilar.descricao || 'Descrição ainda não preenchida'}
               onClick={() => onEdit(pilar.id)}
+              actionLabel={`Editar ${pilar.nome}`}
               meta={
                 <>
                   <span
-                    className="inline-flex items-center gap-2 rounded-[var(--radius-pill)] border border-transparent px-3 py-1 text-xs font-medium text-[var(--text-primary)]"
-                    style={{ backgroundColor: `${pilar.cor}22` }}
+                    className="inline-flex items-center gap-2 rounded-[var(--radius-pill)] border border-transparent px-2 py-0.5 text-xs font-medium"
+                    style={getEntityTagStyle(pilar.cor)}
                   >
                     <span
                       className="entity-color-dot h-2 w-2 shrink-0 rounded-full"
@@ -87,7 +83,7 @@ export function PillarsMobileScreen({
                 </>
               }
               trailing={
-                <div className="mt-1 flex items-start gap-1">
+                <div className="mt-1 flex items-start">
                   <MoreMenu
                     size="sm"
                     items={[
@@ -104,31 +100,11 @@ export function PillarsMobileScreen({
                     ]}
                     triggerClassName="border-transparent bg-transparent"
                   />
-                  <ChevronRight className="h-5 w-5 shrink-0 text-[var(--text-tertiary)]" />
                 </div>
               }
               status={
-                <div className="flex flex-wrap items-center gap-2">
-                  <Text
-                    variant="meta"
-                    className={
-                      pilar.ativo
-                        ? 'font-semibold text-[var(--accent-green)]'
-                        : 'font-semibold text-[var(--text-tertiary)]'
-                    }
-                  >
-                    {pilar.ativo ? 'Ativo' : 'Inativo'}
-                  </Text>
-                  <MobilePillButton
-                    tone="muted"
-                    onClick={event => {
-                      event.stopPropagation();
-                      onEdit(pilar.id);
-                    }}
-                  >
-                    Editar
-                  </MobilePillButton>
-                </div>
+                // Tocar no card já abre a edição; o selo só informa o estado.
+                <Badge variant="neutral">{pilar.ativo ? 'Ativo' : 'Inativo'}</Badge>
               }
             />
           ))

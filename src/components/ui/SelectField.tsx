@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import { SelectMenu } from './SelectMenu';
 
 export interface SelectFieldOption {
   value: string;
@@ -10,7 +11,8 @@ export interface SelectFieldOption {
 
 /**
  * Escolha única que não fica vazia (etapa, conta de referência, conta dos horários).
- * Select nativo numa moldura de controle, com ícone e prefixo opcionais ("Etapa: Roteiro").
+ * Botão numa moldura de controle, com ícone e prefixo opcionais ("Etapa: Roteiro"), que abre a
+ * lista do design system (`SelectMenu`): flutuante com mouse, folha de baixo no toque.
  * Para valores que podem ficar vazios ou ser vários, use `TagSelect`.
  */
 export function SelectField({
@@ -44,12 +46,20 @@ export function SelectField({
   className?: string;
   describedBy?: string;
 }) {
+  const current = options.find(option => option.value === value);
   return (
-    <span
-      className={cn(
-        'relative items-center gap-2 rounded-[var(--radius-input)] border pl-3 pr-9 transition-colors focus-within:shadow-[var(--focus-ring)]',
+    <SelectMenu
+      id={id}
+      value={value}
+      onChange={onChange}
+      options={options}
+      ariaLabel={ariaLabel}
+      describedBy={describedBy}
+      disabled={disabled}
+      triggerClassName={cn(
+        'relative items-center gap-2 rounded-[var(--radius-input)] border pl-3 pr-9 transition-colors focus-visible:shadow-[var(--focus-ring)] aria-expanded:shadow-[var(--focus-ring)]',
         'min-h-[var(--control-height-mobile)] md:min-h-[var(--control-height)]',
-        block ? 'flex w-full' : 'inline-flex',
+        block ? 'flex w-full' : 'inline-flex max-w-full',
         selected
           ? 'border-[var(--text-primary)] bg-[var(--bg-hover)]'
           : 'border-[var(--border-input)] bg-[var(--bg-elevated)] hover:border-[var(--text-tertiary)]',
@@ -59,26 +69,16 @@ export function SelectField({
     >
       {leadingIcon ? <span className="flex shrink-0" aria-hidden>{leadingIcon}</span> : null}
       {prefix ? <span className="shrink-0 t-body text-[var(--text-secondary)]" aria-hidden>{prefix}</span> : null}
-      <select
-        id={id}
-        value={value}
-        disabled={disabled}
-        aria-label={ariaLabel}
-        aria-describedby={describedBy}
-        onChange={event => onChange(event.target.value)}
+      <span
         className={cn(
-          '!h-auto !min-h-0 appearance-none !rounded-none !border-0 !bg-transparent !p-0 !shadow-none t-body text-[var(--text-primary)] outline-none disabled:cursor-not-allowed',
+          'truncate t-body text-[var(--text-primary)]',
           prefix && 'font-semibold',
-          block ? 'min-w-0 flex-1' : '[field-sizing:content]',
+          block ? 'min-w-0 flex-1' : 'min-w-0',
         )}
       >
-        {options.map(option => (
-          <option key={option.value} value={option.value} disabled={option.disabled}>
-            {option.label}
-          </option>
-        ))}
-      </select>
+        {current?.label ?? value}
+      </span>
       <ChevronDown className="pointer-events-none absolute right-3 h-4 w-4 text-[var(--text-secondary)]" aria-hidden />
-    </span>
+    </SelectMenu>
   );
 }

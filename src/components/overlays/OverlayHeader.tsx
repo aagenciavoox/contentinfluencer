@@ -38,7 +38,12 @@ export function OverlayHeader({ title, icon, subtitle, onClose, children, classN
           )}
         </div>
         {onClose ? (
-          <IconButton label="Fechar" onClick={onClose}>
+          <IconButton
+            label="Fechar"
+            onClick={onClose}
+            // No toque o X ganha moldura, como os botões do cabeçalho mobile: sem ela parecia pequeno.
+            className="shrink-0 text-[var(--text-secondary)] pointer-coarse:rounded-full pointer-coarse:border pointer-coarse:border-[var(--border-color)] pointer-coarse:bg-[var(--bg-secondary)]"
+          >
             <X className="h-5 w-5" />
           </IconButton>
         ) : null}

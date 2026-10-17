@@ -1,6 +1,9 @@
 import {useEffect, type ReactNode} from 'react';
-import {BookOpen, Calendar, ChevronDown, Clock, Flag, Layers, Search, Tag, Target} from 'lucide-react';
+import {BookOpen, Calendar, Clock, Flag, Layers, Search, Tag, Target} from 'lucide-react';
 import {PropertyDatePicker} from '../../../../components/ui/PropertyDatePicker';
+import {SelectField} from '../../../../components/ui/SelectField';
+import {selectOptionsFromChildren} from '../../../../components/ui/SelectMenu';
+import {TagSelect} from '../../../../components/ui/TagSelect';
 import {Surface} from '../../../../components/ui/Surface';
 import {Text} from '../../../../components/ui/Text';
 import {useAppContext} from '../../../../context/AppContext';
@@ -61,19 +64,17 @@ function ManageSelect({
   ariaLabel: string;
   disabled?: boolean;
 }) {
+  // Lista do design system (flutuante no mouse, folha no toque); as opções vêm dos `<option>` filhos.
   return (
-    <span className="relative block">
-      <select
-        aria-label={ariaLabel}
-        value={value}
-        disabled={disabled}
-        onChange={event => onChange(event.target.value)}
-        className={selectClass}
-      >
-        {children}
-      </select>
-      <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-tertiary)]" />
-    </span>
+    <SelectField
+      block
+      ariaLabel={ariaLabel}
+      value={value}
+      disabled={disabled}
+      onChange={onChange}
+      options={selectOptionsFromChildren(children)}
+      className="min-h-11 md:min-h-11"
+    />
   );
 }
 
@@ -195,39 +196,43 @@ export function ContentManageWorkspace({
 
               <div className="border-t border-[var(--border-color)]" aria-hidden />
 
-              <label className="block">
+              <div className="block">
                 <FieldLabel icon={<Layers className="h-4 w-4" />}>Série</FieldLabel>
-                <ManageSelect
-                  ariaLabel="Série"
+                <TagSelect
+                  label="Série"
+                  hideLabel
+                  id="content-manage-serie"
                   disabled={disabled}
-                  value={draft.seriesId ?? ''}
-                  onChange={value => onChange(aplicarEscolhasDaSerie(
+                  maxSelections={1}
+                  placeholder="Selecionar série..."
+                  values={draft.seriesId ? [draft.seriesId] : []}
+                  onChange={values => onChange(aplicarEscolhasDaSerie(
                     draft,
-                    series.find(item => item.id === value) ?? null,
+                    series.find(item => item.id === values[0]) ?? null,
                   ))}
-                >
-                  <option value="">Selecionar série...</option>
-                  {series.map(item => (
-                    <option key={item.id} value={item.id}>{item.name}</option>
-                  ))}
-                </ManageSelect>
-              </label>
+                  options={series.map(item => ({value: item.id, label: item.name}))}
+                  controlClassName="min-h-11"
+                />
+              </div>
 
               <div className="grid gap-3 sm:grid-cols-2">
-                <label className="block min-w-0">
+                <div className="block min-w-0">
                   <FieldLabel icon={<Target className="h-4 w-4" />}>Pilar</FieldLabel>
-                  <ManageSelect
-                    ariaLabel="Pilar"
+                  <TagSelect
+                    label="Pilar"
+                    hideLabel
+                    id="content-manage-pilar"
                     disabled={disabled}
-                    value={draft.pilarId ?? ''}
-                    onChange={value => onChange(marcarEscolhaManual(draft, 'pilar', value || null))}
-                  >
-                    <option value="">Selecionar pilar...</option>
-                    {pilares.filter(item => item.ativo).map(item => (
-                      <option key={item.id} value={item.id}>{item.nome}</option>
-                    ))}
-                  </ManageSelect>
-                </label>
+                    maxSelections={1}
+                    placeholder="Selecionar pilar..."
+                    values={draft.pilarId ? [draft.pilarId] : []}
+                    onChange={values => onChange(marcarEscolhaManual(draft, 'pilar', values[0] ?? null))}
+                    options={pilares
+                      .filter(item => item.ativo || item.id === draft.pilarId)
+                      .map(item => ({value: item.id, label: item.nome}))}
+                    controlClassName="min-h-11"
+                  />
+                </div>
                 <div className="min-w-0">
                   <FuncaoEditorialFields
                     draft={draft}

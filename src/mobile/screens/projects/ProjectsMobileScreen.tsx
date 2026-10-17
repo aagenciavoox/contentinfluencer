@@ -3,17 +3,16 @@ import { CircleDollarSign, FolderKanban, Plus, SearchCheck, TimerReset } from 'l
 import { normalizeProjetoTipo, type Projeto } from '../../../lib/database';
 import { isProjetoEvento, isProjetoPubli, rotuloAvisoDias, rotuloProjetoTipo } from '../../../features/projects/lib/evento';
 import { EmptyState } from '../../../components/ui/EmptyState';
-import { MobileFilterSheet } from '../../components/MobileFilterSheet';
+import { MobileFilterSelect, MobileFilterSheet } from '../../components/MobileFilterSheet';
+import { Badge } from '../../../components/ui/Badge';
+import { FilterChips } from '../../../components/ui/FilterChips';
 import { MobileListCard } from '../../components/MobileListCard';
 import { MobileSearchBar } from '../../components/MobileSearchBar';
-import { MobileSegmentTabs } from '../../components/MobileSegmentTabs';
-import { MobileSectionHeader } from '../../components/MobileSectionHeader';
 import { AppButton } from '../../../components/ui/AppButton';
 import { Text } from '../../../components/ui/Text';
 
 type TipoFilter = 'todos' | 'publi' | 'parceria' | 'producao' | 'evento' | 'maratona' | 'outro';
 /** Matches ProjectsPage desktop FilterBar: agenda linkage, not etapa-derived status. */
-type StatusFilter = 'todos' | 'com_eventos' | 'sem_eventos';
 type ProjectsMobileTab = 'all' | 'com_eventos' | 'sem_eventos';
 
 interface ProjectsMobileScreenProps {
@@ -23,6 +22,22 @@ interface ProjectsMobileScreenProps {
   onOpenProject: (projectId: string) => void;
   onCreateProject: () => void;
 }
+
+const TIPO_OPTIONS = [
+  { value: 'todos', label: 'Todos' },
+  { value: 'publi', label: 'Publi' },
+  { value: 'parceria', label: 'Parceria' },
+  { value: 'producao', label: 'Produção' },
+  { value: 'evento', label: 'Evento' },
+  { value: 'maratona', label: 'Maratona de leitura' },
+  { value: 'outro', label: 'Outro' },
+] as const;
+
+const SORT_OPTIONS = [
+  { value: 'updatedAt:desc', label: 'Atualizados' },
+  { value: 'name:asc', label: 'Nome A–Z' },
+  { value: 'value:desc', label: 'Maior valor' },
+] as const;
 
 function getProgress(projeto: Projeto) {
   if (projeto.etapas.length === 0) return 0;
@@ -39,7 +54,6 @@ export function ProjectsMobileScreen({
   const [search, setSearch] = useState('');
   const [activeTab, setActiveTab] = useState<ProjectsMobileTab>('all');
   const [typeFilter, setTypeFilter] = useState<TipoFilter>('todos');
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('todos');
   const [sortValue, setSortValue] = useState('updatedAt:desc');
   const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
 
@@ -51,8 +65,8 @@ export function ProjectsMobileScreen({
 
   const filteredProjects = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
-    const effectiveStatus: StatusFilter =
-      activeTab === 'all' ? statusFilter : activeTab;
+    // Um filtro de agenda só: os chips acima da lista (o select "Agenda" da folha repetia os chips).
+    const effectiveStatus = activeTab;
 
     return [...projetos]
       .filter((projeto) => {
@@ -73,41 +87,22 @@ export function ProjectsMobileScreen({
         if (sortValue === 'value:desc') return (right.value || 0) - (left.value || 0);
         return new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime();
       });
-  }, [activeTab, projectIdsWithEvents, projetos, search, sortValue, statusFilter, typeFilter]);
+  }, [activeTab, projectIdsWithEvents, projetos, search, sortValue, typeFilter]);
 
-  const focusAction = (
-    <AppButton variant="primary" fullWidth onClick={onCreateProject} leftIcon={<Plus className="h-4 w-4" />}>
-      Novo projeto
-    </AppButton>
-  );
+  const hasActiveFilters = Boolean(search.trim()) || activeTab !== 'all' || typeFilter !== 'todos';
+  const clearSearchAndFilters = () => {
+    setSearch('');
+    setActiveTab('all');
+    setTypeFilter('todos');
+  };
 
   return (
     <div className="stack-lg">
-      <section className="rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4">
-        <MobileSectionHeader
-          icon={FolderKanban}
-          tone="green"
-          title="Projetos abertos"
-          description="Datas combinadas, valores e contexto de cada projeto."
-        />
-
-        <div className="grid-metrics-3">
-          <div className="rounded-[1.2rem] bg-[var(--bg-hover)] px-3 py-3">
-            <p className="t-label text-[var(--text-tertiary)]">Total</p>
-            <Text variant="sectionTitle" as="p" className="mt-1 tabular-nums">{projetos.length}</Text>
-          </div>
-          <div className="rounded-[1.2rem] bg-[var(--bg-hover)] px-3 py-3">
-            <p className="t-label text-[var(--text-tertiary)]">Com eventos</p>
-            <Text variant="sectionTitle" as="p" className="mt-1 tabular-nums">{withEventsCount}</Text>
-          </div>
-          <div className="rounded-[1.2rem] bg-[var(--bg-hover)] px-3 py-3">
-            <p className="t-label text-[var(--text-tertiary)]">Sem eventos</p>
-            <Text variant="sectionTitle" as="p" className="mt-1 tabular-nums">{withoutEventsCount}</Text>
-          </div>
-        </div>
-
-        <AppButton variant="primary" fullWidth onClick={onCreateProject} className="mt-4" leftIcon={<Plus className="h-4 w-4" />}>
-          Criar projeto
+      {/* O cabeçalho já diz "Projetos". Os números ficam nos chips de filtro e a tela tem uma ação principal só. */}
+      <section className="stack-md">
+        <Text variant="secondary" className="px-1">Datas combinadas, valores e contexto de cada projeto.</Text>
+        <AppButton variant="primary" fullWidth onClick={onCreateProject} leftIcon={<Plus className="h-4 w-4" />}>
+          Novo projeto
         </AppButton>
       </section>
 
@@ -117,25 +112,41 @@ export function ProjectsMobileScreen({
           onChange={setSearch}
           placeholder="Buscar projeto ou marca"
           onFilterClick={() => setIsFilterSheetOpen(true)}
+          filterLabel="Abrir filtros de projetos"
         />
 
-        <MobileSegmentTabs
-          tabs={[
-            { value: 'all', label: 'Todos', count: projetos.length },
-            { value: 'com_eventos', label: 'Com eventos', count: withEventsCount },
-            { value: 'sem_eventos', label: 'Sem eventos', count: withoutEventsCount },
+        <FilterChips<ProjectsMobileTab>
+          ariaLabel="Filtrar por agenda"
+          options={[
+            { id: 'all', label: 'Todos', count: projetos.length },
+            { id: 'com_eventos', label: 'Com eventos', count: withEventsCount },
+            { id: 'sem_eventos', label: 'Sem eventos', count: withoutEventsCount },
           ]}
           value={activeTab}
-          onChange={(value) => setActiveTab(value)}
+          onChange={setActiveTab}
         />
 
         {filteredProjects.length === 0 ? (
-          <EmptyState compact
-            title="Nenhum projeto encontrado"
-            description="Ajuste a busca ou crie um projeto."
-            action={focusAction}
-            icon={<SearchCheck className="h-8 w-8" />}
-          />
+          projetos.length === 0 ? (
+            <EmptyState compact
+              title="Nenhum projeto ainda"
+              description="Publis, parcerias e eventos ficam aqui, com datas e valores."
+              icon={<FolderKanban className="h-8 w-8" />}
+            />
+          ) : (
+            <EmptyState compact
+              title="Nenhum projeto encontrado"
+              description="Nada com essa busca ou filtro."
+              action={
+                hasActiveFilters ? (
+                  <AppButton variant="secondary" onClick={clearSearchAndFilters}>
+                    Limpar busca e filtros
+                  </AppButton>
+                ) : undefined
+              }
+              icon={<SearchCheck className="h-8 w-8" />}
+            />
+          )
         ) : (
           <div className="stack-md">
             {filteredProjects.map((projeto) => {
@@ -143,11 +154,11 @@ export function ProjectsMobileScreen({
               const hasEvents = projectIdsWithEvents.has(projeto.id);
 
               return (
-                <div key={projeto.id} className="relative overflow-hidden rounded-[var(--radius-card)]">
+                <div key={projeto.id} className="relative overflow-hidden rounded-[var(--radius-card-mobile)]">
                   <span
                     aria-hidden
                     className="pointer-events-none absolute inset-y-0 left-0 z-10 w-1"
-                    style={{ backgroundColor: projeto.color || '#78716c' }}
+                    style={{ backgroundColor: projeto.color || 'var(--border-strong)' }}
                   />
                   <MobileListCard
                     onClick={() => onOpenProject(projeto.id)}
@@ -157,22 +168,20 @@ export function ProjectsMobileScreen({
                     meta={
                       <>
                         {isProjetoPubli(projeto.tipo) && projeto.value ? (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-[var(--accent-orange)]/10 px-3 py-1 text-xs font-semibold text-[var(--accent-orange)]">
-                            <CircleDollarSign className="h-3 w-3" />
+                          <Badge variant="neutral">
+                            <CircleDollarSign className="mr-1 h-3 w-3" aria-hidden />
                             {projeto.value.toLocaleString('pt-BR', {
                               style: 'currency',
                               currency: projeto.currency || 'BRL',
                             })}
-                          </span>
+                          </Badge>
                         ) : null}
-                        <span className="inline-flex items-center gap-1 rounded-full bg-[var(--accent-green)]/10 px-3 py-1 text-xs font-semibold text-[var(--accent-green)]">
-                          <TimerReset className="h-3 w-3" />
+                        <Badge variant="neutral">
+                          <TimerReset className="mr-1 h-3 w-3" aria-hidden />
                           {hasEvents ? 'Com eventos' : 'Sem eventos'}
-                        </span>
+                        </Badge>
                         {isProjetoEvento(projeto.tipo) && projeto.avisoDias != null ? (
-                          <span className="inline-flex items-center rounded-full bg-[var(--bg-hover)] px-3 py-1 text-xs font-semibold text-[var(--text-secondary)]">
-                            {rotuloAvisoDias(projeto.avisoDias)}
-                          </span>
+                          <Badge variant="neutral">{rotuloAvisoDias(projeto.avisoDias)}</Badge>
                         ) : null}
                       </>
                     }
@@ -202,50 +211,24 @@ export function ProjectsMobileScreen({
         open={isFilterSheetOpen}
         title="Filtrar projetos"
         onClose={() => setIsFilterSheetOpen(false)}
+        onClear={() => {
+          setTypeFilter('todos');
+          setSortValue('updatedAt:desc');
+          setIsFilterSheetOpen(false);
+        }}
       >
-        <label className="block stack-sm">
-          <span className="t-label text-[var(--text-tertiary)]">Tipo</span>
-          <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value as TipoFilter)}>
-            <option value="todos">Todos</option>
-            <option value="publi">Publi</option>
-            <option value="parceria">Parceria</option>
-            <option value="producao">Produção</option>
-            <option value="evento">Evento</option>
-            <option value="maratona">Maratona de leitura</option>
-            <option value="outro">Outro</option>
-          </select>
-        </label>
-
-        <label className="block stack-sm">
-          <span className="t-label text-[var(--text-tertiary)]">Agenda</span>
-          <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}>
-            <option value="todos">Todos</option>
-            <option value="com_eventos">Com eventos</option>
-            <option value="sem_eventos">Sem eventos</option>
-          </select>
-        </label>
-
-        <label className="block stack-sm">
-          <span className="t-label text-[var(--text-tertiary)]">Ordenação</span>
-          <select value={sortValue} onChange={(event) => setSortValue(event.target.value)}>
-            <option value="updatedAt:desc">Atualizados</option>
-            <option value="name:asc">Nome A–Z</option>
-            <option value="value:desc">Maior valor</option>
-          </select>
-        </label>
-
-        <AppButton
-          variant="primary"
-          fullWidth
-          onClick={() => {
-            setTypeFilter('todos');
-            setStatusFilter('todos');
-            setSortValue('updatedAt:desc');
-            setIsFilterSheetOpen(false);
-          }}
-        >
-          Limpar filtros
-        </AppButton>
+        <MobileFilterSelect
+          label="Tipo"
+          value={typeFilter}
+          onChange={(value) => setTypeFilter(value as TipoFilter)}
+          options={TIPO_OPTIONS}
+        />
+        <MobileFilterSelect
+          label="Ordenação"
+          value={sortValue}
+          onChange={setSortValue}
+          options={SORT_OPTIONS}
+        />
       </MobileFilterSheet>
     </div>
   );

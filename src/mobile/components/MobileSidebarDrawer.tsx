@@ -25,6 +25,7 @@ import {
   resolveNavBadge,
   type NavItemDefinition,
 } from '../../layouts/navigation/navConfig';
+import { useScrollEdgeFade } from '../../hooks/useScrollEdgeFade';
 import { cn } from '../../lib/utils';
 
 interface MobileSidebarDrawerProps {
@@ -91,6 +92,7 @@ export function MobileSidebarDrawer({ onClose }: MobileSidebarDrawerProps) {
   const navCounts = useNavCounts(state.bibliotecaItems.length);
   const sections = buildSidebarSections(moduleFlags);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const edgeFade = useScrollEdgeFade<HTMLDivElement>('y');
 
   const toggleTheme = () => {
     dispatch({ type: 'SET_THEME', payload: state.theme === 'light' ? 'dark' : 'light' });
@@ -126,7 +128,11 @@ export function MobileSidebarDrawer({ onClose }: MobileSidebarDrawerProps) {
   const settingsNavCurrent = isSettingsNavActive(location.pathname);
 
   return (
-    <div className="flex h-full flex-col overflow-hidden border-r border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 pb-safe pt-[max(env(safe-area-inset-top),12px)]">
+    <div
+      ref={edgeFade.ref}
+      // A gaveta inteira rola: em celular baixo, Projetos (último item de Produção) ficava escondido
+      // atrás de Configurações e do usuário, numa lista que rolava sem dar sinal.
+      className="scroll-edge-fade-y flex h-full flex-col overflow-y-auto overscroll-contain border-r border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 pb-safe pt-[max(env(safe-area-inset-top),12px)]">
       <div className="mb-4 flex shrink-0 items-center justify-between gap-3">
         <BrandLockup className="min-w-0 flex-1" onNavigate={onClose} />
         <button
@@ -148,7 +154,7 @@ export function MobileSidebarDrawer({ onClose }: MobileSidebarDrawerProps) {
         <span className="flex-1 text-sm">Buscar…</span>
       </button>
 
-      <nav className="custom-scrollbar flex-1 overflow-y-auto" aria-label="Principal">
+      <nav className="flex-1" aria-label="Principal">
         {sections.map(section => {
           const visibleItems = section.items.filter(item => !isNavItemHidden(item, moduleFlags));
           if (visibleItems.length === 0) return null;
