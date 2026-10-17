@@ -2,6 +2,7 @@ import {randomUUID} from 'node:crypto';
 import type {CallToolResult} from '@modelcontextprotocol/sdk/types.js';
 import {horaCurta, janelaDaHora, type TemaCatalogo} from './campos.ts';
 import {livrosDoConteudo} from './editorial.ts';
+import {avisarGravacoes} from './avisoSync.ts';
 import {getSession, type Session} from './supabase.ts';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -39,11 +40,20 @@ export function fail(message: string): CallToolResult {
   return {content: [{type: 'text', text: message}], isError: true};
 }
 
-/** Envolve a ferramenta com login e transforma exceções em erro legível para o modelo. */
+/**
+ * Envolve a ferramenta com login e transforma exceções em erro legível para o modelo.
+ * No fim, avisa o app aberto do que foi gravado, para as telas recarregarem sozinhas.
+ */
 export function tool<A>(handler: (args: A, session: Session) => Promise<CallToolResult>) {
   return async (args: A): Promise<CallToolResult> => {
     try {
-      return await handler(args, await getSession());
+      const session = await getSession();
+      try {
+        return await handler(args, session);
+      } finally {
+        // Sem await: o aviso leva cerca de 0,7 s e não precisa segurar a resposta da ferramenta.
+        void avisarGravacoes(session.client, session.userId);
+      }
     } catch (error) {
       return fail(error instanceof Error ? error.message : String(error));
     }

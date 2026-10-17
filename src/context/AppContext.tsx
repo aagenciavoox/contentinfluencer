@@ -2,11 +2,19 @@ import React, { useCallback, useEffect, useReducer, useRef, useState } from 'rea
 import type { AppState } from '../app/providers/appState';
 import { initialState } from '../app/providers/appState';
 import { supabase } from '../lib/supabase';
+import { onTableWrite } from '../lib/tableWrites';
 import { readStoredTheme, writeStoredTheme } from '../lib/themeStorage';
 import type * as db from '../lib/database';
 import { appReducer, AppAction } from './reducer';
 import { persistAction, persistContentRecord } from './persistAction';
-import { REALTIME_TABLES, shouldSkipRealtimeRefresh } from './realtimeSync';
+import {
+  changedTablesFromPayload,
+  createTableAnnouncer,
+  realtimeRefreshDelay,
+  shouldSkipRealtimeRefresh,
+  SYNC_EVENT,
+  syncChannelName,
+} from './realtimeSync';
 import {
   applyDomainStatus,
   clearDomainStatus,
@@ -553,6 +561,38 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!supabase || !userId) return;
 
+    const runPendingRefresh = () => {
+      // refreshFromServer descarta pedidos dentro da janela mínima; outra recarga pode ter
+      // rodado durante a espera, então o pedido espera o resto da janela em vez de se perder.
+      const wait = realtimeRefreshDelay(
+        lastServerRefreshAt.current,
+        Date.now(),
+        MIN_SERVER_REFRESH_INTERVAL_MS,
+        0
+      );
+      if (wait > 0) {
+        realtimeRefreshTimeout.current = setTimeout(runPendingRefresh, wait);
+        return;
+      }
+      realtimeRefreshTimeout.current = null;
+
+      const tableDomains = [...pendingRealtimeDomains.current];
+      pendingRealtimeDomains.current.clear();
+      const tableNamespaces = [...pendingRealtimeNamespaces.current];
+      pendingRealtimeNamespaces.current.clear();
+
+      const domains = tableDomains.filter(domain =>
+        isDomainAlreadyLoaded(loadedDomains.current, domain)
+      );
+      if (domains.length === 0) return;
+
+      void refreshFromServerRef.current({
+        silent: true,
+        domains,
+        namespaces: tableNamespaces,
+      });
+    };
+
     const scheduleRefresh = (table: string) => {
       getDomainsForRealtimeTable(table).forEach(domain => {
         pendingRealtimeDomains.current.add(domain);
@@ -565,23 +605,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         clearTimeout(realtimeRefreshTimeout.current);
       }
 
-      realtimeRefreshTimeout.current = setTimeout(() => {
-        const tableDomains = [...pendingRealtimeDomains.current];
-        pendingRealtimeDomains.current.clear();
-        const tableNamespaces = [...pendingRealtimeNamespaces.current];
-        pendingRealtimeNamespaces.current.clear();
-
-        const domains = tableDomains.filter(domain =>
-          isDomainAlreadyLoaded(loadedDomains.current, domain)
-        );
-        if (domains.length === 0) return;
-
-        void refreshFromServerRef.current({
-          silent: true,
-          domains,
-          namespaces: tableNamespaces,
-        });
-      }, 1500);
+      realtimeRefreshTimeout.current = setTimeout(
+        runPendingRefresh,
+        realtimeRefreshDelay(lastServerRefreshAt.current, Date.now(), MIN_SERVER_REFRESH_INTERVAL_MS)
+      );
     };
 
     const handleTableChange = (table: string) => {
@@ -597,23 +624,36 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       scheduleRefresh(table);
     };
 
-    // Um canal só por usuário. Depende apenas do userId: antes recriava o canal sempre que
-    // refreshFromServer mudava de identidade, e cada nova inscrição pesava no Realtime.
-    let channel = supabase.channel(`content-os-realtime:${userId}`);
+    // Um canal só por usuário, por Broadcast: quem grava avisa quais tabelas mudaram e as outras
+    // abas e aparelhos recarregam essas partes. O aviso não passa pelo banco. Antes eram 36
+    // inscrições postgres_changes por aba, e o Realtime consultava o banco o tempo todo por elas.
+    const client = supabase;
+    const channel = client.channel(syncChannelName(userId));
+    let joined = false;
 
-    for (const table of REALTIME_TABLES) {
-      channel = channel.on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table },
-        () => handleTableChange(table)
-      );
-    }
+    channel.on('broadcast', { event: SYNC_EVENT }, message => {
+      changedTablesFromPayload(message.payload).forEach(handleTableChange);
+    });
 
     channel.subscribe(status => {
+      joined = status === 'SUBSCRIBED';
       if (import.meta.env.DEV) {
         console.log('[Realtime] Channel status:', status);
       }
     });
+
+    const announcer = createTableAnnouncer(tables => {
+      const payload = { tables };
+      if (joined) {
+        void channel.send({ type: 'broadcast', event: SYNC_EVENT, payload });
+        return;
+      }
+      // Sem o canal conectado (abrindo ou fechando), o aviso vai pela API REST do Realtime.
+      void channel.httpSend(SYNC_EVENT, payload).catch(error => {
+        console.error('[Realtime] aviso de gravação não saiu:', error);
+      });
+    });
+    const stopWatchingWrites = onTableWrite(table => announcer.add(table));
 
     return () => {
       if (realtimeRefreshTimeout.current) {
@@ -621,7 +661,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         realtimeRefreshTimeout.current = null;
       }
 
-      void supabase.removeChannel(channel);
+      stopWatchingWrites();
+      // O canal vai fechar: o último aviso sai por REST para não se perder.
+      joined = false;
+      announcer.flush();
+      void client.removeChannel(channel);
     };
   }, [userId]);
 

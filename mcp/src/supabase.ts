@@ -2,6 +2,7 @@ import {existsSync} from 'node:fs';
 import {dirname, resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {createClient, type SupabaseClient} from '@supabase/supabase-js';
+import {fetchQueAnotaGravacoes} from './avisoSync.ts';
 
 export const mcpRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -46,6 +47,7 @@ async function signIn(): Promise<Session> {
 
   const client = createClient(url!, anonKey!, {
     auth: {persistSession: false, autoRefreshToken: true, detectSessionInUrl: false},
+    global: {fetch: fetchQueAnotaGravacoes},
   });
   const {data, error} = await client.auth.signInWithPassword({email: email!, password: password!});
   if (error || !data.user) {

@@ -1,5 +1,6 @@
 /// <reference types="vite/client" />
 import {createClient, SupabaseClient} from '@supabase/supabase-js';
+import {notifyTableWrite, writtenTable} from './tableWrites.ts';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.trim();
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY?.trim();
@@ -92,7 +93,14 @@ const fetchWithoutHttpCache: typeof fetch = (input, init) => {
   }
   const method = (init?.method || (input instanceof Request ? input.method : 'GET')).toUpperCase();
   if ((method !== 'GET' && method !== 'HEAD') || init?.signal) {
-    return throttledFetch(input, init);
+    const table = writtenTable(url, method);
+    const pending = throttledFetch(input, init);
+    if (!table) return pending;
+    // Gravação confirmada avisa as outras abas e aparelhos (Broadcast em AppContext).
+    return pending.then(response => {
+      if (response.ok) notifyTableWrite(table);
+      return response;
+    });
   }
   const headers = new Headers(init?.headers);
   // Mesma URL com usuário/contagem diferente não pode virar a mesma resposta.
