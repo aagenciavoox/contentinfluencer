@@ -1,13 +1,12 @@
 import {useEffect, useMemo, useRef, useState, type DragEvent} from 'react';
 import {useNavigate, useSearchParams} from 'react-router-dom';
-import {format} from 'date-fns';
+import {addMonths, format} from 'date-fns';
 import {ptBR} from 'date-fns/locale';
 import {CalendarDays, ChevronRight, Pencil, Plus, StickyNote, Tag, Trash2} from 'lucide-react';
 import {
   calendarEntryPillStyle,
   CalendarEventPill,
   CalendarMonthGrid,
-  CalendarPeriodNav,
 } from '../../../components/calendar';
 import {AppButton} from '../../../components/ui/AppButton';
 import {Badge} from '../../../components/ui/Badge';
@@ -400,6 +399,8 @@ export function PlanejamentoPage() {
     };
   }, [postIts, contents, state.series, state.pilares, state.platforms, state.preferences, month]);
 
+  const nextMonth = useMemo(() => addMonths(month, 1), [month]);
+
   const applyList = (next: PlanejamentoPostIt[]) => {
     const {added, updated} = changedPostIts(postIts, next);
     added.forEach(postIt => dispatch({type: 'ADD_POST_IT', payload: postIt}));
@@ -762,13 +763,7 @@ export function PlanejamentoPage() {
             </AppButton>
           </div>
         ) : null}
-        <CalendarPeriodNav
-          anchorDate={month}
-          onAnchorDateChange={setMonth}
-          viewMode="month"
-          onViewModeChange={() => undefined}
-          views={[]}
-        />
+
         <MonthHealth
           counts={monthHealth.counts}
           entries={monthHealth.counts.entries}
@@ -810,66 +805,157 @@ export function PlanejamentoPage() {
         ) : null}
 
         <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_17rem] xl:items-start">
-          <CalendarMonthGrid
-            anchorDate={month}
-            weekStartsOn={0}
-            minCellHeight={168}
-            expandContent
-            tone="elevated"
-            getDayClassName={day => cn(
-              'group/day',
-              dragOverDay === day.dateKey && 'bg-[color-mix(in_srgb,var(--accent-orange)_12%,transparent)]',
-            )}
-            onDayDragOver={(day, event) => {
-              event.preventDefault();
-              setDragOverDay(day.dateKey);
-              setPileOver(false);
-            }}
-            onDayDragLeave={() => setDragOverDay(null)}
-            onDayDrop={(day, event) => {
-              event.preventDefault();
-              setDragOverDay(null);
-              const ids = readDragIds(event);
-              if (ids.length > 0) moveMany(ids, day.dateKey);
-            }}
-            renderDayContent={day => {
-              const dayPostIts = byDate.get(day.dateKey) ?? [];
-              const dayLabel = format(day.day, "d 'de' MMMM", {locale: ptBR});
-              return (
-                <div className="stack-sm">
-                  {(publicacoesDoDia.get(day.dateKey) ?? []).map(renderPublicacao)}
-                  {dayPostIts.map(postIt => renderPostIt(postIt, true))}
-                  <div className="flex gap-0.5 transition-opacity md:opacity-0 md:focus-within:opacity-100 md:group-hover/day:opacity-100 md:group-focus-within/day:opacity-100 pointer-coarse:opacity-100">
-                    <AppButton
-                      variant="ghost"
-                      size="xs"
-                      iconOnly
-                      className="h-7 w-7 text-[var(--text-secondary)]"
-                      aria-label={`Novo post-it em ${dayLabel}`}
-                      onClick={event => {
-                        event.stopPropagation();
-                        addEmpty(day.dateKey);
-                      }}
-                      leftIcon={<StickyNote className="h-3.5 w-3.5" />}
-                    />
-                    <AppButton
-                      variant="ghost"
-                      size="xs"
-                      iconOnly
-                      className="h-7 w-7 text-[var(--text-secondary)]"
-                      aria-label={`Puxar conteúdo para ${dayLabel}`}
-                      onClick={event => {
-                        event.stopPropagation();
-                        setPullDate(day.dateKey);
-                        setPullOpen(true);
-                      }}
-                      leftIcon={<Plus className="h-3.5 w-3.5" />}
-                    />
+          <div className="stack-lg">
+            <Text variant="sectionTitle" className="mb-2">
+              {format(month, "MMMM 'de' yyyy", {locale: ptBR})}
+            </Text>
+            <CalendarMonthGrid
+              anchorDate={month}
+              weekStartsOn={0}
+              minCellHeight={168}
+              expandContent
+              tone="elevated"
+              getDayClassName={day => cn(
+                'group/day',
+                dragOverDay === day.dateKey && 'bg-[color-mix(in_srgb,var(--accent-orange)_12%,transparent)]',
+              )}
+              onDayDragOver={(day, event) => {
+                event.preventDefault();
+                setDragOverDay(day.dateKey);
+                setPileOver(false);
+              }}
+              onDayDragLeave={() => setDragOverDay(null)}
+              onDayDrop={(day, event) => {
+                event.preventDefault();
+                setDragOverDay(null);
+                const ids = readDragIds(event);
+                if (ids.length > 0) moveMany(ids, day.dateKey);
+              }}
+              renderDayContent={day => {
+                const dayPostIts = byDate.get(day.dateKey) ?? [];
+                const dayLabel = format(day.day, "d 'de' MMMM", {locale: ptBR});
+                return (
+                  <div className="stack-sm">
+                    {(publicacoesDoDia.get(day.dateKey) ?? []).map(renderPublicacao)}
+                    {dayPostIts.map(postIt => renderPostIt(postIt, true))}
+                    <div className="flex gap-0.5 transition-opacity md:opacity-0 md:focus-within:opacity-100 md:group-hover/day:opacity-100 md:group-focus-within/day:opacity-100 pointer-coarse:opacity-100">
+                      <AppButton
+                        variant="ghost"
+                        size="xs"
+                        iconOnly
+                        className="h-7 w-7 text-[var(--text-secondary)]"
+                        aria-label={`Novo post-it em ${dayLabel}`}
+                        onClick={event => {
+                          event.stopPropagation();
+                          addEmpty(day.dateKey);
+                        }}
+                        leftIcon={<StickyNote className="h-3.5 w-3.5" />}
+                      />
+                      <AppButton
+                        variant="ghost"
+                        size="xs"
+                        iconOnly
+                        className="h-7 w-7 text-[var(--text-secondary)]"
+                        aria-label={`Puxar conteúdo para ${dayLabel}`}
+                        onClick={event => {
+                          event.stopPropagation();
+                          setPullDate(day.dateKey);
+                          setPullOpen(true);
+                        }}
+                        leftIcon={<Plus className="h-3.5 w-3.5" />}
+                      />
+                    </div>
                   </div>
+                );
+              }}
+            />
+
+            <Surface variant="plain" padding="sm" className="my-4">
+              <div className="flex items-center justify-center gap-2 md:gap-6">
+                <div className="flex items-center gap-2">
+                  <Text variant="meta" className="text-[var(--text-secondary)]">
+                    ↑
+                  </Text>
+                  <Text variant="meta" className="text-[var(--text-secondary)]">
+                    {format(month, "MMMM 'de' yyyy", {locale: ptBR})}
+                  </Text>
                 </div>
-              );
-            }}
-          />
+                <div className="h-px w-8 bg-[var(--border-color)]" />
+                <div className="flex items-center gap-2">
+                  <Text variant="meta" className="text-[var(--text-secondary)]">
+                    {format(nextMonth, "MMMM 'de' yyyy", {locale: ptBR})}
+                  </Text>
+                  <Text variant="meta" className="text-[var(--text-secondary)]">
+                    ↓
+                  </Text>
+                </div>
+              </div>
+            </Surface>
+
+            <Text variant="sectionTitle" className="mb-2">
+              {format(nextMonth, "MMMM 'de' yyyy", {locale: ptBR})}
+            </Text>
+            <CalendarMonthGrid
+              anchorDate={nextMonth}
+              weekStartsOn={0}
+              minCellHeight={168}
+              expandContent
+              tone="elevated"
+              getDayClassName={day => cn(
+                'group/day',
+                dragOverDay === day.dateKey && 'bg-[color-mix(in_srgb,var(--accent-orange)_12%,transparent)]',
+              )}
+              onDayDragOver={(day, event) => {
+                event.preventDefault();
+                setDragOverDay(day.dateKey);
+                setPileOver(false);
+              }}
+              onDayDragLeave={() => setDragOverDay(null)}
+              onDayDrop={(day, event) => {
+                event.preventDefault();
+                setDragOverDay(null);
+                const ids = readDragIds(event);
+                if (ids.length > 0) moveMany(ids, day.dateKey);
+              }}
+              renderDayContent={day => {
+                const dayPostIts = byDate.get(day.dateKey) ?? [];
+                const dayLabel = format(day.day, "d 'de' MMMM", {locale: ptBR});
+                return (
+                  <div className="stack-sm">
+                    {(publicacoesDoDia.get(day.dateKey) ?? []).map(renderPublicacao)}
+                    {dayPostIts.map(postIt => renderPostIt(postIt, true))}
+                    <div className="flex gap-0.5 transition-opacity md:opacity-0 md:focus-within:opacity-100 md:group-hover/day:opacity-100 md:group-focus-within/day:opacity-100 pointer-coarse:opacity-100">
+                      <AppButton
+                        variant="ghost"
+                        size="xs"
+                        iconOnly
+                        className="h-7 w-7 text-[var(--text-secondary)]"
+                        aria-label={`Novo post-it em ${dayLabel}`}
+                        onClick={event => {
+                          event.stopPropagation();
+                          addEmpty(day.dateKey);
+                        }}
+                        leftIcon={<StickyNote className="h-3.5 w-3.5" />}
+                      />
+                      <AppButton
+                        variant="ghost"
+                        size="xs"
+                        iconOnly
+                        className="h-7 w-7 text-[var(--text-secondary)]"
+                        aria-label={`Puxar conteúdo para ${dayLabel}`}
+                        onClick={event => {
+                          event.stopPropagation();
+                          setPullDate(day.dateKey);
+                          setPullOpen(true);
+                        }}
+                        leftIcon={<Plus className="h-3.5 w-3.5" />}
+                      />
+                    </div>
+                  </div>
+                );
+              }}
+            />
+          </div>
 
           {!isMobile || undated.length > 0 ? (
             <Surface

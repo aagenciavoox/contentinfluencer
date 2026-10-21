@@ -1,4 +1,4 @@
-import { ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { Drawer } from '../overlays/Drawer';
 import { OverlayHeader } from '../overlays/OverlayHeader';
 import { OverlayBody } from '../overlays/OverlayBody';

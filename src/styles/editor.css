@@ -1,4 +1,7 @@
-.tiptap {
+.tiptap,
+.ProseMirror {
+  width: 100%;
+  max-width: 100%;
   font-family: var(--font-sans);
   font-size: var(--font-size-body-reading);
   line-height: 1.6;

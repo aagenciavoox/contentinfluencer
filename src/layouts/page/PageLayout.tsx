@@ -1,4 +1,4 @@
-import { ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { cn } from '../../lib/utils';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import { PageContainer } from './PageContainer';
@@ -12,9 +12,9 @@ interface PageLayoutProps {
   className?: string;
   contentClassName?: string;
   contentWidth?: 'narrow' | 'wide' | 'book' | 'full';
-  /** Vertical rhythm between direct page sections. Mobile shell always uses dense (16px). */
+  /** Espaçamento entre seções. No mobile, usa stack-md, exceto quando definido como none. */
   contentStack?: 'operational' | 'settings' | 'dense' | 'none';
-  /** Settings pages use secondary background */
+  /** Páginas de configurações usam o fundo secundário. */
   variant?: 'default' | 'settings';
 }
 
@@ -23,13 +23,6 @@ const contentStackClasses = {
   settings: 'stack-xl',
   dense: 'stack-lg',
   none: '',
-} as const;
-
-const headerWidthClasses = {
-  narrow: 'desktop-header-frame',
-  wide: 'desktop-header-frame',
-  book: 'desktop-header-frame',
-  full: 'desktop-header-frame',
 } as const;
 
 export function PageLayout({
@@ -45,45 +38,45 @@ export function PageLayout({
   variant = 'default',
 }: PageLayoutProps) {
   const isMobile = useIsMobile();
-  let resolvedStack =
+  const resolvedStack =
     contentStack ?? (variant === 'settings' ? 'settings' : 'operational');
-  if (isMobile && resolvedStack !== 'none') {
-    resolvedStack = 'dense';
-  }
+  const stackClassName =
+    isMobile && resolvedStack !== 'none'
+      ? 'stack-md'
+      : contentStackClasses[resolvedStack];
 
   return (
     <div
       className={cn(
-        'flex min-h-full w-full flex-col overflow-x-hidden bg-[var(--bg-primary)] transition-colors duration-200',
-        variant === 'settings' && 'bg-[var(--bg-secondary)]',
-        className
+        // clip contém o excesso horizontal sem criar um container de rolagem para o sticky.
+        'flex min-h-full min-w-0 w-full flex-col overflow-x-clip transition-colors duration-200',
+        variant === 'settings'
+          ? 'bg-[var(--bg-secondary)]'
+          : 'bg-[var(--bg-primary)]',
+        className,
       )}
     >
       {!isMobile && (header || toolbar) ? (
         <header className="desktop-header-sticky">
-          <div className={cn(headerWidthClasses[contentWidth], 'stack-lg')}>
+          <div className="desktop-header-frame stack-lg">
             {header}
             {toolbar}
           </div>
         </header>
       ) : null}
 
-      <main className="flex-1">
-        {isMobile && mobileHeader ? (
-          <div>{mobileHeader}</div>
-        ) : null}
+      <main className="min-w-0 flex-1">
+        {isMobile && mobileHeader ? <div>{mobileHeader}</div> : null}
 
         <PageContainer
           width={contentWidth}
           className={cn(
-            isMobile && resolvedStack === 'dense'
-              ? 'stack-md'
-              : contentStackClasses[resolvedStack],
+            stackClassName,
             variant === 'settings' && 'pb-20',
             contentClassName,
           )}
         >
-          {isMobile && mobileToolbar ? <div className="mb-3">{mobileToolbar}</div> : null}
+          {isMobile && mobileToolbar ? <div>{mobileToolbar}</div> : null}
           {children}
         </PageContainer>
       </main>
@@ -91,5 +84,5 @@ export function PageLayout({
   );
 }
 
-/** @deprecated Use PageLayout */
+/** @deprecated Use PageLayout. */
 export const PageScaffold = PageLayout;

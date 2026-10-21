@@ -1,5 +1,6 @@
 import {useEffect, useId, useMemo, useRef, useState, type ReactNode} from 'react';
 import {
+  addMonths,
   eachDayOfInterval,
   endOfMonth,
   endOfWeek,
@@ -12,12 +13,12 @@ import {
 } from 'date-fns';
 import {ptBR} from 'date-fns/locale';
 import {Plus, StickyNote} from 'lucide-react';
-import {CalendarPeriodNav} from '../../../components/calendar';
 import {AppButton} from '../../../components/ui/AppButton';
 import {Badge} from '../../../components/ui/Badge';
 import {MoreMenu} from '../../../components/ui/MoreMenu';
 import {DisclosureButton} from '../../../components/ui/DisclosureButton';
 import {FilterChips} from '../../../components/ui/FilterChips';
+import {Surface} from '../../../components/ui/Surface';
 import {Text} from '../../../components/ui/Text';
 import {cn} from '../../../lib/utils';
 import type {PublicacaoNoDia} from '../lib/publicacoesDoMes';
@@ -41,6 +42,10 @@ interface PlanejamentoMobileViewProps {
   temas: readonly {id: string; nome: string}[];
   temaFiltroId: string | null;
   onTemaFiltroChange: (id: string | null) => void;
+}
+
+function capitalizeFirst(value: string): string {
+  return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
 function dateKey(day: Date) {
@@ -80,6 +85,172 @@ function GroupLabel({children}: {children: ReactNode}) {
   );
 }
 
+interface MonthWeeksProps {
+  month: Date;
+  today: Date;
+  todayKey: string;
+  byDate: ReadonlyMap<string, PlanejamentoPostIt[]>;
+  publicacoesDoDia: ReadonlyMap<string, PublicacaoNoDia[]>;
+  renderPostIt: (postIt: PlanejamentoPostIt) => ReactNode;
+  renderPublicacao: (publicacao: PublicacaoNoDia) => ReactNode;
+  onNovoPostIt: (date: string | null) => void;
+  onPuxar: (date: string | null) => void;
+  undatedOpen: boolean;
+  undatedId: string;
+  undated: readonly PlanejamentoPostIt[];
+  currentWeekRef: React.RefObject<HTMLElement | null>;
+  setUndatedOpen: (open: boolean) => void;
+}
+
+function MonthWeeks({
+  month,
+  today,
+  todayKey,
+  byDate,
+  publicacoesDoDia,
+  renderPostIt,
+  renderPublicacao,
+  onNovoPostIt,
+  onPuxar,
+  undatedOpen,
+  undatedId,
+  undated,
+  currentWeekRef,
+  setUndatedOpen,
+}: MonthWeeksProps) {
+  const monthKey = format(month, 'yyyy-MM');
+
+  const weeks = useMemo(() => {
+    const monthStart = startOfMonth(month);
+    const monthEnd = endOfMonth(month);
+    const days = eachDayOfInterval({
+      start: startOfWeek(monthStart, {weekStartsOn: WEEK_STARTS_ON}),
+      end: endOfWeek(monthEnd, {weekStartsOn: WEEK_STARTS_ON}),
+    });
+    const list: {start: Date; end: Date; days: Date[]; defaultDay: Date}[] = [];
+    for (let index = 0; index < days.length; index += 7) {
+      const weekDays = days.slice(index, index + 7);
+      const start = weekDays[0];
+      const end = weekDays[weekDays.length - 1];
+      const defaultDay =
+        weekDays.find(day => isSameDay(day, today)) ??
+        weekDays.find(day => isSameMonth(day, month)) ??
+        start;
+      list.push({start, end, days: weekDays, defaultDay});
+    }
+    return list;
+  }, [monthKey, todayKey]);
+
+  const currentWeekIndex = weeks.findIndex(week => isWithinInterval(today, {start: week.start, end: week.end}));
+
+  useEffect(() => {
+    if (currentWeekIndex <= 0) return;
+    currentWeekRef.current?.scrollIntoView({block: 'start'});
+  }, [monthKey]);
+
+  return (
+    <div className="stack-sm">
+      {weeks.map((week, index) => {
+        const isCurrent = index === currentWeekIndex;
+        const daysWithItems = week.days
+          .map(day => {
+            const key = dateKey(day);
+            return {
+              day,
+              key,
+              publicacoes: publicacoesDoDia.get(key) ?? [],
+              postIts: byDate.get(key) ?? [],
+            };
+          })
+          .filter(item => item.publicacoes.length > 0 || item.postIts.length > 0);
+        const total = daysWithItems.reduce((sum, item) => sum + item.publicacoes.length + item.postIts.length, 0);
+        const defaultKey = dateKey(week.defaultDay);
+        const title = `Semana ${weekRangeLabel(week.start, week.end)}`;
+
+        const addMenu = (
+          <MoreMenu
+            align="right"
+            size="sm"
+            label={`Adicionar em ${title}`}
+            trigger={<Plus className="h-4 w-4" />}
+            items={[
+              {id: 'post-it', label: 'Novo post-it', onClick: () => onNovoPostIt(defaultKey)},
+              {id: 'puxar', label: 'Puxar conteúdo', onClick: () => onPuxar(defaultKey)},
+            ]}
+          />
+        );
+
+        return (
+          <section
+            key={week.start.toISOString()}
+            ref={isCurrent ? element => { currentWeekRef.current = element; } : undefined}
+            aria-label={title}
+            className={cn(
+              'min-w-0 rounded-[var(--radius-card-mobile)] border bg-[var(--bg-secondary)]',
+              total === 0 ? 'py-0.5 pl-3 pr-1' : 'py-2 pl-3 pr-1',
+              isCurrent ? 'border-[var(--border-strong)]' : 'border-[var(--border-color)]',
+            )}
+          >
+            <div className="flex min-w-0 items-center justify-between gap-2">
+              <div className="flex min-w-0 flex-wrap items-baseline gap-x-2">
+                <Text variant={total === 0 ? 'body' : 'sectionTitle'} as="h2" className={total === 0 ? 'text-[var(--text-secondary)]' : undefined}>
+                  {title}
+                </Text>
+                <Text variant="meta" as="span" className="text-[var(--text-secondary)]">
+                  · {total === 0 ? 'nada' : itemsLabel(total)}
+                </Text>
+                {isCurrent ? <Badge variant="neutral" className="self-center">Esta semana</Badge> : null}
+              </div>
+              {addMenu}
+            </div>
+
+            {daysWithItems.length > 0 ? (
+              <div className="mb-1 mt-2 stack-md pr-2">
+                {daysWithItems.map(item => {
+                  const isToday = item.key === todayKey;
+                  const ambos = item.publicacoes.length > 0 && item.postIts.length > 0;
+                  return (
+                    <div key={item.key} className="stack-sm min-w-0">
+                      <Text
+                        variant="label"
+                        as="h3"
+                        className={cn('flex items-center gap-2', !isSameMonth(item.day, month) && 'text-[var(--text-tertiary)]')}
+                      >
+                        {dayLabel(item.day)}
+                        {isToday ? <Badge variant="neutral">Hoje</Badge> : null}
+                      </Text>
+                      {item.publicacoes.length > 0 ? (
+                        <div className="stack-sm min-w-0">
+                          {ambos ? <GroupLabel>{publicadasLabel(item.publicacoes)}</GroupLabel> : null}
+                          <ul className="stack-sm min-w-0">
+                            {item.publicacoes.map(publicacao => (
+                              <li key={publicacao.id} className="min-w-0">{renderPublicacao(publicacao)}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      ) : null}
+                      {item.postIts.length > 0 ? (
+                        <div className="stack-sm min-w-0">
+                          {ambos ? <GroupLabel>Rascunhos</GroupLabel> : null}
+                          <ul className="stack-sm min-w-0">
+                            {item.postIts.map(postIt => (
+                              <li key={postIt.id} className="min-w-0">{renderPostIt(postIt)}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      ) : null}
+                    </div>
+                  );
+                })}
+              </div>
+            ) : null}
+          </section>
+        );
+      })}
+    </div>
+  );
+}
+
 /**
  * Planejamento no celular: o mês semana a semana, em lista. A grade de 7 colunas não cabe
  * em 390px (títulos quebravam letra a letra). Só aparecem os dias com algo; mover um
@@ -102,41 +273,10 @@ export function PlanejamentoMobileView({
 }: PlanejamentoMobileViewProps) {
   const today = new Date();
   const todayKey = dateKey(today);
-  const monthKey = format(month, 'yyyy-MM');
+  const nextMonth = useMemo(() => addMonths(month, 1), [month]);
   const [undatedOpen, setUndatedOpen] = useState(false);
   const undatedId = useId();
   const currentWeekRef = useRef<HTMLElement | null>(null);
-
-  const weeks = useMemo(() => {
-    const monthStart = startOfMonth(month);
-    const monthEnd = endOfMonth(month);
-    const days = eachDayOfInterval({
-      start: startOfWeek(monthStart, {weekStartsOn: WEEK_STARTS_ON}),
-      end: endOfWeek(monthEnd, {weekStartsOn: WEEK_STARTS_ON}),
-    });
-    const list: {start: Date; end: Date; days: Date[]; defaultDay: Date}[] = [];
-    for (let index = 0; index < days.length; index += 7) {
-      const weekDays = days.slice(index, index + 7);
-      const start = weekDays[0];
-      const end = weekDays[weekDays.length - 1];
-      // Dia que o "Novo post-it" da semana usa: hoje, se cair nela; senão o primeiro dia do mês nela.
-      const defaultDay =
-        weekDays.find(day => isSameDay(day, today)) ??
-        weekDays.find(day => isSameMonth(day, month)) ??
-        start;
-      list.push({start, end, days: weekDays, defaultDay});
-    }
-    return list;
-    // `today` muda a cada render; o dia basta.
-  }, [monthKey, todayKey]);
-
-  const currentWeekIndex = weeks.findIndex(week => isWithinInterval(today, {start: week.start, end: week.end}));
-
-  // A semana de hoje fica à vista ao abrir o mês (se não for a primeira, que já está no topo).
-  useEffect(() => {
-    if (currentWeekIndex <= 0) return;
-    currentWeekRef.current?.scrollIntoView({block: 'start'});
-  }, [monthKey]);
 
   const temaOptions = useMemo(
     () => [{id: TODOS_OS_TEMAS, label: 'Todos'}, ...temas.map(tema => ({id: tema.id, label: tema.nome}))],
@@ -166,15 +306,6 @@ export function PlanejamentoMobileView({
         </AppButton>
       </div>
 
-      <CalendarPeriodNav
-        className="flex-nowrap"
-        anchorDate={month}
-        onAnchorDateChange={onMonthChange}
-        viewMode="month"
-        onViewModeChange={() => undefined}
-        views={[]}
-      />
-
       {monthHealth}
 
       {temas.length > 0 ? (
@@ -188,104 +319,68 @@ export function PlanejamentoMobileView({
         />
       ) : null}
 
-      <div className="stack-sm">
-        {weeks.map((week, index) => {
-          const isCurrent = index === currentWeekIndex;
-          const daysWithItems = week.days
-            .map(day => {
-              const key = dateKey(day);
-              return {
-                day,
-                key,
-                publicacoes: publicacoesDoDia.get(key) ?? [],
-                postIts: byDate.get(key) ?? [],
-              };
-            })
-            .filter(item => item.publicacoes.length > 0 || item.postIts.length > 0);
-          const total = daysWithItems.reduce((sum, item) => sum + item.publicacoes.length + item.postIts.length, 0);
-          const defaultKey = dateKey(week.defaultDay);
-          const title = `Semana ${weekRangeLabel(week.start, week.end)}`;
+      <div className="stack-md">
+        <Text variant="sectionTitle" className="mb-2">
+          {capitalizeFirst(format(month, "MMMM 'de' yyyy", {locale: ptBR}))}
+        </Text>
+        <MonthWeeks
+          month={month}
+          today={today}
+          todayKey={todayKey}
+          byDate={byDate}
+          publicacoesDoDia={publicacoesDoDia}
+          renderPostIt={renderPostIt}
+          renderPublicacao={renderPublicacao}
+          onNovoPostIt={onNovoPostIt}
+          onPuxar={onPuxar}
+          undatedOpen={undatedOpen}
+          undatedId={undatedId}
+          undated={undated}
+          currentWeekRef={currentWeekRef}
+          setUndatedOpen={setUndatedOpen}
+        />
 
-          const addMenu = (
-            <MoreMenu
-              align="right"
-              size="sm"
-              label={`Adicionar em ${title}`}
-              trigger={<Plus className="h-4 w-4" />}
-              items={[
-                {id: 'post-it', label: 'Novo post-it', onClick: () => onNovoPostIt(defaultKey)},
-                {id: 'puxar', label: 'Puxar conteúdo', onClick: () => onPuxar(defaultKey)},
-              ]}
-            />
-          );
+        <Surface variant="plain" padding="sm" className="my-4">
+          <div className="flex items-center justify-center gap-2 md:gap-6">
+            <div className="flex items-center gap-2">
+              <Text variant="meta" className="text-[var(--text-secondary)]">
+                ↑
+              </Text>
+              <Text variant="meta" className="text-[var(--text-secondary)]">
+                {capitalizeFirst(format(month, "MMMM 'de' yyyy", {locale: ptBR}))}
+              </Text>
+            </div>
+            <div className="h-px w-8 bg-[var(--border-color)]" />
+            <div className="flex items-center gap-2">
+              <Text variant="meta" className="text-[var(--text-secondary)]">
+                {capitalizeFirst(format(nextMonth, "MMMM 'de' yyyy", {locale: ptBR}))}
+              </Text>
+              <Text variant="meta" className="text-[var(--text-secondary)]">
+                ↓
+              </Text>
+            </div>
+          </div>
+        </Surface>
 
-          return (
-            <section
-              key={week.start.toISOString()}
-              ref={isCurrent ? element => { currentWeekRef.current = element; } : undefined}
-              aria-label={title}
-              className={cn(
-                'min-w-0 rounded-[var(--radius-card-mobile)] border bg-[var(--bg-secondary)]',
-                total === 0 ? 'py-0.5 pl-3 pr-1' : 'py-2 pl-3 pr-1',
-                isCurrent ? 'border-[var(--border-strong)]' : 'border-[var(--border-color)]',
-              )}
-            >
-              <div className="flex min-w-0 items-center justify-between gap-2">
-                <div className="flex min-w-0 flex-wrap items-baseline gap-x-2">
-                  <Text variant={total === 0 ? 'body' : 'sectionTitle'} as="h2" className={total === 0 ? 'text-[var(--text-secondary)]' : undefined}>
-                    {title}
-                  </Text>
-                  <Text variant="meta" as="span" className="text-[var(--text-secondary)]">
-                    · {total === 0 ? 'nada' : itemsLabel(total)}
-                  </Text>
-                  {isCurrent ? <Badge variant="neutral" className="self-center">Esta semana</Badge> : null}
-                </div>
-                {addMenu}
-              </div>
-
-              {daysWithItems.length > 0 ? (
-                <div className="mb-1 mt-2 stack-md pr-2">
-                  {daysWithItems.map(item => {
-                    const isToday = item.key === todayKey;
-                    const ambos = item.publicacoes.length > 0 && item.postIts.length > 0;
-                    return (
-                      <div key={item.key} className="stack-sm min-w-0">
-                        <Text
-                          variant="label"
-                          as="h3"
-                          className={cn('flex items-center gap-2', !isSameMonth(item.day, month) && 'text-[var(--text-tertiary)]')}
-                        >
-                          {dayLabel(item.day)}
-                          {isToday ? <Badge variant="neutral">Hoje</Badge> : null}
-                        </Text>
-                        {item.publicacoes.length > 0 ? (
-                          <div className="stack-sm min-w-0">
-                            {ambos ? <GroupLabel>{publicadasLabel(item.publicacoes)}</GroupLabel> : null}
-                            <ul className="stack-sm min-w-0">
-                              {item.publicacoes.map(publicacao => (
-                                <li key={publicacao.id} className="min-w-0">{renderPublicacao(publicacao)}</li>
-                              ))}
-                            </ul>
-                          </div>
-                        ) : null}
-                        {item.postIts.length > 0 ? (
-                          <div className="stack-sm min-w-0">
-                            {ambos ? <GroupLabel>Rascunhos</GroupLabel> : null}
-                            <ul className="stack-sm min-w-0">
-                              {item.postIts.map(postIt => (
-                                <li key={postIt.id} className="min-w-0">{renderPostIt(postIt)}</li>
-                              ))}
-                            </ul>
-                          </div>
-                        ) : null}
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : null}
-            </section>
-          );
-        })}
+        <Text variant="sectionTitle" className="mb-2">
+          {capitalizeFirst(format(nextMonth, "MMMM 'de' yyyy", {locale: ptBR}))}
+        </Text>
+        <MonthWeeks
+          month={nextMonth}
+          today={today}
+          todayKey={todayKey}
+          byDate={byDate}
+          publicacoesDoDia={publicacoesDoDia}
+          renderPostIt={renderPostIt}
+          renderPublicacao={renderPublicacao}
+          onNovoPostIt={onNovoPostIt}
+          onPuxar={onPuxar}
+          undatedOpen={undatedOpen}
+          undatedId={undatedId}
+          undated={undated}
+          currentWeekRef={currentWeekRef}
+          setUndatedOpen={setUndatedOpen}
+        />
       </div>
 
       {undated.length > 0 ? (

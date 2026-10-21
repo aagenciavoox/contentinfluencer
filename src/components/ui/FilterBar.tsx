@@ -1,14 +1,10 @@
-import React, { useState } from 'react';
+import { useId, useRef, useState, type ReactNode } from 'react';
 import { ChevronDown, Filter } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { AppButton } from './AppButton';
 import { Text } from './Text';
 import { SelectMenu } from './SelectMenu';
 import { ToolbarSearchInput } from './ToolbarSearchInput';
-
-function selectedLabel(options: readonly FilterOption[], value: string | undefined) {
-  return options.find((option) => option.value === value)?.label ?? value ?? '';
-}
 
 export interface FilterOption {
   label: string;
@@ -21,17 +17,8 @@ export interface FilterDefinition {
   value: string;
   onChange: (value: string) => void;
   options: FilterOption[];
-  /** Exact inactive value for this filter. Overrides the default empty set. */
+  /** Valor exato que representa o filtro inativo. Tem prioridade sobre a inferência. */
   emptyValue?: string;
-}
-
-const INACTIVE_FILTER_VALUES = new Set(['', 'Todos', 'todos', 'Todas', 'todas']);
-
-function inactiveFilterValue(filter: FilterDefinition): string {
-  if (filter.emptyValue !== undefined) return filter.emptyValue;
-  const firstValue = filter.options[0]?.value;
-  if (firstValue !== undefined && INACTIVE_FILTER_VALUES.has(firstValue)) return firstValue;
-  return '';
 }
 
 interface FilterBarProps {
@@ -43,18 +30,30 @@ interface FilterBarProps {
   onSortChange?: (value: string) => void;
   sortOptions?: FilterOption[];
   className?: string;
-  /** compact = 36px controls (library toolbar) */
+  /** compact = controles de 36px. */
   size?: 'default' | 'compact';
-  /** Extra controls on the right cluster (tabs, view switch, etc.). */
-  leading?: React.ReactNode;
-  /** Hide the search field when the page already has its own. */
+  leading?: ReactNode;
   showSearch?: boolean;
-  /** Extra controls rendered inside the expanded filter panel. */
-  panelExtra?: React.ReactNode;
-  /** Active filters that live in `panelExtra`, added to the badge count. */
+  panelExtra?: ReactNode;
   extraActiveCount?: number;
-  /** Called together with the built-in clear action. */
   onClearExtra?: () => void;
+}
+
+const INACTIVE_FILTER_VALUES = new Set(['', 'todos', 'todas']);
+
+function inactiveFilterValue(filter: FilterDefinition): string {
+  if (filter.emptyValue !== undefined) return filter.emptyValue;
+  // A opção neutra pode estar em qualquer posição; devolve sempre seu valor original.
+  const inactive = filter.options.find(option =>
+    INACTIVE_FILTER_VALUES.has(option.value.trim().toLocaleLowerCase('pt-BR')),
+  );
+  return inactive?.value ?? '';
+}
+
+function selectedLabel(
+  options: readonly FilterOption[], value: string | undefined, fallback: string,
+) {
+  return options.find(option => option.value === value)?.label ?? (value || fallback);
 }
 
 export function FilterBar({
@@ -74,14 +73,39 @@ export function FilterBar({
   onClearExtra,
 }: FilterBarProps) {
   const [isExpanded, setIsExpanded] = useState(false);
-  const activeFiltersCount =
-    filters.filter((f) => f.value !== inactiveFilterValue(f)).length + extraActiveCount;
-  const hasPanel = filters.length > 0 || Boolean(panelExtra);
+  const toggleRef = useRef<HTMLButtonElement>(null);
+  const panelId = useId();
+  const filterStates = filters.map(filter => {
+    const inactiveValue = inactiveFilterValue(filter);
+    return { filter, inactiveValue, active: filter.value !== inactiveValue };
+  });
+  const extraCount = Number.isFinite(extraActiveCount)
+    ? Math.max(0, Math.trunc(extraActiveCount))
+    : 0;
+  const activeFiltersCount = filterStates.filter(item => item.active).length + extraCount;
+  const hasExtraPanel = panelExtra !== undefined && panelExtra !== null
+    && typeof panelExtra !== 'boolean' && panelExtra !== '';
+  const hasPanel = filters.length > 0 || hasExtraPanel;
+  const panelOpen = isExpanded && hasPanel;
   const isCompact = size === 'compact';
+  const filterButtonLabel = activeFiltersCount > 0
+    ? `Filtros (${activeFiltersCount} ${activeFiltersCount === 1 ? 'ativo' : 'ativos'})`
+    : 'Filtros';
+
+  function clearFilters() {
+    // Não dispara mudanças para filtros que já estão no seu estado neutro.
+    for (const { filter, inactiveValue, active } of filterStates) {
+      if (active) filter.onChange(inactiveValue);
+    }
+    onClearExtra?.();
+    setIsExpanded(false);
+    // O botão de limpar desaparece junto com o painel: devolve o foco ao gatilho.
+    toggleRef.current?.focus({ preventScroll: true });
+  }
 
   return (
     <div className={cn('filter-bar', isCompact && 'filter-bar--compact', className)}>
-      <div className="filter-bar-controls">
+      <div className="filter-bar-controls flex-wrap gap-2">
         {showSearch ? (
           <ToolbarSearchInput
             value={searchValue}
@@ -92,21 +116,25 @@ export function FilterBar({
           />
         ) : null}
 
-        <div className="inline-stack-sm shrink-0">
+        <div className="inline-stack-sm min-w-0 flex-wrap">
           {leading}
           {hasPanel ? (
             <button
+              ref={toggleRef}
               type="button"
-              onClick={() => setIsExpanded(!isExpanded)}
+              onClick={() => setIsExpanded(expanded => !expanded)}
+              aria-label={filterButtonLabel}
+              aria-expanded={panelOpen}
+              aria-controls={panelOpen ? panelId : undefined}
               className={cn(
-                'filter-bar-toggle shrink-0',
-                (isExpanded || activeFiltersCount > 0) && 'filter-bar-toggle-active',
+                'filter-bar-toggle shrink-0 focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]',
+                (panelOpen || activeFiltersCount > 0) && 'filter-bar-toggle-active',
               )}
             >
-              <Filter className="h-3.5 w-3.5" />
+              <Filter className="h-3.5 w-3.5" aria-hidden="true" />
               <span className="hidden sm:inline">Filtros</span>
               {activeFiltersCount > 0 ? (
-                <span className="flex h-4 min-w-4 items-center justify-center rounded-[var(--radius-pill)] bg-[var(--bg-primary)] px-1 text-2xs font-semibold text-[var(--text-primary)]">
+                <span aria-hidden="true" className="flex h-4 min-w-4 items-center justify-center rounded-[var(--radius-pill)] bg-[var(--bg-primary)] px-1 text-2xs font-semibold text-[var(--text-primary)]">
                   {activeFiltersCount}
                 </span>
               ) : null}
@@ -114,30 +142,31 @@ export function FilterBar({
           ) : null}
 
           {sortOptions.length > 0 && onSortChange ? (
-            <div className="relative hidden shrink-0 md:block">
+            <div className="relative min-w-0 max-w-full shrink-0">
               <SelectMenu
                 value={sortValue ?? ''}
                 onChange={onSortChange}
                 options={sortOptions}
                 ariaLabel="Ordenar"
-                triggerClassName="filter-bar-select relative min-w-[140px] pr-10 focus-visible:shadow-[var(--shadow-focus)]"
+                triggerClassName="filter-bar-select relative min-w-[140px] max-w-full pr-10 focus-visible:shadow-[var(--shadow-focus)]"
               >
-                <span className="truncate">{selectedLabel(sortOptions, sortValue)}</span>
-                <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-tertiary)]" aria-hidden />
+                <span className="min-w-0 flex-1 truncate">{selectedLabel(sortOptions, sortValue, 'Ordenar')}</span>
+                <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-tertiary)]" aria-hidden="true" />
               </SelectMenu>
             </div>
           ) : null}
         </div>
       </div>
 
-      {isExpanded && hasPanel ? (
-        <div className="filter-bar-panel w-full rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-primary)] p-3 shadow-none md:rounded-[var(--radius-card)]">
-          {filters.map((filter) => (
-            <div key={filter.id} className="stack-sm">
-              <Text variant="label" as="label" className="px-1">
+      {panelOpen ? (
+        <div id={panelId} role="region" aria-label="Opções de filtro"
+          className="filter-bar-panel w-full rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-primary)] p-3 shadow-none md:rounded-[var(--radius-card)]">
+          {filterStates.map(({ filter, active }) => (
+            <div key={filter.id} className="stack-sm min-w-0">
+              <Text variant="label" as="span" className="px-1">
                 {filter.label}
               </Text>
-              <div className="relative">
+              <div className="relative min-w-0">
                 <SelectMenu
                   value={filter.value}
                   onChange={filter.onChange}
@@ -145,13 +174,11 @@ export function FilterBar({
                   ariaLabel={filter.label}
                   triggerClassName={cn(
                     'filter-bar-select relative h-9 w-full pr-8 focus-visible:shadow-[var(--shadow-focus)]',
-                    filter.value !== inactiveFilterValue(filter)
-                      ? 'filter-bar-select-active'
-                      : 'bg-[var(--bg-hover)]',
+                    active ? 'filter-bar-select-active' : 'bg-[var(--bg-hover)]',
                   )}
                 >
-                  <span className="min-w-0 flex-1 truncate">{selectedLabel(filter.options, filter.value)}</span>
-                  <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--text-tertiary)]" aria-hidden />
+                  <span className="min-w-0 flex-1 truncate">{selectedLabel(filter.options, filter.value, filter.label)}</span>
+                  <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--text-tertiary)]" aria-hidden="true" />
                 </SelectMenu>
               </div>
             </div>
@@ -160,16 +187,7 @@ export function FilterBar({
           {panelExtra}
 
           <div className="col-span-full flex justify-end pt-2">
-            <AppButton
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                filters.forEach((f) => f.onChange(inactiveFilterValue(f)));
-                onClearExtra?.();
-                setIsExpanded(false);
-              }}
-            >
+            <AppButton type="button" variant="ghost" size="sm" onClick={clearFilters}>
               Limpar filtros
             </AppButton>
           </div>

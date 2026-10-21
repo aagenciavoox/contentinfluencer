@@ -53,7 +53,7 @@ function selectParagraph(view: EditorView, pos: number) {
 
 /**
  * Cliques de seleção:
- * duplo = palavra (nativo) · triplo = frase · quádruplo ou Alt+duplo = parágrafo.
+ * duplo = palavra (nativo) · triplo = parágrafo · quádruplo ou Alt+duplo = frase.
  */
 export const SelectionClicks = Extension.create({
   name: 'selectionClicks',
@@ -66,7 +66,7 @@ export const SelectionClicks = Extension.create({
             mousedown: (view, event) => {
               if (event.button !== 0 || event.detail < 4) return false;
               const hit = view.posAtCoords({ left: event.clientX, top: event.clientY });
-              if (!hit || !selectParagraph(view, hit.pos)) return false;
+              if (!hit || !selectSentence(view, hit.pos)) return false;
               event.preventDefault();
               return true;
             },
@@ -75,7 +75,7 @@ export const SelectionClicks = Extension.create({
             if (!event.altKey) return false;
             return selectParagraph(view, pos);
           },
-          handleTripleClick: (view, pos) => selectSentence(view, pos),
+          handleTripleClick: (view, pos) => selectParagraph(view, pos),
         },
       }),
     ];

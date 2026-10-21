@@ -37,6 +37,7 @@ interface ContentScriptWorkspaceProps {
   className?: string;
   fullscreenAside?: ReactNode;
   onFullscreenChange?: (open: boolean) => void;
+  notesPanelOpen?: boolean;
   onAddAnnotation?: (text: string, selection: {from: number; to: number}, comment: string, id?: string) => void;
   onRemoveAnnotation?: (id: string) => void;
   onUpdateAnnotation?: (id: string, comment: string, color?: string) => void;
@@ -62,6 +63,7 @@ export function ContentScriptWorkspace({
   className,
   fullscreenAside,
   onFullscreenChange,
+  notesPanelOpen = false,
   onAddAnnotation,
   onRemoveAnnotation,
   onUpdateAnnotation,
@@ -157,6 +159,7 @@ export function ContentScriptWorkspace({
             saveState={saveState}
             fullscreenAside={fullscreenAside}
             onFullscreenChange={onFullscreenChange}
+            notesPanelOpen={notesPanelOpen}
             className={writingToolbar
               ? 'min-h-[calc(100dvh-18rem)] border-0 bg-[var(--bg-elevated)] shadow-none'
               : 'h-full min-h-0 border-0 bg-[var(--bg-elevated)] shadow-none'}

@@ -146,7 +146,7 @@ export function RoteiroSection({
     : 'write';
   const notesOpen = notesChoice?.contentId === contentId
     ? notesChoice.open
-    : hasWritingNotesText(draft.writingNotes);
+    : false;
   // Until a tab is picked, open on "Notas" when the text lives only in the notes pane.
   const mobilePane: MobilePane = mobilePaneChoice?.contentId === contentId
     ? mobilePaneChoice.pane
@@ -261,6 +261,7 @@ export function RoteiroSection({
       className={writingWorkspace ? 'min-w-0' : undefined}
       fullscreenAside={fullscreenAside}
       onFullscreenChange={setScriptExpanded}
+      notesPanelOpen={notesOpen}
       toolbarEnd={notesButton}
       {...annotationHandlers}
     />
@@ -280,6 +281,7 @@ export function RoteiroSection({
       bodyError={bodyError}
       onRetryBody={onRetryBody}
       toolbarEnd={notesButton}
+      notesPanelOpen={notesOpen}
       className="min-w-0"
     />
   );

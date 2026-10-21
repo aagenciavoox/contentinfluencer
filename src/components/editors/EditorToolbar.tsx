@@ -1,40 +1,21 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from 'react';
+import {
+  useCallback, useEffect, useId, useLayoutEffect, useRef, useState,
+  type CSSProperties, type KeyboardEvent as ReactKeyboardEvent,
+  type ReactNode, type RefObject,
+} from 'react';
+import { createPortal } from 'react-dom';
 import { useEditorState, type Editor } from '@tiptap/react';
 import {
-  AlignCenter,
-  AlignJustify,
-  AlignLeft,
-  AlignRight,
-  Bold,
-  Check,
-  ChevronDown,
-  Heading1,
-  Heading2,
-  IndentDecrease,
-  IndentIncrease,
-  Italic,
-  Link as LinkIcon,
-  List,
-  ListOrdered,
-  MessageSquarePlus,
-  Minus,
-  MoreHorizontal,
-  Pilcrow,
-  Quote,
-  Redo,
-  RemoveFormatting,
-  Search,
-  Strikethrough,
-  Underline as UnderlineIcon,
-  Undo,
+  AlignCenter, AlignJustify, AlignLeft, AlignRight, Bold, Check, ChevronDown,
+  Heading1, Heading2, IndentDecrease, IndentIncrease, Italic, Link as LinkIcon,
+  List, ListOrdered, MessageSquarePlus, Minus, MoreHorizontal, Pilcrow, Quote,
+  Redo, RemoveFormatting, Search, Strikethrough, Underline as UnderlineIcon, Undo,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { EditorColorMenu } from './EditorColorMenu';
 import { clearFormatting } from './editorExtensions';
 import {
-  fitWritingGroups,
-  WRITING_COLLAPSIBLE_GROUPS,
-  writingOverflowItemIds,
+  fitWritingGroups, WRITING_COLLAPSIBLE_GROUPS, writingOverflowItemIds,
   type WritingBarGroupId,
 } from './writingFormatBar';
 
@@ -48,314 +29,370 @@ export type ToolbarItem = {
   run: () => void;
   active?: boolean;
   disabled?: boolean;
+  /** Distingue uma ação de uma opção que liga/desliga uma formatação. */
+  kind?: 'action' | 'toggle';
 };
 
+export type ToolbarMenuItem = Omit<ToolbarItem, 'icon'> & {
+  icon?: Icon;
+  style?: CSSProperties;
+};
+
+const useClientLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect;
+const VIEWPORT_PADDING = 8;
+const MENU_GAP = 6;
+const OVERFLOW_BUTTON_WIDTH = 40;
+const ROW_SLACK = 12;
+const DROPDOWN_OPEN_EVENT = 'skald:editor-toolbar-dropdown-open';
+
+/** Soma as larguras dos controles sem depender de quantas linhas a barra ocupa. */
+function unwrappedControlsWidth(node: HTMLDivElement | null) {
+  if (!node) return 0;
+  const style = getComputedStyle(node);
+  const controls = [...node.children].filter((child): child is HTMLElement =>
+    child instanceof HTMLElement && getComputedStyle(child).display !== 'none',
+  );
+  const gap = parseFloat(style.columnGap) || 0;
+  const width = controls.reduce((total, child) => {
+    const childStyle = getComputedStyle(child);
+    return total + child.getBoundingClientRect().width
+      + (parseFloat(childStyle.marginLeft) || 0) + (parseFloat(childStyle.marginRight) || 0);
+  }, 0) + Math.max(0, controls.length - 1) * gap;
+  return Math.max(width, node.getBoundingClientRect().width);
+}
+
 function controlClass(active: boolean, neutral: boolean) {
-  if (active) {
-    return neutral
-      ? 'bg-[var(--bg-secondary)] text-[var(--text-primary)]'
-      : 'bg-[color-mix(in_srgb,var(--accent-blue),transparent_92%)] text-[var(--accent-blue)]';
-  }
+  if (active) return neutral
+    ? 'bg-[var(--bg-secondary)] text-[var(--text-primary)]'
+    : 'bg-[color-mix(in_srgb,var(--accent-blue),transparent_92%)] text-[var(--accent-blue)]';
   return neutral
     ? 'text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)]'
-    : 'text-[var(--text-tertiary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]';
+    : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]';
 }
 
 function Separator() {
-  return <div className="mx-1.5 h-5 w-px shrink-0 bg-[var(--border-color)]" aria-hidden />;
+  return <div className="mx-1.5 h-5 w-px shrink-0 bg-[var(--border-color)]" aria-hidden="true" />;
 }
 
-function IconButton({ item, neutral, compact = false }: { item: ToolbarItem; neutral: boolean; compact?: boolean }) {
-  const Icon = item.icon;
-  const title = item.shortcut ? `${item.label} (${item.shortcut})` : item.label;
-  return (
-    <button
-      type="button"
-      onMouseDown={event => event.preventDefault()}
-      onClick={item.run}
-      disabled={item.disabled}
-      aria-label={title}
-      aria-pressed={item.active ?? undefined}
-      title={title}
-      className={cn(
-        'flex shrink-0 items-center justify-center rounded-[var(--radius-input)] transition disabled:pointer-events-none disabled:opacity-40',
-        compact ? 'h-8 w-8' : 'h-9 w-9',
-        controlClass(!!item.active, neutral),
-      )}
-    >
-      <Icon className="h-4 w-4" />
-    </button>
-  );
-}
-
-/**
- * Botão de texto da barra (ex.: "Notas"), no mesmo desenho do gatilho "Mais".
- * `active` marca o painel aberto (aria-pressed).
- */
-export function ToolbarTextButton({
-  label,
-  icon: ButtonIcon,
-  onClick,
-  active = false,
-  neutral = true,
-  title,
-}: {
-  label: string;
-  icon?: Icon;
-  onClick: () => void;
-  active?: boolean;
-  neutral?: boolean;
-  title?: string;
+function IconButton({ item, neutral, compact = false }: {
+  item: ToolbarItem; neutral: boolean; compact?: boolean;
 }) {
-  return (
-    <button
-      type="button"
-      onMouseDown={event => event.preventDefault()}
-      onClick={onClick}
-      aria-pressed={active}
-      title={title ?? label}
-      className={cn(
-        'flex h-8 shrink-0 items-center gap-1 rounded-[var(--radius-input)] px-2 text-xs font-medium transition',
-        controlClass(active, neutral),
-      )}
-    >
-      {ButtonIcon ? <ButtonIcon className="h-4 w-4" aria-hidden /> : null}
-      <span>{label}</span>
-    </button>
-  );
+  const ItemIcon = item.icon;
+  const title = item.shortcut ? `${item.label} (${item.shortcut})` : item.label;
+  return <button type="button" onMouseDown={event => event.preventDefault()}
+    onClick={() => { if (!item.disabled) item.run(); }} disabled={item.disabled}
+    aria-label={title} aria-pressed={item.active ?? undefined} title={title}
+    className={cn(
+      'flex shrink-0 items-center justify-center rounded-[var(--radius-input)] transition focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] disabled:opacity-40',
+      compact ? 'h-8 w-8' : 'h-9 w-9', controlClass(!!item.active, neutral),
+    )}><ItemIcon className="h-4 w-4" aria-hidden="true" /></button>;
 }
 
-function useOutsideClose(open: boolean, close: () => void) {
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!open) return;
-    const onDown = (event: MouseEvent) => {
-      if (!ref.current?.contains(event.target as Node)) close();
+export function ToolbarTextButton({
+  label, icon: ButtonIcon, onClick, active = false, neutral = true, title, disabled = false,
+}: {
+  label: string; icon?: Icon; onClick: () => void; active?: boolean;
+  neutral?: boolean; title?: string; disabled?: boolean;
+}) {
+  return <button type="button" onMouseDown={event => event.preventDefault()}
+    onClick={onClick} disabled={disabled} aria-pressed={active} title={title ?? label}
+    className={cn(
+      'flex h-8 shrink-0 items-center gap-1 rounded-[var(--radius-input)] px-2 text-xs font-medium transition focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] disabled:opacity-40',
+      controlClass(active, neutral),
+    )}>
+    {ButtonIcon ? <ButtonIcon className="h-4 w-4" aria-hidden="true" /> : null}
+    <span>{label}</span>
+  </button>;
+}
+
+type MenuPosition = { left: number; top: number; width: number; maxHeight: number };
+
+/** Coordenadas de viewport para um menu renderizado fora dos contêineres com overflow. */
+function useMenuPosition(
+  open: boolean, triggerRef: RefObject<HTMLButtonElement | null>,
+  menuRef: RefObject<HTMLDivElement | null>, align: 'left' | 'right', onHidden: () => void,
+) {
+  const [position, setPosition] = useState<MenuPosition | null>(null);
+  const closeRef = useRef(onHidden);
+  closeRef.current = onHidden;
+
+  useClientLayoutEffect(() => {
+    if (!open) { setPosition(null); return; }
+    let frame = 0;
+    let naturalWidth = 0;
+    const update = () => {
+      frame = 0;
+      const trigger = triggerRef.current;
+      const menu = menuRef.current;
+      if (!trigger || !menu) return;
+      const triggerStyle = getComputedStyle(trigger);
+      if (!trigger.isConnected || triggerStyle.visibility === 'hidden' || triggerStyle.display === 'none') {
+        closeRef.current(); return;
+      }
+      const viewport = window.visualViewport;
+      const viewportLeft = viewport?.offsetLeft ?? 0;
+      const viewportTop = viewport?.offsetTop ?? 0;
+      const viewportWidth = viewport?.width ?? window.innerWidth;
+      const viewportHeight = viewport?.height ?? window.innerHeight;
+      const rect = trigger.getBoundingClientRect();
+      if (rect.bottom < viewportTop || rect.top > viewportTop + viewportHeight
+        || rect.right < viewportLeft || rect.left > viewportLeft + viewportWidth) {
+        closeRef.current(); return;
+      }
+      const availableWidth = Math.max(1, viewportWidth - VIEWPORT_PADDING * 2);
+      naturalWidth = Math.max(naturalWidth, menu.getBoundingClientRect().width, menu.scrollWidth, rect.width);
+      const width = Math.min(naturalWidth, availableWidth);
+      const below = Math.max(0, viewportTop + viewportHeight - VIEWPORT_PADDING - rect.bottom - MENU_GAP);
+      const above = Math.max(0, rect.top - MENU_GAP - viewportTop - VIEWPORT_PADDING);
+      const naturalHeight = menu.scrollHeight + Math.max(0, menu.offsetHeight - menu.clientHeight);
+      const useBelow = below >= Math.min(naturalHeight, 240) || below >= above;
+      const maxHeight = Math.max(1, Math.min(viewportHeight * 0.7, useBelow ? below : above));
+      const height = Math.min(naturalHeight, maxHeight);
+      const idealLeft = align === 'right' ? rect.right - width : rect.left;
+      const left = Math.max(viewportLeft + VIEWPORT_PADDING,
+        Math.min(idealLeft, viewportLeft + viewportWidth - width - VIEWPORT_PADDING));
+      const top = Math.max(viewportTop + VIEWPORT_PADDING,
+        useBelow ? rect.bottom + MENU_GAP : rect.top - MENU_GAP - height);
+      const next = { left: Math.round(left), top: Math.round(top), width: Math.round(width), maxHeight: Math.floor(maxHeight) };
+      setPosition(previous => previous && Object.keys(next).every(key =>
+        previous[key as keyof MenuPosition] === next[key as keyof MenuPosition],
+      ) ? previous : next);
     };
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') close();
-    };
-    document.addEventListener('mousedown', onDown);
-    document.addEventListener('keydown', onKey);
+    const schedule = () => { if (!frame) frame = requestAnimationFrame(update); };
+    update();
+    const observer = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(schedule) : null;
+    if (triggerRef.current) observer?.observe(triggerRef.current);
+    if (menuRef.current) observer?.observe(menuRef.current);
+    window.addEventListener('resize', schedule);
+    window.addEventListener('scroll', schedule, true);
+    window.visualViewport?.addEventListener('resize', schedule);
+    window.visualViewport?.addEventListener('scroll', schedule);
+    document.fonts?.addEventListener('loadingdone', schedule);
     return () => {
-      document.removeEventListener('mousedown', onDown);
-      document.removeEventListener('keydown', onKey);
+      cancelAnimationFrame(frame); observer?.disconnect();
+      window.removeEventListener('resize', schedule);
+      window.removeEventListener('scroll', schedule, true);
+      window.visualViewport?.removeEventListener('resize', schedule);
+      window.visualViewport?.removeEventListener('scroll', schedule);
+      document.fonts?.removeEventListener('loadingdone', schedule);
     };
-  }, [close, open]);
-  return ref;
+  }, [align, menuRef, open, triggerRef]);
+  return position;
 }
 
-/** Item de menu da barra: ícone opcional e estilo próprio (ex.: cada fonte na própria fonte). */
-export type ToolbarMenuItem = Omit<ToolbarItem, 'icon'> & { icon?: Icon; style?: CSSProperties };
+function normalizedLabel(value: string) {
+  return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase();
+}
 
 /**
- * Menu suspenso da barra (Estilo, Fonte, Tamanho, Alinhar, "⋯").
- * Não tira a seleção do editor (mousedown sem foco). Pelo teclado: Enter/Espaço/↓ abre,
- * ↑ ↓ Home End navegam, Enter escolhe, Esc fecha e volta ao botão.
+ * A abertura por mouse preserva o foco no editor. Pelo teclado, o foco entra no menu.
+ * Menus usam portal, acompanham rolagem e fecham ao pressionar Escape ou tocar fora.
  */
 export function ToolbarDropdown({
-  label,
-  triggerIcon: TriggerIcon,
-  triggerText,
-  triggerStyle,
-  triggerClassName,
-  hideChevron = false,
-  items,
-  neutral,
-  align = 'left',
-  footer,
-  minWidth = 'min-w-[200px]',
-  compact = false,
-  selectable = false,
-  onOpen,
+  label, triggerIcon: TriggerIcon, triggerText, triggerStyle, triggerClassName,
+  hideChevron = false, items, neutral, align = 'left', footer,
+  minWidth = 'min-w-[200px]', compact = false, selectable = false, onOpen, disabled = false,
 }: {
-  label: string;
-  triggerIcon?: Icon;
-  triggerText?: string;
-  triggerStyle?: CSSProperties;
-  /** Moldura extra do botão (ex.: borda de campo nos seletores de fonte e tamanho). */
-  triggerClassName?: string;
-  hideChevron?: boolean;
-  items: ToolbarMenuItem[];
-  neutral: boolean;
-  align?: 'left' | 'right';
-  footer?: ReactNode;
-  minWidth?: string;
-  /** h-8, para a barra de Escrita. */
-  compact?: boolean;
-  /** Escolha única: o item ativo é a opção marcada (menuitemradio). */
-  selectable?: boolean;
-  /** Ao abrir (ex.: carregar as fontes da lista). */
-  onOpen?: () => void;
+  label: string; triggerIcon?: Icon; triggerText?: string; triggerStyle?: CSSProperties;
+  triggerClassName?: string; hideChevron?: boolean; items: ToolbarMenuItem[];
+  neutral: boolean; align?: 'left' | 'right'; footer?: ReactNode; minWidth?: string;
+  compact?: boolean; selectable?: boolean; onOpen?: () => void;
+  /** Também fecha o menu quando o seu grupo sai da barra. */
+  disabled?: boolean;
 }) {
   const [open, setOpen] = useState(false);
-  const [activeIndex, setActiveIndex] = useState(-1);
+  const [activeId, setActiveId] = useState<string | null>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
-  const itemRefs = useRef<(HTMLButtonElement | null)[]>([]);
-  const close = useCallback(() => setOpen(false), []);
-  const ref = useOutsideClose(open, close);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const itemRefs = useRef(new Map<string, HTMLButtonElement>());
+  const keyboardOpenRef = useRef(false);
+  const searchRef = useRef({ text: '', at: 0 });
+  const menuId = useId();
+  const triggerId = useId();
+  const close = useCallback(() => { setOpen(false); setActiveId(null); }, []);
+  const closeAndReturn = useCallback(() => {
+    close(); triggerRef.current?.focus({ preventScroll: true });
+  }, [close]);
+  const position = useMenuPosition(open, triggerRef, menuRef, align, close);
+  const activeIndex = items.findIndex(item => item.id === activeId);
 
   const enabledIndex = (from: number, step: 1 | -1) => {
-    for (let offset = 0; offset < items.length; offset += 1) {
-      const index = (from + step * offset + items.length * 2) % items.length;
-      if (!items[index]?.disabled) return index;
+    const length = items.length;
+    for (let offset = 0; offset < length; offset += 1) {
+      const index = ((from + step * offset) % length + length) % length;
+      if (!items[index].disabled) return index;
     }
     return -1;
   };
-
-  // Só move o foco para a lista quando ela foi aberta pelo teclado (o mouse deixa o cursor no texto).
-  useEffect(() => {
-    if (!open || activeIndex < 0) return;
-    itemRefs.current[activeIndex]?.focus({ preventScroll: false });
-  }, [activeIndex, open]);
-
-  const openWithKeyboard = (preferred: 'selected' | 'first' | 'last') => {
-    const selected = items.findIndex(item => item.active && !item.disabled);
-    onOpen?.();
+  const activate = (index: number) => setActiveId(index >= 0 ? items[index].id : null);
+  const announceOpen = () => document.dispatchEvent(new CustomEvent(DROPDOWN_OPEN_EVENT, { detail: menuId }));
+  const openMenu = (keyboard: boolean, last = false) => {
+    if (disabled) return;
+    if (!open) { announceOpen(); onOpen?.(); }
+    keyboardOpenRef.current = keyboard;
     setOpen(true);
-    setActiveIndex(
-      preferred === 'last'
-        ? enabledIndex(items.length - 1, -1)
-        : preferred === 'selected' && selected >= 0
-          ? selected
-          : enabledIndex(0, 1),
-    );
+    // Enter/Espaço/↓ iniciam na primeira opção; ↑ inicia na última.
+    activate(keyboard ? enabledIndex(last ? items.length - 1 : 0, last ? -1 : 1) : -1);
   };
 
-  const closeAndReturn = () => {
-    setOpen(false);
-    setActiveIndex(-1);
-    triggerRef.current?.focus();
-  };
+  useEffect(() => { if (disabled) close(); }, [close, disabled]);
+  useEffect(() => {
+    if (!open) return;
+    const onOutside = (event: PointerEvent) => {
+      const target = event.target as Node | null;
+      if (target && !triggerRef.current?.contains(target) && !menuRef.current?.contains(target)) close();
+    };
+    const onFocus = (event: FocusEvent) => {
+      if (!keyboardOpenRef.current) return;
+      const target = event.target as Node | null;
+      if (target && !triggerRef.current?.contains(target) && !menuRef.current?.contains(target)) close();
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape' || event.isComposing) return;
+      // Captura antes do handler de Escape da tela expandida do editor.
+      event.preventDefault(); event.stopPropagation(); closeAndReturn();
+    };
+    const onOtherMenu = (event: Event) => {
+      if ((event as CustomEvent<string>).detail !== menuId) close();
+    };
+    document.addEventListener('pointerdown', onOutside, true);
+    document.addEventListener('focusin', onFocus);
+    document.addEventListener('keydown', onKey, true);
+    document.addEventListener(DROPDOWN_OPEN_EVENT, onOtherMenu);
+    return () => {
+      document.removeEventListener('pointerdown', onOutside, true);
+      document.removeEventListener('focusin', onFocus);
+      document.removeEventListener('keydown', onKey, true);
+      document.removeEventListener(DROPDOWN_OPEN_EVENT, onOtherMenu);
+    };
+  }, [close, closeAndReturn, menuId, open]);
+
+  useEffect(() => {
+    if (!open || !keyboardOpenRef.current || !position) return;
+    if (activeId && itemRefs.current.get(activeId) && !items.find(item => item.id === activeId)?.disabled) {
+      itemRefs.current.get(activeId)?.focus({ preventScroll: false });
+      return;
+    }
+    const first = items.find(item => !item.disabled);
+    if (first) setActiveId(first.id); else menuRef.current?.focus({ preventScroll: true });
+  }, [activeId, items, open, position]);
 
   const handleTriggerKeyDown = (event: ReactKeyboardEvent<HTMLButtonElement>) => {
+    if (event.nativeEvent.isComposing) return;
     if (event.key === 'ArrowDown' || event.key === 'Enter' || event.key === ' ') {
-      event.preventDefault();
-      openWithKeyboard('selected');
+      event.preventDefault(); event.stopPropagation(); openMenu(true);
     } else if (event.key === 'ArrowUp') {
-      event.preventDefault();
-      openWithKeyboard('last');
+      event.preventDefault(); event.stopPropagation(); openMenu(true, true);
     }
   };
-
   const handleMenuKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
-    const current = activeIndex < 0 ? -1 : activeIndex;
+    if (event.nativeEvent.isComposing) return;
+    const target = event.target as HTMLElement;
+    // Campos eventualmente fornecidos em footer mantêm sua própria navegação.
+    if (target.closest('input, textarea, select, [contenteditable="true"]')) return;
+    const go = (index: number) => {
+      event.preventDefault(); event.stopPropagation(); keyboardOpenRef.current = true; activate(index);
+    };
     switch (event.key) {
-      case 'ArrowDown':
-        event.preventDefault();
-        setActiveIndex(enabledIndex(current + 1, 1));
-        return;
-      case 'ArrowUp':
-        event.preventDefault();
-        setActiveIndex(enabledIndex(current < 0 ? items.length - 1 : current - 1, -1));
-        return;
-      case 'Home':
-        event.preventDefault();
-        setActiveIndex(enabledIndex(0, 1));
-        return;
-      case 'End':
-        event.preventDefault();
-        setActiveIndex(enabledIndex(items.length - 1, -1));
-        return;
-      case 'Escape':
-        event.preventDefault();
-        event.stopPropagation();
-        closeAndReturn();
-        return;
+      case 'ArrowDown': go(enabledIndex(activeIndex + 1, 1)); return;
+      case 'ArrowUp': go(enabledIndex(activeIndex < 0 ? items.length - 1 : activeIndex - 1, -1)); return;
+      case 'Home': go(enabledIndex(0, 1)); return;
+      case 'End': go(enabledIndex(items.length - 1, -1)); return;
       case 'Tab':
-        setOpen(false);
-        setActiveIndex(-1);
+        // Reposiciona o ponto de partida antes de o navegador processar Tab/Shift+Tab.
+        triggerRef.current?.focus({ preventScroll: true }); close(); return;
+      case 'Enter':
+      case ' ':
+        if (activeId) {
+          event.preventDefault(); event.stopPropagation(); itemRefs.current.get(activeId)?.click();
+        }
         return;
       default:
+        if (event.key.length !== 1 || event.ctrlKey || event.metaKey || event.altKey) return;
+        const now = Date.now();
+        const typed = normalizedLabel(event.key);
+        const prior = now - searchRef.current.at < 700 ? searchRef.current.text : '';
+        const repeated = prior && [...prior].every(character => character === typed);
+        const search = repeated ? typed : prior + typed;
+        searchRef.current = { text: search, at: now };
+        for (let offset = 1; offset <= items.length; offset += 1) {
+          const index = (Math.max(-1, activeIndex) + offset) % items.length;
+          if (!items[index].disabled && normalizedLabel(items[index].label).startsWith(search)) {
+            go(index); return;
+          }
+        }
     }
   };
 
-  return (
-    <div ref={ref} className="relative shrink-0">
-      <button
-        ref={triggerRef}
-        type="button"
-        onMouseDown={event => event.preventDefault()}
-        onClick={() => {
-          setActiveIndex(-1);
-          if (!open) onOpen?.();
-          setOpen(value => !value);
-        }}
-        onKeyDown={handleTriggerKeyDown}
-        aria-label={label}
-        title={label}
-        aria-haspopup="menu"
-        aria-expanded={open}
-        className={cn(
-          'flex items-center gap-1 rounded-[var(--radius-input)] px-2 text-xs font-medium transition focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
-          compact ? 'h-8' : 'h-9',
-          controlClass(open, neutral),
-          triggerClassName,
-        )}
-      >
-        {TriggerIcon ? <TriggerIcon className="h-4 w-4" /> : null}
-        {triggerText ? <span className="max-w-[7rem] truncate" style={triggerStyle}>{triggerText}</span> : null}
-        {hideChevron ? null : <ChevronDown className={cn('h-3.5 w-3.5 opacity-70 transition-transform', open && 'rotate-180')} />}
-      </button>
-      {open ? (
-        <div
-          role="menu"
-          aria-label={label}
-          onKeyDown={handleMenuKeyDown}
-          className={cn(
-            // Acima do editor e da tela cheia do editor (z-[100]); igual às listas flutuantes do app.
-            'absolute z-[130] max-h-[70vh] overflow-y-auto rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-elevated)] p-2 shadow-[var(--shadow-dropdown)] md:rounded-[var(--radius-card)]',
-            compact ? 'top-10' : 'top-11',
-            align === 'right' ? 'right-0' : 'left-0',
-            minWidth,
-          )}
-        >
-          {items.map((item, index) => {
-            const ItemIcon = item.icon;
-            return (
-              <button
-                key={item.id}
-                ref={node => {
-                  itemRefs.current[index] = node;
-                }}
-                role={selectable ? 'menuitemradio' : 'menuitem'}
-                aria-checked={selectable ? Boolean(item.active) : undefined}
-                type="button"
-                tabIndex={index === activeIndex ? 0 : -1}
-                disabled={item.disabled}
-                title={item.shortcut ? `${item.label} (${item.shortcut})` : undefined}
-                onMouseDown={event => event.preventDefault()}
-                onClick={() => {
-                  item.run();
-                  setOpen(false);
-                  setActiveIndex(-1);
-                }}
-                className={cn(
-                  'flex w-full items-center gap-3 whitespace-nowrap rounded-[var(--radius-input)] px-3 py-2 text-left text-sm transition focus-visible:outline-none focus-visible:bg-[var(--bg-hover)] disabled:opacity-40',
-                  item.active ? 'bg-[var(--bg-hover)] font-semibold text-[var(--text-primary)]' : 'text-[var(--text-primary)] hover:bg-[var(--bg-hover)]',
-                )}
-              >
-                {ItemIcon ? <ItemIcon className="h-4 w-4 shrink-0" /> : null}
-                <span className="flex-1" style={item.style}>{item.label}</span>
-                {item.shortcut ? <span className="text-xs font-normal text-[var(--text-tertiary)]">{item.shortcut}</span> : null}
-                {item.active ? <Check className="h-4 w-4 shrink-0" aria-hidden /> : null}
-              </button>
-            );
-          })}
-          {footer}
-        </div>
-      ) : null}
-    </div>
-  );
+  const menu = open && typeof document !== 'undefined' ? createPortal(
+    <div ref={menuRef} id={menuId} role="menu" aria-labelledby={triggerId} tabIndex={-1}
+      onKeyDown={handleMenuKeyDown} data-editor-toolbar-menu="true"
+      style={{
+        position: 'fixed', visibility: position ? 'visible' : 'hidden',
+        left: position?.left ?? 0, top: position?.top ?? 0,
+        width: position?.width, minWidth: position ? 0 : undefined,
+        maxWidth: 'calc(100vw - 16px)', maxHeight: position?.maxHeight ?? '70dvh',
+      }}
+      className={cn('z-[240] overflow-auto rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-elevated)] p-2 shadow-[var(--shadow-dropdown)] outline-none md:rounded-[var(--radius-card)]', minWidth)}>
+      {items.map(item => {
+        const ItemIcon = item.icon;
+        const checkedItem = selectable || item.kind === 'toggle';
+        return <button key={item.id} ref={node => {
+          if (node) itemRefs.current.set(item.id, node); else itemRefs.current.delete(item.id);
+        }} type="button" role={selectable ? 'menuitemradio' : item.kind === 'toggle' ? 'menuitemcheckbox' : 'menuitem'}
+          aria-checked={checkedItem ? !!item.active : undefined}
+          tabIndex={item.id === activeId ? 0 : -1} disabled={item.disabled}
+          title={item.shortcut ? `${item.label} (${item.shortcut})` : undefined}
+          onMouseDown={event => event.preventDefault()}
+          onFocus={() => { if (keyboardOpenRef.current) setActiveId(item.id); }}
+          onClick={() => {
+            if (item.disabled) return;
+            const restore = keyboardOpenRef.current && menuRef.current?.contains(document.activeElement);
+            close();
+            if (restore) triggerRef.current?.focus({ preventScroll: true });
+            item.run();
+          }}
+          className={cn('flex w-full items-center gap-3 rounded-[var(--radius-input)] px-3 py-2 text-left text-sm text-[var(--text-primary)] transition focus-visible:outline-none focus-visible:bg-[var(--bg-hover)] disabled:opacity-40',
+            item.active ? 'bg-[var(--bg-hover)] font-semibold' : 'hover:bg-[var(--bg-hover)]')}>
+          {ItemIcon ? <ItemIcon className="h-4 w-4 shrink-0" aria-hidden="true" /> : null}
+          <span className="min-w-0 flex-1 break-words" style={item.style}>{item.label}</span>
+          {item.shortcut ? <span className="shrink-0 text-xs font-normal text-[var(--text-secondary)]">{item.shortcut}</span> : null}
+          {item.active ? <Check className="h-4 w-4 shrink-0" aria-hidden="true" /> : null}
+        </button>;
+      })}
+      {!items.length && !footer ? <p className="px-3 py-2 text-sm text-[var(--text-secondary)]">Nenhuma opção disponível</p> : null}
+      {footer}
+    </div>, document.body,
+  ) : null;
+
+  return <div className="relative shrink-0">
+    <button ref={triggerRef} id={triggerId} type="button" disabled={disabled}
+      onMouseDown={event => event.preventDefault()}
+      onClick={event => {
+        if (open) { close(); return; }
+        openMenu(event.detail === 0);
+      }} onKeyDown={handleTriggerKeyDown}
+      aria-label={label} title={label} aria-haspopup="menu" aria-expanded={open}
+      aria-controls={open ? menuId : undefined}
+      className={cn('flex items-center gap-1 rounded-[var(--radius-input)] px-2 text-xs font-medium transition focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] disabled:opacity-40',
+        compact ? 'h-8' : 'h-9', controlClass(open, neutral), triggerClassName)}>
+      {TriggerIcon ? <TriggerIcon className="h-4 w-4" aria-hidden="true" /> : null}
+      {triggerText ? <span className="max-w-[7rem] truncate" style={triggerStyle}>{triggerText}</span> : null}
+      {hideChevron ? null : <ChevronDown aria-hidden="true" className={cn('h-3.5 w-3.5 opacity-70 transition-transform', open && 'rotate-180')} />}
+    </button>
+    {menu}
+  </div>;
 }
 
 function setBlockStyle(editor: Editor, style: 'paragraph' | 'h1' | 'h2' | 'quote') {
+  if (editor.isDestroyed || !editor.isEditable) return;
+  let chain = editor.chain().focus();
   const inQuote = editor.isActive('blockquote');
   if (style === 'quote') {
-    if (!inQuote) editor.chain().focus().setParagraph().setBlockquote().run();
-    return;
+    chain = chain.setParagraph();
+    if (!inQuote) chain = chain.setBlockquote();
+    chain.run(); return;
   }
-  let chain = editor.chain().focus();
   if (inQuote) chain = chain.unsetBlockquote();
   if (style === 'paragraph') chain.setParagraph().run();
   else chain.setHeading({ level: style === 'h1' ? 1 : 2 }).run();
@@ -365,7 +402,6 @@ export interface EditorToolbarProps {
   editor: Editor;
   mode: 'full' | 'writing';
   toolbarStart?: ReactNode;
-  /** Na ponta direita, antes de "Mais"/"⋯" (ex.: botão "Notas"). */
   toolbarEnd?: ReactNode;
   typographySlot?: ReactNode;
   onComment?: () => void;
@@ -373,255 +409,173 @@ export interface EditorToolbarProps {
   onLink: () => void;
 }
 
-/**
- * Barra no estilo Google Docs:
- * blocos | desfazer/refazer | estilo | fonte e tamanho | B I U, cor, destaque | link, comentário | alinhar | listas e recuo | limpar | Mais.
- * Modo escrita (roteiro no computador): tudo à vista, em grupos, sem "Mais" (ver writingFormatBar.ts).
- */
-export function EditorToolbar({ editor, mode, toolbarStart, toolbarEnd, typographySlot, onComment, onFind, onLink }: EditorToolbarProps) {
-  const neutral = mode === 'writing';
-  const state = useEditorState({
-    editor,
-    selector: ({ editor: e }) => ({
-      bold: e.isActive('bold'),
-      italic: e.isActive('italic'),
-      underline: e.isActive('underline'),
-      strike: e.isActive('strike'),
-      link: e.isActive('link'),
-      h1: e.isActive('heading', { level: 1 }),
-      h2: e.isActive('heading', { level: 2 }),
-      quote: e.isActive('blockquote'),
-      bullet: e.isActive('bulletList'),
-      ordered: e.isActive('orderedList'),
-      align: (['center', 'right', 'justify'] as const).find(value => e.isActive({ textAlign: value })) ?? 'left',
-      canUndo: e.can().undo(),
-      canRedo: e.can().redo(),
-      canSink: e.can().sinkListItem('listItem'),
-      canLift: e.can().liftListItem('listItem'),
-      hasSelection: !e.state.selection.empty,
-      textColor: (e.getAttributes('textStyle').color as string | undefined) ?? null,
-    }),
-  });
-
+export function EditorToolbar({
+  editor, mode, toolbarStart, toolbarEnd, typographySlot, onComment, onFind, onLink,
+}: EditorToolbarProps) {
+  const state = useEditorState({ editor, selector: ({ editor: current }) => ({
+    editable: current.isEditable && !current.isDestroyed,
+    bold: current.isActive('bold'), italic: current.isActive('italic'),
+    underline: current.isActive('underline'), strike: current.isActive('strike'), link: current.isActive('link'),
+    h1: current.isActive('heading', { level: 1 }), h2: current.isActive('heading', { level: 2 }),
+    quote: current.isActive('blockquote'), bullet: current.isActive('bulletList'), ordered: current.isActive('orderedList'),
+    align: (['center', 'right', 'justify'] as const).find(value => current.isActive({ textAlign: value })) ?? ('left' as const),
+    canUndo: current.can().undo(), canRedo: current.can().redo(),
+    canSink: current.can().sinkListItem('listItem'), canLift: current.can().liftListItem('listItem'),
+    hasSelection: !current.state.selection.empty && !!current.state.doc.textBetween(current.state.selection.from, current.state.selection.to, ' ').trim(),
+    // Mantém os indicadores de cor reativos mesmo se o menu de cores depender do render do pai.
+    textColor: (current.getAttributes('textStyle').color as string | undefined) ?? null,
+    highlightColor: (current.getAttributes('highlight').color as string | undefined) ?? null,
+  }) });
   const chain = () => editor.chain().focus();
-  const styleLabel = state.h1 ? 'Título 1' : state.h2 ? 'Título 2' : state.quote ? 'Citação' : 'Texto normal';
+  const selectedStyle = state.quote ? 'quote' : state.h1 ? 'h1' : state.h2 ? 'h2' : 'paragraph';
+  const styleLabel = { paragraph: 'Texto normal', h1: 'Título 1', h2: 'Título 2', quote: 'Citação' }[selectedStyle];
   const alignIcon = { left: AlignLeft, center: AlignCenter, right: AlignRight, justify: AlignJustify }[state.align];
-
+  const disabled = !state.editable;
   const catalog: Record<string, ToolbarItem> = {
-    undo: { id: 'undo', label: 'Desfazer', icon: Undo, shortcut: 'Ctrl+Z', run: () => chain().undo().run(), disabled: !state.canUndo },
-    redo: { id: 'redo', label: 'Refazer', icon: Redo, shortcut: 'Ctrl+Y', run: () => chain().redo().run(), disabled: !state.canRedo },
-    paragraph: { id: 'paragraph', label: 'Texto normal', icon: Pilcrow, shortcut: 'Ctrl+Alt+0', run: () => setBlockStyle(editor, 'paragraph'), active: styleLabel === 'Texto normal' },
-    h1: { id: 'h1', label: 'Título 1', icon: Heading1, shortcut: 'Ctrl+Alt+1', run: () => setBlockStyle(editor, 'h1'), active: state.h1 },
-    h2: { id: 'h2', label: 'Título 2', icon: Heading2, shortcut: 'Ctrl+Alt+2', run: () => setBlockStyle(editor, 'h2'), active: state.h2 },
-    quote: { id: 'quote', label: 'Citação', icon: Quote, shortcut: 'Ctrl+Shift+B', run: () => setBlockStyle(editor, 'quote'), active: state.quote },
-    bold: { id: 'bold', label: 'Negrito', icon: Bold, shortcut: 'Ctrl+B', run: () => chain().toggleBold().run(), active: state.bold },
-    italic: { id: 'italic', label: 'Itálico', icon: Italic, shortcut: 'Ctrl+I', run: () => chain().toggleItalic().run(), active: state.italic },
-    underline: { id: 'underline', label: 'Sublinhado', icon: UnderlineIcon, shortcut: 'Ctrl+U', run: () => chain().toggleUnderline().run(), active: state.underline },
-    strike: { id: 'strike', label: 'Tachado', icon: Strikethrough, shortcut: 'Ctrl+Shift+S', run: () => chain().toggleStrike().run(), active: state.strike },
-    link: { id: 'link', label: 'Link', icon: LinkIcon, shortcut: 'Ctrl+K', run: onLink, active: state.link },
-    comment: {
-      id: 'comment',
-      label: state.hasSelection ? 'Comentar' : 'Comentar (selecione um trecho)',
-      icon: MessageSquarePlus,
-      shortcut: 'Ctrl+Alt+M',
-      run: () => onComment?.(),
-      disabled: !state.hasSelection,
-    },
-    'align-left': { id: 'align-left', label: 'Alinhar à esquerda', icon: AlignLeft, shortcut: 'Ctrl+Shift+L', run: () => chain().setTextAlign('left').run(), active: state.align === 'left' },
-    'align-center': { id: 'align-center', label: 'Centralizar', icon: AlignCenter, shortcut: 'Ctrl+Shift+E', run: () => chain().setTextAlign('center').run(), active: state.align === 'center' },
-    'align-right': { id: 'align-right', label: 'Alinhar à direita', icon: AlignRight, shortcut: 'Ctrl+Shift+R', run: () => chain().setTextAlign('right').run(), active: state.align === 'right' },
-    'align-justify': { id: 'align-justify', label: 'Justificar', icon: AlignJustify, shortcut: 'Ctrl+Shift+J', run: () => chain().setTextAlign('justify').run(), active: state.align === 'justify' },
-    list: { id: 'list', label: 'Lista', icon: List, shortcut: 'Ctrl+Shift+8', run: () => chain().toggleBulletList().run(), active: state.bullet },
-    ordered: { id: 'ordered', label: 'Lista numerada', icon: ListOrdered, shortcut: 'Ctrl+Shift+7', run: () => chain().toggleOrderedList().run(), active: state.ordered },
-    indent: { id: 'indent', label: 'Aumentar recuo', icon: IndentIncrease, shortcut: 'Tab', run: () => chain().sinkListItem('listItem').run(), disabled: !state.canSink },
-    outdent: { id: 'outdent', label: 'Diminuir recuo', icon: IndentDecrease, shortcut: 'Shift+Tab', run: () => chain().liftListItem('listItem').run(), disabled: !state.canLift },
-    rule: { id: 'rule', label: 'Linha divisória', icon: Minus, run: () => chain().setHorizontalRule().run() },
-    clear: { id: 'clear', label: 'Limpar formatação', icon: RemoveFormatting, shortcut: 'Ctrl+\\', run: () => clearFormatting(editor) },
-    find: { id: 'find', label: 'Buscar e substituir', icon: Search, shortcut: 'Ctrl+F', run: () => onFind('find') },
+    undo: { id: 'undo', label: 'Desfazer', icon: Undo, shortcut: 'Ctrl+Z', run: () => chain().undo().run(), disabled: disabled || !state.canUndo },
+    redo: { id: 'redo', label: 'Refazer', icon: Redo, shortcut: 'Ctrl+Shift+Z', run: () => chain().redo().run(), disabled: disabled || !state.canRedo },
+    paragraph: { id: 'paragraph', label: 'Texto normal', icon: Pilcrow, shortcut: 'Ctrl+Alt+0', run: () => setBlockStyle(editor, 'paragraph'), active: selectedStyle === 'paragraph', disabled },
+    h1: { id: 'h1', label: 'Título 1', icon: Heading1, shortcut: 'Ctrl+Alt+1', run: () => setBlockStyle(editor, 'h1'), active: selectedStyle === 'h1', disabled },
+    h2: { id: 'h2', label: 'Título 2', icon: Heading2, shortcut: 'Ctrl+Alt+2', run: () => setBlockStyle(editor, 'h2'), active: selectedStyle === 'h2', disabled },
+    quote: { id: 'quote', label: 'Citação', icon: Quote, shortcut: 'Ctrl+Shift+B', run: () => setBlockStyle(editor, 'quote'), active: selectedStyle === 'quote', disabled },
+    bold: { id: 'bold', label: 'Negrito', icon: Bold, shortcut: 'Ctrl+B', run: () => chain().toggleBold().run(), active: state.bold, kind: 'toggle', disabled },
+    italic: { id: 'italic', label: 'Itálico', icon: Italic, shortcut: 'Ctrl+I', run: () => chain().toggleItalic().run(), active: state.italic, kind: 'toggle', disabled },
+    underline: { id: 'underline', label: 'Sublinhado', icon: UnderlineIcon, shortcut: 'Ctrl+U', run: () => chain().toggleUnderline().run(), active: state.underline, kind: 'toggle', disabled },
+    strike: { id: 'strike', label: 'Tachado', icon: Strikethrough, shortcut: 'Ctrl+Shift+S', run: () => chain().toggleStrike().run(), active: state.strike, kind: 'toggle', disabled },
+    link: { id: 'link', label: 'Link', icon: LinkIcon, shortcut: 'Ctrl+K', run: onLink, active: state.link, kind: 'action', disabled },
+    comment: { id: 'comment', label: 'Comentar', icon: MessageSquarePlus, shortcut: 'Ctrl+Alt+M', run: () => onComment?.(), disabled: !onComment || !state.hasSelection },
+    'align-left': { id: 'align-left', label: 'Alinhar à esquerda', icon: AlignLeft, shortcut: 'Ctrl+Shift+L', run: () => chain().setTextAlign('left').run(), active: state.align === 'left', disabled },
+    'align-center': { id: 'align-center', label: 'Centralizar', icon: AlignCenter, shortcut: 'Ctrl+Shift+E', run: () => chain().setTextAlign('center').run(), active: state.align === 'center', disabled },
+    'align-right': { id: 'align-right', label: 'Alinhar à direita', icon: AlignRight, shortcut: 'Ctrl+Shift+R', run: () => chain().setTextAlign('right').run(), active: state.align === 'right', disabled },
+    'align-justify': { id: 'align-justify', label: 'Justificar', icon: AlignJustify, shortcut: 'Ctrl+Shift+J', run: () => chain().setTextAlign('justify').run(), active: state.align === 'justify', disabled },
+    list: { id: 'list', label: 'Lista', icon: List, shortcut: 'Ctrl+Shift+8', run: () => chain().toggleBulletList().run(), active: state.bullet, kind: 'toggle', disabled },
+    ordered: { id: 'ordered', label: 'Lista numerada', icon: ListOrdered, shortcut: 'Ctrl+Shift+7', run: () => chain().toggleOrderedList().run(), active: state.ordered, kind: 'toggle', disabled },
+    indent: { id: 'indent', label: 'Aumentar recuo da lista', icon: IndentIncrease, shortcut: 'Tab', run: () => chain().sinkListItem('listItem').run(), disabled: disabled || !state.canSink },
+    outdent: { id: 'outdent', label: 'Diminuir recuo da lista', icon: IndentDecrease, shortcut: 'Shift+Tab', run: () => chain().liftListItem('listItem').run(), disabled: disabled || !state.canLift },
+    rule: { id: 'rule', label: 'Linha divisória', icon: Minus, run: () => chain().setHorizontalRule().run(), disabled },
+    clear: { id: 'clear', label: 'Limpar formatação', icon: RemoveFormatting, shortcut: 'Ctrl+\\', run: () => clearFormatting(editor), disabled },
+    find: { id: 'find', label: 'Buscar no texto', icon: Search, shortcut: 'Ctrl+F', run: () => onFind('find') },
   };
   if (!onComment) delete catalog.comment;
-
-  const pick = (ids: readonly string[]) => ids.flatMap(id => (catalog[id] ? [catalog[id]] : []));
+  const pick = (ids: readonly string[]) => ids.flatMap(id => catalog[id] ? [catalog[id]] : []);
   const styleItems = pick(['paragraph', 'h1', 'h2', 'quote']);
   const alignItems = pick(['align-left', 'align-center', 'align-right', 'align-justify']);
 
-  if (mode === 'writing') {
-    return (
-      <WritingToolbar
-        editor={editor}
-        pick={pick}
-        styleLabel={styleLabel}
-        styleItems={styleItems}
-        alignIcon={alignIcon}
-        alignItems={alignItems}
-        toolbarStart={toolbarStart}
-        toolbarEnd={toolbarEnd}
-        typographySlot={typographySlot}
-      />
-    );
-  }
+  if (mode === 'writing') return <WritingToolbar editor={editor} pick={pick}
+    styleLabel={styleLabel} styleItems={styleItems} alignIcon={alignIcon} alignItems={alignItems}
+    toolbarStart={toolbarStart} toolbarEnd={toolbarEnd} typographySlot={typographySlot} editable={state.editable} />;
 
-  return (
-    <div className="flex min-w-0 flex-1 flex-wrap items-center gap-0.5">
-      {toolbarStart ? <div className="mr-1 flex shrink-0 items-center gap-1 border-r border-[var(--border-color)] pr-2">{toolbarStart}</div> : null}
-      {pick(['undo', 'redo']).map(item => <IconButton key={item.id} item={item} neutral={false} />)}
-      <Separator />
-      <ToolbarDropdown label="Estilo do parágrafo" triggerText={styleLabel} items={styleItems} neutral={false} />
-      {typographySlot ? (
-        <>
-          <Separator />
-          {typographySlot}
-        </>
-      ) : null}
-      <Separator />
-      {pick(['bold', 'italic', 'underline']).map(item => <IconButton key={item.id} item={item} neutral={false} />)}
-      <EditorColorMenu editor={editor} kind="text" />
-      <EditorColorMenu editor={editor} kind="highlight" />
-      <Separator />
-      {pick(['link', 'comment']).map(item => <IconButton key={item.id} item={item} neutral={false} />)}
-      <Separator />
-      <ToolbarDropdown label="Alinhamento" triggerIcon={alignIcon} items={alignItems} neutral={false} />
-      <Separator />
-      {pick(['list', 'ordered', 'outdent', 'indent']).map(item => <IconButton key={item.id} item={item} neutral={false} />)}
-      <Separator />
-      <IconButton item={catalog.clear} neutral={false} />
-      <div className="ml-auto flex shrink-0 items-center gap-0.5 pl-1">
-        {toolbarEnd}
-        <ToolbarDropdown label="Mais opções" triggerText="Mais" items={pick(['strike', 'rule', 'find'])} neutral={false} align="right" />
-      </div>
+  return <div role="group" aria-label="Formatação do texto" className="flex min-w-0 flex-1 flex-wrap items-center gap-0.5">
+    {toolbarStart ? <div className="mr-1 flex shrink-0 items-center gap-1 border-r border-[var(--border-color)] pr-2">{toolbarStart}</div> : null}
+    {pick(['undo', 'redo']).map(item => <IconButton key={item.id} item={item} neutral={false} />)}
+    <Separator />
+    <ToolbarDropdown label="Estilo do parágrafo" triggerText={styleLabel} items={styleItems} neutral={false} selectable disabled={disabled} />
+    {typographySlot ? <><Separator />{typographySlot}</> : null}
+    <Separator />
+    {pick(['bold', 'italic', 'underline']).map(item => <IconButton key={item.id} item={item} neutral={false} />)}
+    <fieldset disabled={disabled} className="flex min-w-0 items-center gap-0.5 border-0 p-0">
+      <legend className="sr-only">Cor e destaque</legend>
+      <EditorColorMenu editor={editor} kind="text" /><EditorColorMenu editor={editor} kind="highlight" />
+    </fieldset>
+    <Separator />
+    {pick(['link', 'comment']).map(item => <IconButton key={item.id} item={item} neutral={false} />)}
+    <Separator />
+    <ToolbarDropdown label="Alinhamento" triggerIcon={alignIcon} items={alignItems} neutral={false} selectable disabled={disabled} />
+    <Separator />
+    {pick(['list', 'ordered', 'outdent', 'indent']).map(item => <IconButton key={item.id} item={item} neutral={false} />)}
+    <Separator /><IconButton item={catalog.clear} neutral={false} />
+    <div className="ml-auto flex shrink-0 items-center gap-0.5 pl-1">
+      {toolbarEnd}<ToolbarDropdown label="Mais opções" triggerText="Mais" items={pick(['strike', 'rule', 'find'])} neutral={false} align="right" />
     </div>
-  );
+  </div>;
 }
 
-/** Largura reservada para o botão "⋯" quando algum grupo sai da barra. */
-const OVERFLOW_BUTTON_WIDTH = 40;
-/** Folga para os espaços entre os itens e o arredondamento das medidas. */
-const ROW_SLACK = 12;
-
-/**
- * Barra de Escrita: todos os controles à vista, em grupos com divisores finos.
- * Quando falta largura, os últimos grupos (ferramentas, parágrafo, inserir) vão para o "⋯",
- * nessa ordem; desfazer, estilo, fonte, tamanho, B I U, cor e destaque ficam sempre.
- */
+/** Grupos ocultos continuam mensuráveis, sem duplicar os controles nem perder suas larguras. */
 function WritingToolbar({
-  editor,
-  pick,
-  styleLabel,
-  styleItems,
-  alignIcon,
-  alignItems,
-  toolbarStart,
-  toolbarEnd,
-  typographySlot,
+  editor, pick, styleLabel, styleItems, alignIcon, alignItems,
+  toolbarStart, toolbarEnd, typographySlot, editable,
 }: {
-  editor: Editor;
-  pick: (ids: readonly string[]) => ToolbarItem[];
-  styleLabel: string;
-  styleItems: ToolbarItem[];
-  alignIcon: Icon;
-  alignItems: ToolbarItem[];
-  toolbarStart?: ReactNode;
-  toolbarEnd?: ReactNode;
-  typographySlot?: ReactNode;
+  editor: Editor; pick: (ids: readonly string[]) => ToolbarItem[]; styleLabel: string;
+  styleItems: ToolbarItem[]; alignIcon: Icon; alignItems: ToolbarItem[];
+  toolbarStart?: ReactNode; toolbarEnd?: ReactNode; typographySlot?: ReactNode; editable: boolean;
 }) {
   const rowRef = useRef<HTMLDivElement>(null);
   const basicRef = useRef<HTMLDivElement>(null);
   const endSlotRef = useRef<HTMLDivElement>(null);
+  const overflowRef = useRef<HTMLDivElement>(null);
   const groupRefs = useRef<Partial<Record<WritingBarGroupId, HTMLDivElement | null>>>({});
-  const widthsRef = useRef<Partial<Record<WritingBarGroupId, number>>>({});
   const [visibleCount, setVisibleCount] = useState<number>(WRITING_COLLAPSIBLE_GROUPS.length);
-
   const measure = useCallback(() => {
     const row = rowRef.current;
-    if (!row) return;
-    for (const id of WRITING_COLLAPSIBLE_GROUPS) {
-      const node = groupRefs.current[id];
-      if (node) widthsRef.current[id] = node.offsetWidth;
-    }
-    const fixed = (basicRef.current?.offsetWidth ?? 0) + (endSlotRef.current?.offsetWidth ?? 0) + ROW_SLACK;
+    if (!row || row.clientWidth <= 0) return;
+    const fixed = unwrappedControlsWidth(basicRef.current)
+      + (endSlotRef.current?.getBoundingClientRect().width ?? 0) + ROW_SLACK;
     const next = fitWritingGroups({
-      available: row.clientWidth,
-      fixed,
-      widths: WRITING_COLLAPSIBLE_GROUPS.map(id => widthsRef.current[id] ?? 0),
-      overflowWidth: OVERFLOW_BUTTON_WIDTH,
+      available: row.clientWidth, fixed,
+      widths: WRITING_COLLAPSIBLE_GROUPS.map(id => groupRefs.current[id]?.getBoundingClientRect().width ?? 0),
+      overflowWidth: overflowRef.current?.getBoundingClientRect().width || OVERFLOW_BUTTON_WIDTH,
     });
-    setVisibleCount(current => (current === next ? current : next));
+    const count = Number.isFinite(next) ? Math.max(0, Math.min(WRITING_COLLAPSIBLE_GROUPS.length, Math.trunc(next))) : 0;
+    setVisibleCount(current => current === count ? current : count);
   }, []);
 
-  useLayoutEffect(() => {
-    measure();
-  });
-
+  useClientLayoutEffect(() => { measure(); }, [measure]);
   useEffect(() => {
-    const row = rowRef.current;
-    if (!row || typeof ResizeObserver === 'undefined') return undefined;
-    const observer = new ResizeObserver(() => measure());
-    observer.observe(row);
-    if (basicRef.current) observer.observe(basicRef.current);
-    return () => observer.disconnect();
+    let frame = 0;
+    const schedule = () => { if (!frame) frame = requestAnimationFrame(() => { frame = 0; measure(); }); };
+    const observer = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(schedule) : null;
+    for (const node of [rowRef.current, basicRef.current, endSlotRef.current, overflowRef.current,
+      ...Array.from(basicRef.current?.children ?? []),
+      ...WRITING_COLLAPSIBLE_GROUPS.map(id => groupRefs.current[id])]) {
+      if (node) observer?.observe(node);
+    }
+    window.addEventListener('resize', schedule);
+    document.fonts?.addEventListener('loadingdone', schedule);
+    schedule();
+    return () => {
+      cancelAnimationFrame(frame); observer?.disconnect();
+      window.removeEventListener('resize', schedule);
+      document.fonts?.removeEventListener('loadingdone', schedule);
+    };
   }, [measure]);
 
   const shown = new Set(WRITING_COLLAPSIBLE_GROUPS.slice(0, visibleCount));
   const hidden = WRITING_COLLAPSIBLE_GROUPS.slice(visibleCount);
   const overflowItems = pick(writingOverflowItemIds(hidden));
-  const groupRef = (id: WritingBarGroupId) => (node: HTMLDivElement | null) => {
-    groupRefs.current[id] = node;
-  };
+  const groupClass = (visible: boolean) => cn('flex w-max shrink-0 items-center gap-0.5', !visible && 'pointer-events-none invisible absolute left-0 top-0');
+  const renderIcons = (ids: readonly string[]) => pick(ids).map(item => <IconButton key={item.id} item={item} neutral compact />);
 
-  return (
-    <div ref={rowRef} className="flex min-w-0 flex-1 flex-wrap items-center gap-0.5">
-      <div ref={basicRef} className="flex shrink-0 flex-wrap items-center gap-0.5">
+  return <div ref={rowRef} role="group" aria-label="Formatação do texto" className="relative flex min-w-0 flex-1 flex-wrap items-center gap-0.5 overflow-visible">
+      {/* Os menus de cores podem ser locais: nenhum ancestral desta barra deve recortá-los. */}
+      <div ref={basicRef} className="flex min-w-0 flex-wrap items-center gap-0.5 overflow-visible [&>*]:shrink-0">
         {toolbarStart ? <div className="mr-1 flex shrink-0 items-center gap-1 border-r border-[var(--border-color)] pr-2">{toolbarStart}</div> : null}
-        {pick(['undo', 'redo']).map(item => <IconButton key={item.id} item={item} neutral compact />)}
-        <Separator />
-        <ToolbarDropdown label="Estilo do parágrafo" triggerText={styleLabel} items={styleItems} neutral compact selectable />
-        {typographySlot ? (
-          <>
-            <Separator />
-            {typographySlot}
-          </>
-        ) : null}
-        <Separator />
-        {pick(['bold', 'italic', 'underline', 'strike']).map(item => <IconButton key={item.id} item={item} neutral compact />)}
-        <EditorColorMenu editor={editor} kind="text" size="sm" neutral />
-        <EditorColorMenu editor={editor} kind="highlight" size="sm" neutral />
+        {renderIcons(['undo', 'redo'])}<Separator />
+        <ToolbarDropdown label="Estilo do parágrafo" triggerText={styleLabel} items={styleItems} neutral compact selectable disabled={!editable} />
+        {typographySlot ? <><Separator />{typographySlot}</> : null}
+        <Separator />{renderIcons(['bold', 'italic', 'underline', 'strike'])}
+        <fieldset disabled={!editable} className="flex min-w-0 shrink-0 items-center gap-0.5 border-0 p-0">
+          <legend className="sr-only">Cor e destaque</legend>
+          <EditorColorMenu editor={editor} kind="text" size="sm" neutral />
+          <EditorColorMenu editor={editor} kind="highlight" size="sm" neutral />
+        </fieldset>
       </div>
-
-      {shown.has('insert') ? (
-        <div ref={groupRef('insert')} className="flex shrink-0 items-center gap-0.5">
-          <Separator />
-          {pick(['link', 'comment']).map(item => <IconButton key={item.id} item={item} neutral compact />)}
-        </div>
-      ) : null}
-      {shown.has('paragraph') ? (
-        <div ref={groupRef('paragraph')} className="flex shrink-0 items-center gap-0.5">
-          <Separator />
-          <ToolbarDropdown label="Alinhamento" triggerIcon={alignIcon} items={alignItems} neutral compact selectable />
-          {pick(['list', 'ordered', 'outdent', 'indent']).map(item => <IconButton key={item.id} item={item} neutral compact />)}
-        </div>
-      ) : null}
-      {shown.has('tools') ? (
-        <div ref={groupRef('tools')} className="flex shrink-0 items-center gap-0.5">
-          <Separator />
-          {pick(['rule', 'clear', 'find']).map(item => <IconButton key={item.id} item={item} neutral compact />)}
-        </div>
-      ) : null}
-
-      <div className="ml-auto flex shrink-0 items-center gap-0.5 pl-1">
-        {overflowItems.length > 0 ? (
-          <ToolbarDropdown
-            label="Mais ferramentas"
-            triggerIcon={MoreHorizontal}
-            hideChevron
-            items={overflowItems}
-            neutral
-            compact
-            align="right"
-            minWidth="min-w-[240px]"
-          />
-        ) : null}
-        <div ref={endSlotRef} className="flex shrink-0 items-center gap-0.5">{toolbarEnd}</div>
-      </div>
+    <div ref={node => { groupRefs.current.insert = node; }} aria-hidden={!shown.has('insert')} className={groupClass(shown.has('insert'))}>
+      <Separator />{renderIcons(['link', 'comment'])}
     </div>
-  );
+    <div ref={node => { groupRefs.current.paragraph = node; }} aria-hidden={!shown.has('paragraph')} className={groupClass(shown.has('paragraph'))}>
+      <Separator /><ToolbarDropdown label="Alinhamento" triggerIcon={alignIcon} items={alignItems} neutral compact selectable disabled={!editable || !shown.has('paragraph')} />
+      {renderIcons(['list', 'ordered', 'outdent', 'indent'])}
+    </div>
+    <div ref={node => { groupRefs.current.tools = node; }} aria-hidden={!shown.has('tools')} className={groupClass(shown.has('tools'))}>
+      <Separator />{renderIcons(['rule', 'clear', 'find'])}
+    </div>
+    <div className="ml-auto flex shrink-0 items-center gap-0.5 pl-1">
+      <div ref={overflowRef} aria-hidden={!overflowItems.length}
+        className={cn('flex w-max shrink-0', !overflowItems.length && 'pointer-events-none invisible absolute left-0 top-0')}>
+        <ToolbarDropdown label="Mais ferramentas" triggerIcon={MoreHorizontal} hideChevron items={overflowItems}
+          neutral compact align="right" minWidth="min-w-[240px]" disabled={!overflowItems.length} />
+      </div>
+      <div ref={endSlotRef} className="flex shrink-0 items-center gap-0.5">{toolbarEnd}</div>
+    </div>
+  </div>;
 }

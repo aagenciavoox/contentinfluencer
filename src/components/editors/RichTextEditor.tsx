@@ -1,5 +1,6 @@
 import { useEditor, useEditorState, EditorContent } from '@tiptap/react';
 import { BubbleMenu } from '@tiptap/react/menus';
+import { Extension, type Editor } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
 import { TextStyle } from '@tiptap/extension-text-style';
@@ -7,67 +8,58 @@ import { Color } from '@tiptap/extension-color';
 import TextAlign from '@tiptap/extension-text-align';
 import Typography from '@tiptap/extension-typography';
 import { Placeholder } from '@tiptap/extensions';
+import { Plugin, PluginKey, type EditorState } from '@tiptap/pm/state';
+import { Decoration, DecorationSet } from '@tiptap/pm/view';
+import type { Node as ProseMirrorNode } from '@tiptap/pm/model';
 import {
-  AlignCenter,
-  AlignLeft,
-  AlignRight,
-  Bold,
-  Italic,
-  Underline as UnderlineIcon,
-  List,
-  ListOrdered,
-  Maximize2,
-  Minimize2,
-  Undo,
-  Redo,
-  MessageSquarePlus,
-  X,
-  Trash2,
-  MessageSquare,
-  Plus,
-  MoreVertical,
-  Quote,
-  Heading1,
-  Heading2,
-  Minus,
-  Strikethrough,
-  Link as LinkIcon,
-  Check,
-  ChevronDown,
-  ChevronUp,
-  RemoveFormatting,
+  Bold, Italic, Underline as UnderlineIcon, Undo, Redo, MessageSquarePlus,
+  MessageSquare, Maximize2, Minimize2, X, Link as LinkIcon, Search,
 } from 'lucide-react';
-import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
+import {
+  useState, useCallback, useEffect, useId, useMemo, useRef,
+  type ReactNode, type RefObject, type KeyboardEvent as ReactKeyboardEvent,
+  type PointerEvent as ReactPointerEvent,
+} from 'react';
 import { createPortal } from 'react-dom';
 import { cn } from '../../lib/utils';
-import { motion, AnimatePresence } from 'motion/react';
-import { Decoration, DecorationSet } from 'prosemirror-view';
 import '../../styles/editor.css';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
 import { useVisualViewportKeyboard } from '../../hooks/useVisualViewportKeyboard';
 import { countScriptWords, formatSpokenDuration } from '../../features/contents/lib/spokenDuration';
-import { EditorShortcuts, ReadableHighlight, SelectionClicks, clearFormatting } from './editorExtensions';
+import { EditorShortcuts, ReadableHighlight, SelectionClicks } from './editorExtensions';
 import { EditorColorMenu } from './EditorColorMenu';
 import { EditorToolbar } from './EditorToolbar';
 import { FindReplaceBar } from './FindReplaceBar';
 import { FindReplace } from './findReplace';
-import { COMMENT_MIGRATION_META, CommentAnchor, addCommentAnchor, collectCommentRanges, migrateLegacyComments, removeCommentAnchor, type CommentRange } from './commentAnchors';
+import {
+  COMMENT_MIGRATION_META, CommentAnchor, addCommentAnchor, collectCommentRanges,
+  migrateLegacyComments, removeCommentAnchor, type CommentRange,
+} from './commentAnchors';
 import { newCommentId, orderComments, type CommentPatch, type ScriptComment } from './commentModel';
 import { CommentCard, CommentRail, CommentsPanel, DEFAULT_COMMENT_HIGHLIGHT } from './ScriptComments';
 
 type Annotation = ScriptComment;
+type TextRange = { from: number; to: number };
+type DraftComment = { text: string; selection: TextRange; valid: boolean };
+type AnnotationPosition = { id: string; top: number };
+type SaveState = 'idle' | 'dirty' | 'saving' | 'saved' | 'error';
 
-interface RichTextEditorProps {
+export interface RichTextEditorProps {
   content: string;
   onChange: (html: string) => void;
+  /** Passe o ID do roteiro. A troca do ID reinicia editor, histórico e estados locais. */
+  documentId?: string | number;
+  /** Revisão numérica crescente do conteúdo externo, quando disponível. */
+  contentRevision?: number;
   placeholder?: string;
   className?: string;
   editorViewportClassName?: string;
   editorCanvasClassName?: string;
-  /** `id` vem do editor: é o mesmo id gravado na marca <span data-comment-id> do texto. */
-  onAddAnnotation?: (text: string, selection: { from: number; to: number }, comment: string, id?: string) => void;
-  /** Respostas, resolver/reabrir (gravados dentro do JSON script_notes). */
+  /** O ID é compartilhado pela anotação e pela marca inserida no documento. */
+  onAddAnnotation?: (
+    text: string, selection: TextRange, comment: string, id?: string,
+  ) => void | Promise<void>;
   onPatchAnnotation?: (id: string, patch: CommentPatch) => void;
   annotations?: Annotation[];
   onRemoveAnnotation?: (id: string) => void;
@@ -77,1379 +69,970 @@ interface RichTextEditorProps {
   compactMobileComposer?: boolean;
   autoFocus?: boolean;
   variant?: 'default' | 'workspace';
-  /** writing: Bloco, template, undo, bold, italic, and Mais. The rest stays in the menu. */
   formatBar?: 'full' | 'writing';
-  /** spoken: teleprompter pace. reading: the older 2.5 words-per-second estimate. none: sem contador (telas de carrossel). */
   meter?: 'reading' | 'spoken' | 'none';
-  toolbarStart?: React.ReactNode;
-  /** Na barra, antes de "Mais" (ex.: botão "Notas"). */
-  toolbarEnd?: React.ReactNode;
-  /** Fonte e tamanho (valem para o roteiro inteiro), mostrados depois de Estilo. */
-  typographySlot?: React.ReactNode;
-  saveState?: 'idle' | 'saving' | 'saved' | 'error';
-  saveAction?: React.ReactNode;
-  /** Shown beside the page when the writing editor is expanded. */
-  fullscreenAside?: React.ReactNode;
+  toolbarStart?: ReactNode;
+  toolbarEnd?: ReactNode;
+  typographySlot?: ReactNode;
+  /** "saved" deve ser informado pelo pai após a confirmação da persistência. */
+  saveState?: SaveState;
+  saveAction?: ReactNode;
+  onRetrySave?: () => void;
+  fullscreenAside?: ReactNode;
   onFullscreenChange?: (open: boolean) => void;
+  notesPanelOpen?: boolean;
 }
 
-type FormattingAction = {
-  id: string;
-  label: string;
-  icon: typeof Bold;
-  run: () => void;
-  isActive?: () => boolean;
-};
-
-type AnnotationPosition = {
-  id: string;
-  top: number;
-};
-
-const DEFAULT_COMMENT_BORDER = 'color-mix(in srgb, var(--warning), transparent 55%)';
-
-const WORDS_PER_SECOND = 2.5;
 const EMPTY_ANNOTATIONS: Annotation[] = [];
+const WORDS_PER_SECOND = 2.5;
+const RAIL_MIN_WIDTH = 1080;
+const DEFAULT_COMMENT_BORDER = 'color-mix(in srgb, var(--warning), transparent 55%)';
+const COMMENT_UI_META = 'richTextEditor:commentUI';
+const EXTERNAL_CONTENT_META = 'richTextEditor:externalContent';
+const FOCUSABLE = [
+  'button:not([disabled])', 'a[href]', 'input:not([disabled])',
+  'select:not([disabled])', 'textarea:not([disabled])',
+  '[tabindex]:not([tabindex="-1"])', '[contenteditable="true"]',
+].join(',');
 
-function sameAnnotationPositions(current: AnnotationPosition[], next: AnnotationPosition[]) {
-  if (current.length !== next.length) return false;
+type CommentUIState = {
+  decorations: DecorationSet;
+  ranges: Map<string, CommentRange>;
+  draft: DraftComment | null;
+};
+type CommentUIMeta = { appearance?: boolean; draft?: DraftComment | null };
+const commentUIKey = new PluginKey<CommentUIState>('richTextEditorComments');
 
-  for (let index = 0; index < current.length; index += 1) {
-    if (current[index].id !== next[index].id || current[index].top !== next[index].top) {
-      return false;
+function sameRanges(a: Map<string, CommentRange>, b: Map<string, CommentRange>) {
+  return a.size === b.size && [...b].every(([id, range]) =>
+    a.get(id)?.from === range.from && a.get(id)?.to === range.to,
+  );
+}
+
+function sameDraft(a: DraftComment | null, b: DraftComment | null) {
+  return a === b || (!!a && !!b && a.text === b.text && a.valid === b.valid
+    && a.selection.from === b.selection.from && a.selection.to === b.selection.to);
+}
+
+function samePositions(a: AnnotationPosition[], b: AnnotationPosition[]) {
+  return a.length === b.length && a.every((item, index) =>
+    item.id === b[index].id && item.top === b[index].top,
+  );
+}
+
+function equivalentHTML(a: string, b: string) {
+  const empty = (value: string) => /^(?:|<p>(?:<br\s*\/?>)?<\/p>)$/i.test(value.trim());
+  return a === b || (empty(a) && empty(b));
+}
+
+function validHighlight(color: string | undefined) {
+  if (!color || /[;{}]/.test(color)) return DEFAULT_COMMENT_HIGHLIGHT;
+  return typeof CSS !== 'undefined' && !CSS.supports('color', color)
+    ? DEFAULT_COMMENT_HIGHLIGHT : color;
+}
+
+function buildCommentDecorations(
+  doc: ProseMirrorNode, notes: Annotation[], activeId: string | null,
+) {
+  if (!notes.length) return DecorationSet.empty;
+  const byId = new Map(notes.map(note => [note.id, note]));
+  const decorations: Decoration[] = [];
+  doc.descendants((node, pos) => {
+    if (!node.isText) return true;
+    for (const mark of node.marks) {
+      if (mark.type.name !== 'comment') continue;
+      const note = byId.get(mark.attrs.commentId as string);
+      if (!note || note.resolvedAt) continue;
+      const active = activeId === note.id;
+      decorations.push(Decoration.inline(pos, pos + node.nodeSize, {
+        class: cn('annotation-highlight cursor-pointer', active && 'active-annotation'),
+        style: `background-color: ${validHighlight(note.color)}; border-bottom: 2px solid ${
+          active ? 'var(--accent-blue)' : DEFAULT_COMMENT_BORDER};`,
+      }));
     }
-  }
-
-  return true;
+    return false;
+  });
+  return DecorationSet.create(doc, decorations);
 }
 
-function formatControlClass(active: boolean, neutralBar: boolean) {
-  if (active) {
-    return neutralBar
-      ? 'bg-[var(--bg-secondary)] text-[var(--text-primary)]'
-      : 'bg-[color-mix(in_srgb,var(--accent-blue),transparent_92%)] text-[var(--accent-blue)]';
-  }
+/** Mantém a seleção do comentário no mesmo sistema de coordenadas das transações. */
+function createCommentUIExtension(getAppearance: () => {
+  notes: Annotation[]; activeId: string | null;
+}) {
+  return Extension.create({
+    name: 'richTextEditorCommentUI',
+    addProseMirrorPlugins() {
+      return [new Plugin<CommentUIState>({
+        key: commentUIKey,
+        state: {
+          init: (_, state) => {
+            const { notes, activeId } = getAppearance();
+            return {
+              decorations: buildCommentDecorations(state.doc, notes, activeId),
+              ranges: collectCommentRanges(state.doc), draft: null,
+            };
+          },
+          apply: (transaction, previous) => {
+            const meta = transaction.getMeta(COMMENT_UI_META) as CommentUIMeta | undefined;
+            let draft = previous.draft;
+            if (draft && transaction.docChanged) {
+              const from = transaction.mapping.map(draft.selection.from, 1);
+              const to = transaction.mapping.map(draft.selection.to, -1);
+              const validRange = from >= 0 && to > from && to <= transaction.doc.content.size;
+              draft = {
+                ...draft, selection: { from, to },
+                valid: validRange && transaction.doc.textBetween(from, to, ' ') === draft.text,
+              };
+            }
+            if (meta && Object.prototype.hasOwnProperty.call(meta, 'draft')) draft = meta.draft ?? null;
+            if (transaction.getMeta(EXTERNAL_CONTENT_META)) draft = null;
 
-  return neutralBar
-    ? 'text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)]'
-    : 'text-[var(--text-tertiary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]';
+            // Selecionar texto ou mover o cursor não reconstrói os destaques nem os ranges.
+            if (!transaction.docChanged && !meta?.appearance) {
+              return sameDraft(previous.draft, draft) ? previous : { ...previous, draft };
+            }
+            const { notes, activeId } = getAppearance();
+            const nextRanges = transaction.docChanged
+              ? collectCommentRanges(transaction.doc) : previous.ranges;
+            return {
+              decorations: buildCommentDecorations(transaction.doc, notes, activeId),
+              ranges: sameRanges(previous.ranges, nextRanges) ? previous.ranges : nextRanges,
+              draft,
+            };
+          },
+        },
+        props: { decorations: state => commentUIKey.getState(state)?.decorations ?? DecorationSet.empty },
+      })];
+    },
+  });
 }
 
-function formatSpeakingDuration(wordCount: number, workspace = false) {
-  if (wordCount === 0) return workspace ? '0 segundos de leitura' : '~0s';
+function setCommentDraft(editor: Editor, draft: DraftComment | null) {
+  if (editor.isDestroyed) return;
+  editor.view.dispatch(editor.state.tr
+    .setMeta(COMMENT_UI_META, { draft } satisfies CommentUIMeta)
+    .setMeta('addToHistory', false));
+}
 
-  const seconds = Math.round(wordCount / WORDS_PER_SECOND);
+/** As anotações têm ciclo próprio: Ctrl+Z não deve apagar apenas a marca do comentário. */
+function mutateCommentAnchors(editor: Editor, mutate: () => void) {
+  if (editor.isDestroyed) return;
+  let failure: unknown;
+  let failed = false;
+  const transaction = editor.captureTransaction(() => {
+    try { mutate(); } catch (error) { failure = error; failed = true; }
+  });
+  if (failed) throw failure;
+  if (transaction) editor.view.dispatch(transaction.setMeta('addToHistory', false));
+}
+
+function formatReadingDuration(words: number, workspace: boolean) {
+  const seconds = words ? Math.max(1, Math.round(words / WORDS_PER_SECOND)) : 0;
   if (workspace) {
-    return `${seconds} ${seconds === 1 ? 'segundo' : 'segundos'} de leitura`;
+    if (seconds < 60) return `${seconds} ${seconds === 1 ? 'segundo' : 'segundos'} de leitura`;
+    const minutes = Math.floor(seconds / 60);
+    const remainder = seconds % 60;
+    return `${minutes} min${remainder ? ` ${remainder} s` : ''} de leitura`;
   }
-
-  if (seconds >= 60) {
-    return `~${Math.round(seconds / 60)} min`;
-  }
-
-  return `~${seconds}s`;
+  return seconds >= 60 ? `~${Math.round(seconds / 60)} min` : `~${seconds}s`;
 }
 
-export function RichTextEditor({
-  content,
-  onChange,
-  placeholder,
-  className,
-  editorViewportClassName,
-  editorCanvasClassName,
-  onAddAnnotation,
-  annotations = EMPTY_ANNOTATIONS,
-  onRemoveAnnotation,
-  onUpdateAnnotation,
-  onPatchAnnotation,
-  authorName = 'Você',
-  documentTitle = 'Novo roteiro',
-  compactMobileComposer = false,
-  autoFocus = false,
-  variant = 'default',
-  formatBar = 'full',
-  meter = 'reading',
-  toolbarStart,
-  toolbarEnd,
-  typographySlot,
-  saveState = 'idle',
-  saveAction,
-  fullscreenAside,
-  onFullscreenChange,
+function controlClass(active: boolean) {
+  return cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--radius-input)] transition-colors disabled:opacity-40',
+    active ? 'bg-[var(--bg-secondary)] text-[var(--text-primary)]'
+      : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]');
+}
+
+type ContentConflict = { html: string; revision?: number };
+
+/** Ecos antigos de onChange são reconhecidos; versões desconhecidas exigem uma escolha. */
+function useEditorContentSync(
+  editor: Editor | null, content: string, contentRevision: number | undefined,
+  onChange: (html: string) => void, protectLocal: boolean,
+) {
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+  const acceptedRef = useRef(content);
+  const highestRevisionRef = useRef(contentRevision);
+  const localPendingRef = useRef(false);
+  const emittedRef = useRef(new Set<string>([content]));
+  const [conflict, setConflict] = useState<ContentConflict | null>(null);
+
+  const publish = useCallback((html: string) => {
+    if (equivalentHTML(html, acceptedRef.current) && !localPendingRef.current) return;
+    localPendingRef.current = true;
+    emittedRef.current.add(html);
+    // Limita apenas o reconhecimento de ecos. Ecos mais antigos viram conflito, nunca sobrescrita.
+    if (emittedRef.current.size > 200) {
+      const oldest = emittedRef.current.values().next().value;
+      if (oldest !== undefined) emittedRef.current.delete(oldest);
+    }
+    onChangeRef.current(html);
+  }, []);
+
+  const load = useCallback((html: string) => {
+    if (!editor || editor.isDestroyed) return;
+    editor.chain().setMeta(EXTERNAL_CONTENT_META, true).setMeta('addToHistory', false)
+      .setContent(html, { emitUpdate: false }).run();
+    acceptedRef.current = html;
+    localPendingRef.current = false;
+    emittedRef.current.add(html);
+    setConflict(null);
+  }, [editor]);
+
+  useEffect(() => {
+    if (!editor || editor.isDestroyed) return;
+    const highest = highestRevisionRef.current;
+    if (contentRevision !== undefined && highest !== undefined && contentRevision < highest) return;
+    const newerRevision = contentRevision !== undefined && (highest === undefined || contentRevision > highest);
+    if (contentRevision !== undefined) highestRevisionRef.current = contentRevision;
+
+    const current = editor.getHTML();
+    if (equivalentHTML(content, current)) {
+      acceptedRef.current = content;
+      localPendingRef.current = false;
+      setConflict(null);
+      return;
+    }
+    const knownVersion = emittedRef.current.has(content) || equivalentHTML(content, acceptedRef.current);
+    if (knownVersion && !newerRevision) return;
+    // Foco também protege o intervalo entre a última edição e um eventual eco do pai.
+    if (localPendingRef.current || protectLocal || editor.isFocused || (knownVersion && newerRevision)) {
+      setConflict({ html: content, revision: contentRevision });
+      return;
+    }
+    load(content);
+  }, [content, contentRevision, editor, load, protectLocal]);
+
+  const keepLocal = useCallback(() => {
+    if (!editor || editor.isDestroyed || !conflict) return;
+    // A mesma versão rejeitada não reapresenta o aviso a cada renderização.
+    acceptedRef.current = conflict.html;
+    setConflict(null);
+    publish(editor.getHTML());
+  }, [conflict, editor, publish]);
+
+  return { publish, conflict, keepLocal, acceptIncoming: () => conflict && load(conflict.html) };
+}
+
+function useFocusScope(
+  open: boolean, ref: RefObject<HTMLDivElement | null>, onClose?: () => void,
+) {
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
+  useEffect(() => {
+    if (!open) return;
+    const previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const frame = requestAnimationFrame(() => {
+      const root = ref.current;
+      if (root && !root.contains(document.activeElement)) {
+        (root.querySelector<HTMLElement>('[data-autofocus]') ?? root).focus();
+      }
+    });
+    const onKeyDown = (event: KeyboardEvent) => {
+      const root = ref.current;
+      if (!root || event.defaultPrevented) return;
+      if (event.key === 'Escape' && closeRef.current) {
+        event.preventDefault();
+        event.stopPropagation();
+        closeRef.current();
+      }
+      if (event.key !== 'Tab') return;
+      const items = [...root.querySelectorAll<HTMLElement>(FOCUSABLE)]
+        .filter(item => !item.closest('[hidden], [aria-hidden="true"], [inert]') && item.getClientRects().length > 0);
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (!first || !last) { event.preventDefault(); root.focus(); return; }
+      if (event.shiftKey && (document.activeElement === first || document.activeElement === root)) {
+        event.preventDefault(); last.focus();
+      } else if (!event.shiftKey && (document.activeElement === last || document.activeElement === root)) {
+        event.preventDefault(); first.focus();
+      }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      cancelAnimationFrame(frame);
+      document.removeEventListener('keydown', onKeyDown);
+      if (previouslyFocused?.isConnected) previouslyFocused.focus({ preventScroll: true });
+    };
+  }, [open, ref]);
+}
+
+function EditorDialog({ title, onClose, children }: {
+  title: string; onClose: () => void; children: ReactNode;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const titleId = useId();
+  useFocusScope(true, ref, onClose);
+  if (typeof document === 'undefined') return null;
+  return createPortal(
+    <div className="fixed inset-0 z-[220] flex items-end justify-center bg-black/40 p-4 sm:items-center"
+      onPointerDown={event => { if (event.target === event.currentTarget) onClose(); }}>
+      <div ref={ref} role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1}
+        className="max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-elevated)] p-5 text-[var(--text-primary)] shadow-[var(--shadow-modal)]">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <h2 id={titleId} className="text-base font-semibold">{title}</h2>
+          <button type="button" aria-label="Fechar diálogo" onClick={onClose} className={controlClass(false)}>
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+        {children}
+      </div>
+    </div>, document.body,
+  );
+}
+
+function CommentComposer({ draft, value, onChange, onSubmit, onCancel, authorName, pending, error }: {
+  draft: DraftComment; value: string; onChange: (text: string) => void;
+  onSubmit: () => void; onCancel: () => void; authorName: string; pending: boolean; error: string | null;
+}) {
+  const inputId = useId();
+  const errorId = useId();
+  const onKeyDown = (event: ReactKeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.nativeEvent.isComposing) return;
+    if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); onSubmit(); }
+    if (event.key === 'Escape' && !pending) {
+      event.preventDefault(); event.stopPropagation(); onCancel();
+    }
+  };
+  return (
+    <form onSubmit={event => { event.preventDefault(); onSubmit(); }} aria-busy={pending}>
+      <p className="mb-2 text-xs font-semibold">{authorName}</p>
+      <blockquote className="mb-3 line-clamp-3 border-l-2 border-[var(--border-strong)] pl-3 text-sm italic text-[var(--text-secondary)]">
+        “{draft.text}”
+      </blockquote>
+      <label htmlFor={inputId} className="mb-1 block text-sm font-medium">Comentário</label>
+      <textarea id={inputId} data-autofocus autoFocus value={value} disabled={pending}
+        onChange={event => onChange(event.target.value)} onKeyDown={onKeyDown}
+        placeholder="O que você quer comentar?" aria-describedby={error || !draft.valid ? errorId : undefined}
+        className="min-h-[88px] w-full resize-y rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-3 py-2 text-base text-[var(--text-primary)] focus:border-[var(--accent-blue)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-blue)]" />
+      {error || !draft.valid ? (
+        <p id={errorId} role="alert" className="mt-2 text-sm text-[var(--text-primary)]">
+          {error ?? 'O trecho foi alterado ou excluído. Cancele e selecione novamente o texto para comentar.'}
+        </p>
+      ) : null}
+      <div className="mt-4 flex items-center justify-end gap-3">
+        <button type="button" disabled={pending} onClick={onCancel}
+          className="min-h-10 rounded-[var(--radius-input)] px-3 text-sm text-[var(--text-secondary)] disabled:opacity-40">Cancelar</button>
+        <button type="submit" disabled={pending || !value.trim() || !draft.valid}
+          className="min-h-10 rounded-[var(--radius-input)] bg-[var(--accent-blue)] px-4 text-sm font-semibold text-white disabled:opacity-40">
+          {pending ? 'Enviando…' : 'Comentar'}
+        </button>
+      </div>
+    </form>
+  );
+}
+
+function LinkEditor({ initialURL, onApply, onClose }: {
+  initialURL: string; onApply: (url: string) => void; onClose: () => void;
+}) {
+  const [url, setURL] = useState(initialURL);
+  const [error, setError] = useState<string | null>(null);
+  const inputId = useId();
+  const errorId = useId();
+  return (
+    <EditorDialog title="Inserir ou editar link" onClose={onClose}>
+      <form onSubmit={event => {
+        event.preventDefault();
+        const value = url.trim();
+        if (!value) { onApply(''); return; }
+        const normalized = /^(?:https?:\/\/|mailto:|tel:|\/|#)/i.test(value) ? value : `https://${value}`;
+        const unsafeScheme = /^[a-z][a-z\d+.-]*:/i.test(value) && !/^(https?:|mailto:|tel:)/i.test(value);
+        if (unsafeScheme || /^\/\//.test(normalized)) {
+          setError('Use um endereço http, https, mailto, tel ou um caminho interno.'); return;
+        }
+        try {
+          if (/^https?:/i.test(normalized)) new URL(normalized);
+          onApply(normalized);
+        } catch { setError('Confira o endereço informado.'); }
+      }}>
+        <label htmlFor={inputId} className="mb-1 block text-sm font-medium">Endereço</label>
+        <input id={inputId} data-autofocus autoFocus type="text" inputMode="url" autoComplete="url"
+          value={url} onChange={event => { setURL(event.target.value); setError(null); }}
+          aria-invalid={!!error} aria-describedby={error ? errorId : undefined} placeholder="https://exemplo.com"
+          className="w-full rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-[var(--accent-blue)]" />
+        {error ? <p id={errorId} role="alert" className="mt-2 text-sm">{error}</p> : null}
+        <p className="mt-2 text-xs text-[var(--text-secondary)]">Deixe vazio para remover o link.</p>
+        <div className="mt-4 flex justify-end gap-3">
+          <button type="button" onClick={onClose} className="min-h-10 px-3 text-sm">Cancelar</button>
+          <button type="submit" className="min-h-10 rounded-[var(--radius-input)] bg-[var(--accent-blue)] px-4 text-sm font-semibold text-white">Aplicar</button>
+        </div>
+      </form>
+    </EditorDialog>
+  );
+}
+
+function FormattingBubble({ editor, blocked, onComment, onLink }: {
+  editor: Editor; blocked: boolean; onComment?: () => void; onLink: () => void;
+}) {
+  const state = useEditorState({ editor, selector: ({ editor: current }) => ({
+    bold: current.isActive('bold'), italic: current.isActive('italic'),
+    underline: current.isActive('underline'), link: current.isActive('link'),
+  }) });
+  return (
+    <BubbleMenu editor={editor} options={{ placement: 'top', offset: 8 }}
+      shouldShow={({ editor: current, state: editorState }) =>
+        !blocked && current.isEditable && current.isFocused && !editorState.selection.empty}
+      className="z-[150] flex items-center gap-0.5 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] p-1 shadow-[var(--shadow-dropdown)]">
+      {([
+        { id: 'bold', label: 'Negrito', icon: Bold, run: () => editor.chain().focus().toggleBold().run() },
+        { id: 'italic', label: 'Itálico', icon: Italic, run: () => editor.chain().focus().toggleItalic().run() },
+        { id: 'underline', label: 'Sublinhado', icon: UnderlineIcon, run: () => editor.chain().focus().toggleUnderline().run() },
+      ] as const).map(action => {
+        const Icon = action.icon;
+        return <button key={action.id} type="button" onMouseDown={event => event.preventDefault()}
+          onClick={action.run} title={action.label} aria-label={action.label} aria-pressed={state[action.id]}
+          className={controlClass(state[action.id])}><Icon className="h-4 w-4" /></button>;
+      })}
+      <EditorColorMenu editor={editor} kind="highlight" size="sm" neutral />
+      <button type="button" onMouseDown={event => event.preventDefault()} onClick={onLink}
+        title="Link" aria-label="Link" aria-pressed={state.link} className={controlClass(state.link)}><LinkIcon className="h-4 w-4" /></button>
+      {onComment ? <button type="button" onMouseDown={event => event.preventDefault()} onClick={onComment}
+        title="Comentar trecho" aria-label="Comentar trecho selecionado" className={controlClass(false)}><MessageSquarePlus className="h-4 w-4" /></button> : null}
+    </BubbleMenu>
+  );
+}
+
+function MobileQuickToolbar({ editor, toolbarStart, onComment, onComments, onLink, onFind, onExpand, count }: {
+  editor: Editor; toolbarStart?: ReactNode; onComment?: () => void; onComments?: () => void;
+  onLink: () => void; onFind: () => void; onExpand: () => void; count: number;
+}) {
+  const keyboard = useVisualViewportKeyboard();
+  const state = useEditorState({ editor, selector: ({ editor: current }) => ({
+    bold: current.isActive('bold'), italic: current.isActive('italic'),
+    selection: !current.state.selection.empty, undo: current.can().undo(), redo: current.can().redo(),
+  }) });
+  if (typeof document === 'undefined') return null;
+  return createPortal(
+    <div className="pointer-events-none fixed inset-x-0 z-[160] px-3"
+      style={{ bottom: keyboard.open ? keyboard.inset : 'max(0.75rem, env(safe-area-inset-bottom))' }}>
+      <div role="toolbar" aria-label="Formatação rápida" className="pointer-events-auto mx-auto flex max-w-lg items-center gap-0.5 overflow-x-auto rounded-[var(--radius-pill)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-1 shadow-[var(--shadow-dropdown)]">
+        {toolbarStart}
+        <button type="button" onMouseDown={event => event.preventDefault()} onClick={() => editor.chain().focus().undo().run()}
+          disabled={!state.undo} aria-label="Desfazer" className={controlClass(false)}><Undo className="h-4 w-4" /></button>
+        <button type="button" onMouseDown={event => event.preventDefault()} onClick={() => editor.chain().focus().redo().run()}
+          disabled={!state.redo} aria-label="Refazer" className={controlClass(false)}><Redo className="h-4 w-4" /></button>
+        <button type="button" onMouseDown={event => event.preventDefault()} onClick={() => editor.chain().focus().toggleBold().run()}
+          aria-label="Negrito" aria-pressed={state.bold} className={controlClass(state.bold)}><Bold className="h-4 w-4" /></button>
+        <button type="button" onMouseDown={event => event.preventDefault()} onClick={() => editor.chain().focus().toggleItalic().run()}
+          aria-label="Itálico" aria-pressed={state.italic} className={controlClass(state.italic)}><Italic className="h-4 w-4" /></button>
+        <EditorColorMenu editor={editor} kind="highlight" presentation="sheet" />
+        <button type="button" onMouseDown={event => event.preventDefault()} onClick={onLink} aria-label="Inserir link" className={controlClass(false)}><LinkIcon className="h-4 w-4" /></button>
+        {onComment ? <button type="button" onMouseDown={event => event.preventDefault()} onClick={onComment}
+          disabled={!state.selection} aria-label="Comentar trecho selecionado" className={controlClass(false)}><MessageSquarePlus className="h-4 w-4" /></button> : null}
+        {onComments ? <button type="button" onClick={onComments} aria-label={`Ver todos os comentários (${count})`}
+          className="flex h-10 shrink-0 items-center gap-1 rounded-full px-2 text-sm"><MessageSquare className="h-4 w-4" />{count}</button> : null}
+        <button type="button" onClick={onFind} aria-label="Buscar no texto" className={controlClass(false)}><Search className="h-4 w-4" /></button>
+        <button type="button" onClick={onExpand} aria-label="Expandir editor" className={controlClass(false)}><Maximize2 className="h-4 w-4" /></button>
+      </div>
+    </div>, document.body,
+  );
+}
+
+/** O key impede que histórico, migrações e rascunhos vazem entre documentos. */
+export function RichTextEditor(props: RichTextEditorProps) {
+  return <RichTextEditorInstance key={props.documentId ?? '__rich-text-default__'} {...props} />;
+}
+
+function RichTextEditorInstance({
+  content, onChange, contentRevision, placeholder, className, editorViewportClassName,
+  editorCanvasClassName, onAddAnnotation, annotations = EMPTY_ANNOTATIONS,
+  onRemoveAnnotation, onUpdateAnnotation, onPatchAnnotation, authorName = 'Você',
+  documentTitle = 'Novo roteiro', compactMobileComposer = false, autoFocus = false,
+  variant = 'default', formatBar = 'full', meter = 'reading', toolbarStart, toolbarEnd,
+  typographySlot, saveState = 'idle', saveAction, onRetrySave, fullscreenAside,
+  onFullscreenChange, notesPanelOpen = false,
 }: RichTextEditorProps) {
+  const isMobile = useIsMobile();
   const isWorkspace = variant === 'workspace';
   const writingBar = formatBar === 'writing';
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [commentsOpen, setCommentsOpen] = useState(false);
-  const onFullscreenChangeRef = useRef(onFullscreenChange);
-  onFullscreenChangeRef.current = onFullscreenChange;
-
-  const setFullscreen = useCallback((open: boolean) => {
-    setIsFullscreen(open);
-    onFullscreenChangeRef.current?.(open);
-  }, []);
-  const [marginMenu, setMarginMenu] = useState<{ x: number; y: number } | null>(null);
-  const [expandedNoteId, setExpandedNoteId] = useState<string | null>(null);
-  const [draftCommentText, setDraftCommentText] = useState('');
-  const [activeDraft, setActiveDraft] = useState<{ text: string; selection: { from: number; to: number } } | null>(null);
+  const [commentsOpen, setCommentsOpen] = useState(true);
   const [commentsPanelOpen, setCommentsPanelOpen] = useState(false);
   const [showResolved, setShowResolved] = useState(false);
+  const [expandedNoteId, setExpandedNoteId] = useState<string | null>(null);
+  const [draftCommentText, setDraftCommentText] = useState('');
+  const [activeDraft, setActiveDraft] = useState<DraftComment | null>(null);
+  const [commentPending, setCommentPending] = useState(false);
+  const [commentError, setCommentError] = useState<string | null>(null);
   const [commentRanges, setCommentRanges] = useState<Map<string, CommentRange>>(() => new Map());
-  const [wideLayout, setWideLayout] = useState(() => typeof window !== 'undefined' && window.innerWidth >= 1280);
-  const [isOptionsMenuOpen, setIsOptionsMenuOpen] = useState(false);
-  const [isMobileQuickbarOpen, setIsMobileQuickbarOpen] = useState(true);
   const [annotationPositions, setAnnotationPositions] = useState<AnnotationPosition[]>([]);
-  const notesRef = useRef<Annotation[]>(annotations);
-  notesRef.current = annotations;
-  const activeCommentRef = useRef<string | null>(null);
-  const migratedRef = useRef(new Set<string>());
-  const commentsEnabled = !!onAddAnnotation;
-  const [draftCommentTop, setDraftCommentTop] = useState<number | null>(null);
-
-  const editorContainerRef = useRef<HTMLDivElement>(null);
-  const editorViewportRef = useRef<HTMLDivElement>(null);
-  const optionsMenuRef = useRef<HTMLDivElement>(null);
-  const contentRef = useRef(content);
-  const onChangeRef = useRef(onChange);
-  contentRef.current = content;
-  onChangeRef.current = onChange;
-  const isMobile = useIsMobile();
-  const isMobileRef = useRef(isMobile);
-  isMobileRef.current = isMobile;
-  const commentShortcutRef = useRef<() => void>(() => {});
-  const linkShortcutRef = useRef<() => void>(() => {});
+  const [draftTop, setDraftTop] = useState<number | null>(null);
+  const [wideLayout, setWideLayout] = useState(false);
+  const [wordCount, setWordCount] = useState(() => countScriptWords(content));
+  const [localDirty, setLocalDirty] = useState(false);
   const [findMode, setFindMode] = useState<'find' | 'replace' | null>(null);
   const [findToken, setFindToken] = useState(0);
-  const openFind = useCallback((mode: 'find' | 'replace') => {
-    setFindMode(mode);
-    setFindToken(token => token + 1);
+  const [linkRequest, setLinkRequest] = useState<{ url: string; range: TextRange } | null>(null);
+  const shellRef = useRef<HTMLDivElement>(null);
+  const editorContainerRef = useRef<HTMLDivElement>(null);
+  const editorViewportRef = useRef<HTMLDivElement>(null);
+  const placeholderRef = useRef(placeholder);
+  placeholderRef.current = placeholder;
+  const appearanceRef = useRef({ notes: annotations, activeId: expandedNoteId });
+  appearanceRef.current = { notes: annotations, activeId: expandedNoteId };
+  const callbacksRef = useRef({ onFullscreenChange, onRetrySave });
+  callbacksRef.current = { onFullscreenChange, onRetrySave };
+  const fullscreenRef = useRef(false);
+  const publishRef = useRef<(html: string) => void>(() => {});
+  const commentShortcutRef = useRef<() => void>(() => {});
+  const linkShortcutRef = useRef<() => void>(() => {});
+  const migrationAttemptRef = useRef(new Map<string, ProseMirrorNode>());
+  const submittingRef = useRef(false);
+  const mountedRef = useRef(true);
+  const editVersionRef = useRef(0);
+  const saveVersionRef = useRef<number | null>(null);
+  const commentsEnabled = !!onAddAnnotation || annotations.length > 0;
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
   }, []);
-  const bubbleBlockedRef = useRef(false);
-  const keyboard = useVisualViewportKeyboard();
 
-  useBodyScrollLock(isFullscreen);
+  const setFullscreen = useCallback((open: boolean) => {
+    fullscreenRef.current = open;
+    setIsFullscreen(open);
+    callbacksRef.current.onFullscreenChange?.(open);
+  }, []);
+  useEffect(() => () => {
+    if (fullscreenRef.current) callbacksRef.current.onFullscreenChange?.(false);
+  }, []);
+  const openFind = useCallback((mode: 'find' | 'replace') => {
+    setFindMode(mode); setFindToken(token => token + 1);
+  }, []);
 
-  const extensions = useMemo(
-    () => [
-      StarterKit.configure({
-        underline: false,
-        bulletList: { keepMarks: true, keepAttributes: false },
-        orderedList: { keepMarks: true, keepAttributes: false },
-      }),
-      Underline,
-      ReadableHighlight,
-      TextStyle,
-      Color,
-      TextAlign.configure({ types: ['heading', 'paragraph'] }),
-      Typography,
-      SelectionClicks,
-      EditorShortcuts.configure({
-        onComment: () => commentShortcutRef.current(),
-        onFind: mode => openFind(mode),
-        onLink: () => linkShortcutRef.current(),
-      }),
-      FindReplace,
-      CommentAnchor,
-      // Extensions are built once with the editor, so the first placeholder value is kept.
-      Placeholder.configure({ placeholder: placeholder ?? '' }),
-    ],
-    [],
-  );
+  const extensions = useMemo(() => [
+    StarterKit.configure({
+      underline: false,
+      link: { openOnClick: false },
+      bulletList: { keepMarks: true, keepAttributes: false },
+      orderedList: { keepMarks: true, keepAttributes: false },
+    }),
+    Underline, ReadableHighlight, TextStyle, Color,
+    TextAlign.configure({ types: ['heading', 'paragraph'] }), Typography, SelectionClicks,
+    EditorShortcuts.configure({
+      onComment: () => commentShortcutRef.current(), onFind: openFind,
+      onLink: () => linkShortcutRef.current(),
+    }),
+    FindReplace, CommentAnchor,
+    createCommentUIExtension(() => appearanceRef.current),
+    Placeholder.configure({ placeholder: () => placeholderRef.current ?? '' }),
+  ], [openFind]);
 
   const editor = useEditor({
-    extensions,
-    content,
-    onUpdate: ({ editor: currentEditor, transaction }) => {
-      // Só conta como edição o que mudou o texto. O TrailingNode acrescenta um parágrafo
-      // no fim ao primeiro clique ou foco; essa mudança vem do plugin, não de quem escreve.
-      if (!transaction.docChanged) return;
-      // A migracao automatica dos comentarios antigos nao marca o rascunho como alterado.
-      if (transaction.getMeta(COMMENT_MIGRATION_META)) return;
-
-      const html = currentEditor.getHTML();
-      const current = contentRef.current ?? '';
-      const normalizedHtml = html.trim();
-      const normalizedCurrent = current.trim();
-      const emptyEquivalent = (value: string) =>
-        !value || value === '<p></p>' || value === '<p><br></p>' || value === '<p><br/></p>';
-
-      if (html === current) return;
-      if (emptyEquivalent(normalizedHtml) && emptyEquivalent(normalizedCurrent)) return;
-
-      onChangeRef.current(html);
-    },
-    onSelectionUpdate: ({ editor: currentEditor }) => {
-      const { empty } = currentEditor.state.selection;
-      if (empty) {
-        setMarginMenu(null);
-        return;
-      }
-
-      const {
-        view,
-        state: { selection },
-      } = currentEditor;
-
-      try {
-        const start = view.coordsAtPos(selection.from);
-        const end = view.coordsAtPos(selection.to);
-
-        if (editorContainerRef.current) {
-          const rect = editorContainerRef.current.getBoundingClientRect();
-          setMarginMenu({
-            x: rect.right + 15,
-            y: start.top + (end.top - start.top) / 2 - 16,
-          });
-        }
-      } catch {
-        setMarginMenu(null);
-      }
+    extensions, content, immediatelyRender: false, shouldRerenderOnTransaction: false,
+    onUpdate: ({ editor: current, transaction }) => {
+      if (!transaction.docChanged || transaction.getMeta(EXTERNAL_CONTENT_META)
+        || transaction.getMeta(COMMENT_MIGRATION_META)) return;
+      // Alterações estruturais e de formatação também precisam ser persistidas.
+      editVersionRef.current += 1;
+      setLocalDirty(true);
+      publishRef.current(current.getHTML());
     },
     editorProps: {
       attributes: {
-        class:
-          'tiptap focus:outline-none min-h-[inherit] max-w-none text-base md:text-[inherit] text-[var(--text-primary)] transition-all duration-300',
-      },
-      decorations: (state) => {
-        const notes = notesRef.current;
-        if (notes.length === 0) return DecorationSet.empty;
-        const byId = new Map(notes.map(note => [note.id, note]));
-        const decorations: Decoration[] = [];
-        state.doc.descendants((node, pos) => {
-          if (!node.isText) return true;
-          for (const mark of node.marks) {
-            if (mark.type.name !== 'comment') continue;
-            const note = byId.get(mark.attrs.commentId as string);
-            if (!note || note.resolvedAt) continue;
-            const isActive = activeCommentRef.current === note.id;
-            decorations.push(
-              Decoration.inline(pos, pos + node.nodeSize, {
-                class: cn('annotation-highlight cursor-pointer', isActive && 'active-annotation'),
-                style: `background-color: ${note.color || DEFAULT_COMMENT_HIGHLIGHT}; border-bottom: 2px solid ${
-                  isActive ? 'var(--accent-blue)' : DEFAULT_COMMENT_BORDER
-                }`,
-              }),
-            );
-          }
-          return false;
-        });
-        return DecorationSet.create(state.doc, decorations);
+        class: 'tiptap min-h-[inherit] max-w-none text-base text-[var(--text-primary)] focus:outline-none md:text-[inherit]',
+        role: 'textbox', 'aria-multiline': 'true', 'aria-label': documentTitle,
       },
     },
   });
 
+  const sync = useEditorContentSync(editor, content, contentRevision, onChange, localDirty);
+  publishRef.current = sync.publish;
+
   useEffect(() => {
-    // Editor destruído (remontagem do StrictMode, troca de roteiro) não tem schema para gerar o HTML.
-    if (editor && !editor.isDestroyed && content !== editor.getHTML()) {
-      // Avoid marking the parent draft dirty on hydrate / external sync.
-      editor.commands.setContent(content, { emitUpdate: false });
-    }
-  }, [content, editor]);
+    if (!editor || editor.isDestroyed) return;
+    editor.view.dom.setAttribute('aria-label', documentTitle);
+    // Atualiza o placeholder sem reconstruir a instância ou perder o histórico.
+    editor.view.dispatch(editor.state.tr.setMeta('addToHistory', false));
+  }, [documentTitle, editor, placeholder]);
 
   useEffect(() => {
     if (!editor || !autoFocus) return;
-
-    const frame = window.requestAnimationFrame(() => {
-      if (!editor.isDestroyed) {
-        editor.chain().focus('end').run();
-      }
-    });
-
-    return () => window.cancelAnimationFrame(frame);
+    const frame = requestAnimationFrame(() => { if (!editor.isDestroyed) editor.commands.focus('end'); });
+    return () => cancelAnimationFrame(frame);
   }, [autoFocus, editor]);
 
   useEffect(() => {
-    if (!isFullscreen) {
-      setIsOptionsMenuOpen(false);
+    if (saveState === 'saving') saveVersionRef.current = editVersionRef.current;
+    if (saveState === 'saved') {
+      if (saveVersionRef.current === null || saveVersionRef.current === editVersionRef.current) setLocalDirty(false);
+      saveVersionRef.current = null;
     }
-  }, [isFullscreen]);
+  }, [saveState]);
 
+  // Transações sem update (hidratação, por exemplo) também atualizam ranges e contador.
   useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (!optionsMenuRef.current?.contains(event.target as Node)) {
-        setIsOptionsMenuOpen(false);
+    if (!editor || editor.isDestroyed) return;
+    const refresh = (state: EditorState, changed = true) => {
+      const ui = commentUIKey.getState(state);
+      if (ui) {
+        setCommentRanges(current => sameRanges(current, ui.ranges) ? current : ui.ranges);
+        setActiveDraft(current => sameDraft(current, ui.draft) ? current : ui.draft);
       }
-    }
-
-    if (isOptionsMenuOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => document.removeEventListener('mousedown', handleClickOutside);
-    }
-  }, [isOptionsMenuOpen]);
-
-  const annotationSource = annotations.length === 0 ? EMPTY_ANNOTATIONS : annotations;
-  activeCommentRef.current = expandedNoteId;
-
-  // Ranges come from the comment marks in the document, so they follow every edit.
-  useEffect(() => {
-    if (!editor || editor.isDestroyed) return;
-    const refresh = () => {
-      if (editor.isDestroyed) return;
-      const next = collectCommentRanges(editor.state.doc);
-      setCommentRanges(current => {
-        if (current.size === next.size && [...next].every(([id, r]) => current.get(id)?.from === r.from && current.get(id)?.to === r.to)) {
-          return current;
+      if (changed) setWordCount(countScriptWords(editor.getHTML()));
+    };
+    refresh(editor.state);
+    // Mantém o listener tipado pelo evento concreto, sem depender de onUpdate.
+    const listener = ({ transaction }: { transaction: import('@tiptap/pm/state').Transaction }) => {
+      refresh(editor.state, transaction.docChanged);
+      if (transaction.docChanged) {
+        if (transaction.getMeta(EXTERNAL_CONTENT_META)) {
+          setLinkRequest(null);
+          return;
         }
-        return next;
-      });
+        setLinkRequest(current => {
+          if (!current) return current;
+          return { ...current, range: {
+            from: transaction.mapping.map(current.range.from, 1),
+            to: transaction.mapping.map(current.range.to, -1),
+          } };
+        });
+      }
     };
-    refresh();
-    editor.on('update', refresh);
-    return () => {
-      editor.off('update', refresh);
-    };
-    // `content` too: hydration uses setContent without an update event.
-  }, [content, editor]);
+    editor.on('transaction', listener);
+    return () => { editor.off('transaction', listener); };
+  }, [editor]);
 
-  // One-time, best-effort migration of old {from,to} comments into marks (only where the text still matches).
   useEffect(() => {
-    if (!editor || editor.isDestroyed || !commentsEnabled) return;
-    if (editor.state.doc.textContent.trim().length === 0) return;
-    const pending = annotationSource.filter(note => note.id && !migratedRef.current.has(note.id));
-    if (pending.length === 0) return;
-    pending.forEach(note => migratedRef.current.add(note.id));
-    migrateLegacyComments(editor, pending);
-  }, [annotationSource, commentsEnabled, content, editor]);
+    if (!editor || editor.isDestroyed || !annotations.length) return;
+    const before = editor.state.doc;
+    const existing = collectCommentRanges(before);
+    const pending = annotations.filter(note => note.id && !existing.has(note.id)
+      && migrationAttemptRef.current.get(note.id) !== before);
+    if (!pending.length || !before.textContent.trim()) return;
+    // Falhas só são bloqueadas para esta versão do documento; outra versão permite nova tentativa.
+    for (const note of pending) migrationAttemptRef.current.set(note.id, before);
+    mutateCommentAnchors(editor, () => migrateLegacyComments(editor, pending));
+    if (!editor.state.doc.eq(before)) {
+      publishRef.current(editor.getHTML());
+      setLocalDirty(true);
+      editVersionRef.current += 1;
+    }
+  }, [annotations, content, editor]);
 
-  // Redraw comment colors when notes or the active comment change.
   useEffect(() => {
     if (!editor || editor.isDestroyed) return;
-    editor.view.dispatch(editor.state.tr.setMeta('commentDecorations', true).setMeta('addToHistory', false));
-  }, [annotationSource, editor, expandedNoteId]);
+    editor.view.dispatch(editor.state.tr
+      .setMeta(COMMENT_UI_META, { appearance: true } satisfies CommentUIMeta)
+      .setMeta('addToHistory', false));
+  }, [annotations, editor, expandedNoteId]);
+
+  const positions = useMemo(() => new Map([...commentRanges].map(([id, range]) => [id, range.from])), [commentRanges]);
+  const resolvedCount = useMemo(() => annotations.filter(note => note.resolvedAt).length, [annotations]);
+  const openCount = annotations.length - resolvedCount;
+  const unanchoredIds = useMemo(() => new Set(annotations.filter(note => !commentRanges.has(note.id)).map(note => note.id)), [annotations, commentRanges]);
+  const sortedAnnotations = useMemo(() => orderComments(
+    annotations.filter(note => !!note.id && (showResolved || !note.resolvedAt)), positions,
+  ), [annotations, positions, showResolved]);
+  const railNotes = useMemo(() => sortedAnnotations.filter(note => commentRanges.has(note.id)), [sortedAnnotations, commentRanges]);
+  const railVisible = commentsEnabled && !isMobile && wideLayout && commentsOpen
+    && !commentsPanelOpen && (railNotes.length > 0 || !!activeDraft);
+  const showDraftModal = !!activeDraft && !railVisible;
+  const modalOpen = showDraftModal || !!linkRequest;
+  useBodyScrollLock(isFullscreen || modalOpen || commentsPanelOpen);
+  useFocusScope(isFullscreen && !modalOpen && !commentsPanelOpen, shellRef, () => {
+    if (findMode) setFindMode(null);
+    else setFullscreen(false);
+  });
+
+  // Mede o espaço real do editor, já descontando painéis e padding.
+  useEffect(() => {
+    const viewport = editorViewportRef.current;
+    if (!viewport) return;
+    const measure = () => {
+      const style = getComputedStyle(viewport);
+      const available = viewport.clientWidth - parseFloat(style.paddingLeft || '0') - parseFloat(style.paddingRight || '0');
+      setWideLayout(available >= RAIL_MIN_WIDTH);
+    };
+    measure();
+    if (typeof ResizeObserver !== 'undefined') {
+      const observer = new ResizeObserver(measure);
+      observer.observe(viewport);
+      return () => observer.disconnect();
+    }
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+  }, [editor, isFullscreen, fullscreenAside]);
 
   useEffect(() => {
-    const onResize = () => setWideLayout(window.innerWidth >= 1280);
-    window.addEventListener('resize', onResize);
-    return () => window.removeEventListener('resize', onResize);
-  }, []);
-
-  const commentPositions = useMemo(() => new Map([...commentRanges].map(([id, range]) => [id, range.from])), [commentRanges]);
-  const unanchoredIds = useMemo(
-    () => new Set(annotationSource.filter(note => note.id && !commentRanges.has(note.id)).map(note => note.id)),
-    [annotationSource, commentRanges],
-  );
-  const resolvedCount = useMemo(() => annotationSource.filter(note => note.resolvedAt).length, [annotationSource]);
-  const openCount = annotationSource.length - resolvedCount;
-  const sortedAnnotations = useMemo(
-    () => orderComments(annotationSource.filter(note => !!note.id && (showResolved || !note.resolvedAt)), commentPositions),
-    [annotationSource, commentPositions, showResolved],
-  );
-  const railNotes = useMemo(() => sortedAnnotations.filter(note => commentRanges.has(note.id)), [commentRanges, sortedAnnotations]);
-  const railVisible =
-    commentsEnabled && !isMobile && wideLayout && (isFullscreen ? commentsOpen : true) && (railNotes.length > 0 || !!activeDraft);
-
-  const updateAnnotationAnchors = useCallback(() => {
-    if (!editor || editor.isDestroyed || !editorContainerRef.current || !railVisible) {
-      setAnnotationPositions((current) => (current.length === 0 ? current : []));
-      setDraftCommentTop((current) => (current === null ? current : null));
+    if (!editor || editor.isDestroyed || !railVisible) {
+      setAnnotationPositions(current => current.length ? [] : current);
+      setDraftTop(null);
       return;
     }
-
-    const editorRect = editorContainerRef.current.getBoundingClientRect();
-    const topOf = (pos: number) => {
-      try {
-        return Math.max(0, editor.view.coordsAtPos(pos).top - editorRect.top - 4);
-      } catch {
-        return null;
-      }
-    };
-
-    const resolvedPositions = railNotes
-      .map((note) => {
+    let frame = 0;
+    let disposed = false;
+    const measure = () => {
+      frame = 0;
+      const container = editorContainerRef.current;
+      if (!container || editor.isDestroyed) return;
+      const rect = container.getBoundingClientRect();
+      const topOf = (pos: number) => {
+        try { return Math.max(0, Math.round(editor.view.coordsAtPos(pos).top - rect.top - 4)); }
+        catch { return null; }
+      };
+      const next: AnnotationPosition[] = [];
+      for (const note of railNotes) {
         const range = commentRanges.get(note.id);
         const top = range ? topOf(range.from) : null;
-        return top === null ? null : { id: note.id, top };
-      })
-      .filter((value): value is AnnotationPosition => value !== null);
-
-    setAnnotationPositions((current) =>
-      sameAnnotationPositions(current, resolvedPositions) ? current : resolvedPositions,
-    );
-
-    const nextDraftTop = activeDraft ? topOf(activeDraft.selection.from) : null;
-    setDraftCommentTop((current) => (current === nextDraftTop ? current : nextDraftTop));
+        if (top !== null) next.push({ id: note.id, top });
+      }
+      setAnnotationPositions(current => samePositions(current, next) ? current : next);
+      setDraftTop(activeDraft ? topOf(activeDraft.selection.from) ?? 0 : null);
+    };
+    const schedule = () => { if (!disposed && !frame) frame = requestAnimationFrame(measure); };
+    schedule();
+    const observer = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(schedule) : null;
+    if (editorContainerRef.current) observer?.observe(editorContainerRef.current);
+    if (editorViewportRef.current) observer?.observe(editorViewportRef.current);
+    editor.on('update', schedule);
+    window.addEventListener('resize', schedule);
+    document.fonts?.addEventListener('loadingdone', schedule);
+    return () => {
+      disposed = true; cancelAnimationFrame(frame); observer?.disconnect();
+      editor.off('update', schedule);
+      window.removeEventListener('resize', schedule);
+      document.fonts?.removeEventListener('loadingdone', schedule);
+    };
   }, [activeDraft, commentRanges, editor, railNotes, railVisible]);
 
   const startCommenting = useCallback(() => {
-    if (!editor) return;
+    if (!editor || editor.isDestroyed || !onAddAnnotation || submittingRef.current || linkRequest) return;
     const { from, to } = editor.state.selection;
     const text = editor.state.doc.textBetween(from, to, ' ');
+    if (!text.trim()) return;
+    setCommentsOpen(true); setCommentsPanelOpen(false); setCommentError(null); setDraftCommentText('');
+    setCommentDraft(editor, { text, selection: { from, to }, valid: true });
+  }, [editor, linkRequest, onAddAnnotation]);
+  commentShortcutRef.current = startCommenting;
 
-    if (text) {
-      setCommentsOpen(true);
-      setCommentsPanelOpen(false);
-      setActiveDraft({ text, selection: { from, to } });
-      setDraftCommentText('');
-      setMarginMenu(null);
+  const cancelComment = useCallback(() => {
+    if (editor && !submittingRef.current) {
+      setCommentDraft(editor, null); setDraftCommentText(''); setCommentError(null);
+      editor.commands.focus();
     }
   }, [editor]);
 
-  commentShortcutRef.current = () => {
-    if (onAddAnnotation) startCommenting();
-  };
-  bubbleBlockedRef.current = !!activeDraft;
-
-  const hasSelection = useEditorState({
-    editor,
-    selector: ({ editor: instance }) => !!instance && !instance.state.selection.empty,
-  });
-
-  // Re-render the toolbar when the formatting under the cursor changes (TipTap v3 does not re-render on every transaction).
-  useEditorState({
-    editor,
-    selector: ({ editor: instance }) => {
-      if (!instance) return '';
-      const marks = ['bold', 'italic', 'underline', 'strike', 'link', 'bulletList', 'orderedList', 'blockquote'];
-      const active = marks.filter(name => instance.isActive(name));
-      for (const level of [1, 2] as const) if (instance.isActive('heading', { level })) active.push(`h${level}`);
-      for (const align of ['left', 'center', 'right']) if (instance.isActive({ textAlign: align })) active.push(align);
-      return active.join(',');
-    },
-  });
-
-  const submitComment = useCallback(() => {
-    if (!activeDraft || !draftCommentText.trim() || !onAddAnnotation || !editor) return;
-    const id = newCommentId();
-    const { from, to } = activeDraft.selection;
-    const size = editor.state.doc.content.size;
-    let anchored = false;
-    if (to <= size) {
-      try {
-        anchored = editor.state.doc.textBetween(from, to, ' ') === activeDraft.text;
-      } catch {
-        anchored = false;
-      }
+  const submitComment = useCallback(async () => {
+    if (!editor || editor.isDestroyed || !onAddAnnotation || submittingRef.current || !draftCommentText.trim()) return;
+    const draft = commentUIKey.getState(editor.state)?.draft;
+    if (!draft?.valid) return;
+    const { from, to } = draft.selection;
+    if (from < 0 || to <= from || to > editor.state.doc.content.size
+      || editor.state.doc.textBetween(from, to, ' ') !== draft.text) {
+      setCommentError('O trecho mudou. Selecione novamente o texto para comentar.'); return;
     }
-    onAddAnnotation(activeDraft.text, activeDraft.selection, draftCommentText.trim(), id);
-    if (anchored) addCommentAnchor(editor, id, from, to);
-    migratedRef.current.add(id);
+    const id = newCommentId();
+    submittingRef.current = true; setCommentPending(true); setCommentError(null);
+    try {
+      // A marca passa a acompanhar a edição antes de iniciar uma possível operação assíncrona.
+      mutateCommentAnchors(editor, () => addCommentAnchor(editor, id, from, to));
+      if (!collectCommentRanges(editor.state.doc).has(id)) throw new Error('Não foi possível vincular o comentário ao trecho.');
+      await onAddAnnotation(draft.text, draft.selection, draftCommentText.trim(), id);
+      if (!mountedRef.current || editor.isDestroyed) return;
+      setExpandedNoteId(id); setCommentDraft(editor, null); setDraftCommentText('');
+    } catch {
+      if (!editor.isDestroyed) mutateCommentAnchors(editor, () => removeCommentAnchor(editor, id));
+      if (mountedRef.current) setCommentError('Não foi possível adicionar o comentário. Seu texto foi mantido; tente novamente.');
+    } finally {
+      submittingRef.current = false;
+      if (mountedRef.current) setCommentPending(false);
+    }
+  }, [draftCommentText, editor, onAddAnnotation]);
+
+  const selectComment = useCallback((id: string) => {
     setExpandedNoteId(id);
-    setActiveDraft(null);
-    setDraftCommentText('');
-  }, [activeDraft, draftCommentText, editor, onAddAnnotation]);
+    const range = commentRanges.get(id);
+    if (range && editor && !editor.isDestroyed) editor.chain().setTextSelection(range).scrollIntoView().run();
+  }, [commentRanges, editor]);
 
-  const selectComment = useCallback(
-    (id: string) => {
-      setExpandedNoteId(id);
-      const range = commentRanges.get(id);
-      if (range && editor && !editor.isDestroyed) {
-        editor.chain().setTextSelection(range).scrollIntoView().run();
-      }
-    },
-    [commentRanges, editor],
-  );
-
-  const renderCommentCard = (note: Annotation, inPanel = false) => (
-    <CommentCard
-      note={note}
-      authorName={authorName}
-      active={expandedNoteId === note.id}
-      unanchored={unanchoredIds.has(note.id)}
-      showQuote={inPanel}
-      onActivate={() => (expandedNoteId === note.id && !inPanel ? setExpandedNoteId(null) : selectComment(note.id))}
-      onReply={
-        onPatchAnnotation
-          ? text =>
-              onPatchAnnotation(note.id, {
-                replies: [...(note.replies ?? []), { id: newCommentId(), comment: text, authorName, createdAt: new Date().toISOString() }],
-              })
-          : undefined
-      }
-      onToggleResolved={
-        onPatchAnnotation
-          ? () => {
-              const resolving = !note.resolvedAt;
-              onPatchAnnotation(note.id, { resolvedAt: resolving ? new Date().toISOString() : null });
-              if (resolving && expandedNoteId === note.id) setExpandedNoteId(null);
-            }
-          : undefined
-      }
-      onDelete={
-        onRemoveAnnotation
-          ? () => {
-              if (editor && !editor.isDestroyed) removeCommentAnchor(editor, note.id);
-              onRemoveAnnotation(note.id);
-              if (expandedNoteId === note.id) setExpandedNoteId(null);
-            }
-          : undefined
-      }
-      onColor={onUpdateAnnotation ? color => onUpdateAnnotation(note.id, note.comment, color) : undefined}
-    />
-  );
-
-  useEffect(() => {
-    updateAnnotationAnchors();
-  }, [updateAnnotationAnchors]);
-
-  useEffect(() => {
-    if (!railVisible) return;
-
-    const handleUpdate = () => updateAnnotationAnchors();
-    const viewport = editorViewportRef.current;
-
-    viewport?.addEventListener('scroll', handleUpdate);
-    window.addEventListener('resize', handleUpdate);
-
-    return () => {
-      viewport?.removeEventListener('scroll', handleUpdate);
-      window.removeEventListener('resize', handleUpdate);
-    };
-  }, [railVisible, updateAnnotationAnchors]);
-
-  const handleEditorAreaPointerDown = useCallback(
-    (event: React.PointerEvent<HTMLDivElement>) => {
-      if (!editor) return;
-
-      const target = event.target as HTMLElement | null;
-      if (target?.closest('button, a, input, textarea, select')) {
-        return;
-      }
-
-      const pos = editor.view.posAtCoords({ left: event.clientX, top: event.clientY });
-      const clickedId =
-        pos && commentsEnabled
-          ? [...commentRanges].find(([id, range]) => {
-              const note = annotations.find(item => item.id === id);
-              return note && !note.resolvedAt && pos.pos >= range.from && pos.pos <= range.to;
-            })?.[0]
-          : undefined;
-
-      if (clickedId) {
-        setExpandedNoteId(clickedId);
-        if (!railVisible && event.detail === 1 && editor.state.selection.empty) {
-          event.preventDefault();
-          setCommentsPanelOpen(true);
-          return;
-        }
-      }
-
-      requestAnimationFrame(() => {
-        if (!editor.isDestroyed) {
-          editor.chain().focus(pos?.pos ?? 'end').run();
-        }
-      });
-    },
-    [annotations, commentRanges, commentsEnabled, editor, railVisible],
-  );
+  const handleEditorPointerDown = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!editor || editor.isDestroyed || event.button !== 0) return;
+    const target = event.target as HTMLElement;
+    if (target.closest('button, a, input, textarea, select')) return;
+    const marked = target.closest<HTMLElement>('[data-comment-id]');
+    const id = marked?.getAttribute('data-comment-id');
+    if (id && annotations.some(note => note.id === id && !note.resolvedAt)) setExpandedNoteId(id);
+    // O navegador e o ProseMirror cuidam de cursor, arraste, duplo clique e toque no texto.
+    if (target.closest('.ProseMirror')) return;
+    event.preventDefault();
+    editor.commands.focus('end');
+  }, [annotations, editor]);
 
   const requestLink = useCallback(() => {
-    if (!editor) return;
-    const previousUrl = editor.getAttributes('link').href as string | undefined;
-    const url = window.prompt('Cole o link', previousUrl || 'https://');
-    if (url === null) return;
-
-    if (!url.trim()) {
-      editor.chain().focus().unsetLink().run();
-      return;
-    }
-
-    editor.chain().focus().setLink({ href: url.trim() }).run();
-    setIsOptionsMenuOpen(false);
-  }, [editor]);
-
+    if (!editor || editor.isDestroyed || activeDraft || submittingRef.current) return;
+    setLinkRequest({ url: editor.getAttributes('link').href as string || '', range: {
+      from: editor.state.selection.from, to: editor.state.selection.to,
+    } });
+  }, [activeDraft, editor]);
   linkShortcutRef.current = requestLink;
+  const applyLink = useCallback((url: string) => {
+    if (!editor || editor.isDestroyed || !linkRequest) return;
+    const size = editor.state.doc.content.size;
+    const from = Math.max(0, Math.min(linkRequest.range.from, size));
+    const to = Math.max(from, Math.min(linkRequest.range.to, size));
+    const chain = editor.chain().focus().setTextSelection({ from, to }).extendMarkRange('link');
+    if (url) chain.setLink({ href: url }).run(); else chain.unsetLink().run();
+    setLinkRequest(null);
+  }, [editor, linkRequest]);
 
-  const applyRule = useCallback(() => {
-    editor?.chain().focus().setHorizontalRule().run();
-    setIsOptionsMenuOpen(false);
-  }, [editor]);
-
-  const toggleHeading = useCallback(
-    (level: 1 | 2) => {
-      editor?.chain().focus().toggleHeading({ level }).run();
-      setIsOptionsMenuOpen(false);
-    },
-    [editor],
+  const renderCommentCard = (note: Annotation, inPanel = false) => (
+    <CommentCard note={note} authorName={authorName} active={expandedNoteId === note.id}
+      unanchored={unanchoredIds.has(note.id)} showQuote={inPanel}
+      onActivate={() => expandedNoteId === note.id && !inPanel ? setExpandedNoteId(null) : selectComment(note.id)}
+      onReply={onPatchAnnotation ? text => onPatchAnnotation(note.id, {
+        replies: [...(note.replies ?? []), { id: newCommentId(), comment: text, authorName, createdAt: new Date().toISOString() }],
+      }) : undefined}
+      onToggleResolved={onPatchAnnotation ? () => {
+        const resolving = !note.resolvedAt;
+        onPatchAnnotation(note.id, { resolvedAt: resolving ? new Date().toISOString() : null });
+        if (resolving && expandedNoteId === note.id) setExpandedNoteId(null);
+      } : undefined}
+      onDelete={onRemoveAnnotation ? () => {
+        if (editor && !editor.isDestroyed) mutateCommentAnchors(editor, () => removeCommentAnchor(editor, note.id));
+        onRemoveAnnotation(note.id);
+        if (expandedNoteId === note.id) setExpandedNoteId(null);
+      } : undefined}
+      onColor={onUpdateAnnotation ? color => onUpdateAnnotation(note.id, note.comment, color) : undefined} />
   );
 
-  const wordCount = useMemo(() => countScriptWords(content), [content]);
-  const durationLabel = useMemo(
-    () => (meter === 'spoken' ? formatSpokenDuration(wordCount) : formatSpeakingDuration(wordCount, isWorkspace)),
-    [isWorkspace, meter, wordCount],
+  const durationLabel = meter === 'spoken' ? formatSpokenDuration(wordCount) : formatReadingDuration(wordCount, isWorkspace);
+  const status = saveState === 'error' ? 'Falha ao salvar'
+    : saveState === 'saving' ? 'Salvando…'
+      : localDirty || saveState === 'dirty' ? 'Alterações não salvas'
+        : saveState === 'saved' ? 'Salvo' : null;
+  const saveStatus = (
+    <span className="inline-flex min-w-0 items-center gap-2 text-xs text-[var(--text-secondary)]">
+      <span role="status" aria-live="polite" aria-atomic="true">{status}</span>
+      {saveState === 'error' && onRetrySave ? <button type="button" onClick={() => callbacksRef.current.onRetrySave?.()}
+        className="min-h-8 shrink-0 underline underline-offset-2">Tentar novamente</button> : null}
+    </span>
   );
-  const saveFooterLabel =
-    saveState === 'saving'
-      ? 'Salvando…'
-      : saveState === 'saved'
-        ? 'Salvo agora'
-        : saveState === 'error'
-          ? 'Não salvo. Verifique a conexão'
-          : null;
-
-  const secondaryActions: FormattingAction[] = useMemo(
-    () => [
-      {
-        id: 'h1',
-        label: 'H1',
-        icon: Heading1,
-        run: () => toggleHeading(1),
-        isActive: () => !!editor?.isActive('heading', { level: 1 }),
-      },
-      {
-        id: 'h2',
-        label: 'H2',
-        icon: Heading2,
-        run: () => toggleHeading(2),
-        isActive: () => !!editor?.isActive('heading', { level: 2 }),
-      },
-      {
-        id: 'bullet',
-        label: 'Lista',
-        icon: List,
-        run: () => {
-          editor?.chain().focus().toggleBulletList().run();
-          setIsOptionsMenuOpen(false);
-        },
-        isActive: () => !!editor?.isActive('bulletList'),
-      },
-      {
-        id: 'ordered',
-        label: '1. Lista',
-        icon: ListOrdered,
-        run: () => {
-          editor?.chain().focus().toggleOrderedList().run();
-          setIsOptionsMenuOpen(false);
-        },
-        isActive: () => !!editor?.isActive('orderedList'),
-      },
-      {
-        id: 'quote',
-        label: 'Citação',
-        icon: Quote,
-        run: () => {
-          editor?.chain().focus().toggleBlockquote().run();
-          setIsOptionsMenuOpen(false);
-        },
-        isActive: () => !!editor?.isActive('blockquote'),
-      },
-      {
-        id: 'rule',
-        label: 'Linha',
-        icon: Minus,
-        run: applyRule,
-      },
-      {
-        id: 'link',
-        label: 'Link',
-        icon: LinkIcon,
-        run: requestLink,
-        isActive: () => !!editor?.isActive('link'),
-      },
-    ],
-    [applyRule, editor, requestLink, toggleHeading],
-  );
-
-  const topToolbarActions: FormattingAction[] = useMemo(
-    () => [
-      {
-        id: 'undo',
-        label: 'Desfazer',
-        icon: Undo,
-        run: () => editor?.chain().focus().undo().run(),
-      },
-      {
-        id: 'redo',
-        label: 'Refazer',
-        icon: Redo,
-        run: () => editor?.chain().focus().redo().run(),
-      },
-      {
-        id: 'bold',
-        label: 'Negrito',
-        icon: Bold,
-        run: () => editor?.chain().focus().toggleBold().run(),
-        isActive: () => !!editor?.isActive('bold'),
-      },
-      {
-        id: 'italic',
-        label: 'Itálico',
-        icon: Italic,
-        run: () => editor?.chain().focus().toggleItalic().run(),
-        isActive: () => !!editor?.isActive('italic'),
-      },
-      {
-        id: 'underline',
-        label: 'Sublinhado',
-        icon: UnderlineIcon,
-        run: () => editor?.chain().focus().toggleUnderline().run(),
-        isActive: () => !!editor?.isActive('underline'),
-      },
-      {
-        id: 'strike',
-        label: 'Tachado',
-        icon: Strikethrough,
-        run: () => editor?.chain().focus().toggleStrike().run(),
-        isActive: () => !!editor?.isActive('strike'),
-      },
-      {
-        id: 'align-left',
-        label: 'Alinhar à esquerda',
-        icon: AlignLeft,
-        run: () => editor?.chain().focus().setTextAlign('left').run(),
-        isActive: () => !!editor?.isActive({ textAlign: 'left' }),
-      },
-      {
-        id: 'align-center',
-        label: 'Centralizar',
-        icon: AlignCenter,
-        run: () => editor?.chain().focus().setTextAlign('center').run(),
-        isActive: () => !!editor?.isActive({ textAlign: 'center' }),
-      },
-      {
-        id: 'align-right',
-        label: 'Alinhar à direita',
-        icon: AlignRight,
-        run: () => editor?.chain().focus().setTextAlign('right').run(),
-        isActive: () => !!editor?.isActive({ textAlign: 'right' }),
-      },
-      {
-        id: 'list',
-        label: 'Lista',
-        icon: List,
-        run: () => editor?.chain().focus().toggleBulletList().run(),
-        isActive: () => !!editor?.isActive('bulletList'),
-      },
-      {
-        id: 'ordered',
-        label: 'Lista numerada',
-        icon: ListOrdered,
-        run: () => editor?.chain().focus().toggleOrderedList().run(),
-        isActive: () => !!editor?.isActive('orderedList'),
-      },
-      {
-        id: 'link',
-        label: 'Link',
-        icon: LinkIcon,
-        run: requestLink,
-        isActive: () => !!editor?.isActive('link'),
-      },
-      {
-        id: 'clear',
-        label: 'Limpar formatação (Ctrl+\\)',
-        icon: RemoveFormatting,
-        run: () => {
-          if (editor) clearFormatting(editor);
-        },
-      },
-    ],
-    [editor, requestLink],
-  );
+  const composer = activeDraft ? (
+    <CommentComposer draft={activeDraft} value={draftCommentText} onChange={setDraftCommentText}
+      onSubmit={() => { void submitComment(); }} onCancel={cancelComment} authorName={authorName}
+      pending={commentPending} error={commentError} />
+  ) : null;
 
   if (!editor) return null;
 
-  return (
-    <>
-      <AnimatePresence>
-        {isFullscreen && !isMobile && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={() => setFullscreen(false)}
-            className="fixed inset-0 z-[90] bg-[color-mix(in_srgb,var(--text-primary)_12%,transparent)] backdrop-blur-[2px]"
-          />
-        )}
-      </AnimatePresence>
+  return <>
+    {isFullscreen ? <div aria-hidden="true" className="fixed inset-0 z-[90] bg-black/20 backdrop-blur-[2px]" /> : null}
+    <div ref={shellRef} tabIndex={isFullscreen ? -1 : undefined}
+      role={isFullscreen ? 'dialog' : undefined} aria-modal={isFullscreen ? true : undefined}
+      aria-label={isFullscreen ? `${documentTitle} — editor expandido` : undefined}
+      className={cn(
+        'flex min-w-0 flex-col bg-[var(--bg-elevated)] text-[var(--text-primary)]',
+        isFullscreen ? 'fixed inset-0 z-[100] overflow-hidden border-[var(--border-color)] sm:inset-4 sm:rounded-[var(--radius-card)] sm:border'
+          : compactMobileComposer ? 'relative min-h-[50dvh] bg-transparent'
+            : isWorkspace ? 'relative h-full min-h-0 rounded-[var(--radius-card)] border border-[var(--border-color)]'
+              : 'relative min-h-[400px] rounded-[var(--radius-card)] border border-[var(--border-color)]',
+        className,
+      )}>
+      {isFullscreen ? <div className="flex min-h-14 shrink-0 items-center gap-3 border-b border-[var(--border-color)] px-4 py-2 pt-safe md:px-6">
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-semibold" title={documentTitle}>{documentTitle}</p>
+          {saveStatus}
+        </div>
+        {commentsEnabled ? <button type="button" onClick={() => setCommentsPanelOpen(true)}
+          aria-label={`Ver todos os comentários (${openCount})`} className="flex min-h-10 shrink-0 items-center gap-2 rounded-[var(--radius-input)] px-3 text-sm hover:bg-[var(--bg-hover)]">
+          <MessageSquare className="h-4 w-4" /><span className="hidden sm:inline">Comentários</span>{openCount}
+        </button> : null}
+        <button type="button" onClick={() => setFullscreen(false)} aria-label="Sair da tela expandida" title="Sair da tela expandida"
+          className={controlClass(false)}><Minimize2 className="h-5 w-5" /></button>
+      </div> : null}
 
-      <motion.div
-        layout
-        className={cn(
-          'relative transition-all duration-500',
-          compactMobileComposer ? 'border-0' : 'border border-[var(--border-color)]',
-          isWorkspace && !isFullscreen
-            ? writingBar
-              ? 'overflow-visible'
-              : 'h-full min-h-0 overflow-hidden'
-            : 'overflow-hidden',
-          isWorkspace
-            ? cn(
-                'flex flex-col rounded-[var(--radius-card)] bg-[var(--bg-elevated)]',
-                compactMobileComposer && 'rounded-none bg-transparent',
-                isFullscreen && 'min-h-[calc(100vh-280px)]',
-              )
-            : 'rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)]',
-          isFullscreen
-            ? isMobile
-              ? 'fixed inset-0 z-[100] flex flex-col rounded-none border-0 bg-[var(--bg-elevated)] shadow-none'
-              : writingBar
-                ? 'fixed inset-4 z-[100] flex flex-col rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-elevated)] shadow-[var(--shadow-modal)]'
-                : 'fixed left-1/2 top-1/2 z-[100] flex h-[min(1120px,calc(100dvh-56px))] w-[min(1420px,calc(100vw-56px))] -translate-x-1/2 -translate-y-1/2 flex-col rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-elevated)] shadow-[var(--shadow-modal)]'
-            : compactMobileComposer
-              ? 'flex min-h-[50dvh] flex-col bg-transparent'
-              : isWorkspace
-                ? ''
-                : 'flex min-h-[400px] flex-col bg-[var(--bg-secondary)]/50',
-          className,
-        )}
-      >
-        {isFullscreen ? (
-          <div
-            className={cn(
-              'shrink-0 border-b border-[var(--border-color)] bg-[var(--bg-elevated)]',
-              isMobile ? 'pt-safe' : '',
-            )}
-          >
-            <div className={cn('flex items-center', isMobile ? 'h-14 px-4' : 'h-16 px-6')}>
-              {isMobile ? (
-                <>
-                  <button
-                    onClick={() => setFullscreen(false)}
-                    className="flex h-10 w-10 items-center justify-center rounded-[var(--radius-input)] text-[var(--text-primary)] transition hover:bg-[var(--bg-hover)]"
-                    aria-label="Fechar expansão"
-                  >
-                    <X className="h-[22px] w-[22px]" />
-                  </button>
-                  <div className="flex-1 text-center">
-                    <p className="truncate text-base font-semibold text-[var(--text-primary)]">{documentTitle}</p>
-                    <p className="text-xs text-[var(--text-tertiary)]">{saveFooterLabel ?? 'Salvo agora há pouco'}</p>
-                  </div>
-                  <button
-                    onClick={() => setFullscreen(false)}
-                    className="min-w-[72px] text-sm font-semibold text-[var(--accent-blue)]"
-                  >
-                    Concluir
-                  </button>
-                </>
-              ) : (
-                <>
-                  <div className="flex min-w-0 flex-1 items-center gap-3">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-secondary)] shadow-[var(--shadow-soft)]">
-                      <Plus className="h-4 w-4 text-[var(--accent-blue)]" />
-                    </div>
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2 text-sm">
-                        <span className="truncate font-semibold text-[var(--text-primary)]">{documentTitle}</span>
-                        <span className="text-[var(--border-strong)]">•</span>
-                        <span className="text-[var(--text-tertiary)]">{saveFooterLabel ?? 'Salvo agora há pouco'}</span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      aria-pressed={commentsOpen}
-                      onClick={() => (wideLayout ? setCommentsOpen(open => !open) : setCommentsPanelOpen(true))}
-                      className={cn(
-                        'inline-flex h-10 items-center gap-2 rounded-[var(--radius-input)] px-3 text-sm font-medium transition',
-                        commentsOpen
-                          ? 'bg-[var(--bg-hover)] text-[var(--text-primary)]'
-                          : 'text-[var(--text-tertiary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]',
-                      )}
-                    >
-                      <MessageSquare className="h-4 w-4" />
-                      Comentários{openCount > 0 ? ` ${openCount}` : ''}
-                    </button>
-                    <button
-                      onClick={() => setFullscreen(false)}
-                      className="flex h-10 w-10 items-center justify-center rounded-[var(--radius-input)] text-[var(--text-tertiary)] transition hover:bg-[var(--bg-hover)]"
-                      aria-label="Fechar expansão"
-                    >
-                      <Minimize2 className="h-4 w-4" />
-                    </button>
-                    <button
-                      onClick={() => setFullscreen(false)}
-                      className="flex h-10 w-10 items-center justify-center rounded-[var(--radius-input)] text-[var(--text-primary)] transition hover:bg-[var(--bg-hover)]"
-                      aria-label="Fechar editor"
-                    >
-                      <X className="h-5 w-5" />
-                    </button>
-                  </div>
-                </>
-              )}
+      {(!compactMobileComposer || isFullscreen) ? <div data-format-bar={writingBar ? 'writing' : 'full'}
+        className={cn('z-10 flex min-h-11 shrink-0 items-center gap-1 border-b border-[var(--border-color)] px-2 py-1',
+          writingBar ? 'bg-[var(--bg-hover)]' : 'bg-[var(--bg-elevated)]',
+          !isFullscreen && isWorkspace && 'sticky top-0')}>
+        <div className="min-w-0 flex-1">
+          <EditorToolbar editor={editor} mode={writingBar ? 'writing' : 'full'} toolbarStart={toolbarStart}
+            toolbarEnd={toolbarEnd} typographySlot={typographySlot} onComment={onAddAnnotation ? startCommenting : undefined}
+            onFind={openFind} onLink={requestLink} />
+        </div>
+        {!isFullscreen ? <button type="button" onClick={() => setFullscreen(true)} aria-label="Expandir editor" title="Expandir editor"
+          className={controlClass(false)}><Maximize2 className="h-4 w-4" /></button> : null}
+      </div> : null}
+
+      {sync.conflict ? <div role="alert" className="flex shrink-0 flex-wrap items-center gap-3 border-b border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-3 text-sm">
+        <p className="min-w-[12rem] flex-1">Chegou outra versão deste texto. Sua edição foi preservada.</p>
+        <button type="button" onClick={sync.keepLocal} className="min-h-10 rounded-[var(--radius-input)] border border-[var(--border-color)] px-3 font-medium">Manter minha edição</button>
+        <button type="button" onClick={() => {
+          sync.acceptIncoming(); setLocalDirty(false); setLinkRequest(null); setDraftCommentText('');
+        }} className="min-h-10 px-3 underline underline-offset-2">Carregar versão recebida</button>
+      </div> : null}
+
+      {commentsEnabled && !compactMobileComposer ? <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-b border-[var(--border-color)] px-3 py-1 text-xs text-[var(--text-secondary)]">
+        {wideLayout && !isMobile ? <button type="button" aria-pressed={commentsOpen} onClick={() => setCommentsOpen(open => !open)}
+          className="min-h-9 rounded-[var(--radius-input)] px-2 hover:bg-[var(--bg-hover)]">{commentsOpen ? 'Ocultar comentários ao lado' : 'Mostrar comentários ao lado'}</button> : null}
+        <button type="button" onClick={() => setCommentsPanelOpen(true)} aria-label={`Ver todos os comentários (${openCount})`}
+          className="inline-flex min-h-9 items-center gap-1.5 rounded-[var(--radius-input)] px-2 hover:bg-[var(--bg-hover)]">
+          <MessageSquare className="h-3.5 w-3.5" />Ver todos ({openCount})
+          {unanchoredIds.size ? <span>· {unanchoredIds.size} sem trecho</span> : null}
+        </button>
+      </div> : null}
+
+      {findMode ? <div className="relative z-[170] h-0 shrink-0">
+        <div className="absolute right-3 top-2 w-[min(26rem,calc(100%-1.5rem))]">
+          <FindReplaceBar editor={editor} mode={findMode} focusToken={findToken} onClose={() => setFindMode(null)} />
+        </div>
+      </div> : null}
+
+      <FormattingBubble editor={editor} blocked={isMobile || !!activeDraft || !!linkRequest || commentsPanelOpen}
+        onComment={onAddAnnotation ? startCommenting : undefined} onLink={requestLink} />
+
+      <div className={cn('flex min-h-0 min-w-0', isFullscreen || !writingBar ? 'flex-1' : 'overflow-visible')}>
+        <div ref={editorViewportRef} className={cn(
+          'min-w-0 flex-1 custom-scrollbar',
+          !isFullscreen && writingBar && isWorkspace ? 'overflow-visible' : 'min-h-0 overflow-y-auto',
+          compactMobileComposer && !isFullscreen ? 'bg-transparent p-0'
+            : isFullscreen ? 'bg-[var(--bg-elevated)] px-4 py-6 md:px-8'
+              : isWorkspace ? 'bg-[var(--bg-elevated)] px-4 py-6 md:px-8'
+                : 'bg-[var(--bg-secondary)] p-4 md:p-8',
+          editorViewportClassName,
+        )}>
+          <div className={cn('mx-auto flex w-full items-start', railVisible ? 'max-w-[76rem] gap-8' : 'max-w-[51rem]')}>
+            <div ref={editorContainerRef} onPointerDown={handleEditorPointerDown} className={cn(
+              'script-sheet relative min-w-0 flex-1 cursor-text bg-[var(--bg-elevated)]',
+              isFullscreen ? 'min-h-[calc(100dvh-16rem)] px-4 py-6 pb-24 md:px-8 md:py-10'
+                : compactMobileComposer ? 'min-h-[50dvh] bg-transparent px-0 py-2 pb-24'
+                  : isWorkspace ? cn('min-h-[12rem] px-1 py-2', writingBar && 'min-h-[calc(100dvh-18rem)]', notesPanelOpen && 'max-w-[72ch]')
+                    : 'min-h-[500px] rounded-[var(--radius-input)] border border-[var(--border-color)] px-5 py-8 shadow-[var(--shadow-editorial)] md:px-12 md:py-12',
+              editorCanvasClassName,
+            )}>
+              <EditorContent editor={editor} className={cn('max-w-none cursor-text', !isWorkspace && 'prose-sm sm:prose lg:prose-lg')} />
             </div>
-          </div>
-        ) : compactMobileComposer ? null : (
-          <div
-            data-format-bar={writingBar ? 'writing' : 'full'}
-            className={cn(
-              'relative flex shrink-0 items-center border-b border-[var(--border-color)]',
-              writingBar ? 'bg-[var(--bg-hover)]' : 'bg-[var(--bg-elevated)]',
-              isWorkspace && !isFullscreen && 'sticky top-0 z-10',
-            )}
-          >
-            <div
-              className={cn(
-                'relative flex min-w-0 flex-1 items-center',
-                isWorkspace && !isFullscreen ? 'min-h-11 px-2 py-1' : isMobile ? 'h-11 px-2' : 'h-11 px-3',
-                !isFullscreen && 'rounded-t-[var(--radius-input)]',
-              )}
-            >
-          <EditorToolbar
-            editor={editor}
-            mode={writingBar ? 'writing' : 'full'}
-            toolbarStart={toolbarStart}
-            toolbarEnd={toolbarEnd}
-            typographySlot={typographySlot}
-            onComment={onAddAnnotation ? startCommenting : undefined}
-            onFind={openFind}
-            onLink={requestLink}
-          />
-          {!isWorkspace && meter !== 'none' ? (
-            <div className="ml-3 hidden shrink-0 items-center gap-1 text-sm text-[var(--text-tertiary)] sm:flex">
-              {wordCount} palavras · {durationLabel}
-            </div>
-          ) : null}
-          </div>
-            <button
-              onClick={() => setFullscreen(true)}
-              className={cn(
-                'mr-2 flex shrink-0 items-center justify-center rounded-[var(--radius-input)] transition',
-                writingBar ? 'h-8 w-8' : 'h-9 w-9',
-                formatControlClass(false, writingBar),
-              )}
-              title="Tela cheia"
-              aria-label="Expandir editor"
-              type="button"
-            >
-              <Maximize2 className="h-4 w-4" />
-            </button>
-          </div>
-        )}
-
-        {findMode ? (
-          <div className="relative z-[125] h-0">
-            <div className="absolute right-3 top-2 w-[min(26rem,calc(100%-1.5rem))]">
-              <FindReplaceBar editor={editor} mode={findMode} focusToken={findToken} onClose={() => setFindMode(null)} />
-            </div>
-          </div>
-        ) : null}
-
-        <BubbleMenu
-          editor={editor}
-          options={{ placement: 'top', offset: 8 }}
-          shouldShow={({ editor: instance, state }) =>
-            !state.selection.empty && instance.isEditable && !isMobileRef.current && !bubbleBlockedRef.current
-          }
-          className="z-[120] flex items-center gap-0.5 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] p-1 shadow-[var(--shadow-dropdown)]"
-        >
-          {([
-            { id: 'bold', label: 'Negrito (Ctrl+B)', icon: Bold, run: () => editor.chain().focus().toggleBold().run() },
-            { id: 'italic', label: 'Itálico (Ctrl+I)', icon: Italic, run: () => editor.chain().focus().toggleItalic().run() },
-            { id: 'underline', label: 'Sublinhado (Ctrl+U)', icon: UnderlineIcon, run: () => editor.chain().focus().toggleUnderline().run() },
-          ] as const).map(item => {
-            const Icon = item.icon;
-            return (
-              <button
-                key={item.id}
-                type="button"
-                onMouseDown={event => event.preventDefault()}
-                onClick={item.run}
-                aria-label={item.label}
-                title={item.label}
-                className={cn('flex h-8 w-8 items-center justify-center rounded-[var(--radius-input)] transition', formatControlClass(editor.isActive(item.id), true))}
-              >
-                <Icon className="h-4 w-4" />
-              </button>
-            );
-          })}
-          <EditorColorMenu editor={editor} kind="highlight" size="sm" neutral />
-          <button
-            type="button"
-            onMouseDown={event => event.preventDefault()}
-            onClick={requestLink}
-            aria-label="Link"
-            title="Link"
-            className={cn('flex h-8 w-8 items-center justify-center rounded-[var(--radius-input)] transition', formatControlClass(editor.isActive('link'), true))}
-          >
-            <LinkIcon className="h-4 w-4" />
-          </button>
-          {onAddAnnotation && (
-            <>
-              <div className="mx-1 h-5 w-px bg-[var(--border-color)]" aria-hidden />
-              <button
-                type="button"
-                onMouseDown={event => event.preventDefault()}
-                onClick={startCommenting}
-                aria-label="Comentar trecho selecionado (Ctrl+Alt+M)"
-                title="Comentar (Ctrl+Alt+M)"
-                className="flex h-8 w-8 items-center justify-center rounded-[var(--radius-input)] text-[var(--accent-blue)] transition hover:bg-[color-mix(in_srgb,var(--accent-blue),transparent_90%)]"
-              >
-                <MessageSquarePlus className="h-4 w-4" />
-              </button>
-            </>
-          )}
-        </BubbleMenu>
-
-        <AnimatePresence>
-          {marginMenu && !activeDraft && !isMobile && onAddAnnotation && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.8 }}
-              className="fixed z-[120]"
-              style={{ top: marginMenu.y, left: marginMenu.x }}
-            >
-              <button
-                onClick={startCommenting}
-                className="rounded-[var(--radius-pill)] border border-[var(--border-color)] bg-[var(--bg-elevated)] p-2.5 text-[var(--accent-blue)] shadow-[var(--shadow-dropdown)] transition hover:scale-110 hover:bg-[var(--accent-blue)] hover:text-[var(--bg-secondary)] active:scale-95"
-                type="button"
-              >
-                <MessageSquarePlus className="h-5 w-5" />
-              </button>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        <div className={cn('flex min-h-0', isFullscreen ? 'flex-1' : writingBar ? 'overflow-visible' : 'flex-1')}>
-        <div
-          ref={editorViewportRef}
-          className={cn(
-            'transition-all duration-500',
-            isFullscreen && fullscreenAside && !isMobile && 'min-w-0',
-            isWorkspace && !isFullscreen
-              ? writingBar
-                ? 'overflow-visible'
-                : 'min-h-0 flex-1 overflow-y-auto custom-scrollbar'
-              : 'min-h-0 flex-1 overflow-y-auto custom-scrollbar',
-            isFullscreen
-              ? 'bg-[var(--bg-elevated)]'
-              : compactMobileComposer
-                ? 'bg-transparent p-0'
-                : isWorkspace
-                  ? 'bg-[var(--bg-elevated)] px-6 py-8 md:px-12 md:py-12'
-                  : 'bg-[var(--bg-secondary)]/30 p-4 md:p-8 lg:p-12',
-            editorViewportClassName,
-          )}
-        >
-          <div
-            className={cn(
-              'mx-auto flex items-start',
-              railVisible ? 'flex-row gap-8' : 'flex-col gap-12',
-              isFullscreen
-                ? railVisible
-                  ? 'w-full max-w-[72rem]'
-                  : 'w-full max-w-[51rem]'
-                : 'max-w-full',
-            )}
-          >
-            <div
-              ref={editorContainerRef}
-              onPointerDown={handleEditorAreaPointerDown}
-              className={cn(
-                'relative w-full flex-1 cursor-text bg-[var(--bg-elevated)] transition-all',
-                isFullscreen
-                  ? cn(
-                      isMobile
-                        ? 'min-h-[calc(100vh-112px)] px-4 py-6 pb-28'
-                        : writingBar
-                          ? 'script-sheet mx-auto min-h-[calc(100dvh-10rem)] w-full max-w-[51rem] px-8 py-10'
-                          : 'min-h-[760px] px-8 py-8',
-                    )
-                  : compactMobileComposer
-                    ? 'min-h-[50dvh] rounded-none border-0 bg-transparent px-0 py-2 shadow-none'
-                    : isWorkspace
-                      ? writingBar
-                        ? 'script-sheet mx-auto min-h-[calc(100dvh-18rem)] w-full max-w-[51rem] rounded-none border-0 bg-transparent px-2 py-2 shadow-none'
-                        : 'script-sheet mx-auto min-h-[12rem] w-full max-w-[72ch] rounded-none border-0 bg-transparent px-1 py-2 shadow-none'
-                      : 'min-h-[800px] rounded-[var(--radius-input)] border border-[var(--border-color)] p-12 shadow-[var(--shadow-editorial)] md:p-24',
-                editorCanvasClassName,
-              )}
-            >
-              <EditorContent
-                editor={editor}
-                className={cn(
-                  'cursor-text',
-                  isWorkspace ? 'max-w-none' : 'max-w-none prose-sm sm:prose lg:prose-lg',
-                )}
-              />
-
-              {commentsEnabled && !isFullscreen && annotationSource.length > 0 && !compactMobileComposer && (
-                <button
-                  type="button"
-                  onClick={() => setCommentsPanelOpen(true)}
-                  aria-label={`Comentários (${openCount})`}
-                  title="Ver todos os comentários"
-                  className="absolute right-3 top-3 z-[5] flex select-none items-center gap-1.5 rounded-[var(--radius-pill)] border border-[color-mix(in_srgb,var(--warning),transparent_72%)] bg-[color-mix(in_srgb,var(--warning),transparent_90%)] px-2.5 py-1 text-xs font-bold text-[var(--text-primary)] transition hover:bg-[color-mix(in_srgb,var(--warning),transparent_80%)]"
-                >
-                  <MessageSquare className="h-3 w-3" />
-                  {openCount}
-                  {unanchoredIds.size > 0 ? <span className="font-medium text-[var(--text-tertiary)]">· {unanchoredIds.size} sem trecho</span> : null}
-                </button>
-              )}
-            </div>
-
-            {railVisible && (
-              <CommentRail
-                items={railNotes}
-                anchors={new Map(annotationPositions.map(position => [position.id, position.top]))}
-                activeId={expandedNoteId}
-                minHeight={editorContainerRef.current?.offsetHeight ?? 0}
-                renderCard={note => renderCommentCard(note)}
-                draft={
-                  activeDraft && draftCommentTop !== null
-                    ? {
-                        top: draftCommentTop,
-                        node: (
-                          <div className="rounded-[var(--radius-card-mobile)] border-2 border-[color-mix(in_srgb,var(--accent-blue),transparent_70%)] bg-[var(--bg-elevated)] p-4 shadow-[var(--shadow-card)] md:rounded-[var(--radius-card)]">
-                            <p className="mb-2 text-xs font-semibold text-[var(--text-primary)]">{authorName}</p>
-                            <p className="mb-3 line-clamp-2 border-l-2 border-[var(--border-strong)] pl-2 text-xs italic text-[var(--text-tertiary)]">“{activeDraft.text}”</p>
-                            <textarea
-                              autoFocus
-                              value={draftCommentText}
-                              onChange={(event) => setDraftCommentText(event.target.value)}
-                              placeholder="O que você quer comentar?"
-                              aria-label="Comentário"
-                              className="mb-3 min-h-[72px] w-full resize-none rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-3 py-2 text-sm text-[var(--text-primary)] focus:border-[var(--accent-blue)] focus:outline-none"
-                              onKeyDown={(event) => {
-                                if (event.key === 'Enter' && !event.shiftKey) {
-                                  event.preventDefault();
-                                  submitComment();
-                                }
-                                if (event.key === 'Escape') setActiveDraft(null);
-                              }}
-                            />
-                            <div className="flex items-center justify-end gap-3">
-                              <button onClick={() => setActiveDraft(null)} className="text-xs font-semibold text-[var(--text-tertiary)]" type="button">
-                                Cancelar
-                              </button>
-                              <button
-                                onClick={submitComment}
-                                disabled={!draftCommentText.trim()}
-                                className="rounded-[var(--radius-pill)] bg-[var(--accent-blue)] px-5 py-2 text-xs font-semibold text-[var(--bg-secondary)] transition disabled:bg-[var(--bg-hover)] disabled:text-[var(--text-tertiary)]"
-                                type="button"
-                              >
-                                Comentar
-                              </button>
-                            </div>
-                          </div>
-                        ),
-                      }
-                    : null
-                }
-              />
-            )}
+            {railVisible ? <CommentRail items={railNotes} anchors={new Map(annotationPositions.map(item => [item.id, item.top]))}
+              activeId={expandedNoteId} minHeight={editorContainerRef.current?.offsetHeight ?? 0}
+              renderCard={note => renderCommentCard(note)}
+              draft={activeDraft ? { top: draftTop ?? 0, node: <div className="rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-elevated)] p-4 shadow-[var(--shadow-card)]">{composer}</div> } : null} /> : null}
           </div>
         </div>
-        {isFullscreen && !isMobile && fullscreenAside ? (
-          <div className="flex h-full min-h-0 w-[var(--layout-aside)] shrink-0 flex-col overflow-hidden border-l border-[var(--border-color)]">
-            {fullscreenAside}
-          </div>
-        ) : null}
-        </div>
+        {isFullscreen && !isMobile && fullscreenAside ? <aside aria-label="Painel de apoio"
+          className="flex h-full min-h-0 w-[var(--layout-aside)] shrink-0 flex-col overflow-hidden border-l border-[var(--border-color)]">{fullscreenAside}</aside> : null}
+      </div>
 
-        {isFullscreen && isMobile && !compactMobileComposer && (
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[120] bg-gradient-to-t from-[var(--bg-elevated)] via-[var(--bg-elevated)] to-transparent px-4 pb-safe pt-6">
-            <div className="pointer-events-auto rounded-[var(--radius-overlay)] border border-[var(--border-color)] bg-[color-mix(in_srgb,var(--bg-elevated)_95%,transparent)] p-2 shadow-[var(--shadow-dropdown)] backdrop-blur">
-              <div className="flex items-center gap-2 overflow-x-auto">
-                {isMobileQuickbarOpen &&
-                  secondaryActions.map((action) => {
-                    const Icon = action.icon;
-                    const active = action.isActive?.() ?? false;
+      {(!compactMobileComposer || isFullscreen) ? <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-[var(--border-color)] bg-[var(--bg-elevated)] px-4 py-2.5 text-xs text-[var(--text-secondary)]">
+        {meter !== 'none' ? <span>{wordCount} {wordCount === 1 ? 'palavra' : 'palavras'} · {durationLabel}</span> : <span />}
+        <div className="flex min-w-0 flex-wrap items-center gap-3">{!isFullscreen ? saveStatus : null}{saveAction}</div>
+      </div> : saveAction || status ? <div className="flex flex-wrap items-center gap-3 pb-20 pt-3">{saveStatus}{saveAction}</div> : null}
+    </div>
 
-                    return (
-                      <button
-                        key={action.id}
-                        onClick={action.run}
-                        className={cn(
-                          'inline-flex h-10 shrink-0 items-center gap-1.5 rounded-[var(--radius-input)] border px-3 text-sm font-medium transition',
-                          active
-                            ? 'border-[color-mix(in_srgb,var(--accent-blue),transparent_75%)] bg-[color-mix(in_srgb,var(--accent-blue),transparent_92%)] text-[var(--accent-blue)]'
-                            : 'border-[var(--border-color)] bg-[var(--bg-elevated)] text-[var(--text-primary)]',
-                        )}
-                        type="button"
-                      >
-                        <Icon className="h-4 w-4" />
-                        {action.label}
-                      </button>
-                    );
-                  })}
-                <button
-                  onClick={() => setIsMobileQuickbarOpen((current) => !current)}
-                  className="ml-auto inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-hover)] text-[var(--text-tertiary)]"
-                  type="button"
-                  aria-label="Alternar barra de atalhos"
-                >
-                  <ChevronUp
-                    className={cn(
-                      'h-4 w-4 transition-transform',
-                      !isMobileQuickbarOpen && 'rotate-180',
-                    )}
-                  />
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+    {compactMobileComposer && isMobile && !isFullscreen && !modalOpen && !commentsPanelOpen ? <MobileQuickToolbar editor={editor}
+      toolbarStart={toolbarStart} onComment={onAddAnnotation ? startCommenting : undefined}
+      onComments={commentsEnabled ? () => setCommentsPanelOpen(true) : undefined} count={openCount}
+      onLink={requestLink} onFind={() => openFind('find')} onExpand={() => setFullscreen(true)} /> : null}
 
-        {isWorkspace && !compactMobileComposer && meter === 'none' ? (
-          saveAction ? (
-            <div className="flex shrink-0 items-center justify-end gap-3 border-t border-[var(--border-color)] bg-[var(--bg-elevated)] px-4 py-2.5 text-xs text-[var(--text-tertiary)]">
-              <div className="flex min-w-0 items-center gap-2">{saveAction}</div>
-            </div>
-          ) : null
-        ) : isWorkspace && !compactMobileComposer ? (
-          <div className="flex shrink-0 items-center justify-between gap-3 border-t border-[var(--border-color)] bg-[var(--bg-elevated)] px-4 py-2.5 text-xs text-[var(--text-tertiary)]">
-            <span>
-              {wordCount} {wordCount === 1 ? 'palavra' : 'palavras'} · {durationLabel}
-            </span>
-            {saveAction ? <div className="flex min-w-0 items-center gap-2">{saveAction}</div> : null}
-          </div>
-        ) : compactMobileComposer && saveAction ? (
-          <div className="shrink-0 pb-16 pt-3">
-            {saveAction}
-          </div>
-        ) : null}
-      </motion.div>
+    <CommentsPanel open={commentsEnabled && commentsPanelOpen} onClose={() => setCommentsPanelOpen(false)}
+      presentation={isMobile ? 'sheet' : 'drawer'} items={sortedAnnotations} total={openCount}
+      showResolved={showResolved} onShowResolvedChange={setShowResolved} resolvedCount={resolvedCount}
+      renderCard={note => renderCommentCard(note, true)} />
 
-      {compactMobileComposer && isMobile && typeof document !== 'undefined'
-        ? createPortal(
-            <div
-              className="pointer-events-none fixed inset-x-0 z-[80] px-3"
-              style={{
-                bottom: keyboard.open
-                  ? keyboard.inset
-                  : 'max(0.75rem, env(safe-area-inset-bottom))',
-              }}
-            >
-              <div className="pointer-events-auto mx-auto flex max-w-lg items-center gap-0.5 overflow-x-auto rounded-[var(--radius-pill)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-1.5 py-1">
-                {toolbarStart ? (
-                  <div className="flex shrink-0 items-center gap-0.5 border-r border-[var(--border-color)] pr-1">
-                    {toolbarStart}
-                  </div>
-                ) : null}
-                {topToolbarActions
-                  .filter(action => action.id === 'bold' || action.id === 'italic')
-                  .map(action => {
-                    const Icon = action.icon;
-                    const active = action.isActive?.() ?? false;
-                    return (
-                      <button
-                        key={action.id}
-                        type="button"
-                        onMouseDown={event => event.preventDefault()}
-                        onClick={action.run}
-                        aria-label={action.label}
-                        className={cn(
-                          'flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors',
-                          active
-                            ? 'bg-[color-mix(in_srgb,var(--brand-accent),transparent_88%)] text-[var(--brand-accent)]'
-                            : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]',
-                        )}
-                      >
-                        <Icon className="h-4 w-4" />
-                      </button>
-                    );
-                  })}
-                <EditorColorMenu editor={editor} kind="highlight" presentation="sheet" />
-                {commentsEnabled ? (
-                  <>
-                    <button
-                      type="button"
-                      onMouseDown={event => event.preventDefault()}
-                      onClick={startCommenting}
-                      disabled={!hasSelection}
-                      aria-label="Comentar trecho selecionado"
-                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] disabled:opacity-40"
-                    >
-                      <MessageSquarePlus className="h-4 w-4" />
-                    </button>
-                    {annotationSource.length > 0 ? (
-                      <button
-                        type="button"
-                        onMouseDown={event => event.preventDefault()}
-                        onClick={() => setCommentsPanelOpen(true)}
-                        aria-label={`Comentários (${openCount})`}
-                        className="flex h-10 shrink-0 items-center gap-1 rounded-full px-3 text-xs font-semibold text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
-                      >
-                        <MessageSquare className="h-4 w-4" />
-                        {openCount}
-                      </button>
-                    ) : null}
-                  </>
-                ) : null}
-              </div>
-            </div>,
-            document.body,
-          )
-        : null}
-
-      <CommentsPanel
-        open={commentsEnabled && commentsPanelOpen}
-        onClose={() => setCommentsPanelOpen(false)}
-        presentation={isMobile ? 'sheet' : 'drawer'}
-        items={sortedAnnotations}
-        total={openCount}
-        showResolved={showResolved}
-        onShowResolvedChange={setShowResolved}
-        resolvedCount={resolvedCount}
-        renderCard={note => renderCommentCard(note, true)}
-      />
-
-      <AnimatePresence>
-        {activeDraft && !railVisible && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={() => setActiveDraft(null)}
-            className="fixed inset-0 z-[200] flex items-end justify-center bg-[color-mix(in_srgb,var(--text-primary)_40%,transparent)] p-4 sm:items-center"
-          >
-            <motion.div
-              initial={{ opacity: 0, y: 40, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 40, scale: 0.95 }}
-              onClick={(event) => event.stopPropagation()}
-              className="w-full max-w-sm rounded-[var(--radius-card-mobile)] bg-[var(--bg-elevated)] p-6 shadow-none md:rounded-[var(--radius-card)]"
-            >
-              <div className="mb-4 flex items-center gap-3">
-                <div className="flex h-8 w-8 items-center justify-center rounded-[var(--radius-pill)] bg-[color-mix(in_srgb,var(--accent-blue),transparent_90%)] text-xs font-bold text-[var(--accent-blue)]">
-                  {authorName[0]}
-                </div>
-                <span className="flex-1 text-xs font-semibold text-[var(--text-primary)]">
-                  {authorName}
-                </span>
-                <button
-                  onClick={() => setActiveDraft(null)}
-                  className="rounded-[var(--radius-input)] p-1.5 text-[var(--text-tertiary)] hover:bg-[var(--bg-hover)]"
-                  type="button"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-              <div className="mb-4 overflow-hidden rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[color-mix(in_srgb,var(--surface-subtle)_80%,transparent)] p-3">
-                <span className="line-clamp-2 text-xs font-medium italic text-[var(--text-tertiary)]">
-                  "{activeDraft.text}"
-                </span>
-              </div>
-              <textarea
-                autoFocus
-                value={draftCommentText}
-                onChange={(event) => setDraftCommentText(event.target.value)}
-                placeholder="O que você quer comentar?"
-                className="mb-4 min-h-[80px] w-full resize-none rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-4 py-3 text-base text-[var(--text-primary)] transition-all focus:border-[var(--accent-blue)] focus:outline-none focus:ring-4 focus:ring-[color-mix(in_srgb,var(--accent-blue),transparent_88%)] md:text-xs"
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter' && !event.shiftKey) {
-                    event.preventDefault();
-                    submitComment();
-                  }
-                }}
-              />
-              <div className="flex items-center justify-end gap-3">
-                <button
-                  onClick={() => setActiveDraft(null)}
-                  className="text-xs font-semibold text-[var(--text-tertiary)]"
-                  type="button"
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={submitComment}
-                  disabled={!draftCommentText.trim()}
-                  className={cn(
-                    'rounded-[var(--radius-pill)] px-6 py-2 text-xs font-semibold transition-all',
-                    draftCommentText.trim()
-                      ? 'bg-[var(--accent-blue)] text-[var(--bg-secondary)] shadow-[var(--shadow-soft)] active:scale-95'
-                      : 'bg-[var(--bg-hover)] text-[var(--text-tertiary)]',
-                  )}
-                  type="button"
-                >
-                  Comentar
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </>
-  );
+    {showDraftModal ? <EditorDialog title="Comentar trecho" onClose={cancelComment}>{composer}</EditorDialog> : null}
+    {linkRequest ? <LinkEditor initialURL={linkRequest.url} onApply={applyLink} onClose={() => {
+      setLinkRequest(null); editor.commands.focus();
+    }} /> : null}
+  </>;
 }

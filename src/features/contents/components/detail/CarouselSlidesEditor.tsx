@@ -1,7 +1,7 @@
-import {useRef, useState, type ReactNode} from 'react';
+import {useEffect, useRef, useState, type ReactNode} from 'react';
 import {ArrowDown, ArrowUp, Copy, ExternalLink, ImagePlus, Plus, Trash2, X} from 'lucide-react';
 import {RichTextEditor} from '../../../../components/editors/RichTextEditor';
-import type {CommentPatch} from '../../../../components/editors/commentModel';
+import {newCommentId, type CommentPatch} from '../../../../components/editors/commentModel';
 import {ConfirmModal} from '../../../../components/feedback/modals/ConfirmModal';
 import {AppButton} from '../../../../components/ui/AppButton';
 import {Skeleton} from '../../../../components/ui/Skeleton';
@@ -34,10 +34,24 @@ interface CarouselSlidesEditorProps {
   onRetryBody?: () => void;
   /** Na barra de ferramentas da primeira tela, antes de "Mais" (ex.: botão "Notas"). */
   toolbarEnd?: ReactNode;
+  notesPanelOpen?: boolean;
   className?: string;
 }
 
 const LINK_ICON_CLASS = 'inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-[var(--radius-input)] text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] pointer-coarse:h-11 pointer-coarse:w-11';
+
+type ImageUpdate = (images: CarouselImageRef[]) => CarouselImageRef[];
+
+function imageLink(value: string): string | null {
+  const href = imageRefHref(value);
+  if (!href) return null;
+  try {
+    const {protocol} = new URL(href);
+    return protocol === 'http:' || protocol === 'https:' ? href : null;
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Modo Carrossel: telas numeradas, cada uma com texto (mesmo editor do roteiro, com
@@ -54,36 +68,58 @@ export function CarouselSlidesEditor({
   bodyError = null,
   onRetryBody,
   toolbarEnd,
+  notesPanelOpen = false,
   className,
 }: CarouselSlidesEditorProps) {
   const {user} = useAuth();
   const {typography} = useRoteiroTypography(user?.id);
-  const [pendingDelete, setPendingDelete] = useState<{id: string; label: string} | null>(null);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   // Edições seguidas antes do próximo render (texto e comentário) partem sempre da lista mais nova.
   const slidesRef = useRef(slides);
-  slidesRef.current = slides;
+  const receivedSlidesRef = useRef(slides);
+  // Um estado local (como abrir a confirmação) não descarta edições ainda sem eco do pai.
+  // Uma nova lista recebida por props continua sendo a fonte de verdade.
+  if (receivedSlidesRef.current !== slides) {
+    receivedSlidesRef.current = slides;
+    slidesRef.current = slides;
+  }
+
+  useEffect(() => {
+    if (pendingDeleteId === null) return;
+    if (bodyLoading || bodyError || !slides.some(slide => slide.id === pendingDeleteId)) {
+      setPendingDeleteId(null);
+    }
+  }, [bodyError, bodyLoading, pendingDeleteId, slides]);
 
   const commit = (next: CarouselSlide[]) => {
     slidesRef.current = next;
     onChange(next);
   };
   const patchSlide = (id: string, patch: Partial<Omit<CarouselSlide, 'id'>>) => {
+    if (!slidesRef.current.some(slide => slide.id === id)) return;
     commit(updateSlide(slidesRef.current, id, patch));
   };
   const commentsOf = (id: string): ScriptNote[] =>
     slidesRef.current.find(slide => slide.id === id)?.comments ?? [];
 
-  const requestDelete = (slide: CarouselSlide, index: number) => {
+  const updateImages = (id: string, update: ImageUpdate) => {
+    const slide = slidesRef.current.find(item => item.id === id);
+    if (slide) patchSlide(id, {images: update(slide.images)});
+  };
+
+  const requestDelete = (id: string) => {
+    const slide = slidesRef.current.find(item => item.id === id);
+    if (!slide) return;
     if (slideHasContent(slide)) {
-      setPendingDelete({id: slide.id, label: slideLabel(index)});
+      setPendingDeleteId(id);
       return;
     }
-    commit(removeSlide(slidesRef.current, slide.id));
+    commit(removeSlide(slidesRef.current, id));
   };
 
   if (bodyLoading) {
     return (
-      <div className="stack-sm" aria-busy="true" aria-label="Carregando telas">
+      <div className={cn('stack-sm', className)} aria-busy="true" aria-label="Carregando telas">
         <Skeleton className="h-6 w-1/3" />
         <Skeleton className="h-40 w-full" />
         <Skeleton className="h-40 w-full" />
@@ -93,7 +129,7 @@ export function CarouselSlidesEditor({
 
   if (bodyError) {
     return (
-      <div className="stack-md p-6 text-center">
+      <div className={cn('stack-md p-6 text-center', className)} role="alert">
         <Text variant="sectionTitle">Não foi possível carregar o carrossel</Text>
         <Text variant="meta" className="mx-auto max-w-md">{bodyError}</Text>
         {onRetryBody ? (
@@ -105,20 +141,21 @@ export function CarouselSlidesEditor({
     );
   }
 
-  const list = slides.length > 0 ? slides : [];
+  const pendingDeleteIndex = slidesRef.current.findIndex(slide => slide.id === pendingDeleteId);
+  const pendingDeleteLabel = pendingDeleteIndex >= 0 ? slideLabel(pendingDeleteIndex) : 'Tela';
 
   return (
     <section className={cn('stack-md', className)} aria-label="Telas do carrossel">
       {/* Sem telas não há barra: o botão fica sozinho no topo. */}
-      {toolbarEnd && list.length === 0 ? <div className="flex justify-end">{toolbarEnd}</div> : null}
+      {toolbarEnd && slides.length === 0 ? <div className="flex justify-end">{toolbarEnd}</div> : null}
 
       <ol className="stack-md">
-        {list.map((slide, index) => {
+        {slides.map((slide, index) => {
           const label = slideLabel(index);
           return (
             <li key={slide.id}>
               <Surface as="article" variant="outlined" padding="none" className="overflow-visible" aria-label={label}>
-                <div className="flex items-center justify-between gap-2 border-b border-[var(--border-color)] px-4 py-2">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--border-color)] px-4 py-2">
                   <Text variant="itemTitle" as="h3">{label}</Text>
                   <div className="flex items-center gap-1">
                     <AppButton
@@ -140,7 +177,7 @@ export function CarouselSlidesEditor({
                       iconOnly
                       aria-label={`Mover ${label} para baixo`}
                       title="Mover para baixo"
-                      disabled={index === list.length - 1}
+                      disabled={index === slides.length - 1}
                       onClick={() => commit(moveSlide(slidesRef.current, slide.id, 1))}
                     >
                       <ArrowDown className="h-4 w-4" />
@@ -163,7 +200,7 @@ export function CarouselSlidesEditor({
                       iconOnly
                       aria-label={`Apagar ${label}`}
                       title="Apagar tela"
-                      onClick={() => requestDelete(slide, index)}
+                      onClick={() => requestDelete(slide.id)}
                     >
                       <Trash2 className="h-4 w-4" />
                     </AppButton>
@@ -172,6 +209,7 @@ export function CarouselSlidesEditor({
 
                 <div className="roteiro-typography" style={roteiroTypographyStyle(typography)}>
                   <RichTextEditor
+                    documentId={slide.id}
                     variant="workspace"
                     formatBar="writing"
                     meter="none"
@@ -182,20 +220,23 @@ export function CarouselSlidesEditor({
                     authorName={authorName}
                     documentTitle={`${documentTitle} · ${label}`}
                     annotations={slide.comments ?? []}
-                    onAddAnnotation={(text, selection, comment, id) => patchSlide(slide.id, {
-                      comments: [
-                        ...commentsOf(slide.id),
-                        {
-                          id: id ?? Math.random().toString(36).slice(2, 11),
+                    notesPanelOpen={notesPanelOpen}
+                    onAddAnnotation={(text, selection, comment, id) => {
+                      const commentId = id ?? newCommentId();
+                      const comments = commentsOf(slide.id);
+                      if (comments.some(note => note.id === commentId)) return;
+                      patchSlide(slide.id, {
+                        comments: [...comments, {
+                          id: commentId,
                           authorName,
                           text,
                           selection,
                           comment,
                           color: 'color-mix(in srgb, var(--warning), transparent 50%)',
                           createdAt: new Date().toISOString(),
-                        },
-                      ],
-                    })}
+                        }],
+                      });
+                    }}
                     onRemoveAnnotation={id => patchSlide(slide.id, {
                       comments: commentsOf(slide.id).filter(note => note.id !== id),
                     })}
@@ -219,7 +260,7 @@ export function CarouselSlidesEditor({
                 <SlideImages
                   label={label}
                   images={slide.images}
-                  onChange={images => patchSlide(slide.id, {images})}
+                  onChange={update => updateImages(slide.id, update)}
                 />
               </Surface>
             </li>
@@ -240,15 +281,17 @@ export function CarouselSlidesEditor({
       </div>
 
       <ConfirmModal
-        open={pendingDelete !== null}
-        message={`Apagar a ${pendingDelete?.label.toLowerCase() ?? 'tela'}? O texto e as imagens desta tela saem do carrossel.`}
+        open={pendingDeleteId !== null && pendingDeleteIndex >= 0}
+        message={`Apagar a ${pendingDeleteLabel.toLowerCase()}? O texto e as imagens desta tela saem do carrossel.`}
         confirmLabel="Apagar tela"
         cancelLabel="Manter tela"
         onConfirm={() => {
-          if (pendingDelete) commit(removeSlide(slidesRef.current, pendingDelete.id));
-          setPendingDelete(null);
+          if (pendingDeleteId !== null && slidesRef.current.some(slide => slide.id === pendingDeleteId)) {
+            commit(removeSlide(slidesRef.current, pendingDeleteId));
+          }
+          setPendingDeleteId(null);
         }}
-        onCancel={() => setPendingDelete(null)}
+        onCancel={() => setPendingDeleteId(null)}
       />
     </section>
   );
@@ -261,31 +304,27 @@ function SlideImages({
 }: {
   label: string;
   images: CarouselImageRef[];
-  onChange: (images: CarouselImageRef[]) => void;
+  onChange: (update: ImageUpdate) => void;
 }) {
-  const imagesRef = useRef(images);
-  imagesRef.current = images;
-  const commit = (next: CarouselImageRef[]) => {
-    imagesRef.current = next;
-    onChange(next);
-  };
-
   return (
     <div className="stack-sm border-t border-[var(--border-color)] px-4 py-3">
       <Text variant="label" as="p">Imagens</Text>
       {images.length > 0 ? (
         <ul className="stack-sm">
           {images.map((image, index) => {
-            const href = imageRefHref(image.value);
+            const href = imageLink(image.value);
             const fieldLabel = `Imagem ${index + 1} da ${label.toLowerCase()}`;
             return (
               <li key={image.id} className="flex items-center gap-2">
                 <input
                   type="text"
                   value={image.value}
-                  onChange={event => commit(imagesRef.current.map(item => (
-                    item.id === image.id ? {...item, value: event.target.value} : item
-                  )))}
+                  onChange={event => {
+                    const value = event.target.value;
+                    onChange(current => current.map(item => (
+                      item.id === image.id ? {...item, value} : item
+                    )));
+                  }}
                   aria-label={fieldLabel}
                   placeholder="Cole um link ou descreva a imagem"
                   className="min-h-[var(--control-height-mobile)] min-w-0 flex-1 rounded-[var(--radius-input)] border border-[var(--border-input)] bg-[var(--bg-elevated)] px-3 text-sm text-[var(--text-primary)] outline-none placeholder:text-[var(--text-tertiary)] focus-visible:shadow-[var(--focus-ring)] md:min-h-[var(--control-height)]"
@@ -309,7 +348,7 @@ function SlideImages({
                   iconOnly
                   aria-label={`Remover ${fieldLabel.toLowerCase()}`}
                   title="Remover imagem"
-                  onClick={() => commit(imagesRef.current.filter(item => item.id !== image.id))}
+                  onClick={() => onChange(current => current.filter(item => item.id !== image.id))}
                 >
                   <X className="h-4 w-4" />
                 </AppButton>
@@ -324,7 +363,7 @@ function SlideImages({
           variant="secondary"
           size="xs"
           leftIcon={<ImagePlus className="h-4 w-4" />}
-          onClick={() => commit([...imagesRef.current, createCarouselImage()])}
+          onClick={() => onChange(current => [...current, createCarouselImage()])}
         >
           Adicionar imagem
         </AppButton>
