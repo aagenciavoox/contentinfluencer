@@ -1,6 +1,6 @@
 import {addDays, format, parseISO} from 'date-fns';
 import {ptBR} from 'date-fns/locale';
-import type {AgendaItem, ProjetoLivro} from '../../../lib/database.ts';
+import type {AgendaItem, BibliotecaItem, ProjetoLivro} from '../../../lib/database.ts';
 
 /** Tipos oferecidos ao criar um evento. `Entrega` permanece só nos registros antigos. */
 export const AGENDA_TIPOS = [
@@ -109,4 +109,43 @@ export function nomeDoLivro(
 ): string | null {
   if (!item.projetoLivroId) return null;
   return livros.find(livro => livro.id === item.projetoLivroId)?.nome ?? null;
+}
+
+function chaveNome(nome: string | null | undefined): string {
+  return (nome ?? '').trim().replace(/\s+/g, ' ').toLocaleLowerCase('pt-BR');
+}
+
+/** Livro da Biblioteca com o mesmo título (sem diferenciar maiúsculas). Ignora excluídos e outros formatos. */
+export function encontrarLivroNaBiblioteca(
+  itens: readonly BibliotecaItem[],
+  nome: string | null | undefined,
+): BibliotecaItem | null {
+  const chave = chaveNome(nome);
+  if (!chave) return null;
+  return itens.find(item => item.tipo === 'livro' && !item.deletedAt && chaveNome(item.titulo) === chave) ?? null;
+}
+
+/** Livro novo da Biblioteca só com o nome, criado a partir de um período de leitura. */
+export function novoLivroDaBiblioteca(nome: string, userId: string, agora: string, id: string): BibliotecaItem {
+  return {
+    id,
+    userId,
+    tipo: 'livro',
+    titulo: nome.trim().replace(/\s+/g, ' '),
+    autorDiretor: '',
+    capaUrl: null,
+    status: 'Quero ler',
+    dataInicio: null,
+    dataFim: null,
+    avaliacao: null,
+    notasGerais: null,
+    potencialConteudo: null,
+    totalPaginas: null,
+    paginasLidas: null,
+    createdAt: agora,
+    updatedAt: agora,
+    deletedAt: null,
+    generoIds: [],
+    anotacoes: [],
+  };
 }

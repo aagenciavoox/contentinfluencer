@@ -120,8 +120,8 @@ export type AppAction =
   | { type: 'DELETE_TEMPLATE'; payload: string }
 
   // ─── Agenda ─────────────────────────────────────────────────────────────────
-  | { type: 'ADD_AGENDA_ITEM';    payload: AgendaItem; livroNovo?: ProjetoLivro }
-  | { type: 'UPDATE_AGENDA_ITEM'; payload: AgendaItem; livroNovo?: ProjetoLivro }
+  | { type: 'ADD_AGENDA_ITEM';    payload: AgendaItem; livroNovo?: ProjetoLivro; livroBibliotecaNovo?: BibliotecaItem }
+  | { type: 'UPDATE_AGENDA_ITEM'; payload: AgendaItem; livroNovo?: ProjetoLivro; livroBibliotecaNovo?: BibliotecaItem }
   | { type: 'ADD_POST_IT';        payload: PlanejamentoPostIt }
   | { type: 'UPDATE_POST_IT';     payload: PlanejamentoPostIt }
   | { type: 'UPDATE_POST_ITS';    payload: PlanejamentoPostIt[] }
@@ -178,10 +178,19 @@ function comLivroNoProjeto(state: AppState, livro: ProjetoLivro | undefined): Ap
     projetos: state.projetos.map(projeto => {
       if (projeto.id !== livro.projetoId) return projeto;
       const livros = projeto.livros ?? [];
-      if (livros.some(atual => atual.id === livro.id)) return projeto;
+      // Livro já no projeto: atualiza (ex.: passou a apontar para a Biblioteca).
+      if (livros.some(atual => atual.id === livro.id)) {
+        return {...projeto, livros: livros.map(atual => atual.id === livro.id ? {...atual, ...livro} : atual)};
+      }
       return {...projeto, livros: [...livros, livro]};
     }),
   };
+}
+
+/** Livro novo cadastrado pelo período de leitura entra na Biblioteca. */
+function comLivroNaBiblioteca(state: AppState, livro: BibliotecaItem | undefined): AppState {
+  if (!livro || state.bibliotecaItems.some(atual => atual.id === livro.id)) return state;
+  return {...state, bibliotecaItems: [livro, ...state.bibliotecaItems]};
 }
 
 export function appReducer(state: AppState, action: AppAction): AppState {
@@ -564,12 +573,12 @@ export function appReducer(state: AppState, action: AppAction): AppState {
     // ─── Agenda ─────────────────────────────────────────────────────────────
     case 'ADD_AGENDA_ITEM':
       return {
-        ...comLivroNoProjeto(state, action.livroNovo),
+        ...comLivroNoProjeto(comLivroNaBiblioteca(state, action.livroBibliotecaNovo), action.livroNovo),
         agendaItems: [...state.agendaItems, action.payload],
       };
     case 'UPDATE_AGENDA_ITEM':
       return {
-        ...comLivroNoProjeto(state, action.livroNovo),
+        ...comLivroNoProjeto(comLivroNaBiblioteca(state, action.livroBibliotecaNovo), action.livroNovo),
         agendaItems: state.agendaItems.map(a => a.id === action.payload.id ? action.payload : a),
       };
     case 'DELETE_AGENDA_ITEM':

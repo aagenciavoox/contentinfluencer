@@ -362,6 +362,10 @@ export async function persistAction({ action, userId, state, api }: PersistActio
     case 'UPDATE_AGENDA':
     case 'ADD_AGENDA_ITEM':
     case 'UPDATE_AGENDA_ITEM':
+      // Ordem: livro da Biblioteca, livro do projeto e então o evento (chaves estrangeiras).
+      if ('livroBibliotecaNovo' in action && action.livroBibliotecaNovo) {
+        await persistenceApi.saveBibliotecaItem({ ...action.livroBibliotecaNovo, userId });
+      }
       if ('livroNovo' in action && action.livroNovo) {
         await persistenceApi.saveProjetoLivro({ ...action.livroNovo, userId });
       }

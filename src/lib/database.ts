@@ -593,6 +593,8 @@ export interface AgendaItem {
   /** Último dia inclusive. Usado pelo período de leitura. Vazio = só `date`. */
   dateEnd?: string | null;
   projetoLivroId?: string | null;
+  /** Livro da Biblioteca do período de leitura. Funciona com ou sem projeto. */
+  bibliotecaItemId?: string | null;
   createdAt: string;
 }
 
@@ -1324,6 +1326,7 @@ const mp = {
     notes: r.notes ?? null,
     dateEnd: r.date_end ? String(r.date_end).slice(0, 10) : null,
     projetoLivroId: r.projeto_livro_id ?? null,
+    bibliotecaItemId: r.biblioteca_item_id ?? null,
   }),
   postIt: (r: Row): PlanejamentoPostIt => ({
     id: r.id,
@@ -3555,13 +3558,21 @@ export async function saveProjetoLivro(livro: ProjetoLivro): Promise<void> {
 export async function saveAgendaItem(item: Omit<AgendaItem, 'createdAt'>): Promise<void> {
   if (!supabase) return;
   const periodo = item.tipo === 'Período de leitura';
-  const { error } = await supabase.from('agenda_items').upsert({
+  const row = {
     id: item.id, user_id: item.userId, title: item.title, date: item.date,
     time: item.time || null, tipo: item.tipo, projeto_id: item.projetoId,
     notes: item.notes?.trim() || null,
     date_end: periodo ? (item.dateEnd || null) : null,
     projeto_livro_id: periodo ? (item.projetoLivroId || null) : null,
+  };
+  let { error } = await supabase.from('agenda_items').upsert({
+    ...row,
+    biblioteca_item_id: periodo ? (item.bibliotecaItemId || null) : null,
   });
+  if (error && isMissingNamedColumn(error.message ?? '', 'biblioteca_item_id')) {
+    // Banco sem a migration 20261025160000: grava o evento sem o vínculo com a Biblioteca.
+    ({ error } = await supabase.from('agenda_items').upsert(row));
+  }
   if (error) throw new Error(`agenda_items: ${error.message}`);
 }
 

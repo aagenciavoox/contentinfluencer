@@ -53,7 +53,7 @@ import {
   type EscolhaFuncaoEvento,
   type ProjetoTipoFormulario,
 } from '../lib/evento';
-import type { ProjetoLivro } from '../../../lib/database';
+import type { BibliotecaItem, ProjetoLivro } from '../../../lib/database';
 import { PROJECT_STATUS_LABEL } from './ProjectsPage';
 
 type EventoDialogState =
@@ -238,12 +238,13 @@ export function ProjectDetailPage() {
     });
   };
 
-  const salvarEvento = (item: AgendaItem, livroNovo?: ProjetoLivro) => {
+  const salvarEvento = (item: AgendaItem, livroNovo?: ProjetoLivro, livroBibliotecaNovo?: BibliotecaItem) => {
     const existe = state.agendaItems.some(atual => atual.id === item.id);
     dispatch({
       type: existe ? 'UPDATE_AGENDA_ITEM' : 'ADD_AGENDA_ITEM',
       payload: {...item, userId: user?.id || item.userId, projetoId: projeto.id},
       livroNovo,
+      livroBibliotecaNovo,
     });
     setEventoDialog(null);
   };

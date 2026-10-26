@@ -35,7 +35,7 @@ import {OverlayFooter} from '../../../components/overlays/OverlayFooter';
 import {OverlayHeader} from '../../../components/overlays/OverlayHeader';
 import {Drawer} from '../../../components/overlays/Drawer';
 import {useAppContext} from '../../../context/AppContext';
-import {AgendaItem, Content, Platform, Projeto, type ProjetoLivro} from '../../../lib/database';
+import {AgendaItem, Content, Platform, Projeto, type BibliotecaItem, type ProjetoLivro} from '../../../lib/database';
 import {AgendaEventoDialog} from '../../projects/components/AgendaEventoDialog';
 import {useIsMobile} from '../../../hooks/useIsMobile';
 import {readStoredJson, writeStoredJson} from '../../../lib/browserStorage';
@@ -287,12 +287,13 @@ export function EditorialCalendarPage() {
     [setDayPanelOpen],
   );
 
-  const salvarAgenda = (item: AgendaItem, livroNovo?: ProjetoLivro) => {
+  const salvarAgenda = (item: AgendaItem, livroNovo?: ProjetoLivro, livroBibliotecaNovo?: BibliotecaItem) => {
     const existe = state.agendaItems.some(atual => atual.id === item.id);
     dispatch({
       type: existe ? 'UPDATE_AGENDA_ITEM' : 'ADD_AGENDA_ITEM',
       payload: item,
       livroNovo,
+      livroBibliotecaNovo,
     });
     setAgendaDialog(null);
   };

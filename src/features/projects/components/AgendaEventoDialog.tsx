@@ -15,7 +15,9 @@ import {getPostingTimesForPlatform} from '../../settings/lib/postingTimes';
 import {generateUUID} from '../../../utils/uuid';
 import {
   encontrarLivroDoProjeto,
+  encontrarLivroNaBiblioteca,
   isPeriodoLeitura,
+  novoLivroDaBiblioteca,
   opcoesTipoEvento,
   rotuloPeriodoLeitura,
   tituloLeitura,
@@ -44,7 +46,7 @@ export function AgendaEventoDialog({
   horaInicial?: string | null;
   tituloInicial?: string;
   onClose: () => void;
-  onSave: (item: AgendaItem, livroNovo?: ProjetoLivro) => void;
+  onSave: (item: AgendaItem, livroNovo?: ProjetoLivro, livroBibliotecaNovo?: BibliotecaItem) => void;
   onDelete?: (item: AgendaItem) => void;
   onOpenProjeto?: (projetoId: string) => void;
 }) {
@@ -58,7 +60,11 @@ export function AgendaEventoDialog({
   const [hora, setHora] = useState(item?.time || horaInicial || '');
   const [notas, setNotas] = useState(item?.notes || '');
   const [projetoId, setProjetoId] = useState(projetoIdFixo || item?.projetoId || '');
-  const [livroEscolha, setLivroEscolha] = useState(() => item?.projetoLivroId ? `pl:${item.projetoLivroId}` : '');
+  const [livroEscolha, setLivroEscolha] = useState(() => {
+    if (item?.projetoLivroId) return `pl:${item.projetoLivroId}`;
+    if (item?.bibliotecaItemId) return `bib:${item.bibliotecaItemId}`;
+    return '';
+  });
   const [nomeManual, setNomeManual] = useState('');
 
   const projeto = projetos.find(atual => atual.id === (projetoIdFixo || projetoId)) ?? null;
@@ -74,8 +80,15 @@ export function AgendaEventoDialog({
     ...livrosBiblioteca
       .filter(livro => !livros.some(atual => atual.bibliotecaItemId === livro.id))
       .map(livro => ({value: `bib:${livro.id}`, label: `Biblioteca · ${livro.titulo}`})),
-    {value: 'manual', label: 'Informar o nome'},
+    {value: 'manual', label: 'Livro novo (digitar o nome)'},
   ];
+
+  // Livro da Biblioteca que já está no projeto aparece como o livro do projeto.
+  const livroEscolhaExibida = (() => {
+    if (!livroEscolha.startsWith('bib:')) return livroEscolha;
+    const doProjeto = livros.find(livro => livro.bibliotecaItemId === livroEscolha.slice(4));
+    return doProjeto ? `pl:${doProjeto.id}` : livroEscolha;
+  })();
 
   const nomeResolvido = (() => {
     if (livroEscolha.startsWith('pl:')) {
@@ -87,11 +100,43 @@ export function AgendaEventoDialog({
     return nomeManual.trim();
   })();
 
+  // Livro digitado que já existe na Biblioteca: usa o existente em vez de criar outro.
+  const livroBibliotecaDoNome = livroEscolha === 'manual'
+    ? encontrarLivroNaBiblioteca(livrosBiblioteca, nomeManual)
+    : null;
+
+  // Projeto é opcional: o período de leitura pode ficar fora de projeto.
   const intervaloInvalido = periodo && Boolean(data) && Boolean(dataFim) && dataFim < data;
   const livroFaltando = periodo && !nomeResolvido;
-  const projetoFaltando = periodo && !projeto;
   const tituloFaltando = !periodo && !titulo.trim();
-  const podeSalvar = Boolean(data) && !intervaloInvalido && !livroFaltando && !projetoFaltando && !tituloFaltando;
+  const faltando = [
+    !data ? (periodo ? 'a data inicial' : 'a data') : null,
+    periodo && !dataFim ? 'a data final' : null,
+    intervaloInvalido ? 'uma data final no dia inicial ou depois' : null,
+    livroFaltando
+      ? (livroEscolha === 'manual' ? 'o nome do livro' : 'escolher um livro ou cadastrar um livro novo')
+      : null,
+    tituloFaltando ? 'o título' : null,
+  ].filter((motivo): motivo is string => Boolean(motivo));
+  const podeSalvar = faltando.length === 0;
+
+  const mudarDataInicial = (valor: string) => {
+    setData(valor);
+    // Data inicial depois da final empurra a final junto.
+    if (valor && (!dataFim || dataFim < valor)) setDataFim(valor);
+  };
+
+  const mudarDataFinal = (valor: string) => {
+    setDataFim(valor && data && valor < data ? data : valor);
+  };
+
+  const trocarProjeto = (proximoId: string) => {
+    setProjetoId(proximoId);
+    if (!livroEscolha.startsWith('pl:')) return;
+    // Livro do projeto anterior: se ele aponta para a Biblioteca, mantém o livro; senão limpa.
+    const anterior = livros.find(livro => livro.id === livroEscolha.slice(3));
+    setLivroEscolha(anterior?.bibliotecaItemId ? `bib:${anterior.bibliotecaItemId}` : '');
+  };
 
   const escolherTipo = (proximo: AgendaTipo) => {
     setTipo(proximo);
@@ -113,21 +158,48 @@ export function AgendaEventoDialog({
   };
 
   const salvar = () => {
-    if (!podeSalvar || !projeto && periodo) return;
+    if (!podeSalvar) return;
     let projetoLivroId: string | null = null;
+    let bibliotecaItemId: string | null = null;
     let livroNovo: ProjetoLivro | undefined;
+    let livroBibliotecaNovo: BibliotecaItem | undefined;
     let nomeLivro = nomeResolvido;
+    const agora = new Date().toISOString();
 
-    if (periodo && projeto) {
+    if (periodo) {
       if (livroEscolha.startsWith('pl:')) {
-        projetoLivroId = livroEscolha.slice(3);
-        nomeLivro = livros.find(livro => livro.id === projetoLivroId)?.nome || nomeLivro;
+        const doProjeto = livros.find(livro => livro.id === livroEscolha.slice(3));
+        projetoLivroId = doProjeto?.id ?? null;
+        bibliotecaItemId = doProjeto?.bibliotecaItemId ?? null;
+        nomeLivro = doProjeto?.nome || nomeLivro;
       } else if (livroEscolha.startsWith('bib:')) {
-        const bibliotecaItemId = livroEscolha.slice(4);
+        bibliotecaItemId = livroEscolha.slice(4);
+      } else {
+        // Livro digitado vira item da Biblioteca só com o nome; capa e o resto vêm depois.
+        const nome = nomeManual.trim();
+        const existenteNoProjeto = projeto ? encontrarLivroDoProjeto(livros, {nome}) : null;
+        if (livroBibliotecaDoNome) {
+          bibliotecaItemId = livroBibliotecaDoNome.id;
+          nomeLivro = livroBibliotecaDoNome.titulo;
+        } else if (existenteNoProjeto?.bibliotecaItemId) {
+          bibliotecaItemId = existenteNoProjeto.bibliotecaItemId;
+          nomeLivro = existenteNoProjeto.nome;
+        } else {
+          livroBibliotecaNovo = novoLivroDaBiblioteca(nome, item?.userId || '', agora, generateUUID());
+          bibliotecaItemId = livroBibliotecaNovo.id;
+          nomeLivro = nome;
+        }
+      }
+
+      if (projeto && !projetoLivroId) {
         const existente = encontrarLivroDoProjeto(livros, {bibliotecaItemId, nome: nomeLivro});
         if (existente) {
           projetoLivroId = existente.id;
           nomeLivro = existente.nome;
+          if (!existente.bibliotecaItemId && bibliotecaItemId) {
+            // Livro do projeto que só tinha nome passa a apontar para a Biblioteca.
+            livroNovo = {...existente, bibliotecaItemId};
+          }
         } else {
           livroNovo = {
             id: generateUUID(),
@@ -135,26 +207,9 @@ export function AgendaEventoDialog({
             userId: item?.userId || '',
             nome: nomeLivro,
             bibliotecaItemId,
-            createdAt: new Date().toISOString(),
+            createdAt: agora,
           };
           projetoLivroId = livroNovo.id;
-        }
-      } else {
-        const existente = encontrarLivroDoProjeto(livros, {nome: nomeManual});
-        if (existente) {
-          projetoLivroId = existente.id;
-          nomeLivro = existente.nome;
-        } else {
-          livroNovo = {
-            id: generateUUID(),
-            projetoId: projeto.id,
-            userId: item?.userId || '',
-            nome: nomeManual.trim(),
-            bibliotecaItemId: null,
-            createdAt: new Date().toISOString(),
-          };
-          projetoLivroId = livroNovo.id;
-          nomeLivro = livroNovo.nome;
         }
       }
     }
@@ -169,10 +224,11 @@ export function AgendaEventoDialog({
       tipo,
       projetoId: projetoIdFixo || projetoId || null,
       notes: notas.trim() || null,
-      dateEnd: periodo ? dataFim : null,
+      dateEnd: periodo ? (dataFim || data) : null,
       projetoLivroId: periodo ? projetoLivroId : null,
-      createdAt: item?.createdAt || new Date().toISOString(),
-    }, livroNovo);
+      bibliotecaItemId: periodo ? bibliotecaItemId : null,
+      createdAt: item?.createdAt || agora,
+    }, livroNovo, livroBibliotecaNovo);
   };
 
   return (
@@ -221,11 +277,11 @@ export function AgendaEventoDialog({
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="block stack-sm">
               <Text variant="label">Data inicial</Text>
-              <input type="date" value={data} onChange={event => setData(event.target.value)} className="w-full" />
+              <input type="date" value={data} onChange={event => mudarDataInicial(event.target.value)} className="w-full" />
             </label>
             <label className="block stack-sm">
               <Text variant="label">Data final</Text>
-              <input type="date" value={dataFim} onChange={event => setDataFim(event.target.value)} className="w-full" />
+              <input type="date" value={dataFim} min={data || undefined} onChange={event => mudarDataFinal(event.target.value)} className="w-full" />
             </label>
           </div>
         ) : (
@@ -242,11 +298,23 @@ export function AgendaEventoDialog({
           </div>
         )}
 
+        {projetoIdFixo ? null : (
+          <TagSelect
+            label="Projeto"
+            values={projetoId ? [projetoId] : []}
+            onChange={values => trocarProjeto(values[0] ?? '')}
+            options={projetos.filter(atual => !atual.deletedAt).map(atual => ({value: atual.id, label: atual.nome}))}
+            maxSelections={1}
+            searchable
+            placeholder="Sem projeto (opcional)"
+          />
+        )}
+
         {periodo ? (
           <div className="stack-sm">
             <TagSelect
               label="Livro"
-              values={livroEscolha ? [livroEscolha] : []}
+              values={livroEscolhaExibida ? [livroEscolhaExibida] : []}
               onChange={values => escolherLivro(values[0] ?? '')}
               options={opcoesLivro}
               maxSelections={1}
@@ -269,29 +337,21 @@ export function AgendaEventoDialog({
             {nomeResolvido && data && dataFim && !intervaloInvalido ? (
               <Text variant="secondary">{rotuloPeriodoLeitura(nomeResolvido, data, dataFim)}</Text>
             ) : null}
-            {projetoFaltando ? (
-              <Text variant="meta">O período de leitura precisa estar num projeto.</Text>
+            {livroFaltando && livroEscolha !== 'manual' ? (
+              <Text variant="meta">Escolha um livro da lista ou cadastre um livro novo só com o nome.</Text>
+            ) : null}
+            {livroEscolha === 'manual' && nomeManual.trim() ? (
+              <Text variant="meta">
+                {livroBibliotecaDoNome
+                  ? `Vai usar "${livroBibliotecaDoNome.titulo}", que já está na Biblioteca.`
+                  : 'O livro entra na Biblioteca só com o nome. Capa, autor e o resto você completa depois.'}
+              </Text>
             ) : null}
             {intervaloInvalido ? (
               <Text variant="meta">A data final precisa ser no dia inicial ou depois.</Text>
             ) : null}
           </div>
         ) : null}
-
-        {projetoIdFixo ? null : (
-          <TagSelect
-            label="Projeto"
-            values={projetoId ? [projetoId] : []}
-            onChange={values => {
-              setProjetoId(values[0] ?? '');
-              setLivroEscolha('');
-            }}
-            options={projetos.filter(atual => !atual.deletedAt).map(atual => ({value: atual.id, label: atual.nome}))}
-            maxSelections={1}
-            searchable
-            placeholder="Sem projeto"
-          />
-        )}
 
         <label className="block stack-sm">
           <Text variant="label">Observações</Text>
@@ -303,6 +363,12 @@ export function AgendaEventoDialog({
             className="w-full resize-none"
           />
         </label>
+
+        {!podeSalvar ? (
+          <div role="status" aria-live="polite">
+            <Text variant="meta">Para salvar, falta {faltando.join(', ')}.</Text>
+          </div>
+        ) : null}
       </OverlayBody>
       <OverlayFooter className="flex-wrap">
         {projeto && onOpenProjeto ? (
