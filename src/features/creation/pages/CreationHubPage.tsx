@@ -564,17 +564,19 @@ export function CreationHubPage() {
     });
     if (serie) content = aplicarEscolhasDaSerie(content, serie);
     content.plataformas = content.plataformas.map(plataforma => ({...plataforma, contentId: content.id}));
-    await dispatch({ type: 'ADD_CONTENT', payload: content });
+    // Fecha o modal e vai para Ideias antes do await, como o roteiro faz: o
+    // `previous` é a URL do render em que o modal abriu, então navegar depois
+    // do await trazia o compose=idea de volta e reabria o modal.
     setSearchParams(previous => {
       const next = new URLSearchParams(previous);
-      const tab = next.get('tab');
-      if (tab && tab !== 'todos' && tab !== 'ideias') {
-        next.set('tab', 'ideias');
-        next.delete('tipo');
-        next.delete('page');
-      }
+      next.delete('compose');
+      next.delete('itemId');
+      next.delete('tipo');
+      next.delete('page');
+      next.set('tab', 'ideias');
       return next;
     }, { replace: true });
+    await dispatch({ type: 'ADD_CONTENT', payload: content });
   }, [dispatch, setSearchParams, state.series]);
 
   useEffect(() => {
