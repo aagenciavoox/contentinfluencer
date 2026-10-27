@@ -299,7 +299,6 @@ export function RoteiroSection({
       embedded
       contentId={contentId}
       legendaBase={draft.legendaBase}
-      onLegendaBaseChange={legendaBase => onChange({legendaBase})}
       titulo={draft.title}
       onTituloChange={title => onChange({title})}
       onChange={plataformas => onChange({plataformas})}
@@ -332,11 +331,7 @@ export function RoteiroSection({
                 <span className="hidden h-6 w-px bg-[var(--border-color)] sm:block" aria-hidden />
                 {writingModeSelect}
               </>
-            ) : (
-              <Text variant="secondary" as="p">
-                Organize os detalhes e prepare a publicação.
-              </Text>
-            )}
+            ) : null}
             <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
               {workspacePane === 'write' ? (
                 // A etapa fica à vista enquanto se escreve, com as mesmas regras da aba Gestão.

@@ -3,12 +3,14 @@ import type { ContentPlataforma } from '../../../lib/database.ts';
 import {
   adaptarLegenda,
   atualizarLegendaBase,
+  copiarLegendaParaTodas,
   criarVersaoPropria,
   definirLegendaCompartilhada,
   editarVersaoPropria,
   estadoLegenda,
   legendaEfetiva,
   legendasDaSerie,
+  legendasQueSeriamSubstituidas,
   migrarLegendas,
   publicacaoJaPostada,
   temLegenda,
@@ -188,6 +190,40 @@ function testSerieOrientaRoteiroNovo() {
   assert.equal(resultado.publicacoes[1]?.legenda, 'versão da série para o TikTok');
 }
 
+function testUsarEstaLegendaEmTodas() {
+  const publicacoes = [
+    publicacao({ id: 'ig', platformId: 'ig', legenda: 'texto do insta', legendaPropria: true }),
+    publicacao({ id: 'tt', platformId: 'tt', legenda: 'texto do tiktok', legendaPropria: true }),
+    publicacao({ id: 'ig2', platformId: 'ig2', legenda: '' }),
+    publicacao({ id: 'yt', platformId: 'yt', legenda: 'já foi ao ar', legendaPropria: true, status: 'publicada' }),
+    publicacao({ id: 'fora', platformId: 'fora', legenda: 'não foi ao ar', legendaPropria: true, status: 'nao_publicada' }),
+  ];
+
+  // Só quem tem texto diferente pede confirmação; a vazia e a publicada não entram.
+  const substituidas = legendasQueSeriamSubstituidas('', publicacoes, 'ig');
+  assert.deepEqual(substituidas.map(item => item.id), ['tt']);
+
+  const copiadas = copiarLegendaParaTodas('', publicacoes, 'ig');
+  assert.equal(copiadas.find(item => item.id === 'tt')?.legenda, 'texto do insta');
+  assert.equal(copiadas.find(item => item.id === 'ig2')?.legenda, 'texto do insta');
+  assert.equal(copiadas.find(item => item.id === 'ig2')?.legendaPropria, true);
+  assert.equal(copiadas.find(item => item.id === 'yt')?.legenda, 'já foi ao ar');
+  assert.equal(copiadas.find(item => item.id === 'fora')?.legenda, 'não foi ao ar');
+
+  // Depois da cópia, cada legenda segue sozinha.
+  const editada = editarVersaoPropria(copiadas, 'tt', 'só no tiktok');
+  assert.equal(editada.find(item => item.id === 'tt')?.legenda, 'só no tiktok');
+  assert.equal(editada.find(item => item.id === 'ig')?.legenda, 'texto do insta');
+  assert.equal(editada.find(item => item.id === 'ig2')?.legenda, 'texto do insta');
+
+  // Publicação que acompanhava a base leva o texto que mostrava.
+  const daBase = copiarLegendaParaTodas('legenda base', [
+    publicacao({ id: 'a', platformId: 'a', legenda: '' }),
+    publicacao({ id: 'b', platformId: 'b', legenda: 'outra', legendaPropria: true }),
+  ], 'a');
+  assert.equal(daBase.find(item => item.id === 'b')?.legenda, 'legenda base');
+}
+
 testBaseAteAdaptar();
 testPrimeiraEdicaoPreservaTextoDiferente();
 testEditarBaseNaoMexeNaPropria();
@@ -199,4 +235,5 @@ testMarcarComoPublicadaGuardaOTextoUsado();
 testComLegendaPeloTextoEfetivo();
 testPostadoSemStatusPorPublicacaoContaComoRealizado();
 testSerieOrientaRoteiroNovo();
+testUsarEstaLegendaEmTodas();
 console.log('captions tests passed');

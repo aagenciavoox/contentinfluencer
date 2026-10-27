@@ -160,6 +160,57 @@ export function voltarParaBase<T extends PublicacaoComStatus & Pick<ContentPlata
   ));
 }
 
+/**
+ * Publicações que recebem "Usar esta legenda em todas": as outras contas marcadas,
+ * ainda não realizadas. "Não foi ao ar" e "Removida" já não são destino.
+ */
+export function destinosDaCopia<T extends PublicacaoComStatus & Pick<ContentPlataforma, 'id'>>(
+  publicacoes: readonly T[],
+  origemId: string,
+  conteudo?: ConteudoDaLegenda | null,
+): T[] {
+  return publicacoes.filter(item =>
+    item.id !== origemId
+    && item.status !== 'nao_publicada'
+    && item.status !== 'removida'
+    && !publicacaoJaPostada(item, conteudo),
+  );
+}
+
+/** Destinos que já têm texto e perderiam esse texto na cópia. Pede confirmação antes. */
+export function legendasQueSeriamSubstituidas<T extends PublicacaoComStatus & Pick<ContentPlataforma, 'id'>>(
+  legendaBase: string | null | undefined,
+  publicacoes: readonly T[],
+  origemId: string,
+  conteudo?: ConteudoDaLegenda | null,
+): T[] {
+  const origem = publicacoes.find(item => item.id === origemId);
+  const texto = origem ? legendaEfetiva(legendaBase, origem) : '';
+  return destinosDaCopia(publicacoes, origemId, conteudo).filter(item => {
+    const atual = legendaEfetiva(legendaBase, item);
+    return atual.trim().length > 0 && atual !== texto;
+  });
+}
+
+/**
+ * "Usar esta legenda em todas": o texto da publicação aberta vai para as outras
+ * não realizadas. Cada uma recebe uma cópia própria; editar uma depois não muda as outras.
+ */
+export function copiarLegendaParaTodas<T extends PublicacaoComStatus & Pick<ContentPlataforma, 'id'>>(
+  legendaBase: string | null | undefined,
+  publicacoes: readonly T[],
+  origemId: string,
+  conteudo?: ConteudoDaLegenda | null,
+): T[] {
+  const origem = publicacoes.find(item => item.id === origemId);
+  if (!origem) return [...publicacoes];
+  const texto = legendaEfetiva(legendaBase, origem);
+  const destinos = new Set(destinosDaCopia(publicacoes, origemId, conteudo).map(item => item.id));
+  return publicacoes.map(item => (
+    destinos.has(item.id) ? { ...item, legendaPropria: true, legenda: texto } : item
+  ));
+}
+
 /** Por rede, como antes. As telas novas usam `criarVersaoPropria` pelo id da publicação. */
 export function adaptarLegenda<T extends ContentPlataforma>(
   legendaBase: string | null | undefined,

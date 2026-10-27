@@ -1,19 +1,45 @@
-import {useEffect, useMemo, useState} from 'react';
+import {useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent} from 'react';
+import {Check, Copy, CopyPlus, Lock} from 'lucide-react';
 import {DEFAULT_PLATFORMS} from '../../../../constants';
 import {useAppContext} from '../../../../context/AppContext';
 import type {ContentPlataforma, Pilar, Serie} from '../../../../lib/database';
 import {generateUUID} from '../../../../utils/uuid';
 import {cn} from '../../../../lib/utils';
+import {ConfirmModal} from '../../../../components/feedback/modals/ConfirmModal';
+import {AppButton} from '../../../../components/ui/AppButton';
 import {PlatformIcon} from '../../../../components/ui/PlatformIcon';
-import {SegmentTabs} from '../../../../components/ui/SegmentTabs';
+import {Surface} from '../../../../components/ui/Surface';
 import {Text} from '../../../../components/ui/Text';
-import {contaDaRef, contasAtivas, iconeDaConta, redeDaRef, rotuloCurtoConta, rotuloConta} from '../../../contas/lib/contas';
-import {DestinationChips} from '../../../editorial/components/DestinationChips';
-import {LegendaBaseField} from '../../../editorial/components/legendas/LegendaBaseField';
-import {PublicacaoLegenda} from '../../../editorial/components/legendas/PublicacaoLegenda';
-import {definirLegendaCompartilhada, estadoLegenda} from '../../../editorial/lib/captions';
+import {
+  complementoDoRotulo,
+  contaDaRef,
+  contasAtivas,
+  iconeDaConta,
+  redeDaRef,
+  rotuloConta,
+  rotuloCurtoConta,
+} from '../../../contas/lib/contas';
+import {HashtagsField} from '../../../editorial/components/legendas/HashtagsField';
+import {textoParaCopiar} from '../../../editorial/components/legendas/PublicacaoLegenda';
+import {
+  copiarLegendaParaTodas,
+  destinosDaCopia,
+  editarVersaoPropria,
+  legendaEfetiva,
+  legendasQueSeriamSubstituidas,
+  publicacaoJaPostada,
+} from '../../../editorial/lib/captions';
+import {
+  alternarDestino,
+  destinoMarcado,
+  mesmoDestino,
+  publicacaoOriginal,
+  publicacaoPublicada,
+  type DestinoPlataforma,
+} from '../../../editorial/lib/destinations';
+import {limiteHashtagsDaRede} from '../../../editorial/lib/editorialSettings';
 import {limiteDeCaracteres, platformShowsField} from '../../../editorial/lib/platformFields';
-import type {DestinoPlataforma} from '../../../editorial/lib/destinations';
+import {suggestHashtags} from '../../lib/captionHashtags';
 
 export function ensurePlatformRecord(
   plataformas: ContentPlataforma[],
@@ -41,6 +67,33 @@ export function ensurePlatformRecord(
   } satisfies ContentPlataforma;
 }
 
+const contaButtonClass =
+  'inline-flex h-10 max-w-full items-center gap-2 rounded-[var(--radius-input)] border bg-[var(--bg-primary)] px-3 text-sm transition-colors focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] disabled:opacity-50 pointer-coarse:h-11';
+
+const abaClass = cn(
+  'relative inline-flex h-10 shrink-0 items-center gap-2 px-3 text-sm transition-colors pointer-coarse:h-11',
+  'focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
+  "after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:rounded-full after:content-['']",
+);
+
+/** "Não foi ao ar" e "Removida" deixam de ser destino: a conta aparece desmarcada e sem aba. */
+function emDestino(publicacao: Pick<ContentPlataforma, 'status'>): boolean {
+  return publicacao.status !== 'nao_publicada' && publicacao.status !== 'removida';
+}
+
+function dataCurta(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit', year: 'numeric'});
+}
+
+/** "A", "A e B", "A, B e C". */
+function juntarNomes(nomes: string[]): string {
+  if (nomes.length <= 1) return nomes[0] ?? '';
+  return `${nomes.slice(0, -1).join(', ')} e ${nomes[nomes.length - 1]}`;
+}
+
 interface PlatformCopyEditorProps {
   plataformas: ContentPlataforma[];
   pilar: Pilar | null;
@@ -49,8 +102,8 @@ interface PlatformCopyEditorProps {
   onChange: (plataformas: ContentPlataforma[]) => void;
   embedded?: boolean;
   contentId?: string;
+  /** Texto de origem de publicações antigas que ainda o acompanham. Esta tela não o edita. */
   legendaBase?: string | null;
-  onLegendaBaseChange?: (value: string) => void;
   titulo?: string;
   onTituloChange?: (value: string) => void;
   /** Status do conteúdo: Postado sem status por publicação conta como realizado. */
@@ -58,8 +111,10 @@ interface PlatformCopyEditorProps {
 }
 
 /**
- * Legendas do conteúdo: a legenda-base compartilhada e, para cada publicação,
- * o texto efetivo naquela conta (acompanhando a base ou com versão própria).
+ * Legendas do conteúdo. Cada conta marcada é uma publicação com legenda própria:
+ * as caixas escolhem as contas, as abas escolhem qual legenda está em edição.
+ * "Usar esta legenda em todas" copia o texto aberto para as outras contas; depois
+ * da cópia, cada legenda segue independente.
  */
 export function PlatformCopyEditor({
   plataformas,
@@ -70,7 +125,6 @@ export function PlatformCopyEditor({
   embedded = false,
   contentId = '',
   legendaBase = null,
-  onLegendaBaseChange,
   titulo = '',
   onTituloChange,
   status = null,
@@ -88,127 +142,346 @@ export function PlatformCopyEditor({
     () => ({status, legendaBase, plataformas}),
     [legendaBase, plataformas, status],
   );
-  const [ativaId, setAtivaId] = useState<string | null>(plataformas[0]?.id ?? null);
-  const ativa = plataformas.find(item => item.id === ativaId) ?? plataformas[0] ?? null;
+
+  // Conta inativa que já tem publicação continua na lista, para poder ser desmarcada.
+  const contasParaMarcar = useMemo<DestinoPlataforma[]>(() => {
+    const inativasMarcadas = contas.filter(conta =>
+      conta.ativo === false && !destinos.some(destino => destino.id === conta.id) && destinoMarcado(plataformas, conta),
+    );
+    return [...destinos, ...inativasMarcadas];
+  }, [contas, destinos, plataformas]);
+
+  // Abas na ordem das contas; o repost vem logo depois da publicação original.
+  const abas = useMemo(() => {
+    const ordem = (item: ContentPlataforma) => {
+      const indice = contasParaMarcar.findIndex(conta => mesmoDestino(item.platformId, conta));
+      return indice === -1 ? contasParaMarcar.length : indice;
+    };
+    return plataformas
+      .map((item, posicao) => ({item, posicao}))
+      .filter(({item}) => emDestino(item))
+      .sort((a, b) =>
+        ordem(a.item) - ordem(b.item)
+        || Number(!publicacaoOriginal(a.item)) - Number(!publicacaoOriginal(b.item))
+        || a.posicao - b.posicao,
+      )
+      .map(({item}) => item);
+  }, [contasParaMarcar, plataformas]);
+
+  const [ativaId, setAtivaId] = useState<string | null>(null);
+  const ativa = abas.find(item => item.id === ativaId) ?? abas[0] ?? null;
+  const [confirmarCopia, setConfirmarCopia] = useState(false);
+  const [copiaFeita, setCopiaFeita] = useState(false);
+  const [copiado, setCopiado] = useState(false);
+  const abaRefs = useRef(new Map<string, HTMLButtonElement>());
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const contaAtiva = ativa ? contaDaRef(ativa.platformId, contas) : null;
+  const redeAtiva = ativa ? redeDaRef(ativa.platformId, contas) : null;
+  const chaveDaRede = redeAtiva && redeAtiva !== 'outra' ? redeAtiva : contaAtiva?.nome ?? ativa?.platformId ?? '';
+  const rotuloAtiva = contaAtiva ? rotuloConta(contaAtiva) : ativa?.platformId ?? '';
+  const texto = ativa ? legendaEfetiva(legendaBase, ativa) : '';
+  const publicada = ativa ? publicacaoJaPostada(ativa, conteudo) : false;
+  const limite = limiteDeCaracteres(chaveDaRede);
+  const acimaDoLimite = limite != null && texto.length > limite;
+  const mostraTitulo = Boolean(ativa) && platformShowsField(redeAtiva ?? '', 'titulo');
+  const mostraHashtags = Boolean(ativa) && platformShowsField(chaveDaRede, 'hashtags');
+  const destinosDaLegenda = ativa ? destinosDaCopia(abas, ativa.id, conteudo) : [];
+  const substituidas = ativa ? legendasQueSeriamSubstituidas(legendaBase, abas, ativa.id, conteudo) : [];
+  const sugestao = ativa ? suggestHashtags({platformId: ativa.platformId, serie, pilar, contas}) : [];
+  const publicadaEm = dataCurta(ativa?.realizadaApiEm ?? ativa?.realizadaManualEm ?? null);
+
+  // O campo cresce com o texto; trocar de aba recalcula a altura.
+  useLayoutEffect(() => {
+    const node = textareaRef.current;
+    if (!node) return;
+    node.style.height = 'auto';
+    node.style.height = `${node.scrollHeight}px`;
+  }, [texto, ativa?.id]);
 
   useEffect(() => {
-    if (ativaId && plataformas.some(item => item.id === ativaId)) return;
-    setAtivaId(plataformas[0]?.id ?? null);
-  }, [ativaId, plataformas]);
+    if (!copiaFeita) return;
+    const timer = window.setTimeout(() => setCopiaFeita(false), 1600);
+    return () => window.clearTimeout(timer);
+  }, [copiaFeita]);
 
-  // A base mostra o menor limite entre as publicações que ainda a acompanham.
-  const limiteDaBase = useMemo(() => {
-    const limites = plataformas
-      .filter(item => estadoLegenda(item, conteudo) === 'base')
-      .map(item => limiteDeCaracteres(redeDaRef(item.platformId, contas) ?? contaDaRef(item.platformId, contas)?.nome))
-      .filter((limite): limite is number => limite != null);
-    return limites.length > 0 ? Math.min(...limites) : null;
-  }, [contas, conteudo, plataformas]);
+  useEffect(() => {
+    if (!copiado) return;
+    const timer = window.setTimeout(() => setCopiado(false), 1500);
+    return () => window.clearTimeout(timer);
+  }, [copiado]);
 
-  const redeAtiva = ativa ? redeDaRef(ativa.platformId, contas) : null;
-  const mostraTitulo = Boolean(ativa) && platformShowsField(redeAtiva ?? '', 'titulo');
+  const contaJaPublicada = (conta: DestinoPlataforma) => plataformas.some(item =>
+    publicacaoOriginal(item) && mesmoDestino(item.platformId, conta) && publicacaoPublicada(item),
+  );
+
+  const alternarConta = (conta: DestinoPlataforma) => {
+    if (disabled) return;
+    const marcada = destinoMarcado(plataformas, conta);
+    if (marcada && contaJaPublicada(conta)) return;
+    const proximas = alternarDestino({publicacoes: plataformas, plataforma: conta, contentId, marcar: !marcada});
+    // Conta marcada aqui começa com legenda própria e vazia, sem herdar a legenda-base escondida.
+    onChange(proximas.map(item => (
+      plataformas.some(atual => atual.id === item.id) ? item : {...item, legendaPropria: true, legenda: ''}
+    )));
+  };
+
+  const rotuloDaAba = (item: ContentPlataforma) => {
+    const conta = contaDaRef(item.platformId, contas);
+    const rotulo = conta ? rotuloCurtoConta(conta) : item.platformId;
+    return item.publicationKind === 'repost' ? `${rotulo} · repost` : rotulo;
+  };
+
+  const moverAba = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (!ativa || abas.length < 2) return;
+    const atual = abas.findIndex(item => item.id === ativa.id);
+    let proxima = -1;
+    if (event.key === 'ArrowRight') proxima = (atual + 1) % abas.length;
+    else if (event.key === 'ArrowLeft') proxima = (atual - 1 + abas.length) % abas.length;
+    else if (event.key === 'Home') proxima = 0;
+    else if (event.key === 'End') proxima = abas.length - 1;
+    if (proxima < 0) return;
+    event.preventDefault();
+    const alvo = abas[proxima];
+    setAtivaId(alvo.id);
+    abaRefs.current.get(alvo.id)?.focus();
+  };
+
+  const usarEmTodas = () => {
+    if (!ativa) return;
+    onChange(copiarLegendaParaTodas(legendaBase, plataformas, ativa.id, conteudo));
+    setCopiaFeita(true);
+  };
+
+  const copiar = async () => {
+    if (!ativa) return;
+    const valor = textoParaCopiar(legendaBase, ativa, mostraHashtags);
+    if (!valor) return;
+    try {
+      await navigator.clipboard.writeText(valor);
+      setCopiado(true);
+    } catch {
+      setCopiado(false);
+    }
+  };
+
+  const motivoSemCopia = !texto.trim()
+    ? 'Escreva a legenda desta conta primeiro.'
+    : destinosDaLegenda.length === 0
+      ? 'As outras contas já foram publicadas.'
+      : undefined;
 
   return (
-    <section className={cn('cms-panel overflow-hidden', embedded && 'flex h-full flex-col')}>
-      <div className="border-b border-[var(--border-color)] px-4 py-3">
-        <Text variant="sectionTitle">{embedded ? 'Legendas' : 'Preparar distribuição'}</Text>
-        <Text variant="secondary" className="mt-0.5">
-          Cada conta marcada é uma publicação, com legenda, datas e status próprios.
-        </Text>
-      </div>
+    <Surface
+      as="section"
+      variant="outlined"
+      padding="lg"
+      className={cn('bg-[var(--bg-elevated)]', embedded && 'h-full')}
+    >
+      <Text variant="sectionTitle" as="h3">{embedded ? 'Legendas' : 'Preparar distribuição'}</Text>
+      <Text variant="secondary" className="mt-1">Cada conta tem sua própria legenda.</Text>
 
-      <div className="stack-lg p-4">
-        <DestinationChips
-          platforms={destinos}
-          publications={plataformas}
-          contentId={contentId}
-          disabled={disabled}
-          activePlatformId={ativa?.platformId ?? null}
-          onActivate={contaId => {
-            const publicacao = plataformas.find(item => item.platformId === contaId && item.publicationKind !== 'repost');
-            if (publicacao) setAtivaId(publicacao.id);
-          }}
-          onChange={next => {
-            onChange(next);
-            const nova = next.find(item => !plataformas.some(atual => atual.id === item.id));
-            if (nova) setAtivaId(nova.id);
-          }}
-        />
+      <div className="mt-4 stack-lg border-t border-[var(--border-color)] pt-4">
+        <div className="stack-sm">
+          <Text variant="bodyStrong" as="p">Contas para publicação</Text>
+          {contasParaMarcar.length === 0 ? (
+            <Text variant="secondary">Nenhuma conta ativa. Cadastre em Contas e horários.</Text>
+          ) : (
+            <div className="flex flex-wrap gap-2" role="group" aria-label="Contas para publicação">
+              {contasParaMarcar.map(conta => {
+                const marcada = destinoMarcado(plataformas, conta);
+                const travada = marcada && contaJaPublicada(conta);
+                const complemento = complementoDoRotulo(conta);
+                return (
+                  <button
+                    key={conta.id}
+                    type="button"
+                    role="checkbox"
+                    aria-checked={marcada}
+                    aria-disabled={travada || undefined}
+                    disabled={disabled}
+                    title={travada ? 'Já publicada nesta conta. Fica marcada.' : rotuloConta(conta)}
+                    aria-label={`${rotuloConta(conta)}${complemento ? `, ${complemento}` : ''}${travada ? ', já publicada' : ''}`}
+                    onClick={() => alternarConta(conta)}
+                    className={cn(
+                      contaButtonClass,
+                      marcada
+                        ? 'border-[var(--border-strong)] text-[var(--text-primary)]'
+                        : 'border-[var(--border-color)] text-[var(--text-secondary)] hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]',
+                      travada && 'cursor-default',
+                    )}
+                  >
+                    <span
+                      aria-hidden
+                      className={cn(
+                        'flex h-4 w-4 shrink-0 items-center justify-center rounded-[4px] border',
+                        marcada
+                          ? 'border-[var(--brand-accent-strong)] bg-[var(--brand-accent-strong)] text-[var(--brand-on-accent)]'
+                          : 'border-[var(--border-input)]',
+                      )}
+                    >
+                      {marcada ? <Check className="h-3 w-3" strokeWidth={3} /> : null}
+                    </span>
+                    <PlatformIcon platform={iconeDaConta(conta)} className="h-4 w-4 shrink-0" />
+                    <span className="truncate">{rotuloCurtoConta(conta)}</span>
+                    {travada ? <Lock className="h-3 w-3 shrink-0 text-[var(--text-tertiary)]" aria-hidden /> : null}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
 
-        <LegendaBaseField
-          id={`legenda-base-${contentId || 'novo'}`}
-          value={legendaBase ?? ''}
-          disabled={disabled}
-          limite={limiteDaBase}
-          descricao={legendaBase == null && plataformas.some(item => item.legenda.trim())
-            ? 'Este conteúdo ainda não tem legenda-base. Ao escrevê-la, as publicações que já tinham outro texto ficam com versão própria.'
-            : 'As publicações que usam a legenda-base acompanham o que você escrever aqui. Versões próprias e publicações já feitas não mudam.'}
-          onChange={texto => {
-            const resultado = definirLegendaCompartilhada({
-              legendaBaseAtual: legendaBase,
-              novoTexto: texto,
-              publicacoes: plataformas,
-              conteudo,
-            });
-            onLegendaBaseChange?.(resultado.legendaBase);
-            onChange(resultado.publicacoes);
-          }}
-        />
+        <div className="stack-sm border-t border-[var(--border-color)] pt-4">
+          <Text variant="bodyStrong" as="p">Editar legenda</Text>
 
-        {ativa ? (
-          <div className="stack-md">
-            {plataformas.length > 1 ? (
-              <div className="stack-xs">
-                <Text variant="label" className="text-[var(--text-tertiary)]">Publicação em edição</Text>
-                <div className="max-w-full overflow-x-auto pb-1">
-                  <SegmentTabs<string>
-                    ariaLabel="Publicação em edição"
-                    className="w-max"
-                    value={ativa.id}
-                    onChange={setAtivaId}
-                    options={plataformas.map(item => {
-                      const conta = contaDaRef(item.platformId, contas);
-                      const rotulo = conta ? rotuloCurtoConta(conta) : item.platformId;
-                      return {
-                        id: item.id,
-                        label: item.publicationKind === 'repost' ? `${rotulo} · repost` : rotulo,
-                        icon: <PlatformIcon platform={conta ? iconeDaConta(conta) : item.platformId} className="h-3.5 w-3.5" />,
-                      };
-                    })}
+          {ativa ? (
+            <>
+              <div
+                role="tablist"
+                aria-label="Legenda em edição"
+                onKeyDown={moverAba}
+                className="flex max-w-full overflow-x-auto shadow-[inset_0_-1px_0_var(--border-color)]"
+              >
+                {abas.map(item => {
+                  const selecionada = item.id === ativa.id;
+                  const conta = contaDaRef(item.platformId, contas);
+                  return (
+                    <button
+                      key={item.id}
+                      ref={node => {
+                        if (node) abaRefs.current.set(item.id, node);
+                        else abaRefs.current.delete(item.id);
+                      }}
+                      type="button"
+                      role="tab"
+                      id={`legenda-aba-${item.id}`}
+                      aria-selected={selecionada}
+                      aria-label={conta ? `${rotuloConta(conta)}${item.publicationKind === 'repost' ? ', repost' : ''}` : undefined}
+                      aria-controls={`legenda-painel-${contentId || 'novo'}`}
+                      tabIndex={selecionada ? 0 : -1}
+                      onClick={() => setAtivaId(item.id)}
+                      className={cn(
+                        abaClass,
+                        selecionada
+                          ? 'font-semibold text-[var(--text-primary)] after:bg-[var(--brand-accent-strong)]'
+                          : 'text-[var(--text-secondary)] after:bg-transparent hover:text-[var(--text-primary)]',
+                      )}
+                    >
+                      <PlatformIcon platform={conta ? iconeDaConta(conta) : item.platformId} className="h-4 w-4 shrink-0" />
+                      {rotuloDaAba(item)}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div
+                role="tabpanel"
+                id={`legenda-painel-${contentId || 'novo'}`}
+                aria-labelledby={`legenda-aba-${ativa.id}`}
+                className="stack-md pt-2"
+              >
+                {mostraTitulo ? (
+                  <label className="block">
+                    <span className="mb-1.5 block text-sm text-[var(--text-secondary)]">
+                      {`Título no ${rotuloAtiva}`}
+                    </span>
+                    <input
+                      value={titulo}
+                      disabled={disabled}
+                      onChange={event => onTituloChange?.(event.target.value)}
+                      className="h-11 w-full rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-primary)] px-3 text-sm text-[var(--text-primary)] outline-none focus-visible:shadow-[var(--focus-ring)] disabled:opacity-60"
+                    />
+                  </label>
+                ) : null}
+
+                <div className="stack-xs">
+                  <textarea
+                    ref={textareaRef}
+                    value={texto}
+                    disabled={disabled}
+                    readOnly={publicada}
+                    rows={4}
+                    aria-label={`Legenda de ${rotuloAtiva}`}
+                    placeholder={`Legenda para ${rotuloAtiva}…`}
+                    onChange={event => onChange(editarVersaoPropria(plataformas, ativa.id, event.target.value, conteudo))}
+                    className={cn(
+                      'block min-h-28 w-full resize-none overflow-hidden rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-primary)] px-3 py-2.5 text-sm leading-6 outline-none placeholder:text-[var(--text-tertiary)] focus-visible:shadow-[var(--focus-ring)] disabled:opacity-60',
+                      publicada ? 'text-[var(--text-secondary)]' : 'text-[var(--text-primary)]',
+                    )}
+                  />
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    {publicada ? (
+                      <Text variant="meta" className="inline-flex items-center gap-1.5">
+                        <Lock className="h-3 w-3" aria-hidden />
+                        {publicadaEm ? `Publicada em ${publicadaEm}. O texto fica preservado.` : 'Publicada. O texto fica preservado.'}
+                      </Text>
+                    ) : <span />}
+                    <Text variant="meta" className={cn('tabular-nums', acimaDoLimite && 'text-[var(--danger)]')}>
+                      {limite != null ? `${texto.length} / ${limite}` : `${texto.length} caracteres`}
+                    </Text>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  {abas.length > 1 ? (
+                    <AppButton
+                      size="sm"
+                      variant="secondary"
+                      disabled={disabled || Boolean(motivoSemCopia)}
+                      disabledReason={disabled ? undefined : motivoSemCopia}
+                      leftIcon={copiaFeita ? <Check className="h-4 w-4" /> : <CopyPlus className="h-4 w-4" />}
+                      onClick={() => (substituidas.length > 0 ? setConfirmarCopia(true) : usarEmTodas())}
+                    >
+                      {copiaFeita ? 'Legenda aplicada' : 'Usar esta legenda em todas'}
+                    </AppButton>
+                  ) : <span />}
+                  <AppButton
+                    size="sm"
+                    variant="ghost"
+                    iconOnly
+                    disabled={!texto.trim() && !(mostraHashtags && ativa.hashtags.trim())}
+                    aria-label={mostraHashtags ? `Copiar legenda e hashtags de ${rotuloAtiva}` : `Copiar legenda de ${rotuloAtiva}`}
+                    title={mostraHashtags ? 'Copiar legenda e hashtags' : 'Copiar legenda'}
+                    leftIcon={copiado ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                    onClick={() => void copiar()}
                   />
                 </div>
+
+                {mostraHashtags ? (
+                  <HashtagsField
+                    rotulo={rotuloAtiva}
+                    hashtags={ativa.hashtags}
+                    sugestao={sugestao}
+                    limite={limiteHashtagsDaRede(editorial, ativa.platformId, chaveDaRede)}
+                    disabled={disabled || publicada}
+                    onChange={hashtags => onChange(plataformas.map(item => (
+                      item.id === ativa.id ? {...item, hashtags} : item
+                    )))}
+                  />
+                ) : null}
               </div>
-            ) : null}
-
-            {mostraTitulo ? (
-              <label className="block">
-                <span className="mb-1.5 block text-xs font-semibold text-[var(--text-tertiary)]">
-                  {`Título no ${rotuloConta(contaDaRef(ativa.platformId, contas) ?? {id: ativa.platformId, nome: 'YouTube'})}`}
-                </span>
-                <input
-                  value={titulo}
-                  disabled={disabled}
-                  onChange={event => onTituloChange?.(event.target.value)}
-                  className="min-h-11 w-full rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-primary)] px-3 text-sm text-[var(--text-primary)] outline-none focus-visible:shadow-[var(--focus-ring)] disabled:opacity-60"
-                />
-              </label>
-            ) : null}
-
-            <PublicacaoLegenda
-              publicacao={ativa}
-              conteudo={conteudo}
-              contas={contas}
-              serie={serie}
-              pilar={pilar}
-              editorial={editorial}
-              disabled={disabled}
-              onChange={onChange}
-            />
-          </div>
-        ) : destinos.length > 0 ? (
-          <Text variant="secondary">Marque onde publicar para preparar a legenda de cada conta.</Text>
-        ) : null}
+            </>
+          ) : contasParaMarcar.length > 0 ? (
+            <Text variant="secondary">Marque uma conta para escrever a legenda.</Text>
+          ) : null}
+        </div>
       </div>
-    </section>
+
+      <ConfirmModal
+        open={confirmarCopia}
+        message={`${juntarNomes(substituidas.map(item => {
+          const conta = contaDaRef(item.platformId, contas);
+          return conta ? rotuloConta(conta) : item.platformId;
+        }))} já ${substituidas.length === 1 ? 'tem' : 'têm'} legenda. Substituir pelo texto de ${rotuloAtiva}?`}
+        confirmLabel="Substituir"
+        cancelLabel="Manter"
+        onConfirm={() => {
+          setConfirmarCopia(false);
+          usarEmTodas();
+        }}
+        onCancel={() => setConfirmarCopia(false)}
+      />
+    </Surface>
   );
 }

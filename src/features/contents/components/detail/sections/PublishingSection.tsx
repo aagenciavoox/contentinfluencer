@@ -127,7 +127,6 @@ export function PublishingSection({
         status={draft.status}
         contentId={contentId}
         legendaBase={draft.legendaBase ?? null}
-        onLegendaBaseChange={legendaBase => onChange({legendaBase})}
         titulo={draft.title}
         onTituloChange={title => onChange({title})}
         onChange={plataformas => onChange({plataformas})}

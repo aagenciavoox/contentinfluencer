@@ -1,5 +1,5 @@
-import {useEffect, type ReactNode} from 'react';
-import {BookOpen, Calendar, Clock, Flag, Layers, Search, Tag, Target} from 'lucide-react';
+import {useEffect, useState, type ReactNode} from 'react';
+import {BookOpen, Calendar, ChevronDown, Clock, FileText, Flag, Layers, Search, Tag, Target} from 'lucide-react';
 import {PropertyDatePicker} from '../../../../components/ui/PropertyDatePicker';
 import {SelectField} from '../../../../components/ui/SelectField';
 import {selectOptionsFromChildren} from '../../../../components/ui/SelectMenu';
@@ -8,6 +8,7 @@ import {Surface} from '../../../../components/ui/Surface';
 import {Text} from '../../../../components/ui/Text';
 import {useAppContext} from '../../../../context/AppContext';
 import type {Pilar, Serie} from '../../../../lib/database';
+import {cn} from '../../../../lib/utils';
 import {CONTENT_STATUS, getStatusOptions, normalizeContentStatus} from '../../lib/contentPipeline';
 import {aplicarEscolhasDaSerie, marcarEscolhaManual} from '../../../editorial/lib/escolhasSerie';
 import {FuncaoEditorialFields} from './ContentOperationalPanel';
@@ -140,6 +141,8 @@ export function ContentManageWorkspace({
   const currentStatus = normalizeContentStatus(draft.status);
   const etapas = getStatusOptions(draft.status);
   const indisponiveis = etapas.filter(etapa => !etapa.disponivel);
+  // Observações começam recolhidas; abertas quando já há texto.
+  const [notesOpen, setNotesOpen] = useState(() => Boolean(draft.notes?.trim()));
 
   useEffect(() => {
     void ensureDataDomains(['library']);
@@ -159,7 +162,6 @@ export function ContentManageWorkspace({
           contentId={contentId}
           status={draft.status}
           legendaBase={draft.legendaBase}
-          onLegendaBaseChange={legendaBase => onChange({legendaBase})}
           titulo={draft.title}
           onTituloChange={title => onChange({title})}
           onChange={plataformas => onChange({plataformas})}
@@ -306,7 +308,7 @@ export function ContentManageWorkspace({
         <Text variant="secondary" className="mt-1">
           Dia e horário de cada etapa.
         </Text>
-        <div className="mt-4 grid gap-4 lg:grid-cols-2">
+        <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] lg:gap-6">
           <ScheduleMoment
             label="Gravação"
             date={draft.recordingDate ? draft.recordingDate.slice(0, 10) : null}
@@ -315,6 +317,7 @@ export function ContentManageWorkspace({
             onDate={date => onChange({recordingDate: toIsoDate(date)})}
             onTime={recordingTime => onChange({recordingTime})}
           />
+          <span className="hidden w-px bg-[var(--border-color)] lg:block" aria-hidden />
           <ScheduleMoment
             label="Publicação"
             date={publishDateOnly || null}
@@ -326,23 +329,41 @@ export function ContentManageWorkspace({
         </div>
       </Surface>
 
-      <Surface variant="outlined" padding="lg" className="bg-[var(--bg-elevated)]">
-        <Text variant="sectionTitle" as="h3">Observações</Text>
-        <Text variant="secondary" className="mt-1">
-          Adicione observações, referências e links.
-        </Text>
-        <div className="relative mt-4">
-          <textarea
-            value={draft.notes ?? ''}
-            disabled={disabled}
-            onChange={event => onChange({notes: event.target.value.slice(0, NOTES_MAX)})}
-            placeholder="Observações editoriais, referências e links..."
-            className="block min-h-36 w-full resize-none rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-primary)] px-3 pb-8 pt-3 text-sm leading-6 text-[var(--text-primary)] outline-none focus-visible:shadow-[var(--focus-ring)] disabled:opacity-60"
-          />
-          <span className="pointer-events-none absolute bottom-2 right-3 text-xs text-[var(--text-tertiary)]">
-            {(draft.notes ?? '').length} / {NOTES_MAX}
+      <Surface variant="outlined" padding="none" className="bg-[var(--bg-elevated)]">
+        <button
+          type="button"
+          aria-expanded={notesOpen}
+          aria-controls={`observacoes-${contentId || 'novo'}`}
+          onClick={() => setNotesOpen(open => !open)}
+          className="flex min-h-14 w-full items-center gap-3 rounded-[var(--radius-card)] px-6 py-3 text-left focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+        >
+          <FileText className="h-5 w-5 shrink-0 text-[var(--text-primary)]" aria-hidden />
+          <span className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-3 gap-y-0.5">
+            <Text variant="sectionTitle" as="span">Observações</Text>
+            <Text variant="meta" className="text-[var(--text-secondary)]">
+              {(draft.notes ?? '').trim() ? `${(draft.notes ?? '').length} / ${NOTES_MAX}` : 'Adicione observações, referências e links.'}
+            </Text>
           </span>
-        </div>
+          <ChevronDown
+            className={cn('h-5 w-5 shrink-0 text-[var(--text-secondary)] transition-transform', notesOpen && 'rotate-180')}
+            aria-hidden
+          />
+        </button>
+        {notesOpen ? (
+          <div id={`observacoes-${contentId || 'novo'}`} className="relative px-6 pb-6">
+            <textarea
+              value={draft.notes ?? ''}
+              disabled={disabled}
+              aria-label="Observações"
+              onChange={event => onChange({notes: event.target.value.slice(0, NOTES_MAX)})}
+              placeholder="Observações editoriais, referências e links..."
+              className="block min-h-36 w-full resize-none rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-primary)] px-3 pb-8 pt-3 text-sm leading-6 text-[var(--text-primary)] outline-none focus-visible:shadow-[var(--focus-ring)] disabled:opacity-60"
+            />
+            <span className="pointer-events-none absolute bottom-8 right-9 text-xs text-[var(--text-tertiary)]">
+              {(draft.notes ?? '').length} / {NOTES_MAX}
+            </span>
+          </div>
+        ) : null}
       </Surface>
     </div>
   );
