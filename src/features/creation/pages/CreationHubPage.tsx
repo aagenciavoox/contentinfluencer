@@ -1117,8 +1117,6 @@ export function CreationHubPage() {
         )}
         mobileToolbar={mobileFilters}
       >
-        {exportSelectionToolbar}
-
         <QueryViewState
           status={resolveQueryViewStatus({
             loading: !state.isLoaded,
@@ -1193,6 +1191,9 @@ export function CreationHubPage() {
             ) : null}
           </div>
         </QueryViewState>
+
+        {/* Depois da lista: a barra fica presa ao pé da tela e não empurra os cards. */}
+        {exportSelectionToolbar}
       </PageLayout>
 
       {isMobile ? mobileFilterSheet : null}
