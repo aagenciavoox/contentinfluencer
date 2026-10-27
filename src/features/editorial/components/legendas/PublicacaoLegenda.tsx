@@ -15,6 +15,7 @@ import {
   criarVersaoPropria,
   editarVersaoPropria,
   estadoLegenda,
+  legendaComHashtags,
   legendaEfetiva,
   voltarParaBase,
   type ConteudoDaLegenda,
@@ -29,15 +30,13 @@ export type ConteudoComLegenda = Omit<ConteudoDaLegenda, 'plataformas'> & {
   plataformas: ContentPlataforma[];
 };
 
-/** Texto pronto para colar: legenda efetiva e, quando a rede usa, as hashtags. */
+/** Texto pronto para colar: legenda efetiva e, quando a rede usa, as hashtags no fim, sem repetir. */
 export function textoParaCopiar(
   legendaBase: string | null | undefined,
   publicacao: ContentPlataforma,
   mostraHashtags: boolean,
 ): string {
-  return [legendaEfetiva(legendaBase, publicacao).trim(), mostraHashtags ? publicacao.hashtags.trim() : '']
-    .filter(Boolean)
-    .join('\n\n');
+  return (mostraHashtags ? legendaComHashtags(legendaBase, publicacao) : legendaEfetiva(legendaBase, publicacao)).trim();
 }
 
 /**

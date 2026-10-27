@@ -20,12 +20,13 @@ import {
   rotuloCurtoConta,
 } from '../../../contas/lib/contas';
 import {HashtagsField} from '../../../editorial/components/legendas/HashtagsField';
-import {textoParaCopiar} from '../../../editorial/components/legendas/PublicacaoLegenda';
 import {
+  adicionarHashtagsAoFim,
   copiarLegendaParaTodas,
   destinosDaCopia,
-  editarVersaoPropria,
-  legendaEfetiva,
+  editarLegendaDaConta,
+  hashtagsNaLegenda,
+  legendaComHashtags,
   legendasQueSeriamSubstituidas,
   publicacaoJaPostada,
 } from '../../../editorial/lib/captions';
@@ -180,7 +181,8 @@ export function PlatformCopyEditor({
   const redeAtiva = ativa ? redeDaRef(ativa.platformId, contas) : null;
   const chaveDaRede = redeAtiva && redeAtiva !== 'outra' ? redeAtiva : contaAtiva?.nome ?? ativa?.platformId ?? '';
   const rotuloAtiva = contaAtiva ? rotuloConta(contaAtiva) : ativa?.platformId ?? '';
-  const texto = ativa ? legendaEfetiva(legendaBase, ativa) : '';
+  // As hashtags ficam dentro do texto; as guardadas à parte entram no fim.
+  const texto = ativa ? legendaComHashtags(legendaBase, ativa) : '';
   const publicada = ativa ? publicacaoJaPostada(ativa, conteudo) : false;
   const limite = limiteDeCaracteres(chaveDaRede);
   const acimaDoLimite = limite != null && texto.length > limite;
@@ -255,7 +257,7 @@ export function PlatformCopyEditor({
 
   const copiar = async () => {
     if (!ativa) return;
-    const valor = textoParaCopiar(legendaBase, ativa, mostraHashtags);
+    const valor = texto.trim();
     if (!valor) return;
     try {
       await navigator.clipboard.writeText(valor);
@@ -404,7 +406,7 @@ export function PlatformCopyEditor({
                     rows={4}
                     aria-label={`Legenda de ${rotuloAtiva}`}
                     placeholder={`Legenda para ${rotuloAtiva}…`}
-                    onChange={event => onChange(editarVersaoPropria(plataformas, ativa.id, event.target.value, conteudo))}
+                    onChange={event => onChange(editarLegendaDaConta(plataformas, ativa.id, event.target.value, conteudo))}
                     className={cn(
                       'block min-h-28 w-full resize-none overflow-hidden rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-primary)] px-3 py-2.5 text-sm leading-6 outline-none placeholder:text-[var(--text-tertiary)] focus-visible:shadow-[var(--focus-ring)] disabled:opacity-60',
                       publicada ? 'text-[var(--text-secondary)]' : 'text-[var(--text-primary)]',
@@ -423,7 +425,35 @@ export function PlatformCopyEditor({
                   </div>
                 </div>
 
-                <div className="flex flex-wrap items-center justify-between gap-2">
+                {mostraHashtags ? (
+                  <HashtagsField
+                    semLista
+                    rotulo={rotuloAtiva}
+                    hashtags={hashtagsNaLegenda(texto).join(' ')}
+                    sugestao={sugestao}
+                    limite={limiteHashtagsDaRede(editorial, ativa.platformId, chaveDaRede)}
+                    disabled={disabled || publicada}
+                    onChange={hashtags => onChange(editarLegendaDaConta(
+                      plataformas,
+                      ativa.id,
+                      adicionarHashtagsAoFim(texto, hashtags.split(/\s+/)),
+                      conteudo,
+                    ))}
+                  />
+                ) : null}
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <AppButton
+                    size="sm"
+                    variant="secondary"
+                    disabled={!texto.trim()}
+                    disabledReason="Escreva a legenda desta conta primeiro."
+                    aria-label={`Copiar legenda de ${rotuloAtiva}`}
+                    leftIcon={copiado ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                    onClick={() => void copiar()}
+                  >
+                    {copiado ? 'Legenda copiada' : 'Copiar legenda'}
+                  </AppButton>
                   {abas.length > 1 ? (
                     <AppButton
                       size="sm"
@@ -435,31 +465,8 @@ export function PlatformCopyEditor({
                     >
                       {copiaFeita ? 'Legenda aplicada' : 'Usar esta legenda em todas'}
                     </AppButton>
-                  ) : <span />}
-                  <AppButton
-                    size="sm"
-                    variant="ghost"
-                    iconOnly
-                    disabled={!texto.trim() && !(mostraHashtags && ativa.hashtags.trim())}
-                    aria-label={mostraHashtags ? `Copiar legenda e hashtags de ${rotuloAtiva}` : `Copiar legenda de ${rotuloAtiva}`}
-                    title={mostraHashtags ? 'Copiar legenda e hashtags' : 'Copiar legenda'}
-                    leftIcon={copiado ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                    onClick={() => void copiar()}
-                  />
+                  ) : null}
                 </div>
-
-                {mostraHashtags ? (
-                  <HashtagsField
-                    rotulo={rotuloAtiva}
-                    hashtags={ativa.hashtags}
-                    sugestao={sugestao}
-                    limite={limiteHashtagsDaRede(editorial, ativa.platformId, chaveDaRede)}
-                    disabled={disabled || publicada}
-                    onChange={hashtags => onChange(plataformas.map(item => (
-                      item.id === ativa.id ? {...item, hashtags} : item
-                    )))}
-                  />
-                ) : null}
               </div>
             </>
           ) : contasParaMarcar.length > 0 ? (

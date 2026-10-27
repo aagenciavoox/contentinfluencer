@@ -1,5 +1,5 @@
 import {useEffect, useState, type ReactNode} from 'react';
-import {BookOpen, Calendar, ChevronDown, Clock, FileText, Flag, Layers, Search, Tag, Target} from 'lucide-react';
+import {Calendar, ChevronDown, Clock, FileText, Flag, Layers, Library, Search, Tag, Target} from 'lucide-react';
 import {PropertyDatePicker} from '../../../../components/ui/PropertyDatePicker';
 import {SelectField} from '../../../../components/ui/SelectField';
 import {selectOptionsFromChildren} from '../../../../components/ui/SelectMenu';
@@ -276,11 +276,11 @@ export function ContentManageWorkspace({
 
           <Surface variant="outlined" padding="lg" className="bg-[var(--bg-elevated)]">
             <div className="flex items-start gap-3">
-              <BookOpen className="mt-0.5 h-5 w-5 shrink-0 text-[var(--text-primary)]" aria-hidden />
+              <Library className="mt-0.5 h-5 w-5 shrink-0 text-[var(--text-primary)]" aria-hidden />
               <div className="min-w-0">
-                <Text variant="sectionTitle" as="h3">Livros citados</Text>
+                <Text variant="sectionTitle" as="h3">Mídias citadas</Text>
                 <Text variant="meta" className="mt-0.5 block text-[var(--text-secondary)]">
-                  Vincule um ou mais livros.
+                  Vincule um ou mais itens da biblioteca.
                 </Text>
               </div>
             </div>
@@ -293,7 +293,7 @@ export function ContentManageWorkspace({
                 selectProps={{
                   hideLabel: true,
                   searchable: true,
-                  placeholder: 'Buscar livros...',
+                  placeholder: 'Buscar na biblioteca...',
                   leadingIcon: <Search className="h-4 w-4" />,
                   controlClassName: 'min-h-11',
                 }}

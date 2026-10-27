@@ -49,6 +49,7 @@ export function HashtagsField({
   disabled = false,
   semSugestao = null,
   boxed = false,
+  semLista = false,
   onChange,
 }: {
   /** Plataforma e @ da conta, para os nomes acessíveis. */
@@ -61,6 +62,8 @@ export function HashtagsField({
   semSugestao?: string | null;
   /** Em caixa própria, com a contagem na linha das hashtags. */
   boxed?: boolean;
+  /** As hashtags já aparecem no texto da legenda: o campo só adiciona, sem as pílulas. */
+  semLista?: boolean;
   onChange: (hashtags: string) => void;
 }) {
   const tags = parseHashtags(hashtags);
@@ -103,7 +106,7 @@ export function HashtagsField({
         <Text variant="meta">{semSugestao}</Text>
       ) : null}
       <div className="flex flex-wrap items-center gap-2">
-        {tags.map(tag => (
+        {semLista ? null : tags.map(tag => (
           <TagPill
             key={tag}
             label={tag}
@@ -112,14 +115,14 @@ export function HashtagsField({
           />
         ))}
         <NovaHashtag disabled={disabled} rotulo={rotulo} onAdd={adicionar} />
-        {boxed ? contagem : null}
+        {boxed || semLista ? contagem : null}
       </div>
-      {acima || !boxed ? (
+      {acima || !(boxed || semLista) ? (
         <div className="flex flex-wrap items-center justify-between gap-2">
           {acima ? (
             <Text variant="meta" className="text-[var(--danger)]">{`Mais de ${limite} hashtags.`}</Text>
           ) : null}
-          {boxed ? null : contagem}
+          {boxed || semLista ? null : contagem}
         </div>
       ) : null}
     </div>

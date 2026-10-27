@@ -27,15 +27,15 @@ export function LivroMultiSelect({
   return (
     <TagSelect
       id="conteudo-livros"
-      label="Livros"
-      hint="Pode citar mais de um."
+      label="Mídias citadas"
+      hint="Livros, filmes, séries ou qualquer item da biblioteca."
       values={visiveis}
       onChange={next => onChange(aplicarLivros({
         livroIds: next,
         bibliotecaItemId: next[0] ?? null,
       }))}
       options={ativos.map(item => ({ value: item.id, label: item.titulo }))}
-      placeholder="Escolher livros"
+      placeholder="Escolher na biblioteca"
       {...selectProps}
     />
   );

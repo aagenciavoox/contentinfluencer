@@ -2,12 +2,16 @@ import assert from 'node:assert/strict';
 import type { ContentPlataforma } from '../../../lib/database.ts';
 import {
   adaptarLegenda,
+  adicionarHashtagsAoFim,
   atualizarLegendaBase,
   copiarLegendaParaTodas,
   criarVersaoPropria,
   definirLegendaCompartilhada,
+  editarLegendaDaConta,
   editarVersaoPropria,
   estadoLegenda,
+  hashtagsNaLegenda,
+  legendaComHashtags,
   legendaEfetiva,
   legendasDaSerie,
   legendasQueSeriamSubstituidas,
@@ -224,6 +228,33 @@ function testUsarEstaLegendaEmTodas() {
   assert.equal(daBase.find(item => item.id === 'b')?.legenda, 'legenda base');
 }
 
+function testHashtagsDentroDaLegenda() {
+  // Hashtag nova vai para um parágrafo no fim; a seguinte entra na mesma linha.
+  const comUma = adicionarHashtagsAoFim('Livro do mês.\n', ['#livros']);
+  assert.equal(comUma, 'Livro do mês.\n\n#livros');
+  assert.equal(adicionarHashtagsAoFim(comUma, ['romance', '#Livros']), 'Livro do mês.\n\n#livros #romance');
+  assert.equal(adicionarHashtagsAoFim('', ['#booktok']), '#booktok');
+  assert.equal(adicionarHashtagsAoFim('Texto #livros no meio.', ['#livros']), 'Texto #livros no meio.');
+  assert.deepEqual(hashtagsNaLegenda('Oi #leitura e #Leitura, #ficção_científica'), ['#leitura', '#ficção_científica']);
+
+  // Hashtags guardadas à parte aparecem no fim do texto, sem repetir.
+  const antiga = publicacao({ id: 'a', platformId: 'ig', legenda: 'Texto #livros', legendaPropria: true, hashtags: '#livros #romance' });
+  assert.equal(legendaComHashtags(null, antiga), 'Texto #livros\n\n#romance');
+
+  // Editar na Gestão leva tudo para o texto e esvazia o campo separado.
+  const editada = editarLegendaDaConta([antiga], 'a', 'Texto #livros\n\n#romance #booktok');
+  assert.equal(editada[0].legenda, 'Texto #livros\n\n#romance #booktok');
+  assert.equal(editada[0].hashtags, '');
+
+  // A cópia leva as hashtags junto e não deixa repetidas no destino.
+  const copiadas = copiarLegendaParaTodas(null, [
+    antiga,
+    publicacao({ id: 'b', platformId: 'tt', legenda: '', hashtags: '#velha' }),
+  ], 'a');
+  assert.equal(copiadas[1].legenda, 'Texto #livros\n\n#romance');
+  assert.equal(copiadas[1].hashtags, '');
+}
+
 testBaseAteAdaptar();
 testPrimeiraEdicaoPreservaTextoDiferente();
 testEditarBaseNaoMexeNaPropria();
@@ -236,4 +267,5 @@ testComLegendaPeloTextoEfetivo();
 testPostadoSemStatusPorPublicacaoContaComoRealizado();
 testSerieOrientaRoteiroNovo();
 testUsarEstaLegendaEmTodas();
+testHashtagsDentroDaLegenda();
 console.log('captions tests passed');
