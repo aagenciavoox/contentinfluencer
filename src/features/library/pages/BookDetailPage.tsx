@@ -31,9 +31,10 @@ import { CONTENT_STATUS, getDisplayStatus } from '../../contents/lib/contentPipe
 import { buildDetailBackState } from '../../../lib/navigation/detailBack';
 import { BookAnnotationComposer, BookAnnotationComposerSheet } from '../components/modals/BookAnnotationComposerSheet';
 import { generateUUID } from '../../../utils/uuid';
-import { DesktopPageHeader } from '../../../layouts/page/DesktopPageHeader';
 import { PageLayout } from '../../../layouts/page/PageLayout';
-import { AnnotationNoteCard } from '../components/AnnotationNoteCard';
+import { BookAnnotationCard } from '../components/BookAnnotationCard';
+import { BookDetailHeader } from '../components/BookDetailHeader';
+import { ToolbarSearchInput } from '../../../components/ui/ToolbarSearchInput';
 import { TagSelect } from '../../../components/ui/TagSelect';
 import { useIsMobile } from '../../../hooks/useIsMobile';
 import { livroIdsEfetivos } from '../../../lib/livroIds';
@@ -43,7 +44,6 @@ import { Surface } from '../../../components/ui/Surface';
 import { AppButton } from '../../../components/ui/AppButton';
 import { PropertyDatePicker } from '../../../components/ui/PropertyDatePicker';
 import { DisclosureButton } from '../../../components/ui/DisclosureButton';
-import { SegmentTabs } from '../../../components/ui/SegmentTabs';
 import { cn } from '../../../lib/utils';
 import { CoverUploadField } from '../components/CoverUploadField';
 import { CoverFallback } from '../components/CoverFallback';
@@ -190,6 +190,7 @@ export function BookDetailPage() {
 
   // Anotações state
   const [filtroTipo, setFiltroTipo] = useState<TipoAnotacao | 'Todos' | 'Destaques'>('Todos');
+  const [buscaAnotacoes, setBuscaAnotacoes] = useState('');
   const [mobileNoteComposerOpen, setMobileNoteComposerOpen] = useState(false);
 
   // Conteúdos state
@@ -289,12 +290,17 @@ export function BookDetailPage() {
     );
   }
 
+  // Busca sem diferenciar acento nem maiúscula ("analise" acha "Análise").
+  const dobrarTexto = (value: string) =>
+    value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('pt-BR');
+  const termoBusca = dobrarTexto(buscaAnotacoes.trim());
   const anotacoesFiltradas = livro.anotacoes
     .filter(a => {
       if (filtroTipo === 'Todos') return true;
       if (filtroTipo === 'Destaques') return a.contentPotential === true;
       return a.tipo === filtroTipo;
     })
+    .filter(a => !termoBusca || dobrarTexto(`${a.texto} ${a.capituloRef ?? ''}`).includes(termoBusca))
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
   const conteudosDoLivro = state.contents.filter(c => livroIdsEfetivos(c).includes(livro.id));
@@ -402,6 +408,10 @@ export function BookDetailPage() {
   const handleToggleContentPotential = (anotacao: BookAnnotation) => {
     const updated: BookAnnotation = { ...anotacao, contentPotential: !anotacao.contentPotential };
     dispatch({ type: 'UPDATE_ANNOTATION', payload: updated });
+  };
+
+  const handleEditarAnotacao = (anotacao: BookAnnotation, texto: string) => {
+    dispatch({ type: 'UPDATE_ANNOTATION', payload: { ...anotacao, texto } });
   };
 
   const handleDeleteAnotacao = (anotacaoId: string) => {
@@ -724,18 +734,28 @@ export function BookDetailPage() {
     <>
     <PageLayout
       contentStack="dense"
+      stickyHeader={false}
       header={
-        <DesktopPageHeader
-          section="Criação"
+        <BookDetailHeader<Tab>
           title={livro.titulo}
-          meta={[livro.autorDiretor, itemTypeLabel, livro.status].filter(Boolean).join(' · ')}
+          creator={livro.autorDiretor}
+          typeLabel={itemTypeLabel}
+          status={livro.status}
+          coverUrl={livro.capaUrl}
           icon={ItemIcon}
           backLabel="Biblioteca"
           backTo="/biblioteca"
-          className="mb-0"
+          tabs={[
+            { id: 'info', label: 'Info' },
+            { id: 'anotacoes', label: 'Anotações', count: tabCounts.anotacoes ?? 0 },
+            { id: 'conteudos', label: 'Roteiros', count: tabCounts.conteudos ?? 0 },
+          ]}
+          activeTab={tab}
+          onTabChange={setTab}
           actions={
             <AppButton
               variant="primary"
+              size="lg"
               leftIcon={<Lightbulb className="h-4 w-4" />}
               onClick={handleTransformarLeituraEmIdeia}
             >
@@ -745,18 +765,7 @@ export function BookDetailPage() {
         />
       }
     >
-      <div className="hidden md:block">
-        <SegmentTabs<Tab>
-          className="mb-6 mt-2 md:mb-8"
-          value={tab}
-          onChange={setTab}
-          options={[
-            { id: 'info', label: 'Info' },
-            { id: 'anotacoes', label: 'Anotações', count: tabCounts.anotacoes ?? 0 },
-            { id: 'conteudos', label: 'Roteiros', count: tabCounts.conteudos ?? 0 },
-          ]}
-        />
-
+      <div className="hidden pt-2 md:block">
         {/* ════ ABA: INFO ════ */}
         {tab === 'info' && (
           <div className="grid-book-hero pb-28">
@@ -1052,8 +1061,8 @@ export function BookDetailPage() {
 
         {/* ════ ABA: ANOTAÇÕES ════ */}
         {tab === 'anotacoes' && (
-          <div className="grid items-start gap-6 pb-10 lg:grid-cols-[minmax(0,1fr)_22rem]">
-            <div className="stack-xl min-w-0">
+          <div className="grid items-start gap-8 pb-10 lg:grid-cols-[minmax(0,2fr)_minmax(20rem,1fr)]">
+            <div className="stack-lg min-w-0">
               <div className="flex flex-wrap gap-2">
                 {(['Todos', 'Destaques', ...TIPOS] as (TipoAnotacao | 'Todos' | 'Destaques')[]).map(t => (
                   <button
@@ -1061,8 +1070,11 @@ export function BookDetailPage() {
                     type="button"
                     aria-pressed={filtroTipo === t}
                     onClick={() => setFiltroTipo(t)}
-                    // Mesmo chip de filtro do Calendário: um desenho só para filtrar.
-                    className={cn('filter-chip pointer-coarse:min-h-11', filtroTipo === t && 'filter-chip-active')}
+                    // Mesmo chip de filtro do Calendário, maior e com o ativo em rosa nesta aba.
+                    className={cn(
+                      'filter-chip filter-chip--roomy filter-chip--accent pointer-coarse:min-h-11',
+                      filtroTipo === t && 'filter-chip-active',
+                    )}
                   >
                     {t === 'Destaques' ? '⭐ Destaques' : t}
                   </button>
@@ -1070,20 +1082,27 @@ export function BookDetailPage() {
               </div>
 
               {anotacoesFiltradas.length === 0 ? (
-                <div className="py-16 text-center">
-                  <p className="text-sm font-bold text-[var(--text-tertiary)]">Nenhuma anotação ainda</p>
+                <div className="rounded-[var(--radius-card)] border border-dashed border-[var(--border-color)] px-6 py-16 text-center">
+                  <Text variant="bodyStrong" className="text-[var(--text-secondary)]">
+                    {termoBusca || filtroTipo !== 'Todos' ? 'Nenhuma anotação encontrada' : 'Nenhuma anotação ainda'}
+                  </Text>
+                  <Text variant="meta" as="p" className="mt-1">
+                    {termoBusca || filtroTipo !== 'Todos'
+                      ? 'Ajuste a busca ou o filtro para ver outras anotações.'
+                      : 'Use o painel ao lado para registrar a primeira.'}
+                  </Text>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 gap-2 xl:grid-cols-2">
+                <div className="stack-md">
                   {anotacoesFiltradas.map(a => (
-                    <AnnotationNoteCard
+                    <BookAnnotationCard
                       key={a.id}
                       anotacao={a}
                       onToggleHighlight={() => handleToggleContentPotential(a)}
+                      onSaveText={texto => handleEditarAnotacao(a, texto)}
                       onTransformIdea={() => handleTransformarEmIdeia(a)}
                       onTransformContent={() => handleTransformarEmConteudo(a)}
                       onDelete={() => handleDeleteAnotacao(a.id)}
-                      actionsClassName="opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100"
                     />
                   ))}
                 </div>
@@ -1095,6 +1114,17 @@ export function BookDetailPage() {
                 key={livro.id}
                 book={livro}
                 referencePlaceholder={coverageLabels.placeholder}
+                headerAside={
+                  // A largura fica no invólucro: o .filter-bar-search ocupa 100% de quem o contém.
+                  <div className="w-full sm:w-52">
+                    <ToolbarSearchInput
+                      value={buscaAnotacoes}
+                      onChange={setBuscaAnotacoes}
+                      placeholder="Buscar anotações…"
+                      size="compact"
+                    />
+                  </div>
+                }
               />
             </div>
           </div>

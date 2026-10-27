@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useId, useRef, useState, type ReactNode } from 'react';
 import { Plus, X } from 'lucide-react';
 import { useAppContext } from '../../../../context/AppContext';
 import { Dialog } from '../../../../components/overlays/Dialog';
@@ -9,6 +9,7 @@ import { Text } from '../../../../components/ui/Text';
 import type { Anotacao, BibliotecaItem } from '../../../../lib/database';
 import { cn } from '../../../../lib/utils';
 import { generateUUID } from '../../../../utils/uuid';
+import { ANNOTATION_MAX_LENGTH } from '../BookAnnotationCard';
 
 type TipoAnotacao = Anotacao['tipo'];
 
@@ -17,6 +18,8 @@ interface BookAnnotationComposerProps {
   referencePlaceholder?: string;
   framed?: boolean;
   onSubmitted?: () => void;
+  /** Ao lado do título "Nova anotação" (no desktop, a busca das anotações). */
+  headerAside?: ReactNode;
 }
 
 interface BookAnnotationComposerSheetProps {
@@ -29,21 +32,30 @@ interface BookAnnotationComposerSheetProps {
 const TIPOS: TipoAnotacao[] = ['Anotação', 'Trecho', 'Reação', 'Análise', 'Ideia de conteúdo', 'Pergunta'];
 
 const fieldClass =
-  'w-full rounded-[var(--radius-input)] border border-[var(--border-input)] bg-[var(--bg-hover)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder:opacity-40 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]';
+  'w-full rounded-[var(--radius-input)] border border-[var(--border-input)] bg-[var(--bg-elevated)] px-3 py-2.5 t-body text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] hover:border-[var(--text-tertiary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]';
+
+const labelClass = 't-secondary block font-semibold text-[var(--text-primary)]';
 
 export function BookAnnotationComposer({
   book,
   referencePlaceholder = 'Cap. / página',
   framed = true,
   onSubmitted,
+  headerAside,
 }: BookAnnotationComposerProps) {
   const { dispatch } = useAppContext();
+  const fieldId = useId();
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [novaAnotacao, setNovaAnotacao] = useState('');
   const [novoTipo, setNovoTipo] = useState<TipoAnotacao>('Anotação');
   const [novoCapitulo, setNovoCapitulo] = useState('');
 
   const handleAddAnotacao = () => {
-    if (!novaAnotacao.trim()) return;
+    // Sem texto, o botão leva ao campo em vez de ficar apagado.
+    if (!novaAnotacao.trim()) {
+      textareaRef.current?.focus();
+      return;
+    }
 
     const anotacao: Anotacao = {
       id: generateUUID(),
@@ -65,58 +77,78 @@ export function BookAnnotationComposer({
   };
 
   const form = (
-    <>
-      <Text variant="label" uppercase className="mb-3 block font-semibold">
-        Nova anotação
-      </Text>
-      <div className="flex flex-col gap-3 lg:flex-row">
+    <div className="stack-lg">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <Text variant="sectionTitle">Nova anotação</Text>
+        {headerAside}
+      </div>
+
+      <div className="stack-sm">
+        <label htmlFor={`${fieldId}-tipo`} className={labelClass}>Categoria</label>
         <SelectField
-          ariaLabel="Tipo da anotação"
+          id={`${fieldId}-tipo`}
+          ariaLabel="Categoria da anotação"
           value={novoTipo}
           onChange={value => setNovoTipo(value as TipoAnotacao)}
           options={TIPOS.map(tipo => ({ value: tipo, label: tipo }))}
           block
-          className="lg:w-52 lg:flex-none"
         />
+      </div>
+
+      <div className="stack-sm">
+        <div className="flex items-baseline justify-between gap-3">
+          <label htmlFor={`${fieldId}-ref`} className={labelClass}>Referência</label>
+          <Text variant="meta">Opcional</Text>
+        </div>
         <input
+          id={`${fieldId}-ref`}
           type="text"
           value={novoCapitulo}
           onChange={event => setNovoCapitulo(event.target.value)}
           placeholder={referencePlaceholder}
-          aria-label="Referência"
-          className={cn(fieldClass, 'lg:w-64')}
+          className={fieldClass}
         />
       </div>
-      <textarea
-        value={novaAnotacao}
-        onChange={event => setNovaAnotacao(event.target.value)}
-        placeholder="Escreva uma nova anotação…"
-        rows={4}
-        onKeyDown={event => {
-          if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
-            handleAddAnotacao();
-          }
-        }}
-        className={cn(fieldClass, 'mt-3 min-h-28 resize-y leading-6')}
-      />
-      <div className="mt-3 flex justify-end">
-        <AppButton
-          variant="primary"
-          size="sm"
-          leftIcon={<Plus className="h-3.5 w-3.5" />}
-          onClick={handleAddAnotacao}
-          disabled={!novaAnotacao.trim()}
-        >
-          Adicionar
-        </AppButton>
+
+      <div className="stack-sm">
+        <label htmlFor={`${fieldId}-texto`} className={labelClass}>Sua anotação</label>
+        <textarea
+          ref={textareaRef}
+          id={`${fieldId}-texto`}
+          value={novaAnotacao}
+          onChange={event => setNovaAnotacao(event.target.value)}
+          placeholder="Escreva uma nova anotação…"
+          rows={5}
+          maxLength={ANNOTATION_MAX_LENGTH}
+          aria-describedby={`${fieldId}-contador`}
+          onKeyDown={event => {
+            if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
+              handleAddAnotacao();
+            }
+          }}
+          className={cn(fieldClass, 'min-h-32 resize-y leading-relaxed')}
+        />
+        <Text variant="meta" as="p" className="text-right tabular-nums">
+          <span id={`${fieldId}-contador`}>{novaAnotacao.length}/{ANNOTATION_MAX_LENGTH}</span>
+        </Text>
       </div>
-    </>
+
+      <AppButton
+        variant="primary"
+        size="lg"
+        fullWidth
+        leftIcon={<Plus className="h-4 w-4" />}
+        onClick={handleAddAnotacao}
+      >
+        Adicionar anotação
+      </AppButton>
+    </div>
   );
 
   if (!framed) return form;
 
   return (
-    <Surface variant="outlined" padding="md" className="bg-[var(--bg-primary)]">
+    <Surface variant="outlined" padding="lg">
       {form}
     </Surface>
   );

@@ -16,6 +16,8 @@ interface PageLayoutProps {
   contentStack?: 'operational' | 'settings' | 'dense' | 'none';
   /** Páginas de configurações usam o fundo secundário. */
   variant?: 'default' | 'settings';
+  /** Cabeçalho do desktop preso ao topo ao rolar. Desligue em cabeçalhos altos (ex.: item da Biblioteca). */
+  stickyHeader?: boolean;
 }
 
 const contentStackClasses = {
@@ -36,6 +38,7 @@ export function PageLayout({
   contentWidth = 'wide',
   contentStack,
   variant = 'default',
+  stickyHeader = true,
 }: PageLayoutProps) {
   const isMobile = useIsMobile();
   const resolvedStack =
@@ -57,7 +60,7 @@ export function PageLayout({
       )}
     >
       {!isMobile && (header || toolbar) ? (
-        <header className="desktop-header-sticky">
+        <header className={cn('desktop-header-sticky', !stickyHeader && 'desktop-header-static')}>
           <div className="desktop-header-frame stack-lg">
             {header}
             {toolbar}

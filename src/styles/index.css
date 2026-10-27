@@ -1623,6 +1623,21 @@ textarea.property-input {
   border-color: var(--text-primary);
 }
 
+/* Chip mais alto e com texto de 13px, para filtros que são o assunto da tela (anotações do item). */
+.filter-chip--roomy {
+  min-height: 2.25rem;
+  padding: 0.5rem 0.875rem;
+  font-size: var(--font-size-footnote);
+}
+
+/* Ativo contornado em rosa, com fundo rosado; o texto continua no tom principal. */
+.filter-chip--accent.filter-chip-active,
+.filter-chip--accent.filter-chip-active:hover {
+  border-color: var(--brand-accent);
+  background: color-mix(in srgb, var(--brand-accent-soft) 60%, var(--bg-elevated));
+  color: var(--text-primary);
+}
+
 /* Contador com respiro do rótulo. */
 .filter-chip-count {
   margin-left: 0.125rem;
@@ -2068,6 +2083,14 @@ input[type="search"]::-webkit-search-results-decoration {
     background: color-mix(in srgb, var(--bg-secondary) 90%, transparent);
     backdrop-filter: blur(16px);
     box-shadow: 0 12px 30px rgba(36, 37, 34, 0.05);
+  }
+
+  /* Cabeçalho alto (capa + abas) rola com a página; fica só a linha de baixo. */
+  .desktop-header-sticky.desktop-header-static {
+    position: static;
+    background: transparent;
+    backdrop-filter: none;
+    box-shadow: none;
   }
 
   .desktop-header-frame,
