@@ -10,6 +10,9 @@ import { cn } from '../../../lib/utils';
 
 export const ANNOTATION_MAX_LENGTH = 2000;
 
+/** Dica dos campos de anotação no desktop, onde Enter salva. */
+export const ENTER_HINT = 'Enter salva · Shift+Enter quebra a linha';
+
 const TIPO_CORES: Record<string, string> = {
   'Anotação': 'bg-[var(--bg-hover)] text-[var(--text-secondary)]',
   Trecho: 'bg-[var(--accent-blue)]/10 text-[var(--accent-blue)]',
@@ -133,8 +136,11 @@ export function BookAnnotationCard({
             value={draft}
             onChange={event => setDraft(event.target.value)}
             onKeyDown={event => {
-              if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) saveEditing();
               if (event.key === 'Escape') setEditing(false);
+              // Enter salva; Shift+Enter quebra a linha.
+              if (event.key !== 'Enter' || event.shiftKey || event.nativeEvent.isComposing) return;
+              event.preventDefault();
+              saveEditing();
             }}
             maxLength={Math.max(ANNOTATION_MAX_LENGTH, anotacao.texto.length)}
             rows={4}
@@ -142,7 +148,8 @@ export function BookAnnotationCard({
             aria-label="Texto da anotação"
             className="w-full resize-y rounded-[var(--radius-input)] border border-[var(--border-input)] bg-[var(--bg-primary)] px-3 py-2.5 t-body leading-relaxed text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
           />
-          <div className="flex justify-end gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="mr-auto t-secondary text-[var(--text-tertiary)]">{ENTER_HINT}</span>
             <AppButton variant="secondary" size="sm" onClick={() => setEditing(false)}>
               Cancelar
             </AppButton>

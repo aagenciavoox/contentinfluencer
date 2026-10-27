@@ -1,6 +1,7 @@
 import { useId, useRef, useState, type ReactNode } from 'react';
 import { Plus, X } from 'lucide-react';
 import { useAppContext } from '../../../../context/AppContext';
+import { useIsMobile } from '../../../../hooks/useIsMobile';
 import { Dialog } from '../../../../components/overlays/Dialog';
 import { AppButton } from '../../../../components/ui/AppButton';
 import { Surface } from '../../../../components/ui/Surface';
@@ -9,7 +10,7 @@ import { Text } from '../../../../components/ui/Text';
 import type { Anotacao, BibliotecaItem } from '../../../../lib/database';
 import { cn } from '../../../../lib/utils';
 import { generateUUID } from '../../../../utils/uuid';
-import { ANNOTATION_MAX_LENGTH } from '../BookAnnotationCard';
+import { ANNOTATION_MAX_LENGTH, ENTER_HINT } from '../BookAnnotationCard';
 
 type TipoAnotacao = Anotacao['tipo'];
 
@@ -44,6 +45,7 @@ export function BookAnnotationComposer({
   headerAside,
 }: BookAnnotationComposerProps) {
   const { dispatch } = useAppContext();
+  const isMobile = useIsMobile();
   const fieldId = useId();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [novaAnotacao, setNovaAnotacao] = useState('');
@@ -105,6 +107,13 @@ export function BookAnnotationComposer({
           type="text"
           value={novoCapitulo}
           onChange={event => setNovoCapitulo(event.target.value)}
+          onKeyDown={event => {
+            // Enter na referência também salva (sem texto, leva ao campo da anotação).
+            if (event.key === 'Enter' && !isMobile && !event.nativeEvent.isComposing) {
+              event.preventDefault();
+              handleAddAnotacao();
+            }
+          }}
           placeholder={referencePlaceholder}
           className={fieldClass}
         />
@@ -122,15 +131,21 @@ export function BookAnnotationComposer({
           maxLength={ANNOTATION_MAX_LENGTH}
           aria-describedby={`${fieldId}-contador`}
           onKeyDown={event => {
-            if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
+            if (event.key !== 'Enter' || event.nativeEvent.isComposing) return;
+            // No desktop, Enter salva e Shift+Enter quebra a linha; no celular, Enter só quebra a linha.
+            if (event.metaKey || event.ctrlKey || (!isMobile && !event.shiftKey)) {
+              event.preventDefault();
               handleAddAnotacao();
             }
           }}
           className={cn(fieldClass, 'min-h-32 resize-y leading-relaxed')}
         />
-        <Text variant="meta" as="p" className="text-right tabular-nums">
-          <span id={`${fieldId}-contador`}>{novaAnotacao.length}/{ANNOTATION_MAX_LENGTH}</span>
-        </Text>
+        <div className="flex items-baseline gap-3">
+          {isMobile ? null : <Text variant="meta">{ENTER_HINT}</Text>}
+          <Text variant="meta" as="p" className="ml-auto tabular-nums">
+            <span id={`${fieldId}-contador`}>{novaAnotacao.length}/{ANNOTATION_MAX_LENGTH}</span>
+          </Text>
+        </div>
       </div>
 
       <AppButton
