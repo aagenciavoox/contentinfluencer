@@ -15,6 +15,9 @@ import {
   Copy,
   Hash,
   Target,
+  FileText,
+  Play,
+  Settings,
 } from 'lucide-react';
 import { useAppContext } from '../../../context/AppContext';
 import { useAuth } from '../../../context/AuthContext';
@@ -27,13 +30,15 @@ import { createContentDraft } from '../../contents/lib/createContentDraft';
 import { createIdeaContent, promoteContentToScript } from '../../contents/lib/creationContent';
 import { buildIdeaFields, getIdeaNotes, getIdeaTitle, parseLegacyIdeaText } from '../../ideas/lib/ideaText';
 import { buildContentDetailRoute } from '../../contents/lib/contentDetailRoute';
-import { CONTENT_STATUS, getDisplayStatus } from '../../contents/lib/contentPipeline';
+import { CONTENT_STATUS, getDisplayStatus, type ContentDetailTab } from '../../contents/lib/contentPipeline';
 import { buildDetailBackState } from '../../../lib/navigation/detailBack';
 import { BookAnnotationComposer, BookAnnotationComposerSheet } from '../components/modals/BookAnnotationComposerSheet';
 import { generateUUID } from '../../../utils/uuid';
 import { PageLayout } from '../../../layouts/page/PageLayout';
 import { BookAnnotationCard } from '../components/BookAnnotationCard';
 import { BookDetailHeader } from '../components/BookDetailHeader';
+import { BookScriptRow } from '../components/BookScriptRow';
+import { SegmentTabs } from '../../../components/ui/SegmentTabs';
 import { ToolbarSearchInput } from '../../../components/ui/ToolbarSearchInput';
 import { TagSelect } from '../../../components/ui/TagSelect';
 import { useIsMobile } from '../../../hooks/useIsMobile';
@@ -64,6 +69,12 @@ const STATUS_CORES: Record<string, string> = {
   'Produção': 'bg-[var(--accent-purple)]/10 text-[var(--accent-purple)]',
   'Programado': 'bg-[var(--accent-purple)]/20 text-[var(--accent-purple)]',
   'Postado': 'bg-[var(--accent-green)]/10 text-[var(--accent-green)]',
+};
+
+const SLOT_ROTULO: Record<string, string> = {
+  'ÚNICO': 'Único',
+  'SÉRIE': 'Série',
+  'JANELA': 'Janela',
 };
 
 const TIPOS: TipoAnotacao[] = ['Trecho', 'Reação', 'Análise', 'Ideia de conteúdo', 'Pergunta'];
@@ -178,12 +189,22 @@ export function BookDetailPage() {
   const isMobile = useIsMobile();
 
   const livro = state.bibliotecaItems.find(b => b.id === id);
+  const bibliotecaItemsRef = useRef(state.bibliotecaItems);
+  bibliotecaItemsRef.current = state.bibliotecaItems;
 
   useEffect(() => {
     if (!id || !user || livro) return;
+    let cancelled = false;
+    // O livro acabou de vir do servidor: entra só no estado, sem gravar de volta nem avisar "Alterações salvas".
     void fetchBibliotecaItemById(user.id, id).then(item => {
-      if (item) dispatch({ type: 'ADD_BIBLIOTECA_ITEM', payload: item });
+      if (cancelled || !item) return;
+      const atuais = bibliotecaItemsRef.current;
+      if (atuais.some(b => b.id === item.id)) return;
+      dispatch({ type: 'SET_DATA', payload: { bibliotecaItems: [item, ...atuais] } });
     });
+    return () => {
+      cancelled = true;
+    };
   }, [dispatch, id, livro, user]);
   const initialTab = (searchParams.get('tab') as Tab | null);
   const [tab, setTab] = useState<Tab>(initialTab === 'info' || initialTab === 'conteudos' ? initialTab : 'anotacoes');
@@ -369,9 +390,9 @@ export function BookDetailPage() {
   };
 
   // Handlers
-  const openContentDetail = (contentId: string) => {
+  const openContentDetail = (contentId: string, detailTab?: ContentDetailTab) => {
     navigate(
-      buildContentDetailRoute(contentId),
+      buildContentDetailRoute(contentId, detailTab),
       buildDetailBackState(`${location.pathname}${location.search}`),
     );
   };
@@ -616,6 +637,324 @@ export function BookDetailPage() {
     conteudos: conteudosDoLivro.length,
   };
 
+  // Aba Roteiros: o mesmo bloco no computador e no celular.
+  const roteirosTab = (
+    <div className="stack-xl pb-10">
+      {/* Ponto de contexto */}
+      {alertaEcossistema && (
+        <div className="flex items-center gap-3 rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-hover)] px-6 py-4 md:rounded-[var(--radius-card)]">
+          <CheckCircle2 className="w-5 h-5 shrink-0 text-[var(--text-secondary)]" />
+          <p className="text-sm font-medium text-[var(--text-secondary)]">Concluído. Ainda pode render conteúdo quando fizer sentido.</p>
+        </div>
+      )}
+
+      {/* Mini resumo */}
+      {/* No celular os três dividem a linha, com o ícone acima do número. */}
+      <div className="grid grid-cols-3 gap-2 sm:flex sm:flex-wrap sm:gap-3">
+        {[
+          { label: 'roteiros', value: conteudosDoLivro.length, icon: FileText },
+          { label: 'postados', value: conteudosPostados.length, icon: Play },
+          { label: 'em produção', value: conteudosEmProducao.length, icon: Settings },
+        ].map(({ label, value, icon: StatIcon }) => (
+          <div
+            key={label}
+            className="flex flex-col items-start gap-2 rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-3 py-3 sm:min-w-[8.5rem] sm:flex-row sm:items-center sm:gap-3 sm:px-4"
+          >
+            <StatIcon className="h-5 w-5 shrink-0 text-[var(--text-secondary)]" aria-hidden />
+            <div>
+              <p className="text-lg font-semibold leading-tight tabular-nums text-[var(--text-primary)]">{value}</p>
+              <p className="t-meta">{label}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Botão Criar roteiro hero */}
+      <AppButton
+        variant="primary"
+        size="lg"
+        fullWidth
+        leftIcon={<Plus className="h-4 w-4" />}
+        onClick={handleCriarConteudo}
+      >
+        Criar roteiro
+      </AppButton>
+
+      {/* Brainstorm CTA */}
+      {anotacoesDestaque.length > 0 && (
+        <div className="rounded-[var(--radius-card-mobile)] border border-[var(--warning)]/25 bg-[var(--warning)]/10 px-6 py-4 md:rounded-[var(--radius-card)]">
+          <p className="mb-2 text-sm font-bold text-[var(--warning)]">
+            {anotacoesDestaque.length === 1
+              ? '1 destaque pode virar roteiro.'
+              : `${anotacoesDestaque.length} destaques podem virar roteiro.`}
+          </p>
+          <AppButton
+            variant="secondary"
+            size="sm"
+            onClick={() => { setBrainstormIdx(0); setBrainstormMode(true); }}
+            className="text-[var(--warning)]"
+          >
+            Gerar ideias
+          </AppButton>
+        </div>
+      )}
+
+      {/* ── Agrupamento + Roteiros ── */}
+      {conteudosDoLivro.length > 0 ? (
+        <div className="stack-lg">
+          <SegmentTabs<'slot' | 'plataforma'>
+            options={[
+              { id: 'slot', label: 'Por slot' },
+              { id: 'plataforma', label: 'Por plataforma' },
+            ]}
+            value={ecossistemaAgrupamento}
+            onChange={setEcossistemaAgrupamento}
+            ariaLabel="Agrupar roteiros"
+            className="self-start"
+          />
+
+          {(Object.entries(
+            ecossistemaAgrupamento === 'slot' ? conteudosPorSlot : conteudosPorPlataforma
+          ) as [string, typeof conteudosDoLivro][]).map(([grupo, conteudos]) => (
+            <section key={grupo} className="stack-sm">
+              <div className="flex items-center gap-2">
+                <Text variant="sectionTitle" as="h3">{SLOT_ROTULO[grupo] ?? grupo}</Text>
+                <span className="rounded-[var(--radius-pill)] bg-[var(--bg-hover)] px-2.5 py-0.5 text-xs font-semibold tabular-nums text-[var(--text-secondary)]">
+                  {conteudos.length}
+                </span>
+              </div>
+              <div className="stack-sm">
+                {conteudos.map(c => {
+                  const status = getDisplayStatus(c);
+                  return (
+                    <BookScriptRow
+                      key={c.id}
+                      title={c.title}
+                      status={status}
+                      statusClass={STATUS_CORES[status] || 'bg-[var(--bg-hover)] text-[var(--text-primary)]'}
+                      pilarName={state.pilares.find(p => p.id === c.pilarId)?.nome}
+                      publishDate={c.publishDate}
+                      recordingDate={c.recordingDate}
+                      onOpen={() => openContentDetail(c.id)}
+                      menuItems={[
+                        { id: 'gravacao', label: 'Abrir gravação', onClick: () => openContentDetail(c.id, 'gravacao') },
+                        { id: 'publicacao', label: 'Abrir publicação', onClick: () => openContentDetail(c.id, 'publicacao') },
+                      ]}
+                    />
+                  );
+                })}
+              </div>
+            </section>
+          ))}
+        </div>
+      ) : (
+        <div className="flex flex-col items-center py-10 text-center">
+          <span className="mb-3 flex h-11 w-11 items-center justify-center rounded-full bg-[var(--bg-hover)] text-[var(--text-secondary)]">
+            <FileText className="h-5 w-5" aria-hidden />
+          </span>
+          <p className="t-body-strong text-[var(--text-secondary)]">Nenhum roteiro criado a partir desta obra ainda</p>
+        </div>
+      )}
+
+      {/* ── Ideias deste livro ── */}
+      {ideiasDeLivro.length > 0 && (
+        <div className="bg-[var(--bg-primary)] rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] p-6">
+          <Text variant="itemTitle" className="mb-3 text-[var(--text-tertiary)]">
+            {`Ideias a partir desta obra (${ideiasDeLivro.length})`}
+          </Text>
+          <div className="stack-sm">
+            {ideiasDeLivro.map(ideia => (
+              <div key={ideia.id} className="flex items-center gap-3 py-2 border-b border-[var(--border-color)] last:border-0">
+                <Lightbulb className="w-3.5 h-3.5 shrink-0 text-[var(--warning)]" />
+                <p className="text-sm text-[var(--text-primary)] opacity-70 flex-1">{ideia.title || 'Ideia sem título'}</p>
+                <AppButton
+                  variant="ghost"
+                  size="xs"
+                  onClick={() => handlePromoteIdeia(ideia)}
+                  className="shrink-0 text-[var(--accent-blue)]"
+                >
+                  Transformar em roteiro
+                </AppButton>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <hr className="border-[var(--border-color)]" />
+
+      {/* ── Produção editorial ── */}
+      <section className="rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-elevated)] p-4 sm:p-6">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <Text variant="bodyStrong" as="h3" className="font-semibold">Produção editorial</Text>
+          <AppButton
+            variant="secondary"
+            size="sm"
+            leftIcon={<Plus className="h-4 w-4" />}
+            onClick={() => setNovaCampanhaAberta(v => !v)}
+            className="text-[var(--accent-blue)]"
+          >
+            Nova produção editorial
+          </AppButton>
+        </div>
+
+        {novaCampanhaAberta && (
+          <div className="mb-4 p-4 bg-[var(--bg-hover)] rounded-xl stack-md">
+            <input
+              type="text"
+              value={campForm.nome}
+              onChange={e => setCampForm(p => ({ ...p, nome: e.target.value }))}
+              placeholder="Nome da produção editorial"
+              className="w-full text-sm bg-[var(--bg-secondary)] border border-[var(--border-input)] rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]"
+            />
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-bold  text-[var(--text-tertiary)] block mb-1">Início</label>
+                <input type="date" value={campForm.dataInicio} onChange={e => setCampForm(p => ({ ...p, dataInicio: e.target.value }))} className="w-full text-sm bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl px-3 py-2 text-[var(--text-primary)]" />
+              </div>
+              <div>
+                <label className="text-xs font-bold  text-[var(--text-tertiary)] block mb-1">Fim</label>
+                <input type="date" value={campForm.dataFim} onChange={e => setCampForm(p => ({ ...p, dataFim: e.target.value }))} className="w-full text-sm bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl px-3 py-2 text-[var(--text-primary)]" />
+              </div>
+            </div>
+            <div>
+              <label className="text-xs font-bold  text-[var(--text-tertiary)] block mb-1">Meta de peças</label>
+              <input type="number" min={1} value={campForm.metaConteudos} onChange={e => setCampForm(p => ({ ...p, metaConteudos: e.target.value }))} className="w-full text-sm bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl px-3 py-2 text-[var(--text-primary)]" />
+            </div>
+            <div className="flex gap-2">
+              <AppButton variant="primary" size="sm" fullWidth onClick={handleSalvarCampanha}>
+                Salvar
+              </AppButton>
+              <AppButton variant="secondary" size="sm" onClick={() => setNovaCampanhaAberta(false)}>
+                Cancelar
+              </AppButton>
+            </div>
+          </div>
+        )}
+
+        {campanhasDoLivro.length === 0 ? (
+          !novaCampanhaAberta && (
+            <div className="flex flex-col items-center py-2 text-center">
+              <span className="mb-3 flex h-11 w-11 items-center justify-center rounded-full bg-[var(--bg-hover)] text-[var(--text-secondary)]">
+                <ItemIcon className="h-5 w-5" aria-hidden />
+              </span>
+              <p className="t-body-strong text-[var(--text-secondary)]">Nenhuma produção editorial ainda</p>
+              <p className="mt-1 max-w-md t-secondary text-[var(--text-tertiary)]">
+                Crie uma produção editorial para planejar, com período e meta de peças, os roteiros desta obra.
+              </p>
+            </div>
+          )
+        ) : (
+          <div className="stack-md">
+            {campanhasDoLivro.map(camp => {
+              const criados = conteudosDoLivro.length;
+              const progresso = Math.min(100, Math.round((criados / camp.metaConteudos) * 100));
+              return (
+                <div key={camp.id} className="stack-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-bold text-[var(--text-primary)]">{camp.nome}</span>
+                    <span className="text-xs font-semibold text-[var(--text-tertiary)]">{criados}/{camp.metaConteudos} peças</span>
+                  </div>
+                  <div className="h-2 w-full bg-[var(--bg-hover)] rounded-full overflow-hidden">
+                    <div className="h-full bg-[var(--accent-blue)] rounded-full transition-all" style={{ width: `${progresso}%` }} />
+                  </div>
+                  <p className="text-xs text-[var(--text-tertiary)]">{camp.status}</p>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
+
+      {/* ── Capítulos/Partes cobertos ── */}
+      <section className="rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-elevated)] p-4 sm:p-6">
+        <Text variant="bodyStrong" as="h3" className="mb-3 font-semibold">{coverageLabels.section}</Text>
+        <div className="mb-3 flex gap-2">
+          <input
+            type="text"
+            value={novoCapituloCoberto}
+            onChange={e => setNovoCapituloCoberto(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') handleAdicionarCapitulo(); }}
+            placeholder={coverageLabels.placeholder}
+            aria-label={coverageLabels.section}
+            className="h-[var(--control-height)] min-w-0 flex-1 rounded-[var(--radius-input)] border border-[var(--border-input)] bg-[var(--bg-primary)] px-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+          />
+          <AppButton
+            variant="primary"
+            size="sm"
+            onClick={handleAdicionarCapitulo}
+            disabled={!novoCapituloCoberto.trim()}
+          >
+            Adicionar
+          </AppButton>
+        </div>
+        {capitulosCobertos.length === 0 ? (
+          <p className="t-secondary text-[var(--text-tertiary)]">{coverageLabels.empty}</p>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            {capitulosCobertos.map((cap: string) => (
+              <div key={cap} className="flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full bg-[var(--bg-hover)] text-[var(--text-primary)] border border-[var(--border-color)]">
+                <span>{cap}</span>
+                <button
+                  type="button"
+                  onClick={() => handleRemoverCapitulo(cap)}
+                  className={cn('ml-1 opacity-40 transition-opacity hover:opacity-100', FOCUS_INTERACTIVE)}
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* ── Hashtag Manager ── */}
+      <section className="rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-4 py-3 sm:px-6 sm:py-4">
+        <DisclosureButton open={hashtagsAberto} onToggle={() => setHashtagsAberto(v => !v)} className="-mx-2 w-[calc(100%+1rem)]">
+          <Hash className="h-4 w-4 text-[var(--text-tertiary)]" />
+          <span className="text-sm font-semibold text-[var(--text-primary)]">Hashtags sugeridas</span>
+        </DisclosureButton>
+        {hashtagsAberto && (
+          <div className="mt-4">
+            <div className="flex gap-1 mb-3">
+              {(['Instagram', 'TikTok', 'YouTube'] as const).map(plat => (
+                <button
+                  key={plat}
+                  type="button"
+                  onClick={() => setHashtagTab(plat)}
+                  className={cn(
+                    'rounded-lg px-3 py-1.5 text-xs font-bold transition-all',
+                    FOCUS_INTERACTIVE,
+                    hashtagTab === plat
+                      ? 'bg-[var(--text-primary)] text-[var(--bg-secondary)]'
+                      : 'bg-[var(--bg-hover)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)]',
+                  )}
+                >
+                  {plat}
+                </button>
+              ))}
+            </div>
+            {hashtagsUnicas[hashtagTab] ? (
+              <div className="bg-[var(--bg-hover)] rounded-xl p-3 relative">
+                <p className="pr-10 text-xs text-[var(--text-secondary)]">{hashtagsUnicas[hashtagTab]}</p>
+                <button
+                  type="button"
+                  onClick={() => handleCopiarHashtags(hashtagsUnicas[hashtagTab])}
+                  className={cn('absolute right-2 top-2 rounded-lg p-1.5 transition-colors hover:bg-[var(--bg-secondary)]', FOCUS_INTERACTIVE)}
+                  title="Copiar hashtags"
+                >
+                  {hashtagCopiado ? <Check className="w-4 h-4 text-[var(--accent-green)]" /> : <Copy className="w-4 h-4 text-[var(--text-tertiary)]" />}
+                </button>
+              </div>
+            ) : (
+              <p className="text-xs text-[var(--text-tertiary)]">Nenhuma hashtag configurada nos pilares dos roteiros desta obra.</p>
+            )}
+          </div>
+        )}
+      </section>
+    </div>
+  );
+
   if (isMobile) {
     return (
       <>
@@ -651,18 +990,8 @@ export function BookDetailPage() {
             onTransformIdea={handleTransformarEmIdeia}
             onTransformContent={handleTransformarEmConteudo}
             onDeleteAnotacao={handleDeleteAnotacao}
-            conteudosDoLivro={conteudosDoLivro}
-            ideiasDeLivro={ideiasDeLivro}
-            statusCores={STATUS_CORES}
-            alertaEcossistema={alertaEcossistema}
-            anotacoesDestaqueCount={anotacoesDestaque.length}
-            onCreateContent={handleCriarConteudo}
-            onPromoteIdeia={handlePromoteIdeia}
-            onOpenContent={openContentDetail}
-            onStartBrainstorm={() => {
-              setBrainstormIdx(0);
-              setBrainstormMode(true);
-            }}
+            roteirosCount={conteudosDoLivro.length}
+            roteirosContent={roteirosTab}
           />
         </div>
 
@@ -768,7 +1097,7 @@ export function BookDetailPage() {
       <div className="hidden pt-2 md:block">
         {/* ════ ABA: INFO ════ */}
         {tab === 'info' && (
-          <div className="grid-book-hero pb-28">
+          <div className="grid-book-hero pb-10">
             {/* Capa + Avaliação */}
             <div className="stack-lg">
               <div className="aspect-[2/3] rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] overflow-hidden bg-[var(--bg-hover)] shadow-md">
@@ -1033,16 +1362,17 @@ export function BookDetailPage() {
                 />
               </section>
 
-              {/* Salvar / Remover — sempre disponível durante a edição do formulário longo. */}
-              <div className="fixed inset-x-0 bottom-0 z-30 flex items-center justify-between border-t border-[var(--border-color)] bg-[var(--bg-secondary)] px-6 py-3">
+              {/* Salvar / Remover — sempre disponível durante a edição do formulário longo.
+                  Presa ao pé da área de conteúdo (sticky), e não da tela: assim a barra lateral não a cobre. */}
+              <div className="sticky bottom-[var(--space-lg)] z-30 flex items-center justify-between gap-3 rounded-[var(--radius-overlay)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-4 py-3 shadow-[var(--shadow-dropdown)]">
                 <AppButton
-                  variant="ghost"
+                  variant="secondary"
                   size="sm"
                   onClick={() => setConfirm({
                     ...CONFIRM.excluirBiblioteca(livro.titulo),
                     onConfirm: () => { dispatch({ type: 'DELETE_BOOK', payload: livro.id }); navigate('/biblioteca'); },
                   })}
-                  className="font-bold text-[var(--accent-pink)] opacity-50 hover:opacity-100"
+                  className="text-[var(--danger)]"
                 >
                   Remover da biblioteca
                 </AppButton>
@@ -1131,313 +1461,7 @@ export function BookDetailPage() {
         )}
 
         {/* ════ ABA: CONTEÚDOS ════ */}
-        {tab === 'conteudos' && (
-          <div className="stack-xl pb-10">
-            {/* Ponto de contexto */}
-            {alertaEcossistema && (
-              <div className="flex items-center gap-3 rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-hover)] px-6 py-4 md:rounded-[var(--radius-card)]">
-                <CheckCircle2 className="w-5 h-5 shrink-0 text-[var(--text-secondary)]" />
-                <p className="text-sm font-medium text-[var(--text-secondary)]">Concluído. Ainda pode render conteúdo quando fizer sentido.</p>
-              </div>
-            )}
-
-            {/* Mini resumo */}
-            <div className="flex gap-4 flex-wrap">
-              {[
-                { label: 'roteiros', value: conteudosDoLivro.length },
-                { label: 'postados', value: conteudosPostados.length },
-                { label: 'em produção', value: conteudosEmProducao.length },
-              ].map(stat => (
-                <div key={stat.label} className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-xl">
-                  <span className="text-sm font-semibold text-[var(--text-primary)]">{stat.value}</span>
-                  <span className="text-xs text-[var(--text-tertiary)]">{stat.label}</span>
-                </div>
-              ))}
-            </div>
-
-            {/* Botão Criar roteiro hero */}
-            <AppButton
-              variant="primary"
-              size="lg"
-              fullWidth
-              leftIcon={<Plus className="h-4 w-4" />}
-              onClick={handleCriarConteudo}
-            >
-              Criar roteiro
-            </AppButton>
-
-            {/* Brainstorm CTA */}
-            {anotacoesDestaque.length > 0 && (
-              <div className="rounded-[var(--radius-card-mobile)] border border-[var(--warning)]/25 bg-[var(--warning)]/10 px-6 py-4 md:rounded-[var(--radius-card)]">
-                <p className="mb-2 text-sm font-bold text-[var(--warning)]">
-                  {anotacoesDestaque.length === 1
-                    ? '1 destaque pode virar roteiro.'
-                    : `${anotacoesDestaque.length} destaques podem virar roteiro.`}
-                </p>
-                <AppButton
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => { setBrainstormIdx(0); setBrainstormMode(true); }}
-                  className="text-[var(--warning)]"
-                >
-                  Gerar ideias
-                </AppButton>
-              </div>
-            )}
-
-            {/* ── Campanhas ── */}
-            <section className="bg-[var(--bg-primary)] rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] p-6">
-              <div className="flex items-center justify-between mb-4">
-                <SectionLabel className="mb-0">Produção editorial</SectionLabel>
-                <AppButton
-                  variant="ghost"
-                  size="sm"
-                  leftIcon={<Plus className="h-4 w-4" />}
-                  onClick={() => setNovaCampanhaAberta(v => !v)}
-                  className="text-[var(--accent-blue)]"
-                >
-                  Nova produção editorial
-                </AppButton>
-              </div>
-
-              {novaCampanhaAberta && (
-                <div className="mb-4 p-4 bg-[var(--bg-hover)] rounded-xl stack-md">
-                  <input
-                    type="text"
-                    value={campForm.nome}
-                    onChange={e => setCampForm(p => ({ ...p, nome: e.target.value }))}
-                    placeholder="Nome da produção editorial"
-                    className="w-full text-sm bg-[var(--bg-secondary)] border border-[var(--border-input)] rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]"
-                  />
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-xs font-bold  text-[var(--text-tertiary)] block mb-1">Início</label>
-                      <input type="date" value={campForm.dataInicio} onChange={e => setCampForm(p => ({ ...p, dataInicio: e.target.value }))} className="w-full text-sm bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl px-3 py-2 text-[var(--text-primary)]" />
-                    </div>
-                    <div>
-                      <label className="text-xs font-bold  text-[var(--text-tertiary)] block mb-1">Fim</label>
-                      <input type="date" value={campForm.dataFim} onChange={e => setCampForm(p => ({ ...p, dataFim: e.target.value }))} className="w-full text-sm bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl px-3 py-2 text-[var(--text-primary)]" />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="text-xs font-bold  text-[var(--text-tertiary)] block mb-1">Meta de peças</label>
-                    <input type="number" min={1} value={campForm.metaConteudos} onChange={e => setCampForm(p => ({ ...p, metaConteudos: e.target.value }))} className="w-full text-sm bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl px-3 py-2 text-[var(--text-primary)]" />
-                  </div>
-                  <div className="flex gap-2">
-                    <AppButton variant="primary" size="sm" fullWidth onClick={handleSalvarCampanha}>
-                      Salvar
-                    </AppButton>
-                    <AppButton variant="secondary" size="sm" onClick={() => setNovaCampanhaAberta(false)}>
-                      Cancelar
-                    </AppButton>
-                  </div>
-                </div>
-              )}
-
-              {campanhasDoLivro.length === 0 ? (
-                <p className="text-xs text-[var(--text-tertiary)] text-center py-4">Nenhuma produção editorial ainda</p>
-              ) : (
-                <div className="stack-md">
-                  {campanhasDoLivro.map(camp => {
-                    const criados = conteudosDoLivro.length;
-                    const progresso = Math.min(100, Math.round((criados / camp.metaConteudos) * 100));
-                    return (
-                      <div key={camp.id} className="stack-sm">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-bold text-[var(--text-primary)]">{camp.nome}</span>
-                          <span className="text-xs font-semibold text-[var(--text-tertiary)]">{criados}/{camp.metaConteudos} peças</span>
-                        </div>
-                        <div className="h-2 w-full bg-[var(--bg-hover)] rounded-full overflow-hidden">
-                          <div className="h-full bg-[var(--accent-blue)] rounded-full transition-all" style={{ width: `${progresso}%` }} />
-                        </div>
-                        <p className="text-xs text-[var(--text-tertiary)]">{camp.status}</p>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </section>
-
-            {/* ── Ideias deste livro ── */}
-            {ideiasDeLivro.length > 0 && (
-              <div className="bg-[var(--bg-primary)] rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] p-6">
-                <Text variant="itemTitle" className="mb-3 text-[var(--text-tertiary)]">
-                  {`Ideias a partir desta obra (${ideiasDeLivro.length})`}
-                </Text>
-                <div className="stack-sm">
-                  {ideiasDeLivro.map(ideia => (
-                    <div key={ideia.id} className="flex items-center gap-3 py-2 border-b border-[var(--border-color)] last:border-0">
-                      <Lightbulb className="w-3.5 h-3.5 shrink-0 text-[var(--warning)]" />
-                      <p className="text-sm text-[var(--text-primary)] opacity-70 flex-1">{ideia.title || 'Ideia sem título'}</p>
-                      <AppButton
-                        variant="ghost"
-                        size="xs"
-                        onClick={() => handlePromoteIdeia(ideia)}
-                        className="shrink-0 text-[var(--accent-blue)]"
-                      >
-                        Transformar em roteiro
-                      </AppButton>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* ── Controles agrupamento + Conteúdos ── */}
-            {conteudosDoLivro.length > 0 && (
-              <>
-                <div className="flex gap-1">
-                  {(['slot', 'plataforma'] as const).map(ag => (
-                    <button
-                      key={ag}
-                      type="button"
-                      onClick={() => setEcossistemaAgrupamento(ag)}
-                      className={cn(
-                        'rounded-lg px-3 py-1.5 text-xs font-bold transition-all',
-                        FOCUS_INTERACTIVE,
-                        ecossistemaAgrupamento === ag
-                          ? 'bg-[var(--text-primary)] text-[var(--bg-secondary)]'
-                          : 'bg-[var(--bg-hover)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)]',
-                      )}
-                    >
-                      Por {ag}
-                    </button>
-                  ))}
-                </div>
-
-                <div className="stack-xl">
-                  {(Object.entries(
-                    ecossistemaAgrupamento === 'slot' ? conteudosPorSlot : conteudosPorPlataforma
-                  ) as [string, typeof conteudosDoLivro][]).map(([grupo, conteudos]) => (
-                    <div key={grupo}>
-                      <Text variant="itemTitle" className="mb-3 text-[var(--text-tertiary)]">{grupo}</Text>
-                      <div className="stack-sm">
-                        {conteudos.map(c => (
-                          <button
-                            key={c.id}
-                            type="button"
-                            onClick={() => openContentDetail(c.id)}
-                            className={cn(
-                              'group flex w-full items-center gap-4 rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-primary)] px-4 py-3 text-left transition-all hover:border-[var(--text-primary)]/30 md:rounded-[var(--radius-card)]',
-                              FOCUS_INTERACTIVE,
-                            )}
-                          >
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-bold text-[var(--text-primary)] line-clamp-2 leading-snug">{c.title}</p>
-                              <div className="flex items-center gap-2 mt-1 flex-wrap">
-                                <p className="text-xs text-[var(--text-tertiary)]">{c.pilarId}</p>
-                                {c.publishDate && <p className="text-xs text-[var(--text-tertiary)]">📅 {c.publishDate}</p>}
-                                {c.recordingDate && <p className="text-xs text-[var(--text-tertiary)]">🎙️ {c.recordingDate}</p>}
-                              </div>
-                            </div>
-                            <span className={`text-xs font-semibold  px-2.5 py-1 rounded-full shrink-0 ${STATUS_CORES[getDisplayStatus(c)] || 'bg-[var(--bg-hover)] text-[var(--text-primary)]'}`}>
-                              {getDisplayStatus(c)}
-                            </span>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
-
-            {conteudosDoLivro.length === 0 && (
-              <div className="text-center py-12">
-                <ItemIcon className="w-10 h-10 text-[var(--text-primary)] opacity-10 mx-auto mb-3" />
-                <p className="text-[var(--text-tertiary)] font-bold text-sm ">
-                  Nenhum roteiro criado a partir desta obra ainda
-                </p>
-              </div>
-            )}
-
-            {/* ── Capítulos/Partes cobertos ── */}
-            <section className="bg-[var(--bg-primary)] rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] p-6">
-              <SectionLabel>{coverageLabels.section}</SectionLabel>
-              <div className="flex gap-2 mb-4">
-                <input
-                  type="text"
-                  value={novoCapituloCoberto}
-                  onChange={e => setNovoCapituloCoberto(e.target.value)}
-                  onKeyDown={e => { if (e.key === 'Enter') handleAdicionarCapitulo(); }}
-                  placeholder={coverageLabels.placeholder}
-                  className="flex-1 text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]"
-                />
-                <AppButton
-                  variant="primary"
-                  size="sm"
-                  onClick={handleAdicionarCapitulo}
-                  disabled={!novoCapituloCoberto.trim()}
-                >
-                  Adicionar
-                </AppButton>
-              </div>
-              {capitulosCobertos.length === 0 ? (
-                <p className="text-xs text-[var(--text-tertiary)]">{coverageLabels.empty}</p>
-              ) : (
-                <div className="flex flex-wrap gap-2">
-                  {capitulosCobertos.map((cap: string) => (
-                    <div key={cap} className="flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full bg-[var(--bg-hover)] text-[var(--text-primary)] border border-[var(--border-color)]">
-                      <span>{cap}</span>
-                      <button
-                        type="button"
-                        onClick={() => handleRemoverCapitulo(cap)}
-                        className={cn('ml-1 opacity-40 transition-opacity hover:opacity-100', FOCUS_INTERACTIVE)}
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </section>
-
-            {/* ── Hashtag Manager ── */}
-            <section className="bg-[var(--bg-primary)] rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] p-6">
-              <DisclosureButton open={hashtagsAberto} onToggle={() => setHashtagsAberto(v => !v)} className="-mx-2 w-[calc(100%+1rem)]">
-                <Hash className="h-4 w-4 text-[var(--text-tertiary)]" />
-                <span className="text-xs font-semibold text-[var(--text-primary)]">Hashtags sugeridas</span>
-              </DisclosureButton>
-              {hashtagsAberto && (
-                <div className="mt-4">
-                  <div className="flex gap-1 mb-3">
-                    {(['Instagram', 'TikTok', 'YouTube'] as const).map(plat => (
-                      <button
-                        key={plat}
-                        type="button"
-                        onClick={() => setHashtagTab(plat)}
-                        className={cn(
-                          'rounded-lg px-3 py-1.5 text-xs font-bold transition-all',
-                          FOCUS_INTERACTIVE,
-                          hashtagTab === plat
-                            ? 'bg-[var(--text-primary)] text-[var(--bg-secondary)]'
-                            : 'bg-[var(--bg-hover)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)]',
-                        )}
-                      >
-                        {plat}
-                      </button>
-                    ))}
-                  </div>
-                  {hashtagsUnicas[hashtagTab] ? (
-                    <div className="bg-[var(--bg-hover)] rounded-xl p-3 relative">
-                      <p className="pr-10 text-xs text-[var(--text-secondary)]">{hashtagsUnicas[hashtagTab]}</p>
-                      <button
-                        type="button"
-                        onClick={() => handleCopiarHashtags(hashtagsUnicas[hashtagTab])}
-                        className={cn('absolute right-2 top-2 rounded-lg p-1.5 transition-colors hover:bg-[var(--bg-secondary)]', FOCUS_INTERACTIVE)}
-                        title="Copiar hashtags"
-                      >
-                        {hashtagCopiado ? <Check className="w-4 h-4 text-[var(--accent-green)]" /> : <Copy className="w-4 h-4 text-[var(--text-tertiary)]" />}
-                      </button>
-                    </div>
-                  ) : (
-                    <p className="text-xs text-[var(--text-tertiary)]">Nenhuma hashtag configurada nos pilares dos roteiros desta obra.</p>
-                  )}
-                </div>
-              )}
-            </section>
-          </div>
-        )}
+        {tab === 'conteudos' && roteirosTab}
       </div>
     </PageLayout>
 

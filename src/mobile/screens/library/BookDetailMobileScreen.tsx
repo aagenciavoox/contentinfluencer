@@ -1,17 +1,13 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import {
   BookOpen,
   Check,
-  CheckCircle2,
   FileText,
-  Film,
-  Lightbulb,
   Pencil,
   Plus,
   Star,
 } from 'lucide-react';
-import type { Anotacao, BibliotecaItem, Content } from '../../../lib/database';
-import { CONTENT_STATUS, getDisplayStatus } from '../../../features/contents/lib/contentPipeline';
+import type { Anotacao, BibliotecaItem } from '../../../lib/database';
 import { BottomSheetModal } from '../../../components/feedback/modals/BottomSheetModal';
 import { OverlayBody } from '../../../components/overlays/OverlayBody';
 import { OverlayFooter } from '../../../components/overlays/OverlayFooter';
@@ -19,7 +15,6 @@ import { OverlayHeader } from '../../../components/overlays/OverlayHeader';
 import { AppButton } from '../../../components/ui/AppButton';
 import { Badge } from '../../../components/ui/Badge';
 import { FilterChips } from '../../../components/ui/FilterChips';
-import { InlineNotice } from '../../../components/ui/InlineNotice';
 import { SelectField } from '../../../components/ui/SelectField';
 import { TagSelect } from '../../../components/ui/TagSelect';
 import { Text } from '../../../components/ui/Text';
@@ -29,7 +24,6 @@ import { AnnotationNoteCard } from '../../../features/library/components/Annotat
 import { CoverFallback } from '../../../features/library/components/CoverFallback';
 import { CoverUploadField } from '../../../features/library/components/CoverUploadField';
 import { EmptyState } from '../../../components/ui/EmptyState';
-import { MobileListCard } from '../../components/MobileListCard';
 import { MobileSectionHeader } from '../../components/MobileSectionHeader';
 import { MobileSegmentTabs } from '../../components/MobileSegmentTabs';
 
@@ -73,15 +67,9 @@ interface BookDetailMobileScreenProps {
   onTransformIdea: (anotacao: Anotacao) => void;
   onTransformContent: (anotacao: Anotacao) => void;
   onDeleteAnotacao: (anotacaoId: string) => void;
-  conteudosDoLivro: Content[];
-  ideiasDeLivro: Content[];
-  statusCores: Record<string, string>;
-  alertaEcossistema: boolean;
-  anotacoesDestaqueCount: number;
-  onCreateContent: () => void;
-  onPromoteIdeia: (ideia: Content) => void;
-  onOpenContent: (contentId: string) => void;
-  onStartBrainstorm: () => void;
+  roteirosCount: number;
+  /** Aba Roteiros pronta, o mesmo bloco do computador. */
+  roteirosContent: ReactNode;
 }
 
 export function BookDetailMobileScreen({
@@ -107,15 +95,8 @@ export function BookDetailMobileScreen({
   onTransformIdea,
   onTransformContent,
   onDeleteAnotacao,
-  conteudosDoLivro,
-  ideiasDeLivro,
-  statusCores,
-  alertaEcossistema,
-  anotacoesDestaqueCount,
-  onCreateContent,
-  onPromoteIdeia,
-  onOpenContent,
-  onStartBrainstorm,
+  roteirosCount,
+  roteirosContent,
 }: BookDetailMobileScreenProps) {
   const [editInfoOpen, setEditInfoOpen] = useState(false);
 
@@ -196,7 +177,7 @@ export function BookDetailMobileScreen({
         tabs={[
           { value: 'info', label: 'Info' },
           { value: 'anotacoes', label: 'Anotações', count: livro.anotacoes.length },
-          { value: 'conteudos', label: 'Roteiros', count: conteudosDoLivro.length },
+          { value: 'conteudos', label: 'Roteiros', count: roteirosCount },
         ]}
         value={tab}
         onChange={onTabChange}
@@ -350,115 +331,7 @@ export function BookDetailMobileScreen({
         </div>
       ) : null}
 
-      {tab === 'conteudos' ? (
-        <div className="stack-md">
-          {alertaEcossistema ? (
-            <Surface variant="info" padding="sm">
-              <div className="flex items-start gap-2">
-                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-[var(--text-secondary)]" aria-hidden />
-                <Text variant="secondary" as="p">
-                  Concluído. Ainda pode render conteúdo quando fizer sentido.
-                </Text>
-              </div>
-            </Surface>
-          ) : null}
-
-          <div className="flex flex-wrap gap-2">
-            {[
-              { label: 'roteiros', value: conteudosDoLivro.length },
-              {
-                label: 'postados',
-                value: conteudosDoLivro.filter(
-                  (content) => getDisplayStatus(content) === CONTENT_STATUS.POSTADO
-                ).length,
-              },
-              {
-                label: 'em produção',
-                value: conteudosDoLivro.filter((content) => {
-                  const displayStatus = getDisplayStatus(content);
-                  return (
-                    displayStatus !== CONTENT_STATUS.POSTADO &&
-                    displayStatus !== CONTENT_STATUS.IDEIA
-                  );
-                }).length,
-              },
-            ].map((stat) => (
-              <Badge key={stat.label} variant="neutral">
-                <span className="mr-1 font-semibold tabular-nums text-[var(--text-primary)]">{stat.value}</span>
-                {stat.label}
-              </Badge>
-            ))}
-          </div>
-
-          <AppButton variant="secondary" fullWidth onClick={onCreateContent} leftIcon={<Plus className="h-4 w-4" />}>
-            Criar roteiro
-          </AppButton>
-
-          {anotacoesDestaqueCount > 0 ? (
-            <InlineNotice
-              texto={anotacoesDestaqueCount === 1
-                ? '1 destaque pode virar roteiro.'
-                : `${anotacoesDestaqueCount} destaques podem virar roteiro.`}
-              acao={{ rotulo: 'Gerar ideias', onClick: onStartBrainstorm }}
-            />
-          ) : null}
-
-          {ideiasDeLivro.length > 0 ? (
-            <Surface variant="outlined" padding="md" className="bg-[var(--bg-secondary)]">
-              <MobileSectionHeader
-                icon={Lightbulb}
-                tone="neutral"
-                title={`Ideias (${ideiasDeLivro.length})`}
-              />
-              <div className="stack-sm">
-                {ideiasDeLivro.map((ideia) => (
-                  <div
-                    key={ideia.id}
-                    className="flex items-start gap-2 border-b border-[var(--border-color)] pb-2 last:border-0 last:pb-0"
-                  >
-                    <Lightbulb className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[var(--text-tertiary)]" aria-hidden />
-                    <p className="min-w-0 flex-1 text-sm text-[var(--text-primary)]">
-                      {ideia.title || 'Ideia sem título'}
-                    </p>
-                    <AppButton variant="secondary" size="xs" onClick={() => onPromoteIdeia(ideia)}>
-                      Virar roteiro
-                    </AppButton>
-                  </div>
-                ))}
-              </div>
-            </Surface>
-          ) : null}
-
-          {conteudosDoLivro.length === 0 ? (
-            <EmptyState compact
-              title="Nenhum roteiro criado a partir desta obra ainda"
-              description="Roteiros e ideias criados a partir desta obra aparecem aqui."
-              action={
-                <AppButton variant="secondary" fullWidth onClick={onCreateContent} leftIcon={<Plus className="h-4 w-4" />}>
-                  Criar roteiro
-                </AppButton>
-              }
-              icon={<Film className="h-8 w-8" />}
-            />
-          ) : (
-            <div className="stack-sm">
-              {conteudosDoLivro.map((content) => (
-                <MobileListCard
-                  key={content.id}
-                  title={content.title || 'Roteiro sem título'}
-                  description={content.notes || undefined}
-                  meta={
-                    <Badge variant="status" status={getDisplayStatus(content)}>
-                      {getDisplayStatus(content)}
-                    </Badge>
-                  }
-                  onClick={() => onOpenContent(content.id)}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-      ) : null}
+      {tab === 'conteudos' ? roteirosContent : null}
 
       <BottomSheetModal
         open={editInfoOpen}

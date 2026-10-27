@@ -94,7 +94,7 @@ export const CONFIRM = {
     cancelLabel: 'Manter como ideia',
   },
   excluirBiblioteca: (titulo: string) => ({
-    message: `Remover "${titulo}" da biblioteca? Anotações e roteiros vinculados continuam salvos.`,
+    message: `Remover "${titulo}" da biblioteca? As anotações deste livro serão apagadas junto, sem volta. Os roteiros vinculados continuam salvos.`,
     confirmLabel: 'Remover da biblioteca',
     cancelLabel: 'Manter na biblioteca',
   }),
