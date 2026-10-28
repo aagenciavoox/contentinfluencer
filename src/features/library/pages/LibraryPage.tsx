@@ -76,9 +76,6 @@ interface NovoLivroForm {
   fazParteDeSerie: 'sim' | 'nao';
   nomeDaSerie: string;
   avaliacao: '' | '1' | '2' | '3' | '4' | '5';
-  quemIndicou: string;
-  motivoEscolha: string;
-  potencialConteudo: '' | '1' | '2' | '3';
 }
 
 
@@ -190,9 +187,6 @@ const INITIAL_FORM: NovoLivroForm = {
   fazParteDeSerie: 'nao',
   nomeDaSerie: '',
   avaliacao: '',
-  quemIndicou: '',
-  motivoEscolha: '',
-  potencialConteudo: '',
 };
 
 export function LibraryPage() {
@@ -404,8 +398,6 @@ export function LibraryPage() {
       fazParteDeSerie: form.fazParteDeSerie,
       nomeDaSerie: form.nomeDaSerie,
       tagsPersonalizadas: form.tagsPersonalizadas,
-      quemIndicou: form.quemIndicou,
-      motivoEscolha: form.motivoEscolha,
     };
 
     const novoLivro: BibliotecaItem = {
@@ -421,7 +413,7 @@ export function LibraryPage() {
       dataFim: null,
       avaliacao: form.avaliacao ? Number(form.avaliacao) : null,
       notasGerais: null,
-      potencialConteudo: form.potencialConteudo ? Number(form.potencialConteudo) : null,
+      potencialConteudo: null,
       totalPaginas,
       paginasLidas: null,
       anotacoes: [],

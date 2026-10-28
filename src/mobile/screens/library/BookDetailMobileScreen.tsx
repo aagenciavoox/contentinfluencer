@@ -2,7 +2,6 @@ import { useState, type ReactNode } from 'react';
 import {
   BookOpen,
   Check,
-  FileText,
   Pencil,
   Plus,
   Star,
@@ -37,7 +36,6 @@ export interface BookInfoLocal {
   autor: string;
   statusLeitura: StatusLeitura;
   capaUrl: string;
-  notasGerais: string;
   generos: string[];
   avaliacao?: 1 | 2 | 3 | 4 | 5;
   paginasLidas: number | '';
@@ -52,6 +50,10 @@ interface BookDetailMobileScreenProps {
   creatorLabel: string;
   progressLabels: { current: string; total: string; unit: string };
   statusLeituraOptions: StatusLeitura[];
+  /** Livros trocam o status na aba Anotações, e não na Info. */
+  statusNasAnotacoes: boolean;
+  /** Troca o status e grava na hora. */
+  onStatusChange: (status: StatusLeitura) => void;
   generoOptions: string[];
   infoLocal: BookInfoLocal;
   onInfoLocalPatch: (patch: Partial<BookInfoLocal>) => void;
@@ -80,6 +82,8 @@ export function BookDetailMobileScreen({
   creatorLabel,
   progressLabels,
   statusLeituraOptions,
+  statusNasAnotacoes,
+  onStatusChange,
   generoOptions,
   infoLocal,
   onInfoLocalPatch,
@@ -203,14 +207,16 @@ export function BookDetailMobileScreen({
             />
 
             <dl className="stack-md text-sm">
-              <div>
-                <dt>
-                  <Text variant="label" uppercase className="font-semibold">
-                    Status
-                  </Text>
-                </dt>
-                <dd className="mt-1 text-[var(--text-primary)]">{infoLocal.statusLeitura}</dd>
-              </div>
+              {statusNasAnotacoes ? null : (
+                <div>
+                  <dt>
+                    <Text variant="label" uppercase className="font-semibold">
+                      Status
+                    </Text>
+                  </dt>
+                  <dd className="mt-1 text-[var(--text-primary)]">{infoLocal.statusLeitura}</dd>
+                </div>
+              )}
               <div>
                 <dt>
                   <Text variant="label" uppercase className="font-semibold">
@@ -253,13 +259,6 @@ export function BookDetailMobileScreen({
             </dl>
           </Surface>
 
-          <Surface variant="outlined" padding="md" className="bg-[var(--bg-secondary)]">
-            <MobileSectionHeader icon={FileText} tone="neutral" title="Notas gerais" />
-            <p className="whitespace-pre-wrap text-sm leading-relaxed text-[var(--text-secondary)]">
-              {infoLocal.notasGerais.trim() || 'Sem notas ainda.'}
-            </p>
-          </Surface>
-
           {/* Ação destrutiva com moldura (antes era texto rosa a 70% de opacidade, quase invisível).
               A confirmação continua no ConfirmModal. */}
           <AppButton variant="secondary" fullWidth onClick={onRequestDelete} className="text-[var(--danger)]">
@@ -270,6 +269,20 @@ export function BookDetailMobileScreen({
 
       {tab === 'anotacoes' ? (
         <div className="stack-md">
+          {statusNasAnotacoes ? (
+            <Surface variant="outlined" padding="sm" className="flex items-center justify-between gap-3 bg-[var(--bg-secondary)]">
+              <label htmlFor="book-status-leitura-mobile" className="t-secondary font-semibold text-[var(--text-primary)]">
+                Status da leitura
+              </label>
+              <SelectField
+                id="book-status-leitura-mobile"
+                value={infoLocal.statusLeitura}
+                onChange={(value) => onStatusChange(value as StatusLeitura)}
+                options={statusLeituraOptions.map((status) => ({ value: status, label: status }))}
+              />
+            </Surface>
+          ) : null}
+
           {/* Uma fileira só, rolando para o lado (antes quebrava em duas linhas). */}
           <FilterChips<AnotacaoFiltro>
             ariaLabel="Filtrar anotações"
@@ -363,16 +376,18 @@ export function BookDetailMobileScreen({
             />
           </label>
 
-          <label className="block stack-sm">
-            <span className="t-label text-[var(--text-tertiary)]">Status de leitura</span>
-            <SelectField
-              block
-              ariaLabel="Status de leitura"
-              value={infoLocal.statusLeitura}
-              onChange={(value) => onInfoLocalPatch({ statusLeitura: value as StatusLeitura })}
-              options={statusLeituraOptions.map((status) => ({ value: status, label: status }))}
-            />
-          </label>
+          {statusNasAnotacoes ? null : (
+            <label className="block stack-sm">
+              <span className="t-label text-[var(--text-tertiary)]">Status de leitura</span>
+              <SelectField
+                block
+                ariaLabel="Status de leitura"
+                value={infoLocal.statusLeitura}
+                onChange={(value) => onInfoLocalPatch({ statusLeitura: value as StatusLeitura })}
+                options={statusLeituraOptions.map((status) => ({ value: status, label: status }))}
+              />
+            </label>
+          )}
 
           <CoverUploadField
             value={infoLocal.capaUrl}
@@ -447,16 +462,6 @@ export function BookDetailMobileScreen({
               />
             </label>
           </div>
-
-          <label className="block stack-sm">
-            <span className="t-label text-[var(--text-tertiary)]">Notas gerais</span>
-            <textarea
-              value={infoLocal.notasGerais}
-              onChange={(event) => onInfoLocalPatch({ notasGerais: event.target.value })}
-              rows={4}
-              className="w-full"
-            />
-          </label>
         </OverlayBody>
         <OverlayFooter className="pb-safe px-4">
           <AppButton variant="primary" fullWidth onClick={handleSaveInfo} leftIcon={<Check className="h-4 w-4" />}>

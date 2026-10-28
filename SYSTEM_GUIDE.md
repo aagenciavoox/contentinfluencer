@@ -584,8 +584,9 @@ Preenchimento é opcional — o usuário decide se quer registrar métricas.
 **O que faz:** Detalhe com anotações e conteúdos gerados.
 
 **Abas:**
-1. **Info** — dados do item
+1. **Info** — dados do item, em seções sempre abertas (sem recolher). Sem notas gerais nem "Para você" (quem indicou, por que escolheu, potencial)
 2. **Anotações** — criar, editar, marcar como potencial de conteúdo
+   - Só em livros: a troca de status da leitura fica aqui (sai da Info) e grava na hora
    - Tipo padrão ao criar: `Anotação` (sem fricção)
    - Botão direto: "Criar ideia a partir desta anotação"
    - Botão direto: "Criar conteúdo a partir desta anotação" (pula a etapa de ideia)

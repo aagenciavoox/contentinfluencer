@@ -234,8 +234,6 @@ export function BookDetailPage() {
   const [brainstormIdx, setBrainstormIdx] = useState(0);
 
   // Info state
-  const [showTechnical, setShowTechnical] = useState(false);
-  const [showParaVoce, setShowParaVoce] = useState(false);
   const [infoSalvo, setInfoSalvo] = useState(false);
   const [confirm, setConfirm] = useState<ConfirmState | null>(null);
 
@@ -256,7 +254,6 @@ export function BookDetailPage() {
     dataInicio: livro?.dataInicio ?? '',
     dataFim: livro?.dataFim ?? '',
     avaliacao: livro?.avaliacao as 1 | 2 | 3 | 4 | 5 | undefined,
-    notasGerais: livro?.notasGerais ?? '',
     generos: livro?.generoIds ? [...livro.generoIds] : [] as GeneroLivro[],
     paginasLidas: livro?.paginasLidas ?? ('' as number | ''),
     totalPaginas: livro?.totalPaginas ?? ('' as number | ''),
@@ -271,10 +268,7 @@ export function BookDetailPage() {
     generoAutor: metadata.generoAutor ?? '',
     paisAutor: metadata.paisAutor ?? '',
     racaAutor: metadata.racaAutor ?? '',
-    quemIndicou: metadata.quemIndicou ?? '',
-    motivoEscolha: metadata.motivoEscolha ?? '',
     duracaoPorEpisodio: metadata.duracaoPorEpisodio ?? '',
-    potencialConteudo: livro?.potencialConteudo as 1 | 2 | 3 | undefined,
   }));
   // Ficha editada e ainda não salva segura a troca de versão do app.
   const infoSavedSnapshotRef = useRef(JSON.stringify(infoLocal));
@@ -439,49 +433,55 @@ export function BookDetailPage() {
     dispatch({ type: 'DELETE_ANNOTATION', payload: { livroId: livro.id, annotationId: anotacaoId } });
   };
 
-  const handleSalvarInfo = () => {
+  // Notas gerais, quem indicou, por que escolheu e potencial saíram da tela;
+  // o que já estava gravado segue no item pelo ...livro e pelo ...metadata.
+  const handleSalvarInfo = (info = infoLocal) => {
     dispatch({
       type: 'UPDATE_BOOK',
       payload: {
         ...livro,
-        titulo: infoLocal.titulo,
-        autorDiretor: infoLocal.autor,
-        status: infoLocal.statusLeitura,
-        capaUrl: infoLocal.capaUrl || null,
-        dataInicio: infoLocal.dataInicio || null,
-        dataFim: infoLocal.dataFim || null,
-        avaliacao: infoLocal.avaliacao ?? null,
-        notasGerais: infoLocal.notasGerais || null,
-        generoIds: infoLocal.generos,
-        paginasLidas: infoLocal.paginasLidas === '' ? null : Number(infoLocal.paginasLidas),
-        totalPaginas: infoLocal.totalPaginas === '' ? null : Number(infoLocal.totalPaginas),
-        potencialConteudo: infoLocal.potencialConteudo ?? null,
+        titulo: info.titulo,
+        autorDiretor: info.autor,
+        status: info.statusLeitura,
+        capaUrl: info.capaUrl || null,
+        dataInicio: info.dataInicio || null,
+        dataFim: info.dataFim || null,
+        avaliacao: info.avaliacao ?? null,
+        generoIds: info.generos,
+        paginasLidas: info.paginasLidas === '' ? null : Number(info.paginasLidas),
+        totalPaginas: info.totalPaginas === '' ? null : Number(info.totalPaginas),
         updatedAt: new Date().toISOString(),
         ficha: {
           ...metadata,
-          editora: infoLocal.editora,
-          anoPublicacao: infoLocal.anoPublicacao,
-          isbn: infoLocal.isbn,
-          idioma: infoLocal.idioma,
-          traducao: infoLocal.traducao,
-          serieColecao: infoLocal.serieColecao,
-          colecaoStatus: infoLocal.colecaoStatus,
-          colecaoNome: infoLocal.colecaoNome,
-          generoAutor: infoLocal.generoAutor,
-          paisAutor: infoLocal.paisAutor,
-          racaAutor: infoLocal.racaAutor,
-          quemIndicou: infoLocal.quemIndicou,
-          motivoEscolha: infoLocal.motivoEscolha,
-          duracaoPorEpisodio: infoLocal.duracaoPorEpisodio,
+          editora: info.editora,
+          anoPublicacao: info.anoPublicacao,
+          isbn: info.isbn,
+          idioma: info.idioma,
+          traducao: info.traducao,
+          serieColecao: info.serieColecao,
+          colecaoStatus: info.colecaoStatus,
+          colecaoNome: info.colecaoNome,
+          generoAutor: info.generoAutor,
+          paisAutor: info.paisAutor,
+          racaAutor: info.racaAutor,
+          duracaoPorEpisodio: info.duracaoPorEpisodio,
           capitulosCobertos,
         },
       },
     });
-    infoSavedSnapshotRef.current = JSON.stringify(infoLocal);
+    infoSavedSnapshotRef.current = JSON.stringify(info);
     setInfoSalvo(true);
     setTimeout(() => setInfoSalvo(false), 2000);
   };
   salvarInfoRef.current = handleSalvarInfo;
+
+  // Nos livros o status mora na aba Anotações e grava na hora, sem esperar o autosave da ficha.
+  const statusNasAnotacoes = livro.tipo === 'livro';
+  const handleMudarStatus = (statusLeitura: StatusLeitura) => {
+    const proximo = { ...infoLocal, statusLeitura };
+    setInfoLocal(proximo);
+    handleSalvarInfo(proximo);
+  };
 
   const handleTransformarLeituraEmIdeia = () => {
     const fields = buildIdeaFields({
@@ -967,10 +967,12 @@ export function BookDetailPage() {
             creatorLabel={creatorLabel}
             progressLabels={progressLabels}
             statusLeituraOptions={STATUS_LEITURA[livro.tipo]}
+            statusNasAnotacoes={statusNasAnotacoes}
+            onStatusChange={handleMudarStatus}
             generoOptions={[...GENEROS_SUGERIDOS]}
             infoLocal={infoLocal}
             onInfoLocalPatch={(patch) => setInfoLocal((prev) => ({ ...prev, ...patch }))}
-            onSaveInfo={handleSalvarInfo}
+            onSaveInfo={() => handleSalvarInfo()}
             infoSalvo={infoSalvo}
             onRequestDelete={() =>
               setConfirm({
@@ -1167,17 +1169,19 @@ export function BookDetailPage() {
               <section className="border-t border-[var(--border-color)] pt-6">
                 <SectionLabel>Consumo</SectionLabel>
                 <div className="grid-form">
-                  <TagSelect
-                    label="Status"
-                    values={[infoLocal.statusLeitura]}
-                    onChange={values => {
-                      const nextStatus = values.at(-1) as StatusLeitura | undefined;
-                      if (nextStatus) setInfoLocal(prev => ({ ...prev, statusLeitura: nextStatus }));
-                    }}
-                    options={STATUS_LEITURA[livro.tipo].map(status => ({ value: status, label: status }))}
-                    placeholder="Selecionar status"
-                    maxSelections={1}
-                  />
+                  {!statusNasAnotacoes && (
+                    <TagSelect
+                      label="Status"
+                      values={[infoLocal.statusLeitura]}
+                      onChange={values => {
+                        const nextStatus = values.at(-1) as StatusLeitura | undefined;
+                        if (nextStatus) setInfoLocal(prev => ({ ...prev, statusLeitura: nextStatus }));
+                      }}
+                      options={STATUS_LEITURA[livro.tipo].map(status => ({ value: status, label: status }))}
+                      placeholder="Selecionar status"
+                      maxSelections={1}
+                    />
+                  )}
                   <div className="md:col-span-2">
                     <CoverUploadField
                       value={infoLocal.capaUrl}
@@ -1238,128 +1242,72 @@ export function BookDetailPage() {
                 )}
               </section>
 
-              {/* Seção 3 — Detalhes técnicos (colapsável) */}
+              {/* Seção 3 — Detalhes técnicos (sempre aberta, como as outras) */}
               <section className="border-t border-[var(--border-color)] pt-6">
-                <DisclosureButton open={showTechnical} onToggle={() => setShowTechnical(v => !v)} className="-mx-2 mb-3 w-[calc(100%+1rem)]">
-                  <SectionLabel className="mb-0">Detalhes técnicos</SectionLabel>
-                </DisclosureButton>
-                {showTechnical && (
-                  <div className="grid-form">
+                <SectionLabel>Detalhes técnicos</SectionLabel>
+                <div className="grid-form">
+                  <div>
+                    <label className="text-xs font-bold  text-[var(--text-tertiary)] block mb-1.5">{technicalLabels.publisher}</label>
+                    <input type="text" value={infoLocal.editora} onChange={e => setInfoLocal(prev => ({ ...prev, editora: e.target.value }))} placeholder={technicalLabels.publisherPlaceholder} className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]" />
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold  text-[var(--text-tertiary)] block mb-1.5">Ano de publicação</label>
+                    <input type="number" value={infoLocal.anoPublicacao} onChange={e => setInfoLocal(prev => ({ ...prev, anoPublicacao: e.target.value }))} placeholder="2024" className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]" />
+                  </div>
+                  {(livro.tipo === 'livro' || livro.tipo === 'manga' || livro.tipo === 'quadrinho') && (
                     <div>
-                      <label className="text-xs font-bold  text-[var(--text-tertiary)] block mb-1.5">{technicalLabels.publisher}</label>
-                      <input type="text" value={infoLocal.editora} onChange={e => setInfoLocal(prev => ({ ...prev, editora: e.target.value }))} placeholder={technicalLabels.publisherPlaceholder} className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]" />
+                      <label className="text-xs font-bold  text-[var(--text-tertiary)] block mb-1.5">ISBN</label>
+                      <input type="text" value={infoLocal.isbn} onChange={e => setInfoLocal(prev => ({ ...prev, isbn: e.target.value }))} placeholder="978-…" className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]" />
                     </div>
-                    <div>
-                      <label className="text-xs font-bold  text-[var(--text-tertiary)] block mb-1.5">Ano de publicação</label>
-                      <input type="number" value={infoLocal.anoPublicacao} onChange={e => setInfoLocal(prev => ({ ...prev, anoPublicacao: e.target.value }))} placeholder="2024" className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]" />
-                    </div>
-                    {(livro.tipo === 'livro' || livro.tipo === 'manga' || livro.tipo === 'quadrinho') && (
+                  )}
+                  <div>
+                    <label className="text-xs font-bold  text-[var(--text-tertiary)] block mb-1.5">Idioma</label>
+                    <input type="text" value={infoLocal.idioma} onChange={e => setInfoLocal(prev => ({ ...prev, idioma: e.target.value }))} placeholder="Português" className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]" />
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold  text-[var(--text-tertiary)] block mb-1.5">{technicalLabels.translation}</label>
+                    <input type="text" value={infoLocal.traducao} onChange={e => setInfoLocal(prev => ({ ...prev, traducao: e.target.value }))} placeholder={technicalLabels.translationPlaceholder} className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]" />
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold  text-[var(--text-tertiary)] block mb-1.5">{technicalLabels.collection}</label>
+                    <input type="text" value={infoLocal.serieColecao} onChange={e => setInfoLocal(prev => ({ ...prev, serieColecao: e.target.value }))} placeholder={technicalLabels.collectionPlaceholder} className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]" />
+                  </div>
+                  {(livro.tipo === 'livro' || livro.tipo === 'manga' || livro.tipo === 'quadrinho') && (
+                    <>
                       <div>
-                        <label className="text-xs font-bold  text-[var(--text-tertiary)] block mb-1.5">ISBN</label>
-                        <input type="text" value={infoLocal.isbn} onChange={e => setInfoLocal(prev => ({ ...prev, isbn: e.target.value }))} placeholder="978-…" className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]" />
+                        <label htmlFor="book-colecao-status" className="text-xs font-bold  text-[var(--text-tertiary)] block mb-1.5">Série ou coleção?</label>
+                        <SelectField
+                          id="book-colecao-status"
+                          block
+                          value={infoLocal.colecaoStatus}
+                          onChange={value => setInfoLocal(prev => ({ ...prev, colecaoStatus: value as 'sim' | 'nao', colecaoNome: value === 'nao' ? '' : prev.colecaoNome }))}
+                          options={[
+                            { value: 'nao', label: 'Não' },
+                            { value: 'sim', label: 'Sim' },
+                          ]}
+                        />
                       </div>
-                    )}
-                    <div>
-                      <label className="text-xs font-bold  text-[var(--text-tertiary)] block mb-1.5">Idioma</label>
-                      <input type="text" value={infoLocal.idioma} onChange={e => setInfoLocal(prev => ({ ...prev, idioma: e.target.value }))} placeholder="Português" className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]" />
-                    </div>
-                    <div>
-                      <label className="text-xs font-bold  text-[var(--text-tertiary)] block mb-1.5">{technicalLabels.translation}</label>
-                      <input type="text" value={infoLocal.traducao} onChange={e => setInfoLocal(prev => ({ ...prev, traducao: e.target.value }))} placeholder={technicalLabels.translationPlaceholder} className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]" />
-                    </div>
-                    <div>
-                      <label className="text-xs font-bold  text-[var(--text-tertiary)] block mb-1.5">{technicalLabels.collection}</label>
-                      <input type="text" value={infoLocal.serieColecao} onChange={e => setInfoLocal(prev => ({ ...prev, serieColecao: e.target.value }))} placeholder={technicalLabels.collectionPlaceholder} className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]" />
-                    </div>
-                    {(livro.tipo === 'livro' || livro.tipo === 'manga' || livro.tipo === 'quadrinho') && (
-                      <>
+                      {infoLocal.colecaoStatus === 'sim' && (
                         <div>
-                          <label htmlFor="book-colecao-status" className="text-xs font-bold  text-[var(--text-tertiary)] block mb-1.5">Série ou coleção?</label>
-                          <SelectField
-                            id="book-colecao-status"
-                            block
-                            value={infoLocal.colecaoStatus}
-                            onChange={value => setInfoLocal(prev => ({ ...prev, colecaoStatus: value as 'sim' | 'nao', colecaoNome: value === 'nao' ? '' : prev.colecaoNome }))}
-                            options={[
-                              { value: 'nao', label: 'Não' },
-                              { value: 'sim', label: 'Sim' },
-                            ]}
-                          />
+                          <label className="text-xs font-bold  text-[var(--text-tertiary)] block mb-1.5">Qual coleção?</label>
+                          <input type="text" value={infoLocal.colecaoNome} onChange={e => setInfoLocal(prev => ({ ...prev, colecaoNome: e.target.value, serieColecao: e.target.value }))} placeholder="Ex.: Trono de Vidro" className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]" />
                         </div>
-                        {infoLocal.colecaoStatus === 'sim' && (
-                          <div>
-                            <label className="text-xs font-bold  text-[var(--text-tertiary)] block mb-1.5">Qual coleção?</label>
-                            <input type="text" value={infoLocal.colecaoNome} onChange={e => setInfoLocal(prev => ({ ...prev, colecaoNome: e.target.value, serieColecao: e.target.value }))} placeholder="Ex.: Trono de Vidro" className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]" />
-                          </div>
-                        )}
-                        <div>
-                          <label className="text-xs font-bold  text-[var(--text-tertiary)] block mb-1.5">Gênero do autor</label>
-                          <input type="text" value={infoLocal.generoAutor} onChange={e => setInfoLocal(prev => ({ ...prev, generoAutor: e.target.value }))} placeholder="Ex.: mulher, homem, não binárie" className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]" />
-                        </div>
-                        <div>
-                          <label className="text-xs font-bold  text-[var(--text-tertiary)] block mb-1.5">País do autor</label>
-                          <input type="text" value={infoLocal.paisAutor} onChange={e => setInfoLocal(prev => ({ ...prev, paisAutor: e.target.value }))} placeholder="Ex.: Nigéria" className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]" />
-                        </div>
-                        <div>
-                          <label className="text-xs font-bold  text-[var(--text-tertiary)] block mb-1.5">Raça do autor</label>
-                          <input type="text" value={infoLocal.racaAutor} onChange={e => setInfoLocal(prev => ({ ...prev, racaAutor: e.target.value }))} placeholder="Como você prefere catalogar" className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]" />
-                        </div>
-                      </>
-                    )}
-                  </div>
-                )}
-              </section>
-
-              {/* Seção 4 — Para você (colapsável) */}
-              <section className="border-t border-[var(--border-color)] pt-6">
-                <DisclosureButton open={showParaVoce} onToggle={() => setShowParaVoce(v => !v)} className="-mx-2 mb-3 w-[calc(100%+1rem)]">
-                  <SectionLabel className="mb-0">Para você</SectionLabel>
-                </DisclosureButton>
-                {showParaVoce && (
-                  <div className="stack-lg">
-                    <div>
-                      <label className="text-xs font-bold  text-[var(--text-tertiary)] block mb-1.5">Quem indicou</label>
-                      <input type="text" value={infoLocal.quemIndicou} onChange={e => setInfoLocal(prev => ({ ...prev, quemIndicou: e.target.value }))} placeholder="Ex.: podcast X, amiga Y…" className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]" />
-                    </div>
-                    <div>
-                      <label className="text-xs font-bold  text-[var(--text-tertiary)] block mb-1.5">Por que escolheu</label>
-                      <textarea value={infoLocal.motivoEscolha} onChange={e => setInfoLocal(prev => ({ ...prev, motivoEscolha: e.target.value }))} rows={3} placeholder="Motivação, contexto…" className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] resize-none placeholder:text-[var(--text-tertiary)]" />
-                    </div>
-                    <div>
-                      <label className="text-xs font-bold  text-[var(--text-tertiary)] block mb-2">Potencial de conteúdo</label>
-                      <div className="flex gap-2">
-                        {([1, 2, 3] as const).map(v => (
-                          <button
-                            key={v}
-                            type="button"
-                            onClick={() => setInfoLocal(prev => ({ ...prev, potencialConteudo: prev.potencialConteudo === v ? undefined : v }))}
-                            className={cn(
-                              'rounded-xl border px-3 py-1.5 text-base transition-all',
-                              FOCUS_INTERACTIVE,
-                              infoLocal.potencialConteudo === v
-                                ? 'border-[var(--text-primary)] bg-[var(--text-primary)]'
-                                : 'border-[var(--border-strong)] opacity-50 hover:opacity-80',
-                            )}
-                          >
-                            {'🔥'.repeat(v)}
-                          </button>
-                        ))}
+                      )}
+                      <div>
+                        <label className="text-xs font-bold  text-[var(--text-tertiary)] block mb-1.5">Gênero do autor</label>
+                        <input type="text" value={infoLocal.generoAutor} onChange={e => setInfoLocal(prev => ({ ...prev, generoAutor: e.target.value }))} placeholder="Ex.: mulher, homem, não binárie" className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]" />
                       </div>
-                    </div>
-                  </div>
-                )}
-              </section>
-
-              {/* Seção 5 — Notas gerais */}
-              <section className="border-t border-[var(--border-color)] pt-6">
-                <SectionLabel>Notas gerais</SectionLabel>
-                <textarea
-                  value={infoLocal.notasGerais}
-                  onChange={e => setInfoLocal(prev => ({ ...prev, notasGerais: e.target.value }))}
-                  rows={5}
-                  placeholder="Impressões gerais, contexto…"
-                  className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-4 py-3 text-[var(--text-primary)] resize-none placeholder:text-[var(--text-tertiary)]"
-                />
+                      <div>
+                        <label className="text-xs font-bold  text-[var(--text-tertiary)] block mb-1.5">País do autor</label>
+                        <input type="text" value={infoLocal.paisAutor} onChange={e => setInfoLocal(prev => ({ ...prev, paisAutor: e.target.value }))} placeholder="Ex.: Nigéria" className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]" />
+                      </div>
+                      <div>
+                        <label className="text-xs font-bold  text-[var(--text-tertiary)] block mb-1.5">Raça do autor</label>
+                        <input type="text" value={infoLocal.racaAutor} onChange={e => setInfoLocal(prev => ({ ...prev, racaAutor: e.target.value }))} placeholder="Como você prefere catalogar" className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]" />
+                      </div>
+                    </>
+                  )}
+                </div>
               </section>
 
               {/* Salvar / Remover — sempre disponível durante a edição do formulário longo.
@@ -1380,7 +1328,7 @@ export function BookDetailPage() {
                   variant="primary"
                   size="sm"
                   leftIcon={<Check className="h-3.5 w-3.5" />}
-                  onClick={handleSalvarInfo}
+                  onClick={() => handleSalvarInfo()}
                 >
                   {infoSalvo ? 'Salvo!' : 'Salvar'}
                 </AppButton>
@@ -1439,7 +1387,20 @@ export function BookDetailPage() {
               )}
             </div>
 
-            <div className="lg:sticky lg:top-4">
+            <div className="stack-md lg:sticky lg:top-4">
+              {statusNasAnotacoes && (
+                <Surface variant="outlined" padding="md" className="flex items-center justify-between gap-3">
+                  <label htmlFor="book-status-leitura" className="t-secondary font-semibold text-[var(--text-primary)]">
+                    Status da leitura
+                  </label>
+                  <SelectField
+                    id="book-status-leitura"
+                    value={infoLocal.statusLeitura}
+                    onChange={value => handleMudarStatus(value as StatusLeitura)}
+                    options={STATUS_LEITURA[livro.tipo].map(status => ({ value: status, label: status }))}
+                  />
+                </Surface>
+              )}
               <BookAnnotationComposer
                 key={livro.id}
                 book={livro}
