@@ -11,7 +11,7 @@ export function createServer(): McpServer {
     {
       instructions:
         'Ferramentas do Content OS, o planejador de conteúdo da criadora. ' +
-        'O fluxo de um conteúdo é Ideia → Roteiro → Produção → Postado. ' +
+        'O fluxo de um conteúdo é Ideia → Roteiro → Produção → Edição → Publicado. ' +
         'Antes de escrever roteiros, leia ver_estrutura_editorial para seguir o DNA da voz, os pilares, as séries e as opções de formato, janela e energia. ' +
         'A função editorial é atrair, converter, aprofundar, comunidade, acao ou reter. ' +
         'Origem herdada lê a função da série até a primeira publicação, que congela a classificação. ' +

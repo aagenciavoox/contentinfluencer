@@ -4,6 +4,7 @@ import { Badge } from '../../../components/ui/Badge';
 import { Text } from '../../../components/ui/Text';
 import { cn } from '../../../lib/utils';
 import { filterContentsByCreationTab, type CreationTab } from '../../contents/lib/creationContent';
+import { getStatusDetail } from '../../contents/lib/contentPipeline';
 import { CreationCategoryLabel } from './CreationCategoryLabel';
 import { CreationEntityMarks, creationEntityHint } from './CreationEntityMarks';
 import { CreationItemMenu } from './CreationItemMenu';
@@ -69,7 +70,7 @@ function CreationKanbanCard({
   const tags = etiquetas ?? getCreationCardTags(content);
   const excerpt = getCreationNoteExcerpt(content);
   // Só a data no rodapé: o formato vai para a lista, onde há espaço para ele sem cortar.
-  const footerMeta = getCreationCardDateMeta(content);
+  const footerMeta = [getStatusDetail(content), getCreationCardDateMeta(content)].filter(Boolean).join(' · ') || null;
   const canOpen = !content.deletedAt && !selectionMode;
   const entityHint = creationEntityHint(pillar, series, content.pilarId, content.seriesId);
   const hasMarks = entityHint.length > 0;

@@ -484,7 +484,7 @@ export function PeriodoPanel({
   const numeros = [
     { id: 'limite', rotulo: periodo.modo === 'semana' ? 'Limite da semana' : 'Limite do período', valor: celula(contagem.limite) },
     { id: 'previstos', rotulo: 'Previstos', valor: String(contagem.previsto) },
-    { id: 'postados', rotulo: 'Postados', valor: String(contagem.porEtapa.postado) },
+    { id: 'postados', rotulo: 'Publicados', valor: String(contagem.porEtapa.postado) },
     { id: 'prontos', rotulo: 'Prontos de reserva', valor: reserva == null ? String(estoque) : `${estoque} de ${reserva}` },
   ];
 

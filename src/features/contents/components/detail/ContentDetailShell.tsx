@@ -21,12 +21,12 @@ import {
   getPostingAlerts,
   getPrimaryAction,
   getVisibleTabsForContent,
-  applyStatusMilestones,
+  edicaoPatch,
+  getStatusDetail,
   isTabLocked,
-  PRODUCTION_TAGS,
   normalizeContentStatus,
-  withProductionTag,
   type ContentDetailTab,
+  type ContentPrimaryActionId,
 } from '../../lib/contentPipeline';
 import {ContentDetailHeader} from './ContentDetailHeader';
 import {ContentPipelineStepper} from './ContentPipelineStepper';
@@ -39,7 +39,7 @@ import {draftDiffers, draftFieldChanged, immediateSaveUpdates} from '../../lib/d
 import {RoteiroSection, type ScriptDraft} from './sections/RoteiroSection';
 import {isWritingWorkspaceEnabled} from '../../../settings/lib/writingWorkspace';
 import {IdeaDetailSection, IdeaOrganizationPanel} from './sections/IdeaDetailSection';
-import {promoteContentToScript} from '../../lib/creationContent';
+import {applyStatusChange, promoteContentToScript} from '../../lib/creationContent';
 import {origemDoRoteiro, resolveSeriesScriptTemplate} from '../../lib/seriesScriptTemplate';
 import {livroIdsEfetivos} from '../../../../lib/livroIds';
 import {rotuloDaRef} from '../../../contas/lib/contas';
@@ -462,26 +462,30 @@ export function ContentDetailShell({
     setIsSaving(true);
 
     try {
-      let nextStatus =
+      const nextStatus =
         options?.advanceToReady && draftNow.status === CONTENT_STATUS.ROTEIRO
           ? CONTENT_STATUS.PRODUCAO
           : updates?.status ?? draftNow.status;
 
-      // Carrossel avança para Produção sem a etiqueta "gravar": não passa pela gravação.
-      const nextTags =
-        options?.advanceToReady && draftNow.status === CONTENT_STATUS.ROTEIRO && !isCarouselContent(draftNow)
-          ? withProductionTag(updates?.tags ?? draftNow.tags ?? liveNow.tags ?? [], PRODUCTION_TAGS.GRAVAR)
-          : updates?.tags ?? draftNow.tags ?? liveNow.tags;
-
-      const statusMilestones = applyStatusMilestones(liveNow, nextStatus);
-
-      const payload: Content = {
+      // A troca parte da etapa gravada; o rascunho já mostra a nova.
+      const base: Content = {
         ...liveNow,
         ...draftNow,
         energiaNecessaria: draftNow.energiaNecessaria,
-        ...statusMilestones,
         ...updates,
-        tags: nextTags,
+        tags: updates?.tags ?? draftNow.tags ?? liveNow.tags,
+        status: liveNow.status,
+      };
+      const changed = applyStatusChange(base, nextStatus);
+
+      // Só o que a regra de etapa mudou volta para o rascunho: o texto digitado durante o salvar fica.
+      const ruleChanges: Partial<Content> = {status: nextStatus};
+      if (changed.tags !== base.tags) ruleChanges.tags = changed.tags;
+      if (changed.postedAt !== base.postedAt) ruleChanges.postedAt = changed.postedAt ?? null;
+      if (changed.script !== base.script) ruleChanges.script = changed.script;
+
+      const payload: Content = {
+        ...changed,
         status: nextStatus,
         updatedAt: new Date().toISOString(),
       };
@@ -494,7 +498,7 @@ export function ContentDetailShell({
         setDraftDirty(false);
       }
 
-      setDraft(previous => ({...previous, ...statusMilestones, ...updates, status: nextStatus}));
+      setDraft(previous => ({...previous, ...updates, ...ruleChanges}));
 
       return true;
     } catch {
@@ -708,8 +712,22 @@ export function ContentDetailShell({
     }, {replace: true});
   };
 
-  const handlePrimaryAction = async () => {
-    switch (primaryAction.id) {
+  const handlePrimaryAction = (actionId: ContentPrimaryActionId = primaryAction.id) => runAction(actionId);
+
+  const runAction = async (actionId: ContentPrimaryActionId) => {
+    switch (actionId) {
+      case 'send_to_edit':
+        await persist(edicaoPatch('enviar'));
+        return;
+      case 'finish_edit':
+        await persist(edicaoPatch('concluir'));
+        return;
+      case 'skip_edit':
+        await persist(edicaoPatch('dispensar'));
+        return;
+      case 'reopen_edit':
+        await persist(edicaoPatch('reabrir'));
+        return;
       case 'promote_to_script': {
         const promoted = promoteContentToScript(mergedContent);
         await persist({status: promoted.status, script: promoted.script});
@@ -744,8 +762,11 @@ export function ContentDetailShell({
     ROTEIRO: 'Roteiro',
     PRODUCAO: 'Produção',
     EM_BLOCO: 'Em bloco',
-    POSTADO: 'Postado',
+    EDICAO: 'Edição',
+    POSTADO: 'Publicado',
   };
+  const stageDetail = getStatusDetail(mergedContent);
+  const currentStageLabel = stageDetail ? `${stageLabel[stage]} · ${stageDetail}` : stageLabel[stage];
 
   const isIdea = normalizeContentStatus(mergedContent.status) === CONTENT_STATUS.IDEIA;
   const writingWorkspace = mode === 'desktop' && isWritingWorkspaceEnabled(state.preferences);
@@ -790,7 +811,7 @@ export function ContentDetailShell({
           layout={mode === 'desktop' ? 'workspace' : 'stack'}
           writingWorkspace={writingWorkspace}
           primaryAction={documentHeader ? primaryAction : undefined}
-          onPrimaryAction={documentHeader ? () => void handlePrimaryAction() : undefined}
+          onPrimaryAction={documentHeader ? actionId => void handlePrimaryAction(actionId) : undefined}
           primaryBusy={isDeleting}
           contentId={mergedContent.id}
           carouselAvailable={isCarouselStorageAvailable()}
@@ -896,10 +917,10 @@ export function ContentDetailShell({
           visibleTabs={visibleTabs}
           onTabChange={setTab}
           primaryAction={primaryAction}
-          onPrimaryAction={() => void handlePrimaryAction()}
+          onPrimaryAction={actionId => void handlePrimaryAction(actionId)}
           isSaving={isDeleting}
           postingAlerts={postingAlerts}
-          stageLabel={stageLabel[stage]}
+          stageLabel={currentStageLabel}
           operationalPanel={
             isIdea ? (
               <IdeaOrganizationPanel
@@ -958,7 +979,7 @@ export function ContentDetailShell({
             title={draft.title}
             onTitleChange={value => handleDraftChange({title: value})}
             primaryAction={primaryAction}
-            onPrimaryAction={() => void handlePrimaryAction()}
+            onPrimaryAction={actionId => void handlePrimaryAction(actionId)}
             onRetrySave={() => void persist()}
             onDelete={() => setDeleteConfirmOpen(true)}
             isSaving={isDeleting}

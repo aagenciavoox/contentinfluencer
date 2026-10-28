@@ -167,7 +167,7 @@ export function patchPrimeiraPublicacao(
   postUrl: string | null,
 ): Record<string, unknown> {
   const patch: Record<string, unknown> = {
-    status: 'Postado',
+    status: 'Publicado',
     posted_at: dataMaisAntiga(realizadas) ?? content.posted_at ?? now,
   };
   if (!content.link && postUrl) patch.link = postUrl;

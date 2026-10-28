@@ -7,7 +7,7 @@ import {Surface} from '../../../../components/ui/Surface';
 import {Text} from '../../../../components/ui/Text';
 import {cn} from '../../../../lib/utils';
 import type {Content, Pilar} from '../../../../lib/database';
-import type {ContentPrimaryAction} from '../../lib/contentPipeline';
+import type {ContentPrimaryAction, ContentPrimaryActionId} from '../../lib/contentPipeline';
 import {getDisplayStatus} from '../../lib/contentPipeline';
 import {ContentTemaChips} from '../ContentTemaChips';
 import {DesktopPageHeader} from '../../../../layouts/page/DesktopPageHeader';
@@ -19,7 +19,7 @@ interface ContentDetailHeaderProps {
   title?: string;
   onTitleChange?: (title: string) => void;
   primaryAction: ContentPrimaryAction;
-  onPrimaryAction: () => void;
+  onPrimaryAction: (actionId?: ContentPrimaryActionId) => void;
   onRetrySave?: () => void;
   onDelete?: () => void;
   isSaving: boolean;
@@ -41,27 +41,38 @@ interface ContentDetailHeaderProps {
   variant?: 'default' | 'document';
 }
 
-/** Botão principal do fluxo (ex.: "Avançar para gravação"), com o rótulo de cada etapa. */
+/**
+ * Botão principal do fluxo (ex.: "Avançar para gravação"), com o rótulo de cada etapa.
+ * A ação secundária (ex.: "Dispensar edição") vem antes, mais discreta.
+ */
 export function ContentPrimaryActionButton({
   primaryAction,
   onPrimaryAction,
   busy = false,
 }: {
   primaryAction: ContentPrimaryAction;
-  onPrimaryAction: () => void;
+  onPrimaryAction: (actionId?: ContentPrimaryActionId) => void;
   busy?: boolean;
 }) {
   if (primaryAction.id === 'none') return null;
+  const secondary = primaryAction.secondary;
   return (
-    <AppButton
-      variant="primary"
-      onClick={onPrimaryAction}
-      disabled={busy || primaryAction.disabled}
-      disabledReason={primaryAction.disabled ? primaryAction.reason : undefined}
-      rightIcon={primaryAction.id === 'advance_to_recording' || primaryAction.id === 'promote_to_script' ? <ArrowRight className="h-4 w-4" /> : undefined}
-    >
-      {primaryAction.label}
-    </AppButton>
+    <>
+      {secondary ? (
+        <AppButton variant="secondary" onClick={() => onPrimaryAction(secondary.id)} disabled={busy}>
+          {secondary.label}
+        </AppButton>
+      ) : null}
+      <AppButton
+        variant="primary"
+        onClick={() => onPrimaryAction()}
+        disabled={busy || primaryAction.disabled}
+        disabledReason={primaryAction.disabled ? primaryAction.reason : undefined}
+        rightIcon={primaryAction.id === 'advance_to_recording' || primaryAction.id === 'promote_to_script' ? <ArrowRight className="h-4 w-4" /> : undefined}
+      >
+        {primaryAction.label}
+      </AppButton>
+    </>
   );
 }
 

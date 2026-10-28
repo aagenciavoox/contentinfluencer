@@ -10,7 +10,7 @@ import { resolveContentDetailBack } from '../../../lib/navigation/detailBack';
 import { useVisualViewportKeyboard } from '../../../hooks/useVisualViewportKeyboard';
 import { MobileSegmentTabs } from '../../components/MobileSegmentTabs';
 import { MobileSectionHeader } from '../../components/MobileSectionHeader';
-import type { ContentDetailTab, ContentPrimaryAction, PostingAlert } from '../../../features/contents/lib/contentPipeline';
+import type { ContentDetailTab, ContentPrimaryAction, ContentPrimaryActionId, PostingAlert } from '../../../features/contents/lib/contentPipeline';
 import { cn } from '../../../lib/utils';
 
 const TAB_LABELS: Record<ContentDetailTab, string> = {
@@ -25,7 +25,7 @@ interface ContentDetailMobileScreenProps {
   visibleTabs: ContentDetailTab[];
   onTabChange: (tab: ContentDetailTab) => void;
   primaryAction: ContentPrimaryAction;
-  onPrimaryAction: () => void;
+  onPrimaryAction: (actionId?: ContentPrimaryActionId) => void;
   isSaving: boolean;
   postingAlerts: PostingAlert[];
   stageLabel: string;
@@ -67,6 +67,7 @@ export function ContentDetailMobileScreen({
   const keyboard = useVisualViewportKeyboard();
   const [detailsSheetOpen, setDetailsSheetOpen] = useState(false);
   const hasPrimaryAction = primaryAction.id !== 'none';
+  const secondaryAction = primaryAction.secondary;
   const isScriptTab = activeTab === 'roteiro';
   const isIdea = contentKind === 'idea';
   const tabOptions = visibleTabs.map(tab => ({ value: tab, label: TAB_LABELS[tab] }));
@@ -157,6 +158,19 @@ export function ContentDetailMobileScreen({
             {primaryAction.label}
           </AppButton>
         ) : null}
+        {hasPrimaryAction && secondaryAction ? (
+          <AppButton
+            variant="secondary"
+            onClick={() => {
+              setDetailsSheetOpen(false);
+              onPrimaryAction(secondaryAction.id);
+            }}
+            disabled={isSaving}
+            className="min-h-11 w-full justify-center"
+          >
+            {secondaryAction.label}
+          </AppButton>
+        ) : null}
         <AppButton
           variant="ghost"
           leftIcon={<Trash2 className="h-4 w-4" />}
@@ -219,7 +233,7 @@ export function ContentDetailMobileScreen({
             {keyboard.open ? (
               <button
                 type="button"
-                aria-label="Concluir edição"
+                aria-label="Fechar o teclado"
                 onPointerDown={event => activateWhileEditing(event, dismissKeyboard)}
                 className={cn(
                   'relative z-[1] flex h-11 w-11 shrink-0 items-center justify-center rounded-full',
@@ -293,11 +307,21 @@ export function ContentDetailMobileScreen({
           {hasPrimaryAction ? (
             <AppButton
               variant="primary"
-              onClick={onPrimaryAction}
+              onClick={() => onPrimaryAction()}
               disabled={isSaving || primaryAction.disabled}
               className="min-h-11 w-full justify-center"
             >
               {primaryAction.label}
+            </AppButton>
+          ) : null}
+          {hasPrimaryAction && secondaryAction ? (
+            <AppButton
+              variant="secondary"
+              onClick={() => onPrimaryAction(secondaryAction.id)}
+              disabled={isSaving}
+              className="min-h-11 w-full justify-center"
+            >
+              {secondaryAction.label}
             </AppButton>
           ) : null}
           <AppButton

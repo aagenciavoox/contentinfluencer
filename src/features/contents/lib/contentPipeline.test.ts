@@ -4,11 +4,15 @@ import {
   applyStatusMilestones,
   CONTENT_STATUS,
   DISPLAY_STATUS,
+  edicaoPatch,
   getAllowedStatuses,
   getDisplayStatus,
   getPrimaryAction,
+  getStatusDetail,
   getStatusOptions,
+  isReadyToPublish,
   normalizeContentStatus,
+  recordedPatch,
 } from './contentPipeline.ts';
 
 function createContent(overrides: Partial<Content> = {}): Content {
@@ -84,9 +88,52 @@ function testDisplayStatusPostedAtOverridesRoteiro() {
 }
 
 function testNormalizeLegacyStatuses() {
-  assert.equal(normalizeContentStatus('Gravado'), CONTENT_STATUS.PRODUCAO);
-  assert.equal(normalizeContentStatus('Programado'), CONTENT_STATUS.PRODUCAO);
+  assert.equal(normalizeContentStatus('Pronto para Gravar'), CONTENT_STATUS.PRODUCAO);
+  assert.equal(normalizeContentStatus('Gravado'), CONTENT_STATUS.EDICAO);
+  assert.equal(normalizeContentStatus('Programado'), CONTENT_STATUS.EDICAO);
+  assert.equal(normalizeContentStatus('Postado'), 'Publicado');
   assert.equal(normalizeContentStatus('Roteiro'), CONTENT_STATUS.ROTEIRO);
+}
+
+function testRecordedVideoGoesToEditing() {
+  const now = '2026-10-28T12:00:00.000Z';
+  assert.deepEqual(
+    recordedPatch({status: CONTENT_STATUS.PRODUCAO, recordedAt: null}, now),
+    {recordedAt: now, status: CONTENT_STATUS.EDICAO, edicaoConcluidaEm: null, edicaoDispensada: false},
+  );
+  // Quem já passou da gravação não volta para Edição.
+  assert.deepEqual(
+    recordedPatch({status: CONTENT_STATUS.POSTADO, recordedAt: '2026-10-01T12:00:00.000Z'}, now),
+    {recordedAt: '2026-10-01T12:00:00.000Z'},
+  );
+}
+
+function testEditingActionsFollowTheStage() {
+  const recorded = createContent({status: CONTENT_STATUS.PRODUCAO, recordedAt: '2026-10-01T12:00:00.000Z'});
+  const send = getPrimaryAction(recorded);
+  assert.equal(send.id, 'send_to_edit');
+  assert.equal(send.label, 'Enviar para edição');
+  assert.equal(send.secondary?.id, 'skip_edit');
+
+  const carousel = getPrimaryAction(createContent({status: CONTENT_STATUS.PRODUCAO, writingMode: 'carrossel'}));
+  assert.equal(carousel.id, 'send_to_edit');
+
+  const editing = getPrimaryAction(createContent({status: CONTENT_STATUS.EDICAO, edicaoConcluidaEm: null}));
+  assert.equal(editing.id, 'finish_edit');
+  assert.equal(editing.secondary?.label, 'Dispensar edição');
+
+  const ready = createContent({status: CONTENT_STATUS.EDICAO, edicaoConcluidaEm: '2026-10-02T12:00:00.000Z'});
+  assert.equal(getPrimaryAction(ready).id, 'send_to_posting');
+  assert.equal(getPrimaryAction(ready).secondary?.id, 'reopen_edit');
+  assert.equal(isReadyToPublish(ready), true);
+  assert.equal(getStatusDetail(ready), 'Pronto para publicar');
+
+  const skipped = edicaoPatch('dispensar', '2026-10-03T12:00:00.000Z');
+  assert.deepEqual(skipped, {
+    status: CONTENT_STATUS.EDICAO,
+    edicaoConcluidaEm: '2026-10-03T12:00:00.000Z',
+    edicaoDispensada: true,
+  });
 }
 
 function testRecordingActionUsesClearPipelineCopy() {
@@ -122,27 +169,27 @@ function testLeavingPostadoClearsPostedAt() {
   assert.deepEqual(applyStatusMilestones(posted, CONTENT_STATUS.POSTADO), {});
 }
 
-function testEveryStageVisibleButTransitionsKept() {
+function testEveryStageVisibleAndJumpsAllowed() {
   const opcoes = getStatusOptions(CONTENT_STATUS.ROTEIRO);
-  assert.deepEqual(opcoes.map(item => item.status), ['Ideia', 'Roteiro', 'Produção', 'Postado']);
+  assert.deepEqual(opcoes.map(item => item.status), ['Ideia', 'Roteiro', 'Produção', 'Edição', 'Publicado']);
   assert.deepEqual(opcoes.filter(item => item.atual).map(item => item.status), ['Roteiro']);
   assert.deepEqual(
     opcoes.filter(item => item.disponivel).map(item => item.status),
     getAllowedStatuses(CONTENT_STATUS.ROTEIRO),
   );
-  const postado = opcoes.find(item => item.status === 'Postado');
-  assert.equal(postado?.disponivel, false);
-  assert.equal(postado?.motivo, 'Avance uma etapa por vez: passe por Produção antes.');
+  // Dá para pular etapas: de Roteiro direto para Publicado.
+  assert.equal(opcoes.find(item => item.status === 'Publicado')?.disponivel, true);
 
-  // Etapa antiga (Gravado) aparece como Produção e mantém as mesmas transições.
+  // Etapa antiga (Gravado) aparece como Edição, e dá para voltar direto para Ideia.
   const legado = getStatusOptions('Gravado');
-  assert.equal(legado.find(item => item.atual)?.status, 'Produção');
-  assert.equal(legado.find(item => item.status === 'Ideia')?.disponivel, false);
-  assert.equal(legado.find(item => item.status === 'Ideia')?.motivo, 'Volte uma etapa por vez: passe por Roteiro antes.');
+  assert.equal(legado.find(item => item.atual)?.status, 'Edição');
+  assert.equal(legado.find(item => item.status === 'Ideia')?.disponivel, true);
 }
 
 const tests: Array<[string, () => void]> = [
-  ['every stage is listed and transitions keep their limits', testEveryStageVisibleButTransitionsKept],
+  ['every stage is listed and jumps are allowed', testEveryStageVisibleAndJumpsAllowed],
+  ['recorded video goes to Edição', testRecordedVideoGoesToEditing],
+  ['editing actions follow the stage', testEditingActionsFollowTheStage],
   ['leaving Postado clears postedAt', testLeavingPostadoClearsPostedAt],
   ['future publish date shows Programado', testDisplayStatusFuturePublishDate],
   ['past publish date keeps canonical status', testDisplayStatusPastPublishDateKeepsCanonical],

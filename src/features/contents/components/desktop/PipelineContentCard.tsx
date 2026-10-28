@@ -12,7 +12,7 @@ import {
   isDraftTitle,
   isRecentlyCreated,
 } from '../../lib/contentCardMeta';
-import {getDisplayStatus} from '../../lib/contentPipeline';
+import {getDisplayStatus, getDisplayStatusLabel} from '../../lib/contentPipeline';
 import { rotuloDaRef } from '../../../contas/lib/contas';
 
 interface PipelineContentCardProps {
@@ -97,7 +97,7 @@ export function PipelineContentCard({
           }}
           className="flex w-full min-w-0 flex-col gap-2 text-left"
         >
-          <Badge variant="status" status={displayStatus}>{displayStatus}</Badge>
+          <Badge variant="status" status={displayStatus}>{getDisplayStatusLabel(content)}</Badge>
           <div className="flex items-start gap-1">
             {(isNew || isDraft) ? (
               <span className="mt-0.5 inline-flex shrink-0 items-center gap-0.5">

@@ -50,7 +50,7 @@ try {
   const volta = await call('atualizar_conteudo', {id: contentId, funcao: 'da_serie'});
   expect('volta a herdar', volta.funcao === 'aprofundar' && volta.funcao_origem === 'herdada' && volta.conta_na_grade === true, volta);
 
-  await call('mudar_status', {ids: [contentId], status: 'Postado'});
+  await call('mudar_status', {ids: [contentId], status: 'Publicado'});
   await call('atualizar_serie', {serie: serieId, funcao_padrao: 'acao'});
   const postado = await call('ver_conteudo', {id: contentId});
   expect('postado fica congelado', postado.funcao === 'aprofundar' && postado.classificacao_congelada === true, postado);

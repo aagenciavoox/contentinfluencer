@@ -232,7 +232,7 @@ export function registerAgenda(server: McpServer) {
       title: 'Agendar publicação',
       description:
         'Define a data (e hora) de publicação de um conteúdo e, se quiser, por plataforma, com legenda, hashtags e status. ' +
-        'Status: agendada, publicada, nao_publicada ou removida. Publicada congela a função na primeira vez e marca o roteiro como Postado. ' +
+        'Status: agendada, publicada, nao_publicada ou removida. Publicada congela a função na primeira vez e marca o roteiro como Publicado. ' +
         'janela (manha, tarde, noite) define a hora padrão quando hora não vem. ' +
         'Plataformas já ligadas ao conteúdo são atualizadas; as novas são adicionadas. Envie data=null para desagendar.',
       inputSchema: {

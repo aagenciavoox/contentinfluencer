@@ -190,8 +190,8 @@ function testPublicacaoMarcadaComoPostadaApareceComoPostado() {
 
   const todas = buildPublishCalendarItems({ ...base, platformFilter: 'todas' });
   assert.deepEqual(todas.map(item => item.posted), [true, false]);
-  assert.deepEqual(todas.map(item => publishItemStatus(content, item, '2026-10-14')), ['Postado', 'Programado']);
-  assert.deepEqual(todas.map(item => publishItemStatus(content, item, '2026-10-25')), ['Postado', 'Agendada']);
+  assert.deepEqual(todas.map(item => publishItemStatus(content, item, '2026-10-14')), ['Publicado', 'Programado']);
+  assert.deepEqual(todas.map(item => publishItemStatus(content, item, '2026-10-25')), ['Publicado', 'Agendada']);
   assert.equal(isScheduledItem(todas[1]!, '2026-10-14'), true);
   assert.equal(isScheduledItem(todas[1]!, '2026-10-20'), true);
   assert.equal(isScheduledItem(todas[1]!, '2026-10-21'), false);

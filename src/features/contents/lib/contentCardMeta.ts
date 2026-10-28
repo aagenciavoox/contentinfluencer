@@ -1,5 +1,5 @@
 import type { Content, Pilar, Serie } from '../../../lib/database';
-import { getDisplayStatus } from './contentPipeline';
+import { getDisplayStatusLabel } from './contentPipeline';
 import { htmlToReadableText } from '../../../lib/utils';
 import { contentReadableBody } from './carouselSlides.ts';
 
@@ -66,7 +66,7 @@ export function buildContentMetaLine(
   content: Content,
   options?: { pillarName?: string | null; seriesName?: string | null }
 ) {
-  const parts = [getDisplayStatus(content), formatLastEdit(content.updatedAt)];
+  const parts = [getDisplayStatusLabel(content), formatLastEdit(content.updatedAt)];
 
   if (options?.pillarName) parts.push(options.pillarName);
   if (options?.seriesName) parts.push(options.seriesName);

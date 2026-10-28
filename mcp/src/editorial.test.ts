@@ -51,7 +51,7 @@ function testPostECongelamento() {
     'https://www.instagram.com/reel/ABC123/',
   );
   assert.equal(patch.funcao, 'converter');
-  assert.equal(patch.status, 'Postado');
+  assert.equal(patch.status, 'Publicado');
   assert.equal(patch.classificacao_congelada_em, '2026-10-04T18:00:00.000Z');
   assert.equal(patch.link, 'https://www.instagram.com/reel/ABC123/');
 

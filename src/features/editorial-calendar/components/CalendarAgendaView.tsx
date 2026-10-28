@@ -21,6 +21,7 @@ import { Surface } from '../../../components/ui/Surface';
 import { Text } from '../../../components/ui/Text';
 import { Content, Projeto, AgendaItem } from '../../../lib/database';
 import { eventoCobreDia } from '../../projects/lib/agendaEventos';
+import { CONTENT_STATUS } from '../../contents/lib/contentPipeline';
 type Partnership = Projeto;
 
 interface AgendaViewProps {
@@ -65,7 +66,7 @@ export function CalendarAgendaView({
     const items: any[] = [];
 
     if (activeLayers.includes('recordings')) {
-      contents.filter(c => c.recordingDate === dateStr && c.status !== 'Postado')
+      contents.filter(c => c.recordingDate === dateStr && c.status !== CONTENT_STATUS.POSTADO)
         .forEach(c => items.push({ ...c, __type: 'recording' }));
     }
 

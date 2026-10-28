@@ -20,6 +20,7 @@ import {
   normalizeStatus,
   nowIso,
   readCompat,
+  statusRank,
   resolvePilar,
   resolveSerie,
   textToHtml,
@@ -428,6 +429,10 @@ export function registerConteudos(server: McpServer) {
       }
       if (horaPublicacao !== undefined) patch.publish_time = horaPublicacao;
       if (args.gravado !== undefined) patch.recorded_at = args.gravado ? current.recorded_at ?? nowIso() : null;
+      // Gravado leva o vídeo para Edição, como no app. Quem já passou da gravação não volta.
+      if (args.gravado && statusRank(current.status) < statusRank('Edição')) {
+        patch.status = 'Edição';
+      }
       if (args.legenda_base !== undefined) patch.legenda_base = args.legenda_base || null;
       if (args.livro_ids !== undefined || args.biblioteca_item_id !== undefined) {
         const livros = unirLivros(
@@ -468,9 +473,9 @@ export function registerConteudos(server: McpServer) {
     {
       title: 'Mudar status',
       description:
-        'Move conteúdos no fluxo Ideia → Roteiro → Produção → Postado. ' +
-        'Ideia para Roteiro aproveita as notas da ideia como rascunho do roteiro. ' +
-        'Produção exige título e roteiro escritos (no carrossel, alguma tela com texto ou imagem). Postado registra a data de postagem e fixa a função editorial da peça.',
+        'Move conteúdos no fluxo Ideia → Roteiro → Produção → Edição → Publicado. Dá para pular ou voltar etapas. ' +
+        'Ao sair de Ideia, as notas da ideia viram rascunho do roteiro. ' +
+        'Produção e Edição exigem título e roteiro escritos (no carrossel, alguma tela com texto ou imagem). Publicado registra a data de publicação e fixa a função editorial da peça.',
       inputSchema: {
         ids: idsSchema,
         status: statusSchema,
@@ -480,12 +485,13 @@ export function registerConteudos(server: McpServer) {
       const rows = await fetchContents(session, args.ids);
       const lookups = await loadLookups(session);
       const now = nowIso();
+      const exigeRoteiro = args.status === 'Produção' || args.status === 'Edição';
       const blocked = rows.filter(
-        row => args.status === 'Produção' && (!row.title?.trim() || !temRoteiroEscrito(row)),
+        row => exigeRoteiro && (!row.title?.trim() || !temRoteiroEscrito(row)),
       );
       if (blocked.length > 0) {
         throw new Error(
-          'Sem título ou roteiro escrito (no carrossel, alguma tela com texto ou imagem), não dá para ir para Produção: ' +
+          `Sem título ou roteiro escrito (no carrossel, alguma tela com texto ou imagem), não dá para ir para ${args.status}: ` +
           blocked.map(row => `${row.title || '(sem título)'} [${row.id}]`).join('; '),
         );
       }
@@ -494,17 +500,26 @@ export function registerConteudos(server: McpServer) {
       for (const row of rows) {
         const from = normalizeStatus(row.status);
         const patch: Row = {status: args.status, archived_at: null};
-        const rascunho = args.status === 'Roteiro' ? rascunhoDasNotas(row) : null;
+        const rascunho = from === 'Ideia' && args.status !== 'Ideia' ? rascunhoDasNotas(row) : null;
         if (rascunho) patch.script = rascunho;
-        if (args.status === 'Postado' && !row.posted_at) patch.posted_at = now;
-        // Ao postar, a função fica fixa: mudar a série depois não reclassifica o que já saiu.
-        if (args.status === 'Postado' && !row.classificacao_congelada_em) {
+        // Vídeo que chega a Produção vindo da escrita fica marcado para gravar, como no app.
+        if (
+          args.status === 'Produção'
+          && statusRank(from) < statusRank('Produção')
+          && modoEscrita(row) !== 'carrossel'
+        ) {
+          const tags: string[] = Array.isArray(row.tags) ? row.tags : [];
+          if (!tags.some(tag => tag.toLowerCase() === 'gravar')) patch.tags = [...tags, 'gravar'];
+        }
+        if (args.status === 'Publicado' && !row.posted_at) patch.posted_at = now;
+        // Ao publicar, a função fica fixa: mudar a série depois não reclassifica o que já saiu.
+        if (args.status === 'Publicado' && !row.classificacao_congelada_em) {
           if (row.funcao_origem === 'herdada') {
             patch.funcao = funcaoHerdavel(lookups.series.find(s => s.id === row.series_id));
           }
           patch.classificacao_congelada_em = now;
         }
-        if (args.status !== 'Postado' && row.posted_at) patch.posted_at = null;
+        if (args.status !== 'Publicado' && row.posted_at) patch.posted_at = null;
         await updateContent(session, row.id, patch);
         changed.push({id: row.id, titulo: row.title, de: from, para: args.status});
       }

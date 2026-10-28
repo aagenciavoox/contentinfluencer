@@ -25,7 +25,8 @@ export const KIND_LABEL: Record<PostItKind, string> = {
   ideia: 'Ideia',
   roteiro: 'Roteiro',
   producao: 'Produção',
-  postado: 'Postado',
+  edicao: 'Edição',
+  postado: 'Publicado',
 };
 
 // Faixa de 3px à esquerda na cor do tipo (ou da série) e fundo levemente tingido.
@@ -53,6 +54,12 @@ const KIND_SURFACE = {
     'border-l-[color:var(--status-production)]',
     'bg-[color-mix(in_srgb,var(--status-production)_12%,var(--bg-elevated))]',
     'hover:bg-[color-mix(in_srgb,var(--status-production)_20%,var(--bg-elevated))]',
+  ),
+  edicao: cn(
+    'border-[color-mix(in_srgb,var(--status-editing)_30%,var(--border-color))]',
+    'border-l-[color:var(--status-editing)]',
+    'bg-[color-mix(in_srgb,var(--status-editing)_12%,var(--bg-elevated))]',
+    'hover:bg-[color-mix(in_srgb,var(--status-editing)_20%,var(--bg-elevated))]',
   ),
   postado: cn(
     'border-[color-mix(in_srgb,var(--status-posted)_30%,var(--border-color))]',

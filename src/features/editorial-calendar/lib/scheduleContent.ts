@@ -59,11 +59,15 @@ export function placeContentOnDay(content: Content, dayKey: string): Content {
   );
 }
 
-/** Roteiro ou produção ainda sem data de publicação. Ideia não entra nesta pilha. */
+/** Roteiro, Produção ou Edição ainda sem data de publicação. Ideia não entra nesta pilha. */
 export function isUndatedRoteiro(content: Content): boolean {
   if (content.deletedAt || content.archivedAt) return false;
   const status = normalizeContentStatus(content.status);
-  if (status !== CONTENT_STATUS.ROTEIRO && status !== CONTENT_STATUS.PRODUCAO) return false;
+  if (
+    status !== CONTENT_STATUS.ROTEIRO
+    && status !== CONTENT_STATUS.PRODUCAO
+    && status !== CONTENT_STATUS.EDICAO
+  ) return false;
   if (content.publishDate) return false;
   return !content.plataformas.some(plataforma => plataforma.publishDate);
 }

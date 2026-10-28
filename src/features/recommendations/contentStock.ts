@@ -3,15 +3,15 @@ import type { Content } from '../../lib/database.ts';
 import {
   canAdvanceToRecording,
   CONTENT_STATUS,
+  isReadyToPublish,
   normalizeContentStatus,
-  PRODUCTION_TAGS,
 } from '../contents/lib/contentPipeline.ts';
 import type { CycleWindow } from './types.ts';
 
 type ContentLike = Pick<
   Content,
   'id' | 'status' | 'script' | 'title' | 'recordedAt' | 'postedAt' | 'publishDate' | 'tags' | 'deletedAt' | 'pilarId' | 'seriesId'
->;
+> & Partial<Pick<Content, 'edicaoConcluidaEm'>>;
 
 type PublicationTimestampContent = Pick<Content, 'postedAt' | 'publishDate'>;
 
@@ -25,14 +25,10 @@ export function isScriptWritten(content: ContentLike): boolean {
   return canAdvanceToRecording(content);
 }
 
+/** Estoque pronto para postar: Edição · Pronto para publicar. */
 export function isPostableStock(content: ContentLike): boolean {
   if (!isActiveContent(content)) return false;
-  if (normalizeContentStatus(content.status) !== CONTENT_STATUS.PRODUCAO) return false;
-  if (!content.recordedAt) return false;
-  const hasEditTag = content.tags.some(
-    tag => tag.trim().toLowerCase() === PRODUCTION_TAGS.EDITAR,
-  );
-  return !hasEditTag;
+  return isReadyToPublish(content);
 }
 
 export function isPublishedContent(content: ContentLike): boolean {

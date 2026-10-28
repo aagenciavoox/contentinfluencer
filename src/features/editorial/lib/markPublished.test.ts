@@ -41,7 +41,7 @@ function testCongelaUmaVez() {
     { serie: { funcaoPadrao: 'converter' }, now: '2026-10-04T18:00:00.000Z' },
   );
 
-  assert.equal(first.content.status, 'Postado');
+  assert.equal(first.content.status, 'Publicado');
   assert.equal(first.content.funcao, 'converter');
   assert.equal(first.content.funcaoOrigem, 'herdada');
   assert.equal(first.content.classificacaoCongeladaEm, '2026-10-04T18:00:00.000Z');
@@ -79,7 +79,7 @@ function testNaoSobrescreveEscolhida() {
   assert.equal(marked.content.funcao, 'atrair');
   assert.equal(marked.content.funcaoOrigem, 'escolhida');
   assert.equal(marked.content.classificacaoCongeladaEm, '2026-10-02T12:00:00.000Z');
-  assert.equal(marked.content.status, 'Postado');
+  assert.equal(marked.content.status, 'Publicado');
 }
 
 function testDataMinima() {

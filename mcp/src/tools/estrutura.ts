@@ -181,9 +181,9 @@ export function registerEstrutura(server: McpServer) {
       limite.setUTCDate(limite.getUTCDate() + 7);
       const fimSemana = limite.toISOString().slice(0, 10);
 
-      const porEtapa: Record<string, number> = {Ideia: 0, Roteiro: 0, 'Produção': 0, Postado: 0};
+      const porEtapa: Record<string, number> = {Ideia: 0, Roteiro: 0, 'Produção': 0, 'Edição': 0, Publicado: 0};
       for (const row of rows) {
-        const status = row.posted_at ? 'Postado' : normalizeStatus(row.status);
+        const status = row.posted_at ? 'Publicado' : normalizeStatus(row.status);
         porEtapa[status] = (porEtapa[status] ?? 0) + 1;
       }
       const brief = (row: Row) => ({
@@ -195,7 +195,7 @@ export function registerEstrutura(server: McpServer) {
         pilar: lookups.pilarName(row.pilar_id),
         serie: lookups.serieName(row.series_id),
       });
-      const naoPostado = (row: Row) => normalizeStatus(row.status) !== 'Postado' && !row.posted_at;
+      const naoPostado = (row: Row) => normalizeStatus(row.status) !== 'Publicado' && !row.posted_at;
 
       const inicioCiclo = new Date(`${hoje}T12:00:00Z`);
       inicioCiclo.setUTCDate(inicioCiclo.getUTCDate() - 27);

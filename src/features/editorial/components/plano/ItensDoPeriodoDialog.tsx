@@ -31,7 +31,8 @@ const STATUS_DA_ETAPA: Partial<Record<Etapa, string>> = {
   ideia: 'Ideia',
   roteiro: 'Roteiro',
   producao: 'Produção',
-  postado: 'Postado',
+  edicao: 'Edição',
+  postado: 'Publicado',
 };
 
 /** Aba da Criação que mostra a etapa. Mais de uma etapa abre "Todos". */
@@ -39,6 +40,7 @@ const ABA_DA_ETAPA: Partial<Record<Etapa, string>> = {
   ideia: 'ideias',
   roteiro: 'roteiros',
   producao: 'producao',
+  edicao: 'edicao',
   postado: 'publicados',
 };
 

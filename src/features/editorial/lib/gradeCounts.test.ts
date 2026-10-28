@@ -419,18 +419,19 @@ function testContaPorEtapa() {
   });
 
   assert.equal(entries.find(entry => entry.contentId === 'ideia')?.etapa, 'ideia');
-  assert.equal(entries.find(entry => entry.contentId === 'gravado')?.etapa, 'producao');
+  // Status antigo "Gravado" cai em Edição.
+  assert.equal(entries.find(entry => entry.contentId === 'gravado')?.etapa, 'edicao');
   assert.equal(entries.find(entry => entry.contentId === 'no-ar')?.etapa, 'postado');
 
   const atrair = resultado.objetivos.find(linha => linha.id === 'atrair');
-  assert.deepEqual(atrair?.porEtapa, { planejamento: 2, ideia: 1, roteiro: 1, producao: 1, postado: 1 });
+  assert.deepEqual(atrair?.porEtapa, { planejamento: 2, ideia: 1, roteiro: 1, producao: 0, edicao: 1, postado: 1 });
   assert.equal(atrair?.previsto, 6);
   assert.deepEqual(
     resultado.objetivos.find(linha => linha.id === 'converter')?.porEtapa,
-    { planejamento: 0, ideia: 0, roteiro: 1, producao: 0, postado: 0 },
+    { planejamento: 0, ideia: 0, roteiro: 1, producao: 0, edicao: 0, postado: 0 },
   );
-  assert.deepEqual(resultado.porEtapa, { planejamento: 3, ideia: 1, roteiro: 3, producao: 1, postado: 1 });
-  assert.deepEqual(resultado.semObjetivoPorEtapa, { planejamento: 1, ideia: 0, roteiro: 1, producao: 0, postado: 0 });
+  assert.deepEqual(resultado.porEtapa, { planejamento: 3, ideia: 1, roteiro: 3, producao: 0, edicao: 1, postado: 1 });
+  assert.deepEqual(resultado.semObjetivoPorEtapa, { planejamento: 1, ideia: 0, roteiro: 1, producao: 0, edicao: 0, postado: 0 });
   // O post-it sem conteúdo não entra no aviso: só o roteiro.
   assert.equal(resultado.semObjetivo, 1);
   assert.equal(resultado.itens.find(item => item.postItId === 'solto')?.etapa, 'planejamento');

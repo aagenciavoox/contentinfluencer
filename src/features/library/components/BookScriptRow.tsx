@@ -8,7 +8,7 @@ import { cn } from '../../../lib/utils';
 // Mesmos ícones dos contadores do topo da aba: postado, ideia e o resto "em produção".
 const ETAPA_ICONE: Record<string, LucideIcon> = {
   Ideia: Lightbulb,
-  Postado: Play,
+  Publicado: Play,
 };
 
 /** "30 de out." */

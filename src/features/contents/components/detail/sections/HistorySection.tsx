@@ -1,7 +1,7 @@
-import {CalendarCheck, Circle, Clapperboard, FileText, Send} from 'lucide-react';
+import {CalendarCheck, Circle, Clapperboard, FileText, Scissors, Send} from 'lucide-react';
 import {Text} from '../../../../../components/ui/Text';
 import type {Content} from '../../../../../lib/database';
-import {CONTENT_STATUS, getDisplayStatus, normalizeContentStatus} from '../../../lib/contentPipeline';
+import {CONTENT_STATUS, getDisplayStatus, statusRank} from '../../../lib/contentPipeline';
 import {cn} from '../../../../../lib/utils';
 
 interface HistorySectionProps {
@@ -14,19 +14,13 @@ function formatDateTime(value: string | null) {
   return new Date(value).toLocaleString('pt-BR');
 }
 
-const STATUS_RANK: Record<string, number> = {
-  [CONTENT_STATUS.IDEIA]: 0,
-  [CONTENT_STATUS.ROTEIRO]: 1,
-  [CONTENT_STATUS.PRODUCAO]: 2,
-  [CONTENT_STATUS.POSTADO]: 3,
-};
-
-function statusRank(status: string) {
-  return STATUS_RANK[normalizeContentStatus(status)] ?? 1;
+function historyRank(status: string) {
+  const rank = statusRank(status);
+  return rank === -1 ? statusRank(CONTENT_STATUS.ROTEIRO) : rank;
 }
 
 export function HistorySection({content, compact = false}: HistorySectionProps) {
-  const rank = statusRank(content.status);
+  const rank = historyRank(content.status);
   const displayStatus = getDisplayStatus(content);
   const isScheduled = displayStatus === 'Programado';
 
@@ -60,6 +54,13 @@ export function HistorySection({content, compact = false}: HistorySectionProps) 
       icon: <Clapperboard className="h-3.5 w-3.5" />,
     },
     {
+      id: 'edited',
+      label: content.edicaoDispensada ? 'Edição dispensada' : 'Edição concluída',
+      date: formatDateTime(content.edicaoConcluidaEm ?? null),
+      reached: Boolean(content.edicaoConcluidaEm) || rank >= 4,
+      icon: <Scissors className="h-3.5 w-3.5" />,
+    },
+    {
       id: 'scheduled',
       label: 'Programado',
       date: isScheduled ? formatDateTime(content.publishDate) : null,
@@ -68,9 +69,9 @@ export function HistorySection({content, compact = false}: HistorySectionProps) 
     },
     {
       id: 'posted',
-      label: 'Postado',
+      label: 'Publicado',
       date: formatDateTime(content.postedAt ?? null),
-      reached: rank >= 3,
+      reached: rank >= 4,
       icon: <Send className="h-3.5 w-3.5" />,
     },
   ];

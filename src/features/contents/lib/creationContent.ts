@@ -3,11 +3,18 @@ import {htmlToReadableText} from '../../../lib/utils.ts';
 import {generateUUID, isUUID} from '../../../utils/uuid.ts';
 import { passaNoFiltroData, type FiltroData } from '../../editorial/lib/datasNaGrade.ts';
 import { isFuncaoEditorial, resolveFuncao } from '../../editorial/lib/funcoes.ts';
-import {CONTENT_STATUS, normalizeContentStatus} from './contentPipeline.ts';
+import {
+  applyStatusMilestones,
+  CONTENT_STATUS,
+  normalizeContentStatus,
+  PRODUCTION_TAGS,
+  statusRank,
+  withProductionTag,
+} from './contentPipeline.ts';
 import {livroIdsEfetivos} from '../../../lib/livroIds.ts';
 import {createContentDraft} from './createContentDraft.ts';
 import {matchesTemaFilter} from './temaFilter.ts';
-import {contentReadableBody} from './carouselSlides.ts';
+import {contentReadableBody, isCarouselContent} from './carouselSlides.ts';
 import {passaNoFiltroRede} from '../../creation/lib/creationRedeFilter.ts';
 
 export const CREATION_TABS = [
@@ -15,6 +22,7 @@ export const CREATION_TABS = [
   'Ideias',
   'Roteiros',
   'Produção',
+  'Edição',
   'Publicados',
   'Arquivados',
   'Lixeira',
@@ -128,16 +136,52 @@ export function updateContentFromLegacyIdea(
   };
 }
 
+/**
+ * A regra de troca de etapa, a mesma em todas as telas. Dá para pular ou voltar etapas.
+ * Ao sair de Ideia, o texto da ideia vira o roteiro (se ele ainda estiver vazio).
+ * Vídeo que chega a Produção vindo da escrita fica marcado para gravar.
+ */
+export function applyStatusChange(
+  content: Content,
+  status: string,
+  now = new Date().toISOString(),
+): Content {
+  const from = normalizeContentStatus(content.status);
+  const nextStatus = normalizeContentStatus(status);
+  if (from === nextStatus) return content;
+
+  const next: Content = {
+    ...content,
+    ...applyStatusMilestones(content, nextStatus, {now}),
+    status: nextStatus,
+    updatedAt: now,
+  };
+
+  if (from === CONTENT_STATUS.IDEIA) {
+    const currentScript = htmlToReadableText(content.script).trim();
+    const ideaText = htmlToReadableText(content.notes).trim();
+    if (!currentScript && ideaText) next.script = ideaTextToScriptHtml(content.notes ?? '');
+  }
+
+  if (
+    nextStatus === CONTENT_STATUS.PRODUCAO
+    && statusRank(from) < statusRank(CONTENT_STATUS.PRODUCAO)
+    && !isCarouselContent(content)
+  ) {
+    next.tags = withProductionTag(content.tags ?? [], PRODUCTION_TAGS.GRAVAR);
+  }
+
+  return next;
+}
+
+/** Troca de etapa pela Criação (Kanban, "Mover para…"): também tira do arquivo. */
 export function transitionCreationStatus(
   content: Content,
   status: string,
   now = new Date().toISOString(),
 ): Content {
-  const nextStatus = normalizeContentStatus(status);
   return {
-    ...content,
-    status: nextStatus,
-    postedAt: nextStatus === CONTENT_STATUS.POSTADO ? content.postedAt : null,
+    ...applyStatusChange(content, status, now),
     archivedAt: null,
     updatedAt: now,
   };
@@ -147,15 +191,7 @@ export function promoteContentToScript(
   content: Content,
   now = new Date().toISOString(),
 ): Content {
-  const currentScript = htmlToReadableText(content.script).trim();
-  const ideaText = htmlToReadableText(content.notes).trim();
-
-  return {
-    ...transitionCreationStatus(content, CONTENT_STATUS.ROTEIRO, now),
-    script: currentScript || !ideaText
-      ? content.script
-      : ideaTextToScriptHtml(content.notes ?? ''),
-  };
+  return transitionCreationStatus(content, CONTENT_STATUS.ROTEIRO, now);
 }
 
 function escapeHtml(value: string): string {
@@ -257,6 +293,8 @@ export function filterContentsByCreationTab(
         return !posted && status === CONTENT_STATUS.ROTEIRO;
       case 'Produção':
         return !posted && status === CONTENT_STATUS.PRODUCAO;
+      case 'Edição':
+        return !posted && status === CONTENT_STATUS.EDICAO;
       case 'Publicados':
         return posted;
       case 'Todos':
@@ -342,6 +380,7 @@ export function getCreationTabCounts(
     Ideias: 0,
     Roteiros: 0,
     Produção: 0,
+    Edição: 0,
     Publicados: 0,
     Arquivados: 0,
     Lixeira: 0,

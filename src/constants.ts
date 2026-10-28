@@ -2,16 +2,17 @@ export const STATUS_STAGES: string[] = [
   'Ideia',
   'Roteiro',
   'Produção',
-  'Programado',
-  'Postado',
+  'Edição',
+  'Publicado',
 ];
 
 export const STATUS_CONFIG: Record<string, {color: string; label: string}> = {
   Ideia: {color: 'var(--status-idea)', label: 'IDE'},
   Roteiro: {color: 'var(--status-writing)', label: 'ROT'},
   'Produção': {color: 'var(--status-production)', label: 'PRD'},
+  'Edição': {color: 'var(--status-editing)', label: 'EDI'},
   Programado: {color: 'var(--status-scheduled)', label: 'PRG'},
-  Postado: {color: 'var(--status-posted)', label: 'PST'},
+  Publicado: {color: 'var(--status-posted)', label: 'PUB'},
 };
 
 /**

@@ -17,6 +17,7 @@ import {
   getStatusOptions,
   normalizeContentStatus,
   type ContentPrimaryAction,
+  type ContentPrimaryActionId,
 } from '../../../lib/contentPipeline';
 import {ContentPrimaryActionButton} from '../ContentDetailHeader';
 import {CarouselSlidesEditor} from '../CarouselSlidesEditor';
@@ -96,7 +97,7 @@ interface RoteiroSectionProps {
   carouselAvailable?: boolean;
   /** Botão de avançar na linha de controles (Escrita/Gestão no computador). */
   primaryAction?: ContentPrimaryAction;
-  onPrimaryAction?: () => void;
+  onPrimaryAction?: (actionId?: ContentPrimaryActionId) => void;
   primaryBusy?: boolean;
 }
 

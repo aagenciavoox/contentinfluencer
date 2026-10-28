@@ -10,8 +10,9 @@ export function getReadyToRecord(contents: Content[]): Content[] {
   );
 }
 
+/** Produção e Edição: o material ainda está sendo feito. */
 export function getInProduction(contents: Content[]): Content[] {
-  return contents.filter(c => c.status === CONTENT_STATUS.PRODUCAO);
+  return contents.filter(c => c.status === CONTENT_STATUS.PRODUCAO || c.status === CONTENT_STATUS.EDICAO);
 }
 
 export function getUpcomingAgenda(agendaItems: AgendaItem[], limit = 5): AgendaItem[] {
@@ -33,7 +34,7 @@ export function resolveSpotlight({
   upcomingAgenda,
 }: {
   readyToRecord: {id: string; title?: string | null}[];
-  inProduction: {id: string; title?: string | null; status: string; recordedAt?: string | null}[];
+  inProduction: {id: string; title?: string | null; status: string; edicaoConcluidaEm?: string | null}[];
   upcomingAgenda: {title: string; date: string; time?: string}[];
 }): SpotlightData {
   if (readyToRecord.length > 0) {
@@ -44,7 +45,7 @@ export function resolveSpotlight({
       firstTitle: readyToRecord[0].title || '(sem título)',
     };
   }
-  const editing = inProduction.filter(c => Boolean(c.recordedAt));
+  const editing = inProduction.filter(c => c.status === CONTENT_STATUS.EDICAO && !c.edicaoConcluidaEm);
   if (editing.length > 0) {
     return {
       type: 'edit',

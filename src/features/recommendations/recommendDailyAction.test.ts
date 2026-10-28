@@ -55,7 +55,9 @@ function createContent(overrides: Partial<Content> = {}): Content {
     id: 'content-1',
     userId: 'user-1',
     title: 'Titulo',
-    status: CONTENT_STATUS.PRODUCAO,
+    // Estoque pronto: gravado e com a edição concluída.
+    status: CONTENT_STATUS.EDICAO,
+    edicaoConcluidaEm: NOW.toISOString(),
     slotType: null,
     seriesId: 'serie-1',
     pilarId: 'pilar-1',

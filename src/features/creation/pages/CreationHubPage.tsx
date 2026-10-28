@@ -107,6 +107,7 @@ const TAB_QUERY: Record<CreationTab, string> = {
   Ideias: 'ideias',
   Roteiros: 'roteiros',
   Produção: 'producao',
+  Edição: 'edicao',
   Publicados: 'publicados',
   Arquivados: 'arquivados',
   Lixeira: 'lixeira',

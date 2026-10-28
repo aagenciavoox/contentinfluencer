@@ -140,7 +140,6 @@ export function ContentManageWorkspace({
   const publishDateOnly = draft.publishDate ? draft.publishDate.slice(0, 10) : '';
   const currentStatus = normalizeContentStatus(draft.status);
   const etapas = getStatusOptions(draft.status);
-  const indisponiveis = etapas.filter(etapa => !etapa.disponivel);
   // Observações começam recolhidas; abertas quando já há texto.
   const [notesOpen, setNotesOpen] = useState(() => Boolean(draft.notes?.trim()));
 
@@ -179,20 +178,16 @@ export function ContentManageWorkspace({
                   value={currentStatus}
                   onChange={status => onChange({status})}
                 >
-                  {/* Todas as etapas, na ordem. As fora de sequência aparecem, mas não podem ser escolhidas. */}
+                  {/* Todas as etapas, na ordem. Dá para pular ou voltar. */}
                   {etapas.map(etapa => (
                     <option key={etapa.status} value={etapa.status} disabled={!etapa.disponivel}>
-                      {etapa.atual
-                        ? `${etapa.status} (atual)`
-                        : etapa.disponivel ? etapa.status : `${etapa.status} (indisponível)`}
+                      {etapa.atual ? `${etapa.status} (atual)` : etapa.status}
                     </option>
                   ))}
                 </ManageSelect>
                 <Text variant="meta" as="p" className="mt-1.5 text-[var(--text-secondary)]">
-                  {indisponiveis.length > 0
-                    ? `Avance ou volte uma etapa por vez. ${indisponiveis.map(etapa => etapa.status).join(' e ')} ${indisponiveis.length === 1 ? 'fica' : 'ficam'} para depois.`
-                    : 'Avance ou volte uma etapa por vez.'}
-                  {currentStatus !== CONTENT_STATUS.POSTADO ? ' Postado pede a data e o link de cada conta.' : ''}
+                  Dá para pular ou voltar etapas.
+                  {currentStatus !== CONTENT_STATUS.POSTADO ? ' Publicado pede a data e o link de cada conta.' : ''}
                 </Text>
               </label>
 

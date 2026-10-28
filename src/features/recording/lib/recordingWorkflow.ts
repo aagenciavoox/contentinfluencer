@@ -1,7 +1,7 @@
 import type {CSSProperties} from 'react';
 import type {Content, RecordingBlock, RecordingBlockContent} from '../../../lib/database.ts';
 import {tintedTextColor} from '../../../lib/utils.ts';
-import {CONTENT_STATUS} from '../../contents/lib/contentPipeline.ts';
+import {recordedPatch} from '../../contents/lib/contentPipeline.ts';
 
 /** Marcador da fila (ex.: "gravar"). O laranja puro sobre o fundo de 10% ficava em 2,70:1. */
 export const recordingTagChipStyle: CSSProperties = {
@@ -153,8 +153,7 @@ export function buildMarkContentRecordedTransition({
   return {
     updatedContent: {
       ...content,
-      status: CONTENT_STATUS.PRODUCAO,
-      recordedAt: content.recordedAt ?? now,
+      ...recordedPatch(content, now),
       updatedAt: now,
     },
     updatedBlockContents: block.contents.map(item =>
@@ -169,8 +168,7 @@ export function buildMarkStandaloneContentRecordedTransition(
 ) {
   return {
     ...content,
-    status: CONTENT_STATUS.PRODUCAO,
-    recordedAt: content.recordedAt ?? recordedAt,
+    ...recordedPatch(content, recordedAt),
     updatedAt: recordedAt,
   };
 }
@@ -185,8 +183,7 @@ export function buildSaveRecordingSessionTransition(
     .filter(content => completedIds.has(content.id))
     .map(content => ({
       ...content,
-      status: CONTENT_STATUS.PRODUCAO,
-      recordedAt: content.recordedAt ?? now,
+      ...recordedPatch(content, now),
       updatedAt: now,
     }));
 

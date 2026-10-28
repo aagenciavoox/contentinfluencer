@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import type {Content, Idea} from '../../../lib/database.ts';
 import {isUUID} from '../../../utils/uuid.ts';
 import {
+  applyStatusChange,
   archiveCreation,
   contentFromLegacyIdea,
   demoteContentToIdea,
@@ -157,6 +158,7 @@ function testCreationTabsExcludeArchivedFromActiveTabs() {
     createContent({id: 'idea', status: 'Ideia'}),
     createContent({id: 'script', status: 'Roteiro'}),
     createContent({id: 'production', status: 'Pronto para Gravar'}),
+    createContent({id: 'editing', status: 'Edição'}),
     createContent({id: 'posted', status: 'Postado'}),
     createContent({
       id: 'archived',
@@ -180,6 +182,10 @@ function testCreationTabsExcludeArchivedFromActiveTabs() {
     ['production'],
   );
   assert.deepEqual(
+    filterContentsByCreationTab(contents, 'Edição').map(content => content.id),
+    ['editing'],
+  );
+  assert.deepEqual(
     filterContentsByCreationTab(contents, 'Arquivados').map(content => content.id),
     ['archived'],
   );
@@ -196,10 +202,11 @@ function testCreationTabsExcludeArchivedFromActiveTabs() {
     ['posted', 'script-already-posted'],
   );
   assert.deepEqual(getCreationTabCounts(contents), {
-    Todos: 5,
+    Todos: 6,
     Ideias: 1,
     Roteiros: 1,
     Produção: 1,
+    Edição: 1,
     Publicados: 2,
     Arquivados: 1,
     Lixeira: 1,
@@ -302,7 +309,30 @@ function testCreationSortingAndPaginationClampInvalidPages() {
   assert.deepEqual(page.items.map(content => content.id), ['content-1']);
 }
 
+function testStatusChangeIsTheSameRuleEverywhere() {
+  const now = '2026-10-28T12:00:00.000Z';
+  // Pular de Ideia para Produção: a ideia vira roteiro e o vídeo fica marcado para gravar.
+  const jumped = applyStatusChange(createContent({notes: 'Abrir com a capa.'}), 'Produção', now);
+  assert.equal(jumped.status, 'Produção');
+  assert.equal(jumped.script, '<p>Abrir com a capa.</p>');
+  assert.deepEqual(jumped.tags, ['gravar']);
+
+  // Carrossel não passa pela gravação: sem a etiqueta.
+  const carousel = applyStatusChange(createContent({status: 'Roteiro', writingMode: 'carrossel'}), 'Produção', now);
+  assert.deepEqual(carousel.tags, []);
+
+  // Pular para Publicado registra a data; voltar tira, como antes.
+  const posted = applyStatusChange(createContent({status: 'Roteiro'}), 'Publicado', now);
+  assert.equal(posted.postedAt, now);
+  assert.equal(applyStatusChange(posted, 'Edição', now).postedAt, null);
+
+  // Mesma etapa não muda nada.
+  const same = createContent({status: 'Edição'});
+  assert.equal(applyStatusChange(same, 'Edição', now), same);
+}
+
 const tests: Array<[string, () => void]> = [
+  ['status change is the same rule everywhere', testStatusChangeIsTheSameRuleEverywhere],
   ['creation pipeline transitions keep the same id', testStablePipelineTransitions],
   ['promotion preserves an existing script', testPromotionKeepsAnExistingScript],
   ['promotion preserves rich idea formatting', testPromotionPreservesRichIdeaFormatting],

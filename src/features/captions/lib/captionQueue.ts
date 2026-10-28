@@ -45,6 +45,7 @@ export function isCaptionQueueContent(
   const status = normalizeContentStatus(content.status);
   return status === CONTENT_STATUS.ROTEIRO
     || status === CONTENT_STATUS.PRODUCAO
+    || status === CONTENT_STATUS.EDICAO
     || status === CONTENT_STATUS.POSTADO;
 }
 

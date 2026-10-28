@@ -6,6 +6,7 @@ import { CreationCategoryLabel } from './CreationCategoryLabel';
 import { CreationEntityMarks, creationEntityHint } from './CreationEntityMarks';
 import { CreationItemMenu } from './CreationItemMenu';
 import { CreationSelectCheckbox } from './CreationSelectCheckbox';
+import { getStatusDetail } from '../../contents/lib/contentPipeline';
 import {
   buildCreationItemMenuItems,
   type CreationItemActionHandlers,
@@ -50,7 +51,7 @@ export function CreationGridCard({
   const tags = etiquetas ?? getCreationCardTags(content);
   const excerpt = getCreationNoteExcerpt(content);
   // Só a data no rodapé: o formato vai para a lista, onde há espaço para ele sem cortar.
-  const footerMeta = getCreationCardDateMeta(content);
+  const footerMeta = [getStatusDetail(content), getCreationCardDateMeta(content)].filter(Boolean).join(' · ') || null;
   const canOpen = !content.deletedAt;
   const canActivate = selectionMode ? selectable : canOpen;
   const showSelect = selectable;

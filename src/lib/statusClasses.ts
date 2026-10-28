@@ -8,9 +8,11 @@ export const STATUS_TOKEN: Record<string, string> = {
   [CONTENT_STATUS.IDEIA]: 'idea',
   [CONTENT_STATUS.ROTEIRO]: 'writing',
   [CONTENT_STATUS.PRODUCAO]: 'production',
+  [CONTENT_STATUS.EDICAO]: 'editing',
   [DISPLAY_STATUS.PROGRAMADO]: 'scheduled',
   [CONTENT_STATUS.POSTADO]: 'posted',
   // Legacy display labels → distinct tokens (CSS already defines these)
+  Postado: 'posted',
   'Pronto para Gravar': 'ready',
   Gravado: 'recorded',
   'A Editar': 'editing',

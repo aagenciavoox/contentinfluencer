@@ -3,7 +3,8 @@ import { contarEstoque, textoEstoque, type EstoqueContent } from './estoque.ts';
 
 function item(partial: Partial<EstoqueContent> & Pick<EstoqueContent, 'id'>): EstoqueContent {
   return {
-    status: 'Produção',
+    status: 'Edição',
+    edicaoConcluidaEm: '2026-10-02T12:00:00.000Z',
     script: '',
     title: partial.id,
     recordedAt: '2026-10-01T12:00:00.000Z',
@@ -22,11 +23,11 @@ function testContaProntoSemDataDeReferencia() {
   const total = contarEstoque([
     item({ id: 'pronto' }),
     item({ id: 'fora', contaNaGrade: false }),
-    item({ id: 'sem-gravacao', recordedAt: null }),
+    item({ id: 'em-edicao', edicaoConcluidaEm: null }),
     item({ id: 'roteiro', status: 'Roteiro' }),
     item({ id: 'postado', status: 'Postado' }),
     item({ id: 'apagado', deletedAt: '2026-10-02T00:00:00.000Z' }),
-    item({ id: 'editar', tags: ['Editar'] }),
+    item({ id: 'em-producao', status: 'Produção' }),
     item({ id: 'sem-flag', contaNaGrade: undefined }),
     item({ id: 'agendado', publishDate: '2026-10-20' }),
     item({

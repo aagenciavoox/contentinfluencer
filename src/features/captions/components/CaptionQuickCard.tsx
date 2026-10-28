@@ -16,7 +16,7 @@ import {
 import { limiteHashtagsDaRede } from '../../editorial/lib/editorialSettings';
 import { useAppContext } from '../../../context/AppContext';
 import { isContentBodyLoaded } from '../../contents/lib/contentBody';
-import { getDisplayStatus } from '../../contents/lib/contentPipeline';
+import { getDisplayStatus, getDisplayStatusLabel } from '../../contents/lib/contentPipeline';
 import { buildContentDetailRoute } from '../../contents/lib/contentDetailRoute';
 import type { Content, ContentPlataforma, Pilar, Serie } from '../../../lib/database';
 import { getVisualFormatLabel } from '../../../constants';
@@ -282,7 +282,7 @@ function CaptionGridRow({
           <Text variant="itemTitle">{title}</Text>
         </Link>
         <div className="mt-1 flex flex-wrap items-center gap-2">
-          <Badge variant="status" status={status}>{status}</Badge>
+          <Badge variant="status" status={status}>{getDisplayStatusLabel(content)}</Badge>
           {format ? <Text variant="meta">{format}</Text> : null}
         </div>
         <div className="mt-3 flex flex-wrap items-center gap-2">

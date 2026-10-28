@@ -73,8 +73,8 @@ function itemsLabel(count: number) {
 function publicadasLabel(publicacoes: readonly PublicacaoNoDia[]) {
   const postadas = publicacoes.filter(publicacao => publicacao.estado === 'postado').length;
   if (postadas === 0) return 'Programado';
-  if (postadas === publicacoes.length) return 'Postado';
-  return 'Programado e postado';
+  if (postadas === publicacoes.length) return 'Publicado';
+  return 'Programado e publicado';
 }
 
 function GroupLabel({children}: {children: ReactNode}) {

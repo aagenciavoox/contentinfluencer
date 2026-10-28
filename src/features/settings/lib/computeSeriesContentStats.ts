@@ -36,7 +36,8 @@ export function computeSeriesContentStats(
     if (status === CONTENT_STATUS.IDEIA) { contentIdeias++; continue; }
     roteiros++;
     if (status === CONTENT_STATUS.POSTADO || c.postedAt) publicados++;
-    else if (status === CONTENT_STATUS.PRODUCAO) emProducao++;
+    // Em produção conta até a edição: o material ainda não saiu.
+    else if (status === CONTENT_STATUS.PRODUCAO || status === CONTENT_STATUS.EDICAO) emProducao++;
     if (isIncompleteRoteiro(c)) rascunhos++;
   }
   return {

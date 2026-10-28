@@ -45,6 +45,7 @@ import { getStatusIcon } from '../pages/EditorialCalendarPage';
 import { CalendarHoverCard } from './CalendarHoverCard';
 import { Surface } from '../../../components/ui/Surface';
 import { Text } from '../../../components/ui/Text';
+import { CONTENT_STATUS } from '../../contents/lib/contentPipeline';
 
 interface CalendarGridProps {
   activeLayers: string[];
@@ -81,7 +82,7 @@ export function CalendarGrid({ activeLayers, searchTerm, sortValue, onItemClick 
     // 1. Recordings (Content)
     if (activeLayers.includes('recordings')) {
       state.contents.forEach(c => {
-        if (c.recordingDate === dayStr && c.status !== 'Postado') {
+        if (c.recordingDate === dayStr && c.status !== CONTENT_STATUS.POSTADO) {
           items.push({ ...c, type: 'recording', icon: <Video className="w-2.5 h-2.5" /> });
         }
       });
@@ -271,7 +272,7 @@ export function CalendarGrid({ activeLayers, searchTerm, sortValue, onItemClick 
                         item.type === 'partnership' && !item.color && getStatusCalendarClass(item.status),
                         item.type === 'partnership' && "hover:border-current",
                         item.type === 'agenda' && !item.brandColor && !item.projetoColor && "bg-[var(--accent-purple)]/5 text-[var(--accent-purple)] hover:bg-[var(--accent-purple)]/10 hover:border-[var(--accent-purple)]/20",
-                        item.status === 'Postado' && "line-through decoration-[var(--text-tertiary)] opacity-70"
+                        item.status === CONTENT_STATUS.POSTADO && "line-through decoration-[var(--text-tertiary)] opacity-70"
                       )}
                       style={
                         item.type === 'partnership' && item.color ? getEntityTagStyle(item.color) : item.type === 'agenda' && item.projetoColor ? getEntityTagStyle(item.projetoColor) : item.type === 'agenda' && item.brandColor ? getEntityTagStyle(item.brandColor) : {}

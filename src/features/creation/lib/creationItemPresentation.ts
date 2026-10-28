@@ -13,6 +13,7 @@ export const CREATION_KANBAN_TABS = [
   'Ideias',
   'Roteiros',
   'Produção',
+  'Edição',
   'Publicados',
 ] as const;
 
@@ -24,6 +25,7 @@ const TAB_TO_STATUS: Record<CreationKanbanTab, string> = {
   Ideias: CONTENT_STATUS.IDEIA,
   Roteiros: CONTENT_STATUS.ROTEIRO,
   Produção: CONTENT_STATUS.PRODUCAO,
+  Edição: CONTENT_STATUS.EDICAO,
   Publicados: CONTENT_STATUS.POSTADO,
 };
 
@@ -226,11 +228,7 @@ export function moveCreationToKanbanTab(
   tab: CreationKanbanTab,
   now = new Date().toISOString(),
 ): Content {
-  const next = transitionCreationStatus(content, TAB_TO_STATUS[tab], now);
-  return {
-    ...next,
-    postedAt: tab === 'Publicados' ? (content.postedAt ?? now) : null,
-  };
+  return transitionCreationStatus(content, TAB_TO_STATUS[tab], now);
 }
 
 export function creationTabForContent(content: Content): CreationKanbanTab | null {
@@ -241,6 +239,7 @@ export function creationTabForContent(content: Content): CreationKanbanTab | nul
   if (status === CONTENT_STATUS.IDEIA) return 'Ideias';
   if (status === CONTENT_STATUS.ROTEIRO) return 'Roteiros';
   if (status === CONTENT_STATUS.PRODUCAO) return 'Produção';
+  if (status === CONTENT_STATUS.EDICAO) return 'Edição';
   return null;
 }
 

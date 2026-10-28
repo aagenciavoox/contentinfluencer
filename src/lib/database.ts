@@ -1,6 +1,6 @@
 import { dataCache } from './dataCache.ts';
 import { getCachedUserId, supabase } from './supabase.ts';
-import { normalizeContentStatus } from '../features/contents/lib/contentPipeline';
+import { CONTENT_STATUS, normalizeContentStatus } from '../features/contents/lib/contentPipeline';
 import { hydrateIdeasFromDemotedContents } from '../features/ideas/lib/hydrateIdeasFromDemotedContents';
 import { getIdeaNotes, normalizeIdea } from '../features/ideas/lib/ideaText';
 import { aplicarLivros, livroIdsEfetivos } from './livroIds.ts';
@@ -442,6 +442,10 @@ export interface Content {
   /** Horário local da gravação. Ausente no banco antigo. */
   recordingTime?: string | null;
   recordedAt?: string | null;
+  /** Edição concluída ou dispensada: Edição · Pronto para publicar. Ausente quando não foi carregado. */
+  edicaoConcluidaEm?: string | null;
+  /** A pessoa dispensou a edição em vez de concluí-la. */
+  edicaoDispensada?: boolean;
   postedAt?: string | null;
   publishDateEnabled?: boolean;
   recordingDateEnabled?: boolean;
@@ -799,6 +803,15 @@ function isMissingPublishTimeColumn(error: {message?: string} | null | undefined
 
 function isMissingRecordingTimeColumn(error: {message?: string} | null | undefined) {
   return !!error?.message && isMissingNamedColumn(error.message, 'recording_time');
+}
+
+const CONTENT_EDICAO_COLUMNS = ['edicao_concluida_em', 'edicao_dispensada'] as const;
+
+/** Banco antes da migração da etapa Edição. */
+function isMissingEdicaoColumns(error: {message?: string} | null | undefined) {
+  const message = error?.message;
+  if (!message) return false;
+  return CONTENT_EDICAO_COLUMNS.some(column => isMissingNamedColumn(message, column));
 }
 
 function isMissingPublicationKindColumn(error: {message?: string} | null | undefined) {
@@ -1263,6 +1276,9 @@ const mp = {
     publishDate: r.publish_date, publishTime: r.publish_time, recordingDate: r.recording_date,
     recordingTime: typeof r.recording_time === 'string' ? r.recording_time : null,
     recordedAt: r.recorded_at ?? null, postedAt: r.posted_at ?? null,
+    // Sem a coluna na consulta fica ausente, para o salvar não apagar o valor do servidor.
+    ...('edicao_concluida_em' in r ? {edicaoConcluidaEm: r.edicao_concluida_em ?? null} : {}),
+    ...('edicao_dispensada' in r ? {edicaoDispensada: r.edicao_dispensada === true} : {}),
     link: r.link,
     publishDateEnabled: r.publish_date_enabled ?? (r.publish_date != null),
     recordingDateEnabled: r.recording_date_enabled ?? (r.recording_date != null),
@@ -1420,7 +1436,9 @@ async function withTemaIds(contents: Content[]): Promise<Content[]> {
   }));
 }
 
-const POSTED_CONTENT_STATUS = 'Postado';
+const POSTED_CONTENT_STATUS = CONTENT_STATUS.POSTADO;
+/** "Postado" é o valor antigo de Publicado, até a migração da etapa Edição mover os dados. */
+const POSTED_CONTENT_STATUS_FILTER = `(${POSTED_CONTENT_STATUS},Postado)`;
 const CONTENT_SUMMARY_LIMIT = 80;
 
 /** Colunas leves para grade, calendário e filas — sem roteiro. */
@@ -1483,6 +1501,7 @@ function buildContentScheduleSelect(
   includeContagemOrigem = true,
   includeExternoId = true,
   includeWritingMode = true,
+  includeEdicao = true,
 ): string {
   let columns: readonly string[] = includeMilestones
     ? [
@@ -1521,6 +1540,11 @@ function buildContentScheduleSelect(
     const relation = columns[columns.length - 1];
     columns = [...columns.slice(0, -1), 'writing_mode', relation];
   }
+  if (includeEdicao) {
+    // A lista precisa saber o que está pronto para publicar.
+    const relation = columns[columns.length - 1];
+    columns = [...columns.slice(0, -1), ...CONTENT_EDICAO_COLUMNS, relation];
+  }
   if (includePublicacaoColumns) {
     columns = columns.map(column => (
       column.startsWith('content_plataformas(') ? contentPlataformasSelect(true, includeExternoId) : column
@@ -1545,8 +1569,9 @@ async function runContentScheduleSelect<T>(
   let includeContagemOrigem = true;
   let includeExternoId = true;
   let includeWritingMode = true;
+  let includeEdicao = true;
 
-  for (let attempt = 0; attempt < 12; attempt += 1) {
+  for (let attempt = 0; attempt < 13; attempt += 1) {
     const result = await run(
       buildContentScheduleSelect(
         includeMilestones,
@@ -1559,9 +1584,14 @@ async function runContentScheduleSelect<T>(
         includeContagemOrigem,
         includeExternoId,
         includeWritingMode,
+        includeEdicao,
       ),
     );
     if (!result.error) return result;
+    if (includeEdicao && isMissingEdicaoColumns(result.error)) {
+      includeEdicao = false;
+      continue;
+    }
     if (includeWritingMode && isMissingCarouselColumns(result.error)) {
       // Migração do carrossel ainda não rodou: a lista carrega sem o modo.
       contentCarouselColumnsAvailable = false;
@@ -1607,7 +1637,7 @@ async function runContentScheduleSelect<T>(
     return result;
   }
 
-  return run(buildContentScheduleSelect(false, false, false, false, false, false, false, false, false, false));
+  return run(buildContentScheduleSelect(false, false, false, false, false, false, false, false, false, false, false));
 }
 const CONTENT_LIST_SORT_COLUMNS: Record<string, string> = {
   createdAt: 'created_at',
@@ -1671,9 +1701,9 @@ export async function fetchContentsPage(
     }
 
     if (query.listMode === 'published') {
-      pageRequest = pageRequest.eq('status', POSTED_CONTENT_STATUS);
+      pageRequest = pageRequest.filter('status', 'in', POSTED_CONTENT_STATUS_FILTER);
     } else if (query.listMode === 'editorial') {
-      pageRequest = pageRequest.neq('status', POSTED_CONTENT_STATUS);
+      pageRequest = pageRequest.not('status', 'in', POSTED_CONTENT_STATUS_FILTER);
     }
 
     if (query.status && query.status !== 'Todos') {
@@ -1833,12 +1863,12 @@ export async function fetchContentStats(userId: string): Promise<{ editorialCoun
     }
     if (mode === 'published') {
       return includePostedAt
-        ? query.or(`status.eq.${POSTED_CONTENT_STATUS},posted_at.not.is.null`)
-        : query.eq('status', POSTED_CONTENT_STATUS);
+        ? query.or(`status.in.${POSTED_CONTENT_STATUS_FILTER},posted_at.not.is.null`)
+        : query.filter('status', 'in', POSTED_CONTENT_STATUS_FILTER);
     }
     return includePostedAt
-      ? query.is('posted_at', null).neq('status', POSTED_CONTENT_STATUS)
-      : query.neq('status', POSTED_CONTENT_STATUS);
+      ? query.is('posted_at', null).not('status', 'in', POSTED_CONTENT_STATUS_FILTER)
+      : query.not('status', 'in', POSTED_CONTENT_STATUS_FILTER);
   };
 
   const runContentCounts = async () => {
@@ -3109,6 +3139,9 @@ export async function saveContent(
     recording_date: content.recordingDate,
     ...(content.recordingTime !== undefined ? {recording_time: content.recordingTime} : {}),
     recorded_at: content.recordedAt,
+    // Só grava o que veio carregado: sem o valor, o do servidor fica.
+    ...(content.edicaoConcluidaEm !== undefined ? {edicao_concluida_em: content.edicaoConcluidaEm} : {}),
+    ...(content.edicaoDispensada !== undefined ? {edicao_dispensada: content.edicaoDispensada} : {}),
     posted_at: content.postedAt,
     recording_date_enabled: content.recordingDateEnabled ?? (content.recordingDate != null),
     link: content.link, script: content.script,
@@ -3159,6 +3192,12 @@ export async function saveContent(
     if (isMissingLivroIdsColumn(error) && 'livro_ids' in row) {
       const {livro_ids: _livroIds, ...rowWithoutLivroIds} = row;
       row = rowWithoutLivroIds;
+      continue;
+    }
+
+    if (isMissingEdicaoColumns(error) && ('edicao_concluida_em' in row || 'edicao_dispensada' in row)) {
+      const {edicao_concluida_em: _edicaoConcluidaEm, edicao_dispensada: _edicaoDispensada, ...rowWithoutEdicao} = row;
+      row = rowWithoutEdicao;
       continue;
     }
 

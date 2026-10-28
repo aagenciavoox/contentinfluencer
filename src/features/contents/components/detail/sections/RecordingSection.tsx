@@ -44,11 +44,9 @@ export function RecordingSection({
     });
     if (!transition) return;
 
-    await onPersist({
-      status: transition.updatedContent.status,
-      recordedAt: transition.updatedContent.recordedAt,
-      updatedAt: transition.updatedContent.updatedAt,
-    });
+    // Gravado vai para Edição, ainda sem "pronto para publicar".
+    const {status, recordedAt, edicaoConcluidaEm, edicaoDispensada, updatedAt} = transition.updatedContent;
+    await onPersist({status, recordedAt, edicaoConcluidaEm, edicaoDispensada, updatedAt});
     await onDispatch({
       type: 'UPDATE_BLOCK_CONTENTS',
       payload: {blockId: blockSummary.block.id, contents: transition.updatedBlockContents},

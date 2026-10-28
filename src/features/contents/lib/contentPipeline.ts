@@ -6,13 +6,18 @@ export const CONTENT_STATUS = {
   IDEIA: 'Ideia',
   ROTEIRO: 'Roteiro',
   PRODUCAO: 'Produção',
-  POSTADO: 'Postado',
+  EDICAO: 'Edição',
+  /** A chave ficou com o nome antigo; o valor gravado passou a ser "Publicado". */
+  POSTADO: 'Publicado',
 } as const;
 
 /** Display-only label for future publishDate; never persisted. */
 export const DISPLAY_STATUS = {
   PROGRAMADO: 'Programado',
 } as const;
+
+/** Detalhe de Edição: a edição foi concluída ou dispensada. Não é etapa nem coluna. */
+export const EDICAO_PRONTA_LABEL = 'Pronto para publicar';
 
 export const PRODUCTION_TAGS = {
   GRAVAR: 'gravar',
@@ -21,10 +26,11 @@ export const PRODUCTION_TAGS = {
 
 const LEGACY_STATUS_TO_CANONICAL: Record<string, string> = {
   'Pronto para Gravar': CONTENT_STATUS.PRODUCAO,
-  Gravado: CONTENT_STATUS.PRODUCAO,
-  'A Editar': CONTENT_STATUS.PRODUCAO,
-  Editado: CONTENT_STATUS.PRODUCAO,
-  Programado: CONTENT_STATUS.PRODUCAO,
+  Gravado: CONTENT_STATUS.EDICAO,
+  'A Editar': CONTENT_STATUS.EDICAO,
+  Editado: CONTENT_STATUS.EDICAO,
+  Programado: CONTENT_STATUS.EDICAO,
+  Postado: CONTENT_STATUS.POSTADO,
 };
 
 export function normalizeContentStatus(status: string): string {
@@ -35,14 +41,21 @@ export const STATUS_ORDER = [
   CONTENT_STATUS.IDEIA,
   CONTENT_STATUS.ROTEIRO,
   CONTENT_STATUS.PRODUCAO,
+  CONTENT_STATUS.EDICAO,
   CONTENT_STATUS.POSTADO,
 ] as const;
+
+/** Posição da etapa no fluxo. Status desconhecido fica antes de todas (-1). */
+export function statusRank(status: string): number {
+  return (STATUS_ORDER as readonly string[]).indexOf(normalizeContentStatus(status));
+}
 
 export const ContentStage = {
   IDEIA: 'IDEIA',
   ROTEIRO: 'ROTEIRO',
   PRODUCAO: 'PRODUCAO',
   EM_BLOCO: 'EM_BLOCO',
+  EDICAO: 'EDICAO',
   POSTADO: 'POSTADO',
 } as const;
 
@@ -56,6 +69,10 @@ export type ContentPrimaryActionId =
   | 'add_to_block'
   | 'go_to_execution'
   | 'mark_recorded'
+  | 'send_to_edit'
+  | 'finish_edit'
+  | 'skip_edit'
+  | 'reopen_edit'
   | 'send_to_posting'
   | 'save_schedule'
   | 'none';
@@ -66,6 +83,8 @@ export interface ContentPrimaryAction {
   targetTab: ContentDetailTab;
   disabled?: boolean;
   reason?: string;
+  /** Ação ao lado da principal, como "Dispensar edição". */
+  secondary?: {id: ContentPrimaryActionId; label: string};
 }
 
 export interface PostingAlert {
@@ -88,21 +107,9 @@ export function getInitialTabForContext(tab: string | null): ContentDetailTab {
   return normalizeContentDetailTab(tab);
 }
 
-export function getAllowedStatuses(current: string): string[] {
-  const canonical = normalizeContentStatus(current);
-  const order = STATUS_ORDER as readonly string[];
-  const idx = order.indexOf(canonical);
-  if (idx === -1) return [...order];
-
-  const allowed = new Set<string>([canonical]);
-  if (idx > 0) allowed.add(order[idx - 1]);
-  if (idx < order.length - 1) allowed.add(order[idx + 1]);
-
-  if (canonical === CONTENT_STATUS.POSTADO) {
-    allowed.add(CONTENT_STATUS.PRODUCAO);
-  }
-
-  return order.filter(status => allowed.has(status));
+/** Dá para pular ou voltar etapas: todas ficam disponíveis, em qualquer tela. */
+export function getAllowedStatuses(_current: string): string[] {
+  return [...STATUS_ORDER];
 }
 
 export type OpcaoDeEtapa = {
@@ -114,25 +121,60 @@ export type OpcaoDeEtapa = {
   motivo: string | null;
 };
 
-/**
- * Todas as etapas, na ordem do processo, com a atual marcada. Mostrar uma etapa
- * não libera a transição: só as de `getAllowedStatuses` ficam disponíveis.
- */
+/** Todas as etapas, na ordem do processo, com a atual marcada. */
 export function getStatusOptions(current: string): OpcaoDeEtapa[] {
   const canonical = normalizeContentStatus(current);
   const allowed = new Set(getAllowedStatuses(current));
-  const order = STATUS_ORDER as readonly string[];
-  const atualIdx = order.indexOf(canonical);
-  return order.map((status, idx) => {
-    const disponivel = allowed.has(status);
-    let motivo: string | null = null;
-    if (!disponivel) {
-      motivo = idx > atualIdx
-        ? `Avance uma etapa por vez: passe por ${order[idx - 1]} antes.`
-        : `Volte uma etapa por vez: passe por ${order[idx + 1]} antes.`;
-    }
-    return { status, atual: status === canonical, disponivel, motivo };
-  });
+  return STATUS_ORDER.map(status => ({
+    status,
+    atual: status === canonical,
+    disponivel: allowed.has(status),
+    motivo: null,
+  }));
+}
+
+type EdicaoFields = Pick<Content, 'status' | 'edicaoConcluidaEm' | 'edicaoDispensada'>;
+
+/**
+ * Mudanças da Edição. Enviar e reabrir deixam o material em edição;
+ * concluir e dispensar deixam em Edição · Pronto para publicar.
+ */
+export function edicaoPatch(
+  acao: 'enviar' | 'concluir' | 'dispensar' | 'reabrir',
+  now = new Date().toISOString(),
+): EdicaoFields {
+  if (acao === 'concluir') {
+    return {status: CONTENT_STATUS.EDICAO, edicaoConcluidaEm: now, edicaoDispensada: false};
+  }
+  if (acao === 'dispensar') {
+    return {status: CONTENT_STATUS.EDICAO, edicaoConcluidaEm: now, edicaoDispensada: true};
+  }
+  return {status: CONTENT_STATUS.EDICAO, edicaoConcluidaEm: null, edicaoDispensada: false};
+}
+
+/** Gravado leva o vídeo para Edição. Quem já está em Edição ou Publicado não volta. */
+export function recordedPatch(
+  content: Pick<Content, 'status' | 'recordedAt'>,
+  now = new Date().toISOString(),
+): Partial<Content> {
+  const advances = statusRank(content.status) < statusRank(CONTENT_STATUS.EDICAO);
+  return {
+    recordedAt: content.recordedAt ?? now,
+    ...(advances ? edicaoPatch('enviar', now) : {}),
+  };
+}
+
+export function isReadyToPublish(
+  content: Pick<Content, 'status' | 'edicaoConcluidaEm'>,
+): boolean {
+  return normalizeContentStatus(content.status) === CONTENT_STATUS.EDICAO && Boolean(content.edicaoConcluidaEm);
+}
+
+/** Detalhe que acompanha a etapa, como "Pronto para publicar". */
+export function getStatusDetail(
+  content: Pick<Content, 'status' | 'edicaoConcluidaEm'>,
+): string | null {
+  return isReadyToPublish(content) ? EDICAO_PRONTA_LABEL : null;
 }
 
 export const CONTENT_PIPELINE_TABS: ContentDetailTab[] = ['roteiro', 'gravacao', 'publicacao'];
@@ -145,7 +187,7 @@ export function shouldShowPublishingSection(
   stage: ContentStage,
   content: Pick<Content, 'publishDate' | 'recordedAt' | 'status'>,
 ): boolean {
-  if (stage === ContentStage.POSTADO) return true;
+  if (stage === ContentStage.POSTADO || stage === ContentStage.EDICAO) return true;
   if (isScheduledForDisplay(content)) return true;
   if (content.recordedAt) return true;
   return false;
@@ -165,6 +207,7 @@ export function getPipelineTabIndex(
     case ContentStage.PRODUCAO:
     case ContentStage.EM_BLOCO:
       return 1;
+    case ContentStage.EDICAO:
     case ContentStage.POSTADO:
       return 2;
     default:
@@ -233,7 +276,7 @@ export function getContentStage(content: Content, options: StageOptions = {}): C
   if (status === CONTENT_STATUS.PRODUCAO) {
     return isContentInBlock(content.id, options.block) ? ContentStage.EM_BLOCO : ContentStage.PRODUCAO;
   }
-  if (status === CONTENT_STATUS.POSTADO) return ContentStage.POSTADO;
+  if (status === CONTENT_STATUS.EDICAO) return ContentStage.EDICAO;
   return ContentStage.ROTEIRO;
 }
 
@@ -268,6 +311,15 @@ export function getDisplayStatus(
   return status;
 }
 
+/** Etapa como aparece no selo, com o detalhe quando houver: "Edição · Pronto para publicar". */
+export function getDisplayStatusLabel(
+  content: Pick<Content, 'publishDate' | 'status' | 'postedAt' | 'edicaoConcluidaEm'>,
+): string {
+  const display = getDisplayStatus(content);
+  const detail = display === CONTENT_STATUS.EDICAO ? getStatusDetail(content) : null;
+  return detail ? `${display} · ${detail}` : display;
+}
+
 /** @deprecated Use getDisplayStatus — never persist its return value. */
 export function getPostingAutomationStatus(
   content: Pick<Content, 'publishDate' | 'status'>
@@ -296,7 +348,7 @@ export function getPostingAlerts(content: Pick<Content, 'publishDate' | 'status'
       {
         id: 'overdue',
         tone: 'warning',
-        message: 'Essa data já ficou para trás. O roteiro continua aqui para retomar, reagendar ou marcar como Postado.',
+        message: 'Essa data já ficou para trás. O roteiro continua aqui para retomar, reagendar ou marcar como Publicado.',
       },
     ] satisfies PostingAlert[];
   }
@@ -307,10 +359,10 @@ export function getPostingAlerts(content: Pick<Content, 'publishDate' | 'status'
 export function applyStatusMilestones(
   content: Pick<Content, 'recordedAt' | 'postedAt' | 'status'>,
   nextStatus: string,
-  options?: {markRecorded?: boolean},
+  options?: {markRecorded?: boolean; now?: string},
 ): Partial<Pick<Content, 'recordedAt' | 'postedAt'>> {
   const milestones: Partial<Pick<Content, 'recordedAt' | 'postedAt'>> = {};
-  const now = new Date().toISOString();
+  const now = options?.now ?? new Date().toISOString();
   const canonical = normalizeContentStatus(nextStatus);
 
   if (options?.markRecorded && !content.recordedAt) {
@@ -367,19 +419,13 @@ export function getPrimaryAction(content: Content, options: StageOptions = {}): 
           : undefined,
       };
     case ContentStage.PRODUCAO:
-      if (scheduled) {
-        return {
-          id: 'save_schedule',
-          label: 'Salvar agendamento',
-          targetTab: 'publicacao',
-          disabled: !canSchedulePosting(content),
-        };
-      }
+      // Carrossel pronto, ou vídeo que voltou depois de gravado, segue para a edição.
       if (content.recordedAt || isCarouselContent(content)) {
         return {
-          id: 'send_to_posting',
-          label: 'Preparar publicação com calma',
-          targetTab: 'publicacao',
+          id: 'send_to_edit',
+          label: 'Enviar para edição',
+          targetTab: isCarouselContent(content) ? 'publicacao' : 'gravacao',
+          secondary: {id: 'skip_edit', label: 'Dispensar edição'},
         };
       }
       return {
@@ -392,6 +438,30 @@ export function getPrimaryAction(content: Content, options: StageOptions = {}): 
         id: 'go_to_execution',
         label: 'Abrir bloco de gravação',
         targetTab: 'gravacao',
+      };
+    case ContentStage.EDICAO:
+      if (!isReadyToPublish(content)) {
+        return {
+          id: 'finish_edit',
+          label: 'Concluir edição',
+          targetTab: 'publicacao',
+          secondary: {id: 'skip_edit', label: 'Dispensar edição'},
+        };
+      }
+      if (scheduled) {
+        return {
+          id: 'save_schedule',
+          label: 'Salvar agendamento',
+          targetTab: 'publicacao',
+          disabled: !canSchedulePosting(content),
+          secondary: {id: 'reopen_edit', label: 'Reabrir edição'},
+        };
+      }
+      return {
+        id: 'send_to_posting',
+        label: 'Preparar publicação com calma',
+        targetTab: 'publicacao',
+        secondary: {id: 'reopen_edit', label: 'Reabrir edição'},
       };
     case ContentStage.POSTADO:
       return {

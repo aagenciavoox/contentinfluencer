@@ -5,7 +5,7 @@ import { CONTENT_STATUS, normalizeContentStatus } from '../../contents/lib/conte
  * Planejamento é o post-it sem conteúdo: a data existe, o conteúdo ainda não.
  * As outras quatro são os status do conteúdo. Nenhuma etapa nova.
  */
-export const ETAPAS = ['planejamento', 'ideia', 'roteiro', 'producao', 'postado'] as const;
+export const ETAPAS = ['planejamento', 'ideia', 'roteiro', 'producao', 'edicao', 'postado'] as const;
 
 export type Etapa = typeof ETAPAS[number];
 
@@ -16,14 +16,15 @@ export const ETAPA_LABEL: Record<Etapa, string> = {
   ideia: 'Ideia',
   roteiro: 'Roteiro',
   producao: 'Produção',
-  postado: 'Postado',
+  edicao: 'Edição',
+  postado: 'Publicado',
 };
 
 /** Etapas que são conteúdo. Planejamento fica de fora. */
-export const ETAPAS_DE_CONTEUDO: readonly Etapa[] = ['ideia', 'roteiro', 'producao', 'postado'];
+export const ETAPAS_DE_CONTEUDO: readonly Etapa[] = ['ideia', 'roteiro', 'producao', 'edicao', 'postado'];
 
 /**
- * Status gravado → etapa. Status antigo ("Gravado", "A Editar"…) cai em Produção.
+ * Status gravado → etapa. Status antigo ("Gravado", "A Editar"…) cai em Edição.
  * Desconhecido cai em Roteiro, como em `getContentStage`.
  */
 export function etapaDoStatus(status: string | null | undefined): Etapa {
@@ -31,11 +32,12 @@ export function etapaDoStatus(status: string | null | undefined): Etapa {
   if (canonical === CONTENT_STATUS.POSTADO) return 'postado';
   if (canonical === CONTENT_STATUS.IDEIA) return 'ideia';
   if (canonical === CONTENT_STATUS.PRODUCAO) return 'producao';
+  if (canonical === CONTENT_STATUS.EDICAO) return 'edicao';
   return 'roteiro';
 }
 
 export function contagemPorEtapaVazia(): ContagemPorEtapa {
-  return { planejamento: 0, ideia: 0, roteiro: 0, producao: 0, postado: 0 };
+  return { planejamento: 0, ideia: 0, roteiro: 0, producao: 0, edicao: 0, postado: 0 };
 }
 
 export function somaDasEtapas(contagem: ContagemPorEtapa): number {

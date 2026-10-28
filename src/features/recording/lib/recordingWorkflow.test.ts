@@ -42,7 +42,9 @@ function testMarksStandaloneContentAsRecorded() {
   const recordedAt = '2026-07-27T12:00:00.000Z';
   const updated = buildMarkStandaloneContentRecordedTransition(createContent(), recordedAt);
 
-  assert.equal(updated.status, CONTENT_STATUS.PRODUCAO);
+  // Gravado leva o vídeo para Edição, ainda sem "pronto para publicar".
+  assert.equal(updated.status, CONTENT_STATUS.EDICAO);
+  assert.equal(updated.edicaoConcluidaEm, null);
   assert.equal(updated.recordedAt, recordedAt);
   assert.equal(updated.updatedAt, recordedAt);
 }

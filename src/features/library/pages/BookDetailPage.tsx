@@ -72,8 +72,9 @@ const STATUS_CORES: Record<string, string> = {
   'Ideia': 'bg-[var(--accent-orange)]/10 text-[var(--accent-orange)]',
   'Roteiro': 'bg-[var(--accent-blue)]/10 text-[var(--accent-blue)]',
   'Produção': 'bg-[var(--accent-purple)]/10 text-[var(--accent-purple)]',
+  'Edição': 'bg-[var(--accent-orange)]/10 text-[var(--accent-orange)]',
   'Programado': 'bg-[var(--accent-purple)]/20 text-[var(--accent-purple)]',
-  'Postado': 'bg-[var(--accent-green)]/10 text-[var(--accent-green)]',
+  'Publicado': 'bg-[var(--accent-green)]/10 text-[var(--accent-green)]',
 };
 
 const SLOT_ROTULO: Record<string, string> = {
@@ -680,7 +681,7 @@ export function BookDetailPage() {
       <div className="grid grid-cols-3 gap-2 sm:flex sm:flex-wrap sm:gap-3">
         {[
           { label: 'roteiros', value: conteudosDoLivro.length, icon: FileText },
-          { label: 'postados', value: conteudosPostados.length, icon: Play },
+          { label: 'publicados', value: conteudosPostados.length, icon: Play },
           { label: 'em produção', value: conteudosEmProducao.length, icon: Settings },
         ].map(({ label, value, icon: StatIcon }) => (
           <div

@@ -81,13 +81,14 @@ export function createEmptyPostIt(input: {
   };
 }
 
-/** Ideia, roteiro ou Produção. Postado já saiu e não ocupa espaço novo. */
+/** Ideia, Roteiro, Produção ou Edição. Publicado já saiu e não ocupa espaço novo. */
 export function canPullContent(content: Content): boolean {
   if (content.deletedAt || content.archivedAt || content.postedAt) return false;
   const status = normalizeContentStatus(content.status);
   return status === CONTENT_STATUS.IDEIA
     || status === CONTENT_STATUS.ROTEIRO
-    || status === CONTENT_STATUS.PRODUCAO;
+    || status === CONTENT_STATUS.PRODUCAO
+    || status === CONTENT_STATUS.EDICAO;
 }
 
 /**
@@ -352,7 +353,7 @@ export function postItTitle(postIt: PlanejamentoPostIt, content: Content | null)
   return 'Post-it vazio';
 }
 
-export type PostItKind = 'vazio' | 'ideia' | 'roteiro' | 'producao' | 'postado';
+export type PostItKind = 'vazio' | 'ideia' | 'roteiro' | 'producao' | 'edicao' | 'postado';
 
 export function postItKind(
   postIt: PlanejamentoPostIt,
@@ -361,6 +362,7 @@ export function postItKind(
   if (!postIt.contentId || !content) return 'vazio';
   const status = normalizeContentStatus(content.status);
   if (status === CONTENT_STATUS.POSTADO || content.postedAt) return 'postado';
+  if (status === CONTENT_STATUS.EDICAO) return 'edicao';
   if (status === CONTENT_STATUS.PRODUCAO) return 'producao';
   if (status === CONTENT_STATUS.ROTEIRO) return 'roteiro';
   if (status === CONTENT_STATUS.IDEIA) return 'ideia';

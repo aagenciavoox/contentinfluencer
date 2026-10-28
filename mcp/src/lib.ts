@@ -8,20 +8,26 @@ import {getSession, type Session} from './supabase.ts';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type Row = Record<string, any>;
 
-export const CONTENT_STATUSES = ['Ideia', 'Roteiro', 'Produção', 'Postado'] as const;
+export const CONTENT_STATUSES = ['Ideia', 'Roteiro', 'Produção', 'Edição', 'Publicado'] as const;
 export type ContentStatus = typeof CONTENT_STATUSES[number];
 
 const LEGACY_STATUS: Record<string, ContentStatus> = {
   'Pronto para Gravar': 'Produção',
-  Gravado: 'Produção',
-  'A Editar': 'Produção',
-  Editado: 'Produção',
-  Programado: 'Produção',
+  Gravado: 'Edição',
+  'A Editar': 'Edição',
+  Editado: 'Edição',
+  Programado: 'Edição',
+  Postado: 'Publicado',
 };
 
 export function normalizeStatus(status: string | null | undefined): string {
   if (!status) return 'Roteiro';
   return LEGACY_STATUS[status] ?? status;
+}
+
+/** Posição no fluxo. Desconhecido fica antes de todas (-1). */
+export function statusRank(status: string | null | undefined): number {
+  return (CONTENT_STATUSES as readonly string[]).indexOf(normalizeStatus(status));
 }
 
 export function newId(): string {
@@ -363,7 +369,7 @@ export const CONTENT_LIST_COLUMNS = [
 
 export function displayStatus(row: Row): string {
   const status = normalizeStatus(row.status);
-  if (status === 'Postado' || row.posted_at) return 'Postado';
+  if (status === 'Publicado' || row.posted_at) return 'Publicado';
   if (row.publish_date && row.publish_date > new Date().toISOString().slice(0, 10)) return 'Programado';
   return status;
 }
