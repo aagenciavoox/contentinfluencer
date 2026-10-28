@@ -269,7 +269,7 @@ Uma linha nova no banco não escapa do cache de abertura. A foto do domínio (me
   - `created_at` timestamptz automatico
   - `updated_at` timestamptz automatico
   - `deleted_at` timestamptz opcional
-  - ficha: `editora`, `ano_publicacao`, `isbn`, `idioma`, `traducao`, `serie_colecao`, `colecao_status` (`sim` ou `nao`), `colecao_nome`, `genero_autor`, `pais_autor`, `raca_autor`, `duracao`, `episodios`, `duracao_por_episodio`, `roteirista`, `distribuidora`, `plataforma`, `data_lancamento`, `pais_origem`, `faz_parte_de_serie` (`sim` ou `nao`), `nome_da_serie`, `tags_personalizadas` (text[]), `quem_indicou`, `motivo_escolha`, `capitulos_cobertos` (text[])
+  - ficha: `editora`, `ano_publicacao`, `isbn`, `idioma`, `traducao`, `serie_colecao`, `colecao_status` (`sim` ou `nao`), `colecao_nome`, `genero_autor`, `pais_autor`, `raca_autor`, `duracao`, `episodios`, `duracao_por_episodio`, `roteirista`, `distribuidora`, `plataforma`, `data_lancamento`, `pais_origem`, `faz_parte_de_serie` (`sim` ou `nao`), `nome_da_serie`, `tags_personalizadas` (text[]), `quem_indicou`, `motivo_escolha`, `capitulos_cobertos` (text[]), `avaliacao_criterios` (jsonb: notas de 0 a 5, de meia em meia, por `personagens`, `escrita`, `cenario`, `divertimento`, `envolvimento`, `plot`)
 - Relacionamentos:
   - `biblioteca_item` tem muitos `item_genero`
   - `biblioteca_item` tem muitas `anotacao`

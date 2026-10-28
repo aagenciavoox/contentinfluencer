@@ -587,6 +587,8 @@ Preenchimento é opcional — o usuário decide se quer registrar métricas.
 1. **Info** — dados do item, em seções sempre abertas (sem recolher). Sem notas gerais nem "Para você" (quem indicou, por que escolheu, potencial)
 2. **Anotações** — criar, editar, marcar como potencial de conteúdo
    - Só em livros: a troca de status da leitura fica aqui (sai da Info) e grava na hora
+   - Só em livros: avaliação por critério (personagens, escrita, cenário, divertimento, envolvimento, plot), de 0 a 5 com meia estrela, no lugar das 5 estrelas da Info. Só aparece (e só vai para o Word) com o status Lido. A nota geral do item é a média arredondada
+   - "Baixar em Word" (no topo do item, no lugar de "Transformar em ideia"): título, autor, tipo, avaliação e todas as anotações em sequência (tipo, texto, data), sem quebra de página
    - Tipo padrão ao criar: `Anotação` (sem fricção)
    - Botão direto: "Criar ideia a partir desta anotação"
    - Botão direto: "Criar conteúdo a partir desta anotação" (pula a etapa de ideia)

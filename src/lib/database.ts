@@ -12,6 +12,7 @@ import { readAvisoDias } from '../features/projects/lib/evento.ts';
 import { DEFAULT_EDITORIAL_SETTINGS, type EditorialSettings } from '../features/editorial/lib/editorialSettings.ts';
 import { readProporcao } from '../features/editorial/lib/proporcaoObjetivos.ts';
 import type { PeriodoSelecionado } from '../features/editorial/lib/periodoEditorial.ts';
+import { lerAvaliacaoCriterios, type AvaliacaoCriterios } from '../features/library/lib/avaliacaoCriterios.ts';
 
 // ============================================================================
 // TYPES
@@ -322,6 +323,8 @@ export interface BibliotecaItemMeta {
   quemIndicou?: string;
   motivoEscolha?: string;
   capitulosCobertos?: string[];
+  /** Notas de 0 a 5 por critério (coluna jsonb `avaliacao_criterios`). */
+  avaliacaoCriterios?: AvaliacaoCriterios;
 }
 
 export interface ScriptNoteReply {
@@ -1094,6 +1097,8 @@ function fichaDaLinha(r: Row): BibliotecaItemMeta {
   if (tags) ficha.tagsPersonalizadas = tags;
   const capitulos = listaFicha(r.capitulos_cobertos);
   if (capitulos) ficha.capitulosCobertos = capitulos;
+  const criterios = lerAvaliacaoCriterios(r.avaliacao_criterios);
+  if (criterios) ficha.avaliacaoCriterios = criterios;
   return ficha;
 }
 
@@ -1129,6 +1134,10 @@ function fichaParaColunas(ficha: BibliotecaItemMeta) {
     quem_indicou: colunaTextoFicha(ficha.quemIndicou),
     motivo_escolha: colunaTextoFicha(ficha.motivoEscolha),
     capitulos_cobertos: (ficha.capitulosCobertos ?? []).map(capitulo => capitulo.trim()).filter(Boolean),
+    // Só vai quando o item tem avaliação por critério: os outros itens não tocam a coluna.
+    ...(ficha.avaliacaoCriterios !== undefined
+      ? { avaliacao_criterios: lerAvaliacaoCriterios(ficha.avaliacaoCriterios) ?? null }
+      : {}),
   };
 }
 

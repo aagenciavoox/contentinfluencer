@@ -2,6 +2,7 @@ import { useState, type ReactNode } from 'react';
 import {
   BookOpen,
   Check,
+  Download,
   Pencil,
   Plus,
   Star,
@@ -22,6 +23,8 @@ import { cn } from '../../../lib/utils';
 import { AnnotationNoteCard } from '../../../features/library/components/AnnotationNoteCard';
 import { CoverFallback } from '../../../features/library/components/CoverFallback';
 import { CoverUploadField } from '../../../features/library/components/CoverUploadField';
+import { BookReadingPanel } from '../../../features/library/components/BookReadingPanel';
+import type { AvaliacaoCriterios, CriterioAvaliacao } from '../../../features/library/lib/avaliacaoCriterios';
 import { EmptyState } from '../../../components/ui/EmptyState';
 import { MobileSectionHeader } from '../../components/MobileSectionHeader';
 import { MobileSegmentTabs } from '../../components/MobileSegmentTabs';
@@ -40,6 +43,7 @@ export interface BookInfoLocal {
   avaliacao?: 1 | 2 | 3 | 4 | 5;
   paginasLidas: number | '';
   totalPaginas: number | '';
+  avaliacaoCriterios?: AvaliacaoCriterios;
 }
 
 interface BookDetailMobileScreenProps {
@@ -50,10 +54,14 @@ interface BookDetailMobileScreenProps {
   creatorLabel: string;
   progressLabels: { current: string; total: string; unit: string };
   statusLeituraOptions: StatusLeitura[];
-  /** Livros trocam o status na aba Anotações, e não na Info. */
-  statusNasAnotacoes: boolean;
+  /** Livros trocam o status e dão nota por critério na aba Anotações, e não na Info. */
+  leituraNasAnotacoes: boolean;
   /** Troca o status e grava na hora. */
   onStatusChange: (status: StatusLeitura) => void;
+  onCriterioChange: (criterio: CriterioAvaliacao, nota: number | null) => void;
+  /** Baixa as anotações em Word, com a ficha e a avaliação. */
+  onDownloadWord: () => void;
+  baixandoWord: boolean;
   generoOptions: string[];
   infoLocal: BookInfoLocal;
   onInfoLocalPatch: (patch: Partial<BookInfoLocal>) => void;
@@ -82,8 +90,11 @@ export function BookDetailMobileScreen({
   creatorLabel,
   progressLabels,
   statusLeituraOptions,
-  statusNasAnotacoes,
+  leituraNasAnotacoes,
   onStatusChange,
+  onCriterioChange,
+  onDownloadWord,
+  baixandoWord,
   generoOptions,
   infoLocal,
   onInfoLocalPatch,
@@ -170,6 +181,16 @@ export function BookDetailMobileScreen({
                 ))}
               </div>
             ) : null}
+            <AppButton
+              variant="secondary"
+              size="xs"
+              onClick={onDownloadWord}
+              disabled={baixandoWord}
+              leftIcon={<Download className="h-3.5 w-3.5" aria-hidden />}
+              className="mt-1 self-start"
+            >
+              {baixandoWord ? 'Gerando Word…' : 'Baixar em Word'}
+            </AppButton>
           </div>
         </div>
       </Surface>
@@ -207,7 +228,7 @@ export function BookDetailMobileScreen({
             />
 
             <dl className="stack-md text-sm">
-              {statusNasAnotacoes ? null : (
+              {leituraNasAnotacoes ? null : (
                 <div>
                   <dt>
                     <Text variant="label" uppercase className="font-semibold">
@@ -269,18 +290,15 @@ export function BookDetailMobileScreen({
 
       {tab === 'anotacoes' ? (
         <div className="stack-md">
-          {statusNasAnotacoes ? (
-            <Surface variant="outlined" padding="sm" className="flex items-center justify-between gap-3 bg-[var(--bg-secondary)]">
-              <label htmlFor="book-status-leitura-mobile" className="t-secondary font-semibold text-[var(--text-primary)]">
-                Status da leitura
-              </label>
-              <SelectField
-                id="book-status-leitura-mobile"
-                value={infoLocal.statusLeitura}
-                onChange={(value) => onStatusChange(value as StatusLeitura)}
-                options={statusLeituraOptions.map((status) => ({ value: status, label: status }))}
-              />
-            </Surface>
+          {leituraNasAnotacoes ? (
+            <BookReadingPanel
+              status={infoLocal.statusLeitura}
+              statusOptions={statusLeituraOptions}
+              onStatusChange={onStatusChange}
+              criterios={infoLocal.avaliacaoCriterios}
+              onCriterioChange={onCriterioChange}
+              className="bg-[var(--bg-secondary)]"
+            />
           ) : null}
 
           {/* Uma fileira só, rolando para o lado (antes quebrava em duas linhas). */}
@@ -376,7 +394,7 @@ export function BookDetailMobileScreen({
             />
           </label>
 
-          {statusNasAnotacoes ? null : (
+          {leituraNasAnotacoes ? null : (
             <label className="block stack-sm">
               <span className="t-label text-[var(--text-tertiary)]">Status de leitura</span>
               <SelectField
@@ -406,31 +424,34 @@ export function BookDetailMobileScreen({
             placeholder="Selecione gêneros"
           />
 
-          <div className="stack-sm" role="group" aria-label="Avaliação">
-            <span className="t-label text-[var(--text-tertiary)]" aria-hidden>Avaliação</span>
-            <div className="flex gap-1">
-              {[1, 2, 3, 4, 5].map((rating) => (
-                <button
-                  key={rating}
-                  type="button"
-                  aria-label={`${rating} de 5`}
-                  aria-pressed={rating <= (infoLocal.avaliacao || 0)}
-                  className="inline-flex h-11 w-11 items-center justify-center rounded-[var(--radius-input)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
-                  onClick={() => onInfoLocalPatch({ avaliacao: rating as 1 | 2 | 3 | 4 | 5 })}
-                >
-                  <Star
-                    className={cn(
-                      'h-6 w-6',
-                      rating <= (infoLocal.avaliacao || 0)
-                        ? 'fill-[var(--warning)] text-[var(--warning)]'
-                        : 'text-[var(--border-strong)]'
-                    )}
-                    aria-hidden
-                  />
-                </button>
-              ))}
+          {/* Livros avaliam por critério na aba Anotações. */}
+          {leituraNasAnotacoes ? null : (
+            <div className="stack-sm" role="group" aria-label="Avaliação">
+              <span className="t-label text-[var(--text-tertiary)]" aria-hidden>Avaliação</span>
+              <div className="flex gap-1">
+                {[1, 2, 3, 4, 5].map((rating) => (
+                  <button
+                    key={rating}
+                    type="button"
+                    aria-label={`${rating} de 5`}
+                    aria-pressed={rating <= (infoLocal.avaliacao || 0)}
+                    className="inline-flex h-11 w-11 items-center justify-center rounded-[var(--radius-input)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+                    onClick={() => onInfoLocalPatch({ avaliacao: rating as 1 | 2 | 3 | 4 | 5 })}
+                  >
+                    <Star
+                      className={cn(
+                        'h-6 w-6',
+                        rating <= (infoLocal.avaliacao || 0)
+                          ? 'fill-[var(--warning)] text-[var(--warning)]'
+                          : 'text-[var(--border-strong)]'
+                      )}
+                      aria-hidden
+                    />
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           <div className="grid-metrics">
             <label className="block stack-sm">

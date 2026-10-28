@@ -18,6 +18,7 @@ import {
   FileText,
   Play,
   Settings,
+  Download,
 } from 'lucide-react';
 import { useAppContext } from '../../../context/AppContext';
 import { useAuth } from '../../../context/AuthContext';
@@ -54,6 +55,10 @@ import { CoverUploadField } from '../components/CoverUploadField';
 import { CoverFallback } from '../components/CoverFallback';
 import { REDE_ROTULO, redeDaRef, rotuloDaRef } from '../../contas/lib/contas';
 import { SelectField } from '../../../components/ui/SelectField';
+import { getErrorMessage, notifySaveFeedback } from '../../../lib/saveFeedback';
+import { BookReadingPanel, STATUS_AVALIAVEL } from '../components/BookReadingPanel';
+import { avaliacaoGeralDosCriterios, type AvaliacaoCriterios, type CriterioAvaliacao } from '../lib/avaliacaoCriterios';
+import { downloadAnnotationsDocx } from '../lib/exportAnnotationsDocx';
 
 type BookAnnotation = Anotacao;
 type TipoAnotacao = Anotacao['tipo'];
@@ -235,6 +240,7 @@ export function BookDetailPage() {
 
   // Info state
   const [infoSalvo, setInfoSalvo] = useState(false);
+  const [baixandoWord, setBaixandoWord] = useState(false);
   const [confirm, setConfirm] = useState<ConfirmState | null>(null);
 
   const _livro = livro as any;
@@ -269,6 +275,7 @@ export function BookDetailPage() {
     paisAutor: metadata.paisAutor ?? '',
     racaAutor: metadata.racaAutor ?? '',
     duracaoPorEpisodio: metadata.duracaoPorEpisodio ?? '',
+    avaliacaoCriterios: metadata.avaliacaoCriterios as AvaliacaoCriterios | undefined,
   }));
   // Ficha editada e ainda não salva segura a troca de versão do app.
   const infoSavedSnapshotRef = useRef(JSON.stringify(infoLocal));
@@ -466,6 +473,7 @@ export function BookDetailPage() {
           racaAutor: info.racaAutor,
           duracaoPorEpisodio: info.duracaoPorEpisodio,
           capitulosCobertos,
+          ...(info.avaliacaoCriterios ? { avaliacaoCriterios: info.avaliacaoCriterios } : {}),
         },
       },
     });
@@ -475,30 +483,49 @@ export function BookDetailPage() {
   };
   salvarInfoRef.current = handleSalvarInfo;
 
-  // Nos livros o status mora na aba Anotações e grava na hora, sem esperar o autosave da ficha.
-  const statusNasAnotacoes = livro.tipo === 'livro';
+  // Nos livros o status e a avaliação por critério moram na aba Anotações (no lugar das 5 estrelas da Info).
+  // O status grava na hora; as notas seguem o autosave da ficha.
+  const leituraNasAnotacoes = livro.tipo === 'livro';
   const handleMudarStatus = (statusLeitura: StatusLeitura) => {
     const proximo = { ...infoLocal, statusLeitura };
     setInfoLocal(proximo);
     handleSalvarInfo(proximo);
   };
 
-  const handleTransformarLeituraEmIdeia = () => {
-    const fields = buildIdeaFields({
-      title: `Conteúdo sobre "${livro.titulo}"`,
-      notes:
-        livro.notasGerais?.trim()
-        || (livro.autorDiretor ? livro.autorDiretor : ''),
+  const handleMudarCriterio = (criterio: CriterioAvaliacao, nota: number | null) => {
+    setInfoLocal(prev => {
+      const avaliacaoCriterios: AvaliacaoCriterios = { ...prev.avaliacaoCriterios };
+      if (nota === null) delete avaliacaoCriterios[criterio];
+      else avaliacaoCriterios[criterio] = nota;
+      return { ...prev, avaliacaoCriterios, avaliacao: avaliacaoGeralDosCriterios(avaliacaoCriterios) };
     });
-    const ideia = createIdeaContent({
-      title: fields.title || 'Ideia sem título',
-      notes: fields.notes || null,
-      pilarId: null,
-      seriesId: null,
-      bibliotecaItemId: livro.id,
-    });
-    dispatch({ type: 'ADD_CONTENT', payload: ideia });
-    navigate('/criacao?tab=ideias');
+  };
+
+  const handleBaixarWord = async () => {
+    if (baixandoWord) return;
+    setBaixandoWord(true);
+    try {
+      await downloadAnnotationsDocx({
+        titulo: livro.titulo,
+        criador: livro.autorDiretor,
+        rotuloCriador: creatorLabel,
+        rotuloTipo: itemTypeLabel,
+        // A ficha da tela: a nota recém-dada pode ainda não ter salvado.
+        // Como na tela, a avaliação só vai com a leitura como Lido.
+        criterios: !leituraNasAnotacoes || infoLocal.statusLeitura === STATUS_AVALIAVEL
+          ? infoLocal.avaliacaoCriterios
+          : undefined,
+        anotacoes: livro.anotacoes,
+      });
+    } catch (error) {
+      notifySaveFeedback({
+        status: 'error',
+        message: 'Não foi possível baixar as anotações.',
+        detail: getErrorMessage(error),
+      });
+    } finally {
+      setBaixandoWord(false);
+    }
   };
 
   const handleCriarConteudo = () => {
@@ -967,8 +994,11 @@ export function BookDetailPage() {
             creatorLabel={creatorLabel}
             progressLabels={progressLabels}
             statusLeituraOptions={STATUS_LEITURA[livro.tipo]}
-            statusNasAnotacoes={statusNasAnotacoes}
+            leituraNasAnotacoes={leituraNasAnotacoes}
             onStatusChange={handleMudarStatus}
+            onCriterioChange={handleMudarCriterio}
+            onDownloadWord={handleBaixarWord}
+            baixandoWord={baixandoWord}
             generoOptions={[...GENEROS_SUGERIDOS]}
             infoLocal={infoLocal}
             onInfoLocalPatch={(patch) => setInfoLocal((prev) => ({ ...prev, ...patch }))}
@@ -1087,10 +1117,11 @@ export function BookDetailPage() {
             <AppButton
               variant="primary"
               size="lg"
-              leftIcon={<Lightbulb className="h-4 w-4" />}
-              onClick={handleTransformarLeituraEmIdeia}
+              leftIcon={<Download className="h-4 w-4" />}
+              onClick={handleBaixarWord}
+              disabled={baixandoWord}
             >
-              Transformar em ideia
+              {baixandoWord ? 'Gerando Word…' : 'Baixar em Word'}
             </AppButton>
           }
         />
@@ -1120,21 +1151,24 @@ export function BookDetailPage() {
                   <CoverFallback title={infoLocal.titulo || livro.titulo} typeLabel={itemTypeLabel} icon={ItemIcon} />
                 </div>
               </div>
-              <div>
-                <Text variant="label" className="mb-2 block font-bold">Avaliação</Text>
-                <div className="flex gap-1">
-                  {[1, 2, 3, 4, 5].map(n => (
-                    <button
-                      key={n}
-                      type="button"
-                      onClick={() => setInfoLocal(prev => ({ ...prev, avaliacao: n as 1 | 2 | 3 | 4 | 5 }))}
-                      className={FOCUS_INTERACTIVE}
-                    >
-                      <Star className={cn('w-5 h-5 transition-colors', n <= (infoLocal.avaliacao || 0) ? 'fill-[var(--warning)] text-[var(--warning)]' : 'text-[var(--border-strong)] hover:text-[var(--warning)]/70')} />
-                    </button>
-                  ))}
+              {/* Livros avaliam por critério na aba Anotações. */}
+              {!leituraNasAnotacoes && (
+                <div>
+                  <Text variant="label" className="mb-2 block font-bold">Avaliação</Text>
+                  <div className="flex gap-1">
+                    {[1, 2, 3, 4, 5].map(n => (
+                      <button
+                        key={n}
+                        type="button"
+                        onClick={() => setInfoLocal(prev => ({ ...prev, avaliacao: n as 1 | 2 | 3 | 4 | 5 }))}
+                        className={FOCUS_INTERACTIVE}
+                      >
+                        <Star className={cn('w-5 h-5 transition-colors', n <= (infoLocal.avaliacao || 0) ? 'fill-[var(--warning)] text-[var(--warning)]' : 'text-[var(--border-strong)] hover:text-[var(--warning)]/70')} />
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
 
             {/* Campos direita */}
@@ -1169,7 +1203,7 @@ export function BookDetailPage() {
               <section className="border-t border-[var(--border-color)] pt-6">
                 <SectionLabel>Consumo</SectionLabel>
                 <div className="grid-form">
-                  {!statusNasAnotacoes && (
+                  {!leituraNasAnotacoes && (
                     <TagSelect
                       label="Status"
                       values={[infoLocal.statusLeitura]}
@@ -1341,6 +1375,16 @@ export function BookDetailPage() {
         {tab === 'anotacoes' && (
           <div className="grid items-start gap-8 pb-10 lg:grid-cols-[minmax(0,2fr)_minmax(20rem,1fr)]">
             <div className="stack-lg min-w-0">
+              {leituraNasAnotacoes && (
+                <BookReadingPanel
+                  status={infoLocal.statusLeitura}
+                  statusOptions={STATUS_LEITURA[livro.tipo]}
+                  onStatusChange={handleMudarStatus}
+                  criterios={infoLocal.avaliacaoCriterios}
+                  onCriterioChange={handleMudarCriterio}
+                />
+              )}
+
               <div className="flex flex-wrap gap-2">
                 {(['Todos', 'Destaques', ...TIPOS] as (TipoAnotacao | 'Todos' | 'Destaques')[]).map(t => (
                   <button
@@ -1387,20 +1431,7 @@ export function BookDetailPage() {
               )}
             </div>
 
-            <div className="stack-md lg:sticky lg:top-4">
-              {statusNasAnotacoes && (
-                <Surface variant="outlined" padding="md" className="flex items-center justify-between gap-3">
-                  <label htmlFor="book-status-leitura" className="t-secondary font-semibold text-[var(--text-primary)]">
-                    Status da leitura
-                  </label>
-                  <SelectField
-                    id="book-status-leitura"
-                    value={infoLocal.statusLeitura}
-                    onChange={value => handleMudarStatus(value as StatusLeitura)}
-                    options={STATUS_LEITURA[livro.tipo].map(status => ({ value: status, label: status }))}
-                  />
-                </Surface>
-              )}
+            <div className="lg:sticky lg:top-4">
               <BookAnnotationComposer
                 key={livro.id}
                 book={livro}

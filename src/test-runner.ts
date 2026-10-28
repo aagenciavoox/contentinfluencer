@@ -88,6 +88,7 @@ await import('./features/library/lib/libraryCoverFile.test.ts');
 await import('./lib/livroIds.test.ts');
 await import('./features/library/lib/libraryContentCounts.test.ts');
 await import('./features/library/lib/libraryCoverExtras.test.ts');
+await import('./features/library/lib/exportAnnotationsDocx.test.ts');
 await import('./mobile/config/mobileRouteMeta.test.ts');
 await import('./layouts/navigation/userInitials.test.ts');
 await import('./layouts/navigation/navConfig.test.ts');
