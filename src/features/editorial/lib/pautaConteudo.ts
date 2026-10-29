@@ -6,8 +6,16 @@ function htmlEmBranco(script: string | null | undefined): boolean {
   return HTML_VAZIO.has(script.trim());
 }
 
-/** Texto vazio, "Sem título" ou "Post-it vazio" não é pauta. O resto, sim. */
-export function postItTemPauta(texto: string | null | undefined): boolean {
+/**
+ * Texto vazio, "Sem título" ou "Post-it vazio" não é pauta. O resto, sim.
+ * Com `pautaDefinida` explícita, ela manda.
+ */
+export function postItTemPauta(
+  texto: string | null | undefined,
+  pautaDefinida?: boolean | null,
+): boolean {
+  if (pautaDefinida === true) return true;
+  if (pautaDefinida === false) return false;
   const limpo = (texto ?? '').trim();
   if (!limpo) return false;
   if (POST_IT_SEM_PAUTA.has(limpo)) return false;
@@ -17,11 +25,15 @@ export function postItTemPauta(texto: string | null | undefined): boolean {
 /**
  * Só `scriptOrigem === 'autor'` é pauta.
  * Modelo e HTML vazio não são. O título não entra na conta.
+ * `pautaDefinida` explícita passa na frente.
  */
 export function roteiroTemPauta(
   scriptOrigem: string | null | undefined,
   script?: string | null,
+  pautaDefinida?: boolean | null,
 ): boolean {
+  if (pautaDefinida === true) return true;
+  if (pautaDefinida === false) return false;
   if (scriptOrigem === 'autor') return true;
   if (scriptOrigem === 'modelo' || htmlEmBranco(script)) return false;
   return false;
@@ -29,7 +41,7 @@ export function roteiroTemPauta(
 
 /**
  * Post-it ligado ao roteiro conta uma vez.
- * Tem pauta se o texto qualifica ou se o roteiro é do autor.
+ * Tem pauta se a marcação explícita, o texto ou o roteiro do autor qualificam.
  * `title` existe para deixar explícito que não participa.
  */
 export function temPautaLigada(input: {
@@ -37,7 +49,10 @@ export function temPautaLigada(input: {
   scriptOrigem?: string | null;
   script?: string | null;
   title?: string | null;
+  pautaDefinidaPostIt?: boolean | null;
+  pautaDefinidaConteudo?: boolean | null;
 }): boolean {
   void input.title;
-  return postItTemPauta(input.textoPostIt) || roteiroTemPauta(input.scriptOrigem, input.script);
+  return postItTemPauta(input.textoPostIt, input.pautaDefinidaPostIt)
+    || roteiroTemPauta(input.scriptOrigem, input.script, input.pautaDefinidaConteudo);
 }

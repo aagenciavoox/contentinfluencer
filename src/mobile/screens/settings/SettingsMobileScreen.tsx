@@ -20,6 +20,8 @@ interface SettingsMobileScreenProps {
   }>;
   writingEnabled: boolean;
   onToggleWriting: () => void;
+  openDraftByDefault: boolean;
+  onToggleOpenDraft: () => void;
   moduleCards: Array<{
     key: string;
     title: string;
@@ -39,6 +41,8 @@ export function SettingsMobileScreen({
   gentleCards,
   writingEnabled,
   onToggleWriting,
+  openDraftByDefault,
+  onToggleOpenDraft,
   moduleCards,
   items,
 }: SettingsMobileScreenProps) {
@@ -77,18 +81,34 @@ export function SettingsMobileScreen({
       <section className="stack-lg">
         <MobileSectionHeader icon={Columns2} tone="neutral" title="Escrita" className="px-1" />
 
-        <ToggleRow
-          id="opcao-celular-modo-escrita"
-          enabled={writingEnabled}
-          onToggle={onToggleWriting}
-          title="Modo de escrita"
-          className="gap-4 rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-4"
-        >
-          <Text variant="bodyStrong" as="span" className="block">Modo de escrita</Text>
-          <Text variant="meta" as="span" className="mt-1 block">
-            Separa o roteiro da gestão. Status, agendamento e legendas ficam em outra aba, e você pode abrir uma área de notas ao lado do texto.
-          </Text>
-        </ToggleRow>
+        <div className="stack-md">
+          <ToggleRow
+            id="opcao-celular-modo-escrita"
+            enabled={writingEnabled}
+            onToggle={onToggleWriting}
+            title="Modo de escrita"
+            className="gap-4 rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-4"
+          >
+            <Text variant="bodyStrong" as="span" className="block">Modo de escrita</Text>
+            <Text variant="meta" as="span" className="mt-1 block">
+              Separa o roteiro da gestão. Status, agendamento e legendas ficam em outra aba, e você pode abrir uma área de notas ao lado do texto.
+            </Text>
+          </ToggleRow>
+          {writingEnabled ? (
+            <ToggleRow
+              id="opcao-celular-abrir-rascunho"
+              enabled={openDraftByDefault}
+              onToggle={onToggleOpenDraft}
+              title="Abrir rascunho ao entrar"
+              className="gap-4 rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-4"
+            >
+              <Text variant="bodyStrong" as="span" className="block">Abrir rascunho ao entrar</Text>
+              <Text variant="meta" as="span" className="mt-1 block">
+                Mostra o painel de rascunho ao abrir um roteiro. Fechar durante a edição é só temporário.
+              </Text>
+            </ToggleRow>
+          ) : null}
+        </div>
       </section>
 
       <section className="stack-lg">

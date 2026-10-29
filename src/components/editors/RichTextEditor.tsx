@@ -10,7 +10,7 @@ import Typography from '@tiptap/extension-typography';
 import { Placeholder } from '@tiptap/extensions';
 import { Plugin, PluginKey, type EditorState } from '@tiptap/pm/state';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
-import type { Node as ProseMirrorNode } from '@tiptap/pm/model';
+import { DOMParser as ProseMirrorDOMParser, type Node as ProseMirrorNode } from '@tiptap/pm/model';
 import {
   Bold, Italic, Underline as UnderlineIcon, Undo, Redo, MessageSquarePlus,
   MessageSquare, Maximize2, Minimize2, X, Link as LinkIcon, Search,
@@ -27,11 +27,20 @@ import { useIsMobile } from '../../hooks/useIsMobile';
 import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
 import { useVisualViewportKeyboard } from '../../hooks/useVisualViewportKeyboard';
 import { countScriptWords, formatSpokenDuration } from '../../features/contents/lib/spokenDuration';
+import {
+  clampDraftSplitRatio,
+  readDraftSplitRatio,
+  writeDraftSplitRatio,
+} from '../../features/contents/lib/writingDraftLayout';
+import { DraftSplitDivider } from '../../features/contents/components/detail/DraftSplitDivider';
 import { EditorShortcuts, ReadableHighlight, SelectionClicks } from './editorExtensions';
 import { EditorColorMenu } from './EditorColorMenu';
 import { EditorToolbar } from './EditorToolbar';
 import { FindReplaceBar } from './FindReplaceBar';
 import { FindReplace } from './findReplace';
+import { ConfirmModal } from '../feedback/modals/ConfirmModal';
+import { clipboardHasRichHtml, htmlFromClipboardPlain } from './pasteMarkdown';
+import { needsLegacyLineBreakRepair, repairLegacyLineBreaks } from './repairLineBreaks';
 import {
   COMMENT_MIGRATION_META, CommentAnchor, addCommentAnchor, collectCommentRanges,
   migrateLegacyComments, removeCommentAnchor, type CommentRange,
@@ -81,6 +90,13 @@ export interface RichTextEditorProps {
   fullscreenAside?: ReactNode;
   onFullscreenChange?: (open: boolean) => void;
   notesPanelOpen?: boolean;
+  onNotesPanelChange?: (open: boolean) => void;
+  /** Editor TipTap do rascunho, para a barra de formatação seguir o foco. */
+  draftEditor?: Editor | null;
+  focusedPane?: 'script' | 'draft';
+  onFocusedPaneChange?: (pane: 'script' | 'draft') => void;
+  /** Registra inserção de texto na última posição do cursor do roteiro. */
+  onRegisterInsertHandler?: (handler: ((text: string) => void) | null) => void;
 }
 
 const EMPTY_ANNOTATIONS: Annotation[] = [];
@@ -541,13 +557,14 @@ function RichTextEditorInstance({
   documentTitle = 'Novo roteiro', compactMobileComposer = false, autoFocus = false,
   variant = 'default', formatBar = 'full', meter = 'reading', toolbarStart, toolbarEnd,
   typographySlot, saveState = 'idle', saveAction, onRetrySave, fullscreenAside,
-  onFullscreenChange, notesPanelOpen = false,
+  onFullscreenChange, notesPanelOpen = false, onNotesPanelChange,
+  draftEditor = null, focusedPane = 'script', onFocusedPaneChange, onRegisterInsertHandler,
 }: RichTextEditorProps) {
   const isMobile = useIsMobile();
   const isWorkspace = variant === 'workspace';
   const writingBar = formatBar === 'writing';
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [commentsOpen, setCommentsOpen] = useState(true);
+  const [commentsOpen, setCommentsOpen] = useState(false);
   const [commentsPanelOpen, setCommentsPanelOpen] = useState(false);
   const [showResolved, setShowResolved] = useState(false);
   const [expandedNoteId, setExpandedNoteId] = useState<string | null>(null);
@@ -564,15 +581,23 @@ function RichTextEditorInstance({
   const [findMode, setFindMode] = useState<'find' | 'replace' | null>(null);
   const [findToken, setFindToken] = useState(0);
   const [linkRequest, setLinkRequest] = useState<{ url: string; range: TextRange } | null>(null);
+  const [draftRatio, setDraftRatio] = useState(() => readDraftSplitRatio(false));
+  const [splitWidth, setSplitWidth] = useState(0);
+  const [mobileFocusPane, setMobileFocusPane] = useState<'script' | 'draft'>('script');
+  const [repairConfirmOpen, setRepairConfirmOpen] = useState(false);
   const shellRef = useRef<HTMLDivElement>(null);
   const editorContainerRef = useRef<HTMLDivElement>(null);
   const editorViewportRef = useRef<HTMLDivElement>(null);
+  const splitRowRef = useRef<HTMLDivElement>(null);
+  const scriptScrollRef = useRef(0);
+  const lastCursorRef = useRef<number | null>(null);
+  const selectionRef = useRef<{from: number; to: number} | null>(null);
   const placeholderRef = useRef(placeholder);
   placeholderRef.current = placeholder;
   const appearanceRef = useRef({ notes: annotations, activeId: expandedNoteId });
   appearanceRef.current = { notes: annotations, activeId: expandedNoteId };
-  const callbacksRef = useRef({ onFullscreenChange, onRetrySave });
-  callbacksRef.current = { onFullscreenChange, onRetrySave };
+  const callbacksRef = useRef({ onFullscreenChange, onRetrySave, onRegisterInsertHandler });
+  callbacksRef.current = { onFullscreenChange, onRetrySave, onRegisterInsertHandler };
   const fullscreenRef = useRef(false);
   const publishRef = useRef<(html: string) => void>(() => {});
   const commentShortcutRef = useRef<() => void>(() => {});
@@ -583,6 +608,12 @@ function RichTextEditorInstance({
   const editVersionRef = useRef(0);
   const saveVersionRef = useRef<number | null>(null);
   const commentsEnabled = !!onAddAnnotation || annotations.length > 0;
+  const showDraftPane = notesPanelOpen && !!fullscreenAside;
+  const narrowSplit = isMobile || (showDraftPane && splitWidth > 0 && splitWidth < 720);
+  const mobileDraftOnly = showDraftPane && narrowSplit && mobileFocusPane === 'draft';
+  const hideScriptPane = mobileDraftOnly;
+  const hideDraftPane = !showDraftPane || (narrowSplit && mobileFocusPane === 'script');
+  const splitInPanel = showDraftPane && !narrowSplit;
 
   useEffect(() => {
     mountedRef.current = true;
@@ -590,13 +621,59 @@ function RichTextEditorInstance({
   }, []);
 
   const setFullscreen = useCallback((open: boolean) => {
+    if (editorViewportRef.current) {
+      scriptScrollRef.current = editorViewportRef.current.scrollTop;
+    }
     fullscreenRef.current = open;
     setIsFullscreen(open);
     callbacksRef.current.onFullscreenChange?.(open);
+    if (open) setMobileFocusPane('script');
   }, []);
   useEffect(() => () => {
     if (fullscreenRef.current) callbacksRef.current.onFullscreenChange?.(false);
   }, []);
+
+  useEffect(() => {
+    setDraftRatio(readDraftSplitRatio(isMobile));
+  }, [isMobile]);
+
+  // Ctrl+Shift+\ modo foco; Ctrl+Shift+N rascunho. (Ctrl+\ continua limpar formatação.)
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (!(event.metaKey || event.ctrlKey) || !event.shiftKey) return;
+      if (event.key === '\\' || event.code === 'Backslash') {
+        event.preventDefault();
+        setFullscreen(!fullscreenRef.current);
+        return;
+      }
+      if ((event.key === 'n' || event.key === 'N') && onNotesPanelChange) {
+        event.preventDefault();
+        onNotesPanelChange(!notesPanelOpen);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [notesPanelOpen, onNotesPanelChange, setFullscreen]);
+
+  useEffect(() => {
+    if (!showDraftPane) return;
+    const row = splitRowRef.current;
+    if (!row) return;
+    const measure = () => setSplitWidth(row.clientWidth);
+    measure();
+    if (typeof ResizeObserver === 'undefined') {
+      window.addEventListener('resize', measure);
+      return () => window.removeEventListener('resize', measure);
+    }
+    const observer = new ResizeObserver(measure);
+    observer.observe(row);
+    return () => observer.disconnect();
+  }, [showDraftPane, narrowSplit, isFullscreen]);
+
+  useEffect(() => {
+    if (!editorViewportRef.current) return;
+    editorViewportRef.current.scrollTop = scriptScrollRef.current;
+  }, [isFullscreen, hideScriptPane]);
   const openFind = useCallback((mode: 'find' | 'replace') => {
     setFindMode(mode); setFindToken(token => token + 1);
   }, []);
@@ -634,11 +711,31 @@ function RichTextEditorInstance({
         class: 'tiptap min-h-[inherit] max-w-none text-base text-[var(--text-primary)] focus:outline-none md:text-[inherit]',
         role: 'textbox', 'aria-multiline': 'true', 'aria-label': documentTitle,
       },
+      handlePaste: (view, event) => {
+        const clipboard = event.clipboardData;
+        if (!clipboard) return false;
+        const richHtml = clipboard.getData('text/html');
+        if (clipboardHasRichHtml(richHtml)) return false;
+        const plain = clipboard.getData('text/plain');
+        const html = htmlFromClipboardPlain(plain);
+        if (!html) return false;
+        event.preventDefault();
+        const holder = document.createElement('div');
+        holder.innerHTML = html;
+        const slice = ProseMirrorDOMParser.fromSchema(view.state.schema).parseSlice(holder, {
+          preserveWhitespace: true,
+        });
+        view.dispatch(view.state.tr.replaceSelection(slice).scrollIntoView());
+        return true;
+      },
     },
   });
 
   const sync = useEditorContentSync(editor, content, contentRevision, onChange, localDirty);
   publishRef.current = sync.publish;
+  const activeToolbarEditor = focusedPane === 'draft' && draftEditor && !draftEditor.isDestroyed
+    ? draftEditor
+    : editor;
 
   useEffect(() => {
     if (!editor || editor.isDestroyed) return;
@@ -646,6 +743,54 @@ function RichTextEditorInstance({
     // Atualiza o placeholder sem reconstruir a instância ou perder o histórico.
     editor.view.dispatch(editor.state.tr.setMeta('addToHistory', false));
   }, [documentTitle, editor, placeholder]);
+
+  useEffect(() => {
+    if (!editor || editor.isDestroyed) return;
+    const rememberCursor = () => {
+      const {from, to} = editor.state.selection;
+      lastCursorRef.current = to;
+      selectionRef.current = {from, to};
+      onFocusedPaneChange?.('script');
+    };
+    editor.on('selectionUpdate', rememberCursor);
+    editor.on('focus', rememberCursor);
+    return () => {
+      editor.off('selectionUpdate', rememberCursor);
+      editor.off('focus', rememberCursor);
+    };
+  }, [editor, onFocusedPaneChange]);
+
+  useEffect(() => {
+    if (!editor || editor.isDestroyed || !selectionRef.current) return;
+    const {from, to} = selectionRef.current;
+    const size = editor.state.doc.content.size;
+    const nextFrom = Math.max(0, Math.min(from, size));
+    const nextTo = Math.max(nextFrom, Math.min(to, size));
+    const frame = requestAnimationFrame(() => {
+      if (editor.isDestroyed) return;
+      editor.commands.setTextSelection({from: nextFrom, to: nextTo});
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [editor, isFullscreen]);
+
+  useEffect(() => {
+    if (!editor || editor.isDestroyed || !onRegisterInsertHandler) return;
+    const insertPlain = (text: string) => {
+      if (!editor || editor.isDestroyed || !text) return;
+      const size = editor.state.doc.content.size;
+      const fallback = editor.state.selection.to;
+      const pos = Math.max(0, Math.min(lastCursorRef.current ?? fallback, size));
+      const html = text
+        .split(/\n{2,}/)
+        .map(block => `<p>${block.replace(/\n/g, '<br>')}</p>`)
+        .join('');
+      editor.chain().focus().insertContentAt(pos, html || text).run();
+      lastCursorRef.current = editor.state.selection.to;
+      onFocusedPaneChange?.('script');
+    };
+    onRegisterInsertHandler(insertPlain);
+    return () => onRegisterInsertHandler(null);
+  }, [editor, onFocusedPaneChange, onRegisterInsertHandler]);
 
   useEffect(() => {
     if (!editor || !autoFocus) return;
@@ -915,45 +1060,171 @@ function RichTextEditorInstance({
       pending={commentPending} error={commentError} />
   ) : null;
 
+  const handleDraftDrag = useCallback((clientX: number) => {
+    const row = splitRowRef.current;
+    if (!row) return;
+    const rect = row.getBoundingClientRect();
+    const next = clampDraftSplitRatio((rect.right - clientX) / rect.width, rect.width);
+    setDraftRatio(next);
+  }, []);
+
+  const canRepairLineBreaks = needsLegacyLineBreakRepair(editor?.isDestroyed ? content : (editor?.getHTML() ?? content));
+  const requestRepairLineBreaks = useCallback(() => {
+    if (!editor || editor.isDestroyed) return;
+    if (!needsLegacyLineBreakRepair(editor.getHTML())) return;
+    setRepairConfirmOpen(true);
+  }, [editor]);
+  const applyRepairLineBreaks = useCallback(() => {
+    if (!editor || editor.isDestroyed) return;
+    const current = editor.getHTML();
+    const next = repairLegacyLineBreaks(current);
+    setRepairConfirmOpen(false);
+    if (next === current) return;
+    const scroll = editorViewportRef.current?.scrollTop ?? 0;
+    editor.chain().focus().setContent(next, {emitUpdate: true}).run();
+    requestAnimationFrame(() => {
+      if (editorViewportRef.current) editorViewportRef.current.scrollTop = scroll;
+    });
+  }, [editor]);
+
   if (!editor) return null;
 
-  return <>
-    {isFullscreen ? <div aria-hidden="true" className="fixed inset-0 z-[90] bg-black/20 backdrop-blur-[2px]" /> : null}
-    <div ref={shellRef} tabIndex={isFullscreen ? -1 : undefined}
+  const draftPaneWidthPx = splitWidth > 0
+    ? Math.round(clampDraftSplitRatio(draftRatio, splitWidth) * splitWidth)
+    : null;
+
+  const shell = (
+    <div ref={shellRef} tabIndex={isFullscreen ? -1 : undefined} data-autofocus={isFullscreen ? true : undefined}
       role={isFullscreen ? 'dialog' : undefined} aria-modal={isFullscreen ? true : undefined}
-      aria-label={isFullscreen ? `${documentTitle} — editor expandido` : undefined}
+      aria-label={isFullscreen ? `${documentTitle} — modo foco` : undefined}
       className={cn(
         'flex min-w-0 flex-col bg-[var(--bg-elevated)] text-[var(--text-primary)]',
-        isFullscreen ? 'fixed inset-0 z-[100] overflow-hidden border-[var(--border-color)] sm:inset-4 sm:rounded-[var(--radius-card)] sm:border'
+        isFullscreen
+          ? 'fixed inset-0 z-[180] h-dvh w-screen overflow-hidden'
           : compactMobileComposer ? 'relative min-h-[50dvh] bg-transparent'
             : isWorkspace ? 'relative h-full min-h-0 rounded-[var(--radius-card)] border border-[var(--border-color)]'
               : 'relative min-h-[400px] rounded-[var(--radius-card)] border border-[var(--border-color)]',
         className,
       )}>
-      {isFullscreen ? <div className="flex min-h-14 shrink-0 items-center gap-3 border-b border-[var(--border-color)] px-4 py-2 pt-safe md:px-6">
+      {isFullscreen ? <div className="flex min-h-14 shrink-0 items-center gap-3 border-b border-[var(--border-color)] bg-[var(--bg-elevated)] px-4 py-2 pt-safe md:px-6">
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold" title={documentTitle}>{documentTitle}</p>
+          <p className="truncate text-sm font-semibold text-[var(--text-primary)]" title={documentTitle}>{documentTitle}</p>
           {saveStatus}
         </div>
+        {onNotesPanelChange ? (
+          <button
+            type="button"
+            onClick={() => onNotesPanelChange(!notesPanelOpen)}
+            aria-pressed={notesPanelOpen}
+            title={notesPanelOpen ? 'Fechar rascunho (Ctrl+Shift+N)' : 'Abrir rascunho (Ctrl+Shift+N)'}
+            className={cn(
+              'flex min-h-10 shrink-0 items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition',
+              notesPanelOpen
+                ? 'border-[var(--border-strong)] bg-[var(--bg-secondary)] text-[var(--text-primary)]'
+                : 'border-[var(--border-color)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]',
+            )}
+          >
+            <span
+              aria-hidden
+              className={cn(
+                'h-2 w-2 rounded-full',
+                notesPanelOpen ? 'bg-[var(--brand-accent)]' : 'bg-[var(--text-tertiary)]',
+              )}
+            />
+            <span>Rascunho</span>
+          </button>
+        ) : null}
         {commentsEnabled ? <button type="button" onClick={() => setCommentsPanelOpen(true)}
           aria-label={`Ver todos os comentários (${openCount})`} className="flex min-h-10 shrink-0 items-center gap-2 rounded-[var(--radius-input)] px-3 text-sm hover:bg-[var(--bg-hover)]">
           <MessageSquare className="h-4 w-4" /><span className="hidden sm:inline">Comentários</span>{openCount}
         </button> : null}
-        <button type="button" onClick={() => setFullscreen(false)} aria-label="Sair da tela expandida" title="Sair da tela expandida"
-          className={controlClass(false)}><Minimize2 className="h-5 w-5" /></button>
+        <button type="button" onClick={() => setFullscreen(false)}
+          aria-label="Sair do modo foco" title="Sair do modo foco (Ctrl+Shift+\\)"
+          className="flex min-h-10 shrink-0 items-center gap-1.5 rounded-[var(--radius-input)] px-3 text-sm font-medium text-[var(--text-secondary)] transition hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]">
+          <Minimize2 className="h-4 w-4" aria-hidden />
+          <span>Sair do modo foco</span>
+        </button>
       </div> : null}
+
+      {showDraftPane && narrowSplit ? (
+        <div className="flex shrink-0 gap-1 border-b border-[var(--border-color)] px-3 py-1.5" role="tablist" aria-label="Área de escrita">
+          {([
+            {id: 'script' as const, label: 'Roteiro'},
+            {id: 'draft' as const, label: 'Rascunho'},
+          ]).map(tab => (
+            <button
+              key={tab.id}
+              type="button"
+              role="tab"
+              aria-selected={mobileFocusPane === tab.id}
+              onClick={() => setMobileFocusPane(tab.id)}
+              className={cn(
+                'min-h-9 flex-1 rounded-[var(--radius-input)] px-3 text-sm font-medium transition',
+                mobileFocusPane === tab.id
+                  ? 'bg-[var(--bg-secondary)] text-[var(--text-primary)]'
+                  : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]',
+              )}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      ) : null}
 
       {(!compactMobileComposer || isFullscreen) ? <div data-format-bar={writingBar ? 'writing' : 'full'}
         className={cn('z-10 flex min-h-11 shrink-0 items-center gap-1 border-b border-[var(--border-color)] px-2 py-1',
           writingBar ? 'bg-[var(--bg-hover)]' : 'bg-[var(--bg-elevated)]',
           !isFullscreen && isWorkspace && 'sticky top-0')}>
         <div className="min-w-0 flex-1">
-          <EditorToolbar editor={editor} mode={writingBar ? 'writing' : 'full'} toolbarStart={toolbarStart}
-            toolbarEnd={toolbarEnd} typographySlot={typographySlot} onComment={onAddAnnotation ? startCommenting : undefined}
-            onFind={openFind} onLink={requestLink} />
+          <EditorToolbar
+            editor={activeToolbarEditor}
+            mode={writingBar ? 'writing' : 'full'}
+            toolbarStart={focusedPane === 'draft' ? undefined : toolbarStart}
+            toolbarEnd={focusedPane === 'draft' ? undefined : (
+              <>
+                {commentsEnabled ? (
+                  <button
+                    type="button"
+                    onMouseDown={event => event.preventDefault()}
+                    onClick={() => setCommentsPanelOpen(true)}
+                    aria-pressed={commentsPanelOpen}
+                    title="Abrir painel de comentários"
+                    className={cn(
+                      'flex h-8 shrink-0 items-center gap-1.5 rounded-[var(--radius-input)] px-2 text-xs font-medium transition',
+                      'text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)]',
+                      commentsPanelOpen && 'bg-[var(--bg-secondary)] text-[var(--text-primary)]',
+                    )}
+                  >
+                    <MessageSquare className="h-4 w-4" aria-hidden />
+                    <span>Comentários</span>
+                    <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-[var(--bg-primary)] px-1.5 text-[length:var(--font-size-caption)] tabular-nums text-[var(--text-secondary)]">
+                      {openCount}
+                    </span>
+                  </button>
+                ) : null}
+                {toolbarEnd}
+              </>
+            )}
+            typographySlot={focusedPane === 'draft' ? undefined : typographySlot}
+            onComment={focusedPane === 'script' && onAddAnnotation ? startCommenting : undefined}
+            onFind={openFind}
+            onLink={requestLink}
+            onRepairLineBreaks={focusedPane === 'script' ? requestRepairLineBreaks : undefined}
+            canRepairLineBreaks={canRepairLineBreaks}
+          />
         </div>
-        {!isFullscreen ? <button type="button" onClick={() => setFullscreen(true)} aria-label="Expandir editor" title="Expandir editor"
-          className={controlClass(false)}><Maximize2 className="h-4 w-4" /></button> : null}
+        {!isFullscreen ? (
+          <button
+            type="button"
+            onClick={() => setFullscreen(true)}
+            aria-label="Modo foco"
+            title="Modo foco (Ctrl+Shift+\\)"
+            className="flex h-10 shrink-0 items-center gap-1.5 rounded-[var(--radius-input)] px-2.5 text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
+          >
+            <Maximize2 className="h-4 w-4" aria-hidden />
+            <span className="hidden text-xs font-medium sm:inline">Modo foco</span>
+          </button>
+        ) : null}
       </div> : null}
 
       {sync.conflict ? <div role="alert" className="flex shrink-0 flex-wrap items-center gap-3 border-b border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-3 text-sm">
@@ -964,15 +1235,14 @@ function RichTextEditorInstance({
         }} className="min-h-10 px-3 underline underline-offset-2">Carregar versão recebida</button>
       </div> : null}
 
-      {commentsEnabled && !compactMobileComposer ? <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-b border-[var(--border-color)] px-3 py-1 text-xs text-[var(--text-secondary)]">
-        {wideLayout && !isMobile ? <button type="button" aria-pressed={commentsOpen} onClick={() => setCommentsOpen(open => !open)}
-          className="min-h-9 rounded-[var(--radius-input)] px-2 hover:bg-[var(--bg-hover)]">{commentsOpen ? 'Ocultar comentários ao lado' : 'Mostrar comentários ao lado'}</button> : null}
-        <button type="button" onClick={() => setCommentsPanelOpen(true)} aria-label={`Ver todos os comentários (${openCount})`}
-          className="inline-flex min-h-9 items-center gap-1.5 rounded-[var(--radius-input)] px-2 hover:bg-[var(--bg-hover)]">
-          <MessageSquare className="h-3.5 w-3.5" />Ver todos ({openCount})
-          {unanchoredIds.size ? <span>· {unanchoredIds.size} sem trecho</span> : null}
-        </button>
-      </div> : null}
+      {commentsEnabled && annotations.length > 0 && wideLayout && !isMobile && !compactMobileComposer && !isFullscreen ? (
+        <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-b border-[var(--border-color)] px-3 py-1 text-xs text-[var(--text-secondary)]">
+          <button type="button" aria-pressed={commentsOpen} onClick={() => setCommentsOpen(open => !open)}
+            className="min-h-9 rounded-[var(--radius-input)] px-2 hover:bg-[var(--bg-hover)]">
+            {commentsOpen ? 'Ocultar comentários ao lado' : 'Mostrar comentários ao lado'}
+          </button>
+        </div>
+      ) : null}
 
       {findMode ? <div className="relative z-[170] h-0 shrink-0">
         <div className="absolute right-3 top-2 w-[min(26rem,calc(100%-1.5rem))]">
@@ -983,35 +1253,83 @@ function RichTextEditorInstance({
       <FormattingBubble editor={editor} blocked={isMobile || !!activeDraft || !!linkRequest || commentsPanelOpen}
         onComment={onAddAnnotation ? startCommenting : undefined} onLink={requestLink} />
 
-      <div className={cn('flex min-h-0 min-w-0', isFullscreen || !writingBar ? 'flex-1' : 'overflow-visible')}>
-        <div ref={editorViewportRef} className={cn(
-          'min-w-0 flex-1 custom-scrollbar',
-          !isFullscreen && writingBar && isWorkspace ? 'overflow-visible' : 'min-h-0 overflow-y-auto',
-          compactMobileComposer && !isFullscreen ? 'bg-transparent p-0'
-            : isFullscreen ? 'bg-[var(--bg-elevated)] px-4 py-6 md:px-8'
-              : isWorkspace ? 'bg-[var(--bg-elevated)] px-4 py-6 md:px-8'
-                : 'bg-[var(--bg-secondary)] p-4 md:p-8',
-          editorViewportClassName,
-        )}>
-          <div className={cn('mx-auto flex w-full items-start', railVisible ? 'max-w-[76rem] gap-8' : 'max-w-[51rem]')}>
+      <div
+        ref={splitRowRef}
+        className={cn(
+          'flex min-h-0 min-w-0',
+          isFullscreen || showDraftPane || !writingBar ? 'flex-1' : 'overflow-visible',
+          showDraftPane && !isFullscreen && writingBar && 'min-h-[calc(100dvh-18rem)]',
+        )}
+      >
+        <div
+          ref={editorViewportRef}
+          hidden={hideScriptPane}
+          className={cn(
+            'flex min-w-0 flex-1 flex-col custom-scrollbar',
+            hideScriptPane && 'hidden',
+            !isFullscreen && writingBar && isWorkspace && !showDraftPane ? 'overflow-visible' : 'min-h-0 overflow-y-auto',
+            compactMobileComposer && !isFullscreen ? 'bg-transparent p-0'
+              : 'bg-[var(--bg-elevated)]',
+            editorViewportClassName,
+          )}
+          onScroll={event => { scriptScrollRef.current = event.currentTarget.scrollTop; }}
+        >
+          {showDraftPane && !hideScriptPane ? (
+            <div className="sticky top-0 z-[1] flex shrink-0 items-center border-b border-[var(--border-color)] bg-[var(--bg-elevated)] px-4 py-2.5 md:px-6">
+              <p className="text-sm font-semibold text-[var(--text-primary)]">Roteiro</p>
+            </div>
+          ) : null}
+          <div className={cn(
+            'mx-auto flex w-full flex-1 items-start',
+            showDraftPane
+              ? 'max-w-none px-4 py-5 md:px-6 md:py-6'
+              : railVisible
+                ? 'max-w-[76rem] gap-8 px-4 py-6 md:px-8'
+                : 'max-w-[56rem] justify-center px-4 py-6 md:max-w-[64rem] md:px-10',
+            compactMobileComposer && !isFullscreen && 'px-0 py-2',
+          )}>
             <div ref={editorContainerRef} onPointerDown={handleEditorPointerDown} className={cn(
               'script-sheet relative min-w-0 flex-1 cursor-text bg-[var(--bg-elevated)]',
-              isFullscreen ? 'min-h-[calc(100dvh-16rem)] px-4 py-6 pb-24 md:px-8 md:py-10'
-                : compactMobileComposer ? 'min-h-[50dvh] bg-transparent px-0 py-2 pb-24'
-                  : isWorkspace ? cn('min-h-[12rem] px-1 py-2', writingBar && 'min-h-[calc(100dvh-18rem)]', notesPanelOpen && 'max-w-[72ch]')
+              isFullscreen && !showDraftPane ? 'mx-auto min-h-[calc(100dvh-16rem)] max-w-[52rem] px-5 py-8 pb-24 md:max-w-[56rem] md:px-10 md:py-10'
+                : compactMobileComposer && !isFullscreen ? 'min-h-[50dvh] bg-transparent px-0 py-2 pb-24'
+                  : isWorkspace ? cn(
+                    'min-h-[12rem]',
+                    writingBar && !showDraftPane && 'mx-auto min-h-[calc(100dvh-18rem)] max-w-[52rem] px-3 py-4 md:max-w-[56rem] md:px-8 md:py-6',
+                    !showDraftPane && !writingBar && 'mx-auto max-w-[52rem] md:max-w-[56rem]',
+                  )
                     : 'min-h-[500px] rounded-[var(--radius-input)] border border-[var(--border-color)] px-5 py-8 shadow-[var(--shadow-editorial)] md:px-12 md:py-12',
               editorCanvasClassName,
             )}>
               <EditorContent editor={editor} className={cn('max-w-none cursor-text', !isWorkspace && 'prose-sm sm:prose lg:prose-lg')} />
             </div>
-            {railVisible ? <CommentRail items={railNotes} anchors={new Map(annotationPositions.map(item => [item.id, item.top]))}
+            {railVisible && !showDraftPane ? <CommentRail items={railNotes} anchors={new Map(annotationPositions.map(item => [item.id, item.top]))}
               activeId={expandedNoteId} minHeight={editorContainerRef.current?.offsetHeight ?? 0}
               renderCard={note => renderCommentCard(note)}
               draft={activeDraft ? { top: draftTop ?? 0, node: <div className="rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-elevated)] p-4 shadow-[var(--shadow-card)]">{composer}</div> } : null} /> : null}
           </div>
         </div>
-        {isFullscreen && !isMobile && fullscreenAside ? <aside aria-label="Painel de apoio"
-          className="flex h-full min-h-0 w-[var(--layout-aside)] shrink-0 flex-col overflow-hidden border-l border-[var(--border-color)]">{fullscreenAside}</aside> : null}
+
+        {splitInPanel ? (
+          <DraftSplitDivider
+            onDrag={handleDraftDrag}
+            onDragEnd={() => writeDraftSplitRatio(draftRatio, isMobile)}
+          />
+        ) : null}
+
+        {showDraftPane && !hideDraftPane ? (
+          <aside
+            aria-label="Rascunho de apoio"
+            className={cn(
+              'flex min-h-0 min-w-0 flex-col overflow-hidden border-[var(--border-color)] bg-[var(--bg-primary)]',
+              narrowSplit ? 'min-w-0 flex-1 border-0' : 'shrink-0 border-l',
+            )}
+            style={narrowSplit
+              ? undefined
+              : {width: draftPaneWidthPx ?? `${Math.round(draftRatio * 100)}%`}}
+          >
+            {fullscreenAside}
+          </aside>
+        ) : null}
       </div>
 
       {(!compactMobileComposer || isFullscreen) ? <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-[var(--border-color)] bg-[var(--bg-elevated)] px-4 py-2.5 text-xs text-[var(--text-secondary)]">
@@ -1019,6 +1337,10 @@ function RichTextEditorInstance({
         <div className="flex min-w-0 flex-wrap items-center gap-3">{!isFullscreen ? saveStatus : null}{saveAction}</div>
       </div> : saveAction || status ? <div className="flex flex-wrap items-center gap-3 pb-20 pt-3">{saveStatus}{saveAction}</div> : null}
     </div>
+  );
+
+  return <>
+    {shell}
 
     {compactMobileComposer && isMobile && !isFullscreen && !modalOpen && !commentsPanelOpen ? <MobileQuickToolbar editor={editor}
       toolbarStart={toolbarStart} onComment={onAddAnnotation ? startCommenting : undefined}
@@ -1034,5 +1356,14 @@ function RichTextEditorInstance({
     {linkRequest ? <LinkEditor initialURL={linkRequest.url} onApply={applyLink} onClose={() => {
       setLinkRequest(null); editor.commands.focus();
     }} /> : null}
+
+    <ConfirmModal
+      open={repairConfirmOpen}
+      message="Reparar quebras de linha literais neste roteiro? Só interpreta \\n e entidades já salvas — não inventa parágrafos a partir de espaços. Você pode desfazer com Ctrl+Z."
+      confirmLabel="Reparar"
+      cancelLabel="Cancelar"
+      onConfirm={applyRepairLineBreaks}
+      onCancel={() => setRepairConfirmOpen(false)}
+    />
   </>;
 }

@@ -37,21 +37,23 @@ function proporcaoDoRascunho(rascunho: Rascunho): ProporcaoFuncoes | null {
 
 /** Linha só de leitura: "Atrair 30% · Converter 20% …". */
 export function ResumoDaProporcao({ proporcao }: { proporcao: ProporcaoFuncoes | null }) {
-  if (!proporcao) {
-    return <Text variant="secondary">Nenhuma proporção definida. As metas de cada período ficam em branco até você definir.</Text>;
-  }
-  const soma = somaDaProporcao(proporcao);
+  const efetiva = proporcao ?? proporcaoIgual();
+  const padraoInicial = !proporcao;
+  const soma = somaDaProporcao(efetiva);
   return (
     <div className="stack-xs">
+      {padraoInicial ? (
+        <Text variant="secondary" as="p">Divisão igual (padrão inicial). Confirme ou mude para valer nas metas do período.</Text>
+      ) : null}
       <ul className="flex flex-wrap gap-x-4 gap-y-1">
-        {FUNCOES.filter(funcao => proporcao[funcao] != null).map(funcao => (
+        {FUNCOES.filter(funcao => efetiva[funcao] != null).map(funcao => (
           <li key={funcao}>
             <Text variant="body" as="span">{FUNCAO_CURTA[funcao]} </Text>
-            <Text variant="bodyStrong" as="span" className="tabular-nums">{proporcao[funcao]}%</Text>
+            <Text variant="bodyStrong" as="span" className="tabular-nums">{efetiva[funcao]}%</Text>
           </li>
         ))}
       </ul>
-      {soma !== 100 ? (
+      {!padraoInicial && soma !== 100 ? (
         <Text variant="meta" as="p">A soma está em {soma}%. As metas são calculadas sobre esse total; para ficar exato, ajuste para 100%.</Text>
       ) : null}
     </div>

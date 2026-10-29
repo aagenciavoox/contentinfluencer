@@ -48,7 +48,7 @@ export type GradeContent = Pick<
   | 'publishDate'
   | 'plataformas'
   | 'deletedAt'
-> & Partial<Pick<Content, 'publishTime' | 'postedAt' | 'archivedAt' | 'formatoVisual' | 'script' | 'title'>> & {
+> & Partial<Pick<Content, 'publishTime' | 'postedAt' | 'archivedAt' | 'formatoVisual' | 'script' | 'title' | 'pautaDefinida'>> & {
   redeReferenciaCongeladaId?: string | null;
   scriptOrigem?: 'autor' | 'modelo' | string | null;
   contaNaGradeOrigem?: ContaNaGradeOrigem | null;
@@ -148,10 +148,13 @@ export function buildGradeEntries({
       serieId: content.seriesId ?? null,
       funcao: resolvida.funcao,
       contaNaGrade,
-      temPauta: roteiroTemPauta(content.scriptOrigem, content.script),
+      temPauta: roteiroTemPauta(content.scriptOrigem, content.script, content.pautaDefinida),
     };
 
     const ref = referenciaPublicacao(content, settings, platforms);
+    // Só em outras redes: não preenche a grade (nem ciclo 1 nem reaproveitamento).
+    if (ref.soEmOutrasRedes) continue;
+
     const realizada = ref.publicada
       || normalizeContentStatus(content.status) === CONTENT_STATUS.POSTADO;
     const etapa: Etapa = realizada ? 'postado' : etapaDoStatus(content.status);

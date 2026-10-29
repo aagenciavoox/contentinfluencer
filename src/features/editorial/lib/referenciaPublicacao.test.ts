@@ -54,7 +54,7 @@ function testBaseGanhaMesmoComDataMaisTarde() {
   assert.equal(ref.redeBaseId, INSTAGRAM);
 }
 
-function testForaDaBaseDesempataPorDataHoraEId() {
+function testSoEmOutrasRedesNaoPreencheGrade() {
   const plataformas = [
     publicacao({
       id: 'z-tarde',
@@ -63,43 +63,42 @@ function testForaDaBaseDesempataPorDataHoraEId() {
       publishTime: '08:00',
     }),
     publicacao({
-      id: 'm-mesmo-dia',
-      platformId: TIKTOK,
-      publishDate: '2026-10-01',
-      publishTime: '18:00',
-    }),
-    publicacao({
       id: 'a-cedo',
-      platformId: YOUTUBE,
+      platformId: TIKTOK,
       publishDate: '2026-10-01',
       publishTime: '09:00',
     }),
   ];
-  const invertida = [...plataformas].reverse();
   const settings = { redeReferenciaId: INSTAGRAM };
+  const ref = referenciaPublicacao(conteudo({ plataformas, publishDate: '2026-11-01' }), settings);
+  assert.equal(ref.soEmOutrasRedes, true);
+  assert.equal(ref.publicacao, null);
+  assert.equal(ref.data, null);
+  assert.equal(ref.hora, null);
+}
 
-  const direta = referenciaPublicacao(conteudo({ plataformas, publishDate: '2026-11-01' }), settings);
-  const aoContrario = referenciaPublicacao(conteudo({ plataformas: invertida, publishDate: '2026-11-01' }), settings);
-
-  assert.equal(direta.publicacao?.id, 'a-cedo');
-  assert.equal(aoContrario.publicacao?.id, 'a-cedo');
-  assert.equal(direta.data, '2026-10-01');
-  assert.equal(direta.hora, '09:00');
-
-  const empate = [
-    publicacao({ id: 'm', platformId: TIKTOK, publishDate: '2026-10-05', publishTime: '10:00' }),
-    publicacao({ id: 'a', platformId: YOUTUBE, publishDate: '2026-10-05', publishTime: '10:00' }),
+function testSemRedeDeBaseAindaDesempataFora() {
+  const plataformas = [
+    publicacao({
+      id: 'z-tarde',
+      platformId: YOUTUBE,
+      publishDate: '2026-10-02',
+      publishTime: '08:00',
+    }),
+    publicacao({
+      id: 'a-cedo',
+      platformId: TIKTOK,
+      publishDate: '2026-10-01',
+      publishTime: '09:00',
+    }),
   ];
-  const peloId = referenciaPublicacao(conteudo({
-    plataformas: empate,
-    publishDate: null,
-  }), settings);
-  assert.equal(peloId.publicacao?.id, 'a');
-  const peloIdInvertido = referenciaPublicacao(conteudo({
-    plataformas: [...empate].reverse(),
-    publishDate: null,
-  }), settings);
-  assert.equal(peloIdInvertido.publicacao?.id, 'a');
+  const ref = referenciaPublicacao(
+    conteudo({ plataformas, publishDate: '2026-11-01' }),
+    { redeReferenciaId: null },
+  );
+  assert.equal(ref.soEmOutrasRedes, false);
+  assert.equal(ref.publicacao?.id, 'a-cedo');
+  assert.equal(ref.data, '2026-10-01');
 }
 
 function testCongeladaNaoAcompanhaARedeNova() {
@@ -181,7 +180,8 @@ function testSemPublicacaoUsaADataDoRoteiro() {
 }
 
 testBaseGanhaMesmoComDataMaisTarde();
-testForaDaBaseDesempataPorDataHoraEId();
+testSoEmOutrasRedesNaoPreencheGrade();
+testSemRedeDeBaseAindaDesempataFora();
 testCongeladaNaoAcompanhaARedeNova();
 testStoriesERepostNaoViraramReferencia();
 testSemPublicacaoUsaADataDoRoteiro();

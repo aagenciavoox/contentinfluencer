@@ -38,6 +38,11 @@ export type ReferenciaEscolhida = {
   /** Rede usada como base: a congelada, quando vale, ou a das preferências. */
   redeBaseId: string | null;
   publicada: boolean;
+  /**
+   * Há rede de base e só existem publicações originais fora dela.
+   * Não preenche a grade; aparece em “Só em outras redes”.
+   */
+  soEmOutrasRedes: boolean;
 };
 
 function dia(value: string | null | undefined): string | null {
@@ -119,8 +124,9 @@ function maisCedo(publicacoes: readonly PublicacaoReferencia[]): PublicacaoRefer
 /**
  * Uma publicação de referência por roteiro.
  * Rede congelada só vale quando o conteúdo já foi publicado.
- * Se a base não tem original, vale a publicação original mais cedo fora dela.
- * Sem publicação, a data do roteiro.
+ * Com rede de base, só a publicação nessa rede preenche a grade —
+ * conteúdo só em outras redes não entra (soEmOutrasRedes).
+ * Sem rede de base, vale a original mais cedo. Sem publicação, a data do roteiro.
  */
 export function referenciaPublicacao(
   conteudo: ConteudoReferencia,
@@ -131,19 +137,26 @@ export function referenciaPublicacao(
   const redeBaseId = redeBase(conteudo, settings, publicacoes);
   const candidatas = publicacoes.filter(publicacao => podeSerReferencia(publicacao, conteudo));
   const naBase = candidatas.filter(publicacao => naRede(publicacao.platformId, redeBaseId, platforms));
+  const soEmOutrasRedes = Boolean(redeBaseId) && naBase.length === 0 && candidatas.length > 0;
   const escolhida = naBase.length > 0
     ? maisCedo(naBase)
-    : (candidatas.length > 0 ? maisCedo(candidatas) : null);
+    : (redeBaseId ? null : (candidatas.length > 0 ? maisCedo(candidatas) : null));
 
   const statusPostado = normalizeContentStatus(conteudo.status ?? '') === CONTENT_STATUS.POSTADO;
-  const publicada = statusPostado || escolhida?.status === 'publicada';
+  const publicada = soEmOutrasRedes
+    ? false
+    : (statusPostado || escolhida?.status === 'publicada');
   const dataDaPublicacao = escolhida ? dia(escolhida.publishDate) : null;
 
   return {
     publicacao: escolhida,
-    data: dataDaPublicacao ?? dia(conteudo.publishDate),
-    hora: dataDaPublicacao ? horaDe(escolhida?.publishTime) : horaDe(conteudo.publishTime),
+    // Só em outras redes: não usa data de fora da base nem a do roteiro para preencher a grade.
+    data: soEmOutrasRedes ? null : (dataDaPublicacao ?? dia(conteudo.publishDate)),
+    hora: soEmOutrasRedes
+      ? null
+      : (dataDaPublicacao ? horaDe(escolhida?.publishTime) : horaDe(conteudo.publishTime)),
     redeBaseId,
     publicada,
+    soEmOutrasRedes,
   };
 }

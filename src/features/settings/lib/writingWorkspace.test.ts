@@ -4,6 +4,7 @@ import {
   WRITING_WORKSPACE_PREFERENCE_KEY,
   getWritingWorkspaceSettings,
   isWritingWorkspaceEnabled,
+  shouldOpenDraftByDefault,
 } from './writingWorkspace.ts';
 
 function testStartsDisabledForEveryAccount() {
@@ -11,6 +12,7 @@ function testStartsDisabledForEveryAccount() {
   assert.equal(isWritingWorkspaceEnabled(null), false);
   assert.equal(isWritingWorkspaceEnabled(undefined), false);
   assert.equal(isWritingWorkspaceEnabled({gentle_experience: {enabled: true}}), false);
+  assert.equal(shouldOpenDraftByDefault({}), false);
 }
 
 function testReadsSavedToggle() {
@@ -24,6 +26,27 @@ function testReadsSavedToggle() {
     isWritingWorkspaceEnabled({
       [WRITING_WORKSPACE_PREFERENCE_KEY]: {enabled: false},
     }),
+    false,
+  );
+}
+
+function testOpenDraftByDefault() {
+  assert.equal(
+    shouldOpenDraftByDefault({
+      [WRITING_WORKSPACE_PREFERENCE_KEY]: {enabled: true},
+    }),
+    true,
+  );
+  assert.equal(
+    shouldOpenDraftByDefault({
+      [WRITING_WORKSPACE_PREFERENCE_KEY]: {enabled: true, openDraftByDefault: false},
+    }),
+    false,
+  );
+  assert.equal(
+    getWritingWorkspaceSettings({
+      [WRITING_WORKSPACE_PREFERENCE_KEY]: {enabled: true, openDraftByDefault: false},
+    }).openDraftByDefault,
     false,
   );
 }
@@ -44,6 +67,7 @@ function testIgnoresInvalidPreference() {
 const tests = [
   ['starts disabled for every account', testStartsDisabledForEveryAccount],
   ['reads the saved writing workspace toggle', testReadsSavedToggle],
+  ['open draft by default follows settings', testOpenDraftByDefault],
   ['ignores invalid writing workspace preference', testIgnoresInvalidPreference],
 ] as const;
 

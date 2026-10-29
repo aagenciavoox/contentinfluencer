@@ -136,7 +136,7 @@ export function registerEstrutura(server: McpServer) {
       }
       if (want.has('ajustes')) {
         const conta = check('ajustes editoriais', await client.from('editorial_conta')
-          .select('rede_referencia_id, reserva_prontos')
+          .select('rede_referencia_id, reserva_prontos, publico_linguagem, hashtags_fora_series')
           .eq('user_id', userId)
           .maybeSingle());
         const destinos = check('destinos padrão', await client.from('editorial_destino_padrao')
@@ -149,6 +149,12 @@ export function registerEstrutura(server: McpServer) {
           destinos_padrao: destinos.map((row: Row) => lookups.platformName(row.platform_id)),
           distribuicao_funcoes: (await distribuicaoView(session)).distribuicao,
           estoque_desejado: typeof conta?.reserva_prontos === 'number' ? conta.reserva_prontos : null,
+          publico_linguagem: typeof conta?.publico_linguagem === 'string' && conta.publico_linguagem.trim()
+            ? conta.publico_linguagem.trim()
+            : null,
+          hashtags_fora_series: typeof conta?.hashtags_fora_series === 'string' && conta.hashtags_fora_series.trim()
+            ? conta.hashtags_fora_series.trim()
+            : null,
         };
       }
       return json(result);

@@ -15,7 +15,8 @@ const LIST_FIELDS = new Set(['scriptNotes', 'plataformas', 'livroIds', 'temaIds'
 /** Um campo do rascunho mudou de verdade. Abrir, focar ou reformatar o mesmo texto não conta. */
 export function draftFieldChanged(key: string, previous: unknown, next: unknown): boolean {
   if (key === 'writingNotes') {
-    return (previous ?? '') !== (next ?? '');
+    return normalizeEditorText(previous as string | null | undefined)
+      !== normalizeEditorText(next as string | null | undefined);
   }
   if (TEXT_FIELDS.has(key)) {
     return normalizeEditorText(previous as string | null | undefined)

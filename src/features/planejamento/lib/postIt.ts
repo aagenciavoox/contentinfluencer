@@ -26,6 +26,8 @@ export interface PlanejamentoPostIt {
   objetivo?: FuncaoEditorial | null;
   /** Redes onde vai sair. Só a plataforma, sem conta. */
   redes?: RedeSocial[];
+  /** true/false manda; null herda do texto. */
+  pautaDefinida?: boolean | null;
   createdAt: string;
   updatedAt: string;
 }

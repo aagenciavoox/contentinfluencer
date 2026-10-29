@@ -1,6 +1,6 @@
-import {useRef, useState, type ReactNode} from 'react';
-import {Columns2, PenLine, SlidersHorizontal} from 'lucide-react';
-import {ToolbarTextButton} from '../../../../../components/editors/EditorToolbar';
+import {useCallback, useEffect, useRef, useState, type ReactNode} from 'react';
+import type {Editor} from '@tiptap/react';
+import {PenLine, SlidersHorizontal} from 'lucide-react';
 import {MobileScriptEditor} from '../../../../../mobile/components/MobileScriptEditor';
 import type {CommentPatch} from '../../../../../components/editors/commentModel';
 import {MobileSegmentTabs} from '../../../../../mobile/components/MobileSegmentTabs';
@@ -9,8 +9,10 @@ import {Skeleton} from '../../../../../components/ui/Skeleton';
 import {Text} from '../../../../../components/ui/Text';
 import {SegmentTabs} from '../../../../../components/ui/SegmentTabs';
 import {SelectField} from '../../../../../components/ui/SelectField';
+import {useAppContext} from '../../../../../context/AppContext';
 import type {CarouselSlide, Content, ContentPlataforma, Pilar, Serie, WritingMode} from '../../../../../lib/database';
 import {cn, htmlToReadableText} from '../../../../../lib/utils';
+import {shouldOpenDraftByDefault} from '../../../../settings/lib/writingWorkspace';
 import {WRITING_MODE_LABELS, normalizeWritingMode, slidesForCarouselMode} from '../../../lib/carouselSlides';
 import {
   CONTENT_STATUS,
@@ -129,6 +131,10 @@ export function RoteiroSection({
   primaryBusy = false,
 }: RoteiroSectionProps) {
   const writingAreaRef = useRef<HTMLDivElement>(null);
+  const insertIntoScriptRef = useRef<((text: string) => void) | null>(null);
+  const notesUserOverrideRef = useRef(false);
+  const {state} = useAppContext();
+  const openDraftByDefault = shouldOpenDraftByDefault(state.preferences);
   const isPosted = draft.status === CONTENT_STATUS.POSTADO;
   const writingMode = normalizeWritingMode(draft.writingMode);
   const isCarousel = writingMode === 'carrossel';
@@ -141,13 +147,41 @@ export function RoteiroSection({
     pane: 'write' | 'manage';
   } | null>(null);
   const [notesChoice, setNotesChoice] = useState<{contentId: string; open: boolean} | null>(null);
-  const [scriptExpanded, setScriptExpanded] = useState(false);
+  const [draftEditor, setDraftEditor] = useState<Editor | null>(null);
+  const [focusedPane, setFocusedPane] = useState<'script' | 'draft'>('script');
+  const [draftScrollTop, setDraftScrollTop] = useState(0);
+  const [draftClosedThisSession, setDraftClosedThisSession] = useState(false);
+  const [draftSessionHintDismissed, setDraftSessionHintDismissed] = useState(false);
   const workspacePane = workspacePaneChoice?.contentId === contentId
     ? workspacePaneChoice.pane
     : 'write';
   const notesOpen = notesChoice?.contentId === contentId
     ? notesChoice.open
     : false;
+  const setNotesOpen = useCallback((open: boolean) => {
+    notesUserOverrideRef.current = true;
+    setNotesChoice({contentId, open});
+    if (!open) {
+      setFocusedPane('script');
+      if (openDraftByDefault) setDraftClosedThisSession(true);
+    } else {
+      setDraftClosedThisSession(false);
+    }
+  }, [contentId, openDraftByDefault]);
+
+  // Troca de roteiro: a preferência volta a valer; ação nesta edição reinicia.
+  useEffect(() => {
+    notesUserOverrideRef.current = false;
+    setDraftClosedThisSession(false);
+    setDraftSessionHintDismissed(false);
+  }, [contentId]);
+
+  // Abre o rascunho pela config, sem desfazer um fechar/abrir recente nesta edição.
+  useEffect(() => {
+    if (!writingWorkspace) return;
+    if (notesUserOverrideRef.current) return;
+    setNotesChoice({contentId, open: openDraftByDefault});
+  }, [contentId, writingWorkspace, openDraftByDefault]);
   // Until a tab is picked, open on "Notas" when the text lives only in the notes pane.
   const mobilePane: MobilePane = mobilePaneChoice?.contentId === contentId
     ? mobilePaneChoice.pane
@@ -227,21 +261,52 @@ export function RoteiroSection({
     <WritingNotesPane
       value={draft.writingNotes ?? ''}
       onChange={html => onChange({writingNotes: html})}
-      onClose={() => setNotesChoice({contentId, open: false})}
+      onClose={() => setNotesOpen(false)}
       emphasis="secondary"
       className={className}
+      onInsertIntoScript={text => insertIntoScriptRef.current?.(text)}
+      onEditorReady={setDraftEditor}
+      onFocusChange={focused => {
+        if (focused) setFocusedPane('draft');
+      }}
+      scrollTop={draftScrollTop}
+      onScrollTopChange={setDraftScrollTop}
+      documentId={contentId}
     />
   );
 
-  // "Notas" mora na barra do editor (antes de "Mais") e abre/fecha a área de notas ao lado.
+  const showDraftSessionHint = writingWorkspace
+    && workspacePane === 'write'
+    && openDraftByDefault
+    && draftClosedThisSession
+    && !notesOpen
+    && !draftSessionHintDismissed;
+
+  // Botão simples mostrar/ocultar; ponto indica painel aberto.
   const notesButton = writingWorkspace && workspacePane === 'write' ? (
-    <ToolbarTextButton
-      label="Notas"
-      icon={Columns2}
-      active={notesOpen}
-      title={notesOpen ? 'Fechar área de notas' : 'Abrir área de notas'}
-      onClick={() => setNotesChoice({contentId, open: !notesOpen})}
-    />
+    <button
+      type="button"
+      onMouseDown={event => event.preventDefault()}
+      onClick={() => setNotesOpen(!notesOpen)}
+      aria-pressed={notesOpen}
+      title={notesOpen ? 'Fechar rascunho (Ctrl+Shift+N)' : 'Abrir rascunho (Ctrl+Shift+N)'}
+      className={cn(
+        'flex h-8 shrink-0 items-center gap-1.5 rounded-full border px-2.5 text-xs font-medium transition',
+        'focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
+        notesOpen
+          ? 'border-[var(--border-strong)] bg-[var(--bg-elevated)] text-[var(--text-primary)]'
+          : 'border-[var(--border-color)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]',
+      )}
+    >
+      <span
+        aria-hidden
+        className={cn(
+          'h-2 w-2 rounded-full',
+          notesOpen ? 'bg-[var(--brand-accent)]' : 'bg-[var(--text-tertiary)]',
+        )}
+      />
+      <span>Rascunho</span>
+    </button>
   ) : null;
 
   const scriptWorkspace = (fullscreenAside?: ReactNode) => (
@@ -261,8 +326,14 @@ export function RoteiroSection({
       onRetryBody={onRetryBody}
       className={writingWorkspace ? 'min-w-0' : undefined}
       fullscreenAside={fullscreenAside}
-      onFullscreenChange={setScriptExpanded}
       notesPanelOpen={notesOpen}
+      onNotesPanelChange={setNotesOpen}
+      draftEditor={draftEditor}
+      focusedPane={focusedPane}
+      onFocusedPaneChange={setFocusedPane}
+      onRegisterInsertHandler={handler => {
+        insertIntoScriptRef.current = handler;
+      }}
       toolbarEnd={notesButton}
       {...annotationHandlers}
     />
@@ -383,19 +454,27 @@ export function RoteiroSection({
               onChange={onChange}
             />
           ) : (
-            <div
-              ref={writingAreaRef}
-              className={cn(
-                'grid min-h-0 items-start gap-3',
-                notesOpen && (!scriptExpanded || isCarousel) && 'lg:grid-cols-[minmax(0,1fr)_var(--layout-aside)]',
-              )}
-            >
+            <div ref={writingAreaRef} className="min-h-0 min-w-0 stack-sm">
+              {showDraftSessionHint ? (
+                <div
+                  role="status"
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-hover)] px-3 py-2 text-xs text-[var(--text-secondary)]"
+                >
+                  <span>Rascunho fechado só nesta edição — a preferência de abrir automaticamente continua ligada.</span>
+                  <button
+                    type="button"
+                    onClick={() => setDraftSessionHintDismissed(true)}
+                    className="shrink-0 font-medium text-[var(--text-primary)] underline-offset-2 hover:underline"
+                  >
+                    Entendi
+                  </button>
+                </div>
+              ) : null}
               {writingArea(
                 notesOpen
-                  ? notesPane('h-full max-h-none min-h-0 flex-1 rounded-none border-0')
+                  ? notesPane('h-full max-h-none min-h-0 flex-1 rounded-none border-0 shadow-none')
                   : undefined,
               )}
-              {notesOpen && (!scriptExpanded || isCarousel) ? notesPane('sticky top-4 h-[calc(100dvh-14rem)] max-h-[calc(100dvh-14rem)] min-w-0') : null}
             </div>
           )}
         </div>
@@ -475,7 +554,7 @@ export function RoteiroSection({
           activateOnPointerDown
           tabs={[
             {value: 'script', label: 'Roteiro'},
-            {value: 'notes', label: 'Notas'},
+            {value: 'notes', label: 'Rascunho'},
             {value: 'captions', label: 'Legendas'},
           ]}
           value={mobilePane}
@@ -494,6 +573,17 @@ export function RoteiroSection({
               onChange({writingNotes: text});
             }}
             onClose={() => selectMobilePane('script')}
+            onInsertIntoScript={text => {
+              keepMobilePane();
+              const current = draft.script?.trim() ? draft.script : '';
+              const block = text
+                .split(/\n{2,}/)
+                .map(part => `<p>${part.replace(/\n/g, '<br>')}</p>`)
+                .join('');
+              onChange({script: current ? `${current}${block}` : block});
+              selectMobilePane('script');
+            }}
+            documentId={contentId}
             className="h-[calc(100dvh-19rem)] min-h-[18rem]"
           />
         ) : (

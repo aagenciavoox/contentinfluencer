@@ -2,10 +2,13 @@ export const WRITING_WORKSPACE_PREFERENCE_KEY = 'writing_workspace';
 
 export interface WritingWorkspaceSettings {
   enabled: boolean;
+  /** Abre o rascunho de apoio ao entrar em um roteiro (modo de escrita). */
+  openDraftByDefault: boolean;
 }
 
 export const DEFAULT_WRITING_WORKSPACE: WritingWorkspaceSettings = {
   enabled: false,
+  openDraftByDefault: true,
 };
 
 export function getWritingWorkspaceSettings(
@@ -16,9 +19,12 @@ export function getWritingWorkspaceSettings(
     return DEFAULT_WRITING_WORKSPACE;
   }
 
-  const enabled = (raw as {enabled?: unknown}).enabled;
+  const value = raw as {enabled?: unknown; openDraftByDefault?: unknown};
   return {
-    enabled: typeof enabled === 'boolean' ? enabled : DEFAULT_WRITING_WORKSPACE.enabled,
+    enabled: typeof value.enabled === 'boolean' ? value.enabled : DEFAULT_WRITING_WORKSPACE.enabled,
+    openDraftByDefault: typeof value.openDraftByDefault === 'boolean'
+      ? value.openDraftByDefault
+      : DEFAULT_WRITING_WORKSPACE.openDraftByDefault,
   };
 }
 
@@ -26,4 +32,11 @@ export function isWritingWorkspaceEnabled(
   preferences: Record<string, unknown> | null | undefined,
 ) {
   return getWritingWorkspaceSettings(preferences).enabled;
+}
+
+export function shouldOpenDraftByDefault(
+  preferences: Record<string, unknown> | null | undefined,
+) {
+  const settings = getWritingWorkspaceSettings(preferences);
+  return settings.enabled && settings.openDraftByDefault;
 }

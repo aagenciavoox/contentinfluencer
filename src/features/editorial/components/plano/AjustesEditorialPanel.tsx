@@ -296,12 +296,12 @@ export function AjustesEditorialPanel() {
               }}
             />
             <Text variant="secondary">
-              Para conteúdos que não pertencem a uma série.
+              Preenche hashtags vazias de conteúdos sem série. Nunca sobrescreve o que já está escrito.
             </Text>
           </div>
         </CardConfiguracao>
 
-        <CardConfiguracao icone={<UserRound className="h-5 w-5" />} titulo="Perfil e rotina">
+        <CardConfiguracao icone={<UserRound className="h-5 w-5" />} titulo="Perfil editorial">
           <div className="stack-lg">
             <CampoTexto
               id="publico-linguagem"
@@ -313,16 +313,9 @@ export function AjustesEditorialPanel() {
                 salvarPreferencias({ publicoLinguagem });
               }}
             />
-            <CampoTexto
-              id="disponibilidade"
-              label="Dias de produção e compromissos"
-              placeholder="Registre os dias disponíveis e os compromissos fixos…"
-              value={preferencias.disponibilidade}
-              onSave={disponibilidade => {
-                if (disponibilidade === preferencias.disponibilidade) return;
-                salvarPreferencias({ disponibilidade });
-              }}
-            />
+            <Text variant="secondary">
+              Referência ao escrever e no contexto do assistente. Não altera a grade sozinho.
+            </Text>
           </div>
         </CardConfiguracao>
       </div>

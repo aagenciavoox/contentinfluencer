@@ -10,12 +10,13 @@ import {
   Heading1, Heading2, IndentDecrease, IndentIncrease, Italic, Link as LinkIcon,
   List, ListOrdered, MessageSquarePlus, Minus, MoreHorizontal, Pilcrow, Quote,
   Redo, RemoveFormatting, Search, Strikethrough, Underline as UnderlineIcon, Undo,
+  WrapText,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { EditorColorMenu } from './EditorColorMenu';
 import { clearFormatting } from './editorExtensions';
 import {
-  fitWritingGroups, WRITING_COLLAPSIBLE_GROUPS, writingOverflowItemIds,
+  fitWritingGroups, WRITING_ALWAYS_MORE_IDS, WRITING_COLLAPSIBLE_GROUPS, writingOverflowItemIds,
   type WritingBarGroupId,
 } from './writingFormatBar';
 
@@ -407,10 +408,13 @@ export interface EditorToolbarProps {
   onComment?: () => void;
   onFind: (mode: 'find' | 'replace') => void;
   onLink: () => void;
+  onRepairLineBreaks?: () => void;
+  canRepairLineBreaks?: boolean;
 }
 
 export function EditorToolbar({
   editor, mode, toolbarStart, toolbarEnd, typographySlot, onComment, onFind, onLink,
+  onRepairLineBreaks, canRepairLineBreaks = false,
 }: EditorToolbarProps) {
   const state = useEditorState({ editor, selector: ({ editor: current }) => ({
     editable: current.isEditable && !current.isDestroyed,
@@ -454,9 +458,17 @@ export function EditorToolbar({
     outdent: { id: 'outdent', label: 'Diminuir recuo da lista', icon: IndentDecrease, shortcut: 'Shift+Tab', run: () => chain().liftListItem('listItem').run(), disabled: disabled || !state.canLift },
     rule: { id: 'rule', label: 'Linha divisória', icon: Minus, run: () => chain().setHorizontalRule().run(), disabled },
     clear: { id: 'clear', label: 'Limpar formatação', icon: RemoveFormatting, shortcut: 'Ctrl+\\', run: () => clearFormatting(editor), disabled },
+    repair: {
+      id: 'repair',
+      label: 'Reparar quebras de linha',
+      icon: WrapText,
+      run: () => onRepairLineBreaks?.(),
+      disabled: disabled || !canRepairLineBreaks || !onRepairLineBreaks,
+    },
     find: { id: 'find', label: 'Buscar no texto', icon: Search, shortcut: 'Ctrl+F', run: () => onFind('find') },
   };
   if (!onComment) delete catalog.comment;
+  if (!onRepairLineBreaks) delete catalog.repair;
   const pick = (ids: readonly string[]) => ids.flatMap(id => catalog[id] ? [catalog[id]] : []);
   const styleItems = pick(['paragraph', 'h1', 'h2', 'quote']);
   const alignItems = pick(['align-left', 'align-center', 'align-right', 'align-justify']);
@@ -485,7 +497,7 @@ export function EditorToolbar({
     {pick(['list', 'ordered', 'outdent', 'indent']).map(item => <IconButton key={item.id} item={item} neutral={false} />)}
     <Separator /><IconButton item={catalog.clear} neutral={false} />
     <div className="ml-auto flex shrink-0 items-center gap-0.5 pl-1">
-      {toolbarEnd}<ToolbarDropdown label="Mais opções" triggerText="Mais" items={pick(['strike', 'rule', 'find'])} neutral={false} align="right" />
+      {toolbarEnd}<ToolbarDropdown label="Mais opções" triggerText="Mais" items={pick(['strike', 'rule', 'repair', 'find'])} neutral={false} align="right" />
     </div>
   </div>;
 }
@@ -541,7 +553,10 @@ function WritingToolbar({
 
   const shown = new Set(WRITING_COLLAPSIBLE_GROUPS.slice(0, visibleCount));
   const hidden = WRITING_COLLAPSIBLE_GROUPS.slice(visibleCount);
-  const overflowItems = pick(writingOverflowItemIds(hidden));
+  const overflowItems = [
+    ...pick([...WRITING_ALWAYS_MORE_IDS]),
+    ...pick(writingOverflowItemIds(hidden)),
+  ];
   const groupClass = (visible: boolean) => cn('flex w-max shrink-0 items-center gap-0.5', !visible && 'pointer-events-none invisible absolute left-0 top-0');
   const renderIcons = (ids: readonly string[]) => pick(ids).map(item => <IconButton key={item.id} item={item} neutral compact />);
 
@@ -552,28 +567,25 @@ function WritingToolbar({
         {renderIcons(['undo', 'redo'])}<Separator />
         <ToolbarDropdown label="Estilo do parágrafo" triggerText={styleLabel} items={styleItems} neutral compact selectable disabled={!editable} />
         {typographySlot ? <><Separator />{typographySlot}</> : null}
-        <Separator />{renderIcons(['bold', 'italic', 'underline', 'strike'])}
+        <Separator />{renderIcons(['bold', 'italic', 'underline'])}
         <fieldset disabled={!editable} className="flex min-w-0 shrink-0 items-center gap-0.5 border-0 p-0">
           <legend className="sr-only">Cor e destaque</legend>
           <EditorColorMenu editor={editor} kind="text" size="sm" neutral />
           <EditorColorMenu editor={editor} kind="highlight" size="sm" neutral />
         </fieldset>
+        <Separator />{renderIcons(['list', 'ordered', 'link'])}
       </div>
     <div ref={node => { groupRefs.current.insert = node; }} aria-hidden={!shown.has('insert')} className={groupClass(shown.has('insert'))}>
-      <Separator />{renderIcons(['link', 'comment'])}
+      <Separator />{renderIcons(['comment'])}
     </div>
     <div ref={node => { groupRefs.current.paragraph = node; }} aria-hidden={!shown.has('paragraph')} className={groupClass(shown.has('paragraph'))}>
       <Separator /><ToolbarDropdown label="Alinhamento" triggerIcon={alignIcon} items={alignItems} neutral compact selectable disabled={!editable || !shown.has('paragraph')} />
-      {renderIcons(['list', 'ordered', 'outdent', 'indent'])}
-    </div>
-    <div ref={node => { groupRefs.current.tools = node; }} aria-hidden={!shown.has('tools')} className={groupClass(shown.has('tools'))}>
-      <Separator />{renderIcons(['rule', 'clear', 'find'])}
+      {renderIcons(['outdent', 'indent'])}
     </div>
     <div className="ml-auto flex shrink-0 items-center gap-0.5 pl-1">
-      <div ref={overflowRef} aria-hidden={!overflowItems.length}
-        className={cn('flex w-max shrink-0', !overflowItems.length && 'pointer-events-none invisible absolute left-0 top-0')}>
-        <ToolbarDropdown label="Mais ferramentas" triggerIcon={MoreHorizontal} hideChevron items={overflowItems}
-          neutral compact align="right" minWidth="min-w-[240px]" disabled={!overflowItems.length} />
+      <div ref={overflowRef} className="flex w-max shrink-0">
+        <ToolbarDropdown label="Mais opções" triggerIcon={MoreHorizontal} triggerText="Mais opções" items={overflowItems}
+          neutral compact align="right" minWidth="min-w-[240px]" />
       </div>
       <div ref={endSlotRef} className="flex shrink-0 items-center gap-0.5">{toolbarEnd}</div>
     </div>

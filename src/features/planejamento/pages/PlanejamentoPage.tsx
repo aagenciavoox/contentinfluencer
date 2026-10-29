@@ -1,12 +1,13 @@
 import {useEffect, useMemo, useRef, useState, type DragEvent} from 'react';
 import {useNavigate, useSearchParams} from 'react-router-dom';
-import {addMonths, format} from 'date-fns';
+import {format} from 'date-fns';
 import {ptBR} from 'date-fns/locale';
-import {CalendarDays, ChevronRight, Pencil, Plus, StickyNote, Tag, Trash2} from 'lucide-react';
+import {CalendarDays, ChevronRight, LayoutGrid, Pencil, Plus, StickyNote, Trash2} from 'lucide-react';
 import {
   calendarEntryPillStyle,
   CalendarEventPill,
   CalendarMonthGrid,
+  CalendarPeriodNav,
 } from '../../../components/calendar';
 import {AppButton} from '../../../components/ui/AppButton';
 import {Badge} from '../../../components/ui/Badge';
@@ -29,22 +30,26 @@ import {buildContentDetailRoute} from '../../contents/lib/contentDetailRoute';
 import {CONTENT_STATUS, DISPLAY_STATUS, normalizeContentStatus} from '../../contents/lib/contentPipeline';
 import {calendarEntryIcon, CalendarNetworkIcons} from '../../editorial-calendar/components/CalendarNetworkIcons';
 import {buildDetailBackState} from '../../../lib/navigation/detailBack';
-import {etiquetasVisiveis} from '../../creation/lib/creationItemPresentation';
+import {getCreationCardTags} from '../../creation/lib/creationItemPresentation';
 import {readProporcao} from '../../editorial/lib/proporcaoObjetivos';
 import {FUNCAO_CURTA, FUNCAO_LABELS, FUNCOES, FUNIL_DA_FUNCAO, isFuncaoEditorial, resolveFuncao} from '../../editorial/lib/funcoes';
 import {sortPilares} from '../../settings/lib/activePilares';
 import {EncaixeDialog} from '../components/EncaixeDialog';
-import {MonthHealth} from '../components/MonthHealth';
+import {PlanejamentoResumo} from '../components/PlanejamentoResumo';
+import {PlanejamentoWeekGrid} from '../components/PlanejamentoWeekGrid';
 import {PostItRapidoDialog} from '../components/PostItRapidoDialog';
 import {PuxarConteudoDialog} from '../components/PuxarConteudoDialog';
 import {PlanejamentoMobileView} from '../components/PlanejamentoMobileView';
+import {SemDataPanel} from '../components/SemDataPanel';
 import {PlatformIcons} from '../../../components/ui/PlatformIcons';
 import {RedeChips} from '../components/RedeChips';
 import {redesDoCartao} from '../lib/redesDoCartao';
-import {REDE_ROTULO} from '../../contas/lib/contas';
-import {excessosAoAcrescentar, periodoDoMes, saudeDoMes, type ExcessoMes} from '../lib/monthHealth';
-import {POST_IT_MIME, PostItIdentity, PostItNote, PostItTemas, type PostItMark} from '../components/PostItNote';
-import {conteudoTemTema, temasEmUso} from '../lib/temasPlanejamento';
+import {REDE_ROTULO, rotuloDaRef} from '../../contas/lib/contas';
+import {saudeDoMes} from '../lib/monthHealth';
+import {POST_IT_MIME, PostItAssuntosObras, PostItIdentity, PostItNote, type PostItMark} from '../components/PostItNote';
+import {assuntosEmUso, conteudoTemAssunto, nomesDasObras, nomesDosAssuntos} from '../lib/assuntosObras';
+import {avisosDeOrientacao, type AvisoOrientacao} from '../lib/orientacaoEditorial';
+import {periodoDaVista, type VistaPlanejamento} from '../lib/periodoPlanejamento';
 import {publicacoesPorDia, type PublicacaoNoDia} from '../lib/publicacoesDoMes';
 import {
   canPullContent,
@@ -86,8 +91,8 @@ function postItAppearance(
   pilares: readonly Pilar[],
   temas: readonly Tema[],
   postIt?: PlanejamentoPostIt | null,
-): {seriesColor: string | null; marks: PostItMark[]; temas: string[]} {
-  if (!content && !postIt) return {seriesColor: null, marks: [], temas: []};
+): {seriesColor: string | null; marks: PostItMark[]; assuntos: string[]} {
+  if (!content && !postIt) return {seriesColor: null, marks: [], assuntos: []};
   const serieId = content ? content.seriesId : postIt?.serieId ?? null;
   const serie = serieId ? series.find(item => item.id === serieId) ?? null : null;
   const pilarId = content ? content.pilarId || serie?.pilarPrincipalId || null : postIt?.pilarId ?? null;
@@ -119,7 +124,7 @@ function postItAppearance(
   return {
     seriesColor: content ? serie?.cor?.trim() || null : null,
     marks,
-    temas: content ? etiquetasVisiveis(content, temas) : [],
+    assuntos: content ? nomesDosAssuntos(content, temas) : [],
   };
 }
 
@@ -145,6 +150,7 @@ export function PlanejamentoPage() {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const [month, setMonth] = useState(new Date());
+  const [vista, setVista] = useState<VistaPlanejamento>('semana');
   const [dragOverDay, setDragOverDay] = useState<string | null>(null);
   const [pileOver, setPileOver] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
@@ -154,12 +160,12 @@ export function PlanejamentoPage() {
   const [noteDraft, setNoteDraft] = useState('');
   const [dateDraft, setDateDraft] = useState<string | null>(null);
   const [classeDraft, setClasseDraft] = useState<PostItEdit>({texto: '', date: null});
-  const [avisos, setAvisos] = useState<ExcessoMes[] | null>(null);
   const [encaixeId, setEncaixeId] = useState<string | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
-  const [temaFiltroId, setTemaFiltroId] = useState<string | null>(null);
+  const [assuntoFiltroId, setAssuntoFiltroId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
-  const avisoPendente = useRef<(() => void) | null>(null);
+  const [destaqueIds, setDestaqueIds] = useState<Set<string>>(() => new Set());
+  const [avisoAtivoId, setAvisoAtivoId] = useState<string | null>(null);
   /** Dia do post-it rápido. `undefined` = fechado; `null` = fora do calendário. */
   const [rapidoDate, setRapidoDate] = useState<string | null | undefined>(undefined);
   /** "Mais opções" abre o post-it recém-criado já no editor completo. */
@@ -241,15 +247,18 @@ export function PlanejamentoPage() {
     [contents, state.platforms, state.series, state.editorial],
   );
 
-  const temasDoPlanejamento = useMemo(
-    () => temasEmUso(postIts, contents, state.temas),
+  const assuntosDoPlanejamento = useMemo(
+    () => assuntosEmUso(postIts, contents, state.temas),
     [postIts, contents, state.temas],
   );
-  const temaFiltro = temasDoPlanejamento.find(tema => tema.id === temaFiltroId) ?? null;
+  const assuntoFiltro = assuntosDoPlanejamento.find(tema => tema.id === assuntoFiltroId) ?? null;
 
   const renderPostIt = (postIt: PlanejamentoPostIt, compact: boolean, className?: string) => {
     const content = contentById(contents, postIt.contentId);
     const appearance = postItAppearance(content, state.series, state.pilares, state.temas, postIt);
+    const highlighted = destaqueIds.size > 0 && destaqueIds.has(postIt.id);
+    const dimmedByFiltro = assuntoFiltro ? !conteudoTemAssunto(content, assuntoFiltro.id) : false;
+    const dimmedByDestaque = destaqueIds.size > 0 && !highlighted;
     return (
       <PostItNote
         key={postIt.id}
@@ -257,9 +266,11 @@ export function PlanejamentoPage() {
         content={content}
         seriesColor={appearance.seriesColor}
         marks={appearance.marks}
-        temas={appearance.temas}
+        assuntos={appearance.assuntos}
+        obras={nomesDasObras(content, state.bibliotecaItems)}
         redes={redesDoCartao({content, postIt, contas: state.platforms})}
-        dimmed={temaFiltro ? !conteudoTemTema(content, temaFiltro.id) : false}
+        dimmed={dimmedByFiltro || dimmedByDestaque}
+        highlighted={highlighted}
         compact={compact}
         draggable={!isMobile}
         className={className}
@@ -369,7 +380,7 @@ export function PlanejamentoPage() {
         onClick: () => abrirMover(postIt),
       },
       ...(postIt.date
-        ? [{id: 'tirar', label: 'Tirar do mês', onClick: () => moveMany([postIt.id], null)} satisfies MoreMenuItem]
+        ? [{id: 'tirar', label: 'Tirar do período', onClick: () => moveMany([postIt.id], null)} satisfies MoreMenuItem]
         : []),
       {id: 'apagar', label: 'Apagar', tone: 'danger', onClick: () => removePostItById(postIt.id)},
     ];
@@ -383,6 +394,8 @@ export function PlanejamentoPage() {
     );
   };
 
+  const periodo = useMemo(() => periodoDaVista(month, vista), [month, vista]);
+
   const monthHealth = useMemo(() => {
     const settings = state.editorial;
     return {
@@ -392,14 +405,34 @@ export function PlanejamentoPage() {
         series: state.series,
         pilares: state.pilares,
         settings,
-        periodo: periodoDoMes(month),
+        periodo,
         platforms: state.platforms,
       }),
       temDistribuicao: readProporcao(settings.proporcaoFuncoes) != null,
     };
-  }, [postIts, contents, state.series, state.pilares, state.platforms, state.editorial, month]);
+  }, [postIts, contents, state.series, state.pilares, state.platforms, state.editorial, periodo]);
 
-  const nextMonth = useMemo(() => addMonths(month, 1), [month]);
+  const avisosOrientacao = useMemo(
+    () => avisosDeOrientacao({
+      postIts,
+      contents,
+      series: state.series,
+      temas: state.temas,
+      obras: state.bibliotecaItems,
+      periodo,
+    }),
+    [postIts, contents, state.series, state.temas, state.bibliotecaItems, periodo],
+  );
+
+  const verPautasDoAviso = (aviso: AvisoOrientacao) => {
+    setAvisoAtivoId(aviso.id);
+    setDestaqueIds(new Set(aviso.postItIds));
+  };
+
+  const limparDestaque = () => {
+    setAvisoAtivoId(null);
+    setDestaqueIds(new Set());
+  };
 
   const applyList = (next: PlanejamentoPostIt[]) => {
     const {added, updated} = changedPostIts(postIts, next);
@@ -437,28 +470,9 @@ export function PlanejamentoPage() {
     setOpenId(postIt.id);
   };
 
-  const fecharAviso = () => {
-    avisoPendente.current = null;
-    setAvisos(null);
-  };
-
-  const confirmarSeCouber = (content: Content | null, date: string | null, commit: () => void) => {
-    const lista = excessosAoAcrescentar({
-      content,
-      date,
-      postIts,
-      contents,
-      series: state.series,
-      pilares: state.pilares,
-      settings: state.editorial,
-      platforms: state.platforms,
-    });
-    if (lista.length === 0) {
-      commit();
-      return;
-    }
-    avisoPendente.current = commit;
-    setAvisos(lista);
+  /** Move ou puxa sem modal bloqueante; a faixa de orientação atualiza sozinha. */
+  const confirmarSeCouber = (_content: Content | null, _date: string | null, commit: () => void) => {
+    commit();
   };
 
   const moveMany = (ids: readonly string[], date: string | null) => {
@@ -470,40 +484,10 @@ export function PlanejamentoPage() {
       targets.push(postIt);
     }
     if (targets.length === 0) return;
-
-    let cursor = postIts;
-    const avisosPorNome = new Map<string, ExcessoMes>();
-    const settings = state.editorial;
-    for (const postIt of targets) {
-      const lista = excessosAoAcrescentar({
-        content: contentById(contents, postIt.contentId),
-        date,
-        postIts: cursor,
-        contents,
-        series: state.series,
-        pilares: state.pilares,
-        settings,
-        platforms: state.platforms,
-      });
-      for (const aviso of lista) {
-        if (!avisosPorNome.has(aviso.nome)) avisosPorNome.set(aviso.nome, aviso);
-      }
-      cursor = cursor.map(item => item.id === postIt.id ? {...item, date} : item);
-    }
-
-    const commit = () => {
-      dispatch({
-        type: 'UPDATE_POST_ITS',
-        payload: targets.map(postIt => movePostIt(postIt, date)),
-      });
-    };
-    const lista = [...avisosPorNome.values()];
-    if (lista.length === 0) {
-      commit();
-      return;
-    }
-    avisoPendente.current = commit;
-    setAvisos(lista);
+    dispatch({
+      type: 'UPDATE_POST_ITS',
+      payload: targets.map(postIt => movePostIt(postIt, date)),
+    });
   };
 
   const readDragIds = (event: DragEvent) => {
@@ -607,13 +591,13 @@ export function PlanejamentoPage() {
         return;
       }
       if (event.key !== 'Delete' && event.key !== 'Backspace') return;
-      if (openId || pullOpen || avisos) return;
+      if (openId || pullOpen) return;
       event.preventDefault();
       removeSelected();
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [isMobile, selectedIds, openId, pullOpen, avisos, postIts]);
+  }, [isMobile, selectedIds, openId, pullOpen, postIts]);
 
   const commitTransform = (target: 'ideia' | 'roteiro') => {
     if (!openPostIt || editing) return;
@@ -671,7 +655,7 @@ export function PlanejamentoPage() {
         <DesktopPageHeader
           section="Produção"
           title="Planejamento"
-          meta="Rascunhe o mês com post-its. Transforme em ideia ou roteiro para levar ao Calendário."
+          meta="Distribua suas pautas e encontre espaço para novas ideias."
           actions={(
             <>
               {!isMobile && selectedIds.size > 0 ? (
@@ -718,9 +702,14 @@ export function PlanejamentoPage() {
         <PlanejamentoMobileView
             month={month}
             onMonthChange={setMonth}
+            vista={vista}
+            onVistaChange={setVista}
             byDate={byDate}
             publicacoesDoDia={publicacoesDoDia}
             undated={undated}
+            contents={contents}
+            series={state.series}
+            temas={assuntosDoPlanejamento}
             renderPostIt={renderMobilePostIt}
             renderPublicacao={renderPublicacaoMobile}
             onNovoPostIt={addEmpty}
@@ -728,74 +717,94 @@ export function PlanejamentoPage() {
               setPullDate(date);
               setPullOpen(true);
             }}
-            monthHealth={
-              <MonthHealth
+            onEditorial={() => navigate('/editorial')}
+            resumo={
+              <PlanejamentoResumo
                 counts={monthHealth.counts}
                 entries={monthHealth.counts.entries}
                 series={state.series}
                 pilares={state.pilares}
+                temas={state.temas}
+                obras={state.bibliotecaItems}
+                contents={contents}
                 temDistribuicao={monthHealth.temDistribuicao}
                 outrasRedes={monthHealth.counts.outrasRedes}
-                collapsible
+                vista={vista}
+                avisos={avisosOrientacao}
+                avisoAtivoId={avisoAtivoId}
+                onVerPautas={verPautasDoAviso}
+                onLimparDestaque={limparDestaque}
               />
             }
-            temas={temasDoPlanejamento}
-            temaFiltroId={temaFiltroId}
-            onTemaFiltroChange={setTemaFiltroId}
+            assuntoFiltroId={assuntoFiltroId}
+            onAssuntoFiltroChange={setAssuntoFiltroId}
           />
       ) : (
         <div className="stack-md p-3 md:p-4">
-        {isMobile ? (
-          <div className="flex flex-wrap gap-2">
-            <AppButton variant="secondary" size="sm" leftIcon={<StickyNote className="h-4 w-4" />} onClick={() => addEmpty(null)}>
-              Novo post-it
-            </AppButton>
-            <AppButton
-              variant="primary"
-              size="sm"
-              leftIcon={<Plus className="h-4 w-4" />}
-              onClick={() => {
-                setPullDate(null);
-                setPullOpen(true);
-              }}
-            >
-              Puxar conteúdo
-            </AppButton>
-          </div>
-        ) : null}
-
-        <MonthHealth
+        <PlanejamentoResumo
           counts={monthHealth.counts}
           entries={monthHealth.counts.entries}
           series={state.series}
           pilares={state.pilares}
+          temas={state.temas}
+          obras={state.bibliotecaItems}
+          contents={contents}
           temDistribuicao={monthHealth.temDistribuicao}
           outrasRedes={monthHealth.counts.outrasRedes}
+          vista={vista}
+          avisos={avisosOrientacao}
+          avisoAtivoId={avisoAtivoId}
+          onVerPautas={verPautasDoAviso}
+          onLimparDestaque={limparDestaque}
         />
 
-        {temasDoPlanejamento.length > 0 ? (
-          <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Destacar por tema">
-            <Text variant="label" as="span" className="flex items-center gap-1">
-              <Tag className="h-3.5 w-3.5" aria-hidden />
-              Temas
-            </Text>
+        <div className="flex flex-wrap items-center gap-2">
+          <CalendarPeriodNav
+            anchorDate={month}
+            onAnchorDateChange={setMonth}
+            viewMode={vista}
+            onViewModeChange={mode => setVista(mode)}
+            weekViewId="semana"
+            views={[
+              {id: 'semana' as const, label: 'Semana'},
+              {id: 'mes' as const, label: 'Mês'},
+            ]}
+          />
+          <AppButton
+            variant="secondary"
+            size="sm"
+            leftIcon={<LayoutGrid className="h-4 w-4" />}
+            onClick={() => navigate('/editorial')}
+          >
+            Editorial
+          </AppButton>
+          {rotuloDaRef(state.editorial.preferencias?.redeReferenciaId ?? state.editorial.redeReferenciaId, state.platforms) ? (
+            <Badge variant="neutral">
+              {rotuloDaRef(state.editorial.preferencias?.redeReferenciaId ?? state.editorial.redeReferenciaId, state.platforms)}
+            </Badge>
+          ) : null}
+        </div>
+
+        {assuntosDoPlanejamento.length > 0 ? (
+          <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Destacar por assunto">
+            <Text variant="label" as="span">Assuntos</Text>
             <AppButton
-              variant={temaFiltro ? 'ghost' : 'secondary'}
+              variant={assuntoFiltro ? 'ghost' : 'secondary'}
               size="xs"
-              aria-pressed={!temaFiltro}
-              onClick={() => setTemaFiltroId(null)}
+              aria-pressed={!assuntoFiltro}
+              onClick={() => setAssuntoFiltroId(null)}
             >
               Todos
             </AppButton>
-            {temasDoPlanejamento.map(tema => {
-              const ativo = temaFiltro?.id === tema.id;
+            {assuntosDoPlanejamento.map(tema => {
+              const ativo = assuntoFiltro?.id === tema.id;
               return (
                 <AppButton
                   key={tema.id}
                   variant={ativo ? 'primary' : 'secondary'}
                   size="xs"
                   aria-pressed={ativo}
-                  onClick={() => setTemaFiltroId(ativo ? null : tema.id)}
+                  onClick={() => setAssuntoFiltroId(ativo ? null : tema.id)}
                 >
                   {tema.nome}
                 </AppButton>
@@ -804,205 +813,101 @@ export function PlanejamentoPage() {
           </div>
         ) : null}
 
-        <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_17rem] xl:items-start">
-          <div className="stack-lg">
-            <Text variant="sectionTitle" className="mb-2">
-              {format(month, "MMMM 'de' yyyy", {locale: ptBR})}
-            </Text>
-            <CalendarMonthGrid
-              anchorDate={month}
-              weekStartsOn={0}
-              minCellHeight={168}
-              expandContent
-              tone="elevated"
-              getDayClassName={day => cn(
-                'group/day',
-                dragOverDay === day.dateKey && 'bg-[color-mix(in_srgb,var(--accent-orange)_12%,transparent)]',
-              )}
-              onDayDragOver={(day, event) => {
-                event.preventDefault();
-                setDragOverDay(day.dateKey);
-                setPileOver(false);
-              }}
-              onDayDragLeave={() => setDragOverDay(null)}
-              onDayDrop={(day, event) => {
-                event.preventDefault();
-                setDragOverDay(null);
-                const ids = readDragIds(event);
-                if (ids.length > 0) moveMany(ids, day.dateKey);
-              }}
-              renderDayContent={day => {
-                const dayPostIts = byDate.get(day.dateKey) ?? [];
-                const dayLabel = format(day.day, "d 'de' MMMM", {locale: ptBR});
-                return (
-                  <div className="stack-sm">
-                    {(publicacoesDoDia.get(day.dateKey) ?? []).map(renderPublicacao)}
-                    {dayPostIts.map(postIt => renderPostIt(postIt, true))}
-                    <div className="flex gap-0.5 transition-opacity md:opacity-0 md:focus-within:opacity-100 md:group-hover/day:opacity-100 md:group-focus-within/day:opacity-100 pointer-coarse:opacity-100">
+        <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_18rem] xl:items-start">
+          <div className="stack-md min-w-0">
+            {vista === 'semana' ? (
+              <PlanejamentoWeekGrid
+                anchorDate={month}
+                byDate={byDate}
+                publicacoesDoDia={publicacoesDoDia}
+                dragOverDay={dragOverDay}
+                onDayDragOver={(key) => {
+                  setDragOverDay(key);
+                  setPileOver(false);
+                }}
+                onDayDragLeave={() => setDragOverDay(null)}
+                onDayDrop={(key, event) => {
+                  setDragOverDay(null);
+                  const ids = readDragIds(event);
+                  if (ids.length > 0) moveMany(ids, key);
+                }}
+                renderPostIt={(postIt, compact) => renderPostIt(postIt, compact)}
+                renderPublicacao={renderPublicacao}
+                onAddPauta={addEmpty}
+              />
+            ) : (
+              <CalendarMonthGrid
+                anchorDate={month}
+                weekStartsOn={0}
+                minCellHeight={96}
+                expandContent
+                tone="elevated"
+                getDayClassName={day => cn(
+                  'group/day',
+                  dragOverDay === day.dateKey && 'bg-[color-mix(in_srgb,var(--accent-orange)_12%,transparent)]',
+                )}
+                onDayDragOver={(day, event) => {
+                  event.preventDefault();
+                  setDragOverDay(day.dateKey);
+                  setPileOver(false);
+                }}
+                onDayDragLeave={() => setDragOverDay(null)}
+                onDayDrop={(day, event) => {
+                  event.preventDefault();
+                  setDragOverDay(null);
+                  const ids = readDragIds(event);
+                  if (ids.length > 0) moveMany(ids, day.dateKey);
+                }}
+                renderDayContent={day => {
+                  const dayPostIts = byDate.get(day.dateKey) ?? [];
+                  return (
+                    <div className="stack-sm">
+                      {(publicacoesDoDia.get(day.dateKey) ?? []).map(renderPublicacao)}
+                      {dayPostIts.map(postIt => renderPostIt(postIt, true))}
                       <AppButton
                         variant="ghost"
                         size="xs"
-                        iconOnly
-                        className="h-7 w-7 text-[var(--text-secondary)]"
-                        aria-label={`Novo post-it em ${dayLabel}`}
+                        className="justify-start text-[var(--text-secondary)] opacity-70 transition-opacity md:opacity-0 md:group-hover/day:opacity-100 md:focus-within:opacity-100 pointer-coarse:opacity-100"
+                        leftIcon={<Plus className="h-3.5 w-3.5" />}
                         onClick={event => {
                           event.stopPropagation();
                           addEmpty(day.dateKey);
                         }}
-                        leftIcon={<StickyNote className="h-3.5 w-3.5" />}
-                      />
-                      <AppButton
-                        variant="ghost"
-                        size="xs"
-                        iconOnly
-                        className="h-7 w-7 text-[var(--text-secondary)]"
-                        aria-label={`Puxar conteúdo para ${dayLabel}`}
-                        onClick={event => {
-                          event.stopPropagation();
-                          setPullDate(day.dateKey);
-                          setPullOpen(true);
-                        }}
-                        leftIcon={<Plus className="h-3.5 w-3.5" />}
-                      />
+                      >
+                        Adicionar pauta
+                      </AppButton>
                     </div>
-                  </div>
-                );
-              }}
-            />
-
-            <Surface variant="plain" padding="sm" className="my-4">
-              <div className="flex items-center justify-center gap-2 md:gap-6">
-                <div className="flex items-center gap-2">
-                  <Text variant="meta" className="text-[var(--text-secondary)]">
-                    ↑
-                  </Text>
-                  <Text variant="meta" className="text-[var(--text-secondary)]">
-                    {format(month, "MMMM 'de' yyyy", {locale: ptBR})}
-                  </Text>
-                </div>
-                <div className="h-px w-8 bg-[var(--border-color)]" />
-                <div className="flex items-center gap-2">
-                  <Text variant="meta" className="text-[var(--text-secondary)]">
-                    {format(nextMonth, "MMMM 'de' yyyy", {locale: ptBR})}
-                  </Text>
-                  <Text variant="meta" className="text-[var(--text-secondary)]">
-                    ↓
-                  </Text>
-                </div>
-              </div>
-            </Surface>
-
-            <Text variant="sectionTitle" className="mb-2">
-              {format(nextMonth, "MMMM 'de' yyyy", {locale: ptBR})}
-            </Text>
-            <CalendarMonthGrid
-              anchorDate={nextMonth}
-              weekStartsOn={0}
-              minCellHeight={168}
-              expandContent
-              tone="elevated"
-              getDayClassName={day => cn(
-                'group/day',
-                dragOverDay === day.dateKey && 'bg-[color-mix(in_srgb,var(--accent-orange)_12%,transparent)]',
-              )}
-              onDayDragOver={(day, event) => {
-                event.preventDefault();
-                setDragOverDay(day.dateKey);
-                setPileOver(false);
-              }}
-              onDayDragLeave={() => setDragOverDay(null)}
-              onDayDrop={(day, event) => {
-                event.preventDefault();
-                setDragOverDay(null);
-                const ids = readDragIds(event);
-                if (ids.length > 0) moveMany(ids, day.dateKey);
-              }}
-              renderDayContent={day => {
-                const dayPostIts = byDate.get(day.dateKey) ?? [];
-                const dayLabel = format(day.day, "d 'de' MMMM", {locale: ptBR});
-                return (
-                  <div className="stack-sm">
-                    {(publicacoesDoDia.get(day.dateKey) ?? []).map(renderPublicacao)}
-                    {dayPostIts.map(postIt => renderPostIt(postIt, true))}
-                    <div className="flex gap-0.5 transition-opacity md:opacity-0 md:focus-within:opacity-100 md:group-hover/day:opacity-100 md:group-focus-within/day:opacity-100 pointer-coarse:opacity-100">
-                      <AppButton
-                        variant="ghost"
-                        size="xs"
-                        iconOnly
-                        className="h-7 w-7 text-[var(--text-secondary)]"
-                        aria-label={`Novo post-it em ${dayLabel}`}
-                        onClick={event => {
-                          event.stopPropagation();
-                          addEmpty(day.dateKey);
-                        }}
-                        leftIcon={<StickyNote className="h-3.5 w-3.5" />}
-                      />
-                      <AppButton
-                        variant="ghost"
-                        size="xs"
-                        iconOnly
-                        className="h-7 w-7 text-[var(--text-secondary)]"
-                        aria-label={`Puxar conteúdo para ${dayLabel}`}
-                        onClick={event => {
-                          event.stopPropagation();
-                          setPullDate(day.dateKey);
-                          setPullOpen(true);
-                        }}
-                        leftIcon={<Plus className="h-3.5 w-3.5" />}
-                      />
-                    </div>
-                  </div>
-                );
-              }}
-            />
+                  );
+                }}
+              />
+            )}
           </div>
 
-          {!isMobile || undated.length > 0 ? (
-            <Surface
-              variant="outlined"
-              padding="sm"
-              className={cn(
-                'stack-sm xl:sticky xl:top-4 xl:max-h-[calc(100vh-2rem)] xl:overflow-y-auto',
-                pileOver && 'bg-[color-mix(in_srgb,var(--accent-orange)_12%,var(--bg-elevated))] ring-2 ring-[var(--accent-orange)]',
-              )}
-              onDragOver={event => {
-                event.preventDefault();
-                setPileOver(true);
-                setDragOverDay(null);
-              }}
-              onDragLeave={event => {
-                const next = event.relatedTarget;
-                if (next instanceof Node && event.currentTarget.contains(next)) return;
-                setPileOver(false);
-              }}
-              onDrop={event => {
-                event.preventDefault();
-                setPileOver(false);
-                const ids = readDragIds(event);
-                if (ids.length > 0) moveMany(ids, null);
-              }}
-            >
-              <div>
-                <Text variant="sectionTitle">Fora do calendário</Text>
-                <Text variant="meta" className="mt-1 block text-[var(--text-secondary)]">
-                  Arraste para cá para retirar do mês.
-                </Text>
-              </div>
-              {undated.length === 0 ? (
-                <div className="rounded-[var(--radius-card)] border border-dashed border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-8 text-center">
-                  <Text variant="meta" className="text-[var(--text-secondary)]">
-                    Solte aqui para deixar o card fora do mês.
-                  </Text>
-                </div>
-              ) : (
-                <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-1">
-                  {undated.map(postIt => (
-                    <li key={postIt.id}>{renderPostIt(postIt, false)}</li>
-                  ))}
-                </ul>
-              )}
-            </Surface>
-          ) : null}
+          <SemDataPanel
+            undated={undated}
+            contents={contents}
+            series={state.series}
+            temas={state.temas}
+            pileOver={pileOver}
+            className="xl:sticky xl:top-4 xl:max-h-[calc(100vh-2rem)] xl:overflow-y-auto"
+            onDragOver={event => {
+              event.preventDefault();
+              setPileOver(true);
+              setDragOverDay(null);
+            }}
+            onDragLeave={event => {
+              const next = event.relatedTarget;
+              if (next instanceof Node && event.currentTarget.contains(next)) return;
+              setPileOver(false);
+            }}
+            onDrop={event => {
+              event.preventDefault();
+              setPileOver(false);
+              const ids = readDragIds(event);
+              if (ids.length > 0) moveMany(ids, null);
+            }}
+            renderPostIt={postIt => renderPostIt(postIt, false)}
+          />
         </div>
       </div>
       )}
@@ -1024,7 +929,7 @@ export function PlanejamentoPage() {
                       status={openKind === 'vazio' ? undefined : normalizeContentStatus(openContent?.status || '')}
                     >
                       {openKind === 'vazio'
-                        ? 'Vazio'
+                        ? 'Pauta'
                         : normalizeContentStatus(openContent?.status || '')}
                     </Badge>
                   </div>
@@ -1045,7 +950,7 @@ export function PlanejamentoPage() {
                         </AppButton>
                       ) : (
                         <Text variant="secondary" className="text-[var(--text-secondary)]">
-                          Sem data · Fora do calendário
+                          Sem data
                         </Text>
                       )}
                     </div>
@@ -1054,7 +959,7 @@ export function PlanejamentoPage() {
                       <CalendarDays className="h-4 w-4 shrink-0 text-[var(--text-tertiary)]" aria-hidden />
                       {openPostIt.date
                         ? format(new Date(`${openPostIt.date}T12:00:00`), "d 'de' MMMM 'de' yyyy", {locale: ptBR})
-                        : 'Sem data · Fora do calendário'}
+                        : 'Sem data'}
                     </p>
                   )}
                   {!editing && isMobile ? (
@@ -1087,7 +992,7 @@ export function PlanejamentoPage() {
                   >
                     {openKind !== 'vazio' ? <PostItIdentity marks={openAppearance.marks} /> : null}
                     <Text variant="itemTitle">{openContent.title?.trim() || 'Sem título'}</Text>
-                    <PostItTemas temas={openAppearance.temas} />
+                    <PostItAssuntosObras assuntos={openAppearance.assuntos} obras={nomesDasObras(openContent, state.bibliotecaItems)} />
                     <Text variant="meta" className="mt-1 block text-[var(--text-secondary)]">
                       {options.ideia || options.roteiro
                         ? `Puxado para este dia. O status continua ${normalizeContentStatus(openContent.status)} até você transformar.`
@@ -1100,6 +1005,12 @@ export function PlanejamentoPage() {
                     temaIds={openContent.temaIds}
                     onChange={temaIds => dispatch({type: 'UPDATE_CONTENT', payload: {...openContent, temaIds}})}
                   />
+                ) : null}
+                {openContent && !editing && getCreationCardTags(openContent).length > 0 ? (
+                  <div className="stack-xs">
+                    <Text variant="meta" className="text-[var(--text-secondary)]">Etiquetas</Text>
+                    <PostItAssuntosObras assuntos={getCreationCardTags(openContent)} />
+                  </div>
                 ) : null}
                 {editing ? (
                   <label className="stack-sm">
@@ -1297,7 +1208,7 @@ export function PlanejamentoPage() {
                 </AppButton>
               ) : (
                 <Text variant="secondary" className="text-[var(--text-secondary)]">
-                  Sem data · Fora do calendário
+                  Sem data
                 </Text>
               )}
             </div>
@@ -1332,45 +1243,6 @@ export function PlanejamentoPage() {
         onClose={() => setPullOpen(false)}
         onPuxar={content => pullOnto(content, pullDate)}
       />
-      <Dialog
-        open={Boolean(avisos?.length)}
-        onClose={fecharAviso}
-        desktopMaxW="max-w-md"
-        zIndex="z-[140]"
-        ariaLabel="Passa do editorial"
-      >
-        <div className="flex h-full min-h-0 flex-col bg-[var(--bg-elevated)]">
-          <OverlayHeader title="Passa do editorial" onClose={fecharAviso} />
-          <OverlayBody>
-            <div className="stack-sm">
-              {(avisos ?? []).map(aviso => (
-                <Text key={aviso.nome} variant="body">
-                  {aviso.nome} já tem {aviso.planejado} de {aviso.meta} neste mês.
-                </Text>
-              ))}
-              <Text variant="secondary">
-                Colocar mais um passa do que foi definido no editorial.
-              </Text>
-            </div>
-          </OverlayBody>
-          <OverlayFooter>
-            <AppButton variant="secondary" fullWidth onClick={fecharAviso}>
-              Não colocar
-            </AppButton>
-            <AppButton
-              variant="primary"
-              fullWidth
-              onClick={() => {
-                const commit = avisoPendente.current;
-                fecharAviso();
-                commit?.();
-              }}
-            >
-              Colocar mesmo assim
-            </AppButton>
-          </OverlayFooter>
-        </div>
-      </Dialog>
     </PageLayout>
   );
 }

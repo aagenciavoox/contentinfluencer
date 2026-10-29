@@ -1,16 +1,43 @@
-import {useEffect, useRef, useState, type ReactNode} from 'react';
-import {NotebookText, Redo, Undo, X} from 'lucide-react';
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
+import {EditorContent, useEditor, type Editor} from '@tiptap/react';
+import StarterKit from '@tiptap/starter-kit';
+import Underline from '@tiptap/extension-underline';
+import {Placeholder} from '@tiptap/extensions';
+import {
+  NotebookText,
+  Redo,
+  Undo,
+  X,
+} from 'lucide-react';
 import {AppButton} from '../../../../components/ui/AppButton';
 import {Text} from '../../../../components/ui/Text';
 import {cn} from '../../../../lib/utils';
+import {DOMParser as ProseMirrorDOMParser} from '@tiptap/pm/model';
+import {writingNotesToHtml} from '../../lib/writingDraftLayout';
+import {clipboardHasRichHtml, htmlFromClipboardPlain} from '../../../../components/editors/pasteMarkdown';
+import '../../../../styles/editor.css';
 
 interface WritingNotesPaneProps {
   value: string;
-  onChange: (text: string) => void;
+  onChange: (html: string) => void;
   onClose: () => void;
   className?: string;
   /** Beside the script, the notes column is the quieter surface. */
   emphasis?: 'primary' | 'secondary';
+  /** Copia o trecho selecionado para o roteiro, sem remover do rascunho. */
+  onInsertIntoScript?: (text: string) => void;
+  onEditorReady?: (editor: Editor | null) => void;
+  onFocusChange?: (focused: boolean) => void;
+  scrollTop?: number;
+  onScrollTopChange?: (top: number) => void;
+  documentId?: string;
 }
 
 export function WritingNotesPane({
@@ -19,55 +46,152 @@ export function WritingNotesPane({
   onClose,
   className,
   emphasis = 'primary',
+  onInsertIntoScript,
+  onEditorReady,
+  onFocusChange,
+  scrollTop,
+  onScrollTopChange,
+  documentId,
 }: WritingNotesPaneProps) {
-  const plain = writingNotesToPlain(value);
-  const historyRef = useRef<string[]>([plain]);
-  const indexRef = useRef(0);
-  const lastSentRef = useRef(plain);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const [, rerender] = useState(0);
+  const html = writingNotesToHtml(value);
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const lastEmittedRef = useRef(html);
+  const [insertUi, setInsertUi] = useState<{text: string; top: number; left: number} | null>(null);
+  const [, bumpHistory] = useState(0);
+
+  const updateInsertUi = useCallback((current: Editor) => {
+    if (!onInsertIntoScript || current.isDestroyed) {
+      setInsertUi(null);
+      return;
+    }
+    const {from, to, empty} = current.state.selection;
+    const text = current.state.doc.textBetween(from, to, '\n').trim();
+    if (empty || !text) {
+      setInsertUi(null);
+      return;
+    }
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+    try {
+      const start = current.view.coordsAtPos(from);
+      const end = current.view.coordsAtPos(to);
+      const rect = viewport.getBoundingClientRect();
+      const top = Math.min(start.top, end.top) - rect.top + viewport.scrollTop - 40;
+      const left = (Math.min(start.left, end.left) + Math.max(start.right, end.right)) / 2 - rect.left;
+      setInsertUi({text, top: Math.max(8, top), left: Math.max(12, Math.min(left, rect.width - 140))});
+    } catch {
+      setInsertUi(null);
+    }
+  }, [onInsertIntoScript]);
+  const updateInsertUiRef = useRef(updateInsertUi);
+  updateInsertUiRef.current = updateInsertUi;
+  const onFocusChangeRef = useRef(onFocusChange);
+  onFocusChangeRef.current = onFocusChange;
+
+  const editor = useEditor({
+    extensions: [
+      StarterKit.configure({
+        underline: false,
+        link: {openOnClick: false},
+        heading: {levels: [1, 2, 3]},
+      }),
+      Underline,
+      Placeholder.configure({
+        placeholder: 'Rascunho de apoio: ideias soltas, primeiras versões e referências…',
+      }),
+    ],
+    content: html || '',
+    immediatelyRender: false,
+    shouldRerenderOnTransaction: false,
+    editorProps: {
+      attributes: {
+        class: 'tiptap min-h-[inherit] max-w-none text-base text-[var(--text-primary)] focus:outline-none',
+        role: 'textbox',
+        'aria-multiline': 'true',
+        'aria-label': 'Rascunho de apoio',
+      },
+      handlePaste: (view, event) => {
+        const clipboard = event.clipboardData;
+        if (!clipboard) return false;
+        if (clipboardHasRichHtml(clipboard.getData('text/html'))) return false;
+        const html = htmlFromClipboardPlain(clipboard.getData('text/plain'));
+        if (!html) return false;
+        event.preventDefault();
+        const holder = document.createElement('div');
+        holder.innerHTML = html;
+        const slice = ProseMirrorDOMParser.fromSchema(view.state.schema).parseSlice(holder, {
+          preserveWhitespace: true,
+        });
+        view.dispatch(view.state.tr.replaceSelection(slice).scrollIntoView());
+        return true;
+      },
+    },
+    onUpdate: ({editor: current}) => {
+      const next = current.getHTML();
+      lastEmittedRef.current = next;
+      onChangeRef.current(next === '<p></p>' ? '' : next);
+      bumpHistory(n => n + 1);
+    },
+    onFocus: () => onFocusChangeRef.current?.(true),
+    onBlur: ({editor: current}) => {
+      onFocusChangeRef.current?.(false);
+      window.setTimeout(() => {
+        if (current.isDestroyed) return;
+        const {empty, from, to} = current.state.selection;
+        if (empty || from === to) setInsertUi(null);
+      }, 120);
+    },
+    onSelectionUpdate: ({editor: current}) => {
+      updateInsertUiRef.current(current);
+      bumpHistory(n => n + 1);
+    },
+  }, [documentId]);
 
   useEffect(() => {
-    if (plain === lastSentRef.current) return;
-    historyRef.current = [plain];
-    indexRef.current = 0;
-    lastSentRef.current = plain;
-    rerender(count => count + 1);
-  }, [plain]);
+    onEditorReady?.(editor ?? null);
+    return () => onEditorReady?.(null);
+  }, [editor, onEditorReady]);
 
-  const canUndo = indexRef.current > 0;
-  const canRedo = indexRef.current < historyRef.current.length - 1;
+  useEffect(() => {
+    if (!editor || editor.isDestroyed) return;
+    if (html === lastEmittedRef.current) return;
+    if (editor.isFocused) return;
+    const current = editor.getHTML();
+    if (normalizeNotesHtml(current) === normalizeNotesHtml(html)) {
+      lastEmittedRef.current = html;
+      return;
+    }
+    editor.commands.setContent(html || '', {emitUpdate: false});
+    lastEmittedRef.current = html;
+  }, [editor, html]);
 
-  const apply = (nextIndex: number) => {
-    const next = historyRef.current[nextIndex] ?? '';
-    indexRef.current = nextIndex;
-    lastSentRef.current = next;
-    onChange(next);
-    rerender(count => count + 1);
-    textareaRef.current?.focus();
-  };
+  useLayoutEffect(() => {
+    if (scrollTop == null || !viewportRef.current) return;
+    viewportRef.current.scrollTop = scrollTop;
+  }, [scrollTop]);
 
-  const push = (next: string) => {
-    if (historyRef.current[indexRef.current] === next) return;
-    const trimmed = historyRef.current.slice(0, indexRef.current + 1);
-    trimmed.push(next);
-    historyRef.current = trimmed.slice(-200);
-    indexRef.current = historyRef.current.length - 1;
-    lastSentRef.current = next;
-    onChange(next);
-    rerender(count => count + 1);
-  };
+  const canUndo = !!editor?.can().undo();
+  const canRedo = !!editor?.can().redo();
+
+  const embedded = emphasis === 'secondary';
 
   return (
     <section className={cn(
-      'cms-panel flex min-h-[28rem] max-h-[calc(100dvh-14rem)] flex-col overflow-hidden',
-      emphasis === 'secondary' && 'cms-panel-secondary',
+      'flex min-h-[28rem] max-h-[calc(100dvh-14rem)] flex-col overflow-hidden',
+      !embedded && 'cms-panel',
+      embedded ? 'bg-[var(--bg-primary)]' : null,
       className,
     )}>
-      <div className="flex shrink-0 items-center justify-between gap-3 border-b border-[var(--border-color)] px-4 py-3 md:px-6">
-        <span className="flex items-center gap-2.5">
-          <NotebookText className="h-5 w-5 text-[var(--text-secondary)]" aria-hidden />
-          <Text variant="sectionTitle">Notas</Text>
+      <div className="flex shrink-0 items-center justify-between gap-3 border-b border-[var(--border-color)] px-4 py-2.5 md:px-6">
+        <span className="flex min-w-0 items-center gap-2">
+          {!embedded ? (
+            <NotebookText className="h-4 w-4 shrink-0 text-[var(--brand-accent-text)]" aria-hidden />
+          ) : null}
+          <Text variant="sectionTitle" className="truncate text-[length:var(--font-size-body)]">
+            Rascunho de apoio
+          </Text>
         </span>
         <AppButton
           type="button"
@@ -75,49 +199,54 @@ export function WritingNotesPane({
           size="xs"
           iconOnly
           onClick={onClose}
-          aria-label="Fechar área de notas"
+          aria-label="Fechar rascunho de apoio"
+          title="Fechar rascunho"
         >
           <X className="h-4 w-4" />
         </AppButton>
       </div>
-      <div className="flex shrink-0 items-center gap-0.5 border-b border-[var(--border-color)] px-2 py-1">
-        <HistoryButton label="Desfazer" disabled={!canUndo} onClick={() => apply(indexRef.current - 1)}>
-          <Undo className="h-4 w-4" />
-        </HistoryButton>
-        <HistoryButton label="Refazer" disabled={!canRedo} onClick={() => apply(indexRef.current + 1)}>
-          <Redo className="h-4 w-4" />
-        </HistoryButton>
-      </div>
-      <textarea
-        ref={textareaRef}
-        value={plain}
-        onChange={event => push(event.target.value)}
-        onKeyDown={event => {
-          const shortcut = event.metaKey || event.ctrlKey;
-          if (!shortcut) return;
-          const key = event.key.toLowerCase();
-          if (key === 'z' && event.shiftKey) {
-            event.preventDefault();
-            if (canRedo) apply(indexRef.current + 1);
-            return;
-          }
-          if (key === 'z') {
-            event.preventDefault();
-            if (canUndo) apply(indexRef.current - 1);
-            return;
-          }
-          if (key === 'y') {
-            event.preventDefault();
-            if (canRedo) apply(indexRef.current + 1);
-          }
-        }}
-        placeholder="Anotações ao lado do roteiro…"
-        aria-label="Notas"
+      {!embedded ? (
+        <div className="flex shrink-0 items-center gap-0.5 border-b border-[var(--border-color)] px-2 py-1">
+          <HistoryButton
+            label="Desfazer"
+            disabled={!canUndo}
+            onClick={() => editor?.chain().focus().undo().run()}
+          >
+            <Undo className="h-4 w-4" />
+          </HistoryButton>
+          <HistoryButton
+            label="Refazer"
+            disabled={!canRedo}
+            onClick={() => editor?.chain().focus().redo().run()}
+          >
+            <Redo className="h-4 w-4" />
+          </HistoryButton>
+        </div>
+      ) : null}
+      <div
+        ref={viewportRef}
         className={cn(
-          'min-h-0 flex-1 resize-none border-0 px-6 py-6 text-base leading-relaxed text-[var(--text-primary)] outline-none placeholder:text-[var(--text-tertiary)]',
-          emphasis === 'secondary' ? 'bg-[var(--bg-primary)]' : 'bg-[var(--bg-elevated)]',
+          'relative min-h-0 flex-1 overflow-y-auto custom-scrollbar px-4 py-4 md:px-6',
+          embedded ? 'bg-[var(--bg-primary)]' : 'bg-[var(--bg-elevated)]',
         )}
-      />
+        onScroll={event => onScrollTopChange?.(event.currentTarget.scrollTop)}
+      >
+        {insertUi && onInsertIntoScript ? (
+          <button
+            type="button"
+            className="absolute z-20 -translate-x-1/2 rounded-full border border-[var(--border-color)] bg-[var(--bg-elevated)] px-2.5 py-1 text-xs font-medium text-[var(--brand-accent-text)] shadow-[var(--shadow-card)] transition hover:bg-[var(--bg-hover)]"
+            style={{top: insertUi.top, left: insertUi.left}}
+            onMouseDown={event => event.preventDefault()}
+            onClick={() => {
+              onInsertIntoScript(insertUi.text);
+              setInsertUi(null);
+            }}
+          >
+            Inserir no roteiro
+          </button>
+        ) : null}
+        <EditorContent editor={editor} className="min-h-full max-w-none cursor-text" />
+      </div>
     </section>
   );
 }
@@ -137,6 +266,7 @@ function HistoryButton({
     <button
       type="button"
       aria-label={label}
+      title={label}
       disabled={disabled}
       onClick={onClick}
       className="flex h-9 w-9 items-center justify-center rounded-[var(--radius-input)] text-[var(--text-tertiary)] transition hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] disabled:pointer-events-none disabled:opacity-40"
@@ -144,6 +274,11 @@ function HistoryButton({
       {children}
     </button>
   );
+}
+
+function normalizeNotesHtml(value: string) {
+  const trimmed = value.trim();
+  return trimmed === '<p></p>' ? '' : trimmed;
 }
 
 export function writingNotesToPlain(value: string) {

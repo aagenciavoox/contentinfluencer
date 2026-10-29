@@ -39,6 +39,7 @@ import {
   type DestinoPlataforma,
 } from '../../../editorial/lib/destinations';
 import {limiteHashtagsDaRede} from '../../../editorial/lib/editorialSettings';
+import {hashtagsPadraoForaSerie} from '../../../editorial/lib/hashtagsForaSerie';
 import {limiteDeCaracteres, platformShowsField} from '../../../editorial/lib/platformFields';
 import {suggestHashtags} from '../../lib/captionHashtags';
 
@@ -222,9 +223,17 @@ export function PlatformCopyEditor({
     const marcada = destinoMarcado(plataformas, conta);
     if (marcada && contaJaPublicada(conta)) return;
     const proximas = alternarDestino({publicacoes: plataformas, plataforma: conta, contentId, marcar: !marcada});
+    const padraoHashtags = hashtagsPadraoForaSerie({
+      seriesId: serie?.id ?? null,
+      hashtagsAtuais: '',
+      hashtagsForaSeries: editorial.preferencias.hashtagsForaSeries,
+    });
     // Conta marcada aqui começa com legenda própria e vazia, sem herdar a legenda-base escondida.
+    // Sem série: hashtags padrão dos Ajustes só se o campo ainda estiver vazio.
     onChange(proximas.map(item => (
-      plataformas.some(atual => atual.id === item.id) ? item : {...item, legendaPropria: true, legenda: ''}
+      plataformas.some(atual => atual.id === item.id)
+        ? item
+        : {...item, legendaPropria: true, legenda: '', hashtags: padraoHashtags}
     )));
   };
 

@@ -1,4 +1,5 @@
 import {useState, type ReactNode} from 'react';
+import type {Editor} from '@tiptap/react';
 import {ChevronDown} from 'lucide-react';
 import {RichTextEditor} from '../../../../components/editors/RichTextEditor';
 import type {CommentPatch} from '../../../../components/editors/commentModel';
@@ -32,12 +33,17 @@ interface ContentScriptWorkspaceProps {
   bodyError?: string | null;
   onRetryBody?: () => void;
   headerAction?: React.ReactNode;
-  /** Na barra do editor, antes de "Mais" (ex.: botão "Notas"). */
+  /** Na barra do editor, antes de "Mais" (ex.: botão "Rascunho"). */
   toolbarEnd?: ReactNode;
   className?: string;
   fullscreenAside?: ReactNode;
   onFullscreenChange?: (open: boolean) => void;
   notesPanelOpen?: boolean;
+  onNotesPanelChange?: (open: boolean) => void;
+  draftEditor?: Editor | null;
+  focusedPane?: 'script' | 'draft';
+  onFocusedPaneChange?: (pane: 'script' | 'draft') => void;
+  onRegisterInsertHandler?: (handler: ((text: string) => void) | null) => void;
   onAddAnnotation?: (text: string, selection: {from: number; to: number}, comment: string, id?: string) => void;
   onRemoveAnnotation?: (id: string) => void;
   onUpdateAnnotation?: (id: string, comment: string, color?: string) => void;
@@ -64,6 +70,11 @@ export function ContentScriptWorkspace({
   fullscreenAside,
   onFullscreenChange,
   notesPanelOpen = false,
+  onNotesPanelChange,
+  draftEditor = null,
+  focusedPane = 'script',
+  onFocusedPaneChange,
+  onRegisterInsertHandler,
   onAddAnnotation,
   onRemoveAnnotation,
   onUpdateAnnotation,
@@ -160,6 +171,11 @@ export function ContentScriptWorkspace({
             fullscreenAside={fullscreenAside}
             onFullscreenChange={onFullscreenChange}
             notesPanelOpen={notesPanelOpen}
+            onNotesPanelChange={onNotesPanelChange}
+            draftEditor={draftEditor}
+            focusedPane={focusedPane}
+            onFocusedPaneChange={onFocusedPaneChange}
+            onRegisterInsertHandler={onRegisterInsertHandler}
             className={writingToolbar
               ? 'min-h-[calc(100dvh-18rem)] border-0 bg-[var(--bg-elevated)] shadow-none'
               : 'h-full min-h-0 border-0 bg-[var(--bg-elevated)] shadow-none'}

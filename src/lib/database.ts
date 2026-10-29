@@ -444,6 +444,8 @@ export interface Content {
   pilarOrigem?: PilarOrigem | null;
   /** Modelo da série ou texto da pessoa. Não é análise do conteúdo. */
   scriptOrigem?: ScriptOrigem | null;
+  /** true/false manda; null herda de scriptOrigem/texto. */
+  pautaDefinida?: boolean | null;
   /** Rede de referência no momento da primeira publicação. */
   redeReferenciaCongeladaId?: string | null;
   /** Legenda compartilhada. Cada rede usa esta até adaptar a própria. */
@@ -630,6 +632,8 @@ export interface PlanejamentoPostIt {
   objetivo?: FuncaoEditorial | null;
   /** Redes onde vai sair. Só a plataforma, sem conta. */
   redes?: RedeSocial[];
+  /** true/false manda; null herda do texto. */
+  pautaDefinida?: boolean | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -894,7 +898,7 @@ const CONTENT_CONTAGEM_ORIGEM_COLUMNS = [
   'pilar_origem',
 ] as const;
 
-const POSTIT_OPTIONAL_COLUMNS = ['serie_id', 'pilar_id', 'objetivo', 'redes'] as const;
+const POSTIT_OPTIONAL_COLUMNS = ['serie_id', 'pilar_id', 'objetivo', 'redes', 'pauta_definida'] as const;
 
 function isMissingLegendaBaseColumn(error: {message?: string} | null | undefined) {
   return !!error?.message && isMissingNamedColumn(error.message, 'legenda_base');
@@ -1384,6 +1388,7 @@ const mp = {
     pilarId: typeof r.pilar_id === 'string' && r.pilar_id ? r.pilar_id : null,
     objetivo: readFuncaoEditorial(r.objetivo),
     redes: normalizarRedesPostIt(r.redes),
+    pautaDefinida: typeof r.pauta_definida === 'boolean' ? r.pauta_definida : null,
     createdAt: r.created_at,
     updatedAt: r.updated_at ?? r.created_at,
   }),
@@ -3670,6 +3675,7 @@ export async function savePlanejamentoPostIt(item: PlanejamentoPostIt): Promise<
     pilar_id: item.pilarId ?? null,
     objetivo: item.objetivo ?? null,
     redes: normalizarRedesPostIt(item.redes ?? []),
+    pauta_definida: item.pautaDefinida ?? null,
     updated_at: item.updatedAt || new Date().toISOString(),
   };
 

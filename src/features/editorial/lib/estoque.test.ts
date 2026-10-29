@@ -1,5 +1,11 @@
 import assert from 'node:assert/strict';
-import { contarEstoque, textoEstoque, type EstoqueContent } from './estoque.ts';
+import {
+  contarEstoque,
+  reservaPronta,
+  rotuloCapacidadeSeries,
+  textoEstoque,
+  type EstoqueContent,
+} from './estoque.ts';
 
 function item(partial: Partial<EstoqueContent> & Pick<EstoqueContent, 'id'>): EstoqueContent {
   return {
@@ -25,7 +31,7 @@ function testContaProntoSemDataDeReferencia() {
     item({ id: 'fora', contaNaGrade: false }),
     item({ id: 'em-edicao', edicaoConcluidaEm: null }),
     item({ id: 'roteiro', status: 'Roteiro' }),
-    item({ id: 'postado', status: 'Postado' }),
+    item({ id: 'postado', status: 'Postado', postedAt: '2026-10-01T12:00:00.000Z' }),
     item({ id: 'apagado', deletedAt: '2026-10-02T00:00:00.000Z' }),
     item({ id: 'em-producao', status: 'Produção' }),
     item({ id: 'sem-flag', contaNaGrade: undefined }),
@@ -40,11 +46,38 @@ function testContaProntoSemDataDeReferencia() {
         hashtags: '',
         publishDate: '2026-10-21',
         publicationKind: 'post',
-        status: 'agendada',
+        status: 'prevista',
       }],
     }),
   ], { redeReferenciaId: 'ig' });
-  assert.equal(total, 3);
+  // 3 inéditos prontos + 1 publicado para reaproveitar
+  assert.equal(total, 4);
+}
+
+function testSeparaIneditosEReaproveitar() {
+  const reserva = reservaPronta([
+    item({ id: 'inedito' }),
+    item({ id: 'publicado', status: 'Publicado', postedAt: '2026-09-01T12:00:00.000Z' }),
+    item({
+      id: 'ciclo-pendente',
+      status: 'Publicado',
+      postedAt: '2026-09-01T12:00:00.000Z',
+      plataformas: [{
+        id: 'r1',
+        contentId: 'ciclo-pendente',
+        platformId: 'ig',
+        legenda: '',
+        hashtags: '',
+        publishDate: '2026-11-01',
+        publicationKind: 'repost',
+        ciclo: 2,
+        status: 'prevista',
+      }],
+    }),
+  ], { redeReferenciaId: 'ig' });
+  assert.equal(reserva.ineditos, 1);
+  assert.equal(reserva.reaproveitar, 1);
+  assert.equal(reserva.total, 2);
 }
 
 function testTextoNaoInventaAlvo() {
@@ -53,7 +86,17 @@ function testTextoNaoInventaAlvo() {
   assert.equal(textoEstoque(0, null).includes('de'), false);
 }
 
+function testRotuloCapacidade() {
+  assert.equal(
+    rotuloCapacidadeSeries({ limite: 8, reservaFora: 3, comSerie: 4, semSerie: 2 }),
+    'Séries 4 de 5 · Fora das séries 2 de 3',
+  );
+  assert.equal(rotuloCapacidadeSeries({ limite: null, reservaFora: 3, comSerie: 1, semSerie: 0 }), null);
+}
+
 testContaProntoSemDataDeReferencia();
+testSeparaIneditosEReaproveitar();
 testTextoNaoInventaAlvo();
+testRotuloCapacidade();
 
 console.log('estoque tests passed');

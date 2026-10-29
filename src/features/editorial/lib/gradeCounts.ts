@@ -207,7 +207,7 @@ function montarItens(
 
   for (const postIt of postIts) {
     if (!postIt.contentId || !contados.has(postIt.contentId)) continue;
-    if (!postItTemPauta(postIt.texto)) continue;
+    if (!postItTemPauta(postIt.texto, postIt.pautaDefinida)) continue;
     const item = itens.find(atual => atual.entry.contentId === postIt.contentId);
     if (!item) continue;
     item.temPauta = true;

@@ -12,6 +12,7 @@ import {
   HeartHandshake,
   Leaf,
   MonitorSpeaker,
+  NotebookPen,
   PauseCircle,
   Settings as SettingsIcon,
   UserCircle2,
@@ -117,7 +118,7 @@ export function SettingsPage() {
     });
   };
 
-  const toggleWritingWorkspace = () => {
+  const updateWritingWorkspace = (patch: Partial<typeof writingWorkspace>) => {
     dispatch({
       type: 'SET_PREFERENCE',
       payload: {
@@ -125,10 +126,18 @@ export function SettingsPage() {
         value: {
           ...DEFAULT_WRITING_WORKSPACE,
           ...writingWorkspace,
-          enabled: !writingWorkspace.enabled,
+          ...patch,
         },
       },
     });
+  };
+
+  const toggleWritingWorkspace = () => {
+    updateWritingWorkspace({enabled: !writingWorkspace.enabled});
+  };
+
+  const toggleOpenDraftByDefault = () => {
+    updateWritingWorkspace({openDraftByDefault: !writingWorkspace.openDraftByDefault});
   };
 
   const gentleCards = [
@@ -181,6 +190,8 @@ export function SettingsPage() {
           gentleCards={gentleCards}
           writingEnabled={writingWorkspace.enabled}
           onToggleWriting={toggleWritingWorkspace}
+          openDraftByDefault={writingWorkspace.openDraftByDefault}
+          onToggleOpenDraft={toggleOpenDraftByDefault}
           moduleCards={moduleCards.map(({key, title, desc}) => ({
             key,
             title,
@@ -287,6 +298,27 @@ export function SettingsPage() {
                 </span>
               </span>
             </ToggleRow>
+            {writingWorkspace.enabled ? (
+              <ToggleRow
+                id="opcao-abrir-rascunho"
+                enabled={writingWorkspace.openDraftByDefault}
+                onToggle={toggleOpenDraftByDefault}
+                title="Abrir rascunho ao entrar"
+                className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] px-4 py-3 transition-[box-shadow] hover:shadow-[var(--shadow-card-hover)]"
+              >
+                <span className="flex min-w-0 items-start gap-2.5">
+                  <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[var(--bg-hover)] text-[var(--text-primary)]">
+                    <NotebookPen className="h-4 w-4 opacity-50" />
+                  </span>
+                  <span className="min-w-0">
+                    <Text variant="bodyStrong" as="span" truncate className="block leading-snug">Abrir rascunho ao entrar</Text>
+                    <Text variant="secondary" as="span" className="mt-0.5 block leading-relaxed">
+                      Mostra o painel de rascunho ao abrir um roteiro. Fechar durante a edição é só temporário e não muda esta opção.
+                    </Text>
+                  </span>
+                </span>
+              </ToggleRow>
+            ) : null}
           </div>
         </section>
 

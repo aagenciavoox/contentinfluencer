@@ -12,7 +12,8 @@ import { Text } from '../../../../components/ui/Text';
 import { useMediaQuery } from '../../../../hooks/useMediaQuery';
 import type { FuncaoEditorial } from '../../../../lib/database';
 import { BREAKPOINTS } from '../../../../shared/breakpoints';
-import { contarEstoque } from '../../lib/estoque';
+import { reservaPronta, rotuloCapacidadeSeries, textoEstoque } from '../../lib/estoque';
+import { listarSoEmOutrasRedes } from '../../lib/soEmOutrasRedes';
 import type { MetasPeriodo } from '../../lib/editorialSettings';
 import { ETAPA_LABEL, ETAPAS, ETAPAS_DE_CONTEUDO, contagemPorEtapaVazia, somaDasEtapas, type ContagemPorEtapa, type Etapa } from '../../lib/etapas';
 import { expectativaNoIntervalo, lerFrequencia } from '../../lib/frequenciaSerie';
@@ -447,10 +448,21 @@ export function PeriodoPanel({
   const parciais = semanasParciais(periodo.inicio, periodo.fim);
   const limiteSemanal = settings.preferencias.limiteSemanal;
   const semLimite = limiteSemanal == null;
-  const estoque = contarEstoque(state.contents, {
+  const estoque = reservaPronta(state.contents, {
     redeReferenciaId: settings.preferencias.redeReferenciaId,
   });
   const reserva = settings.preferencias.reservaProntos;
+  const soEmOutras = listarSoEmOutrasRedes({
+    contents: state.contents,
+    settings: { redeReferenciaId: settings.preferencias.redeReferenciaId },
+    platforms: state.platforms,
+  });
+  const capacidadeSeries = rotuloCapacidadeSeries({
+    limite: contagem.limite,
+    reservaFora: contagem.reservaForaSeriesSemanal,
+    comSerie: Math.max(0, contagem.previsto - contagem.semSerie),
+    semSerie: contagem.semSerie,
+  });
   const objetivos = new Map(contagem.objetivos.map(objetivo => [objetivo.id, objetivo]));
 
   const avisos: Array<{ id: string; texto: string; acao?: InlineNoticeAction }> = [];
@@ -485,7 +497,11 @@ export function PeriodoPanel({
     { id: 'limite', rotulo: periodo.modo === 'semana' ? 'Limite da semana' : 'Limite do período', valor: celula(contagem.limite) },
     { id: 'previstos', rotulo: 'Previstos', valor: String(contagem.previsto) },
     { id: 'postados', rotulo: 'Publicados', valor: String(contagem.porEtapa.postado) },
-    { id: 'prontos', rotulo: 'Prontos de reserva', valor: reserva == null ? String(estoque) : `${estoque} de ${reserva}` },
+    {
+      id: 'prontos',
+      rotulo: 'Prontos de reserva',
+      valor: reserva == null ? String(estoque.total) : textoEstoque(estoque.total, reserva),
+    },
   ];
 
   const proporcao = settings.proporcaoFuncoes;
@@ -575,7 +591,17 @@ export function PeriodoPanel({
           ))}
         </div>
         <Text variant="meta" as="p">
-          {notaCapacidade ? `${notaCapacidade} ` : ''}Cada roteiro conta uma vez, na publicação original da grade. TikTok entra como extra da semana, fora do limite.
+          {notaCapacidade ? `${notaCapacidade} ` : ''}
+          {capacidadeSeries ? `${capacidadeSeries}. ` : ''}
+          Cada ciclo conta uma vez na grade.
+        </Text>
+        <Text variant="meta" as="p">
+          Reserva: {estoque.ineditos} inédito{estoque.ineditos === 1 ? '' : 's'}
+          {' · '}
+          {estoque.reaproveitar} para reaproveitar
+          {soEmOutras.length > 0
+            ? ` · ${soEmOutras.length} só em outras redes`
+            : ''}
         </Text>
         {semLimite ? (
           <div className="flex flex-wrap items-center gap-3">
