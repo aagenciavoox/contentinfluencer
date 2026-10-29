@@ -46,8 +46,21 @@ function testTituloNaoContaELigacaoEhUmaVez() {
   }), true);
 }
 
+function testMarcacaoExplicita() {
+  assert.equal(postItTemPauta('', true), true);
+  assert.equal(postItTemPauta('uma ideia', false), false);
+  assert.equal(roteiroTemPauta('modelo', '<p></p>', true), true);
+  assert.equal(roteiroTemPauta('autor', '<p>x</p>', false), false);
+  assert.equal(temPautaLigada({
+    textoPostIt: '',
+    pautaDefinidaPostIt: true,
+    scriptOrigem: 'modelo',
+  }), true);
+}
+
 testPostIt();
 testRoteiro();
 testTituloNaoContaELigacaoEhUmaVez();
+testMarcacaoExplicita();
 
 console.log('pautaConteudo tests passed');

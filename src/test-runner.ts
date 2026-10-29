@@ -70,6 +70,7 @@ await import('./features/editorial/lib/publicacaoSituacao.test.ts');
 await import('./features/editorial/lib/dataVencida.test.ts');
 await import('./features/editorial/lib/cicloPublicacao.test.ts');
 await import('./features/editorial/lib/estoque.test.ts');
+await import('./features/editorial/lib/hashtagsForaSerie.test.ts');
 await import('./features/editorial/lib/gradeCounts.test.ts');
 await import('./features/editorial/lib/checkEditorialConfig.test.ts');
 await import('./features/editorial/lib/aplicarFuncao.test.ts');
