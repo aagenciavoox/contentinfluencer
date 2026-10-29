@@ -162,8 +162,10 @@ function testStoriesERepostNaoViraramReferencia() {
     ],
   }), { redeReferenciaId: INSTAGRAM });
 
-  assert.equal(ref.publicacao?.id, 'tt');
-  assert.equal(ref.data, '2026-10-09');
+  // Stories/repost na base não contam; só TikTok fora → fora da grade.
+  assert.equal(ref.soEmOutrasRedes, true);
+  assert.equal(ref.publicacao, null);
+  assert.equal(ref.data, null);
 }
 
 function testSemPublicacaoUsaADataDoRoteiro() {
