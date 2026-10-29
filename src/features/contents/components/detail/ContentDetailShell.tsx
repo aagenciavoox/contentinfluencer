@@ -25,6 +25,9 @@ import {
   getStatusDetail,
   isTabLocked,
   normalizeContentStatus,
+  planStatusChange,
+  recordedPatch,
+  seloDoBloco,
   type ContentDetailTab,
   type ContentPrimaryActionId,
 } from '../../lib/contentPipeline';
@@ -137,6 +140,10 @@ export function ContentDetailShell({
   const [recordingBlocksLoading, setRecordingBlocksLoading] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [markPostedOpen, setMarkPostedOpen] = useState(false);
+  const [unpublishConfirm, setUnpublishConfirm] = useState<{
+    status: string;
+    effects: string[];
+  } | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const draftDirtyRef = useRef(false);
   const appliedSeriesTemplateRef = useRef<string | null>(null);
@@ -240,6 +247,16 @@ export function ContentDetailShell({
     return () => window.clearTimeout(timer);
   }, [content.id, mode, searchParams, setSearchParams]);
 
+  useEffect(() => {
+    const navState = location.state as {openMarkPosted?: boolean} | null;
+    if (!navState?.openMarkPosted) return;
+    setMarkPostedOpen(true);
+    navigate(`${location.pathname}${location.search}`, {
+      replace: true,
+      state: {...(navState ?? {}), openMarkPosted: undefined},
+    });
+  }, [content.id, location.pathname, location.search, location.state, navigate]);
+
   const liveContent = state.contents.find(item => item.id === content.id) || content;
   const blockSummary = getContentBlockSummary(content.id, state.recordingBlocks, state.contents);
   const mergedContent = {...liveContent, ...draft};
@@ -306,15 +323,19 @@ export function ContentDetailShell({
   const handleDraftChange = useCallback((incoming: Partial<ContentDraft>) => {
     setDraft(previous => {
       let updates = incoming;
-      if (
-        updates.status
-        && normalizeContentStatus(updates.status) === CONTENT_STATUS.POSTADO
-        && normalizeContentStatus(previous.status) !== CONTENT_STATUS.POSTADO
-      ) {
-        queueMicrotask(() => setMarkPostedOpen(true));
-        const {status: _status, ...rest} = updates;
-        updates = rest;
-        if (Object.keys(updates).length === 0) return previous;
+      if (updates.status && updates.status !== previous.status) {
+        const plan = planStatusChange(previous, updates.status);
+        if (plan.type === 'publish_form') {
+          queueMicrotask(() => setMarkPostedOpen(true));
+          const {status: _status, ...rest} = updates;
+          updates = rest;
+          if (Object.keys(updates).length === 0) return previous;
+        } else if (plan.type === 'unpublish_confirm') {
+          queueMicrotask(() => setUnpublishConfirm({status: plan.status, effects: plan.effects}));
+          const {status: _status, ...rest} = updates;
+          updates = rest;
+          if (Object.keys(updates).length === 0) return previous;
+        }
       }
 
       const nextUpdates = {...updates};
@@ -736,6 +757,12 @@ export function ContentDetailShell({
       case 'advance_to_recording':
         await persist({}, {advanceToReady: true});
         return;
+      case 'mark_recorded': {
+        const patch = recordedPatch(mergedContent);
+        await persist(patch);
+        setTab(isCarouselContent(mergedContent) ? 'publicacao' : 'gravacao');
+        return;
+      }
       case 'add_to_block':
         setIsRecordingSheetOpen(true);
         return;
@@ -761,12 +788,12 @@ export function ContentDetailShell({
     IDEIA: 'Ideia',
     ROTEIRO: 'Roteiro',
     PRODUCAO: 'Produção',
-    EM_BLOCO: 'Em bloco',
     EDICAO: 'Edição',
     POSTADO: 'Publicado',
   };
   const stageDetail = getStatusDetail(mergedContent);
   const currentStageLabel = stageDetail ? `${stageLabel[stage]} · ${stageDetail}` : stageLabel[stage];
+  const blocoSelo = seloDoBloco(mergedContent.id, state.recordingBlocks);
 
   const isIdea = normalizeContentStatus(mergedContent.status) === CONTENT_STATUS.IDEIA;
   const writingWorkspace = mode === 'desktop' && isWritingWorkspaceEnabled(state.preferences);
@@ -942,8 +969,8 @@ export function ContentDetailShell({
               />
             )
           }
-          blockName={blockSummary?.block.name ?? null}
-          blockOrder={blockSummary?.order ?? null}
+          blockName={blocoSelo}
+          blockOrder={null}
           section={detailSection}
           onRetrySave={() => void persist()}
           // Enquanto o texto carrega não há o que dizer sobre salvar; antes aparecia "Salvo" sobre o esqueleto.
@@ -956,6 +983,23 @@ export function ContentDetailShell({
         {recordingSheet}
         {leaveConfirmModal}
         {markPostedSheet}
+        <ConfirmModal
+          open={Boolean(unpublishConfirm)}
+          message={
+            unpublishConfirm
+              ? `Desfazer publicação?\n\n${unpublishConfirm.effects.join('\n')}`
+              : ''
+          }
+          confirmLabel="Desfazer publicação"
+          cancelLabel="Manter Publicado"
+          onConfirm={() => {
+            if (!unpublishConfirm) return;
+            const next = unpublishConfirm.status;
+            setUnpublishConfirm(null);
+            void persist({status: next});
+          }}
+          onCancel={() => setUnpublishConfirm(null)}
+        />
         <ConfirmModal
           open={deleteConfirmOpen}
           message={trashConfirmMessage}
@@ -984,8 +1028,8 @@ export function ContentDetailShell({
             onDelete={() => setDeleteConfirmOpen(true)}
             isSaving={isDeleting}
             primaryBusy={isDeleting}
-            blockName={blockSummary?.block.name ?? null}
-            blockOrder={blockSummary?.order ?? null}
+            blockName={blocoSelo}
+            blockOrder={null}
             saveHint={saveHint}
             pilar={pillar}
             authorName={user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Usuario'}
@@ -1032,8 +1076,25 @@ export function ContentDetailShell({
       {leaveConfirmModal}
       {markPostedSheet}
       <ConfirmModal
+        open={Boolean(unpublishConfirm)}
+        message={
+          unpublishConfirm
+            ? `Desfazer publicação?\n\n${unpublishConfirm.effects.join('\n')}`
+            : ''
+        }
+        confirmLabel="Desfazer publicação"
+        cancelLabel="Manter Publicado"
+        onConfirm={() => {
+          if (!unpublishConfirm) return;
+          const next = unpublishConfirm.status;
+          setUnpublishConfirm(null);
+          void persist({status: next});
+        }}
+        onCancel={() => setUnpublishConfirm(null)}
+      />
+      <ConfirmModal
         open={deleteConfirmOpen}
-      message={trashConfirmMessage}
+        message={trashConfirmMessage}
         confirmLabel={isDeleting ? 'Movendo…' : 'Mover para a lixeira'}
         cancelLabel={isIdea ? 'Manter ideia' : 'Manter roteiro'}
         confirmDisabled={isDeleting}

@@ -321,9 +321,18 @@ function testStatusChangeIsTheSameRuleEverywhere() {
   const carousel = applyStatusChange(createContent({status: 'Roteiro', writingMode: 'carrossel'}), 'Produção', now);
   assert.deepEqual(carousel.tags, []);
 
-  // Pular para Publicado registra a data; voltar tira, como antes.
-  const posted = applyStatusChange(createContent({status: 'Roteiro'}), 'Publicado', now);
-  assert.equal(posted.postedAt, now);
+  // Publicado pela regra única não inventa postedAt — o formulário confirma a data.
+  const postedJump = applyStatusChange(createContent({status: 'Roteiro'}), 'Publicado', now);
+  assert.equal(postedJump.status, 'Publicado');
+  assert.equal(postedJump.postedAt ?? null, null);
+
+  // Pular para Edição não registra gravação.
+  const toEdit = applyStatusChange(createContent({status: 'Roteiro', recordedAt: null}), 'Edição', now);
+  assert.equal(toEdit.status, 'Edição');
+  assert.equal(toEdit.recordedAt ?? null, null);
+
+  // Sair de Publicado (já com data) limpa postedAt.
+  const posted = createContent({status: 'Publicado', postedAt: now});
   assert.equal(applyStatusChange(posted, 'Edição', now).postedAt, null);
 
   // Mesma etapa não muda nada.

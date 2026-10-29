@@ -54,6 +54,7 @@ export const ContentStage = {
   IDEIA: 'IDEIA',
   ROTEIRO: 'ROTEIRO',
   PRODUCAO: 'PRODUCAO',
+  /** @deprecated Bloco virou selo; getContentStage não devolve mais isto. */
   EM_BLOCO: 'EM_BLOCO',
   EDICAO: 'EDICAO',
   POSTADO: 'POSTADO',
@@ -187,7 +188,12 @@ export function shouldShowPublishingSection(
   stage: ContentStage,
   content: Pick<Content, 'publishDate' | 'recordedAt' | 'status'>,
 ): boolean {
-  if (stage === ContentStage.POSTADO || stage === ContentStage.EDICAO) return true;
+  // Aba Publicação abre desde Roteiro para preparar legenda, capa, contas e datas.
+  if (stage === ContentStage.IDEIA) return false;
+  if (stage === ContentStage.POSTADO || stage === ContentStage.EDICAO || stage === ContentStage.ROTEIRO) {
+    return true;
+  }
+  if (stage === ContentStage.PRODUCAO || stage === ContentStage.EM_BLOCO) return true;
   if (isScheduledForDisplay(content)) return true;
   if (content.recordedAt) return true;
   return false;
@@ -222,15 +228,18 @@ export function isTabLocked(_tab: ContentDetailTab, _content: Content, _options:
 export function getVisibleTabsForContent(content: Content, options: StageOptions = {}): ContentDetailTab[] {
   const stage = getContentStage(content, options);
   // Carrossel não passa pela gravação: da escrita vai direto para a publicação.
-  if (isCarouselContent(content) && stage !== ContentStage.EM_BLOCO) {
-    return stage === ContentStage.IDEIA || stage === ContentStage.ROTEIRO
-      ? ['roteiro']
-      : ['roteiro', 'publicacao'];
+  if (isCarouselContent(content)) {
+    if (stage === ContentStage.IDEIA) return ['roteiro'];
+    return shouldShowPublishingSection(stage, content)
+      ? ['roteiro', 'publicacao']
+      : ['roteiro'];
   }
   if (shouldShowPublishingSection(stage, content)) {
-    return ['roteiro', 'gravacao', 'publicacao'];
+    return stage === ContentStage.ROTEIRO
+      ? ['roteiro', 'publicacao']
+      : ['roteiro', 'gravacao', 'publicacao'];
   }
-  if (stage === ContentStage.PRODUCAO || stage === ContentStage.EM_BLOCO) {
+  if (stage === ContentStage.PRODUCAO) {
     return ['roteiro', 'gravacao'];
   }
   return ['roteiro'];
@@ -267,17 +276,26 @@ export function getContentBlockSummary(
   };
 }
 
-export function getContentStage(content: Content, options: StageOptions = {}): ContentStage {
+export function getContentStage(content: Content, _options: StageOptions = {}): ContentStage {
   const status = normalizeContentStatus(content.status);
 
   if (status === CONTENT_STATUS.POSTADO || content.postedAt) return ContentStage.POSTADO;
   if (status === CONTENT_STATUS.IDEIA) return ContentStage.IDEIA;
   if (status === CONTENT_STATUS.ROTEIRO) return ContentStage.ROTEIRO;
-  if (status === CONTENT_STATUS.PRODUCAO) {
-    return isContentInBlock(content.id, options.block) ? ContentStage.EM_BLOCO : ContentStage.PRODUCAO;
-  }
+  if (status === CONTENT_STATUS.PRODUCAO) return ContentStage.PRODUCAO;
   if (status === CONTENT_STATUS.EDICAO) return ContentStage.EDICAO;
   return ContentStage.ROTEIRO;
+}
+
+/** Selo do bloco de gravação: "No bloco de 12/11". Null se não está em nenhum. */
+export function seloDoBloco(
+  contentId: string,
+  blocks: RecordingBlock[],
+): string | null {
+  const block = blocks.find(candidate => candidate.contents.some(item => item.contentId === contentId));
+  if (!block) return null;
+  const nome = block.name?.trim();
+  return nome ? `No bloco de ${nome}` : 'No bloco de gravação';
 }
 
 export function canAdvanceToRecording(
@@ -356,19 +374,68 @@ export function getPostingAlerts(content: Pick<Content, 'publishDate' | 'status'
   return [] as PostingAlert[];
 }
 
+/**
+ * O que muda ao sair de Publicado. Usado no confirmação "Desfazer publicação".
+ * Não apaga publicações por conta aqui — Fase 3 escolhe a conta afetada.
+ */
+export function effectsOfLeavingPublished(
+  content: Pick<Content, 'postedAt' | 'publishDate'>,
+): string[] {
+  const effects: string[] = [];
+  if (content.postedAt) {
+    effects.push('A data de publicação registrada neste conteúdo será apagada.');
+  }
+  if (content.publishDate) {
+    effects.push('A data prevista continua guardada; o conteúdo deixa de aparecer como Publicado.');
+  }
+  if (effects.length === 0) {
+    effects.push('O conteúdo deixa a etapa Publicado.');
+  }
+  return effects;
+}
+
+export type StatusChangePlan =
+  | { type: 'apply'; status: string }
+  | { type: 'publish_form' }
+  | { type: 'unpublish_confirm'; status: string; effects: string[] };
+
+/**
+ * Destino validado na regra única: Publicado abre o formulário;
+ * sair de Publicado pede confirmação; demais etapas aplicam direto.
+ */
+export function planStatusChange(
+  content: Pick<Content, 'status' | 'postedAt' | 'publishDate'>,
+  nextStatus: string,
+): StatusChangePlan {
+  const from = normalizeContentStatus(content.status);
+  const to = normalizeContentStatus(nextStatus);
+  if (from === to) return { type: 'apply', status: to };
+  if (to === CONTENT_STATUS.POSTADO) return { type: 'publish_form' };
+  if (from === CONTENT_STATUS.POSTADO || Boolean(content.postedAt)) {
+    return {
+      type: 'unpublish_confirm',
+      status: to,
+      effects: effectsOfLeavingPublished(content),
+    };
+  }
+  return { type: 'apply', status: to };
+}
+
 export function applyStatusMilestones(
   content: Pick<Content, 'recordedAt' | 'postedAt' | 'status'>,
   nextStatus: string,
-  options?: {markRecorded?: boolean; now?: string},
+  options?: {markRecorded?: boolean; confirmPublish?: boolean; now?: string},
 ): Partial<Pick<Content, 'recordedAt' | 'postedAt'>> {
   const milestones: Partial<Pick<Content, 'recordedAt' | 'postedAt'>> = {};
   const now = options?.now ?? new Date().toISOString();
   const canonical = normalizeContentStatus(nextStatus);
 
+  // Só "Marcar como gravado/produzido" registra gravação — pular para Edição não inventa.
   if (options?.markRecorded && !content.recordedAt) {
     milestones.recordedAt = now;
   }
-  if (canonical === CONTENT_STATUS.POSTADO && !content.postedAt) {
+  // Publicado só grava postedAt pelo formulário (confirmPublish) ou markPublished.
+  if (canonical === CONTENT_STATUS.POSTADO && !content.postedAt && options?.confirmPublish) {
     milestones.postedAt = now;
   }
   if (canonical !== CONTENT_STATUS.POSTADO && content.postedAt) {
@@ -389,6 +456,7 @@ export function withProductionTag(tags: string[], tag: string): string[] {
 export function getPrimaryAction(content: Content, options: StageOptions = {}): ContentPrimaryAction {
   const stage = getContentStage(content, options);
   const scheduled = isScheduledForDisplay(content);
+  const inBlock = isContentInBlock(content.id, options.block);
 
   switch (stage) {
     case ContentStage.IDEIA:
@@ -419,6 +487,13 @@ export function getPrimaryAction(content: Content, options: StageOptions = {}): 
           : undefined,
       };
     case ContentStage.PRODUCAO:
+      if (isCarouselContent(content) && !content.recordedAt) {
+        return {
+          id: 'mark_recorded',
+          label: 'Marcar como produzido',
+          targetTab: 'publicacao',
+        };
+      }
       // Carrossel pronto, ou vídeo que voltou depois de gravado, segue para a edição.
       if (content.recordedAt || isCarouselContent(content)) {
         return {
@@ -426,6 +501,13 @@ export function getPrimaryAction(content: Content, options: StageOptions = {}): 
           label: 'Enviar para edição',
           targetTab: isCarouselContent(content) ? 'publicacao' : 'gravacao',
           secondary: {id: 'skip_edit', label: 'Dispensar edição'},
+        };
+      }
+      if (inBlock) {
+        return {
+          id: 'go_to_execution',
+          label: 'Abrir bloco de gravação',
+          targetTab: 'gravacao',
         };
       }
       return {

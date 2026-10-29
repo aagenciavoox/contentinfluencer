@@ -5,14 +5,19 @@ import {
   CONTENT_STATUS,
   DISPLAY_STATUS,
   edicaoPatch,
+  effectsOfLeavingPublished,
   getAllowedStatuses,
+  getContentStage,
   getDisplayStatus,
   getPrimaryAction,
   getStatusDetail,
   getStatusOptions,
+  getVisibleTabsForContent,
   isReadyToPublish,
   normalizeContentStatus,
+  planStatusChange,
   recordedPatch,
+  seloDoBloco,
 } from './contentPipeline.ts';
 
 function createContent(overrides: Partial<Content> = {}): Content {
@@ -115,8 +120,12 @@ function testEditingActionsFollowTheStage() {
   assert.equal(send.label, 'Enviar para edição');
   assert.equal(send.secondary?.id, 'skip_edit');
 
-  const carousel = getPrimaryAction(createContent({status: CONTENT_STATUS.PRODUCAO, writingMode: 'carrossel'}));
-  assert.equal(carousel.id, 'send_to_edit');
+  const carouselPronto = getPrimaryAction(createContent({
+    status: CONTENT_STATUS.PRODUCAO,
+    writingMode: 'carrossel',
+    recordedAt: '2026-10-01T12:00:00.000Z',
+  }));
+  assert.equal(carouselPronto.id, 'send_to_edit');
 
   const editing = getPrimaryAction(createContent({status: CONTENT_STATUS.EDICAO, edicaoConcluidaEm: null}));
   assert.equal(editing.id, 'finish_edit');
@@ -166,7 +175,16 @@ function testRecordingActionExplainsMissingRequirements() {
 function testLeavingPostadoClearsPostedAt() {
   const posted = {status: CONTENT_STATUS.POSTADO, postedAt: '2026-07-20T12:00:00.000Z', recordedAt: null};
   assert.deepEqual(applyStatusMilestones(posted, CONTENT_STATUS.PRODUCAO), {postedAt: null});
+  // Sem confirmPublish, escolher Publicado não inventa a data.
   assert.deepEqual(applyStatusMilestones(posted, CONTENT_STATUS.POSTADO), {});
+  assert.deepEqual(
+    applyStatusMilestones(
+      {status: CONTENT_STATUS.ROTEIRO, postedAt: null, recordedAt: null},
+      CONTENT_STATUS.POSTADO,
+      {confirmPublish: true, now: '2026-07-20T12:00:00.000Z'},
+    ),
+    {postedAt: '2026-07-20T12:00:00.000Z'},
+  );
 }
 
 function testEveryStageVisibleAndJumpsAllowed() {
@@ -186,11 +204,59 @@ function testEveryStageVisibleAndJumpsAllowed() {
   assert.equal(legado.find(item => item.status === 'Ideia')?.disponivel, true);
 }
 
+function testPlanStatusChangeGatesPublishAndUnpublish() {
+  assert.equal(planStatusChange(createContent({status: CONTENT_STATUS.ROTEIRO}), CONTENT_STATUS.POSTADO).type, 'publish_form');
+  const leave = planStatusChange(
+    createContent({status: CONTENT_STATUS.POSTADO, postedAt: '2026-07-20T12:00:00.000Z'}),
+    CONTENT_STATUS.EDICAO,
+  );
+  assert.equal(leave.type, 'unpublish_confirm');
+  if (leave.type === 'unpublish_confirm') {
+    assert.equal(leave.status, CONTENT_STATUS.EDICAO);
+    assert.ok(leave.effects.length > 0);
+  }
+  assert.equal(planStatusChange(createContent({status: CONTENT_STATUS.ROTEIRO}), CONTENT_STATUS.EDICAO).type, 'apply');
+  assert.deepEqual(
+    effectsOfLeavingPublished({postedAt: '2026-07-20T12:00:00.000Z', publishDate: null}),
+    ['A data de publicação registrada neste conteúdo será apagada.'],
+  );
+}
+
+function testBlockIsBadgeNotStage() {
+  const content = createContent({status: CONTENT_STATUS.PRODUCAO});
+  const block = {
+    id: 'b1',
+    userId: 'u',
+    name: '12/11',
+    createdAt: '2026-07-25T12:00:00.000Z',
+    contents: [{blockId: 'b1', contentId: content.id, ordem: 1, gravado: false}],
+  };
+  assert.equal(getContentStage(content, {block}), 'PRODUCAO');
+  assert.equal(seloDoBloco(content.id, [block]), 'No bloco de 12/11');
+  assert.equal(getPrimaryAction(content, {block}).id, 'go_to_execution');
+}
+
+function testPublicationTabOpensFromRoteiro() {
+  const roteiro = createContent({status: CONTENT_STATUS.ROTEIRO});
+  assert.deepEqual(getVisibleTabsForContent(roteiro), ['roteiro', 'publicacao']);
+  assert.deepEqual(getVisibleTabsForContent(createContent({status: CONTENT_STATUS.IDEIA})), ['roteiro']);
+}
+
+function testCarouselMarkProduced() {
+  const carousel = createContent({status: CONTENT_STATUS.PRODUCAO, writingMode: 'carrossel', recordedAt: null});
+  assert.equal(getPrimaryAction(carousel).id, 'mark_recorded');
+  assert.equal(getPrimaryAction(carousel).label, 'Marcar como produzido');
+}
+
 const tests: Array<[string, () => void]> = [
   ['every stage is listed and jumps are allowed', testEveryStageVisibleAndJumpsAllowed],
   ['recorded video goes to Edição', testRecordedVideoGoesToEditing],
   ['editing actions follow the stage', testEditingActionsFollowTheStage],
   ['leaving Postado clears postedAt', testLeavingPostadoClearsPostedAt],
+  ['planStatusChange gates publish and unpublish', testPlanStatusChangeGatesPublishAndUnpublish],
+  ['block is badge not stage', testBlockIsBadgeNotStage],
+  ['publication tab opens from Roteiro', testPublicationTabOpensFromRoteiro],
+  ['carousel mark produced goes to Edição', testCarouselMarkProduced],
   ['future publish date shows Programado', testDisplayStatusFuturePublishDate],
   ['past publish date keeps canonical status', testDisplayStatusPastPublishDateKeepsCanonical],
   ['posted ignores future publish date display', testDisplayStatusPostedIgnoresFutureDate],

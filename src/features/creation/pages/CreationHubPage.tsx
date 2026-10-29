@@ -703,12 +703,34 @@ export function CreationHubPage() {
 
   const handleMoveToTab = useCallback(async (content: Content, tab: CreationKanbanTab) => {
     const previous = content;
+    // Publicado não grava no arraste: abre o detalhe no formulário de publicação.
+    if (tab === 'Publicados') {
+      navigate(buildContentDetailRoute(content.id, 'publicacao'), {
+        state: {
+          ...buildDetailBackState(`${location.pathname}${location.search}`).state,
+          openMarkPosted: true,
+        },
+      });
+      return;
+    }
+
     const next = moveCreationToKanbanTab(content, tab);
     if (
       previous.status === next.status
       && (previous.postedAt ?? null) === (next.postedAt ?? null)
     ) {
       return;
+    }
+
+    // Sair de Publicado pelo Kanban: a data some — confirma antes.
+    const saindoDePublicado = Boolean(previous.postedAt)
+      || previous.status === 'Publicado'
+      || previous.status === 'Postado';
+    if (saindoDePublicado) {
+      const ok = window.confirm(
+        'Desfazer publicação?\n\nA data de publicação registrada neste conteúdo será apagada.',
+      );
+      if (!ok) return;
     }
 
     setPersistingIds(current => new Set(current).add(content.id));
@@ -732,7 +754,7 @@ export function CreationHubPage() {
         return nextSet;
       });
     }
-  }, [updateContent]);
+  }, [location, navigate, updateContent]);
 
   const itemActions: CreationItemActionHandlers = useMemo(() => ({
     onPromote: content => {

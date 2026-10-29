@@ -2,18 +2,19 @@ import {AlertTriangle, CalendarDays, Image, Send} from 'lucide-react';
 import type {Content, ContentPlataforma, Pilar, Serie} from '../../../../../lib/database';
 import {AppButton} from '../../../../../components/ui/AppButton';
 import {rotuloStatusPublicacao, setPublicacaoStatus} from '../../../../editorial/lib/markPublished';
-import {CONTENT_STATUS, getDisplayStatus} from '../../../lib/contentPipeline';
+import {CONTENT_STATUS, getDisplayStatus, isReadyToPublish} from '../../../lib/contentPipeline';
 import type {PostingAlert} from '../../../lib/contentPipeline';
 import {useState} from 'react';
 import {useAppContext} from '../../../../../context/AppContext';
 import {criarRepost} from '../../../../editorial/lib/destinations';
 import {PlatformCopyEditor} from '../PlatformCopyEditor';
 import {rotuloConta, rotuloDaRef} from '../../../../contas/lib/contas';
+import {Text} from '../../../../../components/ui/Text';
 
 type PublishingDraft = Pick<
   Content,
   'status' | 'publishDate' | 'publishDateEnabled' | 'plataformas' | 'notes' | 'legendaBase' | 'title'
-> & Partial<Pick<Content, 'postedAt'>>;
+> & Partial<Pick<Content, 'postedAt' | 'edicaoConcluidaEm'>>;
 
 interface PublishingSectionProps {
   draft: PublishingDraft;
@@ -51,10 +52,16 @@ export function PublishingSection({
   const referencia = state.platforms.find(platform => platform.id === editorial.redeReferenciaId) ?? null;
   const [repostDate, setRepostDate] = useState('');
   const isPosted = draft.status === CONTENT_STATUS.POSTADO || Boolean(draft.postedAt);
+  const materialPronto = isReadyToPublish(draft);
   const activePlatformIds = draft.plataformas.length > 0 ? draft.plataformas.map(item => item.platformId) : [];
 
   return (
     <div className="grid gap-6">
+      {!materialPronto && !isPosted ? (
+        <Text variant="secondary">
+          Dá para preparar legenda, capa, contas e datas desde já. Confirmar Programado fica para quando o material estiver em Edição · Pronto. Registrar uma publicação que já saiu continua liberado.
+        </Text>
+      ) : null}
       <section className="rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-6 md:rounded-[var(--radius-card)] md:p-7">
         <div className="flex items-center gap-2 text-xs font-semibold text-[var(--text-tertiary)]">
           <CalendarDays className="h-4 w-4" />
@@ -259,7 +266,7 @@ export function PublishingSection({
       {!isPosted && onMarkPosted ? (
         <div className="flex justify-end">
           <AppButton variant="primary" onClick={onMarkPosted}>
-            Registrar como postado
+            Registrar publicação
           </AppButton>
         </div>
       ) : null}
