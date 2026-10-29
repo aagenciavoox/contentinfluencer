@@ -23,10 +23,11 @@ interface ScriptBlockToolbarProps {
   onInsertBlock: (label: ScriptBlockLabel) => void;
   onApplyTemplate: (html: string) => void;
   menuPlacement?: 'bottom' | 'top';
-  /** Neutral controls for the gray Escrita bar. Block types keep a light tint in the menu. */
+  /** Neutral controls for the gray Escrita bar. */
   neutral?: boolean;
 }
 
+/** Menu "+ Inserir": blocos do roteiro e atalho para templates. */
 export function ScriptBlockToolbar({
   onInsertBlock,
   onApplyTemplate,
@@ -57,57 +58,70 @@ export function ScriptBlockToolbar({
       <div ref={menuRef} className="relative">
         <button
           type="button"
+          onMouseDown={event => event.preventDefault()}
           onClick={() => setOpen(prev => !prev)}
+          aria-haspopup="menu"
+          aria-expanded={open}
           className={cn(
-            'inline-flex items-center gap-1 rounded-lg px-2 text-xs font-medium text-[var(--text-primary)] transition-colors',
-            neutral ? 'h-9 hover:bg-[var(--bg-secondary)]' : 'h-10 hover:bg-[var(--bg-hover)]',
+            'inline-flex items-center gap-1 rounded-[var(--radius-input)] px-2 text-xs font-medium text-[var(--text-primary)] transition-colors',
+            'focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
+            neutral ? 'h-8 hover:bg-[var(--bg-secondary)]' : 'h-9 hover:bg-[var(--bg-hover)]',
           )}
         >
-          <Plus className={cn('h-3.5 w-3.5', neutral ? 'text-[var(--text-secondary)]' : 'text-[var(--accent-blue)]')} />
-          Bloco
+          <Plus className="h-3.5 w-3.5 text-[var(--text-secondary)]" aria-hidden />
+          Inserir
           <ChevronDown
             className={cn(
               'h-3 w-3 text-[var(--text-tertiary)] transition-transform',
               open && 'rotate-180',
             )}
+            aria-hidden
           />
         </button>
         {open ? (
           <div
+            role="menu"
             className={cn(
-              'absolute left-0 z-50 min-w-[140px] rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] p-1',
+              'absolute left-0 z-50 min-w-[11rem] rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] p-1 shadow-[var(--shadow-dropdown)]',
               menuPlacement === 'top' ? 'bottom-full mb-1' : 'top-full mt-1',
             )}
           >
+            <p className="px-2.5 py-1 text-[length:var(--font-size-caption)] font-medium text-[var(--text-tertiary)]">
+              Blocos
+            </p>
             {SCRIPT_BLOCKS.map(label => (
               <button
                 key={label}
                 type="button"
+                role="menuitem"
                 data-block={label}
+                onMouseDown={event => event.preventDefault()}
                 onClick={() => {
                   onInsertBlock(label);
                   setOpen(false);
                 }}
-                className="script-block-option w-full rounded-md px-2.5 py-2 text-left text-xs text-[var(--text-primary)] transition-colors"
+                className="script-block-option w-full rounded-md px-2.5 py-2 text-left text-xs text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-hover)]"
               >
                 [{label}]
               </button>
             ))}
+            <div className="my-1 h-px bg-[var(--border-color)]" aria-hidden />
+            <button
+              type="button"
+              role="menuitem"
+              onMouseDown={event => event.preventDefault()}
+              onClick={() => {
+                setOpen(false);
+                setTemplatesOpen(true);
+              }}
+              className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-xs text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-hover)]"
+            >
+              <Layout className="h-3.5 w-3.5 text-[var(--text-secondary)]" aria-hidden />
+              Template…
+            </button>
           </div>
         ) : null}
       </div>
-      <button
-        type="button"
-        onClick={() => setTemplatesOpen(true)}
-        className={cn(
-          'inline-flex w-10 items-center justify-center rounded-lg text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]',
-          neutral ? 'h-9 hover:bg-[var(--bg-secondary)]' : 'h-10 hover:bg-[var(--bg-hover)]',
-        )}
-        title="Aplicar template"
-        aria-label="Aplicar template"
-      >
-        <Layout className="h-3.5 w-3.5" />
-      </button>
 
       <Dialog open={templatesOpen} onClose={() => setTemplatesOpen(false)} desktopMaxW="max-w-lg">
         <OverlayHeader

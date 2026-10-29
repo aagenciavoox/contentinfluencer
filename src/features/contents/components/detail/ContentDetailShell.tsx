@@ -46,7 +46,14 @@ import {applyStatusChange, promoteContentToScript} from '../../lib/creationConte
 import {origemDoRoteiro, resolveSeriesScriptTemplate} from '../../lib/seriesScriptTemplate';
 import {livroIdsEfetivos} from '../../../../lib/livroIds';
 import {rotuloDaRef} from '../../../contas/lib/contas';
-import {isCarouselContent} from '../../lib/carouselSlides';
+import {
+  isCarouselContent,
+  normalizeWritingMode,
+  slidesForCarouselMode,
+  WRITING_MODE_LABELS,
+} from '../../lib/carouselSlides';
+import {AppButton} from '../../../../components/ui/AppButton';
+import {Text} from '../../../../components/ui/Text';
 
 interface ContentDetailShellProps {
   content: Content;
@@ -800,6 +807,47 @@ export function ContentDetailShell({
   // Roteiro no computador com Escrita/Gestão: título e "Avançar" descem para a área de escrita;
   // o cabeçalho fica só com "‹ Criação", "Salvo" e "⋯". Ideia, Gravação e Publicação não mudam.
   const documentHeader = activeTab === 'roteiro' && !isIdea && writingWorkspace;
+  const writingMode = normalizeWritingMode(draft.writingMode);
+  const carouselAvailable = isCarouselStorageAvailable();
+  const carouselBlocked = !carouselAvailable && writingMode !== 'carrossel';
+  const setWritingMode = (modeNext: 'texto' | 'carrossel') => {
+    if (modeNext === writingMode) return;
+    if (modeNext === 'carrossel') {
+      handleDraftChange({
+        writingMode: 'carrossel',
+        carouselSlides: slidesForCarouselMode(draft.script, draft.carouselSlides),
+      });
+      return;
+    }
+    handleDraftChange({writingMode: 'texto'});
+  };
+  const writingModeMenu = documentHeader ? (
+    <div className="stack-sm p-1">
+      <Text variant="meta" className="px-2 pt-1">Modo de escrita</Text>
+      {([
+        {id: 'texto' as const, label: WRITING_MODE_LABELS.texto, disabled: false},
+        {
+          id: 'carrossel' as const,
+          label: carouselBlocked ? `${WRITING_MODE_LABELS.carrossel} (indisponível)` : WRITING_MODE_LABELS.carrossel,
+          disabled: carouselBlocked,
+        },
+      ]).map(option => (
+        <AppButton
+          key={option.id}
+          variant="ghost"
+          fullWidth
+          disabled={option.disabled}
+          onClick={() => setWritingMode(option.id)}
+          className={cn(
+            'justify-start',
+            writingMode === option.id && 'bg-[var(--bg-hover)] font-semibold',
+          )}
+        >
+          {option.label}
+        </AppButton>
+      ))}
+    </div>
+  ) : null;
   const trashConfirmMessage = isIdea
     ? `Mover esta ideia para a lixeira — ${draft.title || 'Ideia sem título'}? Você pode restaurá-la depois.`
     : `Mover este roteiro para a lixeira — ${draft.title || 'Roteiro sem título'}? Você pode restaurá-lo depois.`;
@@ -1038,6 +1086,7 @@ export function ContentDetailShell({
             saveState={editorSaveState}
             contentKind={isIdea ? 'idea' : 'script'}
             variant={documentHeader ? 'document' : 'default'}
+            overflowExtra={writingModeMenu}
           />
         )}
       >

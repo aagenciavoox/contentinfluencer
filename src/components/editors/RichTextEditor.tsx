@@ -1172,8 +1172,10 @@ function RichTextEditorInstance({
       ) : null}
 
       {(!compactMobileComposer || isFullscreen) ? <div data-format-bar={writingBar ? 'writing' : 'full'}
-        className={cn('z-10 flex min-h-11 shrink-0 items-center gap-1 border-b border-[var(--border-color)] px-2 py-1',
-          writingBar ? 'bg-[var(--bg-hover)]' : 'bg-[var(--bg-elevated)]',
+        className={cn('z-10 flex min-h-10 shrink-0 items-center gap-1 px-1.5 py-1',
+          writingBar
+            ? 'border-b border-[var(--border-color)] bg-[var(--bg-elevated)]'
+            : 'border-b border-[var(--border-color)] bg-[var(--bg-elevated)]',
           !isFullscreen && isWorkspace && 'sticky top-0')}>
         <div className="min-w-0 flex-1">
           <EditorToolbar
@@ -1274,11 +1276,6 @@ function RichTextEditorInstance({
           )}
           onScroll={event => { scriptScrollRef.current = event.currentTarget.scrollTop; }}
         >
-          {showDraftPane && !hideScriptPane ? (
-            <div className="sticky top-0 z-[1] flex shrink-0 items-center border-b border-[var(--border-color)] bg-[var(--bg-elevated)] px-4 py-2.5 md:px-6">
-              <p className="text-sm font-semibold text-[var(--text-primary)]">Roteiro</p>
-            </div>
-          ) : null}
           <div className={cn(
             'mx-auto flex w-full flex-1 items-start',
             showDraftPane

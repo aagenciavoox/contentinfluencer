@@ -1,4 +1,4 @@
-import {useEffect, useRef, useState} from 'react';
+import {useEffect, useRef, useState, type ReactNode} from 'react';
 import {Link, useLocation} from 'react-router-dom';
 import {ArrowRight, ChevronLeft, MoreHorizontal, Pencil, Trash2} from 'lucide-react';
 import {AppButton} from '../../../../components/ui/AppButton';
@@ -39,6 +39,8 @@ interface ContentDetailHeaderProps {
    * de avançar ficam na área de escrita (aba Roteiro com Escrita/Gestão, no computador).
    */
   variant?: 'default' | 'document';
+  /** Itens extras no menu ⋯ (ex.: modo Texto/Carrossel). */
+  overflowExtra?: React.ReactNode;
 }
 
 /**
@@ -97,6 +99,7 @@ export function ContentDetailHeader({
   saveState = 'idle',
   contentKind = 'script',
   variant = 'default',
+  overflowExtra,
 }: ContentDetailHeaderProps) {
   const location = useLocation();
   const displayTitle = title ?? content.title;
@@ -167,7 +170,7 @@ export function ContentDetailHeader({
     </div>
   ) : null;
 
-  const overflowMenu = onDelete ? (
+  const overflowMenu = onDelete || overflowExtra ? (
     <div ref={menuRef} className="relative">
       <AppButton
         variant="secondary"
@@ -185,18 +188,31 @@ export function ContentDetailHeader({
           padding="none"
           className="absolute right-0 top-full z-50 mt-1 min-w-[200px] p-1"
         >
-          <AppButton
-            variant="ghost"
-            fullWidth
-            leftIcon={<Trash2 className="h-4 w-4" />}
-            onClick={() => {
-              onDelete();
-              setMenuOpen(false);
-            }}
-            className="justify-start text-[var(--accent-red)] hover:text-[var(--accent-red)]"
-          >
-            Mover para a lixeira
-          </AppButton>
+          {overflowExtra ? (
+            <div
+              className="border-b border-[var(--border-color)] p-1"
+              onClick={() => setMenuOpen(false)}
+              onKeyDown={event => {
+                if (event.key === 'Enter' || event.key === ' ') setMenuOpen(false);
+              }}
+            >
+              {overflowExtra}
+            </div>
+          ) : null}
+          {onDelete ? (
+            <AppButton
+              variant="ghost"
+              fullWidth
+              leftIcon={<Trash2 className="h-4 w-4" />}
+              onClick={() => {
+                onDelete();
+                setMenuOpen(false);
+              }}
+              className="justify-start text-[var(--accent-red)] hover:text-[var(--accent-red)]"
+            >
+              Mover para a lixeira
+            </AppButton>
+          ) : null}
         </Surface>
       ) : null}
     </div>

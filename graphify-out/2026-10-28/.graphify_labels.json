@@ -344,5 +344,7 @@
   "342": "useNavCounts.ts",
   "343": "LooksSettingsPage",
   "344": "lucide-react",
+  "345": "resolveCurrentRead",
+  "346": "RecordingBlock",
   "352": "vite-env.d.ts"
 }

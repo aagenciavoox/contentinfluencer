@@ -22,8 +22,8 @@ const FONT_OPTIONS = ROTEIRO_FONTS.map(font => ({value: font.id, label: font.lab
 
 const TITLE = 'Fonte e tamanho do roteiro inteiro (não só do trecho selecionado)';
 
-/** Moldura de campo dos seletores, na altura compacta da barra. */
-const FIELD_FRAME = 'border border-[var(--border-input)] bg-[var(--bg-elevated)] hover:border-[var(--text-tertiary)]';
+/** Moldura discreta dos seletores (altura compacta). */
+const FIELD_FRAME = 'bg-[var(--bg-secondary)] hover:bg-[var(--bg-hover)]';
 
 const STEP_BUTTON = cn(
   'flex h-8 w-7 shrink-0 items-center justify-center rounded-[var(--radius-input)] text-[var(--text-secondary)] transition',

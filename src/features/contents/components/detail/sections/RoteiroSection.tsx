@@ -1,6 +1,6 @@
 import {useCallback, useEffect, useRef, useState, type ReactNode} from 'react';
 import type {Editor} from '@tiptap/react';
-import {PenLine, SlidersHorizontal} from 'lucide-react';
+import {PenLine, Pencil, SlidersHorizontal} from 'lucide-react';
 import {MobileScriptEditor} from '../../../../../mobile/components/MobileScriptEditor';
 import type {CommentPatch} from '../../../../../components/editors/commentModel';
 import {MobileSegmentTabs} from '../../../../../mobile/components/MobileSegmentTabs';
@@ -387,7 +387,7 @@ export function RoteiroSection({
       };
       return (
         <div className="stack-md">
-          {/* Linha de controles: abas e modo à esquerda; etapa e avançar juntos na ponta direita. */}
+          {/* Escrita/Gestão à esquerda; etapa e avançar à direita. Modo de escrita fica no menu ⋯. */}
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
             <SegmentTabs<'write' | 'manage'>
               ariaLabel="Área do conteúdo"
@@ -398,15 +398,8 @@ export function RoteiroSection({
               value={workspacePane}
               onChange={pane => setWorkspacePaneChoice({contentId, pane})}
             />
-            {workspacePane === 'write' ? (
-              <>
-                <span className="hidden h-6 w-px bg-[var(--border-color)] sm:block" aria-hidden />
-                {writingModeSelect}
-              </>
-            ) : null}
             <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
               {workspacePane === 'write' ? (
-                // A etapa fica à vista enquanto se escreve, com as mesmas regras da aba Gestão.
                 <EtapaSelect
                   status={draft.status}
                   disabled={isPosted}
@@ -423,25 +416,35 @@ export function RoteiroSection({
             </div>
           </div>
 
-          {/* Título do documento: editável direto, acima da barra do editor (também em Gestão). */}
+          {/* Título editável sem caixa: tamanho moderado, lápis só no hover/foco. */}
           <div className="min-w-0 stack-sm">
-          <input
-            type="text"
-            value={titleValue === 'Novo roteiro' ? '' : titleValue}
-            onChange={event => changeTitle(event.target.value)}
-            onKeyDown={event => {
-              if (event.key !== 'Enter' || event.nativeEvent.isComposing) return;
-              event.preventDefault();
-              if (workspacePane === 'write') focusWritingArea();
-              else event.currentTarget.blur();
-            }}
-            placeholder="Sem título"
-            aria-label="Título do roteiro"
-            autoComplete="off"
-            className="t-page-title w-full min-w-0 border-0 bg-transparent px-0 py-1 text-[var(--text-primary)] outline-none placeholder:text-[var(--text-tertiary)]"
-          />
-          {/* Os temas ficavam sob o título no cabeçalho; seguem junto do título. */}
-          <ContentTemaChips temaIds={draft.temaIds} max={6} />
+            <label className="group relative block min-w-0">
+              <span className="sr-only">Título do roteiro</span>
+              <input
+                type="text"
+                value={titleValue === 'Novo roteiro' ? '' : titleValue}
+                onChange={event => changeTitle(event.target.value)}
+                onKeyDown={event => {
+                  if (event.key !== 'Enter' || event.nativeEvent.isComposing) return;
+                  event.preventDefault();
+                  if (workspacePane === 'write') focusWritingArea();
+                  else event.currentTarget.blur();
+                }}
+                placeholder="Sem título"
+                aria-label="Título do roteiro"
+                autoComplete="off"
+                className={cn(
+                  'w-full min-w-0 border-0 bg-transparent py-1 pr-8 text-xl font-semibold tracking-tight',
+                  'text-[var(--text-primary)] outline-none placeholder:text-[var(--text-tertiary)]',
+                  'rounded-none shadow-none focus:border-0 focus:shadow-none',
+                )}
+              />
+              <Pencil
+                className="pointer-events-none absolute right-0 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-tertiary)] opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100"
+                aria-hidden
+              />
+            </label>
+            <ContentTemaChips temaIds={draft.temaIds} max={6} />
           </div>
 
           {workspacePane === 'manage' ? (

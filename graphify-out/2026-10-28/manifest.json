@@ -3330,8 +3330,8 @@
     "semantic_hash": ""
   },
   "src/features/editorial/components/plano/PeriodoPanel.tsx": {
-    "mtime": 1793235817.7245996,
-    "ast_hash": "347caeaa64e75af01a8922dd9dc89826",
+    "mtime": 1793236289.2337193,
+    "ast_hash": "2342364acc4aa890537cb9acf3959d16",
     "semantic_hash": ""
   },
   "src/features/editorial/components/plano/campos.tsx": {
@@ -4225,8 +4225,8 @@
     "semantic_hash": ""
   },
   "src/features/planejamento/lib/orientacaoEditorial.ts": {
-    "mtime": 1793235009.527336,
-    "ast_hash": "19133186ea47055d01f3a76afaec8802",
+    "mtime": 1793236295.9816444,
+    "ast_hash": "95db7be630d8da1b1f5e51b7c22a2421",
     "semantic_hash": ""
   },
   "src/features/planejamento/lib/periodoPlanejamento.ts": {

@@ -8,7 +8,7 @@ import { useEditorState, type Editor } from '@tiptap/react';
 import {
   AlignCenter, AlignJustify, AlignLeft, AlignRight, Bold, Check, ChevronDown,
   Heading1, Heading2, IndentDecrease, IndentIncrease, Italic, Link as LinkIcon,
-  List, ListOrdered, MessageSquarePlus, Minus, MoreHorizontal, Pilcrow, Quote,
+  List, ListOrdered, MessageSquarePlus, Minus, Pilcrow, Quote,
   Redo, RemoveFormatting, Search, Strikethrough, Underline as UnderlineIcon, Undo,
   WrapText,
 } from 'lucide-react';
@@ -16,7 +16,7 @@ import { cn } from '../../lib/utils';
 import { EditorColorMenu } from './EditorColorMenu';
 import { clearFormatting } from './editorExtensions';
 import {
-  fitWritingGroups, WRITING_ALWAYS_MORE_IDS, WRITING_COLLAPSIBLE_GROUPS, writingOverflowItemIds,
+  fitWritingGroups, WRITING_COLLAPSIBLE_GROUPS, WRITING_FORMAT_MENU_IDS, writingOverflowItemIds,
   type WritingBarGroupId,
 } from './writingFormatBar';
 
@@ -42,7 +42,6 @@ export type ToolbarMenuItem = Omit<ToolbarItem, 'icon'> & {
 const useClientLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect;
 const VIEWPORT_PADDING = 8;
 const MENU_GAP = 6;
-const OVERFLOW_BUTTON_WIDTH = 40;
 const ROW_SLACK = 12;
 const DROPDOWN_OPEN_EVENT = 'skald:editor-toolbar-dropdown-open';
 
@@ -474,7 +473,7 @@ export function EditorToolbar({
   const alignItems = pick(['align-left', 'align-center', 'align-right', 'align-justify']);
 
   if (mode === 'writing') return <WritingToolbar editor={editor} pick={pick}
-    styleLabel={styleLabel} styleItems={styleItems} alignIcon={alignIcon} alignItems={alignItems}
+    styleLabel={styleLabel} styleItems={styleItems}
     toolbarStart={toolbarStart} toolbarEnd={toolbarEnd} typographySlot={typographySlot} editable={state.editable} />;
 
   return <div role="group" aria-label="Formatação do texto" className="flex min-w-0 flex-1 flex-wrap items-center gap-0.5">
@@ -502,30 +501,31 @@ export function EditorToolbar({
   </div>;
 }
 
-/** Grupos ocultos continuam mensuráveis, sem duplicar os controles nem perder suas larguras. */
+/** Barra Escrita: Inserir · histórico · estilo · B I link · Formatar · ponta direita. */
 function WritingToolbar({
-  editor, pick, styleLabel, styleItems, alignIcon, alignItems,
+  editor, pick, styleLabel, styleItems,
   toolbarStart, toolbarEnd, typographySlot, editable,
 }: {
   editor: Editor; pick: (ids: readonly string[]) => ToolbarItem[]; styleLabel: string;
-  styleItems: ToolbarItem[]; alignIcon: Icon; alignItems: ToolbarItem[];
+  styleItems: ToolbarItem[];
   toolbarStart?: ReactNode; toolbarEnd?: ReactNode; typographySlot?: ReactNode; editable: boolean;
 }) {
   const rowRef = useRef<HTMLDivElement>(null);
   const basicRef = useRef<HTMLDivElement>(null);
   const endSlotRef = useRef<HTMLDivElement>(null);
-  const overflowRef = useRef<HTMLDivElement>(null);
+  const formatRef = useRef<HTMLDivElement>(null);
   const groupRefs = useRef<Partial<Record<WritingBarGroupId, HTMLDivElement | null>>>({});
   const [visibleCount, setVisibleCount] = useState<number>(WRITING_COLLAPSIBLE_GROUPS.length);
   const measure = useCallback(() => {
     const row = rowRef.current;
     if (!row || row.clientWidth <= 0) return;
     const fixed = unwrappedControlsWidth(basicRef.current)
+      + (formatRef.current?.getBoundingClientRect().width ?? 0)
       + (endSlotRef.current?.getBoundingClientRect().width ?? 0) + ROW_SLACK;
     const next = fitWritingGroups({
       available: row.clientWidth, fixed,
       widths: WRITING_COLLAPSIBLE_GROUPS.map(id => groupRefs.current[id]?.getBoundingClientRect().width ?? 0),
-      overflowWidth: overflowRef.current?.getBoundingClientRect().width || OVERFLOW_BUTTON_WIDTH,
+      overflowWidth: 0,
     });
     const count = Number.isFinite(next) ? Math.max(0, Math.min(WRITING_COLLAPSIBLE_GROUPS.length, Math.trunc(next))) : 0;
     setVisibleCount(current => current === count ? current : count);
@@ -536,7 +536,7 @@ function WritingToolbar({
     let frame = 0;
     const schedule = () => { if (!frame) frame = requestAnimationFrame(() => { frame = 0; measure(); }); };
     const observer = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(schedule) : null;
-    for (const node of [rowRef.current, basicRef.current, endSlotRef.current, overflowRef.current,
+    for (const node of [rowRef.current, basicRef.current, endSlotRef.current, formatRef.current,
       ...Array.from(basicRef.current?.children ?? []),
       ...WRITING_COLLAPSIBLE_GROUPS.map(id => groupRefs.current[id])]) {
       if (node) observer?.observe(node);
@@ -553,41 +553,89 @@ function WritingToolbar({
 
   const shown = new Set(WRITING_COLLAPSIBLE_GROUPS.slice(0, visibleCount));
   const hidden = WRITING_COLLAPSIBLE_GROUPS.slice(visibleCount);
-  const overflowItems = [
-    ...pick([...WRITING_ALWAYS_MORE_IDS]),
+  const formatItems = [
     ...pick(writingOverflowItemIds(hidden)),
+    ...pick([...WRITING_FORMAT_MENU_IDS].filter(id => id !== 'text-color' && id !== 'highlight')),
   ];
-  const groupClass = (visible: boolean) => cn('flex w-max shrink-0 items-center gap-0.5', !visible && 'pointer-events-none invisible absolute left-0 top-0');
-  const renderIcons = (ids: readonly string[]) => pick(ids).map(item => <IconButton key={item.id} item={item} neutral compact />);
+  const groupClass = (visible: boolean) => cn(
+    'flex w-max shrink-0 items-center gap-0.5',
+    !visible && 'pointer-events-none invisible absolute left-0 top-0',
+  );
+  const renderIcons = (ids: readonly string[]) => pick(ids).map(item => (
+    <IconButton key={item.id} item={item} neutral compact />
+  ));
 
-  return <div ref={rowRef} role="group" aria-label="Formatação do texto" className="relative flex min-w-0 flex-1 flex-wrap items-center gap-0.5 overflow-visible">
-      {/* Os menus de cores podem ser locais: nenhum ancestral desta barra deve recortá-los. */}
+  const formatFooter = (
+    <div className="mt-1 flex flex-col gap-2 border-t border-[var(--border-color)] pt-2">
+      {typographySlot ? (
+        <div className="px-1" onMouseDown={event => event.preventDefault()}>
+          {typographySlot}
+        </div>
+      ) : null}
+      <fieldset
+        disabled={!editable}
+        className="flex items-center gap-1 border-0 px-1"
+        onMouseDown={event => event.preventDefault()}
+      >
+        <legend className="sr-only">Cor e destaque</legend>
+        <EditorColorMenu editor={editor} kind="text" size="sm" neutral />
+        <EditorColorMenu editor={editor} kind="highlight" size="sm" neutral />
+      </fieldset>
+    </div>
+  );
+
+  return (
+    <div
+      ref={rowRef}
+      role="group"
+      aria-label="Formatação do texto"
+      className="relative flex min-w-0 flex-1 flex-wrap items-center gap-0.5 overflow-visible"
+    >
       <div ref={basicRef} className="flex min-w-0 flex-wrap items-center gap-0.5 overflow-visible [&>*]:shrink-0">
-        {toolbarStart ? <div className="mr-1 flex shrink-0 items-center gap-1 border-r border-[var(--border-color)] pr-2">{toolbarStart}</div> : null}
-        {renderIcons(['undo', 'redo'])}<Separator />
-        <ToolbarDropdown label="Estilo do parágrafo" triggerText={styleLabel} items={styleItems} neutral compact selectable disabled={!editable} />
-        {typographySlot ? <><Separator />{typographySlot}</> : null}
-        <Separator />{renderIcons(['bold', 'italic', 'underline'])}
-        <fieldset disabled={!editable} className="flex min-w-0 shrink-0 items-center gap-0.5 border-0 p-0">
-          <legend className="sr-only">Cor e destaque</legend>
-          <EditorColorMenu editor={editor} kind="text" size="sm" neutral />
-          <EditorColorMenu editor={editor} kind="highlight" size="sm" neutral />
-        </fieldset>
-        <Separator />{renderIcons(['list', 'ordered', 'link'])}
+        {toolbarStart ? <div className="flex shrink-0 items-center">{toolbarStart}</div> : null}
+        <Separator />
+        {renderIcons(['undo', 'redo'])}
       </div>
-    <div ref={node => { groupRefs.current.insert = node; }} aria-hidden={!shown.has('insert')} className={groupClass(shown.has('insert'))}>
-      <Separator />{renderIcons(['comment'])}
-    </div>
-    <div ref={node => { groupRefs.current.paragraph = node; }} aria-hidden={!shown.has('paragraph')} className={groupClass(shown.has('paragraph'))}>
-      <Separator /><ToolbarDropdown label="Alinhamento" triggerIcon={alignIcon} items={alignItems} neutral compact selectable disabled={!editable || !shown.has('paragraph')} />
-      {renderIcons(['outdent', 'indent'])}
-    </div>
-    <div className="ml-auto flex shrink-0 items-center gap-0.5 pl-1">
-      <div ref={overflowRef} className="flex w-max shrink-0">
-        <ToolbarDropdown label="Mais opções" triggerIcon={MoreHorizontal} triggerText="Mais opções" items={overflowItems}
-          neutral compact align="right" minWidth="min-w-[240px]" />
+      <div
+        ref={node => { groupRefs.current.style = node; }}
+        aria-hidden={!shown.has('style')}
+        className={groupClass(shown.has('style'))}
+      >
+        <Separator />
+        <ToolbarDropdown
+          label="Estilo do parágrafo"
+          triggerText={styleLabel}
+          items={styleItems}
+          neutral
+          compact
+          selectable
+          disabled={!editable || !shown.has('style')}
+        />
       </div>
-      <div ref={endSlotRef} className="flex shrink-0 items-center gap-0.5">{toolbarEnd}</div>
+      <div
+        ref={node => { groupRefs.current.marks = node; }}
+        aria-hidden={!shown.has('marks')}
+        className={groupClass(shown.has('marks'))}
+      >
+        <Separator />
+        {renderIcons(['bold', 'italic', 'link'])}
+      </div>
+      <div ref={formatRef} className="flex w-max shrink-0 items-center gap-0.5">
+        <Separator />
+        <ToolbarDropdown
+          label="Formatar"
+          triggerText="Formatar"
+          items={formatItems}
+          footer={formatFooter}
+          neutral
+          compact
+          disabled={!editable}
+          minWidth="min-w-[15rem]"
+        />
+      </div>
+      <div className="ml-auto flex shrink-0 items-center gap-0.5 pl-1">
+        <div ref={endSlotRef} className="flex shrink-0 items-center gap-0.5">{toolbarEnd}</div>
+      </div>
     </div>
-  </div>;
+  );
 }

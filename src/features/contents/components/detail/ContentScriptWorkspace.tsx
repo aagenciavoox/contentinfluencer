@@ -97,16 +97,15 @@ export function ContentScriptWorkspace({
   return (
     <section className={cn(
       writingToolbar
-        ? 'cms-panel flex min-h-[calc(100dvh-14rem)] flex-col overflow-visible'
+        ? 'flex min-h-[calc(100dvh-14rem)] flex-col overflow-visible rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-elevated)]'
         : 'cms-panel flex max-h-[calc(100dvh-10.5rem)] min-h-[28rem] flex-col overflow-hidden',
       className,
     )}>
       {writingToolbar ? (
-        // Na aba Escrita o título "Roteiro" repetia a aba; só a ação fica, quando existe.
         <>
           <Text variant="sectionTitle" className="sr-only">Roteiro</Text>
           {headerAction ? (
-            <div className="flex shrink-0 items-center justify-end gap-3 border-b border-[var(--border-color)] px-4 py-2 md:px-6">
+            <div className="flex shrink-0 items-center justify-end gap-3 px-3 py-1.5 md:px-4">
               {headerAction}
             </div>
           ) : null}

@@ -1,45 +1,59 @@
 /**
  * Barra de Escrita do roteiro (computador):
- * [Bloco] [desfazer refazer] | [estilo ▾] [fonte ▾] [− tamanho +] | [B I U, cor, destaque, listas]
- * | [link, comentário] | [alinhar ▾, recuos] | secundários em "Mais opções" …
+ * [+ Inserir] [desfazer refazer] [estilo ▾] [B I link] [Formatar ▾] …
  * [Comentários] [Rascunho] [Modo foco]
- * Em telas estreitas os grupos recolhíveis caem no "⋯", do fim para o começo.
+ * Em telas estreitas estilo e marcas caem no menu Formatar.
  */
-export type WritingBarGroupId = 'history' | 'style' | 'typography' | 'format' | 'insert' | 'paragraph' | 'tools';
+export type WritingBarGroupId = 'insert' | 'history' | 'style' | 'marks' | 'formatMenu';
 
 export interface WritingBarGroup {
   id: WritingBarGroupId;
   /** Controles do grupo, na ordem da barra. */
   items: readonly string[];
-  /** Pode ir para o "⋯" em telas estreitas. O básico nunca vai. */
+  /** Pode ir para o Formatar em telas estreitas. O básico nunca vai. */
   collapsible: boolean;
 }
 
 export const WRITING_BAR_GROUPS: readonly WritingBarGroup[] = [
-  { id: 'history', items: ['undo', 'redo'], collapsible: false },
-  { id: 'style', items: ['style'], collapsible: false },
-  { id: 'typography', items: ['font', 'size'], collapsible: false },
-  { id: 'format', items: ['bold', 'italic', 'underline', 'text-color', 'highlight', 'list', 'ordered', 'link'], collapsible: false },
-  { id: 'insert', items: ['comment'], collapsible: true },
-  { id: 'paragraph', items: ['align', 'outdent', 'indent'], collapsible: true },
-  /** Sempre no menu "Mais opções", nunca na barra principal. */
-  { id: 'tools', items: ['strike', 'rule', 'clear', 'repair', 'find'], collapsible: false },
+  {id: 'insert', items: ['insert'], collapsible: false},
+  {id: 'history', items: ['undo', 'redo'], collapsible: false},
+  {id: 'style', items: ['style'], collapsible: true},
+  {id: 'marks', items: ['bold', 'italic', 'link'], collapsible: true},
+  /** Sempre um menu; conteúdos extras entram quando a barra aperta. */
+  {id: 'formatMenu', items: ['format'], collapsible: false},
 ];
 
 export const WRITING_BAR_ACTION_IDS = WRITING_BAR_GROUPS.flatMap(group => group.items);
 
-/** Grupos que podem cair no overflow em telas estreitas (o último sai primeiro). */
+/** Grupos que podem cair no Formatar em telas estreitas (o último sai primeiro). */
 export const WRITING_COLLAPSIBLE_GROUPS = WRITING_BAR_GROUPS
   .filter(group => group.collapsible)
   .map(group => group.id);
 
-/** Itens sempre presentes em "Mais opções". */
-export const WRITING_ALWAYS_MORE_IDS = ['strike', 'rule', 'clear', 'repair', 'find'] as const;
+/** Itens fixos do menu Formatar (não duplicam a barra principal). */
+export const WRITING_FORMAT_MENU_IDS = [
+  'underline',
+  'text-color',
+  'highlight',
+  'list',
+  'ordered',
+  'align-left',
+  'align-center',
+  'align-right',
+  'align-justify',
+  'outdent',
+  'indent',
+  'strike',
+  'rule',
+  'clear',
+  'repair',
+  'find',
+] as const;
 
-/** Itens do overflow para um grupo escondido (o alinhamento vira as quatro opções). */
+/** Itens do overflow quando um grupo some da barra. */
 const OVERFLOW_ITEMS: Partial<Record<WritingBarGroupId, readonly string[]>> = {
-  insert: ['comment'],
-  paragraph: ['align-left', 'align-center', 'align-right', 'align-justify', 'outdent', 'indent'],
+  style: ['paragraph', 'h1', 'h2', 'quote'],
+  marks: ['bold', 'italic', 'link'],
 };
 
 export function writingOverflowItemIds(hidden: readonly WritingBarGroupId[]): string[] {
@@ -48,7 +62,7 @@ export function writingOverflowItemIds(hidden: readonly WritingBarGroupId[]): st
 
 /**
  * Quantos grupos recolhíveis cabem: o básico e a ponta direita sempre ficam; se algum grupo
- * sair, sobra espaço também para o botão "⋯". Larguras desconhecidas contam como 0.
+ * sair, sobra espaço também para o botão Formatar. Larguras desconhecidas contam como 0.
  */
 export function fitWritingGroups({
   available,

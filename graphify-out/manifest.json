@@ -285,8 +285,8 @@
     "semantic_hash": ""
   },
   "src/components/editors/RichTextEditor.tsx": {
-    "mtime": 1793235724.609183,
-    "ast_hash": "045f6429053ace9dc4374104801e16b6",
+    "mtime": 1793238619.1553411,
+    "ast_hash": "b67d6935715ae2ec65f0a9db450a6103",
     "semantic_hash": ""
   },
   "src/components/feedback/modals/BottomSheetModal.tsx": {
@@ -705,13 +705,13 @@
     "semantic_hash": ""
   },
   "src/features/contents/components/detail/ContentDetailHeader.tsx": {
-    "mtime": 1793232520.941845,
-    "ast_hash": "d06068bd52110b0f7229f7b23ae8f979",
+    "mtime": 1793238576.6718247,
+    "ast_hash": "d76984148a53bf93ae0f89c443e24ebc",
     "semantic_hash": ""
   },
   "src/features/contents/components/detail/ContentDetailShell.tsx": {
-    "mtime": 1793234361.1862302,
-    "ast_hash": "040330acbd3485b0093a7ca6f4d1ef86",
+    "mtime": 1793238591.8961978,
+    "ast_hash": "9c66285b782bea2e2c4c3a734638dab4",
     "semantic_hash": ""
   },
   "src/features/contents/components/detail/ContentDetailTabs.tsx": {
@@ -735,8 +735,8 @@
     "semantic_hash": ""
   },
   "src/features/contents/components/detail/ContentScriptWorkspace.tsx": {
-    "mtime": 1793234644.65036,
-    "ast_hash": "9bff313ad1c8402057af0bf5b60def4b",
+    "mtime": 1793238612.8751712,
+    "ast_hash": "c9e5f47b5501215ad6a02b2156151a2e",
     "semantic_hash": ""
   },
   "src/features/contents/components/detail/DraftSaveBar.tsx": {
@@ -750,13 +750,13 @@
     "semantic_hash": ""
   },
   "src/features/contents/components/detail/ScriptBlockToolbar.tsx": {
-    "mtime": 1791155588.5974905,
-    "ast_hash": "d75133ff192aafbda2564d76884e5c12",
+    "mtime": 1793238515.8591568,
+    "ast_hash": "f8f14a7dc5ad50e7247ac64ccb91d4c5",
     "semantic_hash": ""
   },
   "src/features/contents/components/detail/WritingNotesPane.tsx": {
-    "mtime": 1793234641.7568913,
-    "ast_hash": "d7ccbe1233e1331f4d98ee160f61a82f",
+    "mtime": 1793238109.0281017,
+    "ast_hash": "1bb6c7f82aac67f7229a43b72990353c",
     "semantic_hash": ""
   },
   "src/features/contents/components/detail/sections/HistorySection.tsx": {
@@ -780,8 +780,8 @@
     "semantic_hash": ""
   },
   "src/features/contents/components/detail/sections/RoteiroSection.tsx": {
-    "mtime": 1793235750.9656394,
-    "ast_hash": "5f4e0e4494714ac7b53bfba27d40db97",
+    "mtime": 1793238607.359011,
+    "ast_hash": "06ec48e1e60c0351301717657def61ce",
     "semantic_hash": ""
   },
   "src/features/contents/components/filters/PipelineStatusPills.tsx": {
@@ -2950,13 +2950,13 @@
     "semantic_hash": ""
   },
   "src/components/editors/writingFormatBar.test.ts": {
-    "mtime": 1793235752.3854744,
-    "ast_hash": "b47777967d90f37317451133dd634b1e",
+    "mtime": 1793238623.9926243,
+    "ast_hash": "10444c483570894def52073889f9371f",
     "semantic_hash": ""
   },
   "src/components/editors/writingFormatBar.ts": {
-    "mtime": 1793235636.9870067,
-    "ast_hash": "f429523e00557da83bc3a2825ac02fb0",
+    "mtime": 1793238499.1174066,
+    "ast_hash": "68c63335f80938e3c333dbc5a5a56a28",
     "semantic_hash": ""
   },
   "src/features/contents/components/detail/ContentManageWorkspace.tsx": {
@@ -3700,8 +3700,8 @@
     "semantic_hash": ""
   },
   "src/components/editors/EditorToolbar.tsx": {
-    "mtime": 1793235661.6838982,
-    "ast_hash": "24cb25f53c205523a8ada2d273e7c50b",
+    "mtime": 1793238634.2324784,
+    "ast_hash": "d3149d97e169219cc3bcd6a9dc680b4a",
     "semantic_hash": ""
   },
   "src/components/editors/FindReplaceBar.tsx": {
@@ -3850,8 +3850,8 @@
     "semantic_hash": ""
   },
   "src/features/contents/components/detail/RoteiroTypographyControls.tsx": {
-    "mtime": 1792537523.053187,
-    "ast_hash": "6ee388980a97ee4615447bdf81d7bb24",
+    "mtime": 1793238625.7682133,
+    "ast_hash": "df653ce77a044350abdbce9f1786f8c6",
     "semantic_hash": ""
   },
   "src/features/contents/lib/carouselSlides.test.ts": {
