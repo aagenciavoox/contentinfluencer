@@ -2,9 +2,10 @@ import { format } from 'date-fns';
 import type { Content, ContentPlataforma } from '../../../lib/database.ts';
 import { platformKey } from '../../../components/ui/platformName.ts';
 import { contaDaRef, rotuloDaRef, type ContaRef } from '../../contas/lib/contas.ts';
-import { CONTENT_STATUS, DISPLAY_STATUS, getDisplayStatus, normalizeContentStatus } from '../../contents/lib/contentPipeline.ts';
+import { CONTENT_STATUS, DISPLAY_STATUS, getDisplayStatus, isReadyToPublish, normalizeContentStatus } from '../../contents/lib/contentPipeline.ts';
 import { buildGradeEntries, quandoDoItem, type GradeSerie, type Quando } from '../../editorial/lib/gradeEntries.ts';
 import { dataRealizada, earliestRealizadaEm, rotuloStatusPublicacao } from '../../editorial/lib/markPublished.ts';
+import { normalizePublicacaoStatus } from '../../editorial/lib/publicacaoSituacao.ts';
 const TODAS_AS_REDES = 'todas';
 
 export type PublishCalendarItem = {
@@ -19,6 +20,8 @@ export type PublishCalendarItem = {
   posted: boolean;
   /** Marcada como não foi ao ar ou removida. */
   cancelled: boolean;
+  /** Conta marcada como programada (não basta data futura). */
+  programada?: boolean;
 };
 
 type PlatformRef = ContaRef;
@@ -112,6 +115,7 @@ function itensSemReferencia(content: Content, platforms: readonly PlatformRef[])
     platformNames: uniqueNames(originais.map(publicacao => platformName(publicacao.platformId, platforms))),
     posted,
     cancelled: !posted && originais.length > 0 && originais.every(cancelada),
+    programada: originais.some(item => normalizePublicacaoStatus(item.status) === 'programada'),
   }];
 
   for (const repost of publicacoes) {
@@ -132,6 +136,7 @@ function itensSemReferencia(content: Content, platforms: readonly PlatformRef[])
       platformNames: [platformName(repost.platformId, platforms)],
       posted: repostPosted,
       cancelled: cancelada(repost),
+      programada: normalizePublicacaoStatus(repost.status) === 'programada',
     });
   }
 
@@ -142,25 +147,31 @@ export function todayKey(now = new Date()): string {
   return format(now, 'yyyy-MM-dd');
 }
 
-/** Programado: ainda não foi ao ar, não foi descartado e a data é hoje ou depois. */
+/**
+ * Programado no calendário: conta programada + material pronto.
+ * Data futura sozinha não basta (continua prevista).
+ */
 export function isScheduledItem(
-  item: Pick<PublishCalendarItem, 'posted' | 'cancelled' | 'date'>,
-  hoje = todayKey(),
+  item: Pick<PublishCalendarItem, 'posted' | 'cancelled' | 'programada'>,
+  content?: Pick<Content, 'status' | 'edicaoConcluidaEm' | 'postedAt'>,
 ): boolean {
-  return !item.posted && !item.cancelled && Boolean(item.date) && (item.date ?? '').slice(0, 10) >= hoje;
+  if (item.posted || item.cancelled || !item.programada) return false;
+  if (!content) return true;
+  return isReadyToPublish(content);
 }
 
 /**
- * Cada publicação mostra o próprio status: o repost ainda por vir de um roteiro
- * já postado aparece como Programado, não como Postado.
+ * Cada publicação mostra o próprio status. Programado só com conta programada
+ * e material em Edição · Pronto; senão usa a situação da conta ou a etapa.
  */
-export function publishItemStatus(content: Content, item: PublishCalendarItem, hoje = todayKey()): string {
+export function publishItemStatus(content: Content, item: PublishCalendarItem, _hoje = todayKey()): string {
   if (item.posted) return CONTENT_STATUS.POSTADO;
-  if (isScheduledItem(item, hoje)) return DISPLAY_STATUS.PROGRAMADO;
+  if (isScheduledItem(item, content)) return DISPLAY_STATUS.PROGRAMADO;
+  const publicacao = (content.plataformas ?? []).find(candidate => candidate.id === item.plataformaId);
+  if (publicacao) return rotuloStatusPublicacao(publicacao.status);
   const status = normalizeContentStatus(content.status);
   if (status !== CONTENT_STATUS.POSTADO && !content.postedAt) return status;
-  const publicacao = (content.plataformas ?? []).find(candidate => candidate.id === item.plataformaId);
-  return rotuloStatusPublicacao(publicacao?.status);
+  return rotuloStatusPublicacao(null);
 }
 
 /**
@@ -204,6 +215,7 @@ export function buildPublishCalendarItems(input: {
           platformNames: [nome],
           posted,
           cancelled: cancelada(publicacao),
+          programada: normalizePublicacaoStatus(publicacao.status) === 'programada',
         });
       }
     }
@@ -260,6 +272,7 @@ export function buildPublishCalendarItems(input: {
         : nomes,
       posted,
       cancelled: cancelada(publicacao),
+      programada: normalizePublicacaoStatus(publicacao?.status) === 'programada',
     }];
   });
 }

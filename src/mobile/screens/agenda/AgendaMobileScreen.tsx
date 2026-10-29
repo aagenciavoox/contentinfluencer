@@ -225,7 +225,7 @@ function buildTimelineEntries(contents: Content[], platforms: Platform[], agenda
         platformNames: item.platformNames,
         contentStatus: publishStatus,
         posted: item.posted,
-        scheduled: isScheduledItem(item, hoje),
+        scheduled: isScheduledItem(item, content),
       });
     });
   });

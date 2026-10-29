@@ -190,17 +190,17 @@ function testPublicacaoMarcadaComoPostadaApareceComoPostado() {
 
   const todas = buildPublishCalendarItems({ ...base, platformFilter: 'todas' });
   assert.deepEqual(todas.map(item => item.posted), [true, false]);
-  assert.deepEqual(todas.map(item => publishItemStatus(content, item, '2026-10-14')), ['Publicado', 'Programado']);
-  assert.deepEqual(todas.map(item => publishItemStatus(content, item, '2026-10-25')), ['Publicado', 'Agendada']);
-  assert.equal(isScheduledItem(todas[1]!, '2026-10-14'), true);
-  assert.equal(isScheduledItem(todas[1]!, '2026-10-20'), true);
-  assert.equal(isScheduledItem(todas[1]!, '2026-10-21'), false);
+  // Repost futuro sem status programada continua Prevista, não Programado.
+  assert.deepEqual(todas.map(item => publishItemStatus(content, item, '2026-10-14')), ['Publicado', 'Prevista']);
+  assert.deepEqual(todas.map(item => publishItemStatus(content, item, '2026-10-25')), ['Publicado', 'Prevista']);
+  assert.equal(isScheduledItem(todas[1]!, content), false);
+  assert.equal(todas[1]?.programada, false);
 
   const soTikTok = buildPublishCalendarItems({ ...base, platformFilter: 'TikTok' });
   assert.equal(soTikTok[0]?.posted, false);
   assert.equal(soTikTok[0]?.cancelled, true);
-  assert.equal(publishItemStatus(content, soTikTok[0]!, '2026-10-01'), 'Não foi ao ar');
-  assert.equal(isScheduledItem(soTikTok[0]!, '2026-10-01'), false);
+  assert.equal(publishItemStatus(content, soTikTok[0]!, '2026-10-01'), 'Não publicada');
+  assert.equal(isScheduledItem(soTikTok[0]!, content), false);
 }
 
 function testRoteiroPostadoSemMarcaNaRedeApareceComoPostado() {

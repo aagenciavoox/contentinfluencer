@@ -241,12 +241,17 @@ export function appReducer(state: AppState, action: AppAction): AppState {
     case 'DELETE_MULTIPLE_CONTENTS':
       return { ...state, contents: state.contents.filter(c => !action.payload.includes(c.id)) };
     case 'SET_CONTENT_STATUS': {
+      // Em lote, Publicado fica desativado: só o formulário registra publicação.
+      const nextStatus = action.payload.status;
+      if (nextStatus === 'Publicado' || nextStatus === 'Postado') {
+        return state;
+      }
       const contentIds = new Set(action.payload.contentIds);
       return {
         ...state,
         contents: state.contents.map(content =>
           contentIds.has(content.id)
-            ? transitionCreationStatus(content, action.payload.status)
+            ? transitionCreationStatus(content, nextStatus)
             : content
         ),
       };

@@ -4,9 +4,10 @@ import {AppButton} from '../../../../../components/ui/AppButton';
 import {rotuloStatusPublicacao, setPublicacaoStatus} from '../../../../editorial/lib/markPublished';
 import {CONTENT_STATUS, getDisplayStatus, isReadyToPublish} from '../../../lib/contentPipeline';
 import type {PostingAlert} from '../../../lib/contentPipeline';
-import {useState} from 'react';
+import {useRef, useState} from 'react';
 import {useAppContext} from '../../../../../context/AppContext';
 import {criarRepost} from '../../../../editorial/lib/destinations';
+import {retirarPrevisao} from '../../../../editorial/lib/dataVencida';
 import {progressoPublicacao} from '../../../../editorial/lib/publicacaoSituacao';
 import {PlatformCopyEditor} from '../PlatformCopyEditor';
 import {rotuloConta, rotuloDaRef} from '../../../../contas/lib/contas';
@@ -40,6 +41,18 @@ function updatePlatformDate(
   );
 }
 
+function updatePlatformLink(
+  plataformas: ContentPlataforma[],
+  publicationId: string,
+  postUrl: string,
+) {
+  return plataformas.map(plataforma =>
+    plataforma.id === publicationId
+      ? {...plataforma, postUrl: postUrl.trim() || null}
+      : plataforma
+  );
+}
+
 export function PublishingSection({
   draft,
   pilar,
@@ -53,6 +66,7 @@ export function PublishingSection({
   const editorial = state.editorial;
   const referencia = state.platforms.find(platform => platform.id === editorial.redeReferenciaId) ?? null;
   const [repostDate, setRepostDate] = useState('');
+  const dataPrincipalRef = useRef<HTMLInputElement>(null);
   const isPosted = draft.status === CONTENT_STATUS.POSTADO || Boolean(draft.postedAt);
   const materialPronto = isReadyToPublish(draft);
   const progresso = progressoPublicacao(draft.plataformas);
@@ -89,9 +103,9 @@ export function PublishingSection({
               Data principal
             </span>
             <input
+              ref={dataPrincipalRef}
               type="date"
               value={draft.publishDate ? draft.publishDate.slice(0, 10) : ''}
-              disabled={isPosted}
               onChange={event =>
                 onChange({
                   publishDate: event.target.value ? `${event.target.value}T12:00:00.000Z` : null,
@@ -103,7 +117,7 @@ export function PublishingSection({
                   })),
                 })
               }
-              className="w-full rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-primary)] px-4 py-3 text-sm font-semibold text-[var(--text-primary)] outline-none transition-colors focus:border-[var(--text-primary)]/30 disabled:opacity-60 md:rounded-[var(--radius-card)]"
+              className="w-full rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-primary)] px-4 py-3 text-sm font-semibold text-[var(--text-primary)] outline-none transition-colors focus:border-[var(--text-primary)]/30 md:rounded-[var(--radius-card)]"
             />
           </label>
 
@@ -114,10 +128,12 @@ export function PublishingSection({
                 status: draft.status,
                 publishDate: draft.publishDate,
                 postedAt: draft.postedAt ?? null,
+                edicaoConcluidaEm: draft.edicaoConcluidaEm ?? null,
+                plataformas: draft.plataformas,
               })}
             </p>
             <p className="mt-2 text-sm text-[var(--text-secondary)]">
-              Datas ficam guardadas aqui para lembrar, reagendar ou marcar como postado quando fizer sentido.
+              Datas ficam guardadas para lembrar, reagendar ou registrar a publicação. Nada se confirma sozinho.
             </p>
           </div>
         </div>
@@ -128,14 +144,39 @@ export function PublishingSection({
           {alerts.map(alert => (
             <article
               key={alert.id}
-              className="flex items-start gap-3 rounded-[22px] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-4"
+              className="stack-sm rounded-[22px] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-4"
             >
-              {alert.tone === 'warning' ? (
-                <AlertTriangle className="mt-0.5 h-5 w-5 text-[var(--warning)]" />
-              ) : (
-                <CalendarDays className="mt-0.5 h-5 w-5 text-[var(--info)]" />
-              )}
-              <p className="text-sm font-semibold text-[var(--text-primary)]">{alert.message}</p>
+              <div className="flex items-start gap-3">
+                {alert.tone === 'warning' ? (
+                  <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-[var(--warning)]" />
+                ) : (
+                  <CalendarDays className="mt-0.5 h-5 w-5 shrink-0 text-[var(--info)]" />
+                )}
+                <p className="text-sm font-semibold text-[var(--text-primary)]">{alert.message}</p>
+              </div>
+              {alert.id === 'overdue' ? (
+                <div className="flex flex-wrap gap-2 pl-8">
+                  <AppButton
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => dataPrincipalRef.current?.focus()}
+                  >
+                    Reagendar
+                  </AppButton>
+                  {onMarkPosted ? (
+                    <AppButton variant="secondary" size="sm" onClick={onMarkPosted}>
+                      Registrar publicação
+                    </AppButton>
+                  ) : null}
+                  <AppButton
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onChange(retirarPrevisao(draft))}
+                  >
+                    Retirar previsão
+                  </AppButton>
+                </div>
+              ) : null}
             </article>
           ))}
         </section>
@@ -166,26 +207,45 @@ export function PublishingSection({
                 key={plataforma.id || plataforma.platformId}
                 className="rounded-[24px] border border-[var(--border-color)] bg-[var(--bg-primary)] p-4"
               >
-                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
                   <p className="text-sm font-semibold text-[var(--text-primary)]">{rotuloDaRef(plataforma.platformId, state.platforms)}</p>
-                  <label className="block md:min-w-[220px]">
-                    <span className="mb-2 block text-xs font-semibold text-[var(--text-tertiary)]">Data</span>
-                    <input
-                      type="date"
-                      value={plataforma.publishDate ? plataforma.publishDate.slice(0, 10) : ''}
-                      disabled={isPosted}
-                      onChange={event =>
-                        onChange({
-                          plataformas: updatePlatformDate(
-                            draft.plataformas,
-                            plataforma.id,
-                            event.target.value ? `${event.target.value}T12:00:00.000Z` : null
-                          ),
-                        })
-                      }
-                      className="w-full rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-3 text-sm font-semibold text-[var(--text-primary)] outline-none transition-colors focus:border-[var(--text-primary)]/30 disabled:opacity-60 md:rounded-[var(--radius-card)]"
-                    />
-                  </label>
+                  <div className="grid gap-3 sm:grid-cols-2 md:min-w-[28rem]">
+                    <label className="block">
+                      <span className="mb-2 block text-xs font-semibold text-[var(--text-tertiary)]">Data</span>
+                      <input
+                        type="date"
+                        value={plataforma.publishDate ? plataforma.publishDate.slice(0, 10) : ''}
+                        onChange={event =>
+                          onChange({
+                            plataformas: updatePlatformDate(
+                              draft.plataformas,
+                              plataforma.id,
+                              event.target.value ? `${event.target.value}T12:00:00.000Z` : null
+                            ),
+                          })
+                        }
+                        className="w-full rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-3 text-sm font-semibold text-[var(--text-primary)] outline-none transition-colors focus:border-[var(--text-primary)]/30 md:rounded-[var(--radius-card)]"
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="mb-2 block text-xs font-semibold text-[var(--text-tertiary)]">Link</span>
+                      <input
+                        type="url"
+                        value={plataforma.postUrl ?? ''}
+                        placeholder="https://"
+                        onChange={event =>
+                          onChange({
+                            plataformas: updatePlatformLink(
+                              draft.plataformas,
+                              plataforma.id,
+                              event.target.value,
+                            ),
+                          })
+                        }
+                        className="w-full rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-3 text-sm font-semibold text-[var(--text-primary)] outline-none transition-colors focus:border-[var(--text-primary)]/30 md:rounded-[var(--radius-card)]"
+                      />
+                    </label>
+                  </div>
                 </div>
                 <div className="mt-3 flex flex-wrap items-center gap-2">
                   <p className="text-xs font-semibold text-[var(--text-tertiary)]">
@@ -194,28 +254,32 @@ export function PublishingSection({
                   {plataforma.postCodigo ? (
                     <p className="text-xs text-[var(--text-tertiary)]">Código {plataforma.postCodigo}</p>
                   ) : null}
-                  <AppButton
-                    variant="ghost"
-                    size="xs"
-                    onClick={() =>
-                      onChange({
-                        plataformas: setPublicacaoStatus(draft.plataformas, plataforma.id, 'nao_publicada'),
-                      })
-                    }
-                  >
-                    Não foi ao ar
-                  </AppButton>
-                  <AppButton
-                    variant="ghost"
-                    size="xs"
-                    onClick={() =>
-                      onChange({
-                        plataformas: setPublicacaoStatus(draft.plataformas, plataforma.id, 'removida'),
-                      })
-                    }
-                  >
-                    Removida
-                  </AppButton>
+                  {!isPosted || plataforma.status !== 'publicada' ? (
+                    <>
+                      <AppButton
+                        variant="ghost"
+                        size="xs"
+                        onClick={() =>
+                          onChange({
+                            plataformas: setPublicacaoStatus(draft.plataformas, plataforma.id, 'nao_publicada'),
+                          })
+                        }
+                      >
+                        Não publicada
+                      </AppButton>
+                      <AppButton
+                        variant="ghost"
+                        size="xs"
+                        onClick={() =>
+                          onChange({
+                            plataformas: setPublicacaoStatus(draft.plataformas, plataforma.id, 'removida'),
+                          })
+                        }
+                      >
+                        Removida
+                      </AppButton>
+                    </>
+                  ) : null}
                 </div>
               </article>
             ))}

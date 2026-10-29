@@ -69,8 +69,23 @@ function testMostraPostadosEProgramadosMasNaoOQueFicouParaTras() {
     conteudo({
       id: 'programado',
       title: 'Vai sair',
+      status: 'Edição',
+      edicaoConcluidaEm: '2026-10-13T12:00:00.000Z',
       plataformas: [
-        publicacao({id: 'ig-2', contentId: 'programado', publishDate: '2026-10-20', publishTime: '18:00:00'}),
+        publicacao({
+          id: 'ig-2',
+          contentId: 'programado',
+          publishDate: '2026-10-20',
+          publishTime: '18:00:00',
+          status: 'programada',
+        }),
+      ],
+    }),
+    conteudo({
+      id: 'so-prevista',
+      title: 'Só data futura',
+      plataformas: [
+        publicacao({id: 'ig-prev', contentId: 'so-prevista', publishDate: '2026-10-22'}),
       ],
     }),
     conteudo({
@@ -90,6 +105,7 @@ function testMostraPostadosEProgramadosMasNaoOQueFicouParaTras() {
     hoje: '2026-10-14',
   });
 
+  // Data futura sem status programada não entra; vencida também não.
   assert.deepEqual([...dias.keys()].sort(), ['2026-10-10', '2026-10-20']);
   assert.deepEqual(
     dias.get('2026-10-10')?.map(item => [item.titulo, item.estado]),

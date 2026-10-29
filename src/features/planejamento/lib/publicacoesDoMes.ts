@@ -3,7 +3,6 @@ import type {GradeSerie} from '../../editorial/lib/gradeEntries.ts';
 import {
   buildPublishCalendarItems,
   isScheduledItem,
-  todayKey,
 } from '../../editorial-calendar/lib/publishCalendarItems.ts';
 
 export type PublicacaoNoDia = {
@@ -26,13 +25,14 @@ export function publicacoesPorDia(input: {
   redeReferenciaId: string | null;
   hoje?: string;
 }): Map<string, PublicacaoNoDia[]> {
-  const hoje = input.hoje ?? todayKey();
   const titulos = new Map(input.contents.map(content => [content.id, content.title?.trim() || 'Sem título']));
+  const porId = new Map(input.contents.map(content => [content.id, content]));
   const map = new Map<string, PublicacaoNoDia[]>();
 
   for (const item of buildPublishCalendarItems({...input, platformFilter: 'todas'})) {
     if (!item.date) continue;
-    const estado = item.posted ? 'postado' : isScheduledItem(item, hoje) ? 'programado' : null;
+    const content = porId.get(item.contentId);
+    const estado = item.posted ? 'postado' : isScheduledItem(item, content) ? 'programado' : null;
     if (!estado) continue;
     const dia = item.date.slice(0, 10);
     const lista = map.get(dia) ?? [];

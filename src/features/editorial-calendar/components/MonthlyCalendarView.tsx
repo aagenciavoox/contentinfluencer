@@ -148,7 +148,7 @@ export function buildCalendarEntries(
         plataformaId: item.plataformaId,
         platformNames: item.platformNames,
         posted: item.posted,
-        scheduled: isScheduledItem(item, hoje),
+        scheduled: isScheduledItem(item, content),
         secondary: networkLabel,
       });
     });

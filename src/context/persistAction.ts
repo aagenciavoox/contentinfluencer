@@ -166,6 +166,10 @@ export async function persistAction({ action, userId, state, api }: PersistActio
       return;
 
     case 'SET_CONTENT_STATUS': {
+      // Em lote, Publicado fica desativado: só o formulário registra publicação.
+      if (action.payload.status === 'Publicado' || action.payload.status === 'Postado') {
+        return;
+      }
       const contentIds = new Set(action.payload.contentIds);
       const contents = state.contents.filter(content => contentIds.has(content.id));
       await Promise.all(contents.map(content => persistContentRecord(
