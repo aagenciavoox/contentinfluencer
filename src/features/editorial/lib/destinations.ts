@@ -80,6 +80,7 @@ export function criarPublicacaoAgendada(
     publishTime: null,
     publishDateEnabled: false,
     publicationKind: 'post',
+    ciclo: 1,
     status: 'prevista',
     realizadaManualEm: null,
     realizadaApiEm: null,
@@ -141,7 +142,10 @@ export function publicacoesDosDestinos(input: {
   return input.destinos.map(destino => criarPublicacaoAgendada(input.contentId, destino.id, criarId()));
 }
 
-/** Repost é outra publicação, com data própria. A grade já vira entrada a partir dela. */
+/**
+ * Repost legado (uma conta). Preferir `criarCicloDeRepost` para o fluxo completo.
+ * Define ciclo = maior ciclo existente + 1.
+ */
 export function criarRepost(input: {
   publicacoes: readonly ContentPlataforma[];
   contentId: string;
@@ -152,11 +156,19 @@ export function criarRepost(input: {
 }): ContentPlataforma[] {
   const id = (input.criarId ?? generateUUID)();
   const data = input.publishDate.trim();
+  let ciclo = 2;
+  for (const publicacao of input.publicacoes) {
+    const atual = typeof publicacao.ciclo === 'number' && publicacao.ciclo >= 1
+      ? publicacao.ciclo
+      : (publicacao.publicationKind === 'repost' ? 2 : 1);
+    if (atual + 1 > ciclo) ciclo = atual + 1;
+  }
   return [
     ...input.publicacoes,
     {
       ...criarPublicacaoAgendada(input.contentId, input.platformId, id),
       publicationKind: 'repost',
+      ciclo,
       publishDate: data || null,
       publishTime: input.publishTime ?? null,
       publishDateEnabled: Boolean(data),

@@ -38,7 +38,7 @@ const pilaresGrandes: PilarContagem[] = [
   { id: 'pilar-b', nome: 'Bastidores', ativo: true, frequenciaSemanal: 6 },
 ];
 
-function testIgnoraRepostEQuemEstaFora() {
+function testContaCicloDeRepostEIgnoraFora() {
   const resultado = countGrade({
     pilares: pilaresGrandes,
     settings: { distribuicaoFuncoes: PERCENTUAIS },
@@ -49,7 +49,8 @@ function testIgnoraRepostEQuemEstaFora() {
       entrada({ id: 'fora', data: '2026-04-28', contaNaGrade: false, pilarId: 'pilar-b' }),
       entrada({ id: 'outra-semana', data: '2026-05-04', pilarId: 'pilar-b', funcao: 'comunidade' }),
       entrada({
-        id: 'repost',
+        id: 'c1:ciclo:2',
+        contentId: 'a1',
         tipo: 'repost',
         data: '2026-04-30',
         pilarId: 'pilar-b',
@@ -64,12 +65,12 @@ function testIgnoraRepostEQuemEstaFora() {
   assert.equal(resultado.periodo.fim, '2026-05-02');
   assert.equal(resultado.limite, null);
   assert.equal(resultado.totalMeta, null);
-  assert.equal(resultado.previsto, 2);
-  assert.equal(resultado.publicado, 1);
-  assert.equal(resultado.comPauta, 1);
-  assert.equal(resultado.somaPlanejado, 2);
+  assert.equal(resultado.previsto, 3);
+  assert.equal(resultado.publicado, 2);
+  assert.equal(resultado.comPauta, 2);
+  assert.equal(resultado.somaPlanejado, 3);
   assert.equal(resultado.pilares.find(linha => linha.id === 'pilar-a')?.planejado, 2);
-  assert.equal(resultado.pilares.find(linha => linha.id === 'pilar-b')?.planejado, 0);
+  assert.equal(resultado.pilares.find(linha => linha.id === 'pilar-b')?.planejado, 1);
   assert.equal(resultado.notaSoma, null);
   assert.equal(resultado.objetivos.find(linha => linha.id === 'reter')?.meta, null);
 }
@@ -438,7 +439,7 @@ function testContaPorEtapa() {
   assert.equal(resultado.itens.find(item => item.contentId === 'sem-data')?.postItId, 'ligado');
 }
 
-testIgnoraRepostEQuemEstaFora();
+testContaCicloDeRepostEIgnoraFora();
 testPercentualAntigoNaoViraLimite();
 testSemanaParcialUsaLimiteDoIntervalo();
 testGradePequenaNaoAlargaOPeriodo();

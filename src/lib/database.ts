@@ -399,6 +399,8 @@ export interface ContentPlataforma {
   publishDateEnabled?: boolean;
   /** post = publicação original, repost = republicação */
   publicationKind?: PublicationKind;
+  /** Ciclo de publicação. 1 = original; 2+ = reaproveitamento. Ausente no banco antigo = 1. */
+  ciclo?: number;
   status?: PublicacaoStatus;
   /** O que a pessoa informou. A API, na fase 3, não apaga este valor. */
   realizadaManualEm?: string | null;
@@ -828,6 +830,10 @@ function isMissingPublicationKindColumn(error: {message?: string} | null | undef
   return !!error?.message?.includes('publication_kind');
 }
 
+function isMissingCicloColumn(error: {message?: string} | null | undefined) {
+  return !!error?.message?.includes('ciclo');
+}
+
 function isMissingMilestoneColumn(error: {message?: string} | null | undefined) {
   return !!error?.message?.includes("'recorded_at'") || !!error?.message?.includes("'posted_at'");
 }
@@ -1037,6 +1043,9 @@ function mapContentPlataforma(p: Row): ContentPlataforma {
     publishTime: p.publish_time,
     publishDateEnabled: p.publish_date_enabled ?? (p.publish_date != null),
     publicationKind: p.publication_kind === 'repost' ? 'repost' : 'post',
+    ciclo: typeof p.ciclo === 'number' && p.ciclo >= 1
+      ? Math.floor(p.ciclo)
+      : (p.publication_kind === 'repost' ? 2 : 1),
     status: readPublicacaoStatus(p.status),
     realizadaManualEm: p.realizada_manual_em ?? null,
     realizadaApiEm: p.realizada_api_em ?? null,
@@ -3316,6 +3325,7 @@ export async function saveContentPlataformas(
       publish_time: plataforma.publishTime,
       publish_date_enabled: plataforma.publishDateEnabled ?? (plataforma.publishDate != null),
       publication_kind: plataforma.publicationKind ?? 'post',
+      ciclo: plataforma.ciclo ?? (plataforma.publicationKind === 'repost' ? 2 : 1),
       status: plataforma.status === 'agendada' ? 'prevista' : (plataforma.status ?? 'prevista'),
       realizada_manual_em: plataforma.realizadaManualEm ?? null,
       realizada_api_em: plataforma.realizadaApiEm ?? null,
@@ -3330,6 +3340,7 @@ export async function saveContentPlataformas(
 
     let includePublicacao = true;
     let includeKind = true;
+    let includeCiclo = true;
     let includeTime = true;
     let saved = rows.length === 0;
 
@@ -3338,7 +3349,7 @@ export async function saveContentPlataformas(
       return error;
     };
 
-    for (let attempt = 0; attempt < 6 && !saved; attempt += 1) {
+    for (let attempt = 0; attempt < 8 && !saved; attempt += 1) {
       const payload = rows.map(row => {
         const next: Record<string, unknown> = {...row};
         if (!includePublicacao) {
@@ -3352,6 +3363,7 @@ export async function saveContentPlataformas(
           delete next.updated_at;
         }
         if (!includeKind) delete next.publication_kind;
+        if (!includeCiclo) delete next.ciclo;
         if (!includeTime) delete next.publish_time;
         return next;
       });
@@ -3366,6 +3378,10 @@ export async function saveContentPlataformas(
       }
       if (includeKind && isMissingPublicationKindColumn(error)) {
         includeKind = false;
+        continue;
+      }
+      if (includeCiclo && isMissingCicloColumn(error)) {
+        includeCiclo = false;
         continue;
       }
       if (includeTime && isMissingPublishTimeColumn(error)) {

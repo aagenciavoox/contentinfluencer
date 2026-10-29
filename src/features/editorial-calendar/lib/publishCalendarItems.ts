@@ -3,6 +3,7 @@ import type { Content, ContentPlataforma } from '../../../lib/database.ts';
 import { platformKey } from '../../../components/ui/platformName.ts';
 import { contaDaRef, rotuloDaRef, type ContaRef } from '../../contas/lib/contas.ts';
 import { CONTENT_STATUS, DISPLAY_STATUS, getDisplayStatus, isReadyToPublish, normalizeContentStatus } from '../../contents/lib/contentPipeline.ts';
+import { cicloDaPublicacao } from '../../editorial/lib/cicloPublicacao.ts';
 import { buildGradeEntries, quandoDoItem, type GradeSerie, type Quando } from '../../editorial/lib/gradeEntries.ts';
 import { dataRealizada, earliestRealizadaEm, rotuloStatusPublicacao } from '../../editorial/lib/markPublished.ts';
 import { normalizePublicacaoStatus } from '../../editorial/lib/publicacaoSituacao.ts';
@@ -118,25 +119,37 @@ function itensSemReferencia(content: Content, platforms: readonly PlatformRef[])
     programada: originais.some(item => normalizePublicacaoStatus(item.status) === 'programada'),
   }];
 
-  for (const repost of publicacoes) {
-    if (repost.publicationKind !== 'repost') continue;
-    const repostPosted = publicacaoPostada(content, repost);
+  const porCiclo = new Map();
+  for (const publicacao of publicacoes) {
+    const ciclo = cicloDaPublicacao(publicacao);
+    if (ciclo < 2) continue;
+    if (cancelada(publicacao)) continue;
+    const lista = porCiclo.get(ciclo) ?? [];
+    lista.push(publicacao);
+    porCiclo.set(ciclo, lista);
+  }
+  for (const [ciclo, lista] of [...porCiclo.entries()].sort((a, b) => a[0] - b[0])) {
+    const representante = [...lista].sort((a, b) =>
+      (a.publishDate ?? '').localeCompare(b.publishDate ?? ''),
+    )[0] ?? lista[0];
+    if (!representante) continue;
+    const repostPosted = lista.some(item => publicacaoPostada(content, item));
     const quandoRepost = quandoDoItem(
       content,
-      planejado(repost.publishDate, repost.publishTime),
+      planejado(representante.publishDate, representante.publishTime),
       repostPosted,
-      realizadaEm([repost]),
+      realizadaEm(lista),
     );
     itens.push({
-      id: `${content.id}:repost:${repost.id}`,
+      id: `${content.id}:ciclo:${ciclo}`,
       contentId: content.id,
       date: quandoRepost.date,
       time: quandoRepost.time,
-      plataformaId: repost.id,
-      platformNames: [platformName(repost.platformId, platforms)],
+      plataformaId: representante.id,
+      platformNames: uniqueNames(lista.map(item => platformName(item.platformId, platforms))),
       posted: repostPosted,
-      cancelled: cancelada(repost),
-      programada: normalizePublicacaoStatus(repost.status) === 'programada',
+      cancelled: false,
+      programada: lista.some(item => normalizePublicacaoStatus(item.status) === 'programada'),
     });
   }
 
@@ -244,35 +257,44 @@ export function buildPublishCalendarItems(input: {
       ...publicacao,
       platformId: canonicalPlatformId(publicacao.platformId, input.platforms),
     }));
-    const repostId = entry.tipo === 'repost'
-      ? entry.id.split(':repost:')[1]
-      : undefined;
+    const cicloMatch = entry.tipo === 'repost'
+      ? /:ciclo:(\d+)$/.exec(entry.id)
+      : null;
+    const ciclo = cicloMatch ? Number(cicloMatch[1]) : null;
+    const doCiclo = ciclo != null
+      ? publicacoes.filter(publicacao => cicloDaPublicacao(publicacao) === ciclo)
+      : [];
     const nomes = entry.tipo === 'repost'
       ? [platformName(referenciaId || '', input.platforms)].filter(nome => nome && nome !== (referenciaId || ''))
       : uniqueNames(
         publicacoes
-          .filter(publicacao => publicacao.publicationKind !== 'repost')
+          .filter(publicacao => cicloDaPublicacao(publicacao) === 1)
           .map(publicacao => platformName(publicacao.platformId, input.platforms)),
       );
     const original = publicacoes.find(publicacao =>
-      publicacao.publicationKind !== 'repost' && publicacao.platformId === referenciaId,
+      cicloDaPublicacao(publicacao) === 1 && publicacao.platformId === referenciaId,
     );
-    const repost = repostId ? publicacoes.find(publicacao => publicacao.id === repostId) : undefined;
+    const repost = doCiclo.find(publicacao => publicacao.platformId === referenciaId)
+      ?? doCiclo[0];
     const publicacao = entry.tipo === 'repost' ? repost : original;
-    const posted = publicacaoPostada(content, publicacao);
+    const posted = entry.tipo === 'repost'
+      ? doCiclo.some(item => publicacaoPostada(content, item))
+      : publicacaoPostada(content, publicacao);
 
     return [{
       id: entry.id,
       contentId: entry.contentId,
       date: entry.data,
       time: entry.hora,
-      plataformaId: repostId || original?.id,
+      plataformaId: publicacao?.id ?? original?.id,
       platformNames: entry.tipo === 'repost' && referenciaId
         ? [platformName(referenciaId, input.platforms)]
         : nomes,
       posted,
       cancelled: cancelada(publicacao),
-      programada: normalizePublicacaoStatus(publicacao?.status) === 'programada',
+      programada: entry.tipo === 'repost'
+        ? doCiclo.some(item => normalizePublicacaoStatus(item.status) === 'programada')
+        : normalizePublicacaoStatus(publicacao?.status) === 'programada',
     }];
   });
 }

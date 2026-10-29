@@ -6,7 +6,7 @@ import {CONTENT_STATUS, getDisplayStatus, isReadyToPublish} from '../../../lib/c
 import type {PostingAlert} from '../../../lib/contentPipeline';
 import {useRef, useState} from 'react';
 import {useAppContext} from '../../../../../context/AppContext';
-import {criarRepost} from '../../../../editorial/lib/destinations';
+import {cicloDaPublicacao, criarCicloDeRepost} from '../../../../editorial/lib/cicloPublicacao';
 import {retirarPrevisao} from '../../../../editorial/lib/dataVencida';
 import {progressoPublicacao} from '../../../../editorial/lib/publicacaoSituacao';
 import {PlatformCopyEditor} from '../PlatformCopyEditor';
@@ -306,9 +306,10 @@ export function PublishingSection({
         <section className="rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-6 md:rounded-[var(--radius-card)] md:p-7">
           <p className="text-sm font-semibold text-[var(--text-primary)]">Repostar</p>
           <p className="mt-1 text-sm text-[var(--text-secondary)]">
+            Abre um ciclo novo no mesmo conteúdo, sem desfazer a publicação anterior nem as métricas.
             {referencia
-              ? 'Cria outra publicação em ' + rotuloConta(referencia) + ', com a data dela. Ela entra na grade como um item próprio.'
-              : 'Escolha a conta base nos Ajustes do Editorial para o repost entrar na grade.'}
+              ? ` Entra na grade pela conta base (${rotuloConta(referencia)}).`
+              : ' Escolha a conta base nos Ajustes do Editorial para o ciclo entrar na grade.'}
           </p>
           <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end">
             <label className="block sm:min-w-[220px]">
@@ -325,11 +326,20 @@ export function PublishingSection({
               disabled={!referencia || !repostDate}
               onClick={() => {
                 if (!referencia || !repostDate) return;
+                const ciclo1 = draft.plataformas.filter(
+                  item => cicloDaPublicacao(item) === 1 && item.status !== 'nao_publicada' && item.status !== 'removida',
+                );
+                const platformIds = [...new Set(
+                  (ciclo1.length > 0 ? ciclo1 : draft.plataformas).map(item => item.platformId),
+                )];
+                const ids = platformIds.includes(referencia.id)
+                  ? platformIds
+                  : [referencia.id, ...platformIds];
                 onChange({
-                  plataformas: criarRepost({
+                  plataformas: criarCicloDeRepost({
                     publicacoes: draft.plataformas,
                     contentId,
-                    platformId: referencia.id,
+                    platformIds: ids.length > 0 ? ids : [referencia.id],
                     publishDate: repostDate + 'T12:00:00.000Z',
                   }),
                 });

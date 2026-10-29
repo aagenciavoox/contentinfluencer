@@ -101,6 +101,7 @@ function testRepostTemDataPropria() {
   });
   const repost = next.find(item => item.id === 'repost-1');
   assert.equal(repost?.publicationKind, 'repost');
+  assert.equal(repost?.ciclo, 2);
   assert.equal(repost?.publishDate, '2026-10-12');
   assert.equal(repost?.status, 'prevista');
 }

@@ -1,5 +1,6 @@
 import type { Content, ContentPlataforma, FuncaoEditorial, Serie } from '../../../lib/database.ts';
 import { CONTENT_STATUS, normalizeContentStatus } from '../../contents/lib/contentPipeline.ts';
+import { cicloDaPublicacao } from './cicloPublicacao.ts';
 import { contaNaGradeEfetiva, type ContaNaGradeOrigem } from './contaNaGradeOrigem.ts';
 import { type DestinoPlataforma, mesmoDestino, resolverRedeReferencia } from './destinations.ts';
 import { resolveFuncao } from './funcoes.ts';
@@ -109,15 +110,11 @@ function naRede(platformId: string, redeId: string | null, platforms: readonly D
   return rede != null && mesmoDestino(platformId, rede);
 }
 
-function ehRepost(publicacao: ContentPlataforma): boolean {
-  return publicacao.publicationKind === 'repost';
-}
-
 /**
  * Entradas da grade, calculadas. Não há tabela de entradas.
- * Cada roteiro conta uma vez, na data da publicação de referência —
+ * Cada roteiro conta uma vez no ciclo 1, na data da publicação de referência —
  * mesmo quando essa publicação está fora da rede de base.
- * Repost sai com tipo próprio para o calendário e não entra no limite.
+ * Ciclos 2+ (repost) saem com tipo próprio: um item por ciclo, várias redes contam uma vez.
  * Sem publicação, a data do roteiro.
  */
 export function buildGradeEntries({
@@ -182,21 +179,42 @@ export function buildGradeEntries({
     });
 
     const publicacoes = content.plataformas ?? [];
+    const porCiclo = new Map<number, ContentPlataforma[]>();
     for (const publicacao of publicacoes) {
-      if (!ehRepost(publicacao)) continue;
-      if (!naRede(publicacao.platformId, ref.redeBaseId, platforms)) continue;
-      const publicada = publicacao.status === 'publicada';
-      const realizadaEmRepost = publicada ? dataRealizada(publicacao) : null;
-      const planoRepost: Quando = { date: dia(publicacao.publishDate), time: horaDe(publicacao.publishTime) };
+      const ciclo = cicloDaPublicacao(publicacao);
+      if (ciclo < 2) continue;
+      if (publicacao.status === 'nao_publicada' || publicacao.status === 'removida') continue;
+      const lista = porCiclo.get(ciclo) ?? [];
+      lista.push(publicacao);
+      porCiclo.set(ciclo, lista);
+    }
+
+    for (const [ciclo, lista] of [...porCiclo.entries()].sort((a, b) => a[0] - b[0])) {
+      const naRef = lista.find(item => naRede(item.platformId, ref.redeBaseId, platforms));
+      // Com rede de base, o ciclo só entra se tiver publicação nela (como o repost antigo).
+      if (ref.redeBaseId && !naRef) continue;
+      const representante = naRef
+        ?? [...lista].sort((a, b) => (a.publishDate ?? '').localeCompare(b.publishDate ?? ''))[0]
+        ?? lista[0];
+      if (!representante) continue;
+      const publicada = lista.some(item => item.status === 'publicada');
+      const realizadaEmRepost = publicada
+        ? (naRef && naRef.status === 'publicada' ? dataRealizada(naRef) : dataRealizada(representante))
+        : null;
+      const planoRepost: Quando = {
+        date: dia(representante.publishDate),
+        time: horaDe(representante.publishTime),
+      };
       const quandoRepost = quandoDoItem(content, planoRepost, publicada, realizadaEmRepost);
+      const contaCiclo = lista.every(item => item.contaNaGrade !== false);
       entradas.push({
-        id: `${content.id}:repost:${publicacao.id}`,
+        id: `${content.id}:ciclo:${ciclo}`,
         contentId: content.id,
         tipo: 'repost',
         data: quandoRepost.date,
         hora: quandoRepost.time,
         ...classificacao,
-        contaNaGrade: classificacao.contaNaGrade && publicacao.contaNaGrade !== false,
+        contaNaGrade: classificacao.contaNaGrade && contaCiclo,
         realizada: publicada,
         realizadaEm: realizadaEmRepost,
         etapa: publicada ? 'postado' : etapa,

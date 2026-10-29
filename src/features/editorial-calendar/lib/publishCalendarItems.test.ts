@@ -155,6 +155,7 @@ function testRepostEntraNaGradeComDataPropria() {
     platformFilter: 'todas',
   });
   assert.deepEqual(itens.map(item => item.date), ['2026-10-06', '2026-10-20']);
+  assert.equal(itens[1]?.id, 'semana:ciclo:2');
   assert.equal(itens[1]?.plataformaId, 'repost-1');
   assert.deepEqual(itens[1]?.platformNames, ['Instagram']);
 }
@@ -345,7 +346,7 @@ function testSemRedeDeReferenciaCadaRoteiroAparece() {
     itens.map(item => ({ id: item.id, date: item.date, posted: item.posted, redes: item.platformNames })),
     [
       { id: 'com-redes:original', date: '2026-10-10', posted: true, redes: ['Instagram', 'TikTok'] },
-      { id: 'com-redes:repost:repost-1', date: '2026-10-20', posted: false, redes: ['Instagram'] },
+      { id: 'com-redes:ciclo:2', date: '2026-10-20', posted: false, redes: ['Instagram'] },
       { id: 'agendado:original', date: '2026-10-16', posted: false, redes: ['TikTok'] },
     ],
   );

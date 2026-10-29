@@ -138,15 +138,16 @@ export function markPublished<C extends ConteudoPublicavel, P extends Publicacao
   }
 
   const progresso = progressoPublicacao(nextPublicacoes);
-  // Parcial mantém Edição · Pronto; só fecha em Publicado quando todas as contas ativas saíram.
-  const completo = progresso.completo || Boolean(entradaDoRoteiro);
+  // Já Publicado não reabre com ciclo novo incompleto. Parcial no ciclo 1 mantém Edição · Pronto.
+  const jaPublicado = content.status === CONTENT_STATUS.POSTADO || Boolean(content.postedAt);
+  const completo = jaPublicado || progresso.completo || Boolean(entradaDoRoteiro);
   const status = completo ? CONTENT_STATUS.POSTADO : CONTENT_STATUS.EDICAO;
 
   return {
     content: congelarRedeReferencia({
       ...content,
       status,
-      postedAt: completo ? postedAt : (content.postedAt ?? null),
+      postedAt: completo ? (postedAt ?? content.postedAt ?? null) : (content.postedAt ?? null),
       funcao,
       funcaoOrigem,
       classificacaoCongeladaEm,

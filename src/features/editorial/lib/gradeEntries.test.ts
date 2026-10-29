@@ -202,7 +202,7 @@ function testRepostComDataPropria() {
   assert.ok(repost);
   assert.equal(original.data, '2026-10-03');
   assert.equal(original.funcao, 'atrair');
-  assert.equal(repost.id, 'com-repost:repost:ig-repost');
+  assert.equal(repost.id, 'com-repost:ciclo:2');
   assert.equal(repost.contentId, 'com-repost');
   assert.equal(repost.data, '2026-10-10');
   assert.equal(repost.hora, '11:45');
@@ -211,6 +211,7 @@ function testRepostComDataPropria() {
   assert.equal(repost.funcao, original.funcao);
   assert.equal(repost.realizada, true);
   assert.equal(repost.realizadaEm, '2026-10-10T14:45:00.000Z');
+  // TikTok no mesmo ciclo não vira segunda entrada.
   assert.equal(entries.some(entry => entry.data === '2026-10-11'), false);
 }
 

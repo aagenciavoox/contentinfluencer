@@ -174,9 +174,9 @@ function itemDeEntrada(entry: GradeEntry, temPauta: boolean): ItemContado {
 }
 
 /**
- * Originais datados no período, uma vez por roteiro.
- * Post-it ligado a um desses roteiros não vira segundo item.
- * Post-it sem data não entra. Repost não entra.
+ * Ciclos datados no período: original (ciclo 1) e cada reaproveitamento.
+ * Post-it ligado a um original não vira segundo item.
+ * Post-it sem data não entra. Várias redes do mesmo ciclo já vêm agregadas na entrada.
  */
 function montarItens(
   entries: readonly GradeEntry[],
@@ -184,6 +184,7 @@ function montarItens(
   periodo: PeriodoGrade,
 ): ItemContado[] {
   const originais = entries.filter(entry => entry.tipo === 'original');
+  const reposts = entries.filter(entry => entry.tipo === 'repost');
   const porConteudo = new Map<string, GradeEntry>();
   for (const entry of originais) {
     if (!porConteudo.has(entry.contentId)) porConteudo.set(entry.contentId, entry);
@@ -196,6 +197,11 @@ function montarItens(
     if (!entry.contaNaGrade || !noPeriodo(entry.data, periodo)) continue;
     if (contados.has(entry.contentId)) continue;
     contados.add(entry.contentId);
+    itens.push(itemDeEntrada(entry, entry.temPauta === true));
+  }
+
+  for (const entry of reposts) {
+    if (!entry.contaNaGrade || !noPeriodo(entry.data, periodo)) continue;
     itens.push(itemDeEntrada(entry, entry.temPauta === true));
   }
 

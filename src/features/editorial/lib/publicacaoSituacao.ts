@@ -1,5 +1,6 @@
 import type { ContentPlataforma, PublicacaoStatus } from '../../../lib/database.ts';
 import { isReadyToPublish } from '../../contents/lib/contentPipeline.ts';
+import { cicloDaPublicacao } from './cicloPublicacao.ts';
 
 /** Status canônicos no app. `agendada` só existe no banco legado. */
 export type SituacaoPublicacao =
@@ -41,14 +42,20 @@ export type ProgressoPublicacao = {
 };
 
 /**
- * Progresso do ciclo atual. Parcial não move o conteúdo para Publicado.
- * Ciclo sem contas ativas não fecha sozinho.
+ * Progresso do ciclo mais recente. Parcial não move o conteúdo para Publicado.
+ * Ciclo sem contas ativas não fecha sozinho. Ciclo 1 legado = publicationKind !== repost.
  */
 export function progressoPublicacao(
-  publicacoes: readonly Pick<ContentPlataforma, 'status' | 'publicationKind'>[],
+  publicacoes: readonly Pick<ContentPlataforma, 'status' | 'publicationKind' | 'ciclo'>[],
 ): ProgressoPublicacao {
+  let cicloAtual = 1;
+  for (const item of publicacoes) {
+    if (!publicacaoAtiva(item)) continue;
+    const ciclo = cicloDaPublicacao(item);
+    if (ciclo > cicloAtual) cicloAtual = ciclo;
+  }
   const ativas = publicacoes.filter(item =>
-    (item.publicationKind !== 'repost') && publicacaoAtiva(item),
+    publicacaoAtiva(item) && cicloDaPublicacao(item) === cicloAtual,
   );
   const publicadas = ativas.filter(publicacaoPublicada).length;
   const previstas = ativas.length;
